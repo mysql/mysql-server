@@ -197,7 +197,7 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
 IF(WIN32)
   ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
   TARGET_LINK_LIBRARIES(sql auth_win_client)
-ENDIF() 
+ENDIF()
 
 SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
