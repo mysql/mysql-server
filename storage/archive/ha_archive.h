@@ -72,6 +72,10 @@ class ha_archive: public handler
   archive_record_buffer *create_record_buffer(unsigned int length);
   void destroy_record_buffer(archive_record_buffer *r);
   int frm_copy(azio_stream *src, azio_stream *dst);
+  void frm_load(const char *name, azio_stream *dst);
+  int read_v1_metafile();
+  int write_v1_metafile();
+  unsigned int pack_row_v1(uchar *record);
 
 public:
   ha_archive(handlerton *hton, TABLE_SHARE *table_arg);
@@ -139,6 +143,7 @@ public:
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
   bool is_crashed() const;
+  int check_for_upgrade(HA_CHECK_OPT *check_opt);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_and_repair(THD *thd);
   uint32 max_row_length(const uchar *buf);

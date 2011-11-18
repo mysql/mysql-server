@@ -103,12 +103,9 @@ btr_cur_get_page(
 	btr_cur_t*	cursor);/*!< in: tree cursor */
 /*********************************************************//**
 Returns the index of a cursor.
+@param cursor	b-tree cursor
 @return	index */
-UNIV_INLINE
-dict_index_t*
-btr_cur_get_index(
-/*==============*/
-	btr_cur_t*	cursor);/*!< in: B-tree cursor */
+#define btr_cur_get_index(cursor) ((cursor)->index)
 /*********************************************************//**
 Positions a tree cursor at a given record. */
 UNIV_INLINE

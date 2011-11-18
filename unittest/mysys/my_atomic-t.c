@@ -164,7 +164,14 @@ void do_tests()
   test_concurrently("my_atomic_cas32", test_atomic_cas, THREADS, CYCLES);
 
   {
-    int64 b=0x1000200030004000LL;
+    /*
+      If b is not volatile, the wrong assembly code is generated on OSX Lion
+      as the variable is optimized away as a constant.
+      See Bug#62533 / Bug#13030056.
+      Another workaround is to specify architecture explicitly using e.g.
+      CFLAGS/CXXFLAGS= "-m64".
+    */
+    volatile int64 b=0x1000200030004000LL;
     a64=0;
     my_atomic_add64(&a64, b);
     ok(a64==b, "add64");

@@ -271,17 +271,16 @@ end:
   DBUG_RETURN(error);
 }
 
-int Rpl_info_table::do_check_info(const ulong *uidx, const uint nidx)
+enum_return_check Rpl_info_table::do_check_info(const ulong *uidx, const uint nidx)
 {
-  int error= 1;
   TABLE *table= NULL;
   ulong saved_mode;
   Open_tables_backup backup;
+  enum_return_check return_check= ERROR_CHECKING_REPOSITORY;
 
   DBUG_ENTER("Rpl_info_table::do_check_info");
 
   THD *thd= access->create_thd();
-
   saved_mode= thd->variables.sql_mode;
 
   /*
@@ -294,6 +293,8 @@ int Rpl_info_table::do_check_info(const ulong *uidx, const uint nidx)
     sql_print_warning("Info table is not ready to be used. Table "
                       "'%s.%s' cannot be opened.", str_schema.str,
                       str_table.str);
+
+    return_check= ERROR_CHECKING_REPOSITORY;
     goto end;
   }
 
@@ -309,18 +310,20 @@ int Rpl_info_table::do_check_info(const ulong *uidx, const uint nidx)
        really means that there was a failure but only that the
        record was not found.
     */
+    return_check= REPOSITORY_DOES_NOT_EXIST;
     goto end;
   }
-  error= 0;
+  return_check= REPOSITORY_EXISTS;
 
 end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup, error);
+  access->close_table(thd, table, &backup,
+                      return_check == ERROR_CHECKING_REPOSITORY);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);
-  DBUG_RETURN(error);
+  DBUG_RETURN(return_check);
 }
 
 void Rpl_info_table::do_end_info(const ulong *uidx, const uint nidx)
