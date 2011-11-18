@@ -707,7 +707,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
         if (((Field_varstring*) to)->length_bytes !=
             ((Field_varstring*) from)->length_bytes)
           return do_field_string;
-        if (to_length != from_length)
+        else
           return (((Field_varstring*) to)->length_bytes == 1 ?
                   (from->charset()->mbmaxlen == 1 ? do_varstring1 :
                                                     do_varstring1_mb) :
