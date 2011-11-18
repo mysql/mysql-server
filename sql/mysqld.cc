@@ -7896,7 +7896,7 @@ mysqld_get_one_option(int optid,
       val++;
 
     /* Trim trailing spaces from option value */
-    if (p= my_strchr(mysqld_charset, val, val+strlen(val), ' '))
+    if ((p= my_strchr(mysqld_charset, val, val+strlen(val), ' ')) != NULL)
       *p= 0;
 
     if (!*val)
