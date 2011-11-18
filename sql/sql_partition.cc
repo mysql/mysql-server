@@ -4669,6 +4669,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
   }
+  /* Remove partitioning on a not partitioned table is not possible */
+  if (!table->part_info && (alter_info->flags & ALTER_REMOVE_PARTITIONING))
+  {
+    my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   thd->work_part_info= thd->lex->part_info;
 
