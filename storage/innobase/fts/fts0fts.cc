@@ -1343,7 +1343,7 @@ fts_cache_node_add_positions(
 
 /**********************************************************************//**
 Add document to the cache. */
-UNIV_INTERN
+static
 void
 fts_cache_add_doc(
 /*==============*/
