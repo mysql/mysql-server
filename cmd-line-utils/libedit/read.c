@@ -333,7 +333,7 @@ memset(&state, 0, sizeof(mbstate_t));
 
 #ifdef WIDECHAR
         ++cbp;
-        if (cbp > MB_CUR_MAX) { /* "shouldn't happen" */
+        if (cbp > (size_t) MB_CUR_MAX) { /* "shouldn't happen" */
           *cp = '\0';
           return (-1);
         }
