@@ -328,6 +328,7 @@ fts_load_default_stopword(
 /*======================*/
 	fts_stopword_t*		stopword_info)	/*!< in: stopword info */
 {
+	fts_string_t		str;
 	mem_heap_t*		heap;
 	ib_alloc_t*		allocator;
 	ib_rbt_t*		stop_words;
@@ -336,8 +337,9 @@ fts_load_default_stopword(
 	heap = static_cast<mem_heap_t*>(allocator->arg);
 	stop_words = stopword_info->cached_stopword;
 
+	str.f_n_char = 0;
+
 	for (ulint i = 0; fts_default_stopword[i]; ++i) {
-		fts_string_t		str;
 		char*			word;
 		fts_tokenizer_word_t	new_word;
 
@@ -378,18 +380,20 @@ fts_read_stopword(
 	mem_heap_t*	heap;
 	ib_rbt_bound_t	parent;
 
-	stopword_info = static_cast<fts_stopword_t*>(user_arg);
 	sel_node = static_cast<sel_node_t*>(row);
+	stopword_info = static_cast<fts_stopword_t*>(user_arg);
 
-	allocator =  static_cast<ib_alloc_t*>(stopword_info->heap);
-	heap = static_cast<mem_heap_t*>(allocator->arg);
 	stop_words = stopword_info->cached_stopword;
+	heap = static_cast<mem_heap_t*>(allocator->arg);
+	allocator =  static_cast<ib_alloc_t*>(stopword_info->heap);
 
 	exp = sel_node->select_list;
 
 	/* We only need to read the first column */
 	dfield = que_node_get_val(exp);
-	str.f_str = static_cast<unsigned char*>(dfield_get_data(dfield));
+
+	str.f_n_char = 0;
+	str.f_str = static_cast<byte*>(dfield_get_data(dfield));
 	str.f_len = dfield_get_len(dfield);
 
 	/* Only create new node if it is a value not already existed */
@@ -406,6 +410,7 @@ fts_read_stopword(
 
 		memcpy(new_word.text.f_str, str.f_str, str.f_len);
 
+		new_word.text.f_n_char = 0;
 		new_word.text.f_len = str.f_len;
 		new_word.text.f_str[str.f_len] = 0;
 
