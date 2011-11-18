@@ -1699,7 +1699,7 @@ field4,field5,field6	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "alias2",
                 "row_length": 46,
@@ -1707,12 +1707,12 @@ field4,field5,field6	{
                 "unique_constraint": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 22795
-              } /* temporary_table_info */
+              } /* tmp_table_info */
             } /* creating_tmp_table */
           },
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 13,
@@ -1720,7 +1720,7 @@ field4,field5,field6	{
                 "unique_constraint": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 80659
-              } /* temporary_table_info */
+              } /* tmp_table_info */
             } /* creating_tmp_table */
           },
           {

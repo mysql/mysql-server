@@ -1553,7 +1553,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 219,
@@ -3948,7 +3948,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 235,
@@ -4236,7 +4236,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 235,
@@ -4529,7 +4529,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 235,
@@ -4850,7 +4850,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 235,
@@ -5167,7 +5167,7 @@ SELECT * FROM v1	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "v1",
                 "row_length": 210,
@@ -5477,7 +5477,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "v1",
                 "row_length": 210,
@@ -6126,7 +6126,7 @@ LIMIT 30	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "v1",
                 "row_length": 210,
@@ -6139,7 +6139,7 @@ LIMIT 30	{
           },
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "v2",
                 "row_length": 210,
@@ -6152,7 +6152,7 @@ LIMIT 30	{
           },
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 419,
@@ -6417,7 +6417,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 18,
@@ -7340,7 +7340,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "v1",
                 "row_length": 210,
@@ -7758,7 +7758,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "d1",
                 "row_length": 210,
@@ -7771,7 +7771,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
           },
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 206,

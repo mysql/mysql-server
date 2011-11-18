@@ -18660,7 +18660,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
 
 void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
 {
-  Opt_trace_object trace_tmp(trace, "temporary_table_info");
+  Opt_trace_object trace_tmp(trace, "tmp_table_info");
   trace_tmp.add_utf8_table(table);
 
   trace_tmp.add("row_length",table->s->reclength).
@@ -18855,7 +18855,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   {
     Opt_trace_context * trace= &thd->opt_trace;
     Opt_trace_object wrapper(trace);
-    Opt_trace_object convert(trace, "converting_temp_table_to_myisam");
+    Opt_trace_object convert(trace, "converting_tmp_table_to_myisam");
     DBUG_ASSERT(error == HA_ERR_RECORD_FILE_FULL);
     convert.add_alnum("cause", "memory_table_size_exceeded");
     trace_tmp_table(trace, &new_table);

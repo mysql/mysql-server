@@ -973,7 +973,7 @@ TRACE
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 3,
@@ -981,7 +981,7 @@ TRACE
                 "unique_constraint": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 349525
-              } /* temporary_table_info */
+              } /* tmp_table_info */
             } /* creating_tmp_table */
           },
           {
@@ -1365,7 +1365,7 @@ TRACE
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "teeone",
                 "row_length": 16,
@@ -1373,7 +1373,7 @@ TRACE
                 "unique_constraint": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 65536
-              } /* temporary_table_info */
+              } /* tmp_table_info */
             } /* creating_tmp_table */
           },
           {
@@ -1382,7 +1382,7 @@ TRACE
               "steps": [
                 {
                   "creating_tmp_table": {
-                    "temporary_table_info": {
+                    "tmp_table_info": {
                       "database": "",
                       "table": "intermediate_tmp_table",
                       "row_length": 22,
@@ -1390,7 +1390,7 @@ TRACE
                       "unique_constraint": false,
                       "location": "memory (heap)",
                       "row_limit_estimate": 47662
-                    } /* temporary_table_info */
+                    } /* tmp_table_info */
                   } /* creating_tmp_table */
                 },
                 {
@@ -3741,7 +3741,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "tmp",
                 "row_length": 10,
@@ -3749,7 +3749,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                 "unique_constraint": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 104857
-              } /* temporary_table_info */
+              } /* tmp_table_info */
             } /* creating_tmp_table */
           },
           {
@@ -4950,7 +4950,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
         "steps": [
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 18,
@@ -4958,7 +4958,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "unique_constraint": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 58254
-              } /* temporary_table_info */
+              } /* tmp_table_info */
             } /* creating_tmp_table */
           },
           {

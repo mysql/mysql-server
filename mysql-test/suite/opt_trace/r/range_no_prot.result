@@ -3946,7 +3946,7 @@ EXPLAIN SELECT 1 FROM
           },
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "d2",
                 "row_length": 5,
@@ -3954,7 +3954,7 @@ EXPLAIN SELECT 1 FROM
                 "unique_constraint": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 209715
-              } /* temporary_table_info */
+              } /* tmp_table_info */
             } /* creating_tmp_table */
           },
           {
@@ -4297,7 +4297,7 @@ EXPLAIN SELECT 1 FROM
           },
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "d2",
                 "row_length": 5,
@@ -4305,7 +4305,7 @@ EXPLAIN SELECT 1 FROM
                 "unique_constraint": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 209715
-              } /* temporary_table_info */
+              } /* tmp_table_info */
             } /* creating_tmp_table */
           },
           {
