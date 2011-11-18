@@ -103,17 +103,7 @@ void PFS_account_row::set_field(uint index, Field *f)
 
 int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
 {
-  /*
-    Write MD5 hash value in a string to be used as DIGEST for the statement.
-  */
-  sprintf(pfs->m_digest, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
-                      "%02x%02x%02x",
-          pfs->m_md5_hash.m_md5[0], pfs->m_md5_hash.m_md5[1], pfs->m_md5_hash.m_md5[2],
-          pfs->m_md5_hash.m_md5[3], pfs->m_md5_hash.m_md5[4], pfs->m_md5_hash.m_md5[5],
-          pfs->m_md5_hash.m_md5[6], pfs->m_md5_hash.m_md5[7], pfs->m_md5_hash.m_md5[8],
-          pfs->m_md5_hash.m_md5[9], pfs->m_md5_hash.m_md5[10], pfs->m_md5_hash.m_md5[11],
-          pfs->m_md5_hash.m_md5[12], pfs->m_md5_hash.m_md5[13], pfs->m_md5_hash.m_md5[14],
-          pfs->m_md5_hash.m_md5[15]);
+  MD5_HASH_TO_STRING(pfs->m_md5_hash.m_md5, pfs->m_digest);
   pfs->m_digest_length= 16;
   
   memcpy(m_digest, pfs->m_digest, sizeof(m_digest));

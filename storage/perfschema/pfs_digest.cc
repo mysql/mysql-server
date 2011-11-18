@@ -23,6 +23,7 @@
 #include "pfs_instr.h"
 #include "pfs_digest.h"
 #include "pfs_global.h"
+#include "ps_lex.h"
 #include <string.h>
 
 unsigned int statements_digest_size= 0;
@@ -39,12 +40,20 @@ int digest_index= 1;
 static LF_HASH digest_hash;
 static bool digest_hash_inited= false;
 
+
+static void get_digest_text(char* digest_text,
+                            unsigned int* token_array,
+                            int token_count);
+static int search_for_token(uint token,char* digest_text);
+
 /**
   Initialize table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST.
   @param digest_sizing      
 */
 int init_digest(unsigned int statements_digest_sizing)
 {
+  unsigned int index;
+
   /* 
     TBD. Allocate memory for statements_digest_stat_array based on 
     performance_schema_digests_size values
@@ -57,6 +66,10 @@ int init_digest(unsigned int statements_digest_sizing)
   statements_digest_stat_array=
     PFS_MALLOC_ARRAY(statements_digest_size, PFS_statements_digest_stat,
                      MYF(MY_ZEROFILL));
+   
+  for (index= 0; index < statements_digest_size; index++)
+  statements_digest_stat_array[index].m_stat.reset();
+
 
   return (statements_digest_stat_array ? 0 : 1);
 }
@@ -127,10 +140,14 @@ static LF_PINS* get_digest_hash_pins(PFS_thread *thread)
 }
 
 PFS_statements_digest_stat* 
-search_insert_statement_digest(PFS_thread* thread,
+find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
+/*
                                unsigned char* hash_key,
+                               unsigned int* token_array,
+                               int token_count,
                                char* digest_text,
                                unsigned int digest_text_length)
+*/
 {
   /* get digest pin. */
   LF_PINS *pins= get_digest_hash_pins(thread);
@@ -138,6 +155,10 @@ search_insert_statement_digest(PFS_thread* thread,
   {
     return NULL;
   }
+
+  unsigned char* hash_key= digest_storage->m_digest_hash.m_md5;
+  unsigned int* token_array= digest_storage->m_token_array; 
+  int token_count= digest_storage->m_token_count;
  
   PFS_statements_digest_stat **entry;
   PFS_statements_digest_stat *pfs;
@@ -169,9 +190,9 @@ search_insert_statement_digest(PFS_thread* thread,
     */
     pfs= &statements_digest_stat_array[digest_index];
     
-    /* Set digest text. */
-    memcpy(pfs->m_digest_text, digest_text, digest_text_length);
-    pfs->m_digest_text_length= digest_text_length;
+    /* Calculate and set digest text. */
+    get_digest_text(pfs->m_digest_text,token_array,token_count);
+    pfs->m_digest_text_length= strlen(pfs->m_digest_text);
 
     /* Set digest hash/LF Hash search key. */
     memcpy(pfs->m_md5_hash.m_md5, hash_key, 16);
@@ -216,5 +237,86 @@ search_insert_statement_digest(PFS_thread* thread,
 void reset_esms_by_digest()
 {
   /*TBD*/ 
+}
+
+/*
+  This function, iterates token array and updates digest_text.
+*/
+static void get_digest_text(char* digest_text,
+                            unsigned int* token_array,
+                            int token_count)
+{
+  int i= 0,ret;
+  while(i<token_count)
+  {
+    ret= search_for_token(token_array[i],digest_text);
+    if(ret < 0)
+    {
+      //TODO : add error handling for this.
+      printf("\n ERROR in get_digest_text.\n");
+    }
+    digest_text+= ret;
+    i++;
+  }
+  digest_text= '\0';
+}
+
+/*
+  This function looks for the token in symbol array and return copy
+  corresponding text into digest_text and returns number of characters
+  copied.
+*/
+static int search_for_token(uint token,char* digest_text)
+{
+  PS_SYMBOL *beg, *end, *mid;
+  int sym_count= array_elements(symbol);
+
+  beg= &symbol[0];
+  end= &symbol[sym_count-1];
+  mid= beg+sym_count/2;
+
+  /*
+    If token is not in range of symbol array then it should be a 
+    single character. Copy its char value into digest text and return.
+  */
+  if(token<beg->tok || token>end->tok)
+  {
+    *digest_text= (char)token;
+    *(digest_text+1)= '\0';
+    return 1;
+  }
+
+  /* 
+    Apply Binary search on the symbol array. 
+  */
+  while((beg <= end) && (mid->tok != token))
+  {
+    if (token < mid->tok)
+    {
+      end= mid-1;
+      sym_count= sym_count/2;
+      mid= beg+sym_count/2;
+    }
+    else
+    {
+      beg= mid+1;
+      sym_count= sym_count/2;
+      mid= beg+sym_count/2;
+    }
+  }
+
+  if (mid->tok == token)
+  {
+    int len= strlen(mid->name);
+    strcpy(digest_text,mid->name);
+    *(digest_text+len)= ' ';
+    *(digest_text+len+1)= '\0';
+    return len+1;
+  }
+  
+  /* 
+    Token not found. This should never happen.
+  */
+  return -1;
 }
 

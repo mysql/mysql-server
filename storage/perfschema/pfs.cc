@@ -43,6 +43,9 @@
 #include "my_md5.h"
 #include "pfs_digest.h"
 
+#include "sql/sql_yacc.h"
+#include "sql/lex_symbol.h"
+
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
   MySQL PERFORMANCE_SCHEMA implementation.
@@ -4504,6 +4507,13 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   PFS_statement_stat *event_name_array;
   uint index= klass->m_event_name_index;
   PFS_statement_stat *stat;
+  
+  /*
+   Capture statement stats by digest.
+  */
+  PFS_digest_storage *digest_storage;
+  PFS_statement_stat *digest_stat;
+
   if (flags & STATE_FLAG_THREAD)
   {
     PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
@@ -4542,6 +4552,23 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       }
 
       pfs->m_timer_end= timer_end;
+  
+      /*
+        Set digest stat.
+      */
+      digest_storage= &pfs->m_digest_storage;
+      //  Populate PFS_statements_digest_stat with computed digest information.
+      pfs->statement_digest_stat_ptr= 
+                         find_or_create_digest(thread, digest_storage);
+/*
+                                               digest_storage->m_digest_hash.m_md5,
+                                               digest_storage->m_token_array,
+                                               digest_storage->m_token_count,
+                                               pfs->m_sqltext,
+                                               pfs->m_sqltext_length);
+*/
+      digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
+
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
       if (flag_events_statements_history_long)
@@ -4553,6 +4580,27 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   }
   else
   {
+    PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
+    DBUG_ASSERT(pfs != NULL);
+
+    /*
+      Set digest stat.
+    */
+    digest_storage= &pfs->m_digest_storage;
+
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    //  Populate PFS_statements_digest_stat with computed digest information.
+    pfs->statement_digest_stat_ptr= 
+                       find_or_create_digest(pfs_thread, digest_storage);
+/*
+                                             digest_storage->m_digest_hash.m_md5,
+                                             digest_storage->m_token_array,
+                                             digest_storage->m_token_count,
+                                             pfs->m_sqltext,
+                                             pfs->m_sqltext_length);
+*/
+    digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
+
     event_name_array= global_instr_class_statements_array;
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME */
     stat= & event_name_array[index];
@@ -4585,6 +4633,32 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   stat->m_sort_scan+= state->m_sort_scan;
   stat->m_no_index_used+= state->m_no_index_used;
   stat->m_no_good_index_used+= state->m_no_good_index_used;
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    digest_stat->aggregate_value(wait_time);
+  }
+  else
+  {
+    digest_stat->aggregate_counted();
+  }
+
+  digest_stat->m_lock_time+= state->m_lock_time;
+  digest_stat->m_rows_sent+= state->m_rows_sent;
+  digest_stat->m_rows_examined+= state->m_rows_examined;
+  digest_stat->m_created_tmp_disk_tables+= state->m_created_tmp_disk_tables;
+  digest_stat->m_created_tmp_tables+= state->m_created_tmp_tables;
+  digest_stat->m_select_full_join+= state->m_select_full_join;
+  digest_stat->m_select_full_range_join+= state->m_select_full_range_join;
+  digest_stat->m_select_range+= state->m_select_range;
+  digest_stat->m_select_range_check+= state->m_select_range_check;
+  digest_stat->m_select_scan+= state->m_select_scan;
+  digest_stat->m_sort_merge_passes+= state->m_sort_merge_passes;
+  digest_stat->m_sort_range+= state->m_sort_range;
+  digest_stat->m_sort_rows+= state->m_sort_rows;
+  digest_stat->m_sort_scan+= state->m_sort_scan;
+  digest_stat->m_no_index_used+= state->m_no_index_used;
+  digest_stat->m_no_good_index_used+= state->m_no_good_index_used;
 
   switch(da->status())
   {
@@ -4814,7 +4888,7 @@ static struct PSI_digest_locker* digest_start_v1(PSI_statement_locker *locker)
   /* 
     Take out thread specific statement record. And then digest
     storage information for this statement from it.
- */
+  */
   pfs= reinterpret_cast<PFS_events_statements*>(statement_state->m_statement);
   digest_storage= &pfs->m_digest_storage;
 
@@ -4825,7 +4899,7 @@ static struct PSI_digest_locker* digest_start_v1(PSI_statement_locker *locker)
     digest_storage->m_token_array[--digest_storage->m_token_count]= 0;
   
   /*
-    Set digest_locker_state's digest storage pointer.
+    Set digest_locker_state's statement info pointer.
   */
   state->m_statement= pfs;
 
@@ -4892,23 +4966,12 @@ static void digest_end_v1(PSI_digest_locker *locker)
   pfs= reinterpret_cast<PFS_events_statements *>(state->m_statement);
   digest_storage= &pfs->m_digest_storage;
   
-  //printf("\n statement_text = [%s]\n",pfs->m_sqltext);
-
   /* 
     Calculate MD5 Hash of the tokens recieved.
   */
   MY_MD5_HASH(digest_storage->m_digest_hash.m_md5, (unsigned char *)digest_storage->m_token_array,
               (uint) sizeof(digest_storage->m_token_array));
 
-  /* 
-    Populate PFS_statements_digest_stat with computed digest information.
-  */
-  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-  pfs->statement_digest_stat_ptr= 
-                         search_insert_statement_digest(pfs_thread,
-                                                        digest_storage->m_digest_hash.m_md5,
-                                                        pfs->m_sqltext,
-                                                        pfs->m_sqltext_length);
   /* 
      Not resetting digest_storage->m_token_count to 0 here as it will be done in 
      digest_start.
