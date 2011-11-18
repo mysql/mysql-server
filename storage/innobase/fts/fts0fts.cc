@@ -384,8 +384,8 @@ fts_read_stopword(
 	stopword_info = static_cast<fts_stopword_t*>(user_arg);
 
 	stop_words = stopword_info->cached_stopword;
-	heap = static_cast<mem_heap_t*>(allocator->arg);
 	allocator =  static_cast<ib_alloc_t*>(stopword_info->heap);
+	heap = static_cast<mem_heap_t*>(allocator->arg);
 
 	exp = sel_node->select_list;
 
