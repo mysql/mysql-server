@@ -438,7 +438,7 @@ enum_return_status GTID_set::add(const char *text, bool *anonymous)
       if (sid.parse(s) != 0)
         goto parse_error;
       s += rpl_sid::TEXT_LENGTH;
-      rpl_sidno sidno= sid_map->add_permanent(&sid, 0);
+      rpl_sidno sidno= sid_map->add_permanent(&sid);
       if (sidno <= 0)
         RETURN_REPORTED_ERROR;
       PROPAGATE_REPORTED_ERROR(ensure_sidno(sidno));

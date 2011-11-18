@@ -247,7 +247,7 @@ public:
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_mngr *cache_mngr,
                    class binlog_cache_data *binlog_cache_data,
-                   bool prepared, my_off_t offset_after_last_statement);
+                   bool prepared);
   int  do_write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
 
   void set_write_error(THD *thd, bool is_transactional);

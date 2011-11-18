@@ -27,7 +27,7 @@ DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # GROUPS: GTID:(X,X)
 SET @@SESSION.GTID_NEXT= 'GTID';
-SET TIMESTAMP=t/*!*/;
+SET TIMESTAMP=10000/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
@@ -40,22 +40,22 @@ BEGIN
 /*!*/;
 SET @`a b`:=_latin1 0x68656C6C6F COLLATE `latin1_swedish_ci`/*!*/;
 use test/*!*/;
-SET TIMESTAMP=t/*!*/;
+SET TIMESTAMP=10000/*!*/;
 INSERT INTO t1 VALUES(@`a b`)
 /*!*/;
-SET TIMESTAMP=t/*!*/;
+SET TIMESTAMP=10000/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID';
-SET TIMESTAMP=t/*!*/;
+SET TIMESTAMP=10000/*!*/;
 BEGIN
 /*!*/;
 SET @`var1`:=_latin1 0x273B616161 COLLATE `latin1_swedish_ci`/*!*/;
 SET @`var2`:=_binary 0x61 COLLATE `binary`/*!*/;
-SET TIMESTAMP=t/*!*/;
+SET TIMESTAMP=10000/*!*/;
 insert into t1 values (@var1),(@var2)
 /*!*/;
-SET TIMESTAMP=t/*!*/;
+SET TIMESTAMP=10000/*!*/;
 COMMIT
 /*!*/;
 DELIMITER ;
