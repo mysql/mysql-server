@@ -3,22 +3,10 @@ include/master-slave.inc
 show variables like 'slave_allow_batching';
 Variable_name	Value
 slave_allow_batching	OFF
-Show that slave_allow_batching cannot be changed while slave is running
-set global slave_allow_batching=ON;
-ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
-show warnings;
-Level	Code	Message
-Error	1198	This operation cannot be performed with a running slave; run STOP SLAVE first
-show variables like 'slave_allow_batching';
-Variable_name	Value
-slave_allow_batching	OFF
-Now stop slave and change it
-stop slave;
 set global slave_allow_batching=ON;
 show variables like 'slave_allow_batching';
 Variable_name	Value
 slave_allow_batching	ON
-start slave;
 Now the normal test
 CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), INDEX (C1)) ENGINE = 'INNODB'  ;
 SELECT * FROM t1;
