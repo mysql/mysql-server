@@ -1082,7 +1082,7 @@ public:
     @retval  false on success
     @retval  true  on error
   */
-  virtual bool get_timeval(struct timeval *tm);
+  virtual bool get_timeval(struct timeval *tm, int *warnings);
   virtual bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   /*
@@ -1989,7 +1989,7 @@ public:
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
-  bool get_timeval(struct timeval *tm);
+  bool get_timeval(struct timeval *tm, int *warnings);
   bool is_null() { return field->is_null(); }
   void update_null_value();
   Item *get_tmp_table_item(THD *thd);

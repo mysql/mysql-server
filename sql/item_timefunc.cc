@@ -1474,14 +1474,19 @@ bool Item_func_unix_timestamp::val_timeval(struct timeval *tm)
     tm->tv_usec= 0;
     return false; // no args: null_value is set in constructor and is always 0.
   }
-  if (args[0]->get_timeval(tm)) // Don't set null_value here
+  int warnings= 0;
+  if (args[0]->get_timeval(tm, &warnings)) // Don't set null_value here
   {
-    tm->tv_sec= tm->tv_usec= 0;
     /*
-      We set null_value only if args[0] returned null.
+      We set null_value only if args[0]->get_date() invoked
+      inside args[0]->get_timeval() returned null,
+      which is indicated by "warnings == 0".
       In case of wrong non-null datetime parameter we return 0.
+      "warnings" will not be equal to 0 in this case.
     */
-    return (null_value= args[0]->null_value);
+    if (warnings == 0)
+      return (null_value= true);
+    tm->tv_sec= tm->tv_usec= 0;
   }
   return (null_value= false);
 }
@@ -1502,10 +1507,9 @@ longlong Item_func_unix_timestamp::val_int_endpoint(bool left_endp, bool *incl_e
   DBUG_ASSERT(arg_count == 1 &&
               args[0]->type() == Item::FIELD_ITEM &&
               args[0]->field_type() == MYSQL_TYPE_TIMESTAMP);
-  Field *field=((Item_field*) args[0])->field;
   /* Leave the incl_endp intact */
   struct timeval tm;
-  return (null_value= field->get_timestamp(&tm)) ? 0 : tm.tv_sec;
+  return val_timeval(&tm) ?  0 : tm.tv_sec;
 }
 
 
