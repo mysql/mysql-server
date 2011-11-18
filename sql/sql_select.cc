@@ -4587,12 +4587,9 @@ skip_conversion:
           Some precaution is needed when dealing with PS/SP:
           fix_prepare_info_in_table_list() sets prep_on_expr, but only for
           tables, not for join nest objects. This is instead populated in
-          simplify_joins(), which is called after this function. Hence, we need
-          to check that *tree is non-NULL before calling replace_subcondition.
+          simplify_joins(), which is called after this function. The case
+          where *tree is NULL is handled by this procedure.
         */
-        DBUG_ASSERT((*subq)->embedding_join_nest->nested_join ?
-                    *tree == NULL :
-                    *tree != NULL);
       }
       else
         tree= &select_lex->prep_where;
