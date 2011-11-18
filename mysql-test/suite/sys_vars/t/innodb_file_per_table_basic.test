@@ -4,7 +4,7 @@
 #                                                                             #
 # Variable Name: innodb_file_per_table                                        #
 # Scope: Global                                                               #
-# Access Type: Static                                                         #
+# Access Type: Dynamic                                                        #
 # Data Type: boolean                                                          #
 #                                                                             #
 #                                                                             #
@@ -24,6 +24,10 @@
 
 --source include/have_innodb.inc
 
+SET @start_global_value = @@global.innodb_file_per_table;
+SELECT @start_global_value;
+
+
 --echo '#---------------------BS_STVARS_028_01----------------------#'
 ####################################################################
 #   Displaying default value                                       #
@@ -37,11 +41,17 @@ SELECT COUNT(@@GLOBAL.innodb_file_per_table);
 #   Check if Value can set                                         #
 ####################################################################
 
-SELECT COUNT(@@GLOBAL.innodb_file_per_table);
---echo 1 Expected
+SET @@global.innodb_file_per_table = 0;
+SELECT @@global.innodb_file_per_table;
 
+SET @@global.innodb_file_per_table ='On' ;
+SELECT @@global.innodb_file_per_table;
 
+SET @@global.innodb_file_per_table ='Off' ;
+SELECT @@global.innodb_file_per_table;
 
+SET @@global.innodb_file_per_table = 1;
+SELECT @@global.innodb_file_per_table;
 
 --echo '#---------------------BS_STVARS_028_03----------------------#'
 #################################################################
@@ -93,6 +103,10 @@ SELECT COUNT(@@GLOBAL.innodb_file_per_table);
 
 --Error ER_BAD_FIELD_ERROR
 SELECT innodb_file_per_table = @@SESSION.innodb_file_per_table;
---echo Expected error 'Readonly variable'
 
+#
+# Cleanup
+#
 
+SET @@global.innodb_file_per_table = @start_global_value;
+SELECT @@global.innodb_file_per_table;

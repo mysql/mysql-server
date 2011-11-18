@@ -1,8 +1,7 @@
 ################# mysql-test\t\innodb_autoinc_lock_mode_basic.test ############
 #                                                                             #
 # Variable Name: innodb_autoinc_lock_mode                                     #
-# Scope: GLOBAL                                                               #
-# Access Type: Dynamic                                                        #
+# Access Type: Static                                                         #
 # Data Type: Numeric                                                          #
 # Default Value: 1                                                            #
 # Range: 0,1,2                                                                #

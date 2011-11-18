@@ -312,18 +312,18 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
  * The most important functions during semi-syn replication listed:
  *
  * Master:
- *  . reportReplyBinlog(): called by the binlog dump thread when it receives
- *                         the slave's status information.
- *  . updateSyncHeader():  based on transaction waiting information, decide
- *                         whether to request the slave to reply.
- *  . writeTraxInBinlog(): called by the transaction thread when it finishes
- *                         writing all transaction events in binlog.
- *  . commitTrx():         transaction thread wait for the slave reply.
+ *  . reportReplyBinlog():  called by the binlog dump thread when it receives
+ *                          the slave's status information.
+ *  . updateSyncHeader():   based on transaction waiting information, decide
+ *                          whether to request the slave to reply.
+ *  . writeTranxInBinlog(): called by the transaction thread when it finishes
+ *                          writing all transaction events in binlog.
+ *  . commitTrx():          transaction thread wait for the slave reply.
  *
  * Slave:
  *  . slaveReadSyncHeader(): read the semi-sync header from the master, get the
- *                         sync status and get the payload for events.
- *  . slaveReply():        reply to the master about the replication progress.
+ *                           sync status and get the payload for events.
+ *  . slaveReply():          reply to the master about the replication progress.
  *
  ******************************************************************************/
 
