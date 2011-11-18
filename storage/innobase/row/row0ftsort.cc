@@ -367,14 +367,16 @@ row_merge_fts_doc_tokenize(
 	ulint		i;
 	ulint		inc;
 	fts_string_t	str;
-	dfield_t*	field;
 	ulint		len;
+	row_merge_buf_t* buf;
+	dfield_t*	field;
+	fts_string_t	t_str;
+	ibool		buf_full = FALSE;
 	byte		str_buf[FTS_MAX_WORD_LEN + 1];
 	ulint		data_size[FTS_NUM_AUX_INDEX];
 	ulint		n_tuple[FTS_NUM_AUX_INDEX];
-	row_merge_buf_t* buf;
-	ibool		buf_full = FALSE;
 
+	t_str.f_n_char = 0;
 	t_ctx->buf_used = 0;
 
 	memset(n_tuple, 0, FTS_NUM_AUX_INDEX * sizeof(ulint));
@@ -383,13 +385,11 @@ row_merge_fts_doc_tokenize(
 	/* Tokenize the data and add each word string, its corresponding
 	doc id and position to sort buffer */
 	for (i = t_ctx->processed_len; i < doc->text.f_len; i += inc) {
+		ib_rbt_bound_t	parent;
+		ulint		idx = 0;
 		ib_uint32_t	position;
 		ulint           offset = 0;
-		ulint		idx = 0;
 		ulint		cur_len = 0;
-		ib_rbt_bound_t	parent;
-		fts_string_t	t_str;
-		ib_uint32_t	t_doc_id;
 		doc_id_t	write_doc_id;
 
 		inc = innobase_mysql_fts_get_token(
@@ -402,6 +402,7 @@ row_merge_fts_doc_tokenize(
 		"fts_min_token_size" or more than "fts_max_token_size" */
 		if (str.f_n_char < fts_min_token_size 
 		    || str.f_n_char > fts_max_token_size) {
+
 			t_ctx->processed_len += inc;
 			continue;
 		}
@@ -417,6 +418,7 @@ row_merge_fts_doc_tokenize(
 		if (t_ctx->cached_stopword
 		    && rbt_search(t_ctx->cached_stopword,
 				  &parent, &t_str) == 0) {
+
 			t_ctx->processed_len += inc;
 			continue;
 		}
@@ -433,7 +435,8 @@ row_merge_fts_doc_tokenize(
 
 		buf->tuples[buf->n_tuples + n_tuple[idx]] = field =
 			static_cast<dfield_t*>(mem_heap_alloc(
-				buf->heap, FTS_NUM_FIELDS_SORT * sizeof *field));
+				buf->heap,
+				FTS_NUM_FIELDS_SORT * sizeof *field));
 
 		ut_a(field);
 
@@ -443,40 +446,54 @@ row_merge_fts_doc_tokenize(
 
 		field->type.mtype = word_dtype->mtype;
 		field->type.prtype = word_dtype->prtype | DATA_NOT_NULL;
+
+		/* Variable length field, set to max size. */
 		field->type.len = fts_max_token_size;
 		field->type.mbminmaxlen = word_dtype->mbminmaxlen;
+
 		cur_len += len;
 		dfield_dup(field, buf->heap);
 		field++;
 
 		/* The second field is the Doc ID */
 
+		ib_uint32_t	doc_id_32_bit;
+
 		if (!opt_doc_id_size) {
 			fts_write_doc_id((byte*) &write_doc_id, doc_id);
-			dfield_set_data(field, &write_doc_id,
-					sizeof(write_doc_id));
-			len = FTS_DOC_ID_LEN;
+
+			dfield_set_data(
+				field, &write_doc_id, sizeof(write_doc_id));
 		} else {
-			mach_write_to_4((byte*)&t_doc_id, (ib_uint32_t) doc_id);
-			dfield_set_data(field, &t_doc_id, sizeof(t_doc_id));
-			len = sizeof(ib_uint32_t);
+			mach_write_to_4(
+				(byte*) &doc_id_32_bit, (ib_uint32_t) doc_id);
+
+			dfield_set_data(
+				field, &doc_id_32_bit, sizeof(doc_id_32_bit));
 		}
+
+		len = field->len;
+		ut_ad(len == FTS_DOC_ID_LEN || len == sizeof(ib_uint32_t));
 
 		field->type.mtype = DATA_INT;
 		field->type.prtype = DATA_NOT_NULL | DATA_BINARY_TYPE;
 		field->type.len = len;
 		field->type.mbminmaxlen = 0;
+
 		cur_len += len;
 		dfield_dup(field, buf->heap);
-		field++;
+
+		++field;
 
 		/* The third field is the position */
-		mach_write_to_4((byte*) &position,
-				(i + offset + inc - str.f_len
-				 + t_ctx->init_pos));
-		dfield_set_data(field, &position, 4);
+		mach_write_to_4(
+			(byte*) &position,
+			(i + offset + inc - str.f_len + t_ctx->init_pos));
+
+		dfield_set_data(field, &position, sizeof(position));
 		len = dfield_get_len(field);
-		ut_ad(len == 4);
+		ut_ad(len == sizeof(ib_uint32_t));
+
 		field->type.mtype = DATA_INT;
 		field->type.prtype = DATA_NOT_NULL;
 		field->type.len = len;
@@ -491,6 +508,7 @@ row_merge_fts_doc_tokenize(
 		/* Reserve one byte for the end marker of row_merge_block_t. */
 		if (buf->total_size + data_size[idx] + cur_len 
 		    >= srv_sort_buf_size - 1) {
+
 			buf_full = TRUE;
 			break;
 		}
@@ -759,6 +777,7 @@ exit:
 	os_thread_exit(NULL);
 	OS_THREAD_DUMMY_RETURN;
 }
+
 /*********************************************************************//**
 Start the parallel tokenization and parallel merge sort */
 UNIV_INTERN
@@ -776,6 +795,7 @@ row_fts_start_psort(
 				 (void *)&psort_info[i], &thd_id);
 	}
 }
+
 /*********************************************************************//**
 Function performs the merge and insertion of the sorted records.
 @return OS_THREAD_DUMMY_RETURN */
@@ -802,6 +822,7 @@ fts_parallel_merge(
 	os_thread_exit(NULL);
 	OS_THREAD_DUMMY_RETURN;
 }
+
 /*********************************************************************//**
 Kick off the parallel merge and insert thread */
 UNIV_INTERN
@@ -822,6 +843,7 @@ row_fts_start_parallel_merge(
 				 (void *)&merge_info[i], &thd_id);
 	}
 }
+
 /********************************************************************//**
 Insert processed FTS data to auxillary index tables.
 @return	DB_SUCCESS if insertion runs fine */
@@ -849,9 +871,10 @@ row_merge_write_fts_word(
 		fts_node_t*	fts_node;
 
 		fts_node = static_cast<fts_node_t*>(ib_vector_pop(word->nodes));
-		error = fts_write_node(trx, &ins_graph[selected],
-				       fts_table, &word->text,
-				       fts_node);
+
+		error = fts_write_node(
+			trx, &ins_graph[selected], fts_table, &word->text,
+			fts_node);
 
 		if (error != DB_SUCCESS) {
 			fprintf(stderr, "InnoDB: failed to write"
@@ -867,6 +890,7 @@ row_merge_write_fts_word(
 
 	return(ret);
 }
+
 /*********************************************************************//**
 Read sorted FTS data files and insert data tuples to auxillary tables.
 @return	DB_SUCCESS or error number */
@@ -924,8 +948,10 @@ row_fts_insert_tuple(
 
 	/* Get the first field for the tokenized word */
 	dfield = dtuple_get_nth_field(dtuple, 0);
-	token_word.f_str = static_cast<byte*>(dfield_get_data(dfield));
+
+	token_word.f_n_char = 0;
 	token_word.f_len = dfield->len;
+	token_word.f_str = static_cast<byte*>(dfield_get_data(dfield));
 
 	if (!word->text.f_str) {
 		fts_utf8_string_dup(&word->text, &token_word, ins_ctx->heap);
@@ -999,6 +1025,7 @@ row_fts_insert_tuple(
 	/* record the current Doc ID */
 	*in_doc_id = doc_id;
 }
+
 /*********************************************************************//**
 Propagate a newly added record up one level in the selection tree
 @return parent where this value propagated to */
@@ -1048,6 +1075,7 @@ row_fts_sel_tree_propagate(
 
 	return(parent);
 }
+
 /*********************************************************************//**
 Readjust selection tree after popping the root and read a new value
 @return the new root */
@@ -1071,6 +1099,7 @@ row_fts_sel_tree_update(
 
 	return(sel_tree[0]);
 }
+
 /*********************************************************************//**
 Build selection tree at a specified level */
 static
@@ -1134,6 +1163,7 @@ row_fts_build_sel_tree_level(
 		}
 	}
 }
+
 /*********************************************************************//**
 Build a selection tree for merge. The selection tree is a binary tree
 and should have fts_sort_pll_degree / 2 levels. With root as level 0
@@ -1174,6 +1204,7 @@ row_fts_build_sel_tree(
 
 	return(treelevel);
 }
+
 /*********************************************************************//**
 Read sorted file containing index data tuples and insert these data
 tuples to the index
