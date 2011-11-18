@@ -32,6 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0stats.h"
 #include "btr0pcur.h"
 
+#include "ha_prototypes.h"
+
 #define FTS_MAX_ID_LEN	32
 
 /** Column name from the FTS config table */
@@ -892,16 +894,6 @@ fts_que_graph_free_check_lock(
 }
 
 /****************************************************************//**
-Get FTS field charset info from the field's prtype
-@return charset info */
-extern
-CHARSET_INFO*
-innobase_get_fts_charset(
-/*=====================*/
-	int		mysql_type,	/*!< in: MySQL type */
-	uint		charset_number);/*!< in: number of the charset */
-
-/****************************************************************//**
 Create an FTS index cache. */
 UNIV_INTERN
 CHARSET_INFO*
@@ -917,8 +909,8 @@ fts_index_get_charset(
 	prtype = field->col->prtype;
 
 	charset = innobase_get_fts_charset(
-		(int)(prtype & DATA_MYSQL_TYPE_MASK),
-		(uint)dtype_get_charset_coll(prtype));
+		(int) (prtype & DATA_MYSQL_TYPE_MASK),
+		(uint) dtype_get_charset_coll(prtype));
 
 #ifdef FTS_DEBUG
 	/* Set up charset info for this index. Please note all
@@ -4265,21 +4257,6 @@ fts_sync_table(
 
 	return(error);
 }
-
-/*************************************************************//**
-Get the next token from the given string and store it in *token. */
-extern
-ulint
-innobase_mysql_fts_get_token(
-/*=========================*/
-	CHARSET_INFO*	charset,	/*!< in: Character set */
-	byte*		start,		/*!< in: start of text */
-	byte*		end,		/*!< in: one character past end of
-					text */
-	fts_string_t*	token,		/*!< out: token's text */
-	ulint*		offset);	/*!< out: offset to token,
-					measured as characters from
-					'start' */
 
 /********************************************************************
 Process next token from document starting at the given position, i.e., add
