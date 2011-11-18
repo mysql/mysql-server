@@ -3246,17 +3246,17 @@ fts_add_doc_by_id(
 					/*!< in: affected fts indexes */
 {
 	mtr_t		mtr;
-	fts_cache_t*   	cache = ftt->table->fts->cache;
-	dict_index_t*   clust_index;
+	mem_heap_t*	heap;
+	btr_pcur_t	pcur;
 	dict_table_t*	table; 
 	dtuple_t*	tuple; 
-	doc_id_t        temp_doc_id;
 	dfield_t*       dfield;
-	btr_pcur_t	pcur;
+	fts_get_doc_t*	get_doc;
+	doc_id_t        temp_doc_id;
+	dict_index_t*   clust_index;
 	dict_index_t*	fts_id_index;
 	ibool		is_id_cluster;
-	mem_heap_t*	heap;
-	fts_get_doc_t*	get_doc;
+	fts_cache_t*   	cache = ftt->table->fts->cache;
 
 	ut_ad(cache->get_docs);
 
@@ -3291,30 +3291,29 @@ fts_add_doc_by_id(
 	dfield = dtuple_get_nth_field(tuple, 0);
 	dfield->type.mtype = DATA_INT;
 	dfield->type.prtype = DATA_NOT_NULL | DATA_UNSIGNED | DATA_BINARY_TYPE;
-	dfield->len = sizeof(doc_id_t);
-	mach_write_to_8((byte*) &temp_doc_id, doc_id);
-	dfield_set_data(dfield, &temp_doc_id, 8);
 
-	btr_pcur_open_with_no_init(fts_id_index, tuple, PAGE_CUR_LE,
-				   BTR_SEARCH_LEAF,
-			  	   &pcur, 0, &mtr);
+	mach_write_to_8((byte*) &temp_doc_id, doc_id);
+	dfield_set_data(dfield, &temp_doc_id, sizeof(temp_doc_id));
+
+	btr_pcur_open_with_no_init(
+		fts_id_index, tuple, PAGE_CUR_LE, BTR_SEARCH_LEAF,
+		&pcur, 0, &mtr);
 
 	/* If we have a match, add the data to doc structure */
 	if (btr_pcur_get_low_match(&pcur) == 1) {
-		ulint*		offsets = NULL;
-		ulint		i;
-		const rec_t*	clust_rec;
 		const rec_t*	rec;
 		btr_pcur_t*	doc_pcur;
+		const rec_t*	clust_rec;
 		btr_pcur_t	clust_pcur;
+		ulint*		offsets = NULL;
 		ulint		num_idx = ib_vector_size(cache->get_docs);
 
 		rec = btr_pcur_get_rec(&pcur);
 
 		/* Doc could be deleted */
 		if (page_rec_is_infimum(rec)
-		    || rec_get_deleted_flag(
-			rec, dict_table_is_comp(table))) {
+		    || rec_get_deleted_flag(rec, dict_table_is_comp(table))) {
+
 			goto func_exit;
 		}
 
@@ -3346,13 +3345,14 @@ fts_add_doc_by_id(
 		offsets = rec_get_offsets(clust_rec, clust_index,
 					  NULL, ULINT_UNDEFINED, &heap);
 
-		 for (i = 0; i < num_idx; ++i) {
-			fts_get_doc_t*  get_doc;
+		 for (ulint i = 0; i < num_idx; ++i) {
 			fts_doc_t       doc;
 			dict_table_t*   table;
+			fts_get_doc_t*  get_doc;
 
 			get_doc = static_cast<fts_get_doc_t*>(
 				ib_vector_get(cache->get_docs, i));
+
 			table = get_doc->index_cache->index->table;
 
 			fts_doc_init(&doc);
@@ -3362,14 +3362,17 @@ fts_add_doc_by_id(
 
 			if (doc.found) {
 				ibool		success;
+
 				btr_pcur_store_position(doc_pcur, &mtr);
 				mtr_commit(&mtr);
 
 				rw_lock_x_lock(&table->fts->cache->lock);
+
 				fts_cache_add_doc(
 					table->fts->cache,
 					get_doc->index_cache,
 					doc_id, doc.tokens);
+
 				rw_lock_x_unlock(&table->fts->cache->lock);
 
 				if (cache->total_size > fts_max_cache_size) {
@@ -3379,9 +3382,11 @@ fts_add_doc_by_id(
 				mtr_start(&mtr);
 
 				if (i < num_idx - 1) {
+
 					success = btr_pcur_restore_position(
 						BTR_SEARCH_LEAF, doc_pcur,
 						&mtr);
+
 					ut_ad(success);
 				}
 			}
@@ -3392,7 +3397,7 @@ fts_add_doc_by_id(
 		if (!is_id_cluster) {
 			btr_pcur_close(doc_pcur);
 		}
-        }
+	}
 func_exit:
 	mtr_commit(&mtr);
 
@@ -3420,7 +3425,7 @@ fts_read_ulint(
 	void*		data = dfield_get_data(dfield);
 
 	*value = static_cast<ulint>(mach_read_from_4(
-		static_cast<const unsigned char*>(data)));
+		static_cast<const byte*>(data)));
 
 	return(TRUE);
 }
@@ -3478,12 +3483,13 @@ fts_get_max_doc_id(
 			goto func_exit;
 		}
 
-		offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+		offsets = rec_get_offsets(
+			rec, index, offsets, ULINT_UNDEFINED, &heap);
 		
 		data = rec_get_nth_field(rec, offsets, 0, &len);
 
 		doc_id = static_cast<doc_id_t>(fts_read_doc_id(
-			static_cast<const unsigned char*>(data)));
+			static_cast<const byte*>(data)));
 	}
 
 func_exit:
@@ -3649,8 +3655,8 @@ fts_write_node(
 
 	/* Convert to "storage" byte order. */
 	mach_write_to_4((byte*) &doc_count, node->doc_count);
-	pars_info_bind_int4_literal(info, "doc_count",
-				    (const ib_uint32_t*) &doc_count);
+	pars_info_bind_int4_literal(
+		info, "doc_count", (const ib_uint32_t*) &doc_count);
 
 	/* Set copy_name to FALSE since it's a static. */
 	pars_info_bind_literal(
@@ -3701,8 +3707,8 @@ fts_sync_add_deleted_cache(
 
 	fts_bind_doc_id(info, "doc_id", &dummy);
 
-	FTS_INIT_FTS_TABLE(&fts_table, "DELETED_CACHE", FTS_COMMON_TABLE,
-			   sync->table);
+	FTS_INIT_FTS_TABLE(
+		&fts_table, "DELETED_CACHE", FTS_COMMON_TABLE, sync->table);
 
 	graph = fts_parse_sql(
 		&fts_table,
@@ -3746,8 +3752,8 @@ fts_sync_write_words(
 	ibool		print_error = FALSE;
 	dict_table_t*	table = index_cache->index->table;
 
-	FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE,
-			     index_cache->index);
+	FTS_INIT_INDEX_TABLE(
+		&fts_table, NULL, FTS_INDEX_TABLE, index_cache->index);
 
 	n_words = rbt_size(index_cache->words);
 
@@ -3763,9 +3769,9 @@ fts_sync_write_words(
 
 		word = rbt_value(fts_tokenizer_word_t, rbt_node);
 
-		selected = fts_select_index(index_cache->charset,
-					    word->text.f_str,
-					    word->text.f_len);
+		selected = fts_select_index(
+			index_cache->charset, word->text.f_str,
+			word->text.f_len);
 
 		fts_table.suffix = fts_get_suffix(selected);
 
@@ -3863,8 +3869,8 @@ fts_sync_write_doc_stat(
 
 	/* Convert to "storage" byte order. */
 	mach_write_to_4((byte*) &word_count, doc_stat->word_count);
-	pars_info_bind_int4_literal(info, "count",
-				    (const ib_uint32_t*) &word_count);
+	pars_info_bind_int4_literal(
+		info, "count", (const ib_uint32_t*) &word_count);
 
 	/* Convert to "storage" byte order. */
 	fts_write_doc_id((byte*) &doc_id, doc_stat->doc_id);
@@ -3873,8 +3879,8 @@ fts_sync_write_doc_stat(
 	if (!*graph) {
 		fts_table_t	fts_table;
 
-		FTS_INIT_INDEX_TABLE(&fts_table, "DOC_ID", FTS_INDEX_TABLE,
-				     index);
+		FTS_INIT_INDEX_TABLE(
+			&fts_table, "DOC_ID", FTS_INDEX_TABLE, index);
 
 		*graph = fts_parse_sql(
 			&fts_table,
@@ -4281,45 +4287,53 @@ static
 ulint
 fts_process_token(
 /*==============*/
-						/* out: number of characters
-						handled in this call */
-	fts_doc_t*	doc,			/* in/out: document to
-						tokenize */
-	fts_doc_t*	result,			/* out: if provided, save
-						result here */
-	ulint		start_pos,		/*!< in: start position in text */
-	ulint		add_pos)		/*!< in: add this position to all
-						tokens from this tokenization */
+					/* out: number of characters
+					handled in this call */
+	fts_doc_t*	doc,		/* in/out: document to
+					tokenize */
+	fts_doc_t*	result,		/* out: if provided, save
+					result here */
+	ulint		start_pos,	/*!< in: start position in text */
+	ulint		add_pos)	/*!< in: add this position to all
+					tokens from this tokenization */
 {
 	ulint		ret;
 	fts_string_t	str;
 	ulint		offset = 0;
-	byte		buf[FTS_MAX_WORD_LEN + 1];
 	fts_doc_t*	result_doc;
+	byte		buf[FTS_MAX_WORD_LEN + 1];
 
 	str.f_str = buf;
-	str.f_n_char = 0;
 
 	/* Determine where to save the result. */
 	result_doc = (result) ? result : doc;
 
-	ret = innobase_mysql_fts_get_token(doc->charset,
-					   doc->text.f_str + start_pos,
-					   doc->text.f_str + doc->text.f_len,
-					   &str, &offset);
+	/* The length of a string in characters is set here only. */
+
+	ret = innobase_mysql_fts_get_token(
+		doc->charset, doc->text.f_str + start_pos,
+		doc->text.f_str + doc->text.f_len, &str, &offset);
+
+	/* Ignore string whose character number is less than
+	"fts_min_token_size" or more than "fts_max_token_size" */
 
 	if (str.f_n_char >= fts_min_token_size
 	    && str.f_n_char <= fts_max_token_size) {
+
+		mem_heap_t*	heap;
+		fts_string_t	t_str;
 		fts_token_t*	token;
 		ib_rbt_bound_t	parent;
-		mem_heap_t*	heap = static_cast<mem_heap_t*>(
-					result_doc->self_heap->arg);
-		fts_string_t	t_str;
 		ulint		newlen;
 
+		heap = static_cast<mem_heap_t*>(result_doc->self_heap->arg);
+
+		t_str.f_n_char = str.f_n_char;
+
 		t_str.f_len = str.f_len * doc->charset->casedn_multiply + 1;
-		t_str.f_str = static_cast<unsigned char*>(mem_heap_alloc(
-			heap, t_str.f_len));
+
+		t_str.f_str = static_cast<byte*>(
+			mem_heap_alloc(heap, t_str.f_len));
 
 		newlen = innobase_fts_casedn_str(
 			doc->charset, (char*) str.f_str, str.f_len,
@@ -4332,11 +4346,15 @@ fts_process_token(
 		if (rbt_search(result_doc->tokens, &parent, &t_str) != 0) {
 			fts_token_t	new_token;
 
-			new_token.text.f_str = t_str.f_str;
 			new_token.text.f_len = newlen;
+			new_token.text.f_str = t_str.f_str;
+			new_token.text.f_n_char = t_str.f_n_char;
 
 			new_token.positions = ib_vector_create(
 				result_doc->self_heap, sizeof(ulint), 32);
+
+			ut_a(new_token.text.f_n_char >= fts_min_token_size);
+			ut_a(new_token.text.f_n_char <= fts_max_token_size);
 
 			parent.last = rbt_add_node(
 				result_doc->tokens, &parent, &new_token);
@@ -4368,20 +4386,16 @@ fts_tokenize_document(
 	fts_doc_t*	result)		/* out: if provided, save
 					the result token here */
 {
-	ulint		i;
 	ulint		inc;
 
 	ut_a(!doc->tokens);
-
 	ut_a(doc->charset);
 
 	doc->tokens = rbt_create_arg_cmp(
 		sizeof(fts_token_t), innobase_fts_text_cmp, doc->charset);
 
-	for (i = 0; i < doc->text.f_len; i += inc) {
-
+	for (ulint i = 0; i < doc->text.f_len; i += inc) {
 		inc = fts_process_token(doc, result, i, 0);
-
 		ut_a(inc > 0);
 	}
 }
@@ -4399,15 +4413,12 @@ fts_tokenize_document_next(
 	fts_doc_t*	result)		/*!< out: if provided, save
 					the result token here */
 {
-	ulint		i;
 	ulint		inc;
 
 	ut_a(doc->tokens);
 
-	for (i = 0; i < doc->text.f_len; i += inc) {
-
+	for (ulint i = 0; i < doc->text.f_len; i += inc) {
 		inc = fts_process_token(doc, result, i, add_pos);
-
 		ut_a(inc > 0);
 	}
 }
@@ -4800,7 +4811,7 @@ fts_get_doc_id_from_row(
 	ut_a(dfield_get_type(field)->mtype == DATA_INT);
 
 	doc_id = fts_read_doc_id(
-		static_cast<const unsigned char*>(dfield_get_data(field)));
+		static_cast<const byte*>(dfield_get_data(field)));
 
 	return(doc_id);
 }
@@ -5025,8 +5036,9 @@ fts_add_doc_id_column(
 		table->heap,
 		FTS_DOC_ID_COL_NAME,
 		DATA_INT,
-		dtype_form_prtype(DATA_NOT_NULL | DATA_UNSIGNED
-				  | DATA_BINARY_TYPE | DATA_FTS_DOC_ID, 0),
+		dtype_form_prtype(
+			DATA_NOT_NULL | DATA_UNSIGNED
+			| DATA_BINARY_TYPE | DATA_FTS_DOC_ID, 0),
 		sizeof(doc_id_t));
 	DICT_TF2_FLAG_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
 }
@@ -5112,8 +5124,9 @@ fts_create(
 
 	fts->doc_col = ULINT_UNDEFINED;
 
-	mutex_create(fts_bg_threads_mutex_key, &fts->bg_threads_mutex,
-		     SYNC_FTS_BG_THREADS);
+	mutex_create(
+		fts_bg_threads_mutex_key, &fts->bg_threads_mutex,
+		SYNC_FTS_BG_THREADS);
 
 	heap_alloc = ib_heap_allocator_create(heap);
 	fts->indexes = ib_vector_create(heap_alloc, sizeof(dict_index_t*), 4);
@@ -5371,7 +5384,7 @@ UNIV_INTERN
 void
 fts_savepoint_laststmt_refresh(
 /*===========================*/
-        trx_t*          trx)            /*!< in: transaction */
+	trx_t*			trx)	/*!< in: transaction */
 {
 
 	fts_trx_t*              fts_trx;
@@ -5468,25 +5481,26 @@ fts_savepoint_rollback_last_stmt(
 	l_tables = last_stmt->tables;
 	s_tables = savepoint->tables;
 
-        for (node = rbt_first(l_tables);
-             node;
-             node = rbt_next(l_tables, node)) {
+	for (node = rbt_first(l_tables);
+	     node;
+	     node = rbt_next(l_tables, node)) {
 
-                fts_trx_table_t**	l_ftt;
+		fts_trx_table_t**	l_ftt;
 
-                l_ftt = rbt_value(fts_trx_table_t*, node);
+		l_ftt = rbt_value(fts_trx_table_t*, node);
 
-		rbt_search_cmp(s_tables, &parent, &(*l_ftt)->table->id,
-			       fts_trx_table_id_cmp, NULL);
+		rbt_search_cmp(
+			s_tables, &parent, &(*l_ftt)->table->id,
+			fts_trx_table_id_cmp, NULL);
 
 		if (parent.result == 0) {
-                	fts_trx_table_t**	s_ftt;
+			fts_trx_table_t**	s_ftt;
 
 			s_ftt = rbt_value(fts_trx_table_t*, parent.last);
 
 			fts_undo_last_stmt(*s_ftt, *l_ftt);
 		}
-        }
+	}
 }
 
 /**********************************************************************//**
@@ -5535,16 +5549,14 @@ fts_savepoint_rollback(
 		have been released. We have to be careful that we don't
 		delete the implied savepoint. */
 
-		savepoint = static_cast<fts_savepoint_t*>(
-			ib_vector_last(savepoints));
-
-		while (ib_vector_size(savepoints) > 1
-		       && savepoint->name == NULL) {
+		for (savepoint = static_cast<fts_savepoint_t*>(
+				ib_vector_last(savepoints));
+		     ib_vector_size(savepoints) > 1
+		     && savepoint->name == NULL;
+		     savepoint = static_cast<fts_savepoint_t*>(
+				ib_vector_last(savepoints))) {
 
 			ib_vector_pop(savepoints);
-
-			savepoint = static_cast<fts_savepoint_t*>(
-				ib_vector_last(savepoints));
 		}
 
 		/* Make sure we don't delete the implied savepoint. */
@@ -5699,7 +5711,7 @@ fts_read_tables(
 		case 1: /* ID */
 			ut_a(len == 8);
 			table->id = mach_read_from_8(
-				static_cast<const unsigned char*>(data));
+				static_cast<const byte*>(data));
 			break;
 
 		default:
@@ -5880,7 +5892,7 @@ UNIV_INTERN
 ibool
 fts_valid_stopword_table(
 /*=====================*/
-        const char*	stopword_table_name)	/*!< in: Stopword table
+	 const char*	stopword_table_name)	/*!< in: Stopword table
 						name */
 {
 	dict_table_t*	table;
@@ -5975,14 +5987,13 @@ fts_load_stopword(
 
 	/* First check whether stopword filtering is turned off */
 	if (reload) {
-		error = fts_config_get_ulint(trx, &fts_table,
-					     FTS_USE_STOPWORD,
-					     &use_stopword);
+		error = fts_config_get_ulint(
+			trx, &fts_table, FTS_USE_STOPWORD, &use_stopword);
 	} else {
 		use_stopword = (ulint)stopword_is_on;
 
-		error = fts_config_set_ulint(trx, &fts_table, FTS_USE_STOPWORD,
-					     use_stopword);
+		error = fts_config_set_ulint(
+			trx, &fts_table, FTS_USE_STOPWORD, use_stopword);
 	}
 
 	if (error != DB_SUCCESS) {
@@ -5999,12 +6010,12 @@ fts_load_stopword(
 	if (reload) {
 		/* Fetch the stopword table name from FTS config
 		table */
+		str.f_n_char = 0;
 		str.f_str = str_buffer;
 		str.f_len = sizeof(str_buffer) - 1;
 
-		error = fts_config_get_value(trx, &fts_table,
-					     FTS_STOPWORD_TABLE_NAME,
-					     &str);
+		error = fts_config_get_value(
+			trx, &fts_table, FTS_STOPWORD_TABLE_NAME, &str);
 
 		if (error != DB_SUCCESS) {
 			goto cleanup;
@@ -6015,8 +6026,7 @@ fts_load_stopword(
 		}
 	} else {
 		stopword_to_use = (session_stopword_table)
-					? session_stopword_table
-					: global_stopword_table;
+			? session_stopword_table : global_stopword_table;
 	}
 
 	if (stopword_to_use
@@ -6025,11 +6035,12 @@ fts_load_stopword(
 		/* Save the stopword table name to the configure
 		table */
 		if (!reload) {
+			str.f_n_char = 0;
 			str.f_str = (byte*) stopword_to_use;
 			str.f_len = ut_strlen(stopword_to_use);
-			error = fts_config_set_value(trx, &fts_table,
-						     FTS_STOPWORD_TABLE_NAME,
-						     &str);
+
+			error = fts_config_set_value(
+				trx, &fts_table, FTS_STOPWORD_TABLE_NAME, &str);
 		}
 	} else {
 		/* Load system default stopword list */
@@ -6063,46 +6074,39 @@ fts_init_recover_doc(
 	void*	user_arg)		/*!< in: fts cache */
 {
 
-	que_node_t*	exp;
-	sel_node_t*	node = static_cast<sel_node_t*>(row);
-	fts_cache_t*    cache = static_cast<fts_cache_t*>(user_arg);
 	fts_doc_t       doc;
-	dfield_t*	dfield;
-	ulint		len;
-	ulint		doc_len;
-	ulint		field_no = 0;
-	fts_get_doc_t*  get_doc = NULL;
 	doc_id_t	doc_id = 0;
+	ulint		doc_len = 0;
+	ulint		field_no = 0;
 	ibool		has_fts = TRUE;
-
-	len = 0;
-
-	exp = node->select_list;
+	fts_get_doc_t*  get_doc = NULL;
+	sel_node_t*	node = static_cast<sel_node_t*>(row);
+	que_node_t*	exp = node->select_list;
+	fts_cache_t*    cache = static_cast<fts_cache_t*>(user_arg);
 
 	if (ib_vector_is_empty(cache->get_docs)) {
 		has_fts = FALSE;	
 	} else {
 		get_doc = static_cast<fts_get_doc_t*>(
 			ib_vector_get(cache->get_docs, 0));
+
 		fts_doc_init(&doc);
 		doc.found = TRUE;
 	}
 
-	exp = node->select_list;
-	doc_len = 0;
-
 	/* Copy each indexed column content into doc->text.f_str */
 	while (exp) {
-		dfield = que_node_get_val(exp);
-		len = dfield_get_len(dfield);
+		dfield_t*	dfield = que_node_get_val(exp);
+		ulint		len = dfield_get_len(dfield);
 
 		if (field_no == 0) {
 			dtype_t*        type = dfield_get_type(dfield);
 			void*           data = dfield_get_data(dfield);
 
 			ut_a(dtype_get_mtype(type) == DATA_INT);
+
 			doc_id = static_cast<doc_id_t>(mach_read_from_8(
-				static_cast<const unsigned char*>(data)));
+				static_cast<const byte*>(data)));
 
 			/* Just need to fetch the Doc ID */
 			if (!has_fts) {
@@ -6139,13 +6143,14 @@ fts_init_recover_doc(
 			ulint		zip_size = dict_table_zip_size(table);
 
 			doc.text.f_str = btr_copy_externally_stored_field(
-				&doc.text.f_len, static_cast<byte*>(
-					dfield_get_data(dfield)),
-				zip_size, len, static_cast<mem_heap_t*>(
-					doc.self_heap->arg));
+				&doc.text.f_len,
+				static_cast<byte*>(dfield_get_data(dfield)),
+				zip_size, len,
+				static_cast<mem_heap_t*>(doc.self_heap->arg));
 		} else {
-			doc.text.f_str = static_cast<unsigned char*>(
+			doc.text.f_str = static_cast<byte*>(
 				dfield_get_data(dfield));
+
 			doc.text.f_len = len;
 		}
 
