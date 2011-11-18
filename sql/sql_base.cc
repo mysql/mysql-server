@@ -8659,7 +8659,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
   TABLE_LIST *table= NULL;	// For HP compilers
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
     which belong to LEX, i.e. most up SELECT) will be updated by
@@ -8682,19 +8681,43 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 
   for (table= tables; table; table= table->next_local)
   {
+    select_lex->resolve_place= st_select_lex::RESOLVE_CONDITION;
+    /*
+      Walk up tree of join nests and try to find outer join nest.
+      This is needed because simplify_joins() has not yet been called,
+      and hence inner join nests have not yet been removed.
+    */
+    for (TABLE_LIST *embedding= table;
+         embedding;
+         embedding= embedding->embedding)
+    {
+      if (embedding->outer_join)
+      {
+        /*
+          The join condition belongs to an outer join next.
+          Record this fact and the outer join nest for possible transformation
+          of subqueries into semi-joins.
+        */  
+        select_lex->resolve_place= st_select_lex::RESOLVE_JOIN_NEST;
+        select_lex->resolve_nest= embedding;
+        break;
+      }
+    }
     if (table->prepare_where(thd, conds, FALSE))
       goto err_no_arena;
+    select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
+    select_lex->resolve_nest= NULL;
   }
 
-  thd->thd_marker.emb_on_expr_nest= (TABLE_LIST*)1;
   if (*conds)
   {
+    select_lex->resolve_place= st_select_lex::RESOLVE_CONDITION;
     thd->where="where clause";
     if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
+    select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
   }
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   /*
     Apply fix_fields() to all ON clauses at all levels of nesting,
@@ -8710,13 +8733,16 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       if (embedded->on_expr)
       {
         /* Make a join an a expression */
-        thd->thd_marker.emb_on_expr_nest= embedded;
+        select_lex->resolve_place= st_select_lex::RESOLVE_JOIN_NEST;
+        select_lex->resolve_nest= embedded;
         thd->where="on clause";
         if ((!embedded->on_expr->fixed &&
             embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
 	    embedded->on_expr->check_cols(1))
 	  goto err_no_arena;
         select_lex->cond_count++;
+        select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
+        select_lex->resolve_nest= NULL;
       }
       embedding= embedded->embedding;
     }
@@ -8735,7 +8761,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       }
     }
   }
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   if (!thd->stmt_arena->is_conventional())
   {

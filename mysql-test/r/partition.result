@@ -2422,3 +2422,10 @@ alter table t1 add column j int;
 unlock tables;
 drop table t1;
 # End of 5.5 tests
+CREATE TABLE t1(a INT PRIMARY KEY) PARTITION BY LINEAR KEY (a);
+CREATE ALGORITHM=TEMPTABLE VIEW vtmp AS
+SELECT 1 FROM t1 AS t1_0 JOIN t1 ON t1_0.a LIKE (SELECT 1 FROM t1);
+SELECT * FROM vtmp;
+1
+DROP VIEW vtmp;
+DROP TABLE t1;

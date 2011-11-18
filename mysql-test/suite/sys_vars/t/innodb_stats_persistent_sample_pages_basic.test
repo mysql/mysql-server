@@ -1,0 +1,57 @@
+
+#
+# 2010-01-25 - Added
+#
+
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_stats_persistent_sample_pages;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are zero or above
+SELECT @@global.innodb_stats_persistent_sample_pages >=0;
+SELECT @@global.innodb_stats_persistent_sample_pages;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_stats_persistent_sample_pages;
+SHOW global variables LIKE 'innodb_stats_persistent_sample_pages';
+SHOW session variables LIKE 'innodb_stats_persistent_sample_pages';
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_stats_persistent_sample_pages';
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_stats_persistent_sample_pages';
+
+#
+# SHOW that it's writable
+#
+SET global innodb_stats_persistent_sample_pages=10;
+SELECT @@global.innodb_stats_persistent_sample_pages;
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_stats_persistent_sample_pages';
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_stats_persistent_sample_pages';
+--error ER_GLOBAL_VARIABLE
+SET session innodb_stats_persistent_sample_pages=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_stats_persistent_sample_pages=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_stats_persistent_sample_pages=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_stats_persistent_sample_pages="foo";
+
+SET global innodb_stats_persistent_sample_pages=-7;
+SELECT @@global.innodb_stats_persistent_sample_pages;
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_stats_persistent_sample_pages';
+
+#
+# cleanup
+#
+SET @@global.innodb_stats_persistent_sample_pages = @start_global_value;
+SELECT @@global.innodb_stats_persistent_sample_pages;

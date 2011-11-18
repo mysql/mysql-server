@@ -2421,3 +2421,15 @@ unlock tables;
 drop table t1;
 
 --echo # End of 5.5 tests
+
+#
+# Bug #12330344 Crash and/or valgrind errors in free_io_cache with join, view,
+# partitioned table
+#
+
+CREATE TABLE t1(a INT PRIMARY KEY) PARTITION BY LINEAR KEY (a);
+CREATE ALGORITHM=TEMPTABLE VIEW vtmp AS
+SELECT 1 FROM t1 AS t1_0 JOIN t1 ON t1_0.a LIKE (SELECT 1 FROM t1);
+SELECT * FROM vtmp;
+DROP VIEW vtmp;
+DROP TABLE t1;

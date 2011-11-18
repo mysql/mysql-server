@@ -137,16 +137,34 @@ bool Cached_item_int::cmp(void)
 bool Cached_item_field::cmp(void)
 {
   DBUG_ENTER("Cached_item_field::cmp");
-  bool tmp= field->cmp(buff) != 0;		// This is not a blob!
   DBUG_EXECUTE("info", dbug_print(););
-  if (tmp)
-    field->get_image(buff,length,field->charset());
-  if (null_value != field->is_null())
+
+  bool different= false;
+
+  if (field->is_null())
   {
-    null_value= !null_value;
-    tmp=TRUE;
+    if (!null_value)
+    {
+      different= true;
+      null_value= true;
+    }
   }
-  DBUG_RETURN(tmp);
+  else
+  {
+    if (null_value)
+    {
+      different= true;
+      null_value= false;
+      field->get_image(buff, length, field->charset());
+    }
+    else if (field->cmp(buff))                  // Not a blob: cmp() is OK
+    {
+      different= true;
+      field->get_image(buff, length, field->charset());
+    }
+  }
+
+  DBUG_RETURN(different);
 }
 
 

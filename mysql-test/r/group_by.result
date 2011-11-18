@@ -1191,10 +1191,15 @@ a
 4
 SELECT t1.a FROM t1 GROUP BY t1.a
 HAVING t1.a IN (SELECT t2.a FROM t2 ORDER BY t2.a, SUM(t2.b));
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+a
+2
+3
+4
 SELECT t1.a FROM t1 GROUP BY t1.a
 HAVING t1.a > ANY (SELECT t2.a FROM t2 ORDER BY t2.a, SUM(t2.b));
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+a
+3
+4
 SELECT t1.a FROM t1
 WHERE t1.a = (SELECT t2.a FROM t2 ORDER BY SUM(t1.b));
 ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
@@ -1676,7 +1681,7 @@ c	(SELECT a FROM t1 WHERE b = c)
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-ERROR 42000: non-grouping field 'b' is used in HAVING clause
+ERROR 42000: Non-grouping field 'b' is used in HAVING clause
 SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
@@ -2108,3 +2113,17 @@ pk
 DROP VIEW v1;
 DROP TABLE t1,t2;
 # End of Bug#12798270
+#
+# Bug#12837714: ADDITIONAL NULL IN 5.6 ON GROUPED SELECT
+#
+CREATE TABLE t1 (vc varchar(1), INDEX vc_idx (vc)) ;
+INSERT INTO t1 VALUES (NULL), ('o'), (NULL), ('p'), ('c');
+FLUSH TABLE t1;
+SELECT vc FROM t1 GROUP BY vc;
+vc
+NULL
+c
+o
+p
+DROP TABLE t1;
+# End of Bug#12837714
