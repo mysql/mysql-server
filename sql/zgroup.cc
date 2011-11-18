@@ -31,7 +31,7 @@ enum_return_status Group::parse(Sid_map *sid_map, const char *text)
   rpl_sid sid;
 
   // parse sid
-  if (sid.parse(text) != RETURN_STATUS_OK)
+  if (sid.parse(text) == RETURN_STATUS_OK)
   {
     sidno= sid_map->add_permanent(&sid);
     if (sidno <= 0)

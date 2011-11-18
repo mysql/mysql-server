@@ -391,8 +391,10 @@ private:
 
 static binlog_cache_mngr *thd_get_cache_mngr(const THD *thd)
 {
-  // If opt_bin_log is not set, binlog_hton->slot == -1 and hence
-  // thd_get_ha_data(thd, hton) segfaults.
+  /* 
+    If opt_bin_log is not set, binlog_hton->slot == -1 and hence
+    thd_get_ha_data(thd, hton) segfaults.
+  */
   DBUG_ASSERT(opt_bin_log);
   return (binlog_cache_mngr *)thd_get_ha_data(thd, binlog_hton);
 }
@@ -638,12 +640,8 @@ binlog_flush_cache(THD *thd, binlog_cache_mngr *cache_mngr,
     if (thd->binlog_flush_pending_rows_event(TRUE, cache_data->is_trx_cache()))
       DBUG_RETURN(1);
 
-    my_off_t before_commit_event= cache_data->get_byte_position();
     if (write_event_to_cache(thd, end_evt, cache_data))
       DBUG_RETURN(1);
- 
-    my_off_t offset_after_last_statement=
-      cache_data->get_byte_position() - before_commit_event;
 
 #ifdef HAVE_GTID
     if (gtid_flush_group_cache(thd, cache_data))
@@ -661,8 +659,7 @@ binlog_flush_cache(THD *thd, binlog_cache_mngr *cache_mngr,
       inside a stored function.
     */
     bool prepared= (end_evt->get_type_code() == XID_EVENT);
-    error= mysql_bin_log.write_cache(thd, cache_mngr, cache_data,
-                                     prepared, offset_after_last_statement);
+    error= mysql_bin_log.write_cache(thd, cache_mngr, cache_data, prepared);
   }
   cache_data->reset();
 
@@ -4044,8 +4041,7 @@ err:
 #ifdef HAVE_GTID
       error |= gtid_flush_group_cache(thd, cache_data);
 #endif
-      error |= mysql_bin_log.write_cache(thd, cache_mngr, cache_data, FALSE,
-                                         0/*offset_after_last_statement*/);
+      error |= mysql_bin_log.write_cache(thd, cache_mngr, cache_data, FALSE);
       cache_data->reset();
     }
 
@@ -4525,9 +4521,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
 */
 
 bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_mngr *cache_mngr,
-                                binlog_cache_data *cache_data,
-                                bool prepared,
-                                my_off_t offset_after_last_statement)
+                                binlog_cache_data *cache_data, bool prepared)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
 

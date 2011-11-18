@@ -59,7 +59,7 @@ enum_return_status Sid_map::clear()
   RETURN_OK;
 }
 
-rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _sync)
+rpl_sidno Sid_map::add_permanent(const rpl_sid *sid)
 {
   DBUG_ENTER("Sid_map::add_permanent");
 #ifndef DBUG_OFF

@@ -642,7 +642,7 @@ struct Uuid
 {
   /**
     Stores the UUID represented by a string on the form
-    XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXXXXXX in this object.
+    XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX in this object.
     @return RETURN_STATUS_OK or RETURN_STATUS_UNREPORTED_ERROR.
   */
   enum_return_status parse(const char *string);
@@ -875,18 +875,11 @@ public:
     the write lock, and take the read lock again.
 
     @param sid The SID.
-    @param _sync If true, the sid_map will be synced.
     @retval SIDNO The SIDNO for the SID (a new SIDNO if the SID did
     not exist, an existing if it did exist).
     @retval negative Error. This function calls my_error.
-
-    @note The SID is stored on disk forever.  This is needed if the
-    SID is written to the binary log.  If the SID will not be written
-    to the binary log, it is a waste of disk space.  If this becomes a
-    problem, we may add add_temporary(), which would only store the
-    sid in memory, and return a negative sidno.
   */
-  rpl_sidno add_permanent(const rpl_sid *sid, bool _sync= true);
+  rpl_sidno add_permanent(const rpl_sid *sid);
   /**
     Get the SIDNO for a given SID
 
@@ -1252,7 +1245,7 @@ public:
     The string must have the format of a comma-separated list of zero
     or more of the following:
 
-       XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXXXXXX(:NUMBER+(-NUMBER)?)*
+       XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX(:NUMBER+(-NUMBER)?)*
        | ANONYMOUS
 
        Each X is a hexadecimal digit (upper- or lowercase).
