@@ -1443,11 +1443,8 @@ row_upd_changes_fts_columns(
 {
 	ulint		i;
 	ulint		offset;
-	dict_index_t*	clust_index;
 	fts_t*		fts = table->fts;
 	ib_vector_t*	updated_fts_indexes = NULL;
-
-	clust_index = dict_table_get_first_index(table);
 
 	for (i = 0; i < upd_get_n_fields(update); ++i) {
 		upd_field_t*	upd_field = upd_get_nth_field(update, i);
