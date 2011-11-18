@@ -15,9 +15,9 @@ SET @@session.binlog_direct_non_transactional_updates= FALSE;
 #
 # Calculating the size of the GUID.
 #
-let $size_ugid_ini= query_get_value(SHOW BINLOG EVENTS, Pos, 2);
-let $size_ugid_end= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 2);
-let $size_ugid=`SELECT $size_ugid_end - $size_ugid_ini`;
+let $size_gtid_ini= query_get_value(SHOW BINLOG EVENTS, Pos, 2);
+let $size_gtid_end= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 2);
+let $size_gtid=`SELECT $size_gtid_end - $size_gtid_ini`;
 
 disable_warnings;
 DROP DATABASE IF EXISTS db1;
@@ -68,7 +68,7 @@ INSERT INTO db1.t2 VALUES ('before call db1.p1()');
 # and then the whole transaction will be executed before slave SQL
 # stop.
 let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
-let $master_pos= `SELECT $master_pos + $size_ugid + 1`;
+let $master_pos= `SELECT $master_pos + $size_gtid + 1`;
 
 use test;
 BEGIN;
@@ -105,7 +105,7 @@ INSERT INTO db1.t2 VALUES ('before call db1.p2()');
 
 # See comments above.
 let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
-let $master_pos= `SELECT $master_pos + $size_ugid + 1`;
+let $master_pos= `SELECT $master_pos + $size_gtid + 1`;
 
 BEGIN;
 CALL db1.p2();

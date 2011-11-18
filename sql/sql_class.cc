@@ -1396,12 +1396,12 @@ THD::~THD()
     rli_fake= NULL;
   }
 
-#ifdef HAVE_UGID
-  if (variables.ugid_next_list.group_set != NULL)
+#ifdef HAVE_GTID
+  if (variables.gtid_next_list.gtid_set != NULL)
   {
-    delete variables.ugid_next_list.group_set;
-    variables.ugid_next_list.group_set= NULL;
-    variables.ugid_next_list.is_non_null= false;
+    delete variables.gtid_next_list.gtid_set;
+    variables.gtid_next_list.gtid_set= NULL;
+    variables.gtid_next_list.is_non_null= false;
   }
 #endif
   

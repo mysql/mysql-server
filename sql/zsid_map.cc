@@ -17,7 +17,7 @@
 #include "zgroups.h"
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 #include "hash.h"
@@ -142,4 +142,4 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
   RETURN_REPORTED_ERROR;
 }
 
-#endif /* HAVE_UGID */
+#endif /* HAVE_GTID */

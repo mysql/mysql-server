@@ -144,10 +144,10 @@ enum Exit_status {
   OK_STOP
 };
 
-#ifdef HAVE_UGID
-static char *opt_include_ugids_str, *opt_exclude_ugids_str;
-static char *opt_first_lgid_str= NULL, *opt_last_lgid_str= NULL;
-static my_bool opt_skip_ugids= 0;
+#ifdef HAVE_GTID
+static char *opt_include_gtids_str, *opt_exclude_gtids_str;
+static char *opt_first_ltid_str= NULL, *opt_last_ltid_str= NULL;
+static my_bool opt_skip_gtids= 0;
 #endif
 
 static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
@@ -1201,27 +1201,27 @@ static struct my_option my_long_options[] =
    /* def_value 4GB */ UINT_MAX, /* min_value */ 256,
    /* max_value */ ULONG_MAX, /* sub_size */ 0,
    /* block_size */ 256, /* app_type */ 0},
-#ifdef HAVE_UGID
-  {"skip-ugids", OPT_MYSQLBINLOG_SKIP_UGIDS,
-   "Do not print universal group identifier information "
-   "(SET UGID_NEXT=... etc).",
-   &opt_skip_ugids, &opt_skip_ugids, 0,
+#ifdef HAVE_GTID
+  {"skip-gtids", OPT_MYSQLBINLOG_SKIP_GTIDS,
+   "Do not print Global Transaction Identifier information "
+   "(SET GTID_NEXT=... etc).",
+   &opt_skip_gtids, &opt_skip_gtids, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"include-ugids", OPT_MYSQLBINLOG_INCLUDE_UGIDS,
-   "Include only the given universal group identifiers.",
-   &opt_include_ugids_str, &opt_include_ugids_str, 0,
+  {"include-gtids", OPT_MYSQLBINLOG_INCLUDE_GTIDS,
+   "Include only the given Global Transaction Identifiers.",
+   &opt_include_gtids_str, &opt_include_gtids_str, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"exclude-ugids", OPT_MYSQLBINLOG_EXCLUDE_UGIDS,
-   "Print all but the given universal group identifiers.",
-   &opt_exclude_ugids_str, &opt_exclude_ugids_str, 0,
+  {"exclude-gtids", OPT_MYSQLBINLOG_EXCLUDE_GTIDS,
+   "Print all but the given Global Transaction Identifiers.",
+   &opt_exclude_gtids_str, &opt_exclude_gtids_str, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"first-lgid", OPT_MYSQLBINLOG_FIRST_LGID,
-   "Ignore groups before the given Local Group ID.",
-   &opt_first_lgid_str, &opt_first_lgid_str, 0,
+  {"first-ltid", OPT_MYSQLBINLOG_FIRST_LTID,
+   "Ignore groups before the given Local Transaction Identifier.",
+   &opt_first_ltid_str, &opt_first_ltid_str, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"last-lgid", OPT_MYSQLBINLOG_LAST_LGID,
-   "Ignore groups after the given Local Group ID.",
-   &opt_last_lgid_str, &opt_last_lgid_str, 0,
+  {"last-ltid", OPT_MYSQLBINLOG_LAST_LTID,
+   "Ignore groups after the given Local Transaction Identifier.",
+   &opt_last_ltid_str, &opt_last_ltid_str, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -2362,5 +2362,5 @@ int main(int argc, char** argv)
 #include "zreturn.cc"
 #include "zsubgroup_coder.cc"
 #include "zuuid.cc"
-#include "zgroup_set.cc"
+#include "zgtid_set.cc"
 #include "zgroup.cc"

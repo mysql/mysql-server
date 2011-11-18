@@ -21,7 +21,7 @@
 #include "sql_class.h"
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 void Group_log_state::clear()
@@ -70,11 +70,11 @@ rpl_gno Group_log_state::get_automatic_gno(rpl_sidno sidno) const
 {
   DBUG_ENTER("Group_log_state::end_automatic_group");
   //ended_groups.ensure_sidno(sidno);
-  Group_set::Const_interval_iterator ivit(&ended_groups, sidno);
+  GTID_set::Const_interval_iterator ivit(&ended_groups, sidno);
   rpl_gno next_candidate= 1;
   while (true)
   {
-    Group_set::Interval *iv= ivit.get();
+    GTID_set::Interval *iv= ivit.get();
     rpl_gno next_interval_start= iv != NULL ? iv->start : MAX_GNO;
     while (next_candidate < next_interval_start)
     {
@@ -103,14 +103,18 @@ void Group_log_state::wait_for_sidno(THD *thd, const Sid_map *sm,
                        &stage_waiting_for_group_to_be_written_to_binary_log,
                        &old_stage);
   while (!is_partial(g.sidno, g.gno) && !thd->killed && !abort_loop)
+  {
+    sid_lock->unlock();
     sid_locks.wait(g.sidno);
+    sid_lock->rdlock();
+  }
   thd->EXIT_COND(&old_stage);
 
   DBUG_VOID_RETURN;
 }
 
 
-void Group_log_state::lock_sidnos(const Group_set *gs)
+void Group_log_state::lock_sidnos(const GTID_set *gs)
 {
   rpl_sidno max_sidno= gs ? gs->get_max_sidno() : sid_map->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
@@ -119,7 +123,7 @@ void Group_log_state::lock_sidnos(const Group_set *gs)
 }
 
 
-void Group_log_state::unlock_sidnos(const Group_set *gs)
+void Group_log_state::unlock_sidnos(const GTID_set *gs)
 {
   rpl_sidno max_sidno= gs ? gs->get_max_sidno() : sid_map->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
@@ -128,7 +132,7 @@ void Group_log_state::unlock_sidnos(const Group_set *gs)
 }
 
 
-void Group_log_state::broadcast_sidnos(const Group_set *gs)
+void Group_log_state::broadcast_sidnos(const GTID_set *gs)
 {
   rpl_sidno max_sidno= gs->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
@@ -160,7 +164,7 @@ enum_return_status Group_log_state::ensure_sidno()
 }
 
 
-bool Group_log_state::update_state_from_ugid(const uchar* sid, rpl_gno gno)
+bool Group_log_state::update_state_from_gtid(const uchar* sid, rpl_gno gno)
 {
   sid_lock->assert_some_rdlock();
 
@@ -174,4 +178,4 @@ bool Group_log_state::update_state_from_ugid(const uchar* sid, rpl_gno gno)
 
   return false;
 }
-#endif /* HAVE_UGID */
+#endif /* HAVE_GTID */

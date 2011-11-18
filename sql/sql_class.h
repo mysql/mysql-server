@@ -544,12 +544,12 @@ typedef struct system_variables
 
   double long_query_time_double;
 
-#ifdef HAVE_UGID
-  Ugid_specification ugid_next;
-  Group_set_or_null ugid_next_list;
-  my_bool ugid_end;
-  my_bool ugid_commit;
-  my_bool ugid_has_ongoing_super_group;
+#ifdef HAVE_GTID
+  Gtid_specification gtid_next;
+  GTID_set_or_null gtid_next_list;
+  my_bool gtid_end;
+  my_bool gtid_commit;
+  my_bool gtid_has_ongoing_commit_sequence;
 #endif
 
 } SV;
@@ -3075,16 +3075,16 @@ public:
     DBUG_VOID_RETURN;
   }
 
-#ifdef HAVE_UGID
-  Group_set *get_ugid_next_list()
+#ifdef HAVE_GTID
+  GTID_set *get_gtid_next_list()
   {
-    return variables.ugid_next_list.is_non_null ?
-      variables.ugid_next_list.group_set : NULL;
+    return variables.gtid_next_list.is_non_null ?
+      variables.gtid_next_list.gtid_set : NULL;
   }
 
-  const Group_set *get_ugid_next_list_const() const
+  const GTID_set *get_gtid_next_list_const() const
   {
-    return const_cast<const Group_set *>(const_cast<THD *>(this)->get_ugid_next_list());
+    return const_cast<const GTID_set *>(const_cast<THD *>(this)->get_gtid_next_list());
   }
 
   Group_cache *get_group_cache(bool is_transactional);

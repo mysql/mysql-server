@@ -17,19 +17,19 @@
 #include "zgroups.h"
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 #include "my_global.h" // REQUIRED by binlog.h -> log_event.h -> m_string.h -> my_bitmap.h
 #include "binlog.h"
 
 
-//const int Ugid_specification::MAX_TEXT_LENGTH;
+//const int Gtid_specification::MAX_TEXT_LENGTH;
 
 
-enum_return_status Ugid_specification::parse(const char *text)
+enum_return_status Gtid_specification::parse(const char *text)
 {
-  DBUG_ENTER("Ugid_specification::parse");
+  DBUG_ENTER("Gtid_specification::parse");
   if (text == NULL || strcmp(text, "AUTOMATIC") == 0)
   {
     type= AUTOMATIC;
@@ -44,21 +44,16 @@ enum_return_status Ugid_specification::parse(const char *text)
   }
   else
   {
-    if (group.parse(&mysql_bin_log.sid_map, text) != 0)
-    {
-      BINLOG_ERROR(("Malformed group specification '%.200s'.", text),
-                   (ER_MALFORMED_GROUP_SPECIFICATION, MYF(0), text));
-      RETURN_REPORTED_ERROR;
-    }
-    type= UGID;
+    PROPAGATE_REPORTED_ERROR(group.parse(&mysql_bin_log.sid_map, text));
+    type= GTID;
   }
   RETURN_OK;
 };
 
 
-int Ugid_specification::to_string(char *buf) const
+int Gtid_specification::to_string(char *buf) const
 {
-  DBUG_ENTER("Ugid_specification::to_string(char*)");
+  DBUG_ENTER("Gtid_specification::to_string(char*)");
   switch (type)
   {
   case AUTOMATIC:
@@ -67,7 +62,7 @@ int Ugid_specification::to_string(char *buf) const
   case ANONYMOUS:
     strcpy(buf, "ANONYMOUS");
     DBUG_RETURN(9);
-  case UGID:
+  case GTID:
     DBUG_RETURN(group.to_string(&mysql_bin_log.sid_map, buf));
   case INVALID:
     DBUG_ASSERT(0);
@@ -77,17 +72,17 @@ int Ugid_specification::to_string(char *buf) const
 }
 
 
-Ugid_specification::enum_type Ugid_specification::get_type(const char *text)
+Gtid_specification::enum_type Gtid_specification::get_type(const char *text)
 {
-  DBUG_ENTER("Ugid_specification::is_valid");
+  DBUG_ENTER("Gtid_specification::is_valid");
   DBUG_ASSERT(text != NULL);
   if (strcmp(text, "AUTOMATIC") == 0)
     DBUG_RETURN(AUTOMATIC);
   else if (strcmp(text, "ANONYMOUS") == 0)
     DBUG_RETURN(ANONYMOUS);
   else
-    DBUG_RETURN(Group::is_valid(text) ? UGID : INVALID);
+    DBUG_RETURN(Group::is_valid(text) ? GTID : INVALID);
 }
 
 
-#endif /* HAVE_UGID */
+#endif /* HAVE_GTID */

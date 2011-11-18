@@ -42,11 +42,11 @@ while ($ddl_cases >= 1)
   # In SBR and MIXED modes, the commit event is usually the fourth event in the
   # binary log:
   #
-  # 1: UGID
+  # 1: GTID
   # 2: BEGIN
   # 3: INSERT
   # 4: COMMIT
-  # 5: UGID
+  # 5: GTID
   # 6: DDL EVENT which triggered the previous commmit.
   #
   if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
@@ -56,12 +56,12 @@ while ($ddl_cases >= 1)
   #
   # In RBR mode, the commit event is usually the fifth event in the binary log:
   #
-  # 1: UGID
+  # 1: GTID
   # 2: BEGIN
   # 3: TABLE MAP EVENT
   # 4: ROW EVENT
   # 5: COMMIT
-  # 6: UGID
+  # 6: GTID
   # 7: DDL EVENT which triggered the previous commmit.
   #
   if (`select @@binlog_format = 'ROW'`)
@@ -269,13 +269,13 @@ while ($ddl_cases >= 1)
     #
     # In RBR mode, due to the trigger the tt_2 is also updated:
     #
-    # 1: UGID
+    # 1: GTID
     # 2: BEGIN
     # 3: TABLE MAP EVENT
     # 4: TABLE MAP EVENT
     # 5: ROW EVENT
     # 6: COMMIT
-    # 7: UGID
+    # 7: GTID
     # 8: DDL EVENT which triggered the previous commmit.
     #
     if (`select @@binlog_format = 'ROW' && '$engine' != 'NDB'`)
@@ -366,7 +366,7 @@ while ($ddl_cases >= 1)
     # In SBR and MIXED modes, the DDL statement is written to the binary log but
     # does not commit the current transaction.
     #
-    # 1: UGID
+    # 1: GTID
     # 2: BEGIN
     # 3: CREATE TEMPORARY
     # 4: INSERT
@@ -375,7 +375,7 @@ while ($ddl_cases >= 1)
     # In RBR the transaction is not committed either and the statement is not
     # written to the binary log:
     #
-    # 1: UGID
+    # 1: GTID
     # 2: BEGIN
     # 3: TABLE MAP EVENT
     # 4: ROW EVENT
@@ -425,12 +425,12 @@ while ($ddl_cases >= 1)
     #
     # In MIXED mode, the changes are logged as rows and we have what follows:
     #
-    # 1: UGID
+    # 1: GTID
     # 2: BEGIN
     # 3: TABLE MAP EVENT
     # 4: ROW EVENT
     # 5: COMMIT
-    # 6: UGID
+    # 6: GTID
     # 7: DDL EVENT which triggered the previous commmit.
     #
     if (`select @@binlog_format = 'MIXED'`)
@@ -459,12 +459,12 @@ while ($ddl_cases >= 1)
     #
     # In MIXED mode, the changes are logged as rows and we have what follows:
     #
-    # 1: UGID
+    # 1: GTID
     # 2: BEGIN
     # 3: TABLE MAP EVENT
     # 4: ROW EVENT
     # 5: COMMIT
-    # 6: UGID
+    # 6: GTID
     # 7: DDL EVENT which triggered the previous commmit.
     #
     if (`select @@binlog_format = 'MIXED'`)
@@ -497,7 +497,7 @@ while ($ddl_cases >= 1)
     #
     # In SBR, we have what follows:
     #
-    # 1: UGID
+    # 1: GTID
     # 2: BEGIN
     # 3: INSERT
     # 4: DROP TEMPORARY
@@ -506,7 +506,7 @@ while ($ddl_cases >= 1)
     # In RBR the transaction is not committed either and the statement is not
     # written to the binary log:
     #
-    # 1: UGID
+    # 1: GTID
     # 2: BEGIN
     # 3: TABLE MAP EVENT
     # 4: ROW EVENT
@@ -518,7 +518,7 @@ while ($ddl_cases >= 1)
     }
     # In MIXED mode, the changes are logged as rows and we have what follows:
     #
-    # 1: UGID
+    # 1: GTID
     # 2: BEGIN
     # 3: TABLE MAP EVENT
     # 4: ROW EVENT

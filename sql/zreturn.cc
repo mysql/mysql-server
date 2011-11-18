@@ -17,7 +17,7 @@
 #include "zgroups.h"
 
 
-#if defined(HAVE_UGID) && !defined(DBUG_OFF)
+#if defined(HAVE_GTID) && !defined(DBUG_OFF)
 
 
 #ifndef MYSQL_CLIENT
@@ -44,4 +44,4 @@ void check_return_status(enum_return_status status, const char *action,
 }
 
 
-#endif // HAVE_UGID && ! DBUG_OFF
+#endif // HAVE_GTID && ! DBUG_OFF

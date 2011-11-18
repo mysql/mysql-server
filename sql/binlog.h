@@ -177,7 +177,7 @@ public:
     m_key_file_log_index= key_file_log_index;
   }
 #endif
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
   /**
     Add @@global.server_uuid to this binlog's Sid_map.
 
@@ -188,7 +188,7 @@ public:
     @retval 1 Error (out of memory or IO error).
   */
   int init_sid_map();
-  bool restore_ugid();
+  bool restore_gtid();
 #endif
 
 private:
@@ -325,7 +325,7 @@ public:
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
   Checkable_rwlock sid_lock;
   Sid_map sid_map;
   Group_log_state group_log_state;
@@ -361,7 +361,7 @@ void check_binlog_stmt_cache_size(THD *thd);
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 extern const char *group_log_files_filename;
 extern const char *group_log_filename;
 extern const char *group_log_init_state_filename;

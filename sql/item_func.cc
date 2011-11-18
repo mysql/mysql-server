@@ -3751,11 +3751,11 @@ longlong Item_master_pos_wait::val_int()
 }
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 /**
-  Return 1 if both arguments are group_sets and the first is a subset
+  Return 1 if both arguments are GTID_sets and the first is a subset
   of the second.  Generate an error if any of the arguments is not a
-  group_set.
+  GTID_set.
 */
 longlong Item_func_group_subset::val_int()
 {
@@ -3773,12 +3773,12 @@ longlong Item_func_group_subset::val_int()
       (ptr= string->c_ptr_safe()) != NULL)
   {
     mysql_bin_log.sid_lock.rdlock();
-    const Group_set sub_set(&mysql_bin_log.sid_map, ptr, &status);
+    const GTID_set sub_set(&mysql_bin_log.sid_map, ptr, &status);
     PROPAGATE_REPORTED_ERROR_INT(status);
     if ((string= args[1]->val_str(&buf)) != NULL &&
         (ptr= string->c_ptr_safe()) != NULL)
     {
-      const Group_set super_set(&mysql_bin_log.sid_map, ptr, &status);
+      const GTID_set super_set(&mysql_bin_log.sid_map, ptr, &status);
       PROPAGATE_REPORTED_ERROR_INT(status);
       ret= sub_set.is_subset(&super_set) ? 1 : 0;
     }

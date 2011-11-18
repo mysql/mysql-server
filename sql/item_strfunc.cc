@@ -4105,7 +4105,7 @@ String *Item_func_uuid::val_str(String *str)
 }
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 void Item_func_group_subtract::fix_length_and_dec()
 {
   maybe_null= args[0]->maybe_null || args[1]->maybe_null;
@@ -4135,13 +4135,13 @@ String *Item_func_group_subtract::val_str_ascii(String *str)
       (charp1= str1->c_ptr_safe()) != NULL)
   {
     mysql_bin_log.sid_lock.rdlock();
-    Group_set set1(&mysql_bin_log.sid_map, charp1, &status);
+    GTID_set set1(&mysql_bin_log.sid_map, charp1, &status);
     // get second set
     if (status == RETURN_STATUS_OK &&
         (str2= args[1]->val_str_ascii(str)) != NULL &&
         (charp2= str2->c_ptr_safe()) != NULL)
     {
-      Group_set set2(&mysql_bin_log.sid_map, charp2, &status);
+      GTID_set set2(&mysql_bin_log.sid_map, charp2, &status);
       int length;
       // subtract, save result, return result
       if (status == RETURN_STATUS_OK &&

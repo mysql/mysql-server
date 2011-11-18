@@ -17,7 +17,7 @@
 #include "zgroups.h"
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 #include "mysqld_error.h"
@@ -29,7 +29,7 @@ Owned_groups::Owned_groups(Checkable_rwlock *_sid_lock)
 {
   my_init_dynamic_array(&sidno_to_hash, sizeof(HASH *), 0, 8);
   /*
-  my_hash_init(&ugid_to_owner, &my_charset_bin, 20,
+  my_hash_init(&gtid_to_owner, &my_charset_bin, 20,
                offsetof(Node, group), sizeof(Group), NULL,
                my_free, 0);
   */
@@ -206,7 +206,7 @@ bool Owned_groups::is_partial(rpl_sidno sidno, rpl_gno gno) const
 }
 
 
-enum_return_status Owned_groups::get_partial_groups(Group_set *gs) const
+enum_return_status Owned_groups::get_partial_groups(GTID_set *gs) const
 {
   DBUG_ENTER("Owned_groups::get_partial_groups");
   rpl_sidno max_sidno= get_max_sidno();
@@ -226,4 +226,4 @@ enum_return_status Owned_groups::get_partial_groups(Group_set *gs) const
 }
 
 
-#endif /* HAVE_UGID */
+#endif /* HAVE_GTID */

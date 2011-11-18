@@ -1,4 +1,4 @@
---source include/have_ugid.inc
+--source include/have_gtid.inc
 --source include/have_innodb.inc
 --let $rpl_topology= 1
 --source include/rpl_init.inc
@@ -140,9 +140,9 @@ CREATE table t (a INT) ENGINE = InnoDB;
 --echo ######## Specify test cases ########
 
 # This table contains specifications of all tests we are going to
-# perform. It contains the values of the UGID_NEXT* variables, a
+# perform. It contains the values of the GTID_NEXT* variables, a
 # statement, and the expected outcome in terms of
-# @@[SESSION|GLOBAL].UGID_[ENDED|PARTIAL]_GROUPS.
+# @@[SESSION|GLOBAL].GTID_[ENDED|PARTIAL]_GROUPS.
 # Columns:
 #  id
 #    autoinc PK
@@ -151,23 +151,23 @@ CREATE table t (a INT) ENGINE = InnoDB;
 #    "CRE" (CREATE TABLE), "INS" (INSERT), "BEG" (BEGIN), "COM"
 #    (COMMIT), "ROL" (ROLLBACK).
 #  next
-#    Value of UGID_NEXT before executing the statement.
+#    Value of GTID_NEXT before executing the statement.
 #    For convenience, you can use two-digit integers instead of UUIDs:
 #    e.g., 37 is an abbreviation for
 #    37373737-3737-3737-3737-373737373737.
 #    The value 0 means that the previous value is retained and no SET
-#    statement is generate for UGID_NEXT.
+#    statement is generate for GTID_NEXT.
 #  next_list
-#    Value of UGID_NEXT_LIST before executing the statement. UUIDs
+#    Value of GTID_NEXT_LIST before executing the statement. UUIDs
 #    can be abbreviated as for 'next'.
 #    The value 0 means that the previous value is retained and no SET
-#    statement is generate for UGID_NEXT_LIST.
+#    statement is generate for GTID_NEXT_LIST.
 #  flags
 #    String containing zero, one, or both of the letters 'C' and 'E'.
-#    If C is in the string, UGID_COMMIT is set to 1. If E is in the
-#    string, UGID_END is set to 1.
+#    If C is in the string, GTID_COMMIT is set to 1. If E is in the
+#    string, GTID_END is set to 1.
 #  [global|session]_[ended|partial]
-#    Specifies how @@[SESSION|GLOBAL].UGID_[ENDED|PARTIAL]_GROUPS is
+#    Specifies how @@[SESSION|GLOBAL].GTID_[ENDED|PARTIAL]_GROUPS is
 #    expected to change after the statement.  This has the form of a
 #    group_set containing the groups that were added by the statement.
 #    If the group_set begins with '~', the groups are expected to be
@@ -247,12 +247,12 @@ while ($id <= $max_id)
   let $set_stmt= `
     SELECT CONCAT('SET ',
                   IF(next = 0, '',
-                     CONCAT('UGID_NEXT=', QUOTE(NUMBER_TO_UUID(next)), ', ')),
+                     CONCAT('GTID_NEXT=', QUOTE(NUMBER_TO_UUID(next)), ', ')),
                   IF(next_list = 0, '',
-                     CONCAT('UGID_NEXT_LIST=', QUOTE(NUMBER_TO_UUID(next_list)),
+                     CONCAT('GTID_NEXT_LIST=', QUOTE(NUMBER_TO_UUID(next_list)),
                             ', ')),
-                  'UGID_END=', IF(LOCATE('E', flags) != 0, 1, 0),
-                  ', UGID_COMMIT=', IF(LOCATE('C', flags) != 0, 1, 0))
+                  'GTID_END=', IF(LOCATE('E', flags) != 0, 1, 0),
+                  ', GTID_COMMIT=', IF(LOCATE('C', flags) != 0, 1, 0))
            FROM stmts WHERE id = $id`;
   if ($stmt_type == 'INS')
   {
@@ -294,10 +294,10 @@ while ($id <= $max_id)
   --connection server_1_1
 
   let $before_all=
-    `SELECT CONCAT_WS('|', @@SESSION.UGID_PARTIAL_GROUPS,
-                           @@GLOBAL.UGID_PARTIAL_GROUPS,
-                           @@SESSION.UGID_ENDED_GROUPS,
-                           @@GLOBAL.UGID_ENDED_GROUPS)`;
+    `SELECT CONCAT_WS('|', @@SESSION.GTID_PARTIAL_GROUPS,
+                           @@GLOBAL.GTID_PARTIAL_GROUPS,
+                           @@SESSION.GTID_ENDED_GROUPS,
+                           @@GLOBAL.GTID_ENDED_GROUPS)`;
 
   eval $set_stmt;
   #if ($error != 0)
@@ -318,8 +318,8 @@ while ($id <= $max_id)
   {
     # $column = [session|global]_[partial|ended]
     --let $column= `SELECT name FROM variables WHERE var_id = $var_id` 
-    # $variable = @@[SESSION|GLOBAL].UGID_[PARTIAL|ENDED]_GROUPS
-    --let $variable= `SELECT UCASE(CONCAT('@@', REPLACE('$column', '_', '.UGID_'), '_GROUPS'))`
+    # $variable = @@[SESSION|GLOBAL].GTID_[PARTIAL|ENDED]_GROUPS
+    --let $variable= `SELECT UCASE(CONCAT('@@', REPLACE('$column', '_', '.GTID_'), '_GROUPS'))`
     # $before = the Nth '|'-separated substring of $before_all
     --let $before= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX('$before_all', '|', $var_id), '|', -1)`
     # $after = the value of the $variable now
@@ -336,7 +336,7 @@ while ($id <= $max_id)
     #--echo after=$after;
     #--echo diff=$diff;
     #--echo CURRENT_CONNECTION=$CURRENT_CONNECTION;
-    #SELECT @@SESSION.UGID_NEXT, @@SESSION.UGID_NEXT_LIST, @@SESSION.UGID_END, @@SESSION.UGID_COMMIT;
+    #SELECT @@SESSION.GTID_NEXT, @@SESSION.GTID_NEXT_LIST, @@SESSION.GTID_END, @@SESSION.GTID_COMMIT;
     #SELECT CHECK_GROUP_SET('', '', '');
 
     # Assert that before + diff = after

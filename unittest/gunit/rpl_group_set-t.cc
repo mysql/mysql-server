@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 #include <string.h>
 
-#define FRIEND_OF_GROUP_SET class GroupTest_Group_containers_Test
+#define FRIEND_OF_GTID_SET class GroupTest_Group_containers_Test
 #define FRIEND_OF_GROUP_CACHE class GroupTest_Group_containers_Test
 #define FRIEND_OF_GROUP_LOG_STATE class GroupTest_Group_containers_Test
 
@@ -28,7 +28,7 @@
 #include "zgroups.h"
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 #define N_SIDS 16
@@ -73,8 +73,8 @@ public:
 
 
   /*
-    Test that different, equivalent ways to construct a Group_set give
-    the same resulting Group_set.  This is used to test Group_set,
+    Test that different, equivalent ways to construct a GTID_set give
+    the same resulting GTID_set.  This is used to test GTID_set,
     Sid_map, Group_cache, Group_log_state, and Owned_groups.
 
     We will generate sets of groups in *stages*.  Each stage is
@@ -95,7 +95,7 @@ public:
       if (do_errtext)                                                   \
         (group_test)->append_errtext(__LINE__,                          \
                                      "sidno=%d group=%s substage_i=%d", \
-                                     substage.sidno, substage.ugid_str, \
+                                     substage.sidno, substage.gtid_str, \
                                      substage_i);
   #define END_SUBSTAGE_LOOP(group_test) } group_test->pop_errtext()
 
@@ -108,13 +108,13 @@ public:
     rpl_gno gno;
     const rpl_sid *sid;
     char sid_str[rpl_sid::TEXT_LENGTH + 1];
-    char ugid_str[rpl_sid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 1];
+    char gtid_str[rpl_sid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 1];
     bool is_first, is_last, is_auto;
 #ifndef NO_DBUG
     void print() const
     {
       printf("%d/%s [first=%d last=%d auto=%d]",
-             sidno, ugid_str, is_first, is_last, is_auto);
+             sidno, gtid_str, is_first, is_last, is_auto);
     }
 #endif
   };
@@ -133,14 +133,14 @@ public:
     int n_substages;
 
     // Set of groups added in the present stage.
-    Group_set set;
+    GTID_set set;
     int str_len;
     char *str;
 
     // The subset of groups that can be added as automatic groups.
-    Group_set automatic_groups;
+    GTID_set automatic_groups;
     // The subset of groups that cannot be added as automatic groups.
-    Group_set non_automatic_groups;
+    GTID_set non_automatic_groups;
 
     Stage(class GroupTest *gt, Sid_map *sm)
       : group_test(gt), sid_map(sm),
@@ -178,7 +178,7 @@ public:
       stages.
       @param other_sm Sid_map to which groups should be added.
     */
-    void new_stage(const Group_set *done_groups, Sid_map *other_sm)
+    void new_stage(const GTID_set *done_groups, Sid_map *other_sm)
     {
       set.clear();
       automatic_groups.clear();
@@ -187,7 +187,7 @@ public:
       n_substages= 1 + (rand() % MAX_SUBSTAGES);
       BEGIN_SUBSTAGE_LOOP(group_test, this, false)
       {
-        // generate random UGID
+        // generate random GTID
         substage.sidno= 1 + (rand() % N_SIDS);
         substage.gno=
           1 + (rand() % (substage.sidno * substage.sidno));
@@ -195,16 +195,16 @@ public:
         substage.sid= sid_map->sidno_to_sid(substage.sidno);
         ASSERT_NE((rpl_sid *)NULL, substage.sid) << group_test->errtext;
         substage.sid->to_string(substage.sid_str);
-        substage.sid->to_string(substage.ugid_str);
-        substage.ugid_str[rpl_sid::TEXT_LENGTH]= ':';
-        format_gno(substage.ugid_str + rpl_sid::TEXT_LENGTH + 1, substage.gno);
+        substage.sid->to_string(substage.gtid_str);
+        substage.gtid_str[rpl_sid::TEXT_LENGTH]= ':';
+        format_gno(substage.gtid_str + rpl_sid::TEXT_LENGTH + 1, substage.gno);
 
         ASSERT_LE(1, other_sm->add_permanent(substage.sid))
           << group_test->errtext;
 
         // check if this group could be added as an 'automatic' group
-        Group_set::Const_interval_iterator ivit(done_groups, substage.sidno);
-        const Group_set::Interval *iv= ivit.get();
+        GTID_set::Const_interval_iterator ivit(done_groups, substage.sidno);
+        const GTID_set::Interval *iv= ivit.get();
         substage.is_auto=
           !set.contains_group(substage.sidno, substage.gno) &&
           ((iv == NULL || iv->start > 1) ? substage.gno == 1 :
@@ -214,7 +214,7 @@ public:
         // stage, and add it to the set
         substage.is_first= !set.contains_group(substage.sidno, substage.gno);
         if (substage.is_first)
-          ASSERT_OK(set.add(substage.ugid_str));
+          ASSERT_OK(set.add(substage.gtid_str));
       } END_SUBSTAGE_LOOP(group_test);
 
       // Iterate backwards so that we can detect when a subgroup is
@@ -225,7 +225,7 @@ public:
         Substage &substage= substages[substage_i];
         substage.is_last= !set.contains_group(substage.sidno, substage.gno);
         if (substage.is_last)
-          ASSERT_OK(set.add(substage.ugid_str));
+          ASSERT_OK(set.add(substage.gtid_str));
       }
 
       str_len= set.get_string_length();
@@ -274,7 +274,7 @@ public:
   }
 
 
-  void group_subset(Group_set *sub, Group_set *super, bool outcome,
+  void group_subset(GTID_set *sub, GTID_set *super, bool outcome,
                     int line, const char *desc)
   {
     append_errtext(line, "%s", desc);
@@ -282,7 +282,7 @@ public:
     EXPECT_EQ(outcome, sub->is_subset(super)) << errtext;
     // check using set subtraction
     enum_return_status status;
-    Group_set sub_minus_super(sub, &status);
+    GTID_set sub_minus_super(sub, &status);
     ASSERT_OK(status) << errtext;
     ASSERT_OK(sub_minus_super.remove(super)) << errtext;
     ASSERT_EQ(outcome, sub_minus_super.is_empty()) << errtext;
@@ -369,15 +369,15 @@ TEST_F(GroupTest, Sid_map)
 TEST_F(GroupTest, Group_containers)
 {
   /*
-    In this test, we maintain 298 Group_sets.  We add groups to these
-    Group_sets in stages, as described above.  We add the groups to
-    each of the 298 Group_sets in different ways, as described below.
+    In this test, we maintain 298 GTID_sets.  We add groups to these
+    GTID_sets in stages, as described above.  We add the groups to
+    each of the 298 GTID_sets in different ways, as described below.
     At the end of each stage, we check that all the 298 resulting
-    Group_sets are mutually equal.
+    GTID_sets are mutually equal.
 
     We add groups in the two ways:
 
-    A. Test Group_sets and Sid_maps.  We vary two parameters:
+    A. Test GTID_sets and Sid_maps.  We vary two parameters:
 
        Parameter 1: vary the way that groups are added:
         0. Add one group at a time, using add(sidno, gno).
@@ -386,18 +386,18 @@ TEST_F(GroupTest, Group_containers)
         3. add all new groups at once, using add(gs_new.to_string()).
         4. Maintain a string that contains the concatenation of all
            gs_new.to_string(). in each stage, we set gs[4] to a new
-           Group_set created from this string.
+           GTID_set created from this string.
 
        Parameter 2: vary the Sid_map object:
         0. Use a Sid_map that has all the SIDs in order.
         1. Use a Sid_map where SIDs are added in the order they appear.
 
        We vary these parameters in all combinations; thus we construct
-       10 Group_sets.
+       10 GTID_sets.
   */
   enum enum_sets_method {
     METHOD_SIDNO_GNO= 0, METHOD_GROUP_TEXT,
-    METHOD_GROUP_SET, METHOD_GROUP_SET_TEXT, METHOD_ALL_TEXTS_CONCATENATED,
+    METHOD_GTID_SET, METHOD_GTID_SET_TEXT, METHOD_ALL_TEXTS_CONCATENATED,
     MAX_METHOD
   };
   enum enum_sets_sid_map {
@@ -408,24 +408,24 @@ TEST_F(GroupTest, Group_containers)
     B. Test Group_cache, Group_log_state, and Owned_groups.  All
        sub-groups for the stage are added to the Group_cache, the
        Group_cache is flushed to the Group_log_state, and the
-       Group_set is extracted from the Group_log_state.  We vary the
+       GTID_set is extracted from the Group_log_state.  We vary the
        following parameters.
 
        Parameter 1: type of statement:
         0. Transactional replayed statement: add all groups to the
            transaction group cache (which is flushed to a
            Group_log_state at the end of the stage).  Set
-           UGID_NEXT_LIST to the list of all groups in the stage.
+           GTID_NEXT_LIST to the list of all groups in the stage.
         1. Non-transactional replayed statement: add all groups to the
            stmt group cache (which is flushed to the Group_log_state
-           at the end of each sub-stage).  Set UGID_NEXT_LIST = NULL.
+           at the end of each sub-stage).  Set GTID_NEXT_LIST = NULL.
         2. Randomize: for each sub-stage, choose 0 or 1 with 50%
-           chance.  Set UGID_NEXT_LIST to the list of all groups in
+           chance.  Set GTID_NEXT_LIST to the list of all groups in
            the stage.
         3. Automatic groups: add all groups to the stmt group cache,
            but make the group automatic if possible, i.e., if the SID
            and GNO are unlogged and there is no smaller unlogged GNO
-           for this SID.  Set UGID_NEXT_LIST = NULL.
+           for this SID.  Set GTID_NEXT_LIST = NULL.
 
        Parameter 2: ended or non-ended sub-groups:
         0. All sub-groups are unended (except automatic sub-groups).
@@ -434,13 +434,13 @@ TEST_F(GroupTest, Group_containers)
            Group_log_state.
         2. For each group in the stage, choose 0 or 1 with 50% chance.
 
-       Parameter 3: dummy or normal sub-group:
+       Parameter 3: empty or normal sub-group:
         0. Generate only normal (and possibly automatic) sub-groups.
-        1. Generate only dummy (and possibly automatic) sub-groups.
-        2. Generate only dummy (and possibly automatic) sub-groups.
+        1. Generate only empty (and possibly automatic) sub-groups.
+        2. Generate only empty (and possibly automatic) sub-groups.
            Add the sub-groups implicitly: do not call
-           add_dummy_subgroup(); instead rely on
-           ugid_before_flush_trx_cache() to add dummy subgroups.
+           add_empty_subgroup(); instead rely on
+           gtid_before_flush_trx_cache() to add empty subgroups.
         3. Choose 0 or 1 with 33% chance.
 
        Parameter 4: insert anonymous sub-groups or not:
@@ -450,7 +450,7 @@ TEST_F(GroupTest, Group_containers)
            50% chance.
 
        We vary these parameters in all combinations; thus we construct
-       4*3*4*2=96 Group_sets.
+       4*3*4*2=96 GTID_sets.
   */
   enum enum_caches_type
   {
@@ -460,15 +460,15 @@ TEST_F(GroupTest, Group_containers)
   {
     END_OFF= 0, END_ON, END_RANDOMIZE, MAX_END
   };
-  enum enum_caches_dummy
+  enum enum_caches_empty
   {
-    DUMMY_OFF= 0, DUMMY_ON, DUMMY_IMPLICIT, DUMMY_RANDOMIZE, MAX_DUMMY
+    EMPTY_OFF= 0, EMPTY_ON, EMPTY_IMPLICIT, EMPTY_RANDOMIZE, MAX_EMPTY
   };
   enum enum_caches_anon {
     ANON_OFF= 0, ANON_ON, MAX_ANON
   };
   const int N_COMBINATIONS_CACHES=
-    MAX_TYPE * MAX_END * MAX_DUMMY * MAX_ANON;
+    MAX_TYPE * MAX_END * MAX_EMPTY * MAX_ANON;
   const int N_COMBINATIONS= N_COMBINATIONS_SETS + N_COMBINATIONS_CACHES;
 
   // Auxiliary macros to loop through all combinations of parameters.
@@ -476,8 +476,8 @@ TEST_F(GroupTest, Group_containers)
   push_errtext();                                                       \
   for (int method_i= 0, combination_i= 0; method_i < MAX_METHOD; method_i++) { \
     for (int sid_map_i= 0; sid_map_i < MAX_SID_MAP; sid_map_i++, combination_i++) { \
-      Group_set &group_set __attribute__((unused))=                     \
-        containers[combination_i]->group_set;                           \
+      GTID_set &gtid_set __attribute__((unused))=                       \
+        containers[combination_i]->gtid_set;                            \
       Sid_map *&sid_map __attribute__((unused))=                        \
         sid_maps[sid_map_i];                                            \
       append_errtext(__LINE__,                                          \
@@ -491,10 +491,10 @@ TEST_F(GroupTest, Group_containers)
   for (int type_i= 0, combination_i= N_COMBINATIONS_SETS;               \
        type_i < MAX_TYPE; type_i++) {                                   \
     for (int end_i= 0; end_i < MAX_END; end_i++) {                      \
-      for (int dummy_i= 0; dummy_i < MAX_DUMMY; dummy_i++) {            \
+      for (int empty_i= 0; empty_i < MAX_EMPTY; empty_i++) {            \
         for (int anon_i= 0; anon_i < MAX_ANON; anon_i++, combination_i++) { \
-          Group_set &group_set __attribute__((unused))=                 \
-            containers[combination_i]->group_set;                       \
+          GTID_set &gtid_set __attribute__((unused))=                   \
+            containers[combination_i]->gtid_set;                        \
           Group_cache &stmt_cache __attribute__((unused))=              \
             containers[combination_i]->stmt_cache;                      \
           Group_cache &trx_cache __attribute__((unused))=               \
@@ -502,9 +502,9 @@ TEST_F(GroupTest, Group_containers)
           Group_log_state &group_log_state __attribute__((unused))=     \
             containers[combination_i]->group_log_state;                 \
           append_errtext(__LINE__,                                      \
-                         "type_i=%d end_i=%d dummy_i=%d "               \
+                         "type_i=%d end_i=%d empty_i=%d "               \
                          "anon_i=%d combination_i=%d",                  \
-                         type_i, end_i, dummy_i,                        \
+                         type_i, end_i, empty_i,                        \
                          anon_i, combination_i);                        \
           //verbose= (combination_i == 108); /*todo*/
 
@@ -528,7 +528,7 @@ TEST_F(GroupTest, Group_containers)
   /*
     Make sid_maps[0] and sid_maps[1] different: sid_maps[0] is
     generated in order; sid_maps[1] is generated in the order that
-    SIDS are inserted in the Group_set.
+    SIDS are inserted in the GTID_set.
   */
   for (int i= 0; i < N_SIDS; i++)
     ASSERT_LE(1, sid_maps[0]->add_permanent(&sids[i])) << errtext;
@@ -537,12 +537,12 @@ TEST_F(GroupTest, Group_containers)
   // test.
   struct Containers
   {
-    Group_set group_set;
+    GTID_set gtid_set;
     Group_cache stmt_cache;
     Group_cache trx_cache;
     Group_log_state group_log_state;
     Containers(Checkable_rwlock *lock, Sid_map *sm)
-      : group_set(sm), group_log_state(lock, sm)
+      : gtid_set(sm), group_log_state(lock, sm)
     { init(); }
     void init() { ASSERT_OK(group_log_state.ensure_sidno()); };
   };
@@ -557,7 +557,7 @@ TEST_F(GroupTest, Group_containers)
   } END_LOOP_B;
 
   /*
-    Construct a Group_set that contains the set of all groups from
+    Construct a GTID_set that contains the set of all groups from
     which we sample.
   */
   static char all_groups_str[100*100];
@@ -566,11 +566,11 @@ TEST_F(GroupTest, Group_containers)
   for (rpl_sidno sidno= 2; sidno <= N_SIDS; sidno++)
     s += sprintf(s, ",\n%s:1-%d", uuids[sidno - 1], sidno * sidno);
   enum_return_status status;
-  Group_set all_groups(sid_maps[0], all_groups_str, &status);
+  GTID_set all_groups(sid_maps[0], all_groups_str, &status);
   ASSERT_OK(status) << errtext;
 
   // The set of groups that were added in some previous stage.
-  Group_set done_groups(sid_maps[0]);
+  GTID_set done_groups(sid_maps[0]);
   ASSERT_OK(done_groups.ensure_sidno(sid_maps[0]->get_max_sidno()));
 
   /*
@@ -586,22 +586,22 @@ TEST_F(GroupTest, Group_containers)
   int stage_i= 0;
 
   /*
-    We need a THD object only to read THD::variables.ugid_next,
-    THD::variables.ugid_end, THD::variables.ugid_next_list,
+    We need a THD object only to read THD::variables.gtid_next,
+    THD::variables.gtid_end, THD::variables.gtid_next_list,
     THD::thread_id, THD::server_status.  We don't want to invoke the
     THD constructor because that would require setting up mutexes,
     etc.  Hence we use malloc instead of new.
   */
   THD *thd= (THD *)malloc(sizeof(THD));
   ASSERT_NE((THD *)NULL, thd) << errtext;
-  Ugid_specification *ugid_next= &thd->variables.ugid_next;
+  Gtid_specification *gtid_next= &thd->variables.gtid_next;
   thd->thread_id= 4711;
-  ugid_next->type= Ugid_specification::AUTOMATIC;
-  my_bool &ugid_end= thd->variables.ugid_end;
-  my_bool &ugid_commit= thd->variables.ugid_commit;
+  gtid_next->type= Gtid_specification::AUTOMATIC;
+  my_bool &gtid_end= thd->variables.gtid_end;
+  my_bool &gtid_commit= thd->variables.gtid_commit;
   thd->server_status= 0;
   thd->system_thread= NON_SYSTEM_THREAD;
-  thd->variables.ugid_next_list.group_set= &stage.set;
+  thd->variables.gtid_next_list.gtid_set= &stage.set;
 
   push_errtext();
   while (!all_groups.equals(&done_groups))
@@ -623,7 +623,7 @@ TEST_F(GroupTest, Group_containers)
     ASSERT_NE((char *)NULL, done_str) << errtext;
     done_str_len += sprintf(done_str + done_str_len, ",%s", stage.str);
 
-    // Add groups to Group_sets.
+    // Add groups to GTID_sets.
     BEGIN_LOOP_A
     {
       switch (method_i)
@@ -633,25 +633,25 @@ TEST_F(GroupTest, Group_containers)
         {
           rpl_sidno sidno_1= sid_map->sid_to_sidno(substage.sid);
           ASSERT_LE(1, sidno_1) << errtext;
-          ASSERT_OK(group_set.ensure_sidno(sidno_1));
-          ASSERT_OK(group_set._add(sidno_1, substage.gno));
+          ASSERT_OK(gtid_set.ensure_sidno(sidno_1));
+          ASSERT_OK(gtid_set._add(sidno_1, substage.gno));
         } END_SUBSTAGE_LOOP(this);
         break;
       case METHOD_GROUP_TEXT:
         BEGIN_SUBSTAGE_LOOP(this, &stage, true)
         {
-          ASSERT_OK(group_set.add(substage.ugid_str));
+          ASSERT_OK(gtid_set.add(substage.gtid_str));
         } END_SUBSTAGE_LOOP(this);
         break;
-      case METHOD_GROUP_SET:
-        ASSERT_OK(group_set.add(&stage.set)) << errtext;
+      case METHOD_GTID_SET:
+        ASSERT_OK(gtid_set.add(&stage.set)) << errtext;
         break;
-      case METHOD_GROUP_SET_TEXT:
-        ASSERT_OK(group_set.add(stage.str)) << errtext;
+      case METHOD_GTID_SET_TEXT:
+        ASSERT_OK(gtid_set.add(stage.str)) << errtext;
         break;
       case METHOD_ALL_TEXTS_CONCATENATED:
-        group_set.clear();
-        ASSERT_OK(group_set.add(done_str)) << errtext;
+        gtid_set.clear();
+        ASSERT_OK(gtid_set.add(done_str)) << errtext;
       case MAX_METHOD:
         break;
       }
@@ -674,7 +674,7 @@ TEST_F(GroupTest, Group_containers)
 #endif // ifdef DBUG_OFF
       }
       
-      Group_set ended_groups(sid_maps[0]);
+      GTID_set ended_groups(sid_maps[0]);
       bool trx_contains_logged_subgroup= false;
       bool stmt_contains_logged_subgroup= false;
       BEGIN_SUBSTAGE_LOOP(this, &stage, true)
@@ -698,17 +698,17 @@ TEST_F(GroupTest, Group_containers)
           ended_groups.contains_group(substage.sidno, substage.gno);
                  
         /*
-          In DUMMY_RANDOMIZE mode, we have to determine once *per
-          group* (not substage) if we use DUMMY_END or not. So we
+          In EMPTY_RANDOMIZE mode, we have to determine once *per
+          group* (not substage) if we use EMPTY_END or not. So we
           determine this for the first subgroup of the group, and then
-          we memoize which groups use DUMMY_END using the Group_set
-          dummy_end.
+          we memoize which groups use EMPTY_END using the GTID_set
+          empty_end.
         */
-        int dummy_j;
-        if (dummy_i == DUMMY_RANDOMIZE)
-          dummy_j= rand() % 3;
+        int empty_j;
+        if (empty_i == EMPTY_RANDOMIZE)
+          empty_j= rand() % 3;
         else
-          dummy_j= dummy_i;
+          empty_j= empty_i;
         int anon_j1, anon_j2;
         if (type_j != TYPE_TRX || anon_i == ANON_OFF)
           anon_j1= anon_j2= ANON_OFF;
@@ -718,24 +718,24 @@ TEST_F(GroupTest, Group_containers)
           anon_j2= rand() % 2;
         }
         if (verbose)
-          printf("type_j=%d end_j=%d dummy_j=%d anon_j1=%d anon_j2=%d\n",
-                 type_j, end_j, dummy_j, anon_j1, anon_j2);
+          printf("type_j=%d end_j=%d empty_j=%d anon_j1=%d anon_j2=%d\n",
+                 type_j, end_j, empty_j, anon_j1, anon_j2);
 
-        thd->variables.ugid_next_list.is_non_null=
+        thd->variables.gtid_next_list.is_non_null=
           (type_i == TYPE_NONTRX || type_i == TYPE_AUTO) ? 0 : 1;
-        ugid_commit=
+        gtid_commit=
           (substage_i == stage.n_substages - 1) ||
-          !thd->variables.ugid_next_list.is_non_null;
+          !thd->variables.gtid_next_list.is_non_null;
 
         if (type_j == TYPE_AUTO)
         {
-          ugid_next->type= Ugid_specification::AUTOMATIC;
-          ugid_next->group.sidno= substage.sidno;
-          ugid_next->group.gno= 0;
-          ugid_end= false;
+          gtid_next->type= Gtid_specification::AUTOMATIC;
+          gtid_next->group.sidno= substage.sidno;
+          gtid_next->group.gno= 0;
+          gtid_end= false;
           lock.unlock();
           lock.assert_no_lock();
-          ugid_before_statement(thd, &lock, &group_log_state,
+          gtid_before_statement(thd, &lock, &group_log_state,
                                 &stmt_cache, &trx_cache);
           lock.rdlock();
           stmt_cache.add_logged_subgroup(thd, 20 + rand() % 100/*binlog_len*/);
@@ -747,44 +747,44 @@ TEST_F(GroupTest, Group_containers)
 
           if (anon_j1)
           {
-            ugid_next->type= Ugid_specification::ANONYMOUS;
-            ugid_next->group.sidno= 0;
-            ugid_next->group.gno= 0;
-            ugid_end= false;
+            gtid_next->type= Gtid_specification::ANONYMOUS;
+            gtid_next->group.sidno= 0;
+            gtid_next->group.gno= 0;
+            gtid_end= false;
             lock.unlock();
             lock.assert_no_lock();
-            ugid_before_statement(thd, &lock, &group_log_state,
+            gtid_before_statement(thd, &lock, &group_log_state,
                                   &stmt_cache, &trx_cache);
             lock.rdlock();
             cache.add_logged_subgroup(thd, 20 + rand() % 100/*binlog_len*/);
             trx_contains_logged_subgroup= true;
           }
 
-          ugid_next->type= Ugid_specification::UGID;
-          ugid_next->group.sidno= substage.sidno;
-          ugid_next->group.gno= substage.gno;
-          ugid_end= (end_j == END_ON) ? true : false;
+          gtid_next->type= Gtid_specification::GTID;
+          gtid_next->group.sidno= substage.sidno;
+          gtid_next->group.gno= substage.gno;
+          gtid_end= (end_j == END_ON) ? true : false;
           lock.unlock();
           lock.assert_no_lock();
-          ugid_before_statement(thd, &lock, &group_log_state,
+          gtid_before_statement(thd, &lock, &group_log_state,
                                 &stmt_cache, &trx_cache);
           lock.rdlock();
           if (!group_log_state.is_ended(substage.sidno, substage.gno))
           {
-            switch (dummy_j)
+            switch (empty_j)
             {
-            case DUMMY_OFF:
+            case EMPTY_OFF:
               cache.add_logged_subgroup(thd, 20 + rand() % 100/*binlog_len*/);
               if (type_j == TYPE_TRX)
                 trx_contains_logged_subgroup= true;
               else
                 stmt_contains_logged_subgroup= true;
               break;
-            case DUMMY_ON:
-              cache.add_dummy_subgroup(substage.sidno, substage.gno,
+            case EMPTY_ON:
+              cache.add_empty_subgroup(substage.sidno, substage.gno,
                                        end_j ? true : false);
               break;
-            case DUMMY_IMPLICIT:
+            case EMPTY_IMPLICIT:
               break; // do nothing
             default:
               assert(0);
@@ -793,13 +793,13 @@ TEST_F(GroupTest, Group_containers)
 
           if (anon_j2)
           {
-            ugid_next->type= Ugid_specification::ANONYMOUS;
-            ugid_next->group.sidno= 0;
-            ugid_next->group.gno= 0;
-            ugid_end= false;
+            gtid_next->type= Gtid_specification::ANONYMOUS;
+            gtid_next->group.sidno= 0;
+            gtid_next->group.gno= 0;
+            gtid_end= false;
             lock.unlock();
             lock.assert_no_lock();
-            ugid_before_statement(thd, &lock, &group_log_state,
+            gtid_before_statement(thd, &lock, &group_log_state,
                                   &stmt_cache, &trx_cache);
             lock.rdlock();
             cache.add_logged_subgroup(thd, 20 + rand() % 100/*binlog_len*/);
@@ -815,7 +815,7 @@ TEST_F(GroupTest, Group_containers)
         }
 #endif // ifndef DBUG_OFF
         if (!stmt_cache.is_empty())
-          ugid_flush_group_cache(thd, &lock,
+          gtid_flush_group_cache(thd, &lock,
                                  &group_log_state, NULL/*group log*/,
                                  &stmt_cache, &trx_cache,
                                  1/*binlog_no*/, 1/*binlog_pos*/,
@@ -823,12 +823,12 @@ TEST_F(GroupTest, Group_containers)
                                  20 + rand() % 99 : -1
                                  /*offset_after_last_statement*/);
         stmt_contains_logged_subgroup= false;
-        ugid_before_flush_trx_cache(thd, &lock, &group_log_state, &trx_cache);
-        if (ugid_commit)
+        gtid_before_flush_trx_cache(thd, &lock, &group_log_state, &trx_cache);
+        if (gtid_commit)
         {
-          // simulate ugid_after_flush_trx_cache() but don't
+          // simulate gtid_after_flush_trx_cache() but don't
           // execute a COMMIT statement
-          thd->variables.ugid_has_ongoing_super_group= 0;
+          thd->variables.gtid_has_ongoing_super_group= 0;
 
 #ifndef DBUG_OFF
           if (verbose)
@@ -842,7 +842,7 @@ TEST_F(GroupTest, Group_containers)
 #endif // ifndef DBUG_OFF
 
           if (!trx_cache.is_empty())
-            ugid_flush_group_cache(thd, &lock, 
+            gtid_flush_group_cache(thd, &lock, 
                                    &group_log_state, NULL/*group log*/,
                                    &trx_cache, &trx_cache,
                                    1/*binlog_no*/, 1/*binlog_pos*/,
@@ -853,21 +853,21 @@ TEST_F(GroupTest, Group_containers)
         }
       } END_SUBSTAGE_LOOP(this);
 
-      group_set.clear();
-      ASSERT_OK(group_log_state.owned_groups.get_partial_groups(&group_set));
-      ASSERT_OK(group_set.add(&group_log_state.ended_groups));
+      gtid_set.clear();
+      ASSERT_OK(group_log_state.owned_groups.get_partial_groups(&gtid_set));
+      ASSERT_OK(gtid_set.add(&group_log_state.ended_groups));
     } END_LOOP_B;
 
     // add stage.set to done_groups
-    Group_set old_done_groups(&done_groups, &status);
+    GTID_set old_done_groups(&done_groups, &status);
     ASSERT_OK(status);
     ASSERT_OK(done_groups.add(&stage.set));
 
-    // check the Group_set::remove and Group_set::is_subset functions
-    Group_set diff(&done_groups, &status);
+    // check the GTID_set::remove and GTID_set::is_subset functions
+    GTID_set diff(&done_groups, &status);
     ASSERT_OK(status);
     ASSERT_OK(diff.remove(&old_done_groups));
-    Group_set not_new(&stage.set, &status);
+    GTID_set not_new(&stage.set, &status);
     ASSERT_OK(status);
     ASSERT_OK(not_new.remove(&diff));
 
@@ -908,31 +908,31 @@ TEST_F(GroupTest, Group_containers)
     /*
       Verify that all group sets are equal.  We test both a.equals(b)
       and b.equals(a) and a.equals(a), because we want to verify that
-      Group_set::equals is correct too.  We compare both the sets
-      using Group_set::equals, and the output of to_string() using
+      GTID_set::equals is correct too.  We compare both the sets
+      using GTID_set::equals, and the output of to_string() using
       EXPECT_STREQ.
     */
     BEGIN_LOOP_A
     {
-      char *buf1= new char[group_set.get_string_length() + 1];
-      group_set.to_string(buf1);
+      char *buf1= new char[gtid_set.get_string_length() + 1];
+      gtid_set.to_string(buf1);
       for (int i= 0; i < N_COMBINATIONS_SETS; i++)
       {
-        Group_set &group_set_2= containers[i]->group_set;
+        GTID_set &gtid_set_2= containers[i]->gtid_set;
         if (combination_i < i)
         {
-          char *buf2= new char[group_set_2.get_string_length() + 1];
-          group_set_2.to_string(buf2);
+          char *buf2= new char[gtid_set_2.get_string_length() + 1];
+          gtid_set_2.to_string(buf2);
           EXPECT_STREQ(buf1, buf2) << errtext << " i=" << i;
           delete buf2;
         }
-        EXPECT_EQ(true, group_set.equals(&group_set_2)) << errtext << " i=" << i;
+        EXPECT_EQ(true, gtid_set.equals(&gtid_set_2)) << errtext << " i=" << i;
       }
       delete buf1;
     } END_LOOP_A;
     BEGIN_LOOP_B
     {
-      EXPECT_EQ(true, containers[combination_i]->group_set.equals(&done_groups)) << errtext;
+      EXPECT_EQ(true, containers[combination_i]->gtid_set.equals(&done_groups)) << errtext;
     } END_LOOP_B;
   }
   pop_errtext();
