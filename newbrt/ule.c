@@ -2231,3 +2231,9 @@ toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry,
     return rval;
 }
 
+#include <valgrind/drd.h>
+void __attribute__((__constructor__)) toku_ule_drd_ignore(void);
+void
+toku_ule_drd_ignore(void) {
+    DRD_IGNORE_VAR(status);
+}
