@@ -7879,7 +7879,7 @@ mysqld_get_one_option(int optid,
       name++;
 
     /* Trim trailing spaces and slashes from instrument name */
-    while(p > argument && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '/'))
+    while (p > argument && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '/'))
       p--;
     *p= 0;
 
@@ -7891,14 +7891,13 @@ mysqld_get_one_option(int optid,
       return 0;
     }
 
-    /* Trim leading and trailing spaces from option value */
+    /* Trim leading spaces from option value */
     while (*val && my_isspace(mysqld_charset, *val))
       val++;
-    p= val + strlen(val);
 
-    while(p > val && my_isspace(mysqld_charset, p[-1]))
-      p--;
-    *p= 0;
+    /* Trim trailing spaces from option value */
+    if (p= my_strchr(mysqld_charset, val, val+strlen(val), ' '))
+      *p= 0;
 
     if (!*val)
     {
