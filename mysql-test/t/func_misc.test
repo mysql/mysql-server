@@ -462,6 +462,18 @@ select NAME_CONST('_id',1234) as id;
 --echo End of 5.0 tests
 
 #
+# Bug#12735545 - PARSER STACK OVERFLOW WITH NAME_CONST 
+#                CONTAINING OR EXPRESSION
+#
+--error ER_WRONG_ARGUMENTS
+SELECT NAME_CONST('a', -(1 OR 2)) OR 1;
+--error ER_WRONG_ARGUMENTS
+SELECT NAME_CONST('a', -(1 AND 2)) OR 1;
+SELECT NAME_CONST('a', -(1)) OR 1;
+
+
+#
+#
 # Bug #30389: connection_id() always return 0 in embedded server
 #
 
