@@ -2320,6 +2320,7 @@ fts_get_max_cache_size(
 
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value. */
+	value.f_n_char = 0;
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
 	value.f_str = ut_malloc(value.f_len + 1);
 
@@ -2404,8 +2405,9 @@ fts_get_total_word_count(
 
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value. */
+	value.f_n_char = 0;
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<unsigned char*>(ut_malloc(value.f_len + 1));
+	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
 
 	error = fts_config_get_index_value(
 		trx, index, FTS_TOTAL_WORD_COUNT, &value);
