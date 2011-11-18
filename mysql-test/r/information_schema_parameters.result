@@ -495,13 +495,72 @@ def	i_s_parameters_test	test_func5	1	IN	s	char	20	60	NULL	NULL	NULL	utf8	utf8_ge
 DROP DATABASE IF EXISTS i_s_parameters_test;
 CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
-CREATE PROCEDURE test_proc1 (OUT p_p1 timestamp) BEGIN SELECT 1 ; END; \\
-CREATE FUNCTION test_func1 (f_p1 DATETIME) RETURNS TIME RETURN NULL;
+CREATE PROCEDURE test_proc (OUT p_p1 datetime,OUT p_p2 time,OUT p_p3 timestamp) BEGIN SELECT 1 ; END; \\
+CREATE PROCEDURE test_proc0 (OUT p_p1 datetime(0),OUT p_p2 time(0),OUT p_p3 timestamp(0)) BEGIN SELECT 1 ; END; \\
+CREATE PROCEDURE test_proc1 (OUT p_p1 datetime(1),OUT p_p2 time(1),OUT p_p3 timestamp(1)) BEGIN SELECT 1 ; END; \\
+CREATE PROCEDURE test_proc2 (OUT p_p1 datetime(2),OUT p_p2 time(2),OUT p_p3 timestamp(2)) BEGIN SELECT 1 ; END; \\
+CREATE PROCEDURE test_proc3 (OUT p_p1 datetime(3),OUT p_p2 time(3),OUT p_p3 timestamp(3)) BEGIN SELECT 1 ; END; \\
+CREATE PROCEDURE test_proc4 (OUT p_p1 datetime(4),OUT p_p2 time(4),OUT p_p3 timestamp(4)) BEGIN SELECT 1 ; END; \\
+CREATE PROCEDURE test_proc5 (OUT p_p1 datetime(5),OUT p_p2 time(5),OUT p_p3 timestamp(5)) BEGIN SELECT 1 ; END; \\
+CREATE PROCEDURE test_proc6 (OUT p_p1 datetime(6),OUT p_p2 time(6),OUT p_p3 timestamp(6)) BEGIN SELECT 1 ; END; \\
+CREATE FUNCTION test_func (f_p1 DATETIME, f_p2 TIMESTAMP) RETURNS TIME RETURN NULL;
+CREATE FUNCTION test_func0 (f_p1 DATETIME(0), f_p2 TIMESTAMP(0)) RETURNS TIME(0) RETURN NULL;
+CREATE FUNCTION test_func1 (f_p1 DATETIME(1), f_p2 TIMESTAMP(1)) RETURNS TIME(1) RETURN NULL;
+CREATE FUNCTION test_func2 (f_p1 DATETIME(2), f_p2 TIMESTAMP(2)) RETURNS TIME(2) RETURN NULL;
+CREATE FUNCTION test_func3 (f_p1 DATETIME(3), f_p2 TIMESTAMP(3)) RETURNS TIME(3) RETURN NULL;
+CREATE FUNCTION test_func4 (f_p1 DATETIME(4), f_p2 TIMESTAMP(4)) RETURNS TIME(4) RETURN NULL;
+CREATE FUNCTION test_func5 (f_p1 DATETIME(5), f_p2 TIMESTAMP(5)) RETURNS TIME(5) RETURN NULL;
+CREATE FUNCTION test_func6 (f_p1 DATETIME(6), f_p2 TIMESTAMP(6)) RETURNS TIME(6) RETURN NULL;
 SELECT SPECIFIC_SCHEMA, SPECIFIC_NAME, PARAMETER_NAME, DATA_TYPE, 
 DATETIME_PRECISION from INFORMATION_SCHEMA.PARAMETERS WHERE 
 SPECIFIC_SCHEMA='i_s_parameters_test';
 SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME	DATA_TYPE	DATETIME_PRECISION
-i_s_parameters_test	test_func1	NULL	time	0
-i_s_parameters_test	test_func1	f_p1	datetime	0
-i_s_parameters_test	test_proc1	p_p1	timestamp	0
+i_s_parameters_test	test_func	NULL	time	0
+i_s_parameters_test	test_func	f_p1	datetime	0
+i_s_parameters_test	test_func	f_p2	timestamp	0
+i_s_parameters_test	test_func0	NULL	time	0
+i_s_parameters_test	test_func0	f_p1	datetime	0
+i_s_parameters_test	test_func0	f_p2	timestamp	0
+i_s_parameters_test	test_func1	NULL	time	1
+i_s_parameters_test	test_func1	f_p1	datetime	1
+i_s_parameters_test	test_func1	f_p2	timestamp	1
+i_s_parameters_test	test_func2	NULL	time	2
+i_s_parameters_test	test_func2	f_p1	datetime	2
+i_s_parameters_test	test_func2	f_p2	timestamp	2
+i_s_parameters_test	test_func3	NULL	time	3
+i_s_parameters_test	test_func3	f_p1	datetime	3
+i_s_parameters_test	test_func3	f_p2	timestamp	3
+i_s_parameters_test	test_func4	NULL	time	4
+i_s_parameters_test	test_func4	f_p1	datetime	4
+i_s_parameters_test	test_func4	f_p2	timestamp	4
+i_s_parameters_test	test_func5	NULL	time	5
+i_s_parameters_test	test_func5	f_p1	datetime	5
+i_s_parameters_test	test_func5	f_p2	timestamp	5
+i_s_parameters_test	test_func6	NULL	time	6
+i_s_parameters_test	test_func6	f_p1	datetime	6
+i_s_parameters_test	test_func6	f_p2	timestamp	6
+i_s_parameters_test	test_proc	p_p1	datetime	0
+i_s_parameters_test	test_proc	p_p2	time	0
+i_s_parameters_test	test_proc	p_p3	timestamp	0
+i_s_parameters_test	test_proc0	p_p1	datetime	0
+i_s_parameters_test	test_proc0	p_p2	time	0
+i_s_parameters_test	test_proc0	p_p3	timestamp	0
+i_s_parameters_test	test_proc1	p_p1	datetime	1
+i_s_parameters_test	test_proc1	p_p2	time	1
+i_s_parameters_test	test_proc1	p_p3	timestamp	1
+i_s_parameters_test	test_proc2	p_p1	datetime	2
+i_s_parameters_test	test_proc2	p_p2	time	2
+i_s_parameters_test	test_proc2	p_p3	timestamp	2
+i_s_parameters_test	test_proc3	p_p1	datetime	3
+i_s_parameters_test	test_proc3	p_p2	time	3
+i_s_parameters_test	test_proc3	p_p3	timestamp	3
+i_s_parameters_test	test_proc4	p_p1	datetime	4
+i_s_parameters_test	test_proc4	p_p2	time	4
+i_s_parameters_test	test_proc4	p_p3	timestamp	4
+i_s_parameters_test	test_proc5	p_p1	datetime	5
+i_s_parameters_test	test_proc5	p_p2	time	5
+i_s_parameters_test	test_proc5	p_p3	timestamp	5
+i_s_parameters_test	test_proc6	p_p1	datetime	6
+i_s_parameters_test	test_proc6	p_p2	time	6
+i_s_parameters_test	test_proc6	p_p3	timestamp	6
 DROP DATABASE i_s_parameters_test;
