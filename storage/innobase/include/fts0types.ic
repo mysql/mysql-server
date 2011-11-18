@@ -99,8 +99,9 @@ fts_utf8_string_dup(
 {
 	dst->f_str = (byte*) mem_heap_dup(heap, src->f_str, src->f_len + 1);
 
-	dst->f_str[src->f_len] = 0;
 	dst->f_len = src->f_len;
+	dst->f_str[src->f_len] = 0;
+	dst->f_n_char = src->f_n_char;
 }
 
 /******************************************************************//**
