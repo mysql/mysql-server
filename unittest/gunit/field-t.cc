@@ -258,7 +258,8 @@ TEST_F(FieldTest, FieldTimef)
   // it requires a mock table
   
   struct timeval tv;
-  EXPECT_EQ(0, f->get_timestamp(&tv));
+  int warnings= 0;
+  EXPECT_EQ(0, f->get_timestamp(&tv, &warnings));
   // EXPECT_EQ(40992, tv.tv_sec);  // This is 11:23:12.  Why?  Time zone?
   EXPECT_EQ(123400, tv.tv_usec);
 

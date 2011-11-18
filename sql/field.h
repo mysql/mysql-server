@@ -539,7 +539,7 @@ public:
     This method is used in "SELECT UNIX_TIMESTAMP(field)"
     to avoid conversion from timestamp to MYSQL_TIME and back.
   */
-  virtual bool get_timestamp(struct timeval *tm);
+  virtual bool get_timestamp(struct timeval *tm, int *warnings);
   /**
     Stores a timestamp value in "struct timeval" format into a field.
     Note, store_timestamp(), get_timestamp() and store_time()
@@ -2174,7 +2174,7 @@ public:
       Field::set_default();
   }
   /* Get TIMESTAMP field value as seconds since begging of Unix Epoch */
-  bool get_timestamp(struct timeval *tm);
+  bool get_timestamp(struct timeval *tm, int *warnings);
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   Field_timestamp *clone(MEM_ROOT *mem_root) const {
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
@@ -2269,7 +2269,7 @@ public:
     else
       Field::set_default();
   }
-  bool get_timestamp(struct timeval *tm);
+  bool get_timestamp(struct timeval *tm, int *warnings);
 };
 
 

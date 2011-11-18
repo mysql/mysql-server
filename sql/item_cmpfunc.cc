@@ -910,8 +910,32 @@ get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
   longlong value;
   Item *item= **item_arg;
 
+  /*
+    Note, it's wrong to assume that we always get
+    a TIME expression or NULL here:
+
   DBUG_ASSERT(item->field_type() == MYSQL_TYPE_TIME || 
               item->field_type() == MYSQL_TYPE_NULL);
+
+    because when this condition is optimized:
+
+    WHERE time_column=DATE(NULL) AND time_column=TIME(NULL);
+
+    rhe first AND part is eliminated and DATE(NULL) is substituted
+    to the second AND part like this:
+
+    WHERE DATE(NULL) = TIME(NULL) // as TIME
+
+    whose Arg_comparator has already get_time_value set for both arguments.
+    Therefore, get_time_value is executed for DATE(NULL).
+    This condition is further evaluated as impossible condition.
+
+    TS-TODO: perhaps such cases should be evaluated without
+    calling get_time_value at all.
+
+    See a similar comment in Arg_comparator::compare_temporal_packed,
+    for DATETIME comparison.
+  */
   value= item->val_time_temporal();
   *is_null= item->null_value;
 
