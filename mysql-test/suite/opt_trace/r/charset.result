@@ -234,7 +234,7 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
           },
           {
             "creating_tmp_table": {
-              "temporary_table_info": {
+              "tmp_table_info": {
                 "database": "",
                 "table": "v1",
                 "row_length": 7,
@@ -242,7 +242,7 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
                 "unique_constraint": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 149796
-              } /* temporary_table_info */
+              } /* tmp_table_info */
             } /* creating_tmp_table */
           },
           {
