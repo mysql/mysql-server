@@ -2876,8 +2876,8 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
           for (uint i= rli->curr_group_assigned_parts.elements; i > 0; i--)
             delete_dynamic_element(&rli->
                                    curr_group_assigned_parts, i - 1);
-          // reset the B-group and Ugid-group marker
-          rli->curr_group_seen_begin= rli->curr_group_seen_ugid= false;
+          // reset the B-group and Gtid-group marker
+          rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
           rli->last_assigned_worker= NULL;
         }
 
@@ -4444,7 +4444,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n)
   rli->mts_wq_oversize= FALSE;
   rli->mts_coordinator_basic_nap= mts_coordinator_basic_nap;
   rli->mts_worker_underrun_level= mts_worker_underrun_level;
-  rli->curr_group_seen_begin= rli->curr_group_seen_ugid= false;
+  rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
   rli->curr_group_isolated= FALSE;
   rli->checkpoint_seqno= 0;
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
@@ -5645,20 +5645,20 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
   break;
 
-#ifdef HAVE_UGID
-  case UGIDSET_LOG_EVENT:
+#ifdef HAVE_GTID
+  case GTIDSET_LOG_EVENT:
     inc_pos= event_len;
   break;
 
-  case UGID_LOG_EVENT:
+  case GTID_LOG_EVENT:
   {
-    Ugid_log_event ugid(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
+    Gtid_log_event gtid(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                         event_len - BINLOG_CHECKSUM_LEN : event_len,
                         rli->relay_log.description_event_for_queue);
 
     rli->relay_log.sid_lock.rdlock();
-    if (rli->relay_log.group_log_state.update_state_from_ugid(ugid.get_ugid_sid(),
-                                                              ugid.get_ugid_gno()))
+    if (rli->relay_log.group_log_state.update_state_from_gtid(gtid.get_gtid_sid(),
+                                                              gtid.get_gtid_gno()))
     {
       rli->relay_log.sid_lock.unlock();
       goto err;
@@ -5689,7 +5689,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   mysql_mutex_lock(log_lock);
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
-  if (buf[EVENT_TYPE_OFFSET] == UGIDSET_LOG_EVENT ||
+  if (buf[EVENT_TYPE_OFFSET] == GTIDSET_LOG_EVENT ||
       (s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
       /*
         the following conjunction deals with IGNORE_SERVER_IDS, if set
@@ -5721,7 +5721,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       IGNORE_SERVER_IDS it increments mi->get_master_log_pos()
       as well as rli->group_relay_log_pos.
     */
-    if (buf[EVENT_TYPE_OFFSET] == UGIDSET_LOG_EVENT ||
+    if (buf[EVENT_TYPE_OFFSET] == GTIDSET_LOG_EVENT ||
         !(s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
         (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
          buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT &&

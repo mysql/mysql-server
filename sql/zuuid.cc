@@ -16,7 +16,7 @@
 #include "zgroups.h"
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 /*
@@ -134,4 +134,4 @@ size_t Uuid::to_string(char *buf) const
 {
   return(to_string(bytes, buf));
 }
-#endif /* HAVE_UGID */
+#endif /* HAVE_GTID */

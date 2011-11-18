@@ -17,7 +17,7 @@
 #include "zgroups.h"
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 #include <ctype.h>
@@ -29,30 +29,30 @@
 using std::min;
 using std::max;
 
-//const int Group_set::CHUNK_GROW_SIZE;
+//const int GTID_set::CHUNK_GROW_SIZE;
 
 
-const Group_set::String_format Group_set::default_string_format=
+const GTID_set::String_format GTID_set::default_string_format=
 {
   "", "", ":", "-", ":", ",\n",
   0, 0, 1, 1, 1, 2
 };
 
 
-const Group_set::String_format Group_set::sql_string_format=
+const GTID_set::String_format GTID_set::sql_string_format=
 {
   "'", "'", ":", "-", ":", "',\n'",
   1, 1, 1, 1, 1, 4
 };
 
 
-Group_set::Group_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
+GTID_set::GTID_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
 {
   init(_sid_map, _sid_lock);
 }
 
 
-Group_set::Group_set(Sid_map *_sid_map, const char *text,
+GTID_set::GTID_set(Sid_map *_sid_map, const char *text,
                      enum_return_status *status, Checkable_rwlock *_sid_lock)
 {
   DBUG_ASSERT(_sid_map != NULL);
@@ -61,16 +61,16 @@ Group_set::Group_set(Sid_map *_sid_map, const char *text,
 }
 
 
-Group_set::Group_set(Group_set *other, enum_return_status *status)
+GTID_set::GTID_set(GTID_set *other, enum_return_status *status)
 {
   init(other->sid_map, other->sid_lock);
   *status= add(other);
 }
 
 
-void Group_set::init(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
+void GTID_set::init(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
 {
-  DBUG_ENTER("Group_set::init");
+  DBUG_ENTER("GTID_set::init");
   sid_map= _sid_map;
   sid_lock= _sid_lock;
   cached_string_length= -1;
@@ -85,9 +85,9 @@ void Group_set::init(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
 }
 
 
-Group_set::~Group_set()
+GTID_set::~GTID_set()
 {
-  DBUG_ENTER("Group_set::~Group_set");
+  DBUG_ENTER("GTID_set::~GTID_set");
   Interval_chunk *chunk= chunks;
   while (chunk != NULL)
   {
@@ -104,9 +104,9 @@ Group_set::~Group_set()
 }
 
 
-enum_return_status Group_set::ensure_sidno(rpl_sidno sidno)
+enum_return_status GTID_set::ensure_sidno(rpl_sidno sidno)
 {
-  DBUG_ENTER("Group_set::ensure_sidno");
+  DBUG_ENTER("GTID_set::ensure_sidno");
   if (sid_lock != NULL)
     sid_lock->assert_some_rdlock();
   DBUG_ASSERT(sid_map == NULL || sidno <= sid_map->get_max_sidno());
@@ -114,8 +114,8 @@ enum_return_status Group_set::ensure_sidno(rpl_sidno sidno)
   if (sidno > max_sidno)
   {
     /*
-      Not all Group_sets are protected by an rwlock.  But if this
-      Group_set is, we assume that the read lock has been taken.
+      Not all GTID_sets are protected by an rwlock.  But if this
+      GTID_set is, we assume that the read lock has been taken.
       Then we temporarily upgrade it to a write lock while resizing
       the array, and then we restore it to a read lock at the end.
     */
@@ -150,9 +150,9 @@ error:
 }
 
 
-void Group_set::add_interval_memory(int n_ivs, Interval *ivs)
+void GTID_set::add_interval_memory(int n_ivs, Interval *ivs)
 {
-  DBUG_ENTER("Group_set::add_interval_memory");
+  DBUG_ENTER("GTID_set::add_interval_memory");
   // make ivs a linked list
   for (int i= 0; i < n_ivs - 1; i++)
     ivs[i].next= &(ivs[i + 1]);
@@ -164,9 +164,9 @@ void Group_set::add_interval_memory(int n_ivs, Interval *ivs)
 }
 
 
-enum_return_status Group_set::create_new_chunk(int size)
+enum_return_status GTID_set::create_new_chunk(int size)
 {
-  DBUG_ENTER("Group_set::create_new_chunk");
+  DBUG_ENTER("GTID_set::create_new_chunk");
   // allocate the new chunk. one element is already pre-allocated, so
   // we only add size-1 elements to the size of the struct.
   Interval_chunk *new_chunk=
@@ -189,9 +189,9 @@ enum_return_status Group_set::create_new_chunk(int size)
 }
 
 
-enum_return_status Group_set::get_free_interval(Interval **out)
+enum_return_status GTID_set::get_free_interval(Interval **out)
 {
-  DBUG_ENTER("Group_set::get_free_interval");
+  DBUG_ENTER("GTID_set::get_free_interval");
   Interval_iterator ivit(this);
   if (ivit.get() == NULL)
     PROPAGATE_REPORTED_ERROR(create_new_chunk(CHUNK_GROW_SIZE));
@@ -201,9 +201,9 @@ enum_return_status Group_set::get_free_interval(Interval **out)
 }
 
 
-void Group_set::put_free_interval(Interval *iv)
+void GTID_set::put_free_interval(Interval *iv)
 {
-  DBUG_ENTER("Group_set::put_free_interval");
+  DBUG_ENTER("GTID_set::put_free_interval");
   Interval_iterator ivit(this);
   iv->next= ivit.get();
   ivit.set(iv);
@@ -211,9 +211,9 @@ void Group_set::put_free_interval(Interval *iv)
 }
 
 
-void Group_set::clear()
+void GTID_set::clear()
 {
-  DBUG_ENTER("Group_set::clear");
+  DBUG_ENTER("GTID_set::clear");
   rpl_sidno max_sidno= get_max_sidno();
   if (max_sidno == 0)
     DBUG_VOID_RETURN;
@@ -241,10 +241,10 @@ void Group_set::clear()
 }
 
 
-enum_return_status Group_set::add(Interval_iterator *ivitp,
+enum_return_status GTID_set::add(Interval_iterator *ivitp,
                                   rpl_gno start, rpl_gno end)
 {
-  DBUG_ENTER("Group_set::add(Interval_iterator*, rpl_gno, rpl_gno)");
+  DBUG_ENTER("GTID_set::add(Interval_iterator*, rpl_gno, rpl_gno)");
   DBUG_ASSERT(start < end);
   Interval *iv;
   Interval_iterator ivit= *ivitp;
@@ -293,10 +293,10 @@ enum_return_status Group_set::add(Interval_iterator *ivitp,
 }
 
 
-enum_return_status Group_set::remove(Interval_iterator *ivitp,
+enum_return_status GTID_set::remove(Interval_iterator *ivitp,
                                      rpl_gno start, rpl_gno end)
 {
-  DBUG_ENTER("Group_set::remove(Interval_iterator *ivitp, rpl_gno start, rpl_gno end)");
+  DBUG_ENTER("GTID_set::remove(Interval_iterator *ivitp, rpl_gno start, rpl_gno end)");
   DBUG_ASSERT(start < end);
   Interval_iterator ivit= *ivitp;
   Interval *iv;
@@ -381,10 +381,10 @@ int format_gno(char *s, rpl_gno gno)
 }
 
 
-enum_return_status Group_set::add(const char *text, bool *anonymous)
+enum_return_status GTID_set::add(const char *text, bool *anonymous)
 {
 #define SKIP_WHITESPACE() while (isspace(*s)) s++
-  DBUG_ENTER("Group_set::add(const char*)");
+  DBUG_ENTER("GTID_set::add(const char*)");
   DBUG_ASSERT(sid_map != NULL);
   const char *s= text;
 
@@ -422,7 +422,7 @@ enum_return_status Group_set::add(const char *text, bool *anonymous)
       SKIP_WHITESPACE();
     }
 
-    // We allow empty group sets containing only commas.
+    // We allow empty GTID_sets containing only commas.
     if (*s == 0)
       RETURN_OK;
 
@@ -489,15 +489,15 @@ enum_return_status Group_set::add(const char *text, bool *anonymous)
   DBUG_ASSERT(0);
 
 parse_error:
-  BINLOG_ERROR(("Malformed group set specification '%.200s'.", text),
-               (ER_MALFORMED_GROUP_SET_SPECIFICATION, MYF(0), text));
+  BINLOG_ERROR(("Malformed GTID_set specification '%.200s'.", text),
+               (ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), text));
   RETURN_REPORTED_ERROR;
 }
 
 
-bool Group_set::is_valid(const char *text)
+bool GTID_set::is_valid(const char *text)
 {
-  DBUG_ENTER("Group_set::is_valid(const char*)");
+  DBUG_ENTER("GTID_set::is_valid(const char*)");
 
   const char *s= text;
 
@@ -546,10 +546,10 @@ bool Group_set::is_valid(const char *text)
 }
 
 
-enum_return_status Group_set::add(rpl_sidno sidno,
+enum_return_status GTID_set::add(rpl_sidno sidno,
                                   Const_interval_iterator other_ivit)
 {
-  DBUG_ENTER("Group_set::add(rpl_sidno, Interval_iterator)");
+  DBUG_ENTER("GTID_set::add(rpl_sidno, Interval_iterator)");
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
   Interval *iv;
   Interval_iterator ivit(this, sidno);
@@ -562,10 +562,10 @@ enum_return_status Group_set::add(rpl_sidno sidno,
 }
 
 
-enum_return_status Group_set::remove(rpl_sidno sidno,
+enum_return_status GTID_set::remove(rpl_sidno sidno,
                                      Const_interval_iterator other_ivit)
 {
-  DBUG_ENTER("Group_set::remove(rpl_sidno, Interval_iterator)");
+  DBUG_ENTER("GTID_set::remove(rpl_sidno, Interval_iterator)");
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
   Interval *iv;
   Interval_iterator ivit(this, sidno);
@@ -578,9 +578,9 @@ enum_return_status Group_set::remove(rpl_sidno sidno,
 }
 
 
-enum_return_status Group_set::add(const Group_set *other)
+enum_return_status GTID_set::add(const GTID_set *other)
 {
-  DBUG_ENTER("Group_set::add(Group_set *)");
+  DBUG_ENTER("GTID_set::add(GTID_set *)");
   rpl_sidno max_other_sidno= other->get_max_sidno();
   if (other->sid_map == sid_map || other->sid_map == NULL || sid_map == NULL)
   {
@@ -611,9 +611,9 @@ enum_return_status Group_set::add(const Group_set *other)
 }
 
 
-enum_return_status Group_set::remove(const Group_set *other)
+enum_return_status GTID_set::remove(const GTID_set *other)
 {
-  DBUG_ENTER("Group_set::add(Group_set *)");
+  DBUG_ENTER("GTID_set::add(GTID_set *)");
   rpl_sidno max_other_sidno= other->get_max_sidno();
   if (other->sid_map == sid_map || other->sid_map == NULL || sid_map == NULL)
   {
@@ -642,9 +642,9 @@ enum_return_status Group_set::remove(const Group_set *other)
 }
 
 
-bool Group_set::contains_group(rpl_sidno sidno, rpl_gno gno) const
+bool GTID_set::contains_group(rpl_sidno sidno, rpl_gno gno) const
 {
-  DBUG_ENTER("Group_set::contains_group");
+  DBUG_ENTER("GTID_set::contains_group");
   DBUG_ASSERT(sidno >= 1 && gno >= 1);
   if (sidno > get_max_sidno())
     DBUG_RETURN(false);
@@ -662,9 +662,9 @@ bool Group_set::contains_group(rpl_sidno sidno, rpl_gno gno) const
 }
 
 
-int Group_set::to_string(char *buf, const Group_set::String_format *sf) const
+int GTID_set::to_string(char *buf, const GTID_set::String_format *sf) const
 {
-  DBUG_ENTER("Group_set::to_string");
+  DBUG_ENTER("GTID_set::to_string");
   DBUG_ASSERT(sid_map != NULL);
   if (sf == NULL)
     sf= &default_string_format;
@@ -755,7 +755,7 @@ static int get_string_length(rpl_gno gno)
 }
 
 
-int Group_set::get_string_length(const Group_set::String_format *sf) const
+int GTID_set::get_string_length(const GTID_set::String_format *sf) const
 {
   DBUG_ASSERT(sid_map != NULL);
   if (sf == NULL)
@@ -799,10 +799,10 @@ int Group_set::get_string_length(const Group_set::String_format *sf) const
 }
 
 
-bool Group_set::sidno_equals(rpl_sidno sidno, const Group_set *other,
+bool GTID_set::sidno_equals(rpl_sidno sidno, const GTID_set *other,
                              rpl_sidno other_sidno) const
 {
-  DBUG_ENTER("Group_set::sidno_equals");
+  DBUG_ENTER("GTID_set::sidno_equals");
   Const_interval_iterator ivit(this, sidno);
   Const_interval_iterator other_ivit(other, other_sidno);
   const Interval *iv= ivit.get();
@@ -822,9 +822,9 @@ bool Group_set::sidno_equals(rpl_sidno sidno, const Group_set *other,
 }
 
 
-bool Group_set::equals(const Group_set *other) const
+bool GTID_set::equals(const GTID_set *other) const
 {
-  DBUG_ENTER("Group_set::equals");
+  DBUG_ENTER("GTID_set::equals");
 
   if (sid_map == NULL || other->sid_map == NULL || sid_map == other->sid_map)
   {
@@ -888,9 +888,9 @@ bool Group_set::equals(const Group_set *other) const
 }
 
 
-bool Group_set::is_subset(const Group_set *super) const
+bool GTID_set::is_subset(const GTID_set *super) const
 {
-  DBUG_ENTER("Group_set::is_subset");
+  DBUG_ENTER("GTID_set::is_subset");
   Sid_map *super_sid_map= super->sid_map;
   rpl_sidno max_sidno= get_max_sidno();
   rpl_sidno super_max_sidno= super->get_max_sidno();
@@ -899,7 +899,7 @@ bool Group_set::is_subset(const Group_set *super) const
   const Interval *iv, *super_iv;
   while (1)
   {
-    // Find the next sidno that has one or more Intervals in this Group_set.
+    // Find the next sidno that has one or more Intervals in this GTID_set.
     do
     {
       sidno++;
@@ -946,4 +946,4 @@ bool Group_set::is_subset(const Group_set *super) const
 }
 
 
-#endif /* HAVE_UGID */
+#endif /* HAVE_GTID */

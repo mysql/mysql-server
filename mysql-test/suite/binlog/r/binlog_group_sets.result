@@ -169,187 +169,187 @@ INSERT INTO stmts VALUES
 ;
 ######## Test ########
 ======== row-id = 10 ========
-SET UGID_NEXT='01010101-0101-0101-0101-010101010101:1', UGID_NEXT_LIST=NULL, UGID_END=1, UGID_COMMIT=1;
+SET GTID_NEXT='01010101-0101-0101-0101-010101010101:1', GTID_NEXT_LIST=NULL, GTID_END=1, GTID_COMMIT=1;
 CREATE TABLE t_10 (a INT) ENGINE = InnoDB;
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '' + '1:1' = '1:1']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '' + '1:1' = '1:1']
 ======== row-id = 11 ========
-SET UGID_NEXT='01010101-0101-0101-0101-010101010101:3', UGID_NEXT_LIST=NULL, UGID_END=1, UGID_COMMIT=1;
+SET GTID_NEXT='01010101-0101-0101-0101-010101010101:3', GTID_NEXT_LIST=NULL, GTID_END=1, GTID_COMMIT=1;
 INSERT INTO t VALUES (11);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1' + '1:3' = '1:1:3']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1' + '1:3' = '1:1:3']
 ======== row-id = 12 ========
-SET UGID_NEXT='01010101-0101-0101-0101-010101010101:2', UGID_NEXT_LIST=NULL, UGID_END=1, UGID_COMMIT=1;
+SET GTID_NEXT='01010101-0101-0101-0101-010101010101:2', GTID_NEXT_LIST=NULL, GTID_END=1, GTID_COMMIT=1;
 CREATE TABLE t_12 (a INT) ENGINE = InnoDB;
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1:3' + '1:2' = '1:1-3']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1:3' + '1:2' = '1:1-3']
 ======== row-id = 20 ========
-SET UGID_NEXT='02020202-0202-0202-0202-020202020202:9', UGID_NEXT_LIST=NULL, UGID_END=0, UGID_COMMIT=1;
+SET GTID_NEXT='02020202-0202-0202-0202-020202020202:9', GTID_NEXT_LIST=NULL, GTID_END=0, GTID_COMMIT=1;
 INSERT INTO t VALUES (20);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '2:9' = '2:9']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3' + '' = '1:1-3']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '2:9' = '2:9']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3' + '' = '1:1-3']
 ======== row-id = 21 ========
-SET UGID_NEXT='02020202-0202-0202-0202-020202020202:8', UGID_NEXT_LIST=NULL, UGID_END=0, UGID_COMMIT=1;
+SET GTID_NEXT='02020202-0202-0202-0202-020202020202:8', GTID_NEXT_LIST=NULL, GTID_END=0, GTID_COMMIT=1;
 INSERT INTO t VALUES (21);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '2:9' + '2:8' = '2:8-9']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3' + '' = '1:1-3']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '2:9' + '2:8' = '2:8-9']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3' + '' = '1:1-3']
 ======== row-id = 22 ========
-SET UGID_NEXT='02020202-0202-0202-0202-020202020202:8', UGID_NEXT_LIST=NULL, UGID_END=1, UGID_COMMIT=1;
+SET GTID_NEXT='02020202-0202-0202-0202-020202020202:8', GTID_NEXT_LIST=NULL, GTID_END=1, GTID_COMMIT=1;
 INSERT INTO t VALUES (22);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '2:8-9' + '~2:8' = '2:9']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3' + '2:8' = '1:1-3,2:8']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '2:8-9' + '~2:8' = '2:9']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3' + '2:8' = '1:1-3,2:8']
 ======== row-id = 23 ========
-SET UGID_NEXT='02020202-0202-0202-0202-020202020202:9', UGID_NEXT_LIST=NULL, UGID_END=1, UGID_COMMIT=1;
+SET GTID_NEXT='02020202-0202-0202-0202-020202020202:9', GTID_NEXT_LIST=NULL, GTID_END=1, GTID_COMMIT=1;
 INSERT INTO t VALUES (23);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '2:9' + '~2:9' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8' + '2:9' = '1:1-3,2:8-9']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '2:9' + '~2:9' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8' + '2:9' = '1:1-3,2:8-9']
 ======== row-id = 30 ========
-SET UGID_NEXT='03030303-0303-0303-0303-030303030303:1', UGID_NEXT_LIST=NULL, UGID_END=0, UGID_COMMIT=0;
+SET GTID_NEXT='03030303-0303-0303-0303-030303030303:1', GTID_NEXT_LIST=NULL, GTID_END=0, GTID_COMMIT=0;
 BEGIN;
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9' + '' = '1:1-3,2:8-9']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9' + '' = '1:1-3,2:8-9']
 ======== row-id = 31 ========
-SET UGID_END=0, UGID_COMMIT=0;
+SET GTID_END=0, GTID_COMMIT=0;
 INSERT INTO t VALUES (31);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '3:1' = '3:1']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9' + '' = '1:1-3,2:8-9']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '3:1' = '3:1']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9' + '' = '1:1-3,2:8-9']
 ======== row-id = 32 ========
-SET UGID_END=0, UGID_COMMIT=0;
+SET GTID_END=0, GTID_COMMIT=0;
 INSERT INTO t VALUES (32);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '3:1' + '' = '3:1']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9' + '' = '1:1-3,2:8-9']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '3:1' + '' = '3:1']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9' + '' = '1:1-3,2:8-9']
 ======== row-id = 33 ========
-SET UGID_END=1, UGID_COMMIT=1;
+SET GTID_END=1, GTID_COMMIT=1;
 INSERT INTO t VALUES (33);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '3:1' + '~3:1' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9' + '3:1' = '1:1-3,2:8-9,3:1']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '3:1' + '~3:1' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9' + '3:1' = '1:1-3,2:8-9,3:1']
 ======== row-id = 34 ========
-SET UGID_END=0, UGID_COMMIT=1;
+SET GTID_END=0, GTID_COMMIT=1;
 COMMIT;
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '' = '1:1-3,2:8-9,3:1']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '' = '1:1-3,2:8-9,3:1']
 ======== row-id = 40 ========
-SET UGID_NEXT='04040404-0404-0404-0404-040404040404:1', UGID_NEXT_LIST='04040404-0404-0404-0404-040404040404:1-7', UGID_END=0, UGID_COMMIT=0;
+SET GTID_NEXT='04040404-0404-0404-0404-040404040404:1', GTID_NEXT_LIST='04040404-0404-0404-0404-040404040404:1-7', GTID_END=0, GTID_COMMIT=0;
 SET AUTOCOMMIT = 0;
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '' = '1:1-3,2:8-9,3:1']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '' = '1:1-3,2:8-9,3:1']
 ======== row-id = 41 ========
-SET UGID_NEXT='04040404-0404-0404-0404-040404040404:2', UGID_END=0, UGID_COMMIT=0;
+SET GTID_NEXT='04040404-0404-0404-0404-040404040404:2', GTID_END=0, GTID_COMMIT=0;
 INSERT INTO t VALUES (41);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '4:2' = '4:2']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '' = '1:1-3,2:8-9,3:1']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '4:2' = '4:2']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '' = '1:1-3,2:8-9,3:1']
 ======== row-id = 42 ========
-SET UGID_NEXT='04040404-0404-0404-0404-040404040404:1', UGID_END=0, UGID_COMMIT=0;
+SET GTID_NEXT='04040404-0404-0404-0404-040404040404:1', GTID_END=0, GTID_COMMIT=0;
 INSERT INTO t VALUES (42);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '4:2' + '4:1' = '4:1-2']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '' = '1:1-3,2:8-9,3:1']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '4:2' + '4:1' = '4:1-2']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '' = '1:1-3,2:8-9,3:1']
 ======== row-id = 43 ========
-SET UGID_NEXT='04040404-0404-0404-0404-040404040404:3', UGID_END=1, UGID_COMMIT=0;
+SET GTID_NEXT='04040404-0404-0404-0404-040404040404:3', GTID_END=1, GTID_COMMIT=0;
 INSERT INTO t VALUES (43);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '4:1-2' + '' = '4:1-2']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '4:3' = '4:3']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '' = '1:1-3,2:8-9,3:1']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '4:1-2' + '' = '4:1-2']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '4:3' = '4:3']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '' = '1:1-3,2:8-9,3:1']
 ======== row-id = 44 ========
-SET UGID_NEXT='04040404-0404-0404-0404-040404040404:1', UGID_END=1, UGID_COMMIT=0;
+SET GTID_NEXT='04040404-0404-0404-0404-040404040404:1', GTID_END=1, GTID_COMMIT=0;
 INSERT INTO t VALUES (44);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '4:1-2' + '~4:1' = '4:2']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '4:3' + '4:1' = '4:1:3']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '' = '1:1-3,2:8-9,3:1']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '4:1-2' + '~4:1' = '4:2']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '4:3' + '4:1' = '4:1:3']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '' = '1:1-3,2:8-9,3:1']
 ======== row-id = 45 ========
-SET UGID_NEXT='04040404-0404-0404-0404-040404040404:4', UGID_END=0, UGID_COMMIT=0;
+SET GTID_NEXT='04040404-0404-0404-0404-040404040404:4', GTID_END=0, GTID_COMMIT=0;
 CREATE TABLE t_45 (a INT) ENGINE = InnoDB;
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '4:2' + '~4:2' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '' + '4:2:4' = '4:2:4']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '4:1:3' + '~4:1:3' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '4:1:3' = '1:1-3,2:8-9,3:1,4:1:3']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '4:2' + '~4:2' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '' + '4:2:4' = '4:2:4']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '4:1:3' + '~4:1:3' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1' + '4:1:3' = '1:1-3,2:8-9,3:1,4:1:3']
 ======== row-id = 46 ========
-SET UGID_NEXT='04040404-0404-0404-0404-040404040404:5', UGID_END=0, UGID_COMMIT=0;
+SET GTID_NEXT='04040404-0404-0404-0404-040404040404:5', GTID_END=0, GTID_COMMIT=0;
 INSERT INTO t VALUES (46);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '4:5' = '4:5']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '4:2:4' + '' = '4:2:4']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3' + '' = '1:1-3,2:8-9,3:1,4:1:3']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '4:5' = '4:5']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '4:2:4' + '' = '4:2:4']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3' + '' = '1:1-3,2:8-9,3:1,4:1:3']
 ======== row-id = 47 ========
-SET UGID_NEXT='04040404-0404-0404-0404-040404040404:4', UGID_END=1, UGID_COMMIT=0;
+SET GTID_NEXT='04040404-0404-0404-0404-040404040404:4', GTID_END=1, GTID_COMMIT=0;
 INSERT INTO t VALUES (47);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '4:5' + '' = '4:5']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '4:2:4' + '' = '4:2:4']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '4:4' = '4:4']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3' + '' = '1:1-3,2:8-9,3:1,4:1:3']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '4:5' + '' = '4:5']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '4:2:4' + '' = '4:2:4']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '4:4' = '4:4']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3' + '' = '1:1-3,2:8-9,3:1,4:1:3']
 ======== row-id = 48 ========
-SET UGID_NEXT='04040404-0404-0404-0404-040404040404:6', UGID_END=1, UGID_COMMIT=1;
+SET GTID_NEXT='04040404-0404-0404-0404-040404040404:6', GTID_END=1, GTID_COMMIT=1;
 COMMIT;
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '4:5' + '~4:5' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '4:2:4' + '4:5:7~4:4' = '4:2:5:7']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '4:4' + '~4:4' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3' + '4:4:6' = '1:1-3,2:8-9,3:1,4:1:3-4:6']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '4:5' + '~4:5' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '4:2:4' + '4:5:7~4:4' = '4:2:5:7']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '4:4' + '~4:4' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3' + '4:4:6' = '1:1-3,2:8-9,3:1,4:1:3-4:6']
 ======== row-id = 50 ========
-SET UGID_NEXT='05050505-0505-0505-0505-050505050505:1', UGID_NEXT_LIST='05050505-0505-0505-0505-050505050505:1-2', UGID_END=0, UGID_COMMIT=0;
+SET GTID_NEXT='05050505-0505-0505-0505-050505050505:1', GTID_NEXT_LIST='05050505-0505-0505-0505-050505050505:1-2', GTID_END=0, GTID_COMMIT=0;
 SET AUTOCOMMIT = 0;
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '4:2:5:7' + '' = '4:2:5:7']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3-4:6' + '' = '1:1-3,2:8-9,3:1,4:1:3-4:6']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '4:2:5:7' + '' = '4:2:5:7']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3-4:6' + '' = '1:1-3,2:8-9,3:1,4:1:3-4:6']
 ======== row-id = 51 ========
-SET UGID_NEXT='05050505-0505-0505-0505-050505050505:1', UGID_END=0, UGID_COMMIT=0;
+SET GTID_NEXT='05050505-0505-0505-0505-050505050505:1', GTID_END=0, GTID_COMMIT=0;
 INSERT INTO t VALUES (51);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '5:1' = '5:1']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '4:2:5:7' + '' = '4:2:5:7']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3-4:6' + '' = '1:1-3,2:8-9,3:1,4:1:3-4:6']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '5:1' = '5:1']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '4:2:5:7' + '' = '4:2:5:7']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3-4:6' + '' = '1:1-3,2:8-9,3:1,4:1:3-4:6']
 ======== row-id = 52 ========
-SET UGID_NEXT='05050505-0505-0505-0505-050505050505:2', UGID_END=1, UGID_COMMIT=0;
+SET GTID_NEXT='05050505-0505-0505-0505-050505050505:2', GTID_END=1, GTID_COMMIT=0;
 CREATE TABLE t_52 (a INT) ENGINE = InnoDB;
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '5:1' + '~5:1' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '4:2:5:7' + '5:1' = '4:2:5:7,5:1']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3-4:6' + '5:2' = '1:1-3,2:8-9,3:1,4:1:3-4:6,5:2']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '5:1' + '~5:1' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '4:2:5:7' + '5:1' = '4:2:5:7,5:1']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3-4:6' + '5:2' = '1:1-3,2:8-9,3:1,4:1:3-4:6,5:2']
 ======== row-id = 53 ========
-SET UGID_NEXT='05050505-0505-0505-0505-050505050505:1', UGID_END=0, UGID_COMMIT=0;
+SET GTID_NEXT='05050505-0505-0505-0505-050505050505:1', GTID_END=0, GTID_COMMIT=0;
 INSERT INTO t VALUES (53);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '' + '5:1' = '5:1']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '4:2:5:7,5:1' + '' = '4:2:5:7,5:1']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3-4:6,5:2' + '' = '1:1-3,2:8-9,3:1,4:1:3-4:6,5:2']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '' + '5:1' = '5:1']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '4:2:5:7,5:1' + '' = '4:2:5:7,5:1']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3-4:6,5:2' + '' = '1:1-3,2:8-9,3:1,4:1:3-4:6,5:2']
 ======== row-id = 54 ========
-SET UGID_NEXT='05050505-0505-0505-0505-050505050505:1', UGID_END=1, UGID_COMMIT=1;
+SET GTID_NEXT='05050505-0505-0505-0505-050505050505:1', GTID_END=1, GTID_COMMIT=1;
 INSERT INTO t VALUES (54);
-include/assert.inc [@@SESSION.UGID_PARTIAL_GROUPS = '5:1' + '~5:1' = '']
-include/assert.inc [@@GLOBAL.UGID_PARTIAL_GROUPS = '4:2:5:7,5:1' + '~5:1' = '4:2:5:7']
-include/assert.inc [@@SESSION.UGID_ENDED_GROUPS = '' + '' = '']
-include/assert.inc [@@GLOBAL.UGID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3-4:6,5:2' + '5:1' = '1:1-3,2:8-9,3:1,4:1:3-4:6,5:1-2']
+include/assert.inc [@@SESSION.GTID_PARTIAL_GROUPS = '5:1' + '~5:1' = '']
+include/assert.inc [@@GLOBAL.GTID_PARTIAL_GROUPS = '4:2:5:7,5:1' + '~5:1' = '4:2:5:7']
+include/assert.inc [@@SESSION.GTID_ENDED_GROUPS = '' + '' = '']
+include/assert.inc [@@GLOBAL.GTID_ENDED_GROUPS = '1:1-3,2:8-9,3:1,4:1:3-4:6,5:2' + '5:1' = '1:1-3,2:8-9,3:1,4:1:3-4:6,5:1-2']
 ######## Clean up ########
  DROP TABLE t_10; DROP TABLE t_12; DROP TABLE t_45; DROP TABLE t_52;;
 DROP TABLE variables;

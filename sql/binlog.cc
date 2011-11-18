@@ -120,7 +120,7 @@ public:
     return pending() == NULL && my_b_tell(&cache_log) == 0;
   }
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
   bool is_group_cache_empty() const
   {
     return group_cache.is_empty();
@@ -170,7 +170,7 @@ public:
       variable after truncating the cache.
     */
     cache_log.disk_writes= 0;
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
     group_cache.clear();
 #endif
     DBUG_ASSERT(is_binlog_empty());
@@ -181,7 +181,7 @@ public:
   */
   IO_CACHE cache_log;
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
   /**
     The group cache for this cache.
   */
@@ -536,7 +536,7 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
   DBUG_ASSERT(cache_mngr->trx_cache.is_binlog_empty() &&
               cache_mngr->stmt_cache.is_binlog_empty());
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
   DBUG_ASSERT(cache_mngr->trx_cache.is_group_cache_empty() &&
               cache_mngr->stmt_cache.is_group_cache_empty());
 #endif  
@@ -556,10 +556,10 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
   DBUG_RETURN(0);
 }
 
-#ifdef HAVE_UGID
-int ugid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
+#ifdef HAVE_GTID
+int gtid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
 {
-  DBUG_ENTER("ugid_flush_group_cache");
+  DBUG_ENTER("gtid_flush_group_cache");
   
   Cached_subgroup *subgroup_cache= NULL;
   const rpl_sid *sid= NULL;
@@ -604,7 +604,7 @@ int ugid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
     valid stuff.
   */
   my_off_t saved_position= cache_data->get_byte_position();
-  Ugid_log_event uinfo(thd, sid->bytes, gno, saved_position);
+  Gtid_log_event uinfo(thd, sid->bytes, gno, saved_position);
   my_b_seek(&cache_data->cache_log, 0);
   write_event_to_cache(thd, &uinfo, cache_data);
   my_b_seek(&cache_data->cache_log, saved_position);
@@ -645,8 +645,8 @@ binlog_flush_cache(THD *thd, binlog_cache_mngr *cache_mngr,
     my_off_t offset_after_last_statement=
       cache_data->get_byte_position() - before_commit_event;
 
-#ifdef HAVE_UGID
-    if (ugid_flush_group_cache(thd, cache_data))
+#ifdef HAVE_GTID
+    if (gtid_flush_group_cache(thd, cache_data))
       DBUG_RETURN(1);
 #endif
 
@@ -1694,7 +1694,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
    description_event_for_exec(0), description_event_for_queue(0)
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
   , sid_map(&sid_lock), group_log_state(&sid_lock, &sid_map)
 #endif
 {
@@ -1711,7 +1711,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
 }
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 int MYSQL_BIN_LOG::init_sid_map()
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_sid_map()");
@@ -1756,7 +1756,7 @@ int MYSQL_BIN_LOG::init(bool no_auto_events_arg, ulong max_size_arg)
   no_auto_events= no_auto_events_arg;
   max_size= max_size_arg;
   DBUG_PRINT("info",("max_size: %lu", max_size));
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
   sid_lock.rdlock();
   PROPAGATE_REPORTED_ERROR(group_log_state.ensure_sidno());
   sid_lock.unlock();
@@ -1859,9 +1859,9 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   return FALSE;
 }
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 typedef set<string> FileSet;
-bool MYSQL_BIN_LOG::restore_ugid()
+bool MYSQL_BIN_LOG::restore_gtid()
 {
   Log_event *ev= NULL;
   LOG_INFO linfo;
@@ -1869,8 +1869,8 @@ bool MYSQL_BIN_LOG::restore_ugid()
   File file= -1;
   const char *errmsg= NULL;
   FileSet file_set;
-  bool found_ugidset= false;
-  DBUG_ENTER("MYSQL_BIN_LOG::restore_ugid");
+  bool found_gtidset= false;
+  DBUG_ENTER("MYSQL_BIN_LOG::restore_gtid");
 
   /*
     Creates a format descriptor that is used to read events from
@@ -1896,7 +1896,7 @@ bool MYSQL_BIN_LOG::restore_ugid()
 
   /*
     Iterates through the gathered files in order to get information
-    on UGIDs.
+    on GTIDs.
   */
   for (FileSet::reverse_iterator it= file_set.rbegin();
        it != file_set.rend(); ++it)
@@ -1939,23 +1939,23 @@ bool MYSQL_BIN_LOG::restore_ugid()
     while ((ev= Log_event::read_log_event(&log, 0, p_fdle,
                                           opt_slave_sql_verify_checksum)))
     {
-      if (ev->get_type_code() == UGIDSET_LOG_EVENT)
+      if (ev->get_type_code() == GTIDSET_LOG_EVENT)
       {
-        if (found_ugidset)
+        if (found_gtidset)
         {
           delete ev;
           goto next_file;
         }
         sid_lock.rdlock();
-        UgidSet_log_event *ugidset= (UgidSet_log_event*) ev;
-        Group_set* grp_set= ugidset->get_group_representation(&group_log_state, &sid_map);
+        GtidSet_log_event *gtidset= (GtidSet_log_event*) ev;
+        GTID_set* grp_set= gtidset->get_group_representation(&group_log_state, &sid_map);
         if (grp_set == NULL)
         {
           delete ev;
           sid_lock.unlock();
           goto err;
         }
-        Group_set *ended_group= const_cast<Group_set *>(group_log_state.get_ended_groups());
+        GTID_set *ended_group= const_cast<GTID_set *>(group_log_state.get_ended_groups());
         if (ended_group->add(grp_set) != RETURN_STATUS_OK)
         {
           delete grp_set;
@@ -1963,17 +1963,17 @@ bool MYSQL_BIN_LOG::restore_ugid()
           sid_lock.unlock();
           goto err;
         }
-        found_ugidset= true;
+        found_gtidset= true;
         delete grp_set;
         sid_lock.unlock();
       }
-      if (ev->get_type_code() == UGID_LOG_EVENT)
+      if (ev->get_type_code() == GTID_LOG_EVENT)
       {
-        Ugid_log_event *ugid= (Ugid_log_event*) ev; 
+        Gtid_log_event *gtid= (Gtid_log_event*) ev; 
 
         sid_lock.rdlock();
-        if (group_log_state.update_state_from_ugid(ugid->get_ugid_sid(),
-                                                   ugid->get_ugid_gno()))
+        if (group_log_state.update_state_from_gtid(gtid->get_gtid_sid(),
+                                                   gtid->get_gtid_gno()))
         {
           sid_lock.unlock();
           delete ev;
@@ -1991,7 +1991,7 @@ next_file:
 
   if (file_set.size() > 1)
   {
-    UgidSet_log_event uset(current_thd, this);
+    GtidSet_log_event uset(current_thd, this);
     if (uset.write(&log_file))
       goto err;
     bytes_written+= uset.data_written;
@@ -2153,7 +2153,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       bytes_written+= s.data_written;
       if (current_thd)
       {
-        UgidSet_log_event uset(current_thd, this);
+        GtidSet_log_event uset(current_thd, this);
         if (uset.write(&log_file))
           goto err;
         bytes_written+= uset.data_written;
@@ -2611,7 +2611,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   mysql_mutex_lock(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
   sid_lock.rdlock();
 #endif
 
@@ -2700,7 +2700,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   if (!thd->slave_thread)
     need_start_event=1;
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
   group_log_state.clear();
   if (sid_map.clear() != RETURN_STATUS_OK ||
       init_sid_map() != 0 ||
@@ -2716,7 +2716,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 err:
   if (error == 1)
     name= const_cast<char*>(save_name);
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
   sid_lock.unlock();
 #endif
   mysql_mutex_unlock(&LOCK_thread_count);
@@ -4041,8 +4041,8 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
 err:
     if (event_info->is_using_immediate_logging())
     {
-#ifdef HAVE_UGID
-      error |= ugid_flush_group_cache(thd, cache_data);
+#ifdef HAVE_GTID
+      error |= gtid_flush_group_cache(thd, cache_data);
 #endif
       error |= mysql_bin_log.write_cache(thd, cache_mngr, cache_data, FALSE,
                                          0/*offset_after_last_statement*/);
@@ -5073,7 +5073,7 @@ err1:
   return 1;
 }
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 Group_cache *THD::get_group_cache(bool is_transactional)
 {
   DBUG_ENTER("THD::get_group_cache(bool)");
@@ -5181,8 +5181,8 @@ inline int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
   */ 
   if (start_event->is_using_immediate_logging())
   {
-#ifdef HAVE_UGID
-    Ugid_log_event uinfo(thd);
+#ifdef HAVE_GTID
+    Gtid_log_event uinfo(thd);
     if (write_event_to_cache(thd, &uinfo, cache_data))
       DBUG_RETURN(1);
 #endif
@@ -5233,8 +5233,8 @@ inline int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
   {
     Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"),
                           is_transactional, FALSE, TRUE, 0, TRUE);
-#ifdef HAVE_UGID
-    Ugid_log_event uinfo(thd);
+#ifdef HAVE_GTID
+    Gtid_log_event uinfo(thd);
     if (write_event_to_cache(thd, &uinfo, cache_data))
       DBUG_RETURN(1);
 #endif

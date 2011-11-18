@@ -1791,16 +1791,16 @@ public:
 };
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 /**
-  Class for variables that store values of type Ugid_specification.
+  Class for variables that store values of type Gtid_specification.
 */
-class Sys_var_ugid_specification: public sys_var
+class Sys_var_gtid_specification: public sys_var
 {
 public:
-  Sys_var_ugid_specification(const char *name_arg,
+  Sys_var_gtid_specification(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           const char *def_val,
@@ -1815,13 +1815,13 @@ public:
               lock, binlog_status_arg, on_check_func, on_update_func,
               substitute, parse_flag)
   {
-    DBUG_ASSERT(size == sizeof(Ugid_specification));
+    DBUG_ASSERT(size == sizeof(Gtid_specification));
   }
   bool session_update(THD *thd, set_var *var)
   {
-    DBUG_ENTER("Sys_var_ugid::session_update");
+    DBUG_ENTER("Sys_var_gtid::session_update");
     mysql_bin_log.sid_lock.rdlock();
-    bool ret= (((Ugid_specification *)session_var_ptr(thd))->
+    bool ret= (((Gtid_specification *)session_var_ptr(thd))->
                parse(var->save_result.string_value.str) != 0);
     mysql_bin_log.sid_lock.unlock();
     DBUG_RETURN(ret);
@@ -1830,7 +1830,7 @@ public:
   { DBUG_ASSERT(FALSE); return true; }
   void session_save_default(THD *thd, set_var *var)
   {
-    DBUG_ENTER("Sys_var_ugid::session_save_default");
+    DBUG_ENTER("Sys_var_gtid::session_save_default");
     char *ptr= (char*)(intptr)option.def_value;
     var->save_result.string_value.str= ptr;
     var->save_result.string_value.length= ptr ? strlen(ptr) : 0;
@@ -1840,8 +1840,8 @@ public:
   { DBUG_ASSERT(FALSE); }
   bool do_check(THD *thd, set_var *var)
   {
-    DBUG_ENTER("Sys_var_ugid::do_check");
-    char buf[Ugid_specification::MAX_TEXT_LENGTH + 1];
+    DBUG_ENTER("Sys_var_gtid::do_check");
+    char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
     String str(buf, sizeof(buf), &my_charset_latin1);
     String *res= var->value->val_str(&str);
     if (!res)
@@ -1853,7 +1853,7 @@ public:
       DBUG_RETURN(true);
     }
     var->save_result.string_value.length= res->length();
-    bool ret= Ugid_specification::is_valid(res->ptr()) ? false : true;
+    bool ret= Gtid_specification::is_valid(res->ptr()) ? false : true;
     DBUG_PRINT("info", ("ret=%d", ret));
     DBUG_RETURN(ret);
   }
@@ -1861,10 +1861,10 @@ public:
   { return type != STRING_RESULT; }
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    DBUG_ENTER("Sys_var_ugid::session_value_ptr");
-    char buf[Ugid_specification::MAX_TEXT_LENGTH + 1];
+    DBUG_ENTER("Sys_var_gtid::session_value_ptr");
+    char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
     mysql_bin_log.sid_lock.rdlock();
-    ((Ugid_specification *)session_var_ptr(thd))->to_string(buf);
+    ((Gtid_specification *)session_var_ptr(thd))->to_string(buf);
     mysql_bin_log.sid_lock.unlock();
     char *ret= thd->strdup(buf);
     DBUG_RETURN((uchar *)ret);
@@ -1875,16 +1875,16 @@ public:
 
 
 /**
-  Class for variables that store values of type Group_set.
+  Class for variables that store values of type GTID_set.
 
-  The back-end storage should be a Group_set_or_null, and it should be
+  The back-end storage should be a GTID_set_or_null, and it should be
   set to null by default.  When the variable is set for the first
-  time, the Group_set* will be allocated.
+  time, the GTID_set* will be allocated.
 */
-class Sys_var_group_set: public sys_var
+class Sys_var_gtid_set: public sys_var
 {
 public:
-  Sys_var_group_set(const char *name_arg,
+  Sys_var_gtid_set(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           const char *def_val,
@@ -1899,19 +1899,19 @@ public:
               lock, binlog_status_arg, on_check_func, on_update_func,
               substitute, parse_flag)
   {
-    DBUG_ASSERT(size == sizeof(Group_set_or_null));
+    DBUG_ASSERT(size == sizeof(GTID_set_or_null));
   }
   bool session_update(THD *thd, set_var *var)
   {
-    DBUG_ENTER("Sys_var_group_set::session_update");
-    Group_set_or_null *gsn=
-      (Group_set_or_null *)session_var_ptr(thd);
+    DBUG_ENTER("Sys_var_gtid_set::session_update");
+    GTID_set_or_null *gsn=
+      (GTID_set_or_null *)session_var_ptr(thd);
     char *value= var->save_result.string_value.str;
     if (value == NULL)
       gsn->set_null();
     else
     {
-      Group_set *gs= gsn->set_non_null(&mysql_bin_log.sid_map);
+      GTID_set *gs= gsn->set_non_null(&mysql_bin_log.sid_map);
       if (gs == NULL)
       {
         my_error(ER_OUT_OF_RESOURCES, MYF(0)); // allocation failed
@@ -1927,7 +1927,7 @@ public:
         value++;
       else
         gs->clear();
-      // Add specified set of groups to Group_set.
+      // Add specified set of groups to GTID_set.
       mysql_bin_log.sid_lock.rdlock();
       int ret= gs->add(value);
       mysql_bin_log.sid_lock.unlock();
@@ -1943,7 +1943,7 @@ public:
   { DBUG_ASSERT(FALSE); return true; }
   void session_save_default(THD *thd, set_var *var)
   {
-    DBUG_ENTER("Sys_var_group_set::session_save_default");
+    DBUG_ENTER("Sys_var_gtid_set::session_save_default");
     char *ptr= (char*)(intptr)option.def_value;
     var->save_result.string_value.str= ptr;
     var->save_result.string_value.length= ptr ? strlen(ptr) : 0;
@@ -1953,7 +1953,7 @@ public:
   { DBUG_ASSERT(FALSE); }
   bool do_check(THD *thd, set_var *var)
   {
-    DBUG_ENTER("Sys_var_group_set::do_check");
+    DBUG_ENTER("Sys_var_gtid_set::do_check");
     String str;
     String *res= var->value->val_str(&str);
     if (res == NULL)
@@ -1969,16 +1969,16 @@ public:
       DBUG_RETURN(1);
     }
     var->save_result.string_value.length= res->length();
-    bool ret= !Group_set::is_valid(res->ptr());
+    bool ret= !GTID_set::is_valid(res->ptr());
     DBUG_RETURN(ret);
   }
   bool check_update_type(Item_result type)
   { return type != STRING_RESULT; }
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    DBUG_ENTER("Sys_var_group_set::session_value_ptr");
-    Group_set_or_null *gsn= (Group_set_or_null *)session_var_ptr(thd);
-    Group_set *gs= gsn->get_group_set();
+    DBUG_ENTER("Sys_var_gtid_set::session_value_ptr");
+    GTID_set_or_null *gsn= (GTID_set_or_null *)session_var_ptr(thd);
+    GTID_set *gs= gsn->get_gtid_set();
     if (gs == NULL)
       DBUG_RETURN(NULL);
     char *buf;
@@ -2035,30 +2035,30 @@ public:
 /**
   Abstract base class for read-only variables (global or session) of
   string type where the value is the string representation of a
-  Group_set generated by some function.  This needs to be subclassed;
+  GTID_set generated by some function.  This needs to be subclassed;
   the session_value_ptr or global_value_ptr should be overwritten.
 */
-class Sys_var_group_set_func: public Sys_var_charptr_func
+class Sys_var_gtid_set_func: public Sys_var_charptr_func
 {
 public:
-  Sys_var_group_set_func(const char *name_arg, const char *comment,
+  Sys_var_gtid_set_func(const char *name_arg, const char *comment,
                          flag_enum flag_arg)
     : Sys_var_charptr_func(name_arg, comment, flag_arg) {}
 
-  typedef enum_return_status (*Group_set_getter)(THD *, Group_set *);
+  typedef enum_return_status (*GTID_set_getter)(THD *, GTID_set *);
 
-  static uchar *get_string_from_group_set(THD *thd,
-                                          Group_set_getter get_group_set)
+  static uchar *get_string_from_gtid_set(THD *thd,
+                                         GTID_set_getter get_gtid_set)
   {
-    DBUG_ENTER("Sys_var_ugid_ended_groups::session_value_ptr");
-    Group_set gs(&mysql_bin_log.sid_map);
+    DBUG_ENTER("Sys_var_gtid_ended_groups::session_value_ptr");
+    GTID_set gs(&mysql_bin_log.sid_map);
     char *buf;
     // As an optimization, add 10 Intervals that do not need to be
     // allocated.
-    Group_set::Interval ivs[10];
+    GTID_set::Interval ivs[10];
     gs.add_interval_memory(10, ivs);
     mysql_bin_log.sid_lock.rdlock();
-    if (get_group_set(thd, &gs) != RETURN_STATUS_OK)
+    if (get_gtid_set(thd, &gs) != RETURN_STATUS_OK)
       goto error;
     // allocate string and print to it
     buf= (char *)thd->alloc(gs.get_string_length() + 1);
@@ -2078,19 +2078,19 @@ public:
 
 
 /**
-  Class for @@session.ugid_ended_groups and @@global.ugid_ended_groups.
+  Class for @@session.gtid_ended_groups and @@global.gtid_ended_groups.
 */
-class Sys_var_ugid_ended_groups : Sys_var_group_set_func
+class Sys_var_gtid_ended_groups : Sys_var_gtid_set_func
 {
 public:
-  Sys_var_ugid_ended_groups(const char *name_arg, const char *comment_arg)
-    : Sys_var_group_set_func(name_arg, comment_arg, SESSION) {}
+  Sys_var_gtid_ended_groups(const char *name_arg, const char *comment_arg)
+    : Sys_var_gtid_set_func(name_arg, comment_arg, SESSION) {}
 
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
-    DBUG_ENTER("Sys_var_ugid_ended_groups::global_value_ptr");
+    DBUG_ENTER("Sys_var_gtid_ended_groups::global_value_ptr");
     mysql_bin_log.sid_lock.rdlock();
-    const Group_set *gs= mysql_bin_log.group_log_state.get_ended_groups();
+    const GTID_set *gs= mysql_bin_log.group_log_state.get_ended_groups();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
     if (buf == NULL)
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
@@ -2102,7 +2102,7 @@ public:
 
 private:
   static enum_return_status get_ended_groups_from_caches(THD *thd,
-                                                         Group_set *gs)
+                                                         GTID_set *gs)
   {
     DBUG_ENTER("get_ended_groups_from_caches");
     if (opt_bin_log)
@@ -2119,22 +2119,22 @@ private:
 public:
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    return get_string_from_group_set(thd, get_ended_groups_from_caches);
+    return get_string_from_gtid_set(thd, get_ended_groups_from_caches);
   }
 };
 
 
 /**
-  Class for @@session.ugid_partial_groups and @@global.ugid_partial_groups.
+  Class for @@session.gtid_partial_groups and @@global.gtid_partial_groups.
 */
-class Sys_var_ugid_partial_groups : Sys_var_group_set_func
+class Sys_var_gtid_partial_groups : Sys_var_gtid_set_func
 {
 public:
-  Sys_var_ugid_partial_groups(const char *name_arg, const char *comment_arg)
-    : Sys_var_group_set_func(name_arg, comment_arg, SESSION) {}
+  Sys_var_gtid_partial_groups(const char *name_arg, const char *comment_arg)
+    : Sys_var_gtid_set_func(name_arg, comment_arg, SESSION) {}
 
 private:
-  static enum_return_status get_partial_groups_from_group_log_state(THD *thd, Group_set *gs)
+  static enum_return_status get_partial_groups_from_group_log_state(THD *thd, GTID_set *gs)
   {
     DBUG_ENTER("get_partial_groups_from_group_log_state");
     PROPAGATE_REPORTED_ERROR(mysql_bin_log.group_log_state.get_owned_groups()->
@@ -2142,7 +2142,7 @@ private:
     RETURN_OK;
   }
 
-  static enum_return_status get_partial_groups_from_caches(THD *thd, Group_set *gs)
+  static enum_return_status get_partial_groups_from_caches(THD *thd, GTID_set *gs)
   {
     DBUG_ENTER("get_partial_groups_from_caches");
     if (opt_bin_log)
@@ -2159,14 +2159,14 @@ private:
 public:
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
-    return get_string_from_group_set(thd, get_partial_groups_from_group_log_state);
+    return get_string_from_gtid_set(thd, get_partial_groups_from_group_log_state);
   }
 
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    return get_string_from_group_set(thd, get_partial_groups_from_caches);
+    return get_string_from_gtid_set(thd, get_partial_groups_from_caches);
   }
 };
 
 
-#endif /* HAVE_UGID */
+#endif /* HAVE_GTID */

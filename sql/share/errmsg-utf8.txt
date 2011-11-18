@@ -6605,38 +6605,38 @@ ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
 ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
   eng "The system variable %.200s can not be set when there is an ongoing transaction."
 
-ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST
-  eng "The system variable @@SESSION.UGID_NEXT has value %.200s, which is not listed in @@SESSION.UGID_NEXT_LIST."
+ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST
+  eng "The system variable @@SESSION.GTID_NEXT has value %.200s, which is not listed in @@SESSION.GTID_NEXT_LIST."
 
-ER_CANT_CHANGE_UGID_NEXT_IN_SUPER_GROUP_WHEN_UGID_NEXT_LIST_IS_NULL
-  eng "When @@SESSION.UGID_NEXT_LIST == NULL and there is an ongoing transaction, the system variable @@SESSION.UGID_NEXT can not change until after @@SESSION.UGID_COMMIT is set to 1 and a statement executes."
+ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL
+  eng "When @@SESSION.GTID_NEXT_LIST == NULL, the system variable @@SESSION.GTID_NEXT cannot change inside a transaction."
 
-ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
-  eng "When there is an ongoing transaction, the system variable @@SESSION.UGID_NEXT_LIST can not change until after @@SESSION.UGID_COMMIT is set to 1 and a statement executes."
+ER_CANT_CHANGE_GTID_NEXT_LIST_IN_TRANSACTION
+  eng "The system variable @@SESSION.GTID_NEXT_LIST cannot change inside a transaction."
 
 ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
   eng "The statement 'SET %.200s' cannot invoke a stored function."
 
-ER_UGID_NEXT_IS_ENDED_IN_GROUP_CACHE
-  eng "The system variable @@SESSION.UGID_NEXT has value %.200s, which has already been ended in this client."
+ER_GTID_NEXT_IS_ENDED_IN_GROUP_CACHE
+  eng "The system variable @@SESSION.GTID_NEXT has value %.200s, which has already been ended in this client."
 
-ER_UGID_END_IS_ON_BUT_UGID_NEXT_IS_AUTO_OR_ANON
-  eng "The system variable @@SESSION.UGID_END cannot be 1 when @@SESSION.UGID_NEXT is 'AUTOMATIC' or 'ANONYMOUS'."
+ER_GTID_END_IS_ON_BUT_GTID_NEXT_IS_AUTO_OR_ANON
+  eng "The system variable @@SESSION.GTID_END cannot be 1 when @@SESSION.GTID_NEXT is 'AUTOMATIC' or 'ANONYMOUS'."
 
-ER_UGID_NEXT_CANT_BE_AUTOMATIC_IF_UGID_NEXT_LIST_IS_NON_NULL
-  eng "The system variable @@SESSION.UGID_NEXT cannot be 'AUTOMATIC' when @@SESSION.UGID_NEXT_LIST is non-NULL."
+ER_GTID_NEXT_CANT_BE_AUTOMATIC_IF_GTID_NEXT_LIST_IS_NON_NULL
+  eng "The system variable @@SESSION.GTID_NEXT cannot be 'AUTOMATIC' when @@SESSION.GTID_NEXT_LIST is non-NULL."
 
-ER_SKIPPING_LOGGED_GROUP
-  eng "Skipping group %.200s because it has already been executed and logged."
+ER_SKIPPING_LOGGED_TRANSACTION
+  eng "Skipping transaction %.200s because it has already been executed and logged."
 
-ER_UGID_END_REQUIRES_UGID_COMMIT_WHEN_UGID_NEXT_LIST_IS_NULL
-  eng "When UGID_NEXT_LIST = NULL and UGID_NEXT has the form UUID:NUMBER, UGID_END cannot be set if UGID_COMMIT is not set."
+ER_GTID_END_REQUIRES_GTID_COMMIT_WHEN_GTID_NEXT_LIST_IS_NULL
+  eng "When GTID_NEXT_LIST = NULL and GTID_NEXT has the form UUID:NUMBER, GTID_END cannot be set if GTID_COMMIT is not set."
 
-ER_MALFORMED_GROUP_SET_SPECIFICATION
-  eng "Malformed group set specification '%.200s'."
+ER_MALFORMED_GTID_SET_SPECIFICATION
+  eng "Malformed GTID_set specification '%.200s'."
 
-ER_MALFORMED_GROUP_SPECIFICATION
-  eng "Malformed group specification '%.200s'."
+ER_MALFORMED_GTID_SPECIFICATION
+  eng "Malformed GTID specification '%.200s'."
 
 ER_FILE_FORMAT
   eng "File '%.200s' has an unknown format at position %lld, it may be corrupt."

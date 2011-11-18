@@ -18,7 +18,7 @@
 #include "sql_class.h"
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 void Rpl_owner_id::copy_from(const THD *thd)

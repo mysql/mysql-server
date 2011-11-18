@@ -626,7 +626,7 @@ SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_profiling;
-SHOW_COMP_OPTION have_ugid;
+SHOW_COMP_OPTION have_gtid;
 
 /* Thread specific variables */
 
@@ -4141,7 +4141,7 @@ static int init_server_auto_options()
   DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid)
   {
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
     if (!Uuid::is_valid(uuid))
     {
       sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
@@ -4992,7 +4992,7 @@ int mysqld_main(int argc, char **argv)
       unireg_abort(1);
     }
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
     if (opt_bin_log)
     {
       /*
@@ -5009,7 +5009,7 @@ int mysqld_main(int argc, char **argv)
       if (ret)
         unireg_abort(1);
 
-      if (mysql_bin_log.restore_ugid())
+      if (mysql_bin_log.restore_gtid())
         unireg_abort(1);
     }
 #endif
@@ -7564,10 +7564,10 @@ static int mysql_init_variables(void)
 #ifdef HAVE_SMEM
   shared_memory_base_name= default_shared_memory_base_name;
 #endif
-#ifdef HAVE_UGID
-  have_ugid=SHOW_OPTION_YES;
+#ifdef HAVE_GTID
+  have_gtid=SHOW_OPTION_YES;
 #else
-  have_ugid=SHOW_OPTION_NO;
+  have_gtid=SHOW_OPTION_NO;
 #endif
 
 #if defined(__WIN__)

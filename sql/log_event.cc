@@ -642,8 +642,8 @@ const char* Log_event::get_type_str(Log_event_type type)
   case INCIDENT_EVENT: return "Incident";
   case IGNORABLE_LOG_EVENT: return "Ignorable";
   case ROWS_QUERY_LOG_EVENT: return "Rows_query";
-  case UGID_LOG_EVENT: return "Ugid";
-  case UGIDSET_LOG_EVENT: return "UgidSet";
+  case GTID_LOG_EVENT: return "Gtid";
+  case GTIDSET_LOG_EVENT: return "GtidSet";
   default: return "Unknown";				/* impossible */
   }
 }
@@ -1529,11 +1529,11 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     case ROWS_QUERY_LOG_EVENT:
       ev= new Rows_query_log_event(buf, event_len, description_event);
       break;
-    case UGID_LOG_EVENT:
-      ev= new Ugid_log_event(buf, event_len, description_event);
+    case GTID_LOG_EVENT:
+      ev= new Gtid_log_event(buf, event_len, description_event);
       break;
-    case UGIDSET_LOG_EVENT:
-      ev= new UgidSet_log_event(buf, event_len, description_event);
+    case GTIDSET_LOG_EVENT:
+      ev= new GtidSet_log_event(buf, event_len, description_event);
       break;
     default:
       /*
@@ -2442,10 +2442,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 
   /* checking partioning properties and perform corresponding actions */
 
-  // Beginning of a group designated explicitly with BEGIN or UGID
-  if ((is_s_event= starts_group()) || get_type_code() == UGID_LOG_EVENT ||
+  // Beginning of a group designated explicitly with BEGIN or GTID
+  if ((is_s_event= starts_group()) || get_type_code() == GTID_LOG_EVENT ||
       // or DDL:s or autocommit queries possibly associated with own p-events
-      (!rli->curr_group_seen_begin && !rli->curr_group_seen_ugid &&
+      (!rli->curr_group_seen_begin && !rli->curr_group_seen_gtid &&
        /*
          the following is a special case of B-free still multi-event group like
          { p_1,p_2,...,p_k, g }.
@@ -2457,7 +2457,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         gaq->get_job_group(rli->gaq->assigned_group_index)->
         worker_id != MTS_WORKER_UNDEF)))
   {
-    if (!rli->curr_group_seen_ugid)
+    if (!rli->curr_group_seen_gtid)
     {
       ulong gaq_idx;
       rli->mts_groups_assigned++;
@@ -2473,7 +2473,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
       DBUG_ASSERT(rli->last_assigned_worker == NULL);
 
-      if (is_s_event || get_type_code() == UGID_LOG_EVENT)
+      if (is_s_event || get_type_code() == GTID_LOG_EVENT)
       {
         Log_event *ptr_curr_ev= this;
         // B-event is appended to the Deferred Array associated with GCAP
@@ -2486,9 +2486,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
           // mark the current group as started with explicit B-event
           rli->curr_group_seen_begin= true;
      
-        if (get_type_code() == UGID_LOG_EVENT)
-          // mark the current group as started with explicit Ugid-event
-          rli->curr_group_seen_ugid= true;
+        if (get_type_code() == GTID_LOG_EVENT)
+          // mark the current group as started with explicit Gtid-event
+          rli->curr_group_seen_gtid= true;
       }
     }
     else
@@ -4873,11 +4873,11 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
       post_header_len[IGNORABLE_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
       post_header_len[ROWS_QUERY_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
-      post_header_len[UGID_LOG_EVENT-1]= Ugid_log_event::UGID_TYPE_INFO_LEN +
-                                         Ugid_log_event::UGID_FLAGS_INFO_LEN +
-                                         Ugid_log_event::GROUP_SIZE_INFO_LEN +
-                                         Ugid_log_event::THREAD_ID_INFO_LEN;
-      post_header_len[UGIDSET_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
+      post_header_len[GTID_LOG_EVENT-1]= Gtid_log_event::GTID_TYPE_INFO_LEN +
+                                         Gtid_log_event::GTID_FLAGS_INFO_LEN +
+                                         Gtid_log_event::GROUP_SIZE_INFO_LEN +
+                                         Gtid_log_event::THREAD_ID_INFO_LEN;
+      post_header_len[GTIDSET_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
 
       // Sanity-check that all post header lengths are initialized.
       int i;
@@ -11530,16 +11530,16 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
 }
 #endif
 
-#ifdef HAVE_UGID
-Ugid_log_event::Ugid_log_event(const char *buffer, uint event_len,
+#ifdef HAVE_GTID
+Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
                                const Format_description_log_event *descr_event)
   : Ignorable_log_event(buffer, descr_event)
 {
-  DBUG_ENTER("Ugid_log_event::Ugid_log_event");
+  DBUG_ENTER("Gtid_log_event::Gtid_log_event");
   uint8 const common_header_len=
     descr_event->common_header_len;
   uint8 const post_header_len=
-    descr_event->post_header_len[UGID_LOG_EVENT - 1];
+    descr_event->post_header_len[GTID_LOG_EVENT - 1];
 
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
@@ -11547,11 +11547,11 @@ Ugid_log_event::Ugid_log_event(const char *buffer, uint event_len,
   char const *ptr_buffer= buffer + common_header_len;
   char const *str_end= buffer + event_len;
 
-  ugid_type= *ptr_buffer;
-  ptr_buffer+= UGID_TYPE_INFO_LEN;  
+  gtid_type= *ptr_buffer;
+  ptr_buffer+= GTID_TYPE_INFO_LEN;  
 
-  ugid_flags= *ptr_buffer;
-  ptr_buffer+= UGID_FLAGS_INFO_LEN;
+  gtid_flags= *ptr_buffer;
+  ptr_buffer+= GTID_FLAGS_INFO_LEN;
 
   group_size= uint8korr(ptr_buffer);
   ptr_buffer+= GROUP_SIZE_INFO_LEN;
@@ -11559,11 +11559,11 @@ Ugid_log_event::Ugid_log_event(const char *buffer, uint event_len,
   thread_id= uint4korr(ptr_buffer);
   ptr_buffer+= THREAD_ID_INFO_LEN;
 
-  memcpy(sid, ptr_buffer, UGID_SID_INFO_LEN);
-  ptr_buffer+= UGID_SID_INFO_LEN;
+  memcpy(sid, ptr_buffer, GTID_SID_INFO_LEN);
+  ptr_buffer+= GTID_SID_INFO_LEN;
 
   gno= uint8korr(ptr_buffer);
-  ptr_buffer+= UGID_GNO_INFO_LEN;
+  ptr_buffer+= GTID_GNO_INFO_LEN;
 
   DBUG_ASSERT(str_end == (char *) ptr_buffer);
 
@@ -11571,37 +11571,37 @@ Ugid_log_event::Ugid_log_event(const char *buffer, uint event_len,
 }
 
 #ifndef MYSQL_CLIENT
-Ugid_log_event::Ugid_log_event(THD* thd_arg)
+Gtid_log_event::Gtid_log_event(THD* thd_arg)
 : Ignorable_log_event(thd_arg), gno(0),
-  ugid_type(0), ugid_flags(0),
+  gtid_type(0), gtid_flags(0),
   group_size(0), thread_id(0)
 {
-  memset(sid, 0, UGID_SID_INFO_LEN);
+  memset(sid, 0, GTID_SID_INFO_LEN);
 }
 
-Ugid_log_event::Ugid_log_event(THD* thd_arg, const uchar* sid_arg,
+Gtid_log_event::Gtid_log_event(THD* thd_arg, const uchar* sid_arg,
                                int64 gno_arg, uint64 group_size_arg)
 : Ignorable_log_event(thd_arg), gno(gno_arg),
-  ugid_type(1), ugid_flags(1),
+  gtid_type(1), gtid_flags(1),
   group_size(group_size_arg), thread_id(thd_arg->thread_id)
 {
-  memcpy(sid, sid_arg, UGID_SID_INFO_LEN);
+  memcpy(sid, sid_arg, GTID_SID_INFO_LEN);
 }
 #endif
 
-Ugid_log_event::~Ugid_log_event()
+Gtid_log_event::~Gtid_log_event()
 {
 }
 
 #ifndef MYSQL_CLIENT
-void Ugid_log_event::pack_info(Protocol *protocol)
+void Gtid_log_event::pack_info(Protocol *protocol)
 {
   size_t size= 0;
   rpl_sid sid_decode;
-  char buffer[UGID_STRING_INFO_LEN];
+  char buffer[GTID_STRING_INFO_LEN];
   char *ptr_buffer= buffer;
   
-  ptr_buffer= strmov(ptr_buffer, "SET @@SESSION.UGID_NEXT= '");
+  ptr_buffer= strmov(ptr_buffer, "SET @@SESSION.GTID_NEXT= '");
 
   size= sid_decode.to_string(sid, ptr_buffer);
   ptr_buffer+= size;
@@ -11615,19 +11615,19 @@ void Ugid_log_event::pack_info(Protocol *protocol)
 
 #ifdef MYSQL_CLIENT
 void
-Ugid_log_event::print(FILE *file,
+Gtid_log_event::print(FILE *file,
                       PRINT_EVENT_INFO *print_event_info)
 {
   size_t size= 0;
   rpl_sid sid_decode;
-  char buffer[UGID_STRING_INFO_LEN];
+  char buffer[GTID_STRING_INFO_LEN];
   char* ptr_buffer= buffer;
   IO_CACHE *const head= &print_event_info->head_cache;
  
   if (!print_event_info->short_form)
   {
     print_header(head, print_event_info, FALSE);
-    my_b_printf(head, "\tugid\tthread_id=%lu\n", (ulong) thread_id);
+    my_b_printf(head, "\tgtid\tthread_id=%lu\n", (ulong) thread_id);
   }
   
   size= sprintf(ptr_buffer, "'");
@@ -11636,24 +11636,24 @@ Ugid_log_event::print(FILE *file,
   ptr_buffer+= size;
   size= sprintf(ptr_buffer, ":%lld';", gno);
 
-  my_b_printf(head, "SET @@SESSION.UGID_NEXT= %s%s\n", buffer,
+  my_b_printf(head, "SET @@SESSION.GTID_NEXT= %s%s\n", buffer,
               print_event_info->delimiter);
 }
 #endif
 
 #ifdef MYSQL_SERVER
-bool Ugid_log_event::write_data_header(IO_CACHE *file)
+bool Gtid_log_event::write_data_header(IO_CACHE *file)
 {
-  DBUG_ENTER("Ugid_log_event::write_data_header");
-  char buffer[UGID_TYPE_INFO_LEN + UGID_FLAGS_INFO_LEN +
+  DBUG_ENTER("Gtid_log_event::write_data_header");
+  char buffer[GTID_TYPE_INFO_LEN + GTID_FLAGS_INFO_LEN +
               GROUP_SIZE_INFO_LEN + THREAD_ID_INFO_LEN];
   char* ptr_buffer= buffer;
 
-  *ptr_buffer= ugid_type;
-  ptr_buffer+= UGID_TYPE_INFO_LEN;
+  *ptr_buffer= gtid_type;
+  ptr_buffer+= GTID_TYPE_INFO_LEN;
 
-  *ptr_buffer= ugid_flags;
-  ptr_buffer+= UGID_FLAGS_INFO_LEN;
+  *ptr_buffer= gtid_flags;
+  ptr_buffer+= GTID_FLAGS_INFO_LEN;
 
   int8store(ptr_buffer, group_size);
   ptr_buffer+= GROUP_SIZE_INFO_LEN;
@@ -11669,17 +11669,17 @@ bool Ugid_log_event::write_data_header(IO_CACHE *file)
 #endif
 }
 
-bool Ugid_log_event::write_data_body(IO_CACHE *file)
+bool Gtid_log_event::write_data_body(IO_CACHE *file)
 {
-  DBUG_ENTER("Ugid_log_event::write_data_body");
-  char buffer[UGID_SID_INFO_LEN + UGID_GNO_INFO_LEN];
+  DBUG_ENTER("Gtid_log_event::write_data_body");
+  char buffer[GTID_SID_INFO_LEN + GTID_GNO_INFO_LEN];
   char* ptr_buffer= buffer;
 
-  memcpy(ptr_buffer, sid, UGID_SID_INFO_LEN);
-  ptr_buffer+= UGID_SID_INFO_LEN;
+  memcpy(ptr_buffer, sid, GTID_SID_INFO_LEN);
+  ptr_buffer+= GTID_SID_INFO_LEN;
 
   int8store(ptr_buffer, gno);
-  ptr_buffer+= UGID_GNO_INFO_LEN;
+  ptr_buffer+= GTID_GNO_INFO_LEN;
 
   DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));
 #ifndef MYSQL_CLIENT
@@ -11691,14 +11691,14 @@ bool Ugid_log_event::write_data_body(IO_CACHE *file)
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-int Ugid_log_event::do_apply_event(Relay_log_info const *rli)
+int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  DBUG_ENTER("Ugid_log_event::do_apply_event");
+  DBUG_ENTER("Gtid_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
 
   size_t size= 0;
   rpl_sid sid_decode;
-  char buffer[UGID_STRING_INFO_LEN];
+  char buffer[GTID_STRING_INFO_LEN];
   char* ptr_buffer= buffer;
 
   size= sid_decode.to_string(sid, ptr_buffer);
@@ -11706,59 +11706,58 @@ int Ugid_log_event::do_apply_event(Relay_log_info const *rli)
   size= sprintf(ptr_buffer, ":%lld", gno);
 
   mysql_bin_log.sid_lock.rdlock();
-  if (thd->variables.ugid_next.parse(buffer) != RETURN_STATUS_OK)
+  if (thd->variables.gtid_next.parse(buffer) != RETURN_STATUS_OK)
   {
     mysql_bin_log.sid_lock.unlock();
     DBUG_RETURN(1);
   }
   mysql_bin_log.sid_lock.unlock();
 
-  thd->variables.ugid_has_ongoing_super_group= false;
-  thd->variables.ugid_end= true;
-  thd->variables.ugid_commit= true;
+  thd->variables.gtid_end= true;
+  thd->variables.gtid_commit= true;
   DBUG_RETURN(0);
 }
 #endif
 
-uchar Ugid_log_event::get_ugid_type() const
+uchar Gtid_log_event::get_gtid_type() const
 {
-  return ugid_type;
+  return gtid_type;
 }
 
-const uchar* Ugid_log_event::get_ugid_sid() const
+const uchar* Gtid_log_event::get_gtid_sid() const
 {
   return sid;
 }
 
-int64 Ugid_log_event::get_ugid_gno() const
+int64 Gtid_log_event::get_gtid_gno() const
 {
   return gno;
 }
 
-uchar Ugid_log_event::get_ugid_flags() const
+uchar Gtid_log_event::get_gtid_flags() const
 {
-  return ugid_flags;
+  return gtid_flags;
 }
 
-uint64 Ugid_log_event::get_group_size() const
+uint64 Gtid_log_event::get_group_size() const
 {
   return group_size;
 }
 
-uint32 Ugid_log_event::get_thread_id() const
+uint32 Gtid_log_event::get_thread_id() const
 {
   return thread_id;
 }
 
-UgidSet_log_event::UgidSet_log_event(const char *buffer, uint event_len,
+GtidSet_log_event::GtidSet_log_event(const char *buffer, uint event_len,
                                      const Format_description_log_event *descr_event)
   : Ignorable_log_event(buffer, descr_event)
 {
-  DBUG_ENTER("Ugid_log_event::Ugid_log_event");
+  DBUG_ENTER("Gtid_log_event::Gtid_log_event");
   uint8 const common_header_len=
     descr_event->common_header_len;
   uint8 const post_header_len=
-    descr_event->post_header_len[UGIDSET_LOG_EVENT - 1];
+    descr_event->post_header_len[GTIDSET_LOG_EVENT - 1];
 
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
@@ -11768,10 +11767,10 @@ UgidSet_log_event::UgidSet_log_event(const char *buffer, uint event_len,
   DBUG_PRINT("info", ("DST SIZE OF THE EVENT %ld", str_end - ptr_buffer));
 
   nsids= uint8korr(ptr_buffer);
-  ptr_buffer+= UGID_NTH_INFO_LEN;
+  ptr_buffer+= GTID_NTH_INFO_LEN;
 
   ngnos= uint8korr(ptr_buffer);
-  ptr_buffer+= UGID_NTH_INFO_LEN;
+  ptr_buffer+= GTID_NTH_INFO_LEN;
 
   DBUG_PRINT("info", ("DST META-DATA nsids %lld ngnos %lld", nsids, ngnos));
   ptr_buffer= buffer + common_header_len;
@@ -11789,14 +11788,14 @@ UgidSet_log_event::UgidSet_log_event(const char *buffer, uint event_len,
 }
 
 #ifndef MYSQL_CLIENT
-UgidSet_log_event::UgidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log)
+GtidSet_log_event::GtidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log)
 : Ignorable_log_event(thd_arg)
 {
   size_t size= 0;
   uint64 count_ngnos= 0;
   uchar* ptr_buffer= NULL;
   log->sid_lock.rdlock();
-  const Group_set* grp_set= log->group_log_state.get_ended_groups();
+  const GTID_set* grp_set= log->group_log_state.get_ended_groups();
   rpl_sidno max_sidno= log->sid_map.get_max_sidno();
   nsids= max_sidno;
   /*
@@ -11806,49 +11805,49 @@ UgidSet_log_event::UgidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log)
     increase the buffer's size.
   */
   ngnos= nsids * 2;
-  size= UGID_NTH_INFO_LEN + UGID_NTH_INFO_LEN +
-        ((UGID_SID_INFO_LEN + UGID_NTH_INFO_LEN) * nsids) +
-        ((UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN) * ngnos);
+  size= GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN +
+        ((GTID_SID_INFO_LEN + GTID_NTH_INFO_LEN) * nsids) +
+        ((GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN) * ngnos);
   if ((encoded_buffer= (uchar *) my_malloc(size, MYF(0))))
   {
     DBUG_PRINT("info", ("SRC HEADER memory %p nsids %lld size %d, memory %p "
-               "ngnos %d size %d", encoded_buffer, nsids, UGID_NTH_INFO_LEN,
-               encoded_buffer + UGID_NTH_INFO_LEN, 0, UGID_NTH_INFO_LEN));
+               "ngnos %d size %d", encoded_buffer, nsids, GTID_NTH_INFO_LEN,
+               encoded_buffer + GTID_NTH_INFO_LEN, 0, GTID_NTH_INFO_LEN));
 
-    ptr_buffer= encoded_buffer + UGID_NTH_INFO_LEN + UGID_NTH_INFO_LEN;
+    ptr_buffer= encoded_buffer + GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN;
     for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
     {
-      Group_set::Const_interval_iterator ivit(grp_set, sidno);
-      Group_set::Interval *iv= NULL;
+      GTID_set::Const_interval_iterator ivit(grp_set, sidno);
+      GTID_set::Interval *iv= NULL;
       uchar* ptr_intervals= NULL;
       uint64 n_intervals= 0;
       const rpl_sid* sid= log->sid_map.sidno_to_sid(sidno);
       
       DBUG_PRINT("info", ("SRC SID memory %p sidno %d size %d",
-                 ptr_buffer, sidno, UGID_SID_INFO_LEN));
+                 ptr_buffer, sidno, GTID_SID_INFO_LEN));
 
-      memcpy(ptr_buffer, sid, UGID_SID_INFO_LEN);
-      ptr_buffer+= UGID_SID_INFO_LEN;
+      memcpy(ptr_buffer, sid, GTID_SID_INFO_LEN);
+      ptr_buffer+= GTID_SID_INFO_LEN;
 
       DBUG_PRINT("info", ("SRC N-INTERVALS memory %p interval %lld size %d",
-                         ptr_buffer, n_intervals, UGID_NTH_INFO_LEN));
+                         ptr_buffer, n_intervals, GTID_NTH_INFO_LEN));
       ptr_intervals= ptr_buffer;
-      ptr_buffer+= UGID_NTH_INFO_LEN;
+      ptr_buffer+= GTID_NTH_INFO_LEN;
       while ((iv= ivit.get()) != NULL)
       {
         int8store(ptr_buffer, iv->start);
-        ptr_buffer+= UGID_GNO_INFO_LEN;
+        ptr_buffer+= GTID_GNO_INFO_LEN;
       
         int8store(ptr_buffer, iv->end - 1);
-        ptr_buffer+= UGID_GNO_INFO_LEN;
+        ptr_buffer+= GTID_GNO_INFO_LEN;
 
         DBUG_PRINT("info", ("SRC INTERVALS memory %p start %lld end %lld size %d",
-                   ptr_buffer - UGID_GNO_INFO_LEN - UGID_GNO_INFO_LEN,
-                   iv->start, iv->end, UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN));
+                   ptr_buffer - GTID_GNO_INFO_LEN - GTID_GNO_INFO_LEN,
+                   iv->start, iv->end, GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN));
         if (count_ngnos > ngnos && (nsids - sidno) != 0)
         {
           size_t increase_size= (nsids - sidno) *
-                                (UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN) * 2;
+                                (GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN) * 2;
           size_t used_size= ptr_buffer - encoded_buffer;
           uchar* new_encoded_buffer= NULL;
           if (!(new_encoded_buffer= (uchar *)
@@ -11869,7 +11868,7 @@ UgidSet_log_event::UgidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log)
       int8store(ptr_intervals, n_intervals);
       if (n_intervals == 0) count_ngnos++;
       DBUG_PRINT("info", ("SRC N-INTERVALS memory %p interval %lld size %d",
-                 ptr_intervals, n_intervals, UGID_NTH_INFO_LEN));
+                 ptr_intervals, n_intervals, GTID_NTH_INFO_LEN));
     }
   }
   else
@@ -11880,39 +11879,39 @@ UgidSet_log_event::UgidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log)
   ngnos= count_ngnos;
 
   DBUG_PRINT("info", ("SRC HEADER memory %p nsids %lld size %d, memory %p "
-             "ngnos %lld size %d", encoded_buffer, nsids, UGID_NTH_INFO_LEN,
-             encoded_buffer + UGID_NTH_INFO_LEN, ngnos, UGID_NTH_INFO_LEN));
+             "ngnos %lld size %d", encoded_buffer, nsids, GTID_NTH_INFO_LEN,
+             encoded_buffer + GTID_NTH_INFO_LEN, ngnos, GTID_NTH_INFO_LEN));
   DBUG_PRINT("info", ("SRC FINAL SIZE real %ld calc %lld",
              ptr_buffer - encoded_buffer,
-             UGID_NTH_INFO_LEN + UGID_NTH_INFO_LEN +
-             ((UGID_SID_INFO_LEN + UGID_NTH_INFO_LEN) * nsids) +
-             ((UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN) * ngnos)));
+             GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN +
+             ((GTID_SID_INFO_LEN + GTID_NTH_INFO_LEN) * nsids) +
+             ((GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN) * ngnos)));
 err:
   ptr_buffer= encoded_buffer;
   int8store(ptr_buffer, nsids);
-  ptr_buffer+= UGID_NTH_INFO_LEN;
+  ptr_buffer+= GTID_NTH_INFO_LEN;
   int8store(ptr_buffer, ngnos);
   log->sid_lock.unlock();
 }
 #endif
 
-UgidSet_log_event::~UgidSet_log_event()
+GtidSet_log_event::~GtidSet_log_event()
 {
   my_free(encoded_buffer);
 }
 
-char* UgidSet_log_event::get_string_representation(size_t* dst_size)
+char* GtidSet_log_event::get_string_representation(size_t* dst_size)
 {
-  DBUG_ENTER("UgidSet_log_event::get_string_representation");
-  char* buffer= (char *) my_malloc((nsids * UGID_SID_STRING_INFO_LEN) +
-                                   (ngnos * UGID_GNO_STRING_INFO_LEN), MYF(0));
-  char *src_buffer= (char *) (encoded_buffer + UGID_NTH_INFO_LEN + UGID_NTH_INFO_LEN);
+  DBUG_ENTER("GtidSet_log_event::get_string_representation");
+  char* buffer= (char *) my_malloc((nsids * GTID_SID_STRING_INFO_LEN) +
+                                   (ngnos * GTID_GNO_STRING_INFO_LEN), MYF(0));
+  char *src_buffer= (char *) (encoded_buffer + GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN);
   char *dst_buffer= buffer;
   rpl_sid sid_decode;
   size_t size= 0;
 
-  DBUG_PRINT("info", ("DST ALLOCATING %lld", (nsids * UGID_SID_STRING_INFO_LEN) +
-             (ngnos * UGID_GNO_STRING_INFO_LEN)));
+  DBUG_PRINT("info", ("DST ALLOCATING %lld", (nsids * GTID_SID_STRING_INFO_LEN) +
+             (ngnos * GTID_GNO_STRING_INFO_LEN)));
 
   *dst_size= 0;
   if (dst_buffer)
@@ -11925,27 +11924,27 @@ char* UgidSet_log_event::get_string_representation(size_t* dst_size)
       dst_buffer+= size;
 
       DBUG_PRINT("info", ("DST memory %p sid %lld size %d",
-                 src_buffer, sidno, UGID_SID_INFO_LEN));
-      src_buffer+= UGID_SID_INFO_LEN;
+                 src_buffer, sidno, GTID_SID_INFO_LEN));
+      src_buffer+= GTID_SID_INFO_LEN;
       dst_buffer= strmov(dst_buffer, ":");
       
       uint64 interval= 0; 
       uint64 n_intervals= uint8korr(src_buffer);
-      src_buffer+= UGID_NTH_INFO_LEN;
+      src_buffer+= GTID_NTH_INFO_LEN;
       DBUG_PRINT("info", ("DST N-INTERVALS memory %p interval %lld size %d",
-                 src_buffer - UGID_NTH_INFO_LEN, n_intervals, UGID_NTH_INFO_LEN));
+                 src_buffer - GTID_NTH_INFO_LEN, n_intervals, GTID_NTH_INFO_LEN));
       if (n_intervals)
       {
         while (interval < n_intervals)
         {
           uint64 gno_start= uint8korr(src_buffer);
-          src_buffer+= UGID_GNO_INFO_LEN;
+          src_buffer+= GTID_GNO_INFO_LEN;
           uint64 gno_end= uint8korr(src_buffer);
-          src_buffer+= UGID_GNO_INFO_LEN;
+          src_buffer+= GTID_GNO_INFO_LEN;
 
           DBUG_PRINT("info", ("DST INTERVALS memory %p start %lld end %lld size %d",
-                     src_buffer - UGID_GNO_INFO_LEN - UGID_GNO_INFO_LEN, gno_start,
-                     gno_end, UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN));
+                     src_buffer - GTID_GNO_INFO_LEN - GTID_GNO_INFO_LEN, gno_start,
+                     gno_end, GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN));
 
           dst_buffer= strmov(dst_buffer, "(");
           size= sprintf(dst_buffer, "%lld", gno_start);
@@ -11973,11 +11972,11 @@ char* UgidSet_log_event::get_string_representation(size_t* dst_size)
 }
 
 #ifndef MYSQL_CLIENT
-Group_set* UgidSet_log_event::get_group_representation(Group_log_state* grp_state, Sid_map* sid_map)
+GTID_set* GtidSet_log_event::get_group_representation(Group_log_state* grp_state, Sid_map* sid_map)
 {
-  DBUG_ENTER("UgidSet_log_event::get_group_representation");
-  Group_set* grp_set= new Group_set(sid_map);
-  char *src_buffer= (char *) (encoded_buffer + UGID_NTH_INFO_LEN + UGID_NTH_INFO_LEN);
+  DBUG_ENTER("GtidSet_log_event::get_group_representation");
+  GTID_set* grp_set= new GTID_set(sid_map);
+  char *src_buffer= (char *) (encoded_buffer + GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN);
 
   if (grp_set)
   { 
@@ -11995,24 +11994,24 @@ Group_set* UgidSet_log_event::get_group_representation(Group_log_state* grp_stat
       }*/
 
       DBUG_PRINT("info", ("DST memory %p sid %d size %d",
-                 src_buffer, sidno, UGID_SID_INFO_LEN));
-      src_buffer+= UGID_SID_INFO_LEN;
+                 src_buffer, sidno, GTID_SID_INFO_LEN));
+      src_buffer+= GTID_SID_INFO_LEN;
       
       uint64 interval= 0; 
       uint64 n_intervals= uint8korr(src_buffer);
-      src_buffer+= UGID_NTH_INFO_LEN;
+      src_buffer+= GTID_NTH_INFO_LEN;
       DBUG_PRINT("info", ("DST N-INTERVALS memory %p interval %lld size %d",
-                 src_buffer - UGID_NTH_INFO_LEN, n_intervals, UGID_NTH_INFO_LEN));
+                 src_buffer - GTID_NTH_INFO_LEN, n_intervals, GTID_NTH_INFO_LEN));
       if (n_intervals)
       {
         while (interval < n_intervals)
         {
           uint64 gno_start= uint8korr(src_buffer);
-          src_buffer+= UGID_GNO_INFO_LEN;
+          src_buffer+= GTID_GNO_INFO_LEN;
           uint64 gno_end= uint8korr(src_buffer);
-          src_buffer+= UGID_GNO_INFO_LEN;
+          src_buffer+= GTID_GNO_INFO_LEN;
 
-          Group_set::Interval_iterator ivit(grp_set, sidno);
+          GTID_set::Interval_iterator ivit(grp_set, sidno);
           if (grp_set->add(&ivit, gno_start, gno_end + 1) != RETURN_STATUS_OK)
           {
             delete grp_set;
@@ -12020,8 +12019,8 @@ Group_set* UgidSet_log_event::get_group_representation(Group_log_state* grp_stat
           }
 
           DBUG_PRINT("info", ("DST INTERVALS memory %p start %lld end %lld size %d",
-                     src_buffer - UGID_GNO_INFO_LEN - UGID_GNO_INFO_LEN, gno_start,
-                     gno_end, UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN));
+                     src_buffer - GTID_GNO_INFO_LEN - GTID_GNO_INFO_LEN, gno_start,
+                     gno_end, GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN));
 
           interval++;
         }
@@ -12033,7 +12032,7 @@ Group_set* UgidSet_log_event::get_group_representation(Group_log_state* grp_stat
 #endif
 
 #ifndef MYSQL_CLIENT
-void UgidSet_log_event::pack_info(Protocol *protocol)
+void GtidSet_log_event::pack_info(Protocol *protocol)
 {
   size_t size= 0;
   char* buffer= get_string_representation(&size);
@@ -12047,7 +12046,7 @@ void UgidSet_log_event::pack_info(Protocol *protocol)
 #endif
 
 #ifdef MYSQL_CLIENT
-void UgidSet_log_event::print(FILE *file,
+void GtidSet_log_event::print(FILE *file,
                               PRINT_EVENT_INFO *print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
@@ -12059,7 +12058,7 @@ void UgidSet_log_event::print(FILE *file,
     if (!print_event_info->short_form)
     {
       print_header(head, print_event_info, FALSE);
-      my_b_printf(head, "\tugid set\n");
+      my_b_printf(head, "\tgtid set\n");
     }
     my_b_printf(head, "# %s\n", buffer);
   }
@@ -12069,9 +12068,9 @@ void UgidSet_log_event::print(FILE *file,
 #endif
 
 #ifdef MYSQL_SERVER
-bool UgidSet_log_event::write_data_body(IO_CACHE *file)
+bool GtidSet_log_event::write_data_body(IO_CACHE *file)
 {
-  DBUG_ENTER("UgidSet_log_event::write_data_body");
+  DBUG_ENTER("GtidSet_log_event::write_data_body");
 
 #ifndef MYSQL_CLIENT
   DBUG_RETURN(wrapper_my_b_safe_write(file, encoded_buffer, get_data_size()));
@@ -12082,9 +12081,9 @@ bool UgidSet_log_event::write_data_body(IO_CACHE *file)
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-int UgidSet_log_event::do_apply_event(Relay_log_info const *rli)
+int GtidSet_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  DBUG_ENTER("UgidSet_log_event::do_apply_event");
+  DBUG_ENTER("GtidSet_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
 
   /*
@@ -12094,7 +12093,7 @@ int UgidSet_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_RETURN(0);
 }
 #endif
-#endif // HAVE_UGID
+#endif // HAVE_GTID
 
 #ifdef MYSQL_CLIENT
 /**

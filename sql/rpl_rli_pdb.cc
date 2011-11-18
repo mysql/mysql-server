@@ -136,7 +136,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   jobs.overfill= FALSE;    //  todo: move into Slave_jobs_queue constructor
   jobs.waited_overfill= 0;
   jobs.entry= jobs.size= c_rli->mts_slave_worker_queue_len_max;
-  curr_group_seen_begin= curr_group_seen_ugid= false;
+  curr_group_seen_begin= curr_group_seen_gtid= false;
 
   my_init_dynamic_array(&jobs.Q, sizeof(Slave_job_item), jobs.size, 0);
   for (k= 0; k < jobs.size; k++)
@@ -990,7 +990,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
   }
   ep->elements= 0;
 
-  curr_group_seen_ugid= curr_group_seen_begin= false;
+  curr_group_seen_gtid= curr_group_seen_begin= false;
 
   if (error)
   {

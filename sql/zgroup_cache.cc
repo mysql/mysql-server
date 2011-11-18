@@ -18,7 +18,7 @@
 #include "binlog.h"
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 Group_cache::Group_cache()
@@ -55,14 +55,14 @@ enum_return_status Group_cache::add_subgroup(const Cached_subgroup *group)
   {
     Cached_subgroup *prev= get_unsafe_pointer(n_subgroups - 1);
     if ((prev->type == group->type || 
-         (prev->type == NORMAL_SUBGROUP && group->type == DUMMY_SUBGROUP) ||
-         (prev->type == DUMMY_SUBGROUP && group->type == NORMAL_SUBGROUP)) &&
+         (prev->type == NORMAL_SUBGROUP && group->type == EMPTY_SUBGROUP) ||
+         (prev->type == EMPTY_SUBGROUP && group->type == NORMAL_SUBGROUP)) &&
          prev->sidno == group->sidno &&
          prev->gno == group->gno)
     {
       prev->binlog_length += group->binlog_length;
       prev->group_end= group->group_end;
-      if (prev->type == DUMMY_SUBGROUP && group->type == NORMAL_SUBGROUP)
+      if (prev->type == EMPTY_SUBGROUP && group->type == NORMAL_SUBGROUP)
         prev->type= NORMAL_SUBGROUP;
       RETURN_OK;
     }
@@ -77,14 +77,14 @@ enum_return_status Group_cache::add_subgroup(const Cached_subgroup *group)
 
   // Update the internal status of this Group_cache (see comment above
   // definition of enum_group_cache_type).
-  if (group->type == DUMMY_SUBGROUP || group->type == NORMAL_SUBGROUP)
+  if (group->type == EMPTY_SUBGROUP || group->type == NORMAL_SUBGROUP)
   {
     if (group->group_end)
     {
       /*
         @todo: currently group_is_ended() requires a linear scan
         through the cache. if this becomes a performance problem, we
-        can add a Group_set Group_cache::ended_groups and add ended
+        can add a GTID_set Group_cache::ended_groups and add ended
         groups to it here. /Sven
       */
     }
@@ -97,18 +97,18 @@ enum_return_status
 Group_cache::add_logged_subgroup(const THD *thd, my_off_t length)
 {
   DBUG_ENTER("Group_cache::add_logged_subgroup(THD *, my_off_t)");
-  const Ugid_specification *spec= &thd->variables.ugid_next;
-  Ugid_specification::enum_type type= spec->type;
+  const Gtid_specification *spec= &thd->variables.gtid_next;
+  Gtid_specification::enum_type type= spec->type;
   Cached_subgroup cs=
     {
-      type == Ugid_specification::ANONYMOUS ? ANONYMOUS_SUBGROUP :
+      type == Gtid_specification::ANONYMOUS ? ANONYMOUS_SUBGROUP :
       NORMAL_SUBGROUP,
       spec->group.sidno,
       spec->group.gno,
       length,
-      thd->variables.ugid_end
+      thd->variables.gtid_end
     };
-  if (type == Ugid_specification::AUTOMATIC && spec->group.sidno == 0)
+  if (type == Gtid_specification::AUTOMATIC && spec->group.sidno == 0)
     cs.sidno= mysql_bin_log.server_uuid_sidno;
   PROPAGATE_REPORTED_ERROR(add_subgroup(&cs));
   RETURN_OK;
@@ -121,7 +121,7 @@ bool Group_cache::contains_group(rpl_sidno sidno, rpl_gno gno) const
   for (int i= 0; i < n_subgroups; i++)
   {
     const Cached_subgroup *cs= get_unsafe_pointer(i);
-    if ((cs->type == NORMAL_SUBGROUP || cs->type == DUMMY_SUBGROUP) &&
+    if ((cs->type == NORMAL_SUBGROUP || cs->type == EMPTY_SUBGROUP) &&
         cs->gno == gno && cs->sidno == sidno)
       return true;
   }
@@ -143,49 +143,49 @@ bool Group_cache::group_is_ended(rpl_sidno sidno, rpl_gno gno) const
 
 
 enum_return_status
-Group_cache::add_dummy_subgroup(rpl_sidno sidno, rpl_gno gno, bool group_end)
+Group_cache::add_empty_subgroup(rpl_sidno sidno, rpl_gno gno, bool group_end)
 {
-  DBUG_ENTER("Group_cache::add_dummy_subgroup");
+  DBUG_ENTER("Group_cache::add_empty_subgroup");
   Cached_subgroup cs=
     {
-      DUMMY_SUBGROUP, sidno, gno, 0/*binlog_length*/, group_end
+      EMPTY_SUBGROUP, sidno, gno, 0/*binlog_length*/, group_end
     };
   PROPAGATE_REPORTED_ERROR(add_subgroup(&cs));
   RETURN_OK;
 }
 
 enum_return_status
-Group_cache::add_dummy_subgroup_if_missing(const Group_log_state *gls,
+Group_cache::add_empty_subgroup_if_missing(const Group_log_state *gls,
                                            rpl_sidno sidno, rpl_gno gno)
 {
-  DBUG_ENTER("Group_cache::add_dummy_subgroup_if_missing(Group_log_state *, rpl_sidno, rpl_gno)");
+  DBUG_ENTER("Group_cache::add_empty_subgroup_if_missing(Group_log_state *, rpl_sidno, rpl_gno)");
   if (!gls->is_ended(sidno, gno) && !gls->is_partial(sidno, gno) &&
       !contains_group(sidno, gno))
-    PROPAGATE_REPORTED_ERROR(add_dummy_subgroup(sidno, gno, false));
+    PROPAGATE_REPORTED_ERROR(add_empty_subgroup(sidno, gno, false));
   RETURN_OK;
 }
 
 
 enum_return_status
-Group_cache::add_dummy_subgroups_if_missing(const Group_log_state *gls,
-                                            const Group_set *group_set)
+Group_cache::add_empty_subgroups_if_missing(const Group_log_state *gls,
+                                            const GTID_set *gtid_set)
 {
-  DBUG_ENTER("Group_cache::add_dummy_subgroups_if_missing(Group_log_state *, Group_set *)");
+  DBUG_ENTER("Group_cache::add_empty_subgroups_if_missing(Group_log_state *, GTID_set *)");
   /*
     @todo: This algorithm is
-    O(n_groups_in_cache*n_groups_in_group_set) because contains_group
+    O(n_groups_in_cache*n_groups_in_gtid_set) because contains_group
     is O(n_groups_in_cache).  We can optimize this to
-    O(n_groups_in_cache+n_groups_in_group_set), as follows: create a
+    O(n_groups_in_cache+n_groups_in_gtid_set), as follows: create a
     HASH and copy all groups from the cache to the HASH.  Then use the
     HASH to detect if the group is in the cache or not.  This has some
     overhead so should only be used if
-    n_groups_in_cache*n_groups_in_group_set is significantly bigger
-    than n_groups_in_cache+n_groups_in_group_set elements. /Sven
+    n_groups_in_cache*n_groups_in_gtid_set is significantly bigger
+    than n_groups_in_cache+n_groups_in_gtid_set elements. /Sven
   */
-  Group_set::Group_iterator git(group_set);
+  GTID_set::GTID_iterator git(gtid_set);
   Group g= git.get();
   while (g.sidno) {
-    PROPAGATE_REPORTED_ERROR(add_dummy_subgroup_if_missing(gls,
+    PROPAGATE_REPORTED_ERROR(add_empty_subgroup_if_missing(gls,
                                                            g.sidno, g.gno));
     git.next();
     g= git.get();
@@ -199,7 +199,7 @@ Group_cache::update_group_log_state(const THD *thd, Group_log_state *gls) const
 {
   DBUG_ENTER("Group_cache::update_group_log_state");
 
-  const Group_set *lock_set= thd->variables.ugid_next_list.get_group_set();
+  const GTID_set *lock_set= thd->variables.gtid_next_list.get_gtid_set();
   int n_subgroups= get_n_subgroups();
   rpl_sidno lock_sidno= 0;
 
@@ -219,7 +219,7 @@ Group_cache::update_group_log_state(const THD *thd, Group_log_state *gls) const
   for (int i= 0; i < n_subgroups; i++)
   {
     Cached_subgroup *cs= get_unsafe_pointer(i);
-    if (cs->type == NORMAL_SUBGROUP || cs->type == DUMMY_SUBGROUP)
+    if (cs->type == NORMAL_SUBGROUP || cs->type == EMPTY_SUBGROUP)
     {
       DBUG_ASSERT(lock_set != NULL ? lock_set->contains_sidno(cs->sidno) :
                   (lock_sidno > 0 && cs->sidno == lock_sidno));
@@ -255,9 +255,9 @@ enum_return_status Group_cache::generate_automatic_gno(const THD *thd,
                                                        Group_log_state *gls)
 {
   DBUG_ENTER("Group_cache::generate_automatic_gno");
-  if (thd->variables.ugid_next.type != Ugid_specification::AUTOMATIC)
+  if (thd->variables.gtid_next.type != Gtid_specification::AUTOMATIC)
     RETURN_OK;
-  DBUG_ASSERT(thd->variables.ugid_next_list.get_group_set() == NULL);
+  DBUG_ASSERT(thd->variables.gtid_next_list.get_gtid_set() == NULL);
   int n_subgroups= get_n_subgroups();
   rpl_gno automatic_gno= 0;
   rpl_sidno sidno= 0;
@@ -288,7 +288,7 @@ enum_return_status Group_cache::generate_automatic_gno(const THD *thd,
 }
 
 
-enum_return_status Group_cache::get_ended_groups(Group_set *gs) const
+enum_return_status Group_cache::get_ended_groups(GTID_set *gs) const
 {
   DBUG_ENTER("Group_cache::get_groups");
   int n_subgroups= get_n_subgroups();
@@ -303,12 +303,12 @@ enum_return_status Group_cache::get_ended_groups(Group_set *gs) const
 }
 
 
-enum_return_status Group_cache::get_partial_groups(Group_set *gs) const
+enum_return_status Group_cache::get_partial_groups(GTID_set *gs) const
 {
   DBUG_ENTER("Group_cache::get_groups");
   Sid_map *sid_map= gs->get_sid_map();
   PROPAGATE_REPORTED_ERROR(gs->ensure_sidno(sid_map->get_max_sidno()));
-  Group_set ended_groups(sid_map);
+  GTID_set ended_groups(sid_map);
   PROPAGATE_REPORTED_ERROR(get_ended_groups(&ended_groups));
   int n_subgroups= get_n_subgroups();
   for (int i= 0; i < n_subgroups; i++)

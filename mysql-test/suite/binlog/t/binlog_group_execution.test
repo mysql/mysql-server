@@ -1,4 +1,4 @@
---source include/have_ugid.inc
+--source include/have_gtid.inc
 --source include/have_log_bin.inc
 
 --let $ida= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
@@ -9,140 +9,140 @@
 --let $idf= ffffffff-ffff-ffff-ffff-ffffffffffff
 --let $tab= `SELECT '\t'`
 
---echo ==== Valid and invlaid values for ugid_next ====
+--echo ==== Valid and invlaid values for gtid_next ====
 
-SELECT @@SESSION.UGID_NEXT;
-SELECT @@SESSION.UGID_NEXT_LIST;
+SELECT @@SESSION.GTID_NEXT;
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-SET @@SESSION.UGID_NEXT= 'ANONYMOUS';
-SELECT @@SESSION.UGID_NEXT;
+SET @@SESSION.GTID_NEXT= 'ANONYMOUS';
+SELECT @@SESSION.GTID_NEXT;
 
-SET @@SESSION.UGID_NEXT= 'AUTOMATIC';
-SELECT @@SESSION.UGID_NEXT;
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+SELECT @@SESSION.GTID_NEXT;
 
-eval SET @@SESSION.UGID_NEXT= '$ida:10';
-SELECT @@SESSION.UGID_NEXT;
+eval SET @@SESSION.GTID_NEXT= '$ida:10';
+SELECT @@SESSION.GTID_NEXT;
 
-eval SET @@SESSION.UGID_NEXT= '$ida:0x10';
-SELECT @@SESSION.UGID_NEXT;
+eval SET @@SESSION.GTID_NEXT= '$ida:0x10';
+SELECT @@SESSION.GTID_NEXT;
 
-eval SET @@SESSION.UGID_NEXT= '$ida:010';
-SELECT @@SESSION.UGID_NEXT;
-
---error ER_WRONG_VALUE_FOR_VAR
-eval SET @@SESSION.UGID_NEXT= '$ida:10#';
-SELECT @@SESSION.UGID_NEXT;
+eval SET @@SESSION.GTID_NEXT= '$ida:010';
+SELECT @@SESSION.GTID_NEXT;
 
 --error ER_WRONG_VALUE_FOR_VAR
-eval SET @@SESSION.UGID_NEXT= '$ida:1-10';
-SELECT @@SESSION.UGID_NEXT;
+eval SET @@SESSION.GTID_NEXT= '$ida:10#';
+SELECT @@SESSION.GTID_NEXT;
 
 --error ER_WRONG_VALUE_FOR_VAR
-eval SET @@SESSION.UGID_NEXT= '$ida:1:3';
-SELECT @@SESSION.UGID_NEXT;
+eval SET @@SESSION.GTID_NEXT= '$ida:1-10';
+SELECT @@SESSION.GTID_NEXT;
 
 --error ER_WRONG_VALUE_FOR_VAR
-eval SET @@SESSION.UGID_NEXT= '$ida:1,$ida:3';
-SELECT @@SESSION.UGID_NEXT;
+eval SET @@SESSION.GTID_NEXT= '$ida:1:3';
+SELECT @@SESSION.GTID_NEXT;
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@SESSION.UGID_NEXT= NULL;
-SELECT @@SESSION.UGID_NEXT;
+eval SET @@SESSION.GTID_NEXT= '$ida:1,$ida:3';
+SELECT @@SESSION.GTID_NEXT;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@SESSION.GTID_NEXT= NULL;
+SELECT @@SESSION.GTID_NEXT;
 
 --error ER_WRONG_TYPE_FOR_VAR
-SET @@SESSION.UGID_NEXT= 10;
-SELECT @@SESSION.UGID_NEXT;
+SET @@SESSION.GTID_NEXT= 10;
+SELECT @@SESSION.GTID_NEXT;
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@SESSION.UGID_NEXT= '10';
-SELECT @@SESSION.UGID_NEXT;
+SET @@SESSION.GTID_NEXT= '10';
+SELECT @@SESSION.GTID_NEXT;
 
 --error ER_WRONG_VALUE_FOR_VAR
-eval SET @@SESSION.UGID_NEXT= '$ida:';
-SELECT @@SESSION.UGID_NEXT;
+eval SET @@SESSION.GTID_NEXT= '$ida:';
+SELECT @@SESSION.GTID_NEXT;
 
 --error ER_WRONG_VALUE_FOR_VAR
-eval SET @@SESSION.UGID_NEXT= '$ida:0';
-SELECT @@SESSION.UGID_NEXT;
+eval SET @@SESSION.GTID_NEXT= '$ida:0';
+SELECT @@SESSION.GTID_NEXT;
 
 --error ER_WRONG_VALUE_FOR_VAR
-eval SET @@SESSION.UGID_NEXT= '$ida:0x8000000000000000';
-SELECT @@SESSION.UGID_NEXT;
+eval SET @@SESSION.GTID_NEXT= '$ida:0x8000000000000000';
+SELECT @@SESSION.GTID_NEXT;
 
---echo ==== Valid and invalid values for ugid_next_list ====
+--echo ==== Valid and invalid values for gtid_next_list ====
 
-SELECT @@SESSION.UGID_NEXT_LIST;
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-SET @@SESSION.UGID_NEXT_LIST= '';
-SELECT @@SESSION.UGID_NEXT_LIST;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET @@SESSION.UGID_NEXT_LIST= '#';
-SELECT @@SESSION.UGID_NEXT_LIST;
+SET @@SESSION.GTID_NEXT_LIST= '';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
 --error ER_WRONG_VALUE_FOR_VAR
-eval SET @@SESSION.UGID_NEXT_LIST= '$ida:1:$ida:1';
-SELECT @@SESSION.UGID_NEXT_LIST;
+SET @@SESSION.GTID_NEXT_LIST= '#';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= NULL;
-SELECT @@SESSION.UGID_NEXT_LIST;
+--error ER_WRONG_VALUE_FOR_VAR
+eval SET @@SESSION.GTID_NEXT_LIST= '$ida:1:$ida:1';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= '$ida:1';
-SELECT @@SESSION.UGID_NEXT_LIST;
+eval SET @@SESSION.GTID_NEXT_LIST= NULL;
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= '$idb:1-10';
-SELECT @@SESSION.UGID_NEXT_LIST;
+eval SET @@SESSION.GTID_NEXT_LIST= '$ida:1';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= '$idc:1-10:2-20';
-SELECT @@SESSION.UGID_NEXT_LIST;
+eval SET @@SESSION.GTID_NEXT_LIST= '$idb:1-10';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= '$idd :1-10:11-20';
-SELECT @@SESSION.UGID_NEXT_LIST;
+eval SET @@SESSION.GTID_NEXT_LIST= '$idc:1-10:2-20';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= '$ide: 1-10:14-20';
-SELECT @@SESSION.UGID_NEXT_LIST;
+eval SET @@SESSION.GTID_NEXT_LIST= '$idd :1-10:11-20';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= '$idf:4 -10:1-20';
-SELECT @@SESSION.UGID_NEXT_LIST;
+eval SET @@SESSION.GTID_NEXT_LIST= '$ide: 1-10:14-20';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= '$ida:4- 10:8-20';
-SELECT @@SESSION.UGID_NEXT_LIST;
+eval SET @@SESSION.GTID_NEXT_LIST= '$idf:4 -10:1-20';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= '$idb:4-10 :4-20';
-SELECT @@SESSION.UGID_NEXT_LIST;
+eval SET @@SESSION.GTID_NEXT_LIST= '$ida:4- 10:8-20';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= '$idc:4-10:15-20:11-14 ';
-SELECT @@SESSION.UGID_NEXT_LIST;
+eval SET @@SESSION.GTID_NEXT_LIST= '$idb:4-10 :4-20';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= '$idd
+eval SET @@SESSION.GTID_NEXT_LIST= '$idc:4-10:15-20:11-14 ';
+SELECT @@SESSION.GTID_NEXT_LIST;
+
+eval SET @@SESSION.GTID_NEXT_LIST= '$idd
 : 1 - 10,
 $ide$tab:$tab 11 -$tab 20$tab';
-SELECT @@SESSION.UGID_NEXT_LIST;
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= '$ida:1,$idb:2,$idc:3';
-SELECT @@SESSION.UGID_NEXT_LIST;
+eval SET @@SESSION.GTID_NEXT_LIST= '$ida:1,$idb:2,$idc:3';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
-eval SET @@SESSION.UGID_NEXT_LIST= '$idc:1,$idb:2,$ida:3';
-SELECT @@SESSION.UGID_NEXT_LIST;
+eval SET @@SESSION.GTID_NEXT_LIST= '$idc:1,$idb:2,$ida:3';
+SELECT @@SESSION.GTID_NEXT_LIST;
 
 --echo ==== Conditions when all variables are settable / readonly ====
 
-# UGID_HAS_ONGOING_SUPER_GROUP is read-only
-SELECT @@SESSION.UGID_HAS_ONGOING_SUPER_GROUP;
+# GTID_HAS_ONGOING_SUPER_GROUP is read-only
+SELECT @@SESSION.GTID_HAS_ONGOING_SUPER_GROUP;
 # Read-only.
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET UGID_HAS_ONGOING_SUPER_GROUP= 1;
+SET GTID_HAS_ONGOING_SUPER_GROUP= 1;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SELECT @@GLOBAL.UGID_HAS_ONGOING_SUPER_GROUP;
+SELECT @@GLOBAL.GTID_HAS_ONGOING_SUPER_GROUP;
 
-SET UGID_NEXT_LIST = NULL, UGID_NEXT = 'AUTOMATIC', UGID_END = 0, UGID_COMMIT = 0;
+SET GTID_NEXT_LIST = NULL, GTID_NEXT = 'AUTOMATIC', GTID_END = 0, GTID_COMMIT = 0;
 
 CREATE TABLE variables (var VARCHAR(100), val VARCHAR(100), id INT PRIMARY KEY AUTO_INCREMENT);
 eval INSERT INTO variables(var, val) VALUES
-  ('ugid_next', '"$ida:1"'),
-  ('ugid_next_list', '"$ida:1"'),
-  ('ugid_end', '1'),
-  ('ugid_commit', '1');
+  ('gtid_next', '"$ida:1"'),
+  ('gtid_next_list', '"$ida:1"'),
+  ('gtid_end', '1'),
+  ('gtid_commit', '1');
 --eval CREATE FUNCTION f() RETURNS INT BEGIN RETURN 1; END
 CREATE TABLE t1 (a INT);
 CREATE USER nonsuper@localhost;
@@ -195,114 +195,114 @@ DROP TABLE t1, variables;
 DROP FUNCTION f;
 DROP USER nonsuper@localhost;
 
-SET UGID_NEXT_LIST = NULL;
+SET GTID_NEXT_LIST = NULL;
 
 # It is (unfortunately) possible to set the value from a stored
 # procedure.  No user should do this, it's just weird, but was hard
 # to prevent so instead we allow it.  Although this is unsupported, we
 # have to check that at least there is no crash.
-SET UGID_NEXT_LIST = NULL, UGID_NEXT = 'AUTOMATIC', UGID_END = 0, UGID_COMMIT = 0;
+SET GTID_NEXT_LIST = NULL, GTID_NEXT = 'AUTOMATIC', GTID_END = 0, GTID_COMMIT = 0;
 --delimiter |
 eval CREATE PROCEDURE p ()
 BEGIN
-  SET @@SESSION.UGID_NEXT_LIST = '$ida:1-10';
-  SET @@SESSION.UGID_NEXT = '$ida:50';
-  SET @@SESSION.UGID_NEXT = '$ida:5';
-  SET @@SESSION.UGID_COMMIT = 1;
-  SET @@SESSION.UGID_END = 1;
-  SET @@SESSION.UGID_NEXT_LIST = NULL;
-  SET @@SESSION.UGID_NEXT = 'AUTOMATIC';
-  SET @@SESSION.UGID_COMMIT = 0;
-  SET @@SESSION.UGID_END = 0;
+  SET @@SESSION.GTID_NEXT_LIST = '$ida:1-10';
+  SET @@SESSION.GTID_NEXT = '$ida:50';
+  SET @@SESSION.GTID_NEXT = '$ida:5';
+  SET @@SESSION.GTID_COMMIT = 1;
+  SET @@SESSION.GTID_END = 1;
+  SET @@SESSION.GTID_NEXT_LIST = NULL;
+  SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+  SET @@SESSION.GTID_COMMIT = 0;
+  SET @@SESSION.GTID_END = 0;
 END|
 --delimiter ;
 CALL p();
 DROP PROCEDURE p;
 
---echo ==== Conditions for combinations of UGID_NEXT and UGID_NEXT_LIST ====
+--echo ==== Conditions for combinations of GTID_NEXT and GTID_NEXT_LIST ====
 
-# Cannot set ugid_next outside master-super-group, inside a transaction
-SET UGID_NEXT_LIST = NULL;
+# Cannot set gtid_next outside master-super-group, inside a transaction
+SET GTID_NEXT_LIST = NULL;
 BEGIN;
   --error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
-  eval SET UGID_NEXT_LIST = '$ida:1';
+  eval SET GTID_NEXT_LIST = '$ida:1';
   --error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
-  eval SET UGID_NEXT = '$ida:1';
+  eval SET GTID_NEXT = '$ida:1';
 COMMIT;
 
-# Cannot start master-super-group when ugid_next and ugid_next_list
+# Cannot start master-super-group when gtid_next and gtid_next_list
 # are incompatible.
-eval SET @@SESSION.UGID_NEXT_LIST = '$ida:1', @@SESSION.UGID_NEXT = '$ida:2';
---error ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST
+eval SET @@SESSION.GTID_NEXT_LIST = '$ida:1', @@SESSION.GTID_NEXT = '$ida:2';
+--error ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST
 BEGIN;
 
-# In a master-super-group where ugid_next_list != NULL, ugid_next can
-# be set to values specified in ugid_next_list or to ANONYMOUS, but
-# not to AUTOMATIC or to values outside ugid_next_list.
-# ugid_next_list cannot be changed.
-eval SET @@SESSION.UGID_NEXT_LIST = '$ida:1-2', @@SESSION.UGID_NEXT = '$ida:1';
+# In a master-super-group where gtid_next_list != NULL, gtid_next can
+# be set to values specified in gtid_next_list or to ANONYMOUS, but
+# not to AUTOMATIC or to values outside gtid_next_list.
+# gtid_next_list cannot be changed.
+eval SET @@SESSION.GTID_NEXT_LIST = '$ida:1-2', @@SESSION.GTID_NEXT = '$ida:1';
 COMMIT; # start master-super-group
 
-eval SET @@SESSION.UGID_NEXT = '$ida:3';
---error ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST
+eval SET @@SESSION.GTID_NEXT = '$ida:3';
+--error ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST
 COMMIT;
-eval SET @@SESSION.UGID_NEXT = 'AUTOMATIC';
---error ER_UGID_NEXT_CANT_BE_AUTOMATIC_IF_UGID_NEXT_LIST_IS_NON_NULL
-COMMIT;
-
-eval SET @@SESSION.UGID_NEXT = '$ida:1';
-COMMIT;
-eval SET @@SESSION.UGID_NEXT = '$ida:2';
-COMMIT;
-eval SET @@SESSION.UGID_NEXT = 'ANONYMOUS';
+eval SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+--error ER_GTID_NEXT_CANT_BE_AUTOMATIC_IF_GTID_NEXT_LIST_IS_NON_NULL
 COMMIT;
 
---error ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
-eval SET @@SESSION.UGID_NEXT_LIST = '$ida:1-2';
---error ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
-eval SET @@SESSION.UGID_NEXT_LIST = '$ida:2';
---error ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
-eval SET @@SESSION.UGID_NEXT_LIST = NULL;
+eval SET @@SESSION.GTID_NEXT = '$ida:1';
+COMMIT;
+eval SET @@SESSION.GTID_NEXT = '$ida:2';
+COMMIT;
+eval SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
+COMMIT;
 
-SET @@SESSION.UGID_COMMIT = 1;
+--error ER_CANT_CHANGE_GTID_NEXT_LIST_IN_SUPER_GROUP
+eval SET @@SESSION.GTID_NEXT_LIST = '$ida:1-2';
+--error ER_CANT_CHANGE_GTID_NEXT_LIST_IN_SUPER_GROUP
+eval SET @@SESSION.GTID_NEXT_LIST = '$ida:2';
+--error ER_CANT_CHANGE_GTID_NEXT_LIST_IN_SUPER_GROUP
+eval SET @@SESSION.GTID_NEXT_LIST = NULL;
+
+SET @@SESSION.GTID_COMMIT = 1;
 COMMIT; # end master-super-group
 
-# It is allowed to set ugid_next_list to an empty string.
-#eval SET @@SESSION.UGID_COMMIT = 0, @@SESSION.UGID_NEXT_LIST = '', @@SESSION.UGID_NEXT = '$ida:1';
-#--error ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST
+# It is allowed to set gtid_next_list to an empty string.
+#eval SET @@SESSION.GTID_COMMIT = 0, @@SESSION.GTID_NEXT_LIST = '', @@SESSION.GTID_NEXT = '$ida:1';
+#--error ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST
 #COMMIT;
-eval SET @@SESSION.UGID_NEXT = 'ANONYMOUS', @@SESSION.UGID_COMMIT = 1;
+eval SET @@SESSION.GTID_NEXT = 'ANONYMOUS', @@SESSION.GTID_COMMIT = 1;
 COMMIT; # end master-super-group
 
-# In a master-super-group where ugid_next_list == NULL, neither
-# ugid_next nor ugid_next_list is settable.
+# In a master-super-group where gtid_next_list == NULL, neither
+# gtid_next nor gtid_next_list is settable.
 
-#eval SET @@SESSION.UGID_NEXT_LIST = NULL, @@SESSION.UGID_NEXT = '$ida:1', @@SESSION.UGID_COMMIT = 0;
+#eval SET @@SESSION.GTID_NEXT_LIST = NULL, @@SESSION.GTID_NEXT = '$ida:1', @@SESSION.GTID_COMMIT = 0;
 #COMMIT; # start master-super-group
-#SELECT @@SESSION.UGID_NEXT_LIST;
-#--error ER_CANT_CHANGE_UGID_NEXT_IN_SUPER_GROUP_WHEN_UGID_NEXT_LIST_IS_NULL
-#eval SET @@SESSION.UGID_NEXT = '$ida:1';
---error ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
-eval SET @@SESSION.UGID_NEXT_LIST = NULL;
---error ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
-eval SET @@SESSION.UGID_NEXT_LIST = '$ida:1';
-SET @@SESSION.UGID_COMMIT = 1;
+#SELECT @@SESSION.GTID_NEXT_LIST;
+#--error ER_CANT_CHANGE_GTID_NEXT_IN_SUPER_GROUP_WHEN_GTID_NEXT_LIST_IS_NULL
+#eval SET @@SESSION.GTID_NEXT = '$ida:1';
+--error ER_CANT_CHANGE_GTID_NEXT_LIST_IN_SUPER_GROUP
+eval SET @@SESSION.GTID_NEXT_LIST = NULL;
+--error ER_CANT_CHANGE_GTID_NEXT_LIST_IN_SUPER_GROUP
+eval SET @@SESSION.GTID_NEXT_LIST = '$ida:1';
+SET @@SESSION.GTID_COMMIT = 1;
 COMMIT; # end master-super-group
 
-# If UGID_NEXT_LIST == NULL and UGID_NEXT == SID:GNO, then it is not
-# allowed to have UGID_END = 1 unless UGID_COMMIT = 1.
-#eval SET @@SESSION.UGID_NEXT_LIST = NULL, @@SESSION.UGID_NEXT = '$ida:1', @@SESSION.UGID_END = 1, @@SESSION.UGID_COMMIT = 0;
+# If GTID_NEXT_LIST == NULL and GTID_NEXT == SID:GNO, then it is not
+# allowed to have GTID_END = 1 unless GTID_COMMIT = 1.
+#eval SET @@SESSION.GTID_NEXT_LIST = NULL, @@SESSION.GTID_NEXT = '$ida:1', @@SESSION.GTID_END = 1, @@SESSION.GTID_COMMIT = 0;
 #--error 1757
 #COMMIT;
 
-#SET @@SESSION.UGID_COMMIT = 0, @@SESSION.UGID_NEXT = AUTOMATIC, @@SESSION.UGID_NEXT_LIST = NULL;
+#SET @@SESSION.GTID_COMMIT = 0, @@SESSION.GTID_NEXT = AUTOMATIC, @@SESSION.GTID_NEXT_LIST = NULL;
 
 --echo ==== Conditions for executing transactions ====
 
 # one group split over two super-groups
-eval SET UGID_NEXT = '$ida:1', UGID_END = 0, UGID_COMMIT = 1;
+eval SET GTID_NEXT = '$ida:1', GTID_END = 0, GTID_COMMIT = 1;
 COMMIT;
-SET UGID_END = 1;
+SET GTID_END = 1;
 COMMIT;
 
 # if you try to re-execute the group after it has been ended, it

@@ -2028,9 +2028,9 @@ void implicit_commit_after(THD *thd)
   thd->get_stmt_da()->set_overwrite_status(false);
   thd->mdl_context.release_transactional_locks();
 
-#ifdef HAVE_UGID
-  if (thd->variables.ugid_commit)
-    thd->variables.ugid_has_ongoing_super_group= 0;
+#ifdef HAVE_GTID
+  if (thd->variables.gtid_commit)
+    thd->variables.gtid_has_ongoing_commit_sequence= 0;
 #endif
   DBUG_VOID_RETURN;
 }
@@ -2244,10 +2244,10 @@ mysql_execute_command(THD *thd)
   } /* endif unlikely slave */
 #endif
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
   /*
-    Execute ugid_before_statement, so that we acquire ownership of
-    groups as specified by ugid_next and ugid_next_list.
+    Execute gtid_before_statement, so that we acquire ownership of
+    groups as specified by gtid_next and gtid_next_list.
   */
   if (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt)
   {
@@ -2258,19 +2258,19 @@ mysql_execute_command(THD *thd)
       thd->get_group_cache won't crash.
     */
     thd->binlog_setup_trx_data();
-    enum_ugid_statement_status state=
-      ugid_before_statement(thd, &mysql_bin_log.sid_lock,
+    enum_gtid_statement_status state=
+      gtid_before_statement(thd, &mysql_bin_log.sid_lock,
                             &mysql_bin_log.group_log_state,
                             thd->get_group_cache(false),
                             thd->get_group_cache(true));
-    if (state == UGID_STATEMENT_CANCEL)
+    if (state == GTID_STATEMENT_CANCEL)
       // error has already been printed; don't print anything more here
       DBUG_RETURN(-1);
-    else if (state == UGID_STATEMENT_SKIP)
+    else if (state == GTID_STATEMENT_SKIP)
     {
-      // even if statement is skipped, we have to check if ugid_commit
+      // even if statement is skipped, we have to check if gtid_commit
       // causes it to commit the master-super-group.
-      if (thd->variables.ugid_commit)
+      if (thd->variables.gtid_commit)
         implicit_commit_after(thd);
       my_ok(thd);
       DBUG_RETURN(0);
@@ -4743,9 +4743,9 @@ finish:
 #endif
 
   if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END)
-// #ifdef HAVE_UGID
+// #ifdef HAVE_GTID
 //      || (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt &&
-//          thd->variables.ugid_commit)
+//          thd->variables.gtid_commit)
 //#endif
       )
   {

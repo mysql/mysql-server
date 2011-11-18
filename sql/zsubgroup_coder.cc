@@ -16,7 +16,7 @@
 #include "zgroups.h"
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 Subgroup_coder::Subgroup_coder()

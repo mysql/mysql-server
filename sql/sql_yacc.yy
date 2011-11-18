@@ -449,10 +449,10 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
   if (lex->spcont && tmp->var == Sys_autocommit_ptr)
     lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
   if (lex->uses_stored_routines() &&
-      (tmp->var == Sys_ugid_next_ptr || tmp->var == Sys_ugid_next_list_ptr ||
-       tmp->var == Sys_ugid_end_ptr || tmp->var == Sys_ugid_commit_ptr))
+      (tmp->var == Sys_gtid_next_ptr || tmp->var == Sys_gtid_next_list_ptr ||
+       tmp->var == Sys_gtid_end_ptr || tmp->var == Sys_gtid_commit_ptr))
   {
     my_error(ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION, MYF(0),
              tmp->var->name.str);

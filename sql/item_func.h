@@ -1447,7 +1447,7 @@ public:
 };
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 class Item_func_group_subset : public Item_int_func
 {
   String buf;

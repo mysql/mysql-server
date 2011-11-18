@@ -16,7 +16,7 @@
 #include "zgroups.h"
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 #include "mysqld_error.h"
@@ -31,24 +31,26 @@ enum_return_status Group::parse(Sid_map *sid_map, const char *text)
   rpl_sid sid;
 
   // parse sid
-  PROPAGATE_REPORTED_ERROR(sid.parse(text));
-  sidno= sid_map->add_permanent(&sid);
-  if (sidno <= 0)
-    RETURN_REPORTED_ERROR;
-  text += Uuid::TEXT_LENGTH;
-
-  // parse colon
-  if (*text == ':')
+  if (sid.parse(text) != RETURN_STATUS_OK)
   {
-    text++;
+    sidno= sid_map->add_permanent(&sid);
+    if (sidno <= 0)
+      RETURN_REPORTED_ERROR;
+    text += Uuid::TEXT_LENGTH;
 
-    // parse gno
-    gno= parse_gno(&text);
-    if (gno > 0 && *text == 0)
-      RETURN_OK;
+    // parse colon
+    if (*text == ':')
+    {
+      text++;
+
+      // parse gno
+      gno= parse_gno(&text);
+      if (gno > 0 && *text == 0)
+        RETURN_OK;
+    }
   }
-  BINLOG_ERROR(("Malformed group specification: %.200s", text),
-               (ER_MALFORMED_GROUP_SPECIFICATION, MYF(0), text));
+  BINLOG_ERROR(("Malformed GTID specification: %.200s", text),
+               (ER_MALFORMED_GTID_SPECIFICATION, MYF(0), text));
   RETURN_REPORTED_ERROR;
 }
 

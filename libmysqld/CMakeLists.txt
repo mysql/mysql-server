@@ -72,8 +72,8 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/zsubgroup_coder.cc
   ../sql/zowner_id.cc
   ../sql/zsid_map.cc
-  ../sql/zgroup_set.cc
-  ../sql/zugid_specification.cc
+  ../sql/zgtid_set.cc
+  ../sql/zgtid_specification.cc
   ../sql/zgroup_log_state.cc
   ../sql/zowned_groups.cc
   ../sql/zgroup_cache.cc

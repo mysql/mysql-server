@@ -18,7 +18,7 @@
 #include "sql_class.h"
 
 
-#ifdef HAVE_UGID
+#ifdef HAVE_GTID
 
 
 Mutex_cond_array::Mutex_cond_array(Checkable_rwlock *_global_lock)

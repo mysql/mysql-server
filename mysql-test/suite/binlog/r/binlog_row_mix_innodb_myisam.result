@@ -9,13 +9,13 @@ insert into t2 select * from t1;
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -31,8 +31,8 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -51,13 +51,13 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -82,13 +82,13 @@ a
 7
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -110,8 +110,8 @@ get_lock("a",10)
 1
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -123,13 +123,13 @@ insert into t1 values(9);
 insert into t2 select * from t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -142,13 +142,13 @@ begin;
 insert into t2 select * from t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -157,18 +157,18 @@ insert into t1 values(11);
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -183,8 +183,8 @@ insert into t2 select * from t1;
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -200,7 +200,7 @@ insert into t2 select * from t1;
 rollback;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
 delete from t1;
 delete from t2;
 reset master;
@@ -213,8 +213,8 @@ rollback to savepoint my_savepoint;
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -237,8 +237,8 @@ a
 18
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -295,8 +295,8 @@ get_lock("lock1",60)
 1
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -304,40 +304,40 @@ master-bin.000001	#	Query	#	#	SAVEPOINT `my_savepoint`
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; alter table t2 engine=MyISAM
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `t1`,`t2` /* generated by server */
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; create table t0 (n int)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t0)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t0)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; create table t2 (n int) engine=innodb
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t1`,`ti`
 do release_lock("lock1");
 drop table t0,t2;
@@ -426,65 +426,65 @@ a	b
 DROP TABLE t1,t2;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `t2` /* generated by server */
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `t2` /* generated by server */
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `t2` /* generated by server */
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `t2` /* generated by server */
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
 reset master;
 create table t1 (a int) engine=innodb;
@@ -516,7 +516,7 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -538,7 +538,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -566,8 +566,8 @@ insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -587,8 +587,8 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -615,8 +615,8 @@ insert into t2 values (bug27417(1));
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -633,8 +633,8 @@ insert into t2 select bug27417(1) union select bug27417(2);
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -650,8 +650,8 @@ update t3 set b=b+bug27417(1);
 ERROR 23000: Duplicate entry '4' for key 'b'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -672,8 +672,8 @@ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -706,8 +706,8 @@ delete from t2;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -730,8 +730,8 @@ delete t2.* from t2,t5 where t2.a=t5.a + 1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -754,8 +754,8 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -780,7 +780,7 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -802,7 +802,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -830,8 +830,8 @@ insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -850,8 +850,8 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -877,8 +877,8 @@ insert into t2 values (bug27417(1));
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -894,8 +894,8 @@ insert into t2 select bug27417(1) union select bug27417(2);
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -910,8 +910,8 @@ update t3 set b=b+bug27417(1);
 ERROR 23000: Duplicate entry '4' for key 'b'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -931,8 +931,8 @@ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -964,8 +964,8 @@ delete from t2;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -987,8 +987,8 @@ delete t2.* from t2,t5 where t2.a=t5.a + 1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1010,8 +1010,8 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
-master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
