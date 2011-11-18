@@ -3118,8 +3118,11 @@ fts_query_expansion_fetch_doc(
 			exp = que_node_get_next(exp);
 			continue;
 		} else {
-			doc.text.f_str = static_cast<unsigned char*>(
+			doc.text.f_n_char = 0;
+
+			doc.text.f_str = static_cast<byte*>(
 				dfield_get_data(dfield));
+
 			doc.text.f_len = len;
 		}
 
