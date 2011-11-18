@@ -1372,17 +1372,14 @@ bool Item::get_time_from_non_temporal(MYSQL_TIME *ltime)
   }
   return (null_value= true); // Impossible result type
 }
- 
 
-bool Item::get_timeval(struct timeval *tm)
+
+bool Item::get_timeval(struct timeval *tm, int *warnings)
 {
   MYSQL_TIME ltime;
-  if (get_date(&ltime, 0))
-    return true;
-  my_bool not_used;
-  tm->tv_sec= TIME_to_timestamp(current_thd, &ltime, &not_used);
-  tm->tv_usec= ltime.second_part;
-  return false;
+  return (null_value=
+          (get_date(&ltime, TIME_FUZZY_DATE) ||
+           datetime_to_timeval(current_thd, &ltime, tm, warnings)));
 }
 
 
@@ -2674,9 +2671,10 @@ bool Item_field::get_time(MYSQL_TIME *ltime)
   return 0;
 }
 
-bool Item_field::get_timeval(struct timeval *tm)
+bool Item_field::get_timeval(struct timeval *tm, int *warnings)
 {
-  return ((null_value= field->get_timestamp(tm)));
+  return (null_value= (field->is_null() ||
+                       field->get_timestamp(tm, warnings)));
 }
 
 double Item_field::val_result()

@@ -1794,15 +1794,12 @@ bool Field::get_time(MYSQL_TIME *ltime)
 }
 
 
-bool Field::get_timestamp(struct timeval *tm)
+bool Field::get_timestamp(struct timeval *tm, int *warnings)
 {
   MYSQL_TIME ltime;
-  if (get_date(&ltime, TIME_FUZZY_DATE))
-    return true;
-  my_bool not_used;
-  tm->tv_sec= TIME_to_timestamp(current_thd, &ltime, &not_used);
-  tm->tv_usec= ltime.second_part;
-  return false;
+  DBUG_ASSERT(!is_null());
+  return get_date(&ltime, TIME_FUZZY_DATE) ||
+         datetime_to_timeval(current_thd, &ltime, tm, warnings);
 }
 
 
@@ -5156,30 +5153,14 @@ Field_temporal_with_date_and_time::convert_TIME_to_timestamp(THD *thd,
                                                              struct timeval *tm,
                                                              int *warnings)
 {
-  my_bool in_dst_time_gap;
-  /* Only convert a correct date (not a zero date) */
-  if (!ltime->month)
+  /*
+    No needs to do check_date(TIME_NO_ZERO_IN_DATE),
+    because it has been done earlier in
+    store_time(), number_to_datetime() or str_to_datetime().
+  */
+  if (datetime_with_no_zero_in_date_to_timeval(thd, ltime, tm, warnings))
   {
     tm->tv_sec= tm->tv_usec= 0;
-    if (ltime->second_part)
-    {
-      /* Don't allow zero timestamp with microseconds */
-      *warnings|= MYSQL_TIME_WARN_TRUNCATED;
-      return true;    
-    }
-    return false;
-  }
-
-  tm->tv_usec= ltime->second_part;
-
-  if (!(tm->tv_sec= TIME_to_timestamp(thd, ltime, &in_dst_time_gap)))
-  {
-    *warnings|= MYSQL_TIME_WARN_OUT_OF_RANGE;
-    return true;    
-  }
-  else if (in_dst_time_gap)
-  {
-    *warnings|= MYSQL_TIME_WARN_INVALID_TIMESTAMP;
     return true;
   }
   return false;
@@ -5358,7 +5339,7 @@ bool Field_timestamp::get_date_internal(MYSQL_TIME *ltime)
 /**
    Get TIMESTAMP field value as seconds since begging of Unix Epoch
 */
-bool Field_timestamp::get_timestamp(struct timeval *tm)
+bool Field_timestamp::get_timestamp(struct timeval *tm, int *warnings)
 {
   if (is_null())
     return true;
@@ -5567,12 +5548,11 @@ Field_timestampf::get_date_internal(MYSQL_TIME *ltime)
 }
 
 
-bool Field_timestampf::get_timestamp(struct timeval *tm)
+bool Field_timestampf::get_timestamp(struct timeval *tm, int *warnings)
 {
   THD *thd= table ? table->in_use : current_thd;
   thd->time_zone_used= 1;
-  if (is_null())
-    return true;
+  DBUG_ASSERT(!is_null());
   my_timestamp_from_binary(tm, ptr, dec);
   return false;
 }
