@@ -68,11 +68,11 @@
 #include <sys/types.h>
 
 #include <assert.h>
-#ifdef HAVE_VIS_H
-#include <vis.h>
-#else
+/*
+  XXXMYSQL : Due to different versions of vis.h available,
+             use the one bundled with libedit.
+*/
 #include "np/vis.h"
-#endif
 #include <errno.h>
 #include <stdlib.h>
 
