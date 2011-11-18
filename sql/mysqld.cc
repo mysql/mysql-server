@@ -7854,7 +7854,7 @@ mysqld_get_one_option(int optid,
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
     /* Parse instrument name and value from argument string */
     char* name = argument,*p, *val;
-    
+
     /* Assignment required */
     if (!(p= strchr(argument, '=')))
     {
@@ -7863,7 +7863,7 @@ mysqld_get_one_option(int optid,
                              "'%s'", argument);
       return 0;
     }
-    
+
     /* Option value */
     val= p + 1;
     if (!*val)
@@ -7873,7 +7873,7 @@ mysqld_get_one_option(int optid,
                              "'%s'", argument);
       return 0;
     }
-    
+
     /* Trim leading spaces from instrument name */
     while (*name && my_isspace(mysqld_charset, *name))
       name++;
