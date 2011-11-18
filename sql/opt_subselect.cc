@@ -3921,8 +3921,8 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           if (j != join->const_tables && js_tab->use_quick != 2 &&
               j <= no_jbuf_after &&
               ((js_tab->type == JT_ALL && join_cache_level != 0) ||
-               (join_cache_level > 2 && (tab->type == JT_REF || 
-                                         tab->type == JT_EQ_REF))))
+               (join_cache_level > 2 && (js_tab->type == JT_REF || 
+                                         js_tab->type == JT_EQ_REF))))
           {
             /* Looks like we'll be using join buffer */
             first_table= join->const_tables;
