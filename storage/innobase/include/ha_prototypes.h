@@ -32,6 +32,9 @@ Created 5/11/2006 Osku Salerma
 #include "trx0types.h"
 #include "m_ctype.h" /* CHARSET_INFO */
 
+// Forward declaration
+typedef struct fts_string_struct fts_string_t;
+
 /*********************************************************************//**
 Wrapper around MySQL's copy_and_convert function.
 @return	number of bytes copied to 'to' */
@@ -344,4 +347,49 @@ UNIV_INTERN
 ulint
 innobase_get_lower_case_table_names(void);
 /*=====================================*/
-#endif
+
+/*************************************************************//**
+Get the next token from the given string and store it in *token. */
+UNIV_INTERN
+ulint
+innobase_mysql_fts_get_token(
+/*=========================*/
+	CHARSET_INFO*	charset,	/*!< in: Character set */
+	byte*		start,		/*!< in: start of text */
+	byte*		end,		/*!< in: one character past end of
+					text */
+	fts_string_t*	token,		/*!< out: token's text */
+	ulint*		offset);	/*!< out: offset to token,
+					measured as characters from
+					'start' */
+
+/******************************************************************//**
+compare two character string case insensitively according to their charset. */
+UNIV_INTERN
+int
+innobase_fts_text_case_cmp(
+/*=======================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*	p1,		/*!< in: key */
+	const void*	p2);		/*!< in: node */
+
+/******************************************************************//**
+compare two character string according to their charset. */
+UNIV_INTERN
+int
+innobase_fts_string_cmp(
+/*====================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*	p1,		/*!< in: key */
+	const void*	p2);		/*!< in: node */
+
+/****************************************************************//**
+Get FTS field charset info from the field's prtype
+@return charset info */
+UNIV_INTERN
+CHARSET_INFO*
+innobase_get_fts_charset(
+/*=====================*/
+	int		mysql_type,	/*!< in: MySQL type */
+	uint		charset_number);/*!< in: number of the charset */
+#endif /* HA_INNODB_PROTOTYPES_H */

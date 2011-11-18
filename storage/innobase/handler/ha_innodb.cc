@@ -264,9 +264,9 @@ static mysql_pfs_key_t	commit_cond_key;
 
 static PSI_mutex_info	all_pthread_mutexes[] = {
 	{&commit_threads_m_key, "commit_threads_m", 0},
- 	{&commit_cond_mutex_key, "commit_cond_mutex", 0},
- 	{&innobase_share_mutex_key, "innobase_share_mutex", 0},
- 	{&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
+	{&commit_cond_mutex_key, "commit_cond_mutex", 0},
+	{&innobase_share_mutex_key, "innobase_share_mutex", 0},
+	{&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
 };
 
 static PSI_cond_info	all_innodb_conds[] = {
@@ -2854,10 +2854,12 @@ innobase_change_buffering_inited_ok:
 	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
 
 	/* Round up fts_sort_pll_degree to nearest power of 2 number */
-	num_pll_degree = 1;	
-        while (num_pll_degree < fts_sort_pll_degree) {
-                num_pll_degree = num_pll_degree << 1;
-        }
+	for (num_pll_degree = 1;
+	     num_pll_degree < fts_sort_pll_degree;
+	     num_pll_degree <<= 1) {
+
+		/* No op */
+	}
 
 	fts_sort_pll_degree = num_pll_degree;
 
@@ -3486,13 +3488,12 @@ innobase_close_connection(
 				"but transaction is active");
 	}
 
-
 	if (trx_is_started(trx) && log_warnings) {
 
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
 			"InnoDB transaction.  "TRX_ID_FMT" row modifications "
-                        "will roll back.",
+			"will roll back.",
 			trx->undo_no);
 	}
 
@@ -3502,7 +3503,6 @@ innobase_close_connection(
 
 	DBUG_RETURN(0);
 }
-
 
 /*************************************************************************//**
 ** InnoDB database tables
@@ -3687,7 +3687,7 @@ ha_innobase::primary_key_is_clustered()
 	normalize_table_name_low(norm_name, name, TRUE)
 #else
 #define normalize_table_name(norm_name, name)           \
-        normalize_table_name_low(norm_name, name, FALSE)
+	normalize_table_name_low(norm_name, name, FALSE)
 #endif /* __WIN__ */
 
 /*****************************************************************//**
@@ -4745,13 +4745,13 @@ innobase_fts_text_cmp(
 /*==================*/
 	const void*	cs,		/*!< in: Character set */
 	const void*     p1,		/*!< in: key */
-        const void*     p2)		/*!< in: node */
+	const void*     p2)		/*!< in: node */
 {
 	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
-        const fts_string_t*	s1 = (const fts_string_t*) p1;
-        const fts_string_t*	s2 = (const fts_string_t*) p2;
+	const fts_string_t*	s1 = (const fts_string_t*) p1;
+	const fts_string_t*	s2 = (const fts_string_t*) p2;
 
-        return(ha_compare_text(charset, s1->f_str, s1->f_len,
+	return(ha_compare_text(charset, s1->f_str, s1->f_len,
 			       s2->f_str, s2->f_len, 0, 0));
 }
 /******************************************************************//**
@@ -4762,7 +4762,7 @@ innobase_fts_text_case_cmp(
 /*=======================*/
 	const void*	cs,		/*!< in: Character set */
 	const void*     p1,		/*!< in: key */
-        const void*     p2)		/*!< in: node */
+	const void*     p2)		/*!< in: node */
 {
 	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
 	const fts_string_t*	s1 = (const fts_string_t*) p1;
@@ -4835,7 +4835,7 @@ innobase_fts_string_cmp(
 /*====================*/
 	const void*	cs,		/*!< in: Character set */
 	const void*     p1,		/*!< in: key */
-        const void*     p2)		/*!< in: node */
+	const void*     p2)		/*!< in: node */
 {
 	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
 	uchar*			s1 = (uchar*) p1;
@@ -4867,9 +4867,7 @@ innobase_fts_casedn_str(
 	}
 }
 
-#define true_word_char(ctype, character)			\
-                      ((ctype) & (_MY_U | _MY_L | _MY_NMR) ||	\
-                       (character) == '_')
+#define true_word_char(c, ch) ((c) & (_MY_U | _MY_L | _MY_NMR) || (ch) == '_')
 
 #define misc_word_char(X)       0
 
@@ -4890,53 +4888,62 @@ innobase_mysql_fts_get_token(
 					measured as characters from
 					'start' */
 {
-	uchar*			doc = start;
-	uint			mwc;
-	ulint			length;
-	int			mbl;
-	int			ctype;
-
-	token->f_len = 0;
+	int		mbl;
+	uchar*		doc = start;
 
 	ut_a(cs);
 
+	token->f_n_char = token->f_len = 0;
+
 	do {
-		for (;; doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
+		for (;;) {
+
 			if (doc >= end) {
 				return(doc - start);
 			}
 
-			mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc,
-					     (uchar*)end);
+			int	ctype;
+
+			mbl = cs->cset->ctype(
+				cs, &ctype, (uchar*) doc, (uchar*) end);
 
 			if (true_word_char(ctype, *doc)) {
 				break;
 			}
+
+			doc += mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1);
 		}
 
-		mwc= length= 0;
+		ulint	mwc = 0;
+		ulint	length = 0;
 
 		token->f_str = doc;
 
-		for (; doc < end; length++,
-		     doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
-		{
-			mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc,
-					     (uchar*)end);
+		while (doc < end) {
+
+			int	ctype;
+
+			mbl = cs->cset->ctype(
+				cs, &ctype, (uchar*) doc, (uchar*) end);
 
 			if (true_word_char(ctype, *doc)) {
-				mwc= 0;
+				mwc = 0;
 			} else if (!misc_word_char(*doc) || mwc) {
 				break;
 			} else {
-				mwc++;
+				++mwc;
 			}
+
+			++length;
+
+			doc += mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1);
 		}
 
-		token->f_len = (uint)(doc - token->f_str) - mwc;
+		token->f_len = (uint) (doc - token->f_str) - mwc;
 		token->f_n_char = length;
 
 		return(doc - start);
+
 	} while (doc < end);
 
 	token->f_str[token->f_len] = 0;
@@ -5186,7 +5193,7 @@ ha_innobase::store_key_val_for_row(
 				true_len = (ulint) cs->cset->well_formed_len(cs,
 						(const char *) data,
 						(const char *) data + len,
- 						(uint) (key_len / cs->mbmaxlen),
+						(uint) (key_len / cs->mbmaxlen),
 						&error);
 			}
 
@@ -6366,13 +6373,13 @@ calc_row_difference(
 			ut_ad(innodb_table->fts->cache);
 			if (doc_id < prebuilt->table->fts->cache->next_doc_id) {
 				fprintf(stderr,
-                                        "InnoDB: FTS Doc ID must be larger than"
-                                        " "IB_ID_FMT" for table",
-                                        innodb_table->fts->cache->next_doc_id
-                                        - 1);
-                                ut_print_name(stderr, trx,
+					"InnoDB: FTS Doc ID must be larger than"
+					" "IB_ID_FMT" for table",
+					innodb_table->fts->cache->next_doc_id
+					- 1);
+				ut_print_name(stderr, trx,
 					      TRUE, innodb_table->name);
-                                putc('\n', stderr);
+				putc('\n', stderr);
 
 				return(DB_FTS_INVALID_DOCID);
 			}
@@ -6392,7 +6399,7 @@ calc_row_difference(
 			fprintf(stderr, " InnoDB: Error (%lu) while updating "
 				"doc id in calc_row_difference().\n", error);
 		}
-        } else {
+	} else {
 		trx->fts_next_doc_id = 0;
 	}
 
@@ -8285,11 +8292,10 @@ ha_innobase::create(
 
 	flags = 0;
 
-        if (fts_indexes > 0) {
-                flags2 = DICT_TF2_FTS;
-
-                /* FTS-FIXME: Only accept compact format tables. */
-        }
+	if (fts_indexes > 0) {
+		flags2 = DICT_TF2_FTS;
+		/* FTS-FIXME: Only accept compact format tables. */
+	}
 
 	/* Validate create options if innodb_strict_mode is set. */
 	if (!create_options_are_valid(thd, form, create_info)) {
@@ -8511,7 +8517,7 @@ ha_innobase::create(
 		dict_table_close(innobase_table, TRUE);
 
 		if (error) {
-                        goto cleanup;
+			goto cleanup;
 		}
 	}
 
@@ -9393,10 +9399,10 @@ innobase_get_mysql_key_number_for_index(
 		}
 	}
 
-        /* Loop through each index of the table and lock them */
-        for (ind = dict_table_get_first_index(ib_table);
-             ind != NULL;
-             ind = dict_table_get_next_index(ind)) {
+	/* Loop through each index of the table and lock them */
+	for (ind = dict_table_get_first_index(ib_table);
+	     ind != NULL;
+	     ind = dict_table_get_next_index(ind)) {
 		if (index == ind) {
 			sql_print_error("Find index %s in InnoDB index list "
 					"but not its MySQL index number "
@@ -9404,7 +9410,7 @@ innobase_get_mysql_key_number_for_index(
 					index->name);
 			return(-1);
 		}
-        }
+	}
 
 	ut_error;
 
@@ -9706,24 +9712,26 @@ ha_innobase::info_low(
 			for (j = 0; j < table->key_info[i].key_parts; j++) {
 
 				if (table->key_info[i].flags & HA_FULLTEXT) {
-                                        /* The whole concept has no validity
-                                        for FTS indexes. */
-                                        table->key_info[i].rec_per_key[j] =
-                                                1;
-
-                                        continue;
-                                }
+					/* The whole concept has no validity
+					for FTS indexes. */
+					table->key_info[i].rec_per_key[j] = 1; 
+					continue;
+				}
 
 				if (j + 1 > index->n_uniq) {
 					sql_print_error(
-"Index %s of %s has %lu columns unique inside InnoDB, but MySQL is asking "
-"statistics for %lu columns. Have you mixed up .frm files from different "
-"installations? "
-"See " REFMAN "innodb-troubleshooting.html\n",
-							index->name,
-							ib_table->name,
-							(unsigned long)
-							index->n_uniq, j + 1);
+						"Index %s of %s has %lu columns"
+					        " unique inside InnoDB, but "
+						"MySQL is asking statistics for"
+					        " %lu columns. Have you mixed "
+						"up .frm files from different "
+					       	"installations? "
+						"See " REFMAN
+						"innodb-troubleshooting.html\n",
+						index->name,
+						ib_table->name,
+						(unsigned long)
+						index->n_uniq, j + 1);
 					break;
 				}
 
@@ -11550,7 +11558,7 @@ ha_innobase::innobase_get_autoinc(
 	ulonglong*	value)		/*!< out: autoinc value */
 {
 	*value = 0;
- 
+
 	prebuilt->autoinc_error = innobase_lock_autoinc();
 
 	if (prebuilt->autoinc_error == DB_SUCCESS) {
@@ -11612,11 +11620,11 @@ void
 ha_innobase::get_auto_increment(
 /*============================*/
 	ulonglong	offset,			/*!< in: table autoinc offset */
- 	ulonglong	increment,		/*!< in: table autoinc
+	ulonglong	increment,		/*!< in: table autoinc
 						increment */
 	ulonglong	nb_desired_values,	/*!< in: number of values
 						reqd */
- 	ulonglong*	first_value,		/*!< out: the autoinc value */
+	ulonglong*	first_value,		/*!< out: the autoinc value */
 	ulonglong*	nb_reserved_values)	/*!< out: count of reserved
 						values */
 {
@@ -13743,8 +13751,8 @@ buffer_pool_load_abort(
 }
 
 static SHOW_VAR innodb_status_variables_export[]= {
-  {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
-  {NullS, NullS, SHOW_LONG}
+	{"Innodb", (char*) &show_innodb_vars, SHOW_FUNC},
+	{NullS, NullS, SHOW_LONG}
 };
 
 static struct st_mysql_storage_engine innobase_storage_engine=

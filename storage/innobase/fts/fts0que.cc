@@ -33,8 +33,8 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0ast.h"
 #include "fts0pars.h"
 #include "fts0types.h"
+#include "ha_prototypes.h"
 #include <ctype.h>
-
 
 #ifndef UNIV_NONINL
 #include "fts0types.ic"
@@ -238,16 +238,6 @@ fts_query_filter_doc_ids(
 	ibool		calc_doc_count);/*!< in: whether to remember doc
 					count */
 
-/******************************************************************//**
-compare two character string case insensitively according to their charset. */
-extern
-int
-innobase_fts_text_case_cmp(
-/*=======================*/
-	const void*	cs,		/*!< in: Character set */
-	const void*	p1,		/*!< in: key */
-	const void*	p2);		/*!< in: node */
-
 #if 0
 /*****************************************************************//***
 Find a doc_id in a word's ilist.
@@ -300,16 +290,6 @@ fts_proximity_check_position(
 					items */
 	ulint		distance);	/*!< in: distance value
 					for proximity search */
-/******************************************************************//**
-compare two character string according to their charset. */
-extern
-int
-innobase_fts_string_cmp(
-/*====================*/
-	const void*	cs,		/*!< in: Character set */
-	const void*	p1,		/*!< in: key */
-	const void*	p2);		/*!< in: node */
-
 #if 0
 /********************************************************************
 Get the total number of words in a documents. */
@@ -1386,24 +1366,6 @@ fts_merge_doc_ids(
 		query->doc_ids = query->intersection;
 		query->intersection = NULL;
 	}
-}
-
-/*****************************************************************//**
-Skip whitespace in a string.
-@return pointer to first non-whitespace character or end */
-UNIV_INLINE
-byte*
-fts_query_skip_whitespace(
-/*======================*/
-	byte*		ptr,		/*!< in: start of scan */
-	const byte*	end)		/*!< in: pointer to end of string */
-{
-	/* TODO: Does this have to be UTF-8 too ? */
-	while (ptr < end && (ispunct(*ptr) || isspace(*ptr))) {
-		++ptr;
-	}
-
-	return(ptr);
 }
 
 /*****************************************************************//**
