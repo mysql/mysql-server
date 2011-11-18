@@ -259,7 +259,6 @@ row_merge_buf_add(
 	dfield_t*		entry;
 	dfield_t*		field;
 	const dict_field_t*	ifield;
-	ulint			zip_size;
 	ulint			n_fields;
 	ulint			data_size;
 	ulint			extra_size;
@@ -282,7 +281,6 @@ row_merge_buf_add(
 
 	entry = static_cast<dfield_t*>(
 		mem_heap_alloc(buf->heap, n_fields * sizeof *entry));
-	zip_size = dict_table_zip_size(index->table);
 
 	buf->tuples[buf->n_tuples] = entry;
 	field = entry;

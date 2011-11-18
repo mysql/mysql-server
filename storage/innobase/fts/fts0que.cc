@@ -2170,7 +2170,6 @@ fts_query_phrase_search(
 	char*			src;
 	char*			state;	/* strtok_r internal state */
 	ib_vector_t*		tokens;
-	ulint			n_doc_ids = 0;
 	mem_heap_t*		heap = mem_heap_create(sizeof(fts_string_t));
 	char*			utf8 = strdup((char*) phrase->f_str);
 	ib_alloc_t*		heap_alloc;
@@ -2179,10 +2178,6 @@ fts_query_phrase_search(
 	heap_alloc = ib_heap_allocator_create(heap);
 
 	tokens = ib_vector_create(heap_alloc, sizeof(fts_string_t), 4);
-
-	if (query->doc_ids) {
-		n_doc_ids = rbt_size(query->doc_ids);
-	}
 
 	if (query->distance != ULINT_UNDEFINED && query->distance > 0) {
 		query->flags = FTS_PROXIMITY;
