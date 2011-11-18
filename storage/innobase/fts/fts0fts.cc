@@ -2444,8 +2444,8 @@ fts_update_next_doc_id(
 
 	table->fts->cache->first_doc_id = table->fts->cache->next_doc_id;
 
-	fts_update_sync_doc_id(table, table_name, 
-			       table->fts->cache->synced_doc_id, NULL);
+	fts_update_sync_doc_id(
+		table, table_name, table->fts->cache->synced_doc_id, NULL);
 
 }
 
@@ -2569,13 +2569,13 @@ retry:
 		cache->next_doc_id = cache->synced_doc_id + 1;
 	}
 	mutex_exit(&cache->doc_id_lock);
-        
-        if (doc_id_cmp > *doc_id) {
-                error = fts_update_sync_doc_id(table, table->name,
-                                               cache->synced_doc_id, trx);
-        }
 
-        *doc_id = cache->next_doc_id;
+	if (doc_id_cmp > *doc_id) {
+		error = fts_update_sync_doc_id(
+			table, table->name, cache->synced_doc_id, trx);
+	}
+
+	*doc_id = cache->next_doc_id;
 
 func_exit:
 
@@ -2883,7 +2883,7 @@ fts_create_doc_id(
 		}
 		return(error);
 	}
- 
+
 	error = fts_get_next_doc_id(table, &doc_id);
 
 	if (error == DB_SUCCESS) {
@@ -2933,7 +2933,7 @@ fts_commit_table(
 	}
 	
 	for (node = rbt_first(rows);
-	     node && error == DB_SUCCESS;
+	     node != NULL && error == DB_SUCCESS;
 	     node = rbt_next(rows, node)) {
 
 		fts_trx_row_t*	row = rbt_value(fts_trx_row_t, node);
@@ -2958,7 +2958,7 @@ fts_commit_table(
 
 	fts_sql_commit(trx);
 
-        trx_free_for_background(trx);
+	trx_free_for_background(trx);
 
 	return(error);
 }
@@ -2983,7 +2983,7 @@ fts_commit(
 	tables = savepoint->tables;
 
 	for (node = rbt_first(tables), error = DB_SUCCESS;
-	     node && error == DB_SUCCESS;
+	     node != NULL && error == DB_SUCCESS;
 	     node = rbt_next(tables, node)) {
 
 		fts_trx_table_t**	ftt;
