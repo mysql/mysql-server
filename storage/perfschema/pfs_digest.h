@@ -23,6 +23,7 @@
 
 #include "pfs_column_types.h"
 #include "lf.h"
+#include "pfs_stat.h"
 
 extern bool flag_statements_digest;
 struct PFS_thread;
@@ -57,6 +58,11 @@ struct PFS_statements_digest_stat
     Digest hash/LF Hash search key.
   */
   PFS_digest_hash m_md5_hash;
+
+  /**
+    Statement stat.
+  */
+  PFS_statement_stat m_stat;
 };
 
 
@@ -66,10 +72,15 @@ void cleanup_digest();
 
 int init_digest_hash(void);
 void cleanup_digest_hash(void);
-PFS_statements_digest_stat* search_insert_statement_digest(PFS_thread*,
-                                                           unsigned char*, char*,
-                                                           unsigned int);
-
+PFS_statements_digest_stat* find_or_create_digest(PFS_thread*,
+                                                  PFS_digest_storage*);
+/*
+                                                  unsigned char*,
+                                                  unsigned int*,
+                                                  int,
+                                                  char*,
+                                                  unsigned int);
+*/
 
 void reset_esms_by_digest();
 

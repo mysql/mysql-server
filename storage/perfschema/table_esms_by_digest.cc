@@ -258,7 +258,13 @@ void table_esms_by_digest::make_row(PFS_statements_digest_stat* digest_stat)
 {
   m_row_exists= false;
   m_row.m_digest.make_row(digest_stat);
-  /* TODO Add code for statements stats */
+
+  /*
+   Get statements stats.
+  */
+  time_normalizer *normalizer= time_normalizer::get(statement_timer);
+  m_row.m_stat.set(normalizer, & digest_stat->m_stat);
+
   m_row_exists= true;
 }
 

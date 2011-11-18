@@ -365,15 +365,19 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   */
   if(statement->statement_digest_stat_ptr)
   { 
+    MD5_HASH_TO_STRING(statement->statement_digest_stat_ptr->m_md5_hash.m_md5,
+                       statement->statement_digest_stat_ptr->m_digest);
+    statement->statement_digest_stat_ptr->m_digest_length= 16;
+
     memcpy(m_row.m_digest.m_digest,
            statement->statement_digest_stat_ptr->m_digest,
-           COL_DIGEST_SIZE);
+           statement->statement_digest_stat_ptr->m_digest_length);
     m_row.m_digest.m_digest_length=
            statement->statement_digest_stat_ptr->m_digest_length;
 
     memcpy(m_row.m_digest.m_digest_text,
            statement->statement_digest_stat_ptr->m_digest_text,
-           COL_DIGEST_TEXT_SIZE);
+           statement->statement_digest_stat_ptr->m_digest_text_length);
     m_row.m_digest.m_digest_text_length=
            statement->statement_digest_stat_ptr->m_digest_text_length;
   }
