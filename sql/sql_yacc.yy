@@ -6869,7 +6869,7 @@ alter_commands:
         ;
 
 remove_partitioning:
-          REMOVE_SYM PARTITIONING_SYM
+          REMOVE_SYM PARTITIONING_SYM have_partitioning
           {
             Lex->alter_info.flags|= ALTER_REMOVE_PARTITIONING;
           }
