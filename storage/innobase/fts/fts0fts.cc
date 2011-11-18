@@ -596,15 +596,20 @@ fts_cache_create(
 	cache->cache_heap = heap;
 
 	rw_lock_create(fts_cache_rw_lock_key, &cache->lock, SYNC_FTS_CACHE);
-	rw_lock_create(fts_cache_init_rw_lock_key, &cache->init_lock,
-		       SYNC_FTS_CACHE_INIT);
 
-	mutex_create(fts_delete_mutex_key, &cache->deleted_lock,
-		     SYNC_FTS_OPTIMIZE);
-	mutex_create(fts_optimize_mutex_key, &cache->optimize_lock,
-		     SYNC_FTS_OPTIMIZE);
-	mutex_create(fts_doc_id_mutex_key, &cache->doc_id_lock,
-		     SYNC_FTS_OPTIMIZE);
+	rw_lock_create(
+		fts_cache_init_rw_lock_key, &cache->init_lock,
+		SYNC_FTS_CACHE_INIT);
+
+	mutex_create(
+		fts_delete_mutex_key, &cache->deleted_lock, SYNC_FTS_OPTIMIZE);
+
+	mutex_create(
+		fts_optimize_mutex_key, &cache->optimize_lock,
+		SYNC_FTS_OPTIMIZE);
+
+	mutex_create(
+		fts_doc_id_mutex_key, &cache->doc_id_lock, SYNC_FTS_OPTIMIZE);
 
 	/* This is the heap used to create the cache itself. */
 	cache->self_heap = ib_heap_allocator_create(heap);
@@ -713,8 +718,8 @@ fts_in_dict_index(
 	dict_index_t*	index;
 
 	for (index = dict_table_get_first_index(table);
-             index != NULL;
-             index = dict_table_get_next_index(index)) {
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
 
 		if (index == index_check) {
 			return(TRUE);
@@ -859,7 +864,7 @@ fts_drop_index(
 
 	ib_vector_remove(indexes, (const void*) index);
 
-        return(err);
+	return(err);
 }
 
 /****************************************************************//**
@@ -879,23 +884,23 @@ fts_que_graph_free_check_lock(
 		ut_ad(fts_table->table->fts);
 
 		has_dict = fts_table->table->fts->fts_status
-			   & TABLE_DICT_LOCKED;
+			 & TABLE_DICT_LOCKED;
 	} else if (index_cache) {
 		ut_ad(index_cache->index->table->fts);
 
 		has_dict = index_cache->index->table->fts->fts_status
-			   & TABLE_DICT_LOCKED;
+			 & TABLE_DICT_LOCKED;
 	}
 
-        if (!has_dict) {
-                mutex_enter(&dict_sys->mutex);
-        }
+	if (!has_dict) {
+		mutex_enter(&dict_sys->mutex);
+	}
 
-        que_graph_free(graph);
+	que_graph_free(graph);
 
-        if (!has_dict) {
-                mutex_exit(&dict_sys->mutex);
-        }
+	if (!has_dict) {
+		mutex_exit(&dict_sys->mutex);
+	}
 }
 
 /****************************************************************//**
@@ -988,7 +993,7 @@ fts_cache_index_cache_create(
 
 	if (cache->get_docs) {
 		fts_reset_get_doc(cache);
-        }
+	}
 
 	return(index_cache);
 }
@@ -1005,7 +1010,7 @@ fts_words_free(
 
 	/* Free the resources held by a word. */
 	for (rbt_node = rbt_first(words);
-	     rbt_node;
+	     rbt_node != NULL;
 	     rbt_node = rbt_first(words)) {
 
 		ulint			i;
@@ -1415,6 +1420,7 @@ fts_cache_add_doc(
 	/* Add to doc ids processed so far. */
 	doc_stats = static_cast<fts_doc_stats_t*>(
 		ib_vector_push(index_cache->doc_stats, NULL));
+
 	doc_stats->doc_id = doc_id;
 	doc_stats->word_count = n_words;
 
