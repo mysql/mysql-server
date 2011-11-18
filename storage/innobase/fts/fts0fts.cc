@@ -3627,8 +3627,6 @@ fts_write_node(
 		info = pars_info_create();
 	}
 
-	ut_a(word->f_n_char <= fts_max_token_size);
-
 	pars_info_bind_varchar_literal(info, "token", word->f_str, word->f_len);
 
 	/* Convert to "storage" byte order. */
