@@ -328,6 +328,8 @@ row_undo_ins(
 	node->index = dict_table_get_next_index(
 		dict_table_get_first_index(node->table));
 
+	dict_table_skip_corrupt_index(node->index);
+
 	while (node->index != NULL) {
 		dtuple_t*	entry;
 		ulint		err;
@@ -355,7 +357,7 @@ row_undo_ins(
 			}
 		}
 
-		node->index = dict_table_get_next_index(node->index);
+		dict_table_next_uncorrupted_index(node->index);
 	}
 
 	log_free_check();

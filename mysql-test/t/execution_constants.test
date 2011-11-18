@@ -38,7 +38,7 @@ while ($i)
 {
   # If we SEGV because the min stack size is exceeded, this would return error
   # 2013 .
-  error 0,1436 //
+  error 0,ER_STACK_OVERRUN_NEED_MORE //
   eval $query_head 0 $query_tail//
 
   if ($mysql_errno)
@@ -48,10 +48,10 @@ while ($i)
     # limit, we still have enough space reserved to report an error.
     let $i = 1//
 
-    # Check that mysql_errno is 1436
-    if ($mysql_errno != 1436)
+    # Check that mysql_errname is ER_STACK_OVERRUN_NEED_MORE
+    if ($mysql_errname != ER_STACK_OVERRUN_NEED_MORE)
     {
-      die Wrong error triggered, expected 1436 but got $mysql_errno//
+      die Wrong error triggered, expected ER_STACK_OVERRUN_NEED_MORE but got $mysql_errname//
     }
 
   }
@@ -76,7 +76,7 @@ while ($i)
 enable_result_log//
 enable_query_log//
 
-echo Assertion: mysql_errno 1436 == $mysql_errno//
+echo Assertion: mysql_errname ER_STACK_OVERRUN_NEED_MORE == $mysql_errname//
 
 delimiter ;//
 DROP TABLE `t_bug21476`;
