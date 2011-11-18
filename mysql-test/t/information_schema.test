@@ -1823,7 +1823,14 @@ drop database if exists mysqltest;
 --enable_warnings
 create database mysqltest;
 use mysqltest;
-create table mysqltest.t1(a int, b date, c time, d datetime, e timestamp);
+create table mysqltest.t(a int, b date, c time, d datetime, e timestamp);
+create table mysqltest.t0(a int, b date, c time(0), d datetime(0), e timestamp(0));
+create table mysqltest.t1(a int, b date, c time(1), d datetime(1), e timestamp(1));
+create table mysqltest.t2(a int, b date, c time(2), d datetime(2), e timestamp(2));
+create table mysqltest.t3(a int, b date, c time(3), d datetime(3), e timestamp(3));
+create table mysqltest.t4(a int, b date, c time(4), d datetime(4), e timestamp(4));
+create table mysqltest.t5(a int, b date, c time(5), d datetime(5), e timestamp(5));
+create table mysqltest.t6(a int, b date, c time(6), d datetime(6), e timestamp(6));
 select TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATETIME_PRECISION from information_schema.columns where TABLE_SCHEMA='mysqltest';
 
 --echo #

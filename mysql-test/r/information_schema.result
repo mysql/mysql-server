@@ -2019,14 +2019,56 @@ event_object_table	trigger_name
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
-create table mysqltest.t1(a int, b date, c time, d datetime, e timestamp);
+create table mysqltest.t(a int, b date, c time, d datetime, e timestamp);
+create table mysqltest.t0(a int, b date, c time(0), d datetime(0), e timestamp(0));
+create table mysqltest.t1(a int, b date, c time(1), d datetime(1), e timestamp(1));
+create table mysqltest.t2(a int, b date, c time(2), d datetime(2), e timestamp(2));
+create table mysqltest.t3(a int, b date, c time(3), d datetime(3), e timestamp(3));
+create table mysqltest.t4(a int, b date, c time(4), d datetime(4), e timestamp(4));
+create table mysqltest.t5(a int, b date, c time(5), d datetime(5), e timestamp(5));
+create table mysqltest.t6(a int, b date, c time(6), d datetime(6), e timestamp(6));
 select TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATETIME_PRECISION from information_schema.columns where TABLE_SCHEMA='mysqltest';
 TABLE_NAME	COLUMN_NAME	DATA_TYPE	DATETIME_PRECISION
+t	a	int	NULL
+t	b	date	NULL
+t	c	time	0
+t	d	datetime	0
+t	e	timestamp	0
+t0	a	int	NULL
+t0	b	date	NULL
+t0	c	time	0
+t0	d	datetime	0
+t0	e	timestamp	0
 t1	a	int	NULL
 t1	b	date	NULL
-t1	c	time	0
-t1	d	datetime	0
-t1	e	timestamp	0
+t1	c	time	1
+t1	d	datetime	1
+t1	e	timestamp	1
+t2	a	int	NULL
+t2	b	date	NULL
+t2	c	time	2
+t2	d	datetime	2
+t2	e	timestamp	2
+t3	a	int	NULL
+t3	b	date	NULL
+t3	c	time	3
+t3	d	datetime	3
+t3	e	timestamp	3
+t4	a	int	NULL
+t4	b	date	NULL
+t4	c	time	4
+t4	d	datetime	4
+t4	e	timestamp	4
+t5	a	int	NULL
+t5	b	date	NULL
+t5	c	time	5
+t5	d	datetime	5
+t5	e	timestamp	5
+t6	a	int	NULL
+t6	b	date	NULL
+t6	c	time	6
+t6	d	datetime	6
+t6	e	timestamp	6
 #
 # Clean-up.
 drop database mysqltest;
