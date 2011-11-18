@@ -3945,6 +3945,19 @@ EXPLAIN SELECT 1 FROM
             } /* join_optimization */
           },
           {
+            "creating_tmp_table": {
+              "temporary_table_info": {
+                "database": "",
+                "table": "d2",
+                "row_length": 5,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 209715
+              } /* temporary_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "join_execution": {
               "select#": 2,
               "steps": [
@@ -4281,6 +4294,19 @@ EXPLAIN SELECT 1 FROM
                 }
               ] /* steps */
             } /* join_optimization */
+          },
+          {
+            "creating_tmp_table": {
+              "temporary_table_info": {
+                "database": "",
+                "table": "d2",
+                "row_length": 5,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 209715
+              } /* temporary_table_info */
+            } /* creating_tmp_table */
           },
           {
             "join_execution": {

@@ -233,6 +233,19 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
             } /* join_optimization */
           },
           {
+            "creating_tmp_table": {
+              "temporary_table_info": {
+                "database": "",
+                "table": "v1",
+                "row_length": 7,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 149796
+              } /* temporary_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "join_execution": {
               "select#": 2,
               "steps": [
