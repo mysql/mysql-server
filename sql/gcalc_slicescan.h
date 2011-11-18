@@ -19,7 +19,7 @@
 #define GCALC_SLICESCAN_INCLUDED
 
 #ifndef DBUG_OFF
-#define GCALC_CHECK_WITH_FLOAT
+// #define GCALC_CHECK_WITH_FLOAT
 #else
 #define GCALC_DBUG_OFF
 #endif /*DBUG_OFF*/
