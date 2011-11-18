@@ -1414,4 +1414,17 @@ a	b	c	d
 0	75	5	3
 SET SESSION optimizer_switch=DEFAULT;
 DROP TABLE t1;
+CREATE TABLE t1 (a int NOT NULL PRIMARY KEY, b int, c int, INDEX idx(c,b));
+INSERT INTO t1 VALUES (19,1,NULL), (20,5,7);
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.a>300 AND t1.c!=0 AND t1.b>=350 AND t1.b<=400 AND
+(t1.c=0 OR t1.a=500);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,idx	PRIMARY	4	NULL	1	Using where
+SELECT * FROM t1
+WHERE t1.a>300 AND t1.c!=0 AND t1.b>=350 AND t1.b<=400 AND
+(t1.c=0 OR t1.a=500);
+a	b	c
+DROP TABLE t1;
 set session optimizer_switch='index_merge_sort_intersection=default';
