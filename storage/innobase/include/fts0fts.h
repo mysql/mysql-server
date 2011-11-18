@@ -969,17 +969,6 @@ ib_vector_t*
 fts_get_docs_create(
 /*================*/
 	fts_cache_t*	cache);			/*!< in: fts cache */
-/****************************************************************//**
-Add document to the cache. */
-UNIV_INTERN
-void
-fts_cache_add_doc(
-/*==============*/
-	fts_cache_t*    cache,			/*!< in: cache */
-	fts_index_cache_t*
-			index_cache,		/*!< in: index cache */
-	doc_id_t        doc_id,			/*!< in: doc id to add */
-	ib_rbt_t*       tokens);		/*!< in: document tokens */
 
 /****************************************************************//**
 Read the rows from the FTS index
