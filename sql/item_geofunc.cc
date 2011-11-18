@@ -1666,7 +1666,7 @@ longlong Item_func_srid::val_int()
 
 double Item_func_distance::val_real()
 {
-  bool above_cur_point, cur_point_edge;
+  bool cur_point_edge;
   const Gcalc_scan_iterator::point *evpos;
   const Gcalc_heap::Info *cur_point, *dist_point;
   const Gcalc_scan_iterator::event_point *ev;
@@ -1721,7 +1721,6 @@ double Item_func_distance::val_real()
   collector.prepare_operation();
   scan_it.init(&collector);
 
-  above_cur_point= false;
   distance= DBL_MAX;
   while (scan_it.more_points())
   {
