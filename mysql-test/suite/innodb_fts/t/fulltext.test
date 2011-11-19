@@ -269,7 +269,7 @@ insert into t2 values (2, 1, 'xxbar');
 insert into t2 values (3, 1, 'xxbuz');
 # INNODB_FTS: Note there is no fulltext index on table. InnoDB do not support
 # Fulltext search in such case, will return 1739
---error 1757
+--error ER_TABLE_HAS_NO_FT
 select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('xxfoo' in boolean mode);
 
 #
@@ -277,7 +277,7 @@ select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('
 #
 # INNODB_FTS: Note there is no fulltext index on table. InnoDB do not support
 # Fulltext search in such case, will return 1739
---error 1757
+--error ER_TABLE_HAS_NO_FT
 select * from t2 where match name against ('*a*b*c*d*e*f*' in boolean mode);
 drop table t1,t2;
 
