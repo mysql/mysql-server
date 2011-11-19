@@ -2360,7 +2360,6 @@ int main(int argc, char** argv)
 
 #include "zsid_map.cc"
 #include "zreturn.cc"
-#include "zsubgroup_coder.cc"
 #include "zuuid.cc"
 #include "zgtid_set.cc"
 #include "zgroup.cc"
