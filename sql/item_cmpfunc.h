@@ -986,7 +986,7 @@ public:
     :in_longlong(elements) {};
   Item *create_item()
   {
-    return new Item_temporal(0LL);
+    return new Item_temporal(MYSQL_TYPE_DATETIME, 0LL);
   }
   void set(uint pos, Item *item);
   uchar *get_value(Item *item);
@@ -1000,7 +1000,7 @@ public:
     :in_longlong(elements) {};
   Item *create_item()
   {
-    return new Item_temporal(0LL);
+    return new Item_temporal(MYSQL_TYPE_TIME, 0LL);
   }
   void set(uint pos, Item *item);
   uchar *get_value(Item *item);
@@ -1030,7 +1030,7 @@ public:
   friend int cmp_longlong(void *cmp_arg, packed_longlong *a,packed_longlong *b);
   Item* create_item()
   { 
-    return new Item_temporal((longlong) 0);
+    return new Item_temporal(MYSQL_TYPE_DATETIME, (longlong) 0);
   }
 };
 

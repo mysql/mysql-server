@@ -1420,18 +1420,6 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
 }
 
 
-int Item::save_in_field_packed_no_warnings(Field *field)
-{
-  int err;
-  longlong nr= val_temporal_with_round(field->type(), field->decimals());
-  TABLE *table= field->table;
-  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
-  err= field->store_packed(nr);
-  dbug_tmp_restore_column_map(table->write_set, old_map);
-  return err;
-}
-
-
 bool Item::is_blob_field() const
 {
   DBUG_ASSERT(fixed);
@@ -6112,6 +6100,18 @@ int Item_int::save_in_field(Field *field, bool no_conversions)
 }
 
 
+int Item_temporal::save_in_field(Field *field, bool no_conversions)
+{
+  longlong nr= field->is_temporal_with_time() ?
+               val_temporal_with_round(field->type(), field->decimals()) :
+               val_date_temporal();
+  if (null_value)
+    return set_field_to_null(field);
+  field->set_notnull();
+  return field->store_packed(nr);
+}
+
+
 int Item_decimal::save_in_field(Field *field, bool no_conversions)
 {
   field->set_notnull();
@@ -6155,8 +6155,8 @@ Item *Item_time_with_ref::clone_item()
     We need to evaluate the constant to make sure it works with
     parameter markers.
   */
-  return new Item_temporal(ref->name, ref->val_time_temporal(),
-                           ref->max_length);
+  return new Item_temporal(MYSQL_TYPE_TIME, ref->name,
+                           ref->val_time_temporal(), ref->max_length);
 }
 
 
@@ -6167,8 +6167,8 @@ Item *Item_datetime_with_ref::clone_item()
     We need to evaluate the constant to make sure it works with
     parameter markers.
   */
-  return new Item_temporal(ref->name, ref->val_date_temporal(),
-                           ref->max_length);
+  return new Item_temporal(MYSQL_TYPE_DATETIME, ref->name,
+                           ref->val_date_temporal(), ref->max_length);
 }
 
 
