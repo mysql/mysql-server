@@ -650,6 +650,7 @@ row_ins_cascade_calc_update_vec(
 	if (table->fts && *fts_col_affected) {
 		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			doc_id_t	doc_id;
+                        upd_field_t*	ufield;
 
 			ut_ad(!doc_id_updated);
 			ufield = update->fields + n_fields_updated;
