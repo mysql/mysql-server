@@ -374,5 +374,20 @@ SELECT count(*) as Count FROM t1 WHERE L = 5;
 
 drop table t1;
 
+# bug#13407848
+# signed char in compute length bytes caused ndbrequire in Trix.cpp
+
+create table t1 (
+  a int unsigned not null,
+  b char(180) not null,
+  primary key using hash (a),
+  index (b)
+) engine=ndb charset=binary;
+insert into t1 values (1,'a'),(2,'b'),(3,'c');
+analyze table t1;
+analyze table t1;
+analyze table t1;
+drop table t1;
+
 set @is_enable = @is_enable_default;
 source ndb_index_stat_enable.inc;
