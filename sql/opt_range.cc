@@ -6466,11 +6466,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
   {
     // Note that value may be a stored function call, executed here.
-    if (value->type() == Item::INT_ITEM && value->is_temporal() &&
-        field->is_temporal_with_time())
-      err= value->save_in_field_packed_no_warnings(field);
-    else
-      err= value->save_in_field_no_warnings(field, 1);
+    err= value->save_in_field_no_warnings(field, 1);
   }
   if (err > 0)
   {

@@ -629,7 +629,6 @@ public:
     @retval 0         On success.
     @retval >0        In error.
   */
-  int save_in_field_packed_no_warnings(Field *field);
   virtual int save_in_field(Field *field, bool no_conversions);
   virtual void save_org_in_field(Field *field)
   { (void) save_in_field(field, 1); }
@@ -2323,14 +2322,30 @@ public:
 
      WHERE datetime_column NOT IN
      ('2006-04-25 10:00:00','2006-04-25 10:02:00', ...);
+
+  TS-TODO: Can't we use Item_time_literal, Item_date_literal,
+  TS-TODO: and Item_datetime_literal for this purpose?
 */
 class Item_temporal :public Item_int
 {
+  enum_field_types cached_field_type;
 public:
-  Item_temporal(longlong i): Item_int(i) { }
-  Item_temporal(const char *str_arg, longlong i, uint length): Item_int(i)
-  { max_length= length; name= (char*) str_arg; fixed= 1; }
-  Item *clone_item() { return new Item_temporal(value); }
+  Item_temporal(enum_field_types field_type_arg, longlong i): Item_int(i),
+    cached_field_type(field_type_arg)
+  {
+    DBUG_ASSERT(is_temporal_type(field_type_arg));
+  }
+  Item_temporal(enum_field_types field_type_arg,
+                const char *str_arg, longlong i, uint length): Item_int(i),
+    cached_field_type(field_type_arg)
+  {
+    DBUG_ASSERT(is_temporal_type(field_type_arg));
+    max_length= length;
+    name= (char*) str_arg;
+    fixed= 1;
+  }
+  Item *clone_item() { return new Item_temporal(field_type(), value); }
+  int save_in_field(Field *field, bool no_conversions);
   longlong val_time_temporal() { return val_int(); }
   longlong val_date_temporal() { return val_int(); }
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
@@ -2345,8 +2360,7 @@ public:
   }
   enum_field_types field_type() const
   {
-    // Currently we don't need to distinguish between DATE, DATETIME, or TIME.
-    return MYSQL_TYPE_DATETIME;
+    return cached_field_type;
   }
 };
 
