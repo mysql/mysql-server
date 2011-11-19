@@ -2462,7 +2462,7 @@ Trix::statCleanExecute(Signal* signal, StatOp& stat)
   ndbrequire(data.m_indexVersion == av[1]);
   data.m_sampleVersion = av[2];
   data.m_statKey = &av[3];
-  const char* kp = (const char*)data.m_statKey;
+  const unsigned char* kp = (const unsigned char*)data.m_statKey;
   const Uint32 kb = kp[0] + (kp[1] << 8);
   // key is not empty
   ndbrequire(kb != 0);
@@ -2633,8 +2633,8 @@ Trix::statScanExecute(Signal* signal, StatOp& stat)
   ::copy(av, ptr1);
   data.m_statKey = &av[0];
   data.m_statValue = &av[kz];
-  const char* kp = (const char*)data.m_statKey;
-  const char* vp = (const char*)data.m_statValue;
+  const unsigned char* kp = (const unsigned char*)data.m_statKey;
+  const unsigned char* vp = (const unsigned char*)data.m_statValue;
   const Uint32 kb = kp[0] + (kp[1] << 8);
   const Uint32 vb = vp[0] + (vp[1] << 8);
   // key and value are not empty

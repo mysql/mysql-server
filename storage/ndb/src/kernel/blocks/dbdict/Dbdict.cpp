@@ -253,8 +253,8 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
   {
     RSS_AP_SNAPSHOT_SAVE(c_rope_pool);
     RSS_AP_SNAPSHOT_SAVE(c_attributeRecordPool);
-    RSS_AP_SNAPSHOT_SAVE(c_tableRecordPool);
-    RSS_AP_SNAPSHOT_SAVE(c_triggerRecordPool);
+    RSS_AP_SNAPSHOT_SAVE(c_tableRecordPool_);
+    RSS_AP_SNAPSHOT_SAVE(c_triggerRecordPool_);
     RSS_AP_SNAPSHOT_SAVE(c_obj_pool);
     RSS_AP_SNAPSHOT_SAVE(c_hash_map_pool);
     RSS_AP_SNAPSHOT_SAVE(g_hash_map);
@@ -264,8 +264,8 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
   {
     RSS_AP_SNAPSHOT_CHECK(c_rope_pool);
     RSS_AP_SNAPSHOT_CHECK(c_attributeRecordPool);
-    RSS_AP_SNAPSHOT_CHECK(c_tableRecordPool);
-    RSS_AP_SNAPSHOT_CHECK(c_triggerRecordPool);
+    RSS_AP_SNAPSHOT_CHECK(c_tableRecordPool_);
+    RSS_AP_SNAPSHOT_CHECK(c_triggerRecordPool_);
     RSS_AP_SNAPSHOT_CHECK(c_obj_pool);
     RSS_AP_SNAPSHOT_CHECK(c_hash_map_pool);
     RSS_AP_SNAPSHOT_CHECK(g_hash_map);
@@ -297,16 +297,16 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
         c_attributeRecordPool.getUsedHi(),
         { CFG_DB_NO_ATTRIBUTES,0,0,0 }},
       { "Table Record",
-        c_tableRecordPool.getUsed(),
+        c_tableRecordPool_.getUsed(),
         c_noOfMetaTables,
-        c_tableRecordPool.getEntrySize(),
-        c_tableRecordPool.getUsedHi(),
+        c_tableRecordPool_.getEntrySize(),
+        c_tableRecordPool_.getUsedHi(),
         { CFG_DB_NO_TABLES,0,0,0 }},
       { "Trigger Record",
-        c_triggerRecordPool.getUsed(),
-        c_triggerRecordPool.getSize(),
-        c_triggerRecordPool.getEntrySize(),
-        c_triggerRecordPool.getUsedHi(),
+        c_triggerRecordPool_.getUsed(),
+        c_triggerRecordPool_.getSize(),
+        c_triggerRecordPool_.getEntrySize(),
+        c_triggerRecordPool_.getUsedHi(),
         { CFG_DB_NO_TRIGGERS,0,0,0 }},
       { "FS Connect Record",
         c_fsConnectRecordPool.getUsed(),
@@ -2433,7 +2433,7 @@ bool Dbdict::seizeTableRecord(TableRecordPtr& tablePtr, Uint32& schemaFileId)
     return false;
   }
 
-  c_tableRecordPool.seize(tablePtr);
+  c_tableRecordPool_.seize(tablePtr);
   if (tablePtr.isNull())
   {
     jam();
@@ -2445,7 +2445,7 @@ bool Dbdict::seizeTableRecord(TableRecordPtr& tablePtr, Uint32& schemaFileId)
 
 Uint32 Dbdict::getFreeTriggerRecord()
 {
-  const Uint32 size = c_triggerRecordPool.getSize();
+  const Uint32 size = c_triggerRecordPool_.getSize();
   TriggerRecordPtr triggerPtr;
   for (Uint32 id = 0; id < size; id++) {
     jam();
@@ -2480,7 +2480,7 @@ bool Dbdict::seizeTriggerRecord(TriggerRecordPtr& triggerPtr, Uint32 triggerId)
     jam();
     return false;
   }
-  c_triggerRecordPool.seize(triggerPtr);
+  c_triggerRecordPool_.seize(triggerPtr);
   if (triggerPtr.isNull())
   {
     jam();
@@ -2672,9 +2672,9 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_nodes.setSize(MAX_NDB_NODES);
   c_pageRecordArray.setSize(ZNUMBER_OF_PAGES);
   c_schemaPageRecordArray.setSize(2 * NDB_SF_MAX_PAGES);
-  c_tableRecordPool.setSize(c_noOfMetaTables);
+  c_tableRecordPool_.setSize(c_noOfMetaTables);
   g_key_descriptor_pool.setSize(c_noOfMetaTables);
-  c_triggerRecordPool.setSize(c_maxNoOfTriggers);
+  c_triggerRecordPool_.setSize(c_maxNoOfTriggers);
 
   Record_info ri;
   OpSectionBuffer::createRecordInfo(ri, RT_DBDICT_OP_SECTION_BUFFER);
@@ -3048,7 +3048,7 @@ Dbdict::activateIndex_fromBeginTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
   ndbrequire(!tx_ptr.isNull());
 
   TableRecordPtr indexPtr;
-  c_tableRecordPool.getPtr(indexPtr, tx_ptr.p->m_userData);
+  c_tableRecordPool_.getPtr(indexPtr, tx_ptr.p->m_userData);
   ndbrequire(!indexPtr.isNull());
   DictObjectPtr index_obj_ptr;
   c_obj_pool.getPtr(index_obj_ptr, indexPtr.p->m_obj_ptr_i);
@@ -3115,7 +3115,7 @@ Dbdict::activateIndex_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
   ndbrequire(!tx_ptr.isNull());
 
   TableRecordPtr indexPtr;
-  c_tableRecordPool.getPtr(indexPtr, tx_ptr.p->m_userData);
+  c_tableRecordPool_.getPtr(indexPtr, tx_ptr.p->m_userData);
   DictObjectPtr index_obj_ptr;
   c_obj_pool.getPtr(index_obj_ptr, indexPtr.p->m_obj_ptr_i);
 
@@ -3205,7 +3205,7 @@ Dbdict::rebuildIndex_fromBeginTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
   ndbrequire(!tx_ptr.isNull());
 
   TableRecordPtr indexPtr;
-  c_tableRecordPool.getPtr(indexPtr, tx_ptr.p->m_userData);
+  c_tableRecordPool_.getPtr(indexPtr, tx_ptr.p->m_userData);
   DictObjectPtr index_obj_ptr;
   c_obj_pool.getPtr(index_obj_ptr,indexPtr.p->m_obj_ptr_i);
 
@@ -3275,7 +3275,7 @@ Dbdict::rebuildIndex_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
   ndbrequire(!tx_ptr.isNull());
 
   TableRecordPtr indexPtr;
-  c_tableRecordPool.getPtr(indexPtr, tx_ptr.p->m_userData);
+  c_tableRecordPool_.getPtr(indexPtr, tx_ptr.p->m_userData);
 
   const char* actionName;
   {
@@ -5083,7 +5083,7 @@ Dbdict::upgrade_seizeTrigger(TableRecordPtr tabPtr,
    * The insert trigger will be "main" trigger so
    *   it does not need any special treatment
    */
-  const Uint32 size = c_triggerRecordPool.getSize();
+  const Uint32 size = c_triggerRecordPool_.getSize();
   ndbrequire(updateTriggerId == RNIL || updateTriggerId < size);
   ndbrequire(deleteTriggerId == RNIL || deleteTriggerId < size);
 
@@ -6884,7 +6884,7 @@ Dbdict::createTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     bool ok = find_object(basePtr, tabPtr.p->primaryTableId);
     ndbrequire(ok);
 
-    LocalTableRecord_list list(c_tableRecordPool, basePtr.p->m_indexes);
+    LocalTableRecord_list list(c_tableRecordPool_, basePtr.p->m_indexes);
     list.add(tabPtr);
   }
 }
@@ -7135,7 +7135,7 @@ void Dbdict::execCREATE_TABLE_REF(Signal* signal)
 void Dbdict::releaseTableObject(Uint32 table_ptr_i, bool removeFromHash)
 {
   TableRecordPtr tablePtr;
-  c_tableRecordPool.getPtr(tablePtr, table_ptr_i);
+  c_tableRecordPool_.getPtr(tablePtr, table_ptr_i);
   if (removeFromHash)
   {
     jam();
@@ -7191,7 +7191,7 @@ void Dbdict::releaseTableObject(Uint32 table_ptr_i, bool removeFromHash)
         if (ok)
         {
           release_object(triggerPtr.p->m_obj_ptr_i);
-          c_triggerRecordPool.release(triggerPtr);
+          c_triggerRecordPool_.release(triggerPtr);
         }
       }
 
@@ -7204,12 +7204,12 @@ void Dbdict::releaseTableObject(Uint32 table_ptr_i, bool removeFromHash)
         if (ok)
         {
           release_object(triggerPtr.p->m_obj_ptr_i);
-          c_triggerRecordPool.release(triggerPtr);
+          c_triggerRecordPool_.release(triggerPtr);
         }
       }
     }
   }
-  c_tableRecordPool.release(tablePtr);
+  c_tableRecordPool_.release(tablePtr);
 }//releaseTableObject()
 
 // CreateTable: END
@@ -7544,7 +7544,7 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     TableRecordPtr basePtr;
     bool ok = find_object(basePtr, tablePtr.p->primaryTableId);
     ndbrequire(ok);
-    LocalTableRecord_list list(c_tableRecordPool, basePtr.p->m_indexes);
+    LocalTableRecord_list list(c_tableRecordPool_, basePtr.p->m_indexes);
     list.remove(tablePtr);
   }
   dropTabPtr.p->m_block = 0;
@@ -8535,7 +8535,7 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
       TableRecordPtr indexPtr;
       bool ok = find_object(tabPtr, impl_req->tableId);
       ndbrequire(ok);
-      LocalTableRecord_list list(c_tableRecordPool, tabPtr.p->m_indexes);
+      LocalTableRecord_list list(c_tableRecordPool_, tabPtr.p->m_indexes);
       Uint32 ptrI = alterTabPtr.p->m_sub_add_frag_index_ptr;
 
       if (ptrI == RNIL)
@@ -8682,7 +8682,7 @@ Dbdict::alterTable_toAlterIndex(Signal* signal,
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
   TableRecordPtr indexPtr;
-  c_tableRecordPool.getPtr(indexPtr, alterTabPtr.p->m_sub_add_frag_index_ptr);
+  c_tableRecordPool_.getPtr(indexPtr, alterTabPtr.p->m_sub_add_frag_index_ptr);
   ndbrequire(!indexPtr.isNull());
 
   AlterIndxReq* req = (AlterIndxReq*)signal->getDataPtrSend();
@@ -9882,7 +9882,7 @@ void Dbdict::execGET_TABLEDID_REQ(Signal * signal)
   }
 
   TableRecordPtr tablePtr;
-  c_tableRecordPool.getPtr(tablePtr, obj_ptr_p->m_object_ptr_i);
+  c_tableRecordPool_.getPtr(tablePtr, obj_ptr_p->m_object_ptr_i);
 
   GetTableIdConf * conf = (GetTableIdConf *)req;
   conf->tableId = tablePtr.p->tableId;
@@ -10211,7 +10211,7 @@ void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
 
     TableRecordPtr tablePtr;
     if (DictTabInfo::isTable(type) || DictTabInfo::isIndex(type)){
-      c_tableRecordPool.getPtr(tablePtr, iter.curr.p->m_object_ptr_i);
+      c_tableRecordPool_.getPtr(tablePtr, iter.curr.p->m_object_ptr_i);
 
       if(reqListIndexes && (reqTableId != tablePtr.p->primaryTableId))
 	continue;
@@ -10440,7 +10440,7 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
 
     TableRecordPtr tablePtr;
     if (DictTabInfo::isTable(type) || DictTabInfo::isIndex(type)){
-      c_tableRecordPool.getPtr(tablePtr, iter.curr.p->m_object_ptr_i);
+      c_tableRecordPool_.getPtr(tablePtr, iter.curr.p->m_object_ptr_i);
 
       if(reqListIndexes && (reqTableId != tablePtr.p->primaryTableId))
 	goto flush;
@@ -15244,7 +15244,7 @@ Dbdict::prepareTransactionEventSysTable (Callback *pcallback,
 
   ndbrequire(opj_ptr_p != 0);
   TableRecordPtr tablePtr;
-  c_tableRecordPool.getPtr(tablePtr, opj_ptr_p->m_object_ptr_i);
+  c_tableRecordPool_.getPtr(tablePtr, opj_ptr_p->m_object_ptr_i);
   ndbrequire(tablePtr.i != RNIL); // system table must exist
 
   Uint32 tableId = tablePtr.p->tableId; /* System table */
@@ -15862,7 +15862,7 @@ void Dbdict::executeTransEventSysTable(Callback *pcallback, Signal *signal,
 
   ndbrequire(opj_ptr_p != 0);
   TableRecordPtr tablePtr;
-  c_tableRecordPool.getPtr(tablePtr, opj_ptr_p->m_object_ptr_i);
+  c_tableRecordPool_.getPtr(tablePtr, opj_ptr_p->m_object_ptr_i);
   ndbrequire(tablePtr.i != RNIL); // system table must exist
 
   Uint32 noAttr = tablePtr.p->noOfAttributes;
@@ -16042,7 +16042,7 @@ void Dbdict::parseReadEventSys(Signal* signal, sysTab_NDBEVENTS_0& m_eventRec)
 
   ndbrequire(opj_ptr_p != 0);
   TableRecordPtr tablePtr;
-  c_tableRecordPool.getPtr(tablePtr, opj_ptr_p->m_object_ptr_i);
+  c_tableRecordPool_.getPtr(tablePtr, opj_ptr_p->m_object_ptr_i);
   ndbrequire(tablePtr.i != RNIL); // system table must exist
 
   Uint32 noAttr = tablePtr.p->noOfAttributes;
@@ -16132,7 +16132,7 @@ void Dbdict::createEventUTIL_EXECUTE(Signal *signal,
       }
 
       TableRecordPtr tablePtr;
-      c_tableRecordPool.getPtr(tablePtr, obj_ptr_p->m_object_ptr_i);
+      c_tableRecordPool_.getPtr(tablePtr, obj_ptr_p->m_object_ptr_i);
       evntRec->m_request.setTableId(tablePtr.p->tableId);
       evntRec->m_request.setTableVersion(tablePtr.p->tableVersion);
 
@@ -17921,7 +17921,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     }
     else
     {
-      if (!(impl_req->triggerId < c_triggerRecordPool.getSize()))
+      if (!(impl_req->triggerId < c_triggerRecordPool_.getSize()))
       {
 	jam();
 	setError(error, CreateTrigRef::TooManyTriggers, __LINE__);
@@ -17941,7 +17941,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
   {
     jam();
     // slave receives trigger id from master
-    if (! (impl_req->triggerId < c_triggerRecordPool.getSize()))
+    if (! (impl_req->triggerId < c_triggerRecordPool_.getSize()))
     {
       jam();
       setError(error, CreateTrigRef::TooManyTriggers, __LINE__);
@@ -18473,7 +18473,7 @@ Dbdict::createTrigger_abortParse(Signal* signal, SchemaOpPtr op_ptr)
     jam();
 
     TriggerRecordPtr triggerPtr;
-    if (! (triggerId < c_triggerRecordPool.getSize()))
+    if (! (triggerId < c_triggerRecordPool_.getSize()))
     {
       jam();
       goto done;
@@ -18496,7 +18496,7 @@ Dbdict::createTrigger_abortParse(Signal* signal, SchemaOpPtr op_ptr)
         triggerPtr.p->indexId = RNIL;
       }
 
-      c_triggerRecordPool.release(triggerPtr);
+      c_triggerRecordPool_.release(triggerPtr);
     }
 
     // ignore Feedback for now (referencing object will be dropped too)
@@ -18829,7 +18829,7 @@ Dbdict::dropTrigger_parse(Signal* signal, bool master,
   // check trigger id from user or via name
   TriggerRecordPtr triggerPtr;
   {
-    if (!(impl_req->triggerId < c_triggerRecordPool.getSize())) {
+    if (!(impl_req->triggerId < c_triggerRecordPool_.getSize())) {
       jam();
       setError(error, DropTrigImplRef::TriggerNotFound, __LINE__);
       return;
@@ -19167,7 +19167,7 @@ Dbdict::dropTrigger_commit(Signal* signal, SchemaOpPtr op_ptr)
     }
 
     // remove trigger
-    c_triggerRecordPool.release(triggerPtr);
+    c_triggerRecordPool_.release(triggerPtr);
     releaseDictObject(op_ptr);
 
     sendTransConf(signal, op_ptr);
@@ -29214,7 +29214,7 @@ Dbdict::check_consistency()
       tablePtr.i++) {
     if (check_read_obj(tablePtr.i,
 
-    c_tableRecordPool.getPtr(tablePtr);
+    c_tableRecordPool_.getPtr(tablePtr);
 
     switch (tablePtr.p->tabState) {
     case TableRecord::NOT_DEFINED:
@@ -29229,7 +29229,7 @@ Dbdict::check_consistency()
   // triggers // should be in schema file
   TriggerRecordPtr triggerPtr;
   for (Uint32 id = 0;
-      id < c_triggerRecordPool.getSize();
+      id < c_triggerRecordPool_.getSize();
       id++) {
     bool ok = find_object(triggerPtr, id);
     if (!ok) continue;
