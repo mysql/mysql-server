@@ -437,9 +437,9 @@ public:
     Uint32 indexStatBgRequest;
   };
 
-  TableRecord_pool c_tableRecordPool;
-  RSS_AP_SNAPSHOT(c_tableRecordPool);
-  TableRecord_pool& get_pool(TableRecordPtr) { return c_tableRecordPool; }
+  TableRecord_pool c_tableRecordPool_;
+  RSS_AP_SNAPSHOT(c_tableRecordPool_);
+  TableRecord_pool& get_pool(TableRecordPtr) { return c_tableRecordPool_; }
 
   /**  Node Group and Tablespace id+version + range or list data.
     *  This is only stored temporarily in DBDICT during an ongoing
@@ -506,9 +506,9 @@ public:
   typedef ArrayPool<TriggerRecord> TriggerRecord_pool;
 
   Uint32 c_maxNoOfTriggers;
-  TriggerRecord_pool c_triggerRecordPool;
-  TriggerRecord_pool& get_pool(TriggerRecordPtr) { return c_triggerRecordPool; }
-  RSS_AP_SNAPSHOT(c_triggerRecordPool);
+  TriggerRecord_pool c_triggerRecordPool_;
+  TriggerRecord_pool& get_pool(TriggerRecordPtr) { return c_triggerRecordPool_;}
+  RSS_AP_SNAPSHOT(c_triggerRecordPool_);
 
   /**
    * Information for each FS connection.
