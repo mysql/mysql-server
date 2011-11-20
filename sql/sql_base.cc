@@ -7864,6 +7864,8 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
         table_list->table->map= table_list->map_exec;
         table_list->table->maybe_null= table_list->maybe_null_exec;
         table_list->table->pos_in_table_list= table_list;
+        if (table_list->process_index_hints(table_list->table))
+          DBUG_RETURN(1);
       }
       select_lex->leaf_tables.push_back(table_list);
     }
