@@ -1546,7 +1546,8 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
   {
     Ndb_index_stat *st= st_loop;
     st_loop= st_loop->list_next;
-    if (st->read_time + evict_delay <= pr.now)
+    if (st->read_time + evict_delay <= pr.now &&
+        !st->to_delete)
     {
       /* Insertion sort into the batch from the end */
       if (st_lru_cnt == 0)
