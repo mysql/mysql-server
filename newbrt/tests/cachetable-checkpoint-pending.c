@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include "checkpoint.h"
-#include "toku_atomic.h"
 
 static int N; // how many items in the table
 static CACHEFILE cf;
@@ -50,9 +49,9 @@ flush (
     int *v = value;
     if (*v!=expect_value) printf("got %d expect %d\n", *v, expect_value);
     assert(*v==expect_value);
-    (void)toku_sync_fetch_and_increment_int32(&n_flush);
-    if (write_me) (void)toku_sync_fetch_and_increment_int32(&n_write_me);
-    if (keep_me)  (void)toku_sync_fetch_and_increment_int32(&n_keep_me);
+    (void)__sync_fetch_and_add(&n_flush, 1);
+    if (write_me) (void)__sync_fetch_and_add(&n_write_me, 1);
+    if (keep_me)  (void)__sync_fetch_and_add(&n_keep_me, 1);
     sleep_random();
 }
 

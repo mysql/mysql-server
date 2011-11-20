@@ -2,7 +2,6 @@
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 
 #include <toku_portability.h>
-#include <toku_atomic.h>
 #include <unistd.h>
 #include <errno.h>
 #include <toku_assert.h>
@@ -60,8 +59,8 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
             int out_of_disk_space = 1;
             assert(!out_of_disk_space); //Give an error message that might be useful if this is the only one that survives.
         } else {
-            toku_sync_fetch_and_increment_uint64(&toku_write_enospc_total);
-            toku_sync_fetch_and_increment_uint32(&toku_write_enospc_current);
+            __sync_fetch_and_add(&toku_write_enospc_total, 1);
+            __sync_fetch_and_add(&toku_write_enospc_current, 1);
 
             time_t tnow = time(0);
             toku_write_enospc_last_time = tnow;
@@ -89,7 +88,7 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
             }
             sleep(toku_write_enospc_sleep);
             try_again = 1;
-            toku_sync_fetch_and_decrement_uint32(&toku_write_enospc_current);
+            __sync_fetch_and_sub(&toku_write_enospc_current, 1);
             break;
         }
     }
@@ -379,10 +378,10 @@ file_fsync_internal (int fd, uint64_t *duration_p) {
 	    assert(rr==EINTR);
 	}
     }
-    toku_sync_fetch_and_increment_uint64(&toku_fsync_count);
+    __sync_fetch_and_add(&toku_fsync_count, 1);
     uint64_t duration;
     duration = get_tnow() - tstart;
-    toku_sync_fetch_and_add_uint64(&toku_fsync_time, duration);
+    __sync_fetch_and_add(&toku_fsync_time, duration);
     if (duration_p) *duration_p = duration;
     return r;
 }
@@ -430,8 +429,8 @@ int
 toku_file_fsync(int fd) {
     uint64_t duration;
     int r = file_fsync_internal (fd, &duration);
-    toku_sync_fetch_and_increment_uint64(&sched_fsync_count);
-    toku_sync_fetch_and_add_uint64(&sched_fsync_time, duration);
+    __sync_fetch_and_add(&sched_fsync_count, 1);
+    __sync_fetch_and_add(&sched_fsync_time, duration);
     return r;
 }
 

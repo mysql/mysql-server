@@ -17,7 +17,6 @@
 #include "ydb-internal.h"
 #include "le-cursor.h"
 #include "indexer.h"
-#include "toku_atomic.h"
 #include "tokuconst.h"
 #include "brt.h"
 #include "leafentry.h"
@@ -176,13 +175,13 @@ create_exit:
         
         *indexerp = indexer;
 
-	(void) toku_sync_fetch_and_increment_uint64(&status.create);
-	(void) toku_sync_fetch_and_increment_uint32(&status.current);
+	(void) __sync_fetch_and_add(&status.create, 1);
+	(void) __sync_fetch_and_add(&status.current, 1);
 	if ( status.current > status.max )
 	    status.max = status.current;   // not worth a lock to make threadsafe, may be inaccurate
 
     } else {
-	(void) toku_sync_fetch_and_increment_uint64(&status.create_fail);
+	(void) __sync_fetch_and_add(&status.create_fail, 1);
         free_indexer(indexer);
     }
 
@@ -271,9 +270,9 @@ build_index(DB_INDEXER *indexer) {
     //  - unique checks?
 
     if ( result == 0 ) {
-        (void) toku_sync_fetch_and_increment_uint64(&status.build);
+        (void) __sync_fetch_and_add(&status.build, 1);
     } else {
-	(void) toku_sync_fetch_and_increment_uint64(&status.build_fail);
+	(void) __sync_fetch_and_add(&status.build_fail, 1);
     }
 
 
@@ -283,7 +282,7 @@ build_index(DB_INDEXER *indexer) {
 static int 
 close_indexer(DB_INDEXER *indexer) {
     int r = 0;
-    (void) toku_sync_fetch_and_decrement_uint32(&status.current);
+    (void) __sync_fetch_and_sub(&status.current, 1);
 
     toku_ydb_lock();
     {
@@ -308,17 +307,17 @@ close_indexer(DB_INDEXER *indexer) {
     toku_ydb_unlock();
 
     if ( r == 0 ) {
-        (void) toku_sync_fetch_and_increment_uint64(&status.close);
+        (void) __sync_fetch_and_add(&status.close, 1);
     } else {
-	(void) toku_sync_fetch_and_increment_uint64(&status.close_fail);
+	(void) __sync_fetch_and_add(&status.close_fail, 1);
     }
     return r;
 }
 
 static int 
 abort_indexer(DB_INDEXER *indexer) {
-    (void) toku_sync_fetch_and_decrement_uint32(&status.current);
-    (void) toku_sync_fetch_and_increment_uint64(&status.abort);
+    (void) __sync_fetch_and_sub(&status.current, 1);
+    (void) __sync_fetch_and_add(&status.abort, 1);
     
     toku_ydb_lock();
     {

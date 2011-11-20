@@ -15,7 +15,6 @@
 #include "le-cursor.h"
 #include "indexer.h"
 #include "brt-internal.h"
-#include "toku_atomic.h"
 #include "tokuconst.h"
 #include "brt.h"
 #include "leafentry.h"

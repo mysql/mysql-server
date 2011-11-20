@@ -20,7 +20,6 @@
 #include "ydb_load.h"
 #include "checkpoint.h"
 #include "brt-internal.h"
-#include "toku_atomic.h"
 
 
 #define lazy_assert(a) assert(a) // indicates code is incomplete 
@@ -254,13 +253,13 @@ int toku_loader_create_loader(DB_ENV *env,
  create_exit:
     loader_add_refs(loader);
     if (rval == 0) {
-	(void) toku_sync_fetch_and_increment_uint64(&status.create);
-	(void) toku_sync_fetch_and_increment_uint32(&status.current);
+	(void) __sync_fetch_and_add(&status.create, 1);
+	(void) __sync_fetch_and_add(&status.current, 1);
 	if (status.current > status.max)
 	    status.max = status.current;   // not worth a lock to make threadsafe, may be inaccurate
     }
     else {
-	(void) toku_sync_fetch_and_increment_uint64(&status.create_fail);
+	(void) __sync_fetch_and_add(&status.create_fail, 1);
         free_loader(loader);
     }
     return rval;
@@ -345,7 +344,7 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
 
 int toku_loader_close(DB_LOADER *loader) 
 {
-    (void) toku_sync_fetch_and_decrement_uint32(&status.current);
+    (void) __sync_fetch_and_sub(&status.current, 1);
     int r=0;
     if ( loader->i->err_errno != 0 ) {
         if ( loader->i->error_callback != NULL ) {
@@ -381,16 +380,16 @@ int toku_loader_close(DB_LOADER *loader)
     free_loader(loader);
     toku_ydb_unlock();
     if (r==0)
-	(void) toku_sync_fetch_and_increment_uint64(&status.close);
+	(void) __sync_fetch_and_add(&status.close, 1);
     else
-	(void) toku_sync_fetch_and_increment_uint64(&status.close_fail);
+	(void) __sync_fetch_and_add(&status.close_fail, 1);
     return r;
 }
 
 int toku_loader_abort(DB_LOADER *loader) 
 {
-    (void) toku_sync_fetch_and_decrement_uint32(&status.current);
-    (void) toku_sync_fetch_and_increment_uint64(&status.abort);
+    (void) __sync_fetch_and_sub(&status.current, 1);
+    (void) __sync_fetch_and_add(&status.abort, 1);
     int r=0;
     if ( loader->i->err_errno != 0 ) {
         if ( loader->i->error_callback != NULL ) {
