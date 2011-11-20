@@ -422,10 +422,6 @@ static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
 
 THD *injector_thd= 0;
 
-// Index stats thread variables
-extern void ndb_index_stat_free(NDB_SHARE *share);
-extern void ndb_index_stat_end();
-
 /* Status variables shown with 'show status like 'Ndb%' */
 
 struct st_ndb_status g_ndb_status;
@@ -10348,7 +10344,21 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
   for (idx= 0; idx < num_of_keys; idx++)
   {
     DBUG_PRINT("info", ("ha_ndbcluster::prepare_drop_index %u", *key_num));
-    m_index[*key_num++].status= TO_BE_DROPPED;
+    uint i = *key_num++;
+    m_index[i].status= TO_BE_DROPPED;
+    // Prepare delete of index stat entry
+    if (m_index[i].type == PRIMARY_KEY_ORDERED_INDEX ||
+        m_index[i].type == UNIQUE_ORDERED_INDEX ||
+        m_index[i].type == ORDERED_INDEX)
+    {
+      const NdbDictionary::Index *index= m_index[i].index;
+      if (index) // safety
+      {
+        int index_id= index->getObjectId();
+        int index_version= index->getObjectVersion();
+        ndb_index_stat_free(m_share, index_id, index_version);
+      }
+    }
   }
   // Renumber indexes
   THD *thd= current_thd;

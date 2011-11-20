@@ -993,12 +993,12 @@ ndb_index_stat_get_share(NDB_SHARE *share,
   list and set "to_delete" flag.  Stats thread does real delete.
 */
 
+/* caller must hold list_mutex */
 void
 ndb_index_stat_free(Ndb_index_stat *st)
 {
   DBUG_ENTER("ndb_index_stat_free");
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-  pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
   NDB_SHARE *share= st->share;
   assert(share != 0);
 
@@ -1037,6 +1037,30 @@ ndb_index_stat_free(Ndb_index_stat *st)
   pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  DBUG_VOID_RETURN;
+}
+
+/* Interface to online drop index */
+void
+ndb_index_stat_free(NDB_SHARE *share, int index_id, int index_version)
+{
+  DBUG_ENTER("ndb_index_stat_free");
+  DBUG_PRINT("index_stat", ("(index_id:%d index_version:%d",
+                            index_id, index_version));
+  pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
+
+  Ndb_index_stat *st= share->index_stat_list;
+  while (st != 0)
+  {
+    if (st->index_id == index_id &&
+        st->index_version == index_version)
+    {
+      ndb_index_stat_free(st);
+      break;
+    }
+    st= st->share_next;
+  }
+
   pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
   DBUG_VOID_RETURN;
 }
@@ -1562,7 +1586,9 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
     Ndb_index_stat *st= st_lru_arr[cnt];
     DBUG_PRINT("index_stat", ("st %s proc evict %s", st->id, list.name));
     ndb_index_stat_proc_evict(pr, st);
+    pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
     ndb_index_stat_free(st);
+    pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
     cnt++;
   }
   if (cnt == batch)
