@@ -327,8 +327,6 @@ row_merge_buf_add(
 			We allocate a new buffer before we leave the function
 			later below. */
 
-			ut_a(field->data != &write_doc_id);
-
 			dfield_set_data(
 				field, &write_doc_id, sizeof(write_doc_id));
 

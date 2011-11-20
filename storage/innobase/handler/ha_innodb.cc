@@ -6285,14 +6285,15 @@ calc_row_difference(
 			/* The field has changed */
 
 			ufield = uvect->fields + n_changed;
+			UNIV_MEM_INVALID(ufield, sizeof *ufield);
 
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
-			dict_col_copy_type(prebuilt->table->cols + i,
-					   dfield_get_type(&dfield));
-
 			if (n_len != UNIV_SQL_NULL) {
+				dict_col_copy_type(prebuilt->table->cols + i,
+						   dfield_get_type(&dfield));
+
 				buf = row_mysql_store_col_in_innobase_format(
 					&dfield,
 					(byte*)buf,
@@ -6300,11 +6301,14 @@ calc_row_difference(
 					new_mysql_row_col,
 					col_pack_len,
 					dict_table_is_comp(prebuilt->table));
-				dfield_copy_data(&ufield->new_val, &dfield);
+				dfield_copy(&ufield->new_val, &dfield);
 			} else {
 				dfield_set_null(&ufield->new_val);
 			}
 
+			/* XXX merge issues, should this be here?
+			ufield->extern_storage = FALSE;
+			*/
 			ufield->exp = NULL;
 			ufield->orig_len = 0;
 			ufield->field_no = dict_col_get_clust_pos(
@@ -11779,6 +11783,64 @@ ha_innobase::get_error_message(
 		system_charset_info);
 
 	return(FALSE);
+}
+
+/*******************************************************************//**
+  Retrieves the names of the table and the key for which there was a
+  duplicate entry in the case of HA_ERR_FOREIGN_DUPLICATE_KEY.
+
+  If any of the names is not available, then this method will return
+  false and will not change any of child_table_name or child_key_name.
+
+  @param child_table_name[out]    Table name
+  @param child_table_name_len[in] Table name buffer size
+  @param child_key_name[out]      Key name
+  @param child_key_name_len[in]   Key name buffer size
+
+  @retval  true                  table and key names were available
+                                 and were written into the corresponding
+                                 out parameters.
+  @retval  false                 table and key names were not available,
+                                 the out parameters were not touched.
+*/
+bool
+ha_innobase::get_foreign_dup_key(
+/*=============================*/
+	char*	child_table_name,
+	uint	child_table_name_len,
+	char*	child_key_name,
+	uint	child_key_name_len)
+{
+	const dict_index_t*	err_index;
+
+	ut_a(prebuilt->trx != NULL);
+	ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
+
+	err_index = trx_get_error_info(prebuilt->trx);
+
+	if (err_index == NULL) {
+		return(false);
+	}
+	/* else */
+
+	/* copy table name (and convert from filename-safe encoding to
+	system_charset_info, e.g. "foo_@0J@00b6" -> "foo_ö") */
+	char*	p;
+	p = strchr(err_index->table->name, '/');
+	/* strip ".../" prefix if any */
+	if (p != NULL) {
+		p++;
+	} else {
+		p = err_index->table->name;
+	}
+	uint	len;
+	len = filename_to_tablename(p, child_table_name, child_table_name_len);
+	child_table_name[len] = '\0';
+
+	/* copy index name */
+	ut_snprintf(child_key_name, child_key_name_len, "%s", err_index->name);
+
+	return(true);
 }
 
 /*******************************************************************//**
