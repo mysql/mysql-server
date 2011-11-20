@@ -38,6 +38,11 @@
 #define GCALC_DBUG_ASSERT(r)    do {} while(0)
 #endif /*GCALC_DBUG_OFF*/
 
+#define GCALC_TERMINATED(state_var) (state_var && (*state_var))
+#define GCALC_SET_TERMINATED(state_var, val) state_var= val
+#define GCALC_DECL_TERMINATED_STATE(varname) \
+  volatile int *varname;
+
 /*
   Gcalc_dyn_list class designed to manage long lists of same-size objects
   with the possible efficiency.
@@ -447,6 +452,8 @@ public:
 
 public:
   Gcalc_scan_iterator(size_t blk_size= 8192);
+
+  GCALC_DECL_TERMINATED_STATE(killed)
 
   void init(Gcalc_heap *points); /* Iterator can be reused */
   void reset();

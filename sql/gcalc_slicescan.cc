@@ -1078,6 +1078,7 @@ void Gcalc_scan_iterator::init(Gcalc_heap *points)
 #ifndef GCALC_DBUG_OFF
   m_cur_thread= 0;
 #endif /*GCALC_DBUG_OFF*/
+  GCALC_SET_TERMINATED(killed, 0);
 }
 
 void Gcalc_scan_iterator::reset()
@@ -1262,6 +1263,9 @@ int Gcalc_scan_iterator::step()
   point *sp;
   GCALC_DBUG_ENTER("Gcalc_scan_iterator::step");
   GCALC_DBUG_ASSERT(more_points());
+
+  if (GCALC_TERMINATED(killed))
+    GCALC_DBUG_RETURN(0xFFFF);
 
   /* Clear the old event marks. */
   if (m_bottom_points)

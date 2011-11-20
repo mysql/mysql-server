@@ -218,6 +218,7 @@ public:
   void init(Gcalc_function *fn, modes mode= default_mode);
   Gcalc_operation_reducer(Gcalc_function *fn, modes mode= default_mode,
 		       size_t blk_size=8192);
+  GCALC_DECL_TERMINATED_STATE(killed)
   int count_slice(Gcalc_scan_iterator *si);
   int count_all(Gcalc_heap *hp);
   int get_result(Gcalc_result_receiver *storage);

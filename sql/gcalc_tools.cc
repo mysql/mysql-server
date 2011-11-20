@@ -637,6 +637,7 @@ void Gcalc_operation_reducer::init(Gcalc_function *fn, modes mode)
   m_lines_hook= (Gcalc_dyn_list::Item **) &m_lines;
   m_poly_borders= NULL;
   m_poly_borders_hook= (Gcalc_dyn_list::Item **) &m_poly_borders;
+  GCALC_SET_TERMINATED(killed, 0);
 }
 
 
@@ -1218,6 +1219,7 @@ int Gcalc_operation_reducer::count_all(Gcalc_heap *hp)
   Gcalc_scan_iterator si;
   GCALC_DBUG_ENTER("Gcalc_operation_reducer::count_all");
   si.init(hp);
+  GCALC_SET_TERMINATED(si.killed, killed);
   while (si.more_points())
   {
     if (si.step())

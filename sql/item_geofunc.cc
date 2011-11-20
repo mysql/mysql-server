@@ -896,6 +896,8 @@ longlong Item_func_spatial_rel::val_int()
 
   collector.prepare_operation();
   scan_it.init(&collector);
+  scan_it.killed= (int *) &(current_thd->killed);
+
 #ifdef TMP_BLOCK
   if (spatial_rel == SP_EQUALS_FUNC)
   {
@@ -950,7 +952,6 @@ String *Item_func_spatial_operation::val_str(String *str_value)
 
   
   collector.prepare_operation();
-  scan_it.init(&collector);
   if (func.alloc_states())
     goto exit;
 
@@ -973,7 +974,6 @@ String *Item_func_spatial_operation::val_str(String *str_value)
 exit:
   collector.reset();
   func.reset();
-  scan_it.reset();
   res_receiver.reset();
   DBUG_RETURN(str_value);
 }
@@ -1399,6 +1399,7 @@ String *Item_func_buffer::val_str(String *str_value)
   if (func.alloc_states())
     goto mem_error;
   operation.init(&func);
+  operation.killed= (int *) &(current_thd->killed);
 
   if (operation.count_all(&collector) ||
       operation.get_result(&res_receiver))
@@ -1419,7 +1420,6 @@ String *Item_func_buffer::val_str(String *str_value)
 mem_error:
   collector.reset();
   func.reset();
-  scan_it.reset();
   res_receiver.reset();
   DBUG_RETURN(str_result);
 }
