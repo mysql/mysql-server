@@ -222,6 +222,26 @@ trx_doublewrite_init(
 }
 
 /****************************************************************//**
+Calls buf_page_get() on the TRX_SYS_PAGE and returns a pointer to the
+doublewrite buffer within it.
+@return	pointer to the doublewrite buffer within the filespace header
+page. */
+UNIV_INLINE
+byte*
+trx_sys_doublewrite_get(
+/*====================*/
+	mtr_t*	mtr)	/*!< in/out: MTR to hold the page latch */
+{
+	buf_block_t*	block;
+
+	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
+			     RW_X_LATCH, mtr);
+	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+
+	return(buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE);
+}
+
+/****************************************************************//**
 Marks the trx sys header when we have successfully upgraded to the >= 4.1.x
 multiple tablespace format. */
 UNIV_INTERN
@@ -229,7 +249,6 @@ void
 trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 /*===============================================*/
 {
-	buf_block_t*	block;
 	byte*		doublewrite;
 	mtr_t		mtr;
 
@@ -239,11 +258,7 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 
 	mtr_start(&mtr);
 
-	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
-			     RW_X_LATCH, &mtr);
-	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-
-	doublewrite = buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE;
+	doublewrite = trx_sys_doublewrite_get(&mtr);
 
 	mlog_write_ulint(doublewrite + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED,
 			 TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
@@ -264,7 +279,6 @@ void
 trx_sys_create_doublewrite_buf(void)
 /*================================*/
 {
-	buf_block_t*	block;
 	buf_block_t*	block2;
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_t*	new_block;
@@ -286,11 +300,7 @@ start_again:
 	mtr_start(&mtr);
 	trx_doublewrite_buf_is_being_created = TRUE;
 
-	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
-			     RW_X_LATCH, &mtr);
-	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-
-	doublewrite = buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE;
+	doublewrite = trx_sys_doublewrite_get(&mtr);
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC)
 	    == TRX_SYS_DOUBLEWRITE_MAGIC_N) {
@@ -341,8 +351,7 @@ start_again:
 			exit(1);
 		}
 
-		fseg_header = buf_block_get_frame(block)
-			+ TRX_SYS_DOUBLEWRITE + TRX_SYS_DOUBLEWRITE_FSEG;
+		fseg_header = doublewrite + TRX_SYS_DOUBLEWRITE_FSEG;
 		prev_page_no = 0;
 
 		for (i = 0; i < 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
@@ -388,6 +397,7 @@ start_again:
 						 + TRX_SYS_DOUBLEWRITE_REPEAT
 						 + TRX_SYS_DOUBLEWRITE_BLOCK1,
 						 page_no, MLOG_4BYTES, &mtr);
+
 			} else if (i == FSP_EXTENT_SIZE / 2
 				   + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 				ut_a(page_no == 2 * FSP_EXTENT_SIZE);
@@ -398,8 +408,26 @@ start_again:
 						 + TRX_SYS_DOUBLEWRITE_REPEAT
 						 + TRX_SYS_DOUBLEWRITE_BLOCK2,
 						 page_no, MLOG_4BYTES, &mtr);
+
 			} else if (i > FSP_EXTENT_SIZE / 2) {
 				ut_a(page_no == prev_page_no + 1);
+			}
+
+			if (((i + 1) & 25) == 0) {
+				/* rw_locks can only be recursively x-locked
+				2048 times. (on 32 bit platforms,
+				(lint) 0 - (X_LOCK_DECR * 2049)
+				is no longer a negative number, and thus
+				lock_word becomes like a shared lock).
+				For 4k page size this loop will
+				lock the fseg header too many times. Since
+				this code is not done while any other threads
+				are active, restart the MTR occasionally. */
+				mtr_commit(&mtr);
+				mtr_start(&mtr);
+				doublewrite = trx_sys_doublewrite_get(&mtr);
+				fseg_header = doublewrite
+					      + TRX_SYS_DOUBLEWRITE_FSEG;
 			}
 
 			prev_page_no = page_no;
