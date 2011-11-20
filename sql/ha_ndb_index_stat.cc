@@ -143,6 +143,11 @@ ndb_index_stat_time()
   return now;
 }
 
+/*
+  Return error on stats queries before stats thread starts
+  and after it exits.  This is only a pre-caution since mysqld
+  should not allow clients at these times.
+*/
 bool ndb_index_stat_allow_flag= false;
 
 bool
@@ -1977,6 +1982,9 @@ ndb_index_stat_proc(Ndb_index_stat_proc &pr)
   DBUG_VOID_RETURN;
 }
 
+/*
+  Runs after stats thread exits and needs no locks.
+*/
 void
 ndb_index_stat_end()
 {
@@ -1988,10 +1996,6 @@ ndb_index_stat_end()
    * Shares have been freed so any index stat entries left should be
    * in LT_Delete.  The first two steps here should be unnecessary.
    */
-
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-  ndb_index_stat_allow(0);
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 
   int lt;
   for (lt= 1; lt < Ndb_index_stat::LT_Count; lt++)
@@ -2236,9 +2240,8 @@ Ndb_index_stat_thread::do_run()
   }
   pr.ndb= thd_ndb->ndb;
 
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  /* Allow clients */
   ndb_index_stat_allow(1);
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 
   /* Fill in initial status variable */
   pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
@@ -2333,6 +2336,9 @@ ndb_index_stat_thread_end:
   net_end(&thd->net);
 
 ndb_index_stat_thread_fail:
+  /* Prevent clients */
+  ndb_index_stat_allow(0);
+
   if (have_listener)
   {
     if (ndb_index_stat_stop_listener(pr) == 0)
