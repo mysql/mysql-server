@@ -10,6 +10,7 @@
 #
 
 --source include/have_innodb.inc
+--source include/have_innodb_16k.inc
 let $engine_type=InnoDB;
 
 #

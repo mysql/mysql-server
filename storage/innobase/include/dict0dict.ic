@@ -681,11 +681,11 @@ dict_tf_to_fsp_flags(
 /*=================*/
 	ulint	flags)	/*!< in: dict_table_t::flags */
 {
-	if (!DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
-		ut_a(flags == DICT_TF_REDUNDANT
-		     || flags == DICT_TF_COMPACT);
-		return(FSP_FLAGS_ANTELOPE);
-	}
+	/* Adjust bit zero. */
+	flags = (flags == DICT_TF_COMPACT) ? 0 : flags;
+
+	/* In addition, tablespace flags also contain the page size. */
+	flags = fsp_flags_set_page_size(flags, UNIV_PAGE_SIZE);
 
 	return(fsp_flags_validate(flags));
 }

@@ -369,9 +369,10 @@ DROP TABLE t1;
 # Bug #14673: Wrong InnoDB default row format
 #
 create table t1 (a int) engine=innodb partition by hash(a) ;
-# Data_free for InnoDB tablespace varies depending on which
-# tests have been run before this one
---replace_column 10 #
+# Avg_row_length (col 6) and Data_length (col 7) vary depending
+# on the page size.  Data_free for InnoDB tablespace varies
+# depending on which tests have been run before this one.
+--replace_column 6 # 7 # 10 #
 show table status like 't1';
 drop table t1;
 
@@ -381,33 +382,38 @@ drop table t1;
 create table t1 (a int)
 engine = innodb
 partition by key (a);
-# Data_free for InnoDB tablespace varies depending on which
-# tests have been run before this one
---replace_column 10 #
+# Avg_row_length (col 6) and Data_length (col 7) vary depending
+# on the page size.  Data_free for InnoDB tablespace varies
+# depending on which tests have been run before this one.
+--replace_column 6 # 7 # 10 #
 show table status;
 insert into t1 values (0), (1), (2), (3);
-# Data_free for InnoDB tablespace varies depending on which
-# tests have been run before this one
---replace_column 10 #
+# Avg_row_length (col 6) and Data_length (col 7) vary depending
+# on the page size.  Data_free for InnoDB tablespace varies
+# depending on which tests have been run before this one.
+--replace_column 6 # 7 # 10 #
 show table status;
 drop table t1;
 
 create table t1 (a int auto_increment primary key)
 engine = innodb
 partition by key (a);
-# Data_free for InnoDB tablespace varies depending on which
-# tests have been run before this one
---replace_column 10 #
+# Avg_row_length (col 6) and Data_length (col 7) vary depending
+# on the page size.  Data_free for InnoDB tablespace varies
+# depending on which tests have been run before this one.
+--replace_column 6 # 7 # 10 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
-# Data_free for InnoDB tablespace varies depending on which
-# tests have been run before this one
---replace_column 10 #
+# Avg_row_length (col 6) and Data_length (col 7) vary depending
+# on the page size.  Data_free for InnoDB tablespace varies
+# depending on which tests have been run before this one.
+--replace_column 6 # 7 # 10 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
-# Data_free for InnoDB tablespace varies depending on which
-# tests have been run before this one
---replace_column 10 #
+# Avg_row_length (col 6) and Data_length (col 7) vary depending
+# on the page size.  Data_free for InnoDB tablespace varies
+# depending on which tests have been run before this one.
+--replace_column 6 # 7 # 10 #
 show table status;
 drop table t1;
 
