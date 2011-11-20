@@ -1005,20 +1005,19 @@ ndb_index_stat_free(Ndb_index_stat *st)
   Ndb_index_stat *st_head= 0;
   Ndb_index_stat *st_tail= 0;
   Ndb_index_stat *st_loop= share->index_stat_list;
-  bool found= false;
+  uint found= 0;
   while (st_loop != 0)
   {
     if (st == st_loop)
     {
       DBUG_PRINT("index_stat", ("st %s stat free one", st->id));
+      st_loop= st_loop->share_next;
       st->share_next= 0;
       st->share= 0;
       assert(st->lt != 0);
       assert(st->lt != Ndb_index_stat::LT_Delete);
       assert(!st->to_delete);
       st->to_delete= true;
-      st_loop= st_loop->share_next;
-      assert(!found);
       found++;
     }
     else
@@ -1032,7 +1031,7 @@ ndb_index_stat_free(Ndb_index_stat *st)
       st_tail->share_next= 0;
     }
   }
-  assert(found);
+  assert(found == 1);
   share->index_stat_list= st_head;
 
   pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
