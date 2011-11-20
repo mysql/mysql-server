@@ -46,5 +46,5 @@ CREATE_JAR(clusterj-test ${JAVA_SOURCES}
               src/main/resources/schema.sql
   BROKEN_JAVAC ${BROKEN_JAVAC})
 
-INSTALL(FILES clusterj-test-${MYSQL_CLUSTER_VERSION}.jar
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/clusterj-test-${MYSQL_CLUSTER_VERSION}.jar
         DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)
