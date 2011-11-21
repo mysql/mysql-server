@@ -1437,5 +1437,24 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#12985030 SIMPLE QUERY WITH DECIMAL NUMBERS LEAKS MEMORY
+--echo #
+
+SELECT (rpad(1.0,2048,1)) IS NOT FALSE;
+SELECT ((+0) IN
+((0b111111111111111111111111111111111111111111111111111),(rpad(1.0,2048,1)),
+(32767.1)));
+SELECT ((rpad(1.0,2048,1)) = ('4(') ^ (0.1));
+
+--error 1690
+SELECT
+pow((rpad(10.0,2048,1)),(b'1111111111111111111111111111111111111111111'));
+SELECT ((rpad(1.0,2048,1)) + (0) ^ ('../'));
+SELECT stddev_samp(rpad(1.0,2048,1));
+SELECT ((127.1) not in ((rpad(1.0,2048,1)),(''),(-1.1)));
+SELECT ((0xf3) * (rpad(1.0,2048,1)) << (0xcc));
+
+
+--echo #
 --echo # End of 5.5 tests
 --echo #
