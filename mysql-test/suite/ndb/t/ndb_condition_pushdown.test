@@ -2403,8 +2403,15 @@ set engine_condition_pushdown=1;
  select * from mytable where s like concat(replace("%Xext","X", "T"),"%") order by i;
  select * from mytable where s not like concat(replace("%Text","T", "X"),"%") order by i;
 
-
 drop table mytable;
+
+# Bug #13400970   CRASH WITH ICP AND NULL FIELDS
+create table mytab(a char(20),b char(20),
+key a (a)) engine=ndbcluster default charset=latin1;
+insert into mytab values (null,null),(-1,1);
+select b from mytab where a like -1 having `b` like 1;
+
+drop table mytab;
 
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
