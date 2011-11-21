@@ -77,13 +77,13 @@ int toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
  * (If checkpoint is in progress, it may overwrite status info while it is being read.)
  *****/
 typedef struct {
-    u_int32_t footprint;
+    u_int64_t footprint;
     time_t time_last_checkpoint_begin_complete;
     time_t time_last_checkpoint_begin;
     time_t time_last_checkpoint_end;
     uint64_t last_lsn;
-    uint32_t checkpoint_count;
-    uint32_t checkpoint_count_fail;
+    uint64_t checkpoint_count;
+    uint64_t checkpoint_count_fail;
 } CHECKPOINT_STATUS_S, *CHECKPOINT_STATUS;
 
 void toku_checkpoint_get_status(CHECKPOINT_STATUS stat);

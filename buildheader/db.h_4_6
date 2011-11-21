@@ -72,22 +72,22 @@ typedef struct __toku_engine_status {
   char             startuptime[26];         /* time of engine startup */ 
   char             now[26];                 /* time of engine status query (i.e. now)  */ 
   u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released?                                                                      */
-  u_int32_t        num_waiters_now;         /* How many are waiting on the ydb lock right now (including the current lock holder if any)?                            */
-  u_int32_t        max_waiters;             /* The maximum of num_waiters_now.                                                                                       */
+  u_int64_t        num_waiters_now;         /* How many are waiting on the ydb lock right now (including the current lock holder if any)?                            */
+  u_int64_t        max_waiters;             /* The maximum of num_waiters_now.                                                                                       */
   u_int64_t        total_sleep_time;        /* Total time spent (since the system was booted) sleeping (by the indexer) to give foreground threads a chance to work. */
   u_int64_t        max_time_ydb_lock_held;  /* Maximum time that the ydb lock was held (tokutime_t).                                                                 */
   u_int64_t        total_time_ydb_lock_held;/* Total time client threads held the ydb lock (really tokutime_t, convert to seconds with tokutime_to_seconds())        */
   u_int64_t        total_time_since_start;  /* Total time since the lock was created (tokutime_t).  Use this as total_time_ydb_lock_held/total_time_since_start to get a ratio.   */
-  u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ 
-  u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ 
+  u_int64_t        checkpoint_period;       /* delay between automatic checkpoints  */ 
+  u_int64_t        checkpoint_footprint;    /* state of checkpoint procedure        */ 
   char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ 
   char             checkpoint_time_begin_complete[26]; /* time of last complete checkpoint begin      */ 
   char             checkpoint_time_end[26]; /* time of last checkpoint end      */ 
   u_int64_t        checkpoint_last_lsn;     /* LSN of last complete checkpoint  */ 
-  u_int32_t        checkpoint_count;        /* number of checkpoints taken        */ 
-  u_int32_t        checkpoint_count_fail;   /* number of checkpoints failed        */ 
-  u_int32_t        cleaner_period;          /* delay between executions of cleaner  */ 
-  u_int32_t        cleaner_iterations;      /* number of nodes to flush per cleaner execution  */ 
+  u_int64_t        checkpoint_count;        /* number of checkpoints taken        */ 
+  u_int64_t        checkpoint_count_fail;   /* number of checkpoints failed        */ 
+  u_int64_t        cleaner_period;          /* delay between executions of cleaner  */ 
+  u_int64_t        cleaner_iterations;      /* number of nodes to flush per cleaner execution  */ 
   u_int64_t        txn_begin;               /* number of transactions ever begun             */ 
   u_int64_t        txn_commit;              /* txn commit operations                         */ 
   u_int64_t        txn_abort;               /* txn abort operations                          */ 
@@ -118,18 +118,17 @@ typedef struct __toku_engine_status {
   uint64_t         cachetable_size_leaf;    /* the number of bytes of leaf nodes */ 
   uint64_t         cachetable_size_nonleaf; /* the number of bytes of nonleaf nodes */ 
   uint64_t         cachetable_size_rollback; /* the number of bytes of nonleaf nodes */ 
-  uint64_t         cachetable_size_cachepressure; /* the number of bytes of nonleaf nodes */ 
   int64_t          cachetable_size_writing; /* the sum of the sizes of the nodes being written */ 
   int64_t          get_and_pin_footprint;   /* state of get_and_pin procedure */ 
   int64_t          local_checkpoint;        /* number of times a local checkpoint is taken for commit */ 
   int64_t          local_checkpoint_files;  /* number of files subjec to local checkpoint is taken for commit */ 
   int64_t          local_checkpoint_during_checkpoint;  /* number of times a local checkpoint happens during normal checkpoint */ 
-  u_int32_t        range_locks_max;         /* max total number of range locks */ 
-  u_int32_t        range_locks_curr;        /* total range locks currently in use */ 
+  u_int64_t        range_locks_max;         /* max total number of range locks */ 
+  u_int64_t        range_locks_curr;        /* total range locks currently in use */ 
   u_int64_t        range_locks_max_memory;   /* max total bytes of range locks */ 
   u_int64_t        range_locks_curr_memory;  /* total bytes of range locks currently in use */ 
-  u_int32_t        range_lock_escalation_successes;       /* number of times range locks escalation succeeded */ 
-  u_int32_t        range_lock_escalation_failures;        /* number of times range locks escalation failed */ 
+  u_int64_t        range_lock_escalation_successes;       /* number of times range locks escalation succeeded */ 
+  u_int64_t        range_lock_escalation_failures;        /* number of times range locks escalation failed */ 
   u_int64_t        range_read_locks;        /* total range read locks taken */ 
   u_int64_t        range_read_locks_fail;   /* total range read locks unable to be taken */ 
   u_int64_t        range_out_of_read_locks; /* total times range read locks exhausted */ 
@@ -171,11 +170,10 @@ typedef struct __toku_engine_status {
   u_int64_t        partial_fetch_hit;        /* node partition is present             */ 
   u_int64_t        partial_fetch_miss;       /* node is present but partition is absent */ 
   u_int64_t        partial_fetch_compressed; /* node partition is present but compressed  */ 
-  u_int64_t        partial_evictions_internal; /* number of internal node partial evictions */ 
+  u_int64_t        partial_evictions_nonleaf; /* number of nonleaf node partial evictions */ 
   u_int64_t        partial_evictions_leaf;   /* number of leaf node partial evictions */ 
   u_int64_t        msn_discards;             /* how many messages were ignored by leaf because of msn */ 
   u_int64_t        max_workdone;             /* max workdone value of any buffer  */ 
-  u_int64_t        dsn_gap;                  /* dsn has detected a gap in continuity of root-to-leaf path (internal node was evicted and re-read) */ 
   uint64_t         total_searches;              /* total number of searches */ 
   uint64_t         total_retries;               /* total number of search retries due to TRY_AGAIN */ 
   uint64_t         max_search_excess_retries;   /* max number of excess search retries (retries - treeheight) due to TRY_AGAIN */ 
@@ -237,8 +235,8 @@ typedef struct __toku_engine_status {
   u_int64_t        loader_close;            /* number of loaders closed (succeed or fail) */ 
   u_int64_t        loader_close_fail;       /* number of loaders closed with error return */ 
   u_int64_t        loader_abort;            /* number of loaders aborted  */ 
-  u_int32_t        loader_current;          /* number of loaders currently existing           */ 
-  u_int32_t        loader_max;              /* max number of loaders extant simultaneously    */ 
+  u_int64_t        loader_current;          /* number of loaders currently existing           */ 
+  u_int64_t        loader_max;              /* max number of loaders extant simultaneously    */ 
   u_int64_t        logsuppress;             /* number of times logging is suppressed */ 
   u_int64_t        logsuppressfail;         /* number of times logging cannot be suppressed  */ 
   u_int64_t        indexer_create;          /* number of indexers created successfully */ 
@@ -248,8 +246,8 @@ typedef struct __toku_engine_status {
   u_int64_t        indexer_close;           /* number of indexers closed successfully) */ 
   u_int64_t        indexer_close_fail;      /* number of indexers closed with error return */ 
   u_int64_t        indexer_abort;           /* number of indexers aborted  */ 
-  u_int32_t        indexer_current;         /* number of indexers currently existing           */ 
-  u_int32_t        indexer_max;             /* max number of indexers extant simultaneously    */ 
+  u_int64_t        indexer_current;         /* number of indexers currently existing           */ 
+  u_int64_t        indexer_max;             /* max number of indexers extant simultaneously    */ 
   u_int64_t        upgrade_env_status;      /* Was an environment upgrade done?  What was done?  */ 
   u_int64_t        upgrade_header;          /* how many brt headers were upgraded? */ 
   u_int64_t        upgrade_nonleaf;         /* how many brt nonleaf nodes  were upgraded? */ 

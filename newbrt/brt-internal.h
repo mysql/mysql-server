@@ -737,11 +737,10 @@ typedef struct brt_status {
     u_int64_t partial_fetch_hit;           // node partition is present
     u_int64_t partial_fetch_miss;          // node is present but partition is absent
     u_int64_t partial_fetch_compressed;    // node partition is present but compressed
-    u_int64_t partial_evictions_internal;  // number of internal node partial evictions
+    u_int64_t partial_evictions_nonleaf;  // number of nonleaf node partial evictions
     u_int64_t partial_evictions_leaf;      // number of leaf node partial evictions
     u_int64_t msn_discards;                // how many messages were ignored by leaf because of msn
     u_int64_t max_workdone;                // max workdone value of any buffer
-    u_int64_t dsn_gap;                     // dsn has detected a gap in continuity of root-to-leaf path (internal node was evicted and re-read)
     uint64_t  total_searches;              // total number of searches
     uint64_t  total_retries;               // total number of search retries due to TRY_AGAIN
     uint64_t  max_search_excess_retries;   // max number of excess search retries (retries - treeheight) due to TRY_AGAIN
