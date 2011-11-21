@@ -125,6 +125,9 @@ INSERT INTO t4 VALUES (1), (2), (3);
 CREATE TABLE t5 ( a INT );
 INSERT INTO t5 VALUES (NULL), (2);
 
+SET @old_optimizer_switch = @@session.optimizer_switch;
+SET SESSION optimizer_switch = 'materialization=off,in_to_exists=on,semijoin=off';
+
 --replace_column 1 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x 10 x
 EXPLAIN
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 );
@@ -165,6 +168,8 @@ SELECT * FROM t1 WHERE ( a, b ) NOT IN
 SELECT * FROM t1 WHERE b NOT IN ( SELECT c FROM t2 WHERE c = 1 );
 
 SELECT * FROM t1 WHERE NULL NOT IN ( SELECT c FROM t2 WHERE c = 1 AND c <> 1 );
+
+SET SESSION optimizer_switch = @old_optimizer_switch;
 
 DROP TABLE t1, t2, t3, t4, t5;
 
