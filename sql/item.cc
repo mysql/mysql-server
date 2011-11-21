@@ -1364,6 +1364,12 @@ bool Item_name_const::is_null()
 Item_name_const::Item_name_const(Item *name_arg, Item *val):
     value_item(val), name_item(name_arg)
 {
+  /*
+    The value argument to NAME_CONST can only be a literal 
+    constant.   Some extra tests are needed to support
+    a collation specificer and to handle negative values
+  */
+    
   if (!(valid_args= name_item->basic_const_item() &&
                     (value_item->basic_const_item() ||
                      ((value_item->type() == FUNC_ITEM) &&
@@ -1371,8 +1377,7 @@ Item_name_const::Item_name_const(Item *name_arg, Item *val):
                          Item_func::COLLATE_FUNC) ||
                       ((((Item_func *) value_item)->functype() ==
                          Item_func::NEG_FUNC) &&
-                      (((Item_func *) value_item)->key_item()->type() !=
-                         FUNC_ITEM)))))))
+                      (((Item_func *) value_item)->key_item()->basic_const_item())))))))
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
   Item::maybe_null= TRUE;
 }
@@ -6522,7 +6527,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       if (from_field != not_found_field)
       {
         Item_field* fld;
-        if (!(fld= new Item_field(from_field)))
+        if (!(fld= new Item_field(thd, last_checked_context, from_field)))
           goto error;
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,

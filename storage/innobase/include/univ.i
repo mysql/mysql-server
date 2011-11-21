@@ -352,13 +352,14 @@ typedef enum innodb_file_formats_enum innodb_file_formats_t;
 #define UNIV_FORMAT_MAX		UNIV_FORMAT_B
 
 /** The 2-logarithm of UNIV_PAGE_SIZE: */
-#define UNIV_PAGE_SIZE_SHIFT	14
+#define UNIV_PAGE_SIZE_SHIFT	srv_page_size_shift
 
 /** The universal page size of the database */
-#define UNIV_PAGE_SIZE		(1 << UNIV_PAGE_SIZE_SHIFT)
+#define UNIV_PAGE_SIZE		srv_page_size
 
-/** log2 of smallest compressed page size (1<<10 == 1024 bytes) */
-#define UNIV_ZIP_SIZE_SHIFT_MIN	10
+/** log2 of smallest compressed page size (1<<10 == 1024 bytes)
+Note: This must never change! */
+#define UNIV_ZIP_SIZE_SHIFT_MIN		10
 
 /** log2 of largest compressed page size (1<<14 == 16384 bytes).
 A compressed page directory entry reserves 14 bits for the start offset
@@ -366,13 +367,38 @@ and 2 bits for flags. This limits the uncompressed page size to 16k.
 Even though a 16k uncompressed page can theoretically be compressed
 into a larger compressed page, it is not a useful feature so we will
 limit both with this same constant. */
-#define UNIV_ZIP_SIZE_SHIFT_MAX	14
+#define UNIV_ZIP_SIZE_SHIFT_MAX		14
+
+/* Define the Min, Max, Default page sizes. */
+/** Minimum Page Size Shift (power of 2) */
+#define UNIV_PAGE_SIZE_SHIFT_MIN	12
+/** Maximum Page Size Shift (power of 2) */
+#define UNIV_PAGE_SIZE_SHIFT_MAX	14
+/** Default Page Size Shift (power of 2) */
+#define UNIV_PAGE_SIZE_SHIFT_DEF	14
+/** Original 16k InnoDB Page Size Shift, in case the default changes */
+#define UNIV_PAGE_SIZE_SHIFT_ORIG	14
+
+/** Minimum page size InnoDB currently supports. */
+#define UNIV_PAGE_SIZE_MIN	(1 << UNIV_PAGE_SIZE_SHIFT_MIN)
+/** Maximum page size InnoDB currently supports. */
+#define UNIV_PAGE_SIZE_MAX	(1 << UNIV_PAGE_SIZE_SHIFT_MAX)
+/** Default page size for InnoDB tablespaces. */
+#define UNIV_PAGE_SIZE_DEF	(1 << UNIV_PAGE_SIZE_SHIFT_DEF)
+/** Original 16k page size for InnoDB tablespaces. */
+#define UNIV_PAGE_SIZE_ORIG	(1 << UNIV_PAGE_SIZE_SHIFT_ORIG)
 
 /** Smallest compressed page size */
 #define UNIV_ZIP_SIZE_MIN	(1 << UNIV_ZIP_SIZE_SHIFT_MIN)
 
 /** Largest compressed page size */
 #define UNIV_ZIP_SIZE_MAX	(1 << UNIV_ZIP_SIZE_SHIFT_MAX)
+
+/** Number of supported page sizes (The convention 'ssize' is used
+for 'log2 minus 9' or the number of shifts starting with 512.)
+This number varies depending on UNIV_PAGE_SIZE. */
+#define UNIV_PAGE_SSIZE_MAX					\
+	(UNIV_PAGE_SIZE_SHIFT - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
 
 /** Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32
@@ -497,7 +523,7 @@ number indicate that a field contains a reference to an externally
 stored part of the field in the tablespace. The length field then
 contains the sum of the following flag and the locally stored len. */
 
-#define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE)
+#define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE_MAX)
 
 /* Some macros to improve branch prediction and reduce cache misses */
 #if defined(INNODB_COMPILER_HINTS) \
@@ -618,5 +644,8 @@ typedef void* os_thread_ret_t;
 	UNIV_MEM_ASSERT_W(addr, size);			\
 	UNIV_MEM_ALLOC(addr, size);			\
 } while (0)
+
+extern ulong	srv_page_size_shift;
+extern ulong	srv_page_size;
 
 #endif

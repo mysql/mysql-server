@@ -302,21 +302,21 @@ row_mysql_pad_col(
 		/* space=0x0020 */
 		pad_end = pad + len;
 		ut_a(!(len % 2));
-		do {
+		while (pad < pad_end) {
 			*pad++ = 0x00;
 			*pad++ = 0x20;
-		} while (pad < pad_end);
+		};
 		break;
 	case 4:
 		/* space=0x00000020 */
 		pad_end = pad + len;
 		ut_a(!(len % 4));
-		do {
+		while (pad < pad_end) {
 			*pad++ = 0x00;
 			*pad++ = 0x00;
 			*pad++ = 0x00;
 			*pad++ = 0x20;
-		} while (pad < pad_end);
+		}
 		break;
 	}
 }
@@ -607,6 +607,7 @@ handle_new_error:
 	case DB_CANNOT_ADD_CONSTRAINT:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 	case DB_OUT_OF_FILE_SPACE:
+	case DB_READ_ONLY:
 	case DB_FTS_INVALID_DOCID:
 	case DB_INTERRUPTED:
 		if (savept) {
@@ -717,9 +718,7 @@ row_create_prebuilt(
 	prebuilt->clust_pcur = btr_pcur_create_for_mysql();
 
 	prebuilt->select_lock_type = LOCK_NONE;
-	prebuilt->stored_select_lock_type = 99999999;
-	UNIV_MEM_INVALID(&prebuilt->stored_select_lock_type,
-			 sizeof prebuilt->stored_select_lock_type);
+	prebuilt->stored_select_lock_type = LOCK_NONE_UNSET;
 
 	prebuilt->search_tuple = dtuple_create(
 		heap, 2 * dict_table_get_n_cols(table));

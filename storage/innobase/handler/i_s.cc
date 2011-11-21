@@ -122,9 +122,9 @@ struct buffer_page_info_struct{
 					/*!< Compressed page size */
 	unsigned	page_state:BUF_PAGE_STATE_BITS; /*!< Page state */
 	unsigned	page_type:4;	/*!< Page type */
-	unsigned	num_recs:UNIV_PAGE_SIZE_SHIFT-2;
+	unsigned	num_recs:UNIV_PAGE_SIZE_SHIFT_MAX-2;
 					/*!< Number of records on Page */
-	unsigned	data_size:UNIV_PAGE_SIZE_SHIFT;
+	unsigned	data_size:UNIV_PAGE_SIZE_SHIFT_MAX;
 					/*!< Sum of the sizes of the records */
 	lsn_t		newest_mod;	/*!< Log sequence number of
 					the youngest modification */
@@ -510,6 +510,24 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+#define IDX_TRX_READ_ONLY		22
+	{STRUCT_FLD(field_name,		"trx_is_read_only"),
+	 STRUCT_FLD(field_length,	1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_TRX_AUTOCOMMIT_NON_LOCKING	23
+	{STRUCT_FLD(field_name,		"trx_autocommit_non_locking"),
+	 STRUCT_FLD(field_length,	1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 };
 
@@ -655,6 +673,15 @@ fill_innodb_trx_from_cache(
 		/* trx_adaptive_hash_timeout */
 		OK(fields[IDX_TRX_ADAPTIVE_HASH_TIMEOUT]->store(
 			   (longlong) row->trx_search_latch_timeout, true));
+
+		/* trx_is_read_only*/
+		OK(fields[IDX_TRX_READ_ONLY]->store(
+				(long) row->trx_is_read_only, true));
+
+		/* trx_is_autocommit_non_locking */
+		OK(fields[IDX_TRX_AUTOCOMMIT_NON_LOCKING]->store(
+				(long) row->trx_is_autocommit_non_locking,
+				true));
 
 		OK(schema_table_store_record(thd, table));
 	}

@@ -27,6 +27,8 @@ Created 11/28/1995 Heikki Tuuri
 #ifndef mach0data_h
 #define mach0data_h
 
+#ifndef UNIV_INNOCHECKSUM
+
 #include "univ.i"
 #include "ut0byte.h"
 
@@ -373,6 +375,7 @@ mach_read_int_type(
 	ulint		len,		/*!< in: length of src */
 	ibool		unsigned_type);	/*!< in: signed or unsigned flag */
 #endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_INNOCHECKSUM */
 
 #ifndef UNIV_NONINL
 #include "mach0data.ic"

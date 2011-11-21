@@ -1744,7 +1744,7 @@ trx_undo_mark_as_dict_operation(
 Assigns an undo log for a transaction. A new undo log is created or a cached
 undo log reused.
 @return DB_SUCCESS if undo log assign successful, possible error codes
-are: DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE
+are: DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE DB_READ_ONLY
 DB_OUT_OF_MEMORY */
 UNIV_INTERN
 ulint
@@ -1759,7 +1759,10 @@ trx_undo_assign_undo(
 	ulint		err = DB_SUCCESS;
 
 	ut_ad(trx);
-	ut_ad(trx->rseg);
+
+	if (trx->rseg == NULL) {
+		return(DB_READ_ONLY);
+	}
 
 	rseg = trx->rseg;
 

@@ -24,6 +24,9 @@ Created 5/11/1994 Heikki Tuuri
 ********************************************************************/
 
 #include "ut0ut.h"
+
+#ifndef UNIV_INNOCHECKSUM
+
 #include "ut0sort.h"
 
 #ifdef UNIV_NONINL
@@ -205,6 +208,8 @@ ut_difftime(
 	return(difftime(time2, time1));
 }
 
+#endif /* !UNIV_INNOCHECKSUM */
+
 /**********************************************************//**
 Prints a timestamp to a file. */
 UNIV_INTERN
@@ -247,6 +252,8 @@ ut_print_timestamp(
 		cal_tm_ptr->tm_sec);
 #endif
 }
+
+#ifndef UNIV_INNOCHECKSUM
 
 /**********************************************************//**
 Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
@@ -650,6 +657,8 @@ ut_strerr(
 		return("Success, record lock created");
 	case DB_ERROR:
 		return("Generic error");
+	case DB_READ_ONLY:
+		return("Read only transaction");
 	case DB_INTERRUPTED:
 		return("Operation interrupted");
 	case DB_OUT_OF_MEMORY:
@@ -748,3 +757,4 @@ ut_strerr(
 	/* NOT REACHED */
 	return("Unknown error");
 }
+#endif /* !UNIV_INNOCHECKSUM */
