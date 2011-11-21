@@ -334,8 +334,9 @@ enum innodb_file_formats_enum {
 	includes the ability to create secondary indexes from data that
 	is not on the clustered index page and the ability to store more
 	data off the clustered index page. */
-	UNIV_FORMAT_B		= 1,
+	UNIV_FORMAT_B		= 1
 };
+
 typedef enum innodb_file_formats_enum innodb_file_formats_t;
 
 /** Minimum supported file format */

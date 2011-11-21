@@ -461,8 +461,8 @@ buf_page_is_corrupted(
 {
 	ulint		checksum_field1;
 	ulint		checksum_field2;
-	ib_uint32_t	crc32;
 	ibool		crc32_inited = FALSE;
+	ib_uint32_t	crc32 = ULINT32_UNDEFINED;
 
 	if (!zip_size
 	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
