@@ -532,7 +532,7 @@ sys_var *intern_find_sys_var(const char *str, uint length)
                               (uchar*) str, length ? length : strlen(str));
 
   /* Don't show non-visible variables. */
-  if (var->not_visible())
+  if (var && var->not_visible())
     return NULL;
 
   return var;

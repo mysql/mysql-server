@@ -34,3 +34,7 @@ WHERE name IN (
 AND enabled = 'no' AND timed = 'no'
 ORDER BY name;
 
+#
+# Verify that the instrument startup settings are not not visible.
+#
+SHOW VARIABLES LIKE "%/wait/synch/mutex%";
