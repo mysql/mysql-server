@@ -1797,7 +1797,7 @@ protected:
     @retval     false   In case of success.
     @retval     true    In case of error.    
   */
-  virtual int store_lldiv_t(const lldiv_t *lld, int *warning);
+  int store_lldiv_t(const lldiv_t *lld, int *warning);
 
   /**
     Convert a string to MYSQL_TIME, according to the field type.
@@ -2366,11 +2366,6 @@ protected:
   */
   virtual int store_internal(const MYSQL_TIME *ltime, int *error)= 0;
   /**
-    Low-level function to store time value in lldiv_t format.
-    The value must be rounded or truncated according to decimals().
-  */
-  virtual int store_internal(const lldiv_t *lld)= 0;
-  /**
     Function to store time value.
     The value is rounded according to decimals().
   */
@@ -2418,7 +2413,6 @@ public:
 class Field_time :public Field_time_common {
 protected:
   int store_internal(const MYSQL_TIME *ltime, int *error);
-  int store_internal(const lldiv_t *lld);
 public:
   Field_time(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg)
@@ -2464,7 +2458,6 @@ private:
   }
 protected:
   int store_internal(const MYSQL_TIME *ltime, int *error);
-  int store_internal(const lldiv_t *lld);
 public:
   /**
     Constructor for Field_timef
