@@ -144,7 +144,8 @@ Summary:	MariaDB: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Version:	@MYSQL_U_SCORE_VERSION@
 Release:	%{release}
-License:	Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}   Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
+License:	Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. Under %{mysql_license} license as shown in the Description field.
+
 Source:		http://http://askmonty.org/wiki/MariaDB:Download
 URL:		http://www.askmonty.org/
 Packager:	Monty Program Ab
@@ -167,7 +168,7 @@ embedding into mass-deployed software.
 
 MariaDB is a trademark of Monty Program Ab.
 
-Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor} 
+Copyright (c) 2000, 2011 @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}.
 Use is subject to license terms.
 
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
@@ -195,8 +196,7 @@ that is binary compatible with MySQL(TM). MariaDB Server is intended
 for mission-critical, heavy-load production systems as well as for
 embedding into mass-deployed software.
 
-Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor} 
-Use is subject to license terms.
+Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}.
 
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
 and you are welcome to modify and redistribute it under the GPL license.
@@ -418,7 +418,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --enable-local-infile \
 	    --with-fast-mutexes \
 	    --with-mysqld-user=%{mysqld_user} \
-	    --with-unix-socket-path=/var/lib/mysql/mysql.sock \
+	    --with-unix-socket-path=%{mysqldatadir}/mysql.sock \
 	    --with-pic \
 	    --prefix=/ \
 %if %{CLUSTER_BUILD}
@@ -835,13 +835,12 @@ else
 fi
 # echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 if [ ! -d $mysql_datadir/mysql ] ; then
-	mkdir $mysql_datadir/mysql;
+	mkdir $mysql_datadir/mysql $mysql_datadir/test
 	echo "MySQL RPM installation of version $NEW_VERSION" >> $STATUS_FILE
 else
 	# If the directory exists, we may assume it is an upgrade.
 	echo "MySQL RPM upgrade to version $NEW_VERSION" >> $STATUS_FILE
 fi
-if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 
 # ----------------------------------------------------------------------
 # Make MySQL start/shutdown automatically when the machine does it.
@@ -874,7 +873,12 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 # ----------------------------------------------------------------------
 # Initiate databases if needed
 # ----------------------------------------------------------------------
-%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+if ! grep '^MySQL RPM upgrade' $STATUS_FILE >/dev/null 2>&1 ; then
+	# Fix bug#45415: no "mysql_install_db" on an upgrade
+	# Do this as a negative to err towards more "install" runs
+	# rather than to miss one.
+	%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+fi
 
 # ----------------------------------------------------------------------
 # Upgrade databases if needed would go here - but it cannot be automated yet
@@ -890,6 +894,13 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 # can read them.
 # ----------------------------------------------------------------------
 chmod -R og-rw $mysql_datadir/mysql
+
+# ----------------------------------------------------------------------
+# Deal with SELinux, if it is installed / used
+# ----------------------------------------------------------------------
+if [ -x /sbin/restorecon ] ; then
+	/sbin/restorecon -R %{mysqldatadir}
+fi
 
 # Was the server running before the upgrade? If so, restart the new one.
 if [ "$SERVER_TO_START" = "true" ] ; then
@@ -1196,6 +1207,21 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Fri Aug 19 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Fix bug#37165 "((Generic rpm)) fail to install on Fedora 9 x86_64"
+  On Fedora, certain accesses to "/var/lib/mysql/HOSTNAME.err" were blocked
+  by SELinux policy, this made the server start fail with the message
+      Manager of pid-file quit without updating file
+  Calling "/sbin/restorecon -R /var/lib/mysql" fixes this.
+- Replace occurrences of that path name by the spec file variable %{mysqldatadir}.
+
+* Thu Jul 07 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Fix bug#45415: "rpm upgrade recreates test database"
+  Let the creation of the "test" database happen only during a new installation,
+  not in an RPM upgrade.
+  This affects both the "mkdir" and the call of "mysql_install_db".
 
 * Sun Feb 20 2011 Monty
  Updated texts to include information about MariaDB

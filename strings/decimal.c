@@ -12,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #line 18 "decimal.c"
 
@@ -320,8 +321,8 @@ int decimal_actual_fraction(decimal_t *from)
       from            - value to convert
       to              - points to buffer where string representation
                         should be stored
-      *to_len         - in:  size of to buffer
-                        out: length of the actually written string
+      *to_len         - in:  size of to buffer (incl. terminating '\0')
+                        out: length of the actually written string (excl. '\0')
       fixed_precision - 0 if representation can be variable length and
                         fixed_decimals will not be checked in this case.
                         Put number as with fixed point position with this
@@ -338,6 +339,7 @@ int decimal2string(decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals,
                    char filler)
 {
+  /* {intg_len, frac_len} output widths; {intg, frac} places in input */
   int len, intg, frac= from->frac, i, intg_len, frac_len, fill;
   /* number digits before decimal point */
   int fixed_intg= (fixed_precision ?
@@ -1421,11 +1423,18 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale)
     buf++;
   }
   my_afree(d_copy);
+
+  /*
+    No digits? We have read the number zero, of unspecified precision.
+    Make it a proper zero, with non-zero precision.
+  */
+  if (to->intg == 0 && to->frac == 0)
+    decimal_make_zero(to);
   return error;
 
 err:
   my_afree(d_copy);
-  decimal_make_zero(((decimal_t*) to));
+  decimal_make_zero(to);
   return(E_DEC_BAD_NUM);
 }
 

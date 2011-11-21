@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -832,6 +832,7 @@ btr_search_guess_on_hash(
 	btr_pcur_t	pcur;
 #endif
 	ut_ad(index && info && tuple && cursor && mtr);
+	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad((latch_mode == BTR_SEARCH_LEAF)
 	      || (latch_mode == BTR_MODIFY_LEAF));
 

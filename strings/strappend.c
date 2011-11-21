@@ -26,6 +26,16 @@
    SUCH DAMAGE.
 */
 
+/*  File   : strappend.c
+    Author : Monty
+    Updated: 1987.02.07
+    Defines: strappend()
+
+    strappend(dest, len, fill) appends fill-characters to a string so that
+    the result length == len. If the string is longer than len it's
+    trunked. The des+len character is allways set to NULL.
+*/
+
 #include "strings_def.h"
 
 void strappend(register char *s, size_t len, pchar fill)

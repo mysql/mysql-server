@@ -1,4 +1,5 @@
-/* Copyright (C) 2005 MySQL AB
+/*
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
@@ -219,7 +221,13 @@ public:
 #endif  
 
   /* if not set, the value of other members of the structure are undefined */
-  bool inited;
+  /*
+    inited changes its value within LOCK_active_mi-guarded critical
+    sections  at times of start_slave_threads() (0->1) and end_slave() (1->0).
+    Readers may not acquire the mutex while they realize potential concurrency
+    issue.
+  */
+  volatile bool inited;
   volatile bool abort_slave;
   volatile uint slave_running;
 

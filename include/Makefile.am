@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -12,8 +12,8 @@
 #
 # You should have received a copy of the GNU Library General Public
 # License along with this library; if not, write to the Free
-# Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-# MA 02111-1307, USA
+# Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+# MA 02110-1301, USA
 
 BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources
 HEADERS_GEN_CONFIGURE =		mysql_version.h
@@ -39,9 +39,11 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
 			my_compare.h my_handler.h my_time.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
-			atomic/rwlock.h atomic/x86-gcc.h atomic/generic-msvc.h \
-                        atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
-                        wqueue.h waiting_threads.h
+			atomic/rwlock.h atomic/x86-gcc.h \
+			atomic/generic-msvc.h atomic/gcc_builtins.h \
+			my_libwrap.h my_stacktrace.h \
+                        wqueue.h waiting_threads.h \
+			welcome_copyright_notice.h
 
 EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp
 

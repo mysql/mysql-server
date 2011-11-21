@@ -4,6 +4,8 @@
 # Can't test with embedded server that doesn't support grants
 -- source include/not_embedded.inc
 
+call mtr.add_suppression("Column count of mysql.event is wrong. Expected .*, found .*\. The table is probably corrupted");
+
 --disable_warnings
 drop database if exists events_test;
 drop database if exists db_x;
@@ -270,23 +272,28 @@ SHOW EVENTS;
 --echo Try to alter mysql.event: the server should fail to load
 --echo event information after mysql.event was tampered with.
 --echo 
---echo First, let's add a column to the end and make sure everything
---echo works as before
+--echo First, let's add a column to the end and check the error is emitted.
 --echo 
 ALTER TABLE mysql.event ADD dummy INT;
---replace_column 8 # 9 #
+--error ER_EVENT_OPEN_TABLE_FAILED
 SHOW EVENTS;
+--error ER_EVENT_OPEN_TABLE_FAILED
 SELECT event_name FROM INFORMATION_SCHEMA.events;
---replace_regex /STARTS '[^']+'/STARTS '#'/
+--error ER_EVENT_OPEN_TABLE_FAILED
 SHOW CREATE EVENT intact_check;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 DROP EVENT no_such_event;
+--error ER_EVENT_OPEN_TABLE_FAILED
 CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+--error ER_EVENT_OPEN_TABLE_FAILED
 ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+--error ER_EVENT_OPEN_TABLE_FAILED
 ALTER EVENT intact_check_1 RENAME TO intact_check_2;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 DROP EVENT intact_check_1;
+--error ER_EVENT_OPEN_TABLE_FAILED
 DROP EVENT intact_check_2;
+--error ER_EVENT_OPEN_TABLE_FAILED
 DROP EVENT intact_check;
 DROP DATABASE IF EXISTS mysqltest_no_such_database;
 CREATE DATABASE mysqltest_db2;
@@ -296,6 +303,7 @@ SHOW VARIABLES LIKE 'event_scheduler';
 SET GLOBAL event_scheduler=OFF;
 # Clean up
 ALTER TABLE mysql.event DROP dummy;
+DROP EVENT intact_check;
 CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
 --echo 
 --echo Now let's add a column to the first position: the server
@@ -303,24 +311,26 @@ CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
 --echo 
 ALTER TABLE mysql.event ADD dummy INT FIRST;
 --error ER_CANNOT_LOAD_FROM_TABLE
+--error ER_EVENT_OPEN_TABLE_FAILED
 SHOW EVENTS;
 --error ER_CANNOT_LOAD_FROM_TABLE
+--error ER_EVENT_OPEN_TABLE_FAILED
 SELECT event_name FROM INFORMATION_SCHEMA.events;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 SHOW CREATE EVENT intact_check;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 DROP EVENT no_such_event;
---error ER_EVENT_STORE_FAILED
+--error ER_EVENT_OPEN_TABLE_FAILED
 CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 ALTER EVENT intact_check_1 RENAME TO intact_check_2;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 DROP EVENT intact_check_1;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 DROP EVENT intact_check_2;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 DROP EVENT intact_check;
 # Should work OK
 DROP DATABASE IF EXISTS mysqltest_no_such_database;
@@ -341,25 +351,25 @@ INSERT INTO event_like SELECT * FROM mysql.event;
 --echo
 --echo 
 ALTER TABLE mysql.event DROP comment, DROP starts;
---error ER_CANNOT_LOAD_FROM_TABLE
+--error ER_EVENT_OPEN_TABLE_FAILED
 SHOW EVENTS;
---error ER_CANNOT_LOAD_FROM_TABLE
+--error ER_EVENT_OPEN_TABLE_FAILED
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---error ER_CANNOT_LOAD_FROM_TABLE
+--error ER_EVENT_OPEN_TABLE_FAILED
 SHOW CREATE EVENT intact_check;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 DROP EVENT no_such_event;
---error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
+--error ER_EVENT_OPEN_TABLE_FAILED
 CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 ALTER EVENT intact_check_1 RENAME TO intact_check_2;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 DROP EVENT intact_check_1;
---error ER_EVENT_DOES_NOT_EXIST
+--error ER_EVENT_OPEN_TABLE_FAILED
 DROP EVENT intact_check_2;
-# Should succeed
+--error ER_EVENT_OPEN_TABLE_FAILED
 DROP EVENT intact_check;
 DROP DATABASE IF EXISTS mysqltest_no_such_database;
 CREATE DATABASE mysqltest_db2;
@@ -407,9 +417,54 @@ CREATE TABLE mysql.event like event_like;
 DROP TABLE event_like;
 --replace_column 8 # 9 #
 SHOW EVENTS;
-# 
-# End of tests
-#
+
+--echo
+--echo #
+--echo # Bug#12394306: the sever may crash if mysql.event is corrupted
+--echo #
+
+--echo
+CREATE EVENT ev1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ALTER EVENT ev1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+
+--echo
+CREATE TABLE event_original LIKE mysql.event;
+INSERT INTO event_original SELECT * FROM mysql.event;
+
+--echo
+ALTER TABLE mysql.event MODIFY modified CHAR(1);
+
+--echo
+--error ER_EVENT_OPEN_TABLE_FAILED
+SHOW EVENTS;
+
+--echo
+--error ER_EVENT_OPEN_TABLE_FAILED
+SELECT event_name, created, last_altered FROM information_schema.events;
+
+--echo
+--error ER_EVENT_OPEN_TABLE_FAILED
+CREATE EVENT ev2 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+
+--echo
+--error ER_EVENT_OPEN_TABLE_FAILED
+ALTER EVENT ev1 ON SCHEDULE EVERY 9 HOUR DO SELECT 9;
+
+--echo
+DROP TABLE mysql.event;
+RENAME TABLE event_original TO mysql.event;
+
+--echo
+DROP EVENT ev1;
+
+--echo
+SHOW EVENTS;
+
+
+--echo
+--echo # 
+--echo # End of tests
+--echo #
 
 let $wait_condition=
   select count(*) = 0 from information_schema.processlist

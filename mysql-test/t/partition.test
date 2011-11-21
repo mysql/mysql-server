@@ -15,6 +15,37 @@ drop table if exists t1, t2;
 --enable_warnings
 
 --echo #
+--echo # Bug#11765667: bug#58655: ASSERTION FAILED,
+--echo #                          SERVER CRASHES WITH MYSQLD GOT SIGNAL 6
+--echo #
+CREATE TABLE t1 (
+       id MEDIUMINT NOT NULL AUTO_INCREMENT,
+       dt DATE, st VARCHAR(255), uid INT,
+       id2nd LONGBLOB, filler VARCHAR(255), PRIMARY KEY(id, dt)
+);
+INSERT INTO t1 (dt, st, uid, id2nd, filler) VALUES
+   ('1991-03-14', 'Initial Insert', 200, 1234567, 'No Data'),
+   ('1991-02-26', 'Initial Insert', 201, 1234567, 'No Data'),
+   ('1992-03-16', 'Initial Insert', 234, 1234567, 'No Data'),
+   ('1992-07-02', 'Initial Insert', 287, 1234567, 'No Data'),
+   ('1991-05-26', 'Initial Insert', 256, 1234567, 'No Data'),
+   ('1991-04-25', 'Initial Insert', 222, 1234567, 'No Data'),
+   ('1993-03-12', 'Initial Insert', 267, 1234567, 'No Data'),
+   ('1993-03-14', 'Initial Insert', 291, 1234567, 'No Data'),
+   ('1991-12-20', 'Initial Insert', 298, 1234567, 'No Data'),
+   ('1994-10-31', 'Initial Insert', 220, 1234567, 'No Data');
+ALTER TABLE t1 PARTITION BY LIST (YEAR(dt)) (
+    PARTITION d1 VALUES IN (1991, 1994),
+    PARTITION d2 VALUES IN (1993),
+    PARTITION d3 VALUES IN (1992, 1995, 1996)
+);
+INSERT INTO t1 (dt, st, uid, id2nd, filler) VALUES
+   ('1991-07-14', 'After Partitioning Insert', 299, 1234567, 'Insert row');
+UPDATE t1 SET filler='Updating the row' WHERE uid=298;
+
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#59297: Can't find record in 'tablename' on update inner join
 --echo #
 

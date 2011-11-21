@@ -1,4 +1,5 @@
-/* Copyright (C) 2005 MySQL AB
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 #include <my_pthread.h>
@@ -489,9 +491,9 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       {
         free_plugin_mem(&plugin_dl);
         if (report & REPORT_TO_USER)
-          my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
+          my_error(ER_OUTOFMEMORY, MYF(0), (int) plugin_dl.dl.length);
         if (report & REPORT_TO_LOG)
-          sql_print_error(ER(ER_OUTOFMEMORY), plugin_dl.dl.length);
+          sql_print_error(ER(ER_OUTOFMEMORY), (int) plugin_dl.dl.length);
         DBUG_RETURN(0);
       }
       /*
@@ -516,9 +518,10 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   {
     free_plugin_mem(&plugin_dl);
     if (report & REPORT_TO_USER)
-      my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
+      my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(plugin_dl.dl.length));
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_OUTOFMEMORY), plugin_dl.dl.length);
+      sql_print_error(ER(ER_OUTOFMEMORY),
+                      static_cast<int>(plugin_dl.dl.length));
     DBUG_RETURN(0);
   }
   plugin_dl.dl.length= copy_and_convert(plugin_dl.dl.str, plugin_dl.dl.length,
@@ -530,9 +533,11 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   {
     free_plugin_mem(&plugin_dl);
     if (report & REPORT_TO_USER)
-      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(struct st_plugin_dl));
+      my_error(ER_OUTOFMEMORY, MYF(0),
+               static_cast<int>(sizeof(struct st_plugin_dl)));
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_OUTOFMEMORY), sizeof(struct st_plugin_dl));
+      sql_print_error(ER(ER_OUTOFMEMORY),
+                      static_cast<int>(sizeof(struct st_plugin_dl)));
     DBUG_RETURN(0);
   }
   DBUG_RETURN(tmp);

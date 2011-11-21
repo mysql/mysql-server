@@ -25,6 +25,7 @@
    OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
    SUCH DAMAGE.
 */
+
 /*  File   : strinstr.c
     Author : Monty & David
     Updated: 1986.12.08

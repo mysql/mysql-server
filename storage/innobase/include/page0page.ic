@@ -341,6 +341,22 @@ page_rec_is_infimum(
 }
 
 /*****************************************************************
+Returns the middle record of the records on the page. If there is an
+even number of records in the list, returns the first record of the
+upper half-list. */
+UNIV_INLINE
+rec_t*
+page_get_middle_rec(
+/*================*/
+			/* out: middle record */
+	page_t*	page)	/* in: page */
+{
+	ulint	middle = (page_get_n_recs(page) + 2) / 2;
+
+	return(page_rec_get_nth(page, middle));
+}
+
+/*****************************************************************
 Compares a data tuple to a physical record. Differs from the function
 cmp_dtuple_rec_with_match in the way that the record must reside on an
 index page, and also page infimum and supremum records can be given in

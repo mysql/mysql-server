@@ -3042,7 +3042,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     thread. If the transaction involved MyISAM tables, it should go
     into binlog even on rollback.
   */
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
+  pthread_mutex_lock(&LOCK_thread_count);
 
   /* Save variables so that we can reopen the log */
   save_name=name;

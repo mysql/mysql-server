@@ -88,6 +88,8 @@ memory is read outside the allocated blocks. */
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
+#define UNIV_BLOB_LIGHT_DEBUG			/* Enable off-page column
+						debugging without UNIV_DEBUG */
 #define UNIV_DEBUG				/* Enable ut_ad() assertions */
 #define UNIV_LIST_DEBUG				/* debug UT_LIST_ macros */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */

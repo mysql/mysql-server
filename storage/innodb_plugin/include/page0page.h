@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -68,10 +68,7 @@ typedef	byte		page_header_t;
 #define PAGE_MAX_TRX_ID	 18	/* highest id of a trx which may have modified
 				a record on the page; a dulint; defined only
 				in secondary indexes and in the insert buffer
-				tree; NOTE: this may be modified only
-				when the thread has an x-latch to the page,
-				and ALSO an x-latch to btr_search_latch
-				if there is a hash index to the page! */
+				tree */
 #define PAGE_HEADER_PRIV_END 26	/* end of private data structure of the page
 				header which are set in a page create */
 /*----*/
@@ -284,16 +281,42 @@ page_get_supremum_offset(
 	const page_t*	page);	/*!< in: page which must have record(s) */
 #define page_get_infimum_rec(page) ((page) + page_get_infimum_offset(page))
 #define page_get_supremum_rec(page) ((page) + page_get_supremum_offset(page))
+
 /************************************************************//**
-Returns the middle record of record list. If there are an even number
-of records in the list, returns the first record of upper half-list.
-@return	middle record */
+Returns the nth record of the record list.
+This is the inverse function of page_rec_get_n_recs_before().
+@return	nth record */
 UNIV_INTERN
+const rec_t*
+page_rec_get_nth_const(
+/*===================*/
+	const page_t*	page,	/*!< in: page */
+	ulint		nth)	/*!< in: nth record */
+	__attribute__((nonnull, warn_unused_result));
+/************************************************************//**
+Returns the nth record of the record list.
+This is the inverse function of page_rec_get_n_recs_before().
+@return	nth record */
+UNIV_INLINE
+rec_t*
+page_rec_get_nth(
+/*=============*/
+	page_t*	page,	/*< in: page */
+	ulint	nth)	/*!< in: nth record */
+	__attribute__((nonnull, warn_unused_result));
+
+#ifndef UNIV_HOTBACKUP
+/************************************************************//**
+Returns the middle record of the records on the page. If there is an
+even number of records in the list, returns the first record of the
+upper half-list.
+@return	middle record */
+UNIV_INLINE
 rec_t*
 page_get_middle_rec(
 /*================*/
-	page_t*	page);	/*!< in: page */
-#ifndef UNIV_HOTBACKUP
+	page_t*	page)	/*!< in: page */
+	__attribute__((nonnull, warn_unused_result));
 /*************************************************************//**
 Compares a data tuple to a physical record. Differs from the function
 cmp_dtuple_rec_with_match in the way that the record must reside on an
@@ -348,6 +371,7 @@ page_get_n_recs(
 /***************************************************************//**
 Returns the number of records before the given record in chain.
 The number includes infimum and supremum records.
+This is the inverse function of page_rec_get_nth().
 @return	number of records */
 UNIV_INTERN
 ulint

@@ -364,9 +364,11 @@ err:
         else
 	{
 	  MARIA_KEY key;
-	  if (_ma_ck_delete(info,
-                            (*keyinfo->make_key)(info, &key, i, buff, record,
-                                                 filepos, info->trn->trid)))
+	  if (keyinfo->ck_delete(info,
+                                 (*keyinfo->make_key)(info, &key, i, buff,
+                                                      record,
+                                                      filepos,
+                                                      info->trn->trid)))
 	  {
 	    if (local_lock_tree)
 	      rw_unlock(&keyinfo->root_lock);

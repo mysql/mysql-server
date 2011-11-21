@@ -1,4 +1,5 @@
-/* Copyright (C) 2005-2006 MySQL AB
+/*
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
   @file
@@ -55,7 +57,7 @@ C_MODE_END
 
 /**
   maximum length of string representation (number of maximum decimal
-  digits + 1 position for sign + 1 position for decimal point)
+  digits + 1 position for sign + 1 position for decimal point, no terminator)
 */
 #define DECIMAL_MAX_STR_LENGTH (DECIMAL_MAX_POSSIBLE_PRECISION + 2)
 
@@ -105,6 +107,7 @@ public:
       buffer[i]= i;
 #endif
   }
+
   my_decimal()
   {
     init();
@@ -212,6 +215,7 @@ inline uint32 my_decimal_precision_to_length(uint precision, uint8 scale,
 inline
 int my_decimal_string_length(const my_decimal *d)
 {
+  /* length of string representation including terminating '\0' */
   return decimal_string_size(d);
 }
 
