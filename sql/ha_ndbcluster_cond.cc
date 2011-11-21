@@ -1210,9 +1210,6 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     {
       if (!value || !field) break;
       bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
-      bool is_varbin= (value->qualification.value_type == Item::VARBIN_ITEM);
-      if (!is_string && !is_varbin)
-        break;
       // Save value in right format for the field type
       uint32 len= value->save_in_field(field);
       char buff[MAX_FIELD_WIDTH];
@@ -1241,9 +1238,6 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     {
       if (!value || !field) break;
       bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
-      bool is_varbin= (value->qualification.value_type == Item::VARBIN_ITEM);
-      if (!is_string && !is_varbin)
-        break;
       // Save value in right format for the field type
       uint32 len= value->save_in_field(field);
       char buff[MAX_FIELD_WIDTH];
