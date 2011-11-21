@@ -2819,40 +2819,6 @@ static Sys_var_ulong Sys_profiling_history_size(
        VALID_RANGE(0, 100), DEFAULT(15), BLOCK_SIZE(1));
 #endif
 
-#ifndef MCP_WL3733
-#ifndef EMBEDDED_LIBRARY
-my_bool slave_allow_batching;
-
-/*
-  Take Active MI lock while checking/updating slave_allow_batching
-  to give atomicity w.r.t. slave state changes
-*/
-static PolyLock_mutex PLock_active_mi(&LOCK_active_mi);
-
-static bool slave_allow_batching_check(sys_var *self, THD *thd, set_var *var)
-{
-  /* Only allow a change if the slave SQL thread is currently stopped */
-  bool slave_sql_running = active_mi->rli->slave_running;
-
-  if (slave_sql_running)
-  {
-    my_error(ER_SLAVE_MUST_STOP, MYF(0));
-    return true;
-  }
-
-  return false;
-}
-
-static Sys_var_mybool Sys_slave_allow_batching(
-       "slave_allow_batching", "Allow slave to batch requests",
-       GLOBAL_VAR(slave_allow_batching),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
-       &PLock_active_mi,
-       NOT_IN_BINLOG,
-       ON_CHECK(slave_allow_batching_check));
-#endif
-#endif
-
 static Sys_var_harows Sys_select_limit(
        "sql_select_limit",
        "The maximum number of rows to return from SELECT statements",
@@ -3383,6 +3349,14 @@ static Sys_var_mybool Sys_relay_log_recovery(
        "starts re-fetching from the master right after the last transaction "
        "processed",
        GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+#ifndef MCP_WL3733
+my_bool opt_slave_allow_batching;
+static Sys_var_mybool Sys_slave_allow_batching(
+       "slave_allow_batching", "Allow slave to batch requests",
+       GLOBAL_VAR(opt_slave_allow_batching),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+#endif
 
 static Sys_var_charptr Sys_slave_load_tmpdir(
        "slave_load_tmpdir", "The location where the slave should put "
