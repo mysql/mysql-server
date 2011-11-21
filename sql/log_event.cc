@@ -9036,7 +9036,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       Note that unlike the other thd options set here, this one
       comes from a global, and not from the incoming event.
     */
-    if (slave_allow_batching)
+    if (opt_slave_allow_batching)
       thd->variables.option_bits|= OPTION_ALLOW_BATCH;
     else
       thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;

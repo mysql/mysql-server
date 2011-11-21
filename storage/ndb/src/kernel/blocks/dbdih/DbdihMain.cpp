@@ -7486,7 +7486,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   const Uint32 defaultFragments = 
     c_fragments_per_node * cnoOfNodeGroups * cnoReplicas;
   const Uint32 maxFragments =
-    MAX_FRAG_PER_LQH * getLqhWorkers() * cnoOfNodeGroups * cnoReplicas;
+    MAX_FRAG_PER_LQH * (getLqhWorkers() ? getLqhWorkers() : 1) *
+    cnoOfNodeGroups * cnoReplicas;
 
   do {
     NodeGroupRecordPtr NGPtr;

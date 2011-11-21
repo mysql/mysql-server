@@ -34,6 +34,8 @@ public:
   struct TABLE *shadow_table;
   struct NDB_SHARE *share;
   union NdbValue *ndb_value[2];
+
+  void print(const char* where, FILE* file) const;
 };
 
 #endif

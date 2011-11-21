@@ -161,9 +161,13 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  Uint32 maxopen = 4 * 4; // 4 redo parts, max 4 files per part
+  Uint32 logParts = NDB_DEFAULT_LOG_PARTS;
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS, &logParts);
+
+  Uint32 maxopen = logParts * 4; // 4 redo parts, max 4 files per part
   Uint32 filebuffer = NDB_FILE_BUFFER_SIZE;
   Uint32 filepages = (filebuffer / GLOBAL_PAGE_SIZE) * maxopen;
+  globalData.ndbLogParts = logParts;
 
   {
     /**
