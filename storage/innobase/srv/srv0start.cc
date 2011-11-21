@@ -136,7 +136,7 @@ static char*	srv_monitor_file_name;
 
 /** Default undo tablespace size in UNIV_PAGEs count (10MB). */
 static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
-	((1024 * 1024) * 10) / UNIV_PAGE_SIZE;
+	((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
 
 /** */
 #define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
@@ -652,7 +652,9 @@ open_or_create_log_file(
 		which is for this log group */
 
 		fil_space_create(name,
-				 2 * k + SRV_LOG_SPACE_FIRST_ID, 0, FIL_LOG);
+				 2 * k + SRV_LOG_SPACE_FIRST_ID,
+				 fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
+				 FIL_LOG);
 	}
 
 	ut_a(fil_validate());
@@ -714,6 +716,7 @@ open_or_create_data_files(
 	ibool		one_opened	= FALSE;
 	ibool		one_created	= FALSE;
 	os_offset_t	size;
+	ulint		flags;
 	ulint		rounded_size_pages;
 	char		name[10000];
 
@@ -894,12 +897,31 @@ open_or_create_data_files(
 				return(DB_ERROR);
 			}
 skip_size_check:
-			fil_read_flushed_lsn_and_arch_log_no(
-				files[i], one_opened,
+			fil_read_first_page(
+				files[i], one_opened, &flags,
 #ifdef UNIV_LOG_ARCHIVE
 				min_arch_log_no, max_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
 				min_flushed_lsn, max_flushed_lsn);
+
+			if (UNIV_PAGE_SIZE
+			    != fsp_flags_get_page_size(flags)) {
+
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					" InnoDB: Error: data file %s"
+					" uses page size %lu,\n",
+					name,
+					fsp_flags_get_page_size(flags));
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					" InnoDB: but the start-up parameter"
+					" is innodb-page-size=%lu\n",
+					UNIV_PAGE_SIZE);
+
+				return(DB_ERROR);
+			}
+
 			one_opened = TRUE;
 		} else {
 			/* We created the data file and now write it full of
@@ -953,7 +975,8 @@ skip_size_check:
 		ut_a(ret);
 
 		if (i == 0) {
-			fil_space_create(name, 0, 0, FIL_TABLESPACE);
+			flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
+			fil_space_create(name, 0, flags, FIL_TABLESPACE);
 		}
 
 		ut_a(fil_validate());
@@ -1042,6 +1065,7 @@ srv_undo_tablespace_open(
 	os_file_t	fh;
 	enum db_err	err;
 	ibool		ret;
+	ulint		flags;
 
 	fh = os_file_create(
 		innodb_file_data_key, name,
@@ -1074,8 +1098,8 @@ srv_undo_tablespace_open(
 		fil_set_max_space_id_if_bigger(space);
 
 		/* Set the compressed page size to 0 (non-compressed) */
-
-		fil_space_create(name, space, 0, FIL_TABLESPACE);
+		flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
+		fil_space_create(name, space, flags, FIL_TABLESPACE);
 
 		ut_a(fil_validate());
 
@@ -1746,7 +1770,9 @@ innobase_start_or_create_for_mysql(void)
 
 	for (i = 0; i < srv_n_data_files; i++) {
 #ifndef __WIN__
-		if (sizeof(off_t) < 5 && srv_data_file_sizes[i] >= 262144) {
+		if (sizeof(off_t) < 5
+		    && srv_data_file_sizes[i]
+		    >= (ulint) (1 << (32 - UNIV_PAGE_SIZE_SHIFT))) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				" InnoDB: Error: file size must be < 4 GB"
@@ -1765,7 +1791,7 @@ innobase_start_or_create_for_mysql(void)
 	if (sum_of_new_sizes < 10485760 / UNIV_PAGE_SIZE) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Error: tablesapce size must be"
+			" InnoDB: Error: tablespace size must be"
 			" at least 10 MB\n");
 
 		return(DB_ERROR);

@@ -28,6 +28,8 @@ Created 1/20/1994 Heikki Tuuri
 
 #include "univ.i"
 
+#ifndef UNIV_INNOCHECKSUM
+
 #include "db0err.h"
 
 #ifndef UNIV_HOTBACKUP
@@ -272,6 +274,9 @@ ut_difftime(
 /*========*/
 	ib_time_t	time2,	/*!< in: time */
 	ib_time_t	time1);	/*!< in: time */
+
+#endif /* !UNIV_INNOCHECKSUM */
+
 /**********************************************************//**
 Prints a timestamp to a file. */
 UNIV_INTERN
@@ -280,6 +285,9 @@ ut_print_timestamp(
 /*===============*/
 	FILE*	file)	/*!< in: file where to print */
 	UNIV_COLD __attribute__((nonnull));
+
+#ifndef UNIV_INNOCHECKSUM
+
 /**********************************************************//**
 Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
 UNIV_INTERN
@@ -451,6 +459,8 @@ ut_ulint_sort(
 #ifndef UNIV_NONINL
 #include "ut0ut.ic"
 #endif
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif
 

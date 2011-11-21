@@ -120,9 +120,9 @@ struct buffer_page_info_struct{
 					/*!< Compressed page size */
 	unsigned	page_state:BUF_PAGE_STATE_BITS; /*!< Page state */
 	unsigned	page_type:4;	/*!< Page type */
-	unsigned	num_recs:UNIV_PAGE_SIZE_SHIFT-2;
+	unsigned	num_recs:UNIV_PAGE_SIZE_SHIFT_MAX-2;
 					/*!< Number of records on Page */
-	unsigned	data_size:UNIV_PAGE_SIZE_SHIFT;
+	unsigned	data_size:UNIV_PAGE_SIZE_SHIFT_MAX;
 					/*!< Sum of the sizes of the records */
 	lsn_t		newest_mod;	/*!< Log sequence number of
 					the youngest modification */

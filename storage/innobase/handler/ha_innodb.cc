@@ -941,6 +941,31 @@ innobase_create_handler(
 
 /* General functions */
 
+/*************************************************************//**
+Check that a page_size is correct for InnoDB.  If correct, set the
+associated page_size_shift which is the power of 2 for this page size.
+@return	an associated page_size_shift if valid, 0 if invalid. */
+inline
+int
+innodb_page_size_validate(
+/*======================*/
+	ulong	page_size)		/*!< in: Page Size to evaluate */
+{
+	ulong		n;
+
+	DBUG_ENTER("innodb_page_size_validate");
+
+	for (n = UNIV_PAGE_SIZE_SHIFT_MIN;
+	     n <= UNIV_PAGE_SIZE_SHIFT_MAX;
+	     n++) {
+		if (page_size == (ulong) (1 << n)) {
+			DBUG_RETURN(n);
+		}
+	}
+
+	DBUG_RETURN(0);
+}
+
 /******************************************************************//**
 Returns true if the thread is the replication thread on the slave
 server. Used in srv_conc_enter_innodb() to determine if the thread
@@ -1206,6 +1231,7 @@ convert_error_code_to_mysql(
 		/* fall through */
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
+		ut_ad(thd);
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    HA_ERR_ROW_IS_REFERENCED,
 				    "InnoDB: Cannot delete/update "
@@ -2814,6 +2840,24 @@ innobase_change_buffering_inited_ok:
 #ifdef UNIV_LOG_ARCHIVE
 	srv_log_archive_on = (ulint) innobase_log_archive;
 #endif /* UNIV_LOG_ARCHIVE */
+
+	/* Check that the value of system variable innodb_page_size was
+	set correctly.  Its value was put into srv_page_size. If valid,
+	return the associated srv_page_size_shift.*/
+	srv_page_size_shift = innodb_page_size_validate(srv_page_size);
+	if (!srv_page_size_shift) {
+		sql_print_error("InnoDB: Invalid page size=%lu.\n",
+				srv_page_size);
+		goto mem_free_and_error;
+	}
+	if (UNIV_PAGE_SIZE_DEF != srv_page_size) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: innodb-page-size has been changed"
+			" from the default value %d to %lu.\n",
+			UNIV_PAGE_SIZE_DEF, srv_page_size);
+	}
+
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
@@ -3676,11 +3720,25 @@ ha_innobase::max_supported_key_length() const
 /*=========================================*/
 {
 	/* An InnoDB page must store >= 2 keys; a secondary key record
-	must also contain the primary key value: max key length is
-	therefore set to slightly less than 1 / 4 of page size which
-	is 16 kB; but currently MySQL does not work with keys whose
-	size is > MAX_KEY_LENGTH */
-	return(3500);
+	must also contain the primary key value.  Therefore, if both
+	the primary key and the secondary key are at this maximum length,
+	it must be less than 1/4th of the free space on a page including
+	record overhead.
+
+	MySQL imposes its own limit to this number; MAX_KEY_LENGTH = 3072.
+
+	For page sizes = 16k, InnoDB historically reported 3500 bytes here,
+	But the MySQL limit of 3072 was always used through the handler
+	interface. */
+
+	switch (UNIV_PAGE_SIZE) {
+	case 4096:
+		return(768);
+	case 8192:
+		return(1536);
+	default:
+		return(3500);
+	}
 }
 
 /****************************************************************//**
@@ -8156,6 +8214,7 @@ create_options_are_valid(
 	if (create_info->key_block_size) {
 		kbs_specified = TRUE;
 		switch (create_info->key_block_size) {
+			ulint	kbs_max;
 		case 1:
 		case 2:
 		case 4:
@@ -8176,7 +8235,24 @@ create_options_are_valid(
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: KEY_BLOCK_SIZE requires"
 					" innodb_file_format > Antelope.");
-					ret = FALSE;
+				ret = FALSE;
+			}
+
+			/* The maximum KEY_BLOCK_SIZE (KBS) is 16. But if
+			UNIV_PAGE_SIZE is smaller than 16k, the maximum
+			KBS is also smaller. */
+			kbs_max = ut_min(
+				1 << (UNIV_PAGE_SSIZE_MAX - 1),
+				1 << (PAGE_ZIP_SSIZE_MAX - 1));
+			if (create_info->key_block_size > kbs_max) {
+				push_warning_printf(
+					thd, Sql_condition::WARN_LEVEL_WARN,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: KEY_BLOCK_SIZE=%ld"
+					" cannot be larger than %ld.",
+					create_info->key_block_size,
+					kbs_max);
+				ret = FALSE;
 			}
 			break;
 		default:
@@ -8380,7 +8456,8 @@ ha_innobase::create(
 		ulint zssize;		/* Zip Shift Size */
 		ulint kbsize;		/* Key Block Size */
 		for (zssize = kbsize = 1;
-		     zssize <= PAGE_ZIP_SSIZE_MAX;
+		     zssize <= ut_min(UNIV_PAGE_SSIZE_MAX,
+				      PAGE_ZIP_SSIZE_MAX);
 		     zssize++, kbsize <<= 1) {
 			if (kbsize == create_info->key_block_size) {
 				zip_ssize = zssize;
@@ -8407,7 +8484,9 @@ ha_innobase::create(
 			zip_allowed = FALSE;
 		}
 
-		if (!zip_allowed || zssize > PAGE_ZIP_SSIZE_MAX) {
+		if (!zip_allowed
+		    || zssize > ut_min(UNIV_PAGE_SSIZE_MAX,
+				       PAGE_ZIP_SSIZE_MAX)) {
 			push_warning_printf(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -8441,10 +8520,11 @@ ha_innobase::create(
 	} else {
 		/* zip_ssize == 0 means no KEY_BLOCK_SIZE.*/
 		if (row_format == ROW_TYPE_COMPRESSED && zip_allowed) {
-			/* ROW_FORMAT=COMPRESSED without
-			KEY_BLOCK_SIZE implies half the
-			maximum KEY_BLOCK_SIZE. */
-			zip_ssize = PAGE_ZIP_SSIZE_MAX - 1;
+			/* ROW_FORMAT=COMPRESSED without KEY_BLOCK_SIZE
+			implies half the maximum KEY_BLOCK_SIZE(*1k) or
+			UNIV_PAGE_SIZE, whichever is less. */
+			zip_ssize = ut_min(UNIV_PAGE_SSIZE_MAX,
+					   PAGE_ZIP_SSIZE_MAX) - 1;
 		}
 	}
 
@@ -14295,6 +14375,12 @@ static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
   "Helps to save your data in case the disk image of the database becomes corrupt.",
   NULL, NULL, 0, 0, 6, 0);
 
+static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Page size to use for all InnoDB tablespaces.",
+  NULL, NULL, UNIV_PAGE_SIZE_DEF,
+  UNIV_PAGE_SIZE_MIN, UNIV_PAGE_SIZE_MAX, 0);
+
 static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the buffer which InnoDB uses to write log to the log files on disk.",
@@ -14544,6 +14630,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_arch_dir),
   MYSQL_SYSVAR(log_archive),
 #endif /* UNIV_LOG_ARCHIVE */
+  MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_buffer_size),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),

@@ -46,7 +46,9 @@ buf_buddy_get(
 {
 	ut_ad(ut_is_2pow(size));
 	ut_ad(size >= BUF_BUDDY_LOW);
+	ut_ad(BUF_BUDDY_LOW <= UNIV_ZIP_SIZE_MIN);
 	ut_ad(size < BUF_BUDDY_HIGH);
+	ut_ad(BUF_BUDDY_HIGH == UNIV_PAGE_SIZE);
 	ut_ad(!ut_align_offset(page, size));
 
 	if (((ulint) page) & size) {

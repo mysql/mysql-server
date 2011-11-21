@@ -24,6 +24,8 @@ to the machine format.
 Created 11/28/1995 Heikki Tuuri
 ***********************************************************************/
 
+#ifndef UNIV_INNOCHECKSUM
+
 #include "ut0mem.h"
 
 /*******************************************************//**
@@ -168,6 +170,8 @@ mach_write_to_4(
 	b[3] = (byte)n;
 }
 
+#endif /* !UNIV_INNOCHECKSUM */
+
 /********************************************************//**
 The following function is used to fetch data from 4 consecutive
 bytes. The most significant byte is at the lowest address.
@@ -185,6 +189,8 @@ mach_read_from_4(
 		| (ulint)(b[3])
 		);
 }
+
+#ifndef UNIV_INNOCHECKSUM
 
 /*********************************************************//**
 Writes a ulint in a compressed form where the first byte codes the
@@ -771,3 +777,4 @@ mach_read_int_type(
 	return(ret);
 }
 #endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_INNOCHECKSUM */
