@@ -974,7 +974,6 @@ TRACE
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 3,
                 "key_length": 0,
@@ -988,7 +987,6 @@ TRACE
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
                 "table": "intermediate_tmp_table",
                 "field": "f2"
               }
@@ -1383,7 +1381,6 @@ TRACE
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
-                      "database": "",
                       "table": "intermediate_tmp_table",
                       "row_length": 22,
                       "key_length": 5,
@@ -1397,7 +1394,6 @@ TRACE
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "database": "",
                       "table": "intermediate_tmp_table",
                       "field": "b"
                     }
@@ -4951,7 +4947,6 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 18,
                 "key_length": 4,
@@ -4965,7 +4960,6 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
                 "table": "intermediate_tmp_table",
                 "field": "col_int_key"
               }
