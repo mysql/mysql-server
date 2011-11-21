@@ -121,7 +121,9 @@ os_log_bytes_written	disabled
 os_log_fsyncs	disabled
 os_log_pending_fsyncs	disabled
 os_log_pending_writes	disabled
-trx_commits	disabled
+trx_rw_commits	disabled
+trx_ro_commits	disabled
+trx_nl_ro_commits	disabled
 trx_commits_insert_update	disabled
 trx_rollbacks	disabled
 trx_rollbacks_savepoint	disabled
@@ -323,7 +325,9 @@ os_log_bytes_written	enabled
 os_log_fsyncs	enabled
 os_log_pending_fsyncs	enabled
 os_log_pending_writes	enabled
-trx_commits	enabled
+trx_rw_commits	enabled
+trx_ro_commits	enabled
+trx_nl_ro_commits	enabled
 trx_commits_insert_update	enabled
 trx_rollbacks	enabled
 trx_rollbacks_savepoint	enabled
@@ -527,7 +531,9 @@ os_log_bytes_written	disabled
 os_log_fsyncs	disabled
 os_log_pending_fsyncs	disabled
 os_log_pending_writes	disabled
-trx_commits	disabled
+trx_rw_commits	disabled
+trx_ro_commits	disabled
+trx_nl_ro_commits	disabled
 trx_commits_insert_update	disabled
 trx_rollbacks	disabled
 trx_rollbacks_savepoint	disabled
@@ -729,7 +735,9 @@ os_log_bytes_written	0	disabled
 os_log_fsyncs	0	disabled
 os_log_pending_fsyncs	0	disabled
 os_log_pending_writes	0	disabled
-trx_commits	0	disabled
+trx_rw_commits	0	disabled
+trx_ro_commits	0	disabled
+trx_nl_ro_commits	0	disabled
 trx_commits_insert_update	0	disabled
 trx_rollbacks	0	disabled
 trx_rollbacks_savepoint	0	disabled
@@ -985,7 +993,9 @@ os_log_bytes_written	enabled
 os_log_fsyncs	enabled
 os_log_pending_fsyncs	enabled
 os_log_pending_writes	enabled
-trx_commits	enabled
+trx_rw_commits	enabled
+trx_ro_commits	enabled
+trx_nl_ro_commits	enabled
 trx_commits_insert_update	enabled
 trx_rollbacks	enabled
 trx_rollbacks_savepoint	enabled
@@ -1187,7 +1197,9 @@ os_log_bytes_written	disabled
 os_log_fsyncs	disabled
 os_log_pending_fsyncs	disabled
 os_log_pending_writes	disabled
-trx_commits	disabled
+trx_rw_commits	disabled
+trx_ro_commits	disabled
+trx_nl_ro_commits	disabled
 trx_commits_insert_update	disabled
 trx_rollbacks	disabled
 trx_rollbacks_savepoint	disabled
@@ -1389,7 +1401,9 @@ os_log_bytes_written	enabled
 os_log_fsyncs	enabled
 os_log_pending_fsyncs	enabled
 os_log_pending_writes	enabled
-trx_commits	enabled
+trx_rw_commits	enabled
+trx_ro_commits	enabled
+trx_nl_ro_commits	enabled
 trx_commits_insert_update	enabled
 trx_rollbacks	enabled
 trx_rollbacks_savepoint	enabled
@@ -1591,7 +1605,9 @@ os_log_bytes_written	disabled
 os_log_fsyncs	disabled
 os_log_pending_fsyncs	disabled
 os_log_pending_writes	disabled
-trx_commits	disabled
+trx_rw_commits	disabled
+trx_ro_commits	disabled
+trx_nl_ro_commits	disabled
 trx_commits_insert_update	disabled
 trx_rollbacks	disabled
 trx_rollbacks_savepoint	disabled
@@ -1793,7 +1809,9 @@ os_log_bytes_written	disabled
 os_log_fsyncs	disabled
 os_log_pending_fsyncs	disabled
 os_log_pending_writes	disabled
-trx_commits	disabled
+trx_rw_commits	disabled
+trx_ro_commits	disabled
+trx_nl_ro_commits	disabled
 trx_commits_insert_update	disabled
 trx_rollbacks	disabled
 trx_rollbacks_savepoint	disabled

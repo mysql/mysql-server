@@ -27,6 +27,9 @@ Created 10/25/1995 Heikki Tuuri
 #define fil0fil_h
 
 #include "univ.i"
+
+#ifndef UNIV_INNOCHECKSUM
+
 #include "dict0types.h"
 #include "ut0byte.h"
 #include "os0file.h"
@@ -70,6 +73,8 @@ struct fil_addr_struct{
 
 /** The null file address */
 extern fil_addr_t	fil_addr_null;
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 /** The byte offsets on a file page for various variables @{ */
 #define FIL_PAGE_SPACE_OR_CHKSUM 0	/*!< in < MySQL-4.0.14 space id the
@@ -127,6 +132,8 @@ extern fil_addr_t	fil_addr_null;
 					to the last 4 bytes of FIL_PAGE_LSN */
 #define FIL_PAGE_DATA_END	8	/*!< size of the page trailer */
 /* @} */
+
+#ifndef UNIV_INNOCHECKSUM
 
 /** File page types (values of FIL_PAGE_TYPE) @{ */
 #define FIL_PAGE_INDEX		17855	/*!< B-tree node */
@@ -328,16 +335,17 @@ fil_write_flushed_lsn_to_data_files(
 	lsn_t	lsn,		/*!< in: lsn to write */
 	ulint	arch_log_no);	/*!< in: latest archived log file number */
 /*******************************************************************//**
-Reads the flushed lsn and arch no fields from a data file at database
-startup. */
+Reads the flushed lsn, arch no, and tablespace flag fields from a data
+file at database startup. */
 UNIV_INTERN
 void
-fil_read_flushed_lsn_and_arch_log_no(
-/*=================================*/
+fil_read_first_page(
+/*================*/
 	os_file_t	data_file,		/*!< in: open data file */
 	ibool		one_read_already,	/*!< in: TRUE if min and max
 						parameters below already
 						contain sensible data */
+	ulint*		flags,			/*!< out: tablespace flags */
 #ifdef UNIV_LOG_ARCHIVE
 	ulint*		min_arch_log_no,	/*!< out: */
 	ulint*		max_arch_log_no,	/*!< out: */
@@ -731,5 +739,7 @@ fil_tablespace_is_being_deleted(
 	ulint		id);	/*!< in: space id */
 
 typedef	struct fil_space_struct	fil_space_t;
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif
