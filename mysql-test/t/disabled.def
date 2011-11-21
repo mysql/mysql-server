@@ -20,4 +20,7 @@ mysql_embedded           : Bug#12561297 2011-05-14 Anitha Dependent on PB2 chang
 
 ### MCP_DISABLE_FAILING_TESTS start ###
 file_contents            : Bug#12585902 2011-09-27 magnus file_contents.test fails when building from "bzr export"
+innodb                   : Waiting for WL#5534
+innodb-index             : Waiting for WL#5534
+innodb_mysql             : Waiting for WL#5534
 ### MCP_DISABLE_FAILING_TESTS end ###
