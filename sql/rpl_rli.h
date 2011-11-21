@@ -448,6 +448,7 @@ public:
   DYNAMIC_ARRAY curr_group_da;  // deferred array to hold partition-info-free events
   bool curr_group_seen_begin;   // current group started with B-event or not
   bool curr_group_isolated;     // current group requires execution in isolation
+  bool mts_end_group_sets_max_dbs; // flag indicates if partitioning info is discovered
   volatile ulong mts_wq_underrun_w_id;  // Id of a Worker whose queue is getting empty
   /* 
      Ongoing excessive overrun counter to correspond to number of events that
