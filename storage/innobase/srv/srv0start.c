@@ -610,7 +610,7 @@ open_or_create_log_file(
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-			"  InnoDB: Log file %s did not exist:"
+			" InnoDB: Log file %s did not exist:"
 			" new to be created\n",
 			name);
 		if (log_file_has_been_opened) {
@@ -927,7 +927,7 @@ skip_size_check:
 			if (i > 0) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-					"  InnoDB: Data file %s did not"
+					" InnoDB: Data file %s did not"
 					" exist: new to be created\n",
 					name);
 			} else {
@@ -941,7 +941,7 @@ skip_size_check:
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB: Setting file %s size to %lu MB\n",
+				" InnoDB: Setting file %s size to %lu MB\n",
 				name,
 				(ulong) (srv_data_file_sizes[i]
 					 >> (20 - UNIV_PAGE_SIZE_SHIFT)));
@@ -1020,22 +1020,22 @@ srv_undo_tablespace_create(
 		/* We created the data file and now write it full of zeros */
 
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Data file %s did not"
+		fprintf(stderr, " InnoDB: Data file %s did not"
 				" exist: new to be created\n", name);
 
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Setting file %s size to %lu MB\n",
+		fprintf(stderr, " InnoDB: Setting file %s size to %lu MB\n",
 				name, size >> (20 - UNIV_PAGE_SIZE_SHIFT));
 
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Database physically writes the"
+		fprintf(stderr, " InnoDB: Database physically writes the"
 				" file full: wait...\n");
 
 		ret = os_file_set_size(name, fh, size << UNIV_PAGE_SIZE_SHIFT);
 
 		if (!ret) {
 			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Error in creating %s:"
+			fprintf(stderr, " InnoDB: Error in creating %s:"
 					" probably out of disk space\n", name);
 
 			err = DB_ERROR;
@@ -2231,7 +2231,7 @@ innobase_start_or_create_for_mysql(void)
 			== ULINT_UNDEFINED)) {
 
 			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: "
+			fprintf(stderr, " InnoDB: "
 				"Waiting for the background threads to "
 				"start\n");
 			os_thread_sleep(1000000);
@@ -2500,7 +2500,7 @@ innobase_shutdown_for_mysql(void)
 		if (srv_is_being_started) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB: Warning: shutting down"
+				" InnoDB: Warning: shutting down"
 				" a not properly started\n"
 				"InnoDB: or created database!\n");
 		}
@@ -2668,7 +2668,7 @@ innobase_shutdown_for_mysql(void)
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Shutdown completed;"
+			" InnoDB: Shutdown completed;"
 			" log sequence number " LSN_PF "\n",
 			srv_shutdown_lsn);
 	}
