@@ -55,6 +55,8 @@ connection slave;
 #                         data file is removed the server won't be able to 
 #                         resolve the realpath, ending up stating that we 
 #                         have a mismatch)
+call mtr.add_suppression("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir");
+call mtr.add_suppression("The MySQL server is running with the --slave-load-tmpdir option so it cannot execute this statement.*Error_code: 1290");
 --let $slave_sql_errno= 29, 13, 1290
 --source include/wait_for_slave_sql_error.inc
 

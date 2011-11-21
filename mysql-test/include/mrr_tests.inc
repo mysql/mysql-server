@@ -394,7 +394,7 @@ DROP TABLE t1, t2;
 
 # This test should run without join buffering
 set @save_optimizer_switch = @@optimizer_switch;
-set optimizer_switch='block_nested_loop=off,batch_key_access=off';
+set optimizer_switch='block_nested_loop=off,batched_key_access=off';
 
 CREATE TABLE t1 (
   pk INTEGER,

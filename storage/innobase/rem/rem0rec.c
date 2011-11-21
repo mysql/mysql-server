@@ -550,6 +550,9 @@ rec_get_offsets_func(
 			n = dict_index_get_n_fields(index);
 			break;
 		case REC_STATUS_NODE_PTR:
+			/* Node pointer records consist of the
+			uniquely identifying fields of the record
+			followed by a child page number field. */
 			n = dict_index_get_n_unique_in_tree(index) + 1;
 			break;
 		case REC_STATUS_INFIMUM:
@@ -569,6 +572,8 @@ rec_get_offsets_func(
 		n = n_fields;
 	}
 
+	/* The offsets header consists of the allocation size at
+	offsets[0] and the REC_OFFS_HEADER_SIZE bytes. */
 	size = n + (1 + REC_OFFS_HEADER_SIZE);
 
 	if (UNIV_UNLIKELY(!offsets)
