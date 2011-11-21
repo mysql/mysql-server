@@ -2493,21 +2493,23 @@ class Ndb_schema_event_handler {
 
 
   void
-  log_after_epoch(Ndb_schema_op* schema)
+  handle_after_epoch(Ndb_schema_op* schema)
   {
-    DBUG_ENTER("log_after_epoch");
+    DBUG_ENTER("handle_after_epoch");
+    DBUG_PRINT("info", ("Pushing Ndb_schema_op on list to be "
+                        "handled after epoch"));
     assert(!is_post_epoch()); // Only before epoch
-    m_post_epoch_log_list.push_back(schema, m_mem_root);
+    m_post_epoch_handle_list.push_back(schema, m_mem_root);
     DBUG_VOID_RETURN;
   }
 
 
   void
-  unlock_after_epoch(Ndb_schema_op* schema)
+  ack_after_epoch(Ndb_schema_op* schema)
   {
-    DBUG_ENTER("unlock_after_epoch");
+    DBUG_ENTER("ack_after_epoch");
     assert(!is_post_epoch()); // Only before epoch
-    m_post_epoch_unlock_list.push_back(schema, m_mem_root);
+    m_post_epoch_ack_list.push_back(schema, m_mem_root);
     DBUG_VOID_RETURN;
   }
 
@@ -3231,7 +3233,7 @@ class Ndb_schema_event_handler {
           schema events get inserted in the binlog after any data
           events
         */
-        log_after_epoch(schema);
+        handle_after_epoch(schema);
         DBUG_RETURN(0);
 
       case SOT_ALTER_TABLE_COMMIT:
@@ -3241,8 +3243,8 @@ class Ndb_schema_event_handler {
       case SOT_RENAME_TABLE:
       case SOT_DROP_TABLE:
       case SOT_DROP_DB:
-        log_after_epoch(schema);
-        unlock_after_epoch(schema);
+        handle_after_epoch(schema);
+        ack_after_epoch(schema);
         DBUG_RETURN(0);
 
       case SOT_TRUNCATE_TABLE:
@@ -3276,6 +3278,17 @@ class Ndb_schema_event_handler {
         write_schema_op_to_binlog(m_thd, schema);
         break;
 
+      case SOT_RENAME_TABLE_NEW:
+        /*
+          Only very old MySQL Server connected to the cluster may
+          send this schema operation, ignore it
+        */
+        sql_print_error("NDB schema: Skipping old schema operation"
+                        "(RENAME_TABLE_NEW) on %s.%s",
+                        schema->db, schema->name);
+        DBUG_ASSERT(false);
+        break;
+
       }
 
       /* signal that schema operation has been handled */
@@ -3294,7 +3307,6 @@ class Ndb_schema_event_handler {
   handle_schema_op_post_epoch(Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_schema_op_post_epoch");
-    THD* thd = m_thd; // Code compatibility
     DBUG_PRINT("enter", ("%s.%s: query: '%s'  type: %d",
                          schema->db, schema->name,
                          schema->query, schema->type));
@@ -3349,39 +3361,6 @@ class Ndb_schema_event_handler {
     DBUG_VOID_RETURN;
   }
 
-
-  /*
-    process any operations that should be done after
-    the epoch is complete
-  */
-  void
-  handle_schema_log_post_epoch(List<Ndb_schema_op> *log_list)
-  {
-    DBUG_ENTER("handle_schema_log_post_epoch");
-
-    Ndb_schema_op* schema;
-    while ((schema= log_list->pop()))
-    {
-      handle_schema_op_post_epoch(schema);
-    }
-    DBUG_VOID_RETURN;
-  }
-
-
-  void
-  handle_schema_unlock_post_epoch(List<Ndb_schema_op> *unlock_list)
-  {
-    DBUG_ENTER("handle_schema_unlock_post_epoch");
-
-    Ndb_schema_op *schema;
-    while ((schema= unlock_list->pop()))
-    {
-      ack_schema_op(schema->db, schema->name,
-                    schema->id, schema->version);
-    }
-    DBUG_VOID_RETURN;
-  }
-
   THD* m_thd;
   MEM_ROOT* m_mem_root;
   uint m_own_nodeid;
@@ -3389,8 +3368,8 @@ class Ndb_schema_event_handler {
 
   bool is_post_epoch(void) const { return m_post_epoch; };
 
-  List<Ndb_schema_op> m_post_epoch_log_list;
-  List<Ndb_schema_op> m_post_epoch_unlock_list;
+  List<Ndb_schema_op> m_post_epoch_handle_list;
+  List<Ndb_schema_op> m_post_epoch_ack_list;
 
 public:
   Ndb_schema_event_handler(); // Not implemented
@@ -3406,8 +3385,8 @@ public:
   ~Ndb_schema_event_handler()
   {
     // There should be no work left todo...
-    DBUG_ASSERT(m_post_epoch_log_list.elements == 0);
-    DBUG_ASSERT(m_post_epoch_unlock_list.elements == 0);
+    DBUG_ASSERT(m_post_epoch_handle_list.elements == 0);
+    DBUG_ASSERT(m_post_epoch_ack_list.elements == 0);
   }
 
 
@@ -3551,18 +3530,34 @@ public:
 
   void post_epoch()
   {
-    if (m_post_epoch_log_list.elements > 0)
+    if (unlikely(m_post_epoch_handle_list.elements > 0))
     {
       // Set the flag used to check that functions are called at correct time
       m_post_epoch= true;
 
-      handle_schema_log_post_epoch(&m_post_epoch_log_list);
-      // NOTE post_epoch_unlock_list may not be handled!
-      handle_schema_unlock_post_epoch(&m_post_epoch_unlock_list);
+      /*
+       process any operations that should be done after
+       the epoch is complete
+      */
+      Ndb_schema_op* schema;
+      while ((schema= m_post_epoch_handle_list.pop()))
+      {
+        handle_schema_op_post_epoch(schema);
+      }
+
+      /*
+       process any operations that should be unlocked/acked after
+       the epoch is complete
+      */
+      while ((schema= m_post_epoch_ack_list.pop()))
+      {
+        ack_schema_op(schema->db, schema->name,
+                      schema->id, schema->version);
+      }
     }
     // There should be no work left todo...
-    DBUG_ASSERT(m_post_epoch_log_list.elements == 0);
-    DBUG_ASSERT(m_post_epoch_unlock_list.elements == 0);
+    DBUG_ASSERT(m_post_epoch_handle_list.elements == 0);
+    DBUG_ASSERT(m_post_epoch_ack_list.elements == 0);
   }
 };
 
