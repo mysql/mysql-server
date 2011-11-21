@@ -3293,7 +3293,6 @@ class Ndb_schema_event_handler {
   handle_schema_op_post_epoch(Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_schema_op_post_epoch");
-    THD* thd = m_thd; // Code compatibility
     DBUG_PRINT("enter", ("%s.%s: query: '%s'  type: %d",
                          schema->db, schema->name,
                          schema->query, schema->type));
