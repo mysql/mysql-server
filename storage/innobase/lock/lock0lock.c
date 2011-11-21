@@ -5089,6 +5089,10 @@ lock_print_info_all_transactions(
 
 	/* First print info on non-active transactions */
 
+	/* NOTE: information of auto-commit non-locking read-only
+	transactions will be omitted here. The information will be
+	available from INFORMATION_SCHEMA.INNODB_TRX. */
+
 	for (trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
@@ -5115,6 +5119,7 @@ loop:
 	     trx = UT_LIST_GET_NEXT(trx_list, trx), i++) {
 
 		assert_trx_in_list(trx);
+		ut_ad(trx->read_only == (trx_list == &trx_sys->ro_trx_list));
 	}
 
 	ut_ad(trx == NULL
