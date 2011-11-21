@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1046,6 +1046,11 @@ btr_cur_ins_lock_and_undo(
 	rec_t*		rec;
 	roll_ptr_t	roll_ptr;
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, UNDO */
+		return(DB_SUCCESS);
+	}
+
 	/* Check if we have to wait for a lock: enqueue an explicit lock
 	request if yes */
 
@@ -1177,7 +1182,7 @@ btr_cur_optimistic_insert(
 	}
 #endif /* UNIV_DEBUG */
 
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	max_size = page_get_max_insert_size_after_reorganize(page, 1);
 	leaf = page_is_leaf(page);
 
@@ -1270,6 +1275,12 @@ fail_err:
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
 		goto fail_err;
+	}
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip CHANGE, LOG */
+		*big_rec = big_rec_vec;
+		return(err); /* == DB_SUCCESS */
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -1414,10 +1425,10 @@ btr_cur_pessimistic_insert(
 
 	*big_rec = NULL;
 
-	ut_ad(mtr_memo_contains(mtr,
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr,
 				dict_index_get_lock(btr_cur_get_index(cursor)),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
 
 	/* Try first an optimistic insert; reset the cursor flag: we do not
@@ -1483,6 +1494,16 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip CHANGE, LOG */
+		if (n_extents > 0) {
+			fil_space_release_free_extents(index->space,
+						       n_reserved);
+		}
+		*big_rec = big_rec_vec;
+		return(DB_SUCCESS);
+	}
+
 	if (dict_index_get_page(index)
 	    == buf_block_get_page_no(btr_cur_get_block(cursor))) {
 
@@ -1538,6 +1559,11 @@ btr_cur_upd_lock_and_undo(
 	ulint		err;
 
 	ut_ad(cursor && update && thr && roll_ptr);
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, UNDO */
+		return(DB_SUCCESS);
+	}
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
@@ -1837,6 +1863,14 @@ btr_cur_update_in_place(
 		return(err);
 	}
 
+	if (trx->fake_changes) {
+		/* skip CHANGE, LOG */
+		if (UNIV_LIKELY_NULL(heap)) {
+			mem_heap_free(heap);
+		}
+		return(err); /* == DB_SUCCESS */
+	}
+
 	if (block->is_hashed) {
 		/* The function row_upd_changes_ord_field_binary works only
 		if the update vector was built for a clustered index, we must
@@ -1929,7 +1963,6 @@ btr_cur_optimistic_update(
 	ulint		old_rec_size;
 	dtuple_t*	new_entry;
 	roll_ptr_t	roll_ptr;
-	trx_t*		trx;
 	mem_heap_t*	heap;
 	ulint		i;
 	ulint		n_ext;
@@ -1940,12 +1973,16 @@ btr_cur_optimistic_update(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	ut_a(!rec_offs_any_null_extern(rec, offsets)
+	     || trx_is_recv(thr_get_trx(thr)));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
@@ -2050,6 +2087,11 @@ any_extern:
 		goto err_exit;
 	}
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip CHANGE, LOG */
+		goto err_exit; /* == DB_SUCCESS */
+	}
+
 	/* Ok, we may do the replacement. Store on the page infimum the
 	explicit locks on rec, before deleting rec (see the comment in
 	btr_cur_pessimistic_update). */
@@ -2068,13 +2110,11 @@ any_extern:
 
 	page_cur_move_to_prev(page_cursor);
 
-	trx = thr_get_trx(thr);
-
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
-					      trx->id);
+					      thr_get_trx(thr)->id);
 	}
 
 	/* There are no externally stored columns in new_entry */
@@ -2160,7 +2200,9 @@ btr_cur_pessimistic_update(
 /*=======================*/
 	ulint		flags,	/*!< in: undo logging, locking, and rollback
 				flags */
-	btr_cur_t*	cursor,	/*!< in: cursor on the record to update */
+	btr_cur_t*	cursor,	/*!< in/out: cursor on the record to update;
+				cursor may become invalid if *big_rec == NULL
+				|| !(flags & BTR_KEEP_POS_FLAG) */
 	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	big_rec_t**	big_rec,/*!< out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
@@ -2200,9 +2242,9 @@ btr_cur_pessimistic_update(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -2290,6 +2332,9 @@ btr_cur_pessimistic_update(
 
 		ut_ad(big_rec_vec == NULL);
 
+		/* fake_changes should not cause undo. so never reaches here */
+		ut_ad(!(trx->fake_changes));
+
 		btr_rec_free_updated_extern_fields(
 			index, rec, page_zip, offsets, update,
 			trx_is_recv(trx) ? RB_RECOVERY : RB_NORMAL, mtr);
@@ -2299,7 +2344,7 @@ btr_cur_pessimistic_update(
 	record to be inserted: we have to remember which fields were such */
 
 	ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
-	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, heap);
+	ut_ad(rec_offs_validate(rec, index, offsets));
 	n_ext += btr_push_update_extern_fields(new_entry, update, *heap);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
@@ -2322,6 +2367,16 @@ make_external:
 			err = DB_TOO_BIG_RECORD;
 			goto return_after_reservations;
 		}
+
+		ut_ad(page_is_leaf(page));
+		ut_ad(dict_index_is_clust(index));
+		ut_ad(flags & BTR_KEEP_POS_FLAG);
+	}
+
+	if (trx->fake_changes) {
+		/* skip CHANGE, LOG */
+		err = DB_SUCCESS;
+		goto return_after_reservations;
 	}
 
 	/* Store state of explicit locks on rec on the page infimum record,
@@ -2349,6 +2404,8 @@ make_external:
 	rec = btr_cur_insert_if_possible(cursor, new_entry, n_ext, mtr);
 
 	if (rec) {
+		page_cursor->rec = rec;
+
 		lock_rec_restore_from_page_infimum(btr_cur_get_block(cursor),
 						   rec, block);
 
@@ -2362,7 +2419,10 @@ make_external:
 						     rec, index, offsets, mtr);
 		}
 
-		btr_cur_compress_if_useful(cursor, mtr);
+		btr_cur_compress_if_useful(
+			cursor,
+			big_rec_vec != NULL && (flags & BTR_KEEP_POS_FLAG),
+			mtr);
 
 		if (page_zip && !dict_index_is_clust(index)
 		    && page_is_leaf(page)) {
@@ -2382,6 +2442,21 @@ make_external:
 		}
 	}
 
+	if (big_rec_vec) {
+		ut_ad(page_is_leaf(page));
+		ut_ad(dict_index_is_clust(index));
+		ut_ad(flags & BTR_KEEP_POS_FLAG);
+
+		/* btr_page_split_and_insert() in
+		btr_cur_pessimistic_insert() invokes
+		mtr_memo_release(mtr, index->lock, MTR_MEMO_X_LOCK).
+		We must keep the index->lock when we created a
+		big_rec, so that row_upd_clust_rec() can store the
+		big_rec in the same mini-transaction. */
+
+		mtr_x_lock(dict_index_get_lock(index), mtr);
+	}
+
 	/* Was the record to be updated positioned as the first user
 	record on its page? */
 	was_first = page_cur_is_before_first(page_cursor);
@@ -2397,6 +2472,7 @@ make_external:
 	ut_a(rec);
 	ut_a(err == DB_SUCCESS);
 	ut_a(dummy_big_rec == NULL);
+	page_cursor->rec = rec;
 
 	if (dict_index_is_sec_or_ibuf(index)) {
 		/* Update PAGE_MAX_TRX_ID in the index page header.
@@ -2453,6 +2529,39 @@ return_after_reservations:
 	*big_rec = big_rec_vec;
 
 	return(err);
+}
+
+/**************************************************************//**
+Commits and restarts a mini-transaction so that it will retain an
+x-lock on index->lock and the cursor page. */
+UNIV_INTERN
+void
+btr_cur_mtr_commit_and_start(
+/*=========================*/
+	btr_cur_t*	cursor,	/*!< in: cursor */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+{
+	buf_block_t*	block;
+
+	block = btr_cur_get_block(cursor);
+
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(cursor->index),
+				MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	/* Keep the locks across the mtr_commit(mtr). */
+	rw_lock_x_lock(dict_index_get_lock(cursor->index));
+	rw_lock_x_lock(&block->lock);
+	mutex_enter(&block->mutex);
+	buf_block_buf_fix_inc(block, __FILE__, __LINE__);
+	mutex_exit(&block->mutex);
+	/* Write out the redo log. */
+	mtr_commit(mtr);
+	mtr_start(mtr);
+	/* Reassociate the locks with the mini-transaction.
+	They will be released on mtr_commit(mtr). */
+	mtr_memo_push(mtr, dict_index_get_lock(cursor->index),
+		      MTR_MEMO_X_LOCK);
+	mtr_memo_push(mtr, block, MTR_MEMO_PAGE_X_FIX);
 }
 
 /*==================== B-TREE DELETE MARK AND UNMARK ===============*/
@@ -2625,6 +2734,11 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, UNDO, CHANGE, LOG */
+		return(DB_SUCCESS);
+	}
+
 	err = lock_clust_rec_modify_check_and_lock(flags, block,
 						   rec, index, offsets, thr);
 
@@ -2647,6 +2761,7 @@ btr_cur_del_mark_set_clust_rec(
 
 	page_zip = buf_block_get_page_zip(block);
 
+	btr_blob_dbg_set_deleted_flag(rec, index, offsets, val);
 	btr_rec_set_deleted_flag(rec, page_zip, val);
 
 	trx = thr_get_trx(thr);
@@ -2761,6 +2876,11 @@ btr_cur_del_mark_set_sec_rec(
 	rec_t*		rec;
 	ulint		err;
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, CHANGE, LOG */
+		return(DB_SUCCESS);
+	}
+
 	block = btr_cur_get_block(cursor);
 	rec = btr_cur_get_rec(cursor);
 
@@ -2833,10 +2953,12 @@ UNIV_INTERN
 ibool
 btr_cur_compress_if_useful(
 /*=======================*/
-	btr_cur_t*	cursor,	/*!< in: cursor on the page to compress;
-				cursor does not stay valid if compression
-				occurs */
-	mtr_t*		mtr)	/*!< in: mtr */
+	btr_cur_t*	cursor,	/*!< in/out: cursor on the page to compress;
+				cursor does not stay valid if !adjust and
+				compression occurs */
+	ibool		adjust,	/*!< in: TRUE if should adjust the
+				cursor position even if compression occurs */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	ut_ad(mtr_memo_contains(mtr,
 				dict_index_get_lock(btr_cur_get_index(cursor)),
@@ -2845,7 +2967,7 @@ btr_cur_compress_if_useful(
 				MTR_MEMO_PAGE_X_FIX));
 
 	return(btr_cur_compress_recommendation(cursor, mtr)
-	       && btr_compress(cursor, mtr));
+	       && btr_compress(cursor, adjust, mtr));
 }
 
 /*******************************************************//**
@@ -3092,7 +3214,7 @@ return_after_reservations:
 	mem_heap_free(heap);
 
 	if (ret == FALSE) {
-		ret = btr_cur_compress_if_useful(cursor, mtr);
+		ret = btr_cur_compress_if_useful(cursor, FALSE, mtr);
 	}
 
 	if (n_extents > 0) {
@@ -3116,6 +3238,7 @@ btr_cur_add_path_info(
 {
 	btr_path_t*	slot;
 	rec_t*		rec;
+	page_t*		page;
 
 	ut_a(cursor->path_arr);
 
@@ -3138,8 +3261,155 @@ btr_cur_add_path_info(
 
 	slot = cursor->path_arr + (root_height - height);
 
+	page = page_align(rec);
+
 	slot->nth_rec = page_rec_get_n_recs_before(rec);
-	slot->n_recs = page_get_n_recs(page_align(rec));
+	slot->n_recs = page_get_n_recs(page);
+	slot->page_no = page_get_page_no(page);
+	slot->page_level = btr_page_get_level_low(page);
+}
+
+/*******************************************************************//**
+Estimate the number of rows between slot1 and slot2 for any level on a
+B-tree. This function starts from slot1->page and reads a few pages to
+the right, counting their records. If we reach slot2->page quickly then
+we know exactly how many records there are between slot1 and slot2 and
+we set is_n_rows_exact to TRUE. If we cannot reach slot2->page quickly
+then we calculate the average number of records in the pages scanned
+so far and assume that all pages that we did not scan up to slot2->page
+contain the same number of records, then we multiply that average to
+the number of pages between slot1->page and slot2->page (which is
+n_rows_on_prev_level). In this case we set is_n_rows_exact to FALSE.
+@return	number of rows (exact or estimated) */
+static
+ib_int64_t
+btr_estimate_n_rows_in_range_on_level(
+/*==================================*/
+	dict_index_t*	index,			/*!< in: index */
+	btr_path_t*	slot1,			/*!< in: left border */
+	btr_path_t*	slot2,			/*!< in: right border */
+	ib_int64_t	n_rows_on_prev_level,	/*!< in: number of rows
+						on the previous level for the
+						same descend paths; used to
+						determine the numbe of pages
+						on this level */
+	ibool*		is_n_rows_exact)	/*!< out: TRUE if the returned
+						value is exact i.e. not an
+						estimation */
+{
+	ulint		space;
+	ib_int64_t	n_rows;
+	ulint		n_pages_read;
+	ulint		page_no;
+	ulint		zip_size;
+	ulint		level;
+
+	space = dict_index_get_space(index);
+
+	n_rows = 0;
+	n_pages_read = 0;
+
+	/* Assume by default that we will scan all pages between
+	slot1->page_no and slot2->page_no */
+	*is_n_rows_exact = TRUE;
+
+	/* add records from slot1->page_no which are to the right of
+	the record which serves as a left border of the range, if any */
+	if (slot1->nth_rec < slot1->n_recs) {
+		n_rows += slot1->n_recs - slot1->nth_rec;
+	}
+
+	/* add records from slot2->page_no which are to the left of
+	the record which servers as a right border of the range, if any */
+	if (slot2->nth_rec > 1) {
+		n_rows += slot2->nth_rec - 1;
+	}
+
+	/* count the records in the pages between slot1->page_no and
+	slot2->page_no (non inclusive), if any */
+
+	zip_size = fil_space_get_zip_size(space);
+
+	/* Do not read more than this number of pages in order not to hurt
+	performance with this code which is just an estimation. If we read
+	this many pages before reaching slot2->page_no then we estimate the
+	average from the pages scanned so far */
+	#define N_PAGES_READ_LIMIT	10
+
+	page_no = slot1->page_no;
+	level = slot1->page_level;
+
+	do {
+		mtr_t		mtr;
+		page_t*		page;
+		buf_block_t*	block;
+
+		mtr_start(&mtr);
+
+		/* fetch the page */
+		block = buf_page_get(space, zip_size, page_no, RW_S_LATCH,
+				     &mtr);
+
+		page = buf_block_get_frame(block);
+
+		/* It is possible that the tree has been reorganized in the
+		meantime and this is a different page. If this happens the
+		calculated estimate will be bogus, which is not fatal as
+		this is only an estimate. We are sure that a page with
+		page_no exists because InnoDB never frees pages, only
+		reuses them. */
+		if (fil_page_get_type(page) != FIL_PAGE_INDEX
+		    || ut_dulint_cmp(btr_page_get_index_id(page), index->id)
+		    || btr_page_get_level_low(page) != level) {
+
+			/* The page got reused for something else */
+			goto inexact;
+		}
+
+		n_pages_read++;
+
+		if (page_no != slot1->page_no) {
+			/* Do not count the records on slot1->page_no,
+			we already counted them before this loop. */
+			n_rows += page_get_n_recs(page);
+		}
+
+		page_no = btr_page_get_next(page, &mtr);
+
+		mtr_commit(&mtr);
+
+		if (n_pages_read == N_PAGES_READ_LIMIT
+		    || page_no == FIL_NULL) {
+			/* Either we read too many pages or
+			we reached the end of the level without passing
+			through slot2->page_no, the tree must have changed
+			in the meantime */
+			goto inexact;
+		}
+
+	} while (page_no != slot2->page_no);
+
+	return(n_rows);
+
+inexact:
+
+	*is_n_rows_exact = FALSE;
+
+	/* We did interrupt before reaching slot2->page */
+
+	if (n_pages_read > 0) {
+		/* The number of pages on this level is
+		n_rows_on_prev_level, multiply it by the
+		average number of recs per page so far */
+		n_rows = n_rows_on_prev_level
+			* n_rows / n_pages_read;
+	} else {
+		/* The tree changed before we could even
+		start with slot1->page_no */
+		n_rows = 10;
+	}
+
+	return(n_rows);
 }
 
 /*******************************************************************//**
@@ -3164,6 +3434,7 @@ btr_estimate_n_rows_in_range(
 	ibool		diverged_lot;
 	ulint		divergence_level;
 	ib_int64_t	n_rows;
+	ibool		is_n_rows_exact;
 	ulint		i;
 	mtr_t		mtr;
 
@@ -3206,6 +3477,7 @@ btr_estimate_n_rows_in_range(
 	/* We have the path information for the range in path1 and path2 */
 
 	n_rows = 1;
+	is_n_rows_exact = TRUE;
 	diverged = FALSE;	    /* This becomes true when the path is not
 				    the same any more */
 	diverged_lot = FALSE;	    /* This becomes true when the paths are
@@ -3221,7 +3493,7 @@ btr_estimate_n_rows_in_range(
 		if (slot1->nth_rec == ULINT_UNDEFINED
 		    || slot2->nth_rec == ULINT_UNDEFINED) {
 
-			if (i > divergence_level + 1) {
+			if (i > divergence_level + 1 && !is_n_rows_exact) {
 				/* In trees whose height is > 1 our algorithm
 				tends to underestimate: multiply the estimate
 				by 2: */
@@ -3233,7 +3505,9 @@ btr_estimate_n_rows_in_range(
 			to over 1 / 2 of the estimated rows in the whole
 			table */
 
-			if (n_rows > index->table->stat_n_rows / 2) {
+			if (n_rows > index->table->stat_n_rows / 2
+			    && !is_n_rows_exact) {
+
 				n_rows = index->table->stat_n_rows / 2;
 
 				/* If there are just 0 or 1 rows in the table,
@@ -3259,10 +3533,15 @@ btr_estimate_n_rows_in_range(
 					divergence_level = i;
 				}
 			} else {
-				/* Maybe the tree has changed between
-				searches */
-
-				return(10);
+				/* It is possible that
+				slot1->nth_rec >= slot2->nth_rec
+				if, for example, we have a single page
+				tree which contains (inf, 5, 6, supr)
+				and we select where x > 20 and x < 30;
+				in this case slot1->nth_rec will point
+				to the supr record and slot2->nth_rec
+				will point to 6 */
+				n_rows = 0;
 			}
 
 		} else if (diverged && !diverged_lot) {
@@ -3286,8 +3565,9 @@ btr_estimate_n_rows_in_range(
 			}
 		} else if (diverged_lot) {
 
-			n_rows = (n_rows * (slot1->n_recs + slot2->n_recs))
-				/ 2;
+			n_rows = btr_estimate_n_rows_in_range_on_level(
+				index, slot1, slot2, n_rows,
+				&is_n_rows_exact);
 		}
 	}
 }
@@ -3679,6 +3959,8 @@ btr_cur_set_ownership_of_extern_field(
 	} else {
 		mach_write_to_1(data + local_len + BTR_EXTERN_LEN, byte_val);
 	}
+
+	btr_blob_dbg_owner(rec, index, offsets, i, val);
 }
 
 /*******************************************************************//**
@@ -3883,7 +4165,7 @@ btr_blob_free(
 	    && buf_block_get_space(block) == space
 	    && buf_block_get_page_no(block) == page_no) {
 
-		if (buf_LRU_free_block(&block->page, all, TRUE) != BUF_LRU_FREED
+		if (!buf_LRU_free_block(&block->page, all, TRUE)
 		    && all && block->page.zip.data
 		    /* Now, buf_LRU_free_block() may release mutex temporarily */
 		    && buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
@@ -4184,6 +4466,11 @@ btr_store_big_rec_extern_fields_func(
 				}
 
 				if (prev_page_no == FIL_NULL) {
+					btr_blob_dbg_add_blob(
+						rec, big_rec_vec->fields[i]
+						.field_no, page_no, index,
+						"store");
+
 					mach_write_to_4(field_ref
 							+ BTR_EXTERN_SPACE_ID,
 							space_id);
@@ -4259,6 +4546,11 @@ next_zip_page:
 						 MLOG_4BYTES, &mtr);
 
 				if (prev_page_no == FIL_NULL) {
+					btr_blob_dbg_add_blob(
+						rec, big_rec_vec->fields[i]
+						.field_no, page_no, index,
+						"store");
+
 					mlog_write_ulint(field_ref
 							 + BTR_EXTERN_SPACE_ID,
 							 space_id,
@@ -4426,6 +4718,37 @@ btr_free_externally_stored_field(
 		ut_ad(!page_zip);
 		rec_zip_size = 0;
 	}
+
+#ifdef UNIV_BLOB_DEBUG
+	if (!(field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG)
+	    && !((field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_INHERITED_FLAG)
+		 && (rb_ctx == RB_NORMAL || rb_ctx == RB_RECOVERY))) {
+		/* This off-page column will be freed.
+		Check that no references remain. */
+
+		btr_blob_dbg_t	b;
+
+		b.blob_page_no = mach_read_from_4(
+			field_ref + BTR_EXTERN_PAGE_NO);
+
+		if (rec) {
+			/* Remove the reference from the record to the
+			BLOB. If the BLOB were not freed, the
+			reference would be removed when the record is
+			removed. Freeing the BLOB will overwrite the
+			BTR_EXTERN_PAGE_NO in the field_ref of the
+			record with FIL_NULL, which would make the
+			btr_blob_dbg information inconsistent with the
+			record. */
+			b.ref_page_no = page_get_page_no(page_align(rec));
+			b.ref_heap_no = page_rec_get_heap_no(rec);
+			b.ref_field_no = i;
+			btr_blob_dbg_rbt_delete(index, &b, "free");
+		}
+
+		btr_blob_dbg_assert_empty(index, b.blob_page_no);
+	}
+#endif /* UNIV_BLOB_DEBUG */
 
 	for (;;) {
 #ifdef UNIV_SYNC_DEBUG
@@ -4673,27 +4996,45 @@ btr_copy_blob_prefix(
 
 /*******************************************************************//**
 Copies the prefix of a compressed BLOB.  The clustered index record
-that points to this BLOB must be protected by a lock or a page latch. */
+that points to this BLOB must be protected by a lock or a page latch.
+@return	number of bytes written to buf */
 static
-void
+ulint
 btr_copy_zblob_prefix(
 /*==================*/
-	z_stream*	d_stream,/*!< in/out: the decompressing stream */
+	byte*		buf,	/*!< out: the externally stored part of
+				the field, or a prefix of it */
+	ulint		len,	/*!< in: length of buf, in bytes */
 	ulint		zip_size,/*!< in: compressed BLOB page size */
 	ulint		space_id,/*!< in: space id of the BLOB pages */
 	ulint		page_no,/*!< in: page number of the first BLOB page */
 	ulint		offset)	/*!< in: offset on the first BLOB page */
 {
-	ulint	page_type = FIL_PAGE_TYPE_ZBLOB;
+	ulint		page_type = FIL_PAGE_TYPE_ZBLOB;
+	mem_heap_t*	heap;
+	int		err;
+	z_stream	d_stream;
+
+	d_stream.next_out = buf;
+	d_stream.avail_out = len;
+	d_stream.next_in = Z_NULL;
+	d_stream.avail_in = 0;
+
+	/* Zlib inflate needs 32 kilobytes for the default
+	window size, plus a few kilobytes for small objects. */
+	heap = mem_heap_create(40000);
+	page_zip_set_alloc(&d_stream, heap);
 
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(zip_size >= PAGE_ZIP_MIN_SIZE);
 	ut_ad(zip_size <= UNIV_PAGE_SIZE);
 	ut_ad(space_id);
 
+	err = inflateInit(&d_stream);
+	ut_a(err == Z_OK);
+
 	for (;;) {
 		buf_page_t*	bpage;
-		int		err;
 		ulint		next_page_no;
 
 		/* There is no latch on bpage directly.  Instead,
@@ -4709,7 +5050,7 @@ btr_copy_zblob_prefix(
 				" compressed BLOB"
 				" page %lu space %lu\n",
 				(ulong) page_no, (ulong) space_id);
-			return;
+			goto func_exit;
 		}
 
 		if (UNIV_UNLIKELY
@@ -4735,13 +5076,13 @@ btr_copy_zblob_prefix(
 			offset += 4;
 		}
 
-		d_stream->next_in = bpage->zip.data + offset;
-		d_stream->avail_in = zip_size - offset;
+		d_stream.next_in = bpage->zip.data + offset;
+		d_stream.avail_in = zip_size - offset;
 
-		err = inflate(d_stream, Z_NO_FLUSH);
+		err = inflate(&d_stream, Z_NO_FLUSH);
 		switch (err) {
 		case Z_OK:
-			if (!d_stream->avail_out) {
+			if (!d_stream.avail_out) {
 				goto end_of_blob;
 			}
 			break;
@@ -4758,13 +5099,13 @@ inflate_error:
 				" compressed BLOB"
 				" page %lu space %lu returned %d (%s)\n",
 				(ulong) page_no, (ulong) space_id,
-				err, d_stream->msg);
+				err, d_stream.msg);
 		case Z_BUF_ERROR:
 			goto end_of_blob;
 		}
 
 		if (next_page_no == FIL_NULL) {
-			if (!d_stream->avail_in) {
+			if (!d_stream.avail_in) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
 					"  InnoDB: unexpected end of"
@@ -4773,7 +5114,7 @@ inflate_error:
 					(ulong) page_no,
 					(ulong) space_id);
 			} else {
-				err = inflate(d_stream, Z_FINISH);
+				err = inflate(&d_stream, Z_FINISH);
 				switch (err) {
 				case Z_STREAM_END:
 				case Z_BUF_ERROR:
@@ -4785,7 +5126,7 @@ inflate_error:
 
 end_of_blob:
 			buf_page_release_zip(bpage);
-			return;
+			goto func_exit;
 		}
 
 		buf_page_release_zip(bpage);
@@ -4797,6 +5138,12 @@ end_of_blob:
 		offset = FIL_PAGE_NEXT;
 		page_type = FIL_PAGE_TYPE_ZBLOB2;
 	}
+
+func_exit:
+	inflateEnd(&d_stream);
+	mem_heap_free(heap);
+	UNIV_MEM_ASSERT_RW(buf, d_stream.total_out);
+	return(d_stream.total_out);
 }
 
 /*******************************************************************//**
@@ -4822,28 +5169,8 @@ btr_copy_externally_stored_field_prefix_low(
 	}
 
 	if (UNIV_UNLIKELY(zip_size)) {
-		int		err;
-		z_stream	d_stream;
-		mem_heap_t*	heap;
-
-		/* Zlib inflate needs 32 kilobytes for the default
-		window size, plus a few kilobytes for small objects. */
-		heap = mem_heap_create(40000);
-		page_zip_set_alloc(&d_stream, heap);
-
-		err = inflateInit(&d_stream);
-		ut_a(err == Z_OK);
-
-		d_stream.next_out = buf;
-		d_stream.avail_out = len;
-		d_stream.avail_in = 0;
-
-		btr_copy_zblob_prefix(&d_stream, zip_size,
-				      space_id, page_no, offset);
-		inflateEnd(&d_stream);
-		mem_heap_free(heap);
-		UNIV_MEM_ASSERT_RW(buf, d_stream.total_out);
-		return(d_stream.total_out);
+		return(btr_copy_zblob_prefix(buf, len, zip_size,
+					     space_id, page_no, offset));
 	} else {
 		return(btr_copy_blob_prefix(buf, len, space_id,
 					    page_no, offset));

@@ -159,13 +159,10 @@ extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
-extern uint	srv_buffer_pool_shm_key;
-extern ibool	srv_buffer_pool_shm_is_reused;
-extern ibool	srv_buffer_pool_shm_checksum;
-
 extern ibool	srv_thread_concurrency_timer_based;
 
 extern ulint	srv_n_file_io_threads;
+extern my_bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;
 extern ulint	srv_n_read_io_threads;
 extern ulint	srv_n_write_io_threads;
@@ -288,6 +285,7 @@ extern	ibool	srv_print_latch_waits;
 extern ulint	srv_activity_count;
 extern ulint	srv_fatal_semaphore_wait_threshold;
 extern ulint	srv_dml_needed_delay;
+extern lint	srv_kill_idle_transaction;
 
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				query threads, and lock table: we allocate
@@ -350,6 +348,9 @@ extern ulint srv_buf_pool_reads;
 
 /** Time in seconds between automatic buffer pool dumps */
 extern uint srv_auto_lru_dump;
+
+/** Whether startup should be blocked until buffer pool is fully restored */
+extern ibool srv_blocking_lru_restore;
 
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
@@ -694,6 +695,7 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
 	ulint innodb_buffer_pool_pages_flushed;	/*!< srv_buf_pool_flushed */
 	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
+	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
 	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
 	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
         ulint innodb_deadlocks;                 /* ??? */

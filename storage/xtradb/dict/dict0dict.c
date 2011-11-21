@@ -4524,6 +4524,8 @@ dict_store_statistics(
 			break;
 		}
 
+		btr_pcur_store_position(&pcur, &mtr);
+
 		if (rec_get_deleted_flag(rec, 0)) {
 			/* don't count */
 			i--;
@@ -4564,6 +4566,10 @@ dict_store_statistics(
 		rests--;
 
 next_rec:
+		mtr_commit(&mtr);
+		mtr_start(&mtr);
+		btr_pcur_restore_position(BTR_MODIFY_LEAF, &pcur, &mtr);
+
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 	btr_pcur_close(&pcur);
@@ -4654,6 +4660,7 @@ dict_update_statistics(
 	do {
 		if (table->is_corrupt) {
 			ut_a(srv_pass_corrupt_table);
+			dict_table_stats_unlock(table, RW_X_LATCH);
 			return;
 		}
 
