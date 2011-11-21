@@ -1,3 +1,4 @@
+--source include/not_windows.inc
 #------------------------------------------------------------------------------
 # FTS with FK and update casecade
 #-------------------------------------------------------------------------------
@@ -56,18 +57,18 @@ INSERT INTO t2 (a2,b2) VALUES
 --error 1451
 DELETE FROM t1;
 
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ;
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ;
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ;
 
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
 
 
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
 
 set global innodb_optimize_fulltext_only=1;
 optimize table t1;
@@ -77,15 +78,15 @@ UPDATE t1 SET a1 = "changing column - on update cascade" , b1 = "to check foreig
 MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 
 # no records expected
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 # InnoDB:Error child table shows records which is incorrect - UPADTE on Fix
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 
 # it shows updated record
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
 # InnoDB:Error child table does not show the expected record
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
-SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
+SELECT id2 FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
 
 DROP TABLE t2 , t1;
 

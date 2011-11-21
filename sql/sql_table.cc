@@ -6572,6 +6572,15 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           needed_inplace_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE;
         }
       }
+      else if (key->flags & HA_FULLTEXT)
+      {
+        /*
+          Fulltext keys should be treated as primary keys as InnoDB might
+          need to rebuild the primary index.
+        */
+        needed_inplace_with_read_flags|= HA_INPLACE_ADD_PK_INDEX_NO_WRITE;
+        needed_inplace_flags|= HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE;
+      }
       else
       {
         /* Non-unique key. */

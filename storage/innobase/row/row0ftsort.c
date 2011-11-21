@@ -540,6 +540,7 @@ fts_parallel_tokenization(
 	dtype_t			word_dtype;
 	dict_field_t*		idx_field;
 	fts_tokenize_ctx_t	t_ctx;
+	ulint			retried = 0;
 	ut_ad(psort_info);
 
 	ut_ad(psort_info);
@@ -574,9 +575,13 @@ fts_parallel_tokenization(
 	processed = TRUE;
 loop:
 	while (doc_item) {
+		dfield_t*	dfield = doc_item->field;
+
 		last_doc_id = doc_item->doc_id;
 
-		if (!(doc_item->field->data)) {
+		if (!(dfield->data)
+		    || dfield_get_len(dfield) == UNIV_SQL_NULL) {
+			num_doc_processed++;
 			doc_item = UT_LIST_GET_NEXT(doc_list, doc_item);
 
 			/* Always remember the last doc_item we processed */
@@ -590,10 +595,10 @@ loop:
 		strings in the doc_item, otherwise continue processing last
 		item */
 		if (processed) {
-			dfield_t*	dfield = doc_item->field;
 			byte*		data;
 			ulint		data_len;
 
+			dfield = doc_item->field;
 			data = dfield_get_data(dfield);
 			data_len = dfield_get_len(dfield);
 
@@ -625,6 +630,7 @@ loop:
 		/* Current sort buffer full, need to recycle */
 		if (!processed) {
 			ut_ad(t_ctx.processed_len < doc.text.f_len);
+			ut_ad(t_ctx.rows_added[t_ctx.buf_used]);
 			break;
 		}
 
@@ -680,9 +686,21 @@ loop:
 	}
 
 	/* Parent done scanning, and if finish processing all the docs, exit */
-	if (psort_info->state == FTS_PARENT_COMPLETE
-	    && num_doc_processed >= UT_LIST_GET_LEN(psort_info->fts_doc_list)) {
-		goto exit;
+	if (psort_info->state == FTS_PARENT_COMPLETE) {
+	    	if (num_doc_processed >= UT_LIST_GET_LEN(
+			psort_info->fts_doc_list)) {
+			goto exit;
+		} else if (retried > 10000) {
+			ut_ad(!doc_item);
+			/* retied too many times and cannot get new record */
+			fprintf(stderr, "InnoDB: FTS parallel sort processed "
+					"%lu records, the sort queue has "
+					"%lu records. But sort cannot get "
+					"the next records", num_doc_processed,
+					UT_LIST_GET_LEN(
+						psort_info->fts_doc_list));
+			goto exit;
+		}
 	}
 
 	if (doc_item) {
@@ -697,6 +715,9 @@ loop:
 
 	if (doc_item) {
 		 prev_doc_item = doc_item;
+		retried = 0;
+	} else if (psort_info->state == FTS_PARENT_COMPLETE) {
+		retried++;
 	}
 
 	goto loop;
