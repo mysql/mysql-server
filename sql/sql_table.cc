@@ -4555,6 +4555,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     goto err;
   src_table->table->use_all_columns();
 
+  DEBUG_SYNC(thd, "create_table_like_after_open");
+
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
   bzero((char*) &local_create_info, sizeof(local_create_info));
   local_create_info.db_type= src_table->table->s->db_type();
@@ -4603,6 +4605,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
                                              table->table_name,
                                              MDL_EXCLUSIVE));
+
+  DEBUG_SYNC(thd, "create_table_like_before_binlog");
+
   /*
     We have to write the query before we unlock the tables.
   */
