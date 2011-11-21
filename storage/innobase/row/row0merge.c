@@ -1508,7 +1508,7 @@ func_exit:
 		}
 wait_again:
 		os_event_wait_time_low(fts_parallel_sort_event,
-				       60000000, sig_count);
+				       10000000, sig_count);
 
 		for (i = 0; i < fts_sort_pll_degree; i++) {
 			if (psort_info[i].child_status != FTS_CHILD_COMPLETE) {
