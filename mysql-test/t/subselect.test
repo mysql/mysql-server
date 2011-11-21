@@ -4768,4 +4768,14 @@ SET SESSION sql_mode=@old_sql_mode;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
+--echo #
+--echo # LP BUG#833777 Performance regression with deeply nested subqueries
+--echo #
+
+create table t1 (a int not null, b char(10) not null);
+insert into t1 values (1, 'a');
+set @@optimizer_switch='in_to_exists=on,semijoin=off,materialization=off,subquery_cache=off';
+select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1))))))))))))))))))))))))))))))));
+drop table t1;
+
 set optimizer_switch=@subselect_tmp;
