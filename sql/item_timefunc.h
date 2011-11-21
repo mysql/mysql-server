@@ -572,7 +572,6 @@ public:
   double val_real() { return val_real_from_decimal(); }
   my_decimal *val_decimal(my_decimal *decimal_value);
   int save_in_field(Field *field, bool no_conversions);
-  longlong val_temporal();
   /**
     Return string value in ASCII character set.
   */
