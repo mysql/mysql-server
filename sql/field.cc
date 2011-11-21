@@ -5712,13 +5712,6 @@ int Field_time::store_internal(const MYSQL_TIME *ltime, int *warnings)
 }
 
 
-int Field_time::store_internal(const lldiv_t *lld)
-{
-  int3store(ptr, lld->quot);
-  return 0;
-}
-
-
 int Field_time::store_packed(longlong nr)
 {
   MYSQL_TIME ltime;
@@ -5783,17 +5776,6 @@ void Field_time::sql_type(String &res) const
 ** In string context: HH:MM:SS.FFFFFF
 ** In number context: HHMMSS.FFFFFF
 ****************************************************************************/
-
-
-int Field_timef::store_internal(const lldiv_t *lld)
-{
-  MYSQL_TIME ltime;
-  ltime.neg= lld->quot < 0 || lld->rem < 0;
-  ltime.year= ltime.month= ltime.day= 0;
-  TIME_set_hhmmss(&ltime, (uint) (lld->quot < 0 ? -lld->quot : lld->quot));
-  ltime.second_part= (uint) ((lld->rem < 0 ? -lld->rem : lld->rem) / 1000);
-  return store_internal_with_round(&ltime, NULL);
-}
 
 
 longlong Field_timef::val_int()
