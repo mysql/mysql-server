@@ -1655,7 +1655,7 @@ lock_sec_rec_some_has_impl(
 	max trx id to the log, and therefore during recovery, this value
 	for a page may be incorrect. */
 
-	if (max_trx_id < trx_list_get_min_trx_id() && !recv_recovery_is_on()) {
+	if (max_trx_id < trx_rw_min_trx_id() && !recv_recovery_is_on()) {
 
 		trx_id = 0;
 
@@ -1742,6 +1742,10 @@ lock_rec_create(
 
 	ut_ad(lock_mutex_own());
 	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
+
+	/* Non-locking autocommit read-only transactions should not set
+	any locks. */
+	assert_trx_in_list(trx);
 
 	space = buf_block_get_space(block);
 	page_no	= buf_block_get_page_no(block);
@@ -3769,7 +3773,7 @@ lock_deadlock_search(
 
 	ut_ad(ctx->start != NULL);
 	ut_ad(ctx->wait_lock != NULL);
-	ut_ad(ctx->wait_lock->trx->in_trx_list);
+	assert_trx_in_list(ctx->wait_lock->trx);
 	ut_ad(ctx->mark_start <= lock_mark_counter);
 
 	/* Look at the locks ahead of wait_lock in the lock queue. */
@@ -3923,7 +3927,7 @@ lock_deadlock_check_and_resolve(
 	ut_ad(trx != NULL);
 	ut_ad(lock != NULL);
 	ut_ad(lock_mutex_own());
-	ut_ad(trx->in_trx_list);
+	assert_trx_in_list(trx);
 
 	/* Try and resolve as many deadlocks as possible. */
 	do {
@@ -3994,6 +3998,10 @@ lock_table_create(
 	ut_ad(table && trx);
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(trx));
+
+	/* Non-locking autocommit read-only transactions should not set
+	any locks. */
+	assert_trx_in_list(trx);
 
 	if ((type_mode & LOCK_MODE_MASK) == LOCK_AUTO_INC) {
 		++table->n_waiting_or_granted_auto_inc_locks;
@@ -4706,14 +4714,14 @@ lock_remove_recovered_trx_record_locks(
 
 	mutex_enter(&trx_sys->mutex);
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
 		lock_t*	lock;
 		lock_t*	next_lock;
 
-		ut_ad(trx->in_trx_list);
+		assert_trx_in_rw_list(trx);
 
 		if (!trx->is_recovered) {
 			continue;
@@ -5071,6 +5079,7 @@ lock_print_info_all_transactions(
 	ulint		i;
 	mtr_t		mtr;
 	const trx_t*	trx;
+	trx_list_t*	trx_list = &trx_sys->rw_trx_list;
 
 	fprintf(file, "LIST OF TRANSACTIONS FOR EACH SESSION:\n");
 
@@ -5086,10 +5095,8 @@ lock_print_info_all_transactions(
 
 		ut_ad(trx->in_mysql_trx_list);
 
-		/* trx->state cannot change from or to NOT_STARTED
-		while we are holding the trx_sys->mutex. It may change
-		from ACTIVE to PREPARED, but it may not change to
-		COMMITTED, because we are holding the lock_sys->mutex. */
+		/* See state transitions and locking rules in trx0trx.h */
+
 		if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
 			fputs("---", file);
 			trx_print_latched(file, trx, 600);
@@ -5103,13 +5110,23 @@ loop:
 	through the trx list to get probably the same trx,
 	or some other trx. */
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list), i = 0;
+	for (trx = UT_LIST_GET_FIRST(*trx_list), i = 0;
 	     trx && (i < nth_trx);
 	     trx = UT_LIST_GET_NEXT(trx_list, trx), i++) {
-		ut_ad(trx->in_trx_list);
+
+		assert_trx_in_list(trx);
 	}
 
+	ut_ad(trx->read_only == (trx_list == &trx_sys->ro_trx_list));
+
 	if (trx == NULL) {
+		/* Check the read-only transaction list next. */
+		if (trx_list == &trx_sys->rw_trx_list) {
+			trx_list = &trx_sys->ro_trx_list;
+			nth_trx = 0;
+			nth_lock = 0;
+			goto loop;
+		}
 
 		lock_mutex_exit();
 		mutex_exit(&trx_sys->mutex);
@@ -5119,7 +5136,7 @@ loop:
 		return;
 	}
 
-	ut_ad(trx->in_trx_list);
+	assert_trx_in_list(trx);
 
 	if (nth_lock == 0) {
 		fputs("---", file);
@@ -5380,7 +5397,7 @@ lock_rec_queue_validate(
 		if the check and assertion are covered by the lock mutex. */
 
 		trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
-		impl_trx = trx_is_active_low(trx_id, NULL);
+		impl_trx = trx_rw_is_active_low(trx_id, NULL);
 
 		ut_ad(lock_mutex_own());
 		/* impl_trx cannot be committed until lock_mutex_exit()
@@ -5528,26 +5545,30 @@ function_exit:
 }
 
 /*********************************************************************//**
-Validates the lock system.
+Validates the table locks.
 @return	TRUE if ok */
 static
 ibool
-lock_validate(void)
-/*===============*/
+lock_validate_table_locks(
+/*======================*/
+	const trx_list_t*	trx_list)	/*!< in: trx list */
 {
-	const lock_t*	lock;
 	const trx_t*	trx;
-	ulint		i;
 
-	lock_mutex_enter();
+	ut_ad(lock_mutex_own());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
-	mutex_enter(&trx_sys->mutex);
+	ut_ad(trx_list == &trx_sys->rw_trx_list
+	      || trx_list == &trx_sys->ro_trx_list);
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx = UT_LIST_GET_FIRST(*trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		ut_ad(trx->in_trx_list);
+		const lock_t*	lock;
+
+		assert_trx_in_list(trx);
+		ut_ad(trx->read_only == (trx_list == &trx_sys->ro_trx_list));
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 		     lock != NULL;
@@ -5560,6 +5581,27 @@ lock_validate(void)
 			}
 		}
 	}
+
+	return(TRUE);
+}
+
+/*********************************************************************//**
+Validates the lock system.
+@return	TRUE if ok */
+static
+ibool
+lock_validate(void)
+/*===============*/
+{
+	ulint		i;
+	const lock_t*	lock;
+
+	lock_mutex_enter();
+
+	mutex_enter(&trx_sys->mutex);
+
+	ut_a(lock_validate_table_locks(&trx_sys->rw_trx_list));
+	ut_a(lock_validate_table_locks(&trx_sys->ro_trx_list));
 
 	for (i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
 		ulint		space;
@@ -5802,7 +5844,7 @@ lock_rec_convert_impl_to_expl(
 		/* If the transaction is still active and has no
 		explicit x-lock set on the record, set one for it */
 
-		impl_trx = trx_is_active(trx_id, NULL);
+		impl_trx = trx_rw_is_active(trx_id, NULL);
 
 		/* impl_trx cannot be committed until lock_mutex_exit()
 		because lock_trx_release_locks() acquires lock_sys->mutex */
@@ -6011,7 +6053,7 @@ lock_sec_rec_read_check_and_lock(
 	if the max trx id for the page >= min trx id for the trx list or a
 	database recovery is running. */
 
-	if ((page_get_max_trx_id(block->frame) >= trx_list_get_min_trx_id()
+	if ((page_get_max_trx_id(block->frame) >= trx_rw_min_trx_id()
 	     || recv_recovery_is_on())
 	    && !page_rec_is_supremum(rec)) {
 
@@ -6521,6 +6563,8 @@ lock_trx_release_locks(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	assert_trx_in_list(trx);
+
 	if (UNIV_UNLIKELY(trx_state_eq(trx, TRX_STATE_PREPARED))) {
 		mutex_enter(&trx_sys->mutex);
 		ut_a(trx_sys->n_prepared_trx > 0);
@@ -6631,25 +6675,32 @@ lock_table_get_n_locks(
 Do an exhaustive check for any locks (table or rec) against the table.
 @return	lock if found */
 static
-lock_t*
-lock_table_locks_check(
-/*===================*/
-	const dict_table_t*	table)	/*!< in: check if there are any locks
-					held on records in this table or on the
-					table itself */
+const lock_t*
+lock_table_locks_lookup(
+/*====================*/
+	const dict_table_t*	table,		/*!< in: check if there are
+						any locks held on records in
+						this table or on the table
+						itself */
+	const trx_list_t*	trx_list)	/*!< in: trx list to check */
 {
 	trx_t*			trx;
 
 	ut_a(table != NULL);
 	ut_ad(lock_mutex_own());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
-	mutex_enter(&trx_sys->mutex);
+	ut_ad(trx_list == &trx_sys->rw_trx_list
+	      || trx_list == &trx_sys->ro_trx_list);
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx = UT_LIST_GET_FIRST(*trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		lock_t*	lock;
+		const lock_t*	lock;
+
+		assert_trx_in_list(trx);
+		ut_ad(trx->read_only == (trx_list == &trx_sys->ro_trx_list));
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 		     lock != NULL;
@@ -6659,17 +6710,13 @@ lock_table_locks_check(
 
 			if (lock_get_type_low(lock) == LOCK_REC) {
 				if (lock->index->table == table) {
-					mutex_exit(&trx_sys->mutex);
 					return(lock);
 				}
 			} else if (lock->un_member.tab_lock.table == table) {
-				mutex_exit(&trx_sys->mutex);
 				return(lock);
 			}
 		}
 	}
-
-	mutex_exit(&trx_sys->mutex);
 
 	return(NULL);
 }
@@ -6686,18 +6733,20 @@ lock_table_has_locks(
 					held on records in this table or on the
 					table itself */
 {
-#ifdef UNIV_DEBUG
-	lock_t*		lock;
-#endif /* UNIV_DEBUG */
-	ibool		has_locks;
+	ibool			has_locks;
 
 	lock_mutex_enter();
 
-	ut_d(lock = lock_table_locks_check(table));
+#ifdef UNIV_DEBUG
+	mutex_enter(&trx_sys->mutex);
+
+	ut_ad(lock_table_locks_lookup(table, &trx_sys->rw_trx_list) == NULL);
+	ut_ad(lock_table_locks_lookup(table, &trx_sys->ro_trx_list) == NULL);
+
+	mutex_exit(&trx_sys->mutex);
+#endif /* UNIV_DEBUG */
 
 	has_locks = UT_LIST_GET_LEN(table->locks) > 0 || table->n_rec_locks > 0;
-
-	ut_ad((lock != NULL) == has_locks);
 
 	lock_mutex_exit();
 

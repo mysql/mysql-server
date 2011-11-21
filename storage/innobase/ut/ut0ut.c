@@ -657,6 +657,8 @@ ut_strerr(
 		return("Success, record lock created");
 	case DB_ERROR:
 		return("Generic error");
+	case DB_READ_ONLY:
+		return("Read only transaction");
 	case DB_INTERRUPTED:
 		return("Operation interrupted");
 	case DB_OUT_OF_MEMORY:
