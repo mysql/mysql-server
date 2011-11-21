@@ -26,6 +26,12 @@ Created 1/30/1994 Heikki Tuuri
 #ifndef ut0dbg_h
 #define ut0dbg_h
 
+#ifdef UNIV_INNOCHECKSUM
+#define ut_a		assert
+#define ut_ad		assert
+#define ut_error	assert(0)
+#else /* !UNIV_INNOCHECKSUM */
+
 #include "univ.i"
 #include <stdlib.h>
 #include "os0thread.h"
@@ -160,5 +166,7 @@ speedo_show(
 	const speedo_t*	speedo);	/*!< in: speedo */
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif

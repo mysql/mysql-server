@@ -83,12 +83,18 @@ typedef enum srv_checksum_algorithm_enum	srv_checksum_algorithm_t;
 
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /* @{ */
+/** Zip shift value for the smallest page size */
 #define BUF_BUDDY_LOW_SHIFT	UNIV_ZIP_SIZE_SHIFT_MIN
 
-#define BUF_BUDDY_LOW		(1 << BUF_BUDDY_LOW_SHIFT)
+/** Smallest buddy page size */
+#define BUF_BUDDY_LOW		(1U << BUF_BUDDY_LOW_SHIFT)
 
+/** Actual number of buddy sizes based on current page size */
 #define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
-					/*!< number of buddy sizes */
+
+/** Maximum number of buddy sizes based on the max page size */
+#define BUF_BUDDY_SIZES_MAX	(UNIV_PAGE_SIZE_SHIFT_MAX	\
+				- BUF_BUDDY_LOW_SHIFT)
 
 /** twice the maximum block size of the buddy system;
 the underlying memory is aligned by this amount:

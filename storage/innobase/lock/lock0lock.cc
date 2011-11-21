@@ -5135,7 +5135,8 @@ loop:
 		assert_trx_in_list(trx);
 	}
 
-	ut_ad(trx->read_only == (trx_list == &trx_sys->ro_trx_list));
+	ut_ad(trx == NULL
+	      || trx->read_only == (trx_list == &trx_sys->ro_trx_list));
 
 	if (trx == NULL) {
 		/* Check the read-only transaction list next. */
