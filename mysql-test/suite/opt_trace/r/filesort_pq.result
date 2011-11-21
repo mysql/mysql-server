@@ -1552,11 +1552,22 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 219,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 4788
+              }
+            }
+          },
+          {
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "tmp_table_column"
               }
             ],
@@ -3934,17 +3945,27 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 235,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 4462
+              }
+            }
+          },
+          {
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f0"
               }
             ],
@@ -4209,17 +4230,27 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 235,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 4462
+              }
+            }
+          },
+          {
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f0"
               }
             ],
@@ -4489,17 +4520,27 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 235,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 4462
+              }
+            }
+          },
+          {
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f0"
               }
             ],
@@ -4797,17 +4838,27 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 235,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 4462
+              }
+            }
+          },
+          {
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f0"
               }
             ],
@@ -5100,6 +5151,19 @@ SELECT * FROM v1	{
       "join_execution": {
         "select#": 1,
         "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "v1",
+                "row_length": 210,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 4993
+              }
+            }
+          },
           {
             "join_execution": {
               "select#": 2,
@@ -5397,6 +5461,19 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
       "join_execution": {
         "select#": 1,
         "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "v1",
+                "row_length": 210,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 4993
+              }
+            }
+          },
           {
             "join_execution": {
               "select#": 2,
@@ -6034,6 +6111,44 @@ LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "v1",
+                "row_length": 210,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 4993
+              }
+            }
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "v2",
+                "row_length": 210,
+                "key_length": 5,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 4993
+              }
+            }
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 419,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 2502
+              }
+            }
+          },
+          {
             "join_execution": {
               "select#": 2,
               "steps": [
@@ -6115,20 +6230,17 @@ LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f0"
               },
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f0"
               }
             ],
@@ -6286,17 +6398,27 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 18,
+                "key_length": 9,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 58254
+              }
+            }
+          },
+          {
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "count(f2)"
               },
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f3"
               }
             ],
@@ -7196,6 +7318,19 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "v1",
+                "row_length": 210,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 4993
+              }
+            }
+          },
+          {
             "join_execution": {
               "select#": 2,
               "steps": [
@@ -7601,6 +7736,31 @@ ORDER BY d1.f2 DESC LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "d1",
+                "row_length": 210,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 4993
+              }
+            }
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 206,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 5090
+              }
+            }
+          },
+          {
             "join_execution": {
               "select#": 2,
               "steps": [
@@ -7637,8 +7797,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "desc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f2"
               }
             ],

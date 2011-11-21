@@ -943,6 +943,31 @@ innobase_create_handler(
 
 /* General functions */
 
+/*************************************************************//**
+Check that a page_size is correct for InnoDB.  If correct, set the
+associated page_size_shift which is the power of 2 for this page size.
+@return	an associated page_size_shift if valid, 0 if invalid. */
+inline
+int
+innodb_page_size_validate(
+/*======================*/
+	ulong	page_size)		/*!< in: Page Size to evaluate */
+{
+	ulong		n;
+
+	DBUG_ENTER("innodb_page_size_validate");
+
+	for (n = UNIV_PAGE_SIZE_SHIFT_MIN;
+	     n <= UNIV_PAGE_SIZE_SHIFT_MAX;
+	     n++) {
+		if (page_size == (ulong) (1 << n)) {
+			DBUG_RETURN(n);
+		}
+	}
+
+	DBUG_RETURN(0);
+}
+
 /******************************************************************//**
 Returns true if the thread is the replication thread on the slave
 server. Used in srv_conc_enter_innodb() to determine if the thread
@@ -957,6 +982,36 @@ thd_is_replication_slave_thread(
 	void*	thd)	/*!< in: thread handle (THD*) */
 {
 	return((ibool) thd_slave_thread((THD*) thd));
+}
+
+/******************************************************************//**
+Returns true if transaction should be flagged as read-only.
+@return	true if the thd is marked as read-only */
+extern "C" UNIV_INTERN
+ibool
+thd_trx_is_read_only(
+/*=================*/
+	void*	thd)	/*!< in: thread handle (THD*) */
+{
+	/* Waiting on WL#6046 to complete. */
+	return(FALSE);
+}
+
+/******************************************************************//**
+Check if the transaction is an auto-commit transaction. TRUE also
+implies that it is a SELECT (read-only) transaction.
+@return	true if the transaction is an auto commit read-only transaction. */
+extern "C" UNIV_INTERN
+ibool
+thd_trx_is_auto_commit(
+/*===================*/
+	void*	thd)	/*!< in: thread handle (THD*) can be NULL */
+{
+	return(thd != NULL
+	       && !thd_test_options(
+		       static_cast<THD*>(thd),
+		       OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)
+	       && thd_is_select(thd));
 }
 
 /******************************************************************//**
@@ -1178,6 +1233,7 @@ convert_error_code_to_mysql(
 		/* fall through */
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
+		ut_ad(thd);
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    HA_ERR_ROW_IS_REFERENCED,
 				    "InnoDB: Cannot delete/update "
@@ -1201,6 +1257,9 @@ convert_error_code_to_mysql(
 		which might not always be available in the error
 		handling stage. */
 		return(HA_ERR_FOUND_DUPP_KEY);
+
+	case DB_READ_ONLY:
+		return(HA_ERR_READ_ONLY_TRANSACTION);
 
 	case DB_FOREIGN_DUPLICATE_KEY:
 		return(HA_ERR_FOREIGN_DUPLICATE_KEY);
@@ -1840,7 +1899,7 @@ innobase_trx_init(
 }
 
 /*********************************************************************//**
-Allocates an InnoDB transaction for a MySQL handler object.
+Allocates an InnoDB transaction for a MySQL handler object for DML.
 @return	InnoDB transaction handle */
 extern "C" UNIV_INTERN
 trx_t*
@@ -2781,6 +2840,24 @@ innobase_change_buffering_inited_ok:
 #ifdef UNIV_LOG_ARCHIVE
 	srv_log_archive_on = (ulint) innobase_log_archive;
 #endif /* UNIV_LOG_ARCHIVE */
+
+	/* Check that the value of system variable innodb_page_size was
+	set correctly.  Its value was put into srv_page_size. If valid,
+	return the associated srv_page_size_shift.*/
+	srv_page_size_shift = innodb_page_size_validate(srv_page_size);
+	if (!srv_page_size_shift) {
+		sql_print_error("InnoDB: Invalid page size=%lu.\n",
+				srv_page_size);
+		goto mem_free_and_error;
+	}
+	if (UNIV_PAGE_SIZE_DEF != srv_page_size) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: innodb-page-size has been changed"
+			" from the default value %d to %lu.\n",
+			UNIV_PAGE_SIZE_DEF, srv_page_size);
+	}
+
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
@@ -3327,7 +3404,9 @@ innobase_rollback_trx(
 
 	lock_unlock_table_autoinc(trx);
 
-	error = trx_rollback_for_mysql(trx);
+	if (!trx->read_only) {
+		error = trx_rollback_for_mysql(trx);
+	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
@@ -3641,11 +3720,25 @@ ha_innobase::max_supported_key_length() const
 /*=========================================*/
 {
 	/* An InnoDB page must store >= 2 keys; a secondary key record
-	must also contain the primary key value: max key length is
-	therefore set to slightly less than 1 / 4 of page size which
-	is 16 kB; but currently MySQL does not work with keys whose
-	size is > MAX_KEY_LENGTH */
-	return(3500);
+	must also contain the primary key value.  Therefore, if both
+	the primary key and the secondary key are at this maximum length,
+	it must be less than 1/4th of the free space on a page including
+	record overhead.
+
+	MySQL imposes its own limit to this number; MAX_KEY_LENGTH = 3072.
+
+	For page sizes = 16k, InnoDB historically reported 3500 bytes here,
+	But the MySQL limit of 3072 was always used through the handler
+	interface. */
+
+	switch (UNIV_PAGE_SIZE) {
+	case 4096:
+		return(768);
+	case 8192:
+		return(1536);
+	default:
+		return(3500);
+	}
 }
 
 /****************************************************************//**
@@ -5926,6 +6019,8 @@ ha_innobase::write_row(
 		ut_print_buf(stderr, ((const byte*) trx) - 100, 200);
 		putc('\n', stderr);
 		ut_error;
+	} else if (!trx_is_started(trx)) {
+		++trx->will_lock;
 	}
 
 	ha_statistic_increment(&SSV::ha_write_count);
@@ -6278,14 +6373,15 @@ calc_row_difference(
 			/* The field has changed */
 
 			ufield = uvect->fields + n_changed;
+			UNIV_MEM_INVALID(ufield, sizeof *ufield);
 
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
-			dict_col_copy_type(prebuilt->table->cols + i,
-					   dfield_get_type(&dfield));
-
 			if (n_len != UNIV_SQL_NULL) {
+				dict_col_copy_type(prebuilt->table->cols + i,
+						   dfield_get_type(&dfield));
+
 				buf = row_mysql_store_col_in_innobase_format(
 					&dfield,
 					(byte*)buf,
@@ -6293,11 +6389,14 @@ calc_row_difference(
 					new_mysql_row_col,
 					col_pack_len,
 					dict_table_is_comp(prebuilt->table));
-				dfield_copy_data(&ufield->new_val, &dfield);
+				dfield_copy(&ufield->new_val, &dfield);
 			} else {
 				dfield_set_null(&ufield->new_val);
 			}
 
+			/* XXX merge issues, should this be here?
+			ufield->extern_storage = FALSE;
+			*/
 			ufield->exp = NULL;
 			ufield->orig_len = 0;
 			ufield->field_no = dict_col_get_clust_pos(
@@ -6426,6 +6525,10 @@ ha_innobase::update_row(
 
 	ut_a(prebuilt->trx == trx);
 
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
+
 	ha_statistic_increment(&SSV::ha_update_count);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
@@ -6502,8 +6605,8 @@ func_exit:
 	error = convert_error_code_to_mysql(error,
 					    prebuilt->table->flags, user_thd);
 
-	if (error == 0 /* success */
-	    && uvect->n_fields == 0 /* no columns were updated */) {
+	/* If success and no columns were updated. */
+	if (error == 0 && uvect->n_fields == 0) {
 
 		/* This is the same as success, but instructs
 		MySQL that the row is not really updated and it
@@ -6537,6 +6640,10 @@ ha_innobase::delete_row(
 	DBUG_ENTER("ha_innobase::delete_row");
 
 	ut_a(prebuilt->trx == trx);
+
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
 
 	ha_statistic_increment(&SSV::ha_delete_count);
 
@@ -7348,6 +7455,17 @@ ha_innobase::ft_init()
 
 	fprintf(stderr, "ft_init()\n");
 
+	trx_t*	trx = check_trx_exists(ha_thd());
+
+	/* FTS queries are not treated as autocommit non-locking selects.
+	This is because the FTS implementation can acquire locks behind
+	the scenes. This has not been verified but it is safer to treat
+	them as regular read only transactions for now. */
+
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
+
 	DBUG_RETURN(rnd_init(false));
 }
 
@@ -7403,9 +7521,19 @@ ha_innobase::ft_init_ext(
 	}
 
 	trx = prebuilt->trx;
+
+	/* FTS queries are not treated as autocommit non-locking selects.
+	This is because the FTS implementation can acquire locks behind
+	the scenes. This has not been verified but it is safer to treat
+	them as regular read only transactions for now. */
+
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
+
 	table = prebuilt->table;
 
-	/* Table do not have FTS index */
+	/* Table does not have an FTS index */
 	if (!table->fts || ib_vector_is_empty(table->fts->indexes)) {
 		my_error(ER_TABLE_HAS_NO_FT, MYF(0));
 		return(NULL);
@@ -8078,6 +8206,7 @@ create_options_are_valid(
 	if (create_info->key_block_size) {
 		kbs_specified = TRUE;
 		switch (create_info->key_block_size) {
+			ulint	kbs_max;
 		case 1:
 		case 2:
 		case 4:
@@ -8098,7 +8227,24 @@ create_options_are_valid(
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: KEY_BLOCK_SIZE requires"
 					" innodb_file_format > Antelope.");
-					ret = FALSE;
+				ret = FALSE;
+			}
+
+			/* The maximum KEY_BLOCK_SIZE (KBS) is 16. But if
+			UNIV_PAGE_SIZE is smaller than 16k, the maximum
+			KBS is also smaller. */
+			kbs_max = ut_min(
+				1 << (UNIV_PAGE_SSIZE_MAX - 1),
+				1 << (PAGE_ZIP_SSIZE_MAX - 1));
+			if (create_info->key_block_size > kbs_max) {
+				push_warning_printf(
+					thd, Sql_condition::WARN_LEVEL_WARN,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: KEY_BLOCK_SIZE=%ld"
+					" cannot be larger than %ld.",
+					create_info->key_block_size,
+					kbs_max);
+				ret = FALSE;
 			}
 			break;
 		default:
@@ -8303,7 +8449,8 @@ ha_innobase::create(
 		ulint zssize;		/* Zip Shift Size */
 		ulint kbsize;		/* Key Block Size */
 		for (zssize = kbsize = 1;
-		     zssize <= PAGE_ZIP_SSIZE_MAX;
+		     zssize <= ut_min(UNIV_PAGE_SSIZE_MAX,
+				      PAGE_ZIP_SSIZE_MAX);
 		     zssize++, kbsize <<= 1) {
 			if (kbsize == create_info->key_block_size) {
 				zip_ssize = zssize;
@@ -8330,7 +8477,9 @@ ha_innobase::create(
 			zip_allowed = FALSE;
 		}
 
-		if (!zip_allowed || zssize > PAGE_ZIP_SSIZE_MAX) {
+		if (!zip_allowed
+		    || zssize > ut_min(UNIV_PAGE_SSIZE_MAX,
+				       PAGE_ZIP_SSIZE_MAX)) {
 			push_warning_printf(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -8364,10 +8513,11 @@ ha_innobase::create(
 	} else {
 		/* zip_ssize == 0 means no KEY_BLOCK_SIZE.*/
 		if (row_format == ROW_TYPE_COMPRESSED && zip_allowed) {
-			/* ROW_FORMAT=COMPRESSED without
-			KEY_BLOCK_SIZE implies half the
-			maximum KEY_BLOCK_SIZE. */
-			zip_ssize = PAGE_ZIP_SSIZE_MAX - 1;
+			/* ROW_FORMAT=COMPRESSED without KEY_BLOCK_SIZE
+			implies half the maximum KEY_BLOCK_SIZE(*1k) or
+			UNIV_PAGE_SIZE, whichever is less. */
+			zip_ssize = ut_min(UNIV_PAGE_SSIZE_MAX,
+					   PAGE_ZIP_SSIZE_MAX) - 1;
 		}
 	}
 
@@ -8705,6 +8855,9 @@ ha_innobase::truncate()
 
 	update_thd(ha_thd());
 
+	if (!trx_is_started(prebuilt->trx)) {
+		++prebuilt->trx->will_lock;
+	}
 	/* Truncate the table in InnoDB */
 
 	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
@@ -10620,12 +10773,17 @@ ha_innobase::start_stmt(
 		3) ::init_table_handle_for_HANDLER(), and
 		4) ::transactional_table_lock(). */
 
+		ut_a(prebuilt->stored_select_lock_type != LOCK_NONE_UNSET);
 		prebuilt->select_lock_type = prebuilt->stored_select_lock_type;
 	}
 
 	*trx->detailed_error = 0;
 
 	innobase_register_trx(ht, thd, trx);
+
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
 
 	if (prebuilt->result) {
 		ut_print_timestamp(stderr);
@@ -10688,6 +10846,7 @@ ha_innobase::external_lock(
 	informative error message and return with an error.
 	Note: decide_logging_format would give the same error message,
 	except it cannot give the extra details. */
+
 	if (lock_type == F_WRLCK
 	    && !(table_flags() & HA_BINLOG_STMT_CAPABLE)
 	    && thd_binlog_format(thd) == BINLOG_FORMAT_STMT
@@ -10705,7 +10864,6 @@ ha_innobase::external_lock(
 			DBUG_RETURN(HA_ERR_LOGGING_IMPOSSIBLE);
 		}
 	}
-
 
 	trx = prebuilt->trx;
 
@@ -10780,6 +10938,13 @@ ha_innobase::external_lock(
 		trx->n_mysql_tables_in_use++;
 		prebuilt->mysql_has_locked = TRUE;
 
+		if (!trx_is_started(trx)
+		    && (prebuilt->select_lock_type != LOCK_NONE
+			|| prebuilt->stored_select_lock_type != LOCK_NONE)) {
+
+			++trx->will_lock;
+		}
+
 		DBUG_RETURN(0);
 	}
 
@@ -10819,6 +10984,13 @@ ha_innobase::external_lock(
 
 			read_view_close_for_mysql(trx);
 		}
+	}
+
+	if (!trx_is_started(trx)
+	    && (prebuilt->select_lock_type != LOCK_NONE
+		|| prebuilt->stored_select_lock_type != LOCK_NONE)) {
+
+		++trx->will_lock;
 	}
 
 	DBUG_RETURN(0);
@@ -11534,6 +11706,13 @@ ha_innobase::store_lock(
 
 	*to++= &lock;
 
+	if (!trx_is_started(trx)
+	    && (prebuilt->select_lock_type != LOCK_NONE
+	        || prebuilt->stored_select_lock_type != LOCK_NONE)) {
+
+		++trx->will_lock;
+	}
+
 	return(to);
 }
 
@@ -11770,6 +11949,64 @@ ha_innobase::get_error_message(
 		system_charset_info);
 
 	return(FALSE);
+}
+
+/*******************************************************************//**
+  Retrieves the names of the table and the key for which there was a
+  duplicate entry in the case of HA_ERR_FOREIGN_DUPLICATE_KEY.
+
+  If any of the names is not available, then this method will return
+  false and will not change any of child_table_name or child_key_name.
+
+  @param child_table_name[out]    Table name
+  @param child_table_name_len[in] Table name buffer size
+  @param child_key_name[out]      Key name
+  @param child_key_name_len[in]   Key name buffer size
+
+  @retval  true                  table and key names were available
+                                 and were written into the corresponding
+                                 out parameters.
+  @retval  false                 table and key names were not available,
+                                 the out parameters were not touched.
+*/
+bool
+ha_innobase::get_foreign_dup_key(
+/*=============================*/
+	char*	child_table_name,
+	uint	child_table_name_len,
+	char*	child_key_name,
+	uint	child_key_name_len)
+{
+	const dict_index_t*	err_index;
+
+	ut_a(prebuilt->trx != NULL);
+	ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
+
+	err_index = trx_get_error_info(prebuilt->trx);
+
+	if (err_index == NULL) {
+		return(false);
+	}
+	/* else */
+
+	/* copy table name (and convert from filename-safe encoding to
+	system_charset_info, e.g. "foo_@0J@00b6" -> "foo_ö") */
+	char*	p;
+	p = strchr(err_index->table->name, '/');
+	/* strip ".../" prefix if any */
+	if (p != NULL) {
+		p++;
+	} else {
+		p = err_index->table->name;
+	}
+	uint	len;
+	len = filename_to_tablename(p, child_table_name, child_table_name_len);
+	child_table_name[len] = '\0';
+
+	/* copy index name */
+	ut_snprintf(child_key_name, child_key_name_len, "%s", err_index->name);
+
+	return(true);
 }
 
 /*******************************************************************//**
@@ -14129,6 +14366,12 @@ static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
   "Helps to save your data in case the disk image of the database becomes corrupt.",
   NULL, NULL, 0, 0, 6, 0);
 
+static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Page size to use for all InnoDB tablespaces.",
+  NULL, NULL, UNIV_PAGE_SIZE_DEF,
+  UNIV_PAGE_SIZE_MIN, UNIV_PAGE_SIZE_MAX, 0);
+
 static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the buffer which InnoDB uses to write log to the log files on disk.",
@@ -14378,6 +14621,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_arch_dir),
   MYSQL_SYSVAR(log_archive),
 #endif /* UNIV_LOG_ARCHIVE */
+  MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_buffer_size),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),

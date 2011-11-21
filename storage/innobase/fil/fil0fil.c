@@ -694,6 +694,7 @@ fil_node_open_file(
 	byte*		page;
 	ulint		space_id;
 	ulint		flags;
+	ulint		page_size;
 
 	ut_ad(mutex_own(&(system->mutex)));
 	ut_a(node->n_pending == 0);
@@ -761,6 +762,7 @@ fil_node_open_file(
 		success = os_file_read(node->handle, page, 0, UNIV_PAGE_SIZE);
 		space_id = fsp_header_get_space_id(page);
 		flags = fsp_header_get_flags(page);
+		page_size = fsp_flags_get_page_size(flags);
 
 		ut_free(buf2);
 
@@ -784,6 +786,19 @@ fil_node_open_file(
 				"InnoDB: Error: tablespace id %lu"
 				" in file %s is not sensible\n",
 				(ulong) space_id, node->name);
+
+			ut_error;
+		}
+
+		if (UNIV_UNLIKELY(fsp_flags_get_page_size(space->flags)
+				  != page_size)) {
+			fprintf(stderr,
+				"InnoDB: Error: tablespace file %s"
+				" has page size %lx\n"
+				"InnoDB: but the data dictionary"
+				" expects page size %lx!\n",
+				node->name, flags,
+				fsp_flags_get_page_size(space->flags));
 
 			ut_error;
 		}
@@ -1823,16 +1838,17 @@ fil_write_flushed_lsn_to_data_files(
 }
 
 /*******************************************************************//**
-Reads the flushed lsn and arch no fields from a data file at database
-startup. */
+Reads the flushed lsn, arch no, and tablespace flag fields from a data
+file at database startup. */
 UNIV_INTERN
 void
-fil_read_flushed_lsn_and_arch_log_no(
-/*=================================*/
+fil_read_first_page(
+/*================*/
 	os_file_t	data_file,		/*!< in: open data file */
 	ibool		one_read_already,	/*!< in: TRUE if min and max
 						parameters below already
 						contain sensible data */
+	ulint*		flags,			/*!< out: tablespace flags */
 #ifdef UNIV_LOG_ARCHIVE
 	ulint*		min_arch_log_no,	/*!< out: */
 	ulint*		max_arch_log_no,	/*!< out: */
@@ -1849,6 +1865,8 @@ fil_read_flushed_lsn_and_arch_log_no(
 	page = ut_align(buf, UNIV_PAGE_SIZE);
 
 	os_file_read(data_file, page, 0, UNIV_PAGE_SIZE);
+
+	*flags = fsp_header_get_flags(page);
 
 	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
 
@@ -2814,6 +2832,9 @@ error_exit2:
 
 	memset(page, '\0', UNIV_PAGE_SIZE);
 
+	/* Add the UNIV_PAGE_SIZE to the table flags and write them to the
+	tablespace header. */
+	flags = fsp_flags_set_page_size(flags, UNIV_PAGE_SIZE);
 	fsp_header_init_fields(page, space_id, flags);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
@@ -4377,8 +4398,12 @@ fil_io(
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(buf);
 	ut_ad(len > 0);
-#if (1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE
-# error "(1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE"
+	ut_ad(UNIV_PAGE_SIZE == (ulong)(1 << UNIV_PAGE_SIZE_SHIFT));
+#if (1 << UNIV_PAGE_SIZE_SHIFT_MAX) != UNIV_PAGE_SIZE_MAX
+# error "(1 << UNIV_PAGE_SIZE_SHIFT_MAX) != UNIV_PAGE_SIZE_MAX"
+#endif
+#if (1 << UNIV_PAGE_SIZE_SHIFT_MIN) != UNIV_PAGE_SIZE_MIN
+# error "(1 << UNIV_PAGE_SIZE_SHIFT_MIN) != UNIV_PAGE_SIZE_MIN"
 #endif
 	ut_ad(fil_validate_skip());
 #ifndef UNIV_HOTBACKUP

@@ -275,7 +275,9 @@ row_ins_sec_index_entry_by_modify(
 		err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG, cursor,
 						 &heap, &dummy_big_rec, update,
 						 0, thr, mtr);
+		/* XXX merge conflicts, should this be here?
 		ut_ad(!dummy_big_rec);
+		*/
 	}
 func_exit:
 	mem_heap_free(heap);
@@ -438,11 +440,9 @@ row_ins_cascade_calc_update_vec(
 	dict_table_t*	table		= foreign->foreign_table;
 	dict_index_t*	index		= foreign->foreign_index;
 	upd_t*		update;
-	upd_field_t*	ufield;
 	dict_table_t*	parent_table;
 	dict_index_t*	parent_index;
 	upd_t*		parent_update;
-	upd_field_t*	parent_ufield;
 	ulint		n_fields_updated;
 	ulint		parent_field_no;
 	ulint		i;
@@ -488,13 +488,15 @@ row_ins_cascade_calc_update_vec(
 			dict_index_get_nth_col_no(parent_index, i));
 
 		for (j = 0; j < parent_update->n_fields; j++) {
-			parent_ufield = parent_update->fields + j;
+			const upd_field_t*	parent_ufield
+				= &parent_update->fields[j];
 
 			if (parent_ufield->field_no == parent_field_no) {
 
 				ulint			min_size;
 				const dict_col_t*	col;
 				ulint			ufield_len;
+				upd_field_t*		ufield;
 
 				col = dict_index_get_nth_col(index, i);
 
@@ -506,7 +508,9 @@ row_ins_cascade_calc_update_vec(
 
 				ufield->field_no
 					= dict_table_get_nth_col_pos(
-						table, dict_col_get_no(col));
+					table, dict_col_get_no(col));
+
+				ufield->orig_len = 0;
 				ufield->exp = NULL;
 
 				ufield->new_val = parent_ufield->new_val;
@@ -646,6 +650,7 @@ row_ins_cascade_calc_update_vec(
 	if (table->fts && *fts_col_affected) {
 		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			doc_id_t	doc_id;
+                        upd_field_t*	ufield;
 
 			ut_ad(!doc_id_updated);
 			ufield = update->fields + n_fields_updated;
@@ -1106,10 +1111,9 @@ row_ins_foreign_check_on_constraint(
 		doc_id = fts_get_doc_id_from_rec(table, clust_rec, tmp_heap);
 	}
 
-	if ((node->is_delete
-	     && (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL))
-	    || (!node->is_delete
-		&& (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL))) {
+	if (node->is_delete
+	    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
+	    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
 
 		/* Build the appropriate update vector which sets
 		foreign->n_fields first fields in rec to SQL NULL */
@@ -1118,6 +1122,8 @@ row_ins_foreign_check_on_constraint(
 
 		update->info_bits = 0;
 		update->n_fields = foreign->n_fields;
+		UNIV_MEM_INVALID(update->fields,
+				 update->n_fields * sizeof *update->fields);
 
 		for (i = 0; i < foreign->n_fields; i++) {
 			upd_field_t*	ufield = &update->fields[i];

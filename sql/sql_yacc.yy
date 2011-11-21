@@ -6869,7 +6869,7 @@ alter_commands:
         ;
 
 remove_partitioning:
-          REMOVE_SYM PARTITIONING_SYM
+          REMOVE_SYM PARTITIONING_SYM have_partitioning
           {
             Lex->alter_info.flags|= ALTER_REMOVE_PARTITIONING;
           }
@@ -10436,7 +10436,8 @@ limit_option:
           }
           splocal->limit_clause_param= TRUE;
           $$= splocal;
-        } | param_marker
+        }
+        | param_marker
         {
           ((Item_param *) $1)->limit_clause_param= TRUE;
         }

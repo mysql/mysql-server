@@ -331,7 +331,7 @@ read_view_open_now_low(
 {
 	const trx_t*	trx;
 	read_view_t*	view;
-	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
+	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 	ut_ad(mutex_own(&trx_sys->mutex));
 
@@ -350,15 +350,16 @@ read_view_open_now_low(
 
 	/* No active transaction should be visible, except cr_trx */
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		ut_ad(trx->in_trx_list);
+		assert_trx_in_rw_list(trx);
 
-		/* trx->state cannot change from or to NOT_STARTED
-		while we are holding the trx_sys->mutex. It may change
-		from ACTIVE to PREPARED or COMMITTED. */
+		/* The state of a read-write transaction cannot change
+		from or to NOT_STARTED while we are holding the
+		trx_sys->mutex. It may change from ACTIVE to PREPARED
+		or COMMITTED. */
 
 		if (trx->id != cr_trx_id
 		    && !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
@@ -621,7 +622,7 @@ read_cursor_view_create_for_mysql(
 
 	mutex_enter(&trx_sys->mutex);
 
-	n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
+	n_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 	curview->read_view = read_view_create_low(n_trx, curview->heap);
 
@@ -639,13 +640,16 @@ read_cursor_view_create_for_mysql(
 
 	/* No active transaction should be visible */
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		/* trx->state cannot change from or to NOT_STARTED
-		while we are holding the trx_sys->mutex. It may change
-		from ACTIVE to PREPARED or COMMITTED. */
+		assert_trx_in_rw_list(trx);
+
+		/* The state of a read-write transaction cannot change
+		from or to NOT_STARTED while we are holding the
+		trx_sys->mutex. It may change from ACTIVE to PREPARED
+		or COMMITTED. */
 		if (!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
 			ut_a(n_trx < view->n_trx_ids);
 
