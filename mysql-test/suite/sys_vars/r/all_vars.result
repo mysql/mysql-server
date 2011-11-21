@@ -12,8 +12,6 @@ select variable_name as `There should be *no* variables listed below:` from t2
 left join t1 on variable_name=test_name where test_name is null;
 There should be *no* variables listed below:
 LOG_BIN_USE_V1_ROW_EVENTS
-INNODB_LARGE_PREFIX
 LOG_BIN_USE_V1_ROW_EVENTS
-INNODB_LARGE_PREFIX
 drop table t1;
 drop table t2;

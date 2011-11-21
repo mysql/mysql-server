@@ -1,0 +1,70 @@
+
+
+# 2010-01-25 - Added
+#
+
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_large_prefix;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are 'ON' and 'OFF' 
+select @@global.innodb_large_prefix in (0, 1);
+select @@global.innodb_large_prefix;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_large_prefix;
+show global variables like 'innodb_large_prefix';
+show session variables like 'innodb_large_prefix';
+select * from information_schema.global_variables where variable_name='innodb_large_prefix';
+select * from information_schema.session_variables where variable_name='innodb_large_prefix';
+
+#
+# show that it's writable
+#
+set global innodb_large_prefix='OFF';
+select @@global.innodb_large_prefix;
+select * from information_schema.global_variables where variable_name='innodb_large_prefix';
+select * from information_schema.session_variables where variable_name='innodb_large_prefix';
+set @@global.innodb_large_prefix=1;
+select @@global.innodb_large_prefix;
+select * from information_schema.global_variables where variable_name='innodb_large_prefix';
+select * from information_schema.session_variables where variable_name='innodb_large_prefix';
+set global innodb_large_prefix=0;
+select @@global.innodb_large_prefix;
+select * from information_schema.global_variables where variable_name='innodb_large_prefix';
+select * from information_schema.session_variables where variable_name='innodb_large_prefix';
+set @@global.innodb_large_prefix='ON';
+select @@global.innodb_large_prefix;
+select * from information_schema.global_variables where variable_name='innodb_large_prefix';
+select * from information_schema.session_variables where variable_name='innodb_large_prefix';
+--error ER_GLOBAL_VARIABLE
+set session innodb_large_prefix='OFF';
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_large_prefix='ON';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_large_prefix=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_large_prefix=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_large_prefix=2;
+--echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+set global innodb_large_prefix=-3;
+select @@global.innodb_large_prefix;
+select * from information_schema.global_variables where variable_name='innodb_large_prefix';
+select * from information_schema.session_variables where variable_name='innodb_large_prefix';
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_large_prefix='AUTO';
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_large_prefix = @start_global_value;
+SELECT @@global.innodb_large_prefix;
