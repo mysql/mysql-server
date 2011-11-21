@@ -208,7 +208,8 @@ dec $n1;
 let $n2= $n1;
 dec $n2;
 let $tables_2_rename= ;
-let $m= `select floor(rand()*$tables) + 1`;
+#let $m= `select floor(rand()*$tables) + 1`;
+let $m= `select floor($tables/2)`;
 
 while ($n2)
 {
@@ -230,6 +231,19 @@ eval rename table $tables_2_rename d$n.t$m to d$n1.t$m;
 
 --enable_query_log
 
+#
+# DEBUG output (to remove)
+# Hunting after bug#13033076.
+# Let's see if rename leaves any garbage after its run
+#
+sync_slave_with_master;
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+while ($n)
+{
+  echo "database d$n:";
+  --list_files $MYSQLD_DATADIR/d$n
+  dec $n;
+}
 
 
 #
@@ -243,12 +257,20 @@ connection master;
 let $n= $dbs;
 while ($n)
 {
+  # DEBUG (to remove) bug#13033076
+  --connection slave
+  --echo "database d$n:"
+  --list_files $MYSQLD_DATADIR/d$n
+
+  --connection master
   eval drop database d$n;
+  sync_slave_with_master;
   dec $n;
 }
 
 --enable_query_log
 
+--connection master
 sync_slave_with_master;
 
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;

@@ -93,6 +93,16 @@ static ibool		ut_crc32_slice8_table_initialized = FALSE;
 static ibool		ut_crc32_sse2_enabled = FALSE;
 
 /********************************************************************//**
+Calculates CRC32.
+@return CRC32 (CRC-32C, using the GF(2) primitive polynomial 0x11EDC6F41,
+or 0x1EDC6F41 without the high-order bit) */
+ib_uint32_t
+(*ut_crc32)(
+/*========*/
+	const byte*	buf,	/*!< in: data over which to calculate CRC32 */
+	ulint		len);	/*!< in: data length */
+
+/********************************************************************//**
 Initializes the table that is used to generate the CRC32 if the CPU does
 not have support for it. */
 static

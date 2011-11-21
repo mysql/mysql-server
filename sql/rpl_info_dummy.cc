@@ -43,11 +43,11 @@ int Rpl_info_dummy::do_prepare_info_for_write(const uint nidx
   return 0;
 }
 
-int Rpl_info_dummy::do_check_info(const ulong *uidx __attribute__((unused)),
-                                 const uint nidx __attribute__((unused)))
+enum_return_check Rpl_info_dummy::do_check_info(const ulong *uidx __attribute__((unused)),
+                                                const uint nidx __attribute__((unused)))
 {
   if (abort) DBUG_ASSERT(0);
-  return 0;
+  return REPOSITORY_DOES_NOT_EXIST;
 }
 
 int Rpl_info_dummy::do_flush_info(const ulong *uidx __attribute__((unused)),

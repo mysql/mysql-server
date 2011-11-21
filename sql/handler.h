@@ -2327,6 +2327,14 @@ public:
 
  virtual Item *idx_cond_push(uint keyno, Item* idx_cond) { return idx_cond; }
 
+ /** Reset information about pushed index conditions */
+ virtual void cancel_pushed_idx_cond()
+ {
+   pushed_idx_cond= NULL;
+   pushed_idx_cond_keyno= MAX_KEY;
+   in_range_check_pushed_down= false;
+ }
+
 #ifndef MCP_WL4784
   /**
     Reports #tables included in pushed join which this

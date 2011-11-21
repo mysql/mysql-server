@@ -4,6 +4,8 @@
 
 --source include/have_innodb.inc
 
+set global innodb_monitor_disable = All;
+
 # Test turn on/off the monitor counter  with "all" option
 # By default, they will be off
 select name, status from information_schema.innodb_metrics;
@@ -99,6 +101,11 @@ set global innodb_monitor_enable="";
 
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_monitor_enable="_";
+
+# Reset counters only in "module_metadata" module
+set global innodb_monitor_disable = module_metadata;
+
+set global innodb_monitor_reset_all = module_metadata;
 
 # Only turn on "table_open" counter
 set global innodb_monitor_enable = metadata_table_handles_opened;
@@ -361,6 +368,9 @@ select name, count from information_schema.innodb_metrics
 where name like "icp%";
 
 drop table monitor_test;
+
+set global innodb_monitor_disable = all;
+set global innodb_monitor_reset_all = all;
 
 -- disable_warnings
 set global innodb_monitor_enable = default;

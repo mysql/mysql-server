@@ -125,6 +125,7 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
+extern LEX_STRING EMPTY_STR;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 extern bool volatile shutdown_in_progress;
@@ -1904,16 +1905,6 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
-  /* Place to store various things */
-  union 
-  { 
-    /*
-      Used by subquery optimizations, see
-      Item_exists_subselect::embedding_join_nest.
-    */
-    TABLE_LIST *emb_on_expr_nest;
-  } thd_marker;
-  
 #ifndef MCP_WL5353
   /*
      Ptr to row event extra data to be written to Binlog /
@@ -3183,6 +3174,7 @@ public:
   */
   void push_internal_handler(Internal_error_handler *handler);
 
+private:
   /**
     Handle a sql condition.
     @param sql_errno the condition error number
@@ -3192,12 +3184,13 @@ public:
     @param[out] cond_hdl the sql condition raised, if any
     @return true if the condition is handled
   */
-  virtual bool handle_condition(uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
+  bool handle_condition(uint sql_errno,
+                        const char* sqlstate,
+                        Sql_condition::enum_warning_level level,
+                        const char* msg,
+                        Sql_condition ** cond_hdl);
 
+public:
   /**
     Remove the error handler last pushed.
   */
@@ -4204,14 +4197,9 @@ public:
 #define CF_HA_CLOSE             (1U << 11)
 
 /**
-  Identifies statements that can directly update a rpl info table.
-*/
-#define CF_WRITE_RPL_INFO_COMMAND (1U << 12)
-
-/**
   Identifies statements that can be explained with EXPLAIN.
 */
-#define CF_CAN_BE_EXPLAINED       (1U << 13)
+#define CF_CAN_BE_EXPLAINED       (1U << 12)
 
 /** Identifies statements which may generate an optimizer trace */
 #define CF_OPTIMIZER_TRACE        (1U << 14)
