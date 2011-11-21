@@ -1,4 +1,4 @@
-
+--source include/not_windows.inc
 #------------------------------------------------------------------------------
 # Test With alter/create/drop index
 #------------------------------------------------------------------------------
@@ -30,24 +30,24 @@ INSERT INTO t1 (a,b) VALUES
         ('MySQL Security','When configured properly, MySQL ...');
 
 # Select word "tutorial" in the table
-SELECT * FROM t1 WHERE MATCH (a,b)
+SELECT id FROM t1 WHERE MATCH (a,b)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 # boolean mode
-select * from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
-select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
-select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
-select * from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
-select * from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
-select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+select id, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+select id from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+select id from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+select id from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 
 # query expansion
-select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
-select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
-select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
+select id from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+select id from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+select id from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 
 # Drop index 
 ALTER TABLE t1 DROP INDEX idx;
@@ -56,24 +56,24 @@ ALTER TABLE t1 DROP INDEX idx;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 
 # Select word "tutorial" in the table
-SELECT * FROM t1 WHERE MATCH (a,b)
+SELECT id FROM t1 WHERE MATCH (a,b)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 # boolean mode
-select * from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
-select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
-select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
-select * from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
-select * from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
-select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+select id, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+select id from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+select id from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+select id from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 
 # query expansion
-select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
-select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
-select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
+select id from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+select id from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+select id from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 
 # insert for proximity search 
 INSERT INTO t1 (a,b) VALUES ('test query expansion','for database ...');
@@ -91,37 +91,37 @@ INSERT INTO t1 (a,b) VALUES
          'search, with proximity innodb');
 
 # This should only return the first document
-SELECT * FROM t1
+SELECT id FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
 
 # This would return no document
-SELECT * FROM t1
+SELECT id FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"proximity search"@9' IN BOOLEAN MODE);
 
 # This give you all three documents
-SELECT * FROM t1
+SELECT id FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
 
 # Similar boundary testing for the words
-SELECT * FROM t1
+SELECT id FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"test proximity"@5' IN BOOLEAN MODE);
 
 # Test with more word The last document will return, please notice there
 # is no ordering requirement for proximity search.
-SELECT * FROM t1
+SELECT id FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"more test proximity"@10' IN BOOLEAN MODE);
 
-SELECT * FROM t1
+SELECT id FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"more test proximity"@9' IN BOOLEAN MODE);
 
 # The phrase search will not require exact word ordering
-SELECT * FROM t1
+SELECT id FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"more fts proximity"@09' IN BOOLEAN MODE);
 
@@ -157,52 +157,52 @@ INSERT INTO t1 (a,b) VALUES
 
 
 # Select word "tutorial" in the table
-SELECT * FROM t1 WHERE MATCH (a,b)
+SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 # Select word "tutorial" in the table
-SELECT * FROM t1 WHERE id = (SELECT MAX(id) FROM t1 WHERE MATCH (a,b)
+SELECT id FROM t1 WHERE id = (SELECT MAX(id) FROM t1 WHERE MATCH (a,b)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE));
 
 # Select word "tutorial" in the table
-SELECT * FROM t1 WHERE id = (SELECT MIN(id) FROM t1 WHERE MATCH (a,b)
+SELECT id FROM t1 WHERE id = (SELECT MIN(id) FROM t1 WHERE MATCH (a,b)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE));
 
 # Select word "tutorial" in the table
-SELECT * FROM t1 WHERE id = (SELECT MIN(id) FROM t1 WHERE MATCH (a,b)
+SELECT id FROM t1 WHERE id = (SELECT MIN(id) FROM t1 WHERE MATCH (a,b)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) OR id = 3 ;
 
 
 # Select word "tutorial" in the table - innodb crash
-SELECT * FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
+SELECT id FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
 SELECT CONCAT(a,b) FROM t1 AS t2 WHERE 
 MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)
 ) OR t1.id = 3 ;
 
 
 # Select word "tutorial" in the table  - innodb crash
-SELECT * FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
+SELECT id FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
 SELECT CONCAT(a,b) FROM t1 AS t2 
 WHERE MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
 AND t2.id != 3) ;
 
 # Select word "tutorial" in the table
-SELECT * FROM t1 WHERE id IN (SELECT MIN(id) FROM t1 WHERE 
+SELECT id FROM t1 WHERE id IN (SELECT MIN(id) FROM t1 WHERE 
 MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) OR id = 3 ;
 
 # Select word except  "tutorial" in the table
-SELECT * FROM t1 WHERE id NOT IN (SELECT MIN(id) FROM t1 
+SELECT id FROM t1 WHERE id NOT IN (SELECT MIN(id) FROM t1 
 WHERE MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) ;
 
 
 # Select word "tutorial" in the table
-SELECT * FROM t1 WHERE EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
+SELECT id FROM t1 WHERE EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
 MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
 AND t1.id = t2.id) ;
 
 
 # Select not word like "tutorial" using subquery
-SELECT * FROM t1 WHERE NOT EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
+SELECT id FROM t1 WHERE NOT EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
 MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
 AND t1.id = t2.id) ;
 
@@ -223,25 +223,25 @@ INSERT INTO t1(a,b) VALUES('MySQL has now support', 'for full-text search'),
 ('Full-text search in MySQL', 'implements vector space model');
 
 # Select word "tutorial" in the table
-SELECT * FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE 
+SELECT id FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE 
         MATCH(t2.a,t2.b) AGAINST("+support +collections" IN BOOLEAN MODE));
-SELECT * FROM t1 WHERE t1.id != (SELECT MIN(t2.id) FROM t1 AS t2 WHERE 
+SELECT id FROM t1 WHERE t1.id != (SELECT MIN(t2.id) FROM t1 AS t2 WHERE 
         MATCH(t2.a,t2.b) AGAINST("+search" IN BOOLEAN MODE));
 
-SELECT * FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE 
+SELECT id FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE 
 MATCH (t2.a,t2.b) AGAINST ("+call* +coll*" IN BOOLEAN MODE));
 
-SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE 
+SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE 
 MATCH t2.a,t2.b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE) AND t2.id=t1.id);
 
 
 #query expansion search
 # result differ for query expansion search even wo subquery
-#SELECT * FROM t1 WHERE t1.id = ( SELECT  MAX(t2.id) FROM t1 AS t2 WHERE 
+#SELECT id FROM t1 WHERE t1.id = ( SELECT  MAX(t2.id) FROM t1 AS t2 WHERE 
 #MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION));
-#SELECT * FROM t1 WHERE t1.id IN ( SELECT t2.id FROM t1 AS t2 WHERE
+#SELECT id FROM t1 WHERE t1.id IN ( SELECT t2.id FROM t1 AS t2 WHERE
 #MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION));
-#SELECT * FROM t1 WHERE ( SELECT COUNT(*) FROM t1 AS t2 WHERE
+#SELECT id FROM t1 WHERE ( SELECT COUNT(*) FROM t1 AS t2 WHERE
 #MATCH(t2.a,t2.b) AGAINST ("indexes collections" WITH QUERY EXPANSION)) >= 1 
 #AND t1.id <=3 ;
 
@@ -262,23 +262,23 @@ INSERT INTO t1 (a,b) VALUES
          'search, with proximity innodb');
 
 
-SELECT * FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE
+SELECT id FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE
 MATCH(t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
-SELECT * FROM t1 WHERE t1.id > (SELECT MIN(t2.id) FROM t1 AS t2 WHERE
+SELECT id FROM t1 WHERE t1.id > (SELECT MIN(t2.id) FROM t1 AS t2 WHERE
 MATCH(t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
 
-SELECT * FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE
+SELECT id FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE
 MATCH (t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
 
-SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE
+SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
 MATCH t2.a,t2.b AGAINST ('"proximity search"@10' IN BOOLEAN MODE) 
 AND t2.id=t1.id);
 
-SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE
+SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
 MATCH t2.a,t2.b AGAINST ('"more test proximity"@10' IN BOOLEAN MODE) 
 AND t2.id=t1.id);
 
-SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE
+SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
 MATCH t2.a,t2.b AGAINST ('"more test proximity"@5' IN BOOLEAN MODE) 
 AND t2.id=t1.id);
 
@@ -286,22 +286,22 @@ AND t2.id=t1.id);
 #------------------------------------------------------------------------------
 # create table AS SELECT from fts indexed table
 #------------------------------------------------------------------------------
-CREATE TABLE t2 ENGINE = InnoDB AS SELECT * FROM t1 WHERE
+CREATE TABLE t2 ENGINE = InnoDB AS SELECT id FROM t1 WHERE
 MATCH a,b AGAINST ('support') ;
 SHOW CREATE TABLE t2;
-SELECT * FROM t2;
+SELECT id FROM t2;
 DROP TABLE t2;
 
-CREATE TABLE t2 ENGINE = InnoDB AS SELECT * FROM t1 WHERE
+CREATE TABLE t2 ENGINE = InnoDB AS SELECT id FROM t1 WHERE
 MATCH a,b AGAINST("+support +collections" IN BOOLEAN MODE);
 SHOW CREATE TABLE t2;
-SELECT * FROM t2;
+SELECT id FROM t2;
 DROP TABLE t2;
 
-CREATE TABLE t2 ENGINE = InnoDB AS SELECT * FROM t1 WHERE
+CREATE TABLE t2 ENGINE = InnoDB AS SELECT id FROM t1 WHERE
 MATCH a,b AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
 SHOW CREATE TABLE t2;
-SELECT * FROM t2;
+SELECT id FROM t2;
 DROP TABLE t2;
 
 DROP TABLE t1;
@@ -354,30 +354,30 @@ SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t1 WHERE a IS NULL;
 SELECT COUNT(*) FROM t1 WHERE b IS NOT NULL;
 
-SELECT * FROM t1
+SELECT id FROM t1
      WHERE MATCH (a,b)
      AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
-SELECT * FROM t1
+SELECT id FROM t1
      WHERE MATCH (a,b)
      AGAINST (NULL IN NATURAL LANGUAGE MODE);
-SELECT * FROM t1
+SELECT id FROM t1
      WHERE MATCH (a,b)
      AGAINST (NULL WITH QUERY EXPANSION);
-SELECT * FROM t1
+SELECT id FROM t1
      WHERE MATCH (a,b)
      AGAINST ('null' IN NATURAL LANGUAGE MODE);
 # Boolean search
 # Select rows contain "MySQL" but not "YourSQL"
-SELECT * FROM t1 WHERE MATCH (a,b)
+SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
-SELECT * FROM t1 WHERE MATCH (a,b)
+SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NOT NULL OR b IS NOT NULL);
-SELECT * FROM t1 WHERE MATCH (a,b)
+SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NULL AND b IS NOT NULL);
 
 # Select rows contain at least one of the two words
-SELECT * FROM t1 WHERE MATCH (a,b)
+SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('DBMS Security' IN BOOLEAN MODE);
 
 # Test query expansion
@@ -386,7 +386,7 @@ WHERE MATCH (a,b)
 AGAINST ('database' WITH QUERY EXPANSION);
 
 # proximity
-SELECT * FROM t1
+SELECT id FROM t1
 WHERE MATCH (a,b)
 AGAINST ('"following database"@10' IN BOOLEAN MODE);
 
