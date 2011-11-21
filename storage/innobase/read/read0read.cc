@@ -339,7 +339,7 @@ struct	CreateView {
 	void	operator()(const trx_t* trx)
 	{
 		ut_ad(mutex_own(&trx_sys->mutex));
-		ut_ad(trx->in_trx_list);
+		ut_ad(trx->in_rw_trx_list);
 
 		/* trx->state cannot change from or to NOT_STARTED
 		while we are holding the trx_sys->mutex. It may change
@@ -387,7 +387,7 @@ read_view_open_now_low(
 					allocated */
 {
 	read_view_t*	view;
-	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
+	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 	ut_ad(mutex_own(&trx_sys->mutex));
 
@@ -404,7 +404,7 @@ read_view_open_now_low(
 
 	/* No active transaction should be visible, except cr_trx */
 
-	ut_list_map(trx_sys->trx_list, &trx_t::trx_list, CreateView(view));
+	ut_list_map(trx_sys->rw_trx_list, &trx_t::trx_list, CreateView(view));
 
 	if (view->n_trx_ids > 0) {
 		/* The last active transaction has the smallest id: */
@@ -639,7 +639,7 @@ read_cursor_view_create_for_mysql(
 
 	mutex_enter(&trx_sys->mutex);
 
-	n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
+	n_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 	curview->read_view = read_view_create_low(n_trx, curview->heap);
 
@@ -655,7 +655,7 @@ read_cursor_view_create_for_mysql(
 
 	/* No active transaction should be visible */
 
-	ut_list_map(trx_sys->trx_list, &trx_t::trx_list, CreateView(view));
+	ut_list_map(trx_sys->rw_trx_list, &trx_t::trx_list, CreateView(view));
 
 	view->creator_trx_id = cr_trx->id;
 

@@ -958,6 +958,36 @@ thd_is_replication_slave_thread(
 }
 
 /******************************************************************//**
+Returns true if transaction should be flagged as read-only.
+@return	true if the thd is marked as read-only */
+UNIV_INTERN
+ibool
+thd_trx_is_read_only(
+/*=================*/
+	void*	thd)	/*!< in: thread handle (THD*) */
+{
+	/* Waiting on WL#6046 to complete. */
+	return(FALSE);
+}
+
+/******************************************************************//**
+Check if the transaction is an auto-commit transaction. TRUE also
+implies that it is a SELECT (read-only) transaction.
+@return	true if the transaction is an auto commit read-only transaction. */
+UNIV_INTERN
+ibool
+thd_trx_is_auto_commit(
+/*===================*/
+	void*	thd)	/*!< in: thread handle (THD*) can be NULL */
+{
+	return(thd != NULL
+	       && !thd_test_options(
+		       static_cast<THD*>(thd),
+		       OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)
+	       && thd_is_select(thd));
+}
+
+/******************************************************************//**
 Save some CPU by testing the value of srv_thread_concurrency in inline
 functions. */
 static inline
@@ -1199,6 +1229,9 @@ convert_error_code_to_mysql(
 		which might not always be available in the error
 		handling stage. */
 		return(HA_ERR_FOUND_DUPP_KEY);
+
+	case DB_READ_ONLY:
+		return(HA_ERR_READ_ONLY_TRANSACTION);
 
 	case DB_FOREIGN_DUPLICATE_KEY:
 		return(HA_ERR_FOREIGN_DUPLICATE_KEY);
@@ -1837,7 +1870,7 @@ innobase_trx_init(
 }
 
 /*********************************************************************//**
-Allocates an InnoDB transaction for a MySQL handler object.
+Allocates an InnoDB transaction for a MySQL handler object for DML.
 @return	InnoDB transaction handle */
 UNIV_INTERN
 trx_t*
@@ -3329,7 +3362,9 @@ innobase_rollback_trx(
 
 	lock_unlock_table_autoinc(trx);
 
-	error = trx_rollback_for_mysql(trx);
+	if (!trx->read_only) {
+		error = trx_rollback_for_mysql(trx);
+	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
@@ -5933,6 +5968,8 @@ ha_innobase::write_row(
 		ut_print_buf(stderr, ((const byte*) trx) - 100, 200);
 		putc('\n', stderr);
 		ut_error;
+	} else if (!trx_is_started(trx)) {
+		++trx->will_lock;
 	}
 
 	ha_statistic_increment(&SSV::ha_write_count);
@@ -6438,6 +6475,10 @@ ha_innobase::update_row(
 
 	ut_a(prebuilt->trx == trx);
 
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
+
 	ha_statistic_increment(&SSV::ha_update_count);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
@@ -6514,8 +6555,8 @@ func_exit:
 	error = convert_error_code_to_mysql(error,
 					    prebuilt->table->flags, user_thd);
 
-	if (error == 0 /* success */
-	    && uvect->n_fields == 0 /* no columns were updated */) {
+	/* If success and no columns were updated. */
+	if (error == 0 && uvect->n_fields == 0) {
 
 		/* This is the same as success, but instructs
 		MySQL that the row is not really updated and it
@@ -6549,6 +6590,10 @@ ha_innobase::delete_row(
 	DBUG_ENTER("ha_innobase::delete_row");
 
 	ut_a(prebuilt->trx == trx);
+
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
 
 	ha_statistic_increment(&SSV::ha_delete_count);
 
@@ -7360,6 +7405,17 @@ ha_innobase::ft_init()
 
 	fprintf(stderr, "ft_init()\n");
 
+	trx_t*	trx = check_trx_exists(ha_thd());
+
+	/* FTS queries are not treated as autocommit non-locking selects.
+	This is because the FTS implementation can acquire locks behind
+	the scenes. This has not been verified but it is safer to treat
+	them as regular read only transactions for now. */
+
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
+
 	DBUG_RETURN(rnd_init(false));
 }
 
@@ -7415,9 +7471,19 @@ ha_innobase::ft_init_ext(
 	}
 
 	trx = prebuilt->trx;
+
+	/* FTS queries are not treated as autocommit non-locking selects.
+	This is because the FTS implementation can acquire locks behind
+	the scenes. This has not been verified but it is safer to treat
+	them as regular read only transactions for now. */
+
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
+
 	table = prebuilt->table;
 
-	/* Table do not have FTS index */
+	/* Table does not have an FTS index */
 	if (!table->fts || ib_vector_is_empty(table->fts->indexes)) {
 		my_error(ER_TABLE_HAS_NO_FT, MYF(0));
 		return(NULL);
@@ -8716,6 +8782,9 @@ ha_innobase::truncate()
 
 	update_thd(ha_thd());
 
+	if (!trx_is_started(prebuilt->trx)) {
+		++prebuilt->trx->will_lock;
+	}
 	/* Truncate the table in InnoDB */
 
 	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
@@ -10633,12 +10702,17 @@ ha_innobase::start_stmt(
 		3) ::init_table_handle_for_HANDLER(), and
 		4) ::transactional_table_lock(). */
 
+		ut_a(prebuilt->stored_select_lock_type != LOCK_NONE_UNSET);
 		prebuilt->select_lock_type = prebuilt->stored_select_lock_type;
 	}
 
 	*trx->detailed_error = 0;
 
 	innobase_register_trx(ht, thd, trx);
+
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
 
 	if (prebuilt->result) {
 		ut_print_timestamp(stderr);
@@ -10701,6 +10775,7 @@ ha_innobase::external_lock(
 	informative error message and return with an error.
 	Note: decide_logging_format would give the same error message,
 	except it cannot give the extra details. */
+
 	if (lock_type == F_WRLCK
 	    && !(table_flags() & HA_BINLOG_STMT_CAPABLE)
 	    && thd_binlog_format(thd) == BINLOG_FORMAT_STMT
@@ -10718,7 +10793,6 @@ ha_innobase::external_lock(
 			DBUG_RETURN(HA_ERR_LOGGING_IMPOSSIBLE);
 		}
 	}
-
 
 	trx = prebuilt->trx;
 
@@ -10793,6 +10867,13 @@ ha_innobase::external_lock(
 		trx->n_mysql_tables_in_use++;
 		prebuilt->mysql_has_locked = TRUE;
 
+		if (!trx_is_started(trx)
+		    && (prebuilt->select_lock_type != LOCK_NONE
+			|| prebuilt->stored_select_lock_type != LOCK_NONE)) {
+
+			++trx->will_lock;
+		}
+
 		DBUG_RETURN(0);
 	}
 
@@ -10832,6 +10913,13 @@ ha_innobase::external_lock(
 
 			read_view_close_for_mysql(trx);
 		}
+	}
+
+	if (!trx_is_started(trx)
+	    && (prebuilt->select_lock_type != LOCK_NONE
+		|| prebuilt->stored_select_lock_type != LOCK_NONE)) {
+
+		++trx->will_lock;
 	}
 
 	DBUG_RETURN(0);
@@ -11546,6 +11634,13 @@ ha_innobase::store_lock(
 	}
 
 	*to++= &lock;
+
+	if (!trx_is_started(trx)
+	    && (prebuilt->select_lock_type != LOCK_NONE
+	        || prebuilt->stored_select_lock_type != LOCK_NONE)) {
+
+		++trx->will_lock;
+	}
 
 	return(to);
 }
