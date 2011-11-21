@@ -141,6 +141,10 @@ extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern char	srv_adaptive_flushing;
 
+/* If this flag is TRUE, then we will load the indexes' (and tables') metadata
+even if they are marked as "corrupted". Mostly it is for DBA to process
+corrupted index and table */
+extern my_bool	srv_load_corrupted;
 
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */

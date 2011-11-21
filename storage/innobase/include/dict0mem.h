@@ -51,7 +51,12 @@ combination of types */
 #define DICT_UNIQUE	2	/*!< unique index */
 #define	DICT_UNIVERSAL	4	/*!< index which can contain records from any
 				other index */
-#define	DICT_IBUF 	8	/*!< insert buffer tree */
+#define	DICT_IBUF	8	/*!< insert buffer tree */
+#define	DICT_CORRUPT	16	/*!< bit to store the corrupted flag
+				in SYS_INDEXES.TYPE */
+
+#define	DICT_IT_BITS	5	/*!< number of bits used for
+				SYS_INDEXES.TYPE */
 /* @} */
 
 /** Types for a table object */
@@ -369,8 +374,9 @@ struct dict_index_struct{
 				/*!< space where the index tree is placed */
 	unsigned	page:32;/*!< index tree root page number */
 #endif /* !UNIV_HOTBACKUP */
-	unsigned	type:4;	/*!< index type (DICT_CLUSTERED, DICT_UNIQUE,
-				DICT_UNIVERSAL, DICT_IBUF) */
+	unsigned	type:DICT_IT_BITS;
+				/*!< index type (DICT_CLUSTERED, DICT_UNIQUE,
+				DICT_UNIVERSAL, DICT_IBUF, DICT_CORRUPT) */
 	unsigned	trx_id_offset:10;/*!< position of the trx id column
 				in a clustered index record, if the fields
 				before it are known to be of a fixed size,
@@ -391,8 +397,6 @@ struct dict_index_struct{
 				/*!< TRUE if this index is marked to be
 				dropped in ha_innobase::prepare_drop_index(),
 				otherwise FALSE */
-	unsigned	corrupted:1;
-				/*!< TRUE if the index object is corrupted */
 	dict_field_t*	fields;	/*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
