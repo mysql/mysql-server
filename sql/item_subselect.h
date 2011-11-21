@@ -526,6 +526,7 @@ class subselect_single_select_engine: public subselect_engine
 private:
   bool prepared; /* simple subselect is prepared */
   bool executed; /* simple subselect is executed */
+  bool optimize_error; ///< simple subselect optimization failed
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
 public:
@@ -612,7 +613,6 @@ protected:
     expression is NULL.
   */
   bool empty_result_set;
-  bool null_keypart; /* TRUE <=> constructed search tuple has a NULL */
 public:
 
   // constructor can assign THD because it will be called after JOIN::prepare
@@ -632,7 +632,7 @@ public:
                              select_result_interceptor *result);
   virtual bool no_tables() const;
   bool scan_table();
-  bool copy_ref_key();
+  void copy_ref_key(bool *require_scan, bool *convert_error);
   virtual bool no_rows() const { return empty_result_set; }
   virtual enum_engine_type engine_type() const { return UNIQUESUBQUERY_ENGINE; }
 };

@@ -439,7 +439,7 @@ namespace AQP
       }
       break;
     }
-    case JT_NEXT:
+    case JT_INDEX_SCAN:
       DBUG_ASSERT(join_tab->index < MAX_KEY);
       m_index_no=    join_tab->index;
       m_access_type= AT_ORDERED_INDEX_SCAN;

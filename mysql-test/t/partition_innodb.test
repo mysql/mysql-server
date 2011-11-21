@@ -9,6 +9,17 @@ drop table if exists t1, t2;
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
 --echo #
+--echo # Bug#13007154: Crash in keys_to_use_for_scanning with ORDER BY
+--echo #               and PARTITIONING
+--echo #
+CREATE TABLE t1 (a INT, KEY(a))
+ENGINE = InnoDB
+PARTITION BY KEY (a) PARTITIONS 1;
+SELECT 1 FROM t1 WHERE a > (SELECT LAST_INSERT_ID() FROM t1 LIMIT 0)
+ORDER BY a;
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#56287: crash when using Partition datetime in sub in query
 --echo #
 

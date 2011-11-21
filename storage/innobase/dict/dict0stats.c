@@ -35,17 +35,14 @@ Created Jan 06, 2010 Vasil Dimov
 #include "data0type.h" /* dtype_t */
 #include "db0err.h" /* db_err */
 #include "dyn0dyn.h" /* dyn_array* */
-#include "lock0lock.h" /* lock_table_by_name() */
 #include "pars0pars.h" /* pars_info_create() */
 #include "pars0types.h" /* pars_info_t */
 #include "que0que.h" /* que_eval_sql() */
-#include "rem0cmp.h" /* cmp_rec_rec_with_match() */
-#include "rem0types.h" /* REC_MAX_N_FIELDS */
+#include "rem0cmp.h" /* REC_MAX_N_FIELDS,cmp_rec_rec_with_match() */
 #include "row0sel.h" /* sel_node_struct */
 #include "row0types.h" /* sel_node_t */
 #include "trx0trx.h" /* trx_create() */
 #include "trx0roll.h" /* trx_rollback_to_savepoint() */
-#include "usr0types.h" /* sess_t */
 #include "ut0rnd.h" /* ut_rnd_interval() */
 
 #include "ha_prototypes.h" /* innobase_strcasecmp() */
@@ -346,7 +343,7 @@ dict_stats_analyze_index()
     dict_stats_analyze_index_for_n_prefix(that level, stats collected above)
       // full scan of the level in one mtr
       dive below some records and analyze the leaf page there:
-      dict_stats_analyze_index_below_pcur()
+      dict_stats_analyze_index_below_cur()
 @} */
 
 /*********************************************************************//**
@@ -378,9 +375,9 @@ dict_stats_analyze_index_level(
 	dtuple_t*	dtuple;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
-	page_t*		page;
-	rec_t*		rec;
-	rec_t*		prev_rec;
+	const page_t*	page;
+	const rec_t*	rec;
+	const rec_t*	prev_rec;
 	byte*		prev_rec_buf = NULL;
 	ulint		prev_rec_buf_size = 0;
 	ulint		i;
@@ -430,7 +427,7 @@ dict_stats_analyze_index_level(
 	as such, if we are on a non-leaf level */
 	ut_a(level == 0
 	     || (REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
-		     page_rec_get_next(page_get_infimum_rec(page)),
+		     page_rec_get_next_const(page_get_infimum_rec(page)),
 		     page_is_comp(page))));
 
 	if (btr_pcur_is_before_first_on_page(&pcur)) {
@@ -465,7 +462,7 @@ dict_stats_analyze_index_level(
 		rec = btr_pcur_get_rec(&pcur);
 
 		/* increment the pages counter at the end of each page */
-		if (page_rec_is_supremum(page_rec_get_next(rec))) {
+		if (page_rec_is_supremum(page_rec_get_next_const(rec))) {
 
 			(*total_pages)++;
 		}
@@ -540,7 +537,7 @@ dict_stats_analyze_index_level(
 			}
 		}
 
-		if (page_rec_is_supremum(page_rec_get_next(rec))) {
+		if (page_rec_is_supremum(page_rec_get_next_const(rec))) {
 			/* end of a page has been reached */
 
 			/* we need to copy the record instead of assigning
@@ -654,52 +651,55 @@ will return as soon as it finds a record that does not match its neighbor
 to the right, which means that in the case of QUIT_ON_FIRST_NON_BORING the
 returned n_diff can either be 0 (empty page), 1 (the whole page has all keys
 equal) or 2 (the function found a non-boring record and returned).
-@return the last user record which was read or NULL if the page is empty and
-does not contain user records.
+@return offsets1 or offsets2 (the offsets of *out_rec),
+or NULL if the page is empty and does not contain user records.
 dict_stats_scan_page() @{ */
-UNIV_INLINE
-rec_t*
+UNIV_INLINE __attribute__((nonnull))
+ulint*
 dict_stats_scan_page(
 /*=================*/
+	const rec_t**		out_rec,	/*!< out: record, or NULL */
+	ulint*			offsets1,	/*!< out: rec_get_offsets()
+						working space (must be big
+						enough) */
+	ulint*			offsets2,	/*!< out: rec_get_offsets()
+						working space (must be big
+						enough) */
 	dict_index_t*		index,		/*!< in: index of the page */
-	page_t*			page,		/*!< in: the page to scan */
+	const page_t*		page,		/*!< in: the page to scan */
 	ulint			n_prefix,	/*!< in: look at the first
 						n_prefix columns */
-	mem_heap_t*		heap,		/*!< in: aux memory heap to
-						use from the caller */
 	page_scan_method_t	scan_method,	/*!< in: scan to the end of
 						the page or not */
 	ib_uint64_t*		n_diff)		/*!< out: number of distinct
 						records encountered */
 {
-	ulint	offsets_onstack1[REC_OFFS_NORMAL_SIZE];
-	ulint	offsets_onstack2[REC_OFFS_NORMAL_SIZE];
-	ulint*	offsets_rec = offsets_onstack1;
-	ulint*	offsets_next_rec = offsets_onstack2;
-	rec_t*	rec;
-	rec_t*	next_rec;
-	rec_t*	supremum;
+	ulint*		offsets_rec		= offsets1;
+	ulint*		offsets_next_rec	= offsets2;
+	const rec_t*	rec;
+	const rec_t*	next_rec;
+	/* A dummy heap, to be passed to rec_get_offsets().
+	Because offsets1,offsets2 should be big enough,
+	this memory heap should never be used. */
+	mem_heap_t*	heap			= NULL;
 
-	rec_offs_init(offsets_onstack1);
-	rec_offs_init(offsets_onstack2);
+	rec = page_rec_get_next_const(page_get_infimum_rec(page));
 
-	supremum = page_get_supremum_rec(page);
-	rec = page_rec_get_next(page_get_infimum_rec(page));
-
-	if (rec == supremum) {
+	if (page_rec_is_supremum(rec)) {
 		/* the page is empty */
 		*n_diff = 0;
+		*out_rec = NULL;
 		return(NULL);
 	}
 
 	offsets_rec = rec_get_offsets(rec, index, offsets_rec,
 				      ULINT_UNDEFINED, &heap);
 
-	next_rec = page_rec_get_next(rec);
+	next_rec = page_rec_get_next_const(rec);
 
 	*n_diff = 1;
 
-	while (next_rec != supremum) {
+	while (!page_rec_is_supremum(next_rec)) {
 
 		ulint	matched_fields = 0;
 		ulint	matched_bytes = 0;
@@ -723,7 +723,7 @@ dict_stats_scan_page(
 			(*n_diff)++;
 
 			if (scan_method == QUIT_ON_FIRST_NON_BORING) {
-				return(rec);
+				goto func_exit;
 			}
 		}
 
@@ -745,10 +745,14 @@ dict_stats_scan_page(
 			offsets_rec = offsets_next_rec;
 			offsets_next_rec = offsets_tmp;
 		}
-		next_rec = page_rec_get_next(next_rec);
+		next_rec = page_rec_get_next_const(next_rec);
 	}
 
-	return(rec);
+func_exit:
+	/* offsets1,offsets2 should have been big enough */
+	ut_a(heap == NULL);
+	*out_rec = rec;
+	return(offsets_rec);
 }
 /* @} */
 
@@ -756,13 +760,13 @@ dict_stats_scan_page(
 Dive below the current position of a cursor and calculate the number of
 distinct records on the leaf page, when looking at the fist n_prefix
 columns.
-dict_stats_analyze_index_below_pcur() @{
+dict_stats_analyze_index_below_cur() @{
 @return number of distinct records on the leaf page */
 static
 ib_uint64_t
-dict_stats_analyze_index_below_pcur(
-/*================================*/
-	btr_pcur_t*	pcur,		/*!< in: cursor, not modified */
+dict_stats_analyze_index_below_cur(
+/*===============================*/
+	const btr_cur_t*cur,		/*!< in: cursor */
 	ulint		n_prefix,	/*!< in: look at the first n_prefix
 					columns when comparing records */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
@@ -772,28 +776,42 @@ dict_stats_analyze_index_below_pcur(
 	ulint		zip_size;
 	buf_block_t*	block;
 	ulint		page_no;
-	page_t*		page;
+	const page_t*	page;
 	mem_heap_t*	heap;
-	rec_t*		rec;
-	ulint		offsets_onstack[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets_rec = offsets_onstack;
+	const rec_t*	rec;
+	ulint*		offsets1;
+	ulint*		offsets2;
+	ulint*		offsets_rec;
 	ulint		root_height;
 	ib_uint64_t	n_diff; /* the result */
+	ulint		size;
 
-	rec_offs_init(offsets_onstack);
+	index = btr_cur_get_index(cur);
 
-	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
+	/* Allocate offsets for the record and the node pointer, for
+	node pointer records. In a secondary index, the node pointer
+	record will consist of all index fields followed by a child
+	page number.
+	Allocate space for the offsets header (the allocation size at
+	offsets[0] and the REC_OFFS_HEADER_SIZE bytes), and n_fields + 1,
+	so that this will never be less than the size calculated in
+	rec_get_offsets_func(). */
+	size = (1 + REC_OFFS_HEADER_SIZE) + 1 + dict_index_get_n_fields(index);
 
-	heap = mem_heap_create(256);
+	heap = mem_heap_create(size * (sizeof *offsets1 + sizeof *offsets2));
+	offsets1 = mem_heap_alloc(heap, size * sizeof *offsets1);
+	offsets2 = mem_heap_alloc(heap, size * sizeof *offsets2);
+	rec_offs_set_n_alloc(offsets1, size);
+	rec_offs_set_n_alloc(offsets2, size);
 
 	root_height = btr_page_get_level(btr_root_get(index, mtr), mtr);
 
 	space = dict_index_get_space(index);
 	zip_size = dict_table_zip_size(index->table);
 
-	rec = btr_pcur_get_rec(pcur);
+	rec = btr_cur_get_rec(cur);
 
-	offsets_rec = rec_get_offsets(rec, index, offsets_rec,
+	offsets_rec = rec_get_offsets(rec, index, offsets1,
 				      ULINT_UNDEFINED, &heap);
 
 	page_no = btr_node_ptr_get_child_page_no(rec, offsets_rec);
@@ -814,12 +832,12 @@ dict_stats_analyze_index_below_pcur(
 		/* else */
 
 		/* search for the first non-boring record on the page */
-		rec = dict_stats_scan_page(index, page, n_prefix, heap,
-					   QUIT_ON_FIRST_NON_BORING,
-					   &n_diff);
+		offsets_rec = dict_stats_scan_page(
+			&rec, offsets1, offsets2, index, page, n_prefix,
+			QUIT_ON_FIRST_NON_BORING, &n_diff);
 
 		/* pages on level > 0 are not allowed to be empty */
-		ut_a(rec != NULL);
+		ut_a(offsets_rec != NULL);
 		/* if page is not empty (rec != NULL) then n_diff must
 		be > 0, otherwise there is a bug in dict_stats_scan_page() */
 		ut_a(n_diff > 0);
@@ -850,15 +868,15 @@ dict_stats_analyze_index_below_pcur(
 	/* scan the leaf page and find the number of distinct keys,
 	when looking only at the first n_prefix columns */
 
-	rec = dict_stats_scan_page(index, page, n_prefix, heap,
-				   COUNT_ALL_NON_BORING,
-				   &n_diff);
+	offsets_rec = dict_stats_scan_page(
+		&rec, offsets1, offsets2, index, page, n_prefix,
+		COUNT_ALL_NON_BORING, &n_diff);
 
 	if (root_height > 0) {
 
 		/* empty pages are allowed only if the whole B-tree is empty
-		and contains a signle empty page */
-		ut_a(rec != NULL);
+		and contains a single empty page */
+		ut_a(offsets_rec != NULL);
 	}
 
 #if 0
@@ -910,7 +928,7 @@ dict_stats_analyze_index_for_n_prefix(
 	dtuple_t*	dtuple;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
-	page_t*		page;
+	const page_t*	page;
 	ib_uint64_t	rec_idx;
 	ib_uint64_t	last_idx_on_level;
 	ib_uint64_t	n_recs_to_dive_below;
@@ -958,7 +976,8 @@ dict_stats_analyze_index_for_n_prefix(
 	/* check whether the first record on the leftmost page is marked
 	as such, if we are on a non-leaf level */
 	ut_a(level == 0 || REC_INFO_MIN_REC_FLAG
-	     & rec_get_info_bits(page_rec_get_next(page_get_infimum_rec(page)),
+	     & rec_get_info_bits(page_rec_get_next_const(
+					 page_get_infimum_rec(page)),
 				 page_is_comp(page)));
 
 	if (btr_pcur_is_before_first_on_page(&pcur)) {
@@ -1055,8 +1074,8 @@ dict_stats_analyze_index_for_n_prefix(
 		ut_a(rec_idx == dive_below_idx);
 
 		n_diff_sum_of_all_analyzed_pages
-			+= dict_stats_analyze_index_below_pcur(
-				&pcur, n_prefix, &mtr);
+			+= dict_stats_analyze_index_below_cur(
+				btr_pcur_get_btr_cur(&pcur), n_prefix, &mtr);
 	}
 
 	index->stat_n_diff_key_vals[n_prefix]
@@ -1334,7 +1353,7 @@ dict_stats_update_persistent(
 
 	if (index == NULL) {
 		/* Table definition is corrupt */
-		return DB_CORRUPTION;
+		return(DB_CORRUPTION);
 	}
 
 	dict_stats_analyze_index(index);

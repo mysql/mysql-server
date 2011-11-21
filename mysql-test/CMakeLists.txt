@@ -107,3 +107,27 @@ FOREACH(collection)
     COMMAND ${CMAKE_COMMAND} -P run_collection_${collection}.cmake
   )
 ENDFOREACH()
+
+# Process .in files with includes in collections/
+
+MACRO(PROCESS_COLLECTION_INCLUDE collin collection)
+  FILE(STRINGS ${collin} inlines)
+  FOREACH(line ${inlines})
+    IF(${line} MATCHES "#include .*")
+      STRING(REPLACE "#include " "collections/" incfile ${line})
+      FILE(READ ${incfile} contents)
+      FILE(APPEND ${collection} "${contents}")
+    ELSE()
+      FILE(APPEND ${collection} "${line}\n")
+    ENDIF()
+  ENDFOREACH()
+ENDMACRO()
+
+FILE(GLOB infiles "collections/*.in")
+FOREACH(collin ${infiles})
+  STRING(REPLACE ".in" "" collection ${collin})
+  # Only generate file once
+  IF(NOT EXISTS ${collection})
+    PROCESS_COLLECTION_INCLUDE(${collin} ${collection})
+  ENDIF()
+ENDFOREACH()
