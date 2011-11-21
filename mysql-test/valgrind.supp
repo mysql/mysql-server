@@ -281,6 +281,16 @@
    fun:do_flush
 }
 
+{
+  libz deflate4
+  Memcheck:Param
+  write(buf)
+  fun:*
+  fun:my_write
+  fun:do_flush
+  fun:azclose
+}
+
 #
 # Warning from my_thread_init becasue mysqld dies before kill thread exists
 #
