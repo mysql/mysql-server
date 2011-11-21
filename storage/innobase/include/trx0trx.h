@@ -448,8 +448,18 @@ non-locking select */
 	ut_ad((t)->in_ro_trx_list == (t)->read_only);			\
 	ut_ad((t)->in_rw_trx_list == !(t)->read_only);			\
 	ut_ad(!trx_is_autocommit_non_locking((t)));			\
+	switch ((t)->state) {						\
+	case TRX_STATE_PREPARED:					\
+		ut_a(!(t)->read_only);					\
+		/* fall through */					\
+	case TRX_STATE_ACTIVE:						\
+	case TRX_STATE_COMMITTED_IN_MEMORY:				\
+		continue;						\
+	case TRX_STATE_NOT_STARTED:					\
+		break;							\
+	}								\
+	ut_error;							\
 } while (0)
-
 
 #ifdef UNIV_DEBUG
 /*******************************************************************//**
@@ -459,11 +469,14 @@ The tranasction must be in the mysql_trx_list. */
 # define assert_trx_nonlocking_or_in_list(t)				\
 	do {								\
 		if (trx_is_autocommit_non_locking(t)) {			\
+			trx_state_t	t_state = (t)->state;		\
 			ut_ad((t)->read_only);				\
 			ut_ad(!(t)->is_recovered);			\
 			ut_ad(!(t)->in_ro_trx_list);			\
 			ut_ad(!(t)->in_rw_trx_list);			\
 			ut_ad((t)->in_mysql_trx_list);			\
+			ut_ad(t_state == TRX_STATE_NOT_STARTED		\
+			      || t_state == TRX_STATE_ACTIVE);		\
 		} else {						\
 			assert_trx_in_list(t);				\
 		}							\
@@ -639,7 +652,7 @@ struct trx_struct{
 	Recovered XA:
 	* NOT_STARTED -> PREPARED -> COMMITTED -> (freed)
 
-	Recovered XA (2PC) (shutdown before ROLLBACK or COMMIT):
+	XA (2PC) (shutdown before ROLLBACK or COMMIT):
 	* NOT_STARTED -> PREPARED -> (freed)
 
 	Latching and various transaction lists membership rules:

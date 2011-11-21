@@ -356,9 +356,10 @@ read_view_open_now_low(
 
 		assert_trx_in_rw_list(trx);
 
-		/* trx->state cannot change from or to NOT_STARTED
-		while we are holding the trx_sys->mutex. It may change
-		from ACTIVE to PREPARED or COMMITTED. */
+		/* The state of a read-write transaction cannot change
+		from or to NOT_STARTED while we are holding the
+		trx_sys->mutex. It may change from ACTIVE to PREPARED
+		or COMMITTED. */
 
 		if (trx->id != cr_trx_id
 		    && !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
@@ -645,9 +646,10 @@ read_cursor_view_create_for_mysql(
 
 		assert_trx_in_rw_list(trx);
 
-		/* trx->state cannot change from or to NOT_STARTED
-		while we are holding the trx_sys->mutex. It may change
-		from ACTIVE to PREPARED or COMMITTED. */
+		/* The state of a read-write transaction cannot change
+		from or to NOT_STARTED while we are holding the
+		trx_sys->mutex. It may change from ACTIVE to PREPARED
+		or COMMITTED. */
 		if (!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
 			ut_a(n_trx < view->n_trx_ids);
 

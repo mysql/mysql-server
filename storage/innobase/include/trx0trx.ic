@@ -48,14 +48,8 @@ trx_state_eq(
 		return(trx->state == state);
 
 	case TRX_STATE_ACTIVE:
-		if (trx_is_autocommit_non_locking(trx)) {
-			ut_ad(!trx->is_recovered);
-			ut_ad(trx->read_only);
-			ut_ad(!trx->in_ro_trx_list);
-			ut_ad(!trx->in_rw_trx_list);
-			return(state == trx->state);
-		}
-		/* fall through for non-ac-nl-ro */
+		assert_trx_nonlocking_or_in_list(trx);
+		return(state == trx->state);
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		assert_trx_in_list(trx);

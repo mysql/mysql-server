@@ -1840,6 +1840,7 @@ trx_sys_validate_trx_list_low(
 	     prev_trx = trx, trx = UT_LIST_GET_NEXT(trx_list, prev_trx)) {
 
 		assert_trx_in_list(trx);
+		ut_ad(trx->read_only == (trx_list == &trx_sys->ro_trx_list));
 
 		ut_a(prev_trx == NULL || prev_trx->id > trx->id);
 	}

@@ -1878,10 +1878,10 @@ trx_recover_for_mysql(
 
 		assert_trx_in_rw_list(trx);
 
-		/* trx->state cannot change from or to NOT_STARTED
-		while we are holding the trx_sys->mutex. It may change
-		to PREPARED, but not if trx->is_recovered. It may also
-		change to COMMITTED. */
+		/* The state of a read-write transaction cannot change
+		from or to NOT_STARTED while we are holding the
+		trx_sys->mutex. It may change to PREPARED, but not if
+		trx->is_recovered. It may also change to COMMITTED. */
 		if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
 			xid_list[count] = trx->xid;
 
