@@ -208,7 +208,7 @@ toku_verify_brtnode (BRT brt,
     int result=0;
     BRTNODE node;
     void *node_v;
-    MSN   thismsn;
+    MSN   this_msn;
 
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
     {
@@ -235,11 +235,11 @@ toku_verify_brtnode (BRT brt,
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node = node_v;
     toku_assert_entire_node_in_memory(node);
-    thismsn = node->max_msn_applied_to_node_on_disk;
+    this_msn = node->max_msn_applied_to_node_on_disk;
     if (rootmsn.msn == ZERO_MSN.msn) {
         assert(parentmsn.msn == ZERO_MSN.msn);
-        rootmsn = thismsn;
-        parentmsn = thismsn;
+        rootmsn = this_msn;
+        parentmsn = this_msn;
     }
 
     invariant(node->fullhash == fullhash);   // this is a bad failure if wrong
@@ -247,7 +247,7 @@ toku_verify_brtnode (BRT brt,
         invariant(height == node->height);   // this is a bad failure if wrong
     }
     if (node->height > 0) {
-        VERIFY_ASSERTION((parentmsn.msn >= thismsn.msn), 0, "node msn must be descending down tree, newest messages at top");
+        VERIFY_ASSERTION((parentmsn.msn >= this_msn.msn), 0, "node msn must be descending down tree, newest messages at top");
     }
     // Verify that all the pivot keys are in order.
     for (int i = 0; i < node->n_children-2; i++) {
@@ -270,7 +270,7 @@ toku_verify_brtnode (BRT brt,
         struct kv_pair *curr_less_pivot = (i==0) ? lesser_pivot : node->childkeys[i-1];
         struct kv_pair *curr_geq_pivot = (i==node->n_children-1) ? greatereq_pivot : node->childkeys[i];
         if (node->height > 0) {
-            MSN lastmsn = ZERO_MSN;
+            MSN last_msn = ZERO_MSN;
             // Verify that messages in the buffers are in the right place.
             NONLEAF_CHILDINFO bnc = BNC(node, i);
             VERIFY_ASSERTION(verify_sorted_by_key_msn(brt, bnc->buffer, bnc->fresh_message_tree) == 0, i, "fresh_message_tree");
@@ -282,8 +282,8 @@ toku_verify_brtnode (BRT brt,
                                                                 curr_less_pivot,
                                                                 curr_geq_pivot);
                              VERIFY_ASSERTION(r==0, i, "A message in the buffer is out of place");
-                             VERIFY_ASSERTION((msn.msn > lastmsn.msn), i, "msn per msg must be monotonically increasing toward newer messages in buffer");
-                             VERIFY_ASSERTION((msn.msn <= thismsn.msn), i, "all messages must have msn within limit of this node's max_msn_applied_to_node_in_memory");
+                             VERIFY_ASSERTION((msn.msn > last_msn.msn), i, "msn per msg must be monotonically increasing toward newer messages in buffer");
+                             VERIFY_ASSERTION((msn.msn <= this_msn.msn), i, "all messages must have msn within limit of this node's max_msn_applied_to_node_in_memory");
                              int count;
                              count = count_eq_key_msn(brt, bnc->buffer, bnc->fresh_message_tree, key, keylen, msn);
                              if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {
@@ -323,6 +323,7 @@ toku_verify_brtnode (BRT brt,
                                      VERIFY_ASSERTION(extra.count == 0, i, "a broadcast message was found in the fresh message tree");
                                  }
                              }
+                             last_msn = msn;
                          }));
             struct verify_message_tree_extra extra = { .fifo = bnc->buffer, .broadcast = false, .is_fresh = true, .i = i, .verbose = verbose, .blocknum = blocknum, .keep_going_on_failure = keep_going_on_failure };
             int r = toku_omt_iterate(bnc->fresh_message_tree, verify_message_tree, &extra);
@@ -337,7 +338,7 @@ toku_verify_brtnode (BRT brt,
         else {
             BASEMENTNODE bn = BLB(node, i);
             for (u_int32_t j = 0; j < toku_omt_size(bn->buffer); j++) {
-                VERIFY_ASSERTION((rootmsn.msn >= thismsn.msn), 0, "leaf may have latest msn, but cannot be greater than root msn");
+                VERIFY_ASSERTION((rootmsn.msn >= this_msn.msn), 0, "leaf may have latest msn, but cannot be greater than root msn");
                 LEAFENTRY le = get_ith_leafentry(bn, j);
                 if (curr_less_pivot) {
                     int compare = compare_pair_to_leafentry(brt, curr_less_pivot, le);
@@ -359,7 +360,7 @@ toku_verify_brtnode (BRT brt,
     // Verify that the subtrees have the right properties.
     if (recurse && node->height > 0) {
         for (int i = 0; i < node->n_children; i++) {
-            int r = toku_verify_brtnode(brt, rootmsn, thismsn,
+            int r = toku_verify_brtnode(brt, rootmsn, this_msn,
                                         BP_BLOCKNUM(node, i), node->height-1,
                                         (i==0)                  ? lesser_pivot        : node->childkeys[i-1],
                                         (i==node->n_children-1) ? greatereq_pivot     : node->childkeys[i],
