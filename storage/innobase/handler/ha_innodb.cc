@@ -5261,9 +5261,6 @@ calc_row_difference(
 				dfield_set_null(&ufield->new_val);
 			}
 
-			/* XXX merge issues, should this be here?
-			ufield->extern_storage = FALSE;
-			*/
 			ufield->exp = NULL;
 			ufield->orig_len = 0;
 			ufield->field_no = dict_col_get_clust_pos(
