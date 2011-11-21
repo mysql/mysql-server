@@ -1,13 +1,21 @@
+SET @start_global_value=@@global.innodb_lock_wait_timeout;
+SELECT @start_global_value;
+@start_global_value
+50
 '#---------------------BS_STVARS_032_01----------------------#'
 SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
 COUNT(@@GLOBAL.innodb_lock_wait_timeout)
 1
 1 Expected
 '#---------------------BS_STVARS_032_02----------------------#'
-SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
-COUNT(@@GLOBAL.innodb_lock_wait_timeout)
-1
-1 Expected
+SET global innodb_lock_wait_timeout=60;
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+60
+SET session innodb_lock_wait_timeout=60;
+SELECT @@session.innodb_lock_wait_timeout;
+@@session.innodb_lock_wait_timeout
+60
 '#---------------------BS_STVARS_032_03----------------------#'
 SELECT @@GLOBAL.innodb_lock_wait_timeout = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
@@ -47,4 +55,7 @@ COUNT(@@GLOBAL.innodb_lock_wait_timeout)
 1 Expected
 SELECT innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
 ERROR 42S22: Unknown column 'innodb_lock_wait_timeout' in 'field list'
-Expected error 'Readonly variable'
+SET @@global.innodb_lock_wait_timeout = @start_global_value;
+SELECT @@global.innodb_lock_wait_timeout;
+@@global.innodb_lock_wait_timeout
+50

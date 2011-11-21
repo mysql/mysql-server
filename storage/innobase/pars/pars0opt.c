@@ -568,7 +568,7 @@ opt_search_plan_for_table(
 			best_last_op = last_op;
 		}
 
-		index = dict_table_get_next_index(index);
+		dict_table_next_uncorrupted_index(index);
 	}
 
 	plan->index = best_index;

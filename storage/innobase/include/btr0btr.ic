@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -48,6 +48,10 @@ btr_block_get_func(
 	ulint		mode,		/*!< in: latch mode */
 	const char*	file,		/*!< in: file name */
 	ulint		line,		/*!< in: line where called */
+#ifdef UNIV_SYNC_DEBUG
+	const dict_index_t*	index,	/*!< in: index tree, may be NULL
+					if it is not an insert buffer tree */
+#endif /* UNIV_SYNC_DEBUG */
 	mtr_t*		mtr)		/*!< in/out: mtr */
 {
 	buf_block_t*	block;
@@ -57,7 +61,9 @@ btr_block_get_func(
 
 	if (mode != RW_NO_LATCH) {
 
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+		buf_block_dbg_add_level(
+			block, index != NULL && dict_index_is_ibuf(index)
+			? SYNC_IBUF_TREE_NODE : SYNC_TREE_NODE);
 	}
 
 	return(block);
