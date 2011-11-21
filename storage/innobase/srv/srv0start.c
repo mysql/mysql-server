@@ -136,7 +136,7 @@ static char*	srv_monitor_file_name;
 
 /** Default undo tablespace size in UNIV_PAGEs count (10MB). */
 static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
-	((1024 * 1024) * 10) / UNIV_PAGE_SIZE;
+	((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
 
 /** */
 #define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
@@ -647,7 +647,9 @@ open_or_create_log_file(
 		which is for this log group */
 
 		fil_space_create(name,
-				 2 * k + SRV_LOG_SPACE_FIRST_ID, 0, FIL_LOG);
+				 2 * k + SRV_LOG_SPACE_FIRST_ID,
+				 fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
+				 FIL_LOG);
 	}
 
 	ut_a(fil_validate());
@@ -709,6 +711,7 @@ open_or_create_data_files(
 	ibool		one_opened	= FALSE;
 	ibool		one_created	= FALSE;
 	os_offset_t	size;
+	ulint		flags;
 	ulint		rounded_size_pages;
 	char		name[10000];
 
@@ -889,12 +892,31 @@ open_or_create_data_files(
 				return(DB_ERROR);
 			}
 skip_size_check:
-			fil_read_flushed_lsn_and_arch_log_no(
-				files[i], one_opened,
+			fil_read_first_page(
+				files[i], one_opened, &flags,
 #ifdef UNIV_LOG_ARCHIVE
 				min_arch_log_no, max_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
 				min_flushed_lsn, max_flushed_lsn);
+
+			if (UNIV_PAGE_SIZE
+			    != fsp_flags_get_page_size(flags)) {
+
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					" InnoDB: Error: data file %s"
+					" uses page size %lu,\n",
+					name,
+					fsp_flags_get_page_size(flags));
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					" InnoDB: but the start-up parameter"
+					" is innodb-page-size=%lu\n",
+					UNIV_PAGE_SIZE);
+
+				return(DB_ERROR);
+			}
+
 			one_opened = TRUE;
 		} else {
 			/* We created the data file and now write it full of
@@ -948,7 +970,8 @@ skip_size_check:
 		ut_a(ret);
 
 		if (i == 0) {
-			fil_space_create(name, 0, 0, FIL_TABLESPACE);
+			flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
+			fil_space_create(name, 0, flags, FIL_TABLESPACE);
 		}
 
 		ut_a(fil_validate());
@@ -1037,6 +1060,7 @@ srv_undo_tablespace_open(
 	os_file_t	fh;
 	enum db_err	err;
 	ibool		ret;
+	ulint		flags;
 
 	fh = os_file_create(
 		innodb_file_data_key, name,
@@ -1069,8 +1093,8 @@ srv_undo_tablespace_open(
 		fil_set_max_space_id_if_bigger(space);
 
 		/* Set the compressed page size to 0 (non-compressed) */
-
-		fil_space_create(name, space, 0, FIL_TABLESPACE);
+		flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
+		fil_space_create(name, space, flags, FIL_TABLESPACE);
 
 		ut_a(fil_validate());
 
@@ -1738,7 +1762,9 @@ innobase_start_or_create_for_mysql(void)
 
 	for (i = 0; i < srv_n_data_files; i++) {
 #ifndef __WIN__
-		if (sizeof(off_t) < 5 && srv_data_file_sizes[i] >= 262144) {
+		if (sizeof(off_t) < 5
+		    && srv_data_file_sizes[i]
+		    >= (1 << (32 - UNIV_PAGE_SIZE_SHIFT))) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				" InnoDB: Error: file size must be < 4 GB"
@@ -1757,7 +1783,7 @@ innobase_start_or_create_for_mysql(void)
 	if (sum_of_new_sizes < 10485760 / UNIV_PAGE_SIZE) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Error: tablesapce size must be"
+			" InnoDB: Error: tablespace size must be"
 			" at least 10 MB\n");
 
 		return(DB_ERROR);
@@ -2424,8 +2450,42 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_was_started = TRUE;
 
+	/* Create the thread that will optimize the FTS sub-system
+	in a separate background thread. */
+	fts_optimize_init();
+
 	return((int) DB_SUCCESS);
 }
+
+#if 0
+/********************************************************************
+Sync all FTS cache before shutdown */
+static
+void
+srv_fts_close(void)
+/*===============*/
+{
+	dict_table_t*	table;
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
+		fts_t*          fts = table->fts;
+
+		if (fts != NULL) {
+			fts_sync_table(table);
+		}
+	}
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
+	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
+		fts_t*          fts = table->fts;
+
+		if (fts != NULL) {
+			fts_sync_table(table);
+		}
+	}
+}
+#endif
 
 /****************************************************************//**
 Shuts down the InnoDB database.
@@ -2447,6 +2507,11 @@ innobase_shutdown_for_mysql(void)
 
 		return(DB_SUCCESS);
 	}
+
+	/* Shutdown the FTS optimize sub system. */
+	fts_optimize_start_shutdown();
+
+	fts_optimize_end();
 
 	/* 1. Flush the buffer pool to disk, write the current lsn to
 	the tablespace header(s), and copy all log data to archive.
@@ -2614,3 +2679,81 @@ innobase_shutdown_for_mysql(void)
 	return((int) DB_SUCCESS);
 }
 #endif /* !UNIV_HOTBACKUP */
+
+
+/********************************************************************
+Signal all per-table background threads to shutdown, and wait for them to do
+so. */
+
+void
+srv_shutdown_table_bg_threads(void)
+/*===============================*/
+{
+	dict_table_t*	table;
+	dict_table_t*	first;
+	dict_table_t*	last = NULL;
+
+	mutex_enter(&dict_sys->mutex);
+
+	/* Signal all threads that they should stop. */
+	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	first = table;
+	while (table) {
+		dict_table_t*	next;
+		fts_t*		fts = table->fts;
+
+		if (fts != NULL) {
+			fts_start_shutdown(table, fts);
+		}
+
+		next = UT_LIST_GET_NEXT(table_LRU, table);
+
+		if (!next) {
+			last = table;
+		}
+
+		table = next;
+	}
+
+	/* We must release dict_sys->mutex here; if we hold on to it in the
+	loop below, we will deadlock if any of the background threads try to
+	acquire it (for example, the FTS thread by calling que_eval_sql).
+
+	Releasing it here and going through dict_sys->table_LRU without
+	holding it is safe because:
+
+	 a) MySQL only starts the shutdown procedure after all client
+	 threads have been disconnected and no new ones are accepted, so no
+	 new tables are added or old ones dropped.
+
+	 b) Despite its name, the list is not LRU, and the order stays
+	 fixed.
+
+	To safeguard against the above assumptions ever changing, we store
+	the first and last items in the list above, and then check that
+	they've stayed the same below. */
+
+	mutex_exit(&dict_sys->mutex);
+
+	/* Wait for the threads of each table to stop. This is not inside
+	the above loop, because by signaling all the threads first we can
+	overlap their shutting down delays. */
+	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	ut_a(first == table);
+	while (table) {
+		dict_table_t*	next;
+		fts_t*		fts = table->fts;
+
+		if (fts != NULL) {
+			fts_shutdown(table, fts);
+		}
+
+		next = UT_LIST_GET_NEXT(table_LRU, table);
+
+		if (table == last) {
+			ut_a(!next);
+		}
+
+		table = next;
+	}
+}

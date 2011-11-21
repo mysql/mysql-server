@@ -192,6 +192,28 @@ que_node_list_add_last(
 	return(node_list);
 }
 
+/*************************************************************************
+Removes a query graph node from the list.*/
+UNIV_INLINE
+que_node_t*
+que_node_list_get_last(
+/*===================*/
+					/* out: last node in list.*/
+	que_node_t*	node_list)	/* in: node list */
+{
+	que_common_t*	node;
+
+	ut_a(node_list != NULL);
+
+	node = (que_common_t*) node_list;
+
+	/* We need the last element */
+	while (node->brother != NULL) {
+		node = (que_common_t*) node->brother;
+	}
+
+	return(node);
+}
 /*********************************************************************//**
 Gets the next list node in a list of query graph nodes.
 @return	next node in a list of nodes */

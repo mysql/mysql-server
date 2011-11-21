@@ -127,7 +127,10 @@ row_mysql_store_col_in_innobase_format(
 					this function is called! */
 	byte*		buf,		/*!< in/out: buffer for a converted
 					integer value; this must be at least
-					col_len long then! */
+					col_len long then! NOTE that dfield
+					may also get a pointer to 'buf',
+					therefore do not discard this as long
+					as dfield is used! */
 	ibool		row_format_col,	/*!< TRUE if the mysql_data is from
 					a MySQL row, FALSE if from a MySQL
 					key value;
@@ -693,6 +696,12 @@ struct row_prebuilt_struct {
 					generated, the row id of the
 					last row fetched is stored
 					here */
+	doc_id_t	fts_doc_id;	/* if the table has an FTS index on
+					it then we fetch the doc_id.
+					FTS-FIXME: Currently we fetch it always
+					but in the future we must only fetch
+					it when FTS columns are being
+					updated */
 	dtuple_t*	clust_ref;	/*!< prebuilt dtuple used in
 					sel/upd/del */
 	ulint		select_lock_type;/*!< LOCK_NONE, LOCK_S, or LOCK_X */
@@ -769,6 +778,7 @@ struct row_prebuilt_struct {
 					to this heap */
 	mem_heap_t*	old_vers_heap;	/*!< memory heap where a previous
 					version is built in consistent read */
+	fts_result_t*	result;		/* The result of an FTS query */
 	/*----------------------*/
 	ulonglong	autoinc_last_value;
 					/*!< last value of AUTO-INC interval */

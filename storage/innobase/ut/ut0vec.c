@@ -27,53 +27,49 @@ Created 4/6/2006 Osku Salerma
 #ifdef UNIV_NONINL
 #include "ut0vec.ic"
 #endif
-#include <string.h>
+#include "mem0mem.h"
 
-/****************************************************************//**
-Create a new vector with the given initial size.
-@return	vector */
+/********************************************************************
+Create a new vector with the given initial size. */
 UNIV_INTERN
 ib_vector_t*
 ib_vector_create(
 /*=============*/
-	mem_heap_t*	heap,	/*!< in: heap */
-	ulint		size)	/*!< in: initial size */
+					/* out: vector */
+	ib_alloc_t*	allocator,	/* in: vector allocator */
+	ulint		sizeof_value,	/* in: size of data item */
+	ulint		size)		/* in: initial size */
 {
 	ib_vector_t*	vec;
 
 	ut_a(size > 0);
 
-	vec = mem_heap_alloc(heap, sizeof(*vec));
+	vec = allocator->mem_malloc(allocator, sizeof(*vec));
 
-	vec->heap = heap;
-	vec->data = mem_heap_alloc(heap, sizeof(void*) * size);
 	vec->used = 0;
 	vec->total = size;
+	vec->allocator = allocator;
+	vec->sizeof_value = sizeof_value;
+	vec->data = allocator->mem_malloc(allocator, vec->sizeof_value * size);
 
 	return(vec);
 }
 
-/****************************************************************//**
-Push a new element to the vector, increasing its size if necessary. */
+/********************************************************************
+Resize the vector, currently the vector can only grow and we
+expand the number of elements it can hold by 2 times. */
 UNIV_INTERN
 void
-ib_vector_push(
-/*===========*/
-	ib_vector_t*	vec,	/*!< in: vector */
-	void*		elem)	/*!< in: data element */
+ib_vector_resize(
+/*=============*/
+	ib_vector_t*	vec)		/* in: vector */
 {
-	if (vec->used >= vec->total) {
-		void**	new_data;
-		ulint	new_total = vec->total * 2;
+	ulint		new_total = vec->total * 2;
+	ulint		old_size = vec->used * vec->sizeof_value;
+	ulint		new_size = new_total * vec->sizeof_value;
 
-		new_data = mem_heap_alloc(vec->heap,
-					  sizeof(void*) * new_total);
-		memcpy(new_data, vec->data, sizeof(void*) * vec->total);
+	vec->data = vec->allocator->mem_resize(
+		vec->allocator, vec->data, old_size, new_size);
 
-		vec->data = new_data;
-		vec->total = new_total;
-	}
-
-	vec->data[vec->used] = elem;
-	vec->used++;
+	vec->total = new_total;
 }

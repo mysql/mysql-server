@@ -1450,3 +1450,9 @@ WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
 count(*)
 1
 DROP DATABASE gis_ogs;
+#
+# Bug#13362660 ASSERTION `FIELD_POS < FIELD_COUNT' FAILED. IN PROTOCOL_TEXT::STORE
+#
+SELECT ST_Union('', ''), md5(1);
+ST_Union('', '')	md5(1)
+NULL	c4ca4238a0b923820dcc509a6f75849b

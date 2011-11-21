@@ -83,7 +83,7 @@ row_vers_impl_x_locked_low(
 	trx_id = row_get_rec_trx_id(clust_rec, clust_index, clust_offsets);
 	corrupt = FALSE;
 
-	if (!trx_is_active(trx_id, &corrupt)) {
+	if (!trx_rw_is_active(trx_id, &corrupt)) {
 		/* The transaction that modified or inserted clust_rec is no
 		longer active, or it is corrupt: no implicit lock on rec */
 		if (corrupt) {
@@ -139,9 +139,13 @@ row_vers_impl_x_locked_low(
 		if (prev_version == NULL) {
 
 			/* clust_rec must be a fresh insert, because
-			no previous version was found. */
+			no previous version was found or the transaction
+			has committed. The caller has to recheck as the
+			synopsis of this function states, whether trx_id
+			is active or not. */
 
-			ut_a(err == DB_SUCCESS);
+			ut_a(err == DB_SUCCESS || err == DB_MISSING_HISTORY);
+
 			break;
 		}
 
@@ -196,7 +200,7 @@ row_vers_impl_x_locked_low(
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
 
-		if (!trx_is_active(trx_id, &corrupt)) {
+		if (!trx_rw_is_active(trx_id, &corrupt)) {
 			/* Transaction no longer active: no implicit
 			x-lock. This situation should only be possible
 			because we are not holding lock_sys->mutex. */
@@ -674,10 +678,11 @@ row_vers_build_for_semi_consistent_read(
 		}
 
 		mutex_enter(&trx_sys->mutex);
-		version_trx = trx_get_on_id(version_trx_id);
-		/* version_trx->state cannot change from or to
-		NOT_STARTED while we are holding the trx_sys->mutex.
-		It may change from ACTIVE to PREPARED or COMMITTED. */
+		version_trx = trx_get_rw_trx_by_id(version_trx_id);
+		/* Because version_trx is a read-write transaction,
+		its state cannot change from or to NOT_STARTED while
+		we are holding the trx_sys->mutex.  It may change from
+		ACTIVE to PREPARED or COMMITTED. */
 		if (version_trx
 		    && trx_state_eq(version_trx,
 				    TRX_STATE_COMMITTED_IN_MEMORY)) {

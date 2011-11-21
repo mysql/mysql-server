@@ -190,6 +190,15 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 
+#
+# On Windows platform we compile in the clinet-side Windows Native Authentication
+# plugin which is used by the client connection code included in the server.
+#
+IF(WIN32)
+  ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
+  TARGET_LINK_LIBRARIES(sql auth_win_client)
+ENDIF()
+
 SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
 		   rpl_injector.cc)

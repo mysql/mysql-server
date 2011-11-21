@@ -1506,7 +1506,7 @@ btr_cur_pessimistic_insert(
 
 	if (page_zip_rec_needs_ext(rec_get_converted_size(index, entry, n_ext),
 				   dict_table_is_comp(index->table),
-				   dict_index_get_n_fields(index),
+				   dtuple_get_n_fields(entry),
 				   zip_size)) {
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -5226,7 +5226,7 @@ btr_copy_externally_stored_field_prefix(
 Copies an externally stored field of a record to mem heap.  The
 clustered index record must be protected by a lock or a page latch.
 @return	the whole field copied to heap */
-static
+UNIV_INTERN
 byte*
 btr_copy_externally_stored_field(
 /*=============================*/

@@ -603,8 +603,17 @@ static monitor_info_t	innodb_counter_info[] =
 	{"module_trx", "transaction", "Transaction Manager",
 	 MONITOR_MODULE, 0, MONITOR_MODULE_TRX},
 
-	{"trx_commits", "transaction", "Number of transactions committed",
-	 0, 0, MONITOR_TRX_COMMIT},
+	{"trx_rw_commits", "transaction", "Number of read-write transactions "
+	  "committed",
+	 0, 0, MONITOR_TRX_RW_COMMIT},
+
+	{"trx_ro_commits", "transaction", "Number of read-only transactions "
+	  "committed",
+	 0, 0, MONITOR_TRX_RO_COMMIT},
+
+	{"trx_nl_ro_commits", "transaction", "Number of non-locking "
+	 "auto-commit read-only transactions committed",
+	 0, 0, MONITOR_TRX_NL_RO_COMMIT},
 
 	{"trx_commits_insert_update", "transaction",
 	 "Number of transactions committed with inserts and updates",

@@ -247,6 +247,15 @@ SET(INNOBASE_SOURCES
 	fsp/fsp0fsp.c
 	fut/fut0fut.c
 	fut/fut0lst.c
+	fts/fts0fts.c
+	fts/fts0ast.c
+	fts/fts0blex.c
+	fts/fts0config.c
+	fts/fts0opt.c
+	fts/fts0pars.c
+	fts/fts0que.c
+	fts/fts0sql.c
+	fts/fts0tlex.c
 	ha/ha0ha.c
 	ha/ha0storage.c
 	ha/hash0hash.c
@@ -281,6 +290,7 @@ SET(INNOBASE_SOURCES
 	rem/rem0cmp.c
 	rem/rem0rec.c
 	row/row0ext.c
+	row/row0ftsort.c
 	row/row0ins.c
 	row/row0merge.c
 	row/row0mysql.c
