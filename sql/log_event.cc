@@ -1620,7 +1620,7 @@ void Log_event::print_header(IO_CACHE* file,
     my_off_t i;
 
     /* Header len * 4 >= header len * (2 chars + space + extra space) */
-    char *h, hex_string[LOG_EVENT_MINIMAL_HEADER_LEN*4]= {0};
+    char *h, hex_string[49]= {0};
     char *c, char_string[16+1]= {0};
 
     /* Pretty-print event common header if header is exactly 19 bytes */
@@ -1649,7 +1649,7 @@ void Log_event::print_header(IO_CACHE* file,
 	 i < size;
 	 i++, ptr++)
     {
-      my_snprintf(h, 4, "%02x ", *ptr);
+      my_snprintf(h, 4, (i % 16 <= 7) ? "%02x " : " %02x", *ptr);
       h += 3;
 
       *c++= my_isalnum(&my_charset_bin, *ptr) ? *ptr : '.';
@@ -1675,13 +1675,15 @@ void Log_event::print_header(IO_CACHE* file,
 	c= char_string;
 	h= hex_string;
       }
-      else if (i % 8 == 7) *h++ = ' ';
     }
     *c= '\0';
-
+    DBUG_ASSERT(hex_string[48] == 0);
+    
     if (hex_string[0])
     {
       char emit_buf[256];
+      // Right-pad hex_string with spaces, up to 48 characters.
+      memset(h, ' ', (sizeof(hex_string) -1) - (h - hex_string));
       size_t const bytes_written=
         my_snprintf(emit_buf, sizeof(emit_buf),
                     "# %8.8lx %-48.48s |%s|\n",
@@ -2365,12 +2367,48 @@ Log_event::continue_group(Relay_log_info *rli)
   return Log_event::do_shall_skip(rli);
 }
 
+/**
+   @param end_group_sets_max_dbs  when true the group terminal event 
+                          can carry partition info, see a note below.
+   @return true  in cases the current event
+                 carries partition data,
+           false otherwise
 
-bool Log_event::contains_partition_info()
+   @note Some events combination may force to adjust partition info.
+         In particular BEGIN, BEGIN_LOAD_QUERY_EVENT, COMMIT
+         where none of the events holds partitioning data
+         causes the sequential applying of the group through
+         assigning OVER_MAX_DBS_IN_EVENT_MTS to mts_accessed_dbs
+         of COMMIT query event.
+*/
+bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
 {
-  return (get_type_code() == TABLE_MAP_EVENT) ||
-    (get_type_code() == QUERY_EVENT && !ends_group() && !starts_group()) ||
-    (get_type_code() == EXECUTE_LOAD_QUERY_EVENT);
+  bool res;
+
+  switch (get_type_code()) {
+  case TABLE_MAP_EVENT:
+  case EXECUTE_LOAD_QUERY_EVENT:
+    res= true;
+
+    break;
+    
+  case QUERY_EVENT:
+    if (ends_group() && end_group_sets_max_dbs)
+    {
+      res= true;
+      static_cast<Query_log_event*>(this)->mts_accessed_dbs=
+        OVER_MAX_DBS_IN_EVENT_MTS;
+    }
+    else
+      res= (!ends_group() && !starts_group()) ? true : false;
+
+    break;
+
+  default:
+    res= false;
+  }
+
+  return res;
 }
 
 /**
@@ -2457,27 +2495,44 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     {
       Log_event *ptr_curr_ev= this;
       // B-event is appended to the Deferred Array associated with GCAP
-      insert_dynamic(&rli->curr_group_da,
-                     (uchar*) &ptr_curr_ev);
+      insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
 
       DBUG_ASSERT(rli->curr_group_da.elements == 1);
 
       // mark the current group as started with explicit B-event
       rli->curr_group_seen_begin= TRUE;
-
+      // pessimistic preparation of no db:s will be found in events
+      rli->mts_end_group_sets_max_dbs= true;
       return ret_worker;
     } 
   }
 
   // mini-group representative
 
-  if (contains_partition_info())
+  if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
   {
     int i= 0;
     num_dbs= mts_number_dbs();
     List_iterator<char> it(*get_mts_dbs(&rli->mts_coor_mem_root));
     it++;
 
+    /*
+      Bug 12982188 - MTS: SBR ABORTS WITH ERROR 1742 ON LOAD DATA
+      Logging on master can create a group with no events holding
+      the partition info.
+      The following assert proves there's the only reason
+      for such group.
+    */
+    DBUG_ASSERT(!ends_group() ||
+                (rli->mts_end_group_sets_max_dbs &&
+                 rli->curr_group_da.elements == 2 &&
+                 ((*(Log_event **)
+                   dynamic_array_ptr(&rli->curr_group_da,
+                                     rli->curr_group_da.elements - 1))-> 
+                  get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
+
+    // partioning info is found which drops the flag
+    rli->mts_end_group_sets_max_dbs= false;
     ret_worker= rli->last_assigned_worker;
     if (num_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
     {
@@ -2780,7 +2835,16 @@ int Log_event::apply_event(Relay_log_info *rli)
 
   DBUG_ASSERT(actual_exec_mode == EVENT_EXEC_PARALLEL);
   DBUG_ASSERT(!(rli->curr_group_seen_begin && ends_group()) ||
-              rli->last_assigned_worker);
+              rli->last_assigned_worker ||
+              /*
+                Begin_load_query can be logged w/o db info and within
+                Begin/Commit. That's a pattern forcing sequential
+                applying of LOAD-DATA.
+              */
+              (*(Log_event **)
+               dynamic_array_ptr(&rli->curr_group_da,
+                                 rli->curr_group_da.elements - 1))-> 
+              get_type_code() == BEGIN_LOAD_QUERY_EVENT);
 
   worker= NULL;
   rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
@@ -3985,10 +4049,10 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 */
 void Query_log_event::attach_temp_tables_worker(THD *thd)
 {
-  if (!is_mts_worker(thd) || !contains_partition_info())
+  if (!is_mts_worker(thd) || (ends_group() || starts_group()))
     return;
   
-  // in over max-db:s case just one special parttion is locked
+  // in over max-db:s case just one special partition is locked
   int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
               1 : mts_accessed_dbs);
 
