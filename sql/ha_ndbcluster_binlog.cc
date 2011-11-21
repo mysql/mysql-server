@@ -3275,6 +3275,17 @@ class Ndb_schema_event_handler {
         write_schema_op_to_binlog(m_thd, schema);
         break;
 
+      case SOT_RENAME_TABLE_NEW:
+        /*
+          Only very old MySQL Server connected to the cluster may
+          send this schema operation, ignore it
+        */
+        sql_print_error("NDB schema: Skipping old schema operation"
+                        "(RENAME_TABLE_NEW) on %s.%s",
+                        schema->db, schema->name);
+        DBUG_ASSERT(false);
+        break;
+
       }
 
       /* signal that schema operation has been handled */
