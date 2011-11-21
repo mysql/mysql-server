@@ -1190,6 +1190,7 @@ run_again:
 		prebuilt->table->stat_n_rows--;
 	}
 
+	if (!(trx->fake_changes))
 	row_update_statistics_if_needed(prebuilt->table);
 	trx->op_info = "";
 
@@ -1450,6 +1451,7 @@ run_again:
 	that changes indexed columns, UPDATEs that change only non-indexed
 	columns would not affect statistics. */
 	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+		if (!(trx->fake_changes))
 		row_update_statistics_if_needed(prebuilt->table);
 	}
 
@@ -1668,6 +1670,7 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
+	if (!(trx->fake_changes))
 	row_update_statistics_if_needed(table);
 
 	return(err);
@@ -2556,10 +2559,29 @@ row_discard_tablespace_for_mysql(
 
 			err = DB_ERROR;
 		} else {
+			dict_index_t*	index;
+
 			/* Set the flag which tells that now it is legal to
 			IMPORT a tablespace for this table */
 			table->tablespace_discarded = TRUE;
 			table->ibd_file_missing = TRUE;
+
+			/* check adaptive hash entries */
+			index = dict_table_get_first_index(table);
+			while (index) {
+				ulint ref_count = btr_search_info_get_ref_count(index->search_info);
+				if (ref_count) {
+					fprintf(stderr, "InnoDB: Warning:"
+						" hash index ref_count (%lu) is not zero"
+						" after fil_discard_tablespace().\n"
+						"index: \"%s\""
+						" table: \"%s\"\n",
+						ref_count,
+						index->name,
+						table->name);
+				}
+				index = dict_table_get_next_index(index);
+			}
 		}
 	}
 
@@ -2596,6 +2618,11 @@ row_import_tablespace_for_mysql(
 	trx->op_info = "importing tablespace";
 
 	current_lsn = log_get_lsn();
+
+	/* Enlarge the fatal lock wait timeout during import. */
+	mutex_enter(&kernel_mutex);
+	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
+	mutex_exit(&kernel_mutex);
 
 	/* It is possible, though very improbable, that the lsn's in the
 	tablespace to be imported have risen above the current system lsn, if
@@ -2707,6 +2734,11 @@ funct_exit:
 	row_mysql_unlock_data_dictionary(trx);
 
 	trx->op_info = "";
+
+	/* Restore the fatal semaphore wait timeout */
+	mutex_enter(&kernel_mutex);
+	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
+	mutex_exit(&kernel_mutex);
 
 	return((int) err);
 }
@@ -2901,6 +2933,19 @@ row_truncate_table_for_mysql(
 			table->space = space;
 			index = dict_table_get_first_index(table);
 			do {
+				ulint ref_count = btr_search_info_get_ref_count(index->search_info);
+				/* check adaptive hash entries */
+				if (ref_count) {
+					fprintf(stderr, "InnoDB: Warning:"
+						" hash index ref_count (%lu) is not zero"
+						" after fil_discard_tablespace().\n"
+						"index: \"%s\""
+						" table: \"%s\"\n",
+						ref_count,
+						index->name,
+						table->name);
+				}
+
 				index->space = space;
 				index = dict_table_get_next_index(index);
 			} while (index);

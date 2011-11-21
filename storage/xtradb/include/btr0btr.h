@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -81,6 +81,91 @@ UNIQUE definition on secondary indexes when we decide if we can use
 the insert buffer to speed up inserts */
 #define BTR_IGNORE_SEC_UNIQUE	2048
 
+#ifdef UNIV_BLOB_DEBUG
+# include "ut0rbt.h"
+/** An index->blobs entry for keeping track of off-page column references */
+struct btr_blob_dbg_struct
+{
+	unsigned	blob_page_no:32;	/*!< first BLOB page number */
+	unsigned	ref_page_no:32;		/*!< referring page number */
+	unsigned	ref_heap_no:16;		/*!< referring heap number */
+	unsigned	ref_field_no:10;	/*!< referring field number */
+	unsigned	owner:1;		/*!< TRUE if BLOB owner */
+	unsigned	always_owner:1;		/*!< TRUE if always
+						has been the BLOB owner;
+						reset to TRUE on B-tree
+						page splits and merges */
+	unsigned	del:1;			/*!< TRUE if currently
+						delete-marked */
+};
+
+/**************************************************************//**
+Add a reference to an off-page column to the index->blobs map. */
+UNIV_INTERN
+void
+btr_blob_dbg_add_blob(
+/*==================*/
+	const rec_t*	rec,		/*!< in: clustered index record */
+	ulint		field_no,	/*!< in: number of off-page column */
+	ulint		page_no,	/*!< in: start page of the column */
+	dict_index_t*	index,		/*!< in/out: index tree */
+	const char*	ctx)		/*!< in: context (for logging) */
+	__attribute__((nonnull));
+/**************************************************************//**
+Display the references to off-page columns.
+This function is to be called from a debugger,
+for example when a breakpoint on ut_dbg_assertion_failed is hit. */
+UNIV_INTERN
+void
+btr_blob_dbg_print(
+/*===============*/
+	const dict_index_t*	index)	/*!< in: index tree */
+	__attribute__((nonnull));
+/**************************************************************//**
+Check that there are no references to off-page columns from or to
+the given page. Invoked when freeing or clearing a page.
+@return TRUE when no orphan references exist */
+UNIV_INTERN
+ibool
+btr_blob_dbg_is_empty(
+/*==================*/
+	dict_index_t*	index,		/*!< in: index */
+	ulint		page_no)	/*!< in: page number */
+	__attribute__((nonnull, warn_unused_result));
+
+/**************************************************************//**
+Modify the 'deleted' flag of a record. */
+UNIV_INTERN
+void
+btr_blob_dbg_set_deleted_flag(
+/*==========================*/
+	const rec_t*		rec,	/*!< in: record */
+	dict_index_t*		index,	/*!< in/out: index */
+	const ulint*		offsets,/*!< in: rec_get_offs(rec, index) */
+	ibool			del)	/*!< in: TRUE=deleted, FALSE=exists */
+	__attribute__((nonnull));
+/**************************************************************//**
+Change the ownership of an off-page column. */
+UNIV_INTERN
+void
+btr_blob_dbg_owner(
+/*===============*/
+	const rec_t*		rec,	/*!< in: record */
+	dict_index_t*		index,	/*!< in/out: index */
+	const ulint*		offsets,/*!< in: rec_get_offs(rec, index) */
+	ulint			i,	/*!< in: ith field in rec */
+	ibool			own)	/*!< in: TRUE=owned, FALSE=disowned */
+	__attribute__((nonnull));
+/** Assert that there are no BLOB references to or from the given page. */
+# define btr_blob_dbg_assert_empty(index, page_no)	\
+	ut_a(btr_blob_dbg_is_empty(index, page_no))
+#else /* UNIV_BLOB_DEBUG */
+# define btr_blob_dbg_add_blob(rec, field_no, page, index, ctx)	((void) 0)
+# define btr_blob_dbg_set_deleted_flag(rec, index, offsets, del)((void) 0)
+# define btr_blob_dbg_owner(rec, index, offsets, i, val)	((void) 0)
+# define btr_blob_dbg_assert_empty(index, page_no)		((void) 0)
+#endif /* UNIV_BLOB_DEBUG */
+
 /**************************************************************//**
 Gets the root node of a tree and x-latches it.
 @return	root page, x-latched */
@@ -123,6 +208,17 @@ btr_block_get_func(
 @return the uncompressed page frame */
 # define btr_page_get(space,zip_size,page_no,mode,mtr) \
 	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,mtr))
+/**************************************************************//**
+Sets the index id field of a page. */
+UNIV_INLINE
+void
+btr_page_set_index_id(
+/*==================*/
+	page_t*		page,	/*!< in: page to be created */
+	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
+				part will be updated, or NULL */
+	dulint		id,	/*!< in: index id */
+	mtr_t*		mtr);	/*!< in: mtr */
 #endif /* !UNIV_HOTBACKUP */
 /**************************************************************//**
 Gets the index id field of a page.
@@ -160,6 +256,17 @@ btr_page_get_next(
 	const page_t*	page,	/*!< in: index page */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 /********************************************************//**
+Sets the next index page field. */
+UNIV_INLINE
+void
+btr_page_set_next(
+/*==============*/
+	page_t*		page,	/*!< in: index page */
+	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
+				part will be updated, or NULL */
+	ulint		next,	/*!< in: next page number */
+	mtr_t*		mtr);	/*!< in: mini-transaction handle */
+/********************************************************//**
 Gets the previous index page number.
 @return	prev page number */
 UNIV_INLINE
@@ -167,6 +274,17 @@ ulint
 btr_page_get_prev(
 /*==============*/
 	const page_t*	page,	/*!< in: index page */
+	mtr_t*		mtr);	/*!< in: mini-transaction handle */
+/********************************************************//**
+Sets the previous index page field. */
+UNIV_INLINE
+void
+btr_page_set_prev(
+/*==============*/
+	page_t*		page,	/*!< in: index page */
+	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
+				part will be updated, or NULL */
+	ulint		prev,	/*!< in: previous page number */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 /*************************************************************//**
 Gets pointer to the previous user record in the tree. It is assumed
@@ -213,6 +331,18 @@ btr_node_ptr_get_child_page_no(
 /*===========================*/
 	const rec_t*	rec,	/*!< in: node pointer record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+/**************************************************************//**
+Creates a new index page (not the root, and also not
+used in page reorganization).  @see btr_page_empty(). */
+UNIV_INTERN
+void
+btr_page_create(
+/*============*/
+	buf_block_t*	block,	/*!< in/out: page to be created */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page, or NULL */
+	dict_index_t*	index,	/*!< in: index */
+	ulint		level,	/*!< in: the B-tree level of the page */
+	mtr_t*		mtr);	/*!< in: mtr */
 /************************************************************//**
 Creates the root node for a new index tree.
 @return	page number of the created root, FIL_NULL if did not succeed */
@@ -283,6 +413,17 @@ btr_page_reorganize(
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr);	/*!< in: mtr */
 /*************************************************************//**
+Empties an index page.  @see btr_page_create(). */
+UNIV_INTERN
+void
+btr_page_empty(
+/*===========*/
+	buf_block_t*	block,	/*!< in: page to be emptied */
+	page_zip_des_t*	page_zip,/*!< out: compressed page, or NULL */
+	dict_index_t*	index,	/*!< in: index of the page */
+	ulint		level,	/*!< in: the B-tree level of the page */
+	mtr_t*		mtr);	/*!< in: mtr */
+/*************************************************************//**
 Decides if the page should be split at the convergence point of
 inserts converging to left.
 @return	TRUE if split recommended */
@@ -341,6 +482,20 @@ btr_insert_on_non_leaf_level_func(
 # define btr_insert_on_non_leaf_level(i,l,t,m)				\
 	btr_insert_on_non_leaf_level_func(i,l,t,__FILE__,__LINE__,m)
 #endif /* !UNIV_HOTBACKUP */
+/**************************************************************//**
+Attaches the halves of an index page on the appropriate level in an
+index tree. */
+UNIV_INTERN
+void
+btr_attach_half_pages(
+/*==================*/
+	dict_index_t*	index,		/*!< in: the index tree */
+	buf_block_t*	block,		/*!< in/out: page to be split */
+	const rec_t*	split_rec,	/*!< in: first record on upper
+					half page */
+	buf_block_t*	new_block,	/*!< in/out: the new half page */
+	ulint		direction,	/*!< in: FSP_UP or FSP_DOWN */
+	mtr_t*		mtr);		/*!< in: mtr */
 /****************************************************************//**
 Sets a record as the predefined minimum record. */
 UNIV_INTERN
@@ -385,11 +540,14 @@ UNIV_INTERN
 ibool
 btr_compress(
 /*=========*/
-	btr_cur_t*	cursor,	/*!< in: cursor on the page to merge or lift;
-				the page must not be empty: in record delete
-				use btr_discard_page if the page would become
-				empty */
-	mtr_t*		mtr);	/*!< in: mtr */
+	btr_cur_t*	cursor,	/*!< in/out: cursor on the page to merge
+				or lift; the page must not be empty:
+				when deleting records, use btr_discard_page()
+				if the page would become empty */
+	ibool		adjust,	/*!< in: TRUE if should adjust the
+				cursor position even if compression occurs */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /*************************************************************//**
 Discards a page from a B-tree. This is used to remove the last record from
 a B-tree page: the whole page must be removed at the same time. This cannot

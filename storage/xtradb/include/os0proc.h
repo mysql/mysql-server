@@ -32,11 +32,6 @@ Created 9/30/1995 Heikki Tuuri
 #ifdef UNIV_LINUX
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#else
-# if defined HAVE_SYS_IPC_H && HAVE_SYS_SHM_H
-#include <sys/ipc.h>
-#include <sys/shm.h>
-# endif
 #endif
 
 typedef void*			os_process_t;
@@ -75,29 +70,6 @@ os_mem_free_large(
 	ulint	size);			/*!< in: size returned by
 					os_mem_alloc_large() */
 
-
-/****************************************************************//**
-Allocates or attaches and reuses shared memory segment.
-The content is not cleared automatically.
-@return	allocated memory */
-UNIV_INTERN
-void*
-os_shm_alloc(
-/*=========*/
-	ulint*	n,			/*!< in/out: number of bytes */
-	uint	key,
-	ibool*	is_new);
-
-/****************************************************************//**
-Detach shared memory segment. */
-UNIV_INTERN
-void
-os_shm_free(
-/*========*/
-	void	*ptr,			/*!< in: pointer returned by
-					os_shm_alloc() */
-	ulint	size);			/*!< in: size returned by
-					os_shm_alloc() */
 #ifndef UNIV_NONINL
 #include "os0proc.ic"
 #endif
