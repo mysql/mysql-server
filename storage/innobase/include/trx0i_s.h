@@ -175,6 +175,11 @@ struct i_s_trx_row_struct {
 	ulint		trx_search_latch_timeout;
 					/*!< search_latch_timeout in
 					trx_struct */
+	ulint		trx_is_read_only;
+					/*!< trx_t::read_only */
+	ulint		trx_is_autocommit_non_locking;
+					/*!< trx_is_autocommit_non_locking(trx)
+					*/
 };
 
 /** This structure represents INFORMATION_SCHEMA.innodb_lock_waits row */

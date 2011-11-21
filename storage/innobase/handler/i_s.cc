@@ -508,6 +508,24 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+#define IDX_TRX_READ_ONLY		22
+	{STRUCT_FLD(field_name,		"trx_is_read_only"),
+	 STRUCT_FLD(field_length,	1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_TRX_AUTOCOMMIT_NON_LOCKING	23
+	{STRUCT_FLD(field_name,		"trx_autocommit_non_locking"),
+	 STRUCT_FLD(field_length,	1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 };
 
@@ -653,6 +671,15 @@ fill_innodb_trx_from_cache(
 		/* trx_adaptive_hash_timeout */
 		OK(fields[IDX_TRX_ADAPTIVE_HASH_TIMEOUT]->store(
 			   (longlong) row->trx_search_latch_timeout, true));
+
+		/* trx_is_read_only*/
+		OK(fields[IDX_TRX_READ_ONLY]->store(
+				(long) row->trx_is_read_only, true));
+
+		/* trx_is_autocommit_non_locking */
+		OK(fields[IDX_TRX_AUTOCOMMIT_NON_LOCKING]->store(
+				(long) row->trx_is_autocommit_non_locking,
+				true));
 
 		OK(schema_table_store_record(thd, table));
 	}

@@ -90,23 +90,28 @@ trx_rollback_to_savepoint_low(
 	if (savept != NULL) {
 		roll_node->partial = TRUE;
 		roll_node->savept = *savept;
+		assert_trx_in_list(trx);
+	}  else {
+		assert_trx_nonlocking_or_in_list(trx);
 	}
 
 	trx->error_state = DB_SUCCESS;
 
-	thr = pars_complete_graph_for_exec(roll_node, trx, heap);
+	if (!trx->read_only) {
+		thr = pars_complete_graph_for_exec(roll_node, trx, heap);
 
-	ut_a(thr == que_fork_start_command(
+		ut_a(thr == que_fork_start_command(
 			static_cast<que_fork_t*>(que_node_get_parent(thr))));
 
-	que_run_threads(thr);
+		que_run_threads(thr);
 
-	ut_a(roll_node->undo_thr != NULL);
-	que_run_threads(roll_node->undo_thr);
+		ut_a(roll_node->undo_thr != NULL);
+		que_run_threads(roll_node->undo_thr);
 
-	/* Free the memory reserved by the undo graph. */
-	que_graph_free(static_cast<que_t*>(
+		/* Free the memory reserved by the undo graph. */
+		que_graph_free(static_cast<que_t*>(
 			       roll_node->undo_thr->common.parent));
+	}
 
 	if (savept == NULL) {
 		trx_rollback_finish(trx);
@@ -158,6 +163,35 @@ trx_rollback_to_savepoint(
 /*******************************************************************//**
 Rollback a transaction used in MySQL.
 @return	error code or DB_SUCCESS */
+static
+enum db_err
+trx_rollback_for_mysql_low(
+/*=======================*/
+	trx_t*	trx)	/*!< in/out: transaction */
+{
+	srv_active_wake_master_thread();
+
+	trx->op_info = "rollback";
+
+	/* If we are doing the XA recovery of prepared transactions,
+	then the transaction object does not have an InnoDB session
+	object, and we set a dummy session that we use for all MySQL
+	transactions. */
+
+	trx_rollback_to_savepoint_low(trx, NULL);
+
+	trx->op_info = "";
+
+	ut_a(trx->error_state == DB_SUCCESS);
+
+	srv_active_wake_master_thread();
+
+	return(trx->error_state);
+}
+
+/*******************************************************************//**
+Rollback a transaction used in MySQL.
+@return	error code or DB_SUCCESS */
 UNIV_INTERN
 int
 trx_rollback_for_mysql(
@@ -173,31 +207,18 @@ trx_rollback_for_mysql(
 	case TRX_STATE_NOT_STARTED:
 		ut_ad(trx->in_mysql_trx_list);
 		return(DB_SUCCESS);
+
 	case TRX_STATE_ACTIVE:
 		ut_ad(trx->in_mysql_trx_list);
-		/* fall through */
+		assert_trx_nonlocking_or_in_list(trx);
+		return(trx_rollback_for_mysql_low(trx));
+
 	case TRX_STATE_PREPARED:
-		ut_ad(trx->in_trx_list);
+		assert_trx_in_rw_list(trx);
+		return(trx_rollback_for_mysql_low(trx));
 
-		srv_active_wake_master_thread();
-
-		trx->op_info = "rollback";
-
-		/* If we are doing the XA recovery of prepared transactions,
-		then the transaction object does not have an InnoDB session
-		object, and we set a dummy session that we use for all MySQL
-		transactions. */
-
-		trx_rollback_to_savepoint_low(trx, NULL);
-
-		trx->op_info = "";
-
-		ut_a(trx->error_state == DB_SUCCESS);
-
-		srv_active_wake_master_thread();
-
-		return((int) trx->error_state);
 	case TRX_STATE_COMMITTED_IN_MEMORY:
+		assert_trx_in_list(trx);
 		break;
 	}
 
@@ -226,7 +247,7 @@ trx_rollback_last_sql_stat_for_mysql(
 	case TRX_STATE_NOT_STARTED:
 		return(DB_SUCCESS);
 	case TRX_STATE_ACTIVE:
-		ut_ad(trx->in_trx_list);
+		assert_trx_nonlocking_or_in_list(trx);
 
 		trx->op_info = "rollback of SQL statement";
 
@@ -718,7 +739,7 @@ trx_rollback_or_clean_recovered(
 {
 	trx_t*	trx;
 
-	if (trx_sys_get_n_trx() == 0) {
+	if (trx_sys_get_n_rw_trx() == 0) {
 
 		return;
 	}
@@ -740,11 +761,11 @@ trx_rollback_or_clean_recovered(
 	do {
 		mutex_enter(&trx_sys->mutex);
 
-		for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+		for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
 		     trx != NULL;
 		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-			ut_ad(trx->in_trx_list);
+			assert_trx_in_rw_list(trx);
 
 			/* If this function does a cleanup or rollback
 			then it will release the trx_sys->mutex, therefore
@@ -1120,7 +1141,7 @@ try_again:
 	is_insert = (undo == ins_undo);
 
 	*roll_ptr = trx_undo_build_roll_ptr(
-		is_insert, (undo->rseg)->id, undo->top_page_no, undo->top_offset);
+		is_insert, undo->rseg->id, undo->top_page_no, undo->top_offset);
 
 	mtr_start(&mtr);
 

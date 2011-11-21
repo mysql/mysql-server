@@ -48,7 +48,8 @@ innobase_convert_string(
 	CHARSET_INFO*	to_cs,		/*!< in: character set to convert to */
 	const void*	from,		/*!< in: string to convert */
 	ulint		from_length,	/*!< in: number of bytes to convert */
-	CHARSET_INFO*	from_cs,	/*!< in: character set to convert from */
+	CHARSET_INFO*	from_cs,	/*!< in: character set to convert
+					from */
 	uint*		errors);	/*!< out: number of errors encountered
 					during the conversion */
 
@@ -244,8 +245,8 @@ innobase_convert_from_id(
 	struct charset_info_st*	cs,	/*!< in: the 'from' character set */
 	char*			to,	/*!< out: converted identifier */
 	const char*		from,	/*!< in: identifier to convert */
-	ulint			len);	/*!< in: length of 'to', in bytes; should
-					be at least 3 * strlen(to) + 1 */
+	ulint			len);	/*!< in: length of 'to', in bytes;
+					should be at least 3 * strlen(to) + 1 */
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 UNIV_INTERN
@@ -302,7 +303,7 @@ innobase_index_cond(
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL.
 @return	true if thd supports XA */
-
+UNIV_INTERN
 ibool
 thd_supports_xa(
 /*============*/
@@ -392,4 +393,22 @@ innobase_get_fts_charset(
 /*=====================*/
 	int		mysql_type,	/*!< in: MySQL type */
 	uint		charset_number);/*!< in: number of the charset */
+/******************************************************************//**
+Returns true if transaction should be flagged as read-only.
+@return	true if the thd is marked as read-only */
+UNIV_INTERN
+ibool
+thd_trx_is_read_only(
+/*=================*/
+	void*	thd);	/*!< in: thread handle (THD*) */
+
+/******************************************************************//**
+Check if the transaction is an auto-commit transaction. TRUE also
+implies that it is a SELECT (read-only) transaction.
+@return	true if the transaction is an auto commit read-only transaction. */
+UNIV_INTERN
+ibool
+thd_trx_is_auto_commit(
+/*===================*/
+	void*	thd);	/*!< in: thread handle (THD*) can be NULL */
 #endif /* HA_INNODB_PROTOTYPES_H */

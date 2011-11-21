@@ -402,7 +402,6 @@ innobase_trx_allocate(
 /*==================*/
 	MYSQL_THD	thd);	/*!< in: user thread handle */
 
-
 /*********************************************************************//**
 This function checks each index name for a table against reserved
 system default primary index name 'GEN_CLUST_INDEX'. If a name
