@@ -13667,7 +13667,7 @@ NDB_SHARE::create(const char* key, size_t key_length,
   share->state= NSS_INITIAL;
   /* Allocate enough space for key, db, and table_name */
   share->key= (char*) alloc_root(*root_ptr, 2 * (key_length + 1));
-  share->key_length= key_length;
+  share->key_length= (uint)key_length;
   strmov(share->key, key);
   share->db= share->key + key_length + 1;
   strmov(share->db, db_name);
