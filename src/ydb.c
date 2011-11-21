@@ -2698,6 +2698,25 @@ toku_txn_commit(DB_TXN * txn, u_int32_t flags,
     // after the close because if we do it before, there are race
     // conditions exposed by test_stress1.c (#4145, #4153)
     //
+    // Here is what was going on. In Maxwell (5.1.X), we used to 
+    // call toku_txn_maybe_fsync_log in between toku_txn_release_locks
+    // and toku_txn_close_txn. As a result, the ydb lock was released
+    // and retaken in between these two calls. This was wrong, as the 
+    // two commands need to be atomic. The problem was that 
+    // when the ydb lock was released, the locks that this txn took
+    // were released, but the txn was not removed from the list of 
+    // live transactions. This allowed the following sequence of events: 
+    //  - another txn B comes and writes to some key this transaction wrote to
+    //  - txn B successfully commits
+    //  - read txn C comes along, sees this transaction in its live list,
+    //     but NOT txn B, which came after this transaction.
+    //     This is incorrect. When txn C comes across a leafentry that has been
+    //     modified by both this transaction and B, it'll read B's value, even
+    //     though it cannot read this transaction's value, which comes below
+    //     B's value on the leafentry's stack. This behavior is incorrect.
+    //  All of this happens while the ydb lock is yielded. This causes a failure
+    //  in the test_stress tests.
+    //
     toku_txn_get_fsync_info(ttxn, &do_fsync, &do_fsync_lsn);
     toku_txn_close_txn(ttxn);
     toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync, ydb_yield, NULL);
