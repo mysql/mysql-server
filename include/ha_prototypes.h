@@ -276,4 +276,14 @@ thd_flush_log_at_trx_commit_session(
 /*================================*/
 	void*	thd);
 
+/******************************************************************//**
+Returns true if innodb_expand_fast_index_creation is enabled for the current
+session.
+@return	the value of the server's innodb_expand_fast_index_creation variable */
+
+ibool
+thd_expand_fast_index_creation(
+/*==================*/
+	void*	thd);	/*!< in: thread handle (THD*) */
+
 #endif

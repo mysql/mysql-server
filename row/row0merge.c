@@ -56,6 +56,7 @@ Completed by Sunny Bains and Marko Makela
 #include "log0log.h"
 #include "ut0sort.h"
 #include "handler0alter.h"
+#include "ha_prototypes.h"
 
 #ifdef UNIV_DEBUG
 /** Set these in order ot enable debug printout. */
@@ -2629,6 +2630,9 @@ row_merge_build_indexes(
 			goto func_exit;
 		}
 	}
+
+	if (trx->mysql_thd && thd_expand_fast_index_creation(trx->mysql_thd))
+		dict_update_statistics(new_table, FALSE, TRUE);
 
 func_exit:
 	close(tmpfd);

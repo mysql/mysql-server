@@ -3908,6 +3908,10 @@ lock_table(
 
 	trx = thr_get_trx(thr);
 
+	if (trx->fake_changes && mode == LOCK_IX) {
+		mode = LOCK_IS;
+	}
+
 	lock_mutex_enter_kernel();
 
 	/* Look for stronger locks the same trx already has on the table */
@@ -5109,6 +5113,11 @@ lock_rec_insert_check_and_lock(
 	}
 
 	trx = thr_get_trx(thr);
+
+	if (trx->fake_changes) {
+		return(DB_SUCCESS);
+	}
+
 	next_rec = page_rec_get_next_const(rec);
 	next_rec_heap_no = page_rec_get_heap_no(next_rec);
 
@@ -5277,6 +5286,10 @@ lock_clust_rec_modify_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		return(DB_SUCCESS);
+	}
+
 	heap_no = rec_offs_comp(offsets)
 		? rec_get_heap_no_new(rec)
 		: rec_get_heap_no_old(rec);
@@ -5332,6 +5345,10 @@ lock_sec_rec_modify_check_and_lock(
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
 
+		return(DB_SUCCESS);
+	}
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
 		return(DB_SUCCESS);
 	}
 
@@ -5422,6 +5439,10 @@ lock_sec_rec_read_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
+	if (thr && thr_get_trx(thr)->fake_changes && mode == LOCK_X) {
+		mode = LOCK_S;
+	}
+
 	heap_no = page_rec_get_heap_no(rec);
 
 	lock_mutex_enter_kernel();
@@ -5497,6 +5518,10 @@ lock_clust_rec_read_check_and_lock(
 	if (flags & BTR_NO_LOCKING_FLAG) {
 
 		return(DB_SUCCESS);
+	}
+
+	if (thr && thr_get_trx(thr)->fake_changes && mode == LOCK_X) {
+		mode = LOCK_S;
 	}
 
 	heap_no = page_rec_get_heap_no(rec);
