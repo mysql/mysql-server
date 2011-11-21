@@ -53,6 +53,11 @@ private:
   virtual int do_deinit() { return 0;}
 };
 
+/* free entries from share or at end */
+extern void ndb_index_stat_free(NDB_SHARE*, int iudex_id, int index_version);
+extern void ndb_index_stat_free(NDB_SHARE*);
+extern void ndb_index_stat_end();
+
 /* these have to live in ha_ndbcluster.cc */
 extern bool ndb_index_stat_get_enable(THD *thd);
 extern const char* g_ndb_status_index_stat_status;
