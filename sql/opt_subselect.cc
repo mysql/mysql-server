@@ -447,7 +447,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         subquery execution strategies based on optimizer switches and syntactic
         properties.
       */
-      if (in_subs)
+      if (in_subs && !in_subs->has_strategy())
       {
         if (is_materialization_applicable(thd, in_subs, select_lex))
         {

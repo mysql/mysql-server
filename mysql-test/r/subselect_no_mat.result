@@ -1,6 +1,6 @@
 select @@optimizer_switch like '%materialization=on%';
 @@optimizer_switch like '%materialization=on%'
-0
+1
 set optimizer_switch='materialization=off';
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
@@ -5674,4 +5674,4 @@ set optimizer_switch=@subselect_tmp;
 set optimizer_switch=default;
 select @@optimizer_switch like '%materialization=on%';
 @@optimizer_switch like '%materialization=on%'
-0
+1

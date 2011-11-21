@@ -817,7 +817,7 @@ inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
       double rows;
       double read_time;
 
-      DBUG_ASSERT(subq_pred->test_set_strategy(SUBS_MATERIALIZATION));
+      //DBUG_ASSERT(subq_pred->test_set_strategy(SUBS_MATERIALIZATION));
       subq_pred->optimize(&rows, &read_time);
 
       subq_pred->jtbm_read_time= read_time;

@@ -768,7 +768,7 @@ DROP TABLE t1;
 #
 # LP bug #803851: materialized view + IN->EXISTS                       
 #                 
-SET SESSION optimizer_switch='semijoin=off,derived_with_keys=on';
+SET SESSION optimizer_switch='semijoin=off,derived_with_keys=on,materialization=off';
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (2,2), (3,3), (1,1);
 CREATE TABLE t2 (a int);
@@ -1438,7 +1438,7 @@ KEY (c,a) , PRIMARY KEY (a)
 INSERT INTO t3 VALUES
 (14,4,'a'), (15,7,'b'), (16,4,'c'), (17,1,'d'), (18,9,'e'),
 (19,4,'f'), (20,8,'g');
-SET SESSION optimizer_switch='derived_merge=on,subquery_cache=off';
+SET SESSION optimizer_switch='derived_merge=on,subquery_cache=off,materialization=off';
 # The following two EXPLAINs must return the same execution plan
 EXPLAIN
 SELECT * FROM t1 , t2
