@@ -819,6 +819,8 @@ JOIN::prepare(TABLE_LIST *tables_init,
 
   if (having)
   {
+    Query_arena backup, *arena;
+    arena= thd->activate_stmt_arena_if_needed(&backup);
     nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
     thd->where="having clause";
     thd->lex->allow_sum_func|= 1 << select_lex_arg->nest_level;
@@ -828,6 +830,9 @@ JOIN::prepare(TABLE_LIST *tables_init,
 			 (having->fix_fields(thd, &having) ||
 			  having->check_cols(1)));
     select_lex->having_fix_field= 0;
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+
     select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
     if (having_fix_rc || thd->is_error())
       DBUG_RETURN(-1);				/* purecov: inspected */
@@ -3701,7 +3706,7 @@ JOIN::create_intermediate_table(List<Item> *tmp_table_fields,
   TABLE* tab= create_tmp_table(thd, &tmp_table_param, *tmp_table_fields,
                                tmp_table_group, select_distinct && !group_list,
                                save_sum_fields, select_options, tmp_rows_limit, 
-                               "intermediate_tmp_table");
+                               "");
   if (!tab)
     DBUG_RETURN(NULL);
 
@@ -18661,12 +18666,14 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
 void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
 {
   Opt_trace_object trace_tmp(trace, "tmp_table_info");
-  trace_tmp.add_utf8_table(table);
+  if (strlen(table->alias) != 0)
+    trace_tmp.add_utf8_table(table);
+  else
+    trace_tmp.add_alnum("table", "intermediate_tmp_table");
 
   trace_tmp.add("row_length",table->s->reclength).
     add("key_length", table->s->key_info ? 
-        table->s->key_info->key_length : 
-        0).
+        table->s->key_info->key_length : 0).
     add("unique_constraint", table->s->uniques ? true : false);
 
   if (table->s->db_type() == myisam_hton)

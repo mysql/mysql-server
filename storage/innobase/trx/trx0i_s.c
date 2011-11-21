@@ -610,6 +610,10 @@ thd_done:
 
 	row->trx_search_latch_timeout = trx->search_latch_timeout;
 
+	row->trx_is_read_only = trx->read_only;
+
+	row->trx_is_autocommit_non_locking = trx_is_autocommit_non_locking(trx);
+
 	return(TRUE);
 }
 
@@ -1272,29 +1276,46 @@ Fetches the data needed to fill the 3 INFORMATION SCHEMA tables into the
 table cache buffer. Cache must be locked for write. */
 static
 void
-fetch_data_into_cache(
-/*==================*/
-	trx_i_s_cache_t*	cache)	/*!< in/out: cache */
+fetch_data_into_cache_low(
+/*======================*/
+	trx_i_s_cache_t*	cache,		/*!< in/out: cache */
+	ibool			only_ac_nl,	/*!< in: only select non-locking
+						autocommit transactions */
+	trx_list_t*		trx_list)	/*!< in: trx list */
 {
 	const trx_t*		trx;
-	i_s_trx_row_t*		trx_row;
-	i_s_locks_row_t*	requested_lock_row;
 
-	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_list == &trx_sys->rw_trx_list
+	      || trx_list == &trx_sys->ro_trx_list
+	      || trx_list == &trx_sys->mysql_trx_list);
 
-	trx_i_s_cache_clear(cache);
+	ut_ad(only_ac_nl == (trx_list == &trx_sys->mysql_trx_list));
 
-	/* We iterate over the list of all transactions and add each one
+	/* Iterate over the transaction list and add each one
 	to innodb_trx's cache. We also add all locks that are relevant
 	to each transaction into innodb_locks' and innodb_lock_waits'
 	caches. */
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx = UT_LIST_GET_FIRST(*trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		ut_ad(trx->in_trx_list);
+		i_s_trx_row_t*		trx_row;
+		i_s_locks_row_t*	requested_lock_row;
+
+		if (trx->state == TRX_STATE_NOT_STARTED
+		    || (only_ac_nl && !trx_is_autocommit_non_locking(trx))) {
+
+			continue;
+		}
+
+		assert_trx_nonlocking_or_in_list(trx);
+
+		ut_ad(trx->in_ro_trx_list
+		      == (trx_list == &trx_sys->ro_trx_list));
+
+		ut_ad(trx->in_rw_trx_list
+		      == (trx_list == &trx_sys->rw_trx_list));
 
 		if (!add_trx_relevant_locks_to_cache(cache, trx,
 						     &requested_lock_row)) {
@@ -1322,6 +1343,28 @@ fetch_data_into_cache(
 			return;
 		}
 	}
+}
+
+/*******************************************************************//**
+Fetches the data needed to fill the 3 INFORMATION SCHEMA tables into the
+table cache buffer. Cache must be locked for write. */
+static
+void
+fetch_data_into_cache(
+/*==================*/
+	trx_i_s_cache_t*	cache)	/*!< in/out: cache */
+{
+	ut_ad(lock_mutex_own());
+	ut_ad(mutex_own(&trx_sys->mutex));
+
+	trx_i_s_cache_clear(cache);
+
+	fetch_data_into_cache_low(cache, FALSE, &trx_sys->rw_trx_list);
+	fetch_data_into_cache_low(cache, FALSE, &trx_sys->ro_trx_list);
+
+	/* Only select autocommit non-locking selects because they can
+	only be on the MySQL transaction list (TRUE). */
+	fetch_data_into_cache_low(cache, TRUE, &trx_sys->mysql_trx_list);
 
 	cache->is_truncated = FALSE;
 }

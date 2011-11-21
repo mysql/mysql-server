@@ -222,6 +222,26 @@ trx_doublewrite_init(
 }
 
 /****************************************************************//**
+Calls buf_page_get() on the TRX_SYS_PAGE and returns a pointer to the
+doublewrite buffer within it.
+@return	pointer to the doublewrite buffer within the filespace header
+page. */
+UNIV_INLINE
+byte*
+trx_sys_doublewrite_get(
+/*====================*/
+	mtr_t*	mtr)	/*!< in/out: MTR to hold the page latch */
+{
+	buf_block_t*	block;
+
+	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
+			     RW_X_LATCH, mtr);
+	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+
+	return(buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE);
+}
+
+/****************************************************************//**
 Marks the trx sys header when we have successfully upgraded to the >= 4.1.x
 multiple tablespace format. */
 UNIV_INTERN
@@ -229,7 +249,6 @@ void
 trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 /*===============================================*/
 {
-	buf_block_t*	block;
 	byte*		doublewrite;
 	mtr_t		mtr;
 
@@ -239,11 +258,7 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 
 	mtr_start(&mtr);
 
-	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
-			     RW_X_LATCH, &mtr);
-	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-
-	doublewrite = buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE;
+	doublewrite = trx_sys_doublewrite_get(&mtr);
 
 	mlog_write_ulint(doublewrite + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED,
 			 TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
@@ -264,7 +279,6 @@ void
 trx_sys_create_doublewrite_buf(void)
 /*================================*/
 {
-	buf_block_t*	block;
 	buf_block_t*	block2;
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_t*	new_block;
@@ -286,11 +300,7 @@ start_again:
 	mtr_start(&mtr);
 	trx_doublewrite_buf_is_being_created = TRUE;
 
-	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
-			     RW_X_LATCH, &mtr);
-	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-
-	doublewrite = buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE;
+	doublewrite = trx_sys_doublewrite_get(&mtr);
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC)
 	    == TRX_SYS_DOUBLEWRITE_MAGIC_N) {
@@ -341,8 +351,7 @@ start_again:
 			exit(1);
 		}
 
-		fseg_header = buf_block_get_frame(block)
-			+ TRX_SYS_DOUBLEWRITE + TRX_SYS_DOUBLEWRITE_FSEG;
+		fseg_header = doublewrite + TRX_SYS_DOUBLEWRITE_FSEG;
 		prev_page_no = 0;
 
 		for (i = 0; i < 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
@@ -388,6 +397,7 @@ start_again:
 						 + TRX_SYS_DOUBLEWRITE_REPEAT
 						 + TRX_SYS_DOUBLEWRITE_BLOCK1,
 						 page_no, MLOG_4BYTES, &mtr);
+
 			} else if (i == FSP_EXTENT_SIZE / 2
 				   + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 				ut_a(page_no == 2 * FSP_EXTENT_SIZE);
@@ -398,8 +408,26 @@ start_again:
 						 + TRX_SYS_DOUBLEWRITE_REPEAT
 						 + TRX_SYS_DOUBLEWRITE_BLOCK2,
 						 page_no, MLOG_4BYTES, &mtr);
+
 			} else if (i > FSP_EXTENT_SIZE / 2) {
 				ut_a(page_no == prev_page_no + 1);
+			}
+
+			if (((i + 1) & 25) == 0) {
+				/* rw_locks can only be recursively x-locked
+				2048 times. (on 32 bit platforms,
+				(lint) 0 - (X_LOCK_DECR * 2049)
+				is no longer a negative number, and thus
+				lock_word becomes like a shared lock).
+				For 4k page size this loop will
+				lock the fseg header too many times. Since
+				this code is not done while any other threads
+				are active, restart the MTR occasionally. */
+				mtr_commit(&mtr);
+				mtr_start(&mtr);
+				doublewrite = trx_sys_doublewrite_get(&mtr);
+				fseg_header = doublewrite
+					      + TRX_SYS_DOUBLEWRITE_FSEG;
 			}
 
 			prev_page_no = page_no;
@@ -647,7 +675,7 @@ leave_func:
 
 #ifdef UNIV_DEBUG
 /****************************************************************//**
-Checks that trx is in the trx list.
+Checks whether a trx is in one of rw_trx_list or ro_trx_list.
 @return	TRUE if is in */
 UNIV_INTERN
 ibool
@@ -656,16 +684,24 @@ trx_in_trx_list(
 	const trx_t*	in_trx)	/*!< in: transaction */
 {
 	const trx_t*	trx;
+	trx_list_t*	trx_list;
+
+	/* Non-locking autocommits should not hold any locks. */
+	assert_trx_in_list(in_trx);
+
+	trx_list = in_trx->read_only
+		? &trx_sys->ro_trx_list : &trx_sys->rw_trx_list;
 
 	ut_ad(mutex_own(&trx_sys->mutex));
 
 	ut_ad(trx_assert_started(in_trx));
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx = UT_LIST_GET_FIRST(*trx_list);
 	     trx != NULL && trx != in_trx;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		ut_ad(trx->in_trx_list);
+		assert_trx_in_list(trx);
+		ut_ad(trx->read_only == (trx_list == &trx_sys->ro_trx_list));
 	}
 
 	return(trx != NULL);
@@ -1040,13 +1076,17 @@ trx_sys_init_at_db_start(void)
 
 	mutex_enter(&trx_sys->mutex);
 
-	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
+	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
+
+	if (UT_LIST_GET_LEN(trx_sys->rw_trx_list) > 0) {
 		const trx_t*	trx;
 
-		for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+		for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
 		     trx != NULL;
 		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+
 			ut_ad(trx->is_recovered);
+			assert_trx_in_rw_list(trx);
 
 			if (trx_state_eq(trx, TRX_STATE_ACTIVE)) {
 				rows_to_undo += trx->undo_no;
@@ -1062,7 +1102,7 @@ trx_sys_init_at_db_start(void)
 			"InnoDB: %lu transaction(s) which must be"
 			" rolled back or cleaned up\n"
 			"InnoDB: in total %lu%s row operations to undo\n",
-			(ulong) UT_LIST_GET_LEN(trx_sys->trx_list),
+			(ulong) UT_LIST_GET_LEN(trx_sys->rw_trx_list),
 			(ulong) rows_to_undo, unit);
 
 		fprintf(stderr, "InnoDB: Trx id counter is " TRX_ID_FMT "\n",
@@ -1705,10 +1745,12 @@ trx_sys_close(void)
 
 	mutex_enter(&trx_sys->mutex);
 
-	/* Only prepared transactions may be left in the system. Free them. */
-	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == trx_sys->n_prepared_trx);
+	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
 
-	while ((trx = UT_LIST_GET_FIRST(trx_sys->trx_list)) != NULL) {
+	/* Only prepared transactions may be left in the system. Free them. */
+	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx);
+
+	while ((trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list)) != NULL) {
 		trx_free_prepared(trx);
 	}
 
@@ -1737,8 +1779,9 @@ trx_sys_close(void)
 		UT_LIST_REMOVE(view_list, trx_sys->view_list, prev_view);
 	}
 
-	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
+	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
+	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 
 	mutex_exit(&trx_sys->mutex);
@@ -1762,8 +1805,9 @@ trx_sys_any_active_transactions(void)
 
 	mutex_enter(&trx_sys->mutex);
 
-	total_trx = UT_LIST_GET_LEN(trx_sys->trx_list)
+	total_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list)
 		+ trx_sys->n_mysql_trx;
+
 	ut_a(total_trx >= trx_sys->n_prepared_trx);
 	total_trx -= trx_sys->n_prepared_trx;
 
@@ -1774,24 +1818,48 @@ trx_sys_any_active_transactions(void)
 
 #ifdef UNIV_DEBUG
 /*************************************************************//**
-Validate the trx_sys_t::trx_list. */
-UNIV_INTERN
+Validate the trx_list_t.
+@return TRUE if valid. */
+static
 ibool
-trx_sys_validate_trx_list(void)
+trx_sys_validate_trx_list_low(
 /*===========================*/
+	trx_list_t*	trx_list)	/*!< in: &trx_sys->ro_trx_list
+					or &trx_sys->rw_trx_list */
 {
 	const trx_t*	trx;
 	const trx_t*	prev_trx = NULL;
 
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	ut_ad(trx_list == &trx_sys->ro_trx_list
+	      || trx_list == &trx_sys->rw_trx_list);
+
+	for (trx = UT_LIST_GET_FIRST(*trx_list);
 	     trx != NULL;
 	     prev_trx = trx, trx = UT_LIST_GET_NEXT(trx_list, prev_trx)) {
 
-		ut_ad(trx->in_trx_list);
+		assert_trx_in_list(trx);
+		ut_ad(trx->read_only == (trx_list == &trx_sys->ro_trx_list));
+
 		ut_a(prev_trx == NULL || prev_trx->id > trx->id);
 	}
+
+	return(TRUE);
+}
+
+/*************************************************************//**
+Validate the trx_sys_t::ro_trx_list and trx_sys_t::rw_trx_list.
+@return TRUE if lists are valid. */
+UNIV_INTERN
+ibool
+trx_sys_validate_trx_list(void)
+/*===========================*/
+{
+	ut_ad(mutex_own(&trx_sys->mutex));
+
+	ut_a(trx_sys_validate_trx_list_low(&trx_sys->ro_trx_list));
+	ut_a(trx_sys_validate_trx_list_low(&trx_sys->rw_trx_list));
 
 	return(TRUE);
 }

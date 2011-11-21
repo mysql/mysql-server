@@ -204,7 +204,7 @@ class ha_innobase: public handler
 	int reset_auto_increment(ulonglong value);
 
 	virtual bool get_error_message(int error, String *buf);
-
+	virtual bool get_foreign_dup_key(char*, uint, char*, uint);
 	uint8 table_cache_type();
 	/*
 	  ask handler about permission to cache table during query registration
@@ -400,7 +400,6 @@ trx_t*
 innobase_trx_allocate(
 /*==================*/
 	MYSQL_THD	thd);	/*!< in: user thread handle */
-
 
 /*********************************************************************//**
 This function checks each index name for a table against reserved
