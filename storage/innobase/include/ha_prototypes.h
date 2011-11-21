@@ -325,4 +325,23 @@ UNIV_INTERN
 ulint
 innobase_get_lower_case_table_names(void);
 /*=====================================*/
+
+/******************************************************************//**
+Returns true if transaction should be flagged as read-only.
+@return	true if the thd is marked as read-only */
+UNIV_INTERN
+ibool
+thd_trx_is_read_only(
+/*=================*/
+	void*	thd);	/*!< in: thread handle (THD*) */
+
+/******************************************************************//**
+Check if the transaction is an auto-commit transaction. TRUE also
+implies that it is a SELECT (read-only) transaction.
+@return	true if the transaction is an auto commit read-only transaction. */
+UNIV_INTERN
+ibool
+thd_trx_is_auto_commit(
+/*===================*/
+	void*	thd);	/*!< in: thread handle (THD*) can be NULL */
 #endif
