@@ -2050,4 +2050,37 @@ a
 3
 set optimizer_switch= @tmp_otimizer_switch;
 drop table t1,t2;
+#
+# Bug #887496: semijoin with IN equality for the second part of an index
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (9), (0), (8), (5);
+CREATE TABLE t2 (a int, b varchar(1), INDEX idx (b,a));
+INSERT INTO t2 VALUES (5,'r'), (5,'z');
+CREATE TABLE t3 (a int, b varchar(1), INDEX idx (b,a));
+INSERT INTO t3 VALUES (5,'r'), (5,'z');
+set @tmp_otimizer_switch= @@optimizer_switch;
+SET SESSION optimizer_switch='semijoin=on,firstmatch=on';
+SET SESSION optimizer_switch='loosescan=off';
+EXPLAIN
+SELECT * FROM t1 WHERE a IN (SELECT t2.a FROM t2,t3 WHERE t2.b = t3.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	idx	idx	9	NULL	2	Using where; Using index; Start temporary
+1	PRIMARY	t3	ref	idx	idx	4	test.t2.b	1	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (flat, BNL join)
+SELECT * FROM t1 WHERE a IN (SELECT t2.a FROM t2,t3 WHERE t2.b = t3.b);
+a
+5
+SET SESSION optimizer_switch='loosescan=on';
+EXPLAIN
+SELECT * FROM t1 WHERE a IN (SELECT t2.a FROM t2,t3 WHERE t2.b = t3.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	idx	idx	9	NULL	2	Using where; Using index; Start temporary
+1	PRIMARY	t3	ref	idx	idx	4	test.t2.b	1	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (flat, BNL join)
+SELECT * FROM t1 WHERE a IN (SELECT t2.a FROM t2,t3 WHERE t2.b = t3.b);
+a
+5
+set optimizer_switch= @tmp_otimizer_switch;
+DROP TABLE t1,t2,t3;
 set optimizer_switch=@subselect_sj_tmp;
