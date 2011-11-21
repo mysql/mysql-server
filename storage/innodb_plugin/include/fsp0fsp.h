@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -176,19 +176,18 @@ fseg_n_reserved_pages(
 Allocates a single free page from a segment. This function implements
 the intelligent allocation strategy which tries to minimize
 file space fragmentation.
-@return	the allocated page offset FIL_NULL if no page could be allocated */
-UNIV_INTERN
-ulint
-fseg_alloc_free_page(
-/*=================*/
-	fseg_header_t*	seg_header, /*!< in: segment header */
-	ulint		hint,	/*!< in: hint of which page would be desirable */
-	byte		direction, /*!< in: if the new page is needed because
+@param[in/out] seg_header	segment header
+@param[in] hint			hint of which page would be desirable
+@param[in] direction		if the new page is needed because
 				of an index page split, and records are
 				inserted there in order, into which
 				direction they go alphabetically: FSP_DOWN,
-				FSP_UP, FSP_NO_DIR */
-	mtr_t*		mtr);	/*!< in: mtr handle */
+				FSP_UP, FSP_NO_DIR
+@param[in/out] mtr		mini-transaction
+@return	the allocated page offset FIL_NULL if no page could be allocated */
+#define fseg_alloc_free_page(seg_header, hint, direction, mtr)		\
+	fseg_alloc_free_page_general(seg_header, hint, direction,	\
+				     FALSE, mtr, mtr)
 /**********************************************************************//**
 Allocates a single free page from a segment. This function implements
 the intelligent allocation strategy which tries to minimize file space
@@ -198,7 +197,7 @@ UNIV_INTERN
 ulint
 fseg_alloc_free_page_general(
 /*=========================*/
-	fseg_header_t*	seg_header,/*!< in: segment header */
+	fseg_header_t*	seg_header,/*!< in/out: segment header */
 	ulint		hint,	/*!< in: hint of which page would be desirable */
 	byte		direction,/*!< in: if the new page is needed because
 				of an index page split, and records are
@@ -210,7 +209,12 @@ fseg_alloc_free_page_general(
 				with fsp_reserve_free_extents, then there
 				is no need to do the check for this individual
 				page */
-	mtr_t*		mtr);	/*!< in: mtr handle */
+	mtr_t*		mtr,	/*!< in/out: mini-transaction */
+	mtr_t*		init_mtr)/*!< in/out: mtr or another mini-transaction
+				in which the page should be initialized,
+				or NULL if this is a "fake allocation" of
+				a page that was previously freed in mtr */
+	__attribute__((warn_unused_result, nonnull(1,5)));
 /**********************************************************************//**
 Reserves free pages from a tablespace. All mini-transactions which may
 use several pages from the tablespace should call this function beforehand

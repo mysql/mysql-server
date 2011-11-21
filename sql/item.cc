@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -4464,14 +4466,14 @@ mark_non_agg_field:
     SELECT_LEX *select_lex= cached_table ? 
       cached_table->select_lex : context->select_lex;
     if (!thd->lex->in_sum_func)
-      select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+      select_lex->set_non_agg_field_used(true);
     else
     {
       if (outer_fixed)
         thd->lex->in_sum_func->outer_fields.push_back(this);
       else if (thd->lex->in_sum_func->nest_level !=
           thd->lex->current_select->nest_level)
-        select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+        select_lex->set_non_agg_field_used(true);
     }
   }
   return FALSE;

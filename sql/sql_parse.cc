@@ -1,4 +1,6 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define MYSQL_LEX 1
 #include "mysql_priv.h"
@@ -28,6 +31,7 @@
 #include "events.h"
 #include "sql_trigger.h"
 #include "debug_sync.h"
+#include <rpl_mi.h>
 
 #ifdef WITH_MARIA_STORAGE_ENGINE
 #include "../storage/maria/ha_maria.h"
@@ -2656,6 +2660,12 @@ mysql_execute_command(THD *thd)
       goto end_with_restore_list;
 #endif
     /*
+      If no engine type was given, work out the default now
+      rather than at parse-time.
+    */
+    if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
+      create_info.db_type= ha_default_handlerton(thd);
+    /*
       If we are using SET CHARSET without DEFAULT, add an implicit
       DEFAULT to not confuse old users. (This may change).
     */
@@ -4011,8 +4021,7 @@ end_with_restore_list:
             hostname_requires_resolving(user->host.str))
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_WARN_HOSTNAME_WONT_WORK,
-                              ER(ER_WARN_HOSTNAME_WONT_WORK),
-                              user->host.str);
+                              ER(ER_WARN_HOSTNAME_WONT_WORK));
         // Are we trying to change a password of another user
         DBUG_ASSERT(user->host.str != 0);
         if (strcmp(thd->security_ctx->user, user->user.str) ||
@@ -5977,7 +5986,7 @@ mysql_new_select(LEX *lex, bool move_down)
   lex->nest_level++;
   if (lex->nest_level > (int) MAX_SELECT_NESTING)
   {
-    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT,MYF(0),MAX_SELECT_NESTING);
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
     DBUG_RETURN(1);
   }
   select_lex->nest_level= lex->nest_level;
@@ -7083,9 +7092,9 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     }
 #ifdef HAVE_REPLICATION
     int rotate_error= 0;
-    pthread_mutex_lock(&LOCK_active_mi);
+    pthread_mutex_lock(&active_mi->data_lock);
     rotate_error= rotate_relay_log(active_mi);
-    pthread_mutex_unlock(&LOCK_active_mi);
+    pthread_mutex_unlock(&active_mi->data_lock);
     if (rotate_error)
       *write_to_binlog= -1;
 #endif
@@ -8092,10 +8101,14 @@ bool parse_sql(THD *thd,
 
   mysql_parse_status= MYSQLparse(thd) != 0;
 
-  /* Check that if MYSQLparse() failed, thd->is_error() is set. */
+  /*
+    Check that if MYSQLparse() failed, thd->is_error() is set (unless
+    we have an error handler installed, which might have silenced error).
+  */
 
   DBUG_ASSERT(!mysql_parse_status ||
-              (mysql_parse_status && thd->is_error()));
+              thd->is_error() ||
+              thd->get_internal_handler());
 
   /* Reset parser state. */
 

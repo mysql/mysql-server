@@ -1,5 +1,7 @@
 #!/bin/sh
-# Copyright (C) 2002-2003 MySQL AB & Monty Program Ab
+# Copyright (c) 2000-2008 MySQL AB, 2009, 2010 Sun Microsystems, Inc.
+# Copyright (c) 2009-2011 Monty Program Ab
+# Use is subject to license terms.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,11 +47,16 @@ Usage: $0 [OPTIONS]
   --cross-bootstrap    For internal use.  Used when building the MariaDB system
                        tables on a different host than the target.
   --datadir=path       The path to the MariaDB data directory.
+  --defaults-extra-file=name
+                       Read this file after the global files are read.
+  --defaults-file=name Only read default options from the given file name.
   --force              Causes mysql_install_db to run even if DNS does not
                        work.  In that case, grant table entries that normally
                        use hostnames will use IP addresses.
+  --help               Display this help and exit.                     
   --ldata=path         The path to the MariaDB data directory. Same as
                        --datadir.
+  --no-defaults        Don't read default options from any option file.
   --rpm                For internal use.  This option is used by RPM files
                        during the MariaDB installation process.
   --skip-name-resolve  Use IP addresses rather than hostnames when creating

@@ -259,6 +259,7 @@ row_ins_sec_index_entry_by_modify(
 		err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG, cursor,
 						 &dummy_big_rec, update,
 						 0, thr, mtr);
+		ut_a(!dummy_big_rec);
 	}
 func_exit:
 	mem_heap_free(heap);
@@ -329,8 +330,9 @@ row_ins_clust_index_entry_by_modify(
 
 			goto func_exit;
 		}
-		err = btr_cur_pessimistic_update(0, cursor, big_rec, update,
-						 0, thr, mtr);
+		err = btr_cur_pessimistic_update(
+			BTR_KEEP_POS_FLAG, cursor, big_rec, update,
+			0, thr, mtr);
 	}
 func_exit:
 	mem_heap_free(heap);
@@ -2083,6 +2085,50 @@ row_ins_index_entry_low(
 			err = row_ins_clust_index_entry_by_modify(
 				mode, &cursor, &big_rec, entry,
 				ext_vec, n_ext_vec, thr, &mtr);
+
+			if (big_rec) {
+				ut_a(err == DB_SUCCESS);
+				/* Write out the externally stored
+				columns, but allocate the pages and
+				write the pointers using the
+				mini-transaction of the record update.
+				If any pages were freed in the update,
+				temporarily mark them allocated so
+				that off-page columns will not
+				overwrite them. We must do this,
+				because we will write the redo log for
+				the BLOB writes before writing the
+				redo log for the record update. Thus,
+				redo log application at crash recovery
+				will see BLOBs being written to free pages. */
+
+				btr_mark_freed_leaves(index, &mtr, TRUE);
+
+				rec = btr_cur_get_rec(&cursor);
+				offsets = rec_get_offsets(rec, index, offsets,
+							  ULINT_UNDEFINED,
+							  &heap);
+
+				err = btr_store_big_rec_extern_fields(
+					index, rec, offsets, big_rec,
+					&mtr, &mtr);
+				/* If writing big_rec fails (for
+				example, because of DB_OUT_OF_FILE_SPACE),
+				the record will be corrupted. Even if
+				we did not update any externally
+				stored columns, our update could cause
+				the record to grow so that a
+				non-updated column was selected for
+				external storage. This non-update
+				would not have been written to the
+				undo log, and thus the record cannot
+				be rolled back. */
+				ut_a(err == DB_SUCCESS);
+				/* Free the pages again
+				in order to avoid a leak. */
+				btr_mark_freed_leaves(index, &mtr, FALSE);
+				goto stored_big_rec;
+			}
 		} else {
 			err = row_ins_sec_index_entry_by_modify(
 				mode, &cursor, entry, thr, &mtr);
@@ -2119,7 +2165,6 @@ function_exit:
 	mtr_commit(&mtr);
 
 	if (big_rec) {
-		rec_t*		rec;
 		mtr_start(&mtr);
 
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
@@ -2129,8 +2174,9 @@ function_exit:
 					  ULINT_UNDEFINED, &heap);
 
 		err = btr_store_big_rec_extern_fields(index, rec,
-						      offsets, big_rec, &mtr);
-
+						      offsets, big_rec,
+						      NULL, &mtr);
+stored_big_rec:
 		if (modify) {
 			dtuple_big_rec_free(big_rec);
 		} else {

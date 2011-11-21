@@ -15,6 +15,9 @@ Created 3/26/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "trx0sys.h"
 
+/* In crash recovery, the current trx to be rolled back */
+extern trx_t*	trx_roll_crash_recv_trx;
+
 #define trx_roll_free_all_savepoints(s) trx_roll_savepoints_free((s), NULL)
 
 /***********************************************************************

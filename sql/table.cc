@@ -1,5 +1,6 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009-2011, Monty Program Ab
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* Some general useful functions */
@@ -2284,7 +2286,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
   default:				/* Better wrong error than none */
   case 4:
     strxmov(buff, share->normalized_path.str, reg_ext, NullS);
-    my_error(ER_NOT_FORM_FILE, errortype, buff, 0);
+    my_error(ER_NOT_FORM_FILE, errortype, buff);
     break;
   }
   DBUG_VOID_RETURN;
@@ -2862,7 +2864,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE,
                    ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
                    table->alias, table_def->count, table->s->fields,
-                   table->s->mysql_version, MYSQL_VERSION_ID);
+                   static_cast<int>(table->s->mysql_version),
+                   MYSQL_VERSION_ID);
       DBUG_RETURN(TRUE);
     }
     else if (MYSQL_VERSION_ID == table->s->mysql_version)

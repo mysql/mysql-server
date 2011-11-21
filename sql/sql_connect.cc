@@ -1,4 +1,6 @@
-/* Copyright (C) 2007 MySQL AB
+/*
+   Copyright (c) 2007, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   Functions to autenticate and handle reqests for a connection
@@ -342,7 +344,7 @@ check_user(THD *thd, enum enum_server_command command,
       passwd_len != SCRAMBLE_LENGTH &&
       passwd_len != SCRAMBLE_LENGTH_323)
   {
-    my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+    my_error(ER_HANDSHAKE_ERROR, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -373,7 +375,7 @@ check_user(THD *thd, enum enum_server_command command,
         my_net_read(net) != SCRAMBLE_LENGTH_323 + 1)
     {
       inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_HANDSHAKE_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
     /* Final attempt to check the user based on reply */
@@ -674,7 +676,10 @@ static int check_connection(THD *thd)
   uint connect_errors= 0;
   NET *net= &thd->net;
   ulong pkt_len= 0;
-  char *end;
+  char *end, *user, *passwd, *db;
+  uint user_len, dummy_errors, passwd_len, db_len;
+  char db_buff[SAFE_NAME_LEN*2 + 1];       // buffer to store db in utf8
+  char user_buff[USERNAME_LENGTH*2 + 1];   // buffer to store user in utf8
 
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
@@ -688,7 +693,7 @@ static int check_connection(THD *thd)
 
     if (vio_peer_addr(net->vio, ip, &thd->peer_port))
     {
-      my_error(ER_BAD_HOST_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
@@ -786,12 +791,7 @@ static int check_connection(THD *thd)
                           (uchar*) buff, (size_t) (end-buff)) ||
 	(pkt_len= my_net_read(net)) == packet_error ||
 	pkt_len < MIN_HANDSHAKE_SIZE)
-    {
-      inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0),
-               thd->main_security_ctx.host_or_ip);
-      return 1;
-    }
+      goto error;
   }
 #ifdef _CUSTOMCONFIG_
 #include "_cust_sql_parse.h"
@@ -801,9 +801,18 @@ static int check_connection(THD *thd)
   if (thd->packet.alloc(thd->variables.net_buffer_length))
     return 1; /* The error is set by alloc(). */
 
+  /*
+    Protocol buffer is guaranteed to always end with \0. (see my_net_read())
+    As the code below depends on this, lets check that.
+  */
+  DBUG_ASSERT(net->read_pos[pkt_len] == 0);
+
   thd->client_capabilities= uint2korr(net->read_pos);
   if (thd->client_capabilities & CLIENT_PROTOCOL_41)
   {
+    if (pkt_len < 32)
+      goto error;
+
     thd->client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
     thd->max_client_packet_length= uint4korr(net->read_pos+4);
     DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
@@ -814,6 +823,9 @@ static int check_connection(THD *thd)
   }
   else
   {
+    if (pkt_len < 5)
+      goto error;
+
     thd->max_client_packet_length= uint3korr(net->read_pos+2);
     end= (char*) net->read_pos+5;
   }
@@ -832,18 +844,12 @@ static int check_connection(THD *thd)
     char error_string[1024];
     /* Do the SSL layering. */
     if (!ssl_acceptor_fd)
-    {
-      inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
-      return 1;
-    }
+      goto error;
     DBUG_PRINT("info", ("IO layer change in progress..."));
     if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout, error_string))
     {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
-      inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
-      return 1;
+      goto error;
     }
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
     if ((pkt_len= my_net_read(net)) == packet_error ||
@@ -851,19 +857,13 @@ static int check_connection(THD *thd)
     {
       DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
 			   pkt_len));
-      inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
-      return 1;
+      goto error;
     }
   }
 #endif /* HAVE_OPENSSL */
 
   if (end >= (char*) net->read_pos+ pkt_len +2)
-  {
-    inc_host_errors(&thd->remote.sin_addr);
-    my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
-    return 1;
-  }
+    goto error;
 
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
     thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
@@ -871,13 +871,10 @@ static int check_connection(THD *thd)
       opt_using_transactions)
     net->return_status= &thd->server_status;
 
-  char *user= end;
-  char *passwd= strend(user)+1;
-  uint user_len= passwd - user - 1;
-  char *db= passwd;
-  char db_buff[SAFE_NAME_LEN*2 + 1];       // buffer to store db in utf8
-  char user_buff[USERNAME_LENGTH*2 + 1];   // buffer to store user in utf8
-  uint dummy_errors;
+  user= end;
+  passwd= strend(user)+1;
+  user_len= passwd - user - 1;
+  db= passwd;
 
   /*
     Old clients send null-terminated string as password; new clients send
@@ -888,21 +885,19 @@ static int check_connection(THD *thd)
 
     Cast *passwd to an unsigned char, so that it doesn't extend the sign for
     *passwd > 127 and become 2**32-127+ after casting to uint.
+
+    strlen() is safe as packet[pkt_len] is guranteed to be 0
   */
-  uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-    (uchar)(*passwd++) : strlen(passwd);
+   passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
+     (uchar)(*passwd++) : strlen(passwd);
   db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
     db + passwd_len + 1 : 0;
 
   if (passwd + passwd_len + test(db) > (char *)net->read_pos + pkt_len)
-  {
-    inc_host_errors(&thd->remote.sin_addr);
-    my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
-    return 1;
-  }
+    goto error;
 
   /* strlen() can't be easily deleted without changing protocol */
-  uint db_len= db ? strlen(db) : 0;
+  db_len= db ? strlen(db) : 0;
 
   /* Since 4.1 all database names are stored in utf8 */
   if (db)
@@ -945,6 +940,11 @@ static int check_connection(THD *thd)
   if (!(thd->main_security_ctx.user= my_strdup(user, MYF(MY_WME))))
     return 1; /* The error is set by my_strdup(). */
   return check_user(thd, COM_CONNECT, passwd, passwd_len, db, TRUE);
+
+error:
+  inc_host_errors(&thd->remote.sin_addr);
+  my_error(ER_HANDSHAKE_ERROR, MYF(0));
+  return 1;
 }
 
 

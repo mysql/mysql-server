@@ -11,4 +11,4 @@
 ##############################################################################
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
-rpl_ndb_2ndb   : Bug#45974: rpl_ndb_2ndb fails sporadically
+rpl_ndb_2ndb   : Bug#11754374 : rpl_ndb_2ndb fails sporadically

@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
   @defgroup Semantic_Analysis Semantic Analysis
@@ -711,16 +713,7 @@ public:
     joins on the right.
   */
   List<String> *prev_join_using;
-  /*
-    Bitmap used in the ONLY_FULL_GROUP_BY_MODE to prevent mixture of aggregate
-    functions and non aggregated fields when GROUP BY list is absent.
-    Bits:
-      0 - non aggregated fields are used in this select,
-          defined as NON_AGG_FIELD_USED.
-      1 - aggregate functions are used in this select,
-          defined as SUM_FUNC_USED.
-  */
-  uint8 full_group_by_flag;
+
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit();
@@ -829,7 +822,22 @@ public:
 
   void clear_index_hints(void) { index_hints= NULL; }
 
-private:  
+  /*
+    For MODE_ONLY_FULL_GROUP_BY we need to maintain two flags:
+     - Non-aggregated fields are used in this select.
+     - Aggregate functions are used in this select.
+    In MODE_ONLY_FULL_GROUP_BY only one of these may be true.
+  */
+  bool non_agg_field_used() const { return m_non_agg_field_used; }
+  bool agg_func_used()      const { return m_agg_func_used; }
+
+  void set_non_agg_field_used(bool val) { m_non_agg_field_used= val; }
+  void set_agg_func_used(bool val)      { m_agg_func_used= val; }
+
+private:
+  bool m_non_agg_field_used;
+  bool m_agg_func_used;
+
   /* current index hint kind. used in filling up index_hints */
   enum index_hint_type current_index_hint_type;
   index_clause_map current_index_hint_clause;
@@ -1826,6 +1834,16 @@ typedef struct st_lex : public Query_tables_list
   bool create_select_start_with_brace;
   uint create_select_pos;
   bool create_select_in_comment;
+
+  /*
+    The set of those tables whose fields are referenced in all subqueries
+    of the query.
+    TODO: possibly this it is incorrect to have used tables in LEX because
+    with subquery, it is not clear what does the field mean. To fix this
+    we should aggregate used tables information for selected expressions
+    into the select_lex.
+  */
+  table_map  used_tables;
 
   st_lex();
 

@@ -1009,29 +1009,6 @@ buf_page_peek_block(
 }
 
 /************************************************************************
-Resets the check_index_page_at_flush field of a page if found in the buffer
-pool. */
-
-void
-buf_reset_check_index_page_at_flush(
-/*================================*/
-	ulint	space,	/* in: space id */
-	ulint	offset)	/* in: page number */
-{
-	buf_block_t*	block;
-
-	mutex_enter_fast(&(buf_pool->mutex));
-
-	block = buf_page_hash_get(space, offset);
-
-	if (block) {
-		block->check_index_page_at_flush = FALSE;
-	}
-
-	mutex_exit(&(buf_pool->mutex));
-}
-
-/************************************************************************
 Returns the current state of is_hashed of a page. FALSE if the page is
 not in the pool. NOTE that this operation does not fix the page in the
 pool if it is found there. */

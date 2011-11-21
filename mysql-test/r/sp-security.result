@@ -567,3 +567,28 @@ DROP USER 'tester';
 DROP USER 'Tester';
 DROP DATABASE B48872;
 End of 5.0 tests.
+#
+# Bug#11882603 SELECT_ACL ON ANY COLUMN IN MYSQL.PROC ALLOWS TO SEE
+#              DEFINITION OF ANY ROUTINE. 
+#
+DROP DATABASE IF EXISTS db1;
+CREATE DATABASE db1;
+CREATE PROCEDURE db1.p1() SELECT 1;
+CREATE USER user2@localhost IDENTIFIED BY '';
+GRANT SELECT(db) ON mysql.proc TO user2@localhost;
+# Connection con2 as user2
+# The statement below before disclosed info from body_utf8 column.
+SHOW CREATE PROCEDURE db1.p1;
+ERROR 42000: PROCEDURE p1 does not exist
+# Check that SHOW works with SELECT grant on whole table
+# Connection default
+GRANT SELECT ON mysql.proc TO user2@localhost;
+# Connection con2
+# This should work
+SHOW CREATE PROCEDURE db1.p1;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+SELECT 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+# Connection default
+DROP USER user2@localhost;
+DROP DATABASE db1;
