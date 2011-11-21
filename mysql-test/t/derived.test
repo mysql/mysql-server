@@ -1111,3 +1111,41 @@ SET @@max_heap_table_size= @save_heap_size;
 DROP TABLE t1,t2;
 --echo #
 
+--echo #
+--echo # Bug#13354889: Crash on a derived table with more than 64 fields.
+--echo #
+create table t1 (
+field00 int, field01 int, field02 int, field03 int,
+field04 int, field05 int, field06 int, field07 int,
+field10 int, field11 int, field12 int, field13 int,
+field14 int, field15 int, field16 int, field17 int,
+field20 int, field21 int, field22 int, field23 int,
+field24 int, field25 int, field26 int, field27 int,
+field30 int, field31 int, field32 int, field33 int,
+field34 int, field35 int, field36 int, field37 int,
+field40 int, field41 int, field42 int, field43 int,
+field44 int, field45 int, field46 int, field47 int,
+field50 int, field51 int, field52 int, field53 int,
+field54 int, field55 int, field56 int, field57 int,
+field60 int, field61 int, field62 int, field63 int,
+field64 int, field65 int, field66 int, field67 int,
+field70 int, field71 int, field72 int, field73 int,
+field74 int, field75 int, field76 int, field77 int,
+field100 int
+);
+
+insert into t1(field100) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(0);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
+limit 1;
+--echo Should use auto_key0 and ref access.
+explain 
+select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
+limit 1;
+
+drop table t1;
+--echo #
+

@@ -462,6 +462,7 @@ buf_page_is_corrupted(
 	ulint		checksum_field1;
 	ulint		checksum_field2;
 	ib_uint32_t	crc32;
+	ibool		crc32_inited = FALSE;
 
 	if (!zip_size
 	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
@@ -552,35 +553,57 @@ buf_page_is_corrupted(
 
 	case SRV_CHECKSUM_ALGORITHM_CRC32:
 	case SRV_CHECKSUM_ALGORITHM_INNODB:
-		/* There are 3 valid formulas for old_checksum_field:
+		/* There are 3 valid formulas for
+		checksum_field2 (old checksum field):
 
 		1. Very old versions of InnoDB only stored 8 byte lsn to the
 		start and the end of the page.
 
 		2. InnoDB versions before MySQL 5.6.3 store the old formula
-		checksum.
+		checksum (buf_calc_page_old_checksum()).
 
 		3. InnoDB versions 5.6.3 and newer with
 		innodb_checksum_algorithm=strict_crc32|crc32 store CRC32. */
-
-		crc32 = buf_calc_page_crc32(read_buf);
 
 		/* since innodb_checksum_algorithm is not strict_* allow
 		any of the algos to match for the old field */
 
 		if (checksum_field2
 		    != mach_read_from_4(read_buf + FIL_PAGE_LSN)
+		    && checksum_field2 != BUF_NO_CHECKSUM_MAGIC) {
 
-		    && checksum_field2
-		    != crc32
+			/* The checksum does not match any of the
+			fast to check. First check the selected algorithm
+			for writing checksums because we assume that the
+			chance of it matching is higher. */
 
-		    && checksum_field2
-		    != BUF_NO_CHECKSUM_MAGIC
+			if (srv_checksum_algorithm
+			    == SRV_CHECKSUM_ALGORITHM_CRC32) {
 
-		    && checksum_field2
-		    != buf_calc_page_old_checksum(read_buf)) {
+				crc32 = buf_calc_page_crc32(read_buf);
+				crc32_inited = TRUE;
 
-			return(TRUE);
+				if (checksum_field2 != crc32
+				    && checksum_field2
+				    != buf_calc_page_old_checksum(read_buf)) {
+
+					return(TRUE);
+				}
+			} else {
+				ut_ad(srv_checksum_algorithm
+				     == SRV_CHECKSUM_ALGORITHM_INNODB);
+
+				if (checksum_field2
+				    != buf_calc_page_old_checksum(read_buf)) {
+
+					crc32 = buf_calc_page_crc32(read_buf);
+					crc32_inited = TRUE;
+
+					if (checksum_field2 != crc32) {
+						return(TRUE);
+					}
+				}
+			}
 		}
 
 		/* old field is fine, check the new field */
@@ -588,25 +611,55 @@ buf_page_is_corrupted(
 		/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
 		(always equal to 0), to FIL_PAGE_SPACE_OR_CHKSUM */
 
-		if (checksum_field1
-		    != 0
+		if (checksum_field1 != 0
+		    && checksum_field1 != BUF_NO_CHECKSUM_MAGIC) {
 
-		    && checksum_field1
-		    != BUF_NO_CHECKSUM_MAGIC
+			/* The checksum does not match any of the
+			fast to check. First check the selected algorithm
+			for writing checksums because we assume that the
+			chance of it matching is higher. */
 
-		    && checksum_field1
-		    != crc32
+			if (srv_checksum_algorithm
+			    == SRV_CHECKSUM_ALGORITHM_CRC32) {
 
-		    && checksum_field1
-		    != buf_calc_page_new_checksum(read_buf)) {
+				if (!crc32_inited) {
+					crc32 = buf_calc_page_crc32(read_buf);
+					crc32_inited = TRUE;
+				}
 
-			return(TRUE);
+				if (checksum_field1 != crc32
+				    && checksum_field1
+				    != buf_calc_page_new_checksum(read_buf)) {
+
+					return(TRUE);
+				}
+			} else {
+				ut_ad(srv_checksum_algorithm
+				     == SRV_CHECKSUM_ALGORITHM_INNODB);
+
+				if (checksum_field1
+				    != buf_calc_page_new_checksum(read_buf)) {
+
+					if (!crc32_inited) {
+						crc32 = buf_calc_page_crc32(
+							read_buf);
+						crc32_inited = TRUE;
+					}
+
+					if (checksum_field1 != crc32) {
+						return(TRUE);
+					}
+				}
+			}
 		}
 
 		/* If CRC32 is stored in at least one of the fields, then the
 		other field must also be CRC32 */
-		if ((checksum_field1 == crc32 && checksum_field2 != crc32)
-		    || (checksum_field1 != crc32 && checksum_field2 == crc32)) {
+		if (crc32_inited
+		    && ((checksum_field1 == crc32
+			 && checksum_field2 != crc32)
+			|| (checksum_field1 != crc32
+			    && checksum_field2 == crc32))) {
 
 			return(TRUE);
 		}
