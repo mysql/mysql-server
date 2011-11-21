@@ -523,6 +523,33 @@ ut_strcount(
 	return(count);
 }
 
+/********************************************************************
+Concatenate 3 strings.*/
+
+char*
+ut_str3cat(
+/*=======*/
+				/* out, own: concatenated string, must be
+				freed with mem_free() */
+	const char*	s1,	/* in: string 1 */
+	const char*	s2,	/* in: string 2 */
+	const char*	s3)	/* in: string 3 */
+{
+	char*	s;
+	ulint	s1_len = strlen(s1);
+	ulint	s2_len = strlen(s2);
+	ulint	s3_len = strlen(s3);
+
+	s = mem_alloc(s1_len + s2_len + s3_len + 1);
+
+	memcpy(s, s1, s1_len);
+	memcpy(s + s1_len, s2, s2_len);
+	memcpy(s + s1_len + s2_len, s3, s3_len);
+
+	s[s1_len + s2_len + s3_len] = '\0';
+
+	return(s);
+}
 /**********************************************************************//**
 Replace every occurrence of s1 in str with s2. Overlapping instances of s1
 are only replaced once.

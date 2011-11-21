@@ -963,6 +963,9 @@ enum index_hint_type
   INDEX_HINT_FORCE
 };
 
+/* Bitmap of table's fields */
+typedef Bitmap<MAX_FIELDS> Field_map;
+
 struct TABLE
 {
   TABLE() {}                               /* Remove gcc warning */
@@ -1210,7 +1213,7 @@ public:
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
   bool alloc_keys(uint key_count);
-  bool add_tmp_key(ulonglong key_parts, char *key_name);
+  bool add_tmp_key(Field_map *key_parts, char *key_name);
   void use_index(int key_to_save);
 
   inline void set_keyread(bool flag)
@@ -1428,7 +1431,7 @@ enum enum_open_type
 class Derived_key: public Sql_alloc {
 public:
   table_map referenced_by;
-  key_map used_fields;
+  Field_map used_fields;
 };
 
 class Semijoin_mat_exec;
@@ -2111,11 +2114,11 @@ struct Semijoin_mat_optimize
   /* Expected #rows in the materialized table */
   double expected_rowcount;
   /* Materialization cost - execute sub-join and write rows to temp.table */
-  COST_VECT materialization_cost;
+  Cost_estimate materialization_cost;
   /* Cost to make one lookup in the temptable */
-  COST_VECT lookup_cost;
+  Cost_estimate lookup_cost;
   /* Cost of scanning the materialized table */
-  COST_VECT scan_cost;
+  Cost_estimate scan_cost;
 };
 
 typedef struct st_nested_join

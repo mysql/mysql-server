@@ -643,7 +643,6 @@ os_event_wait_time_low(
 	ib_int64_t	reset_sig_count)	/*!< in: zero or the value
 						returned by previous call of
 						os_event_reset(). */
-
 {
 	ibool		timed_out = FALSE;
 

@@ -43,7 +43,12 @@
 #define	LIBEDIT_MAJOR 2
 #define	LIBEDIT_MINOR 11
 
+/* XXXMYSQL : stdint.h might not be available on older Solaris platforms. */
+#if defined(__sun) || defined(__sun__)
+#include <sys/inttypes.h>
+#else
 #include <stdint.h>
+#endif
 
 #include <sys/types.h>
 #include <stdio.h>

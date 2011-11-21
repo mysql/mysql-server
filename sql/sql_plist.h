@@ -128,6 +128,15 @@ public:
   }
   inline T* front() { return m_first; }
   inline const T *front() const { return m_first; }
+  inline T* pop_front()
+  {
+    T *result= front();
+
+    if (result)
+      remove(result);
+
+    return result;
+  }
   void swap(I_P_List<T, B, C> &rhs)
   {
     swap_variables(T *, m_first, rhs.m_first);

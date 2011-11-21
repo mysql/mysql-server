@@ -122,8 +122,10 @@ static void trace_filesort_information(Opt_trace_context *trace,
 
     if (sortorder->field)
     {
-      if (sortorder->field->table_name)
+      if (strlen(sortorder->field->table->alias) != 0)
         oto.add_utf8_table(sortorder->field->table);
+      else
+        oto.add_alnum("table", "intermediate_tmp_table");
       oto.add_alnum("field", sortorder->field->field_name ?
                     sortorder->field->field_name : "tmp_table_column");
     }

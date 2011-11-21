@@ -191,4 +191,6 @@ ib_list_remove(
 
 		list->last = node->prev;
 	}
+
+	node->prev = node->next = NULL;
 }

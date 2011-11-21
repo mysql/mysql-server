@@ -25,6 +25,9 @@ Created 5/30/1994 Heikki Tuuri
 
 #define UT_HASH_RANDOM_MASK	1463735687
 #define UT_HASH_RANDOM_MASK2	1653893711
+
+#ifndef UNIV_INNOCHECKSUM
+
 #define UT_RND1			151117737
 #define UT_RND2			119785373
 #define UT_RND3			 85689495
@@ -156,20 +159,6 @@ ut_hash_ulint(
 }
 
 /*************************************************************//**
-Folds a pair of ulints.
-@return	folded value */
-UNIV_INLINE
-ulint
-ut_fold_ulint_pair(
-/*===============*/
-	ulint	n1,	/*!< in: ulint */
-	ulint	n2)	/*!< in: ulint */
-{
-	return(((((n1 ^ n2 ^ UT_HASH_RANDOM_MASK2) << 8) + n1)
-		^ UT_HASH_RANDOM_MASK) + n2);
-}
-
-/*************************************************************//**
 Folds a 64-bit integer.
 @return	folded value */
 UNIV_INLINE
@@ -201,6 +190,22 @@ ut_fold_string(
 	}
 
 	return(fold);
+}
+
+#endif /* !UNIV_INNOCHECKSUM */
+
+/*************************************************************//**
+Folds a pair of ulints.
+@return	folded value */
+UNIV_INLINE
+ulint
+ut_fold_ulint_pair(
+/*===============*/
+	ulint	n1,	/*!< in: ulint */
+	ulint	n2)	/*!< in: ulint */
+{
+	return(((((n1 ^ n2 ^ UT_HASH_RANDOM_MASK2) << 8) + n1)
+		^ UT_HASH_RANDOM_MASK) + n2);
 }
 
 /*************************************************************//**

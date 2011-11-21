@@ -758,6 +758,40 @@ public:
     with several warning messages.
   */
   bool reported_unsafe_warning;
+
+  time_t get_row_stmt_start_timestamp()
+  {
+    return row_stmt_start_timestamp;
+  }
+
+  time_t set_row_stmt_start_timestamp()
+  {
+    if (row_stmt_start_timestamp == 0)
+      row_stmt_start_timestamp= my_time(0);
+
+    return row_stmt_start_timestamp;
+  }
+
+  void reset_row_stmt_start_timestamp()
+  {
+    row_stmt_start_timestamp= 0;
+  }
+
+  void set_long_find_row_note_printed()
+  {
+    long_find_row_note_printed= true;
+  }
+
+  void unset_long_find_row_note_printed()
+  {
+    long_find_row_note_printed= false;
+  }
+
+  bool is_long_find_row_note_printed()
+  {
+    return long_find_row_note_printed;
+  }
+
 private:
   /**
     Delay slave SQL thread by this amount, compared to master (in
@@ -799,6 +833,13 @@ private:
 
   Relay_log_info(const Relay_log_info& info);
   Relay_log_info& operator=(const Relay_log_info& info);
+
+  /*
+    Runtime state for printing a note when slave is taking
+    too long while processing a row event.
+   */
+  time_t row_stmt_start_timestamp;
+  bool long_find_row_note_printed;
 };
 
 bool mysql_show_relaylog_events(THD* thd);

@@ -92,6 +92,14 @@ Shuts down the Innobase database.
 UNIV_INTERN
 int
 innobase_shutdown_for_mysql(void);
+
+/********************************************************************
+Signal all per-table background threads to shutdown, and wait for them to do
+so. */
+
+void
+srv_shutdown_table_bg_threads(void);
+
 /*=============================*/
 /** Log sequence number at shutdown */
 extern	lsn_t	srv_shutdown_lsn;

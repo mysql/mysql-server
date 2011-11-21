@@ -241,11 +241,11 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -392,11 +392,11 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -644,11 +644,11 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -872,7 +872,7 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -880,7 +880,7 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
             } /* reconsidering_access_paths_for_index_ordering */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -1101,11 +1101,11 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -1407,7 +1407,7 @@ GROUP BY key2	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -1415,7 +1415,7 @@ GROUP BY key2	{
             } /* reconsidering_access_paths_for_index_ordering */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -1644,11 +1644,11 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -1930,11 +1930,11 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -2095,11 +2095,11 @@ EXPLAIN SELECT * FROM t2 WHERE key2_1 < 79 OR key2 = 2	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -2318,11 +2318,11 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -2533,11 +2533,11 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -2746,11 +2746,11 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -2972,11 +2972,11 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -3257,11 +3257,11 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -3529,11 +3529,11 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -3724,11 +3724,11 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -3945,6 +3945,19 @@ EXPLAIN SELECT 1 FROM
             } /* join_optimization */
           },
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "d2",
+                "row_length": 5,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 209715
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "join_execution": {
               "select#": 2,
               "steps": [
@@ -4059,18 +4072,18 @@ EXPLAIN SELECT 1 FROM
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -4283,6 +4296,19 @@ EXPLAIN SELECT 1 FROM
             } /* join_optimization */
           },
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "d2",
+                "row_length": 5,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 209715
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "join_execution": {
               "select#": 2,
               "steps": [
@@ -4363,18 +4389,18 @@ EXPLAIN SELECT 1 FROM
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -4597,7 +4623,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -4678,7 +4704,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
             } /* reconsidering_access_paths_for_index_ordering */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -5015,7 +5041,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -5031,7 +5057,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
             } /* reconsidering_access_paths_for_index_ordering */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -5338,11 +5364,11 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -5638,11 +5664,11 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -5922,11 +5948,11 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -6047,7 +6073,7 @@ GROUP BY field1	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 6,
-                    "cost": 4.3
+                    "cost": ##.###
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -6067,7 +6093,7 @@ GROUP BY field1	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "col_int_key",
-                    "cost": 2.2055,
+                    "cost": ##.###,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -6085,7 +6111,7 @@ GROUP BY field1	{
                         ] /* ranges */,
                         "index_only": false,
                         "rows": 4,
-                        "cost": 1.8133,
+                        "cost": ##.###,
                         "rowid_ordered": true,
                         "chosen": true
                       },
@@ -6097,7 +6123,7 @@ GROUP BY field1	{
                         ] /* ranges */,
                         "index_only": true,
                         "rows": 5,
-                        "cost": 2.0144,
+                        "cost": ##.###,
                         "rowid_ordered": false,
                         "chosen": false,
                         "cause": "cost"
@@ -6118,7 +6144,7 @@ GROUP BY field1	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 4,
-                    "cost_for_plan": 1.8133,
+                    "cost_for_plan": ##.###,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -6135,7 +6161,7 @@ GROUP BY field1	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 4,
-                    "cost": 3.9
+                    "cost": ##.###
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -6153,7 +6179,7 @@ GROUP BY field1	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "col_int_key",
-                    "cost": 1.8033,
+                    "cost": ##.###,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -6176,13 +6202,13 @@ GROUP BY field1	{
                     {
                       "access_type": "range",
                       "rows": 4,
-                      "cost": 1.8133,
+                      "cost": ##.###,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 2.6133,
+                "cost_for_plan": ##.###,
                 "rows_for_plan": 4,
                 "rest_of_plan": [
                   {
@@ -6198,10 +6224,10 @@ GROUP BY field1	{
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "cost_for_plan": 9.8133,
+                    "cost_for_plan": ##.###,
                     "rows_for_plan": 16,
                     "sort_cost": 16,
-                    "new_cost_for_plan": 25.813,
+                    "new_cost_for_plan": ##.###,
                     "chosen": true
                   }
                 ] /* rest_of_plan */
@@ -6219,7 +6245,7 @@ GROUP BY field1	{
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.8,
+                "cost_for_plan": ##.###,
                 "rows_for_plan": 4,
                 "rest_of_plan": [
                   {
@@ -6230,15 +6256,15 @@ GROUP BY field1	{
                         {
                           "access_type": "range",
                           "rows": 4,
-                          "cost": 7.2532,
+                          "cost": ##.###,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "cost_for_plan": 12.253,
+                    "cost_for_plan": ##.###,
                     "rows_for_plan": 16,
                     "sort_cost": 16,
-                    "new_cost_for_plan": 28.253,
+                    "new_cost_for_plan": ##.###,
                     "chosen": false
                   }
                 ] /* rest_of_plan */
@@ -6302,7 +6328,7 @@ GROUP BY field1	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 6,
-                    "cost": 4.3
+                    "cost": ##.###
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -6320,7 +6346,7 @@ GROUP BY field1	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "col_int_key",
-                    "cost": 2.2055,
+                    "cost": ##.###,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -6339,7 +6365,7 @@ GROUP BY field1	{
                         ] /* ranges */,
                         "index_only": true,
                         "rows": 5,
-                        "cost": 2.0144,
+                        "cost": ##.###,
                         "rowid_ordered": false,
                         "chosen": true
                       }
@@ -6360,7 +6386,7 @@ GROUP BY field1	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 5,
-                    "cost_for_plan": 2.0144,
+                    "cost_for_plan": ##.###,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -6380,7 +6406,7 @@ GROUP BY field1	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -6388,7 +6414,7 @@ GROUP BY field1	{
             } /* reconsidering_access_paths_for_index_ordering */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0

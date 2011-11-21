@@ -159,13 +159,18 @@ class ha_innobase: public handler
 	int rnd_next(uchar *buf);
 	int rnd_pos(uchar * buf, uchar *pos);
 
+	int ft_init();
+	void ft_end();
+	FT_INFO *ft_init_ext(uint flags, uint inx, String* key);
+	int ft_read(uchar* buf);
+
 	void position(const uchar *record);
 	int info(uint);
 	int analyze(THD* thd,HA_CHECK_OPT* check_opt);
 	int optimize(THD* thd,HA_CHECK_OPT* check_opt);
 	int discard_or_import_tablespace(my_bool discard);
 	int extra(enum ha_extra_function operation);
-        int reset();
+	int reset();
 	int external_lock(THD *thd, int lock_type);
 	int transactional_table_lock(THD *thd, int lock_type);
 	int start_stmt(THD *thd, thr_lock_type lock_type);
@@ -199,7 +204,7 @@ class ha_innobase: public handler
 	int reset_auto_increment(ulonglong value);
 
 	virtual bool get_error_message(int error, String *buf);
-
+	virtual bool get_foreign_dup_key(char*, uint, char*, uint);
 	uint8 table_cache_type();
 	/*
 	  ask handler about permission to cache table during query registration
@@ -265,7 +270,7 @@ public:
 	ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF* seq,
 					   void* seq_init_param,
 					   uint n_ranges, uint* bufsz,
-					   uint* flags, COST_VECT* cost);
+					   uint* flags, Cost_estimate* cost);
 	/** Initialize multi range read and get information.
 	* @see DsMrr_impl::dsmrr_info
 	* @param keyno
@@ -278,7 +283,7 @@ public:
 	*/
 	ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
 				      uint* bufsz, uint* flags,
-				      COST_VECT* cost);
+				      Cost_estimate* cost);
 
 	/** Attempt to push down an index condition.
 	* @param[in] keyno	MySQL key number
@@ -362,6 +367,17 @@ bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
 }
 
 typedef struct trx_struct trx_t;
+
+extern const struct _ft_vft ft_vft_result;
+
+/* Structure Returned by ha_innobase::ft_init_ext() */
+typedef struct new_ft_info
+{
+	struct _ft_vft		*please;
+	row_prebuilt_t*		ft_prebuilt;
+	fts_result_t*		ft_result;
+} NEW_FT_INFO;
+
 /********************************************************************//**
 @file handler/ha_innodb.h
 Converts an InnoDB error code to a MySQL error code and also tells to MySQL
@@ -385,7 +401,6 @@ innobase_trx_allocate(
 /*==================*/
 	MYSQL_THD	thd);	/*!< in: user thread handle */
 
-
 /*********************************************************************//**
 This function checks each index name for a table against reserved
 system default primary index name 'GEN_CLUST_INDEX'. If a name
@@ -400,4 +415,64 @@ innobase_index_name_is_reserved(
 	const KEY*	key_info,	/*!< in: Indexes to be created */
 	ulint		num_of_keys);	/*!< in: Number of indexes to
 					be created. */
+/*********************************************************************//**
+Retrieve the FTS Relevance Ranking result for doc with doc_id
+of prebuilt->fts_doc_id
+@return the relevance ranking value */
+extern "C"
+float
+innobase_fts_retrieve_ranking(
+/*==========================*/
+	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+
+/*********************************************************************//**
+Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
+of prebuilt->fts_doc_id
+@return the relevance ranking value */
+extern "C"
+float
+innobase_fts_find_ranking(
+/*==========================*/
+	FT_INFO*	fts_hdl,	/*!< in: FTS handler */
+	uchar*		record,		/*!< in: Unused */
+	uint		len);		/*!< in: Unused */
+/*********************************************************************//**
+Free the memory for the FTS handler */
+extern "C"
+void
+innobase_fts_close_ranking(
+/*==========================*/
+	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+/*********************************************************************//**
+Free the memory for the FTS handler */
+void
+innobase_fts_close_ranking(
+/*==========================*/
+	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+/*****************************************************************//**
+Initialize the table FTS stopword list
+@return TRUE is succeed */
+extern "C"
+ibool
+innobase_fts_load_stopword(
+/*=======================*/
+	dict_table_t*	table,		/*!< in: Table has the FTS */
+	trx_t*		trx,		/*!< in: transaction */
+	THD*		thd);		/*!< in: current thread */
+
+/** Some defines for innobase_fts_check_doc_id_index() return value */
+#define	FTS_INCORRECT_DOC_ID_INDEX	1
+#define	FTS_EXIST_DOC_ID_INDEX		2
+#define	FTS_NOT_EXIST_DOC_ID_INDEX	3
+/*******************************************************************//**
+Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME 
+on the Doc ID column.
+@return TRUE if there exists the FTS_DOC_ID index */
+extern "C"
+ulint
+innobase_fts_check_doc_id_index(
+/*============================*/
+	dict_table_t*	table,		/*!< in: table definition */
+	ulint*		fts_doc_col_no);/*!< out: The column number for
+					Doc ID */
 

@@ -90,8 +90,21 @@ rbt_check_ordering(
 	/* Iterate over all the nodes, comparing each node with the prev */
 	for (node = rbt_first(tree); node; node = rbt_next(tree, prev)) {
 
-		if (prev && tree->compare(prev->value, node->value) >= 0) {
-			return(FALSE);
+		if (prev) {
+			int	result;
+
+			if (tree->cmp_arg) {
+				result = tree->compare_with_arg(
+					tree->cmp_arg, prev->value,
+					node->value);
+			} else {
+				result = tree->compare(
+					prev->value, node->value);
+			}
+
+			if (result >= 0) {
+				return(FALSE);
+			}
 		}
 
 		prev = node;
@@ -267,7 +280,13 @@ rbt_tree_insert(
 	while (current != tree->nil) {
 
 		parent.last = current;
-		parent.result = tree->compare(key, current->value);
+
+		if (tree->cmp_arg) {
+			parent.result = tree->compare_with_arg(
+				tree->cmp_arg, key, current->value);
+		} else {
+			parent.result = tree->compare(key, current->value);
+		}
 
 		if (parent.result < 0) {
 			current = current->left;
@@ -750,6 +769,30 @@ rbt_free(
 }
 
 /**********************************************************************//**
+Create an instance of a red black tree, whose comparison function takes
+an argument
+@return	an empty rb tree */
+UNIV_INTERN
+ib_rbt_t*
+rbt_create_arg_cmp(
+/*===============*/
+	size_t		sizeof_value,		/*!< in: sizeof data item */
+	ib_rbt_arg_compare
+			compare,		/*!< in: fn to compare items */
+	void*		cmp_arg)		/*!< in: compare fn arg */
+{
+	ib_rbt_t*       tree;
+
+	ut_a(cmp_arg);
+
+	tree = rbt_create(sizeof_value, NULL);
+	tree->cmp_arg = cmp_arg;
+	tree->compare_with_arg = compare;
+
+	return(tree);
+}
+
+/**********************************************************************//**
 Create an instance of a red black tree.
 @return	an empty rb tree */
 UNIV_INTERN
@@ -868,7 +911,14 @@ rbt_lookup(
 
 	/* Regular binary search. */
 	while (current != tree->nil) {
-		int	result = tree->compare(key, current->value);
+		int	result;
+
+		if (tree->cmp_arg) {
+			result = tree->compare_with_arg(
+				tree->cmp_arg, key, current->value);
+		} else {
+			result = tree->compare(key, current->value);
+		}
 
 		if (result < 0) {
 			current = current->left;
@@ -943,7 +993,14 @@ rbt_lower_bound(
 	ib_rbt_node_t*	current = ROOT(tree);
 
 	while (current != tree->nil) {
-		int result = tree->compare(key, current->value);
+		int	result;
+
+		if (tree->cmp_arg) {
+			result = tree->compare_with_arg(
+				tree->cmp_arg, key, current->value);
+		} else {
+			result = tree->compare(key, current->value);
+		}
 
 		if (result > 0) {
 
@@ -977,7 +1034,14 @@ rbt_upper_bound(
 	ib_rbt_node_t*	current = ROOT(tree);
 
 	while (current != tree->nil) {
-		int result = tree->compare(key, current->value);
+		int	result;
+
+		if (tree->cmp_arg) {
+			result = tree->compare_with_arg(
+				tree->cmp_arg, key, current->value);
+		} else {
+			result = tree->compare(key, current->value);
+		}
 
 		if (result > 0) {
 
@@ -1017,7 +1081,13 @@ rbt_search(
 	while (current != tree->nil) {
 
 		parent->last = current;
-		parent->result = tree->compare(key, current->value);
+
+		if (tree->cmp_arg) {
+			parent->result = tree->compare_with_arg(
+				tree->cmp_arg, key, current->value);
+		} else {
+			parent->result = tree->compare(key, current->value);
+		}
 
 		if (parent->result > 0) {
 			current = current->right;
@@ -1042,7 +1112,10 @@ rbt_search_cmp(
 	const ib_rbt_t*	tree,			/*!< in: rb tree */
 	ib_rbt_bound_t*	parent,			/*!< in: search bounds */
 	const void*	key,			/*!< in: key to search */
-	ib_rbt_compare	compare)		/*!< in: fn to compare items */
+	ib_rbt_compare	compare,		/*!< in: fn to compare items */
+	ib_rbt_arg_compare
+			arg_compare)		/*!< in: fn to compare items
+						with argument */
 {
 	ib_rbt_node_t*	current = ROOT(tree);
 
@@ -1053,7 +1126,14 @@ rbt_search_cmp(
 	while (current != tree->nil) {
 
 		parent->last = current;
-		parent->result = compare(key, current->value);
+
+		if (arg_compare) {
+			ut_ad(tree->cmp_arg);
+			parent->result = arg_compare(
+				tree->cmp_arg, key, current->value);
+		} else {
+			parent->result = compare(key, current->value);
+		}
 
 		if (parent->result > 0) {
 			current = current->right;
