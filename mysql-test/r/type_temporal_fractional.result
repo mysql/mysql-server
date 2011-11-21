@@ -2503,6 +2503,15 @@ ERROR 42000: Too big precision 7 specified for column 'a'. Maximum is 6.
 CREATE TABLE t1 (a TIME(31));
 ERROR 42000: Too big precision 31 specified for column 'a'. Maximum is 6.
 #
+# Testing bad FSPs with TIME functions
+#
+SELECT CURTIME(-1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1)' at line 1
+SELECT CURTIME(7);
+ERROR 42000: Too big precision 7 specified for column 'curtime'. Maximum is 6.
+SELECT CURTIME(31);
+ERROR 42000: Too big precision 31 specified for column 'curtime'. Maximum is 6.
+#
 # Testing INSERT, ORDER, KEY, BETWEEN, comparison
 #
 CREATE TABLE t1 (a TIME(6) NOT NULL);
@@ -5465,6 +5474,24 @@ DROP TABLE t1;
 #
 # Testing hybrid functions in TIME context
 #
+SELECT DATE_ADD(TIME'00:00:00.0', INTERVAL 10.1 SECOND);
+DATE_ADD(TIME'00:00:00.0', INTERVAL 10.1 SECOND)
+00:00:10.1
+SELECT DATE_ADD(TIME'00:00:00.0', INTERVAL 10000000.1 SECOND);
+DATE_ADD(TIME'00:00:00.0', INTERVAL 10000000.1 SECOND)
+NULL
+Warnings:
+Warning	1441	Datetime function: time field overflow
+SELECT DATE_ADD(TIME'00:00:00.0', INTERVAL 100000000000000000.1 SECOND);
+DATE_ADD(TIME'00:00:00.0', INTERVAL 100000000000000000.1 SECOND)
+NULL
+Warnings:
+Warning	1441	Datetime function: time field overflow
+SELECT DATE_ADD(TIME'00:00:00.0', INTERVAL 1000000000000000000000.1 SECOND);
+DATE_ADD(TIME'00:00:00.0', INTERVAL 1000000000000000000000.1 SECOND)
+00:00:00.0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: ''
 CREATE TABLE t1 AS SELECT
 DATE_ADD(TIME'00:00:00', INTERVAL 1 SECOND) AS t0s0,
 DATE_ADD(TIME'00:00:00', INTERVAL 1.1 SECOND) AS t0s1,
@@ -7001,6 +7028,21 @@ CREATE TABLE t1 (a DATETIME(7));
 ERROR 42000: Too big precision 7 specified for column 'a'. Maximum is 6.
 CREATE TABLE t1 (a DATETIME(31));
 ERROR 42000: Too big precision 31 specified for column 'a'. Maximum is 6.
+#
+# Testing bad FSPs with DATETIME functions
+#
+SELECT SYSDATE(-1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1)' at line 1
+SELECT SYSDATE(7);
+ERROR 42000: Too big precision 7 specified for column 'sysdate'. Maximum is 6.
+SELECT SYSDATE(31);
+ERROR 42000: Too big precision 31 specified for column 'sysdate'. Maximum is 6.
+SELECT NOW(-1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1)' at line 1
+SELECT NOW(7);
+ERROR 42000: Too big precision 7 specified for column 'now'. Maximum is 6.
+SELECT NOW(31);
+ERROR 42000: Too big precision 31 specified for column 'now'. Maximum is 6.
 #
 # Testing INSERT, ORDER, KEY, BETWEEN, comparison
 #
@@ -16718,6 +16760,15 @@ UNIX_TIMESTAMP(TIME(NULL))
 NULL
 SELECT UNIX_TIMESTAMP(TIMESTAMP(NULL));
 UNIX_TIMESTAMP(TIMESTAMP(NULL))
+NULL
+SELECT CONCAT(UNIX_TIMESTAMP(NULL));
+CONCAT(UNIX_TIMESTAMP(NULL))
+NULL
+SELECT CAST(UNIX_TIMESTAMP(NULL) AS SIGNED);
+CAST(UNIX_TIMESTAMP(NULL) AS SIGNED)
+NULL
+SELECT CAST(UNIX_TIMESTAMP(NULL) AS DECIMAL(23,6));
+CAST(UNIX_TIMESTAMP(NULL) AS DECIMAL(23,6))
 NULL
 # This should return 0
 CREATE TABLE t1 (a VARCHAR(30));

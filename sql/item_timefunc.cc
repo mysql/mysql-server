@@ -830,17 +830,6 @@ int Item_temporal_hybrid_func::save_in_field(Field *field, bool no_conversions)
 }
 
 
-longlong Item_temporal_hybrid_func::val_temporal()
-{
-  DBUG_ASSERT(fixed == 1);
-  DBUG_ASSERT(is_temporal());
-  MYSQL_TIME ltime;
-  return 
-    val_datetime(&ltime, TIME_FUZZY_DATE | sql_mode) ?
-    0 : TIME_to_longlong_packed(&ltime, cached_field_type);
-}
-
-
 my_decimal *Item_temporal_hybrid_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
