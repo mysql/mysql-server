@@ -232,8 +232,7 @@ int add_pfs_instr_to_array(const char* name, const char* value)
   if (!my_strcasecmp(&my_charset_latin1, value, "true") ||
       !my_strcasecmp(&my_charset_latin1, value, "on") ||
       !my_strcasecmp(&my_charset_latin1, value, "1") ||
-      !my_strcasecmp(&my_charset_latin1, value, "yes") ||
-      !my_strcasecmp(&my_charset_latin1, value, "enabled"))
+      !my_strcasecmp(&my_charset_latin1, value, "yes"))
   {
     e->m_enabled= true;
     e->m_timed= true;
@@ -242,8 +241,7 @@ int add_pfs_instr_to_array(const char* name, const char* value)
   if (!my_strcasecmp(&my_charset_latin1, value, "false") ||
       !my_strcasecmp(&my_charset_latin1, value, "off") ||
       !my_strcasecmp(&my_charset_latin1, value, "0") ||
-      !my_strcasecmp(&my_charset_latin1, value, "no") ||
-      !my_strcasecmp(&my_charset_latin1, value, "disabled"))
+      !my_strcasecmp(&my_charset_latin1, value, "no"))
   {
     e->m_enabled= false;
     e->m_timed= false;
