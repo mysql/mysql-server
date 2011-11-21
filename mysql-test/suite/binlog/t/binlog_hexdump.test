@@ -1,0 +1,6 @@
+#
+# Bug#11747887 - 34386: MYSQLBINLOG --HEXDUMP PRINTS LAST ROW OF HEXDUMP
+# INCORRECTLY
+#
+
+--exec $MYSQL_BINLOG --hexdump suite/binlog/std_data/bug11747887-bin.000003
