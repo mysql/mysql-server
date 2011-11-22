@@ -4594,12 +4594,9 @@ skip_conversion:
           Some precaution is needed when dealing with PS/SP:
           fix_prepare_info_in_table_list() sets prep_on_expr, but only for
           tables, not for join nest objects. This is instead populated in
-          simplify_joins(), which is called after this function. Hence, we need
-          to check that *tree is non-NULL before calling replace_subcondition.
+          simplify_joins(), which is called after this function. The case
+          where *tree is NULL is handled by this procedure.
         */
-        DBUG_ASSERT((*subq)->embedding_join_nest->nested_join ?
-                    *tree == NULL :
-                    *tree != NULL);
       }
       else
         tree= &select_lex->prep_where;
@@ -19391,6 +19388,16 @@ sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     /* The user has aborted the execution of the query */
     join->thd->send_kill_message();
     DBUG_RETURN(NESTED_LOOP_KILLED);
+  }
+  /* Materialize table prior to reading it */
+  if (join_tab->materialize_table &&
+      !join_tab->table->pos_in_table_list->materialized)
+  {
+    if ((*join_tab->materialize_table)(join_tab))
+      DBUG_RETURN(NESTED_LOOP_ERROR);
+    // Bind to the rowid buffer managed by the TABLE object.
+    if (join_tab->copy_current_rowid)
+      join_tab->copy_current_rowid->bind_buffer(join_tab->table->file->ref);
   }
   if (!test_if_use_dynamic_range_scan(join_tab))
   {
