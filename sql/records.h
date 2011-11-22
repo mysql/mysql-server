@@ -48,7 +48,7 @@ struct READ_RECORD
   typedef int (*Setup_func)(struct st_join_table*);
 
   TABLE *table;                                 /* Head-form */
-  handler *file;
+  //handler *file;
   TABLE **forms;                                /* head and ref forms */
   Unlock_row_func unlock_row;
   Read_func read_record;

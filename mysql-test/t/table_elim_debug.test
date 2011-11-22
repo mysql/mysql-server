@@ -1,7 +1,8 @@
 #
 # Table elimination (MWL#17) tests that need debug build
 #
---source include/have_debug.inc
+# In MariaDB 5.3, one can switch table_elimination on/off without debug, too: 
+## --source include/have_debug.inc
 
 --disable_warnings
 drop table if exists t1, t2;

@@ -1,0 +1,39 @@
+# bool session
+
+SET @start_global_value = @@global.binlog_annotate_row_events;
+
+select @@global.binlog_annotate_row_events;
+select @@session.binlog_annotate_row_events;
+show global variables like 'binlog_annotate_row_events';
+show session variables like 'binlog_annotate_row_events';
+select * from information_schema.global_variables where variable_name='binlog_annotate_row_events';
+select * from information_schema.session_variables where variable_name='binlog_annotate_row_events';
+
+#
+# show that it's writable
+#
+set global binlog_annotate_row_events=ON;
+select @@global.binlog_annotate_row_events;
+set global binlog_annotate_row_events=OFF;
+select @@global.binlog_annotate_row_events;
+set global binlog_annotate_row_events=1;
+select @@global.binlog_annotate_row_events;
+
+set session binlog_annotate_row_events=ON;
+select @@session.binlog_annotate_row_events;
+set session binlog_annotate_row_events=OFF;
+select @@session.binlog_annotate_row_events;
+set session binlog_annotate_row_events=1;
+select @@session.binlog_annotate_row_events;
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global binlog_annotate_row_events=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session binlog_annotate_row_events=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set session binlog_annotate_row_events="foo";
+
+SET @@global.binlog_annotate_row_events = @start_global_value;
+

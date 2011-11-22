@@ -70,6 +70,21 @@
 #define GET_HA_ROWS GET_ULONG
 #endif
 
+/*
+  special assert for sysvars. Tells the name of the variable,
+  and fails even in non-debug builds.
+
+  It is supposed to be used *only* in Sys_var* constructors,
+  and has name_arg hard-coded to prevent incorrect usage.
+*/
+#define SYSVAR_ASSERT(X)                                                \
+    while(!(X))                                                         \
+    {                                                                   \
+      fprintf(stderr, "Sysvar '%s' failed '%s'\n", name_arg, #X);           \
+      DBUG_ABORT();                                                    \
+      exit(255);                                                        \
+    }
+
 enum charset_enum {IN_SYSTEM_CHARSET, IN_FS_CHARSET};
 
 static const char *bool_values[3]= {"OFF", "ON", 0};
@@ -123,12 +138,12 @@ public:
     if (max_var_ptr())
       *max_var_ptr()= max_val;
     global_var(T)= def_val;
-    DBUG_ASSERT(size == sizeof(T));
-    DBUG_ASSERT(min_val < max_val);
-    DBUG_ASSERT(min_val <= def_val);
-    DBUG_ASSERT(max_val >= def_val);
-    DBUG_ASSERT(block_size > 0);
-    DBUG_ASSERT(def_val % block_size == 0);
+    SYSVAR_ASSERT(size == sizeof(T));
+    SYSVAR_ASSERT(min_val < max_val);
+    SYSVAR_ASSERT(min_val <= def_val);
+    SYSVAR_ASSERT(max_val >= def_val);
+    SYSVAR_ASSERT(block_size > 0);
+    SYSVAR_ASSERT(def_val % block_size == 0);
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -271,8 +286,8 @@ public:
   {
     option.var_type= GET_ENUM;
     global_var(ulong)= def_val;
-    DBUG_ASSERT(def_val < typelib.count);
-    DBUG_ASSERT(size == sizeof(ulong));
+    SYSVAR_ASSERT(def_val < typelib.count);
+    SYSVAR_ASSERT(size == sizeof(ulong));
   }
   bool session_update(THD *thd, set_var *var)
   {
@@ -318,9 +333,9 @@ public:
   {
     option.var_type= GET_BOOL;
     global_var(my_bool)= def_val;
-    DBUG_ASSERT(def_val < 2);
-    DBUG_ASSERT(getopt.arg_type == OPT_ARG || getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(my_bool));
+    SYSVAR_ASSERT(def_val < 2);
+    SYSVAR_ASSERT(getopt.arg_type == OPT_ARG || getopt.id == -1);
+    SYSVAR_ASSERT(size == sizeof(my_bool));
   }
   bool session_update(THD *thd, set_var *var)
   {
@@ -379,8 +394,8 @@ public:
     */
     option.var_type= (flags & ALLOCATED) ? GET_STR_ALLOC : GET_STR;
     global_var(const char*)= def_val;
-    DBUG_ASSERT(scope() == GLOBAL);
-    DBUG_ASSERT(size == sizeof(char *));
+    SYSVAR_ASSERT(scope() == GLOBAL);
+    SYSVAR_ASSERT(size == sizeof(char *));
   }
   void cleanup()
   {
@@ -537,7 +552,7 @@ public:
               on_check_func, on_update_func, deprecated_version, substitute)
   {
     global_var(LEX_STRING).length= strlen(def_val);
-    DBUG_ASSERT(size == sizeof(LEX_STRING));
+    SYSVAR_ASSERT(size == sizeof(LEX_STRING));
     *const_cast<SHOW_TYPE*>(&show_val_type)= SHOW_LEX_STRING;
   }
   bool global_update(THD *thd, set_var *var)
@@ -665,7 +680,7 @@ public:
     option.var_type|= GET_ASK_ADDR;
     option.value= (uchar**)1; // crash me, please
     keycache_var(dflt_key_cache, off)= def_val;
-    DBUG_ASSERT(scope() == GLOBAL);
+    SYSVAR_ASSERT(scope() == GLOBAL);
   }
   bool global_update(THD *thd, set_var *var)
   {
@@ -825,10 +840,10 @@ public:
     option.min_value= (longlong) double2ulonglong(min_val);
     option.max_value= (longlong) double2ulonglong(max_val);
     global_var(double)= (double)option.def_value;
-    DBUG_ASSERT(min_val < max_val);
-    DBUG_ASSERT(min_val <= def_val);
-    DBUG_ASSERT(max_val >= def_val);
-    DBUG_ASSERT(size == sizeof(double));
+    SYSVAR_ASSERT(min_val < max_val);
+    SYSVAR_ASSERT(min_val <= def_val);
+    SYSVAR_ASSERT(max_val >= def_val);
+    SYSVAR_ASSERT(size == sizeof(double));
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -928,11 +943,11 @@ public:
   {
     option.var_type= GET_FLAGSET;
     global_var(ulonglong)= def_val;
-    DBUG_ASSERT(typelib.count > 1);
-    DBUG_ASSERT(typelib.count <= 65);
-    DBUG_ASSERT(def_val < MAX_SET(typelib.count));
-    DBUG_ASSERT(strcmp(values[typelib.count-1], "default") == 0);
-    DBUG_ASSERT(size == sizeof(ulonglong));
+    SYSVAR_ASSERT(typelib.count > 1);
+    SYSVAR_ASSERT(typelib.count <= 65);
+    SYSVAR_ASSERT(def_val < MAX_SET(typelib.count));
+    SYSVAR_ASSERT(strcmp(values[typelib.count-1], "default") == 0);
+    SYSVAR_ASSERT(size == sizeof(ulonglong));
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -1039,10 +1054,10 @@ public:
   {
     option.var_type= GET_SET;
     global_var(ulonglong)= def_val;
-    DBUG_ASSERT(typelib.count > 0);
-    DBUG_ASSERT(typelib.count <= 64);
-    DBUG_ASSERT(def_val <= MAX_SET(typelib.count));
-    DBUG_ASSERT(size == sizeof(ulonglong));
+    SYSVAR_ASSERT(typelib.count > 0);
+    SYSVAR_ASSERT(typelib.count <= 64);
+    SYSVAR_ASSERT(def_val <= MAX_SET(typelib.count));
+    SYSVAR_ASSERT(size == sizeof(ulonglong));
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -1145,8 +1160,8 @@ public:
     plugin_type(plugin_type_arg)
   {
     option.var_type= GET_STR;
-    DBUG_ASSERT(size == sizeof(plugin_ref));
-    DBUG_ASSERT(getopt.id == -1); // force NO_CMD_LINE
+    SYSVAR_ASSERT(size == sizeof(plugin_ref));
+    SYSVAR_ASSERT(getopt.id == -1); // force NO_CMD_LINE
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -1256,7 +1271,7 @@ public:
               lock, binlog_status_arg, on_check_func, on_update_func,
               deprecated_version, substitute)
   {
-    DBUG_ASSERT(scope() == ONLY_SESSION);
+    SYSVAR_ASSERT(scope() == ONLY_SESSION);
     option.var_type= GET_NO_ARG;
   }
   bool do_check(THD *thd, set_var *var)
@@ -1352,9 +1367,9 @@ public:
     reverse_semantics= my_count_bits(bitmask_arg) > 1;
     bitmask= reverse_semantics ? ~bitmask_arg : bitmask_arg;
     set(global_var_ptr(), def_val);
-    DBUG_ASSERT(def_val < 2);
-    DBUG_ASSERT(getopt.id == -1); // force NO_CMD_LINE
-    DBUG_ASSERT(size == sizeof(ulonglong));
+    SYSVAR_ASSERT(def_val < 2);
+    SYSVAR_ASSERT(getopt.id == -1); // force NO_CMD_LINE
+    SYSVAR_ASSERT(size == sizeof(ulonglong));
   }
   bool session_update(THD *thd, set_var *var)
   {
@@ -1422,8 +1437,8 @@ public:
               deprecated_version, substitute),
       read_func(read_func_arg), update_func(update_func_arg)
   {
-    DBUG_ASSERT(scope() == ONLY_SESSION);
-    DBUG_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
+    SYSVAR_ASSERT(scope() == ONLY_SESSION);
+    SYSVAR_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
   }
   bool session_update(THD *thd, set_var *var)
   { return update_func(thd, var); }
@@ -1472,8 +1487,8 @@ public:
               deprecated_version, substitute),
       read_func(read_func_arg), update_func(update_func_arg)
   {
-    DBUG_ASSERT(scope() == ONLY_SESSION);
-    DBUG_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
+    SYSVAR_ASSERT(scope() == ONLY_SESSION);
+    SYSVAR_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
   }
   bool session_update(THD *thd, set_var *var)
   { return update_func(thd, var); }
@@ -1525,13 +1540,13 @@ public:
               lock, binlog_status_arg, on_check_func, on_update_func,
               deprecated_version, substitute)
   {
-    DBUG_ASSERT(scope() == GLOBAL);
-    DBUG_ASSERT(getopt.id == -1);
-    DBUG_ASSERT(lock == 0);
-    DBUG_ASSERT(binlog_status_arg == VARIABLE_NOT_IN_BINLOG);
-    DBUG_ASSERT(is_readonly());
-    DBUG_ASSERT(on_update == 0);
-    DBUG_ASSERT(size == sizeof(enum SHOW_COMP_OPTION));
+    SYSVAR_ASSERT(scope() == GLOBAL);
+    SYSVAR_ASSERT(getopt.id == -1);
+    SYSVAR_ASSERT(lock == 0);
+    SYSVAR_ASSERT(binlog_status_arg == VARIABLE_NOT_IN_BINLOG);
+    SYSVAR_ASSERT(is_readonly());
+    SYSVAR_ASSERT(on_update == 0);
+    SYSVAR_ASSERT(size == sizeof(enum SHOW_COMP_OPTION));
   }
   bool do_check(THD *thd, set_var *var) {
     DBUG_ASSERT(FALSE);
@@ -1603,8 +1618,8 @@ public:
       thus all struct command-line options should be added manually
       to my_long_options in mysqld.cc
     */
-    DBUG_ASSERT(getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(void *));
+    SYSVAR_ASSERT(getopt.id == -1);
+    SYSVAR_ASSERT(size == sizeof(void *));
   }
   bool do_check(THD *thd, set_var *var)
   { return false; }
@@ -1665,8 +1680,8 @@ public:
               lock, binlog_status_arg, on_check_func, on_update_func,
               deprecated_version, substitute)
   {
-    DBUG_ASSERT(getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(Time_zone *));
+    SYSVAR_ASSERT(getopt.id == -1);
+    SYSVAR_ASSERT(size == sizeof(Time_zone *));
   }
   bool do_check(THD *thd, set_var *var)
   {

@@ -187,7 +187,7 @@ explain
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                       or c='no-such-row2');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	idx1	idx1	29	NULL	16	Using index condition; Rowid-ordered scan
+1	SIMPLE	t4	range	idx1	idx1	29	NULL	16	Using index condition; Using where; Rowid-ordered scan
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                     or c='no-such-row2');
 a	b	c	filler
@@ -209,7 +209,7 @@ NULL	NULL	NULL	NULL-1
 explain 
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	idx1	idx1	29	NULL	32	Using index condition; Rowid-ordered scan
+1	SIMPLE	t4	range	idx1	idx1	29	NULL	32	Using index condition; Using where; Rowid-ordered scan
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 a	b	c	filler
 b-1	NULL	c-1	NULL-15
@@ -349,7 +349,9 @@ pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
 PRIMARY KEY (pk), INDEX idx (v, i)
 ) ENGINE=ARIA;
 INSERT INTO t3 SELECT * FROM t1;
-INSERT INTO t3 VALUES (88, 442, 'y'), (99, 445, 'w') ;
+INSERT INTO t3 VALUES
+(88, 442, 'y'), (99, 445, 'w'), (87, 442, 'z'), (98, 445, 'v'), (86, 442, 'x'),
+(97, 445, 't'), (85, 442, 'b'), (96, 445, 'l'), (84, 442, 'a'), (95, 445, 'k');
 SELECT COUNT(t1.v) FROM t1, t2 IGNORE INDEX (idx), t3 IGNORE INDEX (idx)
 WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
 COUNT(t1.v)
@@ -360,7 +362,7 @@ WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	idx	7	NULL	15	Using index
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	16	Using where; Using join buffer (flat, BNL join)
-1	SIMPLE	t3	ALL	PRIMARY	NULL	NULL	NULL	17	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t3	ALL	PRIMARY	NULL	NULL	NULL	25	Using where; Using join buffer (flat, BNL join)
 SELECT COUNT(t1.v) FROM t1, t2, t3 
 WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
 COUNT(t1.v)
@@ -386,11 +388,8 @@ PRIMARY KEY (pk),
 KEY col_varchar_1024_latin1_key (col_varchar_1024_latin1_key)
 ) ENGINE=Aria;
 INSERT INTO t1 VALUES
-(1,'z'),
-(2,'abcdefjhjkl'),
-(3,'in'),
-(4,'abcdefjhjkl'),
-(6,'abcdefjhjkl');
+(1,'z'), (2,'abcdefjhjkl'), (3,'in'), (4,'abcdefjhjkl'), (6,'abcdefjhjkl'),
+(11,'zx'), (12,'abcdefjhjm'), (13,'jn'), (14,'abcdefjhjp'), (16,'abcdefjhjr');
 CREATE TABLE t2 (
 col_varchar_10_latin1 varchar(10) DEFAULT NULL
 ) ENGINE=Aria;

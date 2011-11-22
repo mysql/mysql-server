@@ -132,11 +132,11 @@ Database: information_schema
 | INNODB_SYS_TABLES                     |
 | INNODB_SYS_FIELDS                     |
 | INNODB_SYS_COLUMNS                    |
-| INNODB_TABLE_STATS                    |
 | INNODB_SYS_STATS                      |
 | INNODB_SYS_FOREIGN                    |
 | INNODB_SYS_INDEXES                    |
 | XTRADB_ADMIN_COMMAND                  |
+| INNODB_TABLE_STATS                    |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -195,11 +195,11 @@ Database: INFORMATION_SCHEMA
 | INNODB_SYS_TABLES                     |
 | INNODB_SYS_FIELDS                     |
 | INNODB_SYS_COLUMNS                    |
-| INNODB_TABLE_STATS                    |
 | INNODB_SYS_STATS                      |
 | INNODB_SYS_FOREIGN                    |
 | INNODB_SYS_INDEXES                    |
 | XTRADB_ADMIN_COMMAND                  |
+| INNODB_TABLE_STATS                    |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

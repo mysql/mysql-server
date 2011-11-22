@@ -50,8 +50,6 @@ bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);
 
-uint kill_one_thread(THD *thd, ulong id, bool only_kill_query);
-
 void free_items(Item *item);
 void cleanup_items(Item *item);
 

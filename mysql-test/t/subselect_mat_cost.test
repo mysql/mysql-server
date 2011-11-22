@@ -15,6 +15,11 @@
 
 set @subselect_mat_cost=@@optimizer_switch;
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+#
+# Test logging to slow log (there was some errors in the log files about
+# the slow log when running under valgrind, so better to get this tested)
+#
+set long_query_time=0.1;
 
 
 -- echo TEST GROUP 1:
@@ -222,13 +227,15 @@ select count(*)
 from CountryLanguage
 where (Language, Country) NOT IN
       (SELECT City.Name, Country.Code
-       FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000));
+       FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000))
+      AND Language IN ('English','Spanish');
 
 select count(*)
 from CountryLanguage
 where (Language, Country) NOT IN
       (SELECT City.Name, Country.Code
-       FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000));
+       FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000))
+      AND Language IN ('English','Spanish');
 
 -- echo Q2.3m:
 -- echo MATERIALIZATION with the PARTIAL_MATCH_MERGE strategy, because the HAVING

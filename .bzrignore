@@ -477,8 +477,6 @@ ma_test_recovery.output
 make_dist.cmake
 Makefile
 Makefile.in
-maria_log.00000*
-maria_log_control
 MinSizeRel/
 MIRRORS
 missing
@@ -1065,10 +1063,6 @@ vio/test-sslserver
 vio/viotest-ssl
 vio/viotest-sslconnect.cpp
 vio/viotest.cpp
-win/configure.data
-win/vs71cache.txt
-win/vs8cache.txt
-win/nmake_cache.txt
 ylwrap
 zlib/*.ds?
 sql-bench/test-table-elimination
@@ -1123,7 +1117,6 @@ storage/pbxt/bin/xtstat
 libmysqld/sql_expression_cache.cc
 mysql-test/mtr_command
 scripts/convert-debug-for-diff
-plugin/handler_socket/client/hsclient
 client/strings_def.h
 libmysql/strings_def.h
 libmysql_r/strings_def.h
@@ -1134,3 +1127,8 @@ cmd-line-utils/libedit/emacs.h
 mysql-test/collections/default.release
 support-files/plugins.files
 client/mysql_plugin
+plugin/handler_socket/perl-Net-HandlerSocket/HandlerSocket.c
+plugin/handler_socket/perl-Net-HandlerSocket/blib
+plugin/handler_socket/perl-Net-HandlerSocket/pm_to_blib
+plugin/handler_socket/perl-Net-HandlerSocket/HandlerSocket.bs
+plugin/handler_socket/perl-Net-HandlerSocket/Makefile.PL

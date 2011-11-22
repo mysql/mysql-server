@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1,t2,t3;
 create table t1(a int);
 insert into t1 values(1);
 ERROR at line 9: DELIMITER must be followed by a 'delimiter' character or string
@@ -137,6 +137,14 @@ drop table t1;
 1
 ERROR 1064 (42000) at line 3: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 ERROR at line 1: USE must be followed by a database name
+1  +1
+2
+1  +1
+2
+1  +1
+2
+1  +1
+2
 \
 \\
 ';

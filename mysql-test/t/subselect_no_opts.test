@@ -3,7 +3,7 @@
 #  (test in-to-exists)
 
 
-set @optimizer_switch_for_subselect_test='materialization=off,semijoin=off,mrr=on,mrr_sort_keys=on,index_condition_pushdown=on'; 
+set @optimizer_switch_for_subselect_test='materialization=off,semijoin=off,subquery_cache=off,mrr=on,mrr_sort_keys=on,index_condition_pushdown=on'; 
 --source t/subselect.test
 
 set @optimizer_switch_for_subselect_test=null; 

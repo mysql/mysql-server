@@ -457,6 +457,7 @@ inline bool unexpected_error_code(int unexpected_error)
   case ER_NET_READ_ERROR:
   case ER_NET_ERROR_ON_WRITE:
   case ER_QUERY_INTERRUPTED:
+  case ER_CONNECTION_KILLED:
   case ER_SERVER_SHUTDOWN:
   case ER_NEW_ABORTING_CONNECTION:
     return(TRUE);
@@ -3793,7 +3794,7 @@ Default database: '%s'. Query: '%s'",
     {
       DBUG_PRINT("info",("error ignored"));
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
-      thd->killed= THD::NOT_KILLED;
+      thd->killed= NOT_KILLED;
     }
     /*
       Other cases: mostly we expected no error and get one.

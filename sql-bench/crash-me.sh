@@ -40,7 +40,7 @@
 # as such, and clarify ones such as "mediumint" with comments such as
 # "3-byte int" or "same as xxx".
 
-$version="1.61";
+$version="1.62";
 
 use Cwd;
 use DBI;
@@ -620,6 +620,8 @@ check_reserved_words($dbh);
 	    "numeric(9,2)","decimal(6,2)","dec(6,2)",
 	    "bit", "bit(2)","bit varying(2)","float","float(8)","real",
 	    "double precision", "date","time","timestamp",
+            "time(6)", "timestamp(6)",
+            "datetime", "datetime(6)",
 	    "interval year", "interval year to month",
             "interval month",
             "interval day", "interval day to hour", "interval day to minute",
@@ -633,8 +635,7 @@ check_reserved_words($dbh);
 	    "national char varying(20)","nchar varying(20)",
 	    "national character varying(20)",
 	    "timestamp with time zone");
-@odbc_types=("binary(1)","varbinary(1)","tinyint","bigint",
-	     "datetime");
+@odbc_types=("binary(1)","varbinary(1)","tinyint","bigint");
 @extra_types=("blob","byte","long varbinary","image","text","text(10)",
 	      "mediumtext",
 	      "long varchar(1)", "varchar2(257)",
@@ -664,7 +665,7 @@ check_reserved_words($dbh);
 foreach $types (@types)
 {
   print "\nSupported $types->[0] types\n";
-  $tmp=@$types->[1];
+  $tmp= $types->[1];
   foreach $use_type (@$tmp)
   {
     $type=$use_type;
@@ -747,8 +748,12 @@ if (($limits{'type_extra_float(2_arg)'} eq "yes" ||
     $result="exact";
   }
   $prompt="Storage of float values";
-  print "$prompt: $result\n";
   save_config_data("storage_of_float", $result, $prompt);
+}
+
+if (defined($limits{'storage_of_float'}))
+{
+  print "Storage of float values: $limits{'storage_of_float'}\n";
 }
 
 try_and_report("Type for row id", "rowid",
@@ -1062,7 +1067,7 @@ try_and_report("Automatic row id", "automatic_rowid",
 foreach $types (@types)
 {
   print "\nSupported $types->[0] functions\n";
-  $tmp=@$types->[1];
+  $tmp= $types->[1];
   foreach $type (@$tmp)
   {
     if (defined($limits{"func_$types->[0]_$type->[1]"}))
@@ -1137,7 +1142,7 @@ if ($limits{'functions'} eq 'yes')
   foreach $types (@group_types)
   {
     print "\nSupported $types->[0] group functions\n";
-    $tmp=@$types->[1];
+    $tmp= $types->[1];
     foreach $type (@$tmp)
     {
       check_and_report("Group function $type->[0]",
@@ -3133,8 +3138,11 @@ $0 takes the following options:
   Wait this long before restarting server.
 
 --verbose
---noverbose
   Log into the result file queries performed for determination parameter value
+  This causes rows starting with ' ###' to be logged into the .cnf file
+
+--noverbose
+  Don't log '###' quries to the .cnf file.
 
 EOF
   exit(0);
@@ -4350,7 +4358,7 @@ sub save_config_data
   my $last_line_was_empty=0;
   foreach $line (split /\n/, $log{$key})
   {
-    print CONFIG_FILE "   ###$line\n" 
+    print CONFIG_FILE "$log_prefix$line\n" 
 	unless ( ($last_line_was_empty eq 1)  
 	         && ($line =~ /^\s+$/)  );
     $last_line_was_empty= ($line =~ /^\s+$/)?1:0;
@@ -4370,7 +4378,7 @@ sub add_log
 {
   my $key = shift;
   my $line = shift;
-  $log{$key} .= $line . "\n" if ($opt_verbose);;  
+  $log{$key} .= $line . "\n" if ($opt_verbose);
 }
 
 sub save_all_config_data
@@ -4392,14 +4400,17 @@ sub save_all_config_data
     $tmp="$key=$limits{$key}";
     print CONFIG_FILE $tmp . ("\t" x (int((32-min(length($tmp),32)+7)/8)+1)) .
       "# $prompts{$key}\n";
-     my $line;
-     my $last_line_was_empty=0;
-     foreach $line (split /\n/, $log{$key})
-     {
-        print CONFIG_FILE "   ###$line\n" unless 
-	      ( ($last_line_was_empty eq 1) && ($line =~ /^\s*$/));
+    if ($opt_verbose)
+    {
+      my $line;
+      my $last_line_was_empty=0;
+      foreach $line (split /\n/, $log{$key})
+      {
+        print CONFIG_FILE "$log_prefix$line\n" unless 
+          ( ($last_line_was_empty eq 1) && ($line =~ /^\s*$/));
         $last_line_was_empty= ($line =~ /^\s*$/)?1:0;
-     };     
+      }
+    } 
   }
   close CONFIG_FILE;
 }

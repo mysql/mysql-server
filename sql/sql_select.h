@@ -143,6 +143,7 @@ typedef struct st_table_ref
 
   bool tmp_table_index_lookup_init(THD *thd, KEY *tmp_key, Item_iterator &it,
                                    bool value, uint skip= 0);
+  bool is_access_triggered();
 } TABLE_REF;
 
 
@@ -284,7 +285,6 @@ typedef struct st_join_table {
   ulong         max_used_fieldlength;
   uint          used_blobs;
   uint          used_null_fields;
-  uint          used_rowid_fields;
   uint          used_uneven_bit_fields;
   enum join_type type;
   bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
@@ -343,6 +343,9 @@ typedef struct st_join_table {
      NULL - Not doing a loose scan on this join tab.
   */
   struct st_join_table *loosescan_match_tab;
+  
+  /* TRUE <=> we are inside LooseScan range */
+  bool inside_loosescan_range;
 
   /* Buffer to save index tuple to be able to skip duplicates */
   uchar *loosescan_buf;
@@ -385,18 +388,13 @@ typedef struct st_join_table {
     return (is_using_loose_index_scan() &&
             ((QUICK_GROUP_MIN_MAX_SELECT *)select->quick)->is_agg_distinct());
   }
-  bool check_rowid_field()
-  {
-    if (keep_current_rowid && !used_rowid_fields)
-    {
-      used_rowid_fields= 1;
-      used_fieldlength+= table->file->ref_length;
-    }
-    return test(used_rowid_fields);
-  }
   bool is_inner_table_of_semi_join_with_first_match()
   {
     return first_sj_inner_tab != NULL;
+  }
+  bool is_inner_table_of_semijoin()
+  {
+    return emb_sj_nest != NULL;
   }
   bool is_inner_table_of_outer_join()
   {
@@ -674,6 +672,7 @@ protected:
     KEYUSE *join_tab_keyuse[MAX_TABLES];
     /* Copies of JOIN_TAB::checked_keys for each JOIN_TAB. */
     key_map join_tab_checked_keys[MAX_TABLES];
+    SJ_MATERIALIZATION_INFO *sj_mat_info[MAX_TABLES];
   public:
     Join_plan_state()
     {   
@@ -699,6 +698,7 @@ protected:
   enum_reopt_result reoptimize(Item *added_where, table_map join_tables,
                                Join_plan_state *save_to);
   void save_query_plan(Join_plan_state *save_to);
+  void reset_query_plan();
   void restore_query_plan(Join_plan_state *restore_from);
   /* Choose a subquery plan for a table-less subquery. */
   bool choose_tableless_subquery_plan();
@@ -1152,7 +1152,7 @@ public:
            max_allowed_join_cache_level > JOIN_CACHE_HASHED_BIT;
   }
   bool choose_subquery_plan(table_map join_tables);
-  void get_partial_cost_and_fanout(uint end_tab_idx,
+  void get_partial_cost_and_fanout(int end_tab_idx,
                                    table_map filter_map,
                                    double *read_time_arg, 
                                    double *record_count_arg);

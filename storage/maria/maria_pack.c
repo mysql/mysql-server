@@ -3051,7 +3051,6 @@ static int mrg_rrnd(PACK_MRG_INFO *info,uchar *buf)
 {
   int error;
   MARIA_HA *isam_info;
-  my_off_t filepos;
 
   if (!info->current)
   {
@@ -3076,7 +3075,6 @@ static int mrg_rrnd(PACK_MRG_INFO *info,uchar *buf)
       return(HA_ERR_END_OF_FILE);
     info->current++;
     isam_info= *info->current;
-    filepos=isam_info->s->pack.header_length;
     maria_reset(isam_info);
     maria_extra(isam_info,HA_EXTRA_CACHE, 0);
     if ((error= maria_scan_init(isam_info)))

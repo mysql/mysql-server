@@ -587,10 +587,8 @@ void eliminate_tables(JOIN *join)
   if (!join->outer_join)
     DBUG_VOID_RETURN;
 
-#ifndef DBUG_OFF
   if (!optimizer_flag(thd, OPTIMIZER_SWITCH_TABLE_ELIMINATION))
     DBUG_VOID_RETURN; /* purecov: inspected */
-#endif
 
   /* Find the tables that are referred to from WHERE/HAVING */
   used_tables= (join->conds?  join->conds->used_tables() : 0) | 
@@ -694,6 +692,8 @@ eliminate_tables_for_list(JOIN *join, List<TABLE_LIST> *join_list,
     {
       table_map outside_used_tables= tables_used_elsewhere | 
                                      tables_used_on_left;
+      if (on_expr)
+        outside_used_tables |= on_expr->used_tables();
       if (tbl->nested_join)
       {
         /* This is  "... LEFT JOIN (join_nest) ON cond" */

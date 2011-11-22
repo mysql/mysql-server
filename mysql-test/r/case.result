@@ -220,3 +220,10 @@ a	d
 3	11120436154190595086
 drop table t1, t2;
 End of 5.0 tests
+create table t1 (f1 time);
+insert t1 values ('00:00:00'),('00:01:00');
+select case t1.f1 when '00:00:00' then 1 end from t1;
+case t1.f1 when '00:00:00' then 1 end
+1
+NULL
+drop table t1;

@@ -179,6 +179,7 @@ int trnman_init(TrID initial_trid)
   trnman_allocated_transactions= 0;
   /* This is needed for recovery and repair */
   dummy_transaction_object.min_read_from= ~(TrID) 0;
+  dummy_transaction_object.first_undo_lsn= TRANSACTION_LOGGED_LONG_ID;
 
   pool= 0;
   global_trid_generator= initial_trid;

@@ -2349,8 +2349,11 @@ sub remove_stale_vardir () {
 	mtr_report("WARNING: Using the 'mysql-test/var' symlink");
 
 	# Make sure the directory where it points exist
-	mtr_error("The destination for symlink $opt_vardir does not exist")
-	  if ! -d readlink($opt_vardir);
+        if (! -d readlink($opt_vardir))
+        {
+          mtr_report("The destination for symlink $opt_vardir does not exist; Removing it and creating a new var directory");
+          unlink($opt_vardir);
+        }
 
 	foreach my $bin ( glob("$opt_vardir/*") )
 	{
@@ -2409,8 +2412,11 @@ sub setup_vardir() {
       #  it's a symlink
 
       # Make sure the directory where it points exist
-      mtr_error("The destination for symlink $opt_vardir does not exist")
-	if ! -d readlink($opt_vardir);
+      if (! -d readlink($opt_vardir))
+      {
+        mtr_report("The destination for symlink $opt_vardir does not exist; Removing it and creating a new var directory");
+        unlink($opt_vardir);
+      }
     }
     elsif ( $opt_mem )
     {

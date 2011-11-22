@@ -41,6 +41,8 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
   DBUG_ENTER("my_open");
   DBUG_PRINT("my",("Name: '%s'  Flags: %d  MyFlags: %d",
 		   FileName, Flags, MyFlags));
+  if (!(MyFlags & (MY_WME | MY_FAE | MY_FFNF)))
+    MyFlags|= my_global_flags;
 #if defined(_WIN32)
   fd= my_win_open(FileName, Flags);
 #elif !defined(NO_OPEN_3)
@@ -70,6 +72,8 @@ int my_close(File fd, myf MyFlags)
   int err;
   DBUG_ENTER("my_close");
   DBUG_PRINT("my",("fd: %d  MyFlags: %d",fd, MyFlags));
+  if (!(MyFlags & (MY_WME | MY_FAE)))
+    MyFlags|= my_global_flags;
 
   mysql_mutex_lock(&THR_LOCK_open);
 #ifndef _WIN32
@@ -85,7 +89,8 @@ int my_close(File fd, myf MyFlags)
     DBUG_PRINT("error",("Got error %d on close",err));
     my_errno=errno;
     if (MyFlags & (MY_FAE | MY_WME))
-      my_error(EE_BADCLOSE, MYF(ME_BELL+ME_WAITTANG),my_filename(fd),errno);
+      my_error(EE_BADCLOSE, MYF(ME_BELL | ME_WAITTANG | (MyFlags & (ME_JUST_INFO | ME_NOREFRESH))),
+               my_filename(fd),errno);
   }
   if ((uint) fd < my_file_limit && my_file_info[fd].type != UNOPEN)
   {
@@ -151,8 +156,8 @@ File my_register_filename(File fd, const char *FileName, enum file_type
   {
     if (my_errno == EMFILE)
       error_message_number= EE_OUT_OF_FILERESOURCES;
-    DBUG_PRINT("error",("print err: %d",error_message_number));
-    my_error(error_message_number, MYF(ME_BELL+ME_WAITTANG),
+    my_error(error_message_number,
+             MYF(ME_BELL | ME_WAITTANG | (MyFlags & (ME_JUST_INFO | ME_NOREFRESH))),
              FileName, my_errno);
   }
   DBUG_RETURN(-1);

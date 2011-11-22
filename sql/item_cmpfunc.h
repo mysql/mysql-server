@@ -267,6 +267,7 @@ public:
   virtual void get_cache_parameters(List<Item> &parameters);
   bool is_top_level_item();
   bool eval_not_null_tables(uchar *opt_arg);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
 };
 
 class Comp_creator
@@ -679,6 +680,7 @@ public:
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
   bool eval_not_null_tables(uchar *opt_arg);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
 };
 
 
@@ -785,6 +787,7 @@ public:
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
   bool eval_not_null_tables(uchar *opt_arg);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
 };
 
 
@@ -1323,6 +1326,7 @@ public:
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   bool eval_not_null_tables(uchar *opt_arg);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
 };
 
 class cmp_item_row :public cmp_item
@@ -1807,6 +1811,7 @@ public:
     return item;
   }
   Item *neg_transformer(THD *thd);
+  void mark_as_condition_AND_part(TABLE_LIST *embedding);
 };
 
 inline bool is_cond_and(Item *item)

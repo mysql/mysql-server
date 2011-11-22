@@ -738,7 +738,7 @@ struct st_maria_handler
   { length=mi_uint2korr((key)+1)+3; } \
 }
 
-#define maria_max_key_length() ((maria_block_size - MAX_KEYPAGE_HEADER_SIZE)/3 - MARIA_INDEX_OVERHEAD_SIZE)
+#define _ma_max_key_length() ((maria_block_size - MAX_KEYPAGE_HEADER_SIZE)/3 - MARIA_INDEX_OVERHEAD_SIZE)
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
 #define _ma_have_versioning(info) ((info)->row_flag & ROW_FLAG_TRANSID)
 
@@ -817,6 +817,7 @@ extern uchar maria_zero_string[];
 extern my_bool maria_inited, maria_in_ha_maria, maria_recovery_changed_data;
 extern my_bool maria_recovery_verbose, maria_checkpoint_disabled;
 extern my_bool maria_assert_if_crashed_table;
+extern ulong maria_checkpoint_min_log_activity;
 extern HASH maria_stored_state;
 extern int (*maria_create_trn_hook)(MARIA_HA *);
 extern my_bool (*ma_killed)(MARIA_HA *);

@@ -419,7 +419,7 @@ sp_rcontext::activate_handler(THD *thd,
     /* Reset error state. */
 
     thd->clear_error();
-    thd->killed= THD::NOT_KILLED; // Some errors set thd->killed
+    thd->killed= NOT_KILLED; // Some errors set thd->killed
                                   // (e.g. "bad data").
 
     /* Return IP of the activated SQL handler. */

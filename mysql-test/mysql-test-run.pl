@@ -3162,7 +3162,6 @@ sub mysql_server_start($) {
     }
 
     if (-d $datadir ) {
-      preserve_error_log($mysqld);
       mtr_verbose(" - removing '$datadir'");
       rmtree($datadir);
     }
@@ -3191,7 +3190,6 @@ sub mysql_server_start($) {
       unless -d $datadir;
 
   }
-  restore_error_log($mysqld);
 
   # Create the servers tmpdir
   my $tmpdir= $mysqld->value('tmpdir');
@@ -4537,30 +4535,6 @@ sub run_testcase ($$) {
 }
 
 
-# We want to preserve the error log between server restarts, as it may contain
-# valuable debugging information even if there is no test failure recorded.
-sub _preserve_error_log_names {
-  my ($mysqld)= @_;
-  my $error_log_file= $mysqld->if_exist('#log-error');
-  return (undef, undef) unless $error_log_file;
-  my $error_log_dir= dirname($error_log_file);
-  my $save_name= $error_log_dir ."/../". $mysqld->name() .".error.log";
-  return ($error_log_file, $save_name);
-}
-
-sub preserve_error_log {
-  my ($mysqld)= @_;
-  my ($error_log_file, $save_name)= _preserve_error_log_names($mysqld);
-  rename($error_log_file, $save_name) if $save_name;
-  # Ignore any errors, as it's just a best-effort to keep the log if possible.
-}
-
-sub restore_error_log {
-  my ($mysqld)= @_;
-  my ($error_log_file, $save_name)= _preserve_error_log_names($mysqld);
-  rename($save_name, $error_log_file) if $save_name;
-}
-
 # Keep track of last position in mysqld error log where we scanned for
 # warnings, so we can attribute any warnings found to the correct test
 # suite or server restart.
@@ -4776,6 +4750,8 @@ sub extract_warning_lines ($$) {
      qr| entry '.*' ignored in --skip-name-resolve mode|,
      qr|mysqld got signal 6|,
      qr|Error while setting value 'pool-of-threads' to 'thread_handling'|,
+     qr|Access denied for user|,
+     qr|Aborted connection|,
      qr|table.*is full|,
     );
 
@@ -5088,7 +5064,6 @@ sub clean_datadir {
 
   for (all_servers())
   {
-    preserve_error_log($_); # or at least, try to
     my $dir= "$opt_vardir/".$_->{name};
     mtr_verbose(" - removing '$dir'");
     rmtree($dir);

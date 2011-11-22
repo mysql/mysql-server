@@ -282,7 +282,7 @@ bool Foreign_key::validate(List<Create_field> &table_fields)
 */
 void thd_set_killed(THD *thd)
 {
-  thd->killed= THD::KILL_CONNECTION;
+  thd->killed= KILL_CONNECTION;
 }
 
 /**
@@ -726,7 +726,7 @@ THD::THD()
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
-   in_sub_stmt(0),
+   in_sub_stmt(0), log_all_errors(0),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    table_map_for_update(0),
@@ -1058,7 +1058,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
       push_warning and strict SQL_MODE case.
     */
     level= MYSQL_ERROR::WARN_LEVEL_ERROR;
-    killed= THD::KILL_BAD_DATA;
+    killed= KILL_BAD_DATA;
   }
 
   switch (level)
@@ -1521,17 +1521,27 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
   @note Do always call this while holding LOCK_thd_data.
 */
 
-void THD::awake(THD::killed_state state_to_set)
+void THD::awake(killed_state state_to_set)
 {
   DBUG_ENTER("THD::awake");
   DBUG_PRINT("enter", ("this: %p current_thd: %p", this, current_thd));
   THD_CHECK_SENTRY(this);
   mysql_mutex_assert_owner(&LOCK_thd_data);
 
+  if (global_system_variables.log_warnings > 3)
+  {
+    Security_context *sctx= security_ctx;
+    sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                      thread_id,(db ? db : "unconnected"),
+                      sctx->user ? sctx->user : "unauthenticated",
+                      sctx->host_or_ip,
+                      "KILLED");
+  }
+
   /* Set the 'killed' flag of 'this', which is the target THD object. */
   killed= state_to_set;
 
-  if (state_to_set != THD::KILL_QUERY)
+  if (state_to_set >= KILL_CONNECTION || state_to_set == NOT_KILLED)
   {
 #ifdef SIGNAL_WITH_VIO_CLOSE
     if (this != current_thd)
@@ -1652,7 +1662,7 @@ void THD::disconnect()
 
   mysql_mutex_lock(&LOCK_thd_data);
 
-  killed= THD::KILL_CONNECTION;
+  killed= KILL_CONNECTION;
 
 #ifdef SIGNAL_WITH_VIO_CLOSE
   /*
@@ -1669,6 +1679,37 @@ void THD::disconnect()
     vio_close(net.vio);
 
   mysql_mutex_unlock(&LOCK_thd_data);
+}
+
+
+/*
+  Get error number for killed state
+  Note that the error message can't have any parameters.
+  See thd::kill_message()
+*/
+
+int killed_errno(killed_state killed)
+{
+  switch (killed) {
+  case NOT_KILLED:
+  case KILL_HARD_BIT:
+    return 0;                                   // Probably wrong usage
+  case KILL_BAD_DATA:
+  case KILL_BAD_DATA_HARD:
+    return 0;                                   // Not a real error
+  case KILL_CONNECTION:
+  case KILL_CONNECTION_HARD:
+  case KILL_SYSTEM_THREAD:
+  case KILL_SYSTEM_THREAD_HARD:
+    return ER_CONNECTION_KILLED;
+  case KILL_QUERY:
+  case KILL_QUERY_HARD:
+    return ER_QUERY_INTERRUPTED;
+  case KILL_SERVER:
+  case KILL_SERVER_HARD:
+    return ER_SERVER_SHUTDOWN;
+  }
+  return 0;                                     // Keep compiler happy
 }
 
 
@@ -2912,26 +2953,32 @@ bool select_max_min_finder_subselect::cmp_real()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   double val1= cache->val_real(), val2= maxmin->val_real();
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 > val2);
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     val1 < val2);
+    return(val1 > val2);
+  return (val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_int()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   longlong val1= cache->val_int(), val2= maxmin->val_int();
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 > val2);
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     val1 < val2);
+    return(val1 > val2);
+  return (val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_decimal()
@@ -2939,13 +2986,16 @@ bool select_max_min_finder_subselect::cmp_decimal()
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
   my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       my_decimal_cmp(cvalue, mvalue) > 0) ;
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     my_decimal_cmp(cvalue,mvalue) < 0);
+    return (my_decimal_cmp(cvalue, mvalue) > 0) ;
+  return (my_decimal_cmp(cvalue,mvalue) < 0);
 }
 
 bool select_max_min_finder_subselect::cmp_str()
@@ -2958,13 +3008,16 @@ bool select_max_min_finder_subselect::cmp_str()
   */
   val1= cache->val_str(&buf1);
   val2= maxmin->val_str(&buf1);
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       sortcmp(val1, val2, cache->collation.collation) > 0) ;
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     sortcmp(val1, val2, cache->collation.collation) < 0);
+    return (sortcmp(val1, val2, cache->collation.collation) > 0) ;
+  return (sortcmp(val1, val2, cache->collation.collation) < 0);
 }
 
 int select_exists_subselect::send_data(List<Item> &items)
@@ -3697,11 +3750,15 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
   @param thd  user thread
   @retval 0 the user thread is active
   @retval 1 the user thread has been killed
+
+  This is used to signal a storage engine if it should be killed.
 */
 
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
-  return(thd->killed);
+  if (!(thd->killed & KILL_HARD_BIT))
+    return 0;
+  return thd->killed;
 }
 
 

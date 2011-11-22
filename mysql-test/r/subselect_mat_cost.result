@@ -1,5 +1,6 @@
 set @subselect_mat_cost=@@optimizer_switch;
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+set long_query_time=0.1;
 TEST GROUP 1:
 Typical cases of in-to-exists and materialization subquery strategies
 =====================================================================
@@ -284,7 +285,7 @@ WHERE Code NOT IN (SELECT Country FROM CountryLanguage WHERE Language = 'English
 AND (CountryLanguage.Language = 'French' OR CountryLanguage.Language = 'Spanish')
 AND Code = Country;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	CountryLanguage	range	PRIMARY,Language	Language	30	NULL	45	Using index condition; Rowid-ordered scan
+1	PRIMARY	CountryLanguage	range	PRIMARY,Language	Language	30	NULL	45	Using index condition; Using where; Rowid-ordered scan
 1	PRIMARY	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using index condition
 2	SUBQUERY	CountryLanguage	ref	PRIMARY,Language	Language	30	const	47	Using index condition
 SELECT Country.Name
@@ -343,18 +344,20 @@ select count(*)
 from CountryLanguage
 where (Language, Country) NOT IN
 (SELECT City.Name, Country.Code
-FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000));
+FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000))
+AND Language IN ('English','Spanish');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	CountryLanguage	index	NULL	PRIMARY	33	NULL	984	Using where; Using index
-2	DEPENDENT SUBQUERY	City	ref	CityName	CityName	35	func	2	Using index condition
+1	PRIMARY	CountryLanguage	range	Language	Language	30	NULL	72	Using index condition; Using where; Rowid-ordered scan
+2	DEPENDENT SUBQUERY	City	ref	CityName	CityName	35	func	2	Using index condition; Using where
 2	DEPENDENT SUBQUERY	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	1	Using where; Using index
 select count(*)
 from CountryLanguage
 where (Language, Country) NOT IN
 (SELECT City.Name, Country.Code
-FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000));
+FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000))
+AND Language IN ('English','Spanish');
 count(*)
-979
+88
 Q2.3m:
 MATERIALIZATION with the PARTIAL_MATCH_MERGE strategy, because the HAVING
 clause prevents the use of the index on City(Name), and in practice reduces

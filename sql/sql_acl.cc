@@ -2420,7 +2420,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER &combo,
       table->field[next_field+2]->store((longlong) mqh.conn_per_hour, TRUE);
     if (table->s->fields >= 36 &&
         (mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS))
-      table->field[next_field+3]->store((longlong) mqh.user_conn, TRUE);
+      table->field[next_field+3]->store((longlong) mqh.user_conn, FALSE);
     mqh_used= mqh_used || mqh.questions || mqh.updates || mqh.conn_per_hour;
 
     next_field+= 4;
@@ -5169,7 +5169,8 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
 
 /* Help function for mysql_show_grants */
 
-static void add_user_option(String *grant, ulong value, const char *name)
+static void add_user_option(String *grant, long value, const char *name,
+                            my_bool is_signed)
 {
   if (value)
   {
@@ -5177,7 +5178,7 @@ static void add_user_option(String *grant, ulong value, const char *name)
     grant->append(' ');
     grant->append(name, strlen(name));
     grant->append(' ');
-    p=int10_to_str(value, buff, 10);
+    p=int10_to_str(value, buff, is_signed ? -10 : 10);
     grant->append(buff,p-buff);
   }
 }
@@ -5359,13 +5360,13 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       if (want_access & GRANT_ACL)
 	global.append(STRING_WITH_LEN(" GRANT OPTION"));
       add_user_option(&global, acl_user->user_resource.questions,
-		      "MAX_QUERIES_PER_HOUR");
+		      "MAX_QUERIES_PER_HOUR", 0);
       add_user_option(&global, acl_user->user_resource.updates,
-		      "MAX_UPDATES_PER_HOUR");
+		      "MAX_UPDATES_PER_HOUR", 0);
       add_user_option(&global, acl_user->user_resource.conn_per_hour,
-		      "MAX_CONNECTIONS_PER_HOUR");
+		      "MAX_CONNECTIONS_PER_HOUR", 0);
       add_user_option(&global, acl_user->user_resource.user_conn,
-		      "MAX_USER_CONNECTIONS");
+		      "MAX_USER_CONNECTIONS", 1);
     }
     protocol->prepare_for_resend();
     protocol->store(global.ptr(),global.length(),global.charset());
@@ -9097,11 +9098,16 @@ bool acl_authenticate(THD *thd, uint connect_errors,
       DBUG_RETURN(1);
     }
 
-    /* Don't allow the user to connect if he has done too many queries */
-    if ((acl_user->user_resource.questions || acl_user->user_resource.updates ||
+    /*
+      Don't allow the user to connect if he has done too many queries.
+      As we are testing max_user_connections == 0 here, it means that we
+      can't let the user change max_user_connections from 0 in the server
+      without a restart as it would lead to wrong connect counting.
+    */
+    if ((acl_user->user_resource.questions ||
+         acl_user->user_resource.updates ||
          acl_user->user_resource.conn_per_hour ||
-         acl_user->user_resource.user_conn ||
-         global_system_variables.max_user_connections) &&
+         acl_user->user_resource.user_conn || max_user_connections_checking) &&
         get_or_create_user_conn(thd,
           (opt_old_style_user_limits ? sctx->user : sctx->priv_user),
           (opt_old_style_user_limits ? sctx->host_or_ip : sctx->priv_host),
@@ -9114,7 +9120,7 @@ bool acl_authenticate(THD *thd, uint connect_errors,
   if (thd->user_connect &&
       (thd->user_connect->user_resources.conn_per_hour ||
        thd->user_connect->user_resources.user_conn ||
-       global_system_variables.max_user_connections) &&
+       max_user_connections_checking) &&
       check_for_max_user_connections(thd, thd->user_connect))
   {
     /* Ensure we don't decrement thd->user_connections->connections twice */
@@ -9339,39 +9345,6 @@ static struct st_mysql_auth old_password_handler=
   old_password_plugin_name.str,
   old_password_authenticate
 };
-
-mysql_declare_plugin(mysql_password)
-{
-  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
-  &native_password_handler,                     /* type descriptor  */
-  native_password_plugin_name.str,              /* Name             */
-  "R.J.Silk, Sergei Golubchik",                 /* Author           */
-  "Native MySQL authentication",                /* Description      */
-  PLUGIN_LICENSE_GPL,                           /* License          */
-  NULL,                                         /* Init function    */
-  NULL,                                         /* Deinit function  */
-  0x0100,                                       /* Version (1.0)    */
-  NULL,                                         /* status variables */
-  NULL,                                         /* system variables */
-  NULL,                                         /* config options   */
-  0,                                            /* flags            */
-},
-{
-  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
-  &old_password_handler,                        /* type descriptor  */
-  old_password_plugin_name.str,                 /* Name             */
-  "R.J.Silk, Sergei Golubchik",                 /* Author           */
-  "Old MySQL-4.0 authentication",               /* Description      */
-  PLUGIN_LICENSE_GPL,                           /* License          */
-  NULL,                                         /* Init function    */
-  NULL,                                         /* Deinit function  */
-  0x0100,                                       /* Version (1.0)    */
-  NULL,                                         /* status variables */
-  NULL,                                         /* system variables */
-  NULL,                                         /* config options   */
-  0,                                            /* flags            */
-}
-mysql_declare_plugin_end;
 
 maria_declare_plugin(mysql_password)
 {

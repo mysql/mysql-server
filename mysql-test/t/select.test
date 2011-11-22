@@ -1966,6 +1966,7 @@ CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
 
 INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
 INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
+INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
 
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;

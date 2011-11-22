@@ -179,7 +179,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
-  THD::killed_state killed_status= THD::NOT_KILLED;
+  killed_state killed_status;
   bool is_concurrent;
 #endif
   char *db = table_list->db;			// This is never null
@@ -529,11 +529,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   DBUG_EXECUTE_IF("simulate_kill_bug27571",
                   {
                     error=1;
-                    thd->killed= THD::KILL_QUERY;
+                    thd->killed= KILL_QUERY;
                   };);
 
 #ifndef EMBEDDED_LIBRARY
-  killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed;
+  killed_status= (error == 0) ? NOT_KILLED : thd->killed;
 #endif
 
   /*
@@ -577,8 +577,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	/* If the file was not empty, wrote_create_file is true */
 	if (lf_info.wrote_create_file)
 	{
-          int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-
+          int errcode= query_error_code(thd, killed_status == NOT_KILLED);
+          
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
 	  if (thd->transaction.stmt.modified_non_trans_table)
@@ -630,7 +630,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       read_info.end_io_cache();
       if (lf_info.wrote_create_file)
       {
-        int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+        int errcode= query_error_code(thd, killed_status == NOT_KILLED);
         error= write_execute_load_query_log_event(thd, ex,
                                                   table_list->db, table_list->table_name,
                                                   is_concurrent,

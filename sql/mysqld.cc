@@ -409,7 +409,7 @@ my_bool opt_local_infile, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0;
 my_bool opt_show_slave_auth_info;
 my_bool opt_log_slave_updates= 0;
-my_bool opt_replicate_annotate_rows_events= 0;
+my_bool opt_replicate_annotate_row_events= 0;
 char *opt_slave_skip_errors;
 
 /*
@@ -500,6 +500,11 @@ my_decimal decimal_zero;
 */
 ulong max_long_data_size;
 
+/* Limits for internal temporary tables (MyISAM or Aria) */
+uint internal_tmp_table_max_key_length;
+uint internal_tmp_table_max_key_segments;
+
+bool max_user_connections_checking=0;
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -1389,7 +1394,7 @@ static void close_connections(void)
     if (tmp->slave_thread)
       continue;
 
-    tmp->killed= THD::KILL_CONNECTION;
+    tmp->killed= KILL_SERVER_HARD;
     MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (tmp));
     mysql_mutex_lock(&tmp->LOCK_thd_data);
     if (tmp->mysys_var)
@@ -1449,7 +1454,7 @@ static void close_connections(void)
                           tmp->thread_id,
                           (tmp->main_security_ctx.user ?
                            tmp->main_security_ctx.user : ""));
-      close_connection(tmp);
+      close_connection(tmp,ER_SERVER_SHUTDOWN);
     }
 #endif
     DBUG_PRINT("quit",("Unlocking LOCK_thread_count"));
@@ -2335,6 +2340,16 @@ void close_connection(THD *thd, uint sql_errno)
   if (sql_errno)
     net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno), NULL);
 
+  if (global_system_variables.log_warnings > 3)
+  {
+    Security_context *sctx= &thd->main_security_ctx;
+    sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                      thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                      sctx->user ? sctx->user : "unauthenticated",
+                      sctx->host_or_ip,
+                      (sql_errno ? ER(sql_errno) : "CLOSE_CONNECTION"));
+  }
+
   thd->disconnect();
 
   MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id);
@@ -2503,6 +2518,7 @@ static bool cache_thread()
       */
       thd->mysys_var->abort= 0;
       thd->thr_create_utime= microsecond_interval_timer();
+      thd->start_utime= thd->thr_create_utime;
       threads.append(thd);
       return(1);
     }
@@ -2565,24 +2581,6 @@ void flush_thread_cache()
   kill_cached_threads--;
   mysql_mutex_unlock(&LOCK_thread_count);
 }
-
-
-#ifdef THREAD_SPECIFIC_SIGPIPE
-/**
-  Aborts a thread nicely. Comes here on SIGPIPE.
-
-  @todo
-    One should have to fix that thr_alarm know about this thread too.
-*/
-extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
-{
-  THD *thd=current_thd;
-  DBUG_ENTER("abort_thread");
-  if (thd)
-    thd->killed= THD::KILL_CONNECTION;
-  DBUG_VOID_RETURN;
-}
-#endif
 
 
 /******************************************************************************
@@ -2798,6 +2796,8 @@ or misconfigured. This error can also be caused by malfunctioning hardware.\n",
 We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
+  set_server_version();
+  fprintf(stderr, "Server version: %s\n", server_version);
   fprintf(stderr, "key_buffer_size=%lu\n",
           (ulong) dflt_key_cache->key_cache_mem_size);
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
@@ -2842,20 +2842,29 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
   {
     const char *kreason= "UNKNOWN";
     switch (thd->killed) {
-    case THD::NOT_KILLED:
+    case NOT_KILLED:
+    case KILL_HARD_BIT:
       kreason= "NOT_KILLED";
       break;
-    case THD::KILL_BAD_DATA:
+    case KILL_BAD_DATA:
+    case KILL_BAD_DATA_HARD:
       kreason= "KILL_BAD_DATA";
       break;
-    case THD::KILL_CONNECTION:
+    case KILL_CONNECTION:
+    case KILL_CONNECTION_HARD:
       kreason= "KILL_CONNECTION";
       break;
-    case THD::KILL_QUERY:
+    case KILL_QUERY:
+    case KILL_QUERY_HARD:
       kreason= "KILL_QUERY";
       break;
-    case THD::KILLED_NO_VALUE:
-      kreason= "KILLED_NO_VALUE";
+    case KILL_SYSTEM_THREAD:
+    case KILL_SYSTEM_THREAD_HARD:
+      kreason= "KILL_SYSTEM_THREAD";
+      break;
+    case KILL_SERVER:
+    case KILL_SERVER_HARD:
+      kreason= "KILL_SERVER";
       break;
     }
     fprintf(stderr, "\nTrying to get some variables.\n"
@@ -2865,8 +2874,7 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
     fprintf(stderr, "\nConnection ID (thread ID): %lu\n", (ulong) thd->thread_id);
     fprintf(stderr, "Status: %s\n", kreason);
     fprintf(stderr, "Optimizer switch: ");
-
-    ulonglong optsw= global_system_variables.optimizer_switch;
+    ulonglong optsw= thd->variables.optimizer_switch;
     for (uint i= 0; optimizer_switch_names[i+1]; i++, optsw >>= 1)
     {
       if (i)
@@ -3218,7 +3226,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
   sql_print_message_func func;
 
   DBUG_ENTER("my_message_sql");
-  DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
+  DBUG_PRINT("error", ("error: %u  message: '%s'  Flag: %d", error, str, MyFlags));
 
   DBUG_ASSERT(str != NULL);
   DBUG_ASSERT(error != 0);
@@ -3250,7 +3258,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_VOID_RETURN;);
 
-  if (!thd || (MyFlags & ME_NOREFRESH))
+  if (!thd || thd->log_all_errors || (MyFlags & ME_NOREFRESH))
     (*func)("%s: %s", my_progname_short, str); /* purecov: inspected */
   DBUG_VOID_RETURN;
 }
@@ -4336,11 +4344,13 @@ a file name for --log-bin-index option", opt_binlog_index_name);
         require a name. But as we don't want to break many existing setups, we
         only give warning, not error.
       */
-      sql_print_warning("No argument was provided to --log-bin, and "
-                        "--log-bin-index was not used; so replication "
-                        "may break when this MySQL server acts as a "
-                        "master and has his hostname changed!! Please "
-                        "use '--log-bin=%s' to avoid this problem.", ln);
+      sql_print_warning("No argument was provided to --log-bin and "
+                        "neither --log-basename or --log-bin-index where "
+                        "used;  This may cause repliction to break when this "
+                        "server acts as a master and has its hostname "
+                        "changed! Please use '--log-basename=%s' or "
+                        "'--log-bin=%s' to avoid this problem.",
+                        opt_log_basename, ln);
     }
     if (ln == buf)
     {
@@ -4497,6 +4507,11 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     sql_print_error("Aria engine is not enabled or did not start. The Aria engine must be enabled to continue as mysqld was configured with --with-aria-tmp-tables");
     unireg_abort(1);
   }
+  internal_tmp_table_max_key_length=   maria_max_key_length();
+  internal_tmp_table_max_key_segments= maria_max_key_segments();
+#else
+  internal_tmp_table_max_key_length=   myisam_max_key_length();
+  internal_tmp_table_max_key_segments= myisam_max_key_segments();
 #endif
 
   tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
@@ -5446,7 +5461,7 @@ void create_thread_to_handle_connection(THD *thd)
     thread_created++;
     threads.append(thd);
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
-    thd->prior_thr_create_utime= thd->start_utime= microsecond_interval_timer();
+    thd->prior_thr_create_utime= microsecond_interval_timer();
     if ((error= mysql_thread_create(key_thread_one_connection,
                                     &thd->real_id, &connection_attrib,
                                     handle_one_connection,
@@ -5457,7 +5472,7 @@ void create_thread_to_handle_connection(THD *thd)
                  ("Can't create thread to handle request (error %d)",
                   error));
       thread_count--;
-      thd->killed= THD::KILL_CONNECTION;			// Safety
+      thd->killed= KILL_CONNECTION;             // Safety
       mysql_mutex_unlock(&LOCK_thread_count);
 
       mysql_mutex_lock(&LOCK_connection_count);
@@ -5469,7 +5484,7 @@ void create_thread_to_handle_connection(THD *thd)
       my_snprintf(error_message_buff, sizeof(error_message_buff),
                   ER_THD(thd, ER_CANT_CREATE_THREAD), error);
       net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff, NULL);
-      close_connection(thd);
+      close_connection(thd, ER_OUT_OF_RESOURCES);
       mysql_mutex_lock(&LOCK_thread_count);
       delete thd;
       mysql_mutex_unlock(&LOCK_thread_count);
@@ -6543,6 +6558,10 @@ struct my_option my_long_options[]=
    &table_cache_size, &table_cache_size, 0, GET_ULONG,
    REQUIRED_ARG, TABLE_OPEN_CACHE_DEFAULT, 1, 512*1024L, 0, 1, 0},
 #ifndef DBUG_OFF
+  {"debug-assert-on-error", 0,
+   "Do an assert in various functions if we get a fatal error",
+   &my_assert_on_error, &my_assert_on_error,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-assert-if-crashed-table", 0,
    "Do an assert in handler::print_error() if we get a crashed table",
    &debug_assert_if_crashed_table, &debug_assert_if_crashed_table,
@@ -7969,6 +7988,19 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   my_disable_thr_alarm= opt_thread_alarm == 0;
   my_default_record_cache_size=global_system_variables.read_buff_size;
 
+  /*
+    Log mysys errors when we don't have a thd or thd->log_all_errors is set
+    (recovery) to the log.  This is mainly useful for debugging strange system
+    errors.
+  */
+  if (global_system_variables.log_warnings >= 10)
+    my_global_flags= MY_WME | ME_JUST_INFO;
+  /* Log all errors not handled by thd->handle_error() to my_message_sql() */
+  if (global_system_variables.log_warnings >= 11)
+    my_global_flags|= ME_NOREFRESH;
+  if (my_assert_on_error)
+    debug_assert_if_crashed_table= 1;
+
   global_system_variables.long_query_time= (ulonglong)
     (global_system_variables.long_query_time_double * 1e6);
 
@@ -8012,6 +8044,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   if (!max_long_data_size_used)
     max_long_data_size= global_system_variables.max_allowed_packet;
 
+  /* Rember if max_user_connections was 0 at startup */
+  max_user_connections_checking= global_system_variables.max_user_connections != 0;
   return 0;
 }
 

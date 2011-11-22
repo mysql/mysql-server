@@ -343,7 +343,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
         {
           if (str[0] == 'p' || str[0] == 'P')
             add_hours= 12;
-          else if (str[0] != 'a' || str[0] != 'A')
+          else if (str[0] != 'a' && str[0] != 'A')
             continue;                           /* Not AM/PM */
           str+= 2;                              /* Skip AM/PM */
           /* Skip space after AM/PM */

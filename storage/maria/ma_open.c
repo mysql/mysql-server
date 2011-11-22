@@ -469,7 +469,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     }
 
     key_parts+=fulltext_keys*FT_SEGS;
-    if (share->base.max_key_length > maria_max_key_length() ||
+    if (share->base.max_key_length > _ma_max_key_length() ||
         keys > MARIA_MAX_KEY || key_parts > MARIA_MAX_KEY * HA_MAX_KEY_SEG)
     {
       DBUG_PRINT("error",("Wrong key info:  Max_key_length: %d  keys: %d  key_parts: %d", share->base.max_key_length, keys, key_parts));
@@ -1861,7 +1861,7 @@ int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share, const char *org_name,
   }
 
   info->dfile.file= share->bitmap.file.file=
-    mysql_file_open(key_file_dfile, share->data_file_name.str,
+    mysql_file_open(key_file_dfile, data_name,
                     share->mode | O_SHARE, MYF(MY_WME));
   return info->dfile.file >= 0 ? 0 : 1;
 }

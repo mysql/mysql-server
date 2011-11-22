@@ -34,7 +34,7 @@
 
 static bool
 create_string(THD *thd, String *buf,
-	      int sp_type,
+	      stored_procedure_type sp_type,
 	      const char *db, ulong dblen,
 	      const char *name, ulong namelen,
 	      const char *params, ulong paramslen,
@@ -46,7 +46,8 @@ create_string(THD *thd, String *buf,
               ulonglong sql_mode);
 
 static int
-db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
+db_load_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                sp_head **sphp,
                 ulonglong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
@@ -475,7 +476,8 @@ static TABLE *open_proc_table_for_update(THD *thd)
 */
 
 static int
-db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
+db_find_routine_aux(THD *thd, stored_procedure_type type, sp_name *name,
+                    TABLE *table)
 {
   uchar key[MAX_KEY_LENGTH];	// db, name, optional key length type
   DBUG_ENTER("db_find_routine_aux");
@@ -528,7 +530,8 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
 */
 
 static int
-db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
+db_find_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                sp_head **sphp)
 {
   TABLE *table;
   const char *params, *returns, *body;
@@ -797,7 +800,8 @@ Bad_db_error_handler::handle_condition(THD *thd,
 
 
 static int
-db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
+db_load_routine(THD *thd, stored_procedure_type type,
+                sp_name *name, sp_head **sphp,
                 ulonglong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
@@ -966,7 +970,7 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
 */
 
 int
-sp_create_routine(THD *thd, int type, sp_head *sp)
+sp_create_routine(THD *thd, stored_procedure_type type, sp_head *sp)
 {
   int ret;
   TABLE *table;
@@ -984,7 +988,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   bool save_binlog_row_based;
 
   DBUG_ENTER("sp_create_routine");
-  DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
+  DBUG_PRINT("enter", ("type: %d  name: %.*s", (int) type,
+                       (int) sp->m_name.length,
                        sp->m_name.str));
   String retstr(64);
   retstr.set_charset(system_charset_info);
@@ -1236,7 +1241,7 @@ done:
 */
 
 int
-sp_drop_routine(THD *thd, int type, sp_name *name)
+sp_drop_routine(THD *thd, stored_procedure_type type, sp_name *name)
 {
   TABLE *table;
   int ret;
@@ -1317,7 +1322,8 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
 */
 
 int
-sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
+sp_update_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                  st_sp_chistics *chistics)
 {
   TABLE *table;
   int ret;
@@ -1326,7 +1332,8 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_update_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
-		       type, (int) name->m_name.length, name->m_name.str));
+		       (int) type,
+                       (int) name->m_name.length, name->m_name.str));
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
@@ -1590,7 +1597,7 @@ err:
 */
 
 bool
-sp_show_create_routine(THD *thd, int type, sp_name *name)
+sp_show_create_routine(THD *thd, stored_procedure_type type, sp_name *name)
 {
   sp_head *sp;
 
@@ -1646,8 +1653,8 @@ sp_show_create_routine(THD *thd, int type, sp_name *name)
 */
 
 sp_head *
-sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
-                bool cache_only)
+sp_find_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                sp_cache **cp, bool cache_only)
 {
   sp_head *sp;
   ulong depth= (type == TYPE_ENUM_PROCEDURE ?
@@ -1876,7 +1883,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 */
 
 void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
-                         sp_name *rt, char rt_type)
+                         sp_name *rt, enum stored_procedure_type rt_type)
 {
   MDL_key key((rt_type == TYPE_ENUM_FUNCTION) ? MDL_key::FUNCTION :
                                                 MDL_key::PROCEDURE,
@@ -2014,7 +2021,7 @@ int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
   char qname_buff[NAME_LEN*2+1+1];
   sp_name name(&rt->mdl_request.key, qname_buff);
   MDL_key::enum_mdl_namespace mdl_type= rt->mdl_request.key.mdl_namespace();
-  int type= ((mdl_type == MDL_key::FUNCTION) ?
+  stored_procedure_type type= ((mdl_type == MDL_key::FUNCTION) ?
              TYPE_ENUM_FUNCTION : TYPE_ENUM_PROCEDURE);
 
   /*
@@ -2049,7 +2056,7 @@ int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
   @retval non-0  Error while loading routine from mysql,proc table.
 */
 
-int sp_cache_routine(THD *thd, int type, sp_name *name,
+int sp_cache_routine(THD *thd, enum stored_procedure_type type, sp_name *name,
                      bool lookup_only, sp_head **sp)
 {
   int ret= 0;
@@ -2059,7 +2066,6 @@ int sp_cache_routine(THD *thd, int type, sp_name *name,
   DBUG_ENTER("sp_cache_routine");
 
   DBUG_ASSERT(type == TYPE_ENUM_FUNCTION || type == TYPE_ENUM_PROCEDURE);
-
 
   *sp= sp_cache_lookup(spc, name);
 
@@ -2128,7 +2134,7 @@ int sp_cache_routine(THD *thd, int type, sp_name *name,
 */
 static bool
 create_string(THD *thd, String *buf,
-              int type,
+              stored_procedure_type type,
               const char *db, ulong dblen,
               const char *name, ulong namelen,
               const char *params, ulong paramslen,
@@ -2221,7 +2227,7 @@ create_string(THD *thd, String *buf,
 
 sp_head *
 sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
-                               String *name, ulong sql_mode, int type,
+                               String *name, ulong sql_mode, stored_procedure_type type,
                                const char *returns, const char *params,
                                bool *free_sp_head)
 {

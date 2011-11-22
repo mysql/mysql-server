@@ -1,0 +1,23 @@
+# bool readonly
+
+--source include/not_embedded.inc
+
+#
+# show values;
+#
+select @@global.replicate_annotate_row_events;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.replicate_annotate_row_events;
+show global variables like 'replicate_annotate_row_events';
+show session variables like 'replicate_annotate_row_events';
+select * from information_schema.global_variables where variable_name='replicate_annotate_row_events';
+select * from information_schema.session_variables where variable_name='replicate_annotate_row_events';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global replicate_annotate_row_events=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session replicate_annotate_row_events=1;
+

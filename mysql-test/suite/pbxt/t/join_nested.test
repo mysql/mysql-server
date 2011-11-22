@@ -587,6 +587,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 --echo .          costs. To combat the plan change it uses --sorted_result and
 --echo .          and --replace tricks
 
+INSERT INTO t1 VALUES (-1,133,0), (-2,12,0), (-3,11,0), (-5,15,0);
 CREATE INDEX idx_b ON t1(b);
 CREATE INDEX idx_a ON t0(a);
 
@@ -614,7 +615,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        )
        ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
           (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
-          (t1.a != 2),
+          (t1.a != 2) AND t1.a>0,
        t9
      WHERE t0.a=1 AND
            t0.b=t1.b AND          
@@ -653,7 +654,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        )
        ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
           (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
-          (t1.a != 2),
+          (t1.a != 2) AND t1.a>0,
        t9
      WHERE t0.a=1 AND
            t0.b=t1.b AND          

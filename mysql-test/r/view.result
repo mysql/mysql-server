@@ -4446,7 +4446,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` where (not(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or <cache>(isnull(NULL))))) having trigcond(<is_not_null_test>(NULL))))))
+Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` where (not(<expr_cache><10,`test`.`t1`.`a`>(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or <cache>(isnull(NULL))))) having trigcond(<is_not_null_test>(NULL)))))))
 SELECT * FROM t1, t2
 WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
 WHERE t4.a >= t1.a);
@@ -4462,7 +4462,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'v1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` where (not(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or <cache>(isnull(NULL))))) having trigcond(<is_not_null_test>(NULL))))))
+Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` where (not(<expr_cache><10,`test`.`t1`.`a`>(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or <cache>(isnull(NULL))))) having trigcond(<is_not_null_test>(NULL)))))))
 SELECT * FROM v1, t2
 WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
 WHERE t4.a >= v1.a);
@@ -4547,3 +4547,23 @@ UNLOCK TABLES;
 # Connection default
 DROP PROCEDURE p1;
 DROP TABLE t1;
+#
+# lp:833600 Wrong result with view + outer join + uncorrelated subquery (non-semijoin) 
+#
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (0,0),(0,0);
+CREATE TABLE t2 ( a int, b int );
+INSERT IGNORE INTO t2 VALUES (1,0),(1,0);
+CREATE TABLE t3 ( b int );
+INSERT IGNORE INTO t3 VALUES (0),(0);
+CREATE OR REPLACE VIEW v2 AS SELECT * FROM t2;
+SELECT * FROM t1 RIGHT JOIN v2 ON ( v2.a = t1.a ) WHERE v2.b IN ( SELECT b FROM t3 ) AND t1.b IS NULL ;
+a	b	a	b
+NULL	NULL	1	0
+NULL	NULL	1	0
+SELECT * FROM t1 RIGHT JOIN v2 ON ( v2.a = t1.a ) WHERE v2.b IN ( SELECT b FROM t3 ) AND t1.b IS NULL ;
+a	b	a	b
+NULL	NULL	1	0
+NULL	NULL	1	0
+DROP VIEW v2;
+DROP TABLE t1, t2, t3;

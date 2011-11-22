@@ -30,7 +30,9 @@ DROP TABLE t1, t2;
 #
 # Bug #19147: mysqlshow INFORMATION_SCHEMA does not work
 #
+--sorted_result
 --exec $MYSQL_SHOW information_schema
+--sorted_result
 --exec $MYSQL_SHOW INFORMATION_SCHEMA
 --exec $MYSQL_SHOW inf_rmation_schema
 

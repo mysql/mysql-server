@@ -1123,7 +1123,7 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action)
       point decremented it to 0. In this case the following happened:
 
       - an error message was reported with my_error() and
-      - the statement was killed with thd->killed= THD::KILL_QUERY.
+      - the statement was killed with thd->killed= KILL_QUERY.
 
       If a statement reports an error, it must not call send_ok().
       The calling functions will not call send_ok(), if we return TRUE
@@ -1838,7 +1838,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
   {
     if (!--action->hit_limit)
     {
-      thd->killed= THD::KILL_QUERY;
+      thd->killed= KILL_QUERY;
       my_error(ER_DEBUG_SYNC_HIT_LIMIT, MYF(0));
     }
     DBUG_PRINT("debug_sync_exec", ("hit_limit: %lu  at: '%s'",

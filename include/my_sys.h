@@ -63,7 +63,6 @@ typedef struct my_aio_result {
 #define MY_WME		16	/* Write message on error */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
-#define MY_SYNC_DIR     8192    /* my_create/delete/rename: sync directory */
 #define MY_UNUSED       64      /* Unused (was support for RAID) */
 #define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
@@ -84,6 +83,7 @@ typedef struct my_aio_result {
 #define MY_DONT_OVERWRITE_FILE 2048 /* my_copy: Don't overwrite file */
 #define MY_THREADSAFE 2048      /* my_seek(): lock fd mutex */
 #define MY_SYNC       4096      /* my_copy(): sync dst file */
+#define MY_SYNC_DIR   32768     /* my_create/delete/rename: sync directory */
 
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/
@@ -233,7 +233,8 @@ extern ulong    my_file_total_opened;
 extern ulong    my_sync_count;
 extern uint	mysys_usage_id;
 extern my_bool	my_init_done;
-
+extern my_bool  my_assert_on_error;
+extern myf      my_global_flags;        /* Set to MY_WME for more error messages */
 					/* Point to current my_message() */
 extern void (*my_sigtstp_cleanup)(void),
 					/* Executed before jump to shell */

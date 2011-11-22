@@ -558,7 +558,7 @@ static size_t mm_checkmem(XTThreadPtr self, MissingMemoryPtr mm_ptr, void *p, xt
 	unsigned char	*ptr	= (unsigned char *) p - MEM_DEBUG_HDR_SIZE;
 	MemoryDebugPtr	debug_ptr = (MemoryDebugPtr) ptr;
 	size_t			size	= debug_ptr->size;
-	long			a_value;  /* Added to simplfy debugging. */
+	long a_value __attribute__ ((unused)); /* Added to simplfy debugging. */
 
 	if (!ASSERT(p)) 
 		return(0);

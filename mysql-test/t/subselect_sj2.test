@@ -28,6 +28,7 @@ create table t2 (
   key(b)
 );
 insert into t2 select a, a/2 from t0;
+insert into t2 select a+10, a+10/2 from t0;
 
 select * from t1;
 select * from t2;
@@ -43,6 +44,8 @@ create table t3 (
    primary key(pk1, pk2, pk3)
 ) engine=innodb;
 insert into t3 select a,a, a,a,a from t0;
+insert into t3 select a,a, a+100,a+100,a+100 from t0;
+
 
 explain select * from t3 where b in (select a from t1);
 select * from t3 where b in (select a from t1);
@@ -578,6 +581,7 @@ insert into t0 values (0),(1),(2),(3),(4);
 
 create table t1 (a int, b int, key(a));
 insert into t1 select a,a from t0;
+insert into t1 select a+5,a from t0;
 
 create table t2 (a int, b int, primary key(a));
 insert into t2 select * from t1;
@@ -947,4 +951,123 @@ WHERE alias2.f11 IN (
 GROUP BY field2;
 drop table t1, t2, t3;
 
+--echo #
+--echo # BUG#849763: Wrong result with second execution of prepared statement with semijoin + view
+--echo #
+CREATE TABLE t1 ( c varchar(1)) engine=innodb;
+INSERT INTO t1 VALUES ('r');
+
+CREATE TABLE t2 ( a integer, b varchar(1), c varchar(1)) engine=innodb;
+INSERT INTO t2 VALUES (1,'r','r');
+
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+
+PREPARE st1 FROM 'SELECT * FROM t2 WHERE a = SOME (SELECT a FROM v1 WHERE v1.c = t2.c)';
+EXECUTE st1;
+EXECUTE st1;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#858732: Wrong result with semijoin + loosescan + comma join
+--echo #
+CREATE TABLE t1 (f13 int(11) NOT NULL , PRIMARY KEY (f13)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (16),(24);
+
+CREATE TABLE t2 (f14 int(11) NOT NULL, f12 varchar(1) NOT NULL, KEY (f12,f14)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (6,'y');
+
+CREATE TABLE t3 (f12 varchar(1) NOT NULL) ENGINE=InnoDB;
+INSERT INTO t3 VALUES ('r'),('s'),('t'),('v'),('w'),('x'),('y');
+
+--echo # The following must use LooseScan but not join buffering
+explain
+SELECT * FROM t3 
+WHERE f12 IN (SELECT alias2.f12 FROM t1 AS alias1, t2 AS alias2, t1 WHERE alias1.f13 = 24);
+
+SELECT * FROM t3 
+WHERE f12 IN (SELECT alias2.f12 FROM t1 AS alias1, t2 AS alias2, t1 WHERE alias1.f13 = 24);
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # BUG#869012: Wrong result with semijoin + materialization + AND in WHERE
+--echo #
+CREATE TABLE t1 (f3 varchar(1) , f4 varchar(1) ) engine=InnoDB;
+INSERT IGNORE INTO t1 VALUES ('x','x'),('x','x');
+CREATE TABLE t2 ( f4 varchar(1) ) ;
+INSERT IGNORE INTO t2 VALUES ('g');
+CREATE TABLE t3 (f4 varchar(1) ) Engine=InnoDB;
+INSERT IGNORE INTO t3 VALUES ('x');
+
+set @tmp_869012=@@optimizer_switch;
+SET optimizer_switch='semijoin=on,materialization=on';
+SELECT *
+FROM t1 , t2
+WHERE ( t1.f4 ) IN ( SELECT f4 FROM t3 )
+AND t2.f4 != t1.f3 ;
+set optimizer_switch= @tmp_869012;
+
+DROP TABLE t1,t2,t3;
+
+
+--echo #
+--echo # BUG#869001: Wrong result with semijoin + materialization + firstmatch + multipart key
+--echo #
+set @tmp869001_jcl= @@join_cache_level;
+set @tmp869001_os= @@optimizer_switch;
+SET join_cache_level=0;
+SET optimizer_switch='materialization=on,semijoin=on,firstmatch=on,loosescan=off';
+
+CREATE TABLE t1 ( f2 int, f3 varchar(1), KEY (f3,f2)) engine=innodb;
+INSERT INTO t1 VALUES (8,'x'),(NULL,'x'),(8,'c');
+
+CREATE TABLE t2 ( f4 varchar(1)) engine=innodb;
+INSERT INTO t2 VALUES ('x');
+
+CREATE TABLE t3 ( f1 int) engine=innodb;
+INSERT INTO t3 VALUES (8),(6),(2),(9),(6);
+
+CREATE TABLE t4 ( f3 varchar(1)) engine=innodb;
+INSERT INTO t4 VALUES ('p'),('j'),('c');
+
+SELECT *
+FROM t1 JOIN t2 ON (t2.f4 = t1.f3 )
+WHERE ( 8 ) IN (
+ SELECT t3.f1 FROM t3 , t4
+);
+
+DROP TABLE t1, t2, t3, t4;
+set join_cache_level= @tmp869001_jcl;
+set optimizer_switch= @tmp869001_os;
+
+--echo # 
+--echo # Bug #881318: join cache + duplicate elimination + left join
+--echo #              with empty materialized derived inner table
+--echo #
+
+CREATE TABLE t1 (b varchar(1)) ENGINE=InnoDB;
+
+CREATE TABLE t2 (a varchar(1)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES ('a');
+
+CREATE TABLE t3 (a varchar(1), b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t3 VALUES ('c','c');
+
+CREATE TABLE t4 (b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t4 VALUES ('c'), ('b');
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+
+EXPLAIN
+SELECT * FROM t3 LEFT JOIN (v1,t2) ON t3.a = t2.a
+  WHERE t3.b IN (SELECT b FROM t4);
+SELECT * FROM t3 LEFT JOIN (v1,t2) ON t3.a = t2.a
+  WHERE t3.b IN (SELECT b FROM t4);
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4;
+
+--echo # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;

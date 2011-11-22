@@ -122,7 +122,7 @@ extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern my_bool opt_skip_slave_start, opt_reckless_slave;
 extern my_bool opt_log_slave_updates;
 extern char *opt_slave_skip_errors;
-extern my_bool opt_replicate_annotate_rows_events;
+extern my_bool opt_replicate_annotate_row_events;
 extern ulonglong relay_log_space_limit;
 
 /*

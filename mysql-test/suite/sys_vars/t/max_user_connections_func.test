@@ -39,21 +39,23 @@ SET @default_max_user_connections = @@global.max_user_connections;
 
 Set Global max_user_connections=2;
 
+GRANT USAGE on *.* TO test@localhost;
+
 --echo '#--------------------FN_DYNVARS_114_01-------------------------#'
 ########################################
 #Should not make more then 2 connection#
 ########################################
 
---echo ** Connecting conn1 using username 'root' **
-CONNECT (conn1,localhost,root,,);
+--echo ** Connecting conn1 using username 'test' **
+CONNECT (conn1,localhost,test,,);
 
---echo ** Connecting conn2 using username 'root' **
-CONNECT (conn2,localhost,root,,);
+--echo ** Connecting conn2 using username 'test' **
+CONNECT (conn2,localhost,test,,);
 
---echo ** Connecting conn3 using username 'root' **
+--echo ** Connecting conn3 using username 'test' **
 --disable_query_log
 --Error ER_TOO_MANY_USER_CONNECTIONS
-CONNECT (conn3,localhost,root,,);
+CONNECT (conn3,localhost,test,,);
 --enable_query_log
 --echo Expected error "too many connections"
 
@@ -62,7 +64,7 @@ DISCONNECT conn1;
 
 --echo ** Poll till disconnected conn1 disappears from processlist
 let $wait_condition= SELECT count(id) <= 2
-   FROM information_schema.processlist WHERE user = 'root';
+   FROM information_schema.processlist WHERE user = 'test';
 --source include/wait_condition.inc
 
 --echo '#--------------------FN_DYNVARS_114_02-------------------------#'
@@ -70,11 +72,12 @@ let $wait_condition= SELECT count(id) <= 2
 #Set value to 3 and see if 3 connections can be made#
 #####################################################
 
+connection default;
 Set Global max_user_connections=3;
---echo ** Connecting conn5 using username 'root' **
-CONNECT (conn5,localhost,root,,);
---echo ** Connecting conn6 using username 'root' **
-CONNECT (conn6,localhost,root,,);
+--echo ** Connecting conn5 using username 'test' **
+CONNECT (conn5,localhost,test,,);
+--echo ** Connecting conn6 using username 'test' **
+CONNECT (conn6,localhost,test,,);
 
 #
 # Cleanup
@@ -87,6 +90,8 @@ CONNECTION default;
 DISCONNECT conn2;
 DISCONNECT conn5;
 DISCONNECT conn6;
+
+drop user test@localhost;
 
 SET @@global.max_user_connections = @default_max_user_connections;
 

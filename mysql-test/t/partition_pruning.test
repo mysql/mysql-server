@@ -892,6 +892,7 @@ drop table t1;
 create table t1 (a int not null, b int not null, key(a), key(b))
   partition by hash(a) partitions 4;
 insert into t1 values (1,1),(2,2),(3,3),(4,4);
+insert into t1 values (5,5),(6,6),(7,7),(8,8);
 
 explain partitions 
 select * from t1 X, t1 Y 

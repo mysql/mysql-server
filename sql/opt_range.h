@@ -375,6 +375,12 @@ public:
     Table record buffer used by this quick select.
   */
   uchar    *record;
+
+  virtual void replace_handler(handler *new_file)
+  {
+    DBUG_ASSERT(0); /* Only supported in QUICK_RANGE_SELECT */
+  }
+
 #ifndef DBUG_OFF
   /*
     Print quick select information to DBUG_FILE. Caller is responsible
@@ -475,6 +481,7 @@ public:
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
+  virtual void replace_handler(handler *new_file) { file= new_file; }
   QUICK_SELECT_I *make_reverse(uint used_key_parts_arg);
 private:
   /* Default copy ctor used by QUICK_SELECT_DESC */

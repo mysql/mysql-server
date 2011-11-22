@@ -1505,7 +1505,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     If the DB has changed, the pointer has changed too, but the
     original thd->db will then have been freed
   */
-  if (cur_db_changed && thd->killed != THD::KILL_CONNECTION)
+  if (cur_db_changed && thd->killed != KILL_CONNECTION)
   {
     /*
       Force switching back to the saved current database, because it may be
@@ -1940,7 +1940,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     thd->variables.option_bits= binlog_save_options;
     if (thd->binlog_evt_union.unioned_events)
     {
-      int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
+      int errcode = query_error_code(thd, thd->killed == NOT_KILLED);
       Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
                             thd->binlog_evt_union.unioned_events_trans, FALSE, FALSE, errcode);
       if (mysql_bin_log.write(&qinfo) &&

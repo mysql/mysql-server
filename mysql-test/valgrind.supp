@@ -414,6 +414,15 @@
 }
 
 {
+   dlsym memory loss from udf_free on SuSE 11.1 x64 variant 2
+   Memcheck:Leak
+   fun:calloc
+   obj:/lib*/ld-*.so
+   fun:dlclose
+   fun:udf_free
+}
+
+{
    dlclose memory loss from plugin variant 1
    Memcheck:Leak
    fun:calloc

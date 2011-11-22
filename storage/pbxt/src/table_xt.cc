@@ -1976,8 +1976,10 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	xtLogOffset				log_offset;
 #endif
 	xtRecordID				rec_id;
+#ifdef DUMP_CHECK_TABLE
 	xtRecordID				prev_rec_id;
 	xtXactID				xn_id;
+#endif
 	xtRowID					row_id;
 	u_llong					free_rec_count = 0, free_count2 = 0;
 	u_llong					delete_rec_count = 0;
@@ -2104,8 +2106,10 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 		else
 			printf(" ");
 #endif
+#ifdef DUMP_CHECK_TABLE
 		prev_rec_id = XT_GET_DISK_4(rec_buf->tr_prev_rec_id_4);
 		xn_id = XT_GET_DISK_4(rec_buf->tr_xact_id_4);
+#endif
 		row_id = XT_GET_DISK_4(rec_buf->tr_row_id_4);
 		switch (rec_buf->tr_rec_type_1 & XT_TAB_STATUS_MASK) {
 			case XT_TAB_STATUS_FREED:

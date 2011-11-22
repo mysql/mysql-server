@@ -11,8 +11,8 @@ WriteMakefile(
        AUTHOR         => 'higuchi dot akira at dena dot jp>') : ()),
     CC                => 'g++ -fPIC',
     LD                => 'g++ -fPIC',
-    LIBS              => ['-L../libhsclient -L../libhsclient/.libs -lhsclient'],
+    LIBS              => ['-L@builddir@/../libhsclient -L@builddir@/../libhsclient/.libs -lhsclient'],
     DEFINE            => '',
-    INC               => '-I. -I../libhsclient',
+    INC               => '-I. -I../libhsclient -I@builddir@/../libhsclient -I@top_builddir@/include',
     OPTIMIZE          => '-g -O3 -Wall -Wno-unused',
 );

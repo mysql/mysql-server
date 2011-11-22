@@ -161,7 +161,7 @@ extern my_bool allow_slave_start;
 extern LEX_CSTRING reason_slave_blocked;
 extern ulong slave_trans_retries;
 extern uint  slave_net_timeout;
-extern uint max_user_connections;
+extern int max_user_connections;
 extern ulong what_to_log,flush_time;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong open_files_limit;
@@ -534,6 +534,11 @@ extern char *opt_log_basename;
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern ulong binlog_checksum_options;
+extern bool max_user_connections_checking;
+extern ulong opt_binlog_dbug_fsync_sleep;
+
+extern uint internal_tmp_table_max_key_length;
+extern uint internal_tmp_table_max_key_segments;
 
 extern uint volatile global_disable_checkpoint;
 extern my_bool opt_help, opt_thread_alarm;

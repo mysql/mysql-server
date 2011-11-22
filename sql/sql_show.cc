@@ -1218,7 +1218,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   handler *file= table->file;
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
-  bool show_table_options= FALSE;
+  bool show_table_options __attribute__ ((unused))= FALSE;
   bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                      MODE_ORACLE |
                                                      MODE_MSSQL |
@@ -1908,7 +1908,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         mysql_mutex_lock(&tmp->LOCK_thd_data);
         if ((mysys_var= tmp->mysys_var))
           mysql_mutex_lock(&mysys_var->mutex);
-        thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
+        thd_info->proc_info= (char*) (tmp->killed >= KILL_QUERY ?
+                                      "Killed" : 0);
         thd_info->state_info= thread_state_info(tmp);
         if (mysys_var)
           mysql_mutex_unlock(&mysys_var->mutex);
@@ -2037,7 +2038,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       if ((mysys_var= tmp->mysys_var))
         mysql_mutex_lock(&mysys_var->mutex);
       /* COMMAND */
-      if ((val= (char *) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0)))
+      if ((val= (char *) ((tmp->killed >= KILL_QUERY ?
+                           "Killed" : 0))))
         table->field[4]->store(val, strlen(val), cs);
       else
         table->field[4]->store(command_name[tmp->command].str,
@@ -2385,7 +2387,7 @@ static bool show_status_array(THD *thd, const char *wild,
           end= strmov(buff, *(my_bool*) value ? "ON" : "OFF");
           break;
         case SHOW_INT:
-          end= int10_to_str((long) *(uint32*) value, buff, 10);
+          end= int10_to_str((long) *(uint*) value, buff, 10);
           break;
         case SHOW_HAVE:
         {
@@ -5058,7 +5060,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
   String sp_name(sp_name_buff, sizeof(sp_name_buff), cs);
   String definer(definer_buff, sizeof(definer_buff), cs);
   sp_head *sp;
-  uint routine_type;
+  stored_procedure_type routine_type;
   bool free_sp_head;
   DBUG_ENTER("store_schema_params");
 
@@ -5069,7 +5071,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
   get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_DB], &sp_db);
   get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_NAME], &sp_name);
   get_field(thd->mem_root,proc_table->field[MYSQL_PROC_FIELD_DEFINER],&definer);
-  routine_type= (uint) proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
+  routine_type= (stored_procedure_type) proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
 
   if (!full_access)
     full_access= !strcmp(sp_user, definer.ptr());
@@ -7471,11 +7473,11 @@ bool get_schema_tables_result(JOIN *join,
       {
         result= 1;
         join->error= 1;
-        tab->read_record.file= table_list->table->file;
+        tab->read_record.table->file= table_list->table->file;
         table_list->schema_table_state= executed_place;
         break;
       }
-      tab->read_record.file= table_list->table->file;
+      tab->read_record.table->file= table_list->table->file;
       table_list->schema_table_state= executed_place;
     }
   }

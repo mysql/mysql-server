@@ -32,6 +32,7 @@
 #include "sql_base.h"                    // lock_table_names, tdc_remove_table
 #include "sql_handler.h"                 // mysql_ha_rm_tables
 #include <mysys_err.h>
+#include "sp_head.h"
 #include "sp.h"
 #include "events.h"
 #include "sql_handler.h"

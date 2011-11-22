@@ -65,7 +65,7 @@ bool
 No_such_table_error_handler::handle_condition(THD *,
                                               uint sql_errno,
                                               const char*,
-                                              MYSQL_ERROR::enum_warning_level,
+                                              MYSQL_ERROR::enum_warning_level level,
                                               const char*,
                                               MYSQL_ERROR ** cond_hdl)
 {
@@ -76,7 +76,8 @@ No_such_table_error_handler::handle_condition(THD *,
     return TRUE;
   }
 
-  m_unhandled_errors++;
+  if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+    m_unhandled_errors++;
   return FALSE;
 }
 
@@ -982,7 +983,7 @@ static void kill_delayed_threads_for_table(TABLE_SHARE *share)
     if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
         ! in_use->killed)
     {
-      in_use->killed= THD::KILL_CONNECTION;
+      in_use->killed= KILL_SYSTEM_THREAD;
       mysql_mutex_lock(&in_use->mysys_var->mutex);
       if (in_use->mysys_var->current_cond)
       {
@@ -6718,11 +6719,25 @@ find_field_in_tables(THD *thd, Item_ident *item,
       {
         SELECT_LEX *current_sel= thd->lex->current_select;
         SELECT_LEX *last_select= table_ref->select_lex;
+        bool all_merged= TRUE;
+        for (SELECT_LEX *sl= current_sel; sl && sl!=last_select;
+             sl=sl->outer_select())
+        {
+          Item *subs= sl->master_unit()->item;
+          if (subs->type() == Item::SUBSELECT_ITEM && 
+              ((Item_subselect*)subs)->substype() == Item_subselect::IN_SUBS &&
+              ((Item_in_subselect*)subs)->test_strategy(SUBS_SEMI_JOIN))
+          {
+            continue;
+          }
+          all_merged= FALSE;
+          break;
+        }
         /*
           If the field was an outer referencee, mark all selects using this
           sub query as dependent on the outer query
         */
-        if (current_sel != last_select)
+        if (!all_merged && current_sel != last_select)
         {
           mark_select_range_as_dependent(thd, last_select, current_sel,
                                          found, *ref, item);
@@ -8544,7 +8559,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
   TABLE_LIST *table= NULL;	// For HP compilers
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   List_iterator<TABLE_LIST> ti(leaves);
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
@@ -8581,7 +8595,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
       goto err_no_arena;
   }
 
-  thd->thd_marker.emb_on_expr_nest= NO_JOIN_NEST;
   if (*conds)
   {
     thd->where="where clause";
@@ -8595,11 +8608,11 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
     */
     if ((*conds)->type() == Item::FIELD_ITEM && !derived)
       wrap_ident(thd, conds);
+    (*conds)->mark_as_condition_AND_part(NO_JOIN_NEST);
     if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
   }
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   /*
     Apply fix_fields() to all ON clauses at all levels of nesting,
@@ -8615,8 +8628,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
       if (embedded->on_expr)
       {
         /* Make a join an a expression */
-        thd->thd_marker.emb_on_expr_nest= embedded;
         thd->where="on clause";
+        embedded->on_expr->mark_as_condition_AND_part(embedded);
         if ((!embedded->on_expr->fixed &&
              embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
 	    embedded->on_expr->check_cols(1))
@@ -8640,7 +8653,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
       }
     }
   }
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   if (!thd->stmt_arena->is_conventional())
   {
@@ -9093,7 +9105,7 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
   if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
       !in_use->killed)
   {
-    in_use->killed= THD::KILL_CONNECTION;
+    in_use->killed= KILL_SYSTEM_THREAD;
     mysql_mutex_lock(&in_use->mysys_var->mutex);
     if (in_use->mysys_var->current_cond)
       mysql_cond_broadcast(in_use->mysys_var->current_cond);

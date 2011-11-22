@@ -177,9 +177,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   Item **arg,**arg_end;
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
-  thd->thd_marker.emb_on_expr_nest= NULL;
 
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
@@ -233,7 +231,6 @@ Item_func::fix_fields(THD *thd, Item **ref)
   if (thd->is_error()) // An error inside fix_length_and_dec occured
     return TRUE;
   fixed= 1;
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
   return FALSE;
 }
 
@@ -5497,7 +5494,7 @@ void Item_func_get_system_var::fix_length_and_dec()
     case SHOW_LONG:
     case SHOW_INT:
     case SHOW_HA_ROWS:
-      unsigned_flag= TRUE;
+      unsigned_flag= TRUE; //var->show_type() != SHOW_INT;
       collation.set_numeric();
       fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
       decimals=0;

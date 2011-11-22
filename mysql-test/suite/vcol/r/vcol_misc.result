@@ -139,6 +139,9 @@ create table t2 (c int, d int, v int as (d+1), index idx(c));
 insert into t2(c,d) values 
 (20, 100), (20, 300), (30, 100), (30, 200), (40, 500),
 (70, 100), (40, 300), (60, 100), (40, 100), (70, 100);
+insert into t2(c,d) values 
+(120, 100), (150, 300), (130, 100), (130, 200), (140, 500),
+(170, 100), (180, 300), (160, 100), (40, 100), (170, 100);
 set join_cache_level=6;
 explain
 select * from t1,t2 where t1.b=t2.c and d <= 100;
