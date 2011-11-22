@@ -259,43 +259,6 @@ Qmgr::execSTART_ORD(Signal* signal)
   signal->theData[1] = Uint32(now >> 32);
   signal->theData[2] = Uint32(now);
   sendSignal(QMGR_REF, GSN_CONTINUEB, signal, 3, JBB);
-
-  NodeRecPtr nodePtr;
-  for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) 
-  {
-    ptrAss(nodePtr, nodeRec);
-    nodePtr.p->ndynamicId = 0;	
-    nodePtr.p->hbOrder = 0;
-    Uint32 cnt = 0;
-    Uint32 type = getNodeInfo(nodePtr.i).m_type;
-    switch(type){
-    case NodeInfo::DB:
-      jam();
-      nodePtr.p->phase = ZINIT;
-      c_definedNodes.set(nodePtr.i);
-      break;
-    case NodeInfo::API:
-      jam();
-      nodePtr.p->phase = ZAPI_INACTIVE;
-      break;
-    case NodeInfo::MGM:
-      jam();
-      /**
-       * cmvmi allows ndb_mgmd to connect directly
-       */
-      nodePtr.p->phase = ZAPI_INACTIVE;
-      break;
-    default:
-      jam();
-      nodePtr.p->phase = ZAPI_INACTIVE;
-    }
-    
-    setNodeInfo(nodePtr.i).m_heartbeat_cnt = cnt;
-    nodePtr.p->sendPrepFailReqStatus = Q_NOT_ACTIVE;
-    nodePtr.p->sendCommitFailReqStatus = Q_NOT_ACTIVE;
-    nodePtr.p->sendPresToStatus = Q_NOT_ACTIVE;
-    nodePtr.p->failState = NORMAL;
-  }//for
 }
 
 /*
