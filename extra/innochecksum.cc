@@ -159,9 +159,9 @@ static void usage(void)
   my_print_variables(innochecksum_options);
 }
 
-static my_bool
-get_one_option(
-/*===========*/
+extern "C" my_bool
+innochecksum_get_one_option(
+/*========================*/
   int optid,
   const struct my_option *opt __attribute__((unused)),
   char *argument __attribute__((unused)))
@@ -198,7 +198,7 @@ static int get_options(
 {
   int ho_error;
 
-  if ((ho_error=handle_options(argc, argv, innochecksum_options, get_one_option)))
+  if ((ho_error=handle_options(argc, argv, innochecksum_options, innochecksum_get_one_option)))
     exit(ho_error);
 
   /* The next arg must be the filename */
