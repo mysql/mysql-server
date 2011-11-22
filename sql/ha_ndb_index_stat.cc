@@ -2124,6 +2124,16 @@ ndb_index_stat_stop_listener(Ndb_index_stat_proc &pr)
   DBUG_RETURN(0);
 }
 
+bool
+Ndb_index_stat_thread::is_setup_complete()
+{
+  if (ndb_index_stat_get_enable(NULL))
+  {
+    return ndb_index_stat_allow();
+  }
+  return true;
+}
+
 void
 Ndb_index_stat_thread::do_run()
 {
