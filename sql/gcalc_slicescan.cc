@@ -157,7 +157,7 @@ static void GCALC_DBUG_PRINT_SLICE(const char *header,
 
 
 #else
-#define GCALC_DBUG_CHECK_COUNTER(a)             do { } while(0)
+#define GCALC_DBUG_CHECK_COUNTER()              do { } while(0)
 #define GCALC_DBUG_PRINT_PI(pi)                 do { } while(0)
 #define GCALC_DBUG_PRINT_SLICE(a, b)            do { } while(0)
 #define GCALC_DBUG_PRINT_INTERSECTIONS(a)       do { } while(0)
@@ -432,7 +432,7 @@ void gcalc_mul_coord(Gcalc_internal_coord *result, int result_len,
       gcalc_coord2 cur_b= n_b ? b[n_b] : FIRST_DIGIT(b[0]);
       gcalc_coord2 mul= cur_a * cur_b + carry + result[n_a + n_b + 1];
       result[n_a + n_b + 1]= mul % GCALC_DIG_BASE;
-      carry= mul / GCALC_DIG_BASE;
+      carry= (gcalc_digit_t) (mul / GCALC_DIG_BASE);
     } while (n_b--);
     if (carry)
     {
@@ -1396,7 +1396,7 @@ int Gcalc_scan_iterator::insert_top_node()
 {
   point *sp= state.slice;
   point **prev_hook= &state.slice;
-  point *sp1;
+  point *sp1= NULL;
   point *sp0= new_slice_point();
   int cmp_res;
 
