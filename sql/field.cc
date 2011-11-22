@@ -5073,10 +5073,10 @@ Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
   }
   case MYSQL_TIMESTAMP_NONE:
   case  MYSQL_TIMESTAMP_ERROR:
+  default:
     warnings|= MYSQL_TIME_WARN_TRUNCATED;
     reset();
     error= 1;
-  /* No "default" to get compiler error if we add a new enum value */
   }
 
   if (warnings)
