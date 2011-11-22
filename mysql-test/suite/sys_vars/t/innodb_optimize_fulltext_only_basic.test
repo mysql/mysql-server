@@ -1,0 +1,70 @@
+
+
+# 2011-11-16 - Added
+#
+
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_optimize_fulltext_only;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are 'ON' and 'OFF' 
+select @@global.innodb_optimize_fulltext_only in (0, 1);
+select @@global.innodb_optimize_fulltext_only;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_optimize_fulltext_only;
+show global variables like 'innodb_optimize_fulltext_only';
+show session variables like 'innodb_optimize_fulltext_only';
+select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+
+#
+# show that it's writable
+#
+set global innodb_optimize_fulltext_only='ON';
+select @@global.innodb_optimize_fulltext_only;
+select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+set @@global.innodb_optimize_fulltext_only=0;
+select @@global.innodb_optimize_fulltext_only;
+select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+set global innodb_optimize_fulltext_only=1;
+select @@global.innodb_optimize_fulltext_only;
+select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+set @@global.innodb_optimize_fulltext_only='OFF';
+select @@global.innodb_optimize_fulltext_only;
+select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+--error ER_GLOBAL_VARIABLE
+set session innodb_optimize_fulltext_only='OFF';
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_optimize_fulltext_only='ON';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_optimize_fulltext_only=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_optimize_fulltext_only=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_optimize_fulltext_only=2;
+--echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+set global innodb_optimize_fulltext_only=-3;
+select @@global.innodb_optimize_fulltext_only;
+select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_optimize_fulltext_only='AUTO';
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_optimize_fulltext_only = @start_global_value;
+SELECT @@global.innodb_optimize_fulltext_only;

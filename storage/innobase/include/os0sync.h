@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -98,6 +98,9 @@ struct os_event_struct {
 typedef struct os_mutex_struct	os_mutex_str_t;
 /** Operating system mutex handle */
 typedef os_mutex_str_t*		os_mutex_t;
+
+/** Return value of os_event_wait_time() when the time is exceeded */
+#define OS_SYNC_TIME_EXCEEDED	1
 
 /** Mutex protecting counts and the event and OS 'slow' mutex lists */
 extern os_mutex_t	os_sync_mutex;
@@ -193,7 +196,7 @@ os_event_wait_low(
 /**********************************************************//**
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded. In Unix the timeout is always infinite.
-@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
+@return 0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 UNIV_INTERN
 ulint
 os_event_wait_time_low(
@@ -401,6 +404,9 @@ amount of increment. */
 # define os_atomic_increment_ulint(ptr, amount) \
 	os_atomic_increment(ptr, amount)
 
+# define os_atomic_increment_uint64(ptr, amount) \
+	os_atomic_increment(ptr, amount)
+
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
 
@@ -468,6 +474,9 @@ amount of increment. */
 
 # define os_atomic_increment_lint(ptr, amount) \
 	os_atomic_increment_ulint((ulong_t*) ptr, amount)
+
+# define os_atomic_increment_uint64(ptr, amount) \
+	atomic_add_64_nv(ptr, amount)
 
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
@@ -564,6 +573,9 @@ amount of increment. */
 
 # define os_atomic_increment_ulint(ptr, amount) \
 	((ulint) (win_xchg_and_add((lint*) ptr, (lint) amount) + amount))
+
+# define os_atomic_increment_uint64(ptr, amount) \
+	((ulint) (win_xchg_and_add(ptr, (lint) amount) + amount))
 
 /**********************************************************//**
 Returns the resulting value, ptr is pointer to target, amount is the

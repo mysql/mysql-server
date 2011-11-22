@@ -6869,7 +6869,7 @@ alter_commands:
         ;
 
 remove_partitioning:
-          REMOVE_SYM PARTITIONING_SYM
+          REMOVE_SYM PARTITIONING_SYM have_partitioning
           {
             Lex->alter_info.flags|= ALTER_REMOVE_PARTITIONING;
           }
@@ -7203,7 +7203,7 @@ slave:
                  Lex->slave_connection.plugin_auth ||
                  Lex->slave_connection.plugin_dir))
             {
-              my_error(ER_SQLTHREAD_WITH_SECURE_SALVE, MYF(0));
+              my_error(ER_SQLTHREAD_WITH_SECURE_SLAVE, MYF(0));
               MYSQL_YYABORT;
             }
           }
@@ -10436,7 +10436,8 @@ limit_option:
           }
           splocal->limit_clause_param= TRUE;
           $$= splocal;
-        } | param_marker
+        }
+        | param_marker
         {
           ((Item_param *) $1)->limit_clause_param= TRUE;
         }

@@ -101,6 +101,8 @@ static bool make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after
 static bool only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
                                table_map *cached_eq_ref_tables,
                                table_map *eq_ref_tables);
+static bool duplicate_order(const ORDER *first_order, 
+                            const ORDER *possible_dup);
 static void update_depend_map(JOIN *join);
 static void update_depend_map(JOIN *join, ORDER *order);
 static ORDER *remove_const(JOIN *join,ORDER *first_order,Item *cond,
@@ -817,6 +819,8 @@ JOIN::prepare(TABLE_LIST *tables_init,
 
   if (having)
   {
+    Query_arena backup, *arena;
+    arena= thd->activate_stmt_arena_if_needed(&backup);
     nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
     thd->where="having clause";
     thd->lex->allow_sum_func|= 1 << select_lex_arg->nest_level;
@@ -826,6 +830,9 @@ JOIN::prepare(TABLE_LIST *tables_init,
 			 (having->fix_fields(thd, &having) ||
 			  having->check_cols(1)));
     select_lex->having_fix_field= 0;
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+
     select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
     if (having_fix_rc || thd->is_error())
       DBUG_RETURN(-1);				/* purecov: inspected */
@@ -13233,6 +13240,45 @@ only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
   return true;
 }
 
+/**
+  Check if an expression in ORDER BY or GROUP BY is a duplicate of a
+  preceding expression.
+
+  @param  first_order   the first expression in the ORDER BY or
+                        GROUP BY clause
+  @param  possible_dup  the expression that might be a duplicate of
+                        another expression preceding it the ORDER BY
+                        or GROUP BY clause
+
+  @returns true if possible_dup is a duplicate, false otherwise
+*/
+static bool duplicate_order(const ORDER *first_order, 
+                            const ORDER *possible_dup)
+{
+  const ORDER *order;
+  for (order=first_order; order ; order=order->next)
+  {
+    if (order == possible_dup)
+    {
+      // all expressions preceding possible_dup have been checked.
+      return false;
+    }
+    else 
+    {
+      const Item *it1= order->item[0]->real_item();
+      const Item *it2= possible_dup->item[0]->real_item();
+
+      if (it1->type() == Item::FIELD_ITEM &&
+          it2->type() == Item::FIELD_ITEM &&
+          (static_cast<const Item_field*>(it1)->field ==
+           static_cast<const Item_field*>(it2)->field))
+      {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 /** Update the dependency map for the tables. */
 
@@ -13372,6 +13418,16 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
       }
       trace_one_item.add("uses_only_constant_tables", true);
       continue;					// skip const item
+    }
+    else if (duplicate_order(first_order, order))
+    {
+      /* 
+        If 'order' is a duplicate of an expression earlier in the
+        ORDER/GROUP BY sequence, it can be removed from the ORDER BY
+        or GROUP BY clause.
+      */
+      trace_one_item.add("duplicate_item", true);
+      continue;
     }
     else
     {
@@ -17697,6 +17753,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
        string_total_length / string_count >= AVG_STRING_LENGTH_TO_PACK_ROWS)))
     use_packed_rows= 1;
 
+  if (!use_packed_rows)
+    share->db_create_options&= ~HA_OPTION_PACK_RECORD;
+
   share->reclength= reclength;
   {
     uint alloc_length=ALIGN_SIZE(reclength+MI_UNIQUE_HASH_LENGTH+1);
@@ -17971,7 +18030,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   {
     if (instantiate_tmp_table(table, param->keyinfo, param->start_recinfo,
                               &param->recinfo, select_options,
-                              thd->variables.big_tables))
+                              thd->variables.big_tables, &thd->opt_trace))
       goto err;
   }
 
@@ -18284,7 +18343,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   share->db_record_offset= 1;
   if (share->db_type() == myisam_hton)
     recinfo++;
-  if (instantiate_tmp_table(table, keyinfo, start_recinfo, &recinfo, 0, 0))
+  if (instantiate_tmp_table(table, keyinfo, start_recinfo, &recinfo, 
+                            0, 0, &thd->opt_trace))
     goto err;
 
   sjtbl->start_recinfo= start_recinfo;
@@ -18600,6 +18660,35 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
 }
 
 
+void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
+{
+  Opt_trace_object trace_tmp(trace, "tmp_table_info");
+  if (strlen(table->alias) != 0)
+    trace_tmp.add_utf8_table(table);
+  else
+    trace_tmp.add_alnum("table", "intermediate_tmp_table");
+
+  trace_tmp.add("row_length",table->s->reclength).
+    add("key_length", table->s->key_info ? 
+        table->s->key_info->key_length : 0).
+    add("unique_constraint", table->s->uniques ? true : false);
+
+  if (table->s->db_type() == myisam_hton)
+  {
+    trace_tmp.add_alnum("location", "disk (MyISAM)");
+    if (table->s->db_create_options & HA_OPTION_PACK_RECORD)
+      trace_tmp.add_alnum("record_format", "packed");
+    else 
+      trace_tmp.add_alnum("record_format", "fixed");
+  }
+  else
+  {
+    DBUG_ASSERT(table->s->db_type() == heap_hton);
+    trace_tmp.add_alnum("location", "memory (heap)").
+      add("row_limit_estimate", table->s->max_rows);
+  }
+}
+
 /**
   @brief
   Instantiates temporary table
@@ -18610,6 +18699,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
   @param  start_recinfo   Column descriptions
   @param  recinfo INOUT   End of column descriptions
   @param  options         Option bits
+  @param  trace           Optimizer trace to write info to
 
   @details
     Creates tmp table and opens it.
@@ -18622,7 +18712,8 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
 bool instantiate_tmp_table(TABLE *table, KEY *keyinfo, 
                            MI_COLUMNDEF *start_recinfo,
                            MI_COLUMNDEF **recinfo, 
-                           ulonglong options, my_bool big_tables)
+                           ulonglong options, my_bool big_tables,
+                           Opt_trace_context *trace)
 {
   if (table->s->db_type() == myisam_hton)
   {
@@ -18634,6 +18725,13 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
   }
   if (open_tmp_table(table))
     return TRUE;
+
+  if (unlikely(trace->is_started()))
+  {
+    Opt_trace_object wrapper(trace);
+    Opt_trace_object convert(trace, "creating_tmp_table");
+    trace_tmp_table(trace, table);
+  }
   return FALSE;
 }
 
@@ -18755,6 +18853,18 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
     goto err2;
   if (open_tmp_table(&new_table))
     goto err1;
+
+
+  if (unlikely(thd->opt_trace.is_started()))
+  {
+    Opt_trace_context * trace= &thd->opt_trace;
+    Opt_trace_object wrapper(trace);
+    Opt_trace_object convert(trace, "converting_tmp_table_to_myisam");
+    DBUG_ASSERT(error == HA_ERR_RECORD_FILE_FULL);
+    convert.add_alnum("cause", "memory_table_size_exceeded");
+    trace_tmp_table(trace, &new_table);
+  }
+
   if (table->file->indexes_are_disabled())
     new_table.file->ha_disable_indexes(HA_KEY_SWITCH_ALL);
   table->file->ha_index_or_rnd_end();

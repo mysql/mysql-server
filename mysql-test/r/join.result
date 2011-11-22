@@ -1259,3 +1259,50 @@ pk	c1
 3	5
 DROP VIEW v_t2;
 DROP TABLE t1, t2;
+#
+# Bug 13102033 - CRASH IN COPY_FUNCS IN SQL_SELECT.CC ON JOIN + 
+#                GROUP BY + ORDER BY
+#
+CREATE TABLE t1 (  
+pk INTEGER NOT NULL,
+i1 INTEGER NOT NULL,
+i2 INTEGER NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (7,8,1), (8,2,2);
+CREATE VIEW v1 AS SELECT * FROM t1;
+EXPLAIN SELECT t1.pk
+FROM v1, t1
+WHERE v1.i2 = 211
+AND v1.i2 > 7
+OR t1.i1 < 3
+GROUP BY t1.pk
+ORDER BY v1.i2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+SELECT t1.pk
+FROM v1, t1
+WHERE v1.i2 = 211
+AND v1.i2 > 7
+OR t1.i1 < 3
+GROUP BY t1.pk
+ORDER BY v1.i2;
+pk
+8
+EXPLAIN SELECT t1.pk
+FROM v1, t1
+WHERE (v1.i2 = 211 AND v1.i2 > 7)
+OR (t1.i1 < 3 AND v1.i2 < 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+SELECT t1.pk
+FROM v1, t1
+WHERE (v1.i2 = 211 AND v1.i2 > 7)
+OR (t1.i1 < 3 AND v1.i2 < 10);
+pk
+8
+8
+DROP VIEW v1;
+DROP TABLE t1;

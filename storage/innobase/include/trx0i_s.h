@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -66,13 +66,15 @@ do {								\
 		strncpy(buff, data, constraint);		\
 		buff[constraint] = '\0';			\
 								\
-		field = ha_storage_put_memlim(			\
+		field = static_cast<const char*>(		\
+			ha_storage_put_memlim(			\
 			(tcache)->storage, buff, constraint + 1,\
-			MAX_ALLOWED_FOR_STORAGE(tcache));	\
+			MAX_ALLOWED_FOR_STORAGE(tcache)));	\
 	} else {						\
-		field = ha_storage_put_str_memlim(		\
+		field = static_cast<const char*>(		\
+			ha_storage_put_str_memlim(		\
 			(tcache)->storage, data,		\
-			MAX_ALLOWED_FOR_STORAGE(tcache));	\
+			MAX_ALLOWED_FOR_STORAGE(tcache)));	\
 	}							\
 } while (0)
 
@@ -173,6 +175,11 @@ struct i_s_trx_row_struct {
 	ulint		trx_search_latch_timeout;
 					/*!< search_latch_timeout in
 					trx_struct */
+	ulint		trx_is_read_only;
+					/*!< trx_t::read_only */
+	ulint		trx_is_autocommit_non_locking;
+					/*!< trx_is_autocommit_non_locking(trx)
+					*/
 };
 
 /** This structure represents INFORMATION_SCHEMA.innodb_lock_waits row */

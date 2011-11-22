@@ -2478,7 +2478,8 @@ bool const_expression_in_where(Item *cond, Item *comp_item,
 bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
                            MI_COLUMNDEF *start_recinfo,
                            MI_COLUMNDEF **recinfo,
-                           ulonglong options, my_bool big_tables);
+                           ulonglong options, my_bool big_tables,
+                           Opt_trace_context *trace);
 
 /**
   Printing the transformed query in EXPLAIN EXTENDED or optimizer trace
