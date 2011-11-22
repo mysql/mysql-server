@@ -123,8 +123,6 @@ Trpman::execCONNECT_REP(Signal *signal)
 
   const NodeInfo::NodeType type = (NodeInfo::NodeType)getNodeInfo(hostId).m_type;
   ndbrequire(type != NodeInfo::INVALID);
-  globalData.m_nodeInfo[hostId].m_version = 0;
-  globalData.m_nodeInfo[hostId].m_mysql_version = 0;
 
   /**
    * Inform QMGR that client has connected

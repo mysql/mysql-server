@@ -480,6 +480,13 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     return;
   }
 
+  if (c_connectedNodes.get(connectedNodeId) == false)
+  {
+    jam();
+    setNodeInfo(connectedNodeId).m_version = 0;
+    setNodeInfo(connectedNodeId).m_mysql_version = 0;
+  }
+
   c_connectedNodes.set(connectedNodeId);
 
   {
@@ -769,7 +776,6 @@ void Qmgr::execCM_REGREQ(Signal* signal)
                         cmRegReq->nodeId,
                         (unsigned)isNdbMt());
 
-    ndbrequire(isNdbMt());
     return;
   }
 
@@ -3522,7 +3528,17 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
      */
     return;
   }
-  
+
+  if (!c_connectedNodes.get(apiNodePtr.i))
+  {
+    jam();
+    /**
+     * We have not yet heard execCONNECT_REP
+     *   so ignore this until we do...
+     */
+    return;
+  }
+
 #if 0
   ndbout_c("Qmgr::execAPI_REGREQ: Recd API_REGREQ (NodeId=%d)", apiNodePtr.i);
 #endif
