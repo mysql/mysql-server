@@ -371,10 +371,11 @@ TransporterCallbackKernel::reportConnect(NodeId nodeId)
   SignalT<1> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
-  signal.header.theLength = 1; 
+  Uint32 trpman_instance = 1;
+  signal.header.theLength = 1;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
-  signal.header.theReceiversBlockNumber = CMVMI;
+  signal.header.theReceiversBlockNumber = numberToBlock(TRPMAN,trpman_instance);
   signal.header.theVerId_signalNumber = GSN_CONNECT_REP;
 
   signal.theData[0] = nodeId;
@@ -400,12 +401,13 @@ TransporterCallbackKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
   SignalT<sizeof(DisconnectRep)/4> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
-  signal.header.theLength = DisconnectRep::SignalLength; 
+  Uint32 trpman_instance = 1;
+  signal.header.theLength = DisconnectRep::SignalLength;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
   signal.header.theTrace = TestOrd::TraceDisconnect;
   signal.header.theVerId_signalNumber = GSN_DISCONNECT_REP;
-  signal.header.theReceiversBlockNumber = CMVMI;
+  signal.header.theReceiversBlockNumber = numberToBlock(TRPMAN,trpman_instance);
 
   DisconnectRep * rep = CAST_PTR(DisconnectRep, &signal.theData[0]);
   rep->nodeId = nodeId;

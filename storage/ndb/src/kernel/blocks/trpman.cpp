@@ -47,7 +47,7 @@ Trpman::~Trpman()
 BLOCK_FUNCTIONS(Trpman)
 
 #ifdef ERROR_INSERT
-NodeBitmask c_error_9000_nodes_mask;
+static NodeBitmask c_error_9000_nodes_mask;
 extern Uint32 MAX_RECEIVED_SIGNALS;
 #endif
 
@@ -569,8 +569,6 @@ TrpmanProxy::TrpmanProxy(Block_context & ctx) :
   addRecSignal(GSN_CLOSE_COMREQ, &TrpmanProxy::execCLOSE_COMREQ);
   addRecSignal(GSN_OPEN_COMREQ, &TrpmanProxy::execOPEN_COMREQ);
   addRecSignal(GSN_ENABLE_COMREQ, &TrpmanProxy::execENABLE_COMREQ);
-  addRecSignal(GSN_DISCONNECT_REP, &TrpmanProxy::execDISCONNECT_REP);
-  addRecSignal(GSN_CONNECT_REP, &TrpmanProxy::execCONNECT_REP);
   addRecSignal(GSN_ROUTE_ORD, &TrpmanProxy::execROUTE_ORD);
 }
 
@@ -601,15 +599,6 @@ TrpmanProxy::execOPEN_COMREQ(Signal* signal)
 }
 
 void
-TrpmanProxy::execCONNECT_REP(Signal *signal)
-{
-  jamEntry();
-  SectionHandle handle(this, signal);
-  sendSignal(workerRef(0), GSN_CONNECT_REP, signal,
-             signal->getLength(), JBB, &handle);
-}
-
-void
 TrpmanProxy::execCLOSE_COMREQ(Signal* signal)
 {
   jamEntry();
@@ -624,15 +613,6 @@ TrpmanProxy::execENABLE_COMREQ(Signal* signal)
   jamEntry();
   SectionHandle handle(this, signal);
   sendSignal(workerRef(0), GSN_ENABLE_COMREQ, signal,
-             signal->getLength(), JBB, &handle);
-}
-
-void
-TrpmanProxy::execDISCONNECT_REP(Signal *signal)
-{
-  jamEntry();
-  SectionHandle handle(this, signal);
-  sendSignal(workerRef(0), GSN_DISCONNECT_REP, signal,
              signal->getLength(), JBB, &handle);
 }
 
