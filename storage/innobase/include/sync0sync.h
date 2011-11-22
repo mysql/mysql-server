@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -734,7 +734,7 @@ implementation of a mutual exclusion semaphore. */
 
 /** InnoDB mutex */
 struct mutex_struct {
-	os_event_t	event;	/*!< Used by sync0arr.c for the wait queue */
+	os_event_t	event;	/*!< Used by sync0arr.cc for the wait queue */
 	volatile lock_word_t	lock_word;	/*!< lock_word is the target
 				of the atomic test-and-set instruction when
 				atomic operations are enabled. */

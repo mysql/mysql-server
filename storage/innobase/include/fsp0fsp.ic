@@ -39,11 +39,10 @@ fsp_descr_page(
 	ut_ad(ut_is_2pow(zip_size));
 
 	if (!zip_size) {
-		return(UNIV_UNLIKELY((page_no & (UNIV_PAGE_SIZE - 1))
-				     == FSP_XDES_OFFSET));
+		return((page_no & (UNIV_PAGE_SIZE - 1)) == FSP_XDES_OFFSET);
 	}
 
-	return(UNIV_UNLIKELY((page_no & (zip_size - 1)) == FSP_XDES_OFFSET));
+	return((page_no & (zip_size - 1)) == FSP_XDES_OFFSET);
 }
 
 /********************************************************************//**
@@ -134,7 +133,7 @@ fsp_flags_get_zip_size(
 	ulint	ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
 
 	/* Convert from a 'log2 minus 9' to a page size in bytes. */
-	if (UNIV_UNLIKELY(ssize)) {
+	if (ssize) {
 		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
 
 		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
