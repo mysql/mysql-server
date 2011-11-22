@@ -3361,7 +3361,7 @@ fts_add_doc_by_id(
 				get_doc, clust_index, doc_pcur, offsets, &doc);
 
 			if (doc.found) {
-				ibool		success;
+				ibool	success __attribute__((unused));
 
 				btr_pcur_store_position(doc_pcur, &mtr);
 				mtr_commit(&mtr);
@@ -3440,7 +3440,7 @@ fts_get_max_doc_id(
 	dict_table_t*	table)		/*!< in: user table */
 {
 	dict_index_t*	index;
-	dict_field_t*	dfield = NULL;
+	dict_field_t*	dfield __attribute__((unused)) = NULL;
 	doc_id_t	doc_id = 0;
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
