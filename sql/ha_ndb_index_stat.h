@@ -47,6 +47,8 @@ public:
   pthread_mutex_t stat_mutex;
   pthread_cond_t stat_cond;
 
+  /* are we setup */
+  bool is_setup_complete();
 private:
   virtual int do_init() { return 0;}
   virtual void do_run();
