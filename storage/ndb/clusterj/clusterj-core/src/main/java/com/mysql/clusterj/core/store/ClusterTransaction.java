@@ -50,6 +50,8 @@ public interface ClusterTransaction {
 
     public IndexOperation getUniqueIndexDeleteOperation(Index storeIndex, Table storeTable);
 
+    public IndexOperation getUniqueIndexUpdateOperation(Index storeIndex, Table storeTable);
+
     public IndexScanOperation getIndexScanOperation(Index storeIndex, Table storeTable);
 
     public IndexScanOperation getIndexScanOperationLockModeExclusiveScanFlagKeyInfo(Index storeIndex, Table storeTable);

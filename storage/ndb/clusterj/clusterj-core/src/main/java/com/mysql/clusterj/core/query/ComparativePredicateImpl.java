@@ -81,6 +81,11 @@ public abstract class ComparativePredicateImpl extends PredicateImpl {
         return param;
     }
 
+    @Override
+    protected PropertyImpl getProperty() {
+        return property;
+    }
+
     @Override 
     public boolean isUsable(QueryExecutionContext context) {
         return param.getParameterValue(context) != null;

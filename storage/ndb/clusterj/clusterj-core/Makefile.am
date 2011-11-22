@@ -65,6 +65,7 @@ clusterj_core_java = \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/QueryExecutionContext.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/SessionSPI.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/ValueHandler.java \
+  $(clusterj_core_src)/com/mysql/clusterj/core/spi/ValueHandlerBatching.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/StateManager.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/store/Blob.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/store/ClusterConnection.java \
