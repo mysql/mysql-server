@@ -104,7 +104,8 @@ public:
   : trx_cache(trx_cache_arg), m_pending(0), incident(FALSE),
   saved_max_binlog_cache_size(max_binlog_cache_size_arg),
   ptr_binlog_cache_use(ptr_binlog_cache_use_arg),
-  ptr_binlog_cache_disk_use(ptr_binlog_cache_disk_use_arg)
+  ptr_binlog_cache_disk_use(ptr_binlog_cache_disk_use_arg),
+  size_gtid(0)
   {
     cache_log.end_of_file= saved_max_binlog_cache_size;
   }
@@ -124,6 +125,16 @@ public:
   bool is_group_cache_empty() const
   {
     return group_cache.is_empty();
+  }
+
+  void register_size_gtid()
+  {
+    size_gtid= my_b_tell(&cache_log);
+  }
+
+  my_off_t get_size_gtid() const
+  {
+    return size_gtid;
   }
 #endif
 
@@ -171,6 +182,7 @@ public:
     */
     cache_log.disk_writes= 0;
 #ifdef HAVE_GTID
+    size_gtid= 0;
     group_cache.clear();
 #endif
     DBUG_ASSERT(is_binlog_empty());
@@ -257,6 +269,8 @@ private:
       . binlog_cache_disk_use or binlog_stmt_cache_disk_use.
   */
   ulong *ptr_binlog_cache_disk_use;
+     
+  my_off_t size_gtid;
 
   binlog_cache_data& operator=(const binlog_cache_data& info);
   binlog_cache_data(const binlog_cache_data& info);
@@ -606,7 +620,8 @@ int gtid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
     valid stuff.
   */
   my_off_t saved_position= cache_data->get_byte_position();
-  Gtid_log_event uinfo(thd, sid->bytes, gno, saved_position);
+  Gtid_log_event uinfo(thd, sid->bytes, gno,
+                       saved_position - cache_data->get_size_gtid());
   my_b_seek(&cache_data->cache_log, 0);
   write_event_to_cache(thd, &uinfo, cache_data);
   my_b_seek(&cache_data->cache_log, saved_position);
@@ -1858,16 +1873,16 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
 
 #ifdef HAVE_GTID
 typedef set<string> FileSet;
-bool MYSQL_BIN_LOG::restore_gtid()
+bool MYSQL_BIN_LOG::restore_gtid_set(bool save_gtid_events)
 {
   Log_event *ev= NULL;
   LOG_INFO linfo;
   IO_CACHE log;
   File file= -1;
   const char *errmsg= NULL;
+  bool found_gtidset_event= false;
   FileSet file_set;
-  bool found_gtidset= false;
-  DBUG_ENTER("MYSQL_BIN_LOG::restore_gtid");
+  DBUG_ENTER("MYSQL_BIN_LOG::restore_gtid_set");
 
   /*
     Creates a format descriptor that is used to read events from
@@ -1930,7 +1945,8 @@ bool MYSQL_BIN_LOG::restore_gtid()
     }
 
     /*
-      Seek for Reads events in the files by seeking for 
+      Seeks for GTIDSET_LOG_EVENT and GTID_LOG_EVENT events to gather
+      information what has been processed so far.
     */
     my_b_seek(&log, BIN_LOG_HEADER_SIZE);
     while ((ev= Log_event::read_log_event(&log, 0, p_fdle,
@@ -1938,11 +1954,6 @@ bool MYSQL_BIN_LOG::restore_gtid()
     {
       if (ev->get_type_code() == GTIDSET_LOG_EVENT)
       {
-        if (found_gtidset)
-        {
-          delete ev;
-          goto next_file;
-        }
         sid_lock.rdlock();
         GtidSet_log_event *gtidset= (GtidSet_log_event*) ev;
         GTID_set* grp_set= gtidset->get_group_representation(&group_log_state, &sid_map);
@@ -1960,9 +1971,14 @@ bool MYSQL_BIN_LOG::restore_gtid()
           sid_lock.unlock();
           goto err;
         }
-        found_gtidset= true;
         delete grp_set;
         sid_lock.unlock();
+        if (save_gtid_events == false || found_gtidset_event == true)
+        {
+          delete ev;
+          goto next_file;
+        }
+        found_gtidset_event= true;
       }
       if (ev->get_type_code() == GTID_LOG_EVENT)
       {
@@ -1977,6 +1993,9 @@ bool MYSQL_BIN_LOG::restore_gtid()
           goto err;
         }
         sid_lock.unlock();
+        DBUG_PRINT("info", ("Reading from pos %lld Size of Group %lld.",
+                   my_b_tell(&log), gtid->get_group_size()));
+        my_b_seek(&log, my_b_tell(&log) + gtid->get_group_size());
       }
       delete ev;
     }
@@ -1986,7 +2005,7 @@ next_file:
     file= -1;
   }
 
-  if (file_set.size() > 1)
+  if (file_set.size() > 1 && save_gtid_events)
   {
     GtidSet_log_event uset(current_thd, this);
     if (uset.write(&log_file))
@@ -5179,6 +5198,7 @@ inline int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
     Gtid_log_event uinfo(thd);
     if (write_event_to_cache(thd, &uinfo, cache_data))
       DBUG_RETURN(1);
+    cache_data->register_size_gtid();
 #endif
     DBUG_RETURN(0);
   }
@@ -5231,6 +5251,7 @@ inline int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
     Gtid_log_event uinfo(thd);
     if (write_event_to_cache(thd, &uinfo, cache_data))
       DBUG_RETURN(1);
+    cache_data->register_size_gtid();
 #endif
     if (write_event_to_cache(thd, &qinfo, cache_data))
       DBUG_RETURN(1);

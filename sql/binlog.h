@@ -188,7 +188,7 @@ public:
     @retval 1 Error (out of memory or IO error).
   */
   int init_sid_map();
-  bool restore_gtid();
+  bool restore_gtid_set(bool save_gtid_events);
 #endif
 
 private:
