@@ -411,7 +411,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'INSERT INTO `ndbinfo`.`blocks` VALUES (254, "CMVMI"), (248, "DBACC"), (250, "DBDICT"), (246, "DBDIH"), (247, "DBLQH"), (245, "DBTC"), (249, "DBTUP"), (253, "NDBFS"), (251, "NDBCNTR"), (252, "QMGR"), (255, "TRIX"), (244, "BACKUP"), (256, "DBUTIL"), (257, "SUMA"), (258, "DBTUX"), (259, "TSMAN"), (260, "LGMAN"), (261, "PGMAN"), (262, "RESTORE"), (263, "DBINFO"), (264, "DBSPJ"), (265, "THRMAN")','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'INSERT INTO `ndbinfo`.`blocks` VALUES (254, "CMVMI"), (248, "DBACC"), (250, "DBDICT"), (246, "DBDIH"), (247, "DBLQH"), (245, "DBTC"), (249, "DBTUP"), (253, "NDBFS"), (251, "NDBCNTR"), (252, "QMGR"), (255, "TRIX"), (244, "BACKUP"), (256, "DBUTIL"), (257, "SUMA"), (258, "DBTUX"), (259, "TSMAN"), (260, "LGMAN"), (261, "PGMAN"), (262, "RESTORE"), (263, "DBINFO"), (264, "DBSPJ"), (265, "THRMAN"), (266, "TRPMAN")','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;

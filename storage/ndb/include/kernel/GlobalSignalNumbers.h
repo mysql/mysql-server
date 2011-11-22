@@ -592,7 +592,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_NODE_PING_REQ               461 /* distr. */
 #define GSN_NODE_PING_CONF              462 /* distr. */
 
-/* 463 unused */
+#define GSN_CANCEL_SUBSCRIPTION_REQ     463
 /* 464 unused */
 
 #define GSN_DUMP_STATE_ORD              465
