@@ -520,7 +520,7 @@ typedef struct system_variables
   ulong query_cache_type;
   ulong tx_isolation;
   ulong updatable_views_with_limit;
-  uint max_user_connections;
+  int max_user_connections;
   /**
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly

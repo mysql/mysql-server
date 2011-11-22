@@ -104,21 +104,22 @@ struct CMD_LINE
 };
 
 /**
-  Sys_var_unsigned template is used to generate Sys_var_* classes
-  for variables that represent the value as an unsigned integer.
-  They are Sys_var_uint, Sys_var_ulong, Sys_var_harows, Sys_var_ulonglong.
+  Sys_var_integer template is used to generate Sys_var_* classes
+  for variables that represent the value as an integer number.
+  They are Sys_var_uint, Sys_var_ulong, Sys_var_harows, Sys_var_ulonglong,
+  Sys_var_int.
 
   An integer variable has a minimal and maximal values, and a "block_size"
   (any valid value of the variable must be divisible by the block_size).
 
   Class specific constructor arguments: min, max, block_size
-  Backing store: uint, ulong, ha_rows, ulonglong, depending on the Sys_var_*
+  Backing store: int, uint, ulong, ha_rows, ulonglong, depending on the class
 */
 template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT>
-class Sys_var_unsigned: public sys_var
+class Sys_var_integer: public sys_var
 {
 public:
-  Sys_var_unsigned(const char *name_arg,
+  Sys_var_integer(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           T min_val, T max_val, T def_val, uint block_size, PolyLock *lock=0,
@@ -147,24 +148,49 @@ public:
   }
   bool do_check(THD *thd, set_var *var)
   {
-    my_bool fixed= FALSE;
-    ulonglong uv;
-    longlong v;
+    my_bool fixed= FALSE, unused;
+    longlong v= var->value->val_int();
 
-    v= var->value->val_int();
-    if (var->value->unsigned_flag)
-      uv= (ulonglong) v;
+    if ((ARGT == GET_HA_ROWS) || (ARGT == GET_UINT) ||
+        (ARGT == GET_ULONG)   || (ARGT == GET_ULL))
+    {
+      ulonglong uv;
+
+      /*
+        if the value is signed and negative,
+        and a variable is unsigned, it is set to zero
+      */
+      if ((fixed= (!var->value->unsigned_flag && v < 0)))
+        uv= 0;
+      else
+        uv= v;
+
+      var->save_result.ulonglong_value=
+        getopt_ull_limit_value(uv, &option, &unused);
+
+      if (max_var_ptr() && (T)var->save_result.ulonglong_value > *max_var_ptr())
+        var->save_result.ulonglong_value= *max_var_ptr();
+
+      fixed= fixed || var->save_result.ulonglong_value != uv;
+    }
     else
-      uv= (ulonglong) (v < 0 ? 0 : v);
+    {
+      /*
+        if the value is unsigned and has the highest bit set
+        and a variable is signed, it is set to max signed value
+      */
+      if ((fixed= (var->value->unsigned_flag && v < 0)))
+        v= LONGLONG_MAX;
 
-    var->save_result.ulonglong_value=
-      getopt_ull_limit_value(uv, &option, &fixed);
+      var->save_result.longlong_value=
+        getopt_ll_limit_value(v, &option, &unused);
 
-    if (max_var_ptr() && var->save_result.ulonglong_value > *max_var_ptr())
-      var->save_result.ulonglong_value= *max_var_ptr();
+      if (max_var_ptr() && (T)var->save_result.longlong_value > *max_var_ptr())
+        var->save_result.longlong_value= *max_var_ptr();
 
-    return throw_bounds_warning(thd, name.str,
-                                var->save_result.ulonglong_value != uv,
+      fixed= fixed || var->save_result.longlong_value != v;
+    }
+    return throw_bounds_warning(thd, name.str, fixed,
                                 var->value->unsigned_flag, v);
   }
   bool session_update(THD *thd, set_var *var)
@@ -191,10 +217,11 @@ public:
   }
 };
 
-typedef Sys_var_unsigned<uint, GET_UINT, SHOW_INT> Sys_var_uint;
-typedef Sys_var_unsigned<ulong, GET_ULONG, SHOW_LONG> Sys_var_ulong;
-typedef Sys_var_unsigned<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS> Sys_var_harows;
-typedef Sys_var_unsigned<ulonglong, GET_ULL, SHOW_LONGLONG> Sys_var_ulonglong;
+typedef Sys_var_integer<int, GET_INT, SHOW_SINT> Sys_var_int;
+typedef Sys_var_integer<uint, GET_UINT, SHOW_UINT> Sys_var_uint;
+typedef Sys_var_integer<ulong, GET_ULONG, SHOW_ULONG> Sys_var_ulong;
+typedef Sys_var_integer<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS> Sys_var_harows;
+typedef Sys_var_integer<ulonglong, GET_ULL, SHOW_ULONGLONG> Sys_var_ulonglong;
 
 /**
   Helper class for variables that take values from a TYPELIB
@@ -883,7 +910,7 @@ public:
 
   Backing store: uint
 */
-class Sys_var_max_user_conn: public Sys_var_uint
+class Sys_var_max_user_conn: public Sys_var_int
 {
 public:
   Sys_var_max_user_conn(const char *name_arg,
@@ -895,7 +922,7 @@ public:
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
           uint deprecated_version=0, const char *substitute=0)
-    : Sys_var_uint(name_arg, comment, SESSION, off, size, getopt,
+    : Sys_var_int(name_arg, comment, SESSION, off, size, getopt,
               min_val, max_val, def_val, block_size,
               lock, binlog_status_arg, on_check_func, on_update_func,
               deprecated_version, substitute)
@@ -1779,9 +1806,10 @@ public:
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<set_var_base>;
 template class List_iterator_fast<set_var_base>;
-template class Sys_var_unsigned<uint, GET_UINT, SHOW_INT>;
-template class Sys_var_unsigned<ulong, GET_ULONG, SHOW_LONG>;
-template class Sys_var_unsigned<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS>;
-template class Sys_var_unsigned<ulonglong, GET_ULL, SHOW_LONGLONG>;
+template class Sys_var_integer<int, GET_INT, SHOW_SINT>;
+template class Sys_var_integer<uint, GET_UINT, SHOW_INT>;
+template class Sys_var_integer<ulong, GET_ULONG, SHOW_LONG>;
+template class Sys_var_integer<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS>;
+template class Sys_var_integer<ulonglong, GET_ULL, SHOW_LONGLONG>;
 #endif
 

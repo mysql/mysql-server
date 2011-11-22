@@ -51,7 +51,7 @@ Warnings:
 Warning	1292	Truncated incorrect max_user_connections value: '-1024'
 SELECT @@global.max_user_connections;
 @@global.max_user_connections
-0
+-1
 SET @@global.max_user_connections = 4294967296;
 Warnings:
 Warning	1292	Truncated incorrect max_user_connections value: '4294967296'
@@ -59,11 +59,9 @@ SELECT @@global.max_user_connections;
 @@global.max_user_connections
 2147483647
 SET @@global.max_user_connections = -1;
-Warnings:
-Warning	1292	Truncated incorrect max_user_connections value: '-1'
 SELECT @@global.max_user_connections;
 @@global.max_user_connections
-0
+-1
 SET @@global.max_user_connections = 429496729500;
 Warnings:
 Warning	1292	Truncated incorrect max_user_connections value: '429496729500'

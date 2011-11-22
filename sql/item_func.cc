@@ -5491,16 +5491,15 @@ void Item_func_get_system_var::fix_length_and_dec()
 
   switch (var->show_type())
   {
-    case SHOW_LONG:
-    case SHOW_INT:
     case SHOW_HA_ROWS:
-      unsigned_flag= TRUE; //var->show_type() != SHOW_INT;
-      collation.set_numeric();
-      fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
-      decimals=0;
-      break;
-    case SHOW_LONGLONG:
+    case SHOW_UINT:
+    case SHOW_ULONG:
+    case SHOW_ULONGLONG:
       unsigned_flag= TRUE;
+      /* fall through */
+    case SHOW_SINT:
+    case SHOW_SLONG:
+    case SHOW_SLONGLONG:
       collation.set_numeric();
       fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
       decimals=0;
@@ -5535,13 +5534,11 @@ void Item_func_get_system_var::fix_length_and_dec()
       break;
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
-      unsigned_flag= FALSE;
       collation.set_numeric();
       fix_char_length(1);
       decimals=0;
       break;
     case SHOW_DOUBLE:
-      unsigned_flag= FALSE;
       decimals= 6;
       collation.set_numeric();
       fix_char_length(DBL_DIG + 6);
@@ -5565,9 +5562,12 @@ enum Item_result Item_func_get_system_var::result_type() const
   {
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
-    case SHOW_INT:
-    case SHOW_LONG:
-    case SHOW_LONGLONG:
+    case SHOW_SINT:
+    case SHOW_SLONG:
+    case SHOW_SLONGLONG:
+    case SHOW_UINT:
+    case SHOW_ULONG:
+    case SHOW_ULONGLONG:
     case SHOW_HA_ROWS:
       return INT_RESULT;
     case SHOW_CHAR: 
@@ -5589,9 +5589,12 @@ enum_field_types Item_func_get_system_var::field_type() const
   {
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
-    case SHOW_INT:
-    case SHOW_LONG:
-    case SHOW_LONGLONG:
+    case SHOW_SINT:
+    case SHOW_SLONG:
+    case SHOW_SLONGLONG:
+    case SHOW_UINT:
+    case SHOW_ULONG:
+    case SHOW_ULONGLONG:
     case SHOW_HA_ROWS:
       return MYSQL_TYPE_LONGLONG;
     case SHOW_CHAR: 
@@ -5660,9 +5663,12 @@ longlong Item_func_get_system_var::val_int()
 
   switch (var->show_type())
   {
-    case SHOW_INT:      get_sys_var_safe (uint);
-    case SHOW_LONG:     get_sys_var_safe (ulong);
-    case SHOW_LONGLONG: get_sys_var_safe (ulonglong);
+    case SHOW_SINT:     get_sys_var_safe (int);
+    case SHOW_SLONG:    get_sys_var_safe (long);
+    case SHOW_SLONGLONG:get_sys_var_safe (longlong);
+    case SHOW_UINT:     get_sys_var_safe (uint);
+    case SHOW_ULONG:    get_sys_var_safe (ulong);
+    case SHOW_ULONGLONG:get_sys_var_safe (ulonglong);
     case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);
     case SHOW_BOOL:     get_sys_var_safe (bool);
     case SHOW_MY_BOOL:  get_sys_var_safe (my_bool);
@@ -5763,9 +5769,12 @@ String* Item_func_get_system_var::val_str(String* str)
       break;
     }
 
-    case SHOW_INT:
-    case SHOW_LONG:
-    case SHOW_LONGLONG:
+    case SHOW_SINT:
+    case SHOW_SLONG:
+    case SHOW_SLONGLONG:
+    case SHOW_UINT:
+    case SHOW_ULONG:
+    case SHOW_ULONGLONG:
     case SHOW_HA_ROWS:
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
@@ -5855,9 +5864,12 @@ double Item_func_get_system_var::val_real()
         cache_present|= GET_SYS_VAR_CACHE_DOUBLE;
         return cached_dval;
       }
-    case SHOW_INT:
-    case SHOW_LONG:
-    case SHOW_LONGLONG:
+    case SHOW_SINT:
+    case SHOW_SLONG:
+    case SHOW_SLONGLONG:
+    case SHOW_UINT:
+    case SHOW_ULONG:
+    case SHOW_ULONGLONG:
     case SHOW_HA_ROWS:
     case SHOW_BOOL:
     case SHOW_MY_BOOL:

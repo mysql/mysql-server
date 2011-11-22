@@ -2367,14 +2367,14 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_LONG_STATUS:
           value= ((char *) status_var + (intptr) value);
           /* fall through */
-        case SHOW_LONG:
+        case SHOW_ULONG:
         case SHOW_LONG_NOFLUSH: // the difference lies in refresh_status()
           end= int10_to_str(*(long*) value, buff, 10);
           break;
         case SHOW_LONGLONG_STATUS:
           value= ((char *) status_var + (intptr) value);
           /* fall through */
-        case SHOW_LONGLONG:
+        case SHOW_ULONGLONG:
           end= longlong10_to_str(*(longlong*) value, buff, 10);
           break;
         case SHOW_HA_ROWS:
@@ -2386,8 +2386,17 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_MY_BOOL:
           end= strmov(buff, *(my_bool*) value ? "ON" : "OFF");
           break;
-        case SHOW_INT:
+        case SHOW_UINT:
           end= int10_to_str((long) *(uint*) value, buff, 10);
+          break;
+        case SHOW_SINT:
+          end= int10_to_str((long) *(uint*) value, buff, -10);
+          break;
+        case SHOW_SLONG:
+          end= int10_to_str(*(long*) value, buff, -10);
+          break;
+        case SHOW_SLONGLONG:
+          end= longlong10_to_str(*(longlong*) value, buff, -10);
           break;
         case SHOW_HAVE:
         {

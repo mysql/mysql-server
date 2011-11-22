@@ -308,7 +308,7 @@ void sys_var::do_deprecated_warning(THD *thd)
 bool throw_bounds_warning(THD *thd, const char *name,
                           bool fixed, bool is_unsigned, longlong v)
 {
-  if (fixed || (!is_unsigned && v < 0))
+  if (fixed)
   {
     char buf[22];
 

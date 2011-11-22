@@ -1,4 +1,3 @@
-skip enable when max_user_connections can be negative
 #
 # Test behavior of various per-account limits (aka quotas)
 #

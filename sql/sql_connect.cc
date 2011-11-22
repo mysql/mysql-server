@@ -130,7 +130,7 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   /* Root is not affected by the value of max_user_connections */
   if (global_system_variables.max_user_connections &&
       !uc->user_resources.user_conn &&
-      global_system_variables.max_user_connections < (uint) uc->connections &&
+      global_system_variables.max_user_connections < uc->connections &&
       !(thd->security_ctx->master_access & SUPER_ACL))
   {
     my_error(ER_TOO_MANY_USER_CONNECTIONS, MYF(0), uc->user);

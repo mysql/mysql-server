@@ -159,11 +159,17 @@ MARIA_DECLARE_PLUGIN__(NAME, \
 */
 enum enum_mysql_show_type
 {
-  SHOW_UNDEF, SHOW_BOOL, SHOW_INT, SHOW_LONG,
-  SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
+  SHOW_UNDEF, SHOW_BOOL, SHOW_UINT, SHOW_ULONG,
+  SHOW_ULONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
   SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
+  SHOW_SINT, SHOW_SLONG, SHOW_SLONGLONG,
   SHOW_always_last
 };
+
+/* backward compatibility mapping. */
+#define SHOW_INT      SHOW_UINT
+#define SHOW_LONG     SHOW_ULONG
+#define SHOW_LONGLONG SHOW_ULONGLONG
 
 struct st_mysql_show_var {
   const char *name;
