@@ -8101,7 +8101,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
      * Mark SchemaObject as in-use so that it's won't be found by other op
      *   choose a state that will be automatically cleaned incase we crash
      */
-    SchemaFile::TableEntry * objEntry =
+    SchemaFile::TableEntry *
       objEntry = getTableEntry(alterTabPtr.p->m_newTable_realObjectId);
     objEntry->m_tableType = DictTabInfo::SchemaTransaction;
     objEntry->m_tableState = SchemaFile::SF_STARTED;
@@ -9568,7 +9568,7 @@ Dbdict::alterTable_fromCommitComplete(Signal* signal,
 
   {
     // Remark object as free
-    SchemaFile::TableEntry * objEntry =
+    SchemaFile::TableEntry *
       objEntry = getTableEntry(alterTabPtr.p->m_newTable_realObjectId);
     objEntry->m_tableType = DictTabInfo::UndefTableType;
     objEntry->m_tableState = SchemaFile::SF_UNUSED;
@@ -9660,7 +9660,7 @@ Dbdict::alterTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 
     {
       // Remark object as free
-      SchemaFile::TableEntry * objEntry =
+      SchemaFile::TableEntry *
         objEntry = getTableEntry(alterTabPtr.p->m_newTable_realObjectId);
       objEntry->m_tableType = DictTabInfo::UndefTableType;
       objEntry->m_tableState = SchemaFile::SF_UNUSED;
