@@ -28,6 +28,7 @@ import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.spi.SessionSPI;
 import com.mysql.clusterj.core.spi.ValueHandler;
+import com.mysql.clusterj.core.spi.ValueHandlerBatching;
 
 import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.IndexOperation;
@@ -288,7 +289,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * @throws ClusterJUserException if not all parameters are bound
      */
     public int deletePersistentAll(QueryExecutionContext context) {
-                                SessionSPI session = context.getSession();
+        SessionSPI session = context.getSession();
         // calculate what kind of scan is needed
         // if no where clause, scan the entire table
         CandidateIndexImpl index = where==null?
@@ -375,6 +376,116 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
             }
             context.deleteFilters();
             session.endAutoTransaction();
+            return result;
+        } catch (ClusterJException e) {
+            session.failAutoTransaction();
+            throw e;
+        } catch (Exception e) {
+            session.failAutoTransaction();
+            throw new ClusterJException(local.message("ERR_Exception_On_Query"), e);
+        } 
+    }
+
+    /** Update the instances that satisfy the query and return the number
+     * of instances updated. The type of operation used to update the instances
+     * (primary key lookup, unique key lookup, index scan, or table scan) 
+     * depends on the where clause and the bound parameter values.
+     * Currently only update by primary key or unique key are supported.
+     * 
+     * @param context the query context, including the batch of parameters
+     * @return the number of instances updated for each set in the batch of parameters
+     * @throws ClusterJUserException if not all parameters are bound
+     */
+    public long[] updatePersistentAll(QueryExecutionContext context, ValueHandlerBatching valueHandler) {
+        SessionSPI session = context.getSession();
+        // calculate what kind of scan is needed
+        // if no where clause, scan the entire table
+        CandidateIndexImpl index = where==null?
+            CandidateIndexImpl.getIndexForNullWhereClause():
+            where.getBestCandidateIndex(context);
+        ScanType scanType = index.getScanType();
+        Map<String, Object> explain = newExplain(index, scanType);
+        context.setExplain(explain);
+        long[] result = null;
+        List<Operation> ops = new ArrayList<Operation>();
+
+        try {
+            switch (scanType) {
+
+                case PRIMARY_KEY: {
+                    result = new long[valueHandler.getNumberOfStatements()];
+                    session.startAutoTransaction();
+                    // perform an update by primary key operation
+                    if (logger.isDetailEnabled()) logger.detail("Update by primary key.");
+                    // iterate the valueHandlerBatching and for each set of parameters, update one row
+                    while (valueHandler.next()) {
+                        Operation op = session.getUpdateOperation(domainTypeHandler.getStoreTable());
+                        // set key values into the operation
+                        index.operationSetKeys(context, op);
+                        // set modified field values into the operation
+                        domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
+                        ops.add(op);
+                    }
+                    // execute the update operations
+                    session.endAutoTransaction();
+                    if (session.currentTransaction().isActive()) {
+                        // autotransaction is not set; need to explicitly execute the transaction
+                        session.executeNoCommit(false, true);
+                    }
+                    for (int i = 0; i < result.length; i++) {
+                        // evaluate the results
+                        int errorCode = ops.get(i).errorCode();
+                        // a non-zero result means the row was not updated
+                        result[i] = (errorCode == 0 ? 1 : 0);
+                    }
+                    break;
+                }
+
+                case UNIQUE_KEY: {
+                    result = new long[valueHandler.getNumberOfStatements()];
+                    session.startAutoTransaction();
+                    Index storeIndex = index.getStoreIndex();
+                    if (logger.isDetailEnabled()) logger.detail("Update by unique key.");
+                    // iterate the valueHandlerBatching and for each set of parameters, update one row
+                    while (valueHandler.next()) {
+                        IndexOperation op = session.getUniqueIndexUpdateOperation(storeIndex,
+                            domainTypeHandler.getStoreTable());
+                        // set the keys of the indexName into the operation
+                        index.operationSetKeys(context, op);
+                        // set modified field values into the operation
+                        domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
+                        ops.add(op);
+                    }
+                    // execute the update operations
+                    session.endAutoTransaction();
+                    if (session.currentTransaction().isActive()) {
+                        // autotransaction is not set; need to explicitly execute the transaction
+                        session.executeNoCommit(false, true);
+                    }
+                    for (int i = 0; i < result.length; i++) {
+                        // evaluate the results
+                        int errorCode = ops.get(i).errorCode();
+                        // a non-zero result means the row was not updated
+                        result[i] = (errorCode == 0 ? 1 : 0);
+                    }
+                    break;
+                }
+
+                case INDEX_SCAN: {
+                    // not supported
+                    break;
+                }
+
+                case TABLE_SCAN: {
+                    // not supported
+                    break;
+                }
+
+                default:
+                    throw new ClusterJFatalInternalException(
+                            local.message("ERR_Illegal_Scan_Type", scanType));
+            }
+            context.deleteFilters();
             return result;
         } catch (ClusterJException e) {
             session.failAutoTransaction();
