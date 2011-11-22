@@ -12260,6 +12260,12 @@ static int connect_callback()
   return 0;
 }
 
+/**
+ * Components
+ */
+Ndb_util_thread ndb_util_thread;
+Ndb_index_stat_thread ndb_index_stat_thread;
+
 #ifndef NDB_NO_WAIT_SETUP
 static int ndb_wait_setup_func_impl(ulong max_wait)
 {
@@ -12269,10 +12275,11 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 
   struct timespec abstime;
   set_timespec(abstime, 1);
-  
-  while (!ndb_setup_complete && max_wait)
+
+  while (max_wait &&
+         (!ndb_setup_complete || !ndb_index_stat_thread.is_setup_complete()))
   {
-    int rc= pthread_cond_timedwait(&COND_ndb_setup_complete, 
+    int rc= pthread_cond_timedwait(&COND_ndb_setup_complete,
                                    &ndbcluster_mutex,
                                    &abstime);
     if (rc)
@@ -12301,12 +12308,6 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 int(*ndb_wait_setup_func)(ulong) = 0;
 #endif
 extern int ndb_dictionary_is_mysqld;
-
-/**
- * Components
- */
-Ndb_util_thread ndb_util_thread;
-Ndb_index_stat_thread ndb_index_stat_thread;
 
 static int ndbcluster_init(void *p)
 {
