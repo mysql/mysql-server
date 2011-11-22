@@ -63,7 +63,7 @@ struct hstcpsvr_conn : public dbcallback_i {
  public:
   auto_file fd;
   sockaddr_storage addr;
-  socklen_t addr_len;
+  size_socket addr_len;
   dbconnstate cstate;
   std::string err;
   size_t readsize;

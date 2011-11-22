@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -626,6 +627,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LIBCHAR	'\\'
 #define FN_LIBCHAR2	'/'
 #define FN_DIRSEP       "/\\"               /* Valid directory separators */
+#define FN_EXEEXT   ".exe"
+#define FN_SOEXT    ".dll"
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
@@ -634,6 +637,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LIBCHAR	'/'
 #define FN_LIBCHAR2	'/'
 #define FN_DIRSEP       "/"     /* Valid directory separators */
+#define FN_EXEEXT   ""
+#define FN_SOEXT    ".so"
 #define FN_ROOTDIR	"/"
 #endif
 

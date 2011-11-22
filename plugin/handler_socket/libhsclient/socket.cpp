@@ -172,7 +172,7 @@ socket_bind(auto_file& fd, const socket_args& args, std::string& err_r)
 
 int
 socket_accept(int listen_fd, auto_file& fd, const socket_args& args,
-  sockaddr_storage& addr_r, socklen_t& addrlen_r, std::string& err_r)
+  sockaddr_storage& addr_r, size_socket& addrlen_r, std::string& err_r)
 {
   fd.reset(accept(listen_fd, reinterpret_cast<sockaddr *>(&addr_r),
     &addrlen_r));

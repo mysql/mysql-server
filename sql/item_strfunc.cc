@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
   @file
@@ -2317,7 +2319,7 @@ String *Item_func_format::val_str_ascii(String *str)
       return 0; /* purecov: inspected */
     nr= my_double_round(nr, (longlong) dec, FALSE, FALSE);
     str->set_real(nr, dec, &my_charset_numeric);
-    if (isnan(nr))
+    if (isnan(nr) || my_isinf(nr))
       return str;
     str_length=str->length();
   }
@@ -2373,6 +2375,7 @@ String *Item_func_format::val_str_ascii(String *str)
       For short values without thousands (<1000)
       replace decimal point to localized value.
     */
+    DBUG_ASSERT(dec_length <= str_length);
     ((char*) str->ptr())[str_length - dec_length]= lc->decimal_point;
   }
   return str;
@@ -3844,40 +3847,40 @@ void Item_func_dyncol_create::prepare_arguments()
       DBUG_ASSERT(args[valpos]->field_type() == MYSQL_TYPE_NULL);
       break;
     case DYN_COL_INT:
-      vals[i].long_value= args[valpos]->val_int();
+      vals[i].x.long_value= args[valpos]->val_int();
       break;
     case DYN_COL_UINT:
-      vals[i].ulong_value= args[valpos]->val_int();
+      vals[i].x.ulong_value= args[valpos]->val_int();
       break;
     case DYN_COL_DOUBLE:
-      vals[i].double_value= args[valpos]->val_real();
+      vals[i].x.double_value= args[valpos]->val_real();
       break;
     case DYN_COL_STRING:
       res= args[valpos]->val_str(&tmp);
       if (res &&
-          (vals[i].string_value.str= my_strndup(res->ptr(), res->length(),
+          (vals[i].x.string.value.str= my_strndup(res->ptr(), res->length(),
                                                 MYF(MY_WME))))
       {
-	vals[i].string_value.length= res->length();
-	vals[i].charset= res->charset();
+	vals[i].x.string.value.length= res->length();
+	vals[i].x.string.charset= res->charset();
       }
       else
       {
         args[valpos]->null_value= 1;            // In case of out of memory
-        vals[i].string_value.str= NULL;
-        vals[i].string_value.length= 0;         // just to be safe
+        vals[i].x.string.value.str= NULL;
+        vals[i].x.string.value.length= 0;         // just to be safe
       }
       break;
     case DYN_COL_DECIMAL:
       if ((dres= args[valpos]->val_decimal(&dtmp)))
       {
 	dynamic_column_prepare_decimal(&vals[i]);
-        DBUG_ASSERT(vals[i].decimal_value.len == dres->len);
-        vals[i].decimal_value.intg= dres->intg;
-        vals[i].decimal_value.frac= dres->frac;
-        vals[i].decimal_value.sign= dres->sign();
-        memcpy(vals[i].decimal_buffer, dres->buf,
-               sizeof(vals[i].decimal_buffer));
+        DBUG_ASSERT(vals[i].x.decimal.value.len == dres->len);
+        vals[i].x.decimal.value.intg= dres->intg;
+        vals[i].x.decimal.value.frac= dres->frac;
+        vals[i].x.decimal.value.sign= dres->sign();
+        memcpy(vals[i].x.decimal.buffer, dres->buf,
+               sizeof(vals[i].x.decimal.buffer));
       }
       else
       {
@@ -3886,13 +3889,13 @@ void Item_func_dyncol_create::prepare_arguments()
       }
       break;
     case DYN_COL_DATETIME:
-      args[valpos]->get_date(&vals[i].time_value, TIME_FUZZY_DATE);
+      args[valpos]->get_date(&vals[i].x.time_value, TIME_FUZZY_DATE);
       break;
     case DYN_COL_DATE:
-      args[valpos]->get_date(&vals[i].time_value, TIME_FUZZY_DATE);
+      args[valpos]->get_date(&vals[i].x.time_value, TIME_FUZZY_DATE);
       break;
     case DYN_COL_TIME:
-      args[valpos]->get_time(&vals[i].time_value);
+      args[valpos]->get_time(&vals[i].x.time_value);
       break;
     default:
       DBUG_ASSERT(0);
@@ -3901,7 +3904,7 @@ void Item_func_dyncol_create::prepare_arguments()
     if (vals[i].type != DYN_COL_NULL && args[valpos]->null_value)
     {
       if (vals[i].type == DYN_COL_STRING)
-        my_free(vals[i].string_value.str);
+        my_free(vals[i].x.string.value.str);
       vals[i].type= DYN_COL_NULL;
     }
   }
@@ -3915,7 +3918,7 @@ void Item_func_dyncol_create::cleanup_arguments()
   for (i= 0; i < column_count; i++)
   {
     if (vals[i].type == DYN_COL_STRING)
-      my_free(vals[i].string_value.str);
+      my_free(vals[i].x.string.value.str);
   }
 }
 
@@ -4132,19 +4135,19 @@ String *Item_dyncol_get::val_str(String *str_result)
     goto null;
   case DYN_COL_INT:
   case DYN_COL_UINT:
-    str_result->set_int(val.long_value, test(val.type == DYN_COL_UINT),
+    str_result->set_int(val.x.long_value, test(val.type == DYN_COL_UINT),
                        &my_charset_latin1);
     break;
   case DYN_COL_DOUBLE:
-    str_result->set_real(val.double_value, NOT_FIXED_DEC, &my_charset_latin1);
+    str_result->set_real(val.x.double_value, NOT_FIXED_DEC, &my_charset_latin1);
     break;
   case DYN_COL_STRING:
-    if ((char*) tmp.ptr() <= val.string_value.str &&
-        (char*) tmp.ptr() + tmp.length() >= val.string_value.str)
+    if ((char*) tmp.ptr() <= val.x.string.value.str &&
+        (char*) tmp.ptr() + tmp.length() >= val.x.string.value.str)
     {
       /* value is allocated in tmp buffer; We have to make a copy */
-      str_result->copy(val.string_value.str, val.string_value.length,
-                      val.charset);
+      str_result->copy(val.x.string.value.str, val.x.string.value.length,
+                      val.x.string.charset);
     }
     else
     {
@@ -4153,24 +4156,24 @@ String *Item_dyncol_get::val_str(String *str_result)
         into a field or in a buffer for another item and this buffer
         is not going to be deleted during expression evaluation
       */
-      str_result->set(val.string_value.str, val.string_value.length,
-                      val.charset);
+      str_result->set(val.x.string.value.str, val.x.string.value.length,
+                      val.x.string.charset);
     }
     break;
   case DYN_COL_DECIMAL:
   {
     int res;
     int length=
-      my_decimal_string_length((const my_decimal*)&val.decimal_value);
+      my_decimal_string_length((const my_decimal*)&val.x.decimal.value);
     if (str_result->alloc(length))
       goto null;
-    if ((res= decimal2string(&val.decimal_value, (char*) str_result->ptr(),
+    if ((res= decimal2string(&val.x.decimal.value, (char*) str_result->ptr(),
                              &length, 0, 0, ' ')) != E_DEC_OK)
     {
       char buff[40];
       int len= sizeof(buff);
       DBUG_ASSERT(length < (int)sizeof(buff));
-      decimal2string(&val.decimal_value, buff, &len, 0, 0, ' ');
+      decimal2string(&val.x.decimal.value, buff, &len, 0, 0, ' ');
       decimal_operation_results(res, buff, "CHAR");
     }
     str_result->set_charset(&my_charset_latin1);
@@ -4188,7 +4191,7 @@ String *Item_dyncol_get::val_str(String *str_result)
       asked to return the time argument as a string.
     */
     if (str_result->alloc(MAX_DATE_STRING_REP_LENGTH) ||
-        !(length= my_TIME_to_str(&val.time_value, (char*) str_result->ptr(),
+        !(length= my_TIME_to_str(&val.x.time_value, (char*) str_result->ptr(),
                                  AUTO_SEC_PART_DIGITS)))
       goto null;
     str_result->set_charset(&my_charset_latin1);
@@ -4218,20 +4221,20 @@ longlong Item_dyncol_get::val_int()
     goto null;
   case DYN_COL_UINT:
     unsigned_flag= 1;            // Make it possible for caller to detect sign
-    return val.long_value;
+    return val.x.long_value;
   case DYN_COL_INT:
     unsigned_flag= 0;            // Make it possible for caller to detect sign
-    return val.long_value;
+    return val.x.long_value;
   case DYN_COL_DOUBLE:
   {
     bool error;
     longlong num;
 
-    num= double_to_longlong(val.double_value, unsigned_flag, &error);
+    num= double_to_longlong(val.x.double_value, unsigned_flag, &error);
     if (error)
     {
       char buff[30];
-      sprintf(buff, "%lg", val.double_value);
+      sprintf(buff, "%lg", val.x.double_value);
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_DATA_OVERFLOW,
                           ER(ER_DATA_OVERFLOW),
@@ -4244,14 +4247,14 @@ longlong Item_dyncol_get::val_int()
   {
     int error;
     longlong num;
-    char *end= val.string_value.str + val.string_value.length, *org_end= end;
+    char *end= val.x.string.value.str + val.x.string.value.length, *org_end= end;
 
-    num= my_strtoll10(val.string_value.str, &end, &error);
+    num= my_strtoll10(val.x.string.value.str, &end, &error);
     if (end != org_end || error > 0)
     {
       char buff[80];
-      strmake(buff, val.string_value.str, min(sizeof(buff)-1,
-                                              val.string_value.length));
+      strmake(buff, val.x.string.value.str, min(sizeof(buff)-1,
+                                              val.x.string.value.length));
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_BAD_DATA,
                           ER(ER_BAD_DATA),
@@ -4264,18 +4267,18 @@ longlong Item_dyncol_get::val_int()
   case DYN_COL_DECIMAL:
   {
     longlong num;
-    my_decimal2int(E_DEC_FATAL_ERROR, &val.decimal_value, unsigned_flag,
+    my_decimal2int(E_DEC_FATAL_ERROR, &val.x.decimal.value, unsigned_flag,
                    &num);
     return num;
   }
   case DYN_COL_DATETIME:
   case DYN_COL_DATE:
   case DYN_COL_TIME:
-    unsigned_flag= !val.time_value.neg;
+    unsigned_flag= !val.x.time_value.neg;
     if (unsigned_flag)
-      return TIME_to_ulonglong(&val.time_value);
+      return TIME_to_ulonglong(&val.x.time_value);
     else
-      return -(longlong)TIME_to_ulonglong(&val.time_value);
+      return -(longlong)TIME_to_ulonglong(&val.x.time_value);
   }
 
 null:
@@ -4297,24 +4300,24 @@ double Item_dyncol_get::val_real()
   case DYN_COL_NULL:
     goto null;
   case DYN_COL_UINT:
-    return ulonglong2double(val.ulong_value);
+    return ulonglong2double(val.x.ulong_value);
   case DYN_COL_INT:
-    return (double) val.long_value;
+    return (double) val.x.long_value;
   case DYN_COL_DOUBLE:
-    return (double) val.double_value;
+    return (double) val.x.double_value;
   case DYN_COL_STRING:
   {
     int error;
     char *end;
-    double res= my_strntod(val.charset, (char*) val.string_value.str,
-                           val.string_value.length, &end, &error);
+    double res= my_strntod(val.x.string.charset, (char*) val.x.string.value.str,
+                           val.x.string.value.length, &end, &error);
 
-    if (end != (char*) val.string_value.str + val.string_value.length ||
+    if (end != (char*) val.x.string.value.str + val.x.string.value.length ||
         error)
     {
       char buff[80];
-      strmake(buff, val.string_value.str, min(sizeof(buff)-1,
-                                              val.string_value.length));
+      strmake(buff, val.x.string.value.str, min(sizeof(buff)-1,
+                                              val.x.string.value.length));
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_BAD_DATA,
                           ER(ER_BAD_DATA),
@@ -4326,13 +4329,13 @@ double Item_dyncol_get::val_real()
   {
     double res;
     /* This will always succeed */
-    decimal2double(&val.decimal_value, &res);
+    decimal2double(&val.x.decimal.value, &res);
     return res;
   }
   case DYN_COL_DATETIME:
   case DYN_COL_DATE:
   case DYN_COL_TIME:
-    return TIME_to_double(&val.time_value);
+    return TIME_to_double(&val.x.time_value);
   }
 
 null:
@@ -4354,22 +4357,22 @@ my_decimal *Item_dyncol_get::val_decimal(my_decimal *decimal_value)
   case DYN_COL_NULL:
     goto null;
   case DYN_COL_UINT:
-    int2my_decimal(E_DEC_FATAL_ERROR, val.long_value, TRUE, decimal_value);
+    int2my_decimal(E_DEC_FATAL_ERROR, val.x.long_value, TRUE, decimal_value);
     break;
   case DYN_COL_INT:
-    int2my_decimal(E_DEC_FATAL_ERROR, val.long_value, FALSE, decimal_value);
+    int2my_decimal(E_DEC_FATAL_ERROR, val.x.long_value, FALSE, decimal_value);
     break;
   case DYN_COL_DOUBLE:
-    double2my_decimal(E_DEC_FATAL_ERROR, val.double_value, decimal_value);
+    double2my_decimal(E_DEC_FATAL_ERROR, val.x.double_value, decimal_value);
     break;
   case DYN_COL_STRING:
   {
     int rc;
-    rc= str2my_decimal(0, val.string_value.str, val.string_value.length,
-                       val.charset, decimal_value);
+    rc= str2my_decimal(0, val.x.string.value.str, val.x.string.value.length,
+                       val.x.string.charset, decimal_value);
     char buff[80];
-    strmake(buff, val.string_value.str, min(sizeof(buff)-1,
-                                            val.string_value.length));
+    strmake(buff, val.x.string.value.str, min(sizeof(buff)-1,
+                                            val.x.string.value.length));
     if (rc != E_DEC_OK)
     {
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -4380,14 +4383,14 @@ my_decimal *Item_dyncol_get::val_decimal(my_decimal *decimal_value)
     break;
   }
   case DYN_COL_DECIMAL:
-    decimal2my_decimal(&val.decimal_value, decimal_value);
+    decimal2my_decimal(&val.x.decimal.value, decimal_value);
     break;
   case DYN_COL_DATETIME:
   case DYN_COL_DATE:
   case DYN_COL_TIME:
-    decimal_value= seconds2my_decimal(val.time_value.neg,
-                                      TIME_to_ulonglong(&val.time_value),
-                                      val.time_value.second_part,
+    decimal_value= seconds2my_decimal(val.x.time_value.neg,
+                                      TIME_to_ulonglong(&val.x.time_value),
+                                      val.x.time_value.second_part,
                                       decimal_value);
     break;
   }
@@ -4416,37 +4419,37 @@ bool Item_dyncol_get::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
     signed_value= 1;                                  // For error message
     /* fall_trough */
   case DYN_COL_UINT:
-    if (signed_value || val.ulong_value <= LONGLONG_MAX)
+    if (signed_value || val.x.ulong_value <= LONGLONG_MAX)
     {
-      if (int_to_datetime_with_warn(val.ulong_value, ltime, fuzzy_date,
+      if (int_to_datetime_with_warn(val.x.ulong_value, ltime, fuzzy_date,
                                    0 /* TODO */))
         goto null;
       return 0;
     }
     /* let double_to_datetime_with_warn() issue the warning message */
-    val.double_value= static_cast<double>(ULONGLONG_MAX);
+    val.x.double_value= static_cast<double>(ULONGLONG_MAX);
     /* fall_trough */
   case DYN_COL_DOUBLE:
-    if (double_to_datetime_with_warn(val.double_value, ltime, fuzzy_date,
+    if (double_to_datetime_with_warn(val.x.double_value, ltime, fuzzy_date,
                                      0 /* TODO */))
       goto null;
     return 0;
   case DYN_COL_DECIMAL:
-    if (decimal_to_datetime_with_warn((my_decimal*)&val.decimal_value, ltime,
+    if (decimal_to_datetime_with_warn((my_decimal*)&val.x.decimal.value, ltime,
                                       fuzzy_date, 0 /* TODO */))
       goto null;
     return 0;
   case DYN_COL_STRING:
     if (str_to_datetime_with_warn(&my_charset_numeric,
-                                  val.string_value.str,
-                                  val.string_value.length,
+                                  val.x.string.value.str,
+                                  val.x.string.value.length,
                                   ltime, fuzzy_date) <= MYSQL_TIMESTAMP_ERROR)
       goto null;
     return 0;
   case DYN_COL_DATETIME:
   case DYN_COL_DATE:
   case DYN_COL_TIME:
-    *ltime= val.time_value;
+    *ltime= val.x.time_value;
     return 0;
   }
 

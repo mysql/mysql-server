@@ -3716,8 +3716,8 @@ NULL	1.7976931348623e308	3
 -00:00:01	-1	5
 00:17:58	1758	25
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e308' for column 'my_double' at row 2
-Warning	1292	Incorrect datetime value: '1.7976931348623e308' for column 'my_double' at row 3
+Warning	1292	Incorrect datetime value: '-1.7976931348623e308' for column 'my_double' at row 1
+Warning	1292	Incorrect datetime value: '1.7976931348623e308' for column 'my_double' at row 1
 DROP VIEW v1;
 
 
@@ -4068,10 +4068,10 @@ NULL	1.7976931348623e308	3
 NULL	-1	5
 NULL	200506271758	19
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e308' for column 'my_double' at row 2
-Warning	1292	Incorrect datetime value: '1.7976931348623e308' for column 'my_double' at row 3
-Warning	1292	Incorrect datetime value: '-1' for column 'my_double' at row 5
-Warning	1292	Incorrect datetime value: '200506271758' for column 'my_double' at row 19
+Warning	1292	Incorrect datetime value: '-1.7976931348623e308' for column 'my_double' at row 1
+Warning	1292	Incorrect datetime value: '1.7976931348623e308' for column 'my_double' at row 1
+Warning	1292	Incorrect datetime value: '-1' for column 'my_double' at row 1
+Warning	1292	Incorrect datetime value: '200506271758' for column 'my_double' at row 1
 DROP VIEW v1;
 
 
@@ -4429,9 +4429,9 @@ NULL	1.7976931348623e308	3
 NULL	-1	5
 2005-06-27	20050627	13
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e308' for column 'my_double' at row 2
-Warning	1292	Incorrect datetime value: '1.7976931348623e308' for column 'my_double' at row 3
-Warning	1292	Incorrect datetime value: '-1' for column 'my_double' at row 5
+Warning	1292	Incorrect datetime value: '-1.7976931348623e308' for column 'my_double' at row 1
+Warning	1292	Incorrect datetime value: '1.7976931348623e308' for column 'my_double' at row 1
+Warning	1292	Incorrect datetime value: '-1' for column 'my_double' at row 1
 DROP VIEW v1;
 
 

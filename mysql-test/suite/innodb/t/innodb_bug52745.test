@@ -1,6 +1,5 @@
 
 let $file_format=`select @@innodb_file_format`;
-let $file_format_max=`select @@innodb_file_format_max`;
 let $file_per_table=`select @@innodb_file_per_table`;
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=on;
@@ -104,5 +103,4 @@ SHOW WARNINGS;
 DROP TABLE bug52745;
 
 EVAL SET GLOBAL innodb_file_format=$file_format;
-EVAL SET GLOBAL innodb_file_format_max=$file_format_max;
 EVAL SET GLOBAL innodb_file_per_table=$file_per_table;

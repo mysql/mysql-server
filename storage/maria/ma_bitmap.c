@@ -286,7 +286,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file,
   */
   {
     pgcache_page_no_t last_bitmap_page;
-    ulong blocks, bytes;
+    pgcache_page_no_t blocks, bytes;
 
     last_bitmap_page= *last_page - *last_page % bitmap->pages_covered;
     blocks= *last_page - last_bitmap_page;
@@ -1415,7 +1415,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
   uchar *page_end= data + bitmap->total_size;
   uchar *best_data= 0;
   uint min_size;
-  uint best_area_size, UNINIT_VAR(best_prefix_area_size), best_suffix_area_size;
+  uint best_area_size, UNINIT_VAR(best_prefix_area_size);
   uint page, size;
   ulonglong UNINIT_VAR(best_prefix_bits);
   DBUG_ENTER("allocate_full_pages");
@@ -1491,7 +1491,6 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
       best_area_size= area_size;
       best_prefix_bits= prefix_bits;
       best_prefix_area_size= prefix_area_size;
-      best_suffix_area_size= suffix_area_size;
 
       /* Prefer to put data in biggest possible area */
       if (area_size <= pages_needed)

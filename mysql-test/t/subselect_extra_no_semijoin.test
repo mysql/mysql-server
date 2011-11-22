@@ -1,0 +1,9 @@
+set @subselect_extra_no_sj_tmp=@@optimizer_switch;
+
+set  @optimizer_switch_for_subselect_extra_test='semijoin=off,firstmatch=off,loosescan=off,semijoin_with_cache=off';
+
+--source t/subselect_extra.test
+
+set optimizer_switch= @subselect_extra_no_sj_tmp;
+
+set @optimizer_switch_for_subselect_extra_test=null;

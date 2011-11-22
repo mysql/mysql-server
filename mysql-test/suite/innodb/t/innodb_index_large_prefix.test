@@ -2,7 +2,6 @@
 
 let $innodb_file_format_orig=`select @@innodb_file_format`;
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
-let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 let $innodb_large_prefix_orig=`select @@innodb_large_prefix`;
 
 set global innodb_file_format="Barracuda";
@@ -265,5 +264,4 @@ drop table worklog5743;
 
 eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
-eval SET GLOBAL innodb_file_format_max=$innodb_file_format_max_orig;
 eval SET GLOBAL innodb_large_prefix=$innodb_large_prefix_orig;

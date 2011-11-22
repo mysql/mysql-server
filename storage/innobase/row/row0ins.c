@@ -118,6 +118,9 @@ ins_node_create_entry_list(
 					      node->entry_sys_heap);
 		UT_LIST_ADD_LAST(tuple_list, node->entry_list, entry);
 
+		/* We will include all indexes (include those corrupted
+		secondary indexes) in the entry list. Filteration of
+		these corrupted index will be done in row_ins() */
 		index = dict_table_get_next_index(index);
 	}
 }
@@ -2045,7 +2048,6 @@ row_ins_index_entry_low(
 			mtr_start(&mtr);
 
 			if (err != DB_SUCCESS) {
-
 				goto function_exit;
 			}
 
@@ -2395,6 +2397,13 @@ row_ins(
 
 		node->index = dict_table_get_next_index(node->index);
 		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+
+		/* Skip corrupted secondar index and its entry */
+		while (node->index && dict_index_is_corrupted(node->index)) {
+
+			node->index = dict_table_get_next_index(node->index);
+			node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+		}
 	}
 
 	ut_ad(node->entry == NULL);

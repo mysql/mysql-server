@@ -1,4 +1,4 @@
-/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,8 +49,6 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);
-
-uint kill_one_thread(THD *thd, ulong id, bool only_kill_query);
 
 void free_items(Item *item);
 void cleanup_items(Item *item);

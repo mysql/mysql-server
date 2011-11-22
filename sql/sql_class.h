@@ -398,6 +398,36 @@ typedef enum enum_diag_condition_item_name
 */
 extern const LEX_STRING Diag_condition_item_names[];
 
+/* Note: these states are actually bit coded with HARD */
+enum killed_state
+{
+  NOT_KILLED= 0,
+  KILL_HARD_BIT= 1,                             /* Bit for HARD KILL */
+  KILL_BAD_DATA= 2,
+  KILL_BAD_DATA_HARD= 3,
+  KILL_QUERY= 4,
+  KILL_QUERY_HARD= 5,
+  /*
+    All of the following killed states will kill the connection
+    KILL_CONNECTION must be the first of these!
+  */
+  KILL_CONNECTION= 6,
+  KILL_CONNECTION_HARD= 7,
+  KILL_SYSTEM_THREAD= 8,
+  KILL_SYSTEM_THREAD_HARD= 9,
+  KILL_SERVER= 10,
+  KILL_SERVER_HARD= 11
+};
+
+extern int killed_errno(killed_state killed);
+#define killed_mask_hard(killed) ((killed_state) ((killed) & ~KILL_HARD_BIT))
+
+enum killed_type
+{
+  KILL_TYPE_ID,
+  KILL_TYPE_USER
+};
+
 #include "sql_lex.h"				/* Must be here */
 
 class Delayed_insert;
@@ -483,14 +513,14 @@ typedef struct system_variables
   ulong log_slow_rate_limit; 
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
   ulong progress_report_time;
-  my_bool binlog_annotate_rows_events;
+  my_bool binlog_annotate_row_events;
   my_bool binlog_direct_non_trans_update;
   my_bool sql_log_bin;
   ulong completion_type;
   ulong query_cache_type;
   ulong tx_isolation;
   ulong updatable_views_with_limit;
-  uint max_user_connections;
+  int max_user_connections;
   /**
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly
@@ -1664,18 +1694,11 @@ public:
   uint in_sub_stmt;
   /* True when opt_userstat_running is set at start of query */
   bool userstat_running;
+  /* True if we want to log all errors */
+  bool log_all_errors;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
-
-  /* Place to store various things */
-  union 
-  { 
-    /*
-      Used by subquery optimizations, see Item_in_subselect::emb_on_expr_nest.
-    */
-    TABLE_LIST *emb_on_expr_nest;
-  } thd_marker;
 
   bool prepare_derived_at_open;
 
@@ -2062,13 +2085,6 @@ public:
   */
   ha_rows    examined_row_count;
 
-  /*
-    The set of those tables whose fields are referenced in all subqueries
-    of the query.
-    TODO: possibly this it is incorrect to have used tables in THD because
-    with more than one subquery, it is not clear what does the field mean.
-  */
-  table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;
   Warning_info *warning_info;
@@ -2135,14 +2151,6 @@ public:
     condition. For details see the implementation of awake(),
     especially the "broadcast" part.
   */
-  enum killed_state
-  {
-    NOT_KILLED=0,
-    KILL_BAD_DATA=1,
-    KILL_CONNECTION=ER_SERVER_SHUTDOWN,
-    KILL_QUERY=ER_QUERY_INTERRUPTED,
-    KILLED_NO_VALUE      /* means neither of the states */
-  };
   killed_state volatile killed;
 
   /* scramble - random string sent to client on handshake */
@@ -2341,7 +2349,7 @@ public:
   }
   void close_active_vio();
 #endif
-  void awake(THD::killed_state state_to_set);
+  void awake(killed_state state_to_set);
 
   /** Disconnect the associated communication endpoint. */
   void disconnect();
@@ -2653,18 +2661,13 @@ public:
   void end_statement();
   inline int killed_errno() const
   {
-    killed_state killed_val; /* to cache the volatile 'killed' */
-    return (killed_val= killed) != KILL_BAD_DATA ? killed_val : 0;
+    return ::killed_errno(killed);
   }
   inline void send_kill_message() const
   {
     int err= killed_errno();
     if (err)
-    {
-      if ((err == KILL_CONNECTION) && !shutdown_in_progress)
-        err = KILL_QUERY;
       my_message(err, ER(err), MYF(0));
-    }
   }
   /* return TRUE if we will abort query if we make a warning now */
   inline bool really_abort_on_warning()
@@ -2955,7 +2958,19 @@ public:
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
 
-    mdl_context.set_explicit_duration_for_all_locks();
+    if (mode_arg == LTM_LOCK_TABLES)
+    {
+      /*
+        When entering LOCK TABLES mode we should set explicit duration
+        for all metadata locks acquired so far in order to avoid releasing
+        them till UNLOCK TABLES statement.
+        We don't do this when entering prelocked mode since sub-statements
+        don't release metadata locks and restoring status-quo after leaving
+        prelocking mode gets complicated.
+      */
+      mdl_context.set_explicit_duration_for_all_locks();
+    }
+
     locked_tables_mode= mode_arg;
   }
   void leave_locked_tables_mode();
@@ -3582,9 +3597,11 @@ class select_max_min_finder_subselect :public select_subselect
   Item_cache *cache;
   bool (select_max_min_finder_subselect::*op)();
   bool fmax;
+  bool is_all;
 public:
-  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx)
-    :select_subselect(item_arg), cache(0), fmax(mx)
+  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx,
+                                  bool all)
+    :select_subselect(item_arg), cache(0), fmax(mx), is_all(all)
   {}
   void cleanup();
   int send_data(List<Item> &items);
@@ -4035,14 +4052,6 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 void mark_transaction_to_rollback(THD *thd, bool all);
-
-/*
-  This prototype is placed here instead of in item_func.h because it
-  depends on the definition of enum_sql_command, which is in this
-  file.
- */
-int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                        LEX_STRING &name, user_var_entry **out_entry);
 
 /* Inline functions */
 

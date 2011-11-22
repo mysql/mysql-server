@@ -838,9 +838,7 @@ column_get(column_create(1, "2001021"), 1 as date)
 set @@sql_mode="allow_invalid_dates";
 select column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as date);
 column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as date)
-NULL
-Warnings:
-Warning	1292	Truncated incorrect date value: '2011-02-30'
+2011-02-30
 select column_get(column_create(1, "0000-00-000" AS CHAR), 1 as date);
 column_get(column_create(1, "0000-00-000" AS CHAR), 1 as date)
 0000-00-00

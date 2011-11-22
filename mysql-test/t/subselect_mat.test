@@ -226,3 +226,31 @@ SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # LPBUG#825095: Wrong result with materialization and NOT IN with 2 expressions
+--echo #
+
+CREATE TABLE t1 (a int,b int);
+INSERT INTO t1 VALUES (4,4),(4,2);
+
+CREATE TABLE t2 (b int, a int);
+INSERT INTO t2 VALUES (4,3),(8,4);
+
+set @@optimizer_switch='semijoin=off,in_to_exists=off,materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off';
+
+EXPLAIN SELECT *
+FROM t1
+WHERE (a, b) NOT IN (SELECT a, b FROM t2);
+
+SELECT *
+FROM t1
+WHERE (a, b) NOT IN (SELECT a, b FROM t2);
+
+EXPLAIN
+SELECT a, b, (a, b) NOT IN (SELECT a, b FROM t2) as sq
+FROM t1;
+
+SELECT a, b, (a, b) NOT IN (SELECT a, b FROM t2) as sq
+FROM t1;
+
+drop table t1, t2;

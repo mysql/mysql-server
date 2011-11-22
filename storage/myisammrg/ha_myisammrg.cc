@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /*
@@ -160,9 +160,14 @@ extern "C" void myrg_print_wrong_table(const char *table_name)
   buf[db.length]= '.';
   memcpy(buf + db.length + 1, name.str, name.length);
   buf[db.length + name.length + 1]= 0;
-  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                      ER_ADMIN_WRONG_MRG_TABLE, ER(ER_ADMIN_WRONG_MRG_TABLE),
-                      buf);
+  /*
+    Push an error to be reported as part of CHECK/REPAIR result-set.
+    Note that calling my_error() from handler is a hack which is kept
+    here to avoid refactoring. Normally engines should report errors
+    through return value which will be interpreted by caller using
+    handler::print_error() call.
+  */
+  my_error(ER_ADMIN_WRONG_MRG_TABLE, MYF(0), buf);
 }
 
 
@@ -594,8 +599,7 @@ public:
 
   @return       pointer to open MyISAM table structure
     @retval     !=NULL                  OK, returning pointer
-    @retval     NULL, my_errno == 0     Ok, no more child tables
-    @retval     NULL, my_errno != 0     error
+    @retval     NULL,                   Error.
 
   @detail
     This function retrieves the MyISAM table handle from the
@@ -615,15 +619,31 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
   MI_INFO       *myisam= NULL;
   DBUG_ENTER("myisammrg_attach_children_callback");
 
-  if (!child_l)
-  {
-    DBUG_PRINT("myrg", ("No more children to attach"));
-    my_errno= 0; /* Ok, no more child tables. */
-    goto end;
-  }
+  /*
+    Number of children in the list and MYRG_INFO::tables_count,
+    which is used by caller of this function, should always match.
+  */
+  DBUG_ASSERT(child_l);
+
   child= child_l->table;
   /* Prepare for next child. */
   param->next();
+
+  /*
+    When MERGE table is opened for CHECK or REPAIR TABLE statements,
+    failure to open any of underlying tables is ignored until this moment
+    (this is needed to provide complete list of the problematic underlying
+    tables in CHECK/REPAIR TABLE output).
+    Here we detect such a situation and report an appropriate error.
+  */
+  if (! child)
+  {
+    DBUG_PRINT("error", ("failed to open underlying table '%s'.'%s'",
+                         child_l->db, child_l->table_name));
+    /* This should only happen inside of CHECK/REPAIR TABLE. */
+    DBUG_ASSERT(current_thd->open_options & HA_OPEN_FOR_REPAIR);
+    goto end;
+  }
 
   /*
     Do a quick compatibility check. The table def version is set when
@@ -654,7 +674,6 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
   {
     DBUG_PRINT("error", ("temporary table mismatch parent: %d  child: %d",
                          parent->s->tmp_table, child->s->tmp_table));
-    my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
     goto end;
   }
 
@@ -665,12 +684,27 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
     DBUG_PRINT("error", ("no MyISAM handle for child table: '%s'.'%s' 0x%lx",
                          child->s->db.str, child->s->table_name.str,
                          (long) child));
-    my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
   }
-  DBUG_PRINT("myrg", ("MyISAM handle: 0x%lx  my_errno: %d",
-                      my_errno ? 0L : (long) myisam, my_errno));
+
+  DBUG_PRINT("myrg", ("MyISAM handle: 0x%lx", (long) myisam));
 
  end:
+
+  if (!myisam &&
+      (current_thd->open_options & HA_OPEN_FOR_REPAIR))
+  {
+    char buf[2*NAME_LEN + 1 + 1];
+    strxnmov(buf, sizeof(buf) - 1, child_l->db, ".", child_l->table_name, NULL);
+    /*
+      Push an error to be reported as part of CHECK/REPAIR result-set.
+      Note that calling my_error() from handler is a hack which is kept
+      here to avoid refactoring. Normally engines should report errors
+      through return value which will be interpreted by caller using
+      handler::print_error() call.
+    */
+    my_error(ER_ADMIN_WRONG_MRG_TABLE, MYF(0), buf);
+  }
+
   DBUG_RETURN(myisam);
 }
 
@@ -782,12 +816,6 @@ int ha_myisammrg::attach_children(void)
   DEBUG_SYNC(current_thd, "before_myisammrg_attach");
   /* Must call this with children list in place. */
   DBUG_ASSERT(this->table->pos_in_table_list->next_global == this->children_l);
-
-  /*
-    'my_errno' is set by myisammrg_attach_children_callback() in
-    case of an error.
-  */
-  my_errno= 0;
 
   if (myrg_attach_children(this->file, this->test_if_locked |
                            current_thd->open_options,
@@ -1665,7 +1693,8 @@ mysql_declare_plugin(myisammrg)
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0,                          /* flags                           */
 }
 mysql_declare_plugin_end;
 maria_declare_plugin(myisammrg)

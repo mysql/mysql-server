@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
@@ -314,6 +314,26 @@ public:
   friend class error_list;
   friend class error_list_iterator;
 
+  /*
+    Debugging help: return N-th element in the list, or NULL if the list has
+    less than N elements.
+  */
+  inline void *nth_element(int n)
+  {
+    list_node *node= first;
+    void *data= NULL;
+    for (int i=0; i <= n; i++)
+    {
+      if (node == &end_of_list)
+      {
+        data= NULL;
+        break;
+      }
+      data= node->info;
+      node= node->next;
+    }
+    return data;
+  }
 #ifdef LIST_EXTRA_DEBUG
   /*
     Check list invariants and print results into trace. Invariants are:
@@ -492,6 +512,7 @@ public:
     }
     empty();
   }
+  inline T *nth_element(int n) { return (T*)base_list::nth_element(n); }
 };
 
 

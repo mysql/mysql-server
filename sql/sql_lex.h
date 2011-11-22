@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @defgroup Semantic_Analysis Semantic Analysis
@@ -314,6 +314,10 @@ struct LEX_MASTER_INFO
   }
 };
 
+typedef struct st_lex_reset_slave
+{
+  bool all;
+} LEX_RESET_SLAVE;
 
 enum sub_select_type
 {
@@ -798,6 +802,13 @@ public:
   ulong table_join_options;
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
+
+  /*
+    nest_levels are local to the query or VIEW,
+    and that view merge procedure does not re-calculate them.
+    So we also have to remember unit against which we count levels.
+  */
+  SELECT_LEX_UNIT *nest_level_base;
   int nest_level;     /* nesting level of select */
   Item_sum *inner_sum_func_list; /* list of sum func in nested selects */ 
   uint with_wild; /* item list contain '*' */
@@ -865,16 +876,7 @@ public:
     joins on the right.
   */
   List<String> *prev_join_using;
-  /*
-    Bitmap used in the ONLY_FULL_GROUP_BY_MODE to prevent mixture of aggregate
-    functions and non aggregated fields when GROUP BY list is absent.
-    Bits:
-      0 - non aggregated fields are used in this select,
-          defined as NON_AGG_FIELD_USED.
-      1 - aggregate functions are used in this select,
-          defined as SUM_FUNC_USED.
-  */
-  uint8 full_group_by_flag;
+
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit();
@@ -995,7 +997,7 @@ public:
   bool handle_derived(LEX *lex, uint phases);
   void append_table_to_list(TABLE_LIST *TABLE_LIST::*link, TABLE_LIST *table);
   bool get_free_table_map(table_map *map, uint *tablenr);
-  void remove_table_from_list(TABLE_LIST *table);
+  void replace_leaf_table(TABLE_LIST *table, List<TABLE_LIST> &tbl_list);
   void remap_tables(TABLE_LIST *derived, table_map map,
                     uint tablenr, st_select_lex *parent_lex);
   bool merge_subquery(THD *thd, TABLE_LIST *derived, st_select_lex *subq_lex,
@@ -1014,8 +1016,24 @@ public:
 
   bool save_leaf_tables(THD *thd);
   bool save_prep_leaf_tables(THD *thd);
+  bool is_merged_child_of(st_select_lex *ancestor);
 
-private:  
+  /*
+    For MODE_ONLY_FULL_GROUP_BY we need to maintain two flags:
+     - Non-aggregated fields are used in this select.
+     - Aggregate functions are used in this select.
+    In MODE_ONLY_FULL_GROUP_BY only one of these may be true.
+  */
+  bool non_agg_field_used() const { return m_non_agg_field_used; }
+  bool agg_func_used()      const { return m_agg_func_used; }
+
+  void set_non_agg_field_used(bool val) { m_non_agg_field_used= val; }
+  void set_agg_func_used(bool val)      { m_agg_func_used= val; }
+
+private:
+  bool m_non_agg_field_used;
+  bool m_agg_func_used;
+
   /* current index hint kind. used in filling up index_hints */
   enum index_hint_type current_index_hint_type;
   index_clause_map current_index_hint_clause;
@@ -1340,6 +1358,48 @@ public:
       tables and write to any of them are unsafe.
     */
     BINLOG_STMT_UNSAFE_MIXED_STATEMENT,
+
+    /**
+      INSERT...IGNORE SELECT is unsafe because which rows are ignored depends
+      on the order that rows are retrieved by SELECT. This order cannot be
+      predicted and may differ on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_INSERT_IGNORE_SELECT,
+
+    /**
+      INSERT...SELECT...UPDATE is unsafe because which rows are updated depends
+      on the order that rows are retrieved by SELECT. This order cannot be
+      predicted and may differ on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_INSERT_SELECT_UPDATE,
+
+    /**
+      INSERT...REPLACE SELECT is unsafe because which rows are replaced depends
+      on the order that rows are retrieved by SELECT. This order cannot be
+      predicted and may differ on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_REPLACE_SELECT,
+
+    /**
+      CREATE TABLE... IGNORE... SELECT is unsafe because which rows are ignored
+      depends on the order that rows are retrieved by SELECT. This order cannot
+      be predicted and may differ on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_CREATE_IGNORE_SELECT,
+
+    /**
+      CREATE TABLE...REPLACE... SELECT is unsafe because which rows are replaced
+      depends on the order that rows are retrieved from SELECT. This order
+      cannot be predicted and may differ on master and the slave
+    */
+    BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT,
+
+    /**
+      UPDATE...IGNORE is unsafe because which rows are ignored depends on the
+      order that rows are updated. This order cannot be predicted and may differ
+      on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_UPDATE_IGNORE,
 
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
@@ -2323,7 +2383,11 @@ struct LEX: public Query_tables_list
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   LEX_SERVER_OPTIONS server_options;
   USER_RESOURCES mqh;
+  LEX_RESET_SLAVE reset_slave_info;
   ulong type;
+  /* The following is used by KILL */
+  killed_state kill_signal;
+  killed_type  kill_type;
   /*
     This variable is used in post-parse stage to declare that sum-functions,
     or functions which have sense only if GROUP BY is present, are allowed.
@@ -2494,6 +2558,16 @@ struct LEX: public Query_tables_list
   
   bool escape_used;
   bool is_lex_started; /* If lex_start() did run. For debugging. */
+
+  /*
+    The set of those tables whose fields are referenced in all subqueries
+    of the query.
+    TODO: possibly this it is incorrect to have used tables in LEX because
+    with subquery, it is not clear what does the field mean. To fix this
+    we should aggregate used tables information for selected expressions
+    into the select_lex.
+  */
+  table_map  used_tables;
 
   LEX();
 

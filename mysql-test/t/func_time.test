@@ -18,6 +18,8 @@ select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22"),
 select sec_to_time(9001.1), time_to_sec('15:12:22.123456'), time_to_sec(15.5566778899);
 select sec_to_time(time_to_sec('-838:59:59'));
 select sec_to_time('9001.1'), sec_to_time('1234567890123.123');
+select sec_to_time(-9001.1), sec_to_time(-9001.1) / 1,
+       sec_to_time(-9001.1) / 1e0, sec_to_time(-9001) div 1;
 --replace_result e+042 e+42
 select sec_to_time(90011e-1), sec_to_time(1234567890123e30);
 select sec_to_time(1234567890123), sec_to_time('99999999999999999999999999999');
@@ -918,6 +920,12 @@ SELECT DATE_FORMAT('0000-00-11', '%w');
 
 SELECT MAKEDATE(11111111,1);
 SELECT WEEK(DATE_ADD(FROM_DAYS(1),INTERVAL 1 MONTH), 1);
+
+--echo #
+--echo # Bug#12584302 AFTER FIX FOR #12403504: ASSERTION FAILED: DELSUM+(INT) Y/4-TEMP > 0,
+--echo #
+
+DO WEEK((DATE_ADD((CAST(0 AS DATE)), INTERVAL 1 YEAR_MONTH)), 5);
 
 --echo End of 5.1 tests
 

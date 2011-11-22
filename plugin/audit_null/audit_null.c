@@ -1,12 +1,13 @@
-/* Copyright (C) 2006-2007 MySQL AB
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
@@ -153,7 +154,8 @@ mysql_declare_plugin(audit_null)
   0x0002,                     /* version                         */
   simple_status,              /* status variables                */
   NULL,                       /* system variables                */
-  NULL
+  NULL,
+  0,
 }
 mysql_declare_plugin_end;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -99,14 +99,22 @@ row_sel_sec_rec_is_for_blob(
 	ulint		clust_len,	/*!< in: length of clust_field */
 	const byte*	sec_field,	/*!< in: column in secondary index */
 	ulint		sec_len,	/*!< in: length of sec_field */
+	ulint		prefix_len,	/*!< in: index column prefix length
+					in bytes */
 	dict_table_t*	table)		/*!< in: table */
 {
 	ulint	len;
 	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
 	ulint	zip_size = dict_table_flags_to_zip_size(table->flags);
-	ulint	max_prefix_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
 
+	/* This function should never be invoked on an Antelope format
+	table, because they should always contain enough prefix in the
+	clustered index record. */
+	ut_ad(dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
 	ut_a(clust_len >= BTR_EXTERN_FIELD_REF_SIZE);
+	ut_ad(prefix_len >= sec_len);
+	ut_ad(prefix_len > 0);
+	ut_a(prefix_len <= sizeof buf);
 
 	if (UNIV_UNLIKELY
 	    (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
@@ -118,7 +126,7 @@ row_sel_sec_rec_is_for_blob(
 		return(FALSE);
 	}
 
-	len = btr_copy_externally_stored_field_prefix(buf, max_prefix_len,
+	len = btr_copy_externally_stored_field_prefix(buf, prefix_len,
 						      zip_size,
 						      clust_field, clust_len);
 
@@ -132,7 +140,7 @@ row_sel_sec_rec_is_for_blob(
 	}
 
 	len = dtype_get_at_most_n_mbchars(prtype, mbminmaxlen,
-					  sec_len, len, (const char*) buf);
+					  prefix_len, len, (const char*) buf);
 
 	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
 }
@@ -224,6 +232,7 @@ row_sel_sec_rec_is_for_clust_rec(
 					    col->mbminmaxlen,
 					    clust_field, clust_len,
 					    sec_field, sec_len,
+					    ifield->prefix_len,
 					    clust_index->table)) {
 					goto inequal;
 				}
@@ -493,7 +502,7 @@ sel_col_prefetch_buf_alloc(
 		sel_buf = column->prefetch_buf + i;
 
 		sel_buf->data = NULL;
-
+		sel_buf->len = 0;
 		sel_buf->val_buf_size = 0;
 	}
 }
@@ -518,6 +527,8 @@ sel_col_prefetch_buf_free(
 			mem_free(sel_buf->data);
 		}
 	}
+
+	mem_free(prefetch_buf);
 }
 
 /*********************************************************************//**
@@ -2541,6 +2552,8 @@ row_sel_field_store_in_mysql_format(
 
 	ut_ad(len != UNIV_SQL_NULL);
 	UNIV_MEM_ASSERT_RW(data, len);
+	UNIV_MEM_ASSERT_W(dest, templ->mysql_col_len);
+	UNIV_MEM_INVALID(dest, templ->mysql_col_len);
 
 	switch (templ->type) {
 		const byte*	field_end;
@@ -2579,14 +2592,16 @@ row_sel_field_store_in_mysql_format(
 
 			dest = row_mysql_store_true_var_len(
 				dest, len, templ->mysql_length_bytes);
+			/* Copy the actual data. Leave the rest of the
+			buffer uninitialized. */
+			memcpy(dest, data, len);
+			break;
 		}
 
 		/* Copy the actual data */
 		ut_memcpy(dest, data, len);
 
-		/* Pad with trailing spaces. We pad with spaces also the
-		unused end of a >= 5.0.3 true VARCHAR column, just in case
-		MySQL expects its contents to be deterministic. */
+		/* Pad with trailing spaces. */
 
 		pad = dest + len;
 
@@ -3113,6 +3128,39 @@ sel_restore_position_for_mysql(
 }
 
 /********************************************************************//**
+Copies a cached field for MySQL from the fetch cache. */
+static
+void
+row_sel_copy_cached_field_for_mysql(
+/*================================*/
+	byte*			buf,	/*!< in/out: row buffer */
+	const byte*		cache,	/*!< in: cached row */
+	const mysql_row_templ_t*templ)	/*!< in: column template */
+{
+	ulint	len;
+
+	buf += templ->mysql_col_offset;
+	cache += templ->mysql_col_offset;
+
+	UNIV_MEM_ASSERT_W(buf, templ->mysql_col_len);
+
+	if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR
+	    && templ->type != DATA_INT) {
+		/* Check for != DATA_INT to make sure we do
+		not treat MySQL ENUM or SET as a true VARCHAR!
+		Find the actual length of the true VARCHAR field. */
+		row_mysql_read_true_varchar(
+			&len, cache, templ->mysql_length_bytes);
+		len += templ->mysql_length_bytes;
+		UNIV_MEM_INVALID(buf, templ->mysql_col_len);
+	} else {
+		len = templ->mysql_col_len;
+	}
+
+	ut_memcpy(buf, cache, len);
+}
+
+/********************************************************************//**
 Pops a cached row for MySQL from the fetch cache. */
 UNIV_INLINE
 void
@@ -3124,26 +3172,22 @@ row_sel_pop_cached_row_for_mysql(
 {
 	ulint			i;
 	const mysql_row_templ_t*templ;
-	byte*			cached_rec;
+	const byte*		cached_rec;
 	ut_ad(prebuilt->n_fetch_cached > 0);
 	ut_ad(prebuilt->mysql_prefix_len <= prebuilt->mysql_row_len);
+
+	UNIV_MEM_ASSERT_W(buf, prebuilt->mysql_row_len);
+
+	cached_rec = prebuilt->fetch_cache[prebuilt->fetch_cache_first];
 
 	if (UNIV_UNLIKELY(prebuilt->keep_other_fields_on_keyread)) {
 		/* Copy cache record field by field, don't touch fields that
 		are not covered by current key */
-		cached_rec = prebuilt->fetch_cache[
-			prebuilt->fetch_cache_first];
 
 		for (i = 0; i < prebuilt->n_template; i++) {
 			templ = prebuilt->mysql_template + i;
-#if 0 /* Some of the cached_rec may legitimately be uninitialized. */
-			UNIV_MEM_ASSERT_RW(cached_rec
-					   + templ->mysql_col_offset,
-					   templ->mysql_col_len);
-#endif
-			ut_memcpy(buf + templ->mysql_col_offset,
-				  cached_rec + templ->mysql_col_offset,
-				  templ->mysql_col_len);
+			row_sel_copy_cached_field_for_mysql(
+				buf, cached_rec, templ);
 			/* Copy NULL bit of the current field from cached_rec
 			to buf */
 			if (templ->mysql_null_bit_mask) {
@@ -3153,17 +3197,24 @@ row_sel_pop_cached_row_for_mysql(
 					& (byte)templ->mysql_null_bit_mask;
 			}
 		}
+	} else if (prebuilt->mysql_prefix_len > 63) {
+		/* The record is long. Copy it field by field, in case
+		there are some long VARCHAR column of which only a
+		small length is being used. */
+		UNIV_MEM_INVALID(buf, prebuilt->mysql_prefix_len);
+
+		/* First copy the NULL bits. */
+		ut_memcpy(buf, cached_rec, prebuilt->null_bitmap_len);
+		/* Then copy the requested fields. */
+
+		for (i = 0; i < prebuilt->n_template; i++) {
+			row_sel_copy_cached_field_for_mysql(
+				buf, cached_rec, prebuilt->mysql_template + i);
+		}
+	} else {
+		ut_memcpy(buf, cached_rec, prebuilt->mysql_prefix_len);
 	}
-	else {
-#if 0 /* Some of the cached_rec may legitimately be uninitialized. */
-		UNIV_MEM_ASSERT_RW(prebuilt->fetch_cache
-				   [prebuilt->fetch_cache_first],
-				   prebuilt->mysql_prefix_len);
-#endif
-		ut_memcpy(buf,
-			  prebuilt->fetch_cache[prebuilt->fetch_cache_first],
-			  prebuilt->mysql_prefix_len);
-	}
+
 	prebuilt->n_fetch_cached--;
 	prebuilt->fetch_cache_first++;
 
@@ -3399,6 +3450,13 @@ row_search_for_mysql(
 		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 		return(DB_MISSING_HISTORY);
+	}
+
+	if (dict_index_is_corrupted(index)) {
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+		return(DB_CORRUPTION);
 	}
 
 	if (UNIV_UNLIKELY(prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {

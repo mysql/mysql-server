@@ -3216,9 +3216,11 @@ static LSN parse_checkpoint_record(LSN lsn)
 
   tprint(tracef, "Loading data from checkpoint record at LSN (%lu,0x%lx)\n",
          LSN_IN_PARTS(lsn));
-  if ((len= translog_read_record_header(lsn, &rec)) == RECHEADER_READ_ERROR)
+  if ((len= translog_read_record_header(lsn, &rec)) == RECHEADER_READ_ERROR ||
+      rec.type != LOGREC_CHECKPOINT)
   {
-    tprint(tracef, "Cannot find checkpoint record where it should be\n");
+    eprint(tracef, "Cannot find checkpoint record at LSN (%lu,0x%lx)",
+           LSN_IN_PARTS(lsn));
     return LSN_ERROR;
   }
 

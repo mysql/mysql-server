@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -929,7 +929,8 @@ static Sys_var_mybool Sys_log_queries_not_using_indexes(
 
 static Sys_var_ulong Sys_log_warnings(
        "log_warnings",
-       "Log some not critical warnings to the general log file",
+       "Log some not critical warnings to the general log file."
+       "Value can be between 0 and 11. Higher values mean more verbosity",
        SESSION_VAR(log_warnings),
        CMD_LINE(OPT_ARG, 'W'),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
@@ -1234,14 +1235,28 @@ static Sys_var_ulong Sys_max_sp_recursion_depth(
        SESSION_VAR(max_sp_recursion_depth), CMD_LINE(OPT_ARG),
        VALID_RANGE(0, 255), DEFAULT(0), BLOCK_SIZE(1));
 
+
+static bool if_checking_enabled(sys_var *self, THD *thd,  set_var *var)
+{
+  if (session_readonly(self, thd, var))
+    return true;
+  
+  if (!max_user_connections_checking)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--max-user-connections=0");
+    return true;
+  }
+
+  return false;
+}
 // non-standard session_value_ptr() here
 static Sys_var_max_user_conn Sys_max_user_connections(
        "max_user_connections",
        "The maximum number of active connections for a single user "
        "(0 = no limit)",
        SESSION_VAR(max_user_connections), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(session_readonly));
+       VALID_RANGE(-1, INT_MAX), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(if_checking_enabled));
 
 static Sys_var_ulong Sys_max_tmp_tables(
        "max_tmp_tables",
@@ -3341,18 +3356,18 @@ static Sys_var_mybool Sys_userstat(
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_binlog_annotate_row_events(
-       "binlog_annotate_rows_events",
+       "binlog_annotate_row_events",
        "Tells the master to annotate RBR events with the statement that "
        "caused these events",
-       SESSION_VAR(binlog_annotate_rows_events), CMD_LINE(OPT_ARG),
+       SESSION_VAR(binlog_annotate_row_events), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
 
 #ifdef HAVE_REPLICATION
-static Sys_var_mybool Sys_replicate_annotate_rows_events(
-       "replicate_annotate_rows_events",
+static Sys_var_mybool Sys_replicate_annotate_row_events(
+       "replicate_annotate_row_events",
        "Tells the slave to write annotate rows events recieved from the master "
        "to its own binary log. Ignored if log_slave_updates is not set",
-       READ_ONLY GLOBAL_VAR(opt_replicate_annotate_rows_events),
+       READ_ONLY GLOBAL_VAR(opt_replicate_annotate_row_events),
        CMD_LINE(OPT_ARG), DEFAULT(0));
 #endif
 
@@ -3416,4 +3431,13 @@ static Sys_var_session_special Sys_in_transaction(
        READ_ONLY sys_var::ONLY_SESSION, NO_CMD_LINE,
        VALID_RANGE(0, 1), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), ON_READ(in_transaction));
+
+#ifndef DBUG_OFF
+static Sys_var_ulong Sys_debug_binlog_fsync_sleep(
+       "debug_binlog_fsync_sleep",
+       "Extra sleep (in microseconds) to add to binlog fsync(), for debugging",
+       GLOBAL_VAR(opt_binlog_dbug_fsync_sleep),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
+#endif
 

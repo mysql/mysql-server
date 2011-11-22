@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (C) 2002 MySQL AB
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
@@ -29,7 +29,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_class.h"                          // THD, set_var.h: THD
 #include "set_var.h"                            // Item
-
+#include "sp.h"
 #include <stddef.h>
 
 /**
@@ -37,12 +37,6 @@
   @ingroup Runtime_Environment
   @{
 */
-// Values for the type enum. This reflects the order of the enum declaration
-// in the CREATE TABLE command.
-#define TYPE_ENUM_FUNCTION  1
-#define TYPE_ENUM_PROCEDURE 2
-#define TYPE_ENUM_TRIGGER   3
-#define TYPE_ENUM_PROXY     4
 
 Item_result
 sp_map_result_type(enum enum_field_types type);
@@ -164,8 +158,7 @@ public:
     HAS_SQLCOM_FLUSH= 2048
   };
 
-  /** TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */
-  int m_type;
+  stored_procedure_type m_type;
   uint m_flags;                 // Boolean attributes of a stored routine
 
   Create_field m_return_field_def; /**< This is used for FUNCTIONs only. */

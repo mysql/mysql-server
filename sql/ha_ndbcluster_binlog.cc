@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+  Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "sql_priv.h"
 #include "unireg.h"         // REQUIRED: for other includes
@@ -1868,7 +1870,7 @@ static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
   else
     thd->server_id= schema->any_value;
   thd->db= schema->db;
-  int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
+  int errcode = query_error_code(thd, thd->killed == NOT_KILLED);
   thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
                     schema->query_length, FALSE, TRUE,
                     schema->name[0] == 0 || thd->db[0] == 0,

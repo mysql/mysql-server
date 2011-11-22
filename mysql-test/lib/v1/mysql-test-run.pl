@@ -1,7 +1,21 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-#
+# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+
 ##############################################################################
 #
 #  mysql-test-run.pl
@@ -2335,8 +2349,11 @@ sub remove_stale_vardir () {
 	mtr_report("WARNING: Using the 'mysql-test/var' symlink");
 
 	# Make sure the directory where it points exist
-	mtr_error("The destination for symlink $opt_vardir does not exist")
-	  if ! -d readlink($opt_vardir);
+        if (! -d readlink($opt_vardir))
+        {
+          mtr_report("The destination for symlink $opt_vardir does not exist; Removing it and creating a new var directory");
+          unlink($opt_vardir);
+        }
 
 	foreach my $bin ( glob("$opt_vardir/*") )
 	{
@@ -2395,8 +2412,11 @@ sub setup_vardir() {
       #  it's a symlink
 
       # Make sure the directory where it points exist
-      mtr_error("The destination for symlink $opt_vardir does not exist")
-	if ! -d readlink($opt_vardir);
+      if (! -d readlink($opt_vardir))
+      {
+        mtr_report("The destination for symlink $opt_vardir does not exist; Removing it and creating a new var directory");
+        unlink($opt_vardir);
+      }
     }
     elsif ( $opt_mem )
     {

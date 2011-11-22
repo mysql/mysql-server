@@ -144,7 +144,7 @@ typedef struct st_handler_check_param
   time_t backup_time;                           /* To sign backup files */
   ulong rec_per_key_part[HA_MAX_KEY_SEG * HA_MAX_POSSIBLE_KEY];
   double new_rec_per_key_part[HA_MAX_KEY_SEG * HA_MAX_POSSIBLE_KEY];
-  uint out_flag, warning_printed, error_printed, verbose;
+  uint out_flag, warning_printed, error_printed, note_printed, verbose;
   uint opt_sort_key, total_files, max_level;
   uint key_cache_block_size, pagecache_block_size;
   int tmpfile_createflag, err_count;

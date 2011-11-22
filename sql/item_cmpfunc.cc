@@ -33,8 +33,6 @@
 #include "sql_time.h"                  // make_truncated_value_warning
 #include "sql_base.h"                  // dynamic_column_error_message
 
-static bool convert_const_to_int(THD *, Item_field *, Item **);
-
 static Item_result item_store_type(Item_result a, Item *item,
                                    my_bool unsigned_flag)
 {
@@ -519,7 +517,6 @@ static bool convert_const_to_int(THD *thd, Item_field *field_item,
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length= 1;				     // Function returns 0 or 1
-  THD *thd;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -551,14 +548,14 @@ void Item_bool_func2::fix_length_and_dec()
 
   /*
     Make a special case of compare with fields to get nicer comparisons
-    of numbers with constant string.
+    of bigint numbers with constant string.
     This directly contradicts the manual (number and a string should
     be compared as doubles), but seems to provide more
     "intuitive" behavior in some cases (but less intuitive in others).
 
     But disable conversion in case of LIKE function.
   */
-  thd= current_thd;
+  THD *thd= current_thd;
   if (functype() != LIKE_FUNC && !thd->lex->is_ps_or_view_context_analysis())
   {
     int field;
@@ -566,7 +563,8 @@ void Item_bool_func2::fix_length_and_dec()
         args[field= 1]->real_item()->type() == FIELD_ITEM)
     {
       Item_field *field_item= (Item_field*) (args[field]->real_item());
-      if (field_item->cmp_type() == INT_RESULT &&
+      if ((field_item->field_type() ==  MYSQL_TYPE_LONGLONG ||
+           field_item->field_type() ==  MYSQL_TYPE_YEAR) &&
           convert_const_to_int(thd, field_item, &args[!field]))
         args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
     }
@@ -1401,6 +1399,16 @@ bool Item_in_optimizer::is_top_level_item()
 }
 
 
+void Item_in_optimizer::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  /* This will re-calculate attributes of our Item_in_subselect: */
+  Item_bool_func::fix_after_pullout(new_parent, ref);
+
+  /* Then, re-calculate not_null_tables_cache: */
+  eval_not_null_tables(NULL);
+}
+
+
 bool Item_in_optimizer::eval_not_null_tables(uchar *opt_arg)
 {
   not_null_tables_cache= 0;
@@ -1424,6 +1432,7 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
   cache->setup(args[0]);
   if (cache->cols() == 1)
   {
+    DBUG_ASSERT(args[0]->type() != ROW_ITEM);
     /* 
       Note: there can be cases when used_tables()==0 && !const_item(). See
       Item_sum::update_used_tables for details.
@@ -1438,6 +1447,14 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     uint n= cache->cols();
     for (uint i= 0; i < n; i++)
     {
+      /* Check that the expression (part of row) do not contain a subquery */
+      if (args[0]->element_index(i)->walk(&Item::is_subquery_processor,
+                                          FALSE, NULL))
+      {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "SUBQUERY in ROW in left expression of IN/ALL/ANY");
+        return 1;
+      }
       Item *element=args[0]->element_index(i);
       if (element->used_tables() || !element->const_item())
 	((Item_cache *)cache->element_index(i))->set_used_tables(OUTER_REF_TABLE_BIT);
@@ -1784,7 +1801,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
     if (!new_item)
       return 0;
     if (args[1] != new_item)
-      current_thd->change_item_tree(args, new_item);
+      current_thd->change_item_tree(args + 1, new_item);
   }
   else
   {
@@ -2135,6 +2152,14 @@ bool Item_func_between::eval_not_null_tables(uchar *opt_arg)
 }  
 
 
+void Item_func_between::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  /* This will re-calculate attributes of the arguments */
+  Item_func_opt_neg::fix_after_pullout(new_parent, ref);
+  /* Then, re-calculate not_null_tables_cache according to our special rules */
+  eval_not_null_tables(NULL);
+}
+
 void Item_func_between::fix_length_and_dec()
 {
   THD *thd= current_thd;
@@ -2169,7 +2194,8 @@ void Item_func_between::fix_length_and_dec()
       !thd->lex->is_ps_or_view_context_analysis())
   {
     Item_field *field_item= (Item_field*) (args[0]->real_item());
-    if (field_item->cmp_type() == INT_RESULT)
+    if (field_item->field_type() ==  MYSQL_TYPE_LONGLONG ||
+        field_item->field_type() ==  MYSQL_TYPE_YEAR)
     {
       /*
         The following can't be recoded with || as convert_const_to_int
@@ -2519,6 +2545,15 @@ Item_func_if::eval_not_null_tables(uchar *opt_arg)
 }
 
 
+void Item_func_if::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  /* This will re-calculate attributes of the arguments */
+  Item_func::fix_after_pullout(new_parent, ref);
+  /* Then, re-calculate not_null_tables_cache according to our special rules */
+  eval_not_null_tables(NULL);
+}
+
+
 void
 Item_func_if::fix_length_and_dec()
 {
@@ -2771,7 +2806,7 @@ Item *Item_func_case::find_item(String *str)
     {
       if (args[i]->real_item()->type() == NULL_ITEM)
         continue;
-      cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
+      cmp_type= item_cmp_type(left_result_type, args[i]->cmp_type());
       DBUG_ASSERT(cmp_type != ROW_RESULT);
       DBUG_ASSERT(cmp_items[(uint)cmp_type]);
       if (!(value_added_map & (1<<(uint)cmp_type)))
@@ -2901,11 +2936,35 @@ void Item_func_case::agg_num_lengths(Item *arg)
 }
 
 
+/**
+  Check if (*place) and new_value points to different Items and call
+  THD::change_item_tree() if needed.
+
+  This function is a workaround for implementation deficiency in
+  Item_func_case. The problem there is that the 'args' attribute contains
+  Items from different expressions.
+ 
+  The function must not be used elsewhere and will be remove eventually.
+*/
+
+static void change_item_tree_if_needed(THD *thd,
+                                       Item **place,
+                                       Item *new_value)
+{
+  if (*place == new_value)
+    return;
+
+  thd->change_item_tree(place, new_value);
+}
+
+
 void Item_func_case::fix_length_and_dec()
 {
   Item **agg;
   uint nagg;
   uint found_types= 0;
+  THD *thd= current_thd;
+
   if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
     return;
   
@@ -2930,9 +2989,10 @@ void Item_func_case::fix_length_and_dec()
       Some of the items might have been changed to Item_func_conv_charset.
     */
     for (nagg= 0 ; nagg < ncases / 2 ; nagg++)
-      args[nagg * 2 + 1]= agg[nagg];
+      change_item_tree_if_needed(thd, &args[nagg * 2 + 1], agg[nagg]);
+
     if (else_expr_num != -1)
-      args[else_expr_num]= agg[nagg++];
+      change_item_tree_if_needed(thd, &args[else_expr_num], agg[nagg++]);
   }
   else
     collation.set_numeric();
@@ -2946,7 +3006,7 @@ void Item_func_case::fix_length_and_dec()
   {
     uint i;
     agg[0]= args[first_expr_num];
-    left_result_type= agg[0]->result_type();
+    left_result_type= agg[0]->cmp_type();
 
     /*
       As the first expression and WHEN expressions
@@ -2992,19 +3052,24 @@ void Item_func_case::fix_length_and_dec()
         arrray, because some of the items might have been changed to converters
         (e.g. Item_func_conv_charset, or Item_string for constants).
       */
-      args[first_expr_num]= agg[0];
+      change_item_tree_if_needed(thd, &args[first_expr_num], agg[0]);
+
       for (nagg= 0; nagg < ncases / 2; nagg++)
-        args[nagg * 2]= agg[nagg + 1];
+        change_item_tree_if_needed(thd, &args[nagg * 2], agg[nagg + 1]);
     }
 
+    Item *date_arg= 0;
     for (i= 0; i <= (uint)TIME_RESULT; i++)
     {
       if (found_types & (1 << i) && !cmp_items[i])
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
-        DBUG_ASSERT((Item_result)i != TIME_RESULT);
+
+        if ((Item_result)i == TIME_RESULT)
+          date_arg= find_date_time_item(args, arg_count, 0);
+
         if (!(cmp_items[i]=
-            cmp_item::get_comparator((Item_result)i, 0,
+            cmp_item::get_comparator((Item_result)i, date_arg,
                                      cmp_collation.collation)))
           return;
       }
@@ -3598,10 +3663,13 @@ void cmp_item_row::store_value(Item *item)
     for (uint i=0; i < n; i++)
     {
       if (!comparators[i])
+      {
+        DBUG_ASSERT(item->element_index(i)->cmp_type() != TIME_RESULT);
         if (!(comparators[i]=
               cmp_item::get_comparator(item->element_index(i)->result_type(), 0,
                                        item->element_index(i)->collation.collation)))
 	  break;					// new failed
+      }
       comparators[i]->store_value(item->element_index(i));
       item->null_value|= item->element_index(i)->null_value;
     }
@@ -3804,6 +3872,14 @@ Item_func_in::eval_not_null_tables(uchar *opt_arg)
 }
 
 
+void Item_func_in::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  /* This will re-calculate attributes of the arguments */
+  Item_func_opt_neg::fix_after_pullout(new_parent, ref);
+  /* Then, re-calculate not_null_tables_cache according to our special rules */
+  eval_not_null_tables(NULL);
+}
+
 static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 {
   return cs->coll->strnncollsp(cs,
@@ -3902,7 +3978,8 @@ void Item_func_in::fix_length_and_dec()
         !thd->lex->is_view_context_analysis() && cmp_type != INT_RESULT)
     {
       Item_field *field_item= (Item_field*) (args[0]->real_item());
-      if (field_item->cmp_type() == INT_RESULT)
+      if (field_item->field_type() ==  MYSQL_TYPE_LONGLONG ||
+          field_item->field_type() ==  MYSQL_TYPE_YEAR)
       {
         bool all_converted= TRUE;
         for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
@@ -4125,13 +4202,10 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   uchar buff[sizeof(char*)];			// Max local vars in function
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 1;
 
-  if (functype() != COND_AND_FUNC)
-    thd->thd_marker.emb_on_expr_nest= NULL;
   /*
     and_table_cache is the value that Item_cond_or() returns for
     not_null_tables()
@@ -4191,7 +4265,6 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       maybe_null=1;
   }
   thd->lex->current_select->cond_count+= list.elements;
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
   fix_length_and_dec();
   fixed= 1;
   return FALSE;
@@ -4203,6 +4276,7 @@ Item_cond::eval_not_null_tables(uchar *opt_arg)
 {
   Item *item;
   List_iterator<Item> li(list);
+  not_null_tables_cache= (table_map) 0;
   and_tables_cache= ~(table_map) 0;
   while ((item=li++))
   {
@@ -4457,6 +4531,17 @@ void Item_cond::neg_arguments(THD *thd)
 	return;					// Fatal OEM error
     }
     (void) li.replace(new_item);
+  }
+}
+
+
+void Item_cond_and::mark_as_condition_AND_part(TABLE_LIST *embedding)
+{
+  List_iterator<Item> li(list);
+  Item *item;
+  while ((item=li++))
+  {
+    item->mark_as_condition_AND_part(embedding);
   }
 }
 
@@ -5714,7 +5799,7 @@ longlong Item_equal::val_int()
 void Item_equal::fix_length_and_dec()
 {
   Item *item= get_first(NULL);
-  eval_item= cmp_item::get_comparator(item->result_type(), 0,
+  eval_item= cmp_item::get_comparator(item->cmp_type(), item,
                                       item->collation.collation);
 }
 
@@ -5817,7 +5902,6 @@ Item* Item_equal::get_first(Item *field_item)
 {
   Item_equal_fields_iterator it(*this);
   Item *item;
-  JOIN_TAB *field_tab;
   if (!field_item)
     return (it++);
   Field *field= ((Item_field *) (field_item->real_item()))->field;
@@ -5841,8 +5925,6 @@ Item* Item_equal::get_first(Item *field_item)
     eliminate_item_equal() also has code that deals with equality substitution
     in presense of SJM nests.
   */
-
-  field_tab= field->table->reginfo.join_tab;
 
   TABLE_LIST *emb_nest= field->table->pos_in_table_list->embedding;
 

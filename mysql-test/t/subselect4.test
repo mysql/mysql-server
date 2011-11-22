@@ -7,6 +7,7 @@ drop view if exists v1, v2;
 
 set @subselect4_tmp= @@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+set optimizer_switch='semijoin_with_cache=on';
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 
 --echo #
@@ -237,35 +238,6 @@ set @@session.optimizer_switch          = @old_optimizer_switch,
     @@session.engine_condition_pushdown = @old_engine_condition_pushdown;
 
 DROP TABLE t1;
-
---echo #
---echo # BUG#45863 "Assertion failed: (fixed == 0), function fix_fields(),
---echo #            file item.cc, line 4448"
---echo #
---disable_warnings
-DROP TABLE IF EXISTS C, BB;
---enable_warnings
-
-CREATE TABLE C (
-  varchar_nokey varchar(1) NOT NULL
-);
-INSERT INTO C VALUES
-  ('k'),('a'),(''),('u'),('e'),('v'),('i'),
-  ('t'),('u'),('f'),('u'),('m'),('j'),('f'),
-  ('v'),('j'),('g'),('e'),('h'),('z');
-CREATE TABLE BB (
-  varchar_nokey varchar(1) NOT NULL
-);
-INSERT INTO BB VALUES ('i'),('t');
--- error ER_OPERAND_COLUMNS
-SELECT varchar_nokey FROM C
-WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey
-                                FROM BB);
--- error ER_BAD_FIELD_ERROR
-SELECT varchar_nokey FROM C
-WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey, varchar_nokey
-                                FROM BB);
-DROP TABLE C,BB;
 
 --echo #
 --echo # During work with BUG#45863 I had problems with a query that was
@@ -1591,5 +1563,72 @@ EXECUTE st2;
 
 drop table t1, t2;
 
+--echo #
+--echo # LP BUG#825018: Crash in check_and_do_in_subquery_rewrites() with corrlated subquery in select list
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (10,1),(11,7);
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (2),(3);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (1,1);
+
+CREATE PROCEDURE sp1 () LANGUAGE SQL
+SELECT (SELECT t1.a
+        FROM t1
+        WHERE t1.b = t3.b
+        AND t1.b IN ( SELECT a FROM t2 )) sq
+FROM t3
+GROUP BY 1;
+CALL sp1();
+CALL sp1();
+drop procedure sp1;
+
+prepare st1 from "
+SELECT (SELECT t1.a
+        FROM t1
+        WHERE t1.b = t3.b
+        AND t1.b IN ( SELECT a FROM t2 )) sq
+FROM t3
+GROUP BY 1";
+execute st1;
+execute st1;
+deallocate prepare st1;
+
+drop table t1, t2, t3;
 
 set optimizer_switch=@subselect4_tmp;
+
+--echo #
+--echo # LP BUG#833702 Wrong result with nested IN and singlerow subqueries and equality propagation
+--echo #
+
+CREATE TABLE t2 (c int , a int, b int);
+INSERT INTO t2 VALUES (10,7,0);
+
+CREATE TABLE t3 (a int, b int) ;
+INSERT INTO t3 VALUES (5,0),(7,0);
+
+CREATE TABLE t4 (a int);
+INSERT INTO t4 VALUES (2),(8);
+
+set @@optimizer_switch='semijoin=off,in_to_exists=on,materialization=off,subquery_cache=off';
+
+SELECT * FROM t2
+WHERE t2.b IN (SELECT b FROM t3 WHERE t3.a = t2.a AND a < SOME (SELECT * FROM t4))
+   OR ( t2.c > 242 );
+
+EXPLAIN SELECT * FROM t2
+WHERE t2.b IN (SELECT t3.b FROM t3 WHERE t3.a < ANY (SELECT t4.a FROM t4) and t3.a = 7);
+SELECT * FROM t2
+WHERE t2.b IN (SELECT t3.b FROM t3 WHERE t3.a < ANY (SELECT t4.a FROM t4) and t3.a = 7);
+
+drop table t2, t3, t4;
+
+set optimizer_switch=@subselect4_tmp;
+
+SET optimizer_switch= @@global.optimizer_switch;
+set @@tmp_table_size= @@global.tmp_table_size;

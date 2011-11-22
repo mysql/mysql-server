@@ -1,11 +1,11 @@
 ###############################################################################
 # WL47: Store in binlog text of statements that caused RBR events
 # new event:              ANNOTATE_ROWS_EVENT
-# new master option:      --binlog-annotate-rows-events
-# new mysqlbinlog option: --skip-annotate-rows-events
+# new master option:      --binlog-annotate-row-events
+# new mysqlbinlog option: --skip-annotate-row-events
 #
 # Intended to test that:
-# *** If the --binlog-annotate-rows-events option is switched on on master
+# *** If the --binlog-annotate-row-events option is switched on on master
 #     then Annotate_rows events:
 #     - are generated;
 #     - are genrated only once for "multi-table-maps" rbr queries;
@@ -13,9 +13,9 @@
 #     - are generated when the corresponding queries are filtered away partialy
 #       (e.g. in case of multi-delete).
 # *** Annotate_rows events are printed by mysqlbinlog started without
-#     --skip-annotate-rows-events options both in remote and local cases.
+#     --skip-annotate-row-events options both in remote and local cases.
 # *** Annotate_rows events are not printed by mysqlbinlog started with
-#     --skip-annotate-rows-events options both in remote and local cases.
+#     --skip-annotate-row-events options both in remote and local cases.
 ###############################################################################
 
 --source include/have_log_bin.inc
@@ -54,11 +54,11 @@ CREATE TABLE xtest1.xt1(a int);
 CREATE DATABASE xtest2;
 CREATE TABLE xtest2.xt2(a int);
 
-# By default SESSION binlog_annotate_rows_events = OFF
+# By default SESSION binlog_annotate_row_events = OFF
 
 INSERT INTO test1.t1 VALUES (1), (2), (3);
 
-SET SESSION binlog_annotate_rows_events = ON;
+SET SESSION binlog_annotate_row_events = ON;
 
 INSERT INTO test2.t2 VALUES (1), (2), (3);
 INSERT INTO test3.t3 VALUES (1), (2), (3);
@@ -133,13 +133,13 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 --echo #
 --echo #####################################################################################
---echo # mysqlbinlog --skip-annotate-rows-events
+--echo # mysqlbinlog --skip-annotate-row-events
 --echo # No Annotates should appear in this output
 --echo #####################################################################################
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_regex /server id [0-9]*/server id #/ /server v [^ ]*/server v #.##.##/ /exec_time=[0-9]*/exec_time=#/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/
---exec $MYSQL_BINLOG --base64-output=decode-rows --skip-annotate-rows-events -v -v $MYSQLD_DATADIR/master-bin.000001
+--exec $MYSQL_BINLOG --base64-output=decode-rows --skip-annotate-row-events -v -v $MYSQLD_DATADIR/master-bin.000001
 
 --echo #
 --echo #####################################################################################
@@ -169,13 +169,13 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 --echo #
 --echo #####################################################################################
---echo # mysqlbinlog --read-from-remote-server --skip-annotate-rows-events
+--echo # mysqlbinlog --read-from-remote-server --skip-annotate-row-events
 --echo # No Annotates should appear in this output
 --echo #####################################################################################
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_regex /server id [0-9]*/server id #/ /server v [^ ]*/server v #.##.##/ /exec_time=[0-9]*/exec_time=#/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/
---exec $MYSQL_BINLOG --base64-output=decode-rows --skip-annotate-rows-events -v -v --read-from-remote-server --user=root --host=localhost --port=$MASTER_MYPORT master-bin.000001
+--exec $MYSQL_BINLOG --base64-output=decode-rows --skip-annotate-row-events -v -v --read-from-remote-server --user=root --host=localhost --port=$MASTER_MYPORT master-bin.000001
 
 # Clean-up
 

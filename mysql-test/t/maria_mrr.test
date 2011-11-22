@@ -74,7 +74,9 @@ CREATE TABLE t3(
   PRIMARY KEY (pk), INDEX idx (v, i)
 ) ENGINE=ARIA;
 INSERT INTO t3 SELECT * FROM t1;
-INSERT INTO t3 VALUES (88, 442, 'y'), (99, 445, 'w') ;
+INSERT INTO t3 VALUES
+  (88, 442, 'y'), (99, 445, 'w'), (87, 442, 'z'), (98, 445, 'v'), (86, 442, 'x'),
+  (97, 445, 't'), (85, 442, 'b'), (96, 445, 'l'), (84, 442, 'a'), (95, 445, 'k');
 
 SELECT COUNT(t1.v) FROM t1, t2 IGNORE INDEX (idx), t3 IGNORE INDEX (idx)
   WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
@@ -105,11 +107,8 @@ CREATE TABLE t1 (
 ) ENGINE=Aria;
 
 INSERT INTO t1 VALUES
-(1,'z'),
-(2,'abcdefjhjkl'),
-(3,'in'),
-(4,'abcdefjhjkl'),
-(6,'abcdefjhjkl');
+  (1,'z'), (2,'abcdefjhjkl'), (3,'in'), (4,'abcdefjhjkl'), (6,'abcdefjhjkl'),
+  (11,'zx'), (12,'abcdefjhjm'), (13,'jn'), (14,'abcdefjhjp'), (16,'abcdefjhjr');
 
 CREATE TABLE t2 (
   col_varchar_10_latin1 varchar(10) DEFAULT NULL

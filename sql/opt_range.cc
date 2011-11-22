@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   TODO:
@@ -1163,10 +1164,10 @@ int SEL_IMERGE::and_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree,
 
     2. In the second mode, when is_first_check_pass==FALSE :
       2.1. For each rt_j in the imerge that can be ored (see the function
-           sel_trees_can_be_ored), but not must be ored, with rt the function
-           replaces rt_j for a range tree such that for each index for which
-           ranges are defined in both in rt_j and rt  the tree contains the
-           result of oring of these ranges.
+           sel_trees_can_be_ored) with rt the function replaces rt_j for a
+           range tree such that for each index for which ranges are defined
+           in both in rt_j and rt  the tree contains the  result of oring of
+           these ranges.
       2.2. In other cases the function does not produce any imerge.
 
     When is_first_check==TRUE the function returns FALSE in the parameter
@@ -1190,7 +1191,7 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
                                         bool *is_last_check_pass)
 {
   bool was_ored= FALSE;
-  *is_last_check_pass= TRUE;
+  *is_last_check_pass= is_first_check_pass;
   SEL_TREE** or_tree = trees;
   for (uint i= 0; i < n_trees; i++, or_tree++)
   {
@@ -1201,7 +1202,7 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
     {
       bool must_be_ored= sel_trees_must_be_ored(param, *or_tree, tree,
                                                 ored_keys);
-      if (must_be_ored || !is_first_check_pass) 
+      if (must_be_ored || !is_first_check_pass)
       {
         result_keys.clear_all();
         result= *or_tree;
@@ -1237,22 +1238,19 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
     {
       if (result_keys.is_clear_all())
         result->type= SEL_TREE::ALWAYS;
-      *is_last_check_pass= TRUE;
       if ((result->type == SEL_TREE::MAYBE) ||
           (result->type == SEL_TREE::ALWAYS))
         return 1;
       /* SEL_TREE::IMPOSSIBLE is impossible here */
       result->keys_map= result_keys; 
       *or_tree= result;
-      if (is_first_check_pass)
-        return 0;
       was_ored= TRUE;
     }
   }
   if (was_ored)
     return 0;
 
-  if (!*is_last_check_pass && 
+  if (is_first_check_pass && !*is_last_check_pass &&
       !(tree= new SEL_TREE(tree, FALSE, param)))
     return (-1);
   return or_sel_tree(param, tree);
@@ -8472,9 +8470,9 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     /* Build the imerge part of the tree for the formula (1) */
     SEL_TREE *rt1= tree1;
     SEL_TREE *rt2= tree2;
-    if (!no_merges1)
+    if (no_merges1)
       rt1= new SEL_TREE(tree1, TRUE, param);
-    if (!no_merges2)
+    if (no_merges2)
       rt2= new SEL_TREE(tree2, TRUE, param);
     if (!rt1 || !rt2 ||
         result->merges.push_back(imerge_from_ranges) ||
@@ -9169,6 +9167,13 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
             key2:               [---]
             tmp:     [---------]
           */
+          if (key2->use_count)
+	  {
+	    SEL_ARG *key2_cpy= new SEL_ARG(*key2);
+            if (key2_cpy)
+              return 0;
+            key2= key2_cpy;
+	  }
           key2->copy_max_to_min(tmp);
           continue;
         }

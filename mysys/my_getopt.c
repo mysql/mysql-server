@@ -395,10 +395,12 @@ int handle_options(int *argc, char ***argv,
 	    */
 	    (*argc)--;
 	    if (!optend || *optend == '1' ||
-		!my_strcasecmp(&my_charset_latin1, optend, "true"))
+		!my_strcasecmp(&my_charset_latin1, optend, "true") ||
+		!my_strcasecmp(&my_charset_latin1, optend, "on"))
 	      *((my_bool*) value)= (my_bool) 1;
 	    else if (*optend == '0' ||
-		     !my_strcasecmp(&my_charset_latin1, optend, "false"))
+		     !my_strcasecmp(&my_charset_latin1, optend, "false") ||
+                     !my_strcasecmp(&my_charset_latin1, optend, "off"))
 	      *((my_bool*) value)= (my_bool) 0;
 	    else
 	    {

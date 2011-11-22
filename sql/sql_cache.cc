@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Description of the query cache:
@@ -498,11 +498,12 @@ static void make_base_query(String *new_query,
       continue;                                 // Continue with next symbol
     case '/':                                   // Start of comment ?
       /*
-        Comment of format /#!number #/, must be skipped.
+        Comment of format /#!number #/ or /#M!number #/, must be skipped.
         These may include '"' and other comments, but it should
         be safe to parse the content as a normal string.
       */
-      if (query[0] != '*' || query[1] == '!')
+      if (query[0] != '*' || query[1] == '!' ||
+          (query[1] == 'M' && query[2] == '!'))
         break;
 
       query++;                               // skip "/"
@@ -4453,7 +4454,7 @@ void Query_cache::wreck(uint line, const char *message)
   DBUG_PRINT("warning", ("%5d QUERY CACHE WRECK => DISABLED",line));
   DBUG_PRINT("warning", ("=================================="));
   if (thd)
-    thd->killed= THD::KILL_CONNECTION;
+    thd->killed= KILL_CONNECTION;
   cache_dump();
   /* check_integrity(0); */ /* Can't call it here because of locks */
   bins_dump();

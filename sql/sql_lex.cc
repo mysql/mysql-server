@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
@@ -25,8 +25,8 @@
 #include "item_create.h"
 #include <m_ctype.h>
 #include <hash.h>
-#include "sp.h"
 #include "sp_head.h"
+#include "sp.h"
 #include "sql_select.h"
 
 static int lex_one_token(void *arg, void *yythd);
@@ -60,6 +60,12 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS,
   ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
   ER_BINLOG_UNSAFE_MIXED_STATEMENT,
+  ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT,
+  ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE,
+  ER_BINLOG_UNSAFE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_UPDATE_IGNORE
 };
 
 
@@ -497,6 +503,7 @@ void lex_start(THD *thd)
   lex->event_parse_data= NULL;
   lex->profile_options= PROFILE_NONE;
   lex->nest_level=0 ;
+  lex->select_lex.nest_level_base= &lex->unit;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
   /*
@@ -516,6 +523,8 @@ void lex_start(THD *thd)
   lex->server_options.port= -1;
 
   lex->is_lex_started= TRUE;
+  lex->used_tables= 0;
+  lex->reset_slave_info.all= false;
   DBUG_VOID_RETURN;
 }
 
@@ -1491,39 +1500,39 @@ int lex_one_token(void *arg, void *yythd)
 
       lip->save_in_comment_state();
 
+      if (lip->yyPeekn(2) == 'M' && lip->yyPeekn(3) == '!')
+      {
+        /* Skip MariaDB unique marker */
+        lip->set_echo(FALSE);
+        lip->yySkip();
+        /* The following if will be true */
+      }
       if (lip->yyPeekn(2) == '!')
       {
         lip->in_comment= DISCARD_COMMENT;
         /* Accept '/' '*' '!', but do not keep this marker. */
         lip->set_echo(FALSE);
-        lip->yySkip();
-        lip->yySkip();
-        lip->yySkip();
+        lip->yySkipn(3);
 
         /*
           The special comment format is very strict:
-          '/' '*' '!', followed by exactly
+          '/' '*' '!', followed by an optional 'M' and exactly
           1 digit (major), 2 digits (minor), then 2 digits (dot).
           32302 -> 3.23.02
           50032 -> 5.0.32
           50114 -> 5.1.14
         */
-        char version_str[6];
-        version_str[0]= lip->yyPeekn(0);
-        version_str[1]= lip->yyPeekn(1);
-        version_str[2]= lip->yyPeekn(2);
-        version_str[3]= lip->yyPeekn(3);
-        version_str[4]= lip->yyPeekn(4);
-        version_str[5]= 0;
-        if (  my_isdigit(cs, version_str[0])
-           && my_isdigit(cs, version_str[1])
-           && my_isdigit(cs, version_str[2])
-           && my_isdigit(cs, version_str[3])
-           && my_isdigit(cs, version_str[4])
+        if (  my_isdigit(cs, lip->yyPeekn(0))
+           && my_isdigit(cs, lip->yyPeekn(1))
+           && my_isdigit(cs, lip->yyPeekn(2))
+           && my_isdigit(cs, lip->yyPeekn(3))
+           && my_isdigit(cs, lip->yyPeekn(4))
            )
         {
           ulong version;
-          version=strtol(version_str, NULL, 10);
+          char *end_ptr= (char*) lip->get_ptr()+5;
+          int error;
+          version= (ulong) my_strtoll10(lip->get_ptr(), &end_ptr, &error);
 
           if (version <= MYSQL_VERSION_ID)
           {
@@ -1856,8 +1865,9 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
+  m_non_agg_field_used= false;
+  m_agg_func_used= false;
   is_prep_leaf_list_saved= FALSE;
-
   bzero((char*) expr_cache_may_be_used, sizeof(expr_cache_may_be_used));
 }
 
@@ -1891,7 +1901,8 @@ void st_select_lex::init_select()
   non_agg_fields.empty();
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
-  full_group_by_flag= 0;
+  m_non_agg_field_used= false;
+  m_agg_func_used= false;
   insert_tables= 0;
   merged_into= 0;
 }
@@ -2274,6 +2285,9 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 
   if (ref_pointer_array)
     DBUG_RETURN(0);
+
+  // find_order_in_list() may need some extra space, so multiply by two.
+  order_group_num*= 2;
 
   /*
     We have to create array in prepared statement memory if it is a
@@ -3442,18 +3456,19 @@ void st_select_lex::append_table_to_list(TABLE_LIST *TABLE_LIST::*link,
   tl->*link= table;
 }
 
+
 /*
   @brief
-  Remove given table from the leaf_tables list.
+  Replace given table from the leaf_tables list for a list of tables 
 
-  @param link  Offset to which list in table structure to use
-  @param table Table to remove
+  @param table Table to replace
+  @param list  List to substititute the table for
 
   @details
-  Remove 'table' from the leaf_tables list using the 'link' offset.
+  Replace 'table' from the leaf_tables list for a list of tables 'tbl_list'.
 */
 
-void st_select_lex::remove_table_from_list(TABLE_LIST *table)
+void st_select_lex::replace_leaf_table(TABLE_LIST *table, List<TABLE_LIST> &tbl_list)
 {
   TABLE_LIST *tl;
   List_iterator<TABLE_LIST> ti(leaf_tables);
@@ -3461,7 +3476,7 @@ void st_select_lex::remove_table_from_list(TABLE_LIST *table)
   {
     if (tl == table)
     {
-      ti.remove();
+      ti.replace(tbl_list);
       break;
     }
   }
@@ -3566,8 +3581,6 @@ bool SELECT_LEX::merge_subquery(THD *thd, TABLE_LIST *derived,
                                 uint table_no, table_map map)
 {
   derived->wrap_into_nested_join(subq_select->top_join_list);
-  /* Reconnect the next_leaf chain. */
-  leaf_tables.concat(&subq_select->leaf_tables);
 
   ftfunc_list->concat(subq_select->ftfunc_list);
   if (join ||
@@ -3583,18 +3596,14 @@ bool SELECT_LEX::merge_subquery(THD *thd, TABLE_LIST *derived,
          in_subq->emb_on_expr_nest= derived;
     }
   }
-  /*
-    Remove merged table from chain.
-    When merge_subquery is called at a subquery-to-semijoin transformation
-    the derived isn't in the leaf_tables list, so in this case the call of
-    remove_table_from_list does not cause any actions.
-  */
-  remove_table_from_list(derived);
 
   /* Walk through child's tables and adjust table map, tablenr,
    * parent_lex */
   subq_select->remap_tables(derived, map, table_no, this);
   subq_select->merged_into= this;
+
+  replace_leaf_table(derived, subq_select->leaf_tables);
+
   return FALSE;
 }
 
@@ -3635,10 +3644,33 @@ void SELECT_LEX::update_used_tables()
 {
   TABLE_LIST *tl;
   List_iterator<TABLE_LIST> ti(leaf_tables);
+
   while ((tl= ti++))
   {
-    TABLE_LIST *embedding;
-    embedding= tl;
+    if (tl->table && !tl->is_view_or_derived())
+    {
+      TABLE_LIST *embedding= tl->embedding;
+      for (embedding= tl->embedding; embedding; embedding=embedding->embedding)
+      {
+        if (embedding->is_view_or_derived())
+	{
+          DBUG_ASSERT(embedding->is_merged_derived());
+          TABLE *tab= tl->table;
+          tab->covering_keys= tab->s->keys_for_keyread;
+          tab->covering_keys.intersect(tab->keys_in_use_for_query);
+          tab->merge_keys.clear_all();
+          bitmap_clear_all(tab->read_set);
+          bitmap_clear_all(tab->vcol_set);
+          break;
+        }
+      }
+    }
+  }
+
+  ti.rewind();
+  while ((tl= ti++))
+  {
+    TABLE_LIST *embedding= tl;
     do
     {
       bool maybe_null;
@@ -3667,6 +3699,7 @@ void SELECT_LEX::update_used_tables()
       embedding= tl->embedding;
     }
   }
+
   if (join->conds)
   {
     join->conds->update_used_tables();
@@ -3846,6 +3879,47 @@ bool st_select_lex::save_prep_leaf_tables(THD *thd)
     thd->restore_active_arena(arena, &backup);
 
   return 0;
+}
+
+
+/*
+  Return true if this select_lex has been converted into a semi-join nest
+  within 'ancestor'.
+
+  We need a loop to check this because there could be several nested
+  subselects, like
+
+    SELECT ... FROM grand_parent 
+      WHERE expr1 IN (SELECT ... FROM parent 
+                        WHERE expr2 IN ( SELECT ... FROM child)
+
+  which were converted into:
+  
+    SELECT ... 
+    FROM grand_parent SEMI_JOIN (parent JOIN child) 
+    WHERE 
+      expr1 AND expr2
+
+  In this case, both parent and child selects were merged into the parent.
+*/
+
+bool st_select_lex::is_merged_child_of(st_select_lex *ancestor)
+{
+  bool all_merged= TRUE;
+  for (SELECT_LEX *sl= this; sl && sl!=ancestor;
+       sl=sl->outer_select())
+  {
+    Item *subs= sl->master_unit()->item;
+    if (subs && subs->type() == Item::SUBSELECT_ITEM && 
+        ((Item_subselect*)subs)->substype() == Item_subselect::IN_SUBS &&
+        ((Item_in_subselect*)subs)->test_strategy(SUBS_SEMI_JOIN))
+    {
+      continue;
+    }
+    all_merged= FALSE;
+    break;
+  }
+  return all_merged;
 }
 
 

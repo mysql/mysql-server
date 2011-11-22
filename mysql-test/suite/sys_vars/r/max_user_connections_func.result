@@ -2,18 +2,20 @@
 
 SET @default_max_user_connections = @@global.max_user_connections;
 Set Global max_user_connections=2;
+GRANT USAGE on *.* TO test@localhost;
 '#--------------------FN_DYNVARS_114_01-------------------------#'
-** Connecting conn1 using username 'root' **
-** Connecting conn2 using username 'root' **
-** Connecting conn3 using username 'root' **
-ERROR 42000: User root already has more than 'max_user_connections' active connections
+** Connecting conn1 using username 'test' **
+** Connecting conn2 using username 'test' **
+** Connecting conn3 using username 'test' **
+ERROR 42000: User test already has more than 'max_user_connections' active connections
 Expected error "too many connections"
 ** Disconnecting conn1 **
 ** Poll till disconnected conn1 disappears from processlist
 '#--------------------FN_DYNVARS_114_02-------------------------#'
 Set Global max_user_connections=3;
-** Connecting conn5 using username 'root' **
-** Connecting conn6 using username 'root' **
+** Connecting conn5 using username 'test' **
+** Connecting conn6 using username 'test' **
 ** Connection default **
 ** Disconnecting conn5, conn6 **
+drop user test@localhost;
 SET @@global.max_user_connections = @default_max_user_connections;

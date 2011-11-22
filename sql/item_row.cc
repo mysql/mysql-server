@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_priv.h"
 /*
@@ -156,11 +156,13 @@ void Item_row::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 {
   used_tables_cache= 0;
   const_item_cache= 1;
+  not_null_tables_cache= 0;
   for (uint i= 0; i < arg_count; i++)
   {
     items[i]->fix_after_pullout(new_parent, &items[i]);
     used_tables_cache|= items[i]->used_tables();
     const_item_cache&= items[i]->const_item();
+    not_null_tables_cache|= items[i]->not_null_tables();
   }
 }
 

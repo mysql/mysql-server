@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "thr_template.c"
 
@@ -164,7 +164,14 @@ void do_tests()
   test_concurrently("my_atomic_cas32", test_atomic_cas, THREADS, CYCLES);
 
   {
-    int64 b=0x1000200030004000LL;
+    /*
+      If b is not volatile, the wrong assembly code is generated on OSX Lion
+      as the variable is optimized away as a constant.
+      See Bug#62533 / Bug#13030056.
+      Another workaround is to specify architecture explicitly using e.g.
+      CFLAGS/CXXFLAGS= "-m64".
+    */
+    volatile int64 b=0x1000200030004000LL;
     a64=0;
     my_atomic_add64(&a64, b);
     ok(a64==b, "add64");

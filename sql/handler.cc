@@ -362,6 +362,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_AUTOINC_ERANGE,         ER_DEFAULT(ER_WARN_DATA_OUT_OF_RANGE));
   SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER_DEFAULT(ER_TOO_MANY_CONCURRENT_TRXS));
   SETMSG(HA_ERR_INDEX_COL_TOO_LONG,	ER_DEFAULT(ER_INDEX_COLUMN_TOO_LONG));
+  SETMSG(HA_ERR_INDEX_CORRUPT,         ER_DEFAULT(ER_INDEX_CORRUPT));
   SETMSG(HA_ERR_DISK_FULL,              ER_DEFAULT(ER_DISK_FULL));
 
   /* Register the error messages for use with my_error(). */
@@ -1477,9 +1478,13 @@ int ha_rollback_trans(THD *thd, bool all)
     slave SQL thread, it would not stop the thread but just be printed in
     the error log; but we don't want users to wonder why they have this
     message in the error log, so we don't send it.
+
+    We don't have to test for thd->killed == KILL_SYSTEM_THREAD as
+    it doesn't matter if a warning is pushed to a system thread or not:
+    No one will see it...
   */
   if (is_real_trans && thd->transaction.all.modified_non_trans_table &&
-      !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
+      !thd->slave_thread && thd->killed < KILL_CONNECTION)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
                  ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
@@ -2608,7 +2613,7 @@ int handler::update_auto_increment()
     /*
       first test if the query was aborted due to strict mode constraints
     */
-    if (thd->killed == THD::KILL_BAD_DATA)
+    if (killed_mask_hard(thd->killed) == KILL_BAD_DATA)
       DBUG_RETURN(HA_ERR_AUTOINC_ERANGE);
 
     /*
@@ -3009,6 +3014,12 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_INDEX_COL_TOO_LONG:
     textno= ER_INDEX_COLUMN_TOO_LONG;
+    break;
+  case HA_ERR_INDEX_CORRUPT:
+    textno= ER_INDEX_CORRUPT;
+    break;
+  case HA_ERR_UNDO_REC_TOO_BIG:
+    textno= ER_UNDO_RECORD_TOO_BIG;
     break;
   default:
     {
@@ -4772,7 +4783,7 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
 
 /** @brief
    Write table maps for all (manually or automatically) locked tables
-   to the binary log. Also, if binlog_annotate_rows_events is ON,
+   to the binary log. Also, if binlog_annotate_row_events is ON,
    write Annotate_rows event before the first table map.
 
    SYNOPSIS
@@ -4805,7 +4816,7 @@ static int write_locked_table_maps(THD *thd)
     MYSQL_LOCK *locks[2];
     locks[0]= thd->extra_lock;
     locks[1]= thd->lock;
-    my_bool with_annotate= thd->variables.binlog_annotate_rows_events &&
+    my_bool with_annotate= thd->variables.binlog_annotate_row_events &&
                            thd->query() && thd->query_length();
 
     for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
@@ -4989,6 +5000,9 @@ int handler::ha_reset()
   /* reset the bitmaps to point to defaults */
   table->default_column_bitmaps();
   pushed_cond= NULL;
+  /* Reset information about pushed engine conditions */
+  cancel_pushed_idx_cond();
+  /* Reset information about pushed index conditions */
   DBUG_RETURN(reset());
 }
 

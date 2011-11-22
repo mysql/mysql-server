@@ -1,6 +1,6 @@
-/* Copyright (C) 2000 MySQL AB
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (C) 2009- 2011 Monty Program Ab
+/*
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates.
+   Copyright (C) 2009, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,6 +93,44 @@ void create_last_word_mask(MY_BITMAP *map)
     ptr[3]= mask;
     return;
   }
+}
+
+
+static inline my_bitmap_map last_word_mask(uint bit)
+{
+  my_bitmap_map last_word_mask;
+  uint n_bits= bit + 1;
+  unsigned char const mask= invers_last_byte_mask(n_bits);
+
+  /*
+    The first bytes are to be set to zero since they represent real  bits
+    in the bitvector. The last bytes are set to 0xFF since they  represent
+    bytes not used by the bitvector. Finally the last byte contains  bits
+    as set by the mask above.
+  */
+  unsigned char *ptr= (unsigned char*)&last_word_mask;
+
+  switch ((n_bits + 7)/8 & 3) {
+  case 1:
+    last_word_mask= ~0U;
+    ptr[0]= mask;
+    break;
+  case 2:
+    last_word_mask= ~0U;
+    ptr[0]= 0;
+    ptr[1]= mask;
+    break;
+  case 3:
+    last_word_mask= 0U;
+    ptr[2]= mask;
+    ptr[3]= 0xFFU;
+    break;
+  case 0:
+    last_word_mask= 0U;
+    ptr[3]= mask;
+    break;
+  }
+  return last_word_mask;
 }
 
 
@@ -379,6 +417,58 @@ void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2)
       *to++= 0;
   }
 }
+
+
+/*
+  Check if there is some bit index between start_bit and end_bit, such that
+  this is bit is set for all bitmaps in bitmap_list.
+
+  SYNOPSIS
+    bitmap_exists_intersection()
+    bitmpap_array [in]  a set of MY_BITMAPs
+    bitmap_count  [in]  number of elements in bitmpap_array
+    start_bit     [in]  beginning (inclusive) of the range of bits to search
+    end_bit       [in]  end (inclusive) of the range of bits to search, must be
+                        no bigger than the bits of the shortest bitmap.
+
+  NOTES
+  This function assumes that for at least one of the bitmaps in bitmap_array all
+  bits outside the range [start_bit, end_bit] are 0. As a result is not
+  necessary to take care of the bits outside the range [start_bit, end_bit].
+
+  RETURN
+    TRUE  if an intersecion exists
+    FALSE no intersection
+*/
+
+my_bool bitmap_exists_intersection(const MY_BITMAP **bitmap_array,
+                                   uint bitmap_count,
+                                   uint start_bit, uint end_bit)
+{
+  uint i, j, start_idx, end_idx;
+  my_bitmap_map cur_res;
+
+  DBUG_ASSERT(bitmap_count && end_bit >= start_bit);
+  for (j= 0; j < bitmap_count; j++)
+    DBUG_ASSERT(end_bit < bitmap_array[j]->n_bits);
+
+  start_idx= start_bit/8/sizeof(my_bitmap_map);
+  end_idx= end_bit/8/sizeof(my_bitmap_map);
+
+  for (i= start_idx; i < end_idx; i++)
+  {
+    cur_res= ~0;
+    for (j= 0; cur_res && j < bitmap_count; j++)
+      cur_res &= bitmap_array[j]->bitmap[i];
+    if (cur_res)
+      return TRUE;
+  }
+  cur_res= ~last_word_mask(end_bit);
+  for (j= 0; cur_res && j < bitmap_count; j++)
+    cur_res &= bitmap_array[j]->bitmap[end_idx];
+  return cur_res != 0;
+}
+
 
 /* True if union of bitmaps have all bits set */
 

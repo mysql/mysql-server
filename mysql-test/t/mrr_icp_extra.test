@@ -57,6 +57,7 @@ DROP TABLE t1,t2,t3;
 --echo #
 create table t1(a int, b int, index(b));
 insert into t1 values (2, 1), (1, 1), (4, NULL), (3, NULL), (6, 2), (5, 2);
+insert into t1 values (2, 11), (1, 11), (4, 14), (3, 14), (6, 12), (5, 12);
 explain select * from t1 where b=1 or b is null order by a;
 select * from t1 where b=1 or b is null order by a;
 explain select * from t1 where b=2 or b is null order by a;

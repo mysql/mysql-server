@@ -30,8 +30,8 @@
 #include "sql_acl.h"           // *_ACL, check_grant
 #include "sql_select.h"
 #include "parse_file.h"
-#include "sp.h"
 #include "sp_head.h"
+#include "sp.h"
 #include "sp_cache.h"
 #include "datadict.h"   // dd_frm_type()
 

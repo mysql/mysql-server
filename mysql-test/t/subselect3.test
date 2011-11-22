@@ -3,7 +3,7 @@ drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
 --enable_warnings
 
 set @subselect3_tmp= @@optimizer_switch;
-set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on';
 
 #
 # 1. Subquery with GROUP/HAVING
@@ -81,6 +81,7 @@ insert into t1 values
   (2, 3),
   (2, NULL),
   (3, NULL);
+insert into t1 values (5, 7), (8, 9), (4, 1); 
 
 create table t2 (a int, oref int);
 insert into t2 values (1, 1), (2,2), (NULL, 3), (NULL, 4);
@@ -1185,6 +1186,52 @@ ALTER TABLE t2 CHANGE COLUMN f1 my_column INT;
 CALL p1;
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # fix of lp:824425 (prohibiting subqueries in row in
+--echo # left part of IN/ALL/ANY)
+--echo #
+
+CREATE TABLE t1 ( a int) ;
+INSERT INTO t1 VALUES (20),(30);
+
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (3),(9);
+
+CREATE TABLE t3 ( a int, b int) ;
+INSERT INTO t3 VALUES (20,5),(30,6);
+
+set @optimizer_switch_save=@@optimizer_switch;
+SET SESSION optimizer_switch='semijoin=OFF,in_to_exists=OFF,materialization=ON,partial_match_rowid_merge=ON,partial_match_table_scan=OFF';
+
+SELECT * FROM t1
+WHERE (
+        ( SELECT a FROM t2 WHERE a = 9 )
+) NOT IN (
+        SELECT b
+        FROM t3
+);
+explain extended
+SELECT * FROM t1
+WHERE (
+        ( SELECT a FROM t2 WHERE a = 9 )
+) NOT IN (
+        SELECT b
+        FROM t3
+);
+
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM t1
+WHERE (
+        ( SELECT a FROM t2 WHERE a = 9 ),
+        ( SELECT a FROM t2 WHERE a = 3 )
+) NOT IN (
+        SELECT b , a
+        FROM t3
+);
+set optimizer_switch=@optimizer_switch_save;
+
+drop table t1,t2,t3;
 
 --echo End of 5.3 tests
 

@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (C) 2000-2002 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* This file includes all reserved words and functions */
@@ -249,6 +249,7 @@ static SYMBOL symbols[] = {
   { "GRANTS",	        SYM(GRANTS)},
   { "GROUP",		SYM(GROUP_SYM)},
   { "HANDLER",		SYM(HANDLER_SYM)},
+  { "HARD",		SYM(HARD_SYM)},
   { "HASH",		SYM(HASH_SYM)},
   { "HAVING",		SYM(HAVING)},
   { "HELP",		SYM(HELP_SYM)},
@@ -515,6 +516,7 @@ static SYMBOL symbols[] = {
   { "SNAPSHOT",         SYM(SNAPSHOT_SYM)},
   { "SMALLINT",		SYM(SMALLINT)},
   { "SOCKET",		SYM(SOCKET_SYM)},
+  { "SOFT",             SYM(SOFT_SYM)},
   { "SOME",             SYM(ANY_SYM)},
   { "SONAME",		SYM(SONAME_SYM)},
   { "SOUNDS",		SYM(SOUNDS_SYM)},

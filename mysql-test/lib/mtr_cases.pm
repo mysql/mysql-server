@@ -339,17 +339,41 @@ sub collect_one_suite
   for my $skip (@disabled_collection)
     {
       if ( open(DISABLED, $skip ) )
-      {
-        while ( <DISABLED> )
-          {
-            chomp;
-            if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
-              {
-                $disabled{$1}= $2 if not exists $disabled{$1};
-              }
-          }
-        close DISABLED;
-      }
+	{
+	  # $^O on Windows considered not generic enough
+	  my $plat= (IS_WINDOWS) ? 'windows' : $^O;
+
+	  while ( <DISABLED> )
+	    {
+	      chomp;
+	      #diasble the test case if platform matches
+	      if ( /\@/ )
+		{
+		  if ( /\@$plat/ )
+		    {
+		      /^\s*(\S+)\s*\@$plat.*:\s*(.*?)\s*$/ ;
+		      $disabled{$1}= $2 if not exists $disabled{$1};
+		    }
+		  elsif ( /\@!(\S*)/ )
+		    {
+		      if ( $1 ne $plat)
+			{
+			  /^\s*(\S+)\s*\@!.*:\s*(.*?)\s*$/ ;
+			  $disabled{$1}= $2 if not exists $disabled{$1};
+			}
+		    }
+		}
+	      elsif ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+		{
+		  chomp;
+		  if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+		    {
+		      $disabled{$1}= $2 if not exists $disabled{$1};
+		    }
+		}
+	    }
+	  close DISABLED;
+	}
     }
 
   # Read suite.opt file

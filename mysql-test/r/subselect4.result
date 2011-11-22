@@ -2,6 +2,7 @@ drop table if exists t0,t1,t2,t3,t4,t5,t6;
 drop view if exists v1, v2;
 set @subselect4_tmp= @@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+set optimizer_switch='semijoin_with_cache=on';
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 #
 # Bug #46791: Assertion failed:(table->key_read==0),function unknown
@@ -225,7 +226,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from dual
+Note	1003	select <expr_cache><>((select 1 from `test`.`t2` where 0)) AS `RESULT` from dual
 first equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c ;
 RESULT
@@ -236,7 +237,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from dual group by NULL
+Note	1003	select <expr_cache><>((select 1 from `test`.`t2` where 0)) AS `RESULT` from dual group by NULL
 second equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
 RESULT
@@ -247,7 +248,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from dual group by NULL
+Note	1003	select <expr_cache><>((select 1 from `test`.`t2` where 0)) AS `RESULT` from dual group by NULL
 DROP TABLE t1,t2;
 #
 # BUG#45928 "Differing query results depending on MRR and
@@ -277,31 +278,6 @@ set @@session.optimizer_switch          = @old_optimizer_switch,
 Warnings:
 Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 DROP TABLE t1;
-#
-# BUG#45863 "Assertion failed: (fixed == 0), function fix_fields(),
-#            file item.cc, line 4448"
-#
-DROP TABLE IF EXISTS C, BB;
-CREATE TABLE C (
-varchar_nokey varchar(1) NOT NULL
-);
-INSERT INTO C VALUES
-('k'),('a'),(''),('u'),('e'),('v'),('i'),
-('t'),('u'),('f'),('u'),('m'),('j'),('f'),
-('v'),('j'),('g'),('e'),('h'),('z');
-CREATE TABLE BB (
-varchar_nokey varchar(1) NOT NULL
-);
-INSERT INTO BB VALUES ('i'),('t');
-SELECT varchar_nokey FROM C
-WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey
-FROM BB);
-ERROR 21000: Operand should contain 2 column(s)
-SELECT varchar_nokey FROM C
-WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey, varchar_nokey
-FROM BB);
-ERROR 42S22: Unknown column 'OUTR' in 'IN/ALL/ANY subquery'
-DROP TABLE C,BB;
 #
 # During work with BUG#45863 I had problems with a query that was
 # optimized differently in regular and prepared mode.
@@ -1234,7 +1210,8 @@ FROM t2 JOIN t1 ON t1.f3
 WHERE ('v') IN (SELECT f4 FROM t2)
 GROUP BY f9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
 SELECT COUNT(t2.f3),
@@ -1250,7 +1227,8 @@ FROM t2 JOIN t1 ON t1.f3
 WHERE ('v') IN (SELECT f4 FROM t2)
 ORDER BY f9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
 SELECT COUNT(t2.f3),
@@ -1894,7 +1872,9 @@ EXPLAIN SELECT t1.f4
 FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
 WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
 SELECT t1.f4
 FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
@@ -1905,7 +1885,9 @@ EXPLAIN SELECT t1.f4
 FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
 WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT t1.f4
 FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
@@ -1943,4 +1925,71 @@ EXECUTE st2;
 f2
 2
 drop table t1, t2;
+#
+# LP BUG#825018: Crash in check_and_do_in_subquery_rewrites() with corrlated subquery in select list
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (10,1),(11,7);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (2),(3);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (1,1);
+CREATE PROCEDURE sp1 () LANGUAGE SQL
+SELECT (SELECT t1.a
+FROM t1
+WHERE t1.b = t3.b
+AND t1.b IN ( SELECT a FROM t2 )) sq
+FROM t3
+GROUP BY 1;
+CALL sp1();
+sq
+NULL
+CALL sp1();
+sq
+NULL
+drop procedure sp1;
+prepare st1 from "
+SELECT (SELECT t1.a
+        FROM t1
+        WHERE t1.b = t3.b
+        AND t1.b IN ( SELECT a FROM t2 )) sq
+FROM t3
+GROUP BY 1";
+execute st1;
+sq
+NULL
+execute st1;
+sq
+NULL
+deallocate prepare st1;
+drop table t1, t2, t3;
 set optimizer_switch=@subselect4_tmp;
+#
+# LP BUG#833702 Wrong result with nested IN and singlerow subqueries and equality propagation
+#
+CREATE TABLE t2 (c int , a int, b int);
+INSERT INTO t2 VALUES (10,7,0);
+CREATE TABLE t3 (a int, b int) ;
+INSERT INTO t3 VALUES (5,0),(7,0);
+CREATE TABLE t4 (a int);
+INSERT INTO t4 VALUES (2),(8);
+set @@optimizer_switch='semijoin=off,in_to_exists=on,materialization=off,subquery_cache=off';
+SELECT * FROM t2
+WHERE t2.b IN (SELECT b FROM t3 WHERE t3.a = t2.a AND a < SOME (SELECT * FROM t4))
+OR ( t2.c > 242 );
+c	a	b
+10	7	0
+EXPLAIN SELECT * FROM t2
+WHERE t2.b IN (SELECT t3.b FROM t3 WHERE t3.a < ANY (SELECT t4.a FROM t4) and t3.a = 7);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t2
+WHERE t2.b IN (SELECT t3.b FROM t3 WHERE t3.a < ANY (SELECT t4.a FROM t4) and t3.a = 7);
+c	a	b
+10	7	0
+drop table t2, t3, t4;
+set optimizer_switch=@subselect4_tmp;
+SET optimizer_switch= @@global.optimizer_switch;
+set @@tmp_table_size= @@global.tmp_table_size;

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2011 Oracle and/or its affiliates.
+   Copyright (c) 2010, 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -630,6 +631,8 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     /* Condition doesn't restrict the used table */
     DBUG_RETURN(!cond->const_item());
   }
+  else if (cond->is_expensive())
+    DBUG_RETURN(FALSE);
   if (cond->type() == Item::COND_ITEM)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_OR_FUNC)
@@ -676,6 +679,8 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   case Item_func::GE_FUNC:
     break;
   case Item_func::BETWEEN:
+    if (((Item_func_between*) cond)->negated)
+      DBUG_RETURN(FALSE);
     between= 1;
     break;
   case Item_func::MULT_EQUAL_FUNC:

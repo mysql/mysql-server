@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #ifndef CLIENT_SETTINGS_INCLUDED
@@ -23,9 +23,18 @@
 #include <thr_alarm.h>
 #include <sql_common.h>
 
-#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |	  \
-                             CLIENT_SECURE_CONNECTION | CLIENT_TRANSACTIONS | \
-			     CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
+/*
+ Note: CLIENT_CAPABILITIES is also defined in libmysql/client_settings.h.
+ When adding capabilities here, consider if they should be also added to
+ the libmysql version.
+*/
+#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | \
+                             CLIENT_LONG_FLAG |     \
+                             CLIENT_SECURE_CONNECTION | \
+                             CLIENT_TRANSACTIONS |  \
+                             CLIENT_PROTOCOL_41 |   \
+                             CLIENT_SECURE_CONNECTION | \
+                             CLIENT_PLUGIN_AUTH)
 
 #define read_user_name(A) {}
 #undef _CUSTOMCONFIG_

@@ -55,6 +55,9 @@ ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
 MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.c)
 TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
 
+MYSQL_ADD_EXECUTABLE(mysql_plugin mysql_plugin.c)
+TARGET_LINK_LIBRARIES(mysql_plugin mysqlclient)
+
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient)
 
@@ -70,7 +73,7 @@ IF(WIN32)
   MYSQL_ADD_EXECUTABLE(echo echo.c)
 ENDIF(WIN32)
 
-SET_TARGET_PROPERTIES (mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow mysqlslap 
+SET_TARGET_PROPERTIES (mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow mysqlslap mysql_plugin 
 PROPERTIES HAS_CXX TRUE)
 
 ADD_DEFINITIONS(-DHAVE_DLOPEN)

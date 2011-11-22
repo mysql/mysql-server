@@ -142,7 +142,6 @@ SET(CLIENT_SOURCES
   ../sql-common/my_time.c 
   ../sql-common/client_plugin.c 
   ../sql/net_serv.cc
-  ../sql-common/client_plugin.c 
   ../sql-common/pack.c 
   ../sql/password.c
 )

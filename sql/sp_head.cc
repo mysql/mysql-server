@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1504,7 +1505,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     If the DB has changed, the pointer has changed too, but the
     original thd->db will then have been freed
   */
-  if (cur_db_changed && thd->killed != THD::KILL_CONNECTION)
+  if (cur_db_changed && thd->killed != KILL_CONNECTION)
   {
     /*
       Force switching back to the saved current database, because it may be
@@ -1939,7 +1940,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     thd->variables.option_bits= binlog_save_options;
     if (thd->binlog_evt_union.unioned_events)
     {
-      int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
+      int errcode = query_error_code(thd, thd->killed == NOT_KILLED);
       Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
                             thd->binlog_evt_union.unioned_events_trans, FALSE, FALSE, errcode);
       if (mysql_bin_log.write(&qinfo) &&
@@ -2584,8 +2585,9 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
   bzero((char*) &tables,sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
-  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, FALSE,
-                                     1, TRUE) ||
+  *full_access= ((!check_table_access(thd, SELECT_ACL, &tables, FALSE,
+                                     1, TRUE) &&
+                  (tables.grant.privilege & SELECT_ACL) != 0) ||
                  (!strcmp(sp->m_definer_user.str,
                           thd->security_ctx->priv_user) &&
                   !strcmp(sp->m_definer_host.str,

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* classes to use when handling where clause */
@@ -375,6 +375,12 @@ public:
     Table record buffer used by this quick select.
   */
   uchar    *record;
+
+  virtual void replace_handler(handler *new_file)
+  {
+    DBUG_ASSERT(0); /* Only supported in QUICK_RANGE_SELECT */
+  }
+
 #ifndef DBUG_OFF
   /*
     Print quick select information to DBUG_FILE. Caller is responsible
@@ -475,6 +481,7 @@ public:
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
+  virtual void replace_handler(handler *new_file) { file= new_file; }
   QUICK_SELECT_I *make_reverse(uint used_key_parts_arg);
 private:
   /* Default copy ctor used by QUICK_SELECT_DESC */

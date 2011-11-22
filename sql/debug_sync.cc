@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB, 2008 - 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   == Debug Sync Facility ==
@@ -1123,7 +1123,7 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action)
       point decremented it to 0. In this case the following happened:
 
       - an error message was reported with my_error() and
-      - the statement was killed with thd->killed= THD::KILL_QUERY.
+      - the statement was killed with thd->killed= KILL_QUERY.
 
       If a statement reports an error, it must not call send_ok().
       The calling functions will not call send_ok(), if we return TRUE
@@ -1738,7 +1738,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
     if (action->wait_for.length())
     {
       mysql_mutex_t *old_mutex;
-      mysql_cond_t  *old_cond;
+      mysql_cond_t  *UNINIT_VAR(old_cond);
       int             error= 0;
       struct timespec abstime;
 
@@ -1838,7 +1838,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
   {
     if (!--action->hit_limit)
     {
-      thd->killed= THD::KILL_QUERY;
+      thd->killed= KILL_QUERY;
       my_error(ER_DEBUG_SYNC_HIT_LIMIT, MYF(0));
     }
     DBUG_PRINT("debug_sync_exec", ("hit_limit: %lu  at: '%s'",

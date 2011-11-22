@@ -806,14 +806,16 @@ uint32 convert_error_message(char *to, uint32 to_length, CHARSET_INFO *to_cs,
   my_wc_t     wc;
   const uchar *from_end= (const uchar*) from+from_length;
   char *to_start= to;
-  uchar *to_end= (uchar*) to+to_length;
+  uchar *to_end;
   my_charset_conv_mb_wc mb_wc= from_cs->cset->mb_wc;
   my_charset_conv_wc_mb wc_mb;
   uint error_count= 0;
   uint length;
 
   DBUG_ASSERT(to_length > 0);
+  /* Make room for the null terminator. */
   to_length--;
+  to_end= (uchar*) (to + to_length);
 
   if (!to_cs || from_cs == to_cs || to_cs == &my_charset_bin)
   {

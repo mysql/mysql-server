@@ -173,3 +173,12 @@ select t1.a, (case t1.a when 0 then 0 else t1.b end) d from t1
 drop table t1, t2;
 
 --echo End of 5.0 tests
+
+#
+# lp:839387 Assertion `(Item_result)i != TIME_RESULT' failed with CASE + datetime
+#
+
+create table t1 (f1 time);
+insert t1 values ('00:00:00'),('00:01:00');
+select case t1.f1 when '00:00:00' then 1 end from t1;
+drop table t1;

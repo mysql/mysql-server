@@ -1,5 +1,5 @@
-/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights 
-   reserved
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This file should be included when using myisam_funktions */
 
@@ -292,6 +292,8 @@ extern ulong _mi_calc_blob_length(uint length , const uchar *pos);
 extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 extern int mi_make_backup_of_index(struct st_myisam_info *info,
                                    time_t backup_time, myf flags);
+#define myisam_max_key_length() HA_MAX_KEY_LENGTH
+#define myisam_max_key_segments() HA_MAX_KEY_SEG
 
 #define MEMMAP_EXTRA_MARGIN     7       /* Write this as a suffix for mmap file */
 /* this is used to pass to mysql_myisamchk_table */

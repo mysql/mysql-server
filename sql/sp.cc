@@ -1,4 +1,5 @@
-/* Copyright (C) 2002 MySQL AB
+/*
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_priv.h"
 #include "unireg.h"
@@ -33,7 +34,7 @@
 
 static bool
 create_string(THD *thd, String *buf,
-	      int sp_type,
+	      stored_procedure_type sp_type,
 	      const char *db, ulong dblen,
 	      const char *name, ulong namelen,
 	      const char *params, ulong paramslen,
@@ -45,7 +46,8 @@ create_string(THD *thd, String *buf,
               ulonglong sql_mode);
 
 static int
-db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
+db_load_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                sp_head **sphp,
                 ulonglong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
@@ -474,7 +476,8 @@ static TABLE *open_proc_table_for_update(THD *thd)
 */
 
 static int
-db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
+db_find_routine_aux(THD *thd, stored_procedure_type type, sp_name *name,
+                    TABLE *table)
 {
   uchar key[MAX_KEY_LENGTH];	// db, name, optional key length type
   DBUG_ENTER("db_find_routine_aux");
@@ -527,7 +530,8 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
 */
 
 static int
-db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
+db_find_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                sp_head **sphp)
 {
   TABLE *table;
   const char *params, *returns, *body;
@@ -758,8 +762,46 @@ static sp_head *sp_compile(THD *thd, String *defstr, ulonglong sql_mode,
 }
 
 
+class Bad_db_error_handler : public Internal_error_handler
+{
+public:
+  Bad_db_error_handler()
+    :m_error_caught(false)
+  {}
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* message,
+                                MYSQL_ERROR ** cond_hdl);
+
+  bool error_caught() const { return m_error_caught; }
+
+private:
+  bool m_error_caught;
+};
+
+bool
+Bad_db_error_handler::handle_condition(THD *thd,
+                                       uint sql_errno,
+                                       const char* sqlstate,
+                                       MYSQL_ERROR::enum_warning_level level,
+                                       const char* message,
+                                       MYSQL_ERROR ** cond_hdl)
+{
+  if (sql_errno == ER_BAD_DB_ERROR)
+  {
+    m_error_caught= true;
+    return true;
+  }
+  return false;
+}
+
+
 static int
-db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
+db_load_routine(THD *thd, stored_procedure_type type,
+                sp_name *name, sp_head **sphp,
                 ulonglong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
@@ -771,7 +813,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;
-  
+  Bad_db_error_handler db_not_exists_handler;
   char definer_user_name_holder[USERNAME_LENGTH + 1];
   LEX_STRING definer_user_name= { definer_user_name_holder,
                                   USERNAME_LENGTH };
@@ -810,6 +852,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     goto end;
   }
 
+  thd->push_internal_handler(&db_not_exists_handler);
   /*
     Change the current database (if needed).
 
@@ -820,6 +863,15 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                           &cur_db_changed))
   {
     ret= SP_INTERNAL_ERROR;
+    thd->pop_internal_handler();
+    goto end;
+  }
+  thd->pop_internal_handler();
+  if (db_not_exists_handler.error_caught())
+  {
+    ret= SP_INTERNAL_ERROR;
+    my_error(ER_BAD_DB_ERROR, MYF(0), name->m_db.str);
+
     goto end;
   }
 
@@ -918,7 +970,7 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
 */
 
 int
-sp_create_routine(THD *thd, int type, sp_head *sp)
+sp_create_routine(THD *thd, stored_procedure_type type, sp_head *sp)
 {
   int ret;
   TABLE *table;
@@ -936,7 +988,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   bool save_binlog_row_based;
 
   DBUG_ENTER("sp_create_routine");
-  DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
+  DBUG_PRINT("enter", ("type: %d  name: %.*s", (int) type,
+                       (int) sp->m_name.length,
                        sp->m_name.str));
   String retstr(64);
   retstr.set_charset(system_charset_info);
@@ -1188,7 +1241,7 @@ done:
 */
 
 int
-sp_drop_routine(THD *thd, int type, sp_name *name)
+sp_drop_routine(THD *thd, stored_procedure_type type, sp_name *name)
 {
   TABLE *table;
   int ret;
@@ -1269,7 +1322,8 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
 */
 
 int
-sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
+sp_update_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                  st_sp_chistics *chistics)
 {
   TABLE *table;
   int ret;
@@ -1278,7 +1332,8 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_update_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
-		       type, (int) name->m_name.length, name->m_name.str));
+		       (int) type,
+                       (int) name->m_name.length, name->m_name.str));
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
@@ -1542,7 +1597,7 @@ err:
 */
 
 bool
-sp_show_create_routine(THD *thd, int type, sp_name *name)
+sp_show_create_routine(THD *thd, stored_procedure_type type, sp_name *name)
 {
   sp_head *sp;
 
@@ -1598,8 +1653,8 @@ sp_show_create_routine(THD *thd, int type, sp_name *name)
 */
 
 sp_head *
-sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
-                bool cache_only)
+sp_find_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                sp_cache **cp, bool cache_only)
 {
   sp_head *sp;
   ulong depth= (type == TYPE_ENUM_PROCEDURE ?
@@ -1828,7 +1883,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 */
 
 void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
-                         sp_name *rt, char rt_type)
+                         sp_name *rt, enum stored_procedure_type rt_type)
 {
   MDL_key key((rt_type == TYPE_ENUM_FUNCTION) ? MDL_key::FUNCTION :
                                                 MDL_key::PROCEDURE,
@@ -1966,7 +2021,7 @@ int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
   char qname_buff[NAME_LEN*2+1+1];
   sp_name name(&rt->mdl_request.key, qname_buff);
   MDL_key::enum_mdl_namespace mdl_type= rt->mdl_request.key.mdl_namespace();
-  int type= ((mdl_type == MDL_key::FUNCTION) ?
+  stored_procedure_type type= ((mdl_type == MDL_key::FUNCTION) ?
              TYPE_ENUM_FUNCTION : TYPE_ENUM_PROCEDURE);
 
   /*
@@ -2001,7 +2056,7 @@ int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
   @retval non-0  Error while loading routine from mysql,proc table.
 */
 
-int sp_cache_routine(THD *thd, int type, sp_name *name,
+int sp_cache_routine(THD *thd, enum stored_procedure_type type, sp_name *name,
                      bool lookup_only, sp_head **sp)
 {
   int ret= 0;
@@ -2011,7 +2066,6 @@ int sp_cache_routine(THD *thd, int type, sp_name *name,
   DBUG_ENTER("sp_cache_routine");
 
   DBUG_ASSERT(type == TYPE_ENUM_FUNCTION || type == TYPE_ENUM_PROCEDURE);
-
 
   *sp= sp_cache_lookup(spc, name);
 
@@ -2080,7 +2134,7 @@ int sp_cache_routine(THD *thd, int type, sp_name *name,
 */
 static bool
 create_string(THD *thd, String *buf,
-              int type,
+              stored_procedure_type type,
               const char *db, ulong dblen,
               const char *name, ulong namelen,
               const char *params, ulong paramslen,
@@ -2173,7 +2227,7 @@ create_string(THD *thd, String *buf,
 
 sp_head *
 sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
-                               String *name, ulong sql_mode, int type,
+                               String *name, ulong sql_mode, stored_procedure_type type,
                                const char *returns, const char *params,
                                bool *free_sp_head)
 {

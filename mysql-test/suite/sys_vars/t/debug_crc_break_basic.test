@@ -1,3 +1,4 @@
+--source include/have_debug.inc
 # ulong global
 
 SET @start_global_value = @@global.debug_crc_break;

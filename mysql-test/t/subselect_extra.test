@@ -9,11 +9,12 @@
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
+drop view if exists v1,v2,v3;
 --enable_warnings
 
 set @subselect_extra_tmp=@@optimizer_switch;
-set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
-
+set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_extra_test,
+                              "semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
 
 --echo # From explain.test:
 --echo #
@@ -273,6 +274,122 @@ EXPLAIN SELECT 1 FROM t2 WHERE a IN
   (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 DROP TABLE t1, t2;
 
+--echo # 
+--echo # From derived_view.test
+--echo #
+set @tmp_subselect_extra_derived=@@optimizer_switch;
+set optimizer_switch='derived_merge=on,derived_with_keys=on';
 
-set optimizer_switch= @subselect_extra_tmp;
+--echo #
+--echo # LP bug #806504: right join over a view/derived table           
+--echo #
 
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (0,0);
+
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (0), (0);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT * FROM t2 RIGHT JOIN (SELECT * FROM t1) AS t ON t.a != 0
+  WHERE t.a IN (SELECT b FROM t1);
+EXPLAIN EXTENDED
+SELECT * FROM t2 RIGHT JOIN (SELECT * FROM t1) AS t ON t.a != 0
+  WHERE t.a IN (SELECT b FROM t1);
+
+SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
+  WHERE t.a IN (SELECT b FROM t1);
+EXPLAIN EXTENDED
+SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
+  WHERE t.a IN (SELECT b FROM t1);
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # LP bug #793448: materialized view accessed by two-component key           
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (9,3), (2,5);
+
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES (9,3), (3,7), (9,1), (2,5), (2,4), (3,8);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (10,3), (9,7), (9,1), (2,4);
+
+CREATE VIEW v1(a,b) AS SELECT a, MAX(b) FROM t2 GROUP BY a;
+CREATE VIEW v2(a,b) AS SELECT a,b FROM t2 UNION SELECT a,b FROM t3;
+
+SELECT * FROM v1;
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v1);
+EXPLAIN 
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v1);
+
+SELECT * FROM v2;
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
+EXPLAIN 
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
+
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #874006: materialized view used in IN subquery
+--echo #
+
+CREATE TABLE t3 (a int NOT NULL, b varchar(1), c varchar(1));
+INSERT INTO t3 VALUES (19,NULL,NULL), (20,'r','r');
+
+CREATE TABLE t1 (a int, b varchar(1) , c varchar(1));
+INSERT INTO t1 VALUES (1,NULL,NULL), (5,'r','r'), (7,'y','y');
+
+CREATE TABLE t2 (a int NOT NULL , b int, c varchar(1));
+INSERT INTO t2 VALUES (4,3,'r');
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+
+SET SESSION optimizer_switch='derived_with_keys=off';
+EXPLAIN
+SELECT * FROM t3 
+  WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+                   WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+SELECT * FROM t3 
+  WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+                   WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t3 
+  WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+                   WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+SELECT * FROM t3 
+  WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+                   WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #873263: materialized view used in correlated IN subquery
+--echo #
+
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (5,4), (9,8);
+
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES (4,5), (5,1);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t1 WHERE t1.b IN (SELECT v2.a FROM v2 WHERE v2.b = t1.a);
+SELECT * FROM t1 WHERE t1.b IN (SELECT v2.a FROM v2 WHERE v2.b = t1.a);
+
+DROP VIEW v2;
+DROP TABLE t1,t2;
+
+set optimizer_switch= @tmp_subselect_extra_derived;

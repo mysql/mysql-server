@@ -1,4 +1,5 @@
-/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* 
 
@@ -114,7 +116,7 @@ static ulonglong rec_count= 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
 static const char* dirname_for_local_load= 0;
-static bool opt_skip_annotate_rows_events= 0;
+static bool opt_skip_annotate_row_events= 0;
 
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
@@ -1038,7 +1040,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       break;
     }
     case ANNOTATE_ROWS_EVENT:
-      if (!opt_skip_annotate_rows_events)
+      if (!opt_skip_annotate_row_events)
       {
         /*
           We don't print Annotate event just now because all subsequent
@@ -1346,10 +1348,10 @@ that may lead to an endless loop.",
    "Updates to a database with a different name than the original. \
 Example: rewrite-db='from->to'.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"skip-annotate-rows-events", OPT_SKIP_ANNOTATE_ROWS_EVENTS,
+  {"skip-annotate-row-events", OPT_SKIP_ANNOTATE_ROWS_EVENTS,
    "Don't print Annotate_rows events stored in the binary log.",
-   (uchar**) &opt_skip_annotate_rows_events,
-   (uchar**) &opt_skip_annotate_rows_events,
+   (uchar**) &opt_skip_annotate_row_events,
+   (uchar**) &opt_skip_annotate_row_events,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -1443,7 +1445,7 @@ static void print_version()
 static void usage()
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2001, 2010"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
   printf("\
 Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client.\n\n");
@@ -1825,7 +1827,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     cast to uint32.
   */
   int4store(buf, (uint32)start_position);
-  if (!opt_skip_annotate_rows_events)
+  if (!opt_skip_annotate_row_events)
     binlog_flags|= BINLOG_SEND_ANNOTATE_ROWS_EVENT;
   int2store(buf + BIN_LOG_HEADER_SIZE, binlog_flags);
 

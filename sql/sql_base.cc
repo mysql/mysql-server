@@ -65,7 +65,7 @@ bool
 No_such_table_error_handler::handle_condition(THD *,
                                               uint sql_errno,
                                               const char*,
-                                              MYSQL_ERROR::enum_warning_level,
+                                              MYSQL_ERROR::enum_warning_level level,
                                               const char*,
                                               MYSQL_ERROR ** cond_hdl)
 {
@@ -76,7 +76,8 @@ No_such_table_error_handler::handle_condition(THD *,
     return TRUE;
   }
 
-  m_unhandled_errors++;
+  if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+    m_unhandled_errors++;
   return FALSE;
 }
 
@@ -90,6 +91,69 @@ bool No_such_table_error_handler::safely_trapped_errors()
   */
   return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
 }
+
+
+/**
+  This internal handler is used to trap ER_NO_SUCH_TABLE and
+  ER_WRONG_MRG_TABLE errors during CHECK/REPAIR TABLE for MERGE
+  tables.
+*/
+
+class Repair_mrg_table_error_handler : public Internal_error_handler
+{
+public:
+  Repair_mrg_table_error_handler()
+    : m_handled_errors(false), m_unhandled_errors(false)
+  {}
+
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg,
+                        MYSQL_ERROR ** cond_hdl);
+
+  /**
+    Returns TRUE if there were ER_NO_SUCH_/WRONG_MRG_TABLE and there
+    were no unhandled errors. FALSE otherwise.
+  */
+  bool safely_trapped_errors()
+  {
+    /*
+      Check for m_handled_errors is here for extra safety.
+      It can be useful in situation when call to open_table()
+      fails because some error which was suppressed by another
+      error handler (e.g. in case of MDL deadlock which we
+      decided to solve by back-off and retry).
+    */
+    return (m_handled_errors && (! m_unhandled_errors));
+  }
+
+private:
+  bool m_handled_errors;
+  bool m_unhandled_errors;
+};
+
+
+bool
+Repair_mrg_table_error_handler::handle_condition(THD *,
+                                                 uint sql_errno,
+                                                 const char*,
+                                                 MYSQL_ERROR::enum_warning_level level,
+                                                 const char*,
+                                                 MYSQL_ERROR ** cond_hdl)
+{
+  *cond_hdl= NULL;
+  if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
+  {
+    m_handled_errors= true;
+    return TRUE;
+  }
+
+  m_unhandled_errors= true;
+  return FALSE;
+}
+
 
 /**
   @defgroup Data_Dictionary Data Dictionary
@@ -919,7 +983,7 @@ static void kill_delayed_threads_for_table(TABLE_SHARE *share)
     if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
         ! in_use->killed)
     {
-      in_use->killed= THD::KILL_CONNECTION;
+      in_use->killed= KILL_SYSTEM_THREAD;
       mysql_mutex_lock(&in_use->mysys_var->mutex);
       if (in_use->mysys_var->current_cond)
       {
@@ -4410,6 +4474,20 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
     thd->pop_internal_handler();
     safe_to_ignore_table= no_such_table_handler.safely_trapped_errors();
   }
+  else if (tables->parent_l && (thd->open_options & HA_OPEN_FOR_REPAIR))
+  {
+    /*
+      Also fail silently for underlying tables of a MERGE table if this
+      table is opened for CHECK/REPAIR TABLE statement. This is needed
+      to provide complete list of problematic underlying tables in
+      CHECK/REPAIR TABLE output.
+    */
+    Repair_mrg_table_error_handler repair_mrg_table_handler;
+    thd->push_internal_handler(&repair_mrg_table_handler);
+    error= open_table(thd, tables, new_frm_mem, ot_ctx);
+    thd->pop_internal_handler();
+    safe_to_ignore_table= repair_mrg_table_handler.safely_trapped_errors();
+  }
   else
     error= open_table(thd, tables, new_frm_mem, ot_ctx);
 
@@ -6641,11 +6719,25 @@ find_field_in_tables(THD *thd, Item_ident *item,
       {
         SELECT_LEX *current_sel= thd->lex->current_select;
         SELECT_LEX *last_select= table_ref->select_lex;
+        bool all_merged= TRUE;
+        for (SELECT_LEX *sl= current_sel; sl && sl!=last_select;
+             sl=sl->outer_select())
+        {
+          Item *subs= sl->master_unit()->item;
+          if (subs->type() == Item::SUBSELECT_ITEM && 
+              ((Item_subselect*)subs)->substype() == Item_subselect::IN_SUBS &&
+              ((Item_in_subselect*)subs)->test_strategy(SUBS_SEMI_JOIN))
+          {
+            continue;
+          }
+          all_merged= FALSE;
+          break;
+        }
         /*
           If the field was an outer referencee, mark all selects using this
           sub query as dependent on the outer query
         */
-        if (current_sel != last_select)
+        if (!all_merged && current_sel != last_select)
         {
           mark_select_range_as_dependent(thd, last_select, current_sel,
                                          found, *ref, item);
@@ -7875,7 +7967,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
-    thd->used_tables|= item->used_tables();
+    thd->lex->used_tables|= item->used_tables();
     thd->lex->current_select->cur_pos_in_select_list++;
   }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
@@ -8293,7 +8385,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       views and natural joins this update is performed inside the loop below.
     */
     if (table)
-      thd->used_tables|= table->map;
+      thd->lex->used_tables|= table->map;
 
     /*
       Initialize a generic field iterator for the current table reference.
@@ -8384,7 +8476,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           field_table= nj_col->table_ref->table;
           if (field_table)
           {
-            thd->used_tables|= field_table->map;
+            thd->lex->used_tables|= field_table->map;
             field_table->covering_keys.intersect(field->part_of_key);
             field_table->merge_keys.merge(field->part_of_key);
             field_table->used_fields++;
@@ -8392,7 +8484,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         }
       }
       else
-        thd->used_tables|= item->used_tables();
+        thd->lex->used_tables|= item->used_tables();
       thd->lex->current_select->cur_pos_in_select_list++;
     }
     /*
@@ -8467,7 +8559,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
   TABLE_LIST *table= NULL;	// For HP compilers
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   List_iterator<TABLE_LIST> ti(leaves);
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
@@ -8504,7 +8595,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
       goto err_no_arena;
   }
 
-  thd->thd_marker.emb_on_expr_nest= NO_JOIN_NEST;
   if (*conds)
   {
     thd->where="where clause";
@@ -8518,11 +8608,11 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
     */
     if ((*conds)->type() == Item::FIELD_ITEM && !derived)
       wrap_ident(thd, conds);
+    (*conds)->mark_as_condition_AND_part(NO_JOIN_NEST);
     if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
   }
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   /*
     Apply fix_fields() to all ON clauses at all levels of nesting,
@@ -8538,8 +8628,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
       if (embedded->on_expr)
       {
         /* Make a join an a expression */
-        thd->thd_marker.emb_on_expr_nest= embedded;
         thd->where="on clause";
+        embedded->on_expr->mark_as_condition_AND_part(embedded);
         if ((!embedded->on_expr->fixed &&
              embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
 	    embedded->on_expr->check_cols(1))
@@ -8563,7 +8653,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
       }
     }
   }
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   if (!thd->stmt_arena->is_conventional())
   {
@@ -9016,7 +9105,7 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
   if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
       !in_use->killed)
   {
-    in_use->killed= THD::KILL_CONNECTION;
+    in_use->killed= KILL_SYSTEM_THREAD;
     mysql_mutex_lock(&in_use->mysys_var->mutex);
     if (in_use->mysys_var->current_cond)
       mysql_cond_broadcast(in_use->mysys_var->current_cond);

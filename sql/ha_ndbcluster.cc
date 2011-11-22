@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11026,7 +11026,8 @@ mysql_declare_plugin(ndbcluster)
   0x0100 /* 1.0 */,
   ndb_status_variables_export,/* status variables                */
   system_variables,           /* system variables                */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0,                          /* flags                           */
 }
 mysql_declare_plugin_end;
 maria_declare_plugin(ndbcluster)

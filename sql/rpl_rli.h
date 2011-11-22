@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
@@ -455,14 +455,14 @@ public:
 
   /**
     Save pointer to Annotate_rows event and switch on the
-    binlog_annotate_rows_events for this sql thread.
+    binlog_annotate_row_events for this sql thread.
     To be called when sql thread recieves an Annotate_rows event.
   */
   inline void set_annotate_event(Annotate_rows_log_event *event)
   {
     free_annotate_event();
     m_annotate_event= event;
-    sql_thd->variables.binlog_annotate_rows_events= 1;
+    sql_thd->variables.binlog_annotate_row_events= 1;
   }
 
   /**
@@ -476,7 +476,7 @@ public:
 
   /**
     Delete saved Annotate_rows event (if any) and switch off the
-    binlog_annotate_rows_events for this sql thread.
+    binlog_annotate_row_events for this sql thread.
     To be called when sql thread has applied the last (i.e. with
     STMT_END_F flag) rbr event.
   */
@@ -484,7 +484,7 @@ public:
   {
     if (m_annotate_event)
     {
-      sql_thd->variables.binlog_annotate_rows_events= 0;
+      sql_thd->variables.binlog_annotate_row_events= 0;
       delete m_annotate_event;
       m_annotate_event= 0;
     }

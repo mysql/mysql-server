@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 #
-# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Copyright (c) 2008, 2009 Sun Microsystems, Inc.
 # Use is subject to license terms.
 #
 

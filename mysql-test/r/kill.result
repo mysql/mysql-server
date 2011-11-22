@@ -161,7 +161,7 @@ SET DEBUG_SYNC = 'RESET';
 # Connection: con1.
 SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
 KILL @id;
-ERROR 70100: Query execution was interrupted
+ERROR 70100: Connection was killed
 SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
 # ER_SERVER_SHUTDOWN, CR_SERVER_GONE_ERROR, CR_SERVER_LOST,
 # depending on the timing of close of the connection socket
@@ -275,5 +275,28 @@ unlock tables;
 # Switching to connection 'default'
 drop table t1;
 drop table t2;
+#
+# Test kill USER
+#
+grant ALL on test.* to test@localhost;
+grant ALL on test.* to test2@localhost;
+kill hard query user test2@nohost;
+affected rows: 0
+kill soft query user test@localhost;
+affected rows: 1
+kill hard query user test@localhost;
+affected rows: 1
+kill soft connection user test2;
+affected rows: 1
+kill hard connection user test@localhost;
+affected rows: 1
+revoke all privileges on test.* from test@localhost;
+revoke all privileges on test.* from test2@localhost;
+drop user test@localhost;
+drop user test2@localhost;
+select 1;
+Got one of the listed errors
+select 1;
+Got one of the listed errors
 SET DEBUG_SYNC = 'RESET';
 DROP FUNCTION MY_KILL;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000, 2011, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
    Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_priv.h"
 #include "unireg.h"
@@ -459,7 +459,7 @@ Increase max_allowed_packet on master";
     *errmsg = "memory allocation failed reading log event";
     break;
   case LOG_READ_TRUNC:
-    *errmsg = "binlog truncated in the middle of event";
+    *errmsg = "binlog truncated in the middle of event; consider out of disk space on master";
     break;
   case LOG_READ_CHECKSUM_FAILURE:
     *errmsg = "event read from binlog did not pass crc check";
@@ -557,6 +557,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   String* packet = &thd->packet;
   int error;
   const char *errmsg = "Unknown error";
+  const char *fmt= "%s; the last event was read from '%s' at %s, the last byte read was read from '%s' at %s.";
+  char llbuff1[22], llbuff2[22];
+  char error_text[MAX_SLAVE_ERRMSG]; // to be send to slave via my_message()
   NET* net = &thd->net;
   mysql_mutex_t *log_lock;
   mysql_cond_t *log_cond;
@@ -812,11 +815,9 @@ impossible position";
     if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
       goto err;
 
-    my_off_t prev_pos= pos;
     while (!(error = Log_event::read_log_event(&log, packet, log_lock,
                                                current_checksum_alg)))
     {
-      prev_pos= my_b_tell(&log);
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
       {
@@ -928,18 +929,6 @@ impossible position";
       /* reset transmit packet for next loop */
       if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
         goto err;
-    }
-
-    /*
-      here we were reading binlog that was not closed properly (as a result
-      of a crash ?). treat any corruption as EOF
-    */
-    if (binlog_can_be_corrupted &&
-        (error != LOG_READ_MEM && error != LOG_READ_CHECKSUM_FAILURE &&
-         error != LOG_READ_EOF))
-    {
-      my_b_seek(&log, prev_pos);
-      error=LOG_READ_EOF;
     }
 
     /*
@@ -1190,6 +1179,21 @@ end:
 
 err:
   thd_proc_info(thd, "Waiting to finalize termination");
+  if (my_errno == ER_MASTER_FATAL_ERROR_READING_BINLOG && my_b_inited(&log))
+  {
+    /* 
+       detailing the fatal error message with coordinates 
+       of the last position read.
+    */
+    char b_start[FN_REFLEN], b_end[FN_REFLEN];
+    fn_format(b_start, coord->file_name, "", "", MY_REPLACE_DIR);
+    fn_format(b_end,   log_file_name,    "", "", MY_REPLACE_DIR);
+    my_snprintf(error_text, sizeof(error_text), fmt, errmsg,
+                b_start, (llstr(coord->pos, llbuff1), llbuff1),
+                b_end, (llstr(my_b_tell(&log), llbuff2), llbuff2));
+  }
+  else
+    strcpy(error_text, errmsg);
   end_io_cache(&log);
   RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   /*
@@ -1206,7 +1210,7 @@ err:
     mysql_file_close(file, MYF(MY_WME));
   thd->variables.max_allowed_packet= old_max_allowed_packet;
 
-  my_message(my_errno, errmsg, MYF(0));
+  my_message(my_errno, error_text, MYF(0));
   DBUG_VOID_RETURN;
 }
 
@@ -1454,8 +1458,9 @@ int reset_slave(THD *thd, Master_info* mi)
     goto err;
   }
 
-  /* Clear master's log coordinates */
-  init_master_log_pos(mi);
+  /* Clear master's log coordinates and associated information */
+  mi->clear_in_memory_info(thd->lex->reset_slave_info.all);
+
   /*
      Reset errors (the idea is that we forget about the
      old master).
@@ -1500,9 +1505,9 @@ err:
   idle, then this could last long, and if the slave reconnects, we could have 2
   Binlog_dump threads in SHOW PROCESSLIST, until a query is written to the
   binlog. To avoid this, when the slave reconnects and sends COM_BINLOG_DUMP,
-  the master kills any existing thread with the slave's server id (if this id is
-  not zero; it will be true for real slaves, but false for mysqlbinlog when it
-  sends COM_BINLOG_DUMP to get a remote binlog dump).
+  the master kills any existing thread with the slave's server id (if this id
+  is not zero; it will be true for real slaves, but false for mysqlbinlog when
+  it sends COM_BINLOG_DUMP to get a remote binlog dump).
 
   SYNOPSIS
     kill_zombie_dump_threads()
@@ -1534,7 +1539,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
       it will be slow because it will iterate through the list
       again. We just to do kill the thread ourselves.
     */
-    tmp->awake(THD::KILL_QUERY);
+    tmp->awake(KILL_QUERY);
     mysql_mutex_unlock(&tmp->LOCK_thd_data);
   }
 }

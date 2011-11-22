@@ -89,9 +89,10 @@ struct st_mysql_xid {
 typedef struct st_mysql_xid MYSQL_XID;
 enum enum_mysql_show_type
 {
-  SHOW_UNDEF, SHOW_BOOL, SHOW_INT, SHOW_LONG,
-  SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
+  SHOW_UNDEF, SHOW_BOOL, SHOW_UINT, SHOW_ULONG,
+  SHOW_ULONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
   SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
+  SHOW_SINT, SHOW_SLONG, SHOW_SLONGLONG,
   SHOW_always_last
 };
 struct st_mysql_show_var {
@@ -122,6 +123,7 @@ struct st_mysql_plugin
   struct st_mysql_show_var *status_vars;
   struct st_mysql_sys_var **system_vars;
   void * __reserved1;
+  unsigned long flags;
 };
 struct st_maria_plugin
 {

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
@@ -40,6 +40,8 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
   DBUG_PRINT("my",("fd: %d  Buffer: %p  Count: %lu  MyFlags: %d",
                    Filedes, Buffer, (ulong) Count, MyFlags));
   save_count= Count;
+  if (!(MyFlags & (MY_WME | MY_FAE | MY_FNABP)))
+    MyFlags|= my_global_flags;
 
   for (;;)
   {
@@ -70,10 +72,12 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
       {
         if (readbytes == (size_t) -1)
-          my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
+          my_error(EE_READ,
+                   MYF(ME_BELL | ME_WAITTANG | (MyFlags & (ME_JUST_INFO | ME_NOREFRESH))),
                    my_filename(Filedes),my_errno);
         else if (MyFlags & (MY_NABP | MY_FNABP))
-          my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
+          my_error(EE_EOFERR,
+                   MYF(ME_BELL | ME_WAITTANG | (MyFlags & (ME_JUST_INFO | ME_NOREFRESH))),
                    my_filename(Filedes),my_errno);
       }
       if (readbytes == (size_t) -1 ||

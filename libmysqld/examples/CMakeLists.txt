@@ -23,9 +23,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 ADD_DEFINITIONS(-DEMBEDDED_LIBRARY -UMYSQL_CLIENT)
 
 
-# We never use "mysql_embedded", is more of a linktest, so we don't
-# use MYSQL_ADD_EXECUTABLE as that would install it and package it
-ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
+MYSQL_ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
                ../../client/mysql.cc ../../client/readline.cc)
 TARGET_LINK_LIBRARIES(mysql_embedded mysqlserver)
 IF(UNIX)

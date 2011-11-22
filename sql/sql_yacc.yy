@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
    Copyright (c) 2010, 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -12,7 +13,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* sql_yacc.yy */
 
@@ -787,10 +788,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 171 shift/reduce conflicts.
+  Currently there are 174 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 171
+%expect 174
 
 /*
    Comments for TOKENS.
@@ -1014,6 +1015,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  GROUP_CONCAT_SYM
 %token  GT_SYM                        /* OPERATOR */
 %token  HANDLER_SYM
+%token  HARD_SYM
 %token  HASH_SYM
 %token  HAVING                        /* SQL-2003-R */
 %token  HELP_SYM
@@ -1291,6 +1293,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SMALLINT                      /* SQL-2003-R */
 %token  SNAPSHOT_SYM
 %token  SOCKET_SYM
+%token  SOFT_SYM
 %token  SONAME_SYM
 %token  SOUNDS_SYM
 %token  SOURCE_SYM
@@ -1475,7 +1478,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
         optional_flush_tables_arguments opt_dyncol_type dyncol_type
-        opt_time_precision
+        opt_time_precision kill_type kill_option int_num
 
 %type <m_yes_no_unk>
         opt_chain opt_release
@@ -1510,7 +1513,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         function_call_keyword
         function_call_nonkeyword
         function_call_generic
-        function_call_conflict
+        function_call_conflict kill_expr
         signal_allowed_expr
 
 %type <item_num>
@@ -2071,7 +2074,6 @@ create:
             lex->change=NullS;
             bzero((char*) &lex->create_info,sizeof(lex->create_info));
             lex->create_info.options=$2 | $4;
-            lex->create_info.db_type= ha_default_handlerton(thd);
             lex->create_info.default_table_charset= NULL;
             lex->name.str= 0;
             lex->name.length= 0;
@@ -2081,7 +2083,8 @@ create:
           {
             LEX *lex= YYTHD->lex;
             lex->current_select= &lex->select_lex; 
-            if (!lex->create_info.db_type)
+            if ((lex->create_info.used_fields & HA_CREATE_USED_ENGINE) &&
+                !lex->create_info.db_type)
             {
               lex->create_info.db_type= ha_default_handlerton(YYTHD);
               push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -5080,8 +5083,7 @@ create_table_option:
           ENGINE_SYM opt_equal storage_engines
           {
             Lex->create_info.db_type= $3;
-            if ($3)
-              Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE;
+            Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE;
           }
         | MAX_ROWS opt_equal ulonglong_num
           {
@@ -6976,7 +6978,13 @@ alter_list_item:
           }
         | create_table_options_space_separated
           {
-            Lex->alter_info.flags|= ALTER_OPTIONS;
+            LEX *lex=Lex;
+            lex->alter_info.flags|= ALTER_OPTIONS;
+            if ((lex->create_info.used_fields & HA_CREATE_USED_ENGINE) &&
+                !lex->create_info.db_type)
+            {
+              lex->create_info.used_fields&= ~HA_CREATE_USED_ENGINE;
+            }
           }
         | FORCE_SYM
           {
@@ -9036,6 +9044,11 @@ function_call_generic:
             Create_func *builder;
             Item *item= NULL;
 
+            if (check_routine_name(&$1))
+            {
+              MYSQL_YYABORT;
+            }
+
             /*
               Implementation note:
               names are resolved with the following order:
@@ -9098,6 +9111,16 @@ function_call_generic:
               - MySQL.version() is the SQL 2003 syntax for the native function
               version() (a vendor can specify any schema).
             */
+
+            if (!$1.str || check_db_name(&$1))
+            {
+              my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
+            if (check_routine_name(&$3))
+            {
+              MYSQL_YYABORT;
+            }
 
             builder= find_qualified_function_builder(thd);
             DBUG_ASSERT(builder);
@@ -10392,6 +10415,12 @@ delete_limit_clause:
             Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
             sel->explicit_limit= 1;
           }
+        ;
+
+int_num:
+          NUM           { int error; $$= (int) my_strtoll10($1.str, (char**) 0, &error); }
+        | '-' NUM       { int error; $$= -(int) my_strtoll10($2.str, (char**) 0, &error); }
+        | '-' LONG_NUM  { int error; $$= -(int) my_strtoll10($2.str, (char**) 0, &error); }
         ;
 
 ulong_num:
@@ -11745,7 +11774,10 @@ flush_option:
         | STATUS_SYM
           { Lex->type|= REFRESH_STATUS; }
         | SLAVE
-          { Lex->type|= REFRESH_SLAVE; }
+          { 
+            Lex->type|= REFRESH_SLAVE;
+            Lex->reset_slave_info.all= false;
+          }
   	| CLIENT_STATS_SYM
           { Lex->type|= REFRESH_CLIENT_STATS; }
   	| USER_STATS_SYM
@@ -11788,8 +11820,14 @@ reset_options:
 
 reset_option:
           SLAVE               { Lex->type|= REFRESH_SLAVE; }
+          slave_reset_options { }
         | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
         | QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
+        ;
+
+slave_reset_options:
+          /* empty */ { Lex->reset_slave_info.all= false; }
+        | ALL         { Lex->reset_slave_info.all= true; }
         ;
 
 purge:
@@ -11824,19 +11862,41 @@ purge_option:
 /* kill threads */
 
 kill:
-          KILL_SYM kill_option expr
+          KILL_SYM
           {
             LEX *lex=Lex;
             lex->value_list.empty();
-            lex->value_list.push_front($3);
+            lex->users_list.empty();
             lex->sql_command= SQLCOM_KILL;
+          }
+          kill_type kill_option kill_expr
+          {
+            Lex->kill_signal= (killed_state) ($3 | $4);
           }
         ;
 
+kill_type:
+        /* Empty */    { $$= (int) KILL_HARD_BIT; }
+        | HARD_SYM     { $$= (int) KILL_HARD_BIT; }
+        | SOFT_SYM     { $$= 0; }
+
 kill_option:
-          /* empty */ { Lex->type= 0; }
-        | CONNECTION_SYM { Lex->type= 0; }
-        | QUERY_SYM      { Lex->type= ONLY_KILL_QUERY; }
+          /* empty */    { $$= (int) KILL_CONNECTION; }
+        | CONNECTION_SYM { $$= (int) KILL_CONNECTION; }
+        | QUERY_SYM      { $$= (int) KILL_QUERY; }
+        ;
+
+kill_expr:
+        expr
+        {
+          Lex->value_list.push_front($$);
+          Lex->kill_type= KILL_TYPE_ID;
+         }
+        | USER user
+          {
+            Lex->users_list.push_back($2);
+            Lex->kill_type= KILL_TYPE_USER;
+          }
         ;
 
 /* change database */
@@ -12967,6 +13027,7 @@ keyword_sp:
         | GRANTS                   {}
         | GLOBAL_SYM               {}
         | HASH_SYM                 {}
+        | HARD_SYM                 {}
         | HOSTS_SYM                {}
         | HOUR_SYM                 {}
         | IDENTIFIED_SYM           {}
@@ -13104,6 +13165,7 @@ keyword_sp:
         | SHUTDOWN                 {}
         | SLOW                     {}
         | SNAPSHOT_SYM             {}
+        | SOFT_SYM                 {}
         | SOUNDS_SYM               {}
         | SOURCE_SYM               {}
         | SQL_CACHE_SYM            {}
@@ -14212,7 +14274,7 @@ grant_option:
             lex->mqh.conn_per_hour= $2;
             lex->mqh.specified_limits|= USER_RESOURCES::CONNECTIONS_PER_HOUR;
           }
-        | MAX_USER_CONNECTIONS_SYM ulong_num
+        | MAX_USER_CONNECTIONS_SYM int_num
           {
             LEX *lex=Lex;
             lex->mqh.user_conn= $2;

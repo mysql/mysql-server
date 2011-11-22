@@ -32,7 +32,7 @@ The following options may be given as the first argument:
  --big-tables        Allow big result sets by saving all temporary sets on
  file (Solves most 'table full' errors)
  --bind-address=name IP address to bind to.
- --binlog-annotate-rows-events 
+ --binlog-annotate-row-events 
  Tells the master to annotate RBR events with the
  statement that caused these events
  --binlog-cache-size=# 
@@ -44,9 +44,6 @@ The following options may be given as the first argument:
  Type of BINLOG_CHECKSUM_ALG. Include checksum for log
  events in the binary log. Possible values are NONE and
  CRC32; default is NONE.
- --binlog-dbug-fsync-sleep=# 
- Extra sleep (in microseconds) to add to binlog fsync(),
- for debugging
  --binlog-direct-non-transactional-updates 
  Causes updates to non-transactional engines using
  statement format to be written directly to binary log.
@@ -335,7 +332,9 @@ The following options may be given as the first argument:
  when binary log is disabled).
  --log-tc-size=#     Size of transaction coordinator log.
  -W, --log-warnings[=#] 
- Log some not critical warnings to the general log file
+ Log some not critical warnings to the general log
+ file.Value can be between 0 and 11. Higher values mean
+ more verbosity
  --long-query-time=# Log all queries that have taken more than long_query_time
  seconds to execute to file. The argument will be treated
  as a decimal value with microsecond precision
@@ -609,7 +608,7 @@ The following options may be given as the first argument:
  transaction processed
  --relay-log-space-limit=# 
  Maximum space to use for all relay logs
- --replicate-annotate-rows-events 
+ --replicate-annotate-row-events 
  Tells the slave to write annotate rows events recieved
  from the master to its own binary log. Ignored if
  log_slave_updates is not set
@@ -861,10 +860,9 @@ automatic-sp-privileges TRUE
 back-log 50
 big-tables FALSE
 bind-address (No default value)
-binlog-annotate-rows-events FALSE
+binlog-annotate-row-events FALSE
 binlog-cache-size 32768
 binlog-checksum NONE
-binlog-dbug-fsync-sleep 0
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
 binlog-optimize-thread-scheduling TRUE
@@ -1002,7 +1000,7 @@ old-passwords FALSE
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_merge_sort_intersection=off,engine_condition_pushdown=off,index_condition_pushdown=off,derived_merge=off,derived_with_keys=off,firstmatch=off,loosescan=off,materialization=off,in_to_exists=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=off,mrr=off,mrr_cost_based=off,mrr_sort_keys=off,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on,optimize_join_buffer_size=off,table_elimination=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_merge_sort_intersection=off,engine_condition_pushdown=off,index_condition_pushdown=off,derived_merge=off,derived_with_keys=off,firstmatch=on,loosescan=on,materialization=off,in_to_exists=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr=off,mrr_cost_based=off,mrr_sort_keys=off,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on,optimize_join_buffer_size=off,table_elimination=on
 performance-schema FALSE
 performance-schema-events-waits-history-long-size 10000
 performance-schema-events-waits-history-size 10
@@ -1044,7 +1042,7 @@ relay-log-info-file relay-log.info
 relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0
-replicate-annotate-rows-events FALSE
+replicate-annotate-row-events FALSE
 replicate-same-server-id FALSE
 report-host (No default value)
 report-password (No default value)

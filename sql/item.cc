@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -805,7 +806,9 @@ bool Item_ident::remove_dependence_processor(uchar * arg)
 bool Item_ident::collect_outer_ref_processor(uchar *param)
 {
   Collect_deps_prm *prm= (Collect_deps_prm *)param;
-  if (depended_from && depended_from->nest_level < prm->nest_level)
+  if (depended_from && 
+      depended_from->nest_level_base == prm->nest_level_base &&
+      depended_from->nest_level < prm->nest_level)
     prm->parameters->add_unique(this, &cmp_items);
   return FALSE;
 }
@@ -2342,6 +2345,11 @@ bool Item_field::enumerate_field_refs_processor(uchar *arg)
   return FALSE;
 }
 
+bool Item_field::update_table_bitmaps_processor(uchar *arg)
+{
+  update_table_bitmaps();
+  return FALSE;
+}
 
 const char *Item_ident::full_name() const
 {
@@ -5010,6 +5018,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     if (!outer_fixed && cached_table && cached_table->select_lex &&
         context->select_lex &&
         cached_table->select_lex != context->select_lex &&
+        !context->select_lex->is_merged_child_of(cached_table->select_lex) &&
         is_outer_table(cached_table, context->select_lex))
     {
       int ret;
@@ -5109,14 +5118,14 @@ mark_non_agg_field:
     SELECT_LEX *select_lex= cached_table ? 
       cached_table->select_lex : context->select_lex;
     if (!thd->lex->in_sum_func)
-      select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+      select_lex->set_non_agg_field_used(true);
     else
     {
       if (outer_fixed)
         thd->lex->in_sum_func->outer_fields.push_back(this);
       else if (thd->lex->in_sum_func->nest_level !=
           thd->lex->current_select->nest_level)
-        select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+        select_lex->set_non_agg_field_used(true);
     }
   }
   return FALSE;
@@ -5543,6 +5552,10 @@ Field *Item::make_string_field(TABLE *table)
 {
   Field *field;
   DBUG_ASSERT(collation.collation);
+  /* 
+    Note: the following check is repeated in 
+    subquery_types_allow_materialization():
+  */
   if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
     field= new Field_blob(max_length, maybe_null, name,
                           collation.collation, TRUE);
@@ -6344,7 +6357,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   case MYSQL_TYPE_TIMESTAMP:
   {
     MYSQL_TIME tm;
-    get_date(&tm, TIME_FUZZY_DATE);
+    get_date(&tm, TIME_FUZZY_DATE | sql_mode_for_dates());
     if (!null_value)
     {
       if (f_type == MYSQL_TYPE_DATE)
@@ -7745,7 +7758,11 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
            ((*ref)->fix_fields(thd, ref)))
     return TRUE;
 
-  return Item_direct_ref::fix_fields(thd, reference);
+  if (Item_direct_ref::fix_fields(thd, reference))
+    return TRUE;
+  if (view->table && view->table->maybe_null)
+    maybe_null= TRUE;
+  return FALSE;
 }
 
 /*
@@ -9520,6 +9537,12 @@ table_map Item_direct_view_ref::used_tables() const
          (view->merged ? (*ref)->used_tables() : view->table->map); 
 }
 
+table_map Item_direct_view_ref::not_null_tables() const		
+{
+  return get_depended_from() ? 
+         0 :
+         (view->merged ? (*ref)->not_null_tables() : view->table->map); 
+}
 
 /*
   we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
@@ -9532,7 +9555,22 @@ table_map Item_ref_null_helper::used_tables() const
 }
 
 
+/* Debugger help function */
+static char dbug_item_print_buf[256];
 
+const char *dbug_print_item(Item *item)
+{
+  char *buf= dbug_item_print_buf;
+  String str(buf, sizeof(dbug_item_print_buf), &my_charset_bin);
+  str.length(0);
+  if (!item)
+    return "(Item*)NULL";
+  item->print(&str ,QT_ORDINARY);
+  if (str.c_ptr() == buf)
+    return buf;
+  else
+    return "Couldn't fit into buffer";
+}
 /*****************************************************************************
 ** Instantiate templates
 *****************************************************************************/

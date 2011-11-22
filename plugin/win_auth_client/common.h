@@ -41,13 +41,15 @@ struct error_log_level
   typedef enum {INFO, WARNING, ERROR}  type;
 };
 
+extern "C" int opt_auth_win_log_level;
+unsigned int  get_log_level(void);
+void          set_log_level(unsigned int);
+
 
 /*
   If DEBUG_ERROR_LOG is defined then error logging happens only
   in debug-copiled code. Otherwise ERROR_LOG() expands to 
-  error_log_print() even in production code. Note that in client
-  plugin, error_log_print() will print nothing if opt_auth_win_clinet_log
-  is 0.
+  error_log_print() even in production code.
 
   Note: Macro ERROR_LOG() can use printf-like format string like this:
 
@@ -57,8 +59,6 @@ struct error_log_level
   to fprintf() (see error_log_vprint() function).
 */
 
-extern "C" int opt_auth_win_client_log;
-
 #if defined(DEBUG_ERROR_LOG) && defined(DBUG_OFF)
 #define ERROR_LOG(Level, Msg)     do {} while (0)
 #else
@@ -67,7 +67,7 @@ extern "C" int opt_auth_win_client_log;
 
 
 void error_log_vprint(error_log_level::type level,
-                        const char *fmt, va_list args);
+                      const char *fmt, va_list args);
 
 template <error_log_level::type Level>
 void error_log_print(const char *fmt, ...)
@@ -96,7 +96,7 @@ const char* get_last_error_message(Error_message_buf);
 
 #define DBUG_PRINT_DO(Keyword, Msg) \
   do { \
-    if (2 > opt_auth_win_client_log) break; \
+    if (4 > get_log_level()) break; \
     fprintf(stderr, "winauth: %s: ", Keyword); \
     debug_msg Msg; \
   } while (0)

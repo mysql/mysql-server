@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Cashing of files with only does (sequential) read or writes of fixed-
@@ -168,11 +168,9 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
     if ((pos == (my_off_t) -1) && (my_errno == ESPIPE))
     {
       /*
-         This kind of object doesn't support seek() or tell(). Don't set a
-         flag that will make us again try to seek() later and fail.
-      */
-      info->seek_not_done= 0;
-      /*
+        This kind of object doesn't support seek() or tell(). Don't set a
+        seek_not_done that will make us again try to seek() later and fail.
+
         Additionally, if we're supposed to start somewhere other than the
         the beginning of whatever this file is, then somebody made a bad
         assumption.
@@ -1755,7 +1753,7 @@ int my_b_flush_io_cache(IO_CACHE *info,
       */
       if (!append_cache && info->seek_not_done)
       {					/* File touched, do seek */
-	if (mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET, MYF(0)) ==
+	if (mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET, MYF(info->myflags & MY_WME)) ==
 	    MY_FILEPOS_ERROR)
 	{
 	  UNLOCK_APPEND_BUFFER;

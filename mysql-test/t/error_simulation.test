@@ -89,6 +89,7 @@ SET SESSION debug = DEFAULT;
 
 DROP TABLE t1, t2;
 
+
 --echo #
 --echo # End of 5.1 tests
 --echo #

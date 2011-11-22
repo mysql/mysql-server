@@ -166,7 +166,8 @@ mysql_declare_plugin(perfschema)
   0x0001 /* 0.1 */,
   pfs_status_vars,                              /* status variables */
   NULL,                                         /* system variables */
-  NULL                                          /* config options */
+  NULL,                                         /* config options */
+  0,                                            /* flags */
 }
 mysql_declare_plugin_end;
 

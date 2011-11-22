@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
    Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -1067,14 +1068,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
       next_chunk+= 5 + partition_info_str_len;
     }
-    if (share->mysql_version >= 50110)
+    if (share->mysql_version >= 50110 && next_chunk < buff_end)
     {
       /* New auto_partitioned indicator introduced in 5.1.11 */
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       share->auto_partitioned= *next_chunk;
 #endif
       next_chunk++;
-      DBUG_ASSERT(next_chunk <= buff_end);
     }
     keyinfo= share->key_info;
     for (i= 0; i < keys; i++, keyinfo++)
@@ -5570,10 +5570,11 @@ void TABLE::mark_virtual_columns_for_write(bool insert_fl)
   @brief
   Allocate space for keys
 
-  @param key_count  number of keys to allocate
+  @param key_count  number of keys to allocate additionally
 
   @details
-  The function allocates memory  to fit 'key_count' keys for this table.
+  The function allocates memory  to fit additionally 'key_count' keys 
+  for this table.
 
   @return FALSE   space was successfully allocated
   @return TRUE    an error occur
@@ -5581,9 +5582,11 @@ void TABLE::mark_virtual_columns_for_write(bool insert_fl)
 
 bool TABLE::alloc_keys(uint key_count)
 {
-  key_info= s->key_info= (KEY*) alloc_root(&mem_root, sizeof(KEY)*key_count);
-  s->keys= 0;
-  max_keys= key_count;
+  key_info= (KEY*) alloc_root(&mem_root, sizeof(KEY)*(s->keys+key_count));
+  if (s->keys)
+    memmove(key_info, s->key_info, sizeof(KEY)*s->keys);
+  s->key_info= key_info;
+  max_keys= s->keys+key_count;
   return !(key_info);
 }
 
@@ -5728,7 +5731,7 @@ void TABLE::use_index(int key_to_save)
     /* Drop all keys; */
     i= 0;
 
-  s->keys= (key_to_save < 0) ? 0 : 1;
+  s->keys= i;
 }
 
 /*
@@ -6093,7 +6096,7 @@ int update_virtual_fields(THD *thd, TABLE *table, bool for_write)
 {
   DBUG_ENTER("update_virtual_fields");
   Field **vfield_ptr, *vfield;
-  int error= 0;
+  int error __attribute__ ((unused))= 0;
   if (!table || !table->vfield)
     DBUG_RETURN(0);
 

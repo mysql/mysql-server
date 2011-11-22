@@ -145,8 +145,6 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   error= 1;
   bzero((char*) &param,sizeof(param));
   param.sort_length= sortlength(thd, sortorder, s_length, &multi_byte_charset);
-  /* filesort cannot handle zero-length records. */
-  DBUG_ASSERT(param.sort_length);
   param.ref_length= table->file->ref_length;
   if (!(table->file->ha_table_flags() & HA_FAST_KEY_READ) &&
       !table->fulltext_searched && !sort_positions)
@@ -258,6 +256,10 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   else
   {
     thd->query_plan_flags|= QPLAN_FILESORT_DISK;
+
+    /* filesort cannot handle zero-length records during merge. */
+    DBUG_ASSERT(param.sort_length != 0);
+
     if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
     {
       my_free(table_sort.buffpek);
@@ -524,7 +526,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   my_off_t record;
   TABLE *sort_form;
   THD *thd= current_thd;
-  volatile THD::killed_state *killed= &thd->killed;
+  volatile killed_state *killed= &thd->killed;
   handler *file;
   MY_BITMAP *save_read_set, *save_write_set, *save_vcol_set;
   DBUG_ENTER("find_all_keys");
@@ -564,12 +566,11 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   /* Temporary set for register_used_fields and register_field_in_read_map */
   sort_form->read_set= &sort_form->tmp_set;
   register_used_fields(param);
-  if (select && select->cond)
-    select->cond->walk(&Item::register_field_in_read_map, 1,
-                       (uchar*) sort_form);
-  if (select && select->pre_idx_push_select_cond)
-    select->pre_idx_push_select_cond->walk(&Item::register_field_in_read_map,
-                                           1, (uchar*) sort_form);
+  Item *sort_cond= !select ?  
+                     0 : !select->pre_idx_push_select_cond ? 
+                           select->cond : select->pre_idx_push_select_cond;
+  if (sort_cond)
+    sort_cond->walk(&Item::register_field_in_read_map, 1, (uchar*) sort_form);
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set, 
                                 &sort_form->tmp_set);
 
@@ -642,15 +643,21 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
           SQL_SELECT::skip_record evaluates this condition. it may include a
           correlated subquery predicate, such that some field in the subquery
           refers to 'sort_form'.
+
+          PSergey-todo: discuss the above with Timour.
         */
+        MY_BITMAP *tmp_read_set= sort_form->read_set;
+        MY_BITMAP *tmp_write_set= sort_form->write_set;
+        MY_BITMAP *tmp_vcol_set= sort_form->vcol_set;
+
         if (select->cond->with_subselect)
           sort_form->column_bitmaps_set(save_read_set, save_write_set,
                                         save_vcol_set);
         write_record= (select->skip_record(thd) > 0);
         if (select->cond->with_subselect)
-          sort_form->column_bitmaps_set(&sort_form->tmp_set,
-                                        &sort_form->tmp_set,
-                                        &sort_form->tmp_set);
+          sort_form->column_bitmaps_set(tmp_read_set,
+                                        tmp_write_set,
+                                        tmp_vcol_set);
       }
       else
         write_record= true;
@@ -999,21 +1006,10 @@ static void make_sortkey(register SORTPARAM *param,
       if (addonf->null_bit && field->is_null())
       {
         nulls[addonf->null_offset]|= addonf->null_bit;
-#ifdef HAVE_valgrind
-	bzero(to, addonf->length);
-#endif
       }
       else
       {
-#ifdef HAVE_valgrind
-        uchar *end= field->pack(to, field->ptr);
-	uint length= (uint) ((to + addonf->length) - end);
-	DBUG_ASSERT((int) length >= 0);
-	if (length)
-	  bzero(end, length);
-#else
         (void) field->pack(to, field->ptr);
-#endif
       }
       to+= addonf->length;
     }
@@ -1252,9 +1248,9 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   void *first_cmp_arg;
   element_count dupl_count= 0;
   uchar *src;
-  THD::killed_state not_killable;
+  killed_state not_killable;
   uchar *unique_buff= param->unique_buff;
-  volatile THD::killed_state *killed= &current_thd->killed;
+  volatile killed_state *killed= &current_thd->killed;
   DBUG_ENTER("merge_buffers");
 
   status_var_increment(current_thd->status_var.filesort_merge_passes);
@@ -1262,7 +1258,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   if (param->not_killable)
   {
     killed= &not_killable;
-    not_killable= THD::NOT_KILLED;
+    not_killable= NOT_KILLED;
   }
 
   error=0;

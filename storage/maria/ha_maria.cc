@@ -156,9 +156,15 @@ static MYSQL_SYSVAR_ULONG(block_size, maria_block_size,
 
 static MYSQL_SYSVAR_ULONG(checkpoint_interval, checkpoint_interval,
        PLUGIN_VAR_RQCMDARG,
-       "Interval between automatic checkpoints, in seconds; 0 means"
+       "Interval between tries to do an automatic checkpoints. In seconds; 0 means"
        " 'no automatic checkpoints' which makes sense only for testing.",
        NULL, update_checkpoint_interval, 30, 0, UINT_MAX, 1);
+
+static MYSQL_SYSVAR_ULONG(checkpoint_log_activity, maria_checkpoint_min_log_activity,
+       PLUGIN_VAR_RQCMDARG,
+       "Number of bytes that the transaction log has to grow between checkpoints before a new "
+       "checkpoint is written to the log.",
+       NULL, NULL, 1024*1024, 0, UINT_MAX, 1);
 
 static MYSQL_SYSVAR_ULONG(force_start_after_recovery_failures,
        force_start_after_recovery_failures,
@@ -397,7 +403,7 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
 
   if (!thd->vio_ok())
   {
-    sql_print_error(fmt, args);
+    sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
     return;
   }
 
@@ -405,6 +411,8 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
       (T_CREATE_MISSING_KEYS | T_SAFE_REPAIR | T_AUTO_REPAIR))
   {
     my_message(ER_NOT_KEYFILE, msgbuf, MYF(MY_WME));
+    if (thd->variables.log_warnings > 2)
+      sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
     return;
   }
   length= (uint) (strxmov(name, param->db_name, ".", param->table_name,
@@ -423,8 +431,11 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
   protocol->store(msg_type, system_charset_info);
   protocol->store(msgbuf, msg_length, system_charset_info);
   if (protocol->write())
-    sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
-                    msgbuf);
+    sql_print_error("Failed on my_net_write, writing to stderr instead: %s.%s: %s\n",
+                    param->db_name, param->table_name, msgbuf);
+  else if (thd->variables.log_warnings > 2)
+    sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
+
   return;
 }
 
@@ -1018,8 +1029,7 @@ double ha_maria::scan_time()
 
 uint ha_maria::max_supported_key_length() const
 {
-  uint tmp= (maria_max_key_length() - 8 - HA_MAX_KEY_SEG*3);
-  return min(HA_MAX_KEY_BUFF, tmp);
+  return maria_max_key_length();
 }
 
 
@@ -2151,13 +2161,17 @@ bool ha_maria::check_and_repair(THD *thd)
 
   if (crashed)
   {
+    bool save_log_all_errors;
     sql_print_warning("Recovering table: '%s'", table->s->path.str);
+    save_log_all_errors= thd->log_all_errors;
+    thd->log_all_errors|= (thd->variables.log_warnings > 2);
     check_opt.flags=
       ((maria_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0) |
        (maria_recover_options & HA_RECOVER_FORCE ? 0 : T_SAFE_REPAIR) |
        T_AUTO_REPAIR);
     if (repair(thd, &check_opt))
       error= 1;
+    thd->log_all_errors= save_log_all_errors;
   }
   thd->set_query(query_backup);
   DBUG_RETURN(error);
@@ -2480,9 +2494,6 @@ int ha_maria::extra(enum ha_extra_function operation)
 
 int ha_maria::reset(void)
 {
-  pushed_idx_cond= NULL;
-  pushed_idx_cond_keyno= MAX_KEY;
-  in_range_check_pushed_down= FALSE;
   ma_set_index_cond_func(file, NULL, 0);
   ds_mrr.dsmrr_close();
   if (file->trn)
@@ -2539,6 +2550,14 @@ void ha_maria::drop_table(const char *name)
   DBUG_ASSERT(file->s->temporary);
   (void) ha_close();
   (void) maria_delete_table_files(name, 0);
+}
+
+
+void ha_maria::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
+{
+  handler::change_table_ptr(table_arg, share);
+  if (file)
+    file->external_ref= table_arg;
 }
 
 
@@ -2641,7 +2660,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
             changes to commit (rollback shouldn't be tested).
           */
           DBUG_ASSERT(!thd->stmt_da->is_sent ||
-                      thd->killed == THD::KILL_CONNECTION);
+                      thd->killed == KILL_CONNECTION);
           /* autocommit ? rollback a transaction */
 #ifdef MARIA_CANNOT_ROLLBACK
           if (ma_commit(trn))
@@ -3484,7 +3503,7 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
   *engine_data= 0;
 
   if (file->s->now_transactional && file->s->have_versioning)
-    return (file->trn->trid >= file->s->state.last_change_trn);
+    DBUG_RETURN(file->trn->trid >= file->s->state.last_change_trn);
 
   /*
     If a concurrent INSERT has happened just before the currently processed
@@ -3519,6 +3538,7 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(block_size),
   MYSQL_SYSVAR(checkpoint_interval),
+  MYSQL_SYSVAR(checkpoint_log_activity),
   MYSQL_SYSVAR(force_start_after_recovery_failures),
   MYSQL_SYSVAR(group_commit),
   MYSQL_SYSVAR(group_commit_interval),
@@ -3551,6 +3571,7 @@ static void update_checkpoint_interval(MYSQL_THD thd,
   ma_checkpoint_end();
   ma_checkpoint_init(*(ulong *)var_ptr= (ulong)(*(long *)save));
 }
+
 
 /**
    @brief Updates group commit mode
@@ -3728,9 +3749,6 @@ Item *ha_maria::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
     ma_set_index_cond_func(file, index_cond_func_maria, this);
   return NULL;
 }
-
-
-
 
 struct st_mysql_storage_engine maria_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };

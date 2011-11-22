@@ -16,4 +16,5 @@ MYSQL_PLUGIN_ACTIONS(handlersocket,
   AC_SUBST(MYSQL_LIB)
   AC_SUBST(PLUGIN_DIR)
   AC_SUBST(HANDLERSOCKET_SUBDIRS)
+  AC_CONFIG_FILES(plugin/handler_socket/perl-Net-HandlerSocket/Makefile.PL)
 ])

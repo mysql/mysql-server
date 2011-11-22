@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Delete of records tables.
@@ -63,7 +63,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
                            order_list->first : NULL);
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
-  THD::killed_state killed_status= THD::NOT_KILLED;
+  killed_state killed_status= NOT_KILLED;
   THD::enum_binlog_query_type query_type= THD::ROW_QUERY_TYPE;
   DBUG_ENTER("mysql_delete");
 
@@ -379,7 +379,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       table->file->unlock_row();  // Row failed selection, release lock on it
   }
   killed_status= thd->killed;
-  if (killed_status != THD::NOT_KILLED || thd->is_error())
+  if (killed_status != NOT_KILLED || thd->is_error())
     error= 1;					// Aborted
   if (will_batch && (loc_error= table->file->end_bulk_delete()))
   {
@@ -424,8 +424,8 @@ cleanup:
       if (error < 0)
         thd->clear_error();
       else
-        errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-
+        errcode= query_error_code(thd, killed_status == NOT_KILLED);
+      
       /*
         [binlog]: If 'handler::delete_all_rows()' was called and the
         storage engine does not inject the rows itself, we replicate
@@ -870,7 +870,7 @@ void multi_delete::abort_result_set()
     */
     if (mysql_bin_log.is_open())
     {
-      int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+      int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
       /* possible error of writing binary log is ignored deliberately */
       (void) thd->binlog_query(THD::ROW_QUERY_TYPE,
                                thd->query(), thd->query_length(),
@@ -1019,7 +1019,7 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
 
 bool multi_delete::send_eof()
 {
-  THD::killed_state killed_status= THD::NOT_KILLED;
+  killed_state killed_status= NOT_KILLED;
   thd_proc_info(thd, "deleting from reference tables");
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
@@ -1027,7 +1027,7 @@ bool multi_delete::send_eof()
 
   /* compute a total error to know if something failed */
   local_error= local_error || error;
-  killed_status= (local_error == 0)? THD::NOT_KILLED : thd->killed;
+  killed_status= (local_error == 0)? NOT_KILLED : thd->killed;
   /* reset used flags */
   thd_proc_info(thd, "end");
 
@@ -1050,7 +1050,7 @@ bool multi_delete::send_eof()
       if (local_error == 0)
         thd->clear_error();
       else
-        errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+        errcode= query_error_code(thd, killed_status == NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query(), thd->query_length(),
                             transactional_tables, FALSE, FALSE, errcode) &&

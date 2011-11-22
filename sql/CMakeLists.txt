@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -106,6 +106,14 @@ ELSE()
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
+
+IF(APPLE) 
+  # Add CoreServices framework since some dloadable plugins may need it 
+  FIND_LIBRARY(CORESERVICES NAMES CoreServices) 
+  IF(CORESERVICES) 
+    TARGET_LINK_LIBRARIES(mysqld ${CORESERVICES}) 
+  ENDIF() 
+ENDIF() 
 
 IF(NOT WITHOUT_DYNAMIC_PLUGINS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Creates a index for a database by reading keys, sorting them and outputing
@@ -151,6 +151,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 	{
 	  mi_check_print_error(info->sort_info->param,
 			       "myisam_sort_buffer_size is too small");
+          my_errno= ENOMEM;
 	  goto err;
 	}
       }
@@ -175,7 +176,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   if (memavl < MIN_SORT_BUFFER)
   {
     mi_check_print_error(info->sort_info->param,"MyISAM sort buffer too small"); /* purecov: tested */
-    goto err; /* purecov: tested */
+    my_errno= ENOMEM;                           /* purecov: tested */
+    goto err;                                   /* purecov: tested */
   }
   (*info->lock_in_memory)(info->sort_info->param);/* Everything is allocated */
 

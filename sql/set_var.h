@@ -201,7 +201,8 @@ public:
   enum_var_type type;
   union ///< temp storage to hold a value between sys_var::check and ::update
   {
-    ulonglong ulonglong_value;          ///< for all integer, set, enum sysvars
+    ulonglong ulonglong_value;          ///< for unsigned integer, set, enum sysvars
+    longlong longlong_value;            ///< for signed integer
     double double_value;                ///< for Sys_var_double
     plugin_ref plugin;                  ///< for Sys_var_plugin
     Time_zone *time_zone;               ///< for Sys_var_tz

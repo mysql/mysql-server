@@ -56,27 +56,6 @@ WHERE ( `int_nokey`  , `pk`  )  IN (
 SELECT INNR .`pk`  , INNR .`pk`  
 FROM CC  LEFT  JOIN BB INNR  ON INNR .`varchar_key`  )  AND `pk`  =  9   ;
 datetime_key
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
-Warning	1292	Truncated incorrect DOUBLE value: 'i'
 DROP TABLE CC, C, BB;
 DROP TABLE IF EXISTS CC, C, BB;
 CREATE TABLE `CC` (

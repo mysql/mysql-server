@@ -1,5 +1,5 @@
 use performance_schema;
-select name from mutex_instances group by name;
+select name from mutex_instances where name not rlike '/(DEBUG_SYNC::mutex)$' group by name;
 name
 wait/synch/mutex/archive/archive_mutex
 wait/synch/mutex/aria/LOCK_trn_list
@@ -32,7 +32,6 @@ wait/synch/mutex/mysys/THR_LOCK_open
 wait/synch/mutex/mysys/THR_LOCK_threads
 wait/synch/mutex/mysys/TMPDIR_mutex
 wait/synch/mutex/sql/Cversion_lock
-wait/synch/mutex/sql/DEBUG_SYNC::mutex
 wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state
 wait/synch/mutex/sql/hash_filo::lock
 wait/synch/mutex/sql/LOCK_active_mi
@@ -100,7 +99,7 @@ wait/synch/rwlock/sql/MDL_context::LOCK_waiting_for
 wait/synch/rwlock/sql/MDL_lock::rwlock
 wait/synch/rwlock/sql/THR_LOCK_servers
 wait/synch/rwlock/sql/THR_LOCK_udf
-select name from cond_instances group by name;
+select name from cond_instances where name not rlike '/(DEBUG_SYNC::cond)$' group by name;
 name
 wait/synch/cond/aria/SERVICE_THREAD_CONTROL::COND_control
 wait/synch/cond/aria/TRANSLOG_BUFFER::prev_sent_to_disk_cond
@@ -117,7 +116,6 @@ wait/synch/cond/sql/COND_rpl_status
 wait/synch/cond/sql/COND_server_started
 wait/synch/cond/sql/COND_thread_cache
 wait/synch/cond/sql/COND_thread_count
-wait/synch/cond/sql/DEBUG_SYNC::cond
 wait/synch/cond/sql/Event_scheduler::COND_state
 wait/synch/cond/sql/Master_info::data_cond
 wait/synch/cond/sql/Master_info::start_cond

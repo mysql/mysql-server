@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates.
    Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -1403,11 +1403,18 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale)
     buf++;
   }
   my_afree(d_copy);
+
+  /*
+    No digits? We have read the number zero, of unspecified precision.
+    Make it a proper zero, with non-zero precision.
+  */
+  if (to->intg == 0 && to->frac == 0)
+    decimal_make_zero(to);
   return error;
 
 err:
   my_afree(d_copy);
-  decimal_make_zero(((decimal_t*) to));
+  decimal_make_zero(to);
   return(E_DEC_BAD_NUM);
 }
 
@@ -2183,7 +2190,6 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
   }
   buf0=to->buf;
   stop0=buf0+intg0+frac0;
-  DBUG_ASSERT(stop0 <= &to->buf[to->len]);
   if (likely(div_mod))
     while (dintg++ < 0 && buf0 < &to->buf[to->len])
     {
@@ -2278,7 +2284,10 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
       }
     }
     if (likely(div_mod))
+    {
+      DBUG_ASSERT(buf0 < to->buf + to->len);
       *buf0=(dec1)guess;
+    }
     dcarry= *start1;
     start1++;
   }

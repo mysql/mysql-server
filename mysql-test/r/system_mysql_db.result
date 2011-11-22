@@ -119,7 +119,7 @@ user	CREATE TABLE `user` (
   `max_questions` int(11) unsigned NOT NULL DEFAULT '0',
   `max_updates` int(11) unsigned NOT NULL DEFAULT '0',
   `max_connections` int(11) unsigned NOT NULL DEFAULT '0',
-  `max_user_connections` int(11) unsigned NOT NULL DEFAULT '0',
+  `max_user_connections` int(11) NOT NULL DEFAULT '0',
   `plugin` char(64) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `authentication_string` text COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`Host`,`User`)

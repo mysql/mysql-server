@@ -36,7 +36,7 @@ a DIV 1
 0
 2003
 10203
-30406
+30405
 154711
 select group_concat(distinct a) from t1;
 group_concat(distinct a)

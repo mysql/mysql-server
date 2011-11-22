@@ -541,6 +541,7 @@ typedef void (*Cond_traverser) (const Item *item, void *arg);
 class Item_equal;
 class COND_EQUAL;
 
+class st_select_lex_unit;
 
 class Item {
   Item(const Item &);			/* Prevent use of these */
@@ -1144,9 +1145,11 @@ public:
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
   virtual bool eliminate_subselect_processor(uchar *arg) { return 0; }
   virtual bool set_fake_select_as_master_processor(uchar *arg) { return 0; }
+  virtual bool update_table_bitmaps_processor(uchar *arg) { return 0; }
   virtual bool view_used_tables_processor(uchar *arg) { return 0; }
   virtual bool eval_not_null_tables(uchar *opt_arg) { return 0; }
   virtual bool clear_sum_processor(uchar *opt_arg) { return 0; }
+  virtual bool is_subquery_processor (uchar *opt_arg) { return 0; }
 
   /* To call bool function for all arguments */
   struct bool_func_call_args
@@ -1288,8 +1291,10 @@ public:
   }
   struct Collect_deps_prm
   {
-    int nest_level;
     List<Item> *parameters;
+    /* unit from which we count nest_level */
+    st_select_lex_unit *nest_level_base;
+    int nest_level;
   };
   /**
     Collect outer references
@@ -1461,6 +1466,8 @@ public:
     be defined for Item_func.
   */
   virtual void get_cache_parameters(List<Item> &parameters) { };
+
+  virtual void mark_as_condition_AND_part(TABLE_LIST *embedding) {};
 };
 
 
@@ -2022,6 +2029,20 @@ public:
   bool get_date_result(MYSQL_TIME *ltime,ulonglong fuzzydate);
   bool is_null() { return field->is_null(); }
   void update_null_value();
+  void update_table_bitmaps()
+  {
+    if (field && field->table)
+    {
+      TABLE *tab= field->table;
+      tab->covering_keys.intersect(field->part_of_key);
+      tab->merge_keys.merge(field->part_of_key);
+      if (tab->read_set)
+        bitmap_fast_test_and_set(tab->read_set, field->field_index);
+      if (field->vcol_info)
+        tab->mark_virtual_col(field);
+    }  
+  }
+  void update_used_tables() { update_table_bitmaps(); }
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
   bool add_field_to_set_processor(uchar * arg);
@@ -2033,6 +2054,7 @@ public:
   bool vcol_in_partition_func_processor(uchar *bool_arg);
   bool check_vcol_func_processor(uchar *arg) { return FALSE;}
   bool enumerate_field_refs_processor(uchar *arg);
+  bool update_table_bitmaps_processor(uchar *arg);
   void cleanup();
   Item_equal *get_item_equal() { return item_equal; }
   void set_item_equal(Item_equal *item_eq) { item_equal= item_eq; }
@@ -3153,6 +3175,7 @@ public:
   Item *equal_fields_propagator(uchar *arg);
   Item *replace_equal_field(uchar *arg);
   table_map used_tables() const;	
+  table_map not_null_tables() const;
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   { 
     return (*ref)->walk(processor, walk_subquery, arg) ||
@@ -3848,6 +3871,20 @@ public:
   { return test(example && example->basic_const_item());}
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
   bool is_null() { return null_value; }
+  virtual bool is_expensive()
+  {
+    DBUG_ASSERT(example);
+    if (value_cached)
+      return false;
+    return example->is_expensive();
+  }
+  bool is_expensive_processor(uchar *arg)
+  {
+    DBUG_ASSERT(example);
+    if (value_cached)
+      return false;
+    return example->is_expensive_processor(arg);
+  }
 };
 
 

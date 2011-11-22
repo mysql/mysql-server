@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /*****************************************************************************
@@ -280,7 +282,7 @@ bool Foreign_key::validate(List<Create_field> &table_fields)
 */
 void thd_set_killed(THD *thd)
 {
-  thd->killed= THD::KILL_CONNECTION;
+  thd->killed= KILL_CONNECTION;
 }
 
 /**
@@ -499,11 +501,11 @@ const char *set_thd_proc_info(THD *thd, const char *info,
     thd= current_thd;
 
   const char *old_info= thd->proc_info;
-  const char *basename= calling_file ? base_name(calling_file) : NULL;
-  DBUG_PRINT("proc_info", ("%s:%d  %s", basename, calling_line, info));
+  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, info));
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.status_change(info, calling_function, basename, calling_line);
+  thd->profiling.status_change(info,
+                               calling_function, calling_file, calling_line);
 #endif
   thd->proc_info= info;
   return old_info;
@@ -620,7 +622,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 {
   String str(buffer, length, &my_charset_latin1);
   const Security_context *sctx= &thd->main_security_ctx;
-  char header[64];
+  char header[256];
   int len;
   /*
     The pointers thd->query and thd->proc_info might change since they are
@@ -634,8 +636,8 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   const char *proc_info= thd->proc_info;
 
   len= my_snprintf(header, sizeof(header),
-                   "MySQL thread id %lu, query id %lu",
-                   thd->thread_id, (ulong) thd->query_id);
+                   "MySQL thread id %lu, OS thread handle 0x%lx, query id %lu",
+                   thd->thread_id, (ulong) thd->real_id, (ulong) thd->query_id);
   str.length(0);
   str.append(header, len);
 
@@ -724,7 +726,7 @@ THD::THD()
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
-   in_sub_stmt(0),
+   in_sub_stmt(0), log_all_errors(0),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    table_map_for_update(0),
@@ -777,7 +779,6 @@ THD::THD()
   is_slave_error= thread_specific_used= FALSE;
   my_hash_clear(&handler_tables_hash);
   tmp_table=0;
-  used_tables=0;
   cuted_fields= 0L;
   sent_row_count= 0L;
   limit_found_rows= 0;
@@ -1057,7 +1058,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
       push_warning and strict SQL_MODE case.
     */
     level= MYSQL_ERROR::WARN_LEVEL_ERROR;
-    killed= THD::KILL_BAD_DATA;
+    killed= KILL_BAD_DATA;
   }
 
   switch (level)
@@ -1520,17 +1521,27 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
   @note Do always call this while holding LOCK_thd_data.
 */
 
-void THD::awake(THD::killed_state state_to_set)
+void THD::awake(killed_state state_to_set)
 {
   DBUG_ENTER("THD::awake");
   DBUG_PRINT("enter", ("this: %p current_thd: %p", this, current_thd));
   THD_CHECK_SENTRY(this);
   mysql_mutex_assert_owner(&LOCK_thd_data);
 
+  if (global_system_variables.log_warnings > 3)
+  {
+    Security_context *sctx= security_ctx;
+    sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                      thread_id,(db ? db : "unconnected"),
+                      sctx->user ? sctx->user : "unauthenticated",
+                      sctx->host_or_ip,
+                      "KILLED");
+  }
+
   /* Set the 'killed' flag of 'this', which is the target THD object. */
   killed= state_to_set;
 
-  if (state_to_set != THD::KILL_QUERY)
+  if (state_to_set >= KILL_CONNECTION || state_to_set == NOT_KILLED)
   {
 #ifdef SIGNAL_WITH_VIO_CLOSE
     if (this != current_thd)
@@ -1651,7 +1662,7 @@ void THD::disconnect()
 
   mysql_mutex_lock(&LOCK_thd_data);
 
-  killed= THD::KILL_CONNECTION;
+  killed= KILL_CONNECTION;
 
 #ifdef SIGNAL_WITH_VIO_CLOSE
   /*
@@ -1668,6 +1679,37 @@ void THD::disconnect()
     vio_close(net.vio);
 
   mysql_mutex_unlock(&LOCK_thd_data);
+}
+
+
+/*
+  Get error number for killed state
+  Note that the error message can't have any parameters.
+  See thd::kill_message()
+*/
+
+int killed_errno(killed_state killed)
+{
+  switch (killed) {
+  case NOT_KILLED:
+  case KILL_HARD_BIT:
+    return 0;                                   // Probably wrong usage
+  case KILL_BAD_DATA:
+  case KILL_BAD_DATA_HARD:
+    return 0;                                   // Not a real error
+  case KILL_CONNECTION:
+  case KILL_CONNECTION_HARD:
+  case KILL_SYSTEM_THREAD:
+  case KILL_SYSTEM_THREAD_HARD:
+    return ER_CONNECTION_KILLED;
+  case KILL_QUERY:
+  case KILL_QUERY_HARD:
+    return ER_QUERY_INTERRUPTED;
+  case KILL_SERVER:
+  case KILL_SERVER_HARD:
+    return ER_SERVER_SHUTDOWN;
+  }
+  return 0;                                     // Keep compiler happy
 }
 
 
@@ -2911,26 +2953,32 @@ bool select_max_min_finder_subselect::cmp_real()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   double val1= cache->val_real(), val2= maxmin->val_real();
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 > val2);
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     val1 < val2);
+    return(val1 > val2);
+  return (val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_int()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   longlong val1= cache->val_int(), val2= maxmin->val_int();
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 > val2);
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     val1 < val2);
+    return(val1 > val2);
+  return (val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_decimal()
@@ -2938,13 +2986,16 @@ bool select_max_min_finder_subselect::cmp_decimal()
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
   my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       my_decimal_cmp(cvalue, mvalue) > 0) ;
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     my_decimal_cmp(cvalue,mvalue) < 0);
+    return (my_decimal_cmp(cvalue, mvalue) > 0) ;
+  return (my_decimal_cmp(cvalue,mvalue) < 0);
 }
 
 bool select_max_min_finder_subselect::cmp_str()
@@ -2957,13 +3008,16 @@ bool select_max_min_finder_subselect::cmp_str()
   */
   val1= cache->val_str(&buf1);
   val2= maxmin->val_str(&buf1);
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       sortcmp(val1, val2, cache->collation.collation) > 0) ;
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     sortcmp(val1, val2, cache->collation.collation) < 0);
+    return (sortcmp(val1, val2, cache->collation.collation) > 0) ;
+  return (sortcmp(val1, val2, cache->collation.collation) < 0);
 }
 
 int select_exists_subselect::send_data(List<Item> &items)
@@ -3696,11 +3750,15 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
   @param thd  user thread
   @retval 0 the user thread is active
   @retval 1 the user thread has been killed
+
+  This is used to signal a storage engine if it should be killed.
 */
 
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
-  return(thd->killed);
+  if (!(thd->killed & KILL_HARD_BIT))
+    return 0;
+  return thd->killed;
 }
 
 
@@ -4149,16 +4207,24 @@ void THD::set_mysys_var(struct st_my_thread_var *new_mysys_var)
 
 void THD::leave_locked_tables_mode()
 {
+  if (locked_tables_mode == LTM_LOCK_TABLES)
+  {
+    /*
+      When leaving LOCK TABLES mode we have to change the duration of most
+      of the metadata locks being held, except for HANDLER and GRL locks,
+      to transactional for them to be properly released at UNLOCK TABLES.
+    */
+    mdl_context.set_transaction_duration_for_all_locks();
+    /*
+      Make sure we don't release the global read lock and commit blocker
+      when leaving LTM.
+    */
+    global_read_lock.set_explicit_lock_duration(this);
+    /* Also ensure that we don't release metadata locks for open HANDLERs. */
+    if (handler_tables_hash.records)
+      mysql_ha_set_explicit_lock_duration(this);
+  }
   locked_tables_mode= LTM_NONE;
-  mdl_context.set_transaction_duration_for_all_locks();
-  /*
-    Make sure we don't release the global read lock and commit blocker
-    when leaving LTM.
-  */
-  global_read_lock.set_explicit_lock_duration(this);
-  /* Also ensure that we don't release metadata locks for open HANDLERs. */
-  if (handler_tables_hash.records)
-    mysql_ha_set_explicit_lock_duration(this);
 }
 
 void THD::get_definer(LEX_USER *definer)

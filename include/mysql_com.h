@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
 ** Common definition between mysql server & client
@@ -427,12 +428,15 @@ enum mysql_enum_shutdown_level {
   /* don't flush InnoDB buffers, flush other storage engines' buffers*/
   SHUTDOWN_WAIT_CRITICAL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1) + 1,
   /* Now the 2 levels of the KILL command */
-#if MYSQL_VERSION_ID >= 50000
-  KILL_QUERY= 254,
-#endif
-  KILL_CONNECTION= 255
+  SHUTDOWN_KILL_QUERY= 254,
+  SHUTDOWN_KILL_CONNECTION= 255
 };
 
+/* Compatibility */
+#if !defined(MYSQL_SERVER) && defined(USE_OLD_FUNCTIONS)
+#define KILL_QUERY SHUTDOWN_KILL_QUERY
+#define KILL_CONNECTION SHUTDOWN_KILL_CONNECTION
+#endif
 
 enum enum_cursor_type
 {

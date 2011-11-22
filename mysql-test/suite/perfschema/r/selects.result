@@ -62,6 +62,7 @@ SELECT EVENT_ID FROM performance_schema.events_waits_current
 WHERE 1 = 2;
 CREATE EVENT t_ps_event
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+ON COMPLETION PRESERVE
 DO INSERT INTO t_event
 SELECT DISTINCT EVENT_ID
 FROM performance_schema.events_waits_current
@@ -106,5 +107,6 @@ EVENT_ID
 [EVENT_ID]
 DROP PROCEDURE t_ps_proc;
 DROP FUNCTION t_ps_func;
+DROP EVENT t_ps_event;
 DROP TABLE t1;
 DROP TABLE t_event;

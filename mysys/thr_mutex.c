@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This makes a wrapper for mutex handling to make it easier to debug mutex */
 
@@ -835,6 +836,7 @@ static void print_deadlock_warning(safe_mutex_t *new_mutex,
                         mutex_root->file, mutex_root->line));
   }
   fflush(stderr);
+  DBUG_ASSERT(my_assert_on_error == 0);
   DBUG_VOID_RETURN;
 }
 

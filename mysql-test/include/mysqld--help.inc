@@ -21,12 +21,12 @@ perl;
                datadir slave-load-tmpdir tmpdir socket/;
 
   # Plugins which may or may not be there:
-  @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
+  @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster feedback debug temp-pool ssl des-key-file
               xtradb thread-concurrency super-large-pages mutex-deadlock-detector null-audit maria aria pbxt oqgraph sphinx/;
 
   # And substitute the content some environment variables with their
   # names:
-  @env=qw/MYSQLTEST_VARDIR MYSQL_TEST_DIR MYSQL_LIBDIR MYSQL_CHARSETSDIR MYSQL_SHAREDIR/;
+  @env=qw/MYSQLTEST_VARDIR MYSQL_TEST_DIR MYSQL_CHARSETSDIR MYSQL_SHAREDIR/;
 
   $re1=join('|', @skipvars, @plugins);
   $re2=join('|', @plugins);

@@ -1,7 +1,8 @@
 #ifndef SHA1_INCLUDED
 #define SHA1_INCLUDED
 
-/* Copyright (C) 2002, 2006 MySQL AB
+/* Copyright (c) 2002, 2006 MySQL AB, 2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by

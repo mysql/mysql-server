@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -34,8 +34,7 @@ int with_my_thread_init=0;
 */
 pthread_handler_t test_lf_pinbox(void *arg)
 {
-  int    m= *(int *)arg;
-  int32 x= 0;
+  int m= *(int *)arg;
   LF_PINS *pins;
 
   if (with_my_thread_init)
@@ -43,7 +42,7 @@ pthread_handler_t test_lf_pinbox(void *arg)
 
   pins= lf_pinbox_get_pins(&lf_allocator.pinbox);
 
-  for (x= ((int)(intptr)(&m)); m ; m--)
+  for (; m ; m--)
   {
     lf_pinbox_put_pins(pins);
     pins= lf_pinbox_get_pins(&lf_allocator.pinbox);

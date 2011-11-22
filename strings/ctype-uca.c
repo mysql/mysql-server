@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates.
    Copyright (c) 2009-2011, Monty Program Ab
    
    This library is free software; you can redistribute it and/or
@@ -13,8 +13,8 @@
    
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA 02110-1301, USA */
 
 /* 
    UCA (Unicode Collation Algorithm) support. 
@@ -46,6 +46,7 @@
 #define MY_UCA_NCHARS 256
 #define MY_UCA_CMASK  255
 #define MY_UCA_PSHIFT 8
+#define MAX_UCA_CHAR_WITH_EXPLICIT_WEIGHT 0xFFFF
 
 static const uint16 page000data[]= { /* 0000 (4 weights per char) */
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
@@ -7077,7 +7078,7 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
       return -1;
     
     scanner->sbeg+= mb_len;
-    if (wc > 0xFFFF)
+    if (wc > MAX_UCA_CHAR_WITH_EXPLICIT_WEIGHT)
     {
       /* Return 0xFFFD as weight for all characters outside BMP */
       scanner->wbeg= nochar;
@@ -7140,30 +7141,6 @@ static my_uca_scanner_handler my_any_uca_scanner_handler=
   my_uca_scanner_init_any,
   my_uca_scanner_next_any
 };
-
-
-/**
-  Helper function:
-  Find address of weights of the given character.
-
-  @weights  UCA weight array
-  @lengths  UCA length array
-  @ch       character Unicode code point
-
-  @return Weight array
-  @retval  pointer to weight array for the given character,
-           or NULL if this page does not have implicit weights.
-*/
-
-static inline const uint16 *
-my_char_weight_addr(CHARSET_INFO *cs, uint wc)
-{
-  uint page= (wc >> 8);
-  uint ofst= wc & 0xFF;
-  return (cs->sort_order_big[page] ?
-          cs->sort_order_big[page] + ofst * cs->sort_order[page] :
-          0);
-}
 
 
 /*
@@ -7439,6 +7416,33 @@ static size_t my_strnxfrm_uca(CHARSET_INFO *cs,
 
 
 
+/**
+  Helper function:
+  Find address of weights of the given character.
+  
+  @param weights  UCA weight array
+  @param lengths  UCA length array
+  @param ch       character Unicode code point
+  
+  @return Weight array
+    @retval  pointer to weight array for the given character,
+             or NULL if this page does not have implicit weights.
+*/
+
+static inline const uint16 *
+my_char_weight_addr(CHARSET_INFO *cs, uint wc)
+{
+  uint page, ofst;
+  const uchar *ucal= cs->sort_order;
+  const uint16 * const *ucaw= cs->sort_order_big;
+
+  return wc > MAX_UCA_CHAR_WITH_EXPLICIT_WEIGHT ? NULL :
+         (ucaw[page= (wc >> 8)] ?
+          ucaw[page] + (ofst= (wc & 0xFF)) * ucal[page] :
+          NULL);
+}
+
+
 /*
   This function compares if two characters are the same.
   The sign +1 or -1 does not matter. The only
@@ -7449,17 +7453,20 @@ static size_t my_strnxfrm_uca(CHARSET_INFO *cs,
 
 static int my_uca_charcmp(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
 {
-  size_t page1= wc1 >> MY_UCA_PSHIFT;
-  size_t page2= wc2 >> MY_UCA_PSHIFT;
-  const uchar *ucal= cs->sort_order;
-  const uint16 *const *ucaw= cs->sort_order_big;
-  size_t length1= ucal[page1];
-  size_t length2= ucal[page2];
-  const uint16 *weight1= ucaw[page1] + (wc1 & MY_UCA_CMASK) * ucal[page1];
-  const uint16 *weight2= ucaw[page2] + (wc2 & MY_UCA_CMASK) * ucal[page2];
+  size_t length1, length2;
+  const uint16 *weight1= my_char_weight_addr(cs, wc1);
+  const uint16 *weight2= my_char_weight_addr(cs, wc2);
   
   if (!weight1 || !weight2)
     return wc1 != wc2;
+
+  /* Quickly compare first weights */
+  if (weight1[0] != weight2[0])
+    return 1;
+
+  /* Thoroughly compare all weights */
+  length1= cs->sort_order[wc1 >> MY_UCA_PSHIFT];
+  length2= cs->sort_order[wc2 >> MY_UCA_PSHIFT];
   
   if (length1 > length2)
     return memcmp((const void*)weight1, (const void*)weight2, length2*2) ?
@@ -8044,6 +8051,11 @@ static my_bool create_tailoring(struct charset_info_st *cs,
   */
   for (i=0; i < rc; i++)
   {
+    /* check if the shift or the reset characters are out of range */
+    if (rule[i].curr[0] > MAX_UCA_CHAR_WITH_EXPLICIT_WEIGHT ||
+        rule[i].base > MAX_UCA_CHAR_WITH_EXPLICIT_WEIGHT)
+      return 1;
+
     if (!rule[i].curr[1]) /* If not a contraction */
     {
       uint pageb= (rule[i].base >> 8) & 0xFF;

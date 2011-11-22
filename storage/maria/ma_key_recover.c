@@ -944,7 +944,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
   uchar *buff;
   const uchar *header_end= header + head_length;
   uint page_offset= 0, org_page_length;
-  uint nod_flag, page_length, keypage_header, keynr;
+  uint page_length, keypage_header, keynr;
   uint max_page_size= share->max_index_block_size;
   int result;
   MARIA_PAGE page;
@@ -972,7 +972,6 @@ uint _ma_apply_redo_index(MARIA_HA *info,
 
   keynr= _ma_get_keynr(share, buff);
   _ma_page_setup(&page, info, share->keyinfo + keynr, page_pos, buff);
-  nod_flag=    page.node;
   org_page_length= page_length= page.size;
 
   keypage_header= share->keypage_header;

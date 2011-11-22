@@ -1218,7 +1218,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   handler *file= table->file;
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
-  bool show_table_options= FALSE;
+  bool show_table_options __attribute__ ((unused))= FALSE;
   bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                      MODE_ORACLE |
                                                      MODE_MSSQL |
@@ -1908,7 +1908,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         mysql_mutex_lock(&tmp->LOCK_thd_data);
         if ((mysys_var= tmp->mysys_var))
           mysql_mutex_lock(&mysys_var->mutex);
-        thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
+        thd_info->proc_info= (char*) (tmp->killed >= KILL_QUERY ?
+                                      "Killed" : 0);
         thd_info->state_info= thread_state_info(tmp);
         if (mysys_var)
           mysql_mutex_unlock(&mysys_var->mutex);
@@ -2037,7 +2038,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       if ((mysys_var= tmp->mysys_var))
         mysql_mutex_lock(&mysys_var->mutex);
       /* COMMAND */
-      if ((val= (char *) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0)))
+      if ((val= (char *) ((tmp->killed >= KILL_QUERY ?
+                           "Killed" : 0))))
         table->field[4]->store(val, strlen(val), cs);
       else
         table->field[4]->store(command_name[tmp->command].str,
@@ -2365,14 +2367,14 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_LONG_STATUS:
           value= ((char *) status_var + (intptr) value);
           /* fall through */
-        case SHOW_LONG:
+        case SHOW_ULONG:
         case SHOW_LONG_NOFLUSH: // the difference lies in refresh_status()
           end= int10_to_str(*(long*) value, buff, 10);
           break;
         case SHOW_LONGLONG_STATUS:
           value= ((char *) status_var + (intptr) value);
           /* fall through */
-        case SHOW_LONGLONG:
+        case SHOW_ULONGLONG:
           end= longlong10_to_str(*(longlong*) value, buff, 10);
           break;
         case SHOW_HA_ROWS:
@@ -2384,8 +2386,17 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_MY_BOOL:
           end= strmov(buff, *(my_bool*) value ? "ON" : "OFF");
           break;
-        case SHOW_INT:
-          end= int10_to_str((long) *(uint32*) value, buff, 10);
+        case SHOW_UINT:
+          end= int10_to_str((long) *(uint*) value, buff, 10);
+          break;
+        case SHOW_SINT:
+          end= int10_to_str((long) *(uint*) value, buff, -10);
+          break;
+        case SHOW_SLONG:
+          end= int10_to_str(*(long*) value, buff, -10);
+          break;
+        case SHOW_SLONGLONG:
+          end= longlong10_to_str(*(longlong*) value, buff, -10);
           break;
         case SHOW_HAVE:
         {
@@ -3573,6 +3584,10 @@ end:
   */
   thd->temporary_tables= NULL;
   close_thread_tables(thd);
+  /*
+    Release metadata lock we might have acquired.
+    See comment in fill_schema_table_from_frm() for details.
+  */
   thd->mdl_context.rollback_to_savepoint(open_tables_state_backup->mdl_system_tables_svp);
 
   thd->lex= old_lex;
@@ -3755,6 +3770,9 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
   @param[in]      db_name                  database name
   @param[in]      table_name               table name
   @param[in]      schema_table_idx         I_S table index
+  @param[in]      open_tables_state_backup Open_tables_state object which is used
+                                           to save/restore original state of metadata
+                                           locks.
   @param[in]      can_deadlock             Indicates that deadlocks are possible
                                            due to metadata locks, so to avoid
                                            them we should not wait in case if
@@ -3772,6 +3790,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
                                       LEX_STRING *db_name,
                                       LEX_STRING *table_name,
                                       enum enum_schema_tables schema_table_idx,
+                                      Open_tables_backup *open_tables_state_backup,
                                       bool can_deadlock)
 {
   TABLE *table= tables->table;
@@ -3916,13 +3935,27 @@ end_share:
 
 end_unlock:
   mysql_mutex_unlock(&LOCK_open);
-  /*
-    Don't release the MDL lock, it can be part of a transaction.
-    If it is not, it will be released by the call to
-    MDL_context::rollback_to_savepoint() in the caller.
-  */
 
 end:
+  /*
+    Release metadata lock we might have acquired.
+
+    Without this step metadata locks acquired for each table processed
+    will be accumulated. In situation when a lot of tables are processed
+    by I_S query this will result in transaction with too many metadata
+    locks. As result performance of acquisition of new lock will suffer.
+
+    Of course, the fact that we don't hold metadata lock on tables which
+    were processed till the end of I_S query makes execution less isolated
+    from concurrent DDL. Consequently one might get 'dirty' results from
+    such a query. But we have never promised serializability of I_S queries
+    anyway.
+
+    We don't have any tables open since we took backup, so rolling back to
+    savepoint is safe.
+  */
+  DBUG_ASSERT(thd->open_tables == NULL);
+  thd->mdl_context.rollback_to_savepoint(open_tables_state_backup->mdl_system_tables_svp);
   thd->clear_error();
   return res;
 }
@@ -4173,6 +4206,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               int res= fill_schema_table_from_frm(thd, tables, schema_table,
                                                   db_name, table_name,
                                                   schema_table_idx,
+                                                  &open_tables_state_backup,
                                                   can_deadlock);
 
               thd->pop_internal_handler();
@@ -5035,7 +5069,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
   String sp_name(sp_name_buff, sizeof(sp_name_buff), cs);
   String definer(definer_buff, sizeof(definer_buff), cs);
   sp_head *sp;
-  uint routine_type;
+  stored_procedure_type routine_type;
   bool free_sp_head;
   DBUG_ENTER("store_schema_params");
 
@@ -5046,7 +5080,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
   get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_DB], &sp_db);
   get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_NAME], &sp_name);
   get_field(thd->mem_root,proc_table->field[MYSQL_PROC_FIELD_DEFINER],&definer);
-  routine_type= (uint) proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
+  routine_type= (stored_procedure_type) proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
 
   if (!full_access)
     full_access= !strcmp(sp_user, definer.ptr());
@@ -7448,11 +7482,11 @@ bool get_schema_tables_result(JOIN *join,
       {
         result= 1;
         join->error= 1;
-        tab->read_record.file= table_list->table->file;
+        tab->read_record.table->file= table_list->table->file;
         table_list->schema_table_state= executed_place;
         break;
       }
-      tab->read_record.file= table_list->table->file;
+      tab->read_record.table->file= table_list->table->file;
       table_list->schema_table_state= executed_place;
     }
   }

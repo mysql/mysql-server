@@ -1,8 +1,8 @@
 ########################################################################
 # WL47: Store in binlog text of statements that caused RBR events
 # new event          : ANNOTATE_ROWS_EVENT
-# new master option  : --binlog-annotate-rows-events
-# new slave option   : --replicate-annotate-rows-events
+# new master option  : --binlog-annotate-row-events
+# new slave option   : --replicate-annotate-row-events
 ########################################################################
 --source include/master-slave.inc
 connect (master2,127.0.0.1,root,,test,$MASTER_MYPORT,);
@@ -29,11 +29,11 @@ CREATE TABLE t5 (
     b VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_bin
 );
 
-SET SESSION binlog_annotate_rows_events = OFF;
+SET SESSION binlog_annotate_row_events = OFF;
 
 INSERT INTO t1 VALUES (0,0), (1,1);
 
-SET SESSION binlog_annotate_rows_events = ON;
+SET SESSION binlog_annotate_row_events = ON;
 
 UPDATE t1 SET b = b + 1;
 REPLACE t1 VALUES (1,1), (2,2), (3,3);
@@ -84,7 +84,7 @@ SELECT * FROM t5 ORDER BY a;
 
 --echo ########################################################################
 --echo # EVENTS ON SLAVE
-let $annotate= `select @@global.replicate_annotate_rows_events`;
+let $annotate= `select @@global.replicate_annotate_row_events`;
 if ($annotate)
 {
   --echo # The following Annotate_rows events should appear below:
@@ -116,7 +116,7 @@ let $start_pos= `select @binlog_start_pos`;
 --echo # INSERTs DELAYED ON MASTERs
 --echo ########################################################################
 connection master;
-SET SESSION binlog_annotate_rows_events = ON;
+SET SESSION binlog_annotate_row_events = ON;
 INSERT DELAYED INTO test1.t4 VALUES (1,1);
 FLUSH TABLES;
 SELECT * FROM test1.t4 ORDER BY a;

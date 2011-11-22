@@ -44,4 +44,19 @@ USE nonexistant;
 disconnect con1;
 connection default;
 
---echo End of 5.4 tests
+--echo #
+--echo # Bug#12736295: Buffer overflow for variable converted_err
+--echo #               with non-latin1 server error message
+--echo #
+
+connect (con1,localhost,root,,test);
+--echo # Connection con1
+SET lc_messages=ru_RU;
+SET NAMES latin1;
+--error ER_PARSE_ERROR
+--query SELECT '01234567890123456789012345678901234\'
+disconnect con1;
+--echo # Connection default
+connection default;
+
+--echo End of 5.5 tests

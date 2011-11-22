@@ -12,6 +12,11 @@
 
 #include "ppport.h"
 
+/*
+  below we'll include (indirectly) my_global.h, which defines
+  VERSION too. Undefine our VERSION here.
+*/
+#undef VERSION
 #include "hstcpcli.hpp"
 
 #define DBG(x)

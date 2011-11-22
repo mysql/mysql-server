@@ -1,0 +1,43 @@
+# ulong global
+--source include/have_maria.inc
+
+SET @start_global_value = @@global.aria_checkpoint_log_activity;
+
+#
+# exists as global only
+#
+select @@global.aria_checkpoint_log_activity;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.aria_checkpoint_log_activity;
+show global variables like 'aria_checkpoint_log_activity';
+show session variables like 'aria_checkpoint_log_activity';
+select * from information_schema.global_variables where variable_name='aria_checkpoint_log_activity';
+select * from information_schema.session_variables where variable_name='aria_checkpoint_log_activity';
+
+#
+# show that it's writable
+#
+set global aria_checkpoint_log_activity=1;
+select @@global.aria_checkpoint_log_activity;
+--error ER_GLOBAL_VARIABLE
+set session aria_checkpoint_log_activity=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_checkpoint_log_activity=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_checkpoint_log_activity=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_checkpoint_log_activity="foo";
+
+#
+# min/max values
+#
+set global aria_checkpoint_log_activity=0;
+select @@global.aria_checkpoint_log_activity;
+set global aria_checkpoint_log_activity=cast(-1 as unsigned int);
+select @@global.aria_checkpoint_log_activity;
+
+SET @@global.aria_checkpoint_log_activity = @start_global_value;

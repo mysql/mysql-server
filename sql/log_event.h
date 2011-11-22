@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @addtogroup Replication
@@ -3145,7 +3145,7 @@ char *str_to_hex(char *to, const char *from, uint len);
 /**
   @class Annotate_rows_log_event
 
-  In row-based mode, if binlog_annotate_rows_events = ON, each group of
+  In row-based mode, if binlog_annotate_row_events = ON, each group of
   Table_map_log_events is preceded by an Annotate_rows_log_event which
   contains the query which caused the subsequent rows operations.
 

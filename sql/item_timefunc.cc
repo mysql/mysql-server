@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
    Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -12,7 +13,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -1320,7 +1321,7 @@ bool get_interval_value(Item *args,interval_type int_type, INTERVAL *interval)
   else
   {
     String *res;
-    if (!(res=args->val_str(&str_value)))
+    if (!(res= args->val_str_ascii(&str_value)))
       return (1);
 
     /* record negative intervalls in interval->neg */
@@ -1485,7 +1486,8 @@ longlong Item_temporal_func::val_int()
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE | sql_mode))
     return 0;
-  return (longlong)TIME_to_ulonglong(&ltime);
+  longlong v= TIME_to_ulonglong(&ltime);
+  return ltime.neg ? -v : v;
 }
 
 
@@ -2567,7 +2569,6 @@ bool Item_func_add_time::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   long days, microseconds;
   longlong seconds;
   int l_sign= sign, was_cut= 0;
-  uint dec= decimals;
 
   if (is_date)                        // TIMESTAMP function
   {
@@ -2608,10 +2609,6 @@ bool Item_func_add_time::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   calc_time_from_sec(ltime, (long)(seconds%86400L), microseconds);
 
   ltime->time_type= is_time ? MYSQL_TIMESTAMP_TIME : MYSQL_TIMESTAMP_DATETIME;
-
-  if (cached_field_type == MYSQL_TYPE_STRING &&
-      (l_time1.second_part || l_time2.second_part))
-    dec= TIME_SECOND_PART_DIGITS;
 
   if (!is_time)
   {

@@ -1,5 +1,6 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (C) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc
+   Copyright (c) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -307,18 +308,18 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
  * The most important functions during semi-syn replication listed:
  *
  * Master:
- *  . reportReplyBinlog(): called by the binlog dump thread when it receives
- *                         the slave's status information.
- *  . updateSyncHeader():  based on transaction waiting information, decide
- *                         whether to request the slave to reply.
- *  . writeTraxInBinlog(): called by the transaction thread when it finishes
- *                         writing all transaction events in binlog.
- *  . commitTrx():         transaction thread wait for the slave reply.
+ *  . reportReplyBinlog():  called by the binlog dump thread when it receives
+ *                          the slave's status information.
+ *  . updateSyncHeader():   based on transaction waiting information, decide
+ *                          whether to request the slave to reply.
+ *  . writeTranxInBinlog(): called by the transaction thread when it finishes
+ *                          writing all transaction events in binlog.
+ *  . commitTrx():          transaction thread wait for the slave reply.
  *
  * Slave:
  *  . slaveReadSyncHeader(): read the semi-sync header from the master, get the
- *                         sync status and get the payload for events.
- *  . slaveReply():        reply to the master about the replication progress.
+ *                           sync status and get the payload for events.
+ *  . slaveReply():          reply to the master about the replication progress.
  *
  ******************************************************************************/
 

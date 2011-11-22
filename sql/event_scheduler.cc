@@ -1,4 +1,4 @@
-/* Copyright (C) 2004, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -659,7 +659,7 @@ Event_scheduler::stop()
     sql_print_information("Event Scheduler: Killing the scheduler thread, "
                           "thread id %lu",
                           scheduler_thd->thread_id);
-    scheduler_thd->awake(THD::KILL_CONNECTION);
+    scheduler_thd->awake(KILL_CONNECTION);
     mysql_mutex_unlock(&scheduler_thd->LOCK_thd_data);
 
     /* thd could be 0x0, when shutting down */

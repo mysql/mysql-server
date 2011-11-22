@@ -705,7 +705,7 @@ static int sphinx_done_func ( void * )
 		pthread_mutex_destroy ( &sphinx_mutex );
 	}
 
-	SPH_RET(0);
+	SPH_RET(error);
 }
 
 
@@ -3077,25 +3077,6 @@ struct st_mysql_show_var sphinx_status_vars[] =
 	{0, 0, (enum_mysql_show_type)0}
 };
 
-
-mysql_declare_plugin(sphinx)
-{
-	MYSQL_STORAGE_ENGINE_PLUGIN,
-	&sphinx_storage_engine,
-	sphinx_hton_name,
-	"Sphinx developers",
-	sphinx_hton_comment,
-	PLUGIN_LICENSE_GPL,
-	sphinx_init_func, // Plugin Init
-	sphinx_done_func, // Plugin Deinit
-	0x0001, // 0.1
-	sphinx_status_vars,
-	NULL,
-	NULL
-}
-mysql_declare_plugin_end;
-
-#ifdef maria_declare_plugin
 maria_declare_plugin(sphinx)
 {
 	MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -3113,7 +3094,6 @@ maria_declare_plugin(sphinx)
 	MariaDB_PLUGIN_MATURITY_EXPERIMENTAL
 }
 maria_declare_plugin_end;
-#endif
 
 #endif // >50100
 

@@ -1,4 +1,5 @@
-/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   Functions to autenticate and handle reqests for a connection
@@ -124,9 +126,12 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   DBUG_ENTER("check_for_max_user_connections");
 
   mysql_mutex_lock(&LOCK_user_conn);
+
+  /* Root is not affected by the value of max_user_connections */
   if (global_system_variables.max_user_connections &&
       !uc->user_resources.user_conn &&
-      global_system_variables.max_user_connections < (uint) uc->connections)
+      global_system_variables.max_user_connections < uc->connections &&
+      !(thd->security_ctx->master_access & SUPER_ACL))
   {
     my_error(ER_TOO_MANY_USER_CONNECTIONS, MYF(0), uc->user);
     goto end;
@@ -222,7 +227,7 @@ void time_out_user_resource_limits(THD *thd, USER_CONN *uc)
   /* If more than a hour since last check, reset resource checking */
   if (check_time  - uc->reset_utime >= LL(3600000000))
   {
-    uc->questions=1;
+    uc->questions=0;
     uc->updates=0;
     uc->conn_per_hour=0;
     uc->reset_utime= check_time;
@@ -251,7 +256,7 @@ bool check_mqh(THD *thd, uint check_command)
   if (uc->user_resources.questions &&
       uc->questions++ >= uc->user_resources.questions)
   {
-    my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_questions",
+    my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_queries_per_hour",
              (long) uc->user_resources.questions);
     error=1;
     goto end;
@@ -263,7 +268,7 @@ bool check_mqh(THD *thd, uint check_command)
         (sql_command_flags[check_command] & CF_CHANGES_DATA) &&
 	uc->updates++ >= uc->user_resources.updates)
     {
-      my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_updates",
+      my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_updates_per_hour",
                (long) uc->user_resources.updates);
       error=1;
       goto end;
@@ -1110,7 +1115,7 @@ void prepare_new_connection_state(THD* thd)
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())
     {
-      thd->killed= THD::KILL_CONNECTION;
+      thd->killed= KILL_CONNECTION;
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
                         thd->thread_id,(thd->db ? thd->db : "unconnected"),
                         sctx->user ? sctx->user : "unauthenticated",
@@ -1172,7 +1177,7 @@ bool thd_is_connection_alive(THD *thd)
   NET *net= &thd->net;
   if (!net->error &&
       net->vio != 0 &&
-      !(thd->killed == THD::KILL_CONNECTION))
+      thd->killed < KILL_CONNECTION)
     return TRUE;
   return FALSE;
 }
@@ -1182,6 +1187,8 @@ void do_handle_one_connection(THD *thd_arg)
   THD *thd= thd_arg;
 
   thd->thr_create_utime= microsecond_interval_timer();
+  /* We need to set this because of time_out_user_resource_limits */
+  thd->start_utime= thd->thr_create_utime;
 
   if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
   {

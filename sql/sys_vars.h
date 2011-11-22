@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2006 MySQL AB, 2009-2010 Sun Microsystems, Inc.
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -70,6 +70,21 @@
 #define GET_HA_ROWS GET_ULONG
 #endif
 
+/*
+  special assert for sysvars. Tells the name of the variable,
+  and fails even in non-debug builds.
+
+  It is supposed to be used *only* in Sys_var* constructors,
+  and has name_arg hard-coded to prevent incorrect usage.
+*/
+#define SYSVAR_ASSERT(X)                                                \
+    while(!(X))                                                         \
+    {                                                                   \
+      fprintf(stderr, "Sysvar '%s' failed '%s'\n", name_arg, #X);           \
+      DBUG_ABORT();                                                    \
+      exit(255);                                                        \
+    }
+
 enum charset_enum {IN_SYSTEM_CHARSET, IN_FS_CHARSET};
 
 static const char *bool_values[3]= {"OFF", "ON", 0};
@@ -89,21 +104,22 @@ struct CMD_LINE
 };
 
 /**
-  Sys_var_unsigned template is used to generate Sys_var_* classes
-  for variables that represent the value as an unsigned integer.
-  They are Sys_var_uint, Sys_var_ulong, Sys_var_harows, Sys_var_ulonglong.
+  Sys_var_integer template is used to generate Sys_var_* classes
+  for variables that represent the value as an integer number.
+  They are Sys_var_uint, Sys_var_ulong, Sys_var_harows, Sys_var_ulonglong,
+  Sys_var_int.
 
   An integer variable has a minimal and maximal values, and a "block_size"
   (any valid value of the variable must be divisible by the block_size).
 
   Class specific constructor arguments: min, max, block_size
-  Backing store: uint, ulong, ha_rows, ulonglong, depending on the Sys_var_*
+  Backing store: int, uint, ulong, ha_rows, ulonglong, depending on the class
 */
 template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT>
-class Sys_var_unsigned: public sys_var
+class Sys_var_integer: public sys_var
 {
 public:
-  Sys_var_unsigned(const char *name_arg,
+  Sys_var_integer(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           T min_val, T max_val, T def_val, uint block_size, PolyLock *lock=0,
@@ -123,33 +139,58 @@ public:
     if (max_var_ptr())
       *max_var_ptr()= max_val;
     global_var(T)= def_val;
-    DBUG_ASSERT(size == sizeof(T));
-    DBUG_ASSERT(min_val < max_val);
-    DBUG_ASSERT(min_val <= def_val);
-    DBUG_ASSERT(max_val >= def_val);
-    DBUG_ASSERT(block_size > 0);
-    DBUG_ASSERT(def_val % block_size == 0);
+    SYSVAR_ASSERT(size == sizeof(T));
+    SYSVAR_ASSERT(min_val < max_val);
+    SYSVAR_ASSERT(min_val <= def_val);
+    SYSVAR_ASSERT(max_val >= def_val);
+    SYSVAR_ASSERT(block_size > 0);
+    SYSVAR_ASSERT(def_val % block_size == 0);
   }
   bool do_check(THD *thd, set_var *var)
   {
-    my_bool fixed= FALSE;
-    ulonglong uv;
-    longlong v;
+    my_bool fixed= FALSE, unused;
+    longlong v= var->value->val_int();
 
-    v= var->value->val_int();
-    if (var->value->unsigned_flag)
-      uv= (ulonglong) v;
+    if ((ARGT == GET_HA_ROWS) || (ARGT == GET_UINT) ||
+        (ARGT == GET_ULONG)   || (ARGT == GET_ULL))
+    {
+      ulonglong uv;
+
+      /*
+        if the value is signed and negative,
+        and a variable is unsigned, it is set to zero
+      */
+      if ((fixed= (!var->value->unsigned_flag && v < 0)))
+        uv= 0;
+      else
+        uv= v;
+
+      var->save_result.ulonglong_value=
+        getopt_ull_limit_value(uv, &option, &unused);
+
+      if (max_var_ptr() && (T)var->save_result.ulonglong_value > *max_var_ptr())
+        var->save_result.ulonglong_value= *max_var_ptr();
+
+      fixed= fixed || var->save_result.ulonglong_value != uv;
+    }
     else
-      uv= (ulonglong) (v < 0 ? 0 : v);
+    {
+      /*
+        if the value is unsigned and has the highest bit set
+        and a variable is signed, it is set to max signed value
+      */
+      if ((fixed= (var->value->unsigned_flag && v < 0)))
+        v= LONGLONG_MAX;
 
-    var->save_result.ulonglong_value=
-      getopt_ull_limit_value(uv, &option, &fixed);
+      var->save_result.longlong_value=
+        getopt_ll_limit_value(v, &option, &unused);
 
-    if (max_var_ptr() && var->save_result.ulonglong_value > *max_var_ptr())
-      var->save_result.ulonglong_value= *max_var_ptr();
+      if (max_var_ptr() && (T)var->save_result.longlong_value > *max_var_ptr())
+        var->save_result.longlong_value= *max_var_ptr();
 
-    return throw_bounds_warning(thd, name.str,
-                                var->save_result.ulonglong_value != uv,
+      fixed= fixed || var->save_result.longlong_value != v;
+    }
+    return throw_bounds_warning(thd, name.str, fixed,
                                 var->value->unsigned_flag, v);
   }
   bool session_update(THD *thd, set_var *var)
@@ -176,10 +217,11 @@ public:
   }
 };
 
-typedef Sys_var_unsigned<uint, GET_UINT, SHOW_INT> Sys_var_uint;
-typedef Sys_var_unsigned<ulong, GET_ULONG, SHOW_LONG> Sys_var_ulong;
-typedef Sys_var_unsigned<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS> Sys_var_harows;
-typedef Sys_var_unsigned<ulonglong, GET_ULL, SHOW_LONGLONG> Sys_var_ulonglong;
+typedef Sys_var_integer<int, GET_INT, SHOW_SINT> Sys_var_int;
+typedef Sys_var_integer<uint, GET_UINT, SHOW_UINT> Sys_var_uint;
+typedef Sys_var_integer<ulong, GET_ULONG, SHOW_ULONG> Sys_var_ulong;
+typedef Sys_var_integer<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS> Sys_var_harows;
+typedef Sys_var_integer<ulonglong, GET_ULL, SHOW_ULONGLONG> Sys_var_ulonglong;
 
 /**
   Helper class for variables that take values from a TYPELIB
@@ -271,8 +313,8 @@ public:
   {
     option.var_type= GET_ENUM;
     global_var(ulong)= def_val;
-    DBUG_ASSERT(def_val < typelib.count);
-    DBUG_ASSERT(size == sizeof(ulong));
+    SYSVAR_ASSERT(def_val < typelib.count);
+    SYSVAR_ASSERT(size == sizeof(ulong));
   }
   bool session_update(THD *thd, set_var *var)
   {
@@ -318,9 +360,9 @@ public:
   {
     option.var_type= GET_BOOL;
     global_var(my_bool)= def_val;
-    DBUG_ASSERT(def_val < 2);
-    DBUG_ASSERT(getopt.arg_type == OPT_ARG || getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(my_bool));
+    SYSVAR_ASSERT(def_val < 2);
+    SYSVAR_ASSERT(getopt.arg_type == OPT_ARG || getopt.id == -1);
+    SYSVAR_ASSERT(size == sizeof(my_bool));
   }
   bool session_update(THD *thd, set_var *var)
   {
@@ -379,8 +421,8 @@ public:
     */
     option.var_type= (flags & ALLOCATED) ? GET_STR_ALLOC : GET_STR;
     global_var(const char*)= def_val;
-    DBUG_ASSERT(scope() == GLOBAL);
-    DBUG_ASSERT(size == sizeof(char *));
+    SYSVAR_ASSERT(scope() == GLOBAL);
+    SYSVAR_ASSERT(size == sizeof(char *));
   }
   void cleanup()
   {
@@ -537,7 +579,7 @@ public:
               on_check_func, on_update_func, deprecated_version, substitute)
   {
     global_var(LEX_STRING).length= strlen(def_val);
-    DBUG_ASSERT(size == sizeof(LEX_STRING));
+    SYSVAR_ASSERT(size == sizeof(LEX_STRING));
     *const_cast<SHOW_TYPE*>(&show_val_type)= SHOW_LEX_STRING;
   }
   bool global_update(THD *thd, set_var *var)
@@ -665,7 +707,7 @@ public:
     option.var_type|= GET_ASK_ADDR;
     option.value= (uchar**)1; // crash me, please
     keycache_var(dflt_key_cache, off)= def_val;
-    DBUG_ASSERT(scope() == GLOBAL);
+    SYSVAR_ASSERT(scope() == GLOBAL);
   }
   bool global_update(THD *thd, set_var *var)
   {
@@ -825,10 +867,10 @@ public:
     option.min_value= (longlong) double2ulonglong(min_val);
     option.max_value= (longlong) double2ulonglong(max_val);
     global_var(double)= (double)option.def_value;
-    DBUG_ASSERT(min_val < max_val);
-    DBUG_ASSERT(min_val <= def_val);
-    DBUG_ASSERT(max_val >= def_val);
-    DBUG_ASSERT(size == sizeof(double));
+    SYSVAR_ASSERT(min_val < max_val);
+    SYSVAR_ASSERT(min_val <= def_val);
+    SYSVAR_ASSERT(max_val >= def_val);
+    SYSVAR_ASSERT(size == sizeof(double));
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -868,7 +910,7 @@ public:
 
   Backing store: uint
 */
-class Sys_var_max_user_conn: public Sys_var_uint
+class Sys_var_max_user_conn: public Sys_var_int
 {
 public:
   Sys_var_max_user_conn(const char *name_arg,
@@ -880,7 +922,7 @@ public:
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
           uint deprecated_version=0, const char *substitute=0)
-    : Sys_var_uint(name_arg, comment, SESSION, off, size, getopt,
+    : Sys_var_int(name_arg, comment, SESSION, off, size, getopt,
               min_val, max_val, def_val, block_size,
               lock, binlog_status_arg, on_check_func, on_update_func,
               deprecated_version, substitute)
@@ -928,11 +970,11 @@ public:
   {
     option.var_type= GET_FLAGSET;
     global_var(ulonglong)= def_val;
-    DBUG_ASSERT(typelib.count > 1);
-    DBUG_ASSERT(typelib.count <= 65);
-    DBUG_ASSERT(def_val < MAX_SET(typelib.count));
-    DBUG_ASSERT(strcmp(values[typelib.count-1], "default") == 0);
-    DBUG_ASSERT(size == sizeof(ulonglong));
+    SYSVAR_ASSERT(typelib.count > 1);
+    SYSVAR_ASSERT(typelib.count <= 65);
+    SYSVAR_ASSERT(def_val < MAX_SET(typelib.count));
+    SYSVAR_ASSERT(strcmp(values[typelib.count-1], "default") == 0);
+    SYSVAR_ASSERT(size == sizeof(ulonglong));
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -1039,10 +1081,10 @@ public:
   {
     option.var_type= GET_SET;
     global_var(ulonglong)= def_val;
-    DBUG_ASSERT(typelib.count > 0);
-    DBUG_ASSERT(typelib.count <= 64);
-    DBUG_ASSERT(def_val <= MAX_SET(typelib.count));
-    DBUG_ASSERT(size == sizeof(ulonglong));
+    SYSVAR_ASSERT(typelib.count > 0);
+    SYSVAR_ASSERT(typelib.count <= 64);
+    SYSVAR_ASSERT(def_val <= MAX_SET(typelib.count));
+    SYSVAR_ASSERT(size == sizeof(ulonglong));
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -1145,8 +1187,8 @@ public:
     plugin_type(plugin_type_arg)
   {
     option.var_type= GET_STR;
-    DBUG_ASSERT(size == sizeof(plugin_ref));
-    DBUG_ASSERT(getopt.id == -1); // force NO_CMD_LINE
+    SYSVAR_ASSERT(size == sizeof(plugin_ref));
+    SYSVAR_ASSERT(getopt.id == -1); // force NO_CMD_LINE
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -1256,7 +1298,7 @@ public:
               lock, binlog_status_arg, on_check_func, on_update_func,
               deprecated_version, substitute)
   {
-    DBUG_ASSERT(scope() == ONLY_SESSION);
+    SYSVAR_ASSERT(scope() == ONLY_SESSION);
     option.var_type= GET_NO_ARG;
   }
   bool do_check(THD *thd, set_var *var)
@@ -1352,9 +1394,9 @@ public:
     reverse_semantics= my_count_bits(bitmask_arg) > 1;
     bitmask= reverse_semantics ? ~bitmask_arg : bitmask_arg;
     set(global_var_ptr(), def_val);
-    DBUG_ASSERT(def_val < 2);
-    DBUG_ASSERT(getopt.id == -1); // force NO_CMD_LINE
-    DBUG_ASSERT(size == sizeof(ulonglong));
+    SYSVAR_ASSERT(def_val < 2);
+    SYSVAR_ASSERT(getopt.id == -1); // force NO_CMD_LINE
+    SYSVAR_ASSERT(size == sizeof(ulonglong));
   }
   bool session_update(THD *thd, set_var *var)
   {
@@ -1422,8 +1464,8 @@ public:
               deprecated_version, substitute),
       read_func(read_func_arg), update_func(update_func_arg)
   {
-    DBUG_ASSERT(scope() == ONLY_SESSION);
-    DBUG_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
+    SYSVAR_ASSERT(scope() == ONLY_SESSION);
+    SYSVAR_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
   }
   bool session_update(THD *thd, set_var *var)
   { return update_func(thd, var); }
@@ -1472,8 +1514,8 @@ public:
               deprecated_version, substitute),
       read_func(read_func_arg), update_func(update_func_arg)
   {
-    DBUG_ASSERT(scope() == ONLY_SESSION);
-    DBUG_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
+    SYSVAR_ASSERT(scope() == ONLY_SESSION);
+    SYSVAR_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
   }
   bool session_update(THD *thd, set_var *var)
   { return update_func(thd, var); }
@@ -1525,13 +1567,13 @@ public:
               lock, binlog_status_arg, on_check_func, on_update_func,
               deprecated_version, substitute)
   {
-    DBUG_ASSERT(scope() == GLOBAL);
-    DBUG_ASSERT(getopt.id == -1);
-    DBUG_ASSERT(lock == 0);
-    DBUG_ASSERT(binlog_status_arg == VARIABLE_NOT_IN_BINLOG);
-    DBUG_ASSERT(is_readonly());
-    DBUG_ASSERT(on_update == 0);
-    DBUG_ASSERT(size == sizeof(enum SHOW_COMP_OPTION));
+    SYSVAR_ASSERT(scope() == GLOBAL);
+    SYSVAR_ASSERT(getopt.id == -1);
+    SYSVAR_ASSERT(lock == 0);
+    SYSVAR_ASSERT(binlog_status_arg == VARIABLE_NOT_IN_BINLOG);
+    SYSVAR_ASSERT(is_readonly());
+    SYSVAR_ASSERT(on_update == 0);
+    SYSVAR_ASSERT(size == sizeof(enum SHOW_COMP_OPTION));
   }
   bool do_check(THD *thd, set_var *var) {
     DBUG_ASSERT(FALSE);
@@ -1603,8 +1645,8 @@ public:
       thus all struct command-line options should be added manually
       to my_long_options in mysqld.cc
     */
-    DBUG_ASSERT(getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(void *));
+    SYSVAR_ASSERT(getopt.id == -1);
+    SYSVAR_ASSERT(size == sizeof(void *));
   }
   bool do_check(THD *thd, set_var *var)
   { return false; }
@@ -1665,8 +1707,8 @@ public:
               lock, binlog_status_arg, on_check_func, on_update_func,
               deprecated_version, substitute)
   {
-    DBUG_ASSERT(getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(Time_zone *));
+    SYSVAR_ASSERT(getopt.id == -1);
+    SYSVAR_ASSERT(size == sizeof(Time_zone *));
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -1764,9 +1806,10 @@ public:
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<set_var_base>;
 template class List_iterator_fast<set_var_base>;
-template class Sys_var_unsigned<uint, GET_UINT, SHOW_INT>;
-template class Sys_var_unsigned<ulong, GET_ULONG, SHOW_LONG>;
-template class Sys_var_unsigned<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS>;
-template class Sys_var_unsigned<ulonglong, GET_ULL, SHOW_LONGLONG>;
+template class Sys_var_integer<int, GET_INT, SHOW_SINT>;
+template class Sys_var_integer<uint, GET_UINT, SHOW_INT>;
+template class Sys_var_integer<ulong, GET_ULONG, SHOW_LONG>;
+template class Sys_var_integer<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS>;
+template class Sys_var_integer<ulonglong, GET_ULL, SHOW_LONGLONG>;
 #endif
 

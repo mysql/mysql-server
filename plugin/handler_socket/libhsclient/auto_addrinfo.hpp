@@ -9,11 +9,14 @@
 #ifndef DENA_AUTO_ADDRINFO_HPP
 #define DENA_AUTO_ADDRINFO_HPP
 
+#include <my_config.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
 #include "util.hpp"
+
+typedef SOCKET_SIZE_TYPE size_socket;
 
 namespace dena {
 

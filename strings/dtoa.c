@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /****************************************************************
 
@@ -45,7 +45,7 @@
      see if it is possible to get rid of malloc().
      this constant is sufficient to avoid malloc() on all inputs I have tried.
 */
-#define DTOA_BUFF_SIZE (420 * sizeof(void *))
+#define DTOA_BUFF_SIZE (460 * sizeof(void *))
 
 /* Magic value returned by dtoa() to indicate overflow */
 #define DTOA_OVERFLOW 9999
@@ -658,6 +658,7 @@ typedef struct Stack_alloc
 static Bigint *Balloc(int k, Stack_alloc *alloc)
 {
   Bigint *rv;
+  DBUG_ASSERT(k <= Kmax);
   if (k <= Kmax &&  alloc->freelist[k])
   {
     rv= alloc->freelist[k];
@@ -1004,9 +1005,10 @@ static Bigint p5_a[]=
 
 static Bigint *pow5mult(Bigint *b, int k, Stack_alloc *alloc)
 {
-  Bigint *b1, *p5, *p51;
+  Bigint *b1, *p5, *p51=NULL;
   int i;
   static int p05[3]= { 5, 25, 125 };
+  my_bool overflow= FALSE;
 
   if ((i= k & 3))
     b= multadd(b, p05[i-1], 0, alloc);
@@ -1025,17 +1027,22 @@ static Bigint *pow5mult(Bigint *b, int k, Stack_alloc *alloc)
     if (!(k>>= 1))
       break;
     /* Calculate next power of 5 */
-    if (p5 < p5_a + P5A_MAX)
-      ++p5;
-    else if (p5 == p5_a + P5A_MAX)
-      p5= mult(p5, p5, alloc);
-    else
+    if (overflow)
     {
       p51= mult(p5, p5, alloc);
       Bfree(p5, alloc);
       p5= p51;
     }
+    else if (p5 < p5_a + P5A_MAX)
+      ++p5;
+    else if (p5 == p5_a + P5A_MAX)
+    {
+      p5= mult(p5, p5, alloc);
+      overflow= TRUE;
+    }
   }
+  if (p51)
+    Bfree(p51, alloc);
   return b;
 }
 

@@ -363,7 +363,9 @@ CREATE TABLE t2 (a varchar(1) , KEY (a)) ;
 INSERT INTO t2 VALUES ('c'), (NULL), ('r');
 
 CREATE TABLE t3 (a varchar(1), b varchar(1));
-INSERT INTO t3 VALUES ('e', 'c'), ('c', 'c'), ('c', 'r');
+INSERT INTO t3 VALUES
+  ('e', 'c'), ('c', 'c'), ('c', 'r'), ('g', 'a'), ('b', 'x'), ('b', 'y'),
+  ('h', 'w'), ('d', 'z'), ('k', 'v'), ('j', 's'), ('m', 'p'), ('l', 'q');
 
 CREATE VIEW v1 AS SELECT a, MIN(b) AS b FROM t3 GROUP BY a;
 
@@ -599,7 +601,10 @@ INSERT INTO t1 VALUES (0);
 CREATE TABLE t2 (a  varchar(32), b int, KEY (a)) ;
 INSERT INTO t2 VALUES
   ('j',28), ('c',29), ('i',26), ('c',29), ('k',27),
-  ('j',28), ('c',29), ('i',25), ('d',26), ('k',27);
+  ('j',28), ('c',29), ('i',25), ('d',26), ('k',27),
+  ('n',28), ('d',29), ('m',26), ('e',29), ('p',27),
+  ('w',28), ('x',29), ('y',25), ('z',26), ('s',27);
+
 
 CREATE TABLE t3 (a varchar(32));
 INSERT INTO t3 VALUES ('j'), ('c');
@@ -782,6 +787,479 @@ WHERE EXISTS (SELECT t2.a FROM t3 RIGHT JOIN t2 ON (t3.a = t2.a)
                 WHERE t2.b < t.a);
 
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #824463: nested outer join using a merged view
+--echo #                 as an inner table
+--echo #
+
+CREATE TABLE t1 (b int, a int) ;
+
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (5), (6);
+
+CREATE TABLE t3 (a int , c int) ;
+INSERT INTO t3 VALUES (22,1), (23,-1);
+
+CREATE TABLE t4 (a int);
+
+CREATE TABLE t5 (d int) ;
+INSERT INTO t5 VALUES (0), (7), (3), (5);
+
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE VIEW v3 AS SELECT * FROM t3;
+
+EXPLAIN EXTENDED
+SELECT STRAIGHT_JOIN *
+  FROM ( t2 AS s2
+         JOIN
+         ( t3 AS s3
+           LEFT JOIN
+           ( t4 LEFT JOIN t3 ON t4.a != 0 )
+           ON s3.a != 0)
+         ON s2.a != 0)
+       JOIN t5 ON s3.c != 0 AND t5.d = 0;
+SELECT STRAIGHT_JOIN *
+  FROM ( t2 AS s2
+         JOIN
+         ( t3 AS s3
+           LEFT JOIN
+           ( t4 LEFT JOIN t3 ON t4.a != 0 )
+           ON s3.a != 0)
+         ON s2.a != 0)
+       JOIN t5 ON s3.c != 0 AND t5.d = 0;
+
+EXPLAIN EXTENDED
+SELECT STRAIGHT_JOIN *
+  FROM t2 AS s2 , t5,
+       (t3 LEFT JOIN (t4 LEFT JOIN t3 AS s3 ON t4.a != 0) ON t3.a != 0)
+  WHERE s2.a != 0 AND t3.c != 0 AND t5.d = 0;
+SELECT STRAIGHT_JOIN *
+  FROM t2 AS s2 , t5,
+       (t3 LEFT JOIN (t4 LEFT JOIN t3 AS s3 ON t4.a != 0) ON t3.a != 0)
+  WHERE s2.a != 0 AND t3.c != 0 AND t5.d = 0;
+
+EXPLAIN EXTENDED
+SELECT STRAIGHT_JOIN *
+  FROM v2 AS s2 , t5,
+       (t3 LEFT JOIN (t4 LEFT JOIN v3 AS s3 ON t4.a != 0) ON t3.a != 0)
+  WHERE s2.a != 0 AND t3.c != 0 AND t5.d = 0;
+SELECT STRAIGHT_JOIN *
+  FROM v2 AS s2 , t5,
+       (t3 LEFT JOIN (t4 LEFT JOIN v3 AS s3 ON t4.a != 0) ON t3.a != 0)
+  WHERE s2.a != 0 AND t3.c != 0 AND t5.d = 0;
+
+SELECT STRAIGHT_JOIN *
+  FROM ( ( t2 AS s2
+           LEFT JOIN
+           ( t3 AS s3
+             LEFT JOIN
+             ( t4 AS s4 JOIN t3 ON s4.a != 0)
+             ON s3.a != 0 )
+           ON s2.a != 0)
+         LEFT JOIN 
+         t1 AS s1  
+       ON s1.a != 0)
+       JOIN t5 ON s3.c != 0;
+SELECT STRAIGHT_JOIN *
+  FROM ( ( v2 AS s2
+           LEFT JOIN
+           ( v3 AS s3
+             LEFT JOIN
+             ( t4 AS s4 JOIN v3 ON s4.a != 0)
+             ON s3.a != 0 )
+           ON s2.a != 0)
+         LEFT JOIN 
+         t1 AS s1  
+       ON s1.a != 0)
+       JOIN t5 ON s3.c != 0;
+
+DROP VIEW v2,v3;
+DROP TABLE t1,t2,t3,t4,t5;
+
+--echo #
+--echo # LP bug #872735: derived used in a NOT IN subquery
+--echo #                 
+
+CREATE TABLE t1 (b int NOT NULL);
+INSERT INTO t1 VALUES (9), (7);
+
+CREATE TABLE t2 (a int NOT NULL) ;
+INSERT INTO t2 VALUES (1), (2);
+
+CREATE TABLE t3 (
+  a int NOT NULL , c int NOT NULL, d varchar(1) NOT NULL, 
+  KEY (c,a) , PRIMARY KEY (a)
+);
+INSERT INTO t3 VALUES
+  (14,4,'a'), (15,7,'b'), (16,4,'c'), (17,1,'d'), (18,9,'e'),
+  (19,4,'f'), (20,8,'g');
+
+SET SESSION optimizer_switch='derived_merge=on,subquery_cache=off';
+
+--echo # The following two EXPLAINs must return the same execution plan
+EXPLAIN
+SELECT * FROM t1 , t2
+  WHERE (t2.a ,t1.b) NOT IN (SELECT DISTINCT c,a  FROM t3 t);
+EXPLAIN 
+SELECT * FROM t1 , t2
+  WHERE (t2.a ,t1.b) NOT IN (SELECT DISTINCT c,a  FROM (SELECT * FROM t3) t);
+
+SELECT * FROM t1 , t2
+  WHERE (t2.a ,t1.b) NOT IN (SELECT DISTINCT c,a  FROM (SELECT * FROM t3) t);
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #874006: materialized view used in IN subquery
+--echo #
+
+CREATE TABLE t3 (a int NOT NULL, b varchar(1), c varchar(1));
+INSERT INTO t3 VALUES (19,NULL,NULL), (20,'r','r');
+
+CREATE TABLE t1 (a int, b varchar(1) , c varchar(1));
+INSERT INTO t1 VALUES (1,NULL,NULL), (5,'r','r'), (7,'y','y');
+
+CREATE TABLE t2 (a int NOT NULL , b int, c varchar(1));
+INSERT INTO t2 VALUES (4,3,'r');
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+
+SET SESSION optimizer_switch='derived_with_keys=off';
+EXPLAIN
+SELECT * FROM t3 
+  WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+                   WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+SELECT * FROM t3 
+  WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+                   WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t3 
+  WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+                   WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+SELECT * FROM t3 
+  WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+                   WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #873263: materialized view used in correlated IN subquery
+--echo #
+
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (5,4), (9,8);
+
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES (4,5), (5,1);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t1 WHERE t1.b IN (SELECT v2.a FROM v2 WHERE v2.b = t1.a);
+SELECT * FROM t1 WHERE t1.b IN (SELECT v2.a FROM v2 WHERE v2.b = t1.a);
+
+DROP VIEW v2;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # LP bug #877316: query over a view with correlated subquery in WHERE
+--echo #
+
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a)) ;
+INSERT INTO t1 VALUES (18,2), (19,9);
+
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES (10,8), (5,10);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT t1.a FROM t1
+  WHERE EXISTS (SELECT t2.a FROM t2 WHERE t2.b < t1.b);
+EXPLAIN
+SELECT t1.a FROM t1
+  WHERE EXISTS (SELECT t2.a FROM t2 WHERE t2.b < t1.b);
+
+SELECT v1.a FROM v1
+  WHERE EXISTS (SELECT t2.a FROM t2 WHERE t2.b < v1.b);
+EXPLAIN
+SELECT v1.a FROM v1
+  WHERE EXISTS (SELECT t2.a FROM t2 WHERE t2.b < v1.b);
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # LP bug #878199: join of two materialized views
+--echo #
+
+CREATE TABLE t1 (a int, b varchar(1)) ;
+INSERT INTO t1 VALUES (7,'c'), (3,'h'), (7,'c');
+
+CREATE TABLE t2 (b varchar(1)) ;
+INSERT INTO t2 VALUES ('p'), ('c'), ('j'), ('c'), ('p');
+
+CREATE VIEW v1 AS SELECT * FROM t1 GROUP BY a,b;
+
+CREATE VIEW v2 AS SELECT * FROM t2 GROUP BY b;
+
+SET SESSION optimizer_switch = 'derived_with_keys=on';
+
+SELECT v1.a FROM v1,v2 WHERE v2.b = v1.b ORDER BY 1;
+EXPLAIN
+SELECT v1.a FROM v1,v2 WHERE v2.b = v1.b ORDER BY 1;
+
+DROP VIEW v1,v2;
+DROP TABLE t1,t2;
+
+
+--echo #
+--echo # Bug #743378: join over merged view employing BNL
+--echo #
+
+CREATE TABLE t1 ( d varchar(1) NOT NULL) ;
+INSERT INTO t1 VALUES ('j'),('v'),('c');
+
+CREATE TABLE t2 (h time NOT NULL, d varchar(1) NOT NULL) ;
+INSERT INTO t2 VALUES ('05:03:03','w'),('02:59:24','d'),('00:01:58','e');
+
+CREATE TABLE t3 (
+  b int NOT NULL, e varchar(1) NOT NULL, d varchar(1) NOT NULL, KEY (e,b)
+);
+INSERT INTO t3 VALUES (4,'x','x'),(9,'w','w'),(4,'d','d'),(8,'e','e');
+
+CREATE TABLE t4 (i int NOT NULL, m varchar(1) NOT NULL) ;
+INSERT INTO t4 VALUES (8,'m'),(9,'d'),(2,'s'),(4,'r'),(8,'m');
+
+CREATE TABLE t5 (
+  a int NOT NULL, c int NOT NULL, b int NOT NULL, f date NOT NULL,
+  g date NOT NULL, h time NOT NULL, j time NOT NULL, k datetime NOT NULL
+);
+
+INSERT INTO t5 VALUES
+  (1,4,0,'0000-00-00','0000-00-00','21:22:34','21:22:34','2002-02-13 17:30'),
+  (2,6,8,'2004-09-18','2004-09-18','10:50:38','10:50:38','2008-09-27 00:34');
+
+CREATE VIEW v3 AS SELECT t3.*, t4.i FROM t3, t4, t5;
+
+SET SESSION join_cache_level = 1;
+SET SESSION join_buffer_size = 512;
+
+EXPLAIN
+SELECT t2.d FROM t1,t2,v3 WHERE v3.e = t2.d AND v3.i < 3;
+SELECT t2.d FROM t1,t2,v3 WHERE v3.e = t2.d AND v3.i < 3;
+
+SET SESSION join_cache_level = DEFAULT;
+SET SESSION join_buffer_size = DEFAULT;
+
+DROP VIEW v3;
+DROP TABLE t1,t2,t3,t4,t5;
+
+--echo #
+--echo # Bug #879882: right join within mergeable derived table
+--echo #
+
+CREATE TABLE t1 (a varchar(1));
+INSERT INTO t1 VALUES ('c'), ('a');
+
+CREATE TABLE t2 (a int, b int, c varchar(1));
+INSERT INTO t2 VALUES (29,8,'c'), (39,7,'b');
+
+CREATE TABLE t3 (b int);
+
+EXPLAIN EXTENDED
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+  WHERE t.b AND t.c = t1.a;
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+  WHERE t.b AND t.c = t1.a;
+
+EXPLAIN EXTENDED
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+  WHERE t.b <> 0 AND t.c = t1.a;
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+  WHERE t.b <> 0 AND t.c = t1.a;
+
+INSERT INTO t3 VALUES (100), (200);
+
+EXPLAIN EXTENDED
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+  WHERE t.b AND t.c = t1.a;
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+  WHERE t.b AND t.c = t1.a;
+
+EXPLAIN EXTENDED
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+  WHERE t.b <> 0 AND t.c = t1.a;
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+  WHERE t.b <> 0 AND t.c = t1.a;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #880724: materialized const view as inner table of outer join
+--echo #
+
+CREATE TABLE t1 (a int, b varchar(1));
+INSERT INTO t1 VALUES (9,NULL), (6,'r'), (7,'c');
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (6);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+
+SET SESSION optimizer_switch = 'derived_with_keys=on';
+SET SESSION join_cache_level = 4;
+
+EXPLAIN
+SELECT t1.b,v2.a  FROM t1 LEFT JOIN v2 ON v2.a = t1.a;
+SELECT t1.b,v2.a  FROM t1 LEFT JOIN v2 ON v2.a = t1.a;
+
+CREATE TABLE t3 (a int, b varchar(1));
+INSERT INTO t3 VALUES (8,'x'), (5,'r'), (9,'y');
+
+EXPLAIN
+SELECT * FROM t3
+  WHERE t3.b <> ANY (SELECT t1.b  FROM t1 LEFT JOIN v2 ON v2.a = t1.a);
+SELECT * FROM t3
+  WHERE t3.b <> ANY (SELECT t1.b  FROM t1 LEFT JOIN v2 ON v2.a = t1.a);
+
+SET SESSION join_cache_level = default;
+
+DROP VIEW v2;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #881449: OUTER JOIN usin  a merged view within IN subquery
+--echo #
+
+CREATE TABLE t1 (a varchar(1)) ;
+INSERT INTO t1 VALUES ('y'), ('x');
+
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ;
+INSERT INTO t2 VALUES (1), (2);
+
+CREATE TABLE t3 (a int, b varchar(1)) ;
+INSERT INTO t3 VALUES (1,'x');
+
+CREATE VIEW v3 AS SELECT * FROM t3;
+
+SET SESSION optimizer_switch='semijoin=on';
+
+EXPLAIN 
+SELECT * FROM t1 WHERE a IN (SELECT v3.b FROM t2 RIGHT JOIN v3 ON v3.a = t2.a);
+SELECT * FROM t1 WHERE a IN (SELECT v3.b FROM t2 RIGHT JOIN v3 ON v3.a = t2.a);
+
+set optimizer_switch= @save_optimizer_switch;
+
+DROP VIEW v3;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #874035: view as an inner table of a materialized derived
+--echo #
+
+CREATE TABLE t2 (a int NOT NULL);
+INSERT INTO t2 VALUES (7), (4);
+
+CREATE TABLE t1 (b int NOT NULL);
+INSERT INTO t1 VALUES (5), (7);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
+
+SET SESSION optimizer_switch='derived_merge=off';
+
+PREPARE st1 FROM
+'SELECT * FROM (SELECT * FROM t2 LEFT JOIN v1 ON t2.a = v1.b) AS t';
+EXECUTE st1;
+EXECUTE st1;
+DEALLOCATE PREPARE st1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+SET SESSION optimizer_switch='derived_merge=on';
+
+--echo #
+--echo # LP bug #879939: assertion in ha_maria::enable_indexes 
+--echo #                 with derived_with_keys=on
+--echo #
+
+CREATE TABLE t2 (a varchar(3));
+INSERT INTO t2 VALUES ('USA'), ('USA'), ('USA'), ('USA'), ('USA');
+
+CREATE TABLE t1 (a varchar(3), b varchar(35));
+INSERT INTO t1 VALUES
+  ('USA','Lansing'), ('USA','Laredo'), ('USA','Las Vegas'), 
+  ('USA','Lexington-Fayett'), ('USA','Lincoln'), ('USA','Little Rock'),
+  ('USA','Livonia'), ('USA','Long Beach'), ('USA','Los Angeles'),
+  ('USA','Louisville'), ('USA','Lowell'), ('USA','Lubbock'),
+  ('USA','Macon'), ('USA','Madison'), ('USA','Manchester'),
+  ('USA','McAllen'), ('USA','Memphis'), ('USA','Mesa'), 
+  ('USA','Mesquite'), ('USA','Metairie'), ('USA','Miami');
+
+CREATE TABLE t3 (a varchar(35));
+INSERT INTO t3 VALUES ('Miami');
+
+SET optimizer_switch = 'derived_with_keys=on';
+SET @@tmp_table_size=1024*4;
+explain SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
+SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
+SET @@tmp_table_size=1024*1024*16;
+SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
+SET @@tmp_table_size=default;
+
+drop table t1,t2,t3;
+
+--echo #
+--echo # BUG#882994: Crash in QUICK_RANGE_SELECT::reset with derived_with_keys
+--echo #
+CREATE TABLE t2 (
+  pk varchar(33), 
+  col_varchar_key varchar(3) NOT NULL,
+  col_varchar_nokey varchar(52) NOT NULL);
+
+INSERT INTO t2 VALUES ('NICSpanish','NIC','Spanish'),
+  ('NERHausa','NER','Hausa'),('NGAJoruba','NGA','Joruba'),
+  ('NIUNiue','NIU','Niue'),('NFKEnglish','NFK','English'),
+  ('NORNorwegian','NOR','Norwegian'),('CIVAkan','CIV','Akan'),
+  ('OMNArabic','OMN','Arabic'),('PAKPunjabi','PAK','Punjabi'),
+  ('PLWPalau','PLW','Palau'),('PANSpanish','PAN','Spanish'),
+  ('PNGPapuan Langua','PNG','Papuan Languages'), ('PRYSpanish','PRY','Spanish'),
+  ('PERSpanish','PER','Spanish'), ('PCNPitcairnese','PCN','Pitcairnese'),
+  ('MNPPhilippene La','MNP','Philippene Langu'),('PRTPortuguese','PRT','Portuguese'),
+  ('PRISpanish','PRI','Spanish'),('POLPolish','POL','Polish'),('GNQFang','GNQ','Fang');
+
+CREATE TABLE t1 ( col_varchar_nokey varchar(52) NOT NULL ) ;
+INSERT INTO t1 VALUES ('Chinese'),('English'),('French'),('German'),
+  ('Italian'),('Japanese'),('Korean'),('Polish'),('Portuguese'),('Spanish'),
+  ('Tagalog'),('Vietnamese');
+CREATE TABLE t3 ( col_varchar_key varchar(52)) ;
+INSERT INTO t3 VALUES ('United States');
+
+set @tmp_882994= @@max_heap_table_size;
+--disable_warnings
+set max_heap_table_size=1;
+--enable_warnings
+
+SELECT *
+FROM t3 JOIN
+( SELECT t2.* FROM t1, t2 ) AS alias2
+ON ( alias2.col_varchar_nokey = t3.col_varchar_key )
+ORDER BY CONCAT(alias2.col_varchar_nokey);
+
+set max_heap_table_size= @tmp_882994;
+drop table t1,t2,t3;
 
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;

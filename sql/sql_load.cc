@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Copy data from a textfile to table */
@@ -178,7 +179,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
-  THD::killed_state killed_status= THD::NOT_KILLED;
+  killed_state killed_status;
+  bool is_concurrent;
 #endif
   char *db = table_list->db;			// This is never null
   /*
@@ -189,7 +191,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
   bool transactional_table;
-  bool is_concurrent;
   DBUG_ENTER("mysql_load");
 
   /*
@@ -261,7 +262,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   table= table_list->table;
   transactional_table= table->file->has_transactions();
+#ifndef EMBEDDED_LIBRARY
   is_concurrent= (table_list->lock_type == TL_WRITE_CONCURRENT_INSERT);
+#endif
 
   if (!fields_vars.elements)
   {
@@ -403,8 +406,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
 #if !defined(__WIN__) && ! defined(__NETWARE__)
     MY_STAT stat_info;
-    if (!my_stat(name,&stat_info,MYF(MY_WME)))
-	    DBUG_RETURN(TRUE);
+    if (!my_stat(name, &stat_info, MYF(MY_WME)))
+      DBUG_RETURN(TRUE);
 
     // if we are not in slave thread, the file must be:
     if (!thd->slave_thread &&
@@ -412,11 +415,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
           ((stat_info.st_mode & S_IFREG) == S_IFREG ||  // regular file
            (stat_info.st_mode & S_IFIFO) == S_IFIFO)))  // named pipe
     {
-	    my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
-	    DBUG_RETURN(TRUE);
+      my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
+      DBUG_RETURN(TRUE);
     }
     if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
-            is_fifo = 1;
+      is_fifo= 1;
 #endif
     if ((file= mysql_file_open(key_file_load,
                                name, O_RDONLY, MYF(MY_WME))) < 0)
@@ -526,11 +529,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   DBUG_EXECUTE_IF("simulate_kill_bug27571",
                   {
                     error=1;
-                    thd->killed= THD::KILL_QUERY;
+                    thd->killed= KILL_QUERY;
                   };);
 
 #ifndef EMBEDDED_LIBRARY
-  killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed;
+  killed_status= (error == 0) ? NOT_KILLED : thd->killed;
 #endif
 
   /*
@@ -574,8 +577,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	/* If the file was not empty, wrote_create_file is true */
 	if (lf_info.wrote_create_file)
 	{
-          int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-
+          int errcode= query_error_code(thd, killed_status == NOT_KILLED);
+          
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
 	  if (thd->transaction.stmt.modified_non_trans_table)
@@ -627,7 +630,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       read_info.end_io_cache();
       if (lf_info.wrote_create_file)
       {
-        int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+        int errcode= query_error_code(thd, killed_status == NOT_KILLED);
         error= write_execute_load_query_log_event(thd, ex,
                                                   table_list->db, table_list->table_name,
                                                   is_concurrent,

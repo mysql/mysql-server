@@ -167,6 +167,7 @@ echo "PLATFORM NAME: $PLATFORM"
 VERSION_NAME=@VERSION@
 case $VERSION_NAME in
   *-ndb-* )  VERSION_NAME=`echo $VERSION_NAME | sed -e 's/[.0-9]*-ndb-//'` ;;
+  *-MariaDB-* ) VERSION_NAME=`echo $VERSION_NAME | sed -e 's/-MariaDB//'` ;;
 esac
 if [ x"$SHORT_PRODUCT_TAG" != x"" ] ; then
   NEW_NAME=mariadb-$SHORT_PRODUCT_TAG-$VERSION_NAME-$PLATFORM$SUFFIX

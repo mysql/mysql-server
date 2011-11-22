@@ -1,0 +1,11 @@
+#
+# Test behavior of various per-account limits (aka quotas)
+#
+--source include/not_embedded.inc
+
+#
+# We will get an error as it was set to 0 at startup
+#
+--error ER_OPTION_PREVENTS_STATEMENT
+set global max_user_connections=100;
+

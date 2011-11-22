@@ -1719,6 +1719,7 @@ void mi_check_print_info(HA_CHECK *param __attribute__((unused)),
 {
   va_list args;
 
+  param->note_printed=1;
   va_start(args,fmt);
   (void) vfprintf(stdout, fmt, args);
   (void) fputc('\n',stdout);

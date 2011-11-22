@@ -118,7 +118,8 @@
    "FUNCTION" : "PROCEDURE")
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
-static void sql_kill(THD *thd, ulong id, bool only_kill_query);
+static void sql_kill(THD *thd, ulong id, killed_state state);
+static void sql_kill_user(THD *thd, LEX_USER *user, killed_state state);
 static bool execute_show_status(THD *, TABLE_LIST *);
 static bool execute_rename_table(THD *, TABLE_LIST *, TABLE_LIST *);
 
@@ -1325,7 +1326,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     length= my_snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
                         "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
-                        "Open tables: %u  Queries per second avg: %u.%u",
+                        "Open tables: %u  Queries per second avg: %u.%03u",
                         uptime,
                         (int) thread_count, (ulong) thd->query_id,
                         current_global_status_var->long_query_count,
@@ -1362,7 +1363,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
     ulong id=(ulong) uint4korr(packet);
-    sql_kill(thd,id,false);
+    sql_kill(thd,id, KILL_CONNECTION_HARD);
     break;
   }
   case COM_SET_OPTION:
@@ -1443,6 +1444,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     MYSQL_COMMAND_DONE(res);
   }
+
+  /* Check that some variables are reset properly */
+  DBUG_ASSERT(thd->abort_on_warning == 0);
   DBUG_RETURN(error);
 }
 
@@ -2066,6 +2070,11 @@ mysql_execute_command(THD *thd)
   */
   if (stmt_causes_implicit_commit(thd, CF_IMPLICT_COMMIT_BEGIN))
   {
+    /*
+      Note that this should never happen inside of stored functions
+      or triggers as all such statements prohibited there.
+    */
+    DBUG_ASSERT(! thd->in_sub_stmt);
     /* Commit or rollback the statement transaction. */
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
     /* Commit the normal transaction if one is active. */
@@ -2366,6 +2375,12 @@ case SQLCOM_PREPARE:
       goto end_with_restore_list;
 #endif
     /*
+      If no engine type was given, work out the default now
+      rather than at parse-time.
+    */
+    if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
+      create_info.db_type= ha_default_handlerton(thd);
+    /*
       If we are using SET CHARSET without DEFAULT, add an implicit
       DEFAULT to not confuse old users. (This may change).
     */
@@ -2397,6 +2412,19 @@ case SQLCOM_PREPARE:
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
+
+      /*
+        CREATE TABLE...IGNORE/REPLACE SELECT... can be unsafe, unless
+        ORDER BY PRIMARY KEY clause is used in SELECT statement. We therefore
+        use row based logging if mixed or row based logging is available.
+        TODO: Check if the order of the output of the select statement is
+        deterministic. Waiting for BUG#42415
+      */
+      if(lex->ignore)
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_IGNORE_SELECT);
+      
+      if(lex->duplicates == DUP_REPLACE)
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT);
 
       /*
         If:
@@ -2705,6 +2733,16 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
+
+    /*
+      UPDATE IGNORE can be unsafe. We therefore use row based
+      logging if mixed or row based logging is available.
+      TODO: Check if the order of the output of the select statement is
+      deterministic. Waiting for BUG#42415
+    */
+    if (lex->ignore)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_UPDATE_IGNORE);
+
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
     MYSQL_UPDATE_START(thd->query());
@@ -2876,6 +2914,23 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= insert_precheck(thd, all_tables)))
       break;
+    /*
+      INSERT...SELECT...ON DUPLICATE KEY UPDATE/REPLACE SELECT/
+      INSERT...IGNORE...SELECT can be unsafe, unless ORDER BY PRIMARY KEY
+      clause is used in SELECT statement. We therefore use row based
+      logging if mixed or row based logging is available.
+      TODO: Check if the order of the output of the select statement is
+      deterministic. Waiting for BUG#42415
+    */
+    if (lex->sql_command == SQLCOM_INSERT_SELECT &&
+        lex->duplicates == DUP_UPDATE)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_SELECT_UPDATE);
+
+    if (lex->sql_command == SQLCOM_INSERT_SELECT && lex->ignore)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_IGNORE_SELECT);
+
+    if (lex->sql_command == SQLCOM_REPLACE_SELECT)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_REPLACE_SELECT);
 
     /* Fix lock for first table */
     if (first_table->lock_type == TL_WRITE_DELAYED)
@@ -3602,8 +3657,6 @@ end_with_restore_list:
   }
   case SQLCOM_KILL:
   {
-    Item *it= (Item *)lex->value_list.head();
-
     if (lex->table_or_sp_used())
     {
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Usage of subqueries or stored "
@@ -3611,13 +3664,20 @@ end_with_restore_list:
       break;
     }
 
-    if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1))
+    if (lex->kill_type == KILL_TYPE_ID)
     {
-      my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
-		 MYF(0));
-      goto error;
+      Item *it= (Item *)lex->value_list.head();
+      if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1))
+      {
+        my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
+                   MYF(0));
+        goto error;
+      }
+      sql_kill(thd, (ulong) it->val_int(), lex->kill_signal);
     }
-    sql_kill(thd, (ulong)it->val_int(), lex->type & ONLY_KILL_QUERY);
+    else
+      sql_kill_user(thd, get_current_user(thd, lex->users_list.head()),
+                    lex->kill_signal);
     break;
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -3689,7 +3749,17 @@ end_with_restore_list:
     }
     /* Disconnect the current client connection. */
     if (tx_release)
-      thd->killed= THD::KILL_CONNECTION;
+    {
+      thd->killed= KILL_CONNECTION;
+      if (global_system_variables.log_warnings > 3)
+      {
+        Security_context *sctx= &thd->main_security_ctx;
+        sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                          thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                          sctx->user ? sctx->user : "unauthenticated",
+                          sctx->host_or_ip, "RELEASE");
+      }
+    }
     my_ok(thd);
     break;
   }
@@ -3719,7 +3789,7 @@ end_with_restore_list:
     }
     /* Disconnect the current client connection. */
     if (tx_release)
-      thd->killed= THD::KILL_CONNECTION;
+      thd->killed= KILL_CONNECTION;
     my_ok(thd);
     break;
   }
@@ -3984,7 +4054,8 @@ create_sp_error:
   case SQLCOM_ALTER_FUNCTION:
     {
       int sp_result;
-      int type= (lex->sql_command == SQLCOM_ALTER_PROCEDURE ?
+      enum stored_procedure_type type;
+      type= (lex->sql_command == SQLCOM_ALTER_PROCEDURE ?
                  TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
 
       if (check_routine_access(thd, ALTER_PROC_ACL, lex->spname->m_db.str,
@@ -4061,7 +4132,8 @@ create_sp_error:
 #endif
 
       int sp_result;
-      int type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
+      enum stored_procedure_type type;
+      type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
                  TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
       char *db= lex->spname->m_db.str;
       char *name= lex->spname->m_name.str;
@@ -4148,7 +4220,7 @@ create_sp_error:
     {
 #ifndef DBUG_OFF
       sp_head *sp;
-      int type= (lex->sql_command == SQLCOM_SHOW_PROC_CODE ?
+      stored_procedure_type type= (lex->sql_command == SQLCOM_SHOW_PROC_CODE ?
                  TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
 
       if (sp_cache_routine(thd, type, lex->spname, FALSE, &sp))
@@ -4394,9 +4466,9 @@ finish:
       if (! thd->stmt_da->is_set())
         thd->send_kill_message();
     }
-    if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
+    if (thd->killed < KILL_CONNECTION)
     {
-      thd->killed= THD::NOT_KILLED;
+      thd->killed= NOT_KILLED;
       thd->mysys_var->abort= 0;
     }
     if (thd->is_error() || (thd->variables.option_bits & OPTION_MASTER_SQL_ERROR))
@@ -4467,7 +4539,6 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  thd->thd_marker.emb_on_expr_nest= NULL;
   if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
   {
     if (lex->describe)
@@ -5367,7 +5438,6 @@ void THD::reset_for_next_command(bool calculate_userstat)
 
   thd->query_plan_flags= QPLAN_INIT;
   thd->query_plan_fsort_passes= 0;
-  thd->thd_marker.emb_on_expr_nest= NULL;
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
@@ -5434,6 +5504,7 @@ mysql_new_select(LEX *lex, bool move_down)
     DBUG_RETURN(1);
   }
   select_lex->nest_level= lex->nest_level;
+  select_lex->nest_level_base= &thd->lex->unit;
   if (move_down)
   {
     SELECT_LEX_UNIT *unit;
@@ -6457,12 +6528,13 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
     This is written such that we have a short lock on LOCK_thread_count
 */
 
-uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
+uint kill_one_thread(THD *thd, ulong id, killed_state kill_signal)
 {
   THD *tmp;
   uint error=ER_NO_SUCH_THREAD;
   DBUG_ENTER("kill_one_thread");
-  DBUG_PRINT("enter", ("id=%lu only_kill=%d", id, only_kill_query));
+  DBUG_PRINT("enter", ("id: %lu  signal: %u", id, (uint) kill_signal));
+
   mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
@@ -6493,12 +6565,16 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 
       If user of both killer and killee are non-NULL, proceed with
       slayage if both are string-equal.
+
+      It's ok to also kill DELAYED threads with KILL_CONNECTION instead of
+      KILL_SYSTEM_THREAD; The difference is that KILL_CONNECTION may be
+      faster and do a harder kill than KILL_SYSTEM_THREAD;
     */
 
     if ((thd->security_ctx->master_access & SUPER_ACL) ||
         thd->security_ctx->user_matches(tmp->security_ctx))
     {
-      tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
+      tmp->awake(kill_signal);
       error=0;
     }
     else
@@ -6507,6 +6583,76 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   }
   DBUG_PRINT("exit", ("%d", error));
   DBUG_RETURN(error);
+}
+
+
+/**
+  kill all threads from one user
+
+  @param thd			Thread class
+  @param user_name		User name for threads we should kill
+  @param only_kill_query        Should it kill the query or the connection
+
+  @note
+    This is written such that we have a short lock on LOCK_thread_count
+
+    If we can't kill all threads because of security issues, no threads
+    are killed.
+*/
+
+static uint kill_threads_for_user(THD *thd, LEX_USER *user,
+                                  killed_state kill_signal, ha_rows *rows)
+{
+  THD *tmp;
+  List<THD> threads_to_kill;
+  DBUG_ENTER("kill_threads_for_user");
+
+  *rows= 0;
+
+  if (thd->is_fatal_error)                       // If we run out of memory
+    DBUG_RETURN(ER_OUT_OF_RESOURCES);
+
+  DBUG_PRINT("enter", ("user: %s  signal: %u", user->user.str,
+                       (uint) kill_signal));
+
+  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
+  I_List_iterator<THD> it(threads);
+  while ((tmp=it++))
+  {
+    if (tmp->command == COM_DAEMON)
+      continue;
+    /*
+      Check that hostname (if given) and user name matches.
+
+      host.str[0] == '%' means that host name was not given. See sql_yacc.yy
+    */
+    if (((user->host.str[0] == '%' && !user->host.str[1]) ||
+         !strcmp(tmp->security_ctx->host, user->host.str)) &&
+        !strcmp(tmp->security_ctx->user, user->user.str))
+    {
+      if (!(thd->security_ctx->master_access & SUPER_ACL) &&
+          !thd->security_ctx->user_matches(tmp->security_ctx))
+      {
+        mysql_mutex_unlock(&LOCK_thread_count);
+        DBUG_RETURN(ER_KILL_DENIED_ERROR);
+      }
+      if (!threads_to_kill.push_back(tmp, tmp->mem_root))
+        mysql_mutex_lock(&tmp->LOCK_thd_data); // Lock from delete
+    }
+  }
+  mysql_mutex_unlock(&LOCK_thread_count);
+  if (!threads_to_kill.is_empty())
+  {
+    List_iterator_fast<THD> it(threads_to_kill);
+    THD *ptr;
+    while ((ptr= it++))
+    {
+      ptr->awake(kill_signal);
+      mysql_mutex_unlock(&ptr->LOCK_thd_data);
+      (*rows)++;
+    }
+  }
+  DBUG_RETURN(0);
 }
 
 
@@ -6521,16 +6667,34 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 */
 
 static
-void sql_kill(THD *thd, ulong id, bool only_kill_query)
+void sql_kill(THD *thd, ulong id, killed_state state)
 {
   uint error;
-  if (!(error= kill_one_thread(thd, id, only_kill_query)))
+  if (!(error= kill_one_thread(thd, id, state)))
   {
     if (! thd->killed)
       my_ok(thd);
   }
   else
     my_error(error, MYF(0), id);
+}
+
+
+static
+void sql_kill_user(THD *thd, LEX_USER *user, killed_state state)
+{
+  uint error;
+  ha_rows rows;
+  if (!(error= kill_threads_for_user(thd, user, state, &rows)))
+    my_ok(thd, rows);
+  else
+  {
+    /*
+      This is probably ER_OUT_OF_RESOURCES, but in the future we may
+      want to write the name of the user we tried to kill
+    */
+    my_error(error, MYF(0), user->host.str, user->user.str);
+  }
 }
 
 
