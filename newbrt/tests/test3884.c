@@ -556,6 +556,118 @@ test_split_at_end(void)
     toku_free(sn.childkeys);
 }
 
+// Maximum node size according to the BRT: 1024 (expected node size after split)
+// Maximum basement node size: 256
+// Actual node size before split: 2048
+// Actual basement node size before split: 256
+// Start by creating 9 basements, then split node.
+// Expected result of two nodes with 5 basements each.
+static void
+test_split_odd_nodes(void)
+{
+    const int nodesize = 1024; // Max node size.
+    const int eltsize = 64;    // Element size?
+    const int bnsize = 256;    // Basement Node size.
+    const size_t maxbnsize = bnsize;
+    const int eltsperbn = bnsize / eltsize; // How many elements in a basement node.
+    const int keylen = sizeof(long);
+    const MSN new_msn = { .msn = 2 * MIN_MSN.msn }; // Arbitrary MSN larger than min MSN.
+
+    // Overhead from LE_CLEAN_MEMSIZE.
+    const int vallen = eltsize - keylen - (sizeof(((LEAFENTRY)NULL)->type)
+                                         + sizeof(((LEAFENTRY)NULL)->keylen)
+                                         + sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
+    struct brtnode sn;
+
+    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
+    assert(fd >= 0);
+
+    int r;
+
+    sn.max_msn_applied_to_node_on_disk.msn = 0;
+    sn.nodesize = nodesize;
+    sn.flags = 0x11223344;
+    sn.thisnodename.b = 20;
+    sn.layout_version = BRT_LAYOUT_VERSION;
+    sn.layout_version_original = BRT_LAYOUT_VERSION;
+    sn.height = 0;
+    sn.optimized_for_upgrade = 1324;
+    // This will give us 9 children.
+    const int nelts = 2 * (nodesize + 128) / eltsize;
+    sn.n_children = nelts * eltsize / bnsize;
+    sn.dirty = 1;
+    MALLOC_N(sn.n_children, sn.bp);
+    MALLOC_N(sn.n_children - 1, sn.childkeys);
+    sn.totalchildkeylens = 0;
+    for (int bn = 0; bn < sn.n_children; ++bn) {
+        BP_STATE(&sn,bn) = PT_AVAIL;
+        set_BLB(&sn, bn, toku_create_empty_bn());
+	BASEMENTNODE basement = BLB(&sn, bn);
+        // Write an MSN to this basement node.
+        BLB_MAX_MSN_APPLIED(&sn, bn) = new_msn;
+	struct mempool * mp = &basement->buffer_mempool;
+	toku_mempool_construct(mp, maxbnsize);
+        BLB_NBYTESINBUF(&sn,bn) = 0;
+        long k;
+        for (int i = 0; i < eltsperbn; ++i) {
+            k = bn * eltsperbn + i;
+            char val[vallen];
+            memset(val, k, sizeof val);
+            LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
+            r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
+            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
+        }
+        if (bn < sn.n_children - 1) {
+            sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
+            sn.totalchildkeylens += (sizeof k);
+        }
+    }
+
+    unlink(fname);
+    CACHETABLE ct;
+    BRT brt;
+    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
+    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
+
+    BRTNODE nodea, nodeb;
+    DBT splitk;
+    // if we haven't done it right, we should hit the assert in the top of move_leafentries
+    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
+
+    // Verify that the MSN is the same on the basement nodes after the split.
+    int a_children = nodea->n_children;
+    int b_children = nodeb->n_children;
+    for(int i = 0; i < a_children; ++i)
+    {
+        assert(new_msn.msn == BLB_MAX_MSN_APPLIED(nodea, i).msn);
+    }
+
+    for(int i = 0; i < b_children; ++i)
+    {
+        assert(new_msn.msn == BLB_MAX_MSN_APPLIED(nodeb, i).msn);
+    }
+
+    toku_unpin_brtnode(brt, nodeb);
+    r = toku_close_brt(brt, NULL); assert(r == 0);
+    r = toku_cachetable_close(&ct); assert(r == 0);
+
+    if (splitk.data) {
+        toku_free(splitk.data);
+    }
+
+    for (int i = 0; i < sn.n_children - 1; ++i) {
+        kv_pair_free(sn.childkeys[i]);
+    }
+    for (int i = 0; i < sn.n_children; ++i) {
+	BASEMENTNODE bn = BLB(&sn, i);
+	struct mempool * mp = &bn->buffer_mempool;
+	toku_mempool_destroy(mp);
+        destroy_basement_node(BLB(&sn, i));
+    }
+    toku_free(sn.bp);
+    toku_free(sn.childkeys);
+}
+
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
 
@@ -564,6 +676,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     test_split_on_boundary_of_last_node();
     test_split_at_begin();
     test_split_at_end();
+    test_split_odd_nodes();
 
     return 0;
 }
