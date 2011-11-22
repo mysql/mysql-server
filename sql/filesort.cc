@@ -122,8 +122,10 @@ static void trace_filesort_information(Opt_trace_context *trace,
 
     if (sortorder->field)
     {
-      if (sortorder->field->table_name)
+      if (strlen(sortorder->field->table->alias) != 0)
         oto.add_utf8_table(sortorder->field->table);
+      else
+        oto.add_alnum("table", "intermediate_tmp_table");
       oto.add_alnum("field", sortorder->field->field_name ?
                     sortorder->field->field_name : "tmp_table_column");
     }
@@ -425,7 +427,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
                     ER(kill_errno) :
                     thd->get_stmt_da()->message());
 
-    if (global_system_variables.log_warnings > 1)
+    if (log_warnings > 1)
     {
       sql_print_warning("%s, host: %s, user: %s, thread: %lu, query: %-.4096s",
                         ER_THD(thd, ER_FILSORT_ABORT),

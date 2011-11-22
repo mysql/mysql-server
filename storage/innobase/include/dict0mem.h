@@ -43,6 +43,10 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "hash0hash.h"
 #include "trx0types.h"
+#include "fts0fts.h"
+
+/* Forward declaration. */
+typedef struct ib_rbt_struct ib_rbt_t;
 
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
@@ -54,8 +58,10 @@ combination of types */
 #define	DICT_IBUF	8	/*!< insert buffer tree */
 #define	DICT_CORRUPT	16	/*!< bit to store the corrupted flag
 				in SYS_INDEXES.TYPE */
+#define	DICT_FTS	32	/* FTS index; can't be combined with the
+				other flags */
 
-#define	DICT_IT_BITS	5	/*!< number of bits used for
+#define	DICT_IT_BITS	6	/*!< number of bits used for
 				SYS_INDEXES.TYPE */
 /* @} */
 
@@ -169,11 +175,28 @@ created with old versions of InnoDB that only implemented
 ROW_FORMAT=REDUNDANT. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS		1
-#define DICT_TF2_BIT_MASK	~(~0 << DICT_TF2_BITS)
+#define DICT_TF2_BITS			4
+#define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
 
-#define DICT_TF2_TEMPORARY	(1<<0)	/*!< 1 if CREATE TEMPORARY TABLE */
+#define DICT_TF2_TEMPORARY		1	/*!< TRUE for tables from
+						CREATE TEMPORARY TABLE. */
+#define DICT_TF2_FTS_HAS_DOC_ID		2	/* Has internal defined
+						DOC ID column */
+#define DICT_TF2_FTS			4	/* has an FTS index */
+#define DICT_TF2_FTS_ADD_DOC_ID		8	/* Need to add Doc ID column
+						for FTS index build.
+						This is a transient bit
+						for index build */
 /* @} */
+
+#define DICT_TF2_FLAG_SET(table, flag)				\
+	(table->flags2 |= (flag))
+
+#define DICT_TF2_FLAG_IS_SET(table, flag)			\
+	(table->flags2 & (flag))
+
+#define DICT_TF2_FLAG_UNSET(table, flag)			\
+	(table->flags2 &= ~(flag))
 
 /** Tables could be chained together with Foreign key constraint. When
 first load the parent table, we would load all of its descedents.
@@ -493,7 +516,7 @@ struct dict_index_struct{
 #ifdef UNIV_BLOB_DEBUG
 	mutex_t		blobs_mutex;
 				/*!< mutex protecting blobs */
-	void*		blobs;	/*!< map of (page_no,heap_no,field_no)
+	ib_rbt_t*	blobs;	/*!< map of (page_no,heap_no,field_no)
 				to first_blob_page_no; protected by
 				blobs_mutex; @see btr_blob_dbg_t */
 #endif /* UNIV_BLOB_DEBUG */
@@ -724,6 +747,7 @@ struct dict_table_struct{
 				/*!< The transaction that currently holds the
 				the AUTOINC lock on this table.
 				Protected by lock_sys->mutex. */
+	fts_t*		fts;	/* FTS specific state variables */
 				/* @} */
 	/*----------------------*/
 	ulint		n_rec_locks;

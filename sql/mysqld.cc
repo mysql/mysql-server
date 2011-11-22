@@ -377,6 +377,7 @@ my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
+ulong log_warnings;
 /*
   True if the bootstrap thread is running. Protected by LOCK_thread_count,
   just like thread_count.
@@ -1247,7 +1248,7 @@ static void close_connections(void)
 #ifndef __bsdi__        // Bug in BSDI kernel
     if (tmp->vio_ok())
     {
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
         sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
                           tmp->thread_id,
                           (tmp->main_security_ctx.user ?
@@ -1441,7 +1442,7 @@ pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 
 extern "C" sig_handler print_signal_warning(int sig)
 {
-  if (global_system_variables.log_warnings)
+  if (log_warnings)
     sql_print_warning("Got signal %d from thread %ld", sig,my_thread_id());
 #ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
   my_sigset(sig,print_signal_warning);    /* int. thread system calls */
@@ -1759,7 +1760,7 @@ static struct passwd *check_user(const char *user)
       /* purecov: begin tested */
       tmp_user_info= getpwnam(user);
       if ((!tmp_user_info || user_id != tmp_user_info->pw_uid) &&
-    global_system_variables.log_warnings)
+    log_warnings)
         sql_print_warning(
                     "One can only use the --user switch if running as root\n");
       /* purecov: end */
@@ -2741,7 +2742,7 @@ void my_init_signals(void)
     /* Change limits so that we will get a core file */
     STRUCT_RLIMIT rl;
     rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
-    if (setrlimit(RLIMIT_CORE, &rl) && global_system_variables.log_warnings)
+    if (setrlimit(RLIMIT_CORE, &rl) && log_warnings)
       sql_print_warning("setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
   }
 #endif
@@ -3614,11 +3615,11 @@ int init_common_variables()
   DBUG_PRINT("warning",
        ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
         files, max_connections, table_cache_size));
-  if (global_system_variables.log_warnings)
+  if (log_warnings)
     sql_print_warning("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
       files, max_connections, table_cache_size);
       }
-      else if (global_system_variables.log_warnings)
+      else if (log_warnings)
   sql_print_warning("Could not increase number of max_open_files to more than %u (request: %u)", files, wanted_files);
     }
     open_files_limit= files;
@@ -3765,7 +3766,7 @@ int init_common_variables()
   {
     if (lower_case_table_names_used)
     {
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
   sql_print_warning("\
 You have forced lower_case_table_names to 0 through a command-line \
 option, even though your file system '%s' is case insensitive.  This means \
@@ -3775,7 +3776,7 @@ You should consider changing lower_case_table_names to 1 or 2",
     }
     else
     {
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
   sql_print_warning("Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
       lower_case_table_names= 2;
     }
@@ -3784,7 +3785,7 @@ You should consider changing lower_case_table_names to 1 or 2",
            !(lower_case_file_system=
              (test_if_case_insensitive(mysql_real_data_home) == 1)))
   {
-    if (global_system_variables.log_warnings)
+    if (log_warnings)
       sql_print_warning("lower_case_table_names was set to 2, even though your "
                         "the file system '%s' is case sensitive.  Now setting "
                         "lower_case_table_names to 0 to avoid future problems.",
@@ -4566,7 +4567,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     }
     if (mlockall(MCL_CURRENT))
     {
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
   sql_print_warning("Failed to lock memory. Errno: %d\n",errno);
       locked_in_memory= 0;
     }
@@ -4911,7 +4912,7 @@ int mysqld_main(int argc, char **argv)
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
     if (stack_size && stack_size < my_thread_stack_size)
     {
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
   sql_print_warning("Asked for %lu thread stack, but got %ld",
         my_thread_stack_size, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
@@ -7611,11 +7612,11 @@ mysqld_get_one_option(int optid,
 #endif /*EMBEDDED_LIBRARY*/
   case 'W':
     if (!argument)
-      global_system_variables.log_warnings++;
+      log_warnings++;
     else if (argument == disabled_my_option)
-      global_system_variables.log_warnings= 0L;
+      log_warnings= 0L;
     else
-      global_system_variables.log_warnings= atoi(argument);
+      log_warnings= atoi(argument);
     break;
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
@@ -7893,7 +7894,7 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
 
   /* Don't print warnings for --loose options during bootstrap */
   if (level == ERROR_LEVEL || !opt_bootstrap ||
-      global_system_variables.log_warnings)
+      log_warnings)
   {
     vprint_msg_to_log(level, format, args);
   }
@@ -8649,6 +8650,7 @@ PSI_stage_info stage_discard_or_import_tablespace= { 0, "discard_or_import_table
 PSI_stage_info stage_end= { 0, "end", 0};
 PSI_stage_info stage_executing= { 0, "executing", 0};
 PSI_stage_info stage_execution_of_init_command= { 0, "Execution of init_command", 0};
+PSI_stage_info stage_explaining= { 0, "explaining", 0};
 PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog= { 0, "Finished reading one binlog; switching to next binlog", 0};
 PSI_stage_info stage_flushing_relay_log_and_master_info_repository= { 0, "Flushing relay log and master info repository.", 0};
 PSI_stage_info stage_flushing_relay_log_info_file= { 0, "Flushing relay-log info file.", 0};
@@ -8752,6 +8754,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_end,
   & stage_executing,
   & stage_execution_of_init_command,
+  & stage_explaining,
   & stage_finished_reading_one_binlog_switching_to_next_binlog,
   & stage_flushing_relay_log_and_master_info_repository,
   & stage_flushing_relay_log_info_file,

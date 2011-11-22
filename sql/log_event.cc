@@ -360,7 +360,7 @@ int convert_handler_error(int error, THD* thd, TABLE *table)
     actual_error= (thd->is_error() ? thd->get_stmt_da()->sql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
         sql_print_warning("Unknown error detected %d in handler", error);
   }
 
@@ -1620,7 +1620,7 @@ void Log_event::print_header(IO_CACHE* file,
     my_off_t i;
 
     /* Header len * 4 >= header len * (2 chars + space + extra space) */
-    char *h, hex_string[LOG_EVENT_MINIMAL_HEADER_LEN*4]= {0};
+    char *h, hex_string[49]= {0};
     char *c, char_string[16+1]= {0};
 
     /* Pretty-print event common header if header is exactly 19 bytes */
@@ -1649,7 +1649,7 @@ void Log_event::print_header(IO_CACHE* file,
 	 i < size;
 	 i++, ptr++)
     {
-      my_snprintf(h, 4, "%02x ", *ptr);
+      my_snprintf(h, 4, (i % 16 <= 7) ? "%02x " : " %02x", *ptr);
       h += 3;
 
       *c++= my_isalnum(&my_charset_bin, *ptr) ? *ptr : '.';
@@ -1675,13 +1675,15 @@ void Log_event::print_header(IO_CACHE* file,
 	c= char_string;
 	h= hex_string;
       }
-      else if (i % 8 == 7) *h++ = ' ';
     }
     *c= '\0';
-
+    DBUG_ASSERT(hex_string[48] == 0);
+    
     if (hex_string[0])
     {
       char emit_buf[256];
+      // Right-pad hex_string with spaces, up to 48 characters.
+      memset(h, ' ', (sizeof(hex_string) -1) - (h - hex_string));
       size_t const bytes_written=
         my_snprintf(emit_buf, sizeof(emit_buf),
                     "# %8.8lx %-48.48s |%s|\n",
@@ -2365,12 +2367,48 @@ Log_event::continue_group(Relay_log_info *rli)
   return Log_event::do_shall_skip(rli);
 }
 
+/**
+   @param end_group_sets_max_dbs  when true the group terminal event 
+                          can carry partition info, see a note below.
+   @return true  in cases the current event
+                 carries partition data,
+           false otherwise
 
-bool Log_event::contains_partition_info()
+   @note Some events combination may force to adjust partition info.
+         In particular BEGIN, BEGIN_LOAD_QUERY_EVENT, COMMIT
+         where none of the events holds partitioning data
+         causes the sequential applying of the group through
+         assigning OVER_MAX_DBS_IN_EVENT_MTS to mts_accessed_dbs
+         of COMMIT query event.
+*/
+bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
 {
-  return (get_type_code() == TABLE_MAP_EVENT) ||
-    (get_type_code() == QUERY_EVENT && !ends_group() && !starts_group()) ||
-    (get_type_code() == EXECUTE_LOAD_QUERY_EVENT);
+  bool res;
+
+  switch (get_type_code()) {
+  case TABLE_MAP_EVENT:
+  case EXECUTE_LOAD_QUERY_EVENT:
+    res= true;
+
+    break;
+    
+  case QUERY_EVENT:
+    if (ends_group() && end_group_sets_max_dbs)
+    {
+      res= true;
+      static_cast<Query_log_event*>(this)->mts_accessed_dbs=
+        OVER_MAX_DBS_IN_EVENT_MTS;
+    }
+    else
+      res= (!ends_group() && !starts_group()) ? true : false;
+
+    break;
+
+  default:
+    res= false;
+  }
+
+  return res;
 }
 
 /**
@@ -2457,27 +2495,44 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     {
       Log_event *ptr_curr_ev= this;
       // B-event is appended to the Deferred Array associated with GCAP
-      insert_dynamic(&rli->curr_group_da,
-                     (uchar*) &ptr_curr_ev);
+      insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
 
       DBUG_ASSERT(rli->curr_group_da.elements == 1);
 
       // mark the current group as started with explicit B-event
       rli->curr_group_seen_begin= TRUE;
-
+      // pessimistic preparation of no db:s will be found in events
+      rli->mts_end_group_sets_max_dbs= true;
       return ret_worker;
     } 
   }
 
   // mini-group representative
 
-  if (contains_partition_info())
+  if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
   {
     int i= 0;
     num_dbs= mts_number_dbs();
     List_iterator<char> it(*get_mts_dbs(&rli->mts_coor_mem_root));
     it++;
 
+    /*
+      Bug 12982188 - MTS: SBR ABORTS WITH ERROR 1742 ON LOAD DATA
+      Logging on master can create a group with no events holding
+      the partition info.
+      The following assert proves there's the only reason
+      for such group.
+    */
+    DBUG_ASSERT(!ends_group() ||
+                (rli->mts_end_group_sets_max_dbs &&
+                 rli->curr_group_da.elements == 2 &&
+                 ((*(Log_event **)
+                   dynamic_array_ptr(&rli->curr_group_da,
+                                     rli->curr_group_da.elements - 1))-> 
+                  get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
+
+    // partioning info is found which drops the flag
+    rli->mts_end_group_sets_max_dbs= false;
     ret_worker= rli->last_assigned_worker;
     if (num_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
     {
@@ -2780,7 +2835,16 @@ int Log_event::apply_event(Relay_log_info *rli)
 
   DBUG_ASSERT(actual_exec_mode == EVENT_EXEC_PARALLEL);
   DBUG_ASSERT(!(rli->curr_group_seen_begin && ends_group()) ||
-              rli->last_assigned_worker);
+              rli->last_assigned_worker ||
+              /*
+                Begin_load_query can be logged w/o db info and within
+                Begin/Commit. That's a pattern forcing sequential
+                applying of LOAD-DATA.
+              */
+              (*(Log_event **)
+               dynamic_array_ptr(&rli->curr_group_da,
+                                 rli->curr_group_da.elements - 1))-> 
+              get_type_code() == BEGIN_LOAD_QUERY_EVENT);
 
   worker= NULL;
   rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
@@ -3985,10 +4049,10 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 */
 void Query_log_event::attach_temp_tables_worker(THD *thd)
 {
-  if (!is_mts_worker(thd) || !contains_partition_info())
+  if (!is_mts_worker(thd) || (ends_group() || starts_group()))
     return;
   
-  // in over max-db:s case just one special parttion is locked
+  // in over max-db:s case just one special partition is locked
   int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
               1 : mts_accessed_dbs);
 
@@ -8872,6 +8936,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     // row processing loop
 
+    /* 
+      set the initial time of this ROWS statement if it was not done
+      before in some other ROWS event. 
+     */
+    const_cast<Relay_log_info*>(rli)->set_row_stmt_start_timestamp();
+
     const uchar *saved_m_curr_row= m_curr_row;
     while (error == 0)
     {
@@ -8898,7 +8968,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
         if (idempotent_error || ignored_error)
         {
-          if (global_system_variables.log_warnings)
+          if (log_warnings)
             slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
                                     get_type_str(),
                                     const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
@@ -8977,7 +9047,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         ignored_error_code(convert_handler_error(error, thd, table)))
     {
 
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
         slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
@@ -10610,6 +10680,50 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
   return res;
 }
 
+/* 
+  Check if we are already spending too much time on this statement.
+  if we are, warn user that it might be because table does not have
+  a PK, but only if the warning was not printed before for this STMT.
+
+  @param type          The event type code.
+  @param table_name    The name of the table that the slave is 
+                       operating.
+  @param is_index_scan States whether the slave is doing an index scan 
+                       or not.
+  @param rli           The relay metadata info.
+*/
+static inline 
+void issue_long_find_row_warning(Log_event_type type, 
+                                 const char *table_name,
+                                 bool is_index_scan,
+                                 const Relay_log_info *rli)
+{
+  if ((log_warnings > 1 && 
+      !const_cast<Relay_log_info*>(rli)->is_long_find_row_note_printed()))
+  {
+    time_t now= my_time(0);
+    time_t stmt_ts= const_cast<Relay_log_info*>(rli)->get_row_stmt_start_timestamp();
+    
+    DBUG_EXECUTE_IF("inject_long_find_row_note", 
+                    stmt_ts-=(LONG_FIND_ROW_THRESHOLD*2););
+
+    long delta= (long) (now - stmt_ts);
+
+    if (delta > LONG_FIND_ROW_THRESHOLD)
+    {
+      const_cast<Relay_log_info*>(rli)->set_long_find_row_note_printed();
+      const char* evt_type= type == DELETE_ROWS_EVENT ? " DELETE" : "n UPDATE";
+      const char* scan_type= is_index_scan ? "scanning an index" : "scanning the table";
+
+      sql_print_information("The slave is applying a ROW event on behalf of a%s statement "
+                            "on table %s and is currently taking a considerable amount "
+                            "of time (%ld seconds). This is due to the fact that it is %s "
+                            "while looking up records to be processed. Consider adding a "
+                            "primary key (or unique key) to the table to improve "
+                            "performance.", evt_type, table_name, delta, scan_type);
+    }
+  }
+}
 
 /**
   Locate the current row in event's table.
@@ -10649,6 +10763,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   int error= 0;
   KEY *keyinfo;
   uint key;
+  bool is_table_scan= false, is_index_scan= false;
 
   /*
     rpl_row_tabledefs.test specifies that
@@ -10838,6 +10953,8 @@ INDEX_SCAN:
       }
     }
 
+    is_index_scan=true;
+
     /*
       In case key is not unique, we still have to iterate over records found
       and find the one which is identical to the row given. A copy of the 
@@ -10898,6 +11015,8 @@ TABLE_SCAN:
       goto err;
     }
 
+    is_table_scan= true;
+
     /* Continue until we find the right record or have made a full loop */
     do
     {
@@ -10951,10 +11070,18 @@ TABLE_SCAN:
     goto err;
   }
 ok:
+  if (is_table_scan || is_index_scan)
+    issue_long_find_row_warning(get_type_code(), m_table->alias, 
+                                is_index_scan, rli);
+
   table->default_column_bitmaps();
   DBUG_RETURN(0);
 
 err:
+  if (is_table_scan || is_index_scan)
+    issue_long_find_row_warning(get_type_code(), m_table->alias, 
+                                is_index_scan, rli);
+
   table->default_column_bitmaps();
   DBUG_RETURN(error);
 }

@@ -1,0 +1,213 @@
+#
+# Fulltext configurable parameters
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+--echo #
+--echo # Bug#56814 Explain + subselect + fulltext crashes server
+--echo #
+
+CREATE TABLE t1(f1 VARCHAR(6) NOT NULL,FULLTEXT KEY(f1),UNIQUE(f1)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES ('test');
+EXPLAIN SELECT 1 FROM t1
+WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
+WHERE t1.f1 GROUP BY t1.f1));
+
+PREPARE stmt FROM
+'EXPLAIN SELECT 1 FROM t1
+ WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a
+ ON (MATCH(t1.f1) AGAINST (""))
+ WHERE t1.f1 GROUP BY t1.f1))';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+
+PREPARE stmt FROM
+'EXPLAIN SELECT 1 FROM t1
+ WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a
+ ON (MATCH(t1.f1) AGAINST (""))
+ WHERE t1.f1 GROUP BY t1.f1))';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+
+DROP TABLE t1;
+
+#try to crash gcc 2.96
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1 (
+  kodoboru varchar(10) default NULL,
+  obor tinytext,
+  aobor tinytext,
+  UNIQUE INDEX kodoboru (kodoboru),
+  FULLTEXT KEY obor (obor),
+  FULLTEXT KEY aobor (aobor)
+) ENGINE = InnoDB;
+
+drop table t1;
+
+CREATE TABLE t1 (
+  kodoboru varchar(10) default NULL,
+  obor tinytext,
+  aobor tinytext,
+  UNIQUE INDEX kodoboru (kodoboru),
+  FULLTEXT KEY obor (obor)
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES ('0101000000','aaa','AAA');
+INSERT INTO t1 VALUES ('0102000000','bbb','BBB');
+INSERT INTO t1 VALUES ('0103000000','ccc','CCC');
+INSERT INTO t1 VALUES ('0104000000','xxx','XXX');
+
+select * from t1;
+drop table t1;
+
+# End of 4.1 tests
+
+
+#
+# Bug#20503: Server crash due to the ORDER clause isn't taken into account
+#            while space allocation
+#
+create table t1 (c1 varchar(1), c2 int, c3 int, c4 int, c5 int, c6 int,
+c7 int, c8 int, c9 int, fulltext key (`c1`)) ENGINE = InnoDB;
+select distinct match (`c1`) against ('z') , c2, c3, c4,c5, c6,c7, c8
+  from t1 where c9=1 order by c2, c2;
+drop table t1;
+
+
+#
+# VIEW with full text
+#
+CREATE TABLE t1 (c1 int not null auto_increment primary key, c2 varchar(20), fulltext(c2)) ENGINE = InnoDB;
+insert into t1 (c2) VALUES ('real Beer'),('Water'),('Kossu'),('Coca-Cola'),('Vodka'),('Wine'),('almost real Beer');
+select * from t1 WHERE match (c2) against ('Beer');
+CREATE VIEW v1 AS SELECT  * from t1 WHERE match (c2) against ('Beer');
+select * from v1;
+drop view v1;
+drop table t1;
+
+
+# Test case for bug 6447
+create table t1 (mytext text, FULLTEXT (mytext)) ENGINE = InnoDB;
+insert t1 values ('aaabbb');
+
+# INNODB_FTS: These variables are not support in InnoDB
+check table t1;
+# set @my_key_cache_block_size= @@global.key_cache_block_size;
+# set GLOBAL key_cache_block_size=2048;
+check table t1;
+drop table t1;
+# Restore the changed variable value
+#set global key_cache_block_size= @my_key_cache_block_size;
+
+
+
+#
+# BUG#12075 - FULLTEXT non-functional for big5 strings
+# 
+# INNODB_FTS: Not yet support big5
+#CREATE TABLE t1 (a CHAR(50) CHARACTER SET big5 NOT NULL, FULLTEXT(a)) ENGINE = InnoDB;
+#INSERT INTO t1 VALUES(0xA741ADCCA66EB6DC20A7DAADCCABDCA66E);
+#SELECT HEX(a) FROM t1 WHERE MATCH(a) AGAINST (0xA741ADCCA66EB6DC IN BOOLEAN MODE);
+#DROP TABLE t1;
+
+#
+
+create table t1 (a varchar(10), fulltext key(a)) ENGINE = InnoDB;
+insert into t1 values ('a');
+select hex(concat(match (a) against ('a'))) from t1;
+create table t2 ENGINE = InnoDB as select concat(match (a) against ('a')) as a from t1;
+show create table t2;
+drop table t1, t2;
+
+
+#
+# BUG#31159 - fulltext search on ucs2 column crashes server
+#
+CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) ENGINE = InnoDB;
+INSERT INTO t1 VALUES('abcd');
+
+# INNODB_FTS: Please Note this table do not have FTS. InnoDB return 1214 error
+--error ER_TABLE_HAS_NO_FT
+SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
+DROP TABLE t1;
+
+
+#
+# Some other simple tests with the current character set
+#
+create table t1 (a varchar(10), key(a), fulltext (a)) ENGINE = InnoDB;
+insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+select * from t1 where a like "abc%";
+select * from t1 where a like "test%";
+select * from t1 where a like "te_t";
+# InnoDB_FTS: we don't support the postfix "+0"
+select * from t1 where match a against ("te*" in boolean mode)+0;
+drop table t1;
+
+
+
+--echo # 
+--echo # Bug #49734: Crash on EXPLAIN EXTENDED UNION ... ORDER BY 
+--echo #   <any non-const-function>
+--echo # 
+
+CREATE TABLE t1 (a VARCHAR(10), FULLTEXT KEY a (a)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (b INT) ENGINE = InnoDB;
+INSERT INTO t2 VALUES (1),(2);
+
+--echo # Should not crash
+EXPLAIN EXTENDED
+SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
+
+--echo # Should not crash
+SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
+
+
+--echo # Should not crash
+--error ER_CANT_USE_OPTION_HERE
+EXPLAIN EXTENDED
+SELECT * FROM t1 UNION SELECT * FROM t1
+  ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
+
+--echo # Should not crash
+--error ER_CANT_USE_OPTION_HERE
+SELECT * FROM t1 UNION SELECT * FROM t1
+  ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
+
+# FIXME: Valgrind in MySQL code _MI_WRITE_BLOB_RECORD, bug #13389854
+#--echo # Should not crash
+#(SELECT * FROM t1) UNION (SELECT * FROM t1)
+#  ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
+
+
+--echo # Should not crash
+EXPLAIN EXTENDED
+SELECT * FROM t1 UNION SELECT * FROM t1
+  ORDER BY (SELECT a FROM t2 WHERE b = 12);
+
+--echo # Should not crash
+--disable_result_log
+SELECT * FROM t1 UNION SELECT * FROM t1
+  ORDER BY (SELECT a FROM t2 WHERE b = 12);
+--enable_result_log
+
+--echo # Should not crash
+SELECT * FROM t2 UNION SELECT * FROM t2
+  ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
+
+DROP TABLE t1,t2;
+
+
+--echo End of 5.1 tests
+
