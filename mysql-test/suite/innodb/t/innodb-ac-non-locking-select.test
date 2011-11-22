@@ -77,7 +77,8 @@ let $wait_condition =
 --source include/wait_condition.inc
  SELECT trx_state, trx_query, trx_autocommit_non_locking
  FROM INFORMATION_SCHEMA.INNODB_TRX
- WHERE trx_state = 'LOCK WAIT';
+ WHERE trx_state = 'LOCK WAIT'
+ ORDER BY trx_query;
 INSERT INTO t1 VALUES(4, '4');
 COMMIT;
 
