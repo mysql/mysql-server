@@ -1374,7 +1374,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     int ret= relay_log.init_sid_map();
     relay_log.sid_lock.unlock();
 
-    if (ret || (!current_thd && relay_log.restore_gtid()))
+    if (ret || (!current_thd && relay_log.restore_gtid_set(true)))
     {
       sql_print_error("Failed in open_log() called from Relay_log_info::init_info().");
       DBUG_RETURN(1);
