@@ -810,15 +810,6 @@ dict_table_copy_types(
 	dtuple_t*		tuple,	/*!< in/out: data tuple */
 	const dict_table_t*	table);	/*!< in: table */
 /********************************************************************
-Wake up all the background threads of the given table, usually for the
-purpose of shutting them down. Note: bg_threads_mutex must be reserved when
-calling this. */
-
-void
-dict_table_wakeup_bg_threads(
-/*=========================*/
-	dict_table_t*	table); /* in: table */
-/********************************************************************
 Wait until all the background threads of the given table have exited, i.e.,
 bg_threads == 0. Note: bg_threads_mutex must be reserved when
 calling this. */

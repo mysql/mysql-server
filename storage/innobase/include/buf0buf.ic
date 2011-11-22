@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -639,7 +639,7 @@ buf_page_get_block(
 /*===============*/
 	buf_page_t*	bpage)	/*!< in: control block, or NULL */
 {
-	if (UNIV_LIKELY(bpage != NULL)) {
+	if (bpage != NULL) {
 		ut_ad(buf_page_in_file(bpage));
 
 		if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
@@ -1172,8 +1172,7 @@ buf_page_hash_get_locked(
 
 	bpage = buf_page_hash_get_low(buf_pool, space, offset, fold);
 
-	if (!bpage
-	    || UNIV_UNLIKELY(buf_pool_watch_is_sentinel(buf_pool, bpage))) {
+	if (!bpage || buf_pool_watch_is_sentinel(buf_pool, bpage)) {
 		bpage = NULL;
 		goto unlock_and_exit;
 	}

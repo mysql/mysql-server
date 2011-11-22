@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -1639,7 +1639,7 @@ struct buf_block_struct{
 	- we know that buf_block_struct::buf_fix_count == 0.
 
 	An exception to this is when we init or create a page
-	in the buffer pool in buf0buf.c.
+	in the buffer pool in buf0buf.cc.
 
 	Another exception is that assigning block->index = NULL
 	is allowed whenever holding an x-latch on btr_search_latch. */
@@ -1869,7 +1869,7 @@ struct buf_pool_struct{
 	ulint		LRU_old_len;	/*!< length of the LRU list from
 					the block to which LRU_old points
 					onward, including that block;
-					see buf0lru.c for the restrictions
+					see buf0lru.cc for the restrictions
 					on this value; 0 if LRU_old == NULL;
 					NOTE: LRU_old_len must be adjusted
 					whenever LRU_old shrinks or grows! */
@@ -2040,6 +2040,32 @@ FILE_PAGE => NOT_USED	NOTE: This transition is allowed if and only if
 				(2) oldest_modification == 0, and
 				(3) io_fix == 0.
 */
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+/** Functor to validate the LRU list. */
+struct	CheckInLRUList {
+	void	operator()(const buf_page_t* elem) const
+	{
+		ut_a(elem->in_LRU_list);
+	}
+};
+
+/** Functor to validate the LRU list. */
+struct	CheckInFreeList {
+	void	operator()(const buf_page_t* elem) const
+	{
+		ut_a(elem->in_free_list);
+	}
+};
+
+struct	CheckUnzipLRUAndLRUList {
+	void	operator()(const buf_block_t* elem) const
+	{
+                ut_a(elem->page.in_LRU_list);
+                ut_a(elem->in_unzip_LRU_list);
+	}
+};
+#endif /* UNIV_DEBUG || defined UNIV_BUF_DEBUG */
 
 #ifndef UNIV_NONINL
 #include "buf0buf.ic"
