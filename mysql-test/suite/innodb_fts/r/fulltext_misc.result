@@ -1,0 +1,188 @@
+drop table if exists t1;
+#
+# Bug#56814 Explain + subselect + fulltext crashes server
+#
+CREATE TABLE t1(f1 VARCHAR(6) NOT NULL,FULLTEXT KEY(f1),UNIQUE(f1)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES ('test');
+EXPLAIN SELECT 1 FROM t1
+WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
+WHERE t1.f1 GROUP BY t1.f1));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	f1_2	8	NULL	1	Using index
+2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+2	SUBQUERY	a	index	NULL	f1_2	8	NULL	1	Using index
+PREPARE stmt FROM
+'EXPLAIN SELECT 1 FROM t1
+ WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a
+ ON (MATCH(t1.f1) AGAINST (""))
+ WHERE t1.f1 GROUP BY t1.f1))';
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	f1_2	8	NULL	1	Using index
+2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+2	SUBQUERY	a	index	NULL	f1_2	8	NULL	1	Using index
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	f1_2	8	NULL	1	Using index
+2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+2	SUBQUERY	a	index	NULL	f1_2	8	NULL	1	Using index
+DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM
+'EXPLAIN SELECT 1 FROM t1
+ WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a
+ ON (MATCH(t1.f1) AGAINST (""))
+ WHERE t1.f1 GROUP BY t1.f1))';
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	f1_2	8	NULL	1	Using index
+2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+2	SUBQUERY	a	index	NULL	f1_2	8	NULL	1	Using index
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	f1_2	8	NULL	1	Using index
+2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+2	SUBQUERY	a	index	NULL	f1_2	8	NULL	1	Using index
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+drop table if exists t1;
+CREATE TABLE t1 (
+kodoboru varchar(10) default NULL,
+obor tinytext,
+aobor tinytext,
+UNIQUE INDEX kodoboru (kodoboru),
+FULLTEXT KEY obor (obor),
+FULLTEXT KEY aobor (aobor)
+) ENGINE = InnoDB;
+drop table t1;
+CREATE TABLE t1 (
+kodoboru varchar(10) default NULL,
+obor tinytext,
+aobor tinytext,
+UNIQUE INDEX kodoboru (kodoboru),
+FULLTEXT KEY obor (obor)
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES ('0101000000','aaa','AAA');
+INSERT INTO t1 VALUES ('0102000000','bbb','BBB');
+INSERT INTO t1 VALUES ('0103000000','ccc','CCC');
+INSERT INTO t1 VALUES ('0104000000','xxx','XXX');
+select * from t1;
+kodoboru	obor	aobor
+0101000000	aaa	AAA
+0102000000	bbb	BBB
+0103000000	ccc	CCC
+0104000000	xxx	XXX
+drop table t1;
+create table t1 (c1 varchar(1), c2 int, c3 int, c4 int, c5 int, c6 int,
+c7 int, c8 int, c9 int, fulltext key (`c1`)) ENGINE = InnoDB;
+select distinct match (`c1`) against ('z') , c2, c3, c4,c5, c6,c7, c8
+from t1 where c9=1 order by c2, c2;
+match (`c1`) against ('z')	c2	c3	c4	c5	c6	c7	c8
+drop table t1;
+CREATE TABLE t1 (c1 int not null auto_increment primary key, c2 varchar(20), fulltext(c2)) ENGINE = InnoDB;
+insert into t1 (c2) VALUES ('real Beer'),('Water'),('Kossu'),('Coca-Cola'),('Vodka'),('Wine'),('almost real Beer');
+select * from t1 WHERE match (c2) against ('Beer');
+c1	c2
+1	real Beer
+7	almost real Beer
+CREATE VIEW v1 AS SELECT  * from t1 WHERE match (c2) against ('Beer');
+select * from v1;
+c1	c2
+1	real Beer
+7	almost real Beer
+drop view v1;
+drop table t1;
+create table t1 (mytext text, FULLTEXT (mytext)) ENGINE = InnoDB;
+insert t1 values ('aaabbb');
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create table t1 (a varchar(10), fulltext key(a)) ENGINE = InnoDB;
+insert into t1 values ('a');
+select hex(concat(match (a) against ('a'))) from t1;
+hex(concat(match (a) against ('a')))
+30
+create table t2 ENGINE = InnoDB as select concat(match (a) against ('a')) as a from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(23) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1, t2;
+CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) ENGINE = InnoDB;
+INSERT INTO t1 VALUES('abcd');
+SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
+ERROR HY000: The table does not have FULLTEXT index to support this query
+DROP TABLE t1;
+create table t1 (a varchar(10), key(a), fulltext (a)) ENGINE = InnoDB;
+insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+select * from t1 where a like "abc%";
+a
+abc
+abcd
+select * from t1 where a like "test%";
+a
+test
+select * from t1 where a like "te_t";
+a
+test
+select * from t1 where match a against ("te*" in boolean mode)+0;
+a
+drop table t1;
+# 
+# Bug #49734: Crash on EXPLAIN EXTENDED UNION ... ORDER BY 
+#   <any non-const-function>
+# 
+CREATE TABLE t1 (a VARCHAR(10), FULLTEXT KEY a (a)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (b INT) ENGINE = InnoDB;
+INSERT INTO t2 VALUES (1),(2);
+# Should not crash
+EXPLAIN EXTENDED
+SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (`a` + 12)
+# Should not crash
+SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
+a
+1
+2
+# Should not crash
+EXPLAIN EXTENDED
+SELECT * FROM t1 UNION SELECT * FROM t1
+ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
+ERROR 42000: Incorrect usage/placement of 'MATCH()'
+# Should not crash
+SELECT * FROM t1 UNION SELECT * FROM t1
+ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
+ERROR 42000: Incorrect usage/placement of 'MATCH()'
+# Should not crash
+EXPLAIN EXTENDED
+SELECT * FROM t1 UNION SELECT * FROM t1
+ORDER BY (SELECT a FROM t2 WHERE b = 12);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using filesort
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (/* select#3 */ select `test`.`t1`.`a` from `test`.`t2` where (`test`.`t2`.`b` = 12))
+# Should not crash
+SELECT * FROM t1 UNION SELECT * FROM t1
+ORDER BY (SELECT a FROM t2 WHERE b = 12);
+# Should not crash
+SELECT * FROM t2 UNION SELECT * FROM t2
+ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
+b
+1
+2
+DROP TABLE t1,t2;
+End of 5.1 tests

@@ -403,6 +403,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER_DEFAULT(ER_TOO_MANY_CONCURRENT_TRXS));
   SETMSG(HA_ERR_INDEX_COL_TOO_LONG,	ER_DEFAULT(ER_INDEX_COLUMN_TOO_LONG));
   SETMSG(HA_ERR_INDEX_CORRUPT,		ER_DEFAULT(ER_INDEX_CORRUPT));
+  SETMSG(HA_FTS_INVALID_DOCID,		"Invalid InnoDB FTS Doc ID");
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -2987,28 +2988,31 @@ void handler::print_error(int error, myf errflag)
   }
   case HA_ERR_FOREIGN_DUPLICATE_KEY:
   {
-    uint key_nr= get_dup_key(error);
-    if ((int) key_nr >= 0)
+    DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+                m_lock_type != F_UNLCK);
+
+    char rec_buf[MAX_KEY_LENGTH];
+    String rec(rec_buf, sizeof(rec_buf), system_charset_info);
+    /* Table is opened and defined at this point */
+    key_unpack(&rec, table, 0 /* just print the subset of fields that are
+                              part of the first index, printing the whole
+                              row from there is not easy */);
+
+    char child_table_name[NAME_LEN + 1];
+    char child_key_name[NAME_LEN + 1];
+    if (get_foreign_dup_key(child_table_name, sizeof(child_table_name),
+                            child_key_name, sizeof(child_key_name)))
     {
-      uint max_length;
-      /* Write the key in the error message */
-      char key[MAX_KEY_LENGTH];
-      String str(key,sizeof(key),system_charset_info);
-      /* Table is opened and defined at this point */
-      key_unpack(&str,table,(uint) key_nr);
-      max_length= (MYSQL_ERRMSG_SIZE-
-                   (uint) strlen(ER(ER_FOREIGN_DUPLICATE_KEY)));
-      if (str.length() >= max_length)
-      {
-        str.length(max_length-4);
-        str.append(STRING_WITH_LEN("..."));
-      }
-      my_error(ER_FOREIGN_DUPLICATE_KEY, MYF(0), table_share->table_name.str,
-        str.c_ptr_safe(), key_nr+1);
-      DBUG_VOID_RETURN;
+      my_error(ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO, MYF(0),
+               table_share->table_name.str, rec.c_ptr_safe(),
+               child_table_name, child_key_name);
     }
-    textno= ER_DUP_KEY;
-    break;
+    else
+    {
+      my_error(ER_FOREIGN_DUPLICATE_KEY_WITHOUT_CHILD_INFO, MYF(0),
+               table_share->table_name.str, rec.c_ptr_safe());
+    }
+    DBUG_VOID_RETURN;
   }
   case HA_ERR_NULL_IN_SPATIAL:
     my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
@@ -3329,7 +3333,7 @@ uint handler::get_dup_key(int error)
               m_lock_type != F_UNLCK);
   DBUG_ENTER("handler::get_dup_key");
   table->file->errkey  = (uint) -1;
-  if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOREIGN_DUPLICATE_KEY ||
+  if (error == HA_ERR_FOUND_DUPP_KEY ||
       error == HA_ERR_FOUND_DUPP_UNIQUE || error == HA_ERR_NULL_IN_SPATIAL ||
       error == HA_ERR_DROP_INDEX_FK)
     table->file->info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);

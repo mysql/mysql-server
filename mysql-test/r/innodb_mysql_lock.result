@@ -177,7 +177,7 @@ DROP TABLE t1;
 #              FULL TABLE COPY 
 #
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(a INT, b VARCHAR(255), PRIMARY KEY(a,b))
+CREATE TABLE t1(a INT, b VARCHAR(250), PRIMARY KEY(a,b))
 engine=innodb default charset=utf8;
 INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
 CREATE INDEX t1ba ON t1(b,a);

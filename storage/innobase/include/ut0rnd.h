@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -27,6 +27,8 @@ Created 1/20/1994 Heikki Tuuri
 #define ut0rnd_h
 
 #include "univ.i"
+
+#ifndef UNIV_INNOCHECKSUM
 
 #include "ut0byte.h"
 
@@ -87,16 +89,6 @@ ut_hash_ulint(
 	ulint	 key,		/*!< in: value to be hashed */
 	ulint	 table_size);	/*!< in: hash table size */
 /*************************************************************//**
-Folds a pair of ulints.
-@return	folded value */
-UNIV_INLINE
-ulint
-ut_fold_ulint_pair(
-/*===============*/
-	ulint	n1,	/*!< in: ulint */
-	ulint	n2)	/*!< in: ulint */
-	__attribute__((const));
-/*************************************************************//**
 Folds a 64-bit integer.
 @return	folded value */
 UNIV_INLINE
@@ -114,16 +106,6 @@ ut_fold_string(
 /*===========*/
 	const char*	str)	/*!< in: null-terminated string */
 	__attribute__((pure));
-/*************************************************************//**
-Folds a binary string.
-@return	folded value */
-UNIV_INLINE
-ulint
-ut_fold_binary(
-/*===========*/
-	const byte*	str,	/*!< in: string of bytes */
-	ulint		len)	/*!< in: length */
-	__attribute__((pure));
 /***********************************************************//**
 Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2.
@@ -134,6 +116,29 @@ ut_find_prime(
 /*==========*/
 	ulint	n)	/*!< in: positive number > 100 */
 	__attribute__((const));
+
+#endif /* !UNIV_INNOCHECKSUM */
+
+/*************************************************************//**
+Folds a pair of ulints.
+@return	folded value */
+UNIV_INLINE
+ulint
+ut_fold_ulint_pair(
+/*===============*/
+	ulint	n1,	/*!< in: ulint */
+	ulint	n2)	/*!< in: ulint */
+	__attribute__((const));
+/*************************************************************//**
+Folds a binary string.
+@return	folded value */
+UNIV_INLINE
+ulint
+ut_fold_binary(
+/*===========*/
+	const byte*	str,	/*!< in: string of bytes */
+	ulint		len)	/*!< in: length */
+	__attribute__((pure));
 
 
 #ifndef UNIV_NONINL
