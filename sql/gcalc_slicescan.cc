@@ -568,8 +568,7 @@ int gcalc_set_double(Gcalc_internal_coord *c, double d, double ext)
   if ((sign= ds < 0))
     ds= -ds;
   c[0]= (gcalc_digit_t) (ds / (double) GCALC_DIG_BASE);
-  c[1]= (gcalc_digit_t) nearbyint(ds -
-                          ((double) c[0]) * (double) GCALC_DIG_BASE);
+  c[1]= (gcalc_digit_t) (ds - ((double) c[0]) * (double) GCALC_DIG_BASE);
   if (c[1] >= GCALC_DIG_BASE)
   {
     c[1]= 0;
