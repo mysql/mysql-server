@@ -1030,7 +1030,7 @@ Configuration::setLockCPU(NdbThread * pThread,
   }
   else if (!NdbIsMultiThreaded())
   {
-    BlockNumber list[] = { CMVMI };
+    BlockNumber list[] = { DBDIH };
     res = m_thr_config.do_bind(pThread, list, 1);
   }
 
