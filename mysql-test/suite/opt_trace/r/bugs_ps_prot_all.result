@@ -1870,6 +1870,19 @@ ON table2 .col_int_key = table1 .col_int_key
               {
                 "database": "test",
                 "table": "table1",
+                "unknown_key_1": {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "database": "",
+                      "table": "sj-materialize",
+                      "row_length": 13,
+                      "key_length": 14,
+                      "unique_constraint": false,
+                      "location": "memory (heap)",
+                      "row_limit_estimate": 80659
+                    } /* tmp_table_info */
+                  } /* creating_tmp_table */
+                },
                 "creating_semijoin_materialization_conditions": {
                   "evaluating_constant_semijoin_conditions": [
                     {
