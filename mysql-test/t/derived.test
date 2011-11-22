@@ -1207,3 +1207,68 @@ eval $query;
 DROP TABLE t1, t2, t3;
 
 --echo #
+
+--echo #
+--echo # Bug#13390138: crash in memcpy from join_cache::write_record_data
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES ('r','r');
+
+CREATE TABLE t2 (
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t2 VALUES
+ (NULL,NULL),
+ ('r','r');
+
+CREATE TABLE t3 (
+  col_int_key int,
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key, col_int_key)
+);
+
+INSERT INTO t3 VALUES
+ (9,'f','f'),
+ (4,'y','y'),
+ (3,'u','u'),
+ (2,'m','m'),
+ (NULL,NULL,NULL),
+ (2,'o','o'),
+ (NULL,'r','r'),
+ (6,'m','m'),
+ (7,'q','q'),
+ (6,'c','c');
+
+let $query=
+SELECT grandparent.col_varchar_nokey AS g1
+FROM (SELECT * FROM t3) AS grandparent
+WHERE grandparent.col_varchar_nokey IN
+ (SELECT parent.col_varchar_key AS p1
+  FROM (SELECT * FROM t2) AS parent
+  WHERE grandparent.col_varchar_key IN (
+    SELECT child1.col_varchar_key AS c1
+    FROM (SELECT * FROM t1) AS child1
+      LEFT JOIN (SELECT * FROM t2) AS child2
+      ON child1.col_varchar_nokey <> child2.col_varchar_key
+    )
+    AND grandparent.col_int_key IS UNKNOWN
+  )
+ORDER BY grandparent.col_varchar_nokey;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
