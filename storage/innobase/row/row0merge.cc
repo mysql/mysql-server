@@ -1532,7 +1532,7 @@ func_exit:
 		}
 wait_again:
 		os_event_wait_time_low(fts_parallel_sort_event,
-				       10000000, sig_count);
+				       1000000, sig_count);
 
 		for (i = 0; i < fts_sort_pll_degree; i++) {
 			if (psort_info[i].child_status != FTS_CHILD_COMPLETE) {
@@ -2862,6 +2862,7 @@ row_merge_build_indexes(
 	dict_index_t*		fts_sort_idx = NULL;
 	fts_psort_t*		psort_info = NULL;
 	fts_psort_t*		merge_info = NULL;
+	ib_int64_t		sig_count = 0;
 
 	ut_ad(trx);
 	ut_ad(old_table);
@@ -2940,12 +2941,14 @@ row_merge_build_indexes(
 				os_event_reset(fts_parallel_merge_event);
 				row_fts_start_parallel_merge(merge_info);
 wait_again:
-				os_event_wait(fts_parallel_merge_event);
+				os_event_wait_time_low(
+					fts_parallel_merge_event, 1000000,
+					sig_count);
 
 				for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
 					if (merge_info[j].child_status
 					    != FTS_CHILD_COMPLETE) {
-						os_event_reset(
+						sig_count = os_event_reset(
 						fts_parallel_merge_event);
 
 						goto wait_again;
