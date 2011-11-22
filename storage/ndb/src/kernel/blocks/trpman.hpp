@@ -54,8 +54,6 @@ public:
   void execCLOSE_COMREQ(Signal *signal);
   void execOPEN_COMREQ(Signal *signal);
   void execENABLE_COMREQ(Signal *signal);
-  void execDISCONNECT_REP(Signal *signal);
-  void execCONNECT_REP(Signal *signal);
   void execROUTE_ORD(Signal* signal);
 
   void execNDB_TAMPER(Signal*);
