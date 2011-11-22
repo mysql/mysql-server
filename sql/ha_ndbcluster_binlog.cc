@@ -2336,7 +2336,7 @@ class Ndb_schema_event_handler {
         col[i]= ndbtab->getColumn(i);
         if (i != SCHEMA_QUERY_I)
         {
-          DBUG_ASSERT(col[i]->getLength() <= sizeof(tmp_buf));
+          DBUG_ASSERT(col[i]->getLength() <= (int)sizeof(tmp_buf));
         }
       }
     }
