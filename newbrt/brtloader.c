@@ -350,12 +350,12 @@ void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error) {
     toku_free(bl->dbs);
     toku_free(bl->descriptors);
     toku_free(bl->root_xids_that_created);
-    for (int i = 0; i < bl->N; i++) {
-	if (bl->new_fnames_in_env) 
+    if (bl->new_fnames_in_env) {
+        for (int i = 0; i < bl->N; i++)
             toku_free((char*)bl->new_fnames_in_env[i]);
+        toku_free(bl->new_fnames_in_env);
     }
     toku_free(bl->extracted_datasizes);
-    toku_free(bl->new_fnames_in_env);
     toku_free(bl->bt_compare_funs);
     toku_free((char*)bl->temp_file_template);
     brtloader_fi_destroy(&bl->file_infos, is_error);
@@ -2644,22 +2644,18 @@ static int toku_brt_loader_close_internal (BRTLOADER bl)
         result = update_progress(PROGRESS_MAX, bl, "done");
     else {
         int remaining_progress = PROGRESS_MAX;
-        for (int i=0; i<bl->N; i++) {
-            char * fname_in_cwd = toku_cachetable_get_fname_in_cwd(bl->cachetable, bl->new_fnames_in_env[i]);
+        for (int i = 0; i < bl->N; i++) {
             // Take the unallocated progress and divide it among the unfinished jobs.
             // This calculation allocates all of the PROGRESS_MAX bits of progress to some job.
             int allocate_here = remaining_progress/(bl->N - i);
             remaining_progress -= allocate_here;
-            //printf("%s:%d do_i(%d)\n", __FILE__, __LINE__, i);
             BL_TRACE(blt_close);
-            result = loader_do_i(bl, i, bl->dbs[i], bl->bt_compare_funs[i], bl->descriptors[i], fname_in_cwd,
-                                 allocate_here
-                                 );
+            char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(bl->cachetable, bl->new_fnames_in_env[i]);
+            result = loader_do_i(bl, i, bl->dbs[i], bl->bt_compare_funs[i], bl->descriptors[i], fname_in_cwd, allocate_here);
             toku_free(fname_in_cwd);
-            if (result!=0) goto error;
-            toku_free((void*)bl->new_fnames_in_env[i]);
-            bl->new_fnames_in_env[i] = NULL;
-            invariant(0<=bl->progress && bl->progress <= PROGRESS_MAX);
+            if (result != 0) 
+                goto error;
+            invariant(0 <= bl->progress && bl->progress <= PROGRESS_MAX);
         }
 	if (result==0) invariant(remaining_progress==0);
 
