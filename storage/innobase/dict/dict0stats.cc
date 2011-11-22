@@ -610,7 +610,7 @@ dict_stats_analyze_index_level(
 			     i, n_diff[i]);
 
 		if (n_diff_boundaries != NULL) {
-			ib_int64_t	j;
+			ib_uint64_t	j;
 
 			printf("boundaries: ");
 			for (j = 0; j < n_diff[i]; j++) {
@@ -620,7 +620,7 @@ dict_stats_analyze_index_level(
 					&n_diff_boundaries[i],
 					j * sizeof(ib_uint64_t));
 
-				printf("%lld=%llu, ", j, idx);
+				printf(UINT64PF "=" UINT64PF ", ", j, idx);
 			}
 			printf("\n");
 		}
