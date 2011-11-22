@@ -43,7 +43,7 @@ clusterj_jdbc_java = \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/ResultSetInternalMethodsUpdateCount.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/SQLExecutor.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/StatementInterceptor.java \
-  $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/ValueHandlerBatching.java \
+  $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/ValueHandlerBatchingJDBCSetImpl.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/ValueHandlerBindValuesImpl.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/ValueHandlerImpl.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/antlr/ANTLRNoCaseFileStream.java \
