@@ -1,6 +1,7 @@
 # Test for optimizer tracing of subqueries
 
 --source include/have_optimizer_trace.inc
+--source include/have_64bit.inc
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
 SET optimizer_trace="enabled=on,end_marker=on,one_line=off";

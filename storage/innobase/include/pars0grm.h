@@ -1,29 +1,37 @@
-/*****************************************************************************
+/* A Bison parser, made by GNU Bison 2.3.  */
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-Copyright (c) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004 Free Software
-Foundation, Inc.
+/* Skeleton interface for Bison's Yacc-like parsers in C
 
-As a special exception, when this file is copied by Bison into a
-Bison output file, you may use that output file without restriction.
-This special exception was added by the Free Software Foundation
-in version 1.24 of Bison.
+   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
-*****************************************************************************/
+/* As a special exception, you may create a larger work that contains
+   part or all of the Bison parser skeleton and distribute that work
+   under terms of your choice, so long as that work isn't itself a
+   parser generator using the skeleton or a modified version thereof
+   as a parser skeleton.  Alternatively, if you modify or redistribute
+   the parser skeleton itself, you may (at your option) remove this
+   special exception, which will cause the skeleton and the resulting
+   Bison output files to be licensed under the GNU General Public
+   License without this special exception.
 
-/* A Bison parser, made by GNU Bison 1.875d.  */
+   This special exception was added by the Free Software Foundation in
+   version 2.2 of Bison.  */
 
 /* Tokens.  */
 #ifndef YYTOKENTYPE
@@ -123,9 +131,19 @@ Place, Suite 330, Boston, MA 02111-1307 USA
      PARS_LOCK_TOKEN = 347,
      PARS_SHARE_TOKEN = 348,
      PARS_MODE_TOKEN = 349,
-     NEG = 350
+     PARS_LIKE_TOKEN = 350,
+     PARS_LIKE_TOKEN_EXACT = 351,
+     PARS_LIKE_TOKEN_PREFIX = 352,
+     PARS_LIKE_TOKEN_SUFFIX = 353,
+     PARS_LIKE_TOKEN_SUBSTR = 354,
+     PARS_TABLE_NAME_TOKEN = 355,
+     PARS_COMPACT_TOKEN = 356,
+     PARS_BLOCK_SIZE_TOKEN = 357,
+     PARS_BIGINT_TOKEN = 358,
+     NEG = 359
    };
 #endif
+/* Tokens.  */
 #define PARS_INT_LIT 258
 #define PARS_FLOAT_LIT 259
 #define PARS_STR_LIT 260
@@ -218,12 +236,21 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #define PARS_LOCK_TOKEN 347
 #define PARS_SHARE_TOKEN 348
 #define PARS_MODE_TOKEN 349
-#define NEG 350
+#define PARS_LIKE_TOKEN 350
+#define PARS_LIKE_TOKEN_EXACT 351
+#define PARS_LIKE_TOKEN_PREFIX 352
+#define PARS_LIKE_TOKEN_SUFFIX 353
+#define PARS_LIKE_TOKEN_SUBSTR 354
+#define PARS_TABLE_NAME_TOKEN 355
+#define PARS_COMPACT_TOKEN 356
+#define PARS_BLOCK_SIZE_TOKEN 357
+#define PARS_BIGINT_TOKEN 358
+#define NEG 359
 
 
 
 
-#if ! defined (YYSTYPE) && ! defined (YYSTYPE_IS_DECLARED)
+#if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef int YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -231,6 +258,4 @@ typedef int YYSTYPE;
 #endif
 
 extern YYSTYPE yylval;
-
-
 

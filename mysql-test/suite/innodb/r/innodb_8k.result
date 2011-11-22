@@ -1,0 +1,390 @@
+SET default_storage_engine=InnoDB;
+SET GLOBAL innodb_file_format = `Barracuda`;
+SET GLOBAL innodb_file_per_table = ON;
+# Test 1) Show the page size from Information Schema
+SELECT variable_value FROM information_schema.global_status
+WHERE LOWER(variable_name) = 'innodb_page_size';
+variable_value
+8192
+# Test 2) The number of buffer pool pages is dependent upon the page size.
+SELECT variable_value FROM information_schema.global_status
+WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+variable_value
+{1023_or_1024}
+# Test 3) The root page numbers are dependent upon the page size.
+#         Pulled from innodb-system-table-view.test
+INDEX_ID	NAME	TABLE_ID	TYPE	N_FIELDS	PAGE_NO	SPACE
+11	ID_IND	11	3	1	466	0
+12	FOR_IND	11	0	1	467	0
+13	REF_IND	11	0	1	468	0
+14	ID_IND	12	3	2	469	0
+# Test 4) The maximum row size is dependent upon the page size.
+#         Redundant: 4027, Compact: 4030.
+#         Compressed: 4030, Dynamic: 4030.
+#         Each row format has its own amount of overhead that
+#         varies depending on number of fields and other overhead.
+SET SESSION innodb_strict_mode = ON;
+CREATE TABLE t1 (
+c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
+c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
+c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
+c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(155)
+) ROW_FORMAT=redundant;
+DROP TABLE t1;
+CREATE TABLE t1 (
+c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
+c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
+c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
+c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(156)
+) ROW_FORMAT=redundant;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4027. You have to change some columns to TEXT or BLOBs
+CREATE TABLE t1 (
+c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
+c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
+c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
+c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(202)
+) ROW_FORMAT=compact;
+DROP TABLE t1;
+CREATE TABLE t1 (
+c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
+c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
+c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
+c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(203)
+) ROW_FORMAT=compact;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+CREATE TABLE t1 (
+c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
+c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
+c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
+c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(103)
+) ROW_FORMAT=compressed;
+DROP TABLE t1;
+CREATE TABLE t1 (
+c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
+c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
+c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
+c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(106)
+) ROW_FORMAT=compressed;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+CREATE TABLE t1 (
+c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
+c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
+c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
+c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(202)
+) ROW_FORMAT=dynamic;
+DROP TABLE t1;
+CREATE TABLE t1 (
+c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
+c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
+c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
+c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(203)
+) ROW_FORMAT=dynamic;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+CREATE TABLE t1 (a varchar(128) character set utf8,
+b varchar(128) character set utf8,
+c varchar(128) character set utf8,
+d varchar(128) character set utf8,
+PRIMARY KEY (a,b,c,d))
+ENGINE=innodb;
+DROP TABLE t1;
+CREATE TABLE t1 (a varchar(128) character set utf8,
+b varchar(128) character set utf8,
+c varchar(128) character set utf8,
+d varchar(129) character set utf8,
+PRIMARY KEY (a,b,c,d))
+ENGINE=innodb;
+ERROR 42000: Specified key was too long; max key length is 1536 bytes
+CREATE TABLE t1 (a varchar(128) character set utf8,
+b varchar(128) character set utf8,
+c varchar(128) character set utf8,
+d varchar(128) character set utf8,
+e varchar(128) character set utf8,
+PRIMARY KEY (a), KEY (b,c,d,e))
+ENGINE=innodb;
+DROP TABLE t1;
+CREATE TABLE t1 (a varchar(128) character set utf8,
+b varchar(128) character set utf8,
+c varchar(128) character set utf8,
+d varchar(128) character set utf8,
+e varchar(129) character set utf8,
+PRIMARY KEY (a), KEY (b,c,d,e))
+ENGINE=innodb;
+ERROR 42000: Specified key was too long; max key length is 1536 bytes
+# Test 5) Make sure that KEY_BLOCK_SIZE=8, 4, 2 & 1 are all 
+#         accepted and that KEY_BLOCK_SIZE=16 is rejected in
+#         strict mode and converted to 8 in non-strict mode.
+SET SESSION innodb_strict_mode = ON;
+CREATE TABLE t1 (i int) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
+ERROR HY000: Can't create table 'test.t1' (errno: 1478)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 8.
+Error	1005	Can't create table 'test.t1' (errno: 1478)
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT table_name, row_format, create_options
+FROM information_schema.tables WHERE table_name = 't1';
+table_name	row_format	create_options
+t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=8
+ALTER TABLE t1 KEY_BLOCK_SIZE=4;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT table_name, row_format, create_options
+FROM information_schema.tables WHERE table_name = 't1';
+table_name	row_format	create_options
+t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=4
+ALTER TABLE t1 KEY_BLOCK_SIZE=2;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT table_name, row_format, create_options
+FROM information_schema.tables WHERE table_name = 't1';
+table_name	row_format	create_options
+t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=2
+ALTER TABLE t1 KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT table_name, row_format, create_options
+FROM information_schema.tables WHERE table_name = 't1';
+table_name	row_format	create_options
+t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=1
+ALTER TABLE t1 KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT table_name, row_format, create_options
+FROM information_schema.tables WHERE table_name = 't1';
+table_name	row_format	create_options
+t1	Compressed	row_format=COMPRESSED
+DROP TABLE t1;
+SET SESSION innodb_strict_mode = OFF;
+CREATE TABLE t1 (i int) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
+Warnings:
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
+SELECT table_name, row_format, create_options
+FROM information_schema.tables WHERE table_name = 't1';
+table_name	row_format	create_options
+t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=16
+DROP TABLE t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT table_name, row_format, create_options
+FROM information_schema.tables WHERE table_name = 't1';
+table_name	row_format	create_options
+t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=8
+DROP TABLE t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT table_name, row_format, create_options
+FROM information_schema.tables WHERE table_name = 't1';
+table_name	row_format	create_options
+t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=4
+ALTER TABLE t1 KEY_BLOCK_SIZE=2;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT table_name, row_format, create_options
+FROM information_schema.tables WHERE table_name = 't1';
+table_name	row_format	create_options
+t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=2
+ALTER TABLE t1 KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT table_name, row_format, create_options
+FROM information_schema.tables WHERE table_name = 't1';
+table_name	row_format	create_options
+t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=1
+ALTER TABLE t1 KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT table_name, row_format, create_options
+FROM information_schema.tables WHERE table_name = 't1';
+table_name	row_format	create_options
+t1	Compressed	row_format=COMPRESSED
+DROP TABLE t1;
+# Test 6) Make sure that KEY_BLOCK_SIZE = 8 and 16
+# are rejected when innodb_file_per_table=OFF
+SET SESSION innodb_strict_mode = ON;
+SET GLOBAL innodb_file_per_table = OFF;
+SHOW VARIABLES LIKE 'innodb_file_per_table';
+Variable_name	Value
+innodb_file_per_table	OFF
+CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
+ERROR HY000: Can't create table 'test.t4' (errno: 1478)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Error	1005	Can't create table 'test.t4' (errno: 1478)
+CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
+ERROR HY000: Can't create table 'test.t5' (errno: 1478)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 8.
+Error	1005	Can't create table 'test.t5' (errno: 1478)
+SET GLOBAL innodb_file_per_table = ON;
+SET GLOBAL innodb_file_format = `Antelope`;
+SHOW VARIABLES LIKE 'innodb_file%';
+Variable_name	Value
+innodb_file_format	Antelope
+innodb_file_format_check	ON
+innodb_file_format_max	Barracuda
+innodb_file_per_table	ON
+CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
+ERROR HY000: Can't create table 'test.t4' (errno: 1478)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Error	1005	Can't create table 'test.t4' (errno: 1478)
+CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
+ERROR HY000: Can't create table 'test.t5' (errno: 1478)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 8.
+Error	1005	Can't create table 'test.t5' (errno: 1478)
+SET GLOBAL innodb_file_format = `Barracuda`;
+# Test 7) Not included here; 16k only
+# Test 8) Test creating a table that could lead to undo log overflow.
+# In the undo log, we write a 768-byte prefix (REC_MAX_INDEX_COL_LEN)
+# of each externally stored column that appears as a column prefix in an index.
+# For this test case, it would suffice to write 1 byte, though.
+CREATE TABLE t1(a blob,b blob,c blob,d blob,e blob,f blob,g blob,
+h blob,i blob,j blob,k blob,l blob,m blob,n blob,
+o blob,p blob,q blob,r blob,s blob,t blob,u blob)
+ENGINE=InnoDB ROW_FORMAT=dynamic;
+CREATE INDEX t1a ON t1 (a(767));
+CREATE INDEX t1b ON t1 (b(767));
+CREATE INDEX t1c ON t1 (c(767));
+CREATE INDEX t1d ON t1 (d(767));
+CREATE INDEX t1e ON t1 (e(767));
+CREATE INDEX t1f ON t1 (f(767));
+CREATE INDEX t1g ON t1 (g(767));
+CREATE INDEX t1h ON t1 (h(767));
+CREATE INDEX t1i ON t1 (i(767));
+CREATE INDEX t1j ON t1 (j(767));
+ERROR HY000: Too big row
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` blob,
+  `b` blob,
+  `c` blob,
+  `d` blob,
+  `e` blob,
+  `f` blob,
+  `g` blob,
+  `h` blob,
+  `i` blob,
+  `j` blob,
+  `k` blob,
+  `l` blob,
+  `m` blob,
+  `n` blob,
+  `o` blob,
+  `p` blob,
+  `q` blob,
+  `r` blob,
+  `s` blob,
+  `t` blob,
+  `u` blob,
+  KEY `t1a` (`a`(767)),
+  KEY `t1b` (`b`(767)),
+  KEY `t1c` (`c`(767)),
+  KEY `t1d` (`d`(767)),
+  KEY `t1e` (`e`(767)),
+  KEY `t1f` (`f`(767)),
+  KEY `t1g` (`g`(767)),
+  KEY `t1h` (`h`(767)),
+  KEY `t1i` (`i`(767))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+DROP TABLE t1;
+SET SESSION innodb_strict_mode = OFF;
+CREATE TABLE t1(
+pk01 varchar(96), pk02 varchar(96), pk03 varchar(96), pk04 varchar(96),
+pk05 varchar(96), pk06 varchar(96), pk07 varchar(96), pk08 varchar(96),
+pk09 varchar(96), pk10 varchar(96), pk11 varchar(96), pk12 varchar(96),
+pk13 varchar(96), pk14 varchar(96), pk15 varchar(96), pk16 varchar(96),
+sk01 varchar(96), sk02 varchar(96), sk03 varchar(96), sk04 varchar(96),
+sk05 varchar(96), sk06 varchar(96), sk07 varchar(96), sk08 varchar(96),
+sk09 varchar(96), sk10 varchar(96), sk11 varchar(96), sk12 varchar(96),
+sk13 varchar(96), sk14 varchar(96), sk15 varchar(96), sk16 varchar(96),
+PRIMARY KEY pk(pk01,pk02,pk03,pk04,pk05,pk06,pk07,pk08,
+pk09,pk10,pk11,pk12,pk13,pk14,pk15,pk16),
+KEY pk(sk01,sk02,sk03,sk04,sk05,sk06,sk07,sk08,
+sk09,sk10,sk11,sk12,sk13,sk14,sk15,sk16))
+ROW_FORMAT=Redundant ENGINE=InnoDB;
+SET @r = repeat('a', 96);
+INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
+@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
+SET @r = repeat('b', 96);
+INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
+@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
+SET @r = repeat('c', 96);
+INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
+@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
+SET @r = repeat('d', 96);
+INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
+@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
+SET @r = repeat('e', 96);
+INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
+@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
+DELETE from t1;
+DROP TABLE t1;
+CREATE TABLE t1(
+pk01 varchar(96), pk02 varchar(96), pk03 varchar(96), pk04 varchar(96),
+pk05 varchar(96), pk06 varchar(96), pk07 varchar(96), pk08 varchar(96),
+pk09 varchar(96), pk10 varchar(96), pk11 varchar(96), pk12 varchar(96),
+pk13 varchar(96), pk14 varchar(96), pk15 varchar(96), pk16 varchar(96),
+sk01 varchar(96), sk02 varchar(96), sk03 varchar(96), sk04 varchar(96),
+sk05 varchar(96), sk06 varchar(96), sk07 varchar(96), sk08 varchar(96),
+sk09 varchar(96), sk10 varchar(96), sk11 varchar(96), sk12 varchar(96),
+sk13 varchar(96), sk14 varchar(96), sk15 varchar(96), sk16 varchar(96),
+PRIMARY KEY pk(pk01,pk02,pk03,pk04,pk05,pk06,pk07,pk08,
+pk09,pk10,pk11,pk12,pk13,pk14,pk15,pk16),
+KEY pk(sk01,sk02,sk03,sk04,sk05,sk06,sk07,sk08,
+sk09,sk10,sk11,sk12,sk13,sk14,sk15,sk16))
+ROW_FORMAT=Compressed KEY_BLOCK_SIZE=8 ENGINE=InnoDB;
+SET @r = repeat('a', 96);
+INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
+@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
+SET @r = repeat('b', 96);
+INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
+@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
+SET @r = repeat('c', 96);
+INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
+@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
+SET @r = repeat('d', 96);
+INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
+@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
+SET @r = repeat('e', 96);
+INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
+@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
+DELETE from t1;
+DROP TABLE t1;
+SET SESSION innodb_strict_mode = off;
+CREATE TABLE t1(
+c text NOT NULL, d text NOT NULL,
+PRIMARY KEY (c(767),d(767)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+CREATE TABLE t1(
+c text NOT NULL, d text NOT NULL,
+PRIMARY KEY (c(767),d(767)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=ASCII;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+CREATE TABLE t1(
+c text NOT NULL, d text NOT NULL,
+PRIMARY KEY (c(767),d(767)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 CHARSET=ASCII;
+drop table t1;
+CREATE TABLE t1(c text, PRIMARY KEY (c(440)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. You have to change some columns to TEXT or BLOBs
+CREATE TABLE t1(c text, PRIMARY KEY (c(438)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));
+DROP TABLE t1;
