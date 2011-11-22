@@ -120,7 +120,7 @@ page_zip_get_size(
 {
 	ulint	size;
 
-	if (UNIV_UNLIKELY(!page_zip->ssize)) {
+	if (!page_zip->ssize) {
 		return(0);
 	}
 
@@ -175,7 +175,7 @@ page_zip_rec_needs_ext(
 	ut_ad(comp || !zip_size);
 
 #if UNIV_PAGE_SIZE > REC_MAX_DATA_SIZE
-	if (UNIV_UNLIKELY(rec_size >= REC_MAX_DATA_SIZE)) {
+	if (rec_size >= REC_MAX_DATA_SIZE) {
 		return(TRUE);
 	}
 #endif
@@ -315,7 +315,7 @@ page_zip_available(
 	space needed for identifying the record (encoded heap_no). */
 	length -= REC_N_NEW_EXTRA_BYTES - 2;
 
-	if (UNIV_UNLIKELY(create)) {
+	if (create > 0) {
 		/* When a record is created, a pointer may be added to
 		the dense directory.
 		Likewise, space for the columns that will not be
@@ -326,10 +326,8 @@ page_zip_available(
 		trailer_len += uncompressed_size;
 	}
 
-	return(UNIV_LIKELY(length
-			   + trailer_len
-			   + page_zip->m_end
-			   < page_zip_get_size(page_zip)));
+	return(length + trailer_len + page_zip->m_end
+	       < page_zip_get_size(page_zip));
 }
 
 /**********************************************************************//**
@@ -384,7 +382,7 @@ page_zip_write_header(
 	/* The following would fail in page_cur_insert_rec_zip(). */
 	/* ut_ad(page_zip_validate(page_zip, str - pos)); */
 
-	if (UNIV_LIKELY_NULL(mtr)) {
+	if (mtr) {
 #ifndef UNIV_HOTBACKUP
 		page_zip_write_header_log(str, length, mtr);
 #endif /* !UNIV_HOTBACKUP */

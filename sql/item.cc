@@ -1364,6 +1364,12 @@ bool Item_name_const::is_null()
 Item_name_const::Item_name_const(Item *name_arg, Item *val):
     value_item(val), name_item(name_arg)
 {
+  /*
+    The value argument to NAME_CONST can only be a literal 
+    constant.   Some extra tests are needed to support
+    a collation specificer and to handle negative values
+  */
+    
   if (!(valid_args= name_item->basic_const_item() &&
                     (value_item->basic_const_item() ||
                      ((value_item->type() == FUNC_ITEM) &&
@@ -1371,8 +1377,7 @@ Item_name_const::Item_name_const(Item *name_arg, Item *val):
                          Item_func::COLLATE_FUNC) ||
                       ((((Item_func *) value_item)->functype() ==
                          Item_func::NEG_FUNC) &&
-                      (((Item_func *) value_item)->key_item()->type() !=
-                         FUNC_ITEM)))))))
+                      (((Item_func *) value_item)->key_item()->basic_const_item())))))))
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
   Item::maybe_null= TRUE;
 }
@@ -4732,16 +4737,17 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       expression to 'reference', i.e. it substitute that expression instead
       of this Item_field
     */
-    if ((from_field= find_field_in_tables(thd, this,
-                                          context->first_name_resolution_table,
-                                          context->last_name_resolution_table,
-                                          reference,
-                                          thd->lex->use_only_table_context ?
-                                            REPORT_ALL_ERRORS : 
-                                            IGNORE_EXCEPT_NON_UNIQUE,
-                                          !any_privileges,
-                                          TRUE)) ==
-	not_found_field)
+    from_field= find_field_in_tables(thd, this,
+                                     context->first_name_resolution_table,
+                                     context->last_name_resolution_table,
+                                     reference,
+                                     thd->lex->use_only_table_context ?
+                                       REPORT_ALL_ERRORS : 
+                                       IGNORE_EXCEPT_NON_UNIQUE,
+                                     !any_privileges, TRUE);
+    if (thd->is_error())
+      goto error;
+    if (from_field == not_found_field)
     {
       int ret;
       /* Look up in current select's item_list to find aliased fields */
@@ -6521,7 +6527,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       if (from_field != not_found_field)
       {
         Item_field* fld;
-        if (!(fld= new Item_field(from_field)))
+        if (!(fld= new Item_field(thd, last_checked_context, from_field)))
           goto error;
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
@@ -6637,9 +6643,10 @@ void Item_ref::cleanup()
   Transform an Item_ref object with a transformer callback function.
 
   The function first applies the transform function to the item
-  referenced by this Item_ref object. If this returns a new item the
-  old 'ref' item is substituted by the new one. After this the transformer
-  is applied to the Item_ref object.
+  referenced by this Item_ref object. If this replaces the item with a
+  new one, this item object is returned as the result of the
+  transform. Otherwise the transform function is applied to the
+  Item_ref object itself.
 
   @param transformer   the transformer callback function to be applied to
                        the nodes of the tree of the object
@@ -6661,11 +6668,11 @@ Item* Item_ref::transform(Item_transformer transformer, uchar *arg)
     return NULL;
 
   /*
-    Record the new item in the 'ref' pointer, in a manner safe for 
-    prepared execution.
+    If the object is transformed into a new object, discard the Item_ref
+    object and return the new object as result.
   */
-  if (*ref != new_item)
-    current_thd->change_item_tree(ref, new_item);
+  if (new_item != *ref)
+    return new_item;
 
   /* Transform the item ref object. */
   Item *transformed_item= (this->*transformer)(arg);
@@ -6679,10 +6686,10 @@ Item* Item_ref::transform(Item_transformer transformer, uchar *arg)
   callback function.
 
   First the function applies the analyzer to the Item_ref
-  object. Second it applies the compile method to the object the
-  Item_ref object is referencing. If a new item is returned the old
-  item is substituted by the new one. After this the transformer is
-  applied to the Item_ref object itself.
+  object. Second it applies the compile function to the object the
+  Item_ref object is referencing. If this replaces the item with a new
+  one, this object is returned as the result of the compile.
+  Otherwise we apply the transformer to the Item_ref object itself.
 
   @param analyzer      the analyzer callback function to be applied to the
                        nodes of the tree of the object
@@ -6702,8 +6709,15 @@ Item* Item_ref::compile(Item_analyzer analyzer, uchar **arg_p,
 
   DBUG_ASSERT((*ref) != NULL);
   Item *new_item= (*ref)->compile(analyzer, arg_p, transformer, arg_t);
-  if (new_item && *ref != new_item)
-    current_thd->change_item_tree(ref, new_item);
+  if (!new_item)
+    return NULL;
+
+  /*
+    If the object is compiled into a new object, discard the Item_ref
+    object and return the new object as result.
+  */
+  if (new_item != *ref)
+    return new_item;
   
   return (this->*transformer)(arg_t);
 }

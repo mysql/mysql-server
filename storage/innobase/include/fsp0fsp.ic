@@ -23,6 +23,8 @@ File space management
 Created 12/18/1995 Heikki Tuuri
 *******************************************************/
 
+#ifndef UNIV_INNOCHECKSUM
+
 /***********************************************************************//**
 Checks if a page address is an extent descriptor page address.
 @return	TRUE if a descriptor page */
@@ -37,11 +39,10 @@ fsp_descr_page(
 	ut_ad(ut_is_2pow(zip_size));
 
 	if (!zip_size) {
-		return(UNIV_UNLIKELY((page_no & (UNIV_PAGE_SIZE - 1))
-				     == FSP_XDES_OFFSET));
+		return((page_no & (UNIV_PAGE_SIZE - 1)) == FSP_XDES_OFFSET);
 	}
 
-	return(UNIV_UNLIKELY((page_no & (zip_size - 1)) == FSP_XDES_OFFSET));
+	return((page_no & (zip_size - 1)) == FSP_XDES_OFFSET);
 }
 
 /********************************************************************//**
@@ -61,12 +62,13 @@ fsp_flags_validate(
 	ulint	post_antelope = FSP_FLAGS_GET_POST_ANTELOPE(flags);
 	ulint	zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
 	ulint	atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
+	ulint	page_ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
 	ulint	unused = FSP_FLAGS_GET_UNUSED(flags);
 
 	/* Make sure there are no bits that we do not know about. */
 	ut_a(unused == 0);
 
-	/* fsp_flags is zero unless baracuda is set. */
+	/* fsp_flags is zero unless atomic_blobs is set. */
 	ut_a(flags != 1);
 	if (post_antelope) {
 		/* The Antelope row formats REDUNDANT and COMPACT did
@@ -89,6 +91,12 @@ fsp_flags_validate(
 		ut_a(zip_ssize <= PAGE_ZIP_SSIZE_MAX);
 	}
 
+	/* The page size field can be used for any row type, or it may
+	be zero for an original 16k page size.
+	Validate the page shift size is within allowed range. */
+	ut_a(page_ssize <= UNIV_PAGE_SSIZE_MAX);
+	ut_a((UNIV_PAGE_SIZE == UNIV_PAGE_SIZE_ORIG) || (page_ssize));
+
 #if UNIV_FORMAT_MAX != UNIV_FORMAT_B
 # error "UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations."
 #endif
@@ -109,6 +117,7 @@ fsp_flags_is_compressed(
 	return(FSP_FLAGS_GET_ZIP_SSIZE(flags) != 0);
 }
 
+#endif /* !UNIV_INNOCHECKSUM */
 
 /********************************************************************//**
 Extract the zip size from tablespace flags.
@@ -124,7 +133,7 @@ fsp_flags_get_zip_size(
 	ulint	ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
 
 	/* Convert from a 'log2 minus 9' to a page size in bytes. */
-	if (UNIV_UNLIKELY(ssize)) {
+	if (ssize) {
 		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
 
 		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
@@ -132,3 +141,76 @@ fsp_flags_get_zip_size(
 
 	return(zip_size);
 }
+
+/********************************************************************//**
+Extract the page size from tablespace flags.
+@return	page size of the tablespace in bytes */
+UNIV_INLINE
+ulint
+fsp_flags_get_page_size(
+/*====================*/
+	ulint	flags)	/*!< in: tablespace flags */
+{
+	ulint	page_size = 0;
+	ulint	ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
+
+	/* Convert from a 'log2 minus 9' to a page size in bytes. */
+	if (UNIV_UNLIKELY(ssize)) {
+		page_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
+
+		ut_ad(page_size <= UNIV_PAGE_SIZE_MAX);
+	} else {
+		/* If the page size was not stored, then it is the
+		original 16k. */
+		page_size = UNIV_PAGE_SIZE_ORIG;
+	}
+
+	return(page_size);
+}
+
+#ifndef UNIV_INNOCHECKSUM
+
+/********************************************************************//**
+Add the page size to the tablespace flags.
+@return	tablespace flags after page size is added */
+UNIV_INLINE
+ulint
+fsp_flags_set_page_size(
+/*====================*/
+	ulint	flags,		/*!< in: tablespace flags */
+	ulint	page_size)	/*!< in: page size in bytes */
+{
+	ulint ssize = 0;
+	ulint shift;
+
+	/* Page size should be > UNIV_PAGE_SIZE_MIN */
+	ut_ad(page_size >= UNIV_PAGE_SIZE_MIN);
+	ut_ad(page_size <= UNIV_PAGE_SIZE_MAX);
+
+	if (page_size == UNIV_PAGE_SIZE_ORIG) {
+		ut_ad(0 == FSP_FLAGS_GET_PAGE_SSIZE(flags));
+		return(flags);
+	}
+
+	for (shift = UNIV_PAGE_SIZE_SHIFT_MAX;
+	     shift >= UNIV_PAGE_SIZE_SHIFT_MIN;
+	     shift--) {
+		ulint	mask = (1 << shift);
+		if (page_size & mask) {
+			ut_ad(!(page_size & ~mask));
+			ssize = shift - UNIV_ZIP_SIZE_SHIFT_MIN + 1;
+			break;
+		}
+	}
+
+	ut_ad(ssize);
+	ut_ad(ssize <= UNIV_PAGE_SSIZE_MAX);
+
+	flags = FSP_FLAGS_SET_PAGE_SSIZE(flags, ssize);
+
+	ut_ad(flags == fsp_flags_validate(flags));
+
+	return(flags);
+}
+
+#endif /* !UNIV_INNOCHECKSUM */

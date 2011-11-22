@@ -180,3 +180,13 @@ ANALYZE TABLE t1;
 SELECT f1,f2 FROM t1 A WHERE f1 BETWEEN 0 AND 1; 
 
 drop table t1;
+
+--echo #
+--echo # Bug #13358379   EXPLAIN SELECT ... PROCEDURE ANALYZE CRASHES THE SERVER
+--echo #
+
+CREATE TABLE t1 (i INT);
+--disable_result_log
+EXPLAIN SELECT * FROM t1 PROCEDURE ANALYSE();
+--enable_result_log
+DROP TABLE t1;

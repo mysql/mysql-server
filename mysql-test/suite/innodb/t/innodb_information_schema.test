@@ -10,6 +10,11 @@
 
 SET storage_engine=InnoDB;
 
+# Make sure the locks keep waiting until they are released,
+# even on a busy system.
+LET $initial_timeout=`SELECT @@innodb_lock_wait_timeout`;
+SET global innodb_lock_wait_timeout=600;
+
 -- disable_warnings
 DROP TABLE IF EXISTS t_min, t_max;
 -- enable_warnings
@@ -154,6 +159,10 @@ GROUP BY lock_table;
 SET @@sql_mode=@save_sql_mode;
 -- disable_result_log
 
+# Release all the locks;
+-- connection con_lock
+COMMIT;
+
 -- connection default
 
 -- disconnect con_lock
@@ -210,6 +219,7 @@ SET autocommit=0;
 INSERT INTO t1 VALUES (5,10);
 SELECT * FROM t1 FOR UPDATE;
 
+let $wait_timeout= 300;
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TRX;
 --source include/wait_condition.inc
@@ -221,9 +231,9 @@ SELECT trx_state, trx_weight, trx_tables_in_use, trx_tables_locked,
 trx_rows_locked, trx_rows_modified, trx_concurrency_tickets,
 trx_isolation_level, trx_unique_checks, trx_foreign_key_checks
 FROM INFORMATION_SCHEMA.INNODB_TRX;
+-- disable_result_log
 
 -- connection con_trx
--- disable_result_log
 ROLLBACK;
 SET FOREIGN_KEY_CHECKS = 0;
 SET UNIQUE_CHECKS = 0;
@@ -231,6 +241,7 @@ SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 BEGIN;
 INSERT INTO t1 VALUES (6,12);
 
+let $wait_timeout= 300;
 let $wait_condition=
   SELECT trx_unique_checks = 0 FROM INFORMATION_SCHEMA.INNODB_TRX;
 --source include/wait_condition.inc
@@ -240,8 +251,8 @@ let $wait_condition=
 -- enable_result_log
 SELECT trx_isolation_level, trx_unique_checks, trx_foreign_key_checks
 FROM INFORMATION_SCHEMA.INNODB_TRX;
-
 -- disable_result_log
+
 -- connection con_trx
 ROLLBACK;
 SET FOREIGN_KEY_CHECKS = 1;
@@ -250,6 +261,7 @@ BEGIN;
 -- error 1452
 INSERT INTO t2 VALUES (4,10);
 
+let $wait_timeout= 300;
 let $wait_condition=
   SELECT trx_unique_checks  = 1 FROM INFORMATION_SCHEMA.INNODB_TRX;
 --source include/wait_condition.inc
@@ -268,3 +280,6 @@ FROM INFORMATION_SCHEMA.INNODB_TRX;
 
 DROP TABLE t2;
 DROP TABLE t1;
+
+EVAL SET GLOBAL innodb_lock_wait_timeout=$initial_timeout;
+
