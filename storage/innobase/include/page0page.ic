@@ -483,9 +483,12 @@ page_cmp_dtuple_rec_with_match(
 	rec_offset = page_offset(rec);
 
 	if (rec_offset == PAGE_NEW_INFIMUM
-	    || rec_offset == PAGE_OLD_INFIMUM
-	    || rec_offset == PAGE_NEW_SUPREMUM
-	    || rec_offset == PAGE_OLD_SUPREMUM) {
+	    || rec_offset == PAGE_OLD_INFIMUM) {
+
+		return(1);
+
+	} else if (rec_offset == PAGE_NEW_SUPREMUM
+		   || rec_offset == PAGE_OLD_SUPREMUM) {
 
 		return(-1);
 	}
