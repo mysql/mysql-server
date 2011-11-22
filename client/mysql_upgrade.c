@@ -286,6 +286,8 @@ get_one_option(int optid, const struct my_option *opt,
 
   case 'v': /* --verbose   */
   case 'f': /* --force     */
+  case 's':                                     /* --upgrade-system-tables */
+  case OPT_WRITE_BINLOG:                        /* --write-binlog */
     add_option= FALSE;
     break;
 

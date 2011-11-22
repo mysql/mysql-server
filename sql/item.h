@@ -1435,7 +1435,7 @@ class Item_splocal :public Item_sp_variable,
   enum_field_types m_field_type;
 public:
   /*
-    Is this variable a parameter in LIMIT clause. 
+    If this variable is a parameter in LIMIT clause.
     Used only during NAME_CONST substitution, to not append
     NAME_CONST to the resulting query and thus not break
     the slave.
@@ -1772,9 +1772,8 @@ public:
   */
   Item_field(THD *thd, Item_field *item);
   /*
-    Constructor used inside setup_wild(), ensures that field, table,
-    and database names will live as long as Item_field (this is important
-    in prepared statements).
+    Ensures that field, table, and database names will live as long as
+    Item_field (this is important in prepared statements).
   */
   Item_field(THD *thd, Name_resolution_context *context_arg, Field *field);
   /*

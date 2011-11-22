@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -174,6 +174,15 @@ row_search_check_if_query_cache_permitted(
 	trx_t*		trx,		/*!< in: transaction object */
 	const char*	norm_name);	/*!< in: concatenation of database name,
 					'/' char, table name */
+void
+row_create_key(
+/*===========*/
+	dtuple_t*	tuple,		/* in: tuple where to build;
+					NOTE: we assume that the type info
+					in the tuple is already according
+					to index! */
+	dict_index_t*	index,		/* in: index of the key value */
+	doc_id_t*	doc_id);	/* in: doc id to lookup.*/
 /*******************************************************************//**
 Read the max AUTOINC value from an index.
 @return	DB_SUCCESS if all OK else error code */

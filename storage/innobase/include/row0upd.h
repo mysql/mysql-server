@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -304,6 +304,37 @@ row_upd_changes_ord_field_binary_func(
 	row_upd_changes_ord_field_binary_func(index,update,row,ext)
 #endif /* UNIV_DEBUG */
 /***********************************************************//**
+Checks if an FTS indexed column is affected by an UPDATE.
+@return offset within fts_t::indexes if FTS indexed column updated else
+ULINT_UNDEFINED */
+UNIV_INTERN
+ulint
+row_upd_changes_fts_column(
+/*=======================*/
+	dict_table_t*	table,		/*!< in: table */
+	upd_field_t*	upd_field);	/*!< in: field to check */
+/***********************************************************//**
+Checks if an FTS Doc ID column is affected by an UPDATE.
+@return TRUE if Doc ID column is affected */
+UNIV_INTERN
+ulint
+row_upd_changes_doc_id(
+/*===================*/
+	dict_table_t*	table,		/*!< in: table */
+	upd_field_t*	upd_field);	/*!< in: field to check */
+/***********************************************************//**
+Checks if an update vector changes the table's FTS-indexed columns.
+NOTE: must not be called for tables which do not have an FTS-index.
+Also, the vector returned must be explicitly freed as it's allocated
+using the ut_malloc() allocator.
+@return vector of FTS indexes that were affected by the update else NULL */
+UNIV_INTERN
+ib_vector_t*
+row_upd_changes_fts_columns(
+/*========================*/
+	dict_table_t*	table,		/*!< in: table */
+	upd_t*		update);	/*!< in: update vector for the row */
+/***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
@@ -369,7 +400,7 @@ row_upd_index_parse(
 struct upd_field_struct{
 	unsigned	field_no:16;	/*!< field number in an index, usually
 					the clustered index, but in updating
-					a secondary index record in btr0cur.c
+					a secondary index record in btr0cur.cc
 					this is the position in the secondary
 					index */
 #ifndef UNIV_HOTBACKUP
