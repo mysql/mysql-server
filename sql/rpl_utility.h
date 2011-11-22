@@ -65,6 +65,14 @@ public:
 
 
   /*
+    Returns internal binlog type code for one field,
+    without translation to real types.
+  */
+  enum_field_types binlog_type(ulong index) const
+  {
+    return static_cast<enum_field_types>(m_type[index]);
+  }
+  /*
     Return a representation of the type data for one field.
 
     @param index Field index to return data for
@@ -81,7 +89,7 @@ public:
       either MYSQL_TYPE_STRING, MYSQL_TYPE_ENUM, or MYSQL_TYPE_SET, so
       we might need to modify the type to get the real type.
     */
-    enum_field_types source_type= static_cast<enum_field_types>(m_type[index]);
+    enum_field_types source_type= binlog_type(index);
     uint16 source_metadata= m_field_metadata[index];
     switch (source_type)
     {

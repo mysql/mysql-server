@@ -26,6 +26,7 @@
 
 #include "sql_priv.h"
 #include "sql_class.h"                          // THD
+#include "sql_time.h"
 #include <m_ctype.h>
 
 static void do_field_eq(Copy_field *copy)
@@ -175,7 +176,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   */
   if (field->type() == MYSQL_TYPE_TIMESTAMP)
   {
-    ((Field_timestamp*) field)->set_time();
+    field->set_time();
     return 0;					// Ok to set time to NULL
   }
   
@@ -265,7 +266,7 @@ static void do_copy_timestamp(Copy_field *copy)
   if (*copy->from_null_ptr & copy->from_bit)
   {
     /* Same as in set_field_to_null_with_conversions() */
-    ((Field_timestamp*) copy->to_field)->set_time();
+    copy->to_field->set_time();
   }
   else
     (copy->do_copy2)(copy);
@@ -366,6 +367,22 @@ static void do_field_decimal(Copy_field *copy)
 {
   my_decimal value;
   copy->to_field->store_decimal(copy->from_field->val_decimal(&value));
+}
+
+
+inline int copy_time_to_time(Field *from, Field *to)
+{
+  MYSQL_TIME ltime;
+  from->get_time(&ltime);
+  return to->store_time(&ltime);
+}
+
+/**
+  Convert between fields using time representation.
+*/
+static void do_field_time(Copy_field *copy)
+{
+  (void) copy_time_to_time(copy->from_field, copy->to_field);
 }
 
 
@@ -664,6 +681,21 @@ Copy_field::get_copy_func(Field *to,Field *from)
     // Check if identical fields
     if (from->result_type() == STRING_RESULT)
     {
+      if (from->is_temporal())
+      {
+        if (to->is_temporal())
+        {
+          return do_field_time;
+        }
+        else
+        {
+          if (to->result_type() == INT_RESULT)
+            return do_field_int;
+          if (to->result_type() == REAL_RESULT)
+            return do_field_real;
+          /* Note: conversion from any to DECIMAL_RESULT is handled earlier */
+        }
+      }
       /*
         Detect copy from pre 5.0 varbinary to varbinary as of 5.0 and
         use special copy function that removes trailing spaces and thus
@@ -678,6 +710,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
         if we don't allow 'all' dates.
       */
       if (to->real_type() != from->real_type() ||
+          to->decimals() != from->decimals() /* e.g. TIME vs TIME(6) */ ||
           !compatible_db_low_byte_first ||
           (((to->table->in_use->variables.sql_mode &
             (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
@@ -777,6 +810,8 @@ int field_conv(Field *to,Field *from)
 	to->real_type() != MYSQL_TYPE_ENUM &&
 	to->real_type() != MYSQL_TYPE_SET &&
         to->real_type() != MYSQL_TYPE_BIT &&
+        (!to->is_temporal_with_time() ||
+         to->decimals() == from->decimals()) &&
         (to->real_type() != MYSQL_TYPE_NEWDECIMAL ||
          (to->field_length == from->field_length &&
           (((Field_num*)to)->dec == ((Field_num*)from)->dec))) &&
@@ -816,6 +851,38 @@ int field_conv(Field *to,Field *from)
   {
     ((Field_enum *)(to))->store_type(0);
     return 0;
+  }
+  else if (from->is_temporal() && to->result_type() == INT_RESULT)
+  {
+    MYSQL_TIME ltime;
+    longlong nr;
+    if (from->type() == MYSQL_TYPE_TIME)
+    {
+      from->get_time(&ltime);
+      nr= TIME_to_ulonglong_time_round(&ltime);
+    }
+    else
+    {
+      from->get_date(&ltime, TIME_FUZZY_DATE);
+      nr= TIME_to_ulonglong_datetime_round(&ltime);
+    }
+    return to->store(ltime.neg ? -nr : nr, 0);
+  }
+  else if (from->is_temporal() &&
+           (to->result_type() == REAL_RESULT ||
+            to->result_type() == DECIMAL_RESULT ||
+            to->result_type() == INT_RESULT))
+  {
+    my_decimal tmp;
+    /*
+      We prefer DECIMAL as the safest precise type:
+      double supports only 15 digits, which is not enough for DATETIME(6).
+    */
+    return to->store_decimal(from->val_decimal(&tmp));
+  }
+  else if (from->is_temporal() && to->is_temporal())
+  {
+    return copy_time_to_time(from, to);
   }
   else if ((from->result_type() == STRING_RESULT &&
             (to->result_type() == STRING_RESULT ||

@@ -6691,7 +6691,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
         active_mi->last_heartbeat);
-      my_datetime_to_str(&received_heartbeat_time, buff);
+      my_datetime_to_str(&received_heartbeat_time, buff, 0);
     }
   }
   else
