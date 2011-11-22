@@ -129,8 +129,6 @@ INSERT INTO articles_5 (title, body)
 SELECT * FROM articles_5 WHERE MATCH (title,body)
         AGAINST ('session' IN NATURAL LANGUAGE MODE);
 
-
---disconnect con1
 --connection default
 drop table articles;
 drop table articles_2;
@@ -525,7 +523,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX idx (title,body);
 
 
 --echo "In connection 1"
---connect (con1,localhost,root,,)
+--connection con1
 select @@innodb_ft_enable_stopword;
 # result expected as index created before setting innodb_ft_enable_stopword varaible off
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("where will");
@@ -658,8 +656,6 @@ SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+will +where" IN BOOLEAN
 SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('where');
 
 
---echo "In connection default"
---connection default
 DROP TABLE articles,user_stopword,user_stopword_1,server_stopword;
 
 # Restore Values
