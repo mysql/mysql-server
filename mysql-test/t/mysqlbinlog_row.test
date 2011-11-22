@@ -427,6 +427,48 @@ DELETE FROM t1 WHERE c78='a,b';
 DROP TABLE t1;
 
 #
+# Start of FSP-enabled data types
+#
+SET time_zone='+00:00';
+SET timestamp=UNIX_TIMESTAMP('2002-02-02 20:20:20') + 0.123456;
+SET @t='00:00:01.123456'; 
+CREATE TABLE t1 (
+  c79 TIME(6), c80 TIME(5), c81 TIME(4),
+  c82 TIME(3), c83 TIME(2), c84 TIME(1)
+);
+INSERT INTO t1 VALUES (@t, @t, @t, @t, @t, @t);
+INSERT INTO t1 VALUES (NOW(), NOW(), NOW(), NOW(), NOW(), NOW());
+INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
+DROP TABLE t1;
+
+SET @ts='2001-01-01 00:00:00.123456';
+CREATE TABLE t1 (
+  c85 DATETIME(6), c86 DATETIME(5), c87 DATETIME(4),
+  c88 DATETIME(3), c89 DATETIME(2), c90 DATETIME(1)
+);
+INSERT INTO t1 VALUES (@ts, @ts, @ts, @ts, @ts, @ts);
+INSERT INTO t1 VALUES (NOW(), NOW(), NOW(), NOW(), NOW(), NOW());
+INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
+DROP TABLE t1;
+
+SET @ts='2001-01-01 00:00:00.123456';
+CREATE TABLE t1 (
+  c85 TIMESTAMP(6), c86 TIMESTAMP(5), c87 TIMESTAMP(4),
+  c88 TIMESTAMP(3), c89 TIMESTAMP(2), c90 TIMESTAMP(1)
+);
+INSERT INTO t1 VALUES (@ts, @ts, @ts, @ts, @ts, @ts);
+INSERT INTO t1 VALUES (NOW(), NOW(), NOW(), NOW(), NOW(), NOW());
+INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
+DROP TABLE t1;
+
+SET timestamp=1000000000;
+SET time_zone=default;
+#
+# End of FSP-enabled data types
+#
+
+
+#
 # Check multi-table update
 #
 CREATE TABLE t1 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0);
