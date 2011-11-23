@@ -4911,7 +4911,7 @@ int ha_tokudb::fill_range_query_buf(
                     var_field_data_ptr, 
                     share->kc_info.num_offset_bytes
                     );
-                data_size = row->size - (u_int32_t)(var_field_data_ptr - (const uchar *)row->data);
+                data_size = row->size - blob_offset - (u_int32_t)(var_field_data_ptr - (const uchar *)row->data);
                 memcpy(curr_pos, &data_size, sizeof(data_size));
                 curr_pos += sizeof(data_size);
                 memcpy(curr_pos, var_field_data_ptr + blob_offset, data_size);
