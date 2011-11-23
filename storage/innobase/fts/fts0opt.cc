@@ -1871,8 +1871,8 @@ fts_optimize_set_next_word(
 		last = TRUE;
 	} else {
 		ulint	value = fts_index_selector[selected].value;
-		
-		ut_a(value <= (~0UL & 0xff));
+
+		ut_a(value <= 0xff);
 
 		/* Set to the first character of the next slot. */
 		word->f_len = 1;
