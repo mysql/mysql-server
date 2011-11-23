@@ -1702,11 +1702,11 @@ field4,field5,field6	{
               "tmp_table_info": {
                 "database": "",
                 "table": "alias2",
-                "row_length": 46,
+                "row_length": 40,
                 "key_length": 8,
                 "unique_constraint": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 22795
+                "row_limit_estimate": 26214
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
