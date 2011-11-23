@@ -42,6 +42,9 @@ Created 2011/09/02 Sunny Bains
 #include "que0types.h"
 #include "ft_global.h"
 
+/** "NULL" value of a document id. */
+#define FTS_NULL_DOC_ID			0
+
 /** FTS hidden column that is used to map to and from the row */
 #define FTS_DOC_ID_COL_NAME		"FTS_DOC_ID"
 
@@ -102,7 +105,7 @@ in the log */
 extern char		fts_enable_diag_print;
 
 /** FTS rank type, which will be between 0 .. 1 inclusive */
-typedef float fts_rank_t;
+typedef float 		fts_rank_t;
 
 /** Type of a row during a transaction. FTS_NOTHING means the row can be
 forgotten from the FTS system's POV, FTS_INVALID is an internal value used

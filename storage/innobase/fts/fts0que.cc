@@ -43,8 +43,8 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 
 #define FTS_ELEM(t, n, i, j) (t[(i) * n + (j)])
 
-#define RANK_DOWNGRADE	(-1.0)
-#define RANK_UPGRADE	(1.0)
+#define RANK_DOWNGRADE		(-1.0F)
+#define RANK_UPGRADE		(1.0F)
 
 /* Maximum number of words supported in a proximity search.
 FIXME, this limitation can be removed easily. Need to see
@@ -52,7 +52,7 @@ if we want to enforce such limitation */
 #define MAX_PROXIMITY_ITEM	128
 
 /* Coeffecient to use for normalize relevance ranking. */
-static const double FTS_NORMALIZE_COEFF = 0.0115;
+static const double FTS_NORMALIZE_COEFF = 0.0115F;
 
 // FIXME: Need to have a generic iterator that traverses the ilist.
 
@@ -663,15 +663,14 @@ fts_query_change_ranking(
 
 		ranking = rbt_value(fts_ranking_t, parent.last);
 
-		ranking->rank += (fts_rank_t)
-			(downgrade ? RANK_DOWNGRADE : RANK_UPGRADE);
+		ranking->rank += downgrade ? RANK_DOWNGRADE : RANK_UPGRADE;
 
 		/* Allow at most 2 adjustment by RANK_DOWNGRADE (-0.5)
 		and RANK_UPGRADE (0.5) */
-		if (ranking->rank >= 1.0) {
-			ranking->rank = 1.0;
-		} else if (ranking->rank <= -1.0) {
-			ranking->rank = -1.0;
+		if (ranking->rank >= 1.0F) {
+			ranking->rank = 1.0F;
+		} else if (ranking->rank <= -1.0F) {
+			ranking->rank = -1.0F;
 		}
 	}
 }
@@ -705,8 +704,8 @@ fts_query_intersect_doc_id(
 				ranking = rbt_value(fts_ranking_t, parent.last);
 				rank += (ranking->rank > 0)
 					? ranking->rank : RANK_UPGRADE;
-				if (rank >= 1.0) {
-					rank = 1.0;
+				if (rank >= 1.0F) {
+					rank = 1.0F;
 				}
 			}
 
@@ -3428,10 +3427,12 @@ fts_print_doc_id(
 		for (node_word = rbt_first(ranking->words);
 		     node_word;
 		     node_word = rbt_next(ranking->words, node_word)) {
-			const byte* value;
-			value = *rbt_value(const byte*, node_word);
-			fprintf(stderr, "doc_ids info, value: %s \n",
-				value);
+
+			const byte** value;
+
+			value = rbt_value(const byte*, node_word);
+
+			fprintf(stderr, "doc_ids info, value: %s \n", *value);
 		}
 	}
 }

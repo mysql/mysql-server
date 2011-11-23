@@ -493,18 +493,20 @@ innobase_copy_index_def(
 
 /*******************************************************************//**
 Check whether the table has the FTS_DOC_ID column
-@return TRUE if there exists the FTS_DOC_ID column */
+@return TRUE if there exists the FTS_DOC_ID column, if TRUE but fts_doc_col_no
+        equal to ULINT_UNDEFINED then that means the column exists but is not
+	of the right type. */
 static
 ibool
 innobase_fts_check_doc_id_col(
 /*==========================*/
-        dict_table_t*	table,		/*!< in: table with FTS index */
+	dict_table_t*	table,		/*!< in: table with FTS index */
 	ulint*		fts_doc_col_no)	/*!< out: The column number for
 					Doc ID */
 {
-	ulint   i;
+	*fts_doc_col_no = ULINT_UNDEFINED;
 
-	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
+	for (ulint i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
 		const char*     name = dict_table_get_col_name(table, i);
 
 		if (strcmp(name, FTS_DOC_ID_COL_NAME) == 0) {
@@ -514,11 +516,8 @@ innobase_fts_check_doc_id_col(
 
 			if (col->mtype == DATA_INT && col->len == 8
 			    && col->prtype & DATA_NOT_NULL) {
+
 				*fts_doc_col_no = i;
-			} else {
-				/* Tell caller there exist a DOC ID column
-				but it is not the right type */
-				*fts_doc_col_no = ULINT_UNDEFINED;
 			}
 
 			return(TRUE);
@@ -616,7 +615,6 @@ innobase_create_key_def(
 	merge_index_def_t*	indexdef;
 	merge_index_def_t*	indexdefs;
 	bool			new_primary;
-	ulint			fts_doc_col_no;
 
 	DBUG_ENTER("innobase_create_key_def");
 
@@ -667,28 +665,37 @@ innobase_create_key_def(
 	Doc ID hidden column and rebuild the primary index */
 	if (*num_fts_index) {
 		ulint	ret;
+		ibool	exists;
 		ulint	doc_col_no;
+		ulint	fts_doc_col_no;
 
-		if (!innobase_fts_check_doc_id_col(table, &fts_doc_col_no)) {
-			*add_fts_doc_id = TRUE;
-			*add_fts_doc_id_idx = TRUE;
+		exists = innobase_fts_check_doc_id_col(table, &fts_doc_col_no);
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Rebuild table %s to add "
-					"DOC_ID column\n", table->name);
-		} else if (fts_doc_col_no == ULINT_UNDEFINED) {
-			fprintf(stderr, "  InnoDB: There exist a column %s"
-					" in table %s, but of the wrong format."
-					" Create FTS index failed.\n",
+		if (exists) {
+
+			if (fts_doc_col_no == ULINT_UNDEFINED) {
+
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					" InnoDB: There exists a column %s "
+					"in table %s, but it is the wrong "
+					"type. Create of FTS index failed.\n",
 					FTS_DOC_ID_COL_NAME, table->name);
-			return(NULL);
-		} else {
+				return(NULL);
 
-			 if (!table->fts) {
+			} else if (!table->fts) {
 				table->fts = fts_create(table);
 			}
 
 			table->fts->doc_col = fts_doc_col_no;
+
+		} else {
+			*add_fts_doc_id = TRUE;
+			*add_fts_doc_id_idx = TRUE;
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: Rebuild table %s to add "
+					"DOC_ID column\n", table->name);
 		}
 
 		ret = innobase_fts_check_doc_id_index(table, &doc_col_no);
@@ -696,18 +703,20 @@ innobase_create_key_def(
 		if (ret == FTS_NOT_EXIST_DOC_ID_INDEX) {
 			*add_fts_doc_id_idx = TRUE;
 		} else if (ret == FTS_INCORRECT_DOC_ID_INDEX) {
-			fprintf(stderr, "  InnoDB: Index %s is used for FTS" 
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: Index %s is used for FTS"
 					" Doc ID indexing on table %s, it is"
 					" now on the wrong column or of"
 					" wrong format. Please drop it.\n",
 					FTS_DOC_ID_INDEX_NAME, table->name);
 			DBUG_RETURN(NULL);
+
 		} else {
 			ut_ad(ret == FTS_EXIST_DOC_ID_INDEX);
 
 			ut_ad(doc_col_no == fts_doc_col_no);
 		}
-
 	}
 
 	/* If DICT_TF2_FTS_ADD_DOC_ID is set, we will need to rebuild
@@ -1200,8 +1209,8 @@ error_handling:
 		ut_d(dict_table_check_for_dup_indexes(prebuilt->table, TRUE));
 		ut_d(mutex_exit(&dict_sys->mutex));
 
-		*add = new ha_innobase_add_index(table, key_info, num_of_keys,
-                                                 indexed_table);
+		*add = new ha_innobase_add_index(
+			table, key_info, num_of_keys, indexed_table);
 
 		dict_table_close(prebuilt->table, dict_locked);
 
@@ -1348,11 +1357,11 @@ ha_innobase::final_add_index(
 		err = convert_error_code_to_mysql(
 			error, prebuilt->table->flags, user_thd);
 	}
- 
+
 	if (add->indexed_table == prebuilt->table
-	    || DICT_TF2_FLAG_IS_SET(prebuilt->table, DICT_TF2_FTS_ADD_DOC_ID)) { 
+	    || DICT_TF2_FLAG_IS_SET(prebuilt->table, DICT_TF2_FTS_ADD_DOC_ID)) {
 		/* We created secondary indexes (!new_primary) or create full
-                text index and added a new Doc ID column, we will need to
+		text index and added a new Doc ID column, we will need to
 		rename the secondary index on the Doc ID column to its
 		official index name.. */
 
@@ -1434,7 +1443,7 @@ ha_innobase::prepare_drop_index(
 {
 	trx_t*		trx;
 	int		err = 0;
-	uint 		n_key;
+	uint		n_key;
 
 	DBUG_ENTER("ha_innobase::prepare_drop_index");
 	ut_ad(table);
