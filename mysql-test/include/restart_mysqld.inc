@@ -28,6 +28,8 @@ if (`SELECT LENGTH("$mysqld_name")`)
 # it 10 seconds to die before zapping it
 shutdown_server 10;
 
+--source include/wait_until_disconnected.inc
+
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart" > $_expect_file_name
 
