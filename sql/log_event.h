@@ -4423,7 +4423,6 @@ public:
 
   Ignorable_log_event(const char *buf,
                       const Format_description_log_event *descr_event);
-
   virtual ~Ignorable_log_event();
 
 #ifndef MYSQL_CLIENT
@@ -4623,7 +4622,8 @@ private:
 class GtidSet_log_event : public Ignorable_log_event {
 public:
 #ifndef MYSQL_CLIENT
-  GtidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log);
+  GtidSet_log_event(THD* thd_arg, Sid_map* sid_map,
+                    const GTID_set* grp_set);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -4632,7 +4632,6 @@ public:
 
   GtidSet_log_event(const char *buffer, uint event_len,
                     const Format_description_log_event *descr_event);
-
   virtual ~GtidSet_log_event();
 
   Log_event_type get_type_code() { return GTIDSET_LOG_EVENT; }
@@ -4645,8 +4644,13 @@ public:
   }
 
   char* get_string_representation(size_t *dst_size);
-  GTID_set* get_group_representation(Group_log_state* grp_state,
-                                      Sid_map* sid_map);
+  static GTID_set* get_group_rep(Sid_map* sid_map_arg,
+                                 const uchar* encoded_buffer_arg);
+  static GTID_set* get_group_rep(Sid_map* sid_map_arg,
+                                 const uchar* encoded_buffer_arg,
+                                 uint64 nsids_arg);
+  GTID_set* get_group_rep(Sid_map* sid_map_arg);
+
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
@@ -4667,6 +4671,8 @@ public:
   static const int GTID_SID_STRING_INFO_LEN= 64;
 
   static const int GTID_GNO_STRING_INFO_LEN= 32;
+
+  const uchar* get_encoded_buffer() const { return encoded_buffer; }
 private:
   uchar* encoded_buffer; 
 

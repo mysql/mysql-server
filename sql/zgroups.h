@@ -978,6 +978,10 @@ public:
   /// Returns true if this GTID_set is a subset of the other GTID_set.
   bool is_subset(const GTID_set *super) const;
   /// Returns true if this GTID_set is empty.
+  //bool is_intersection_nonempty(GTID_set *other);
+  //GTID_set in_place_intersection(GTID_set other);
+  //GTID_set in_place_complement(Sid_map map);
+
   bool is_empty() const
   {
     GTID_iterator git(this);
@@ -1037,10 +1041,6 @@ public:
     free(str);
   }
 #endif
-  //bool is_intersection_nonempty(GTID_set *other);
-  //GTID_set in_place_intersection(GTID_set other);
-  //GTID_set in_place_complement(Sid_map map);
-
 
   /**
     Class GTID_set::String_format defines the separators used by

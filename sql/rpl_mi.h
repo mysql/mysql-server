@@ -109,6 +109,8 @@ public:
   char master_uuid[UUID_LENGTH+1];
   char bind_addr[HOSTNAME_LENGTH+1];
 
+  bool master_support_gtid;
+
   int init_info();
   void end_info();
   int flush_info(bool force= FALSE);

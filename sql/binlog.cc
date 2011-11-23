@@ -1956,7 +1956,7 @@ bool MYSQL_BIN_LOG::restore_gtid_set(bool save_gtid_events)
       {
         sid_lock.rdlock();
         GtidSet_log_event *gtidset= (GtidSet_log_event*) ev;
-        GTID_set* grp_set= gtidset->get_group_representation(&group_log_state, &sid_map);
+        GTID_set* grp_set= gtidset->get_group_rep(&sid_map);
         if (grp_set == NULL)
         {
           delete ev;
@@ -2007,7 +2007,10 @@ next_file:
 
   if (file_set.size() > 1 && save_gtid_events)
   {
-    GtidSet_log_event uset(current_thd, this);
+    sid_lock.rdlock();
+    GtidSet_log_event uset(current_thd, &sid_map,
+                           group_log_state.get_ended_groups()); // ALFRANIO ALFRANIO
+    sid_lock.unlock();
     if (uset.write(&log_file))
       goto err;
     bytes_written+= uset.data_written;
@@ -2169,7 +2172,10 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       bytes_written+= s.data_written;
       if (current_thd)
       {
-        GtidSet_log_event uset(current_thd, this);
+        sid_lock.rdlock();
+        GtidSet_log_event uset(current_thd, &sid_map,
+                               group_log_state.get_ended_groups()); // ALFRANIO ALFRANIO
+        sid_lock.unlock();
         if (uset.write(&log_file))
           goto err;
         bytes_written+= uset.data_written;

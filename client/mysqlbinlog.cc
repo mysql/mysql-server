@@ -1682,6 +1682,9 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
   int4store(buf + 6, server_id);
   memcpy(buf + 10, logname, logname_len);
+  /*
+    Alfranio - I need to check this.
+  */
   if (simple_command(mysql, COM_BINLOG_DUMP, buf, logname_len + 10, 1))
   {
     error("Got fatal error sending the log dump command.");
