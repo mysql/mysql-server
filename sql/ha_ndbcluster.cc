@@ -10502,7 +10502,8 @@ cleanup_failed:
         Always create an event for the table, as other mysql servers
         expect it to be there.
       */
-      if (!ndbcluster_create_event(thd, ndb, m_table, event_name.c_ptr(), share,
+      if (!Ndb_dist_priv_util::is_distributed_priv_table(m_dbname, m_tabname) &&
+          !ndbcluster_create_event(thd, ndb, m_table, event_name.c_ptr(), share,
                                    share && do_event_op ? 2 : 1/* push warning */))
       {
         if (opt_ndb_extra_logging)
