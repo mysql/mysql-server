@@ -4236,7 +4236,7 @@ ibuf_restore_pos(
 		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
 		fputs("InnoDB: Validating insert buffer tree:\n", stderr);
-		if (!btr_validate_index(ibuf->index, NULL)) {
+		if (!btr_validate_index(ibuf->index, NULL, FALSE)) {
 			ut_error;
 		}
 
@@ -4916,5 +4916,107 @@ ibuf_print(
 #endif /* UNIV_IBUF_COUNT_DEBUG */
 
 	mutex_exit(&ibuf_mutex);
+}
+
+/******************************************************************//**
+Checks the insert buffer bitmaps on IMPORT TABLESPACE.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+ulint
+ibuf_check_bitmap_on_import(
+/*========================*/
+	trx_t*	trx,		/*!< in: transaction */
+	ulint	space_id)	/*!< in: tablespace identifier */
+{
+	ulint	zip_size;
+	ulint	page_size;
+	ulint	size;
+	ulint	page_no;
+
+	ut_ad(trx);
+	ut_ad(space_id);
+
+	zip_size = fil_space_get_zip_size(space_id);
+
+	if (zip_size == ULINT_UNDEFINED) {
+		return(DB_TABLE_NOT_FOUND);
+	}
+
+	size = fil_space_get_size(space_id);
+
+	if (size == 0) {
+		return(DB_TABLE_NOT_FOUND);
+	}
+
+	mutex_enter(&ibuf_mutex);
+
+	page_size = zip_size ? zip_size : UNIV_PAGE_SIZE;
+
+	for (page_no = 0; page_no < size; page_no += page_size) {
+		mtr_t	mtr;
+		page_t*	bitmap_page;
+		ulint	i;
+
+		if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
+			mutex_exit(&ibuf_mutex);
+			return(DB_ERROR);
+		}
+
+		mtr_start(&mtr);
+		ibuf_enter(&mtr);
+
+		bitmap_page = ibuf_bitmap_get_map_page(
+			space_id, page_no, zip_size, &mtr);
+
+		for (i = FSP_IBUF_BITMAP_OFFSET + 1; i < page_size; i++) {
+			const ulint	offset = page_no + i;
+
+			if (UNIV_UNLIKELY
+			    (ibuf_bitmap_page_get_bits(
+				    bitmap_page, offset, zip_size,
+				    IBUF_BITMAP_IBUF, &mtr))) {
+
+				mutex_exit(&ibuf_mutex);
+				ibuf_exit(&mtr);
+				mtr_commit(&mtr);
+
+				/* TODO: return this error to the client */
+				ut_print_timestamp(stderr);
+				fprintf(stderr, "  InnoDB: space %u page %u"
+					" is wrongly flagged to belong to the"
+					" insert buffer\n",
+					(unsigned) space_id,
+					(unsigned) offset);
+
+				return(DB_CORRUPTION);
+			}
+
+			if (UNIV_UNLIKELY
+			    (ibuf_bitmap_page_get_bits(
+				    bitmap_page, offset, zip_size,
+				    IBUF_BITMAP_BUFFERED, &mtr))) {
+
+				/* TODO: push_warning_printf() */
+				ut_print_timestamp(stderr);
+				fprintf(stderr, "  InnoDB: buffered changes"
+					" for space %u page %u are lost\n",
+					(unsigned) space_id,
+					(unsigned) offset);
+
+				/* Tolerate this error, so that
+				slightly corrupted tables can be
+				imported and dumped.  Clear the bit. */
+				ibuf_bitmap_page_set_bits(
+					bitmap_page, offset, zip_size,
+					IBUF_BITMAP_BUFFERED, FALSE, &mtr);
+			}
+		}
+
+		ibuf_exit(&mtr);
+		mtr_commit(&mtr);
+	}
+
+	mutex_exit(&ibuf_mutex);
+	return(DB_SUCCESS);
 }
 #endif /* !UNIV_HOTBACKUP */

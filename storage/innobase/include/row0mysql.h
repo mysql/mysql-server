@@ -424,6 +424,18 @@ ulint
 row_get_background_drop_list_len_low(void);
 /*======================================*/
 /*********************************************************************//**
+Sets an exclusive lock on a table.
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+ulint
+row_mysql_lock_table(
+/*=================*/
+	trx_t*		trx,		/*!< in/out: transaction */
+	dict_table_t*	table,		/*!< in: table to lock */
+	enum lock_mode	mode,		/*!< in: LOCK_X or LOCK_S */
+	const char*	op_info);	/*!< in: string for trx->op_info */
+
+/*********************************************************************//**
 Truncates a table for MySQL.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
@@ -431,6 +443,8 @@ int
 row_truncate_table_for_mysql(
 /*=========================*/
 	dict_table_t*	table,	/*!< in: table handle */
+	trx_t*		user_trx,/*!< in: user transaction handle for
+				obtaining a table lock */
 	trx_t*		trx);	/*!< in: transaction handle */
 /*********************************************************************//**
 Drops a table for MySQL.  If the name of the dropped table ends in
@@ -445,7 +459,9 @@ int
 row_drop_table_for_mysql(
 /*=====================*/
 	const char*	name,	/*!< in: table name */
-	trx_t*		trx,	/*!< in: transaction handle */
+	trx_t*		user_trx,/*!< in: user transaction handle for
+				obtaining a table lock, or NULL */
+	trx_t*		trx,	/*!< in: dictionary transaction handle */
 	ibool		drop_db);/*!< in: TRUE=dropping whole database */
 /*********************************************************************//**
 Drop all temporary tables during crash recovery. */
@@ -470,11 +486,11 @@ Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-int
+ulint
 row_import_tablespace_for_mysql(
 /*============================*/
-	const char*	name,	/*!< in: table name */
-	trx_t*		trx);	/*!< in: transaction handle */
+	dict_table_t*	table,		/*!< in/out: table */
+	row_prebuilt_t*	prebuilt);	/*!< in: prebuilt struct in MySQL */
 /*********************************************************************//**
 Drops a database for MySQL.
 @return	error code or DB_SUCCESS */
@@ -483,6 +499,8 @@ int
 row_drop_database_for_mysql(
 /*========================*/
 	const char*	name,	/*!< in: database name which ends to '/' */
+	trx_t*		user_trx,/*!< in: user transaction handle for
+				obtaining table locks */
 	trx_t*		trx);	/*!< in: transaction handle */
 /*********************************************************************//**
 Renames a table for MySQL.
@@ -495,6 +513,7 @@ row_rename_table_for_mysql(
 	const char*	new_name,	/*!< in: new table name */
 	trx_t*		trx,		/*!< in: transaction handle */
 	ibool		commit);	/*!< in: if TRUE then commit trx */
+
 /*********************************************************************//**
 Checks that the index contains entries in an ascending order, unique
 constraint is not broken, and calculates the number of index entries

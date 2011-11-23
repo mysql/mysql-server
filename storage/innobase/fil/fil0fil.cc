@@ -2173,7 +2173,7 @@ fil_op_log_parse_or_replay(
 	switch (type) {
 	case MLOG_FILE_DELETE:
 		if (fil_tablespace_exists_in_mem(space_id)) {
-			ut_a(fil_delete_tablespace(space_id));
+			ut_a(fil_delete_tablespace(space_id, FALSE));
 		}
 
 		break;
@@ -2236,6 +2236,28 @@ fil_op_log_parse_or_replay(
 }
 
 /*******************************************************************//**
+Allocates a file name for a discarded single-table tablespace.  The
+string must be freed by caller with mem_free().
+@return own: file name */
+static
+char*
+fil_make_ibt_name(
+/*==============*/
+	const char*	filepath)	/*!< in: .ibd file name */
+{
+	char*	ibt_name;
+
+	/* Create a temporary file path by replacing the .ibd suffix
+	with .ibt.  Before actually importing the tablespace, rename
+	it to .ibt, so that a server crash during the import will not
+	cause trouble during crash recovery.  If an .ibt file exists,
+	try to recover it instead of an .ibd file. */
+	ibt_name = mem_strdup(filepath);
+	ibt_name[strlen(ibt_name) - 1] = 't';
+	return(ibt_name);
+}
+
+/*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache.
 @return	TRUE if success */
@@ -2243,7 +2265,8 @@ UNIV_INTERN
 ibool
 fil_delete_tablespace(
 /*==================*/
-	ulint	id)	/*!< in: space id */
+	ulint	id,	/*!< in: space id */
+	ibool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
 {
 	ibool		success;
 	fil_space_t*	space;
@@ -2377,10 +2400,25 @@ try_again:
 	mutex_exit(&fil_system->mutex);
 
 	if (success) {
-		success = os_file_delete(path);
+		if (rename) {
+			char*	newpath = fil_make_ibt_name(path);
 
-		if (!success) {
-			success = os_file_delete_if_exists(path);
+			success = os_file_rename(innodb_file_data_key,
+						 path, newpath);
+
+			if (!success) {
+				os_file_delete_if_exists(newpath);
+				success = os_file_rename(innodb_file_data_key,
+							 path, newpath);
+			}
+
+			mem_free(newpath);
+		} else {
+			success = os_file_delete(path);
+
+			if (!success) {
+				success = os_file_delete_if_exists(path);
+			}
 		}
 	} else {
 		rw_lock_x_unlock(&space->latch);
@@ -2450,11 +2488,12 @@ UNIV_INTERN
 ibool
 fil_discard_tablespace(
 /*===================*/
-	ulint	id)	/*!< in: space id */
+	ulint	id,	/*!< in: space id */
+	ibool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
 {
 	ibool	success;
 
-	success = fil_delete_tablespace(id);
+	success = fil_delete_tablespace(id, rename);
 
 	if (!success) {
 		fprintf(stderr,
@@ -2919,6 +2958,106 @@ error_exit2:
 
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
+Read a file page for resetting the space identifier and the system lsn.
+@return 0 on success, 1 if all zero, 2 if corrupted */
+static
+ulint
+fil_reset_space_and_lsn_read(
+/*=========================*/
+	const char*	name,		/*!< in: name of the file or path as a
+					null-terminated string */
+	os_file_t	file,		/*!< in: tablespace file handle */
+	os_offset_t	offset,		/*!< in: file offset */
+	page_t*		page,		/*!< out: page frame */
+	ulint		zip_size)	/*!< in: compressed page size in
+					bytes, or 0 */
+{
+	const ulint	size	= zip_size ? zip_size : UNIV_PAGE_SIZE;
+
+	if (!os_file_read(file, page, offset, size)
+	    || UNIV_UNLIKELY(buf_page_is_corrupted(page, zip_size))) {
+	corrupted:
+
+		fprintf(stderr,
+			"InnoDB: %s: Page %u at offset %llu"
+			" looks corrupted.\n",
+			name, (unsigned) (offset / size), offset);
+		return(2);
+	}
+
+	if (UNIV_UNLIKELY(page_get_page_no(page) != offset / size)) {
+		const byte*	b = page;
+		const byte*	e = page + size;
+		/* On page number mismatch, check if the page
+		is all zero.  Do nothing if it is. */
+		if (page_get_page_no(page) != 0) {
+
+			goto corrupted;
+		}
+
+		while (b != e) {
+			if (*b++) {
+				goto corrupted;
+			}
+		}
+
+		/* The page is all zero: do nothing. */
+		return(1);
+	}
+
+	return(0);
+}
+
+/********************************************************************//**
+Write the space identifier and the system lsn of a file page if needed.
+@return TRUE on success */
+static
+ibool
+fil_reset_space_and_lsn_write(
+/*==========================*/
+	ib_uint64_t	current_lsn,	/*!< in: current log sequence number */
+	const char*	name,		/*!< in: name of the file or path as a
+					null-terminated string */
+	os_file_t	file,		/*!< in: tablespace file handle */
+	ulint		space_id,	/*!< in: tablespace identifier */
+	os_offset_t	offset,		/*!< in: file offset */
+	page_t*		page,		/*!< in/out: page frame */
+	page_zip_des_t*	page_zip)	/*!< in/out: compressed page,
+					or NULL */
+{
+	const ulint	size	= page_zip
+		? page_zip_get_size(page_zip) : UNIV_PAGE_SIZE;
+
+	if (offset == 0
+	    || mach_read_from_8(page + FIL_PAGE_LSN) > current_lsn
+	    || page_get_space_id(page) != space_id) {
+
+		/* We have to reset the fields. */
+		mach_write_to_4(FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID
+				+ page, space_id);
+
+		if (page_zip) {
+			memcpy(page_zip->data, page, size);
+			buf_flush_init_for_writing(page, page_zip,
+						   current_lsn);
+			if (!os_file_write(name, file, page_zip->data,
+					   offset, size)) {
+
+				return(FALSE);
+			}
+		} else {
+			buf_flush_init_for_writing(page, NULL, current_lsn);
+			if (!os_file_write(name, file, page, offset, size)) {
+
+				return(FALSE);
+			}
+		}
+	}
+
+	return(TRUE);
+}
+
+/********************************************************************//**
 It is possible, though very improbable, that the lsn's in the tablespace to be
 imported have risen above the current system lsn, if a lengthy purge, ibuf
 merge, or rollback was performed on a backup taken with ibbackup. If that is
@@ -2930,47 +3069,86 @@ lsn's just by looking at that flush lsn.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-fil_reset_too_high_lsns(
+fil_reset_space_and_lsn(
 /*====================*/
-	const char*	name,		/*!< in: table name in the
-					databasename/tablename format */
+	dict_table_t*	table,		/*!< in/out: table
+					(in: name, space_id, out: flags) */
 	lsn_t		current_lsn)	/*!< in: reset lsn's if the lsn stamped
 					to FIL_PAGE_FILE_FLUSH_LSN in the
 					first page is too high */
 {
 	os_file_t	file;
 	char*		filepath;
+	char*		tmpfilepath;
 	byte*		page;
 	byte*		buf2;
 	lsn_t		flush_lsn;
-	ulint		space_id;
+	ulint		fil_space_id;
+	ulint		space_flags;
 	os_offset_t	file_size;
 	os_offset_t	offset;
 	ulint		zip_size;
 	ibool		success;
 	page_zip_des_t	page_zip;
 
-	filepath = fil_make_ibd_name(name, FALSE);
+	filepath = fil_make_ibd_name(table->name, FALSE);
+	tmpfilepath = fil_make_ibt_name(filepath);
 
 	file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, filepath, OS_FILE_OPEN,
-		OS_FILE_READ_WRITE, &success);
+		innodb_file_data_key, tmpfilepath,
+		OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
+
+	if (success) {
+
+		goto renamed;
+	}
+
+	/* No such file; retry with .ibd suffix. */
+	file = os_file_create_simple_no_error_handling(
+		innodb_file_data_key, filepath,
+		OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
+
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
 
 		ut_print_timestamp(stderr);
 
-		fputs("  InnoDB: Error: trying to open a table,"
+		fputs("  InnoDB: Error: trying to import a table,"
 		      " but could not\n"
 		      "InnoDB: open the tablespace file ", stderr);
 		ut_print_filename(stderr, filepath);
+		fputs(" or ", stderr);
+		ut_print_filename(stderr, tmpfilepath);
 		fputs("!\n", stderr);
 		mem_free(filepath);
+		mem_free(tmpfilepath);
 
 		return(FALSE);
 	}
 
+	os_file_close(file);
+
+	/* Rename the tablespace from .ibd to .ibt for the duration of
+	the adjustment. */
+	success = os_file_rename(innodb_file_data_key, filepath, tmpfilepath);
+	buf2 = NULL;
+
+	if (!success) {
+
+		goto func_exit;
+	}
+
+	file = os_file_create_simple_no_error_handling(
+		innodb_file_data_key, tmpfilepath,
+		OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
+
+	if (!success) {
+
+		goto func_exit;
+	}
+
+renamed:
 	/* Read the first page of the tablespace */
 
 	buf2 = static_cast<byte*>(ut_malloc(3 * UNIV_PAGE_SIZE));
@@ -2983,18 +3161,15 @@ fil_reset_too_high_lsns(
 		goto func_exit;
 	}
 
-	/* We have to read the file flush lsn from the header of the file */
+	fil_space_id = fsp_header_get_space_id(page);
 
-	flush_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
-
-	if (current_lsn >= flush_lsn) {
-		/* Ok */
-		success = TRUE;
-
+	switch (fil_space_id) {
+	case 0:
+	case ULINT_UNDEFINED:
+		success = FALSE;
 		goto func_exit;
 	}
 
-	space_id = fsp_header_get_space_id(page);
 	zip_size = fsp_header_get_zip_size(page);
 
 	page_zip_des_init(&page_zip);
@@ -3003,16 +3178,45 @@ fil_reset_too_high_lsns(
 		page_zip.data = page + UNIV_PAGE_SIZE;
 	}
 
+	/* We have to read the file flush lsn from the header of the file */
+
+	flush_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
+
+	if (current_lsn >= flush_lsn && flush_lsn != 0
+	    && fil_space_id == table->space) {
+		/* Ok */
+		success = TRUE;
+
+		goto rename_and_exit;
+	}
+
+	page_zip_des_init(&page_zip);
+	page_zip_set_size(&page_zip, zip_size);
+	if (zip_size) {
+		page_zip.data = page + UNIV_PAGE_SIZE;
+	}
+
 	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		"  InnoDB: Flush lsn in the tablespace file %lu"
-		" to be imported\n"
-		"InnoDB: is " LSN_PF ", which exceeds current"
-		" system lsn " LSN_PF ".\n"
-		"InnoDB: We reset the lsn's in the file ",
-		(ulong) space_id,
-		flush_lsn, current_lsn);
-	ut_print_filename(stderr, filepath);
+	if (table->space != fil_space_id) {
+		fprintf(stderr,
+			"  InnoDB: Tablespace file %lu is"
+			" to be imported to space %lu.\n"
+			"InnoDB: Current system lsn is " LSN_PF ", flush lsn"
+			" in the file is " LSN_PF ".\n"
+			"InnoDB: We reset the space id and lsn in the file ",
+			(ulong) fil_space_id, (ulong) table->space,
+			current_lsn, flush_lsn);
+	} else {
+		fprintf(stderr,
+			"  InnoDB: Flush lsn in the tablespace file %lu"
+			" to be imported\n"
+			"InnoDB: is " LSN_PF ", which exceeds current"
+			" system lsn " LSN_PF ".\n"
+			"InnoDB: We reset the lsn's in the file ",
+			(ulong) fil_space_id,
+			flush_lsn, current_lsn);
+	}
+	ut_print_filename(stderr, tmpfilepath);
 	fputs(".\n", stderr);
 
 	ut_a(ut_is_2pow(zip_size));
@@ -3024,66 +3228,103 @@ fil_reset_too_high_lsns(
 	file_size = os_file_get_size(file);
 	ut_a(file_size != (os_offset_t) -1);
 
-	for (offset = 0; offset < file_size;
+	/* Convert page 0 last, so that the operation will be
+	completed after a crash.  (After a crash, we would read page 0
+	and note that adjustment will be needed.) */
+	offset = zip_size ? zip_size : UNIV_PAGE_SIZE;
+
+	for (; offset < file_size;
 	     offset += zip_size ? zip_size : UNIV_PAGE_SIZE) {
-		success = os_file_read(file, page, offset,
-				       zip_size ? zip_size : UNIV_PAGE_SIZE);
-		if (!success) {
 
-			goto func_exit;
-		}
-		if (mach_read_from_8(page + FIL_PAGE_LSN) > current_lsn) {
-			/* We have to reset the lsn */
-
-			if (zip_size) {
-				memcpy(page_zip.data, page, zip_size);
-				buf_flush_init_for_writing(
-					page, &page_zip, current_lsn);
-				success = os_file_write(
-					filepath, file, page_zip.data,
-					offset, zip_size);
-			} else {
-				buf_flush_init_for_writing(
-					page, NULL, current_lsn);
-				success = os_file_write(
-					filepath, file, page,
-					offset, UNIV_PAGE_SIZE);
-			}
+		switch (fil_reset_space_and_lsn_read(tmpfilepath, file, offset,
+						     page, zip_size)) {
+		case 0:
+			success = fil_reset_space_and_lsn_write(
+				current_lsn, tmpfilepath, file,
+				table->space, offset, page,
+				zip_size ? &page_zip : NULL);
 
 			if (!success) {
 
 				goto func_exit;
 			}
+
+			break;
+
+		case 1:
+			/* The page is all zero: leave it as is. */
+			break;
+		default:
+			success = FALSE;
+			goto func_exit;
 		}
 	}
 
+	/* Flush all but the first page, to be on the safe side after
+	a crash.  Then, adjust and flush the first page. */
 	success = os_file_flush(file);
+
 	if (!success) {
 
 		goto func_exit;
 	}
 
-	/* We now update the flush_lsn stamp at the start of the file */
-	success = os_file_read(file, page, 0,
-			       zip_size ? zip_size : UNIV_PAGE_SIZE);
+	if (fil_reset_space_and_lsn_read(tmpfilepath, file, 0,
+					 page, zip_size)) {
+		/* The first page is corrupted.  Actually, it should
+		never be, as it has already been checked. */
+		success = FALSE;
+		goto func_exit;
+	}
+
+	/* Initialize table->flags. */
+	space_flags = fsp_header_get_flags(page);
+
+	if (!fsp_flags_valid(space_flags)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: unsupported"
+			" tablespace format %lu\n",
+			(ulong) space_flags);
+		success = FALSE;
+		goto func_exit;
+	}
+
+	mach_write_to_8(FIL_PAGE_FILE_FLUSH_LSN + page, current_lsn);
+	/* Write space_id to the file space header. */
+	mach_write_to_4(FIL_PAGE_DATA /* FSP_SPACE_ID + FSP_HEADER_OFFSET */
+			+ page, table->space);
+
+	/* If space_flags==0, table->flags may be DICT_TF_COMPACT or 0.
+	It will be adjusted later, in btr_root_adjust_on_import(). */
+	table->flags = space_flags;
+
+	/* Update the flush_lsn stamp at the start of the file */
+	success = fil_reset_space_and_lsn_write(
+		current_lsn, tmpfilepath, file, table->space, 0,
+		page, zip_size ? &page_zip : NULL);
+
 	if (!success) {
 
 		goto func_exit;
 	}
 
-	mach_write_to_8(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
-
-	success = os_file_write(filepath, file, page, 0,
-				zip_size ? zip_size : UNIV_PAGE_SIZE);
-	if (!success) {
-
-		goto func_exit;
-	}
+rename_and_exit:
 	success = os_file_flush(file);
+
+	if (!success) {
+
+		goto func_exit;
+	}
+
+	success = os_file_rename(innodb_file_data_key, tmpfilepath, filepath);
+
 func_exit:
 	os_file_close(file);
-	ut_free(buf2);
+	if (buf2) {
+		ut_free(buf2);
+	}
 	mem_free(filepath);
+	mem_free(tmpfilepath);
 
 	return(success);
 }
@@ -3102,16 +3343,16 @@ UNIV_INTERN
 ibool
 fil_open_single_table_tablespace(
 /*=============================*/
-	ibool		check_space_id,	/*!< in: should we check that the space
-					id in the file is right; we assume
+	const dict_table_t*	table,	/*!< in: table handle for consistency
+					checks, or NULL; we assume
 					that this function runs much faster
 					if no check is made, since accessing
 					the file inode probably is much
 					faster (the OS caches them) than
-					accessing the first page of the file */
-	ulint		id,		/*!< in: space id */
-	ulint		flags,		/*!< in: tablespace flags */
-	const char*	name)		/*!< in: table name in the
+					accessing the file */
+	ulint			id,	/*!< in: space id */
+	ulint			flags,	/*!< in: tablespace flags */
+	const char*		name)	/*!< in: table name in the
 					databasename/tablename format */
 {
 	os_file_t	file;
@@ -3125,6 +3366,21 @@ fil_open_single_table_tablespace(
 	filepath = fil_make_ibd_name(name, FALSE);
 
 	fsp_flags_validate(flags);
+
+	if (table) {
+		ulint	table_flags = table->flags & ~(~0UL << DICT_TF_BITS);
+
+		ut_ad(table->name == name || !strcmp(table->name, name));
+		switch (table_flags) {
+		case 0:
+		case DICT_TF_COMPACT:
+			ut_a(flags == 0);
+			break;
+		default:
+			ut_a(flags == table_flags);
+			break;
+		}
+	}
 
 	file = os_file_create_simple_no_error_handling(
 		innodb_file_data_key, filepath, OS_FILE_OPEN,
@@ -3156,7 +3412,7 @@ fil_open_single_table_tablespace(
 		return(FALSE);
 	}
 
-	if (!check_space_id) {
+	if (!table) {
 		space_id = id;
 
 		goto skip_check;

@@ -405,7 +405,8 @@ UNIV_INTERN
 ibool
 fil_delete_tablespace(
 /*==================*/
-	ulint	id);	/*!< in: space id */
+	ulint	id,	/*!< in: space id */
+	ibool	rename);/*!< in: TRUE=rename to .ibt; FALSE=remove */
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the
@@ -420,7 +421,8 @@ UNIV_INTERN
 ibool
 fil_discard_tablespace(
 /*===================*/
-	ulint	id);	/*!< in: space id */
+	ulint	id,	/*!< in: space id */
+	ibool	rename);/*!< in: TRUE=rename to .ibt; FALSE=remove */
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
 Renames a single-table tablespace. The tablespace must be cached in the
@@ -476,17 +478,18 @@ UNIV_INTERN
 ibool
 fil_open_single_table_tablespace(
 /*=============================*/
-	ibool		check_space_id,	/*!< in: should we check that the space
-					id in the file is right; we assume
+	const dict_table_t*	table,	/*!< in: table handle for consistency
+					checks, or NULL; we assume
 					that this function runs much faster
 					if no check is made, since accessing
 					the file inode probably is much
 					faster (the OS caches them) than
-					accessing the first page of the file */
-	ulint		id,		/*!< in: space id */
-	ulint		flags,		/*!< in: tablespace flags */
-	const char*	name);		/*!< in: table name in the
+					accessing the file */
+	ulint			id,	/*!< in: space id */
+	ulint			flags,	/*!< in: tablespace flags */
+	const char*		name)	/*!< in: table name in the
 					databasename/tablename format */
+	__attribute__((nonnull(4)));
 /********************************************************************//**
 It is possible, though very improbable, that the lsn's in the tablespace to be
 imported have risen above the current system lsn, if a lengthy purge, ibuf
@@ -499,13 +502,14 @@ lsn's just by looking at that flush lsn.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-fil_reset_too_high_lsns(
+fil_reset_space_and_lsn(
 /*====================*/
-	const char*	name,		/*!< in: table name in the
-					databasename/tablename format */
-	lsn_t		current_lsn);	/*!< in: reset lsn's if the lsn stamped
+	dict_table_t*	table,		/*!< in/out: table
+					(in: name, space_id, out: flags) */
+	lsn_t		current_lsn)	/*!< in: reset lsn's if the lsn stamped
 					to FIL_PAGE_FILE_FLUSH_LSN in the
 					first page is too high */
+	__attribute__((nonnull, warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 At the server startup, if we need crash recovery, scans the database

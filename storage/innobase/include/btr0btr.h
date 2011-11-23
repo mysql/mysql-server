@@ -186,6 +186,16 @@ btr_root_get(
 /*=========*/
 	dict_index_t*	index,	/*!< in: index tree */
 	mtr_t*		mtr);	/*!< in: mtr */
+
+/**************************************************************//**
+Checks and adjusts the root node of a tree during IMPORT TABLESPACE.
+@return error code, or DB_SUCCESS */
+UNIV_INTERN
+ulint
+btr_root_adjust_on_import(
+/*======================*/
+	dict_index_t*	index);	/*!< in: index tree */
+
 /**************************************************************//**
 Gets a buffer page and declares its latching order level. */
 UNIV_INLINE
@@ -662,7 +672,10 @@ ibool
 btr_validate_index(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index */
-	trx_t*		trx);	/*!< in: transaction or NULL */
+	trx_t*		trx,	/*!< in: transaction or NULL */
+	ibool		init_id);/*!< in: FALSE=check that PAGE_INDEX_ID
+				 equals index->id; TRUE=assign PAGE_INDEX_ID
+				 and PAGE_MAX_TRX_ID = trx->id  */
 
 #define BTR_N_LEAF_PAGES	1
 #define BTR_TOTAL_SIZE		2

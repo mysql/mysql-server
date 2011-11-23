@@ -233,8 +233,10 @@ trx_free(
 	/* We allocated a dedicated heap for the vector. */
 	ib_vector_free(trx->autoinc_locks);
 
-	/* We allocated a dedicated heap for the vector. */
-	ib_vector_free(trx->lock.table_locks);
+	if (trx->lock.table_locks != NULL) {
+		/* We allocated a dedicated heap for the vector. */
+		ib_vector_free(trx->lock.table_locks);
+	}
 
 	mutex_free(&trx->mutex);
 

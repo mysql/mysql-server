@@ -4607,6 +4607,10 @@ lock_release(
 	ut_a(ib_vector_is_empty(trx->lock.table_locks));
 
 	mem_heap_empty(trx->lock.lock_heap);
+
+	/* We allocated a dedicated heap for the vector. */
+	ib_vector_free(trx->lock.table_locks);
+	trx->lock.table_locks = NULL;
 }
 
 /* True if a lock mode is S or X */
