@@ -276,4 +276,21 @@ INSERT INTO t1 VALUES(-1.79769313486231e+308);
 SELECT f1 FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#12406055 BUFFER OVERFLOW OF VARIABLE 'BUFF' IN STRING::SET_REAL
+--echo # 
+
+--echo # Ignoring output from misc. float operations
+--disable_result_log
+
+let $nine_65=
+99999999999999999999999999999999999999999999999999999999999999999;
+
+select format(-1.7976931348623157E+307,256) as foo;
+select least(-1.1111111111111111111111111,
+             - group_concat(1.7976931348623157E+308)) as foo;
+eval select concat((truncate((-1.7976931348623157E+307),(0x1e))),
+                   ($nine_65)) into @a;
+--enable_result_log
+
 --echo End of 5.0 tests

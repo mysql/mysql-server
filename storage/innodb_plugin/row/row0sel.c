@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -63,13 +63,7 @@ Created 12/19/1997 Heikki Tuuri
 
 /* Number of rows fetched, after which to start prefetching; MySQL interface
 has another parameter */
-/* The prefetch code in the internal SQL is disabled because it has probably
-never been used and has been found to contain a memory leak and a bug of
-accessing uninitialized memory. Some simple performance tests show that
-disabling it makes no difference in performance. It will be removed, but
-until the removal happens we disable it by setting SEL_PREFETCH_LIMIT to a
-high value. */
-#define SEL_PREFETCH_LIMIT	1000000000
+#define SEL_PREFETCH_LIMIT	1
 
 /* When a select has accessed about this many pages, it returns control back
 to que_run_threads: this is to allow canceling runaway queries */
@@ -107,12 +101,17 @@ row_sel_sec_rec_is_for_blob(
 	ulint		clust_len,	/*!< in: length of clust_field */
 	const byte*	sec_field,	/*!< in: column in secondary index */
 	ulint		sec_len,	/*!< in: length of sec_field */
+	ulint		prefix_len,	/*!< in: index column prefix length
+					in bytes */
 	ulint		zip_size)	/*!< in: compressed page size, or 0 */
 {
 	ulint	len;
 	byte	buf[DICT_MAX_INDEX_COL_LEN];
 
 	ut_a(clust_len >= BTR_EXTERN_FIELD_REF_SIZE);
+	ut_ad(prefix_len >= sec_len);
+	ut_ad(prefix_len > 0);
+	ut_a(prefix_len <= sizeof buf);
 
 	if (UNIV_UNLIKELY
 	    (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
@@ -124,7 +123,7 @@ row_sel_sec_rec_is_for_blob(
 		return(FALSE);
 	}
 
-	len = btr_copy_externally_stored_field_prefix(buf, sizeof buf,
+	len = btr_copy_externally_stored_field_prefix(buf, prefix_len,
 						      zip_size,
 						      clust_field, clust_len);
 
@@ -138,7 +137,7 @@ row_sel_sec_rec_is_for_blob(
 	}
 
 	len = dtype_get_at_most_n_mbchars(prtype, mbminlen, mbmaxlen,
-					  sec_len, len, (const char*) buf);
+					  prefix_len, len, (const char*) buf);
 
 	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
 }
@@ -225,11 +224,20 @@ row_sel_sec_rec_is_for_clust_rec(
 
 			if (rec_offs_nth_extern(clust_offs, clust_pos)
 			    && len < sec_len) {
+				/* This function should never be
+				invoked on an Antelope format table,
+				because they should always contain
+				enough prefix in the clustered index
+				record. */
+				ut_ad(dict_table_get_format(clust_index->table)
+				      >= DICT_TF_FORMAT_ZIP);
+
 				if (!row_sel_sec_rec_is_for_blob(
 					    col->mtype, col->prtype,
 					    col->mbminlen, col->mbmaxlen,
 					    clust_field, clust_len,
 					    sec_field, sec_len,
+					    ifield->prefix_len,
 					    dict_table_zip_size(
 						    clust_index->table))) {
 					goto inequal;
@@ -500,7 +508,7 @@ sel_col_prefetch_buf_alloc(
 		sel_buf = column->prefetch_buf + i;
 
 		sel_buf->data = NULL;
-
+		sel_buf->len = 0;
 		sel_buf->val_buf_size = 0;
 	}
 }
@@ -525,6 +533,8 @@ sel_col_prefetch_buf_free(
 			mem_free(sel_buf->data);
 		}
 	}
+
+	mem_free(prefetch_buf);
 }
 
 /*********************************************************************//**

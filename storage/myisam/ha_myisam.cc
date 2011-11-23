@@ -1165,6 +1165,18 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
 			mi_get_mask_all_keys_active(share->base.keys) :
 			share->state.key_map);
     ulonglong testflag= param.testflag;
+#ifdef HAVE_MMAP
+    bool remap= test(share->file_map);
+    /*
+      mi_repair*() functions family use file I/O even if memory
+      mapping is available.
+
+      Since mixing mmap I/O and file I/O may cause various artifacts,
+      memory mapping must be disabled.
+    */
+    if (remap)
+      mi_munmap_file(file);
+#endif
     if (mi_test_if_sort_rep(file,file->state->records,key_map,0) &&
 	(local_testflag & T_REP_BY_SORT))
     {
@@ -1197,6 +1209,10 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
 			test(param.testflag & T_QUICK));
     }
     param.testflag= testflag | (param.testflag & T_RETRY_WITHOUT_QUICK);
+#ifdef HAVE_MMAP
+    if (remap)
+      mi_dynmap_file(file, file->state->data_file_length);
+#endif
     optimize_done=1;
   }
   if (!error)

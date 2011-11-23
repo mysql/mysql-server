@@ -185,9 +185,11 @@ software.
 %package server
 Summary:	MariaDB: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Requires: coreutils grep procps /usr/sbin/useradd /usr/sbin/groupadd /sbin/chkconfig
-Provides:	msqlormysql mysql-server mysql MySQL
-Obsoletes:	MySQL mysql mysql-server
+Requires:	coreutils grep procps /usr/sbin/useradd /usr/sbin/groupadd /sbin/chkconfig
+Provides:	msqlormysql mysql MySQL mysql-server MySQL-server
+Obsoletes:	mysql MySQL mysql-server MySQL-server
+Obsoletes:	MySQL-server-classic MySQL-server-community MySQL-server-enterprise
+Obsoletes:	MySQL-server-advanced MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
 
 %description server
 The MariaDB(TM) software delivers a very fast, multi-threaded,
@@ -217,10 +219,12 @@ package "MySQL-client" as well!
 # ------------------------------------------------------------------------------
 
 %package client
-Summary: MySQL - Client
-Group: Applications/Databases
-Obsoletes: mysql-client
-Provides: mysql-client
+Summary:	MySQL - Client
+Group:		Applications/Databases
+Provides:	mysql-client MySQL-client
+Obsoletes:	mysql-client MySQL-client
+Obsoletes:	MySQL-client-classic MySQL-client-community MySQL-client-enterprise
+Obsoletes:	MySQL-client-advanced MySQL-client-advanced-gpl MySQL-client-enterprise-gpl
 
 %description client
 This package contains the standard MariaDB & MySQL clients and
@@ -282,11 +286,14 @@ They should be used with caution.
 # ------------------------------------------------------------------------------
 
 %package test
-Requires: %{name}-client perl
-Summary: MariaDB - Test suite
-Group: Applications/Databases
-Provides: mysql-test
-Obsoletes: mysql-bench mysql-test
+Summary:	MariaDB - Test suite
+Group:		Applications/Databases
+Requires:	%{name}-client perl
+Provides:	mysql-test MySQL-test
+Obsoletes:	mysql-test MySQL-test
+Obsoletes:	mysql-bench MySQL-bench
+Obsoletes:	MySQL-test-classic MySQL-test-community MySQL-test-enterprise
+Obsoletes:	MySQL-test-advanced MySQL-test-advanced-gpl MySQL-test-enterprise-gpl
 AutoReqProv: no
 
 %description test
@@ -297,10 +304,12 @@ This package contains the MariaDB regression test suite.
 # ------------------------------------------------------------------------------
 
 %package devel
-Summary: MariaDB - Development header files and libraries
-Group: Applications/Databases
-Provides: mysql-devel
-Obsoletes: mysql-devel
+Summary:	MariaDB - Development header files and libraries
+Group:		Applications/Databases
+Provides:	mysql-devel MySQL-devel
+Obsoletes:	mysql-devel MySQL-devel
+Obsoletes:	MySQL-devel-classic MySQL-devel-community MySQL-devel-enterprise
+Obsoletes:	MySQL-devel-advanced MySQL-devel-advanced-gpl MySQL-devel-enterprise-gpl
 
 %description devel
 This package contains the development header files and libraries
@@ -311,8 +320,14 @@ necessary to develop MariaDB client applications.
 # ------------------------------------------------------------------------------
 
 %package shared
-Summary: MariaDB - Shared libraries
-Group: Applications/Databases
+Summary:	MariaDB - Shared libraries
+Group:		Applications/Databases
+Provides:	mysql-shared MySQL-shared
+Obsoletes:	mysql-shared MySQL-shared-standard MySQL-shared-pro
+Obsoletes:	MySQL-shared-pro-cert MySQL-shared-pro-gpl
+Obsoletes:	MySQL-shared-pro-gpl-cert MySQL-shared
+Obsoletes:	MySQL-shared-classic MySQL-shared-community MySQL-shared-enterprise
+Obsoletes:	MySQL-shared-advanced MySQL-shared-advanced-gpl MySQL-shared-enterprise-gpl
 
 %description shared
 This package contains the shared libraries (*.so*) which certain
@@ -323,10 +338,14 @@ languages and applications need to dynamically load and use MariaDB.
 %if %{EMBEDDED_BUILD}
 
 %package embedded
-Requires: %{name}-devel
-Summary: MariaDB - embedded library
-Group: Applications/Databases
-Obsoletes: mysql-embedded
+Summary:	MariaDB - Embedded library
+Group:		Applications/Databases
+Requires:	%{name}-devel
+Provides:	mysql-embedded MySQL-embedded
+Obsoletes:	mysql-embedded MySQL-embedded
+Obsoletes:	MySQL-embedded-pro
+Obsoletes:	MySQL-embedded-classic MySQL-embedded-community MySQL-embedded-enterprise
+Obsoletes:	MySQL-embedded-advanced MySQL-embedded-advanced-gpl MySQL-embedded-enterprise-gpl
 
 %description embedded
 This package contains the MariaDB server as an embedded library.
@@ -1207,6 +1226,16 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Sep 14 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Let the RPM capabilities ("obsoletes" etc) ensure that an upgrade may replace
+  the RPMs of any configuration (of the current or the preceding release series)
+  by the new ones. This is done by not using the implicitly generated capabilities
+  (which include the configuration name) and relying on more generic ones which
+  just list the function ("server", "client", ...).
+  The implicit generation cannot be prevented, so all these capabilities must be
+  explicitly listed in "Obsoletes:"
+
 * Fri Aug 19 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Fix bug#37165 "((Generic rpm)) fail to install on Fedora 9 x86_64"

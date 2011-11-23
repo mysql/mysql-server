@@ -2691,6 +2691,16 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+
+    DBUG_EXECUTE_IF("bug11747970_raise_error",
+                    {
+                      if (!error)
+                      {
+                        my_error(ER_UNKNOWN_ERROR, MYF(0));
+                        goto error;
+                      }
+                    });
+
     if (error)
     {
       table->file->print_error(error, MYF(0));
@@ -10768,6 +10778,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
   if (open_tmp_table(table))
     goto err;
+
+  // Make empty record so random data is not written to disk
+  empty_record(table);
 
   thd->mem_root= mem_root_save;
 

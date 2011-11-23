@@ -11,4 +11,6 @@
 ##############################################################################
 
 innodb_bug52745: Disabled as this has valgrind failures (also in MySQL 5.1.50)
-innodb-index: Disabled until merging with XtraDB 5.1.60
+innodb-index:    Disabled until merging with XtraDB 5.1.60
+innodb-lock:     Disabled until merging with XtraDB 5.1.60
+innodb_replace:  Disabled until merging with XtraDB 5.1.60

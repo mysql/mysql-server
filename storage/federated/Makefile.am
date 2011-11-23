@@ -40,7 +40,7 @@ ha_federated_la_SOURCES =	ha_federated.cc $(top_srcdir)/mysys/string.c
 
 noinst_LTLIBRARIES =	@plugin_federated_static_target@ @plugin_federated_embedded_static_target@
 libfederated_la_CXXFLAGS =	$(AM_CXXFLAGS)
-libfederated_la_SOURCES=	ha_federated.cc
+libfederated_la_SOURCES=	ha_federated.cc $(top_srcdir)/mysys/string.c
 
 libfederated_embedded_la_CXXFLAGS =	$(AM_CXXFLAGS) @plugin_embedded_defs@
 libfederated_embedded_la_CFLAGS =	$(AM_CFLAGS) @plugin_embedded_defs@

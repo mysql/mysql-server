@@ -836,7 +836,7 @@ int _ma_insert(register MARIA_HA *info, MARIA_KEY *key,
   {
     if (share->max_index_block_size - a_length < 32 &&
         (keyinfo->flag & HA_FULLTEXT) && key_pos == endpos &&
-        share->base.key_reflength <= share->base.rec_reflength &&
+        share->base.key_reflength <= share->rec_reflength &&
         share->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD))
     {
       /*

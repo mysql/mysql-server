@@ -1,3 +1,51 @@
+2011-11-10	The InnoDB Team
+
+	* handler/ha_innodb.cc, row/row0ins.c, innodb_replace.test:
+	Fix Bug#11759688 52020: InnoDB can still deadlock
+	on just INSERT...ON DUPLICATE KEY a.k.a. the reintroduction of
+	Bug#7975 deadlock without any locking, simple select and update
+
+2011-11-08	The InnoDB Team
+
+	* btr/btr0pcur.c, include/btr0pcur.h, include/btr0pcur.ic:
+	Fix Bug#13358468 ASSERTION FAILURE IN BTR_PCUR_GET_BLOCK
+
+2011-10-27	The InnoDB Team
+
+	* row/row0mysql.c:
+	Fix Bug#12884631 62146: TABLES ARE LOST FOR DDL
+
+2011-10-20	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Fix Bug#13116045 Compilation failure using GCC 4.6.1 in btr/btr0cur.c
+
+2011-10-12	The InnoDB Team
+
+	* btr/btr0cur.c, btr/btr0sea.c, buf/buf0buf.c, buf/buf0lru.c,
+	ha/ha0ha.c, handler/ha_innodb.cc, ibuf/ibuf0ibuf.c, include/btr0sea.h,
+	include/btr0types.h, include/buf0buf.h, include/ha0ha.h,
+	include/ha0ha.ic, include/row0upd.ic, include/sync0sync.h,
+	page/page0page.c, sync/sync0sync.c:
+	Fix Bug#13006367 62487: innodb takes 3 minutes to clean up
+	the adaptive hash index at shutdown
+
+2011-10-04	The InnoDB Team
+
+	* include/sync0rw.h, sync/sync0rw.c:
+	Fix Bug#13034534 RQG TESTS FAIL ON WINDOWS WITH CRASH NEAR
+	RW_LOCK_DEBUG_PRINT
+
+2011-09-20	The InnoDB Team
+
+	* row/row0purge.c:
+	Fix Bug#12963823 CRASH IN PURGE THREAD UNDER UNUSUAL CIRCUMSTANCES
+
+2011-09-12	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#12601439 CONSISTENT READ FAILURE IN COLUMN PREFIX INDEX
+
 2011-09-08	The InnoDB Team
 
 	* btr/btr0cur.c, include/page0page.h, include/row0upd.ic:

@@ -339,33 +339,6 @@ btr_pcur_restore_position(
 	return(FALSE);
 }
 
-/******************************************************************
-If the latch mode of the cursor is BTR_LEAF_SEARCH or BTR_LEAF_MODIFY,
-releases the page latch and bufferfix reserved by the cursor.
-NOTE! In the case of BTR_LEAF_MODIFY, there should not exist changes
-made by the current mini-transaction to the data protected by the
-cursor latch, as then the latch must not be released until mtr_commit. */
-
-void
-btr_pcur_release_leaf(
-/*==================*/
-	btr_pcur_t*	cursor, /* in: persistent cursor */
-	mtr_t*		mtr)	/* in: mtr */
-{
-	page_t*	page;
-
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
-	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
-
-	page = btr_cur_get_page(btr_pcur_get_btr_cur(cursor));
-
-	btr_leaf_page_release(page, cursor->latch_mode, mtr);
-
-	cursor->latch_mode = BTR_NO_LATCHES;
-
-	cursor->pos_state = BTR_PCUR_WAS_POSITIONED;
-}
-
 /*************************************************************
 Moves the persistent cursor to the first record on the next page. Releases the
 latch on the current page, and bufferunfixes it. Note that there must not be

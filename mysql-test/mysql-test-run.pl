@@ -2097,6 +2097,79 @@ sub environment_setup {
   }
 
   # --------------------------------------------------------------------------
+  # Add the path where mysqld will find udf_example.so
+  # --------------------------------------------------------------------------
+  my $lib_udf_example=
+    mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
+		    "$basedir/sql/.libs/udf_example.so",);
+
+  if ( $lib_udf_example )
+  {
+    push(@ld_library_paths, dirname($lib_udf_example));
+  }
+
+  $ENV{'UDF_EXAMPLE_LIB'}=
+    ($lib_udf_example ? basename($lib_udf_example) : "");
+  $ENV{'UDF_EXAMPLE_LIB_OPT'}= "--plugin-dir=".
+    ($lib_udf_example ? dirname($lib_udf_example) : "");
+
+  # --------------------------------------------------------------------------
+  # Add the path where mysqld will find ha_example.so
+  # --------------------------------------------------------------------------
+  if ($mysql_version_id >= 50100) {
+    my $plugin_filename;
+    if (IS_WINDOWS)
+    {
+       $plugin_filename = "ha_example.dll";
+    }
+    else 
+    {
+       $plugin_filename = "ha_example.so";
+    }
+    my $lib_example_plugin=
+      mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
+		      "$basedir/storage/example/.libs/".$plugin_filename,
+                      "$basedir/lib/mysql/plugin/".$plugin_filename);
+    $ENV{'EXAMPLE_PLUGIN'}=
+      ($lib_example_plugin ? basename($lib_example_plugin) : "");
+    $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
+      ($lib_example_plugin ? dirname($lib_example_plugin) : "");
+
+    $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
+    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".$plugin_filename;
+  }
+
+  # --------------------------------------------------------------------------
+  # Add the path where mysqld will find ha_federated.so
+  # --------------------------------------------------------------------------
+  my $fedplug_filename;
+  if (IS_WINDOWS) {
+    $fedplug_filename = "ha_federated.dll";
+  } else {
+    $fedplug_filename = "ha_federated.so";
+  }
+  my $lib_fed_plugin=
+    mtr_file_exists(vs_config_dirs('storage/federated',$fedplug_filename),
+		    "$basedir/storage/federated/.libs/".$fedplug_filename,
+		    "$basedir/lib/mysql/plugin/".$fedplug_filename);
+
+  $ENV{'FEDERATED_PLUGIN'}= $fedplug_filename;
+  $ENV{'FEDERATED_PLUGIN_DIR'}=
+    ($lib_fed_plugin ? dirname($lib_fed_plugin) : "");
+
+  # ----------------------------------------------------
+  # Add the path where mysqld will find mypluglib.so
+  # ----------------------------------------------------
+  my $lib_simple_parser=
+    mtr_file_exists(vs_config_dirs('plugin/fulltext', 'mypluglib.dll'),
+		    "$basedir/plugin/fulltext/.libs/mypluglib.so",);
+
+  $ENV{'SIMPLE_PARSER'}=
+    ($lib_simple_parser ? basename($lib_simple_parser) : "");
+  $ENV{'SIMPLE_PARSER_OPT'}= "--plugin-dir=".
+    ($lib_simple_parser ? dirname($lib_simple_parser) : "");
+
+  # --------------------------------------------------------------------------
   # Valgrind need to be run with debug libraries otherwise it's almost
   # impossible to add correct supressions, that means if "/usr/lib/debug"
   # is available, it should be added to
@@ -2226,6 +2299,12 @@ sub environment_setup {
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  mysql_fix_arguments();
   $ENV{'MYSQLD'}=                   mysqld_client_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
+
+  my $exe_mysqld= find_mysqld($basedir);
+  $ENV{'MYSQLD'}= $exe_mysqld;
+  my $extra_opts= join (" ", @opt_extra_mysqld_opt);
+  $ENV{'MYSQLD_CMD'}= "$exe_mysqld --defaults-group-suffix=.1 ".
+    "--defaults-file=$path_config_file $extra_opts";
 
   # ----------------------------------------------------
   # bug25714 executable may _not_ exist in
@@ -2587,7 +2666,7 @@ sub check_debug_support ($) {
 #
 # Helper function to find the correct value for the opt_vs_config
 # if it was not set explicitly.
-# 
+#
 # the configuration with the most recent build dir in sql/ is selected.
 #
 # note: looking for all BuildLog.htm files everywhere in the tree with the
@@ -2613,6 +2692,33 @@ sub fix_vs_config_dir () {
 
   mtr_report("VS config: $opt_vs_config");
   $opt_vs_config="/$opt_vs_config" if $opt_vs_config;
+}
+
+
+#
+# Helper function to handle configuration-based subdirectories which Visual
+# Studio uses for storing binaries.  If opt_vs_config is set, this returns
+# a path based on that setting; if not, it returns paths for the default
+# /release/ and /debug/ subdirectories.
+#
+# $exe can be undefined, if the directory itself will be used
+#
+sub vs_config_dirs ($$) {
+  my ($path_part, $exe) = @_;
+
+  $exe = "" if not defined $exe;
+
+  # Don't look in these dirs when not on windows
+  return () unless IS_WINDOWS;
+
+  if ($opt_vs_config)
+  {
+    return ("$basedir/$path_part/$opt_vs_config/$exe");
+  }
+
+  return ("$basedir/$path_part/release/$exe",
+          "$basedir/$path_part/relwithdebinfo/$exe",
+          "$basedir/$path_part/debug/$exe");
 }
 
 
@@ -4271,6 +4377,11 @@ sub extract_server_log ($$) {
       else
       {
 	push(@lines, $line);
+	if (scalar(@lines) > 1000000) {
+	  $Ferr = undef;
+	  mtr_warning("Too much log from test, bailing out from extracting");
+	  return ();
+	}
       }
     }
     else

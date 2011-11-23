@@ -3,8 +3,6 @@
 -- source include/not_embedded.inc
 -- source include/have_innodb_plugin.inc
 
-let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
-
 # Close tables used by other tests (to not get crashed myisam tables)
 flush tables;
 
@@ -69,5 +67,3 @@ XA COMMIT '789';
 SELECT * FROM t;
 
 DROP TABLE t;
---disable_query_log
-eval set global innodb_file_format_check=$innodb_file_format_check_orig;

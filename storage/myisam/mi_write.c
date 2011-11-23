@@ -528,7 +528,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   {
     if (keyinfo->block_length - a_length < 32 &&
         keyinfo->flag & HA_FULLTEXT && key_pos == endpos &&
-        info->s->base.key_reflength <= info->s->base.rec_reflength &&
+        info->s->base.key_reflength <= info->s->rec_reflength &&
         info->s->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD))
     {
       /*
