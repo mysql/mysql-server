@@ -223,6 +223,42 @@ include/stop_slave.inc
 START SLAVE USER= 'root' PASSWORD= '';
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
+SET @old_log_output= @@log_output;
+SET GLOBAL log_output= 'TABLE,FILE';
+include/stop_slave.inc
+TRUNCATE mysql.general_log;
+START SLAVE PASSWORD='secret';
+include/stop_slave.inc
+START SLAVE PASSWORD = '<secret>';
+include/stop_slave.inc
+TRUNCATE mysql.general_log;
+START SLAVE USER='root' PASSWORD='secret';
+include/stop_slave.inc
+START SLAVE USER = 'root' PASSWORD = '<secret>';
+include/stop_slave.inc
+TRUNCATE mysql.general_log;
+START SLAVE IO_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
+include/stop_slave.inc
+START SLAVE IO_THREAD USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
+include/stop_slave.inc
+TRUNCATE mysql.general_log;
+START SLAVE IO_THREAD, SQL_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
+include/stop_slave.inc
+START SLAVE IO_THREAD, SQL_THREAD USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
+include/stop_slave.inc
+TRUNCATE mysql.general_log;
+START SLAVE IO_THREAD, SQL_THREAD UNTIL MASTER_LOG_FILE='dummy-log.000001', MASTER_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
+include/stop_slave.inc
+START SLAVE IO_THREAD, SQL_THREAD UNTIL MASTER_LOG_FILE = 'dummy-log.000001', MASTER_LOG_POS = 116 USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
+include/stop_slave.inc
+TRUNCATE mysql.general_log;
+START SLAVE IO_THREAD, SQL_THREAD UNTIL RELAY_LOG_FILE='dummy-log.000001', RELAY_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
+include/stop_slave.inc
+START SLAVE IO_THREAD, SQL_THREAD UNTIL RELAY_LOG_FILE = 'dummy-log.000001', RELAY_LOG_POS = 116 USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
+include/stop_slave.inc
+SET GLOBAL log_output= @old_log_output;
+TRUNCATE mysql.general_log;
+include/start_slave.inc
 SET SQL_LOG_BIN=0;
 DROP USER plug_user_p, plug_user_wp, regular_user_p, regular_user_wp, proxy_user_p, proxy_user_wp;
 SET SQL_LOG_BIN=1;
