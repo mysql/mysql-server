@@ -110,31 +110,31 @@ SET @sql_mode_orig=@@SESSION.sql_mode;
 SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
 
 CREATE TABLE IF NOT EXISTS innodb_table_stats (
-	database_name			VARCHAR(64) NOT NULL,
-	table_name			VARCHAR(64) NOT NULL,
-	stats_timestamp			TIMESTAMP NOT NULL,
-	n_rows				BIGINT UNSIGNED NOT NULL,
-	clustered_index_size		BIGINT UNSIGNED NOT NULL,
-	sum_of_other_index_sizes	BIGINT UNSIGNED NOT NULL,
-	PRIMARY KEY (database_name, table_name)
+   database_name        VARCHAR(64) NOT NULL,
+   table_name        VARCHAR(64) NOT NULL,
+   stats_timestamp         TIMESTAMP NOT NULL,
+   n_rows            BIGINT UNSIGNED NOT NULL,
+   clustered_index_size    BIGINT UNSIGNED NOT NULL,
+   sum_of_other_index_sizes   BIGINT UNSIGNED NOT NULL,
+   PRIMARY KEY (database_name, table_name)
 ) ENGINE=INNODB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS innodb_index_stats (
-	database_name			VARCHAR(64) NOT NULL,
-	table_name			VARCHAR(64) NOT NULL,
-	index_name			VARCHAR(64) NOT NULL,
-	stat_timestamp			TIMESTAMP NOT NULL,
-	/* there are at least:
-	stat_name='size'
-	stat_name='n_leaf_pages'
-	stat_name='n_diff_pfx%' */
-	stat_name			VARCHAR(64) NOT NULL,
-	stat_value			BIGINT UNSIGNED NOT NULL,
-	sample_size			BIGINT UNSIGNED,
-	stat_description		VARCHAR(1024) NOT NULL,
-	PRIMARY KEY (database_name, table_name, index_name, stat_name),
-	FOREIGN KEY (database_name, table_name)
-	  REFERENCES innodb_table_stats (database_name, table_name)
+   database_name        VARCHAR(64) NOT NULL,
+   table_name        VARCHAR(64) NOT NULL,
+   index_name        VARCHAR(64) NOT NULL,
+   stat_timestamp       TIMESTAMP NOT NULL,
+   /* there are at least:
+   stat_name='size'
+   stat_name='n_leaf_pages'
+   stat_name='n_diff_pfx%' */
+   stat_name         VARCHAR(64) NOT NULL,
+   stat_value        BIGINT UNSIGNED NOT NULL,
+   sample_size       BIGINT UNSIGNED,
+   stat_description     VARCHAR(1024) NOT NULL,
+   PRIMARY KEY (database_name, table_name, index_name, stat_name),
+   FOREIGN KEY (database_name, table_name)
+     REFERENCES innodb_table_stats (database_name, table_name)
 ) ENGINE=INNODB DEFAULT CHARSET=utf8;
 
 SET SESSION sql_mode=@sql_mode_orig;
@@ -225,6 +225,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_waits_current("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -255,6 +256,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_waits_history("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -285,6 +287,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_waits_history_long("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -443,10 +446,28 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.file_summary_by_event_name("
   "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
   "COUNT_READ BIGINT unsigned not null,"
-  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ BIGINT unsigned not null,"
+  "MIN_TIMER_READ BIGINT unsigned not null,"
+  "AVG_TIMER_READ BIGINT unsigned not null,"
+  "MAX_TIMER_READ BIGINT unsigned not null,"
   "SUM_NUMBER_OF_BYTES_READ BIGINT not null,"
-  "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null"
+  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null,"
+  "COUNT_MISC BIGINT unsigned not null,"
+  "SUM_TIMER_MISC BIGINT unsigned not null,"
+  "MIN_TIMER_MISC BIGINT unsigned not null,"
+  "AVG_TIMER_MISC BIGINT unsigned not null,"
+  "MAX_TIMER_MISC BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -461,16 +482,36 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.file_summary_by_instance("
   "FILE_NAME VARCHAR(512) not null,"
   "EVENT_NAME VARCHAR(128) not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
   "COUNT_READ BIGINT unsigned not null,"
-  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ BIGINT unsigned not null,"
+  "MIN_TIMER_READ BIGINT unsigned not null,"
+  "AVG_TIMER_READ BIGINT unsigned not null,"
+  "MAX_TIMER_READ BIGINT unsigned not null,"
   "SUM_NUMBER_OF_BYTES_READ BIGINT not null,"
-  "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null"
+  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null,"
+  "COUNT_MISC BIGINT unsigned not null,"
+  "SUM_TIMER_MISC BIGINT unsigned not null,"
+  "MIN_TIMER_MISC BIGINT unsigned not null,"
+  "AVG_TIMER_MISC BIGINT unsigned not null,"
+  "MAX_TIMER_MISC BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
 
 --
 -- TABLE SOCKET_INSTANCES
@@ -923,6 +964,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_stages_current("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -944,6 +986,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_stages_history("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -965,6 +1008,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_stages_history_long("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -1081,6 +1125,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_statements_current("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -1132,6 +1177,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_statements_history("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -1183,6 +1229,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"

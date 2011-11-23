@@ -18,7 +18,6 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#include "mdl.h"                                // SHOULD BE my_sys.h
 #include "my_getopt.h"
 
 #include <stdlib.h>

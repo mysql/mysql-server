@@ -25,6 +25,8 @@
 */
 
 #include <my_global.h>
+#include <algorithm>
+
 #if !defined(TZINFO2SQL) && !defined(TESTTIME)
 #include "sql_priv.h"
 #include "unireg.h"
@@ -42,8 +44,8 @@
 #include <m_string.h>
 #include <my_dir.h>
 #include <mysql/psi/mysql_file.h>
-#include "lock.h"                               // MYSQL_LOCK_IGNORE_FLUSH,
-                                                // MYSQL_LOCK_IGNORE_TIMEOUT
+
+using std::min;
 
 /*
   Now we don't use abbreviations in server but we will do this in future.
@@ -171,7 +173,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
       uchar buf[sizeof(struct tzhead) + sizeof(my_time_t) * TZ_MAX_TIMES +
                 TZ_MAX_TIMES + sizeof(TRAN_TYPE_INFO) * TZ_MAX_TYPES +
 #ifdef ABBR_ARE_USED
-               max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1))) +
+               MY_MAX(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1))) +
 #endif
                sizeof(LS_INFO) * TZ_MAX_LEAPS];
     } u;
@@ -1857,7 +1859,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   uchar types[TZ_MAX_TIMES];
   TRAN_TYPE_INFO ttis[TZ_MAX_TYPES];
 #ifdef ABBR_ARE_USED
-  char chars[max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1)))];
+  char chars[MY_MAX(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1)))];
 #endif
   /* 
     Used as a temporary tz_info until we decide that we actually want to

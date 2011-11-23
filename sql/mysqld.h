@@ -234,6 +234,7 @@ extern I_List<THD> threads;
 extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
+extern ulong log_warnings;
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
@@ -345,6 +346,7 @@ extern PSI_stage_info stage_discard_or_import_tablespace;
 extern PSI_stage_info stage_end;
 extern PSI_stage_info stage_executing;
 extern PSI_stage_info stage_execution_of_init_command;
+extern PSI_stage_info stage_explaining;
 extern PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog;
 extern PSI_stage_info stage_flushing_relay_log_and_master_info_repository;
 extern PSI_stage_info stage_flushing_relay_log_info_file;
@@ -419,7 +421,7 @@ extern PSI_stage_info stage_slave_waiting_worker_to_free_events;
 extern PSI_stage_info stage_slave_waiting_worker_queue;
 extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
 extern PSI_stage_info stage_slave_waiting_workers_to_exit;
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).
   The last entry, at [SQLCOM_END], is for parsing errors.
@@ -434,7 +436,7 @@ extern PSI_statement_info com_statement_info[(uint) COM_END + 1];
 
 void init_sql_statement_info();
 void init_com_statement_info();
-#endif /* HAVE_PSI_INTERFACE */
+#endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
 #ifndef __WIN__
 extern pthread_t signal_thread;
@@ -558,7 +560,8 @@ enum options_mysqld
   OPT_PLUGIN_LOAD,
   OPT_PLUGIN_LOAD_ADD,
   OPT_SSL_CRL,
-  OPT_SSL_CRLPATH
+  OPT_SSL_CRLPATH,
+  OPT_PFS_INSTRUMENT
 };
 
 

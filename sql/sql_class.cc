@@ -60,12 +60,17 @@
 
 #include <mysql/psi/mysql_statement.h>
 
+using std::min;
+using std::max;
+
 /*
   The following is used to initialise Table_ident with a internal
   table name
 */
 char internal_table_name[2]= "*";
 char empty_c_string[1]= {0};    /* used for not defined db */
+
+LEX_STRING EMPTY_STR= { (char *) "", 0 };
 
 const char * const THD::DEFAULT_WHERE= "field list";
 
@@ -782,6 +787,8 @@ THD::THD(bool enable_plugins)
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    m_examined_row_count(0),
    m_statement_psi(NULL),
+   m_idle_psi(NULL),
+   m_server_idle(false),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(0),

@@ -116,6 +116,7 @@ struct sys_var_with_base
 #include "lex_symbol.h"
 #if MYSQL_LEX
 #include "item_func.h"            /* Cast_target used in sql_yacc.h */
+#include "sql_get_diagnostics.h"  /* Types used in sql_yacc.h */
 #include "sql_yacc.h"
 #define LEX_YYSTYPE YYSTYPE *
 #else
@@ -590,6 +591,7 @@ public:
   bool prepare(THD *thd, select_result *result, ulong additional_options);
   bool optimize();
   bool exec();
+  void explain();
   bool cleanup();
   inline void unclean() { cleaned= 0; }
   void reinit_exec_mechanism();
@@ -597,7 +599,7 @@ public:
   void print(String *str, enum_query_type query_type);
 
   bool add_fake_select_lex(THD *thd);
-  void init_prepare_fake_select_lex(THD *thd);
+  bool init_prepare_fake_select_lex(THD *thd, bool no_const_tables);
   inline bool is_prepared() { return prepared; }
   bool change_result(select_result_interceptor *result,
                      select_result_interceptor *old_result);
@@ -1026,6 +1028,14 @@ private:
   Alter_info &operator=(const Alter_info &rhs); // not implemented
   Alter_info(const Alter_info &rhs);            // not implemented
 };
+
+typedef struct struct_slave_connection
+{
+  char *user;
+  char *password;
+  char *plugin_auth;
+  char *plugin_dir;
+} LEX_SLAVE_CONNECTION;
 
 struct st_sp_chistics
 {
@@ -2205,6 +2215,7 @@ struct LEX: public Query_tables_list
   HA_CREATE_INFO create_info;
   KEY_CREATE_INFO key_create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
+  LEX_SLAVE_CONNECTION slave_connection;
   LEX_SERVER_OPTIONS server_options;
   USER_RESOURCES mqh;
   LEX_RESET_SLAVE reset_slave_info;

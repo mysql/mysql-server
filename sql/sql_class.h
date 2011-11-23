@@ -37,6 +37,8 @@
 #include "opt_trace_context.h"    /* Opt_trace_context */
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>
+#include <mysql/psi/mysql_idle.h>
+#include <mysql_com_server.h>
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -125,6 +127,7 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
+extern LEX_STRING EMPTY_STR;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 extern bool volatile shutdown_in_progress;
@@ -181,9 +184,6 @@ typedef struct st_user_var_events
   bool unsigned_flag;
 } BINLOG_USER_VAR_EVENT;
 
-#define RP_LOCK_LOG_IS_ALREADY_LOCKED 1
-#define RP_FORCE_ROTATE               2
-#define RP_BINLOG_CHECKSUM_ALG_CHANGE 4
 /*
   The COPY_INFO structure is used by INSERT/REPLACE code.
   The schema of the row counting by the INSERT/INSERT ... ON DUPLICATE KEY
@@ -435,8 +435,9 @@ typedef struct system_variables
   */ 
   ulong dynamic_variables_version;
   char* dynamic_variables_ptr;
-  uint dynamic_variables_head;  /* largest valid variable offset */
-  uint dynamic_variables_size;  /* how many bytes are in use */
+  uint dynamic_variables_head;    /* largest valid variable offset */
+  uint dynamic_variables_size;    /* how many bytes are in use */
+  LIST *dynamic_variables_allocs; /* memory hunks for PLUGIN_VAR_MEMALLOC */
   
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
@@ -489,7 +490,6 @@ typedef struct system_variables
   ulong query_prealloc_size;
   ulong trans_alloc_block_size;
   ulong trans_prealloc_size;
-  ulong log_warnings;
   ulong group_concat_max_len;
 
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
@@ -1777,6 +1777,8 @@ public:
   Query_cache_tls query_cache_tls;
 #endif
   NET	  net;				// client connection descriptor
+  /** Aditional network instrumentation for the server only. */
+  NET_SERVER m_net_server_extension;
   Protocol *protocol;			// Current protocol
   Protocol_text   protocol_text;	// Normal protocol
   Protocol_binary protocol_binary;	// Binary protocol
@@ -2360,6 +2362,18 @@ public:
 
   /** Current statement instrumentation. */
   PSI_statement_locker *m_statement_psi;
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  /** Current statement instrumentation state. */
+  PSI_statement_locker_state m_statement_state;
+#endif /* HAVE_PSI_STATEMENT_INTERFACE */
+  /** Idle instrumentation. */
+  PSI_idle_locker *m_idle_psi;
+#ifdef HAVE_PSI_IDLE_INTERFACE
+  /** Idle instrumentation state. */
+  PSI_idle_locker_state m_idle_state;
+#endif /* HAVE_PSI_IDLE_INTERFACE */
+  /** True if the server code is IDLE for this connection. */
+  bool m_server_idle;
 
   /*
     Id of current query. Statement can be reused to execute several queries
@@ -3142,6 +3156,7 @@ public:
   */
   void push_internal_handler(Internal_error_handler *handler);
 
+private:
   /**
     Handle a sql condition.
     @param sql_errno the condition error number
@@ -3151,12 +3166,13 @@ public:
     @param[out] cond_hdl the sql condition raised, if any
     @return true if the condition is handled
   */
-  virtual bool handle_condition(uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
+  bool handle_condition(uint sql_errno,
+                        const char* sqlstate,
+                        Sql_condition::enum_warning_level level,
+                        const char* msg,
+                        Sql_condition ** cond_hdl);
 
+public:
   /**
     Remove the error handler last pushed.
   */
@@ -3719,7 +3735,8 @@ public:
     if (copy_field)				/* Fix for Intel compiler */
     {
       delete [] copy_field;
-      save_copy_field= copy_field= 0;
+      save_copy_field= copy_field= NULL;
+      save_copy_field_end= copy_field_end= NULL;
     }
   }
 };
@@ -4163,14 +4180,9 @@ public:
 #define CF_HA_CLOSE             (1U << 11)
 
 /**
-  Identifies statements that can directly update a rpl info table.
-*/
-#define CF_WRITE_RPL_INFO_COMMAND (1U << 12)
-
-/**
   Identifies statements that can be explained with EXPLAIN.
 */
-#define CF_CAN_BE_EXPLAINED       (1U << 13)
+#define CF_CAN_BE_EXPLAINED       (1U << 12)
 
 /** Identifies statements which may generate an optimizer trace */
 #define CF_OPTIMIZER_TRACE        (1U << 14)

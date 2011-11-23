@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -264,14 +264,6 @@ btr_pcur_commit_specify_mtr(
 /*========================*/
 	btr_pcur_t*	pcur,	/*!< in: persistent cursor */
 	mtr_t*		mtr);	/*!< in: mtr to commit */
-/**************************************************************//**
-Tests if a cursor is detached: that is the latch mode is BTR_NO_LATCHES.
-@return	TRUE if detached */
-UNIV_INLINE
-ibool
-btr_pcur_is_detached(
-/*=================*/
-	btr_pcur_t*	pcur);	/*!< in: persistent cursor */
 /*********************************************************//**
 Moves the persistent cursor to the next record in the tree. If no records are
 left, the cursor stays 'after last in tree'.

@@ -5949,9 +5949,8 @@ ER_CANT_WRITE_LOCK_LOG_TABLE
 ER_CANT_LOCK_LOG_TABLE
         eng "You can't use locks with log tables."
         ger "Log-Tabellen können nicht gesperrt werden."
-ER_FOREIGN_DUPLICATE_KEY 23000 S1009
+ER_FOREIGN_DUPLICATE_KEY_OLD_UNUSED 23000 S1009
         eng "Upholding foreign key constraints for table '%.192s', entry '%-.192s', key %d would lead to a duplicate entry"
-        ger "Aufrechterhalten der Fremdschlüssel-Beschränkungen für Tabelle '%.192s', Eintrag '%-.192s', Schlüssel %d würde zu einem doppelten Eintrag führen"
 ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
         ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie mysql_upgrade, um den Fehler zu beheben"
@@ -6076,8 +6075,8 @@ ER_EVENT_CANNOT_CREATE_IN_THE_PAST
   eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation."
   ger "Ausführungszeit des Events liegt in der Vergangenheit, und es wurde ON COMPLETION NOT PRESERVE gesetzt. Das Event wurde unmittelbar nach Erzeugung gelöscht."
 ER_EVENT_CANNOT_ALTER_IN_THE_PAST
-  eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation."
-  ger "Ausführungszeit des Events liegt in der Vergangenheit, und es wurde ON COMPLETION NOT PRESERVE gesetzt. Das Event wurde unmittelbar nach Erzeugung gelöscht."
+  eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future."
+  ger "Execution Zeitpunkt des Ereignisses in der Vergangenheit liegt, und es war NACH ABSCHLUSS Set nicht erhalten. Die Veranstaltung wurde nicht verändert. Geben Sie einen Zeitpunkt in der Zukunft."
 ER_SLAVE_INCIDENT
   eng "The incident %s occured on the master. Message: %-.64s"
   ger "Der Vorfall %s passierte auf dem Master. Meldung: %-.64s"
@@ -6376,7 +6375,7 @@ ER_DATA_OUT_OF_RANGE 22003
   eng "%s value is out of range in '%s'"
 
 ER_WRONG_SPVAR_TYPE_IN_LIMIT
-  eng "A variable of a non-integer type in LIMIT clause"
+  eng "A variable of a non-integer based type in LIMIT clause"
 
 ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
   eng "Mixing self-logging and non-self-logging engines in a statement is unsafe."
@@ -6485,8 +6484,6 @@ ER_NO_SUCH_KEY_VALUE
   eng "Key value '%-.192s' was not found in table '%-.192s.%-.192s'"
 ER_RPL_INFO_DATA_TOO_LONG
   eng "Data for column '%s' too long"
-ER_CANT_LOCK_RPL_INFO_TABLE
-        eng "You can't use locks with rpl info tables."
 ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from network."
 ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
@@ -6596,3 +6593,34 @@ ER_PLUGIN_NO_INSTALL
 ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
   eng "FULLTEXT index is not supported for partitioned tables."
   swe "FULLTEXT index stöds ej för partitionerade tabeller."
+
+ER_DA_INVALID_CONDITION_NUMBER 35000
+  eng "Invalid condition number"
+  por "Número de condição inválido"
+
+ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO 23000 S1009
+        eng "Foreign key constraint for table '%.192s', record '%-.192s' would lead to a duplicate entry in table '%.192s', key '%.192s'"
+        ger "Fremdschlüssel-Beschränkung für Tabelle '%.192s', Datensatz '%-.192s' würde zu einem doppelten Eintrag in Tabelle '%.192s', Schlüssel '%.192s' führen"
+        swe "FOREIGN KEY constraint för tabell '%.192s', posten '%-.192s' kan inte uppdatera barntabell '%.192s' på grund av nyckel '%.192s'"
+
+ER_FOREIGN_DUPLICATE_KEY_WITHOUT_CHILD_INFO 23000 S1009
+        eng "Foreign key constraint for table '%.192s', record '%-.192s' would lead to a duplicate entry in a child table"
+        ger "Fremdschlüssel-Beschränkung für Tabelle '%.192s', Datensatz '%-.192s' würde zu einem doppelten Eintrag in einer Kind-Tabelle führen"
+        swe "FOREIGN KEY constraint för tabell '%.192s', posten '%-.192s' kan inte uppdatera en barntabell på grund av UNIQUE-test"
+ER_INSECURE_PLAIN_TEXT
+  eng "Sending passwords in plain text without SSL/TLS is extremely insecure."
+
+ER_INSECURE_CHANGE_MASTER
+  eng "Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives."
+
+ER_SQLTHREAD_WITH_SECURE_SLAVE
+  eng "Setting authentication options is not possible when only the Slave SQL Thread is being started."
+
+ER_TABLE_HAS_NO_FT
+  eng "The table does not have FULLTEXT index to support this query"
+
+ER_INNODB_FT_LIMIT
+  eng "InnoDB presently supports one FULLTEXT index per table"
+
+ER_INNODB_NO_FT_TEMP_TABLE
+  eng "Cannot create FULLTEXT index on temporary InnoDB table"

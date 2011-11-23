@@ -1,19 +1,3 @@
-# Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; version 2 of
-# the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-# 02110-1301  USA
 #
 # Some functional checks for the content of performance_schema.socket_instances.
 #
@@ -75,9 +59,8 @@ let $con0_thread_id= `SELECT @thread_id`;
 # Start connection with IP = localhost (127.0.0.1 or ::1)
 
 --echo # Establish local TCP/IP connection (con1,localhost,root,,test,,)
---disable_query_log
+--disable_query_log ONCE
 --connect (con1,$my_localhost,root,,test,,$MASTER_MYPORT)
---enable_query_log
 
 if($my_socket_debug)
 {
@@ -107,9 +90,8 @@ let $con1_port= `SELECT @port`;
 # Start a second connection with IP = localhost (127.0.0.1 or ::1)
 
 --echo # Establish second local TCP/IP connection (con1,localhost,root,,test,,)
---disable_query_log
+--disable_query_log ONCE
 --connect (con2,$my_localhost,root,,test,,$MASTER_MYPORT)
---enable_query_log
 
 if($my_socket_debug)
 {
@@ -198,9 +180,8 @@ FROM performance_schema.socket_instances;
 --echo # Characteristics per our thread
 --echo #    There must be only one entry with our thread_id
 
---disable_query_log
+--disable_query_log ONCE
 eval SET @thread_id= $con0_thread_id;
---enable_query_log
 
 eval SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
@@ -211,18 +192,16 @@ WHERE THREAD_ID = @thread_id;
 #
 
 --echo # TCP/IP connections should have a unique port number
---disable_query_log
+--disable_query_log ONCE
 eval SET @port= $con1_port;
---enable_query_log
 
 --echo # Connection 1 (tcp/ip)
 eval SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE PORT = @port;
 
---disable_query_log
+--disable_query_log ONCE
 eval SET @port= $con2_port;
---enable_query_log
 
 --echo # Connection 2 (tcp/ip)
 eval SELECT COUNT(*) = 1 AS 'Expect 1'
@@ -237,9 +216,8 @@ WHERE PORT = @port;
 # EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID  IP  PORT    STATE
 # wait/io/socket/sql/client_connection       139799531958280         16         37         0    ACTIVE
 
---disable_query_log
+--disable_query_log ONCE
 eval SET @thread_id = $con0_thread_id;
---enable_query_log
 
 SELECT COUNT(*) = 1 as 'Expect 1'
 FROM performance_schema.socket_instances
@@ -269,9 +247,8 @@ WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
 let $server_tcpip_thread_id= `SELECT @thread_id`;
 
 --echo #    Check the content.
---disable_query_log
+--disable_query_log ONCE
 eval SET @port = $MASTER_MYPORT;
---enable_query_log
 
 eval SELECT THREAD_ID = @thread_id
      AND (IP = '0.0.0.0' OR IP = '::')
@@ -316,26 +293,23 @@ WHERE EVENT_NAME = 'wait/io/socket/sql/server_unix_socket';
 
 --echo # Server listening sockets (TCP and Unix) are handled on the same thread
 
---disable_query_log
+--disable_query_log ONCE
 eval SET @thread_id = $server_tcpip_thread_id;
---enable_query_log
 
 eval SELECT COUNT(*) = 2 AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
 
---disable_query_log
+--disable_query_log ONCE
 eval SET @thread_id = $server_unix_thread_id;
---enable_query_log
 
 eval SELECT COUNT(*) = 2 AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
 
 --echo #Compare server listener socket thread ids
---disable_query_log
+--disable_query_log ONCE
 eval SELECT ($server_tcpip_thread_id = $server_unix_thread_id) into @match_thread_id;
---enable_query_log
 
 select @match_thread_id;
 
@@ -406,9 +380,8 @@ WHERE THREAD_ID = @thread_id;
 
 --echo #    Check the content for client connection 3 (unix domain).
 
---disable_query_log
+--disable_query_log ONCE
 eval SET @thread_id = $con3_thread_id;
---enable_query_log
 
 eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
      AND IP = ''

@@ -50,18 +50,17 @@ is rotated, (ii) SQL Thread is stopped, (iii) while processing a Xid_log_event,
 any statement written to the binary log without a transaction context.
 
 The Xid_log_event is a commit for transactional engines and must be handled
-differently to provide reliability/data integrity. While committing updates to
-transactional engines the following behavior shall be implemented:
+differently to provide reliability/data integrity. In this case, positions
+are updated within the context of the current transaction. So
 
-  . If the relay.info is stored in a transactional repository, for instance, a
-  system table created using Innodb, the positions are updated in the context
-  of the transaction that updated data. Therefore, should the server crash 
-  before successfully committing the transaction the changes to the position 
-  table will be rolled back too.
+  . If the relay.info is stored in a transactional repository and the server
+  crashes before successfully committing the transaction the changes to the
+  position table will be rolled back along with the data.
 
   . If the relay.info is stored in a non-transactional repository, for instance,
-  a file or a system table created using MyIsam, the positions are update after
-  processing the commit as in (iv) and (v).
+  a file or a system table created using MyIsam, and the server crashes before
+  successfully committing the transaction the changes to the position table
+  will not be rolled back but data will.
 
 In particular, when there are mixed transactions, i.e a transaction that updates
 both transaction and non-transactional engines, the Xid_log_event is still used
@@ -361,7 +360,7 @@ public:
     event_relay_log_pos= future_event_relay_log_pos;
   }
 
-  void inc_group_relay_log_pos(ulonglong log_pos,
+  int inc_group_relay_log_pos(ulonglong log_pos,
 			       bool skip_lock= FALSE);
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
@@ -449,6 +448,7 @@ public:
   DYNAMIC_ARRAY curr_group_da;  // deferred array to hold partition-info-free events
   bool curr_group_seen_begin;   // current group started with B-event or not
   bool curr_group_isolated;     // current group requires execution in isolation
+  bool mts_end_group_sets_max_dbs; // flag indicates if partitioning info is discovered
   volatile ulong mts_wq_underrun_w_id;  // Id of a Worker whose queue is getting empty
   /* 
      Ongoing excessive overrun counter to correspond to number of events that
@@ -597,7 +597,7 @@ public:
     relay log info and used to produce information for <code>SHOW
     SLAVE STATUS</code>.
   */
-  void stmt_done(my_off_t event_log_pos);
+  int stmt_done(my_off_t event_log_pos);
 
 
   /**
@@ -759,6 +759,40 @@ public:
     with several warning messages.
   */
   bool reported_unsafe_warning;
+
+  time_t get_row_stmt_start_timestamp()
+  {
+    return row_stmt_start_timestamp;
+  }
+
+  time_t set_row_stmt_start_timestamp()
+  {
+    if (row_stmt_start_timestamp == 0)
+      row_stmt_start_timestamp= my_time(0);
+
+    return row_stmt_start_timestamp;
+  }
+
+  void reset_row_stmt_start_timestamp()
+  {
+    row_stmt_start_timestamp= 0;
+  }
+
+  void set_long_find_row_note_printed()
+  {
+    long_find_row_note_printed= true;
+  }
+
+  void unset_long_find_row_note_printed()
+  {
+    long_find_row_note_printed= false;
+  }
+
+  bool is_long_find_row_note_printed()
+  {
+    return long_find_row_note_printed;
+  }
+
 private:
   /**
     Delay slave SQL thread by this amount, compared to master (in
@@ -800,6 +834,13 @@ private:
 
   Relay_log_info(const Relay_log_info& info);
   Relay_log_info& operator=(const Relay_log_info& info);
+
+  /*
+    Runtime state for printing a note when slave is taking
+    too long while processing a row event.
+   */
+  time_t row_stmt_start_timestamp;
+  bool long_find_row_note_printed;
 };
 
 bool mysql_show_relaylog_events(THD* thd);

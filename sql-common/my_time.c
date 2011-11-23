@@ -249,7 +249,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     2003-03-03 20:00:20 AM
     20:00:20.000000 AM 03-03-2000
   */
-  i= max((uint) format_position[0], (uint) format_position[1]);
+  i= MY_MAX((uint) format_position[0], (uint) format_position[1]);
   set_if_bigger(i, (uint) format_position[2]);
   allow_space= ((1 << i) | (1 << format_position[6]));
   allow_space&= (1 | 2 | 4 | 8);
@@ -783,7 +783,7 @@ long calc_daynr(uint year,uint month,uint day)
   temp=(int) ((y/100+1)*3)/4;
   DBUG_PRINT("exit",("year: %d  month: %d  day: %d -> daynr: %ld",
 		     y+(month <= 2),month,day,delsum+y/4-temp));
-  DBUG_ASSERT(delsum+(int) y/4-temp > 0);
+  DBUG_ASSERT(delsum+(int) y/4-temp >= 0);
   DBUG_RETURN(delsum+(int) y/4-temp);
 } /* calc_daynr */
 
