@@ -95,6 +95,15 @@ MACRO (FIND_CURSES)
    SET(CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
    SET(CURSES_CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
  ENDIF()
+ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+   # CMake generates /lib/64/libcurses.so -R/lib/64
+   # The result is we cannot find
+   # /opt/studio12u2/lib/stlport4/v9/libstlport.so.1
+   # at runtime
+   SET(CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
+   SET(CURSES_CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
+   MESSAGE(STATUS "CURSES_LIBRARY ${CURSES_LIBRARY}")
+ ENDIF()
 
  IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
    # -Wl,--as-needed breaks linking with -lcurses, e.g on Fedora 

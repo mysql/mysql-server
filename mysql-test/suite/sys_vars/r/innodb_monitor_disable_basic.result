@@ -1,5 +1,5 @@
-SET global innodb_monitor_disable = All;
-SELECT name, status FROM information_schema.innodb_metrics;
+set global innodb_monitor_disable = All;
+select name, status from information_schema.innodb_metrics;
 name	status
 metadata_table_handles_opened	disabled
 metadata_table_handles_closed	disabled
@@ -121,7 +121,9 @@ os_log_bytes_written	disabled
 os_log_fsyncs	disabled
 os_log_pending_fsyncs	disabled
 os_log_pending_writes	disabled
-trx_commits	disabled
+trx_rw_commits	disabled
+trx_ro_commits	disabled
+trx_nl_ro_commits	disabled
 trx_commits_insert_update	disabled
 trx_rollbacks	disabled
 trx_rollbacks_savepoint	disabled
@@ -200,8 +202,8 @@ icp_attempts	disabled
 icp_no_match	disabled
 icp_out_of_range	disabled
 icp_match	disabled
-SET global innodb_monitor_enable = all;
-SELECT name, status FROM information_schema.innodb_metrics;
+set global innodb_monitor_enable = all;
+select name, status from information_schema.innodb_metrics;
 name	status
 metadata_table_handles_opened	enabled
 metadata_table_handles_closed	enabled
@@ -323,7 +325,9 @@ os_log_bytes_written	enabled
 os_log_fsyncs	enabled
 os_log_pending_fsyncs	enabled
 os_log_pending_writes	enabled
-trx_commits	enabled
+trx_rw_commits	enabled
+trx_ro_commits	enabled
+trx_nl_ro_commits	enabled
 trx_commits_insert_update	enabled
 trx_rollbacks	enabled
 trx_rollbacks_savepoint	enabled
@@ -402,10 +406,10 @@ icp_attempts	enabled
 icp_no_match	enabled
 icp_out_of_range	enabled
 icp_match	enabled
-SET global innodb_monitor_enable = aaa;
+set global innodb_monitor_enable = aaa;
 ERROR 42000: Variable 'innodb_monitor_enable' can't be set to the value of 'aaa'
-SET global innodb_monitor_disable = All;
-SELECT name, status FROM information_schema.innodb_metrics;
+set global innodb_monitor_disable = All;
+select name, status from information_schema.innodb_metrics;
 name	status
 metadata_table_handles_opened	disabled
 metadata_table_handles_closed	disabled
@@ -527,7 +531,9 @@ os_log_bytes_written	disabled
 os_log_fsyncs	disabled
 os_log_pending_fsyncs	disabled
 os_log_pending_writes	disabled
-trx_commits	disabled
+trx_rw_commits	disabled
+trx_ro_commits	disabled
+trx_nl_ro_commits	disabled
 trx_commits_insert_update	disabled
 trx_rollbacks	disabled
 trx_rollbacks_savepoint	disabled
@@ -606,8 +612,8 @@ icp_attempts	disabled
 icp_no_match	disabled
 icp_out_of_range	disabled
 icp_match	disabled
-SET global innodb_monitor_reSET_all = all;
-SELECT name, count, status FROM information_schema.innodb_metrics;
+set global innodb_monitor_reset_all = all;
+select name, count, status from information_schema.innodb_metrics;
 name	count	status
 metadata_table_handles_opened	0	disabled
 metadata_table_handles_closed	0	disabled
@@ -729,7 +735,9 @@ os_log_bytes_written	0	disabled
 os_log_fsyncs	0	disabled
 os_log_pending_fsyncs	0	disabled
 os_log_pending_writes	0	disabled
-trx_commits	0	disabled
+trx_rw_commits	0	disabled
+trx_ro_commits	0	disabled
+trx_nl_ro_commits	0	disabled
 trx_commits_insert_update	0	disabled
 trx_rollbacks	0	disabled
 trx_rollbacks_savepoint	0	disabled
@@ -808,9 +816,9 @@ icp_attempts	0	disabled
 icp_no_match	0	disabled
 icp_out_of_range	0	disabled
 icp_match	0	disabled
-SET  global innodb_monitor_enable = "%lock%";
-SELECT name, status FROM information_schema.innodb_metrics
-WHERE name LIKE "%lock%";
+set  global innodb_monitor_enable = "%lock%";
+select name, status from information_schema.innodb_metrics
+where name like "%lock%";
 name	status
 lock_deadlocks	enabled
 lock_timeouts	enabled
@@ -834,9 +842,9 @@ innodb_rwlock_s_spin_rounds	enabled
 innodb_rwlock_x_spin_rounds	enabled
 innodb_rwlock_s_os_waits	enabled
 innodb_rwlock_x_os_waits	enabled
-SET  global innodb_monitor_disable = "%lock%";
-SELECT name, status FROM information_schema.innodb_metrics
-WHERE name LIKE "%lock%";
+set  global innodb_monitor_disable = "%lock%";
+select name, status from information_schema.innodb_metrics
+where name like "%lock%";
 name	status
 lock_deadlocks	disabled
 lock_timeouts	disabled
@@ -860,10 +868,10 @@ innodb_rwlock_s_spin_rounds	disabled
 innodb_rwlock_x_spin_rounds	disabled
 innodb_rwlock_s_os_waits	disabled
 innodb_rwlock_x_os_waits	disabled
-SET global innodb_monitor_enable = "%lock*";
+set global innodb_monitor_enable = "%lock*";
 ERROR 42000: Variable 'innodb_monitor_enable' can't be set to the value of '%lock*'
-SET global innodb_monitor_enable="%%%%%%%%%%%%%%%%%%%%%%%%%%%";
-SELECT name, status FROM information_schema.innodb_metrics;
+set global innodb_monitor_enable="%%%%%%%%%%%%%%%%%%%%%%%%%%%";
+select name, status from information_schema.innodb_metrics;
 name	status
 metadata_table_handles_opened	enabled
 metadata_table_handles_closed	enabled
@@ -985,7 +993,9 @@ os_log_bytes_written	enabled
 os_log_fsyncs	enabled
 os_log_pending_fsyncs	enabled
 os_log_pending_writes	enabled
-trx_commits	enabled
+trx_rw_commits	enabled
+trx_ro_commits	enabled
+trx_nl_ro_commits	enabled
 trx_commits_insert_update	enabled
 trx_rollbacks	enabled
 trx_rollbacks_savepoint	enabled
@@ -1064,8 +1074,8 @@ icp_attempts	enabled
 icp_no_match	enabled
 icp_out_of_range	enabled
 icp_match	enabled
-SET global innodb_monitor_disable="%%%%%";
-SELECT name, status FROM information_schema.innodb_metrics;
+set global innodb_monitor_disable="%%%%%";
+select name, status from information_schema.innodb_metrics;
 name	status
 metadata_table_handles_opened	disabled
 metadata_table_handles_closed	disabled
@@ -1187,7 +1197,9 @@ os_log_bytes_written	disabled
 os_log_fsyncs	disabled
 os_log_pending_fsyncs	disabled
 os_log_pending_writes	disabled
-trx_commits	disabled
+trx_rw_commits	disabled
+trx_ro_commits	disabled
+trx_nl_ro_commits	disabled
 trx_commits_insert_update	disabled
 trx_rollbacks	disabled
 trx_rollbacks_savepoint	disabled
@@ -1266,8 +1278,8 @@ icp_attempts	disabled
 icp_no_match	disabled
 icp_out_of_range	disabled
 icp_match	disabled
-SET global innodb_monitor_enable="%";
-SELECT name, status FROM information_schema.innodb_metrics;
+set global innodb_monitor_enable="%";
+select name, status from information_schema.innodb_metrics;
 name	status
 metadata_table_handles_opened	enabled
 metadata_table_handles_closed	enabled
@@ -1389,7 +1401,9 @@ os_log_bytes_written	enabled
 os_log_fsyncs	enabled
 os_log_pending_fsyncs	enabled
 os_log_pending_writes	enabled
-trx_commits	enabled
+trx_rw_commits	enabled
+trx_ro_commits	enabled
+trx_nl_ro_commits	enabled
 trx_commits_insert_update	enabled
 trx_rollbacks	enabled
 trx_rollbacks_savepoint	enabled
@@ -1468,8 +1482,8 @@ icp_attempts	enabled
 icp_no_match	enabled
 icp_out_of_range	enabled
 icp_match	enabled
-SET global innodb_monitor_disable="%_%";
-SELECT name, status FROM information_schema.innodb_metrics;
+set global innodb_monitor_disable="%_%";
+select name, status from information_schema.innodb_metrics;
 name	status
 metadata_table_handles_opened	disabled
 metadata_table_handles_closed	disabled
@@ -1591,7 +1605,9 @@ os_log_bytes_written	disabled
 os_log_fsyncs	disabled
 os_log_pending_fsyncs	disabled
 os_log_pending_writes	disabled
-trx_commits	disabled
+trx_rw_commits	disabled
+trx_ro_commits	disabled
+trx_nl_ro_commits	disabled
 trx_commits_insert_update	disabled
 trx_rollbacks	disabled
 trx_rollbacks_savepoint	disabled
@@ -1670,8 +1686,8 @@ icp_attempts	disabled
 icp_no_match	disabled
 icp_out_of_range	disabled
 icp_match	disabled
-SET global innodb_monitor_enable="log%%%%";
-SELECT name, status FROM information_schema.innodb_metrics;
+set global innodb_monitor_enable="log%%%%";
+select name, status from information_schema.innodb_metrics;
 name	status
 metadata_table_handles_opened	disabled
 metadata_table_handles_closed	disabled
@@ -1793,7 +1809,9 @@ os_log_bytes_written	disabled
 os_log_fsyncs	disabled
 os_log_pending_fsyncs	disabled
 os_log_pending_writes	disabled
-trx_commits	disabled
+trx_rw_commits	disabled
+trx_ro_commits	disabled
+trx_nl_ro_commits	disabled
 trx_commits_insert_update	disabled
 trx_rollbacks	disabled
 trx_rollbacks_savepoint	disabled
@@ -1872,10 +1890,10 @@ icp_attempts	disabled
 icp_no_match	disabled
 icp_out_of_range	disabled
 icp_match	disabled
-SET global innodb_monitor_enable="os_%a_fs_ncs";
-SET global innodb_monitor_enable="os%pending%";
-SELECT name, status FROM information_schema.innodb_metrics
-WHERE name LIKE "os%";
+set global innodb_monitor_enable="os_%a_fs_ncs";
+set global innodb_monitor_enable="os%pending%";
+select name, status from information_schema.innodb_metrics
+where name like "os%";
 name	status
 os_data_reads	disabled
 os_data_writes	disabled
@@ -1886,257 +1904,259 @@ os_log_bytes_written	disabled
 os_log_fsyncs	disabled
 os_log_pending_fsyncs	enabled
 os_log_pending_writes	enabled
-SET global innodb_monitor_enable="";
+set global innodb_monitor_enable="";
 ERROR 42000: Variable 'innodb_monitor_enable' can't be set to the value of ''
-SET global innodb_monitor_enable="_";
+set global innodb_monitor_enable="_";
 ERROR 42000: Variable 'innodb_monitor_enable' can't be set to the value of '_'
-SET global innodb_monitor_enable = metadata_table_handles_opened;
+SET global innodb_monitor_disable = module_metadata;
+SET global innodb_monitor_reset_all = module_metadata;
+set global innodb_monitor_enable = metadata_table_handles_opened;
 create table monitor_test(col int) engine = innodb;
-SELECT * FROM monitor_test;
+select * from monitor_test;
 col
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name = "metadata_table_handles_opened";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_handles_opened";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 metadata_table_handles_opened	1	NULL	1	1	NULL	1	enabled
-SET global innodb_monitor_reSET = metadata_table_handles_opened;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name = "metadata_table_handles_opened";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+set global innodb_monitor_reset = metadata_table_handles_opened;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_handles_opened";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 metadata_table_handles_opened	1	NULL	1	NULL	NULL	0	enabled
 drop table monitor_test;
 create table monitor_test(col int) engine = innodb;
-SELECT * FROM monitor_test;
+select * from monitor_test;
 col
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name = "metadata_table_handles_opened";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_handles_opened";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 metadata_table_handles_opened	2	NULL	2	1	NULL	1	enabled
-SET global innodb_monitor_reSET_all = metadata_table_handles_opened;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name = "metadata_table_handles_opened";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+set global innodb_monitor_reset_all = metadata_table_handles_opened;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_handles_opened";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 metadata_table_handles_opened	2	NULL	2	1	NULL	1	enabled
-SET global innodb_monitor_disable = metadata_table_handles_opened;
-SET global innodb_monitor_reSET = metadata_table_handles_opened;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name = "metadata_table_handles_opened";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+set global innodb_monitor_disable = metadata_table_handles_opened;
+set global innodb_monitor_reset = metadata_table_handles_opened;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_handles_opened";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 metadata_table_handles_opened	2	NULL	2	NULL	NULL	0	disabled
 drop table monitor_test;
 create table monitor_test(col int) engine = innodb;
-SELECT * FROM monitor_test;
+select * from monitor_test;
 col
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name = "metadata_table_handles_opened";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_handles_opened";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 metadata_table_handles_opened	2	NULL	2	NULL	NULL	0	disabled
-SET global innodb_monitor_reSET_all = metadata_table_handles_opened;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name = "metadata_table_handles_opened";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+set global innodb_monitor_reset_all = metadata_table_handles_opened;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_handles_opened";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 metadata_table_handles_opened	NULL	NULL	0	NULL	NULL	0	disabled
-SET global innodb_monitor_enable = metadata_table_handles_opened;
+set global innodb_monitor_enable = metadata_table_handles_opened;
 drop table monitor_test;
 create table monitor_test(col int) engine = innodb;
-SELECT * FROM monitor_test;
+select * from monitor_test;
 col
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name = "metadata_table_handles_opened";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_handles_opened";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 metadata_table_handles_opened	1	NULL	1	1	NULL	1	enabled
-SET global innodb_monitor_enable = metadata_table_handles_closed;
+set global innodb_monitor_enable = metadata_table_handles_closed;
 create index idx on monitor_test(col);
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name = "metadata_table_handles_closed";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_handles_closed";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 metadata_table_handles_closed	1	NULL	1	1	NULL	1	enabled
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "metadata%";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "metadata%";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 metadata_table_handles_opened	2	NULL	2	2	NULL	2	enabled
 metadata_table_handles_closed	1	NULL	1	1	NULL	1	enabled
 metadata_table_reference_count	NULL	NULL	0	NULL	NULL	0	disabled
-metadata_mem_pool_size	1048576	1048576	1048576	1048576	1048576	1048576	disabled
-SET global innodb_monitor_disable = module_metadata;
-SET global innodb_monitor_reSET = module_metadata;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "metadata%";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+metadata_mem_pool_size	NULL	NULL	0	NULL	NULL	0	disabled
+set global innodb_monitor_disable = module_metadata;
+set global innodb_monitor_reset = module_metadata;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "metadata%";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 metadata_table_handles_opened	2	NULL	2	NULL	NULL	0	disabled
 metadata_table_handles_closed	1	NULL	1	NULL	NULL	0	disabled
 metadata_table_reference_count	NULL	NULL	0	NULL	NULL	0	disabled
-metadata_mem_pool_size	1048576	1048576	0	NULL	NULL	0	disabled
-SET global innodb_monitor_reSET_all = module_metadata;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "metadata%";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+metadata_mem_pool_size	NULL	NULL	0	NULL	NULL	0	disabled
+set global innodb_monitor_reset_all = module_metadata;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "metadata%";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 metadata_table_handles_opened	NULL	NULL	0	NULL	NULL	0	disabled
 metadata_table_handles_closed	NULL	NULL	0	NULL	NULL	0	disabled
 metadata_table_reference_count	NULL	NULL	0	NULL	NULL	0	disabled
 metadata_mem_pool_size	NULL	NULL	0	NULL	NULL	0	disabled
-SET global innodb_monitor_enable = module_trx;
+set global innodb_monitor_enable = module_trx;
 begin;
 insert into monitor_test values(9);
 commit;
 begin;
 insert into monitor_test values(9);
 rollback;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "trx_rollbacks" or name LIKE "trx_active_transactions";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "trx_rollbacks" or name like "trx_active_transactions";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 trx_rollbacks	1	NULL	1	1	NULL	1	enabled
 trx_active_transactions	1	0	0	1	0	0	enabled
-SET global innodb_monitor_disable = module_trx;
-SET global innodb_monitor_enable = module_dml;
+set global innodb_monitor_disable = module_trx;
+set global innodb_monitor_enable = module_dml;
 insert into monitor_test values(9);
-update monitor_test SET col = 10 WHERE col = 9;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "dml%";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+update monitor_test set col = 10 where col = 9;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 dml_reads	4	NULL	4	4	NULL	4	enabled
 dml_inserts	1	NULL	1	1	NULL	1	enabled
 dml_deletes	0	NULL	0	0	NULL	0	enabled
 dml_updates	2	NULL	2	2	NULL	2	enabled
-delete FROM monitor_test;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "dml%";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+delete from monitor_test;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 dml_reads	6	NULL	6	6	NULL	6	enabled
 dml_inserts	1	NULL	1	1	NULL	1	enabled
 dml_deletes	2	NULL	2	2	NULL	2	enabled
 dml_updates	2	NULL	2	2	NULL	2	enabled
-SET global innodb_monitor_reSET =  module_dml;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "dml%";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+set global innodb_monitor_reset =  module_dml;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 dml_reads	6	NULL	6	0	NULL	0	enabled
 dml_inserts	1	NULL	1	0	NULL	0	enabled
 dml_deletes	2	NULL	2	0	NULL	0	enabled
 dml_updates	2	NULL	2	0	NULL	0	enabled
 insert into monitor_test values(9);
 insert into monitor_test values(1);
-delete FROM monitor_test;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "dml%";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+delete from monitor_test;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 dml_reads	8	NULL	8	2	NULL	2	enabled
 dml_inserts	3	NULL	3	2	NULL	2	enabled
 dml_deletes	4	NULL	4	2	NULL	2	enabled
 dml_updates	2	NULL	2	0	NULL	0	enabled
-SET global innodb_monitor_reSET_all  =  module_dml;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "dml%";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+set global innodb_monitor_reset_all  =  module_dml;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 dml_reads	8	NULL	8	2	NULL	2	enabled
 dml_inserts	3	NULL	3	2	NULL	2	enabled
 dml_deletes	4	NULL	4	2	NULL	2	enabled
 dml_updates	2	NULL	2	0	NULL	0	enabled
-SET global innodb_monitor_disable = module_dml;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "dml%";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+set global innodb_monitor_disable = module_dml;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 dml_reads	8	NULL	8	2	NULL	2	disabled
 dml_inserts	3	NULL	3	2	NULL	2	disabled
 dml_deletes	4	NULL	4	2	NULL	2	disabled
 dml_updates	2	NULL	2	0	NULL	0	disabled
-SET global innodb_monitor_reSET_all  = module_dml;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "dml%";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+set global innodb_monitor_reset_all  = module_dml;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 dml_reads	NULL	NULL	0	NULL	NULL	0	disabled
 dml_inserts	NULL	NULL	0	NULL	NULL	0	disabled
 dml_deletes	NULL	NULL	0	NULL	NULL	0	disabled
 dml_updates	NULL	NULL	0	NULL	NULL	0	disabled
-SET global innodb_monitor_enable = dml_inserts;
+set global innodb_monitor_enable = dml_inserts;
 insert into monitor_test values(9);
 insert into monitor_test values(1);
-delete FROM monitor_test;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "dml%";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+delete from monitor_test;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 dml_reads	NULL	NULL	0	NULL	NULL	0	disabled
 dml_inserts	2	NULL	2	2	NULL	2	enabled
 dml_deletes	NULL	NULL	0	NULL	NULL	0	disabled
 dml_updates	NULL	NULL	0	NULL	NULL	0	disabled
-SET global innodb_monitor_disable = module_dml;
+set global innodb_monitor_disable = module_dml;
 drop table monitor_test;
-SET global innodb_monitor_enable = file_num_open_files;
-SELECT name, max_count, min_count, count,
-max_count_reSET, min_count_reSET, count_reSET, status
-FROM information_schema.innodb_metrics
-WHERE name LIKE "file_num_open_files";
-name	max_count	min_count	count	max_count_reSET	min_count_reSET	count_reSET	status
+set global innodb_monitor_enable = file_num_open_files;
+select name, max_count, min_count, count,
+max_count_reset, min_count_reset, count_reset, status
+from information_schema.innodb_metrics
+where name like "file_num_open_files";
+name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 file_num_open_files	3	3	3	3	3	3	enabled
-SET global innodb_monitor_disable = file_num_open_files;
-SET global innodb_monitor_enable = "icp%";
+set global innodb_monitor_disable = file_num_open_files;
+set global innodb_monitor_enable = "icp%";
 create table monitor_test(a char(3), b int, c char(2),
 primary key (a(1), c(1)), key(b)) engine = innodb;
 insert into monitor_test values("13", 2, "aa");
-SELECT a FROM monitor_test WHERE b < 1 for update;
+select a from monitor_test where b < 1 for update;
 a
-SELECT name, count FROM information_schema.innodb_metrics
-WHERE name LIKE "icp%";
+select name, count from information_schema.innodb_metrics
+where name like "icp%";
 name	count
 icp_attempts	1
 icp_no_match	0
 icp_out_of_range	1
 icp_match	0
-SELECT a FROM monitor_test WHERE b < 3 for update;
+select a from monitor_test where b < 3 for update;
 a
 13
-SELECT name, count FROM information_schema.innodb_metrics
-WHERE name LIKE "icp%";
+select name, count from information_schema.innodb_metrics
+where name like "icp%";
 name	count
 icp_attempts	2
 icp_no_match	0
 icp_out_of_range	1
 icp_match	1
 drop table monitor_test;
-SET global innodb_monitor_disable = All;
-SET global innodb_monitor_reSET_all = all;
-SET global innodb_monitor_enable = default;
-SET global innodb_monitor_disable = default;
-SET global innodb_monitor_reSET = default;
-SET global innodb_monitor_reSET_all = default;
+set global innodb_monitor_disable = All;
+set global innodb_monitor_reset_all = all;
+set global innodb_monitor_enable = default;
+set global innodb_monitor_disable = default;
+set global innodb_monitor_reset = default;
+set global innodb_monitor_reset_all = default;

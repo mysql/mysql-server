@@ -48,9 +48,9 @@ ON orgs.org_id=sa_opportunities.org_id
 LEFT JOIN bug30243_2 contacts
 ON orgs.org_id=contacts.org_id ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	orgs	index	NULL	org_id	4	NULL	128	Using index
-1	SIMPLE	sa_opportunities	ref	org_id	org_id	5	test.orgs.org_id	1	Using index
-1	SIMPLE	contacts	ref	contacts$org_id	contacts$org_id	5	test.orgs.org_id	1	Using index
+1	SIMPLE	orgs	index	NULL	org_id	4	NULL	ROWS	Using index
+1	SIMPLE	sa_opportunities	ref	org_id	org_id	5	test.orgs.org_id	ROWS	Using index
+1	SIMPLE	contacts	ref	contacts$org_id	contacts$org_id	5	test.orgs.org_id	ROWS	Using index
 select @@innodb_stats_method;
 @@innodb_stats_method
 nulls_ignored
@@ -74,9 +74,9 @@ ON orgs.org_id=sa_opportunities.org_id
 LEFT JOIN bug30243_2 contacts
 ON orgs.org_id=contacts.org_id;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	orgs	index	NULL	org_id	4	NULL	128	Using index
-1	SIMPLE	sa_opportunities	ref	org_id	org_id	5	test.orgs.org_id	1	Using index
-1	SIMPLE	contacts	ref	contacts$org_id	contacts$org_id	5	test.orgs.org_id	1	Using index
+1	SIMPLE	orgs	index	NULL	org_id	4	NULL	ROWS	Using index
+1	SIMPLE	sa_opportunities	ref	org_id	org_id	5	test.orgs.org_id	ROWS	Using index
+1	SIMPLE	contacts	ref	contacts$org_id	contacts$org_id	5	test.orgs.org_id	ROWS	Using index
 SELECT COUNT(*) FROM table_bug30423 WHERE org_id IS NULL;
 COUNT(*)
 1024

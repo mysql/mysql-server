@@ -218,21 +218,6 @@ DROP TABLE t1,t2;
 
 SET optimizer_trace_features=default;
 
-CREATE TABLE `t1` (
-      `mot` varchar(4) NOT NULL,
-      `topic` int NOT NULL,
-       PRIMARY KEY  (`mot`,`topic`)
-    );
-INSERT INTO t1 VALUES ('joce','40143'), ('joce','43506');
-
-# rechecking_index_usage/no_indices_to_analyze
-SELECT * from t1 where topic = all (SELECT topic FROM t1 GROUP BY topic);
---echo
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
---echo
-
-drop table t1;
-
 # Range analysis in test_if_skip_sort_order 
 # (records_estimation_for_index_ordering)
 CREATE TABLE t1 (
@@ -336,6 +321,8 @@ SET optimizer_switch="block_nested_loop=off";
 
 eval EXPLAIN $query;
 
+# The cost numbers can vary slightly depending on innodb-page-size
+--replace_regex /("cost"|"new_cost_for_plan"|"cost_for_plan"): [0-9]+\.[0-9]+/\1: ##.###/ 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 SET @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1,t2;

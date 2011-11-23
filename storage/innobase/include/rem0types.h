@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -50,5 +50,16 @@ beyond.
 This (3072) is the maximum index row length allowed, so we cannot create index
 prefix column longer than that. */
 #define REC_VERSION_56_MAX_INDEX_COL_LEN	3072
+
+/** Innodb row types are a subset of the MySQL global enum row_type.
+They are made into their own enum so that switch statements can account
+for each of them. */
+enum rec_format_enum {
+	REC_FORMAT_REDUNDANT	= 0,	/*!< REDUNDANT row format */
+	REC_FORMAT_COMPACT	= 1,	/*!< COMPACT row format */
+	REC_FORMAT_COMPRESSED	= 2,	/*!< COMPRESSED row format */
+	REC_FORMAT_DYNAMIC	= 3	/*!< DYNAMIC row format */
+};
+typedef enum rec_format_enum rec_format_t;
 
 #endif

@@ -45,7 +45,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file ha_innodb.cc */
 
 /* Include necessary InnoDB headers */
-extern "C" {
 #include "univ.i"
 #include "buf0dump.h"
 #include "buf0lru.h"
@@ -80,7 +79,9 @@ extern "C" {
 #include "ibuf0ibuf.h"
 #include "dict0dict.h"
 #include "srv0mon.h"
-}
+#include "pars0pars.h"
+#include "fts0fts.h"
+#include "fts0types.h"
 
 #include "ha_innodb.h"
 #include "i_s.h"
@@ -156,6 +157,10 @@ static char*	innobase_file_format_max		= NULL;
 
 static char*	innobase_file_flush_method		= NULL;
 
+/* This variable can be set in the server configure file, specifying
+stopword table to be used */
+static char*	innobase_server_stopword_table		= NULL;
+
 /* Below we have boolean-valued start-up parameters, and their default
 values */
 
@@ -172,11 +177,14 @@ static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_large_prefix			= FALSE;
+static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 
 static char*	internal_innobase_data_file_path	= NULL;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
+
+static char*	fts_server_stopword_table		= NULL;
 
 /** Possible values for system variable "innodb_stats_method". The values
 are defined the same as its corresponding MyISAM system variable
@@ -237,6 +245,14 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 	"all"		/* IBUF_USE_ALL */
 };
 
+/* Call back function array defined by MySQL and used to
+retrieve FTS results. */
+const struct _ft_vft ft_vft_result = {NULL,
+				      innobase_fts_find_ranking,
+				      innobase_fts_close_ranking,
+				      innobase_fts_retrieve_ranking,
+				      NULL};
+
 #ifdef HAVE_PSI_INTERFACE
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
@@ -248,9 +264,9 @@ static mysql_pfs_key_t	commit_cond_key;
 
 static PSI_mutex_info	all_pthread_mutexes[] = {
 	{&commit_threads_m_key, "commit_threads_m", 0},
- 	{&commit_cond_mutex_key, "commit_cond_mutex", 0},
- 	{&innobase_share_mutex_key, "innobase_share_mutex", 0},
- 	{&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
+	{&commit_cond_mutex_key, "commit_cond_mutex", 0},
+	{&innobase_share_mutex_key, "innobase_share_mutex", 0},
+	{&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
 };
 
 static PSI_cond_info	all_innodb_conds[] = {
@@ -263,7 +279,6 @@ performance schema instrumented if "UNIV_PFS_MUTEX"
 is defined */
 static PSI_mutex_info all_innodb_mutexes[] = {
 	{&autoinc_mutex_key, "autoinc_mutex", 0},
-	{&btr_search_enabled_mutex_key, "btr_search_enabled_mutex", 0},
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 	{&buffer_block_mutex_key, "buffer_block_mutex", 0},
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
@@ -275,6 +290,10 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&file_format_max_mutex_key, "file_format_max_mutex", 0},
 	{&fil_system_mutex_key, "fil_system_mutex", 0},
 	{&flush_list_mutex_key, "flush_list_mutex", 0},
+	{&fts_bg_threads_mutex_key, "fts_bg_threads_mutex", 0},
+	{&fts_delete_mutex_key, "fts_delete_mutex", 0},
+	{&fts_optimize_mutex_key, "fts_optimize_mutex", 0},
+	{&fts_doc_id_mutex_key, "fts_doc_id_mutex", 0},
 	{&log_flush_order_mutex_key, "log_flush_order_mutex", 0},
 	{&hash_table_mutex_key, "hash_table_mutex", 0},
 	{&ibuf_bitmap_mutex_key, "ibuf_bitmap_mutex", 0},
@@ -343,6 +362,8 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	{&dict_operation_lock_key, "dict_operation_lock", 0},
 	{&fil_space_latch_key, "fil_space_latch", 0},
 	{&checkpoint_lock_key, "checkpoint_lock", 0},
+	{&fts_cache_rw_lock_key, "fts_cache_rw_lock", 0},
+	{&fts_cache_init_rw_lock_key, "fts_cache_init_rw_lock", 0},
 	{&trx_i_s_cache_lock_key, "trx_i_s_cache_lock", 0},
 	{&trx_purge_latch_key, "trx_purge_latch", 0},
 	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0},
@@ -378,6 +399,35 @@ static PSI_file_info	all_innodb_files[] = {
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
 
+/*************************************************************//**
+Check whether valid argument given to innodb_ft_*_stopword_table.
+This function is registered as a callback with MySQL.
+@return 0 for valid stopword table */
+static
+int
+innodb_stopword_table_validate(
+/*===========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value);	/*!< in: incoming string */
+/****************************************************************//**
+Update the session variable innodb_session_stopword_table
+with the "saved" stopword table name value. This function
+is registered as a callback with MySQL. */
+static
+void
+innodb_session_stopword_update(
+/*===========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save);	/*!< in: immediate result
+						from check function */
 /** "GEN_CLUST_INDEX" is the name reserved for Innodb default
 system primary index. */
 static const char innobase_index_reserve_name[]= "GEN_CLUST_INDEX";
@@ -398,6 +448,11 @@ static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
   "Use strict mode when evaluating create options.",
   NULL, NULL, FALSE);
 
+static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
+  "Create FTS index with stopword.",
+  NULL, NULL,
+  /* default */ TRUE);
+
 static MYSQL_THDVAR_BOOL(analyze_is_persistent, PLUGIN_VAR_OPCMDARG,
   "ANALYZE TABLE in InnoDB uses a more precise (and slow) sampling "
   "algorithm and saves the results persistently.",
@@ -407,6 +462,10 @@ static MYSQL_THDVAR_BOOL(analyze_is_persistent, PLUGIN_VAR_OPCMDARG,
 static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
   NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
+
+static MYSQL_THDVAR_STR(ft_user_stopword_table, PLUGIN_VAR_OPCMDARG,
+  "User supplied stopword table name, effective in the session level.",
+  innodb_stopword_table_validate, innodb_session_stopword_update, NULL);
 
 static SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_dump_status",
@@ -882,6 +941,31 @@ innobase_create_handler(
 
 /* General functions */
 
+/*************************************************************//**
+Check that a page_size is correct for InnoDB.  If correct, set the
+associated page_size_shift which is the power of 2 for this page size.
+@return	an associated page_size_shift if valid, 0 if invalid. */
+inline
+int
+innodb_page_size_validate(
+/*======================*/
+	ulong	page_size)		/*!< in: Page Size to evaluate */
+{
+	ulong		n;
+
+	DBUG_ENTER("innodb_page_size_validate");
+
+	for (n = UNIV_PAGE_SIZE_SHIFT_MIN;
+	     n <= UNIV_PAGE_SIZE_SHIFT_MAX;
+	     n++) {
+		if (page_size == (ulong) (1 << n)) {
+			DBUG_RETURN(n);
+		}
+	}
+
+	DBUG_RETURN(0);
+}
+
 /******************************************************************//**
 Returns true if the thread is the replication thread on the slave
 server. Used in srv_conc_enter_innodb() to determine if the thread
@@ -889,13 +973,43 @@ should be allowed to enter InnoDB - the replication thread is treated
 differently than other threads. Also used in
 srv_conc_force_exit_innodb().
 @return	true if thd is the replication thread */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ibool
 thd_is_replication_slave_thread(
 /*============================*/
 	void*	thd)	/*!< in: thread handle (THD*) */
 {
 	return((ibool) thd_slave_thread((THD*) thd));
+}
+
+/******************************************************************//**
+Returns true if transaction should be flagged as read-only.
+@return	true if the thd is marked as read-only */
+UNIV_INTERN
+ibool
+thd_trx_is_read_only(
+/*=================*/
+	void*	thd)	/*!< in: thread handle (THD*) */
+{
+	/* Waiting on WL#6046 to complete. */
+	return(FALSE);
+}
+
+/******************************************************************//**
+Check if the transaction is an auto-commit transaction. TRUE also
+implies that it is a SELECT (read-only) transaction.
+@return	true if the transaction is an auto commit read-only transaction. */
+UNIV_INTERN
+ibool
+thd_trx_is_auto_commit(
+/*===================*/
+	void*	thd)	/*!< in: thread handle (THD*) can be NULL */
+{
+	return(thd != NULL
+	       && !thd_test_options(
+		       static_cast<THD*>(thd),
+		       OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)
+	       && thd_is_select(thd));
 }
 
 /******************************************************************//**
@@ -974,7 +1088,7 @@ non-transactional tables. Used by the deadlock detector when deciding
 which transaction to rollback in case of a deadlock - we try to avoid
 rolling back transactions that have edited non-transactional tables.
 @return	true if non-transactional tables have been edited */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ibool
 thd_has_edited_nontrans_tables(
 /*===========================*/
@@ -986,7 +1100,7 @@ thd_has_edited_nontrans_tables(
 /******************************************************************//**
 Returns true if the thread is executing a SELECT statement.
 @return	true if thd is executing SELECT */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ibool
 thd_is_select(
 /*==========*/
@@ -999,7 +1113,7 @@ thd_is_select(
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL.
 @return	true if thd has XA support */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ibool
 thd_supports_xa(
 /*============*/
@@ -1012,7 +1126,7 @@ thd_supports_xa(
 /******************************************************************//**
 Returns the lock wait timeout for the current connection.
 @return	the lock wait timeout, in seconds */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulong
 thd_lock_wait_timeout(
 /*==================*/
@@ -1026,7 +1140,7 @@ thd_lock_wait_timeout(
 
 /******************************************************************//**
 Set the time waited for the lock for the current query. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 thd_set_lock_wait_time(
 /*===================*/
@@ -1100,7 +1214,7 @@ Converts an InnoDB error code to a MySQL error code and also tells to MySQL
 about a possible transaction rollback inside InnoDB caused by a lock wait
 timeout or a deadlock.
 @return	MySQL error code */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 convert_error_code_to_mysql(
 /*========================*/
@@ -1117,6 +1231,7 @@ convert_error_code_to_mysql(
 		/* fall through */
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
+		ut_ad(thd);
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    HA_ERR_ROW_IS_REFERENCED,
 				    "InnoDB: Cannot delete/update "
@@ -1140,6 +1255,9 @@ convert_error_code_to_mysql(
 		which might not always be available in the error
 		handling stage. */
 		return(HA_ERR_FOUND_DUPP_KEY);
+
+	case DB_READ_ONLY:
+		return(HA_ERR_READ_ONLY_TRANSACTION);
 
 	case DB_FOREIGN_DUPLICATE_KEY:
 		return(HA_ERR_FOREIGN_DUPLICATE_KEY);
@@ -1230,6 +1348,9 @@ convert_error_code_to_mysql(
 	case DB_PRIMARY_KEY_IS_NULL:
 		return(ER_PRIMARY_CANT_HAVE_NULL);
 
+	case DB_FTS_INVALID_DOCID:
+		return(HA_FTS_INVALID_DOCID);
+
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* New error code HA_ERR_TOO_MANY_CONCURRENT_TRXS is only
 		available in 5.1.38 and later, but the plugin should still
@@ -1250,7 +1371,7 @@ convert_error_code_to_mysql(
 
 /*************************************************************//**
 Prints info of a THD object (== user session thread) to the given file. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_mysql_print_thd(
 /*=====================*/
@@ -1268,7 +1389,7 @@ innobase_mysql_print_thd(
 
 /******************************************************************//**
 Get the variable length bounds of the given character set. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_get_cset_width(
 /*====================*/
@@ -1294,7 +1415,7 @@ innobase_get_cset_width(
 
 			/* Fix bug#46256: allow tables to be dropped if the
 			collation is not found, but issue a warning. */
-			if ((global_system_variables.log_warnings)
+			if ((log_warnings)
 			    && (cset != 0)){
 
 				sql_print_warning(
@@ -1311,7 +1432,7 @@ innobase_get_cset_width(
 
 /******************************************************************//**
 Converts an identifier to a table name. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_convert_from_table_id(
 /*===========================*/
@@ -1327,7 +1448,7 @@ innobase_convert_from_table_id(
 
 /******************************************************************//**
 Converts an identifier to UTF-8. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_convert_from_id(
 /*=====================*/
@@ -1344,13 +1465,23 @@ innobase_convert_from_id(
 /******************************************************************//**
 Compares NUL-terminated UTF-8 strings case insensitively.
 @return	0 if a=b, <0 if a<b, >1 if a>b */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_strcasecmp(
 /*================*/
 	const char*	a,	/*!< in: first string to compare */
 	const char*	b)	/*!< in: second string to compare */
 {
+	if (!a) {
+		if (!b) {
+			return(0);
+		} else {
+			return(-1);
+		}
+	} else if (!b) {
+		return(1);
+	}
+
 	return(my_strcasecmp(system_charset_info, a, b));
 }
 
@@ -1358,7 +1489,7 @@ innobase_strcasecmp(
 Compares NUL-terminated UTF-8 strings case insensitively. The
 second string contains wildcards.
 @return 0 if a match is found, 1 if not */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_wildcasecmp(
 /*=================*/
@@ -1371,7 +1502,7 @@ innobase_wildcasecmp(
 /******************************************************************//**
 Strip dir name from a full path name and return only the file name
 @return file name or "null" if no file name */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 const char*
 innobase_basename(
 /*==============*/
@@ -1384,7 +1515,7 @@ innobase_basename(
 
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_casedn_str(
 /*================*/
@@ -1396,7 +1527,7 @@ innobase_casedn_str(
 /**********************************************************************//**
 Determines the connection character set.
 @return	connection character set */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 struct charset_info_st*
 innobase_get_charset(
 /*=================*/
@@ -1408,7 +1539,7 @@ innobase_get_charset(
 /**********************************************************************//**
 Determines the current SQL statement.
 @return	SQL statement string */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 const char*
 innobase_get_stmt(
 /*==============*/
@@ -1427,7 +1558,7 @@ Get the current setting of the table_def_size global parameter. We do
 a dirty read because for one there is no synchronization object and
 secondly there is little harm in doing so even if we get a torn read.
 @return	value of table_def_size */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 innobase_get_table_cache_size(void)
 /*===============================*/
@@ -1441,7 +1572,7 @@ mysqld.cc. We do a dirty read because for one there is no synchronization
 object and secondly there is little harm in doing so even if we get a torn
 read.
 @return	value of lower_case_table_names */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 innobase_get_lower_case_table_names(void)
 /*=====================================*/
@@ -1454,7 +1585,6 @@ extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 /*******************************************************************//**
 Map an OS error to an errno value. The OS error number is stored in
 _doserrno and the mapped value is stored in errno) */
-extern "C"
 void __cdecl
 _dosmaperr(
 	unsigned long);	/*!< in: OS error value */
@@ -1462,7 +1592,7 @@ _dosmaperr(
 /*********************************************************************//**
 Creates a temporary file.
 @return	temporary file descriptor, or < 0 on error */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_mysql_tmpfile(void)
 /*========================*/
@@ -1546,7 +1676,7 @@ innobase_mysql_tmpfile(void)
 /*********************************************************************//**
 Creates a temporary file.
 @return	temporary file descriptor, or < 0 on error */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_mysql_tmpfile(void)
 /*========================*/
@@ -1601,7 +1731,7 @@ innobase_mysql_tmpfile(void)
 /*********************************************************************//**
 Wrapper around MySQL's copy_and_convert function.
 @return	number of bytes copied to 'to' */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 innobase_convert_string(
 /*====================*/
@@ -1631,7 +1761,7 @@ The result is always NUL-terminated (provided buf_size > 0) and the
 number of bytes that were written to "buf" is returned (including the
 terminating NUL).
 @return	number of bytes that were written */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 innobase_raw_format(
 /*================*/
@@ -1766,9 +1896,9 @@ innobase_trx_init(
 }
 
 /*********************************************************************//**
-Allocates an InnoDB transaction for a MySQL handler object.
+Allocates an InnoDB transaction for a MySQL handler object for DML.
 @return	InnoDB transaction handle */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 trx_t*
 innobase_trx_allocate(
 /*==================*/
@@ -1904,7 +2034,7 @@ ha_innobase::ha_innobase(
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
 		  HA_BINLOG_ROW_CAPABLE |
 		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
-		  HA_TABLE_SCAN_ON_INDEX),
+		  HA_TABLE_SCAN_ON_INDEX | HA_CAN_FULLTEXT),
 	start_of_scan(0),
 	num_write_row(0)
 {}
@@ -2142,7 +2272,7 @@ innobase_query_caching_of_table_permitted(
 
 /*****************************************************************//**
 Invalidates the MySQL query cache for the table. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_invalidate_query_cache(
 /*============================*/
@@ -2261,7 +2391,7 @@ no_quote:
 Convert a table or index name to the MySQL system_charset_info (UTF-8)
 and quote it if needed.
 @return	pointer to the end of buf */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 char*
 innobase_convert_name(
 /*==================*/
@@ -2340,7 +2470,7 @@ innobase_format_name(
 /**********************************************************************//**
 Determines if the currently running transaction has been interrupted.
 @return	TRUE if interrupted */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ibool
 trx_is_interrupted(
 /*===============*/
@@ -2352,7 +2482,7 @@ trx_is_interrupted(
 /**********************************************************************//**
 Determines if the currently running transaction is in strict mode.
 @return	TRUE if strict */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ibool
 trx_is_strict(
 /*==========*/
@@ -2456,6 +2586,7 @@ innobase_init(
 	bool		ret;
 	char		*default_path;
 	uint		format_id;
+	ulong		num_pll_degree;
 
 	DBUG_ENTER("innobase_init");
 	handlerton *innobase_hton= (handlerton *)p;
@@ -2498,17 +2629,20 @@ innobase_init(
 #ifndef DBUG_OFF
 	static const char	test_filename[] = "-@";
 	char			test_tablename[sizeof test_filename
-				+ sizeof srv_mysql50_table_name_prefix];
-	if ((sizeof test_tablename) - 1
-			!= filename_to_tablename(test_filename, test_tablename,
-			sizeof test_tablename, true)
+				+ sizeof(srv_mysql50_table_name_prefix) - 1];
+	if ((sizeof(test_tablename)) - 1
+			!= filename_to_tablename(test_filename,
+						 test_tablename,
+						 sizeof(test_tablename), true)
 			|| strncmp(test_tablename,
-			srv_mysql50_table_name_prefix,
-			sizeof srv_mysql50_table_name_prefix)
+				   srv_mysql50_table_name_prefix,
+				   sizeof(srv_mysql50_table_name_prefix) - 1)
 			|| strcmp(test_tablename
-			+ sizeof srv_mysql50_table_name_prefix,
-			test_filename)) {
+				  + sizeof(srv_mysql50_table_name_prefix) - 1,
+				  test_filename)) {
+
 		sql_print_error("tablename encoding has been changed");
+
 		goto error;
 	}
 #endif /* DBUG_OFF */
@@ -2664,6 +2798,12 @@ mem_free_and_error:
 		goto mem_free_and_error;
 	}
 
+	/* Remember stopword table name supplied at startup */
+	if (innobase_server_stopword_table) {
+		fts_server_stopword_table =
+			my_strdup(innobase_server_stopword_table,  MYF(0));
+	}
+
 	if (innobase_change_buffering) {
 		ulint	use;
 
@@ -2700,6 +2840,24 @@ innobase_change_buffering_inited_ok:
 #ifdef UNIV_LOG_ARCHIVE
 	srv_log_archive_on = (ulint) innobase_log_archive;
 #endif /* UNIV_LOG_ARCHIVE */
+
+	/* Check that the value of system variable innodb_page_size was
+	set correctly.  Its value was put into srv_page_size. If valid,
+	return the associated srv_page_size_shift.*/
+	srv_page_size_shift = innodb_page_size_validate(srv_page_size);
+	if (!srv_page_size_shift) {
+		sql_print_error("InnoDB: Invalid page size=%lu.\n",
+				srv_page_size);
+		goto mem_free_and_error;
+	}
+	if (UNIV_PAGE_SIZE_DEF != srv_page_size) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: innodb-page-size has been changed"
+			" from the default value %d to %lu.\n",
+			UNIV_PAGE_SIZE_DEF, srv_page_size);
+	}
+
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
@@ -2771,6 +2929,16 @@ innobase_change_buffering_inited_ok:
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
 	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
+
+	/* Round up fts_sort_pll_degree to nearest power of 2 number */
+	for (num_pll_degree = 1;
+	     num_pll_degree < fts_sort_pll_degree;
+	     num_pll_degree <<= 1) {
+
+		/* No op */
+	}
+
+	fts_sort_pll_degree = num_pll_degree;
 
 	/* Store the default charset-collation number of this MySQL
 	installation */
@@ -2877,7 +3045,6 @@ innobase_change_buffering_inited_ok:
 	/* Turn on monitor counters that are default on */
 	srv_mon_default_on();
 
-	btr_search_fully_disabled = (!btr_search_enabled);
 	DBUG_RETURN(FALSE);
 error:
 	DBUG_RETURN(TRUE);
@@ -3144,6 +3311,9 @@ retry:
 
 	trx->n_autoinc_rows = 0; /* Reset the number AUTO-INC rows required */
 
+	/* This is a statement level variable. */
+	trx->fts_next_doc_id = 0;
+
 	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* Tell the InnoDB server that there might be work for utility
@@ -3193,6 +3363,9 @@ innobase_rollback(
 
 	lock_unlock_table_autoinc(trx);
 
+	/* This is a statement level variable. */
+	trx->fts_next_doc_id = 0;
+
 	if (rollback_trx
 	    || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
@@ -3233,7 +3406,9 @@ innobase_rollback_trx(
 
 	lock_unlock_table_autoinc(trx);
 
-	error = trx_rollback_for_mysql(trx);
+	if (!trx->read_only) {
+		error = trx_rollback_for_mysql(trx);
+	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
@@ -3277,6 +3452,10 @@ innobase_rollback_to_savepoint(
 	error = (int) trx_rollback_to_savepoint_for_mysql(
 		trx, name, &mysql_binlog_cache_pos);
 
+	if (error == DB_SUCCESS && trx->fts_trx != NULL) {
+		fts_savepoint_rollback(trx, name);
+	}
+
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
 
@@ -3308,6 +3487,10 @@ innobase_release_savepoint(
 	longlong2str((ulint)savepoint, name, 36);
 
 	error = (int) trx_release_savepoint_for_mysql(trx, name);
+
+	if (error == DB_SUCCESS && trx->fts_trx != NULL) {
+		fts_savepoint_release(trx, name);
+	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
@@ -3352,6 +3535,10 @@ innobase_savepoint(
 
 	error = (int) trx_savepoint_for_mysql(trx, name, (ib_int64_t)0);
 
+	if (error == DB_SUCCESS && trx->fts_trx != NULL) {
+		fts_savepoint_take(trx, name);
+	}
+
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
 
@@ -3380,14 +3567,13 @@ innobase_close_connection(
 				"but transaction is active");
 	}
 
-
-	if (trx_is_started(trx) && global_system_variables.log_warnings) {
+	if (trx_is_started(trx) && log_warnings) {
 
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
-			"InnoDB transaction.  %llu row modifications will "
-			"roll back.",
-			(ullint) trx->undo_no);
+			"InnoDB transaction.  "TRX_ID_FMT" row modifications "
+			"will roll back.",
+			trx->undo_no);
 	}
 
 	innobase_rollback_trx(trx);
@@ -3396,7 +3582,6 @@ innobase_close_connection(
 
 	DBUG_RETURN(0);
 }
-
 
 /*************************************************************************//**
 ** InnoDB database tables
@@ -3414,24 +3599,15 @@ ha_innobase::get_row_type() const
 	if (prebuilt && prebuilt->table) {
 		const ulint	flags = prebuilt->table->flags;
 
-		if (UNIV_UNLIKELY(!flags)) {
+		switch (dict_tf_get_rec_format(flags)) {
+		case REC_FORMAT_REDUNDANT:
 			return(ROW_TYPE_REDUNDANT);
-		}
-
-		ut_ad(flags & DICT_TF_COMPACT);
-
-		switch (flags & DICT_TF_FORMAT_MASK) {
-		case UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT:
+		case REC_FORMAT_COMPACT:
 			return(ROW_TYPE_COMPACT);
-		case UNIV_FORMAT_B << DICT_TF_FORMAT_SHIFT:
-			if (flags & DICT_TF_ZSSIZE_MASK) {
-				return(ROW_TYPE_COMPRESSED);
-			} else {
-				return(ROW_TYPE_DYNAMIC);
-			}
-#if UNIV_FORMAT_B != UNIV_FORMAT_MAX
-# error "UNIV_FORMAT_B != UNIV_FORMAT_MAX"
-#endif
+		case REC_FORMAT_COMPRESSED:
+			return(ROW_TYPE_COMPRESSED);
+		case REC_FORMAT_DYNAMIC:
+			return(ROW_TYPE_DYNAMIC);
 		}
 	}
 	ut_ad(0);
@@ -3453,7 +3629,7 @@ ha_innobase::table_flags() const
 	ulong const tx_isolation = thd_tx_isolation(ha_thd());
 
 	if (tx_isolation <= ISO_READ_COMMITTED) {
-		return int_table_flags;
+		return(int_table_flags);
 	}
 
 	return(int_table_flags | HA_BINLOG_STMT_CAPABLE);
@@ -3478,15 +3654,21 @@ ha_innobase::table_type() const
 }
 
 /****************************************************************//**
-Returns the index type. */
+Returns the index type.
+@return index type */
 UNIV_INTERN
 const char*
 ha_innobase::index_type(
 /*====================*/
-	uint)
-				/*!< out: index type */
+	uint	keynr)		/*!< : index number */
 {
-	return("BTREE");
+	dict_index_t*	index = innobase_get_index(keynr);
+
+	if (index && index->type & DICT_FTS) {
+		return("FULLTEXT");
+	} else {
+		return("BTREE");
+	}
 }
 
 /****************************************************************//**
@@ -3507,13 +3689,15 @@ UNIV_INTERN
 ulong
 ha_innobase::index_flags(
 /*=====================*/
-	uint,
+	uint	key,
 	uint,
 	bool) const
 {
-	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
-	       | HA_READ_RANGE | HA_KEYREAD_ONLY
-	       | HA_DO_INDEX_COND_PUSHDOWN);
+	return((table_share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT)
+		 ? 0
+		 : (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
+		  | HA_READ_RANGE | HA_KEYREAD_ONLY
+		  | HA_DO_INDEX_COND_PUSHDOWN));
 }
 
 /****************************************************************//**
@@ -3536,11 +3720,25 @@ ha_innobase::max_supported_key_length() const
 /*=========================================*/
 {
 	/* An InnoDB page must store >= 2 keys; a secondary key record
-	must also contain the primary key value: max key length is
-	therefore set to slightly less than 1 / 4 of page size which
-	is 16 kB; but currently MySQL does not work with keys whose
-	size is > MAX_KEY_LENGTH */
-	return(3500);
+	must also contain the primary key value.  Therefore, if both
+	the primary key and the secondary key are at this maximum length,
+	it must be less than 1/4th of the free space on a page including
+	record overhead.
+
+	MySQL imposes its own limit to this number; MAX_KEY_LENGTH = 3072.
+
+	For page sizes = 16k, InnoDB historically reported 3500 bytes here,
+	But the MySQL limit of 3072 was always used through the handler
+	interface. */
+
+	switch (UNIV_PAGE_SIZE) {
+	case 4096:
+		return(768);
+	case 8192:
+		return(1536);
+	default:
+		return(3500);
+	}
 }
 
 /****************************************************************//**
@@ -3576,18 +3774,29 @@ ha_innobase::primary_key_is_clustered()
 	return(true);
 }
 
+/** Always normalize table name to lower case on Windows */
+#ifdef __WIN__
+#define normalize_table_name(norm_name, name)		\
+	normalize_table_name_low(norm_name, name, TRUE)
+#else
+#define normalize_table_name(norm_name, name)           \
+	normalize_table_name_low(norm_name, name, FALSE)
+#endif /* __WIN__ */
+
 /*****************************************************************//**
 Normalizes a table name string. A normalized name consists of the
 database name catenated to '/' and table name. An example:
 test/mytable. On Windows normalization puts both the database name and the
-table name always to lower case. */
+table name always to lower case if "set_lower_case" is set to TRUE. */
 static
 void
-normalize_table_name(
-/*=================*/
+normalize_table_name_low(
+/*=====================*/
 	char*		norm_name,	/*!< out: normalized name as a
 					null-terminated string */
-	const char*	name)		/*!< in: table name string */
+	const char*	name,		/*!< in: table name string */
+	ibool		set_lower_case)	/*!< in: TRUE if we want to set name
+					to lower case */
 {
 	char*	name_ptr;
 	char*	db_ptr;
@@ -3617,9 +3826,9 @@ normalize_table_name(
 
 	norm_name[name_ptr - db_ptr - 1] = '/';
 
-#ifdef __WIN__
-	innobase_casedn_str(norm_name);
-#endif
+	if (set_lower_case) {
+		innobase_casedn_str(norm_name);
+	}
 }
 
 /********************************************************************//**
@@ -3945,7 +4154,7 @@ ha_innobase::innobase_initialize_autoinc()
 	} else {
 		dict_index_t*	index;
 		const char*	col_name;
-		ulonglong	read_auto_inc;
+		ib_uint64_t	read_auto_inc;
 		ulint		err;
 
 		update_thd(ha_thd());
@@ -4023,6 +4232,8 @@ ha_innobase::open(
 	THD*		thd;
 	ulint		retries = 0;
 	char*		is_part = NULL;
+	ibool		par_case_name_set = FALSE;
+	char		par_case_name[MAX_FULL_NAME_LEN + 1];
 
 	DBUG_ENTER("ha_innobase::open");
 
@@ -4069,16 +4280,88 @@ ha_innobase::open(
 	workaround for http://bugs.mysql.com/bug.php?id=33349. Look
 	at support issue https://support.mysql.com/view.php?id=21080
 	for more details. */
+#ifdef __WIN__
+	is_part = strstr(norm_name, "#p#");
+#else
 	is_part = strstr(norm_name, "#P#");
+#endif /* __WIN__ */
+
 retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_open_on_name(norm_name, FALSE);
 
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
-			++retries;
-			os_thread_sleep(100000);
-			goto retry;
+			/* MySQL partition engine hard codes the file name
+			separator as "#P#". The text case is fixed even if
+			lower_case_table_names is set to 1 or 2. This is true
+			for sub-partition names as well. InnoDB always
+			normalises file names to lower case on Windows, this
+			can potentially cause problems when copying/moving
+			tables between platforms.
+
+			1) If boot against an installation from Windows
+			platform, then its partition table name could
+			be all be in lower case in system tables. So we
+			will need to check lower case name when load table.
+
+			2) If  we boot an installation from other case
+			sensitive platform in Windows, we might need to
+			check the existence of table name without lowering
+			case them in the system table. */
+			if (innobase_get_lower_case_table_names() == 1) {
+
+				if (!par_case_name_set) {
+#ifndef __WIN__
+					/* Check for the table using lower
+					case name, including the partition
+					separator "P" */
+					memcpy(par_case_name, norm_name,
+					       strlen(norm_name));
+					par_case_name[strlen(norm_name)] = 0;
+					innobase_casedn_str(par_case_name);
+#else
+					/* On Windows platfrom, check
+					whether there exists table name in
+					system table whose name is
+					not being normalized to lower case */
+					normalize_table_name_low(
+						par_case_name, name, FALSE);
+#endif
+					par_case_name_set = TRUE;
+				}
+
+				ib_table = dict_table_open_on_name(
+					par_case_name, FALSE);
+			}
+
+			if (!ib_table) {
+				++retries;
+				os_thread_sleep(100000);
+				goto retry;
+			} else {
+#ifndef __WIN__
+				sql_print_warning("Partition table %s opened "
+						  "after converting to lower "
+						  "case. The table may have "
+						  "been moved from a case "
+						  "in-sensitive file system. "
+						  "Please recreate table in "
+						  "the current file system\n",
+						  norm_name);
+#else
+				sql_print_warning("Partition table %s opened "
+						  "after skipping the step to "
+						  "lower case the table name. "
+						  "The table may have been "
+						  "moved from a case sensitive "
+						  "file system. Please "
+						  "recreate table in the "
+						  "current file system\n",
+						  norm_name);
+#endif
+				goto table_opened;
+			}
 		}
 
 		if (is_part) {
@@ -4108,6 +4391,8 @@ retry:
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
+
+table_opened:
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
@@ -4385,10 +4670,10 @@ field_in_record_is_null(
 /*************************************************************//**
 InnoDB uses this function to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. NOTE that the prototype
-of this function is in rem0cmp.c in InnoDB source code! If you change this
+of this function is in rem0cmp.cc in InnoDB source code! If you change this
 function, remember to update the prototype there!
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_mysql_cmp(
 /*===============*/
@@ -4463,12 +4748,308 @@ innobase_mysql_cmp(
 	return(0);
 }
 
+
+/*************************************************************//**
+Get the next token from the given string and store it in *token. */
+UNIV_INTERN
+CHARSET_INFO*
+innobase_get_fts_charset(
+/*=====================*/
+	int		mysql_type,	/*!< in: MySQL type */
+	uint		charset_number)	/*!< in: number of the charset */
+{
+	enum_field_types	mysql_tp;
+	CHARSET_INFO*		charset;
+
+	mysql_tp = (enum_field_types) mysql_type;
+
+	switch (mysql_tp) {
+
+	case MYSQL_TYPE_BIT:
+	case MYSQL_TYPE_STRING:
+	case MYSQL_TYPE_VAR_STRING:
+	case MYSQL_TYPE_TINY_BLOB:
+	case MYSQL_TYPE_MEDIUM_BLOB:
+	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_LONG_BLOB:
+	case MYSQL_TYPE_VARCHAR:
+		/* Use the charset number to pick the right charset struct for
+		the comparison. Since the MySQL function get_charset may be
+		slow before Bar removes the mutex operation there, we first
+		look at 2 common charsets directly. */
+
+		if (charset_number == default_charset_info->number) {
+			charset = default_charset_info;
+		} else if (charset_number == my_charset_latin1.number) {
+			charset = &my_charset_latin1;
+		} else {
+			charset = get_charset(charset_number, MYF(MY_WME));
+
+			if (charset == NULL) {
+			  sql_print_error("InnoDB needs charset %lu for doing "
+					  "a comparison, but MySQL cannot "
+					  "find that charset.",
+					  (ulong) charset_number);
+				ut_a(0);
+			}
+		}
+		break;
+	default:
+		ut_error;
+	}
+
+	return(charset);
+}
+
+/*************************************************************//**
+InnoDB uses this function to compare two data fields for which the data type
+is such that we must use MySQL code to compare them. NOTE that the prototype
+of this function is in rem0cmp.c in InnoDB source code! If you change this
+function, remember to update the prototype there!
+@return	1, 0, -1, if a is greater, equal, less than b, respectively */
+UNIV_INTERN
+int
+innobase_mysql_cmp_prefix(
+/*======================*/
+	int		mysql_type,	/*!< in: MySQL type */
+	uint		charset_number,	/*!< in: number of the charset */
+	const unsigned char* a,		/*!< in: data field */
+	unsigned int	a_length,	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+	const unsigned char* b,		/*!< in: data field */
+	unsigned int	b_length)	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+{
+	CHARSET_INFO*		charset;
+	int			result;
+
+	charset = innobase_get_fts_charset(mysql_type, charset_number);
+
+	result = ha_compare_text(charset, (uchar*) a, a_length,
+				 (uchar*) b, b_length, 1, 0);
+
+	return(result);
+}
+/******************************************************************//**
+compare two character string according to their charset. */
+UNIV_INTERN
+int
+innobase_fts_text_cmp(
+/*==================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*     p1,		/*!< in: key */
+	const void*     p2)		/*!< in: node */
+{
+	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
+	const fts_string_t*	s1 = (const fts_string_t*) p1;
+	const fts_string_t*	s2 = (const fts_string_t*) p2;
+
+	return(ha_compare_text(charset, s1->f_str, s1->f_len,
+			       s2->f_str, s2->f_len, 0, 0));
+}
+/******************************************************************//**
+compare two character string case insensitively according to their charset. */
+UNIV_INTERN
+int
+innobase_fts_text_case_cmp(
+/*=======================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*     p1,		/*!< in: key */
+	const void*     p2)		/*!< in: node */
+{
+	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
+	const fts_string_t*	s1 = (const fts_string_t*) p1;
+	const fts_string_t*	s2 = (const fts_string_t*) p2;
+	ulint			newlen;
+
+	my_casedn_str(charset, (char*) s2->f_str);
+
+	newlen = strlen((const char*) s2->f_str);
+
+	return(ha_compare_text(charset, s1->f_str, s1->f_len,
+			       s2->f_str, newlen, 0, 0));
+}
+/******************************************************************//**
+Get the first character's code position for FTS index partition. */
+UNIV_INTERN
+ulint
+innobase_strnxfrm(
+/*==============*/
+	const CHARSET_INFO*
+			cs,		/*!< in: Character set */
+	const uchar*	str,		/*!< in: string */
+	const ulint	len)		/*!< in: string length */
+{
+	uchar		mystr[2];
+	ulint		value;
+
+	if (!str || len == 0) {
+		return(0);
+	}
+
+	my_strnxfrm(cs, (uchar*)mystr, 2, str, len);
+
+	value = mach_read_from_2(mystr);
+
+	if (value > 255) {
+		value = value / 256;
+	}
+
+	return(value);
+}
+
+/******************************************************************//**
+compare two character string according to their charset. */
+UNIV_INTERN
+int
+innobase_fts_text_cmp_prefix(
+/*=========================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*	p1,		/*!< in: prefix key */
+	const void*	p2)		/*!< in: value to compare */
+{
+	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
+	const fts_string_t*	s1 = (const fts_string_t*) p1;
+	const fts_string_t*	s2 = (const fts_string_t*) p2;
+	int			result;
+
+	result = ha_compare_text(charset, s2->f_str, s2->f_len,
+				 s1->f_str, s1->f_len, 1, 0);
+
+	/* We switched s1, s2 position in ha_compare_text. So we need
+	to negate the result */
+	return(-result);
+}
+/******************************************************************//**
+compare two character string according to their charset. */
+UNIV_INTERN
+int
+innobase_fts_string_cmp(
+/*====================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*     p1,		/*!< in: key */
+	const void*     p2)		/*!< in: node */
+{
+	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
+	uchar*			s1 = (uchar*) p1;
+	uchar*			s2 = *(uchar**) p2;
+
+	return(ha_compare_text(charset, s1, strlen((const char*)s1),
+			       s2, strlen((const char*)s2), 0, 0));
+}
+/******************************************************************//**
+Makes all characters in a string lower case. */
+UNIV_INTERN
+size_t
+innobase_fts_casedn_str(
+/*====================*/
+	CHARSET_INFO*	cs,	/*!< in: Character set */
+	char*		src,	/*!< in: string to put in lower case */
+	size_t		src_len,/*!< in: input string length */
+	char*		dst,	/*!< in: buffer for result string */
+	size_t		dst_len)/*!< in: buffer size */
+{
+	if (cs->casedn_multiply == 1) {
+		memcpy(dst, src, src_len);
+		dst[src_len] = 0;
+		my_casedn_str(cs, dst);
+
+		return(strlen(dst));
+	} else {
+		return(cs->cset->casedn(cs, src, src_len, dst, dst_len));
+	}
+}
+
+#define true_word_char(c, ch) ((c) & (_MY_U | _MY_L | _MY_NMR) || (ch) == '_')
+
+#define misc_word_char(X)       0
+
+/*************************************************************//**
+Get the next token from the given string and store it in *token.
+It is mostly copied from MyISAM's doc parsing function ft_simple_get_word()
+@return length of string processed */
+UNIV_INTERN
+ulint
+innobase_mysql_fts_get_token(
+/*=========================*/
+	CHARSET_INFO*	cs,		/*!< in: Character set */
+	byte*           start,		/*!< in: start of text */
+	byte*		end,		/*!< in: one character past end of
+					text */
+	fts_string_t*	token,		/*!< out: token's text */
+	ulint*		offset)		/*!< out: offset to token,
+					measured as characters from
+					'start' */
+{
+	int		mbl;
+	uchar*		doc = start;
+
+	ut_a(cs);
+
+	token->f_n_char = token->f_len = 0;
+
+	do {
+		for (;;) {
+
+			if (doc >= end) {
+				return(doc - start);
+			}
+
+			int	ctype;
+
+			mbl = cs->cset->ctype(
+				cs, &ctype, (uchar*) doc, (uchar*) end);
+
+			if (true_word_char(ctype, *doc)) {
+				break;
+			}
+
+			doc += mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1);
+		}
+
+		ulint	mwc = 0;
+		ulint	length = 0;
+
+		token->f_str = doc;
+
+		while (doc < end) {
+
+			int	ctype;
+
+			mbl = cs->cset->ctype(
+				cs, &ctype, (uchar*) doc, (uchar*) end);
+
+			if (true_word_char(ctype, *doc)) {
+				mwc = 0;
+			} else if (!misc_word_char(*doc) || mwc) {
+				break;
+			} else {
+				++mwc;
+			}
+
+			++length;
+
+			doc += mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1);
+		}
+
+		token->f_len = (uint) (doc - token->f_str) - mwc;
+		token->f_n_char = length;
+
+		return(doc - start);
+
+	} while (doc < end);
+
+	token->f_str[token->f_len] = 0;
+
+	return(doc - start);
+}
+
 /**************************************************************//**
 Converts a MySQL type to an InnoDB type. Note that this function returns
 the 'mtype' of InnoDB. InnoDB differentiates between MySQL's old <= 4.1
 VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'.
 @return	DATA_BINARY, DATA_VARCHAR, ... */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 get_innobase_type_from_mysql_type(
 /*==============================*/
@@ -4705,7 +5286,7 @@ ha_innobase::store_key_val_for_row(
 				true_len = (ulint) cs->cset->well_formed_len(cs,
 						(const char *) data,
 						(const char *) data + len,
- 						(uint) (key_len / cs->mbmaxlen),
+						(uint) (key_len / cs->mbmaxlen),
 						&error);
 			}
 
@@ -5333,16 +5914,16 @@ ha_innobase::innobase_lock_autoinc(void)
 		etc. type of statement. */
 		if (thd_sql_command(user_thd) == SQLCOM_INSERT
 		    || thd_sql_command(user_thd) == SQLCOM_REPLACE) {
-			dict_table_t*	table = prebuilt->table;
+			dict_table_t*	ib_table = prebuilt->table;
 
 			/* Acquire the AUTOINC mutex. */
-			dict_table_autoinc_lock(table);
+			dict_table_autoinc_lock(ib_table);
 
 			/* We need to check that another transaction isn't
 			already holding the AUTOINC lock on the table. */
-			if (table->n_waiting_or_granted_auto_inc_locks) {
+			if (ib_table->n_waiting_or_granted_auto_inc_locks) {
 				/* Release the mutex to avoid deadlocks. */
-				dict_table_autoinc_unlock(table);
+				dict_table_autoinc_unlock(ib_table);
 			} else {
 				break;
 			}
@@ -5445,6 +6026,8 @@ ha_innobase::write_row(
 		ut_print_buf(stderr, ((const byte*) trx) - 100, 200);
 		putc('\n', stderr);
 		ut_error;
+	} else if (!trx_is_started(trx)) {
+		++trx->will_lock;
 	}
 
 	ha_statistic_increment(&SSV::ha_write_count);
@@ -5599,8 +6182,7 @@ no_commit:
 
 			switch (sql_command) {
 			case SQLCOM_LOAD:
-				if ((trx->duplicates
-				    & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))) {
+				if (trx->duplicates) {
 
 					goto set_max_autoinc;
 				}
@@ -5659,6 +6241,10 @@ report_error:
 						   prebuilt->table->flags,
 						   user_thd);
 
+	if (error_result == HA_FTS_INVALID_DOCID) {
+		my_error(HA_FTS_INVALID_DOCID, MYF(0));
+	}
+
 func_exit:
 	innobase_active_small();
 
@@ -5700,6 +6286,11 @@ calc_row_difference(
 	dfield_t	dfield;
 	dict_index_t*	clust_index;
 	uint		i;
+	ulint		error = DB_SUCCESS;
+	ibool		changes_fts_column = FALSE;
+	ibool		changes_fts_doc_col = FALSE;
+	trx_t*          trx = thd_to_trx(thd);
+	doc_id_t	doc_id = FTS_NULL_DOC_ID;
 
 	n_fields = table->s->fields;
 	clust_index = dict_table_get_first_index(prebuilt->table);
@@ -5760,6 +6351,18 @@ calc_row_difference(
 			;
 		}
 
+		if (field_mysql_type == MYSQL_TYPE_LONGLONG
+		    && prebuilt->table->fts
+		    && innobase_strcasecmp(
+			field->field_name, FTS_DOC_ID_COL_NAME) == 0) {
+			doc_id = (doc_id_t) mach_read_from_n_little_endian(
+				n_ptr, 8);
+			if (doc_id == 0) {
+				return(DB_FTS_INVALID_DOCID);
+			}
+		}
+	
+
 		if (field->null_ptr) {
 			if (field_in_record_is_null(table, field,
 							(char*) old_row)) {
@@ -5777,14 +6380,15 @@ calc_row_difference(
 			/* The field has changed */
 
 			ufield = uvect->fields + n_changed;
+			UNIV_MEM_INVALID(ufield, sizeof *ufield);
 
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
-			dict_col_copy_type(prebuilt->table->cols + i,
-					   dfield_get_type(&dfield));
-
 			if (n_len != UNIV_SQL_NULL) {
+				dict_col_copy_type(prebuilt->table->cols + i,
+						   dfield_get_type(&dfield));
+
 				buf = row_mysql_store_col_in_innobase_format(
 					&dfield,
 					(byte*)buf,
@@ -5792,7 +6396,7 @@ calc_row_difference(
 					new_mysql_row_col,
 					col_pack_len,
 					dict_table_is_comp(prebuilt->table));
-				dfield_copy_data(&ufield->new_val, &dfield);
+				dfield_copy(&ufield->new_val, &dfield);
 			} else {
 				dfield_set_null(&ufield->new_val);
 			}
@@ -5802,7 +6406,97 @@ calc_row_difference(
 			ufield->field_no = dict_col_get_clust_pos(
 				&prebuilt->table->cols[i], clust_index);
 			n_changed++;
+
+			/* If an FTS indexed column was changed by this
+			UPDATE then we need to inform the FTS sub-system.
+
+			NOTE: Currently we re-index all FTS indexed columns
+			even if only a subset of the FTS indexed columns
+			have been updated. That is the reason we are
+			checking only once here. Later we will need to
+			note which columns have been updated and do
+			selective processing. */
+			if (prebuilt->table->fts != NULL) {
+				ulint           offset;
+				dict_table_t*   innodb_table;
+
+				innodb_table = prebuilt->table;
+
+				if (!changes_fts_column) {
+					offset = row_upd_changes_fts_column(
+						innodb_table, ufield);
+
+					if (offset != ULINT_UNDEFINED) {
+						changes_fts_column = TRUE;
+					}
+				}
+
+				if (!changes_fts_doc_col) {
+					changes_fts_doc_col =
+					row_upd_changes_doc_id(
+						innodb_table, ufield);
+				}
+			}
 		}
+	}
+
+	/* If the update changes a column with an FTS index on it, we
+	then add an update column node with a new document id to the
+	other changes. We piggy back our changes on the normal UPDATE
+	to reduce processing and IO overhead. */
+	if (prebuilt->table->fts != NULL
+	    && (changes_fts_column || changes_fts_doc_col)) {
+		dict_table_t*   innodb_table = prebuilt->table;
+
+		ufield = uvect->fields + n_changed;
+
+		if (!DICT_TF2_FLAG_IS_SET(
+			innodb_table, DICT_TF2_FTS_HAS_DOC_ID)) {
+
+			/* If Doc ID is managed by user, and if any
+			FTS indexed column has been updated, its corresponding
+			Doc ID must also be updated. Otherwise, return
+			error */
+			if (changes_fts_column && !changes_fts_doc_col) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr, " InnoDB: A new Doc ID"
+					" must be supplied while updating"
+					" FTS indexed columns.\n");
+				return(DB_FTS_INVALID_DOCID);
+			}
+
+			/* Doc ID must monotonically increase */
+			ut_ad(innodb_table->fts->cache);
+			if (doc_id < prebuilt->table->fts->cache->next_doc_id) {
+				fprintf(stderr,
+					"InnoDB: FTS Doc ID must be larger than"
+					" "IB_ID_FMT" for table",
+					innodb_table->fts->cache->next_doc_id
+					- 1);
+				ut_print_name(stderr, trx,
+					      TRUE, innodb_table->name);
+				putc('\n', stderr);
+
+				return(DB_FTS_INVALID_DOCID);
+			}
+
+			trx->fts_next_doc_id = doc_id;
+		} else {
+			trx->fts_next_doc_id = 0;
+		}
+
+		fts_update_doc_id(
+			innodb_table, ufield, &trx->fts_next_doc_id);
+
+		if (error == DB_SUCCESS) {
+			++n_changed;
+		} else {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: Error (%lu) while updating "
+				"doc id in calc_row_difference().\n", error);
+		}
+	} else {
+		trx->fts_next_doc_id = 0;
 	}
 
 	uvect->n_fields = n_changed;
@@ -5810,7 +6504,7 @@ calc_row_difference(
 
 	ut_a(buf <= (byte*)original_upd_buff + buff_len);
 
-	return(0);
+	return(error);
 }
 
 /**********************************************************************//**
@@ -5836,6 +6530,10 @@ ha_innobase::update_row(
 
 	ut_a(prebuilt->trx == trx);
 
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
+
 	ha_statistic_increment(&SSV::ha_update_count);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
@@ -5850,9 +6548,13 @@ ha_innobase::update_row(
 	/* Build an update vector from the modified fields in the rows
 	(uses upd_buff of the handle) */
 
-	calc_row_difference(uvect, (uchar*) old_row, new_row, table,
+	error = calc_row_difference(uvect, (uchar*) old_row, new_row, table,
 			upd_buff, (ulint)upd_and_key_val_buff_len,
 			prebuilt, user_thd);
+
+	if (error != DB_SUCCESS) {
+		goto func_exit;
+	}
 
 	/* This is not a delete */
 	prebuilt->upd_node->is_delete = FALSE;
@@ -5875,8 +6577,7 @@ ha_innobase::update_row(
 	    && table->next_number_field
 	    && new_row == table->record[0]
 	    && thd_sql_command(user_thd) == SQLCOM_INSERT
-	    && (trx->duplicates & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))
-		== TRX_DUP_IGNORE)  {
+	    && trx->duplicates)  {
 
 		ulonglong	auto_inc;
 		ulonglong	col_max_value;
@@ -5905,17 +6606,20 @@ ha_innobase::update_row(
 
 	innobase_srv_conc_exit_innodb(trx);
 
+func_exit:
 	error = convert_error_code_to_mysql(error,
 					    prebuilt->table->flags, user_thd);
 
-	if (error == 0 /* success */
-	    && uvect->n_fields == 0 /* no columns were updated */) {
+	/* If success and no columns were updated. */
+	if (error == 0 && uvect->n_fields == 0) {
 
 		/* This is the same as success, but instructs
 		MySQL that the row is not really updated and it
 		should not increase the count of updated rows.
 		This is fix for http://bugs.mysql.com/29157 */
 		error = HA_ERR_RECORD_IS_THE_SAME;
+	} else if (error == HA_FTS_INVALID_DOCID) {
+		my_error(HA_FTS_INVALID_DOCID, MYF(0));
 	}
 
 	/* Tell InnoDB server that there might be work for
@@ -5941,6 +6645,10 @@ ha_innobase::delete_row(
 	DBUG_ENTER("ha_innobase::delete_row");
 
 	ut_a(prebuilt->trx == trx);
+
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
 
 	ha_statistic_increment(&SSV::ha_delete_count);
 
@@ -6219,6 +6927,10 @@ ha_innobase::index_read(
 			    : HA_ERR_TABLE_DEF_CHANGED);
 	}
 
+	if (index->type & DICT_FTS) {
+		DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
+	}
+
 	/* Note that if the index for which the search template is built is not
 	necessarily prebuilt->index, but can also be the clustered index */
 
@@ -6238,6 +6950,7 @@ ha_innobase::index_read(
 			(byte*) key_ptr,
 			(ulint) key_len,
 			prebuilt->trx);
+		DBUG_ASSERT(prebuilt->search_tuple->n_fields > 0);
 	} else {
 		/* We position the cursor to the last or the first entry
 		in the index */
@@ -6344,13 +7057,13 @@ ha_innobase::innobase_get_index(
 			table. Only print message if the index translation
 			table exists */
 			if (share->idx_trans_tbl.index_mapping) {
-				sql_print_error("InnoDB could not find "
-						"index %s key no %u for "
-						"table %s through its "
-						"index translation table",
-						key ? key->name : "NULL",
-						keynr,
-						prebuilt->table->name);
+				sql_print_warning("InnoDB could not find "
+						  "index %s key no %u for "
+						  "table %s through its "
+						  "index translation table",
+						  key ? key->name : "NULL",
+						  keynr,
+						  prebuilt->table->name);
 			}
 
 			index = dict_table_get_index_on_name(prebuilt->table,
@@ -6735,6 +7448,263 @@ ha_innobase::rnd_pos(
 	DBUG_RETURN(error);
 }
 
+/**********************************************************************//**
+Initialize FT index scan
+@return 0 or error number */
+UNIV_INTERN
+int
+ha_innobase::ft_init()
+/*==================*/
+{
+	DBUG_ENTER("ft_init");
+
+	fprintf(stderr, "ft_init()\n");
+
+	trx_t*	trx = check_trx_exists(ha_thd());
+
+	/* FTS queries are not treated as autocommit non-locking selects.
+	This is because the FTS implementation can acquire locks behind
+	the scenes. This has not been verified but it is safer to treat
+	them as regular read only transactions for now. */
+
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
+
+	DBUG_RETURN(rnd_init(false));
+}
+
+/**********************************************************************//**
+Initialize FT index scan
+@return FT_INFO structure if successful or NULL */
+UNIV_INTERN
+FT_INFO*
+ha_innobase::ft_init_ext(
+/*=====================*/
+	uint			flags,	/* in: */
+	uint			keynr,	/* in: */
+	String*			key)	/* in: */
+{
+	trx_t*			trx;
+	dict_table_t*		table;
+	ulint			error;
+	byte*			query = (byte*) key->ptr();
+	ulint			query_len = key->length();
+	const CHARSET_INFO*	char_set = key->charset();
+	NEW_FT_INFO*		fts_hdl = NULL;
+	dict_index_t*		index;
+	fts_result_t*		result;
+	char			buf_tmp[8192];
+	ulint			buf_tmp_used;
+	uint			num_errors;
+
+	fprintf(stderr, "ft_init_ext()\n");
+
+	fprintf(stderr, "keynr=%u, '%.*s'\n",
+		keynr, (int) key->length(), (byte *) key->ptr());
+
+	if (flags & FT_BOOL) {
+		fprintf(stderr, "BOOL search\n");
+	} else {
+		fprintf(stderr, "NL search\n");
+	}
+
+	/* FIXME: utf32 and utf16 are not compatible with some
+	string function used. So to convert them to uft8 before
+	proceed. */
+	if (strcmp(char_set->csname, "utf32") == 0
+	    || strcmp(char_set->csname, "utf16") == 0) {
+		buf_tmp_used = innobase_convert_string(
+			buf_tmp, sizeof(buf_tmp) - 1,
+			&my_charset_utf8_general_ci,
+			query, query_len, (CHARSET_INFO*) char_set,
+			&num_errors);
+
+		query = (byte*) buf_tmp;
+		query_len = buf_tmp_used;
+		query[query_len] = 0;
+	}
+
+	trx = prebuilt->trx;
+
+	/* FTS queries are not treated as autocommit non-locking selects.
+	This is because the FTS implementation can acquire locks behind
+	the scenes. This has not been verified but it is safer to treat
+	them as regular read only transactions for now. */
+
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
+
+	table = prebuilt->table;
+
+	/* Table does not have an FTS index */
+	if (!table->fts || ib_vector_is_empty(table->fts->indexes)) {
+		my_error(ER_TABLE_HAS_NO_FT, MYF(0));
+		return(NULL);
+	}
+
+	if (keynr == NO_SUCH_KEY) {
+		/* FIXME: Investigate the NO_SUCH_KEY usage */
+		index = (dict_index_t*) ib_vector_getp(table->fts->indexes, 0);	
+	} else {
+		index = innobase_get_index(keynr);
+	}
+
+	if (!index || index->type != DICT_FTS) {
+		my_error(ER_TABLE_HAS_NO_FT, MYF(0));
+		return NULL;
+	}
+
+	if (!(table->fts->fts_status & ADDED_TABLE_SYNCED)) {
+		fts_init_index(table, FALSE);
+
+		table->fts->fts_status |= ADDED_TABLE_SYNCED;
+	}
+
+	error = fts_query(trx, index, flags, query, query_len, &result);
+
+	prebuilt->result = result;
+
+	// FIXME: Proper error handling and diagnostic
+	if (error != DB_SUCCESS) {
+		fprintf(stderr, "Error processing query\n");
+	} else {
+		/* Must return an instance of a result even if it's empty */
+		ut_a(prebuilt->result);
+
+		/* Allocate FTS handler, and instantiate it before return */
+		fts_hdl = (NEW_FT_INFO*) my_malloc(sizeof(NEW_FT_INFO),
+						   MYF(0));
+
+		fts_hdl->please = (struct _ft_vft *)(&ft_vft_result);
+		fts_hdl->ft_prebuilt = prebuilt;
+		fts_hdl->ft_result = result;
+	}
+
+	return ((FT_INFO *)fts_hdl);
+}
+
+/**********************************************************************//**
+Fetch next result from the FT result set
+@return error code */
+UNIV_INTERN
+int
+ha_innobase::ft_read(
+/*=================*/
+	uchar*		buf)		/*!< in/out: buf contain result row */
+{
+	fts_result_t*	result;
+	int		error;
+	row_prebuilt_t*	ft_prebuilt;
+
+	ft_prebuilt = ((NEW_FT_INFO *)ft_handler)->ft_prebuilt;
+
+	ut_a(ft_prebuilt == prebuilt);
+
+	result = ((NEW_FT_INFO *)ft_handler)->ft_result;
+
+	if (result->current == NULL) {
+		/* This is the case where the FTS query did not
+		contain and matching documents. */
+		if (result->rankings_by_id != NULL) {
+			/* Now that we have the complete result, we
+			need to sort the document ids on their rank
+			calculation. */
+
+			fts_query_sort_result_on_rank(result);
+
+			result->current = const_cast<ib_rbt_node_t*>(
+				rbt_first(result->rankings_by_rank));
+		} else {
+			ut_a(result->current == NULL);
+		}
+	} else {
+		result->current = const_cast<ib_rbt_node_t*>(
+			rbt_next(result->rankings_by_rank, result->current));
+	}
+
+next_record:
+
+	if (result->current != NULL) {
+		dict_index_t*	index;
+		dtuple_t*	tuple = prebuilt->search_tuple;
+
+		index = dict_table_get_index_on_name(
+			prebuilt->table, FTS_DOC_ID_INDEX_NAME);
+
+		/* Must find the index */
+		ut_a(index);
+
+		/* Switch to the FTS doc id index */
+		prebuilt->index = index;
+
+		fts_ranking_t*	ranking = rbt_value(
+			fts_ranking_t, result->current);
+
+		/* We pass a pointer to the doc_id because we need to
+		convert it to storage byte order. */
+		row_create_key(tuple, index, &ranking->doc_id);
+
+		innobase_srv_conc_enter_innodb(prebuilt->trx);
+
+		ulint ret = row_search_for_mysql(
+			(byte*) buf, PAGE_CUR_GE, prebuilt, ROW_SEL_EXACT, 0);
+
+		innobase_srv_conc_exit_innodb(prebuilt->trx);
+
+
+		if (ret == DB_SUCCESS) {
+			error = 0;
+			table->status = 0;
+
+		} else if (ret == DB_RECORD_NOT_FOUND) {
+
+			result->current = const_cast<ib_rbt_node_t*>(
+				rbt_next(result->rankings_by_rank,
+					 result->current));
+
+			if (!result->current) {
+				error = HA_ERR_KEY_NOT_FOUND;
+				table->status = STATUS_NOT_FOUND;
+			} else {
+				goto next_record;
+			}
+
+		} else if (ret == DB_END_OF_INDEX) {
+
+			error = HA_ERR_KEY_NOT_FOUND;
+			table->status = STATUS_NOT_FOUND;
+		} else {
+
+			error = convert_error_code_to_mysql(
+				(int) ret, 0, user_thd);
+
+			table->status = STATUS_NOT_FOUND;
+		}
+
+		return (error);
+	}
+
+	return(HA_ERR_END_OF_FILE);
+}
+
+/*************************************************************************
+*/
+
+void
+ha_innobase::ft_end()
+{
+	fprintf(stderr, "ft_end()\n");
+
+	if (prebuilt->result != NULL) {
+		fts_query_free_result(prebuilt->result);
+		prebuilt->result = NULL;
+	}
+
+	rnd_end();
+}
+
 /*********************************************************************//**
 Stores a reference to the current row to 'ref' field of the handle. Note
 that in the case where we have generated the clustered index for the
@@ -6847,7 +7817,17 @@ create_table_def(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	table = dict_mem_table_create(table_name, 0, n_cols, flags, flags2);
+	/* Adjust for the FTS hidden field */
+	if (flags2 & DICT_TF2_FTS) {
+		table = dict_mem_table_create(table_name, 0, n_cols + 1,
+					      flags, flags2);
+
+		/* Set the hidden doc_id column. */
+		table->fts->doc_col = n_cols;
+	} else {
+		table = dict_mem_table_create(table_name, 0, n_cols,
+					      flags, flags2);
+	}
 
 	if (path_of_temp_table) {
 		table->dir_path_of_temp_table =
@@ -6951,6 +7931,11 @@ err_col:
 			col_len);
 	}
 
+	/* Add the FTS doc_id hidden column. */
+	if (flags2 & DICT_TF2_FTS) {
+		fts_add_doc_id_column(table);
+	}
+
 	error = row_create_table_for_mysql(table, trx);
 
 	if (error == DB_DUPLICATE_KEY) {
@@ -6990,11 +7975,11 @@ create_index(
 	KEY_PART_INFO*	key_part;
 	ulint		ind_type;
 	ulint		col_type;
-	ulint		prefix_len;
+	ulint		prefix_len = 0;
 	ulint		is_unsigned;
 	ulint		i;
 	ulint		j;
-	ulint*		field_lengths;
+	ulint*		field_lengths = NULL;
 
 	DBUG_ENTER("create_index");
 
@@ -7007,12 +7992,16 @@ create_index(
 
 	ind_type = 0;
 
-	if (key_num == form->s->primary_key) {
-		ind_type = ind_type | DICT_CLUSTERED;
-	}
+	if (key->flags & HA_FULLTEXT) {
+		ind_type = DICT_FTS;
+	} else {
+		if (key_num == form->s->primary_key) {
+			ind_type = ind_type | DICT_CLUSTERED;
+		}
 
-	if (key->flags & HA_NOSAME ) {
-		ind_type = ind_type | DICT_UNIQUE;
+		if (key->flags & HA_NOSAME ) {
+			ind_type = ind_type | DICT_UNIQUE;
+		}
 	}
 
 	/* We pass 0 as the space id, and determine at a lower level the space
@@ -7021,51 +8010,59 @@ create_index(
 	index = dict_mem_index_create(table_name, key->name, 0,
 				      ind_type, n_fields);
 
-	field_lengths = (ulint*) my_malloc(sizeof(ulint) * n_fields,
-		MYF(MY_FAE));
+	if (ind_type != DICT_FTS) {
+		field_lengths = (ulint*) my_malloc(
+			sizeof(ulint) * n_fields, MYF(MY_FAE));
+
+		ut_ad(!(index->type & DICT_FTS));
+	}
 
 	for (i = 0; i < n_fields; i++) {
 		key_part = key->key_part + i;
 
-		/* (The flag HA_PART_KEY_SEG denotes in MySQL a column prefix
-		field in an index: we only store a specified number of first
-		bytes of the column to the index field.) The flag does not
-		seem to be properly set by MySQL. Let us fall back on testing
-		the length of the key part versus the column. */
+		if (ind_type != DICT_FTS) { 
 
-		field = NULL;
-		for (j = 0; j < form->s->fields; j++) {
+			/* (The flag HA_PART_KEY_SEG denotes in MySQL a
+			column prefix field in an index: we only store a
+			specified number of first bytes of the column to
+			the index field.) The flag does not seem to be
+			properly set by MySQL. Let us fall back on testing
+			the length of the key part versus the column. */
 
-			field = form->field[j];
+			field = NULL;
 
-			if (0 == innobase_strcasecmp(
-					field->field_name,
-					key_part->field->field_name)) {
-				/* Found the corresponding column */
+			for (j = 0; j < form->s->fields; j++) {
 
-				break;
+				field = form->field[j];
+
+				if (0 == innobase_strcasecmp(
+						field->field_name,
+						key_part->field->field_name)) {
+					/* Found the corresponding column */
+
+					break;
+				}
 			}
-		}
 
-		ut_a(j < form->s->fields);
+			ut_a(j < form->s->fields);
 
-		col_type = get_innobase_type_from_mysql_type(
-					&is_unsigned, key_part->field);
+			col_type = get_innobase_type_from_mysql_type(
+						&is_unsigned, key_part->field);
 
-		if (DATA_BLOB == col_type
-			|| (key_part->length < field->pack_length()
-				&& field->type() != MYSQL_TYPE_VARCHAR)
-			|| (field->type() == MYSQL_TYPE_VARCHAR
-				&& key_part->length < field->pack_length()
-				- ((Field_varstring*)field)->length_bytes)) {
+			if (DATA_BLOB == col_type
+				|| (key_part->length < field->pack_length()
+					&& field->type() != MYSQL_TYPE_VARCHAR)
+				|| (field->type() == MYSQL_TYPE_VARCHAR
+					&& key_part->length < field->pack_length()
+					- ((Field_varstring*)field)->length_bytes)) {
 
-			prefix_len = key_part->length;
+				prefix_len = key_part->length;
 
-			if (col_type == DATA_INT
-				|| col_type == DATA_FLOAT
-				|| col_type == DATA_DOUBLE
-				|| col_type == DATA_DECIMAL) {
-				sql_print_error(
+				if (col_type == DATA_INT
+					|| col_type == DATA_FLOAT
+					|| col_type == DATA_DOUBLE
+					|| col_type == DATA_DECIMAL) {
+					sql_print_error(
 					"MySQL is trying to create a column "
 					"prefix index field, on an "
 					"inappropriate data type. Table "
@@ -7073,17 +8070,20 @@ create_index(
 					table_name,
 					key_part->field->field_name);
 
+					prefix_len = 0;
+				}
+			} else {
 				prefix_len = 0;
 			}
-		} else {
-			prefix_len = 0;
-		}
 
-		field_lengths[i] = key_part->length;
+			field_lengths[i] = key_part->length;
+		}
 
 		dict_mem_index_add_field(index,
 			(char*) key_part->field->field_name, prefix_len);
 	}
+
+	ut_ad(key->flags & HA_FULLTEXT || !(index->type & DICT_FTS));
 
 	/* Even though we've defined max_supported_key_part_length, we
 	still do our own checking using field_lengths to be absolutely
@@ -7211,6 +8211,7 @@ create_options_are_valid(
 	if (create_info->key_block_size) {
 		kbs_specified = TRUE;
 		switch (create_info->key_block_size) {
+			ulint	kbs_max;
 		case 1:
 		case 2:
 		case 4:
@@ -7231,7 +8232,24 @@ create_options_are_valid(
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: KEY_BLOCK_SIZE requires"
 					" innodb_file_format > Antelope.");
-					ret = FALSE;
+				ret = FALSE;
+			}
+
+			/* The maximum KEY_BLOCK_SIZE (KBS) is 16. But if
+			UNIV_PAGE_SIZE is smaller than 16k, the maximum
+			KBS is also smaller. */
+			kbs_max = ut_min(
+				1 << (UNIV_PAGE_SSIZE_MAX - 1),
+				1 << (PAGE_ZIP_SSIZE_MAX - 1));
+			if (create_info->key_block_size > kbs_max) {
+				push_warning_printf(
+					thd, Sql_condition::WARN_LEVEL_WARN,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: KEY_BLOCK_SIZE=%ld"
+					" cannot be larger than %ld.",
+					create_info->key_block_size,
+					kbs_max);
+				ret = FALSE;
 			}
 			break;
 		default:
@@ -7300,6 +8318,22 @@ ha_innobase::update_create_info(
 }
 
 /*****************************************************************//**
+Initialize the table FTS stopword list
+@TRUE if succeed */
+UNIV_INTERN
+ibool
+innobase_fts_load_stopword(
+/*=======================*/
+	dict_table_t*	table,	/*!< in: Table has the FTS */
+	trx_t*		trx,	/*!< in: transaction */
+	THD*		thd)	/*!< in: current thread */
+{
+	return (fts_load_stopword(table, trx,
+				  fts_server_stopword_table,
+				  THDVAR(thd, ft_user_stopword_table),
+				  THDVAR(thd, ft_enable_stopword), FALSE));
+}
+/*****************************************************************//**
 Creates a new table to an InnoDB database.
 @return	error number */
 UNIV_INTERN
@@ -7314,7 +8348,6 @@ ha_innobase::create(
 					create statement string */
 {
 	int		error;
-	dict_table_t*	innobase_table;
 	trx_t*		parent_trx;
 	trx_t*		trx;
 	int		primary_key_no;
@@ -7323,14 +8356,23 @@ ha_innobase::create(
 	char		norm_name[FN_REFLEN];
 	THD*		thd = ha_thd();
 	ib_int64_t	auto_inc_value;
+	ulint		fts_indexes = 0;
+	ibool		zip_allowed = TRUE;
+	enum row_type	row_format;
+	rec_format_t	innodb_row_format = REC_FORMAT_COMPACT;
+
+	/* Zip Shift Size - log2 - 9 of compressed page size,
+	zero for uncompressed */
+	ulint		zip_ssize = 0;
 	ulint		flags = 0;
 	ulint		flags2 = 0;
+	dict_table_t*	innobase_table = NULL;
+
 	/* Cache the value of innodb_file_format, in case it is
 	modified by another thread while the table is being created. */
-	const ulint	file_format = srv_file_format;
+	const ulint	file_format_allowed = srv_file_format;
 	const char*	stmt;
 	size_t		stmt_len;
-	enum row_type	row_format;
 
 	DBUG_ENTER("ha_innobase::create");
 
@@ -7368,11 +8410,35 @@ ha_innobase::create(
 		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
 	}
 
+	/* Check if there are any FTS indexes defined on this table. */
+	for (i = 0; i < form->s->keys; i++) {
+		KEY*    key = form->key_info + i;
+
+		if (key->flags & HA_FULLTEXT) {
+			++fts_indexes;
+
+			/* We don't support FTS indexes in temporary
+			tables. */
+			if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+
+				my_error(ER_INNODB_NO_FT_TEMP_TABLE, MYF(0));
+				DBUG_RETURN(-1);
+			}
+		}
+	}
+
 	strcpy(name2, name);
 
 	normalize_table_name(norm_name, name2);
 
 	/* Create the table definition in InnoDB */
+
+	flags = 0;
+
+	if (fts_indexes > 0) {
+		flags2 = DICT_TF2_FTS;
+		/* FTS-FIXME: Only accept compact format tables. */
+	}
 
 	/* Validate create options if innodb_strict_mode is set. */
 	if (!create_options_are_valid(thd, form, create_info)) {
@@ -7380,44 +8446,44 @@ ha_innobase::create(
 	}
 
 	if (create_info->key_block_size) {
-		/* Determine the page_zip.ssize corresponding to the
-		requested page size (key_block_size) in kilobytes. */
-
-		ulint	ssize, ksize;
-		ulint	key_block_size = create_info->key_block_size;
-
-		/*  Set 'flags' to the correct key_block_size.
-		It will be zero if key_block_size is an invalid number.*/
-		for (ssize = ksize = 1; ssize <= DICT_TF_ZSSIZE_MAX;
-		     ssize++, ksize <<= 1) {
-			if (key_block_size == ksize) {
-				flags = ssize << DICT_TF_ZSSIZE_SHIFT
-					| DICT_TF_COMPACT
-					| UNIV_FORMAT_B
-					  << DICT_TF_FORMAT_SHIFT;
+		/* The requested compressed page size (key_block_size)
+		is given in kilobytes. If it is a valid number, store
+		that value as the number of log2 shifts from 512 in
+		zip_ssize. Zero means it is not compressed. */
+		ulint zssize;		/* Zip Shift Size */
+		ulint kbsize;		/* Key Block Size */
+		for (zssize = kbsize = 1;
+		     zssize <= ut_min(UNIV_PAGE_SSIZE_MAX,
+				      PAGE_ZIP_SSIZE_MAX);
+		     zssize++, kbsize <<= 1) {
+			if (kbsize == create_info->key_block_size) {
+				zip_ssize = zssize;
 				break;
 			}
 		}
 
+		/* Make sure compressed row format is allowed. */
 		if (!srv_file_per_table) {
 			push_warning(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: KEY_BLOCK_SIZE requires"
 				" innodb_file_per_table.");
-			flags = 0;
+			zip_allowed = FALSE;
 		}
 
-		if (file_format < UNIV_FORMAT_B) {
+		if (file_format_allowed < UNIV_FORMAT_B) {
 			push_warning(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: KEY_BLOCK_SIZE requires"
 				" innodb_file_format > Antelope.");
-			flags = 0;
+			zip_allowed = FALSE;
 		}
 
-		if (!flags) {
+		if (!zip_allowed
+		    || zssize > ut_min(UNIV_PAGE_SSIZE_MAX,
+				       PAGE_ZIP_SSIZE_MAX)) {
 			push_warning_printf(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7428,7 +8494,7 @@ ha_innobase::create(
 
 	row_format = form->s->row_type;
 
-	if (flags) {
+	if (zip_ssize && zip_allowed) {
 		/* if ROW_FORMAT is set to default,
 		automatically change it to COMPRESSED.*/
 		if (row_format == ROW_TYPE_DEFAULT) {
@@ -7446,28 +8512,25 @@ ha_innobase::create(
 				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
 				" unless ROW_FORMAT=COMPRESSED.",
 				create_info->key_block_size);
-			flags = 0;
+			zip_allowed = FALSE;
 		}
 	} else {
-		/* flags == 0 means no KEY_BLOCK_SIZE.*/
-		if (row_format == ROW_TYPE_COMPRESSED) {
-			/* ROW_FORMAT=COMPRESSED without
-			KEY_BLOCK_SIZE implies half the
-			maximum KEY_BLOCK_SIZE. */
-			flags = (DICT_TF_ZSSIZE_MAX - 1)
-				<< DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| UNIV_FORMAT_B
-				<< DICT_TF_FORMAT_SHIFT;
-#if DICT_TF_ZSSIZE_MAX < 1
-# error "DICT_TF_ZSSIZE_MAX < 1"
-#endif
+		/* zip_ssize == 0 means no KEY_BLOCK_SIZE.*/
+		if (row_format == ROW_TYPE_COMPRESSED && zip_allowed) {
+			/* ROW_FORMAT=COMPRESSED without KEY_BLOCK_SIZE
+			implies half the maximum KEY_BLOCK_SIZE(*1k) or
+			UNIV_PAGE_SIZE, whichever is less. */
+			zip_ssize = ut_min(UNIV_PAGE_SSIZE_MAX,
+					   PAGE_ZIP_SSIZE_MAX) - 1;
 		}
 	}
 
+	/* Validate the row format.  Correct it if necessary */
 	switch (row_format) {
 	case ROW_TYPE_REDUNDANT:
+		innodb_row_format = REC_FORMAT_REDUNDANT;
 		break;
+
 	case ROW_TYPE_COMPRESSED:
 	case ROW_TYPE_DYNAMIC:
 		if (!srv_file_per_table) {
@@ -7477,7 +8540,7 @@ ha_innobase::create(
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_per_table.",
 				get_row_format_name(row_format));
-		} else if (file_format < UNIV_FORMAT_B) {
+		} else if (file_format_allowed == UNIV_FORMAT_A) {
 			push_warning_printf(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7485,13 +8548,13 @@ ha_innobase::create(
 				" innodb_file_format > Antelope.",
 				get_row_format_name(row_format));
 		} else {
-			flags |= DICT_TF_COMPACT
-			         | (UNIV_FORMAT_B
-			            << DICT_TF_FORMAT_SHIFT);
+			innodb_row_format = (row_format == ROW_TYPE_DYNAMIC
+					     ? REC_FORMAT_DYNAMIC
+					     : REC_FORMAT_COMPRESSED);
 			break;
 		}
-
-		/* fall through */
+		zip_allowed = FALSE;
+		/* fall through to set row_format = COMPACT */
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
 	case ROW_TYPE_PAGE:
@@ -7500,20 +8563,25 @@ ha_innobase::create(
 			ER_ILLEGAL_HA_CREATE_OPTION,
 			"InnoDB: assuming ROW_FORMAT=COMPACT.");
 	case ROW_TYPE_DEFAULT:
+		/* If we fell through, set row format to Compact. */
+		row_format = ROW_TYPE_COMPACT;
 	case ROW_TYPE_COMPACT:
-		flags = DICT_TF_COMPACT;
 		break;
 	}
 
-	/* Look for a primary key */
+	/* Set the table flags */
+	if (!zip_allowed) {
+		zip_ssize = 0;
+	}
+	dict_tf_set(&flags, innodb_row_format, zip_ssize);
 
+	/* Look for a primary key */
 	primary_key_no = (form->s->primary_key != MAX_KEY ?
 			 (int) form->s->primary_key :
 			 -1);
 
 	/* Our function innobase_get_mysql_key_number_for_index assumes
 	the primary key is always number 0, if it exists */
-
 	ut_a(primary_key_no == -1 || primary_key_no == 0);
 
 	/* Check for name conflicts (with reserved name) for
@@ -7545,7 +8613,7 @@ ha_innobase::create(
 
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during a table create operation.
-	Drop table etc. do this latching in row0mysql.c. */
+	Drop table etc. do this latching in row0mysql.cc. */
 
 	row_mysql_lock_data_dictionary(trx);
 
@@ -7556,7 +8624,6 @@ ha_innobase::create(
 	if (error) {
 		goto cleanup;
 	}
-
 
 	/* Create the keys */
 
@@ -7577,6 +8644,26 @@ ha_innobase::create(
 		first */
 		if ((error = create_index(trx, form, flags, norm_name,
 					  (uint) primary_key_no))) {
+			goto cleanup;
+		}
+	}
+
+	/* Create the ancillary tables that are common to all FTS indexes on
+	this table. */
+	if (fts_indexes > 0) {
+		innobase_table = dict_table_open_on_name_no_stats(
+			norm_name, TRUE, DICT_ERR_IGNORE_NONE);
+
+		ut_a(innobase_table);
+
+		error = fts_create_common_tables(
+			trx, innobase_table, norm_name, FALSE);
+
+		error = convert_error_code_to_mysql(error, 0, NULL);
+
+		dict_table_close(innobase_table, TRUE);
+
+		if (error) {
 			goto cleanup;
 		}
 	}
@@ -7628,6 +8715,15 @@ ha_innobase::create(
 			goto cleanup;
 		}
 	}
+	/* Cache all the FTS indexes on this table in the FTS specific
+	structure. They are used for FTS indexed column update handling. */
+	if (fts_indexes > 0) {
+		fts_t*          fts = innobase_table->fts;
+
+		ut_a(fts != NULL);
+
+		dict_table_get_all_fts_indexes(innobase_table, fts->indexes);
+	}
 
 	innobase_commit_low(trx);
 
@@ -7650,6 +8746,16 @@ ha_innobase::create(
 		trx_sys_file_format_max_upgrade(
 			(const char**) &innobase_file_format_max,
 			dict_table_get_format(innobase_table));
+	}
+
+	/* Load server stopword into FTS cache */
+	if (fts_indexes > 0) {
+		if (!innobase_fts_load_stopword(innobase_table, NULL, thd)) {
+			dict_table_close(innobase_table, FALSE);
+			srv_active_wake_master_thread();
+			trx_free_for_mysql(trx);
+			DBUG_RETURN(DB_ERROR);
+		}
 	}
 
 	/* Note: We can't call update_thd() as prebuilt will not be
@@ -7753,6 +8859,9 @@ ha_innobase::truncate()
 
 	update_thd(ha_thd());
 
+	if (!trx_is_started(prebuilt->trx)) {
+		++prebuilt->trx->will_lock;
+	}
 	/* Truncate the table in InnoDB */
 
 	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
@@ -7826,6 +8935,39 @@ ha_innobase::delete_table(
 	error = row_drop_table_for_mysql(norm_name, trx,
 					 thd_sql_command(thd)
 					 == SQLCOM_DROP_DB);
+
+
+	if (error == DB_TABLE_NOT_FOUND
+	    && innobase_get_lower_case_table_names() == 1) {
+		char*	is_part = NULL;
+#ifdef __WIN__
+		is_part = strstr(norm_name, "#p#");
+#else
+		is_part = strstr(norm_name, "#P#");
+#endif /* __WIN__ */
+
+		if (is_part) {
+			char	par_case_name[MAX_FULL_NAME_LEN + 1];
+
+#ifndef __WIN__
+			/* Check for the table using lower
+			case name, including the partition
+			separator "P" */
+			memcpy(par_case_name, norm_name, strlen(norm_name));
+			par_case_name[strlen(norm_name)] = 0;
+			innobase_casedn_str(par_case_name);
+#else
+			/* On Windows platfrom, check
+			whether there exists table name in
+			system table whose name is
+			not being normalized to lower case */
+			normalize_table_name_low(par_case_name, name, FALSE);
+#endif
+			error = row_drop_table_for_mysql(par_case_name, trx,
+							 thd_sql_command(thd)
+							 == SQLCOM_DROP_DB);
+		}
+	}
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -7952,13 +9094,67 @@ innobase_rename_table(
 		norm_from, norm_to, trx, lock_and_commit);
 
 	if (error != DB_SUCCESS) {
-		FILE* ef = dict_foreign_err_file;
+		if (error == DB_TABLE_NOT_FOUND
+		    && innobase_get_lower_case_table_names() == 1) {
+			char*	is_part = NULL;
+#ifdef __WIN__
+			is_part = strstr(norm_from, "#p#");
+#else
+			is_part = strstr(norm_from, "#P#");
+#endif /* __WIN__ */
 
-		fputs("InnoDB: Renaming table ", ef);
-		ut_print_name(ef, trx, TRUE, norm_from);
-		fputs(" to ", ef);
-		ut_print_name(ef, trx, TRUE, norm_to);
-		fputs(" failed!\n", ef);
+			if (is_part) {
+				char	par_case_name[MAX_FULL_NAME_LEN + 1];
+
+#ifndef __WIN__
+				/* Check for the table using lower
+				case name, including the partition
+				separator "P" */
+				memcpy(par_case_name, norm_from,
+				       strlen(norm_from));
+				par_case_name[strlen(norm_from)] = 0;
+				innobase_casedn_str(par_case_name);
+#else
+				/* On Windows platfrom, check
+				whether there exists table name in
+				system table whose name is
+				not being normalized to lower case */
+				normalize_table_name_low(par_case_name,
+							 from, FALSE);
+#endif
+				error = row_rename_table_for_mysql(
+					par_case_name, norm_to, trx,
+					lock_and_commit);
+
+			}
+		}
+
+		if (error != DB_SUCCESS) {
+			FILE* ef = dict_foreign_err_file;
+
+			fputs("InnoDB: Renaming table ", ef);
+			ut_print_name(ef, trx, TRUE, norm_from);
+			fputs(" to ", ef);
+			ut_print_name(ef, trx, TRUE, norm_to);
+			fputs(" failed!\n", ef);
+		} else {
+#ifndef __WIN__
+			sql_print_warning("Rename partition table %s "
+					  "succeeds after converting to lower "
+					  "case. The table may have "
+					  "been moved from a case "
+					  "in-sensitive file system.\n",
+					  norm_from);
+#else
+			sql_print_warning("Rename partition table %s "
+					  "succeeds after skipping the step to "
+					  "lower case the table name. "
+					  "The table may have been "
+					  "moved from a case sensitive "
+					  "file system.\n",
+					  norm_from);
+#endif /* __WIN__ */
+		}
 	}
 
 	if (lock_and_commit) {
@@ -7974,7 +9170,7 @@ innobase_rename_table(
 	my_free(norm_to);
 	my_free(norm_from);
 
-	return error;
+	return(error);
 }
 
 /*********************************************************************//**
@@ -8117,6 +9313,9 @@ ha_innobase::records_in_range(
 					 (const uchar*) 0),
 				(ulint) (min_key ? min_key->length : 0),
 				prebuilt->trx);
+	DBUG_ASSERT(min_key
+		    ? range_start->n_fields > 0
+		    : range_start->n_fields == 0);
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_end, (byte*) key_val_buff2,
@@ -8125,6 +9324,9 @@ ha_innobase::records_in_range(
 					 (const uchar*) 0),
 				(ulint) (max_key ? max_key->length : 0),
 				prebuilt->trx);
+	DBUG_ASSERT(max_key
+		    ? range_end->n_fields > 0
+		    : range_end->n_fields == 0);
 
 	mode1 = convert_search_mode_to_innobase(min_key ? min_key->flag :
 						HA_READ_KEY_EXACT);
@@ -8203,7 +9405,7 @@ ha_innobase::estimate_rows_upper_bound()
 
 	/* Calculate a minimum length for a clustered index record and from
 	that an upper bound for the number of rows. Since we only calculate
-	new statistics in row0mysql.c when a table has grown by a threshold
+	new statistics in row0mysql.cc when a table has grown by a threshold
 	factor, we must add a safety factor 2 in front of the formula below. */
 
 	estimate = 2 * local_data_file_length /
@@ -8280,7 +9482,7 @@ match. In this case, we have to take into account if we generated a
 default clustered index for the table
 @return the key number used inside MySQL */
 static
-unsigned int
+int
 innobase_get_mysql_key_number_for_index(
 /*====================================*/
 	INNOBASE_SHARE*		share,	/*!< in: share structure for index
@@ -8347,9 +9549,22 @@ innobase_get_mysql_key_number_for_index(
 		}
 	}
 
+	/* Loop through each index of the table and lock them */
+	for (ind = dict_table_get_first_index(ib_table);
+	     ind != NULL;
+	     ind = dict_table_get_next_index(ind)) {
+		if (index == ind) {
+			sql_print_error("Find index %s in InnoDB index list "
+					"but not its MySQL index number "
+					"It could be an InnoDB internal index.",
+					index->name);
+			return(-1);
+		}
+	}
+
 	ut_error;
 
-	return(0);
+	return(-1);
 }
 
 /*********************************************************************//**
@@ -8610,8 +9825,11 @@ ha_innobase::info_low(
 		ulint	num_innodb_index = UT_LIST_GET_LEN(ib_table->indexes)
 					- prebuilt->clust_index_was_generated;
 
-		if (table->s->keys != num_innodb_index) {
-			sql_print_error("Table %s contains %lu "
+		if (table->s->keys != num_innodb_index
+		    && (innobase_fts_check_doc_id_index(ib_table, NULL) 
+			== FTS_EXIST_DOC_ID_INDEX
+			&& table->s->keys != (num_innodb_index - 1))) {
+			sql_print_error("InnoDB: Table %s contains %lu "
 					"indexes inside InnoDB, which "
 					"is different from the number of "
 					"indexes %u defined in the MySQL ",
@@ -8643,16 +9861,27 @@ ha_innobase::info_low(
 
 			for (j = 0; j < table->key_info[i].key_parts; j++) {
 
+				if (table->key_info[i].flags & HA_FULLTEXT) {
+					/* The whole concept has no validity
+					for FTS indexes. */
+					table->key_info[i].rec_per_key[j] = 1; 
+					continue;
+				}
+
 				if (j + 1 > index->n_uniq) {
 					sql_print_error(
-"Index %s of %s has %lu columns unique inside InnoDB, but MySQL is asking "
-"statistics for %lu columns. Have you mixed up .frm files from different "
-"installations? "
-"See " REFMAN "innodb-troubleshooting.html\n",
-							index->name,
-							ib_table->name,
-							(unsigned long)
-							index->n_uniq, j + 1);
+						"Index %s of %s has %lu columns"
+					        " unique inside InnoDB, but "
+						"MySQL is asking statistics for"
+					        " %lu columns. Have you mixed "
+						"up .frm files from different "
+					       	"installations? "
+						"See " REFMAN
+						"innodb-troubleshooting.html\n",
+						index->name,
+						ib_table->name,
+						(unsigned long)
+						index->n_uniq, j + 1);
 					break;
 				}
 
@@ -8763,7 +9992,25 @@ ha_innobase::optimize(
 	THD*		thd,		/*!< in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
-	return(HA_ADMIN_TRY_ALTER);
+	/*FTS-FIXME: Since MySQL doesn't support engine-specific commands,
+	we have to hijack some existing command in order to be able to test
+	the new admin commands added in InnoDB's FTS support. For now, we
+	use MySQL's OPTIMIZE command, normally mapped to ALTER TABLE in
+	InnoDB (so it recreates the table anew), and map it to OPTIMIZE.
+
+	This works OK otherwise, but MySQL locks the entire table during
+	calls to OPTIMIZE, which is undesirable. */
+
+	if (innodb_optimize_fulltext_only) {
+		if (prebuilt->table->fts && prebuilt->table->fts->cache) {
+			fts_sync_table(prebuilt->table);
+			fts_optimize_table(prebuilt->table);
+		}
+		return(HA_ADMIN_OK);
+	} else {
+
+		return(HA_ADMIN_TRY_ALTER);
+	}
 }
 
 /*******************************************************************//**
@@ -8849,7 +10096,10 @@ ha_innobase::check(
 		putc('\n', stderr);
 #endif
 
-		if (!btr_validate_index(index, prebuilt->trx)) {
+		/* If this is an index being created, break */
+		if (*index->name == TEMP_INDEX_PREFIX) {
+			break;
+		}  else if (!btr_validate_index(index, prebuilt->trx)) {
 			is_ok = FALSE;
 
 			innobase_format_name(
@@ -8934,7 +10184,8 @@ ha_innobase::check(
 
 		if (index == dict_table_get_first_index(prebuilt->table)) {
 			n_rows_in_table = n_rows;
-		} else if (n_rows != n_rows_in_table) {
+		} else if (!(index->type & DICT_FTS)
+			   && (n_rows != n_rows_in_table)) {
 			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 					    ER_NOT_KEYFILE,
 					    "InnoDB: Index '%-.200s'"
@@ -9400,6 +10651,7 @@ ha_innobase::extra(
 			break;
 		case HA_EXTRA_RESET_STATE:
 			reset_template();
+			thd_to_trx(ha_thd())->duplicates = 0;
 			break;
 		case HA_EXTRA_NO_KEYREAD:
 			prebuilt->read_just_key = 0;
@@ -9417,18 +10669,17 @@ ha_innobase::extra(
 			parameters below.  We must not invoke update_thd()
 			either, because the calling threads may change.
 			CAREFUL HERE, OR MEMORY CORRUPTION MAY OCCUR! */
-		case HA_EXTRA_IGNORE_DUP_KEY:
+		case HA_EXTRA_INSERT_WITH_UPDATE:
 			thd_to_trx(ha_thd())->duplicates |= TRX_DUP_IGNORE;
+			break;
+		case HA_EXTRA_NO_IGNORE_DUP_KEY:
+			thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_IGNORE;
 			break;
 		case HA_EXTRA_WRITE_CAN_REPLACE:
 			thd_to_trx(ha_thd())->duplicates |= TRX_DUP_REPLACE;
 			break;
 		case HA_EXTRA_WRITE_CANNOT_REPLACE:
 			thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_REPLACE;
-			break;
-		case HA_EXTRA_NO_IGNORE_DUP_KEY:
-			thd_to_trx(ha_thd())->duplicates &=
-				~(TRX_DUP_IGNORE | TRX_DUP_REPLACE);
 			break;
 		default:/* Do nothing */
 			;
@@ -9528,12 +10779,25 @@ ha_innobase::start_stmt(
 		3) ::init_table_handle_for_HANDLER(), and
 		4) ::transactional_table_lock(). */
 
+		ut_a(prebuilt->stored_select_lock_type != LOCK_NONE_UNSET);
 		prebuilt->select_lock_type = prebuilt->stored_select_lock_type;
 	}
 
 	*trx->detailed_error = 0;
 
 	innobase_register_trx(ht, thd, trx);
+
+	if (!trx_is_started(trx)) {
+		++trx->will_lock;
+	}
+
+	if (prebuilt->result) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Warning: FTS result set not NULL\n");
+
+		fts_query_free_result(prebuilt->result);
+		prebuilt->result = NULL;
+	}
 
 	return(0);
 }
@@ -9588,6 +10852,7 @@ ha_innobase::external_lock(
 	informative error message and return with an error.
 	Note: decide_logging_format would give the same error message,
 	except it cannot give the extra details. */
+
 	if (lock_type == F_WRLCK
 	    && !(table_flags() & HA_BINLOG_STMT_CAPABLE)
 	    && thd_binlog_format(thd) == BINLOG_FORMAT_STMT
@@ -9605,7 +10870,6 @@ ha_innobase::external_lock(
 			DBUG_RETURN(HA_ERR_LOGGING_IMPOSSIBLE);
 		}
 	}
-
 
 	trx = prebuilt->trx;
 
@@ -9680,6 +10944,13 @@ ha_innobase::external_lock(
 		trx->n_mysql_tables_in_use++;
 		prebuilt->mysql_has_locked = TRUE;
 
+		if (!trx_is_started(trx)
+		    && (prebuilt->select_lock_type != LOCK_NONE
+			|| prebuilt->stored_select_lock_type != LOCK_NONE)) {
+
+			++trx->will_lock;
+		}
+
 		DBUG_RETURN(0);
 	}
 
@@ -9719,6 +10990,13 @@ ha_innobase::external_lock(
 
 			read_view_close_for_mysql(trx);
 		}
+	}
+
+	if (!trx_is_started(trx)
+	    && (prebuilt->select_lock_type != LOCK_NONE
+		|| prebuilt->stored_select_lock_type != LOCK_NONE)) {
+
+		++trx->will_lock;
 	}
 
 	DBUG_RETURN(0);
@@ -10434,6 +11712,13 @@ ha_innobase::store_lock(
 
 	*to++= &lock;
 
+	if (!trx_is_started(trx)
+	    && (prebuilt->select_lock_type != LOCK_NONE
+	        || prebuilt->stored_select_lock_type != LOCK_NONE)) {
+
+		++trx->will_lock;
+	}
+
 	return(to);
 }
 
@@ -10449,7 +11734,7 @@ ha_innobase::innobase_get_autoinc(
 	ulonglong*	value)		/*!< out: autoinc value */
 {
 	*value = 0;
- 
+
 	prebuilt->autoinc_error = innobase_lock_autoinc();
 
 	if (prebuilt->autoinc_error == DB_SUCCESS) {
@@ -10511,11 +11796,11 @@ void
 ha_innobase::get_auto_increment(
 /*============================*/
 	ulonglong	offset,			/*!< in: table autoinc offset */
- 	ulonglong	increment,		/*!< in: table autoinc
+	ulonglong	increment,		/*!< in: table autoinc
 						increment */
 	ulonglong	nb_desired_values,	/*!< in: number of values
 						reqd */
- 	ulonglong*	first_value,		/*!< out: the autoinc value */
+	ulonglong*	first_value,		/*!< out: the autoinc value */
 	ulonglong*	nb_reserved_values)	/*!< out: count of reserved
 						values */
 {
@@ -10673,6 +11958,64 @@ ha_innobase::get_error_message(
 }
 
 /*******************************************************************//**
+  Retrieves the names of the table and the key for which there was a
+  duplicate entry in the case of HA_ERR_FOREIGN_DUPLICATE_KEY.
+
+  If any of the names is not available, then this method will return
+  false and will not change any of child_table_name or child_key_name.
+
+  @param child_table_name[out]    Table name
+  @param child_table_name_len[in] Table name buffer size
+  @param child_key_name[out]      Key name
+  @param child_key_name_len[in]   Key name buffer size
+
+  @retval  true                  table and key names were available
+                                 and were written into the corresponding
+                                 out parameters.
+  @retval  false                 table and key names were not available,
+                                 the out parameters were not touched.
+*/
+bool
+ha_innobase::get_foreign_dup_key(
+/*=============================*/
+	char*	child_table_name,
+	uint	child_table_name_len,
+	char*	child_key_name,
+	uint	child_key_name_len)
+{
+	const dict_index_t*	err_index;
+
+	ut_a(prebuilt->trx != NULL);
+	ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
+
+	err_index = trx_get_error_info(prebuilt->trx);
+
+	if (err_index == NULL) {
+		return(false);
+	}
+	/* else */
+
+	/* copy table name (and convert from filename-safe encoding to
+	system_charset_info, e.g. "foo_@0J@00b6" -> "foo_ö") */
+	char*	p;
+	p = strchr(err_index->table->name, '/');
+	/* strip ".../" prefix if any */
+	if (p != NULL) {
+		p++;
+	} else {
+		p = err_index->table->name;
+	}
+	uint	len;
+	len = filename_to_tablename(p, child_table_name, child_table_name_len);
+	child_table_name[len] = '\0';
+
+	/* copy index name */
+	ut_snprintf(child_key_name, child_key_name_len, "%s", err_index->name);
+
+	return(true);
+}
+
+/*******************************************************************//**
 Compares two 'refs'. A 'ref' is the (internal) primary key value of the row.
 If there is no explicitly declared non-null unique key or a primary key, then
 InnoDB internally uses the row id as the primary key.
@@ -10798,7 +12141,7 @@ characters for prefix indexes using a multibyte character set. The function
 finds charset information and returns length of prefix_len characters in the
 index field in bytes.
 @return	number of bytes occupied by the first n characters */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 innobase_get_at_most_n_mbchars(
 /*===========================*/
@@ -11521,6 +12864,206 @@ innodb_file_format_max_update(
 	}
 }
 
+/*************************************************************//**
+Check whether valid argument given to innobase_*_stopword_table.
+This function is registered as a callback with MySQL.
+@return 0 for valid stopword table */
+static
+int
+innodb_stopword_table_validate(
+/*===========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+	const char*	stopword_table_name;
+	char		buff[STRING_BUFFER_USUAL_SIZE];
+	int		len = sizeof(buff);
+	trx_t*		trx;
+	int		ret = 1;
+
+	ut_a(save != NULL);
+	ut_a(value != NULL);
+
+	stopword_table_name = value->val_str(value, buff, &len);
+
+	trx = check_trx_exists(thd);
+
+	row_mysql_lock_data_dictionary(trx);
+
+	/* Validate the stopword table's (if supplied) existence and
+	of the right format */
+	if (!stopword_table_name
+	    || fts_valid_stopword_table(stopword_table_name)) {
+		*static_cast<const char**>(save) = stopword_table_name;
+		ret = 0;
+	}
+
+	row_mysql_unlock_data_dictionary(trx);
+
+	return(ret);
+}
+
+/****************************************************************//**
+Update global variable fts_server_stopword_table with the "saved"
+stopword table name value. This function is registered as a callback
+with MySQL. */
+static
+void
+innodb_stopword_table_update(
+/*=========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	const char*	stopword_table_name;
+	char*		old;
+
+	ut_a(save != NULL);
+	ut_a(var_ptr != NULL);
+
+	stopword_table_name = *static_cast<const char*const*>(save);
+	old = *(char**) var_ptr;
+
+	if (stopword_table_name) {
+		*(char**) var_ptr =  my_strdup(stopword_table_name,  MYF(0));
+	} else {
+		*(char**) var_ptr = NULL;
+	}
+
+	if (old) {
+		my_free(old);
+	}
+
+	fts_server_stopword_table = *(char**) var_ptr;
+}
+
+/*************************************************************//**
+Check whether valid argument given to "innodb_fts_internal_tbl_name"
+This function is registered as a callback with MySQL.
+@return 0 for valid stopword table */
+static
+int
+innodb_internal_table_validate(
+/*===========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+	const char*	table_name;
+	char		buff[STRING_BUFFER_USUAL_SIZE];
+	int		len = sizeof(buff);
+	int		ret = 1;
+	dict_table_t*	user_table;
+
+	ut_a(save != NULL);
+	ut_a(value != NULL);
+
+	table_name = value->val_str(value, buff, &len);
+
+	if (!table_name) {
+		*static_cast<const char**>(save) = NULL;
+		return(0);
+	}
+
+	user_table = dict_table_open_on_name_no_stats(
+			table_name, FALSE, DICT_ERR_IGNORE_NONE);
+
+	if (user_table) {
+		if (dict_table_has_fts_index(user_table)) {
+			*static_cast<const char**>(save) = table_name;
+			ret = 0;
+		}
+
+		dict_table_close(user_table, FALSE);
+	}
+
+	return(ret);
+}
+
+/****************************************************************//**
+Update global variable "fts_internal_tbl_name" with the "saved"
+stopword table name value. This function is registered as a callback
+with MySQL. */
+static
+void
+innodb_internal_table_update(
+/*=========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	const char*	table_name;
+	char*		old;
+
+	ut_a(save != NULL);
+	ut_a(var_ptr != NULL);
+
+	table_name = *static_cast<const char*const*>(save);
+	old = *(char**) var_ptr;
+
+	if (table_name) {
+		*(char**) var_ptr =  my_strdup(table_name,  MYF(0));
+	} else {
+		*(char**) var_ptr = NULL;
+	}
+
+	if (old) {
+		my_free(old);
+	}
+
+	fts_internal_tbl_name = *(char**) var_ptr;
+}
+
+/****************************************************************//**
+Update the session variable innodb_session_stopword_table
+with the "saved" stopword table name value. This function
+is registered as a callback with MySQL. */
+static
+void
+innodb_session_stopword_update(
+/*===========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	const char*	stopword_table_name;
+	char*		old;
+
+	ut_a(save != NULL);
+	ut_a(var_ptr != NULL);
+
+	stopword_table_name = *static_cast<const char*const*>(save);
+	old = *(char**) var_ptr;
+
+	if (stopword_table_name) {
+		*(char**) var_ptr =  my_strdup(stopword_table_name,  MYF(0));
+	} else {
+		*(char**) var_ptr = NULL;
+	}
+
+	if (old) {
+		my_free(old);
+	}
+}
 /****************************************************************//**
 Update the system variable innodb_adaptive_hash_index using the "saved"
 value. This function is registered as a callback with MySQL. */
@@ -11791,7 +13334,7 @@ innodb_monitor_update_wildcard(
 	ut_a(name);
 
 	for (ulint use = 0; use < NUM_MONITOR; use++) {
-		monitor_type_t	type;
+		ulint		type;
 		monitor_id_t	monitor_id = static_cast<monitor_id_t>(use);
 		monitor_info_t*	monitor_info;
 
@@ -12251,7 +13794,7 @@ system default primary index name 'GEN_CLUST_INDEX'. If a name
 matches, this function pushes an warning message to the client,
 and returns true.
 @return true if the index name matches the reserved name */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 bool
 innobase_index_name_is_reserved(
 /*============================*/
@@ -12286,6 +13829,74 @@ innobase_index_name_is_reserved(
 	}
 
 	return(false);
+}
+
+/***********************************************************************
+Retrieve the FTS Relevance Ranking result for doc with doc_id
+of prebuilt->fts_doc_id
+@return the relevance ranking value */
+float
+innobase_fts_retrieve_ranking(
+/*============================*/
+		FT_INFO * fts_hdl)	/*!< in: FTS handler */
+{
+	row_prebuilt_t*	ft_prebuilt;	
+	fts_result_t*	result;
+
+	result = ((NEW_FT_INFO *)fts_hdl)->ft_result;
+
+	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
+
+	/* Retrieve the ranking value for doc_id with value of
+	prebuilt->fts_doc_id */
+	return(fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id));
+}
+
+/***********************************************************************
+Free the memory for the FTS handler */
+void
+innobase_fts_close_ranking(
+/*=======================*/
+		FT_INFO * fts_hdl)
+{
+	fts_result_t*	result;
+	row_prebuilt_t*	ft_prebuilt;
+
+	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
+
+	result = ((NEW_FT_INFO *)fts_hdl)->ft_result;
+
+	fts_query_free_result(result);
+
+	if (result == ft_prebuilt->result) {
+		ft_prebuilt->result = NULL;
+	}
+
+	my_free((uchar*)fts_hdl);
+
+	return;
+}
+
+/***********************************************************************
+Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
+of prebuilt->fts_doc_id
+@return the relevance ranking value */
+float
+innobase_fts_find_ranking(
+/*======================*/
+		FT_INFO*	fts_hdl,	/*!< in: FTS handler */
+		uchar*		record,		/*!< in: Unused */
+		uint		len)		/*!< in: Unused */
+{
+	row_prebuilt_t*	ft_prebuilt;
+	fts_result_t*	result;
+
+	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
+	result = ((NEW_FT_INFO *)fts_hdl)->ft_result;
+
+	/* Retrieve the ranking value for doc_id with value of
+	prebuilt->fts_doc_id */
+	return fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id);
 }
 
 /* These variables are never read by InnoDB or changed. They are a kind of
@@ -12374,8 +13985,8 @@ buffer_pool_load_abort(
 }
 
 static SHOW_VAR innodb_status_variables_export[]= {
-  {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
-  {NullS, NullS, SHOW_LONG}
+	{"Innodb", (char*) &show_innodb_vars, SHOW_FUNC},
+	{NullS, NullS, SHOW_LONG}
 };
 
 static struct st_mysql_storage_engine innobase_storage_engine=
@@ -12429,7 +14040,7 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Number of IOPs the server can do. Tunes the background IO rate",
-  NULL, NULL, 200, 100, ~0L, 0);
+  NULL, NULL, 200, 100, ~0UL, 0);
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
   PLUGIN_VAR_OPCMDARG,
@@ -12485,13 +14096,20 @@ static MYSQL_SYSVAR_BOOL(file_format_check, innobase_file_format_check,
 
 /* If a new file format is introduced, the file format
 name needs to be updated accordingly. Please refer to
-file_format_name_map[] defined in trx0sys.c for the next
+file_format_name_map[] defined in trx0sys.cc for the next
 file format name. */
 static MYSQL_SYSVAR_STR(file_format_max, innobase_file_format_max,
   PLUGIN_VAR_OPCMDARG,
   "The highest file format in the tablespace.",
   innodb_file_format_max_validate,
   innodb_file_format_max_update, "Antelope");
+
+static MYSQL_SYSVAR_STR(ft_server_stopword_table, innobase_server_stopword_table,
+  PLUGIN_VAR_OPCMDARG,
+  "The user supplied stopword table name.",
+  innodb_stopword_table_validate,
+  innodb_stopword_table_update,
+  NULL);
 
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   PLUGIN_VAR_OPCMDARG,
@@ -12548,7 +14166,7 @@ static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
 static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
   PLUGIN_VAR_RQCMDARG,
   "Desired maximum length of the purge queue (0 = no limit)",
-  NULL, NULL, 0, 0, ~0L, 0);
+  NULL, NULL, 0, 0, ~0UL, 0);
 
 static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -12665,7 +14283,7 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_load_at_startup, srv_buffer_pool_load_at_st
 static MYSQL_SYSVAR_ULONG(lru_scan_depth, srv_LRU_scan_depth,
   PLUGIN_VAR_RQCMDARG,
   "How deep to scan LRU to keep it clean",
-  NULL, NULL, 1024, 100, ~0L, 0);
+  NULL, NULL, 1024, 100, ~0UL, 0);
 
 static MYSQL_SYSVAR_BOOL(flush_neighbors, srv_flush_neighbors,
   PLUGIN_VAR_NOCMDARG,
@@ -12680,12 +14298,64 @@ static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
 static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   PLUGIN_VAR_RQCMDARG,
   "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
-  NULL, NULL, 500L, 1L, ~0L, 0);
+  NULL, NULL, 500L, 1L, ~0UL, 0);
 
 static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
   "Number of file I/O threads in InnoDB.",
   NULL, NULL, 4, 4, 64, 0);
+
+static MYSQL_SYSVAR_BOOL(ft_enable_diag_print, fts_enable_diag_print,
+  PLUGIN_VAR_OPCMDARG,
+  "Whether to enable additional FTS diagnostic printout ",
+  NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_BOOL(disable_sort_file_cache, srv_disable_sort_file_cache,
+  PLUGIN_VAR_OPCMDARG,
+  "Whether to disable OS system file cache for sort I/O",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name,
+  PLUGIN_VAR_NOCMDARG,
+  "FTS internal auxiliary table to be checked",
+  innodb_internal_table_validate, 
+  innodb_internal_table_update, NULL);
+
+static MYSQL_SYSVAR_ULONG(ft_cache_size, fts_max_cache_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "InnoDB Fulltext search cache size in bytes",
+  NULL, NULL, 32000000, 1600000, 80000000, 0);
+
+static MYSQL_SYSVAR_ULONG(ft_min_token_size, fts_min_token_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "InnoDB Fulltext search minimum token size in characters",
+  NULL, NULL, 3, 0, 16, 0);
+
+static MYSQL_SYSVAR_ULONG(ft_max_token_size, fts_max_token_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "InnoDB Fulltext search maximum token size in characters",
+  NULL, NULL, HA_FT_MAXCHARLEN, 10, FTS_MAX_WORD_LEN , 0);
+
+
+static MYSQL_SYSVAR_ULONG(ft_num_word_optimize, fts_num_word_optimize,
+  PLUGIN_VAR_OPCMDARG,
+  "InnoDB Fulltext search number of words to optimize for each optimize table call ",
+  NULL, NULL, 2000, 1000, 10000, 0);
+
+static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, fts_sort_pll_degree,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "InnoDB Fulltext search parallel sort degree, will round up to nearest power of 2 number",
+  NULL, NULL, 2, 1, 16, 0);
+   
+static MYSQL_SYSVAR_ULONG(sort_buf_size, srv_sort_buf_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "InnoDB Fulltext search sort buffer size",
+  NULL, NULL, 1048576, 524288, 64836480, 0);
+
+static MYSQL_SYSVAR_BOOL(optimize_fulltext_only, innodb_optimize_fulltext_only,
+  PLUGIN_VAR_NOCMDARG,
+  "Only optimize the Fulltext index of the table",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONG(read_io_threads, innobase_read_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -12701,6 +14371,12 @@ static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Helps to save your data in case the disk image of the database becomes corrupt.",
   NULL, NULL, 0, 0, 6, 0);
+
+static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Page size to use for all InnoDB tablespaces.",
+  NULL, NULL, UNIV_PAGE_SIZE_DEF,
+  UNIV_PAGE_SIZE_MIN, UNIV_PAGE_SIZE_MAX, 0);
 
 static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -12742,12 +14418,12 @@ static MYSQL_SYSVAR_LONG(open_files, innobase_open_files,
 static MYSQL_SYSVAR_ULONG(sync_spin_loops, srv_n_spin_wait_rounds,
   PLUGIN_VAR_RQCMDARG,
   "Count of spin-loop rounds in InnoDB mutexes (30 by default)",
-  NULL, NULL, 30L, 0L, ~0L, 0);
+  NULL, NULL, 30L, 0L, ~0UL, 0);
 
 static MYSQL_SYSVAR_ULONG(spin_wait_delay, srv_spin_wait_delay,
   PLUGIN_VAR_OPCMDARG,
   "Maximum delay between polling for a spin lock (6 by default)",
-  NULL, NULL, 6L, 0L, ~0L, 0);
+  NULL, NULL, 6L, 0L, ~0UL, 0);
 
 static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   PLUGIN_VAR_RQCMDARG,
@@ -12772,7 +14448,7 @@ static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   NULL, NULL,
   10000L,
   0L,
-  ~0L, 0);
+  ~0UL, 0);
 
 static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -12937,6 +14613,12 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
+  MYSQL_SYSVAR(ft_cache_size),
+  MYSQL_SYSVAR(ft_enable_stopword),
+  MYSQL_SYSVAR(ft_max_token_size),
+  MYSQL_SYSVAR(ft_min_token_size),
+  MYSQL_SYSVAR(ft_num_word_optimize),
+  MYSQL_SYSVAR(ft_sort_pll_degree),
   MYSQL_SYSVAR(large_prefix),
   MYSQL_SYSVAR(force_load_corrupted),
   MYSQL_SYSVAR(locks_unsafe_for_binlog),
@@ -12945,6 +14627,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_arch_dir),
   MYSQL_SYSVAR(log_archive),
 #endif /* UNIV_LOG_ARCHIVE */
+  MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_buffer_size),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),
@@ -12956,7 +14639,13 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(old_blocks_pct),
   MYSQL_SYSVAR(old_blocks_time),
   MYSQL_SYSVAR(open_files),
+  MYSQL_SYSVAR(optimize_fulltext_only),
   MYSQL_SYSVAR(rollback_on_timeout),
+  MYSQL_SYSVAR(ft_aux_table),
+  MYSQL_SYSVAR(ft_enable_diag_print),
+  MYSQL_SYSVAR(ft_server_stopword_table),
+  MYSQL_SYSVAR(ft_user_stopword_table),
+  MYSQL_SYSVAR(disable_sort_file_cache),
   MYSQL_SYSVAR(stats_on_metadata),
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(stats_transient_sample_pages),
@@ -12967,6 +14656,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(support_xa),
+  MYSQL_SYSVAR(sort_buf_size),
   MYSQL_SYSVAR(analyze_is_persistent),
   MYSQL_SYSVAR(sync_spin_loops),
   MYSQL_SYSVAR(spin_wait_delay),
@@ -13034,6 +14724,13 @@ i_s_innodb_buffer_page,
 i_s_innodb_buffer_page_lru,
 i_s_innodb_buffer_stats,
 i_s_innodb_metrics,
+i_s_innodb_ft_default_stopword,
+i_s_innodb_ft_inserted,
+i_s_innodb_ft_deleted,
+i_s_innodb_ft_being_deleted,
+i_s_innodb_ft_config,
+i_s_innodb_ft_index_cache,
+i_s_innodb_ft_index_table,
 i_s_innodb_sys_tables,
 i_s_innodb_sys_tablestats,
 i_s_innodb_sys_indexes,
@@ -13219,7 +14916,7 @@ ha_innobase::multi_range_read_info_const(
 	uint		n_ranges,
 	uint*		bufsz,
 	uint*		flags,
-	COST_VECT*	cost)
+	Cost_estimate*	cost)
 {
 	/* See comments in ha_myisam::multi_range_read_info_const */
 	ds_mrr.init(this, table);
@@ -13234,7 +14931,7 @@ ha_innobase::multi_range_read_info(
 	uint		keys,
 	uint*		bufsz,
 	uint*		flags,
-	COST_VECT*	cost)
+	Cost_estimate*	cost)
 {
 	ds_mrr.init(this, table);
 	return(ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost));
@@ -13248,7 +14945,7 @@ ha_innobase::multi_range_read_info(
 /*************************************************************//**
 InnoDB index push-down condition check
 @return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 enum icp_result
 innobase_index_cond(
 /*================*/

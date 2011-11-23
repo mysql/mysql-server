@@ -27,6 +27,10 @@
 #include "sql_select.h"
 #include "key.h"
 
+#include <algorithm>
+using std::max;
+using std::min;
+
 
 /*****************************************************************************
  *  Join cache module
@@ -364,6 +368,7 @@ void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
       copy->field= 0;
       copy->referenced_field_no= 0;
       copy->get_rowid= NULL;
+      tab->copy_current_rowid= copy;
       length+= copy->length;
       data_field_count++;
       copy++;
@@ -418,7 +423,7 @@ void JOIN_CACHE::set_constants()
   uint len= length + fields*sizeof(uint)+blobs*sizeof(uchar *) +
             (prev_cache ? prev_cache->get_size_of_rec_offset() : 0) +
             sizeof(ulong);
-  buff_size= max(join->thd->variables.join_buff_size, 2*len);
+  buff_size= max<size_t>(join->thd->variables.join_buff_size, 2*len);
   size_of_rec_ofs= offset_size(buff_size);
   size_of_rec_len= blobs ? size_of_rec_ofs : offset_size(len); 
   size_of_fld_ofs= size_of_rec_len;
@@ -1784,12 +1789,6 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     /* A dynamic range access was used last. Clean up after it */
     join_tab->select->set_quick(NULL);
 
-  /* Materialize table prior reading it */
-  if (join_tab->materialize_table &&
-      !join_tab->table->pos_in_table_list->materialized &&
-      (error= (*join_tab->materialize_table)(join_tab)))
-    return NESTED_LOOP_ERROR;
-
   /* Start retrieving all records of the joined table */
   if ((error= (*join_tab->read_first_record)(join_tab))) 
     return error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
@@ -2282,12 +2281,6 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
   /* Return at once if there are no records in the join buffer */
   if (!records)
     return NESTED_LOOP_OK;  
-                   
-  /* Materialize table prior reading it */
-  if (join_tab->materialize_table &&
-      !join_tab->table->pos_in_table_list->materialized &&
-      (error= (*join_tab->materialize_table)(join_tab)))
-    return NESTED_LOOP_ERROR;
 
   rc= init_join_matching_records(&seq_funcs, records);
   if (rc != NESTED_LOOP_OK)
@@ -2595,7 +2588,7 @@ int JOIN_CACHE_BKA_UNIQUE::init()
   pack_length+= get_size_of_rec_offset(); 
  
   /* Calculate the minimal possible value of size_of_key_ofs greater than 1 */
-  uint max_size_of_key_ofs= max(2, get_size_of_rec_offset());  
+  uint max_size_of_key_ofs= max(2U, get_size_of_rec_offset());  
   for (size_of_key_ofs= 2;
        size_of_key_ofs <= max_size_of_key_ofs;
        size_of_key_ofs+= 2)

@@ -1,0 +1,1040 @@
+# FTS index with transaction
+# Important Note:
+# 1) Uncommitted records are not visible using FTS index - this is by FTS design
+# 2) records will be seen using FTS index ONLY when transaction completes 
+# 3) UNCOMMITTED RECORDS CAN BE SEEN WITH QURIES WHICH DO NOT USE FTS INDEX
+# this behavior do not break integratity of tables and "select" which do not use FTS still can view them.
+
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#------------------------------------------------------------------------------
+# FTS with transaction
+#------------------------------------------------------------------------------
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE = InnoDB;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...');
+
+START TRANSACTION;
+
+# this record is NOT seen with queries using FTS index until commit 
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','request docteam for oraclehelp.');
+
+# first and third record expected 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+
+# no records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request' IN NATURAL LANGUAGE MODE);
+
+# all records with MySQL expected but record with 'request' not
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request MySQL' IN BOOLEAN MODE);
+
+# all records with MySQL expected but record with 'request' not
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('-request +MySQL' IN BOOLEAN MODE);
+
+# only 2nd record expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+MySQL -(Tutorial Optimizing)' IN BOOLEAN MODE);
+
+# one record expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"stands Database"@11' IN BOOLEAN MODE);
+
+# all records expected except with 'request' 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' WITH QUERY EXPANSION);
+
+# transaction commit ,now we will be able to see records with FTS index
+COMMIT;
+
+# records having tutorial word
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+
+# records having tutorial and MySQL word
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request MySQL' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' WITH QUERY EXPANSION);
+
+START TRANSACTION;
+
+# insert null values
+INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+
+# one record expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+# update record which is visible with FTS index as transaction completed
+UPDATE t1 SET a = 'Trial version' , b = 'query performace 1255 minute on 2.1Hz Memory 2GB...'
+WHERE MATCH (a,b) AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+# no records expected as it is updated with new value
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request');
+
+# no records expected as update tnx is not committed yet.
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('query performace' IN BOOLEAN MODE);
+
+# update will not able to find record as it uses FTS , so record will be updated
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq  xyz.com ...'
+WHERE MATCH (a,b) AGAINST ('+query +performace' IN BOOLEAN MODE);
+
+# no records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('performace');
+# no records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+mail +MySQL' IN BOOLEAN MODE);
+COMMIT;
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+MySQL' IN BOOLEAN MODE);
+SELECT * FROM t1;
+
+# insert record with @ character which is used in proximity search
+INSERT INTO t1 (a,b) VALUES
+        ('Trial version','query performace 1255 minute on 2.1Hz Memory 2GB...')  ,
+        ('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+#------------------------------------------------------------------------------
+# FTS with rollback
+#------------------------------------------------------------------------------
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE = InnoDB;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...');
+
+START TRANSACTION;
+
+# insert record but it won't be visible using FTS index until tnx completes.
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','request docteam for oraclehelp.');
+# two records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+# no records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request' IN NATURAL LANGUAGE MODE);
+# only records with MySQL expected as record with 'request' word not committed yet.
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request MySQL' IN BOOLEAN MODE);
+
+# records with MySQL word
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('-request +MySQL' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+MySQL -(Tutorial Optimizing)' IN BOOLEAN MODE);
+
+# query expansion mode 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' WITH QUERY EXPANSION);
+
+# query expansion mode 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' WITH QUERY EXPANSION);
+
+# rollback transaction , record with 'request' word rollbacked.
+ROLLBACK;
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request MySQL' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' WITH QUERY EXPANSION);
+
+START TRANSACTION;
+INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+
+# no update as record with where condition is not present
+UPDATE t1 SET a = 'Trial version' , b = 'query performace 1255 minute on 2.1Hz Memory 2GB...'
+WHERE MATCH (a,b) AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+# no records
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request');
+
+# no records
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('query performace' IN BOOLEAN MODE);
+
+# no update as record with where condition is not present
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq  xyz.com ...'
+WHERE MATCH (a,b) AGAINST ('+query +performace' IN BOOLEAN MODE);
+
+# no records
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('performace');
+
+# no records
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+mail +MySQL' IN BOOLEAN MODE);
+ROLLBACK;
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+MySQL' IN BOOLEAN MODE);
+SELECT * FROM t1;
+
+# insert record with @ character which is used in proximity search
+INSERT INTO t1 (a,b) VALUES
+        ('Trial version','query performace 1255 minute on 2.1Hz Memory 2GB...')  ,
+        ('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#------------------------------------------------------------------------------
+# FTS with transaction - 
+# Uncommitted records are visible using FTS index so try use normal query to 
+# update such records in active transaction
+#------------------------------------------------------------------------------
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE = InnoDB;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...');
+
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','request docteam for oraclehelp.');
+
+START TRANSACTION;
+INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+
+# only one record expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+# update record
+UPDATE t1 SET a = 'Trial version' , b = 'query performace 1255 minute on 2.1Hz Memory 2GB...' WHERE MATCH (a,b) AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+# updated record is visible as we do not use FTS index in following query
+SELECT * from t1;
+
+# no records expected as it is updated with new value
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request');
+
+# no record expected as transaction is not committed.
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('query performace' IN BOOLEAN MODE);
+
+# following update will not succeed as it uses FTS index in where clause and the record matching condition is not committe yet.
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq mail xyz.com ...' WHERE MATCH (a,b) AGAINST ('+query +performace' IN BOOLEAN MODE);
+# update will succeed as it uses non FTS condition in where clause. Record in where clause is visible as it is accessed by NON FTS condition.
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq mail xyz.com ...' WHERE b like '%query performace%';
+
+# no record expected as it is updated wih new value
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('performace');
+
+# not visible with FTS as transaction not committed.
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+mail +MySQL' IN BOOLEAN MODE);
+
+SELECT * from t1;
+COMMIT;
+SELECT * from t1;
+
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+MySQL' IN BOOLEAN MODE);
+SELECT * FROM t1;
+
+# insert record with @ character which is used in proximity search
+INSERT INTO t1 (a,b) VALUES
+        ('Trial version','query performace 1255 minute on 2.1Hz Memory 2GB...')  ,
+        ('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#------------------------------------------------------------------------------
+# FTS with transaction - multiple connections
+#------------------------------------------------------------------------------
+
+#set names utf8;
+SET NAMES UTF8;
+
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+
+
+--echo "In connection 1"
+--connect (con1,localhost,root,,)
+SET NAMES UTF8;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...'),
+        ('Я могу есть стекло', 'оно мне Mне вредит'),
+        ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
+        ('Sævör grét', 'áðan því úlpan var ónýt');
+
+
+--echo "In connection 2"
+--connect (con2,localhost,root,,)
+SET NAMES UTF8;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+
+--echo "In connection 1"
+--connection con1
+
+# first and third record expected 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+
+INSERT INTO t1 (a,b) VALUES
+        ('adding record using session 1','for verifying multiple concurrent transactions'),
+        ('Мога да ям стъкло', 'то Mне ми вреди');
+
+# one records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+γυαλιὰ +χωρὶ*' IN BOOLEAN MODE);
+
+START TRANSACTION;
+
+# this record is NOT seen with queries using FTS index until commit 
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','request docteam for oraclehelp.'),
+        ('Příliš žluťoučký kůň', 'úpěl ďábelské kódy');
+
+# no records expected as its not committed yet
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request ďábelské' IN BOOLEAN MODE);
+
+# 3 record expected 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' WITH QUERY EXPANSION);
+
+# one record expected proximity
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+
+--echo "In connection 2"
+--connection con2
+
+# one records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+record +multiple' IN BOOLEAN MODE);
+
+# 3 rcords expected , two for tutor* and one for Sævö*
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutor* Sævö*' IN BOOLEAN MODE);
+
+
+# one record expected 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('usin* multipl*' IN BOOLEAN MODE);
+
+# no record expected as this record is not committed
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"request docteam"@08' IN BOOLEAN MODE);
+
+# no records expected as this record is not committed
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request' IN NATURAL LANGUAGE MODE);
+
+# all records with MySQL expected but record with 'request' is not committed so 'request' string not visible
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request MySQL' IN BOOLEAN MODE);
+
+# all records with MySQL expected but record with 'request' not
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('-request +MySQL' IN BOOLEAN MODE);
+
+# only one record expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+MySQL -(Tutorial Optimizing)' IN BOOLEAN MODE);
+
+# one record expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"stands Database"@11' IN BOOLEAN MODE);
+
+# all records expected except with 'request' 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' WITH QUERY EXPANSION);
+
+--echo "In connection 1"
+--connection con1
+# transaction commit ,now we will be able to see records with FTS index
+COMMIT;
+# records with MySQL,request string expected 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('Příliš žluťoučký' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('Příliš');
+
+# insert null values
+INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+SELECT * FROM t1 WHERE a IS NULL AND b IS NULL;
+
+--echo "In connection 2"
+--connection con2
+
+# one record expected 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('usin* multipl*' IN BOOLEAN MODE);
+
+# one record expected , b/c record is committed in connection 1
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE a IS NULL AND b IS NULL;
+
+
+
+ALTER TABLE t1 DROP INDEX idx;
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+START TRANSACTION;
+# update record but do not commiit so latest upadted string not visible using FTS index but available with normal select
+UPDATE t1 SET a = 'Trial version Příliš žluťoučký' , b = 'query performace 1255 minute on 2.1Hz Memory 2GB...'
+WHERE MATCH (a,b) AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+# no records expected as it is updated with new value
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request');
+
+# no records expected as it is not committed
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+query +performace' IN BOOLEAN MODE);
+
+# only one record will be updated as other is not committed hence not seen using FTS
+UPDATE t1 SET a = UPPER(a) WHERE MATCH (a,b) AGAINST ('+Příliš +žluťoučký' IN BOOLEAN MODE);
+
+# no records expected as it is not committed
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+Příliš +žluťoučký' IN BOOLEAN MODE);
+
+UPDATE t1 SET a = UPPER(a) WHERE a LIKE '%version Příliš%';
+
+# no records expected as it is not committed
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+query +performace' IN BOOLEAN MODE);
+
+SELECT * FROM t1 WHERE b LIKE '%query performace%';
+
+# no records expected as it is updated with new value
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request');
+
+--echo "In connection 1"
+--connection con1
+
+# no records expected as update tnx is not committed yet.
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('query performace' IN BOOLEAN MODE);
+
+# no records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('performace');
+# no records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+mail +MySQL' IN BOOLEAN MODE);
+
+--echo "In connection 2"
+--connection con2
+COMMIT;
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+query +performace' IN BOOLEAN MODE);
+
+
+
+--echo "In connection 1"
+--connection con1
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+query +performace' IN BOOLEAN MODE);
+# Update
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq  xyz.com ...'
+WHERE MATCH (a,b) AGAINST ('+πάθω +τίποτα' IN BOOLEAN MODE);
+# one record expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('well free');
+
+--disconnect con1
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP TABLE t1;
+
+
+#------------------------------------------------------------------------------
+# FTS with delete transaction with multiple session 
+#------------------------------------------------------------------------------
+
+SET NAMES UTF8;
+
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+
+
+--echo "In connection 1"
+--connect (con1,localhost,root,,)
+SET NAMES UTF8;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...'),
+        ('Я могу есть стекло', 'оно мне Mне вредит'),
+        ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
+        ('Sævör grét', 'áðan því úlpan var ónýt');
+
+
+--echo "In connection 2"
+--connect (con2,localhost,root,,)
+SET NAMES UTF8;
+select @@session.tx_isolation;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+INSERT INTO t1 (a,b) VALUES
+        ('adding record using session 1','for verifying multiple concurrent transactions'),
+        ('Мога да ям стъкло', 'то Mне ми вреди');
+
+
+--echo "In connection 1"
+--connection con1
+
+
+SELECT * FROM t1;
+
+START TRANSACTION;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
+# Delete rows
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+# No record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+--echo "In connection 2"
+--connection con2
+# records expected due to repeatable read 
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+
+SELECT * FROM t1;
+
+--echo "In connection 1"
+--connection con1
+COMMIT;
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+# No record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+--echo "In connection 2"
+--connection con2
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+# No record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+
+--disconnect con1
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP TABLE t1;
+
+
+
+#------------------------------------------------------------------------------
+# FTS with update transaction with multiple session 
+#------------------------------------------------------------------------------
+
+SET NAMES UTF8;
+
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+
+
+--echo "In connection 1"
+--connect (con1,localhost,root,,)
+SET NAMES UTF8;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...'),
+        ('Я могу есть стекло', 'оно мне Mне вредит');
+
+
+--echo "In connection 2"
+--connect (con2,localhost,root,,)
+SET NAMES UTF8;
+select @@session.tx_isolation;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+INSERT INTO t1 (a,b) VALUES
+        ('adding record using session 1','for verifying multiple concurrent transactions'),
+        ('Мога да ям стъкло', 'то Mне ми вреди');
+
+
+--echo "In connection 1"
+--connection con1
+
+
+SELECT * FROM t1;
+
+START TRANSACTION;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
+# Update row
+UPDATE t1 SET a =  'Μπορῶ νὰ φάω σπασμένα' , b = 'γυαλιὰ χωρὶς νὰ πάθω τίποτα' WHERE MATCH (a,b) AGAINST ('+могу +Mне' IN BOOLEAN MODE);
+# Insert row
+INSERT INTO t1(a,b) VALUES ('Sævör grét', 'áðan því úlpan var ónýt');
+
+SELECT * FROM t1;
+
+# 1 record expected - records not seen
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 record expected - records not seen
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+--echo "In connection 2"
+--connection con2
+# 2 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+# 1 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+# 1 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# no records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+# 1 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+# 2 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+# 1 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+--echo "In connection 1"
+--connection con1
+COMMIT;
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# no record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+--echo "In connection 2"
+--connection con2
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# Innodb:error no record expected 
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+
+--disconnect con1
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP TABLE t1;
+
+
+#------------------------------------------------------------------------------
+# FTS with delete/rollback transaction with multiple session 
+#------------------------------------------------------------------------------
+
+SET NAMES UTF8;
+
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+
+
+--echo "In connection 1"
+--connect (con1,localhost,root,,)
+SET NAMES UTF8;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...'),
+        ('Я могу есть стекло', 'оно мне Mне вредит'),
+        ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
+        ('Sævör grét', 'áðan því úlpan var ónýt');
+
+
+--echo "In connection 2"
+--connect (con2,localhost,root,,)
+SET NAMES UTF8;
+select @@session.tx_isolation;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+INSERT INTO t1 (a,b) VALUES
+        ('adding record using session 1','for verifying multiple concurrent transactions'),
+        ('Мога да ям стъкло', 'то Mне ми вреди');
+
+
+--echo "In connection 1"
+--connection con1
+
+
+SELECT * FROM t1;
+
+START TRANSACTION;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
+# Delete rows
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# No record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+# No record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+--echo "In connection 2"
+--connection con2
+# records expected due to repeatable read 
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+
+SELECT * FROM t1;
+
+--echo "In connection 1"
+--connection con1
+ROLLBACK;
+# 2 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+--echo "In connection 2"
+--connection con2
+# 2 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+
+--disconnect con1
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP TABLE t1;
+
+
+
+#------------------------------------------------------------------------------
+# FTS with update/rollback transaction with multiple session 
+#------------------------------------------------------------------------------
+
+SET NAMES UTF8;
+
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+
+
+--echo "In connection 1"
+--connect (con1,localhost,root,,)
+SET NAMES UTF8;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...'),
+        ('Я могу есть стекло', 'оно мне Mне вредит');
+
+
+--echo "In connection 2"
+--connect (con2,localhost,root,,)
+SET NAMES UTF8;
+select @@session.tx_isolation;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+INSERT INTO t1 (a,b) VALUES
+        ('adding record using session 1','for verifying multiple concurrent transactions'),
+        ('Мога да ям стъкло', 'то Mне ми вреди');
+
+
+--echo "In connection 1"
+--connection con1
+
+
+SELECT * FROM t1;
+
+START TRANSACTION;
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+могу +Mне' IN BOOLEAN MODE);
+# Update row
+UPDATE t1 SET a =  'Μπορῶ νὰ φάω σπασμένα' , b = 'γυαλιὰ χωρὶς νὰ πάθω τίποτα' WHERE MATCH (a,b) AGAINST ('+могу +Mне' IN BOOLEAN MODE);
+# Insert row
+INSERT INTO t1(a,b) VALUES ('Sævör grét', 'áðan því úlpan var ónýt');
+
+SELECT * FROM t1;
+
+# 1 record expected - records not seen
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+--echo "In connection 2"
+--connection con2
+# 2 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+# 1 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+# 1 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+# 1 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+# 2 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+# 1 records expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+--echo "In connection 1"
+--connection con1
+ROLLBACK;
+# 2 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+# no record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+--echo "In connection 2"
+--connection con2
+# 2 record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
+# 1 record expected 
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
+# no record expected
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+
+
+--disconnect con1
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+
+--connection default
+DROP TABLE t1;

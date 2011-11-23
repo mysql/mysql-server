@@ -51,6 +51,7 @@
 #define ON_CHECK(X) X
 #define ON_UPDATE(X) X
 #define READ_ONLY sys_var::READONLY+
+#define NOT_VISIBLE sys_var::INVISIBLE+
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED+
 /*
@@ -305,7 +306,7 @@ public:
 
 /**
   The class for ENUM variables - variables that take one value from a fixed
-  list of values. 
+  list of values.
 
   Class specific constructor arguments:
     char* values[]    - 0-terminated list of strings of valid values
@@ -561,8 +562,8 @@ protected:
 class Sys_var_external_user : public Sys_var_proxy_user
 {
 public:
-  Sys_var_external_user(const char *name_arg, const char *comment_arg, 
-          enum charset_enum is_os_charset_arg) 
+  Sys_var_external_user(const char *name_arg, const char *comment_arg,
+          enum charset_enum is_os_charset_arg)
     : Sys_var_proxy_user (name_arg, comment_arg, is_os_charset_arg)
   {}
 

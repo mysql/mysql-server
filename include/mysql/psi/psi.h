@@ -16,7 +16,19 @@
 #ifndef MYSQL_PERFORMANCE_SCHEMA_INTERFACE_H
 #define MYSQL_PERFORMANCE_SCHEMA_INTERFACE_H
 
-#ifndef _global_h
+#ifdef EMBEDDED_LIBRARY
+#define DISABLE_PSI_MUTEX
+#define DISABLE_PSI_RWLOCK
+#define DISABLE_PSI_COND
+#define DISABLE_PSI_FILE
+#define DISABLE_PSI_TABLE
+#define DISABLE_PSI_SOCKET
+#define DISABLE_PSI_STAGE
+#define DISABLE_PSI_STATEMENT
+#define DISABLE_PSI_IDLE
+#endif /* EMBEDDED_LIBRARY */
+
+#ifndef MY_GLOBAL_INCLUDED
 /*
   Make sure a .c or .cc file contains an include to my_global.h first.
   When this include is missing, all the #ifdef HAVE_XXX have no effect,
@@ -83,6 +95,12 @@ struct PSI_thread;
 struct PSI_file;
 
 /**
+  Interface for an instrumented socket descriptor.
+  This is an opaque structure.
+*/
+struct PSI_socket;
+
+/**
   Interface for an instrumented table operation.
   This is an opaque structure.
 */
@@ -95,10 +113,10 @@ struct PSI_table_locker;
 struct PSI_statement_locker;
 
 /**
-  Interface for an instrumented socket descriptor.
+  Interface for an instrumented idle operation.
   This is an opaque structure.
 */
-struct PSI_socket;
+struct PSI_idle_locker;
 
 /** Entry point for the performance schema interface. */
 struct PSI_bootstrap
@@ -136,6 +154,8 @@ struct PSI_bootstrap
   @sa DISABLE_PSI_TABLE
   @sa DISABLE_PSI_STAGE
   @sa DISABLE_PSI_STATEMENT
+  @sa DISABLE_PSI_SOCKET
+  @sa DISABLE_PSI_IDLE
 */
 
 #ifndef DISABLE_PSI_MUTEX
@@ -222,6 +242,16 @@ struct PSI_bootstrap
 #endif
 
 /**
+  @def DISABLE_PSI_IDLE
+  Compiling option to disable the idle instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_IDLE
+#define HAVE_PSI_IDLE_INTERFACE
+#endif
+
+/**
   @def PSI_VERSION_1
   Performance Schema Interface number for version 1.
   This version is supported.
@@ -247,12 +277,6 @@ struct PSI_bootstrap
 #define USE_PSI_1
 #endif
 #endif
-
-/**
-  Interface for an instrumented idle operation.
-  This is an opaque structure.
-*/
-struct PSI_idle_locker;
 
 /**
   Interface for an instrumented mutex operation.

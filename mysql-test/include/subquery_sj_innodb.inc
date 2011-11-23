@@ -55,8 +55,8 @@ insert into t3 select
   A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a 
 from t0 A, t0 B where B.a <5;
 
-# -- [DISABLED Bug#54398]
-#explain select * from t3 where b in (select a from t0);
+--replace_column 9 #
+explain select * from t3 where b in (select a from t0);
 --sorted_result
 select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
  

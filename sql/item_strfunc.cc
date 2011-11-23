@@ -55,6 +55,9 @@ C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
 
+using std::min;
+using std::max;
+
 /**
    @todo Remove this. It is not safe to use a shared String object.
  */
@@ -3135,9 +3138,12 @@ String *Item_func_conv::val_str(String *str)
                                    from_base, &endptr, &err);
   }
 
-  ptr= longlong2str(dec, ans, to_base);
-  if (str->copy(ans, (uint32) (ptr-ans), default_charset()))
-    return make_empty_result();
+  if (!(ptr= longlong2str(dec, ans, to_base)) ||
+      str->copy(ans, (uint32) (ptr - ans), default_charset()))
+  {
+    null_value= 1;
+    return NULL;
+  }
   return str;
 }
 
@@ -3357,8 +3363,10 @@ String *Item_func_hex::val_str_ascii(String *str)
 
     if ((null_value= args[0]->null_value))
       return 0;
-    ptr= longlong2str(dec,ans,16);
-    if (str->copy(ans,(uint32) (ptr-ans), &my_charset_numeric))
+    
+    if (!(ptr= longlong2str(dec, ans, 16)) ||
+        str->copy(ans,(uint32) (ptr - ans),
+        &my_charset_numeric))
       return make_empty_result();		// End of memory
     return str;
   }
@@ -3617,7 +3625,7 @@ void Item_func_export_set::fix_length_and_dec()
   uint32 sep_length= (arg_count > 3 ? args[3]->max_char_length() : 1);
 
   if (agg_arg_charsets_for_string_result(collation,
-                                         args + 1, min(4, arg_count) - 1))
+                                         args + 1, min(4U, arg_count) - 1))
     return;
   fix_char_length(length * 64 + sep_length * 63);
 }
@@ -4039,7 +4047,7 @@ String *Item_func_uuid::val_str(String *str)
       /*
         -1 so we won't make tv= uuid_time for nanoseq >= (tv - uuid_time)
       */
-      ulong delta= min(nanoseq, (ulong) (tv - uuid_time -1));
+      ulong delta= min<ulong>(nanoseq, (ulong) (tv - uuid_time -1));
       tv-= delta;
       nanoseq-= delta;
     }

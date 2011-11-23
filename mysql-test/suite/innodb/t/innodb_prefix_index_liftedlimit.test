@@ -13,8 +13,9 @@
 #                                                                    #
 ######################################################################
 
-
 --source include/have_innodb.inc
+--source include/have_innodb_16k.inc
+
 # Save innodb variables
 let $innodb_file_format_orig=`select @@innodb_file_format`;
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
