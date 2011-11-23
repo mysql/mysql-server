@@ -174,4 +174,9 @@ public class BetweenPredicateImpl extends PredicateImpl {
         return !(lower.getParameterValue(context) == null || upper.getParameterValue(context) == null);
     }
 
+    @Override
+    protected PropertyImpl getProperty() {
+        return property;
+    }
+
 }
