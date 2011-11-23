@@ -1055,8 +1055,10 @@ ha_innobase::add_index(
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	/* Acquire a lock on the table before creating any indexes. */
-	error = row_merge_lock_table(prebuilt->trx, prebuilt->table,
-				     new_primary ? LOCK_X : LOCK_S);
+	error = row_mysql_lock_table(prebuilt->trx, prebuilt->table,
+				     new_primary ? LOCK_X : LOCK_S,
+				     "setting table lock for"
+				     " creating index");
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
@@ -1181,8 +1183,9 @@ ha_innobase::add_index(
 		table lock also on the table that is being created. */
 		ut_ad(indexed_table != prebuilt->table);
 
-		error = row_merge_lock_table(prebuilt->trx, indexed_table,
-					     LOCK_X);
+		error = row_mysql_lock_table(prebuilt->trx, indexed_table,
+					     LOCK_X, "setting table lock for"
+					     " creating index");
 
 		if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
@@ -1239,7 +1242,9 @@ error_exit:
 		if (new_primary) {
 			if (indexed_table != prebuilt->table) {
 				dict_table_close(indexed_table, dict_locked);
-				row_merge_drop_table(trx, indexed_table);
+				row_drop_table_for_mysql(indexed_table->name,
+							 prebuilt->trx, trx,
+							 FALSE);
 			}
 		} else {
 			row_merge_drop_indexes(trx, indexed_table,
@@ -1344,13 +1349,25 @@ ha_innobase::final_add_index(
 
 		if (!commit || err) {
 			dict_table_close(add->indexed_table, TRUE);
-			error = row_merge_drop_table(trx, add->indexed_table);
+
+			/* TODO: Is there a race condition here? can
+			the table be evicted from the cache before we
+			drop it? */
+			error = row_drop_table_for_mysql(
+				add->indexed_table->name,
+				prebuilt->trx, trx, FALSE);
 			trx_commit_for_mysql(prebuilt->trx);
 		} else {
 			dict_table_t*	old_table = prebuilt->table;
 			trx_commit_for_mysql(prebuilt->trx);
 			row_prebuilt_free(prebuilt, TRUE);
-			error = row_merge_drop_table(trx, old_table);
+
+			/* TODO: Is there a race condition here? can
+			the table be evicted from the cache before we
+			drop it? */
+			error = row_drop_table_for_mysql(
+				old_table->name, NULL, trx, FALSE);
+
 			prebuilt = row_create_prebuilt(add->indexed_table);
 		}
 
@@ -1672,7 +1689,8 @@ ha_innobase::final_drop_index(
 	/* Lock the table exclusively, to ensure that no active
 	transaction depends on an index that is being dropped. */
 	err = convert_error_code_to_mysql(
-		row_merge_lock_table(prebuilt->trx, prebuilt->table, LOCK_X),
+		row_mysql_lock_table(prebuilt->trx, prebuilt->table, LOCK_X,
+				     "setting table lock for DROP INDEX"),
 		prebuilt->table->flags, user_thd);
 
 	/* Delete corresponding rows from the stats table.

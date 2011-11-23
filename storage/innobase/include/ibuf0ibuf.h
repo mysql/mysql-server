@@ -449,6 +449,16 @@ void
 ibuf_close(void);
 /*============*/
 
+/******************************************************************//**
+Checks the insert buffer bitmaps on IMPORT TABLESPACE.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+ulint
+ibuf_check_bitmap_on_import(
+/*========================*/
+	trx_t*	trx,		/*!< in: transaction */
+	ulint	space_id);	/*!< in: tablespace identifier */
+
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO
 

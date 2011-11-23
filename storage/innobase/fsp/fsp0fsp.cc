@@ -3256,6 +3256,47 @@ fseg_free_page(
 }
 
 /**********************************************************************//**
+Checks if a single page of a segment is free.
+@return	TRUE if free */
+UNIV_INTERN
+ibool
+fseg_page_is_free(
+/*==============*/
+	fseg_header_t*	seg_header,	/*!< in: segment header */
+	ulint		space,		/*!< in: space id */
+	ulint		page)		/*!< in: page offset */
+{
+	mtr_t		mtr;
+	ibool		is_free;
+	ulint		flags;
+	rw_lock_t*	latch;
+	xdes_t*		descr;
+	ulint		zip_size;
+	fseg_inode_t*	seg_inode;
+
+	latch = fil_space_get_latch(space, &flags);
+	zip_size = dict_tf_get_zip_size(flags);
+
+	mtr_start(&mtr);
+	mtr_x_lock(latch, &mtr);
+
+	seg_inode = fseg_inode_get(seg_header, space, zip_size, &mtr);
+
+	ut_ad(seg_inode);
+	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
+	      == FSEG_MAGIC_N_VALUE);
+	ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
+
+	descr = xdes_get_descriptor(space, zip_size, page, &mtr);
+	ut_a(descr);
+
+	is_free = xdes_get_bit(descr, XDES_FREE_BIT,
+			       page % FSP_EXTENT_SIZE, &mtr);
+	mtr_commit(&mtr);
+	return(is_free);
+}
+
+/**********************************************************************//**
 Frees an extent of a segment to the space free list. */
 static
 void

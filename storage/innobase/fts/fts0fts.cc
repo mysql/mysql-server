@@ -1452,7 +1452,7 @@ fts_drop_table(
 		fprintf(stderr, "  InnoDB: Dropping %s\n", table_name);
 #endif
 
-		error = row_drop_table_for_mysql(table_name, trx, TRUE);
+		error = row_drop_table_for_mysql(table_name, NULL, trx, TRUE);
 
 		/* We only return the status of the last error. */
 		if (error != DB_SUCCESS) {
@@ -1758,7 +1758,7 @@ func_exit:
 
 		trx_rollback_to_savepoint(trx, NULL);
 
-		row_drop_table_for_mysql(table->name, trx, FALSE);
+		row_drop_table_for_mysql(table->name, NULL, trx, FALSE);
 
 		trx->error_state = DB_SUCCESS;
 	}
@@ -1903,7 +1903,7 @@ fts_create_index_tables_low(
 
 		trx_rollback_to_savepoint(trx, NULL);
 
-		row_drop_table_for_mysql(table_name, trx, FALSE);
+		row_drop_table_for_mysql(table_name, NULL, trx, FALSE);
 
 		trx->error_state = DB_SUCCESS;
 	}

@@ -44,12 +44,14 @@ ib_vector_create(
 
 	ut_a(size > 0);
 
-	vec = static_cast<ib_vector_t*>(allocator->mem_malloc(allocator, sizeof(*vec)));
+	vec = static_cast<ib_vector_t*>(
+		allocator->mem_malloc(allocator, sizeof(*vec)));
 
 	vec->used = 0;
 	vec->total = size;
 	vec->allocator = allocator;
 	vec->sizeof_value = sizeof_value;
+
 	vec->data = static_cast<void*>(
 		allocator->mem_malloc(allocator, vec->sizeof_value * size));
 

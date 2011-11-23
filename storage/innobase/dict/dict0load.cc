@@ -762,7 +762,7 @@ loop:
 			object and check that the .ibd file exists. */
 
 			fil_open_single_table_tablespace(
-				FALSE, space_id,
+				NULL, space_id,
 				dict_tf_to_fsp_flags(flags), name);
 		}
 
@@ -1796,9 +1796,8 @@ err_exit:
 				(ulong) table->space);
 			/* Try to open the tablespace */
 			if (!fil_open_single_table_tablespace(
-				TRUE, table->space,
-				dict_tf_to_fsp_flags(table->flags),
-				name)) {
+				table, table->space,
+				dict_tf_to_fsp_flags(table->flags), name)) {
 				/* We failed to find a sensible
 				tablespace file */
 

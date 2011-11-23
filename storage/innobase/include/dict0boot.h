@@ -58,6 +58,13 @@ dict_hdr_get_new_id(
 	ulint*		space_id);	/*!< out: space id
 					(not assigned if NULL) */
 /**********************************************************************//**
+Writes the current value of the row id counter to the dictionary header file
+page. */
+UNIV_INTERN
+void
+dict_hdr_flush_row_id(void);
+/*=======================*/
+/**********************************************************************//**
 Returns a new row id.
 @return	the new id */
 UNIV_INLINE

@@ -1936,7 +1936,7 @@ check_trx_exists(
 
 	if (trx == NULL) {
 		trx = innobase_trx_allocate(thd);
-	} else if (UNIV_UNLIKELY(trx->magic_n != TRX_MAGIC_N)) {
+	} else if (trx->magic_n != TRX_MAGIC_N) {
 		mem_analyze_corruption(trx);
 		ut_error;
 	}
@@ -4558,7 +4558,9 @@ table_opened:
 	}
 
 	/* Only if the table has an AUTOINC column. */
-	if (prebuilt->table != NULL && table->found_next_number_field != NULL) {
+	if (prebuilt->table != NULL
+	    && !prebuilt->table->ibd_file_missing
+	    && table->found_next_number_field != NULL) {
 		dict_table_autoinc_lock(prebuilt->table);
 
 		/* Since a table can already be "open" in InnoDB's internal
@@ -6079,7 +6081,7 @@ no_commit:
 			no need to re-acquire locks on it. */
 
 			/* Altering to InnoDB format */
-			innobase_commit(ht, user_thd, 1);
+			innobase_commit(ht, user_thd, true);
 			/* Note that this transaction is still active. */
 			trx_register_for_2pc(prebuilt->trx);
 			/* We will need an IX lock on the destination table. */
@@ -6095,7 +6097,7 @@ no_commit:
 
 			/* Commit the transaction.  This will release the table
 			locks, so they have to be acquired again. */
-			innobase_commit(ht, user_thd, 1);
+			innobase_commit(ht, user_thd, true);
 			/* Note that this transaction is still active. */
 			trx_register_for_2pc(prebuilt->trx);
 			/* Re-acquire the table lock on the source table. */
@@ -7105,8 +7107,8 @@ ha_innobase::change_active_index(
 	prebuilt->index = innobase_get_index(keynr);
 
 	if (UNIV_UNLIKELY(!prebuilt->index)) {
-		sql_print_warning("InnoDB: change_active_index(%u) failed",
-				  keynr);
+		sql_print_warning(
+			"InnoDB: change_active_index(%u) failed", keynr);
 		prebuilt->index_usable = FALSE;
 		DBUG_RETURN(1);
 	}
@@ -8820,6 +8822,7 @@ ha_innobase::discard_or_import_tablespace(
 {
 	dict_table_t*	dict_table;
 	trx_t*		trx;
+	ulint		error;
 	int		err;
 
 	DBUG_ENTER("ha_innobase::discard_or_import_tablespace");
@@ -8831,14 +8834,75 @@ ha_innobase::discard_or_import_tablespace(
 	dict_table = prebuilt->table;
 	trx = prebuilt->trx;
 
-	if (discard) {
-		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
-	} else {
-		err = row_import_tablespace_for_mysql(dict_table->name, trx);
+	if (dict_table->space == 0) {
+		push_warning_printf(
+			user_thd,
+			Sql_condition::WARN_LEVEL_WARN,
+			HA_ERR_TABLE_NEEDS_UPGRADE,
+			"InnoDB: Table %s is in the system tablespace"
+			" which cannot be imported or exported.",
+			dict_table->name);
+		return(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}
 
-	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads. */
+	trx_search_latch_release_if_reserved(trx);
 
+	/* Obtain an exclusive lock on the table. */
+	error = row_mysql_lock_table(
+		trx, dict_table, LOCK_X,
+		discard ? "setting table lock for DISCARD TABLESPACE"
+			: "setting table lock for IMPORT TABLESPACE");
+
+	if (error != DB_SUCCESS) {
+		/* unable to lock the table: do nothing */
+	} else if (discard) {
+		if (dict_table->tablespace_discarded) {
+			err = HA_ERR_RECORD_DELETED;
+			push_warning_printf(
+				user_thd, Sql_condition::WARN_LEVEL_WARN, err,
+				"InnoDB: Table %s has already been DISCARDed.",
+				dict_table->name);
+			goto func_exit;
+		}
+
+		error = row_discard_tablespace_for_mysql(dict_table->name, trx);
+	} else {
+		if (!dict_table->tablespace_discarded) {
+			/* Because InnoDB only keeps the
+			dict_table->tablespace_discarded flag in
+			memory, ALTER TABLE ... DISCARD TABLESPACE
+			will have to be re-issued after a server
+			restart.
+
+			TO DO: Issue a better error message. */
+			err = HA_ERR_RECORD_FILE_FULL;
+			push_warning_printf(
+				user_thd, Sql_condition::WARN_LEVEL_WARN, err,
+				"InnoDB: Table %s has not been"
+				" DISCARDed since the server was started.",
+				dict_table->name);
+			goto func_exit;
+		}
+
+		error = row_import_tablespace_for_mysql(dict_table, prebuilt);
+
+		if (error == DB_SUCCESS && table->found_next_number_field) {
+			dict_table_autoinc_lock(dict_table);
+			innobase_initialize_autoinc();
+			dict_table_autoinc_unlock(dict_table);
+		}
+
+		info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE
+		     | HA_STATUS_AUTO);
+	}
+
+	err = convert_error_code_to_mysql(error, dict_table->flags, NULL);
+
+func_exit:
+	/* Commit the transaction in order to release the table lock. */
+	trx_commit_for_mysql(trx);
 	DBUG_RETURN(err);
 }
 
@@ -8850,7 +8914,8 @@ int
 ha_innobase::truncate()
 /*===================*/
 {
-	int		error;
+	ulint	err;
+	trx_t*	trx;
 
 	DBUG_ENTER("ha_innobase::truncate");
 
@@ -8863,13 +8928,16 @@ ha_innobase::truncate()
 		++prebuilt->trx->will_lock;
 	}
 	/* Truncate the table in InnoDB */
+	trx = innobase_trx_allocate(user_thd);
 
-	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
+	err = row_truncate_table_for_mysql(prebuilt->table,
+					   prebuilt->trx, trx);
 
-	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
-					    NULL);
+	innobase_commit_low(trx);
+	trx_free_for_mysql(trx);
 
-	DBUG_RETURN(error);
+	DBUG_RETURN(convert_error_code_to_mysql(err, prebuilt->table->flags,
+						NULL));
 }
 
 /*****************************************************************//**
@@ -8917,7 +8985,18 @@ ha_innobase::delete_table(
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
+	bool	new_trx = false;
+
+	if (thd_to_trx(thd) == 0) {
+		fprintf(stderr, "NEW TRX\n");
+		new_trx = true;
+	}
+
 	parent_trx = check_trx_exists(thd);
+
+	trx_start_if_not_started(parent_trx);
+
+	//innobase_register_trx(ht, thd, parent_trx);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -8932,9 +9011,9 @@ ha_innobase::delete_table(
 
 	/* Drop the table in InnoDB */
 
-	error = row_drop_table_for_mysql(norm_name, trx,
-					 thd_sql_command(thd)
-					 == SQLCOM_DROP_DB);
+	error = row_drop_table_for_mysql(
+		norm_name, parent_trx, trx,
+		thd_sql_command(thd) == SQLCOM_DROP_DB);
 
 
 	if (error == DB_TABLE_NOT_FOUND
@@ -8963,9 +9042,9 @@ ha_innobase::delete_table(
 			not being normalized to lower case */
 			normalize_table_name_low(par_case_name, name, FALSE);
 #endif
-			error = row_drop_table_for_mysql(par_case_name, trx,
-							 thd_sql_command(thd)
-							 == SQLCOM_DROP_DB);
+			error = row_drop_table_for_mysql(
+				par_case_name, trx, NULL,
+				thd_sql_command(thd) == SQLCOM_DROP_DB);
 		}
 	}
 
@@ -8983,6 +9062,10 @@ ha_innobase::delete_table(
 	innobase_commit_low(trx);
 
 	trx_free_for_mysql(trx);
+
+	//if (new_trx) {
+		innobase_commit_low(parent_trx);
+	//}	
 
 	error = convert_error_code_to_mysql(error, 0, NULL);
 
@@ -9002,6 +9085,7 @@ innobase_drop_database(
 				'mysql/data/test' the database name is 'test' */
 {
 	ulint	len		= 0;
+	trx_t*	parent_trx;
 	trx_t*	trx;
 	char*	ptr;
 	char*	namebuf;
@@ -9014,13 +9098,15 @@ innobase_drop_database(
 
 	/* In the Windows plugin, thd = current_thd is always NULL */
 	if (thd) {
-		trx_t*	parent_trx = check_trx_exists(thd);
+		parent_trx = check_trx_exists(thd);
 
 		/* In case MySQL calls this in the middle of a SELECT
 		query, release possible adaptive hash latch to avoid
 		deadlocks of threads */
 
 		trx_search_latch_release_if_reserved(parent_trx);
+	} else {
+		parent_trx = NULL;
 	}
 
 	ptr = strend(path) - 2;
@@ -9040,9 +9126,7 @@ innobase_drop_database(
 	innobase_casedn_str(namebuf);
 #endif
 	trx = innobase_trx_allocate(thd);
-
-	row_drop_database_for_mysql(namebuf, trx);
-
+	row_drop_database_for_mysql(namebuf, parent_trx, trx);
 	my_free(namebuf);
 
 	/* Flush the log to reduce probability that the .frm files and
@@ -10099,7 +10183,7 @@ ha_innobase::check(
 		/* If this is an index being created, break */
 		if (*index->name == TEMP_INDEX_PREFIX) {
 			break;
-		}  else if (!btr_validate_index(index, prebuilt->trx)) {
+		}  else if (!btr_validate_index(index, prebuilt->trx, FALSE)) {
 			is_ok = FALSE;
 
 			innobase_format_name(
