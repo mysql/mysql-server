@@ -4427,7 +4427,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
 static int do_show_master_status(MYSQL *mysql_con, int consistent_binlog_pos)
 {
   MYSQL_ROW row;
-  MYSQL_RES *master;
+  MYSQL_RES *UNINIT_VAR(master);
   char binlog_pos_file[FN_REFLEN];
   char binlog_pos_offset[LONGLONG_LEN+1];
   char *file, *offset;

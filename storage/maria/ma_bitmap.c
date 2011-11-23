@@ -1239,10 +1239,9 @@ static my_bool allocate_head(MARIA_FILE_BITMAP *bitmap, uint size,
   uint min_bits= size_to_head_pattern(bitmap, size);
   uchar *data= bitmap->map, *end= data + bitmap->used_size;
   uchar *best_data= 0;
-  uint best_bits= (uint) -1, best_pos;
+  uint best_bits= (uint) -1, UNINIT_VAR(best_pos);
   DBUG_ENTER("allocate_head");
 
-  LINT_INIT(best_pos);
   DBUG_ASSERT(size <= FULL_PAGE_SIZE(bitmap->block_size));
 
   for (; data < end; data+= 6)
@@ -1319,11 +1318,10 @@ static my_bool allocate_tail(MARIA_FILE_BITMAP *bitmap, uint size,
   uint min_bits= size_to_tail_pattern(bitmap, size);
   uchar *data= bitmap->map, *end= data + bitmap->used_size;
   uchar *best_data= 0;
-  uint best_bits= (uint) -1, best_pos;
+  uint best_bits= (uint) -1, UNINIT_VAR(best_pos);
   DBUG_ENTER("allocate_tail");
   DBUG_PRINT("enter", ("size: %u", size));
 
-  LINT_INIT(best_pos);
   /*
     We have to add DIR_ENTRY_SIZE here as this is not part of the data size
     See call to allocate_tail() in find_tail().
