@@ -5542,6 +5542,8 @@ bool subselect_rowid_merge_engine::test_null_row(rownum_t row_num)
 
 /**
   Test if a subset of NULL-able columns contains a row of NULLs.
+  @retval TRUE  if such a row exists
+  @retval FALSE no complementing null row
 */
 
 bool subselect_rowid_merge_engine::
@@ -5549,34 +5551,34 @@ exists_complementing_null_row(MY_BITMAP *keys_to_complement)
 {
   rownum_t highest_min_row= 0;
   rownum_t lowest_max_row= UINT_MAX;
-  uint count_null_keys, i, j;
+  uint count_null_keys, i;
   Ordered_key *cur_key;
 
-  count_null_keys= keys_to_complement->n_bits -
-                   bitmap_bits_set(keys_to_complement);
-  if (count_null_keys == 1)
+  if (!count_columns_with_nulls)
   {
     /*
-      The caller guarantees that the complement to keys_to_complement
-      contains only columns with NULLs. Therefore if there is only one column,
-      it is guaranteed to contain NULLs.
+      If there are both NULLs and non-NUll values in the outer reference, and
+      the subquery contains no NULLs, a complementing NULL row cannot exist.
     */
-    return TRUE;
+    return FALSE;
   }
 
-  for (i= (non_null_key ? 1 : 0), j= 0; i < merge_keys_count; i++)
+  for (i= (non_null_key ? 1 : 0), count_null_keys= 0; i < merge_keys_count; i++)
   {
     cur_key= merge_keys[i];
     if (bitmap_is_set(keys_to_complement, cur_key->get_keyid()))
       continue;
-    DBUG_ASSERT(cur_key->get_null_count());
+    if (!cur_key->get_null_count())
+    {
+      /* If there is column without NULLs, there cannot be a partial match. */
+      return FALSE;
+    }
     if (cur_key->get_min_null_row() > highest_min_row)
       highest_min_row= cur_key->get_min_null_row();
     if (cur_key->get_max_null_row() < lowest_max_row)
       lowest_max_row= cur_key->get_max_null_row();
-    null_bitmaps[j++]= cur_key->get_null_key();
+    null_bitmaps[count_null_keys++]= cur_key->get_null_key();
   }
-  DBUG_ASSERT(count_null_keys == j);
 
   if (lowest_max_row < highest_min_row)
   {

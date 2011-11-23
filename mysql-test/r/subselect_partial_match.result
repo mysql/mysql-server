@@ -948,4 +948,35 @@ SELECT * from outer_sq where (f1, f2) NOT IN (select * from inner_sq);
 f1	f2
 g	c
 drop table outer_sq, inner_sq;
+#
+# LP BUG#893486 Wrong result with partial_match_rowid_merge , NOT IN , NULLs
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,NULL),(2,NULL);
+CREATE TABLE t2 (c int, d int);
+INSERT INTO t2 VALUES (2,3),(4,5),(6, NULL);
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,in_to_exists=off';
+EXPLAIN SELECT * FROM t1 WHERE (a, b) NOT IN (SELECT c, d FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	
+SELECT * FROM t1 WHERE (a, b) NOT IN (SELECT c, d FROM t2);
+a	b
+0	NULL
+SELECT a, b, (a, b) NOT IN (SELECT c, d FROM t2) subq_res FROM t1;
+a	b	subq_res
+0	NULL	1
+2	NULL	NULL
+EXPLAIN SELECT * FROM t1 WHERE (a, b) NOT IN (SELECT c, d FROM t2 WHERE d is not NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+SELECT * FROM t1 WHERE (a, b) NOT IN (SELECT c, d FROM t2 WHERE d is not NULL);
+a	b
+0	NULL
+SELECT a, b, (a, b) NOT IN (SELECT c, d FROM t2 WHERE d is not NULL) subq_res FROM t1;
+a	b	subq_res
+0	NULL	1
+2	NULL	NULL
+drop table t1,t2;
 set @@optimizer_switch=@save_optimizer_switch;
