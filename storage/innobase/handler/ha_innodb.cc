@@ -6290,7 +6290,7 @@ calc_row_difference(
 	ibool		changes_fts_column = FALSE;
 	ibool		changes_fts_doc_col = FALSE;
 	trx_t*          trx = thd_to_trx(thd);
-	doc_id_t	doc_id = 0;
+	doc_id_t	doc_id = FTS_NULL_DOC_ID;
 
 	n_fields = table->s->fields;
 	clust_index = dict_table_get_first_index(prebuilt->table);

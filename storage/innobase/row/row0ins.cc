@@ -443,7 +443,7 @@ row_ins_cascade_calc_update_vec(
 	ulint		j;
 	ibool		doc_id_updated = FALSE;
 	ulint		doc_id_pos = 0;
-	doc_id_t	new_doc_id = 0;
+	doc_id_t	new_doc_id = FTS_NULL_DOC_ID;
 
 	ut_a(node);
 	ut_a(foreign);
@@ -907,7 +907,7 @@ row_ins_foreign_check_on_constraint(
 	ulint		i;
 	trx_t*		trx;
 	mem_heap_t*	tmp_heap	= NULL;
-	doc_id_t	doc_id = 0;
+	doc_id_t	doc_id = FTS_NULL_DOC_ID;
 	ibool		fts_col_affacted = FALSE;
 
 	ut_a(thr);

@@ -1121,7 +1121,7 @@ fts_optimize_encode_node(
 	}
 
 	/* Calculate the space required to store the ilist. */
-	doc_id_delta = (ulint) (doc_id - node->last_doc_id);
+	doc_id_delta = doc_id - node->last_doc_id;
 	enc_len = fts_get_encoded_len(doc_id_delta);
 
 	/* Calculate the size of the encoded pos array. */
@@ -1166,9 +1166,9 @@ fts_optimize_encode_node(
 	src = enc->src_ilist_ptr;
 	dst = node->ilist + node->ilist_size;
 
-	/* Encode the doc id.
-	FIXME: fts_encode_int encode ulint instead of 8 bytes doc_id_t */
-	dst += fts_encode_int(doc_id_delta, dst);
+	/* Encode the doc id. Cast to ulint, the delta should be small and
+	therefore no loss of precision. */
+	dst += fts_encode_int((ulint) doc_id_delta, dst);
 
 	/* Copy the encoded pos array. */
 	memcpy(dst, src, pos_enc_len);
@@ -1213,7 +1213,7 @@ fts_optimize_node(
 	       && dst_node->ilist_size < FTS_ILIST_MAX_SIZE) {
 
 		doc_id_t	delta;
-		doc_id_t	del_doc_id = 0;
+		doc_id_t	del_doc_id = FTS_NULL_DOC_ID;
 
 		delta = fts_decode_vlc(&enc->src_ilist_ptr);
 
@@ -1870,9 +1870,13 @@ fts_optimize_set_next_word(
 
 		last = TRUE;
 	} else {
+		ulint	value = fts_index_selector[selected].value;
+		
+		ut_a(value <= (~0UL & 0xff));
+
 		/* Set to the first character of the next slot. */
 		word->f_len = 1;
-		*word->f_str = fts_index_selector[selected].value;
+		*word->f_str = (byte) value;
 	}
 
 	return(last);
