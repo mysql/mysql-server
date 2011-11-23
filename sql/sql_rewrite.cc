@@ -357,7 +357,7 @@ static void mysql_rewrite_start_slave(THD *thd, String *rlb)
   LEX *lex= thd->lex;
 
   if (!lex->slave_connection.password)
-    return ;
+    return;
 
   rlb->append(STRING_WITH_LEN("START SLAVE"));
 
