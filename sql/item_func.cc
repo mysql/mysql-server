@@ -49,7 +49,7 @@
 #include "debug_sync.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
-#include "zgroups.h"
+#include "zgtids.h"
 
 using std::min;
 using std::max;
@@ -3753,9 +3753,9 @@ longlong Item_master_pos_wait::val_int()
 
 #ifdef HAVE_GTID
 /**
-  Return 1 if both arguments are GTID_sets and the first is a subset
+  Return 1 if both arguments are Gtid_sets and the first is a subset
   of the second.  Generate an error if any of the arguments is not a
-  GTID_set.
+  Gtid_set.
 */
 longlong Item_func_group_subset::val_int()
 {
@@ -3772,17 +3772,17 @@ longlong Item_func_group_subset::val_int()
   if ((string= args[0]->val_str(&buf)) != NULL &&
       (ptr= string->c_ptr_safe()) != NULL)
   {
-    mysql_bin_log.sid_lock.rdlock();
-    const GTID_set sub_set(&mysql_bin_log.sid_map, ptr, &status);
+    global_sid_lock.rdlock();
+    const Gtid_set sub_set(&global_sid_map, ptr, &status);
     PROPAGATE_REPORTED_ERROR_INT(status);
     if ((string= args[1]->val_str(&buf)) != NULL &&
         (ptr= string->c_ptr_safe()) != NULL)
     {
-      const GTID_set super_set(&mysql_bin_log.sid_map, ptr, &status);
+      const Gtid_set super_set(&global_sid_map, ptr, &status);
       PROPAGATE_REPORTED_ERROR_INT(status);
       ret= sub_set.is_subset(&super_set) ? 1 : 0;
     }
-    mysql_bin_log.sid_lock.unlock();
+    global_sid_lock.unlock();
   }
   DBUG_RETURN(ret);
 }

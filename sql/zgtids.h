@@ -14,8 +14,8 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#ifndef RPL_GROUPS_H_INCLUDED
-#define RPL_GROUPS_H_INCLUDED
+#ifndef RPL_GTIDS_H_INCLUDED
+#define RPL_GTIDS_H_INCLUDED
 
 
 #include <m_string.h>
@@ -68,7 +68,6 @@
 
 #ifndef MYSQL_CLIENT
 class String;
-class Group_log;
 class THD;
 #endif // ifndef MYSQL_CLIENT
 
@@ -83,84 +82,6 @@ typedef int64 rpl_binlog_no;
 typedef int64 rpl_binlog_pos;
 /// Type of LGIC (local group identifier)
 typedef int64 rpl_lgid;
-
-
-/**
-  Generic return type for functions that read from disk.
-*/
-enum enum_read_status
-{
-  /// Read succeeded.
-  READ_OK,
-  /**
-    The file position was at end of file before the read. my_error
-    has NOT been called.
-  */
-  READ_EOF,
-  /**
-    End of file was reached in the middle of the read.  It is not
-    specified whether anything was actually read or not, or whether
-    the read position has moved or not.  my_error has NOT been called.
-  */
-  READ_TRUNCATED,
-  /**
-    An error occurred when reading - either IO error or wrong file
-    format or something else.  my_error has been called.
-  */  
-  READ_ERROR
-};
-#define PROPAGATE_READ_STATUS(STATUS)                                   \
-  do                                                                    \
-  {                                                                     \
-    enum_read_status _propagate_read_status_status= (STATUS);           \
-    if (_propagate_read_status_status != READ_OK)                       \
-      DBUG_RETURN(_propagate_read_status_status);                       \
-  } while (0)
-
-#define PROPAGATE_READ_STATUS_NOEOF(STATUS)                             \
-  do                                                                    \
-  {                                                                     \
-    enum_read_status _propagate_read_status_noeof_status= (STATUS);     \
-    if (_propagate_read_status_noeof_status != READ_OK)                 \
-      DBUG_RETURN(_propagate_read_status_noeof_status == READ_EOF ?     \
-                  READ_TRUNCATED : _propagate_read_status_noeof_status); \
-  } while (0)
-
-
-/**
-  Generic return type for functions that append to a file.
-*/
-enum enum_append_status
-{
-  /// Write succeeded.
-  APPEND_OK,
-  /**
-    An error occurred and it is impossible to continue writing.
-    Examples:
-     - Part of the data has been written and it was impossible to
-       truncate the file back to the previous size.
-     - An IO error occurred.
-    This also means that my_error has been called.
-  */
-  APPEND_ERROR,
-  /**
-    The write failed, but the state has returned to what it was before
-    the write attempt so it may be possible to write more later.
-    Examples:
-     - The write did not change the file at all.
-     - Part of the data was written, the disk got full, and the file
-       was truncated back to the previous size.
-    This also means that my_error has been called.
-  */
-  APPEND_NONE
-};
-#define PROPAGATE_APPEND_STATUS(STATUS)                                 \
-  do                                                                    \
-  {                                                                     \
-    enum_append_status __propagate_append_status_status= (STATUS);      \
-    if (__propagate_append_status_status != APPEND_OK)                  \
-      DBUG_RETURN(__propagate_append_status_status);                    \
-  } while (0)
 
 
 /**
@@ -214,7 +135,7 @@ extern void check_return_status(enum_return_status status,
                                 int allow_unreported);
 #define __CHECK_RETURN_STATUS(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED) \
   check_return_status(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED);
-#endif  
+#endif
 /**
   Low-level macro that checks if STATUS is RETURN_STATUS_OK; if it is
   not, then RETURN_VALUE is returned.
@@ -302,34 +223,6 @@ rpl_gno parse_gno(const char **s);
 */
 int format_gno(char *s, rpl_gno gno);
 
-/**
-  Represents the owner of a group.
-
-  This is a POD.  It has to be a POD because it is a member of
-  Owned_groups::Node which is stored in a HASH.
-*/
-struct Rpl_owner_id
-{
-  uint32 owner_type;
-  uint32 thread_id;
-  void set_to_dead_client() { owner_type= thread_id= 0; }
-  void set_to_none() { owner_type= NO_OWNER_TYPE; thread_id= NO_THREAD_ID; }
-#ifndef MYSQL_CLIENT
-  void copy_from(const THD *thd);
-  bool equals(const THD *thd) const;
-#endif // ifndef MYSQL_CLIENT
-  bool is_sql_thread() const
-  { return owner_type >= 1 && owner_type != NO_OWNER_TYPE; }
-  bool is_none() const { return owner_type == NO_OWNER_TYPE; }
-  bool is_client() const { return owner_type == 0; }
-  bool is_very_old_client() const { return owner_type == 0 && thread_id == 0; }
-  bool is_live_client() const;
-  bool is_dead_client() const
-  { return is_client() && !is_very_old_client() && !is_live_client(); }
-  static const uint32 NO_OWNER_TYPE= ~0;
-  static const uint32 NO_THREAD_ID= ~0;
-};
-
 
 /**
   Represents a UUID.
@@ -345,22 +238,17 @@ struct Uuid
     @return RETURN_STATUS_OK or RETURN_STATUS_UNREPORTED_ERROR.
   */
   enum_return_status parse(const char *string);
-  /**
-    Copies the given 16-byte data to this UUID.
-  */
-  void copy_from(const uchar *data)
-  { memcpy(bytes, data, BYTE_LENGTH); }
-  /**
-    Copies the given UUID object to this UUID.
-  */
+  /// Set to all zeros.
+  void clear() { memset(bytes, 0, BYTE_LENGTH); }
+  /// Copies the given 16-byte data to this UUID.
+  void copy_from(const uchar *data) { memcpy(bytes, data, BYTE_LENGTH); }
+  /// Copies the given UUID object to this UUID.
   void copy_from(const Uuid *data) { copy_from(data->bytes); }
-  /**
-    Returns true if this UUID is equal the given UUID.
-  */
+  /// Copies the given UUID object to this UUID.
+  void copy_to(uchar *data) const { memcpy(data, bytes, BYTE_LENGTH); }
+  /// Returns true if this UUID is equal the given UUID.
   bool equals(const Uuid *other) const
-  {
-    return memcmp(bytes, other->bytes, BYTE_LENGTH) == 0;
-  }
+  { return memcmp(bytes, other->bytes, BYTE_LENGTH) == 0; }
   /**
     Generates a 36+1 character long representation of this UUID object
     in the given string buffer.
@@ -368,7 +256,8 @@ struct Uuid
     @retval 36 - the length of the resulting string.
   */
   size_t to_string(char *buf) const;
-  size_t to_string(const uchar* bytes_arg, char *buf) const;
+  /// Convert the given binary buffer to a UUID
+  static size_t to_string(const uchar* bytes_arg, char *buf);
 #ifndef DBUG_OFF
   void print() const
   {
@@ -512,6 +401,9 @@ private:
 };
 
 
+extern Checkable_rwlock global_sid_lock;
+
+
 /**
   Represents a bidirectional map between SID and SIDNO.
 
@@ -545,8 +437,7 @@ public:
   */
   enum_return_status clear();
   /**
-    Permanently add the given SID to this map if it does not already
-    exist.
+    Add the given SID to this map if it does not already exist.
 
     The caller must hold the read lock on sid_lock before invoking
     this function.  If the SID does not exist in this map, it will
@@ -558,7 +449,7 @@ public:
     not exist, an existing if it did exist).
     @retval negative Error. This function calls my_error.
   */
-  rpl_sidno add_permanent(const rpl_sid *sid);
+  rpl_sidno add(const rpl_sid *sid);
   /**
     Get the SIDNO for a given SID
 
@@ -662,6 +553,9 @@ private:
   */
   DYNAMIC_ARRAY _sorted;
 };
+
+
+extern Sid_map global_sid_map;
 
 
 /**
@@ -785,16 +679,17 @@ private:
 /**
   Holds information about a group: the sidno and the gno.
 */
-struct Group
+struct Gtid
 {
   rpl_sidno sidno;
   rpl_gno gno;
 
+  void clear() { sidno= 0; gno= 0; }
   static const int MAX_TEXT_LENGTH= Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
   static bool is_valid(const char *text);
   int to_string(const Sid_map *sid_map, char *buf) const;
   /**
-    Parses the given string and stores in this Group.
+    Parses the given string and stores in this Gtid.
 
     @param text The text to parse
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
@@ -833,21 +728,21 @@ struct Group
   lock and then degrades it to a read lock again; there will be a
   short period when the lock is not held at all.
 */
-class GTID_set
+class Gtid_set
 {
 public:
   /**
-    Constructs a new, empty GTID_set.
+    Constructs a new, empty Gtid_set.
 
-    @param sid_map The Sid_map to use, or NULL if this GTID_set
+    @param sid_map The Sid_map to use, or NULL if this Gtid_set
     should not have a Sid_map.
     @param sid_lock Read-write lock that protects updates to the
     number of SIDs. This may be NULL if such changes do not need to be
     protected.
   */
-  GTID_set(Sid_map *sid_map, Checkable_rwlock *sid_lock= NULL);
+  Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock= NULL);
   /**
-    Constructs a new GTID_set that contains the groups in the given string, in the same format as add(char *).
+    Constructs a new Gtid_set that contains the groups in the given string, in the same format as add(char *).
 
     @param sid_map The Sid_map to use for SIDs.
     @param text The text to parse.
@@ -862,32 +757,30 @@ public:
     temporarily upgraded to a write lock and then degraded again;
     there will be a short period when the lock is not held at all.
   */
-  GTID_set(Sid_map *sid_map, const char *text, enum_return_status *status,
-            Checkable_rwlock *sid_lock= NULL);
+  Gtid_set(Sid_map *sid_map, const char *text, enum_return_status *status,
+           Checkable_rwlock *sid_lock= NULL);
   /**
-    Constructs a new GTID_set that shares the same sid_map and
+    Constructs a new Gtid_set that shares the same sid_map and
     sid_lock objects and contains a copy of all groups.
 
-    @param other The GTID_set to copy.
+    @param other The Gtid_set to copy.
     @param status Will be set to GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
   */
-  GTID_set(GTID_set *other, enum_return_status *status);
-  //GTID_set(Sid_map *sid_map, GTID_set *relative_to, Sid_map *sid_map_enc, const uchar *encoded, int length, enum_return_status *status);
-  /// Destroy this GTID_set.
-  ~GTID_set();
-  //static int encode(GTID_set *relative_to, Sid_map *sid_map_enc, uchar *buf);
-  //static int encoded_length(GTID_set *relative_to, Sid_map *sid_map_enc);
+  Gtid_set(Gtid_set *other, enum_return_status *status);
+  //Gtid_set(Sid_map *sid_map, Gtid_set *relative_to, Sid_map *sid_map_enc, const uchar *encoded, int length, enum_return_status *status);
+  /// Destroy this Gtid_set.
+  ~Gtid_set();
   /**
-    Removes all groups from this GTID_set.
+    Removes all groups from this Gtid_set.
 
     This does not deallocate anything: if groups are added later,
     existing allocated memory will be re-used.
   */
   void clear();
   /**
-    Adds the given group to this GTID_set.
+    Adds the given group to this Gtid_set.
 
-    The SIDNO must exist in the GTID_set before this function is called.
+    The SIDNO must exist in the Gtid_set before this function is called.
 
     @param sidno SIDNO of the group to add.
     @param gno GNO of the group to add.
@@ -899,7 +792,7 @@ public:
     return add(&ivit, gno, gno + 1);
   }
   /**
-    Adds all groups from the given GTID_set to this GTID_set.
+    Adds all groups from the given Gtid_set to this Gtid_set.
 
     If sid_lock != NULL, then the read lock must be held before
     calling this function. If a new sidno is added so that the array
@@ -907,19 +800,19 @@ public:
     to a write lock and then degraded again; there will be a short
     period when the lock is not held at all.
 
-    @param other The GTID_set to add.
+    @param other The Gtid_set to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add(const GTID_set *other);
+  enum_return_status add(const Gtid_set *other);
   /**
-    Removes all groups in the given GTID_set from this GTID_set.
+    Removes all groups in the given Gtid_set from this Gtid_set.
 
-    @param other The GTID_set to remove.
+    @param other The Gtid_set to remove.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status remove(const GTID_set *other);
+  enum_return_status remove(const Gtid_set *other);
   /**
-    Adds the set of groups represented by the given string to this GTID_set.
+    Adds the set of groups represented by the given string to this Gtid_set.
 
     The string must have the format of a comma-separated list of zero
     or more of the following:
@@ -944,16 +837,16 @@ public:
   */
   enum_return_status add(const char *text, bool *anonymous= NULL);
   /**
-    Decodes a GTID_set from the given string.
+    Decodes a Gtid_set from the given string.
 
     @param string The string to parse.
     @param length The number of bytes.
     @return GS_SUCCESS or GS_ERROR_PARSE or GS_ERROR_OUT_OF_MEMORY
   */
-  //int add(const uchar *encoded, int length);
+  enum_return_status add(const uchar *encoded, size_t length);
   /// Return true iff the given group exists in this set.
-  bool contains_group(rpl_sidno sidno, rpl_gno gno) const;
-  /// Returns the maximal sidno that this GTID_set currently has space for.
+  bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const;
+  /// Returns the maximal sidno that this Gtid_set currently has space for.
   rpl_sidno get_max_sidno() const
   {
     if (sid_lock)
@@ -962,7 +855,7 @@ public:
   }
   /**
     Allocates space for all sidnos up to the given sidno in the array of intervals.
-    The sidno must exist in the Sid_map associated with this GTID_set.
+    The sidno must exist in the Sid_map associated with this Gtid_set.
 
     If sid_lock != NULL, then the read lock on sid_lock must be held
     before calling this function. If the array is grown, sid_lock is
@@ -973,25 +866,25 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status ensure_sidno(rpl_sidno sidno);
-  /// Returns true if this GTID_set is equal to the other GTID_set.
-  bool equals(const GTID_set *other) const;
-  /// Returns true if this GTID_set is a subset of the other GTID_set.
-  bool is_subset(const GTID_set *super) const;
-  /// Returns true if this GTID_set is empty.
+  /// Returns true if this Gtid_set is equal to the other Gtid_set.
+  bool equals(const Gtid_set *other) const;
+  /// Returns true if this Gtid_set is a subset of the other Gtid_set.
+  bool is_subset(const Gtid_set *super) const;
+  /// Returns true if this Gtid_set is empty.
   bool is_empty() const
   {
-    GTID_iterator git(this);
+    Gtid_iterator git(this);
     return git.get().sidno == 0;
   }
   /**
-    Returns 0 if this GTID_set is empty, 1 if it contains exactly one
+    Returns 0 if this Gtid_set is empty, 1 if it contains exactly one
     group, and 2 if it contains more than one group.
 
     This can be useful to check if the group is a singleton set or not.
   */
   int zero_one_or_many() const
   {
-    GTID_iterator git(this);
+    Gtid_iterator git(this);
     if (git.get().sidno == 0)
       return 0;
     git.next();
@@ -1000,7 +893,7 @@ public:
     return 2;
   }
   /**
-    Returns true if this GTID_set contains at least one group with
+    Returns true if this Gtid_set contains at least one group with
     the given SIDNO.
 
     @param sidno The SIDNO to test.
@@ -1018,7 +911,7 @@ public:
     return ivit.get() != NULL;
   }
   /**
-    Returns true if the given string is a valid specification of a GTID_set, false otherwise.
+    Returns true if the given string is a valid specification of a Gtid_set, false otherwise.
   */
   static bool is_valid(const char *text);
 #ifndef DBUG_OFF
@@ -1029,7 +922,7 @@ public:
     to_string(str);
     return str;
   }
-  /// Print this GTID_set to stdout.
+  /// Print this Gtid_set to stdout.
   void print() const
   {
     char *str= to_string();
@@ -1037,14 +930,14 @@ public:
     free(str);
   }
 #endif
-  //bool is_intersection_nonempty(GTID_set *other);
-  //GTID_set in_place_intersection(GTID_set other);
-  //GTID_set in_place_complement(Sid_map map);
+  //bool is_intersection_nonempty(Gtid_set *other);
+  //Gtid_set in_place_intersection(Gtid_set other);
+  //Gtid_set in_place_complement(Sid_map map);
 
 
   /**
-    Class GTID_set::String_format defines the separators used by
-    GTID_set::to_string.
+    Class Gtid_set::String_format defines the separators used by
+    Gtid_set::to_string.
   */
   struct String_format
   {
@@ -1054,12 +947,14 @@ public:
     const char *gno_start_end_separator;
     const char *gno_gno_separator;
     const char *gno_sid_separator;
+    const char *empty_set_string;
     const int begin_length;
     const int end_length;
     const int sid_gno_separator_length;
     const int gno_start_end_separator_length;
     const int gno_gno_separator_length;
     const int gno_sid_separator_length;
+    const int empty_set_string_length;
   };
   /**
     Returns the length of the output from to_string.
@@ -1069,7 +964,7 @@ public:
   */
   int get_string_length(const String_format *string_format= NULL) const;
   /**
-    Encodes this GTID_set as a string.
+    Formats this Gtid_set as a string.
 
     @param buf[out] Pointer to the buffer where the string should be
     stored. This should have size at least get_string_length()+1.
@@ -1085,8 +980,13 @@ public:
     wrapped in single quotes and there is a newline between SIDs.
   */
   static const String_format sql_string_format;
+  /**
+    String_format for printing the Gtid_set commented: the string is
+    not quote-wrapped, and every SID is on a new line with a leading '# '.
+  */
+  static const String_format commented_string_format;
 
-  /// Return the Sid_map associated with this GTID_set.
+  /// Return the Sid_map associated with this Gtid_set.
   Sid_map *get_sid_map() const { return sid_map; }
 
   /**
@@ -1110,7 +1010,7 @@ public:
   };
 
   /**
-    Provides an array of Intervals that this GTID_set can use when
+    Provides an array of Intervals that this Gtid_set can use when
     groups are subsequently added.  This can be used as an
     optimization, to reduce allocation for sets that have a known
     number of intervals.
@@ -1130,25 +1030,25 @@ public:
     pointer is either the initial pointer into the list, or the next
     pointer of one of the intervals in the list.
   */
-  template<typename GTID_set_t, typename Interval_p> class Interval_iterator_base
+  template<typename Gtid_set_t, typename Interval_p> class Interval_iterator_base
   {
   public:
     /**
-      Construct a new iterator over the GNO intervals for a given GTID_set.
+      Construct a new iterator over the GNO intervals for a given Gtid_set.
 
-      @param gtid_set The GTID_set.
+      @param gtid_set The Gtid_set.
       @param sidno The SIDNO.
     */
-    Interval_iterator_base(GTID_set_t *gtid_set, rpl_sidno sidno)
+    Interval_iterator_base(Gtid_set_t *gtid_set, rpl_sidno sidno)
     {
       DBUG_ASSERT(sidno >= 1 && sidno <= gtid_set->get_max_sidno());
       init(gtid_set, sidno);
     }
-    /// Construct a new iterator over the free intervals of a GTID_set.
-    Interval_iterator_base(GTID_set_t *gtid_set)
+    /// Construct a new iterator over the free intervals of a Gtid_set.
+    Interval_iterator_base(Gtid_set_t *gtid_set)
     { p= &gtid_set->free_intervals; }
     /// Reset this iterator.
-    inline void init(GTID_set_t *gtid_set, rpl_sidno sidno)
+    inline void init(Gtid_set_t *gtid_set, rpl_sidno sidno)
     { p= dynamic_element(&gtid_set->intervals, sidno - 1, Interval_p *); }
     /// Advance current_elem one step.
     inline void next()
@@ -1168,34 +1068,35 @@ public:
   };
 
   /**
-    Iterator over intervals of a const GTID_set.
+    Iterator over intervals of a const Gtid_set.
   */
   class Const_interval_iterator
-    : public Interval_iterator_base<const GTID_set, Interval *const>
+    : public Interval_iterator_base<const Gtid_set, Interval *const>
   {
   public:
     /// Create this Const_interval_iterator.
-    Const_interval_iterator(const GTID_set *gtid_set, rpl_sidno sidno)
-      : Interval_iterator_base<const GTID_set, Interval *const>(gtid_set, sidno) {}
+    Const_interval_iterator(const Gtid_set *gtid_set, rpl_sidno sidno)
+      : Interval_iterator_base<const Gtid_set, Interval *const>(gtid_set, sidno) {}
     /// Destroy this Const_interval_iterator.
-    Const_interval_iterator(const GTID_set *gtid_set)
-      : Interval_iterator_base<const GTID_set, Interval *const>(gtid_set) {}
+    Const_interval_iterator(const Gtid_set *gtid_set)
+      : Interval_iterator_base<const Gtid_set, Interval *const>(gtid_set) {}
   };
 
   /**
-    Iterator over intervals of a non-const GTID_set, with additional
-    methods to modify the GTID_set.
+    Iterator over intervals of a non-const Gtid_set, with additional
+    methods to modify the Gtid_set.
   */
   class Interval_iterator
-    : public Interval_iterator_base<GTID_set, Interval *>
+    : public Interval_iterator_base<Gtid_set, Interval *>
   {
   public:
     /// Create this Interval_iterator.
-    Interval_iterator(GTID_set *gtid_set, rpl_sidno sidno)
-      : Interval_iterator_base<GTID_set, Interval *>(gtid_set, sidno) {}
+    Interval_iterator(Gtid_set *gtid_set, rpl_sidno sidno)
+      : Interval_iterator_base<Gtid_set, Interval *>(gtid_set, sidno) {}
     /// Destroy this Interval_iterator.
-    Interval_iterator(GTID_set *gtid_set)
-      : Interval_iterator_base<GTID_set, Interval *>(gtid_set) {}
+    Interval_iterator(Gtid_set *gtid_set)
+      : Interval_iterator_base<Gtid_set, Interval *>(gtid_set) {}
+  private:
     /**
       Set current_elem to the given Interval but do not touch the
       next pointer of the given Interval.
@@ -1204,24 +1105,32 @@ public:
     /// Insert the given element before current_elem.
     inline void insert(Interval *iv) { iv->next= *p; set(iv); }
     /// Remove current_elem.
-    inline void remove(GTID_set *gtid_set)
+    inline void remove(Gtid_set *gtid_set)
     {
       DBUG_ASSERT(get() != NULL);
       Interval *next= (*p)->next;
       gtid_set->put_free_interval(*p);
       set(next);
     }
+    /**
+      Only Gtid_set is allowed to use set/insert/remove.
+
+      They are not safe to use from other code because: (1) very easy
+      to make a mistakes (2) they don't clear cached_string_format or
+      cached_string_length.
+    */
+    friend class Gtid_set;
   };
 
 
   /**
-    Iterator over all groups in a GTID_set.  This is a const
-    iterator; it does not allow modification of the GTID_set.
+    Iterator over all groups in a Gtid_set.  This is a const
+    iterator; it does not allow modification of the Gtid_set.
   */
-  class GTID_iterator
+  class Gtid_iterator
   {
   public:
-    GTID_iterator(const GTID_set *gs)
+    Gtid_iterator(const Gtid_set *gs)
       : gtid_set(gs), sidno(0), ivit(gs) { next_sidno(); }
     /// Advance to next group.
     inline void next()
@@ -1247,9 +1156,9 @@ public:
       }
     }
     /// Return next group, or {0,0} if we reached the end.
-    inline Group get() const
+    inline Gtid get() const
     {
-      Group ret= { sidno, gno };
+      Gtid ret= { sidno, gno };
       return ret;
     }
   private:
@@ -1257,7 +1166,8 @@ public:
     inline void next_sidno()
     {
       Interval *iv;
-      do {
+      do
+      {
         sidno++;
         if (sidno > gtid_set->get_max_sidno())
         {
@@ -1270,8 +1180,8 @@ public:
       } while (iv == NULL);
       gno= iv->start;
     }
-    /// The GTID_set we iterate over.
-    const GTID_set *gtid_set;
+    /// The Gtid_set we iterate over.
+    const Gtid_set *gtid_set;
     /**
       The SIDNO of the current element, or 0 if the iterator is past
       the last element.
@@ -1301,9 +1211,19 @@ public:
   */
   enum_return_status add(Interval_iterator *ivitp, rpl_gno start, rpl_gno end);
 
+  /**
+    Encodes this Gtid_set as a binary string.
+  */
+  void encode(uchar *buf) const;
+  /**
+    Returns the length of this Gtid_set when encoded using the
+    encode() function.
+  */
+  size_t get_encoded_length() const;
+
 private:
   /**
-    Contains a list of intervals allocated by this GTID_set.  When a
+    Contains a list of intervals allocated by this Gtid_set.  When a
     method of this class needs a new interval and there are no more
     free intervals, a new Interval_chunk is allocated and the
     intervals of it are added to the list of free intervals.
@@ -1317,35 +1237,56 @@ private:
   static const int CHUNK_GROW_SIZE= 8;
 
   /**
-    Return true if the given sidno of this GTID_set contains the same
-    intervals as the given sidno of the other GTID_set.
+    Return true if the given sidno of this Gtid_set contains the same
+    intervals as the given sidno of the other Gtid_set.
 
-    @param sidno SIDNO to check for this GTID_set.
-    @param other Other GTID_set
+    @param sidno SIDNO to check for this Gtid_set.
+    @param other Other Gtid_set
     @param other_sidno SIDNO to check in other.
     @return true if equal, false is not equal.
   */
   bool sidno_equals(rpl_sidno sidno,
-                    const GTID_set *other, rpl_sidno other_sidno) const;
+                    const Gtid_set *other, rpl_sidno other_sidno) const;
+  /// Return the number of intervals for the given sidno.
+  int get_n_intervals(rpl_sidno sidno) const
+  {
+    Const_interval_iterator ivit(this, sidno);
+    int ret= 0;
+    while (ivit.get() != NULL)
+    {
+      ret++;
+      ivit.next();
+    }
+    return ret;
+  }
+  /// Return the number of intervals in this Gtid_set.
+  int get_n_intervals() const
+  {
+    rpl_sidno max_sidno= get_max_sidno();
+    int ret= 0;
+    for (rpl_sidno sidno= 1; sidno < max_sidno; sidno++)
+      ret+= get_n_intervals(sidno);
+    return ret;
+  }
   /**
     Adds a list of intervals to the given SIDNO.
 
-    The SIDNO must exist in the GTID_set before this function is called.
+    The SIDNO must exist in the Gtid_set before this function is called.
 
     @param sidno The SIDNO to which intervals will be added.
     @param ivit Iterator over the intervals to add. This is typically
-    an iterator over some other GTID_set.
+    an iterator over some other Gtid_set.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status add(rpl_sidno sidno, Const_interval_iterator ivit);
   /**
     Removes a list of intervals to the given SIDNO.
 
-    It is not required that the intervals exist in this GTID_set.
+    It is not required that the intervals exist in this Gtid_set.
 
     @param sidno The SIDNO from which intervals will be removed.
     @param ivit Iterator over the intervals to remove. This is typically
-    an iterator over some other GTID_set.
+    an iterator over some other Gtid_set.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status remove(rpl_sidno sidno, Const_interval_iterator ivit);
@@ -1356,7 +1297,7 @@ private:
     split.
 
     It is not required that the groups in the interval exist in this
-    GTID_set.
+    Gtid_set.
 
     @param ivitp Pointer to iterator.  After this function returns,
     the current_element of the iterator will be the next interval
@@ -1396,7 +1337,7 @@ private:
 
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
-  /// Sid_map associated with this GTID_set.
+  /// Sid_map associated with this Gtid_set.
   Sid_map *sid_map;
   /**
     Array where the N'th element contains the head pointer to the
@@ -1427,11 +1368,11 @@ private:
 
 
 /**
-  Holds information about a GTID_set.  Can also be NULL.
+  Holds information about a Gtid_set.  Can also be NULL.
 
   This is used as backend storage for @@session.gtid_next_list.  The
   idea is that we allow the user to set this to NULL, but we keep the
-  GTID_set object so that we can re-use the allocated memory and
+  Gtid_set object so that we can re-use the allocated memory and
   avoid costly allocations later.
 
   This is stored in struct system_variables (defined in sql_class.h),
@@ -1443,14 +1384,14 @@ private:
   non-NULL.  If is_non_null is true, then the value of the session
   variable is not NULL, and the field gtid_set has to be non-NULL.
 */
-struct GTID_set_or_null
+struct Gtid_set_or_null
 {
-  /// Pointer to the GTID_set.
-  GTID_set *gtid_set;
-  /// True if this GTID_set is NULL.
+  /// Pointer to the Gtid_set.
+  Gtid_set *gtid_set;
+  /// True if this Gtid_set is NULL.
   bool is_non_null;
-  /// Return NULL if this is NULL, otherwise return the GTID_set.
-  inline GTID_set *get_gtid_set() const
+  /// Return NULL if this is NULL, otherwise return the Gtid_set.
+  inline Gtid_set *get_gtid_set() const
   {
     DBUG_ASSERT(!(is_non_null && gtid_set == NULL));
     return is_non_null ? gtid_set : NULL;
@@ -1458,31 +1399,27 @@ struct GTID_set_or_null
   /**
     Do nothing if this object is non-null; set to empty set otherwise.
 
-    @return NULL if out of memory; GTID_set otherwise.
+    @return NULL if out of memory; Gtid_set otherwise.
   */
-  GTID_set *set_non_null(Sid_map *sm)
+  Gtid_set *set_non_null(Sid_map *sm)
   {
     if (!is_non_null)
     {
       if (gtid_set == NULL)
-        gtid_set= new GTID_set(sm);
+        gtid_set= new Gtid_set(sm);
       else
         gtid_set->clear();
     }
     is_non_null= (gtid_set != NULL);
     return gtid_set;
   }
-  /// Set this GTID_set to NULL.
+  /// Set this Gtid_set to NULL.
   inline void set_null() { is_non_null= false; }
 };
 
 
 /**
   Represents the set of groups that are owned by some thread.
-
-  This consists of all partial groups and a subset of the unlogged
-  groups.  Each group has a flag that indicates whether it is partial
-  or not.
 
   This data structure has a read-write lock that protects the number
   of SIDNOs.  The lock is provided by the invoker of the constructor
@@ -1494,7 +1431,7 @@ struct GTID_set_or_null
   short period when the lock is not held at all.
 
   The internal representation is a DYNAMIC_ARRAY that maps SIDNO to
-  HASH, where each HASH maps GNO to (Rpl_owner_id, bool).
+  HASH, where each HASH maps GNO to my_thread_id.
 */
 class Owned_groups
 {
@@ -1508,43 +1445,24 @@ public:
   Owned_groups(Checkable_rwlock *sid_lock);
   /// Destroys this Owned_groups.
   ~Owned_groups();
-  /// Mark all owned groups for all SIDs as non-partial.
-  void clear();
   /**
     Add a group to this Owned_groups.
 
-    The group will be marked as non-partial, i.e., it has not yet been
-    written to the binary log.
-
     @param sidno The SIDNO of the group to add.
     @param gno The GNO of the group to add.
-    @param owner_id The Owner_id of the group to add.
+    @param owner The my_thread_id of the group to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add(rpl_sidno sidno, rpl_gno gno, Rpl_owner_id owner_id);
+  enum_return_status add(rpl_sidno sidno, rpl_gno gno, my_thread_id owner);
   /**
-    Returns the owner of the given group.
-
-    If the group does not exist in this Owned_groups object, returns
-    an Rpl_owner_id object that contains 'no owner'.
+    Returns the owner of the given group, or 0 if the group is not owned.
 
     @param sidno The group's SIDNO
     @param gno The group's GNO
-    @return Owner of the group.
+    @return my_thread_id of the thread that owns the group, or
+    0 if the group is not owned.
   */
-  Rpl_owner_id get_owner(rpl_sidno sidno, rpl_gno gno) const;
-  /**
-    Changes owner of the given group.
-
-    Throws an assertion if the group does not exist in this
-    Owned_groups object.
-
-    @param sidno The group's SIDNO.
-    @param gno The group's GNO.
-    @param owner_id The group's new owner_id.
-  */
-  void change_owner(rpl_sidno sidno, rpl_gno gno,
-                    Rpl_owner_id owner_id) const;
+  my_thread_id get_owner(rpl_sidno sidno, rpl_gno gno) const;
   /**
     Removes the given group.
 
@@ -1555,26 +1473,6 @@ public:
     @param gno The group's GNO.
   */
   void remove(rpl_sidno sidno, rpl_gno gno);
-  /**
-    Marks the given group as partial.
-
-    Throws an assertion if the group does not exist in this
-    Owned_groups object.
-
-    @param sidno The group's SIDNO.
-    @param gno The group's GNO.
-  */
-  bool mark_partial(rpl_sidno sidno, rpl_gno gno);
-  /**
-    Returns true iff the given group is partial.
-
-    Throws an assertion if the group does not exist in this
-    Owned_groups object.
-
-    @param sidno The group's SIDNO.
-    @param gno The group's GNO.
-  */
-  bool is_partial(rpl_sidno sidno, rpl_gno gno) const;
   /**
     Ensures that this Owned_groups object can accomodate SIDNOs up to
     the given SIDNO.
@@ -1594,13 +1492,6 @@ public:
     sid_lock->assert_some_lock();
     return sidno_to_hash.elements;
   }
-  /**
-    Adds all partial groups in this Owned_groups object to the given GTID_set.
-
-    @param gs GTID_set that will be updated.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status get_partial_groups(GTID_set *gs) const;
 
 #ifndef DBUG_OFF
   int to_string(const Sid_map *sm, char *out) const
@@ -1615,10 +1506,8 @@ public:
         Node *node= (Node *)my_hash_element(hash, i);
         DBUG_ASSERT(node != NULL);
         p+= sm->sidno_to_sid(sidno)->to_string(p);
-        p+= sprintf(p, "/%d:%lld owned by %d-%d is %spartial\n",
-                    sidno, node->gno,
-                    node->owner.owner_type, node->owner.thread_id,
-                    node->is_partial ? "" : "not ");
+        p+= sprintf(p, "/%d:%lld owned by thread %lu\n",
+                    sidno, node->gno, node->owner);
       }
     }
     return p - out;
@@ -1655,9 +1544,7 @@ private:
     /// GNO of the group.
     rpl_gno gno;
     /// Owner of the group.
-    Rpl_owner_id owner;
-    /// If true, this group is partial; i.e., written to the binary log.
-    bool is_partial;
+    my_thread_id owner;
   };
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
@@ -1686,7 +1573,7 @@ private:
     return get_node(get_hash(sidno), gno);
   };
   /// Return true iff this Owned_groups object contains the given group.
-  bool contains_group(rpl_sidno sidno, rpl_gno gno) const
+  bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const
   {
     return get_node(sidno, gno) != NULL;
   }
@@ -1696,9 +1583,10 @@ private:
 
 
 /**
-  Represents the state of the group log: the set of ended groups and
-  the set of owned groups, the owner of each owned group, and a
-  Mutex_cond_array that protects updates to groups of each SIDNO.
+  Represents the state of the group log: the set of logged groups, the
+  set of lost groups, the set of owned groups, the owner of each owned
+  group, and a Mutex_cond_array that protects updates to groups of
+  each SIDNO.
 
   This data structure has a read-write lock that protects the number
   of SIDNOs.  The lock is provided by the invoker of the constructor
@@ -1709,67 +1597,56 @@ private:
   lock and then degrades it to a read lock again; there will be a
   short period when the lock is not held at all.
 */
-class Group_log_state
+class Gtid_state
 {
 public:
   /**
-    Constructs a new Group_log_state object.
+    Constructs a new Gtid_state object.
 
     @param _sid_lock Read-write lock that protects updates to the
     number of SIDs.
     @param _sid_map Sid_map used by this group log.
   */
-  Group_log_state(Checkable_rwlock *_sid_lock, Sid_map *_sid_map)
-    : sid_lock(_sid_lock), sid_locks(_sid_lock),
+  Gtid_state(Checkable_rwlock *_sid_lock, Sid_map *_sid_map)
+    : sid_lock(_sid_lock), sid_locks(sid_lock),
     sid_map(_sid_map),
-    ended_groups(_sid_map), owned_groups(_sid_lock) {}
+    logged_groups(sid_map), lost_groups(sid_map), owned_groups(sid_lock) {}
   /**
-    Reset the state after RESET MASTER: remove all ended groups and
-    mark all owned groups as non-partial.
+    Add @@GLOBAL.SERVER_UUID to this binlog's Sid_map.
+
+    This can't be done in the constructor because the constructor is
+    invoked at server startup before SERVER_UUID is initialized.
+    
+    @retval 0 Success
+    @retval 1 Error (out of memory or IO error).
+  */
+  int init();
+  /**
+    Reset the state after RESET MASTER: remove all logged and lost
+    groups, but keep owned groups as they are.
   */
   void clear();
   /**
-    Returns true if the given group is ended.
+    Returns true if the given group is logged.
 
     @param sidno The SIDNO to check.
     @param gno The GNO to check.
-    @retval true The group is ended in the group log.
 
-    @retval false The group is partial or unlogged in the group log.
+    @retval true The group is logged in the binary log.
+    @retval false The group is not logged in the binary log.
   */
-  bool is_ended(rpl_sidno sidno, rpl_gno gno) const
-  { return ended_groups.contains_group(sidno, gno); }
+  bool is_logged(rpl_sidno sidno, rpl_gno gno) const
+  { return logged_groups.contains_gtid(sidno, gno); }
   /**
-    Returns true if the given group is partial.
+    Returns the owner of the given group, or 0 if the group is not owned.
 
     @param sidno The SIDNO to check.
     @param gno The GNO to check.
-    @retval true The group is partial in the group log.
-    @retval false The group is ended or unlogged in the group log.
+    @return my_thread_id of the thread that owns the group, or
+    0 if the group is not owned.
   */
-  bool is_partial(rpl_sidno sidno, rpl_gno gno) const
-  { return owned_groups.is_partial(sidno, gno); }
-  /**
-    Returns the owner of the given group.
-
-    @param sidno The SIDNO to check.
-    @param gno The GNO to check.
-    @return Rpl_owner_id of the thread that owns the group (possibly
-    none, if the group is not owned).
-  */
-  Rpl_owner_id get_owner(rpl_sidno sidno, rpl_gno gno) const
+  my_thread_id get_owner(rpl_sidno sidno, rpl_gno gno) const
   { return owned_groups.get_owner(sidno, gno); }
-  /**
-    Marks the given group as partial.
-    
-    Raises an assertion if the group is not owned.
-
-    @param sidno The SIDNO of the group.
-    @param gno The GNO of the group.
-    @return The value of is_partial() before this call.
-  */
-  bool mark_partial(rpl_sidno sidno, rpl_gno gno)
-  { return owned_groups.mark_partial(sidno, gno); }
   /**
     Marks the group as not owned any more.
 
@@ -1795,14 +1672,14 @@ public:
                                        const THD *thd);
 #endif // ifndef MYSQL_CLIENT
   /**
-    Ends the given group, i.e., moves it from the set of 'owned
-    groups' to the set of 'ended groups'.
+    Logs the given group, i.e., moves it from the set of 'owned
+    groups' to the set of 'logged groups'.
 
     @param sidno The group's SIDNO.
     @param gno The group's GNO.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status end_group(rpl_sidno sidno, rpl_gno gno);
+  enum_return_status log_group(rpl_sidno sidno, rpl_gno gno);
   /**
     Allocates a GNO for an automatically numbered group.
 
@@ -1818,29 +1695,38 @@ public:
   void unlock_sidno(rpl_sidno sidno) { sid_locks.unlock(sidno); }
   /// Broadcasts updates for the given SIDNO.
   void broadcast_sidno(rpl_sidno sidno) { sid_locks.broadcast(sidno); }
-  /// Waits for updates on the given SIDNO.
 #ifndef MYSQL_CLIENT
-  void wait_for_sidno(THD *thd, const Sid_map *sm, Group g, Rpl_owner_id owner);
+  /**
+    Waits until the given GTID is not owned by any other thread.
+
+    This requires that the caller holds a read lock on sid_lock.  It
+    will temporarily release the lock while waiting and re-acquire it
+    after the wait.
+
+    @param thd THD object of the caller.
+    @param g Gtid to wait for.
+  */
+  void wait_for_gtid(THD *thd, Gtid g);
 #endif // ifndef MYSQL_CLIENT
   /**
-    Locks one mutex for each SIDNO where the given GTID_set has at
-    least one group. If the GTID_set is not given, locks all
+    Locks one mutex for each SIDNO where the given Gtid_set has at
+    least one group. If the Gtid_set is not given, locks all
     mutexes.  Locks are acquired in order of increasing SIDNO.
   */
-  void lock_sidnos(const GTID_set *set= NULL);
+  void lock_sidnos(const Gtid_set *set= NULL);
   /**
-    Unlocks the mutex for each SIDNO where the given GTID_set has at
-    least one group.  If the GTID_set is not given, unlocks all mutexes.
+    Unlocks the mutex for each SIDNO where the given Gtid_set has at
+    least one group.  If the Gtid_set is not given, unlocks all mutexes.
   */
-  void unlock_sidnos(const GTID_set *set= NULL);
+  void unlock_sidnos(const Gtid_set *set= NULL);
   /**
     Waits for the condition variable for each SIDNO where the given
-    GTID_set has at least one group.
+    Gtid_set has at least one group.
   */
-  void broadcast_sidnos(const GTID_set *set);
+  void broadcast_sidnos(const Gtid_set *set);
   /**
-    Ensure that owned_groups, ended_groups, and sid_locks have room
-    for at least as many SIDNOs as sid_map.
+    Ensure that owned_groups, logged_groups, @todo lost_groups, and
+    sid_locks have room for at least as many SIDNOs as sid_map.
 
     Requires that the read lock on sid_locks is held.  If any object
     needs to be resized, then the lock will be temporarily upgraded to
@@ -1850,25 +1736,31 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status ensure_sidno();
-  /// Return a pointer to the GTID_set that contains the ended groups.
-  const GTID_set *get_ended_groups() { return &ended_groups; }
+  /// Return a pointer to the Gtid_set that contains the logged groups.
+  const Gtid_set *get_logged_groups() const { return &logged_groups; }
   /// Return a pointer to the Owned_groups that contains the owned groups.
-  const Owned_groups *get_owned_groups() { return &owned_groups; }
-  /// Return Sid_map used by this Group_log_state.
-  const Sid_map *get_sid_map() { return sid_map; }
+  const Owned_groups *get_owned_groups() const { return &owned_groups; }
+  // Return Sid_map used by this Gtid_state.
+  //Sid_map *get_sid_map() const { return &sid_map; }
+  /// Return the server's SID's SIDNO
+  rpl_sidno get_server_sidno() const { return server_sidno; }
+  // Return the server's SID's SIDNO
+  //Checkable_rwlock *get_sid_lock() const { return &sid_lock; }
 
-  bool update_state_from_gtid(const uchar* sid, rpl_gno gno);
+  // todo: take sidno as arg instead
+  enum_return_status add_logged_gtid(rpl_sidno sidno, rpl_gno gno);
+  enum_return_status add_logged_gtids(const Gtid_set *gtids);
 #ifndef DBUG_OFF
   size_t get_string_length() const
   {
     return owned_groups.get_string_length() +
-      ended_groups.get_string_length() + 100;
+      logged_groups.get_string_length() + 100;
   }
   int to_string(char *buf) const
   {
     char *p= buf;
-    p+= sprintf(p, "Ended groups:\n");
-    p+= ended_groups.to_string(p);
+    p+= sprintf(p, "Logged groups:\n");
+    p+= logged_groups.to_string(p);
     p+= sprintf(p, "\nOwned groups:\n");
     p+= owned_groups.to_string(sid_map, p);
     return p - buf;
@@ -1892,26 +1784,37 @@ private:
   mutable Checkable_rwlock *sid_lock;
   /// Contains one mutex/cond pair for every SIDNO.
   Mutex_cond_array sid_locks;
-  /// The Sid_map used by this Group_log_state.
-  Sid_map *sid_map;
-  /// The set of groups that are ended in the group log.
-  GTID_set ended_groups;
+  /// The Sid_map used by this Gtid_state.
+  mutable Sid_map *sid_map;
+  /// The set of groups that are logged in the group log.
+  Gtid_set logged_groups;
+  /// The set of groups that are logged in the group log.
+  Gtid_set lost_groups;
   /// The set of groups that are owned by some thread.
   Owned_groups owned_groups;
+  /// The SIDNO for this server.
+  rpl_sidno server_sidno;
 
   /// Used by unit tests that need to access private members.
-#ifdef FRIEND_OF_GROUP_LOG_STATE
-  friend FRIEND_OF_GROUP_LOG_STATE;
+#ifdef FRIEND_OF_GTID_STATE
+  friend FRIEND_OF_GTID_STATE;
 #endif
 };
 
 
+extern Gtid_state gtid_state;
+
+
 /**
-  Enumeration of subgroup types.
+  Enumeration of group types.
 */
-enum enum_subgroup_type
+enum enum_group_type
 {
-  NORMAL_SUBGROUP= 0, ANONYMOUS_SUBGROUP= 1, EMPTY_SUBGROUP= 2
+  /**
+    It is important that AUTOMATIC_GROUP==0 so that the default value
+    for thd->variables->gtid_next.type is AUTOMATIC_GROUP.
+  */
+  AUTOMATIC_GROUP= 0, GTID_GROUP, ANONYMOUS_GROUP, INVALID_GROUP
 };
 
 
@@ -1921,25 +1824,22 @@ enum enum_subgroup_type
 */
 struct Gtid_specification
 {
-  /// The type of group.
-  enum enum_type
-  {
-    AUTOMATIC, ANONYMOUS, GTID, INVALID
-  };
-  enum_type type;
+  enum_group_type type;
   /**
     The GTID:
     { SIDNO, GNO } if type == GTID;
     { 0, 0 } if type == AUTOMATIC or ANONYMOUS.
   */
-  Group group;
+  Gtid gtid;
+  void set(rpl_sidno sidno, rpl_gno gno)
+  { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
   /**
     Parses the given string and stores in this Gtid_specification.
 
     @param text The text to parse
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status parse(const char *text);
+  enum_return_status parse(Sid_map *sid_map, const char *text);
   static const int MAX_TEXT_LENGTH= Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
   /**
     Writes this Gtid_specification to the given string buffer.
@@ -1947,18 +1847,21 @@ struct Gtid_specification
     @param buf[out] The buffer
     @retval The number of characters written.
   */
-  int to_string(char *buf) const;
+  int to_string(const Sid_map *sid_map, char *buf) const;
   /**
     Returns the type of the group, if the given string is a valid Gtid_specification; INVALID otherwise.
   */
-  static enum_type get_type(const char *text);
+  static enum_group_type get_type(const char *text);
   /// Returns true if the given string is a valid Gtid_specification.
-  static bool is_valid(const char *text) { return get_type(text) != INVALID; }
+  static bool is_valid(const char *text)
+  {
+    return get_type(text) != INVALID_GROUP;
+  }
 #ifndef DBUG_OFF
   void print() const
   {
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(buf);
+    to_string(&global_sid_map, buf);
     printf("%s\n", buf);
   }
 #endif
@@ -1966,82 +1869,19 @@ struct Gtid_specification
 
 
 /**
-   Holds information about a sub-group.
+  Represents a group in the group cache.
 
-   This can be a normal sub-group, an anonymous sub-group, or a empty
-   sub-group.
+  Groups in the group cache are slightly different from other groups,
+  because not all information about them is known.
+
+  Automatic groups are marked as such by setting gno<=0.
 */
-struct Subgroup
+struct Cached_group
 {
-  enum_subgroup_type type;
-  rpl_sidno sidno;
-  rpl_gno gno;
-  rpl_binlog_no binlog_no;
-  rpl_binlog_pos binlog_pos;
-  rpl_binlog_pos binlog_length;
-  rpl_binlog_pos binlog_offset_after_last_statement;
-  rpl_lgid lgid;
-  bool group_commit;
-  bool group_end;
-  size_t to_string(char *buf, Sid_map *sm= NULL) const
-  {
-    char *s= buf;
-    s+= sprintf(s, "Subgroup(#%lld, ", lgid);
-    if (type == ANONYMOUS_SUBGROUP)
-      s+= sprintf(s, "ANONYMOUS");
-    else
-    {
-      char sid_buf[Uuid::TEXT_LENGTH + 1];
-      if (sm == NULL)
-        sprintf(sid_buf, "%d", sidno);
-      else
-        sm->sidno_to_sid(sidno)->to_string(sid_buf);
-      s+= sprintf(s, "%s:%lld%s", sid_buf, gno, group_end ? ", END" : "");
-    }
-    if (group_commit)
-      s+= sprintf(s, ", COMMIT");
-    if (type == EMPTY_SUBGROUP)
-      s+= sprintf(s, " EMPTY");
-    else
-      s+= sprintf(s, ", binlog(no=%lld, pos=%lld, len=%lld, oals=%lld))",
-                  binlog_no, binlog_pos, binlog_length,
-                  binlog_offset_after_last_statement);
-    return s - buf;
-  }
-  static const size_t MAX_TEXT_LENGTH= 1024;
-#ifndef DBUG_OFF
-  void print(Sid_map *sm= NULL) const
-  {
-    char buf[MAX_TEXT_LENGTH];
-    to_string(buf, sm);
-    printf("%s\n", buf);
-  }
-  char *to_string(Sid_map *sm= NULL) const
-  {
-    char *ret= (char *)malloc(MAX_TEXT_LENGTH);
-    DBUG_ASSERT(ret != NULL);
-    to_string(ret, sm);
-    return ret;
-  }
-#endif
-};
-
-
-/**
-  Represents a sub-group in the group cache.
-
-  Groups in the group cache are slightly different from other
-  sub-groups, because not all information about them is known.
-
-  Automatic sub-groups are marked as such by setting gno<=0.
-*/
-struct Cached_subgroup
-{
-  enum_subgroup_type type;
+  enum_group_type type;
   rpl_sidno sidno;
   rpl_gno gno;
   rpl_binlog_pos binlog_length;
-  bool group_end;
 };
 
 
@@ -2056,167 +1896,131 @@ public:
   Group_cache();
   /// Deletes a Group_cache.
   ~Group_cache();
-  /// Removes all sub-groups from this cache.
+  /// Removes all groups from this cache.
   void clear();
-  /// Return the number of sub-groups in this group cache.
-  inline int get_n_subgroups() const { return subgroups.elements; }
-  /// Return true iff the group cache contains zero sub-groups.
-  inline bool is_empty() const { return get_n_subgroups() == 0; }
+  /// Return the number of groups in this group cache.
+  inline int get_n_groups() const { return groups.elements; }
+  /// Return true iff the group cache contains zero groups.
+  inline bool is_empty() const { return get_n_groups() == 0; }
   /**
-    Adds a sub-group to this Group_cache.  The sub-group should
+    Adds a group to this Group_cache.  The group should
     already have been written to the stmt or trx cache.  The SIDNO and
-    GNO fields are taken from @@SESSION.UDIG_NEXT.  The GROUP_END
-    field is taken from @@SESSION.GTID_END.
+    GNO fields are taken from @@SESSION.GTID_NEXT.
 
     @param thd The THD object from which we read session variables.
     @param binlog_length Length of group in binary log.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
 #ifndef MYSQL_CLIENT
-  enum_return_status add_logged_subgroup(const THD *thd,
-                                         my_off_t binlog_length);
+  enum_return_status add_logged_group(const THD *thd, my_off_t binlog_length);
 #endif // ifndef MYSQL_CLIENT
   /**
-    Adds a empty group with the given SIDNO, GNO, and GROUP_END to this cache.
+    Adds an empty group with the given (SIDNO, GNO) to this cache.
 
     @param sidno The SIDNO of the group.
     @param gno The GNO of the group.
-    @param group_end The GROUP_END of the group.
+
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add_empty_subgroup(rpl_sidno sidno, rpl_gno gno,
-                                        bool group_end);
+  enum_return_status add_empty_group(rpl_sidno sidno, rpl_gno gno);
   /**
-    Add the given group to this cache, unended, unless the cache or
-    the Group_log_state already contains it.
+    Add the given GTID to this cache as an empty group, unless the
+    cache or the Gtid_state already contains it.
 
-    @param gls Group_log_state, used to determine if the group is
+    @param gls Gtid_state, used to determine if the group is
     unlogged or not.
     @param sidno The SIDNO of the group to add.
     @param gno The GNO of the group to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status
-    add_empty_subgroup_if_missing(const Group_log_state *gls,
-                                  rpl_sidno sidno, rpl_gno gno);
+    add_empty_group_if_missing(const Gtid_state *gls,
+                               rpl_sidno sidno, rpl_gno gno);
   /**
-    Add all groups in the given GTID_set to this cache, unended,
-    except groups that exist in this cache or in the Group_log_state.
+    Add all GTIDs in the given Gtid_set to this cache as empty groups,
+    except GTIDs that exist in this cache or in the Gtid_state.
 
-    @param gls Group_log_state, used to determine if the group is
-    unlogged or not.
+    @param gls Gtid_state, used to determine if the group is logged
+    or not.
     @param gtid_set The set of groups to possibly add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status
-    add_empty_subgroups_if_missing(const Group_log_state *gls,
-                                   const GTID_set *gtid_set);
+    add_empty_groups_if_missing(const Gtid_state *gls,
+                                const Gtid_set *gtid_set);
 #ifndef MYSQL_CLIENT
   /**
-    Update the binary log's Group_log_state to the state after this
+    Update the binary log's Gtid_state to the state after this
     cache has been flushed.
 
-    @param thd The THD that this Group_log_state belongs to.
-    @param gls The binary log's Group_log_state
+    @param thd The THD that this Gtid_state belongs to.
+    @param gls The binary log's Gtid_state
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status
-    update_group_log_state(const THD *thd, Group_log_state *gls) const;
+  enum_return_status update_gtid_state(const THD *thd, Gtid_state *gls) const;
   /**
-    Writes all sub-groups in the cache to the group log.
+    Writes all groups in the cache to the index.
 
     @todo The group log is not yet implemented. /Sven
 
-    @param trx_group_cache Should be set to the transaction group
-    cache. If trx_group_cache is different from 'this', then it is
-    assumed that 'this' is the statement group cache.  In that
-    case, if a group is ended in 'this' and the group exists in
-    trx_group_cache, then the end flag is removed from 'this', and if
-    the group is not ended in trx_group_cache, an ending empty group
-    is appended to trx_group_cache.  This operation is necessary to
-    prevent sub-groups of the group from being logged after ended
-    sub-groups of the group.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
+  /*
   enum_return_status
-    write_to_log(const THD *thd, Group_log *group_log,
-                 Group_cache *trx_group_cache,
-                 rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
-                 rpl_binlog_pos offset_after_last_statement, bool group_commit);
+    write_to_index(const THD *thd, Group_index *group_index,
+                   rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos);
+  */
   /**
     Generates GNO for all groups that are committed for the first time
     in this Group_cache.
 
     This acquires ownership of all groups.  After this call, this
-    Group_cache does not contain any Cached_subgroups that have
-    type==NORMAL_SUBGROUP and gno<=0.
+    Group_cache does not contain any Cached_groups that have
+    type==GTID_GROUP and gno<=0.
 
-    @param thd The THD that this Group_log_state belongs to.
-    @param gls The Group_log_state where group ownership is acquired.
+    @param thd The THD that this Gtid_state belongs to.
+    @param gls The Gtid_state where group ownership is acquired.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR
   */
   enum_return_status generate_automatic_gno(const THD *thd,
-                                            Group_log_state *gls);
+                                            Gtid_state *gls);
 #endif // ifndef MYSQL_CLIENT
   /**
-    Return true if this Group_cache contains the given group.
+    Return true if this Group_cache contains the given GTID.
 
     @param sidno The SIDNO of the group to check.
     @param gno The GNO of the group to check.
     @retval true The group exists in this cache.
     @retval false The group does not exist in this cache.
   */
-  bool contains_group(rpl_sidno sidno, rpl_gno gno) const;
+  bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const;
   /**
-    Return true if the given group is ended in this Group_cache.
+    Add all GTIDs that exist in this Group_cache to the given Gtid_set.
 
-    @param sidno SIDNO of the group to check.
-    @param gno GNO of the group to check.
-    @retval true The group is ended in this Group_cache.
-    @retval false The group is not ended in this Group_cache.
-  */
-  bool group_is_ended(rpl_sidno sidno, rpl_gno gno) const;
-  /**
-    Add all groups that exist but are unended in this Group_cache to the given GTID_set.
-
-    If this Owned_groups contains SIDNOs that do not exist in the
-    GTID_set, then the GTID_set's array of lists of intervals will
-    be grown.  If the GTID_set has a sid_lock, then the method
-    temporarily upgrades the lock to a write lock and then degrades it
-    to a read lock again; there will be a short period when the lock
-    is not held at all.
-
-    @param gs The GTID_set to which groups are added.
+    @param gs The Gtid_set to which groups are added.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status get_partial_groups(GTID_set *gs) const;
-  /**
-    Add all groups that exist and are ended in this Group_cache to the given GTID_set.
-
-    @param gs The GTID_set to which groups are added.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status get_ended_groups(GTID_set *gs) const;
+  enum_return_status get_gtids(Gtid_set *gs) const;
 
 #ifndef DBUG_OFF
   size_t to_string(const Sid_map *sm, char *buf) const
   {
-    int n_subgroups= get_n_subgroups();
+    int n_groups= get_n_groups();
     char *s= buf;
 
-    s += sprintf(s, "%d sub-groups = {\n", n_subgroups);
-    for (int i= 0; i < n_subgroups; i++)
+    s += sprintf(s, "%d groups = {\n", n_groups);
+    for (int i= 0; i < n_groups; i++)
     {
-      Cached_subgroup *cs= get_unsafe_pointer(i);
+      Cached_group *cs= get_unsafe_pointer(i);
       char uuid[Uuid::TEXT_LENGTH + 1]= "[]";
       if (cs->sidno)
         sm->sidno_to_sid(cs->sidno)->to_string(uuid);
-      s += sprintf(s, "  %s:%lld%s [%lld bytes] - %s\n",
-                   uuid, cs->gno, cs->group_end ? "-END":"", cs->binlog_length,
-                   cs->type == NORMAL_SUBGROUP ? "NORMAL" :
-                   cs->type == ANONYMOUS_SUBGROUP ? "ANON" :
-                   cs->type == EMPTY_SUBGROUP ? "EMPTY" :
-                   "INVALID-SUBGROUP-TYPE");
+      s += sprintf(s, "  %s:%lld [%lld bytes] %d=%s\n",
+                   uuid, cs->gno, cs->binlog_length, cs->type,
+                   cs->type == GTID_GROUP ? "GTID" :
+                   cs->type == ANONYMOUS_GROUP ? "ANONYMOUS" :
+                   cs->type == AUTOMATIC_GROUP ? "AUTOMATIC" :
+                   "INVALID-GROUP-TYPE");
     }
     sprintf(s, "}\n");
     return s - buf;
@@ -2224,7 +2028,7 @@ public:
   size_t get_string_length() const
   {
     return (2 + Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 4 + 2 +
-            40 + 10 + 21 + 1 + 100/*margin*/) * get_n_subgroups() + 100/*margin*/;
+            40 + 10 + 21 + 1 + 100/*margin*/) * get_n_groups() + 100/*margin*/;
   }
   char *to_string(const Sid_map *sm) const
   {
@@ -2241,29 +2045,29 @@ public:
 #endif
 
   /**
-    Returns a pointer to the given subgroup.  The pointer is only
-    valid until the next time a sub-group is added or removed.
+    Returns a pointer to the given group.  The pointer is only valid
+    until the next time a group is added or removed.
 
-    @param index Index of the element: 0 <= index < get_n_subgroups().
+    @param index Index of the element: 0 <= index < get_n_groups().
   */
-  inline Cached_subgroup *get_unsafe_pointer(int index) const
+  inline Cached_group *get_unsafe_pointer(int index) const
   {
-    DBUG_ASSERT(index >= 0 && index < get_n_subgroups());
-    return dynamic_element(&subgroups, index, Cached_subgroup *);
+    DBUG_ASSERT(index >= 0 && index < get_n_groups());
+    return dynamic_element(&groups, index, Cached_group *);
   }
 
 private:
-  /// List of all subgroups in this cache, of type Cached_subgroup.
-  DYNAMIC_ARRAY subgroups;
+  /// List of all groups in this cache, of type Cached_group.
+  DYNAMIC_ARRAY groups;
 
   /**
-    Adds the given sub-group to this group cache, or merges it with the
-    last existing sub-group in the cache if they are compatible.
+    Adds the given group to this group cache, or merges it with the
+    last existing group in the cache if they are compatible.
 
-    @param subgroup The subgroup to add.
+    @param group The group to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add_subgroup(const Cached_subgroup *subgroup);
+  enum_return_status add_group(const Cached_group *group);
   /**
     Prepare the cache to be written to the group log.
 
@@ -2275,7 +2079,7 @@ private:
   enum_return_status
     write_to_log_prepare(Group_cache *trx_group_cache,
                          rpl_binlog_pos offset_after_last_statement,
-                         Cached_subgroup **last_non_empty_subgroup);
+                         Cached_group **last_non_empty_group);
 
   /// Used by unit tests that need to access private members.
 #ifdef FRIEND_OF_GROUP_CACHE
@@ -2332,16 +2136,16 @@ enum enum_gtid_statement_status
 */
 enum_gtid_statement_status
 gtid_before_statement(THD *thd, Checkable_rwlock *lock,
-                      Group_log_state *gls,
+                      Gtid_state *gls,
                       Group_cache *gsc, Group_cache *gtc);
 /**
   Before the transaction cache is flushed, this function checks if we
-  need to add an ending empty groups sub-groups.
+  need to add an ending empty groups groups.
 */
 int gtid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
-                                Group_log_state *gls, Group_cache *gc);
+                                Gtid_state *gls, Group_cache *gc);
 #endif // ifndef MYSQL_CLIENT
 
 #endif /* HAVE_GTID */
 
-#endif /* RPL_GROUPS_H_INCLUDED */
+#endif /* RPL_GTIDS_H_INCLUDED */

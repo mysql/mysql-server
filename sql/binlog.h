@@ -178,16 +178,6 @@ public:
   }
 #endif
 #ifdef HAVE_GTID
-  /**
-    Add @@global.server_uuid to this binlog's Sid_map.
-
-    This can't be done in the constructor because the constructor is
-    invoked at server startup before server_uuid is initialized.
-    
-    @retval 0 Success
-    @retval 1 Error (out of memory or IO error).
-  */
-  int init_sid_map();
   bool restore_gtid();
 #endif
 
@@ -324,13 +314,6 @@ public:
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
-
-#ifdef HAVE_GTID
-  Checkable_rwlock sid_lock;
-  Sid_map sid_map;
-  Group_log_state group_log_state;
-  rpl_sidno server_uuid_sidno;
-#endif
 };
 
 typedef struct st_load_file_info

@@ -676,7 +676,7 @@ enum Log_event_type
 
   GTID_LOG_EVENT= 30,
 
-  GTIDSET_LOG_EVENT= 31,
+  PREVIOUS_GTIDS_LOG_EVENT= 31,
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -4545,8 +4545,7 @@ public:
 #ifndef MYSQL_CLIENT
   Gtid_log_event(THD* thd_arg);
   Gtid_log_event(THD* thd_arg, 
-                 const uchar *sid_arg, int64 gno_arg,
-                 uint64 group_size_arg);
+                 rpl_sidno sidno_arg, rpl_gno gno_arg);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -4560,99 +4559,104 @@ public:
 
   Log_event_type get_type_code() { return GTID_LOG_EVENT; }
 
-  int get_data_size()
-  {
-    return 
-           GTID_SID_INFO_LEN + GTID_GNO_INFO_LEN +
-           GTID_TYPE_INFO_LEN + GTID_FLAGS_INFO_LEN +
-           GROUP_SIZE_INFO_LEN + THREAD_ID_INFO_LEN;
-  }
+  int get_data_size() { return POST_HEADER_LENGTH; }
 
+  size_t to_string(char *buf) const;
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 #ifdef MYSQL_SERVER
   bool write_data_header(IO_CACHE *file);
-  bool write_data_body(IO_CACHE *file);
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   int do_apply_event(Relay_log_info const *rli);
 #endif
 
+  bool is_valid() const { return sidno >= 0; }
+
   uchar get_gtid_type() const;
 
-  const uchar* get_gtid_sid() const;
+  const rpl_sid* get_sid() const { return &sid; }
 
-  int64 get_gtid_gno() const;
+  rpl_sidno get_sidno() const { return sidno; }
+
+  rpl_gno get_gno() const { return gno; }
 
   uchar get_gtid_flags() const;
 
-  uint64 get_group_size() const;
+private:
+  static const char *SET_STRING_PREFIX;
+  static const size_t SET_STRING_PREFIX_LENGTH= 26; // strlen(SET_STRING_PREFIX)
+  static const size_t MAX_SET_STRING_LENGTH= SET_STRING_PREFIX_LENGTH +
+    rpl_sid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 1;
 
-  uint32 get_thread_id() const;
+  static const int ENCODED_SID_LENGTH= 16;
+  static const int ENCODED_GNO_LENGTH= 8;
+  static const int ENCODED_TYPE_LENGTH= 1;
+  static const int ENCODED_FLAGS_LENGTH= 1;
 
-  static const int GTID_SID_INFO_LEN= 16;
-
-  static const int GTID_GNO_INFO_LEN= 8;
-
-  static const int GTID_TYPE_INFO_LEN= 1;
-
-  static const int GTID_FLAGS_INFO_LEN= 1;
-
-  static const int GROUP_SIZE_INFO_LEN= 8;
-
-  static const int THREAD_ID_INFO_LEN= 4;
-
-  static const int GTID_STRING_INFO_LEN= 256;
+public:
+  static const int POST_HEADER_LENGTH= 
+    ENCODED_TYPE_LENGTH + ENCODED_FLAGS_LENGTH +
+    ENCODED_SID_LENGTH + ENCODED_GNO_LENGTH;
 
 private:
-  uchar sid[GTID_SID_INFO_LEN];
+  rpl_sid sid;
 
-  int64 gno;
+  rpl_sidno sidno;
+
+  rpl_gno gno;
 
   uchar gtid_type;
 
   uchar gtid_flags;
-
-  uint64 group_size;
-
-  uint32 thread_id;
 };
 
-class GtidSet_log_event : public Ignorable_log_event {
+class Previous_gtids_log_event : public Ignorable_log_event {
 public:
 #ifndef MYSQL_CLIENT
-  GtidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log);
+  Previous_gtids_log_event(THD* thd_arg, MYSQL_BIN_LOG* log);
 #endif
 
 #ifndef MYSQL_CLIENT
   void pack_info(Protocol*);
 #endif
 
-  GtidSet_log_event(const char *buffer, uint event_len,
-                    const Format_description_log_event *descr_event);
+  Previous_gtids_log_event(const char *buffer, uint event_len,
+                           const Format_description_log_event *descr_event);
 
-  virtual ~GtidSet_log_event();
+  virtual ~Previous_gtids_log_event();
 
-  Log_event_type get_type_code() { return GTIDSET_LOG_EVENT; }
+  Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT; }
 
+  bool is_valid() const { return encoded_buf != NULL || gtid_set_inited; }
   int get_data_size()
   {
-    return GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN +
-           ((GTID_SID_INFO_LEN + GTID_NTH_INFO_LEN) * nsids) +
-           ((GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN) * ngnos);
+    if (encoded_length == 0)
+      encoded_length= gtid_set.get_encoded_length();
+    return encoded_length;
   }
 
-  char* get_string_representation(size_t *dst_size);
-  GTID_set* get_group_representation(Group_log_state* grp_state,
-                                      Sid_map* sid_map);
+  Gtid_set* get_group_representation(Gtid_state* grp_state, Sid_map* sid_map);
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 #ifdef MYSQL_SERVER
   bool write_data_body(IO_CACHE *file);
 #endif
+
+  /// Return the encoded buffer, or NULL on error.
+  const uchar *get_buf();
+  /// Return the Gtid_set, or NULL on error
+  const Gtid_set *get_set();
+  /**
+    Return the formatted string, or NULL on error.
+
+    The string is allocated using my_malloc and it is the
+    responsibility of the caller to free it.
+  */
+  char *get_str(size_t *length= NULL);
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   int do_apply_event(Relay_log_info const *rli);
@@ -4668,11 +4672,15 @@ public:
 
   static const int GTID_GNO_STRING_INFO_LEN= 32;
 private:
-  uchar* encoded_buffer; 
+  // Sets the internal Gtid_set from the given buffer.
+  void get_set_from_buf(const uchar *buf, size_t length);
+  // Sets the internal char* buffer from the given Gtid_set.
+  void get_buf_from_set(const Gtid_set *set);
 
-  uint64 nsids;
-
-  uint64 ngnos;
+  uchar* encoded_buf; 
+  size_t encoded_length;
+  Gtid_set gtid_set;
+  bool gtid_set_inited;
 };
 #endif
 

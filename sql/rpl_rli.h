@@ -238,6 +238,12 @@ protected:
   ulonglong future_group_master_log_pos;
 #endif
 
+#ifdef HAVE_GTID
+public:
+  Checkable_rwlock *sid_lock;
+  Gtid_set gtid_set;
+#endif
+
 public:
   int init_relay_log_pos(const char* log,
                          ulonglong pos, bool need_data_lock,

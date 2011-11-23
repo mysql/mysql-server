@@ -15,7 +15,7 @@
 
 
 #include "my_global.h"
-#include "zgroups.h"
+#include "zgtids.h"
 #include "rpl_mi.h"
 #include "rpl_slave.h"
 #include "sql_class.h"
@@ -24,16 +24,19 @@
 #ifdef HAVE_GTID
 
 
-void Group_log_state::clear()
+Gtid_state gtid_state(&global_sid_lock, &global_sid_map);
+
+
+void Gtid_state::clear()
 {
-  DBUG_ENTER("Group_log_state::clear()");
+  DBUG_ENTER("Gtid_state::clear()");
   sid_lock->rdlock();
   rpl_sidno max_sidno= sid_map->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
     sid_locks.lock(sidno);
 
-  ended_groups.clear();
-  owned_groups.clear();
+  logged_groups.clear();
+  lost_groups.clear();
 
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
     sid_locks.unlock(sidno);
@@ -43,42 +46,39 @@ void Group_log_state::clear()
 
 
 enum_return_status
-Group_log_state::acquire_ownership(rpl_sidno sidno, rpl_gno gno,
-                                   const THD *thd)
+Gtid_state::acquire_ownership(rpl_sidno sidno, rpl_gno gno, const THD *thd)
 {
-  DBUG_ENTER("Group_log_state::acquire_ownership");
-  DBUG_ASSERT(!ended_groups.contains_group(sidno, gno));
+  DBUG_ENTER("Gtid_state::acquire_ownership");
+  DBUG_ASSERT(!logged_groups.contains_gtid(sidno, gno));
   DBUG_PRINT("info", ("group=%d:%lld", sidno, gno));
-  Rpl_owner_id owner;
-  owner.copy_from(thd);
-  PROPAGATE_REPORTED_ERROR(owned_groups.add(sidno, gno, owner));
+  PROPAGATE_REPORTED_ERROR(owned_groups.add(sidno, gno, thd->thread_id));
   RETURN_OK;
 }
 
 
-enum_return_status Group_log_state::end_group(rpl_sidno sidno, rpl_gno gno)
+enum_return_status Gtid_state::log_group(rpl_sidno sidno, rpl_gno gno)
 {
-  DBUG_ENTER("Group_log_state::end_group");
+  DBUG_ENTER("Gtid_state::log_group");
   DBUG_PRINT("info", ("group=%d:%lld", sidno, gno));
   owned_groups.remove(sidno, gno);
-  PROPAGATE_REPORTED_ERROR(ended_groups._add(sidno, gno));
+  PROPAGATE_REPORTED_ERROR(logged_groups._add(sidno, gno));
   RETURN_OK;
 }
 
 
-rpl_gno Group_log_state::get_automatic_gno(rpl_sidno sidno) const
+rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
 {
-  DBUG_ENTER("Group_log_state::end_automatic_group");
-  //ended_groups.ensure_sidno(sidno);
-  GTID_set::Const_interval_iterator ivit(&ended_groups, sidno);
+  DBUG_ENTER("Gtid_state::get_automatic_gno");
+  //logged_groups.ensure_sidno(sidno);
+  Gtid_set::Const_interval_iterator ivit(&logged_groups, sidno);
   rpl_gno next_candidate= 1;
   while (true)
   {
-    GTID_set::Interval *iv= ivit.get();
+    Gtid_set::Interval *iv= ivit.get();
     rpl_gno next_interval_start= iv != NULL ? iv->start : MAX_GNO;
     while (next_candidate < next_interval_start)
     {
-      if (owned_groups.get_owner(sidno, next_candidate).is_none())
+      if (owned_groups.get_owner(sidno, next_candidate) == 0)
         DBUG_RETURN(next_candidate);
       next_candidate++;
     }
@@ -93,16 +93,15 @@ rpl_gno Group_log_state::get_automatic_gno(rpl_sidno sidno) const
 }
 
 
-void Group_log_state::wait_for_sidno(THD *thd, const Sid_map *sm,
-                                     Group g, Rpl_owner_id owner)
+void Gtid_state::wait_for_gtid(THD *thd, Gtid g)
 {
-  DBUG_ENTER("Group_log_state::wait_for_sidno");
+  DBUG_ENTER("Gtid_state::wait_for_sidno");
   // Enter cond, wait, exit cond.
   PSI_stage_info old_stage;
   sid_locks.enter_cond(thd, g.sidno,
                        &stage_waiting_for_group_to_be_written_to_binary_log,
                        &old_stage);
-  while (!is_partial(g.sidno, g.gno) && !thd->killed && !abort_loop)
+  while (get_owner(g.sidno, g.gno) != 0 && !thd->killed && !abort_loop)
   {
     sid_lock->unlock();
     sid_locks.wait(g.sidno);
@@ -114,7 +113,7 @@ void Group_log_state::wait_for_sidno(THD *thd, const Sid_map *sm,
 }
 
 
-void Group_log_state::lock_sidnos(const GTID_set *gs)
+void Gtid_state::lock_sidnos(const Gtid_set *gs)
 {
   rpl_sidno max_sidno= gs ? gs->get_max_sidno() : sid_map->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
@@ -123,7 +122,7 @@ void Group_log_state::lock_sidnos(const GTID_set *gs)
 }
 
 
-void Group_log_state::unlock_sidnos(const GTID_set *gs)
+void Gtid_state::unlock_sidnos(const Gtid_set *gs)
 {
   rpl_sidno max_sidno= gs ? gs->get_max_sidno() : sid_map->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
@@ -132,7 +131,7 @@ void Group_log_state::unlock_sidnos(const GTID_set *gs)
 }
 
 
-void Group_log_state::broadcast_sidnos(const GTID_set *gs)
+void Gtid_state::broadcast_sidnos(const Gtid_set *gs)
 {
   rpl_sidno max_sidno= gs->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
@@ -141,9 +140,9 @@ void Group_log_state::broadcast_sidnos(const GTID_set *gs)
 }
 
 
-enum_return_status Group_log_state::ensure_sidno()
+enum_return_status Gtid_state::ensure_sidno()
 {
-  DBUG_ENTER("Group_log_state::ensure_sidno");
+  DBUG_ENTER("Gtid_state::ensure_sidno");
   sid_lock->assert_some_rdlock();
   rpl_sidno sidno= sid_map->get_max_sidno();
   if (sidno > 0)
@@ -153,10 +152,12 @@ enum_return_status Group_log_state::ensure_sidno()
     // condition after the calls.
     do
     {
-      PROPAGATE_REPORTED_ERROR(ended_groups.ensure_sidno(sidno));
+      PROPAGATE_REPORTED_ERROR(logged_groups.ensure_sidno(sidno));
+      PROPAGATE_REPORTED_ERROR(lost_groups.ensure_sidno(sidno));
       PROPAGATE_REPORTED_ERROR(owned_groups.ensure_sidno(sidno));
       PROPAGATE_REPORTED_ERROR(sid_locks.ensure_index(sidno));
-    } while (ended_groups.get_max_sidno() < sidno ||
+      sidno= sid_map->get_max_sidno();
+    } while (logged_groups.get_max_sidno() < sidno ||
              owned_groups.get_max_sidno() < sidno ||
              sid_locks.get_max_index() < sidno);
   }
@@ -164,18 +165,41 @@ enum_return_status Group_log_state::ensure_sidno()
 }
 
 
-bool Group_log_state::update_state_from_gtid(const uchar* sid, rpl_gno gno)
+enum_return_status Gtid_state::add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
 {
+  DBUG_ENTER("Gtid_state::add_logged_gtid");
   sid_lock->assert_some_rdlock();
-
-  rpl_sid sid_decode;
-  sid_decode.copy_from(sid);
-
-  rpl_sidno sidno= sid_map->add_permanent(&sid_decode);
-  if (ensure_sidno() != RETURN_STATUS_OK ||
-      end_group(sidno, gno) != RETURN_STATUS_OK)
-    return true;
-
-  return false;
+  PROPAGATE_REPORTED_ERROR(logged_groups._add(sidno, gno));
+  RETURN_OK;
 }
+
+
+enum_return_status Gtid_state::add_logged_gtids(const Gtid_set *gtids)
+{
+  DBUG_ENTER("Gtid_state::add_logged_gtids");
+  PROPAGATE_REPORTED_ERROR(logged_groups.add(gtids));
+  RETURN_OK;
+}
+
+
+int Gtid_state::init()
+{
+  DBUG_ENTER("Gtid_state::init()");
+
+  global_sid_lock.assert_some_rdlock();
+
+  rpl_sid server_sid;
+  if (server_sid.parse(server_uuid) != RETURN_STATUS_OK)
+    DBUG_RETURN(1);
+  rpl_sidno sidno= sid_map->add(&server_sid);
+  if (sidno <= 0)
+    DBUG_RETURN(1);
+  server_sidno= sidno;
+  if (ensure_sidno() != RETURN_STATUS_OK)
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
+}
+
+
 #endif /* HAVE_GTID */

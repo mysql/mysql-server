@@ -4134,14 +4134,14 @@ String *Item_func_group_subtract::val_str_ascii(String *str)
       (str1= args[0]->val_str_ascii(str)) != NULL &&
       (charp1= str1->c_ptr_safe()) != NULL)
   {
-    mysql_bin_log.sid_lock.rdlock();
-    GTID_set set1(&mysql_bin_log.sid_map, charp1, &status);
+    global_sid_lock.rdlock();
+    Gtid_set set1(&global_sid_map, charp1, &status);
     // get second set
     if (status == RETURN_STATUS_OK &&
         (str2= args[1]->val_str_ascii(str)) != NULL &&
         (charp2= str2->c_ptr_safe()) != NULL)
     {
-      GTID_set set2(&mysql_bin_log.sid_map, charp2, &status);
+      Gtid_set set2(&global_sid_map, charp2, &status);
       int length;
       // subtract, save result, return result
       if (status == RETURN_STATUS_OK &&
@@ -4149,12 +4149,12 @@ String *Item_func_group_subtract::val_str_ascii(String *str)
           !str->realloc((length= set1.get_string_length()) + 1))
       {
         set1.to_string((char *)str->ptr());
-        mysql_bin_log.sid_lock.unlock();
+        global_sid_lock.unlock();
         str->length(length);
         DBUG_RETURN(str);
       }
     }
-    mysql_bin_log.sid_lock.unlock();
+    global_sid_lock.unlock();
   }
   null_value= true;
   DBUG_RETURN(NULL);

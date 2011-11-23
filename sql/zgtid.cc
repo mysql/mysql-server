@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "zgroups.h"
+#include "zgtids.h"
 
 
 #ifdef HAVE_GTID
@@ -22,18 +22,18 @@
 #include "mysqld_error.h"
 
 
-//int const Group::MAX_TEXT_LENGTH;
+//int const Gtid::MAX_TEXT_LENGTH;
 
 
-enum_return_status Group::parse(Sid_map *sid_map, const char *text)
+enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
 {
-  DBUG_ENTER("Group::parse");
+  DBUG_ENTER("Gtid::parse");
   rpl_sid sid;
 
   // parse sid
   if (sid.parse(text) == RETURN_STATUS_OK)
   {
-    sidno= sid_map->add_permanent(&sid);
+    rpl_sidno sidno= sid_map->add(&sid);
     if (sidno <= 0)
       RETURN_REPORTED_ERROR;
     text += Uuid::TEXT_LENGTH;
@@ -44,9 +44,13 @@ enum_return_status Group::parse(Sid_map *sid_map, const char *text)
       text++;
 
       // parse gno
-      gno= parse_gno(&text);
+      rpl_gno gno= parse_gno(&text);
       if (gno > 0 && *text == 0)
+      {
+        this->sidno= sidno;
+        this->gno= gno;
         RETURN_OK;
+      }
     }
   }
   BINLOG_ERROR(("Malformed GTID specification: %.200s", text),
@@ -55,9 +59,9 @@ enum_return_status Group::parse(Sid_map *sid_map, const char *text)
 }
 
 
-int Group::to_string(const Sid_map *sid_map, char *buf) const
+int Gtid::to_string(const Sid_map *sid_map, char *buf) const
 {
-  DBUG_ENTER("Group::to_string");
+  DBUG_ENTER("Gtid::to_string");
   char *s= buf + sid_map->sidno_to_sid(sidno)->to_string(buf);
   *s= ':';
   s++;
@@ -66,9 +70,9 @@ int Group::to_string(const Sid_map *sid_map, char *buf) const
 }
 
 
-bool Group::is_valid(const char *text)
+bool Gtid::is_valid(const char *text)
 {
-  DBUG_ENTER("Group::is_valid");
+  DBUG_ENTER("Gtid::is_valid");
   if (!rpl_sid::is_valid(text))
     DBUG_RETURN(false);
   text += Uuid::TEXT_LENGTH;

@@ -35,7 +35,7 @@
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
                                      THR_LOCK_INFO */
 #include "opt_trace_context.h"    /* Opt_trace_context */
-#include "zgroups.h"
+#include "zgtids.h"
 
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>
@@ -546,10 +546,7 @@ typedef struct system_variables
 
 #ifdef HAVE_GTID
   Gtid_specification gtid_next;
-  GTID_set_or_null gtid_next_list;
-  my_bool gtid_end;
-  my_bool gtid_commit;
-  my_bool gtid_has_ongoing_commit_sequence;
+  Gtid_set_or_null gtid_next_list;
 #endif
 
 } SV;
@@ -3076,15 +3073,15 @@ public:
   }
 
 #ifdef HAVE_GTID
-  GTID_set *get_gtid_next_list()
+  Gtid_set *get_gtid_next_list()
   {
     return variables.gtid_next_list.is_non_null ?
       variables.gtid_next_list.gtid_set : NULL;
   }
 
-  const GTID_set *get_gtid_next_list_const() const
+  const Gtid_set *get_gtid_next_list_const() const
   {
-    return const_cast<const GTID_set *>(const_cast<THD *>(this)->get_gtid_next_list());
+    return const_cast<const Gtid_set *>(const_cast<THD *>(this)->get_gtid_next_list());
   }
 
   Group_cache *get_group_cache(bool is_transactional);

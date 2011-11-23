@@ -14,7 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "zgroups.h"
+#include "zgtids.h"
 
 
 #ifdef HAVE_GTID
@@ -59,9 +59,9 @@ enum_return_status Sid_map::clear()
   RETURN_OK;
 }
 
-rpl_sidno Sid_map::add_permanent(const rpl_sid *sid)
+rpl_sidno Sid_map::add(const rpl_sid *sid)
 {
-  DBUG_ENTER("Sid_map::add_permanent");
+  DBUG_ENTER("Sid_map::add");
 #ifndef DBUG_OFF
   char buf[Uuid::TEXT_LENGTH + 1];
   sid->to_string(buf);

@@ -75,6 +75,9 @@ TYPELIB binlog_checksum_typelib=
 };
 
 
+Checkable_rwlock global_sid_lock;
+Sid_map global_sid_map(&global_sid_lock);
+
 
 #define log_cs	&my_charset_latin1
 
@@ -643,7 +646,7 @@ const char* Log_event::get_type_str(Log_event_type type)
   case IGNORABLE_LOG_EVENT: return "Ignorable";
   case ROWS_QUERY_LOG_EVENT: return "Rows_query";
   case GTID_LOG_EVENT: return "Gtid";
-  case GTIDSET_LOG_EVENT: return "GtidSet";
+  case PREVIOUS_GTIDS_LOG_EVENT: return "Previous_gtids";
   default: return "Unknown";				/* impossible */
   }
 }
@@ -1532,8 +1535,8 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     case GTID_LOG_EVENT:
       ev= new Gtid_log_event(buf, event_len, description_event);
       break;
-    case GTIDSET_LOG_EVENT:
-      ev= new GtidSet_log_event(buf, event_len, description_event);
+    case PREVIOUS_GTIDS_LOG_EVENT:
+      ev= new Previous_gtids_log_event(buf, event_len, description_event);
       break;
     default:
       /*
@@ -4873,11 +4876,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
       post_header_len[IGNORABLE_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
       post_header_len[ROWS_QUERY_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
-      post_header_len[GTID_LOG_EVENT-1]= Gtid_log_event::GTID_TYPE_INFO_LEN +
-                                         Gtid_log_event::GTID_FLAGS_INFO_LEN +
-                                         Gtid_log_event::GROUP_SIZE_INFO_LEN +
-                                         Gtid_log_event::THREAD_ID_INFO_LEN;
-      post_header_len[GTIDSET_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
+      post_header_len[GTID_LOG_EVENT-1]= Gtid_log_event::POST_HEADER_LENGTH;
+      post_header_len[PREVIOUS_GTIDS_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
 
       // Sanity-check that all post header lengths are initialized.
       int i;
@@ -11530,6 +11530,8 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
 }
 #endif
 
+const char *Gtid_log_event::SET_STRING_PREFIX= "SET @@SESSION.GTID_NEXT= '";
+
 #ifdef HAVE_GTID
 Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
                                const Format_description_log_event *descr_event)
@@ -11548,22 +11550,21 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   char const *str_end= buffer + event_len;
 
   gtid_type= *ptr_buffer;
-  ptr_buffer+= GTID_TYPE_INFO_LEN;  
+  ptr_buffer+= ENCODED_TYPE_LENGTH;  
 
   gtid_flags= *ptr_buffer;
-  ptr_buffer+= GTID_FLAGS_INFO_LEN;
+  ptr_buffer+= ENCODED_FLAGS_LENGTH;
 
-  group_size= uint8korr(ptr_buffer);
-  ptr_buffer+= GROUP_SIZE_INFO_LEN;
-
-  thread_id= uint4korr(ptr_buffer);
-  ptr_buffer+= THREAD_ID_INFO_LEN;
-
-  memcpy(sid, ptr_buffer, GTID_SID_INFO_LEN);
-  ptr_buffer+= GTID_SID_INFO_LEN;
+  sid.copy_from((uchar *)ptr_buffer);
+  ptr_buffer+= ENCODED_SID_LENGTH;
+  // If error occurs, sidno becomes negative here and subsequently
+  // is_valid returns false.
+  global_sid_lock.rdlock();
+  sidno= global_sid_map.add(&sid);
+  global_sid_lock.unlock();
 
   gno= uint8korr(ptr_buffer);
-  ptr_buffer+= GTID_GNO_INFO_LEN;
+  ptr_buffer+= ENCODED_GNO_LENGTH;
 
   DBUG_ASSERT(str_end == (char *) ptr_buffer);
 
@@ -11572,20 +11573,20 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 
 #ifndef MYSQL_CLIENT
 Gtid_log_event::Gtid_log_event(THD* thd_arg)
-: Ignorable_log_event(thd_arg), gno(0),
-  gtid_type(0), gtid_flags(0),
-  group_size(0), thread_id(0)
+: Ignorable_log_event(thd_arg), sidno(0), gno(0),
+  gtid_type(0), gtid_flags(0)
 {
-  memset(sid, 0, GTID_SID_INFO_LEN);
+  sid.clear();
 }
 
-Gtid_log_event::Gtid_log_event(THD* thd_arg, const uchar* sid_arg,
-                               int64 gno_arg, uint64 group_size_arg)
-: Ignorable_log_event(thd_arg), gno(gno_arg),
-  gtid_type(1), gtid_flags(1),
-  group_size(group_size_arg), thread_id(thd_arg->thread_id)
+Gtid_log_event::Gtid_log_event(THD* thd_arg, rpl_sidno sidno_arg,
+                               rpl_gno gno_arg)
+: Ignorable_log_event(thd_arg),
+  sidno(sidno_arg), gno(gno_arg), gtid_type(1), gtid_flags(1)
 {
-  memcpy(sid, sid_arg, GTID_SID_INFO_LEN);
+  global_sid_lock.rdlock();
+  sid= *global_sid_map.sidno_to_sid(sidno);
+  global_sid_lock.unlock();
 }
 #endif
 
@@ -11596,48 +11597,39 @@ Gtid_log_event::~Gtid_log_event()
 #ifndef MYSQL_CLIENT
 void Gtid_log_event::pack_info(Protocol *protocol)
 {
-  size_t size= 0;
-  rpl_sid sid_decode;
-  char buffer[GTID_STRING_INFO_LEN];
-  char *ptr_buffer= buffer;
-  
-  ptr_buffer= strmov(ptr_buffer, "SET @@SESSION.GTID_NEXT= '");
-
-  size= sid_decode.to_string(sid, ptr_buffer);
-  ptr_buffer+= size;
-
-  size= sprintf(ptr_buffer, ":%lld';", gno);
-  ptr_buffer+= size;
-
-  protocol->store(buffer, ptr_buffer - buffer, &my_charset_bin);
+  char buffer[MAX_SET_STRING_LENGTH + 1];
+  size_t len= to_string(buffer);
+  protocol->store(buffer, len, &my_charset_bin);
 }
 #endif
 
+size_t Gtid_log_event::to_string(char *buf) const
+{
+  char *p= buf;
+  DBUG_ASSERT(strlen(SET_STRING_PREFIX) == SET_STRING_PREFIX_LENGTH);
+  strcpy(p, SET_STRING_PREFIX);
+  p+= SET_STRING_PREFIX_LENGTH;
+  p+= sid.to_string(p);
+  *p++= ':';
+  p+= format_gno(p, gno);
+  *p++= '\'';
+  *p= '\0';
+  return p - buf;
+}
+
 #ifdef MYSQL_CLIENT
 void
-Gtid_log_event::print(FILE *file,
-                      PRINT_EVENT_INFO *print_event_info)
+Gtid_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
 {
-  size_t size= 0;
-  rpl_sid sid_decode;
-  char buffer[GTID_STRING_INFO_LEN];
-  char* ptr_buffer= buffer;
+  char buffer[MAX_SET_STRING_LENGTH + 1];
   IO_CACHE *const head= &print_event_info->head_cache;
- 
   if (!print_event_info->short_form)
   {
     print_header(head, print_event_info, FALSE);
-    my_b_printf(head, "\tgtid\tthread_id=%lu\n", (ulong) thread_id);
+    my_b_printf(head, "\tGTID\n");
   }
-  
-  size= sprintf(ptr_buffer, "'");
-  ptr_buffer+= size;
-  size= sid_decode.to_string(sid, ptr_buffer);
-  ptr_buffer+= size;
-  size= sprintf(ptr_buffer, ":%lld';", gno);
-
-  my_b_printf(head, "SET @@SESSION.GTID_NEXT= %s%s\n", buffer,
-              print_event_info->delimiter);
+  to_string(buffer);
+  my_b_printf(head, "%s%s\n", buffer, print_event_info->delimiter);
 }
 #endif
 
@@ -11645,50 +11637,25 @@ Gtid_log_event::print(FILE *file,
 bool Gtid_log_event::write_data_header(IO_CACHE *file)
 {
   DBUG_ENTER("Gtid_log_event::write_data_header");
-  char buffer[GTID_TYPE_INFO_LEN + GTID_FLAGS_INFO_LEN +
-              GROUP_SIZE_INFO_LEN + THREAD_ID_INFO_LEN];
+  char buffer[POST_HEADER_LENGTH];
   char* ptr_buffer= buffer;
 
   *ptr_buffer= gtid_type;
-  ptr_buffer+= GTID_TYPE_INFO_LEN;
+  ptr_buffer+= ENCODED_TYPE_LENGTH;
 
   *ptr_buffer= gtid_flags;
-  ptr_buffer+= GTID_FLAGS_INFO_LEN;
+  ptr_buffer+= ENCODED_FLAGS_LENGTH;
 
-  int8store(ptr_buffer, group_size);
-  ptr_buffer+= GROUP_SIZE_INFO_LEN;
-
-  int4store(ptr_buffer, thread_id);
-  ptr_buffer+= THREAD_ID_INFO_LEN;
-
-  DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));
-#ifndef MYSQL_CLIENT
-  DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
-#else
-   DBUG_RETURN(my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
-#endif
-}
-
-bool Gtid_log_event::write_data_body(IO_CACHE *file)
-{
-  DBUG_ENTER("Gtid_log_event::write_data_body");
-  char buffer[GTID_SID_INFO_LEN + GTID_GNO_INFO_LEN];
-  char* ptr_buffer= buffer;
-
-  memcpy(ptr_buffer, sid, GTID_SID_INFO_LEN);
-  ptr_buffer+= GTID_SID_INFO_LEN;
+  sid.copy_to((uchar *)ptr_buffer);
+  ptr_buffer+= ENCODED_SID_LENGTH;
 
   int8store(ptr_buffer, gno);
-  ptr_buffer+= GTID_GNO_INFO_LEN;
+  ptr_buffer+= ENCODED_GNO_LENGTH;
 
   DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));
-#ifndef MYSQL_CLIENT
   DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
-#else
-   DBUG_RETURN(my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
-#endif
 }
-#endif
+#endif // MYSQL_SERVER
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
@@ -11696,25 +11663,9 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Gtid_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
 
-  size_t size= 0;
-  rpl_sid sid_decode;
-  char buffer[GTID_STRING_INFO_LEN];
-  char* ptr_buffer= buffer;
+  thd->variables.gtid_next.set(sidno, gno);
+  DBUG_PRINT("info", ("setting gtid_next=%d:%lld", sidno, gno));
 
-  size= sid_decode.to_string(sid, ptr_buffer);
-  ptr_buffer+= size;
-  size= sprintf(ptr_buffer, ":%lld", gno);
-
-  mysql_bin_log.sid_lock.rdlock();
-  if (thd->variables.gtid_next.parse(buffer) != RETURN_STATUS_OK)
-  {
-    mysql_bin_log.sid_lock.unlock();
-    DBUG_RETURN(1);
-  }
-  mysql_bin_log.sid_lock.unlock();
-
-  thd->variables.gtid_end= true;
-  thd->variables.gtid_commit= true;
   DBUG_RETURN(0);
 }
 #endif
@@ -11724,366 +11675,166 @@ uchar Gtid_log_event::get_gtid_type() const
   return gtid_type;
 }
 
-const uchar* Gtid_log_event::get_gtid_sid() const
-{
-  return sid;
-}
-
-int64 Gtid_log_event::get_gtid_gno() const
-{
-  return gno;
-}
-
 uchar Gtid_log_event::get_gtid_flags() const
 {
   return gtid_flags;
 }
 
-uint64 Gtid_log_event::get_group_size() const
+Previous_gtids_log_event::Previous_gtids_log_event(
+  const char *buffer, uint event_len,
+  const Format_description_log_event *descr_event)
+  : Ignorable_log_event(buffer, descr_event),
+    encoded_buf(NULL),
+    gtid_set(&global_sid_map)
 {
-  return group_size;
-}
-
-uint32 Gtid_log_event::get_thread_id() const
-{
-  return thread_id;
-}
-
-GtidSet_log_event::GtidSet_log_event(const char *buffer, uint event_len,
-                                     const Format_description_log_event *descr_event)
-  : Ignorable_log_event(buffer, descr_event)
-{
-  DBUG_ENTER("Gtid_log_event::Gtid_log_event");
+  DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
   uint8 const common_header_len=
     descr_event->common_header_len;
   uint8 const post_header_len=
-    descr_event->post_header_len[GTIDSET_LOG_EVENT - 1];
+    descr_event->post_header_len[PREVIOUS_GTIDS_LOG_EVENT - 1];
 
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 
-  char const *ptr_buffer= buffer + common_header_len;
-  char const *str_end= buffer + event_len;
-  DBUG_PRINT("info", ("DST SIZE OF THE EVENT %ld", str_end - ptr_buffer));
+  char const *encoded_p= buffer + common_header_len + post_header_len;
+  char const *end_p= buffer + event_len;
+  DBUG_PRINT("info", ("data size of the event: %ld", end_p - encoded_p));
 
-  nsids= uint8korr(ptr_buffer);
-  ptr_buffer+= GTID_NTH_INFO_LEN;
-
-  ngnos= uint8korr(ptr_buffer);
-  ptr_buffer+= GTID_NTH_INFO_LEN;
-
-  DBUG_PRINT("info", ("DST META-DATA nsids %lld ngnos %lld", nsids, ngnos));
-  ptr_buffer= buffer + common_header_len;
-  if ((encoded_buffer= (uchar *) my_malloc(str_end - ptr_buffer, MYF(0))))
-  {
-    memcpy(encoded_buffer, ptr_buffer, str_end - ptr_buffer);
-  }
-  else
-  {
-    nsids= 0;
-    ngnos= 0;
-  }
+  global_sid_lock.rdlock();
+  get_set_from_buf((uchar *)encoded_p, end_p - encoded_p);
+  global_sid_lock.unlock();
 
   DBUG_VOID_RETURN;
 }
 
 #ifndef MYSQL_CLIENT
-GtidSet_log_event::GtidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log)
-: Ignorable_log_event(thd_arg)
+Previous_gtids_log_event::Previous_gtids_log_event(THD* thd_arg,
+                                                   MYSQL_BIN_LOG* log)
+: Ignorable_log_event(thd_arg),
+  gtid_set(&global_sid_map), gtid_set_inited(false)
 {
-  size_t size= 0;
-  uint64 count_ngnos= 0;
-  uchar* ptr_buffer= NULL;
-  log->sid_lock.rdlock();
-  const GTID_set* grp_set= log->group_log_state.get_ended_groups();
-  rpl_sidno max_sidno= log->sid_map.get_max_sidno();
-  nsids= max_sidno;
-  /*
-    We statically assume that there will be at most 2 intervals
-    (ini, end) per sidno. So we need to keep track of the total
-    number of intervals and if this happens to be wrong we need to
-    increase the buffer's size.
-  */
-  ngnos= nsids * 2;
-  size= GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN +
-        ((GTID_SID_INFO_LEN + GTID_NTH_INFO_LEN) * nsids) +
-        ((GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN) * ngnos);
-  if ((encoded_buffer= (uchar *) my_malloc(size, MYF(0))))
-  {
-    DBUG_PRINT("info", ("SRC HEADER memory %p nsids %lld size %d, memory %p "
-               "ngnos %d size %d", encoded_buffer, nsids, GTID_NTH_INFO_LEN,
-               encoded_buffer + GTID_NTH_INFO_LEN, 0, GTID_NTH_INFO_LEN));
-
-    ptr_buffer= encoded_buffer + GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN;
-    for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
-    {
-      GTID_set::Const_interval_iterator ivit(grp_set, sidno);
-      GTID_set::Interval *iv= NULL;
-      uchar* ptr_intervals= NULL;
-      uint64 n_intervals= 0;
-      const rpl_sid* sid= log->sid_map.sidno_to_sid(sidno);
-      
-      DBUG_PRINT("info", ("SRC SID memory %p sidno %d size %d",
-                 ptr_buffer, sidno, GTID_SID_INFO_LEN));
-
-      memcpy(ptr_buffer, sid, GTID_SID_INFO_LEN);
-      ptr_buffer+= GTID_SID_INFO_LEN;
-
-      DBUG_PRINT("info", ("SRC N-INTERVALS memory %p interval %lld size %d",
-                         ptr_buffer, n_intervals, GTID_NTH_INFO_LEN));
-      ptr_intervals= ptr_buffer;
-      ptr_buffer+= GTID_NTH_INFO_LEN;
-      while ((iv= ivit.get()) != NULL)
-      {
-        int8store(ptr_buffer, iv->start);
-        ptr_buffer+= GTID_GNO_INFO_LEN;
-      
-        int8store(ptr_buffer, iv->end - 1);
-        ptr_buffer+= GTID_GNO_INFO_LEN;
-
-        DBUG_PRINT("info", ("SRC INTERVALS memory %p start %lld end %lld size %d",
-                   ptr_buffer - GTID_GNO_INFO_LEN - GTID_GNO_INFO_LEN,
-                   iv->start, iv->end, GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN));
-        if (count_ngnos > ngnos && (nsids - sidno) != 0)
-        {
-          size_t increase_size= (nsids - sidno) *
-                                (GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN) * 2;
-          size_t used_size= ptr_buffer - encoded_buffer;
-          uchar* new_encoded_buffer= NULL;
-          if (!(new_encoded_buffer= (uchar *)
-               my_realloc(encoded_buffer, size + increase_size, MYF(0))))
-          {
-            nsids= 0; ngnos= 0;
-            goto err;
-          }
-          encoded_buffer= new_encoded_buffer;
-          ptr_buffer= encoded_buffer + used_size;
-          ngnos+= (nsids - sidno) * 2;
-          size+= increase_size;
-        }
-        count_ngnos++;
-        n_intervals++;
-        ivit.next();
-      }
-      int8store(ptr_intervals, n_intervals);
-      if (n_intervals == 0) count_ngnos++;
-      DBUG_PRINT("info", ("SRC N-INTERVALS memory %p interval %lld size %d",
-                 ptr_intervals, n_intervals, GTID_NTH_INFO_LEN));
-    }
-  }
-  else
-  {
-    /* This is not implemented yet. */
-    DBUG_ASSERT(0);
-  }
-  ngnos= count_ngnos;
-
-  DBUG_PRINT("info", ("SRC HEADER memory %p nsids %lld size %d, memory %p "
-             "ngnos %lld size %d", encoded_buffer, nsids, GTID_NTH_INFO_LEN,
-             encoded_buffer + GTID_NTH_INFO_LEN, ngnos, GTID_NTH_INFO_LEN));
-  DBUG_PRINT("info", ("SRC FINAL SIZE real %ld calc %lld",
-             ptr_buffer - encoded_buffer,
-             GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN +
-             ((GTID_SID_INFO_LEN + GTID_NTH_INFO_LEN) * nsids) +
-             ((GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN) * ngnos)));
-err:
-  ptr_buffer= encoded_buffer;
-  int8store(ptr_buffer, nsids);
-  ptr_buffer+= GTID_NTH_INFO_LEN;
-  int8store(ptr_buffer, ngnos);
-  log->sid_lock.unlock();
+  global_sid_lock.rdlock();
+  get_buf_from_set(gtid_state.get_logged_groups());
+  global_sid_lock.unlock();
 }
 #endif
 
-GtidSet_log_event::~GtidSet_log_event()
+Previous_gtids_log_event::~Previous_gtids_log_event()
 {
-  my_free(encoded_buffer);
-}
-
-char* GtidSet_log_event::get_string_representation(size_t* dst_size)
-{
-  DBUG_ENTER("GtidSet_log_event::get_string_representation");
-  char* buffer= (char *) my_malloc((nsids * GTID_SID_STRING_INFO_LEN) +
-                                   (ngnos * GTID_GNO_STRING_INFO_LEN), MYF(0));
-  char *src_buffer= (char *) (encoded_buffer + GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN);
-  char *dst_buffer= buffer;
-  rpl_sid sid_decode;
-  size_t size= 0;
-
-  DBUG_PRINT("info", ("DST ALLOCATING %lld", (nsids * GTID_SID_STRING_INFO_LEN) +
-             (ngnos * GTID_GNO_STRING_INFO_LEN)));
-
-  *dst_size= 0;
-  if (dst_buffer)
-  { 
-    dst_buffer= strmov(dst_buffer, "GROUPS: ");
-    for (uint64 sidno= 1; sidno <= nsids; sidno++)
-    {
-      const uchar* sid= (const uchar*) src_buffer;
-      size= sid_decode.to_string(sid, dst_buffer);
-      dst_buffer+= size;
-
-      DBUG_PRINT("info", ("DST memory %p sid %lld size %d",
-                 src_buffer, sidno, GTID_SID_INFO_LEN));
-      src_buffer+= GTID_SID_INFO_LEN;
-      dst_buffer= strmov(dst_buffer, ":");
-      
-      uint64 interval= 0; 
-      uint64 n_intervals= uint8korr(src_buffer);
-      src_buffer+= GTID_NTH_INFO_LEN;
-      DBUG_PRINT("info", ("DST N-INTERVALS memory %p interval %lld size %d",
-                 src_buffer - GTID_NTH_INFO_LEN, n_intervals, GTID_NTH_INFO_LEN));
-      if (n_intervals)
-      {
-        while (interval < n_intervals)
-        {
-          uint64 gno_start= uint8korr(src_buffer);
-          src_buffer+= GTID_GNO_INFO_LEN;
-          uint64 gno_end= uint8korr(src_buffer);
-          src_buffer+= GTID_GNO_INFO_LEN;
-
-          DBUG_PRINT("info", ("DST INTERVALS memory %p start %lld end %lld size %d",
-                     src_buffer - GTID_GNO_INFO_LEN - GTID_GNO_INFO_LEN, gno_start,
-                     gno_end, GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN));
-
-          dst_buffer= strmov(dst_buffer, "(");
-          size= sprintf(dst_buffer, "%lld", gno_start);
-          dst_buffer+= size;
-          dst_buffer= strmov(dst_buffer, ",");
-          size= sprintf(dst_buffer, "%lld", gno_end);
-          dst_buffer+= size;
-          dst_buffer= strmov(dst_buffer, ")");
-
-          interval++;
-        }
-        dst_buffer= strmov(dst_buffer, " ");
-      }
-      else
-      {
-        dst_buffer= strmov(dst_buffer, "(0,0) ");
-      }
-    }
-    *dst_size= dst_buffer - buffer;
-    buffer[*dst_size]= 0;
-    DBUG_PRINT("info", ("size %ld %ld", dst_buffer - buffer,
-               src_buffer - (char *) encoded_buffer));
-  }
-  DBUG_RETURN(buffer);
+  DBUG_PRINT("info", ("encoded_buf=%p", encoded_buf));
+  my_free(encoded_buf);
 }
 
 #ifndef MYSQL_CLIENT
-GTID_set* GtidSet_log_event::get_group_representation(Group_log_state* grp_state, Sid_map* sid_map)
+void Previous_gtids_log_event::pack_info(Protocol *protocol)
 {
-  DBUG_ENTER("GtidSet_log_event::get_group_representation");
-  GTID_set* grp_set= new GTID_set(sid_map);
-  char *src_buffer= (char *) (encoded_buffer + GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN);
-
-  if (grp_set)
-  { 
-    for (uint64 sidno_count= 1; sidno_count <= nsids; sidno_count++)
-    {
-      rpl_sid sid_decode;
-      const uchar* sid= (const uchar*) src_buffer;
-      sid_decode.copy_from(sid);
-      rpl_sidno sidno= sid_map->add_permanent(&sid_decode);
-      grp_set->ensure_sidno(sidno);
-      /*if (grp_state->ensure_sidno() != RETURN_STATUS_OK)
-      {
-        delete grp_set;
-        DBUG_RETURN(NULL);
-      }*/
-
-      DBUG_PRINT("info", ("DST memory %p sid %d size %d",
-                 src_buffer, sidno, GTID_SID_INFO_LEN));
-      src_buffer+= GTID_SID_INFO_LEN;
-      
-      uint64 interval= 0; 
-      uint64 n_intervals= uint8korr(src_buffer);
-      src_buffer+= GTID_NTH_INFO_LEN;
-      DBUG_PRINT("info", ("DST N-INTERVALS memory %p interval %lld size %d",
-                 src_buffer - GTID_NTH_INFO_LEN, n_intervals, GTID_NTH_INFO_LEN));
-      if (n_intervals)
-      {
-        while (interval < n_intervals)
-        {
-          uint64 gno_start= uint8korr(src_buffer);
-          src_buffer+= GTID_GNO_INFO_LEN;
-          uint64 gno_end= uint8korr(src_buffer);
-          src_buffer+= GTID_GNO_INFO_LEN;
-
-          GTID_set::Interval_iterator ivit(grp_set, sidno);
-          if (grp_set->add(&ivit, gno_start, gno_end + 1) != RETURN_STATUS_OK)
-          {
-            delete grp_set;
-            DBUG_RETURN(NULL);
-          }
-
-          DBUG_PRINT("info", ("DST INTERVALS memory %p start %lld end %lld size %d",
-                     src_buffer - GTID_GNO_INFO_LEN - GTID_GNO_INFO_LEN, gno_start,
-                     gno_end, GTID_GNO_INFO_LEN + GTID_GNO_INFO_LEN));
-
-          interval++;
-        }
-      }
-    }
-  }
-  DBUG_RETURN(grp_set);
-}
-#endif
-
-#ifndef MYSQL_CLIENT
-void GtidSet_log_event::pack_info(Protocol *protocol)
-{
-  size_t size= 0;
-  char* buffer= get_string_representation(&size);
-
-  if (buffer)
+  size_t length;
+  global_sid_lock.rdlock();
+  char *str= get_str(&length);
+  global_sid_lock.unlock();
+  if (str != NULL)
   {
-    protocol->store(buffer, size, &my_charset_bin);
+    protocol->store(str, length, &my_charset_bin);
+    my_free(str);
   }
-  my_free(buffer);
 }
 #endif
 
 #ifdef MYSQL_CLIENT
-void GtidSet_log_event::print(FILE *file,
-                              PRINT_EVENT_INFO *print_event_info)
+void Previous_gtids_log_event::print(FILE *file,
+                                     PRINT_EVENT_INFO *print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
-  size_t size= 0;
-  char* buffer= get_string_representation(&size);
 
-  if (buffer)
-  { 
+  global_sid_lock.rdlock();
+  char *str= get_str();
+  global_sid_lock.unlock();
+  if (str != NULL)
+  {
     if (!print_event_info->short_form)
     {
       print_header(head, print_event_info, FALSE);
-      my_b_printf(head, "\tgtid set\n");
+      my_b_printf(head, "\tGTID-set\n");
     }
-    my_b_printf(head, "# %s\n", buffer);
+    my_b_printf(head, "%s\n", str);
+    my_free(str);
   }
-
-  my_free(buffer);
 }
 #endif
 
-#ifdef MYSQL_SERVER
-bool GtidSet_log_event::write_data_body(IO_CACHE *file)
+void Previous_gtids_log_event::get_buf_from_set(const Gtid_set *gtid_set)
 {
-  DBUG_ENTER("GtidSet_log_event::write_data_body");
+  global_sid_lock.assert_some_lock();
+  encoded_length= gtid_set->get_encoded_length();
+  encoded_buf= (uchar *)my_malloc(encoded_length, MYF(MY_WME));
+  if (encoded_buf != NULL)
+    gtid_set->encode(encoded_buf);
+}
+
+void Previous_gtids_log_event::get_set_from_buf(const uchar *buf, size_t size)
+{
+  global_sid_lock.assert_some_lock();
+  if (gtid_set.add(buf, size) == RETURN_STATUS_OK)
+    gtid_set_inited= true;
+  else
+    BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
+}
+
+const uchar *Previous_gtids_log_event::get_buf()
+{
+  if (encoded_buf == NULL)
+  {
+    if (!gtid_set_inited)
+      return NULL;
+    get_buf_from_set(&gtid_set);
+  }
+  return encoded_buf;
+}
+
+const Gtid_set *Previous_gtids_log_event::get_set()
+{
+  if (!gtid_set_inited)
+  {
+    if (encoded_buf == NULL)
+      return NULL;
+    get_set_from_buf(encoded_buf, encoded_length);
+    if (!gtid_set_inited)
+      return NULL;
+  }
+  return &gtid_set;
+}
+
+char *Previous_gtids_log_event::get_str(size_t *length_p)
+{
+  if (get_set() != NULL)
+  {
+    size_t length= gtid_set.get_string_length();
+    char* buf= (char *)my_malloc(length, MYF(MY_WME));
+    if (buf != NULL)
+    {
+      gtid_set.to_string(buf, &Gtid_set::commented_string_format);
+      if (length_p != NULL)
+        *length_p= length;
+    }
+    return buf;
+  }
+  return NULL;
+}
 
 #ifndef MYSQL_CLIENT
-  DBUG_RETURN(wrapper_my_b_safe_write(file, encoded_buffer, get_data_size()));
-#else
-   DBUG_RETURN(my_b_safe_write(file, (uchar *) encoded_buffer, get_data_size()));
-#endif
+bool Previous_gtids_log_event::write_data_body(IO_CACHE *file)
+{
+  DBUG_ENTER("Previous_gtids_log_event::write_data_body");
+  if (get_buf() == NULL)
+    DBUG_RETURN(1);
+  DBUG_RETURN(wrapper_my_b_safe_write(file, encoded_buf, encoded_length));
 }
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-int GtidSet_log_event::do_apply_event(Relay_log_info const *rli)
+int Previous_gtids_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  DBUG_ENTER("GtidSet_log_event::do_apply_event");
+  DBUG_ENTER("Previous_gtids_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
 
   /*
@@ -12094,6 +11845,7 @@ int GtidSet_log_event::do_apply_event(Relay_log_info const *rli)
 }
 #endif
 #endif // HAVE_GTID
+
 
 #ifdef MYSQL_CLIENT
 /**
@@ -12106,7 +11858,6 @@ st_print_event_info::st_print_event_info()
    auto_increment_increment(0),auto_increment_offset(0), charset_inited(0),
    lc_time_names_number(~0),
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
-   thread_id(0), thread_id_printed(false),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
    have_unflushed_events(FALSE)
 {
