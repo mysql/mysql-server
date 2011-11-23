@@ -2015,27 +2015,6 @@ err:
 }
 
 
-void implicit_commit_after(THD *thd)
-{
-  DBUG_ENTER("implicit_commit_after");
-
-  /* No transaction control allowed in sub-statements. */
-  DBUG_ASSERT(! thd->in_sub_stmt);
-  /* If commit fails, we should be able to reset the OK status. */
-  thd->get_stmt_da()->set_overwrite_status(true);
-  /* Commit the normal transaction if one is active. */
-  trans_commit_implicit(thd);
-  thd->get_stmt_da()->set_overwrite_status(false);
-  thd->mdl_context.release_transactional_locks();
-
-#ifdef HAVE_GTID
-  if (thd->variables.gtid_commit)
-    thd->variables.gtid_has_ongoing_commit_sequence= 0;
-#endif
-  DBUG_VOID_RETURN;
-}
-
-
 /**
   Execute command saved in thd and lex->sql_command.
 
@@ -2254,13 +2233,13 @@ mysql_execute_command(THD *thd)
     /*
       Initialize the cache manager if this was not done yet.
       binlog_setup_trx_data is idempotent and if it's not called here
-      it's called elsewhere.  It is neede here just so that
+      it's called elsewhere.  It is needed here just so that
       thd->get_group_cache won't crash.
     */
     thd->binlog_setup_trx_data();
     enum_gtid_statement_status state=
-      gtid_before_statement(thd, &mysql_bin_log.sid_lock,
-                            &mysql_bin_log.group_log_state,
+      gtid_before_statement(thd, &global_sid_lock,
+                            &gtid_state,
                             thd->get_group_cache(false),
                             thd->get_group_cache(true));
     if (state == GTID_STATEMENT_CANCEL)
@@ -2268,10 +2247,6 @@ mysql_execute_command(THD *thd)
       DBUG_RETURN(-1);
     else if (state == GTID_STATEMENT_SKIP)
     {
-      // even if statement is skipped, we have to check if gtid_commit
-      // causes it to commit the master-super-group.
-      if (thd->variables.gtid_commit)
-        implicit_commit_after(thd);
       my_ok(thd);
       DBUG_RETURN(0);
     }
@@ -4742,14 +4717,16 @@ finish:
     DEBUG_SYNC(thd, "execute_command_after_close_tables");
 #endif
 
-  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END)
-// #ifdef HAVE_GTID
-//      || (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt &&
-//          thd->variables.gtid_commit)
-//#endif
-      )
+  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END))
   {
-    implicit_commit_after(thd);
+    /* No transaction control allowed in sub-statements. */
+    DBUG_ASSERT(! thd->in_sub_stmt);
+    /* If commit fails, we should be able to reset the OK status. */
+    thd->get_stmt_da()->set_overwrite_status(true);
+    /* Commit the normal transaction if one is active. */
+    trans_commit_implicit(thd);
+    thd->get_stmt_da()->set_overwrite_status(false);
+    thd->mdl_context.release_transactional_locks();
   }
   else if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
   {

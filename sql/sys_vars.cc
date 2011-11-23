@@ -34,7 +34,7 @@
 #include "sql_priv.h"
 #include "sql_class.h"                          // set_var.h: THD
 #include "sys_vars.h"
-#include "zgroups.h"
+#include "zgtids.h"
 #include "mysql_com.h"
 
 #include "events.h"
@@ -428,7 +428,7 @@ static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var
 }
 
 static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
-{  
+{
   if (thd->in_active_multi_stmt_transaction())
   {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->var->name);
@@ -3613,11 +3613,6 @@ static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
   if (check_top_level_stmt_and_super(self, thd, var) ||
       check_outside_transaction(self, thd, var))
     DBUG_RETURN(true);
-  if (thd->variables.gtid_has_ongoing_commit_sequence)
-  {
-    my_error(ER_CANT_CHANGE_GTID_NEXT_LIST_IN_TRANSACTION, MYF(0));
-    DBUG_RETURN(true);
-  }
   DBUG_RETURN(false);
 }
 
@@ -3632,26 +3627,20 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
   if (check_top_level_stmt_and_super(self, thd, var))
     DBUG_RETURN(true);
 
-  if (thd->variables.gtid_has_ongoing_commit_sequence)
+  // Inside a transaction, GTID_NEXT is read-only if GTID_NEXT_LIST is
+  // NULL.
+  if (thd->in_active_multi_stmt_transaction() &&
+      !thd->variables.gtid_next_list.is_non_null)
   {
-    // Inside a master-super-group, GTID_NEXT is read-only if
-    // GTID_NEXT_LIST is NULL.
-    if (!thd->variables.gtid_next_list.is_non_null)
-    {
-      my_error(ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL, MYF(0));
-      DBUG_RETURN(true);
-    }
-    DBUG_RETURN(false);
+    my_error(ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL, MYF(0));
+    DBUG_RETURN(true);
   }
-  else
-    // Outside a master-super-group, GTID_NEXT may only be set outside
-    // of a transaction.
-    DBUG_RETURN(check_outside_transaction(self, thd, var));
+  DBUG_RETURN(false);
 }
 
 static Sys_var_gtid_set Sys_gtid_next_list(
        "gtid_next_list",
-       "The set of groups that will be part of the following super-group.",
+       "Before re-executing a transaction that contains multiple Global Transaction Identifiers, this variable must be set to the set of all re-executed transactions.",
        SESSION_ONLY(gtid_next_list), NO_CMD_LINE,
        DEFAULT(NULL), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_gtid_next_list));
@@ -3659,41 +3648,14 @@ export sys_var *Sys_gtid_next_list_ptr= &Sys_gtid_next_list;
 
 static Sys_var_gtid_specification Sys_gtid_next(
        "gtid_next",
-       "The Global Transaction Identifier for the following statement.",
+       "The Global Transaction Identifier for the following statement to re-execute.",
        SESSION_ONLY(gtid_next), NO_CMD_LINE,
        DEFAULT("AUTOMATIC"), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_gtid_next));
 export sys_var *Sys_gtid_next_ptr= &Sys_gtid_next;
 
-static Sys_var_mybool Sys_gtid_end(
-       "gtid_end",
-       "If 1, the next statement will end the group.",
-       SESSION_ONLY(gtid_end), NO_CMD_LINE,
-       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_top_level_stmt_and_super));
-export sys_var *Sys_gtid_end_ptr= &Sys_gtid_end;
-
-static Sys_var_mybool Sys_gtid_commit(
-       "gtid_commit",
-       "If 1, the next statement will commit the super-group.",
-       SESSION_ONLY(gtid_commit), NO_CMD_LINE,
-       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_top_level_stmt_and_super));
-export sys_var *Sys_gtid_commit_ptr= &Sys_gtid_commit;
-
-static Sys_var_mybool Sys_gtid_has_ongoing_commit_sequence(
-       "gtid_has_ongoing_commit_sequence",
-       "Read-only variable that is set to 1 while the server re-executes a commit sequence.",
-       READ_ONLY SESSION_ONLY(gtid_has_ongoing_commit_sequence), NO_CMD_LINE,
-       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_top_level_stmt_and_super));
-
-static Sys_var_gtid_ended_groups Sys_gtid_ended_groups(
-       "gtid_ended_groups",
-       "The global variable contains the set of groups that are ended in the binary log. The session variable contains the set of groups that are ended in the current transaction.");
-
-static Sys_var_gtid_partial_groups Sys_gtid_partial_groups(
-       "gtid_partial_groups",
-       "The global variable contains the set of groups that are partial in the binary log. The session variable contains the set of groups that are partial in the current transaction.");
+static Sys_var_gtid_done Sys_gtid_done(
+       "gtid_done",
+       "The global variable contains the set of GTIDs in the binary log. The session variable contains the set of groups in the current, ongoing transaction.");
 
 #endif

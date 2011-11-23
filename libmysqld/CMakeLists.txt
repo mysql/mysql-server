@@ -66,13 +66,12 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_reporting.cc
   ../sql/rpl_utility.cc
   ../sql/zuuid.cc
-  ../sql/zgroup.cc
+  ../sql/zgtid.cc
   ../sql/zreturn.cc
-  ../sql/zowner_id.cc
   ../sql/zsid_map.cc
   ../sql/zgtid_set.cc
   ../sql/zgtid_specification.cc
-  ../sql/zgroup_log_state.cc
+  ../sql/zgtid_state.cc
   ../sql/zowned_groups.cc
   ../sql/zgroup_cache.cc
   ../sql/zgroup_execution.cc

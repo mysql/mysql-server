@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "zgroups.h"
+#include "zgtids.h"
 
 
 #ifdef HAVE_GTID
@@ -89,7 +89,7 @@ bool Uuid::is_valid(const char *s)
       if (*ss != '-')
         DBUG_RETURN(false);
       ss++;
-    }        
+    }
     for (int j= 0; j < bytes_per_section[i]; j++)
     {
       if (hex_to_byte[*ss] == -1)
@@ -104,7 +104,7 @@ bool Uuid::is_valid(const char *s)
 }
 
 
-size_t Uuid::to_string(const uchar* bytes_arg, char *buf) const
+size_t Uuid::to_string(const uchar* bytes_arg, char *buf)
 {
   DBUG_ENTER("Uuid::to_string");
   static const char byte_to_hex[]= "0123456789ABCDEF";

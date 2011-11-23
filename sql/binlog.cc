@@ -563,52 +563,42 @@ int gtid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
 {
   DBUG_ENTER("gtid_flush_group_cache");
   
-  Cached_subgroup *subgroup_cache= NULL;
-  const rpl_sid *sid= NULL;
-  rpl_gno gno= 0;
-  
-  mysql_bin_log.sid_lock.rdlock();
-
   Group_cache* group_cache= &cache_data->group_cache;
- 
-  if (group_cache->add_logged_subgroup(thd, cache_data->get_byte_position()) !=
-      RETURN_STATUS_OK)
-  {
-    mysql_bin_log.sid_lock.unlock();
-    DBUG_RETURN(1);
-  }
+  
+  global_sid_lock.rdlock();
 
-  if (group_cache->generate_automatic_gno(thd, &mysql_bin_log.group_log_state) !=
-      RETURN_STATUS_OK)
+  if ((group_cache->add_logged_group(thd, cache_data->get_byte_position()) !=
+       RETURN_STATUS_OK) ||
+      (group_cache->generate_automatic_gno(thd, &gtid_state) !=
+       RETURN_STATUS_OK) ||
+      (group_cache->update_gtid_state(thd, &gtid_state) != RETURN_STATUS_OK))
   {
-    mysql_bin_log.sid_lock.unlock();
+    global_sid_lock.unlock();
     DBUG_RETURN(1); 
   }
 
-  if (group_cache->update_group_log_state(thd, &mysql_bin_log.group_log_state) !=
-      RETURN_STATUS_OK)
-  {
-    mysql_bin_log.sid_lock.unlock();
-    DBUG_RETURN(1); 
-  }
+  Cached_group *cached_group= group_cache->get_unsafe_pointer(0);
+  rpl_sidno sidno= cached_group->sidno;
+  rpl_gno gno= cached_group->gno;
 
-  subgroup_cache= group_cache->get_unsafe_pointer(0);
-  sid= mysql_bin_log.sid_map.sidno_to_sid(subgroup_cache->sidno);
-  gno= subgroup_cache->gno;
+  // @todo: these assertions will all be false in the final version /sven
+  DBUG_ASSERT(group_cache->get_n_groups() == 1);
+  DBUG_ASSERT(static_cast<my_off_t>(cached_group->binlog_length) == cache_data->get_byte_position());
+  group_cache->print(&global_sid_map);
+  DBUG_ASSERT(cached_group->type == GTID_GROUP);
 
-  DBUG_ASSERT(group_cache->get_n_subgroups() == 1 && subgroup_cache->group_end == 1 &&
-              static_cast<my_off_t>(subgroup_cache->binlog_length) == cache_data->get_byte_position() &&
-              subgroup_cache->type == NORMAL_SUBGROUP);
-  mysql_bin_log.sid_lock.unlock();
+  global_sid_lock.unlock();
 
   /*
+    @todo
     In what follows, We need to replace the information at this point with
     valid stuff.
   */
   my_off_t saved_position= cache_data->get_byte_position();
-  Gtid_log_event uinfo(thd, sid->bytes, gno, saved_position);
+  Gtid_log_event uinfo(thd, sidno, gno);
   my_b_seek(&cache_data->cache_log, 0);
   write_event_to_cache(thd, &uinfo, cache_data);
+  // @todo: why seek back??? /sven
   my_b_seek(&cache_data->cache_log, saved_position);
 
   DBUG_RETURN(0);
@@ -1691,9 +1681,6 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
    description_event_for_exec(0), description_event_for_queue(0)
-#ifdef HAVE_GTID
-  , sid_map(&sid_lock), group_log_state(&sid_lock, &sid_map)
-#endif
 {
   /*
     We don't want to initialize locks here as such initialization depends on
@@ -1706,25 +1693,6 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
   memset(&purge_index_file, 0, sizeof(purge_index_file));
   memset(&crash_safe_index_file, 0, sizeof(crash_safe_index_file));
 }
-
-
-#ifdef HAVE_GTID
-int MYSQL_BIN_LOG::init_sid_map()
-{
-  DBUG_ENTER("MYSQL_BIN_LOG::init_sid_map()");
-  rpl_sid server_uuid_sid;
-  
-  if (server_uuid_sid.parse(server_uuid))
-    DBUG_RETURN(1);
-  rpl_sidno sidno= sid_map.add_permanent(&server_uuid_sid);
-  if (sidno <= 0)
-    DBUG_RETURN(1);
-  server_uuid_sidno= sidno;
-  PROPAGATE_REPORTED_ERROR_INT(group_log_state.ensure_sidno());
-
-  DBUG_RETURN(0);
-}
-#endif
 
 
 /* this is called only once */
@@ -1753,11 +1721,6 @@ int MYSQL_BIN_LOG::init(bool no_auto_events_arg, ulong max_size_arg)
   no_auto_events= no_auto_events_arg;
   max_size= max_size_arg;
   DBUG_PRINT("info",("max_size: %lu", max_size));
-#ifdef HAVE_GTID
-  sid_lock.rdlock();
-  PROPAGATE_REPORTED_ERROR(group_log_state.ensure_sidno());
-  sid_lock.unlock();
-#endif
   DBUG_RETURN(0);
 }
 
@@ -1866,7 +1829,7 @@ bool MYSQL_BIN_LOG::restore_gtid()
   File file= -1;
   const char *errmsg= NULL;
   FileSet file_set;
-  bool found_gtidset= false;
+  bool found_prev_gtids= false;
   DBUG_ENTER("MYSQL_BIN_LOG::restore_gtid");
 
   /*
@@ -1936,47 +1899,45 @@ bool MYSQL_BIN_LOG::restore_gtid()
     while ((ev= Log_event::read_log_event(&log, 0, p_fdle,
                                           opt_slave_sql_verify_checksum)))
     {
-      if (ev->get_type_code() == GTIDSET_LOG_EVENT)
+      if (ev->get_type_code() == PREVIOUS_GTIDS_LOG_EVENT)
       {
-        if (found_gtidset)
+        if (found_prev_gtids)
         {
           delete ev;
           goto next_file;
         }
-        sid_lock.rdlock();
-        GtidSet_log_event *gtidset= (GtidSet_log_event*) ev;
-        GTID_set* grp_set= gtidset->get_group_representation(&group_log_state, &sid_map);
-        if (grp_set == NULL)
+        global_sid_lock.rdlock();
+        Previous_gtids_log_event *prev_gtids_ev= (Previous_gtids_log_event *)ev;
+        const Gtid_set* gtid_set= prev_gtids_ev->get_set();
+        if (gtid_set == NULL)
         {
           delete ev;
-          sid_lock.unlock();
+          global_sid_lock.unlock();
           goto err;
         }
-        GTID_set *ended_group= const_cast<GTID_set *>(group_log_state.get_ended_groups());
-        if (ended_group->add(grp_set) != RETURN_STATUS_OK)
+        Gtid_set *logged_groups= const_cast<Gtid_set *>(gtid_state.get_logged_groups());
+        if (logged_groups->add(gtid_set) != RETURN_STATUS_OK)
         {
-          delete grp_set;
           delete ev;
-          sid_lock.unlock();
+          global_sid_lock.unlock();
           goto err;
         }
-        found_gtidset= true;
-        delete grp_set;
-        sid_lock.unlock();
+        found_prev_gtids= true;
+        global_sid_lock.unlock();
       }
       if (ev->get_type_code() == GTID_LOG_EVENT)
       {
-        Gtid_log_event *gtid= (Gtid_log_event*) ev; 
+        Gtid_log_event *gtid_ev= (Gtid_log_event*) ev; 
 
-        sid_lock.rdlock();
-        if (group_log_state.update_state_from_gtid(gtid->get_gtid_sid(),
-                                                   gtid->get_gtid_gno()))
+        global_sid_lock.rdlock();
+        if (gtid_state.add_logged_gtid(gtid_ev->get_sidno(),
+                                       gtid_ev->get_gno()))
         {
-          sid_lock.unlock();
+          global_sid_lock.unlock();
           delete ev;
           goto err;
         }
-        sid_lock.unlock();
+        global_sid_lock.unlock();
       }
       delete ev;
     }
@@ -1988,10 +1949,10 @@ next_file:
 
   if (file_set.size() > 1)
   {
-    GtidSet_log_event uset(current_thd, this);
-    if (uset.write(&log_file))
+    Previous_gtids_log_event prev_gtids_ev(current_thd, this);
+    if (prev_gtids_ev.write(&log_file))
       goto err;
-    bytes_written+= uset.data_written;
+    bytes_written+= prev_gtids_ev.data_written;
   }
 
   mysql_mutex_unlock(&LOCK_index);
@@ -2150,10 +2111,10 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       bytes_written+= s.data_written;
       if (current_thd)
       {
-        GtidSet_log_event uset(current_thd, this);
-        if (uset.write(&log_file))
+        Previous_gtids_log_event prev_gtids_ev(current_thd, this);
+        if (prev_gtids_ev.write(&log_file))
           goto err;
-        bytes_written+= uset.data_written;
+        bytes_written+= prev_gtids_ev.data_written;
       }
     }
     if (description_event_for_queue &&
@@ -2609,7 +2570,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   mysql_mutex_lock(&LOCK_index);
 
 #ifdef HAVE_GTID
-  sid_lock.rdlock();
+  global_sid_lock.rdlock();
 #endif
 
   /* Save variables so that we can reopen the log */
@@ -2698,10 +2659,10 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     need_start_event=1;
 
 #ifdef HAVE_GTID
-  group_log_state.clear();
-  if (sid_map.clear() != RETURN_STATUS_OK ||
-      init_sid_map() != 0 ||
-      group_log_state.ensure_sidno() != RETURN_STATUS_OK)
+  gtid_state.clear();
+  if (global_sid_map.clear() != RETURN_STATUS_OK ||
+      gtid_state.init() != 0 ||
+      gtid_state.ensure_sidno() != RETURN_STATUS_OK)
     goto err;
 #endif
 
@@ -2714,7 +2675,7 @@ err:
   if (error == 1)
     name= const_cast<char*>(save_name);
 #ifdef HAVE_GTID
-  sid_lock.unlock();
+  global_sid_lock.unlock();
 #endif
   mysql_mutex_unlock(&LOCK_thread_count);
   mysql_mutex_unlock(&LOCK_index);

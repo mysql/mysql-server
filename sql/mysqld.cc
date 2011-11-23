@@ -70,7 +70,7 @@
 #include "debug_sync.h"
 #include "sql_callback.h"
 #include "opt_trace_context.h"
-#include "zgroups.h"
+#include "zgtids.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -5003,9 +5003,9 @@ int mysqld_main(int argc, char **argv)
 
         No error message is needed: init_sid_map() prints a message.
       */
-      mysql_bin_log.sid_lock.rdlock();
-      int ret= mysql_bin_log.init_sid_map();
-      mysql_bin_log.sid_lock.unlock();
+      global_sid_lock.rdlock();
+      int ret= gtid_state.init();
+      global_sid_lock.unlock();
       if (ret)
         unireg_abort(1);
 

@@ -5646,7 +5646,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   break;
 
 #ifdef HAVE_GTID
-  case GTIDSET_LOG_EVENT:
+  case PREVIOUS_GTIDS_LOG_EVENT:
     inc_pos= event_len;
   break;
 
@@ -5656,14 +5656,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
                         event_len - BINLOG_CHECKSUM_LEN : event_len,
                         rli->relay_log.description_event_for_queue);
 
-    rli->relay_log.sid_lock.rdlock();
-    if (rli->relay_log.group_log_state.update_state_from_gtid(gtid.get_gtid_sid(),
-                                                              gtid.get_gtid_gno()))
+    rli->sid_lock->rdlock();
+    rli->gtid_set.ensure_sidno(gtid.get_sidno());
+    if (rli->gtid_set._add(gtid.get_sidno(), gtid.get_gno()))
     {
-      rli->relay_log.sid_lock.unlock();
+      rli->sid_lock->unlock();
       goto err;
     }
-    rli->relay_log.sid_lock.unlock();
+    rli->sid_lock->unlock();
     inc_pos= event_len;
   }
   break;
@@ -5689,7 +5689,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   mysql_mutex_lock(log_lock);
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
-  if (buf[EVENT_TYPE_OFFSET] == GTIDSET_LOG_EVENT ||
+  if (buf[EVENT_TYPE_OFFSET] == PREVIOUS_GTIDS_LOG_EVENT ||
       (s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
       /*
         the following conjunction deals with IGNORE_SERVER_IDS, if set
@@ -5721,7 +5721,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       IGNORE_SERVER_IDS it increments mi->get_master_log_pos()
       as well as rli->group_relay_log_pos.
     */
-    if (buf[EVENT_TYPE_OFFSET] == GTIDSET_LOG_EVENT ||
+    if (buf[EVENT_TYPE_OFFSET] == PREVIOUS_GTIDS_LOG_EVENT ||
         !(s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
         (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
          buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT &&

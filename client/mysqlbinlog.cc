@@ -39,12 +39,12 @@
 
 /*
   error() is used in macro BINLOG_ERROR which is invoked in
-  zgroups.h, hence the early forward declaration.
+  zgtids.h, hence the early forward declaration.
 */
 static void error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
-#include "zgroups.h"
+#include "zgtids.h"
 #include "log_event.h"
 #include "log_event_old.h"
 #include "sql_common.h"
@@ -2362,4 +2362,3 @@ int main(int argc, char** argv)
 #include "zreturn.cc"
 #include "zuuid.cc"
 #include "zgtid_set.cc"
-#include "zgroup.cc"
