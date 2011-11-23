@@ -85,7 +85,7 @@ static int join_tab_cmp_embedded_first(const void *emb, const void* ptr1, const 
 static bool find_best(JOIN *join,table_map rest_tables,uint index,
 		      double record_count,double read_time);
 static uint cache_record_length(JOIN *join,uint index);
-static bool get_best_combination(JOIN *join);
+bool get_best_combination(JOIN *join);
 static store_key *get_store_key(THD *thd,
 				KEYUSE *keyuse, table_map used_tables,
 				KEY_PART_INFO *key_part, uchar *key_buff,
@@ -4883,7 +4883,7 @@ void set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
   join->positions[idx].records_read=1.0;	/* This is a const table */
   join->positions[idx].ref_depend_map= 0;
 
-  join->positions[idx].loosescan_key= MAX_KEY; /* Not a LooseScan */
+//  join->positions[idx].loosescan_key= MAX_KEY; /* Not a LooseScan */
   join->positions[idx].sj_strategy= SJ_OPT_NONE;
   join->positions[idx].use_join_buffer= FALSE;
 
@@ -5533,7 +5533,7 @@ best_access_path(JOIN      *join,
   pos->key=          best_key;
   pos->table=        s;
   pos->ref_depend_map= best_ref_depends_map;
-  pos->loosescan_key= MAX_KEY;
+  pos->loosescan_picker.loosescan_key= MAX_KEY;
   pos->use_join_buffer= best_uses_jbuf;
    
   loose_scan_opt.save_to_position(s, loose_scan_pos);
@@ -5840,7 +5840,7 @@ optimize_straight_join(JOIN *join, table_map join_tables)
     /* compute the cost of the new plan extended with 's' */
     record_count*= join->positions[idx].records_read;
     read_time+=    join->positions[idx].read_time;
-    advance_sj_state(join, join_tables, s, idx, &record_count, &read_time,
+    advance_sj_state(join, join_tables, idx, &record_count, &read_time,
                      &loose_scan_pos);
 
     join_tables&= ~(s->table->map);
@@ -6356,7 +6356,7 @@ best_extension_by_limited_search(JOIN      *join,
       current_record_count= record_count * position->records_read;
       current_read_time=    read_time + position->read_time;
 
-      advance_sj_state(join, remaining_tables, s, idx, &current_record_count,
+      advance_sj_state(join, remaining_tables, idx, &current_record_count,
                        &current_read_time, &loose_scan_pos);
 
       /* Expand only partial plans with lower cost than the best QEP so far */
@@ -6513,7 +6513,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       */
       double current_record_count=record_count*records;
       double current_read_time=read_time+best;
-      advance_sj_state(join, rest_tables, s, idx, &current_record_count, 
+      advance_sj_state(join, rest_tables, idx, &current_record_count, 
                        &current_read_time, &loose_scan_pos);
 
       if (best_record_count > current_record_count ||
@@ -7013,7 +7013,7 @@ static Item * const null_ptr= NULL;
     TRUE   Out of memory
 */
 
-static bool
+bool
 get_best_combination(JOIN *join)
 {
   uint tablenr;
@@ -7091,13 +7091,6 @@ get_best_combination(JOIN *join)
     
     *j= *join->best_positions[tablenr].table;
 
-#if 0
-/* SJ-Materialization is represented with join tab ranges */
-    if (j->sj_strategy == SJ_OPT_MATERIALIZE || 
-        j->sj_strategy == SJ_OPT_MATERIALIZE)
-      j->sj_strategy= SJ_OPT_NONE;  
-#endif
-
     j->bush_root_tab= sjm_nest_root;
 
     form=join->table[tablenr]=j->table;
@@ -7120,7 +7113,7 @@ get_best_combination(JOIN *join)
         (join->best_positions[tablenr].sj_strategy == SJ_OPT_LOOSE_SCAN))
     {
       j->type=JT_ALL;
-      j->index= join->best_positions[tablenr].loosescan_key;
+      j->index= join->best_positions[tablenr].loosescan_picker.loosescan_key;
       if (tablenr != join->const_tables)
 	join->full_join=1;
     }
