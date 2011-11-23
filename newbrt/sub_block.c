@@ -37,6 +37,13 @@ sub_block_header_size(int n_sub_blocks) {
     return sizeof (u_int32_t) + n_sub_blocks * sizeof (struct stored_sub_block);
 }
 
+// Allow the makefile to optionally configure for no compression
+#ifdef TOKU_CONFIG_NO_COMPRESSION
+static enum toku_compression_method toku_compress_method = TOKU_NO_COMPRESSION;
+#else
+static enum toku_compression_method toku_compress_method = TOKU_QUICKLZ_METHOD;
+#endif
+
 void
 set_compressed_size_bound(struct sub_block *se) {
     se->compressed_size_bound = toku_compress_bound(toku_compress_method, se->uncompressed_size);
@@ -144,12 +151,6 @@ compress_work_init(struct compress_work *w, struct sub_block *sub_block) {
     w->sub_block = sub_block;
 }
 
-// Allow the makefile to optionally configure for no compression
-#ifdef TOKU_CONFIG_NO_COMPRESSION
-static enum toku_compression_method toku_compress_method = TOKU_NO_COMPRESSION;
-#else
-static enum toku_compression_method toku_compress_method = TOKU_QUICKLZ_METHOD;
-#endif
 
 void toku_set_default_compression_method (enum toku_compression_method a) {
     switch (a) {
