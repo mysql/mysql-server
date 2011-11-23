@@ -1201,19 +1201,19 @@ error_handling:
 	/* After an error, remove all those index definitions from the
 	dictionary which were defined. */
 
+	if (!dict_locked) {
+		row_mysql_lock_data_dictionary(trx);
+		dict_locked = TRUE;
+	}
+
 	switch (error) {
 	case DB_SUCCESS:
-		ut_a(!dict_locked);
-
-		ut_d(mutex_enter(&dict_sys->mutex));
 		ut_d(dict_table_check_for_dup_indexes(prebuilt->table, TRUE));
-		ut_d(mutex_exit(&dict_sys->mutex));
 
 		*add = new ha_innobase_add_index(
 			table, key_info, num_of_keys, indexed_table);
 
 		dict_table_close(prebuilt->table, dict_locked);
-
 		break;
 
 	case DB_TOO_BIG_RECORD:
@@ -1231,11 +1231,6 @@ error_exit:
 
 		trx->error_state = DB_SUCCESS;
 
-		if (!dict_locked) {
-			row_mysql_lock_data_dictionary(trx);
-			dict_locked = TRUE;
-		}
-
 		if (new_primary) {
 			if (indexed_table != prebuilt->table) {
 				dict_table_close(indexed_table, dict_locked);
@@ -1248,18 +1243,15 @@ error_exit:
 	}
 
 	ut_ad(!new_primary || prebuilt->table->n_ref_count == 1);
-
 	trx_commit_for_mysql(trx);
+	ut_ad(dict_locked);
+	row_mysql_unlock_data_dictionary(trx);
+	trx_free_for_mysql(trx);
+	mem_heap_free(heap);
+
 	if (prebuilt->trx) {
 		trx_commit_for_mysql(prebuilt->trx);
 	}
-
-	if (dict_locked) {
-		row_mysql_unlock_data_dictionary(trx);
-	}
-
-	trx_free_for_mysql(trx);
-	mem_heap_free(heap);
 
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
