@@ -11788,15 +11788,14 @@ GtidSet_log_event::GtidSet_log_event(const char *buffer, uint event_len,
 }
 
 #ifndef MYSQL_CLIENT
-GtidSet_log_event::GtidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log)
+GtidSet_log_event::GtidSet_log_event(THD* thd_arg, Sid_map* sid_map,
+                                     const GTID_set* grp_set)
 : Ignorable_log_event(thd_arg)
 {
   size_t size= 0;
   uint64 count_ngnos= 0;
   uchar* ptr_buffer= NULL;
-  log->sid_lock.rdlock();
-  const GTID_set* grp_set= log->group_log_state.get_ended_groups();
-  rpl_sidno max_sidno= log->sid_map.get_max_sidno();
+  rpl_sidno max_sidno= sid_map->get_max_sidno();
   nsids= max_sidno;
   /*
     We statically assume that there will be at most 2 intervals
@@ -11821,7 +11820,7 @@ GtidSet_log_event::GtidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log)
       GTID_set::Interval *iv= NULL;
       uchar* ptr_intervals= NULL;
       uint64 n_intervals= 0;
-      const rpl_sid* sid= log->sid_map.sidno_to_sid(sidno);
+      const rpl_sid* sid= sid_map->sidno_to_sid(sidno);
       
       DBUG_PRINT("info", ("SRC SID memory %p sidno %d size %d",
                  ptr_buffer, sidno, GTID_SID_INFO_LEN));
@@ -11891,7 +11890,6 @@ err:
   int8store(ptr_buffer, nsids);
   ptr_buffer+= GTID_NTH_INFO_LEN;
   int8store(ptr_buffer, ngnos);
-  log->sid_lock.unlock();
 }
 #endif
 
@@ -11972,26 +11970,37 @@ char* GtidSet_log_event::get_string_representation(size_t* dst_size)
 }
 
 #ifndef MYSQL_CLIENT
-GTID_set* GtidSet_log_event::get_group_representation(Group_log_state* grp_state, Sid_map* sid_map)
+GTID_set* GtidSet_log_event::get_group_rep(Sid_map* sid_map_arg)
+{
+  return(GtidSet_log_event::get_group_rep(sid_map_arg, encoded_buffer, nsids));
+}
+
+GTID_set* GtidSet_log_event::get_group_rep(Sid_map* sid_map_arg,
+                                           const uchar* encoded_buffer_arg)
+{
+  uint64 nsids_arg= uint8korr(encoded_buffer_arg);
+  return (GtidSet_log_event::get_group_rep(sid_map_arg, encoded_buffer_arg,
+                                           nsids_arg));
+}
+
+GTID_set* GtidSet_log_event::get_group_rep(Sid_map* sid_map_arg,
+                                           const uchar* encoded_buffer_arg,
+                                           uint64 nsids_arg)
 {
   DBUG_ENTER("GtidSet_log_event::get_group_representation");
-  GTID_set* grp_set= new GTID_set(sid_map);
-  char *src_buffer= (char *) (encoded_buffer + GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN);
+  GTID_set* grp_set= new GTID_set(sid_map_arg);
+  char *src_buffer= (char *) (encoded_buffer_arg +
+                              GTID_NTH_INFO_LEN + GTID_NTH_INFO_LEN);
 
   if (grp_set)
   { 
-    for (uint64 sidno_count= 1; sidno_count <= nsids; sidno_count++)
+    for (uint64 sidno_count= 1; sidno_count <= nsids_arg; sidno_count++)
     {
       rpl_sid sid_decode;
       const uchar* sid= (const uchar*) src_buffer;
       sid_decode.copy_from(sid);
-      rpl_sidno sidno= sid_map->add_permanent(&sid_decode);
+      rpl_sidno sidno= sid_map_arg->add_permanent(&sid_decode);
       grp_set->ensure_sidno(sidno);
-      /*if (grp_state->ensure_sidno() != RETURN_STATUS_OK)
-      {
-        delete grp_set;
-        DBUG_RETURN(NULL);
-      }*/
 
       DBUG_PRINT("info", ("DST memory %p sid %d size %d",
                  src_buffer, sidno, GTID_SID_INFO_LEN));

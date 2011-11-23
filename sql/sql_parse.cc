@@ -157,6 +157,7 @@ const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Set option") },
   { C_STRING_WITH_LEN("Fetch") },
   { C_STRING_WITH_LEN("Daemon") },
+  { C_STRING_WITH_LEN("Binlog Dump GTId") },
   { C_STRING_WITH_LEN("Error") }  // Last command number
 };
 
@@ -1378,6 +1379,59 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     error=TRUE;					// End server
     break;
 #ifndef EMBEDDED_LIBRARY
+  case COM_BINLOG_DUMP_GTID:
+    {
+      /*
+        Before going GA, we need to make this protocol extensible without
+        breaking compatitibilty. /Alfranio.
+      */
+      String slave_uuid;
+      ushort flags= 0;
+      uint32 data_size= 0;
+      uint64 pos= 0;
+      char name[FN_REFLEN + 1];
+      uint32 name_size= 0;
+      const uchar* ptr_buffer= (uchar *) packet;
+
+      status_var_increment(thd->status_var.com_other);
+      thd->enable_slow_log= opt_log_slow_admin_statements;
+      if (check_global_access(thd, REPL_SLAVE_ACL))
+	break;
+
+      flags = uint2korr(ptr_buffer);
+      ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
+      thd->server_id= uint4korr(ptr_buffer);
+      ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
+      name_size= uint4korr(ptr_buffer);
+      ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
+      strncpy(name, (const char *) ptr_buffer, name_size);
+      ptr_buffer+= name_size;
+      name[name_size]= 0;
+      pos= uint8korr(ptr_buffer);
+      ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
+
+      DBUG_PRINT("info", ("Slave %d requested to read %s at position %d.", thd->server_id, name, name_size));
+      if (is_master_slave_proto(flags, BINLOG_THROUGH_GTID))
+      {
+        data_size= uint4korr(ptr_buffer);
+        ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
+
+        GtidSet_log_event::get_group_rep(&mysql_bin_log.sid_map, ptr_buffer, 0 /* nsids */);
+      }
+       
+      get_slave_uuid(thd, &slave_uuid);
+      kill_zombie_dump_threads(&slave_uuid);
+
+      /*
+        Notice that this is not using yet the group sets. /Alfranio
+      */
+      mysql_binlog_send(thd, name, (my_off_t) pos, flags);
+
+      unregister_slave(thd, 1, 1);
+      /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
+      error= true;
+      break;
+    }
   case COM_BINLOG_DUMP:
     {
       ulong pos;
