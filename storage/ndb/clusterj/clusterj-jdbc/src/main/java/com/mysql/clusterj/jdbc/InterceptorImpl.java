@@ -22,6 +22,7 @@ import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.SessionFactory;
+import com.mysql.clusterj.core.query.PredicateImpl;
 import com.mysql.clusterj.core.query.QueryDomainTypeImpl;
 import com.mysql.clusterj.core.spi.SessionSPI;
 import com.mysql.clusterj.core.store.Dictionary;
@@ -62,6 +63,7 @@ import org.antlr.runtime.TokenStream;
 import org.antlr.runtime.tree.CommonErrorNode;
 import org.antlr.runtime.tree.CommonTree;
 import org.antlr.runtime.tree.CommonTreeAdaptor;
+import org.antlr.runtime.tree.Tree;
 import org.antlr.runtime.tree.TreeAdaptor;
 
 /** This class implements the behavior associated with connection callbacks for statement execution
@@ -306,10 +308,12 @@ public class InterceptorImpl {
         String tableName = "";
         CommonTree tableNode;
         WhereNode whereNode;
+        String whereType = "empty";
         List<String> columnNames = new ArrayList<String>();
         Dictionary dictionary;
         DomainTypeHandlerImpl<?> domainTypeHandler;
         QueryDomainTypeImpl<?> queryDomainType = null;
+        int numberOfParameters = 0;
         switch (tokenType) {
             case MySQL51Parser.INSERT:
                 tableNode = (CommonTree)root.getFirstChildWithType(MySQL51Parser.TABLE);
@@ -362,7 +366,6 @@ public class InterceptorImpl {
                 for (CommonTree selectExprNode: selectExprNodes) {
                     columnNames.add(getColumnName(getFieldNode(selectExprNode)));
                 }
-                String whereType = "empty";
                 if (logger.isDetailEnabled()) logger.detail(
                         "SELECT FROM " + tableName
                         + " COLUMNS " + columnNames);
@@ -381,7 +384,7 @@ public class InterceptorImpl {
                     if (predicate != null) {
                         // where clause that can be executed by clusterj
                         queryDomainType.where(predicate);
-                        int numberOfParameters = whereNode.getNumberOfParameters();
+                        numberOfParameters = whereNode.getNumberOfParameters();
                         result = new SQLExecutor.Select(domainTypeHandler, columnNames, queryDomainType, lockMode, numberOfParameters);
                         whereType = "clusterj";
                     } else {
@@ -397,6 +400,7 @@ public class InterceptorImpl {
                         + " COLUMNS " + columnNames + " whereType " + whereType);
                     logger.detail(walk(root));
                 }
+                logger.info(preparedSql + ": " + whereType);
                 break;
             case MySQL51Parser.DELETE:
                 tableNode = (CommonTree)root.getFirstChildWithType(MySQL51Parser.TABLE);
@@ -405,7 +409,6 @@ public class InterceptorImpl {
                 dictionary = session.getDictionary();
                 domainTypeHandler = getDomainTypeHandler(tableName, dictionary);
                 whereNode = ((WhereNode)root.getFirstChildWithType(MySQL51Parser.WHERE));
-                int numberOfParameters = 0;
                 if (whereNode == null) {
                     // no where clause (delete all rows)
                     result = new SQLExecutor.Delete(domainTypeHandler);
@@ -431,6 +434,59 @@ public class InterceptorImpl {
                         "DELETE FROM " + tableName
                         + " whereType " + whereType
                         + " number of parameters " + numberOfParameters);
+                logger.info(preparedSql + ": " + whereType);
+                break;
+            case MySQL51Parser.UPDATE:
+                // UPDATE table SET column = value, column = value WHERE where-clause
+                tableNode = (CommonTree)root.getFirstChildWithType(MySQL51Parser.TABLE);
+                tableName = getTableName(tableNode);
+                getSession();
+                dictionary = session.getDictionary();
+                domainTypeHandler = getDomainTypeHandler(tableName, dictionary);
+                CommonTree setNode = (CommonTree)root.getFirstChildWithType(MySQL51Parser.SET);
+                // create list of columns to update
+                // SET node has one child for each <field> = <value
+                List<CommonTree> equalNodes = setNode.getChildren();
+                List<Integer> parameterNumbers = new ArrayList<Integer>();
+                for (CommonTree equalNode: equalNodes) {
+                    // each equalNode has a FIELD node and a parameter node
+                    columnNames.add(getColumnName(getFieldNode(equalNode)));
+                    PlaceholderNode parameterNode = (PlaceholderNode)equalNode.getChild(1);
+                    parameterNumbers.add(parameterNode.getId());
+                }
+                if (logger.isDetailEnabled()) logger.detail("Update " + columnNames + " values " + parameterNumbers);
+                whereNode = ((WhereNode)root.getFirstChildWithType(MySQL51Parser.WHERE));
+                if (whereNode == null) {
+                    // no where clause (update all rows)
+                    whereType = "non-clusterj";
+                    // return a do-nothing ParsedSQL
+                    if (logger.isDetailEnabled()) logger.detail("ClusterJ cannot process this SQL statement: " +
+                            "unsupported statement type (UPDATE without WHERE clause.");
+                    result = new SQLExecutor.Noop();
+                } else {
+                    // create a predicate from the tree
+                    queryDomainType = (QueryDomainTypeImpl<?>) session.createQueryDomainType(domainTypeHandler);
+                    PredicateImpl predicate = (PredicateImpl) whereNode.getPredicate(queryDomainType);
+                    if (predicate != null) {
+                        // where clause that can be executed by clusterj
+                        queryDomainType.where(predicate);
+                        List<String> whereColumnNames = predicate.getTopLevelPropertyNames();
+                        numberOfParameters = equalNodes.size() + whereColumnNames.size();
+                        result = new SQLExecutor.Update(domainTypeHandler, queryDomainType, numberOfParameters,
+                                columnNames, whereColumnNames);
+                        whereType = "clusterj";
+                    } else {
+                        // where clause that cannot be executed by clusterj
+                        result = new SQLExecutor.Noop();
+                        whereType = "non-clusterj";
+                    }
+                    if (logger.isDetailEnabled()) logger.detail(walk(root));
+                }
+                if (logger.isDetailEnabled()) logger.detail(
+                        "UPDATE " + tableName
+                        + " whereType " + whereType
+                        + " number of parameters " + numberOfParameters);
+                logger.info(preparedSql + ": " + whereType);
                 break;
             default:
                 // return a do-nothing ParsedSQL

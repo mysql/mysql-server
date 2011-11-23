@@ -154,4 +154,8 @@ public class QueryExecutionContextJDBCImpl extends QueryExecutionContextImpl {
         throw new ClusterJFatalInternalException(local.message("ERR_Should_Not_Occur"));
     }
 
+    public Object getValueHandler() {
+        return parameterBindings;
+    }
+
 }

@@ -419,7 +419,9 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
                 }
                 result.add(row);
             }
-            connection.commit();
+            if (!connection.getAutoCommit()) {
+                connection.commit();
+            }
         } catch (SQLException e) {
             throw new RuntimeException("Failed to read " + tableName, e);
         }
@@ -551,7 +553,9 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
                 }
                 preparedStatement.execute();
             }
-            connection.commit();
+            if (!connection.getAutoCommit()) {
+                connection.commit();
+            }
         } catch (SQLException e) {
             throw new RuntimeException("Failed to insert " + tableName + " at instance " + i, e);
         }
@@ -631,7 +635,9 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
                 ++i;
                 rows.add(row);
             }
-            connection.commit();
+            if (!connection.getAutoCommit()) {
+                connection.commit();
+            }
         } catch (SQLException e) {
             throw new RuntimeException("Failed to read " + tableName + " at instance " + i, e);
         }
