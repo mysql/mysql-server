@@ -5676,5 +5676,52 @@ select a from t1 where a in (select a from t1 where a in (select a from t1 where
 a
 1
 drop table t1;
+#
+# LP bug #859375: Assertion `0' failed in st_select_lex_unit::optimize
+# with view , UNION and prepared statement (rewriting fake_select
+# condition).
+#
+CREATE TABLE t1 ( f1 int NOT NULL, f4 varchar(1) NOT NULL) ;
+INSERT INTO t1 VALUES (6,'d'),(7,'y');
+CREATE TABLE t2 ( f1 int NOT NULL, f2 int NOT NULL) ;
+INSERT INTO t2 VALUES (10,7);
+CREATE VIEW v2 AS SELECT * FROM t2;
+PREPARE st1 FROM "
+        SELECT *
+        FROM t1
+        LEFT JOIN v2 ON ( v2.f2 = t1.f1 )
+        WHERE v2.f1 NOT IN (
+                SELECT 1 UNION
+                SELECT 247
+        )
+";
+EXECUTE st1;
+f1	f4	f1	f2
+7	y	10	7
+deallocate prepare st1;
+DROP VIEW v2;
+DROP TABLE t1,t2;
+#
+# LP bug #887458 Crash in subselect_union_engine::no_rows with
+# double UNION and join_cache_level=3,8
+# (IN/ALL/ANY optimizations should not be applied to fake_select)
+CREATE TABLE t2 ( a int, b varchar(1)) ;
+INSERT IGNORE INTO t2 VALUES (8,'y'),(8,'y');
+CREATE TABLE t1 ( b varchar(1)) ;
+INSERT IGNORE INTO t1 VALUES (NULL),(NULL);
+set @save_join_cache_level=@@join_cache_level;
+SET SESSION join_cache_level=3;
+SELECT *
+FROM t1, t2
+WHERE t2.b IN (
+SELECT 'm' UNION
+SELECT 'm'
+) OR t1.b <> SOME (
+SELECT 'v' UNION
+SELECT 't'
+);
+b	a	b
+set @@join_cache_level= @save_join_cache_level;
+drop table t1,t2;
 set optimizer_switch=@subselect_tmp;
 set @optimizer_switch_for_subselect_test=null;

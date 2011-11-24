@@ -304,6 +304,14 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
   st_select_lex *select_lex= join->select_lex;
   st_select_lex_unit* parent_unit= select_lex->master_unit();
   DBUG_ENTER("check_and_do_in_subquery_rewrites");
+
+  /*
+    IN/ALL/ANY rewrites are not applicable for so called fake select
+    (this select exists only to filter results of union if it is needed).
+  */
+  if (select_lex == select_lex->master_unit()->fake_select_lex)
+    DBUG_RETURN(0);
+
   /*
     If 
       1) this join is inside a subquery (of any type except FROM-clause 
@@ -375,14 +383,6 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       thd->where= save_where;
       if (failure)
         DBUG_RETURN(-1); /* purecov: deadcode */
-    }
-    if (select_lex == parent_unit->fake_select_lex)
-    {
-      /*
-        The join and its select_lex object represent the 'fake' select used
-        to compute the result of a UNION.
-      */
-      DBUG_RETURN(0);
     }
 
     DBUG_PRINT("info", ("Checking if subq can be converted to semi-join"));
@@ -4502,6 +4502,13 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   Join_plan_state save_qep; /* The original QEP of the subquery. */
   enum_reopt_result reopt_result= REOPT_NONE;
   Item_in_subselect *in_subs;
+
+  /*
+    IN/ALL/ANY optimizations are not applicable for so called fake select
+    (this select exists only to filter results of union if it is needed).
+  */
+  if (select_lex == select_lex->master_unit()->fake_select_lex)
+    return 0;
 
   if (is_in_subquery())
   {
