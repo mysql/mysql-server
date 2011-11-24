@@ -1480,5 +1480,12 @@ enum loglevel {
    INFORMATION_LEVEL= 2
 };
 
+#ifdef _WIN32
+typedef struct
+{
+  long long int quot;   /* Quotient.  */
+  long long int rem;    /* Remainder.  */
+} lldiv_t;
+#endif
 
 #endif  // MY_GLOBAL_INCLUDED

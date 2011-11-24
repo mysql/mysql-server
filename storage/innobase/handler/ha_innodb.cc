@@ -5124,12 +5124,24 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_SHORT:
 	case MYSQL_TYPE_INT24:
 	case MYSQL_TYPE_DATE:
-	case MYSQL_TYPE_DATETIME:
 	case MYSQL_TYPE_YEAR:
 	case MYSQL_TYPE_NEWDATE:
-	case MYSQL_TYPE_TIME:
-	case MYSQL_TYPE_TIMESTAMP:
 		return(DATA_INT);
+	case MYSQL_TYPE_TIME:
+	case MYSQL_TYPE_DATETIME:
+	case MYSQL_TYPE_TIMESTAMP:
+		switch (field->real_type()) {
+		case MYSQL_TYPE_TIME:
+		case MYSQL_TYPE_DATETIME:
+		case MYSQL_TYPE_TIMESTAMP:
+			return DATA_INT;
+		default: /* Fall through */
+			DBUG_ASSERT((ulint)MYSQL_TYPE_DECIMAL < 256);
+		case MYSQL_TYPE_TIME2:
+		case MYSQL_TYPE_DATETIME2:
+		case MYSQL_TYPE_TIMESTAMP2:
+			return DATA_FIXBINARY;
+		}
 	case MYSQL_TYPE_FLOAT:
 		return(DATA_FLOAT);
 	case MYSQL_TYPE_DOUBLE:
@@ -6033,7 +6045,7 @@ ha_innobase::write_row(
 	ha_statistic_increment(&SSV::ha_write_count);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-		table->timestamp_field->set_time();
+		table->get_timestamp_field()->set_time();
 
 	sql_command = thd_sql_command(user_thd);
 
@@ -6537,7 +6549,7 @@ ha_innobase::update_row(
 	ha_statistic_increment(&SSV::ha_update_count);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-		table->timestamp_field->set_time();
+		table->get_timestamp_field()->set_time();
 
 	if (prebuilt->upd_node) {
 		uvect = prebuilt->upd_node->update;
