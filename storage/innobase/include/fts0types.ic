@@ -29,7 +29,6 @@ Created 2007-03-27 Sunny Bains
 #include <ctype.h>
 
 #include "rem0cmp.h"
-#include "fts_uc_data.ic"
 #include "ha_prototypes.h"
 
 extern const ulint UTF8_ERROR;
@@ -143,37 +142,6 @@ fts_update_doc_id_cmp(
 	return((int)(up1->doc_id - up2->doc_id));
 }
 
-/******************************************************************//**
-Check whether a character is an alphabetic one.
-@return TRUE if the character is an alphabetic character */
-UNIV_INLINE
-ibool
-fts_utf8_isalpha(
-/*=============*/
-	ulint		ch)			/*!< in: char to test */
-{	
-	ibool		res = FALSE;
-
-	if (ch < 0x7F) {
-		res = isalpha(ch);
-	} else if (ch < FTS_UC_MAX_CODE_POINT) {
-		res = (ib_fts_uc_isletter[ch / 8] >> (ch % 8)) & 1;
-	}
-
-	return(res);
-}
-
-/******************************************************************//**
-Check whether a character is a digit.
-@return TRUE if the character is a digit */
-UNIV_INLINE
-ibool
-fts_utf8_isdigit(
-/*=============*/
-	ulint		ch)			/*!< in: UTF-8 character */
-{
-	return((ch < 0x7F) ? isdigit(ch) : FALSE);
-}
 
 /******************************************************************//**
 Lowercase an UTF-8 string. */

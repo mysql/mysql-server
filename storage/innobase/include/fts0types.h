@@ -429,26 +429,6 @@ fts_utf8_decode(
 						character. */
 
 /******************************************************************//**
-Check whether a character is a digit. */
-UNIV_INLINE
-ibool
-fts_utf8_isdigit(
-/*=============*/
-						/*!< out: TRUE if the character
-						is a digit*/
-	ulint		ch);			/*!< in: UTF-8 character */
-
-/******************************************************************//**
-Check whether a character is an alphabetic one. */
-UNIV_INLINE
-ibool
-fts_utf8_isalpha(
-/*=============*/
-						/*!< out: TRUE if the character
-						is an alphabetic character */
-	ulint		ch);			/*!< in: char to test */
-
-/******************************************************************//**
 Lowercase an UTF-8 string. */
 UNIV_INLINE
 void
