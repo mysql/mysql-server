@@ -274,15 +274,14 @@ CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD = '';
 SET @old_log_output= @@log_output;
 SET GLOBAL log_output= 'TABLE,FILE';
 
+call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
 --disable_warnings
 
 --source include/stop_slave.inc
 TRUNCATE mysql.general_log;
 START SLAVE PASSWORD='secret';
---let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
-# execute it to see if the rewrite generated a (syntatically) valid command 
---source include/stop_slave.inc
---eval $rewritten
+--let $slave_io_errno=1593
+--source include/wait_for_slave_io_error.inc
 
 --source include/stop_slave.inc
 TRUNCATE mysql.general_log;
