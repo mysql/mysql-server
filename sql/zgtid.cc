@@ -59,14 +59,22 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
 }
 
 
-int Gtid::to_string(const Sid_map *sid_map, char *buf) const
+int Gtid::to_string(const rpl_sid *sid, char *buf) const
 {
   DBUG_ENTER("Gtid::to_string");
-  char *s= buf + sid_map->sidno_to_sid(sidno)->to_string(buf);
+  char *s= buf + sid->to_string(buf);
   *s= ':';
   s++;
   s+= format_gno(s, gno);
   DBUG_RETURN(s - buf);
+}
+
+
+int Gtid::to_string(const Sid_map *sid_map, char *buf) const
+{
+  DBUG_ENTER("Gtid::to_string");
+  int ret= to_string(sid_map->sidno_to_sid(sidno), buf);
+  DBUG_RETURN(ret);
 }
 
 

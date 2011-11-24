@@ -1358,6 +1358,12 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       buf[EVENT_TYPE_OFFSET] >= ENUM_END_EVENT ||
       (uint) event_len != uint4korr(buf+EVENT_LEN_OFFSET))
   {
+    DBUG_PRINT("error", ("event_len=%u EVENT_LEN_OFFSET=%d "
+                         "buf[EVENT_TYPE_OFFSET]=%d ENUM_END_EVENT=%d "
+                         "uint4korr(buf+EVENT_LEN_OFFSET)=%d",
+                         event_len, EVENT_LEN_OFFSET,
+                         buf[EVENT_TYPE_OFFSET], ENUM_END_EVENT,
+                         uint4korr(buf+EVENT_LEN_OFFSET)));
     *error="Sanity check failed";		// Needed to free buffer
     DBUG_RETURN(NULL); // general sanity check - will fail on a partial read
   }
@@ -4876,7 +4882,9 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
       post_header_len[IGNORABLE_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
       post_header_len[ROWS_QUERY_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
-      post_header_len[GTID_LOG_EVENT-1]= Gtid_log_event::POST_HEADER_LENGTH;
+      post_header_len[GTID_LOG_EVENT-1]=
+        post_header_len[ANONYMOUS_GTID_LOG_EVENT-1]=
+        Gtid_log_event::POST_HEADER_LENGTH;
       post_header_len[PREVIOUS_GTIDS_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
 
       // Sanity-check that all post header lengths are initialized.
@@ -11535,7 +11543,7 @@ const char *Gtid_log_event::SET_STRING_PREFIX= "SET @@SESSION.GTID_NEXT= '";
 #ifdef HAVE_GTID
 Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
                                const Format_description_log_event *descr_event)
-  : Ignorable_log_event(buffer, descr_event)
+  : Log_event(buffer, descr_event)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event");
   uint8 const common_header_len=
@@ -11549,21 +11557,21 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   char const *ptr_buffer= buffer + common_header_len;
   char const *str_end= buffer + event_len;
 
-  gtid_type= *ptr_buffer;
-  ptr_buffer+= ENCODED_TYPE_LENGTH;  
+  spec.type= buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ? 
+    ANONYMOUS_GROUP : GTID_GROUP;
 
-  gtid_flags= *ptr_buffer;
-  ptr_buffer+= ENCODED_FLAGS_LENGTH;
+  commit_flag= *ptr_buffer != 0;
+  ptr_buffer+= ENCODED_FLAG_LENGTH;
 
   sid.copy_from((uchar *)ptr_buffer);
   ptr_buffer+= ENCODED_SID_LENGTH;
   // If error occurs, sidno becomes negative here and subsequently
   // is_valid returns false.
   global_sid_lock.rdlock();
-  sidno= global_sid_map.add(&sid);
+  spec.gtid.sidno= global_sid_map.add(&sid);
   global_sid_lock.unlock();
 
-  gno= uint8korr(ptr_buffer);
+  spec.gtid.gno= uint8korr(ptr_buffer);
   ptr_buffer+= ENCODED_GNO_LENGTH;
 
   DBUG_ASSERT(str_end == (char *) ptr_buffer);
@@ -11572,21 +11580,31 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 }
 
 #ifndef MYSQL_CLIENT
-Gtid_log_event::Gtid_log_event(THD* thd_arg)
-: Ignorable_log_event(thd_arg), sidno(0), gno(0),
-  gtid_type(0), gtid_flags(0)
+Gtid_log_event::Gtid_log_event(THD *thd_arg, const Gtid_specification *spec_arg)
+: Log_event(thd_arg, spec_arg->type == ANONYMOUS_GROUP ?
+            LOG_EVENT_IGNORABLE_F : 0,
+            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
-  sid.clear();
+  spec= *spec_arg;
+  global_sid_lock.rdlock();
+  sid= *global_sid_map.sidno_to_sid(spec.gtid.sidno);
+  global_sid_lock.unlock();
 }
 
-Gtid_log_event::Gtid_log_event(THD* thd_arg, rpl_sidno sidno_arg,
-                               rpl_gno gno_arg)
-: Ignorable_log_event(thd_arg),
-  sidno(sidno_arg), gno(gno_arg), gtid_type(1), gtid_flags(1)
+Gtid_log_event::Gtid_log_event(THD* thd_arg)
+: Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
+            LOG_EVENT_IGNORABLE_F : 0,
+            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
-  global_sid_lock.rdlock();
-  sid= *global_sid_map.sidno_to_sid(sidno);
-  global_sid_lock.unlock();
+  spec= thd_arg->variables.gtid_next;
+  if (spec.type == GTID_GROUP)
+  {
+    global_sid_lock.rdlock();
+    sid= *global_sid_map.sidno_to_sid(spec.gtid.sidno);
+    global_sid_lock.unlock();
+  }
+  else
+    sid.clear();
 }
 #endif
 
@@ -11609,9 +11627,7 @@ size_t Gtid_log_event::to_string(char *buf) const
   DBUG_ASSERT(strlen(SET_STRING_PREFIX) == SET_STRING_PREFIX_LENGTH);
   strcpy(p, SET_STRING_PREFIX);
   p+= SET_STRING_PREFIX_LENGTH;
-  p+= sid.to_string(p);
-  *p++= ':';
-  p+= format_gno(p, gno);
+  p+= spec.to_string(&sid, p);
   *p++= '\'';
   *p= '\0';
   return p - buf;
@@ -11626,7 +11642,7 @@ Gtid_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
   if (!print_event_info->short_form)
   {
     print_header(head, print_event_info, FALSE);
-    my_b_printf(head, "\tGTID\n");
+    my_b_printf(head, "\tGTID [commit=%s]\n", commit_flag ? "yes" : "no");
   }
   to_string(buffer);
   my_b_printf(head, "%s%s\n", buffer, print_event_info->delimiter);
@@ -11640,16 +11656,20 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
   char buffer[POST_HEADER_LENGTH];
   char* ptr_buffer= buffer;
 
-  *ptr_buffer= gtid_type;
-  ptr_buffer+= ENCODED_TYPE_LENGTH;
+  *ptr_buffer= commit_flag ? 1 : 0;
+  ptr_buffer+= ENCODED_FLAG_LENGTH;
 
-  *ptr_buffer= gtid_flags;
-  ptr_buffer+= ENCODED_FLAGS_LENGTH;
+#ifndef NO_DBUG
+  char buf[rpl_sid::TEXT_LENGTH + 1];
+  sid.to_string(buf);
+  DBUG_PRINT("info", ("sid=%s sidno=%d gno=%lld",
+                      buf, spec.gtid.sidno, spec.gtid.gno));
+#endif
 
   sid.copy_to((uchar *)ptr_buffer);
   ptr_buffer+= ENCODED_SID_LENGTH;
 
-  int8store(ptr_buffer, gno);
+  int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
 
   DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));
@@ -11663,22 +11683,13 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Gtid_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
 
-  thd->variables.gtid_next.set(sidno, gno);
-  DBUG_PRINT("info", ("setting gtid_next=%d:%lld", sidno, gno));
+  thd->variables.gtid_next.set(spec.gtid.sidno, spec.gtid.gno);
+  DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
+                      spec.gtid.sidno, spec.gtid.gno));
 
   DBUG_RETURN(0);
 }
 #endif
-
-uchar Gtid_log_event::get_gtid_type() const
-{
-  return gtid_type;
-}
-
-uchar Gtid_log_event::get_gtid_flags() const
-{
-  return gtid_flags;
-}
 
 Previous_gtids_log_event::Previous_gtids_log_event(
   const char *buffer, uint event_len,
@@ -11754,7 +11765,7 @@ void Previous_gtids_log_event::print(FILE *file,
     if (!print_event_info->short_form)
     {
       print_header(head, print_event_info, FALSE);
-      my_b_printf(head, "\tGTID-set\n");
+      my_b_printf(head, "\tPrevious-GTIDs\n");
     }
     my_b_printf(head, "%s\n", str);
     my_free(str);

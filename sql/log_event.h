@@ -675,8 +675,9 @@ enum Log_event_type
   ROWS_QUERY_LOG_EVENT= 29,
 
   GTID_LOG_EVENT= 30,
+  ANONYMOUS_GTID_LOG_EVENT= 31,
 
-  PREVIOUS_GTIDS_LOG_EVENT= 31,
+  PREVIOUS_GTIDS_LOG_EVENT= 32,
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -4407,6 +4408,12 @@ private:
   architecture, so adding new derived events shall not harm
   the old slaves that support ignorable log event mechanism
   (they will just ignore unrecognized ignorable events).
+
+  @note The only thing that makes an event ignorable is that it has
+  the LOG_EVENT_IGNORABLE_F flag set.  It is not strictly necessary
+  that ignorable event types derive from Ignorable_log_event; they may
+  just as well derive from Log_event and pass LOG_EVENT_IGNORABLE_F as
+  argument to the Log_event constructor.
 **/
 class Ignorable_log_event : public Log_event {
 public:
@@ -4540,12 +4547,11 @@ uint8 get_checksum_alg(const char* buf, ulong len);
 extern TYPELIB binlog_checksum_typelib;
 
 #ifdef HAVE_GTID
-class Gtid_log_event : public Ignorable_log_event {
+class Gtid_log_event : public Log_event {
 public:
 #ifndef MYSQL_CLIENT
-  Gtid_log_event(THD* thd_arg);
-  Gtid_log_event(THD* thd_arg, 
-                 rpl_sidno sidno_arg, rpl_gno gno_arg);
+  Gtid_log_event(THD *thd_arg, const Gtid_specification *spec);
+  Gtid_log_event(THD *thd_arg);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -4557,7 +4563,14 @@ public:
 
   virtual ~Gtid_log_event();
 
-  Log_event_type get_type_code() { return GTID_LOG_EVENT; }
+  Log_event_type get_type_code()
+  {
+    DBUG_ENTER("Gtid_log_event::get_type_code()");
+    Log_event_type ret= (spec.type == ANONYMOUS_GROUP ?
+                         ANONYMOUS_GTID_LOG_EVENT : GTID_LOG_EVENT);
+    DBUG_PRINT("info", ("code=%d=%s", ret, get_type_str(ret)));
+    DBUG_RETURN(ret);
+  }
 
   int get_data_size() { return POST_HEADER_LENGTH; }
 
@@ -4573,17 +4586,17 @@ public:
   int do_apply_event(Relay_log_info const *rli);
 #endif
 
-  bool is_valid() const { return sidno >= 0; }
+  bool is_valid() const { return spec.type != INVALID_GROUP; }
 
-  uchar get_gtid_type() const;
+  enum_group_type get_type() const { return spec.type; }
 
   const rpl_sid* get_sid() const { return &sid; }
 
-  rpl_sidno get_sidno() const { return sidno; }
+  rpl_sidno get_sidno() const { return spec.gtid.sidno; }
 
-  rpl_gno get_gno() const { return gno; }
+  rpl_gno get_gno() const { return spec.gtid.gno; }
 
-  uchar get_gtid_flags() const;
+  bool get_commit_flag() const { return commit_flag; }
 
 private:
   static const char *SET_STRING_PREFIX;
@@ -4591,27 +4604,20 @@ private:
   static const size_t MAX_SET_STRING_LENGTH= SET_STRING_PREFIX_LENGTH +
     rpl_sid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 1;
 
-  static const int ENCODED_SID_LENGTH= 16;
+  static const int ENCODED_FLAG_LENGTH= 1;
+  static const int ENCODED_SID_LENGTH= rpl_sid::BYTE_LENGTH;
   static const int ENCODED_GNO_LENGTH= 8;
-  static const int ENCODED_TYPE_LENGTH= 1;
-  static const int ENCODED_FLAGS_LENGTH= 1;
 
 public:
-  static const int POST_HEADER_LENGTH= 
-    ENCODED_TYPE_LENGTH + ENCODED_FLAGS_LENGTH +
-    ENCODED_SID_LENGTH + ENCODED_GNO_LENGTH;
+  static const int POST_HEADER_LENGTH=
+    ENCODED_FLAG_LENGTH + ENCODED_SID_LENGTH + ENCODED_GNO_LENGTH;
 
 private:
+  Gtid_specification spec;
   rpl_sid sid;
-
-  rpl_sidno sidno;
-
-  rpl_gno gno;
-
-  uchar gtid_type;
-
-  uchar gtid_flags;
+  bool commit_flag;
 };
+
 
 class Previous_gtids_log_event : public Ignorable_log_event {
 public:

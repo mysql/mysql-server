@@ -20,10 +20,6 @@
 #ifdef HAVE_GTID
 
 
-#include "my_global.h" // REQUIRED by binlog.h -> log_event.h -> m_string.h -> my_bitmap.h
-#include "binlog.h"
-
-
 //const int Gtid_specification::MAX_TEXT_LENGTH;
 
 
@@ -51,7 +47,7 @@ enum_return_status Gtid_specification::parse(Sid_map *sid_map, const char *text)
 };
 
 
-int Gtid_specification::to_string(const Sid_map *sid_map, char *buf) const
+int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const
 {
   DBUG_ENTER("Gtid_specification::to_string(char*)");
   switch (type)
@@ -63,12 +59,20 @@ int Gtid_specification::to_string(const Sid_map *sid_map, char *buf) const
     strcpy(buf, "ANONYMOUS");
     DBUG_RETURN(9);
   case GTID_GROUP:
-    DBUG_RETURN(gtid.to_string(sid_map, buf));
+    DBUG_RETURN(gtid.to_string(sid, buf));
   case INVALID_GROUP:
     DBUG_ASSERT(0);
   }
   DBUG_ASSERT(0);
   DBUG_RETURN(0);
+}
+
+
+int Gtid_specification::to_string(const Sid_map *sid_map, char *buf) const
+{
+  return to_string(type == GTID_GROUP ?
+                   sid_map->sidno_to_sid(gtid.sidno) : NULL,
+                   buf);
 }
 
 
