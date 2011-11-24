@@ -1907,8 +1907,6 @@ fts_parse(
 /*======*/
 	fts_ast_state_t*	state)
 {
-	extern int ftsparse();	/* To shutup the compiler */
-
 	return(ftsparse(state));
 }
 
