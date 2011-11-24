@@ -783,6 +783,8 @@ fsp_header_init_fields(
 {
 	fsp_flags_validate(flags);
 
+	fprintf(stderr, "flags: %lu\n", flags);
+
 	mach_write_to_4(FSP_HEADER_OFFSET + FSP_SPACE_ID + page,
 			space_id);
 	mach_write_to_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page,
@@ -1680,16 +1682,15 @@ fsp_seg_inode_page_find_free(
 	ulint	zip_size,/*!< in: compressed page size, or 0 */
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
-	fseg_inode_t*	inode;
-
 	for (; i < FSP_SEG_INODES_PER_PAGE(zip_size); i++) {
+
+		fseg_inode_t*	inode;
 
 		inode = fsp_seg_inode_page_get_nth_inode(
 			page, i, zip_size, mtr);
 
 		if (!mach_read_from_8(inode + FSEG_ID)) {
 			/* This is unused */
-
 			return(i);
 		}
 
@@ -1716,11 +1717,11 @@ fsp_alloc_seg_inode_page(
 	ulint		page_no;
 	ulint		space;
 	ulint		zip_size;
-	ulint		i;
 
 	ut_ad(page_offset(space_header) == FSP_HEADER_OFFSET);
 
 	space = page_get_space_id(page_align(space_header));
+
 	zip_size = fsp_flags_get_zip_size(
 		mach_read_from_4(FSP_SPACE_FLAGS + space_header));
 
@@ -1741,16 +1742,18 @@ fsp_alloc_seg_inode_page(
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_INODE,
 			 MLOG_2BYTES, mtr);
 
-	for (i = 0; i < FSP_SEG_INODES_PER_PAGE(zip_size); i++) {
+	for (ulint i = 0; i < FSP_SEG_INODES_PER_PAGE(zip_size); i++) {
 
-		inode = fsp_seg_inode_page_get_nth_inode(page, i,
-							 zip_size, mtr);
+		inode = fsp_seg_inode_page_get_nth_inode(
+			page, i, zip_size, mtr);
 
 		mlog_write_ull(inode + FSEG_ID, 0, mtr);
 	}
 
-	flst_add_last(space_header + FSP_SEG_INODES_FREE,
-		      page + FSEG_INODE_PAGE_NODE, mtr);
+	flst_add_last(
+		space_header + FSP_SEG_INODES_FREE,
+		page + FSEG_INODE_PAGE_NODE, mtr);
+
 	return(TRUE);
 }
 
@@ -1764,33 +1767,31 @@ fsp_alloc_seg_inode(
 	fsp_header_t*	space_header,	/*!< in: space header */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
-	ulint		page_no;
-	buf_block_t*	block;
-	page_t*		page;
-	fseg_inode_t*	inode;
-	ibool		success;
-	ulint		zip_size;
 	ulint		n;
+	page_t*		page;
+	buf_block_t*	block;
+	fseg_inode_t*	inode;
+	ulint		page_no;
+	ulint		zip_size;
 
 	ut_ad(page_offset(space_header) == FSP_HEADER_OFFSET);
 
-	if (flst_get_len(space_header + FSP_SEG_INODES_FREE, mtr) == 0) {
-		/* Allocate a new segment inode page */
+	if (flst_get_len(space_header + FSP_SEG_INODES_FREE, mtr) == 0
+	    && !fsp_alloc_seg_inode_page(space_header, mtr)) {
 
-		success = fsp_alloc_seg_inode_page(space_header, mtr);
-
-		if (!success) {
-
-			return(NULL);
-		}
+		/* Allocation of new segment inode page failed. */
+		return(NULL);
 	}
 
 	page_no = flst_get_first(space_header + FSP_SEG_INODES_FREE, mtr).page;
 
 	zip_size = fsp_flags_get_zip_size(
 		mach_read_from_4(FSP_SPACE_FLAGS + space_header));
-	block = buf_page_get(page_get_space_id(page_align(space_header)),
-			     zip_size, page_no, RW_X_LATCH, mtr);
+
+	block = buf_page_get(
+		page_get_space_id(page_align(space_header)),
+		zip_size, page_no, RW_X_LATCH, mtr);
+
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
 	page = buf_block_get_frame(block);
@@ -1803,6 +1804,7 @@ fsp_alloc_seg_inode(
 
 	if (ULINT_UNDEFINED == fsp_seg_inode_page_find_free(page, n + 1,
 							    zip_size, mtr)) {
+
 		/* There are no other unused headers left on the page: move it
 		to another list */
 
@@ -1815,6 +1817,7 @@ fsp_alloc_seg_inode(
 
 	ut_ad(!mach_read_from_8(inode + FSEG_ID)
 	      || mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
+
 	return(inode);
 }
 
@@ -1884,11 +1887,16 @@ fseg_inode_try_get(
 
 	inode_addr.page = mach_read_from_4(header + FSEG_HDR_PAGE_NO);
 	inode_addr.boffset = mach_read_from_2(header + FSEG_HDR_OFFSET);
-	ut_ad(space == mach_read_from_4(header + FSEG_HDR_SPACE));
+
+	// FIXME:
+	if (space != mach_read_from_4(header + FSEG_HDR_SPACE)) {
+		fprintf(stderr, "space mismatch: %lu != %lu\n",
+			space, mach_read_from_4(header + FSEG_HDR_SPACE));
+	}
 
 	inode = fut_get_ptr(space, zip_size, inode_addr, RW_X_LATCH, mtr);
 
-	if (UNIV_UNLIKELY(!mach_read_from_8(inode + FSEG_ID))) {
+	if (!mach_read_from_8(inode + FSEG_ID)) {
 
 		inode = NULL;
 	} else {
@@ -1912,9 +1920,11 @@ fseg_inode_get(
 				or 0 for uncompressed pages */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	fseg_inode_t*	inode
-		= fseg_inode_try_get(header, space, zip_size, mtr);
-	ut_a(inode);
+	fseg_inode_t*	inode;
+
+	inode = fseg_inode_try_get(header, space, zip_size, mtr);
+	ut_a(inode != NULL);
+
 	return(inode);
 }
 

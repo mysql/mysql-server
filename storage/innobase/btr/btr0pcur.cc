@@ -220,16 +220,17 @@ btr_pcur_restore_position_func(
 	ulint		old_mode;
 	mem_heap_t*	heap;
 
-	ut_ad(mtr);
 	ut_ad(mtr->state == MTR_ACTIVE);
 
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(cursor));
 
-	if (UNIV_UNLIKELY(cursor->old_stored != BTR_PCUR_OLD_STORED)
-	    || UNIV_UNLIKELY(cursor->pos_state != BTR_PCUR_WAS_POSITIONED
-			     && cursor->pos_state != BTR_PCUR_IS_POSITIONED)) {
+	if (cursor->old_stored != BTR_PCUR_OLD_STORED
+	    || (cursor->pos_state != BTR_PCUR_WAS_POSITIONED
+		&& cursor->pos_state != BTR_PCUR_IS_POSITIONED)) {
+
 		ut_print_buf(stderr, cursor, sizeof(btr_pcur_t));
 		putc('\n', stderr);
+
 		if (cursor->trx_if_known) {
 			trx_print(stderr, cursor->trx_if_known, 0);
 		}
@@ -237,9 +238,8 @@ btr_pcur_restore_position_func(
 		ut_error;
 	}
 
-	if (UNIV_UNLIKELY
-	    (cursor->rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE
-	     || cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE)) {
+	if (cursor->rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE
+	     || cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE) {
 
 		/* In these cases we do not try an optimistic restoration,
 		but always do a search */
@@ -258,15 +258,15 @@ btr_pcur_restore_position_func(
 	ut_a(cursor->old_rec);
 	ut_a(cursor->old_n_fields);
 
-	if (UNIV_LIKELY(latch_mode == BTR_SEARCH_LEAF)
-	    || UNIV_LIKELY(latch_mode == BTR_MODIFY_LEAF)) {
+	if (latch_mode == BTR_SEARCH_LEAF || latch_mode == BTR_MODIFY_LEAF) {
 		/* Try optimistic restoration */
 
-		if (UNIV_LIKELY(buf_page_optimistic_get(
+		if (buf_page_optimistic_get(
 					latch_mode,
 					cursor->block_when_stored,
 					cursor->modify_clock,
-					file, line, mtr))) {
+					file, line, mtr)) {
+
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
 			buf_block_dbg_add_level(
@@ -285,9 +285,11 @@ btr_pcur_restore_position_func(
 				rec = btr_pcur_get_rec(cursor);
 
 				heap = mem_heap_create(256);
+
 				offsets1 = rec_get_offsets(
 					cursor->old_rec, index, NULL,
 					cursor->old_n_fields, &heap);
+
 				offsets2 = rec_get_offsets(
 					rec, index, NULL,
 					cursor->old_n_fields, &heap);
@@ -295,6 +297,7 @@ btr_pcur_restore_position_func(
 				ut_ad(!cmp_rec_rec(cursor->old_rec,
 						   rec, offsets1, offsets2,
 						   index));
+
 				mem_heap_free(heap);
 #endif /* UNIV_DEBUG */
 				return(TRUE);
@@ -308,13 +311,13 @@ btr_pcur_restore_position_func(
 
 	heap = mem_heap_create(256);
 
-	tuple = dict_index_build_data_tuple(index, cursor->old_rec,
-					    cursor->old_n_fields, heap);
+	tuple = dict_index_build_data_tuple(
+		index, cursor->old_rec, cursor->old_n_fields, heap);
 
 	/* Save the old search mode of the cursor */
 	old_mode = cursor->search_mode;
 
-	if (UNIV_LIKELY(cursor->rel_pos == BTR_PCUR_ON)) {
+	if (cursor->rel_pos == BTR_PCUR_ON) {
 		mode = PAGE_CUR_LE;
 	} else if (cursor->rel_pos == BTR_PCUR_AFTER) {
 		mode = PAGE_CUR_G;
@@ -323,8 +326,8 @@ btr_pcur_restore_position_func(
 		mode = PAGE_CUR_L;
 	}
 
-	btr_pcur_open_with_no_init_func(index, tuple, mode, latch_mode,
-					cursor, 0, file, line, mtr);
+	btr_pcur_open_with_no_init_func(
+		index, tuple, mode, latch_mode, cursor, 0, file, line, mtr);
 
 	/* Restore the old search mode */
 	cursor->search_mode = old_mode;
@@ -341,8 +344,10 @@ btr_pcur_restore_position_func(
 		the value of old_rec */
 
 		cursor->block_when_stored = btr_pcur_get_block(cursor);
+
 		cursor->modify_clock = buf_block_get_modify_clock(
 			cursor->block_when_stored);
+
 		cursor->old_stored = BTR_PCUR_OLD_STORED;
 
 		mem_heap_free(heap);

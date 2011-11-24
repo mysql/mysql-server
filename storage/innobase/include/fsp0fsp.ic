@@ -64,39 +64,40 @@ fsp_flags_valid(
 	ulint	unused = FSP_FLAGS_GET_UNUSED(flags);
 
 	/* Make sure there are no bits that we do not know about. */
-	if (unused == 0) {
-		return(FALSE);
-	}
+	if (unused != 0) {
 
-	/* fsp_flags is zero unless baracuda is set. */
-	ut_a(flags != 1);
-	if (post_antelope && atomic_blobs) {
+		return(FALSE);
+
+	} else if (post_antelope && atomic_blobs) {
+
 		/* The Antelope row formats REDUNDANT and COMPACT did
 		not use tablespace flags, so this flag and the entire
 		4-byte field is zero for Antelope row formats. */
-		return(FALSE);
-	}
 
-	if (!atomic_blobs) {
+		return(FALSE);
+
+	} else if (!atomic_blobs) {
+
 		/* Barracuda row formats COMPRESSED and DYNAMIC build on
 		the page structure introduced for the COMPACT row format
 		by allowing long fields to be broken into prefix and
 		externally stored parts. */
+
 		if (post_antelope || zip_ssize) {
 			return(FALSE);
 		}
-	} else {
+
+	} else if (!post_antelope || zip_ssize > PAGE_ZIP_SSIZE_MAX) {
+
 		/* Validate the zip shift size is within allowed range. */
-		if (!post_antelope || zip_ssize > PAGE_ZIP_SSIZE_MAX) {
-			return(FALSE);
-		}
+
+		return(FALSE);
 	}
 
 #if UNIV_FORMAT_MAX != UNIV_FORMAT_B
 # error "UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations."
 #endif
 
-	/* Return the flags sent in if we did not fail an assert. */
 	return(TRUE);
 }
 
@@ -210,7 +211,7 @@ fsp_flags_get_page_size(
 	ulint	ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
 
 	/* Convert from a 'log2 minus 9' to a page size in bytes. */
-	if (UNIV_UNLIKELY(ssize)) {
+	if (ssize) {
 		page_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
 
 		ut_ad(page_size <= UNIV_PAGE_SIZE_MAX);

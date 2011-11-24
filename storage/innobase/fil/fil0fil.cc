@@ -1207,21 +1207,28 @@ try_again:
 
 	space = fil_space_get_by_name(name);
 
-	if (UNIV_LIKELY_NULL(space)) {
+	if (space) {
 		ibool	success;
 		ulint	namesake_id;
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Warning: trying to init to the"
-			" tablespace memory cache\n"
-			"InnoDB: a tablespace %lu of name ", (ulong) id);
+			" InnoDB: Warning: trying to init to the"
+			" tablespace memory cache\n");
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: a tablespace %lu of name ", (ulong) id);
 		ut_print_filename(stderr, name);
-		fprintf(stderr, ",\n"
-			"InnoDB: but a tablespace %lu of the same name\n"
-			"InnoDB: already exists in the"
-			" tablespace memory cache!\n",
-			(ulong) space->id);
+		fprintf(stderr, ",\n");
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: but a tablespace %lu of the same "
+			"name\n", (ulong) space->id);
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "InnoDB: already exists in the tablespace "
+			"memory cache!\n");
 
 		if (id == 0 || purpose != FIL_TABLESPACE) {
 
@@ -2478,11 +2485,15 @@ fil_tablespace_is_being_deleted(
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the
 memory cache. Discarding is like deleting a tablespace, but
-1) we do not drop the table from the data dictionary;
-2) we remove all insert buffer entries for the tablespace immediately; in DROP
-TABLE they are only removed gradually in the background;
-3) when the user does IMPORT TABLESPACE, the tablespace will have the same id
-as it originally had.
+
+ 1. We do not drop the table from the data dictionary;
+
+ 2. We remove all insert buffer entries for the tablespace immediately;
+    in DROP TABLE they are only removed gradually in the background;
+
+ 3. when the user does IMPORT TABLESPACE, the tablespace will have the
+    same id as it originally had.
+
 @return	TRUE if success */
 UNIV_INTERN
 ibool
@@ -2496,12 +2507,15 @@ fil_discard_tablespace(
 	success = fil_delete_tablespace(id, rename);
 
 	if (!success) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Warning: cannot delete tablespace %lu"
-			" in DISCARD TABLESPACE.\n"
-			"InnoDB: But let us remove the"
-			" insert buffer entries for this tablespace.\n",
-			(ulong) id);
+			" InnoDB: Warning: cannot delete tablespace %lu"
+			" in DISCARD TABLESPACE.\n", (ulong) id);
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Remove the insert buffer entries for "
+			"this tablespace.\n");
 	}
 
 	/* Remove all insert buffer entries for the tablespace */
@@ -3282,17 +3296,16 @@ renamed:
 
 	if (!fsp_flags_valid(space_flags)) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: unsupported"
-			" tablespace format %lu\n",
+		fprintf(stderr, " InnoDB: unsupported tablespace format %lu\n",
 			(ulong) space_flags);
 		success = FALSE;
 		goto func_exit;
 	}
 
 	mach_write_to_8(FIL_PAGE_FILE_FLUSH_LSN + page, current_lsn);
+
 	/* Write space_id to the file space header. */
-	mach_write_to_4(FIL_PAGE_DATA /* FSP_SPACE_ID + FSP_HEADER_OFFSET */
-			+ page, table->space);
+	mach_write_to_4(FIL_PAGE_DATA + page, table->space);
 
 	/* If space_flags==0, table->flags may be DICT_TF_COMPACT or 0.
 	It will be adjusted later, in btr_root_adjust_on_import(). */

@@ -986,7 +986,7 @@ trx_commit(
 	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 
 	/* undo_no is non-zero if we're doing the final commit. */
-	if (trx->fts_trx && (trx->undo_no != 0)) {
+	if (trx->fts_trx && trx->undo_no != 0) {
 		ulint   error;
 
 		ut_a(!trx_is_autocommit_non_locking(trx));
