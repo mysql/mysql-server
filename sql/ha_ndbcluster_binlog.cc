@@ -299,8 +299,26 @@ static void run_query(THD *thd, char *buf, char *end,
   thd->set_query(buf, (uint) (end - buf));
   thd->variables.pseudo_thread_id= thread_id;
   thd->transaction.stmt.modified_non_trans_table= FALSE;
+  ulonglong save_options= thd->options;
+  ulong save_binlog_format= thd->variables.binlog_format;
   if (disable_binlog)
-    tmp_disable_binlog(thd);
+  {
+    /**
+     * the tmp_disable_binlog(thd) macro doesn't work here
+     *   as binlog code, will first take a mutex before
+     *   checking (thd->options & OPTION_BIN_LOG)
+     *   and ndbcluster_binlog_index_purge_file is called with
+     *   conflicting binlog mutexes held.
+     *
+     * However, rat's nest inspection has found that
+     *  setting binlog format to ROW, changes order in which these checks
+     *  are performed, and avoids the mutex-trap
+     *
+     * Luckily, this has changed in mysql-5.5, so we can remove this junk
+     */
+    thd->options &= ~OPTION_BIN_LOG;
+    thd->variables.binlog_format= BINLOG_FORMAT_ROW;
+  }
 
   DBUG_PRINT("query", ("%s", thd->query()));
 
@@ -383,7 +401,12 @@ static void run_query(THD *thd, char *buf, char *end,
   }
 #endif
 
-  reenable_binlog(thd);
+  if (disable_binlog)
+  {
+    thd->options= save_options;
+    thd->variables.binlog_format= save_binlog_format;
+  }
+
   thd->set_query(save_thd_query, save_thd_query_length);
   thd->variables.pseudo_thread_id= save_thread_id;
   thd->status_var= save_thd_status_var;
