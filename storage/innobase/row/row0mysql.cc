@@ -2575,15 +2575,15 @@ row_add_table_to_background_drop_list(
 Reassigns the table identifier of a table.
 @return	error code or DB_SUCCESS */
 static
-ulint
+db_err
 row_mysql_table_id_reassign(
 /*========================*/
 	dict_table_t*	table,	/*!< in/out: table */
 	trx_t*		trx)	/*!< in/out: transaction */
 {
-	pars_info_t*	info	= pars_info_create();
+	db_err		err;
 	table_id_t	new_id;
-	ulint		err;
+	pars_info_t*	info	= pars_info_create();
 
 	dict_hdr_get_new_id(&new_id, NULL, NULL);
 	/* Remove all locks except the table-level S and X locks. */
@@ -2605,6 +2605,9 @@ row_mysql_table_id_reassign(
 			   "END;\n", FALSE, trx);
 
 	if (err == DB_SUCCESS) {
+		/* FIXME: Should we really do it here. I think we shoud be
+		able to rollback the entire process in case of subsequent
+		failure. */
 		dict_table_change_id_in_cache(table, new_id);
 	}
 
@@ -2614,7 +2617,7 @@ row_mysql_table_id_reassign(
 /*********************************************************************//**
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function renames the .ibd file and assigns a new table id for
-the table. Also the flag table->ibd_file_missing is set TRUE.
+the table. Also the flag table->ibd_file_missing is set to TRUE.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 int
@@ -2623,10 +2626,8 @@ row_discard_tablespace_for_mysql(
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx)	/*!< in: transaction handle */
 {
-	dict_foreign_t*	foreign;
+	db_err		err;
 	dict_table_t*	table;
-	ibool		success;
-	ulint		err;
 
 	/* How do we prevent crashes caused by ongoing operations on
 	the table? Old operations could try to access non-existent
@@ -2658,6 +2659,7 @@ row_discard_tablespace_for_mysql(
 	discard. We also reserve the data dictionary latch. */
 
 	trx->op_info = "discarding tablespace";
+
 	trx_start_if_not_started_xa(trx);
 
 	/* Serialize data dictionary operations with dictionary mutex:
@@ -2665,13 +2667,13 @@ row_discard_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_open_on_name_no_stats(name, TRUE,
-						 DICT_ERR_IGNORE_NONE);
+	table = dict_table_open_on_name_no_stats(
+		name, TRUE, DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
 
-		goto funct_exit;
+		goto func_exit;
 	}
 
 	ut_a(table->space != 0);
@@ -2680,62 +2682,75 @@ row_discard_tablespace_for_mysql(
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
 
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	if (trx->check_foreigns) {
+		dict_foreign_t*	foreign;
 
-	while (foreign && foreign->foreign_table == table) {
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
-	}
+		for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
+		     foreign && foreign->foreign_table == table;
+		     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
 
-	if (foreign && trx->check_foreigns) {
+			/* No-op */
+		}
+	
+		if (foreign) {
 
-		FILE*	ef	= dict_foreign_err_file;
+			FILE*	ef	= dict_foreign_err_file;
 
-		/* We only allow discarding a referenced table if
-		FOREIGN_KEY_CHECKS is set to 0 */
+			/* We only allow discarding a referenced table if
+			FOREIGN_KEY_CHECKS is set to 0 */
 
-		err = DB_CANNOT_DROP_CONSTRAINT;
+			err = DB_CANNOT_DROP_CONSTRAINT;
 
-		mutex_enter(&dict_foreign_err_mutex);
-		rewind(ef);
-		ut_print_timestamp(ef);
+			mutex_enter(&dict_foreign_err_mutex);
 
-		fputs("  Cannot DISCARD table ", ef);
-		ut_print_name(stderr, trx, TRUE, name);
-		fputs("\n"
-		      "because it is referenced by ", ef);
-		ut_print_name(stderr, trx, TRUE, foreign->foreign_table_name);
-		putc('\n', ef);
-		mutex_exit(&dict_foreign_err_mutex);
+			rewind(ef);
 
-		goto funct_exit;
+			ut_print_timestamp(ef);
+			fprintf(ef, " InnoDB: Cannot DISCARD table ");
+			ut_print_name(ef, trx, TRUE, name);
+			fprintf(ef, "\n");
+
+			ut_print_timestamp(ef);
+			fprintf(ef, " InnoDB: because it is referenced by ");
+			ut_print_name(
+				ef, trx, TRUE, foreign->foreign_table_name);
+
+			fprintf(ef, "\n");
+
+			mutex_exit(&dict_foreign_err_mutex);
+
+			goto func_exit;
+		}
 	}
 
 	err = row_mysql_table_id_reassign(table, trx);
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
+
 		trx_rollback_to_savepoint(trx, NULL);
+
 		trx->error_state = DB_SUCCESS;
 	} else {
-		success = fil_discard_tablespace(table->space, TRUE);
 
-		if (!success) {
+		if (!fil_discard_tablespace(table->space, TRUE)) {
 			trx->error_state = DB_SUCCESS;
+
 			trx_rollback_to_savepoint(trx, NULL);
+
 			trx->error_state = DB_SUCCESS;
 
 			err = DB_ERROR;
 		}
 
-		/* Set the flag which tells that now it is legal to
-		IMPORT a tablespace for this table */
-		table->tablespace_discarded = TRUE;
+		// FIXME: Why are we doing this even if the above call fails?
 		table->ibd_file_missing = TRUE;
+		table->tablespace_discarded = TRUE;
 	}
 
-funct_exit:
+func_exit:
 
-	if (table != NULL) {
+	if (table != 0) {
 		dict_table_close(table, TRUE);
 	}
 
@@ -2763,26 +2778,18 @@ row_scan_index_on_import(
 	ulint		space_id,/*!< in: tablespace identifier */
 	ulint*		n_rows)	/*!< out: number of rows left in index */
 {
-	btr_pcur_t		pcur;
-	mtr_t			mtr;
-	ulint			err = DB_SUCCESS;
-	ibool			comp;
-	ibool			is_clust;
-	ulint			n_recs;
-	mem_heap_t*		heap = NULL;
-	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*			offsets = offsets_;
+	btr_pcur_t	pcur;
+	mtr_t		mtr;
+	ulint		n_recs = 0;
+	mem_heap_t*	heap = NULL;
+	ulint		err = DB_SUCCESS;
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets = offsets_;
+	ibool		is_clust = dict_index_is_clust(index);
+	ibool		comp = dict_table_is_comp(index->table);
 	rec_offs_init(offsets_);
 
 	trx->op_info = "scanning index";
-
-	ut_ad(trx);
-	ut_ad(index);
-	ut_ad(n_rows);
-	n_recs = 0;
-
-	comp = dict_table_is_comp(index->table);
-	is_clust = dict_index_is_clust(index);
 
 	mtr_start(&mtr);
 
@@ -2799,7 +2806,8 @@ row_scan_index_on_import(
 		in order to release the latch on the old page. */
 
 		if (btr_pcur_is_after_last_on_page(&pcur)) {
-			if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
+
+			if (trx_is_interrupted(trx)) {
 				err = DB_INTERRUPTED;
 				goto func_exit;
 			}
@@ -2811,18 +2819,23 @@ row_scan_index_on_import(
 				so that it will be flagged dirty and
 				the resetting of DB_TRX_ID and
 				DB_ROLL_PTR will be written to disk. */
-				mlog_write_ulint(FIL_PAGE_TYPE
-						 + btr_pcur_get_page(&pcur),
-						 FIL_PAGE_INDEX,
-						 MLOG_2BYTES, &mtr);
+
+				mlog_write_ulint(
+					FIL_PAGE_TYPE
+					+ btr_pcur_get_page(&pcur),
+					FIL_PAGE_INDEX,
+					MLOG_2BYTES, &mtr);
 			}
 
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
 
-			mtr_x_lock(dict_index_get_lock(index), &mtr);
-			btr_pcur_restore_position(BTR_MODIFY_LEAF,
-						  &pcur, &mtr);
+			// FIXME: If we are importing a tablespace then
+			// why do we need to X lock the index(es)?
+			//mtr_x_lock(dict_index_get_lock(index), &mtr);
+
+			btr_pcur_restore_position(
+				BTR_MODIFY_LEAF, &pcur, &mtr);
 
 			if (!btr_pcur_move_to_next_user_rec(&pcur, &mtr)) {
 
@@ -2840,12 +2853,13 @@ row_scan_index_on_import(
 			goto next_rec;
 		}
 
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
+		offsets = rec_get_offsets(
+			rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 		if (is_clust) {
-			ulint		i;
-			page_zip_des_t*	page_zip = buf_block_get_page_zip(
+			page_zip_des_t*	page_zip;
+
+			page_zip = buf_block_get_page_zip(
 				btr_pcur_get_block(&pcur));
 
 			if (!rec_offs_any_extern(offsets)) {
@@ -2855,7 +2869,7 @@ row_scan_index_on_import(
 
 			/* Adjust the space_id in the BLOB pointers. */
 
-			for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+			for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
 				ulint	len;
 				byte*	field;
 
@@ -2864,21 +2878,22 @@ row_scan_index_on_import(
 					continue;
 				}
 
-				field = rec_get_nth_field(rec, offsets,
-							  i, &len);
-				if (UNIV_UNLIKELY
-				    (len <= BTR_EXTERN_FIELD_REF_SIZE)) {
+				field = rec_get_nth_field(
+					rec, offsets, i, &len);
+
+				if (len <= BTR_EXTERN_FIELD_REF_SIZE) {
 
 					/* TODO: push an error to the
 					connection*/
 					ut_print_timestamp(stderr);
 					fprintf(stderr,
-						"  InnoDB: externally stored"
+						" InnoDB: externally stored"
 						" column has length %lu\n"
 						"InnoDB: ", len);
-					dict_index_name_print(stderr,
-							      trx, index);
+					dict_index_name_print(
+						stderr, trx, index);
 					putc('\n', stderr);
+
 					err = DB_CORRUPTION;
 					goto func_exit;
 				}
@@ -2887,14 +2902,16 @@ row_scan_index_on_import(
 					- BTR_EXTERN_FIELD_REF_SIZE
 					+ len;
 
-				if (UNIV_LIKELY_NULL(page_zip)) {
+				if (page_zip) {
 					mach_write_to_4(field, space_id);
-					page_zip_write_blob_ptr(page_zip, rec,
-								index, offsets,
-								i, &mtr);
+
+					page_zip_write_blob_ptr(
+						page_zip, rec, index, offsets,
+						i, &mtr);
 				} else {
-					mlog_write_ulint(field, space_id,
-							 MLOG_4BYTES, &mtr);
+					mlog_write_ulint(
+						field, space_id,
+						MLOG_4BYTES, &mtr);
 				}
 			}
 
@@ -2930,20 +2947,22 @@ next_rec:
 			mode, because the tree structure may be
 			changed in pessimistic delete. */
 			btr_pcur_store_position(&pcur, &mtr);
-			btr_pcur_restore_position(BTR_MODIFY_TREE,
-						  &pcur, &mtr);
 
-			btr_cur_pessimistic_delete(&err, FALSE,
-						   btr_pcur_get_btr_cur(&pcur),
-						   RB_NONE, &mtr);
+			btr_pcur_restore_position(
+				BTR_MODIFY_TREE, &pcur, &mtr);
+
+			btr_cur_pessimistic_delete(
+				&err, FALSE, btr_pcur_get_btr_cur(&pcur),
+				RB_NONE, &mtr);
+
 			ut_a(err == DB_SUCCESS);
 
 			/* Reopen the B-tree cursor in BTR_MODIFY_LEAF mode */
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
 
-			btr_pcur_restore_position(BTR_MODIFY_LEAF,
-						  &pcur, &mtr);
+			btr_pcur_restore_position(
+				BTR_MODIFY_LEAF, &pcur, &mtr);
 		}
 	}
 
@@ -2951,7 +2970,7 @@ func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap) {
 		mem_heap_free(heap);
 	}
 
@@ -2978,12 +2997,14 @@ row_import_tablespace_for_mysql(
 	ulint		n_rows_in_table;
 	dict_index_t*	index;
 
-	ut_ad(prebuilt->trx);
 	ut_a(table->space);
+	ut_ad(prebuilt->trx);
 	ut_a(table->tablespace_discarded);
 
 	trx_start_if_not_started(prebuilt->trx);
+
 	trx = trx_allocate_for_mysql();
+
 	trx->mysql_thd = prebuilt->trx->mysql_thd;
 
 	trx_start_if_not_started(trx);
@@ -2992,6 +3013,7 @@ row_import_tablespace_for_mysql(
 	trx_rollback_active() in case of a crash. */
 	trx->table_id = table->id;
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+
 	/* Assign an undo segment for the transaction, so that the
 	transaction will be recovered after a crash. */
 	mutex_enter(&trx->undo_mutex);
@@ -3015,17 +3037,20 @@ row_import_tablespace_for_mysql(
 	log_make_checkpoint_at(current_lsn, TRUE);
 
 	mutex_enter(&dict_sys->mutex);
+
 	/* Reassign table->id, so that purge will not remove entries
 	of the imported table.  The undo logs may contain entries that
 	are referring to the tablespace that was discarded before the
 	import was initiated. */
 	err = row_mysql_table_id_reassign(table, trx);
+
 	mutex_exit(&dict_sys->mutex);
 
 	if (err != DB_SUCCESS) {
 
 		goto func_exit;
 	}
+
 	/* It is possible that the lsn's in the tablespace to be
 	imported are above the current system lsn or the space id in
 	the tablespace files differs from the table->space.  If that
@@ -3034,12 +3059,16 @@ row_import_tablespace_for_mysql(
 	FIL_PAGE_FILE_FLUSH_LSN in the first page of the .ibd file. */
 
 	if (!fil_reset_space_and_lsn(table, current_lsn)) {
+
 		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: cannot reset lsn's in table ", stderr);
+		fprintf(stderr, " InnoDB: Error: cannot reset LSN's in table ");
 		ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
-		fputs("\n"
-		      "InnoDB: in ALTER TABLE ... IMPORT TABLESPACE\n",
-		      stderr);
+		fprintf(stderr, "\n");
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: in ALTER TABLE ");
+		ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
+		fprintf(stderr, " IMPORT TABLESPACE\n");
 
 		err = DB_ERROR;
 		goto func_exit;
@@ -3054,15 +3083,21 @@ row_import_tablespace_for_mysql(
 		    table, table->space,
 		    dict_tf_to_fsp_flags(table->flags),
 		    table->name)) {
+
 		if (table->ibd_file_missing) {
 			ut_print_timestamp(stderr);
-			fputs("  InnoDB: cannot find or open in the"
-			      " database directory the .ibd file of\n"
-			      "InnoDB: table ", stderr);
+			fprintf(stderr,
+				" InnoDB: cannot find or open in the "
+				"database directory the .ibd file of\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: table ");
 			ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
-			fputs("\n"
-			      "InnoDB: in ALTER TABLE ... IMPORT TABLESPACE\n",
-			      stderr);
+			fprintf(stderr, "\n");
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: in ALTER TABLE ");
+			ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
+			fprintf(stderr, " IMPORT TABLESPACE\n");
 		}
 
 		err = DB_ERROR;
@@ -3080,10 +3115,9 @@ row_import_tablespace_for_mysql(
 	}
 
 	/* Scan the indexes.
-	In the clustered index, initialize DB_TRX_ID and
-	DB_ROLL_PTR.  If there is a DB_ROW_ID, ensure that the
-	next available DB_ROW_ID is not smaller than any
-	DB_ROW_ID stored in the table.
+	In the clustered index, initialize DB_TRX_ID and DB_ROLL_PTR.  If
+	there is a DB_ROW_ID, ensure that the next available DB_ROW_ID is
+	not smaller than any DB_ROW_ID stored in the table.
 
 	Purge any delete-marked records from every index. */
 
@@ -3119,11 +3153,10 @@ err_exit:
 		}
 
 		ut_print_timestamp(stderr);
-		fputs("  InnoDB: ALTER TABLE ... IMPORT TABLESPACE"
-		      " failed due to an error in\n"
-		      "InnoDB: ", stderr);
+		fprintf(stderr, " InnoDB: ALTER TABLE ");
 		dict_index_name_print(stderr, prebuilt->trx, index);
-		fputc('\n', stderr);
+		fprintf(stderr, " IMPORT TABLESPACE failed\n");
+
 		goto func_exit;
 	}
 
@@ -3143,9 +3176,8 @@ err_exit:
 		if (err != DB_SUCCESS) {
 
 			goto err_exit;
-		}
 
-		if (!btr_validate_index(index, trx, TRUE)) {
+		} else if (!btr_validate_index(index, trx, TRUE)) {
 
 			goto err_corruption_exit;
 		}
@@ -3156,17 +3188,17 @@ err_exit:
 		if (err != DB_SUCCESS) {
 
 			goto err_exit;
-		}
 
-		if (n_rows != n_rows_in_table) {
+		} else if (n_rows != n_rows_in_table) {
 
-			fputs("InnoDB: ", stderr);
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "InnoDB: ");
 			dict_index_name_print(stderr, prebuilt->trx, index);
 			fprintf(stderr,
-				" contains %lu entries,"
-				" should be %lu\n",
+				" contains %lu entries, should be %lu\n",
 				(ulong) n_rows,
 				(ulong) n_rows_in_table);
+
 			/* Do not bail out, so that the data
 			can be recovered. */
 			/* TODO: issue the warning to the client */
@@ -3181,31 +3213,38 @@ err_exit:
 	if (row_table_got_default_clust_index(table)) {
 		/* Ensure that dict_sys->row_id exceeds
 		SELECT MAX(DB_ROW_ID). */
-		row_id_t	row_id	= 0;
+		const rec_t*	rec;
 		mtr_t		mtr;
 		btr_pcur_t	pcur;
-		const rec_t*	rec;
+		row_id_t	row_id	= 0;
 
 		mtr_start(&mtr);
 
 		index = dict_table_get_first_index(table);
 
 		btr_pcur_open_at_index_side(
-			FALSE/* high end */, index, BTR_SEARCH_LEAF,
-			&pcur, TRUE/* init cursor */, &mtr);
+			FALSE,		// High end
+			index,
+			BTR_SEARCH_LEAF,
+			&pcur,
+			TRUE,		// Init cursor
+			&mtr);
+
 		btr_pcur_move_to_prev_on_page(&pcur);
 		rec = btr_pcur_get_rec(&pcur);
 
 		if (!page_rec_is_infimum(rec)) {
-			ulint		offsets_[1 + REC_OFFS_HEADER_SIZE];
-			ulint*		offsets;
-			mem_heap_t*	heap = NULL;
 			ulint		len;
 			const byte*	field;
+			mem_heap_t*	heap = NULL;
+			ulint		offsets_[1 + REC_OFFS_HEADER_SIZE];
+			ulint*		offsets;
+
 			rec_offs_init(offsets_);
 
-			offsets = rec_get_offsets(rec, index, offsets_,
-						  1, &heap);
+			offsets = rec_get_offsets(
+				rec, index, offsets_, 1, &heap);
+
 			field = rec_get_nth_field(rec, offsets, 0, &len);
 
 			if (len == DATA_ROW_ID_LEN) {
@@ -3214,7 +3253,7 @@ err_exit:
 				err = DB_CORRUPTION;
 			}
 
-			if (UNIV_LIKELY_NULL(heap)) {
+			if (heap != NULL) {
 				mem_heap_free(heap);
 			}
 		}
@@ -3228,10 +3267,12 @@ err_exit:
 
 		if (row_id) {
 			mutex_enter(&dict_sys->mutex);
+
 			if (row_id >= dict_sys->row_id) {
 				dict_sys->row_id = row_id;
 				dict_hdr_flush_row_id();
 			}
+
 			mutex_exit(&dict_sys->mutex);
 		}
 	}
@@ -3245,6 +3286,7 @@ func_exit:
 		trx would be committed and crash recovery
 		would not drop the table. */
 	}
+
 	trx_commit_for_mysql(trx);
 	trx_free_for_mysql(trx);
 	prebuilt->trx->op_info = "";

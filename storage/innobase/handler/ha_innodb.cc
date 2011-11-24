@@ -8832,10 +8832,9 @@ ha_innobase::discard_or_import_tablespace(
 /*======================================*/
 	my_bool discard)	/*!< in: TRUE if discard, else import */
 {
-	dict_table_t*	dict_table;
-	trx_t*		trx;
-	ulint		error;
 	int		err;
+	ulint		error;
+	dict_table_t*	dict_table;
 
 	DBUG_ENTER("ha_innobase::discard_or_import_tablespace");
 
@@ -8844,7 +8843,6 @@ ha_innobase::discard_or_import_tablespace(
 	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
 	dict_table = prebuilt->table;
-	trx = prebuilt->trx;
 
 	if (dict_table->space == 0) {
 		push_warning_printf(
@@ -8857,13 +8855,15 @@ ha_innobase::discard_or_import_tablespace(
 		return(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}
 
+	trx_start_if_not_started(prebuilt->trx);
+
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
-	trx_search_latch_release_if_reserved(trx);
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
 	/* Obtain an exclusive lock on the table. */
 	error = row_mysql_lock_table(
-		trx, dict_table, LOCK_X,
+		prebuilt->trx, dict_table, LOCK_X,
 		discard ? "setting table lock for DISCARD TABLESPACE"
 			: "setting table lock for IMPORT TABLESPACE");
 
@@ -8879,10 +8879,12 @@ ha_innobase::discard_or_import_tablespace(
 			goto func_exit;
 		}
 
-		error = row_discard_tablespace_for_mysql(dict_table->name, trx);
+		error = row_discard_tablespace_for_mysql(
+			dict_table->name, prebuilt->trx);
+
 	} else {
 		if (!dict_table->tablespace_discarded) {
-			/* Because InnoDB only keeps the
+			/* FIXME: Because InnoDB only keeps the
 			dict_table->tablespace_discarded flag in
 			memory, ALTER TABLE ... DISCARD TABLESPACE
 			will have to be re-issued after a server
@@ -8914,7 +8916,8 @@ ha_innobase::discard_or_import_tablespace(
 
 func_exit:
 	/* Commit the transaction in order to release the table lock. */
-	trx_commit_for_mysql(trx);
+	trx_commit_for_mysql(prebuilt->trx);
+
 	DBUG_RETURN(err);
 }
 
