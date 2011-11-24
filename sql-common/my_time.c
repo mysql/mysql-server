@@ -16,6 +16,7 @@
 #include <my_time.h>
 #include <m_string.h>
 #include <m_ctype.h>
+#include <myisampack.h>
 /* Windows version of localtime_r() is declared in my_ptrhead.h */
 #include <my_pthread.h>
 
@@ -27,6 +28,9 @@ ulonglong log_10_int[20]=
   ULL(1000000000000000), ULL(10000000000000000), ULL(100000000000000000),
   ULL(1000000000000000000), ULL(10000000000000000000)
 };
+
+
+const char my_zero_datetime6[]= "0000-00-00 00:00:00.000000";
 
 
 /* Position for YYYY-DD-MM HH-MM-DD.FFFFFF AM in default format */
@@ -54,6 +58,45 @@ uint calc_days_in_year(uint year)
           366 : 365);
 }
 
+
+/**
+   Set MYSQL_TIME structure to 0000-00-00 00:00:00.000000
+   @param tm[OUT]    The value to set.
+   @param time_type  Timestasmp type
+*/
+inline void set_zero_time(MYSQL_TIME *tm,
+                          enum enum_mysql_timestamp_type time_type)
+{
+  memset(tm, 0, sizeof(*tm));
+  tm->time_type= time_type;
+}
+
+
+/**
+  Set hour, minute and second of a MYSQL_TIME variable to maximum time value.
+  Unlike set_max_time(), does not touch the other structure members.
+*/
+inline void set_max_hhmmss(MYSQL_TIME *tm)
+{
+  tm->hour= TIME_MAX_HOUR;
+  tm->minute= TIME_MAX_MINUTE;
+  tm->second= TIME_MAX_SECOND;
+}
+
+
+/**
+  Set MYSQL_TIME variable to maximum time value
+  @param tm    OUT  The variable to set.
+  @param neg        Sign: 1 if negative, 0 if positive.
+*/
+void set_max_time(MYSQL_TIME *tm, my_bool neg)
+{
+  set_zero_time(tm, MYSQL_TIMESTAMP_TIME);
+  set_max_hhmmss(tm);
+  tm->neg= neg;
+}
+
+
 /**
   @brief Check datetime value for validity according to flags.
 
@@ -64,7 +107,6 @@ uint calc_days_in_year(uint year)
   @param[out] was_cut        set to 2 if value was invalid according to flags.
                              (Feb 29 in non-leap etc.)  This remains unchanged
                              if value is not invalid.
-
   @details Here we assume that year and month is ok!
     If month is 0 we allow any date. (This only happens if we allow zero
     date parts in str_to_datetime())
@@ -87,19 +129,75 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
          (ltime->month != 2 || calc_days_in_year(ltime->year) != 366 ||
           ltime->day != 29)))
     {
-      *was_cut= 2;
+      *was_cut= MYSQL_TIME_WARN_OUT_OF_RANGE;
       return TRUE;
     }
   }
   else if (flags & TIME_NO_ZERO_DATE)
   {
-    /*
-      We don't set *was_cut here to signal that the problem was a zero date
-      and not an invalid date
-    */
+    *was_cut= MYSQL_TIME_WARN_ZERO_DATE;
     return TRUE;
   }
   return FALSE;
+}
+
+
+/**
+  Check if TIME fields are fatally bad and cannot be further adjusted.
+  @param ltime  Time value.
+  @retval  TRUE   if the value is fatally bad.
+  @retval  FALSE  if the value is Ok.
+*/
+inline my_bool check_time_mmssff_range(const MYSQL_TIME *ltime)
+{
+  return ltime->minute >= 60 || ltime->second >= 60 ||
+         ltime->second_part > 999999;
+}
+
+
+/**
+  Check TIME range. The value can include day part,
+  for example:  '1 10:20:30.123456'.
+
+  minute, second and second_part values are not checked
+  unless hour is equal TIME_MAX_HOUR.
+
+  @param ltime   Rime value.
+  @returns       Test result.
+  @retval        FALSE if value is Ok.
+  @retval        TRUE if value is out of range. 
+*/
+inline my_bool check_time_range_quick(const MYSQL_TIME *ltime)
+{
+  longlong hour= (longlong) ltime->hour + 24LL * ltime->day;
+  /* The input value should not be fatally bad */
+  DBUG_ASSERT(!check_time_mmssff_range(ltime));
+  if (hour <= TIME_MAX_HOUR &&
+      (hour != TIME_MAX_HOUR || ltime->minute != TIME_MAX_MINUTE ||
+       ltime->second != TIME_MAX_SECOND || !ltime->second_part))
+    return FALSE;
+  return TRUE;
+}
+
+
+/**
+  Check datetime, date, or normalized time (i.e. time without days) range.
+  @param ltime   Datetime value.
+  @returns
+  @retval   FALSE on success
+  @retval   TRUE  on error
+*/
+my_bool check_datetime_range(const MYSQL_TIME *ltime)
+{
+  /*
+    In case of MYSQL_TIMESTAMP_TIME hour value can be up to TIME_MAX_HOUR.
+    In case of MYSQL_TIMESTAMP_DATETIME it cannot be bigger than 23.
+  */
+  return
+    ltime->year > 9999 || ltime->month > 12  || ltime->day > 31 || 
+    ltime->minute > 59 || ltime->second > 59 || ltime->second_part > 999999 ||
+    (ltime->hour >
+     (ltime->time_type == MYSQL_TIMESTAMP_TIME ? TIME_MAX_HOUR : 23));
 }
 
 
@@ -117,9 +215,8 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
                         TIME_NO_ZERO_IN_DATE	Don't allow partial dates
                         TIME_NO_ZERO_DATE	Don't allow 0000-00-00 date
                         TIME_INVALID_DATES	Allow 2000-02-31
-    was_cut             0	Value OK
-			1       If value was cut during conversion
-			2	check_date(date,flags) considers date invalid
+    status              Conversion status
+
 
   DESCRIPTION
     At least the following formats are recogniced (based on number of digits)
@@ -144,7 +241,12 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
      Otherwise we will assume the argument is a date.
    - The hour part must be specified in hour-minute-second order.
 
-  RETURN VALUES
+    status->warnings is set to:
+    0                            Value OK
+    MYSQL_TIME_WARN_TRUNCATED    If value was cut during conversion
+    MYSQL_TIME_WARN_OUT_OF_RANGE check_date(date,flags) considers date invalid
+
+    l_time->time_type is set as follows:
     MYSQL_TIMESTAMP_NONE        String wasn't a timestamp, like
                                 [DD [HH:[MM:[SS]]]].fraction.
                                 l_time is not changed.
@@ -152,13 +254,16 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
     MYSQL_TIMESTAMP_DATETIME    Full timestamp
     MYSQL_TIMESTAMP_ERROR       Timestamp with wrong values.
                                 All elements in l_time is set to 0
+  RETURN VALUES
+    0 - Ok
+    1 - Error
 */
 
 #define MAX_DATE_PARTS 8
 
-enum enum_mysql_timestamp_type
+my_bool
 str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
-                ulonglong flags, int *was_cut)
+                ulonglong flags, MYSQL_TIME_STATUS *status)
 {
   uint field_length, UNINIT_VAR(year_length), digits, i, number_of_fields;
   uint date[MAX_DATE_PARTS], date_len[MAX_DATE_PARTS];
@@ -175,15 +280,16 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
 
   LINT_INIT(field_length);
 
-  *was_cut= 0;
+  my_time_status_init(status);
 
   /* Skip space at start */
   for (; str != end && my_isspace(&my_charset_latin1, *str) ; str++)
     ;
   if (str == end || ! my_isdigit(&my_charset_latin1, *str))
   {
-    *was_cut= 1;
-    DBUG_RETURN(MYSQL_TIMESTAMP_NONE);
+    status->warnings= MYSQL_TIME_WARN_TRUNCATED;
+    l_time->time_type= MYSQL_TIMESTAMP_NONE;
+    DBUG_RETURN(1);
   }
 
   is_internal_format= 0;
@@ -229,8 +335,9 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
       {
         if (flags & TIME_DATETIME_ONLY)
         {
-          *was_cut= 1;
-          DBUG_RETURN(MYSQL_TIMESTAMP_NONE);   /* Can't be a full datetime */
+          status->warnings= MYSQL_TIME_WARN_TRUNCATED;
+          l_time->time_type= MYSQL_TIMESTAMP_NONE;
+          DBUG_RETURN(1); /* Can't be a full datetime */
         }
         /* Date field.  Set hour, minutes and seconds to 0 */
         date[0]= date[1]= date[2]= date[3]= date[4]= 0;
@@ -252,7 +359,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   i= MY_MAX((uint) format_position[0], (uint) format_position[1]);
   set_if_bigger(i, (uint) format_position[2]);
   allow_space= ((1 << i) | (1 << format_position[6]));
-  allow_space&= (1 | 2 | 4 | 8);
+  allow_space&= (1 | 2 | 4 | 8 | 64);
 
   not_zero_date= 0;
   for (i = start_loop;
@@ -282,8 +389,9 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     date_len[i]= (uint) (str - start);
     if (tmp_value > 999999)                     /* Impossible date part */
     {
-      *was_cut= 1;
-      DBUG_RETURN(MYSQL_TIMESTAMP_NONE);
+      status->warnings= MYSQL_TIME_WARN_TRUNCATED;
+      l_time->time_type= MYSQL_TIMESTAMP_NONE;
+      DBUG_RETURN(1);
     }
     date[i]=tmp_value;
     not_zero_date|= tmp_value;
@@ -307,6 +415,11 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
       if (*str == '.')                          /* Followed by part seconds */
       {
         str++;
+        /*
+          Shift last_field_pos, so '2001-01-01 00:00:00.'
+          is treated as a valid value
+        */
+        last_field_pos= str;
         field_length= 6;                        /* 6 digits */
       }
       continue;
@@ -319,8 +432,9 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
       {
         if (!(allow_space & (1 << i)))
         {
-          *was_cut= 1;
-          DBUG_RETURN(MYSQL_TIMESTAMP_NONE);
+          status->warnings= MYSQL_TIME_WARN_TRUNCATED;
+          l_time->time_type= MYSQL_TIMESTAMP_NONE;
+          DBUG_RETURN(1);
         }
         found_space= 1;
       }
@@ -350,8 +464,9 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   }
   if (found_delimitier && !found_space && (flags & TIME_DATETIME_ONLY))
   {
-    *was_cut= 1;
-    DBUG_RETURN(MYSQL_TIMESTAMP_NONE);          /* Can't be a datetime */
+    status->warnings= MYSQL_TIME_WARN_TRUNCATED;
+    l_time->time_type= MYSQL_TIMESTAMP_NONE;
+    DBUG_RETURN(1);  /* Can't be a datetime */
   }
 
   str= last_field_pos;
@@ -368,8 +483,9 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     year_length= date_len[(uint) format_position[0]];
     if (!year_length)                           /* Year must be specified */
     {
-      *was_cut= 1;
-      DBUG_RETURN(MYSQL_TIMESTAMP_NONE);
+      status->warnings= MYSQL_TIME_WARN_TRUNCATED;
+      l_time->time_type= MYSQL_TIMESTAMP_NONE;
+      DBUG_RETURN(1);
     }
 
     l_time->year=               date[(uint) format_position[0]];
@@ -381,15 +497,16 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
 
     frac_pos= (uint) format_position[6];
     frac_len= date_len[frac_pos];
+    status->fractional_digits= frac_len;
     if (frac_len < 6)
-      date[frac_pos]*= (uint) log_10_int[6 - frac_len];
+      date[frac_pos]*= (uint) log_10_int[DATETIME_MAX_DECIMALS - frac_len];
     l_time->second_part= date[frac_pos];
 
     if (format_position[7] != (uchar) 255)
     {
       if (l_time->hour > 12)
       {
-        *was_cut= 1;
+        status->warnings= MYSQL_TIME_WARN_TRUNCATED;
         goto err;
       }
       l_time->hour= l_time->hour%12 + add_hours;
@@ -404,18 +521,23 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     l_time->minute=     date[4];
     l_time->second=     date[5];
     if (date_len[6] < 6)
-      date[6]*= (uint) log_10_int[6 - date_len[6]];
+      date[6]*= (uint) log_10_int[DATETIME_MAX_DECIMALS - date_len[6]];
     l_time->second_part=date[6];
+    status->fractional_digits= date_len[6];
   }
   l_time->neg= 0;
 
   if (year_length == 2 && not_zero_date)
     l_time->year+= (l_time->year < YY_PART_YEAR ? 2000 : 1900);
 
-  if (number_of_fields < 3 ||
-      l_time->year > 9999 || l_time->month > 12 ||
-      l_time->day > 31 || l_time->hour > 23 ||
-      l_time->minute > 59 || l_time->second > 59)
+  /*
+    Set time_type before check_datetime_range(),
+    as the latter relies on initialized time_type value.
+  */
+  l_time->time_type= (number_of_fields <= 3 ?
+                      MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
+
+  if (number_of_fields < 3 || check_datetime_range(l_time))
   {
     /* Only give warning for a zero date if there is some garbage after */
     if (!not_zero_date)                         /* If zero date */
@@ -429,30 +551,43 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
         }
       }
     }
-    *was_cut= test(not_zero_date);
+    status->warnings|= not_zero_date ? MYSQL_TIME_WARN_TRUNCATED :
+                                       MYSQL_TIME_WARN_ZERO_DATE;
     goto err;
   }
 
-  if (check_date(l_time, not_zero_date != 0, flags, was_cut))
+  if (check_date(l_time, not_zero_date != 0, flags, &status->warnings))
     goto err;
 
-  l_time->time_type= (number_of_fields <= 3 ?
-                      MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
+  /* Scan all digits left after microseconds */
+  if (status->fractional_digits == 6 && str != end)
+  {
+    if (my_isdigit(&my_charset_latin1, *str))
+    {
+      /*
+        We don't need the exact nanoseconds value.
+        Knowing the first digit is enough for rounding.
+      */
+      status->nanoseconds= 100 * (int) (*str++ - '0');
+      for (; str != end && my_isdigit(&my_charset_latin1, *str); str++)
+      { }
+    }
+  }
 
   for (; str != end ; str++)
   {
     if (!my_isspace(&my_charset_latin1,*str))
     {
-      *was_cut= 1;
+      status->warnings= MYSQL_TIME_WARN_TRUNCATED;
       break;
     }
   }
 
-  DBUG_RETURN(l_time->time_type);
+  DBUG_RETURN(0);
 
 err:
-  memset(l_time, 0, sizeof(*l_time));
-  DBUG_RETURN(MYSQL_TIMESTAMP_ERROR);
+  set_zero_time(l_time, MYSQL_TIMESTAMP_ERROR);
+  DBUG_RETURN(1);
 }
 
 
@@ -467,10 +602,12 @@ err:
                         There may be an optional [.second_part] after seconds
    length               Length of str
    l_time               Store result here
-   warning              Set MYSQL_TIME_WARN_TRUNCATED flag if the input string
+   status               Conversion status
+
+   status.warning is set to:
+     MYSQL_TIME_WARN_TRUNCATED flag if the input string
                         was cut during conversion, and/or
-                        MYSQL_TIME_WARN_OUT_OF_RANGE flag, if the value is
-                        out of range.
+     MYSQL_TIME_WARN_OUT_OF_RANGE flag, if the value is out of range.
 
    NOTES
      Because of the extra days argument, this function can only
@@ -482,7 +619,7 @@ err:
 */
 
 my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
-                    int *warning)
+                    MYSQL_TIME_STATUS *status)
 {
   ulong date[5];
   ulonglong value;
@@ -490,8 +627,8 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
   my_bool found_days,found_hours;
   uint state;
 
+  my_time_status_init(status);
   l_time->neg=0;
-  *warning= 0;
   for (; str != end && my_isspace(&my_charset_latin1,*str) ; str++)
     length--;
   if (str != end && *str == '-')
@@ -506,21 +643,19 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
   /* Check first if this is a full TIMESTAMP */
   if (length >= 12)
   {                                             /* Probably full timestamp */
-    int was_cut;
-    enum enum_mysql_timestamp_type
-      res= str_to_datetime(str, length, l_time,
-                           (TIME_FUZZY_DATE | TIME_DATETIME_ONLY), &was_cut);
-    if ((int) res >= (int) MYSQL_TIMESTAMP_ERROR)
-    {
-      if (was_cut)
-        *warning|= MYSQL_TIME_WARN_TRUNCATED;
-      return res == MYSQL_TIMESTAMP_ERROR;
-    }
+    (void) str_to_datetime(str, length, l_time,
+                           (TIME_FUZZY_DATE | TIME_DATETIME_ONLY), status);
+    if (l_time->time_type >= MYSQL_TIMESTAMP_ERROR)
+      return l_time->time_type == MYSQL_TIMESTAMP_ERROR;
+    my_time_status_init(status);
   }
 
   /* Not a timestamp. Try to get this as a DAYS_TO_SECOND string */
   for (value=0; str != end && my_isdigit(&my_charset_latin1,*str) ; str++)
     value=value*10L + (long) (*str - '0');
+
+  if (value > UINT_MAX)
+    return 1;
 
   /* Skip all space after 'days' */
   end_of_days= str;
@@ -592,11 +727,26 @@ fractional:
       if (field_length-- > 0)
         value= value*10 + (uint) (uchar) (*str - '0');
     }
-    if (field_length > 0)
-      value*= (long) log_10_int[field_length];
-    else if (field_length < 0)
-      *warning|= MYSQL_TIME_WARN_TRUNCATED;
+    if (field_length >= 0)
+    {
+      status->fractional_digits= DATETIME_MAX_DECIMALS - field_length;
+      if (field_length > 0)
+        value*= (long) log_10_int[field_length];
+    }
+    else
+    {
+      /* Scan digits left after microseconds */
+      status->fractional_digits= 6;
+      status->nanoseconds= 100 * (int) (str[-1] - '0');
+      for ( ; str != end && my_isdigit(&my_charset_latin1, *str); str++)
+      { }
+    }
     date[4]= (ulong) value;
+  }
+  else if ((end - str) == 1 && *str == '.')
+  {
+    str++;
+    date[4]= 0;
   }
   else
     date[4]=0;
@@ -636,17 +786,24 @@ fractional:
   
   l_time->year=         0;                      /* For protocol::store_time */
   l_time->month=        0;
-  l_time->day=          date[0];
-  l_time->hour=         date[1];
+  
+  l_time->day=  0;
+  l_time->hour= date[1] + date[0] * 24; /* Mix days and hours */
+
   l_time->minute=       date[2];
   l_time->second=       date[3];
   l_time->second_part=  date[4];
   l_time->time_type= MYSQL_TIMESTAMP_TIME;
 
-  /* Check if the value is valid and fits into MYSQL_TIME range */
-  if (check_time_range(l_time, warning))
-    return 1;
-  
+  if (check_time_mmssff_range(l_time))
+  {
+    status->warnings|= MYSQL_TIME_WARN_OUT_OF_RANGE;
+    return TRUE;
+  }
+
+  /* Adjust the value into supported MYSQL_TIME range */
+  adjust_time_range(l_time, &status->warnings);
+
   /* Check if there is garbage at end of the MYSQL_TIME specification */
   if (str != end)
   {
@@ -654,7 +811,7 @@ fractional:
     {
       if (!my_isspace(&my_charset_latin1,*str))
       {
-        *warning|= MYSQL_TIME_WARN_TRUNCATED;
+        status->warnings|= MYSQL_TIME_WARN_TRUNCATED;
         break;
       }
     } while (++str != end);
@@ -664,43 +821,68 @@ fractional:
 
 
 /*
-  Check 'time' value to lie in the MYSQL_TIME range
+  Convert numer to TIME
+  @param nr            Number to convert.
+  @param OUT ltime     Variable to convert to.
+  @param OUT warnings  Warning vector.
+*/
+my_bool
+number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings)
+{
+  if (nr > TIME_MAX_VALUE)
+  {
+    /* For huge numbers try full DATETIME, like str_to_time does. */
+    if (nr >= 10000000000LL) /* '0001-00-00 00-00-00' */
+    {
+      int warnings_backup= *warnings;
+      if (number_to_datetime(nr, ltime, 0, warnings) != LL(-1))
+        return FALSE;
+      *warnings= warnings_backup;
+    }
+    set_max_time(ltime, 0);
+    *warnings|= MYSQL_TIME_WARN_OUT_OF_RANGE;
+    return TRUE;
+  }
+  else if (nr < -TIME_MAX_VALUE)
+  {
+    set_max_time(ltime, 1);
+    *warnings|= MYSQL_TIME_WARN_OUT_OF_RANGE;
+    return TRUE;
+  }
+  if ((ltime->neg= (nr < 0)))
+    nr= -nr;
+  if (nr % 100 >= 60 || nr / 100 % 100 >= 60) /* Check hours and minutes */
+  {
+    set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
+    *warnings|= MYSQL_TIME_WARN_OUT_OF_RANGE;
+    return TRUE;
+  }
+  ltime->time_type= MYSQL_TIMESTAMP_TIME;
+  ltime->year= ltime->month= ltime->day= 0;
+  TIME_set_hhmmss(ltime, nr);
+  ltime->second_part= 0;
+  return FALSE;
+}
 
-  SYNOPSIS:
-    check_time_range()
-    time     pointer to MYSQL_TIME value
-    warning  set MYSQL_TIME_WARN_OUT_OF_RANGE flag if the value is out of range
 
-  DESCRIPTION
+/**
+  Adjust 'time' value to lie in the MYSQL_TIME range.
   If the time value lies outside of the range [-838:59:59, 838:59:59],
   set it to the closest endpoint of the range and set
   MYSQL_TIME_WARN_OUT_OF_RANGE flag in the 'warning' variable.
 
-  RETURN
-    0        time value is valid, but was possibly truncated
-    1        time value is invalid
+  @param  time     pointer to MYSQL_TIME value
+  @param  warning  set MYSQL_TIME_WARN_OUT_OF_RANGE flag if the value is out of range
 */
-
-int check_time_range(struct st_mysql_time *my_time, int *warning) 
+void adjust_time_range(struct st_mysql_time *my_time, int *warning) 
 {
-  longlong hour;
-
-  if (my_time->minute >= 60 || my_time->second >= 60)
-    return 1;
-
-  hour= my_time->hour + (24*my_time->day);
-  if (hour <= TIME_MAX_HOUR &&
-      (hour != TIME_MAX_HOUR || my_time->minute != TIME_MAX_MINUTE ||
-       my_time->second != TIME_MAX_SECOND || !my_time->second_part))
-    return 0;
-
-  my_time->day= 0;
-  my_time->hour= TIME_MAX_HOUR;
-  my_time->minute= TIME_MAX_MINUTE;
-  my_time->second= TIME_MAX_SECOND;
-  my_time->second_part= 0;
-  *warning|= MYSQL_TIME_WARN_OUT_OF_RANGE;
-  return 0;
+  DBUG_ASSERT(!check_time_mmssff_range(my_time));
+  if (check_time_range_quick(my_time))
+  {
+    my_time->day= my_time->second_part= 0;
+    set_max_hhmmss(my_time);
+    *warning|= MYSQL_TIME_WARN_OUT_OF_RANGE;
+  }
 }
 
 
@@ -922,7 +1104,8 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
 #endif
 
   tmp= (time_t) (((calc_daynr((uint) t->year, (uint) t->month, (uint) t->day) -
-                   (long) days_at_timestart)*86400L + (long) t->hour*3600L +
+                   (long) days_at_timestart) * SECONDS_IN_24H +
+                   (long) t->hour*3600L +
                   (long) (t->minute*60 + t->second)) + (time_t) my_time_zone -
                  3600);
 
@@ -981,7 +1164,7 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
 
 
   /* shift back, if we were dealing with boundary dates */
-  tmp+= shift*86400L;
+  tmp+= shift * SECONDS_IN_24H;
 
   /*
     This is possible for dates, which slightly exceed boundaries.
@@ -1000,12 +1183,19 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
 } /* my_system_gmt_sec */
 
 
-/* Set MYSQL_TIME structure to 0000-00-00 00:00:00.000000 */
-
-void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type)
+/**
+  Print the microsecond part: ".NNN"
+  @param to        OUT The string pointer to print at
+  @param useconds      The microseconds value.
+  @param dec           Precision, between 1 and 6.
+  @return              The length of the result string.
+*/
+static inline int
+my_useconds_to_str(char *to, ulong useconds, uint dec)
 {
-  memset(tm, 0, sizeof(*tm));
-  tm->time_type= time_type;
+  DBUG_ASSERT(dec > 0 && dec <= DATETIME_MAX_DECIMALS);
+  return sprintf(to, ".%0*lu", dec,
+                 useconds / (ulong) log_10_int[DATETIME_MAX_DECIMALS - dec]);
 }
 
 
@@ -1022,11 +1212,14 @@ void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type)
     number of characters written to 'to'
 */
 
-int my_time_to_str(const MYSQL_TIME *l_time, char *to)
+int my_time_to_str(const MYSQL_TIME *l_time, char *to, uint dec)
 {
   uint extra_hours= 0;
-  return sprintf(to, "%s%02u:%02u:%02u", (l_time->neg ? "-" : ""),
-                 extra_hours+ l_time->hour, l_time->minute, l_time->second);
+  int len= sprintf(to, "%s%02u:%02u:%02u", (l_time->neg ? "-" : ""),
+                   extra_hours + l_time->hour, l_time->minute, l_time->second);
+  if (dec)
+    len+= my_useconds_to_str(to + len, l_time->second_part, dec);
+  return len;
 }
 
 int my_date_to_str(const MYSQL_TIME *l_time, char *to)
@@ -1035,11 +1228,81 @@ int my_date_to_str(const MYSQL_TIME *l_time, char *to)
                  l_time->year, l_time->month, l_time->day);
 }
 
-int my_datetime_to_str(const MYSQL_TIME *l_time, char *to)
+
+/*
+  Convert datetime to a string 'YYYY-MM-DD hh:mm:ss'.
+  Open coded for better performance.
+  This code previously resided in field.cc, in Field_timestamp::val_str().
+
+  @param  to     OUT  The string pointer to print at.
+  @param  ltime       The MYSQL_TIME value.
+  @return             The length of the result string.
+*/
+static inline int
+TIME_to_datetime_str(char *to, const MYSQL_TIME *ltime)
 {
-  return sprintf(to, "%04u-%02u-%02u %02u:%02u:%02u",
-                 l_time->year, l_time->month, l_time->day,
-                 l_time->hour, l_time->minute, l_time->second);
+  uint32 temp, temp2;
+  /* Year */
+  temp= ltime->year / 100;
+  *to++= (char) ('0' + temp / 10);
+  *to++= (char) ('0' + temp % 10);
+  temp= ltime->year % 100;
+  *to++= (char) ('0' + temp / 10);
+  *to++= (char) ('0' + temp % 10);
+  *to++= '-';
+  /* Month */
+  temp= ltime->month;
+  temp2= temp / 10;
+  temp= temp-temp2 * 10;
+  *to++= (char) ('0' + (char) (temp2));
+  *to++= (char) ('0' + (char) (temp));
+  *to++= '-';
+  /* Day */ 
+  temp= ltime->day;
+  temp2= temp / 10;
+  temp= temp - temp2 * 10;
+  *to++= (char) ('0' + (char) (temp2));
+  *to++= (char) ('0' + (char) (temp));
+  *to++= ' ';
+  /* Hour */
+  temp= ltime->hour;
+  temp2= temp / 10;
+  temp= temp - temp2 * 10;
+  *to++= (char) ('0' + (char) (temp2));
+  *to++= (char) ('0' + (char) (temp));
+  *to++= ':';
+  /* Minute */
+  temp= ltime->minute;
+  temp2= temp / 10;
+  temp= temp - temp2 * 10;
+  *to++= (char) ('0' + (char) (temp2));
+  *to++= (char) ('0' + (char) (temp));
+  *to++= ':';
+  /* Second */
+  temp= ltime->second;
+  temp2=temp / 10;
+  temp= temp - temp2 * 10;
+  *to++= (char) ('0' + (char) (temp2));
+  *to++= (char) ('0' + (char) (temp));
+  return 19;
+}
+
+
+/**
+  Print a datetime value with an optional fractional part.
+
+  @l_time       The MYSQL_TIME value to print.
+  @to      OUT  The string pointer to print at.
+  @return       The length of the result string.  
+*/
+int my_datetime_to_str(const MYSQL_TIME *l_time, char *to, uint dec)
+{
+  int len= TIME_to_datetime_str(to, l_time);
+  if (dec)
+    len+= my_useconds_to_str(to + len, l_time->second_part, dec);
+  else
+    to[len]= '\0';
+  return len;
 }
 
 
@@ -1054,15 +1317,15 @@ int my_datetime_to_str(const MYSQL_TIME *l_time, char *to)
     The string must have at least MAX_DATE_STRING_REP_LENGTH bytes reserved.
 */
 
-int my_TIME_to_str(const MYSQL_TIME *l_time, char *to)
+int my_TIME_to_str(const MYSQL_TIME *l_time, char *to, uint dec)
 {
   switch (l_time->time_type) {
   case MYSQL_TIMESTAMP_DATETIME:
-    return my_datetime_to_str(l_time, to);
+    return my_datetime_to_str(l_time, to, dec);
   case MYSQL_TIMESTAMP_DATE:
     return my_date_to_str(l_time, to);
   case MYSQL_TIMESTAMP_TIME:
-    return my_time_to_str(l_time, to);
+    return my_time_to_str(l_time, to, dec);
   case MYSQL_TIMESTAMP_NONE:
   case MYSQL_TIMESTAMP_ERROR:
     to[0]='\0';
@@ -1071,6 +1334,23 @@ int my_TIME_to_str(const MYSQL_TIME *l_time, char *to)
     DBUG_ASSERT(0);
     return 0;
   }
+}
+
+
+/**
+  Print a timestamp with an oprional fractional part: XXXXX[.YYYYY]
+
+  @param      tm  The timestamp value to print.
+  @param  OUT to  The string pointer to print at. 
+  @param      dec Precision, in the range 0..6.
+  @return         The length of the result string.
+*/
+int my_timeval_to_str(const struct timeval *tm, char *to, uint dec)
+{
+  int len= sprintf(to, "%d", (int) tm->tv_sec);
+  if (dec)
+    len+= my_useconds_to_str(to + len, tm->tv_usec, dec);
+  return len;
 }
 
 
@@ -1112,6 +1392,11 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
   if (nr == LL(0) || nr >= LL(10000101000000))
   {
     time_res->time_type=MYSQL_TIMESTAMP_DATETIME;
+    if (nr > 99999999999999LL) /* 9999-99-99 99:99:99 */
+    {
+      *was_cut= MYSQL_TIME_WARN_OUT_OF_RANGE;
+      return LL(-1);
+    }
     goto ok;
   }
   if (nr < 101)
@@ -1165,9 +1450,7 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
   time_res->minute=(int) part2 / 100;
   time_res->second=(int) part2 % 100;
 
-  if (time_res->year <= 9999 && time_res->month <= 12 &&
-      time_res->day <= 31 && time_res->hour <= 23 &&
-      time_res->minute <= 59 && time_res->second <= 59 &&
+  if (!check_datetime_range(time_res) &&
       !check_date(time_res, (nr != 0), flags, was_cut))
     return nr;
 
@@ -1181,8 +1464,11 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
 }
 
 
-/* Convert time value to integer in YYYYMMDDHHMMSS format */
-
+/**
+  Convert time value to integer in YYYYMMDDHHMMSS.
+  @param  my_time  The MYSQL_TIME value to convert.
+  @return          A number in format YYYYMMDDHHMMSS.
+*/
 ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *my_time)
 {
   return ((ulonglong) (my_time->year * 10000UL +
@@ -1194,8 +1480,12 @@ ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *my_time)
 }
 
 
-/* Convert MYSQL_TIME value to integer in YYYYMMDD format */
 
+/**
+  Convert MYSQL_TIME value to integer in YYYYMMDD format
+  @param my_time  The MYSQL_TIME value to convert.
+  @return         A number in format YYYYMMDD.
+*/
 ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *my_time)
 {
   return (ulonglong) (my_time->year * 10000UL + my_time->month * 100UL +
@@ -1203,17 +1493,44 @@ ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *my_time)
 }
 
 
-/*
+/**
   Convert MYSQL_TIME value to integer in HHMMSS format.
   This function doesn't take into account time->day member:
   it's assumed that days have been converted to hours already.
+  @param my_time  The TIME value to convert.
+  @return         The number in HHMMSS format.
 */
-
 ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *my_time)
 {
   return (ulonglong) (my_time->hour * 10000UL +
                       my_time->minute * 100UL +
                       my_time->second);
+}
+
+
+/**
+  Set day, month and year from a number
+  @param ltime    MYSQL_TIME variable
+  @param yymmdd   Number in YYYYMMDD format
+*/
+void TIME_set_yymmdd(MYSQL_TIME *ltime, uint yymmdd)
+{
+  ltime->day=   (int) (yymmdd % 100);
+  ltime->month= (int) (yymmdd / 100) % 100;
+  ltime->year=  (int) (yymmdd / 10000);
+}
+
+
+/**
+  Set hour, minute and secondr from a number
+  @param ltime    MYSQL_TIME variable
+  @param hhmmss   Number in HHMMSS format
+*/
+void TIME_set_hhmmss(MYSQL_TIME *ltime, uint hhmmss)
+{
+  ltime->second=  (int) (hhmmss % 100);
+  ltime->minute=  (int) (hhmmss / 100) % 100;
+  ltime->hour=    (int) (hhmmss / 10000);
 }
 
 
@@ -1255,3 +1572,491 @@ ulonglong TIME_to_ulonglong(const MYSQL_TIME *my_time)
   return 0;
 }
 
+
+/*** TIME low-level memory and disk representation routines ***/
+
+/*
+  In-memory format:
+
+   1  bit sign          (Used for sign, when on disk)
+   1  bit unused        (Reserved for wider hour range, e.g. for intervals)
+   10 bit hour          (0-836)
+   6  bit minute        (0-59)
+   6  bit second        (0-59)
+  24  bits microseconds (0-999999)
+
+ Total: 48 bits = 6 bytes
+   Suhhhhhh.hhhhmmmm.mmssssss.ffffffff.ffffffff.ffffffff
+*/
+
+
+/**
+  Convert time value to numeric packed representation.
+  
+  @param    ltime   The value to convert.
+  @return           Numeric packed representation.
+*/
+longlong TIME_to_longlong_time_packed(const MYSQL_TIME *ltime)
+{
+  /* If month is 0, we mix day with hours: "1 00:10:10" -> "24:00:10" */
+  long hms= (((ltime->month ? 0 : ltime->day * 24) + ltime->hour) << 12) |
+            (ltime->minute << 6) | ltime->second;
+  longlong tmp= MY_PACKED_TIME_MAKE(hms, ltime->second_part);
+  return ltime->neg ? -tmp : tmp;
+}
+
+
+/**
+  Convert time packed numeric representation to time.
+
+  @param  OUT ltime  The MYSQL_TIME variable to set.
+  @param      tmp    The packed numeric representation.
+*/
+void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, longlong tmp)
+{
+  long hms;
+  if ((ltime->neg= (tmp < 0)))
+    tmp= -tmp;
+  hms= MY_PACKED_TIME_GET_INT_PART(tmp);
+  ltime->year=   (uint) 0;
+  ltime->month=  (uint) 0;
+  ltime->day=    (uint) 0;
+  ltime->hour=   (uint) (hms >> 12) % (1 << 10); /* 10 bits starting at 12th */
+  ltime->minute= (uint) (hms >> 6)  % (1 << 6);  /* 6 bits starting at 6th   */
+  ltime->second= (uint)  hms        % (1 << 6);  /* 6 bits starting at 0th   */
+  ltime->second_part= MY_PACKED_TIME_GET_FRAC_PART(tmp);
+  ltime->time_type= MYSQL_TIMESTAMP_TIME;
+}
+
+
+/**
+  Calculate binary size of packed numeric time representation.
+  
+  @param   dec   Precision.
+*/
+uint my_time_binary_length(uint dec)
+{
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  return 3 + (dec + 1) / 2;
+}
+
+
+/*
+  On disk we convert from signed representation to unsigned
+  representation using TIMEF_OFS, so all values become binary comparable.
+*/
+#define TIMEF_OFS 0x800000000000LL
+#define TIMEF_INT_OFS 0x800000LL
+
+
+/**
+  Convert in-memory numeric time representation to on-disk representation
+  
+  @param       nr   Value in packed numeric time format.
+  @param   OUT ptr  The buffer to put value at.
+  @param       dec  Precision.
+*/
+void my_time_packed_to_binary(longlong nr, uchar *ptr, uint dec)
+{
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  /* Make sure the stored value was previously properly rounded or truncated */
+  DBUG_ASSERT((MY_PACKED_TIME_GET_FRAC_PART(nr) % 
+              (int) log_10_int[DATETIME_MAX_DECIMALS - dec]) == 0);
+
+  switch (dec)
+  {
+  case 0:
+  default:
+    mi_int3store(ptr, TIMEF_INT_OFS + MY_PACKED_TIME_GET_INT_PART(nr));
+    break;
+
+  case 1:
+  case 2:
+    mi_int3store(ptr, TIMEF_INT_OFS + MY_PACKED_TIME_GET_INT_PART(nr));
+    ptr[3]= (unsigned char) (char) (MY_PACKED_TIME_GET_FRAC_PART(nr) / 10000);
+    break;
+
+  case 4:
+  case 3:
+    mi_int3store(ptr, TIMEF_INT_OFS + MY_PACKED_TIME_GET_INT_PART(nr));
+    mi_int2store(ptr + 3, MY_PACKED_TIME_GET_FRAC_PART(nr) / 100);
+    break;
+
+  case 5:
+  case 6:
+    mi_int6store(ptr, nr + TIMEF_OFS);
+    break;
+  }
+}
+
+
+/**
+  Convert on-disk time representation to in-memory packed numeric 
+  representation.
+  
+  @param   ptr  The pointer to read the value at.
+  @param   dec  Precision.
+  @return       Packed numeric time representation.
+*/
+longlong my_time_packed_from_binary(const uchar *ptr, uint dec)
+{
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+
+  switch (dec)
+  {
+  case 0:
+  default:
+    {
+      longlong intpart= mi_uint3korr(ptr) - TIMEF_INT_OFS;
+      return MY_PACKED_TIME_MAKE_INT(intpart);
+    }
+  case 1:
+  case 2:
+    {
+      longlong intpart= mi_uint3korr(ptr) - TIMEF_INT_OFS;
+      int frac= (uint) ptr[3];
+      if (intpart < 0 && frac)
+      {
+        /*
+          Negative values are stored with reverse fractional part order,
+          for binary sort compatibility.
+
+            Disk value  intpart frac   Time value   Memory value
+            800000.00    0      0      00:00:00.00  0000000000.000000
+            7FFFFF.FF   -1      255   -00:00:00.01  FFFFFFFFFF.FFD8F0
+            7FFFFF.9D   -1      99    -00:00:00.99  FFFFFFFFFF.F0E4D0
+            7FFFFF.00   -1      0     -00:00:01.00  FFFFFFFFFF.000000
+            7FFFFE.FF   -1      255   -00:00:01.01  FFFFFFFFFE.FFD8F0
+            7FFFFE.F6   -2      246   -00:00:01.10  FFFFFFFFFE.FE7960
+
+            Formula to convert fractional part from disk format
+            (now stored in "frac" variable) to absolute value: "0x100 - frac".
+            To reconstruct in-memory value, we shift
+            to the next integer value and then substruct fractional part.
+        */
+        intpart++;    /* Shift to the next integer value */
+        frac-= 0x100; /* -(0x100 - frac) */
+      }
+      return MY_PACKED_TIME_MAKE(intpart, frac * 10000);
+    }
+
+  case 3:
+  case 4:
+    {
+      longlong intpart= mi_uint3korr(ptr) - TIMEF_INT_OFS;
+      int frac= mi_uint2korr(ptr + 3);
+      if (intpart < 0 && frac)
+      {
+        /*
+          Fix reverse fractional part order: "0x10000 - frac".
+          See comments for FSP=1 and FSP=2 above.
+        */
+        intpart++;      /* Shift to the next integer value */
+        frac-= 0x10000; /* -(0x10000-frac) */
+      }
+      return MY_PACKED_TIME_MAKE(intpart, frac * 100);
+    }
+
+  case 5:
+  case 6:
+    return ((longlong) mi_uint6korr(ptr)) - TIMEF_OFS;
+  }
+}
+
+
+/*** DATETIME and DATE low-level memory and disk representation routines ***/
+
+/*
+    1 bit  sign            (used when on disk)
+   17 bits year*13+month   (year 0-9999, month 0-12)
+    5 bits day             (0-31)
+    5 bits hour            (0-23)
+    6 bits minute          (0-59)
+    6 bits second          (0-59)
+   24 bits microseconds    (0-999999)
+
+   Total: 64 bits = 8 bytes
+
+   SYYYYYYY.YYYYYYYY.YYdddddh.hhhhmmmm.mmssssss.ffffffff.ffffffff.ffffffff
+*/
+
+/**
+  Convert datetime to packed numeric datetime representation.
+  @param ltime  The value to convert.
+  @return       Packed numeric representation of ltime.
+*/
+longlong TIME_to_longlong_datetime_packed(const MYSQL_TIME *ltime)
+{
+  longlong ymd= ((ltime->year * 13 + ltime->month) << 5) | ltime->day;
+  longlong hms= (ltime->hour << 12) | (ltime->minute << 6) | ltime->second;
+  longlong tmp= MY_PACKED_TIME_MAKE(((ymd << 17) | hms), ltime->second_part);
+  DBUG_ASSERT(!check_datetime_range(ltime)); /* Make sure no overflow */
+  return ltime->neg ? -tmp : tmp;
+}
+
+
+/**
+  Convert date to packed numeric date representation.
+  Numeric packed date format is similar to numeric packed datetime
+  representation, with zero hhmmss part.
+  
+  @param ltime The value to convert.
+  @return      Packed numeric representation of ltime.
+*/
+longlong TIME_to_longlong_date_packed(const MYSQL_TIME *ltime)
+{
+  longlong ymd= ((ltime->year * 13 + ltime->month) << 5) | ltime->day;
+  return MY_PACKED_TIME_MAKE_INT(ymd << 17);
+}
+
+
+/**
+  Convert year to packed numeric date representation.
+  Packed value for YYYY is the same to packed value for date YYYY-00-00.
+*/
+longlong year_to_longlong_datetime_packed(long year)
+{
+  longlong ymd= ((year * 13) << 5);
+  return MY_PACKED_TIME_MAKE_INT(ymd << 17);
+}
+
+
+/**
+  Convert packed numeric datetime representation to MYSQL_TIME.
+  @param OUT  ltime The datetime variable to convert to.
+  @param      tmp   The packed numeric datetime value.
+*/
+void TIME_from_longlong_datetime_packed(MYSQL_TIME *ltime, longlong tmp)
+{
+  longlong ymd, hms;
+  longlong ymdhms, ym;
+  if ((ltime->neg= (tmp < 0)))
+    tmp= -tmp;
+
+  ltime->second_part= MY_PACKED_TIME_GET_FRAC_PART(tmp);
+  ymdhms= MY_PACKED_TIME_GET_INT_PART(tmp);
+
+  ymd= ymdhms >> 17;
+  ym= ymd >> 5;
+  hms= ymdhms % (1 << 17);
+
+  ltime->day= ymd % (1 << 5);
+  ltime->month= ym % 13;
+  ltime->year= ym / 13;
+
+  ltime->second= hms % (1 << 6);
+  ltime->minute= (hms >> 6) % (1 << 6);
+  ltime->hour= (hms >> 12);
+  
+  ltime->time_type= MYSQL_TIMESTAMP_DATETIME;
+}
+
+
+/**
+  Convert packed numeric date representation to MYSQL_TIME.
+  @param OUT  ltime The date variable to convert to.
+  @param      tmp   The packed numeric date value.
+*/
+void TIME_from_longlong_date_packed(MYSQL_TIME *ltime, longlong tmp)
+{
+  TIME_from_longlong_datetime_packed(ltime, tmp);
+  ltime->time_type= MYSQL_TIMESTAMP_DATE;
+}
+
+
+/**
+  Calculate binary size of packed datetime representation.
+  @param dec  Precision.
+*/
+uint my_datetime_binary_length(uint dec)
+{
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  return 5 + (dec + 1) / 2;
+}
+
+
+/*
+  On disk we store as unsigned number with DATETIMEF_INT_OFS offset,
+  for HA_KETYPE_BINARY compatibilty purposes.
+*/
+#define DATETIMEF_INT_OFS 0x8000000000LL
+
+
+/**
+  Convert on-disk datetime representation
+  to in-memory packed numeric representation.
+
+  @param ptr   The pointer to read value at.
+  @param dec   Precision.
+  @return      In-memory packed numeric datetime representation.
+*/
+longlong my_datetime_packed_from_binary(const uchar *ptr, uint dec)
+{
+  longlong intpart= mi_uint5korr(ptr) - DATETIMEF_INT_OFS;
+  int frac;
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  switch (dec)
+  {
+  case 0:
+  default:
+    return MY_PACKED_TIME_MAKE_INT(intpart);
+  case 1:
+  case 2:
+    frac= ((int) (signed char) ptr[5]) * 10000;
+    break;
+  case 3:
+  case 4:
+    frac= mi_sint2korr(ptr + 5) * 100;
+    break;
+  case 5:
+  case 6:
+    frac= mi_sint3korr(ptr + 5);
+    break;
+  }
+  return MY_PACKED_TIME_MAKE(intpart, frac);
+}
+
+
+/**
+  Store in-memory numeric packed datetime representation to disk.
+
+  @param      nr  In-memory numeric packed datetime representation.
+  @param OUT  ptr The pointer to store at.
+  @param      dec Precision, 1-6.
+*/
+void my_datetime_packed_to_binary(longlong nr, uchar *ptr, uint dec)
+{
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  /* The value being stored must have been properly rounded or truncated */
+  DBUG_ASSERT((MY_PACKED_TIME_GET_FRAC_PART(nr) %
+              (int) log_10_int[DATETIME_MAX_DECIMALS - dec]) == 0);
+
+  mi_int5store(ptr, MY_PACKED_TIME_GET_INT_PART(nr) + DATETIMEF_INT_OFS);
+  switch (dec)
+  {
+  case 0:
+  default:
+    break;
+  case 1:
+  case 2:
+    ptr[5]= (unsigned char) (char) (MY_PACKED_TIME_GET_FRAC_PART(nr) / 10000);
+    break;
+  case 3:
+  case 4:
+    mi_int2store(ptr + 5, MY_PACKED_TIME_GET_FRAC_PART(nr) / 100);
+    break;
+  case 5:
+  case 6:
+    mi_int3store(ptr + 5, MY_PACKED_TIME_GET_FRAC_PART(nr));
+  }
+}
+
+
+/*** TIMESTAMP low-level memory and disk representation routines ***/
+
+/**
+  Calculate on-disk size of a timestamp value.
+
+  @param  dec  Precision.
+*/
+uint my_timestamp_binary_length(uint dec)
+{
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  return 4 + (dec + 1) / 2;
+}
+
+
+/**
+  Convert binary timestamp representation to in-memory representation.
+
+  @param  OUT tm  The variable to convert to.
+  @param      ptr The pointer to read the value from.
+  @param      dec Precision.
+*/
+void my_timestamp_from_binary(struct timeval *tm, const uchar *ptr, uint dec)
+{
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  tm->tv_sec= mi_uint4korr(ptr);
+  switch (dec)
+  {
+    case 0:
+    default:
+      tm->tv_usec= 0;
+      break;
+    case 1:
+    case 2:
+      tm->tv_usec= ((int) ptr[4]) * 10000;
+      break;
+    case 3:
+    case 4:
+      tm->tv_usec= mi_sint2korr(ptr + 4) * 100;
+      break;
+    case 5:
+    case 6:
+      tm->tv_usec= mi_sint3korr(ptr + 4);
+  }
+}
+
+
+/**
+  Convert in-memory timestamp representation to on-disk representation.
+
+  @param        tm   The value to convert.
+  @param  OUT   ptr  The pointer to store the value to.
+  @param        dec  Precision.
+*/
+void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec)
+{
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  /* Stored value must have been previously properly rounded or truncated */
+  DBUG_ASSERT((tm->tv_usec %
+               (int) log_10_int[DATETIME_MAX_DECIMALS - dec]) == 0);
+  mi_int4store(ptr, tm->tv_sec);
+  switch (dec)
+  {
+    case 0:
+    default:
+      break;
+    case 1:
+    case 2:
+      ptr[4]= (unsigned char) (char) (tm->tv_usec / 10000);
+      break;
+    case 3:
+    case 4:
+      mi_int2store(ptr + 4, tm->tv_usec / 100);
+      break;
+      /* Impossible second precision. Fall through */
+    case 5:
+    case 6:
+      mi_int3store(ptr + 4, tm->tv_usec);
+  }
+}
+
+/****************************************/
+
+
+/**
+  Convert a temporal value to packed numeric temporal representation,
+  depending on its time_type.
+
+  @ltime   The value to convert.
+  @return  Packed numeric time/date/datetime representation.
+*/
+longlong TIME_to_longlong_packed(const MYSQL_TIME *ltime)
+{
+  switch (ltime->time_type) {
+  case MYSQL_TIMESTAMP_DATE:
+    return TIME_to_longlong_date_packed(ltime);
+  case MYSQL_TIMESTAMP_DATETIME:
+    return TIME_to_longlong_datetime_packed(ltime);
+  case MYSQL_TIMESTAMP_TIME:
+    return TIME_to_longlong_time_packed(ltime);   
+  case MYSQL_TIMESTAMP_NONE:
+  case MYSQL_TIMESTAMP_ERROR:
+    return 0;
+  }
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+/*** End of low level format routines ***/

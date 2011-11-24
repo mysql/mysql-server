@@ -76,7 +76,7 @@
 /* Copy the first part of user declarations.  */
 
 /* Line 189 of yacc.c  */
-#line 1 "fts0pars.y"
+#line 26 "fts0pars.y"
 
 
 #include "mem0mem.h"
@@ -86,14 +86,14 @@
 #include "fts0pars.h"
 
 extern	int fts_lexer(YYSTYPE*, fts_lexer_t*);
-extern	int fts_blexer(YYSTYPE* val, yyscan_t yyscanner);
-extern	int fts_tlexer(YYSTYPE* val, yyscan_t yyscanner);
+extern	int fts_blexer(YYSTYPE*, yyscan_t);
+extern	int fts_tlexer(YYSTYPE*, yyscan_t);
 
-typedef int (*ftss)();
+typedef int (*fts_scan)();
 
 extern int ftserror(const char* p);
 
-/* Required for reentrant parser */ 
+/* Required for reentrant parser */
 #define ftslex	fts_lexer
 
 #define YYERROR_VERBOSE
@@ -113,7 +113,7 @@ struct fts_lexer_struct {
 
 
 /* Line 189 of yacc.c  */
-#line 115 "fts0pars.cc"
+#line 117 "fts0pars.cc"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -154,7 +154,7 @@ typedef union YYSTYPE
 {
 
 /* Line 214 of yacc.c  */
-#line 34 "fts0pars.y"
+#line 61 "fts0pars.y"
 
 	int		oper;
 	char*		token;
@@ -163,7 +163,7 @@ typedef union YYSTYPE
 
 
 /* Line 214 of yacc.c  */
-#line 165 "fts0pars.cc"
+#line 167 "fts0pars.cc"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -175,7 +175,7 @@ typedef union YYSTYPE
 
 
 /* Line 264 of yacc.c  */
-#line 177 "fts0pars.cc"
+#line 179 "fts0pars.cc"
 
 #ifdef short
 # undef short
@@ -465,9 +465,9 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    52,    52,    58,    62,    72,    84,    88,    97,   101,
-     105,   109,   114,   120,   125,   132,   138,   142,   146,   150,
-     154,   159,   164,   171
+       0,    79,    79,    85,    89,    99,   111,   115,   124,   128,
+     132,   136,   141,   147,   152,   159,   165,   169,   173,   177,
+     181,   186,   191,   198
 };
 #endif
 
@@ -1081,6 +1081,13 @@ yydestruct (yymsg, yytype, yyvaluep)
   if (!yymsg)
     yymsg = "Deleting";
   YY_SYMBOL_PRINT (yymsg, yytype, yyvaluep, yylocationp);
+
+  switch (yytype)
+    {
+
+      default:
+	break;
+    }
 }
 
 /* Prevent warnings from -Wmissing-prototypes.  */
@@ -1379,7 +1386,7 @@ yyreduce:
         case 2:
 
 /* Line 1455 of yacc.c  */
-#line 52 "fts0pars.y"
+#line 79 "fts0pars.y"
     {
 		(yyval.node) = (yyvsp[(1) - (1)].node);
 		((fts_ast_state_t*)state)->root = (yyval.node);
@@ -1389,7 +1396,7 @@ yyreduce:
   case 3:
 
 /* Line 1455 of yacc.c  */
-#line 58 "fts0pars.y"
+#line 85 "fts0pars.y"
     {
 		(yyval.node) = NULL;
 	;}
@@ -1398,7 +1405,7 @@ yyreduce:
   case 4:
 
 /* Line 1455 of yacc.c  */
-#line 62 "fts0pars.y"
+#line 89 "fts0pars.y"
     {
 		(yyval.node) = (yyvsp[(1) - (2)].node);
 
@@ -1413,7 +1420,7 @@ yyreduce:
   case 5:
 
 /* Line 1455 of yacc.c  */
-#line 72 "fts0pars.y"
+#line 99 "fts0pars.y"
     {
 		(yyval.node) = (yyvsp[(1) - (2)].node);
 		(yyval.node) = fts_ast_create_node_list(state, (yyvsp[(1) - (2)].node));
@@ -1429,7 +1436,7 @@ yyreduce:
   case 6:
 
 /* Line 1455 of yacc.c  */
-#line 84 "fts0pars.y"
+#line 111 "fts0pars.y"
     {
 		(yyval.node) = (yyvsp[(2) - (3)].node);
 	;}
@@ -1438,7 +1445,7 @@ yyreduce:
   case 7:
 
 /* Line 1455 of yacc.c  */
-#line 88 "fts0pars.y"
+#line 115 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_subexp_list(state, (yyvsp[(1) - (4)].node));
 
@@ -1451,7 +1458,7 @@ yyreduce:
   case 8:
 
 /* Line 1455 of yacc.c  */
-#line 97 "fts0pars.y"
+#line 124 "fts0pars.y"
     {
 		(yyval.node) = (yyvsp[(1) - (1)].node);
 	;}
@@ -1460,7 +1467,7 @@ yyreduce:
   case 9:
 
 /* Line 1455 of yacc.c  */
-#line 101 "fts0pars.y"
+#line 128 "fts0pars.y"
     {
 		(yyval.node) = (yyvsp[(1) - (1)].node);
 	;}
@@ -1469,7 +1476,7 @@ yyreduce:
   case 10:
 
 /* Line 1455 of yacc.c  */
-#line 105 "fts0pars.y"
+#line 132 "fts0pars.y"
     {
 		fts_ast_term_set_wildcard((yyvsp[(1) - (2)].node));
 	;}
@@ -1478,7 +1485,7 @@ yyreduce:
   case 11:
 
 /* Line 1455 of yacc.c  */
-#line 109 "fts0pars.y"
+#line 136 "fts0pars.y"
     {
 		fts_ast_term_set_distance((yyvsp[(1) - (3)].node), strtoul((yyvsp[(3) - (3)].token), NULL, 10));
 		free((yyvsp[(3) - (3)].token));
@@ -1488,7 +1495,7 @@ yyreduce:
   case 12:
 
 /* Line 1455 of yacc.c  */
-#line 114 "fts0pars.y"
+#line 141 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_list(state, (yyvsp[(1) - (3)].node));
 		fts_ast_add_node((yyval.node), (yyvsp[(2) - (3)].node));
@@ -1499,7 +1506,7 @@ yyreduce:
   case 13:
 
 /* Line 1455 of yacc.c  */
-#line 120 "fts0pars.y"
+#line 147 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_list(state, (yyvsp[(1) - (2)].node));
 		fts_ast_add_node((yyval.node), (yyvsp[(2) - (2)].node));
@@ -1509,7 +1516,7 @@ yyreduce:
   case 14:
 
 /* Line 1455 of yacc.c  */
-#line 125 "fts0pars.y"
+#line 152 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_list(state, (yyvsp[(1) - (4)].node));
 		fts_ast_add_node((yyval.node), (yyvsp[(2) - (4)].node));
@@ -1521,7 +1528,7 @@ yyreduce:
   case 15:
 
 /* Line 1455 of yacc.c  */
-#line 132 "fts0pars.y"
+#line 159 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_list(state, (yyvsp[(1) - (2)].node));
 		fts_ast_add_node((yyval.node), (yyvsp[(2) - (2)].node));
@@ -1531,7 +1538,7 @@ yyreduce:
   case 16:
 
 /* Line 1455 of yacc.c  */
-#line 138 "fts0pars.y"
+#line 165 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_oper(state, FTS_IGNORE);
 	;}
@@ -1540,7 +1547,7 @@ yyreduce:
   case 17:
 
 /* Line 1455 of yacc.c  */
-#line 142 "fts0pars.y"
+#line 169 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_oper(state, FTS_EXIST);
 	;}
@@ -1549,7 +1556,7 @@ yyreduce:
   case 18:
 
 /* Line 1455 of yacc.c  */
-#line 146 "fts0pars.y"
+#line 173 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_oper(state, FTS_NEGATE);
 	;}
@@ -1558,7 +1565,7 @@ yyreduce:
   case 19:
 
 /* Line 1455 of yacc.c  */
-#line 150 "fts0pars.y"
+#line 177 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_oper(state, FTS_DECR_RATING);
 	;}
@@ -1567,7 +1574,7 @@ yyreduce:
   case 20:
 
 /* Line 1455 of yacc.c  */
-#line 154 "fts0pars.y"
+#line 181 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_oper(state, FTS_INCR_RATING);
 	;}
@@ -1576,7 +1583,7 @@ yyreduce:
   case 21:
 
 /* Line 1455 of yacc.c  */
-#line 159 "fts0pars.y"
+#line 186 "fts0pars.y"
     {
 		(yyval.node)  = fts_ast_create_node_term(state, (yyvsp[(1) - (1)].token));
 		free((yyvsp[(1) - (1)].token));
@@ -1586,7 +1593,7 @@ yyreduce:
   case 22:
 
 /* Line 1455 of yacc.c  */
-#line 164 "fts0pars.y"
+#line 191 "fts0pars.y"
     {
 		(yyval.node)  = fts_ast_create_node_term(state, (yyvsp[(1) - (1)].token));
 		free((yyvsp[(1) - (1)].token));
@@ -1596,7 +1603,7 @@ yyreduce:
   case 23:
 
 /* Line 1455 of yacc.c  */
-#line 171 "fts0pars.y"
+#line 198 "fts0pars.y"
     {
 		(yyval.node)  = fts_ast_create_node_text(state, (yyvsp[(1) - (1)].token));
 		free((yyvsp[(1) - (1)].token));
@@ -1606,7 +1613,7 @@ yyreduce:
 
 
 /* Line 1455 of yacc.c  */
-#line 1615 "fts0pars.cc"
+#line 1617 "fts0pars.cc"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1818,7 +1825,7 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 176 "fts0pars.y"
+#line 203 "fts0pars.y"
 
 
 /********************************************************************
@@ -1848,13 +1855,13 @@ fts_lexer_create(
 	if (boolean_mode) {
 		fts0blex_init(&fts_lexer->yyscanner);
 		fts0b_scan_bytes((char*)query, query_len, fts_lexer->yyscanner);
-		fts_lexer->scanner = (ftss)fts_blexer;
+		fts_lexer->scanner = (fts_scan) fts_blexer;
 		/* FIXME: Debugging */
 		/* fts0bset_debug(1 , fts_lexer->yyscanner); */
 	} else {
 		fts0tlex_init(&fts_lexer->yyscanner);
 		fts0t_scan_bytes((char*)query, query_len, fts_lexer->yyscanner);
-		fts_lexer->scanner = (ftss)fts_tlexer;
+		fts_lexer->scanner = (fts_scan) fts_tlexer;
 	}
 
 	return(fts_lexer);
@@ -1868,7 +1875,7 @@ fts_lexer_free(
 /*===========*/
 	fts_lexer_t*	fts_lexer)
 {
-	if (fts_lexer->scanner == (ftss)fts_blexer) {
+	if (fts_lexer->scanner == (fts_scan) fts_blexer) {
 		fts0blex_destroy(fts_lexer->yyscanner);
 	} else {
 		fts0tlex_destroy(fts_lexer->yyscanner);
@@ -1900,8 +1907,6 @@ fts_parse(
 /*======*/
 	fts_ast_state_t*	state)
 {
-	extern int ftsparse(void*);	/* To shutup the compiler */
-
 	return(ftsparse(state));
 }
 

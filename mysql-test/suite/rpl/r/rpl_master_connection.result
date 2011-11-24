@@ -225,11 +225,11 @@ include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 SET @old_log_output= @@log_output;
 SET GLOBAL log_output= 'TABLE,FILE';
+call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
 include/stop_slave.inc
 TRUNCATE mysql.general_log;
 START SLAVE PASSWORD='secret';
-include/stop_slave.inc
-START SLAVE PASSWORD = '<secret>';
+include/wait_for_slave_io_error.inc [errno=1593]
 include/stop_slave.inc
 TRUNCATE mysql.general_log;
 START SLAVE USER='root' PASSWORD='secret';
