@@ -5880,9 +5880,21 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                "terminated.");
     DBUG_RETURN(1);
   }
+
+  const char* user= mi->get_user();
+  if (user == NULL || user[0] == 0)
+  {
+    mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+               ER(ER_SLAVE_FATAL_ERROR),
+               "Invalid (empty) username when attempting to "
+               "connect to the master server. Connection attempt "
+               "terminated.");
+    DBUG_RETURN(1);
+  }
+
   while (!(slave_was_killed = io_slave_killed(thd,mi))
          && (reconnect ? mysql_reconnect(mysql) != 0 :
-             mysql_real_connect(mysql, mi->host, mi->get_user(),
+             mysql_real_connect(mysql, mi->host, user,
                                 password, 0, mi->port, 0, client_flag) == 0))
   {
     /*
@@ -6037,9 +6049,12 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
   if (!mi->is_start_user_configured())
     sql_print_warning("%s", ER(ER_INSECURE_CHANGE_MASTER));
 
-  if (mi->get_password(password, &password_size)
+  const char *user= mi->get_user();
+  if (user == NULL
+      || user[0] == 0
+      || mi->get_password(password, &password_size)
       || io_slave_killed(thd, mi)
-      || !mysql_real_connect(mysql, mi->host, mi->get_user(),
+      || !mysql_real_connect(mysql, mi->host, user,
                              password, 0, mi->port, 0, 0))
   {
     if (!io_slave_killed(thd, mi))
