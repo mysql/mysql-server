@@ -670,8 +670,9 @@ UNIV_INTERN
 void
 fil_flush(
 /*======*/
-	ulint	space_id);	/*!< in: file space id (this can be a group of
+	ulint	space_id,	/*!< in: file space id (this can be a group of
 				log files or a tablespace of the database) */
+	ibool	metadata);
 /**********************************************************************//**
 Flushes to disk writes in file spaces of the given type possibly cached by
 the OS. */

@@ -926,6 +926,43 @@ DROP DATABASE B48872;
 
 --echo End of 5.0 tests.
 
+--echo #
+--echo # Bug#11882603 SELECT_ACL ON ANY COLUMN IN MYSQL.PROC ALLOWS TO SEE
+--echo #              DEFINITION OF ANY ROUTINE. 
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+--enable_warnings
+
+CREATE DATABASE db1;
+CREATE PROCEDURE db1.p1() SELECT 1;
+CREATE USER user2@localhost IDENTIFIED BY '';
+GRANT SELECT(db) ON mysql.proc TO user2@localhost;
+ 
+--echo # Connection con2 as user2
+connect (con2, localhost, user2);
+--echo # The statement below before disclosed info from body_utf8 column.
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE PROCEDURE db1.p1;
+
+--echo # Check that SHOW works with SELECT grant on whole table
+--echo # Connection default
+connection default;
+GRANT SELECT ON mysql.proc TO user2@localhost;
+
+--echo # Connection con2
+connection con2;
+--echo # This should work
+SHOW CREATE PROCEDURE db1.p1;
+
+--echo # Connection default
+connection default;
+disconnect con2;
+DROP USER user2@localhost;
+DROP DATABASE db1;
+
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 

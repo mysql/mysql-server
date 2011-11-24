@@ -30,7 +30,7 @@ ERROR HY000: You are using safe update mode and you tried to update a table with
 delete from t1 where a+0=1;
 ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
 select 1 from t1,t1 as t2,t1 as t3,t1 as t4,t1 as t5;
-ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
 update t1 set b="a" limit 1;
 update t1 set b="a" where b="b" limit 2;
 delete from t1 where b="test" limit 1;
@@ -42,7 +42,7 @@ SELECT @@MAX_JOIN_SIZE, @@SQL_BIG_SELECTS;
 2	0
 insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a");
 SELECT * from t1 order by a;
-ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
 SET SQL_BIG_SELECTS=1;
 SELECT * from t1 order by a;
 a	b
@@ -52,7 +52,7 @@ a	b
 5	a
 SET MAX_JOIN_SIZE=2;
 SELECT * from t1;
-ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
 SET MAX_JOIN_SIZE=DEFAULT;
 SELECT * from t1;
 a	b
@@ -82,12 +82,12 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 set local  max_join_size=8;
 select * from (select * from t1) x;
-ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
 set local  max_join_size=1;
 select * from (select a.a as aa, b.a as ba from t1 a, t1 b) x;
-ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
 set local  max_join_size=1;
 select * from (select 1 union select 2 union select 3) x;
-ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
 drop table t1;
 SET SQL_SAFE_UPDATES=0,SQL_SELECT_LIMIT=DEFAULT, SQL_MAX_JOIN_SIZE=DEFAULT;

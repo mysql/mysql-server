@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* drop and alter of tables */
 
@@ -2447,7 +2449,8 @@ int prepare_create_field(Create_field *sql_field,
           MAX_FIELD_CHARLENGTH)
       {
         my_printf_error(ER_TOO_BIG_FIELDLENGTH, ER(ER_TOO_BIG_FIELDLENGTH),
-                        MYF(0), sql_field->field_name, MAX_FIELD_CHARLENGTH);
+                        MYF(0), sql_field->field_name,
+                        static_cast<ulong>(MAX_FIELD_CHARLENGTH));
         DBUG_RETURN(1);
       }
     }
@@ -3216,11 +3219,20 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	column->length*= sql_field->charset->mbmaxlen;
 
-        if (key->type == Key::SPATIAL && column->length)
+        if (key->type == Key::SPATIAL)
         {
-          my_error(ER_WRONG_SUB_KEY, MYF(0));
-	  DBUG_RETURN(TRUE);
-	}
+          if (column->length)
+          {
+            my_error(ER_WRONG_SUB_KEY, MYF(0));
+            DBUG_RETURN(TRUE);
+          }
+
+          if (!f_is_geom(sql_field->pack_flag))
+          {
+            my_error(ER_WRONG_ARGUMENTS, MYF(0), "SPATIAL INDEX");
+            DBUG_RETURN(TRUE);
+          }
+        }
 
 	if (f_is_blob(sql_field->pack_flag) ||
             (f_is_geom(sql_field->pack_flag) && key->type != Key::SPATIAL))
@@ -3543,7 +3555,8 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
                                                       MODE_STRICT_ALL_TABLES)))
     {
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
-               MAX_FIELD_VARCHARLENGTH / sql_field->charset->mbmaxlen);
+               static_cast<ulong>(MAX_FIELD_VARCHARLENGTH /
+                                  sql_field->charset->mbmaxlen));
       DBUG_RETURN(1);
     }
     sql_field->sql_type= MYSQL_TYPE_BLOB;
@@ -6328,6 +6341,12 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (drop)
     {
       drop_it.remove();
+      /*
+        ALTER TABLE DROP COLUMN always changes table data even in cases
+        when new version of the table has the same structure as the old
+        one.
+      */
+      alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
       continue;
     }
     /* Check if field is changed */
@@ -6411,7 +6430,14 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (!def->after)
       new_create_list.push_back(def);
     else if (def->after == first_keyword)
+    {
       new_create_list.push_front(def);
+      /*
+        Re-ordering columns in table can't be done using in-place algorithm
+        as it always changes table data.
+      */
+      alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
+    }
     else
     {
       Create_field *find;
@@ -6428,6 +6454,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         goto err;
       }
       find_it.after(def);			// Put element after this
+      /*
+        Re-ordering columns in table can't be done using in-place algorithm
+        as it always changes table data.
+      */
       alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
     }
   }
@@ -7150,7 +7180,7 @@ view_err:
     need_copy_table= ALTER_TABLE_DATA_CHANGED;
   else
   {
-    enum_alter_table_change_level need_copy_table_res;
+    enum_alter_table_change_level need_copy_table_res=ALTER_TABLE_METADATA_ONLY;
     /* Check how much the tables differ. */
     if (compare_tables(table, alter_info,
                        create_info, order_num,

@@ -1,5 +1,6 @@
-/* Copyright (c) 2003, 2011, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2004, 2006 MySQL AB
    Copyright (c) 2009-2011, Monty Program Ab
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <stdio.h>
 #include <string.h>

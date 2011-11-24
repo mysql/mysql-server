@@ -293,14 +293,14 @@ fseg_alloc_free_page_low(
 				/* out: the allocated page number, FIL_NULL
 				if no page could be allocated */
 	ulint		space,	/* in: space */
-	fseg_inode_t*	seg_inode, /* in: segment inode */
+	fseg_inode_t*	seg_inode, /* in/out: segment inode */
 	ulint		hint,	/* in: hint of which page would be desirable */
 	byte		direction, /* in: if the new page is needed because
 				of an index page split, and records are
 				inserted there in order, into which
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
-	mtr_t*		mtr);	/* in: mtr handle */
+	mtr_t*		mtr);	/* in/out: mini-transaction */
 
 
 /**************************************************************************
@@ -1381,7 +1381,7 @@ fsp_alloc_free_page(
 			be allocated */
 	ulint	space,	/* in: space id */
 	ulint	hint,	/* in: hint of which page would be desirable */
-	mtr_t*	mtr)	/* in: mtr handle */
+	mtr_t*	mtr)	/* in/out: mini-transaction */
 {
 	fsp_header_t*	header;
 	fil_addr_t	first;
@@ -1441,6 +1441,7 @@ fsp_alloc_free_page(
 	if (free == ULINT_UNDEFINED) {
 
 		ut_print_buf(stderr, ((byte*)descr) - 500, 1000);
+		putc('\n', stderr);
 
 		ut_error;
 	}
@@ -2331,14 +2332,14 @@ fseg_alloc_free_page_low(
 				/* out: the allocated page number, FIL_NULL
 				if no page could be allocated */
 	ulint		space,	/* in: space */
-	fseg_inode_t*	seg_inode, /* in: segment inode */
+	fseg_inode_t*	seg_inode, /* in/out: segment inode */
 	ulint		hint,	/* in: hint of which page would be desirable */
 	byte		direction, /* in: if the new page is needed because
 				of an index page split, and records are
 				inserted there in order, into which
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
-	mtr_t*		mtr)	/* in: mtr handle */
+	mtr_t*		mtr)	/* in/out: mini-transaction */
 {
 	fsp_header_t*	space_header;
 	ulint		space_size;
@@ -2554,8 +2555,6 @@ fseg_alloc_free_page_low(
 		fseg_mark_page_used(seg_inode, space, ret_page, mtr);
 	}
 
-	buf_reset_check_index_page_at_flush(space, ret_page);
-
 	return(ret_page);
 }
 
@@ -2569,7 +2568,7 @@ fseg_alloc_free_page_general(
 /*=========================*/
 				/* out: allocated page offset, FIL_NULL if no
 				page could be allocated */
-	fseg_header_t*	seg_header,/* in: segment header */
+	fseg_header_t*	seg_header,/* in/out: segment header */
 	ulint		hint,	/* in: hint of which page would be desirable */
 	byte		direction,/* in: if the new page is needed because
 				of an index page split, and records are
@@ -2581,7 +2580,7 @@ fseg_alloc_free_page_general(
 				with fsp_reserve_free_extents, then there
 				is no need to do the check for this individual
 				page */
-	mtr_t*		mtr)	/* in: mtr handle */
+	mtr_t*		mtr)	/* in/out: mini-transaction */
 {
 	fseg_inode_t*	inode;
 	ulint		space;

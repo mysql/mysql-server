@@ -451,4 +451,21 @@ SELECT CONVERT(t2.a USING UTF8) FROM t1, t1 t2 LIMIT 1
 1
 1
 DROP TABLE t1;
+#
+# Bug #11765023: 57934: DOS POSSIBLE SINCE BINARY CASTING 
+#   DOESN'T ADHERE TO MAX_ALLOWED_PACKET
+SET @@GLOBAL.max_allowed_packet=2048;
+Warnings:
+Warning	1105	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+SELECT CONVERT('a', BINARY(2049));
+CONVERT('a', BINARY(2049))
+NULL
+Warnings:
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (2048) - truncated
+SELECT CONVERT('a', CHAR(2049));
+CONVERT('a', CHAR(2049))
+NULL
+Warnings:
+Warning	1301	Result of cast_as_char() was larger than max_allowed_packet (2048) - truncated
+SET @@GLOBAL.max_allowed_packet=default;
 End of 5.1 tests

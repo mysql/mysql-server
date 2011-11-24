@@ -44,6 +44,9 @@ extern sess_t*	trx_dummy_sess;
 /** Number of transactions currently allocated for MySQL: protected by
 the kernel mutex */
 extern ulint	trx_n_mysql_transactions;
+/** Number of transactions currently in the XA PREPARED state: protected by
+the kernel mutex */
+extern ulint	trx_n_prepared;
 
 /********************************************************************//**
 Releases the search latch if trx has reserved it. */
@@ -107,6 +110,14 @@ void
 trx_free(
 /*=====*/
 	trx_t*	trx);	/*!< in, own: trx object */
+/********************************************************************//**
+At shutdown, frees a transaction object that is in the PREPARED state. */
+UNIV_INTERN
+void
+trx_free_prepared(
+/*==============*/
+	trx_t*	trx)	/*!< in, own: trx object */
+	__attribute__((nonnull));
 /********************************************************************//**
 Frees a transaction object for MySQL. */
 UNIV_INTERN
@@ -498,6 +509,7 @@ struct trx_struct{
 					150 bytes in the undo log size as then
 					we skip XA steps */
 	ulint		flush_log_at_trx_commit_session;
+	ulint		fake_changes;
 	ulint		flush_log_later;/* In 2PC, we hold the
 					prepare_commit mutex across
 					both phases. In that case, we
@@ -589,6 +601,8 @@ struct trx_struct{
 	ulint		mysql_process_no;/* since in Linux, 'top' reports
 					process id's and not thread id's, we
 					store the process number too */
+	time_t		idle_start;
+	ib_int64_t	last_stmt_start;
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current

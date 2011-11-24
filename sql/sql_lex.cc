@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
@@ -359,6 +361,7 @@ void lex_start(THD *thd)
   lex->server_options.port= -1;
 
   lex->is_lex_started= TRUE;
+  lex->used_tables= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1633,6 +1636,8 @@ void st_select_lex::init_query()
   nest_level= 0;
   link_next= 0;
   lock_option= TL_READ_DEFAULT;
+  m_non_agg_field_used= false;
+  m_agg_func_used= false;
 }
 
 void st_select_lex::init_select()
@@ -1663,7 +1668,8 @@ void st_select_lex::init_select()
   non_agg_fields.empty();
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
-  full_group_by_flag= 0;
+  m_non_agg_field_used= false;
+  m_agg_func_used= false;
 }
 
 /*
@@ -2002,6 +2008,9 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 {
   if (ref_pointer_array)
     return 0;
+
+  // find_order_in_list() may need some extra space, so multiply by two.
+  order_group_num*= 2;
 
   /*
     We have to create array in prepared statement memory if it is

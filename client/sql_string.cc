@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
@@ -107,7 +109,7 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
 
 bool String::set(double num,uint decimals, CHARSET_INFO *cs)
 {
-  char buff[331];
+  char buff[FLOATING_POINT_BUFFER];
   uint dummy_errors;
 
   str_charset=cs;
@@ -176,7 +178,10 @@ end:
 #else
 #ifdef HAVE_SNPRINTF
   buff[sizeof(buff)-1]=0;			// Safety
-  snprintf(buff,sizeof(buff)-1, "%.*f",(int) decimals,num);
+  IF_DBUG(int num_chars= )
+    snprintf(buff, sizeof(buff)-1, "%.*f",(int) decimals, num);
+  DBUG_ASSERT(num_chars > 0);
+  DBUG_ASSERT(num_chars < (int) sizeof(buff));
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif

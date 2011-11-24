@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -247,10 +248,10 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
           in_sum_func->outer_fields.push_back(field);
         }
         else
-          sel->full_group_by_flag|= NON_AGG_FIELD_USED;
+          sel->set_non_agg_field_used(true);
       }
       if (sel->nest_level > aggr_level &&
-          (sel->full_group_by_flag & SUM_FUNC_USED) &&
+          (sel->agg_func_used()) &&
           !sel->group_list.elements)
       {
         my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
@@ -259,7 +260,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
       }
     }
   }
-  aggr_sel->full_group_by_flag|= SUM_FUNC_USED;
+  aggr_sel->set_agg_func_used(true);
   update_used_tables();
   thd->lex->in_sum_func= in_sum_func;
   return FALSE;

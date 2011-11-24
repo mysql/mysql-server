@@ -1,4 +1,5 @@
-/* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+  Copyright (c) 2005, 2011, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   This handler was developed by Mikael Ronstrom for version 5.1 of MySQL.
@@ -1040,6 +1042,10 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
    (modelled after mi_check_print_msg)
    TODO: move this into the handler, or rewrite mysql_admin_table.
 */
+static bool print_admin_msg(THD* thd, const char* msg_type,
+                            const char* db_name, const char* table_name,
+                            const char* op_name, const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 6, 7);
 static bool print_admin_msg(THD* thd, const char* msg_type,
                             const char* db_name, const char* table_name,
                             const char* op_name, const char *fmt, ...)
@@ -2769,7 +2775,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
                       (PARTITION_ENABLED_TABLE_FLAGS));
   while (*(++file))
   {
-    DBUG_ASSERT(ref_length >= (*file)->ref_length);
+    /* MyISAM can have smaller ref_length for partitions with MAX_ROWS set */
     set_if_bigger(ref_length, ((*file)->ref_length));
     /*
       Verify that all partitions have the same set of table flags.
@@ -3475,15 +3481,19 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
 
 exit:
   /*
-    if updating an auto_increment column, update
+    If updating an auto_increment column, update
     table_share->ha_data->next_auto_inc_val if needed.
     (not to be used if auto_increment on secondary field in a multi-column
     index)
     mysql_update does not set table->next_number_field, so we use
     table->found_next_number_field instead.
+    Also checking that the field is marked in the write set.
   */
-  if (table->found_next_number_field && new_data == table->record[0] &&
-      !table->s->next_number_keypart)
+  if (table->found_next_number_field &&
+      new_data == table->record[0] &&
+      !table->s->next_number_keypart &&
+      bitmap_is_set(table->write_set,
+                    table->found_next_number_field->field_index))
   {
     HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
     if (!ha_data->auto_inc_initialized)
@@ -4030,12 +4040,15 @@ end_dont_reset_start_part:
 void ha_partition::position(const uchar *record)
 {
   handler *file= m_file[m_last_part];
+  uint pad_length;
   DBUG_ENTER("ha_partition::position");
 
   file->position(record);
   int2store(ref, m_last_part);
-  memcpy((ref + PARTITION_BYTES_IN_POS), file->ref,
-	 (ref_length - PARTITION_BYTES_IN_POS));
+  memcpy((ref + PARTITION_BYTES_IN_POS), file->ref, file->ref_length);
+  pad_length= m_ref_length - PARTITION_BYTES_IN_POS - file->ref_length;
+  if (pad_length)
+    memset((ref + PARTITION_BYTES_IN_POS + file->ref_length), 0, pad_length);
 
 #ifdef SUPPORTING_PARTITION_OVER_DIFFERENT_ENGINES
 #ifdef HAVE_valgrind
@@ -4050,6 +4063,7 @@ void ha_partition::position(const uchar *record)
 void ha_partition::column_bitmaps_signal()
 {
     handler::column_bitmaps_signal();
+    /* Must read all partition fields to make position() call possible */
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
 }
  
@@ -4523,7 +4537,8 @@ int ha_partition::index_read_idx_map(uchar *buf, uint index,
           break;
       }
     }
-    m_last_part= part;
+    if (part <= m_part_spec.end_part)
+      m_last_part= part;
   }
   else
   {
@@ -6439,7 +6454,14 @@ void ha_partition::print_error(int error, myf errflag)
   {
     /* In case m_file has not been initialized, like in bug#42438 */
     if (m_file)
+    {
+      if (m_last_part >= m_tot_parts)
+      {
+        DBUG_ASSERT(0);
+        m_last_part= 0;
+      }
       m_file[m_last_part]->print_error(error, errflag);
+    }
     else
       handler::print_error(error, errflag);
   }
@@ -6514,7 +6536,25 @@ int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
   */
   for (file= m_file; *file; file++)
     if ((ret=  (*file)->add_index(table_arg, key_info, num_of_keys)))
-      break;
+      goto err;
+  return ret;
+err:
+  if (file > m_file)
+  {
+    uint *key_numbers= (uint*) ha_thd()->alloc(sizeof(uint) * num_of_keys);
+    KEY *old_key_info= table_arg->key_info;
+    uint i;
+    /* Use the newly added key_info as table->key_info to remove them. */
+    for (i= 0; i < num_of_keys; i++)
+      key_numbers[i]= i;
+    table_arg->key_info= key_info;
+    while (--file >= m_file)
+    {
+      (void) (*file)->prepare_drop_index(table_arg, key_numbers, num_of_keys);
+      (void) (*file)->final_drop_index(table_arg);
+    }
+    table_arg->key_info= old_key_info;
+  }
   return ret;
 }
 

@@ -2608,7 +2608,9 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
        i < buffer->size;
        i+= TRANSLOG_PAGE_SIZE, pg++)
   {
+#ifndef DBUG_OFF
     TRANSLOG_ADDRESS addr= (buffer->offset + i);
+#endif
     DBUG_PRINT("info", ("send log form %lu till %lu  address: (%lu,0x%lx)  "
                         "page #: %lu  buffer size: %lu  buffer: 0x%lx",
                         (ulong) i, (ulong) (i + TRANSLOG_PAGE_SIZE),

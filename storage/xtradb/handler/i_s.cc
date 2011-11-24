@@ -1006,7 +1006,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_pool_pages =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(author, "Percona"),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
@@ -1055,7 +1055,7 @@ UNIV_INTERN struct st_maria_plugin      i_s_innodb_buffer_pool_pages_maria =
 
         /* plugin author (for SHOW PLUGINS) */
         /* const char* */
-        STRUCT_FLD(author, plugin_author),
+        STRUCT_FLD(author, "Percona"),
 
         /* general descriptive text (for SHOW PLUGINS) */
         /* const char* */
@@ -1108,7 +1108,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_index =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(author, "Percona"),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
@@ -1157,7 +1157,7 @@ UNIV_INTERN struct st_maria_plugin i_s_innodb_buffer_pool_pages_index_maria =
 
         /* plugin author (for SHOW PLUGINS) */
         /* const char* */
-        STRUCT_FLD(author, plugin_author),
+        STRUCT_FLD(author, "Percona"),
 
         /* general descriptive text (for SHOW PLUGINS) */
         /* const char* */
@@ -1210,7 +1210,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_blob =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(author, "Percona"),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
@@ -1259,7 +1259,7 @@ UNIV_INTERN struct st_maria_plugin i_s_innodb_buffer_pool_pages_blob_maria =
 
         /* plugin author (for SHOW PLUGINS) */
         /* const char* */
-        STRUCT_FLD(author, plugin_author),
+        STRUCT_FLD(author, "Percona"),
 
         /* general descriptive text (for SHOW PLUGINS) */
         /* const char* */
@@ -3158,7 +3158,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_rseg =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(author, "Percona"),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
@@ -3207,7 +3207,7 @@ UNIV_INTERN struct st_maria_plugin      i_s_innodb_rseg_maria =
 
         /* plugin author (for SHOW PLUGINS) */
         /* const char* */
-        STRUCT_FLD(author, plugin_author),
+        STRUCT_FLD(author, "Percona"),
 
         /* general descriptive text (for SHOW PLUGINS) */
         /* const char* */
@@ -3241,6 +3241,189 @@ UNIV_INTERN struct st_maria_plugin      i_s_innodb_rseg_maria =
 
         /* Maturity */
         /* int */
+        STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_STABLE)
+};
+
+/***********************************************************************
+*/
+static ST_FIELD_INFO	i_s_innodb_admin_command_info[] =
+{
+	{STRUCT_FLD(field_name,		"result_message"),
+	 STRUCT_FLD(field_length,	1024),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+#ifndef INNODB_COMPATIBILITY_HOOKS
+#error InnoDB needs MySQL to be built with #define INNODB_COMPATIBILITY_HOOKS
+#endif
+
+extern "C" {
+char **thd_query(MYSQL_THD thd);
+}
+
+static
+int
+i_s_innodb_admin_command_fill(
+/*==========================*/
+	THD*		thd,
+	TABLE_LIST*	tables,
+	COND*		cond)
+{
+	TABLE*	i_s_table	= (TABLE *) tables->table;
+	char**	query_str;
+	char*	ptr;
+	char	quote	= '\0';
+	const char*	command_head = "XTRA_";
+
+	DBUG_ENTER("i_s_innodb_admin_command_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	if(thd_sql_command(thd) != SQLCOM_SELECT) {
+		field_store_string(i_s_table->field[0],
+			"SELECT command is only accepted.");
+		goto end_func;
+	}
+
+	query_str = thd_query(thd);
+	ptr = *query_str;
+	
+	for (; *ptr; ptr++) {
+		if (*ptr == quote) {
+			quote = '\0';
+		} else if (quote) {
+		} else if (*ptr == '`' || *ptr == '"') {
+			quote = *ptr;
+		} else {
+			long	i;
+			for (i = 0; command_head[i]; i++) {
+				if (toupper((int)(unsigned char)(ptr[i]))
+				    != toupper((int)(unsigned char)
+				      (command_head[i]))) {
+					goto nomatch;
+				}
+			}
+			break;
+nomatch:
+			;
+		}
+	}
+
+	if (!*ptr) {
+		field_store_string(i_s_table->field[0],
+			"No XTRA_* command in the SQL statement."
+			" Please add /*!XTRA_xxxx*/ to the SQL.");
+		goto end_func;
+	}
+
+	if (!strncasecmp("XTRA_HELLO", ptr, 10)) {
+		/* This is example command XTRA_HELLO */
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: administration command test for XtraDB"
+				" 'XTRA_HELLO' was detected.\n");
+
+		field_store_string(i_s_table->field[0],
+			"Hello!");
+		goto end_func;
+	}
+	else if (!strncasecmp("XTRA_LRU_DUMP", ptr, 13)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: administration command 'XTRA_LRU_DUMP'"
+				" was detected.\n");
+
+		if (buf_LRU_file_dump()) {
+			field_store_string(i_s_table->field[0],
+				"XTRA_LRU_DUMP was succeeded.");
+		} else {
+			field_store_string(i_s_table->field[0],
+				"XTRA_LRU_DUMP was failed.");
+		}
+
+		goto end_func;
+	}
+	else if (!strncasecmp("XTRA_LRU_RESTORE", ptr, 16)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: administration command 'XTRA_LRU_RESTORE'"
+				" was detected.\n");
+
+		if (buf_LRU_file_restore()) {
+			field_store_string(i_s_table->field[0],
+				"XTRA_LRU_RESTORE was succeeded.");
+		} else {
+			field_store_string(i_s_table->field[0],
+				"XTRA_LRU_RESTORE was failed.");
+		}
+
+		goto end_func;
+	}
+
+	field_store_string(i_s_table->field[0],
+		"Undefined XTRA_* command.");
+	goto end_func;
+
+end_func:
+	if (schema_table_store_record(thd, i_s_table)) {
+		DBUG_RETURN(1);
+	} else {
+		DBUG_RETURN(0);
+	}
+}
+
+static
+int
+i_s_innodb_admin_command_init(
+/*==========================*/
+	void*	p)
+{
+	DBUG_ENTER("i_s_innodb_admin_command_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_innodb_admin_command_info;
+	schema->fill_table = i_s_innodb_admin_command_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_admin_command =
+{
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+	STRUCT_FLD(info, &i_s_info),
+	STRUCT_FLD(name, "XTRADB_ADMIN_COMMAND"),
+	STRUCT_FLD(author, "Percona"),
+	STRUCT_FLD(descr, "XtraDB specific command acceptor"),
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+	STRUCT_FLD(init, i_s_innodb_admin_command_init),
+	STRUCT_FLD(deinit, i_s_common_deinit),
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(status_vars, NULL),
+	STRUCT_FLD(system_vars, NULL),
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+UNIV_INTERN struct st_maria_plugin      i_s_innodb_admin_command_maria =
+{
+        STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+        STRUCT_FLD(info, &i_s_info),
+        STRUCT_FLD(name, "XTRADB_ADMIN_COMMAND"),
+        STRUCT_FLD(author, "Percona"),
+        STRUCT_FLD(descr, "XtraDB specific command acceptor"),
+        STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+        STRUCT_FLD(init, i_s_innodb_admin_command_init),
+        STRUCT_FLD(deinit, i_s_common_deinit),
+        STRUCT_FLD(version, 0x0100 /* 1.0 */),
+        STRUCT_FLD(status_vars, NULL),
+        STRUCT_FLD(system_vars, NULL),
+        STRUCT_FLD(version_info, "1.0"),
         STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_STABLE)
 };
 
@@ -3561,7 +3744,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_table_stats =
 	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
 	STRUCT_FLD(info, &i_s_info),
 	STRUCT_FLD(name, "INNODB_TABLE_STATS"),
-	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(author, "Percona"),
 	STRUCT_FLD(descr, "InnoDB table statistics in memory"),
 	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 	STRUCT_FLD(init, i_s_innodb_table_stats_init),
@@ -3577,7 +3760,7 @@ UNIV_INTERN struct st_maria_plugin      i_s_innodb_table_stats_maria =
         STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
         STRUCT_FLD(info, &i_s_info),
         STRUCT_FLD(name, "INNODB_TABLE_STATS"),
-        STRUCT_FLD(author, plugin_author),
+        STRUCT_FLD(author, "Percona"),
         STRUCT_FLD(descr, "InnoDB table statistics in memory"),
         STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
         STRUCT_FLD(init, i_s_innodb_table_stats_init),
@@ -3594,7 +3777,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_index_stats =
 	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
 	STRUCT_FLD(info, &i_s_info),
 	STRUCT_FLD(name, "INNODB_INDEX_STATS"),
-	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(author, "Percona"),
 	STRUCT_FLD(descr, "InnoDB index statistics in memory"),
 	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 	STRUCT_FLD(init, i_s_innodb_index_stats_init),
@@ -3610,7 +3793,7 @@ UNIV_INTERN struct st_maria_plugin      i_s_innodb_index_stats_maria =
         STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
         STRUCT_FLD(info, &i_s_info),
         STRUCT_FLD(name, "INNODB_INDEX_STATS"),
-        STRUCT_FLD(author, plugin_author),
+        STRUCT_FLD(author, "Percona"),
         STRUCT_FLD(descr, "InnoDB index statistics in memory"),
         STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
         STRUCT_FLD(init, i_s_innodb_index_stats_init),
@@ -3622,188 +3805,6 @@ UNIV_INTERN struct st_maria_plugin      i_s_innodb_index_stats_maria =
         STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_STABLE)
 };
 
-/***********************************************************************
-*/
-static ST_FIELD_INFO	i_s_innodb_admin_command_info[] =
-{
-	{STRUCT_FLD(field_name,		"result_message"),
-	 STRUCT_FLD(field_length,	1024),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-	END_OF_ST_FIELD_INFO
-};
-
-#ifndef INNODB_COMPATIBILITY_HOOKS
-#error InnoDB needs MySQL to be built with #define INNODB_COMPATIBILITY_HOOKS
-#endif
-
-extern "C" {
-char **thd_query(MYSQL_THD thd);
-}
-
-static
-int
-i_s_innodb_admin_command_fill(
-/*==========================*/
-	THD*		thd,
-	TABLE_LIST*	tables,
-	COND*		cond)
-{
-	TABLE*	i_s_table	= (TABLE *) tables->table;
-	char**	query_str;
-	char*	ptr;
-	char	quote	= '\0';
-	const char*	command_head = "XTRA_";
-
-	DBUG_ENTER("i_s_innodb_admin_command_fill");
-
-	/* deny access to non-superusers */
-	if (check_global_access(thd, PROCESS_ACL)) {
-		DBUG_RETURN(0);
-	}
-
-	if(thd_sql_command(thd) != SQLCOM_SELECT) {
-		field_store_string(i_s_table->field[0],
-			"SELECT command is only accepted.");
-		goto end_func;
-	}
-
-	query_str = thd_query(thd);
-	ptr = *query_str;
-	
-	for (; *ptr; ptr++) {
-		if (*ptr == quote) {
-			quote = '\0';
-		} else if (quote) {
-		} else if (*ptr == '`' || *ptr == '"') {
-			quote = *ptr;
-		} else {
-			long	i;
-			for (i = 0; command_head[i]; i++) {
-				if (toupper((int)(unsigned char)(ptr[i]))
-				    != toupper((int)(unsigned char)
-				      (command_head[i]))) {
-					goto nomatch;
-				}
-			}
-			break;
-nomatch:
-			;
-		}
-	}
-
-	if (!*ptr) {
-		field_store_string(i_s_table->field[0],
-			"No XTRA_* command in the SQL statement."
-			" Please add /*!XTRA_xxxx*/ to the SQL.");
-		goto end_func;
-	}
-
-	if (!strncasecmp("XTRA_HELLO", ptr, 10)) {
-		/* This is example command XTRA_HELLO */
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: administration command test for XtraDB"
-				" 'XTRA_HELLO' was detected.\n");
-
-		field_store_string(i_s_table->field[0],
-			"Hello!");
-		goto end_func;
-	}
-	else if (!strncasecmp("XTRA_LRU_DUMP", ptr, 13)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: administration command 'XTRA_LRU_DUMP'"
-				" was detected.\n");
-
-		if (buf_LRU_file_dump()) {
-			field_store_string(i_s_table->field[0],
-				"XTRA_LRU_DUMP was succeeded.");
-		} else {
-			field_store_string(i_s_table->field[0],
-				"XTRA_LRU_DUMP was failed.");
-		}
-
-		goto end_func;
-	}
-	else if (!strncasecmp("XTRA_LRU_RESTORE", ptr, 16)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: administration command 'XTRA_LRU_RESTORE'"
-				" was detected.\n");
-
-		if (buf_LRU_file_restore()) {
-			field_store_string(i_s_table->field[0],
-				"XTRA_LRU_RESTORE was succeeded.");
-		} else {
-			field_store_string(i_s_table->field[0],
-				"XTRA_LRU_RESTORE was failed.");
-		}
-
-		goto end_func;
-	}
-
-	field_store_string(i_s_table->field[0],
-		"Undefined XTRA_* command.");
-	goto end_func;
-
-end_func:
-	if (schema_table_store_record(thd, i_s_table)) {
-		DBUG_RETURN(1);
-	} else {
-		DBUG_RETURN(0);
-	}
-}
-
-static
-int
-i_s_innodb_admin_command_init(
-/*==========================*/
-	void*	p)
-{
-	DBUG_ENTER("i_s_innodb_admin_command_init");
-	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
-
-	schema->fields_info = i_s_innodb_admin_command_info;
-	schema->fill_table = i_s_innodb_admin_command_fill;
-
-	DBUG_RETURN(0);
-}
-
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_admin_command =
-{
-	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
-	STRUCT_FLD(info, &i_s_info),
-	STRUCT_FLD(name, "XTRADB_ADMIN_COMMAND"),
-	STRUCT_FLD(author, plugin_author),
-	STRUCT_FLD(descr, "XtraDB specific command acceptor"),
-	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
-	STRUCT_FLD(init, i_s_innodb_admin_command_init),
-	STRUCT_FLD(deinit, i_s_common_deinit),
-	STRUCT_FLD(version, 0x0100 /* 1.0 */),
-	STRUCT_FLD(status_vars, NULL),
-	STRUCT_FLD(system_vars, NULL),
-	STRUCT_FLD(__reserved1, NULL)
-};
-
-UNIV_INTERN struct st_maria_plugin      i_s_innodb_admin_command_maria =
-{
-        STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
-        STRUCT_FLD(info, &i_s_info),
-        STRUCT_FLD(name, "XTRADB_ADMIN_COMMAND"),
-        STRUCT_FLD(author, plugin_author),
-        STRUCT_FLD(descr, "XtraDB specific command acceptor"),
-        STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
-        STRUCT_FLD(init, i_s_innodb_admin_command_init),
-        STRUCT_FLD(deinit, i_s_common_deinit),
-        STRUCT_FLD(version, 0x0100 /* 1.0 */),
-        STRUCT_FLD(status_vars, NULL),
-        STRUCT_FLD(system_vars, NULL),
-        STRUCT_FLD(version_info, "1.0"),
-        STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_STABLE)
-};
 
 static ST_FIELD_INFO	i_s_innodb_sys_tables_info[] =
 {
@@ -4340,15 +4341,14 @@ i_s_innodb_schema_table_fill(
 		rec = btr_pcur_get_rec(&pcur);
 		if (!btr_pcur_is_on_user_rec(&pcur)) {
 			/* end of index */
-			btr_pcur_close(&pcur);
-			mtr_commit(&mtr);
 			break;
 		}
+
+		btr_pcur_store_position(&pcur, &mtr);
+
 		if (rec_get_deleted_flag(rec, 0)) {
 			/* record marked as deleted */
-			btr_pcur_close(&pcur);
-			mtr_commit(&mtr);
-			continue;
+			goto next_record;
 		}
 
 		if (id == 0) {
@@ -4359,32 +4359,22 @@ i_s_innodb_schema_table_fill(
 			status = copy_sys_stats_rec(table, index, rec);
 		}
 		if (status) {
-			btr_pcur_close(&pcur);
-			mtr_commit(&mtr);
 			break;
 		}
-
-#if 0
-		btr_pcur_store_position(&pcur, &mtr);
-		mtr_commit(&mtr);
 
 		status = schema_table_store_record(thd, table);
 		if (status) {
-			btr_pcur_close(&pcur);
 			break;
 		}
+next_record:
+		mtr_commit(&mtr);
 
 		mtr_start(&mtr);
 		btr_pcur_restore_position(BTR_SEARCH_LEAF, &pcur, &mtr);
-#else
-		status = schema_table_store_record(thd, table);
-		if (status) {
-			btr_pcur_close(&pcur);
-			mtr_commit(&mtr);
-			break;
-		}
-#endif
 	}
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
 
 	mutex_exit(&(dict_sys->mutex));
 
@@ -4441,7 +4431,7 @@ UNIV_INTERN struct st_mysql_plugin   i_s_innodb_sys_tables =
 	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
 	STRUCT_FLD(info, &i_s_info),
 	STRUCT_FLD(name, "INNODB_SYS_TABLES"),
-	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(author, "Percona"),
 	STRUCT_FLD(descr, "InnoDB SYS_TABLES table"),
 	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 	STRUCT_FLD(init, i_s_innodb_sys_tables_init),
@@ -4457,7 +4447,7 @@ UNIV_INTERN struct st_maria_plugin   i_s_innodb_sys_tables_maria =
 	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
 	STRUCT_FLD(info, &i_s_info),
 	STRUCT_FLD(name, "INNODB_SYS_TABLES"),
-	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(author, "Percona"),
 	STRUCT_FLD(descr, "InnoDB SYS_TABLES table"),
 	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 	STRUCT_FLD(init, i_s_innodb_sys_tables_init),
@@ -4474,7 +4464,7 @@ UNIV_INTERN struct st_mysql_plugin   i_s_innodb_sys_indexes =
 	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
 	STRUCT_FLD(info, &i_s_info),
 	STRUCT_FLD(name, "INNODB_SYS_INDEXES"),
-	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(author, "Percona"),
 	STRUCT_FLD(descr, "InnoDB SYS_INDEXES table"),
 	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 	STRUCT_FLD(init, i_s_innodb_sys_indexes_init),
@@ -4490,7 +4480,7 @@ UNIV_INTERN struct st_maria_plugin   i_s_innodb_sys_indexes_maria =
 	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
 	STRUCT_FLD(info, &i_s_info),
 	STRUCT_FLD(name, "INNODB_SYS_INDEXES"),
-	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(author, "Percona"),
 	STRUCT_FLD(descr, "InnoDB SYS_INDEXES table"),
 	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 	STRUCT_FLD(init, i_s_innodb_sys_indexes_init),
@@ -4507,7 +4497,7 @@ UNIV_INTERN struct st_mysql_plugin   i_s_innodb_sys_stats =
 	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
 	STRUCT_FLD(info, &i_s_info),
 	STRUCT_FLD(name, "INNODB_SYS_STATS"),
-	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(author, "Percona"),
 	STRUCT_FLD(descr, "InnoDB SYS_STATS table"),
 	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 	STRUCT_FLD(init, i_s_innodb_sys_stats_init),
@@ -4523,7 +4513,7 @@ UNIV_INTERN struct st_maria_plugin   i_s_innodb_sys_stats_maria =
 	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
 	STRUCT_FLD(info, &i_s_info),
 	STRUCT_FLD(name, "INNODB_SYS_STATS"),
-	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(author, "Percona"),
 	STRUCT_FLD(descr, "InnoDB SYS_STATS table"),
 	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 	STRUCT_FLD(init, i_s_innodb_sys_stats_init),

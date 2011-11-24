@@ -649,43 +649,46 @@ ha_innobase::add_index(
 
 	update_thd();
 
-	heap = mem_heap_create(1024);
-
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-	trx_start_if_not_started(prebuilt->trx);
+	if (prebuilt->trx->fake_changes) {
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
 
-	/* Create a background transaction for the operations on
-	the data dictionary tables. */
-	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started(trx);
+	/* Check if the index name is reserved. */
+	if (innobase_index_name_is_reserved(user_thd, key_info, num_of_keys)) {
+		DBUG_RETURN(-1);
+	}
 
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE);
 
 	if (UNIV_UNLIKELY(!innodb_table)) {
-		error = HA_ERR_NO_SUCH_TABLE;
-		goto err_exit;
+		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
-	/* Check if the index name is reserved. */
-	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
-                error = ER_WRONG_NAME_FOR_INDEX;
-	} else {
-		/* Check that index keys are sensible */
-		error = innobase_check_index_keys(key_info, num_of_keys,
-						  innodb_table);
-	}
+	/* Check that index keys are sensible */
+	error = innobase_check_index_keys(key_info, num_of_keys, innodb_table);
 
 	if (UNIV_UNLIKELY(error)) {
-err_exit:
+		DBUG_RETURN(error);
+	}
+
+	heap = mem_heap_create(1024);
+	trx_start_if_not_started(prebuilt->trx);
+
+	/* Create a background transaction for the operations on
+	the data dictionary tables. */
+	trx = innobase_trx_allocate(user_thd);
+	if (trx->fake_changes) {
 		mem_heap_free(heap);
 		trx_general_rollback_for_mysql(trx, NULL);
 		trx_free_for_mysql(trx);
-		trx_commit_for_mysql(prebuilt->trx);
-		DBUG_RETURN(error);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
+
+	trx_start_if_not_started(trx);
 
 	/* Create table containing all indexes to be built in this
 	alter table add index so that they are in the correct order
@@ -758,8 +761,12 @@ err_exit:
 
 			ut_d(dict_table_check_for_dup_indexes(innodb_table,
 							      FALSE));
+			mem_heap_free(heap);
+			trx_general_rollback_for_mysql(trx, NULL);
 			row_mysql_unlock_data_dictionary(trx);
-			goto err_exit;
+			trx_free_for_mysql(trx);
+			trx_commit_for_mysql(prebuilt->trx);
+			DBUG_RETURN(error);
 		}
 
 		trx->table_id = indexed_table->id;
@@ -781,10 +788,6 @@ err_exit:
 	}
 
 	ut_ad(error == DB_SUCCESS);
-
-	/* We will need to rebuild index translation table. Set
-	valid index entry count in the translation table to zero */
-	share->idx_trans_tbl.index_count = 0;
 
 	/* Commit the data dictionary transaction in order to release
 	the table locks on the system tables.  This means that if
@@ -911,6 +914,14 @@ error:
 		}
 
 convert_error:
+		if (error == DB_SUCCESS) {
+			/* Build index is successful. We will need to
+			rebuild index translation table.  Reset the
+			index entry count in the translation table
+			to zero, so that translation table will be rebuilt */
+			share->idx_trans_tbl.index_count = 0;
+		}
+
 		error = convert_error_code_to_mysql(error,
 						    innodb_table->flags,
 						    user_thd);
@@ -962,6 +973,10 @@ ha_innobase::prepare_drop_index(
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 	trx = prebuilt->trx;
+
+	if (trx->fake_changes) {
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
 
 	/* Test and mark all the indexes to be dropped */
 
@@ -1167,6 +1182,12 @@ ha_innobase::final_drop_index(
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
+	if (trx->fake_changes) {
+		trx_general_rollback_for_mysql(trx, NULL);
+		trx_free_for_mysql(trx);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
+
 	trx_start_if_not_started(trx);
 
 	/* Flag this transaction as a dictionary operation, so that

@@ -476,6 +476,9 @@ rw_lock_x_lock_func(
 	ulint	i;	/* spin round count */
 
 	ut_ad(rw_lock_validate(lock));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 lock_loop:
 	/* Acquire the mutex protecting the rw-lock fields */
@@ -663,7 +666,9 @@ rw_lock_add_debug_info(
 	rw_lock_debug_mutex_exit();
 
 	if ((pass == 0) && (lock_type != RW_LOCK_WAIT_EX)) {
-		sync_thread_add_level(lock, lock->level);
+		sync_thread_add_level(lock, lock->level,
+				      lock_type == RW_LOCK_EX
+				      && lock->writer_count > 1);
 	}
 }
 
@@ -730,7 +735,7 @@ rw_lock_own(
 	ut_ad(lock);
 	ut_ad(rw_lock_validate(lock));
 
-	mutex_enter(&(lock->mutex));
+	rw_lock_debug_mutex_enter();
 
 	info = UT_LIST_GET_FIRST(lock->debug_list);
 
@@ -740,7 +745,7 @@ rw_lock_own(
 		    && (info->pass == 0)
 		    && (info->lock_type == lock_type)) {
 
-			mutex_exit(&(lock->mutex));
+			rw_lock_debug_mutex_exit();
 			/* Found! */
 
 			return(TRUE);
@@ -748,7 +753,7 @@ rw_lock_own(
 
 		info = UT_LIST_GET_NEXT(list, info);
 	}
-	mutex_exit(&(lock->mutex));
+	rw_lock_debug_mutex_exit();
 
 	return(FALSE);
 }
@@ -828,11 +833,13 @@ rw_lock_list_print_info(
 				putc('\n', file);
 			}
 
+			rw_lock_debug_mutex_enter();
 			info = UT_LIST_GET_FIRST(lock->debug_list);
 			while (info != NULL) {
 				rw_lock_debug_print(file, info);
 				info = UT_LIST_GET_NEXT(list, info);
 			}
+			rw_lock_debug_mutex_exit();
 		}
 
 		mutex_exit(&(lock->mutex));
@@ -868,11 +875,13 @@ rw_lock_print(
 			putc('\n', stderr);
 		}
 
+		rw_lock_debug_mutex_enter();
 		info = UT_LIST_GET_FIRST(lock->debug_list);
 		while (info != NULL) {
 			rw_lock_debug_print(stderr, info);
 			info = UT_LIST_GET_NEXT(list, info);
 		}
+		rw_lock_debug_mutex_exit();
 	}
 }
 

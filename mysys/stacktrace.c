@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (c) 2001, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Workaround for Bug#32082: VOID redefinition on Win results in compile errors*/
 #define DONT_DEFINE_VOID 1
@@ -437,7 +439,7 @@ void my_write_core(int sig)
 
 /*
   Stack tracing on Windows is implemented using Debug Helper library(dbghelp.dll)
-  We do not redistribute dbghelp and the one comes with older OS (up to Windows 2000)
+  We do not redistribute dbghelp and the one comes with older OS (up to Windows 2001)
   is missing some important functions like functions StackWalk64 or MinidumpWriteDump.
   Hence, we have to load functions at runtime using LoadLibrary/GetProcAddress.
 */

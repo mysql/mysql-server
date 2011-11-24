@@ -1,5 +1,5 @@
 /* Copyright (C) 2000-2009 MySQL AB
-   Copyright 2000, 2010, Oracle and/or its affiliates.
+   Copyright 2000, 2010-2011, Oracle and/or its affiliates.
    Copyright 2000-2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -4386,7 +4386,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   {
     char init_command[100];
     sprintf(init_command,
-	    "SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=%lu,SQL_MAX_JOIN_SIZE=%lu",
+	    "SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=%lu,MAX_JOIN_SIZE=%lu",
 	    select_limit,max_join_size);
     mysql_options(&mysql, MYSQL_INIT_COMMAND, init_command);
   }

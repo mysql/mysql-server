@@ -10,5 +10,6 @@
 #
 ##############################################################################
 
-#innodb : Bug#53306 2010-04-30 VasilDimov valgrind warnings
-innodb_bug53756 : Waiting for merge with Percona Server; bug fixed in innodb_plugin in MySQL 5.1.50
+#innodb_bug53756 : Waiting for merge with Percona Server; bug fixed in innodb_plugin in MySQL 5.1.50
+innodb-lock:  Disabled until merging with XtraDB 5.1.60
+innodb_replace:  Disabled until merging with XtraDB 5.1.60

@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Describe, check and repair of MyISAM tables */
 
@@ -3927,7 +3929,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
   SORT_FT_BUF *ft_buf=sort_info->ft_buf;
   SORT_KEY_BLOCKS *key_block=sort_info->key_block;
 
-  val_len=HA_FT_WLEN+sort_info->info->s->base.rec_reflength;
+  val_len= HA_FT_WLEN + sort_info->info->s->rec_reflength;
   get_key_full_length_rdonly(a_len, (uchar *)a);
 
   if (!ft_buf)
@@ -3937,7 +3939,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
       and row format is NOT static - for _mi_dpointer not to garble offsets
      */
     if ((sort_info->info->s->base.key_reflength <=
-         sort_info->info->s->base.rec_reflength) &&
+         sort_info->info->s->rec_reflength) &&
         (sort_info->info->s->options &
           (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)))
       ft_buf=(SORT_FT_BUF *)my_malloc(sort_param->keyinfo->block_length +

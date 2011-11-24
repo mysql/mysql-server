@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -188,26 +188,45 @@ btr_block_get_func(
 	ulint		mode,		/*!< in: latch mode */
 	const char*	file,		/*!< in: file name */
 	ulint		line,		/*!< in: line where called */
-	mtr_t*		mtr)		/*!< in/out: mtr */
-	__attribute__((nonnull));
+# ifdef UNIV_SYNC_DEBUG
+	const dict_index_t*	index,	/*!< in: index tree, may be NULL
+					if it is not an insert buffer tree */
+# endif /* UNIV_SYNC_DEBUG */
+	mtr_t*		mtr);		/*!< in/out: mini-transaction */
+# ifdef UNIV_SYNC_DEBUG
 /** Gets a buffer page and declares its latching order level.
 @param space	tablespace identifier
 @param zip_size	compressed page size in bytes or 0 for uncompressed pages
 @param page_no	page number
 @param mode	latch mode
+@param index	index tree, may be NULL if not the insert buffer tree
 @param mtr	mini-transaction handle
 @return the block descriptor */
-# define btr_block_get(space,zip_size,page_no,mode,mtr) \
-	btr_block_get_func(space,zip_size,page_no,mode,__FILE__,__LINE__,mtr)
+#  define btr_block_get(space,zip_size,page_no,mode,index,mtr)	\
+	btr_block_get_func(space,zip_size,page_no,mode,		\
+			   __FILE__,__LINE__,index,mtr)
+# else /* UNIV_SYNC_DEBUG */
 /** Gets a buffer page and declares its latching order level.
 @param space	tablespace identifier
 @param zip_size	compressed page size in bytes or 0 for uncompressed pages
 @param page_no	page number
 @param mode	latch mode
+@param idx	index tree, may be NULL if not the insert buffer tree
+@param mtr	mini-transaction handle
+@return the block descriptor */
+#  define btr_block_get(space,zip_size,page_no,mode,idx,mtr)		\
+	btr_block_get_func(space,zip_size,page_no,mode,__FILE__,__LINE__,mtr)
+# endif /* UNIV_SYNC_DEBUG */
+/** Gets a buffer page and declares its latching order level.
+@param space	tablespace identifier
+@param zip_size	compressed page size in bytes or 0 for uncompressed pages
+@param page_no	page number
+@param mode	latch mode
+@param idx	index tree, may be NULL if not the insert buffer tree
 @param mtr	mini-transaction handle
 @return the uncompressed page frame */
-# define btr_page_get(space,zip_size,page_no,mode,mtr) \
-	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,mtr))
+# define btr_page_get(space,zip_size,page_no,mode,idx,mtr)		\
+	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,idx,mtr))
 #endif /* !UNIV_HOTBACKUP */
 /**************************************************************//**
 Gets the index id field of a page.
@@ -333,8 +352,7 @@ btr_free_root(
 	ulint	zip_size,	/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
 	ulint	root_page_no,	/*!< in: root page number */
-	mtr_t*	mtr);		/*!< in: a mini-transaction which has already
-				been started */
+	mtr_t*	mtr);		/*!< in/out: mini-transaction */
 /*************************************************************//**
 Makes tree one level higher by splitting the root, and inserts
 the tuple. It is assumed that mtr contains an x-latch on the tree.

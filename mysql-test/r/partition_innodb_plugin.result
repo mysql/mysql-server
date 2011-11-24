@@ -1,8 +1,30 @@
+#
+# Bug#11766879/Bug#60106: DIFF BETWEEN # OF INDEXES IN MYSQL VS INNODB,
+#                         PARTITONING, ON INDEX CREATE
+#
+call mtr.add_suppression("contains 2 indexes inside InnoDB, which is different from the number of indexes 1 defined in the MySQL");
+CREATE TABLE t1 (
+id bigint NOT NULL AUTO_INCREMENT,
+time date,
+id2 bigint not null,
+PRIMARY KEY (id,time)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8
+/*!50100 PARTITION BY RANGE(TO_DAYS(time))
+(PARTITION p10 VALUES LESS THAN (734708) ENGINE = InnoDB,
+PARTITION p20 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
+INSERT INTO t1 (time,id2) VALUES ('2011-07-24',1);
+INSERT INTO t1 (time,id2) VALUES ('2011-07-25',1);
+INSERT INTO t1 (time,id2) VALUES ('2011-07-25',1);
+CREATE UNIQUE INDEX uk_time_id2 on t1(time,id2);
+ERROR 23000: Duplicate entry '2011-07-25-1' for key 'uk_time_id2'
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+DROP TABLE t1;
 call mtr.add_suppression("nnoDB: Error: table `test`.`t1` .* Partition.* InnoDB internal");
 #
 # Bug#55091: Server crashes on ADD PARTITION after a failed attempt
 #
-SET @old_innodb_file_format_check = @@global.innodb_file_format_check;
 SET @old_innodb_file_format = @@global.innodb_file_format;
 SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
 SET @old_innodb_strict_mode = @@global.innodb_strict_mode;
@@ -70,7 +92,6 @@ DROP TABLE t1;
 SET @@global.innodb_strict_mode = @old_innodb_strict_mode;
 SET @@global.innodb_file_format = @old_innodb_file_format;
 SET @@global.innodb_file_per_table = @old_innodb_file_per_table;
-SET @@global.innodb_file_format_check = @old_innodb_file_format_check;
 SET NAMES utf8;
 CREATE TABLE `t``\""e` (a INT, PRIMARY KEY (a))
 ENGINE=InnoDB
