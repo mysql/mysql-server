@@ -59,7 +59,7 @@ mysys/my_perf.c, contributed by Facebook under the following license.
 
    You should have received a copy of the GNU General Public License along with
    this program; if not, write to the Free Software Foundation, Inc.,
-   Place, Suite 330, Boston, MA  02111-1307  USA */
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* The below CRC32 implementation is based on the implementation included with
  * zlib with modifications to process 8 bytes at a time and using SSE 4.2
