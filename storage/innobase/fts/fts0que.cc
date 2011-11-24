@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010,  Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,16 +11,14 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /**************************************************//**
-
+@file fts/fts0que.cc
 Full Text Search functionality.
-
-(c) 2007 Oracle/Innobase Oy
 
 Created 2007/03/27 Sunny Bains
 Completed 2011/7/10 Sunny and Jimmy Yang

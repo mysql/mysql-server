@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011,  Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -15,6 +15,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
+
+/**************************************************//**
+@file fts/fts0fts.cc
+Full Text Search interface
+***********************************************************************/
 
 #include "trx0roll.h"
 #include "row0mysql.h"
