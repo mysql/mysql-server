@@ -766,7 +766,8 @@ int Gis_line_string::store_shapes(Gcalc_shape_transporter *trn) const
 {
   uint32 n_points;
   double x, y;
-  double prev_x, prev_y;
+  double prev_x= 0.0;
+  double prev_y= 0.0;
   int first_point= 1;
   const char *data= m_data;
 
