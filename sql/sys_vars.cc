@@ -3543,9 +3543,9 @@ static Sys_var_uint Sys_checkpoint_mts_group(
        "before a checkpoint operation is called to update progress status.",
        GLOBAL_VAR(mts_checkpoint_group), CMD_LINE(REQUIRED_ARG),
 #ifndef DBUG_OFF
-       VALID_RANGE(1, UINT_MAX), DEFAULT(512), BLOCK_SIZE(1));
+       VALID_RANGE(1, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
 #else
-       VALID_RANGE(512, UINT_MAX), DEFAULT(512), BLOCK_SIZE(8));
+       VALID_RANGE(512, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(8));
 #endif /* DBUG_OFF */
 #endif /* HAVE_REPLICATION */
 
