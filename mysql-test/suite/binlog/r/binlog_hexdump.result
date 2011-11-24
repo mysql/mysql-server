@@ -93,7 +93,7 @@ insert into t10123456789 values(@2)
 # Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
 #      228 85 2f c6 4e   10   01 00 00 00   1b 00 00 00   43 02 00 00   00 00
 #      23b 0a 00 00 00 00 00 00 00                          |........|
-# 	Xid = 10
+# 	Xid = <number>
 COMMIT/*!*/;
 # at 579
 #111118 13:12:33 server id 1  end_log_pos 710 
