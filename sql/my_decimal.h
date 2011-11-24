@@ -99,7 +99,7 @@ class my_decimal :public decimal_t
     To catch them, we allocate dummy fields around the buffer,
     and test that their values do not change.
    */
-#if !defined(DBUG_OFF) && defined(HAVE_valgrind)
+#if !defined(DBUG_OFF)
   int foo1;
 #endif
 

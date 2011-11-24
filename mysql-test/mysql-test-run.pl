@@ -2297,7 +2297,7 @@ sub environment_setup {
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  mysql_fix_arguments();
-  $ENV{'MYSQLD'}=                   mysqld_client_arguments();
+  $ENV{'MYSQLD_SIMPLE_CMD'}=        mysqld_client_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
 
   my $exe_mysqld= find_mysqld($basedir);
