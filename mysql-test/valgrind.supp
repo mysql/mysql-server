@@ -273,6 +273,15 @@
    fun:do_flush
 }
 
+{
+   libz inflatereset2
+   Memcheck:Cond
+   fun:inflateReset2
+   fun:inflateInit2_
+   fun:uncompress
+}
+
+
 #
 # Warning from my_thread_init becasue mysqld dies before kill thread exists
 #
