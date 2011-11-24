@@ -1,7 +1,5 @@
 -- source include/have_innodb_plugin.inc
 
-let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
-
 ##
 # Bug #56228: dropping tables from within an active statement crashes server
 #
@@ -33,10 +31,3 @@ SELECT bug56228();
 DROP FUNCTION bug56228;
 DROP TEMPORARY TABLE t2_56228;
 DROP TEMPORARY TABLE IF EXISTS t1_56228;
-
-#
-# restore environment to the state it was before this test execution
-#
-
--- disable_query_log
-eval set global innodb_file_format_check=$innodb_file_format_check_orig;

@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB  
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates.  
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -142,8 +144,6 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   error= 1;
   bzero((char*) &param,sizeof(param));
   param.sort_length= sortlength(thd, sortorder, s_length, &multi_byte_charset);
-  /* filesort cannot handle zero-length records. */
-  DBUG_ASSERT(param.sort_length);
   param.ref_length= table->file->ref_length;
   param.addon_field= 0;
   param.addon_length= 0;
@@ -257,6 +257,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   else
   {
     thd->query_plan_flags|= QPLAN_FILESORT_DISK;
+    /* filesort cannot handle zero-length records during merge. */
+    DBUG_ASSERT(param.sort_length != 0);
     if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
     {
       x_free(table_sort.buffpek);

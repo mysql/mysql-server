@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -627,7 +629,7 @@ static int rr_cmp(uchar *a,uchar *b)
   if (a[4] != b[4])
     return (int) a[4] - (int) b[4];
   if (a[5] != b[5])
-    return (int) a[1] - (int) b[5];
+    return (int) a[5] - (int) b[5];
   if (a[6] != b[6])
     return (int) a[6] - (int) b[6];
   return (int) a[7] - (int) b[7];

@@ -1,4 +1,5 @@
-/* Copyright (C) 2001-2005 MySQL AB
+/*
+   Copyright (c) 2001, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
@@ -73,7 +75,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   uchar        *keybuff=aio->keybuff;
   MI_KEYDEF    *keyinfo=info->s->keyinfo+aio->keynr;
   my_off_t     key_root=info->s->state.key_root[aio->keynr];
-  uint         extra=HA_FT_WLEN+info->s->base.rec_reflength;
+  uint         extra= HA_FT_WLEN + info->s->rec_reflength;
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
   float tmp_weight;
 #else

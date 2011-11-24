@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2005 MySQL AB & Innobase Oy
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   InnoDB offline file checksum utility.  85% of the code in this file
@@ -23,12 +25,7 @@
   Published with a permission.
 */
 
-/* needed to have access to 64 bit file functions */
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
-
-#define _XOPEN_SOURCE 500 /* needed to include getopt.h on some platforms. */
-
+#include <my_global.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -51,7 +48,6 @@
 /* another argument to specify page ranges... seek to right spot and go from there */
 
 typedef unsigned long int ulint;
-typedef unsigned char uchar;
 
 /* innodb function in name; modified slightly to not have the ASM version (lots of #ifs that didn't apply) */
 ulint mach_read_from_4(uchar *b)

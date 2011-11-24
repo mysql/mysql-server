@@ -1,4 +1,5 @@
-/* Copyright (C) 2004 MySQL AB
+/*
+   Copyright (c) 2004, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* get hardware address for an interface */
 /* if there are many available, any non-zero one can be used */
@@ -32,8 +34,7 @@ static my_bool memcpy_and_test(uchar *to, uchar *from, uint len)
   return res;
 }
 
-#ifdef __FreeBSD__
-
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <net/ethernet.h>
 #include <sys/sysctl.h>
 #include <net/route.h>
@@ -63,7 +64,7 @@ my_bool my_gethwaddr(uchar *to)
     if (ifm->ifm_type == RTM_IFINFO)
     {
       sdl = (struct sockaddr_dl *)(ifm + 1);
-      addr= LLADDR(sdl);
+      addr= (uchar *)LLADDR(sdl);
       res= memcpy_and_test(to, addr, ETHER_ADDR_LEN);
     }
   }
@@ -152,7 +153,10 @@ my_bool my_gethwaddr(uchar *to)
   {
     if (info->Type == MIB_IF_TYPE_ETHERNET &&
         info->AddressLength == ETHER_ADDR_LEN)
+    {
       res= memcpy_and_test(to, info->Address, ETHER_ADDR_LEN);
+    }
+    info = info->Next;
   }
 
 err:

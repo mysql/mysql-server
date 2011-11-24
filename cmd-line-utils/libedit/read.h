@@ -1,4 +1,4 @@
-/*	$NetBSD: read.h,v 1.6 2008/04/29 06:53:01 martin Exp $	*/
+/*	$NetBSD: read.h,v 1.7 2009/12/30 22:37:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
@@ -35,7 +35,7 @@
 #ifndef	_h_el_read
 #define	_h_el_read
 
-typedef int (*el_rfunc_t)(EditLine *, char *);
+typedef int (*el_rfunc_t)(EditLine *, Char *);
 
 typedef struct el_read_t {
 	el_rfunc_t	read_char;	/* Function to read a character */

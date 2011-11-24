@@ -87,3 +87,35 @@ COUNT(*)
 128
 DROP TABLE mysql_db1.t1;
 DROP DATABASE mysql_db1;
+#
+# BUG#11761180 - 53646: MYISAMPACK CORRUPTS TABLES WITH FULLTEXT INDEXES
+#
+CREATE TABLE t1(a CHAR(4), FULLTEXT(a));
+INSERT INTO t1 VALUES('aaaa'),('bbbb'),('cccc');
+FLUSH TABLE t1;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE MATCH(a) AGAINST('aaaa' IN BOOLEAN MODE);
+a
+aaaa
+SELECT * FROM t1 WHERE MATCH(a) AGAINST('aaaa');
+a
+aaaa
+DROP TABLE t1;
+# Test table with key_reflength > rec_reflength
+CREATE TABLE t1(a CHAR(30), FULLTEXT(a));
+# Populating a table, so it's index file exceeds 65K
+# Populating a table, so index file has second level fulltext tree
+FLUSH TABLE t1;
+# Compressing table
+# Fixing index (repair by sort)
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+FLUSH TABLE t1;
+# Fixing index (repair with keycache)
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;

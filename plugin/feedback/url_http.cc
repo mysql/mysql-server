@@ -155,7 +155,7 @@ int Url_http::send(const char* data, size_t data_length)
 {
   my_socket fd= INVALID_SOCKET;
   char buf[1024];
-  uint len;
+  uint len= 0;
 
   addrinfo *addrs, *addr, filter= {0, AF_UNSPEC, SOCK_STREAM, 6, 0, 0, 0, 0};
   int res= getaddrinfo(host.str, port.str, &filter, &addrs);
@@ -198,7 +198,7 @@ int Url_http::send(const char* data, size_t data_length)
   }
 
 #ifdef HAVE_OPENSSL
-  struct st_VioSSLFd *ssl_fd;
+  struct st_VioSSLFd *UNINIT_VAR(ssl_fd);
   if (ssl)
   {
     buf[0]= 0;
@@ -258,7 +258,13 @@ int Url_http::send(const char* data, size_t data_length)
       Extract the first string between <h1>...</h1> tags
       and put it as a server reply into the error log.
     */
-    len= vio_read(vio, (uchar*)buf, sizeof(buf)-1);
+    for (;;)
+    {
+      size_t i= vio_read(vio, (uchar*)buf + len, sizeof(buf) - len - 1);
+      if ((int)i <= 0)
+        break;
+      len+= i;
+    }
     if (len && len < sizeof(buf))
     {
       char *from;

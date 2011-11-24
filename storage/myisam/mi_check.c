@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Describe, check and repair of MyISAM tables */
 
@@ -941,7 +943,7 @@ static uint isam_key_length(MI_INFO *info, register MI_KEYDEF *keyinfo)
 int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
 {
   int	error,got_error,flag;
-  uint	key,UNINIT_VAR(left_length),b_type,field;
+  uint	key, UNINIT_VAR(left_length), b_type;
   ha_rows records,del_blocks;
   my_off_t used,empty,pos,splits,UNINIT_VAR(start_recpos),
 	   del_length,link_used,start_block;
@@ -949,7 +951,6 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
   char llbuff[22],llbuff2[22],llbuff3[22];
   ha_checksum intern_record_checksum;
   ha_checksum key_checksum[HA_MAX_POSSIBLE_KEY];
-  my_bool static_row_size;
   MI_KEYDEF *keyinfo;
   MI_BLOCK_INFO block_info;
   DBUG_ENTER("chk_data_link");
@@ -972,21 +973,6 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
   intern_record_checksum=param->glob_crc=0;
   got_error=error=0;
   empty=info->s->pack.header_length;
-
-  /* Check how to calculate checksum of rows */
-  static_row_size=1;
-  if (info->s->data_file_type == COMPRESSED_RECORD)
-  {
-    for (field=0 ; field < info->s->base.fields ; field++)
-    {
-      if (info->s->rec[field].base_type == FIELD_BLOB ||
-	  info->s->rec[field].base_type == FIELD_VARCHAR)
-      {
-	static_row_size=0;
-	break;
-      }
-    }
-  }
 
   pos=my_b_tell(&param->read_cache);
   bzero((char*) key_checksum, info->s->base.keys * sizeof(key_checksum[0]));
@@ -3943,7 +3929,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
   SORT_FT_BUF *ft_buf=sort_info->ft_buf;
   SORT_KEY_BLOCKS *key_block=sort_info->key_block;
 
-  val_len=HA_FT_WLEN+sort_info->info->s->base.rec_reflength;
+  val_len= HA_FT_WLEN + sort_info->info->s->rec_reflength;
   get_key_full_length_rdonly(a_len, (uchar *)a);
 
   if (!ft_buf)
@@ -3953,7 +3939,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
       and row format is NOT static - for _mi_dpointer not to garble offsets
      */
     if ((sort_info->info->s->base.key_reflength <=
-         sort_info->info->s->base.rec_reflength) &&
+         sort_info->info->s->rec_reflength) &&
         (sort_info->info->s->options &
           (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)))
       ft_buf=(SORT_FT_BUF *)my_malloc(sort_param->keyinfo->block_length +

@@ -4,7 +4,7 @@ ACTIVE
 select * from information_schema.feedback where variable_name like 'feed%'
        and variable_name not like  '%_uid';
 VARIABLE_NAME	VARIABLE_VALUE
-FEEDBACK	1.0
+FEEDBACK	1.1
 FEEDBACK_SEND_RETRY_WAIT	60
 FEEDBACK_SEND_TIMEOUT	60
 FEEDBACK_URL	http://mariadb.org/feedback_plugin/post

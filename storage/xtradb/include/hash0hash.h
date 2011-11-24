@@ -49,28 +49,6 @@ hash_table_t*
 hash_create(
 /*========*/
 	ulint	n);	/*!< in: number of array cells */
-
-/*************************************************************//**
-*/
-UNIV_INTERN
-ulint
-hash_create_needed(
-/*===============*/
-	ulint	n);
-
-UNIV_INTERN
-void
-hash_create_init(
-/*=============*/
-	hash_table_t*	table,
-	ulint		n);
-
-UNIV_INTERN
-void
-hash_create_reuse(
-/*==============*/
-	hash_table_t*	table);
-
 #ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Creates a mutex array to protect a hash table. */
@@ -346,33 +324,6 @@ do {\
 				fold2222, node2222);\
 \
 			node2222 = next2222;\
-		}\
-	}\
-} while (0)
-
-/********************************************************************//**
-Align nodes with moving location.*/
-#define HASH_OFFSET(TABLE, NODE_TYPE, PTR_NAME, FADDR, FOFFSET, BOFFSET) \
-do {\
-	ulint		i2222;\
-	ulint		cell_count2222;\
-\
-	cell_count2222 = hash_get_n_cells(TABLE);\
-\
-	for (i2222 = 0; i2222 < cell_count2222; i2222++) {\
-		NODE_TYPE*	node2222;\
-\
-		if ((TABLE)->array[i2222].node) \
-			(TABLE)->array[i2222].node = (void*)((byte*)(TABLE)->array[i2222].node \
-			+ (((TABLE)->array[i2222].node > (void*)FADDR)?FOFFSET:BOFFSET));\
-		node2222 = HASH_GET_FIRST((TABLE), i2222);\
-\
-		while (node2222) {\
-			if (node2222->PTR_NAME) \
-				node2222->PTR_NAME = (void*)((byte*)(node2222->PTR_NAME) \
-				+ ((((void*)node2222->PTR_NAME) > (void*)FADDR)?FOFFSET:BOFFSET));\
-\
-			node2222 = node2222->PTR_NAME;\
 		}\
 	}\
 } while (0)

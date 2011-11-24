@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
    2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -12,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* Classes in mysql */
@@ -1773,13 +1775,6 @@ public:
   */
   ha_rows    examined_row_count;
 
-  /*
-    The set of those tables whose fields are referenced in all subqueries
-    of the query.
-    TODO: possibly this it is incorrect to have used tables in THD because
-    with more than one subquery, it is not clear what does the field mean.
-  */
-  table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;
   /*
@@ -2008,6 +2003,7 @@ public:
   void cleanup_after_query();
   bool store_globals();
   void reset_globals();
+  bool restore_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
   {

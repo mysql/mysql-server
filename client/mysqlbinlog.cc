@@ -1,4 +1,5 @@
-/* Copyright (C) 2001-2004 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* 
 
@@ -1013,7 +1015,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         passed --short-form, because --short-form disables printing
         row events.
       */
-      if (!print_event_info->printed_fd_event && !short_form)
+      if (!print_event_info->printed_fd_event && !short_form &&
+          opt_base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
       {
         const char* type_str= ev->get_type_str();
         if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)

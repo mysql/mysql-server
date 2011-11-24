@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* create and drop of databases */
@@ -27,6 +29,7 @@
 #ifdef __WIN__
 #include <direct.h>
 #endif
+#include "debug_sync.h"
 
 #define MAX_DROP_TABLE_Q_LEN      1024
 
@@ -1695,6 +1698,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     DBUG_RETURN(TRUE);
   }
 #endif
+
+  DEBUG_SYNC(thd, "before_db_dir_check");
 
   if (check_db_dir_existence(new_db_file_name.str))
   {

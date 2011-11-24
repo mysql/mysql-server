@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2003, 2005 MySQL AB
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Remove all rows from a MyISAM table */
 /* This clears the status information and truncates files */
@@ -62,11 +64,6 @@ int mi_delete_all_rows(MI_INFO *info)
       my_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;
   VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
-#ifdef HAVE_MMAP
-  /* Map again */
-  if (share->file_map)
-    mi_dynmap_file(info, (my_off_t) 0);
-#endif
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 

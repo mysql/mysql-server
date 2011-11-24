@@ -1912,7 +1912,7 @@ os_file_set_size(
 
 	ut_free(buf2);
 
-	ret = os_file_flush(file);
+	ret = os_file_flush(file, TRUE);
 
 	if (ret) {
 		return(TRUE);
@@ -1950,7 +1950,8 @@ static
 int
 os_file_fsync(
 /*==========*/
-	os_file_t	file)	/*!< in: handle to a file */
+	os_file_t	file,	/*!< in: handle to a file */
+	ibool		metadata)
 {
 	int	ret;
 	int	failures;
@@ -1959,7 +1960,16 @@ os_file_fsync(
 	failures = 0;
 
 	do {
+#if defined(HAVE_FDATASYNC) && HAVE_DECL_FDATASYNC
+		if (metadata) {
+			ret = fsync(file);
+		} else {
+			ret = fdatasync(file);
+		}
+#else
+		(void) metadata;
 		ret = fsync(file);
+#endif
 
 		os_n_fsyncs++;
 
@@ -1978,6 +1988,9 @@ os_file_fsync(
 			failures++;
 
 			retry = TRUE;
+		} else if (ret == -1 && errno == EINTR) {
+			/* Handle signal interruptions correctly */
+			retry = TRUE;
 		} else {
 
 			retry = FALSE;
@@ -1995,7 +2008,8 @@ UNIV_INTERN
 ibool
 os_file_flush(
 /*==========*/
-	os_file_t	file)	/*!< in, own: handle to a file */
+	os_file_t	file,	/*!< in, own: handle to a file */
+	ibool		metadata)
 {
 #ifdef __WIN__
 	BOOL	ret;
@@ -2045,18 +2059,18 @@ os_file_flush(
 		/* If we are not on an operating system that supports this,
 		then fall back to a plain fsync. */
 
-		ret = os_file_fsync(file);
+		ret = os_file_fsync(file, metadata);
 	} else {
 		ret = fcntl(file, F_FULLFSYNC, NULL);
 
 		if (ret) {
 			/* If we are not on a file system that supports this,
 			then fall back to a plain fsync. */
-			ret = os_file_fsync(file);
+			ret = os_file_fsync(file, metadata);
 		}
 	}
 #else
-	ret = os_file_fsync(file);
+	ret = os_file_fsync(file, metadata);
 #endif
 
 	if (ret == 0) {
@@ -2109,6 +2123,7 @@ _os_file_pread(
 	off_t	offs;
 #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
 	ssize_t	n_bytes;
+	ssize_t n_read;
 #endif /* HAVE_PREAD && !HAVE_BROKEN_PREAD */
 	ulint		sec;
 	ulint		ms;
@@ -2149,7 +2164,18 @@ _os_file_pread(
 	os_n_pending_reads++;
 	os_mutex_exit(os_file_count_mutex);
 
-	n_bytes = pread(file, buf, (ssize_t)n, offs);
+	/* Handle signal interruptions correctly */
+	for (n_bytes = 0; n_bytes < (ssize_t) n; ) {
+		n_read = pread(file, buf, (ssize_t)n, offs);
+		if (n_read > 0) {
+			n_bytes += n_read;
+			offs += n_read;
+		} else if (n_read == -1 && errno == EINTR) {
+			continue;
+		} else {
+			break;
+		}
+	}
 
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads--;
@@ -2168,6 +2194,7 @@ _os_file_pread(
 	{
 		off_t	ret_offset;
 		ssize_t	ret;
+		ssize_t n_read;
 #ifndef UNIV_HOTBACKUP
 		ulint	i;
 #endif /* !UNIV_HOTBACKUP */
@@ -2188,7 +2215,17 @@ _os_file_pread(
 		if (ret_offset < 0) {
 			ret = -1;
 		} else {
-			ret = read(file, buf, (ssize_t)n);
+			/* Handle signal interruptions correctly */
+			for (ret = 0; ret < (ssize_t) n; ) {
+				n_read = read(file, buf, (ssize_t)n);
+				if (n_read > 0) {
+					ret += n_read;
+				} else if (n_read == -1 && errno == EINTR) {
+					continue;
+				} else {
+					break;
+				}
+			}
 		}
 
 #ifndef UNIV_HOTBACKUP
@@ -2227,6 +2264,7 @@ os_file_pwrite(
 				offset */
 {
 	ssize_t	ret;
+	ssize_t n_written;
 	off_t	offs;
 
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
@@ -2254,7 +2292,18 @@ os_file_pwrite(
 	os_n_pending_writes++;
 	os_mutex_exit(os_file_count_mutex);
 
-	ret = pwrite(file, buf, (ssize_t)n, offs);
+	/* Handle signal interruptions correctly */
+	for (ret = 0; ret < (ssize_t) n; ) {
+		n_written = pwrite(file, buf, (ssize_t)n, offs);
+		if (n_written > 0) {
+			ret += n_written;
+			offs += n_written;
+		} else if (n_written == -1 && errno == EINTR) {
+			continue;
+		} else {
+			break;
+		}
+	}
 
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites--;
@@ -2270,7 +2319,7 @@ os_file_pwrite(
 		the OS crashes, a database page is only partially
 		physically written to disk. */
 
-		ut_a(TRUE == os_file_flush(file));
+		ut_a(TRUE == os_file_flush(file, TRUE));
 	}
 # endif /* UNIV_DO_FLUSH */
 
@@ -2301,7 +2350,17 @@ os_file_pwrite(
 			goto func_exit;
 		}
 
-		ret = write(file, buf, (ssize_t)n);
+		/* Handle signal interruptions correctly */
+		for (ret = 0; ret < (ssize_t) n; ) {
+			n_written = write(file, buf, (ssize_t)n);
+			if (n_written > 0) {
+				ret += n_written;
+			} else if (n_written == -1 && errno == EINTR) {
+				continue;
+			} else {
+				break;
+			}
+		}
 
 # ifdef UNIV_DO_FLUSH
 		if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
@@ -2312,7 +2371,7 @@ os_file_pwrite(
 			the OS crashes, a database page is only partially
 			physically written to disk. */
 
-			ut_a(TRUE == os_file_flush(file));
+			ut_a(TRUE == os_file_flush(file, TRUE));
 		}
 # endif /* UNIV_DO_FLUSH */
 
@@ -2679,7 +2738,7 @@ retry:
 
 # ifdef UNIV_DO_FLUSH
 	if (!os_do_not_call_flush_at_each_write) {
-		ut_a(TRUE == os_file_flush(file));
+		ut_a(TRUE == os_file_flush(file, TRUE));
 	}
 # endif /* UNIV_DO_FLUSH */
 
@@ -3534,7 +3593,7 @@ os_aio_simulated_wake_handler_thread(
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
-	ulint		segment;
+	ulint		segment __attribute__ ((unused));
 	ulint		n;
 	ulint		i;
 
@@ -3940,7 +3999,7 @@ os_aio_windows_handle(
 #ifdef UNIV_DO_FLUSH
 		if (slot->type == OS_FILE_WRITE
 		    && !os_do_not_call_flush_at_each_write) {
-			ut_a(TRUE == os_file_flush(slot->file));
+			ut_a(TRUE == os_file_flush(slot->file, TRUE));
 		}
 #endif /* UNIV_DO_FLUSH */
 	} else if (os_file_handle_error(slot->name, "Windows aio")) {
@@ -4020,7 +4079,7 @@ os_aio_simulated_handle(
 	ulint*	space_id)
 {
 	os_aio_array_t*	array;
-	ulint		segment;
+	ulint		segment __attribute__ ((unused));
 	os_aio_slot_t*	slot;
 	os_aio_slot_t*	slot2;
 	os_aio_slot_t*	consecutive_ios[OS_AIO_MERGE_N_CONSECUTIVE];

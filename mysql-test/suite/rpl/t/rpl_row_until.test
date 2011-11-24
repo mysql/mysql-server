@@ -9,29 +9,29 @@ connection master;
 CREATE TABLE t1(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 DROP TABLE t1;
-# Save master log postion for query DROP TABLE t1
+# Save master log position for query DROP TABLE t1
 save_master_pos;
 let $master_pos_drop_t1= query_get_value(SHOW BINLOG EVENTS, Pos, 7);
 let $master_log_file= query_get_value(SHOW BINLOG EVENTS, Log_name, 7);
 
 CREATE TABLE t2(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
-# Save master log postion for query CREATE TABLE t2
+# Save master log position for query CREATE TABLE t2
 save_master_pos;
 let $master_pos_create_t2= query_get_value(SHOW BINLOG EVENTS, Pos, 8);
 
 INSERT INTO t2 VALUES (1),(2);
 save_master_pos;
-# Save master log postion for query INSERT INTO t2 VALUES (1),(2);
+# Save master log position for query INSERT INTO t2 VALUES (1),(2);
 let $master_pos_insert1_t2= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 12);
 sync_slave_with_master;
 
-# Save relay log postion for query INSERT INTO t2 VALUES (1),(2);
+# Save relay log position for query INSERT INTO t2 VALUES (1),(2);
 let $relay_pos_insert1_t2= query_get_value(show slave status, Relay_Log_Pos, 1);
 
 connection master;
 INSERT INTO t2 VALUES (3),(4);
 DROP TABLE t2;
-# Save master log postion for query INSERT INTO t2 VALUES (1),(2);
+# Save master log position for query INSERT INTO t2 VALUES (1),(2);
 let $master_pos_drop_t2= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 17);
 sync_slave_with_master;
 

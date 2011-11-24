@@ -210,18 +210,6 @@ btr_pcur_restore_position(
 	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF, ... */
 	btr_pcur_t*	cursor,		/* in: detached persistent cursor */
 	mtr_t*		mtr);		/* in: mtr */
-/******************************************************************
-If the latch mode of the cursor is BTR_LEAF_SEARCH or BTR_LEAF_MODIFY,
-releases the page latch and bufferfix reserved by the cursor.
-NOTE! In the case of BTR_LEAF_MODIFY, there should not exist changes
-made by the current mini-transaction to the data protected by the
-cursor latch, as then the latch must not be released until mtr_commit. */
-
-void
-btr_pcur_release_leaf(
-/*==================*/
-	btr_pcur_t*	cursor, /* in: persistent cursor */
-	mtr_t*		mtr);	/* in: mtr */
 /*************************************************************
 Gets the rel_pos field for a cursor whose position has been stored. */
 UNIV_INLINE
@@ -248,10 +236,9 @@ btr_pcur_get_mtr(
 	btr_pcur_t*	cursor);	/* in: persistent cursor */
 /******************************************************************
 Commits the pcur mtr and sets the pcur latch mode to BTR_NO_LATCHES,
-that is, the cursor becomes detached. If there have been modifications
-to the page where pcur is positioned, this can be used instead of
-btr_pcur_release_leaf. Function btr_pcur_store_position should be used
-before calling this, if restoration of cursor is wanted later. */
+that is, the cursor becomes detached.
+Function btr_pcur_store_position should be used before calling this,
+if restoration of cursor is wanted later. */
 UNIV_INLINE
 void
 btr_pcur_commit(

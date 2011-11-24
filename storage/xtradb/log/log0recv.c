@@ -2899,7 +2899,6 @@ recv_init_crash_recovery(void)
 /*==========================*/
 {
 	ut_a(!recv_needed_recovery);
-	ut_a(!srv_buffer_pool_shm_is_reused);
 
 	recv_needed_recovery = TRUE;
 
@@ -3622,7 +3621,7 @@ recv_reset_log_files_for_backup(
 			exit(1);
 		}
 
-		os_file_flush(log_file);
+		os_file_flush(log_file, TRUE);
 		os_file_close(log_file);
 	}
 
@@ -3645,7 +3644,7 @@ recv_reset_log_files_for_backup(
 
 	os_file_write(name, log_file, buf, 0, 0,
 		      LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
-	os_file_flush(log_file);
+	os_file_flush(log_file, TRUE);
 	os_file_close(log_file);
 
 	ut_free(buf);

@@ -100,3 +100,44 @@ select * from t1;
 drop table t1;
 
 # End of 4.1 tests
+
+--echo #
+--echo #Bug#12842206 INNODB LOCKING REGRESSION FOR INSERT IGNORE
+--echo #fixed by re-fixing Bug#7975
+--echo #aka Bug#11759688 52020: InnoDB can still deadlock on just INSERT...
+--echo #
+
+connection default;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT NOT NULL) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(3,1);
+
+BEGIN;
+# this used to wrongly acquire an X lock; now it takes an S lock
+INSERT IGNORE INTO t1 VALUES(3,14);
+
+connection con1;
+BEGIN;
+# this used to wrongly acquire an X lock; now it takes an S lock
+INSERT IGNORE INTO t1 VALUES(3,23);
+--send
+SELECT * FROM t1 FOR UPDATE;
+
+connection con2;
+# Check that the above SELECT is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = 'Sending data' and
+        info = 'SELECT * FROM t1 FOR UPDATE';
+--source include/wait_condition.inc
+
+connection default;
+COMMIT;
+connection con1;
+reap;
+COMMIT;
+disconnect con1;
+disconnect con2;
+
+connection default;
+DROP TABLE t1;
