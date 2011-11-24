@@ -34,7 +34,7 @@ eval set @@global.$var= "foo";
 #
 eval set @@global.$var= 0;
 eval set @@global.$var= cast(-1 as unsigned int);
-eval select @@global.$var;
+eval select @@global.$var as "truncated to the maximum";
 
 # cleanup
 
