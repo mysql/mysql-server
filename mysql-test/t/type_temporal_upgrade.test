@@ -1,0 +1,75 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo #
+--echo # Test with a saved table from 5.5
+--echo #
+
+SET time_zone='+03:00';
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--copy_file std_data/55_temporal.frm $MYSQLD_DATADIR/test/t1.frm
+--copy_file std_data/55_temporal.MYD $MYSQLD_DATADIR/test/t1.MYD
+--copy_file std_data/55_temporal.MYI $MYSQLD_DATADIR/test/t1.MYI
+
+SHOW CREATE TABLE t1;
+
+SELECT * FROM t1;
+
+SELECT * FROM t1 ORDER BY f_time;
+SELECT * FROM t1 WHERE f_time > '00:00:00';
+SELECT * FROM t1 WHERE f_time > '00:00:00' ORDER BY f_time;
+SELECT * FROM t1 WHERE f_time = '01:01:10';
+SELECT * FROM t1 WHERE f_time IS NULL;
+
+SELECT * FROM t1 ORDER BY f_timestamp;
+SELECT * FROM t1 WHERE f_timestamp > '2011-11-21 17:11:01';
+SELECT * FROM t1 WHERE f_timestamp > '2011-11-21 17:11:01' ORDER BY f_timestamp;
+SELECT * FROM t1 WHERE f_timestamp = '2015-11-21 17:11:01';
+SELECT * FROM t1 WHERE f_timestamp IS NULL;
+
+SELECT * FROM t1 ORDER BY f_datetime;
+SELECT * FROM t1 WHERE f_datetime > '2000-01-01 01:01:01';
+SELECT * FROM t1 WHERE f_datetime > '2000-01-01 01:01:01' ORDER BY f_datetime;
+SELECT * FROM t1 WHERE f_datetime = '2010-10-10 10:10:10';
+SELECT * FROM t1 WHERE f_datetime IS NULL;
+
+--echo #
+--echo # Checking various val_xxx() methods for the old fields
+--echo #
+SELECT CAST(f_time AS CHAR), CAST(f_time AS SIGNED), CAST(f_time AS DECIMAL(23,6)) FROM t1;
+SELECT CAST(f_datetime AS CHAR), CAST(f_datetime AS SIGNED), CAST(f_datetime AS DECIMAL(23,6)) FROM t1;
+SELECT CAST(f_timestamp AS CHAR), CAST(f_timestamp AS SIGNED), CAST(f_timestamp AS DECIMAL(23,6)) FROM t1;
+
+--echo #
+--echo # Checking old table
+--echo #
+INSERT INTO t1 VALUES ('22:22:22.5','2011-11-21 22:22:22.5','2011-11-21 22:22:22.5');
+SELECT f_time, HEX(WEIGHT_STRING(f_time)) FROM t1;
+SELECT f_timestamp, HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+SELECT f_datetime, HEX(WEIGHT_STRING(f_datetime)) FROM t1;
+
+--echo #
+--echo # This ALTER does not change old fields to new fields
+--echo # Still expect old WEIGHT_STRING for the TIME and DATETIME fields
+--echo #
+ALTER TABLE t1 FORCE;
+INSERT INTO t1 VALUES ('22:22:22.5','2011-11-21 22:22:22.5','2011-11-21 22:22:22.5');
+SELECT f_time, HEX(WEIGHT_STRING(f_time)) FROM t1;
+SELECT f_timestamp, HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+SELECT f_datetime, HEX(WEIGHT_STRING(f_datetime)) FROM t1;
+
+--echo #
+--echo # This ALTER should change old fields to new fields
+--echo # Expecting new WEIGHT_STRING the rounding.
+--echo #
+ALTER TABLE t1 MODIFY f_time TIME, MODIFY f_timestamp TIMESTAMP, MODIFY f_datetime DATETIME;
+INSERT INTO t1 VALUES ('22:22:22.5','2011-11-21 22:22:22.5','2011-11-21 22:22:22.5');
+SELECT f_time, HEX(WEIGHT_STRING(f_time)) FROM t1;
+SELECT f_timestamp, HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+SELECT f_datetime, HEX(WEIGHT_STRING(f_datetime)) FROM t1;
+
+DROP TABLE t1; 
+
+SET time_zone=DEFAULT;
