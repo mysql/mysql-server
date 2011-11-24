@@ -1922,7 +1922,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "4096",                  /* Default */
+    "8192",                  /* Default */
     "0",                     /* Min */
     "64k"                    /* Max : There is no flow control...so set limit*/
   },
