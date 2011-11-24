@@ -445,7 +445,30 @@ static yyconst flex_int16_t yy_chk[30] =
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
 #line 1 "fts0blex.l"
-#line 2 "fts0blex.l"
+/*****************************************************************************
+
+Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
+/**
+ * @file fts/fts0blex.l
+ * FTS parser lexical analyzer
+ *
+ * Created 2007/5/9 Sunny Bains
+ */
+#line 27 "fts0blex.l"
 
 #include "fts0ast.h"
 #include "fts0pars.h"
@@ -454,7 +477,7 @@ static yyconst flex_int16_t yy_chk[30] =
 #define YY_DECL int fts_blexer(YYSTYPE* val, yyscan_t yyscanner)
 
 #define YY_NO_INPUT 1
-#line 457 "fts0blex.cc"
+#line 480 "fts0blex.cc"
 
 #define INITIAL 0
 
@@ -678,10 +701,10 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 18 "fts0blex.l"
+#line 43 "fts0blex.l"
 
 
-#line 684 "fts0blex.cc"
+#line 707 "fts0blex.cc"
 
 	if ( !yyg->yy_init )
 		{
@@ -762,12 +785,12 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 20 "fts0blex.l"
+#line 45 "fts0blex.l"
 /* Ignore whitespace */ ;
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 22 "fts0blex.l"
+#line 47 "fts0blex.l"
 {
 	val->oper = fts0bget_text(yyscanner)[0];
 
@@ -776,7 +799,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 28 "fts0blex.l"
+#line 53 "fts0blex.l"
 {
 	val->token = strdup(fts0bget_text(yyscanner));
 
@@ -785,7 +808,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 34 "fts0blex.l"
+#line 59 "fts0blex.l"
 {
 	val->token = strdup(fts0bget_text(yyscanner));
 
@@ -794,7 +817,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 40 "fts0blex.l"
+#line 65 "fts0blex.l"
 {
 	val->token = strdup(fts0bget_text(yyscanner));
 
@@ -804,15 +827,15 @@ YY_RULE_SETUP
 case 6:
 /* rule 6 can match eol */
 YY_RULE_SETUP
-#line 46 "fts0blex.l"
+#line 71 "fts0blex.l"
 
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 48 "fts0blex.l"
+#line 73 "fts0blex.l"
 ECHO;
 	YY_BREAK
-#line 815 "fts0blex.cc"
+#line 838 "fts0blex.cc"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1926,7 +1949,7 @@ void fts0bfree (void * ptr ,  yyscan_t yyscanner __attribute__((unused)))
 
 #define YYTABLES_NAME "yytables"
 
-#line 48 "fts0blex.l"
+#line 73 "fts0blex.l"
 
 
 
