@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,14 +11,14 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /**************************************************//**
 @file include/row0ftsort.h
-reate Full Text Index with (parallel) merge sort
+Create Full Text Index with (parallel) merge sort
 
 Created 10/13/2010 Jimmy Yang
 *******************************************************/
@@ -112,7 +112,7 @@ typedef struct fts_tokenize_ctx fts_tokenize_ctx_t;
 parallel sort. */
 struct fts_psort_insert {
 	trx_t*		trx;		/*!< Transaction used for insertion */
-	que_t**		ins_graph;	/*!< insert graph */	
+	que_t**		ins_graph;	/*!< insert graph */
 	fts_table_t	fts_table;	/*!< auxiliary table */
 	CHARSET_INFO*	charset;	/*!< charset info */
 	mem_heap_t*	heap;		/*!< heap */

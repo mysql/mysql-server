@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,14 +11,14 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /******************************************************************//**
-@file include/fts0type.ic
-Full text types.
+@file include/fts0types.ic
+Full text search types.
 
 Created 2007-03-27 Sunny Bains
 *******************************************************/
@@ -29,7 +29,6 @@ Created 2007-03-27 Sunny Bains
 #include <ctype.h>
 
 #include "rem0cmp.h"
-#include "fts_uc_data.ic"
 #include "ha_prototypes.h"
 
 extern const ulint UTF8_ERROR;
@@ -38,17 +37,14 @@ extern const ulint UTF8_ERROR;
 #define fts_utf8_is_valid(b) (((b) & 0xC0) == 0x80)
 
 /******************************************************************//**
-Compare two fts_trx_table_t instances. */
+Compare two fts_trx_table_t instances.
+@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2  */
 UNIV_INLINE
 int
 fts_trx_table_cmp(
 /*==============*/
-						/* out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/* in: id1 */
-	const void*	p2)			/* in: id2 */
+	const void*	p1,			/*!< in: id1 */
+	const void*	p2)			/*!< in: id2 */
 {
 	const dict_table_t* table1 = (*(const fts_trx_table_t**) p1)->table;
 	const dict_table_t* table2 = (*(const fts_trx_table_t**) p2)->table;
@@ -61,17 +57,14 @@ fts_trx_table_cmp(
 }
 
 /******************************************************************//**
-Compare a table id with a fts_trx_table_t table id. */
+Compare a table id with a fts_trx_table_t table id.
+@return < 0 if n1 < n2, 0 if n1 == n2,> 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_trx_table_id_cmp(
 /*=================*/
-						/* out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/* in: id1 */
-	const void*	p2)			/* in: id2 */
+	const void*	p1,			/*!< in: id1 */
+	const void*	p2)			/*!< in: id2 */
 {
 	const ullint* table_id = (const ullint*) p1;
 	const dict_table_t* table2 = (*(const fts_trx_table_t**) p2)->table;
@@ -84,18 +77,15 @@ fts_trx_table_id_cmp(
 }
 
 /******************************************************************//**
-Duplicate an UTF-8 string. */
+Duplicate an UTF-8 string.
+@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 void
 fts_utf8_string_dup(
 /*================*/
-						/* out: 
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	fts_string_t*		dst,		/* in: dup to here */
-	const fts_string_t*	src,		/* in: src string */
-	mem_heap_t*		heap)		/* in: heap to use */
+	fts_string_t*		dst,		/*!< in: dup to here */
+	const fts_string_t*	src,		/*!< in: src string */
+	mem_heap_t*		heap)		/*!< in: heap to use */
 {
 	dst->f_str = (byte*) mem_heap_dup(heap, src->f_str, src->f_len + 1);
 
@@ -105,17 +95,14 @@ fts_utf8_string_dup(
 }
 
 /******************************************************************//**
-Compare two fts_trx_row_t doc_ids. */
+Compare two fts_trx_row_t doc_ids.
+@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_trx_row_doc_id_cmp(
 /*===================*/
-						/* out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/* in: id1 */
-	const void*	p2)			/* in: id2 */
+	const void*	p1,			/*!< in: id1 */
+	const void*	p2)			/*!< in: id2 */
 {
 	const fts_trx_row_t*	tr1 = (const fts_trx_row_t*) p1;
 	const fts_trx_row_t*	tr2 = (const fts_trx_row_t*) p2;
@@ -124,17 +111,14 @@ fts_trx_row_doc_id_cmp(
 }
 
 /******************************************************************//**
-Compare two fts_ranking_t doc_ids. */
+Compare two fts_ranking_t doc_ids.
+@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_ranking_doc_id_cmp(
 /*===================*/
-						/* out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/* in: id1 */
-	const void*	p2)			/* in: id2 */
+	const void*	p1,			/*!< in: id1 */
+	const void*	p2)			/*!< in: id2 */
 {
 	const fts_ranking_t*	rk1 = (const fts_ranking_t*) p1;
 	const fts_ranking_t*	rk2 = (const fts_ranking_t*) p2;
@@ -143,17 +127,14 @@ fts_ranking_doc_id_cmp(
 }
 
 /******************************************************************//**
-Compare two fts_update_t doc_ids. */
+Compare two fts_update_t doc_ids.
+@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_update_doc_id_cmp(
 /*==================*/
-						/* out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/* in: id1 */
-	const void*	p2)			/* in: id2 */
+	const void*	p1,			/*!< in: id1 */
+	const void*	p2)			/*!< in: id2 */
 {
 	const fts_update_t*	up1 = (const fts_update_t*) p1;
 	const fts_update_t*	up2 = (const fts_update_t*) p2;
@@ -161,39 +142,6 @@ fts_update_doc_id_cmp(
 	return((int)(up1->doc_id - up2->doc_id));
 }
 
-/******************************************************************//**
-Check whether a character is an alphabetic one. */
-UNIV_INLINE
-ibool
-fts_utf8_isalpha(
-/*=============*/
-						/* out: TRUE if the character
-						is an alphabetic character */
-	ulint		ch)			/* in: char to test */
-{	
-	ibool		res = FALSE;
-
-	if (ch < 0x7F) {
-		res = isalpha(ch);
-	} else if (ch < FTS_UC_MAX_CODE_POINT) {
-		res = (ib_fts_uc_isletter[ch / 8] >> (ch % 8)) & 1;
-	}
-
-	return(res);
-}
-
-/******************************************************************//**
-Check whether a character is a digit. */
-UNIV_INLINE
-ibool
-fts_utf8_isdigit(
-/*=============*/
-						/* out: TRUE if the character
-						is a digit*/
-	ulint		ch)			/* in: UTF-8 character */
-{
-	return((ch < 0x7F) ? isdigit(ch) : FALSE);
-}
 
 /******************************************************************//**
 Lowercase an UTF-8 string. */
@@ -201,23 +149,20 @@ UNIV_INLINE
 void
 fts_utf8_tolower(
 /*=============*/
-	fts_string_t*	str)			/* in: string */
+	fts_string_t*	str)			/*!< in: string */
 {
 	innobase_casedn_str((char*) str->f_str);
 }
 
 /******************************************************************//**
-Compare two UTF-8 strings. */
+Compare two UTF-8 strings.
+@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_utf8_string_cmp(
 /*================*/
-						/* out: 
-						< 0 if n1 < n2, 
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/* in: key */
-	const void*	p2)			/* in: node */
+	const void*	p1,			/*!< in: key */
+	const void*	p2)			/*!< in: node */
 {
 	const fts_string_t* s1 = (const fts_string_t*) p1;
 	const fts_string_t* s2 = (const fts_string_t*) p2;
@@ -228,17 +173,14 @@ fts_utf8_string_cmp(
 
 /******************************************************************//**
 Compare two UTF-8 strings, and return match (0) if 
-passed in "key" value equals or is the prefix of the "node" value. */
+passed in "key" value equals or is the prefix of the "node" value.
+@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_utf8_string_cmp_prefix(
 /*=======================*/
-						/* out: 
-						< 0 if n1 < n2, 
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/* in: key */
-	const void*	p2)			/* in: node */
+	const void*	p1,			/*!< in: key */
+	const void*	p2)			/*!< in: node */
 {
 	int	result;
 	ulint	len;
@@ -275,16 +217,14 @@ zzzzyyyy yyxxxxxx          1110zzzz 10yyyyyy 10xxxxxx
 This function decodes UTF-8 sequences up to 6 bytes (31 bits).
 
 On error *ptr will point to the first byte that was not correctly
-decoded. This will hopefully help in resyncing the input. */
+decoded. This will hopefully help in resyncing the input.
+@return UTF8_ERROR if *ptr did not point to a valid
+UTF-8 sequence, or the Unicode code point. */
 UNIV_INLINE
 ulint
 fts_utf8_decode(
 /*============*/
-						/* out: UTF8_ERROR if *ptr
-						did not point to a valid
-						UTF-8 sequence, or the
-						Unicode code point. */
-	const byte**	ptr)			/* in/out: pointer to
+	const byte**	ptr)			/*!< in/out: pointer to
 						UTF-8 string. The
 						pointer is advanced to
 						the start of the next
@@ -380,14 +320,14 @@ err_exit:
 }
 
 /******************************************************************//**
-compare two character string according to their charset. */
+Get the first character's code position for FTS index partition */
 extern
 ulint
 innobase_strnxfrm(
 /*==============*/
         const CHARSET_INFO*	cs,	/*!< in: Character set */
-        const uchar*		p2,
-        const ulint		len2);
+        const uchar*		p2,	/*!< in: string */	
+        const ulint		len2);	/*!< in: string length */
 
 /******************************************************************//**
 Select the FTS auxiliary index for the given character.
@@ -429,7 +369,7 @@ UNIV_INLINE
 ulint
 fts_select_next_index(
 /*==================*/
-	const CHARSET_INFO*	cs,	/*!< Charset */
+	const CHARSET_INFO*	cs,	/*!< in: Charset */
 	const byte*		str,	/*!< in: string */
 	ulint			len)	/*!< in: string length */
 {
