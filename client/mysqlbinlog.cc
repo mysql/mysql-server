@@ -2362,3 +2362,5 @@ int main(int argc, char** argv)
 #include "zreturn.cc"
 #include "zuuid.cc"
 #include "zgtid_set.cc"
+#include "zgtid_specification.cc"
+#include "zgtid.cc"

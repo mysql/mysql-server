@@ -244,6 +244,10 @@ gtid_before_statement_begin_commit_sequence(
 
   lock->assert_some_rdlock();
 
+  DBUG_PRINT("info", ("gtid_next: type=%d sidno=%d gno=%lld",
+                      gtid_next->type,
+                      gtid_next->gtid.sidno, gtid_next->gtid.gno));
+
   if (!thd->in_active_multi_stmt_transaction())
   {
     if (gst->ensure_sidno() != 0)

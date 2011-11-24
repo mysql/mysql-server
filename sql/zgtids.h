@@ -687,6 +687,7 @@ struct Gtid
   void clear() { sidno= 0; gno= 0; }
   static const int MAX_TEXT_LENGTH= Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
   static bool is_valid(const char *text);
+  int to_string(const rpl_sid *sid, char *buf) const;
   int to_string(const Sid_map *sid_map, char *buf) const;
   /**
     Parses the given string and stores in this Gtid.
@@ -1821,6 +1822,8 @@ enum enum_group_type
 /**
   This struct represents a specification of a GTID for a statement to
   be executed: either "AUTOMATIC", "ANONYMOUS", or "SID:GNO".
+
+  This is a POD. It has to be a POD because it is used in THD::variables.
 */
 struct Gtid_specification
 {
@@ -1833,6 +1836,16 @@ struct Gtid_specification
   Gtid gtid;
   void set(rpl_sidno sidno, rpl_gno gno)
   { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
+  void set(const Gtid *gtid) { set(gtid->sidno, gtid->gno); }
+  void clear() { set(0, 0); }
+  bool equals(const Gtid_specification *other) const
+  {
+    return (type == other->type &&
+            (type != GTID_GROUP ||
+             (gtid.sidno == other->gtid.sidno && gtid.gno == other->gtid.gno)));
+  }
+  bool equals(rpl_sidno sidno, rpl_gno gno) const
+  { return type == GTID_GROUP && gtid.sidno == sidno && gtid.gno == gno; }
   /**
     Parses the given string and stores in this Gtid_specification.
 
@@ -1844,19 +1857,29 @@ struct Gtid_specification
   /**
     Writes this Gtid_specification to the given string buffer.
 
+    @param sid_map Sid_map to use if the type of this
+    Gtid_specification is GTID_GROUP.
     @param buf[out] The buffer
     @retval The number of characters written.
   */
   int to_string(const Sid_map *sid_map, char *buf) const;
+  /**
+    Writes this Gtid_specification to the given string buffer.
+
+    @param sid SID to use if the type of this Gtid_specification is
+    GTID_GROUP.
+    @param buf[out] The buffer
+    @retval The number of characters written.
+    @buf[out]
+  */
+  int to_string(const rpl_sid *sid, char *buf) const;
   /**
     Returns the type of the group, if the given string is a valid Gtid_specification; INVALID otherwise.
   */
   static enum_group_type get_type(const char *text);
   /// Returns true if the given string is a valid Gtid_specification.
   static bool is_valid(const char *text)
-  {
-    return get_type(text) != INVALID_GROUP;
-  }
+  { return Gtid_specification::get_type(text) != INVALID_GROUP; }
 #ifndef DBUG_OFF
   void print() const
   {
@@ -1878,10 +1901,8 @@ struct Gtid_specification
 */
 struct Cached_group
 {
-  enum_group_type type;
-  rpl_sidno sidno;
-  rpl_gno gno;
-  rpl_binlog_pos binlog_length;
+  Gtid_specification spec;
+  rpl_binlog_pos binlog_offset;
 };
 
 
@@ -1909,10 +1930,19 @@ public:
 
     @param thd The THD object from which we read session variables.
     @param binlog_length Length of group in binary log.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+    @retval EXTEND_EXISTING_GROUP The last existing group had the same GTID
+    and has been extended to include this group too.
+    @retval APPEND_NEW_GROUP The group has been appended to this cache.
+    @retval ERROR An error (out of memory) occurred.
+    The error has been reported.
   */
+  enum enum_add_group_status
+  {
+    EXTEND_EXISTING_GROUP, APPEND_NEW_GROUP, ERROR
+  };
 #ifndef MYSQL_CLIENT
-  enum_return_status add_logged_group(const THD *thd, my_off_t binlog_length);
+  enum_add_group_status
+    add_logged_group(const THD *thd, my_off_t binlog_offset);
 #endif // ifndef MYSQL_CLIENT
   /**
     Adds an empty group with the given (SIDNO, GNO) to this cache.
@@ -1922,7 +1952,7 @@ public:
 
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add_empty_group(rpl_sidno sidno, rpl_gno gno);
+  enum_add_group_status add_empty_group(rpl_sidno sidno, rpl_gno gno);
   /**
     Add the given GTID to this cache as an empty group, unless the
     cache or the Gtid_state already contains it.
@@ -2011,15 +2041,15 @@ public:
     s += sprintf(s, "%d groups = {\n", n_groups);
     for (int i= 0; i < n_groups; i++)
     {
-      Cached_group *cs= get_unsafe_pointer(i);
+      Cached_group *group= get_unsafe_pointer(i);
       char uuid[Uuid::TEXT_LENGTH + 1]= "[]";
-      if (cs->sidno)
-        sm->sidno_to_sid(cs->sidno)->to_string(uuid);
-      s += sprintf(s, "  %s:%lld [%lld bytes] %d=%s\n",
-                   uuid, cs->gno, cs->binlog_length, cs->type,
-                   cs->type == GTID_GROUP ? "GTID" :
-                   cs->type == ANONYMOUS_GROUP ? "ANONYMOUS" :
-                   cs->type == AUTOMATIC_GROUP ? "AUTOMATIC" :
+      if (group->spec.gtid.sidno)
+        sm->sidno_to_sid(group->spec.gtid.sidno)->to_string(uuid);
+      s += sprintf(s, "  %s:%lld [offset %lld] %s\n",
+                   uuid, group->spec.gtid.gno, group->binlog_offset,
+                   group->spec.type == GTID_GROUP ? "GTID" :
+                   group->spec.type == ANONYMOUS_GROUP ? "ANONYMOUS" :
+                   group->spec.type == AUTOMATIC_GROUP ? "AUTOMATIC" :
                    "INVALID-GROUP-TYPE");
     }
     sprintf(s, "}\n");
@@ -2059,6 +2089,27 @@ public:
 private:
   /// List of all groups in this cache, of type Cached_group.
   DYNAMIC_ARRAY groups;
+
+  /**
+    Return a pointer to the last group, or NULL if this Group_cache is empty.
+  */
+  Cached_group *get_last_group()
+  {
+    int n_groups= get_n_groups();
+    return n_groups == 0 ? NULL : get_unsafe_pointer(n_groups - 1);
+  }
+
+  /**
+    Allocate space for one more group and return a pointer to it, or
+    NULL on error.
+  */
+  Cached_group *allocate_group()
+  {
+    Cached_group *ret= (Cached_group *)alloc_dynamic(&groups);
+    if (ret == NULL)
+      BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
+    return ret;
+  }
 
   /**
     Adds the given group to this group cache, or merges it with the

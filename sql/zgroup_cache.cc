@@ -45,37 +45,24 @@ void Group_cache::clear()
 }
 
 
-enum_return_status Group_cache::add_group(const Cached_group *group)
+Group_cache::enum_add_group_status
+Group_cache::add_logged_group(const THD *thd, my_off_t binlog_offset)
 {
-  DBUG_ENTER("Group_cache::add_group(Cached_group *)");
-
-  // if possible, merge the group with previous group in the cache
-  int n_groups= get_n_groups();
-  if (n_groups > 0)
-  {
-    Cached_group *prev= get_unsafe_pointer(n_groups - 1);
-    if (prev->type == group->type &&
-        (group->type != GTID_GROUP ||
-         (prev->sidno == group->sidno &&
-          prev->gno == group->gno)))
-    {
-      prev->binlog_length += group->binlog_length;
-      RETURN_OK;
-    }
-  }
-
-  DBUG_PRINT("zwen", ("inserting type%d %d:%lld", group->type, group->sidno, group->gno));
-
-  // if sub-group could not be merged with previous sub-group, append it
-  if (insert_dynamic(&groups, group) != 0)
-  {
-    BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
-    RETURN_REPORTED_ERROR;
-  }
-
+  DBUG_ENTER("Group_cache::add_logged_group(THD *, my_off_t)");
+  const Gtid_specification *spec= &thd->variables.gtid_next;
+  // merge with previous group if possible
+  Cached_group *prev= get_last_group();
+  if (prev != NULL && prev->spec.equals(spec))
+    DBUG_RETURN(EXTEND_EXISTING_GROUP);
+  // otherwise add a new group
+  Cached_group *group= allocate_group();
+  if (group ==  NULL)
+    DBUG_RETURN(ERROR);
+  group->spec= *spec;
+  group->binlog_offset= binlog_offset;
   // Update the internal status of this Group_cache (see comment above
   // definition of enum_group_cache_type).
-  if (group->type == GTID_GROUP)
+  if (group->spec.type == GTID_GROUP)
   {
     /*
       @todo: currently group_is_logged() requires a linear scan
@@ -84,25 +71,7 @@ enum_return_status Group_cache::add_group(const Cached_group *group)
       to it here. /Sven
     */
   }
-  RETURN_OK;
-}
-
-
-enum_return_status
-Group_cache::add_logged_group(const THD *thd, my_off_t length)
-{
-  DBUG_ENTER("Group_cache::add_logged_group(THD *, my_off_t)");
-  const Gtid_specification *spec= &thd->variables.gtid_next;
-  DBUG_PRINT("zwen", ("spec=type:%d %d:%lld", spec->type, spec->gtid.sidno, spec->gtid.gno));
-  Cached_group cs=
-    {
-      spec->type,
-      spec->gtid.sidno,
-      spec->gtid.gno,
-      length,
-    };
-  PROPAGATE_REPORTED_ERROR(add_group(&cs));
-  RETURN_OK;
+  DBUG_RETURN(APPEND_NEW_GROUP);
 }
 
 
@@ -111,25 +80,44 @@ bool Group_cache::contains_gtid(rpl_sidno sidno, rpl_gno gno) const
   int n_groups= get_n_groups();
   for (int i= 0; i < n_groups; i++)
   {
-    const Cached_group *cs= get_unsafe_pointer(i);
-    if (cs->type == GTID_GROUP && cs->gno == gno && cs->sidno == sidno)
+    const Cached_group *group= get_unsafe_pointer(i);
+    if (group->spec.equals(sidno, gno))
       return true;
   }
   return false;
 }
 
 
-enum_return_status
+Group_cache::enum_add_group_status
 Group_cache::add_empty_group(rpl_sidno sidno, rpl_gno gno)
 {
   DBUG_ENTER("Group_cache::add_empty_group");
-  Cached_group cs=
-    {
-      GTID_GROUP, sidno, gno, 0/*binlog_length*/
-    };
-  PROPAGATE_REPORTED_ERROR(add_group(&cs));
-  RETURN_OK;
+  // merge with previous group if possible
+  Cached_group *prev= get_last_group();
+  if (prev != NULL && prev->spec.equals(sidno, gno))
+    DBUG_RETURN(EXTEND_EXISTING_GROUP);
+  // otherwise add new group
+  Cached_group *group= allocate_group();
+  if (group == NULL)
+    DBUG_RETURN(ERROR);
+  group->spec.type= GTID_GROUP;
+  group->spec.gtid.sidno= sidno;
+  group->spec.gtid.gno= gno;
+  group->binlog_offset= prev != NULL ? prev->binlog_offset : 0;
+  // Update the internal status of this Group_cache (see comment above
+  // definition of enum_group_cache_type).
+  if (group->spec.type == GTID_GROUP)
+  {
+    /*
+      @todo: currently group_is_logged() requires a linear scan
+      through the cache. if this becomes a performance problem, we can
+      add a Gtid_set Group_cache::logged_groups and add logged groups
+      to it here. /Sven
+    */
+  }
+  DBUG_RETURN(APPEND_NEW_GROUP);
 }
+
 
 enum_return_status
 Group_cache::add_empty_group_if_missing(const Gtid_state *gls,
@@ -137,7 +125,8 @@ Group_cache::add_empty_group_if_missing(const Gtid_state *gls,
 {
   DBUG_ENTER("Group_cache::add_empty_group_if_missing(Gtid_state *, rpl_sidno, rpl_gno)");
   if (!gls->is_logged(sidno, gno) && !contains_gtid(sidno, gno))
-    PROPAGATE_REPORTED_ERROR(add_empty_group(sidno, gno));
+    if (add_empty_group(sidno, gno) == ERROR)
+      RETURN_REPORTED_ERROR;
   RETURN_OK;
 }
 
@@ -186,7 +175,7 @@ Group_cache::update_gtid_state(const THD *thd, Gtid_state *gls) const
   else
   {
     DBUG_ASSERT(n_groups <= 1);
-    lock_sidno= n_groups > 0 ? get_unsafe_pointer(0)->sidno : 0;
+    lock_sidno= n_groups > 0 ? get_unsafe_pointer(0)->spec.gtid.sidno : 0;
     if (lock_sidno)
       gls->lock_sidno(lock_sidno);
   }
@@ -196,17 +185,18 @@ Group_cache::update_gtid_state(const THD *thd, Gtid_state *gls) const
 
   for (int i= 0; i < n_groups; i++)
   {
-    Cached_group *cs= get_unsafe_pointer(i);
-    if (cs->type == GTID_GROUP)
+    Cached_group *group= get_unsafe_pointer(i);
+    if (group->spec.type == GTID_GROUP)
     {
-      DBUG_ASSERT(lock_set != NULL ? lock_set->contains_sidno(cs->sidno) :
-                  (lock_sidno > 0 && cs->sidno == lock_sidno));
+      DBUG_ASSERT(lock_set != NULL ?
+                  lock_set->contains_sidno(group->spec.gtid.sidno) :
+                  (lock_sidno > 0 && group->spec.gtid.sidno == lock_sidno));
       updated= true;
-      ret= gls->log_group(cs->sidno, cs->gno);
+      ret= gls->log_group(group->spec.gtid.sidno, group->spec.gtid.gno);
       if (ret != RETURN_STATUS_OK)
         break;
     }
-    DBUG_ASSERT(cs->type != AUTOMATIC_GROUP);
+    DBUG_ASSERT(group->spec.type != AUTOMATIC_GROUP);
   }
 
   if (lock_set != NULL)
@@ -229,8 +219,7 @@ enum_return_status Group_cache::generate_automatic_gno(const THD *thd,
                                                        Gtid_state *gls)
 {
   DBUG_ENTER("Group_cache::generate_automatic_gno");
-  if (thd->variables.gtid_next.type != AUTOMATIC_GROUP)
-    RETURN_OK;
+  DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
   DBUG_ASSERT(thd->variables.gtid_next_list.get_gtid_set() == NULL);
   int n_groups= get_n_groups();
   enum_group_type automatic_type= INVALID_GROUP;
@@ -238,8 +227,8 @@ enum_return_status Group_cache::generate_automatic_gno(const THD *thd,
   rpl_sidno automatic_sidno= 0;
   for (int i= 0; i < n_groups; i++)
   {
-    Cached_group *cs= get_unsafe_pointer(i);
-    if (cs->type == AUTOMATIC_GROUP)
+    Cached_group *group= get_unsafe_pointer(i);
+    if (group->spec.type == AUTOMATIC_GROUP)
     {
       if (automatic_type == INVALID_GROUP)
       {
@@ -260,9 +249,9 @@ enum_return_status Group_cache::generate_automatic_gno(const THD *thd,
         gls->acquire_ownership(automatic_sidno, automatic_gno, thd);
         gls->unlock_sidno(automatic_sidno);
       }
-      cs->type= automatic_type;
-      cs->gno= automatic_gno;
-      cs->sidno= automatic_sidno;
+      group->spec.type= automatic_type;
+      group->spec.gtid.gno= automatic_gno;
+      group->spec.gtid.sidno= automatic_sidno;
     }
   }
   RETURN_OK;
@@ -276,8 +265,8 @@ enum_return_status Group_cache::get_gtids(Gtid_set *gs) const
   PROPAGATE_REPORTED_ERROR(gs->ensure_sidno(gs->get_sid_map()->get_max_sidno()));
   for (int i= 0; i < n_groups; i++)
   {
-    Cached_group *cs= get_unsafe_pointer(i);
-    PROPAGATE_REPORTED_ERROR(gs->_add(cs->sidno, cs->gno));
+    Cached_group *group= get_unsafe_pointer(i);
+    PROPAGATE_REPORTED_ERROR(gs->_add(group->spec.gtid.sidno, group->spec.gtid.gno));
   }
   RETURN_OK;
 }

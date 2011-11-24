@@ -552,8 +552,19 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
                                 binlog_cache_data *cache_data)
 {
   DBUG_ENTER("write_event_to_cache");
-  IO_CACHE *file= &cache_data->cache_log;
-  if (ev->write(file) != 0)
+  IO_CACHE *cache= &cache_data->cache_log;
+  Group_cache* group_cache= &cache_data->group_cache;
+  Group_cache::enum_add_group_status status= 
+    group_cache->add_logged_group(thd, cache_data->get_byte_position());
+  if (status == Group_cache::ERROR)
+    DBUG_RETURN(1);
+  else if (status == Group_cache::APPEND_NEW_GROUP)
+  {
+    Gtid_log_event gtid_ev(thd);
+    if (gtid_ev.write(cache) != 0)
+      DBUG_RETURN(1);
+  }
+  if (ev->write(cache) != 0)
     DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
@@ -567,39 +578,40 @@ int gtid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
   
   global_sid_lock.rdlock();
 
-  if ((group_cache->add_logged_group(thd, cache_data->get_byte_position()) !=
-       RETURN_STATUS_OK) ||
-      (group_cache->generate_automatic_gno(thd, &gtid_state) !=
-       RETURN_STATUS_OK) ||
-      (group_cache->update_gtid_state(thd, &gtid_state) != RETURN_STATUS_OK))
+  if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
+  {
+    if (group_cache->generate_automatic_gno(thd, &gtid_state) !=
+        RETURN_STATUS_OK)
+    {
+      global_sid_lock.unlock();
+      DBUG_RETURN(1); 
+    }
+  }
+  if (group_cache->update_gtid_state(thd, &gtid_state) != RETURN_STATUS_OK)
   {
     global_sid_lock.unlock();
     DBUG_RETURN(1); 
   }
 
-  Cached_group *cached_group= group_cache->get_unsafe_pointer(0);
-  rpl_sidno sidno= cached_group->sidno;
-  rpl_gno gno= cached_group->gno;
-
-  // @todo: these assertions will all be false in the final version /sven
-  DBUG_ASSERT(group_cache->get_n_groups() == 1);
-  DBUG_ASSERT(static_cast<my_off_t>(cached_group->binlog_length) == cache_data->get_byte_position());
-  group_cache->print(&global_sid_map);
-  DBUG_ASSERT(cached_group->type == GTID_GROUP);
-
   global_sid_lock.unlock();
 
   /*
-    @todo
-    In what follows, We need to replace the information at this point with
-    valid stuff.
+    If an automatic group number was generated, change the first event
+    into a "real" one.
   */
-  my_off_t saved_position= cache_data->get_byte_position();
-  Gtid_log_event uinfo(thd, sidno, gno);
-  my_b_seek(&cache_data->cache_log, 0);
-  write_event_to_cache(thd, &uinfo, cache_data);
-  // @todo: why seek back??? /sven
-  my_b_seek(&cache_data->cache_log, saved_position);
+  if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
+  {
+    DBUG_ASSERT(group_cache->get_n_groups() == 1);
+    Cached_group *cached_group= group_cache->get_unsafe_pointer(0);
+    DBUG_ASSERT(cached_group->spec.type != AUTOMATIC_GROUP);
+    Gtid_log_event gtid_ev(thd, &cached_group->spec);
+    my_off_t saved_position= cache_data->get_byte_position();
+    IO_CACHE *cache_log= &cache_data->cache_log;
+    my_b_seek(cache_log, 0);
+    if (gtid_ev.write(cache_log) != 0)
+      DBUG_RETURN(1);
+    my_b_seek(cache_log, saved_position);
+  }
 
   DBUG_RETURN(0);
 }
@@ -5136,11 +5148,14 @@ inline int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
   */ 
   if (start_event->is_using_immediate_logging())
   {
+    /// @todo what's this? /sven
+/*
 #ifdef HAVE_GTID
     Gtid_log_event uinfo(thd);
     if (write_event_to_cache(thd, &uinfo, cache_data))
       DBUG_RETURN(1);
 #endif
+*/
     DBUG_RETURN(0);
   }
 
@@ -5188,11 +5203,6 @@ inline int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
   {
     Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"),
                           is_transactional, FALSE, TRUE, 0, TRUE);
-#ifdef HAVE_GTID
-    Gtid_log_event uinfo(thd);
-    if (write_event_to_cache(thd, &uinfo, cache_data))
-      DBUG_RETURN(1);
-#endif
     if (write_event_to_cache(thd, &qinfo, cache_data))
       DBUG_RETURN(1);
   }
