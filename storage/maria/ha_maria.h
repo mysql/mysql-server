@@ -30,7 +30,7 @@
 
 extern ulong maria_sort_buffer_size;
 extern TYPELIB maria_recover_typelib;
-extern ulong maria_recover_options;
+extern ulonglong maria_recover_options;
 
 class ha_maria :public handler
 {

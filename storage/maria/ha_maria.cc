@@ -60,7 +60,7 @@ ulonglong pagecache_buffer_size;
    good. It would happen only after Recovery, if the table is still
    corrupted.
 */
-ulong maria_recover_options= HA_RECOVER_NONE;
+ulonglong maria_recover_options= HA_RECOVER_NONE;
 handlerton *maria_hton;
 
 /* bits in maria_recover_options */
@@ -198,7 +198,7 @@ static MYSQL_SYSVAR_ULONG(pagecache_division_limit, pagecache_division_limit,
        "The minimum percentage of warm blocks in key cache", 0, 0,
        100,  1, 100, 1);
 
-static MYSQL_SYSVAR_ENUM(recover, maria_recover_options, PLUGIN_VAR_OPCMDARG,
+static MYSQL_SYSVAR_SET(recover, maria_recover_options, PLUGIN_VAR_OPCMDARG,
        "Specifies how corrupted tables should be automatically repaired."
        " Possible values are \"NORMAL\" (the default), \"BACKUP\", \"FORCE\","
        " \"QUICK\", or \"OFF\" which is like not using the option.",
