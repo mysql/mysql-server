@@ -4024,6 +4024,7 @@ ulonglong subselect_hash_sj_engine::rowid_merge_buff_size(
   uint rowid_length= tmp_table->file->ref_length;
   select_materialize_with_stats *result_sink=
     (select_materialize_with_stats *) result;
+  ha_rows max_null_row;
 
   /* Size of the subselect_rowid_merge_engine::row_num_to_rowid buffer. */
   buff_size= row_count * rowid_length * sizeof(uchar);
@@ -4046,7 +4047,18 @@ ulonglong subselect_hash_sj_engine::rowid_merge_buff_size(
       buff_size+= (row_count - result_sink->get_null_count_of_col(i)) *
                          sizeof(rownum_t);
       /* Add the size of Ordered_key::null_key */
-      buff_size+= bitmap_buffer_size(result_sink->get_max_null_of_col(i));
+      max_null_row= result_sink->get_max_null_of_col(i);
+      if (max_null_row >= UINT_MAX)
+      {
+        /*
+          There can be at most UINT_MAX bits in a MY_BITMAP that is used to
+          store NULLs in an Ordered_key. Return a number of bytes bigger than
+          the maximum allowed memory buffer for partial matching to disable
+          the rowid merge strategy.
+        */
+        return ULONGLONG_MAX;
+      }
+      buff_size+= bitmap_buffer_size(max_null_row);
     }
   }
 
@@ -5588,7 +5600,7 @@ exists_complementing_null_row(MY_BITMAP *keys_to_complement)
 
   return bitmap_exists_intersection((const MY_BITMAP**) null_bitmaps,
                                     count_null_keys,
-                                    highest_min_row, lowest_max_row);
+                                    (uint)highest_min_row, (uint)lowest_max_row);
 }
 
 
