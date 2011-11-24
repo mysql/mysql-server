@@ -1614,7 +1614,6 @@ void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME *ltime)
     longlong seconds;
     long days, useconds;
     int sign= ltime->neg ? 1 : -1;
-    MYSQL_TIME tmp= *ldate;
     ldate->neg= calc_time_diff(ldate, ltime, sign, &seconds, &useconds);
     DBUG_ASSERT(!ldate->neg);
 
