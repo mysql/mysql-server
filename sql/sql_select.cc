@@ -15105,7 +15105,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
        flush_dups_table;
        flush_dups_table= flush_dups_table->next_flush_table)
   {
-    do_sj_reset(flush_dups_table);
+    flush_dups_table->sj_weedout_delete_rows();
   }
 
   if (!join_tab->preread_init_done && join_tab->preread_init())
@@ -15321,7 +15321,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
 
     if (join_tab->check_weed_out_table && found)
     {
-      int res= do_sj_dups_weedout(join->thd, join_tab->check_weed_out_table);
+      int res= join_tab->check_weed_out_table->sj_weedout_check_row(join->thd);
       if (res == -1)
         DBUG_RETURN(NESTED_LOOP_ERROR);
       else if (res == 1)
@@ -15445,7 +15445,7 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
   */
   if (join_tab->check_weed_out_table)
   {
-    int res= do_sj_dups_weedout(join->thd, join_tab->check_weed_out_table);
+    int res= join_tab->check_weed_out_table->sj_weedout_check_row(join->thd);
     if (res == -1)
       return NESTED_LOOP_ERROR;
     else if (res == 1)

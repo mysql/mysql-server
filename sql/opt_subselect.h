@@ -40,7 +40,6 @@ ulonglong get_bound_sj_equalities(TABLE_LIST *sj_nest,
 
 class Loose_scan_opt
 {
-public:
   /* All methods must check this before doing anything else */
   bool try_loosescan;
 
@@ -71,6 +70,7 @@ public:
 
   uint best_max_loose_keypart;
 
+public:
   Loose_scan_opt():
     try_loosescan(FALSE),
     bound_sj_equalities(0),
@@ -288,10 +288,6 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join);
 bool setup_sj_materialization_part1(JOIN_TAB *sjm_tab);
 bool setup_sj_materialization_part2(JOIN_TAB *sjm_tab);
 
-TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
-                                          SJ_TMP_TABLE *sjtbl);
-int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
-int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 
 /*
   Temporary table used by semi-join DuplicateElimination strategy
@@ -359,6 +355,10 @@ public:
   ENGINE_COLUMNDEF *recinfo;
 
   SJ_TMP_TABLE *next_flush_table; 
+
+  int sj_weedout_delete_rows();
+  int sj_weedout_check_row(THD *thd);
+  bool create_sj_weedout_tmp_table(THD *thd);
 };
 
 int setup_semijoin_dups_elimination(JOIN *join, ulonglong options, 

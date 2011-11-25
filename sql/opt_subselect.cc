@@ -3472,12 +3472,8 @@ static bool is_cond_sj_in_equality(Item *item)
 
   SYNOPSIS
 
-    create_duplicate_weedout_tmp_table()
+    create_sj_weedout_tmp_table()
       thd                    Thread handle
-      uniq_tuple_length_arg  Length of the table's column
-      sjtbl                  Update sjtbl->[start_]recinfo values which 
-                             will be needed if we'll need to convert the 
-                             created temptable from HEAP to MyISAM/Maria.
 
   DESCRIPTION
     Create a temporary table to weed out duplicate rowid combinations. The
@@ -3502,9 +3498,8 @@ static bool is_cond_sj_in_equality(Item *item)
     NULL on error
 */
 
-TABLE *create_duplicate_weedout_tmp_table(THD *thd, 
-                                          uint uniq_tuple_length_arg,
-                                          SJ_TMP_TABLE *sjtbl)
+bool
+SJ_TMP_TABLE::create_sj_weedout_tmp_table(THD *thd)
 {
   MEM_ROOT *mem_root_save, own_root;
   TABLE *table;
@@ -3517,15 +3512,17 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   uchar *group_buff;
   uchar *bitmaps;
   uint *blob_field;
-  ENGINE_COLUMNDEF *recinfo, *start_recinfo;
   bool using_unique_constraint=FALSE;
   bool use_packed_rows= FALSE;
   Field *field, *key_field;
   uint null_pack_length, null_count;
   uchar *null_flags;
   uchar *pos;
-  DBUG_ENTER("create_duplicate_weedout_tmp_table");
-  DBUG_ASSERT(!sjtbl->is_degenerate);
+  DBUG_ENTER("create_sj_weedout_tmp_table");
+  DBUG_ASSERT(!is_degenerate);
+
+  tmp_table= NULL;
+  uint uniq_tuple_length_arg= rowid_len + null_bytes;
   /*
     STEP 1: Get temporary table name
   */
@@ -3567,7 +3564,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   {
     if (temp_pool_slot != MY_BIT_NONE)
       bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(TRUE);
   }
   strmov(tmpname,path);
   
@@ -3771,20 +3768,19 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     if (create_internal_tmp_table(table, keyinfo, start_recinfo, &recinfo, 0))
       goto err;
   }
-  sjtbl->start_recinfo= start_recinfo;
-  sjtbl->recinfo=       recinfo;
   if (open_tmp_table(table))
     goto err;
 
   thd->mem_root= mem_root_save;
-  DBUG_RETURN(table);
+  tmp_table= table;
+  DBUG_RETURN(FALSE);
 
 err:
   thd->mem_root= mem_root_save;
   free_tmp_table(thd,table);                    /* purecov: inspected */
   if (temp_pool_slot != MY_BIT_NONE)
     bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
-  DBUG_RETURN(NULL);				/* purecov: inspected */
+  DBUG_RETURN(TRUE);				/* purecov: inspected */
 }
 
 
@@ -3792,25 +3788,25 @@ err:
   SemiJoinDuplicateElimination: Reset the temporary table
 */
 
-int do_sj_reset(SJ_TMP_TABLE *sj_tbl)
+int SJ_TMP_TABLE::sj_weedout_delete_rows()
 {
-  DBUG_ENTER("do_sj_reset");
-  if (sj_tbl->tmp_table)
+  DBUG_ENTER("SJ_TMP_TABLE::sj_weedout_delete_rows");
+  if (tmp_table)
   {
-    int rc= sj_tbl->tmp_table->file->ha_delete_all_rows();
+    int rc= tmp_table->file->ha_delete_all_rows();
     DBUG_RETURN(rc);
   }
-  sj_tbl->have_degenerate_row= FALSE;
+  have_degenerate_row= FALSE;
   DBUG_RETURN(0);
 }
+
 
 /*
   SemiJoinDuplicateElimination: Weed out duplicate row combinations
 
   SYNPOSIS
-    do_sj_dups_weedout()
+    sj_weedout_check_row()
       thd    Thread handle
-      sjtbl  Duplicate weedout table
 
   DESCRIPTION
     Try storing current record combination of outer tables (i.e. their
@@ -3823,47 +3819,47 @@ int do_sj_reset(SJ_TMP_TABLE *sj_tbl)
     0   The row combination is not a duplicate (continue)
 */
 
-int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) 
+int SJ_TMP_TABLE::sj_weedout_check_row(THD *thd)
 {
   int error;
-  SJ_TMP_TABLE::TAB *tab= sjtbl->tabs;
-  SJ_TMP_TABLE::TAB *tab_end= sjtbl->tabs_end;
+  SJ_TMP_TABLE::TAB *tab= tabs;
+  SJ_TMP_TABLE::TAB *tab_end= tabs_end;
   uchar *ptr;
   uchar *nulls_ptr;
 
-  DBUG_ENTER("do_sj_dups_weedout");
+  DBUG_ENTER("SJ_TMP_TABLE::sj_weedout_check_row");
 
-  if (sjtbl->is_degenerate)
+  if (is_degenerate)
   {
-    if (sjtbl->have_degenerate_row) 
+    if (have_degenerate_row) 
       DBUG_RETURN(1);
 
-    sjtbl->have_degenerate_row= TRUE;
+    have_degenerate_row= TRUE;
     DBUG_RETURN(0);
   }
 
-  ptr= sjtbl->tmp_table->record[0] + 1;
+  ptr= tmp_table->record[0] + 1;
 
   /* Put the the rowids tuple into table->record[0]: */
 
   // 1. Store the length 
-  if (((Field_varstring*)(sjtbl->tmp_table->field[0]))->length_bytes == 1)
+  if (((Field_varstring*)(tmp_table->field[0]))->length_bytes == 1)
   {
-    *ptr= (uchar)(sjtbl->rowid_len + sjtbl->null_bytes);
+    *ptr= (uchar)(rowid_len + null_bytes);
     ptr++;
   }
   else
   {
-    int2store(ptr, sjtbl->rowid_len + sjtbl->null_bytes);
+    int2store(ptr, rowid_len + null_bytes);
     ptr += 2;
   }
 
   nulls_ptr= ptr;
   // 2. Zero the null bytes 
-  if (sjtbl->null_bytes)
+  if (null_bytes)
   {
-    bzero(ptr, sjtbl->null_bytes);
-    ptr += sjtbl->null_bytes; 
+    bzero(ptr, null_bytes);
+    ptr += null_bytes; 
   }
 
   // 3. Put the rowids
@@ -3883,15 +3879,14 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     }
   }
 
-  error= sjtbl->tmp_table->file->ha_write_tmp_row(sjtbl->tmp_table->record[0]);
+  error= tmp_table->file->ha_write_tmp_row(tmp_table->record[0]);
   if (error)
   {
     /* create_internal_tmp_table_from_heap will generate error if needed */
-    if (!sjtbl->tmp_table->file->is_fatal_error(error, HA_CHECK_DUP))
+    if (!tmp_table->file->is_fatal_error(error, HA_CHECK_DUP))
       DBUG_RETURN(1); /* Duplicate */
-    if (create_internal_tmp_table_from_heap(thd, sjtbl->tmp_table,
-                                            sjtbl->start_recinfo,
-                                            &sjtbl->recinfo, error, 1))
+    if (create_internal_tmp_table_from_heap(thd, tmp_table, start_recinfo,
+                                            &recinfo, error, 1))
       DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
@@ -3943,11 +3938,8 @@ int init_dups_weedout(JOIN *join, uint first_table, int first_fanout_table, uint
     sjtbl->rowid_len= jt_rowid_offset;
     sjtbl->null_bits= jt_null_bits;
     sjtbl->null_bytes= (jt_null_bits + 7)/8;
-    sjtbl->tmp_table= 
-      create_duplicate_weedout_tmp_table(thd, 
-                                         sjtbl->rowid_len + 
-                                         sjtbl->null_bytes,
-                                         sjtbl);
+    if (sjtbl->create_sj_weedout_tmp_table(thd))
+      DBUG_RETURN(TRUE);
     join->sj_tmp_tables.push_back(sjtbl->tmp_table);
   }
   else
