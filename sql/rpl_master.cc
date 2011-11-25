@@ -616,13 +616,14 @@ static int send_heartbeat_event(NET* net, String* packet,
 */
 
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
-		       ushort flags)
+		       ushort flags, const Gtid_set* grp_set)
 {
   LOG_INFO linfo;
   char *log_file_name = linfo.log_file_name;
   char search_file_name[FN_REFLEN], *name;
 
   ulong ev_offset;
+  bool skip_group= false;
 
   IO_CACHE log;
   File file = -1;
@@ -637,6 +638,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   mysql_cond_t *log_cond;
   bool binlog_can_be_corrupted= FALSE;
   uint8 current_checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
+  Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
 
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
@@ -901,7 +903,7 @@ impossible position";
       goto err;
 
     while (!(error= Log_event::read_log_event(&log, packet, log_lock,
-                                               current_checksum_alg)))
+                                              current_checksum_alg)))
     {
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
@@ -934,6 +936,7 @@ impossible position";
                       });
       if (event_type == FORMAT_DESCRIPTION_EVENT)
       {
+        skip_group= false;
         current_checksum_alg= get_checksum_alg(packet->ptr() + ev_offset,
                                                packet->length() - ev_offset);
         DBUG_ASSERT(current_checksum_alg == BINLOG_CHECKSUM_ALG_OFF ||
@@ -954,9 +957,67 @@ impossible position";
         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
                                       LOG_EVENT_BINLOG_IN_USE_F);
         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
+        if (grp_set != NULL)
+        {
+          /*
+            Fixes the information on the checksum algorithm when a new
+            format description is read. Notice that this only necessary
+            when we need to filter out some transactions which were
+            already processed.
+          */
+          p_fdle->checksum_alg= current_checksum_alg;
+        }
       }
       else if (event_type == STOP_EVENT)
-        binlog_can_be_corrupted= FALSE;
+      {
+        skip_group= false;
+        binlog_can_be_corrupted= false;
+      }
+      else if (event_type == GTID_LOG_EVENT && grp_set != NULL)
+      {
+      /* Sven, please, restore the group size and enable this. */
+      /*
+        rpl_sid sid_decode;
+        rpl_sidno sidno= 0;
+        rpl_gno gno= 0;
+        Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
+                                                 packet->length() - ev_offset,
+                                                 p_fdle);
+        sid_decode.copy_from(gtid->get_gtid_sid());
+        gno= gtid->get_gtid_gno();
+        mysql_bin_log.sid_lock.rdlock();
+        sidno= mysql_bin_log.sid_map.sid_to_sidno(&sid_decode);
+        mysql_bin_log.sid_lock.rdlock();
+        if ((skip_group= grp_set->contains_group(sidno, gno)))
+        {
+          my_off_t prv_pos= my_b_tell(&log);
+          my_off_t adv_pos= prv_pos + gtid->get_group_size();
+          my_b_seek(&log, adv_pos);
+          coord->pos= adv_pos;
+          DBUG_PRINT("info", ("previous pos %lld new pos %lld current new pos %lld.",
+                     prv_pos, adv_pos, my_b_tell(&log)));
+        }
+#ifndef DBUG_OFF
+        char buffer[Gtid_log_event::GTID_STRING_INFO_LEN];
+        size_t gtid_str_size= sid_decode.to_string(buffer);
+        buffer[gtid_str_size]= 0;
+        DBUG_PRINT("info", ("Dumping GTID %s:%lld sidno(%d) found group(%d)",
+                   buffer, gno, sidno, skip_group));
+#endif
+        delete gtid;
+      */
+      }
+      else if (event_type == PREVIOUS_GTIDS_LOG_EVENT ||
+               event_type == INCIDENT_EVENT ||
+               event_type == ROTATE_EVENT)
+      {
+        skip_group= false;
+        /*
+          It would be nice if even with a simple implementation we could
+          avoid sending such events if not extremelly necessary.
+          We need to think on this and improve the code. /Alfranio.
+        */
+      }
 
       /*
         Introduced this code to make the gcc 4.6.1 compiler happy. When
@@ -980,7 +1041,7 @@ impossible position";
         goto err;
       }
 
-      if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
+      if (skip_group == false && my_net_write(net, (uchar*) packet->ptr(), packet->length()))
       {
 	errmsg = "Failed on my_net_write()";
 	my_errno= ER_UNKNOWN_ERROR;
@@ -996,7 +1057,7 @@ impossible position";
                       });
 
       DBUG_PRINT("info", ("log event code %d", event_type));
-      if (event_type == LOAD_EVENT)
+      if (skip_group == false && event_type == LOAD_EVENT)
       {
 	if (send_file(thd))
 	{
@@ -1028,7 +1089,7 @@ impossible position";
     if (test_for_non_eof_log_read_errors(error, &errmsg))
       goto err;
 
-    if (!(flags & BINLOG_DUMP_NON_BLOCK) &&
+    if (!(is_master_slave_proto(flags, BINLOG_DUMP_NON_BLOCK)) &&
         mysql_bin_log.is_active(log_file_name))
     {
       /*
@@ -1208,7 +1269,7 @@ impossible position";
       case LOG_INFO_EOF:
         if (mysql_bin_log.is_active(log_file_name))
         {
-          loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
+          loop_breaker = is_master_slave_proto(flags, BINLOG_DUMP_NON_BLOCK);
           break;
         }
       default:

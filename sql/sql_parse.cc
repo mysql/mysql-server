@@ -1389,11 +1389,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       */
       String slave_uuid;
       ushort flags= 0;
-      /* uint32 data_size= 0; */
+      uint32 data_size= 0;
       uint64 pos= 0;
       char name[FN_REFLEN + 1];
       uint32 name_size= 0;
       const uchar* ptr_buffer= (uchar *) packet;
+      Gtid_set gtid_set(&global_sid_map);;
 
       status_var_increment(thd->status_var.com_other);
       thd->enable_slow_log= opt_log_slow_admin_statements;
@@ -1412,26 +1413,41 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       pos= uint8korr(ptr_buffer);
       ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
 
-      DBUG_PRINT("info", ("Slave %d requested to read %s at position %d.", thd->server_id, name, name_size));
       if (is_master_slave_proto(flags, BINLOG_THROUGH_GTID))
       {
-        /* data_size= uint4korr(ptr_buffer); */
+        data_size= uint4korr(ptr_buffer);
         ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
 
-        /*
-        Gtid_set set(&global_sid_map);
-        set.add(ptr_buffer, data_size);
-        */
+        if (mysql_bin_log.is_open())
+        {
+          global_sid_lock.rdlock();
+          if (gtid_set.add(ptr_buffer, data_size) != RETURN_STATUS_OK)
+          {
+            global_sid_lock.unlock();
+            break;
+          }
+#ifndef DBUG_OFF
+          char* buffer= gtid_set.to_string();
+          DBUG_PRINT("info",
+            ("Slave already knows about the following tids: %s.", buffer));
+          my_free(buffer);
+#endif
+          global_sid_lock.unlock();
+          
+          /*
+            Resetting the name of the file in order to force to start
+            reading from the oldest binary log available.
+          */
+          DBUG_ASSERT(name[0] == 0 && pos == BIN_LOG_HEADER_SIZE);
+        }
       }
-       
+      DBUG_PRINT("info", ("Slave %d requested to read %s at position %d.",
+                 thd->server_id, name, name_size));
+
       get_slave_uuid(thd, &slave_uuid);
       kill_zombie_dump_threads(&slave_uuid);
-
-      /*
-        Notice that this is not using yet the group sets. /Alfranio
-      */
-      mysql_binlog_send(thd, name, (my_off_t) pos, flags);
-
+      mysql_binlog_send(thd, name, (my_off_t) pos, flags, &gtid_set);
+      
       unregister_slave(thd, 1, 1);
       /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
       error= true;
