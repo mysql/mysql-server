@@ -709,7 +709,7 @@ struct Gtid
 
 
 /**
-  Represents a set of groups.
+  Represents a set of GTIDs.
 
   This is structured as an array, indexed by SIDNO, where each element
   contains a linked list of intervals.
@@ -813,7 +813,7 @@ public:
   */
   enum_return_status remove(const Gtid_set *other);
   /**
-    Adds the set of groups represented by the given string to this Gtid_set.
+    Adds the set of GTIDs represented by the given string to this Gtid_set.
 
     The string must have the format of a comma-separated list of zero
     or more of the following:
@@ -871,6 +871,16 @@ public:
   bool equals(const Gtid_set *other) const;
   /// Returns true if this Gtid_set is a subset of the other Gtid_set.
   bool is_subset(const Gtid_set *super) const;
+  /**
+    Returns true if this set and the other set have at least one GTID
+    in common.
+  */
+  //bool is_intersection_nonempty(Gtid_set *other);
+  /**
+    Computes the intersection of this set and the other set and stores
+    in this set.
+  */
+  //Gtid_set in_place_intersection(Gtid_set other);
   /// Returns true if this Gtid_set is empty.
   bool is_empty() const
   {
@@ -931,10 +941,6 @@ public:
     free(str);
   }
 #endif
-  //bool is_intersection_nonempty(Gtid_set *other);
-  //Gtid_set in_place_intersection(Gtid_set other);
-  //Gtid_set in_place_complement(Sid_map map);
-
 
   /**
     Class Gtid_set::String_format defines the separators used by
@@ -1420,7 +1426,7 @@ struct Gtid_set_or_null
 
 
 /**
-  Represents the set of groups that are owned by some thread.
+  Represents the set of GTIDs that are owned by some thread.
 
   This data structure has a read-write lock that protects the number
   of SIDNOs.  The lock is provided by the invoker of the constructor
@@ -1434,20 +1440,20 @@ struct Gtid_set_or_null
   The internal representation is a DYNAMIC_ARRAY that maps SIDNO to
   HASH, where each HASH maps GNO to my_thread_id.
 */
-class Owned_groups
+class Owned_gtids
 {
 public:
   /**
-    Constructs a new, empty Owned_groups object.
+    Constructs a new, empty Owned_gtids object.
 
     @param sid_lock Read-write lock that protects updates to the
     number of SIDs.
   */
-  Owned_groups(Checkable_rwlock *sid_lock);
-  /// Destroys this Owned_groups.
-  ~Owned_groups();
+  Owned_gtids(Checkable_rwlock *sid_lock);
+  /// Destroys this Owned_gtids.
+  ~Owned_gtids();
   /**
-    Add a group to this Owned_groups.
+    Add a group to this Owned_gtids.
 
     @param sidno The SIDNO of the group to add.
     @param gno The GNO of the group to add.
@@ -1467,7 +1473,7 @@ public:
   /**
     Removes the given group.
 
-    If the group does not exist in this Owned_groups object, does
+    If the group does not exist in this Owned_gtids object, does
     nothing.
 
     @param sidno The group's SIDNO.
@@ -1475,10 +1481,10 @@ public:
   */
   void remove(rpl_sidno sidno, rpl_gno gno);
   /**
-    Ensures that this Owned_groups object can accomodate SIDNOs up to
+    Ensures that this Owned_gtids object can accomodate SIDNOs up to
     the given SIDNO.
 
-    If this Owned_groups object needs to be resized, then the lock
+    If this Owned_gtids object needs to be resized, then the lock
     will be temporarily upgraded to a write lock and then degraded to
     a read lock again; there will be a short period when the lock is
     not held at all.
@@ -1487,7 +1493,7 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status ensure_sidno(rpl_sidno sidno);
-  /// Returns the maximal sidno that this Owned_groups currently has space for.
+  /// Returns the maximal sidno that this Owned_gtids currently has space for.
   rpl_sidno get_max_sidno() const
   {
     sid_lock->assert_some_lock();
@@ -1567,13 +1573,13 @@ private:
   }
   /**
     Returns the Node for the given group, or NULL if the group does
-    not exist in this Owned_groups object.
+    not exist in this Owned_gtids object.
   */
   Node *get_node(rpl_sidno sidno, rpl_gno gno) const
   {
     return get_node(get_hash(sidno), gno);
   };
-  /// Return true iff this Owned_groups object contains the given group.
+  /// Return true iff this Owned_gtids object contains the given group.
   bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const
   {
     return get_node(sidno, gno) != NULL;
@@ -1611,7 +1617,7 @@ public:
   Gtid_state(Checkable_rwlock *_sid_lock, Sid_map *_sid_map)
     : sid_lock(_sid_lock), sid_locks(sid_lock),
     sid_map(_sid_map),
-    logged_groups(sid_map), lost_groups(sid_map), owned_groups(sid_lock) {}
+    logged_groups(sid_map), lost_groups(sid_map), owned_gtids(sid_lock) {}
   /**
     Add @@GLOBAL.SERVER_UUID to this binlog's Sid_map.
 
@@ -1647,7 +1653,7 @@ public:
     0 if the group is not owned.
   */
   my_thread_id get_owner(rpl_sidno sidno, rpl_gno gno) const
-  { return owned_groups.get_owner(sidno, gno); }
+  { return owned_gtids.get_owner(sidno, gno); }
   /**
     Marks the group as not owned any more.
 
@@ -1658,7 +1664,7 @@ public:
   */
   /*UNUSED
   void mark_not_owned(rpl_sidno sidno, rpl_gno gno)
-  { owned_groups.remove(sidno, gno); }
+  { owned_gtids.remove(sidno, gno); }
   */
   /**
     Acquires ownership of the given group, on behalf of the given thread.
@@ -1726,7 +1732,7 @@ public:
   */
   void broadcast_sidnos(const Gtid_set *set);
   /**
-    Ensure that owned_groups, logged_groups, @todo lost_groups, and
+    Ensure that owned_gtids, logged_groups, @todo lost_groups, and
     sid_locks have room for at least as many SIDNOs as sid_map.
 
     Requires that the read lock on sid_locks is held.  If any object
@@ -1738,9 +1744,9 @@ public:
   */
   enum_return_status ensure_sidno();
   /// Return a pointer to the Gtid_set that contains the logged groups.
-  const Gtid_set *get_logged_groups() const { return &logged_groups; }
-  /// Return a pointer to the Owned_groups that contains the owned groups.
-  const Owned_groups *get_owned_groups() const { return &owned_groups; }
+  const Gtid_set *get_logged_gtids() const { return &logged_groups; }
+  /// Return a pointer to the Owned_gtids that contains the owned groups.
+  const Owned_gtids *get_owned_gtids() const { return &owned_gtids; }
   // Return Sid_map used by this Gtid_state.
   //Sid_map *get_sid_map() const { return &sid_map; }
   /// Return the server's SID's SIDNO
@@ -1754,7 +1760,7 @@ public:
 #ifndef DBUG_OFF
   size_t get_string_length() const
   {
-    return owned_groups.get_string_length() +
+    return owned_gtids.get_string_length() +
       logged_groups.get_string_length() + 100;
   }
   int to_string(char *buf) const
@@ -1763,7 +1769,7 @@ public:
     p+= sprintf(p, "Logged groups:\n");
     p+= logged_groups.to_string(p);
     p+= sprintf(p, "\nOwned groups:\n");
-    p+= owned_groups.to_string(sid_map, p);
+    p+= owned_gtids.to_string(sid_map, p);
     return p - buf;
   }
   char *to_string() const
@@ -1787,12 +1793,12 @@ private:
   Mutex_cond_array sid_locks;
   /// The Sid_map used by this Gtid_state.
   mutable Sid_map *sid_map;
-  /// The set of groups that are logged in the group log.
+  /// The set of GTIDs that are logged in the group log.
   Gtid_set logged_groups;
-  /// The set of groups that are logged in the group log.
+  /// The set of GTIDs that are logged in the group log.
   Gtid_set lost_groups;
-  /// The set of groups that are owned by some thread.
-  Owned_groups owned_groups;
+  /// The set of GTIDs that are owned by some thread.
+  Owned_gtids owned_gtids;
   /// The SIDNO for this server.
   rpl_sidno server_sidno;
 
@@ -1972,7 +1978,7 @@ public:
 
     @param gls Gtid_state, used to determine if the group is logged
     or not.
-    @param gtid_set The set of groups to possibly add.
+    @param gtid_set The set of GTIDs to possibly add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status

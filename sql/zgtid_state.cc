@@ -51,7 +51,7 @@ Gtid_state::acquire_ownership(rpl_sidno sidno, rpl_gno gno, const THD *thd)
   DBUG_ENTER("Gtid_state::acquire_ownership");
   DBUG_ASSERT(!logged_groups.contains_gtid(sidno, gno));
   DBUG_PRINT("info", ("group=%d:%lld", sidno, gno));
-  PROPAGATE_REPORTED_ERROR(owned_groups.add(sidno, gno, thd->thread_id));
+  PROPAGATE_REPORTED_ERROR(owned_gtids.add(sidno, gno, thd->thread_id));
   RETURN_OK;
 }
 
@@ -60,7 +60,7 @@ enum_return_status Gtid_state::log_group(rpl_sidno sidno, rpl_gno gno)
 {
   DBUG_ENTER("Gtid_state::log_group");
   DBUG_PRINT("info", ("group=%d:%lld", sidno, gno));
-  owned_groups.remove(sidno, gno);
+  owned_gtids.remove(sidno, gno);
   PROPAGATE_REPORTED_ERROR(logged_groups._add(sidno, gno));
   RETURN_OK;
 }
@@ -78,7 +78,7 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
     rpl_gno next_interval_start= iv != NULL ? iv->start : MAX_GNO;
     while (next_candidate < next_interval_start)
     {
-      if (owned_groups.get_owner(sidno, next_candidate) == 0)
+      if (owned_gtids.get_owner(sidno, next_candidate) == 0)
         DBUG_RETURN(next_candidate);
       next_candidate++;
     }
@@ -154,11 +154,11 @@ enum_return_status Gtid_state::ensure_sidno()
     {
       PROPAGATE_REPORTED_ERROR(logged_groups.ensure_sidno(sidno));
       PROPAGATE_REPORTED_ERROR(lost_groups.ensure_sidno(sidno));
-      PROPAGATE_REPORTED_ERROR(owned_groups.ensure_sidno(sidno));
+      PROPAGATE_REPORTED_ERROR(owned_gtids.ensure_sidno(sidno));
       PROPAGATE_REPORTED_ERROR(sid_locks.ensure_index(sidno));
       sidno= sid_map->get_max_sidno();
     } while (logged_groups.get_max_sidno() < sidno ||
-             owned_groups.get_max_sidno() < sidno ||
+             owned_gtids.get_max_sidno() < sidno ||
              sid_locks.get_max_index() < sidno);
   }
   RETURN_OK;

@@ -24,7 +24,7 @@
 #include "hash.h"
 
 
-Owned_groups::Owned_groups(Checkable_rwlock *_sid_lock)
+Owned_gtids::Owned_gtids(Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock)
 {
   my_init_dynamic_array(&sidno_to_hash, sizeof(HASH *), 0, 8);
@@ -36,7 +36,7 @@ Owned_groups::Owned_groups(Checkable_rwlock *_sid_lock)
 }
 
 
-Owned_groups::~Owned_groups()
+Owned_gtids::~Owned_gtids()
 {
   // destructor should only be called when no other thread may access object
   sid_lock->assert_no_lock();
@@ -55,9 +55,9 @@ Owned_groups::~Owned_groups()
 }
 
 
-enum_return_status Owned_groups::ensure_sidno(rpl_sidno sidno)
+enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno)
 {
-  DBUG_ENTER("Owned_groups::ensure_sidno");
+  DBUG_ENTER("Owned_gtids::ensure_sidno");
   sid_lock->assert_some_rdlock();
   rpl_sidno max_sidno= get_max_sidno();
   if (sidno > max_sidno || get_hash(sidno) == NULL)
@@ -92,9 +92,9 @@ error:
 
 
 enum_return_status
-Owned_groups::add(rpl_sidno sidno, rpl_gno gno, my_thread_id owner)
+Owned_gtids::add(rpl_sidno sidno, rpl_gno gno, my_thread_id owner)
 {
-  DBUG_ENTER("Owned_groups::add");
+  DBUG_ENTER("Owned_gtids::add");
   DBUG_ASSERT(!contains_gtid(sidno, gno));
   DBUG_ASSERT(sidno <= get_max_sidno());
   Node *n= (Node *)malloc(sizeof(Node));
@@ -103,7 +103,7 @@ Owned_groups::add(rpl_sidno sidno, rpl_gno gno, my_thread_id owner)
   n->gno= gno;
   n->owner= owner;
   /*
-  printf("Owned_groups(%p)::add sidno=%d gno=%lld n=%p n->owner=%u\n",
+  printf("Owned_gtids(%p)::add sidno=%d gno=%lld n=%p n->owner=%u\n",
          this, sidno, gno, n, n?n->owner:0);
   */
   if (my_hash_insert(get_hash(sidno), (const uchar *)n))
@@ -118,10 +118,10 @@ error:
 }
 
 
-void Owned_groups::remove(rpl_sidno sidno, rpl_gno gno)
+void Owned_gtids::remove(rpl_sidno sidno, rpl_gno gno)
 {
-  DBUG_ENTER("Owned_groups::remove");
-  //printf("Owned_groups::remove(sidno=%d gno=%lld)\n", sidno, gno);
+  DBUG_ENTER("Owned_gtids::remove");
+  //printf("Owned_gtids::remove(sidno=%d gno=%lld)\n", sidno, gno);
   //DBUG_ASSERT(contains_gtid(sidno, gno)); // allow group not owned
   HASH *hash= get_hash(sidno);
   DBUG_ASSERT(hash != NULL);
@@ -139,7 +139,7 @@ void Owned_groups::remove(rpl_sidno sidno, rpl_gno gno)
 }
 
 
-my_thread_id Owned_groups::get_owner(rpl_sidno sidno, rpl_gno gno) const
+my_thread_id Owned_gtids::get_owner(rpl_sidno sidno, rpl_gno gno) const
 {
   Node *n= get_node(sidno, gno);
   if (n != NULL)

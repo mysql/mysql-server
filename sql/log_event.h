@@ -4430,7 +4430,6 @@ public:
 
   Ignorable_log_event(const char *buf,
                       const Format_description_log_event *descr_event);
-
   virtual ~Ignorable_log_event();
 
 #ifndef MYSQL_CLIENT
@@ -4622,7 +4621,7 @@ private:
 class Previous_gtids_log_event : public Ignorable_log_event {
 public:
 #ifndef MYSQL_CLIENT
-  Previous_gtids_log_event(THD* thd_arg, MYSQL_BIN_LOG* log);
+  Previous_gtids_log_event(THD* thd_arg, const Gtid_set *set);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -4631,7 +4630,6 @@ public:
 
   Previous_gtids_log_event(const char *buffer, uint event_len,
                            const Format_description_log_event *descr_event);
-
   virtual ~Previous_gtids_log_event();
 
   Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT; }
@@ -4644,7 +4642,6 @@ public:
     return encoded_length;
   }
 
-  Gtid_set* get_group_representation(Gtid_state* grp_state, Sid_map* sid_map);
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
@@ -4677,6 +4674,8 @@ public:
   static const int GTID_SID_STRING_INFO_LEN= 64;
 
   static const int GTID_GNO_STRING_INFO_LEN= 32;
+
+  //const uchar* get_encoded_buffer() const { return encoded_buffer; }todo:remove this line/sven
 private:
   // Sets the internal Gtid_set from the given buffer.
   void get_set_from_buf(const uchar *buf, size_t length);

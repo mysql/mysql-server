@@ -1939,6 +1939,54 @@ when it try to get the value of TIME_ZONE global variable from master.";
     }
   }
 
+  DBUG_EXECUTE_IF("simulate_slave_unaware_gtid",
+                  mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
+                  goto past_checksum;);
+  {
+    int rc= 0;
+    const char query[]= "SELECT @@SESSION.GTID_NEXT";
+
+    rc= mysql_real_query(mysql, query, strlen(query));
+    if (rc != 0)
+    {
+      if (check_io_slave_killed(mi->info_thd, mi, NULL))
+        goto slave_killed_err;
+
+      if (mysql_errno(mysql) == ER_UNKNOWN_SYSTEM_VARIABLE)
+      {
+        // this is tolerable as OM -> NS is supported
+        mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                   "Notifying master by %s failed with "
+                   "error: %s", query, mysql_error(mysql));
+      }
+      else
+      {
+        if (is_network_error(mysql_errno(mysql)))
+        {
+          mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                     "Notifying master by %s failed with "
+                     "error: %s", query, mysql_error(mysql));
+          mysql_free_result(mysql_store_result(mysql));
+          goto network_err;
+        }
+        else
+        {
+          errmsg= "The slave I/O thread stops because a fatal error is encountered "
+            "when it tried to SELECT @@SESSION.GTID_NEXT on master.";
+          err_code= ER_SLAVE_FATAL_ERROR;
+          sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+          mysql_free_result(mysql_store_result(mysql));
+          goto err;
+        }
+      }
+    }
+    else
+    {
+      mysql_free_result(mysql_store_result(mysql));
+      mi->master_support_gtid= true;
+    }
+  }
+
 #ifndef DBUG_OFF
 past_checksum:
 #endif
@@ -2553,30 +2601,90 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
   return ret;
 }
 
-
 static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
-			bool *suppress_warnings)
+                        bool *suppress_warnings)
 {
-  uchar buf[FN_REFLEN + 10];
-  int len;
-  ushort binlog_flags = 0; // for now
-  const char* logname = mi->get_master_log_name();
   DBUG_ENTER("request_dump");
-  
-  *suppress_warnings= FALSE;
+
+  const int BINLOG_NAME_INFO_SIZE= strlen(mi->get_master_log_name());
+  int error= 0;
+  int command_size= 0;
+  enum_server_command command= mi->master_support_gtid ?
+    COM_BINLOG_DUMP_GTID : COM_BINLOG_DUMP;
+  uchar* command_buffer= NULL;
+  ushort binlog_flags = 0;
 
   if (RUN_HOOK(binlog_relay_io,
                before_request_transmit,
                (thd, mi, binlog_flags)))
     DBUG_RETURN(1);
+
+  *suppress_warnings= false;
+  if (command == COM_BINLOG_DUMP_GTID)
+  {
+    // get set of GTIDs
+    Gtid_set gtid_set(&global_sid_map);
+    global_sid_lock.rdlock();
+
+    gtid_set.add(mi->rli->get_gtid_set());
+    gtid_set.add(gtid_state.get_logged_gtids());
+
+    // allocate buffer
+    size_t encoded_size= gtid_set.get_encoded_length();
+    size_t allocation_size= 
+      ::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
+      ::BINLOG_NAME_SIZE_INFO_SIZE + BINLOG_NAME_INFO_SIZE +
+      ::BINLOG_POS_INFO_SIZE + ::BINLOG_DATA_SIZE_INFO_SIZE +
+      encoded_size + 1;
+    if (!(command_buffer= (uchar *) my_malloc(allocation_size, MYF(MY_WME))))
+      DBUG_RETURN(1);
+    uchar* ptr_buffer= command_buffer;
+
+    // store data
+    set_master_slave_proto(&binlog_flags, BINLOG_THROUGH_GTID);
+    int2store(ptr_buffer, binlog_flags);
+    ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
+    int4store(ptr_buffer, server_id);
+    ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
+    int4store(ptr_buffer, BINLOG_NAME_INFO_SIZE);
+    ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
+    memcpy(ptr_buffer, mi->get_master_log_name(), BINLOG_NAME_INFO_SIZE);
+    ptr_buffer+= BINLOG_NAME_INFO_SIZE;
+    int8store(ptr_buffer, mi->get_master_log_pos());
+    ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
+    int4store(ptr_buffer, encoded_size);
+    ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
+    gtid_set.encode(ptr_buffer);
+    ptr_buffer+= encoded_size;
+
+    global_sid_lock.unlock();
+
+    command_size= ptr_buffer - command_buffer;
+    DBUG_ASSERT(command_size == (allocation_size - 1));
+  }
+  else
+  {
+    size_t allocation_size= ::BINLOG_POS_OLD_INFO_SIZE +
+      BINLOG_NAME_INFO_SIZE + ::BINLOG_FLAGS_INFO_SIZE +
+      ::BINLOG_SERVER_ID_INFO_SIZE + 1;
+    if (!(command_buffer= (uchar *) my_malloc(allocation_size, MYF(MY_WME))))
+      DBUG_RETURN(1);
+    uchar* ptr_buffer= command_buffer;
   
-  // TODO if big log files: Change next to int8store()
-  int4store(buf, (ulong) mi->get_master_log_pos());
-  int2store(buf + 4, binlog_flags);
-  int4store(buf + 6, server_id);
-  len = (uint) strlen(logname);
-  memcpy(buf + 10, logname,len);
-  if (simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
+    int4store(ptr_buffer, mi->get_master_log_pos());
+    ptr_buffer+= ::BINLOG_POS_OLD_INFO_SIZE;
+    int2store(ptr_buffer, binlog_flags);
+    ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
+    int4store(ptr_buffer, server_id);
+    ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
+    memcpy(ptr_buffer, mi->get_master_log_name(), BINLOG_NAME_INFO_SIZE);
+    ptr_buffer+= BINLOG_NAME_INFO_SIZE;
+
+    command_size= ptr_buffer - command_buffer;
+    DBUG_ASSERT(command_size == (allocation_size - 1));
+  }
+
+  if (simple_command(mysql, command, command_buffer, command_size, 1))
   {
     /*
       Something went wrong, so we will just reconnect and retry later
@@ -2584,15 +2692,19 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       now we just fill up the error log :-)
     */
     if (mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)
-      *suppress_warnings= TRUE;                 // Suppress reconnect warning
+      *suppress_warnings= true;                 // Suppress reconnect warning
     else
-      sql_print_error("Error on COM_BINLOG_DUMP: %d  %s, will retry in %d secs",
+      sql_print_error("Error on %s: %d  %s, will retry in %d secs",
+                      command_name[command].str,
                       mysql_errno(mysql), mysql_error(mysql),
                       mi->connect_retry);
-    DBUG_RETURN(1);
+    error= 1;
+    goto err;
   }
 
-  DBUG_RETURN(0);
+err:
+  my_free(command_buffer);
+  DBUG_RETURN(error);
 }
 
 
@@ -5652,18 +5764,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   case GTID_LOG_EVENT:
   {
-    Gtid_log_event gtid(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
-                        event_len - BINLOG_CHECKSUM_LEN : event_len,
-                        rli->relay_log.description_event_for_queue);
-
-    rli->sid_lock->rdlock();
-    rli->gtid_set.ensure_sidno(gtid.get_sidno());
-    if (rli->gtid_set._add(gtid.get_sidno(), gtid.get_gno()))
-    {
-      rli->sid_lock->unlock();
+    Gtid_log_event gtid_ev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
+                           event_len - BINLOG_CHECKSUM_LEN : event_len,
+                           rli->relay_log.description_event_for_queue);
+    if (rli->add_logged_gtid(gtid_ev.get_sidno(), gtid_ev.get_gno()) != 0)
       goto err;
-    }
-    rli->sid_lock->unlock();
     inc_pos= event_len;
   }
   break;

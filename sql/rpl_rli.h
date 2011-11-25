@@ -238,13 +238,21 @@ protected:
   ulonglong future_group_master_log_pos;
 #endif
 
-#ifdef HAVE_GTID
-public:
-  Checkable_rwlock *sid_lock;
+private:
   Gtid_set gtid_set;
-#endif
 
 public:
+  int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
+  {
+    int ret= 0;
+    global_sid_lock.rdlock();
+    gtid_set.ensure_sidno(sidno);
+    if (gtid_set._add(sidno, gno) != RETURN_STATUS_OK)
+      ret= 1;
+    global_sid_lock.unlock();
+    return ret;
+  }
+  const Gtid_set *get_gtid_set() const { return &gtid_set; }
   int init_relay_log_pos(const char* log,
                          ulonglong pos, bool need_data_lock,
                          const char** errmsg,
