@@ -10977,6 +10977,31 @@ ha_innobase::external_lock(
 
 	reset_template();
 
+	if (prebuilt->table->quiesce == QUIESCE_INIT) {
+		/* Check for FLUSH TABLE t WITH READ LOCK; */
+		if (thd_sql_command(thd) == SQLCOM_FLUSH
+		    && lock_type == F_RDLCK) {
+
+			fprintf(stderr, "Begin: FTWRL: %lu\n",
+				prebuilt->table->n_ref_count);
+
+			// FIXME: Ignore races for now.
+			prebuilt->table->quiesce = QUIESCE_START;
+		/* Check for UNLOCK TABLES; */
+		} else if (thd_sql_command(thd) == SQLCOM_UNLOCK_TABLES
+			   && lock_type == F_UNLCK) {
+
+			fprintf(stderr, "End: FTWRL: %lu\n",
+				prebuilt->table->n_ref_count);
+
+			// FIXME: Wait for operations to complete or
+			// abort.
+
+			// FIXME: Ignore races for now
+			prebuilt->table->quiesce = QUIESCE_NONE;
+		}
+	}
+
 	if (lock_type == F_WRLCK) {
 
 		/* If this is a SELECT, then it is in UPDATE TABLE ...
@@ -11667,7 +11692,11 @@ ha_innobase::store_lock(
 	const bool in_lock_tables = thd_in_lock_tables(thd);
 	const uint sql_command = thd_sql_command(thd);
 
-	if (sql_command == SQLCOM_DROP_TABLE) {
+	/* Check for LOCK TABLE t1,...,tn WITH SHARED LOCKS */
+	if (sql_command == SQLCOM_FLUSH && lock_type == TL_READ_NO_INSERT) {
+		// FIXME: Ignore races for now
+		prebuilt->table->quiesce = QUIESCE_INIT;
+	} else if (sql_command == SQLCOM_DROP_TABLE) {
 
 		/* MySQL calls this function in DROP TABLE though this table
 		handle may belong to another thd that is running a query. Let

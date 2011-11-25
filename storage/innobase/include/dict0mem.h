@@ -345,6 +345,18 @@ dict_mem_referenced_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
+/** Quiescing states for flushing tables to disk. */
+enum ib_quiesce_t {
+	QUIESCE_NONE,
+	QUIESCE_INIT,			/*!< Initialise, prepare to start */
+	QUIESCE_START,			/*!< Notify background threads */
+	QUIESCE_MERGING,		/*!< Merging the change buffer */
+	QUIESCE_FLUSHING,		/*!< Flush dirty pages to disk */
+	QUIESCE_ABORT,			/*!< Abort operation */
+	QUIESCE_ABORTED,		/*!< Aborted or interrupted */
+	QUIESCE_COMPLETE		/*!< All done */
+};
+
 /** Data structure for a column in a table */
 struct dict_col_struct{
 	/*----------------------*/
@@ -749,6 +761,10 @@ struct dict_table_struct{
 				Protected by lock_sys->mutex. */
 	fts_t*		fts;	/* FTS specific state variables */
 				/* @} */
+	/*----------------------*/
+
+	ib_quiesce_t	 quiesce;/*!< Quiescing states */
+
 	/*----------------------*/
 	ulint		n_rec_locks;
 				/*!< Count of the number of record locks on
