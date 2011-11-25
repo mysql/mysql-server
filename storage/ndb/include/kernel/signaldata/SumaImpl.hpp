@@ -124,6 +124,7 @@ struct SubStartRef {
     BusyWithNR = 1405,
     NodeDied = 1427
     ,NotStarted = 1428
+    ,SubscriberNodeIdUndefined = 1429
   };
 
   STATIC_CONST( SignalLength = 7 );
