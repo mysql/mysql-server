@@ -2217,15 +2217,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables, uint idx,
   pos->prefix_dups_producing_tables= join->cur_dups_producing_tables;
   TABLE_LIST *emb_sj_nest;
   if ((emb_sj_nest= new_join_tab->emb_sj_nest))
-  {
-   /// join->cur_sj_inner_tables |= emb_sj_nest->sj_inner_tables;
     join->cur_dups_producing_tables |= emb_sj_nest->sj_inner_tables;
-
-    /* Remove the sj_nest if all of its SJ-inner tables are in cur_table_map */
-  ///  if (!(remaining_tables &
-  ///        emb_sj_nest->sj_inner_tables & ~new_join_tab->table->map))
-  ///    join->cur_sj_inner_tables &= ~emb_sj_nest->sj_inner_tables;
-  }
 
   Semi_join_strategy_picker **strategy;
   if (idx == join->const_tables)
