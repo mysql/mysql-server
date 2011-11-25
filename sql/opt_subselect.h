@@ -358,8 +358,7 @@ public:
   ENGINE_COLUMNDEF *start_recinfo;
   ENGINE_COLUMNDEF *recinfo;
 
-  /* Pointer to next table (next->start_idx > this->end_idx) */
-  SJ_TMP_TABLE *next; 
+  SJ_TMP_TABLE *next_flush_table; 
 };
 
 int setup_semijoin_dups_elimination(JOIN *join, ulonglong options, 

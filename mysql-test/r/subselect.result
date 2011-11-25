@@ -5146,8 +5146,8 @@ explain SELECT * FROM ot1,ot4
 WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
 FROM it2,it3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	it2	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	it2	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary; Using join buffer (flat, BNL join)
 1	PRIMARY	it3	ALL	NULL	NULL	NULL	NULL	6	Using join buffer (flat, BNL join)
 1	PRIMARY	ot4	ALL	NULL	NULL	NULL	NULL	8	Using where; End temporary; Using join buffer (flat, BNL join)
 DROP TABLE IF EXISTS ot1, ot4, it2, it3;
@@ -5192,8 +5192,8 @@ INSERT INTO t2 VALUES (12,2);
 INSERT INTO t2 VALUES (15,4);
 EXPLAIN SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Start temporary
-1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	3	Using index; Using join buffer (flat, BNL join)
+1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	3	Using index; Start temporary; Using join buffer (flat, BNL join)
 1	PRIMARY	it	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	Using index; End temporary
 SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
 pk	i

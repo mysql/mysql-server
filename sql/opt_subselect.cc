@@ -2168,7 +2168,8 @@ bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
     See setup_semijoin_dups_elimination() for a description of what kinds of
     join prefixes each strategy can handle.
 */
-bool is_multiple_semi_joins(POSITION *prefix, uint idx, table_map inner_tables)
+
+bool is_multiple_semi_joins(JOIN *join, POSITION *prefix, uint idx, table_map inner_tables)
 {
   for (int i= (int)idx; i >= 0; i--)
   {
@@ -2176,7 +2177,8 @@ bool is_multiple_semi_joins(POSITION *prefix, uint idx, table_map inner_tables)
     if ((emb_sj_nest= prefix[i].table->emb_sj_nest))
     {
       if (inner_tables & emb_sj_nest->sj_inner_tables)
-        return !test(inner_tables == emb_sj_nest->sj_inner_tables);
+        return !test(inner_tables == (emb_sj_nest->sj_inner_tables &
+                                      ~join->const_table_map));
     }
   }
   return FALSE;
@@ -2206,6 +2208,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables, uint idx,
        - attempts to build semi-join strategies here will confuse
          the optimizer, so bail out.
     */
+    pos->sj_strategy= SJ_OPT_NONE;
     return;
   }
 
@@ -2290,7 +2293,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables, uint idx,
           join->cur_dups_producing_tables &= ~handled_fanout;
           //TODO: update bitmap of semi-joins that were handled together with
           // others.
-          if (is_multiple_semi_joins(join->positions, idx, handled_fanout))
+          if (is_multiple_semi_joins(join, join->positions, idx, handled_fanout))
             pos->inner_tables_handled_with_other_sjs |= handled_fanout;
         }
         else
@@ -3906,6 +3909,80 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
 }
 
 
+int init_dups_weedout(JOIN *join, uint first_table, int first_fanout_table, uint n_tables)
+{
+  THD *thd= join->thd;
+  DBUG_ENTER("init_dups_weedout");
+  SJ_TMP_TABLE::TAB sjtabs[MAX_TABLES];
+  SJ_TMP_TABLE::TAB *last_tab= sjtabs;
+  uint jt_rowid_offset= 0; // # tuple bytes are already occupied (w/o NULL bytes)
+  uint jt_null_bits= 0;    // # null bits in tuple bytes
+  /*
+    Walk through the range and remember
+     - tables that need their rowids to be put into temptable
+     - the last outer table
+  */
+  for (JOIN_TAB *j=join->join_tab + first_table; 
+       j < join->join_tab + first_table + n_tables; j++)
+  {
+    if (sj_table_is_included(join, j))
+    {
+      last_tab->join_tab= j;
+      last_tab->rowid_offset= jt_rowid_offset;
+      jt_rowid_offset += j->table->file->ref_length;
+      if (j->table->maybe_null)
+      {
+        last_tab->null_byte= jt_null_bits / 8;
+        last_tab->null_bit= jt_null_bits++;
+      }
+      last_tab++;
+      j->table->prepare_for_position();
+      j->keep_current_rowid= TRUE;
+    }
+  }
+
+  SJ_TMP_TABLE *sjtbl;
+  if (jt_rowid_offset) /* Temptable has at least one rowid */
+  {
+    size_t tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
+    if (!(sjtbl= (SJ_TMP_TABLE*)thd->alloc(sizeof(SJ_TMP_TABLE))) ||
+        !(sjtbl->tabs= (SJ_TMP_TABLE::TAB*) thd->alloc(tabs_size)))
+      DBUG_RETURN(TRUE); /* purecov: inspected */
+    memcpy(sjtbl->tabs, sjtabs, tabs_size);
+    sjtbl->is_degenerate= FALSE;
+    sjtbl->tabs_end= sjtbl->tabs + (last_tab - sjtabs);
+    sjtbl->rowid_len= jt_rowid_offset;
+    sjtbl->null_bits= jt_null_bits;
+    sjtbl->null_bytes= (jt_null_bits + 7)/8;
+    sjtbl->tmp_table= 
+      create_duplicate_weedout_tmp_table(thd, 
+                                         sjtbl->rowid_len + 
+                                         sjtbl->null_bytes,
+                                         sjtbl);
+    join->sj_tmp_tables.push_back(sjtbl->tmp_table);
+  }
+  else
+  {
+    /* 
+      This is a special case where the entire subquery predicate does 
+      not depend on anything at all, ie this is 
+        WHERE const IN (uncorrelated select)
+    */
+    if (!(sjtbl= (SJ_TMP_TABLE*)thd->alloc(sizeof(SJ_TMP_TABLE))))
+      DBUG_RETURN(TRUE); /* purecov: inspected */
+    sjtbl->tmp_table= NULL;
+    sjtbl->is_degenerate= TRUE;
+    sjtbl->have_degenerate_row= FALSE;
+  }
+
+  sjtbl->next_flush_table= join->join_tab[first_table].flush_weedout_table;
+  join->join_tab[first_table].flush_weedout_table= sjtbl;
+  join->join_tab[first_fanout_table].first_weedout_table= sjtbl;
+  join->join_tab[first_table + n_tables - 1].check_weed_out_table= sjtbl;
+  DBUG_RETURN(0);
+}
+
+
 /*
   Setup the strategies to eliminate semi-join duplicates.
   
@@ -4006,9 +4083,9 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
                                     uint no_jbuf_after)
 {
   uint i;
-  THD *thd= join->thd;
   DBUG_ENTER("setup_semijoin_dups_elimination");
-  
+
+
   POSITION *pos= join->best_positions + join->const_tables;
   for (i= join->const_tables ; i < join->top_join_tab_count; )
   {
@@ -4049,6 +4126,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           forwards, but do not destroy other duplicate elimination methods.
         */
         uint first_table= i;
+
         uint join_cache_level= join->thd->variables.join_cache_level;
         for (uint j= i; j < i + pos->n_sj_tables; j++)
         {
@@ -4072,70 +4150,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           }
         }
 
-        SJ_TMP_TABLE::TAB sjtabs[MAX_TABLES];
-        SJ_TMP_TABLE::TAB *last_tab= sjtabs;
-        uint jt_rowid_offset= 0; // # tuple bytes are already occupied (w/o NULL bytes)
-        uint jt_null_bits= 0;    // # null bits in tuple bytes
-        /*
-          Walk through the range and remember
-           - tables that need their rowids to be put into temptable
-           - the last outer table
-        */
-        for (JOIN_TAB *j=join->join_tab + first_table; 
-             j < join->join_tab + i + pos->n_sj_tables; j++)
-        {
-          if (sj_table_is_included(join, j))
-          {
-            last_tab->join_tab= j;
-            last_tab->rowid_offset= jt_rowid_offset;
-            jt_rowid_offset += j->table->file->ref_length;
-            if (j->table->maybe_null)
-            {
-              last_tab->null_byte= jt_null_bits / 8;
-              last_tab->null_bit= jt_null_bits++;
-            }
-            last_tab++;
-            j->table->prepare_for_position();
-            j->keep_current_rowid= TRUE;
-          }
-        }
-
-        SJ_TMP_TABLE *sjtbl;
-        if (jt_rowid_offset) /* Temptable has at least one rowid */
-        {
-          size_t tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
-          if (!(sjtbl= (SJ_TMP_TABLE*)thd->alloc(sizeof(SJ_TMP_TABLE))) ||
-              !(sjtbl->tabs= (SJ_TMP_TABLE::TAB*) thd->alloc(tabs_size)))
-            DBUG_RETURN(TRUE); /* purecov: inspected */
-          memcpy(sjtbl->tabs, sjtabs, tabs_size);
-          sjtbl->is_degenerate= FALSE;
-          sjtbl->tabs_end= sjtbl->tabs + (last_tab - sjtabs);
-          sjtbl->rowid_len= jt_rowid_offset;
-          sjtbl->null_bits= jt_null_bits;
-          sjtbl->null_bytes= (jt_null_bits + 7)/8;
-          sjtbl->tmp_table= 
-            create_duplicate_weedout_tmp_table(thd, 
-                                               sjtbl->rowid_len + 
-                                               sjtbl->null_bytes,
-                                               sjtbl);
-          join->sj_tmp_tables.push_back(sjtbl->tmp_table);
-        }
-        else
-        {
-          /* 
-            This is a special case where the entire subquery predicate does 
-            not depend on anything at all, ie this is 
-              WHERE const IN (uncorrelated select)
-          */
-          if (!(sjtbl= (SJ_TMP_TABLE*)thd->alloc(sizeof(SJ_TMP_TABLE))))
-            DBUG_RETURN(TRUE); /* purecov: inspected */
-          sjtbl->tmp_table= NULL;
-          sjtbl->is_degenerate= TRUE;
-          sjtbl->have_degenerate_row= FALSE;
-        }
-        join->join_tab[first_table].flush_weedout_table= sjtbl;
-        join->join_tab[i + pos->n_sj_tables - 1].check_weed_out_table= sjtbl;
-
+        init_dups_weedout(join, first_table, i, i + pos->n_sj_tables - first_table);
         i+= pos->n_sj_tables;
         pos+= pos->n_sj_tables;
         break;

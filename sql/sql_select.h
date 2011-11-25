@@ -341,6 +341,8 @@ typedef struct st_join_table {
   /* Variables for semi-join duplicate elimination */
   SJ_TMP_TABLE  *flush_weedout_table;
   SJ_TMP_TABLE  *check_weed_out_table;
+  /* for EXPLAIN only: */
+  SJ_TMP_TABLE  *first_weedout_table;
   
   /*
     If set, means we should stop join enumeration after we've got the first

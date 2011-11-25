@@ -15087,10 +15087,12 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   int error;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   READ_RECORD *info= &join_tab->read_record;
-
-  if (join_tab->flush_weedout_table)
+   
+  for (SJ_TMP_TABLE *flush_dups_table= join_tab->flush_weedout_table;
+       flush_dups_table;
+       flush_dups_table= flush_dups_table->next_flush_table)
   {
-    do_sj_reset(join_tab->flush_weedout_table);
+    do_sj_reset(flush_dups_table);
   }
 
   if (!join_tab->preread_init_done && join_tab->preread_init())
@@ -21013,7 +21015,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           extra.append(STRING_WITH_LEN("; LooseScan"));
         }
 
-        if (tab->flush_weedout_table)
+        if (tab->first_weedout_table)
           extra.append(STRING_WITH_LEN("; Start temporary"));
         if (tab->check_weed_out_table)
           extra.append(STRING_WITH_LEN("; End temporary"));

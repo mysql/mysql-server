@@ -1057,9 +1057,9 @@ WHERE  t2.val LIKE 'a%' OR t2.val LIKE 'e%')
 AND t1.val IN (SELECT t3.val FROM t3
 WHERE  t3.val LIKE 'a%' OR t3.val LIKE 'e%');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Start temporary
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer (flat, BNL join)
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; End temporary; Using join buffer (incremental, BNL join)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	5	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; FirstMatch(t3); Using join buffer (incremental, BNL join)
 SELECT *
 FROM t1
 WHERE t1.val IN (SELECT t2.val FROM t2
@@ -1248,8 +1248,8 @@ A.t1field IN (SELECT A.t1field FROM t2 B) AND
 A.t1field IN (SELECT C.t2field FROM t2 C 
 WHERE C.t2field IN (SELECT D.t2field FROM t2 D));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	A	index	PRIMARY	PRIMARY	4	NULL	3	Using index; Start temporary
-1	PRIMARY	B	index	NULL	PRIMARY	4	NULL	3	Using index; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	A	index	PRIMARY	PRIMARY	4	NULL	3	Using index
+1	PRIMARY	B	index	NULL	PRIMARY	4	NULL	3	Using index; Start temporary; End temporary; Using join buffer (flat, BNL join)
 1	PRIMARY	C	eq_ref	PRIMARY	PRIMARY	4	test.A.t1field	1	Using index
 1	PRIMARY	D	eq_ref	PRIMARY	PRIMARY	4	test.A.t1field	1	Using index
 SELECT * FROM t1 A 
@@ -1277,10 +1277,10 @@ explain
 select * from t1 A, t1 B
 where A.a = B.a and A.a in (select a from t2 C) and B.a in (select a from t2 D);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	Start temporary
-1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
-1	PRIMARY	C	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (incremental, BNL join)
-1	PRIMARY	D	ALL	NULL	NULL	NULL	NULL	3	Using where; End temporary; Using join buffer (incremental, BNL join)
+1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	C	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (incremental, BNL join)
+1	PRIMARY	D	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary; End temporary; Using join buffer (incremental, BNL join)
 drop table t1, t2;
 # 
 # BUG#784441: Abort on semijoin with a view as the inner table
@@ -1442,8 +1442,8 @@ set optimizer_switch='firstmatch=off,loosescan=off,materialization=off';
 explain 
 select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary; Using join buffer (flat, BNL join)
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary; Using join buffer (incremental, BNL join)
 select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
 a
@@ -1501,8 +1501,8 @@ explain
 select * from t0 
 where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary; Using join buffer (flat, BNL join)
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (incremental, BNL join)
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary; Using join buffer (incremental, BNL join)
 select * from t0 
@@ -1519,8 +1519,8 @@ explain
 select * from t0 
 where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary; Using join buffer (flat, BNL join)
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (incremental, BNL join)
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (incremental, BNL join)
 select * from t0 
@@ -1714,10 +1714,10 @@ INSERT INTO t4 VALUES (0),(NULL);
 explain 
 SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3) WHERE IFNULL(t2.f3,'foo') IN (SELECT * FROM t4);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Start temporary
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer (incremental, BNL join)
-1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (incremental, BNL join)
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary; Using join buffer (incremental, BNL join)
 SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3 ) WHERE IFNULL(t2.f3,'foo') IN (SELECT * FROM t4);
 f1	f2	f3	f3
 2	0	0	0
@@ -1775,9 +1775,9 @@ INSERT INTO t3 VALUES (6,5),(6,2),(8,0),(9,1),(6,5);
 explain 
 SELECT * FROM t1, t2 WHERE (t2.a , t1.b) IN (SELECT a, b FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
 1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using index; Using join buffer (flat, BNL join)
-1	PRIMARY	t3	ALL	b	NULL	NULL	NULL	5	Using where; End temporary; Using join buffer (incremental, BNL join)
+1	PRIMARY	t3	ALL	b	NULL	NULL	NULL	5	Using where; Start temporary; End temporary; Using join buffer (incremental, BNL join)
 SELECT * FROM t1, t2 WHERE (t2.a , t1.b) IN (SELECT a, b FROM t3);
 b	a
 5	6
@@ -1880,10 +1880,10 @@ alias1.c IN (SELECT SQ3_alias1.b
 FROM t2 AS SQ3_alias1 STRAIGHT_JOIN t2 AS SQ3_alias2)
 LIMIT 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	20	Start temporary
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	20	
 1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (flat, BNL join)
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (incremental, BNL join)
-1	PRIMARY	SQ3_alias1	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (incremental, BNL join)
+1	PRIMARY	SQ3_alias1	ALL	NULL	NULL	NULL	NULL	20	Using where; Start temporary; Using join buffer (incremental, BNL join)
 1	PRIMARY	SQ3_alias2	index	NULL	PRIMARY	4	NULL	20	Using index; End temporary; Using join buffer (incremental, BNL join)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	20	
 create table t3 as
@@ -2050,8 +2050,8 @@ explain
 SELECT * FROM t0 WHERE t0.a IN 
 (SELECT t1.a FROM t1, t2 WHERE t2.a=t0.a AND t1.b=t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	Using where; Start temporary
-1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	Start temporary; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	Using where; End temporary; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 SELECT * FROM t0 WHERE t0.a IN 
 (SELECT t1.a FROM t1, t2 WHERE t2.a=t0.a AND t1.b=t2.b);

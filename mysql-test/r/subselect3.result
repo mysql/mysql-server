@@ -1045,8 +1045,8 @@ explain
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	2	
-2	DEPENDENT SUBQUERY	Y	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-2	DEPENDENT SUBQUERY	Z	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	Y	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	Z	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
 subq
 NULL
@@ -1186,27 +1186,27 @@ insert into t3 select * from t1;
 insert into t3 values (1),(2);
 explain select * from t2 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
 explain select * from t2 where a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
 explain select * from t2 where a in (select a from t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	6	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	6	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
 explain select * from t1 where a in (select a from t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Start temporary
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	6	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	6	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
 drop table t1, t2, t3;
 create table t1 (a decimal);
 insert into t1 values (1),(2);
 explain select * from t1 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
 drop table t1;
 set @@optimizer_switch=@save_optimizer_switch;
 create table t1 (a int);
@@ -1216,8 +1216,8 @@ create table t3 (a int, b int, filler char(100), key(a));
 insert into t3 select A.a + 10*B.a, A.a + 10*B.a, 'filler' from t1 A, t1 B, t1 C;
 explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where; Start temporary
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Start temporary; Using join buffer (flat, BNL join)
 1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	End temporary
 explain select straight_join * from t1 A, t1 B where A.a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1276,14 +1276,14 @@ insert into t2 select A.a + 10*B.a, A.a + 10*B.a from t0 A, t0 B;
 set @@optimizer_switch='firstmatch=off';
 explain select * from t1 where (a,b) in (select a,b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Start temporary
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
 set @save_optimizer_search_depth=@@optimizer_search_depth;
 set @@optimizer_search_depth=63;
 explain select * from t1 where (a,b) in (select a,b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Start temporary
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
 set @@optimizer_search_depth=@save_optimizer_search_depth;
 set @@optimizer_switch=@save_optimizer_switch;
 drop table t0, t1, t2;
@@ -1293,8 +1293,8 @@ create table t1 as select * from t0;
 insert into t1 select * from t0;
 explain select * from t0 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
 select * from t0 where a in (select a from t1);
 a
 10.24
@@ -1306,8 +1306,8 @@ create table t1 as select * from t0;
 insert into t1 select * from t0;
 explain select * from t0 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
 select * from t0 where a in (select a from t1);
 a
 2008-01-01
@@ -1320,8 +1320,8 @@ create table t2 as select a as a, a as b from t0 where a < 3;
 insert into t2 select * from t2;
 explain select * from t1 where (a,b,c) in (select X.a, Y.a, Z.a from t2 X, t2 Y, t2 Z where X.b=33);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Start temporary
-1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	6	Using where; Start temporary; Using join buffer (flat, BNL join)
 1	PRIMARY	Y	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	PRIMARY	Z	ALL	NULL	NULL	NULL	NULL	6	Using where; End temporary; Using join buffer (flat, BNL join)
 drop table t0,t1,t2;
