@@ -263,8 +263,8 @@ public:
     {
       pos->records_read=    best_loose_scan_records;
       pos->key=             best_loose_scan_start_key;
-      pos->loosescan_key=   best_loose_scan_key;
-      pos->loosescan_parts= best_max_loose_keypart + 1;
+      pos->loosescan_picker.loosescan_key=   best_loose_scan_key;
+      pos->loosescan_picker.loosescan_parts= best_max_loose_keypart + 1;
       pos->use_join_buffer= FALSE;
       pos->table=           tab;
       // todo need ref_depend_map ?
@@ -277,8 +277,7 @@ public:
 };
 
 
-void advance_sj_state(JOIN *join, const table_map remaining_tables, 
-                      const JOIN_TAB *new_join_tab, uint idx, 
+void advance_sj_state(JOIN *join, const table_map remaining_tables, uint idx, 
                       double *current_record_count, double *current_read_time,
                       POSITION *loose_scan_pos);
 void restore_prev_sj_state(const table_map remaining_tables, 
@@ -359,8 +358,7 @@ public:
   ENGINE_COLUMNDEF *start_recinfo;
   ENGINE_COLUMNDEF *recinfo;
 
-  /* Pointer to next table (next->start_idx > this->end_idx) */
-  SJ_TMP_TABLE *next; 
+  SJ_TMP_TABLE *next_flush_table; 
 };
 
 int setup_semijoin_dups_elimination(JOIN *join, ulonglong options, 
