@@ -5137,8 +5137,8 @@ EXPLAIN
 SELECT * FROM (SELECT DISTINCT * FROM t1) t
 WHERE t.a  IN (SELECT t2.a FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	key0	NULL	NULL	NULL	3	Start temporary
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	<derived2>	ALL	key0	NULL	NULL	NULL	3	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
 SELECT * FROM (SELECT DISTINCT * FROM t1) t
 WHERE t.a  IN (SELECT t2.a FROM t2);
@@ -5170,8 +5170,8 @@ SET SESSION join_cache_level=3;
 EXPLAIN
 SELECT * FROM t1 WHERE (t1.b) IN (SELECT c FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary
-1	PRIMARY	t2	hash_index	c	#hash#c:c	5:5	test.t1.b	8	End temporary; Using join buffer (flat, BNLH join)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t2	hash_index	c	#hash#c:c	5:5	test.t1.b	8	Start temporary; End temporary; Using join buffer (flat, BNLH join)
 SELECT * FROM t1 WHERE (t1.b) IN (SELECT c FROM t2);
 a	b
 3914	17
