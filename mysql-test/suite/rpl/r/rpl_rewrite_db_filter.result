@@ -10,7 +10,7 @@ INSERT INTO t2 VALUES (1);
 # On master
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	CREATE DATABASE mydb
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
@@ -28,7 +28,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 # On slave
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+slave-bin.000001	#	Previous_gtids	#	#	
 slave-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 slave-bin.000001	#	Query	#	#	CREATE DATABASE rewrite
 slave-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
