@@ -1046,14 +1046,6 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 ALTER TABLE t2 ADD a int NOT NULL AFTER status;
 DROP TABLE t1,t2;
-select password(name) from bug20536;
-password(name)
-*286C12C0F32248BD65B30EE65F3ECFB2AA3F7849
-*947A5674312754578F132655C74A11533B105FF6
-select old_password(name) from bug20536;
-old_password(name)
-10e155cb44e2adb5
-14e500b131773991
 select quote(name) from bug20536;
 quote(name)
 'test1'

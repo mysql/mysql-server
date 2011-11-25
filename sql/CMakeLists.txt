@@ -19,6 +19,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex 
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
+  ${SSL_INTERNAL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
 )
 
@@ -81,6 +82,7 @@ SET(SQL_SHARED_SOURCES
   parse_file.cc
   partition_info.cc
   password.c
+  ../sql-common/crypt_genhash_impl.cc
   procedure.cc 
   protocol.cc
   records.cc
@@ -169,6 +171,7 @@ SET(SQL_SOURCE
   ../sql-common/my_time.c
   ../sql-common/my_user.c 
   ../sql-common/pack.c
+  ../sql-common/client_authentication.cc
   event_data_objects.cc
   event_db_repository.cc 
   event_parse_data.cc

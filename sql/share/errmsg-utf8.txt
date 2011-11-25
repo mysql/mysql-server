@@ -6624,3 +6624,7 @@ ER_INNODB_FT_LIMIT
 
 ER_INNODB_NO_FT_TEMP_TABLE
   eng "Cannot create FULLTEXT index on temporary InnoDB table"
+
+ER_PASSWORD_FORMAT
+  eng "The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function."
+

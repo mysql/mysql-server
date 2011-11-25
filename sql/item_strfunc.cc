@@ -45,6 +45,7 @@
 #include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
 #include "password.h"           // my_make_scrambled_password,
                                 // my_make_scrambled_password_323
+#include "crypt_genhash_impl.h"
 #include <m_ctype.h>
 #include <base64.h>
 #include "my_md5.h"
@@ -1932,26 +1933,80 @@ void Item_func_trim::print(String *str, enum_query_type query_type)
 
 
 /* Item_func_password */
+void Item_func_password::fix_length_and_dec()
+{
+  /* args[0] is the plain text password */
+  String *res;
+  String dummy;
+  res= args[0]->val_str(&dummy); 
+  if ((null_value=args[0]->null_value))
+  {
+    m_hashed_password_buffer_len= 0;
+    return;
+  }
+  /* Empty argument always gives empty result */
+  if (res->length() == 0)
+  {
+    m_hashed_password_buffer_len= 0;
+    return;
+  }
+  /*
+    The value of this Item should not change because of consequtive calls to this
+    method. This is guaranteed by only hashing the password once and then saving
+    it in a buffer.
+     The hashing algorithm is chosen based on the @@old_passwords variable.
+  */
+  THD *thd= current_thd;
+  if (thd->variables.old_passwords == 2)
+  {
+    my_make_scrambled_password(m_hashed_password_buffer, res->ptr(),
+                               res->length());
+    m_hashed_password_buffer_len= strlen(m_hashed_password_buffer)+1;
+  }
+  else
+  if (thd->variables.old_passwords == 0)
+  {
+    my_make_scrambled_password_sha1(m_hashed_password_buffer, res->ptr(),
+                                    res->length());
+    m_hashed_password_buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH;
+  }
+  else
+  if (thd->variables.old_passwords == 1)
+  {
+    my_make_scrambled_password_323(m_hashed_password_buffer, res->ptr(),
+                                   res->length());
+    m_hashed_password_buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
+  }
+    
+  fix_length_and_charset(m_hashed_password_buffer_len, default_charset());
+}
 
 String *Item_func_password::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res= args[0]->val_str(str); 
-  if ((null_value=args[0]->null_value))
-    return 0;
-  if (res->length() == 0)
+  if (m_hashed_password_buffer_len == 0)
     return make_empty_result();
-  my_make_scrambled_password(tmp_value, res->ptr(), res->length());
-  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH, &my_charset_latin1);
+  str->set(m_hashed_password_buffer, m_hashed_password_buffer_len,
+           &my_charset_latin1);
+
   return str;
 }
 
-char *Item_func_password::alloc(THD *thd, const char *password,
-                                size_t pass_len)
+char *Item_func_password::
+  create_password_hash_buffer(THD *thd, const char *password,  size_t pass_len)
 {
-  char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
-  if (buff)
+  char *buff= NULL;
+  if (thd->variables.old_passwords == 0)
+  {
+    buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH);
+    my_make_scrambled_password_sha1(buff, password, pass_len);
+  }
+  else
+  {
+    buff= (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE+1);
     my_make_scrambled_password(buff, password, pass_len);
+  }
+  
   return buff;
 }
 
