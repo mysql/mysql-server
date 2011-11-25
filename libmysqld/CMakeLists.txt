@@ -72,7 +72,7 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/zgtid_set.cc
   ../sql/zgtid_specification.cc
   ../sql/zgtid_state.cc
-  ../sql/zowned_groups.cc
+  ../sql/zowned_gtids.cc
   ../sql/zgroup_cache.cc
   ../sql/zgroup_execution.cc
   ../sql/zmutex_cond_array.cc

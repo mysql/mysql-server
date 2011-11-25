@@ -84,6 +84,7 @@ SET(SQL_SHARED_SOURCES
   procedure.cc 
   protocol.cc
   records.cc
+  rpl_constants.cc
   rpl_handler.cc
   scheduler.cc 
   set_var.cc 
@@ -192,7 +193,7 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
 
 SET (BINLOG_SOURCE zuuid.cc zgtid.cc zreturn.cc
                    zsid_map.cc zgtid_set.cc zgtid_specification.cc
-                   zgtid_state.cc zowned_groups.cc zgroup_cache.cc
+                   zgtid_state.cc zowned_gtids.cc zgroup_cache.cc
                    zgroup_execution.cc zmutex_cond_array.cc
                    log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc

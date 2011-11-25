@@ -178,7 +178,7 @@ public:
   }
 #endif
 #ifdef HAVE_GTID
-  bool restore_gtid();
+  bool restore_gtid_set(bool save_gtid_events);
 #endif
 
 private:

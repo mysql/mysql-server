@@ -11720,13 +11720,11 @@ Previous_gtids_log_event::Previous_gtids_log_event(
 
 #ifndef MYSQL_CLIENT
 Previous_gtids_log_event::Previous_gtids_log_event(THD* thd_arg,
-                                                   MYSQL_BIN_LOG* log)
+                                                   const Gtid_set *set)
 : Ignorable_log_event(thd_arg),
   gtid_set(&global_sid_map), gtid_set_inited(false)
 {
-  global_sid_lock.rdlock();
-  get_buf_from_set(gtid_state.get_logged_groups());
-  global_sid_lock.unlock();
+  get_buf_from_set(set);
 }
 #endif
 

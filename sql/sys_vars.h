@@ -2092,7 +2092,7 @@ public:
   {
     DBUG_ENTER("Sys_var_gtid_done::global_value_ptr");
     global_sid_lock.rdlock();
-    const Gtid_set *gs= gtid_state.get_logged_groups();
+    const Gtid_set *gs= gtid_state.get_logged_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
     if (buf == NULL)
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
