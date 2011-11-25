@@ -2612,7 +2612,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
   enum_server_command command= mi->master_support_gtid ?
     COM_BINLOG_DUMP_GTID : COM_BINLOG_DUMP;
   uchar* command_buffer= NULL;
-  ushort binlog_flags = 0;
+  ushort binlog_flags= 0;
 
   if (RUN_HOOK(binlog_relay_io,
                before_request_transmit,
@@ -2628,6 +2628,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
                     mi->rli->relay_log.group_log_state.get_ended_groups()); // ALFRANIO ALFRANIO
     mi->rli->relay_log.sid_lock.unlock();
 
+    size_t unused_size= 0;
     size_t encoded_data_size= relay_set.get_data_size();
     size_t allocation_size= 
       ::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
@@ -2638,7 +2639,16 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       DBUG_RETURN(1);
     uchar* ptr_buffer= command_buffer;
 
-    set_master_slave_proto(&binlog_flags, BINLOG_THROUGH_GTID);
+    /*
+      The current implementation decides whether the Gtid must be
+      used or not based on the requested binary log name. We need
+      to double check if this is enough. /Alfranio
+    */
+    DBUG_PRINT("info", ("Do I know something about the master? (%d - %s).",
+               BINLOG_NAME_INFO_SIZE != 0, mi->get_master_log_name()));
+    add_master_slave_proto(&binlog_flags,
+                           BINLOG_NAME_INFO_SIZE ?
+                           BINLOG_THROUGH_POSITION : BINLOG_THROUGH_GTID);
     int2store(ptr_buffer, binlog_flags);
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
@@ -2649,14 +2659,21 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
     int8store(ptr_buffer, mi->get_master_log_pos());
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
-    int4store(ptr_buffer, encoded_data_size);
-    ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
-    memcpy(ptr_buffer, relay_set.get_encoded_buffer(),
-           encoded_data_size);
-    ptr_buffer+= encoded_data_size;
+    if (is_master_slave_proto(binlog_flags, BINLOG_THROUGH_GTID))
+    {
+      int4store(ptr_buffer, encoded_data_size);
+      ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
+      memcpy(ptr_buffer, relay_set.get_encoded_buffer(),
+             encoded_data_size);
+      ptr_buffer+= encoded_data_size;
+    }
+    else
+    {
+      unused_size= ::BINLOG_DATA_SIZE_INFO_SIZE + encoded_data_size;
+    }
      
     command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - 1));
+    DBUG_ASSERT(command_size == (allocation_size - unused_size - 1));
   }
   else
   {
@@ -5722,6 +5739,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     }
     mi->received_heartbeats++;
     mi->last_heartbeat= my_time(0);
+
     /* 
        compare local and event's versions of log_file, log_pos.
        
@@ -5734,12 +5752,12 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
        TODO: handling `when' for SHOW SLAVE STATUS' snds behind
     */
+
     if ((memcmp(const_cast<char *>(mi->get_master_log_name()),
                 hb.get_log_ident(), hb.get_ident_len())
          && mi->get_master_log_name() != NULL)
         || mi->get_master_log_pos() != hb.log_pos)
     {
-      /* missed events of heartbeat from the past */
       error= ER_SLAVE_HEARTBEAT_FAILURE;
       error_msg.append(STRING_WITH_LEN("heartbeat is not compatible with local info;"));
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
