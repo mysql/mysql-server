@@ -699,6 +699,13 @@ static char *opt_bin_logname;
 int orig_argc;
 char **orig_argv;
 
+#ifdef HAVE_OPENSSL
+#ifndef HAVE_YASSL
+int init_rsa_keys(void);
+int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
+#endif
+#endif
+
 void set_remaining_args(int argc, char **argv)
 {
   remaining_argc= argc;
@@ -3457,6 +3464,8 @@ int init_common_variables()
 #endif
   default_tmp_storage_engine= default_storage_engine;
 
+  init_default_auth_plugin();
+
   /*
     Add server status variables to the dynamic list of
     status variables that is shown by SHOW STATUS.
@@ -3966,7 +3975,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 #endif /* HAVE_OPENSSL */
 
 
-static void init_ssl()
+static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
 #ifndef EMBEDDED_LIBRARY
@@ -3997,7 +4006,12 @@ static void init_ssl()
 #endif /* ! EMBEDDED_LIBRARY */
   if (des_key_file)
     load_des_key_file(des_key_file);
+#ifndef HAVE_YASSL
+  if (init_rsa_keys())
+    return 1;
+#endif
 #endif /* HAVE_OPENSSL */
+  return 0;
 }
 
 
@@ -4983,7 +4997,8 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(1);
   }
 
-  init_ssl();
+  if (init_ssl())
+    return 1;
   network_init();
 
 #ifdef __WIN__
@@ -6589,6 +6604,10 @@ struct my_option my_long_options[]=
   {"table_cache", 0, "Deprecated; use --table-open-cache instead.",
    &table_cache_size, &table_cache_size, 0, GET_ULONG,
    REQUIRED_ARG, TABLE_OPEN_CACHE_DEFAULT, 1, 512*1024L, 0, 1, 0},
+  {"default_authentication_plugin", OPT_DEFAULT_AUTH,
+   "Defines what password- and authentication algorithm to use per default",
+   0, 0, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7226,6 +7245,9 @@ SHOW_VAR status_vars[]= {
     SHOW_FUNC},
   {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after,
     SHOW_FUNC},
+#ifndef HAVE_YASSL
+  {"Rsa_public_key",           (char*) &show_rsa_public_key, SHOW_FUNC},
+#endif
 #endif
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
@@ -7843,6 +7865,9 @@ mysqld_get_one_option(int optid,
     /* fall through */
   case OPT_PLUGIN_LOAD_ADD:
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
+    break;
+  case OPT_DEFAULT_AUTH:
+    set_default_auth_plugin(argument, strlen(argument));
     break;
   }
   return 0;

@@ -3,6 +3,7 @@
 #
 
 grant select on test.* to test_nopw;
+create user test_oldpw identified with 'mysql_old_password';
 grant select on test.* to test_oldpw identified by password "09301740536db389";
 grant select on test.* to test_newpw identified by "newpw";
 

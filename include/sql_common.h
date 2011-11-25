@@ -33,6 +33,7 @@ struct st_mysql_options_extention {
   char *default_auth;
   char *ssl_crl;				/* PEM CRL file */
   char *ssl_crlpath;				/* PEM directory of CRL-s? */
+  char *server_public_key_path;
 };
 
 typedef struct st_mysql_methods
