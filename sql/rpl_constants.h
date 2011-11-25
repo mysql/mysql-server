@@ -42,13 +42,15 @@ const int BINLOG_NAME_SIZE_INFO_SIZE= 4;
 
 enum Master_Slave_Proto
 {
-  BINLOG_THROUGH_POSITION = 0,
+  BINLOG_DUMP_NON_BLOCK = 0,
 
-  BINLOG_THROUGH_GTID = 1,
+  BINLOG_THROUGH_POSITION = 1,
+
+  BINLOG_THROUGH_GTID = 2,
 
   BINLOG_END
 };
 
-void set_master_slave_proto(ushort *flag, enum Master_Slave_Proto pt);
+void add_master_slave_proto(ushort *flag, enum Master_Slave_Proto pt);
 bool is_master_slave_proto(ushort flag, enum Master_Slave_Proto pt);
 #endif /* RPL_CONSTANTS_H */
