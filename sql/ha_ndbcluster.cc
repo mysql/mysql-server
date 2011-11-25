@@ -449,10 +449,6 @@ static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
 
 THD *injector_thd= 0;
 
-// Index stats thread variables
-extern void ndb_index_stat_free(NDB_SHARE *share);
-extern void ndb_index_stat_end();
-
 /* Status variables shown with 'show status like 'Ndb%' */
 
 struct st_ndb_status g_ndb_status;
@@ -10510,7 +10506,8 @@ cleanup_failed:
         Always create an event for the table, as other mysql servers
         expect it to be there.
       */
-      if (!ndbcluster_create_event(thd, ndb, m_table, event_name.c_ptr(), share,
+      if (!Ndb_dist_priv_util::is_distributed_priv_table(m_dbname, m_tabname) &&
+          !ndbcluster_create_event(thd, ndb, m_table, event_name.c_ptr(), share,
                                    share && do_event_op ? 2 : 1/* push warning */))
       {
         if (opt_ndb_extra_logging)
@@ -10760,7 +10757,21 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
   for (idx= 0; idx < num_of_keys; idx++)
   {
     DBUG_PRINT("info", ("ha_ndbcluster::prepare_drop_index %u", *key_num));
-    m_index[*key_num++].status= TO_BE_DROPPED;
+    uint i = *key_num++;
+    m_index[i].status= TO_BE_DROPPED;
+    // Prepare delete of index stat entry
+    if (m_index[i].type == PRIMARY_KEY_ORDERED_INDEX ||
+        m_index[i].type == UNIQUE_ORDERED_INDEX ||
+        m_index[i].type == ORDERED_INDEX)
+    {
+      const NdbDictionary::Index *index= m_index[i].index;
+      if (index) // safety
+      {
+        int index_id= index->getObjectId();
+        int index_version= index->getObjectVersion();
+        ndb_index_stat_free(m_share, index_id, index_version);
+      }
+    }
   }
   // Renumber indexes
   THD *thd= current_thd;
@@ -12388,6 +12399,12 @@ static int connect_callback()
   return 0;
 }
 
+/**
+ * Components
+ */
+Ndb_util_thread ndb_util_thread;
+Ndb_index_stat_thread ndb_index_stat_thread;
+
 #ifndef NDB_NO_WAIT_SETUP
 static int ndb_wait_setup_func_impl(ulong max_wait)
 {
@@ -12397,10 +12414,11 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 
   struct timespec abstime;
   set_timespec(abstime, 1);
-  
-  while (!ndb_setup_complete && max_wait)
+
+  while (max_wait &&
+         (!ndb_setup_complete || !ndb_index_stat_thread.is_setup_complete()))
   {
-    int rc= pthread_cond_timedwait(&COND_ndb_setup_complete, 
+    int rc= pthread_cond_timedwait(&COND_ndb_setup_complete,
                                    &ndbcluster_mutex,
                                    &abstime);
     if (rc)
@@ -12429,12 +12447,6 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 int(*ndb_wait_setup_func)(ulong) = 0;
 #endif
 extern int ndb_dictionary_is_mysqld;
-
-/**
- * Components
- */
-Ndb_util_thread ndb_util_thread;
-Ndb_index_stat_thread ndb_index_stat_thread;
 
 static int ndbcluster_init(void *p)
 {
@@ -13666,7 +13678,7 @@ NDB_SHARE::create(const char* key, size_t key_length,
   share->state= NSS_INITIAL;
   /* Allocate enough space for key, db, and table_name */
   share->key= (char*) alloc_root(*root_ptr, 2 * (key_length + 1));
-  share->key_length= key_length;
+  share->key_length= (uint)key_length;
   strmov(share->key, key);
   share->db= share->key + key_length + 1;
   strmov(share->db, db_name);

@@ -18,6 +18,7 @@
 package com.mysql.clusterj.jdbc;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -30,6 +31,9 @@ import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.core.query.QueryDomainTypeImpl;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.SessionSPI;
+import com.mysql.clusterj.core.spi.ValueHandler;
+import com.mysql.clusterj.core.spi.ValueHandlerBatching;
+import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -277,6 +281,119 @@ public class SQLExecutor {
         }
     }
 
+    /** This class implements the Executor contract for Update operations.
+     */
+    public static class Update extends SQLExecutor implements Executor {
+
+        /** Column names in the SET clause */
+        List<String> setColumnNames;
+        /** Parameter numbers corresponding to the columns in the SET clause */
+        List<Integer> setParameterNumbers;
+        /** Names of the columns in the WHERE clause */
+        List<String> whereColumnNames;
+        /** */
+        int[] fieldNumberToParameterNumberMap;
+
+        /** Construct an Update instance that encapsulates the information from the UPDATE statement.
+         * We begin with the simple case of a primary key or unique key update. We have the list
+         * of column names and parameter numbers that map to the SET clause,
+         * and the list of parameter numbers that map to the WHERE clause.
+         * 
+         * @param domainTypeHandler the domain type handler
+         * @param queryDomainType the query domain type
+         * @param numberOfParameters the number of parameters per statement
+         * @param setColumnNames the column names in the SET clause
+         * @param setParameterNumbers the parameter numbers (1 origin) in the VALUES clause
+         */
+        public Update (DomainTypeHandlerImpl<?> domainTypeHandler, QueryDomainTypeImpl<?> queryDomainType,
+                int numberOfParameters, List<String> setColumnNames, List<String> topLevelWhereColumnNames) {
+            super(domainTypeHandler, setColumnNames, queryDomainType);
+            if (logger.isDetailEnabled()) logger.detail("Constructor with numberOfParameters: " + numberOfParameters +
+                    " setColumnNames: " + setColumnNames + " topLevelWhereColumnNames " + topLevelWhereColumnNames);
+            this.numberOfParameters = numberOfParameters;
+            this.whereColumnNames = topLevelWhereColumnNames;
+            initializeFieldNumberToParameterNumberMap(setColumnNames, topLevelWhereColumnNames);
+        }
+
+        /** Initialize the map from field number to parameter number.
+         * This map is used for the ValueHandler that handles the SET statement.
+         * The value handler is given the field number to update and this map
+         * returns the parameter number which is then given to the batching value handler
+         * to get the actual parameter from the parameter set of the batch.
+         * 
+         * @param setColumnNames the names in the SET clause
+         * @param topLevelWhereColumnNames the names in the WHERE clause
+         */
+        private void initializeFieldNumberToParameterNumberMap(List<String> setColumnNames,
+                List<String> topLevelWhereColumnNames) {
+            String[] fieldNames = this.domainTypeHandler.getFieldNames();
+            this.fieldNumberToParameterNumberMap = new int[fieldNames.length];
+            // the columns in the update statement include 
+            // all the columns in the SET clause plus the columns in the WHERE clause
+            List<String> updateColumnNames = new ArrayList<String>(setColumnNames);
+            updateColumnNames.addAll(topLevelWhereColumnNames);
+            int columnNumber = 1;
+            for (String columnName: updateColumnNames) {
+                // for each column name, find the field number
+                for (int i = 0; i < fieldNames.length; ++i) {
+                    if (fieldNames[i].equals(columnName)) {
+                        fieldNumberToParameterNumberMap[i] = columnNumber;
+                        break;
+                    }
+                }
+                columnNumber++;
+            }
+        }
+
+        /** Execute the update statement.
+         * The list of column names and parameter numbers that map to the SET clause, and
+         * the list of column names and parameter numbers that map to the WHERE clause are provided.
+         * Construct a value handler that can handle primary key or unique key parameters,
+         * where clause parameters, and set clause parameters. 
+         * Next, construct a context that allows iteration over the value handler for
+         * each set of parameters in the batch.
+         * @param interceptor the statement interceptor
+         * @param preparedStatement the prepared statement
+         * @return the result of executing the statement
+         */
+        public ResultSetInternalMethods execute(InterceptorImpl interceptor,
+                PreparedStatement preparedStatement) throws SQLException {
+            SessionSPI session = interceptor.getSession();
+            // use the field-to-parameter-number map to create the value handler
+            int numberOfBoundParameters = preparedStatement.getParameterMetaData().getParameterCount();
+            int numberOfStatements = numberOfBoundParameters / numberOfParameters;
+            if (logger.isDebugEnabled())
+                logger.debug("numberOfParameters: " + numberOfParameters
+                    + " numberOfBoundParameters: " + numberOfBoundParameters
+                    + " numberOfFields: " + numberOfFields
+                    + " numberOfStatements: " + numberOfStatements
+                    );
+            // valueHandlerBatching handles the WHERE clause parameters
+            ValueHandlerBatching valueHandlerBatching = getValueHandler(preparedStatement, null);
+            // valueHandlerSet handles the SET clause parameter value
+            ValueHandlerBatching valueHandlerSet = 
+                    new ValueHandlerBatchingJDBCSetImpl(fieldNumberToParameterNumberMap, valueHandlerBatching);
+            if (valueHandlerBatching == null) {
+                return null;
+            }
+            long[] updateResults = new long[numberOfStatements];
+            QueryExecutionContextJDBCImpl context = 
+                new QueryExecutionContextJDBCImpl(session, valueHandlerBatching, numberOfParameters);
+            // execute the batch of updates
+            updateResults = queryDomainType.updatePersistentAll(context, valueHandlerSet);
+            if (logger.isDebugEnabled()) 
+                logger.debug("executing update with numberOfStatements: " + numberOfStatements 
+                        + " and numberOfParameters: " + numberOfParameters
+                        + " results: " + Arrays.toString(updateResults));
+            if (updateResults == null) {
+                // cannot execute this update
+                return null;
+            } else {
+                return new ResultSetInternalMethodsUpdateCount(updateResults);
+            }
+        }
+    }
+
     protected ValueHandlerBatching getValueHandler(
             PreparedStatement preparedStatement, int[] fieldNumberToColumnNumberMap) {
         ValueHandlerBatching result = null;
@@ -348,6 +465,8 @@ public class SQLExecutor {
      * e.g. INSERT INTO EMPLOYEE (id, name, age) VALUES (?, ?, ?)
      * For select, the column number to field number mapping will map result set columns to field numbers,
      * e.g. SELECT id, name, age FROM EMPLOYEE
+     * For update, the column number to field number mapping will map parameters to field numbers,
+     * e.g. UPDATE EMPLOYEE SET age = ?, name = ? WHERE id = ?
      */
     private void initializeFieldNumberMap() {
         // the index into the int[] is the 0-origin field number (columns in order of definition in the schema)

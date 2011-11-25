@@ -347,6 +347,18 @@ class ClusterTransactionImpl implements ClusterTransaction {
         return new OperationImpl(storeTable, ndbOperation, this);
     }
 
+    public IndexOperation getUniqueIndexUpdateOperation(Index storeIndex, Table storeTable) {
+        enlist();
+        IndexConst ndbIndex = ndbDictionary.getIndex(storeIndex.getInternalName(), storeTable.getName());
+        handleError(ndbIndex, ndbDictionary);
+        NdbIndexOperation ndbIndexOperation = ndbTransaction.getNdbIndexOperation(ndbIndex);
+        handleError(ndbIndexOperation, ndbTransaction);
+        int returnCode = ndbIndexOperation.updateTuple();
+        handleError(returnCode, ndbTransaction);
+        if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName() + " index: " + storeIndex.getName());
+        return new IndexOperationImpl(storeTable, ndbIndexOperation, this);
+    }
+
     public Operation getWriteOperation(Table storeTable) {
         enlist();
         TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());

@@ -2386,5 +2386,12 @@ i	s
 0	Text Hej
 1	xText aaja
 drop table mytable;
+create table mytab(a char(20),b char(20),
+key a (a)) engine=ndbcluster default charset=latin1;
+insert into mytab values (null,null),(-1,1);
+select b from mytab where a like -1 having `b` like 1;
+b
+1
+drop table mytab;
 set @@session.optimizer_switch = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;

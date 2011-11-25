@@ -21,6 +21,8 @@
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
 
+static int opt_stop_on_error = 0;
+
 NDBT_Context::NDBT_Context(Ndb_cluster_connection& con)
   : m_cluster_connection(con)
 {
@@ -881,7 +883,11 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
   }
   else
   {
-    for (unsigned i = 0; i < tests.size(); i++){
+    for (unsigned i = 0; i < tests.size(); i++)
+    {
+      if (opt_stop_on_error != 0 && numTestsFail > 0)
+        break;
+
       if (_testname != NULL && strcasecmp(tests[i]->getName(), _testname) != 0)
 	continue;
 
@@ -942,6 +948,9 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
     if(tests.size() == 0)
       break;
 
+    if (opt_stop_on_error != 0 && numTestsFail > 0)
+      break;
+
     Ndb ndb(&con, "TEST_DB");
     ndb.init(1024);
 
@@ -956,7 +965,10 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
     ndbout << name << " started [" << getDate() << "]" << endl;
     ndbout << "|- " << ptab->getName() << endl;
 
-    for (unsigned t = 0; t < tests.size(); t++){
+    for (unsigned t = 0; t < tests.size(); t++)
+    {
+      if (opt_stop_on_error != 0 && numTestsFail > 0)
+        break;
 
       if (_testname != NULL && 
 	      strcasecmp(tests[t]->getName(), _testname) != 0)
@@ -978,8 +990,8 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
         numTestsOk++;
       numTestsExecuted++;
 
-    delete ctx;
-  }
+      delete ctx;
+    }
 
     if (numTestsFail > 0)
       break;
@@ -1023,7 +1035,10 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
 			     const char* _testname){
   int result; 
 
-  for (unsigned t = 0; t < tests.size(); t++){
+  for (unsigned t = 0; t < tests.size(); t++)
+  {
+    if (opt_stop_on_error != 0 && numTestsFail > 0)
+      break;
 
     if (_testname != NULL && 
 	strcasecmp(tests[t]->getName(), _testname) != 0)
@@ -1332,6 +1347,10 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "forceshortreqs", NDB_OPT_NOSHORT, "Use short signals for NdbApi requests",
     (uchar**) &opt_forceShort, (uchar**) &opt_forceShort, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "stop-on-error", NDB_OPT_NOSHORT,
+    "Don't run any more tests after one has failed",
+    (uchar**) &opt_stop_on_error, (uchar**) &opt_stop_on_error, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

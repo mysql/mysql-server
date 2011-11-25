@@ -15,23 +15,15 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-package com.mysql.clusterj.jdbc;
+package com.mysql.clusterj.core.spi;
 
-import com.mysql.clusterj.core.spi.ValueHandler;
-import com.mysql.clusterj.core.util.I18NHelper;
-import com.mysql.clusterj.core.util.Logger;
-import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 /** This interface handles retrieving parameter values from the parameterBindings
  * associated with a PreparedStatement or batchedBindValues from a ServerPreparedStatement.
+ * It extends ValueHandler with methods to iterate through multiple parameter sets
+ * and to get the number of statements in the batch.
  */
 public interface ValueHandlerBatching extends ValueHandler {
-
-    /** My message translator */
-    static final I18NHelper local = I18NHelper.getInstance(ValueHandlerBatching.class);
-
-    /** My logger */
-    static final Logger logger = LoggerFactoryService.getFactory().getInstance(ValueHandlerBatching.class);
 
     /**
      * Advance to the next parameter set. If successful, return true. If there are no more
@@ -40,6 +32,10 @@ public interface ValueHandlerBatching extends ValueHandler {
      */
     public boolean next();
 
+    /** Get the number of statements in the batch. This will be the number of times
+     * the next method can be called before it returns false.
+     * @return the number of statements in the batch
+     */
     public int getNumberOfStatements();
 
 }
