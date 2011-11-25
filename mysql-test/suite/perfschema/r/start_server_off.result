@@ -135,6 +135,7 @@ events_waits_history	NO
 events_waits_history_long	NO
 global_instrumentation	NO
 thread_instrumentation	NO
+statement_digest	YES
 select * from performance_schema.setup_instruments;
 NAME	ENABLED	TIMED
 select * from performance_schema.setup_actors;

@@ -4623,13 +4623,6 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       //  Populate PFS_statements_digest_stat with computed digest information.
       pfs->statement_digest_stat_ptr= 
                          find_or_create_digest(thread, digest_storage);
-/*
-                                               digest_storage->m_digest_hash.m_md5,
-                                               digest_storage->m_token_array,
-                                               digest_storage->m_token_count,
-                                               pfs->m_sqltext,
-                                               pfs->m_sqltext_length);
-*/
       digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
 
       if (flag_events_statements_history)
@@ -4655,13 +4648,6 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     //  Populate PFS_statements_digest_stat with computed digest information.
     pfs->statement_digest_stat_ptr= 
                        find_or_create_digest(pfs_thread, digest_storage);
-/*
-                                             digest_storage->m_digest_hash.m_md5,
-                                             digest_storage->m_token_array,
-                                             digest_storage->m_token_count,
-                                             pfs->m_sqltext,
-                                             pfs->m_sqltext_length);
-*/
     digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
 
     event_name_array= global_instr_class_statements_array;
@@ -4696,7 +4682,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   stat->m_sort_scan+= state->m_sort_scan;
   stat->m_no_index_used+= state->m_no_index_used;
   stat->m_no_good_index_used+= state->m_no_good_index_used;
-
+/*
   if (flags & STATE_FLAG_TIMED)
   {
     digest_stat->aggregate_value(wait_time);
@@ -4722,7 +4708,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   digest_stat->m_sort_scan+= state->m_sort_scan;
   digest_stat->m_no_index_used+= state->m_no_index_used;
   digest_stat->m_no_good_index_used+= state->m_no_good_index_used;
-
+*/
   switch(da->status())
   {
     case Diagnostics_area::DA_EMPTY:
