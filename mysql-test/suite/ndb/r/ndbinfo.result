@@ -346,6 +346,7 @@ RESTORE
 SUMA
 THRMAN
 TRIX
+TRPMAN
 TSMAN
 desc threadstat;
 Field	Type	Null	Key	Default	Extra

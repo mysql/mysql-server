@@ -29,6 +29,7 @@ import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.ColumnMetadata;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
+import com.mysql.clusterj.core.spi.ValueHandlerBatching;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;

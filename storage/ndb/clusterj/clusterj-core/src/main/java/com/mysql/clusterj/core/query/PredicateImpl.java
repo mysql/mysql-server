@@ -34,7 +34,9 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 import com.mysql.clusterj.query.Predicate;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.TreeSet;
 
 public abstract class PredicateImpl implements Predicate {
@@ -300,8 +302,30 @@ public abstract class PredicateImpl implements Predicate {
         return new PredicateImpl[] {this};
     }
 
+    /** 
+     * Return the names of properties in the top level predicates.
+     * These might be used with indices.
+     * @return the top level property names
+     */
+    public List<String> getTopLevelPropertyNames() {
+        List<String> result = new ArrayList<String>();
+        PredicateImpl[] predicates = getTopLevelPredicates();
+        for (PredicateImpl predicate: predicates) {
+            PropertyImpl property = predicate.getProperty();
+            if (property != null) {
+                result.add(property.fmd.getName());
+            }
+        }
+        return result;
+    }
+
     public ParameterImpl getParameter() {
         // default is there is no parameter for this predicate
+        return null;
+    }
+
+    protected PropertyImpl getProperty() {
+        // default is there is no property for this predicate
         return null;
     }
 

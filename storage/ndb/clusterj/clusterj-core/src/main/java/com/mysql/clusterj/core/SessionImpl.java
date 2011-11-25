@@ -129,16 +129,6 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     /** The lock mode for read operations */
     private LockMode lockmode = LockMode.READ_COMMITTED;
 
-    /** Our post-execute callback handler */
-    private Runnable postExecuteCallbackHandler = new Runnable() {
-        public void run() {
-            for (Runnable postExecuteCallback: postExecuteOperations) {
-                postExecuteCallback.run();
-            }
-            postExecuteOperations.clear();
-        }
-    };
-
     /** Create a SessionImpl with factory, properties, Db, and dictionary
      */
     SessionImpl(SessionFactoryImpl factory, Map properties, 
@@ -335,7 +325,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                 
             }
         };
-        postExecuteOperations.add(postExecuteOperation);
+        clusterTransaction.postExecuteCallback(postExecuteOperation);
         return object;
     }
 
@@ -735,8 +725,6 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             if (partitionKey != null) {
                 clusterTransaction.setPartitionKey(partitionKey);
             }
-            // register our post-execute callback
-            clusterTransaction.postExecuteCallback(postExecuteCallbackHandler);
         } catch (ClusterJException ex) {
             throw new ClusterJException(
                     local.message("ERR_Ndb_Start"), ex);
@@ -767,7 +755,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             }
         }
         try {
-            clusterTransaction.executeCommit(true, true);
+            clusterTransaction.executeCommit(false, true);
         } finally {
             // always close the transaction
             clusterTransaction.close();
@@ -920,8 +908,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         }
 
         public TransactionState fail() {
-            throw new ClusterJFatalInternalException(
-                    local.message("ERR_Transaction_Auto_Start", "end"));
+            return transactionStateNotActive;
         }
 
     };
@@ -1203,7 +1190,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
        }
    }
 
-    /** Create an index operation for an index and table.
+    /** Create a unique index operation for an index and table.
      *
      * @param storeIndex the index
      * @param storeTable the table
@@ -1217,6 +1204,22 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         } catch (ClusterJException ex) {
             throw new ClusterJException(
                     local.message("ERR_Unique_Index", storeTable.getName(), storeIndex.getName()), ex);
+        }
+    }
+
+    /** Create a unique index update operation for an index and table.
+     * @param storeIndex the index
+     * @param storeTable the table
+     * @return the index operation
+     */
+    public IndexOperation getUniqueIndexUpdateOperation(Index storeIndex, Table storeTable) {
+        assertActive();
+        try {
+            IndexOperation result = clusterTransaction.getUniqueIndexUpdateOperation(storeIndex, storeTable);
+            return result;
+        } catch (ClusterJException ex) {
+            throw new ClusterJException(
+                    local.message("ERR_Unique_Index_Update", storeTable.getName(), storeIndex.getName()), ex);
         }
     }
 
@@ -1249,6 +1252,22 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         } catch (ClusterJException ex) {
             throw new ClusterJException(
                     local.message("ERR_Delete", storeTable), ex);
+        }
+    }
+
+    /** Create an update operation for a table.
+     * 
+     * @param storeTable the table
+     * @return the operation
+     */
+    public Operation getUpdateOperation(Table storeTable) {
+        assertActive();
+        try {
+            Operation result = clusterTransaction.getUpdateOperation(storeTable);
+            return result;
+        } catch (ClusterJException ex) {
+            throw new ClusterJException(
+                    local.message("ERR_Update", storeTable), ex);
         }
     }
 
@@ -1346,10 +1365,10 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     /** Execute any pending operations (insert, delete, update, load)
      * and then perform post-execute operations (for load) via
      * clusterTransaction.postExecuteCallback().
-     * Abort the transaction on error. Force the operation to be sent immediately.
+     * Do not abort the transaction on error. Force the operation to be sent immediately.
      */
     public void executeNoCommit() {
-        executeNoCommit(true, true);
+        executeNoCommit(false, true);
     }
 
     public <T> QueryDomainType<T> createQueryDomainType(DomainTypeHandler<T> domainTypeHandler) {

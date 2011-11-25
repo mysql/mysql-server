@@ -150,6 +150,23 @@ DROP USER 'user3'@'localhost';
 
 DROP TABLE t1;
 
+--echo === test restart of mysqld ===
+connection server1;
+--let $mysqld_name=mysqld.1.1
+--source include/restart_mysqld.inc
+--source include/ndb_wait_connected.inc
+flush privileges;
+
+--echo === test truncate ===
+#
+# bug#13346955
+#
+# a personal note is that I think that it should be disallowed
+# to truncate one of these tables...
+#
+truncate mysql.proxies_priv;
+flush privileges;
+
 # Restore local privileges
 connection server1;
 call mysql.mysql_cluster_backup_privileges();
