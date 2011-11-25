@@ -304,6 +304,8 @@ begin;
 # is retreived and processed first.
 #
 # Verify that JT_EQ_REF is used.
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='index_condition_pushdown=off';
 explain
 select 1 from t1 natural join (select 3 as a, 2 as b union all
 select 3 as a, 1 as b) as t2 for update;
@@ -326,7 +328,7 @@ key	PRIMARY
 key_len	4
 ref	t2.a
 rows	1
-Extra	Using index condition; Using where
+Extra	Using where
 id	2
 select_type	DERIVED
 table	NULL
@@ -357,6 +359,7 @@ key_len	NULL
 ref	NULL
 rows	NULL
 Extra	
+set optimizer_switch=@tmp_optimizer_switch;
 # Lock the record.
 select 1 from t1 natural join (select 3 as a, 2 as b union all
 select 3 as a, 1 as b) as t2 for update;

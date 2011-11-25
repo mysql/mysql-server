@@ -239,9 +239,12 @@ begin;
 --echo #
 --echo # Verify that JT_EQ_REF is used.
 --vertical_results
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='index_condition_pushdown=off';
 explain
 select 1 from t1 natural join (select 3 as a, 2 as b union all
                                select 3 as a, 1 as b) as t2 for update;
+set optimizer_switch=@tmp_optimizer_switch;
 --horizontal_results
 --echo # Lock the record.
 select 1 from t1 natural join (select 3 as a, 2 as b union all
