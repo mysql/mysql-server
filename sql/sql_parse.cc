@@ -1389,7 +1389,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       */
       String slave_uuid;
       ushort flags= 0;
-      uint32 data_size= 0;
+      /* uint32 data_size= 0; */
       uint64 pos= 0;
       char name[FN_REFLEN + 1];
       uint32 name_size= 0;
@@ -1415,7 +1415,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       DBUG_PRINT("info", ("Slave %d requested to read %s at position %d.", thd->server_id, name, name_size));
       if (is_master_slave_proto(flags, BINLOG_THROUGH_GTID))
       {
-        data_size= uint4korr(ptr_buffer);
+        /* data_size= uint4korr(ptr_buffer); */
         ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
 
         /*

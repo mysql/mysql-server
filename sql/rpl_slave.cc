@@ -2608,7 +2608,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
 
   const int BINLOG_NAME_INFO_SIZE= strlen(mi->get_master_log_name());
   int error= 0;
-  int command_size= 0;
+  size_t command_size= 0;
   enum_server_command command= mi->master_support_gtid ?
     COM_BINLOG_DUMP_GTID : COM_BINLOG_DUMP;
   uchar* command_buffer= NULL;
