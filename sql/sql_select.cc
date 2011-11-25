@@ -19092,12 +19092,10 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   join->send_records=0;
   if (join->tables == join->const_tables)
   {
-    /*
-      HAVING will be checked after processing aggregate functions,
-      But WHERE should checkd here (we alredy have read tables)
-    */
+    // @todo: consider calling end_select instead of duplicating code
     if (!join->conds || join->conds->val_int())
     {
+      // HAVING will be checked by end_select
       error= (*end_select)(join, 0, 0);
       if (error == NESTED_LOOP_OK || error == NESTED_LOOP_QUERY_LIMIT)
 	error= (*end_select)(join, 0, 1);
@@ -19112,9 +19110,12 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     }
     else if (join->send_row_on_empty_set())
     {
-      List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
-                                 fields);
-      rc= join->result->send_data(*columns_list);
+      if (!join->having || join->having->val_int())
+      {
+        List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
+                                   fields);
+        rc= join->result->send_data(*columns_list);
+      }
     }
     /*
       An error can happen when evaluating the conds 
