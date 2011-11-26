@@ -17,6 +17,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #define UNICODE
 #endif
 
+#include <winsock2.h>
 #include <windows.h>
 #include <winreg.h>
 #include <msi.h>
@@ -26,7 +27,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #include <string.h>
 #include <strsafe.h>
 #include <assert.h>
-
+#include <shellapi.h>
+#include <stdlib.h>
 #include <winservice.h>
 
 #define ONE_MB 1048576

@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-
+#include <shellapi.h>
 
 /*
   Get version from an executable file

@@ -36,6 +36,10 @@
 #include "sql_show.h"                     // schema_table_store_record
 #include "sql_class.h"                    // THD
 
+#ifdef _WIN32
+#pragma comment(lib,"psapi.lib")
+#endif
+
 #define TIME_FLOAT_DIGITS 9
 /** two vals encoded: (len*100)+dec */
 #define TIME_I_S_DECIMAL_SIZE (TIME_FLOAT_DIGITS*100)+(TIME_FLOAT_DIGITS-3)

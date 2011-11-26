@@ -231,7 +231,7 @@ static int init(void *p)
   i_s_feedback->idx_field1 = 0;               ///< virtual index on the 1st col
 
 #define PSI_register(X) \
-  PSI_server->register_ ## X("feedback", X ## _list, array_elements(X ## _list))
+  if(PSI_server) PSI_server->register_ ## X("feedback", X ## _list, array_elements(X ## _list))
 
   PSI_register(mutex);
   PSI_register(cond);
