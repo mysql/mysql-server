@@ -15,7 +15,9 @@
 
 #include <m_string.h>
 #include "../ma_pagecache.h"
-
+#ifdef _WIN32
+#include <direct.h>
+#endif
 /*
   File content descriptor
 */
