@@ -156,6 +156,8 @@ drop table t1, t2, t3;
 CREATE TABLE t2 ( f2 int(11)) ;
 CREATE TABLE t1 ( f3 int(11), KEY (f3)) ;
 INSERT INTO t1 VALUES (6),(4);
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 EXPLAIN
 SELECT * FROM (SELECT * FROM t2) AS a2
 WHERE (SELECT distinct SUM(distinct f3 ) FROM t1);
@@ -171,6 +173,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
 3	SUBQUERY	t1	index	NULL	f3	5	NULL	2	Using index
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+set optimizer_switch=@tmp_optimizer_switch;
 drop table t1,t2;
 #
 # LP BUG#715027 Assertion `!table || (!table->read_set || bitmap_is_set(table->read_set, field_index))' failed
@@ -179,6 +182,8 @@ CREATE TABLE t1 ( f1 int(11), PRIMARY KEY (f1)) ;
 INSERT INTO t1 VALUES (28),(29);
 CREATE TABLE t2 ( f2 int(11), f3 int(11), f10 varchar(1)) ;
 INSERT INTO t2 VALUES (NULL,6,'f'),(4,2,'d');
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 EXPLAIN
 SELECT alias2.f2 AS field1
 FROM t1 AS alias1 JOIN ( SELECT * FROM t2 ) AS alias2 ON alias2.f3 = alias1.f1
@@ -203,6 +208,7 @@ WHERE t1.f1 AND alias2.f10
 )
 ORDER BY field1 ;
 field1
+set optimizer_switch=@tmp_optimizer_switch;
 drop table t1,t2;
 #
 # LP BUG#718578 Yet another Assertion `!table ||

@@ -925,8 +925,11 @@ set @@optimizer_switch='materialization=off';
 # 
 # FirstMatch referring to a derived table
 #
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain select * from (select a from t0) X where a in (select a from t1);
 drop table t0, t1;
+set optimizer_switch=@tmp_optimizer_switch;
 
 #
 # LooseScan: Check if we can pick it together with range access

@@ -1022,12 +1022,15 @@ CREATE TABLE t1 (a INTEGER);
 CREATE TABLE t2 (b INTEGER);
 INSERT INTO t2 VALUES (1);
 
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 let $query =
 SELECT a FROM (
   SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
 ) table1;
 eval explain $query;
 eval $query;
+set optimizer_switch=@tmp_optimizer_switch;
 
 DROP TABLE t1, t2;
 

@@ -1250,12 +1250,15 @@ SELECT v
 FROM t2);
 
 --echo
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 EXPLAIN 
 SELECT MIN(a)
 FROM (SELECT a FROM empty1) tt
 HAVING ('m') IN ( 
 SELECT v
 FROM t2);
+set optimizer_switch=@tmp_optimizer_switch;
 
 --echo 
 --echo #

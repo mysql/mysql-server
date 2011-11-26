@@ -94,8 +94,11 @@ explain extended (select * from t2 where t2.b=(select a from t3 order by 1 desc 
 select (select a from t3 where a<t2.a*4 order by 1 desc limit 1), a from t2;
 select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 (select * from t2 where a>1) as tt;
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain extended select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 (select * from t2 where a>1) as tt;
+set optimizer_switch=@tmp_optimizer_switch;
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3 where t3.a > t1.a) order by 1 desc limit 1);
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3 where t3.a < t1.a) order by 1 desc limit 1);
@@ -4648,7 +4651,10 @@ CREATE TABLE t1 (a INT, b INT, INDEX (a));
 INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
 
 --echo
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
+set optimizer_switch=@tmp_optimizer_switch;
 --echo
 EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
 

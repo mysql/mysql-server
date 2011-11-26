@@ -279,8 +279,11 @@ CREATE TABLE t1 (a int) ;
 CREATE TABLE t2 (a int) ;
 INSERT INTO t2 VALUES (8);
 
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 EXPLAIN EXTENDED
 SELECT * FROM ( SELECT t1.a FROM t1,t2 WHERE t2.a = t1.a ) AS t;
+set optimizer_switch=@tmp_optimizer_switch;
 
 DROP TABLE t1,t2;
 

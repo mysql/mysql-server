@@ -1690,6 +1690,9 @@ INSERT INTO t2 VALUES (1,2,4,'22:34:09','v','v'),
   (18,3,9,'19:39:02','v','v'),(19,9,1,NULL,NULL,NULL),
   (20,6,5,'20:58:33','r','r');
 
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+
 explain
 SELECT
   alias1.a, alias1.b, alias1.c, alias1.d, alias1.e, alias1.f,
@@ -1719,6 +1722,8 @@ WHERE
   alias1.c IN (SELECT SQ3_alias1.b 
                FROM t2 AS SQ3_alias1 STRAIGHT_JOIN t2 AS SQ3_alias2)
 LIMIT 100;
+
+set optimizer_switch=@tmp_optimizer_switch;
 
 drop table t1,t2, t3;
 set optimizer_switch=@tmp_830993;

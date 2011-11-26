@@ -99,6 +99,7 @@ insert into t1 values (1,1), (2,null), (3,1), (4,1),
 #
 set @tmp_optimizer_switch=@@optimizer_switch;
 set optimizer_switch='index_condition_pushdown=off';
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain
 select 1 from t1 natural join (select 2 as a, 1 as b union all
 select 2 as a, 2 as b) as t2 for update;
@@ -306,6 +307,7 @@ begin;
 # Verify that JT_EQ_REF is used.
 set @tmp_optimizer_switch=@@optimizer_switch;
 set optimizer_switch='index_condition_pushdown=off';
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain
 select 1 from t1 natural join (select 3 as a, 2 as b union all
 select 3 as a, 1 as b) as t2 for update;

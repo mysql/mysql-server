@@ -598,6 +598,8 @@ protected:
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
                                     OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
+                                    OPTIMIZER_SWITCH_DERIVED_MERGE | \
+                                    OPTIMIZER_SWITCH_DERIVED_WITH_KEYS | \
                                     OPTIMIZER_SWITCH_TABLE_ELIMINATION | \
                                     OPTIMIZER_SWITCH_IN_TO_EXISTS | \
                                     OPTIMIZER_SWITCH_MATERIALIZATION | \
