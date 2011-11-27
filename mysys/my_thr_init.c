@@ -355,13 +355,16 @@ void my_thread_end(void)
     PSI_server->delete_current_thread();
 #endif
 
+  DBUG_POP();
+
+  pthread_setspecific(THR_KEY_mysys,0);
+
   if (tmp && tmp->init)
   {
 #if !defined(DBUG_OFF)
     /* tmp->dbug is allocated inside DBUG library */
     if (tmp->dbug)
     {
-      DBUG_POP();
       free(tmp->dbug);
       tmp->dbug=0;
     }
@@ -384,7 +387,6 @@ void my_thread_end(void)
     TRASH(tmp, sizeof(*tmp));
     free(tmp);
   }
-  pthread_setspecific(THR_KEY_mysys,0);
 }
 
 struct st_my_thread_var *_my_thread_var(void)

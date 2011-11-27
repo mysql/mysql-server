@@ -4620,7 +4620,7 @@ static void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
     base_type [(dimension)] [unsigned] [zerofill].
     For DATA_TYPE column we extract only base type.
   */
-  tmp_buff= strchr(column_type.ptr(), '(');
+  tmp_buff= strchr(column_type.c_ptr_safe(), '(');
   if (!tmp_buff)
     /*
       if there is no dimention part then check the presence of
