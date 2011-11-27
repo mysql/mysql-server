@@ -434,10 +434,10 @@ UNIV_INTERN ulint	srv_checkpoint_age_target = 0;
 UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
 
 UNIV_INTERN ulint	srv_deprecated_enable_unsafe_group_commit = 0;
-UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
-UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
+UNIV_INTERN ulong	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
+UNIV_INTERN ulong	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
 
-UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
+UNIV_INTERN ulong	srv_expand_import = 0; /* 0:disable 1:enable */
 UNIV_INTERN ulong	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
 
 UNIV_INTERN ulint	srv_dict_size_limit = 0;

@@ -81,6 +81,7 @@ SET (SQL_SOURCE
                create_options.cc multi_range_read.cc
                opt_index_cond_pushdown.cc opt_subselect.cc
                opt_table_elimination.cc sql_expression_cache.cc
+               gcalc_slicescan.cc gcalc_tools.cc
 
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})

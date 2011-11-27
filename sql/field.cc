@@ -7524,7 +7524,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
       goto err;
     // Check given WKB
     uint32 wkb_type;
-    if (length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE*2)
+    if (length < SRID_SIZE + WKB_HEADER_SIZE + 4)
       goto err;
     wkb_type= uint4korr(from + SRID_SIZE + 1);
     if (wkb_type < (uint32) Geometry::wkb_point ||

@@ -12095,7 +12095,7 @@ static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_sample_pages,
   "The number of index pages to sample when calculating statistics (default 8)",
   NULL, NULL, 8, 1, ~0ULL, 0);
 
-static MYSQL_SYSVAR_ULONG(stats_auto_update, srv_stats_auto_update,
+static MYSQL_SYSVAR_ULINT(stats_auto_update, srv_stats_auto_update,
   PLUGIN_VAR_RQCMDARG,
   "Enable/Disable InnoDB's auto update statistics of indexes. "
   "(except for ANALYZE TABLE command) 0:disable 1:enable",
@@ -12121,7 +12121,7 @@ static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
   "Disable with --skip-innodb-adaptive-hash-index.",
   NULL, innodb_adaptive_hash_index_update, TRUE);
 
-static MYSQL_SYSVAR_ULONG(adaptive_hash_index_partitions, btr_search_index_num,
+static MYSQL_SYSVAR_ULINT(adaptive_hash_index_partitions, btr_search_index_num,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of InnoDB adaptive hash index partitions (default 1: disable partitioning)",
   NULL, NULL, 1, 1, sizeof(ulint) * 8, 0);
@@ -12338,7 +12338,7 @@ static MYSQL_SYSVAR_ULINT(checkpoint_age_target, srv_checkpoint_age_target,
   "Control soft limit of checkpoint age. (0 : not control)",
   NULL, NULL, 0, 0, ~0UL, 0);
 
-static MYSQL_SYSVAR_ULONG(flush_neighbor_pages, srv_flush_neighbor_pages,
+static MYSQL_SYSVAR_ULINT(flush_neighbor_pages, srv_flush_neighbor_pages,
   PLUGIN_VAR_RQCMDARG,
   "Enable/Disable flushing also neighbor pages. 0:disable 1:enable",
   NULL, NULL, 1, 0, 1, 0);
@@ -12412,7 +12412,7 @@ static MYSQL_SYSVAR_ULONG(import_table_from_xtrabackup, srv_expand_import,
   "Enable/Disable converting automatically *.ibd files when import tablespace.",
   NULL, NULL, 0, 0, 1, 0);
 
-static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
+static MYSQL_SYSVAR_ULINT(dict_size_limit, srv_dict_size_limit,
   PLUGIN_VAR_RQCMDARG,
   "Limit the allocated memory for dictionary cache. (0: unlimited)",
   NULL, NULL, 0, 0, LONG_MAX, 0);
