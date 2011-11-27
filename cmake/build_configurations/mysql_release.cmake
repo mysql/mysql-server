@@ -115,9 +115,9 @@ IF(UNIX)
     OPTION(WITH_LIBEDIT  "" ON)
   ENDIF()
 
-  OPTION(WITH_PIC "" ON) # Why?
 
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+
     IF(NOT IGNORE_AIO_CHECK)
       # Ensure aio is available on Linux (required by InnoDB)
       CHECK_INCLUDE_FILES(libaio.h HAVE_LIBAIO_H)
@@ -133,6 +133,14 @@ IF(UNIX)
         If you really do not want it, pass -DIGNORE_AIO_CHECK to cmake.
         ")
       ENDIF()
+
+      # Remove libaio dependency from mysqld
+      SET(XTRADB_PREFER_STATIC_LIBAIO 1)
+
+      # Unfortunately, linking shared libmysqld with static aio
+      # does not work,  unless we add also dynamic one. This also means
+      # libmysqld.so will depend on libaio.so
+      SET(LIBMYSQLD_SO_EXTRA_LIBS aio)
     ENDIF()
 
     # Enable fast mutexes on Linux

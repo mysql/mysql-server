@@ -129,6 +129,7 @@ err:
 #elif defined(_WIN32)
 #include <winsock2.h>
 #include <iphlpapi.h>
+#pragma comment(lib, "iphlpapi.lib")
 
 #define ETHER_ADDR_LEN 6
 
@@ -142,7 +143,7 @@ my_bool my_gethwaddr(uchar *to)
   if (GetAdaptersInfo(info, &info_len) != ERROR_BUFFER_OVERFLOW)
     goto err;
 
-  info= alloca(info_len);
+  info= (IP_ADAPTER_INFO *)alloca(info_len);
 
   if (GetAdaptersInfo(info, &info_len) != NO_ERROR)
     goto err;
