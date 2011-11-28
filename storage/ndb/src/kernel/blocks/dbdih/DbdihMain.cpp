@@ -6535,6 +6535,11 @@ Dbdih::removeNodeFromTablesComplete(Signal* signal, Uint32 nodeId){
    * Check if we (DIH) are finished with node fail handling
    */
   checkLocalNodefailComplete(signal, nodeId, NF_REMOVE_NODE_FROM_TABLE);
+
+  /**
+   * Are we ready to send MASTER_LCPCONF
+   */
+  sendMASTER_LCPCONF(signal, __LINE__);
 }
 
 void
@@ -6691,8 +6696,11 @@ Dbdih::checkEmptyLcpComplete(Signal *signal){
     req->failedNodeId = c_lcpMasterTakeOverState.failedNodeId;
     sendLoopMacro(MASTER_LCPREQ, sendMASTER_LCPREQ, RNIL);
 
-  } else {
-    sendMASTER_LCPCONF(signal);
+  }
+  else
+  {
+    jam();
+    sendMASTER_LCPCONF(signal, __LINE__);
   }
 }
 
@@ -6753,39 +6761,73 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
   {
     SET_ERROR_INSERT_VALUE(7210);
   }
-  
-  sendMASTER_LCPCONF(signal);
+
+  sendMASTER_LCPCONF(signal, __LINE__);
 }//Dbdih::execMASTER_LCPREQ()
 
 void
-Dbdih::sendMASTER_LCPCONF(Signal * signal){
-
-  if(!c_EMPTY_LCP_REQ_Counter.done()){
-    /**
-     * Have not received all EMPTY_LCP_REP 
-     * dare not answer MASTER_LCP_CONF yet
-     */
-    jam();
-    return;
-  }
-
-  if(!c_lcpState.m_MASTER_LCPREQ_Received){
+Dbdih::sendMASTER_LCPCONF(Signal * signal, Uint32 from)
+{
+  if (!c_lcpState.m_MASTER_LCPREQ_Received)
+  {
     jam();
     /**
      * Has not received MASTER_LCPREQ yet
      */
     return;
   }
-  
-  if(c_lcpState.lcpStatus == LCP_INIT_TABLES){
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  bool info = true;
+#else
+  bool info = false;
+#endif
+
+  if (!c_EMPTY_LCP_REQ_Counter.done())
+  {
+    /**
+     * Have not received all EMPTY_LCP_REP
+     * dare not answer MASTER_LCP_CONF yet
+     */
+    jam();
+    if (info)
+      infoEvent("from: %u : c_EMPTY_LCP_REQ_Counter.done() == false", from);
+    return;
+  }
+
+  if (c_lcpState.lcpStatus == LCP_INIT_TABLES)
+  {
     jam();
     /**
      * Still aborting old initLcpLab
      */
+    if (info)
+      infoEvent("from: %u : c_lcpState.lcpStatus == LCP_INIT_TABLES", from);
     return;
   }
 
-  if(c_lcpState.lcpStatus == LCP_COPY_GCI)
+  {
+    NodeRecordPtr failedNodePtr;
+    failedNodePtr.i = c_lcpState.m_MASTER_LCPREQ_FailedNodeId;
+    ptrCheckGuard(failedNodePtr, MAX_NDB_NODES, nodeRecord);
+
+    if (failedNodePtr.p->m_nodefailSteps.get(NF_REMOVE_NODE_FROM_TABLE))
+    {
+      jam();
+      /**
+       * remove node from tables still running
+       */
+      if (info)
+        infoEvent("from: %u : NF_REMOVE_NODE_FROM_TABLE not done for node %u",
+                  from, failedNodePtr.i);
+      return;
+    }
+  }
+
+  if (info)
+    infoEvent("from: %u : sendMASTER_LCPCONF", from);
+
+  if (c_lcpState.lcpStatus == LCP_COPY_GCI)
   {
     jam();
     /**
@@ -6887,11 +6929,12 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
     sendLCP_COMPLETE_REP(signal);
   }
 
-  if(!isMaster()){
+  if(!isMaster())
+  {
     c_lcpMasterTakeOverState.set(LMTOS_IDLE, __LINE__);
     checkLocalNodefailComplete(signal, failedNodeId, NF_LCP_TAKE_OVER);
   }
-  
+
   return;
 }
 
@@ -10887,7 +10930,14 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
   signal->theData[0] = DihContinueB::ZINIT_LCP;
   signal->theData[1] = c_lcpState.m_masterLcpDihRef;
   signal->theData[2] = 0;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  if (ERROR_INSERTED(7021))
+  {
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 3);
+  }
+  else
+  {
+    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  }
 }
 
 void
@@ -10946,30 +10996,6 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
 {
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
-
-  if(c_lcpState.m_masterLcpDihRef != senderRef){
-    jam();
-    /**
-     * This is LCP master takeover
-     */
-#ifdef VM_TRACE
-    g_eventLogger->info("initLcpLab aborted due to LCP master takeover - 1");
-#endif
-    c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
-    sendMASTER_LCPCONF(signal);
-    return;
-  }
-
-  if(c_lcpState.m_masterLcpDihRef != cmasterdihref){
-    jam();
-    /**
-     * Master take over but has not yet received MASTER_LCPREQ
-     */
-#ifdef VM_TRACE
-    g_eventLogger->info("initLcpLab aborted due to LCP master takeover - 2");
-#endif
-    return;
-  }
 
   //const Uint32 lcpId = SYSFILE->latestLCP_ID;
 
@@ -11034,6 +11060,11 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
 	  replicaCount++;
 	  replicaPtr.p->lcpOngoingFlag = true;
 	}
+        else if (replicaPtr.p->lcpOngoingFlag)
+        {
+          jam();
+          replicaPtr.p->lcpOngoingFlag = false;
+        }
       }
       
       fragPtr.p->noLcpReplicas = replicaCount;
@@ -11042,7 +11073,14 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
     signal->theData[0] = DihContinueB::ZINIT_LCP;
     signal->theData[1] = senderRef;
     signal->theData[2] = tabPtr.i + 1;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    if (ERROR_INSERTED(7021))
+    {
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 3);
+    }
+    else
+    {
+      sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    }
     return;
   }
 
@@ -11051,24 +11089,27 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
    */
   jam();
 
-  if (c_lcpState.m_masterLcpDihRef != reference()){
-    jam();
-    ndbrequire(!isMaster());
-    c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
-  } else {
-    jam();
-    ndbrequire(isMaster());
-  }
+  c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
 
   CRASH_INSERTION2(7023, isMaster());
   CRASH_INSERTION2(7024, !isMaster());
-  
+
   jam();
-  StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
-  conf->senderRef = reference();
-  sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal, 
-	     StartLcpConf::SignalLength, JBB);
-  return;
+  if (c_lcpState.m_masterLcpDihRef == senderRef)
+  {
+    jam();
+    StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
+               StartLcpConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    sendMASTER_LCPCONF(signal, __LINE__);
+    return;
+  }
+
 }//Dbdih::initLcpLab()
 
 /* ------------------------------------------------------------------------- */
