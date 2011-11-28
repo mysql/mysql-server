@@ -502,9 +502,7 @@
 # define HAVE_SETENV
 #define setenv(a,b,c) _putenv_s(a,b)
 #endif
-
-
-
+#define PSAPI_VERSION 1     /* for GetProcessMemoryInfo() */
 
 /*
   MySQL features

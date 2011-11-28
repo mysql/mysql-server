@@ -843,7 +843,7 @@ inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
       double rows;
       double read_time;
 
-      DBUG_ASSERT(subq_pred->test_set_strategy(SUBS_MATERIALIZATION));
+      //DBUG_ASSERT(subq_pred->test_set_strategy(SUBS_MATERIALIZATION));
       subq_pred->optimize(&rows, &read_time);
 
       subq_pred->jtbm_read_time= read_time;
@@ -15041,9 +15041,15 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   {
     /*
       HAVING will be checked after processing aggregate functions,
-      But WHERE should checkd here (we alredy have read tables)
+      But WHERE should checkd here (we alredy have read tables).
+      If there is join->exec_const_cond, and all tables are constant, then it
+      is equivalent to join->conds. exec_const_cond is already checked in the
+      beginning of JOIN::exec. If it is false, JOIN::exec returns zero
+      result already there, therefore execution reaches this point only if
+      exec_const_cond is TRUE. Since it is equvalent to join->conds, then
+      join->conds is also TRUE.
     */
-    if (!join->conds || join->conds->val_int())
+    if (!join->conds || join->exec_const_cond || join->conds->val_int())
     {
       error= (*end_select)(join, 0, 0);
       if (error == NESTED_LOOP_OK || error == NESTED_LOOP_QUERY_LIMIT)

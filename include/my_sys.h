@@ -194,7 +194,7 @@ extern void my_large_free(uchar *ptr);
 #endif /* HAVE_ALLOCA */
 
 #define my_safe_alloca(size, min_length) ((size <= min_length) ? my_alloca(size) : my_malloc(size,MYF(MY_FAE)))
-#define my_safe_afree(ptr, size, min_length) ((size <= min_length) ? (void)0 : my_free(ptr))
+#define my_safe_afree(ptr, size, min_length) ((size <= min_length) ? my_afree(ptr) : my_free(ptr))
 
 #ifndef errno				/* did we already get it? */
 #ifdef HAVE_ERRNO_AS_DEFINE

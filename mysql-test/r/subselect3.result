@@ -975,7 +975,7 @@ i1	i2
 # Baseline:
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	17
+Handler_read_rnd_next	18
 
 INSERT INTO t1 VALUES (NULL, NULL);
 FLUSH STATUS;
@@ -992,7 +992,7 @@ i1	i2
 # (read record from t1, but do not read from t2)
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	18
+Handler_read_rnd_next	19
 set @@optimizer_switch=@save_optimizer_switch2;
 DROP TABLE t1,t2;
 End of 5.1 tests
@@ -1023,6 +1023,8 @@ create table t11 select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) orde
 create table t12 select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 desc;
 create table t21 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 asc;
 create table t22 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 desc;
+set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch='materialization=off';
 update t22 set c = '2005-12-08 15:58:27' where a = 255;
 explain select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
@@ -1035,10 +1037,11 @@ select t21.* from t21,t22 where t21.a = t22.a and
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c
 256	67	NULL
+set @@optimizer_switch=@save_optimizer_switch;
 drop table t1, t11, t12, t21, t22;
 create table t1(a int);
 insert into t1 values (0),(1);
-set @@optimizer_switch='firstmatch=off';
+set @@optimizer_switch='firstmatch=off,materialization=off';
 explain 
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1112,6 +1115,8 @@ a
 18
 19
 set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch='materialization=off';
 explain select * from (select a from t0) X where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	
@@ -1134,10 +1139,11 @@ insert into t4 select a from t3;
 explain select * from t3 where a in (select t1.kp1 from t1,t4 where kp1<20
 and t4.pk=t1.c);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using where; LooseScan
+1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using index condition; Using where; LooseScan
 1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.c	1	Using index; FirstMatch(t1)
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer (flat, BNL join)
 drop table t1, t3, t4;
+set @@optimizer_switch=@save_optimizer_switch;
 create table t1 (a int) as select * from t0 where a < 5;
 set @save_max_heap_table_size=@@max_heap_table_size;
 set @@optimizer_switch='firstmatch=off,materialization=off';
@@ -1167,8 +1173,9 @@ create table t3 ( a int , filler char(100), key(a));
 insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
 explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	1	End temporary
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	1	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 select * from t3 where a in (select a from t2);
 a	filler
 1	filler
@@ -1207,6 +1214,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (flat, BNL join)
 drop table t1;
 set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch='materialization=off';
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 as select * from t1;
@@ -1267,11 +1276,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	range	a	a	5	NULL	8	Using where; Using index; LooseScan
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer (flat, BNL join)
 drop table t1,t2;
+set @@optimizer_switch=@save_optimizer_switch;
 create table t1 (a int, b int);
 insert into t1 select a,a from t0;
 create table t2 (a int, b int);
 insert into t2 select A.a + 10*B.a, A.a + 10*B.a from t0 A, t0 B;
-set @@optimizer_switch='firstmatch=off';
+set @@optimizer_switch='firstmatch=off,materialization=off';
 explain select * from t1 where (a,b) in (select a,b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Start temporary
@@ -1287,6 +1297,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 set @@optimizer_search_depth=@save_optimizer_search_depth;
 set @@optimizer_switch=@save_optimizer_switch;
 drop table t0, t1, t2;
+set @@optimizer_switch='materialization=off';
 create table t0 (a decimal(4,2));
 insert into t0 values (10.24), (22.11);
 create table t1 as select * from t0;
@@ -1325,6 +1336,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Y	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	PRIMARY	Z	ALL	NULL	NULL	NULL	NULL	6	Using where; End temporary; Using join buffer (flat, BNL join)
 drop table t0,t1,t2;
+set @@optimizer_switch=@save_optimizer_switch;
 
 BUG#37842: Assertion in DsMrr_impl::dsmrr_init, at handler.cc:4307
 
@@ -1386,6 +1398,8 @@ postalStripped varchar(100)
 );
 insert into t3 values (1,1, 'foo'), (2,2,'bar');
 The following must be converted to a semi-join:
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=off';
 explain extended SELECT a.idIndividual FROM t1 a 
 WHERE a.idIndividual IN 
 (	SELECT c.idObj FROM t3 cona 
@@ -1398,6 +1412,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	a	eq_ref	PRIMARY	PRIMARY	4	test.c.idObj	1	100.00	Using index; End temporary
 Warnings:
 Note	1003	select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`a`.`idIndividual` = `test`.`c`.`idObj`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
+set @@optimizer_switch=@save_optimizer_switch;
 drop table t1,t2,t3;
 #
 # BUG#47367 Crash in Name_resolution_context::process_error

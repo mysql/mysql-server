@@ -1030,9 +1030,8 @@ SELECT * FROM t1,t2,t3
 DROP TABLE t1,t2,t3;
 
 #
-# LP bug #823301: index merge union with prossible index scan  
+# LP bug #823301: index merge sort union with possible index scan  
 #              
-#
 
 CREATE TABLE t1 (
   a int, b int, c int, d int,
@@ -1058,5 +1057,38 @@ SET SESSION optimizer_switch=DEFAULT;
 
 DROP TABLE t1;
 
+#
+# LP bug #800184: possible index merge sort union   
+#              
+
+CREATE TABLE t1 (a int NOT NULL PRIMARY KEY, b int, c int, INDEX idx(c,b));
+INSERT INTO t1 VALUES (19,1,NULL), (20,5,7);
+
+EXPLAIN
+SELECT * FROM t1
+  WHERE t1.a>300 AND t1.c!=0 AND t1.b>=350 AND t1.b<=400 AND
+       (t1.c=0 OR t1.a=500);
+SELECT * FROM t1
+  WHERE t1.a>300 AND t1.c!=0 AND t1.b>=350 AND t1.b<=400 AND
+       (t1.c=0 OR t1.a=500);
+
+DROP TABLE t1;
+
+#
+# LP bug #891953: always true OR    
+#              
+
+CREATE TABLE t1 (a int PRIMARY KEY, b int, INDEX idx(b));
+INSERT INTO t1 VALUES (167,9999), (168,10000);
+
+EXPLAIN
+SELECT * FROM t1
+  WHERE a BETWEEN 4 AND 5 AND b IN (255,4) OR a IN (2,14,25) OR a!=2;
+SELECT * FROM t1
+  WHERE a BETWEEN 4 AND 5 AND b IN (255,4) OR a IN (2,14,25) OR a!=2;
+
+DROP TABLE t1;
+
 #the following command must be the last one in the file
 set session optimizer_switch='index_merge_sort_intersection=default';
+

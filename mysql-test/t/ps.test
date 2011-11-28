@@ -3379,3 +3379,31 @@ execute stmt using @a;
 set @a='2010-08-08';
 execute stmt using @a;
 execute stmt using @a;
+
+--echo #
+--echo # Bug #892725: look-up is changed for a full scan when executing PS
+--echo #
+
+create table t1 (a int primary key, b int);
+insert into t1 values
+  (7,70), (3,40), (4,40), (8,70), (1,70), (9,50), (2,70);
+
+prepare st from 'select * from t1 where a=8';
+
+flush status;
+execute st;
+show status like '%Handler_read%';
+flush status;
+execute st;
+show status like '%Handler_read%';
+flush status;
+select * from t1 use index() where a=3;
+show status like '%Handler_read%';
+flush status;
+execute st;
+show status like '%Handler_read%';
+
+deallocate prepare st;
+
+drop table t1;
+

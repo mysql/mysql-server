@@ -1356,12 +1356,12 @@ Subquery_cache_miss	0
 show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	0
+Handler_read_key	11
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	188
+Handler_read_rnd_next	145
 set optimizer_switch='subquery_cache=on';
 flush status;
 select a, b , exists (select * from t2 where b=d) as SUBSE, b in (select d from t2) as SUBSI, (select d from t2 where b=c) SUBSR from t1;
@@ -1385,12 +1385,12 @@ Subquery_cache_miss	18
 show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	27
+Handler_read_key	32
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	102
+Handler_read_rnd_next	84
 #several subqueries (several levels)
 set optimizer_switch='subquery_cache=off';
 flush status;

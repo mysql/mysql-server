@@ -79,18 +79,18 @@ id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t10	unique_suBquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
+2	SUBQUERY	t10	index	PRIMARY	PRIMARY	4	NULL	10	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`A`.`A` AS `A`,`test`.`A`.`B` AS `B`,`test`.`B`.`A` AS `A`,`test`.`B`.`B` AS `B` from `test`.`t1` left join (`test`.`t2` `A` join `test`.`t2` `B`) on((<in_optimizer>(`test`.`B`.`A`,<exists>(<primAry_index_lookup>(<cAche>(`test`.`B`.`A`) in t10 on PRIMARY))) And (`test`.`A`.`A` = `test`.`t1`.`A`))) where 1
+Note	1003	select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`A`.`A` AS `A`,`test`.`A`.`B` AS `B`,`test`.`B`.`A` AS `A`,`test`.`B`.`B` AS `B` from `test`.`t1` left join (`test`.`t2` `A` join `test`.`t2` `B`) on((<in_optimizer>(`test`.`B`.`A`,`test`.`B`.`A` in ( <mAteriAlize> (select `test`.`t10`.`pk` from `test`.`t10` ), <primAry_index_lookup>(`test`.`B`.`A` in <temporAry tABle> on distinct_key where ((`test`.`B`.`A` = `<suBquery2>`.`pk`))))) And (`test`.`A`.`A` = `test`.`t1`.`A`))) where 1
 t2 should be wrapped into OJ-nest, so we have "t1 LJ (t2 J t10)"
 explAin extended
 select * from t1 left join t2 on (t2.A= t1.A And t2.A in (select pk from t10));
 id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t10	unique_suBquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
+2	SUBQUERY	t10	index	PRIMARY	PRIMARY	4	NULL	10	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`t2`.`A` AS `A`,`test`.`t2`.`B` AS `B` from `test`.`t1` left join `test`.`t2` on((<in_optimizer>(`test`.`t2`.`A`,<exists>(<primAry_index_lookup>(<cAche>(`test`.`t2`.`A`) in t10 on PRIMARY))) And (`test`.`t2`.`A` = `test`.`t1`.`A`))) where 1
+Note	1003	select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`t2`.`A` AS `A`,`test`.`t2`.`B` AS `B` from `test`.`t1` left join `test`.`t2` on((<in_optimizer>(`test`.`t2`.`A`,`test`.`t2`.`A` in ( <mAteriAlize> (select `test`.`t10`.`pk` from `test`.`t10` ), <primAry_index_lookup>(`test`.`t2`.`A` in <temporAry tABle> on distinct_key where ((`test`.`t2`.`A` = `<suBquery2>`.`pk`))))) And (`test`.`t2`.`A` = `test`.`t1`.`A`))) where 1
 we shouldn't flatten if we're going to get a join of > MAX_TABLES.
 explain select * from 
 t1 s00, t1 s01,  t1 s02, t1 s03, t1 s04,t1 s05,t1 s06,t1 s07,t1 s08,t1 s09,
@@ -724,9 +724,10 @@ SELECT int_key FROM ot1
 WHERE int_nokey IN (SELECT it2.int_key
 FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	it1	index	NULL	int_key	4	NULL	2	Using index; Start temporary
-1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (flat, BNL join)
-1	PRIMARY	it2	ALL	int_key,datetime_key	NULL	NULL	NULL	20	Using where; End temporary
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	11	
+1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (flat, BNL join)
+2	SUBQUERY	it1	index	NULL	int_key	4	NULL	2	Using index
+2	SUBQUERY	it2	ALL	int_key,datetime_key	NULL	NULL	NULL	20	Using where
 DROP TABLE ot1, it1, it2;
 # End of BUG#38075
 #
@@ -798,9 +799,10 @@ INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii','iiii','ffff','ffff','ffff','f
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1)
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	13	func,func	1	100.00	
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Rowid-ordered scan
 Warnings:
-Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` > 0))
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
 pk
 2
@@ -966,9 +968,10 @@ FROM t1
 WHERE `varchar_nokey`  < 'n' XOR `pk`  )   ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	18	100.00	
-1	PRIMARY	t1	ref	varchar_key	varchar_key	3	test.t2.varchar_nokey	2	100.00	Using where; FirstMatch(t2)
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	8	func,func	1	100.00	
+2	SUBQUERY	t1	ALL	varchar_key	NULL	NULL	NULL	15	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t2`.`varchar_nokey` AS `varchar_nokey` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`varchar_key` = `test`.`t2`.`varchar_nokey`) and (`test`.`t1`.`varchar_nokey` = `test`.`t2`.`varchar_nokey`) and ((`test`.`t2`.`varchar_nokey` < 'n') xor `test`.`t1`.`pk`))
+Note	1003	select `test`.`t2`.`varchar_nokey` AS `varchar_nokey` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`varchar_nokey` = `test`.`t1`.`varchar_key`) and ((`test`.`t1`.`varchar_key` < 'n') xor `test`.`t1`.`pk`))
 SELECT varchar_nokey
 FROM t2  
 WHERE ( `varchar_nokey`  , `varchar_nokey`  )  IN (  
@@ -1046,9 +1049,11 @@ WHERE  t2.val LIKE 'a%' OR t2.val LIKE 'e%')
 AND t1.val IN (SELECT t3.val FROM t3
 WHERE  t3.val LIKE 'a%' OR t3.val LIKE 'e%');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Start temporary
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	5	Using where
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; End temporary
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	PRIMARY	<subquery3>	eq_ref	distinct_key	distinct_key	14	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	14	func	1	
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	5	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
 SELECT *
 FROM t1
 WHERE t1.val IN (SELECT t2.val FROM t2
@@ -1266,10 +1271,12 @@ explain
 select * from t1 A, t1 B
 where A.a = B.a and A.a in (select a from t2 C) and B.a in (select a from t2 D);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	Start temporary
+1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
 1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
-1	PRIMARY	C	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	PRIMARY	D	ALL	NULL	NULL	NULL	NULL	3	Using where; End temporary
+1	PRIMARY	<subquery3>	eq_ref	distinct_key	distinct_key	5	func	1	
+2	SUBQUERY	C	ALL	NULL	NULL	NULL	NULL	3	
+3	SUBQUERY	D	ALL	NULL	NULL	NULL	NULL	3	
 drop table t1, t2;
 # 
 # BUG#784441: Abort on semijoin with a view as the inner table
@@ -1284,7 +1291,7 @@ SELECT * FROM t1 INNER JOIN t2 ON t2.a != 0 AND t2.a IN (SELECT * FROM v1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
-2	DEPENDENT SUBQUERY	<derived3>	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	<derived3>	system	NULL	NULL	NULL	NULL	1	
 3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 SELECT * FROM t1 INNER JOIN t2 ON t2.a != 0 AND t2.a IN (SELECT * FROM v1);
 a	a
@@ -1387,9 +1394,10 @@ insert into t3 values('three'),( 'four');
 insert into t3 values('three'),( 'four');
 explain select * from t3 where t3.b in (select t2.b from t1 left join t2 on t1.a=t2.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	8	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	8	Using where; Using join buffer (flat, BNL join)
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 select * from t3 where t3.b in (select t2.b from t1 left join t2 on t1.a=t2.a);
 b
 drop table t1, t2, t3;
@@ -2060,4 +2068,37 @@ a
 3
 set optimizer_switch= @tmp_otimizer_switch;
 drop table t1,t2;
+#
+# Bug #887496: semijoin with IN equality for the second part of an index
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (9), (0), (8), (5);
+CREATE TABLE t2 (a int, b varchar(1), INDEX idx (b,a));
+INSERT INTO t2 VALUES (5,'r'), (5,'z');
+CREATE TABLE t3 (a int, b varchar(1), INDEX idx (b,a));
+INSERT INTO t3 VALUES (5,'r'), (5,'z');
+set @tmp_otimizer_switch= @@optimizer_switch;
+SET SESSION optimizer_switch='semijoin=on,firstmatch=on';
+SET SESSION optimizer_switch='loosescan=off';
+EXPLAIN
+SELECT * FROM t1 WHERE a IN (SELECT t2.a FROM t2,t3 WHERE t2.b = t3.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	idx	idx	9	NULL	2	Using where; Using index; Start temporary
+1	PRIMARY	t3	ref	idx	idx	4	test.t2.b	1	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (flat, BNL join)
+SELECT * FROM t1 WHERE a IN (SELECT t2.a FROM t2,t3 WHERE t2.b = t3.b);
+a
+5
+SET SESSION optimizer_switch='loosescan=on';
+EXPLAIN
+SELECT * FROM t1 WHERE a IN (SELECT t2.a FROM t2,t3 WHERE t2.b = t3.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	idx	idx	9	NULL	2	Using where; Using index; Start temporary
+1	PRIMARY	t3	ref	idx	idx	4	test.t2.b	1	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (flat, BNL join)
+SELECT * FROM t1 WHERE a IN (SELECT t2.a FROM t2,t3 WHERE t2.b = t3.b);
+a
+5
+set optimizer_switch= @tmp_otimizer_switch;
+DROP TABLE t1,t2,t3;
 set optimizer_switch=@subselect_sj_tmp;

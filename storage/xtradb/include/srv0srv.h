@@ -240,11 +240,11 @@ extern ulong	srv_ibuf_accel_rate;
 extern ulint	srv_checkpoint_age_target;
 extern ulint	srv_flush_neighbor_pages;
 extern ulint	srv_deprecated_enable_unsafe_group_commit;
-extern ulint	srv_read_ahead;
-extern ulint	srv_adaptive_flushing_method;
+extern ulong	srv_read_ahead;
+extern ulong	srv_adaptive_flushing_method;
 
 extern ulong	srv_expand_import;
-extern ulint	srv_pass_corrupt_table;
+extern ulong	srv_pass_corrupt_table;
 
 extern ulint	srv_dict_size_limit;
 

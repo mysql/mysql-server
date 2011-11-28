@@ -3765,3 +3765,64 @@ date('2010-10-10') between '2010-09-09' and ?
 execute stmt using @a;
 date('2010-10-10') between '2010-09-09' and ?
 0
+#
+# Bug #892725: look-up is changed for a full scan when executing PS
+#
+create table t1 (a int primary key, b int);
+insert into t1 values
+(7,70), (3,40), (4,40), (8,70), (1,70), (9,50), (2,70);
+prepare st from 'select * from t1 where a=8';
+flush status;
+execute st;
+a	b
+8	70
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+flush status;
+execute st;
+a	b
+8	70
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+flush status;
+select * from t1 use index() where a=3;
+a	b
+3	40
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	8
+flush status;
+execute st;
+a	b
+8	70
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+deallocate prepare st;
+drop table t1;

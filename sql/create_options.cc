@@ -547,7 +547,7 @@ my_bool engine_table_options_frm_read(const uchar *buff, uint length,
                                       TABLE_SHARE *share)
 {
   const uchar *buff_end= buff + length;
-  engine_option_value *end;
+  engine_option_value *UNINIT_VAR(end);
   MEM_ROOT *root= &share->mem_root;
   uint count;
   DBUG_ENTER("engine_table_options_frm_read");

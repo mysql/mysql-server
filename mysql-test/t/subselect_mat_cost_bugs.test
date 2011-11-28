@@ -323,13 +323,15 @@ create index key1 on t2 (kp1, kp2);
 create index key2 on t2 (kp1);
 create index key3 on t2 (kp2);
 
-set session optimizer_switch='default';
+SET @@optimizer_switch='materialization=off,semijoin=off,in_to_exists=on';
 
 analyze table t2;
 
 explain
 select c1 from t1 where c1 in (select kp1 from t2 where kp2 = 10 and c2 = 4) or c1 > 7;
 select c1 from t1 where c1 in (select kp1 from t2 where kp2 = 10 and c2 = 4) or c1 > 7;
+
+set @@optimizer_switch='default';
 
 drop table t1, t2;
 

@@ -1236,13 +1236,13 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
 
     if (result)
     {
+      result->keys_map= result_keys;
       if (result_keys.is_clear_all())
         result->type= SEL_TREE::ALWAYS;
       if ((result->type == SEL_TREE::MAYBE) ||
           (result->type == SEL_TREE::ALWAYS))
         return 1;
       /* SEL_TREE::IMPOSSIBLE is impossible here */
-      result->keys_map= result_keys; 
       *or_tree= result;
       was_ored= TRUE;
     }
@@ -8656,8 +8656,8 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
       continue;
     SEL_ARG *next=key_and(param, e1->next_key_part, e2->next_key_part,
                           clone_flag);
-    e1->increment_use_count(1);
-    e2->increment_use_count(1);
+    e1->incr_refs();
+    e2->incr_refs();
     if (!next || next->type != SEL_ARG::IMPOSSIBLE)
     {
       SEL_ARG *new_arg= e1->clone_and(e2);
