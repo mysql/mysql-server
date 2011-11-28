@@ -10713,23 +10713,28 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
    * KeyInfo
    */
   Uint32 totalLen = tcPtrP->primKeyLen;
+  if (totalLen == 0)
+  {
+    return 0;
+  }
 
-  if (totalLen)
+  Uint32 * save = dst;
+  do
   {
     ndbassert( tcPtrP->keyInfoIVal != RNIL );
     SectionReader keyInfoReader(tcPtrP->keyInfoIVal,
                                 g_sectionSegmentPool);
-    
+
     if (tcPtrP->m_flags & TcConnectionrec::OP_SCANKEYINFOPOSSAVED)
     {
       /* Second or higher range in an MRR scan
-       * Restore SectionReader to the last position it was in 
+       * Restore SectionReader to the last position it was in
        */
       bool ok= keyInfoReader.setPos(tcPtrP->scanKeyInfoPos);
       ndbrequire(ok);
     }
 
-    /* Get first word of next range and extract range 
+    /* Get first word of next range and extract range
      * length, number from it.
      * For non MRR, these will be zero.
      */
@@ -10741,15 +10746,19 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
     tcPtrP->m_corrFactorLo &= 0x0000FFFF;
     tcPtrP->m_corrFactorLo |= (range_no << 16);
     firstWord &= 0xF; // Remove length+range num from first word
-    
+
     /* Write range info to dst */
     *(dst++)= firstWord;
     bool ok= keyInfoReader.getWords(dst, rangeLen - 1);
+    ndbassert(ok);
+    if (unlikely(!ok))
+      break;
 
-    ndbrequire(ok);
-    
+    if (ERROR_INSERTED(5074))
+      break;
+
     tcPtrP->primKeyLen-= rangeLen;
-    
+
     if (rangeLen == totalLen)
     {
       /* All range information has been copied, free the section */
@@ -10764,9 +10773,26 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
     }
 
     return rangeLen;
-  }
+  } while (0);
 
-  return totalLen;
+  /**
+   * We enter here if there was some error in the keyinfo
+   *   this has (once) been seen in customer lab,
+   *   never at in the wild, and never in internal lab.
+   *   root-cause unknown, maybe ndbapi application bug
+   *
+   * Crash in debug, or ERROR_INSERT (unless 5074)
+   * else
+   *   generate an incorrect bound...that will make TUX abort the scan
+   */
+#ifdef ERROR_INSERT
+  ndbrequire(ERROR_INSERTED_CLEAR(5074));
+#else
+  ndbassert(false);
+#endif
+
+  * save = TuxBoundInfo::InvalidBound;
+  return 1;
 }
 
 /* -------------------------------------------------------------------------
