@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -56,7 +56,7 @@ This buffer is used for writing or reading a record that spans two
 row_merge_block_t.  Thus, it must be able to hold one merge record,
 whose maximum size is the same as the minimum size of
 row_merge_block_t. */
-typedef byte	mrec_buf_t[UNIV_PAGE_SIZE];
+typedef byte	mrec_buf_t[UNIV_PAGE_SIZE_MAX];
 
 /** @brief Merge record in row_merge_block_t.
 

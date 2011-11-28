@@ -1,3 +1,28 @@
+/*****************************************************************************
+
+Copyright (c) 2007, 2011,  Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
+
+/**
+ * @file fts/fts0pars.y
+ * FTS parser: input file for the GNU Bison parser generator
+ *
+ * Created 2007/5/9 Sunny Bains
+ */
+
 %{
 
 #include "mem0mem.h"
@@ -14,7 +39,7 @@ typedef int (*fts_scan)();
 
 extern int ftserror(const char* p);
 
-/* Required for reentrant parser */ 
+/* Required for reentrant parser */
 #define ftslex	fts_lexer
 
 #define YYERROR_VERBOSE
@@ -198,7 +223,8 @@ fts_lexer_create(
 	const byte*	query,
 	ulint		query_len)
 {
-	fts_lexer_t*	fts_lexer = ut_malloc(sizeof(fts_lexer_t));
+	fts_lexer_t*	fts_lexer = static_cast<fts_lexer_t*>(
+		ut_malloc(sizeof(fts_lexer_t)));
 
 	if (boolean_mode) {
 		fts0blex_init(&fts_lexer->yyscanner);
@@ -255,7 +281,5 @@ fts_parse(
 /*======*/
 	fts_ast_state_t*	state)
 {
-	extern int ftsparse();	/* To shutup the compiler */
-
 	return(ftsparse(state));
 }

@@ -975,3 +975,43 @@ eval $query;
 
 DROP VIEW v_t2;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug 13102033 - CRASH IN COPY_FUNCS IN SQL_SELECT.CC ON JOIN + 
+--echo #                GROUP BY + ORDER BY
+--echo #
+
+CREATE TABLE t1 (  
+  pk INTEGER NOT NULL,
+  i1 INTEGER NOT NULL,
+  i2 INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (7,8,1), (8,2,2);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+let query=
+SELECT t1.pk
+FROM v1, t1
+WHERE v1.i2 = 211
+  AND v1.i2 > 7
+  OR t1.i1 < 3
+GROUP BY t1.pk
+ORDER BY v1.i2;
+
+eval EXPLAIN $query;
+eval $query;
+
+let query=
+SELECT t1.pk
+FROM v1, t1
+WHERE (v1.i2 = 211 AND v1.i2 > 7)
+   OR (t1.i1 < 3 AND v1.i2 < 10);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP VIEW v1;
+DROP TABLE t1;

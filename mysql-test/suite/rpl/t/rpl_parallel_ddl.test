@@ -252,25 +252,74 @@ while ($n)
 
 connection master;
 
+let $n= $dbs;
 --disable_query_log
 
-let $n= $dbs;
+# Hunting after bug#13033076: to drop db:s on master concurrently as
+# well through 4 connections.
+
+--connect(con1, localhost, root,,)
+--connect(con2, localhost, root,,)
+--connect(con3, localhost, root,,)
+--connect(con4, localhost, root,,)
+
+let $reap_not_done= 0;
+
 while ($n)
 {
-  # DEBUG (to remove) bug#13033076
-  --connection slave
-  --echo "database d$n:"
-  --list_files $MYSQLD_DATADIR/d$n
-
-  --connection master
-  eval drop database d$n;
-  sync_slave_with_master;
+  --connection con1
+  if ($reap_not_done)
+  {
+    --reap
+  }
+  --send_eval drop database d$n;
   dec $n;
+
+  --connection con2
+  if ($reap_not_done)
+  {
+    --reap
+  }
+  --send_eval drop database d$n;
+  dec $n;
+
+  --connection con3
+  if ($reap_not_done)
+  {
+    --reap
+  }
+  --send_eval drop database d$n;
+  dec $n;
+
+  --connection con4
+  if ($reap_not_done)
+  {
+    --reap
+  }
+  --send_eval drop database d$n;
+  dec $n;
+  let $reap_not_done= 1;
 }
 
 --enable_query_log
 
---connection master
+  --connection con1
+  --reap
+  --disconnect con1
+ 
+  --connection con2
+  --reap
+  --disconnect con2
+  
+  --connection con3
+  --reap
+  --disconnect con3
+  
+  --connection con4
+  --reap
+  --disconnect con4
+
+connection master;
 sync_slave_with_master;
 
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;

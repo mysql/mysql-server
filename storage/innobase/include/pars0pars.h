@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -106,13 +106,13 @@ pars_sql(
 	pars_info_t*	info,	/*!< in: extra information, or NULL */
 	const char*	str);	/*!< in: SQL string */
 /*************************************************************//**
-Retrieves characters to the lexical analyzer. */
+Retrieves characters to the lexical analyzer.
+@return number of characters copied or 0 on EOF */
 UNIV_INTERN
-void
+int
 pars_get_lex_chars(
 /*===============*/
 	char*	buf,		/*!< in/out: buffer where to copy */
-	int*	result,		/*!< out: number of characters copied or EOF */
 	int	max_size);	/*!< in: maximum number of characters which fit
 				in the buffer */
 /*************************************************************//**
@@ -411,7 +411,7 @@ pars_create_table(
 	sym_node_t*	column_defs,	/*!< in: list of column names */
 	sym_node_t*	compact,	/* in: non-NULL if COMPACT table. */
 	sym_node_t*	block_size,	/* in: block size (can be NULL) */
-	void*		not_fit_in_memory __attribute__((unused)));
+	void*		not_fit_in_memory);
 					/*!< in: a non-NULL pointer means that
 					this is a table which in simulations
 					should be simulated as not fitting
@@ -713,7 +713,7 @@ is also used for some non-functions like the assignment ':=' */
 struct func_node_struct{
 	que_common_t	common;	/*!< type: QUE_NODE_FUNC */
 	int		func;	/*!< token code of the function name */
-	ulint		node_class;/*!< class of the function */
+	ulint		fclass;	/*!< class of the function */
 	que_node_t*	args;	/*!< argument(s) of the function */
 	UT_LIST_NODE_T(func_node_t) cond_list;
 				/*!< list of comparison conditions; defined

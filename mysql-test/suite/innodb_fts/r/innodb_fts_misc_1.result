@@ -34,50 +34,50 @@ INSERT INTO t2 (a2,b2) VALUES
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a2`) REFERENCES `t1` (`a1`) ON UPDATE CASCADE)
 DELETE FROM t1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a2`) REFERENCES `t1` (`a1`) ON UPDATE CASCADE)
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ;
-id1	a1	b1
-1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
-3	Optimizing MySQL	In this tutorial we will show ...
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ;
-id2	a2	b2
-1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
-3	Optimizing MySQL	In this tutorial we will show ...
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
-id1	a1	b1
-3	Optimizing MySQL	In this tutorial we will show ...
-6	MySQL Security	When configured properly, MySQL ...
-2	How To Use MySQL Well	After you went through a ...
-4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
-5	MySQL vs. YourSQL	In the following database comparison ...
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
-id2	a2	b2
-3	Optimizing MySQL	In this tutorial we will show ...
-6	MySQL Security	When configured properly, MySQL ...
-2	How To Use MySQL Well	After you went through a ...
-4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
-5	MySQL vs. YourSQL	In the following database comparison ...
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
-id1	a1	b1
-1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
-3	Optimizing MySQL	In this tutorial we will show ...
-5	MySQL vs. YourSQL	In the following database comparison ...
-6	MySQL Security	When configured properly, MySQL ...
-2	How To Use MySQL Well	After you went through a ...
-4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
-id2	a2	b2
-1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
-3	Optimizing MySQL	In this tutorial we will show ...
-5	MySQL vs. YourSQL	In the following database comparison ...
-6	MySQL Security	When configured properly, MySQL ...
-2	How To Use MySQL Well	After you went through a ...
-4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
-id1	a1	b1
-1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
-id2	a2	b2
-1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ;
+id1
+1
+3
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ;
+id2
+1
+3
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+id1
+3
+6
+2
+4
+5
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+id2
+3
+6
+2
+4
+5
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
+id1
+1
+3
+5
+6
+2
+4
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
+id2
+1
+3
+5
+6
+2
+4
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+id1
+1
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+id2
+1
 set global innodb_optimize_fulltext_only=1;
 optimize table t1;
 Table	Op	Msg_type	Msg_text
@@ -85,32 +85,32 @@ test.t1	optimize	status	OK
 set global innodb_optimize_fulltext_only=0;
 UPDATE t1 SET a1 = "changing column - on update cascade" , b1 = "to check foreign constraint" WHERE
 MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
-id1	a1	b1
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
-id2	a2	b2
-6	changing column - on update cascade	When configured properly, MySQL ...
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
-id1	a1	b1
-4	changing column - on update cascade	to check foreign constraint
-2	changing column - on update cascade	to check foreign constraint
-6	changing column - on update cascade	to check foreign constraint
-5	changing column - on update cascade	to check foreign constraint
-3	changing column - on update cascade	to check foreign constraint
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
-id2	a2	b2
-4	changing column - on update cascade	1. Never run mysqld as root. 2. ...
-2	changing column - on update cascade	After you went through a ...
-6	changing column - on update cascade	When configured properly, MySQL ...
-5	changing column - on update cascade	In the following database comparison ...
-3	changing column - on update cascade	In this tutorial we will show ...
-SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
-id2	a2	b2
-2	changing column - on update cascade	After you went through a ...
-3	changing column - on update cascade	In this tutorial we will show ...
-4	changing column - on update cascade	1. Never run mysqld as root. 2. ...
-5	changing column - on update cascade	In the following database comparison ...
-6	changing column - on update cascade	When configured properly, MySQL ...
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+id1
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+id2
+6
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
+id1
+4
+2
+6
+5
+3
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
+id2
+4
+2
+6
+5
+3
+SELECT id2 FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
+id2
+2
+3
+4
+5
+6
 DROP TABLE t2 , t1;
 create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
 create table t2 (s1 int, s2 varchar(200),
@@ -454,7 +454,7 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) CHARACTER SET = utf8 , ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8, ENGINE = InnoDB;
+) CHARACTER SET = utf8, ROW_FORMAT=COMPRESSED, ENGINE = InnoDB;
 INSERT INTO t1 (a,b) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
 ('How To Use MySQL Well','After you went through a ...'),
@@ -468,7 +468,7 @@ t1	CREATE TABLE `t1` (
   `b` text,
   PRIMARY KEY (`id`),
   FULLTEXT KEY `idx` (`a`,`b`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED
 INSERT INTO t1 (a,b) VALUES
 ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
 ('MySQL vs. YourSQL','In the following database comparison ...'),

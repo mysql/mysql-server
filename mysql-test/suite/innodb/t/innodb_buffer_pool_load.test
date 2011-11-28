@@ -36,6 +36,8 @@ while ($i)
 }
 -- enable_query_log
 
+# Accept 329 for 16k page size, 662 for 8k page size & 1392 for 4k page size
+-- replace_result 329 {checked_valid} 662 {checked_valid} 1392 {checked_valid}
 -- eval $check_cnt
 
 # Dump
@@ -83,6 +85,8 @@ SELECT variable_value
 FROM information_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
 
+# Accept 329 for 16k page size, 662 for 8k page size & 1392 for 4k page size
+-- replace_result 329 {checked_valid} 662 {checked_valid} 1392 {checked_valid}
 -- eval $check_cnt
 
 # Add some total garbage to the dump file

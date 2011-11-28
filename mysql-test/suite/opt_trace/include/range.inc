@@ -321,6 +321,8 @@ SET optimizer_switch="block_nested_loop=off";
 
 eval EXPLAIN $query;
 
+# The cost numbers can vary slightly depending on innodb-page-size
+--replace_regex /("cost"|"new_cost_for_plan"|"cost_for_plan"): [0-9]+\.[0-9]+/\1: ##.###/ 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 SET @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1,t2;

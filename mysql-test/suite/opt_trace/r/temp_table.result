@@ -128,7 +128,6 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 1054,
                 "key_length": 1040,
@@ -142,13 +141,11 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
                 "table": "intermediate_tmp_table",
                 "field": "col2"
               },
               {
                 "direction": "asc",
-                "database": "",
                 "table": "intermediate_tmp_table",
                 "field": "uniq"
               }
@@ -297,7 +294,6 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 1050,
                 "key_length": 13,
@@ -311,7 +307,6 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
                 "table": "intermediate_tmp_table",
                 "field": "uniq"
               }
@@ -471,7 +466,6 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 1050,
                 "key_length": 13,
@@ -485,7 +479,6 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
             "converting_tmp_table_to_myisam": {
               "cause": "memory_table_size_exceeded",
               "tmp_table_info": {
-                "database": "",
                 "table": "intermediate_tmp_table",
                 "row_length": 1050,
                 "key_length": 13,
@@ -499,7 +492,6 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
                 "table": "intermediate_tmp_table",
                 "field": "uniq"
               }

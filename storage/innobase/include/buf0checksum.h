@@ -11,14 +11,14 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /**************************************************//**
-@file buf/buf0checksum.c
-Buffer pool checksum functions, also linked from /extra/innochecksum.c
+@file buf/buf0checksum.h
+Buffer pool checksum functions, also linked from /extra/innochecksum.cc
 
 Created Aug 11, 2011 Vasil Dimov
 *******************************************************/
@@ -28,7 +28,11 @@ Created Aug 11, 2011 Vasil Dimov
 
 #include "univ.i"
 
+#ifndef UNIV_INNOCHECKSUM
+
 #include "buf0types.h"
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 /********************************************************************//**
 Calculates a page CRC32 which is stored to the page when it is written
@@ -66,6 +70,8 @@ buf_calc_page_old_checksum(
 /*=======================*/
 	const byte*	page);	/*!< in: buffer page */
 
+#ifndef UNIV_INNOCHECKSUM
+
 /********************************************************************//**
 Return a printable string describing the checksum algorithm.
 @return	algorithm name */
@@ -76,5 +82,7 @@ buf_checksum_algorithm_name(
 	srv_checksum_algorithm_t	algo);	/*!< in: algorithm */
 
 extern ulong	srv_checksum_algorithm;
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif /* buf0checksum_h */
