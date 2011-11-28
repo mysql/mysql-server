@@ -88,7 +88,4 @@ static const char *handler_error_messages[]=
   "Disk full"
 };
 
-extern void my_handler_error_register(void);
-extern void my_handler_error_unregister(void);
-
 #endif /* MYSYS_MY_HANDLER_ERRORS_INCLUDED */

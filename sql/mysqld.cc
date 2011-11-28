@@ -2340,15 +2340,8 @@ void close_connection(THD *thd, uint sql_errno)
   if (sql_errno)
     net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno), NULL);
 
-  if (global_system_variables.log_warnings > 3)
-  {
-    Security_context *sctx= &thd->main_security_ctx;
-    sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
-                      thd->thread_id,(thd->db ? thd->db : "unconnected"),
-                      sctx->user ? sctx->user : "unauthenticated",
-                      sctx->host_or_ip,
-                      (sql_errno ? ER(sql_errno) : "CLOSE_CONNECTION"));
-  }
+  thd->print_aborted_warning(3, sql_errno ? ER_DEFAULT(sql_errno)
+                                          : "CLOSE_CONNECTION");
 
   thd->disconnect();
 

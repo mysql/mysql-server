@@ -1072,20 +1072,8 @@ void end_connection(THD *thd)
     status_var_increment(thd->status_var.lost_connections);
   }
 
-  if (net->error && net->vio != 0)
-  {
-    if (!thd->killed && thd->variables.log_warnings > 1)
-    {
-      Security_context *sctx= thd->security_ctx;
-
-      sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
-                        thd->thread_id,(thd->db ? thd->db : "unconnected"),
-                        sctx->user ? sctx->user : "unauthenticated",
-                        sctx->host_or_ip,
-                        (thd->stmt_da->is_error() ? thd->stmt_da->message() :
-                         ER(ER_UNKNOWN_ERROR)));
-    }
-  }
+  if (!thd->killed && (net->error && net->vio != 0))
+    thd->print_aborted_warning(1, ER(ER_UNKNOWN_ERROR));
 }
 
 
@@ -1116,10 +1104,7 @@ void prepare_new_connection_state(THD* thd)
     if (thd->is_error())
     {
       thd->killed= KILL_CONNECTION;
-      sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
-                        thd->thread_id,(thd->db ? thd->db : "unconnected"),
-                        sctx->user ? sctx->user : "unauthenticated",
-                        sctx->host_or_ip, "init_connect command failed");
+      thd->print_aborted_warning(0, "init_connect command failed");
       sql_print_warning("%s", thd->stmt_da->message());
     }
     thd->proc_info=0;

@@ -1528,15 +1528,7 @@ void THD::awake(killed_state state_to_set)
   THD_CHECK_SENTRY(this);
   mysql_mutex_assert_owner(&LOCK_thd_data);
 
-  if (global_system_variables.log_warnings > 3)
-  {
-    Security_context *sctx= security_ctx;
-    sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
-                      thread_id,(db ? db : "unconnected"),
-                      sctx->user ? sctx->user : "unauthenticated",
-                      sctx->host_or_ip,
-                      "KILLED");
-  }
+  print_aborted_warning(3, "KILLED");
 
   /* Set the 'killed' flag of 'this', which is the target THD object. */
   killed= state_to_set;

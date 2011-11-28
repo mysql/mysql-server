@@ -2987,6 +2987,18 @@ public:
   LEX_STRING get_invoker_host() { return invoker_host; }
   bool has_invoker() { return invoker_user.length > 0; }
 
+  void print_aborted_warning(uint threshold, const char *reason)
+  {
+    if (global_system_variables.log_warnings > threshold)
+    {
+      Security_context *sctx= &main_security_ctx;
+      sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                        thread_id, (db ? db : "unconnected"),
+                        sctx->user ? sctx->user : "unauthenticated",
+                        sctx->host_or_ip, reason);
+    }
+  }
+
 private:
   /* 
     This reference points to the table arena when the expression

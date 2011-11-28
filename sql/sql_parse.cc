@@ -3751,14 +3751,7 @@ end_with_restore_list:
     if (tx_release)
     {
       thd->killed= KILL_CONNECTION;
-      if (global_system_variables.log_warnings > 3)
-      {
-        Security_context *sctx= &thd->main_security_ctx;
-        sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
-                          thd->thread_id,(thd->db ? thd->db : "unconnected"),
-                          sctx->user ? sctx->user : "unauthenticated",
-                          sctx->host_or_ip, "RELEASE");
-      }
+      thd->print_aborted_warning(3, "RELEASE");
     }
     my_ok(thd);
     break;
