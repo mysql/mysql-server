@@ -145,10 +145,13 @@ int Rpl_info_file::do_check_info(const ulong *uidx __attribute__((unused)),
     reason, we print out such information in here.
   */
   if (my_access(info_fname, F_OK | R_OK | W_OK))
-    sql_print_information("Info file %s cannot be accessed (errno %d)."
+  {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    sql_print_information("Info file %s cannot be accessed (Errcode: %d - %s)."
                           " Most likely this is a new slave or you are"
                           " changing the repository type.", info_fname,
-                          errno);
+                          errno, my_strerror(errbuf, sizeof(errbuf), errno));
+  }
 #endif
   return my_access(info_fname, F_OK);
 }

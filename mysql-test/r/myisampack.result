@@ -113,7 +113,7 @@ ERROR 42S02: Table 'test.t3' doesn't exist
 # ===== myisampack.4 =====
 #Tests the myisampack join operation with an existing destination .frm,.MYI,.MDI 
 #the command should fail with exit status 2
-myisampack: Can't create/write to file (Errcode: 17)
+myisampack: Can't create/write to file (Errcode: 17 - File exists)
 Aborted: file is not compressed
 DROP TABLE t1,t2,t3;
 DROP TABLE mysql_db1.t1;

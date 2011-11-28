@@ -1586,11 +1586,13 @@ innobase_mysql_tmpfile(void)
 		fd2 = dup(fd);
 #endif
 		if (fd2 < 0) {
+			char errbuf[MYSYS_STRERROR_SIZE];
 			DBUG_PRINT("error",("Got error %d on dup",fd2));
 			my_errno=errno;
 			my_error(EE_OUT_OF_FILERESOURCES,
 				 MYF(ME_BELL+ME_WAITTANG),
-				 "ib*", my_errno);
+				 "ib*", my_errno,
+				 my_strerror(errbuf, sizeof(errbuf), my_errno));
 		}
 		my_close(fd, MYF(MY_WME));
 	}
@@ -8586,6 +8588,7 @@ ha_innobase::info_low(
 
 			if (avail_space == ULLINT_UNDEFINED) {
 				THD*	thd;
+				char	errbuf[MYSYS_STRERROR_SIZE];
 
 				thd = ha_thd();
 
@@ -8597,8 +8600,11 @@ ha_innobase::info_low(
 					"space for table %s but its "
 					"tablespace has been discarded or "
 					"the .ibd file is missing. Setting "
-					"the free space to zero.",
-					ib_table->name);
+                                        "the free space to zero. "
+                                        "(errno: %d - %s)",
+					ib_table->name, errno,
+					my_strerror(errbuf, sizeof(errbuf),
+						    errno));
 
 				stats.delete_length = 0;
 			} else {
