@@ -493,7 +493,8 @@ row_ins_cascade_calc_update_vec(
 				ufield->field_no
 					= dict_table_get_nth_col_pos(
 					table, dict_col_get_no(col));
-				ufield->exp = NULL;
+
+				ufield->orig_len = 0;
 
 				ufield->new_val = parent_ufield->new_val;
 				ufield_len = dfield_get_len(&ufield->new_val);

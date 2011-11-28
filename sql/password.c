@@ -196,8 +196,8 @@ check_scramble_323(const unsigned char *scrambled, const char *message,
   struct my_rnd_struct rand_st;
   ulong hash_message[2];
   /* Big enough for checks. */
-  char buff[16], scrambled_buff[SCRAMBLE_LENGTH_323 + 1];
-  char *to, extra;
+  uchar buff[16], scrambled_buff[SCRAMBLE_LENGTH_323 + 1];
+  uchar *to, extra;
   const uchar *pos;
 
   /* Ensure that the scrambled message is null-terminated. */

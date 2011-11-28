@@ -2309,7 +2309,12 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in)
   if (thd->killed || !table)
     DBUG_RETURN(TRUE);
 
-  orig_table= *table;
+  /*
+    make a copy. we may need to restore it later.
+    don't use orig_table=*table, because we need an exact replica,
+    not a C++ copy that may modify the data in the copy constructor.
+  */
+  memcpy(&orig_table, table, sizeof(*table));
 
   if (open_unireg_entry(thd, table, table_list, table_name,
                         table->s->table_cache_key.str,
@@ -2322,9 +2327,10 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in)
       properly release name-lock in this case we should restore this
       object to its original state.
     */
-    *table= orig_table;
+    memcpy(table, &orig_table, sizeof(*table));
     DBUG_RETURN(TRUE);
   }
+  orig_table.alias.free();
 
   share= table->s;
   /*

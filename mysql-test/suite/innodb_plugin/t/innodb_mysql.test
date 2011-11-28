@@ -5,7 +5,7 @@
 #               main testing code t/innodb_mysql.test -> include/mix1.inc
 #
 
--- source include/have_innodb_plugin.inc
+-- source include/have_xtradb.inc
 -- source include/have_query_cache.inc
 
 let $engine_type= InnoDB;
