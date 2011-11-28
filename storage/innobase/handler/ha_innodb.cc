@@ -7765,6 +7765,70 @@ See http://bugs.mysql.com/32710 for expl. why we choose PROCESS. */
 	 && check_global_access(thd, PROCESS_ACL))
 
 /*****************************************************************//**
+Check whether there exist a column named as "FTS_DOC_ID", which is
+reserved for InnoDB FTS Doc ID
+@return TRUE if there exist a "FTS_DOC_ID" column */
+static
+ibool
+create_table_check_doc_id_col(
+/*==========================*/
+	trx_t*		trx,		/*!< in: InnoDB transaction handle */
+	TABLE*		form,		/*!< in: information on table
+					columns and indexes */
+	ulint*		doc_id_col)	/*!< out: Doc ID column number if
+					there exist a FTS_DOC_ID column,						ULINT_UNDEFINED if column is of the
+					wrong type/name/size */
+{
+	ibool		find_doc_id = FALSE;
+	ulint		i;
+
+	for (i = 0; i < form->s->fields; i++) {
+		Field*		field;
+		ulint		col_type;
+		ulint		col_len;
+		ulint		unsigned_type;
+
+		field = form->field[i];
+
+		col_type = get_innobase_type_from_mysql_type(&unsigned_type,
+							     field);
+
+		col_len = field->pack_length();
+
+		if (innobase_strcasecmp(field->field_name,
+					FTS_DOC_ID_COL_NAME) == 0) {
+
+			find_doc_id = TRUE;
+
+			/* Note the name is case sensitive due to
+			our internal query parser */
+			if (col_type == DATA_INT
+			    && !field->null_ptr
+			    && col_len == sizeof(doc_id_t) 
+			    && (strcmp(field->field_name,
+				      FTS_DOC_ID_COL_NAME) == 0)) {
+				*doc_id_col = i;
+			} else {
+				push_warning_printf(
+					(THD*) trx->mysql_thd,
+					Sql_condition::WARN_LEVEL_WARN,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: FTS_DOC_ID column must be "
+					"of BIGINT NOT NULL type, and named "
+					"in all capitalized characters");
+				my_error(ER_WRONG_COLUMN_NAME, MYF(0),
+					 field->field_name);
+				*doc_id_col = ULINT_UNDEFINED;
+			}
+
+			break;
+		}
+	}
+
+	return(find_doc_id);
+}
+
+/*****************************************************************//**
 Creates a table definition to an InnoDB database. */
 static
 int
@@ -7797,6 +7861,8 @@ create_table_def(
 	ulint		long_true_varchar;
 	ulint		charset_no;
 	ulint		i;
+	ulint		doc_id_col = 0;
+	ibool		has_doc_id_col = FALSE;
 
 	DBUG_ENTER("create_table_def");
 	DBUG_PRINT("enter", ("table_name: %s", table_name));
@@ -7826,16 +7892,36 @@ create_table_def(
 
 	n_cols = form->s->fields;
 
+	/* Check whether there already exists a FTS_DOC_ID column */
+	if (create_table_check_doc_id_col(trx, form, &doc_id_col)){
+
+		/* Raise error if the Doc ID column is of wrong type or name */
+		if (doc_id_col == ULINT_UNDEFINED) {
+			trx_commit_for_mysql(trx);
+
+			error = DB_ERROR;
+			goto error_ret;
+		} else {
+			has_doc_id_col = TRUE;
+		}
+	}
+
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	/* Adjust for the FTS hidden field */
 	if (flags2 & DICT_TF2_FTS) {
-		table = dict_mem_table_create(table_name, 0, n_cols + 1,
-					      flags, flags2);
+		/* Adjust for the FTS hidden field */
+		if (!has_doc_id_col) {
+			table = dict_mem_table_create(table_name, 0, n_cols + 1,
+						      flags, flags2);
 
-		/* Set the hidden doc_id column. */
-		table->fts->doc_col = n_cols;
+			/* Set the hidden doc_id column. */
+			table->fts->doc_col = n_cols;
+		} else {
+			table = dict_mem_table_create(table_name, 0, n_cols,
+						      flags, flags2);
+			table->fts->doc_col = doc_id_col;
+		}
 	} else {
 		table = dict_mem_table_create(table_name, 0, n_cols,
 					      flags, flags2);
@@ -7944,7 +8030,7 @@ err_col:
 	}
 
 	/* Add the FTS doc_id hidden column. */
-	if (flags2 & DICT_TF2_FTS) {
+	if (flags2 & DICT_TF2_FTS && !has_doc_id_col) {
 		fts_add_doc_id_column(table);
 	}
 
@@ -8660,16 +8746,64 @@ ha_innobase::create(
 		}
 	}
 
+	for (i = 0; i < form->s->keys; i++) {
+
+		if (i != static_cast<uint>(primary_key_no)) {
+
+			if ((error = create_index(trx, form, flags,
+						  norm_name, i))) {
+				goto cleanup;
+			}
+		}
+	}
+
 	/* Create the ancillary tables that are common to all FTS indexes on
 	this table. */
 	if (fts_indexes > 0) {
+		ulint	ret = 0;
+		ulint	fts_doc_col_no = 0;
+
 		innobase_table = dict_table_open_on_name_no_stats(
 			norm_name, TRUE, DICT_ERR_IGNORE_NONE);
 
 		ut_a(innobase_table);
 
+		/* Check whether there alreadys exist FTS_DOC_ID_INDEX */
+		ret = innobase_fts_check_doc_id_index(
+			innobase_table, &fts_doc_col_no);
+
+		/* Raise error if FTS_DOC_ID_INDEX is of wrong format */
+		if (ret == FTS_INCORRECT_DOC_ID_INDEX) {
+			push_warning_printf(thd,
+					    Sql_condition::WARN_LEVEL_WARN,
+					    ER_WRONG_NAME_FOR_INDEX,
+					    " InnoDB: Index name %s is reserved"
+					    " for the unique index on"
+					    " FTS_DOC_ID column for FTS"
+					    " Document ID indexing"
+					    " on table %s. Please check"
+					    " the index definition to"
+					    " make sure it is of correct"
+					    " type\n",
+					    FTS_DOC_ID_INDEX_NAME,
+					    innobase_table->name);
+
+			if (innobase_table->fts) {
+				fts_free(innobase_table);
+			}
+
+			dict_table_close(innobase_table, TRUE);
+			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
+				 FTS_DOC_ID_INDEX_NAME);
+			error = DB_ERROR;
+			goto cleanup;
+		} else if (ret == FTS_EXIST_DOC_ID_INDEX) {
+			ut_a(fts_doc_col_no == innobase_table->fts->doc_col);
+		}
+
 		error = fts_create_common_tables(
-			trx, innobase_table, norm_name, FALSE);
+			trx, innobase_table, norm_name,
+			(ret == FTS_EXIST_DOC_ID_INDEX));
 
 		error = convert_error_code_to_mysql(error, 0, NULL);
 
@@ -8677,17 +8811,6 @@ ha_innobase::create(
 
 		if (error) {
 			goto cleanup;
-		}
-	}
-
-	for (i = 0; i < form->s->keys; i++) {
-
-		if (i != (uint) primary_key_no) {
-
-			if ((error = create_index(trx, form, flags,
-						  norm_name, i))) {
-				goto cleanup;
-			}
 		}
 	}
 
