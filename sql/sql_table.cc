@@ -4719,7 +4719,11 @@ mysql_rename_table(handlerton *base, const char *old_db,
   if (error == HA_ERR_WRONG_COMMAND)
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
   else if (error)
-    my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
+  {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(ER_ERROR_ON_RENAME, MYF(0), from, to,
+             error, my_strerror(errbuf, sizeof(errbuf), error));
+  }
   DBUG_RETURN(error != 0);
 }
 
