@@ -11545,7 +11545,7 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
                                const Format_description_log_event *descr_event)
   : Log_event(buffer, descr_event)
 {
-  DBUG_ENTER("Gtid_log_event::Gtid_log_event");
+  DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *, uint, const Format_description_log_event *");
   uint8 const common_header_len=
     descr_event->common_header_len;
   uint8 const post_header_len=
@@ -11585,10 +11585,12 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, const Gtid_specification *spec_arg)
             LOG_EVENT_IGNORABLE_F : 0,
             Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
+  DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *, const Gtid_specification *)");
   spec= *spec_arg;
   global_sid_lock.rdlock();
   sid= *global_sid_map.sidno_to_sid(spec.gtid.sidno);
   global_sid_lock.unlock();
+  DBUG_VOID_RETURN;
 }
 
 Gtid_log_event::Gtid_log_event(THD* thd_arg)
@@ -11596,6 +11598,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg)
             LOG_EVENT_IGNORABLE_F : 0,
             Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
+  DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *)");
   spec= thd_arg->variables.gtid_next;
   if (spec.type == GTID_GROUP)
   {
@@ -11605,6 +11608,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg)
   }
   else
     sid.clear();
+  DBUG_VOID_RETURN;
 }
 #endif
 
@@ -11724,14 +11728,19 @@ Previous_gtids_log_event::Previous_gtids_log_event(THD* thd_arg,
 : Ignorable_log_event(thd_arg),
   gtid_set(&global_sid_map), gtid_set_inited(false)
 {
+  DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event(THD *, const Gtid_set *)");
   get_buf_from_set(set);
+  set->dbug_print("set");
+  DBUG_VOID_RETURN;
 }
 #endif
 
 Previous_gtids_log_event::~Previous_gtids_log_event()
 {
+  DBUG_ENTER("Previous_gtids_log_event::~Previous_gtids_log_event");
   DBUG_PRINT("info", ("encoded_buf=%p", encoded_buf));
   my_free(encoded_buf);
+  DBUG_VOID_RETURN;
 }
 
 #ifndef MYSQL_CLIENT
@@ -11739,7 +11748,7 @@ void Previous_gtids_log_event::pack_info(Protocol *protocol)
 {
   size_t length;
   global_sid_lock.rdlock();
-  char *str= get_str(&length);
+  char *str= get_str(&length, &Gtid_set::default_string_format);
   global_sid_lock.unlock();
   if (str != NULL)
   {
@@ -11756,7 +11765,7 @@ void Previous_gtids_log_event::print(FILE *file,
   IO_CACHE *const head= &print_event_info->head_cache;
 
   global_sid_lock.rdlock();
-  char *str= get_str();
+  char *str= get_str(NULL, &Gtid_set::commented_string_format);
   global_sid_lock.unlock();
   if (str != NULL)
   {
@@ -11773,61 +11782,72 @@ void Previous_gtids_log_event::print(FILE *file,
 
 void Previous_gtids_log_event::get_buf_from_set(const Gtid_set *gtid_set)
 {
+  DBUG_ENTER("Previous_gtids_log_event::get_buf_from_set(const Gtid_set *)");
   global_sid_lock.assert_some_lock();
   encoded_length= gtid_set->get_encoded_length();
   encoded_buf= (uchar *)my_malloc(encoded_length, MYF(MY_WME));
   if (encoded_buf != NULL)
     gtid_set->encode(encoded_buf);
+  DBUG_VOID_RETURN;
 }
 
 void Previous_gtids_log_event::get_set_from_buf(const uchar *buf, size_t size)
 {
+  DBUG_ENTER("Previous_gtids_log_event::get_set_from_buf(const uchar *, size_t)");
   global_sid_lock.assert_some_lock();
   if (gtid_set.add(buf, size) == RETURN_STATUS_OK)
     gtid_set_inited= true;
   else
     BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
+  DBUG_VOID_RETURN;
 }
 
 const uchar *Previous_gtids_log_event::get_buf()
 {
+  DBUG_ENTER("Previous_gtids_log_event::get_buf()");
   if (encoded_buf == NULL)
   {
     if (!gtid_set_inited)
-      return NULL;
+      DBUG_RETURN(NULL);
     get_buf_from_set(&gtid_set);
   }
-  return encoded_buf;
+  DBUG_RETURN(encoded_buf);
 }
 
 const Gtid_set *Previous_gtids_log_event::get_set()
 {
+  DBUG_ENTER("Previous_gtids_log_event::get_set()");
   if (!gtid_set_inited)
   {
     if (encoded_buf == NULL)
-      return NULL;
+      DBUG_RETURN(NULL);
     get_set_from_buf(encoded_buf, encoded_length);
     if (!gtid_set_inited)
-      return NULL;
+      DBUG_RETURN(NULL);
   }
-  return &gtid_set;
+  DBUG_RETURN(&gtid_set);
 }
 
-char *Previous_gtids_log_event::get_str(size_t *length_p)
+char *Previous_gtids_log_event::get_str(
+  size_t *length_p, const Gtid_set::String_format *string_format)
 {
+  DBUG_ENTER("Previous_gtids_log_event::get_str(size_t *)");
   if (get_set() != NULL)
   {
-    size_t length= gtid_set.get_string_length();
-    char* buf= (char *)my_malloc(length, MYF(MY_WME));
+    size_t length=
+      gtid_set.get_string_length(string_format);
+    DBUG_PRINT("info", ("string length= %ld", length));
+    gtid_set.dbug_print("set");
+    char* buf= (char *)my_malloc(length + 1, MYF(MY_WME));
     if (buf != NULL)
     {
-      gtid_set.to_string(buf, &Gtid_set::commented_string_format);
+      gtid_set.to_string(buf, string_format);
       if (length_p != NULL)
         *length_p= length;
     }
-    return buf;
+    DBUG_RETURN(buf);
   }
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 #ifndef MYSQL_CLIENT
@@ -11836,6 +11856,7 @@ bool Previous_gtids_log_event::write_data_body(IO_CACHE *file)
   DBUG_ENTER("Previous_gtids_log_event::write_data_body");
   if (get_buf() == NULL)
     DBUG_RETURN(1);
+  DBUG_PRINT("info", ("encoded_length=%ld", encoded_length));
   DBUG_RETURN(wrapper_my_b_safe_write(file, encoded_buf, encoded_length));
 }
 #endif
