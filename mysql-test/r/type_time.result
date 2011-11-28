@@ -210,6 +210,21 @@ DROP TABLE t1;
 # Start of 5.6 tests
 #
 #
+# WL#946 Testing <=> operator with TIME
+#
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('20:00:00'),('19:20:30');
+SELECT * FROM t1 WHERE a<=>'19:20:30';
+a
+19:20:30
+SELECT * FROM t1 WHERE a<=>TIME'19:20:30';
+a
+19:20:30
+SELECT * FROM t1 WHERE a<=>192030;
+a
+19:20:30
+DROP TABLE t1;
+#
 # WL#946: Testing rounding
 #
 CREATE TABLE t1 (a TIME);
