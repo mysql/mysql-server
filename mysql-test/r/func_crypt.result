@@ -43,7 +43,7 @@ old_password(NULL)
 NULL
 select password(NULL);
 password(NULL)
-NULL
+
 set global old_passwords=1;
 select password('');
 password('')
