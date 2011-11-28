@@ -6073,7 +6073,7 @@ GROUP BY field1	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 6,
-                    "cost": 4.3
+                    "cost": ##.###
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -6093,7 +6093,7 @@ GROUP BY field1	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "col_int_key",
-                    "cost": 2.2055,
+                    "cost": ##.###,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -6111,7 +6111,7 @@ GROUP BY field1	{
                         ] /* ranges */,
                         "index_only": false,
                         "rows": 4,
-                        "cost": 1.8133,
+                        "cost": ##.###,
                         "rowid_ordered": true,
                         "chosen": true
                       },
@@ -6123,7 +6123,7 @@ GROUP BY field1	{
                         ] /* ranges */,
                         "index_only": true,
                         "rows": 5,
-                        "cost": 2.0144,
+                        "cost": ##.###,
                         "rowid_ordered": false,
                         "chosen": false,
                         "cause": "cost"
@@ -6144,7 +6144,7 @@ GROUP BY field1	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 4,
-                    "cost_for_plan": 1.8133,
+                    "cost_for_plan": ##.###,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -6161,7 +6161,7 @@ GROUP BY field1	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 4,
-                    "cost": 3.9
+                    "cost": ##.###
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -6179,7 +6179,7 @@ GROUP BY field1	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "col_int_key",
-                    "cost": 1.8033,
+                    "cost": ##.###,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -6202,13 +6202,13 @@ GROUP BY field1	{
                     {
                       "access_type": "range",
                       "rows": 4,
-                      "cost": 1.8133,
+                      "cost": ##.###,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 2.6133,
+                "cost_for_plan": ##.###,
                 "rows_for_plan": 4,
                 "rest_of_plan": [
                   {
@@ -6224,10 +6224,10 @@ GROUP BY field1	{
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "cost_for_plan": 9.8133,
+                    "cost_for_plan": ##.###,
                     "rows_for_plan": 16,
                     "sort_cost": 16,
-                    "new_cost_for_plan": 25.813,
+                    "new_cost_for_plan": ##.###,
                     "chosen": true
                   }
                 ] /* rest_of_plan */
@@ -6245,7 +6245,7 @@ GROUP BY field1	{
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.8,
+                "cost_for_plan": ##.###,
                 "rows_for_plan": 4,
                 "rest_of_plan": [
                   {
@@ -6256,15 +6256,15 @@ GROUP BY field1	{
                         {
                           "access_type": "range",
                           "rows": 4,
-                          "cost": 7.2532,
+                          "cost": ##.###,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "cost_for_plan": 12.253,
+                    "cost_for_plan": ##.###,
                     "rows_for_plan": 16,
                     "sort_cost": 16,
-                    "new_cost_for_plan": 28.253,
+                    "new_cost_for_plan": ##.###,
                     "chosen": false
                   }
                 ] /* rest_of_plan */
@@ -6328,7 +6328,7 @@ GROUP BY field1	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 6,
-                    "cost": 4.3
+                    "cost": ##.###
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -6346,7 +6346,7 @@ GROUP BY field1	{
                   ] /* potential_range_indices */,
                   "best_covering_index_scan": {
                     "index": "col_int_key",
-                    "cost": 2.2055,
+                    "cost": ##.###,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -6365,7 +6365,7 @@ GROUP BY field1	{
                         ] /* ranges */,
                         "index_only": true,
                         "rows": 5,
-                        "cost": 2.0144,
+                        "cost": ##.###,
                         "rowid_ordered": false,
                         "chosen": true
                       }
@@ -6386,7 +6386,7 @@ GROUP BY field1	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 5,
-                    "cost_for_plan": 2.0144,
+                    "cost_for_plan": ##.###,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */

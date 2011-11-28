@@ -265,6 +265,7 @@ select unix_timestamp('1969-12-01 19:00:01');
 # up to INT_MAX32 because of the same reason.
 #
 select from_unixtime(-1);
+SELECT FROM_UNIXTIME(-0.000001);
 # check for from_unixtime(2^31-1) and from_unixtime(2^31)
 select from_unixtime(2147483647);
 select from_unixtime(2147483648);

@@ -341,7 +341,7 @@ extern int fts0blex (yyscan_t yyscanner);
 #undef YY_DECL
 #endif
 
-#line 48 "fts0blex.l"
+#line 73 "fts0blex.l"
 
 
 #line 348 "../include/fts0blex.h"

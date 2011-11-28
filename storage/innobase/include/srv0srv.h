@@ -26,8 +26,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -54,7 +54,7 @@ Created 10/10/1995 Heikki Tuuri
 extern const char*	srv_main_thread_op_info;
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
-extern const char	srv_mysql50_table_name_prefix[9];
+extern const char	srv_mysql50_table_name_prefix[10];
 
 /* When this event is set the lock timeout and InnoDB monitor
 thread starts running */
@@ -546,15 +546,6 @@ srv_set_io_thread_op_info(
 	ulint		i,	/*!< in: the 'segment' of the i/o thread */
 	const char*	str);	/*!< in: constant char string describing the
 				state */
-/*********************************************************************//**
-The master thread controlling the server.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_master_thread(
-/*==============*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
 /*******************************************************************//**
 Tells the purge thread that there has been activity in the database
 and wakes up the purge thread if it is suspended (not sleeping).  Note
@@ -587,25 +578,6 @@ UNIV_INTERN
 void
 srv_wake_master_thread(void);
 /*========================*/
-/*********************************************************************//**
-A thread which prints the info output by various InnoDB monitors.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_monitor_thread(
-/*===============*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
-/*************************************************************************
-A thread which prints warnings about semaphore waits which have lasted
-too long. These can be used to track bugs which cause hangs.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_error_monitor_thread(
-/*=====================*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
 /******************************************************************//**
 Outputs to a file the output of the InnoDB Monitor.
 @return FALSE if not all information printed
@@ -670,13 +642,46 @@ enum srv_thread_type
 srv_get_active_thread_type(void);
 /*============================*/
 
+extern "C" {
+
+/*********************************************************************//**
+A thread which prints the info output by various InnoDB monitors.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+DECLARE_THREAD(srv_monitor_thread)(
+/*===============================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+
+/*********************************************************************//**
+The master thread controlling the server.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+DECLARE_THREAD(srv_master_thread)(
+/*==============================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+
+/*************************************************************************
+A thread which prints warnings about semaphore waits which have lasted
+too long. These can be used to track bugs which cause hangs.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+DECLARE_THREAD(srv_error_monitor_thread)(
+/*=====================================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+
 /*********************************************************************//**
 Purge coordinator thread that schedules the purge tasks.
 @return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
-srv_purge_coordinator_thread(
-/*=========================*/
+DECLARE_THREAD(srv_purge_coordinator_thread)(
+/*=========================================*/
 	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
 						required by os_thread_create */
 
@@ -685,10 +690,11 @@ Worker thread that reads tasks from the work queue and executes them.
 @return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
-srv_worker_thread(
-/*==============*/
+DECLARE_THREAD(srv_worker_thread)(
+/*==============================*/
 	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
 						required by os_thread_create */
+} /* extern "C" */
 
 /*******************************************************************//**
 Wakes up the worker threads. */

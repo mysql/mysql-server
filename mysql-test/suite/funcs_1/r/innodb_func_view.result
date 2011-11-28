@@ -1,3 +1,4 @@
+SET timestamp=UNIX_TIMESTAMP('2010-01-01');
 DROP TABLE IF EXISTS t1_selects, t1_modes, t1_values;
 DROP VIEW  IF EXISTS v1;
 CREATE TABLE t1_values
@@ -3756,7 +3757,7 @@ NULL		2
 Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Truncated incorrect time value: ' ---äÖüß@µ*$-- '
+Warning	1292	Truncated incorrect time value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varbinary_1000` as time) AS `CAST(my_varbinary_1000 AS TIME)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3773,7 +3774,7 @@ NULL		2
 Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Truncated incorrect time value: ' ---äÖüß@µ*$-- '
+Warning	1292	Truncated incorrect time value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
 DROP VIEW v1;
 
 
@@ -3790,11 +3791,11 @@ NULL	NULL	1
 NULL	-1	5
 41:58:00	1 17:58	22
 Warnings:
-Warning	1292	Truncated incorrect time value: ''
+Warning	1292	Truncated incorrect time value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect time value: ' ---äÖüß@µ*$-- '
-Warning	1292	Truncated incorrect time value: '-1'
-Warning	1292	Truncated incorrect time value: '1 17:58'
+Warning	1292	Truncated incorrect time value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect time value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect time value: '1 17:58\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_binary_30` as time) AS `CAST(my_binary_30 AS TIME)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3809,11 +3810,11 @@ NULL	NULL	1
 NULL	-1                            	5
 41:58:00	1 17:58                       	22
 Warnings:
-Warning	1292	Truncated incorrect time value: ''
+Warning	1292	Truncated incorrect time value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect time value: ' ---äÖüß@µ*$-- '
-Warning	1292	Truncated incorrect time value: '-1'
-Warning	1292	Truncated incorrect time value: '1 17:58'
+Warning	1292	Truncated incorrect time value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect time value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect time value: '1 17:58\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 DROP VIEW v1;
 
 
@@ -3832,7 +3833,7 @@ NULL		2
 Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Truncated incorrect time value: ' ---äÖüß@µ*$-- '
+Warning	1292	Truncated incorrect time value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varchar_1000` as time) AS `CAST(my_varchar_1000 AS TIME)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3849,7 +3850,7 @@ NULL		2
 Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Truncated incorrect time value: ' ---äÖüß@µ*$-- '
+Warning	1292	Truncated incorrect time value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
 DROP VIEW v1;
 
 
@@ -3868,7 +3869,7 @@ NULL		2
 Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect time value: ' ---äÖüß@µ*$--'
+Warning	1292	Truncated incorrect time value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_char_30` as time) AS `CAST(my_char_30 AS TIME)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3885,7 +3886,7 @@ NULL		2
 Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect time value: ' ---äÖüß@µ*$--'
+Warning	1292	Truncated incorrect time value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
 DROP VIEW v1;
 
 
@@ -3932,13 +3933,10 @@ my_time, id FROM t1_values
 WHERE select_id = 46 OR select_id IS NULL order by id;
 CAST(my_time AS DATETIME)	my_time	id
 NULL	NULL	1
-0000-00-00 00:00:00	-838:59:59	2
-0000-00-00 00:00:00	838:59:59	3
-0000-00-00 13:00:00	13:00:00	4
-0000-00-00 10:00:00	10:00:00	5
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 838:59:59'
-Warning	1292	Incorrect datetime value: '0000-00-00 838:59:59'
+2009-11-27 01:00:01	-838:59:59	2
+2010-02-04 22:59:59	838:59:59	3
+2010-01-01 13:00:00	13:00:00	4
+2010-01-01 10:00:00	10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_time` as datetime) AS `CAST(my_time AS DATETIME)`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3947,13 +3945,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 46 OR select_id IS NULL) order by id;
 CAST(my_time AS DATETIME)	my_time	id
 NULL	NULL	1
-0000-00-00 00:00:00	-838:59:59	2
-0000-00-00 00:00:00	838:59:59	3
-0000-00-00 13:00:00	13:00:00	4
-0000-00-00 10:00:00	10:00:00	5
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 838:59:59'
-Warning	1292	Incorrect datetime value: '0000-00-00 838:59:59'
+2009-11-27 01:00:01	-838:59:59	2
+2010-02-04 22:59:59	838:59:59	3
+2010-01-01 13:00:00	13:00:00	4
+2010-01-01 10:00:00	10:00:00	5
 DROP VIEW v1;
 
 
@@ -4044,13 +4039,12 @@ CAST(my_double AS DATETIME)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e308	2
 NULL	1.7976931348623e308	3
-NULL	0	4
+0000-00-00 00:00:00	0	4
 NULL	-1	5
 NULL	200506271758	19
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
-Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 SHOW CREATE VIEW v1;
@@ -4063,13 +4057,12 @@ CAST(my_double AS DATETIME)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e308	2
 NULL	1.7976931348623e308	3
-NULL	0	4
+0000-00-00 00:00:00	0	4
 NULL	-1	5
 NULL	200506271758	19
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
-Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 DROP VIEW v1;
@@ -4084,13 +4077,12 @@ CAST(my_bigint AS DATETIME)	my_bigint	id
 NULL	NULL	1
 NULL	-9223372036854775808	2
 NULL	9223372036854775807	3
-NULL	0	4
+0000-00-00 00:00:00	0	4
 NULL	-1	5
 NULL	200506271758	18
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
-Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 SHOW CREATE VIEW v1;
@@ -4103,13 +4095,12 @@ CAST(my_bigint AS DATETIME)	my_bigint	id
 NULL	NULL	1
 NULL	-9223372036854775808	2
 NULL	9223372036854775807	3
-NULL	0	4
+0000-00-00 00:00:00	0	4
 NULL	-1	5
 NULL	200506271758	18
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
-Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 DROP VIEW v1;
@@ -4130,7 +4121,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$-- '
+Warning	1292	Incorrect datetime value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -4148,7 +4139,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$-- '
+Warning	1292	Incorrect datetime value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 
@@ -4166,11 +4157,11 @@ NULL	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- 	4
 NULL	-1	5
 2005-06-27 17:58:00	2005-06-27 17:58	16
 Warnings:
-Warning	1292	Incorrect datetime value: ''
+Warning	1292	Incorrect datetime value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Incorrect datetime value: '<--------30 characters------->'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$-- '
-Warning	1292	Incorrect datetime value: '-1'
-Warning	1292	Truncated incorrect datetime value: '2005-06-27 17:58'
+Warning	1292	Incorrect datetime value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Incorrect datetime value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect datetime value: '2005-06-27 17:58\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_binary_30` as datetime) AS `CAST(my_binary_30 AS DATETIME)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -4185,11 +4176,11 @@ NULL	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--           	4
 NULL	-1                            	5
 2005-06-27 17:58:00	2005-06-27 17:58              	16
 Warnings:
-Warning	1292	Incorrect datetime value: ''
+Warning	1292	Incorrect datetime value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Incorrect datetime value: '<--------30 characters------->'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$-- '
-Warning	1292	Incorrect datetime value: '-1'
-Warning	1292	Truncated incorrect datetime value: '2005-06-27 17:58'
+Warning	1292	Incorrect datetime value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Incorrect datetime value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect datetime value: '2005-06-27 17:58\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 DROP VIEW v1;
 
 
@@ -4208,7 +4199,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$-- '
+Warning	1292	Incorrect datetime value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -4226,7 +4217,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$-- '
+Warning	1292	Incorrect datetime value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 
@@ -4246,7 +4237,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<--------30 characters------->'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$--'
+Warning	1292	Incorrect datetime value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -4264,7 +4255,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<--------30 characters------->'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$--'
+Warning	1292	Incorrect datetime value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 
@@ -4312,10 +4303,10 @@ my_time, id FROM t1_values
 WHERE select_id = 35 OR select_id IS NULL order by id;
 CAST(my_time AS DATE)	my_time	id
 NULL	NULL	1
-0000-00-00	-838:59:59	2
-0000-00-00	838:59:59	3
-0000-00-00	13:00:00	4
-0000-00-00	10:00:00	5
+2009-11-27	-838:59:59	2
+2010-02-04	838:59:59	3
+2010-01-01	13:00:00	4
+2010-01-01	10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_time` as date) AS `CAST(my_time AS DATE)`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -4324,10 +4315,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 35 OR select_id IS NULL) order by id;
 CAST(my_time AS DATE)	my_time	id
 NULL	NULL	1
-0000-00-00	-838:59:59	2
-0000-00-00	838:59:59	3
-0000-00-00	13:00:00	4
-0000-00-00	10:00:00	5
+2009-11-27	-838:59:59	2
+2010-02-04	838:59:59	3
+2010-01-01	13:00:00	4
+2010-01-01	10:00:00	5
 DROP VIEW v1;
 
 
@@ -4418,13 +4409,12 @@ CAST(my_double AS DATE)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e308	2
 NULL	1.7976931348623e308	3
-NULL	0	4
+0000-00-00	0	4
 NULL	-1	5
 2005-06-27	20050627	13
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
-Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -4436,13 +4426,12 @@ CAST(my_double AS DATE)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e308	2
 NULL	1.7976931348623e308	3
-NULL	0	4
+0000-00-00	0	4
 NULL	-1	5
 2005-06-27	20050627	13
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
-Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 
@@ -4456,13 +4445,12 @@ CAST(my_bigint AS DATE)	my_bigint	id
 NULL	NULL	1
 NULL	-9223372036854775808	2
 NULL	9223372036854775807	3
-NULL	0	4
+0000-00-00	0	4
 NULL	-1	5
 2005-06-27	20050627	12
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
-Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -4474,13 +4462,12 @@ CAST(my_bigint AS DATE)	my_bigint	id
 NULL	NULL	1
 NULL	-9223372036854775808	2
 NULL	9223372036854775807	3
-NULL	0	4
+0000-00-00	0	4
 NULL	-1	5
 2005-06-27	20050627	12
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
-Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 
@@ -4500,7 +4487,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$-- '
+Warning	1292	Incorrect datetime value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -4518,7 +4505,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$-- '
+Warning	1292	Incorrect datetime value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 
@@ -4536,11 +4523,11 @@ NULL	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- 	4
 NULL	-1	5
 2005-06-27	2005-06-27	10
 Warnings:
-Warning	1292	Incorrect datetime value: ''
+Warning	1292	Incorrect datetime value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Incorrect datetime value: '<--------30 characters------->'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$-- '
-Warning	1292	Incorrect datetime value: '-1'
-Warning	1292	Truncated incorrect date value: '2005-06-27'
+Warning	1292	Incorrect datetime value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Incorrect datetime value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect date value: '2005-06-27\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_binary_30` as date) AS `CAST(my_binary_30 AS DATE)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -4555,11 +4542,11 @@ NULL	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--           	4
 NULL	-1                            	5
 2005-06-27	2005-06-27                    	10
 Warnings:
-Warning	1292	Incorrect datetime value: ''
+Warning	1292	Incorrect datetime value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Incorrect datetime value: '<--------30 characters------->'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$-- '
-Warning	1292	Incorrect datetime value: '-1'
-Warning	1292	Truncated incorrect date value: '2005-06-27'
+Warning	1292	Incorrect datetime value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Incorrect datetime value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect date value: '2005-06-27\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 DROP VIEW v1;
 
 
@@ -4578,7 +4565,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$-- '
+Warning	1292	Incorrect datetime value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -4596,7 +4583,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$-- '
+Warning	1292	Incorrect datetime value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 
@@ -4616,7 +4603,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<--------30 characters------->'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$--'
+Warning	1292	Incorrect datetime value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -4634,7 +4621,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<--------30 characters------->'
-Warning	1292	Incorrect datetime value: ' ---äÖüß@µ*$--'
+Warning	1292	Incorrect datetime value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 

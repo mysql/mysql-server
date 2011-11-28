@@ -4442,4 +4442,48 @@ DROP TABLE t1, t2, t3;
 
 --echo # End of test for bug#13334882.
 
+--echo #
+--echo # Bug#13339643: Assertion on JOIN::flatten_subqueries on second execution
+--echo #
+
+CREATE TABLE t1 (
+  col_int_nokey INT,
+  col_varchar_nokey VARCHAR(1)
+);
+
+INSERT INTO t1 VALUES
+ (1,'o'),
+ (2,'t');
+
+CREATE TABLE t2 LIKE t1;
+
+INSERT INTO t2 VALUES
+ (1,'o'),
+ (4,'f');
+
+CREATE VIEW v_t2 AS SELECT * FROM t2;
+
+CREATE TABLE t3 LIKE t1;
+
+INSERT INTO t3 VALUES
+ (1,'o'),
+ (4,'f');
+
+let $query=
+SELECT alias1.col_varchar_nokey
+FROM t1 AS alias1
+     INNER JOIN v_t2 AS alias2
+     ON alias2.col_int_nokey = alias1.col_int_nokey AND
+          'o' IN (SELECT col_varchar_nokey
+                  FROM t3);
+eval explain $query;
+eval $query;
+
+eval PREPARE stmt FROM "$query";
+EXECUTE stmt;
+
+DROP VIEW v_t2;
+DROP TABLE t1, t2, t3;
+--echo # End of test for bug#13339643.
+
 --echo # End of 5.6 tests

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -42,6 +42,9 @@ Created 2011/09/02 Sunny Bains
 #include "que0types.h"
 #include "ft_global.h"
 
+/** "NULL" value of a document id. */
+#define FTS_NULL_DOC_ID			0
+
 /** FTS hidden column that is used to map to and from the row */
 #define FTS_DOC_ID_COL_NAME		"FTS_DOC_ID"
 
@@ -65,7 +68,7 @@ optimize using a 4 byte Doc ID for FIC merge sort to reduce sort size */
 typedef ib_uint64_t doc_id_t;
 
 /** doc_id_t printf format */
-#define FTS_DOC_ID_FORMAT	"%llu"
+#define FTS_DOC_ID_FORMAT	IB_ID_FMT
 
 /** Convert document id to the InnoDB (BIG ENDIAN) storage format. */
 #define fts_write_doc_id(d, s)	mach_write_to_8(d, s)
@@ -102,7 +105,7 @@ in the log */
 extern char		fts_enable_diag_print;
 
 /** FTS rank type, which will be between 0 .. 1 inclusive */
-typedef float fts_rank_t;
+typedef float 		fts_rank_t;
 
 /** Type of a row during a transaction. FTS_NOTHING means the row can be
 forgotten from the FTS system's POV, FTS_INVALID is an internal value used
@@ -969,17 +972,6 @@ ib_vector_t*
 fts_get_docs_create(
 /*================*/
 	fts_cache_t*	cache);			/*!< in: fts cache */
-/****************************************************************//**
-Add document to the cache. */
-UNIV_INTERN
-void
-fts_cache_add_doc(
-/*==============*/
-	fts_cache_t*    cache,			/*!< in: cache */
-	fts_index_cache_t*
-			index_cache,		/*!< in: index cache */
-	doc_id_t        doc_id,			/*!< in: doc id to add */
-	ib_rbt_t*       tokens);		/*!< in: document tokens */
 
 /****************************************************************//**
 Read the rows from the FTS index

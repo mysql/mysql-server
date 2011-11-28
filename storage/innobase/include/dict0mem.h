@@ -45,6 +45,9 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0types.h"
 #include "fts0fts.h"
 
+/* Forward declaration. */
+typedef struct ib_rbt_struct ib_rbt_t;
+
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
 /* @{ */
@@ -513,7 +516,7 @@ struct dict_index_struct{
 #ifdef UNIV_BLOB_DEBUG
 	mutex_t		blobs_mutex;
 				/*!< mutex protecting blobs */
-	void*		blobs;	/*!< map of (page_no,heap_no,field_no)
+	ib_rbt_t*	blobs;	/*!< map of (page_no,heap_no,field_no)
 				to first_blob_page_no; protected by
 				blobs_mutex; @see btr_blob_dbg_t */
 #endif /* UNIV_BLOB_DEBUG */
