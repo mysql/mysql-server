@@ -2964,7 +2964,12 @@ void handler::print_error(int error, myf errflag)
     textno=ER_FILE_USED;
     break;
   case ENOENT:
-    textno=ER_FILE_NOT_FOUND;
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      textno=ER_FILE_NOT_FOUND;
+      my_error(textno, errflag, table_share->table_name.str,
+               error, my_strerror(errbuf, sizeof(errbuf), error));
+    }
     break;
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:
@@ -3156,7 +3161,8 @@ void handler::print_error(int error, myf errflag)
       DBUG_VOID_RETURN;
     }
   }
-  my_error(textno, errflag, table_share->table_name.str, error);
+  if (textno != ER_FILE_NOT_FOUND)
+    my_error(textno, errflag, table_share->table_name.str, error);
   DBUG_VOID_RETURN;
 }
 

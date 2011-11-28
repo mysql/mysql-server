@@ -2793,7 +2793,9 @@ bool select_dump::send_data(List<Item> &items)
     }
     else if (my_b_write(&cache,(uchar*) res->ptr(),res->length()))
     {
-      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno);
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno,
+               my_strerror(errbuf, sizeof(errbuf), my_errno));
       goto err;
     }
   }
