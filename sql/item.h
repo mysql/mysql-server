@@ -3651,6 +3651,7 @@ public:
       return false;
     return example->is_expensive_processor(arg);
   }
+  virtual void set_null();
 };
 
 
@@ -3825,6 +3826,7 @@ public:
     DBUG_VOID_RETURN;
   }
   bool cache_value();
+  virtual void set_null();
 };
 
 

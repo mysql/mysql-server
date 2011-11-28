@@ -893,7 +893,10 @@ void Item_singlerow_subselect::reset()
 {
   Item_subselect::reset();
   if (value)
-    value->null_value= TRUE;
+  {
+    for(uint i= 0; i < engine->cols(); i++)
+      row[i]->set_null();
+  }
 }
 
 
@@ -1004,6 +1007,11 @@ void Item_singlerow_subselect::fix_length_and_dec()
   */
   if (engine->no_tables())
     maybe_null= engine->may_be_null();
+  else
+  {
+    for (uint i= 0; i < max_columns; i++)
+      row[i]->maybe_null= TRUE;
+  }
 }
 
 
