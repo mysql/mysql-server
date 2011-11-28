@@ -76,11 +76,11 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   # We use the InnoDB code directly in case the code changes.
   ADD_DEFINITIONS("-DUNIV_INNOCHECKSUM")
   SET(INNOBASE_SOURCES
-      ../storage/innobase/buf/buf0checksum.c
-      ../storage/innobase/ut/ut0crc32.c
-      ../storage/innobase/ut/ut0ut.c
+      ../storage/innobase/buf/buf0checksum.cc
+      ../storage/innobase/ut/ut0crc32.cc
+      ../storage/innobase/ut/ut0ut.cc
      )
-  MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.c ${INNOBASE_SOURCES})
+  MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
   TARGET_LINK_LIBRARIES(innochecksum mysys)
 ENDIF()
 

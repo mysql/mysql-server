@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -427,26 +427,6 @@ fts_utf8_decode(
 						pointer is advanced to
 						the start of the next
 						character. */
-
-/******************************************************************//**
-Check whether a character is a digit. */
-UNIV_INLINE
-ibool
-fts_utf8_isdigit(
-/*=============*/
-						/*!< out: TRUE if the character
-						is a digit*/
-	ulint		ch);			/*!< in: UTF-8 character */
-
-/******************************************************************//**
-Check whether a character is an alphabetic one. */
-UNIV_INLINE
-ibool
-fts_utf8_isalpha(
-/*=============*/
-						/*!< out: TRUE if the character
-						is an alphabetic character */
-	ulint		ch);			/*!< in: char to test */
 
 /******************************************************************//**
 Lowercase an UTF-8 string. */

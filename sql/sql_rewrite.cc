@@ -20,7 +20,7 @@
 #include "sql_parse.h"  // get_current_user
 #include "sql_show.h"   // append_identifier
 #include "sp_head.h"    // TYPE_ENUM_(FUNCTION|PROCEDURE)
-
+#include "rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
 
 
 static void mysql_rewrite_grant(THD *thd, String *rlb)
@@ -352,6 +352,75 @@ static void mysql_rewrite_change_master(THD *thd, String *rlb)
   }
 }
 
+static void mysql_rewrite_start_slave(THD *thd, String *rlb)
+{
+  LEX *lex= thd->lex;
+
+  if (!lex->slave_connection.password)
+    return;
+
+  rlb->append(STRING_WITH_LEN("START SLAVE"));
+
+  if (lex->slave_thd_opt & SLAVE_IO)
+    rlb->append(STRING_WITH_LEN(" IO_THREAD"));
+
+  /* we have printed the IO THREAD related options */
+  if (lex->slave_thd_opt & SLAVE_IO && 
+      lex->slave_thd_opt & SLAVE_SQL)
+    rlb->append(STRING_WITH_LEN(","));
+
+  if (lex->slave_thd_opt & SLAVE_SQL)
+    rlb->append(STRING_WITH_LEN(" SQL_THREAD"));
+
+  /* until options */
+  if (lex->mi.log_file_name || lex->mi.relay_log_name)
+  {
+    rlb->append(STRING_WITH_LEN(" UNTIL"));
+    if (lex->mi.log_file_name)
+    {
+      rlb->append(STRING_WITH_LEN(" MASTER_LOG_FILE = '"));
+      rlb->append(lex->mi.log_file_name);
+      rlb->append(STRING_WITH_LEN("', "));
+      rlb->append(STRING_WITH_LEN("MASTER_LOG_POS = "));
+      rlb->append_ulonglong(lex->mi.pos);
+    }
+
+    if (lex->mi.relay_log_name)
+    {
+      rlb->append(STRING_WITH_LEN(" RELAY_LOG_FILE = '"));
+      rlb->append(lex->mi.relay_log_name);
+      rlb->append(STRING_WITH_LEN("', "));
+      rlb->append(STRING_WITH_LEN("RELAY_LOG_POS = "));
+      rlb->append_ulonglong(lex->mi.relay_log_pos);
+    }
+  }
+
+  /* connection options */
+  if (lex->slave_connection.user)
+  {
+    rlb->append(STRING_WITH_LEN(" USER = '"));
+    rlb->append(lex->slave_connection.user);
+    rlb->append(STRING_WITH_LEN("'"));
+  }
+
+  if (lex->slave_connection.password)
+    rlb->append(STRING_WITH_LEN(" PASSWORD = '<secret>'"));
+
+  if (lex->slave_connection.plugin_auth)
+  {
+    rlb->append(STRING_WITH_LEN(" DEFAULT_AUTH = '"));
+    rlb->append(lex->slave_connection.plugin_auth);
+    rlb->append(STRING_WITH_LEN("'"));
+  }
+
+  if (lex->slave_connection.plugin_dir)
+  {
+    rlb->append(STRING_WITH_LEN(" PLUGIN_DIR = '"));
+    rlb->append(lex->slave_connection.plugin_dir);
+    rlb->append(STRING_WITH_LEN("'"));
+  }
+}
+
 
 /**
 Rewrite a query (to obfuscate passwords etc.)
@@ -370,6 +439,7 @@ void mysql_rewrite_query(THD *thd)
   case SQLCOM_SET_OPTION:    mysql_rewrite_set(thd, rlb);           break;
   case SQLCOM_CREATE_USER:   mysql_rewrite_create_user(thd, rlb);   break;
   case SQLCOM_CHANGE_MASTER: mysql_rewrite_change_master(thd, rlb); break;
+  case SQLCOM_SLAVE_START:   mysql_rewrite_start_slave(thd, rlb);   break;
   default:                   /* unhandled query types are legal. */ break;
   }
 }

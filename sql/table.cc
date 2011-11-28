@@ -2019,8 +2019,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     outparam->found_next_number_field=
       outparam->field[(uint) (share->found_next_number_field - share->field)];
   if (share->timestamp_field)
-    outparam->timestamp_field= (Field_timestamp*) outparam->field[share->timestamp_field_offset];
-
+    outparam->set_timestamp_field(outparam->
+                                  field[share->timestamp_field_offset]);
 
   /* Fix key->name and key_part->field */
   if (share->key_parts)
@@ -2893,7 +2893,7 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
   }
   if (!(to= strmake_root(mem, str.ptr(), length)))
     length= 0;                                  // Safety fix
-  res->set(to, length, ((Field_str*)field)->charset());
+  res->set(to, length, field->charset());
   return 0;
 }
 
@@ -5275,7 +5275,7 @@ bool TABLE::alloc_keys(uint key_count)
   @return FALSE the key was created or ignored (too long key).
 */
 
-bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
+bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
 {
   DBUG_ASSERT(!created && s->keys < max_keys && key_parts);
 
@@ -5290,7 +5290,7 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
 
   for (i= 0, reg_field=field ; *reg_field; i++, reg_field++)
   {
-    if (key_parts & (1ULL << i))
+    if (key_parts->is_set(i))
     {
       KEY_PART_INFO tkp;
       // Ensure that we're not creating a key over a blob field.
@@ -5311,7 +5311,7 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
     }
     field_count++;
   }
-  uint key_part_count= my_count_bits(key_parts);
+  const uint key_part_count= key_parts->bits_set();
 
   /* Allocate key parts in the tables' mem_root. */
   size_t key_buf_size= sizeof(KEY_PART_INFO) * key_part_count +
@@ -5337,7 +5337,7 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   keys_in_use_for_order_by.set_bit(s->keys);
   for (i= 0, reg_field=field ; *reg_field; i++, reg_field++)
   {
-    if (!(key_parts & (1ULL << i)))
+    if (!(key_parts->is_set(i)))
       continue;
 
     if (key_start)
@@ -5935,7 +5935,7 @@ bool TABLE_LIST::generate_keys()
   while ((entry= it++))
   {
     sprintf(buf, "auto_key%i", key++);
-    if (table->add_tmp_key(entry->used_fields.to_ulonglong(),
+    if (table->add_tmp_key(&entry->used_fields,
                            table->in_use->strdup(buf)))
       return TRUE;
   }
@@ -6035,6 +6035,20 @@ bool TABLE::update_const_key_parts(Item *conds)
   }
   return FALSE;
 }
+
+
+void TABLE::set_timestamp_field(Field *field_arg)
+{
+  DBUG_ASSERT(!field_arg || field_arg->is_temporal_with_date_and_time());
+  timestamp_field= (Field_temporal_with_date_and_time *) field_arg;
+}
+
+
+Field *TABLE::get_timestamp_field()
+{
+  return (Field *) timestamp_field;
+}
+
 
 /**
   Test if the order list consists of simple field expressions

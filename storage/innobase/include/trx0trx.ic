@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -48,14 +48,8 @@ trx_state_eq(
 		return(trx->state == state);
 
 	case TRX_STATE_ACTIVE:
-		if (trx_is_autocommit_non_locking(trx)) {
-			ut_ad(!trx->is_recovered);
-			ut_ad(trx->read_only);
-			ut_ad(!trx->in_ro_trx_list);
-			ut_ad(!trx->in_rw_trx_list);
-			return(state == trx->state);
-		}
-		/* fall through for non-ac-nl-ro */
+		assert_trx_nonlocking_or_in_list(trx);
+		return(state == trx->state);
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		assert_trx_in_list(trx);
@@ -130,7 +124,7 @@ trx_get_dict_operation(
 	}
 	ut_error;
 #endif /* UNIV_DEBUG */
-	return((enum trx_dict_op) UNIV_EXPECT(op, TRX_DICT_OP_NONE));
+	return((enum trx_dict_op) op);
 }
 /**********************************************************************//**
 Flag a transaction a dictionary operation. */
