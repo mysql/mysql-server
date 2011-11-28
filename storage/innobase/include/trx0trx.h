@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -448,8 +448,18 @@ non-locking select */
 	ut_ad((t)->in_ro_trx_list == (t)->read_only);			\
 	ut_ad((t)->in_rw_trx_list == !(t)->read_only);			\
 	ut_ad(!trx_is_autocommit_non_locking((t)));			\
+	switch ((t)->state) {						\
+	case TRX_STATE_PREPARED:					\
+		ut_a(!(t)->read_only);					\
+		/* fall through */					\
+	case TRX_STATE_ACTIVE:						\
+	case TRX_STATE_COMMITTED_IN_MEMORY:				\
+		continue;						\
+	case TRX_STATE_NOT_STARTED:					\
+		break;							\
+	}								\
+	ut_error;							\
 } while (0)
-
 
 #ifdef UNIV_DEBUG
 /*******************************************************************//**
@@ -459,11 +469,14 @@ The tranasction must be in the mysql_trx_list. */
 # define assert_trx_nonlocking_or_in_list(t)				\
 	do {								\
 		if (trx_is_autocommit_non_locking(t)) {			\
+			trx_state_t	t_state = (t)->state;		\
 			ut_ad((t)->read_only);				\
 			ut_ad(!(t)->is_recovered);			\
 			ut_ad(!(t)->in_ro_trx_list);			\
 			ut_ad(!(t)->in_rw_trx_list);			\
 			ut_ad((t)->in_mysql_trx_list);			\
+			ut_ad(t_state == TRX_STATE_NOT_STARTED		\
+			      || t_state == TRX_STATE_ACTIVE);		\
 		} else {						\
 			assert_trx_in_list(t);				\
 		}							\
@@ -639,7 +652,7 @@ struct trx_struct{
 	Recovered XA:
 	* NOT_STARTED -> PREPARED -> COMMITTED -> (freed)
 
-	Recovered XA (2PC) (shutdown before ROLLBACK or COMMIT):
+	XA (2PC) (shutdown before ROLLBACK or COMMIT):
 	* NOT_STARTED -> PREPARED -> (freed)
 
 	Latching and various transaction lists membership rules:
@@ -738,7 +751,7 @@ struct trx_struct{
 					/*!< If we notice that someone is
 					waiting for our S-lock on the search
 					latch to be released, we wait in
-					row0sel.c for BTR_SEA_TIMEOUT new
+					row0sel.cc for BTR_SEA_TIMEOUT new
 					searches until we try to keep
 					the search latch again over
 					calls from MySQL; this is intended

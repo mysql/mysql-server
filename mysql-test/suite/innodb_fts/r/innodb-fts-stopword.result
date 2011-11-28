@@ -742,7 +742,6 @@ SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+will +where" IN BOOLEAN
 id	title	body
 SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('where');
 id	title	body
-"In connection default"
 DROP TABLE articles,user_stopword,user_stopword_1,server_stopword;
 SET SESSION innodb_ft_enable_stopword=1;
 SET GLOBAL innodb_ft_server_stopword_table=default;

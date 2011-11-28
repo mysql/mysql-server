@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -736,10 +736,10 @@ lock_table_has_locks(
 /*********************************************************************//**
 A thread which wakes up threads whose lock wait may have lasted too long.
 @return	a dummy parameter */
-UNIV_INTERN
+extern "C" UNIV_INTERN
 os_thread_ret_t
-lock_wait_timeout_thread(
-/*====================*/
+DECLARE_THREAD(lock_wait_timeout_thread)(
+/*=====================================*/
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
 

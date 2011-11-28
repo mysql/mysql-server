@@ -390,8 +390,14 @@ int my_decimal2double(uint, const my_decimal *d, double *result)
 }
 
 
-inline
-int str2my_decimal(uint mask, const char *str, my_decimal *d, char **end)
+inline int my_decimal2lldiv_t(uint mask, const my_decimal *d, lldiv_t *to)
+{
+  return check_result(mask, decimal2lldiv_t(d, to));
+}
+
+
+inline int str2my_decimal(uint mask, const char *str,
+                          my_decimal *d, char **end)
 {
   return check_result_and_overflow(mask, string2decimal(str, d, end), d);
 }
@@ -408,8 +414,9 @@ int string2my_decimal(uint mask, const String *str, my_decimal *d)
 }
 
 
-my_decimal *date2my_decimal(MYSQL_TIME *ltime, my_decimal *dec);
-
+my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
+my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
+my_decimal *timeval2my_decimal(const struct timeval *tm, my_decimal *dec);
 
 #endif /*defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY) */
 

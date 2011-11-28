@@ -45,6 +45,7 @@ struct TABLE_LIST;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Field;
+class Field_temporal_with_date_and_time;
 
 /*
   Used to identify NESTED_JOIN structures within a join (applicable only to
@@ -962,6 +963,9 @@ enum index_hint_type
   INDEX_HINT_FORCE
 };
 
+/* Bitmap of table's fields */
+typedef Bitmap<MAX_FIELDS> Field_map;
+
 struct TABLE
 {
   TABLE() {}                               /* Remove gcc warning */
@@ -979,6 +983,8 @@ private:
   TABLE *share_next, **share_prev;
 
   friend struct TABLE_share;
+
+  Field_temporal_with_date_and_time *timestamp_field;
 
 public:
 
@@ -1017,7 +1023,6 @@ public:
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
-  Field_timestamp *timestamp_field;
 
   /* Table's triggers, 0 if there are no of them */
   Table_triggers_list *triggers;
@@ -1208,7 +1213,7 @@ public:
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
   bool alloc_keys(uint key_count);
-  bool add_tmp_key(ulonglong key_parts, char *key_name);
+  bool add_tmp_key(Field_map *key_parts, char *key_name);
   void use_index(int key_to_save);
 
   inline void set_keyread(bool flag)
@@ -1225,6 +1230,9 @@ public:
       file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
+
+  void set_timestamp_field(Field *field_arg);
+  Field *get_timestamp_field();
 
   bool update_const_key_parts(Item *conds);
 };
@@ -1423,7 +1431,7 @@ enum enum_open_type
 class Derived_key: public Sql_alloc {
 public:
   table_map referenced_by;
-  key_map used_fields;
+  Field_map used_fields;
 };
 
 class Semijoin_mat_exec;

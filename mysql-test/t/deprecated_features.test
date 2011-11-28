@@ -17,8 +17,6 @@ load data from master;
 --error ER_PARSE_ERROR
 SHOW INNODB STATUS;
 --error ER_PARSE_ERROR
-create table t1 (t6 timestamp(6));
---error ER_PARSE_ERROR
 create table t1 (t6 timestamp) type=myisam;
 --error ER_PARSE_ERROR
 show table types;
