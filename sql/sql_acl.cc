@@ -10841,11 +10841,10 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   RSA *private_key= NULL;
   RSA *public_key= NULL;
   
-  
   /*
     Generate a scramble and send to the client. This will isn't necessary
     if the connection is SSL but the scramble is only 20 bytes anyway and the
-   server protocol must start with a write_packet()
+    server protocol must start with a write_packet()
   */
   if (mpvio->scramble[SCRAMBLE_LENGTH])
     create_random_string(mpvio->scramble, SCRAMBLE_LENGTH, mpvio->rand);
