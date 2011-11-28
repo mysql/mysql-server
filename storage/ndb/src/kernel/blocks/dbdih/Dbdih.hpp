@@ -841,7 +841,7 @@ private:
   void sendINCL_NODEREQ(Signal *, Uint32 nodeId, Uint32);
   void sendMASTER_GCPREQ(Signal *, Uint32 nodeId, Uint32);
   void sendMASTER_LCPREQ(Signal *, Uint32 nodeId, Uint32);
-  void sendMASTER_LCPCONF(Signal * signal);
+  void sendMASTER_LCPCONF(Signal * signal, Uint32 fromLine);
   void sendSTART_RECREQ(Signal *, Uint32 nodeId, Uint32);
   void sendSTART_INFOREQ(Signal *, Uint32 nodeId, Uint32);
   void sendSTART_TOREQ(Signal *, Uint32 nodeId, Uint32);
