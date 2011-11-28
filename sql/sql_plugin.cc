@@ -149,6 +149,35 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_AUTHENTICATION_INTERFACE_VERSION
 };
 
+static struct
+{
+  const char *plugin_name;
+  enum enum_plugin_load_option override;
+} override_plugin_load_policy[]={
+  /*
+    If the performance schema is compiled in,
+    treat the storage engine plugin as 'mandatory',
+    to suppress any plugin-level options such as '--performance-schema'.
+    This is specific to the performance schema, and is done on purpose:
+    the server-level option '--performance-schema' controls the overall
+    performance schema initialization, which consists of much more that
+    the underlying storage engine initialization.
+    See mysqld.cc, set_vars.cc.
+    Suppressing ways to interfere directly with the storage engine alone
+    prevents awkward situations where:
+    - the user wants the performance schema functionality, by using
+      '--enable-performance-schema' (the server option),
+    - yet disable explicitly a component needed for the functionality
+      to work, by using '--skip-performance-schema' (the plugin)
+  */
+  { "performance_schema", PLUGIN_FORCE },
+
+  /* we disable few other plugins by default */
+  { "ndbcluster", PLUGIN_OFF },
+  { "feedback", PLUGIN_OFF },
+  { "pbxt", PLUGIN_OFF }
+};
+
 /* support for Services */
 
 #include "sql_plugin_services.h"
@@ -1487,24 +1516,15 @@ int plugin_init(int *argc, char **argv, int flags)
       tmp.state= 0;
       tmp.load_option= mandatory ? PLUGIN_FORCE : PLUGIN_ON;
 
-      /*
-        If the performance schema is compiled in,
-        treat the storage engine plugin as 'mandatory',
-        to suppress any plugin-level options such as '--performance-schema'.
-        This is specific to the performance schema, and is done on purpose:
-        the server-level option '--performance-schema' controls the overall
-        performance schema initialization, which consists of much more that
-        the underlying storage engine initialization.
-        See mysqld.cc, set_vars.cc.
-        Suppressing ways to interfere directly with the storage engine alone
-        prevents awkward situations where:
-        - the user wants the performance schema functionality, by using
-          '--enable-performance-schema' (the server option),
-        - yet disable explicitly a component needed for the functionality
-          to work, by using '--skip-performance-schema' (the plugin)
-      */
-      if (!my_strcasecmp(&my_charset_latin1, plugin->name, "PERFORMANCE_SCHEMA"))
-        tmp.load_option= PLUGIN_FORCE;
+      for (i=0; i < array_elements(override_plugin_load_policy); i++)
+      {
+        if (!my_strcasecmp(&my_charset_latin1, plugin->name,
+                           override_plugin_load_policy[i].plugin_name))
+        {
+          tmp.load_option= override_plugin_load_policy[i].override;
+          break;
+        }
+      }
 
       free_root(&tmp_root, MYF(MY_MARK_BLOCKS_FREE));
       if (test_plugin_options(&tmp_root, &tmp, argc, argv))
@@ -3617,14 +3637,6 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   uint len, count= EXTRA_OPTIONS;
   DBUG_ENTER("test_plugin_options");
   DBUG_ASSERT(tmp->plugin && tmp->name.str);
-
-  /*
-    The 'ndbcluster' storage engines is always disabled by default.
-  */
-  if (!my_strcasecmp(&my_charset_latin1, tmp->name.str, "ndbcluster"))
-    plugin_load_option= PLUGIN_OFF;
-  if (!my_strcasecmp(&my_charset_latin1, tmp->name.str, "feedback"))
-    plugin_load_option= PLUGIN_OFF;
 
   for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
     count+= 2; /* --{plugin}-{optname} and --plugin-{plugin}-{optname} */
