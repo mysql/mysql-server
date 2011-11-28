@@ -165,6 +165,13 @@ const char *xa_state_names[]={
 };
 
 
+Log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
+                              Log_throttle::LOG_THROTTLE_WINDOW_SIZE,
+                              slow_log_print,
+                              "throttle: %10lu 'index "
+                              "not used' warning(s) suppressed.");
+
+
 #ifdef HAVE_REPLICATION
 /**
   Returns true if all tables should be ignored.
@@ -1655,15 +1662,23 @@ void log_slow_statement(THD *thd)
   */
   if (thd->enable_slow_log)
   {
-    if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
-         ((thd->server_status &
-           (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-          opt_log_queries_not_using_indexes &&
-          !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
-        thd->get_examined_row_count() >= thd->variables.min_examined_row_limit)
+    bool warn_no_index= ((thd->server_status &
+                          (SERVER_QUERY_NO_INDEX_USED |
+                           SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
+                         opt_log_queries_not_using_indexes &&
+                         !(sql_command_flags[thd->lex->sql_command] &
+                           CF_STATUS_COMMAND));
+    bool log_this_query=  ((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
+                           warn_no_index) &&
+                          (thd->get_examined_row_count() >=
+                           thd->variables.min_examined_row_limit);
+    bool suppress_logging= log_throttle_qni.log(thd, warn_no_index);
+
+    if (!suppress_logging && log_this_query)
     {
       THD_STAGE_INFO(thd, stage_logging_slow_query);
       thd->status_var.long_query_count++;
+
       if (thd->rewritten_query.length())
         slow_log_print(thd,
                        thd->rewritten_query.c_ptr_safe(),

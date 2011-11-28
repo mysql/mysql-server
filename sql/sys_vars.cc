@@ -1217,6 +1217,29 @@ static Sys_var_mybool Sys_log_queries_not_using_indexes(
        GLOBAL_VAR(opt_log_queries_not_using_indexes),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+static bool update_log_throttle_queries_not_using_indexes(sys_var *self,
+                                                          THD *thd,
+                                                          enum_var_type type)
+{
+  // Check if we should print a summary of any suppressed lines to the slow log
+  // now since opt_log_throttle_queries_not_using_indexes was changed.
+  log_throttle_qni.flush(thd);
+  return false;
+}
+
+static Sys_var_ulong Sys_log_throttle_queries_not_using_indexes(
+       "log_throttle_queries_not_using_indexes",
+       "Log at most this many 'not using index' warnings per minute to the "
+       "slow log. Any further warnings will be condensed into a single "
+       "summary line. A value of 0 disables throttling. "
+       "Option has no effect unless --log_queries_not_using_indexes is set.",
+       GLOBAL_VAR(opt_log_throttle_queries_not_using_indexes),
+       CMD_LINE(OPT_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(update_log_throttle_queries_not_using_indexes));
+
 static Sys_var_ulong Sys_log_warnings(
        "log_warnings",
        "Log some not critical warnings to the log file",
