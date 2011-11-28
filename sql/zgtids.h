@@ -266,6 +266,14 @@ struct Uuid
     printf("%s\n", buf);
   }
 #endif
+  void dbug_print(const char *text= "") const
+  {
+#ifndef DBUG_OFF
+    char buf[TEXT_LENGTH + 1];
+    to_string(buf);
+    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
+#endif
+  }
   static bool is_valid(const char *string);
   uchar bytes[16];
   static const size_t TEXT_LENGTH= 36;
@@ -705,6 +713,14 @@ struct Gtid
     printf("%s\n", buf);
   }
 #endif
+  void dbug_print(const Sid_map *sid_map, const char *text= "") const
+  {
+#ifndef DBUG_OFF
+    char buf[MAX_TEXT_LENGTH + 1];
+    to_string(sid_map, buf);
+    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
+#endif
+  }
 };
 
 
@@ -941,6 +957,14 @@ public:
     free(str);
   }
 #endif
+  void dbug_print(const char *text= "") const
+  {
+#ifndef DBUG_OFF
+    char *str= to_string();
+    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
+    free(str);
+#endif
+  }
 
   /**
     Class Gtid_set::String_format defines the separators used by
@@ -1544,6 +1568,14 @@ public:
     free(str);
   }
 #endif
+  void dbug_print(const Sid_map *sid_map, const char *text= "") const
+  {
+#ifndef DBUG_OFF
+    char *str= to_string(sid_map);
+    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
+    free(str);
+#endif
+  }
 private:
   /// Represents one owned group.
   struct Node
@@ -1786,6 +1818,14 @@ public:
     free(str);
   }
 #endif
+  void dbug_print(const char *text= "") const
+  {
+#ifndef DBUG_OFF
+    char *str= to_string();
+    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
+    free(str);
+#endif
+  }
 private:
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
@@ -1894,6 +1934,14 @@ struct Gtid_specification
     printf("%s\n", buf);
   }
 #endif
+  void dbug_print(const char *text= "") const
+  {
+#ifndef DBUG_OFF
+    char buf[MAX_TEXT_LENGTH + 1];
+    to_string(&global_sid_map, buf);
+    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
+#endif
+  }
 };
 
 
@@ -2079,6 +2127,14 @@ public:
     free(str);
   }
 #endif
+  void dbug_print(const Sid_map *sid_map, const char *text= "") const
+  {
+#ifndef DBUG_OFF
+    char *str= to_string(sid_map);
+    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
+    free(str);
+#endif
+  }
 
   /**
     Returns a pointer to the given group.  The pointer is only valid

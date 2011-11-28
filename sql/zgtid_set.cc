@@ -1078,6 +1078,7 @@ enum_return_status Gtid_set::add(const uchar *encoded, size_t length)
       Interval *current= ivit.get();
       if (current == NULL || start < current->start)
         ivit.init(this, sidno);
+      DBUG_PRINT("info", ("adding %d:%lld-%lld", sidno, start, end - 1));
       PROPAGATE_REPORTED_ERROR(add(&ivit, start, end));
     }
   }

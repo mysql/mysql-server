@@ -4638,7 +4638,12 @@ public:
   int get_data_size()
   {
     if (encoded_length == 0)
+    {
+      DBUG_ASSERT(gtid_set_inited);
       encoded_length= gtid_set.get_encoded_length();
+    }
+    DBUG_PRINT("info", ("Previous_gtids_log_event::get_data_size() = %ld",
+                        encoded_length));
     return encoded_length;
   }
 
@@ -4659,7 +4664,7 @@ public:
     The string is allocated using my_malloc and it is the
     responsibility of the caller to free it.
   */
-  char *get_str(size_t *length= NULL);
+  char *get_str(size_t *length, const Gtid_set::String_format *string_format);
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   int do_apply_event(Relay_log_info const *rli);
