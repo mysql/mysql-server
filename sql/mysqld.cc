@@ -6321,10 +6321,10 @@ struct my_option my_long_options[]=
   {"log-bin", OPT_BIN_LOG,
    "Log update queries in binary format. Optional argument should be name for "
    "binary log. If not given "
-   "datadir/'log-basename'-bin or 'datadir'/mysql-bin will be used (the later if "
+   "'datadir'/'log-basename'-bin or 'datadir'/mysql-bin will be used (the later if "
    "--log-basename is not specified). We strongly recommend to use either "
    "--log-basename or specify a filename to ensure that replication doesn't "
-   "stop if the real hostname of the computer changes'.",
+   "stop if the real hostname of the computer changes.",
    &opt_bin_logname, &opt_bin_logname, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", 0,
@@ -6350,7 +6350,7 @@ struct my_option my_long_options[]=
    "Enable logging of slow queries (longer than --long-query-time) to log file "
    "or table. Optional argument is a file name for the slow log. If not given, "
    "'log-basename'-slow.log will be used. Use --log-output=TABLE if you want "
-   "to have the log in the table 'mysql.slow_log'. "
+   "to have the log in the table mysql.slow_log. "
    "Deprecated option, use --slow-query-log/--slow-query-log-file instead.",
    &opt_slow_logname, &opt_slow_logname, 0, GET_STR_ALLOC, OPT_ARG,
    0, 0, 0, 0, 0, 0},
@@ -6549,9 +6549,9 @@ struct my_option my_long_options[]=
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin-load", 0,
-   "Optional semicolon-separated list of plugins to load, where each plugin is "
-   "identified as name=library, where name is the plugin name and library "
-   "is the plugin library in plugin_dir.",
+   "Semicolon-separated list of plugins to load, where each plugin is "
+   "specified as ether a plugin_name=library_file pair or only a library_file. "
+   "If the latter case, all plugins from a given library_file will be loaded.",
    &opt_plugin_load, &opt_plugin_load, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"table_cache", 0, "Deprecated; use --table-open-cache instead.",

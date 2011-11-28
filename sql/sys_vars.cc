@@ -914,7 +914,7 @@ static Sys_var_mybool Sys_trust_function_creators(
 static Sys_var_charptr Sys_log_error(
        "log_error",
        "Log errors to file (instead of stdout).  If file name is not specified "
-       "then 'datadir'/'log-basename'.err or the pid-file path with extension "
+       "then 'datadir'/'log-basename'.err or the 'pid-file' path with extension "
        ".err is used",
        READ_ONLY GLOBAL_VAR(log_error_file_ptr),
        CMD_LINE(OPT_ARG, OPT_LOG_ERROR),
@@ -2847,7 +2847,7 @@ static bool fix_slow_log_file(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_charptr Sys_slow_log_path(
        "slow_query_log_file", "Log slow queries to given log file. "
-       "Defaults logging to hostname-slow.log. Must be enabled to activate "
+       "Defaults logging to 'hostname'-slow.log. Must be enabled to activate "
        "other slow log options",
        PREALLOCATED GLOBAL_VAR(opt_slow_logname), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
@@ -2915,7 +2915,7 @@ static Sys_var_have Sys_have_symlink(
 static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type);
 static Sys_var_mybool Sys_general_log(
        "general_log", "Log connections and queries to a table or log file. "
-       "Defaults logging to a file hostname.log or a table mysql.general_log"
+       "Defaults logging to a file 'hostname'.log or a table mysql.general_log"
        "if --log-output=TABLE is used",
        GLOBAL_VAR(opt_log), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
@@ -2931,7 +2931,7 @@ static Sys_var_mybool Sys_log(
 static Sys_var_mybool Sys_slow_query_log(
        "slow_query_log",
        "Log slow queries to a table or log file. Defaults logging to a file "
-       "hostname-slow.log or a table mysql.slow_log if --log-output=TABLE is "
+       "'hostname'-slow.log or a table mysql.slow_log if --log-output=TABLE is "
        "used. Must be enabled to activate other slow log options",
        GLOBAL_VAR(opt_slow_log), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
@@ -3399,21 +3399,6 @@ static Sys_var_mybool Sys_thread_alarm(
        "in debugging or testing, never do it in production",
        READ_ONLY GLOBAL_VAR(opt_thread_alarm), CMD_LINE(OPT_ARG),
        DEFAULT(TRUE));
-
-#if 0
-static Sys_var_charptr Sys_log_basename(
-       "log_basename",
-       "Basename for all log files and the .pid file. This sets all log file "
-       "names at once (in 'datadir') and is normally the only option you need "
-       "for specifying log files. This is especially recommend to be set if you "
-       "are using replication as it ensures that your log file names are not "
-       "depending on your host name. Sets names for --log-bin, --log-bin-index, "
-       "--relay-log, --relay-log-index, --general-log-file, "
-       "--log-slow-query-log-file, --log-error-file and --pid-file",
-       READ_ONLY GLOBAL_VAR(opt_log_basename),
-       CMD_LINE(REQUIRED_ARG, OPT_LOG_BASENAME),
-       IN_FS_CHARSET, DEFAULT(0));
-#endif
 
 static Sys_var_mybool Sys_query_cache_strip_comments(
        "query_cache_strip_comments",

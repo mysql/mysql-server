@@ -197,7 +197,7 @@ The following options may be given as the first argument:
  Use stopwords from this file instead of built-in list
  --gdb               Set up signals usable for debugging.
  --general-log       Log connections and queries to a table or log file.
- Defaults logging to a file hostname.log or a table
+ Defaults logging to a file 'hostname'.log or a table
  mysql.general_logif --log-output=TABLE is used
  --general-log-file=name 
  Log connections and queries to given file
@@ -270,11 +270,11 @@ The following options may be given as the first argument:
  --pid-file
  --log-bin[=name]    Log update queries in binary format. Optional argument
  should be name for binary log. If not given
- datadir/'log-basename'-bin or 'datadir'/mysql-bin will be
- used (the later if --log-basename is not specified). We
- strongly recommend to use either --log-basename or
+ 'datadir'/'log-basename'-bin or 'datadir'/mysql-bin will
+ be used (the later if --log-basename is not specified).
+ We strongly recommend to use either --log-basename or
  specify a filename to ensure that replication doesn't
- stop if the real hostname of the computer changes'.
+ stop if the real hostname of the computer changes.
  --log-bin-index=name 
  File that holds the names for last binary log files.
  --log-bin-trust-function-creators 
@@ -288,7 +288,7 @@ The following options may be given as the first argument:
  can safely set this to TRUE
  --log-error[=name]  Log errors to file (instead of stdout).  If file name is
  not specified then 'datadir'/'log-basename'.err or the
- pid-file path with extension .err is used
+ 'pid-file' path with extension .err is used
  --log-isam[=name]   Log all MyISAM changes to file.
  --log-output=name   Syntax: log-output=value[,value...], where "value" could
  be TABLE, FILE or NONE
@@ -315,7 +315,7 @@ The following options may be given as the first argument:
  argument is a file name for the slow log. If not given,
  'log-basename'-slow.log will be used. Use
  --log-output=TABLE if you want to have the log in the
- table 'mysql.slow_log'. Deprecated option, use
+ table mysql.slow_log. Deprecated option, use
  --slow-query-log/--slow-query-log-file instead.
  --log-slow-rate-limit=# 
  Write to slow log every #th slow query. Set to 1 to log
@@ -535,10 +535,10 @@ The following options may be given as the first argument:
  Maximum number of instrumented threads.
  --pid-file=name     Pid file used by safe_mysqld
  --plugin-dir=name   Directory for plugins
- --plugin-load=name  Optional semicolon-separated list of plugins to load,
- where each plugin is identified as name=library, where
- name is the plugin name and library is the plugin library
- in plugin_dir.
+ --plugin-load=name  Semicolon-separated list of plugins to load, where each
+ plugin is specified as ether a plugin_name=library_file
+ pair or only a library_file. If the latter case, all
+ plugins from a given library_file will be loaded.
  --plugin-maturity=name 
  The lowest desirable plugin maturity (unknown,
  experimental, alpha, beta, gamma, or stable). Plugins
@@ -760,13 +760,13 @@ The following options may be given as the first argument:
  seconds), the Slow_launch_threads counter will be
  incremented
  --slow-query-log    Log slow queries to a table or log file. Defaults logging
- to a file hostname-slow.log or a table mysql.slow_log if
- --log-output=TABLE is used. Must be enabled to activate
- other slow log options
+ to a file 'hostname'-slow.log or a table mysql.slow_log
+ if --log-output=TABLE is used. Must be enabled to
+ activate other slow log options
  --slow-query-log-file=name 
  Log slow queries to given log file. Defaults logging to
- hostname-slow.log. Must be enabled to activate other slow
- log options
+ 'hostname'-slow.log. Must be enabled to activate other
+ slow log options
  --socket=name       Socket file to use for connection
  --sort-buffer-size=# 
  Each thread that needs to do a sort allocates a buffer of
