@@ -658,7 +658,11 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
     if (my_errno == ENOENT)
       my_error(ER_BAD_DB_ERROR, MYF(ME_BELL+ME_WAITTANG), db);
     else
-      my_error(ER_CANT_READ_DIR, MYF(ME_BELL+ME_WAITTANG), path, my_errno);
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_CANT_READ_DIR, MYF(ME_BELL+ME_WAITTANG), path,
+               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+    }
     DBUG_RETURN(FIND_FILES_DIR);
   }
 
