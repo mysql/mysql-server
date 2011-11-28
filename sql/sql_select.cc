@@ -14775,15 +14775,15 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   {
     /*
       HAVING will be checked after processing aggregate functions,
-      But WHERE should checkd here (we alredy have read tables).
-      If there is join->exec_const_cond, and all tables are constant, then it
-      is equivalent to join->conds. exec_const_cond is already checked in the
-      beginning of JOIN::exec. If it is false, JOIN::exec returns zero
-      result already there, therefore execution reaches this point only if
-      exec_const_cond is TRUE. Since it is equvalent to join->conds, then
-      join->conds is also TRUE.
+      But WHERE should checked here (we alredy have read tables).
+      Notice that make_join_select() splits all conditions into three groups -
+      exec_const_cond, outer_ref_cond, and conditions attached to non-constant
+      tables. Within this IF the latter do not exist. At the same time
+      exec_const_cond is already checked either by make_join_select or in the
+      beginning of JOIN::exec. Therefore here it is sufficient to check only
+      outer_ref_cond.
     */
-    if (!join->conds || join->exec_const_cond || join->conds->val_int())
+    if (!join->outer_ref_cond || join->outer_ref_cond->val_int())
     {
       error= (*end_select)(join, 0, 0);
       if (error == NESTED_LOOP_OK || error == NESTED_LOOP_QUERY_LIMIT)

@@ -5690,7 +5690,20 @@ set @@optimizer_switch='in_to_exists=on,semijoin=off,materialization=off,subquer
 select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1)))))))))))))))))))))))))))));
 a
 1
+set @@optimizer_switch=@subselect_tmp;
 drop table t1;
+#
+# LP BUG#894397 Wrong result with in_to_exists, constant table , semijoin=OFF,materialization=OFF
+#
+CREATE TABLE t1 (a varchar(3));
+INSERT INTO t1 VALUES ('AAA'),('BBB');
+CREATE TABLE t2 (a varchar(3));
+INSERT INTO t2 VALUES ('CCC');
+set @@optimizer_switch='semijoin=off,materialization=off,in_to_exists=on,subquery_cache=off';
+SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2 WHERE t2.a < 'ZZZ');
+a
+set @@optimizer_switch=@subselect_tmp;
+drop table t1, t2;
 #
 # LP bug #859375: Assertion `0' failed in st_select_lex_unit::optimize
 # with view , UNION and prepared statement (rewriting fake_select
