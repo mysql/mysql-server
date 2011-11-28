@@ -11,6 +11,7 @@ extern "C" {
 #include "misc.h"
 #endif
 }
+#include "hatoku_assert.h"
 
 static inline void *thd_data_get(THD *thd, int slot) {
     return thd->ha_data[slot].ha_ptr;

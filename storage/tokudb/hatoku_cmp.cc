@@ -5,6 +5,7 @@ extern "C" {
 }
 #include "hatoku_cmp.h"
 
+#include "hatoku_assert.h"
 
 #ifdef WORDS_BIGENDIAN
 #error "WORDS_BIGENDIAN not supported"
