@@ -70,7 +70,7 @@ TARGET_LINK_LIBRARIES(mysqlslap mysqlclient)
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)
-  MYSQL_ADD_EXECUTABLE(echo echo.c)
+  MYSQL_ADD_EXECUTABLE(echo echo.c COMPONENT Junk)
 ENDIF(WIN32)
 
 SET_TARGET_PROPERTIES (mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow mysqlslap mysql_plugin 

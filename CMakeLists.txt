@@ -318,6 +318,11 @@ ENDIF()
 INCLUDE(cmake/abi_check.cmake)
 INCLUDE(cmake/tags.cmake)
 
+IF(WIN32)
+  ADD_SUBDIRECTORY(win/packaging)
+  ADD_SUBDIRECTORY(win/upgrade_wizard)
+ENDIF()
+
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/my_config.h)
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/config.h)
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
@@ -349,7 +354,7 @@ IF(WIN32)
 ELSE()
   SET(CPACK_GENERATOR "TGZ")
 ENDIF() 
-ADD_SUBDIRECTORY(packaging/WiX)
+
 
 # Create a single package with "make package"
 # (see http://public.kitware.com/Bug/view.php?id=11452)

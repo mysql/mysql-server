@@ -15,6 +15,9 @@
 
 #include "../maria_def.h"
 #include <my_dir.h>
+#ifdef _WIN32
+#include <direct.h> /* rmdir */
+#endif
 
 my_bool maria_log_remove(const char *testdir)
 {

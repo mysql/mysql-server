@@ -303,6 +303,46 @@ ELSE()
 ENDIF()
 ENDIF()
 
+IF(WIN32)
+  SET(my_bootstrap_sql ${CMAKE_CURRENT_BINARY_DIR}/my_bootstrap.sql)
+  FILE(TO_NATIVE_PATH ${my_bootstrap_sql} native_outfile)
+
+  # Create bootstrapper SQL script
+  ADD_CUSTOM_COMMAND(OUTPUT    
+    ${my_bootstrap_sql}
+    COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR}/scripts
+    cmd /c copy mysql_system_tables.sql+mysql_system_tables_data.sql+fill_help_tables.sql ${native_outfile}
+    DEPENDS
+    ${CMAKE_SOURCE_DIR}/scripts/mysql_system_tables.sql
+    ${CMAKE_SOURCE_DIR}/scripts/mysql_system_tables_data.sql
+    ${CMAKE_SOURCE_DIR}/scripts/fill_help_tables.sql
+  )
+
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mysql_bootstrap_sql.c
+    COMMAND comp_sql
+    mysql_bootstrap_sql
+    ${CMAKE_CURRENT_BINARY_DIR}/my_bootstrap.sql
+    mysql_bootstrap_sql.c
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS comp_sql ${my_bootstrap_sql}
+  )
+
+  MYSQL_ADD_EXECUTABLE(mysql_install_db 
+    mysql_install_db.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_bootstrap_sql.c
+    COMPONENT Server
+  )
+  TARGET_LINK_LIBRARIES(mysql_install_db mysys)
+
+  ADD_LIBRARY(winservice STATIC winservice.c)
+  TARGET_LINK_LIBRARIES(winservice shell32)
+  MYSQL_ADD_EXECUTABLE(mysql_upgrade_service
+    mysql_upgrade_service.cc
+    COMPONENT Server)	
+  TARGET_LINK_LIBRARIES(mysql_upgrade_service mysys winservice)
+ENDIF()
+
 ADD_CUSTOM_TARGET(show-dist-name
   COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
 )
