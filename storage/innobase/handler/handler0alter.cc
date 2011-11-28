@@ -530,9 +530,10 @@ innobase_fts_check_doc_id_col(
 /*******************************************************************//**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
-@return	TRUE if there exists the FTS_DOC_ID index */
+@return	FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
+FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
 UNIV_INTERN
-ibool
+ulint
 innobase_fts_check_doc_id_index(
 /*============================*/
 	dict_table_t*	table,		/*!< in: table definition */
@@ -551,7 +552,8 @@ innobase_fts_check_doc_id_index(
 			continue;
 		}
 
-		if (!dict_index_is_unique(index)) {
+		if (!dict_index_is_unique(index)
+		    || strcmp(index->name, FTS_DOC_ID_INDEX_NAME)) {
 			return(FTS_INCORRECT_DOC_ID_INDEX);
 		}
 

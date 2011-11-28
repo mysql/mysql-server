@@ -2997,7 +2997,9 @@ wait_again:
 				name++;
 			}
 
+#ifdef FTS_INTERNAL_DIAG_PRINT
 			fprintf(stderr, "Finish build index %s\n", name);
+#endif /* FTS_INTERNAL_DIAG_PRINT */
 		}
 	}
 
