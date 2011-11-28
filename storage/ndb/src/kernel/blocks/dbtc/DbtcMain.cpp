@@ -10573,11 +10573,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     /**
      * Force API_FAILREQ
      */
-    DisconnectRep * const  rep = (DisconnectRep *)signal->getDataPtrSend();
-    rep->nodeId = refToNode(apiConnectptr.p->ndbapiBlockref);
-    rep->err = 8038;
-    
-    sendSignal(CMVMI_REF, GSN_DISCONNECT_REP, signal, 2, JBA);
+    signal->theData[0] = refToNode(apiConnectptr.p->ndbapiBlockref);
+    sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBA);
     CLEAR_ERROR_INSERT_VALUE;
   }
 
