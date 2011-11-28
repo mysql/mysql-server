@@ -8889,7 +8889,7 @@ ha_innobase::create(
 			dict_table_close(innobase_table, FALSE);
 			srv_active_wake_master_thread();
 			trx_free_for_mysql(trx);
-			DBUG_RETURN(DB_ERROR);
+			DBUG_RETURN(-1);
 		}
 	}
 
