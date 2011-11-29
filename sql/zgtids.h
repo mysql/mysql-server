@@ -966,7 +966,7 @@ public:
   {
 #ifndef DBUG_OFF
     char *str= to_string();
-    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
+    DBUG_PRINT("info", ("%s%s'%s'", text, *text ? ": " : "", str));
     free(str);
 #endif
   }

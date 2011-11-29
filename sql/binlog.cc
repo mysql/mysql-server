@@ -1833,7 +1833,6 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
 }
 
 #ifdef HAVE_GTID
-typedef set<string> FileSet;
 bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
                                    bool verify_checksum)
 {
@@ -2541,6 +2540,8 @@ err:
 
 
 /**
+  Execute a RESET MASTER statement.
+
   Delete all logs refered to in the index file.
   Start writing to a new log file.
 
@@ -2556,7 +2557,6 @@ err:
   @retval
     1   error
 */
-
 bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 {
   LOG_INFO linfo;
@@ -2673,8 +2673,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 
 #ifdef HAVE_GTID
   gtid_state.clear();
-  if (global_sid_map.clear() != RETURN_STATUS_OK ||
-      gtid_state.init() != 0 ||
+  // don't clear global_sid_map because it's used by the relay log too
+  if (gtid_state.init() != 0 ||
       gtid_state.ensure_sidno() != RETURN_STATUS_OK)
     goto err;
 #endif

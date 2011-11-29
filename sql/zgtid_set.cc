@@ -121,6 +121,7 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno)
                       sidno, get_max_sidno(), sid_map,
                       sid_map != NULL ? sid_map->get_max_sidno() : 0));
   DBUG_ASSERT(sid_map == NULL || sidno <= sid_map->get_max_sidno());
+  DBUG_ASSERT(sid_map == NULL || get_max_sidno() <= sid_map->get_max_sidno());
   rpl_sidno max_sidno= get_max_sidno();
   if (sidno > max_sidno)
   {
@@ -686,12 +687,13 @@ int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
     DBUG_RETURN(sf->empty_set_string_length);
   } 
   rpl_sidno map_max_sidno= sid_map->get_max_sidno();
+  DBUG_ASSERT(get_max_sidno() <= map_max_sidno);
   memcpy(buf, sf->begin, sf->begin_length);
   char *s= buf + sf->begin_length;
   bool first_sidno= true;
-  for (int i= 0; i < map_max_sidno; i++)
+  for (int sid_i= 0; sid_i < map_max_sidno; sid_i++)
   {
-    rpl_sidno sidno= sid_map->get_sorted_sidno(i);
+    rpl_sidno sidno= sid_map->get_sorted_sidno(sid_i);
     if (contains_sidno(sidno))
     {
       Const_interval_iterator ivit(this, sidno);

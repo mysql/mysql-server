@@ -1373,6 +1373,11 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       DBUG_RETURN(1);
     }
 
+#ifndef NO_DBUG
+    global_sid_lock.rdlock();
+    gtid_set.dbug_print("set of GTIDs in relay log before initialization");
+    global_sid_lock.unlock();
+#endif
     if (!current_thd &&
         relay_log.init_gtid_sets(&gtid_set, NULL,
                                  opt_slave_sql_verify_checksum))
@@ -1380,6 +1385,11 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       sql_print_error("Failed in init_gtid_set() called from Relay_log_info::init_info().");
       DBUG_RETURN(1);
     }
+#ifndef NO_DBUG
+    global_sid_lock.rdlock();
+    gtid_set.dbug_print("set of GTIDs in relay log after initialization");
+    global_sid_lock.unlock();
+#endif
   }
 
    /*
