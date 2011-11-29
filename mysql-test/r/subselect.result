@@ -5827,5 +5827,31 @@ SELECT (SELECT f3a, f3a FROM t3  where f3a > 3) = (0, 0);
 (SELECT f3a, f3a FROM t3  where f3a > 3) = (0, 0)
 NULL
 drop tables t1,t2,t3;
+#
+# LP BUG#825051 Wrong result with date/datetime and subquery with GROUP BY and in_to_exists
+#
+CREATE TABLE t1 (a date, KEY (a)) ;
+INSERT INTO t1 VALUES ('2009-01-01'),('2009-02-02');
+set @old_optimizer_switch = @@optimizer_switch;
+SET @@optimizer_switch='semijoin=off,materialization=off,in_to_exists=on,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	a	4	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	index	NULL	a	4	NULL	1	Using index
+SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+a
+2009-01-01
+2009-02-02
+SET @@optimizer_switch='semijoin=off,materialization=on,in_to_exists=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	a	4	NULL	2	Using where; Using index
+2	SUBQUERY	t1	index	NULL	a	4	NULL	2	Using index
+SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+a
+2009-01-01
+2009-02-02
+set @@optimizer_switch=@old_optimizer_switch;
+drop table t1;
 # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;

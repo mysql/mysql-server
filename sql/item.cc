@@ -3864,7 +3864,7 @@ String* Item_ref_null_helper::val_str(String* s)
 
 bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {  
-  return (owner->was_null|= null_value= (*ref)->get_date(ltime, fuzzydate));
+  return (owner->was_null|= null_value= (*ref)->get_date_result(ltime, fuzzydate));
 }
 
 
