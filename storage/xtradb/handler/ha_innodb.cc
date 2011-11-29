@@ -11603,14 +11603,13 @@ static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
   NULL, NULL, 500L, 1L, ~0L, 0);
 
-static MYSQL_SYSVAR_LONG(kill_idle_transaction, srv_kill_idle_transaction,
-  PLUGIN_VAR_RQCMDARG,
 #ifdef EXTENDED_FOR_KILLIDLE
-  "If non-zero value, the idle session with transaction which is idle over the value in seconds is killed by InnoDB.",
+#define kill_idle_help_text "If non-zero value, the idle session with transaction which is idle over the value in seconds is killed by InnoDB."
 #else
-  "No effect for this build.",
+#define kill_idle_help_text "No effect for this build."
 #endif
-  NULL, NULL, 0, 0, LONG_MAX, 0);
+static MYSQL_SYSVAR_LONGLONG(kill_idle_transaction, srv_kill_idle_transaction,
+  PLUGIN_VAR_RQCMDARG, kill_idle_help_text, NULL, NULL, 0, 0, LONG_MAX, 0);
 
 static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,

@@ -282,7 +282,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file,
  */
  {
    pgcache_page_no_t last_bitmap_page;
-   ulong blocks, bytes;
+   pgcache_page_no_t  blocks, bytes;
 
    last_bitmap_page= *last_page - *last_page % bitmap->pages_covered;
    blocks= *last_page - last_bitmap_page;
@@ -291,7 +291,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file,
    bytes/= 6;
    bytes*= 6;
    bitmap->last_bitmap_page= last_bitmap_page;
-   bitmap->last_total_size= bytes;
+   bitmap->last_total_size= (uint)bytes;
    *last_page= ((last_bitmap_page + bytes*8/3));
  }
 
