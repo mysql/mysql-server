@@ -1492,7 +1492,7 @@ func_exit:
 			? BUF_BLOCK_ZIP_DIRTY
 			: BUF_BLOCK_ZIP_PAGE;
 		UNIV_MEM_DESC(b->zip.data,
-			      page_zip_get_size(&b->zip), b);
+			      page_zip_get_size(&b->zip));
 
 		/* The fields in_page_hash and in_LRU_list of
 		the to-be-freed block descriptor should have

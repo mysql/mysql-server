@@ -451,8 +451,6 @@ os_event_set(
 	}
 #endif
 
-	ut_a(event);
-
 	os_fast_mutex_lock(&(event->os_mutex));
 
 	if (event->is_set) {
