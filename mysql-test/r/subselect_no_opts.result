@@ -5743,6 +5743,21 @@ b	a	b
 set @@join_cache_level= @save_join_cache_level;
 drop table t1,t2;
 #
+# LP bug #885162 Got error 124 from storage engine with UNION inside
+# subquery and join_cache_level=3..8
+# (IN/ALL/ANY optimizations should not be applied to fake_select)
+#
+CREATE TABLE t1 (
+f1 varchar(1) DEFAULT NULL
+);
+INSERT INTO t1 VALUES ('c');
+set @save_join_cache_level=@@join_cache_level;
+SET SESSION join_cache_level=8;
+SELECT * FROM t1 WHERE t1.f1 IN ( SELECT 'k' UNION SELECT 'e' );
+f1
+set @@join_cache_level= @save_join_cache_level;
+drop table t1;
+#
 # LP BUG#747278 incorrect values of the NULL (no rows) single 
 # row subquery requested via element_index() interface
 #

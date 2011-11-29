@@ -4855,6 +4855,24 @@ WHERE t2.b IN (
 set @@join_cache_level= @save_join_cache_level;
 drop table t1,t2;
 
+
+--echo #
+--echo # LP bug #885162 Got error 124 from storage engine with UNION inside
+--echo # subquery and join_cache_level=3..8
+--echo # (IN/ALL/ANY optimizations should not be applied to fake_select)
+--echo #
+
+CREATE TABLE t1 (
+  f1 varchar(1) DEFAULT NULL
+  );
+INSERT INTO t1 VALUES ('c');
+set @save_join_cache_level=@@join_cache_level;
+SET SESSION join_cache_level=8;
+SELECT * FROM t1 WHERE t1.f1 IN ( SELECT 'k' UNION SELECT 'e' );
+set @@join_cache_level= @save_join_cache_level;
+drop table t1;
+
+
 --echo #
 --echo # LP BUG#747278 incorrect values of the NULL (no rows) single 
 --echo # row subquery requested via element_index() interface
