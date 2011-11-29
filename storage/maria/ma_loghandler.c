@@ -3201,7 +3201,7 @@ static uint16 translog_get_chunk_header_length(uchar *chunk)
   case TRANSLOG_CHUNK_LSN:
   {
     /* 0 chunk referred as LSN (head or tail) */
-    translog_size_t rec_len;
+    translog_size_t rec_len __attribute__((unused));
     uchar *start= chunk;
     uchar *ptr= start + 1 + 2;
     uint16 chunk_len, header_len;

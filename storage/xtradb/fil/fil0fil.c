@@ -3678,7 +3678,6 @@ func_exit:
 		ulint		page_no;
 		ulint		zip_size;
 		ulint		height;
-		ulint		root_height = 0;
 		rec_t*		node_ptr;
 		dict_table_t*	table;
 		dict_index_t*	index;
@@ -3717,7 +3716,6 @@ func_exit:
 
 			if (height == ULINT_UNDEFINED) {
 				height = btr_page_get_level(page, &mtr);
-				root_height = height;
 			}
 
 			if (height == 0) {

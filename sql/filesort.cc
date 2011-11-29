@@ -827,7 +827,7 @@ static void make_sortkey(register SORTPARAM *param,
         if (sort_field->need_strxnfrm)
         {
           char *from=(char*) res->ptr();
-          uint tmp_length;
+          uint tmp_length __attribute__((unused));
           if ((uchar*) from == to)
           {
             set_if_smaller(length,sort_field->length);

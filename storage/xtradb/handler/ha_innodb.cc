@@ -10801,7 +10801,7 @@ ha_innobase::check_if_incompatible_data(
 	if (info_row_type == ROW_TYPE_DEFAULT)
 		info_row_type = ROW_TYPE_COMPACT;
 	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT) &&
-	    get_row_type() != ((info->row_type == ROW_TYPE_DEFAULT)
+	    row_type != ((info->row_type == ROW_TYPE_DEFAULT)
 				? ROW_TYPE_COMPACT : info->row_type)) {
 
 		DBUG_PRINT("info", ("get_row_type()=%d != info->row_type=%d -> "
