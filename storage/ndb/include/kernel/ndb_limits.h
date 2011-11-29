@@ -18,6 +18,8 @@
 #ifndef NDB_LIMITS_H
 #define NDB_LIMITS_H
 
+#include "ndb_version.h"  // Limits might depend on NDB version
+
 #define RNIL    0xffffff00
 
 /**
@@ -110,7 +112,11 @@
 /*
 * The default batch size. Configurable parameter.
 */
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define DEF_BATCH_SIZE 64
+#else
+#define DEF_BATCH_SIZE 256
+#endif
 /*
 * When calculating the number of records sent from LQH in each batch
 * one uses SCAN_BATCH_SIZE divided by the expected size of signals
@@ -120,7 +126,11 @@
 * signals.
 * This parameter is configurable, this is the default value.
 */
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define SCAN_BATCH_SIZE 32768
+#else
+#define SCAN_BATCH_SIZE 16384
+#endif
 /*
 * To protect the NDB API from overload we also define a maximum total
 * batch size from all nodes. This parameter should most likely be
