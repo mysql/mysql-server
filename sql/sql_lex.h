@@ -291,7 +291,9 @@ typedef struct st_lex_master_info
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
+  bool repl_ignore_server_ids_inited;
   DYNAMIC_ARRAY repl_ignore_server_ids;
+  typeof(::server_id) repl_ignore_server_ids_static_buffer[4];
 } LEX_MASTER_INFO;
 
 typedef struct st_lex_reset_slave
@@ -2455,6 +2457,11 @@ struct LEX: public Query_tables_list
     destroy_query_tables_list();
     plugin_unlock_list(NULL, (plugin_ref *)plugins.buffer, plugins.elements);
     delete_dynamic(&plugins);
+    if (mi.repl_ignore_server_ids_inited)
+    {
+      delete_dynamic(&mi.repl_ignore_server_ids);
+      mi.repl_ignore_server_ids_inited= false;
+    }
   }
 
   inline bool is_ps_or_view_context_analysis()
