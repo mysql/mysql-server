@@ -1,0 +1,160 @@
+# ==== Purpose ====
+#
+# Test that server can work fine after moving binlog or relay log
+# files to another directory and setting binlog or relay log paths to
+# the new path.
+# 
+# ==== Method ====
+#
+# Start replication, and then shutdown the master, move the binary
+# logs and the log index file to a another directory and then restart
+# the server with option to set the new binlog directory. After master
+# restarted successfully, do the similar on slave to check the relay
+# log of slave.
+#
+# ==== Reference ====
+#
+# BUG#12133 master.index file keeps mysqld from starting if bin log has been moved
+# BUG#42576 Relay logs in relay-log.info&localhost-relay-bin.index not processed after move
+
+source include/master-slave.inc;
+# There is no need to run this test case on all binlog format
+source include/have_binlog_format_row.inc;
+
+connection master;
+--let $master_datadir= `select @@datadir`
+connection slave;
+--let $slave_datadir= `select @@datadir`
+connection master;
+--let $tmpdir= $MYSQLTEST_VARDIR/tmp/rpl_binlog_index
+--mkdir $tmpdir
+
+CREATE TABLE t1 (a INT);
+# flush to generate one more binlog file.
+FLUSH BINARY LOGS;
+INSERT INTO t1 VALUES (1);
+
+sync_slave_with_master;
+
+
+#
+# Test on master
+#
+connection master;
+--echo # Shutdown master
+--let $rpl_server_number=1
+source include/rpl_stop_server.inc;
+
+--echo # Move the master binlog files and the index file to a new place
+--move_file $master_datadir/master-bin.000001 $tmpdir/master-bin.000001
+--move_file $master_datadir/master-bin.000002 $tmpdir/master-bin.000002
+--move_file $master_datadir/master-bin.index  $tmpdir/master-bin.index
+
+--echo # Restart master with log-bin option set to the new path
+--let $rpl_server_parameters=--log-bin=$tmpdir/master-bin
+--let $keep_include_silent=1
+source include/rpl_start_server.inc;
+--let $keep_include_silent=0
+
+--echo # Master has restarted successfully
+
+#
+# Test master can handle old format with directory path in index file
+#
+--let $is_windows= `select convert(@@version_compile_os using latin1) in ('Win32', 'Win64', 'Windows')`
+
+# write_var_to_file.inc will call SELECT INTO DUMPFILE, which has to be
+# done before shutdown the server
+--echo # Create the master-bin.index file with the old format
+--let $write_to_file= $master_datadir/master-bin.index
+if ($is_windows)
+{
+  --let $write_var= .\\master-bin.000001\n.\\master-bin.000002\n
+}
+if (!$is_windows)
+{
+  --let $write_var= ./master-bin.000001\n./master-bin.000002\n
+}
+--disable_query_log
+source include/write_var_to_file.inc;
+--enable_query_log
+
+--echo # Shutdown master
+--let $rpl_server_number=1
+source include/rpl_stop_server.inc;
+
+--echo # Move back the master binlog files
+--move_file $tmpdir/master-bin.000001 $master_datadir/master-bin.000001
+--move_file $tmpdir/master-bin.000002 $master_datadir/master-bin.000002
+
+--echo # Remove the unneeded master-bin.index file
+--remove_file $tmpdir/master-bin.index
+
+--echo # Restart master with log-bin option set to default
+--let $rpl_server_parameters=--log-bin=$master_datadir/master-bin
+--let $keep_include_silent=1
+source include/rpl_start_server.inc;
+--let $keep_include_silent=0
+
+--echo # Master has restarted successfully
+
+connection slave;
+source include/stop_slave.inc;
+
+--disable_query_log
+# slave-relay-bin.* files can vary, so read the slave-relay-bin.index
+# to figure out the slave-relay-bin.* files
+CREATE TEMPORARY TABLE tmp (id INT AUTO_INCREMENT PRIMARY KEY, filename VARCHAR(1024));
+# chmod to allow the following LOAD DATA
+--chmod 0666 $slave_datadir/slave-relay-bin.index
+--eval LOAD DATA INFILE '$slave_datadir/slave-relay-bin.index' INTO TABLE tmp (filename)
+--let $count= `SELECT count(*) FROM tmp`
+--echo # Move the slave binlog and relay log files and index to the new place
+--move_file $slave_datadir/slave-bin.index        $tmpdir/slave-bin.index
+--move_file $slave_datadir/slave-bin.000001       $tmpdir/slave-bin.000001
+--move_file $slave_datadir/slave-relay-bin.index  $tmpdir/slave-relay-bin.index
+while ($count)
+{
+  --let $filename= `select filename from tmp where id=$count`
+  --move_file $slave_datadir/$filename $tmpdir/$filename
+  --dec $count
+}
+DROP TEMPORARY TABLE tmp;
+--enable_query_log
+
+--echo # Shutdown slave
+--let $rpl_server_number=2
+source include/rpl_stop_server.inc;
+
+--echo # Restart slave with options log-bin, relay-log set to the new paths
+--let $rpl_server_parameters=--log-bin=$tmpdir/slave-bin --relay-log=$tmpdir/slave-relay-bin
+--let $keep_include_silent=1
+source include/rpl_start_server.inc;
+--let $keep_include_silent=0
+
+--echo # Slave has restarted successfully
+source include/start_slave.inc;
+--source include/stop_slave.inc
+
+connection master;
+FLUSH LOGS;
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (2);
+
+FLUSH LOGS;
+
+connection slave;
+FLUSH LOGS;
+--source include/start_slave.inc
+connection master;
+sync_slave_with_master;
+--let $diff_tables= master:t1,slave:t1
+source include/diff_tables.inc;
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+--remove_files_wildcard $tmpdir *
+--rmdir $tmpdir
