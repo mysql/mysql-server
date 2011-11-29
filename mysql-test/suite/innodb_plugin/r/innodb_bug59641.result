@@ -16,6 +16,7 @@ UPDATE t SET b=4*a WHERE a=32;
 XA END '789';
 XA PREPARE '789';
 call mtr.add_suppression("Found 3 prepared XA transactions");
+FLUSH TABLES;
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SELECT * FROM t;
 a	b
