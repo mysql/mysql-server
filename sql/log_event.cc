@@ -11799,12 +11799,18 @@ void Previous_gtids_log_event::print(FILE *file,
 int Previous_gtids_log_event::add_to_set(Gtid_set *target) const
 {
   DBUG_ENTER("Previous_gtids_log_event::add_to_set(Gtid_set *)");
+#ifndef NO_DBUG
+  char *str= get_str(NULL, &Gtid_set::default_string_format);
+  DBUG_ASSERT(str != NULL);
+  DBUG_PRINT("info", ("adding gtid_set: '%s'", str));
+  my_free(str);
+#endif
   PROPAGATE_REPORTED_ERROR_INT(target->add(buf, buf_size));
   DBUG_RETURN(0);
 }
 
 char *Previous_gtids_log_event::get_str(
-  size_t *length_p, const Gtid_set::String_format *string_format)
+  size_t *length_p, const Gtid_set::String_format *string_format) const
 {
   DBUG_ENTER("Previous_gtids_log_event::get_str(size_t *)");
   Sid_map sid_map(NULL);

@@ -4653,7 +4653,8 @@ public:
     The string is allocated using my_malloc and it is the
     responsibility of the caller to free it.
   */
-  char *get_str(size_t *length, const Gtid_set::String_format *string_format);
+  char *get_str(size_t *length,
+                const Gtid_set::String_format *string_format) const;
   /// Add all GTIDs from this event to the given Gtid_set.
   int add_to_set(Gtid_set *gtid_set) const;
 
