@@ -975,7 +975,6 @@ buf_block_init(
 #endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
 	ut_ad(rw_lock_validate(&(block->lock)));
-
 }
 
 /********************************************************************//**
@@ -1219,7 +1218,7 @@ buf_pool_init_instance(
 	if (buf_pool_size > 0) {
 		buf_pool->n_chunks = 1;
 
-		buf_pool->chunks = chunk = 
+		buf_pool->chunks = chunk =
 			(buf_chunk_t*) mem_zalloc(sizeof *chunk);
 
 		UT_LIST_INIT(buf_pool->free);
@@ -5036,7 +5035,7 @@ buf_print_io(
 	} else {
 		ut_a(srv_buf_pool_instances == 1);
 
-		pool_info_total = pool_info = 
+		pool_info_total = pool_info =
 			static_cast<buf_pool_info_t*>(
 				mem_zalloc(sizeof *pool_info));
 	}
