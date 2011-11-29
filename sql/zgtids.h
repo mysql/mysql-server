@@ -417,11 +417,12 @@ extern Checkable_rwlock global_sid_lock;
 
   SIDNOs are always numbers greater or equal to 1.
 
-  This data structure has a read-write lock that protects the number
-  of SIDNOs.  The lock is provided by the invoker of the constructor
-  and it is generally the caller's responsibility to acquire the read
-  lock.  Access methods assert that the caller already holds the read
-  (or write) lock.  If a method of this class grows the number of
+  This data structure OPTIONALLY knows of a read-write lock that
+  protects the number of SIDNOs.  The lock is provided by the invoker
+  of the constructor and it is generally the caller's responsibility
+  to acquire the read lock.  If the lock is not NULL, access methods
+  assert that the caller already holds the read (or write) lock.  If
+  the lock is not NULL and a method of this class grows the number of
   SIDNOs, then the method temporarily upgrades this lock to a write
   lock and then degrades it to a read lock again; there will be a
   short period when the lock is not held at all.
@@ -470,7 +471,8 @@ public:
   */
   rpl_sidno sid_to_sidno(const rpl_sid *sid) const
   {
-    sid_lock->assert_some_lock();
+    if (sid_lock != NULL)
+      sid_lock->assert_some_lock();
     Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
                                        rpl_sid::BYTE_LENGTH);
     if (node == NULL)
@@ -492,7 +494,8 @@ public:
   */
   const rpl_sid *sidno_to_sid(rpl_sidno sidno) const
   {
-    sid_lock->assert_some_lock();
+    if (sid_lock != NULL)
+      sid_lock->assert_some_lock();
     DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
     return &(*dynamic_element(&_sidno_to_sid, sidno - 1, Node **))->sid;
   }
@@ -506,7 +509,8 @@ public:
   */
   rpl_sidno get_sorted_sidno(rpl_sidno n) const
   {
-    sid_lock->assert_some_lock();
+    if (sid_lock != NULL)
+      sid_lock->assert_some_lock();
     rpl_sidno ret= *dynamic_element(&_sorted, n, rpl_sidno *);
     return ret;
   }
@@ -518,7 +522,8 @@ public:
   */
   rpl_sidno get_max_sidno() const
   {
-    sid_lock->assert_some_lock();
+    if (sid_lock != NULL)
+      sid_lock->assert_some_lock();
     return _sidno_to_sid.elements;
   }
 
@@ -1649,7 +1654,7 @@ public:
   Gtid_state(Checkable_rwlock *_sid_lock, Sid_map *_sid_map)
     : sid_lock(_sid_lock), sid_locks(sid_lock),
     sid_map(_sid_map),
-    logged_groups(sid_map), lost_groups(sid_map), owned_gtids(sid_lock) {}
+    logged_gtids(sid_map), lost_gtids(sid_map), owned_gtids(sid_lock) {}
   /**
     Add @@GLOBAL.SERVER_UUID to this binlog's Sid_map.
 
@@ -1675,7 +1680,7 @@ public:
     @retval false The group is not logged in the binary log.
   */
   bool is_logged(rpl_sidno sidno, rpl_gno gno) const
-  { return logged_groups.contains_gtid(sidno, gno); }
+  { return logged_gtids.contains_gtid(sidno, gno); }
   /**
     Returns the owner of the given group, or 0 if the group is not owned.
 
@@ -1764,7 +1769,7 @@ public:
   */
   void broadcast_sidnos(const Gtid_set *set);
   /**
-    Ensure that owned_gtids, logged_groups, @todo lost_groups, and
+    Ensure that owned_gtids, logged_gtids, @todo lost_gtids, and
     sid_locks have room for at least as many SIDNOs as sid_map.
 
     Requires that the read lock on sid_locks is held.  If any object
@@ -1776,7 +1781,9 @@ public:
   */
   enum_return_status ensure_sidno();
   /// Return a pointer to the Gtid_set that contains the logged groups.
-  const Gtid_set *get_logged_gtids() const { return &logged_groups; }
+  const Gtid_set *get_logged_gtids() const { return &logged_gtids; }
+  /// Return a pointer to the Gtid_set that contains the logged groups.
+  const Gtid_set *get_lost_gtids() const { return &logged_gtids; }
   /// Return a pointer to the Owned_gtids that contains the owned groups.
   const Owned_gtids *get_owned_gtids() const { return &owned_gtids; }
   // Return Sid_map used by this Gtid_state.
@@ -1785,21 +1792,17 @@ public:
   rpl_sidno get_server_sidno() const { return server_sidno; }
   // Return the server's SID's SIDNO
   //Checkable_rwlock *get_sid_lock() const { return &sid_lock; }
-
-  // todo: take sidno as arg instead
-  enum_return_status add_logged_gtid(rpl_sidno sidno, rpl_gno gno);
-  enum_return_status add_logged_gtids(const Gtid_set *gtids);
 #ifndef DBUG_OFF
   size_t get_string_length() const
   {
     return owned_gtids.get_string_length() +
-      logged_groups.get_string_length() + 100;
+      logged_gtids.get_string_length() + 100;
   }
   int to_string(char *buf) const
   {
     char *p= buf;
     p+= sprintf(p, "Logged groups:\n");
-    p+= logged_groups.to_string(p);
+    p+= logged_gtids.to_string(p);
     p+= sprintf(p, "\nOwned groups:\n");
     p+= owned_gtids.to_string(sid_map, p);
     return p - buf;
@@ -1834,9 +1837,9 @@ private:
   /// The Sid_map used by this Gtid_state.
   mutable Sid_map *sid_map;
   /// The set of GTIDs that are logged in the group log.
-  Gtid_set logged_groups;
+  Gtid_set logged_gtids;
   /// The set of GTIDs that are logged in the group log.
-  Gtid_set lost_groups;
+  Gtid_set lost_gtids;
   /// The set of GTIDs that are owned by some thread.
   Owned_gtids owned_gtids;
   /// The SIDNO for this server.

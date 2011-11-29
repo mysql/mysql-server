@@ -5009,7 +5009,10 @@ int mysqld_main(int argc, char **argv)
       if (ret)
         unireg_abort(1);
 
-      if (mysql_bin_log.restore_gtid_set(true))
+      if (mysql_bin_log.init_gtid_sets(
+            const_cast<Gtid_set *>(gtid_state.get_logged_gtids()),
+            const_cast<Gtid_set *>(gtid_state.get_lost_gtids()),
+            opt_master_verify_checksum))
         unireg_abort(1);
     }
 #endif

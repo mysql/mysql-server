@@ -178,7 +178,19 @@ public:
   }
 #endif
 #ifdef HAVE_GTID
-  bool restore_gtid_set(bool save_gtid_events);
+  /**
+    Reads the set of all GTIDs in the binary log, and the set of all
+    lost GTIDs in the binary log, and stores each set in respective
+    argument.
+
+    @param gtid_set Will be filled with all GTIDs in this binary log.
+    @param lost_groups Will be filled with all GTIDs in the
+    Previous_gtids_log_event of the first binary log that has a
+    Previous_gtids_log_event.
+    @param verify_checksum If true, checksums will be checked.
+  */
+  bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
+                      bool verify_checksum);
 #endif
 
 private:

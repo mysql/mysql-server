@@ -5781,10 +5781,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   case GTID_LOG_EVENT:
   {
+    global_sid_lock.rdlock();
     Gtid_log_event gtid_ev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
-                           rli->relay_log.description_event_for_queue);
-    if (rli->add_logged_gtid(gtid_ev.get_sidno(), gtid_ev.get_gno()) != 0)
+                           rli->relay_log.description_event_for_queue,
+                           true/* have_lock */);
+    int ret= rli->add_logged_gtid(gtid_ev.get_sidno(), gtid_ev.get_gno());
+    global_sid_lock.unlock();
+    if (ret != 0)
       goto err;
     inc_pos= event_len;
   }

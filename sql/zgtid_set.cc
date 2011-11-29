@@ -116,6 +116,10 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno)
   DBUG_ENTER("Gtid_set::ensure_sidno");
   if (sid_lock != NULL)
     sid_lock->assert_some_rdlock();
+  DBUG_PRINT("info", ("sidno=%d get_max_sidno()=%d sid_map=%p "
+                      "sid_map->get_max_sidno()=%d",
+                      sidno, get_max_sidno(), sid_map,
+                      sid_map != NULL ? sid_map->get_max_sidno() : 0));
   DBUG_ASSERT(sid_map == NULL || sidno <= sid_map->get_max_sidno());
   rpl_sidno max_sidno= get_max_sidno();
   if (sidno > max_sidno)
@@ -1023,7 +1027,7 @@ enum_return_status Gtid_set::add(const uchar *encoded, size_t length)
   // read number of SIDs
   if (length < 8)
   {
-    DBUG_PRINT("error", ("length=%lu < 8", length));
+    DBUG_PRINT("error", ("(length=%lu) < 8", length));
     goto report_error;
   }
   n_sids= uint8korr(encoded);
@@ -1034,7 +1038,9 @@ enum_return_status Gtid_set::add(const uchar *encoded, size_t length)
     // read SID and number of intervals
     if (length - pos < 16 + 8)
     {
-      DBUG_PRINT("error", ("length=%lu - pos=%lu < 16 + 8", length, pos));
+      DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < 16 + 8. "
+                           "[n_sids=%d i=%d]",
+                           length, pos, n_sids, i));
       goto report_error;
     }
     rpl_sid sid;
@@ -1052,7 +1058,7 @@ enum_return_status Gtid_set::add(const uchar *encoded, size_t length)
     // iterate over intervals
     if (length - pos < 2 * 8 * n_intervals)
     {
-      DBUG_PRINT("error", ("length=%lu - pos=%lu < 2 * 8 * n_intervals=%u",
+      DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < 2 * 8 * (n_intervals=%u)",
                            length, pos, n_intervals));
       goto report_error;
     }
@@ -1084,7 +1090,7 @@ enum_return_status Gtid_set::add(const uchar *encoded, size_t length)
   }
   if (pos != length)
   {
-    DBUG_PRINT("error", ("pos=%lu length=%lu", pos, length));
+    DBUG_PRINT("error", ("(pos=%lu) != (length=%lu)", pos, length));
     goto report_error;
   }
   RETURN_OK;
