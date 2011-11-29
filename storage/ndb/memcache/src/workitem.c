@@ -71,6 +71,7 @@ void workitem__initialize(workitem *item, ndb_pipeline *pipeline, int verb,
   item->pipeline = pipeline;
   item->cookie = cookie;   
   item->key = key;
+  item->ext_val = 0;
   item->id = pipeline->nworkitems++;
   
   sz = workitem_get_key_buf_size(nkey);
@@ -185,7 +186,7 @@ const char * workitem_get_operation(workitem *item) {
 }
 
 
-void workitem_set_NdbInstance(workitem *item, C_OR_CPP_NDBINSTANCE * _Ndb_instance)
+void workitem_set_NdbInstance(workitem *item, CPP_NDBINSTANCE * _Ndb_instance)
 {
   assert(item->ndb_instance == NULL);
   item->ndb_instance = _Ndb_instance;
