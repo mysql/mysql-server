@@ -22656,8 +22656,7 @@ fix_ICP:
       {
         const char *new_type= tab->type == JT_INDEX_SCAN ? "index_scan" :
           (tab->select && tab->select->quick) ?
-          "range" : "unknown";
-        DBUG_ASSERT(new_type[0] != 'u');
+          "range" : join_type_str[tab->type];
         trace_change_index.add_alnum("access_type", new_type);
       }
     }
