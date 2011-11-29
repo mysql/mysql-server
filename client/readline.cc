@@ -57,7 +57,7 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 char *batch_readline(LINE_BUFFER *line_buff)
 {
   char *pos;
-  ulong out_length;
+  ulong out_length= 0;
 
   if (!(pos=intern_read_line(line_buff, &out_length)))
     return 0;
