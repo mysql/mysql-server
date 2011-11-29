@@ -461,7 +461,6 @@ public:
     protocol was used: 0 - no password, 4 - 3.20, 8 - 4.0,  20 - 4.1.1
   */
   uint8 salt_len;
-  //uint8 sha2_hash[CRYPT_MAX_PASSWORD_SIZE+1];
   enum SSL_type ssl_type;
   const char *ssl_cipher, *x509_issuer, *x509_subject;
   LEX_STRING plugin;
