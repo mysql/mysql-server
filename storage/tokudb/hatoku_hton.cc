@@ -1124,6 +1124,12 @@ format_time(u_int64_t time64, char *buf) {
                                           val, \
                                           strlen(val))
 
+#define showval(v) \
+    snprintf(buf, bufsiz, "%" PRIu64, engstat.v); \
+    STATPRINT(#v, buf);
+
+extern sys_var *intern_find_sys_var(const char *str, uint length, bool no_error);
+
 static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
     TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
     int error;
@@ -1132,10 +1138,11 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 
     ENGINE_STATUS engstat;
 
-#define showval(v) \
-    snprintf(buf, bufsiz, "%" PRIu64, engstat.v); \
-    STATPRINT(#v, buf);
-
+    {
+	sys_var * version = intern_find_sys_var("version", 0, false);
+	snprintf(buf, bufsiz, "%s", version->value_ptr(thd, (enum_var_type)0, (LEX_STRING*)NULL));
+	STATPRINT("Version", buf);
+    }
     error = db_env->get_engine_status(db_env, &engstat, buf, bufsiz);
     if (strlen(buf)) {
 	STATPRINT("Environment panic string", buf);
