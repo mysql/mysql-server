@@ -64,14 +64,10 @@ void workitem__initialize(workitem *item, ndb_pipeline *pipeline, int verb,
   memset(item, 0, sizeof(workitem));      /* zero out the item */
   item->base.nkey = nkey;  
   item->base.verb = verb;
-  item->base.has_value = 0;
-  item->base.retries = 0;
-  item->base.complete = 0;
   item->prefix_info = prefix;
   item->pipeline = pipeline;
   item->cookie = cookie;   
   item->key = key;
-  item->ext_val = 0;
   item->id = pipeline->nworkitems++;
   
   sz = workitem_get_key_buf_size(nkey);
