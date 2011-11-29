@@ -293,7 +293,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file,
     bytes/= 6;
     bytes*= 6;
     bitmap->last_bitmap_page= last_bitmap_page;
-    bitmap->last_total_size= bytes;
+    bitmap->last_total_size= (uint)bytes;
     *last_page= ((last_bitmap_page + bytes*8/3));
   }
 

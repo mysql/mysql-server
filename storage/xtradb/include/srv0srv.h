@@ -285,7 +285,7 @@ extern	ibool	srv_print_latch_waits;
 extern ulint	srv_activity_count;
 extern ulint	srv_fatal_semaphore_wait_threshold;
 extern ulint	srv_dml_needed_delay;
-extern lint	srv_kill_idle_transaction;
+extern long long	srv_kill_idle_transaction;
 
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				query threads, and lock table: we allocate
