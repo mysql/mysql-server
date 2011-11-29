@@ -626,7 +626,7 @@ typedef void* os_thread_ret_t;
 # define UNIV_MEM_INVALID(addr, size) do {} while(0)
 # define UNIV_MEM_FREE(addr, size) do {} while(0)
 # define UNIV_MEM_ALLOC(addr, size) do {} while(0)
-# define UNIV_MEM_DESC(addr, size, b) do {} while(0)
+# define UNIV_MEM_DESC(addr, size) do {} while(0)
 # define UNIV_MEM_UNDESC(b) do {} while(0)
 # define UNIV_MEM_ASSERT_RW(addr, size) do {} while(0)
 # define UNIV_MEM_ASSERT_W(addr, size) do {} while(0)
