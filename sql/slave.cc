@@ -1129,7 +1129,7 @@ int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f)
     memcpy(buf_act, buf, read_size);
     snd_size= my_b_gets(f, buf_act + read_size, max_size - read_size);
     if (snd_size == 0 ||
-        ((snd_size + 1 == max_size - read_size) &&  buf[max_size - 2] != '\n'))
+        ((snd_size + 1 == max_size - read_size) &&  buf_act[max_size - 2] != '\n'))
     {
       /*
         failure to make the 2nd read or short read again
