@@ -792,6 +792,7 @@ void intern_close_table(TABLE *table)
   delete table->triggers;
   if (table->file)                              // Not true if name lock
     VOID(closefrm(table, 1));			// close file
+  table->alias.free();
   DBUG_VOID_RETURN;
 }
 
@@ -2328,9 +2329,9 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in)
       object to its original state.
     */
     memcpy(table, &orig_table, sizeof(*table));
+    bzero(&orig_table, sizeof(orig_table));     // Ensure alias is not freed
     DBUG_RETURN(TRUE);
   }
-  orig_table.alias.free();
 
   share= table->s;
   /*
@@ -3674,7 +3675,7 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
     char *key= table->s->table_cache_key.str;
     uint key_length= table->s->table_cache_key.length;
 
-    DBUG_PRINT("loop", ("table_name: %s", table->alias.c_ptr()));
+    DBUG_PRINT("loop", ("table_name: %s.%s", key, strend(key)+1));
     HASH_SEARCH_STATE state;
     for (TABLE *search= (TABLE*) hash_first(&open_cache, (uchar*) key,
                                              key_length, &state);

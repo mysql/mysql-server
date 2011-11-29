@@ -3901,7 +3901,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
           _ma_check_print_error(param,
                                 "Rows lost (Found %lu of %lu); Aborting "
                                 "because safe repair was requested",
-                                (ulong) share->state.state.records,
+                                sort_info.new_info->s->state.state.records,
                                 (ulong) start_records);
           share->state.state.records=start_records;
 	  goto err;

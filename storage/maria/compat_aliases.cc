@@ -102,8 +102,8 @@ static MYSQL_SYSVAR_ULONG(pagecache_division_limit, pagecache_division_limit_ali
        "Deprecated, use --aria-pagecache-division-limit instead",
        0, 0, 100,  1, 100, 1);
 
-ulong recover_alias;
-static MYSQL_SYSVAR_ENUM(recover, recover_alias, PLUGIN_VAR_OPCMDARG,
+ulonglong recover_alias;
+static MYSQL_SYSVAR_SET(recover, recover_alias, PLUGIN_VAR_OPCMDARG,
        "Deprecated, use --aria-recover instead",
        NULL, NULL, HA_RECOVER_DEFAULT, &maria_recover_typelib);
 
