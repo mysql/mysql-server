@@ -30,14 +30,11 @@
 #ifdef __cplusplus
 #include "QueryPlan.h"
 #include "NdbInstance.h" 
-#include "ExternalValue.h"
 #define CPP_QUERYPLAN QueryPlan
 #define CPP_NDBINSTANCE NdbInstance
-#define CPP_EXTERNALVALUE ExternalValue
 #else 
 #define CPP_QUERYPLAN void
 #define CPP_NDBINSTANCE void
-#define CPP_EXTERNALVALUE void
 #endif
 
 
@@ -68,7 +65,7 @@ typedef struct workitem {
                                /*! pointer to ndb instance, if applicable */
   const void *cookie;          /*! memcached's connection cookie */
   CPP_QUERYPLAN *plan;         /*! QueryPlan for resolving this request */
-  CPP_EXTERNALVALUE *ext_val;  /*! ExternalValue */
+  // CPP_EXTERNALVALUE *ext_val;  /*! ExternalValue */
   const char *key;             /*! pointer to the key */
   void * next_step;            /*! a worker_step function in ndb_worker.cc */
   status_block *status;        /*! A static status_block in ndb_worker.cc */
