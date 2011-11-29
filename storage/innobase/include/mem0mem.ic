@@ -542,7 +542,8 @@ mem_alloc_func(
 		m -= MEM_FIELD_HEADER_SIZE + MEM_FIELD_TRAILER_SIZE;
 #endif /* UNIV_MEM_DEBUG */
 		ut_ad(m >= n);
-		*size = n = m;
+		n = m;
+		*size = m;
 	}
 
 	buf = mem_heap_alloc(heap, n);
