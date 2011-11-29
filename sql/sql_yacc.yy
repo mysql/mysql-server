@@ -1863,12 +1863,7 @@ change:
             LEX *lex = Lex;
             lex->sql_command = SQLCOM_CHANGE_MASTER;
             bzero((char*) &lex->mi, sizeof(lex->mi));
-            /*
-              resetting flags that can left from the previous CHANGE MASTER
-            */
             lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
-            my_init_dynamic_array(&Lex->mi.repl_ignore_server_ids,
-                                  sizeof(::server_id), 16, 16);
           }
           master_defs
           {}
@@ -1965,7 +1960,7 @@ master_def:
         | IGNORE_SERVER_IDS_SYM EQ '(' ignore_server_id_list ')'
           {
             Lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_ENABLE;
-           }
+          }
         |
         master_file_def
         ;
@@ -1979,6 +1974,15 @@ ignore_server_id_list:
 ignore_server_id:
           ulong_num
           {
+            if (!Lex->mi.repl_ignore_server_ids_inited)
+            {
+              my_init_dynamic_array2(&Lex->mi.repl_ignore_server_ids,
+                                     sizeof(::server_id),
+                                     Lex->mi.repl_ignore_server_ids_static_buffer,
+                                     array_elements(Lex->mi.repl_ignore_server_ids_static_buffer),
+                                     16);
+              Lex->mi.repl_ignore_server_ids_inited= true;
+            }
             insert_dynamic(&Lex->mi.repl_ignore_server_ids, (uchar*) &($1));
           }
 
