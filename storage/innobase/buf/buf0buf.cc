@@ -918,7 +918,7 @@ buf_block_init(
 	buf_block_t*	block,		/*!< in: pointer to control block */
 	byte*		frame)		/*!< in: pointer to buffer frame */
 {
-	UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE, block);
+	UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE);
 
 	block->frame = frame;
 
@@ -2633,7 +2633,7 @@ wait_until_unfixed:
 		block->lock_hash_val = lock_rec_hash(space, offset);
 
 		UNIV_MEM_DESC(&block->page.zip.data,
-			      page_zip_get_size(&block->page.zip), block);
+			      page_zip_get_size(&block->page.zip));
 
 		if (buf_page_get_state(&block->page)
 		    == BUF_BLOCK_ZIP_PAGE) {
@@ -3477,7 +3477,7 @@ err_exit:
 
 		mutex_enter(&buf_pool->zip_mutex);
 		UNIV_MEM_DESC(bpage->zip.data,
-			      page_zip_get_size(&bpage->zip), bpage);
+			      page_zip_get_size(&bpage->zip));
 
 		buf_page_init_low(bpage);
 
