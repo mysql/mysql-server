@@ -1838,7 +1838,8 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
                                    bool verify_checksum)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
-
+  DBUG_PRINT("info", ("lost_groups=%p; so we are recovering a %s log",
+                      lost_groups, lost_groups == NULL ? "relay" : "binary"));
   /*
     Creates a format descriptor that is used to read events from
     either the binary or relay log.
@@ -1853,6 +1854,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
   */
   mysql_mutex_lock(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
+  global_sid_lock.rdlock();
 
   /*
     Iterate through all binary log files and do the following:
@@ -1869,7 +1871,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
   LOG_INFO linfo;
   int error= find_log_pos(&linfo, NULL, false);
   if (error)
-    return 0; // no binary log found
+    DBUG_RETURN(false); // no binary log found
 
   Log_event *ev= NULL;
   File file= -1;
@@ -1960,6 +1962,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
     }
   } while (!is_last_log);
 
+  global_sid_lock.unlock();
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(false);
