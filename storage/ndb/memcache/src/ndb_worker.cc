@@ -52,24 +52,73 @@
 #include "hash_item_util.h"
 #include "ndb_worker.h"
 
+/**********************************************************
+  Schedduler::schedule()
+    worker_prepare_operation(workitem *) 
+      WorkerStep1::do_op()
+        NdbTransaction::executeAsynchPrepare() with ndb_async_callback 
+                ...
+   ndb_async_callback 
+     * (workitem->next_step)() 
+************************************************************/     
+
+/*  The first phase of any operation is implemented as a method which begins
+    an NDB async transaction and returns an op_status_t to the scheduler.
+*/
+
+class WorkerStep1 {
+public:
+  WorkerStep1(struct workitem *, bool has_server_cas);
+  op_status_t do_append();           // begin an append/prepend operation
+  op_status_t do_read();             // begin a read operation 
+  op_status_t do_write();            // begin a SET/ADD/REPLACE operation
+  op_status_t do_delete();           // begin a delete operation 
+  op_status_t do_math();             // begin an INCR/DECR operation
+  
+private:
+  /* Private member variables */
+  workitem *wqitem;
+  bool server_cas;
+  NdbTransaction *tx;
+  QueryPlan * &plan;
+
+  /* Private methods*/
+  void setKeyAndStartTx(Operation &op);
+};
+
+
+/* Whenever an NDB async operation completes, control returns to a
+   callback function defined in executeAsyncPrepare().
+   In case of common errors, the main callback closes the tx and yields.
+   The incr callback has special-case error handling for increments.
+*/
 typedef void ndb_async_callback(int, NdbTransaction *, void *);
 
-ndb_async_callback incr_callback;     // callback for incr/decr
-ndb_async_callback rewrite_callback;  // callback for append/prepend
-ndb_async_callback DB_callback;       // callback for all others
- 
-op_status_t worker_do_read(workitem *, bool with_cas); 
-op_status_t worker_do_write(workitem *, bool with_cas); 
-op_status_t worker_do_delete(workitem *, bool with_cas); 
-op_status_t worker_do_math(workitem *wqitem, bool with_cas);
+ndb_async_callback callback_main;     // general purpose callback
+ndb_async_callback callback_incr;     // special callback for incr/decr
 
+
+/* 
+   The next step is a function that conforms to the worker_step signature.
+   It must either call yield() or reschedule(), and is also responsible for 
+   closing the transaction. 
+*/
+typedef void worker_step(NdbTransaction *, workitem *);
+
+worker_step worker_append; 
+worker_step worker_finalize_read;
+worker_step worker_finalize_write;
+inline worker_step worker_close;             /* Close tx and yield scheduler */
+
+/*****************************************************************************/
+
+/* Misc utility functions */
 void worker_set_cas(ndb_pipeline *, uint64_t *);
-bool finalize_read(workitem *);
-bool finalize_write(workitem *, bool);
 int build_cas_routine(NdbInterpretedCode *r, int cas_col, uint64_t cas_val);
 bool scan_delete(NdbInstance *, QueryPlan *);
+void build_hash_item(workitem *, Operation &);
 
-
+/* Extern pointers */
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
 /* Prototype for ndb_allocate() from ndb_engine.c: */
@@ -82,6 +131,7 @@ ENGINE_ERROR_CODE ndb_allocate(ENGINE_HANDLE* handle,
                                const int flags,
                                const rel_time_t exptime);
 
+/* Return Status Descriptions */
 status_block status_block_generic_success = 
   { ENGINE_SUCCESS , "Transaction succeeded"          };
 
@@ -127,61 +177,58 @@ void worker_set_cas(ndb_pipeline *p, uint64_t *cas) {
 */
 op_status_t worker_prepare_operation(workitem *newitem) {
   bool server_cas = (newitem->prefix_info.has_cas_col && newitem->cas);
+  WorkerStep1 worker(newitem, server_cas);
   op_status_t r;
 
   /* Jump table */
   switch(newitem->base.verb) {
     case OP_READ:
-      r = worker_do_read(newitem, server_cas);
+      r = worker.do_read();
       break;
       
     case OPERATION_APPEND:
     case OPERATION_PREPEND:
-      if(newitem->plan->spec->nvaluecols > 1) {
-        /* APPEND/PREPEND is currently not supported for tsv */
-        r = op_not_supported;
-      }
-      else {
-        r = worker_do_read(newitem, server_cas);
-      }
+      r = worker.do_append();
       break;
 
     case OP_DELETE: 
-      r = worker_do_delete(newitem, server_cas);
+      r = worker.do_delete();
       break;
 
     case OPERATION_SET:
     case OPERATION_ADD:
     case OPERATION_REPLACE:
     case OPERATION_CAS:
-      r = worker_do_write(newitem, server_cas);
+      r = worker.do_write();
       break;
 
     case OP_ARITHMETIC:
-      r = worker_do_math(newitem, server_cas);
+      r = worker.do_math();
       break;
       
     default:
       r= op_not_supported;
   }
-
   return r;
 }
 
 
-op_status_t worker_do_delete(workitem *wqitem, bool server_cas) {  
+/***************** STEP ONE OPERATIONS ***************************************/
+
+WorkerStep1::WorkerStep1(workitem *newitem, bool do_server_cas) :
+  wqitem(newitem), 
+  server_cas(do_server_cas), 
+  tx(0),
+  plan(newitem->plan)
+{};
+
+
+op_status_t WorkerStep1::do_delete() {
   DEBUG_ENTER();
   
-  QueryPlan *plan = wqitem->plan;
-  const char *dbkey = workitem_get_key_suffix(wqitem);
-  Operation op(plan, OP_DELETE, wqitem->ndb_key_buffer);
   const NdbOperation *ndb_op = 0;
-
-  NdbTransaction *tx = op.startTransaction(wqitem->ndb_instance->db);
-  DEBUG_ASSERT(tx);
-  
-  op.clearKeyNullBits();
-  op.setKeyPart(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);
+  Operation op(plan, OP_DELETE);
+  setKeyAndStartTx(op);
   
   if(server_cas && * wqitem->cas) {
     // ndb_op = op.deleteTupleCAS(tx, & options);  
@@ -189,7 +236,7 @@ op_status_t worker_do_delete(workitem *wqitem, bool server_cas) {
   else {
     ndb_op = op.deleteTuple(tx);    
   }
-
+  
   /* Check for errors */
   if(ndb_op == 0) {
     const NdbError & err = tx->getNdbError();
@@ -199,35 +246,34 @@ op_status_t worker_do_delete(workitem *wqitem, bool server_cas) {
       return op_failed;
     }
   }
-
+  
   /* Prepare for execution */   
-  tx->executeAsynchPrepare(NdbTransaction::Commit, DB_callback, (void *) wqitem);
+  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) wqitem);
   return op_async_prepared;
 }
 
 
-op_status_t worker_do_write(workitem *wqitem, bool server_cas) {
+op_status_t WorkerStep1::do_write() {
   DEBUG_PRINT("%s", workitem_get_operation(wqitem));
-
+  
   uint64_t cas_in = *wqitem->cas;                       // read old value
   worker_set_cas(wqitem->pipeline, wqitem->cas);        // generate a new value
   hash_item_set_cas(wqitem->cache_item, * wqitem->cas); // store it
-
+  
   const NdbOperation *ndb_op = 0;
-  QueryPlan *plan = wqitem->plan;
   Operation op(plan, wqitem->base.verb, wqitem->ndb_key_buffer);
   const char *dbkey = workitem_get_key_suffix(wqitem);
   bool op_ok;
-
+  
   /* Set the key */
   op.clearKeyNullBits();
   op_ok = op.setKeyPart(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);
   if(! op_ok) return op_overflow;
-
+  
   /* Allocate and encode the buffer for the row */ 
   workitem_allocate_rowbuffer_1(wqitem, op.requiredBuffer());
   op.buffer = wqitem->row_buffer_1;
-
+  
   /* Set the row */
   op.clearNullBits();  // no need to re-test for overflow...
   op.setColumn(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);
@@ -249,16 +295,16 @@ op_status_t worker_do_write(workitem *wqitem, bool server_cas) {
     } while (tsv.advance());
   }
   else {
-    /* Just one value column */
+    /* Just one value column */    
     op_ok = op.setColumn(COL_STORE_VALUE, hash_item_get_data(wqitem->cache_item),
                          wqitem->cache_item->nbytes);
     if(! op_ok) return op_overflow;
   }
-
+  
   if(server_cas) {
     op.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);   // the cas
   }
-
+  
   if(wqitem->plan->dup_numbers) {
     if(isdigit(* hash_item_get_data(wqitem->cache_item)) && 
        wqitem->cache_item->nbytes < 32) {      // Copy string representation 
@@ -279,9 +325,9 @@ op_status_t worker_do_write(workitem *wqitem, bool server_cas) {
     }
     else op.setColumnNull(COL_STORE_MATH);      
   }
-
+  
   /* Start the transaction */
-  NdbTransaction *tx = op.startTransaction(wqitem->ndb_instance->db);
+  tx = op.startTransaction(wqitem->ndb_instance->db);
   if(! tx) {
     logger->log(LOG_WARNING, 0, "tx: %s \n", 
                 wqitem->ndb_instance->db->getNdbError().message);
@@ -299,8 +345,8 @@ op_status_t worker_do_write(workitem *wqitem, bool server_cas) {
   else if(wqitem->base.verb == OPERATION_CAS) {    
     if(server_cas) {
       /* NdbOperation.hpp says: "All data is copied out of the OperationOptions 
-         structure (and any subtended structures) at operation definition time."      
-      */
+       structure (and any subtended structures) at operation definition time."      
+       */
       DEBUG_PRINT(" [CAS UPDATE:%llu]     \"%.*s\"", cas_in, wqitem->base.nkey, wqitem->key);
       const Uint32 program_size = 25;
       Uint32 program[program_size];
@@ -316,7 +362,7 @@ op_status_t worker_do_write(workitem *wqitem, bool server_cas) {
     DEBUG_PRINT(" [SET]     \"%.*s\"", wqitem->base.nkey, wqitem->key);
     ndb_op = op.writeTuple(tx);
   }
-
+  
   /* Error case; operation has not been built */
   if(! ndb_op) {
     logger->log(LOG_WARNING, 0, "error building NDB operation: %s\n", 
@@ -326,76 +372,93 @@ op_status_t worker_do_write(workitem *wqitem, bool server_cas) {
     tx->close();
     return op_failed;
   }
-
-  tx->executeAsynchPrepare(NdbTransaction::Commit, DB_callback, (void *) wqitem);
-  return op_async_prepared;
+  
+  wqitem->next_step = (void *) worker_finalize_write;
+  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) wqitem);
+  return op_async_prepared;  
 }
 
 
-op_status_t worker_do_read(workitem *wqitem, bool server_cas) {
+op_status_t WorkerStep1::do_read() {
   DEBUG_ENTER();
-
-  QueryPlan *plan = wqitem->plan;
-  const char *dbkey = workitem_get_key_suffix(wqitem);
-
-  /* Use the workitem's inline buffer as a key buffer; 
-     allocate a new result buffer large enough for the result.
-     Add 2 bytes to hold potential \r\n in a no-copy result. */
-  Operation op(plan, OP_READ, wqitem->ndb_key_buffer);
-  workitem_allocate_rowbuffer_1(wqitem, op.requiredBuffer() + 2);
-  op.buffer = wqitem->row_buffer_1;
-
-  /* Copy the key into the key buffer, ecnoding it for NDB */
-  op.clearKeyNullBits();
-  op.setKeyPart(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);  
-
-  /* Start a transaction, and call NdbTransaction::readTuple() */
-  NdbTransaction *tx = op.startTransaction(wqitem->ndb_instance->db);
-  DEBUG_ASSERT(tx);
-
-  bool op_is_read_before_write;
-  ndb_async_callback *next_op;
   
-  if (wqitem->base.verb == OPERATION_APPEND || wqitem->base.verb == OPERATION_PREPEND) {
-    op_is_read_before_write = true;
-    next_op = rewrite_callback;
-  }
-  else {
-    op_is_read_before_write = false;
-    next_op = DB_callback;
-  }
-
-  /* Simple primary key reads use a SimpleRead lock.  
-     Unique index reads need a Read lock. 
-     APPEND and PREPEND need an Exclusive lock. */
-  NdbOperation::LockMode lockmode = NdbOperation::LM_SimpleRead;
-  if(op_is_read_before_write) lockmode = NdbOperation::LM_Exclusive;
-  else if(! plan->pk_access)  lockmode = NdbOperation::LM_Read;
+  Operation op(plan, OP_READ);
+  setKeyAndStartTx(op);
+  
+  /* PK read can use SimpleRead, but unique index read needs a lock. */
+  NdbOperation::LockMode lockmode = 
+  plan->pk_access ? NdbOperation::LM_SimpleRead : NdbOperation::LM_Read;
   
   if(! op.readTuple(tx, lockmode)) {
     logger->log(LOG_WARNING, 0, "readTuple(): %s\n", tx->getNdbError().message);
     tx->close();
     return op_failed;
   }
+  
+  /* Save the workitem in the transaction and prepare for async execution */ 
+  wqitem->next_step = (void *) worker_finalize_read;
+  tx->executeAsynchPrepare(NdbTransaction::NoCommit, callback_main, (void *) wqitem);
+  return op_async_prepared;  
+}
 
-  /* Save the workitem in the transaction and prepare for async execution */   
-  tx->executeAsynchPrepare(NdbTransaction::NoCommit, next_op, (void *) wqitem);
 
+op_status_t WorkerStep1::do_append() {
+  DEBUG_ENTER();
+  /* APPEND/PREPEND is currently not supported for tsv */
+  if(wqitem->plan->spec->nvaluecols > 1)
+    return op_not_supported;
+  
+  Operation op(plan, OP_READ);
+  setKeyAndStartTx(op);
+  
+  /* Read with an exculsive lock */
+  if(! op.readTuple(tx, NdbOperation::LM_Exclusive)) {
+    logger->log(LOG_WARNING, 0, "readTuple(): %s\n", tx->getNdbError().message);
+    tx->close();
+    return op_failed;
+  }
+  
+  /* Save the workitem in the transaction and prepare for async execution */ 
+  wqitem->next_step = (void *) worker_append;
+  tx->executeAsynchPrepare(NdbTransaction::NoCommit, callback_main, (void *) wqitem);  
   return op_async_prepared;
 }
 
 
-op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
-  DEBUG_PRINT("create: %d   retries: %d", 
-                     wqitem->base.math_create, wqitem->base.retries);
-  worker_set_cas(wqitem->pipeline, wqitem->cas);
+void WorkerStep1::setKeyAndStartTx(Operation &op) {
+  DEBUG_ENTER();
+  
+  /* Use the workitem's inline key buffer */
+  op.key_buffer = wqitem->ndb_key_buffer;
+  
+  /*  Allocate a new result buffer large enough for the result.
+   Add 2 bytes to hold potential \r\n in a no-copy result. */
+  workitem_allocate_rowbuffer_1(wqitem, op.requiredBuffer() + 2);
+  op.buffer = wqitem->row_buffer_1;
+  
+  /* Copy the key into the key buffer, ecnoding it for NDB */
+  op.clearKeyNullBits();
+  const char *dbkey = workitem_get_key_suffix(wqitem);
+  op.setKeyPart(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);  
+  
+  /* Start a transaction */
+  tx = op.startTransaction(wqitem->ndb_instance->db);
+  DEBUG_ASSERT(tx);
+}
 
+
+
+op_status_t WorkerStep1::do_math() {
+  DEBUG_PRINT("create: %d   retries: %d", 
+              wqitem->base.math_create, wqitem->base.retries);
+  worker_set_cas(wqitem->pipeline, wqitem->cas);
+  
   /*
    Begin transaction
-     1. readTuple  (LM_Exclusive)
-     2. if(create_flag) 
-          insertTuple, setting value to initial_value - delta (AO_IgnoreError)
-     3. updateTuple (interpreted: add delta to value)
+   1. readTuple  (LM_Exclusive)
+   2. if(create_flag) 
+   insertTuple, setting value to initial_value - delta (AO_IgnoreError)
+   3. updateTuple (interpreted: add delta to value)
    Execute (Commit)
    
    Then look at the error codes from all 3 operations to see what happened:
@@ -405,33 +468,32 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
    626   0       0       row was created.  return initial_value.
    0     630     0       row existed.  return fetched_value + delta.
    x     x       626     failure due to race with concurrent delete
-  */
-
-  QueryPlan *plan = wqitem->plan;
+   */
+  
   const char *dbkey = workitem_get_key_suffix(wqitem);
-
+  
   /* This transaction involves up to three NdbOperations. */
   const NdbOperation *ndbop1 = 0;
   const NdbOperation *ndbop2 = 0;
   const NdbOperation *ndbop3 = 0;
   
   /* "Operation" is really just a header-only library for convenience and 
-     safety.  We use 2 of them here -- one for the read, the other for the
-     update and insert.  This is only because they will make slightly different
-     use of records and buffers.   Both will use the inline key buffer.
-  */
+   safety.  We use 2 of them here -- one for the read, the other for the
+   update and insert.  This is only because they will make slightly different
+   use of records and buffers.   Both will use the inline key buffer.
+   */
   Operation op1(plan, OP_READ,       wqitem->ndb_key_buffer);
   Operation op2(plan, OPERATION_ADD, wqitem->ndb_key_buffer);
-
+  
   if(! wqitem->base.retries) {
     /* Allocate & populate row buffers for these operations: 
-       We need one for the read and one for the insert.  */
+     We need one for the read and one for the insert.  */
     size_t needed = op1.requiredBuffer();
     workitem_allocate_rowbuffer_1(wqitem, needed);
     workitem_allocate_rowbuffer_2(wqitem, needed);    
     op1.buffer = wqitem->row_buffer_1;
     op2.buffer = wqitem->row_buffer_2;
-
+    
     /* The two items share a key buffer, so we encode the key just once */
     op1.clearKeyNullBits();
     op1.setKeyPart(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);  
@@ -439,7 +501,7 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
     /* The insert operation also needs the key written into the row */
     op2.clearNullBits();
     op2.setColumn(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);
-
+    
     /* CAS */
     if(server_cas) op2.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);
     
@@ -450,7 +512,7 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
   } 
   
   /* Use an op (either one) to start the transaction */
-  NdbTransaction *tx = op1.startTransaction(wqitem->ndb_instance->db);
+  tx = op1.startTransaction(wqitem->ndb_instance->db);
   
   /* NdbOperation #1: READ */
   {
@@ -461,7 +523,7 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
       return op_failed; 
     }
   }
-
+  
   /* NdbOperation #2: INSERT (AO_IgnoreError) */
   if(wqitem->base.math_create) {
     /* Offset the initial value to compensate for the update */
@@ -471,12 +533,12 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
     else
       initial_value = wqitem->math_value + wqitem->math_delta;  // decr
     op2.setColumnBigUnsigned(COL_STORE_MATH, initial_value);
-
+    
     /* If this insert gets an error, the transaction should continue. */
     NdbOperation::OperationOptions options;
     options.optionsPresent = NdbOperation::OperationOptions::OO_ABORTOPTION;  
     options.abortOption = NdbOperation::AO_IgnoreError;
-
+    
     ndbop2 = op2.insertMasked(tx, plan->math_mask_i, & options); 
     if(! ndbop2) {
       logger->log(LOG_WARNING, 0, "insertMasked(): %s\n", tx->getNdbError().message);
@@ -484,14 +546,14 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
       return op_failed;
     }
   }
-
+  
   /* NdbOperation #3: Interpreted Update */
   {
     NdbOperation::OperationOptions options;
     const Uint32 program_size = 32;
     Uint32 program[program_size];
     NdbInterpretedCode code(plan->table, program, program_size);
-
+    
     if(wqitem->base.math_incr) {                                  // incr
       code.add_val(plan->math_column_id, wqitem->math_delta);   
       code.interpret_exit_ok();
@@ -499,7 +561,7 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
     else {                                                        // decr
       const Uint32 Rdel = 1, Rcol = 2, Rres = 3;       // registers 1,2,3
       const Uint32 SUB_ZERO = 0;                       // a label
-
+      
       code.load_const_u64(Rdel, wqitem->math_delta);   // load R1, delta
       code.read_attr     (Rcol, plan->math_column_id); // load R2, math_col
       code.branch_gt     (Rdel, Rcol, SUB_ZERO);       // if R1 > R2 goto SUB_ZERO
@@ -511,12 +573,12 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
       code.write_attr    (plan->math_column_id, Rres); // Store into column 
       code.interpret_exit_ok();
     }
-
+    
     code.finalise();
- 
+    
     options.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
     options.interpretedCode = & code;
-   
+    
     ndbop3 = op2.updateInterpreted(tx, & options, plan->math_mask_u);
     if(! ndbop3) {
       logger->log(LOG_WARNING, 0, "updateInterpreted(): %s\n", tx->getNdbError().message);
@@ -524,101 +586,176 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
       return op_failed;
     }
   }
-
-  tx->executeAsynchPrepare(NdbTransaction::Commit, incr_callback, (void *) wqitem);
+  
+  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_incr, (void *) wqitem);
   return op_async_prepared;
 }
 
 
-void DB_callback(int result, NdbTransaction *tx, void *itemptr) {
+/***************** NDB CALLBACKS *********************************************/
+
+void callback_main(int, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
   ndb_pipeline * & pipeline = wqitem->pipeline;
-  status_block * return_status;
-  bool tx_did_match = false;
     
   /************** Error handling ***********/  
   /* No Error */
   if(tx->getNdbError().classification == NdbError::NoError) {
-    tx_did_match = true;
     DEBUG_PRINT("Success.");
-    return_status = & status_block_generic_success;
+    wqitem->status = & status_block_generic_success;
+    if(wqitem->next_step) {
+      /* Control moves forward to the next step of the operation */
+      worker_step * next_step = (worker_step *) wqitem->next_step;
+      wqitem->next_step = 0;
+      next_step(tx, wqitem);
+      return;
+    }
   }
   /* CAS mismatch; interpreted code aborted with interpret_exit_nok() */
   else if(tx->getNdbError().code == 2010) {
     DEBUG_PRINT("CAS mismatch.");
     * wqitem->cas = 0ULL;  // set cas=0 in the response
-    return_status = & status_block_cas_mismatch;    
+    wqitem->status = & status_block_cas_mismatch;    
   }
   /* No Data Found */
   else if(tx->getNdbError().classification == NdbError::NoDataFound) {
     /* Error code should be 626 */
     DEBUG_PRINT("NoDataFound [%d].", tx->getNdbError().code);
     if(wqitem->cas) * wqitem->cas = 0ULL;
-    return_status = 
-      (wqitem->base.verb == OPERATION_REPLACE ?
-        & status_block_bad_replace :  & status_block_item_not_found);
+    switch(wqitem->base.verb) {
+      case OPERATION_REPLACE:
+      case OPERATION_APPEND:
+      case OPERATION_PREPEND:
+        wqitem->status = & status_block_bad_replace;
+        break;
+      default:
+        wqitem->status = & status_block_item_not_found;
+        break;
+    }
   }  
   /* Duplicate key on insert */
   else if(tx->getNdbError().code == 630) {
     DEBUG_PRINT("Duplicate key on insert.");
     if(wqitem->cas) * wqitem->cas = 0ULL;
-    return_status = & status_block_bad_add;    
+    wqitem->status = & status_block_bad_add;    
   }
   /* Attempt to insert via unique index access */
   else if(tx->getNdbError().code == 897) {
-    return_status = & status_block_idx_insert;
+    wqitem->status = & status_block_idx_insert;
   }
   /* Some other error */
   else  {
     DEBUG_PRINT("[%d]: %s", 
                        tx->getNdbError().code, tx->getNdbError().message);
-    return_status = & status_block_misc_error;
+    wqitem->status = & status_block_misc_error;
   }
+
+  worker_close(tx, wqitem);
+}
+
+
+void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
+  workitem *wqitem = (workitem *) itemptr;
+  ndb_pipeline * & pipeline = wqitem->pipeline;
+  status_block * return_status = 0;
+  ENGINE_ERROR_CODE io_status = ENGINE_SUCCESS;
   
-  switch(wqitem->base.verb) {
-    case OP_READ:
-      if(tx_did_match) 
-        if(finalize_read(wqitem) == false)
-          return_status = & status_block_memcache_error;
-      break;
-    case OPERATION_SET:
-    case OPERATION_ADD:
-    case OPERATION_REPLACE:
-    case OPERATION_CAS:
-    case OPERATION_APPEND:
-    case OPERATION_PREPEND:
-      finalize_write(wqitem, tx_did_match);
-      break;
-    case OP_DELETE:
-      break;
-    default:
-      assert("How did we get here?" == 0);
+  /*  read  insert  update cr_flag response
+   ------------------------------------------------------------------------
+   626   0       0        0     return NOT_FOUND.
+   626   0       0        1     row was created.  return initial_value.
+   0     x       0        x     row existed.  return fetched_value + delta.
+   x     x       626      x     failure due to race with concurrent delete.
+   */
+  
+  const NdbOperation *ndbop1, *ndbop2, *ndbop3;
+  int tx_result = tx->getNdbError().code;
+  int r_read = -1;
+  int r_insert = -1;
+  int r_update = -1;
+  
+  ndbop1 = tx->getNextCompletedOperation(NULL);
+  r_read = ndbop1->getNdbError().code;
+  
+  if(ndbop1) {  /* ndbop1 is the read operation */
+    if(wqitem->base.math_create) {
+      ndbop2 = tx->getNextCompletedOperation(ndbop1);  /* the insert */
+      r_insert = ndbop2->getNdbError().code;
+    }
+    else {
+      ndbop2 = ndbop1;  /* no insert (create flag was not set) */
+      r_insert = 0;
+    }
+    if(ndbop2) {
+      ndbop3 = tx->getNextCompletedOperation(ndbop2);  /* the update */
+      r_update = ndbop3->getNdbError().code;
+    }
   }
+  DEBUG_PRINT("tx: %d   r_read: %d   r_insert: %d   r_update: %d   create: %d",
+              tx_result, r_read, r_insert, r_update, wqitem->base.math_create);
   
-  tx->close();  
+  if(r_read == 626 && ! wqitem->base.math_create) {
+    /* row did not exist, and create flag was not set */
+    return_status = & status_block_item_not_found;
+  }
+  else if(r_read == 0 && r_update == 0) {
+    /* row existed.  return fetched_value +/- delta. */
+    Operation op(wqitem->plan, OP_READ);
+    op.buffer = wqitem->row_buffer_1;
+    uint64_t stored = op.getBigUnsignedValue(COL_STORE_MATH);
+    if(wqitem->base.math_incr) {              // incr
+      wqitem->math_value = stored + wqitem->math_delta;
+    }
+    else {                                    // decr
+      if(wqitem->math_delta > stored)
+        wqitem->math_value = 0; // underflow < 0 is not allowed
+      else
+        wqitem->math_value = stored - wqitem->math_delta;
+    }
+    
+    return_status = & status_block_generic_success;
+  }  
+  else if(r_read == 626 && r_insert == 0 && r_update == 0) {
+    /* row was created.   Return initial_value.
+     wqitem->math_value is already set to the initial_value :)  */
+    return_status = & status_block_generic_success;    
+  }
+  else if(r_read == -1 || r_insert == -1 || r_update == -1) {
+    /* Total failure */
+    logger->log(LOG_WARNING, 0, "incr/decr: total failure.\n");
+    io_status = ENGINE_FAILED;  
+  }
+  else if(r_update == 626) {
+    /*  failure due to race with concurrent delete */
+    if(wqitem->base.retries++ < 3) {       // try again:
+      tx->close();      
+      (void) worker_prepare_operation(wqitem); 
+      return;       
+    }
+    else { 
+      logger->log(LOG_WARNING, 0, "incr/decr: giving up, too many retries.\n");
+      io_status = ENGINE_FAILED;
+    }
+  }
+
   wqitem->status = return_status;
+  worker_close(tx, wqitem);  
+}
+
+
+/***************** WORKER STEPS **********************************************/
+
+inline void worker_close(NdbTransaction *tx, workitem *wqitem) {
+  ndb_pipeline * & pipeline = wqitem->pipeline;
+  tx->close();  
   pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
   pipeline->scheduler->yield(wqitem);
 }
 
 
-/* Middle-step callback for APPEND and PREPEND */
-void rewrite_callback(int result, NdbTransaction *tx, void *itemptr) {
-  workitem *item = (workitem *) itemptr;
+void worker_append(NdbTransaction *tx, workitem *item) {
   DEBUG_PRINT("%d.%d", item->pipeline->id, item->id);
  
-  /* Check the transaction status */
-  if(tx->getNdbError().classification == NdbError::NoDataFound) {
-    item->status = & status_block_bad_replace;
-    tx->close();
-    item->pipeline->engine->server.cookie->store_engine_specific(item->cookie, item); 
-    item->pipeline->scheduler->yield(item);
-    return;
-  }
-  else if(tx->getNdbError().classification != NdbError::NoError) {
-    return DB_callback(result, tx, itemptr);
-  }  
-
   /* Strings and lengths: */
   char * current_val = 0; 
   size_t current_len = 0;
@@ -672,7 +809,8 @@ void rewrite_callback(int result, NdbTransaction *tx, void *itemptr) {
   if(ndb_op) {
     // Inform the scheduler that this item must be re-polled
     item->pipeline->scheduler->reschedule(item);
-    tx->executeAsynchPrepare(NdbTransaction::Commit, DB_callback, (void *) item);
+    item->next_step = (void *) worker_finalize_write;
+    tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) item);
   }
   else {
     /* Error case; operation has not been built */
@@ -685,104 +823,9 @@ void rewrite_callback(int result, NdbTransaction *tx, void *itemptr) {
 }
 
 
-/* Dedicated callback function for INCR and DECR operations
-*/
-void incr_callback(int result, NdbTransaction *tx, void *itemptr) {
-  workitem *wqitem = (workitem *) itemptr;
-  ndb_pipeline * & pipeline = wqitem->pipeline;
-  status_block * return_status = 0;
-  ENGINE_ERROR_CODE io_status = ENGINE_SUCCESS;
-
-  /*  read  insert  update cr_flag response
-      ------------------------------------------------------------------------
-      626   0       0        0     return NOT_FOUND.
-      626   0       0        1     row was created.  return initial_value.
-      0     x       0        x     row existed.  return fetched_value + delta.
-      x     x       626      x     failure due to race with concurrent delete.
-  */
-
-  const NdbOperation *ndbop1, *ndbop2, *ndbop3;
-  int tx_result = tx->getNdbError().code;
-  int r_read = -1;
-  int r_insert = -1;
-  int r_update = -1;
-
-  ndbop1 = tx->getNextCompletedOperation(NULL);
-  r_read = ndbop1->getNdbError().code;
-  
-  if(ndbop1) {  /* ndbop1 is the read operation */
-    if(wqitem->base.math_create) {
-      ndbop2 = tx->getNextCompletedOperation(ndbop1);  /* the insert */
-      r_insert = ndbop2->getNdbError().code;
-    }
-    else {
-      ndbop2 = ndbop1;  /* no insert (create flag was not set) */
-      r_insert = 0;
-    }
-    if(ndbop2) {
-      ndbop3 = tx->getNextCompletedOperation(ndbop2);  /* the update */
-      r_update = ndbop3->getNdbError().code;
-    }
-  }
-  DEBUG_PRINT("tx: %d   r_read: %d   r_insert: %d   r_update: %d   create: %d",
-              tx_result, r_read, r_insert, r_update, wqitem->base.math_create);
-  
-  if(r_read == 626 && ! wqitem->base.math_create) {
-    /* row did not exist, and create flag was not set */
-    return_status = & status_block_item_not_found;
-  }
-  else if(r_read == 0 && r_update == 0) {
-    /* row existed.  return fetched_value +/- delta. */
-    Operation op(wqitem->plan, OP_READ);
-    op.buffer = wqitem->row_buffer_1;
-    uint64_t stored = op.getBigUnsignedValue(COL_STORE_MATH);
-    if(wqitem->base.math_incr) {              // incr
-      wqitem->math_value = stored + wqitem->math_delta;
-    }
-    else {                                    // decr
-      if(wqitem->math_delta > stored)
-        wqitem->math_value = 0; // underflow < 0 is not allowed
-      else
-        wqitem->math_value = stored - wqitem->math_delta;
-    }
-      
-    return_status = & status_block_generic_success;
-  }  
-  else if(r_read == 626 && r_insert == 0 && r_update == 0) {
-    /* row was created.   Return initial_value.
-       wqitem->math_value is already set to the initial_value :)  */
-    return_status = & status_block_generic_success;    
-  }
-  else if(r_read == -1 || r_insert == -1 || r_update == -1) {
-    /* Total failure */
-    logger->log(LOG_WARNING, 0, "incr/decr: total failure.\n");
-    io_status = ENGINE_FAILED;  
-  }
-  else if(r_update == 626) {
-    /*  failure due to race with concurrent delete */
-    if(wqitem->base.retries++ < 3) {       // try again:
-      tx->close();      
-      (void) worker_do_math(wqitem, wqitem->prefix_info.has_cas_col); 
-      return;       
-    }
-    else { 
-      logger->log(LOG_WARNING, 0, "incr/decr: giving up, too many retries.\n");
-      io_status = ENGINE_FAILED;
-    }
-  }
-  
-  tx->close();
-  
-  wqitem->status = return_status;
-  pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
-  pipeline->scheduler->yield(wqitem);    
-}
-
-
-bool finalize_read(workitem *wqitem) {
+void worker_finalize_read(NdbTransaction *tx, workitem *wqitem) {
   DEBUG_PRINT("%d.%d",wqitem->pipeline->id, wqitem->id);
   
-  bool need_hash_item;
   Operation op(wqitem->plan, OP_READ);
   op.buffer = wqitem->row_buffer_1;
  
@@ -800,27 +843,52 @@ bool finalize_read(workitem *wqitem) {
     /* The workitem's value_ptr and value_size were set above. */
     DEBUG_PRINT("using no-copy buffer.");
     wqitem->base.has_value = true;
-    need_hash_item = false;
+    /* "cache_item == workitem" is a sort of code, required because memcached
+        expects us to return a non-zero item.  In ndb_release() we will look 
+        for this and use it to prevent double-freeing of the workitem.  */
+    wqitem->cache_item = (hash_item *) wqitem;    
   }
-  else need_hash_item = true;
-  
-  if(need_hash_item) 
-    return build_hash_item(wqitem, op);
-  
-  /* Using the row_buffer.
-     "cache_item == workitem" is a sort of code here, required because memcached 
-     expects us to return a non-zero item.  In ndb_release() we will look 
-     for this and use it to prevent double-freeing of the workitem. 
-   */
-  wqitem->cache_item = (hash_item *) wqitem;  
-  return true;
+  else {
+    /* Copy the value into a new buffer */
+    build_hash_item(wqitem, op);
+  }
+
+  worker_close(tx, wqitem);
 }
+
+
+void worker_finalize_write(NdbTransaction *tx, workitem *wqitem) {
+  if(wqitem->prefix_info.do_mc_write) {
+    /* If the write was succesful, update the local cache */
+    /* Possible bugs here: 
+     (1) store_item will store nbytes as length, which is wrong.
+     (2) The CAS may be incorrect.
+    */
+    ndb_pipeline * & pipeline = wqitem->pipeline;
+    struct default_engine * se;
+    se = (struct default_engine *) pipeline->engine->m_default_engine;    
+    ENGINE_ERROR_CODE status;
+
+    status = store_item(se, wqitem->cache_item, 
+                   hash_item_get_cas_ptr(wqitem->cache_item),
+                   OPERATION_SET, wqitem->cookie);
+    if (status != ENGINE_SUCCESS) {
+      wqitem->status = & status_block_memcache_error;
+    }
+  }
+  
+  worker_close(tx, wqitem);
+}
+
+
+/*****************************************************************************/
+
 
 
 /*  Allocate a hash table item, populate it with the original key 
     and the results from the read, then store it.    
  */
-bool build_hash_item(workitem *wqitem, Operation &op) {
+void build_hash_item(workitem *wqitem, Operation &op) {
   DEBUG_ENTER();
   ndb_pipeline * & pipeline = wqitem->pipeline;
   struct default_engine *se;
@@ -866,32 +934,16 @@ bool build_hash_item(workitem *wqitem, Operation &op) {
     /* store it in the local cache? */
     // fixme: probably nbytes is wrong
     if(wqitem->prefix_info.do_mc_read) {
-      return (store_item(se, item, wqitem->cas, OPERATION_SET, wqitem->cookie) 
-              == ENGINE_SUCCESS);
+      ENGINE_ERROR_CODE status;
+      status = store_item(se, item, wqitem->cas, OPERATION_SET, wqitem->cookie);
+      if(status != ENGINE_SUCCESS)
+        wqitem->status = & status_block_memcache_error;
     }
-    return true;
   }
-  DEBUG_PRINT("Failure.  Item: %p", item);
-  return false;
-}
-
-
-bool finalize_write(workitem *wqitem, bool tx_did_match) {
-  struct default_engine *se;
-  ndb_pipeline * & pipeline = wqitem->pipeline;
-  se = (struct default_engine *) pipeline->engine->m_default_engine;      
-
-  /* If the write was succesful, update the local cache */
-  /* Possible bugs here: 
-     (1) store_item will store nbytes as length, which is wrong.
-     (2) The CAS may be incorrect.
-  */
-  if(wqitem->prefix_info.do_mc_write && tx_did_match) {
-    return (store_item(se, wqitem->cache_item, 
-                       hash_item_get_cas_ptr(wqitem->cache_item),
-                       OPERATION_SET, wqitem->cookie) == ENGINE_SUCCESS);
+  else {
+    DEBUG_PRINT("Failure.  Item: %p", item);
+    wqitem->status = & status_block_memcache_error;
   }
-  return true;
 }
 
 
@@ -918,8 +970,10 @@ int build_cas_routine(NdbInterpretedCode *r, int cas_col, uint64_t cas_val) {
 }
 
 
+/*************** SYNCHRONOUS IMPLEMENTATION OF "FLUSH ALL" ******************/
+
 /* Flush all is a fully synchronous operation -- 
- the memcache server is waiting for a response, and the thread is blocked.
+   the memcache server is waiting for a response, and the thread is blocked.
 */
 ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *pipeline) {
   DEBUG_ENTER();
