@@ -2080,7 +2080,7 @@ public:
 
 
 /**
-  Class for @@session.gtid_ended_groups and @@global.gtid_ended_groups.
+  Class for @@session.gtid_done and @@global.gtid_done.
 */
 class Sys_var_gtid_done : Sys_var_gtid_set_func
 {
@@ -2119,6 +2119,34 @@ public:
   {
     return get_string_from_gtid_set(thd, get_groups_from_trx_cache);
   }
+};
+
+
+/**
+  Class for @@session.gtid_lost and @@global.gtid_lost.
+*/
+class Sys_var_gtid_lost : Sys_var_gtid_set_func
+{
+public:
+  Sys_var_gtid_lost(const char *name_arg, const char *comment_arg)
+    : Sys_var_gtid_set_func(name_arg, comment_arg, GLOBAL) {}
+
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    DBUG_ENTER("Sys_var_gtid_lost::global_value_ptr");
+    global_sid_lock.rdlock();
+    const Gtid_set *gs= gtid_state.get_lost_gtids();
+    char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
+    if (buf == NULL)
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    else
+      gs->to_string(buf);
+    global_sid_lock.unlock();
+    DBUG_RETURN((uchar *)buf);
+  }
+
+  uchar *session_value_ptr(THD *thd, LEX_STRING *base)
+  { DBUG_ASSERT(0); }
 };
 
 
