@@ -2352,7 +2352,6 @@ LEX::LEX()
                          INITIAL_LEX_PLUGIN_LIST_SIZE, 
                          INITIAL_LEX_PLUGIN_LIST_SIZE);
   reset_query_tables_list(TRUE);
-  repl_ignore_server_ids_inited= false;
 }
 
 
