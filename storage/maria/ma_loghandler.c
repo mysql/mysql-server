@@ -1445,12 +1445,24 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
     File fd;
 
     fd= open_logfile_by_number_no_cache(file);
-    if ((fd < 0) ||
-        (translog_read_file_header(&info, fd) | mysql_file_close(fd, MYF(MY_WME))))
+    if(fd < 0) 
+    {
+      DBUG_PRINT("error", ("Can't open file"));
+      DBUG_RETURN(LSN_ERROR);
+    }
+
+    if (translog_read_file_header(&info, fd))
     {
       DBUG_PRINT("error", ("Can't read file header"));
       DBUG_RETURN(LSN_ERROR);
     }
+
+    if (mysql_file_close(fd, MYF(MY_WME)))
+    {
+      DBUG_PRINT("error", ("Can't close file"));
+      DBUG_RETURN(LSN_ERROR);
+    }
+
     DBUG_PRINT("info", ("Max lsn: (%lu,0x%lx)",
                          LSN_IN_PARTS(info.max_lsn)));
     DBUG_RETURN(info.max_lsn);
