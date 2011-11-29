@@ -70,10 +70,9 @@ const char *maria_recover_names[]=
     Compared to MyISAM, "default" was renamed to "normal" as it collided with
     SET var=default which sets to the var's default i.e. what happens when the
     var is not set i.e. HA_RECOVER_NONE.
-    Another change is that OFF is used to disable, not ""; this is to have OFF
-    display in SHOW VARIABLES which is better than "".
+    OFF flag is ignored.
   */
-  "OFF", "NORMAL", "BACKUP", "FORCE", "QUICK", NullS
+  "NORMAL", "BACKUP", "FORCE", "QUICK", "OFF", NullS
 };
 TYPELIB maria_recover_typelib=
 {
@@ -200,8 +199,8 @@ static MYSQL_SYSVAR_ULONG(pagecache_division_limit, pagecache_division_limit,
 
 static MYSQL_SYSVAR_SET(recover, maria_recover_options, PLUGIN_VAR_OPCMDARG,
        "Specifies how corrupted tables should be automatically repaired."
-       " Possible values are \"NORMAL\" (the default), \"BACKUP\", \"FORCE\","
-       " \"QUICK\", or \"OFF\" which is like not using the option.",
+       " Possible values are one or more of \"NORMAL\" (the default), "
+       "\"BACKUP\", \"FORCE\", or \"QUICK\".",
        NULL, NULL, HA_RECOVER_DEFAULT, &maria_recover_typelib);
 
 static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
@@ -966,7 +965,7 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
     test_if_locked|= HA_OPEN_MMAP;
 #endif
 
-  if (unlikely(maria_recover_options != HA_RECOVER_NONE))
+  if (maria_recover_options & HA_RECOVER_ANY)
   {
     /* user asked to trigger a repair if table was not properly closed */
     test_if_locked|= HA_OPEN_ABORT_IF_CRASHED;
@@ -1568,9 +1567,6 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
       _ma_check_print_warning(param, "Number of rows changed from %s to %s",
                               llstr(rows, llbuff),
                               llstr(file->state->records, llbuff2));
-      /* Abort if warning was converted to error */
-      if (table->in_use->is_error())
-        error= 1;
     }
   }
   else
@@ -3199,7 +3195,7 @@ static int mark_recovery_start(const char* log_dir)
 {
   int res;
   DBUG_ENTER("mark_recovery_start");
-  if (unlikely(maria_recover_options == HA_RECOVER_NONE))
+  if (!(maria_recover_options & HA_RECOVER_ANY))
     ma_message_no_user(ME_JUST_WARNING, "Please consider using option"
                        " --maria-recover[=...] to automatically check and"
                        " repair tables when logs are removed by option"
