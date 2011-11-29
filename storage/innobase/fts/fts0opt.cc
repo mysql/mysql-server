@@ -2999,8 +2999,7 @@ fts_optimize_thread(
 
 				if (table) {
 					fts_sync_table(table);
-					fts_cache_clear(table->fts->cache,
-							TRUE);
+					fts_free(table);
 					dict_table_close(table, FALSE);
 				}
 			}
