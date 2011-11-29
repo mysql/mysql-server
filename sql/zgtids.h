@@ -1783,7 +1783,7 @@ public:
   /// Return a pointer to the Gtid_set that contains the logged groups.
   const Gtid_set *get_logged_gtids() const { return &logged_gtids; }
   /// Return a pointer to the Gtid_set that contains the logged groups.
-  const Gtid_set *get_lost_gtids() const { return &logged_gtids; }
+  const Gtid_set *get_lost_gtids() const { return &lost_gtids; }
   /// Return a pointer to the Owned_gtids that contains the owned groups.
   const Owned_gtids *get_owned_gtids() const { return &owned_gtids; }
   // Return Sid_map used by this Gtid_state.
@@ -1836,9 +1836,12 @@ private:
   Mutex_cond_array sid_locks;
   /// The Sid_map used by this Gtid_state.
   mutable Sid_map *sid_map;
-  /// The set of GTIDs that are logged in the group log.
+  /// The set of GTIDs that have been executed and logged (and possibly purged).
   Gtid_set logged_gtids;
-  /// The set of GTIDs that are logged in the group log.
+  /**
+    The set of GTIDs that existed in some previously purged binary log.
+    This is always a subset of logged_gtids.
+  */
   Gtid_set lost_gtids;
   /// The set of GTIDs that are owned by some thread.
   Owned_gtids owned_gtids;

@@ -3658,4 +3658,8 @@ static Sys_var_gtid_done Sys_gtid_done(
        "gtid_done",
        "The global variable contains the set of GTIDs in the binary log. The session variable contains the set of groups in the current, ongoing transaction.");
 
+static Sys_var_gtid_lost Sys_gtid_lost(
+       "gtid_lost",
+       "The set of GTIDs that existed in previous, purged binary logs.");
+
 #endif
