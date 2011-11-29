@@ -399,7 +399,7 @@ sync_array_wait_event(
 	ut_ad(os_thread_get_curr_id() == cell->thread);
 
 	event = sync_cell_get_event(cell);
-		cell->waiting = TRUE;
+	cell->waiting = TRUE;
 
 #ifdef UNIV_SYNC_DEBUG
 
