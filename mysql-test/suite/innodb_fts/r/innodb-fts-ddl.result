@@ -96,3 +96,49 @@ FTS_DOC_ID	title	body
 1	MySQL Tutorial	DBMS stands for DataBase ...
 3	Optimizing MySQL	In this tutorial we will show ...
 drop table fts_test;
+CREATE TABLE fts_test (
+FTS_DOC_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+title varchar(255) NOT NULL DEFAULT '',
+text mediumtext NOT NULL,
+PRIMARY KEY (FTS_DOC_ID),
+UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+FULLTEXT KEY idx (title,text)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+set @@auto_increment_increment=10;
+INSERT INTO fts_test (title, text) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+set @@auto_increment_increment=1;
+select *, match(title, text)  AGAINST ('database') as score
+from fts_test order by score desc;
+FTS_DOC_ID	title	text	score
+11	MySQL Tutorial	DBMS stands for DataBase ...	0.22764469683170319
+51	MySQL vs. YourSQL	In the following database comparison ...	0.22764469683170319
+21	How To Use MySQL Well	After you went through a ...	0
+31	Optimizing MySQL	In this tutorial we will show ...	0
+41	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...	0
+61	MySQL Security	When configured properly, MySQL ...	0
+drop index idx on fts_test;
+drop table fts_test;
+CREATE TABLE fts_test (
+FTS_DOC_ID int(20) unsigned NOT NULL AUTO_INCREMENT,
+title varchar(255) NOT NULL DEFAULT '',
+text mediumtext NOT NULL,
+PRIMARY KEY (FTS_DOC_ID),
+UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+FULLTEXT KEY idx (title,text)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+ERROR 42000: Incorrect column name 'FTS_DOC_ID'
+CREATE TABLE fts_test (
+FTS_DOC_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+title varchar(255) NOT NULL DEFAULT '',
+text mediumtext NOT NULL,
+PRIMARY KEY (FTS_DOC_ID),
+KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+FULLTEXT KEY idx (title,text)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+ERROR 42000: Incorrect index name 'FTS_DOC_ID_INDEX'

@@ -117,3 +117,55 @@ SELECT * FROM fts_test WHERE MATCH (title, body)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 drop table fts_test;
+
+# Test FTS_DOC_ID and FTS_DOC_ID_INDEX all in the create table clause
+CREATE TABLE fts_test (
+   FTS_DOC_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+   title varchar(255) NOT NULL DEFAULT '',
+   text mediumtext NOT NULL,
+   PRIMARY KEY (FTS_DOC_ID),
+   UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+   FULLTEXT KEY idx (title,text)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+
+set @@auto_increment_increment=10;
+
+INSERT INTO fts_test (title, text) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...'),
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...'),
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+set @@auto_increment_increment=1;
+
+select *, match(title, text)  AGAINST ('database') as score
+from fts_test order by score desc;
+
+drop index idx on fts_test;
+
+drop table fts_test;
+
+# This should fail:
+# Create a FTS_DOC_ID of the wrong type (should be bigint)
+--error 1166
+CREATE TABLE fts_test (
+   FTS_DOC_ID int(20) unsigned NOT NULL AUTO_INCREMENT,
+   title varchar(255) NOT NULL DEFAULT '',
+   text mediumtext NOT NULL,
+   PRIMARY KEY (FTS_DOC_ID),
+   UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+   FULLTEXT KEY idx (title,text)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+
+# This should fail:
+# Create a FTS_DOC_ID_INDEX of the wrong type (should be unique)
+--error 1280
+CREATE TABLE fts_test (
+   FTS_DOC_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+   title varchar(255) NOT NULL DEFAULT '',
+   text mediumtext NOT NULL,
+   PRIMARY KEY (FTS_DOC_ID),
+   KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+   FULLTEXT KEY idx (title,text)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;

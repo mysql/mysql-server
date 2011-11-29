@@ -5590,9 +5590,15 @@ fts_is_aux_table_name(
 	ulint		len)		/*!< in: length of table name */
 {
 	const char*	ptr;
-	const char*	end = name + len;
+	char*		end;
+	char		my_name[MAX_FULL_NAME_LEN + 1];
 
-	ptr =  static_cast<const char*>(memchr(name, '/', len));
+	ut_ad(len <= MAX_FULL_NAME_LEN);
+	ut_memcpy(my_name, name, len);
+	my_name[len] = 0;
+	end = my_name + len;
+
+	ptr =  static_cast<const char*>(memchr(my_name, '/', len));
 
 	if (ptr != NULL) {
 		/* We will start the match after the '/' */
