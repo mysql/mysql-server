@@ -1145,12 +1145,12 @@ public:
 #ifdef HAVE_REPLICATION
   int net_send(Protocol *protocol, const char* log_name, my_off_t pos);
 
-  /*
-    pack_info() is used by SHOW BINLOG EVENTS; as print() it prepares and sends
-    a string to display to the user, so it resembles print().
+  /**
+    Stores a string representation of this event in the Protocol. This is used by SHOW BINLOG EVENTS.
+    @retval 0 success
+    @retval nonzero error
   */
-
-  virtual void pack_info(Protocol *protocol);
+  virtual int pack_info(Protocol *protocol);
 
 #endif /* HAVE_REPLICATION */
   virtual const char* get_db()
@@ -2068,7 +2068,7 @@ public:
   virtual uchar mts_number_dbs() { return mts_accessed_dbs; }
 
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2417,7 +2417,7 @@ public:
                   Name_resolution_context *context);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2516,7 +2516,7 @@ public:
 #ifdef MYSQL_SERVER
   Start_log_event_v3();
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3() {}
@@ -2674,7 +2674,7 @@ public:
     :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
     val(val_arg), type(type_arg) { }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2752,7 +2752,7 @@ class Rand_log_event: public Log_event
     :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
     seed1(seed1_arg), seed2(seed2_arg) { }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2801,7 +2801,7 @@ class Xid_log_event: public Log_event
   xid(x)
   { }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2861,7 +2861,7 @@ public:
     { 
       is_null= !val;
     }
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -2992,7 +2992,7 @@ public:
 		   uint ident_len_arg,
 		   ulonglong pos_arg, uint flags);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3053,7 +3053,7 @@ public:
 			uchar* block_arg, uint block_len_arg,
 			bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3125,7 +3125,7 @@ public:
   Append_block_log_event(THD* thd, const char* db_arg, uchar* block_arg,
 			 uint block_len_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
   virtual int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
 #else
@@ -3166,7 +3166,7 @@ public:
 #ifdef MYSQL_SERVER
   Delete_file_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3207,7 +3207,7 @@ public:
 #ifdef MYSQL_SERVER
   Execute_load_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3312,7 +3312,7 @@ public:
                                bool using_trans, bool immediate,
                                bool suppress_use, int errcode);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3757,7 +3757,7 @@ public:
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  virtual void pack_info(Protocol *protocol);
+  virtual int pack_info(Protocol *protocol);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -3869,7 +3869,7 @@ public:
   flag_set get_flags(flag_set flags_arg) const { return m_flags & flags_arg; }
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  virtual void pack_info(Protocol *protocol);
+  virtual int pack_info(Protocol *protocol);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -4361,7 +4361,7 @@ public:
 #endif
 
 #ifdef MYSQL_SERVER
-  void pack_info(Protocol*);
+  int pack_info(Protocol*);
 #endif
 
   Incident_log_event(const char *buf, uint event_len,
@@ -4433,7 +4433,7 @@ public:
   virtual ~Ignorable_log_event();
 
 #ifndef MYSQL_CLIENT
-  void pack_info(Protocol*);
+  int pack_info(Protocol*);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -4464,7 +4464,7 @@ public:
 #endif
 
 #ifndef MYSQL_CLIENT
-  void pack_info(Protocol*);
+  int pack_info(Protocol*);
 #endif
 
   Rows_query_log_event(const char *buf, uint event_len,
@@ -4554,11 +4554,12 @@ public:
 #endif
 
 #ifndef MYSQL_CLIENT
-  void pack_info(Protocol*);
+  int pack_info(Protocol*);
 #endif
 
   Gtid_log_event(const char *buffer, uint event_len,
-                 const Format_description_log_event *descr_event);
+                 const Format_description_log_event *descr_event,
+                 bool have_lock= false);
 
   virtual ~Gtid_log_event();
 
@@ -4625,27 +4626,17 @@ public:
 #endif
 
 #ifndef MYSQL_CLIENT
-  void pack_info(Protocol*);
+  int pack_info(Protocol*);
 #endif
 
   Previous_gtids_log_event(const char *buffer, uint event_len,
                            const Format_description_log_event *descr_event);
-  virtual ~Previous_gtids_log_event();
+  virtual ~Previous_gtids_log_event() {}
 
   Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT; }
 
-  bool is_valid() const { return encoded_buf != NULL || gtid_set_inited; }
-  int get_data_size()
-  {
-    if (encoded_length == 0)
-    {
-      DBUG_ASSERT(gtid_set_inited);
-      encoded_length= gtid_set.get_encoded_length();
-    }
-    DBUG_PRINT("info", ("Previous_gtids_log_event::get_data_size() = %ld",
-                        encoded_length));
-    return encoded_length;
-  }
+  bool is_valid() const { return buf != NULL; }
+  int get_data_size() { return buf_size; }
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
@@ -4655,9 +4646,7 @@ public:
 #endif
 
   /// Return the encoded buffer, or NULL on error.
-  const uchar *get_buf();
-  /// Return the Gtid_set, or NULL on error
-  const Gtid_set *get_set();
+  const uchar *get_buf() { return buf; }
   /**
     Return the formatted string, or NULL on error.
 
@@ -4665,32 +4654,16 @@ public:
     responsibility of the caller to free it.
   */
   char *get_str(size_t *length, const Gtid_set::String_format *string_format);
+  /// Add all GTIDs from this event to the given Gtid_set.
+  int add_to_set(Gtid_set *gtid_set) const;
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  int do_apply_event(Relay_log_info const *rli);
+  int do_apply_event(Relay_log_info const *rli) { return 0; }
 #endif
 
-  static const int GTID_SID_INFO_LEN= 16;
-
-  static const int GTID_GNO_INFO_LEN= 8;
-
-  static const int GTID_NTH_INFO_LEN= 8;
-
-  static const int GTID_SID_STRING_INFO_LEN= 64;
-
-  static const int GTID_GNO_STRING_INFO_LEN= 32;
-
-  //const uchar* get_encoded_buffer() const { return encoded_buffer; }todo:remove this line/sven
 private:
-  // Sets the internal Gtid_set from the given buffer.
-  void get_set_from_buf(const uchar *buf, size_t length);
-  // Sets the internal char* buffer from the given Gtid_set.
-  void get_buf_from_set(const Gtid_set *set);
-
-  uchar* encoded_buf; 
-  size_t encoded_length;
-  Gtid_set gtid_set;
-  bool gtid_set_inited;
+  size_t buf_size;
+  const uchar *buf;
 };
 #endif
 

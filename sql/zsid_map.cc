@@ -67,7 +67,8 @@ rpl_sidno Sid_map::add(const rpl_sid *sid)
   sid->to_string(buf);
   DBUG_PRINT("info", ("SID=%s", buf));
 #endif
-  sid_lock->assert_some_rdlock();
+  if (sid_lock)
+    sid_lock->assert_some_rdlock();
   Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
                                      rpl_sid::BYTE_LENGTH);
   if (node != NULL)
@@ -76,8 +77,11 @@ rpl_sidno Sid_map::add(const rpl_sid *sid)
     DBUG_RETURN(node->sidno);
   }
 
-  sid_lock->unlock();
-  sid_lock->wrlock();
+  if (sid_lock)
+  {
+    sid_lock->unlock();
+    sid_lock->wrlock();
+  }
   rpl_sidno sidno;
   node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
                                rpl_sid::BYTE_LENGTH);
@@ -91,15 +95,19 @@ rpl_sidno Sid_map::add(const rpl_sid *sid)
     /// @todo: remove node on write error /sven
   }
 
-  sid_lock->unlock();
-  sid_lock->rdlock();
+  if (sid_lock)
+  {
+    sid_lock->unlock();
+    sid_lock->rdlock();
+  }
   DBUG_RETURN(sidno);
 }
 
 enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
 {
   DBUG_ENTER("Sid_map::add_node(rpl_sidno, const rpl_sid *)");
-  sid_lock->assert_some_lock();
+  if (sid_lock)
+    sid_lock->assert_some_lock();
   Node *node= (Node *)malloc(sizeof(Node));
   if (node != NULL)
   {
