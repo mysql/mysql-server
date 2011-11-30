@@ -19,8 +19,10 @@ insert into foo values (2);
 
 connection conn1;
 set session transaction isolation level serializable;
+begin;
 --error ER_LOCK_WAIT_TIMEOUT
 select * from foo;
+commit;
 set session transaction isolation level read uncommitted;
 select * from foo;
 

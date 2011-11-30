@@ -11,8 +11,10 @@ insert into foo values (1);
 begin;
 insert into foo values (2);
 set session transaction isolation level serializable;
+begin;
 select * from foo;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
 set session transaction isolation level read uncommitted;
 select * from foo;
 a
