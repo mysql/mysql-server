@@ -3448,8 +3448,8 @@ skip_info:
 						if ((ulint) (offset / (zip_size ? zip_size : UNIV_PAGE_SIZE)) == root_page[i]) {
 							if (fil_page_get_type(page) != FIL_PAGE_INDEX) {
 								file_is_corrupt = TRUE;
-								fprintf(stderr, " [etyp:%lld]",
-									offset / (zip_size ? zip_size : UNIV_PAGE_SIZE));
+								fprintf(stderr, " [etyp:%ld]",
+									(long) (offset / (zip_size ? zip_size : UNIV_PAGE_SIZE)));
 								goto skip_write;
 							}
 							/* this is index root page */
