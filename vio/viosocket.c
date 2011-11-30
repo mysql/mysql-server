@@ -396,7 +396,9 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
 void vio_timeout(Vio *vio, uint which, uint timeout)
 {
 #if defined(SO_SNDTIMEO) && defined(SO_RCVTIMEO)
+#ifndef DBUG_OFF
   int r;
+#endif
   DBUG_ENTER("vio_timeout");
 
   {
@@ -410,10 +412,12 @@ void vio_timeout(Vio *vio, uint which, uint timeout)
   wait_timeout.tv_usec= 0;
 #endif
 
-  r= setsockopt(vio->sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
-                IF_WIN(const char*, const void*)&wait_timeout,
-                sizeof(wait_timeout));
-
+#ifndef DBUG_OFF
+  r=
+#endif
+    setsockopt(vio->sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
+               IF_WIN(const char*, const void*)&wait_timeout,
+               sizeof(wait_timeout));
   }
 
 #ifndef DBUG_OFF

@@ -1513,7 +1513,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
                  tmp_share.table_name_length, ident_quote_char);
 
     if (!(share= (FEDERATED_SHARE *) memdup_root(&mem_root, (char*)&tmp_share, sizeof(*share))) ||
-        !(share->select_query= (char*) strmake_root(&mem_root, query.ptr(), query.length() + 1)))
+        !(share->select_query= (char*) strmake_root(&mem_root, query.ptr(), query.length())))
       goto error;
 
     share->use_count= 0;

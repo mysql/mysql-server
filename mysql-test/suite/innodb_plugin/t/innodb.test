@@ -1034,11 +1034,11 @@ create table `t2` (`id` int( 11 ) not null default '0',unique key `id` ( `id` ) 
 insert into `t2`values ( 1 ) ;
 create table `t3` (`id` int( 11 ) not null default '0',key `id` ( `id` ) ,constraint `t2_id_fk` foreign key ( `id` ) references `t2` (`id` )) engine = innodb;
 insert into `t3`values ( 1 ) ;
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
---error 1054
+--error ER_BAD_FIELD_ERROR
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 drop table t3,t2,t1;
 

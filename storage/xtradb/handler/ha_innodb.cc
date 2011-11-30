@@ -2735,7 +2735,7 @@ innobase_commit_low(
 #ifdef MYSQL_SERVER
 	THD *thd=current_thd;
 
-	if (thd && thd->slave_thread) {
+	if (thd && thd_is_replication_slave_thread(thd)) {
 		/* Update the replication position info inside InnoDB.
 		   In embedded server, does nothing. */
 		const char *log_file_name, *group_relay_log_name;
@@ -5367,14 +5367,15 @@ calc_row_difference(
 			/* The field has changed */
 
 			ufield = uvect->fields + n_changed;
+			UNIV_MEM_INVALID(ufield, sizeof *ufield);
 
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
-			dict_col_copy_type(prebuilt->table->cols + innodb_idx,
-					   dfield_get_type(&dfield));
-
 			if (n_len != UNIV_SQL_NULL) {
+				dict_col_copy_type(prebuilt->table->cols + innodb_idx,
+						   dfield_get_type(&dfield));
+
 				buf = row_mysql_store_col_in_innobase_format(
 					&dfield,
 					(byte*)buf,
@@ -5382,7 +5383,7 @@ calc_row_difference(
 					new_mysql_row_col,
 					col_pack_len,
 					dict_table_is_comp(prebuilt->table));
-				dfield_copy_data(&ufield->new_val, &dfield);
+				dfield_copy(&ufield->new_val, &dfield);
 			} else {
 				dfield_set_null(&ufield->new_val);
 			}
@@ -10812,7 +10813,7 @@ ha_innobase::check_if_incompatible_data(
 	if (info_row_type == ROW_TYPE_DEFAULT)
 		info_row_type = ROW_TYPE_COMPACT;
 	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT) &&
-	    get_row_type() != ((info->row_type == ROW_TYPE_DEFAULT)
+	    row_type != ((info->row_type == ROW_TYPE_DEFAULT)
 				? ROW_TYPE_COMPACT : info->row_type)) {
 
 		DBUG_PRINT("info", ("get_row_type()=%d != info->row_type=%d -> "

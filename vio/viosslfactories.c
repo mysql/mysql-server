@@ -300,7 +300,8 @@ new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
     verify= SSL_VERIFY_NONE;
 
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
-                             ca_path, cipher, TLSv1_client_method(), &dummy)))
+                             ca_path, cipher,
+                             (SSL_METHOD*) TLSv1_client_method(), &dummy)))
   {
     return 0;
   }
@@ -322,7 +323,8 @@ new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
   struct st_VioSSLFd *ssl_fd;
   int verify= SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
-                             ca_path, cipher, TLSv1_server_method(), error)))
+                             ca_path, cipher,
+                             (SSL_METHOD*) TLSv1_server_method(), error)))
   {
     return 0;
   }

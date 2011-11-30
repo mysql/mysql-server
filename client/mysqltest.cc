@@ -264,7 +264,7 @@ struct st_connection
   pthread_cond_t cond;
   pthread_t tid;
   int query_done;
-  my_bool has_thread;
+  my_bool has_thread, mutex_inited;
 #endif /*EMBEDDED_LIBRARY*/
 };
 
@@ -782,10 +782,12 @@ static int do_send_query(struct st_connection *cn, const char *q, int q_len,
   if (flags & QUERY_REAP_FLAG)
     return mysql_send_query(cn->mysql, q, q_len);
 
-  if (pthread_mutex_init(&cn->mutex, NULL) ||
-      pthread_cond_init(&cn->cond, NULL))
+  if (!cn->mutex_inited &&
+      (pthread_mutex_init(&cn->mutex, NULL) ||
+       pthread_cond_init(&cn->cond, NULL)))
     die("Error in the thread library");
 
+  cn->mutex_inited= 1;
   cn->cur_query= q;
   cn->cur_query_len= q_len;
   cn->query_done= 0;
@@ -815,9 +817,20 @@ static void wait_query_thread_end(struct st_connection *con)
   }
 }
 
+static void free_embedded_data(struct st_connection *con)
+{
+  if (con->mutex_inited)
+  {
+    con->mutex_inited= 0;
+    pthread_mutex_destroy(&con->mutex);
+    pthread_cond_destroy(&con->cond);
+  }
+}
+
 #else /*EMBEDDED_LIBRARY*/
 
 #define do_send_query(cn,q,q_len,flags) mysql_send_query(cn->mysql, q, q_len)
+#define free_embedded_data(next_con) do { } while(0)
 
 #endif /*EMBEDDED_LIBRARY*/
 
@@ -1171,6 +1184,7 @@ void close_connections()
     if (next_con->util_mysql)
       mysql_close(next_con->util_mysql);
     my_free(next_con->name, MYF(MY_ALLOW_ZERO_PTR));
+    free_embedded_data(next_con);
   }
   my_free(connections, MYF(MY_WME));
   DBUG_VOID_RETURN;
@@ -5001,6 +5015,7 @@ void do_close_connection(struct st_command *command)
 
   mysql_close(con->mysql);
   con->mysql= 0;
+  free_embedded_data(con);
 
   if (con->util_mysql)
     mysql_close(con->util_mysql);
