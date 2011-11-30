@@ -556,7 +556,7 @@ mach_double_read(
 	ulint	i;
 	byte*	ptr;
 
-	ptr = (byte*)&d;
+	ptr = (byte*) &d;
 
 	for (i = 0; i < sizeof(double); i++) {
 #ifdef WORDS_BIGENDIAN
@@ -581,7 +581,7 @@ mach_double_write(
 	ulint	i;
 	byte*	ptr;
 
-	ptr = (byte*)&d;
+	ptr = (byte*) &d;
 
 	for (i = 0; i < sizeof(double); i++) {
 #ifdef WORDS_BIGENDIAN
@@ -605,7 +605,7 @@ mach_float_read(
 	ulint	i;
 	byte*	ptr;
 
-	ptr = (byte*)&d;
+	ptr = (byte*) &d;
 
 	for (i = 0; i < sizeof(float); i++) {
 #ifdef WORDS_BIGENDIAN
@@ -630,7 +630,7 @@ mach_float_write(
 	ulint	i;
 	byte*	ptr;
 
-	ptr = (byte*)&d;
+	ptr = (byte*) &d;
 
 	for (i = 0; i < sizeof(float); i++) {
 #ifdef WORDS_BIGENDIAN

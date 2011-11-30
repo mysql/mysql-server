@@ -678,7 +678,7 @@ eval_binary_to_number(
 		str2 = str1;
 	} else {
 		int_val = 0;
-		str2 = (byte*)&int_val;
+		str2 = (byte*) &int_val;
 
 		ut_memcpy(str2 + (4 - len1), str1, len1);
 	}

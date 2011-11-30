@@ -4900,7 +4900,7 @@ fts_cache_find_word(
 	dict_table_t*		table = index_cache->index->table;
 	fts_cache_t*		cache = table->fts->cache;
 
-	ut_ad(rw_lock_own((rw_lock_t*)&cache->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_EX));
 #endif
 
 	/* Lookup the word in the rb tree */
