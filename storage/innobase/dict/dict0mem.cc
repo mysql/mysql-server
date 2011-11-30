@@ -338,7 +338,7 @@ dict_mem_foreign_table_name_lookup_set(
 
 			len = strlen(foreign->foreign_table_name) + 1;
 
-			foreign->foreign_table_name_lookup = 
+			foreign->foreign_table_name_lookup =
 				static_cast<char*>(
 					mem_heap_alloc(foreign->heap, len));
 		}
@@ -369,7 +369,7 @@ dict_mem_referenced_table_name_lookup_set(
 
 			len = strlen(foreign->referenced_table_name) + 1;
 
-			foreign->referenced_table_name_lookup = 
+			foreign->referenced_table_name_lookup =
 				static_cast<char*>(
 					mem_heap_alloc(foreign->heap, len));
 		}

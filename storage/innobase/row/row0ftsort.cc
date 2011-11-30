@@ -400,7 +400,7 @@ row_merge_fts_doc_tokenize(
 
 		/* Ignore string whose character number is less than
 		"fts_min_token_size" or more than "fts_max_token_size" */
-		if (str.f_n_char < fts_min_token_size 
+		if (str.f_n_char < fts_min_token_size
 		    || str.f_n_char > fts_max_token_size) {
 
 			t_ctx->processed_len += inc;
@@ -506,7 +506,7 @@ row_merge_fts_doc_tokenize(
 		cur_len += 2;
 
 		/* Reserve one byte for the end marker of row_merge_block_t. */
-		if (buf->total_size + data_size[idx] + cur_len 
+		if (buf->total_size + data_size[idx] + cur_len
 		    >= srv_sort_buf_size - 1) {
 
 			buf_full = TRUE;
@@ -560,7 +560,7 @@ fts_parallel_tokenization(
 	ulint			mycount[FTS_NUM_AUX_INDEX];
 	ib_uint64_t		total_rec = 0;
 	ulint			num_doc_processed = 0;
-	doc_id_t		last_doc_id;	
+	doc_id_t		last_doc_id;
 	ulint			zip_size;
 	mem_heap_t*		blob_heap = NULL;
 	fts_doc_t		doc;
@@ -880,7 +880,7 @@ row_merge_write_fts_word(
 	CHARSET_INFO*	charset)	/*!< in: charset */
 {
 	ulint	selected;
-	ulint	ret = DB_SUCCESS;	
+	ulint	ret = DB_SUCCESS;
 
 	selected = fts_select_index(
 		charset, word->text.f_str, word->text.f_len);
@@ -888,7 +888,7 @@ row_merge_write_fts_word(
 
 	/* Pop out each fts_node in word->nodes write them to auxiliary table */
 	while(ib_vector_size(word->nodes) > 0) {
-		ulint		error;	
+		ulint		error;
 		fts_node_t*	fts_node;
 
 		fts_node = static_cast<fts_node_t*>(ib_vector_pop(word->nodes));

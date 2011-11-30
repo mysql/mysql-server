@@ -89,7 +89,7 @@ fts_ast_create_node_term(
 
 /******************************************************************//**
 This function takes ownership of the ptr and is responsible
-for free'ing it. 
+for free'ing it.
 @return new node */
 UNIV_INTERN
 fts_ast_node_t*
@@ -117,7 +117,7 @@ fts_ast_create_node_text(
 
 /******************************************************************//**
 This function takes ownership of the expr and is responsible
-for free'ing it. 
+for free'ing it.
 @return new node */
 UNIV_INTERN
 fts_ast_node_t*
@@ -138,7 +138,7 @@ fts_ast_create_node_list(
 
 /******************************************************************//**
 Create a sub-expression list node. This function takes ownership of
-expr and is responsible for deleting it. 
+expr and is responsible for deleting it.
 @return new node */
 UNIV_INTERN
 fts_ast_node_t*
@@ -225,7 +225,7 @@ fts_ast_free_node(
 
 /******************************************************************//**
 This AST takes ownership of the expr and is responsible
-for free'ing it. 
+for free'ing it.
 @return in param "list" */
 UNIV_INTERN
 fts_ast_node_t*
@@ -381,7 +381,7 @@ fts_ast_node_print(
 }
 
 /******************************************************************//**
-Traverse the AST - in-order traversal. 
+Traverse the AST - in-order traversal.
 @return DB_SUCCESS if all went well */
 UNIV_INTERN
 ulint

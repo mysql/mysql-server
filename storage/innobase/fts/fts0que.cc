@@ -210,7 +210,7 @@ struct fts_word_freq_struct {
 };
 
 /********************************************************************
-Callback function to fetch the rows in an FTS INDEX record. 
+Callback function to fetch the rows in an FTS INDEX record.
 @return always TRUE */
 static
 ibool
@@ -1188,7 +1188,7 @@ fts_query_cache(
 	ut_a(index_cache != NULL);
 
 	if (query->cur_node->term.wildcard
-	    && query->flags != FTS_PROXIMITY 
+	    && query->flags != FTS_PROXIMITY
 	    && query->flags != FTS_PHRASE) {
 		/* Wildcard search the index cache */
 		fts_cache_find_wildcard(query, index_cache, token);
@@ -1596,7 +1596,7 @@ fts_query_fetch_document(
 
 	while (exp) {
 		dfield_t*	dfield = que_node_get_val(exp);
-		void*		data = NULL; 
+		void*		data = NULL;
 		ulint		cur_len;
 
 		if (dfield_is_ext(dfield)) {
@@ -2552,7 +2552,7 @@ fts_ast_visit_sub_exp(
 
 #if 0
 /*****************************************************************//***
-Check if the doc id exists in the ilist. 
+Check if the doc id exists in the ilist.
 @return TRUE if doc id found */
 static
 ulint
@@ -2662,7 +2662,7 @@ fts_query_filter_doc_ids(
 		if (calc_doc_count) {
 			word_freq->doc_count++;
 		}
-		
+
 		/* We simply collect the matching instances here. */
 		if (query->collect_positions) {
 			ib_alloc_t*	heap_alloc;
@@ -3606,7 +3606,7 @@ fts_check_phrase_proximity(
 
 			if (k == ib_vector_size(query->match_array[j])) {
 				end_list = TRUE;
-	
+
 				if (match[j]->doc_id != match[0]->doc_id) {
 					/* no match */
 					if (query->flags & FTS_PHRASE) {

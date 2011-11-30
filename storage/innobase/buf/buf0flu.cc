@@ -1588,7 +1588,7 @@ buf_flush_try_neighbors(
 		original page. */
 
 		ulint	buf_flush_area;
-	
+
 		buf_flush_area	= ut_min(
 			BUF_READ_AHEAD_AREA(buf_pool),
 			buf_pool->curr_size / 16);
@@ -2849,7 +2849,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	ut_a(srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE);
 
 	/* We can now make a final sweep on flushing the buffer pool
-	and exit after we have cleaned the whole buffer pool. 
+	and exit after we have cleaned the whole buffer pool.
 	It is important that we wait for any running batch that has
 	been triggered by us to finish. Otherwise we can end up
 	considering end of that batch as a finish of our final

@@ -280,7 +280,7 @@ fts_update_max_cache_size(
 /*********************************************************************//**
 This function fetches the document just inserted right before
 we commit the transaction, and tokenize the inserted text data
-and insert into FTS auxiliary table and its cache. 
+and insert into FTS auxiliary table and its cache.
 @return TRUE if successful */
 static
 ulint
@@ -1638,7 +1638,7 @@ fts_drop_all_index_tables(
 /*********************************************************************//**
 Drops the ancillary tables needed for supporting an FTS index on a
 given table. row_mysql_lock_data_dictionary must have been called before
-this. 
+this.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
@@ -1792,7 +1792,7 @@ fts_create_one_index_table(
 	char*			table_name = fts_get_table_name(fts_table);
 	ulint			error;
 	CHARSET_INFO*		charset;
-	
+
 	ut_ad(index->type & DICT_FTS);
 
 	new_table = dict_mem_table_create(table_name, 0, 5, 1, 0);
@@ -2939,7 +2939,7 @@ fts_commit_table(
 		}
 		rw_lock_x_unlock(&cache->init_lock);
 	}
-	
+
 	for (node = rbt_first(rows);
 	     node != NULL && error == DB_SUCCESS;
 	     node = rbt_next(rows, node)) {
@@ -3119,7 +3119,7 @@ fts_query_expansion_fetch_doc(
 		}
 
 		doc.charset = doc_charset;
-			
+
 		if (dfield_is_ext(dfield)) {
 			/* We ignore columns that are stored externally, this
 			could result in too many words to search */
@@ -3211,7 +3211,7 @@ fts_fetch_doc_from_rec(
 		if (rec_offs_nth_extern(offsets, clust_pos)) {
 			doc->text.f_str =
 				btr_rec_copy_externally_stored_field(
-					clust_rec, offsets, 
+					clust_rec, offsets,
 					dict_table_zip_size(table),
 					clust_pos, &doc->text.f_len,
 					static_cast<mem_heap_t*>(
@@ -3244,7 +3244,7 @@ fts_fetch_doc_from_rec(
 /*********************************************************************//**
 This function fetches the document inserted during the committing
 transaction, and tokenize the inserted text data and insert into
-FTS auxiliary table and its cache. 
+FTS auxiliary table and its cache.
 @return TRUE if successful */
 static
 ulint
@@ -3258,8 +3258,8 @@ fts_add_doc_by_id(
 	mtr_t		mtr;
 	mem_heap_t*	heap;
 	btr_pcur_t	pcur;
-	dict_table_t*	table; 
-	dtuple_t*	tuple; 
+	dict_table_t*	table;
+	dtuple_t*	tuple;
 	dfield_t*       dfield;
 	fts_get_doc_t*	get_doc;
 	doc_id_t        temp_doc_id;
@@ -3285,7 +3285,7 @@ fts_add_doc_by_id(
 	table = get_doc->index_cache->index->table;
 
 	heap = mem_heap_create(512);
-	
+
 	clust_index = dict_table_get_first_index(table);
 	fts_id_index = dict_table_get_index_on_name(
 				table, FTS_DOC_ID_INDEX_NAME);
@@ -3350,7 +3350,7 @@ fts_add_doc_by_id(
 
 			doc_pcur = &clust_pcur;
 			clust_rec = btr_pcur_get_rec(&clust_pcur);
-						   
+
 		}
 
 		offsets = rec_get_offsets(clust_rec, clust_index,
@@ -3496,7 +3496,7 @@ fts_get_max_doc_id(
 
 		offsets = rec_get_offsets(
 			rec, index, offsets, ULINT_UNDEFINED, &heap);
-		
+
 		data = rec_get_nth_field(rec, offsets, 0, &len);
 
 		doc_id = static_cast<doc_id_t>(fts_read_doc_id(
@@ -5449,7 +5449,7 @@ fts_undo_last_stmt(
 
 			case FTS_DELETE:
 				if (s_row->state == FTS_NOTHING) {
-					s_row->state = FTS_INSERT;	
+					s_row->state = FTS_INSERT;
 				} else if (s_row->state == FTS_DELETE) {
 					ut_free(rbt_remove_node(
 						s_rows, parent.last));
@@ -6105,7 +6105,7 @@ fts_init_recover_doc(
 	fts_cache_t*    cache = static_cast<fts_cache_t*>(user_arg);
 
 	if (ib_vector_is_empty(cache->get_docs)) {
-		has_fts = FALSE;	
+		has_fts = FALSE;
 	} else {
 		get_doc = static_cast<fts_get_doc_t*>(
 			ib_vector_get(cache->get_docs, 0));

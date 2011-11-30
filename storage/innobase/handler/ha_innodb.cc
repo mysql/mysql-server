@@ -1696,7 +1696,7 @@ innobase_mysql_tmpfile(void)
 #ifdef _WIN32
 		/* Note that on Windows, the integer returned by mysql_tmpfile
 		has no relation to C runtime file descriptor. Here, we need
-		to call my_get_osfhandle to get the HANDLE and then convert it 
+		to call my_get_osfhandle to get the HANDLE and then convert it
 		to C runtime filedescriptor. */
 		{
 			HANDLE hFile = my_get_osfhandle(fd);
@@ -1710,7 +1710,7 @@ innobase_mysql_tmpfile(void)
 			} else {
 				my_osmaperr(GetLastError());
 				fd2 = -1;
-			}	
+			}
 		}
 #else
 		fd2 = dup(fd);
@@ -2870,7 +2870,7 @@ innobase_change_buffering_inited_ok:
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Warning: Using " 
+			" InnoDB: Warning: Using "
 			"innodb_additional_mem_pool_size is DEPRECATED. "
 			"This option may be removed in future releases, "
 			"together with the option innodb_use_sys_malloc "
@@ -2881,7 +2881,7 @@ innobase_change_buffering_inited_ok:
 	if (!srv_use_sys_malloc ) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Warning: Setting " 
+			" InnoDB: Warning: Setting "
 			"innodb_use_sys_malloc to FALSE is DEPRECATED. "
 			"This option may be removed in future releases, "
 			"together with the InnoDB's internal memory "
@@ -2898,7 +2898,7 @@ innobase_change_buffering_inited_ok:
 	if (!innobase_use_checksums) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Warning: Setting " 
+			" InnoDB: Warning: Setting "
 			"innodb_checksums to OFF is DEPRECATED. "
 			"This option may be removed in future releases. "
 			"You should set innodb_checksum_algorithm=NONE "
@@ -2918,7 +2918,7 @@ innobase_change_buffering_inited_ok:
 	if (innobase_locks_unsafe_for_binlog) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Warning: Using " 
+			" InnoDB: Warning: Using "
 			"innodb_locks_unsafe_for_binlog is DEPRECATED. "
 			"This option may be removed in future releases. "
 			"Please use READ COMMITTED transaction isolation "
@@ -3288,7 +3288,7 @@ retry:
 
 			mysql_mutex_unlock(&prepare_commit_mutex);
 		}
- 
+
 		trx_deregister_from_2pc(trx);
 
 		/* Now do a write + flush of logs. */
@@ -6373,7 +6373,7 @@ calc_row_difference(
 				return(DB_FTS_INVALID_DOCID);
 			}
 		}
-	
+
 
 		if (field->null_ptr) {
 			if (field_in_record_is_null(table, field,
@@ -6491,7 +6491,7 @@ calc_row_difference(
 
 				return(DB_FTS_INVALID_DOCID);
 			} else if ((doc_id
-				    - prebuilt->table->fts->cache->next_doc_id) 
+				    - prebuilt->table->fts->cache->next_doc_id)
 				   >= FTS_DOC_ID_MAX_STEP) {
 				fprintf(stderr,
 					"InnoDB: Doc ID "UINT64PF" is too"
@@ -6817,7 +6817,7 @@ convert_search_mode_to_innobase(
 		return(PAGE_CUR_GE);
 	case HA_READ_KEY_OR_PREV:
 		return(PAGE_CUR_LE);
-	case HA_READ_AFTER_KEY:	
+	case HA_READ_AFTER_KEY:
 		return(PAGE_CUR_G);
 	case HA_READ_BEFORE_KEY:
 		return(PAGE_CUR_L);
@@ -7570,7 +7570,7 @@ ha_innobase::ft_init_ext(
 
 	if (keynr == NO_SUCH_KEY) {
 		/* FIXME: Investigate the NO_SUCH_KEY usage */
-		index = (dict_index_t*) ib_vector_getp(table->fts->indexes, 0);	
+		index = (dict_index_t*) ib_vector_getp(table->fts->indexes, 0);
 	} else {
 		index = innobase_get_index(keynr);
 	}
@@ -7816,7 +7816,7 @@ create_table_check_doc_id_col(
 			our internal query parser */
 			if (col_type == DATA_INT
 			    && !field->null_ptr
-			    && col_len == sizeof(doc_id_t) 
+			    && col_len == sizeof(doc_id_t)
 			    && (strcmp(field->field_name,
 				      FTS_DOC_ID_COL_NAME) == 0)) {
 				*doc_id_col = i;
@@ -8130,7 +8130,7 @@ create_index(
 	for (i = 0; i < n_fields; i++) {
 		key_part = key->key_part + i;
 
-		if (ind_type != DICT_FTS) { 
+		if (ind_type != DICT_FTS) {
 
 			/* (The flag HA_PART_KEY_SEG denotes in MySQL a
 			column prefix field in an index: we only store a
@@ -8373,7 +8373,7 @@ create_options_are_valid(
 			break;
 		}
 	}
-	
+
 	/* Check for a valid Innodb ROW_FORMAT specifier and
 	other incompatibilities. */
 	switch (row_format) {
@@ -9778,7 +9778,7 @@ innodb_rec_per_key(
 
 		/* If the number of NULL values is the same as or
 		large than that of the distinct values, we could
-		consider that the table consists mostly of NULL value. 
+		consider that the table consists mostly of NULL value.
 		Set rec_per_key to 1. */
 		if (index->stat_n_diff_key_vals[i + 1] <= num_null) {
 			rec_per_key = 1;
@@ -9999,7 +9999,7 @@ ha_innobase::info_low(
 					- prebuilt->clust_index_was_generated;
 
 		if (table->s->keys != num_innodb_index
-		    && (innobase_fts_check_doc_id_index(ib_table, NULL) 
+		    && (innobase_fts_check_doc_id_index(ib_table, NULL)
 			== FTS_EXIST_DOC_ID_INDEX
 			&& table->s->keys != (num_innodb_index - 1))) {
 			sql_print_error("InnoDB: Table %s contains %lu "
@@ -10037,7 +10037,7 @@ ha_innobase::info_low(
 				if (table->key_info[i].flags & HA_FULLTEXT) {
 					/* The whole concept has no validity
 					for FTS indexes. */
-					table->key_info[i].rec_per_key[j] = 1; 
+					table->key_info[i].rec_per_key[j] = 1;
 					continue;
 				}
 
@@ -11745,7 +11745,7 @@ ha_innobase::store_lock(
 
 		/* MySQL calls this function in DROP TABLE though this table
 		handle may belong to another thd that is running a query. Let
-		us in that case skip any changes to the prebuilt struct. */ 
+		us in that case skip any changes to the prebuilt struct. */
 
 	} else if ((lock_type == TL_READ && in_lock_tables)
 		   || (lock_type == TL_READ_HIGH_PRIORITY && in_lock_tables)
@@ -14013,7 +14013,7 @@ innobase_fts_retrieve_ranking(
 /*============================*/
 		FT_INFO * fts_hdl)	/*!< in: FTS handler */
 {
-	row_prebuilt_t*	ft_prebuilt;	
+	row_prebuilt_t*	ft_prebuilt;
 	fts_result_t*	result;
 
 	result = ((NEW_FT_INFO *)fts_hdl)->ft_result;
@@ -14491,7 +14491,7 @@ static MYSQL_SYSVAR_BOOL(disable_sort_file_cache, srv_disable_sort_file_cache,
 static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name,
   PLUGIN_VAR_NOCMDARG,
   "FTS internal auxiliary table to be checked",
-  innodb_internal_table_validate, 
+  innodb_internal_table_validate,
   innodb_internal_table_update, NULL);
 
 static MYSQL_SYSVAR_ULONG(ft_cache_size, fts_max_cache_size,
@@ -14519,7 +14519,7 @@ static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, fts_sort_pll_degree,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "InnoDB Fulltext search parallel sort degree, will round up to nearest power of 2 number",
   NULL, NULL, 2, 1, 16, 0);
-   
+
 static MYSQL_SYSVAR_ULONG(sort_buf_size, srv_sort_buf_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "InnoDB Fulltext search sort buffer size",
