@@ -1042,6 +1042,7 @@ NdbIndexStatImpl::update_stat(Ndb* ndb, Head& head)
   if (con.m_dic->updateIndexStat(m_indexId, m_indexVersion, m_tableId) == -1)
   {
     setError(con, __LINE__);
+    mapError(ERR_NoSuchObject, NoSysTables);
     return -1;
   }
   return 0;
@@ -1054,6 +1055,7 @@ NdbIndexStatImpl::delete_stat(Ndb* ndb, Head& head)
   if (con.m_dic->deleteIndexStat(m_indexId, m_indexVersion, m_tableId) == -1)
   {
     setError(con, __LINE__);
+    mapError(ERR_NoSuchObject, NoSysTables);
     return -1;
   }
   return 0;
