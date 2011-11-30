@@ -46,6 +46,7 @@ RSA *sha256_password_init(MYSQL *mysql)
     // TODO Figure out where to send the error and how.
     return 0;
   }
+
   return g_public_key;
 }
 
@@ -118,19 +119,28 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       xor_string(mysql->passwd, strlen(mysql->passwd), (char *)scramble_pkt,
                  SCRAMBLE_LENGTH);
       /* Encrypt the password and send it to the server */
+      int cipher_length= RSA_size(public_key);
+      /*
+        When using RSA_PKCS1_OAEP_PADDING the password length must be less
+        than RSA_size(rsa) - 41.
+      */
+      if (passwd_len + 41 >= (unsigned)cipher_length)
+      {
+        /* password message is to long */
+        DBUG_RETURN(CR_ERROR);
+      }
       RSA_public_encrypt(passwd_len, (unsigned char *)mysql->passwd,
                          encrypted_password,
                          public_key, RSA_PKCS1_OAEP_PADDING);
-      int cipher_length= RSA_size(public_key);
       if (got_public_key_from_server)
         RSA_free(public_key);
-      if (cipher_length > MAX_CIPHER_LENGTH)
-        DBUG_RETURN(CR_ERROR);
+
       if (vio->write_packet(vio, (uchar*)encrypted_password, cipher_length))
         DBUG_RETURN(CR_ERROR);
     }
     else
     {
+      /* The vio is encrypted already; just send the plain text passwd */
       if (vio->write_packet(vio, (uchar*)mysql->passwd, passwd_len))
         DBUG_RETURN(CR_ERROR);
     }
