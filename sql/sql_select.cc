@@ -9052,11 +9052,12 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   for (JOIN_TAB *first_inner= tab->first_inner; first_inner;
        first_inner= first_inner->first_upper)
   {
-    if (first_inner != tab && !first_inner->use_join_cache)
+    if (first_inner != tab && 
+        (!first_inner->use_join_cache || !(tab-1)->use_join_cache))
       goto no_join_cache;
   }
   if (tab->first_sj_inner_tab && tab->first_sj_inner_tab != tab &&
-      !tab->first_sj_inner_tab->use_join_cache)
+      (!tab->first_sj_inner_tab->use_join_cache || !(tab-1)->use_join_cache))
     goto no_join_cache;
   if (!prev_tab->use_join_cache)
   {
