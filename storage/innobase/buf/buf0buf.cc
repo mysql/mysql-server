@@ -2307,8 +2307,8 @@ buf_pointer_is_block_field_instance(
 	/* TODO: protect buf_pool->chunks with a mutex (it will
 	currently remain constant after buf_pool_init()) */
 	while (chunk < echunk) {
-		if (ptr >= (void *)chunk->blocks
-		    && ptr < (void *)(chunk->blocks + chunk->size)) {
+		if (ptr >= (void*) chunk->blocks
+		    && ptr < (void*) (chunk->blocks + chunk->size)) {
 
 			return(TRUE);
 		}
@@ -2360,7 +2360,7 @@ buf_block_is_uncompressed(
 		return(FALSE);
 	}
 
-	return(buf_pointer_is_block_field_instance(buf_pool, (void *)block));
+	return(buf_pointer_is_block_field_instance(buf_pool, (void*) block));
 }
 
 /********************************************************************//**

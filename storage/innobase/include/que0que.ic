@@ -88,7 +88,7 @@ que_node_get_type(
 {
 	ut_ad(node);
 
-	return(((que_common_t*)node)->type);
+	return(((que_common_t*) node)->type);
 }
 
 /***********************************************************************//**
@@ -101,7 +101,7 @@ que_node_get_val(
 {
 	ut_ad(node);
 
-	return(&(((que_common_t*)node)->val));
+	return(&(((que_common_t*) node)->val));
 }
 
 /***********************************************************************//**
@@ -115,7 +115,7 @@ que_node_get_val_buf_size(
 {
 	ut_ad(node);
 
-	return(((que_common_t*)node)->val_buf_size);
+	return(((que_common_t*) node)->val_buf_size);
 }
 
 /***********************************************************************//**
@@ -129,7 +129,7 @@ que_node_set_val_buf_size(
 {
 	ut_ad(node);
 
-	((que_common_t*)node)->val_buf_size = size;
+	((que_common_t*) node)->val_buf_size = size;
 }
 
 /***********************************************************************//**
@@ -143,7 +143,7 @@ que_node_set_parent(
 {
 	ut_ad(node);
 
-	((que_common_t*)node)->parent = parent;
+	((que_common_t*) node)->parent = parent;
 }
 
 /***********************************************************************//**
@@ -223,7 +223,7 @@ que_node_get_next(
 /*==============*/
 	que_node_t*	node)	/*!< in: node in a list */
 {
-	return(((que_common_t*)node)->brother);
+	return(((que_common_t*) node)->brother);
 }
 
 /*********************************************************************//**
@@ -258,7 +258,7 @@ que_node_get_parent(
 /*================*/
 	que_node_t*	node)	/*!< in: node */
 {
-	return(((que_common_t*)node)->parent);
+	return(((que_common_t*) node)->parent);
 }
 
 /**********************************************************************//**

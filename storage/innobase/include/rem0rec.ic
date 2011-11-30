@@ -1548,7 +1548,7 @@ rec_copy(
 
 	ut_memcpy(buf, rec - extra_len, extra_len + data_len);
 
-	return((byte*)buf + extra_len);
+	return((byte*) buf + extra_len);
 }
 
 /**********************************************************//**

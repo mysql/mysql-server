@@ -824,8 +824,8 @@ buf_flush_write_block_to_datafile(
 		       buf_page_get_zip_size(&block->page),
 		       buf_page_get_page_no(&block->page), 0,
 		       buf_page_get_zip_size(&block->page),
-		       (void*)block->page.zip.data,
-		       (void*)block);
+		       (void*) block->page.zip.data,
+		       (void*) block);
 
 		goto exit;
 	}
@@ -836,7 +836,7 @@ buf_flush_write_block_to_datafile(
 	fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 	       FALSE, buf_block_get_space(block), 0,
 	       buf_block_get_page_no(block), 0, UNIV_PAGE_SIZE,
-	       (void*)block->frame, (void*)block);
+	       (void*) block->frame, (void*) block);
 
 exit:
 	/* Increment the counter of I/O operations used

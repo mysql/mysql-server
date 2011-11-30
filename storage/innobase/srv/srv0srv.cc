@@ -1118,7 +1118,7 @@ srv_printf_innodb_monitor(
 		" INNODB MONITOR OUTPUT\n"
 		"=====================================\n"
 		"Per second averages calculated from the last %lu seconds\n",
-		(ulong)time_elapsed);
+		(ulong) time_elapsed);
 
 	fputs("-----------------\n"
 	      "BACKGROUND THREAD\n"

@@ -1069,7 +1069,7 @@ err_len:
 
 	if (!index) {
 		ut_a(last_index_id);
-		memcpy(index_id, (const char*)field, 8);
+		memcpy(index_id, (const char*) field, 8);
 		first_field = memcmp(index_id, last_index_id, 8);
 	} else {
 		first_field = (index->n_def == 0);
@@ -1268,7 +1268,7 @@ err_len:
 
 	if (!allocate) {
 		/* We are reading a SYS_INDEXES record. Copy the table_id */
-		memcpy(table_id, (const char*)field, 8);
+		memcpy(table_id, (const char*) field, 8);
 	} else if (memcmp(field, table_id, 8)) {
 		/* Caller supplied table_id, verify it is the same
 		id as on the index record */

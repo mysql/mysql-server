@@ -1288,7 +1288,7 @@ row_merge_read_clustered_index(
 			fetch the first FTS Doc ID */
 			if (add_doc_id) {
 				fts_get_next_doc_id(
-					(dict_table_t*)new_table,
+					(dict_table_t*) new_table,
 					 &doc_id);
 				ut_ad(doc_id > 0);
 			}
@@ -2990,7 +2990,7 @@ wait_again:
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
 		if (fts_enable_diag_print) {
-			char*	name = (char*)indexes[i]->name;
+			char*	name = (char*) indexes[i]->name;
 
 			ut_print_timestamp(stderr);
 

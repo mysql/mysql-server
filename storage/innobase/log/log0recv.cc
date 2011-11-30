@@ -1440,7 +1440,7 @@ recv_data_copy_to_buf(
 			part_len = len;
 		}
 
-		ut_memcpy(buf, ((byte*)recv_data) + sizeof(recv_data_t),
+		ut_memcpy(buf, ((byte*) recv_data) + sizeof(recv_data_t),
 			  part_len);
 		buf += part_len;
 		len -= part_len;
@@ -2273,7 +2273,7 @@ loop:
 			return(FALSE);
 		}
 
-		recv_previous_parsed_rec_type = (ulint)type;
+		recv_previous_parsed_rec_type = (ulint) type;
 		recv_previous_parsed_rec_offset = recv_sys->recovered_offset;
 		recv_previous_parsed_rec_is_multi = 0;
 
@@ -2323,7 +2323,7 @@ loop:
 						" space %lu not complete in\n"
 						"InnoDB: the replay phase."
 						" Path %s\n",
-						(ulint)type, space,
+						(ulint) type, space,
 						(char*)(body + 2));
 
 					ut_error;
@@ -2364,7 +2364,7 @@ loop:
 				return(FALSE);
 			}
 
-			recv_previous_parsed_rec_type = (ulint)type;
+			recv_previous_parsed_rec_type = (ulint) type;
 			recv_previous_parsed_rec_offset
 				= recv_sys->recovered_offset + total_len;
 			recv_previous_parsed_rec_is_multi = 1;
@@ -3442,7 +3442,7 @@ recv_reset_log_files_for_backup(
 	for (i = 0; i < n_log_files; i++) {
 
 		sprintf(name, "%s%s%lu", log_dir,
-			ib_logfile_basename, (ulong)i);
+			ib_logfile_basename, (ulong) i);
 
 		log_file = os_file_create_simple(innodb_file_log_key,
 						 name, OS_FILE_CREATE,

@@ -84,7 +84,7 @@ row_merge_create_fts_sort_index(
 		index->table->name, "tmp_fts_idx", 0, DICT_FTS, 3);
 
 	new_index->id = index->id;
-	new_index->table = (dict_table_t*)table;
+	new_index->table = (dict_table_t*) table;
 	new_index->n_uniq = FTS_NUM_FIELDS_SORT;
 	new_index->n_def = FTS_NUM_FIELDS_SORT;
 	new_index->cached = TRUE;
@@ -211,7 +211,7 @@ row_fts_psort_info_init(
 		mem_alloc(sizeof *common_info));
 
 	common_info->table = table;
-	common_info->new_table = (dict_table_t*)new_table;
+	common_info->new_table = (dict_table_t*) new_table;
 	common_info->trx = trx;
 	common_info->sort_index = index;
 	common_info->all_info = psort_info;
@@ -548,7 +548,7 @@ fts_parallel_tokenization(
 /*======================*/
 	void*		arg)	/*!< in: psort_info for the thread */
 {
-	fts_psort_t*		psort_info = (fts_psort_t*)arg;
+	fts_psort_t*		psort_info = (fts_psort_t*) arg;
 	ulint			i;
 	fts_doc_item_t*		doc_item = NULL;
 	fts_doc_item_t*		prev_doc_item = NULL;
@@ -666,11 +666,11 @@ loop:
 
 		if (fts_enable_diag_print && num_doc_processed % 10000 == 1) {
 			fprintf(stderr, "number of doc processed %d\n",
-				(int)num_doc_processed);
+				(int) num_doc_processed);
 #ifdef FTS_INTERNAL_DIAG_PRINT
 			for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 				fprintf(stderr, "ID %d, partition %d, word "
-					"%d\n",(int)id, (int) i,
+					"%d\n",(int) id, (int) i,
 					(int) mycount[i]);
 			}
 #endif
@@ -755,7 +755,7 @@ exit:
 		if (t_ctx.rows_added[i]) {
 			row_merge_buf_sort(buf[i], NULL);
 			row_merge_buf_write(
-				buf[i], (const merge_file_t *)merge_file[i],
+				buf[i], (const merge_file_t *) merge_file[i],
 				block[i]);
 			row_merge_write(merge_file[i]->fd,
 					merge_file[i]->offset++, block[i]);
@@ -826,7 +826,7 @@ fts_parallel_merge(
 /*===============*/
 	void*		arg)		/*!< in: parallel merge info */
 {
-	fts_psort_t*	psort_info = (fts_psort_t*)arg;
+	fts_psort_t*	psort_info = (fts_psort_t*) arg;
 	ulint		id;
 
 	ut_ad(psort_info);
@@ -1322,7 +1322,7 @@ row_fts_merge_insert(
 	}
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
-	fprintf(stderr, "to inserted %lu record \n", (ulong)count_diag);
+	fprintf(stderr, "to inserted %lu record \n", (ulong) count_diag);
 #endif
 
 	/* Initialize related variables if creating FTS indexes */
@@ -1457,7 +1457,7 @@ exit:
 
 	if (fts_enable_diag_print) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "FTS: inserted %lu record\n", (ulong)count);
+		fprintf(stderr, "FTS: inserted %lu record\n", (ulong) count);
 	}
 
 	return(error);

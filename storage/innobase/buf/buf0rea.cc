@@ -847,7 +847,7 @@ buf_read_recv_pages(
 					"InnoDB: Number of pending reads %lu,"
 					" pending pread calls %lu\n",
 					(ulong) buf_pool->n_pend_reads,
-					(ulong)os_file_n_pending_preads);
+					(ulong) os_file_n_pending_preads);
 
 				os_aio_print_debug = TRUE;
 			}

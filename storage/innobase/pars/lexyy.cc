@@ -1894,7 +1894,7 @@ YY_RULE_SETUP
 #line 564 "pars0lex.l"
 {
 			yylval = sym_tab_add_id(pars_sym_tab_global,
-							(byte*)yytext,
+							(byte*) yytext,
 							ut_strlen(yytext));
 			return(PARS_ID_TOKEN);
 }
@@ -1904,7 +1904,7 @@ YY_RULE_SETUP
 #line 571 "pars0lex.l"
 {
 			yylval = sym_tab_add_id(pars_sym_tab_global,
-							(byte*)yytext,
+							(byte*) yytext,
 							ut_strlen(yytext));
 			return(PARS_TABLE_NAME_TOKEN);
 }
@@ -2747,7 +2747,7 @@ static void yyensure_buffer_stack (void)
 		 * immediate realloc on the next call.
          */
 		num_to_alloc = 1;
-		(yy_buffer_stack) = (struct yy_buffer_state**)yyalloc
+		(yy_buffer_stack) = (struct yy_buffer_state**) yyalloc
 								(num_to_alloc * sizeof(struct yy_buffer_state*)
 								);
 		if ( ! (yy_buffer_stack) )
@@ -2766,7 +2766,7 @@ static void yyensure_buffer_stack (void)
 		int grow_size = 8 /* arbitrary grow size */;
 
 		num_to_alloc = (yy_buffer_stack_max) + grow_size;
-		(yy_buffer_stack) = (struct yy_buffer_state**)yyrealloc
+		(yy_buffer_stack) = (struct yy_buffer_state**) yyrealloc
 								((yy_buffer_stack),
 								num_to_alloc * sizeof(struct yy_buffer_state*)
 								);

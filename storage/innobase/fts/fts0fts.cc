@@ -856,7 +856,7 @@ fts_drop_index(
 			rbt_free(index_cache->words);
 		}
 
-		ib_vector_remove(cache->indexes, *(void**)index_cache);
+		ib_vector_remove(cache->indexes, *(void**) index_cache);
 
 		if (cache->get_docs) {
 			fts_reset_get_doc(cache);
@@ -938,7 +938,7 @@ fts_index_get_charset(
 
 		fld_charset = innobase_get_fts_charset(
 			(int)(prtype & DATA_MYSQL_TYPE_MASK),
-			(uint)dtype_get_charset_coll(prtype));
+			(uint) dtype_get_charset_coll(prtype));
 
 		/* All FTS columns should have the same charset */
 		if (charset) {
@@ -1800,7 +1800,7 @@ fts_create_one_index_table(
 	field = dict_index_get_nth_field(index, 0);
 	charset = innobase_get_fts_charset(
 		(int)(field->col->prtype & DATA_MYSQL_TYPE_MASK),
-		(uint)dtype_get_charset_coll(field->col->prtype));
+		(uint) dtype_get_charset_coll(field->col->prtype));
 
 	if (strcmp(charset->name, "latin1_swedish_ci") == 0) {
 		dict_mem_table_add_col(new_table, heap, "word", DATA_VARCHAR,
@@ -2039,7 +2039,7 @@ fts_trx_row_get_new_state(
 	ut_a(old_state < FTS_INVALID);
 	ut_a(event < FTS_INVALID);
 
-	result = table[(int)old_state][(int)event];
+	result = table[(int) old_state][(int) event];
 	ut_a(result != FTS_INVALID);
 
 	return(result);
@@ -3115,7 +3115,7 @@ fts_query_expansion_fetch_doc(
 			ulint   prtype = dfield->type.prtype;
 			doc_charset = innobase_get_fts_charset(
 					(int)(prtype & DATA_MYSQL_TYPE_MASK),
-					(uint)dtype_get_charset_coll(prtype));
+					(uint) dtype_get_charset_coll(prtype));
 		}
 
 		doc.charset = doc_charset;
@@ -6010,7 +6010,7 @@ fts_load_stopword(
 		error = fts_config_get_ulint(
 			trx, &fts_table, FTS_USE_STOPWORD, &use_stopword);
 	} else {
-		use_stopword = (ulint)stopword_is_on;
+		use_stopword = (ulint) stopword_is_on;
 
 		error = fts_config_set_ulint(
 			trx, &fts_table, FTS_USE_STOPWORD, use_stopword);
@@ -6153,7 +6153,7 @@ fts_init_recover_doc(
 			get_doc->index_cache->charset =
 				innobase_get_fts_charset(
 				(int)(prtype & DATA_MYSQL_TYPE_MASK),
-				(uint)dtype_get_charset_coll(prtype));
+				(uint) dtype_get_charset_coll(prtype));
 		}
 
 		doc.charset = get_doc->index_cache->charset;
