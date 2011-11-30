@@ -43,6 +43,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "dict0priv.h"
 #include "ha_prototypes.h" /* innobase_casedn_str() */
+#include "fts0priv.h"
 
 
 /** Following are six InnoDB system tables */
@@ -985,6 +986,7 @@ dict_load_columns(
 			the flag is set before the table is created. */
 			if (table->fts == NULL) {
 				table->fts = fts_create(table);
+				fts_optimize_add_table(table);
 			}
 
 			ut_a(table->fts->doc_col == ULINT_UNDEFINED);

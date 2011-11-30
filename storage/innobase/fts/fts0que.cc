@@ -1246,6 +1246,11 @@ fts_query_union(
 		return(query->error);
 	}
 
+	/* Single '%' would confuse parser in pars_like_rebind */
+	if (token->f_len == 1 && *token->f_str == '%') {
+		return(query->error);
+	}
+
 	fts_query_cache(query, token);
 
 	/* Setup the callback args for filtering and
