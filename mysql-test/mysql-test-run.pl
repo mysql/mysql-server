@@ -2097,79 +2097,6 @@ sub environment_setup {
   }
 
   # --------------------------------------------------------------------------
-  # Add the path where mysqld will find udf_example.so
-  # --------------------------------------------------------------------------
-  my $lib_udf_example=
-    mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
-		    "$basedir/sql/.libs/udf_example.so",);
-
-  if ( $lib_udf_example )
-  {
-    push(@ld_library_paths, dirname($lib_udf_example));
-  }
-
-  $ENV{'UDF_EXAMPLE_LIB'}=
-    ($lib_udf_example ? basename($lib_udf_example) : "");
-  $ENV{'UDF_EXAMPLE_LIB_OPT'}= "--plugin-dir=".
-    ($lib_udf_example ? dirname($lib_udf_example) : "");
-
-  # --------------------------------------------------------------------------
-  # Add the path where mysqld will find ha_example.so
-  # --------------------------------------------------------------------------
-  if ($mysql_version_id >= 50100) {
-    my $plugin_filename;
-    if (IS_WINDOWS)
-    {
-       $plugin_filename = "ha_example.dll";
-    }
-    else 
-    {
-       $plugin_filename = "ha_example.so";
-    }
-    my $lib_example_plugin=
-      mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
-		      "$basedir/storage/example/.libs/".$plugin_filename,
-                      "$basedir/lib/mysql/plugin/".$plugin_filename);
-    $ENV{'EXAMPLE_PLUGIN'}=
-      ($lib_example_plugin ? basename($lib_example_plugin) : "");
-    $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
-      ($lib_example_plugin ? dirname($lib_example_plugin) : "");
-
-    $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
-    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".$plugin_filename;
-  }
-
-  # --------------------------------------------------------------------------
-  # Add the path where mysqld will find ha_federated.so
-  # --------------------------------------------------------------------------
-  my $fedplug_filename;
-  if (IS_WINDOWS) {
-    $fedplug_filename = "ha_federated.dll";
-  } else {
-    $fedplug_filename = "ha_federated.so";
-  }
-  my $lib_fed_plugin=
-    mtr_file_exists(vs_config_dirs('storage/federated',$fedplug_filename),
-		    "$basedir/storage/federated/.libs/".$fedplug_filename,
-		    "$basedir/lib/mysql/plugin/".$fedplug_filename);
-
-  $ENV{'FEDERATED_PLUGIN'}= $fedplug_filename;
-  $ENV{'FEDERATED_PLUGIN_DIR'}=
-    ($lib_fed_plugin ? dirname($lib_fed_plugin) : "");
-
-  # ----------------------------------------------------
-  # Add the path where mysqld will find mypluglib.so
-  # ----------------------------------------------------
-  my $lib_simple_parser=
-    mtr_file_exists(vs_config_dirs('plugin/fulltext', 'mypluglib.dll'),
-		    "$basedir/plugin/fulltext/.libs/mypluglib.so",);
-
-  $ENV{'SIMPLE_PARSER'}=
-    ($lib_simple_parser ? basename($lib_simple_parser) : "");
-  $ENV{'SIMPLE_PARSER_OPT'}= "--plugin-dir=".
-    ($lib_simple_parser ? dirname($lib_simple_parser) : "");
-
-  # --------------------------------------------------------------------------
   # Valgrind need to be run with debug libraries otherwise it's almost
   # impossible to add correct supressions, that means if "/usr/lib/debug"
   # is available, it should be added to
@@ -3917,7 +3844,7 @@ sub run_testcase ($$) {
   # Allow only alpanumerics pluss _ - + . in combination names,
   # or anything beginning with -- (the latter comes from --combination)
   my $combination= $tinfo->{combination};
-  if ($combination && $combination !~ /^\w[-\w\.\+]+$/
+  if ($combination && $combination !~ /^\w[-\w\.\+]*$/
                    && $combination !~ /^--/)
   {
     mtr_error("Combination '$combination' contains illegal characters");
@@ -5050,6 +4977,9 @@ sub mysqld_arguments ($$$) {
   }
 
   my $found_skip_core= 0;
+  my @plugins;
+  my %seen;
+  my $plugin;
   foreach my $arg ( @$extra_opts )
   {
     # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
@@ -5066,6 +4996,11 @@ sub mysqld_arguments ($$$) {
     {
       ; # Dont add --skip-log-bin when mysqld have --log-slave-updates in config
     }
+    elsif ($plugin = mtr_match_prefix($arg,  "--plugin-load="))
+    {
+      push @plugins, $plugin unless $seen{$plugin};
+      $seen{$plugin} = 1;
+    }
     else
     {
       mtr_add_arg($args, "%s", $arg);
@@ -5081,6 +5016,11 @@ sub mysqld_arguments ($$$) {
   # Facility stays disabled if timeout value is zero.
   mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
               $opt_debug_sync_timeout) unless $opt_user_args;
+
+  if (@plugins) {
+    my $sep = (IS_WINDOWS) ? ';' : ':';
+    mtr_add_arg($args, "--plugin-load=%s" .  join($sep, @plugins));
+  }
 
   return $args;
 }
