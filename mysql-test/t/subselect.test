@@ -4916,5 +4916,21 @@ SELECT (SELECT f3a, f3a FROM t3  where f3a > 3) = (0, 0);
 
 drop tables t1,t2,t3;
 
+--echo #
+--echo # LP BUG#825051 Wrong result with date/datetime and subquery with GROUP BY and in_to_exists
+--echo #
+
+CREATE TABLE t1 (a date, KEY (a)) ;
+INSERT INTO t1 VALUES ('2009-01-01'),('2009-02-02');
+set @old_optimizer_switch = @@optimizer_switch;
+SET @@optimizer_switch='semijoin=off,materialization=off,in_to_exists=on,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+SET @@optimizer_switch='semijoin=off,materialization=on,in_to_exists=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+set @@optimizer_switch=@old_optimizer_switch;
+drop table t1;
+
 --echo # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;
