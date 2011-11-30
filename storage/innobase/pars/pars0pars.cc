@@ -173,7 +173,7 @@ pars_info_lookup_bound_lit(
 
 		for (i = 0; i < ib_vector_size(vec); i++) {
 			pars_bound_lit_t*	pbl;
-		       
+
 			pbl = static_cast<pars_bound_lit_t*>(
 				ib_vector_get(vec, i));
 

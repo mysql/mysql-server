@@ -764,7 +764,7 @@ que_thr_dec_refer_count(
 	ut_ad(trx_mutex_own(trx));
 
 	if (thr->state == QUE_THR_RUNNING) {
-	       
+
 		if (!que_thr_stop(thr)) {
 
 			ut_a(next_thr != NULL && *next_thr == NULL);

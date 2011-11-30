@@ -740,7 +740,7 @@ row_create_prebuilt(
 	prebuilt->autoinc_error = 0;
 	prebuilt->autoinc_offset = 0;
 
-	/* Default to 1, we will set the actual value later in 
+	/* Default to 1, we will set the actual value later in
 	ha_innobase::get_auto_increment(). */
 	prebuilt->autoinc_increment = 1;
 

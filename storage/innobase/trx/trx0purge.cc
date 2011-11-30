@@ -454,7 +454,7 @@ loop:
 #else
 		mutex_enter(&trx_sys->mutex);
 		trx_sys->rseg_history_len -= n_removed_logs;
-		mutex_exit(&trx_sys->mutex);	
+		mutex_exit(&trx_sys->mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,

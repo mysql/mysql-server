@@ -485,7 +485,7 @@ dict_process_sys_foreign_rec(
 err_len:
 		return("incorrect column length in SYS_FOREIGN");
 	}
-	
+
 	/* This recieves a dict_foreign_t* that points to a stack variable.
 	So mem_heap_free(foreign->heap) is not used as elsewhere.
 	Since the heap used here is freed elsewhere, foreign->heap

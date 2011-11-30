@@ -454,7 +454,7 @@ row_merge_buf_add(
 	}
 
 	/* If this is FTS index, we already populated the sort buffer, return
-	here */ 
+	here */
 	if (index->type & DICT_FTS) {
 		return(n_row_added);
 	}

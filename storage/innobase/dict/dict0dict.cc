@@ -5574,7 +5574,7 @@ dict_table_replace_index_in_foreign_list(
 				= dict_foreign_find_equiv_index(foreign);
 
 			/* There must exist an alternative index if
-			check_foreigns (FOREIGN_KEY_CHECKS) is on, 
+			check_foreigns (FOREIGN_KEY_CHECKS) is on,
 			since ha_innobase::prepare_drop_index had done
 			the check before we reach here. */
 
