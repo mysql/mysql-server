@@ -16,7 +16,8 @@ create table t1 (
   c int,
   key t1x1 (b),
   key t1x2 (c)
-) engine=ndb;
+) engine=ndb
+  partition by key (a) partitions 1;
 
 insert into t1 values (1,1,1),(2,1,1),(3,2,1),(4,2,1);
 analyze table t1;
@@ -49,7 +50,8 @@ create table t1 (
   c int,
   key t1x1 (b),
   key t1x2 (c)
-) engine=ndb;
+) engine=ndb
+  partition by key (a) partitions 1;
 
 insert into t1 values (1,1,1),(2,1,1),(3,2,1),(4,2,1);
 analyze table t1;
