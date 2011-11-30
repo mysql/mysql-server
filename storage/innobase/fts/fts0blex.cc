@@ -1044,9 +1044,9 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 				else
 					b->yy_buf_size *= 2;
 
-				b->yy_ch_buf = (char *)
+				b->yy_ch_buf = (char*)
 					/* Include room in for 2 EOB chars. */
-					fts0brealloc((void *) b->yy_ch_buf,b->yy_buf_size + 2 ,yyscanner );
+					fts0brealloc((void*) b->yy_ch_buf,b->yy_buf_size + 2 ,yyscanner );
 				}
 			else
 				/* Can't grow it, we don't own it. */
@@ -1095,7 +1095,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	if ((yy_size_t) (yyg->yy_n_chars + number_to_move) > YY_CURRENT_BUFFER_LVALUE->yy_buf_size) {
 		/* Extend the array by 50%, plus the number we really need. */
 		yy_size_t new_size = yyg->yy_n_chars + number_to_move + (yyg->yy_n_chars >> 1);
-		YY_CURRENT_BUFFER_LVALUE->yy_ch_buf = (char *) fts0brealloc((void *) YY_CURRENT_BUFFER_LVALUE->yy_ch_buf,new_size ,yyscanner );
+		YY_CURRENT_BUFFER_LVALUE->yy_ch_buf = (char*) fts0brealloc((void*) YY_CURRENT_BUFFER_LVALUE->yy_ch_buf,new_size ,yyscanner );
 		if ( ! YY_CURRENT_BUFFER_LVALUE->yy_ch_buf )
 			YY_FATAL_ERROR( "out of dynamic memory in yy_get_next_buffer()" );
 	}
@@ -1235,7 +1235,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 			}
 		}
 
-	c = *(unsigned char *) yyg->yy_c_buf_p;	/* cast for 8-bit char's */
+	c = *(unsigned char*) yyg->yy_c_buf_p;	/* cast for 8-bit char's */
 	*yyg->yy_c_buf_p = '\0';	/* preserve yytext */
 	yyg->yy_hold_char = *++yyg->yy_c_buf_p;
 
@@ -1326,7 +1326,7 @@ static void fts0b_load_buffer_state  (yyscan_t yyscanner)
 	/* yy_ch_buf has to be 2 characters longer than the size given because
 	 * we need to put in 2 end-of-buffer characters.
 	 */
-	b->yy_ch_buf = (char *) fts0balloc(b->yy_buf_size + 2 ,yyscanner );
+	b->yy_ch_buf = (char*) fts0balloc(b->yy_buf_size + 2 ,yyscanner );
 	if ( ! b->yy_ch_buf )
 		YY_FATAL_ERROR( "out of dynamic memory in fts0b_create_buffer()" );
 
@@ -1352,9 +1352,9 @@ static void fts0b_load_buffer_state  (yyscan_t yyscanner)
 		YY_CURRENT_BUFFER_LVALUE = (YY_BUFFER_STATE) 0;
 
 	if ( b->yy_is_our_buffer )
-		fts0bfree((void *) b->yy_ch_buf ,yyscanner );
+		fts0bfree((void*) b->yy_ch_buf ,yyscanner );
 
-	fts0bfree((void *) b ,yyscanner );
+	fts0bfree((void*) b ,yyscanner );
 }
 
 /* Initializes or reinitializes a buffer.
@@ -1580,7 +1580,7 @@ YY_BUFFER_STATE fts0b_scan_bytes  (yyconst char * yybytes, int  _yybytes_len , y
 
 	/* Get memory for full buffer, including space for trailing EOB's. */
 	n = _yybytes_len + 2;
-	buf = (char *) fts0balloc(n ,yyscanner );
+	buf = (char*) fts0balloc(n ,yyscanner );
 	if ( ! buf )
 		YY_FATAL_ERROR( "out of dynamic memory in fts0b_scan_bytes()" );
 
@@ -1848,7 +1848,7 @@ static int yy_init_globals (yyscan_t yyscanner)
     yyg->yy_buffer_stack = 0;
     yyg->yy_buffer_stack_top = 0;
     yyg->yy_buffer_stack_max = 0;
-    yyg->yy_c_buf_p = (char *) 0;
+    yyg->yy_c_buf_p = (char*) 0;
     yyg->yy_init = 0;
     yyg->yy_start = 0;
 
@@ -1861,8 +1861,8 @@ static int yy_init_globals (yyscan_t yyscanner)
     yyin = stdin;
     yyout = stdout;
 #else
-    yyin = (FILE *) 0;
-    yyout = (FILE *) 0;
+    yyin = (FILE*) 0;
+    yyout = (FILE*) 0;
 #endif
 
     /* For future reference: Set errno on error, since we are called by
@@ -1927,24 +1927,24 @@ static int yy_flex_strlen (yyconst char * s ,  yyscan_t yyscanner __attribute__(
 
 void *fts0balloc (yy_size_t  size ,  yyscan_t yyscanner __attribute__((unused)))
 {
-	return (void *) malloc( size );
+	return (void*) malloc( size );
 }
 
 void *fts0brealloc  (void * ptr, yy_size_t  size ,  yyscan_t yyscanner __attribute__((unused)))
 {
-	/* The cast to (char *) in the following accommodates both
+	/* The cast to (char*) in the following accommodates both
 	 * implementations that use char* generic pointers, and those
 	 * that use void* generic pointers.  It works with the latter
 	 * because both ANSI C and C++ allow castless assignment from
 	 * any pointer type to void*, and deal with argument conversions
 	 * as though doing an assignment.
 	 */
-	return (void *) realloc( (char *) ptr, size );
+	return (void*) realloc( (char*) ptr, size );
 }
 
 void fts0bfree (void * ptr ,  yyscan_t yyscanner __attribute__((unused)))
 {
-	free( (char *) ptr );	/* see fts0brealloc() for (char *) cast */
+	free( (char*) ptr );	/* see fts0brealloc() for (char*) cast */
 }
 
 #define YYTABLES_NAME "yytables"

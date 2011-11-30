@@ -755,7 +755,7 @@ exit:
 		if (t_ctx.rows_added[i]) {
 			row_merge_buf_sort(buf[i], NULL);
 			row_merge_buf_write(
-				buf[i], (const merge_file_t *) merge_file[i],
+				buf[i], (const merge_file_t*) merge_file[i],
 				block[i]);
 			row_merge_write(merge_file[i]->fd,
 					merge_file[i]->offset++, block[i]);
@@ -813,7 +813,7 @@ row_fts_start_psort(
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		psort_info[i].psort_id = i;
 		os_thread_create(fts_parallel_tokenization,
-				 (void *)&psort_info[i], &thd_id);
+				 (void*)&psort_info[i], &thd_id);
 	}
 }
 
@@ -861,7 +861,7 @@ row_fts_start_parallel_merge(
 		merge_info[i].child_status = 0;
 
 		os_thread_create(fts_parallel_merge,
-				 (void *)&merge_info[i], &thd_id);
+				 (void*)&merge_info[i], &thd_id);
 	}
 }
 

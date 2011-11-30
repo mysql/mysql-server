@@ -907,16 +907,16 @@ next_file:
 	ret = FindNextFile(dir, lpFindFileData);
 
 	if (ret) {
-		ut_a(strlen((char *) lpFindFileData->cFileName)
+		ut_a(strlen((char*) lpFindFileData->cFileName)
 		     < OS_FILE_MAX_PATH);
 
-		if (strcmp((char *) lpFindFileData->cFileName, ".") == 0
-		    || strcmp((char *) lpFindFileData->cFileName, "..") == 0) {
+		if (strcmp((char*) lpFindFileData->cFileName, ".") == 0
+		    || strcmp((char*) lpFindFileData->cFileName, "..") == 0) {
 
 			goto next_file;
 		}
 
-		strcpy(info->name, (char *) lpFindFileData->cFileName);
+		strcpy(info->name, (char*) lpFindFileData->cFileName);
 
 		info->size = (ib_int64_t)(lpFindFileData->nFileSizeLow)
 			+ (((ib_int64_t)(lpFindFileData->nFileSizeHigh))
@@ -4455,7 +4455,7 @@ retry:
 			control = (struct iocb*) events[i].obj;
 			ut_a(control != NULL);
 
-			slot = (os_aio_slot_t *) control->data;
+			slot = (os_aio_slot_t*) control->data;
 
 			/* Some sanity checks. */
 			ut_a(slot != NULL);
