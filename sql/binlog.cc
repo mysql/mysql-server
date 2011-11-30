@@ -1933,7 +1933,9 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
           if (is_last_log)
           {
             Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
-            rpl_sidno sidno= gtid_ev->get_sidno();
+            rpl_sidno sidno= gtid_ev->get_sidno(false);
+            if (sidno < 0)
+              goto err;
             gtid_set->ensure_sidno(sidno);
             if (gtid_set->_add(sidno, gtid_ev->get_gno()) != RETURN_STATUS_OK)
               goto err;
