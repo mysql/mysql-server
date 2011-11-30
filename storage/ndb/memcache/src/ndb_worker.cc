@@ -657,8 +657,6 @@ void callback_main(int, NdbTransaction *tx, void *itemptr) {
 void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
   ndb_pipeline * & pipeline = wqitem->pipeline;
-  status_block * return_status = 0;
-  ENGINE_ERROR_CODE io_status = ENGINE_SUCCESS;
   
   /*  read  insert  update cr_flag response
    ------------------------------------------------------------------------
@@ -696,7 +694,7 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
   
   if(r_read == 626 && ! wqitem->base.math_create) {
     /* row did not exist, and create flag was not set */
-    return_status = & status_block_item_not_found;
+    wqitem->status = & status_block_item_not_found;
   }
   else if(r_read == 0 && r_update == 0) {
     /* row existed.  return fetched_value +/- delta. */
@@ -713,32 +711,35 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
         wqitem->math_value = stored - wqitem->math_delta;
     }
     
-    return_status = & status_block_generic_success;
+    wqitem->status = & status_block_generic_success;
   }  
   else if(r_read == 626 && r_insert == 0 && r_update == 0) {
     /* row was created.   Return initial_value.
      wqitem->math_value is already set to the initial_value :)  */
-    return_status = & status_block_generic_success;    
+    wqitem->status = & status_block_generic_success;
   }
   else if(r_read == -1 || r_insert == -1 || r_update == -1) {
     /* Total failure */
     logger->log(LOG_WARNING, 0, "incr/decr: total failure.\n");
-    io_status = ENGINE_FAILED;  
+    wqitem->status = & status_block_misc_error;
   }
   else if(r_update == 626) {
     /*  failure due to race with concurrent delete */
+    // TODO: design a test for this code.  Does it require reschedule()?
     if(wqitem->base.retries++ < 3) {       // try again:
-      tx->close();      
-      (void) worker_prepare_operation(wqitem); 
-      return;       
+      tx->close();
+      op_status_t r = worker_prepare_operation(wqitem); 
+      if(r == op_async_prepared)
+        return;  /* retry is in progress */
+      else
+        wqitem->status = & status_block_misc_error;
     }
     else { 
       logger->log(LOG_WARNING, 0, "incr/decr: giving up, too many retries.\n");
-      io_status = ENGINE_FAILED;
+      wqitem->status = & status_block_misc_error;
     }
   }
 
-  wqitem->status = return_status;
   worker_close(tx, wqitem);  
 }
 
