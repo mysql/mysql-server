@@ -30,17 +30,10 @@ Gtid_state gtid_state(&global_sid_lock, &global_sid_map);
 void Gtid_state::clear()
 {
   DBUG_ENTER("Gtid_state::clear()");
-  sid_lock->rdlock();
-  rpl_sidno max_sidno= sid_map->get_max_sidno();
-  for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
-    sid_locks.lock(sidno);
-
+  // the wrlock implies that no other thread can hold any of the mutexes
+  sid_lock->assert_some_wrlock();
   logged_gtids.clear();
   lost_gtids.clear();
-
-  for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
-    sid_locks.unlock(sidno);
-  sid_lock->unlock();
   DBUG_VOID_RETURN;
 }
 
@@ -143,7 +136,7 @@ void Gtid_state::broadcast_sidnos(const Gtid_set *gs)
 enum_return_status Gtid_state::ensure_sidno()
 {
   DBUG_ENTER("Gtid_state::ensure_sidno");
-  sid_lock->assert_some_rdlock();
+  sid_lock->assert_some_lock();
   rpl_sidno sidno= sid_map->get_max_sidno();
   if (sidno > 0)
   {
@@ -169,7 +162,7 @@ int Gtid_state::init()
 {
   DBUG_ENTER("Gtid_state::init()");
 
-  global_sid_lock.assert_some_rdlock();
+  global_sid_lock.assert_some_lock();
 
   rpl_sid server_sid;
   if (server_sid.parse(server_uuid) != RETURN_STATUS_OK)

@@ -312,6 +312,8 @@ public:
 #ifndef DBUG_OFF
     my_atomic_rwlock_init(&atomic_lock);
     lock_state= 0;
+#else
+    is_write_lock= false;
 #endif
     mysql_rwlock_init(0, &rwlock);
   }
@@ -344,6 +346,8 @@ public:
     my_atomic_rwlock_wrlock(&atomic_lock);
     my_atomic_store32(&lock_state, -1);
     my_atomic_rwlock_wrunlock(&atomic_lock);
+#else
+    is_write_lock= true;
 #endif
   }
   /// Release the lock (whether it is a write or read lock).
@@ -360,8 +364,23 @@ public:
     else
       DBUG_ASSERT(0);
     my_atomic_rwlock_wrunlock(&atomic_lock);
+#else
+    is_write_lock= false;
 #endif
     mysql_rwlock_unlock(&rwlock);
+  }
+  /**
+    Return true if the write lock is held. Must only be called by
+    threads that hold a lock.
+  */
+  inline bool is_wrlock()
+  {
+    assert_some_lock();
+#ifndef DBUG_OFF
+    return get_state() == -1;
+#else
+    return is_write_lock;
+#endif
   }
 
   /// Assert that some thread holds either the read or the write lock.
@@ -403,6 +422,8 @@ private:
     my_atomic_rwlock_rdunlock(&atomic_lock);
     return ret;
   }
+#else
+  bool is_write_lock;
 #endif
   /// The rwlock.
   mysql_rwlock_t rwlock;
@@ -448,10 +469,10 @@ public:
   /**
     Add the given SID to this map if it does not already exist.
 
-    The caller must hold the read lock on sid_lock before invoking
-    this function.  If the SID does not exist in this map, it will
-    release the read lock, take a write lock, update the map, release
-    the write lock, and take the read lock again.
+    The caller must hold the read lock or write lock on sid_lock
+    before invoking this function.  If the SID does not exist in this
+    map, it will release the read lock, take a write lock, update the
+    map, release the write lock, and take the read lock again.
 
     @param sid The SID.
     @retval SIDNO The SIDNO for the SID (a new SIDNO if the SID did
@@ -502,8 +523,8 @@ public:
   /**
     Return the n'th smallest sidno, in the order of the SID's UUID.
 
-    The caller must hold the read lock on sid_lock before invoking
-    this function.
+    The caller must hold the read or write lock on sid_lock before
+    invoking this function.
 
     @param n A number in the interval [0, get_max_sidno()-1], inclusively.
   */
@@ -538,6 +559,9 @@ private:
   /**
     Create a Node from the given SIDNO and SID and add it to
     _sidno_to_sid, _sid_to_sidno, and _sorted.
+
+    The caller must hold the write lock on sid_lock before invoking
+    this function.
 
     @param sidno The SIDNO to add.
     @param sid The SID to add.
@@ -576,7 +600,11 @@ extern Sid_map global_sid_map;
   a condition variable.
 
   Each element can be locked, unlocked, broadcast, or waited for, and
-  it is possible to call "THD::enter_cond" for the condition.
+  it is possible to call "THD::enter_cond" for the condition.  The
+  allowed indexes range from 0, inclusive, to get_max_index(),
+  inclusive.  Initially there are zero elements (and get_max_index()
+  returns -1); more elements can be allocated by calling
+  ensure_index().
 
   This data structure has a read-write lock that protects the number
   of elements.  The lock is provided by the invoker of the constructor
@@ -788,8 +816,10 @@ public:
     @param other The Gtid_set to copy.
     @param status Will be set to GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
   */
-  Gtid_set(Gtid_set *other, enum_return_status *status);
+  //Gtid_set(Gtid_set *other, enum_return_status *status);
   //Gtid_set(Sid_map *sid_map, Gtid_set *relative_to, Sid_map *sid_map_enc, const uchar *encoded, int length, enum_return_status *status);
+  /// Worker for the constructor.
+  void init(Sid_map *_sid_map, Checkable_rwlock *_sid_lock);
   /// Destroy this Gtid_set.
   ~Gtid_set();
   /**
@@ -1167,7 +1197,12 @@ public:
   {
   public:
     Gtid_iterator(const Gtid_set *gs)
-      : gtid_set(gs), sidno(0), ivit(gs) { next_sidno(); }
+      : gtid_set(gs), sidno(0), ivit(gs)
+    {
+      if (gs->sid_lock != NULL)
+        gs->sid_lock->assert_some_wrlock();
+      next_sidno();
+    }
     /// Advance to next group.
     inline void next()
     {
@@ -1298,6 +1333,8 @@ private:
   /// Return the number of intervals in this Gtid_set.
   int get_n_intervals() const
   {
+    if (sid_lock != NULL)
+      sid_lock->assert_some_wrlock();
     rpl_sidno max_sidno= get_max_sidno();
     int ret= 0;
     for (rpl_sidno sidno= 1; sidno < max_sidno; sidno++)
@@ -1368,8 +1405,6 @@ private:
     unlink it from its place in any other list.
   */
   void put_free_interval(Interval *iv);
-  /// Worker for the constructor.
-  void init(Sid_map *_sid_map, Checkable_rwlock *_sid_lock);
 
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
@@ -1660,7 +1695,10 @@ public:
 
     This can't be done in the constructor because the constructor is
     invoked at server startup before SERVER_UUID is initialized.
-    
+
+    The caller must hold the read lock or write lock on sid_locks
+    before invoking this function.
+
     @retval 0 Success
     @retval 1 Error (out of memory or IO error).
   */
@@ -1668,6 +1706,9 @@ public:
   /**
     Reset the state after RESET MASTER: remove all logged and lost
     groups, but keep owned groups as they are.
+
+    The caller must hold the write lock on sid_lock before calling
+    this function.
   */
   void clear();
   /**
