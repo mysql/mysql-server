@@ -67,13 +67,13 @@ Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
   *status= add(text);
 }
 
-
+/*
 Gtid_set::Gtid_set(Gtid_set *other, enum_return_status *status)
 {
   init(other->sid_map, other->sid_lock);
   *status= add(other);
 }
-
+*/
 
 void Gtid_set::init(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
 {
@@ -115,7 +115,7 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno)
 {
   DBUG_ENTER("Gtid_set::ensure_sidno");
   if (sid_lock != NULL)
-    sid_lock->assert_some_rdlock();
+    sid_lock->assert_some_lock();
   DBUG_PRINT("info", ("sidno=%d get_max_sidno()=%d sid_map=%p "
                       "sid_map->get_max_sidno()=%d",
                       sidno, get_max_sidno(), sid_map,
@@ -131,15 +131,22 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno)
       Then we temporarily upgrade it to a write lock while resizing
       the array, and then we restore it to a read lock at the end.
     */
+    bool is_wrlock= false;
     if (sid_lock != NULL)
     {
-      sid_lock->unlock();
-      sid_lock->wrlock();
-      if (sidno <= max_sidno)
+      is_wrlock= sid_lock->is_wrlock();
+      if (!is_wrlock)
       {
         sid_lock->unlock();
-        sid_lock->rdlock();
-        RETURN_OK;
+        sid_lock->wrlock();
+        // maybe a concurrent thread already resized the Gtid_set
+        // while we released the lock; check the condition again
+        if (sidno <= max_sidno)
+        {
+          sid_lock->unlock();
+          sid_lock->rdlock();
+          RETURN_OK;
+        }
       }
     }
     if (allocate_dynamic(&intervals,
@@ -151,8 +158,11 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno)
         goto error;
     if (sid_lock != NULL)
     {
-      sid_lock->unlock();
-      sid_lock->rdlock();
+      if (!is_wrlock)
+      {
+        sid_lock->unlock();
+        sid_lock->rdlock();
+      }
     }
   }
   RETURN_OK;
@@ -593,6 +603,8 @@ enum_return_status Gtid_set::remove(rpl_sidno sidno,
 enum_return_status Gtid_set::add(const Gtid_set *other)
 {
   DBUG_ENTER("Gtid_set::add(Gtid_set *)");
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
   rpl_sidno max_other_sidno= other->get_max_sidno();
   if (other->sid_map == sid_map || other->sid_map == NULL || sid_map == NULL)
   {
@@ -658,6 +670,8 @@ bool Gtid_set::contains_gtid(rpl_sidno sidno, rpl_gno gno) const
 {
   DBUG_ENTER("Gtid_set::contains_gtid");
   DBUG_ASSERT(sidno >= 1 && gno >= 1);
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
   if (sidno > get_max_sidno())
     DBUG_RETURN(false);
   Const_interval_iterator ivit(this, sidno);
@@ -678,6 +692,8 @@ int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
 {
   DBUG_ENTER("Gtid_set::to_string");
   DBUG_ASSERT(sid_map != NULL);
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
   if (sf == NULL)
     sf= &default_string_format;
   if (sf->empty_set_string != NULL && is_empty())
@@ -778,6 +794,8 @@ static int get_string_length(rpl_gno gno)
 int Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
 {
   DBUG_ASSERT(sid_map != NULL);
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
   if (sf == NULL)
     sf= &default_string_format;
   if (cached_string_length == -1 || cached_string_format != sf)
@@ -852,6 +870,10 @@ bool Gtid_set::equals(const Gtid_set *other) const
 {
   DBUG_ENTER("Gtid_set::equals");
 
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
+  if (other->sid_lock != NULL)
+    other->sid_lock->assert_some_wrlock();
   if (sid_map == NULL || other->sid_map == NULL || sid_map == other->sid_map)
   {
     // in this case, we don't need to translate sidnos
@@ -917,6 +939,10 @@ bool Gtid_set::equals(const Gtid_set *other) const
 bool Gtid_set::is_subset(const Gtid_set *super) const
 {
   DBUG_ENTER("Gtid_set::is_subset");
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
+  if (super->sid_lock != NULL)
+    super->sid_lock->assert_some_wrlock();
   Sid_map *super_sid_map= super->sid_map;
   rpl_sidno max_sidno= get_max_sidno();
   rpl_sidno super_max_sidno= super->get_max_sidno();
@@ -976,15 +1002,23 @@ bool Gtid_set::is_subset(const Gtid_set *super) const
 void Gtid_set::encode(uchar *buf) const
 {
   DBUG_ENTER("Gtid_set::encode(uchar *)");
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
   // make place for number of sids
   uint64 n_sids= 0;
   uchar *n_sids_p= buf;
   buf+= 8;
   // iterate over sidnos
+  rpl_sidno sidmap_max_sidno= sid_map->get_max_sidno();
   rpl_sidno max_sidno= get_max_sidno();
-  for (rpl_sidno sid_i= 0; sid_i < max_sidno; sid_i++)
+  for (rpl_sidno sid_i= 0; sid_i < sidmap_max_sidno; sid_i++)
   {
     rpl_sidno sidno= sid_map->get_sorted_sidno(sid_i);
+    // it is possible that the sid_map has more SIDNOs than the set.
+    if (sidno > max_sidno)
+      continue;
+    DBUG_PRINT("info", ("sid_i=%d sidno=%d max_sidno=%d sid_map->max_sidno=%d",
+                        sid_i, sidno, max_sidno, sid_map->get_max_sidno()));
     Const_interval_iterator ivit(this, sidno);
     const Interval *iv= ivit.get();
     if (iv != NULL)
@@ -1106,6 +1140,8 @@ report_error:
 
 size_t Gtid_set::get_encoded_length() const
 {
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
   size_t ret= 8;
   rpl_sidno max_sidno= get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)

@@ -1853,7 +1853,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
   */
   mysql_mutex_lock(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
-  global_sid_lock.rdlock();
+  global_sid_lock.wrlock();
 
   /*
     Iterate through all binary log files and do the following:
@@ -2001,10 +2001,12 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
                                 bool no_auto_events_arg,
                                 ulong max_size_arg,
                                 bool null_created_arg,
-                                bool need_mutex)
+                                bool need_mutex,
+                                bool need_sid_lock)
 {
   File file= -1;
 
+  DBUG_ASSERT(log_type_arg == LOG_BIN);
   DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, enum_log_type, ...)");
   DBUG_PRINT("enter",("log_type: %d name: %s",(int) log_type_arg, log_name));
 
@@ -2120,10 +2122,14 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       bytes_written+= s.data_written;
       if (current_thd)
       {
-        global_sid_lock.rdlock();
+        if (need_sid_lock)
+          global_sid_lock.wrlock();
+        else
+          global_sid_lock.assert_some_wrlock();
         Previous_gtids_log_event prev_gtids_ev(current_thd,
                                                gtid_state.get_logged_gtids());
-        global_sid_lock.unlock();
+        if (need_sid_lock)
+          global_sid_lock.unlock();
         if (prev_gtids_ev.write(&log_file))
           goto err;
         bytes_written+= prev_gtids_ev.data_written;
@@ -2583,7 +2589,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   mysql_mutex_lock(&LOCK_index);
 
 #ifdef HAVE_GTID
-  global_sid_lock.rdlock();
+  global_sid_lock.wrlock();
 #endif
 
   /* Save variables so that we can reopen the log */
@@ -2680,7 +2686,9 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 #endif
 
   if (!open_index_file(index_file_name, 0, FALSE))
-    if ((error= open_binlog(save_name, log_type, 0, io_cache_type, no_auto_events, max_size, 0, FALSE)))
+    if ((error= open_binlog(save_name, log_type, 0, io_cache_type,
+                            no_auto_events, max_size, 0,
+                            false/*need mutex*/, false/*need sid_lock*/)))
       goto err;
   my_free((void *) save_name);
 
@@ -3571,6 +3579,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
     goto end;
   new_name_ptr=new_name;
 
+  DBUG_ASSERT(log_type == LOG_BIN); // i'm 99% sure this always holds - when this is confirmed, remove 'if' statement below /sven
   if (log_type == LOG_BIN)
   {
     if (!no_auto_events)
@@ -3608,6 +3617,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   old_name=name;
   name=0;				// Don't free name
   close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX);
+  DBUG_ASSERT(log_type == LOG_BIN); // i'm 99% sure this always holds - when this is confirmed, remove clause in 'if' statement below /sven
   if (log_type == LOG_BIN && checksum_alg_reset != BINLOG_CHECKSUM_ALG_UNDEF)
   {
     DBUG_ASSERT(!is_relay_log);
@@ -3635,7 +3645,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
     /* reopen the binary log file. */
     file_to_open= new_name_ptr;
     error= open_binlog(old_name, log_type, new_name_ptr, io_cache_type,
-                       no_auto_events, max_size, 1, FALSE);
+                       no_auto_events, max_size, 1,
+                       false/*need mutex*/, true/*need sid_lock*/);
   }
 
   /* handle reopening errors */
@@ -4675,6 +4686,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
   if (log_state == LOG_OPENED)
   {
 #ifdef HAVE_REPLICATION
+    DBUG_ASSERT(log_type == LOG_BIN); // i'm 99% sure this always holds - when this is confirmed, remove clause in 'if' statement below /sven
     if (log_type == LOG_BIN && !no_auto_events &&
 	(exiting & LOG_CLOSE_STOP_EVENT))
     {
@@ -4691,6 +4703,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
 #endif /* HAVE_REPLICATION */
 
     /* don't pwrite in a file opened with O_APPEND - it doesn't work */
+    DBUG_ASSERT(log_type == LOG_BIN); // i'm 99% sure this always holds - when this is confirmed, remove 'if' statement below /sven
     if (log_file.type == WRITE_CACHE && log_type == LOG_BIN)
     {
       my_off_t offset= BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
@@ -4789,7 +4802,8 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
   if (using_heuristic_recover())
   {
     /* generate a new binlog to mask a corrupted one */
-    open_binlog(opt_name, LOG_BIN, 0, WRITE_CACHE, 0, max_binlog_size, 0, TRUE);
+    open_binlog(opt_name, LOG_BIN, 0, WRITE_CACHE, 0, max_binlog_size, 0,
+                true/*need mutex*/, true/*need sid_lock*/);
     cleanup();
     return 1;
   }

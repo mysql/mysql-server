@@ -120,11 +120,11 @@ Group_cache::add_empty_group(rpl_sidno sidno, rpl_gno gno)
 
 
 enum_return_status
-Group_cache::add_empty_group_if_missing(const Gtid_state *gls,
+Group_cache::add_empty_group_if_missing(const Gtid_state *gst,
                                         rpl_sidno sidno, rpl_gno gno)
 {
   DBUG_ENTER("Group_cache::add_empty_group_if_missing(Gtid_state *, rpl_sidno, rpl_gno)");
-  if (!gls->is_logged(sidno, gno) && !contains_gtid(sidno, gno))
+  if (!gst->is_logged(sidno, gno) && !contains_gtid(sidno, gno))
     if (add_empty_group(sidno, gno) == ERROR)
       RETURN_REPORTED_ERROR;
   RETURN_OK;
@@ -132,7 +132,7 @@ Group_cache::add_empty_group_if_missing(const Gtid_state *gls,
 
 
 enum_return_status
-Group_cache::add_empty_groups_if_missing(const Gtid_state *gls,
+Group_cache::add_empty_groups_if_missing(const Gtid_state *gst,
                                          const Gtid_set *gtid_set)
 {
   DBUG_ENTER("Group_cache::add_empty_groups_if_missing(Gtid_state *, Gtid_set *)");
@@ -151,7 +151,7 @@ Group_cache::add_empty_groups_if_missing(const Gtid_state *gls,
   Gtid g= git.get();
   while (g.sidno)
   {
-    PROPAGATE_REPORTED_ERROR(add_empty_group_if_missing(gls, g.sidno, g.gno));
+    PROPAGATE_REPORTED_ERROR(add_empty_group_if_missing(gst, g.sidno, g.gno));
     git.next();
     g= git.get();
   }
@@ -160,7 +160,7 @@ Group_cache::add_empty_groups_if_missing(const Gtid_state *gls,
 
 
 enum_return_status
-Group_cache::update_gtid_state(const THD *thd, Gtid_state *gls) const
+Group_cache::update_gtid_state(const THD *thd, Gtid_state *gst) const
 {
   DBUG_ENTER("Group_cache::update_gtid_state");
 
@@ -171,13 +171,13 @@ Group_cache::update_gtid_state(const THD *thd, Gtid_state *gls) const
   rpl_sidno lock_sidno= 0;
 
   if (lock_set != NULL)
-    gls->lock_sidnos(lock_set);
+    gst->lock_sidnos(lock_set);
   else
   {
     DBUG_ASSERT(n_groups <= 1);
     lock_sidno= n_groups > 0 ? get_unsafe_pointer(0)->spec.gtid.sidno : 0;
     if (lock_sidno)
-      gls->lock_sidno(lock_sidno);
+      gst->lock_sidno(lock_sidno);
   }
 
   enum_return_status ret= RETURN_STATUS_OK;
@@ -192,7 +192,7 @@ Group_cache::update_gtid_state(const THD *thd, Gtid_state *gls) const
                   lock_set->contains_sidno(group->spec.gtid.sidno) :
                   (lock_sidno > 0 && group->spec.gtid.sidno == lock_sidno));
       updated= true;
-      ret= gls->log_group(group->spec.gtid.sidno, group->spec.gtid.gno);
+      ret= gst->log_group(group->spec.gtid.sidno, group->spec.gtid.gno);
       if (ret != RETURN_STATUS_OK)
         break;
     }
@@ -202,21 +202,21 @@ Group_cache::update_gtid_state(const THD *thd, Gtid_state *gls) const
   if (lock_set != NULL)
   {
     if (updated)
-      gls->broadcast_sidnos(lock_set);
-    gls->unlock_sidnos(lock_set);
+      gst->broadcast_sidnos(lock_set);
+    gst->unlock_sidnos(lock_set);
   }
   else if (lock_sidno != 0)
   {
     if (updated)
-      gls->broadcast_sidno(lock_sidno);
-    gls->unlock_sidno(lock_sidno);
+      gst->broadcast_sidno(lock_sidno);
+    gst->unlock_sidno(lock_sidno);
   }
   RETURN_STATUS(ret);
 }
 
 
 enum_return_status Group_cache::generate_automatic_gno(const THD *thd,
-                                                       Gtid_state *gls)
+                                                       Gtid_state *gst)
 {
   DBUG_ENTER("Group_cache::generate_automatic_gno");
   DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
@@ -241,13 +241,13 @@ enum_return_status Group_cache::generate_automatic_gno(const THD *thd,
         {
         */
         automatic_type= GTID_GROUP;
-        automatic_sidno= gls->get_server_sidno();
-        gls->lock_sidno(automatic_sidno);
-        automatic_gno= gls->get_automatic_gno(automatic_sidno);
+        automatic_sidno= gst->get_server_sidno();
+        gst->lock_sidno(automatic_sidno);
+        automatic_gno= gst->get_automatic_gno(automatic_sidno);
         if (automatic_gno == -1)
           RETURN_REPORTED_ERROR;
-        gls->acquire_ownership(automatic_sidno, automatic_gno, thd);
-        gls->unlock_sidno(automatic_sidno);
+        gst->acquire_ownership(automatic_sidno, automatic_gno, thd);
+        gst->unlock_sidno(automatic_sidno);
       }
       group->spec.type= automatic_type;
       group->spec.gtid.gno= automatic_gno;

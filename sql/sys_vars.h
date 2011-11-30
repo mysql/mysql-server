@@ -2059,7 +2059,7 @@ public:
     // allocated.
     Gtid_set::Interval ivs[10];
     gs.add_interval_memory(10, ivs);
-    global_sid_lock.rdlock();
+    global_sid_lock.wrlock();
     if (get_gtid_set(thd, &gs) != RETURN_STATUS_OK)
       goto error;
     // allocate string and print to it
@@ -2091,7 +2091,7 @@ public:
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
     DBUG_ENTER("Sys_var_gtid_done::global_value_ptr");
-    global_sid_lock.rdlock();
+    global_sid_lock.wrlock();
     const Gtid_set *gs= gtid_state.get_logged_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
     if (buf == NULL)
@@ -2134,7 +2134,7 @@ public:
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
     DBUG_ENTER("Sys_var_gtid_lost::global_value_ptr");
-    global_sid_lock.rdlock();
+    global_sid_lock.wrlock();
     const Gtid_set *gs= gtid_state.get_lost_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
     if (buf == NULL)

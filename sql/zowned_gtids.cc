@@ -58,34 +58,48 @@ Owned_gtids::~Owned_gtids()
 enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno)
 {
   DBUG_ENTER("Owned_gtids::ensure_sidno");
-  sid_lock->assert_some_rdlock();
+  sid_lock->assert_some_lock();
   rpl_sidno max_sidno= get_max_sidno();
+  bool is_wrlock= false;
   if (sidno > max_sidno || get_hash(sidno) == NULL)
   {
-    sid_lock->unlock();
-    sid_lock->wrlock();
-    if (sidno > max_sidno || get_hash(sidno) == NULL)
+    is_wrlock= sid_lock->is_wrlock();
+    if (!is_wrlock)
     {
-      if (allocate_dynamic(&sidno_to_hash, sidno))
-        goto error;
-      for (int i= max_sidno; i < sidno; i++)
+      sid_lock->unlock();
+      sid_lock->wrlock();
+      if (sidno <= max_sidno && get_hash(sidno) != NULL)
       {
-        HASH *hash= (HASH *)malloc(sizeof(HASH));
-        if (hash == NULL)
-          goto error;
-        my_hash_init(hash, &my_charset_bin, 20,
-                     offsetof(Node, gno), sizeof(rpl_gno), NULL,
-                     my_free, 0);
-        set_dynamic(&sidno_to_hash, &hash, i);
+        sid_lock->unlock();
+        sid_lock->rdlock();
+        RETURN_OK;
       }
     }
-    sid_lock->unlock();
-    sid_lock->rdlock();
+    if (allocate_dynamic(&sidno_to_hash, sidno))
+      goto error;
+    for (int i= max_sidno; i < sidno; i++)
+    {
+      HASH *hash= (HASH *)malloc(sizeof(HASH));
+      if (hash == NULL)
+        goto error;
+      my_hash_init(hash, &my_charset_bin, 20,
+                   offsetof(Node, gno), sizeof(rpl_gno), NULL,
+                   my_free, 0);
+      set_dynamic(&sidno_to_hash, &hash, i);
+    }
+    if (!is_wrlock)
+    {
+      sid_lock->unlock();
+      sid_lock->rdlock();
+    }
   }
   RETURN_OK;
 error:
-  sid_lock->unlock();
-  sid_lock->rdlock();
+  if (!is_wrlock)
+  {
+    sid_lock->unlock();
+    sid_lock->rdlock();
+  }
   BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
   RETURN_REPORTED_ERROR;
 }

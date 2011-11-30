@@ -4548,8 +4548,9 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   if (opt_bin_log &&
-       mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
-                                 WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
+      mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
+                                WRITE_CACHE, 0, max_binlog_size, 0,
+                                true/*need mutex*/, true/*need sid_lock*/))
     unireg_abort(1);
 
 #ifdef HAVE_REPLICATION

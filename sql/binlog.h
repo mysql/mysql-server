@@ -234,13 +234,16 @@ public:
   int init(bool no_auto_events_arg, ulong max_size);
   void init_pthread_objects();
   void cleanup();
+  /**
+    Create a new binary log.
+  */
   bool open_binlog(const char *log_name,
                    enum_log_type log_type,
                    const char *new_name,
                    enum cache_type io_cache_type_arg,
                    bool no_auto_events_arg, ulong max_size,
                    bool null_created,
-                   bool need_mutex);
+                   bool need_mutex, bool need_sid_lock);
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name, bool need_mutex);
   /* Use this to start writing a new log file */
