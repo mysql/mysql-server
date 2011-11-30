@@ -2,13 +2,13 @@
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 
 #include <toku_portability.h>
-#include "memory.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <malloc.h>
+#include <dlfcn.h>
+#include "memory.h"
 #include "toku_assert.h"
-#include "toku_pthread.h"
 
 static malloc_fun_t  t_malloc  = 0;
 static malloc_fun_t  t_xmalloc = 0;
@@ -18,14 +18,26 @@ static realloc_fun_t t_xrealloc = 0;
 
 static MEMORY_STATUS_S status;
 
+void 
+toku_memory_get_status(MEMORY_STATUS s) {
+    if (status.mallocator_version == NULL) {
+        // mallctl in jemalloc can be used to get the version string
+        int (*mallctl)(const char *, void *, size_t *, void *, size_t);
+        mallctl = dlsym(NULL, "mallctl");
+        if (mallctl) {
+            size_t version_length = sizeof status.mallocator_version;
+            int r = mallctl("version", &status.mallocator_version, &version_length, NULL, 0);
+            assert(r == 0);
+        } else
+            status.mallocator_version = "libc";
+    }
+    *s = status;
+}
+
+// jemalloc's malloc_usable_size does not work with a NULL pointer, so we implement a version that works
 static size_t
 my_malloc_usable_size(void *p) {
     return p == NULL ? 0 : malloc_usable_size(p);
-}
-
-void 
-toku_memory_get_status(MEMORY_STATUS s) {
-    *s = status;
 }
 
 // max_in_use may be slightly off because use of max_in_use is not thread-safe.

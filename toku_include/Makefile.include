@@ -167,7 +167,7 @@ LIBPORTABILITY_SO=$(TOKUROOT)lib/libtokuportability.$(SOEXT)
 LIBPORTABILITY_A=$(TOKUROOT)lib/libtokuportability.$(AEXT)
 
 PORTABILITY_HEADERS= $(TOKUROOT)$(SYSTEM)
-ALWAYS_LINK= -lz -lpthread 
+ALWAYS_LINK= -lz -lpthread -ldl
 ifeq ($(CC),icc)
 # needed for things like intel_fast_memset(), intel_sse2_strlen()
 ifeq ($(DEBUG),0)

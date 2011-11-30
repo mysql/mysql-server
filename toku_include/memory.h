@@ -95,15 +95,16 @@ void toku_set_func_realloc_only(realloc_fun_t f);
 void toku_set_func_free(free_fun_t f);
 
 typedef struct memory_status {
-  uint64_t malloc_count;    // number of malloc operations
-  uint64_t free_count;      // number of free operations
-  uint64_t realloc_count;   // number of realloc operations
-  uint64_t malloc_fail;     // number of malloc operations that failed 
-  uint64_t realloc_fail;    // number of realloc operations that failed 
-  uint64_t requested;       // number of bytes requested
-  uint64_t used;            // number of bytes used (requested + overhead), obtained from malloc_usable_size()
-  uint64_t freed;           // number of bytes freed;
-  uint64_t max_in_use;      // maximum memory footprint (used - freed), approximate (not worth threadsafety overhead for exact)
+    uint64_t malloc_count;    // number of malloc operations
+    uint64_t free_count;      // number of free operations
+    uint64_t realloc_count;   // number of realloc operations
+    uint64_t malloc_fail;     // number of malloc operations that failed 
+    uint64_t realloc_fail;    // number of realloc operations that failed 
+    uint64_t requested;       // number of bytes requested
+    uint64_t used;            // number of bytes used (requested + overhead), obtained from malloc_usable_size()
+    uint64_t freed;           // number of bytes freed;
+    uint64_t max_in_use;      // maximum memory footprint (used - freed), approximate (not worth threadsafety overhead for exact)
+    const char *mallocator_version;
 } MEMORY_STATUS_S, *MEMORY_STATUS;
 
 void toku_memory_get_status(MEMORY_STATUS s);
