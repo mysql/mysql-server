@@ -4699,9 +4699,6 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   */
   for (tables= *start; tables ;tables= tables->next_global)
   {
-    DBUG_PRINT("tcache", ("opening table: '%s'.'%s'  item: 0x%lx",
-                          tables->db, tables->table_name, (long) tables));
-
     safe_to_ignore_table= FALSE;
 
     /*
@@ -4714,8 +4711,11 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     {
       if (tables->view)
         goto process_view_routines;
+      DBUG_PRINT("tcache", ("ignoring placeholder for derived table"));
       continue;
     }
+    DBUG_PRINT("tcache", ("opening table: '%s'.'%s'  item: 0x%lx",
+                          tables->db, tables->table_name, (long) tables));
     /*
       If this TABLE_LIST object is a placeholder for an information_schema
       table, create a temporary table to represent the information_schema

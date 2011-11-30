@@ -8,6 +8,9 @@
 -- source include/have_innodb_plugin.inc
 -- source include/have_query_cache.inc
 
+# We must run this with XtraDB as otherwise we will get different EXPLAIN's
+-- source include/have_xtradb.inc
+
 let $engine_type= InnoDB;
 let $other_engine_type= MEMORY;
 # InnoDB does support FOREIGN KEYFOREIGN KEYs

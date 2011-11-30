@@ -2735,7 +2735,7 @@ innobase_commit_low(
 #ifdef MYSQL_SERVER
 	THD *thd=current_thd;
 
-	if (thd && thd->slave_thread) {
+	if (thd && thd_is_replication_slave_thread(thd)) {
 		/* Update the replication position info inside InnoDB.
 		   In embedded server, does nothing. */
 		const char *log_file_name, *group_relay_log_name;

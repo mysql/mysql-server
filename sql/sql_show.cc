@@ -708,12 +708,30 @@ public:
 };
 
 
+/*
+  Return CREATE command for table or view
+
+  @param thd	     Thread handler
+  @param table_list  Table / view
+
+  @return
+  @retval 0      OK
+  @retval 1      Error
+
+  @notes
+  table_list->db and table_list->table_name are kept unchanged to
+  not cause problems with SP.
+*/
+
 bool
 mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 {
   Protocol *protocol= thd->protocol;
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
+  char *save_db, *save_table_name;
+  bool retval= TRUE;                             // Assume error
+  List<Item> field_list;
   DBUG_ENTER("mysqld_show_create");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->table_name));
@@ -721,13 +739,17 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   /* We want to preserve the tree for views. */
   thd->lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
 
+  /* Store original names if called from SP */
+  save_db=         table_list->db;
+  save_table_name= table_list->table_name;
+
   {
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
     bool error= open_normal_and_derived_tables(thd, table_list, 0);
     thd->pop_internal_handler();
     if (error && (thd->killed || thd->main_da.is_error()))
-      DBUG_RETURN(TRUE);
+      goto error;
   }
 
   /* TODO: add environment variables show when it become possible */
@@ -735,7 +757,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     my_error(ER_WRONG_OBJECT, MYF(0),
              table_list->db, table_list->table_name, "VIEW");
-    DBUG_RETURN(TRUE);
+    goto error;
   }
 
   buffer.length(0);
@@ -747,9 +769,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
        view_store_create_info(thd, table_list, &buffer) :
        store_create_info(thd, table_list, &buffer, NULL,
                          FALSE /* show_database */)))
-    DBUG_RETURN(TRUE);
+    goto error;
 
-  List<Item> field_list;
   if (table_list->view)
   {
     field_list.push_back(new Item_empty_string("View",NAME_CHAR_LEN));
@@ -770,7 +791,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+    goto error;
   protocol->prepare_for_resend();
   if (table_list->view)
     protocol->store(table_list->view_name.str, system_charset_info);
@@ -798,10 +819,17 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
 
   if (protocol->write())
-    DBUG_RETURN(TRUE);
+    goto error;
 
   my_eof(thd);
-  DBUG_RETURN(FALSE);
+  retval= FALSE;                                // ok
+
+error:
+  /* Restore table list if called by stored procedure */
+  table_list->db=         save_db;
+  table_list->table_name= save_table_name;
+  DBUG_RETURN(retval);
+
 }
 
 bool mysqld_show_create_db(THD *thd, char *dbname,

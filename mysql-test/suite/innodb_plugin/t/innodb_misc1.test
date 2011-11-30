@@ -1,4 +1,5 @@
 -- source include/have_innodb_plugin.inc
+-- source include/have_utf8.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
