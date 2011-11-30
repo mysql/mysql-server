@@ -34,9 +34,11 @@ select * from foo;
 checksum table foo;
 
 set session transaction isolation level serializable;
+begin;
 --error ER_LOCK_WAIT_TIMEOUT
 select * from foo;
---echo # should be NULl
+commit;
+--echo # should be NULL
 checksum table foo;
 
 

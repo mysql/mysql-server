@@ -42,9 +42,11 @@ checksum table foo;
 Table	Checksum
 test.foo	149057747
 set session transaction isolation level serializable;
+begin;
 select * from foo;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-# should be NULl
+commit;
+# should be NULL
 checksum table foo;
 Table	Checksum
 test.foo	NULL
