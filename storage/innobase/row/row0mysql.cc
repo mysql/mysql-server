@@ -1270,21 +1270,37 @@ error_exit:
 				"InnoDB: FTS Doc ID must be large than 0 \n");
 			err = DB_FTS_INVALID_DOCID;
 			trx->error_state = DB_FTS_INVALID_DOCID;
-			goto error_exit;	
+			goto error_exit;
 		}
 
 		if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			doc_id_t	next_doc_id
-				= table->fts->cache->next_doc_id;	
+				= table->fts->cache->next_doc_id;
 
 			if (doc_id < next_doc_id) {
 				fprintf(stderr,
 					"InnoDB: FTS Doc ID must be large than"
-					" "UINT64PF"for table",
+					" "UINT64PF" for table",
 					next_doc_id - 1);
 				ut_print_name(stderr, trx, TRUE, table->name);
 				putc('\n', stderr);
 
+				err = DB_FTS_INVALID_DOCID;
+				trx->error_state = DB_FTS_INVALID_DOCID;
+				goto error_exit;
+			}
+
+			/* Difference between Doc IDs are restricted within
+			4 bytes integer. See fts_get_encoded_len() */
+
+			if (doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
+				fprintf(stderr,
+					"InnoDB: Doc ID "UINT64PF" is too"
+					" big. Its difference with largest"
+					" used Doc ID "UINT64PF" cannot"
+					" exceed or equal to %d\n",
+					doc_id, next_doc_id - 1,
+					FTS_DOC_ID_MAX_STEP);
 				err = DB_FTS_INVALID_DOCID;
 				trx->error_state = DB_FTS_INVALID_DOCID;
 				goto error_exit;

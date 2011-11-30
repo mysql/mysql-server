@@ -6490,7 +6490,19 @@ calc_row_difference(
 				putc('\n', stderr);
 
 				return(DB_FTS_INVALID_DOCID);
+			} else if ((doc_id
+				    - prebuilt->table->fts->cache->next_doc_id) 
+				   >= FTS_DOC_ID_MAX_STEP) {
+				fprintf(stderr,
+					"InnoDB: Doc ID "UINT64PF" is too"
+					" big. Its difference with largest"
+					" Doc ID used "UINT64PF" cannot"
+					" exceed or equal to %d\n",
+					doc_id,
+					prebuilt->table->fts->cache->next_doc_id - 1,
+					FTS_DOC_ID_MAX_STEP);
 			}
+
 
 			trx->fts_next_doc_id = doc_id;
 		} else {
@@ -8523,6 +8535,33 @@ ha_innobase::create(
 				DBUG_RETURN(-1);
 			}
 		}
+
+		if (innobase_strcasecmp(key->name, FTS_DOC_ID_INDEX_NAME)) {
+			continue;
+		}
+
+		/* Do a pre-check on FTS DOC ID index */
+		if (!(key->flags & HA_NOSAME)
+		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
+		    || strcmp(key->key_part[0].field->field_name,
+			      FTS_DOC_ID_COL_NAME)) {
+			push_warning_printf(thd,
+					    Sql_condition::WARN_LEVEL_WARN,
+					    ER_WRONG_NAME_FOR_INDEX,
+					    " InnoDB: Index name %s is reserved"
+					    " for the unique index on"
+					    " FTS_DOC_ID column for FTS"
+					    " document ID indexing"
+					    " on table %s. Please check"
+					    " the index definition to"
+					    " make sure it is of correct"
+					    " type\n",
+					    FTS_DOC_ID_INDEX_NAME,
+					    name);
+			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
+				 FTS_DOC_ID_INDEX_NAME);
+			DBUG_RETURN(-1);
+		}
 	}
 
 	strcpy(name2, name);
@@ -8535,7 +8574,6 @@ ha_innobase::create(
 
 	if (fts_indexes > 0) {
 		flags2 = DICT_TF2_FTS;
-		/* FTS-FIXME: Only accept compact format tables. */
 	}
 
 	/* Validate create options if innodb_strict_mode is set. */
@@ -8795,7 +8833,7 @@ ha_innobase::create(
 			dict_table_close(innobase_table, TRUE);
 			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
 				 FTS_DOC_ID_INDEX_NAME);
-			error = DB_ERROR;
+			error = -1;
 			goto cleanup;
 		} else if (ret == FTS_EXIST_DOC_ID_INDEX) {
 			ut_a(fts_doc_col_no == innobase_table->fts->doc_col);

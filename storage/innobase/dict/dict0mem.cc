@@ -33,6 +33,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "data0type.h"
 #include "mach0data.h"
 #include "dict0dict.h"
+#include "fts0priv.h"
 #ifndef UNIV_HOTBACKUP
 #include "ha_prototypes.h"	/* innobase_casedn_str(),
 				innobase_get_lower_case_table_names */
@@ -114,6 +115,7 @@ dict_mem_table_create(
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
                 table->fts = fts_create(table);
 		table->fts->cache = fts_cache_create(table);
+		fts_optimize_add_table(table);
         } else {
                 table->fts = NULL;
         }

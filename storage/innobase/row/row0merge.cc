@@ -2988,6 +2988,7 @@ wait_again:
 			goto func_exit;
 		}
 
+#ifdef FTS_INTERNAL_DIAG_PRINT
 		if (fts_enable_diag_print) {
 			char*	name = (char*)indexes[i]->name;
 
@@ -2997,10 +2998,9 @@ wait_again:
 				name++;
 			}
 
-#ifdef FTS_INTERNAL_DIAG_PRINT
 			fprintf(stderr, "Finish build index %s\n", name);
-#endif /* FTS_INTERNAL_DIAG_PRINT */
 		}
+#endif /* FTS_INTERNAL_DIAG_PRINT */
 	}
 
 func_exit:
