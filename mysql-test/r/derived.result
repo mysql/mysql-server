@@ -1874,3 +1874,78 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	80	
 drop table t1;
 #
+#
+# Bug#13390138: crash in memcpy from join_cache::write_record_data
+#
+CREATE TABLE t1 (
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('r','r');
+CREATE TABLE t2 (
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t2 VALUES
+(NULL,NULL),
+('r','r');
+CREATE TABLE t3 (
+col_int_key int,
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key, col_int_key)
+);
+INSERT INTO t3 VALUES
+(9,'f','f'),
+(4,'y','y'),
+(3,'u','u'),
+(2,'m','m'),
+(NULL,NULL,NULL),
+(2,'o','o'),
+(NULL,'r','r'),
+(6,'m','m'),
+(7,'q','q'),
+(6,'c','c');
+explain SELECT grandparent.col_varchar_nokey AS g1
+FROM (SELECT * FROM t3) AS grandparent
+WHERE grandparent.col_varchar_nokey IN
+(SELECT parent.col_varchar_key AS p1
+FROM (SELECT * FROM t2) AS parent
+WHERE grandparent.col_varchar_key IN (
+SELECT child1.col_varchar_key AS c1
+FROM (SELECT * FROM t1) AS child1
+LEFT JOIN (SELECT * FROM t2) AS child2
+ON child1.col_varchar_nokey <> child2.col_varchar_key
+)
+AND grandparent.col_int_key IS UNKNOWN
+)
+ORDER BY grandparent.col_varchar_nokey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	10	Using where; Using filesort
+3	DEPENDENT SUBQUERY	<derived4>	index_subquery	auto_key0	auto_key0	4	func	2	Using where
+5	DEPENDENT SUBQUERY	<derived6>	system	NULL	NULL	NULL	NULL	1	
+5	DEPENDENT SUBQUERY	<derived7>	ALL	NULL	NULL	NULL	NULL	2	Using where
+7	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+6	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	
+4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t3	ALL	NULL	NULL	NULL	NULL	10	
+SELECT grandparent.col_varchar_nokey AS g1
+FROM (SELECT * FROM t3) AS grandparent
+WHERE grandparent.col_varchar_nokey IN
+(SELECT parent.col_varchar_key AS p1
+FROM (SELECT * FROM t2) AS parent
+WHERE grandparent.col_varchar_key IN (
+SELECT child1.col_varchar_key AS c1
+FROM (SELECT * FROM t1) AS child1
+LEFT JOIN (SELECT * FROM t2) AS child2
+ON child1.col_varchar_nokey <> child2.col_varchar_key
+)
+AND grandparent.col_int_key IS UNKNOWN
+)
+ORDER BY grandparent.col_varchar_nokey;
+g1
+r
+DROP TABLE t1, t2, t3;
