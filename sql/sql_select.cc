@@ -1200,8 +1200,11 @@ bool resolve_subquery(THD *thd, JOIN *join)
       6. No execution method was already chosen (by a prepared statement).
       7. Involved expression types allow materialization (temporary only)
 
-      (*) The subquery must be part of a SELECT statement. The current
-           condition also excludes multi-table update statements.
+      (*) The subquery must be part of a SELECT or CREATE SELECT statement. We
+           should relax this and allow it in multi/single-table UPDATE/DELETE,
+           INSERT SELECT (after studying potential problems when the
+           inserts/updates/deletes are done to a table which is itself part of
+           the subquery).
 
       We have to determine whether we will perform subquery materialization
       before calling the IN=>EXISTS transformation, so that we know whether to
@@ -1214,7 +1217,8 @@ bool resolve_subquery(THD *thd, JOIN *join)
         subq_predicate_substype == Item_subselect::IN_SUBS &&        // 1
         !select_lex->is_part_of_union() &&                              // 2
         select_lex->master_unit()->first_select()->leaf_tables &&       // 3
-        thd->lex->sql_command == SQLCOM_SELECT &&                       // *
+        (thd->lex->sql_command == SQLCOM_SELECT ||
+         thd->lex->sql_command == SQLCOM_CREATE_TABLE) &&               // *
         outer->leaf_tables &&                                           // 3A
         in_predicate->is_top_level_item() &&                            // 4
         !in_predicate->is_correlated &&                                 // 5
@@ -19088,12 +19092,10 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   join->send_records=0;
   if (join->tables == join->const_tables)
   {
-    /*
-      HAVING will be checked after processing aggregate functions,
-      But WHERE should checkd here (we alredy have read tables)
-    */
+    // @todo: consider calling end_select instead of duplicating code
     if (!join->conds || join->conds->val_int())
     {
+      // HAVING will be checked by end_select
       error= (*end_select)(join, 0, 0);
       if (error == NESTED_LOOP_OK || error == NESTED_LOOP_QUERY_LIMIT)
 	error= (*end_select)(join, 0, 1);
@@ -19108,9 +19110,12 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     }
     else if (join->send_row_on_empty_set())
     {
-      List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
-                                 fields);
-      rc= join->result->send_data(*columns_list);
+      if (!join->having || join->having->val_int())
+      {
+        List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
+                                   fields);
+        rc= join->result->send_data(*columns_list);
+      }
     }
     /*
       An error can happen when evaluating the conds 
@@ -20090,6 +20095,36 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   table->null_row=0;
   table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
 
+  MY_BITMAP * const save_read_set= table->read_set;
+  bool restore_read_set= false;
+  if (table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE)
+  {
+    const enum_sql_command sql_command= tab->join->thd->lex->sql_command;
+    if (sql_command == SQLCOM_UPDATE_MULTI ||
+        sql_command == SQLCOM_DELETE_MULTI)
+    {
+      /*
+        In a multi-UPDATE, if we represent "depends on" with "->", we have:
+        "what columns to read (read_set)" ->
+        "whether table will be updated on-the-fly or with tmp table" ->
+        "whether to-be-updated columns are used by access path"
+        "access path to table (range, ref, scan...)" ->
+        "query execution plan" ->
+        "what tables are const" ->
+        "reading const tables" ->
+        "what columns to read (read_set)".
+        To break this loop, we always read all columns of a constant table if
+        it is going to be updated.
+        Another case is in multi-UPDATE and multi-DELETE, when the table has a
+        trigger: bits of columns needed by the trigger are turned on in
+        result->initialize_tables(), which has not yet been called when we do
+        the reading now, so we must read all columns.
+      */
+      table->column_bitmaps_set(&table->s->all_set, table->write_set);
+      restore_read_set= true;
+    }
+  }
+
   if (tab->type == JT_SYSTEM)
   {
     if ((error=join_read_system(tab)))
@@ -20099,7 +20134,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
       if (!table->pos_in_table_list->outer_join || error > 0)
+      {
+        if (restore_read_set)
+          table->column_bitmaps_set(save_read_set, table->write_set);
 	DBUG_RETURN(error);
+      }
     }
   }
   else
@@ -20120,7 +20159,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
       if (!table->pos_in_table_list->outer_join || error > 0)
+      {
+        if (restore_read_set)
+          table->column_bitmaps_set(save_read_set, table->write_set);
 	DBUG_RETURN(error);
+      }
     }
   }
   /* We will evaluate on-expressions here only if it is not considered
@@ -20159,6 +20202,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
            embedding->nested_join->join_list.head() == embedded);
   }
 
+  if (restore_read_set)
+    table->column_bitmaps_set(save_read_set, table->write_set);
   DBUG_RETURN(0);
 }
 
@@ -22611,8 +22656,7 @@ fix_ICP:
       {
         const char *new_type= tab->type == JT_INDEX_SCAN ? "index_scan" :
           (tab->select && tab->select->quick) ?
-          "range" : "unknown";
-        DBUG_ASSERT(new_type[0] != 'u');
+          "range" : join_type_str[tab->type];
         trace_change_index.add_alnum("access_type", new_type);
       }
     }
