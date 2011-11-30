@@ -317,7 +317,7 @@ fts_zip_create(
 
 	zip->max_words = max_words;
 
-	zip->zp =  static_cast<z_stream*>(
+	zip->zp = static_cast<z_stream*>(
 		mem_heap_zalloc(heap, sizeof(*zip->zp)));
 
 	return(zip);
@@ -447,7 +447,7 @@ fts_optimize_index_fetch_node(
 	if (ib_vector_size(words) == 0) {
 
 		word = static_cast<fts_word_t*>(ib_vector_push(words, NULL));
-		fts_word_init(word, (byte*)data, dfield_len);
+		fts_word_init(word, (byte*) data, dfield_len);
 	}
 
 	word = static_cast<fts_word_t*>(ib_vector_last(words));
@@ -456,7 +456,7 @@ fts_optimize_index_fetch_node(
 	    || memcmp(word->text.f_str, data, dfield_len)) {
 
 		word = static_cast<fts_word_t*>(ib_vector_push(words, NULL));
-		fts_word_init(word, (byte*)data, dfield_len);
+		fts_word_init(word, (byte*) data, dfield_len);
 	}
 
 	fts_optimize_read_node(word, que_node_get_next(exp));
@@ -537,13 +537,13 @@ fts_index_fetch_nodes(
 			ut_print_timestamp(stderr);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
+				fprintf(stderr, " InnoDB: Warning: lock wait "
 					"timeout reading FTS index. "
 					"Retrying!\n");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: %lu "
+				fprintf(stderr, " InnoDB: Error: %lu "
 					"while reading FTS index.\n", error);
 
 				break;			/* Exit the loop. */
@@ -854,7 +854,7 @@ fts_index_fetch_words(
 					!= Z_OK)) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-					"  InnoDB: Error: ZLib deflateInit() "
+					" InnoDB: Error: ZLib deflateInit() "
 					"failed: %lu\n", error);
 
 				error = DB_ERROR;
@@ -885,7 +885,7 @@ fts_index_fetch_words(
 
 					optim->trx->error_state = DB_SUCCESS;
 				} else {
-					fprintf(stderr, "  InnoDB: Error: %lu "
+					fprintf(stderr, " InnoDB: Error: %lu "
 						"while reading document.\n",
 						error);
 
@@ -1460,7 +1460,7 @@ fts_optimize_write_word(
 
 	if (error != DB_SUCCESS) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%lu) during optimize, "
+		fprintf(stderr, " InnoDB: Error: (%lu) during optimize, "
 			"when deleting a word from the FTS index.\n", error);
 	}
 
@@ -1481,7 +1481,7 @@ fts_optimize_write_word(
 
 			if (error != DB_SUCCESS) {
 				ut_print_timestamp(stderr);
-				fprintf(stderr, "  InnoDB: Error: (%lu) "
+				fprintf(stderr, " InnoDB: Error: (%lu) "
 					"during optimize, while adding a "
 					"word to the FTS index.\n", error);
 			}
@@ -1608,7 +1608,7 @@ fts_optimize_create(
 	return(optim);
 }
 
-#ifdef  FTS_OPTIMIZE_DEBUG
+#ifdef FTS_OPTIMIZE_DEBUG
 /**********************************************************************//**
 Get optimize start time of an FTS index.
 @return DB_SUCCESS if all OK else error code */
@@ -2440,7 +2440,7 @@ fts_optimize_table(
 	fts_t*		fts = table->fts;
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: FTS start optimize %s\n", table->name);
+	fprintf(stderr, " InnoDB: FTS start optimize %s\n", table->name);
 
 	optim = fts_optimize_create(table);
 
@@ -2486,7 +2486,7 @@ fts_optimize_table(
 
 		/* Only after all indexes have been optimized can we
 		delete the (snapshot) doc ids in the pending delete,
-		and master deleted  tables. */
+		and master deleted tables. */
 		if (error == DB_SUCCESS
 		    && optim->n_completed == ib_vector_size(fts->indexes)) {
 
@@ -2515,7 +2515,7 @@ fts_optimize_table(
 	fts_optimize_free(optim);
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: FTS end optimize %s\n", table->name);
+	fprintf(stderr, " InnoDB: FTS end optimize %s\n", table->name);
 
 	return(error);
 }
@@ -2536,7 +2536,7 @@ fts_optimize_create_msg(
 	heap = mem_heap_create(sizeof(*msg) + sizeof(ib_list_node_t) + 16);
 	msg = static_cast<fts_msg_t*>(mem_heap_alloc(heap, sizeof(*msg)));
 
-	msg->ptr  = ptr;
+	msg->ptr = ptr;
 	msg->type = type;
 	msg->heap = heap;
 
@@ -2617,7 +2617,7 @@ fts_optimize_remove_table(
 
 /**********************************************************************//**
 Find the slot for a particular table.
-@return slot if found else NULL.  */
+@return slot if found else NULL. */
 static
 fts_slot_t*
 fts_optimize_find_slot(
@@ -2655,7 +2655,7 @@ fts_optimize_start_table(
 
 	if (slot == NULL) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: table %s not registered "
+		fprintf(stderr, " InnoDB: Error: table %s not registered "
 			"with the optimize thread.\n", table->name);
 	} else {
 		slot->last_run = 0;
@@ -2734,7 +2734,7 @@ fts_optimize_del_table(
 		    && slot->table->id == table->id) {
 
 			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: FTS Optimize Removing "
+			fprintf(stderr, " InnoDB: FTS Optimize Removing "
 				"table %s\n", table->name);
 
 			slot->table = NULL;
@@ -2967,7 +2967,7 @@ fts_optimize_thread(
 				/* Signal the producer that we have
 				removed the table. */
 				os_event_set(
-					((fts_msg_del_t*)msg->ptr)->event);
+					((fts_msg_del_t*) msg->ptr)->event);
 				break;
 
 			default:
@@ -3018,7 +3018,7 @@ fts_optimize_thread(
 	ib_vector_free(tables);
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: FTS optimize thread exiting.\n");
+	fprintf(stderr, " InnoDB: FTS optimize thread exiting.\n");
 
 	ib_wqueue_free(wq);
 
