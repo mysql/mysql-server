@@ -4546,11 +4546,14 @@ uint8 get_checksum_alg(const char* buf, ulong len);
 extern TYPELIB binlog_checksum_typelib;
 
 #ifdef HAVE_GTID
-class Gtid_log_event : public Log_event {
+class Gtid_log_event : public Log_event
+{
 public:
 #ifndef MYSQL_CLIENT
-  Gtid_log_event(THD *thd_arg, const Gtid_specification *spec);
+  /// Create a new event using the GTID from @@SESSION.GTID_NEXT
   Gtid_log_event(THD *thd_arg);
+  /// Create a new event using the given Gtid_specification
+  Gtid_log_event(THD *thd_arg, const Gtid_specification *spec);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -4558,10 +4561,9 @@ public:
 #endif
 
   Gtid_log_event(const char *buffer, uint event_len,
-                 const Format_description_log_event *descr_event,
-                 bool have_lock= false);
+                 const Format_description_log_event *descr_event);
 
-  virtual ~Gtid_log_event();
+  virtual ~Gtid_log_event() {}
 
   Log_event_type get_type_code()
   {
@@ -4574,7 +4576,11 @@ public:
 
   int get_data_size() { return POST_HEADER_LENGTH; }
 
+private:
+  /// Used internally by both print() and pack_info().
   size_t to_string(char *buf) const;
+
+public:
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
@@ -4586,40 +4592,88 @@ public:
   int do_apply_event(Relay_log_info const *rli);
 #endif
 
-  bool is_valid() const { return spec.type != INVALID_GROUP; }
-
+  /**
+    Return the group type for this Gtid_log_event: this can be
+    either ANONYMOUS_GROUP, AUTOMATIC_GROUP, or GTID_GROUP.
+  */
   enum_group_type get_type() const { return spec.type; }
+  bool is_valid() const { return true; }
 
+  /**
+    Return the SID for this GTID.  The SID is shared with the
+    Log_event so it should not be modified.
+  */
   const rpl_sid* get_sid() const { return &sid; }
+  /**
+    Return the SIDNO for this GTID.
 
-  rpl_sidno get_sidno() const { return spec.gtid.sidno; }
+    This requires a lookup and possibly even update of global_sid_map,
+    hence global_sid_lock must be held.  If global_sid_lock is not
+    held, the caller must pass need_lock=true.  If there is an error
+    (e.g. out of memory) while updating global_sid_map, this function
+    returns a negative number.
 
+    @param need_lock If true, the read lock on global_sid_lock is
+    acquired and released inside this function; if false, the read
+    lock or write lock must be held prior to calling this function.
+    @retval SIDNO if successful
+    @retval negative if adding SID to global_sid_map causes an error.
+  */
+  rpl_sidno get_sidno(bool need_lock)
+  {
+    if (spec.gtid.sidno < 0)
+    {
+      if (need_lock)
+        global_sid_lock.rdlock();
+      else
+        global_sid_lock.assert_some_rdlock();
+      spec.gtid.sidno= global_sid_map.add(&sid);
+      if (need_lock)
+        global_sid_lock.unlock();
+    }
+    return spec.gtid.sidno;
+  }
+  /// Return the GNO for this GTID.
   rpl_gno get_gno() const { return spec.gtid.gno; }
-
+  /// Return true if this is the last group of the transaction, else false.
   bool get_commit_flag() const { return commit_flag; }
 
 private:
+  /// string holding the text "SET @@GLOBAL.GTID_NEXT = '"
   static const char *SET_STRING_PREFIX;
-  static const size_t SET_STRING_PREFIX_LENGTH= 26; // strlen(SET_STRING_PREFIX)
+  /// Length of SET_STRING_PREFIX
+  static const size_t SET_STRING_PREFIX_LENGTH= 26;
+  /// The maximal length of the entire "SET ..." query.
   static const size_t MAX_SET_STRING_LENGTH= SET_STRING_PREFIX_LENGTH +
     rpl_sid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 1;
 
+  /// Length of the commit_flag in event encoding
   static const int ENCODED_FLAG_LENGTH= 1;
+  /// Length of SID in event encoding
   static const int ENCODED_SID_LENGTH= rpl_sid::BYTE_LENGTH;
+  /// Length of GNO in event encoding
   static const int ENCODED_GNO_LENGTH= 8;
 
 public:
+  /// Total length of post header
   static const int POST_HEADER_LENGTH=
     ENCODED_FLAG_LENGTH + ENCODED_SID_LENGTH + ENCODED_GNO_LENGTH;
 
 private:
+  /**
+    Internal representation of the GTID.  The SIDNO will be
+    uninitialized (value -1) until the first call to get_sidno(bool).
+  */
   Gtid_specification spec;
+  /// SID for this GTID.
   rpl_sid sid;
+  /// True if this is the last group of the transaction, false otherwise.
   bool commit_flag;
 };
 
 
-class Previous_gtids_log_event : public Ignorable_log_event {
+class Previous_gtids_log_event : public Ignorable_log_event
+{
 public:
 #ifndef MYSQL_CLIENT
   Previous_gtids_log_event(THD* thd_arg, const Gtid_set *set);

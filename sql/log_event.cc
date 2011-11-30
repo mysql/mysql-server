@@ -11558,8 +11558,7 @@ const char *Gtid_log_event::SET_STRING_PREFIX= "SET @@SESSION.GTID_NEXT= '";
 
 #ifdef HAVE_GTID
 Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
-                               const Format_description_log_event *descr_event,
-                               bool have_lock)
+                               const Format_description_log_event *descr_event)
   : Log_event(buffer, descr_event)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *, uint, const Format_description_log_event *");
@@ -11582,17 +11581,9 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 
   sid.copy_from((uchar *)ptr_buffer);
   ptr_buffer+= ENCODED_SID_LENGTH;
-  // If error occurs, sidno becomes negative here and subsequently
-  // is_valid returns false.
-  if (have_lock)
-    global_sid_lock.assert_some_rdlock();
-  else
-    global_sid_lock.rdlock();
-  spec.gtid.sidno= global_sid_map.add(&sid);
-  if (spec.gtid.sidno < 0)
-    spec.type= INVALID_GROUP;
-  if (!have_lock)
-    global_sid_lock.unlock();
+
+  // SIDNO is only generated if needed, in get_sidno().
+  spec.gtid.sidno= -1;
 
   spec.gtid.gno= uint8korr(ptr_buffer);
   ptr_buffer+= ENCODED_GNO_LENGTH;
@@ -11609,6 +11600,7 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, const Gtid_specification *spec_arg)
             Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *, const Gtid_specification *)");
+  DBUG_ASSERT(spec_arg->type != AUTOMATIC_GROUP);
   spec= *spec_arg;
   global_sid_lock.rdlock();
   sid= *global_sid_map.sidno_to_sid(spec.gtid.sidno);
@@ -11634,10 +11626,6 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg)
   DBUG_VOID_RETURN;
 }
 #endif
-
-Gtid_log_event::~Gtid_log_event()
-{
-}
 
 #ifndef MYSQL_CLIENT
 int Gtid_log_event::pack_info(Protocol *protocol)
@@ -11711,9 +11699,12 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Gtid_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
 
-  thd->variables.gtid_next.set(spec.gtid.sidno, spec.gtid.gno);
+  rpl_sidno sidno= get_sidno(true);
+  if (sidno < 0)
+    DBUG_RETURN(1); // out of memory
+  thd->variables.gtid_next.set(sidno, spec.gtid.gno);
   DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
-                      spec.gtid.sidno, spec.gtid.gno));
+                      sidno, spec.gtid.gno));
 
   DBUG_RETURN(0);
 }
