@@ -122,6 +122,10 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/mman.h>
 #endif
 
+#ifdef __WIN__ 
+#include <crtdbg.h>
+#endif
+
 #ifdef __NETWARE__
 #define zVOLSTATE_ACTIVE 6
 #define zVOLSTATE_DEACTIVE 2
