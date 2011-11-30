@@ -1,0 +1,132 @@
+# Tokutek
+# Make sure that lock ranges behave correctly
+
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+connect(conn1, localhost, root);
+connection default;
+
+set global tokudb_lock_timeout=200;
+# Basic key
+create table t (a int primary key, b int) engine=tokudb;
+insert into t values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6);
+
+begin;
+select * from t where a < 3 for update;
+connection conn1;
+select * from t where a >= 3 for update;
+select * from t where a = 3 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a < 3 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a <= 3 for update;
+connection default;
+commit;
+
+begin;
+select * from t where a > 3 for update;
+connection conn1;
+select * from t where a <= 3 for update;
+select * from t where a = 3 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a > 3 for update;
+connection default;
+commit;
+
+begin;
+select * from t where a = 5 for update;
+connection conn1;
+select * from t where a > 5 for update;
+select * from t where a < 5 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a >= 5 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a <= 5 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a = 5 for update;
+connection default;
+commit;
+
+begin;
+select * from t where a > 2 and a < 5 for update;
+connection conn1;
+select * from t where a = 2 for update;
+select * from t where a <= 2 for update;
+select * from t where a = 5 for update;
+select * from t where a >= 5 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a > 2 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a >= 2 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a < 5 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a <= 5 for update;
+connection default;
+commit;
+
+drop table t;
+
+# Double key
+create table t (a int, b int, primary key (a,b)) engine=tokudb;
+insert into t values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6);
+
+begin;
+select * from t where a < 3 for update;
+connection conn1;
+select * from t where a >= 3 for update;
+select * from t where a = 3 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a < 3 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a <= 3 for update;
+connection default;
+commit;
+
+begin;
+select * from t where a > 3 for update;
+connection conn1;
+select * from t where a <= 3 for update;
+select * from t where a = 3 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a > 3 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a >= 3 for update;
+connection default;
+commit;
+
+begin;
+select * from t where a = 5 for update;
+connection conn1;
+select * from t where a > 5 for update;
+select * from t where a < 5 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a = 5 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a >= 5 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a <= 5 for update;
+connection default;
+ommit;
+
+begin;
+select * from t where a > 2 and a < 5 for update;
+connection conn1;
+select * from t where a = 2 for update;
+select * from t where a <= 2 for update;
+select * from t where a = 5 for update;
+select * from t where a >= 5 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a <= 5 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a < 5 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a >= 2 for update;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t where a > 2 for update;
+connection default;
+commit;
+
+drop table t;
+set global tokudb_lock_timeout=4000;
