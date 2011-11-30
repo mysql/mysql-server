@@ -1398,7 +1398,7 @@ i_s_cmp_fill_low(
 	Item*		,	/*!< in: condition (ignored) */
 	ibool		reset)	/*!< in: TRUE=reset cumulated counts */
 {
-	TABLE*	table	= (TABLE *) tables->table;
+	TABLE*	table	= (TABLE*) tables->table;
 	int	status	= 0;
 
 	DBUG_ENTER("i_s_cmp_fill_low");
@@ -1683,7 +1683,7 @@ i_s_cmpmem_fill_low(
 	ibool		reset)	/*!< in: TRUE=reset cumulated counts */
 {
 	int		status = 0;
-	TABLE*	table	= (TABLE *) tables->table;
+	TABLE*	table	= (TABLE*) tables->table;
 
 	DBUG_ENTER("i_s_cmpmem_fill_low");
 
@@ -2468,7 +2468,7 @@ i_s_stopword_fill(
 {
 	Field**	fields;
 	ulint	i = 0;
-	TABLE*	table = (TABLE *) tables->table;
+	TABLE*	table = (TABLE*) tables->table;
 
 	DBUG_ENTER("i_s_stopword_fill");
 
@@ -2588,7 +2588,7 @@ i_s_fts_deleted_generic_fill(
 	ibool		being_deleted)	/*!< in: BEING_DELTED table */
 {
 	Field**			fields;
-	TABLE*			table = (TABLE *) tables->table;
+	TABLE*			table = (TABLE*) tables->table;
 	trx_t*			trx;
 	fts_table_t		fts_table;
 	fts_doc_ids_t*		deleted;
@@ -2825,7 +2825,7 @@ i_s_fts_inserted_fill(
 	Item*		)	/*!< in: condition (ignored) */
 {
 	Field**			fields;
-	TABLE*			table = (TABLE *) tables->table;
+	TABLE*			table = (TABLE*) tables->table;
 	trx_t*			trx;
 	fts_table_t		fts_table;
 	fts_doc_ids_t*		inserted;
@@ -3018,7 +3018,7 @@ i_s_fts_index_cache_fill_one_index(
 	THD*			thd,		/*!< in: thread */
 	TABLE_LIST*		tables)		/*!< in/out: tables to fill */
 {
-	TABLE*			table = (TABLE *) tables->table;
+	TABLE*			table = (TABLE*) tables->table;
 	Field**			fields;
 	const ib_rbt_node_t*	rbt_node;
 
@@ -3306,7 +3306,7 @@ i_s_fts_index_table_fill_one_index(
 	THD*			thd,		/*!< in: thread */
 	TABLE_LIST*		tables)		/*!< in/out: tables to fill */
 {
-	TABLE*			table = (TABLE *) tables->table;
+	TABLE*			table = (TABLE*) tables->table;
 	Field**			fields;
 	ib_vector_t*		words;
 	mem_heap_t*		heap;
@@ -3556,7 +3556,7 @@ i_s_fts_config_fill(
 	Item*		)	/*!< in: condition (ignored) */
 {
 	Field**			fields;
-	TABLE*			table = (TABLE *) tables->table;
+	TABLE*			table = (TABLE*) tables->table;
 	trx_t*			trx;
 	fts_table_t		fts_table;
 	dict_table_t*		user_table;

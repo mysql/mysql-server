@@ -93,7 +93,7 @@ os_mem_alloc_large(
 		ptr = NULL;
 	} else {
 		ptr = shmat(shmid, NULL, 0);
-		if (ptr == (void *)-1) {
+		if (ptr == (void*)-1) {
 			fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to"
 				" attach shared memory segment, errno %d\n",
 				errno);

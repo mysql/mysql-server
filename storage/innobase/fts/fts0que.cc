@@ -1420,7 +1420,7 @@ fts_query_match_phrase_terms(
 		ulint			offset;
 
 		ret = innobase_mysql_fts_get_token(
-			phrase->charset, ptr, (byte *) end,
+			phrase->charset, ptr, (byte*) end,
 			&match, &offset);
 
 		if (match.f_len > 0) {
