@@ -996,8 +996,8 @@ sync_array_print_long_waits(
 
 		fprintf(stderr,
 			"InnoDB: Pending preads %lu, pwrites %lu\n",
-			(ulong)os_file_n_pending_preads,
-			(ulong)os_file_n_pending_pwrites);
+			(ulong) os_file_n_pending_preads,
+			(ulong) os_file_n_pending_pwrites);
 
 		srv_print_innodb_monitor = TRUE;
 		os_event_set(srv_timeout_event);

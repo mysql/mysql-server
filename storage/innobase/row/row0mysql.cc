@@ -974,7 +974,7 @@ row_update_statistics_if_needed(
 	a counter table which is very small and updated very often. */
 
 	if (counter > 2000000000
-	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
+	    || ((ib_int64_t) counter > 16 + table->stat_n_rows / 16)) {
 
 		ut_ad(!mutex_own(&dict_sys->mutex));
 		dict_stats_update(table, DICT_STATS_FETCH, FALSE);

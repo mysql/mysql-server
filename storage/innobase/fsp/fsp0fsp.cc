@@ -1443,7 +1443,7 @@ fsp_alloc_free_page(
 			     hint % FSP_EXTENT_SIZE, mtr);
 	if (free == ULINT_UNDEFINED) {
 
-		ut_print_buf(stderr, ((byte*)descr) - 500, 1000);
+		ut_print_buf(stderr, ((byte*) descr) - 500, 1000);
 		putc('\n', stderr);
 
 		ut_error;
@@ -1527,7 +1527,7 @@ fsp_free_page(
 			(ulong) page,
 			(ulong) state);
 		fputs("InnoDB: Dump of descriptor: ", stderr);
-		ut_print_buf(stderr, ((byte*)descr) - 50, 200);
+		ut_print_buf(stderr, ((byte*) descr) - 50, 200);
 		putc('\n', stderr);
 
 		if (state == XDES_FREE) {
@@ -1545,7 +1545,7 @@ fsp_free_page(
 			"InnoDB: Error: File space extent descriptor"
 			" of page %lu says it is free\n"
 			"InnoDB: Dump of descriptor: ", (ulong) page);
-		ut_print_buf(stderr, ((byte*)descr) - 50, 200);
+		ut_print_buf(stderr, ((byte*) descr) - 50, 200);
 		putc('\n', stderr);
 
 		/* We put here some fault tolerance: if the page
@@ -1606,7 +1606,7 @@ fsp_free_extent(
 
 	if (xdes_get_state(descr, mtr) == XDES_FREE) {
 
-		ut_print_buf(stderr, (byte*)descr - 500, 1000);
+		ut_print_buf(stderr, (byte*) descr - 500, 1000);
 		putc('\n', stderr);
 
 		ut_error;

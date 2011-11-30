@@ -1041,7 +1041,7 @@ fts_query_intersect(
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
 	fprintf(stderr, "INTERSECT: Searching: '%.*s'\n",
-		(int)token->f_len, token->f_str);
+		(int) token->f_len, token->f_str);
 #endif
 
 	if (!query->inited) {
@@ -3425,7 +3425,7 @@ fts_print_doc_id(
 		ranking = rbt_value(fts_ranking_t, node);
 
 		fprintf(stderr, "doc_ids info, doc_id: %ld \n",
-			(ulint)ranking->doc_id);
+			(ulint) ranking->doc_id);
 
 		for (node_word = rbt_first(ranking->words);
 		     node_word;
@@ -3516,7 +3516,7 @@ fts_expand_query(
 			strp = rbt_value(const byte*, node_word);
 			/* FIXME: We are discarding a const qualifier here. */
 			str.f_str = (byte*) *strp;
-			str.f_len = ut_strlen((const char*)str.f_str);
+			str.f_len = ut_strlen((const char*) str.f_str);
 			ret = rbt_delete(result_doc.tokens, &str);
 
 			/* The word must exist in the doc we found */
@@ -3524,7 +3524,7 @@ fts_expand_query(
 				fprintf(stderr, " InnoDB: Error: Did not "
 					"find word %s in doc %ld for query "
 					"expansion search.\n", str.f_str,
-					(ulint)ranking->doc_id);
+					(ulint) ranking->doc_id);
 			}
 		}
 	}

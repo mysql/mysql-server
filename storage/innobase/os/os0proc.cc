@@ -58,7 +58,7 @@ os_proc_get_number(void)
 #ifdef __WIN__
 	return((ulint)GetCurrentProcessId());
 #else
-	return((ulint)getpid());
+	return((ulint) getpid());
 #endif
 }
 
@@ -86,7 +86,7 @@ os_mem_alloc_large(
 	size = ut_2pow_round(*n + (os_large_page_size - 1),
 			     os_large_page_size);
 
-	shmid = shmget(IPC_PRIVATE, (size_t)size, SHM_HUGETLB | SHM_R | SHM_W);
+	shmid = shmget(IPC_PRIVATE, (size_t) size, SHM_HUGETLB | SHM_R | SHM_W);
 	if (shmid < 0) {
 		fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to allocate"
 			" %lu bytes. errno %d\n", size, errno);

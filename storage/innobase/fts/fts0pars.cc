@@ -100,7 +100,7 @@ extern int ftserror(const char* p);
 
 /* For passing an argument to yyparse() */
 #define YYPARSE_PARAM state
-#define YYLEX_PARAM ((fts_ast_state_t*)state)->lexer
+#define YYLEX_PARAM ((fts_ast_state_t*) state)->lexer
 
 typedef	int	(*fts_scanner_alt)(YYSTYPE* val, yyscan_t yyscanner);
 typedef	int	(*fts_scanner)();
@@ -1389,7 +1389,7 @@ yyreduce:
 #line 79 "fts0pars.y"
     {
 		(yyval.node) = (yyvsp[(1) - (1)].node);
-		((fts_ast_state_t*)state)->root = (yyval.node);
+		((fts_ast_state_t*) state)->root = (yyval.node);
 	;}
     break;
 
@@ -1854,13 +1854,13 @@ fts_lexer_create(
 
 	if (boolean_mode) {
 		fts0blex_init(&fts_lexer->yyscanner);
-		fts0b_scan_bytes((char*)query, query_len, fts_lexer->yyscanner);
+		fts0b_scan_bytes((char*) query, query_len, fts_lexer->yyscanner);
 		fts_lexer->scanner = (fts_scan) fts_blexer;
 		/* FIXME: Debugging */
 		/* fts0bset_debug(1 , fts_lexer->yyscanner); */
 	} else {
 		fts0tlex_init(&fts_lexer->yyscanner);
-		fts0t_scan_bytes((char*)query, query_len, fts_lexer->yyscanner);
+		fts0t_scan_bytes((char*) query, query_len, fts_lexer->yyscanner);
 		fts_lexer->scanner = (fts_scan) fts_tlexer;
 	}
 

@@ -365,7 +365,7 @@ innobase_create_index_field_def(
 		&& field->type() != MYSQL_TYPE_VARCHAR)
 	    || (field->type() == MYSQL_TYPE_VARCHAR
 		&& key_part->length < field->pack_length()
-			- ((Field_varstring*)field)->length_bytes)) {
+			- ((Field_varstring*) field)->length_bytes)) {
 
 		index_field->prefix_len = key_part->length;
 	} else {
