@@ -52,6 +52,8 @@ extern my_bool log_bin_use_v1_row_events;
 
 bool ndb_log_empty_epochs(void);
 
+void ndb_index_stat_restart();
+
 /*
   defines for cluster replication table names
 */
@@ -6989,6 +6991,7 @@ restart_cluster_failure:
         ndb_latest_handled_binlog_epoch= 0;
         ndb_latest_applied_binlog_epoch= 0;
         ndb_latest_received_binlog_epoch= 0;
+        ndb_index_stat_restart();
       }
       else if (ndb_latest_applied_binlog_epoch > 0)
       {
