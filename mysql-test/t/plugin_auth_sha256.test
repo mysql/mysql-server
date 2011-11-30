@@ -17,6 +17,10 @@ DROP USER 'kristofer';
 
 GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
 SET PASSWORD FOR 'kristofer'@'localhost'=PASSWORD('secret2');
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con2,localhost,kristofer,badpassword,,);
+--enable_query_log
 connect(con2,localhost,kristofer,secret2,,);
 connection con2;
 SELECT USER(),CURRENT_USER();
@@ -24,13 +28,20 @@ SELECT USER(),CURRENT_USER();
 SHOW GRANTS FOR 'kristofer'@'localhost';
 connection default;
 disconnect con2;
+--echo **** Client default_auth=sha_256_password and server default auth=native
 --exec $MYSQL -ukristofer -psecret2 --port=$MYSQL_PORT --default_auth=sha256_password -e "select user(), current_user()"
+--echo **** Client default_auth=native and server default auth=native
 --exec $MYSQL -ukristofer -psecret2 --port=$MYSQL_PORT --default_auth=mysql_native_password -e "select user(), current_user()"
+--echo **** Client default_auth=sha_256_password + public key on file.
 --exec $MYSQL -ukristofer -psecret2 --port=$MYSQL_PORT --default_auth=sha256_password --server_public_key=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "select user(), current_user()"
 DROP USER 'kristofer'@'localhost';
 
 GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
 SET PASSWORD FOR 'kristofer'@'localhost'=PASSWORD('');
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con3,localhost,kristofer,wrongpass,,);
+--enable_query_log
 connect(con3,localhost,kristofer,,,);
 connection con3;
 SELECT USER(),CURRENT_USER();

@@ -2647,7 +2647,11 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   char what= (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
   LEX *lex= thd->lex;
+#ifdef HAVE_OPENSSL
+#ifndef HAVE_YASSL
   bool sha2_plugin= false;
+#endif
+#endif
   DBUG_ENTER("replace_user_table");
 
   mysql_mutex_assert_owner(&acl_cache->lock);
@@ -8733,6 +8737,8 @@ int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
   
   optimize_plugin_compare_by_pointer(&default_auth_plugin_name);
  
+#ifdef HAVE_OPENSSL
+#ifndef HAVE_YASSL
   if (default_auth_plugin_name.str == sha256_password_plugin_name.str)
   {
     /*
@@ -8741,9 +8747,10 @@ int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
     */
     global_system_variables.old_passwords= 2;
   }
+#endif
+#endif
   return 0;
 }
-
 
 /**
   a helper function to report an access denied error in all the proper places
@@ -10604,7 +10611,6 @@ int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
 
 char *auth_rsa_private_key_path;
 char *auth_rsa_public_key_path;
-bool use_private_key_passphrase; // TODO
 
 class Rsa_authentication_keys
 {
@@ -10833,20 +10839,13 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   char user_salt[CRYPT_SALT_LENGTH+1];
   char stage2[CRYPT_MAX_PASSWORD_SIZE+1];
   String scramble_response_packet;
-  bool has_error= false;
   DBUG_ENTER("sha256_password_authenticate");
 
   int cipher_length= 0;
   RSA *private_key= NULL;
   RSA *public_key= NULL;
-  
-  /*
-    Generate a scramble and send to the client. This will isn't necessary
-    if the connection is SSL but the scramble is only 20 bytes anyway and the
-    server protocol must start with a write_packet()
-  */
-  if (mpvio->scramble[SCRAMBLE_LENGTH])
-    create_random_string(mpvio->scramble, SCRAMBLE_LENGTH, mpvio->rand);
+
+  create_random_string(mpvio->scramble, SCRAMBLE_LENGTH, mpvio->rand);
 
   if (vio->write_packet(vio, (unsigned char *)mpvio->scramble, SCRAMBLE_LENGTH))
     DBUG_RETURN(CR_ERROR);
@@ -10855,15 +10854,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     After the call to read_packet() the user name will appear in
     mpvio->acl_user and info will contain current data.
   */
-  if ((pkt_len= mpvio->read_packet(mpvio, &pkt)) == -1)
-    DBUG_RETURN(CR_ERROR);
-  
-  /*
-    Client might have reported wrong plugin so we might need to restart the
-    handshake with a new plugin.
-    NOTE this check must happen after mpvio->read_packet()
-  */
-  if (mpvio->status == MPVIO_EXT::RESTART)
+  if ((pkt_len= vio->read_packet(mpvio, &pkt)) == -1)
     DBUG_RETURN(CR_ERROR);
 
   /*
@@ -10873,11 +10864,19 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   if (pkt_len == 1 && *pkt == 0)
   {
     info->password_used= PASSWORD_USED_NO;
+    /*
+      Send OK signal; the authentication might still be rejected based on
+      host mask.
+    */
+    if (info->auth_string_length == 0)
+      DBUG_RETURN(CR_OK);
+    else
+      DBUG_RETURN(CR_ERROR);
   }
   else    
     info->password_used= PASSWORD_USED_YES;
 
-  if (!my_vio_is_encrypted(vio) && info->password_used == PASSWORD_USED_YES)
+  if (!my_vio_is_encrypted(vio))
   {
     /*
       Since a password is being used it must be encrypted by RSA since no 
@@ -10892,9 +10891,11 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     if (private_key == NULL || public_key == NULL)
       DBUG_RETURN(CR_ERROR);    
 
-    cipher_length= g_rsa_keys.get_cipher_length();
+    if ((cipher_length= g_rsa_keys.get_cipher_length()) > MAX_CIPHER_LENGTH)
+      DBUG_RETURN(CR_ERROR);
 
     /*
+      Client sent a "public key request"-packet ?
       If the first packet is 1 then the client will require a public key before
       encrypting the password.
     */
@@ -10905,17 +10906,12 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
       if (vio->write_packet(vio,
                             (unsigned char *)g_rsa_keys.get_public_key_as_pem(),
                             pem_length))
-      DBUG_RETURN(CR_ERROR);
-    }  
-    
-    /* if pkt_len != 1 we already got an encrypted response */
-    if (pkt_len == 1)
-    {
+        DBUG_RETURN(CR_ERROR);
       /* Get the encrypted response from the client */
       if ((pkt_len= vio->read_packet(vio, &pkt)) == -1)
         DBUG_RETURN(CR_ERROR);
     }
-    
+
     /*
       The packet will contain the cipher used. The length of the packet
       must correspond to the expected cipher length.
@@ -10923,27 +10919,29 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     if (pkt_len != cipher_length)
       DBUG_RETURN(CR_ERROR);  
     
-  }
+    /* Decrypt password */
+    RSA_private_decrypt(cipher_length, pkt, plain_text, private_key,
+                        RSA_PKCS1_OAEP_PADDING);
 
-  if (mpvio->acl_user->auth_string.str[0] == 0)
-  {
+    plain_text[cipher_length]= '\0'; // safety
+    xor_string((char *)plain_text, cipher_length,
+               (char *)mpvio->scramble, SCRAMBLE_LENGTH);
+
     /*
-      The registered user doesn't have a password.
+      Set packet pointers and length for the hash digest function below 
     */
-    if (info->password_used == PASSWORD_USED_NO)
-    {
-      DBUG_PRINT("info",("Client didn't use a password. Authentication plugin "
-                         " short cut path."));
-      DBUG_RETURN(CR_OK); /* Authentication can still fail because of host */
-    }
-  }
-  
+    pkt= plain_text;
+    pkt_len= strlen((char *)plain_text)+1; // include \0 intentionally.
+    if (pkt_len == 1)
+      DBUG_RETURN(CR_ERROR);
+  } // if(!my_vio_is_encrypter())
+
   /*
     Fetch user authentication_string and extract the password salt
   */
-  if (mpvio->acl_user && mpvio->acl_user->auth_string.str)
+  if (info->auth_string_length != 0)
   {
-    user_salt_begin= (char *)mpvio->acl_user->auth_string.str;
+    user_salt_begin= (char *)info->auth_string;
     if (extract_user_salt(&user_salt_begin,
                           &user_salt_end) == CRYPT_SALT_LENGTH)
     {
@@ -10953,63 +10951,27 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   }
   else
   {
-    has_error= true;
-    /*
-      Generate fake random salt. The resulting character string is
-      '\0'-terminated and require a buffer size of CRYPT_SALT_LENGTH+1
-    */
-    create_random_string(user_salt, CRYPT_SALT_LENGTH, mpvio->rand);
-    user_salt_length= CRYPT_SALT_LENGTH;
-  }
-
-  if (mpvio->acl_user && user_salt_length == 0)
-  {
-    DBUG_PRINT("info",("Server plugin SHA256 has errors; exiting"));
+    /* A password was sent to an account without a password */
     DBUG_RETURN(CR_ERROR);
   }
 
-  if (!my_vio_is_encrypted(vio) &&
-      private_key != NULL &&
-      info->password_used == PASSWORD_USED_YES)
-  {
-    /* Decrypt password */
-    RSA_private_decrypt(cipher_length, pkt, plain_text, private_key,
-                        RSA_PKCS1_OAEP_PADDING);
-  
-    plain_text[cipher_length]= '\0'; // safety
-    xor_string((char *)plain_text, cipher_length,
-               (char *)mpvio->scramble, SCRAMBLE_LENGTH);
-    /* Create client HMAC */
-    crypt_genhash_impl(stage2,
-                       CRYPT_MAX_PASSWORD_SIZE,
-                       (char *)plain_text,
-                       strlen((char *)plain_text),
-                       (char *)user_salt,
-                       (const char **)0);
-  }
-  /* vio is encrypted and a plain text password is sent to the plugin */
-  else if (pkt_len > 1)
-  {
-    /* Create hash digest */
-    crypt_genhash_impl(stage2,
-                       CRYPT_MAX_PASSWORD_SIZE,
-                       (char *)pkt,
-                       pkt_len-1, 
-                       (char *)user_salt,
-                       (const char **)0);
-  }
-  /* A bad password was sent over an encrypted line. */
-  else
-    DBUG_RETURN(CR_ERROR);
+  /* Create hash digest */
+  crypt_genhash_impl(stage2,
+                     CRYPT_MAX_PASSWORD_SIZE,
+                     (char *)pkt,
+                     pkt_len-1, 
+                     (char *)user_salt,
+                     (const char **)0);
+
 
   /* Comapre the newly created hash digest with the password record */
   int result= memcmp(mpvio->acl_user->auth_string.str,
                      stage2,
                      mpvio->acl_user->auth_string.length);
-  
-  if (result == 0 && !has_error)
+
+  if (result == 0)
     DBUG_RETURN(CR_OK);
-  
+
   DBUG_RETURN(CR_ERROR);
 }
 
