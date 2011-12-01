@@ -77,7 +77,7 @@ os_thread_pf(
 
 	return((ulint)(a.field1));
 #else
-	return((ulint)a);
+	return((ulint) a);
 #endif
 }
 
@@ -208,7 +208,7 @@ os_thread_exit(
 	os_mutex_exit(os_sync_mutex);
 
 #ifdef __WIN__
-	ExitThread((DWORD)exit_value);
+	ExitThread((DWORD) exit_value);
 #else
 	pthread_detach(pthread_self());
 	pthread_exit(exit_value);

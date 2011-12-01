@@ -33,6 +33,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "data0type.h"
 #include "mach0data.h"
 #include "dict0dict.h"
+#include "fts0priv.h"
 #ifndef UNIV_HOTBACKUP
 #include "ha_prototypes.h"	/* innobase_casedn_str(),
 				innobase_get_lower_case_table_names */
@@ -114,6 +115,7 @@ dict_mem_table_create(
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
                 table->fts = fts_create(table);
 		table->fts->cache = fts_cache_create(table);
+		fts_optimize_add_table(table);
         } else {
                 table->fts = NULL;
         }
@@ -336,7 +338,7 @@ dict_mem_foreign_table_name_lookup_set(
 
 			len = strlen(foreign->foreign_table_name) + 1;
 
-			foreign->foreign_table_name_lookup = 
+			foreign->foreign_table_name_lookup =
 				static_cast<char*>(
 					mem_heap_alloc(foreign->heap, len));
 		}
@@ -367,7 +369,7 @@ dict_mem_referenced_table_name_lookup_set(
 
 			len = strlen(foreign->referenced_table_name) + 1;
 
-			foreign->referenced_table_name_lookup = 
+			foreign->referenced_table_name_lookup =
 				static_cast<char*>(
 					mem_heap_alloc(foreign->heap, len));
 		}

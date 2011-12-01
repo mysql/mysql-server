@@ -7,7 +7,7 @@ SELECT CONCAT(Jahr,'-',Monat,'-',Tag,' ',Zeit) AS Date,
 UNIX_TIMESTAMP(CONCAT(Jahr,'-',Monat,'-',Tag,' ',Zeit)) AS Unix
 FROM t1;
 Date	Unix
-1998-9-16 09:26:00	905927160
-1998-9-16 09:26:00	905927160
+1998-9-16 09:26:00	905927160.000000
+1998-9-16 09:26:00	905927160.000000
 drop table t1;
 set time_zone= @@global.time_zone;

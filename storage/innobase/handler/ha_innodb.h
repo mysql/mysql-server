@@ -465,9 +465,10 @@ innobase_fts_load_stopword(
 #define	FTS_EXIST_DOC_ID_INDEX		2
 #define	FTS_NOT_EXIST_DOC_ID_INDEX	3
 /*******************************************************************//**
-Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME 
+Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
-@return TRUE if there exists the FTS_DOC_ID index */
+@return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
+FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
 extern "C"
 ulint
 innobase_fts_check_doc_id_index(

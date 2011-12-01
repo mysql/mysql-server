@@ -4,7 +4,7 @@ INSERT INTO t3 VALUES('00:00:00');
 INSERT INTO t3 VALUES('23:59:59');
 INSERT INTO t3 VALUES('99:99:99');
 Warnings:
-Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
 INSERT INTO t3 VALUES('12:00:00');
 INSERT INTO t3 VALUES('13:13:13');
 DROP TABLE t3;

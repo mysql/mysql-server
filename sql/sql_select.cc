@@ -1405,7 +1405,7 @@ static bool types_allow_materialization(Item *outer, Item *inner)
     return FALSE;
   switch (outer->result_type()) {
   case STRING_RESULT:
-    if (outer->is_datetime() != inner->is_datetime())
+    if (outer->is_temporal_with_date() != inner->is_temporal_with_date())
       return FALSE;
     if (!(outer->collation.collation == inner->collation.collation
         /*&& outer->max_length <= inner->max_length */))
@@ -5005,11 +5005,8 @@ static uint get_tmp_table_rec_length(List<Item> &items)
         len += 4;
       break;
     case STRING_RESULT:
-      enum enum_field_types type;
       /* DATE/TIME and GEOMETRY fields have STRING_RESULT result type.  */
-      if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
-          type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
-          type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
+      if (item->is_temporal() || item->field_type() == MYSQL_TYPE_GEOMETRY)
         len += 8;
       else
         len += item->max_length;
@@ -6264,11 +6261,13 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         else
         {
           /*
-            We can't use indexes if the effective collation
+            Can't optimize datetime_column=indexed_varchar_column,
+            also can't use indexes if the effective collation
             of the operation differ from the field collation.
           */
-          if (field->cmp_type() == STRING_RESULT &&
-              ((Field_str*)field)->charset() != cond->compare_collation())
+          if ((!field->is_temporal() && value[0]->is_temporal()) ||
+              (field->cmp_type() == STRING_RESULT &&
+               field->charset() != cond->compare_collation()))
           {
             warn_index_not_applicable(stat->join->thd, field, possible_keys);
             return;
@@ -11531,11 +11530,11 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       case 0:
 	return NULL;
       case 1:
-        new_cond->used_tables_cache= used_tables;
+        new_cond->set_used_tables(used_tables);
 	return new_cond->argument_list()->head();
       default:
 	new_cond->quick_fix_field();
-        new_cond->used_tables_cache= used_tables;
+        new_cond->set_used_tables(used_tables);
 	return new_cond;
       }
     }
@@ -11557,7 +11556,7 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
       new_cond->quick_fix_field();
-      new_cond->used_tables_cache= ((Item_cond_or*) cond)->used_tables_cache;
+      new_cond->set_used_tables(cond->used_tables());
       new_cond->top_level_item();
       return new_cond;
     }
@@ -11610,7 +11609,7 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
 	return new_cond->argument_list()->head();
       default:
 	new_cond->quick_fix_field();
-        ((Item_cond*)new_cond)->used_tables_cache= tbl_map;
+        new_cond->set_used_tables(tbl_map);
 	return new_cond;
       }
     }
@@ -11630,7 +11629,7 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
         tbl_map |= fix->used_tables();
       }
       new_cond->quick_fix_field();
-      ((Item_cond*)new_cond)->used_tables_cache= tbl_map;
+      new_cond->set_used_tables(tbl_map);
       new_cond->top_level_item();
       return new_cond;
     }
@@ -13845,7 +13844,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
 
       if (field_item->result_type() == STRING_RESULT)
       {
-        const CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
+        const CHARSET_INFO *cs= field_item->field->charset();
         if (!item)
         {
           Item_func_eq *eq_item;
@@ -17058,16 +17057,11 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     break;
   case STRING_RESULT:
     DBUG_ASSERT(item->collation.collation);
-  
-    enum enum_field_types type;
     /*
       DATE/TIME and GEOMETRY fields have STRING_RESULT result type. 
       To preserve type they needed to be handled separately.
     */
-    if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
-        type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
-        type == MYSQL_TYPE_NEWDATE ||
-        type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
+    if (item->is_temporal() || item->field_type() == MYSQL_TYPE_GEOMETRY)
       new_field= item->tmp_table_field_from_field_type(table, 1);
     /* 
       Make sure that the blob fits into a Field_varstring which has 
@@ -21522,8 +21516,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
           are fixed or do not need fix_fields, too
         */
         new_cond->quick_fix_field();
-        new_cond->used_tables_cache=
-          ((Item_cond_and*) cond)->used_tables_cache & tables;
+        new_cond->set_used_tables(cond->used_tables() & tables);
           return new_cond;
       }
     }
@@ -21548,7 +21541,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
 	are fixed or do not need fix_fields, too
       */
       new_cond->quick_fix_field();
-      new_cond->used_tables_cache= ((Item_cond_or*) cond)->used_tables_cache;
+      new_cond->set_used_tables(cond->used_tables());
       new_cond->top_level_item();
       return new_cond;
     }
@@ -21680,8 +21673,7 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
           are fixed or do not need fix_fields, too
 	*/
         new_cond->quick_fix_field();
-        new_cond->used_tables_cache=
-          ((Item_cond_and*) cond)->used_tables_cache & tables;
+        new_cond->set_used_tables(cond->used_tables() & tables);
         return new_cond;
       }
     }
@@ -21704,7 +21696,7 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
         are fixed or do not need fix_fields, too
       */
       new_cond->quick_fix_field();
-      new_cond->used_tables_cache= ((Item_cond_or*) cond)->used_tables_cache;
+      new_cond->set_used_tables(cond->used_tables());
       new_cond->top_level_item();
       return new_cond;
     }
@@ -23838,20 +23830,16 @@ calc_group_buffer(JOIN *join,ORDER *group)
         break;
       case STRING_RESULT:
       {
-        enum enum_field_types type= group_item->field_type();
         /*
           As items represented as DATE/TIME fields in the group buffer
           have STRING_RESULT result type, we increase the length 
           by 8 as maximum pack length of such fields.
         */
-        if (type == MYSQL_TYPE_TIME ||
-            type == MYSQL_TYPE_DATE ||
-            type == MYSQL_TYPE_DATETIME ||
-            type == MYSQL_TYPE_TIMESTAMP)
+        if (group_item->is_temporal())
         {
           key_length+= 8;
         }
-        else if (type == MYSQL_TYPE_BLOB)
+        else if (group_item->field_type() == MYSQL_TYPE_BLOB)
           key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {

@@ -43,6 +43,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "dict0priv.h"
 #include "ha_prototypes.h" /* innobase_casedn_str() */
+#include "fts0priv.h"
 
 
 /** Following are six InnoDB system tables */
@@ -484,7 +485,7 @@ dict_process_sys_foreign_rec(
 err_len:
 		return("incorrect column length in SYS_FOREIGN");
 	}
-	
+
 	/* This recieves a dict_foreign_t* that points to a stack variable.
 	So mem_heap_free(foreign->heap) is not used as elsewhere.
 	Since the heap used here is freed elsewhere, foreign->heap
@@ -985,6 +986,7 @@ dict_load_columns(
 			the flag is set before the table is created. */
 			if (table->fts == NULL) {
 				table->fts = fts_create(table);
+				fts_optimize_add_table(table);
 			}
 
 			ut_a(table->fts->doc_col == ULINT_UNDEFINED);
@@ -1067,7 +1069,7 @@ err_len:
 
 	if (!index) {
 		ut_a(last_index_id);
-		memcpy(index_id, (const char*)field, 8);
+		memcpy(index_id, (const char*) field, 8);
 		first_field = memcmp(index_id, last_index_id, 8);
 	} else {
 		first_field = (index->n_def == 0);
@@ -1266,7 +1268,7 @@ err_len:
 
 	if (!allocate) {
 		/* We are reading a SYS_INDEXES record. Copy the table_id */
-		memcpy(table_id, (const char*)field, 8);
+		memcpy(table_id, (const char*) field, 8);
 	} else if (memcmp(field, table_id, 8)) {
 		/* Caller supplied table_id, verify it is the same
 		id as on the index record */

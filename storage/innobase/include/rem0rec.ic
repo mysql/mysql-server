@@ -418,7 +418,7 @@ rec_set_next_offs_new(
 		as a non-negative number */
 
 		field_value = (ulint)
-			((lint) next 
+			((lint) next
 			 - (lint) ut_align_offset(rec, UNIV_PAGE_SIZE));
 		field_value &= REC_NEXT_MASK;
 	}
@@ -1548,7 +1548,7 @@ rec_copy(
 
 	ut_memcpy(buf, rec - extra_len, extra_len + data_len);
 
-	return((byte*)buf + extra_len);
+	return((byte*) buf + extra_len);
 }
 
 /**********************************************************//**

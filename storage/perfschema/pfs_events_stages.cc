@@ -32,11 +32,11 @@
 
 ulong events_stages_history_long_size= 0;
 /** Consumer flag for table EVENTS_STAGES_CURRENT. */
-bool flag_events_stages_current= true;
+bool flag_events_stages_current= false;
 /** Consumer flag for table EVENTS_STAGES_HISTORY. */
-bool flag_events_stages_history= true;
+bool flag_events_stages_history= false;
 /** Consumer flag for table EVENTS_STAGES_HISTORY_LONG. */
-bool flag_events_stages_history_long= true;
+bool flag_events_stages_history_long= false;
 
 /** True if EVENTS_STAGES_HISTORY_LONG circular buffer is full. */
 bool events_stages_history_long_full= false;
