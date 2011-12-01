@@ -84,7 +84,7 @@ endif
 check_test-assertB: test-assert$(BINSUF) $(PTHREAD_LOCAL)
 	@# one argument, not "ok" should err
 	@rm -f test-assert.out
-	($(VGRIND) ./$< notok) > test-assert.out 2>&1 ; test $$? = $(TEST_ASSERT_FAILCODE) && fgrep failed test-assert.out > /dev/null $(SUMMARIZE_CMD)
+	($(VGRIND) ./$< notok) > test-assert.out 2>&1 ; test $$? = $(TEST_ASSERT_FAILCODE) && fgrep failed test-assert.out > /dev/null && rm test-assert.out $(SUMMARIZE_CMD)
 check_test-assertC: test-assert$(BINSUF) $(PTHREAD_LOCAL)
 
 check_test-assert$(BINSUF): test-assert$(BINSUF) $(PTHREAD_LOCAL)
