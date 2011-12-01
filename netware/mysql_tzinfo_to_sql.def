@@ -1,0 +1,11 @@
+#------------------------------------------------------------------------------
+# MySQL TzInfo To SQL
+#------------------------------------------------------------------------------
+MODULE	libc.nlm
+COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
+DESCRIPTION "MySQL Tool - Create Time Zone Info to SQL"
+VERSION 5, 0
+STACKSIZE 131072
+XDCDATA ../netware/mysql.xdc
+#DEBUG
+
