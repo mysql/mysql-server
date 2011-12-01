@@ -15,12 +15,13 @@ include/rpl_stop_server.inc [server_number=1]
 # Remove the unneeded master-bin.index file
 # Restart master with log-bin option set to default
 # Master has restarted successfully
+# stop slave
 include/stop_slave.inc
-# Move the slave binlog and relay log files and index to the new place
-# Shutdown slave
 include/rpl_stop_server.inc [server_number=2]
+# relocate  binlogs
+# relocate  relay logs
 # Restart slave with options log-bin, relay-log set to the new paths
-# Slave has restarted successfully
+# Slave server has restarted successfully
 include/start_slave.inc
 include/stop_slave.inc
 FLUSH LOGS;
@@ -33,3 +34,9 @@ FLUSH LOGS;
 include/start_slave.inc
 include/diff_tables.inc [master:t1,slave:t1]
 DROP TABLE t1;
+include/stop_slave.inc
+include/rpl_stop_server.inc [server_number=2]
+# remove tmpdir
+# restarted with previous slave settings
+include/start_slave.inc
+include/rpl_end.inc
