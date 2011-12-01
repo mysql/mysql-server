@@ -908,17 +908,17 @@ terminal_set(EditLine *el, const char *term)
 			terminal_alloc(el, t, NULL);
 	} else {
 		/* auto/magic margins */
-		Val(T_am) = tgetflag("am");
-		Val(T_xn) = tgetflag("xn");
+                Val(T_am) = tgetflag((char*) "am");
+		Val(T_xn) = tgetflag((char*) "xn");
 		/* Can we tab */
-		Val(T_pt) = tgetflag("pt");
-		Val(T_xt) = tgetflag("xt");
+		Val(T_pt) = tgetflag((char*) "pt");
+		Val(T_xt) = tgetflag((char*) "xt");
 		/* do we have a meta? */
-		Val(T_km) = tgetflag("km");
-		Val(T_MT) = tgetflag("MT");
+		Val(T_km) = tgetflag((char*) "km");
+		Val(T_MT) = tgetflag((char*) "MT");
 		/* Get the size */
-		Val(T_co) = tgetnum("co");
-		Val(T_li) = tgetnum("li");
+		Val(T_co) = tgetnum((char*) "co");
+		Val(T_li) = tgetnum((char*) "li");
 		for (t = tstr; t->name != NULL; t++) {
 			/* XXX: some systems' tgetstr needs non const */
 			terminal_alloc(el, t, tgetstr(strchr(t->name, *t->name),
