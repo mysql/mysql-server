@@ -3718,7 +3718,7 @@ buf_page_monitor(
 		? bpage->zip.data
 		: ((buf_block_t*) bpage)->frame;
 
-	switch(fil_page_get_type(frame)) {
+	switch (fil_page_get_type(frame)) {
 		ulint	level;
 
 	case FIL_PAGE_INDEX:

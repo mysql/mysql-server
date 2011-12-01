@@ -2414,7 +2414,7 @@ fts_query_visitor(
 
 	query->cur_node = node;
 
-	switch(node->type) {
+	switch (node->type) {
 	case FTS_AST_TEXT:
 		token.f_str = node->text.ptr;
 		token.f_len = ut_strlen((char*) token.f_str);
