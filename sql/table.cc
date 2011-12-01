@@ -2019,8 +2019,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     outparam->found_next_number_field=
       outparam->field[(uint) (share->found_next_number_field - share->field)];
   if (share->timestamp_field)
-    outparam->timestamp_field= (Field_timestamp*) outparam->field[share->timestamp_field_offset];
-
+    outparam->set_timestamp_field(outparam->
+                                  field[share->timestamp_field_offset]);
 
   /* Fix key->name and key_part->field */
   if (share->key_parts)
@@ -2893,7 +2893,7 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
   }
   if (!(to= strmake_root(mem, str.ptr(), length)))
     length= 0;                                  // Safety fix
-  res->set(to, length, ((Field_str*)field)->charset());
+  res->set(to, length, field->charset());
   return 0;
 }
 
@@ -6035,6 +6035,20 @@ bool TABLE::update_const_key_parts(Item *conds)
   }
   return FALSE;
 }
+
+
+void TABLE::set_timestamp_field(Field *field_arg)
+{
+  DBUG_ASSERT(!field_arg || field_arg->is_temporal_with_date_and_time());
+  timestamp_field= (Field_temporal_with_date_and_time *) field_arg;
+}
+
+
+Field *TABLE::get_timestamp_field()
+{
+  return (Field *) timestamp_field;
+}
+
 
 /**
   Test if the order list consists of simple field expressions

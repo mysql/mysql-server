@@ -84,6 +84,8 @@ delimiter ;$$
 
 select "MARKER_END" as marker;
 
+select "Con1 is done with payload" as status;
+
 echo "================== con1 done ==================";
 
 --connection default
@@ -94,14 +96,17 @@ set @con1_tid = (select thread_id from performance_schema.threads
 select (@con1_tid is not null) as expected;
 
 set @marker_begin = (select event_id from performance_schema.events_statements_history_long
-  where sql_text like "%MARKER_BEGIN%");
+  where sql_text like "%MARKER_BEGIN%" and thread_id = @con1_tid);
 
 select (@marker_begin is not null) as expected;
 
 set @marker_end = (select end_event_id from performance_schema.events_statements_history_long
-  where sql_text like "%MARKER_END%");
+  where sql_text like "%MARKER_END%" and thread_id = @con1_tid);
 
 select (@marker_end is not null) as expected;
+
+# Will point to what happened on spurious test failures
+show status like "performance_schema%";
 
 #
 # This is the test itself:
@@ -162,6 +167,8 @@ select (event_id - @marker_begin) as relative_event_id,
 order by relative_event_id asc;
 
 # test cleanup
+
+--disconnect con1
 
 --disable_query_log
 revoke all privileges, grant option from user1@localhost;

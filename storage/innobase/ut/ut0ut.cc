@@ -224,12 +224,12 @@ ut_print_timestamp(
 	GetLocalTime(&cal_tm);
 
 	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
-		(int)cal_tm.wYear % 100,
-		(int)cal_tm.wMonth,
-		(int)cal_tm.wDay,
-		(int)cal_tm.wHour,
-		(int)cal_tm.wMinute,
-		(int)cal_tm.wSecond);
+		(int) cal_tm.wYear % 100,
+		(int) cal_tm.wMonth,
+		(int) cal_tm.wDay,
+		(int) cal_tm.wHour,
+		(int) cal_tm.wMinute,
+		(int) cal_tm.wSecond);
 #else
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
@@ -269,12 +269,12 @@ ut_sprintf_timestamp(
 	GetLocalTime(&cal_tm);
 
 	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
-		(int)cal_tm.wYear % 100,
-		(int)cal_tm.wMonth,
-		(int)cal_tm.wDay,
-		(int)cal_tm.wHour,
-		(int)cal_tm.wMinute,
-		(int)cal_tm.wSecond);
+		(int) cal_tm.wYear % 100,
+		(int) cal_tm.wMonth,
+		(int) cal_tm.wDay,
+		(int) cal_tm.wHour,
+		(int) cal_tm.wMinute,
+		(int) cal_tm.wSecond);
 #else
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
@@ -314,12 +314,12 @@ ut_sprintf_timestamp_without_extra_chars(
 	GetLocalTime(&cal_tm);
 
 	sprintf(buf, "%02d%02d%02d_%2d_%02d_%02d",
-		(int)cal_tm.wYear % 100,
-		(int)cal_tm.wMonth,
-		(int)cal_tm.wDay,
-		(int)cal_tm.wHour,
-		(int)cal_tm.wMinute,
-		(int)cal_tm.wSecond);
+		(int) cal_tm.wYear % 100,
+		(int) cal_tm.wMonth,
+		(int) cal_tm.wDay,
+		(int) cal_tm.wHour,
+		(int) cal_tm.wMinute,
+		(int) cal_tm.wSecond);
 #else
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
@@ -358,9 +358,9 @@ ut_get_year_month_day(
 
 	GetLocalTime(&cal_tm);
 
-	*year = (ulint)cal_tm.wYear;
-	*month = (ulint)cal_tm.wMonth;
-	*day = (ulint)cal_tm.wDay;
+	*year = (ulint) cal_tm.wYear;
+	*month = (ulint) cal_tm.wMonth;
+	*day = (ulint) cal_tm.wDay;
 #else
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
@@ -374,9 +374,9 @@ ut_get_year_month_day(
 	time(&tm);
 	cal_tm_ptr = localtime(&tm);
 #endif
-	*year = (ulint)cal_tm_ptr->tm_year + 1900;
-	*month = (ulint)cal_tm_ptr->tm_mon + 1;
-	*day = (ulint)cal_tm_ptr->tm_mday;
+	*year = (ulint) cal_tm_ptr->tm_year + 1900;
+	*month = (ulint) cal_tm_ptr->tm_mon + 1;
+	*day = (ulint) cal_tm_ptr->tm_mday;
 #endif
 }
 #endif /* UNIV_HOTBACKUP */
@@ -426,13 +426,13 @@ ut_print_buf(
 
 	fprintf(file, " len %lu; hex ", len);
 
-	for (data = (const byte*)buf, i = 0; i < len; i++) {
+	for (data = (const byte*) buf, i = 0; i < len; i++) {
 		fprintf(file, "%02lx", (ulong)*data++);
 	}
 
 	fputs("; asc ", file);
 
-	data = (const byte*)buf;
+	data = (const byte*) buf;
 
 	for (i = 0; i < len; i++) {
 		int	c = (int) *data++;

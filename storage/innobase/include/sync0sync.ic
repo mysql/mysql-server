@@ -94,7 +94,7 @@ mutex_test_and_set(
 		mutex->lock_word = 1;
 	}
 
-	return((byte)ret);
+	return((byte) ret);
 #endif
 }
 

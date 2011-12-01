@@ -918,7 +918,7 @@ buf_block_init(
 	buf_block_t*	block,		/*!< in: pointer to control block */
 	byte*		frame)		/*!< in: pointer to buffer frame */
 {
-	UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE, block);
+	UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE);
 
 	block->frame = frame;
 
@@ -975,7 +975,6 @@ buf_block_init(
 #endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
 	ut_ad(rw_lock_validate(&(block->lock)));
-
 }
 
 /********************************************************************//**
@@ -1219,7 +1218,7 @@ buf_pool_init_instance(
 	if (buf_pool_size > 0) {
 		buf_pool->n_chunks = 1;
 
-		buf_pool->chunks = chunk = 
+		buf_pool->chunks = chunk =
 			(buf_chunk_t*) mem_zalloc(sizeof *chunk);
 
 		UT_LIST_INIT(buf_pool->free);
@@ -2308,8 +2307,8 @@ buf_pointer_is_block_field_instance(
 	/* TODO: protect buf_pool->chunks with a mutex (it will
 	currently remain constant after buf_pool_init()) */
 	while (chunk < echunk) {
-		if (ptr >= (void *)chunk->blocks
-		    && ptr < (void *)(chunk->blocks + chunk->size)) {
+		if (ptr >= (void*) chunk->blocks
+		    && ptr < (void*) (chunk->blocks + chunk->size)) {
 
 			return(TRUE);
 		}
@@ -2361,7 +2360,7 @@ buf_block_is_uncompressed(
 		return(FALSE);
 	}
 
-	return(buf_pointer_is_block_field_instance(buf_pool, (void *)block));
+	return(buf_pointer_is_block_field_instance(buf_pool, (void*) block));
 }
 
 /********************************************************************//**
@@ -2633,7 +2632,7 @@ wait_until_unfixed:
 		block->lock_hash_val = lock_rec_hash(space, offset);
 
 		UNIV_MEM_DESC(&block->page.zip.data,
-			      page_zip_get_size(&block->page.zip), block);
+			      page_zip_get_size(&block->page.zip));
 
 		if (buf_page_get_state(&block->page)
 		    == BUF_BLOCK_ZIP_PAGE) {
@@ -3477,7 +3476,7 @@ err_exit:
 
 		mutex_enter(&buf_pool->zip_mutex);
 		UNIV_MEM_DESC(bpage->zip.data,
-			      page_zip_get_size(&bpage->zip), bpage);
+			      page_zip_get_size(&bpage->zip));
 
 		buf_page_init_low(bpage);
 
@@ -5036,7 +5035,7 @@ buf_print_io(
 	} else {
 		ut_a(srv_buf_pool_instances == 1);
 
-		pool_info_total = pool_info = 
+		pool_info_total = pool_info =
 			static_cast<buf_pool_info_t*>(
 				mem_zalloc(sizeof *pool_info));
 	}
