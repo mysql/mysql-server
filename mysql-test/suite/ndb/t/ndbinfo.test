@@ -239,6 +239,15 @@ where st.transid = so.transid
 rollback;
 drop table t1;
 
+#
+select distinct resource_name
+from resources
+order by 1;
+
+select distinct counter_name
+from counters
+order by 1;
+
 # Turn on ndbinfo_offline
 set @@global.ndbinfo_offline=TRUE;
 select @@ndbinfo_offline;
