@@ -101,16 +101,16 @@ if ($relocate_index_file)
     --eval LOAD DATA INFILE '$relocate_fix_relay_log_info' INTO TABLE tmp (entry)
     --let $count= `SELECT count(*) FROM tmp`
 
-    --let $_curr_entry= `SELECT entry FROM tmp WHERE id=1`
+    --let $_curr_entry= `SELECT entry FROM tmp WHERE id=2`
     --let $_curr_entry_basename= `SELECT RIGHT(RTRIM("$_curr_entry"), LOCATE("$_path_separator",REVERSE(RTRIM("$_curr_entry"))) -1)`
 
     if ($relocate_is_windows)
     {
-      --eval UPDATE tmp SET entry='$_to\$_curr_entry_basename' WHERE id=1
+      --eval UPDATE tmp SET entry='$_to\$_curr_entry_basename' WHERE id=2
     }
     if (!$relocate_is_windows)
     {
-      --eval UPDATE tmp SET entry='$_to/$_curr_entry_basename' WHERE id=1
+      --eval UPDATE tmp SET entry='$_to/$_curr_entry_basename' WHERE id=2
     }
 
     --remove_file $relocate_fix_relay_log_info
