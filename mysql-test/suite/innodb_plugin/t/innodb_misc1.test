@@ -1,5 +1,6 @@
 -- source include/have_innodb_plugin.inc
--- source include/have_utf8.inc
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
