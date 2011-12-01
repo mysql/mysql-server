@@ -614,7 +614,7 @@ fts_zip_read_word(
 			}
 		}
 
-		switch(zip->status = inflate(zip->zp, flush)) {
+		switch (zip->status = inflate(zip->zp, flush)) {
 		case Z_OK:
 			if (zip->zp->avail_out == 0 && len > 0) {
 
@@ -709,7 +709,7 @@ fts_fetch_index_words(
 			zip->zp->avail_out = zip->block_sz;
 		}
 
-		switch(zip->status = deflate(zip->zp, Z_NO_FLUSH)) {
+		switch (zip->status = deflate(zip->zp, Z_NO_FLUSH)) {
 		case Z_OK:
 			if (zip->zp->avail_in == 0) {
 				zip->zp->next_in = static_cast<byte*>(data);
@@ -2926,7 +2926,7 @@ fts_optimize_thread(
 				continue;
 			}
 
-			switch(msg->type) {
+			switch (msg->type) {
 			case FTS_MSG_START:
 				break;
 
