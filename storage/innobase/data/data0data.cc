@@ -335,7 +335,7 @@ dfield_print(
 		break;
 	case DATA_INT:
 		ut_a(len == 4); /* only works for 32-bit integers */
-		fprintf(stderr, "%d", (int)mach_read_from_4(data));
+		fprintf(stderr, "%d", (int) mach_read_from_4(data));
 		break;
 	default:
 		ut_error;

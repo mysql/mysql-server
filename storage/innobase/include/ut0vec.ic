@@ -53,7 +53,7 @@ ib_heap_free(
 
 /********************************************************************
 The default ib_vector_t heap resize. Since we can't resize the heap
-we have to copy the elements from the old ptr to the new ptr. 
+we have to copy the elements from the old ptr to the new ptr.
 Uses mem_heap_alloc(). */
 UNIV_INLINE
 void*
@@ -195,7 +195,7 @@ ib_vector_get(
 {
 	ut_a(n < vec->used);
 
-	return((byte*)vec->data + IB_VEC_OFFSET(vec, n));
+	return((byte*) vec->data + IB_VEC_OFFSET(vec, n));
 }
 
 /********************************************************************
@@ -210,7 +210,7 @@ ib_vector_get_const(
 {
 	ut_a(n < vec->used);
 
-	return((byte*)vec->data + IB_VEC_OFFSET(vec, n));
+	return((byte*) vec->data + IB_VEC_OFFSET(vec, n));
 }
 /****************************************************************//**
 Get last element. The vector must not be empty.
@@ -223,7 +223,7 @@ ib_vector_get_last(
 {
 	ut_a(vec->used > 0);
 
-	return((byte*)ib_vector_get(vec, vec->used - 1));
+	return((byte*) ib_vector_get(vec, vec->used - 1));
 }
 
 /****************************************************************//**
@@ -240,7 +240,7 @@ ib_vector_set(
 
 	ut_a(n < vec->used);
 
-	slot = ((byte*)vec->data + IB_VEC_OFFSET(vec, n));
+	slot = ((byte*) vec->data + IB_VEC_OFFSET(vec, n));
 	memcpy(slot, elem, vec->sizeof_value);
 }
 
@@ -321,7 +321,7 @@ ib_vector_push(
 		ib_vector_resize(vec);
 	}
 
-	last = (byte*)vec->data + IB_VEC_OFFSET(vec, vec->used);
+	last = (byte*) vec->data + IB_VEC_OFFSET(vec, vec->used);
 
 #ifdef UNIV_DEBUG
 	memset(last, 0, vec->sizeof_value);
@@ -353,7 +353,7 @@ ib_vector_remove(
 	for (i = 0; i < vec->used; i++) {
 		current = ib_vector_get(vec, i);
 
-		if (*(void**)current == elem) {
+		if (*(void**) current == elem) {
 			if (i == vec->used - 1) {
 				return(ib_vector_pop(vec));
 			}

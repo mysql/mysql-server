@@ -1,3 +1,28 @@
+/*****************************************************************************
+
+Copyright (c) 2007, 2011,  Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
+
+/**
+ * @file fts/fts0pars.y
+ * FTS parser: input file for the GNU Bison parser generator
+ *
+ * Created 2007/5/9 Sunny Bains
+ */
+
 %{
 
 #include "mem0mem.h"
@@ -14,14 +39,14 @@ typedef int (*fts_scan)();
 
 extern int ftserror(const char* p);
 
-/* Required for reentrant parser */ 
+/* Required for reentrant parser */
 #define ftslex	fts_lexer
 
 #define YYERROR_VERBOSE
 
 /* For passing an argument to yyparse() */
 #define YYPARSE_PARAM state
-#define YYLEX_PARAM ((fts_ast_state_t*)state)->lexer
+#define YYLEX_PARAM ((fts_ast_state_t*) state)->lexer
 
 typedef	int	(*fts_scanner_alt)(YYSTYPE* val, yyscan_t yyscanner);
 typedef	int	(*fts_scanner)();
@@ -53,7 +78,7 @@ struct fts_lexer_struct {
 
 query	: expr_lst	{
 		$$ = $1;
-		((fts_ast_state_t*)state)->root = $$;
+		((fts_ast_state_t*) state)->root = $$;
 	}
 	;
 
@@ -203,13 +228,13 @@ fts_lexer_create(
 
 	if (boolean_mode) {
 		fts0blex_init(&fts_lexer->yyscanner);
-		fts0b_scan_bytes((char*)query, query_len, fts_lexer->yyscanner);
+		fts0b_scan_bytes((char*) query, query_len, fts_lexer->yyscanner);
 		fts_lexer->scanner = (fts_scan) fts_blexer;
 		/* FIXME: Debugging */
 		/* fts0bset_debug(1 , fts_lexer->yyscanner); */
 	} else {
 		fts0tlex_init(&fts_lexer->yyscanner);
-		fts0t_scan_bytes((char*)query, query_len, fts_lexer->yyscanner);
+		fts0t_scan_bytes((char*) query, query_len, fts_lexer->yyscanner);
 		fts_lexer->scanner = (fts_scan) fts_tlexer;
 	}
 
@@ -256,7 +281,5 @@ fts_parse(
 /*======*/
 	fts_ast_state_t*	state)
 {
-	extern int ftsparse();	/* To shutup the compiler */
-
 	return(ftsparse(state));
 }

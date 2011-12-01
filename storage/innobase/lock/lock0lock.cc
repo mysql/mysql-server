@@ -653,7 +653,7 @@ ulint
 lock_get_size(void)
 /*===============*/
 {
-	return((ulint)sizeof(lock_t));
+	return((ulint) sizeof(lock_t));
 }
 
 /*********************************************************************//**
@@ -4081,7 +4081,7 @@ lock_table_pop_autoinc_locks(
 			return;
 		}
 
-	} while (*(lock_t**)ib_vector_get_last(trx->autoinc_locks) == NULL);
+	} while (*(lock_t**) ib_vector_get_last(trx->autoinc_locks) == NULL);
 }
 
 /*************************************************************//**

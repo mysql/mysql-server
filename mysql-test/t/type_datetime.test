@@ -544,3 +544,20 @@ DROP TABLE t1,t2;
 --echo #
 --echo # End of 5.5 tests
 --echo #
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#946: Testing rounding
+--echo #
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES ('2001-01-01 10:10:10.9999994'), ('2001-01-01 10:10:10.9999995');
+INSERT INTO t1 VALUES (20010101101010.9999994), (20010101101010.9999995);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.6 tests
+--echo #

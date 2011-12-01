@@ -478,7 +478,7 @@ DECLARE_THREAD(io_handler_thread)(
 {
 	ulint	segment;
 
-	segment = *((ulint*)arg);
+	segment = *((ulint*) arg);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Io handler thread %lu starts, id %lu\n", segment,

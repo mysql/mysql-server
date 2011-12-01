@@ -57,8 +57,8 @@ freeing it when done with the vector.
 */
 
 /* This is useful shorthand for elements of type void* */
-#define	ib_vector_getp(v, n)	(*(void**)ib_vector_get(v, n))
-#define	ib_vector_getp_const(v, n)	(*(void**)ib_vector_get_const(v, n))
+#define	ib_vector_getp(v, n)	(*(void**) ib_vector_get(v, n))
+#define	ib_vector_getp_const(v, n)	(*(void**) ib_vector_get_const(v, n))
 
 #define ib_vector_allocator(v)	(v->allocator)
 

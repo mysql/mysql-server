@@ -59,14 +59,14 @@ ut_find_prime(
 		pow2 = 2 * pow2;
 	}
 
-	if ((double)n < 1.05 * (double)pow2) {
-		n = (ulint) ((double)n * UT_RANDOM_1);
+	if ((double) n < 1.05 * (double) pow2) {
+		n = (ulint) ((double) n * UT_RANDOM_1);
 	}
 
 	pow2 = 2 * pow2;
 
-	if ((double)n > 0.95 * (double)pow2) {
-		n = (ulint) ((double)n * UT_RANDOM_2);
+	if ((double) n > 0.95 * (double) pow2) {
+		n = (ulint) ((double) n * UT_RANDOM_2);
 	}
 
 	if (n > pow2 - 20) {
@@ -77,7 +77,7 @@ ut_find_prime(
 	n more random (especially, if it was not near
 	a power of 2), we then multiply it by a random number. */
 
-	n = (ulint) ((double)n * UT_RANDOM_3);
+	n = (ulint) ((double) n * UT_RANDOM_3);
 
 	for (;; n++) {
 		i = 2;

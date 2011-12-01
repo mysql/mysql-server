@@ -824,8 +824,8 @@ buf_flush_write_block_to_datafile(
 		       buf_page_get_zip_size(&block->page),
 		       buf_page_get_page_no(&block->page), 0,
 		       buf_page_get_zip_size(&block->page),
-		       (void*)block->page.zip.data,
-		       (void*)block);
+		       (void*) block->page.zip.data,
+		       (void*) block);
 
 		goto exit;
 	}
@@ -836,7 +836,7 @@ buf_flush_write_block_to_datafile(
 	fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 	       FALSE, buf_block_get_space(block), 0,
 	       buf_block_get_page_no(block), 0, UNIV_PAGE_SIZE,
-	       (void*)block->frame, (void*)block);
+	       (void*) block->frame, (void*) block);
 
 exit:
 	/* Increment the counter of I/O operations used
@@ -1588,7 +1588,7 @@ buf_flush_try_neighbors(
 		original page. */
 
 		ulint	buf_flush_area;
-	
+
 		buf_flush_area	= ut_min(
 			BUF_READ_AHEAD_AREA(buf_pool),
 			buf_pool->curr_size / 16);
@@ -2849,7 +2849,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	ut_a(srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE);
 
 	/* We can now make a final sweep on flushing the buffer pool
-	and exit after we have cleaned the whole buffer pool. 
+	and exit after we have cleaned the whole buffer pool.
 	It is important that we wait for any running batch that has
 	been triggered by us to finish. Otherwise we can end up
 	considering end of that batch as a finish of our final
