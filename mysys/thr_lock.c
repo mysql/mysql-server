@@ -98,8 +98,8 @@ ulong table_lock_wait_timeout;
 enum thr_lock_type thr_upgraded_concurrent_insert_lock = TL_WRITE;
 
 /* The following constants are only for debug output */
-#define MAX_THREADS 100
-#define MAX_LOCKS   100
+#define MAX_THREADS 1000
+#define MAX_LOCKS   1000
 
 
 LIST *thr_lock_thread_list;			/* List of threads in use */

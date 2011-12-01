@@ -39,6 +39,8 @@
 #undef __WIN__
 #undef __WIN32__
 #define HAVE_ERRNO_AS_DEFINE
+#define _POSIX_MONOTONIC_CLOCK
+#define _POSIX_THREAD_CPUTIME
 #endif /* __CYGWIN__ */
 
 #if defined(__QNXNTO__) && !defined(FD_SETSIZE)
