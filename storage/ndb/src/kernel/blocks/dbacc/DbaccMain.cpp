@@ -33,6 +33,7 @@
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
 #include <KeyDescriptor.hpp>
+#include <signaldata/NodeStateSignalData.hpp>
 
 #ifdef VM_TRACE
 #define DEBUG(x) ndbout << "DBACC: "<< x << endl;
@@ -1564,8 +1565,14 @@ void Dbacc::insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr)
 /* --------------------------------------------------------------------------------- */
 /* INSERTELEMENT                                                                     */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::insertelementLab(Signal* signal) 
+void Dbacc::insertelementLab(Signal* signal)
 {
+  if (unlikely(m_oom))
+  {
+    jam();
+    acckeyref1Lab(signal, ZPAGESIZE_ERROR);
+    return;
+  }
   if (unlikely(fragrecptr.p->dirRangeFull))
   {
     jam();
@@ -5334,7 +5341,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   ptrNull(newDirptr);
   texpDirRangeIndex = texpDirInd >> 8;
   ptrCheckGuard(expDirRangePtr, cdirrangesize, dirRange);
-  Uint32 max_dir_range_size = 256;
+  Uint32 max_dir_range_size = (256 * (100 - m_free_pct)) / 100;
   if (ERROR_INSERTED(3002)) {
       debug_lh_vars("EXP");
       max_dir_range_size = 2;
@@ -8068,6 +8075,8 @@ void Dbacc::releasePage(Signal* signal)
 
   g_acc_pages_used[instance()] = cnoOfAllocatedPages;
 
+  if (cnoOfAllocatedPages < m_maxAllocPages)
+    m_oom = false;
 }//Dbacc::releasePage()
 
 /* --------------------------------------------------------------------------------- */
@@ -8177,7 +8186,7 @@ void Dbacc::zpagesize_error(const char* where){
 void Dbacc::seizePage(Signal* signal) 
 {
   tresult = 0;
-  if (cfirstfreepage == RNIL)
+  if (cfirstfreepage == RNIL || m_oom)
   {
     jam();
     zpagesize_error("Dbacc::seizePage");
@@ -8191,11 +8200,13 @@ void Dbacc::seizePage(Signal* signal)
     cfirstfreepage = spPageptr.p->word32[0];
     cnoOfAllocatedPages++;
 
+    if (cnoOfAllocatedPages >= m_maxAllocPages)
+      m_oom = true;
+
     if (cnoOfAllocatedPages > cnoOfAllocatedPagesMax)
       cnoOfAllocatedPagesMax = cnoOfAllocatedPages;
 
     g_acc_pages_used[instance()] = cnoOfAllocatedPages;
-
   }
 
 }//Dbacc::seizePage()
@@ -8653,6 +8664,32 @@ Dbacc::execREAD_PSEUDO_REQ(Signal* signal){
   //  Uint32 * src = (Uint32*)&tmp;
   //  signal->theData[0] = src[0];
   //  signal->theData[1] = src[1];
+}
+
+void
+Dbacc::execNODE_STATE_REP(Signal* signal)
+{
+  jamEntry();
+  const NodeStateRep* rep = CAST_CONSTPTR(NodeStateRep,
+                                          signal->getDataPtr());
+
+  if (rep->nodeState.startLevel == NodeState::SL_STARTED)
+  {
+    jam();
+
+    const ndb_mgm_configuration_iterator * p =
+      m_ctx.m_config.getOwnConfigIterator();
+    ndbrequire(p != 0);
+
+    Uint32 free_pct = 5;
+    ndb_mgm_get_int_parameter(p, CFG_DB_FREE_PCT, &free_pct);
+
+    m_free_pct = free_pct;
+    m_maxAllocPages = (cpagesize * (100 - free_pct)) / 100;
+    if (cnoOfAllocatedPages >= m_maxAllocPages)
+      m_oom = true;
+  }
+  SimulatedBlock::execNODE_STATE_REP(signal);
 }
 
 #ifdef VM_TRACE
