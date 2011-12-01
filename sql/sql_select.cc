@@ -2025,7 +2025,9 @@ static int clear_sj_tmp_tables(JOIN *join)
   List_iterator<Semijoin_mat_exec> it2(join->sjm_exec_list);
   while ((sjm= it2++))
   {
-    sjm->materialized= FALSE;
+    sjm->materialized= false;
+    if (sjm->tab_ref != NULL)
+      sjm->tab_ref->key_err= true;
   }
   return 0;
 }
