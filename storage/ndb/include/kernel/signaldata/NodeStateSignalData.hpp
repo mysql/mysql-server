@@ -37,7 +37,9 @@ class NodeStateRep {
    */
   friend class SimulatedBlock;
   friend class Dbtux;
-  
+  friend class Dbacc;
+  friend class Dbtup;
+
 public:
   STATIC_CONST( SignalLength = NodeState::DataLength );
 private:
