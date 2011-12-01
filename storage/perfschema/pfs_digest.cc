@@ -161,7 +161,7 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
   int token_count= digest_storage->m_token_count;
  
   PFS_statements_digest_stat **entry;
-  PFS_statements_digest_stat *pfs;
+  PFS_statements_digest_stat *pfs= NULL;
 
   /* Lookup LF_HASH using this new key. */
   entry= reinterpret_cast<PFS_statements_digest_stat**>

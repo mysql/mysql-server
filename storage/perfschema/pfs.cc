@@ -4573,8 +4573,8 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   /*
    Capture statement stats by digest.
   */
-  PFS_digest_storage *digest_storage;
-  PFS_statement_stat *digest_stat;
+  PFS_digest_storage *digest_storage= NULL;
+  PFS_statement_stat *digest_stat= NULL;
 
   if (flags & STATE_FLAG_THREAD)
   {
@@ -4584,11 +4584,18 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     stat= & event_name_array[index];
 
+    PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
+    DBUG_ASSERT(pfs != NULL);
+
+    /* Set digest stat. */
+    digest_storage= &pfs->m_digest_storage;
+    /* Populate PFS_statements_digest_stat with computed digest information. */
+    pfs->statement_digest_stat_ptr= 
+                       find_or_create_digest(thread, digest_storage);
+    digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
+
     if (flags & STATE_FLAG_EVENT)
     {
-      PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
-      DBUG_ASSERT(pfs != NULL);
-
       switch(da->status())
       {
         case Diagnostics_area::DA_EMPTY:
@@ -4616,15 +4623,6 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       pfs->m_timer_end= timer_end;
       pfs->m_end_event_id= thread->m_event_id;
   
-      /*
-        Set digest stat.
-      */
-      digest_storage= &pfs->m_digest_storage;
-      //  Populate PFS_statements_digest_stat with computed digest information.
-      pfs->statement_digest_stat_ptr= 
-                         find_or_create_digest(thread, digest_storage);
-      digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
-
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
       if (flag_events_statements_history_long)
@@ -4636,18 +4634,17 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   }
   else
   {
+    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+    DBUG_ASSERT(thread != NULL);
+
     PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
     DBUG_ASSERT(pfs != NULL);
 
-    /*
-      Set digest stat.
-    */
+    /* Set digest stat. */
     digest_storage= &pfs->m_digest_storage;
-
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    //  Populate PFS_statements_digest_stat with computed digest information.
+    /* Populate PFS_statements_digest_stat with computed digest information. */
     pfs->statement_digest_stat_ptr= 
-                       find_or_create_digest(pfs_thread, digest_storage);
+                       find_or_create_digest(thread, digest_storage);
     digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
 
     event_name_array= global_instr_class_statements_array;
@@ -4682,7 +4679,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   stat->m_sort_scan+= state->m_sort_scan;
   stat->m_no_index_used+= state->m_no_index_used;
   stat->m_no_good_index_used+= state->m_no_good_index_used;
-/*
+
   if (flags & STATE_FLAG_TIMED)
   {
     digest_stat->aggregate_value(wait_time);
@@ -4708,7 +4705,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   digest_stat->m_sort_scan+= state->m_sort_scan;
   digest_stat->m_no_index_used+= state->m_no_index_used;
   digest_stat->m_no_good_index_used+= state->m_no_good_index_used;
-*/
+
   switch(da->status())
   {
     case Diagnostics_area::DA_EMPTY:
@@ -4975,10 +4972,11 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
   digest_storage= &pfs->m_digest_storage;
 
   /* 
-   Token 403 is END_OF_INPUT. Once it is recieved, it means all token in 
+   Token 406 is END_OF_INPUT. Once it is recieved, it means all token in 
    statement text are recieved.
+   TODO:Its hardcoded as 406 now, will make it to END_OF_INPUT later.
   */
-  if( token == 403 )
+  if( token == 406 )
   {
     /* DIGEST_End */
     PSI_CALL(digest_end)(locker);
