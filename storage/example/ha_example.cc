@@ -977,6 +977,7 @@ bool ha_example::check_if_incompatible_data(HA_CREATE_INFO *info,
       param_new->boolparam != param_old->boolparam)
     DBUG_RETURN(COMPATIBLE_DATA_NO);
 
+#ifndef DBUG_OFF
   for (i= 0; i < table->s->fields; i++)
   {
     ha_field_option_struct *f_old, *f_new;
@@ -997,6 +998,7 @@ bool ha_example::check_if_incompatible_data(HA_CREATE_INFO *info,
     else
       DBUG_PRINT("info", ("old field %i did not changed", i));
   }
+#endif
 
   DBUG_RETURN(COMPATIBLE_DATA_YES);
 }
