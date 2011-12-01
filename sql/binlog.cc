@@ -2122,6 +2122,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       if (s.write(&log_file))
         goto err;
       bytes_written+= s.data_written;
+#ifdef HAVE_GTID
       if (current_thd)
       {
         if (need_sid_lock)
@@ -2136,6 +2137,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
           goto err;
         bytes_written+= prev_gtids_ev.data_written;
       }
+#endif
     }
     if (description_event_for_queue &&
         description_event_for_queue->binlog_version>=4)
