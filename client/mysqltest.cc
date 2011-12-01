@@ -3063,7 +3063,7 @@ void do_remove_file(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("removing file: %s", ds_filename.str));
-  error= my_delete(ds_filename.str, MYF(disable_warnings ? 0 : MY_WME)) != 0;
+  error= my_delete_allow_opened(ds_filename.str, MYF(disable_warnings ? 0 : MY_WME)) != 0;
   handle_command_error(command, error, my_errno);
   dynstr_free(&ds_filename);
   DBUG_VOID_RETURN;
