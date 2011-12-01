@@ -108,6 +108,7 @@ init_db.sql: $(top_srcdir)/scripts/mysql_system_tables.sql \
 	@echo "CREATE DATABASE test;" >> $@;
 	@echo "use mysql;" >> $@;
 	@cat $(top_srcdir)/scripts/mysql_system_tables.sql >> $@;
+	@cat $(top_srcdir)/scripts/mysql_system_tables_data.sql | grep -v '@current_hostname' >> $@;
 
 # Build test_db.sql from init_db.sql plus
 # some test data

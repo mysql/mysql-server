@@ -24,8 +24,10 @@
 #include <proc.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <assert.h>
+#include <nks/vm.h>
 
 #include "my_manage.h"
 
@@ -356,17 +358,17 @@ pid_t get_server_pid(char *pid_file)
 		// terminate string
 		if ((p = strchr(buf, '\n')) != NULL)
 		{
-			*p = NULL;
+			*p = 0;
 			
 			// check for a '\r'
 			if ((p = strchr(buf, '\r')) != NULL)
 			{
-				*p = NULL;
+				*p = 0;
 			}
 		}
 		else
 		{
-			buf[err] = NULL;
+			buf[err] = 0;
 		}
 		
 		id = strtol(buf, NULL, 0);
@@ -471,7 +473,7 @@ void get_basedir(char *argv0, char *basedir)
 	
 	if ((p = strindex(temp, "/bin/")) != NULL)
 	{
-		*p = NULL;
+		*p = 0;
 		strcpy(basedir, temp);
 	}
 }

@@ -193,7 +193,7 @@ void start_defaults(int argc, char *argv[])
   snprintf(port, PATH_MAX, "%d", MYSQL_PORT);
 
   // default option
-  default_option[0]= NULL;
+  default_option[0]= 0;
   for (i= 0; (argc > 1) && default_options[i]; i++)
   {
     if (!strnicmp(argv[1], default_options[i], strlen(default_options[i])))
@@ -204,11 +204,11 @@ void start_defaults(int argc, char *argv[])
   }
 
   // set after basedir is established
-  datadir[0]= NULL;
-  pid_file[0]= NULL;
-  err_log[0]= NULL;
-  safe_log[0]= NULL;
-  mysqld[0]= NULL;
+  datadir[0]= 0;
+  pid_file[0]= 0;
+  err_log[0]= 0;
+  safe_log[0]= 0;
+  mysqld[0]= 0;
 }
 
 /******************************************************************************

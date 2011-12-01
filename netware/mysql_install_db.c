@@ -34,7 +34,7 @@
 	global variables
 	
 ******************************************************************************/
-char autoclose;
+int autoclose;
 char basedir[PATH_MAX];
 char datadir[PATH_MAX];
 char err_log[PATH_MAX];
@@ -99,7 +99,7 @@ void start_defaults(int argc, char *argv[])
   }
 
   // default option
-	default_option[0] = NULL;
+	default_option[0] = 0;
   for (i=0; (argc > 1) && default_options[i]; i++)
 	{
 		if(!strnicmp(argv[1], default_options[i], strlen(default_options[i])))
@@ -110,11 +110,11 @@ void start_defaults(int argc, char *argv[])
 	}
   
   // set after basedir is established
-  datadir[0] = NULL;
-  err_log[0] = NULL;
-  out_log[0] = NULL;
-  mysqld[0] = NULL;
-  sql_file[0] = NULL;
+  datadir[0] = 0;
+  err_log[0] = 0;
+  out_log[0] = 0;
+  mysqld[0] = 0;
+  sql_file[0] = 0;
 }
 
 /******************************************************************************

@@ -57,6 +57,7 @@ extern "C" {
 #undef HAVE_RWLOCK_INIT
 #undef HAVE_SCHED_H
 #undef HAVE_SYS_MMAN_H
+#undef HAVE_SYS_UN_H
 #undef HAVE_SYNCH_H
 #undef HAVE_MMAP
 #undef HAVE_RINT
