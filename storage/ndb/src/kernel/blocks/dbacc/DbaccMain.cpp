@@ -8684,10 +8684,6 @@ Dbacc::execNODE_STATE_REP(Signal* signal)
     Uint32 free_pct = 5;
     ndb_mgm_get_int_parameter(p, CFG_DB_FREE_PCT, &free_pct);
 
-    Uint32 save_free_pct = m_free_pct;
-    Uint32 save_maxAllocPages = m_maxAllocPages;
-    Uint32 save_oom = m_oom;
-
     m_free_pct = free_pct;
     m_maxAllocPages = (cpagesize * (100 - free_pct)) / 100;
     if (cnoOfAllocatedPages >= m_maxAllocPages)

@@ -942,7 +942,6 @@ Dbtup::execNODE_STATE_REP(Signal* signal)
 
     Uint32 accpages = compute_acc_32kpages(p);
 
-    Uint32 save_minFreePages = m_minFreePages;
     Resource_limit rl;
     m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
     m_minFreePages = ((rl.m_min - accpages) * free_pct) / 100;
