@@ -1255,6 +1255,17 @@ ndb_index_stat_proc_update(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   if (st->is->update_stat(pr.ndb) == -1)
   {
     ndb_index_stat_error(st, "update_stat", __LINE__);
+    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+
+    /*
+      Turn off force update or else proc_error() thinks
+      it is a new analyze request.
+    */
+    ndb_index_stat_force_update(st, false);
+
+    pthread_cond_broadcast(&ndb_index_stat_thread.stat_cond);
+    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+
     pr.lt= Ndb_index_stat::LT_Error;
     return;
   }
@@ -2131,6 +2142,18 @@ ndb_index_stat_stop_listener(Ndb_index_stat_proc &pr)
   DBUG_RETURN(0);
 }
 
+/* Restart things after system restart */
+
+static bool ndb_index_stat_restart_flag= false;
+
+void
+ndb_index_stat_restart()
+{
+  DBUG_ENTER("ndb_index_stat_restart");
+  ndb_index_stat_restart_flag= true;
+  DBUG_VOID_RETURN;
+}
+
 bool
 Ndb_index_stat_thread::is_setup_complete()
 {
@@ -2277,6 +2300,17 @@ Ndb_index_stat_thread::do_run()
       goto ndb_index_stat_thread_end;
     ndb_index_stat_waiter= false;
     pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+
+    if (ndb_index_stat_restart_flag)
+    {
+      ndb_index_stat_restart_flag= false;
+      enable_ok= false;
+      if (have_listener)
+      {
+        if (ndb_index_stat_stop_listener(pr) == 0)
+          have_listener= false;
+      }
+    }
 
     /* const bool enable_ok_new= THDVAR(NULL, index_stat_enable); */
     const bool enable_ok_new= ndb_index_stat_get_enable(NULL);
