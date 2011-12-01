@@ -2702,7 +2702,7 @@ case $SYSTEM_TYPE in
     echo "Skipping readline"
     ;;
   *)
-    if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
+    if [test "$with_libedit" = "yes"] || ( [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"] )
     then
 	readline_topdir="cmd-line-utils"
 	readline_basedir="libedit"
