@@ -668,7 +668,7 @@ ulong master_retry_count=0;
 char *master_info_file;
 char *relay_log_info_file, *report_user, *report_password, *report_host;
 char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
-char *opt_logname, *opt_slow_logname;
+char *opt_logname, *opt_slow_logname, *opt_bin_logname;
 
 /* Static variables */
 
@@ -694,7 +694,6 @@ static char **defaults_argv;
 static int remaining_argc;
 /** Remaining command line arguments (arguments), filtered by handle_options().*/
 static char **remaining_argv;
-static char *opt_bin_logname;
 
 int orig_argc;
 char **orig_argv;
@@ -4775,8 +4774,13 @@ int mysqld_main(int argc, char **argv)
   my_getopt_error_reporter= buffered_option_error_reporter;
   my_charset_error_reporter= buffered_option_error_reporter;
 
+  /*
+    Initialize the array of performance schema instrument configurations.
+  */
+  init_pfs_instrument_array();
+
   ho_error= handle_options(&remaining_argc, &remaining_argv,
-                           &all_early_options[0], NULL);
+                           &all_early_options[0], mysqld_get_one_option);
   // Swap with an empty vector, i.e. delete elements and free allocated space.
   vector<my_option>().swap(all_early_options);
 
@@ -6691,7 +6695,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
         active_mi->last_heartbeat);
-      my_datetime_to_str(&received_heartbeat_time, buff);
+      my_datetime_to_str(&received_heartbeat_time, buff, 0);
     }
   }
   else
@@ -7843,6 +7847,75 @@ mysqld_get_one_option(int optid,
     /* fall through */
   case OPT_PLUGIN_LOAD_ADD:
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
+    break;
+
+  case OPT_PFS_INSTRUMENT:
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+    /* Parse instrument name and value from argument string */
+    char* name = argument,*p, *val;
+
+    /* Assignment required */
+    if (!(p= strchr(argument, '=')))
+    {
+       my_getopt_error_reporter(WARNING_LEVEL,
+                             "Missing value for performance_schema_instrument "
+                             "'%s'", argument);
+      return 0;
+    }
+
+    /* Option value */
+    val= p + 1;
+    if (!*val)
+    {
+       my_getopt_error_reporter(WARNING_LEVEL,
+                             "Missing value for performance_schema_instrument "
+                             "'%s'", argument);
+      return 0;
+    }
+
+    /* Trim leading spaces from instrument name */
+    while (*name && my_isspace(mysqld_charset, *name))
+      name++;
+
+    /* Trim trailing spaces and slashes from instrument name */
+    while (p > argument && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '/'))
+      p--;
+    *p= 0;
+
+    if (!*name)
+    {
+       my_getopt_error_reporter(WARNING_LEVEL,
+                             "Invalid instrument name for "
+                             "performance_schema_instrument '%s'", argument);
+      return 0;
+    }
+
+    /* Trim leading spaces from option value */
+    while (*val && my_isspace(mysqld_charset, *val))
+      val++;
+
+    /* Trim trailing spaces from option value */
+    if ((p= my_strchr(mysqld_charset, val, val+strlen(val), ' ')) != NULL)
+      *p= 0;
+
+    if (!*val)
+    {
+       my_getopt_error_reporter(WARNING_LEVEL,
+                             "Invalid value for performance_schema_instrument "
+                             "'%s'", argument);
+      return 0;
+    }
+
+    /* Add instrument name and value to array of configuration options */
+    if (add_pfs_instr_to_array(name, val))
+    {
+       my_getopt_error_reporter(WARNING_LEVEL,
+                             "Invalid value for performance_schema_instrument "
+                             "'%s'", argument);
+      return 0;
+    }
+
+#endif
     break;
   }
   return 0;

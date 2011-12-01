@@ -261,7 +261,7 @@ mem_heap_printf_low(
 }
 
 /****************************************************************//**
-A simple (s)printf replacement that dynamically allocates the space for the
+A simple sprintf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type).
@@ -502,7 +502,7 @@ mem_heap_block_free(
 		/* In the debug version we set the memory to a random
 		combination of hex 0xDE and 0xAD. */
 
-		mem_erase_buf((byte*)block, len);
+		mem_erase_buf((byte*) block, len);
 #else /* UNIV_MEM_DEBUG */
 		UNIV_MEM_ASSERT_AND_FREE(block, len);
 #endif /* UNIV_MEM_DEBUG */
@@ -522,7 +522,7 @@ mem_heap_block_free(
 	/* In the debug version we set the memory to a random
 	combination of hex 0xDE and 0xAD. */
 
-	mem_erase_buf((byte*)block, len);
+	mem_erase_buf((byte*) block, len);
 #else /* UNIV_MEM_DEBUG */
 	UNIV_MEM_ASSERT_AND_FREE(block, len);
 #endif /* UNIV_MEM_DEBUG */
