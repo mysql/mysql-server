@@ -25,6 +25,9 @@
 #include "lf.h"
 #include "pfs_stat.h"
 
+#define MAX_TOKEN_COUNT 1000
+#define START_TOKEN_NUMBER 258
+
 extern bool flag_statements_digest;
 struct PFS_thread;
 

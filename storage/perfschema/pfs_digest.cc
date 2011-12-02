@@ -23,7 +23,8 @@
 #include "pfs_instr.h"
 #include "pfs_digest.h"
 #include "pfs_global.h"
-#include "ps_lex.h"
+#include "p_lex.h"
+#include "p_lex.cc"
 #include <string.h>
 
 unsigned int statements_digest_size= 0;
@@ -44,7 +45,7 @@ static bool digest_hash_inited= false;
 static void get_digest_text(char* digest_text,
                             unsigned int* token_array,
                             int token_count);
-static int search_for_token(uint token,char* digest_text);
+const char* symbol[MAX_TOKEN_COUNT];
 
 /**
   Initialize table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST.
@@ -53,6 +54,8 @@ static int search_for_token(uint token,char* digest_text);
 int init_digest(unsigned int statements_digest_sizing)
 {
   unsigned int index;
+
+  initialize_lex_symbol();
 
   /* 
     TBD. Allocate memory for statements_digest_stat_array based on 
@@ -246,77 +249,39 @@ static void get_digest_text(char* digest_text,
                             unsigned int* token_array,
                             int token_count)
 {
-  int i= 0,ret;
+  int i= 0;
   while(i<token_count)
   {
-    ret= search_for_token(token_array[i],digest_text);
-    if(ret < 0)
+    if(token_array[i] < 258) 
     {
-      //TODO : add error handling for this.
-      printf("\n ERROR in get_digest_text.\n");
-    }
-    digest_text+= ret;
-    i++;
-  }
-  digest_text= '\0';
-}
-
-/*
-  This function looks for the token in symbol array and return copy
-  corresponding text into digest_text and returns number of characters
-  copied.
-*/
-static int search_for_token(uint token,char* digest_text)
-{
-  PS_SYMBOL *beg, *end, *mid;
-  int sym_count= array_elements(symbol);
-
-  beg= &symbol[0];
-  end= &symbol[sym_count-1];
-  mid= beg+sym_count/2;
-
-  /*
-    If token is not in range of symbol array then it should be a 
-    single character. Copy its char value into digest text and return.
-  */
-  if(token<beg->tok || token>end->tok)
-  {
-    *digest_text= (char)token;
-    *(digest_text+1)= '\0';
-    return 1;
-  }
-
-  /* 
-    Apply Binary search on the symbol array. 
-  */
-  while((beg <= end) && (mid->tok != token))
-  {
-    if (token < mid->tok)
-    {
-      end= mid-1;
-      sym_count= sym_count/2;
-      mid= beg+sym_count/2;
+      *digest_text= (char)token_array[i];
+      digest_text++;
+      i++;
+      continue;
     }
     else
     {
-      beg= mid+1;
-      sym_count= sym_count/2;
-      mid= beg+sym_count/2;
+      /* 
+         For few tokens (like IDENT_QUOTED, which is token for all
+         variables/literals), there is no string defined, so making them
+         '?' as of now.
+         TODO : do it properly.
+      */
+      if(symbol[token_array[i]-START_TOKEN_NUMBER]!=NULL)
+      {
+        strncpy(digest_text, symbol[token_array[i]-START_TOKEN_NUMBER],
+                           strlen(symbol[token_array[i]-START_TOKEN_NUMBER]));
+      }
+      else
+      {
+        *digest_text= '?';
+      }
+      digest_text+= strlen(digest_text);
+      i++;
     }
+    *(digest_text)= ' ';
+    digest_text++;
   }
-
-  if (mid->tok == token)
-  {
-    int len= strlen(mid->name);
-    strcpy(digest_text,mid->name);
-    *(digest_text+len)= ' ';
-    *(digest_text+len+1)= '\0';
-    return len+1;
-  }
-  
-  /* 
-    Token not found. This should never happen.
-  */
-  return -1;
+  digest_text= '\0';
 }
 

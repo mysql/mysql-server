@@ -41,6 +41,7 @@
 #include "sp_head.h"
 #include "my_md5.h"
 #include "pfs_digest.h"
+#include "p_lex.h"
 
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
@@ -4974,9 +4975,8 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
   /* 
    Token 406 is END_OF_INPUT. Once it is recieved, it means all token in 
    statement text are recieved.
-   TODO:Its hardcoded as 406 now, will make it to END_OF_INPUT later.
   */
-  if( token == 406 )
+  if( token == END_OF_INPUT )
   {
     /* DIGEST_End */
     PSI_CALL(digest_end)(locker);
