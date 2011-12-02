@@ -173,7 +173,7 @@ pars_info_lookup_bound_lit(
 
 		for (i = 0; i < ib_vector_size(vec); i++) {
 			pars_bound_lit_t*	pbl;
-		       
+
 			pbl = static_cast<pars_bound_lit_t*>(
 				ib_vector_get(vec, i));
 
@@ -271,7 +271,7 @@ pars_func(
 	que_node_t*	res_word,/*!< in: function name reserved word */
 	que_node_t*	arg)	/*!< in: first argument in the argument list */
 {
-	return(pars_func_low(((pars_res_word_t*)res_word)->code, arg));
+	return(pars_func_low(((pars_res_word_t*) res_word)->code, arg));
 }
 
 /*************************************************************************
@@ -283,8 +283,8 @@ pars_like_rebind(
 /*=============*/
 				/* out, own: function node in a query tree */
 	sym_node_t*	node,	/* in: The search string node.*/
-	const byte*	ptr,	/* in: literal to (re)bind */
-	ulint		ptr_len)/* in: length of literal to (re)bind*/
+	const byte*	ptr,	/* in: literal to (re) bind */
+	ulint		ptr_len)/* in: length of literal to (re) bind*/
 {
 	dtype_t*	dtype;
 	dfield_t*	dfield;
@@ -919,7 +919,7 @@ pars_select_all_columns(
 				table, i);
 
 			col_node = sym_tab_add_id(pars_sym_tab_global,
-						  (byte*)col_name,
+						  (byte*) col_name,
 						  ut_strlen(col_name));
 
 			select_node->select_list = que_node_list_add_last(

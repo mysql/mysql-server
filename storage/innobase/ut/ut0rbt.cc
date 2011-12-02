@@ -453,7 +453,7 @@ rbt_find_predecessor(
 		ib_rbt_node_t*	parent = current->parent;
 
 		/* Cast away the const. */
-		prev = (ib_rbt_node_t*)current;
+		prev = (ib_rbt_node_t*) current;
 
 		while (parent != tree->root && prev == parent->left) {
 			prev = parent;
@@ -1273,7 +1273,7 @@ rbt_merge_uniq_destructive(
 	for (src_node = (ib_rbt_node_t*) rbt_first(src); src_node; /* */) {
 		ib_rbt_node_t*	prev = src_node;
 
-		src_node = (ib_rbt_node_t*)rbt_next(src, prev);
+		src_node = (ib_rbt_node_t*) rbt_next(src, prev);
 
 		/* Skip duplicates. */
 		if (rbt_search(dst, &parent, prev->value) != 0) {

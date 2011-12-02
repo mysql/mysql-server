@@ -365,7 +365,7 @@ innobase_create_index_field_def(
 		&& field->type() != MYSQL_TYPE_VARCHAR)
 	    || (field->type() == MYSQL_TYPE_VARCHAR
 		&& key_part->length < field->pack_length()
-			- ((Field_varstring*)field)->length_bytes)) {
+			- ((Field_varstring*) field)->length_bytes)) {
 
 		index_field->prefix_len = key_part->length;
 	} else {
@@ -1048,6 +1048,17 @@ ha_innobase::add_index(
 		goto error_handling;
 	}
 
+	/* Currently, support create one single FULLTEXT index in parallel at
+	a time */
+	if (num_fts_index > 1) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Only support create ONE Fulltext index"
+			" at a time\n");
+		error = DB_UNSUPPORTED;
+		goto error_handling;
+	}
+
 	new_primary = DICT_CLUSTERED & index_defs[0].ind_type;
 
 	/* If a new FTS Doc ID column is to be added, there will be
@@ -1420,16 +1431,23 @@ ha_innobase::final_add_index(
 		dict_index_t*	index;
 		dict_index_t*	next_index;
 		ibool		new_fts = FALSE;
+		dict_index_t*	primary;
 
 		new_primary = !my_strcasecmp(
 			system_charset_info, add->key_info[0].name, "PRIMARY");
 
+		primary = dict_table_get_first_index(add->indexed_table);
+
+		if (!new_primary) {
+			new_primary = !my_strcasecmp(
+				system_charset_info, add->key_info[0].name,
+				primary->name);
+		}
+
 		share->idx_trans_tbl.index_count = 0;
 
 		if (new_primary) {
-			for (index = dict_table_get_first_index(
-				     add->indexed_table);
-			     index; index = next_index) {
+			for (index = primary; index; index = next_index) {
 
 				next_index = dict_table_get_next_index(index);
 

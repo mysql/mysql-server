@@ -1,14 +1,14 @@
 # Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
@@ -144,7 +144,7 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
      HAVE_ATOMIC_SWAP_UCHAR)
     SET(HAVE_IB_SOLARIS_ATOMICS 1)
   ENDIF()
-  
+
   IF(HAVE_IB_SOLARIS_ATOMICS)
     ADD_DEFINITIONS(-DHAVE_IB_SOLARIS_ATOMICS=1)
   ENDIF()
@@ -165,15 +165,15 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
         memset(&x3, 0x0, sizeof(x3));
 
         if (sizeof(pthread_t) == 4) {
-        
+
           atomic_cas_32(&x1, x2, x3);
-        
+
         } else if (sizeof(pthread_t) == 8) {
-        
+
           atomic_cas_64(&x1, x2, x3);
-        
+
         } else {
-        
+
           return(1);
         }
 
@@ -209,12 +209,12 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler)
 
 # Sun Studio bug with -xO2
-IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro" 
-	AND CMAKE_CXX_FLAGS_RELEASE MATCHES "O2" 
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro"
+	AND CMAKE_CXX_FLAGS_RELEASE MATCHES "O2"
 	AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
 	# Sun Studio 12 crashes with -xO2 flag, but not with higher optimization
 	# -xO3
-	SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_SOURCE_DIR}/rem/rem0rec.cc 
+	SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_SOURCE_DIR}/rem/rem0rec.cc
     PROPERTIES COMPILE_FLAGS -xO3)
 ENDIF()
 
@@ -340,7 +340,7 @@ IF(WITH_INNODB)
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
-MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE 
+MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE
   DEFAULT
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES ${ZLIB_LIBRARY})

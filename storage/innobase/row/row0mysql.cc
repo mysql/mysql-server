@@ -740,7 +740,7 @@ row_create_prebuilt(
 	prebuilt->autoinc_error = 0;
 	prebuilt->autoinc_offset = 0;
 
-	/* Default to 1, we will set the actual value later in 
+	/* Default to 1, we will set the actual value later in
 	ha_innobase::get_auto_increment(). */
 	prebuilt->autoinc_increment = 1;
 
@@ -974,7 +974,7 @@ row_update_statistics_if_needed(
 	a counter table which is very small and updated very often. */
 
 	if (counter > 2000000000
-	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
+	    || ((ib_int64_t) counter > 16 + table->stat_n_rows / 16)) {
 
 		ut_ad(!mutex_own(&dict_sys->mutex));
 		dict_stats_update(table, DICT_STATS_FETCH, FALSE);
@@ -1270,21 +1270,37 @@ error_exit:
 				"InnoDB: FTS Doc ID must be large than 0 \n");
 			err = DB_FTS_INVALID_DOCID;
 			trx->error_state = DB_FTS_INVALID_DOCID;
-			goto error_exit;	
+			goto error_exit;
 		}
 
 		if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			doc_id_t	next_doc_id
-				= table->fts->cache->next_doc_id;	
+				= table->fts->cache->next_doc_id;
 
 			if (doc_id < next_doc_id) {
 				fprintf(stderr,
 					"InnoDB: FTS Doc ID must be large than"
-					" "UINT64PF"for table",
+					" "UINT64PF" for table",
 					next_doc_id - 1);
 				ut_print_name(stderr, trx, TRUE, table->name);
 				putc('\n', stderr);
 
+				err = DB_FTS_INVALID_DOCID;
+				trx->error_state = DB_FTS_INVALID_DOCID;
+				goto error_exit;
+			}
+
+			/* Difference between Doc IDs are restricted within
+			4 bytes integer. See fts_get_encoded_len() */
+
+			if (doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
+				fprintf(stderr,
+					"InnoDB: Doc ID "UINT64PF" is too"
+					" big. Its difference with largest"
+					" used Doc ID "UINT64PF" cannot"
+					" exceed or equal to %d\n",
+					doc_id, next_doc_id - 1,
+					FTS_DOC_ID_MAX_STEP);
 				err = DB_FTS_INVALID_DOCID;
 				trx->error_state = DB_FTS_INVALID_DOCID;
 				goto error_exit;

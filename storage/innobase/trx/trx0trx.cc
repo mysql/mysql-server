@@ -272,8 +272,8 @@ trx_free_for_background(
 			"  InnoDB: Error: MySQL is freeing a thd\n"
 			"InnoDB: though trx->n_mysql_tables_in_use is %lu\n"
 			"InnoDB: and trx->mysql_n_tables_locked is %lu.\n",
-			(ulong)trx->n_mysql_tables_in_use,
-			(ulong)trx->mysql_n_tables_locked);
+			(ulong) trx->n_mysql_tables_in_use,
+			(ulong) trx->mysql_n_tables_locked);
 		trx_print(stderr, trx, 600);
 		ut_print_buf(stderr, trx, sizeof(trx_t));
 		putc('\n', stderr);
@@ -1507,11 +1507,11 @@ trx_print_low(
 		goto state_ok;
 	case TRX_STATE_ACTIVE:
 		fprintf(f, ", ACTIVE %lu sec",
-			(ulong)difftime(time(NULL), trx->start_time));
+			(ulong) difftime(time(NULL), trx->start_time));
 		goto state_ok;
 	case TRX_STATE_PREPARED:
 		fprintf(f, ", ACTIVE (PREPARED) %lu sec",
-			(ulong)difftime(time(NULL), trx->start_time));
+			(ulong) difftime(time(NULL), trx->start_time));
 		goto state_ok;
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		fputs(", COMMITTED IN MEMORY", f);

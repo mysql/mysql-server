@@ -311,7 +311,7 @@ fts_get_select_columns_str(
 
 		dict_field_t*   field = dict_index_get_nth_field(index, i);
 
-		sel_str = mem_heap_printf(heap, "sel%lu", (ulong)i);
+		sel_str = mem_heap_printf(heap, "sel%lu", (ulong) i);
 
 		/* Set copy_name to TRUE since it's dynamic. */
 		pars_info_bind_id(info, TRUE, sel_str, field->name);
