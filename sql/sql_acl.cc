@@ -11067,7 +11067,8 @@ mysql_declare_plugin(mysql_password)
   0x0100,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
   sha256_password_sysvars,                      /* system variables */
-  NULL                                          /* config options   */
+  NULL,                                         /* config options   */
+  0                                             /* flags            */
 }
 #endif
 #endif
