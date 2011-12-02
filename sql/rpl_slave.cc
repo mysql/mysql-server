@@ -2188,10 +2188,14 @@ bool show_master_info(THD* thd, Master_info* mi)
   DBUG_ENTER("show_master_info");
 
 #ifdef HAVE_GTID
-  global_sid_lock.wrlock();
   /*
     Why rwlock is necessary here? Sven?
+    Temporarly disabled because this was causing deadlock
+    problems. We need to investigage this.
+
+    /Alfranio
   */
+  /*global_sid_lock.wrlock();
   const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
   const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
   if (sql_gtid_set->to_string(&sql_gtid_set_buffer, &sql_gtid_set_size) ||
@@ -2203,7 +2207,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     global_sid_lock.unlock();
     DBUG_RETURN(true);
   }
-  global_sid_lock.unlock();
+  global_sid_lock.unlock();*/
 #endif
 
   field_list.push_back(new Item_empty_string("Slave_IO_State",
@@ -7140,6 +7144,7 @@ int reset_slave(THD *thd, Master_info* mi)
   int thread_mask= 0, error= 0;
   uint sql_errno=ER_UNKNOWN_ERROR;
   const char* errmsg= "Unknown error occured while reseting slave";
+  Gtid_set* gtid_set= NULL;
   DBUG_ENTER("reset_slave");
 
   lock_slave_threads(mi);
@@ -7152,6 +7157,14 @@ int reset_slave(THD *thd, Master_info* mi)
   }
 
   ha_reset_slave(thd);
+
+  /*
+    Clear gtid set as relay log files are about to be removed.
+  */
+  global_sid_lock.wrlock();
+  gtid_set= const_cast<Gtid_set *>(mi->rli->get_gtid_set());
+  gtid_set->clear();
+  global_sid_lock.unlock();
 
   // delete relay logs, clear relay log coordinates
   if ((error= mi->rli->purge_relay_logs(thd,

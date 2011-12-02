@@ -125,7 +125,6 @@ public:
   {
     return group_cache.is_empty();
   }
-
 #endif
 
   Rows_log_event *pending() const
@@ -1694,6 +1693,9 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
    description_event_for_exec(0), description_event_for_queue(0)
+#ifdef HAVE_GTID
+   ,previous_gtid_set(0)
+#endif
 {
   /*
     We don't want to initialize locks here as such initialization depends on
@@ -1833,9 +1835,17 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
 }
 
 #ifdef HAVE_GTID
+typedef set<string> FileSet;
 bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
                                    bool verify_checksum)
 {
+  LOG_INFO linfo;
+  Log_event *ev= NULL;
+  File file= -1;
+  IO_CACHE log;
+  bool found_prev_gtids_ev= false;
+  FileSet file_set;
+
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
   DBUG_PRINT("info", ("lost_groups=%p; so we are recovering a %s log",
                       lost_groups, lost_groups == NULL ? "relay" : "binary"));
@@ -1856,112 +1866,87 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
   global_sid_lock.wrlock();
 
   /*
-    Iterate through all binary log files and do the following:
-
-     - if lost_groups!=NULL, find the first binary log file that
-       contains a Previous_gtids_log_event, and store the set of GTIDS
-       in the event in lost_groups.
-
-     - if the last binary log file contains a
-       Previous_gtids_log_event, store the set of GTIDs in that event
-       plus the set of all GTIDs in all Gtid_log_events in the file in
-       gtid_set.
+    Gathers the set of files to be accessed.
   */
-  LOG_INFO linfo;
-  int error= find_log_pos(&linfo, NULL, false);
-  if (error)
-    DBUG_RETURN(false); // no binary log found
+  for (int error= find_log_pos(&linfo, NULL, false); !error;
+       error= find_next_log(&linfo, false))
+    file_set.insert(string(linfo.log_file_name));
 
-  Log_event *ev= NULL;
-  File file= -1;
-  IO_CACHE log;
-
-  bool found_lost_groups= false;
-  bool is_last_log;
-  do
+  for (FileSet::reverse_iterator it= file_set.rbegin();
+       it != file_set.rend() && !found_prev_gtids_ev; ++it)
   {
-    // save filename and iterate immediately to the next one, in order
-    // to detect if this is the last file.
-    char filename[FN_REFLEN];
-    strcpy(filename, linfo.log_file_name);
-    error= find_next_log(&linfo, false);
-    is_last_log= error != 0;
-
-    if (!found_lost_groups || is_last_log)
+    DBUG_PRINT("info", ("Opening file %s", (*it).c_str()));
+    const char *errmsg= NULL;
+    if ((file= open_binlog_file(&log, (*it).c_str(), &errmsg)) < 0)
     {
-      DBUG_PRINT("info", ("Opening file %s", filename));
-      const char *errmsg= NULL;
-      if ((file= open_binlog_file(&log, filename, &errmsg)) < 0)
-      {
-        sql_print_error("%s", errmsg);
-        goto err;
-      }
-
-      /*
-        Seek for Previous_gtids_log_event and Gtid_log_event events to
-        gather information what has been processed so far.
-      */
-      //bool do_verify_checksum= 0;
-      my_b_seek(&log, BIN_LOG_HEADER_SIZE);
-      bool done= false;
-      bool found_prev_gtids_ev= false;
-      while (!done &&
-             (ev= Log_event::read_log_event(&log, 0, fd_ev_p,
-                                            verify_checksum)) != NULL)
-      {
-        switch (ev->get_type_code())
-        {
-        case FORMAT_DESCRIPTION_EVENT:
-          fd_ev_p= (Format_description_log_event *)ev;
-          break;
-        case ROTATE_EVENT:
-          // do nothing; just accept this event and go to next
-          break;
-        case PREVIOUS_GTIDS_LOG_EVENT:
-        {
-          // add events to sets
-          Previous_gtids_log_event *prev_gtids_ev=
-            (Previous_gtids_log_event *)ev;
-          if (prev_gtids_ev->add_to_set(gtid_set) != 0)
-            goto err;
-          if (!is_last_log)
-            done= true;
-          found_prev_gtids_ev= true;
-          break;
-        }
-        case GTID_LOG_EVENT:
-          if (is_last_log)
-          {
-            Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
-            rpl_sidno sidno= gtid_ev->get_sidno(false);
-            if (sidno < 0)
-              goto err;
-            gtid_set->ensure_sidno(sidno);
-            if (gtid_set->_add(sidno, gtid_ev->get_gno()) != RETURN_STATUS_OK)
-              goto err;
-          }
-          else
-            done= true;
-          break;
-        default:
-          if (!(is_last_log && found_prev_gtids_ev))
-            done= true;
-          break;
-        }
-        if (ev != fd_ev_p)
-          delete ev;
-      }
-
-      if (fd_ev_p != &fd_ev)
-      {
-        delete fd_ev_p;
-        fd_ev_p= &fd_ev;
-      }
-      end_io_cache(&log);
-      mysql_file_close(file, MYF(MY_WME));
-      file= -1;
+      sql_print_error("%s", errmsg);
+      goto err;
     }
-  } while (!is_last_log);
+
+    /*
+      Seek for Previous_gtids_log_event and Gtid_log_event events to
+      gather information what has been processed so far.
+    */
+    my_b_seek(&log, BIN_LOG_HEADER_SIZE);
+    while ((ev= Log_event::read_log_event(&log, 0, fd_ev_p,
+                                          verify_checksum)) != NULL)
+    {
+      switch (ev->get_type_code())
+      {
+      case FORMAT_DESCRIPTION_EVENT:
+        fd_ev_p= (Format_description_log_event *)ev;
+        break;
+      case ROTATE_EVENT:
+        // do nothing; just accept this event and go to next
+        break;
+      case PREVIOUS_GTIDS_LOG_EVENT:
+      {
+        // add events to sets
+        Previous_gtids_log_event *prev_gtids_ev=
+          (Previous_gtids_log_event *)ev;
+        if (prev_gtids_ev->add_to_set(gtid_set) != 0)
+          goto err;
+        found_prev_gtids_ev= true;
+#ifndef DBUG_OFF
+        size_t prev_buffer_size= 0;
+        char* prev_buffer= prev_gtids_ev->get_str(&prev_buffer_size, NULL);
+        DBUG_PRINT("info", ("Retrieving from %s Gtid-set %s.",
+                   (*it).c_str(), prev_gtids_ev->get_str(&prev_buffer_size, NULL)));
+        my_free(prev_buffer);
+#endif
+        break;
+      }
+      case GTID_LOG_EVENT:
+        if (found_prev_gtids_ev)
+        {
+          Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
+          rpl_sidno sidno= gtid_ev->get_sidno(false);
+          if (sidno < 0)
+            goto err;
+          gtid_set->ensure_sidno(sidno);
+          if (gtid_set->_add(sidno, gtid_ev->get_gno()) != RETURN_STATUS_OK)
+            goto err;
+          DBUG_PRINT("info", ("Retrieving from %s Gtid(%d, %lld).",
+                     (*it).c_str(), sidno, gtid_ev->get_gno()));
+        }
+        break;
+      default:
+        break;
+      }
+      if (ev != fd_ev_p)
+        delete ev;
+    }
+
+    if (fd_ev_p != &fd_ev)
+    {
+      delete fd_ev_p;
+      fd_ev_p= &fd_ev;
+    }
+    end_io_cache(&log);
+    mysql_file_close(file, MYF(MY_WME));
+    file= -1;
+    ev= NULL;
+  }
 
   global_sid_lock.unlock();
   mysql_mutex_unlock(&LOCK_index);
@@ -2130,7 +2115,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
         else
           global_sid_lock.assert_some_wrlock();
         Previous_gtids_log_event prev_gtids_ev(current_thd,
-                                               gtid_state.get_logged_gtids());
+                                               previous_gtid_set);
         if (need_sid_lock)
           global_sid_lock.unlock();
         if (prev_gtids_ev.write(&log_file))
