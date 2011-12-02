@@ -193,6 +193,17 @@ public:
   */
   bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
                       bool verify_checksum);
+
+  void set_previous_gtid_set(Gtid_set *previous_gtid_set_param)
+  {
+    previous_gtid_set= previous_gtid_set_param;
+  }
+  bool get_previous_gtid_set()
+  {
+    return previous_gtid_set;
+  }
+private:
+  Gtid_set* previous_gtid_set;
 #endif
 
 private:
@@ -212,6 +223,10 @@ public:
   int remove_pending_rows_event(THD *thd, bool is_transactional);
 
 #endif /* !defined(MYSQL_CLIENT) */
+  void add_bytes_written(ulonglong inc)
+  {
+    bytes_written += inc;
+  }
   void reset_bytes_written()
   {
     bytes_written = 0;

@@ -2183,7 +2183,32 @@ bool show_master_info(THD* thd, Master_info* mi)
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
   char *slave_sql_running_state= NULL;
+  char *sql_gtid_set_buffer= NULL, *io_gtid_set_buffer= NULL;
+  int sql_gtid_set_size= 0, io_gtid_set_size= 0;
   DBUG_ENTER("show_master_info");
+
+#ifdef HAVE_GTID
+  /*
+    Why rwlock is necessary here? Sven?
+    Temporarly disabled because this was causing deadlock
+    problems. We need to investigage this.
+
+    /Alfranio
+  */
+  /*global_sid_lock.wrlock();
+  const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
+  const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
+  if (sql_gtid_set->to_string(&sql_gtid_set_buffer, &sql_gtid_set_size) ||
+      io_gtid_set->to_string(&io_gtid_set_buffer, &io_gtid_set_size))
+  {
+    my_eof(thd);
+    my_free(sql_gtid_set_buffer);
+    my_free(io_gtid_set_buffer);
+    global_sid_lock.unlock();
+    DBUG_RETURN(true);
+  }
+  global_sid_lock.unlock();*/
+#endif
 
   field_list.push_back(new Item_empty_string("Slave_IO_State",
                                                      14));
@@ -2265,11 +2290,20 @@ bool show_master_info(THD* thd, Master_info* mi)
                                              sizeof(mi->ssl_crl)));
   field_list.push_back(new Item_empty_string("Master_SSL_Crlpath",
                                              sizeof(mi->ssl_crlpath)));
-
+#ifdef HAVE_GTID
+  field_list.push_back(new Item_empty_string("Retrieved_Gtid_Set",
+                                             io_gtid_set_size));
+  field_list.push_back(new Item_empty_string("Executed_Gtid_Set",
+                                             sql_gtid_set_size));
+#endif
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+  {
+    my_free(sql_gtid_set_buffer);
+    my_free(io_gtid_set_buffer);
+    DBUG_RETURN(true);
+  }
 
   if (mi->host[0])
   {
@@ -2446,6 +2480,10 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(mi->ssl_ca, &my_charset_bin);
     // Master_Ssl_Crlpath
     protocol->store(mi->ssl_capath, &my_charset_bin);
+#ifdef HAVE_GTID
+    protocol->store(io_gtid_set_buffer, &my_charset_bin);
+    protocol->store(sql_gtid_set_buffer, &my_charset_bin);
+#endif
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -2453,10 +2491,16 @@ bool show_master_info(THD* thd, Master_info* mi)
     mysql_mutex_unlock(&mi->data_lock);
 
     if (my_net_write(&thd->net, (uchar*) thd->packet.ptr(), packet->length()))
-      DBUG_RETURN(TRUE);
+    {
+      my_free(sql_gtid_set_buffer);
+      my_free(io_gtid_set_buffer);
+      DBUG_RETURN(true);
+    }
   }
   my_eof(thd);
-  DBUG_RETURN(FALSE);
+  my_free(sql_gtid_set_buffer);
+  my_free(io_gtid_set_buffer);
+  DBUG_RETURN(false);
 }
 
 
@@ -7109,6 +7153,7 @@ int reset_slave(THD *thd, Master_info* mi)
   int thread_mask= 0, error= 0;
   uint sql_errno=ER_UNKNOWN_ERROR;
   const char* errmsg= "Unknown error occured while reseting slave";
+  Gtid_set* gtid_set= NULL;
   DBUG_ENTER("reset_slave");
 
   lock_slave_threads(mi);
@@ -7121,6 +7166,14 @@ int reset_slave(THD *thd, Master_info* mi)
   }
 
   ha_reset_slave(thd);
+
+  /*
+    Clear gtid set as relay log files are about to be removed.
+  */
+  global_sid_lock.wrlock();
+  gtid_set= const_cast<Gtid_set *>(mi->rli->get_gtid_set());
+  gtid_set->clear();
+  global_sid_lock.unlock();
 
   // delete relay logs, clear relay log coordinates
   if ((error= mi->rli->purge_relay_logs(thd,
