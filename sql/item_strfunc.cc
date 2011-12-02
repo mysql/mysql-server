@@ -1957,6 +1957,8 @@ void Item_func_password::fix_length_and_dec()
      The hashing algorithm is chosen based on the @@old_passwords variable.
   */
   THD *thd= current_thd;
+#ifdef HAVE_OPENSSL
+#ifndef HAVE_YASSL
   if (thd->variables.old_passwords == 2)
   {
     my_make_scrambled_password(m_hashed_password_buffer, res->ptr(),
@@ -1964,6 +1966,8 @@ void Item_func_password::fix_length_and_dec()
     m_hashed_password_buffer_len= strlen(m_hashed_password_buffer)+1;
   }
   else
+#endif
+#endif
   if (thd->variables.old_passwords == 0)
   {
     my_make_scrambled_password_sha1(m_hashed_password_buffer, res->ptr(),
@@ -2001,12 +2005,15 @@ char *Item_func_password::
     buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH);
     my_make_scrambled_password_sha1(buff, password, pass_len);
   }
+#ifdef HAVE_OPENSSL
+#ifndef HAVE_YASSL
   else
   {
     buff= (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE+1);
     my_make_scrambled_password(buff, password, pass_len);
   }
-  
+#endif
+#endif
   return buff;
 }
 

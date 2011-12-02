@@ -398,11 +398,11 @@ my_crypt(char *to, const uchar *s1, const uchar *s2, uint len)
     *to++= *s1++ ^ *s2++;
 }
 
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 void my_make_scrambled_password(char *to, const char *password,
                                 size_t pass_len)
 {
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+
   char salt[CRYPT_SALT_LENGTH+1];
   
   generate_user_salt(salt, CRYPT_SALT_LENGTH+1);
@@ -412,9 +412,9 @@ void my_make_scrambled_password(char *to, const char *password,
                      pass_len,
                      salt,
                      0);
-#endif
-#endif
+
 }
+#endif
 
 /*
     MySQL 4.1.1 password hashing: SHA conversion (see RFC 2289, 3174) twice
@@ -463,7 +463,7 @@ void my_make_scrambled_password_sha1(char *to, const char *password,
 
 void make_scrambled_password(char *to, const char *password)
 {
-  my_make_scrambled_password(to, password, strlen(password));
+  my_make_scrambled_password_sha1(to, password, strlen(password));
 }
 
 
