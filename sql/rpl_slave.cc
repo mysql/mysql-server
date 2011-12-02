@@ -3790,8 +3790,11 @@ int check_temp_dir(char* tmp_file)
   /*
     Check permissions to create a file.
    */
+  //append the server UUID to the temp file name.
+  char *unique_tmp_file_name= (char*)my_malloc((FN_REFLEN+TEMP_FILE_MAX_LEN)*sizeof(char), MYF(0));
+  sprintf(unique_tmp_file_name, "%s%s", tmp_file, server_uuid);
   if ((fd= mysql_file_create(key_file_misc,
-                             tmp_file, CREATE_MODE,
+                             unique_tmp_file_name, CREATE_MODE,
                              O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
                              MYF(MY_WME))) < 0)
   DBUG_RETURN(1);
@@ -3800,8 +3803,9 @@ int check_temp_dir(char* tmp_file)
     Clean up.
    */
   mysql_file_close(fd, MYF(0));
-  mysql_file_delete(key_file_misc, tmp_file, MYF(0));
 
+  mysql_file_delete(key_file_misc, unique_tmp_file_name, MYF(0));
+  my_free(unique_tmp_file_name);
   DBUG_RETURN(0);
 }
 
