@@ -3026,7 +3026,8 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   const Uint32 maxInsert[] = {
     MAX_WORDS_META_FILE,
     4096,    // 16k
-    16 * (MAX_TUPLE_SIZE_IN_WORDS + 128 /* safety */), // Max 16 tuples
+    // Max 16 tuples
+    16 * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE + 128/* safety */),
   };
   Uint32 minWrite[] = {
     8192,
