@@ -93,6 +93,7 @@ those defined in mysql file ft_global.h */
 /** Threshold where our optimize thread automatically kicks in */
 #define FTS_OPTIMIZE_THRESHOLD		10000000
 
+#define FTS_DOC_ID_MAX_STEP		10000
 /** Variable specifying the FTS parallel sort degree */
 extern ulong		fts_sort_pll_degree;
 
@@ -149,7 +150,7 @@ typedef struct fts_index_cache_struct fts_index_cache_t;
 
 
 /** Initialize the "fts_table" for internal query into FTS auxiliary
-tables */ 
+tables */
 #define FTS_INIT_FTS_TABLE(fts_table, m_suffix, m_type, m_table)\
 do {								\
 	(fts_table)->suffix = m_suffix;				\
@@ -308,7 +309,7 @@ enum	fts_status {
 };
 
 typedef	enum fts_status	fts_status_t;
-	
+
 /** The state of the FTS sub system. */
 struct fts_struct {
 					/*!< mutex protecting bg_threads* and
@@ -404,7 +405,7 @@ fts_get_next_doc_id(
 	doc_id_t*		doc_id);	/*!< out: new document id */
 
 /*********************************************************************//**
-Update the next and last Doc ID in the CONFIG table to be the input 
+Update the next and last Doc ID in the CONFIG table to be the input
 "doc_id" value (+ 1). We would do so after each FTS index build or
 table truncate */
 UNIV_INTERN
@@ -444,7 +445,7 @@ fts_create_doc_id(
 	mem_heap_t*	heap);			/*!< in: heap */
 
 /******************************************************************//**
-Create a new fts_doc_ids_t. 
+Create a new fts_doc_ids_t.
 @return new fts_doc_ids_t. */
 UNIV_INTERN
 fts_doc_ids_t*
@@ -547,7 +548,7 @@ fts_drop_tables(
 
 /******************************************************************//**
 The given transaction is about to be committed; do whatever is necessary
-from the FTS system's POV. 
+from the FTS system's POV.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
@@ -931,7 +932,7 @@ Get maximum Doc ID in a table if index "FTS_DOC_ID_INDEX" exists
 @return max Doc ID or 0 if index "FTS_DOC_ID_INDEX" does not exist */
 UNIV_INTERN
 doc_id_t
-fts_get_max_doc_id(     
+fts_get_max_doc_id(
 /*===============*/
 	dict_table_t*	table);			/*!< in: user table */
 

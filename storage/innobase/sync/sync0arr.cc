@@ -293,11 +293,11 @@ sync_cell_get_event(
 	ulint type = cell->request_type;
 
 	if (type == SYNC_MUTEX) {
-		return(((mutex_t *) cell->wait_object)->event);
+		return(((mutex_t*) cell->wait_object)->event);
 	} else if (type == RW_LOCK_WAIT_EX) {
-		return(((rw_lock_t *) cell->wait_object)->wait_ex_event);
+		return(((rw_lock_t*) cell->wait_object)->wait_ex_event);
 	} else { /* RW_LOCK_SHARED and RW_LOCK_EX wait on the same event */
-		return(((rw_lock_t *) cell->wait_object)->event);
+		return(((rw_lock_t*) cell->wait_object)->event);
 	}
 }
 
@@ -399,7 +399,7 @@ sync_array_wait_event(
 	ut_ad(os_thread_get_curr_id() == cell->thread);
 
 	event = sync_cell_get_event(cell);
-		cell->waiting = TRUE;
+	cell->waiting = TRUE;
 
 #ifdef UNIV_SYNC_DEBUG
 
@@ -996,8 +996,8 @@ sync_array_print_long_waits(
 
 		fprintf(stderr,
 			"InnoDB: Pending preads %lu, pwrites %lu\n",
-			(ulong)os_file_n_pending_preads,
-			(ulong)os_file_n_pending_pwrites);
+			(ulong) os_file_n_pending_preads,
+			(ulong) os_file_n_pending_pwrites);
 
 		srv_print_innodb_monitor = TRUE;
 		os_event_set(srv_timeout_event);

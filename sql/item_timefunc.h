@@ -1069,7 +1069,7 @@ class Item_func_curtime_local :public Item_func_curtime
 protected:
   Time_zone *time_zone();
 public:
-  Item_func_curtime_local(ulong dec_arg) :Item_func_curtime(dec_arg) {}
+  Item_func_curtime_local(uint8 dec_arg) :Item_func_curtime(dec_arg) {}
   const char *func_name() const { return "curtime"; }
 };
 
@@ -1079,7 +1079,7 @@ class Item_func_curtime_utc :public Item_func_curtime
 protected:
   Time_zone *time_zone();
 public:
-  Item_func_curtime_utc(ulong dec_arg) :Item_func_curtime(dec_arg) {}
+  Item_func_curtime_utc(uint8 dec_arg) :Item_func_curtime(dec_arg) {}
   const char *func_name() const { return "utc_time"; }
 };
 
@@ -1170,7 +1170,7 @@ class Item_func_now_local :public Item_func_now
 protected:
   Time_zone *time_zone();
 public:
-  Item_func_now_local(ulong dec_arg) :Item_func_now(dec_arg) {}
+  Item_func_now_local(uint8 dec_arg) :Item_func_now(dec_arg) {}
   const char *func_name() const { return "now"; }
   virtual enum Functype functype() const { return NOW_FUNC; }
 };
@@ -1181,7 +1181,7 @@ class Item_func_now_utc :public Item_func_now
 protected:
   Time_zone *time_zone();
 public:
-  Item_func_now_utc(ulong dec_arg) :Item_func_now(dec_arg) {}
+  Item_func_now_utc(uint8 dec_arg) :Item_func_now(dec_arg) {}
   const char *func_name() const { return "utc_timestamp"; }
 };
 
