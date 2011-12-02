@@ -228,7 +228,6 @@ void my_thread_global_end(void)
   }
   mysql_mutex_unlock(&THR_LOCK_threads);
 
-  pthread_key_delete(THR_KEY_mysys);
   mysql_mutex_destroy(&THR_LOCK_malloc);
   mysql_mutex_destroy(&THR_LOCK_open);
   mysql_mutex_destroy(&THR_LOCK_lock);
@@ -246,7 +245,7 @@ void my_thread_global_end(void)
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
   mysql_mutex_destroy(&LOCK_localtime_r);
 #endif
-
+  pthread_key_delete(THR_KEY_mysys);
   my_thread_global_init_done= 0;
 }
 
@@ -429,8 +428,10 @@ const char *my_thread_name(void)
 
 extern void **my_thread_var_dbug()
 {
-  struct st_my_thread_var *tmp=
-    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  struct st_my_thread_var *tmp;
+  if (!my_thread_global_init_done)
+    return NULL;
+  tmp= my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
   return tmp && tmp->init ? &tmp->dbug : 0;
 }
 #endif /* DBUG_OFF */
@@ -439,8 +440,10 @@ extern void **my_thread_var_dbug()
 
 safe_mutex_t **my_thread_var_mutex_in_use()
 {
-  struct st_my_thread_var *tmp=
-    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  struct st_my_thread_var *tmp;
+  if (!my_thread_global_init_done)
+    return NULL;
+  tmp=  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
   return tmp ? &tmp->mutex_in_use : 0;
 }
 

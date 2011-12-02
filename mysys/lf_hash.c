@@ -335,18 +335,18 @@ void lf_hash_destroy(LF_HASH *hash)
 {
   LF_SLIST *el, **head= (LF_SLIST **)_lf_dynarray_value(&hash->array, 0);
 
-  if (unlikely(!head))
-    return;
-  el= *head;
-
-  while (el)
+  if (head)
   {
-    intptr next= el->link;
-    if (el->hashnr & 1)
-      lf_alloc_direct_free(&hash->alloc, el); /* normal node */
-    else
-      my_free(el); /* dummy node */
-    el= (LF_SLIST *)next;
+    el= *head;
+    while (el)
+    {
+      intptr next= el->link;
+      if (el->hashnr & 1)
+        lf_alloc_direct_free(&hash->alloc, el); /* normal node */
+      else
+        my_free(el); /* dummy node */
+      el= (LF_SLIST *)next;
+    }
   }
   lf_alloc_destroy(&hash->alloc);
   lf_dynarray_destroy(&hash->array);
