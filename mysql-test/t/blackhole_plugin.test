@@ -4,13 +4,14 @@ if (!$HA_BLACKHOLE_SO) {
 
 CREATE TABLE t1(a int) ENGINE=BLACKHOLE;
 DROP TABLE t1;
-
+--replace_regex /\.dll/.so/
 eval INSTALL PLUGIN blackhole SONAME '$HA_BLACKHOLE_SO';
 --error 1125
+--replace_regex /\.dll/.so/
 eval INSTALL PLUGIN BLACKHOLE SONAME '$HA_BLACKHOLE_SO';
 
 UNINSTALL PLUGIN blackhole;
-
+--replace_regex /\.dll/.so/
 eval INSTALL PLUGIN blackhole SONAME '$HA_BLACKHOLE_SO';
 
 CREATE TABLE t1(a int) ENGINE=BLACKHOLE;
