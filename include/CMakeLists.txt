@@ -51,6 +51,7 @@ SET(HEADERS
   my_dir.h 
   sslopt-vars.h
   sslopt-case.h
+  my_valgrind.h
   sql_common.h
   keycache.h
   m_ctype.h
