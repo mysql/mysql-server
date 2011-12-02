@@ -56,7 +56,9 @@ int toku_fifo_deq(FIFO);  // we cannot deq items anymore, since their offsets ar
                           // THIS ONLY REMAINS FOR TESTING, DO NOT USE IT IN CODE
 int toku_fifo_empty(FIFO);  // don't deallocate the memory for the fifo
 
-unsigned long toku_fifo_memory_size_in_use(FIFO fifo);  // return how much memory the fifo uses.
+unsigned long toku_fifo_memory_size_in_use(FIFO fifo);  // return how much memory in the fifo holds useful data
+
+unsigned long toku_fifo_memory_footprint(FIFO fifo);  // return how much memory the fifo occupies
 
 unsigned long toku_fifo_memory_size(FIFO); // return how much memory fifo has allocated
 
