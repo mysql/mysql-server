@@ -10,8 +10,10 @@ def sqlgen_create_table(table):
     print ") engine = TokuDB;"
 
 def sqlgen_fill_table(table, n):
+    print "insert into t values "
+    row_num = 0
     for i in range(n):
-        print "insert into t values (",
+        print "  (",
         k = 0
         while (k < len(table)):
             name, type = table[k]
@@ -20,13 +22,17 @@ def sqlgen_fill_table(table, n):
             else:
                 comma = ","
             if type == "int" or type == "bigint":
-                print "%d%s " % ((i*2), comma),
+                print "%d%s" % ((i*2), comma),
             elif type == "blob":
-                print "\"%s%d\"%s " % ("blobbyblobblob", i, comma),
+                print "\"%s%d\"%s" % ("blobbyblobblob", i, comma),
             else:
-                print "\"%s%d\"%s " % ("stringystringstring", i, comma),
+                print "\"%s%d\"%s" % ("stringystringstring", i, comma),
             k += 1
-        print ");"
+        if row_num == n - 1:
+            print ");"
+        else:
+            print "),"
+        row_num += 1
 
 
 def sqlgen_range_query(table):
