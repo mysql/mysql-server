@@ -1622,6 +1622,9 @@ err_len:
 	/* MIX_LEN may hold additional flags in post-antelope file formats. */
 	flags2 = mach_read_from_4(field);
 
+	/* DICT_TF2_FTS will be set when indexes is being loaded */
+	flags2 &= ~DICT_TF2_FTS;
+
 	rec_get_nth_field_offs_old(rec, 8/*CLUSTER_ID*/, &len);
 	if (UNIV_UNLIKELY(len != UNIV_SQL_NULL)) {
 		goto err_len;

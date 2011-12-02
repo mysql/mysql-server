@@ -336,11 +336,11 @@ user1@localhost
 set optimizer_trace="enabled=on";
 show grants;
 Grants for user1@localhost
-GRANT USAGE ON *.* TO 'user1'@'localhost'
-GRANT SELECT (a), INSERT (a) ON `somedb`.`t1` TO 'user1'@'localhost'
-GRANT SELECT (a) ON `somedb`.`v1` TO 'user1'@'localhost'
-GRANT EXECUTE ON PROCEDURE `somedb`.`p1` TO 'user1'@'localhost'
 GRANT EXECUTE ON FUNCTION `somedb`.`f1` TO 'user1'@'localhost'
+GRANT EXECUTE ON PROCEDURE `somedb`.`p1` TO 'user1'@'localhost'
+GRANT SELECT (a) ON `somedb`.`v1` TO 'user1'@'localhost'
+GRANT SELECT (a), INSERT (a) ON `somedb`.`t1` TO 'user1'@'localhost'
+GRANT USAGE ON *.* TO 'user1'@'localhost'
 
 # Those privileges are not enough to see traces:
 set optimizer_trace_offset=0,optimizer_trace_limit=100;

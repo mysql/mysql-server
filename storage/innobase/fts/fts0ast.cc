@@ -187,7 +187,7 @@ fts_ast_free_node(
 {
 	fts_ast_node_t*	next_node;
 
-	switch(node->type) {
+	switch (node->type) {
 	case FTS_AST_TEXT:
 		if (node->text.ptr) {
 			ut_free(node->text.ptr);
@@ -344,7 +344,7 @@ fts_ast_node_print(
 /*===============*/
 	fts_ast_node_t*	node)			/*!< in: ast node to print */
 {
-	switch(node->type) {
+	switch (node->type) {
 	case FTS_AST_TEXT:
 		printf("TEXT: %s\n", node->text.ptr);
 		break;

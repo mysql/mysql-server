@@ -3842,7 +3842,7 @@ innobase_get_int_col_max_value(
 {
 	ulonglong	max_value = 0;
 
-	switch(field->key_type()) {
+	switch (field->key_type()) {
 	/* TINY */
 	case HA_KEYTYPE_BINARY:
 		max_value = 0xFFULL;
@@ -10984,7 +10984,7 @@ innobase_map_isolation_level(
 /*=========================*/
 	enum_tx_isolation	iso)	/*!< in: MySQL isolation level code */
 {
-	switch(iso) {
+	switch (iso) {
 	case ISO_REPEATABLE_READ:	return(TRX_ISO_REPEATABLE_READ);
 	case ISO_READ_COMMITTED:	return(TRX_ISO_READ_COMMITTED);
 	case ISO_SERIALIZABLE:		return(TRX_ISO_SERIALIZABLE);
@@ -14008,6 +14008,7 @@ innobase_index_name_is_reserved(
 Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
+UNIV_INTERN
 float
 innobase_fts_retrieve_ranking(
 /*============================*/
@@ -14027,6 +14028,7 @@ innobase_fts_retrieve_ranking(
 
 /***********************************************************************
 Free the memory for the FTS handler */
+UNIV_INTERN
 void
 innobase_fts_close_ranking(
 /*=======================*/
@@ -14054,6 +14056,7 @@ innobase_fts_close_ranking(
 Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
+UNIV_INTERN
 float
 innobase_fts_find_ranking(
 /*======================*/

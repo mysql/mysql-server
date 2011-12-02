@@ -1297,8 +1297,10 @@ buf_pool_free_instance(
 		ut_ad(bpage->in_LRU_list);
 
 		if (state != BUF_BLOCK_FILE_PAGE) {
-			/* We must not have any dirty block. */
-			ut_ad(state == BUF_BLOCK_ZIP_PAGE);
+			/* We must not have any dirty block except
+			when doing a fast shutdown. */
+			ut_ad(state == BUF_BLOCK_ZIP_PAGE
+			      || srv_fast_shutdown == 2);
 			buf_page_free_descriptor(bpage);
 		}
 
@@ -3718,7 +3720,7 @@ buf_page_monitor(
 		? bpage->zip.data
 		: ((buf_block_t*) bpage)->frame;
 
-	switch(fil_page_get_type(frame)) {
+	switch (fil_page_get_type(frame)) {
 		ulint	level;
 
 	case FIL_PAGE_INDEX:
