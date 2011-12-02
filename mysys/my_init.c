@@ -39,7 +39,7 @@ static my_bool win32_init_tcp_ip();
 my_bool my_init_done= 0;
 uint	mysys_usage_id= 0;              /* Incremented for each my_init() */
 
-ulong   my_thread_stack_size= (sizeof(void*) <= 4)? 65536: ((256-16)*1024);
+ulonglong   my_thread_stack_size= (sizeof(void*) <= 4)? 65536: ((256-16)*1024);
 
 static ulong atoi_octal(const char *str)
 {

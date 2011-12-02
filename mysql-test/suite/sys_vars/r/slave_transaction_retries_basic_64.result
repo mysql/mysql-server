@@ -39,9 +39,11 @@ SELECT @@global.slave_transaction_retries;
 @@global.slave_transaction_retries
 4294967295
 SET @@global.slave_transaction_retries = 2147483649*2;
+Warnings:
+Warning	1292	Truncated incorrect slave_transaction_retries value: '4294967298'
 SELECT @@global.slave_transaction_retries;
 @@global.slave_transaction_retries
-4294967298
+4294967295
 SET @@global.slave_transaction_retries = 4294967295;
 SELECT @@global.slave_transaction_retries;
 @@global.slave_transaction_retries
@@ -61,9 +63,11 @@ SELECT @@global.slave_transaction_retries;
 @@global.slave_transaction_retries
 0
 SET @@global.slave_transaction_retries = 2147483649*2147483649;
+Warnings:
+Warning	1292	Truncated incorrect slave_transaction_retries value: '4611686022722355201'
 SELECT @@global.slave_transaction_retries;
 @@global.slave_transaction_retries
-4611686022722355201
+4294967295
 SET @@global.slave_transaction_retries = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'slave_transaction_retries'
 SET @@global.slave_transaction_retries = '100';

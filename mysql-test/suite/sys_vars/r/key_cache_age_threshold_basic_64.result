@@ -45,12 +45,12 @@ Warnings:
 Warning	1292	Truncated incorrect key_cache_age_threshold value: '42949672951'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
-42949672900
+4294967200
 SET @@global.key_cache_age_threshold = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'key_cache_age_threshold'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
-42949672900
+4294967200
 SET @@global.key_cache_age_threshold = -1024;
 Warnings:
 Warning	1292	Truncated incorrect key_cache_age_threshold value: '-1024'

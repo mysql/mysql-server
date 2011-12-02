@@ -36,11 +36,11 @@ SELECT `int_key`
 FROM CC  
 WHERE `date_nokey`  < `datetime_nokey`  XOR '2009-11-25' )   ;
 pk
-9
 2
+4
 5
 6
-4
+9
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '2009-11-25'
 Warning	1292	Truncated incorrect INTEGER value: '2009-11-25'

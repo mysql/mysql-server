@@ -211,7 +211,7 @@ extern void (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
 extern uint my_file_limit;
-extern ulong my_thread_stack_size;
+extern ulonglong my_thread_stack_size;
 
 extern const char *(*proc_info_hook)(MYSQL_THD, const char *, const char *,
                                      const char *, const unsigned int);

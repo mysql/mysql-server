@@ -473,11 +473,11 @@ uint  slave_net_timeout;
 ulong slave_exec_mode_options;
 ulonglong slave_type_conversions_options;
 ulong thread_cache_size=0;
-ulong binlog_cache_size=0;
-ulong max_binlog_cache_size=0;
-ulong binlog_stmt_cache_size=0;
-ulong  max_binlog_stmt_cache_size=0;
-ulong query_cache_size=0;
+ulonglong binlog_cache_size=0;
+ulonglong max_binlog_cache_size=0;
+ulonglong binlog_stmt_cache_size=0;
+ulonglong  max_binlog_stmt_cache_size=0;
+ulonglong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
 my_atomic_rwlock_t global_query_id_lock;
@@ -2800,7 +2800,7 @@ and this may fail.\n\n");
   fprintf(stderr, "thread_count=%u\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_threads = %lu K\n\
-bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
+bytes of memory\n", (ulong) (dflt_key_cache->key_cache_mem_size +
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
 		     (thread_scheduler->max_threads + extra_max_connections) +
@@ -4885,8 +4885,8 @@ int mysqld_main(int argc, char **argv)
     if (stack_size && stack_size < my_thread_stack_size)
     {
       if (global_system_variables.log_warnings)
-	sql_print_warning("Asked for %lu thread stack, but got %ld",
-			  my_thread_stack_size, (long) stack_size);
+	sql_print_warning("Asked for %llu thread stack, but got %zu",
+			  my_thread_stack_size, stack_size);
 #if defined(__ia64__) || defined(__ia64)
       my_thread_stack_size= stack_size*2;
 #else
