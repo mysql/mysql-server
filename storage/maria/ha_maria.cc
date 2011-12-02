@@ -1425,8 +1425,12 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
 
   if (!error)
   {
+    TrID create_trid= trnman_get_min_safe_trid();
     pthread_mutex_lock(&share->intern_lock);
+    share->state.changed|= STATE_NOT_MOVABLE;
     maria_update_state_info(&param, file, UPDATE_TIME | UPDATE_OPEN_COUNT);
+    _ma_update_state_lsns_sub(share, LSN_IMPOSSIBLE, create_trid,
+                              TRUE, TRUE);
     pthread_mutex_unlock(&share->intern_lock);
   }
   return error;
