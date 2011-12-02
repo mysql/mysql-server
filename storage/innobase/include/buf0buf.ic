@@ -882,7 +882,7 @@ buf_block_free(
 /*===========*/
 	buf_block_t*	block)	/*!< in, own: block to be freed */
 {
-	buf_pool_t*	buf_pool = buf_pool_from_bpage((buf_page_t*)block);
+	buf_pool_t*	buf_pool = buf_pool_from_bpage((buf_page_t*) block);
 
 	buf_pool_mutex_enter(buf_pool);
 
@@ -968,7 +968,7 @@ buf_block_modify_clock_inc(
 	buf_block_t*	block)	/*!< in: block */
 {
 #ifdef UNIV_SYNC_DEBUG
-	buf_pool_t*	buf_pool = buf_pool_from_bpage((buf_page_t*)block);
+	buf_pool_t*	buf_pool = buf_pool_from_bpage((buf_page_t*) block);
 
 	ut_ad((buf_pool_mutex_own(buf_pool)
 	       && (block->page.buf_fix_count == 0))

@@ -299,7 +299,7 @@ fts_trx_table_cmp(
 	const void*	v1,		/*!< in: id1 */
 	const void*	v2);		/*!< in: id2 */
 /******************************************************************//**
-Compare a table id with a trx_table_t table id. 
+Compare a table id with a trx_table_t table id.
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int

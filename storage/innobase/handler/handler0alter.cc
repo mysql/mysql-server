@@ -35,6 +35,7 @@ Smart ALTER TABLE
 #include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "srv0mon.h"
+#include "fts0priv.h"
 
 #include "ha_innodb.h"
 
@@ -364,7 +365,7 @@ innobase_create_index_field_def(
 		&& field->type() != MYSQL_TYPE_VARCHAR)
 	    || (field->type() == MYSQL_TYPE_VARCHAR
 		&& key_part->length < field->pack_length()
-			- ((Field_varstring*)field)->length_bytes)) {
+			- ((Field_varstring*) field)->length_bytes)) {
 
 		index_field->prefix_len = key_part->length;
 	} else {
@@ -530,9 +531,10 @@ innobase_fts_check_doc_id_col(
 /*******************************************************************//**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
-@return	TRUE if there exists the FTS_DOC_ID index */
+@return	FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
+FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
 UNIV_INTERN
-ibool
+ulint
 innobase_fts_check_doc_id_index(
 /*============================*/
 	dict_table_t*	table,		/*!< in: table definition */
@@ -551,7 +553,8 @@ innobase_fts_check_doc_id_index(
 			continue;
 		}
 
-		if (!dict_index_is_unique(index)) {
+		if (!dict_index_is_unique(index)
+		    || strcmp(index->name, FTS_DOC_ID_INDEX_NAME)) {
 			return(FTS_INCORRECT_DOC_ID_INDEX);
 		}
 
@@ -752,6 +755,11 @@ innobase_create_key_def(
 
 		while (index) {
 			innobase_copy_index_def(index, indexdef++, heap);
+
+			if (new_primary && index->type & DICT_FTS) {
+				(*num_fts_index)++;
+			}
+
 			index = dict_table_get_next_index(index);
 		}
 
@@ -1037,7 +1045,18 @@ ha_innobase::add_index(
 
 	if (!index_defs) {
 		error = DB_UNSUPPORTED;
-		goto error_exit;
+		goto error_handling;
+	}
+
+	/* Currently, support create one single FULLTEXT index in parallel at
+	a time */
+	if (num_fts_index > 1) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Only support create ONE Fulltext index"
+			" at a time\n");
+		error = DB_UNSUPPORTED;
+		goto error_handling;
 	}
 
 	new_primary = DICT_CLUSTERED & index_defs[0].ind_type;
@@ -1133,6 +1152,8 @@ ha_innobase::add_index(
 
 		if (index[num_created]->type & DICT_FTS) {
 			fts_index = index[num_created];
+			fts_create_index_tables(trx, fts_index);
+
 		}
 	}
 
@@ -1147,10 +1168,8 @@ ha_innobase::add_index(
 	if (num_fts_index) {
 		DICT_TF2_FLAG_SET(indexed_table, DICT_TF2_FTS);
 
-		fts_create_index_tables(trx, fts_index);
-
-		if (!prebuilt->table->fts
-		    || ib_vector_size(prebuilt->table->fts->indexes) == 0) {
+		if (!indexed_table->fts
+		    || ib_vector_size(indexed_table->fts->indexes) == 0) {
 			fts_create_common_tables(trx, indexed_table,
 						 prebuilt->table->name, TRUE);
 
@@ -1158,6 +1177,10 @@ ha_innobase::add_index(
 			innobase_fts_load_stopword(
 				indexed_table, trx, ha_thd());
 			indexed_table->fts->fts_status &= ~TABLE_DICT_LOCKED;
+		}
+
+		if (new_primary && prebuilt->table->fts) {
+			indexed_table->fts->doc_col = prebuilt->table->fts->doc_col;
 		}
 	}
 
@@ -1387,19 +1410,57 @@ ha_innobase::final_add_index(
 	translation table. Set valid index entry count in the translation
 	table to zero. */
 	if (err == 0 && commit) {
-		ulint	i;
+		ibool		new_primary;
+		dict_index_t*	index;
+		dict_index_t*	next_index;
+		ibool		new_fts = FALSE;
+		dict_index_t*	primary;
+
+		new_primary = !my_strcasecmp(
+			system_charset_info, add->key_info[0].name, "PRIMARY");
+
+		primary = dict_table_get_first_index(add->indexed_table);
+
+		if (!new_primary) {
+			new_primary = !my_strcasecmp(
+				system_charset_info, add->key_info[0].name,
+				primary->name);
+		}
+
 		share->idx_trans_tbl.index_count = 0;
 
-		for (i = 0; i < add->num_of_keys; i++) {
-			if (add->key_info[i].flags & HA_FULLTEXT) {
-				dict_index_t*	fts_index;
+		if (new_primary) {
+			for (index = primary; index; index = next_index) {
 
-				fts_index = dict_table_get_index_on_name(
-					prebuilt->table, add->key_info[i].name);
+				next_index = dict_table_get_next_index(index);
 
-				ut_ad(fts_index);
-				fts_add_index(fts_index, prebuilt->table);
+				if (index->type & DICT_FTS) {
+					fts_add_index(index,
+						      add->indexed_table);
+					new_fts = TRUE;
+				}
 			}
+		} else {
+			ulint		i;
+			for (i = 0; i < add->num_of_keys; i++) {
+				if (add->key_info[i].flags & HA_FULLTEXT) {
+					dict_index_t*	fts_index;
+
+					fts_index =
+						dict_table_get_index_on_name(
+							prebuilt->table,
+							 add->key_info[i].name);
+
+					ut_ad(fts_index);
+					fts_add_index(fts_index,
+						      prebuilt->table);
+					new_fts = TRUE;
+				}
+			}
+		}
+
+		if (new_fts) {
+			fts_optimize_add_table(prebuilt->table);
 		}
 	}
 

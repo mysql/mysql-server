@@ -106,7 +106,7 @@ of the high level design.
 There are four io-threads (for ibuf, log, read, write).
 All synchronous IO requests are serviced by the calling thread using
 os_file_write/os_file_read. The Asynchronous requests are queued up
-in an array (there are four such arrays) by the calling thread. 
+in an array (there are four such arrays) by the calling thread.
 Later these requests are picked up by the io-thread and are serviced
 synchronously.
 
@@ -235,7 +235,7 @@ struct os_aio_array_struct{
 
 #if defined(LINUX_NATIVE_AIO)
 	io_context_t*		aio_ctx;
-				/* completion queue for IO. There is 
+				/* completion queue for IO. There is
 				one such queue per segment. Each thread
 				will work on one ctx exclusively. */
 	struct io_event*	aio_events;
@@ -258,7 +258,7 @@ struct os_aio_array_struct{
 #endif
 
 /** Array of events used in simulated aio */
-static os_event_t*	os_aio_segment_wait_events	= NULL;
+static os_event_t*	os_aio_segment_wait_events = NULL;
 
 /** The aio arrays for non-ibuf i/o and ibuf i/o, as well as sync aio. These
 are NULL when the module has not yet been initialized. @{ */
@@ -505,11 +505,11 @@ os_file_get_last_error_low(
 				" the access rights to\n"
 				"InnoDB: the directory.\n");
 		} else {
-			if (strerror((int)err) != NULL) {
+			if (strerror((int) err) != NULL) {
 				fprintf(stderr,
 					"InnoDB: Error number %lu"
 					" means '%s'.\n",
-					err, strerror((int)err));
+					err, strerror((int) err));
 			}
 
 
@@ -907,16 +907,16 @@ next_file:
 	ret = FindNextFile(dir, lpFindFileData);
 
 	if (ret) {
-		ut_a(strlen((char *) lpFindFileData->cFileName)
+		ut_a(strlen((char*) lpFindFileData->cFileName)
 		     < OS_FILE_MAX_PATH);
 
-		if (strcmp((char *) lpFindFileData->cFileName, ".") == 0
-		    || strcmp((char *) lpFindFileData->cFileName, "..") == 0) {
+		if (strcmp((char*) lpFindFileData->cFileName, ".") == 0
+		    || strcmp((char*) lpFindFileData->cFileName, "..") == 0) {
 
 			goto next_file;
 		}
 
-		strcpy(info->name, (char *) lpFindFileData->cFileName);
+		strcpy(info->name, (char*) lpFindFileData->cFileName);
 
 		info->size = (ib_int64_t)(lpFindFileData->nFileSizeLow)
 			+ (((ib_int64_t)(lpFindFileData->nFileSizeHigh))
@@ -969,7 +969,7 @@ next_file:
 next_file:
 
 #ifdef HAVE_READDIR_R
-	ret = readdir_r(dir, (struct dirent*)dirent_buf, &ent);
+	ret = readdir_r(dir, (struct dirent*) dirent_buf, &ent);
 
 	if (ret != 0
 #ifdef UNIV_AIX
@@ -982,7 +982,7 @@ next_file:
 	   ) {
 		fprintf(stderr,
 			"InnoDB: cannot read directory %s, error %lu\n",
-			dirname, (ulong)ret);
+			dirname, (ulong) ret);
 
 		return(-1);
 	}
@@ -1043,7 +1043,7 @@ next_file:
 		return(-1);
 	}
 
-	info->size = (ib_int64_t)statinfo.st_size;
+	info->size = (ib_int64_t) statinfo.st_size;
 
 	if (S_ISDIR(statinfo.st_mode)) {
 		info->type = OS_FILE_TYPE_DIR;
@@ -1383,7 +1383,7 @@ os_file_set_nocache(
 #if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
 	if (directio(fd, DIRECTIO_ON) == -1) {
 		int	errno_save;
-		errno_save = (int)errno;
+		errno_save = (int) errno;
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Failed to set DIRECTIO_ON "
@@ -1393,7 +1393,7 @@ os_file_set_nocache(
 #elif defined(O_DIRECT)
 	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
 		int	errno_save;
-		errno_save = (int)errno;
+		errno_save = (int) errno;
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Failed to set O_DIRECT "
@@ -1633,7 +1633,7 @@ try_again:
 	/* We disable OS caching (O_DIRECT) only on data files */
 	if (type != OS_LOG_FILE
 	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
-		
+
 		os_file_set_nocache(file, name, mode_str);
 	}
 
@@ -1643,7 +1643,7 @@ try_again:
 		if (create_mode == OS_FILE_OPEN_RETRY) {
 			int i;
 			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Retrying to lock"
+			fputs(" InnoDB: Retrying to lock"
 			      " the first data file\n",
 			      stderr);
 			for (i = 0; i < 100; i++) {
@@ -1654,7 +1654,7 @@ try_again:
 				}
 			}
 			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Unable to open the first data file\n",
+			fputs(" InnoDB: Unable to open the first data file\n",
 			      stderr);
 		}
 
@@ -1685,7 +1685,7 @@ loop:
 	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
 	it */
 
-	ret = DeleteFile((LPCTSTR)name);
+	ret = DeleteFile((LPCTSTR) name);
 
 	if (ret) {
 		return(TRUE);
@@ -1748,7 +1748,7 @@ loop:
 	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
 	it */
 
-	ret = DeleteFile((LPCTSTR)name);
+	ret = DeleteFile((LPCTSTR) name);
 
 	if (ret) {
 		return(TRUE);
@@ -1811,7 +1811,7 @@ os_file_rename_func(
 #ifdef __WIN__
 	BOOL	ret;
 
-	ret = MoveFile((LPCTSTR)oldpath, (LPCTSTR)newpath);
+	ret = MoveFile((LPCTSTR) oldpath, (LPCTSTR) newpath);
 
 	if (ret) {
 		return(TRUE);
@@ -2067,7 +2067,7 @@ os_file_fsync(
 
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-					"  InnoDB: fsync(): "
+					" InnoDB: fsync(): "
 					"No locks available; retrying\n");
 			}
 
@@ -2173,7 +2173,7 @@ os_file_flush_func(
 	ut_print_timestamp(stderr);
 
 	fprintf(stderr,
-		"  InnoDB: Error: the OS said file flush did not succeed\n");
+		" InnoDB: Error: the OS said file flush did not succeed\n");
 
 	os_file_handle_error(NULL, "flush");
 
@@ -2275,7 +2275,7 @@ os_file_pread(
 		if (ret_offset < 0) {
 			ret = -1;
 		} else {
-			ret = read(file, buf, (ssize_t)n);
+			ret = read(file, buf, (ssize_t) n);
 		}
 
 #ifndef UNIV_HOTBACKUP
@@ -2341,7 +2341,7 @@ os_file_pwrite(
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
 
-	ret = pwrite(file, buf, (ssize_t)n, offs);
+	ret = pwrite(file, buf, (ssize_t) n, offs);
 
 #if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
 	os_mutex_enter(os_file_count_mutex);
@@ -2396,7 +2396,7 @@ os_file_pwrite(
 			goto func_exit;
 		}
 
-		ret = write(file, buf, (ssize_t)n);
+		ret = write(file, buf, (ssize_t) n);
 
 # ifdef UNIV_DO_FLUSH
 		if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
@@ -2519,7 +2519,7 @@ try_again:
 try_again:
 	ret = os_file_pread(file, buf, n, offset);
 
-	if ((ulint)ret == n) {
+	if ((ulint) ret == n) {
 
 		return(TRUE);
 	}
@@ -2648,7 +2648,7 @@ try_again:
 try_again:
 	ret = os_file_pread(file, buf, n, offset);
 
-	if ((ulint)ret == n) {
+	if ((ulint) ret == n) {
 
 		return(TRUE);
 	}
@@ -2758,7 +2758,7 @@ retry:
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-			"  InnoDB: Error: File pointer positioning to"
+			" InnoDB: Error: File pointer positioning to"
 			" file %s failed at\n"
 			"InnoDB: offset %llu. Operating system"
 			" error number %lu.\n"
@@ -2811,12 +2811,12 @@ retry:
 
 	if (!os_has_said_disk_full) {
 
-		err = (ulint)GetLastError();
+		err = (ulint) GetLastError();
 
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-			"  InnoDB: Error: Write to file %s failed"
+			" InnoDB: Error: Write to file %s failed"
 			" at offset %llu.\n"
 			"InnoDB: %lu bytes should have been written,"
 			" only %lu were written.\n"
@@ -2828,10 +2828,10 @@ retry:
 			name, offset,
 			(ulong) n, (ulong) len, (ulong) err);
 
-		if (strerror((int)err) != NULL) {
+		if (strerror((int) err) != NULL) {
 			fprintf(stderr,
 				"InnoDB: Error number %lu means '%s'.\n",
-				(ulong) err, strerror((int)err));
+				(ulong) err, strerror((int) err));
 		}
 
 		fprintf(stderr,
@@ -2849,7 +2849,7 @@ retry:
 
 	ret = os_file_pwrite(file, buf, n, offset);
 
-	if ((ulint)ret == n) {
+	if ((ulint) ret == n) {
 
 		return(TRUE);
 	}
@@ -2859,7 +2859,7 @@ retry:
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-			"  InnoDB: Error: Write to file %s failed"
+			" InnoDB: Error: Write to file %s failed"
 			" at offset "UINT64PF".\n"
 			"InnoDB: %lu bytes should have been written,"
 			" only %ld were written.\n"
@@ -2873,7 +2873,7 @@ retry:
 		if (strerror(errno) != NULL) {
 			fprintf(stderr,
 				"InnoDB: Error number %lu means '%s'.\n",
-				(ulint)errno, strerror(errno));
+				(ulint) errno, strerror(errno));
 		}
 
 		fprintf(stderr,
@@ -3048,9 +3048,9 @@ os_file_get_status(
 
 /****************************************************************//**
 The function os_file_dirname returns a directory component of a
-null-terminated pathname string.  In the usual case, dirname returns
+null-terminated pathname string. In the usual case, dirname returns
 the string up to, but not including, the final '/', and basename
-is the component following the final '/'.  Trailing '/' charac­
+is the component following the final '/'. Trailing '/' charac­
 ters are not counted as part of the pathname.
 
 If path does not contain a slash, dirname returns the string ".".
@@ -3058,7 +3058,7 @@ If path does not contain a slash, dirname returns the string ".".
 Concatenating the string returned by dirname, a "/", and the basename
 yields a complete pathname.
 
-The return value is  a copy of the directory component of the pathname.
+The return value is a copy of the directory component of the pathname.
 The copy is allocated from heap. It is the caller responsibility
 to free it after it is no longer needed.
 
@@ -3196,7 +3196,7 @@ retry:
 			/* First time around. */
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB: Warning: io_setup() failed"
+				" InnoDB: Warning: io_setup() failed"
 				" with EAGAIN. Will make %d attempts"
 				" before giving up.\n",
 				OS_AIO_IO_SETUP_RETRY_ATTEMPTS);
@@ -3215,7 +3215,7 @@ retry:
 		/* Have tried enough. Better call it a day. */
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Error: io_setup() failed"
+			" InnoDB: Error: io_setup() failed"
 			" with EAGAIN after %d attempts.\n",
 			OS_AIO_IO_SETUP_RETRY_ATTEMPTS);
 		break;
@@ -3223,7 +3223,7 @@ retry:
 	case -ENOSYS:
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Error: Linux Native AIO interface"
+			" InnoDB: Error: Linux Native AIO interface"
 			" is not supported on this platform. Please"
 			" check your OS documentation and install"
 			" appropriate binary of InnoDB.\n");
@@ -3233,7 +3233,7 @@ retry:
 	default:
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Error: Linux Native AIO setup"
+			" InnoDB: Error: Linux Native AIO setup"
 			" returned following error[%d]\n", -ret);
 		break;
 	}
@@ -3307,7 +3307,7 @@ os_aio_array_create(
 
 	for (i = 0; i < n_segments; ++i) {
 		if (!os_aio_linux_create_io_ctx(n/n_segments,
-					   &array->aio_ctx[i])) {
+						&array->aio_ctx[i])) {
 			/* If something bad happened during aio setup
 			we should call it a day and return right away.
 			We don't care about any leaks because a failure
@@ -3698,7 +3698,7 @@ os_aio_array_reserve_slot(
 	segment. This can help in merging IO requests when we are
 	doing simulated AIO */
 	local_seg = (offset >> (UNIV_PAGE_SIZE_SHIFT + 6))
-		    % array->n_segments;
+		% array->n_segments;
 
 loop:
 	os_mutex_enter(array->mutex);
@@ -3788,7 +3788,7 @@ found:
 		io_prep_pwrite(iocb, file, buf, len, aio_offset);
 	}
 
-	iocb->data = (void*)slot;
+	iocb->data = (void*) slot;
 	slot->n_bytes = 0;
 	slot->ret = 0;
 	/*fprintf(stderr, "Filled up Linux native iocb.\n");*/
@@ -3985,7 +3985,7 @@ os_aio_linux_dispatch(
 	fprintf(stderr,
 		"io_submit[%c] ret[%d]: slot[%p] ctx[%p] seg[%lu]\n",
 		(slot->type == OS_FILE_WRITE) ? 'w' : 'r', ret, slot,
-		array->aio_ctx[io_ctx_index], (ulong)io_ctx_index);
+		array->aio_ctx[io_ctx_index], (ulong) io_ctx_index);
 #endif
 
 	/* io_submit returns number of successfully
@@ -4130,7 +4130,7 @@ try_again:
 			os_n_file_reads++;
 			os_bytes_read_since_printout += n;
 #ifdef WIN_ASYNC_IO
-			ret = ReadFile(file, buf, (DWORD)n, &len,
+			ret = ReadFile(file, buf, (DWORD) n, &len,
 				       &(slot->control));
 
 #elif defined(LINUX_NATIVE_AIO)
@@ -4149,7 +4149,7 @@ try_again:
 		if (srv_use_native_aio) {
 			os_n_file_writes++;
 #ifdef WIN_ASYNC_IO
-			ret = WriteFile(file, buf, (DWORD)n, &len,
+			ret = WriteFile(file, buf, (DWORD) n, &len,
 					&(slot->control));
 
 #elif defined(LINUX_NATIVE_AIO)
@@ -4452,10 +4452,10 @@ retry:
 			os_aio_slot_t*	slot;
 			struct iocb*	control;
 
-			control = (struct iocb *)events[i].obj;
+			control = (struct iocb*) events[i].obj;
 			ut_a(control != NULL);
 
-			slot = (os_aio_slot_t *) control->data;
+			slot = (os_aio_slot_t*) control->data;
 
 			/* Some sanity checks. */
 			ut_a(slot != NULL);
@@ -4510,7 +4510,7 @@ retry:
 	/* All other errors should cause a trap for now. */
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: unexpected ret_code[%d] from io_getevents()!\n",
+		" InnoDB: unexpected ret_code[%d] from io_getevents()!\n",
 		ret);
 	ut_error;
 }
@@ -4612,7 +4612,7 @@ found:
 
 	*type = slot->type;
 
-	if ((slot->ret == 0) && (slot->n_bytes == (long)slot->len)) {
+	if ((slot->ret == 0) && (slot->n_bytes == (long) slot->len)) {
 		ret = TRUE;
 
 #ifdef UNIV_DO_FLUSH
@@ -4767,8 +4767,8 @@ restart:
 		slot = os_aio_array_get_nth_slot(array, i + segment * n);
 
 		if (slot->reserved) {
-			age = (ulint)difftime(time(NULL),
-					      slot->reservation_time);
+			age = (ulint) difftime(time(NULL),
+					       slot->reservation_time);
 
 			if ((age >= 2 && age > biggest_age)
 			    || (age >= 2 && age == biggest_age
@@ -5208,7 +5208,7 @@ loop:
 		" %.2f writes/s, %.2f fsyncs/s\n",
 		(os_n_file_reads - os_n_file_reads_old)
 		/ time_elapsed,
-		(ulong)avg_bytes_read,
+		(ulong) avg_bytes_read,
 		(os_n_file_writes - os_n_file_writes_old)
 		/ time_elapsed,
 		(os_n_fsyncs - os_n_fsyncs_old)

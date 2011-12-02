@@ -2182,7 +2182,7 @@ dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
 	dict_stats_upd_option_t	stats_upd_option,
-					/*!< in: whether to (re)calc
+					/*!< in: whether to (re) calc
 					the stats or to fetch them from
 					the persistent statistics
 					storage */
