@@ -3921,7 +3921,6 @@ t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
-t1#P#p20.ibd
 t1.frm
 t1.par
 SHOW CREATE TABLE t1;
@@ -3932,8 +3931,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)
 (PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -4054,6 +4052,8 @@ ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
 PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
+#sql-t1.frm
+#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10#TMP#.ibd
 t1#P#p10.ibd
@@ -5021,7 +5021,6 @@ ERROR HY000: Unknown error
 # State after failure
 t1#P#p0.ibd
 t1#P#p10.ibd
-t1#P#p20.ibd
 t1.frm
 t1.par
 SHOW CREATE TABLE t1;
@@ -5032,8 +5031,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)
 (PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -5084,7 +5082,6 @@ ERROR HY000: Unknown error
 # State after failure
 t1#P#p0.ibd
 t1#P#p10.ibd
-t1#P#p20.ibd
 t1.frm
 t1.par
 SHOW CREATE TABLE t1;
@@ -5095,8 +5092,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)
 (PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
