@@ -1358,8 +1358,13 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       name_warning_sent= 1;
     }
 
-    relay_log.is_relay_log= TRUE;
-
+    relay_log.is_relay_log= true;
+    /*
+      Configures what object is used by the current log to store processed
+      gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
+      corretly compute the set of previous gtids.
+    */
+    relay_log.set_previous_gtid_set(&gtid_set);
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
