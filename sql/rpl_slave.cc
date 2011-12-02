@@ -5529,6 +5529,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   char *save_buf= NULL; // needed for checksumming the fake Rotate event
   char rot_buf[LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN + FN_REFLEN];
+  Gtid gtid;
+  Log_event_type event_type= (Log_event_type)buf[EVENT_TYPE_OFFSET];
 
   DBUG_ASSERT(checksum_alg == BINLOG_CHECKSUM_ALG_OFF || 
               checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF || 
@@ -5539,11 +5541,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     FD_queue checksum alg description does not apply in a case of
     FD itself. The one carries both parts of the checksum data.
   */
-  if (buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
+  if (event_type == FORMAT_DESCRIPTION_EVENT)
   {
     checksum_alg= get_checksum_alg(buf, event_len);
   }
-  else if (buf[EVENT_TYPE_OFFSET] == START_EVENT_V3)
+  else if (event_type == START_EVENT_V3)
   {
     // checksum behaviour is similar to the pre-checksum FD handling
     mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF;
@@ -5562,7 +5564,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
               
   // Emulate the network corruption
   DBUG_EXECUTE_IF("corrupt_queue_event",
-    if (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT)
+    if (event_type != FORMAT_DESCRIPTION_EVENT)
     {
       char *debug_event_buf_c = (char*) buf;
       int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
@@ -5582,13 +5584,13 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   LINT_INIT(inc_pos);
 
   if (mi->rli->relay_log.description_event_for_queue->binlog_version<4 &&
-      buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
+      event_type != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
     DBUG_RETURN(queue_old_event(mi,buf,event_len));
 
   LINT_INIT(inc_pos);
   mysql_mutex_lock(&mi->data_lock);
 
-  switch (buf[EVENT_TYPE_OFFSET]) {
+  switch (event_type) {
   case STOP_EVENT:
     /*
       We needn't write this event to the relay log. Indeed, it just indicates a
@@ -5785,13 +5787,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     Gtid_log_event gtid_ev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
                            rli->relay_log.description_event_for_queue);
-    rpl_sidno sidno= gtid_ev.get_sidno(false);
-    if (sidno < 0)
-      goto err;
-    int ret= rli->add_logged_gtid(sidno, gtid_ev.get_gno());
+    gtid.sidno= gtid_ev.get_sidno(false);
     global_sid_lock.unlock();
-    if (ret != 0)
+    if (gtid.sidno < 0)
       goto err;
+    gtid.gno= gtid_ev.get_gno();
     inc_pos= event_len;
   }
   break;
@@ -5817,7 +5817,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   mysql_mutex_lock(log_lock);
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
-  if (buf[EVENT_TYPE_OFFSET] == PREVIOUS_GTIDS_LOG_EVENT ||
+  if (event_type == PREVIOUS_GTIDS_LOG_EVENT ||
       (s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
       /*
         the following conjunction deals with IGNORE_SERVER_IDS, if set
@@ -5829,8 +5829,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
        /* everything is filtered out from non-master */
        (s_id != mi->master_id ||
         /* for the master meta information is necessary */
-        (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
-         buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT))))
+        (event_type != FORMAT_DESCRIPTION_EVENT &&
+         event_type != ROTATE_EVENT))))
   {
     /*
       Do not write it to the relay log.
@@ -5849,11 +5849,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       IGNORE_SERVER_IDS it increments mi->get_master_log_pos()
       as well as rli->group_relay_log_pos.
     */
-    if (buf[EVENT_TYPE_OFFSET] == PREVIOUS_GTIDS_LOG_EVENT ||
+    if (event_type == PREVIOUS_GTIDS_LOG_EVENT ||
         !(s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
-        (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
-         buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT &&
-         buf[EVENT_TYPE_OFFSET] != STOP_EVENT))
+        (event_type != FORMAT_DESCRIPTION_EVENT &&
+         event_type != ROTATE_EVENT &&
+         event_type != STOP_EVENT))
     {
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(), FN_REFLEN);
@@ -5872,6 +5872,15 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+
+      if (event_type == GTID_LOG_EVENT)
+      {
+        global_sid_lock.rdlock();
+        int ret= rli->add_logged_gtid(gtid.sidno, gtid.gno);
+        global_sid_lock.unlock();
+        if (ret != 0)
+          goto err;
+      }
     }
     else
     {

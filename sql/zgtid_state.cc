@@ -94,12 +94,8 @@ void Gtid_state::wait_for_gtid(THD *thd, Gtid g)
   sid_locks.enter_cond(thd, g.sidno,
                        &stage_waiting_for_group_to_be_written_to_binary_log,
                        &old_stage);
-  while (get_owner(g.sidno, g.gno) != 0 && !thd->killed && !abort_loop)
-  {
-    sid_lock->unlock();
-    sid_locks.wait(g.sidno);
-    sid_lock->rdlock();
-  }
+  //while (get_owner(g.sidno, g.gno) != 0 && !thd->killed && !abort_loop)
+  sid_locks.wait(g.sidno);
   thd->EXIT_COND(&old_stage);
 
   DBUG_VOID_RETURN;

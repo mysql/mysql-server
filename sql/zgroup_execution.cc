@@ -75,14 +75,16 @@ gtid_acquire_ownership(THD *thd, Checkable_rwlock *lock, Gtid_state *gst,
     {
       DBUG_ASSERT(owner != thd_id);
       Gtid g= { sidno, gno };
+      // The call below releases the read lock on global_sid_lock
       gst->wait_for_gtid(thd, g);
+      gst->unlock_sidno(sidno);
       if (thd->killed || abort_loop)
-      {
-        ret= GTID_STATEMENT_CANCEL;
-        break;
-      }
+        DBUG_RETURN(GTID_STATEMENT_CANCEL);
+      // re-acquire locks before checking conditions again
+      lock->rdlock();
+      gst->lock_sidno(sidno);
     }
-  } while (false);
+  }
   gst->unlock_sidno(sidno);
   DBUG_RETURN(ret);
 }
@@ -145,6 +147,9 @@ gtid_acquire_ownerships(THD *thd, Checkable_rwlock *lock, Gtid_state *gst,
     // read lock that was held when this function was invoked
     if (thd->killed || abort_loop)
       DBUG_RETURN(GTID_STATEMENT_CANCEL);
+
+    // re-acquire read lock that was released in wait_for_gtid
+    lock->rdlock();
   }
 
   /*
