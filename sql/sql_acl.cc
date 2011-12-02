@@ -7186,6 +7186,8 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= TRUE,
                                           user->password.length);
           str->append(tmp);
         }
+#ifdef HAVE_OPENSSL
+#ifndef HAVE_YASSL
         else if (thd->variables.old_passwords == 2)
         {
           char tmp[CRYPT_MAX_PASSWORD_SIZE+1];
@@ -7193,6 +7195,8 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= TRUE,
                                      user->password.length);
           str->append(tmp, user->password.length, system_charset_info);
         }
+#endif
+#endif
         else
         {
           /*
