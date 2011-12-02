@@ -2253,6 +2253,9 @@ static void free_memory(void *ptr);
 
 void *_db_malloc_(size_t size)
 {
+#ifndef SAFEMALLOC
+  return malloc(size);
+#else
   CODE_STATE *cs= code_state();
   struct st_irem *irem;
   uchar *data;
@@ -2318,10 +2321,14 @@ void *_db_malloc_(size_t size)
 
   TRASH_ALLOC(data, size);
   return data;
+#endif
 }
 
 void *_db_realloc_(void *ptr, size_t size)
 {
+#ifndef SAFEMALLOC
+  return realloc(ptr, size);
+#else
   char *data;
 
   if (!ptr)
@@ -2338,15 +2345,19 @@ void *_db_realloc_(void *ptr, size_t size)
     free_memory(ptr);
   }
   return data;
+#endif
 }
 
 void _db_free_(void *ptr)
 {
+#ifndef SAFEMALLOC
+  free(ptr);
+#else
   if (!ptr || bad_ptr("Freeing", ptr))
     return;
 
    free_memory(ptr);
-  return;
+#endif
 }
 
 static void free_memory(void *ptr)
