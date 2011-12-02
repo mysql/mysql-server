@@ -16,7 +16,7 @@
 #include "my_global.h"
 #include <signal.h>
 
-#include "mysql_priv.h"
+#include "sys_vars.h"
 #include "my_stacktrace.h"
 
 #ifdef __WIN__
@@ -111,7 +111,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
                         (ulong) max_used_connections);
 
   my_safe_printf_stderr("max_threads=%u\n",
-                        (uint) thread_scheduler.max_threads);
+                        (uint) thread_scheduler->max_threads);
 
   my_safe_printf_stderr("thread_count=%u\n", (uint) thread_count);
 
@@ -124,7 +124,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
                         ((ulong) dflt_key_cache->key_cache_mem_size +
                          (global_system_variables.read_buff_size +
                           global_system_variables.sortbuff_size) *
-                         thread_scheduler.max_threads +
+                         thread_scheduler->max_threads +
                          max_connections * sizeof(THD)) / 1024);
 
   my_safe_printf_stderr("%s",
@@ -185,7 +185,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
       "Some pointers may be invalid and cause the dump to abort.\n");
 
     my_safe_printf_stderr("Query (%p): ", thd->query());
-    my_safe_print_str(thd->query(), min(1024U, thd->query_length()));
+    my_safe_print_str(thd->query(), MY_MIN(1024U, thd->query_length()));
     my_safe_printf_stderr("Connection ID (thread ID): %lu\n",
                           (ulong) thd->thread_id);
     my_safe_printf_stderr("Status: %s\n\n", kreason);
