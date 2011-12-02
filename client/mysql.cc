@@ -4319,9 +4319,10 @@ char *get_arg(char *line, my_bool get_next_arg)
                         string, and the "dialog" plugin will free() it.
 */
 
-extern "C" char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
-                                                 const char *prompt,
-                                                 char *buf, int buf_len)
+MYSQL_PLUGIN_EXPORT
+char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
+                                      const char *prompt,
+                                      char *buf, int buf_len)
 {
   char *s=buf;
 

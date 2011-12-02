@@ -142,36 +142,6 @@ static struct st_mysql_auth three_handler=
   three_attempts 
 };
 
-mysql_declare_plugin(dialog)
-{
-  MYSQL_AUTHENTICATION_PLUGIN,
-  &two_handler,
-  "two_questions",
-  "Sergei Golubchik",
-  "Dialog plugin demo 1",
-  PLUGIN_LICENSE_GPL,
-  NULL,
-  NULL,
-  0x0100,
-  NULL,
-  NULL,
-  NULL
-},
-{
-  MYSQL_AUTHENTICATION_PLUGIN,
-  &three_handler,
-  "three_attempts",
-  "Sergei Golubchik",
-  "Dialog plugin demo 2",
-  PLUGIN_LICENSE_GPL,
-  NULL,
-  NULL,
-  0x0100,
-  NULL,
-  NULL,
-  NULL
-}
-mysql_declare_plugin_end;
 maria_declare_plugin(dialog)
 {
   MYSQL_AUTHENTICATION_PLUGIN,
@@ -186,7 +156,7 @@ maria_declare_plugin(dialog)
   NULL,
   NULL,
   "1.0",
-  MariaDB_PLUGIN_MATURITY_BETA
+  MariaDB_PLUGIN_MATURITY_EXPERIMENTAL
 },
 {
   MYSQL_AUTHENTICATION_PLUGIN,
@@ -201,7 +171,7 @@ maria_declare_plugin(dialog)
   NULL,
   NULL,
   "1.0",
-  MariaDB_PLUGIN_MATURITY_BETA
+  MariaDB_PLUGIN_MATURITY_EXPERIMENTAL
 }
 maria_declare_plugin_end;
 
@@ -224,16 +194,25 @@ static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
                          const char *prompt,
                          char *buf, int buf_len)
 {
-  int len;
-
   fputs(prompt, stdout);
   fputc(' ', stdout);
-  if (fgets(buf, buf_len, stdin) == 0)
-    return 0;
 
-  len= strlen(buf);
-  if (len && buf[len-1]=='\n')
-    buf[len-1]=0;
+  if (type == 2) /* password */
+  {
+    get_tty_password_buff("", buf, buf_len);
+    buf[buf_len-1]= 0;
+  }
+  else
+  {
+    if (!fgets(buf, buf_len-1, stdin))
+      buf[0]= 0;
+    else
+    {
+      int len= strlen(buf);
+      if (len && buf[len-1] == '\n')
+        buf[len-1]= 0;
+    }
+  }
 
   return buf;
 }
@@ -261,6 +240,7 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   unsigned char *pkt, cmd= 0;
   int pkt_len, res;
   char reply_buf[1024], *reply;
+  int first = 1;
 
   do
   {
@@ -269,7 +249,7 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     if (pkt_len < 0)
       return CR_ERROR;
 
-    if (pkt == 0)
+    if (pkt == 0 && first)
     {
       /*
         in mysql_change_user() the client sends the first packet, so
@@ -291,10 +271,10 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         return CR_OK_HANDSHAKE_COMPLETE; /* yes. we're done */
 
       /*
-        asking for a password with an empty prompt means mysql->password
+        asking for a password in the first packet mean mysql->password, if it's set
         otherwise we ask the user and read the reply
       */
-      if ((cmd >> 1) == 2 && *pkt == 0)
+      if ((cmd >> 1) == 2 && first && mysql->passwd[0])
         reply= mysql->passwd;
       else
         reply= ask(mysql, cmd >> 1, (char*) pkt, reply_buf, sizeof(reply_buf));

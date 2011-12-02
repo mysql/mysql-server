@@ -1520,17 +1520,19 @@ do { doubleget_union _tmp; \
 #define NO_EMBEDDED_ACCESS_CHECKS
 #endif
 
-#ifdef HAVE_DLOPEN
-#if defined(__WIN__)
+#if defined(_WIN32)
 #define dlsym(lib, name) GetProcAddress((HMODULE)lib, name)
 #define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
 #define dlclose(lib) FreeLibrary((HMODULE)lib)
-#elif defined(HAVE_DLFCN_H)
+#define HAVE_DLOPEN
+#endif
+
+#ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif
+
 #ifndef HAVE_DLERROR
 #define dlerror() ""
-#endif
 #endif
 
 /* FreeBSD 2.2.2 does not define RTLD_NOW) */

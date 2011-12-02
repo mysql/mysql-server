@@ -117,6 +117,7 @@ static my_bool disable_connect_log= 1;
 static my_bool disable_warnings= 0;
 static my_bool prepare_warnings_enabled= 0;
 static my_bool disable_info= 1;
+static char *opt_plugin_dir= 0, *opt_default_auth;
 static my_bool abort_on_error= 1;
 static my_bool server_initialized= 0;
 static my_bool is_windows= 0;
@@ -6235,6 +6236,13 @@ static struct my_option my_long_options[] =
   {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
    &view_protocol, &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_PLUGIN_DIR,
+    "Default authentication client-side plugin to use.",
+   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -8218,6 +8226,12 @@ int main(int argc, char **argv)
   if (opt_protocol)
     mysql_options(con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
 
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(con->mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(con->mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
 #ifdef HAVE_OPENSSL
 
   if (opt_use_ssl)
@@ -10176,3 +10190,33 @@ static int setenv(const char *name, const char *value, int overwrite)
   return 0;
 }
 #endif
+
+/*
+  for the purpose of testing (see dialog.test)
+  we replace default mysql_authentication_dialog_ask function with the one,
+  that always reads from stdin with explicit echo.
+
+*/
+MYSQL_PLUGIN_EXPORT
+char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
+                                      const char *prompt,
+                                      char *buf, int buf_len)
+{
+  char *s=buf;
+
+  fputs(prompt, stdout);
+  fputs(" ", stdout);
+
+  if (!fgets(buf, buf_len-1, stdin))
+    buf[0]= 0;
+  else if (buf[0] && (s= strend(buf))[-1] == '\n')
+    s[-1]= 0;
+
+  for (s= buf; *s; s++)
+    fputc(type == 2 ? '*' : *s, stdout);
+
+  fputc('\n', stdout);
+
+  return buf;
+}
+
