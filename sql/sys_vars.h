@@ -1606,17 +1606,3 @@ public:
   {}
   virtual bool session_update(THD *thd, set_var *var);
 };
-
-/****************************************************************************
-  Used templates
-****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<set_var_base>;
-template class List_iterator_fast<set_var_base>;
-template class Sys_var_unsigned<uint, GET_UINT, SHOW_INT>;
-template class Sys_var_unsigned<ulong, GET_ULONG, SHOW_LONG>;
-template class Sys_var_unsigned<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS>;
-template class Sys_var_unsigned<ulonglong, GET_ULL, SHOW_LONGLONG>;
-#endif
-
