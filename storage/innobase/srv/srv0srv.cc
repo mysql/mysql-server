@@ -1118,7 +1118,7 @@ srv_printf_innodb_monitor(
 		" INNODB MONITOR OUTPUT\n"
 		"=====================================\n"
 		"Per second averages calculated from the last %lu seconds\n",
-		(ulong)time_elapsed);
+		(ulong) time_elapsed);
 
 	fputs("-----------------\n"
 	      "BACKGROUND THREAD\n"
@@ -1699,7 +1699,7 @@ srv_get_active_thread_type(void)
 
 /**********************************************************************//**
 Check whether any background thread are active. If so print which thread
-is active. Send the threads wakeup signal. 
+is active. Send the threads wakeup signal.
 @return name of thread that is active or NULL */
 UNIV_INTERN
 const char*

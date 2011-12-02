@@ -1110,10 +1110,10 @@ sync_thread_add_level(
 		return;
 	}
 
-	if ((latch == (void*)&sync_thread_mutex)
-	    || (latch == (void*)&mutex_list_mutex)
-	    || (latch == (void*)&rw_lock_debug_mutex)
-	    || (latch == (void*)&rw_lock_list_mutex)) {
+	if ((latch == (void*) &sync_thread_mutex)
+	    || (latch == (void*) &mutex_list_mutex)
+	    || (latch == (void*) &rw_lock_debug_mutex)
+	    || (latch == (void*) &rw_lock_list_mutex)) {
 
 		return;
 	}
@@ -1393,10 +1393,10 @@ sync_thread_reset_level(
 		return(FALSE);
 	}
 
-	if ((latch == (void*)&sync_thread_mutex)
-	    || (latch == (void*)&mutex_list_mutex)
-	    || (latch == (void*)&rw_lock_debug_mutex)
-	    || (latch == (void*)&rw_lock_list_mutex)) {
+	if ((latch == (void*) &sync_thread_mutex)
+	    || (latch == (void*) &mutex_list_mutex)
+	    || (latch == (void*) &rw_lock_debug_mutex)
+	    || (latch == (void*) &rw_lock_list_mutex)) {
 
 		return(FALSE);
 	}

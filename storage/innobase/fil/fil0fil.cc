@@ -5227,7 +5227,7 @@ fil_page_get_type(
 }
 
 /****************************************************************//**
-Initializes the tablespace memory cache. */
+Closes the tablespace memory cache. */
 UNIV_INTERN
 void
 fil_close(void)

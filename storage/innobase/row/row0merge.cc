@@ -454,7 +454,7 @@ row_merge_buf_add(
 	}
 
 	/* If this is FTS index, we already populated the sort buffer, return
-	here */ 
+	here */
 	if (index->type & DICT_FTS) {
 		return(n_row_added);
 	}
@@ -1288,7 +1288,7 @@ row_merge_read_clustered_index(
 			fetch the first FTS Doc ID */
 			if (add_doc_id) {
 				fts_get_next_doc_id(
-					(dict_table_t*)new_table,
+					(dict_table_t*) new_table,
 					 &doc_id);
 				ut_ad(doc_id > 0);
 			}
@@ -2971,8 +2971,9 @@ wait_again:
 			goto func_exit;
 		}
 
+#ifdef FTS_INTERNAL_DIAG_PRINT
 		if (fts_enable_diag_print) {
-			char*	name = (char*)indexes[i]->name;
+			char*	name = (char*) indexes[i]->name;
 
 			ut_print_timestamp(stderr);
 
@@ -2980,10 +2981,9 @@ wait_again:
 				name++;
 			}
 
-#ifdef FTS_INTERNAL_DIAG_PRINT
 			fprintf(stderr, "Finish build index %s\n", name);
-#endif /* FTS_INTERNAL_DIAG_PRINT */
 		}
+#endif /* FTS_INTERNAL_DIAG_PRINT */
 	}
 
 func_exit:

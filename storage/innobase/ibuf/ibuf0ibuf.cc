@@ -1371,7 +1371,7 @@ ibuf_rec_get_info_func(
 		break;
 
 	case IBUF_REC_INFO_SIZE:
-		op_local = (ibuf_op_t)types[IBUF_REC_OFFSET_TYPE];
+		op_local = (ibuf_op_t) types[IBUF_REC_OFFSET_TYPE];
 		comp_local = types[IBUF_REC_OFFSET_FLAGS] & IBUF_REC_COMPACT;
 		counter_local = mach_read_from_2(
 			types + IBUF_REC_OFFSET_COUNTER);

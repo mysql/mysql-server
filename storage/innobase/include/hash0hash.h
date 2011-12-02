@@ -281,7 +281,7 @@ do {\
 \
 	HASH_DELETE(TYPE, NAME, TABLE, fold111, NODE);\
 \
-	top_node111 = (TYPE*)mem_heap_get_top(\
+	top_node111 = (TYPE*) mem_heap_get_top(\
 				hash_get_heap(TABLE, fold111),\
 							sizeof(TYPE));\
 \

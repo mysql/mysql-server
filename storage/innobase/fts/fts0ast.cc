@@ -58,7 +58,7 @@ fts_ast_create_node_oper(
 	node->type = FTS_AST_OPER;
 	node->oper = oper;
 
-	fts_ast_state_add_node((fts_ast_state_t*)arg, node);
+	fts_ast_state_add_node((fts_ast_state_t*) arg, node);
 
 	return(node);
 }
@@ -82,14 +82,14 @@ fts_ast_create_node_term(
 	node->term.ptr = static_cast<byte*>(ut_malloc(len + 1));
 	memcpy(node->term.ptr, ptr, len + 1);
 
-	fts_ast_state_add_node((fts_ast_state_t*)arg, node);
+	fts_ast_state_add_node((fts_ast_state_t*) arg, node);
 
 	return(node);
 }
 
 /******************************************************************//**
 This function takes ownership of the ptr and is responsible
-for free'ing it. 
+for free'ing it.
 @return new node */
 UNIV_INTERN
 fts_ast_node_t*
@@ -110,14 +110,14 @@ fts_ast_create_node_text(
 	node->text.ptr[len] = 0;
 	node->text.distance = ULINT_UNDEFINED;
 
-	fts_ast_state_add_node((fts_ast_state_t*)arg, node);
+	fts_ast_state_add_node((fts_ast_state_t*) arg, node);
 
 	return(node);
 }
 
 /******************************************************************//**
 This function takes ownership of the expr and is responsible
-for free'ing it. 
+for free'ing it.
 @return new node */
 UNIV_INTERN
 fts_ast_node_t*
@@ -131,14 +131,14 @@ fts_ast_create_node_list(
 	node->type = FTS_AST_LIST;
 	node->list.head = node->list.tail = expr;
 
-	fts_ast_state_add_node((fts_ast_state_t*)arg, node);
+	fts_ast_state_add_node((fts_ast_state_t*) arg, node);
 
 	return(node);
 }
 
 /******************************************************************//**
 Create a sub-expression list node. This function takes ownership of
-expr and is responsible for deleting it. 
+expr and is responsible for deleting it.
 @return new node */
 UNIV_INTERN
 fts_ast_node_t*
@@ -152,7 +152,7 @@ fts_ast_create_node_subexp_list(
 	node->type = FTS_AST_SUBEXP_LIST;
 	node->list.head = node->list.tail = expr;
 
-	fts_ast_state_add_node((fts_ast_state_t*)arg, node);
+	fts_ast_state_add_node((fts_ast_state_t*) arg, node);
 
 	return(node);
 }
@@ -187,7 +187,7 @@ fts_ast_free_node(
 {
 	fts_ast_node_t*	next_node;
 
-	switch(node->type) {
+	switch (node->type) {
 	case FTS_AST_TEXT:
 		if (node->text.ptr) {
 			ut_free(node->text.ptr);
@@ -225,7 +225,7 @@ fts_ast_free_node(
 
 /******************************************************************//**
 This AST takes ownership of the expr and is responsible
-for free'ing it. 
+for free'ing it.
 @return in param "list" */
 UNIV_INTERN
 fts_ast_node_t*
@@ -344,7 +344,7 @@ fts_ast_node_print(
 /*===============*/
 	fts_ast_node_t*	node)			/*!< in: ast node to print */
 {
-	switch(node->type) {
+	switch (node->type) {
 	case FTS_AST_TEXT:
 		printf("TEXT: %s\n", node->text.ptr);
 		break;
@@ -381,7 +381,7 @@ fts_ast_node_print(
 }
 
 /******************************************************************//**
-Traverse the AST - in-order traversal. 
+Traverse the AST - in-order traversal.
 @return DB_SUCCESS if all went well */
 UNIV_INTERN
 ulint
