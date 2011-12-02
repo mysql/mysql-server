@@ -1360,20 +1360,11 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
 
     relay_log.is_relay_log= TRUE;
 
-    /*
-      note, that if open() fails, we'll still have index file open
-      but a destructor will take care of that
-    */
-    if (relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE) ||
-        relay_log.open_binlog(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
-                              (max_relay_log_size ? max_relay_log_size :
-                               max_binlog_size), 1,
-                              true/*need mutex*/, true/*need sid_lock*/))
+    if (relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE))
     {
-      sql_print_error("Failed in open_log() called from Relay_log_info::init_info().");
+      sql_print_error("Failed in open_index_file() called from Relay_log_info::init_info().");
       DBUG_RETURN(1);
     }
-
 #ifndef NO_DBUG
     global_sid_lock.wrlock();
     gtid_set.dbug_print("set of GTIDs in relay log before initialization");
@@ -1391,6 +1382,18 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     gtid_set.dbug_print("set of GTIDs in relay log after initialization");
     global_sid_lock.unlock();
 #endif
+    /*
+      note, that if open() fails, we'll still have index file open
+      but a destructor will take care of that
+    */
+    if (relay_log.open_binlog(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
+                              (max_relay_log_size ? max_relay_log_size :
+                               max_binlog_size), 1,
+                              true/*need mutex*/, true/*need sid_lock*/))
+    {
+      sql_print_error("Failed in open_log() called from Relay_log_info::init_info().");
+      DBUG_RETURN(1);
+    }
   }
 
    /*

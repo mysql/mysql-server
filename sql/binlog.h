@@ -74,6 +74,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   uint file_id;
   uint open_count;				// For replication
   int readers_count;
+  /// need_start_event is always 1, it's completely redundant and
+  /// should be removed
   bool need_start_event;
   /*
     no_auto_events means we don't want any of these automatic events :
@@ -236,6 +238,24 @@ public:
   void cleanup();
   /**
     Create a new binary log.
+    @param log_name Name of binlog
+    @param log_type Always LOG_BIN. This is probably redundant and can
+    be removed
+    @param new_name Name of binlog, too. todo: what's the difference
+    between new_name and log_name?
+    @param io_cache_type_arg Specifies how the IO cache is opened:
+    read-only or read-write.
+    @param no_auto_events_arg Do not create Format_description_log_event.
+    @param max_size The size at which this binlog will be rotated.
+    @param null_created If false, and a Format_description_log_event
+    is written, then the Format_description_log_event will have the
+    timestamp 0. Otherwise, it the timestamp will be the time when the
+    event was written to the log.
+    @param need_mutex If true, LOCK_index is acquired; otherwise
+    LOCK_index must be taken by the caller.
+    @param need_sid_lock If true, the read lock on global_sid_lock
+    will be acquired.  Otherwise, the caller must hold the read lock
+    on global_sid_lock.
   */
   bool open_binlog(const char *log_name,
                    enum_log_type log_type,

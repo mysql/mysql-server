@@ -664,11 +664,19 @@ public:
     mysql_mutex_assert_not_owner(&get_mutex_cond(n)->mutex);
 #endif
   }
-  /// Wait for signal on the n'th condition variable.
+  /**
+    Wait for signal on the n'th condition variable.
+
+    The caller must hold the read lock or write lock on sid_lock, as
+    well as the nth mutex lock, before invoking this function.  The
+    sid_lock will be released, whereas the mutex will be released
+    during the wait and (atomically) re-acquired when the wait ends.
+  */
   inline void wait(int n) const
   {
     DBUG_ENTER("Mutex_cond_array::wait");
     Mutex_cond *mutex_cond= get_mutex_cond(n);
+    global_lock->unlock();
     mysql_mutex_assert_owner(&mutex_cond->mutex);
     mysql_cond_wait(&mutex_cond->cond, &mutex_cond->mutex);
     DBUG_VOID_RETURN;
@@ -1143,7 +1151,7 @@ public:
     /// Create this Const_interval_iterator.
     Const_interval_iterator(const Gtid_set *gtid_set, rpl_sidno sidno)
       : Interval_iterator_base<const Gtid_set, Interval *const>(gtid_set, sidno) {}
-    /// Destroy this Const_interval_iterator.
+    /// Create this Const_interval_iterator.
     Const_interval_iterator(const Gtid_set *gtid_set)
       : Interval_iterator_base<const Gtid_set, Interval *const>(gtid_set) {}
   };
