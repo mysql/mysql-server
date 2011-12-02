@@ -1047,6 +1047,9 @@ public:
     @return Length of the generated string.
   */
   int to_string(char *buf, const String_format *string_format= NULL) const;
+
+  int to_string(char **buf, int *size, const String_format *string_format= NULL) const;
+
   /// The default String_format: the format understood by add(const char *).
   static const String_format default_string_format;
   /**

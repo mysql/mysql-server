@@ -4547,6 +4547,19 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
+#ifdef HAVE_GTID
+  if (opt_bin_log)
+  {
+    /*
+      Configures what object is used by the current log to store processed
+      gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
+      corretly compute the set of previous gtids.
+    */
+    mysql_bin_log.set_previous_gtid_set(
+      const_cast<Gtid_set*>(gtid_state.get_logged_gtids()));
+  }
+#endif
+
   if (opt_bin_log &&
       mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
                                 WRITE_CACHE, 0, max_binlog_size, 0,
@@ -5015,6 +5028,22 @@ int mysqld_main(int argc, char **argv)
             const_cast<Gtid_set *>(gtid_state.get_lost_gtids()),
             opt_master_verify_checksum))
         unireg_abort(1);
+
+      /*
+        Write the previous set of gtids at this point because during
+        the creation of the binary log this is not done as we cannot
+        move the init_gtid_sets() to a place before openning the binary
+        log. This requires some investigation.
+
+        /Alfranio
+      */
+      global_sid_lock.rdlock();
+      Previous_gtids_log_event prev_gtids_ev(current_thd,
+                                             gtid_state.get_logged_gtids());
+      global_sid_lock.unlock();
+      if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
+        unireg_abort(1);
+      mysql_bin_log.add_bytes_written(prev_gtids_ev.data_written);
     }
 #endif
   }

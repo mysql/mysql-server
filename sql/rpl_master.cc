@@ -1480,17 +1480,47 @@ int reset_master(THD* thd)
 bool show_binlog_info(THD* thd)
 {
   Protocol *protocol= thd->protocol;
-  DBUG_ENTER("show_binlog_info");
+  char* gtid_set_buffer= NULL;
+  int gtid_set_size= 0;
   List<Item> field_list;
+
+  DBUG_ENTER("show_binlog_info");
+
+#ifdef HAVE_GTID
+  /*
+    Temporarly disabled because this was causing deadlock
+    problems. We need to investigage this.
+
+    /Alfranio
+  */
+  /*global_sid_lock.rdlock();
+  const Gtid_set* gtid_set= gtid_state.get_logged_gtids();
+  if (gtid_set->to_string(&gtid_set_buffer, &gtid_set_size))
+  {
+    my_eof(thd);
+    my_free(gtid_set_buffer);
+    global_sid_lock.unlock();
+    DBUG_RETURN(true);
+  }
+  global_sid_lock.unlock();*/
+#endif
+
   field_list.push_back(new Item_empty_string("File", FN_REFLEN));
   field_list.push_back(new Item_return_int("Position",20,
 					   MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Binlog_Do_DB",255));
   field_list.push_back(new Item_empty_string("Binlog_Ignore_DB",255));
+#ifdef HAVE_GTID
+  field_list.push_back(new Item_empty_string("Executed_Gtid_Set",
+                                             gtid_set_size));
+#endif
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+  {
+    my_free(gtid_set_buffer);
+    DBUG_RETURN(true);
+  }
   protocol->prepare_for_resend();
 
   if (mysql_bin_log.is_open())
@@ -1502,11 +1532,18 @@ bool show_binlog_info(THD* thd)
     protocol->store((ulonglong) li.pos);
     protocol->store(binlog_filter->get_do_db());
     protocol->store(binlog_filter->get_ignore_db());
+#ifdef HAVE_GTID
+    protocol->store(gtid_set_buffer, &my_charset_bin);
+#endif
     if (protocol->write())
-      DBUG_RETURN(TRUE);
+    {
+      my_free(gtid_set_buffer);
+      DBUG_RETURN(true);
+    }
   }
   my_eof(thd);
-  DBUG_RETURN(FALSE);
+  my_free(gtid_set_buffer);
+  DBUG_RETURN(false);
 }
 
 
