@@ -30,6 +30,7 @@ Created 2007-03-27 Sunny Bains
 
 /******************************************************************//**
 Return length of val if it were encoded using our VLC scheme.
+FIXME: We will need to be able encode 8 bytes value
 @return length of value encoded, in bytes */
 UNIV_INLINE
 ulint

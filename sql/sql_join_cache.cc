@@ -68,7 +68,7 @@ uint add_flag_field_to_join_cache(uchar *str, uint length, CACHE_FIELD **field)
   copy->type= 0;
   copy->field= 0;
   copy->referenced_field_no= 0;
-  copy->get_rowid= NULL;
+  copy->next_copy_rowid= NULL;
   (*field)++;
   return length;    
 }
@@ -127,7 +127,7 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
       }
       copy->field= *fld_ptr;
       copy->referenced_field_no= 0;
-      copy->get_rowid= NULL;
+      copy->next_copy_rowid= NULL;
       copy++;
       (*field_cnt)++;
       used_fields--;
@@ -367,7 +367,10 @@ void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
       copy->type= 0;
       copy->field= 0;
       copy->referenced_field_no= 0;
-      copy->get_rowid= NULL;
+      copy->next_copy_rowid= NULL;
+      // Chain rowid copy objects belonging to same join_tab
+      if (tab->copy_current_rowid != NULL)
+        copy->next_copy_rowid= tab->copy_current_rowid;
       tab->copy_current_rowid= copy;
       length+= copy->length;
       data_field_count++;
@@ -1088,12 +1091,6 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
     }
     else
     {
-      if (copy->get_rowid)
-      {
-        /* SemiJoinDuplicateElimination: get the rowid into table->ref */
-        copy->get_rowid->file->position(copy->get_rowid->record[0]);
-      }
-
       switch (copy->type) {
       case CACHE_VARSTR1:
         /* Copy the significant part of the short varstring field */ 

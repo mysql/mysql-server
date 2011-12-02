@@ -587,7 +587,7 @@ os_file_handle_error_cond_exit(
 
 	err = os_file_get_last_error_low(FALSE, on_error_silent);
 
-	switch(err) {
+	switch (err) {
 	case OS_FILE_DISK_FULL:
 		/* We only print a warning about disk full once */
 

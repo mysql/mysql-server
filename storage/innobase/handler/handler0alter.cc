@@ -663,6 +663,38 @@ innobase_create_key_def(
 		}
 	}
 
+	/* Check whether there is a "FTS_DOC_ID_INDEX" in the to be built index
+	list */
+	for (ulint j = 0; j < n_keys; j++) {
+		KEY*    key = &key_info[j];
+
+		if (innobase_strcasecmp(key->name, FTS_DOC_ID_INDEX_NAME)) {
+			continue;
+		}
+
+		/* Do a check on FTS DOC ID_INDEX, it must be unique,
+		named as "FTS_DOC_ID_INDEX" and on column "FTS_DOC_ID" */
+		if (!(key->flags & HA_NOSAME)
+		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
+		    || strcmp(key->key_part[0].field->field_name,
+			     FTS_DOC_ID_COL_NAME)) {
+		       push_warning_printf((THD*) trx->mysql_thd,
+					   Sql_condition::WARN_LEVEL_WARN,
+					   ER_WRONG_NAME_FOR_INDEX,
+					   " InnoDB: Index name %s is reserved"
+					   " for the unique index on"
+					   " FTS_DOC_ID column for FTS"
+					   " document ID indexing"
+					   " on table %s. Please check"
+					   " the index definition to"
+					   " make sure it is of correct"
+					   " type\n",
+					   FTS_DOC_ID_INDEX_NAME,
+					   table->name);
+		       DBUG_RETURN(NULL);
+               }
+	}
+
 	/* If we are to build an FTS index, check whether the table
 	already has a DOC ID column, if not, we will need to add a
 	Doc ID hidden column and rebuild the primary index */

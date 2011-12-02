@@ -614,7 +614,7 @@ fts_zip_read_word(
 			}
 		}
 
-		switch(zip->status = inflate(zip->zp, flush)) {
+		switch (zip->status = inflate(zip->zp, flush)) {
 		case Z_OK:
 			if (zip->zp->avail_out == 0 && len > 0) {
 
@@ -709,7 +709,7 @@ fts_fetch_index_words(
 			zip->zp->avail_out = zip->block_sz;
 		}
 
-		switch(zip->status = deflate(zip->zp, Z_NO_FLUSH)) {
+		switch (zip->status = deflate(zip->zp, Z_NO_FLUSH)) {
 		case Z_OK:
 			if (zip->zp->avail_in == 0) {
 				zip->zp->next_in = static_cast<byte*>(data);
@@ -1127,7 +1127,7 @@ fts_optimize_encode_node(
 
 	/* Calculate the space required to store the ilist. */
 	doc_id_delta = doc_id - node->last_doc_id;
-	enc_len = fts_get_encoded_len(doc_id_delta);
+	enc_len = fts_get_encoded_len(static_cast<ulint>(doc_id_delta));
 
 	/* Calculate the size of the encoded pos array. */
 	while (*src) {
@@ -2553,6 +2553,10 @@ fts_optimize_add_table(
 {
 	fts_msg_t*	msg;
 
+	if (!fts_optimize_wq) {
+		return;
+	}
+
 	msg = fts_optimize_create_msg(FTS_MSG_ADD_TABLE, table);
 
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
@@ -2926,7 +2930,7 @@ fts_optimize_thread(
 				continue;
 			}
 
-			switch(msg->type) {
+			switch (msg->type) {
 			case FTS_MSG_START:
 				break;
 
