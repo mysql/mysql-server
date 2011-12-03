@@ -2971,8 +2971,7 @@ wait_again:
 			goto func_exit;
 		}
 
-#ifdef FTS_INTERNAL_DIAG_PRINT
-		if (fts_enable_diag_print) {
+		if (indexes[i]->type & DICT_FTS && fts_enable_diag_print) {
 			char*	name = (char*) indexes[i]->name;
 
 			ut_print_timestamp(stderr);
@@ -2981,9 +2980,9 @@ wait_again:
 				name++;
 			}
 
-			fprintf(stderr, "Finish build index %s\n", name);
+			fprintf(stderr, "  InnoDB_FTS: Finish building"
+				" Fulltext index %s\n", name);
 		}
-#endif /* FTS_INTERNAL_DIAG_PRINT */
 	}
 
 func_exit:

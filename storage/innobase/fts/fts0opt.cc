@@ -1127,7 +1127,7 @@ fts_optimize_encode_node(
 
 	/* Calculate the space required to store the ilist. */
 	doc_id_delta = doc_id - node->last_doc_id;
-	enc_len = fts_get_encoded_len(doc_id_delta);
+	enc_len = fts_get_encoded_len(static_cast<ulint>(doc_id_delta));
 
 	/* Calculate the size of the encoded pos array. */
 	while (*src) {
@@ -2552,6 +2552,10 @@ fts_optimize_add_table(
 	dict_table_t*	table)			/*!< in: table to add */
 {
 	fts_msg_t*	msg;
+
+	if (!fts_optimize_wq) {
+		return;
+	}
 
 	msg = fts_optimize_create_msg(FTS_MSG_ADD_TABLE, table);
 
