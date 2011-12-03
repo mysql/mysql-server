@@ -2780,6 +2780,8 @@ static int reconnect(void)
   }
   if (!connected)
     return put_info("Can't connect to the server\n",INFO_ERROR);
+  my_free(server_version,MYF(MY_ALLOW_ZERO_PTR));
+  server_version= 0;
   /* purecov: end */
   return 0;
 }
