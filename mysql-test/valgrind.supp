@@ -1175,3 +1175,13 @@
    fun:fil_delete_tablespace
    fun:row_drop_table_for_mysql
 }
+
+{
+  Problem with udf and libresolve
+  Memcheck:Cond
+   obj:*/libresolv*.so
+   fun:__libc_res_nquery
+   fun:_nss_dns_gethostbyaddr2_r
+   fun:_nss_dns_gethostbyaddr_r
+   fun:gethostbyaddr_r
+}
