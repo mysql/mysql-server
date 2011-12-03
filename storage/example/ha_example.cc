@@ -947,7 +947,6 @@ bool ha_example::check_if_incompatible_data(HA_CREATE_INFO *info,
                                             uint table_changes)
 {
   ha_table_option_struct *param_old, *param_new;
-  uint i;
   DBUG_ENTER("ha_example::check_if_incompatible_data");
   /*
     This example shows how custom engine specific table and field
@@ -978,7 +977,7 @@ bool ha_example::check_if_incompatible_data(HA_CREATE_INFO *info,
     DBUG_RETURN(COMPATIBLE_DATA_NO);
 
 #ifndef DBUG_OFF
-  for (i= 0; i < table->s->fields; i++)
+  for (uint i= 0; i < table->s->fields; i++)
   {
     ha_field_option_struct *f_old, *f_new;
     f_old= table->s->field[i]->option_struct;
