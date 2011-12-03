@@ -670,8 +670,8 @@ loop:
 #ifdef FTS_INTERNAL_DIAG_PRINT
 			for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 				fprintf(stderr, "ID %d, partition %d, word "
-					"%d\n",(int) id, (int) i,
-					(int) mycount[i]);
+					"%d\n",(int) psort_info->psort_id,
+					(int) i, (int) mycount[i]);
 			}
 #endif
 		}
@@ -767,7 +767,7 @@ exit:
 	}
 
 	if (fts_enable_diag_print) {
-		DEBUG_FTS_SORT_PRINT("FTS SORT: start merge sort\n");
+		DEBUG_FTS_SORT_PRINT("  InnoDB_FTS: start merge sort\n");
 	}
 
 	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
@@ -787,7 +787,7 @@ exit:
 	}
 
 	if (fts_enable_diag_print) {
-		DEBUG_FTS_SORT_PRINT("FTS SORT: complete merge sort\n");
+		DEBUG_FTS_SORT_PRINT("  InnoDB_FTS: complete merge sort\n");
 	}
 
 	mem_heap_free(blob_heap);
@@ -1261,9 +1261,7 @@ row_fts_merge_insert(
 	ulint			height;
 	ulint			start;
 	fts_psort_insert_t	ins_ctx;
-#ifdef FTS_INTERNAL_DIAG_PRINT
 	ulint			count_diag = 0;
-#endif
 
 	ut_ad(index);
 	ut_ad(table);
@@ -1316,14 +1314,14 @@ row_fts_merge_insert(
 
 		buf[i] = static_cast<unsigned char (*)[16384]>(
 			mem_heap_alloc(heap, sizeof *buf[i]));
-#ifdef FTS_INTERNAL_DIAG_PRINT
 		count_diag += (int) psort_info[i].merge_file[id]->n_rec;
-#endif
 	}
 
-#ifdef FTS_INTERNAL_DIAG_PRINT
-	fprintf(stderr, "to inserted %lu record \n", (ulong) count_diag);
-#endif
+	if (fts_enable_diag_print) { 
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB_FTS: to inserted %lu records\n",
+			(ulong) count_diag);
+	}
 
 	/* Initialize related variables if creating FTS indexes */
 	heap_alloc = ib_heap_allocator_create(heap);
@@ -1457,7 +1455,8 @@ exit:
 
 	if (fts_enable_diag_print) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "FTS: inserted %lu record\n", (ulong) count);
+		fprintf(stderr, "  InnoDB_FTS: inserted %lu records\n",
+			(ulong) count);
 	}
 
 	return(error);

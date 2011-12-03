@@ -3417,6 +3417,7 @@ row_truncate_table_for_mysql(
 	table_id_t	new_id;
 	ulint		recreate_space = 0;
 	pars_info_t*	info = NULL;
+	ibool		has_internal_doc_id;
 
 	/* How do we prevent crashes caused by ongoing operations on
 	the table? Old operations could try to access non-existent
@@ -3711,7 +3712,10 @@ next_rec:
 
 	/* Create new FTS auxiliary tables with the new_id, and
 	drop the old index later, only if everything runs successful. */
-	if (dict_table_has_fts_index(table)) {
+	has_internal_doc_id = dict_table_has_fts_index(table)
+			      || DICT_TF2_FLAG_IS_SET(
+				table, DICT_TF2_FTS_HAS_DOC_ID);
+	if (has_internal_doc_id) {
 		dict_table_t	fts_table;
 		ulint		i;
 
@@ -3784,7 +3788,7 @@ next_rec:
 
 		/* Fail to update the table id, so drop the new
 		FTS auxiliary tables */
-		if (dict_table_has_fts_index(table)) {
+		if (has_internal_doc_id) {
 			dict_table_t	fts_table;
 
 			fts_table.name = table->name;
@@ -3796,15 +3800,14 @@ next_rec:
 		err = DB_ERROR;
 	} else {
 		/* Drop the old FTS index */
-		if (dict_table_has_fts_index(table)) {
+		if (has_internal_doc_id) {
 			fts_drop_tables(trx, table);
 		}
 
 		dict_table_change_id_in_cache(table, new_id);
 
 		/* Reset the Doc ID in cache to 0 */
-		if (dict_table_has_fts_index(table)
-		    && table->fts->cache) {
+		if (has_internal_doc_id && table->fts->cache) {
 			table->fts->fts_status |= TABLE_DICT_LOCKED;
 			fts_update_next_doc_id(table, NULL, 0);
 			fts_cache_clear(table->fts->cache, TRUE);

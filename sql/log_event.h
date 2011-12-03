@@ -51,6 +51,19 @@ typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
+
+/**
+   Maximum length of the name of a temporary file
+   PREFIX LENGTH - 9 
+   UUID          - UUID_LENGTH
+   SEPARATORS    - 2
+   SERVER ID     - 10 (range of server ID 1 to (2^32)-1 = 4,294,967,295)
+   FILE ID       - 10 (uint)
+   EXTENSION     - 7  (Assuming that the extension is always less than 7 
+                       characters)
+*/
+#define TEMP_FILE_MAX_LEN UUID_LENGTH+38 
+
 #define LONG_FIND_ROW_THRESHOLD 60 /* seconds */
 
 /**

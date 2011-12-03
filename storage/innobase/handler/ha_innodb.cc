@@ -14124,6 +14124,7 @@ innobase_index_name_is_reserved(
 Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
+UNIV_INTERN
 float
 innobase_fts_retrieve_ranking(
 /*============================*/
@@ -14143,6 +14144,7 @@ innobase_fts_retrieve_ranking(
 
 /***********************************************************************
 Free the memory for the FTS handler */
+UNIV_INTERN
 void
 innobase_fts_close_ranking(
 /*=======================*/
@@ -14170,6 +14172,7 @@ innobase_fts_close_ranking(
 Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
+UNIV_INTERN
 float
 innobase_fts_find_ranking(
 /*======================*/

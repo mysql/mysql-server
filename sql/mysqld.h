@@ -100,6 +100,7 @@ extern my_bool opt_backup_progress_log;
 extern ulonglong log_output_options;
 extern ulong log_backup_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
+extern ulong opt_log_throttle_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
@@ -271,7 +272,8 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
-  key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc;
+  key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc,
+  key_LOCK_throttle;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
