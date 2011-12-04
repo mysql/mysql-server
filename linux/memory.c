@@ -43,7 +43,7 @@ toku_memory_startup(void) {
         if (result == 0) {
             size_t lg_chunk; // log2 of the mmap threshold
             size_t lg_chunk_length = sizeof lg_chunk;
-            result  = mallctl_f("lg_chunk", &lg_chunk, &lg_chunk_length, NULL, 0);
+            result  = mallctl_f("opt.lg_chunk", &lg_chunk, &lg_chunk_length, NULL, 0);
             if (result == 0)
                 status.mmap_threshold = 1 << lg_chunk;
         }
