@@ -8767,8 +8767,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     first_inner= join_tab->first_sj_inner_tab;
     for (tab= join_tab-1; tab >= first_inner; tab--)
     {
-      if (tab->first_sj_inner_tab == first_inner)
-        set_join_cache_denial(tab);
+      set_join_cache_denial(tab);
     }
   }
   else set_join_cache_denial(join_tab);
