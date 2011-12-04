@@ -260,8 +260,8 @@ WHERE alias1.f11 OR alias1.f3 = 50 AND alias1.f10
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	alias1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	alias2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+2	MATERIALIZED	alias1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	MATERIALIZED	alias2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
 SELECT * FROM t2
 WHERE ( f12 ) IN (
 SELECT alias2.f3
@@ -277,8 +277,8 @@ FROM t1 AS alias1, t1 AS alias2
 WHERE (alias2.f10 = alias1.f11) AND (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	alias1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	alias2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+2	MATERIALIZED	alias1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	MATERIALIZED	alias2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
 SELECT * FROM t2
 WHERE ( f12 ) IN (
 SELECT alias2.f3
@@ -380,14 +380,14 @@ set @@optimizer_switch='in_to_exists=off,materialization=on,partial_match_rowid_
 explain select * from t1 where c1 = 'a2' and (c1, c2) not in (select * from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
 select * from t1 where c1 = 'a2' and (c1, c2) not in (select * from t2);
 c1	c2
 set @@optimizer_switch='in_to_exists=off,materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off';
 explain select * from t1 where c1 = 'a2' and (c1, c2) not in (select * from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
 select * from t1 where c1 = 'a2' and (c1, c2) not in (select * from t2);
 c1	c2
 drop table t1, t2;

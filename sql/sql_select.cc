@@ -20642,7 +20642,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       /* id */
       item_list.push_back(new Item_uint((uint32)select_id));
       /* select_type */
-      const char* stype= printing_materialize_nest? "SUBQUERY" : 
+      const char* stype= printing_materialize_nest? "MATERIALIZED" : 
                                                     join->select_lex->type;
       item_list.push_back(new Item_string(stype, strlen(stype), cs));
       

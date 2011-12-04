@@ -3527,20 +3527,58 @@ void st_select_lex::set_explain_type()
   SELECT_LEX *first= master_unit()->first_select();
   /* drop UNCACHEABLE_EXPLAIN, because it is for internal usage only */
   uint8 is_uncacheable= (uncacheable & ~UNCACHEABLE_EXPLAIN);
+  
+  bool using_materialization= FALSE;
+  Item_subselect *parent_item;
+  if ((parent_item= master_unit()->item) &&
+      parent_item->substype() == Item_subselect::IN_SUBS)
+  {
+    Item_in_subselect *in_subs= (Item_in_subselect*)parent_item;
+    /*
+      Surprisingly, in_subs->is_set_strategy() can return FALSE here,
+      even for the last invocation of this function for the select.
+    */
+    if (in_subs->test_strategy(SUBS_MATERIALIZATION))
+      using_materialization= TRUE;
+  }
 
-  type= ((&master_unit()->thd->lex->select_lex == this) ?
-         (is_primary ? "PRIMARY" : "SIMPLE"):    
-         ((this == first) ?
-          ((linkage == DERIVED_TABLE_TYPE) ?
-           "DERIVED" :
-           ((is_uncacheable & UNCACHEABLE_DEPENDENT) ?
-            "DEPENDENT SUBQUERY" :
-            (is_uncacheable ? "UNCACHEABLE SUBQUERY" :
-             "SUBQUERY"))) :
-          ((is_uncacheable & UNCACHEABLE_DEPENDENT) ?
-           "DEPENDENT UNION":
-           is_uncacheable ? "UNCACHEABLE UNION":
-           "UNION")));
+  if (&master_unit()->thd->lex->select_lex == this)
+  {
+     type= is_primary ? "PRIMARY" : "SIMPLE";
+  }
+  else
+  {
+    if (this == first)
+    {
+      /* If we're a direct child of a UNION, we're the first sibling there */
+      if (linkage == DERIVED_TABLE_TYPE)
+        type= "DERIVED";
+      else if (using_materialization)
+        type= "MATERIALIZED";
+      else
+      {
+         if (is_uncacheable & UNCACHEABLE_DEPENDENT)
+           type= "DEPENDENT SUBQUERY";
+         else
+         {
+           type= is_uncacheable? "UNCACHEABLE SUBQUERY" :
+                                 "SUBQUERY";
+         }
+      }
+    }
+    else
+    {
+      /* This a non-first sibling in UNION */
+      if (is_uncacheable & UNCACHEABLE_DEPENDENT)
+        type= "DEPENDENT UNION";
+      else if (using_materialization)
+        type= "MATERIALIZED UNION";
+      else
+      {
+        type= is_uncacheable ? "UNCACHEABLE UNION": "UNION";
+      }
+    }
+  }
   options|= SELECT_DESCRIBE;
 }
 
