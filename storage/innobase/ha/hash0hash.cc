@@ -344,7 +344,7 @@ hash_table_free(
 
 #ifndef UNIV_HOTBACKUP
 /*************************************************************//**
-Creates a sync object array array to protect a hash table.
+Creates a sync object array to protect a hash table.
 ::sync_obj can be mutexes or rw_locks depening on the type of
 hash table. */
 UNIV_INTERN

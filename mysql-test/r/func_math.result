@@ -214,12 +214,16 @@ CAST(RAND(2) * 1000 AS UNSIGNED)	CAST(RAND(?) * 1000 AS UNSIGNED)
 122	122
 645	645
 DROP TABLE t1;
+SET timestamp=UNIX_TIMESTAMP('2001-01-01 00:00:00');
 create table t1 (a varchar(90), ts datetime not null, index (a)) engine=innodb default charset=utf8;
 insert into t1 values ('http://www.foo.com/', now());
 select a from t1 where a='http://www.foo.com/' order by abs(timediff(ts, 0));
 a
 http://www.foo.com/
+Warnings:
+Warning	1292	Truncated incorrect time value: '17540424:00:00'
 drop table t1;
+SET timestamp=DEFAULT;
 set sql_mode='traditional';
 select ln(-1);
 ln(-1)

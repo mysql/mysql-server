@@ -125,8 +125,8 @@ Warning	1265	Data truncated for column 'ix' at row 3
 Warning	1265	Data truncated for column 'ix' at row 4
 Warning	1265	Data truncated for column 'ix' at row 5
 Warning	1265	Data truncated for column 'ix' at row 6
-Warning	1265	Data truncated for column 'ix' at row 7
-Warning	1265	Data truncated for column 'ix' at row 8
+Warning	1264	Out of range value for column 'ix' at row 7
+Warning	1264	Out of range value for column 'ix' at row 8
 select ix+0 from t1;
 ix+0
 0

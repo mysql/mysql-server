@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,14 +11,14 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /******************************************************************//**
-@file include/fts0fts.h
-Full text search header file
+@file include/fts0priv.h
+Full text search internal header file
 
 Created 2011/09/02 Sunny Bains
 ***********************************************************************/
@@ -299,7 +299,7 @@ fts_trx_table_cmp(
 	const void*	v1,		/*!< in: id1 */
 	const void*	v2);		/*!< in: id2 */
 /******************************************************************//**
-Compare a table id with a trx_table_t table id. 
+Compare a table id with a trx_table_t table id.
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int

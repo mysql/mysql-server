@@ -21,6 +21,9 @@ With a third part to make things complete
 select "MARKER_END" as marker;
 marker
 MARKER_END
+select "Con1 is done with payload" as status;
+status
+Con1 is done with payload
 "================== con1 done =================="
 set @con1_tid = (select thread_id from performance_schema.threads
 where processlist_user = 'user1');
@@ -28,15 +31,38 @@ select (@con1_tid is not null) as expected;
 expected
 1
 set @marker_begin = (select event_id from performance_schema.events_statements_history_long
-where sql_text like "%MARKER_BEGIN%");
+where sql_text like "%MARKER_BEGIN%" and thread_id = @con1_tid);
 select (@marker_begin is not null) as expected;
 expected
 1
 set @marker_end = (select end_event_id from performance_schema.events_statements_history_long
-where sql_text like "%MARKER_END%");
+where sql_text like "%MARKER_END%" and thread_id = @con1_tid);
 select (@marker_end is not null) as expected;
 expected
 1
+show status like "performance_schema%";
+Variable_name	Value
+Performance_schema_accounts_lost	0
+Performance_schema_cond_classes_lost	0
+Performance_schema_cond_instances_lost	0
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0
+Performance_schema_hosts_lost	0
+Performance_schema_locker_lost	0
+Performance_schema_mutex_classes_lost	0
+Performance_schema_mutex_instances_lost	0
+Performance_schema_rwlock_classes_lost	0
+Performance_schema_rwlock_instances_lost	0
+Performance_schema_socket_classes_lost	0
+Performance_schema_socket_instances_lost	0
+Performance_schema_stage_classes_lost	0
+Performance_schema_statement_classes_lost	0
+Performance_schema_table_handles_lost	0
+Performance_schema_table_instances_lost	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+Performance_schema_users_lost	0
 select * from (
 (
 select (event_id - @marker_begin) as relative_event_id,

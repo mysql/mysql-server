@@ -1200,8 +1200,11 @@ bool resolve_subquery(THD *thd, JOIN *join)
       6. No execution method was already chosen (by a prepared statement).
       7. Involved expression types allow materialization (temporary only)
 
-      (*) The subquery must be part of a SELECT statement. The current
-           condition also excludes multi-table update statements.
+      (*) The subquery must be part of a SELECT or CREATE SELECT statement. We
+           should relax this and allow it in multi/single-table UPDATE/DELETE,
+           INSERT SELECT (after studying potential problems when the
+           inserts/updates/deletes are done to a table which is itself part of
+           the subquery).
 
       We have to determine whether we will perform subquery materialization
       before calling the IN=>EXISTS transformation, so that we know whether to
@@ -1214,7 +1217,8 @@ bool resolve_subquery(THD *thd, JOIN *join)
         subq_predicate_substype == Item_subselect::IN_SUBS &&        // 1
         !select_lex->is_part_of_union() &&                              // 2
         select_lex->master_unit()->first_select()->leaf_tables &&       // 3
-        thd->lex->sql_command == SQLCOM_SELECT &&                       // *
+        (thd->lex->sql_command == SQLCOM_SELECT ||
+         thd->lex->sql_command == SQLCOM_CREATE_TABLE) &&               // *
         outer->leaf_tables &&                                           // 3A
         in_predicate->is_top_level_item() &&                            // 4
         !in_predicate->is_correlated &&                                 // 5
@@ -1401,7 +1405,7 @@ static bool types_allow_materialization(Item *outer, Item *inner)
     return FALSE;
   switch (outer->result_type()) {
   case STRING_RESULT:
-    if (outer->is_datetime() != inner->is_datetime())
+    if (outer->is_temporal_with_date() != inner->is_temporal_with_date())
       return FALSE;
     if (!(outer->collation.collation == inner->collation.collation
         /*&& outer->max_length <= inner->max_length */))
@@ -5001,11 +5005,8 @@ static uint get_tmp_table_rec_length(List<Item> &items)
         len += 4;
       break;
     case STRING_RESULT:
-      enum enum_field_types type;
       /* DATE/TIME and GEOMETRY fields have STRING_RESULT result type.  */
-      if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
-          type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
-          type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
+      if (item->is_temporal() || item->field_type() == MYSQL_TYPE_GEOMETRY)
         len += 8;
       else
         len += item->max_length;
@@ -6260,11 +6261,13 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         else
         {
           /*
-            We can't use indexes if the effective collation
+            Can't optimize datetime_column=indexed_varchar_column,
+            also can't use indexes if the effective collation
             of the operation differ from the field collation.
           */
-          if (field->cmp_type() == STRING_RESULT &&
-              ((Field_str*)field)->charset() != cond->compare_collation())
+          if ((!field->is_temporal() && value[0]->is_temporal()) ||
+              (field->cmp_type() == STRING_RESULT &&
+               field->charset() != cond->compare_collation()))
           {
             warn_index_not_applicable(stat->join->thd, field, possible_keys);
             return;
@@ -11527,11 +11530,11 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       case 0:
 	return NULL;
       case 1:
-        new_cond->used_tables_cache= used_tables;
+        new_cond->set_used_tables(used_tables);
 	return new_cond->argument_list()->head();
       default:
 	new_cond->quick_fix_field();
-        new_cond->used_tables_cache= used_tables;
+        new_cond->set_used_tables(used_tables);
 	return new_cond;
       }
     }
@@ -11553,7 +11556,7 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
       new_cond->quick_fix_field();
-      new_cond->used_tables_cache= ((Item_cond_or*) cond)->used_tables_cache;
+      new_cond->set_used_tables(cond->used_tables());
       new_cond->top_level_item();
       return new_cond;
     }
@@ -11606,7 +11609,7 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
 	return new_cond->argument_list()->head();
       default:
 	new_cond->quick_fix_field();
-        ((Item_cond*)new_cond)->used_tables_cache= tbl_map;
+        new_cond->set_used_tables(tbl_map);
 	return new_cond;
       }
     }
@@ -11626,7 +11629,7 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
         tbl_map |= fix->used_tables();
       }
       new_cond->quick_fix_field();
-      ((Item_cond*)new_cond)->used_tables_cache= tbl_map;
+      new_cond->set_used_tables(tbl_map);
       new_cond->top_level_item();
       return new_cond;
     }
@@ -11675,6 +11678,10 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
        join where a pushed index condition evaluates fields from
        tables earlier in the join sequence, the pushed condition would
        only be evaluated the first time the record value was needed.
+    6. The index is not a clustered index. The performance improvement
+       of pushing an index condition on a clustered key is much lower 
+       than on a non-clustered key. This restriction should be 
+       re-evaluated when WL#6061 is implemented.
   */
   if (tab->condition() &&
       tab->table->file->index_flags(keyno, 0, 1) &
@@ -11683,7 +11690,9 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
       tab->join->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
       tab->join->thd->lex->sql_command != SQLCOM_DELETE_MULTI &&
       !tab->has_guarded_conds() &&
-      tab->type != JT_CONST && tab->type != JT_SYSTEM)
+      tab->type != JT_CONST && tab->type != JT_SYSTEM &&
+      !(keyno == tab->table->s->primary_key &&
+        tab->table->file->primary_key_is_clustered()))
   {
     DBUG_EXECUTE("where", print_where(tab->condition(), "full cond",
                  QT_ORDINARY););
@@ -13841,7 +13850,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
 
       if (field_item->result_type() == STRING_RESULT)
       {
-        const CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
+        const CHARSET_INFO *cs= field_item->field->charset();
         if (!item)
         {
           Item_func_eq *eq_item;
@@ -17054,16 +17063,11 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     break;
   case STRING_RESULT:
     DBUG_ASSERT(item->collation.collation);
-  
-    enum enum_field_types type;
     /*
       DATE/TIME and GEOMETRY fields have STRING_RESULT result type. 
       To preserve type they needed to be handled separately.
     */
-    if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
-        type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
-        type == MYSQL_TYPE_NEWDATE ||
-        type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
+    if (item->is_temporal() || item->field_type() == MYSQL_TYPE_GEOMETRY)
       new_field= item->tmp_table_field_from_field_type(table, 1);
     /* 
       Make sure that the blob fits into a Field_varstring which has 
@@ -19088,12 +19092,10 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   join->send_records=0;
   if (join->tables == join->const_tables)
   {
-    /*
-      HAVING will be checked after processing aggregate functions,
-      But WHERE should checkd here (we alredy have read tables)
-    */
+    // @todo: consider calling end_select instead of duplicating code
     if (!join->conds || join->conds->val_int())
     {
+      // HAVING will be checked by end_select
       error= (*end_select)(join, 0, 0);
       if (error == NESTED_LOOP_OK || error == NESTED_LOOP_QUERY_LIMIT)
 	error= (*end_select)(join, 0, 1);
@@ -19108,9 +19110,12 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     }
     else if (join->send_row_on_empty_set())
     {
-      List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
-                                 fields);
-      rc= join->result->send_data(*columns_list);
+      if (!join->having || join->having->val_int())
+      {
+        List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
+                                   fields);
+        rc= join->result->send_data(*columns_list);
+      }
     }
     /*
       An error can happen when evaluating the conds 
@@ -20090,6 +20095,36 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   table->null_row=0;
   table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
 
+  MY_BITMAP * const save_read_set= table->read_set;
+  bool restore_read_set= false;
+  if (table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE)
+  {
+    const enum_sql_command sql_command= tab->join->thd->lex->sql_command;
+    if (sql_command == SQLCOM_UPDATE_MULTI ||
+        sql_command == SQLCOM_DELETE_MULTI)
+    {
+      /*
+        In a multi-UPDATE, if we represent "depends on" with "->", we have:
+        "what columns to read (read_set)" ->
+        "whether table will be updated on-the-fly or with tmp table" ->
+        "whether to-be-updated columns are used by access path"
+        "access path to table (range, ref, scan...)" ->
+        "query execution plan" ->
+        "what tables are const" ->
+        "reading const tables" ->
+        "what columns to read (read_set)".
+        To break this loop, we always read all columns of a constant table if
+        it is going to be updated.
+        Another case is in multi-UPDATE and multi-DELETE, when the table has a
+        trigger: bits of columns needed by the trigger are turned on in
+        result->initialize_tables(), which has not yet been called when we do
+        the reading now, so we must read all columns.
+      */
+      table->column_bitmaps_set(&table->s->all_set, table->write_set);
+      restore_read_set= true;
+    }
+  }
+
   if (tab->type == JT_SYSTEM)
   {
     if ((error=join_read_system(tab)))
@@ -20099,7 +20134,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
       if (!table->pos_in_table_list->outer_join || error > 0)
+      {
+        if (restore_read_set)
+          table->column_bitmaps_set(save_read_set, table->write_set);
 	DBUG_RETURN(error);
+      }
     }
   }
   else
@@ -20120,7 +20159,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
       if (!table->pos_in_table_list->outer_join || error > 0)
+      {
+        if (restore_read_set)
+          table->column_bitmaps_set(save_read_set, table->write_set);
 	DBUG_RETURN(error);
+      }
     }
   }
   /* We will evaluate on-expressions here only if it is not considered
@@ -20159,6 +20202,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
            embedding->nested_join->join_list.head() == embedded);
   }
 
+  if (restore_read_set)
+    table->column_bitmaps_set(save_read_set, table->write_set);
   DBUG_RETURN(0);
 }
 
@@ -21477,8 +21522,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
           are fixed or do not need fix_fields, too
         */
         new_cond->quick_fix_field();
-        new_cond->used_tables_cache=
-          ((Item_cond_and*) cond)->used_tables_cache & tables;
+        new_cond->set_used_tables(cond->used_tables() & tables);
           return new_cond;
       }
     }
@@ -21503,7 +21547,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
 	are fixed or do not need fix_fields, too
       */
       new_cond->quick_fix_field();
-      new_cond->used_tables_cache= ((Item_cond_or*) cond)->used_tables_cache;
+      new_cond->set_used_tables(cond->used_tables());
       new_cond->top_level_item();
       return new_cond;
     }
@@ -21635,8 +21679,7 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
           are fixed or do not need fix_fields, too
 	*/
         new_cond->quick_fix_field();
-        new_cond->used_tables_cache=
-          ((Item_cond_and*) cond)->used_tables_cache & tables;
+        new_cond->set_used_tables(cond->used_tables() & tables);
         return new_cond;
       }
     }
@@ -21659,7 +21702,7 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
         are fixed or do not need fix_fields, too
       */
       new_cond->quick_fix_field();
-      new_cond->used_tables_cache= ((Item_cond_or*) cond)->used_tables_cache;
+      new_cond->set_used_tables(cond->used_tables());
       new_cond->top_level_item();
       return new_cond;
     }
@@ -22611,8 +22654,7 @@ fix_ICP:
       {
         const char *new_type= tab->type == JT_INDEX_SCAN ? "index_scan" :
           (tab->select && tab->select->quick) ?
-          "range" : "unknown";
-        DBUG_ASSERT(new_type[0] != 'u');
+          "range" : join_type_str[tab->type];
         trace_change_index.add_alnum("access_type", new_type);
       }
     }
@@ -23794,20 +23836,16 @@ calc_group_buffer(JOIN *join,ORDER *group)
         break;
       case STRING_RESULT:
       {
-        enum enum_field_types type= group_item->field_type();
         /*
           As items represented as DATE/TIME fields in the group buffer
           have STRING_RESULT result type, we increase the length 
           by 8 as maximum pack length of such fields.
         */
-        if (type == MYSQL_TYPE_TIME ||
-            type == MYSQL_TYPE_DATE ||
-            type == MYSQL_TYPE_DATETIME ||
-            type == MYSQL_TYPE_TIMESTAMP)
+        if (group_item->is_temporal())
         {
           key_length+= 8;
         }
-        else if (type == MYSQL_TYPE_BLOB)
+        else if (group_item->field_type() == MYSQL_TYPE_BLOB)
           key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {

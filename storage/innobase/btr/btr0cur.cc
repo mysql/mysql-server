@@ -3757,7 +3757,7 @@ btr_estimate_number_of_different_key_vals(
 		index->stat_n_diff_key_vals[j]
 			= BTR_TABLE_STATS_FROM_SAMPLE(
 				n_diff[j], index, n_sample_pages,
-				total_external_size, not_empty_flag); 
+				total_external_size, not_empty_flag);
 
 		/* If the tree is small, smaller than
 		10 * n_sample_pages + total_external_size, then
