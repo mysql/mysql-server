@@ -231,6 +231,12 @@ dtuple_set_n_fields_cmp(
 	dtuple_t*	tuple,		/*!< in: tuple */
 	ulint		n_fields_cmp);	/*!< in: number of fields used in
 					comparisons in rem0cmp.* */
+
+/* Estimate the number of bytes that are going to be allocated when
+creating a new dtuple_t object */
+#define DTUPLE_EST_ALLOC(n_fields)	\
+	(sizeof(dtuple_t) + (n_fields) * sizeof(dfield_t))
+
 /**********************************************************//**
 Creates a data tuple to a memory heap. The default value for number
 of fields used in record comparisons for this tuple is n_fields.
@@ -240,7 +246,8 @@ dtuple_t*
 dtuple_create(
 /*==========*/
 	mem_heap_t*	heap,	/*!< in: memory heap where the tuple
-				is created */
+				is created, DTUPLE_EST_ALLOC(n_fields)
+				bytes will be allocated from this heap */
 	ulint		n_fields); /*!< in: number of fields */
 
 /**********************************************************//**
