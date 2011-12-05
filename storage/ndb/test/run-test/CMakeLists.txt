@@ -35,14 +35,17 @@ ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
 TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient dbug mysys strings mysqlclient)
 
 INSTALL(TARGETS atrt DESTINATION mysql-test/ndb)
-INSTALL(FILES   atrt-testBackup atrt-mysql-test-run DESTINATION bin)
+INSTALL(FILES   atrt-testBackup atrt-mysql-test-run DESTINATION bin PERMISSIONS OWNER_READ OWNER_EXECUTE)
 INSTALL(FILES   atrt-analyze-result.sh atrt-backtrace.sh atrt-gather-result.sh
                 atrt-setup.sh atrt-mysqltest autotest-boot.sh autotest-run.sh
                 check-tests.sh make-config.sh make-html-reports.sh
                 make-index.sh ndb-autotest.sh upgrade-boot.sh
-                daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt
+        DESTINATION mysql-test/ndb
+        PERMISSIONS OWNER_READ OWNER_EXECUTE)
+INSTALL(FILES   daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt
                 conf-ndbmaster.cnf conf-fimafeng08.cnf conf-fimafeng09.cnf 
                 conf-dl145a.cnf conf-loki27.cnf conf-ndb07.cnf conf-repl.cnf
                 conf-techra29.cnf conf-test.cnf conf-tyr64.cnf conf-upgrade.cnf
                 test-tests.txt upgrade-tests.txt release-bigmem-tests.txt
+                conf-tyr13.cnf
          DESTINATION mysql-test/ndb)
