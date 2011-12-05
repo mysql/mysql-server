@@ -331,7 +331,7 @@ end:
       mysql_unlock_tables(thd, sql_lock, 0);
     rc= 1;
   }
-  else if (rc)
+  else if (rc > 1)
     my_error(rc, MYF(0));
 
   thd->set_time_after_lock();
