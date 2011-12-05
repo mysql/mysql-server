@@ -1091,4 +1091,13 @@ FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
 Warnings:
 Warning	1441	Datetime function: datetime field overflow
 DROP TABLE g1;
+#
+# Bug#13013970 MORE CRASHES IN FIELD_BLOB::GET_KEY_IMAGE
+#
+CREATE TABLE g1(a TEXT NOT NULL, KEY(a(255)));
+INSERT INTO g1 VALUES ('a'),('a');
+SELECT 1 FROM g1 WHERE a >= ANY
+(SELECT 1 FROM g1 WHERE a = geomfromtext('') OR a) ;
+1
+DROP TABLE g1;
 End of 5.5 tests
