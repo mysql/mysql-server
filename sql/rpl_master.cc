@@ -1015,7 +1015,13 @@ impossible position";
         /*
           It would be nice if even with a simple implementation we could
           avoid sending such events if not extremelly necessary.
-          We need to think on this and improve the code. /Alfranio.
+          We need to think on this and improve the code.
+
+          Note however that filtering out any of these events will make
+          the binary log's size to increase but slaves will never get
+          any event and will not be able to synchronize with the master.
+
+          /Alfranio
         */
       }
 
