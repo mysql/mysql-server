@@ -5618,6 +5618,11 @@ void
 Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
   jam();
 
+  if (ERROR_INSERTED(7230))
+  {
+    return;
+  }
+
   Uint32 oldNode = c_lcpMasterTakeOverState.failedNodeId;
 
   c_lcpMasterTakeOverState.minTableId = ~0;
@@ -6733,7 +6738,15 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
     sendSignal(numberToRef(CMVMI, refToNode(newMasterBlockref)), 
                GSN_NDB_TAMPER, signal, 1, JBB);
   }
-  
+
+  if (ERROR_INSERTED(7231))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_MASTER_LCPREQ, signal,
+			1500, signal->getLength());
+    return;
+  }
+
   if (newMasterBlockref != cmasterdihref)
   {
     jam();
@@ -6783,6 +6796,13 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal, Uint32 from)
   bool info = false;
 #endif
 
+  if (ERROR_INSERTED(7230))
+  {
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 100, 1);
+    goto err7230;
+  }
+
   if (!c_EMPTY_LCP_REQ_Counter.done())
   {
     /**
@@ -6824,6 +6844,7 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal, Uint32 from)
     }
   }
 
+err7230:
   if (info)
     infoEvent("from: %u : sendMASTER_LCPCONF", from);
 
@@ -6921,6 +6942,11 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal, Uint32 from)
   // Answer to MASTER_LCPREQ sent, reset flag so 
   // that it's not sent again before another request comes in
   c_lcpState.m_MASTER_LCPREQ_Received = false;
+
+  if (ERROR_INSERTED(7230))
+  {
+    return;
+  }
 
   if(c_lcpState.lcpStatus == LCP_TAB_SAVED){
 #ifdef VM_TRACE
@@ -7077,6 +7103,16 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
   {
     ndbout_c("delaying MASTER_LCPCONF due to error 7194");
     sendSignalWithDelay(reference(), GSN_MASTER_LCPCONF, signal, 
+                        300, signal->getLength());
+    return;
+  }
+
+  if (ERROR_INSERTED(7230) &&
+      refToNode(signal->getSendersBlockRef()) != getOwnNodeId())
+  {
+    infoEvent("delaying MASTER_LCPCONF due to error 7230 (from %u)",
+              refToNode(signal->getSendersBlockRef()));
+    sendSignalWithDelay(reference(), GSN_MASTER_LCPCONF, signal,
                         300, signal->getLength());
     return;
   }
@@ -13944,8 +13980,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
      * LCP master take over
      */
     ndbrequire(isMaster());
-    ndbrequire(blockNo == DBDIH);
-    sendSignalWithDelay(reference(), GSN_LCP_COMPLETE_REP, signal, 100, 
+    sendSignalWithDelay(reference(), GSN_LCP_COMPLETE_REP, signal, 100,
 			signal->length());
     return;
   }
