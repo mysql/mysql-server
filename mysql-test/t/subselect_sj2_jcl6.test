@@ -73,6 +73,30 @@ set join_cache_level=default;
 DROP TABLE t1,t2,t3,t4;
 
 
+--echo #
+--echo # Bug #899962: materialized subquery with join_cache_level=3 
+--echo #
+
+CREATE TABLE t1 (a varchar(1), b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('v','v');
+CREATE TABLE t2 (a varchar(1), b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES ('v','v');
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+
+SET optimizer_switch = 'semijoin_with_cache=on';
+SET join_cache_level = 3;
+
+EXPLAIN
+SELECT * FROM t1 WHERE b IN (SELECT a FROM t2 GROUP BY a);
+SELECT * FROM t1 WHERE b IN (SELECT a FROM t2 GROUP BY a);
+
+set optimizer_switch=@tmp_optimizer_switch;
+set join_cache_level=default;
+
+DROP TABLE t1,t2;
+
+
 set join_cache_level=default;
 show variables like 'join_cache_level';
 

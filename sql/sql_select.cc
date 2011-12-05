@@ -13937,10 +13937,22 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
       key_part_info->store_length= key_part_info->length;
 
       if ((*reg_field)->real_maybe_null())
+      {
         key_part_info->store_length+= HA_KEY_NULL_LENGTH;
-      if ((*reg_field)->type() == MYSQL_TYPE_BLOB || 
-          (*reg_field)->real_type() == MYSQL_TYPE_VARCHAR)
-        key_part_info->store_length+= HA_KEY_BLOB_LENGTH;
+        key_part_info->key_part_flag |= HA_NULL_PART;
+      }
+      if ((*reg_field)->type() == MYSQL_TYPE_BLOB ||
+          (*reg_field)->real_type() == MYSQL_TYPE_VARCHAR ||
+          (*reg_field)->type() == MYSQL_TYPE_GEOMETRY)
+      {
+        if ((*reg_field)->type() == MYSQL_TYPE_BLOB ||
+            (*reg_field)->type() == MYSQL_TYPE_GEOMETRY)
+          key_part_info->key_part_flag|= HA_BLOB_PART;
+        else
+          key_part_info->key_part_flag|= HA_VAR_LENGTH_PART;
+
+        key_part_info->store_length+=HA_KEY_BLOB_LENGTH;
+      }
 
       keyinfo->key_length+= key_part_info->store_length;
 
