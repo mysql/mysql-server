@@ -25,6 +25,7 @@ import java.sql.Types;
 /** Test that mysql session variable ndb_coordinated_transaction_id can be
  * read and written by jdbc.
  */
+@Ignore
 public class CoordinatedTransactionIdVariableTest extends AbstractClusterJTest {
 
     /** Format is Uint32:Uint32:Uint32:Uint64 */
