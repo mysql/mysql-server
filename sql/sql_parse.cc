@@ -7751,6 +7751,9 @@ bool parse_sql(THD *thd,
 
   thd->m_parser_state= parser_state;
 
+  /* Start Digest */
+  thd->m_parser_state->m_lip.m_digest_psi= MYSQL_DIGEST_START(thd->m_statement_psi);
+
   /* Parse the query. */
 
   bool mysql_parse_status= MYSQLparse(thd) != 0;
@@ -7769,6 +7772,9 @@ bool parse_sql(THD *thd,
   DBUG_ASSERT(!mysql_parse_status ||
               (mysql_parse_status && thd->is_error()) ||
               (mysql_parse_status && thd->get_internal_handler()));
+
+  /* End Digest */
+  MYSQL_DIGEST_END(thd->m_parser_state->m_lip.m_digest_psi);
 
   /* Reset parser state. */
 
