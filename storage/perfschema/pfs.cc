@@ -4567,9 +4567,9 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     wait_time= timer_end - state->m_timer_start;
   }
 
-  PFS_statement_stat *event_name_array;
+  PFS_statement_stat *event_name_array= NULL;
   uint index= klass->m_event_name_index;
-  PFS_statement_stat *stat;
+  PFS_statement_stat *stat= NULL;
   
   /*
    Capture statement stats by digest.

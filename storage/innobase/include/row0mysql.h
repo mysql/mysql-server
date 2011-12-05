@@ -171,7 +171,9 @@ UNIV_INTERN
 row_prebuilt_t*
 row_create_prebuilt(
 /*================*/
-	dict_table_t*	table);	/*!< in: Innobase table handle */
+	dict_table_t*	table,		/*!< in: Innobase table handle */
+	ulint		mysql_row_len);	/*!< in: length in bytes of a row in
+					the MySQL format */
 /********************************************************************//**
 Free a prebuilt struct for a MySQL table handle. */
 UNIV_INTERN
@@ -684,9 +686,9 @@ struct row_prebuilt_struct {
 					in inserts */
 	que_fork_t*	upd_graph;	/*!< Innobase SQL query graph used
 					in updates or deletes */
-	btr_pcur_t*	pcur;		/*!< persistent cursor used in selects
+	btr_pcur_t	pcur;		/*!< persistent cursor used in selects
 					and updates */
-	btr_pcur_t*	clust_pcur;	/*!< persistent cursor used in
+	btr_pcur_t	clust_pcur;	/*!< persistent cursor used in
 					some selects and updates */
 	que_fork_t*	sel_graph;	/*!< dummy query graph used in
 					selects */

@@ -276,6 +276,12 @@ The following options may be given as the first argument:
  transactions that affect more than one storage engine,
  when binary log is disabled).
  --log-tc-size=#     Size of transaction coordinator log.
+ --log-throttle-queries-not-using-indexes[=#] 
+ Log at most this many 'not using index' warnings per
+ minute to the slow log. Any further warnings will be
+ condensed into a single summary line. A value of 0
+ disables throttling. Option has no effect unless
+ --log_queries_not_using_indexes is set.
  -W, --log-warnings[=#] 
  Log some not critical warnings to the log file
  --long-query-time=# Log all queries that have taken more than long_query_time
@@ -943,6 +949,7 @@ log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
 log-tc tc.log
 log-tc-size 24576
+log-throttle-queries-not-using-indexes 0
 log-warnings 1
 long-query-time 10
 low-priority-updates FALSE

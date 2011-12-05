@@ -250,3 +250,14 @@ WHERE (field1, ( SELECT COUNT( col_int_key ) FROM t1 )) IN (
 select * from information_schema.optimizer_trace;
 
 DROP TABLE where_subselect_20070,t1;
+
+--echo #
+--echo # Bug#13430443 - ASSERTION `NEW_TYPE[0] != 'U'' FAILED. WHEN
+--echo # OPTIMIZER_TRACE IS ENABLED
+--echo #
+CREATE TABLE t1
+ (a INT,b INT,c INT, KEY(a),KEY (a,c)) ENGINE=INNODB;
+SELECT 1 FROM t1 WHERE 1 LIKE
+ (SELECT a FROM t1 WHERE a = 1 ORDER BY c);
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+DROP TABLE t1;

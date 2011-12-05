@@ -261,7 +261,7 @@ mem_field_erase(
 	mutex_exit(&mem_hash_mutex);
 
 	/* Check that the field lengths agree */
-	ut_ad(n == (ulint)mem_field_header_get_len(usr_buf));
+	ut_ad(n == (ulint) mem_field_header_get_len(usr_buf));
 
 	/* In the debug version, set the freed space to a random
 	combination of 0xDE and 0xAD */
@@ -338,7 +338,7 @@ mem_hash_insert(
 
 	mutex_enter(&mem_hash_mutex);
 
-	cell_no = ut_hash_ulint((ulint)heap, MEM_HASH_SIZE);
+	cell_no = ut_hash_ulint((ulint) heap, MEM_HASH_SIZE);
 
 	/* Allocate a new node to the list */
 	new_node = static_cast<mem_hash_node_t*>(ut_malloc(sizeof(*new_node)));
@@ -383,7 +383,7 @@ mem_hash_remove(
 
 	mutex_enter(&mem_hash_mutex);
 
-	cell_no = ut_hash_ulint((ulint)heap, MEM_HASH_SIZE);
+	cell_no = ut_hash_ulint((ulint) heap, MEM_HASH_SIZE);
 
 	/* Look for the heap in the hash table list */
 	node = UT_LIST_GET_FIRST(*mem_hash_get_nth_cell(cell_no));
@@ -423,7 +423,7 @@ mem_hash_remove(
 			node->nth_heap,
 			innobase_basename(node->file_name), (ulong) node->line,
 			innobase_basename(file_name), (ulong) line);
-		ut_print_buf(stderr, (byte*)node->heap - 200, 400);
+		ut_print_buf(stderr, (byte*) node->heap - 200, 400);
 		fputs("\nDump of the mem heap:\n", stderr);
 		mem_heap_validate_or_print(node->heap, NULL, TRUE, &error,
 					   &size, NULL, NULL);
@@ -527,14 +527,14 @@ mem_heap_validate_or_print(
 			fprintf(stderr, " Block %ld:", block_count);
 		}
 
-		field = (byte*)block + mem_block_get_start(block);
+		field = (byte*) block + mem_block_get_start(block);
 
 		if (top && (field == top)) {
 
 			goto completed;
 		}
 
-		while (field < (byte*)block + mem_block_get_free(block)) {
+		while (field < (byte*) block + mem_block_get_free(block)) {
 
 			/* Calculate the pointer to the storage
 			which was given to the user */
@@ -560,8 +560,8 @@ mem_heap_validate_or_print(
 					" field %lx len %lu\n"
 					"InnoDB: header check field is"
 					" %lx but trailer %lx\n",
-					(ulint)block,
-					(ulint)field, len, check_field,
+					(ulint) block,
+					(ulint) field, len, check_field,
 					mem_field_trailer_get_check(
 						user_field));
 
@@ -581,15 +581,15 @@ mem_heap_validate_or_print(
 		/* At the end check that we have arrived to the first free
 		position */
 
-		if (field != (byte*)block + mem_block_get_free(block)) {
+		if (field != (byte*) block + mem_block_get_free(block)) {
 			/* error */
 
 			fprintf(stderr,
 				"InnoDB: Error: block %lx end of"
 				" mem fields %lx\n"
 				"InnoDB: but block free at %lx\n",
-				(ulint)block, (ulint)field,
-				(ulint)((byte*)block
+				(ulint) block, (ulint) field,
+				(ulint)((byte*) block
 					+ mem_block_get_free(block)));
 
 			return;
@@ -827,19 +827,19 @@ mem_analyze_corruption(
 	ulint	dist;
 
 	fputs("InnoDB: Apparent memory corruption: mem dump ", stderr);
-	ut_print_buf(stderr, (byte*)ptr - 250, 500);
+	ut_print_buf(stderr, (byte*) ptr - 250, 500);
 
 	fputs("\nInnoDB: Scanning backward trying to find"
 	      " previous allocated mem blocks\n", stderr);
 
-	p = (byte*)ptr;
+	p = (byte*) ptr;
 	dist = 0;
 
 	for (i = 0; i < 10; i++) {
 		for (;;) {
-			if (((ulint)p) % 4 == 0) {
+			if (((ulint) p) % 4 == 0) {
 
-				if (*((ulint*)p) == MEM_BLOCK_MAGIC_N) {
+				if (*((ulint*) p) == MEM_BLOCK_MAGIC_N) {
 					fprintf(stderr,
 						"Mem block at - %lu,"
 						" file %s, line %lu\n",
@@ -852,7 +852,7 @@ mem_analyze_corruption(
 					break;
 				}
 
-				if (*((ulint*)p) == MEM_FREED_BLOCK_MAGIC_N) {
+				if (*((ulint*) p) == MEM_FREED_BLOCK_MAGIC_N) {
 					fprintf(stderr,
 						"Freed mem block at - %lu,"
 						" file %s, line %lu\n",
@@ -878,14 +878,14 @@ mem_analyze_corruption(
 		"InnoDB: Scanning forward trying to find next"
 		" allocated mem blocks\n");
 
-	p = (byte*)ptr;
+	p = (byte*) ptr;
 	dist = 0;
 
 	for (i = 0; i < 10; i++) {
 		for (;;) {
-			if (((ulint)p) % 4 == 0) {
+			if (((ulint) p) % 4 == 0) {
 
-				if (*((ulint*)p) == MEM_BLOCK_MAGIC_N) {
+				if (*((ulint*) p) == MEM_BLOCK_MAGIC_N) {
 					fprintf(stderr,
 						"Mem block at + %lu, file %s,"
 						" line %lu\n",
@@ -898,7 +898,7 @@ mem_analyze_corruption(
 					break;
 				}
 
-				if (*((ulint*)p) == MEM_FREED_BLOCK_MAGIC_N) {
+				if (*((ulint*) p) == MEM_FREED_BLOCK_MAGIC_N) {
 					fprintf(stderr,
 						"Freed mem block at + %lu,"
 						" file %s, line %lu\n",

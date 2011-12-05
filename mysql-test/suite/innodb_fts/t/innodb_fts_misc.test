@@ -490,12 +490,10 @@ ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
 SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aac') DESC;
 SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aab') DESC; 
 
-
-# Valgrind error in _MI_WRITE_BLOB_RECORD, bug #13389854
-#--echo "----------Test7---------"
-#select * from t1 where match(a,b) against ('aaa')
-#union select * from t1 where match(a,b) against ('aab')
-#union select * from t1 where match(a,b) against ('aac');
+--echo "----------Test7---------"
+select * from t1 where match(a,b) against ('aaa')
+union select * from t1 where match(a,b) against ('aab')
+union select * from t1 where match(a,b) against ('aac');
 
 select * from t1 where match(a,b) against ('aaa')
                 or    match(a,b) against ('aab')

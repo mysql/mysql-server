@@ -445,15 +445,15 @@ compare to, new_val is the value to swap in. */
 	(atomic_cas_ulong(ptr, old_val, new_val) == old_val)
 
 # define os_compare_and_swap_lint(ptr, old_val, new_val) \
-	((lint)atomic_cas_ulong((ulong_t*) ptr, old_val, new_val) == old_val)
+	((lint) atomic_cas_ulong((ulong_t*) ptr, old_val, new_val) == old_val)
 
 # ifdef HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS
 #  if SIZEOF_PTHREAD_T == 4
 #   define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
-	((pthread_t)atomic_cas_32(ptr, old_val, new_val) == old_val)
+	((pthread_t) atomic_cas_32(ptr, old_val, new_val) == old_val)
 #  elif SIZEOF_PTHREAD_T == 8
 #   define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
-	((pthread_t)atomic_cas_64(ptr, old_val, new_val) == old_val)
+	((pthread_t) atomic_cas_64(ptr, old_val, new_val) == old_val)
 #  else
 #   error "SIZEOF_PTHREAD_T != 4 or 8"
 #  endif /* SIZEOF_PTHREAD_T CHECK */

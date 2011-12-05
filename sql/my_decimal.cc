@@ -266,20 +266,70 @@ int str2my_decimal(uint mask, const char *from, uint length,
 }
 
 
-my_decimal *date2my_decimal(MYSQL_TIME *ltime, my_decimal *dec)
+/**
+  Convert lldiv_t value to my_decimal value.
+  Integer part of the result is set to lld->quot.
+  Fractional part of the result is set to lld->rem divided to 1000000000.
+
+  @param       lld  The lldiv_t variable to convert from.
+  @param       neg  Sign flag (negative, 0 positive).
+  @param  OUT  dec  Decimal numbert to convert to.
+*/
+static my_decimal *lldiv_t2my_decimal(const lldiv_t *lld, bool neg,
+                                      my_decimal *dec)
 {
-  longlong date;
-  date = (ltime->year*100L + ltime->month)*100L + ltime->day;
-  if (ltime->time_type > MYSQL_TIMESTAMP_DATE)
-    date= ((date*100L + ltime->hour)*100L+ ltime->minute)*100L + ltime->second;
-  if (int2my_decimal(E_DEC_FATAL_ERROR, ltime->neg ? -date : date, FALSE, dec))
+  if (int2my_decimal(E_DEC_FATAL_ERROR, lld->quot, FALSE, dec))
     return dec;
-  if (ltime->second_part)
+  if (neg)
+    decimal_neg((decimal_t *) dec);
+  if (lld->rem)
   {
-    dec->buf[(dec->intg-1) / 9 + 1]= ltime->second_part * 1000;
+    dec->buf[(dec->intg-1) / 9 + 1]= lld->rem;
     dec->frac= 6;
   }
   return dec;
+}
+
+
+/**
+  Convert datetime value to my_decimal in format YYYYMMDDhhmmss.ffffff
+  @param ltime  Date value to convert from.
+  @param dec    Decimal value to convert to.
+*/
+my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec)
+{
+  lldiv_t lld;
+  lld.quot= ltime->time_type > MYSQL_TIMESTAMP_DATE ?
+            TIME_to_ulonglong_datetime(ltime) :
+            TIME_to_ulonglong_date(ltime);
+  lld.rem= (longlong) ltime->second_part * 1000;
+  return lldiv_t2my_decimal(&lld, ltime->neg, dec);
+}
+
+
+/**
+  Convert time value to my_decimal in format hhmmss.ffffff
+  @param ltime  Date value to convert from.
+  @param dec    Decimal value to convert to.
+*/
+my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec)
+{
+  lldiv_t lld;
+  lld.quot= TIME_to_ulonglong_time(ltime);
+  lld.rem= (longlong) ltime->second_part * 1000;
+  return lldiv_t2my_decimal(&lld, ltime->neg, dec);
+}
+
+
+/**
+  Convert timeval value to my_decimal.
+*/
+my_decimal *timeval2my_decimal(const struct timeval *tm, my_decimal *dec)
+{
+  lldiv_t lld;
+  lld.quot= tm->tv_sec;
+  lld.rem= (longlong) tm->tv_usec * 1000;
+  return lldiv_t2my_decimal(&lld, 0, dec);
 }
 
 

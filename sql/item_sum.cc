@@ -1226,14 +1226,14 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
   */
   switch (args[0]->field_type()) {
   case MYSQL_TYPE_DATE:
-    field= new Field_newdate(maybe_null, name, collation.collation);
+    field= new Field_newdate(maybe_null, name);
     break;
   case MYSQL_TYPE_TIME:
-    field= new Field_time(maybe_null, name, collation.collation);
+    field= new Field_timef(maybe_null, name, decimals);
     break;
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_DATETIME:
-    field= new Field_datetime(maybe_null, name, collation.collation);
+    field= new Field_datetimef(maybe_null, name, decimals);
     break;
   default:
     return Item_sum::create_tmp_field(group, table, convert_blob_length);
@@ -1292,7 +1292,7 @@ void Item_sum_sum::fix_length_and_dec()
   DBUG_ENTER("Item_sum_sum::fix_length_and_dec");
   maybe_null=null_value=1;
   decimals= args[0]->decimals;
-  switch (args[0]->result_type()) {
+  switch (args[0]->numeric_context_result_type()) {
   case REAL_RESULT:
   case STRING_RESULT:
     hybrid_type= REAL_RESULT;
@@ -1920,6 +1920,30 @@ longlong Item_sum_hybrid::val_int()
 }
 
 
+longlong Item_sum_hybrid::val_time_temporal()
+{
+  DBUG_ASSERT(fixed == 1);
+  if (null_value)
+    return 0;
+  longlong retval= value->val_time_temporal();
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == 0);
+  return retval;
+}
+
+
+longlong Item_sum_hybrid::val_date_temporal()
+{
+  DBUG_ASSERT(fixed == 1);
+  if (null_value)
+    return 0;
+  longlong retval= value->val_date_temporal();
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == 0);
+  return retval;
+}
+
+
 my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
 {
   DBUG_ASSERT(fixed == 1);
@@ -1929,6 +1953,24 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
   if ((null_value= value->null_value))
     DBUG_ASSERT(retval == NULL);
   return retval;
+}
+
+
+bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (null_value)
+    return true;
+  return (null_value= value->get_date(ltime, fuzzydate));
+}
+
+
+bool Item_sum_hybrid::get_time(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (null_value)
+    return true;
+  return (null_value= value->get_time(ltime));
 }
 
 
@@ -2101,6 +2143,23 @@ void Item_sum_hybrid::reset_field()
   switch(hybrid_type) {
   case STRING_RESULT:
   {
+    if (args[0]->is_temporal())
+    {
+      longlong nr= args[0]->val_temporal_by_field_type();
+      if (maybe_null)
+      {
+        if (args[0]->null_value)
+        {
+          nr= 0;
+          result_field->set_null();
+        }
+        else
+          result_field->set_notnull();
+      }
+      result_field->store_packed(nr);
+      break;
+    }
+    
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff),result_field->charset()),*res;
 
@@ -2366,7 +2425,10 @@ void Item_sum_hybrid::update_field()
 {
   switch (hybrid_type) {
   case STRING_RESULT:
-    min_max_update_str_field();
+    if (args[0]->is_temporal())
+      min_max_update_temporal_field();
+    else
+      min_max_update_str_field();
     break;
   case INT_RESULT:
     min_max_update_int_field();
@@ -2380,8 +2442,31 @@ void Item_sum_hybrid::update_field()
 }
 
 
-void
-Item_sum_hybrid::min_max_update_str_field()
+void Item_sum_hybrid::min_max_update_temporal_field()
+{
+  longlong nr, old_nr;
+  old_nr= result_field->val_temporal_by_field_type();
+  nr= args[0]->val_temporal_by_field_type();
+  if (!args[0]->null_value)
+  {
+    if (result_field->is_null(0))
+      old_nr= nr;
+    else
+    {
+      bool res= unsigned_flag ?
+                (ulonglong) old_nr > (ulonglong) nr : old_nr > nr;
+      if ((cmp_sign > 0) ^ (!res))
+        old_nr= nr;
+    }
+    result_field->set_notnull();
+  }
+  else if (result_field->is_null(0))
+    result_field->set_null();
+  result_field->store_packed(old_nr);
+}
+
+
+void Item_sum_hybrid::min_max_update_str_field()
 {
   DBUG_ASSERT(cmp);
   String *res_str=args[0]->val_str(&cmp->value1);
@@ -2398,8 +2483,7 @@ Item_sum_hybrid::min_max_update_str_field()
 }
 
 
-void
-Item_sum_hybrid::min_max_update_real_field()
+void Item_sum_hybrid::min_max_update_real_field()
 {
   double nr,old_nr;
 
@@ -2418,8 +2502,7 @@ Item_sum_hybrid::min_max_update_real_field()
 }
 
 
-void
-Item_sum_hybrid::min_max_update_int_field()
+void Item_sum_hybrid::min_max_update_int_field()
 {
   longlong nr,old_nr;
 
@@ -2450,8 +2533,7 @@ Item_sum_hybrid::min_max_update_int_field()
   @todo
   optimize: do not get result_field in case of args[0] is NULL
 */
-void
-Item_sum_hybrid::min_max_update_decimal_field()
+void Item_sum_hybrid::min_max_update_decimal_field()
 {
   /* TODO: optimize: do not get result_field in case of args[0] is NULL */
   my_decimal old_val, nr_val;
@@ -2511,12 +2593,6 @@ double Item_avg_field::val_real()
   if ((null_value= !count))
     return 0.0;
   return nr/(double) count;
-}
-
-
-longlong Item_avg_field::val_int()
-{
-  return (longlong) rint(val_real());
 }
 
 

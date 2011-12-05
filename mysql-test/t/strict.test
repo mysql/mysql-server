@@ -1348,3 +1348,24 @@ select count(*) from t1 where a is null;
 drop table t1;
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#946 TIME/TIMESTAMP/DATETIME with fractional seconds: CAST to DATETIME
+--echo #
+
+--echo #
+--echo # STR_TO_DATE with NO_ZERO_DATE did not return NULL (with warning)
+--echo # in get_date(). Only did in val_str() and val_int().
+SET sql_mode='NO_ZERO_DATE';
+SELECT
+  STR_TO_DATE('2001','%Y'),
+  CONCAT(STR_TO_DATE('2001','%Y')),
+  STR_TO_DATE('2001','%Y')+1; 
+
+--echo #
+--echo # End of 5.6 tests
+--echo #
