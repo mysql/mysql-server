@@ -84,14 +84,16 @@ char *my_strerror(char *buf, size_t len, int nr)
     */
 #if defined(__WIN__)
     strerror_s(buf, len, nr);
-#elif ((!defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || \
-       ((_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600)) && \
-       ! _GNU_SOURCE)
+#elif ((defined _POSIX_C_SOURCE && (_POSIX_C_SOURCE >= 200112L)) ||    \
+       (defined _XOPEN_SOURCE   && (_XOPEN_SOURCE >= 600)))      &&    \
+      ! defined _GNU_SOURCE
     strerror_r(nr, buf, len);             /* I can build with or without GNU */
-#else
+#elif defined _GNU_SOURCE
     char *r= strerror_r(nr, buf, len);
     if (r != buf)                         /* Want to help, GNU? */
       strmake(buf, r, len - 1);           /* Then don't. */
+#else
+    strerror_r(nr, buf, len);
 #endif
   }
 
