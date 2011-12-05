@@ -758,8 +758,8 @@ row_create_prebuilt(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->heap = heap;
 
-	prebuilt->pcur = btr_pcur_create_for_mysql();
-	prebuilt->clust_pcur = btr_pcur_create_for_mysql();
+	btr_pcur_reset(&prebuilt->pcur);
+	btr_pcur_reset(&prebuilt->clust_pcur);
 
 	prebuilt->select_lock_type = LOCK_NONE;
 	prebuilt->stored_select_lock_type = LOCK_NONE_UNSET;
@@ -821,8 +821,8 @@ row_prebuilt_free(
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
 	prebuilt->magic_n2 = ROW_PREBUILT_FREED;
 
-	btr_pcur_free_for_mysql(prebuilt->pcur);
-	btr_pcur_free_for_mysql(prebuilt->clust_pcur);
+	btr_pcur_reset(&prebuilt->pcur);
+	btr_pcur_reset(&prebuilt->clust_pcur);
 
 	if (prebuilt->mysql_template) {
 		mem_free(prebuilt->mysql_template);
@@ -1636,11 +1636,11 @@ row_update_for_mysql(
 
 	clust_index = dict_table_get_first_index(table);
 
-	if (prebuilt->pcur->btr_cur.index == clust_index) {
-		btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
+	if (prebuilt->pcur.btr_cur.index == clust_index) {
+		btr_pcur_copy_stored_position(node->pcur, &prebuilt->pcur);
 	} else {
 		btr_pcur_copy_stored_position(node->pcur,
-					      prebuilt->clust_pcur);
+					      &prebuilt->clust_pcur);
 	}
 
 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
@@ -1752,8 +1752,8 @@ row_unlock_for_mysql(
 					clust_pcur, and we do not need
 					to reposition the cursors. */
 {
-	btr_pcur_t*	pcur		= prebuilt->pcur;
-	btr_pcur_t*	clust_pcur	= prebuilt->clust_pcur;
+	btr_pcur_t*	pcur		= &prebuilt->pcur;
+	btr_pcur_t*	clust_pcur	= &prebuilt->clust_pcur;
 	trx_t*		trx		= prebuilt->trx;
 
 	ut_ad(prebuilt && trx);
