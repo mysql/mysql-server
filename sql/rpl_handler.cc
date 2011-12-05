@@ -164,6 +164,8 @@ void delegates_destroy()
   if (binlog_relay_io_delegate)
     binlog_relay_io_delegate->~Binlog_relay_IO_delegate();
 #endif /* HAVE_REPLICATION */
+  if (RPL_TRANS_BINLOG_INFO)
+    pthread_key_delete(RPL_TRANS_BINLOG_INFO);
 }
 
 /*
