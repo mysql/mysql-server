@@ -42,6 +42,21 @@
 #endif
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
+  #define MYSQL_DIGEST_END(LOCKER) \
+    inline_mysql_digest_end(LOCKER)
+#else
+  #define MYSQL_DIGEST_END(LOCKER) 
+#endif
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  #define MYSQL_DIGEST_START(LOCKER) \
+    inline_mysql_digest_start(LOCKER)
+#else
+  #define MYSQL_DIGEST_START(LOCKER) \
+    NULL
+#endif
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   #define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN) \
     inline_mysql_start_statement(STATE, K, DB, DB_LEN, __FILE__, __LINE__)
 #else
@@ -102,6 +117,23 @@ static inline void inline_mysql_statement_register(
   const char *category, PSI_statement_info *info, int count)
 {
   PSI_CALL(register_statement)(category, info, count);
+}
+
+static inline struct PSI_digest_locker *
+inline_mysql_digest_start(PSI_statement_locker *locker)
+{
+  PSI_digest_locker* digest_locker= NULL;
+
+  if (likely(locker != NULL))
+    digest_locker= PSI_CALL(digest_start)(locker);
+  return digest_locker;
+}
+
+static inline void
+inline_mysql_digest_end(PSI_digest_locker *locker)
+{
+  if (likely(locker != NULL))
+    PSI_CALL(digest_end)(locker);
 }
 
 static inline struct PSI_statement_locker *

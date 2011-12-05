@@ -206,9 +206,6 @@ bool Lex_input_stream::init(THD *thd,
   m_thd= thd;
   reset(buff, length);
 
-  /* DIGEST_START */
-  m_digest_psi= PSI_server->digest_start(thd->m_statement_psi);
-  
   return FALSE;
 }
 

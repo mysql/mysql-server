@@ -41,7 +41,6 @@
 #include "sp_head.h"
 #include "my_md5.h"
 #include "pfs_digest.h"
-#include "p_lex.h"
 
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
@@ -4908,10 +4907,10 @@ static void set_socket_thread_owner_v1(PSI_socket *socket)
 
 static struct PSI_digest_locker* digest_start_v1(PSI_statement_locker *locker)
 {
-  PSI_statement_locker_state *statement_state;
-  PSI_digest_locker_state    *state;
-  PFS_events_statements      *pfs;
-  PFS_digest_storage         *digest_storage;
+  PSI_statement_locker_state *statement_state= NULL;
+  PSI_digest_locker_state    *state= NULL;
+  PFS_events_statements      *pfs= NULL;
+  PFS_digest_storage         *digest_storage= NULL;
 
   /* 
     If current statement is not instrumented
@@ -4959,9 +4958,9 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
                                 char *yytext, 
                                 int yylen)
 {
-  PSI_digest_locker_state *state;
-  PFS_events_statements   *pfs;
-  PFS_digest_storage      *digest_storage;
+  PSI_digest_locker_state *state= NULL;
+  PFS_events_statements   *pfs= NULL;
+  PFS_digest_storage      *digest_storage= NULL;
 
   if(!locker)
     return;
@@ -4972,17 +4971,7 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
   pfs= reinterpret_cast<PFS_events_statements *>(state->m_statement);
   digest_storage= &pfs->m_digest_storage;
 
-  /* 
-   Token 406 is END_OF_INPUT. Once it is recieved, it means all token in 
-   statement text are recieved.
-  */
-  if( token == END_OF_INPUT )
-  {
-    /* DIGEST_End */
-    PSI_CALL(digest_end)(locker);
-    return;
-  }
-  else if( digest_storage->m_token_count >= PFS_MAX_TOKEN_COUNT )
+  if( digest_storage->m_token_count >= PFS_MAX_TOKEN_COUNT )
   {
     /* 
       If digest storage record is full, do nothing.
@@ -5001,9 +4990,9 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
 
 static void digest_end_v1(PSI_digest_locker *locker)
 {
-  PSI_digest_locker_state *state;
-  PFS_events_statements   *pfs;
-  PFS_digest_storage      *digest_storage;
+  PSI_digest_locker_state *state= NULL;
+  PFS_events_statements   *pfs= NULL;
+  PFS_digest_storage      *digest_storage= NULL;
 
   if(!locker)
     return;
