@@ -2993,7 +2993,7 @@ fil_reset_space_and_lsn_read(
 	corrupted:
 
 		fprintf(stderr,
-			"InnoDB: %s: Page %u at offset %llu"
+			"InnoDB: %s: Page %u at offset " UINT64PF
 			" looks corrupted.\n",
 			name, (unsigned) (offset / size), offset);
 		return(2);
