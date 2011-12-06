@@ -1415,7 +1415,12 @@ ha_innobase::final_add_index(
 			error = row_drop_table_for_mysql(
 				old_table->name, NULL, trx, FALSE);
 
-			prebuilt = row_create_prebuilt(add->indexed_table);
+			prebuilt = row_create_prebuilt(add->indexed_table,
+				0 /* XXX Do we know the mysql_row_len here?
+				Before the addition of this parameter to
+				row_create_prebuilt() the mysql_row_len
+				member was left 0 (from zalloc) in the
+				prebuilt object. */);
 		}
 
 		err = convert_error_code_to_mysql(

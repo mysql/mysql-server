@@ -1478,6 +1478,7 @@ dict_stats_save_index_stat(
 			   "  );\n"
 			   "ELSE\n"
 			   "  UPDATE \"" INDEX_STATS_NAME "\" SET\n"
+			   "  stat_timestamp = :stat_timestamp,\n"
 			   "  stat_value = :stat_value,\n"
 			   "  sample_size = :sample_size,\n"
 			   "  stat_description = :stat_description\n"
