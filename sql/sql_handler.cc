@@ -668,18 +668,19 @@ retry:
   {
     switch (mode) {
     case RNEXT:
-      if (table->file->inited != handler::NONE)
+      if (m_key_name)
       {
-        if (m_key_name)
+        if (table->file->inited == handler::INDEX)
         {
           /* Check if we read from the same index. */
           DBUG_ASSERT((uint) keyno == table->file->get_index());
           error= table->file->ha_index_next(table->record[0]);
+          break;
         }
-        else
-        {
-          error= table->file->ha_rnd_next(table->record[0]);
-        }
+      }
+      else if (table->file->inited == handler::RND)
+      {
+        error= table->file->ha_rnd_next(table->record[0]);
         break;
       }
       /* else fall through */
@@ -702,7 +703,7 @@ retry:
       DBUG_ASSERT(m_key_name != 0);
       /* Check if we read from the same index. */
       DBUG_ASSERT((uint) keyno == table->file->get_index());
-      if (table->file->inited != handler::NONE)
+      if (table->file->inited == handler::INDEX)
       {
         error= table->file->ha_index_prev(table->record[0]);
         break;

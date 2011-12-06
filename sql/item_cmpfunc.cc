@@ -417,7 +417,8 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
   Field *field= field_item->field;
   int result= 0;
 
-  if ((*item)->const_item())
+  /* Do not evaluate subselects on prepare stage even if they are const ones.*/
+  if ((*item)->const_item() && !(*item)->has_subquery())
   {
     TABLE *table= field->table;
     sql_mode_t orig_sql_mode= thd->variables.sql_mode;
@@ -843,9 +844,12 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
       cases and can cause problems. For example evaluating subqueries can 
       confuse storage engines since in context analysis mode tables 
       aren't locked.
+      Do not cache subqueries as this means their evaluation, and this
+      not a thing to do during prepare.
     */
     if (!thd->lex->is_ps_or_view_context_analysis() &&
         cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
+        !str_arg->has_subquery() &&
         (str_arg->type() != Item::FUNC_ITEM ||
         ((Item_func*)str_arg)->functype() != Item_func::GUSERVAR_FUNC))
     {
@@ -5319,8 +5323,9 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
       We could also do boyer-more for non-const items, but as we would have to
       recompute the tables for each row it's not worth it.
     */
-    if (args[1]->const_item() && !use_strnxfrm(collation.collation) &&
-       !(specialflag & SPECIAL_NO_NEW_FUNC))
+    if (args[1]->const_item() && !args[1]->has_subquery() &&
+        !use_strnxfrm(collation.collation) &&
+        !(specialflag & SPECIAL_NO_NEW_FUNC))
     {
       String* res2 = args[1]->val_str(&cmp.value2);
       if (!res2)

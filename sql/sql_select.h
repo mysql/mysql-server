@@ -2435,11 +2435,21 @@ int setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 bool fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
                    Ref_ptr_array ref_pointer_array, ORDER *group_list= NULL);
 
-bool handle_select(THD *thd, LEX *lex, select_result *result,
+bool handle_select(THD *thd, select_result *result,
                    ulong setup_tables_done_option);
+bool mysql_prepare_select(THD *thd,
+                          TABLE_LIST *tables, uint wild_num, List<Item> &fields,
+                          Item *conds, uint og_num,  ORDER *order, ORDER *group,
+                          Item *having, ORDER *proc_param,
+                          ulonglong select_options, select_result *result,
+                          SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
+                          bool *free_join, JOIN **join_ptr);
+bool mysql_execute_select(THD *thd, SELECT_LEX *select_lex, bool free_join,
+                          JOIN *join);
 bool mysql_select(THD *thd,
                   TABLE_LIST *tables, uint wild_num,  List<Item> &list,
-                  Item *conds, uint og_num, ORDER *order, ORDER *group,
+                  Item *conds, SQL_I_List<ORDER> *order,
+                  SQL_I_List<ORDER> *group,
                   Item *having, ORDER *proc_param, ulonglong select_type, 
                   select_result *result, SELECT_LEX_UNIT *unit, 
                   SELECT_LEX *select_lex);

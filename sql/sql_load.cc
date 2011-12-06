@@ -224,8 +224,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                  ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   } 
 
-  if (open_and_lock_tables(thd, table_list, TRUE, 0))
+  if (open_query_tables(thd) || lock_query_tables(thd))
     DBUG_RETURN(TRUE);
+
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
                                     table_list,

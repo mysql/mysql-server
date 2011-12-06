@@ -2345,7 +2345,7 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
 enum_nested_loop_state 
 JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
 {
-  int error;
+  int error= 0;
   handler *file= join_tab->table->file;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
 
@@ -2362,8 +2362,9 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
     matching candidates obtained with MMR handler functions.
   */ 
   if (!file->inited)
-    file->ha_index_init(join_tab->ref.key, 1);
-  if ((error= file->multi_range_read_init(seq_funcs, (void*) this, ranges,
+    error= file->ha_index_init(join_tab->ref.key, 1);
+  if (error ||
+      (error= file->multi_range_read_init(seq_funcs, (void*) this, ranges,
 					  mrr_mode, &mrr_buff)))
     rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
   
