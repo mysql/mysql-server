@@ -3,19 +3,19 @@ CREATE TABLE bug12429573 (i INTEGER PRIMARY KEY, j INTEGER, KEY(j));
 ANALYZE TABLE bug12429573;
 Table	Op	Msg_type	Msg_text
 test.bug12429573	analyze	status	OK
-SELECT stat_timestamp FROM mysql.innodb_index_stats WHERE
+SELECT last_update FROM mysql.innodb_index_stats WHERE
 table_name = 'bug12429573' AND
-stat_timestamp NOT IN
-(SELECT stats_timestamp FROM mysql.innodb_table_stats
+last_update NOT IN
+(SELECT last_update FROM mysql.innodb_table_stats
 WHERE table_name = 'bug12429573');
-stat_timestamp
+last_update
 ANALYZE TABLE bug12429573;
 Table	Op	Msg_type	Msg_text
 test.bug12429573	analyze	status	OK
-SELECT stat_timestamp FROM mysql.innodb_index_stats WHERE
+SELECT last_update FROM mysql.innodb_index_stats WHERE
 table_name = 'bug12429573' AND
-stat_timestamp NOT IN
-(SELECT stats_timestamp FROM mysql.innodb_table_stats
+last_update NOT IN
+(SELECT last_update FROM mysql.innodb_table_stats
 WHERE table_name = 'bug12429573');
-stat_timestamp
+last_update
 DROP TABLE bug12429573;
