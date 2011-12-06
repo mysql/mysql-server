@@ -1272,14 +1272,14 @@ private:
     Log no more than rate lines of a given type per window_size
     (e.g. per minute, usually LOG_THROTTLE_WINDOW_SIZE).
   */
-  const ulong     window_size;
+  const ulong window_size;
   /**
    There have been this many lines of this type in this window,
    including those that we suppressed. (We don't simply stop
    counting once we reach the threshold as we'll write a summary
    of the suppressed lines later.)
   */
-  ulong     count;
+  ulong count;
   /**
     Template for the summary line. Should contain %lu as the only
     conversion specification.
@@ -1288,7 +1288,7 @@ private:
   /**
     Log_throttle is shared between THDs.
   */
-  mysql_mutex_t LOCK_log_throttle;
+  mysql_mutex_t *LOCK_log_throttle;
   /**
     The routine we call to actually log a line (i.e. our summary).
     The signature miraculously coincides with slow_log_print().
@@ -1298,11 +1298,11 @@ private:
   /**
     Lock this object as it's shared between THDs.
   */
-  void lock_exclusive() { mysql_mutex_lock(&LOCK_log_throttle); }
+  void lock_exclusive() { mysql_mutex_lock(LOCK_log_throttle); }
   /**
     Unlock this object.
   */
-  void unlock() { mysql_mutex_unlock(&LOCK_log_throttle); }
+  void unlock() { mysql_mutex_unlock(LOCK_log_throttle); }
   /**
     Start a new window.
   */
@@ -1348,11 +1348,9 @@ public:
     @param logger        call this function to log a single line (our summary)
     @param msg           use this template containing %lu as only non-literal
   */
-  Log_throttle(ulong *threshold, ulong window_usecs,
+  Log_throttle(ulong *threshold, mysql_mutex_t *lock, ulong window_usecs,
                bool (*logger)(THD *, const char *, uint),
                const char *msg);
-  ~Log_throttle() { mysql_mutex_destroy(&LOCK_log_throttle); }
-
 
   /**
     Prepare and print a summary of suppressed lines to log.
