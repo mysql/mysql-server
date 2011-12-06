@@ -614,7 +614,7 @@ dict_stats_analyze_index_level(
 		if (n_diff_boundaries != NULL) {
 			ib_uint64_t	j;
 
-			printf("boundaries: ");
+			DEBUG_PRINTF("    %s(): boundaries: ", __func__);
 			for (j = 0; j < n_diff[i]; j++) {
 				ib_uint64_t	idx;
 
@@ -622,9 +622,10 @@ dict_stats_analyze_index_level(
 					&n_diff_boundaries[i],
 					j * sizeof(ib_uint64_t));
 
-				printf(UINT64PF "=" UINT64PF ", ", j, idx);
+				DEBUG_PRINTF(UINT64PF "=" UINT64PF ", ",
+					     j, idx);
 			}
-			printf("\n");
+			DEBUG_PRINTF("\n");
 		}
 	}
 #endif /* UNIV_STATS_DEBUG */
