@@ -247,7 +247,7 @@ dict_stats_persistent_storage_check(
 		{"table_name", DATA_VARMYSQL,
 			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
-		{"stats_timestamp", DATA_FIXBINARY,
+		{"last_update", DATA_FIXBINARY,
 			DATA_NOT_NULL, 4},
 
 		{"n_rows", DATA_INT,
@@ -276,7 +276,7 @@ dict_stats_persistent_storage_check(
 		{"index_name", DATA_VARMYSQL,
 			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
-		{"stat_timestamp", DATA_FIXBINARY,
+		{"last_update", DATA_FIXBINARY,
 			DATA_NOT_NULL, 4},
 
 		{"stat_name", DATA_VARMYSQL,
@@ -1410,7 +1410,7 @@ enum db_err
 dict_stats_save_index_stat(
 /*=======================*/
 	dict_index_t*	index,		/*!< in: index */
-	lint		stat_timestamp,	/*!< in: timestamp of the stat */
+	lint		last_update,	/*!< in: timestamp of the stat */
 	const char*	stat_name,	/*!< in: name of the stat */
 	ib_uint64_t	stat_value,	/*!< in: value of the stat */
 	ib_uint64_t*	sample_size,	/*!< in: n pages sampled or NULL */
@@ -1433,7 +1433,7 @@ dict_stats_save_index_stat(
 
 	pars_info_add_str_literal(pinfo, "index_name", index->name);
 
-	pars_info_add_int4_literal(pinfo, "stat_timestamp", stat_timestamp);
+	pars_info_add_int4_literal(pinfo, "last_update", last_update);
 
 	pars_info_add_str_literal(pinfo, "stat_name", stat_name);
 
@@ -1470,7 +1470,7 @@ dict_stats_save_index_stat(
 			   "  :database_name,\n"
 			   "  :table_name,\n"
 			   "  :index_name,\n"
-			   "  :stat_timestamp,\n"
+			   "  :last_update,\n"
 			   "  :stat_name,\n"
 			   "  :stat_value,\n"
 			   "  :sample_size,\n"
@@ -1478,7 +1478,7 @@ dict_stats_save_index_stat(
 			   "  );\n"
 			   "ELSE\n"
 			   "  UPDATE \"" INDEX_STATS_NAME "\" SET\n"
-			   "  stat_timestamp = :stat_timestamp,\n"
+			   "  last_update = :last_update,\n"
 			   "  stat_value = :stat_value,\n"
 			   "  sample_size = :sample_size,\n"
 			   "  stat_description = :stat_description\n"
@@ -1549,7 +1549,7 @@ dict_stats_save(
 	pars_info_add_str_literal(pinfo, "table_name",
 				  dict_remove_db_name(table->name));
 
-	pars_info_add_int4_literal(pinfo, "stats_timestamp", now);
+	pars_info_add_int4_literal(pinfo, "last_update", now);
 
 	pars_info_add_ull_literal(pinfo, "n_rows", table->stat_n_rows);
 
@@ -1577,14 +1577,14 @@ dict_stats_save(
 			   "  (\n"
 			   "  :database_name,\n"
 			   "  :table_name,\n"
-			   "  :stats_timestamp,\n"
+			   "  :last_update,\n"
 			   "  :n_rows,\n"
 			   "  :clustered_index_size,\n"
 			   "  :sum_of_other_index_sizes\n"
 			   "  );\n"
 			   "ELSE\n"
 			   "  UPDATE \"" TABLE_STATS_NAME "\" SET\n"
-			   "  stats_timestamp = :stats_timestamp,\n"
+			   "  last_update = :last_update,\n"
 			   "  n_rows = :n_rows,\n"
 			   "  clustered_index_size = :clustered_index_size,\n"
 			   "  sum_of_other_index_sizes = "

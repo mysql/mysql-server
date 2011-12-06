@@ -17,10 +17,10 @@ ANALYZE TABLE bug12429573;
 # innodb_index_stats have been updated to the same value. If the bug is
 # present this check will fail.
 
-SELECT stat_timestamp FROM mysql.innodb_index_stats WHERE
+SELECT last_update FROM mysql.innodb_index_stats WHERE
 table_name = 'bug12429573' AND
-stat_timestamp NOT IN
-(SELECT stats_timestamp FROM mysql.innodb_table_stats
+last_update NOT IN
+(SELECT last_update FROM mysql.innodb_table_stats
  WHERE table_name = 'bug12429573');
 
 # The first ANALYZE would insert timestamp e.g. 17:23:39 in both
@@ -34,10 +34,10 @@ stat_timestamp NOT IN
 ANALYZE TABLE bug12429573;
 
 # If the bug is present we get the timestamps different here.
-SELECT stat_timestamp FROM mysql.innodb_index_stats WHERE
+SELECT last_update FROM mysql.innodb_index_stats WHERE
 table_name = 'bug12429573' AND
-stat_timestamp NOT IN
-(SELECT stats_timestamp FROM mysql.innodb_table_stats
+last_update NOT IN
+(SELECT last_update FROM mysql.innodb_table_stats
  WHERE table_name = 'bug12429573');
 
 DROP TABLE bug12429573;
