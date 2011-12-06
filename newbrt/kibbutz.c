@@ -69,6 +69,12 @@ static void ksignal (KIBBUTZ k) {
     assert(r==0);
 }
 
+//
+// pops the tail of the kibbutz off the list and works on it
+// Note that in toku_kibbutz_enq, items are enqueued at the head,
+// making the work be done in FIFO order. This is necessary
+// to avoid deadlocks in flusher threads.
+//
 static void *work_on_kibbutz (void *kidv) {
     struct kid *kid = kidv;
     KIBBUTZ k = kid->k;
@@ -100,6 +106,12 @@ static void *work_on_kibbutz (void *kidv) {
     }
 }
 
+//
+// adds work to the head of the kibbutz 
+// Note that in work_on_kibbutz, items are popped off the tail for work,
+// making the work be done in FIFO order. This is necessary
+// to avoid deadlocks in flusher threads.
+//
 void toku_kibbutz_enq (KIBBUTZ k, void (*f)(void*), void *extra) {
     struct todo *XMALLOC(td);
     td->f = f;

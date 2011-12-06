@@ -143,33 +143,39 @@ typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void 
 // Can access fd (fd is protected by a readlock during call)
 typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value, PAIR_ATTR *sizep, int *dirtyp, void *read_extraargs);
 
-// The partial eviction estimate callback is a cheap operation called by the cachetable on the client thread
-// to determine whether partial eviction is cheap and can be run on the client thread, or partial eviction
-// is expensive and should be done on a background (writer) thread. If the callback says that 
-// partial eviction is expensive, it returns an estimate of the number of bytes it will free
-// so that the cachetable can estimate how much data is being evicted on background threads
+// The cachetable calls the partial eviction estimate callback to determine if 
+// partial eviction is a cheap operation that may be called by on the client thread
+// or whether partial eviction is expensive and should be done on a background (writer) thread.
+// The callback conveys this information by setting cost to either PE_CHEAP or PE_EXPENSIVE.
+// If cost is PE_EXPENSIVE, then the callback also sets bytes_freed_estimate 
+// to return an estimate of the number of bytes it will free
+// so that the cachetable can estimate how much data is being evicted on background threads.
+// If cost is PE_CHEAP, then the callback does not set bytes_freed_estimate.
 typedef void (*CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK)(void *brtnode_pv, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void *write_extraargs);
 
-// The partial eviction callback is called by the cachetable to possibly try and partially evict pieces
-// of the PAIR. The strategy for what to evict is left to the callback. The callback may choose to free
-// nothing, may choose to free as much as possible.
-// bytes_to_free is the number of bytes the cachetable wants freed.
-// bytes_freed is returned by the callback telling the cachetable how much space was freed
+// The cachetable calls the partial eviction callback is to possibly try and partially evict pieces
+// of the PAIR. The callback determines the strategy for what to evict. The callback may choose to free
+// nothing, or may choose to free as much as possible.
+// old_attr is the PAIR_ATTR of the PAIR when the callback is called. 
+// new_attr is set to the new PAIR_ATTR after the callback executes partial eviction
 // Requires a write lock to be held on the PAIR in the cachetable while this function is called
 typedef int (*CACHETABLE_PARTIAL_EVICTION_CALLBACK)(void *brtnode_pv, PAIR_ATTR old_attr, PAIR_ATTR* new_attr, void *write_extraargs);
 
-// This callback is called by the cachetable to ask if a partial fetch is required of brtnode_pv. If a partial fetch
-// is required, then CACHETABLE_PARTIAL_FETCH_CALLBACK is called (possibly with ydb lock released). The reason
-// this callback exists instead of just doing the same functionality in CACHETABLE_PARTIAL_FETCH_CALLBACK 
-// is so that we can call this cheap function with the ydb lock held, in the hopes of avoiding the more expensive sequence
-// of releasing the ydb lock, calling the partial_fetch_callback, reading nothing, reacquiring the ydb lock
+// The cachetable calls this function to determine if get_and_pin call requires a partial fetch. If this function returns TRUE, 
+// then the cachetable will subsequently call CACHETABLE_PARTIAL_FETCH_CALLBACK to perform
+// a partial fetch. If this function returns FALSE, then the PAIR's value is returned to the caller as is.
+//
+// An alternative to having this callback is to always call CACHETABLE_PARTIAL_FETCH_CALLBACK, and let
+// CACHETABLE_PARTIAL_FETCH_CALLBACK decide whether to possibly release the ydb lock and perform I/O.
+// There is no particular reason why this alternative was not chosen.
 // Requires: a read lock to be held on the PAIR
 typedef BOOL (*CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK)(void *brtnode_pv, void *read_extraargs);
 
-// The partial fetch callback is called when a thread needs to read a subset of a PAIR into memory.
-// An example would be needing to read a basement node into memory. In that case, 
-// Requires a write lock to be held on the PAIR in the cachetable while this function is called
-// The new size of the PAIR is returned in sizep
+// The cachetable calls the partial fetch callback when a thread needs to read or decompress a subset of a PAIR into memory.
+// An example is needing to read a basement node into memory. Another example is decompressing an internal node's
+// message buffer. The cachetable determines if a partial fetch is necessary by first calling CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK.
+// The new PAIR_ATTR of the PAIR is returned in sizep
+// Can access fd (fd is protected by a readlock during call)
 // Returns: 0 if success, otherwise an error number.  
 typedef int (*CACHETABLE_PARTIAL_FETCH_CALLBACK)(void *brtnode_pv, void *read_extraargs, int fd, PAIR_ATTR *sizep);
 
@@ -248,6 +254,16 @@ int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                         );
 
 
+// Get and pin the memory object of a PAIR, and write dependent pairs to disk 
+// if the dependent pairs are pending a checkpoint.
+// Effects: If the memory object is in the cachetable, acquire a PAIR lock on it.
+// Otherwise, fetch it from storage by calling the fetch callback.  If the fetch
+// succeeded, add the memory object to the cachetable with a PAIR lock on it.
+// Before returning to the user, if the PAIR object being retrieved, or any of the
+// dependent pairs passed in as parameters must be written to disk for checkpoint,
+// then the required PAIRs are written to disk for checkpoint.
+// KEY PROPERTY OF DEPENDENT PAIRS: They are already locked by the client
+// Returns: 0 if the memory object is in memory, otherwise an error number.
 int toku_cachetable_get_and_pin_with_dep_pairs (
     CACHEFILE cachefile, 
     CACHEKEY key, 
@@ -272,7 +288,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
 
 
 // Get and pin a memory object.
-// Effects: If the memory object is in the cachetable, acquire a read lock on it.
+// Effects: If the memory object is in the cachetable acquire the PAIR lock on it.
 // Otherwise, fetch it from storage by calling the fetch callback.  If the fetch
 // succeeded, add the memory object to the cachetable with a read lock on it.
 // Returns: 0 if the memory object is in memory, otherwise an error number.
