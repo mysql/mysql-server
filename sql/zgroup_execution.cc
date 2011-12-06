@@ -88,6 +88,7 @@ gtid_acquire_ownership(THD *thd, Checkable_rwlock *lock, Gtid_state *gst,
       // Check if thread was killed.
       if (thd->killed || abort_loop)
         DBUG_RETURN(GTID_STATEMENT_CANCEL);
+#ifdef HAVE_REPLICATION
       // If this thread is a slave SQL thread or slave SQL worker
       // thread, we need this additional condition to determine if it
       // has been stopped by STOP SLAVE [SQL_THREAD].
@@ -98,6 +99,7 @@ gtid_acquire_ownership(THD *thd, Checkable_rwlock *lock, Gtid_state *gst,
         if (active_mi->rli->abort_slave)
           DBUG_RETURN(GTID_STATEMENT_CANCEL);
       }
+#endif // HAVE_REPLICATION
     }
   }
   gst->unlock_sidno(sidno);
@@ -165,6 +167,7 @@ gtid_acquire_ownerships(THD *thd, Checkable_rwlock *lock, Gtid_state *gst,
     // read lock that was held when this function was invoked
     if (thd->killed || abort_loop)
       DBUG_RETURN(GTID_STATEMENT_CANCEL);
+#ifdef HAVE_REPLICATION
     // If this thread is a slave SQL thread or slave SQL worker
     // thread, we need this additional condition to determine if it
     // has been stopped by STOP SLAVE [SQL_THREAD].
@@ -175,6 +178,7 @@ gtid_acquire_ownerships(THD *thd, Checkable_rwlock *lock, Gtid_state *gst,
       if (active_mi->rli->abort_slave)
         DBUG_RETURN(GTID_STATEMENT_CANCEL);
     }
+#endif // HAVE_REPLICATION
   }
 
   /*
