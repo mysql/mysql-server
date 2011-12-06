@@ -4875,6 +4875,66 @@ runMasterFailSlowLCP(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug13464664(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  if (res.getNumDbNodes() < 4)
+    return NDBT_OK;
+
+  /**
+   * m = master
+   * o = node in other node-group than next master
+   * p = not master and node o
+   *
+   * o error 7230 - responde to MASTER_LCPREQ quickly and die
+   * p error 7231 - responde slowly to MASTER_LCPREQ
+   * m error 7025 - die during LCP_FRAG_REP
+   * m dump 7099  - force LCP
+   *
+   */
+loop:
+  int m = res.getMasterNodeId();
+  int n = res.getNextMasterNodeId(m);
+  int o = res.getRandomNodeOtherNodeGroup(n, rand());
+  ndbout_c("m: %u n: %u o: %u", m, n, o);
+  if (res.getNodeGroup(o) == res.getNodeGroup(m))
+  {
+    ndbout_c("=> restart n(%u)", n);
+    res.restartOneDbNode(n,
+                         /** initial */ false, 
+                         /** nostart */ true,
+                         /** abort   */ true);
+    res.waitNodesNoStart(&n, 1);
+    res.startNodes(&n, 1);
+    res.waitClusterStarted();
+    goto loop;
+  }
+
+  ndbout_c("search p");
+loop2:
+  int p = res.getNode(NdbRestarter::NS_RANDOM);
+  while (p == n || p == o || p == m)
+    goto loop2;
+  ndbout_c("p: %u\n", p);
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  res.dumpStateOneNode(o, val2, 2);
+  res.dumpStateOneNode(m, val2, 2);
+
+  res.insertErrorInNode(o, 7230);
+  res.insertErrorInNode(p, 7231);
+  res.insertErrorInNode(m, 7025);
+  int val1[] = { 7099 };
+  res.dumpStateOneNode(m, val1, 1);
+
+  int list[2] = { m, o };
+  res.waitNodesNoStart(list, 2);
+  res.startNodes(list, 2);
+  res.waitClusterStarted();
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -5423,6 +5483,10 @@ TESTCASE("ClusterSplitLatency",
   INITIALIZER(runRestartToDynamicOrder);
   INITIALIZER(analyseDynamicOrder);
   INITIALIZER(runSplitLatency25PctFail);
+}
+TESTCASE("Bug13464664", "")
+{
+  INITIALIZER(runBug13464664);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
