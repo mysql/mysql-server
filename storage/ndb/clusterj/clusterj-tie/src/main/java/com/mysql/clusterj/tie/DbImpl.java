@@ -49,7 +49,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
 
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory()
-            .getInstance(com.mysql.clusterj.core.store.ClusterConnection.class);
+            .getInstance(DbImpl.class);
 
     /** The Ndb instance that this instance is wrapping */
     private Ndb ndb;
@@ -62,11 +62,11 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
 
     // TODO change the allocation to a constant in ndbjtie
     /** The size of the coordinated transaction identifier buffer */
-    private int coordinatedTransactionIdBufferSize = 26;
+    private final static int COORDINATED_TRANSACTION_ID_SIZE = 44;
 
     /** The coordinated transaction identifier buffer */
     private ByteBuffer coordinatedTransactionIdBuffer =
-            ByteBuffer.allocateDirect(coordinatedTransactionIdBufferSize);
+            ByteBuffer.allocateDirect(COORDINATED_TRANSACTION_ID_SIZE);
 
     // TODO change the allocation to something reasonable
     /** The partition key scratch buffer */

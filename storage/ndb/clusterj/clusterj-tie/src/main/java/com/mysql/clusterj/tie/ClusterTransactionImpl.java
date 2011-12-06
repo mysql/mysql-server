@@ -132,6 +132,8 @@ class ClusterTransactionImpl implements ClusterTransaction {
      * Otherwise, use the partition key to enlist the transaction.
      */
     private void enlist() {
+        if (logger.isTraceEnabled()) logger.trace("ndbTransaction: " + ndbTransaction
+                + " with joinTransactionId: " + joinTransactionId);
         if (ndbTransaction == null) {
             if (coordinatedTransactionId != null) {
                 ndbTransaction = db.joinTransaction(coordinatedTransactionId);
