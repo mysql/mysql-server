@@ -616,7 +616,7 @@ int Item_in_subselect::optimize(double *out_rows, double *cost)
   thd->lex->current_select= join->select_lex;
   if ((res= join->optimize()))
     DBUG_RETURN(res);
-
+//psergey-todo: subq predicate can be made forced const!
   /* Calculate #rows and cost of join execution */
   join->get_partial_cost_and_fanout(join->table_count - join->const_tables, 
                                     table_map(-1),

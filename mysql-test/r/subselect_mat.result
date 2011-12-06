@@ -1728,6 +1728,29 @@ FROM t4 , t5
 );
 f1	f5
 DROP TABLE t1, t2, t3, t4, t5;
+#
+# BUG#868908: Crash in check_simple_equality() with semijoin + materialization + prepared statement
+#
+CREATE TABLE t1 ( a int );
+CREATE TABLE t3 ( b int, c int) ;
+CREATE TABLE t2 ( a int ) ;
+CREATE TABLE t4 ( a int , c int) ;
+PREPARE st1 FROM "
+SELECT STRAIGHT_JOIN *
+FROM t1
+WHERE ( 3 ) IN (
+        SELECT t3.b
+        FROM t3
+        LEFT JOIN (
+                t2 STRAIGHT_JOIN t4 ON ( t4.c = t2.a )
+        ) ON ( t4.a = t3.c )
+);
+";
+EXECUTE st1;
+a
+EXECUTE st1;
+a
+DROP TABLE t1,t2,t3,t4;
 # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set @subselect_mat_test_optimizer_switch_value=null;

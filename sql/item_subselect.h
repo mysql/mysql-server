@@ -449,6 +449,7 @@ public:
   double jtbm_read_time;
   double jtbm_record_count;   
   bool is_jtbm_merged;
+  bool is_jtbm_const_tab;
 
   /*
     TRUE<=>this is a flattenable semi-join, false overwise.
