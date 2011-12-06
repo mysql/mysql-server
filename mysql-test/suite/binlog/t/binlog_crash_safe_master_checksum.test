@@ -1,11 +1,20 @@
+# ==== Purpose ====
 #
-# WL#5493 & WL#5440
-# Test case5 verifies if a transaction with a wrong crc value
-# will be trimmed from the crashed binlog file after
-# master restarts when injecting a wrong crc value
-# for a statment of the transaction and then setting
-# DEBUG POINT to cause master crash.
+# Verify that a transaction with wrong checksum is trimmed off from
+# the binary log when the server restarts and executes recovery.  Such
+# recovery is executed if the server restarts after a crash.
 #
+# ==== Method ====
+#
+# 1. Inject a wrong checksum using debug code.
+# 2. Crash server using debug_sync
+# 3. Restart server
+# 4. Show contents of binary log.
+#
+# ==== References ====
+#
+# WL#5493 Binlog crash-safe when master crashed
+# WL#5440 Test binlog and replication when master crashed
 
 # Don't test this under valgrind, memory leaks will occur
 -- source include/not_valgrind.inc
@@ -20,7 +29,6 @@ call mtr.add_suppression("allocated tablespace *., old maximum was 0");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Buffered warning: Performance schema disabled");
 
-# Reset master
 RESET MASTER;
 
 CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
