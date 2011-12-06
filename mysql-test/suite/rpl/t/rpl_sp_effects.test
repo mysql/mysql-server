@@ -8,13 +8,13 @@
 
 # Test of replication of stored procedures (WL#2146 for MySQL 5.0)
 -- source include/master-slave.inc
+--source include/have_innodb.inc
 
 # ****************************************************************
 connection master;
 
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 
-# cleanup
 create table t1 (a int) engine = innodb;
 
 SET GLOBAL log_bin_trust_function_creators = 1;
