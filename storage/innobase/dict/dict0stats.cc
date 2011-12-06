@@ -604,9 +604,11 @@ dict_stats_analyze_index_level(
 #ifdef UNIV_STATS_DEBUG
 	for (i = 1; i <= n_uniq; i++) {
 
-		DEBUG_PRINTF("    %s(): total recs: %llu, total pages: %llu, "
-			     "n_diff[%lu]: %lld\n",
-			     __func__, *total_recs, *total_pages,
+		DEBUG_PRINTF("    %s(): total recs: " UINT64PF
+			     ", total pages: " UINT64PF
+			     ", n_diff[%lu]: " UINT64PF "\n",
+			     __func__, *total_recs,
+			     *total_pages,
 			     i, n_diff[i]);
 
 		if (n_diff_boundaries != NULL) {
@@ -1095,7 +1097,7 @@ dict_stats_analyze_index_for_n_prefix(
 
 	index->stat_n_sample_sizes[n_prefix] = n_recs_to_dive_below;
 
-	DEBUG_PRINTF("    %s(): n_diff=%llu for n_prefix=%lu\n",
+	DEBUG_PRINTF("    %s(): n_diff=" UINT64PF " for n_prefix=%lu\n",
 		     __func__, index->stat_n_diff_key_vals[n_prefix],
 		     n_prefix);
 
@@ -1306,8 +1308,8 @@ dict_stats_analyze_index(
 		}
 found_level:
 
-		DEBUG_PRINTF("  %s(): found level %lu that has %llu "
-			     "distinct records for n_prefix=%lu\n",
+		DEBUG_PRINTF("  %s(): found level %lu that has " UINT64PF
+			     " distinct records for n_prefix=%lu\n",
 			     __func__, level, n_diff_on_level[n_prefix],
 			     n_prefix);
 
