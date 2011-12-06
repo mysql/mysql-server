@@ -37,7 +37,8 @@
                                  // mysql_unlock_read_tables
 #include "sql_show.h"            // append_identifier
 #include "sql_base.h"            // setup_wild, setup_fields, fill_record
-#include "sql_parse.h"                          // check_stack_overrun
+#include "sql_derived.h"         // mysql_derived_*
+#include "sql_parse.h"           // check_stack_overrun
 #include "sql_partition.h"       // make_used_partitions_str
 #include "sql_acl.h"             // *_ACL
 #include "sql_test.h"            // misc. debug printing utilities
@@ -395,10 +396,11 @@ private:
   This handles SELECT with and without UNION
 */
 
-bool handle_select(THD *thd, LEX *lex, select_result *result,
+bool handle_select(THD *thd, select_result *result,
                    ulong setup_tables_done_option)
 {
   bool res;
+  LEX *lex= thd->lex;
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
   MYSQL_SELECT_START(thd->query());
@@ -419,10 +421,8 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 		      select_lex->table_list.first,
 		      select_lex->with_wild, select_lex->item_list,
 		      select_lex->where,
-		      select_lex->order_list.elements +
-		      select_lex->group_list.elements,
-		      select_lex->order_list.first,
-		      select_lex->group_list.first,
+		      &select_lex->order_list,
+		      &select_lex->group_list,
 		      select_lex->having,
 		      lex->proc_list.first,
 		      select_lex->options | thd->variables.option_bits |
@@ -708,7 +708,7 @@ inline int setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
 
 /*****************************************************************************
   Check fields, find best join, do the select and output fields.
-  mysql_select assumes that all tables are already opened
+  All tables must be opened.
 *****************************************************************************/
 
 /**
@@ -1026,6 +1026,23 @@ JOIN::prepare(TABLE_LIST *tables_init,
     goto err;
   if (alloc_func_list())
     goto err;
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  {
+    TABLE_LIST *tbl;
+    for (tbl= select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
+    {
+      /* 
+        This will only prune constant conditions, which will be used for
+        lock pruning.
+      */
+      Item *prune_cond= tbl->on_expr? tbl->on_expr : conds;
+      if (prune_partitions(thd, tbl->table, prune_cond,
+                           &tbl->table->no_partitions_used))
+        goto err;
+    }
+  }
+#endif
 
   DBUG_RETURN(0); // All OK
 
@@ -2188,12 +2205,19 @@ JOIN::optimize()
         part of the nested outer join, and we can't do partition pruning
         (TODO: check if this limitation can be lifted. 
                This also excludes semi-joins.  Is that intentional?)
+        This will try to prune non-static conditions, which can
+        be used after the tables are locked.
       */
       if (!tbl->embedding)
       {
         Item *prune_cond= tbl->on_expr? tbl->on_expr : conds;
-        tbl->table->no_partitions_used= prune_partitions(thd, tbl->table,
-	                                                 prune_cond);
+        if (prune_partitions(thd, tbl->table, prune_cond,
+            &tbl->table->no_partitions_used))
+        {
+          error= 1;
+          DBUG_PRINT("error", ("Error from prune_partitions"));
+          DBUG_RETURN(1);
+        }
       }
     }
   }
@@ -3865,7 +3889,7 @@ void JOIN::cleanup_item_list(List<Item> &items) const
 
 
 /**
-  An entry point to single-unit select (a select without UNION).
+  Prepare stage of mysql_select.
 
   @param thd                  thread handler
                               the top-level select_lex for this query
@@ -3893,37 +3917,42 @@ void JOIN::cleanup_item_list(List<Item> &items) const
                               This object is responsible for send result
                               set rows to the client or inserting them
                               into a table.
-  @param select_lex           the only SELECT_LEX of this query
   @param unit                 top-level UNIT of this query
                               UNIT is an artificial object created by the
                               parser for every SELECT clause.
                               e.g.
                               SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
                               has 2 unions.
+  @param select_lex           the only SELECT_LEX of this query
+  @param[out] free_join       if returned JOIN should be freed     
+  @param[in,out] join_ptr     JOIN to execute
 
   @retval
-    FALSE  success
+    false  success
   @retval
-    TRUE   an error
+    true   an error
+
+  @note tables must be opened before calling mysql_prepare_select.
 */
 
 bool
-mysql_select(THD *thd, 
-	     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
-	     Item *conds, uint og_num,  ORDER *order, ORDER *group,
-	     Item *having, ORDER *proc_param, ulonglong select_options,
-	     select_result *result, SELECT_LEX_UNIT *unit,
-	     SELECT_LEX *select_lex)
+mysql_prepare_select(THD *thd,
+                     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
+                     Item *conds, uint og_num,  ORDER *order, ORDER *group,
+                     Item *having, ORDER *proc_param, ulonglong select_options,
+                     select_result *result, SELECT_LEX_UNIT *unit,
+                     SELECT_LEX *select_lex, bool *free_join, JOIN **join_ptr)
 {
-  bool err;
-  bool free_join= 1;
-  DBUG_ENTER("mysql_select");
-
-  select_lex->context.resolve_in_select_list= TRUE;
+  bool err= false;
   JOIN *join;
+
+  DBUG_ENTER("mysql_prepare_select");
+  DBUG_ASSERT(join_ptr);
+  select_lex->context.resolve_in_select_list= TRUE;
   if (select_lex->join != 0)
   {
     join= select_lex->join;
+    *join_ptr= join;
     /*
       is it single SELECT in derived table, called in derived table
       creation
@@ -3952,28 +3981,56 @@ mysql_select(THD *thd,
                            conds, og_num, order, group, having, proc_param,
                            select_lex, unit);
         if (err)
-	{
-	  goto err;
-	}
+          DBUG_RETURN(TRUE);
       }
     }
-    free_join= 0;
+    *free_join= 0;
     join->select_options= select_options;
   }
   else
   {
     if (!(join= new JOIN(thd, fields, select_options, result)))
 	DBUG_RETURN(TRUE); /* purecov: inspected */
+    *join_ptr= join;
     THD_STAGE_INFO(thd, stage_init);
     thd->lex->used_tables=0;                         // Updated by setup_fields
     err= join->prepare(tables, wild_num,
                        conds, og_num, order, group, having, proc_param,
                        select_lex, unit);
     if (err)
-    {
-      goto err;
-    }
+      DBUG_RETURN(TRUE);
   }
+
+  DBUG_RETURN(err);
+}
+
+
+/**
+  Execute stage of mysql_select.
+
+  @param thd                  thread handler
+  @param select_lex           the only SELECT_LEX of this query
+  @param free_join            if join should be freed
+  @param join                 JOIN to execute
+
+  @retval
+    FALSE  success
+  @retval
+    TRUE   an error
+
+  @note tables must be opened and locked before calling mysql_execute_select.
+*/
+
+bool
+mysql_execute_select(THD *thd, SELECT_LEX *select_lex, bool free_join,
+                     JOIN *join)
+{
+  bool err;
+
+  DBUG_ENTER("mysql_execute_select");
+
+  if (!join)
+    DBUG_RETURN(false);
 
   if ((err= join->optimize()))
   {
@@ -3983,7 +4040,7 @@ mysql_select(THD *thd,
   if (thd->is_error())
     goto err;
 
-  if (select_options & SELECT_DESCRIBE)
+  if (join->select_options & SELECT_DESCRIBE)
   {
     join->explain();
     free_join= 0;
@@ -3999,6 +4056,123 @@ err:
     DBUG_RETURN(err || thd->is_error());
   }
   DBUG_RETURN(join->error);
+}
+
+
+/**
+  An entry point to single-unit select (a select without UNION).
+
+  @param thd                  thread handler
+  @param tables               list of all tables used in this query.
+                              The tables have been pre-opened.
+  @param wild_num             number of wildcards used in the top level 
+                              select of this query.
+                              For example statement
+                              SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
+                              has 3 wildcards.
+  @param fields               list of items in SELECT list of the top-level
+                              select
+                              e.g. SELECT a, b, c FROM t1 will have Item_field
+                              for a, b and c in this list.
+  @param conds                top level item of an expression representing
+                              WHERE clause of the top level select
+  @param og_num               total number of ORDER BY and GROUP BY clauses
+                              arguments
+  @param order                linked list of ORDER BY agruments
+  @param group                linked list of GROUP BY arguments
+  @param having               top level item of HAVING expression
+  @param proc_param           list of PROCEDUREs
+  @param select_options       select options (BIG_RESULT, etc)
+  @param result               an instance of result set handling class.
+                              This object is responsible for send result
+                              set rows to the client or inserting them
+                              into a table.
+  @param unit                 top-level UNIT of this query
+                              UNIT is an artificial object created by the
+                              parser for every SELECT clause.
+                              e.g.
+                              SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
+                              has 2 unions.
+  @param select_lex           the only SELECT_LEX of this query
+  @param tables_to_open_and_lock  Tables to open and lock
+                                  (NULL if already locked)
+  @param open_tables_is_done  All tables are already opened
+  @param tables_to_lock       If open_tables_is_done, not null means we should
+                              also lock tables
+  @param open_mdl_savepoint   If open_tables_is_done, savepoint to use on
+                              failure
+
+  @retval
+    FALSE  success
+  @retval
+    TRUE   an error
+*/
+
+bool
+mysql_select(THD *thd,
+             TABLE_LIST *tables, uint wild_num, List<Item> &fields,
+             Item *conds, SQL_I_List<ORDER> *order, SQL_I_List<ORDER> *group,
+             Item *having, ORDER *proc_param, ulonglong select_options,
+             select_result *result, SELECT_LEX_UNIT *unit,
+             SELECT_LEX *select_lex)
+{
+  bool free_join= 1;
+  bool store_in_query_cache= false;
+  uint og_num= 0;
+  ORDER *first_order= NULL;
+  ORDER *first_group= NULL;
+  JOIN *join= NULL;
+  DBUG_ENTER("mysql_select");
+
+  if (open_query_tables(thd))
+    DBUG_RETURN(true);
+  
+  if (order)
+  {
+    og_num= order->elements;
+    first_order= order->first;
+  }
+  if (group)
+  {
+    og_num+= group->elements;
+    first_group= group->first;
+  }
+
+  /* Only register the query if it was opened above. */
+  if (thd->lex->tables_state < Query_tables_list::TABLES_STATE_LOCKED)
+    store_in_query_cache= true;
+
+  if (mysql_prepare_select(thd, tables, wild_num, fields,
+                           conds, og_num, first_order, first_group, having,
+                           proc_param, select_options, result, unit,
+                           select_lex, &free_join, &join))
+  {
+    if (free_join)
+    {
+      thd_proc_info(thd, "end");
+      (void) select_lex->cleanup();
+    }
+    DBUG_RETURN(true);
+  }
+
+  if (lock_query_tables(thd))
+  {
+    if (free_join)
+    {
+      thd_proc_info(thd, "end");
+      (void) select_lex->cleanup();
+    }
+    DBUG_RETURN(true);
+  }
+
+  /* We must wait after locking until we can store in the query cache */
+  if (store_in_query_cache)
+    query_cache_store_query(thd, thd->lex->query_tables);
+
+  if (mysql_execute_select(thd, select_lex, free_join, join))
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
 }
 
 
@@ -16703,6 +16877,8 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
       return (Item*) 0;
     }
   }
+  /* TODO: Fix this so one can properly delay locking */
+//#ifdef FIXED_DELAYED_LOCKING_ISSUE
   else if (cond->const_item() && !cond->is_expensive())
   /*
     DontEvaluateMaterializedSubqueryTooEarly:
@@ -16718,6 +16894,7 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
     *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
     return (Item*) 0;
   }
+//#endif
   else if ((*cond_value= cond->eq_cmp_result()) != Item::COND_OK)
   {						// boolan compare function
     Item *left_item=	((Item_func*) cond)->arguments()[0];
@@ -19079,7 +19256,11 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     empty_record(table);
     if (table->group && join->tmp_table_param.sum_func_count &&
         table->s->keys && !table->file->inited)
-      table->file->ha_index_init(0, 0);
+    {
+      int error;
+      if ((error= table->file->ha_index_init(0, 0)))
+        return report_error(table, error);
+    }
   }
   /* Set up select_end */
   Next_select_func end_select= setup_end_select_func(join);
@@ -20325,7 +20506,8 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
   if (!table->file->inited)
   {
     DBUG_ASSERT(!tab->sorted);  // Don't expect sort req. for single row.
-    table->file->ha_index_init(table_ref->key, tab->sorted);
+    if ((error= table->file->ha_index_init(table_ref->key, tab->sorted)))
+      return report_error(table, error);
   }
 
   /*
@@ -20431,7 +20613,10 @@ join_read_always_key(JOIN_TAB *tab)
 
   /* Initialize the index first */
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  {
+    if ((error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      return report_error(table, error);
+  }
 
   /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   TABLE_REF *ref= &tab->ref;
@@ -20468,7 +20653,11 @@ join_read_last_key(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  {
+    if ((error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      return report_error(table, error);
+  }
+
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
   if ((error=table->file->index_read_last_map(table->record[0],
@@ -20631,7 +20820,7 @@ join_read_record_no_init(JOIN_TAB *tab)
 static int
 join_read_first(JOIN_TAB *tab)
 {
-  int error;
+  int error= 0;
   TABLE *table=tab->table;
   if (table->covering_keys.is_set(tab->index) && !table->no_keyread)
     table->set_keyread(TRUE);
@@ -20642,8 +20831,9 @@ join_read_first(JOIN_TAB *tab)
   tab->read_record.read_record=join_read_next;
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->index, tab->sorted);
-  if ((error= tab->table->file->ha_index_first(tab->table->record[0])))
+    error= table->file->ha_index_init(tab->index, tab->sorted);
+  if (error ||
+      (error= tab->table->file->ha_index_first(tab->table->record[0])))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       report_error(table, error);
@@ -20667,7 +20857,7 @@ static int
 join_read_last(JOIN_TAB *tab)
 {
   TABLE *table=tab->table;
-  int error;
+  int error= 0;
   if (table->covering_keys.is_set(tab->index) && !table->no_keyread)
     table->set_keyread(TRUE);
   tab->table->status=0;
@@ -20676,8 +20866,9 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited)
-    table->file->ha_index_init(tab->index, tab->sorted);
-  if ((error= tab->table->file->ha_index_last(tab->table->record[0])))
+    error= table->file->ha_index_init(tab->index, tab->sorted);
+  if (error ||
+      (error= tab->table->file->ha_index_last(tab->table->record[0])))
     return report_error(table, error);
   return 0;
 }
@@ -20700,7 +20891,8 @@ join_ft_read_first(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+    if ((error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      return report_error(table, error);
   table->file->ft_init();
 
   if ((error= table->file->ft_read(table->record[0])))
@@ -21159,11 +21351,25 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
       DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
     }
+#if 0
+    if (table->file->ha_rnd_init(0))
+    {
+      table->file->print_error(error,MYF(0));	/* purecov: inspected */
+      DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
+    }
+#endif
     if (table->file->ha_rnd_pos(table->record[1], table->file->dup_ref))
     {
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
       DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
     }
+#if 0
+    if (table->file->ha_rnd_end())
+    {
+      table->file->print_error(error,MYF(0));	/* purecov: inspected */
+      DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
+    }
+#endif
     restore_record(table,record[1]);
     update_tmptable_sum_func(join->sum_funcs,table);
     if ((error=table->file->ha_update_row(table->record[1],
@@ -22930,8 +23136,9 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
   org_record=(char*) (record=table->record[0])+offset;
   new_record=(char*) table->record[1]+offset;
 
-  file->ha_rnd_init(1);
-  error=file->ha_rnd_next(record);
+  error= file->ha_rnd_init(1);
+  if (!error)
+    error=file->ha_rnd_next(record);
   for (;;)
   {
     if (thd->killed)
@@ -23058,7 +23265,8 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     DBUG_RETURN(1);
   }
 
-  file->ha_rnd_init(1);
+  if ((error= file->ha_rnd_init(1)))
+    DBUG_RETURN(error);
   key_pos=key_buffer;
   for (;;)
   {

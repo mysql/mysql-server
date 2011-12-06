@@ -18,6 +18,7 @@
 #include "opt_explain.h"
 #include "sql_select.h"
 #include "sql_partition.h" // for make_used_partitions_str()
+#include "sql_base.h"      // open_query_tables, lock_query_tables
 
 static bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit,
                                select_result *result);
@@ -1516,8 +1517,20 @@ bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->select_number= UINT_MAX; // just for initialization
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
-    res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE) ||
-         unit->optimize();
+
+    if (open_query_tables(thd))
+      DBUG_RETURN(true);
+
+    res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE);
+
+    if (res)
+      DBUG_RETURN(res);
+
+    if (lock_query_tables(thd))
+      DBUG_RETURN(true);
+    
+    res= unit->optimize();
+
     if (!res)
       unit->explain();
   }
@@ -1525,14 +1538,13 @@ bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   {
     thd->lex->current_select= first;
     unit->set_limit(unit->global_parameters);
+    // TODO: Verify that this prune partition locks!
     res= mysql_select(thd,
                       first->table_list.first,
                       first->with_wild, first->item_list,
                       first->where,
-                      first->order_list.elements +
-                      first->group_list.elements,
-                      first->order_list.first,
-                      first->group_list.first,
+                      &first->order_list,
+                      &first->group_list,
                       first->having,
                       thd->lex->proc_list.first,
                       first->options | thd->variables.option_bits | SELECT_DESCRIBE,

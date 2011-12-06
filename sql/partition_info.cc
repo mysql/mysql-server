@@ -79,6 +79,78 @@ partition_info *partition_info::get_clone()
 
 
 /**
+  Mark named [sub]partition to be used/locked.
+
+  @param part_name  Partition name to match.
+  @param length     Partition name length.
+
+  @return Success if partition found
+    @retval true  Partition found
+    @retval false Partition not found
+*/
+
+bool partition_info::add_named_partition(const char *part_name,
+                                                uint length)
+{
+  HASH *part_name_hash;
+  PART_NAME_DEF *part_def;
+  DBUG_ENTER("partition_info::add_named_partition");
+  DBUG_ASSERT(table && table->s && table->s->ha_part_data);
+  part_name_hash= &table->s->ha_part_data->partition_name_hash;
+  DBUG_ASSERT(part_name_hash->records);
+
+  part_def= (PART_NAME_DEF*) my_hash_search(part_name_hash,
+                                            (const uchar*) part_name, length);
+  if (!part_def)
+  {
+    my_error(ER_UNKNOWN_PARTITION, MYF(0), part_name, table->alias);
+    DBUG_RETURN(true);
+  }
+
+  if (part_def->is_subpart)
+  {
+    bitmap_set_bit(&read_partitions, part_def->part_id);
+  }
+  else
+  {
+    if (is_sub_partitioned())
+    {
+      /* Mark all subpartitions in the partition */
+      uint j, start= part_def->part_id;
+      uint end= start + num_subparts;
+      for (j= start; j < end; j++)
+        bitmap_set_bit(&read_partitions, j);
+    }
+    else
+      bitmap_set_bit(&read_partitions, part_def->part_id);
+  }
+  DBUG_PRINT("info", ("Found partition %u is_subpart %d for name %s",
+                      part_def->part_id, part_def->is_subpart,
+                      part_name));
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Mark named [sub]partition to be used/locked.
+
+  @param part_elem  Partition element that matched.
+*/
+
+bool partition_info::set_named_partition_bitmap(const char *part_name,
+                                                uint length)
+{
+  DBUG_ENTER("partition_info::set_named_partition_bitmap");
+  bitmap_clear_all(&read_partitions);
+  if (add_named_partition(part_name, length))
+    DBUG_RETURN(true);
+  bitmap_copy(&lock_partitions, &read_partitions);
+  DBUG_RETURN(false);
+}
+
+
+
+/**
   Prune away partitions not mentioned in the PARTITION () clause,
   if used.
 
@@ -93,12 +165,7 @@ bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
   List_iterator<String> partition_names_it(*(table_list->partition_names));
   uint num_names= table_list->partition_names->elements;
   uint i= 0;
-  HASH *part_name_hash;
   DBUG_ENTER("partition_info::prune_partition_bitmaps");
-
-  DBUG_ASSERT(table && table->s && table->s->ha_part_data);
-  part_name_hash= &table->s->ha_part_data->partition_name_hash;
-  DBUG_ASSERT(part_name_hash->records);
   if (num_names < 1)
     DBUG_RETURN(true);
 
@@ -115,38 +182,8 @@ bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
   do
   {
     String *part_name_str= partition_names_it++;
-    const char *part_name= part_name_str->c_ptr();
-    PART_NAME_DEF *part_def;
-    part_def= (PART_NAME_DEF*) my_hash_search(part_name_hash,
-                                              (const uchar*) part_name,
-                                              part_name_str->length());
-    if (!part_def)
-    {
-      my_error(ER_NO_SUCH_PARTITION, MYF(0), part_name);
+    if (add_named_partition(part_name_str->c_ptr(), part_name_str->length()))
       DBUG_RETURN(true);
-    }
-
-    if (part_def->is_subpart)
-    {
-      bitmap_set_bit(&read_partitions, part_def->part_id);
-    }
-    else
-    {
-      if (is_sub_partitioned())
-      {
-        /* Mark all subpartitions in the partition */
-        uint j, start= part_def->part_id;
-        uint end= start + num_subparts;
-        for (j= start; j < end; j++)
-          bitmap_set_bit(&read_partitions, j);
-      }
-      else
-        bitmap_set_bit(&read_partitions, part_def->part_id);
-    }
-
-    DBUG_PRINT("info", ("Found partition %u is_subpart %d for name %s",
-                        part_def->part_id, part_def->is_subpart,
-                        part_name));
   } while (++i < num_names);
   DBUG_RETURN(false);
 }
@@ -188,6 +225,7 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
     DBUG_PRINT("info", ("Set all partitions"));
   }
   bitmap_copy(&lock_partitions, &read_partitions);
+  DBUG_ASSERT(bitmap_get_first_set(&lock_partitions) != MY_BIT_NONE);
   DBUG_RETURN(FALSE);
 }
 

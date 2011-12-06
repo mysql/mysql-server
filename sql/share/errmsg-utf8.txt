@@ -6506,6 +6506,8 @@ ER_PARTITION_CLAUSE_ON_NONPARTITIONED
 ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
   eng "Found a row not matching the given partition set"
   swe "Hittade en rad som inte passar i någon given partition"
+
+# Not used any longer, use ER_UNKNOWN_PARTITION which includes the tablename.
 ER_NO_SUCH_PARTITION 
   cze "partion '%-.64s' neexistuje"
   dan "partition '%-.64s' eksisterer ikke"
