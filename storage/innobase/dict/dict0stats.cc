@@ -51,7 +51,7 @@ Created Jan 06, 2010 Vasil Dimov
 
 The algorithm is controlled by one number - srv_stats_persistent_sample_pages,
 let it be A, which is the number of leaf pages to analyze for a given index
-for each n-prefix (if the index is on 3 columns, then 3*A pages will be
+for each n-prefix (if the index is on 3 columns, then 3*A leaf pages will be
 analyzed).
 
 Let the total number of leaf pages in the table be T.
@@ -68,7 +68,7 @@ We avoid diving below boring records when searching for a leaf page to
 estimate the number of distinct records because we know that such a leaf
 page will have number of distinct records == 1.
 
-For each n-prefix start from the root level and full scan subsequent lower
+For each n-prefix: start from the root level and full scan subsequent lower
 levels until a level that contains at least A*10 distinct records is found.
 Lets call this level LA.
 As an optimization the search is canceled if it has reached level 1 (never
