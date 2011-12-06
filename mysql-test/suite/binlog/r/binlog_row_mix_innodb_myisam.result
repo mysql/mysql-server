@@ -9,7 +9,7 @@ insert into t2 select * from t1;
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -31,7 +31,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -51,7 +51,7 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -82,7 +82,7 @@ a
 7
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -110,7 +110,7 @@ get_lock("a",10)
 1
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -123,7 +123,7 @@ insert into t1 values(9);
 insert into t2 select * from t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -142,7 +142,7 @@ begin;
 insert into t2 select * from t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -157,7 +157,7 @@ insert into t1 values(11);
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -183,7 +183,7 @@ insert into t2 select * from t1;
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -200,7 +200,7 @@ insert into t2 select * from t1;
 rollback;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 delete from t1;
 delete from t2;
 reset master;
@@ -213,7 +213,7 @@ rollback to savepoint my_savepoint;
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -237,7 +237,7 @@ a
 18
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -295,7 +295,7 @@ get_lock("lock1",60)
 1
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -426,7 +426,7 @@ a	b
 DROP TABLE t1,t2;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -516,7 +516,7 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -538,7 +538,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -566,7 +566,7 @@ insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -587,7 +587,7 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -615,7 +615,7 @@ insert into t2 values (bug27417(1));
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -633,7 +633,7 @@ insert into t2 select bug27417(1) union select bug27417(2);
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -650,7 +650,7 @@ update t3 set b=b+bug27417(1);
 ERROR 23000: Duplicate entry '4' for key 'b'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
@@ -672,7 +672,7 @@ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -706,7 +706,7 @@ delete from t2;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
@@ -730,7 +730,7 @@ delete t2.* from t2,t5 where t2.a=t5.a + 1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -754,7 +754,7 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -780,7 +780,7 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -802,7 +802,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -830,7 +830,7 @@ insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -850,7 +850,7 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -877,7 +877,7 @@ insert into t2 values (bug27417(1));
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -894,7 +894,7 @@ insert into t2 select bug27417(1) union select bug27417(2);
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -910,7 +910,7 @@ update t3 set b=b+bug27417(1);
 ERROR 23000: Duplicate entry '4' for key 'b'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
@@ -931,7 +931,7 @@ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -964,7 +964,7 @@ delete from t2;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
@@ -987,7 +987,7 @@ delete t2.* from t2,t5 where t2.a=t5.a + 1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
@@ -1010,7 +1010,7 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
