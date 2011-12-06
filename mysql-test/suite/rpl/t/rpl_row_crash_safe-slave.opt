@@ -1,1 +1,1 @@
---skip-core-file --skip-slave-start --relay-log-info-repository=TABLE --relay-log-purge=0
+--skip-core-file --skip-slave-start --relay-log-info-repository=TABLE --relay-log-purge=1
