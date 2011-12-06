@@ -4,6 +4,7 @@
 #
 
 -- source include/have_innodb.inc
+-- source include/not_embedded.inc
 
 SET innodb_analyze_is_persistent=1;
 
