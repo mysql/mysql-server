@@ -2693,8 +2693,9 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     DBUG_PRINT("info", ("Do I know something about the master? (%d - %s).",
                BINLOG_NAME_INFO_SIZE != 0, mi->get_master_log_name()));
     add_master_slave_proto(&binlog_flags,
-                           BINLOG_NAME_INFO_SIZE ?
-                           BINLOG_THROUGH_POSITION : BINLOG_THROUGH_GTID);
+                           (BINLOG_NAME_INFO_SIZE == 0 &&
+                            mi->get_master_log_pos() == BIN_LOG_HEADER_SIZE) ?
+                            BINLOG_THROUGH_GTID : BINLOG_THROUGH_POSITION);
     int2store(ptr_buffer, binlog_flags);
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);

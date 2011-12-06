@@ -11832,6 +11832,13 @@ bool Previous_gtids_log_event::write_data_body(IO_CACHE *file)
 }
 #endif
 
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+int Previous_gtids_log_event::do_update_pos(Relay_log_info *rli)
+{
+  return(Log_event::do_update_pos(rli));
+}
+#endif
+
 #endif // HAVE_GTID
 
 
