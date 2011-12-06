@@ -5381,7 +5381,9 @@ best_access_path(JOIN      *join,
     (1) s is inner table of semi-join -> join cache is allowed for semijoins
     (2) s is inner table of outer join -> join cache is allowed for outer joins
   */  
-  if (idx > join->const_tables && best_key == 0 && 
+  if (idx > join->const_tables && best_key == 0 &&
+      (join->allowed_join_cache_types & JOIN_CACHE_HASHED_BIT) &&
+      join->max_allowed_join_cache_level > 2 &&
      !bitmap_is_clear_all(eq_join_set) &&  !disable_jbuf &&
       (!s->emb_sj_nest ||                     
        join->allowed_semijoin_with_cache) &&    // (1)
