@@ -18,6 +18,8 @@
 #include "sql_class.h"
 #include "binlog.h"
 #include "transaction.h"
+#include "rpl_slave.h"
+#include "rpl_mi.h"
 
 
 #ifdef HAVE_GTID
@@ -49,9 +51,11 @@ gtid_acquire_ownership(THD *thd, Checkable_rwlock *lock, Gtid_state *gst,
   enum_gtid_statement_status ret= GTID_STATEMENT_EXECUTE;
   my_thread_id thd_id= thd->id;
   lock->assert_some_rdlock();
-  gst->lock_sidno(sidno);
   while (true)
   {
+    // acquire lock before checking conditions
+    gst->lock_sidno(sidno);
+
     // GTID already logged
     if (gst->is_logged(sidno, gno))
     {
@@ -75,14 +79,25 @@ gtid_acquire_ownership(THD *thd, Checkable_rwlock *lock, Gtid_state *gst,
     {
       DBUG_ASSERT(owner != thd_id);
       Gtid g= { sidno, gno };
-      // The call below releases the read lock on global_sid_lock
+      // The call below releases the read lock on global_sid_lock and
+      // the mutex lock on SIDNO.
       gst->wait_for_gtid(thd, g);
-      gst->unlock_sidno(sidno);
+      // Re-acquire lock before possibly returning from this function.
+      lock->rdlock();
+
+      // Check if thread was killed.
       if (thd->killed || abort_loop)
         DBUG_RETURN(GTID_STATEMENT_CANCEL);
-      // re-acquire locks before checking conditions again
-      lock->rdlock();
-      gst->lock_sidno(sidno);
+      // If this thread is a slave SQL thread or slave SQL worker
+      // thread, we need this additional condition to determine if it
+      // has been stopped by STOP SLAVE [SQL_THREAD].
+      if ((thd->system_thread &
+           (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
+      {
+        DBUG_ASSERT(active_mi != NULL && active_mi->rli != NULL);
+        if (active_mi->rli->abort_slave)
+          DBUG_RETURN(GTID_STATEMENT_CANCEL);
+      }
     }
   }
   gst->unlock_sidno(sidno);
@@ -139,22 +154,33 @@ gtid_acquire_ownerships(THD *thd, Checkable_rwlock *lock, Gtid_state *gst,
       if (gs->contains_sidno(sidno))
         gst->unlock_sidno(sidno);
 
-    // wait
+    // wait. this call releases the read lock on global_sid_lock and
+    // the mutex lock on SIDNO
     gst->wait_for_gtid(thd, g);
-    gst->unlock_sidno(g.sidno);
+
+    // Re-acquire lock before possibly returning from this function.
+    lock->rdlock();
 
     // at this point, we don't hold any locks. re-acquire the global
     // read lock that was held when this function was invoked
     if (thd->killed || abort_loop)
       DBUG_RETURN(GTID_STATEMENT_CANCEL);
-
-    // re-acquire read lock that was released in wait_for_gtid
-    lock->rdlock();
+    // If this thread is a slave SQL thread or slave SQL worker
+    // thread, we need this additional condition to determine if it
+    // has been stopped by STOP SLAVE [SQL_THREAD].
+    if ((thd->system_thread &
+         (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
+    {
+      DBUG_ASSERT(active_mi != NULL && active_mi->rli != NULL);
+      if (active_mi->rli->abort_slave)
+        DBUG_RETURN(GTID_STATEMENT_CANCEL);
+    }
   }
 
   /*
     Now the following hold:
      - None of the GTIDs is owned by any other thread.
+     - We hold a lock on global_sid_lock.
      - We hold a lock on all SIDNOs that we need.
     So we acquire ownership of all groups that we need.
   */

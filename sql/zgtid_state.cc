@@ -88,7 +88,7 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
 
 void Gtid_state::wait_for_gtid(THD *thd, Gtid g)
 {
-  DBUG_ENTER("Gtid_state::wait_for_sidno");
+  DBUG_ENTER("Gtid_state::wait_for_gtid");
   // Enter cond, wait, exit cond.
   PSI_stage_info old_stage;
   sid_locks.enter_cond(thd, g.sidno,

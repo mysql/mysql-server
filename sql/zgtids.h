@@ -679,6 +679,7 @@ public:
     global_lock->unlock();
     mysql_mutex_assert_owner(&mutex_cond->mutex);
     mysql_cond_wait(&mutex_cond->cond, &mutex_cond->mutex);
+    mysql_mutex_assert_owner(&mutex_cond->mutex);
     DBUG_VOID_RETURN;
   }
 #ifndef MYSQL_CLIENT
@@ -1732,7 +1733,11 @@ public:
     @retval false The group is not logged in the binary log.
   */
   bool is_logged(rpl_sidno sidno, rpl_gno gno) const
-  { return logged_gtids.contains_gtid(sidno, gno); }
+  {
+    DBUG_ENTER("Gtid_state::is_logged");
+    bool ret= logged_gtids.contains_gtid(sidno, gno);
+    DBUG_RETURN(ret);
+  }
   /**
     Returns the owner of the given group, or 0 if the group is not owned.
 
@@ -1796,8 +1801,9 @@ public:
     Waits until the given GTID is not owned by any other thread.
 
     This requires that the caller holds a read lock on sid_lock.  It
-    will temporarily release the lock while waiting and re-acquire it
-    after the wait.
+    will release the lock before waiting; neither global_sid_lock nor
+    the mutex lock on SIDNO will not be held when this function
+    returns.
 
     @param thd THD object of the caller.
     @param g Gtid to wait for.
