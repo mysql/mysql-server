@@ -1880,7 +1880,12 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
     if ((file= open_binlog_file(&log, (*it).c_str(), &errmsg)) < 0)
     {
       sql_print_error("%s", errmsg);
-      goto err;
+      /*
+        We need to revisit the recovery procedure for relay log
+        files. Currently, it is called after this routine.
+        /Alfranio
+      */
+      continue;
     }
 
     /*

@@ -752,10 +752,8 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
   */
   DBUG_PRINT("info", ("log_pos: %lu  group_master_log_pos: %lu",
                       (long) log_pos, (long) group_master_log_pos));
-  if (log_pos) // 3.23 binlogs don't have log_posx
-  {
-    group_master_log_pos= log_pos;
-  }
+  group_master_log_pos= ((log_pos > group_master_log_pos) ?
+                         log_pos : group_master_log_pos);
 
   /*
     In MTS mode FD or Rotate event commit their solitary group to

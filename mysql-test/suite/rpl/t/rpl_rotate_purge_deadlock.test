@@ -65,7 +65,7 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 # find and kill DUMP thread
-let $_tid= `select id from information_schema.processlist where command = 'Binlog Dump' limit 1`;
+let $_tid= `select id from information_schema.processlist where command like 'Binlog Dump%' limit 1`;
 --disable_query_log
 eval kill query $_tid;
 --enable_query_log
@@ -76,7 +76,7 @@ eval kill query $_tid;
 #
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE command = 'Binlog Dump' and STATE like "Master has sent all binlog to slave%";
+    WHERE command like 'Binlog Dump%' and STATE like "Master has sent all binlog to slave%";
 --source include/wait_condition.inc
 
 SET DEBUG_SYNC = 'now SIGNAL rotated';
