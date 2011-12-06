@@ -77,6 +77,8 @@ typedef struct keyuse_t {
   bool is_for_hash_join() { return is_hash_join_key_no(key); }
 } KEYUSE;
 
+#define NO_KEYPART ((uint)(-1))
+
 class store_key;
 
 const int NO_REF_PART= uint(-1);

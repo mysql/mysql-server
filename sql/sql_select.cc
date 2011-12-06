@@ -7183,10 +7183,26 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
 
   do
   {
-    if (!(~used_tables & keyuse->used_tables) &&
-	(first_keyuse || keyuse->keypart != (keyuse-1)->keypart))
-      key_parts++;
-    first_keyuse= FALSE;
+    if (!(~used_tables & keyuse->used_tables))
+    {
+      if (first_keyuse)
+      {
+        key_parts++;
+        first_keyuse= FALSE;
+      }
+      else
+      {
+        KEYUSE *curr= org_keyuse;
+        for( ; curr < keyuse; curr++)
+        {
+          if (curr->keypart == keyuse->keypart &&
+              !(~used_tables & curr->used_tables))
+            break;
+        }
+        if (curr == keyuse)
+           key_parts++;
+      }
+    }
     keyuse++;
   } while (keyuse->table == table && keyuse->is_for_hash_join());
   if (!key_parts)
@@ -7211,15 +7227,31 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
   keyuse= org_keyuse;
   do
   {
-    if (!(~used_tables & keyuse->used_tables) &&
-        (first_keyuse || keyuse->keypart != (keyuse-1)->keypart))
-    {
-      Field *field= table->field[keyuse->keypart];
-      uint fieldnr= keyuse->keypart+1;
-      table->create_key_part_by_field(keyinfo, key_part_info, field, fieldnr);
-      first_keyuse= FALSE;
-      key_part_info++;
+    if (!(~used_tables & keyuse->used_tables))
+    { 
+      bool add_key_part= TRUE;
+      if (!first_keyuse)
+      {
+        for(KEYUSE *curr= org_keyuse; curr < keyuse; curr++)
+        {
+          if (curr->keypart == keyuse->keypart &&
+              !(~used_tables & curr->used_tables))
+	  {
+            keyuse->keypart= NO_KEYPART;
+            add_key_part= FALSE;
+            break;
+          }
+        }
+      }
+      if (add_key_part)
+      {
+        Field *field= table->field[keyuse->keypart];
+        uint fieldnr= keyuse->keypart+1;
+        table->create_key_part_by_field(keyinfo, key_part_info, field, fieldnr);
+        key_part_info++;
+      }
     }
+    first_keyuse= FALSE;
     keyuse++;
   } while (keyuse->table == table && keyuse->is_for_hash_join());
 
@@ -7302,8 +7334,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
       {
         if  (are_tables_local(j, keyuse->val->used_tables()))
         {
-          if ((is_hash_join_key_no(key) && 
-              (keyparts == 0 || keyuse->keypart != (keyuse-1)->keypart)) ||
+          if ((is_hash_join_key_no(key) && keyuse->keypart != NO_KEYPART) ||
               (!is_hash_join_key_no(key) && keyparts == keyuse->keypart &&
                !(found_part_ref_or_null & keyuse->optimize)))
           {
@@ -7357,6 +7388,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
     for (i=0 ; i < keyparts ; keyuse++,i++)
     {
       while (((~used_tables) & keyuse->used_tables) || 
+             keyuse->keypart == NO_KEYPART ||
 	     (keyuse->keypart != 
               (is_hash_join_key_no(key) ?
                  keyinfo->key_part[i].field->field_index : i)) || 
