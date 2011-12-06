@@ -18,7 +18,6 @@ struct todo {
 
 struct kid {
     struct kibbutz *k;
-    int id;
 };
 
 struct kibbutz {
@@ -45,7 +44,6 @@ KIBBUTZ toku_kibbutz_create (int n_workers) {
     XMALLOC_N(n_workers, k->ids);
     for (int i=0; i<n_workers; i++) {
         k->ids[i].k = k;
-        k->ids[i].id = i;
         int r = toku_pthread_create(&k->workers[i], NULL, work_on_kibbutz, &k->ids[i]);
         assert(r==0);
     }
