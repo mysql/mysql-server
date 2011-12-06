@@ -912,6 +912,7 @@ public:
   */
   bool     sort_and_group; 
   bool     first_record,full_join, no_field_update;
+  bool     hash_join;
   bool	   do_send_rows;
   /**
     TRUE when we want to resume nested loop iterations when

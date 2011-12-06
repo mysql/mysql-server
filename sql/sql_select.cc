@@ -1448,7 +1448,7 @@ JOIN::optimize()
     order=0;
 
   // Can't use sort on head table if using join buffering
-  if (full_join)
+  if (full_join || hash_join)
   {
     TABLE *stable= (sort_by_table == (TABLE *) 1 ? 
       join_tab[const_tables].table : sort_by_table);
@@ -7036,6 +7036,7 @@ get_best_combination(JOIN *join)
     DBUG_RETURN(TRUE);
 
   join->full_join=0;
+  join->hash_join= FALSE;
 
   used_tables= OUTER_REF_TABLE_BIT;		// Outer row is already read
 
@@ -7125,6 +7126,11 @@ get_best_combination(JOIN *join)
     }
     else if (create_ref_for_key(join, j, keyuse, used_tables))
       DBUG_RETURN(TRUE);                        // Something went wrong
+
+    if ((j->type == JT_REF || j->type == JT_EQ_REF) &&
+        is_hash_join_key_no(j->ref.key))
+      join->hash_join= TRUE; 
+
   loop_end:
     /* 
       Save records_read in JOIN_TAB so that select_describe()/etc don't have
