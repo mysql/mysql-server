@@ -100,7 +100,7 @@ struct Ndb_index_stat {
   bool no_stats;        /* have detected that no stats exist */
   NdbIndexStat::Error error;
   time_t error_time;
-  int error_count;
+  uint error_count;
   struct Ndb_index_stat *share_next; /* per-share list */
   int lt;
   int lt_old;     /* for info only */
@@ -227,21 +227,21 @@ Ndb_index_stat_opt::Ndb_index_stat_opt(char* buf) :
   val[I##aname].maxval = amaxval; \
   val[I##aname].unit = aunit; \
   val[I##aname].flag = aflag
-  ival(loop_enable, 1000, 0, ~0, Umsec, 0);
-  ival(loop_idle, 1000, 0, ~0, Umsec, 0);
-  ival(loop_busy, 100, 0, ~0, Umsec, 0);
-  ival(update_batch, 1, 1, ~0, Usize, 0);
-  ival(read_batch, 4, 1, ~0, Usize, 0);
-  ival(idle_batch, 32, 1, ~0, Usize, 0);
-  ival(check_batch, 8, 1, ~0, Usize, 0);
-  ival(check_delay, 600, 0, ~0, Utime, 0);
-  ival(clean_delay, 60, 0, ~0, Utime, 0);
-  ival(delete_batch, 8, 1, ~0, Usize, 0);
-  ival(error_batch, 4, 1, ~0, Usize, 0);
-  ival(error_delay, 60, 0, ~0, Utime, 0);
-  ival(evict_batch, 8, 1, ~0, Usize, 0);
-  ival(evict_delay, 60, 0, ~0, Utime, 0);
-  ival(cache_limit, 32*1024*1024, 0, ~0, Usize, 0);
+  ival(loop_enable, 1000, 0, ~(uint)0, Umsec, 0);
+  ival(loop_idle, 1000, 0, ~(uint)0, Umsec, 0);
+  ival(loop_busy, 100, 0, ~(uint)0, Umsec, 0);
+  ival(update_batch, 1, 1, ~(uint)0, Usize, 0);
+  ival(read_batch, 4, 1, ~(uint)0, Usize, 0);
+  ival(idle_batch, 32, 1, ~(uint)0, Usize, 0);
+  ival(check_batch, 8, 1, ~(uint)0, Usize, 0);
+  ival(check_delay, 600, 0, ~(uint)0, Utime, 0);
+  ival(clean_delay, 60, 0, ~(uint)0, Utime, 0);
+  ival(delete_batch, 8, 1, ~(uint)0, Usize, 0);
+  ival(error_batch, 4, 1, ~(uint)0, Usize, 0);
+  ival(error_delay, 60, 0, ~(uint)0, Utime, 0);
+  ival(evict_batch, 8, 1, ~(uint)0, Usize, 0);
+  ival(evict_delay, 60, 0, ~(uint)0, Utime, 0);
+  ival(cache_limit, 32*1024*1024, 0, ~(uint)0, Usize, 0);
   ival(cache_lowpct, 90, 0, 100, Usize, 0);
   ival(zero_total, 0, 0, 1, Ubool, Fcontrol);
 #undef ival
@@ -1444,7 +1444,7 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr)
     if (glob.force_update > list_update.count)
     {
       // probably there is a force update waiting on Idle list
-      batch= ~0;
+      batch= ~(uint)0;
     }
     pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   }
@@ -1670,7 +1670,7 @@ ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
   Ndb_index_stat_list &list= ndb_index_stat_list[lt];
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
   const uint delete_batch= opt.get(Ndb_index_stat_opt::Idelete_batch);
-  const uint batch= !pr.end ? delete_batch : 0xFFFFFFFF;
+  const uint batch= !pr.end ? delete_batch : ~(uint)0;
 
   Ndb_index_stat *st_loop= list.head;
   uint cnt= 0;
