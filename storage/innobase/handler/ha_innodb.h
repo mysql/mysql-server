@@ -419,7 +419,7 @@ innobase_index_name_is_reserved(
 Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
-extern "C"
+UNIV_INTERN
 float
 innobase_fts_retrieve_ranking(
 /*==========================*/
@@ -429,7 +429,7 @@ innobase_fts_retrieve_ranking(
 Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
-extern "C"
+UNIV_INTERN
 float
 innobase_fts_find_ranking(
 /*==========================*/
@@ -438,7 +438,7 @@ innobase_fts_find_ranking(
 	uint		len);		/*!< in: Unused */
 /*********************************************************************//**
 Free the memory for the FTS handler */
-extern "C"
+UNIV_INTERN
 void
 innobase_fts_close_ranking(
 /*==========================*/
@@ -452,7 +452,7 @@ innobase_fts_close_ranking(
 /*****************************************************************//**
 Initialize the table FTS stopword list
 @return TRUE is succeed */
-extern "C"
+UNIV_INTERN
 ibool
 innobase_fts_load_stopword(
 /*=======================*/
@@ -469,7 +469,7 @@ Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
 @return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
-extern "C"
+UNIV_INTERN
 ulint
 innobase_fts_check_doc_id_index(
 /*============================*/
@@ -477,3 +477,14 @@ innobase_fts_check_doc_id_index(
 	ulint*		fts_doc_col_no);/*!< out: The column number for
 					Doc ID */
 
+/*******************************************************************//**
+Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
+on the Doc ID column in MySQL create index definition.
+@return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
+FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
+UNIV_INTERN
+ulint
+innobase_fts_check_doc_id_index_in_def(
+/*===================================*/
+	ulint		n_key,		/*!< in: Number of keys */
+	KEY*		key_info);	/*!< in: Key definition */

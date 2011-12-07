@@ -357,7 +357,8 @@ fts_word_init(
 	word->text.f_str = static_cast<byte*>(mem_heap_alloc(heap, len + 1));
 
 	/* Need to copy the NUL character too. */
-	memcpy(word->text.f_str, utf8, word->text.f_len + 1);
+	memcpy(word->text.f_str, utf8, word->text.f_len);
+	word->text.f_str[word->text.f_len] = 0;
 
 	word->heap_alloc = ib_heap_allocator_create(heap);
 
@@ -643,8 +644,10 @@ fts_zip_read_word(
 	/* All blocks must be freed at end of inflate. */
 	if (zip->status != Z_OK) {
 		for (i = 0; i < ib_vector_size(zip->blocks); ++i) {
-			/* FIXME: this assertion needs to be visited
-			ut_ad(ib_vector_getp(zip->blocks, i) == NULL); */
+			if (ib_vector_getp(zip->blocks, i)) {
+				ut_free(ib_vector_getp(zip->blocks, i));
+				ib_vector_set(zip->blocks, i, &null);
+			}
 		}
 	}
 
@@ -905,6 +908,8 @@ fts_index_fetch_words(
 		ut_a(zip->zp->avail_in == 0);
 
 		fts_zip_deflate_end(zip);
+	} else {
+		deflateEnd(zip->zp);
 	}
 
 	return(error);
@@ -1122,7 +1127,7 @@ fts_optimize_encode_node(
 
 	/* Calculate the space required to store the ilist. */
 	doc_id_delta = doc_id - node->last_doc_id;
-	enc_len = fts_get_encoded_len(doc_id_delta);
+	enc_len = fts_get_encoded_len(static_cast<ulint>(doc_id_delta));
 
 	/* Calculate the size of the encoded pos array. */
 	while (*src) {
@@ -2548,6 +2553,10 @@ fts_optimize_add_table(
 {
 	fts_msg_t*	msg;
 
+	if (!fts_optimize_wq) {
+		return;
+	}
+
 	msg = fts_optimize_create_msg(FTS_MSG_ADD_TABLE, table);
 
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
@@ -2998,7 +3007,11 @@ fts_optimize_thread(
 					DICT_ERR_IGNORE_INDEX_ROOT);
 
 				if (table) {
-					fts_sync_table(table);
+
+					if (dict_table_has_fts_index(table)) {
+						fts_sync_table(table);
+					}
+
 					fts_free(table);
 					dict_table_close(table, FALSE);
 				}

@@ -6490,7 +6490,19 @@ calc_row_difference(
 				putc('\n', stderr);
 
 				return(DB_FTS_INVALID_DOCID);
+			} else if ((doc_id
+				    - prebuilt->table->fts->cache->next_doc_id) 
+				   >= FTS_DOC_ID_MAX_STEP) {
+				fprintf(stderr,
+					"InnoDB: Doc ID "UINT64PF" is too"
+					" big. Its difference with largest"
+					" Doc ID used "UINT64PF" cannot"
+					" exceed or equal to %d\n",
+					doc_id,
+					prebuilt->table->fts->cache->next_doc_id - 1,
+					FTS_DOC_ID_MAX_STEP);
 			}
+
 
 			trx->fts_next_doc_id = doc_id;
 		} else {
@@ -8523,6 +8535,33 @@ ha_innobase::create(
 				DBUG_RETURN(-1);
 			}
 		}
+
+		if (innobase_strcasecmp(key->name, FTS_DOC_ID_INDEX_NAME)) {
+			continue;
+		}
+
+		/* Do a pre-check on FTS DOC ID index */
+		if (!(key->flags & HA_NOSAME)
+		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
+		    || strcmp(key->key_part[0].field->field_name,
+			      FTS_DOC_ID_COL_NAME)) {
+			push_warning_printf(thd,
+					    Sql_condition::WARN_LEVEL_WARN,
+					    ER_WRONG_NAME_FOR_INDEX,
+					    " InnoDB: Index name %s is reserved"
+					    " for the unique index on"
+					    " FTS_DOC_ID column for FTS"
+					    " document ID indexing"
+					    " on table %s. Please check"
+					    " the index definition to"
+					    " make sure it is of correct"
+					    " type\n",
+					    FTS_DOC_ID_INDEX_NAME,
+					    name);
+			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
+				 FTS_DOC_ID_INDEX_NAME);
+			DBUG_RETURN(-1);
+		}
 	}
 
 	strcpy(name2, name);
@@ -8535,7 +8574,6 @@ ha_innobase::create(
 
 	if (fts_indexes > 0) {
 		flags2 = DICT_TF2_FTS;
-		/* FTS-FIXME: Only accept compact format tables. */
 	}
 
 	/* Validate create options if innodb_strict_mode is set. */
@@ -8746,22 +8784,10 @@ ha_innobase::create(
 		}
 	}
 
-	for (i = 0; i < form->s->keys; i++) {
-
-		if (i != static_cast<uint>(primary_key_no)) {
-
-			if ((error = create_index(trx, form, flags,
-						  norm_name, i))) {
-				goto cleanup;
-			}
-		}
-	}
-
 	/* Create the ancillary tables that are common to all FTS indexes on
 	this table. */
 	if (fts_indexes > 0) {
 		ulint	ret = 0;
-		ulint	fts_doc_col_no = 0;
 
 		innobase_table = dict_table_open_on_name_no_stats(
 			norm_name, TRUE, DICT_ERR_IGNORE_NONE);
@@ -8769,8 +8795,8 @@ ha_innobase::create(
 		ut_a(innobase_table);
 
 		/* Check whether there alreadys exist FTS_DOC_ID_INDEX */
-		ret = innobase_fts_check_doc_id_index(
-			innobase_table, &fts_doc_col_no);
+		ret = innobase_fts_check_doc_id_index_in_def(
+			form->s->keys, form->s->key_info);
 
 		/* Raise error if FTS_DOC_ID_INDEX is of wrong format */
 		if (ret == FTS_INCORRECT_DOC_ID_INDEX) {
@@ -8795,10 +8821,8 @@ ha_innobase::create(
 			dict_table_close(innobase_table, TRUE);
 			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
 				 FTS_DOC_ID_INDEX_NAME);
-			error = DB_ERROR;
+			error = -1;
 			goto cleanup;
-		} else if (ret == FTS_EXIST_DOC_ID_INDEX) {
-			ut_a(fts_doc_col_no == innobase_table->fts->doc_col);
 		}
 
 		error = fts_create_common_tables(
@@ -8811,6 +8835,17 @@ ha_innobase::create(
 
 		if (error) {
 			goto cleanup;
+		}
+	}
+
+	for (i = 0; i < form->s->keys; i++) {
+
+		if (i != static_cast<uint>(primary_key_no)) {
+
+			if ((error = create_index(trx, form, flags,
+						  norm_name, i))) {
+				goto cleanup;
+			}
 		}
 	}
 
@@ -13970,6 +14005,7 @@ innobase_index_name_is_reserved(
 Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
+UNIV_INTERN
 float
 innobase_fts_retrieve_ranking(
 /*============================*/
@@ -13989,6 +14025,7 @@ innobase_fts_retrieve_ranking(
 
 /***********************************************************************
 Free the memory for the FTS handler */
+UNIV_INTERN
 void
 innobase_fts_close_ranking(
 /*=======================*/
@@ -14016,6 +14053,7 @@ innobase_fts_close_ranking(
 Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
+UNIV_INTERN
 float
 innobase_fts_find_ranking(
 /*======================*/

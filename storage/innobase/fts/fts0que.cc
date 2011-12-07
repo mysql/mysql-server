@@ -1221,7 +1221,7 @@ ulint
 fts_query_union(
 /*============*/
 	fts_query_t*		query,	/*!< in: query instance */
-	const fts_string_t*	token)	/*!< in: token to search */
+	fts_string_t*		token)	/*!< in: token to search */
 {
 	fts_fetch_t		fetch;
 	ulint			n_doc_ids = 0;
@@ -1244,6 +1244,16 @@ fts_query_union(
 
 	if (token->f_len == 0) {
 		return(query->error);
+	}
+
+	/* Single '%' would confuse parser in pars_like_rebind(). In addition,
+	our wildcard search only supports prefix search */
+	if (*token->f_str == '%') {
+		if (token->f_len == 1) {
+			return(query->error);
+		}
+		token->f_str++;
+		token->f_len--;
 	}
 
 	fts_query_cache(query, token);
@@ -2234,14 +2244,14 @@ fts_query_phrase_search(
 				query->matched = query->match_array[i];
 			}
 
-			fts_query_cache(query, token);
-
 			fts_index_fetch_nodes(
 				trx, &graph, &query->fts_index_table,
 				token, &fetch);
 
 			fts_que_graph_free(graph);
 			graph = NULL;
+
+			fts_query_cache(query, token);
 
 			if (!(query->flags & FTS_PHRASE)
 			    && !(query->flags & FTS_PROXIMITY)) {
@@ -2324,13 +2334,13 @@ ulint
 fts_query_execute(
 /*==============*/
 	fts_query_t*		query,	/*!< in: query instance */
-	const fts_string_t*	token)	/*!< in: token to search */
+	fts_string_t*		token)	/*!< in: token to search */
 {
 	switch (query->oper) {
 	case FTS_NONE:
 	case FTS_NEGATE:
-	case FTS_INCR_RATING: // FIXME
-	case FTS_DECR_RATING: // FIXME
+	case FTS_INCR_RATING:
+	case FTS_DECR_RATING:
 		query->error = fts_query_union(query, token);
 		break;
 
@@ -2764,6 +2774,7 @@ fts_query_read_node(
 
 	/* Lookup the word in our rb tree, it must exist. */
 	ret = rbt_search(query->word_freqs, &parent, term);
+
 	ut_a(ret == 0);
 
 	word_freq = rbt_value(fts_word_freq_t, parent.last);
