@@ -927,7 +927,6 @@ dict_stats_analyze_index_for_n_prefix(
 						records on the given level,
 						when looking at the first
 						n_prefix columns */
-
 	dyn_array_t*	boundaries)		/*!< in: array that contains
 						n_diff_for_this_prefix
 						integers each of which
@@ -951,7 +950,7 @@ dict_stats_analyze_index_for_n_prefix(
 
 #if 0
 	DEBUG_PRINTF("    %s(table=%s, index=%s, level=%lu, n_prefix=%lu, "
-		     "n_diff_for_this_prefix=%llu)\n",
+		     "n_diff_for_this_prefix=" UINT64PF ")\n",
 		     __func__, index->table->name, index->name, level,
 		     n_prefix, n_diff_for_this_prefix);
 #endif
@@ -1063,8 +1062,8 @@ dict_stats_analyze_index_for_n_prefix(
 					     * sizeof(ib_uint64_t)));
 
 #if 0
-		DEBUG_PRINTF("    %s(): dive below rec_idx=%llu\n",
-			     __func__, dive_below_idx);
+		DEBUG_PRINTF("    %s(): dive below record with index="
+			     UINT64PF "\n", __func__, dive_below_idx);
 #endif
 
 		/* seek to the record with index dive_below_idx */
