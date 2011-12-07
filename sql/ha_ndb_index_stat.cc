@@ -1326,6 +1326,8 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
     }
 
     pthread_cond_broadcast(&ndb_index_stat_thread.stat_cond);
+    pr.now= ndb_index_stat_time();
+    st->check_time= pr.now;
     pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
     return;
   }
@@ -1336,6 +1338,7 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   st->load_time= head.m_loadTime;
   st->read_time= pr.now;
   st->sample_version= head.m_sampleVersion;
+  st->check_time= pr.now;
 
   ndb_index_stat_force_update(st, false);
   ndb_index_stat_no_stats(st, false);
@@ -1887,6 +1890,7 @@ ndb_index_stat_entry_verify(const Ndb_index_stat *st)
     }
     assert(found == 1);
   }
+  assert(st->read_time <= st->check_time);
 }
 
 void
