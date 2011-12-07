@@ -534,7 +534,7 @@ on the Doc ID column.
 @return	FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
 UNIV_INTERN
-ulint
+enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 /*============================*/
 	dict_table_t*	table,		/*!< in: table definition */
@@ -578,6 +578,41 @@ innobase_fts_check_doc_id_index(
 	}
 
 	/* Not found */
+	return(FTS_NOT_EXIST_DOC_ID_INDEX);
+}
+/*******************************************************************//**
+Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
+on the Doc ID column in MySQL create index definition.
+@return	FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
+FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
+UNIV_INTERN
+enum fts_doc_id_index_enum
+innobase_fts_check_doc_id_index_in_def(
+/*===================================*/
+	ulint		n_key,		/*!< in: Number of keys */
+	KEY *		key_info)	/*!< in: Key definition */
+{
+	/* Check whether there is a "FTS_DOC_ID_INDEX" in the to be built index
+	list */
+	for (ulint j = 0; j < n_key; j++) {
+		KEY*    key = &key_info[j];
+
+		if (innobase_strcasecmp(key->name, FTS_DOC_ID_INDEX_NAME)) {
+			continue;
+		}
+
+		/* Do a check on FTS DOC ID_INDEX, it must be unique,
+		named as "FTS_DOC_ID_INDEX" and on column "FTS_DOC_ID" */
+		if (!(key->flags & HA_NOSAME)
+		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
+		    || strcmp(key->key_part[0].field->field_name,
+			     FTS_DOC_ID_COL_NAME)) {
+			return(FTS_INCORRECT_DOC_ID_INDEX);
+	       }
+
+		return(FTS_EXIST_DOC_ID_INDEX);
+        }
+
 	return(FTS_NOT_EXIST_DOC_ID_INDEX);
 }
 /*******************************************************************//**
@@ -665,44 +700,32 @@ innobase_create_key_def(
 
 	/* Check whether there is a "FTS_DOC_ID_INDEX" in the to be built index
 	list */
-	for (ulint j = 0; j < n_keys; j++) {
-		KEY*    key = &key_info[j];
-
-		if (innobase_strcasecmp(key->name, FTS_DOC_ID_INDEX_NAME)) {
-			continue;
-		}
-
-		/* Do a check on FTS DOC ID_INDEX, it must be unique,
-		named as "FTS_DOC_ID_INDEX" and on column "FTS_DOC_ID" */
-		if (!(key->flags & HA_NOSAME)
-		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
-		    || strcmp(key->key_part[0].field->field_name,
-			     FTS_DOC_ID_COL_NAME)) {
-		       push_warning_printf((THD*) trx->mysql_thd,
-					   Sql_condition::WARN_LEVEL_WARN,
-					   ER_WRONG_NAME_FOR_INDEX,
-					   " InnoDB: Index name %s is reserved"
-					   " for the unique index on"
-					   " FTS_DOC_ID column for FTS"
-					   " document ID indexing"
-					   " on table %s. Please check"
-					   " the index definition to"
-					   " make sure it is of correct"
-					   " type\n",
-					   FTS_DOC_ID_INDEX_NAME,
-					   table->name);
-		       DBUG_RETURN(NULL);
-               }
+	if (innobase_fts_check_doc_id_index_in_def(n_keys, key_info)
+	    == FTS_INCORRECT_DOC_ID_INDEX) {
+		push_warning_printf((THD*) trx->mysql_thd,
+				   Sql_condition::WARN_LEVEL_WARN,
+				   ER_WRONG_NAME_FOR_INDEX,
+				   " InnoDB: Index name %s is reserved"
+				   " for the unique index on"
+				   " FTS_DOC_ID column for FTS"
+				   " document ID indexing"
+				   " on table %s. Please check"
+				   " the index definition to"
+				   " make sure it is of correct"
+				   " type\n",
+				   FTS_DOC_ID_INDEX_NAME,
+				   table->name);
+	       DBUG_RETURN(NULL);
 	}
 
 	/* If we are to build an FTS index, check whether the table
 	already has a DOC ID column, if not, we will need to add a
 	Doc ID hidden column and rebuild the primary index */
 	if (*num_fts_index) {
-		ulint	ret;
-		ibool	exists;
-		ulint	doc_col_no;
-		ulint	fts_doc_col_no;
+		enum fts_doc_id_index_enum	ret;
+		ibool				exists;
+		ulint				doc_col_no;
+		ulint				fts_doc_col_no;
 
 		exists = innobase_fts_check_doc_id_col(table, &fts_doc_col_no);
 
@@ -735,9 +758,11 @@ innobase_create_key_def(
 
 		ret = innobase_fts_check_doc_id_index(table, &doc_col_no);
 
-		if (ret == FTS_NOT_EXIST_DOC_ID_INDEX) {
+		switch (ret) {
+		case FTS_NOT_EXIST_DOC_ID_INDEX:
 			*add_fts_doc_id_idx = TRUE;
-		} else if (ret == FTS_INCORRECT_DOC_ID_INDEX) {
+			break;
+		case FTS_INCORRECT_DOC_ID_INDEX:
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr, " InnoDB: Index %s is used for FTS"
@@ -747,7 +772,7 @@ innobase_create_key_def(
 					FTS_DOC_ID_INDEX_NAME, table->name);
 			DBUG_RETURN(NULL);
 
-		} else {
+		default:
 			ut_ad(ret == FTS_EXIST_DOC_ID_INDEX);
 
 			ut_ad(doc_col_no == fts_doc_col_no);
