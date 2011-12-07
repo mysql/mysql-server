@@ -4936,6 +4936,75 @@ loop2:
   return NDBT_OK;
 }
 
+int master_err[] =
+{
+  7025, // LCP_FRG_REP in DIH
+  5056, // LCP complete rep from LQH
+  7191, // execLCP_COMPLETE_REP in DIH
+  7015, // execSTART_LCP_CONF in DIH
+  0
+};
+
+int other_err[] =
+{
+  7205, // execMASTER_LCPREQ
+  7206, // execEMPTY_LCP_CONF
+  7230, // sendMASTER_LCPCONF and die
+  7232, // Die after sending MASTER_LCPCONF
+  0
+};
+
+int
+runLCPTakeOver(NDBT_Context* ctx, NDBT_Step* step)
+{
+  {
+    NdbRestarter res;
+    if (res.getNumDbNodes() < 4)
+      return NDBT_OK;
+  }
+
+  for (int i = 0; master_err[i] != 0; i++)
+  {
+    int errno1 = master_err[i];
+    for (int j = 0; other_err[j] != 0; j++)
+    {
+      int errno2 = other_err[j];
+
+      /**
+       * we want to kill master,
+       *   and kill another node during LCP take-ove (not new master)
+       */
+      NdbRestarter res;
+      int master = res.getMasterNodeId();
+      int next = res.getNextMasterNodeId(master);
+  loop:
+      int victim = res.getRandomNodeOtherNodeGroup(master, rand());
+      while (next == victim)
+        goto loop;
+
+      ndbout_c("master: %u next: %u victim: %u master-err: %u victim-err: %u",
+               master, next, victim, errno1, errno2);
+
+      int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+      res.dumpStateOneNode(master, val2, 2);
+      res.dumpStateOneNode(victim, val2, 2);
+      res.insertErrorInNode(next, 7233);
+      res.insertErrorInNode(victim, errno2);
+      res.insertErrorInNode(master, errno1);
+
+      int val1[] = { 7099 };
+      res.dumpStateOneNode(master, val1, 1);
+      int list[] = { master, victim };
+      res.waitNodesNoStart(list, 2);
+      res.startNodes(list, 2);
+      res.waitClusterStarted();
+    }
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -5488,6 +5557,15 @@ TESTCASE("Bug13464664", "")
 {
   INITIALIZER(runBug13464664);
 }
+TESTCASE("LCPTakeOver", "")
+{
+  INITIALIZER(runCheckAllNodesStarted);
+  INITIALIZER(runLoadTable);
+  STEP(runLCPTakeOver);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runScanUpdateUntilStopped);
+}
+
 NDBT_TESTSUITE_END(testNodeRestart);
 
 int main(int argc, const char** argv){
