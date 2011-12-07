@@ -1335,7 +1335,7 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   pr.now= ndb_index_stat_time();
   st->is->get_head(head);
-  st->load_time= head.m_loadTime;
+  st->load_time= (time_t)head.m_loadTime;
   st->read_time= pr.now;
   st->sample_version= head.m_sampleVersion;
   st->check_time= pr.now;
@@ -1384,17 +1384,20 @@ void
 ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
-  const int clean_delay= opt.get(Ndb_index_stat_opt::Iclean_delay);
-  const int check_delay= opt.get(Ndb_index_stat_opt::Icheck_delay);
-  const time_t clean_wait=
-    st->cache_clean ? 0 : st->read_time + clean_delay - pr.now;
-  const time_t check_wait=
-    st->check_time == 0 ? 0 : st->check_time + check_delay - pr.now;
+  const longlong clean_delay= opt.get(Ndb_index_stat_opt::Iclean_delay);
+  const longlong check_delay= opt.get(Ndb_index_stat_opt::Icheck_delay);
 
-  DBUG_PRINT("index_stat", ("st %s check wait:%lds force update:%u"
-                            " clean wait:%lds cache clean:%d to delete:%d",
-                            st->id, (long)check_wait, st->force_update,
-                            (long)clean_wait, st->cache_clean, st->to_delete));
+  const longlong pr_now= (longlong)pr.now;
+  const longlong st_read_time= (longlong)st->read_time;
+  const longlong st_check_time= (longlong)st->check_time;
+
+  const longlong clean_wait= st_read_time + clean_delay - pr_now;
+  const longlong check_wait= st_check_time + check_delay - pr_now;
+
+  DBUG_PRINT("index_stat", ("st %s clean_wait:%lld check_wait:%lld"
+                            " force_update:%d to_delete:%d",
+                            st->id, clean_wait, check_wait,
+                            st->force_update, st->to_delete));
 
   if (st->to_delete)
   {
@@ -1586,8 +1589,9 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
   Ndb_index_stat_list &list= ndb_index_stat_list[lt];
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
   const uint batch= opt.get(Ndb_index_stat_opt::Ievict_batch);
-  const int evict_delay= opt.get(Ndb_index_stat_opt::Ievict_delay);
+  const longlong evict_delay= opt.get(Ndb_index_stat_opt::Ievict_delay);
   pr.now= ndb_index_stat_time();
+  const longlong pr_now= (longlong)pr.now;
 
   if (!ndb_index_stat_proc_evict())
     return;
@@ -1600,7 +1604,8 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
   {
     Ndb_index_stat *st= st_loop;
     st_loop= st_loop->list_next;
-    if (st->read_time + evict_delay <= pr.now &&
+    const longlong st_read_time= (longlong)st->read_time;
+    if (st_read_time + evict_delay <= pr_now &&
         !st->to_delete)
     {
       /* Insertion sort into the batch from the end */
@@ -1704,8 +1709,16 @@ void
 ndb_index_stat_proc_error(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
-  const int error_delay= opt.get(Ndb_index_stat_opt::Ierror_delay);
-  const time_t error_wait= st->error_time + error_delay - pr.now;
+  const longlong error_delay= opt.get(Ndb_index_stat_opt::Ierror_delay);
+
+  const longlong pr_now= (longlong)pr.now;
+  const longlong st_error_time= (longlong)st->error_time;
+  const longlong error_wait= st_error_time + error_delay - pr_now;
+
+  DBUG_PRINT("index_stat", ("st %s error_wait:%lld error_count:%u"
+                            " force_update:%d to_delete:%d",
+                            st->id, error_wait, st->error_count,
+                            st->force_update, st->to_delete));
 
   if (st->to_delete)
   {
@@ -1717,10 +1730,6 @@ ndb_index_stat_proc_error(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
       /* Analyze issued after previous error */
       st->force_update)
   {
-    DBUG_PRINT("index_stat", ("st %s error wait:%ds error count:%u"
-                              " force update:%u",
-                              st->id, (int)error_wait, st->error_count,
-                              st->force_update));
     ndb_index_stat_clear_error(st);
     if (st->force_update)
       pr.lt= Ndb_index_stat::LT_Update;
