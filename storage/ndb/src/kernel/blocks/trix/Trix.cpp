@@ -2438,6 +2438,8 @@ Trix::statCleanExecute(Signal* signal, StatOp& stat)
   SubscriptionRecord* subRec = c_theSubscriptions.getPtr(stat.m_subRecPtrI);
   D("statCleanExecute" << V(stat));
 
+  CRASH_INSERTION(18025);
+
   SectionHandle handle(this, signal);
   ndbrequire(handle.m_cnt == 2);
 
@@ -2610,6 +2612,8 @@ Trix::statScanExecute(Signal* signal, StatOp& stat)
   StatOp::Send& send = stat.m_send;
   SubscriptionRecord* subRec = c_theSubscriptions.getPtr(stat.m_subRecPtrI);
   D("statScanExecute" << V(stat));
+
+  CRASH_INSERTION(18026);
 
   SectionHandle handle(this, signal);
   ndbrequire(handle.m_cnt == 2);
