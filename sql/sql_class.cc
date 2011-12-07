@@ -3545,14 +3545,15 @@ void Log_throttle::new_window(ulonglong now)
 }
 
 
-Log_throttle::Log_throttle(ulong *threshold, ulong window_usecs,
+Log_throttle::Log_throttle(ulong *threshold, mysql_mutex_t *lock,
+                           ulong window_usecs,
                            bool (*logger)(THD *, const char *, uint),
                            const char *msg)
   :total_exec_time(0), total_lock_time(0), window_end(0),
-   rate(threshold), window_size(window_usecs), count(0),
-   summary_template(msg), log_summary(logger)
+   rate(threshold),
+   window_size(window_usecs), count(0),
+   summary_template(msg), LOCK_log_throttle(lock), log_summary(logger)
 {
-  mysql_mutex_init(key_LOCK_throttle,  &LOCK_log_throttle, MY_MUTEX_INIT_FAST);
   aggregate_sctx.init();
 }
 

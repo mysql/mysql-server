@@ -50,6 +50,9 @@ select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_thread_count";
 
 select count(name) from mutex_instances
+ where name like "wait/synch/mutex/sql/LOCK_log_throttle_qni";
+
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_status";
 
 select count(name) from mutex_instances
