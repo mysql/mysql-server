@@ -215,6 +215,9 @@ int table_esms_by_digest::rnd_next(void)
 {
   PFS_statements_digest_stat* digest_stat;
 
+  if(statements_digest_stat_array == NULL)
+    return HA_ERR_END_OF_FILE;
+
   m_pos.set_at(&m_next_pos);
   digest_stat= &statements_digest_stat_array[m_pos.m_index];
 

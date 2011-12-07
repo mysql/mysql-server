@@ -4589,10 +4589,17 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
     /* Set digest stat. */
     digest_storage= &pfs->m_digest_storage;
-    /* Populate PFS_statements_digest_stat with computed digest information. */
-    pfs->statement_digest_stat_ptr= 
-                       find_or_create_digest(thread, digest_storage);
-    digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
+    /* 
+       TODO:Following condition should always be true. If a statement is
+       there, then atleast one token should be there.
+    */
+    if(digest_storage->m_token_count>0)
+    {
+      /* Populate PFS_statements_digest_stat with computed digest information. */
+      pfs->statement_digest_stat_ptr= 
+                         find_or_create_digest(thread, digest_storage);
+      digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
+    }
 
     if (flags & STATE_FLAG_EVENT)
     {
@@ -4642,10 +4649,17 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
     /* Set digest stat. */
     digest_storage= &pfs->m_digest_storage;
-    /* Populate PFS_statements_digest_stat with computed digest information. */
-    pfs->statement_digest_stat_ptr= 
-                       find_or_create_digest(thread, digest_storage);
-    digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
+    /* 
+       TODO:Following condition should always be true. If a statement is
+       there, then atleast one token should be there.
+    */
+    if(digest_storage->m_token_count>0)
+    {
+      /* Populate PFS_statements_digest_stat with computed digest information. */
+      pfs->statement_digest_stat_ptr= 
+                         find_or_create_digest(thread, digest_storage);
+      digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
+    }
 
     event_name_array= global_instr_class_statements_array;
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME */
@@ -4680,31 +4694,34 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   stat->m_no_index_used+= state->m_no_index_used;
   stat->m_no_good_index_used+= state->m_no_good_index_used;
 
-  if (flags & STATE_FLAG_TIMED)
+  if(digest_stat)
   {
-    digest_stat->aggregate_value(wait_time);
-  }
-  else
-  {
-    digest_stat->aggregate_counted();
-  }
-
-  digest_stat->m_lock_time+= state->m_lock_time;
-  digest_stat->m_rows_sent+= state->m_rows_sent;
-  digest_stat->m_rows_examined+= state->m_rows_examined;
-  digest_stat->m_created_tmp_disk_tables+= state->m_created_tmp_disk_tables;
-  digest_stat->m_created_tmp_tables+= state->m_created_tmp_tables;
-  digest_stat->m_select_full_join+= state->m_select_full_join;
-  digest_stat->m_select_full_range_join+= state->m_select_full_range_join;
-  digest_stat->m_select_range+= state->m_select_range;
-  digest_stat->m_select_range_check+= state->m_select_range_check;
-  digest_stat->m_select_scan+= state->m_select_scan;
-  digest_stat->m_sort_merge_passes+= state->m_sort_merge_passes;
-  digest_stat->m_sort_range+= state->m_sort_range;
-  digest_stat->m_sort_rows+= state->m_sort_rows;
-  digest_stat->m_sort_scan+= state->m_sort_scan;
-  digest_stat->m_no_index_used+= state->m_no_index_used;
-  digest_stat->m_no_good_index_used+= state->m_no_good_index_used;
+    if (flags & STATE_FLAG_TIMED)
+    {
+      digest_stat->aggregate_value(wait_time);
+    }
+    else
+    {
+      digest_stat->aggregate_counted();
+    }
+  
+    digest_stat->m_lock_time+= state->m_lock_time;
+    digest_stat->m_rows_sent+= state->m_rows_sent;
+    digest_stat->m_rows_examined+= state->m_rows_examined;
+    digest_stat->m_created_tmp_disk_tables+= state->m_created_tmp_disk_tables;
+    digest_stat->m_created_tmp_tables+= state->m_created_tmp_tables;
+    digest_stat->m_select_full_join+= state->m_select_full_join;
+    digest_stat->m_select_full_range_join+= state->m_select_full_range_join;
+    digest_stat->m_select_range+= state->m_select_range;
+    digest_stat->m_select_range_check+= state->m_select_range_check;
+    digest_stat->m_select_scan+= state->m_select_scan;
+    digest_stat->m_sort_merge_passes+= state->m_sort_merge_passes;
+    digest_stat->m_sort_range+= state->m_sort_range;
+    digest_stat->m_sort_rows+= state->m_sort_rows;
+    digest_stat->m_sort_scan+= state->m_sort_scan;
+    digest_stat->m_no_index_used+= state->m_no_index_used;
+    digest_stat->m_no_good_index_used+= state->m_no_good_index_used;
+    }
 
   switch(da->status())
   {
@@ -4942,6 +4959,7 @@ static struct PSI_digest_locker* digest_start_v1(PSI_statement_locker *locker)
   /* 
     Initialize token array and token count to 0.
   */
+  digest_storage->m_token_count= PFS_MAX_TOKEN_COUNT;
   while(digest_storage->m_token_count)
     digest_storage->m_token_array[--digest_storage->m_token_count]= 0;
   
