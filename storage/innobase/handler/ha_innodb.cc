@@ -8789,22 +8789,10 @@ ha_innobase::create(
 		}
 	}
 
-	for (i = 0; i < form->s->keys; i++) {
-
-		if (i != static_cast<uint>(primary_key_no)) {
-
-			if ((error = create_index(trx, form, flags,
-						  norm_name, i))) {
-				goto cleanup;
-			}
-		}
-	}
-
 	/* Create the ancillary tables that are common to all FTS indexes on
 	this table. */
 	if (fts_indexes > 0) {
 		ulint	ret = 0;
-		ulint	fts_doc_col_no = 0;
 
 		innobase_table = dict_table_open_on_name_no_stats(
 			norm_name, TRUE, DICT_ERR_IGNORE_NONE);
@@ -8812,8 +8800,8 @@ ha_innobase::create(
 		ut_a(innobase_table);
 
 		/* Check whether there alreadys exist FTS_DOC_ID_INDEX */
-		ret = innobase_fts_check_doc_id_index(
-			innobase_table, &fts_doc_col_no);
+		ret = innobase_fts_check_doc_id_index_in_def(
+			form->s->keys, form->s->key_info);
 
 		/* Raise error if FTS_DOC_ID_INDEX is of wrong format */
 		if (ret == FTS_INCORRECT_DOC_ID_INDEX) {
@@ -8840,8 +8828,6 @@ ha_innobase::create(
 				 FTS_DOC_ID_INDEX_NAME);
 			error = -1;
 			goto cleanup;
-		} else if (ret == FTS_EXIST_DOC_ID_INDEX) {
-			ut_a(fts_doc_col_no == innobase_table->fts->doc_col);
 		}
 
 		error = fts_create_common_tables(
@@ -8854,6 +8840,17 @@ ha_innobase::create(
 
 		if (error) {
 			goto cleanup;
+		}
+	}
+
+	for (i = 0; i < form->s->keys; i++) {
+
+		if (i != static_cast<uint>(primary_key_no)) {
+
+			if ((error = create_index(trx, form, flags,
+						  norm_name, i))) {
+				goto cleanup;
+			}
 		}
 	}
 
