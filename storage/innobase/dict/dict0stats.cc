@@ -96,10 +96,10 @@ each page and diving below it.
 
 This way, a total of A leaf pages are analyzed for the given n-prefix.
 
-Let the number of different key values found in page i be Pi (i=1..A)
-Let the number of different key values in the whole level LA be V.
-Then the total number of different key values in the whole tree is:
-V * (P1 + P2 + ... PA) / A.
+Let the number of different key values found in each leaf page i be Pi (i=1..A).
+Let the number of leaf pages be N.
+Then the total number of different key values on the leaf level is:
+N * (P1 + P2 + ... + PA) / A
 
 The above describes how to calculate the cardinality of an index.
 This algorithm is executed for each n-prefix of a multi-column index
@@ -918,8 +918,6 @@ dict_stats_analyze_index_for_n_prefix(
 	dict_index_t*	index,			/*!< in/out: index */
 	ulint		level,			/*!< in: level,
 						must be >= 1 */
-	ib_uint64_t	total_recs_on_level,	/*!< in: total number of
-						records on the given level */
 	ulint		n_prefix,		/*!< in: look at first
 						n_prefix columns when
 						comparing records */
@@ -955,10 +953,8 @@ dict_stats_analyze_index_for_n_prefix(
 		     n_prefix, n_diff_for_this_prefix);
 #endif
 
-	/* if some of those is 0 then this means that there is exactly one
-	page in the B-tree and it is empty and we should have done full scan
-	and should not be here */
-	ut_ad(total_recs_on_level > 0);
+	/* if this is 0 then there is exactly one page in the B-tree and it
+	is empty and we should have done full scan and should not be here */
 	ut_ad(n_diff_for_this_prefix > 0);
 
 	/* this is configured to be min 1, someone has changed the code */
@@ -1092,7 +1088,7 @@ dict_stats_analyze_index_for_n_prefix(
 	}
 
 	index->stat_n_diff_key_vals[n_prefix]
-		= total_recs_on_level * n_diff_sum_of_all_analyzed_pages
+		= index->stat_n_leaf_pages * n_diff_sum_of_all_analyzed_pages
 		/ n_recs_to_dive_below;
 
 	index->stat_n_sample_sizes[n_prefix] = n_recs_to_dive_below;
@@ -1325,7 +1321,7 @@ found_level:
 		the given n_prefix */
 
 		dict_stats_analyze_index_for_n_prefix(
-			index, level, total_recs, n_prefix,
+			index, level, n_prefix,
 			n_diff_on_level[n_prefix],
 			&n_diff_boundaries[n_prefix]);
 	}
