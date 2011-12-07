@@ -8831,6 +8831,7 @@ runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
   NdbIndexStat is;
   NdbRestarter res;
 
+  int elist[] = { 18026, 0 };
   const NdbDictionary::Table *pTab = pDic->getTable(ctx->getTab()->getName());
   const NdbDictionary::Index *pIdx = 0;
   NdbDictionary::Dictionary::List indexes;
@@ -8920,10 +8921,10 @@ runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
     }
   }
 
-  for (int i = 0, errors[] = { 18026, 0 }; errors[i] != 0; i++)
+  for (int i = 0; elist[i] != 0; i++)
   {
-    ndbout_c("testing errno: %u", errors[i]);
-    res.insertErrorInAllNodes(errors[i]);
+    ndbout_c("testing errno: %u", elist[i]);
+    res.insertErrorInAllNodes(elist[i]);
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
     res.dumpStateAllNodes(val2, 2);
 
