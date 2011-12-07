@@ -2550,15 +2550,7 @@ ha_ndbcluster::ndb_index_stat_query(uint inx,
   err= ndb_index_stat_wait(st, 0, false);
   if (err != 0)
     DBUG_RETURN(err);
-
-  if (st->read_time == 0)
-  {
-    DBUG_PRINT("index_stat", ("no index stats"));
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
-    pthread_cond_signal(&ndb_index_stat_thread.COND);
-    pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
-    DBUG_RETURN(NdbIndexStat::NoIndexStats);
-  }
+  assert(st->sample_version != 0);
 
   uint8 bound_lo_buffer[NdbIndexStat::BoundBufferBytes];
   uint8 bound_hi_buffer[NdbIndexStat::BoundBufferBytes];
