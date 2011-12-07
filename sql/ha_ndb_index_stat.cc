@@ -95,7 +95,8 @@ struct Ndb_index_stat {
   time_t read_time;     /* when stats were read by us (>= load_time) */
   uint sample_version;  /* goes with read_time */
   time_t check_time;    /* when checked for updated stats (>= read_time) */
-  bool cache_clean;     /* old caches have been deleted */
+  uint query_bytes;     /* cache query bytes in use */
+  uint clean_bytes;     /* cache clean bytes waiting to be deleted */
   bool force_update;    /* one-time force update from analyze table */
   bool no_stats;        /* have detected that no stats exist */
   NdbIndexStat::Error error;
@@ -708,7 +709,8 @@ Ndb_index_stat::Ndb_index_stat()
   read_time= 0;
   sample_version= 0;
   check_time= 0;
-  cache_clean= false;
+  query_bytes= 0;
+  clean_bytes= 0;
   force_update= false;
   no_stats= false;
   error_time= 0;
@@ -1173,6 +1175,8 @@ ndb_index_stat_cache_move(Ndb_index_stat *st)
   DBUG_PRINT("index_stat", ("st %s cache move: query:%u clean:%u",
                             st->id, new_query_bytes, old_query_bytes));
   st->is->move_cache();
+  st->query_bytes= new_query_bytes;
+  st->clean_bytes+= old_query_bytes;
   assert(glob.cache_query_bytes >= old_query_bytes);
   glob.cache_query_bytes-= old_query_bytes;
   glob.cache_query_bytes+= new_query_bytes;
@@ -1193,6 +1197,7 @@ ndb_index_stat_cache_clean(Ndb_index_stat *st)
   DBUG_PRINT("index_stat", ("st %s cache clean: clean:%u",
                             st->id, old_clean_bytes));
   st->is->clean_cache();
+  st->clean_bytes= 0;
   assert(glob.cache_clean_bytes >= old_clean_bytes);
   glob.cache_clean_bytes-= old_clean_bytes;
 }
@@ -1205,6 +1210,10 @@ struct Ndb_index_stat_proc {
   int lt;
   bool busy;
   bool end;
+#ifndef DBUG_OFF
+  uint cache_query_bytes;
+  uint cache_clean_bytes;
+#endif
   Ndb_index_stat_proc() :
     is_util(0),
     ndb(0),
@@ -1344,7 +1353,6 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   ndb_index_stat_no_stats(st, false);
 
   ndb_index_stat_cache_move(st);
-  st->cache_clean= false;
   pr.lt= Ndb_index_stat::LT_Idle;
   glob.refresh_count++;
   pthread_cond_broadcast(&ndb_index_stat_thread.stat_cond);
@@ -1405,10 +1413,9 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
     return;
   }
 
-  if (!st->cache_clean && clean_wait <= 0)
+  if (st->clean_bytes != 0 && clean_wait <= 0)
   {
     ndb_index_stat_cache_clean(st);
-    st->cache_clean= true;
   }
   if (st->force_update)
   {
@@ -1537,6 +1544,7 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr)
     pr.busy= true;
 }
 
+/* Only evict the caches */
 void
 ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
@@ -1569,6 +1577,7 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
+/* Check if need to evict more */
 bool
 ndb_index_stat_proc_evict()
 {
@@ -1580,6 +1589,20 @@ ndb_index_stat_proc_evict()
   if (100 * curr_size <= cache_lowpct * cache_limit)
     return false;
   return true;
+}
+
+/* Check if st1 is better or as good to evict than st2 */
+bool
+ndb_index_stat_evict(const Ndb_index_stat *st1,
+                     const Ndb_index_stat *st2)
+{
+  if (st1->access_time < st2->access_time)
+    return true;
+  if (st1->access_time == st2->access_time &&
+      st1->query_bytes + st1->clean_bytes >=
+      st2->query_bytes + st2->clean_bytes)
+    return true;
+  return false;
 }
 
 void
@@ -1606,6 +1629,7 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
     st_loop= st_loop->list_next;
     const longlong st_read_time= (longlong)st->read_time;
     if (st_read_time + evict_delay <= pr_now &&
+        st->query_bytes + st->clean_bytes != 0 &&
         !st->to_delete)
     {
       /* Insertion sort into the batch from the end */
@@ -1616,13 +1640,28 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
         uint i= st_lru_cnt;
         while (i != 0)
         {
-          if (st_lru_arr[i-1]->access_time < st->access_time)
+          const Ndb_index_stat *st1= st_lru_arr[i-1];
+          if (ndb_index_stat_evict(st1, st))
+          {
+            /*
+              The old entry at i-1 is preferred over st.
+              Stop at first such entry.  Therefore entries
+              after it (>= i) are less preferred than st.
+            */
             break;
+          }
           i--;
         }
         if (i < st_lru_cnt)
         {
-          uint j= st_lru_cnt; /* There is place for one more at end */
+          /*
+            Some old entry is less preferred than st.  If this is
+            true for all then i is 0 and st becomes new first entry.
+            Otherwise st is inserted after i-1.  In both case entries
+            >= i are shifted up.  The extra position at the end of
+            st_lru_arr avoids a special case when the array is full.
+          */
+          uint j= st_lru_cnt;
           while (j > i)
           {
             st_lru_arr[j]= st_lru_arr[j-1];
@@ -1635,6 +1674,19 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
       }
     }
   }
+ 
+#ifndef DBUG_OFF
+  for (uint i=0; i < st_lru_cnt; i++)
+  {
+    Ndb_index_stat* st1= st_lru_arr[i];
+    assert(!st1->to_delete && st1->share != 0);
+    if (i + 1 < st_lru_cnt)
+    {
+      Ndb_index_stat* st2= st_lru_arr[i+1];
+      assert(ndb_index_stat_evict(st1, st2));
+    }
+  }
+#endif
 
   /* Process the LRU batch */
   uint cnt= 0;
@@ -1867,7 +1919,7 @@ ndb_index_stat_proc_control(Ndb_index_stat_proc &pr)
 
 #ifndef DBUG_OFF
 void
-ndb_index_stat_entry_verify(const Ndb_index_stat *st)
+ndb_index_stat_entry_verify(Ndb_index_stat_proc &pr, const Ndb_index_stat *st)
 {
   const NDB_SHARE *share= st->share;
   if (st->to_delete)
@@ -1900,10 +1952,12 @@ ndb_index_stat_entry_verify(const Ndb_index_stat *st)
     assert(found == 1);
   }
   assert(st->read_time <= st->check_time);
+  pr.cache_query_bytes+= st->query_bytes;
+  pr.cache_clean_bytes+= st->clean_bytes;
 }
 
 void
-ndb_index_stat_list_verify(int lt)
+ndb_index_stat_list_verify(Ndb_index_stat_proc &pr, int lt)
 {
   const Ndb_index_stat_list &list= ndb_index_stat_list[lt];
   const Ndb_index_stat *st= list.head;
@@ -1947,18 +2001,25 @@ ndb_index_stat_list_verify(int lt)
       assert(guard <= list.count);
       st2= st2->list_next;
     }
-    ndb_index_stat_entry_verify(st);
+    ndb_index_stat_entry_verify(pr, st);
     st= st->list_next;
   }
   assert(count == list.count);
 }
 
 void
-ndb_index_stat_list_verify()
+ndb_index_stat_list_verify(Ndb_index_stat_proc &pr)
 {
+  const Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
+  pr.cache_query_bytes= 0;
+  pr.cache_clean_bytes= 0;
+
   for (int lt= 1; lt < Ndb_index_stat::LT_Count; lt++)
-    ndb_index_stat_list_verify(lt);
+    ndb_index_stat_list_verify(pr, lt);
+
+  assert(glob.cache_query_bytes == pr.cache_query_bytes);
+  assert(glob.cache_clean_bytes == pr.cache_clean_bytes);
   pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
 }
 
@@ -1985,7 +2046,7 @@ ndb_index_stat_proc(Ndb_index_stat_proc &pr)
   ndb_index_stat_proc_control(pr);
 
 #ifndef DBUG_OFF
-  ndb_index_stat_list_verify();
+  ndb_index_stat_list_verify(pr);
   Ndb_index_stat_glob old_glob= ndb_index_stat_glob;
 #endif
 
@@ -2000,7 +2061,7 @@ ndb_index_stat_proc(Ndb_index_stat_proc &pr)
   ndb_index_stat_proc_event(pr);
 
 #ifndef DBUG_OFF
-  ndb_index_stat_list_verify();
+  ndb_index_stat_list_verify(pr);
   ndb_index_stat_report(old_glob);
 #endif
   DBUG_VOID_RETURN;
