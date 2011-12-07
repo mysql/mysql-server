@@ -491,7 +491,7 @@ public:
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
      abort_on_null(0), in_strategy(SUBS_NOT_TRANSFORMED), optimizer(0),
     pushed_cond_guards(NULL), func(NULL), emb_on_expr_nest(NULL), 
-    is_jtbm_merged(FALSE),
+    is_jtbm_merged(FALSE), is_jtbm_const_tab(FALSE),
     upper_item(0)
     {}
   void cleanup();

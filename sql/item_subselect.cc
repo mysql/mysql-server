@@ -616,7 +616,7 @@ int Item_in_subselect::optimize(double *out_rows, double *cost)
   thd->lex->current_select= join->select_lex;
   if ((res= join->optimize()))
     DBUG_RETURN(res);
-//psergey-todo: subq predicate can be made forced const!
+
   /* Calculate #rows and cost of join execution */
   join->get_partial_cost_and_fanout(join->table_count - join->const_tables, 
                                     table_map(-1),
@@ -1197,7 +1197,8 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
   Item_exists_subselect(), 
   left_expr_cache(0), first_execution(TRUE), in_strategy(SUBS_NOT_TRANSFORMED),
   optimizer(0), pushed_cond_guards(NULL), emb_on_expr_nest(NULL),
-  is_jtbm_merged(FALSE), is_flattenable_semijoin(FALSE),
+  is_jtbm_merged(FALSE), is_jtbm_const_tab(FALSE), 
+  is_flattenable_semijoin(FALSE),
   is_registered_semijoin(FALSE), 
   upper_item(0)
 {
@@ -4182,6 +4183,8 @@ bool subselect_hash_sj_engine::init(List<Item> *tmp_columns, uint subquery_id)
   */
   if (tmp_table->s->keys == 0)
   {
+    //fprintf(stderr, "Q: %s\n", current_thd->query());
+    DBUG_ASSERT(0);
     DBUG_ASSERT(
       tmp_table->s->uniques ||
       tmp_table->key_info->key_length >= tmp_table->file->max_key_length() ||

@@ -832,12 +832,12 @@ TABLE *create_dummy_tmp_table(THD *thd)
 
 
 void
-inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
+setup_jtbm_semi_joins(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
 {
   TABLE_LIST *table;
   NESTED_JOIN *nested_join;
   List_iterator<TABLE_LIST> li(*join_list);
-  DBUG_ENTER("inject_jtbm_conds");
+  DBUG_ENTER("setup_jtbm_semi_joins");
 
   
   while ((table= li++))
@@ -880,7 +880,6 @@ inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
         table->table->pos_in_table_list= table;
 
         setup_table_map(table->table, table, table->jtbm_table_no);
-
       }
       else
       {
@@ -889,7 +888,6 @@ inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
         subselect_hash_sj_engine *hash_sj_engine=
           ((subselect_hash_sj_engine*)item->engine);
         
-        //repeat of convert_subq_to_jtbm:
         table->table= hash_sj_engine->tmp_table;
         table->table->pos_in_table_list= table;
 
@@ -900,13 +898,12 @@ inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
         (*join_where)= and_items(*join_where, sj_conds);
         if (!(*join_where)->fixed)
           (*join_where)->fix_fields(join->thd, join_where);
-        //parent_join->select_lex->where= parent_join->conds;
       }
     }
 
     if ((nested_join= table->nested_join))
     {
-      inject_jtbm_conds(join, &nested_join->join_list, join_where);
+      setup_jtbm_semi_joins(join, &nested_join->join_list, join_where);
     }
   }
   DBUG_VOID_RETURN;
@@ -1036,7 +1033,7 @@ JOIN::optimize()
       thd->restore_active_arena(arena, &backup);
   }
   
-  inject_jtbm_conds(this, join_list, &conds);
+  setup_jtbm_semi_joins(this, join_list, &conds);
 
   conds= optimize_cond(this, conds, join_list, &cond_value, &cond_equal);
      

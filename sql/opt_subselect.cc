@@ -1431,20 +1431,10 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   DBUG_ENTER("convert_subq_to_jtbm");
   bool optimization_delayed= TRUE;
   subq_pred->set_strategy(SUBS_MATERIALIZATION);
-//  if (subq_pred->optimize(&rows, &read_time))  psergey-fix
-//    DBUG_RETURN(TRUE);
 
   subq_pred->jtbm_read_time= read_time;
   subq_pred->jtbm_record_count=rows;
   subq_pred->is_jtbm_merged= TRUE;
-
-/* psergey-fix
-  if (subq_pred->engine->engine_type() != subselect_engine::HASH_SJ_ENGINE)
-  {
-    *remove_item= FALSE;
-    DBUG_RETURN(FALSE);
-  }
-*/
 
   *remove_item= TRUE;
 
