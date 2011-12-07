@@ -992,4 +992,39 @@ NdbRestarter::getNodeStatus(int nodeid)
   return -1;
 }
 
+Vector<Vector<int> >
+NdbRestarter::splitNodes()
+{
+  Vector<int> part0;
+  Vector<int> part1;
+  Bitmask<255> ngmask;
+  for (int i = 0; i < getNumDbNodes(); i++)
+  {
+    int nodeId = getDbNodeId(i);
+    int ng = getNodeGroup(nodeId);
+    if (ngmask.get(ng))
+    {
+      part1.push_back(nodeId);
+    }
+    else
+    {
+      ngmask.set(ng);
+      part0.push_back(nodeId);
+    }
+  }
+  Vector<Vector<int> > result;
+  if ((rand() % 100) > 50)
+  {
+    result.push_back(part0);
+    result.push_back(part1);
+  }
+  else
+  {
+    result.push_back(part1);
+    result.push_back(part0);
+  }
+  return result;
+}
+
 template class Vector<ndb_mgm_node_state>;
+template class Vector<Vector<int> >;
