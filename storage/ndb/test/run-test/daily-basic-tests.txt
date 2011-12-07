@@ -1241,6 +1241,10 @@ max-time: 3600
 cmd: testNodeRestart
 args: -n RestartNodeDuringLCP T6 
 
+max-time: 3600
+cmd: testNodeRestart
+args: -n LCPTakeOver T6 
+
 max-time: 2500
 cmd: testNodeRestart
 args: -n FiftyPercentStopAndWait T6 T13 
