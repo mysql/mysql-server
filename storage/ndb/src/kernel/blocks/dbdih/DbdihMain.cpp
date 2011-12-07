@@ -5748,8 +5748,11 @@ void Dbdih::startRemoveFailedNode(Signal* signal, NodeRecordPtr failedNodePtr)
     signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
     signal->theData[1] = failedNodePtr.i;
     signal->theData[2] = 0; // Tab id
-    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
-  }    
+    if (!ERROR_INSERTED(7233))
+      sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    else
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 300, 3);
+  }
   else
   {
     if (ERROR_INSERTED(7194))
@@ -6332,6 +6335,11 @@ void Dbdih::removeNodeFromTables(Signal* signal,
     jam();
     if (tabPtr.i >= ctabFileSize){
       jam();
+      if (ERROR_INSERTED(7233))
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+      }
+
       removeNodeFromTablesComplete(signal, nodeId);
       return;
     }//if
@@ -6347,7 +6355,10 @@ void Dbdih::removeNodeFromTables(Signal* signal,
   signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
   signal->theData[1] = nodeId;
   signal->theData[2] = tabPtr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  if (!ERROR_INSERTED(7233))
+    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  else
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 300, 3);
 }
 
 void Dbdih::removeNodeFromTable(Signal* signal, 
@@ -6450,7 +6461,10 @@ void Dbdih::removeNodeFromTable(Signal* signal,
     signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
     signal->theData[1] = nodeId;
     signal->theData[2] = tabPtr.i;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    if (!ERROR_INSERTED(7233))
+      sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    else
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 300, 3);
     return;
   }
   
@@ -6540,11 +6554,6 @@ Dbdih::removeNodeFromTablesComplete(Signal* signal, Uint32 nodeId){
    * Check if we (DIH) are finished with node fail handling
    */
   checkLocalNodefailComplete(signal, nodeId, NF_REMOVE_NODE_FROM_TABLE);
-
-  /**
-   * Are we ready to send MASTER_LCPCONF
-   */
-  sendMASTER_LCPCONF(signal, __LINE__);
 }
 
 void
@@ -6770,6 +6779,12 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
     ndbrequire(0);
   }
 
+  if (c_lcpState.lcpStatus == LCP_INIT_TABLES)
+  {
+    jam();
+    c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
+  }
+
   if (ERROR_INSERTED(7209))
   {
     SET_ERROR_INSERT_VALUE(7210);
@@ -6824,24 +6839,6 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal, Uint32 from)
     if (info)
       infoEvent("from: %u : c_lcpState.lcpStatus == LCP_INIT_TABLES", from);
     return;
-  }
-
-  {
-    NodeRecordPtr failedNodePtr;
-    failedNodePtr.i = c_lcpState.m_MASTER_LCPREQ_FailedNodeId;
-    ptrCheckGuard(failedNodePtr, MAX_NDB_NODES, nodeRecord);
-
-    if (failedNodePtr.p->m_nodefailSteps.get(NF_REMOVE_NODE_FROM_TABLE))
-    {
-      jam();
-      /**
-       * remove node from tables still running
-       */
-      if (info)
-        infoEvent("from: %u : NF_REMOVE_NODE_FROM_TABLE not done for node %u",
-                  from, failedNodePtr.i);
-      return;
-    }
   }
 
 err7230:
@@ -6942,6 +6939,8 @@ err7230:
   // Answer to MASTER_LCPREQ sent, reset flag so 
   // that it's not sent again before another request comes in
   c_lcpState.m_MASTER_LCPREQ_Received = false;
+
+  CRASH_INSERTION(7232);
 
   if (ERROR_INSERTED(7230))
   {
@@ -11033,6 +11032,16 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
 
+  if (c_lcpState.m_masterLcpDihRef != senderRef ||
+      c_lcpState.m_masterLcpDihRef != cmasterdihref)
+  {
+    /**
+     * This is LCP master takeover...abort
+     */
+    jam();
+    return;
+  }
+
   //const Uint32 lcpId = SYSFILE->latestLCP_ID;
 
   for(; tabPtr.i < ctabFileSize; tabPtr.i++){
@@ -11130,22 +11139,10 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
   CRASH_INSERTION2(7023, isMaster());
   CRASH_INSERTION2(7024, !isMaster());
 
-  jam();
-  if (c_lcpState.m_masterLcpDihRef == senderRef)
-  {
-    jam();
-    StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
-    conf->senderRef = reference();
-    sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
-               StartLcpConf::SignalLength, JBB);
-  }
-  else
-  {
-    jam();
-    sendMASTER_LCPCONF(signal, __LINE__);
-    return;
-  }
-
+  StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
+             StartLcpConf::SignalLength, JBB);
 }//Dbdih::initLcpLab()
 
 /* ------------------------------------------------------------------------- */
@@ -14266,7 +14263,10 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
     signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
     signal->theData[1] = tabPtr.p->tabRemoveNode;
     signal->theData[2] = tabPtr.i + 1;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    if (!ERROR_INSERTED(7233))
+      sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    else
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 300, 3);
     return;
     break;
   case TabRecord::US_INVALIDATE_NODE_LCP:
