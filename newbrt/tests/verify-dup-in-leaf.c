@@ -6,6 +6,7 @@
 // check that brt verify finds them
 
 #include "includes.h"
+#include <brt-cachetable-wrappers.h>
 #include "test.h"
 
 static BRTNODE

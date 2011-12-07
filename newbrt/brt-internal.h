@@ -131,6 +131,12 @@ int toku_bnc_flush_to_child(
     NONLEAF_CHILDINFO bnc, 
     BRTNODE child
     );
+bool
+toku_brt_nonleaf_is_gorged(BRTNODE node);
+
+
+enum reactivity get_nonleaf_reactivity (BRTNODE node);
+enum reactivity get_node_reactivity (BRTNODE node);
 
 // data of an available partition of a leaf brtnode
 struct brtnode_leaf_basement_node {
@@ -316,6 +322,8 @@ enum {
     BRT_PIVOT_FRONT_COMPRESS = 8,
 };
 
+u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnum);
+
 struct remembered_hash {
     BOOL    valid;      // set to FALSE if the fullhash is invalid
     FILENUM fnum;
@@ -443,6 +451,7 @@ void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl);
 void toku_destroy_brtnode_internals(BRTNODE node);
 void toku_brtnode_free (BRTNODE *node);
 void toku_assert_entire_node_in_memory(BRTNODE node);
+void bring_node_fully_into_memory(BRTNODE node, struct brt_header* h);
 
 // append a child node to a parent node
 void toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *pivotkey, size_t pivotkeysize);
@@ -454,6 +463,20 @@ void toku_brt_append_to_child_buffer(brt_compare_func compare_fun, DESCRIPTOR de
 #define DEADBEEF ((void*)0xDEADBEEF)
 #else
 #define DEADBEEF ((void*)0xDEADBEEFDEADBEEF)
+#endif
+
+//#define SLOW
+#ifdef SLOW
+#define VERIFY_NODE(t,n) (toku_verify_or_set_counts(n), toku_verify_estimates(t,n))
+#else
+#define VERIFY_NODE(t,n) ((void)0)
+#endif
+
+//#define BRT_TRACE
+#ifdef BRT_TRACE
+#define WHEN_BRTTRACE(x) x
+#else
+#define WHEN_BRTTRACE(x) ((void)0)
 #endif
 
 struct brtenv {
@@ -607,7 +630,6 @@ static inline void fill_bfe_for_prefetch(struct brtnode_fetch_extra *bfe,
     bfe->child_to_read = -1;
 }
 
-typedef struct ancestors *ANCESTORS;
 struct ancestors {
     BRTNODE   node;     // This is the root node if next is NULL.
     int       childnum; // which buffer holds messages destined to the node whose ancestors this list represents.
@@ -645,23 +667,6 @@ void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children
 void toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num_children, 
                                     int layout_version, unsigned int nodesize, unsigned int flags);
 
-int toku_pin_brtnode_if_clean(
-    BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
-    ANCESTORS ancestors, struct pivot_bounds const * const bounds,
-    BRTNODE *node_p
-    );
-int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
-                      UNLOCKERS unlockers,
-                      ANCESTORS ancestors, struct pivot_bounds const * const pbounds,
-                      struct brtnode_fetch_extra *bfe,
-                      BOOL apply_ancestor_messages, // this BOOL is probably temporary, for #3972, once we know how range query estimates work, will revisit this
-                      BRTNODE *node_p)
-    __attribute__((__warn_unused_result__));
-void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
-                                    ANCESTORS ancestors, struct pivot_bounds const * const pbounds,
-                                    struct brtnode_fetch_extra *bfe, BOOL apply_ancestor_messages,
-                                    BRTNODE *node_p);
-void toku_unpin_brtnode (BRT brt, BRTNODE node);
 unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
                                       DESCRIPTOR desc, brt_compare_func cmp)
     __attribute__((__warn_unused_result__));
@@ -731,7 +736,7 @@ typedef struct le_status {
 
 void toku_le_get_status(LE_STATUS);
 
-typedef struct brt_status {
+struct brt_status {
     u_int64_t updates;
     u_int64_t updates_broadcast;
     u_int64_t descriptor_set;
@@ -782,7 +787,7 @@ typedef struct brt_status {
     uint64_t  msg_bytes_max;               // how many bytes of messages currently in trees (estimate)
     uint64_t  msg_num;                     // how many messages injected at root
     uint64_t  msg_num_broadcast;           // how many broadcast messages injected at root
-} BRT_STATUS_S, *BRT_STATUS;
+};
 
 void toku_brt_get_status(BRT_STATUS);
 

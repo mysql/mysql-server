@@ -19,6 +19,7 @@
 extern "C" {
 #endif
 
+typedef struct brt_status BRT_STATUS_S, *BRT_STATUS;
 typedef struct brt *BRT;
 typedef struct brtnode *BRTNODE;
 typedef struct brtnode_leaf_basement_node *BASEMENTNODE;
@@ -30,7 +31,6 @@ struct dbuf;
 
 typedef unsigned int ITEMLEN;
 typedef const void *bytevec;
-//typedef const void *bytevec;
 
 typedef int64_t DISKOFF;  /* Offset in a disk. -1 is the NULL pointer. */
 typedef u_int64_t TXNID;
@@ -244,6 +244,16 @@ typedef enum __TXN_SNAPSHOT_TYPE {
     TXN_SNAPSHOT_CHILD=2
 } TXN_SNAPSHOT_TYPE;
 
+typedef struct ancestors *ANCESTORS;
+typedef struct pivot_bounds const * const PIVOT_BOUNDS;
+typedef struct brtnode_fetch_extra *BRTNODE_FETCH_EXTRA;
+typedef struct unlockers *UNLOCKERS;
+
+enum reactivity {
+    RE_STABLE,
+    RE_FUSIBLE,
+    RE_FISSIBLE
+};
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };

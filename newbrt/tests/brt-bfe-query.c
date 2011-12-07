@@ -1,5 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "$Id: brt-serialize-test.c 36808 2011-11-10 22:17:12Z bperlman $"
+#ident "$Id$"
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include "test.h"

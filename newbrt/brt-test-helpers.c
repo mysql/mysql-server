@@ -4,6 +4,7 @@
 
 #include "includes.h"
 #include "ule.h"
+#include <brt-cachetable-wrappers.h>
 
 
 // dummymsn needed to simulate msn because messages are injected at a lower level than toku_brt_root_put_cmd()

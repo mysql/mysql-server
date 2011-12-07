@@ -17,6 +17,7 @@
 //  - maybe get counter of messages ignored for old msn (once the counter is implemented in brt.c)
 
 #include "brt-internal.h"
+#include <brt-cachetable-wrappers.h>
 #include "includes.h"
 #include "test.h"
 
