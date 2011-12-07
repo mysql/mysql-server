@@ -1426,14 +1426,10 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   List<TABLE_LIST> *emb_join_list= &parent_lex->top_join_list;
   TABLE_LIST *emb_tbl_nest= NULL; // will change when we learn to handle outer joins
   TABLE_LIST *tl;
-  double rows;
-  double read_time;
   DBUG_ENTER("convert_subq_to_jtbm");
   bool optimization_delayed= TRUE;
   subq_pred->set_strategy(SUBS_MATERIALIZATION);
 
-  subq_pred->jtbm_read_time= read_time;
-  subq_pred->jtbm_record_count=rows;
   subq_pred->is_jtbm_merged= TRUE;
 
   *remove_item= TRUE;
