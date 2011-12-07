@@ -93,6 +93,7 @@ those defined in mysql file ft_global.h */
 /** Threshold where our optimize thread automatically kicks in */
 #define FTS_OPTIMIZE_THRESHOLD		10000000
 
+#define FTS_DOC_ID_MAX_STEP		10000
 /** Variable specifying the FTS parallel sort degree */
 extern ulong		fts_sort_pll_degree;
 

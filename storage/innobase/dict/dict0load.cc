@@ -43,6 +43,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "dict0priv.h"
 #include "ha_prototypes.h" /* innobase_casedn_str() */
+#include "fts0priv.h"
 
 
 /** Following are six InnoDB system tables */
@@ -985,6 +986,7 @@ dict_load_columns(
 			the flag is set before the table is created. */
 			if (table->fts == NULL) {
 				table->fts = fts_create(table);
+				fts_optimize_add_table(table);
 			}
 
 			ut_a(table->fts->doc_col == ULINT_UNDEFINED);
@@ -1619,6 +1621,9 @@ err_len:
 
 	/* MIX_LEN may hold additional flags in post-antelope file formats. */
 	flags2 = mach_read_from_4(field);
+
+	/* DICT_TF2_FTS will be set when indexes is being loaded */
+	flags2 &= ~DICT_TF2_FTS;
 
 	rec_get_nth_field_offs_old(rec, 8/*CLUSTER_ID*/, &len);
 	if (UNIV_UNLIKELY(len != UNIV_SQL_NULL)) {

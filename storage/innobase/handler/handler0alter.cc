@@ -581,6 +581,41 @@ innobase_fts_check_doc_id_index(
 	return(FTS_NOT_EXIST_DOC_ID_INDEX);
 }
 /*******************************************************************//**
+Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
+on the Doc ID column in MySQL create index definition.
+@return	FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
+FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
+UNIV_INTERN
+ulint
+innobase_fts_check_doc_id_index_in_def(
+/*===================================*/
+	ulint		n_key,		/*!< in: Number of keys */
+	KEY *		key_info)	/*!< in: Key definition */
+{
+	/* Check whether there is a "FTS_DOC_ID_INDEX" in the to be built index
+	list */
+	for (ulint j = 0; j < n_key; j++) {
+		KEY*    key = &key_info[j];
+
+		if (innobase_strcasecmp(key->name, FTS_DOC_ID_INDEX_NAME)) {
+			continue;
+		}
+
+		/* Do a check on FTS DOC ID_INDEX, it must be unique,
+		named as "FTS_DOC_ID_INDEX" and on column "FTS_DOC_ID" */
+		if (!(key->flags & HA_NOSAME)
+		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
+		    || strcmp(key->key_part[0].field->field_name,
+			     FTS_DOC_ID_COL_NAME)) {
+			return(FTS_INCORRECT_DOC_ID_INDEX);
+	       }
+
+		return(FTS_EXIST_DOC_ID_INDEX);
+        }
+
+	return(FTS_NOT_EXIST_DOC_ID_INDEX);
+}
+/*******************************************************************//**
 Create an index table where indexes are ordered as follows:
 
 IF a new primary key is defined for the table THEN
@@ -661,6 +696,26 @@ innobase_create_key_def(
 		if (key_info[j].flags & HA_FULLTEXT) {
 			(*num_fts_index)++;
 		}
+	}
+
+	/* Check whether there is a "FTS_DOC_ID_INDEX" in the to be built index
+	list */
+	if (innobase_fts_check_doc_id_index_in_def(n_keys, key_info)
+	    == FTS_INCORRECT_DOC_ID_INDEX) {
+		push_warning_printf((THD*) trx->mysql_thd,
+				   Sql_condition::WARN_LEVEL_WARN,
+				   ER_WRONG_NAME_FOR_INDEX,
+				   " InnoDB: Index name %s is reserved"
+				   " for the unique index on"
+				   " FTS_DOC_ID column for FTS"
+				   " document ID indexing"
+				   " on table %s. Please check"
+				   " the index definition to"
+				   " make sure it is of correct"
+				   " type\n",
+				   FTS_DOC_ID_INDEX_NAME,
+				   table->name);
+	       DBUG_RETURN(NULL);
 	}
 
 	/* If we are to build an FTS index, check whether the table
@@ -1048,6 +1103,17 @@ ha_innobase::add_index(
 		goto error_handling;
 	}
 
+	/* Currently, support create one single FULLTEXT index in parallel at
+	a time */
+	if (num_fts_index > 1) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Only support create ONE Fulltext index"
+			" at a time\n");
+		error = DB_UNSUPPORTED;
+		goto error_handling;
+	}
+
 	new_primary = DICT_CLUSTERED & index_defs[0].ind_type;
 
 	/* If a new FTS Doc ID column is to be added, there will be
@@ -1403,16 +1469,23 @@ ha_innobase::final_add_index(
 		dict_index_t*	index;
 		dict_index_t*	next_index;
 		ibool		new_fts = FALSE;
+		dict_index_t*	primary;
 
 		new_primary = !my_strcasecmp(
 			system_charset_info, add->key_info[0].name, "PRIMARY");
 
+		primary = dict_table_get_first_index(add->indexed_table);
+
+		if (!new_primary) {
+			new_primary = !my_strcasecmp(
+				system_charset_info, add->key_info[0].name,
+				primary->name);
+		}
+
 		share->idx_trans_tbl.index_count = 0;
 
 		if (new_primary) {
-			for (index = dict_table_get_first_index(
-				     add->indexed_table);
-			     index; index = next_index) {
+			for (index = primary; index; index = next_index) {
 
 				next_index = dict_table_get_next_index(index);
 
