@@ -1266,10 +1266,9 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   List_iterator_fast<TABLE_LIST> si(subq_lex->leaf_tables);
   while ((tl= si++))
   {
-    tl->table->tablenr= table_no;
-    tl->table->map= ((table_map)1) << table_no;
+    tl->set_tablenr(table_no);
     if (tl->is_jtbm())
-      tl->jtbm_table_no= tl->table->tablenr;
+      tl->jtbm_table_no= table_no;
     SELECT_LEX *old_sl= tl->select_lex;
     tl->select_lex= parent_join->select_lex; 
     for (TABLE_LIST *emb= tl->embedding;
@@ -1427,24 +1426,11 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   List<TABLE_LIST> *emb_join_list= &parent_lex->top_join_list;
   TABLE_LIST *emb_tbl_nest= NULL; // will change when we learn to handle outer joins
   TABLE_LIST *tl;
-  double rows;
-  double read_time;
   DBUG_ENTER("convert_subq_to_jtbm");
-
+  bool optimization_delayed= TRUE;
   subq_pred->set_strategy(SUBS_MATERIALIZATION);
-  if (subq_pred->optimize(&rows, &read_time))
-    DBUG_RETURN(TRUE);
 
-  subq_pred->jtbm_read_time= read_time;
-  subq_pred->jtbm_record_count=rows;
   subq_pred->is_jtbm_merged= TRUE;
-
-  if (subq_pred->engine->engine_type() != subselect_engine::HASH_SJ_ENGINE)
-  {
-    *remove_item= FALSE;
-    DBUG_RETURN(FALSE);
-  }
-
 
   *remove_item= TRUE;
 
@@ -1481,7 +1467,18 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   tl->next_local= jtbm;
 
   /* A theory: no need to re-connect the next_global chain */
+  if (optimization_delayed)
+  {
+    DBUG_ASSERT(parent_join->table_count < MAX_TABLES);
 
+    jtbm->jtbm_table_no= parent_join->table_count;
+
+    create_subquery_temptable_name(tbl_alias, 
+                                   subq_pred->unit->first_select()->select_number);
+    jtbm->alias= tbl_alias;
+    parent_join->table_count++;
+    DBUG_RETURN(FALSE);
+  }
   subselect_hash_sj_engine *hash_sj_engine=
     ((subselect_hash_sj_engine*)subq_pred->engine);
   jtbm->table= hash_sj_engine->tmp_table;

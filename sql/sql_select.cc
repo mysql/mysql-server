@@ -798,13 +798,46 @@ err:
 }
 
 
+/*
+  Create a dummy temporary table, useful only for the sake of having a 
+  TABLE* object with map,tablenr and maybe_null properties.
+  
+  This is used by non-mergeable semi-join materilization code to handle
+  degenerate cases where materialized subquery produced "Impossible WHERE" 
+  and thus wasn't materialized.
+*/
+
+TABLE *create_dummy_tmp_table(THD *thd)
+{
+  DBUG_ENTER("create_dummy_tmp_table");
+  TABLE *table;
+  TMP_TABLE_PARAM sjm_table_param;
+  sjm_table_param.init();
+  sjm_table_param.field_count= 1;
+  List<Item> sjm_table_cols;
+  Item *column_item= new Item_int(1);
+  sjm_table_cols.push_back(column_item);
+  if (!(table= create_tmp_table(thd, &sjm_table_param, 
+                                sjm_table_cols, (ORDER*) 0, 
+                                TRUE /* distinct */, 
+                                1, /*save_sum_fields*/
+                                thd->options | TMP_TABLE_ALL_COLUMNS, 
+                                HA_POS_ERROR /*rows_limit */, 
+                                (char*)"dummy", TRUE /* Do not open */)))
+  {
+    DBUG_RETURN(NULL);
+  }
+  DBUG_RETURN(table);
+}
+
+
 void
-inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
+setup_jtbm_semi_joins(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
 {
   TABLE_LIST *table;
   NESTED_JOIN *nested_join;
   List_iterator<TABLE_LIST> li(*join_list);
-  DBUG_ENTER("inject_jtbm_conds");
+  DBUG_ENTER("setup_jtbm_semi_joins");
 
   
   while ((table= li++))
@@ -817,34 +850,60 @@ inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
       double rows;
       double read_time;
 
-      //DBUG_ASSERT(subq_pred->test_set_strategy(SUBS_MATERIALIZATION));
       subq_pred->optimize(&rows, &read_time);
-
       subq_pred->jtbm_read_time= read_time;
       subq_pred->jtbm_record_count=rows;
       subq_pred->is_jtbm_merged= TRUE;
+      JOIN *subq_join= subq_pred->unit->first_select()->join;
+      if (!subq_join->tables_list || !subq_join->table_count)
+      {
+        /*
+          This is an empty and constant table.
 
-      subselect_hash_sj_engine *hash_sj_engine=
-        ((subselect_hash_sj_engine*)item->engine);
-      
-      
-      //repeat of convert_subq_to_jtbm:
-      table->table= hash_sj_engine->tmp_table;
-      table->table->pos_in_table_list= table;
+          TODO: what if this is not empty but still constant?
+          
+          We'll need to check the equality but there's no materializatnion
+          table?
 
-      setup_table_map(table->table, table, table->jtbm_table_no);
+          A: create an IN-equality from 
+           - left_expr
+           - right_expr. Q: how can right-expr exist in the context of 
+              parent select? We don't have refs from outside to inside!
+              A: create/check in the context of the child select?
+              
+              for injection, check how in->exists is performed.
+        */
+        subq_pred->is_jtbm_const_tab= TRUE;
 
-      Item *sj_conds= hash_sj_engine->semi_join_conds;
+        TABLE *dummy_table= create_dummy_tmp_table(join->thd);
+        table->table= dummy_table;
+        table->table->pos_in_table_list= table;
 
-      (*join_where)= and_items(*join_where, sj_conds);
-      if (!(*join_where)->fixed)
-        (*join_where)->fix_fields(join->thd, join_where);
-      //parent_join->select_lex->where= parent_join->conds;
+        setup_table_map(table->table, table, table->jtbm_table_no);
+      }
+      else
+      {
+        DBUG_ASSERT(subq_pred->test_set_strategy(SUBS_MATERIALIZATION));
+        subq_pred->is_jtbm_const_tab= FALSE;
+        subselect_hash_sj_engine *hash_sj_engine=
+          ((subselect_hash_sj_engine*)item->engine);
+        
+        table->table= hash_sj_engine->tmp_table;
+        table->table->pos_in_table_list= table;
+
+        setup_table_map(table->table, table, table->jtbm_table_no);
+
+        Item *sj_conds= hash_sj_engine->semi_join_conds;
+
+        (*join_where)= and_items(*join_where, sj_conds);
+        if (!(*join_where)->fixed)
+          (*join_where)->fix_fields(join->thd, join_where);
+      }
     }
 
     if ((nested_join= table->nested_join))
     {
-      inject_jtbm_conds(join, &nested_join->join_list, join_where);
+      setup_jtbm_semi_joins(join, &nested_join->join_list, join_where);
     }
   }
   DBUG_VOID_RETURN;
@@ -974,7 +1033,7 @@ JOIN::optimize()
       thd->restore_active_arena(arena, &backup);
   }
   
-  inject_jtbm_conds(this, join_list, &conds);
+  setup_jtbm_semi_joins(this, join_list, &conds);
 
   conds= optimize_cond(this, conds, join_list, &cond_value, &cond_equal);
      
@@ -3116,6 +3175,14 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
 	!s->dependent &&
 	(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
         !table->fulltext_searched && !join->no_const_tables)
+    {
+      set_position(join,const_count++,s,(KEYUSE*) 0);
+      no_rows_const_tables |= table->map;
+    }
+    
+    /* SJ-Materialization handling: */
+    if (table->pos_in_table_list->jtbm_subselect &&
+        table->pos_in_table_list->jtbm_subselect->is_jtbm_const_tab)
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
       no_rows_const_tables |= table->map;
@@ -9669,8 +9736,16 @@ void JOIN_TAB::cleanup()
     if (table->pos_in_table_list && 
         table->pos_in_table_list->jtbm_subselect)
     {
-      end_read_record(&read_record);
-      table->pos_in_table_list->jtbm_subselect->cleanup();
+      if (table->pos_in_table_list->jtbm_subselect->is_jtbm_const_tab)
+      {
+        free_tmp_table(join->thd, table);
+        table= NULL;
+      }
+      else
+      {
+        end_read_record(&read_record);
+        table->pos_in_table_list->jtbm_subselect->cleanup();
+      }
       DBUG_VOID_RETURN;
     }
     /*
@@ -11944,7 +12019,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
     {
       if (!table->prep_on_expr)
         table->prep_on_expr= table->on_expr;
-      used_tables= table->table->map;
+      used_tables= table->get_map();
       if (conds)
         not_null_tables= conds->not_null_tables();
     }
@@ -12001,7 +12076,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
         table->embedding->on_expr_dep_tables|= table->on_expr->used_tables();
       }
       else
-        table->dep_tables&= ~table->table->map;
+        table->dep_tables&= ~table->get_map();
     }
 
     if (prev_table)
@@ -12014,7 +12089,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
         prev_table->dep_tables|= table->on_expr_dep_tables;
         table_map prev_used_tables= prev_table->nested_join ?
 	                            prev_table->nested_join->used_tables :
-	                            prev_table->table->map;
+	                            prev_table->get_map();
         /* 
           If on expression contains only references to inner tables
           we still make the inner tables dependent on the outer tables.
@@ -15576,6 +15651,12 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     //TODO: don't get here at all
     /* Skip materialized derived tables/views. */
     DBUG_RETURN(0);
+  }
+  else if (tab->table->pos_in_table_list->jtbm_subselect && 
+          tab->table->pos_in_table_list->jtbm_subselect->is_jtbm_const_tab)
+  {
+    /* Row will not be found */
+    DBUG_RETURN(-1);
   }
   else if (tab->type == JT_SYSTEM)
   {

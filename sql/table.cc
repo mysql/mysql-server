@@ -5922,6 +5922,8 @@ bool TABLE_LIST::init_derived(THD *thd, bool init_view)
 int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
+  if (jtbm_subselect)
+    return 0;
   if (is_materialized_derived() && !fill_me)
 
   {

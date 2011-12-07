@@ -866,8 +866,10 @@ MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   for (i=tables=lock_count=0 ; i < count ; i++)
   {
     TABLE *t= table_ptr[i];
-
-    if (t->s->tmp_table != NON_TRANSACTIONAL_TMP_TABLE)
+    
+    
+    if (t->s->tmp_table != NON_TRANSACTIONAL_TMP_TABLE && 
+        t->s->tmp_table != INTERNAL_TMP_TABLE)
     {
       tables+= t->file->lock_count();
       lock_count++;
@@ -895,7 +897,9 @@ MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     TABLE *table;
     enum thr_lock_type lock_type;
     THR_LOCK_DATA **locks_start;
-    if ((table=table_ptr[i])->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
+    table= table_ptr[i];
+    if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE ||
+        table->s->tmp_table == INTERNAL_TMP_TABLE) 
       continue;
     lock_type= table->reginfo.lock_type;
     DBUG_ASSERT(lock_type != TL_WRITE_DEFAULT && lock_type != TL_READ_DEFAULT);

@@ -1427,6 +1427,29 @@ ON ( t2.f5 ) IN (
 );
 
 DROP TABLE t1, t2, t3, t4, t5;
+--echo #
+--echo # BUG#868908: Crash in check_simple_equality() with semijoin + materialization + prepared statement
+--echo #
+
+CREATE TABLE t1 ( a int );
+CREATE TABLE t3 ( b int, c int) ;
+CREATE TABLE t2 ( a int ) ;
+CREATE TABLE t4 ( a int , c int) ;
+
+PREPARE st1 FROM "
+SELECT STRAIGHT_JOIN *
+FROM t1
+WHERE ( 3 ) IN (
+        SELECT t3.b
+        FROM t3
+        LEFT JOIN (
+                t2 STRAIGHT_JOIN t4 ON ( t4.c = t2.a )
+        ) ON ( t4.a = t3.c )
+);
+";
+EXECUTE st1;
+EXECUTE st1;
+DROP TABLE t1,t2,t3,t4;
 
 --echo #
 --echo # BUG#901032: Wrong result for MIN/MAX on an indexed column with materialization and semijoin
