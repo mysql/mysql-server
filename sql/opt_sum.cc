@@ -299,7 +299,8 @@ int opt_sum_query(THD *thd,
       is_exact_count= FALSE;
       count= 1;                                 // ensure count != 0
     }
-    else if (tl->is_materialized_derived())
+    else if (tl->is_materialized_derived() || 
+             tl->jtbm_subselect)
     {
       /*
         Can't remove a derived table as it's number of rows is just an

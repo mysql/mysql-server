@@ -1764,5 +1764,18 @@ FROM t4 , t5
 );
 f1	f5
 DROP TABLE t1, t2, t3, t4, t5;
+#
+# BUG#901032: Wrong result for MIN/MAX on an indexed column with materialization and semijoin
+#
+CREATE TABLE t1 ( a INT, KEY(a) );
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 ( b INT );
+INSERT INTO t2 VALUES (2);
+CREATE TABLE t3 ( c INT );
+INSERT INTO t3 VALUES (2);
+SELECT MIN(a) FROM t1, t2 WHERE b IN (SELECT c FROM t3 GROUP BY c);
+MIN(a)
+1
+DROP TABLE t1,t2,t3;
 # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
