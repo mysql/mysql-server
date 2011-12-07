@@ -2361,7 +2361,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr, Uint32 tableId)
   tablePtr.p->m_read_locked= 0;
   tablePtr.p->storageType = NDB_STORAGETYPE_DEFAULT;
   tablePtr.p->indexStatFragId = ZNIL;
-  tablePtr.p->indexStatNodeId = ZNIL;
+  bzero(tablePtr.p->indexStatNodes, sizeof(tablePtr.p->indexStatNodes));
   tablePtr.p->indexStatBgRequest = 0;
   tablePtr.p->m_obj_ptr_i = RNIL;
 }//Dbdict::initialiseTableRecord()
@@ -12280,11 +12280,16 @@ Dbdict::set_index_stat_frag(Signal* signal, TableRecordPtr indexPtr)
   const Uint32 fragId = value % noOfFragments;
   const Uint32 fragIndex = 2 + (1 + noOfReplicas) * fragId;
   const Uint32 nodeIndex = value % noOfReplicas;
-  const Uint32 nodeId = frag_data[fragIndex + 1 + nodeIndex];
 
-  D("set_index_stat_frag" << V(indexId) << V(fragId) << V(nodeId));
   indexPtr.p->indexStatFragId = fragId;
-  indexPtr.p->indexStatNodeId = nodeId;
+  bzero(indexPtr.p->indexStatNodes, sizeof(indexPtr.p->indexStatNodes));
+  for (Uint32 i = 0; i < noOfReplicas; i++)
+  {
+    Uint32 idx = fragIndex + 1 + (nodeIndex + i) % noOfReplicas;
+    indexPtr.p->indexStatNodes[i] = frag_data[idx];
+  }
+  D("set_index_stat_frag" << V(indexId) << V(fragId)
+    << V(indexPtr.p->indexStatNodes[0]));
 }
 
 bool
@@ -14297,6 +14302,22 @@ Dbdict::indexStat_prepare(Signal* signal, SchemaOpPtr op_ptr)
   indexStat_toLocalStat(signal, op_ptr);
 }
 
+static
+bool
+do_action(const NdbNodeBitmask & mask, const Uint16 list[], Uint16 ownId)
+{
+  for (Uint32 i = 0; i < MAX_REPLICAS; i++)
+  {
+    if (mask.get(list[i]))
+    {
+      if (list[i] == ownId)
+        return true;
+      return false;
+    }
+  }
+  return false;
+}
+
 void
 Dbdict::indexStat_toLocalStat(Signal* signal, SchemaOpPtr op_ptr)
 {
@@ -14327,8 +14348,11 @@ Dbdict::indexStat_toLocalStat(Signal* signal, SchemaOpPtr op_ptr)
 
   switch (impl_req->requestType) {
   case IndexStatReq::RT_SCAN_FRAG:
+    trans_ptr.p->m_abort_on_node_fail = true;
     req->fragId = indexPtr.p->indexStatFragId;
-    if (indexPtr.p->indexStatNodeId != getOwnNodeId()) {
+    if (!do_action(trans_ptr.p->m_nodes, indexPtr.p->indexStatNodes,
+                   getOwnNodeId()))
+    {
       jam();
       D("skip" << V(impl_req->requestType));
       execute(signal, c, 0);
@@ -14350,7 +14374,9 @@ Dbdict::indexStat_toLocalStat(Signal* signal, SchemaOpPtr op_ptr)
 
   case IndexStatReq::RT_DROP_HEAD:
     req->fragId = indexPtr.p->indexStatFragId;
-    if (indexPtr.p->indexStatNodeId != getOwnNodeId()) {
+    if (!do_action(trans_ptr.p->m_nodes, indexPtr.p->indexStatNodes,
+                   getOwnNodeId()))
+    {
       jam();
       D("skip" << V(impl_req->requestType));
       execute(signal, c, 0);
@@ -14361,7 +14387,9 @@ Dbdict::indexStat_toLocalStat(Signal* signal, SchemaOpPtr op_ptr)
 
   case IndexStatReq::RT_START_MON:
     req->fragId = indexPtr.p->indexStatFragId;
-    if (indexPtr.p->indexStatNodeId != getOwnNodeId()) {
+    if (!do_action(trans_ptr.p->m_nodes, indexPtr.p->indexStatNodes,
+                   getOwnNodeId()))
+    {
       jam();
       req->fragId = ZNIL;
     }
@@ -24955,14 +24983,12 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
     findSchemaTrans(trans_ptr, trans_key);
     if (trans_ptr.isNull()) {
       jam();
-      ndbassert(false);
       setError(error, SchemaTransEndRef::InvalidTransKey, __LINE__);
       break;
     }
 
     if (trans_ptr.p->m_transId != transId) {
       jam();
-      ndbassert(false);
       setError(error, SchemaTransEndRef::InvalidTransId, __LINE__);
       break;
     }
@@ -25214,8 +25240,9 @@ Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal* signal)
   jamEntry();
   ndbrequire(signal->getNoOfSections() == 0);
 
-  const SchemaTransImplRef* ref =
-    (const SchemaTransImplRef*)signal->getDataPtr();
+  SchemaTransImplRef refCopy =
+    *(SchemaTransImplRef*)signal->getDataPtr();
+  SchemaTransImplRef * ref = &refCopy;
 
   SchemaTransPtr trans_ptr;
   ndbrequire(findSchemaTrans(trans_ptr, ref->transKey));
@@ -25231,8 +25258,19 @@ Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal* signal)
     jam();
     // trans_ptr.p->m_nodes.clear(nodeId);
     // No need to clear, will be cleared when next REQ is set
+    if (!trans_ptr.p->m_abort_on_node_fail)
+    {
+      jam();
+      ref->errorCode = 0;
+    }
+    else
+    {
+      jam();
+      ref->errorCode = SchemaTransBeginRef::Nodefailure;
+    }
   }
-  else
+
+  if (ref->errorCode)
   {
     jam();
     ErrorInfo error;
@@ -27287,6 +27325,9 @@ Dbdict::slave_run_start(Signal *signal, const SchemaTransImplReq* req)
     trans_ptr.p->m_masterRef = req->senderRef;
     trans_ptr.p->m_requestInfo = req->requestInfo;
     trans_ptr.p->m_state = SchemaTrans::TS_STARTED;
+
+    ndbrequire((req->requestInfo & DictSignal::RF_LOCAL_TRANS) == 0);
+    trans_ptr.p->m_nodes = c_aliveNodes;
   }
   else
   {

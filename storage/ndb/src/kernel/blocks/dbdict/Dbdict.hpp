@@ -431,7 +431,7 @@ public:
      * critical and is not worth fixing.
      */
     Uint16 indexStatFragId;
-    Uint16 indexStatNodeId;
+    Uint16 indexStatNodes[MAX_REPLICAS];
 
     // pending background request (IndexStatRep::RequestType)
     Uint32 indexStatBgRequest;
@@ -2023,6 +2023,7 @@ private:
     bool m_flush_complete;
     bool m_flush_end;
     bool m_wait_gcp_on_commit;
+    bool m_abort_on_node_fail;
 
     // magic is on when record is seized
     enum { DICT_MAGIC = ~RT_DBDICT_SCHEMA_TRANSACTION };
@@ -2048,6 +2049,7 @@ private:
       m_flush_complete = false;
       m_flush_end = false;
       m_wait_gcp_on_commit = true;
+      m_abort_on_node_fail = false;
     }
 
     SchemaTrans(Uint32 the_trans_key) {
