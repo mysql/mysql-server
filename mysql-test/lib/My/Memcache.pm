@@ -26,12 +26,16 @@
 ###  $mc->{error}                       holds most recent error/status message
 ### 
 ###  $mc->set(key, value)               returns 1 on success, 0 on failure
-###  $mc->add(key), $mc->replace(key)   like set()
+###  $mc->add(key, value)               set if record does not exist
+###  $mc->replace(key, value)           set if record exists
+###  $mc->append(key, value)            append value to existing data
+###  $mc->prepend(key, value)           prepend value to existing data
 ###  $mc->get(key)                      returns value or undef
 ###  $mc->delete(key)                   returns 1 on success, 0 on failure
 ###  $mc->stats(stat_key)               get stats; returns a hash
 ###  $mc->incr(key, amount)             returns the new value or undef
 ###  $mc->decr(key, amount)             like incr
+###  $mc->flush()                       flush_all
 ###
 ###  $mc->note_config_version() 
 ###    Store the generation number of the running config in the filesystem,
@@ -199,6 +203,22 @@ sub add {
 }
 
 
+sub append {
+  my ($self, $key, $value) = @_;
+  
+  $self->{error} = $self->_txt_store("append", $key, $value);
+  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+}
+
+
+sub prepend {    
+  my ($self, $key, $value) = @_;
+  
+  $self->{error} = $self->_txt_store("prepend", $key, $value);
+  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+}
+
+
 sub replace {
   my ($self, $key, $value) = @_;
   
@@ -292,6 +312,18 @@ sub stats {
   return %response;
 }
 
+sub flush {
+  my $self = shift;
+  my $key = shift;
+  my $sock = $self->{connection}; 
+  
+  $sock->print("flush_all\r\n") || Carp::confess "send error";
+  
+  $self->{error} = $sock->getline();
+  return $self->{error} =~ "^OK" ? 1 : $self->normalize_error();
+}
+
+
 # Try to provide consistent error messagees across ascii & binary protocols
 sub normalize_error {
   my $self = shift;
@@ -329,7 +361,10 @@ use constant BIN_CMD_DELETE     => 0x04;
 use constant BIN_CMD_INCR       => 0x05;
 use constant BIN_CMD_DECR       => 0x06;
 use constant BIN_CMD_QUIT       => 0x07;
+use constant BIN_CMD_FLUSH      => 0x08;
 use constant BIN_CMD_NOOP       => 0x0A;
+use constant BIN_CMD_APPEND     => 0x0E;
+use constant BIN_CMD_PREPEND    => 0x0F;
 use constant BIN_CMD_STAT       => 0x10;
 
 my %error_message = (
@@ -460,6 +495,12 @@ sub stats {
   return %response;
 }
 
+sub flush {
+  my ($self, $key, $value) = @_;
+  $self->send_binary_request(BIN_CMD_FLUSH, $key, '', ''); 
+  my ($status, $value) = $self->get_binary_response();
+  return ($status == 0) ? 1 : 0;
+}
   
 sub set {
   my ($self, $key, $value) = @_;
@@ -474,6 +515,16 @@ sub add {
 sub replace {
   my ($self, $key, $value) = @_;
   return $self->bin_store(BIN_CMD_REPLACE, $key, $value);
+}
+
+sub append {
+  my ($self, $key, $value) = @_;
+  return $self->bin_store(BIN_CMD_APPEND, $key, $value);
+}
+
+sub prepend {
+  my ($self, $key, $value) = @_;
+  return $self->bin_store(BIN_CMD_PREPEND, $key, $value);
 }
 
 sub delete { 
