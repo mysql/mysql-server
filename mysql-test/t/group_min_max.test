@@ -1099,5 +1099,19 @@ ORDER BY min_a;
 
 DROP TABLE t1;
 
+--echo #
+--echo # LP BUG#888456 Wrong result with DISTINCT , ANY , subquery_cache=off , NOT NULL
+--echo #
+
+CREATE TABLE t1 ( a int NOT NULL) ;
+INSERT INTO t1 VALUES (28),(29),(9);
+
+CREATE TABLE t2 ( a int, KEY (a)) ;
+INSERT INTO t2 VALUES (1),(1),(1),(4),(4),(5),(5),(8),(8),(9);
+
+explain select (select t2.a from t2 where t2.a >= t1.a group by t2.a) from t1;
+select (select t2.a from t2 where t2.a >= t1.a group by t2.a) from t1;
+
+drop table t1, t2;
 
 --echo End of 5.1 tests

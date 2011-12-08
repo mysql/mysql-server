@@ -10627,6 +10627,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   int result;
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
+  seen_first_key= FALSE;
   if (!head->key_read)
   {
     doing_key_read= 1;
