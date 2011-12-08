@@ -1481,4 +1481,20 @@ enum loglevel {
 };
 
 
+/*
+  In the current version, enable GTID only in debug builds.  We will
+  enable it fully when it is more complete.
+*/
+//#ifndef DBUG_OFF
+/*
+  The group log can only be correctly truncated if my_chsize actually
+  truncates the file. So disable GTIDs on platforms that don't support
+  truncate.
+*/
+#if defined(_WIN32) || defined(HAVE_FTRUNCATE) || defined(HAVE_CHSIZE)
+#define HAVE_GTID
+#endif
+//#endif
+
+
 #endif  // MY_GLOBAL_INCLUDED

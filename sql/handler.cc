@@ -1447,6 +1447,10 @@ int ha_rollback_trans(THD *thd, bool all)
   if (all)
     thd->transaction_rollback_request= FALSE;
 
+#ifdef HAVE_GTID
+  gtid_rollback(thd);
+#endif
+
   /*
     If the transaction cannot be rolled back safely, warn; don't warn if this
     is a slave thread (because when a slave thread executes a ROLLBACK, it has
@@ -1494,7 +1498,7 @@ static my_bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
 }
 
 
-int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
+int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
 {
   struct xahton_st xaop;
   xaop.xid= xid;
@@ -1502,6 +1506,10 @@ int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
 
   plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &xaop);
+
+#ifdef HAVE_GTID
+  gtid_rollback(thd);
+#endif
 
   return xaop.result;
 }
