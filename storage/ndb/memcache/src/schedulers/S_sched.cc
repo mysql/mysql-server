@@ -830,7 +830,6 @@ void * S::Connection::run_ndb_send_thread() {
         stats.timeout_races += 1;
       }
 
-      DEBUG_PRINT("Waking up poll thread.");
       pollgroup->wakeup();
  
       timeout_msec = timeout_min;  /* we are now "busy" */
@@ -895,7 +894,6 @@ void * S::Connection::run_ndb_poll_thread() {
 
     /* Poll the ones that are ready */
     if(nwaiting > 0) {
-      DEBUG_PRINT("Waited for %d, got %d", min_ready, nwaiting);
       for(int i = 0; i < nwaiting ; i++) {
         in_flight--;
         assert(in_flight >= 0);
