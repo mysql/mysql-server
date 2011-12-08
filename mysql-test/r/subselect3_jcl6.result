@@ -114,7 +114,7 @@ oref	a
 1	1
 show status like '%Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	14
+Handler_read_rnd_next	5
 delete from t2;
 insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
 set optimizer_switch='subquery_cache=off';
@@ -1316,8 +1316,8 @@ create table t1 as select * from t0;
 insert into t1 select * from t0;
 explain select * from t0 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	PRIMARY	t1	hash_ALL	NULL	#hash#$hj	3	test.t0.a	4	Using where; Start temporary; End temporary; Using join buffer (flat, BNLH join)
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; FirstMatch(t0); Using join buffer (flat, BNL join)
 select * from t0 where a in (select a from t1);
 a
 10.24
@@ -1329,8 +1329,8 @@ create table t1 as select * from t0;
 insert into t1 select * from t0;
 explain select * from t0 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	PRIMARY	t1	hash_ALL	NULL	#hash#$hj	4	test.t0.a	4	Using where; Start temporary; End temporary; Using join buffer (flat, BNLH join)
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; FirstMatch(t0); Using join buffer (flat, BNL join)
 select * from t0 where a in (select a from t1);
 a
 2008-01-01

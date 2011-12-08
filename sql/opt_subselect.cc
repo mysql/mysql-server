@@ -2617,13 +2617,27 @@ bool Firstmatch_picker::check_qep(JOIN *join,
           !(firstmatch_need_tables & remaining_tables))
       {
         /*
-          Got a complete FirstMatch range.
-            Calculate correct costs and fanout
+          Got a complete FirstMatch range. Calculate correct costs and fanout
         */
-        optimize_wo_join_buffering(join, first_firstmatch_table, idx,
-                                   remaining_tables, FALSE, idx,
-                                   record_count, 
-                                   read_time);
+
+        if (idx == first_firstmatch_table && 
+            optimizer_flag(join->thd, OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE))
+        {
+          /* 
+            An important special case: only one inner table, and @@optimizer_switch
+            allows join buffering.
+             - read_time is the same (i.e. FirstMatch doesn't add any cost
+             - remove fanout added by the last table
+          */
+          *record_count /= join->positions[idx].records_read;
+        }
+        else
+        {
+          optimize_wo_join_buffering(join, first_firstmatch_table, idx,
+                                     remaining_tables, FALSE, idx,
+                                     record_count, 
+                                     read_time);
+        }
         /*
           We ought to save the alternate POSITIONs produced by
           optimize_wo_join_buffering but the problem is that providing save
