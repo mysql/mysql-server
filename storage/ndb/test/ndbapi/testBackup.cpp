@@ -661,6 +661,13 @@ runBug57650(NDBT_Context* ctx, NDBT_Step* step)
   if (backup.start(backupId) == -1)
     return NDBT_FAILED;
 
+  res.insertErrorInAllNodes(5057);
+  int val2[] = { 7099 }; // Force LCP
+  res.dumpStateAllNodes(val2, 1);
+
+  NdbSleep_SecSleep(5);
+  res.waitClusterStarted();
+
   return NDBT_OK;
 }
 
