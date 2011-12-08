@@ -3456,24 +3456,36 @@ runBug12598496(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  ndbout_c("restart %u", nodeId);
   restarter.restartOneDbNode(nodeId,
                              /** initial */ false,
                              /** nostart */ true,
                              /** abort   */ true);
 
+  ndbout_c("wait not started %u", nodeId);
   if (restarter.waitNodesNoStart(&nodeId, 1) != 0)
     return NDBT_FAILED;
+
+  ndbout_c("wait not started %u - OK", nodeId);
 
   int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
   restarter.dumpStateOneNode(nodeId, val2, 2);
   restarter.insertErrorInNode(nodeId, 13047);
   restarter.insertErrorInNode(nodeId, 1003);
+  ndbout_c("start %u", nodeId);
   restarter.startNodes(&nodeId, 1);
 
+  NdbSleep_SecSleep(5);
+
+  ndbout_c("wait not started %u", nodeId);
   if (restarter.waitNodesNoStart(&nodeId, 1) != 0)
     return NDBT_FAILED;
 
+  ndbout_c("wait not started %u - OK", nodeId);
+
+  ndbout_c("start %u", nodeId);
   restarter.startNodes(&nodeId, 1);
+  ndbout_c("waitClusterStarted");
   if (restarter.waitClusterStarted() != 0)
     return NDBT_FAILED;
 

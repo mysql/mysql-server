@@ -1241,6 +1241,10 @@ max-time: 3600
 cmd: testNodeRestart
 args: -n RestartNodeDuringLCP T6 
 
+max-time: 3600
+cmd: testNodeRestart
+args: -n LCPTakeOver T6 
+
 max-time: 2500
 cmd: testNodeRestart
 args: -n FiftyPercentStopAndWait T6 T13 
@@ -1598,7 +1602,7 @@ max-time: 500
 cmd: testLimits
 args: -n DropSignalFragments T1
 
-max-time: 300
+max-time: 500
 cmd: testMgm
 args:
 
@@ -1846,4 +1850,12 @@ args: -n TestFragmentedSend T1
 max-time: 300
 cmd: testNodeRestart
 args: -n MasterFailSlowLCP T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug13464664 T1
+
+max-time: 300
+cmd: testDict
+args: -n Bug13416603 I2
 
