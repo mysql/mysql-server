@@ -328,18 +328,23 @@ Reads the flushed lsn and arch no fields from a data file at database
 startup. */
 UNIV_INTERN
 void
-fil_read_flushed_lsn_and_arch_log_no(
-/*=================================*/
+fil_read_first_page(
+/*================*/
 	os_file_t	data_file,		/*!< in: open data file */
 	ibool		one_read_already,	/*!< in: TRUE if min and max
 						parameters below already
 						contain sensible data */
+	ulint*		flags,			/*!< out: tablespace flags */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,	/*!< in/out: */
-	ulint*		max_arch_log_no,	/*!< in/out: */
+	ulint*		min_arch_log_no,	/*!< out: min of archived
+						log numbers in data files */
+	ulint*		max_arch_log_no,	/*!< out: max of archived
+						log numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
-	ib_uint64_t*	min_flushed_lsn,	/*!< in/out: */
-	ib_uint64_t*	max_flushed_lsn);	/*!< in/out: */
+	ib_uint64_t*	min_flushed_lsn,	/*!< out: min of flushed
+						lsn values in data files */
+	ib_uint64_t*	max_flushed_lsn);	/*!< out: max of flushed
+						lsn values in data files */
 /*******************************************************************//**
 Increments the count of pending insert buffer page merges, if space is not
 being deleted.
