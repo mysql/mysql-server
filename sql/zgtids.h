@@ -19,24 +19,8 @@
 
 
 #include <m_string.h>
-#include <my_base.h>
+//#include <my_base.h>
 #include <mysqld_error.h>
-
-
-/*
-  In the current version, enable GTID only in debug builds.  We will
-  enable it fully when it is more complete.
-*/
-//#ifndef DBUG_OFF
-/*
-  The group log can only be correctly truncated if my_chsize actually
-  truncates the file. So disable GTIDs on platforms that don't support
-  truncate.
-*/
-#if defined(_WIN32) || defined(HAVE_FTRUNCATE) || defined(HAVE_CHSIZE)
-#define HAVE_GTID
-#endif
-//#endif
 
 
 /**
@@ -1761,16 +1745,26 @@ public:
   { owned_gtids.remove(sidno, gno); }
   */
   /**
-    Acquires ownership of the given group, on behalf of the given thread.
+    Acquires ownership of the given GTID, on behalf of the given thread.
 
-    @param sidno The group's SIDNO.
-    @param gno The group's GNO.
+    @param sidno The SIDNO.
+    @param gno The GNO.
     @param owner The thread that will own the group.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
 #ifndef MYSQL_CLIENT
   enum_return_status acquire_ownership(rpl_sidno sidno, rpl_gno gno,
                                        const THD *thd);
+  /**
+    Releases ownership of the given group.
+
+    This is called when a re-executed transaction is rolled back.
+
+    @param sidno The SIDNO.
+    @param gno The GNO.
+    @return This function cannot fail.
+  */
+  void release_ownership(rpl_sidno sidno, rpl_gno gno);
 #endif // ifndef MYSQL_CLIENT
   /**
     Logs the given group, i.e., moves it from the set of 'owned
@@ -1854,15 +1848,19 @@ public:
   size_t get_string_length() const
   {
     return owned_gtids.get_string_length() +
-      logged_gtids.get_string_length() + 100;
+      logged_gtids.get_string_length() +
+      lost_gtids.get_string_length() +
+      100;
   }
   int to_string(char *buf) const
   {
     char *p= buf;
-    p+= sprintf(p, "Logged groups:\n");
+    p+= sprintf(p, "Logged GTIDs:\n");
     p+= logged_gtids.to_string(p);
-    p+= sprintf(p, "\nOwned groups:\n");
+    p+= sprintf(p, "\nOwned GTIDs:\n");
     p+= owned_gtids.to_string(sid_map, p);
+    p+= sprintf(p, "\nLost GTIDs:\n");
+    p+= lost_gtids.to_string(p);
     return p - buf;
   }
   char *to_string() const
@@ -2321,6 +2319,13 @@ gtid_before_statement(THD *thd, Checkable_rwlock *lock,
 */
 int gtid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
                                 Gtid_state *gls, Group_cache *gc);
+
+/**
+  When a transaction is rolled back, this function releases ownership
+  of any GTIDs that the transaction owns.
+*/
+int gtid_rollback(THD *thd);
+
 #endif // ifndef MYSQL_CLIENT
 
 #endif /* HAVE_GTID */

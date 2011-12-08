@@ -49,6 +49,14 @@ Gtid_state::acquire_ownership(rpl_sidno sidno, rpl_gno gno, const THD *thd)
 }
 
 
+void Gtid_state::release_ownership(rpl_sidno sidno, rpl_gno gno)
+{
+  DBUG_ENTER("Gtid_state::release_ownership");
+  owned_gtids.remove(sidno, gno);
+  DBUG_VOID_RETURN;
+}
+
+
 enum_return_status Gtid_state::log_group(rpl_sidno sidno, rpl_gno gno)
 {
   DBUG_ENTER("Gtid_state::log_group");
@@ -91,6 +99,7 @@ void Gtid_state::wait_for_gtid(THD *thd, Gtid g)
   DBUG_ENTER("Gtid_state::wait_for_gtid");
   // Enter cond, wait, exit cond.
   PSI_stage_info old_stage;
+  DBUG_PRINT("info", ("SIDNO=%d GNO=%lld", g.sidno, g.gno));
   sid_locks.enter_cond(thd, g.sidno,
                        &stage_waiting_for_group_to_be_written_to_binary_log,
                        &old_stage);

@@ -664,7 +664,7 @@ bool trans_xa_commit(THD *thd)
     else
     {
       res= xa_trans_rolled_back(xs);
-      ha_commit_or_rollback_by_xid(thd->lex->xid, !res);
+      ha_commit_or_rollback_by_xid(thd, thd->lex->xid, !res);
       xid_cache_delete(xs);
     }
     DBUG_RETURN(res);
@@ -749,7 +749,7 @@ bool trans_xa_rollback(THD *thd)
     else
     {
       xa_trans_rolled_back(xs);
-      ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
+      ha_commit_or_rollback_by_xid(thd, thd->lex->xid, 0);
       xid_cache_delete(xs);
     }
     DBUG_RETURN(thd->get_stmt_da()->is_error());

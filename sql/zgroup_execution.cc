@@ -447,4 +447,40 @@ int gtid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
 }
 
 
+int gtid_rollback(THD *thd)
+{
+  DBUG_ENTER("gtid_rollback");
+  Gtid_set *gtid_next_list= thd->get_gtid_next_list();
+  if (gtid_next_list != NULL)
+  {
+    global_sid_lock.rdlock();
+    gtid_state.lock_sidnos(gtid_next_list);
+    Gtid_set::Gtid_iterator it(gtid_next_list);
+    Gtid gtid= it.get();
+    while (gtid.sidno != 0)
+    {
+      gtid_state.release_ownership(gtid.sidno, gtid.gno);
+      gtid= it.get();
+    }
+    gtid_state.unlock_sidnos(gtid_next_list);
+    global_sid_lock.unlock();
+  }
+  else
+  {
+    Gtid_specification *gtid_next= &thd->variables.gtid_next;
+    if (gtid_next->type == GTID_GROUP)
+    {
+      rpl_sidno sidno= gtid_next->gtid.sidno;
+      rpl_gno gno= gtid_next->gtid.gno;
+      global_sid_lock.rdlock();
+      gtid_state.lock_sidno(sidno);
+      gtid_state.release_ownership(sidno, gno);
+      gtid_state.unlock_sidno(sidno);
+      global_sid_lock.unlock();
+    }
+  }
+  DBUG_RETURN(0);
+}
+
+
 #endif
