@@ -1536,35 +1536,10 @@ void THD::awake(killed_state state_to_set)
   if (state_to_set >= KILL_CONNECTION || state_to_set == NOT_KILLED)
   {
 #ifdef SIGNAL_WITH_VIO_CLOSE
-    if (this != current_thd)
+    if (this != current_thd) 
     {
-      /*
-        Before sending a signal, let's close the socket of the thread
-        that is being killed ("this", which is not the current thread).
-        This is to make sure it does not block if the signal is lost.
-        This needs to be done only on platforms where signals are not
-        a reliable interruption mechanism.
-
-        Note that the downside of this mechanism is that we could close
-        the connection while "this" target thread is in the middle of
-        sending a result to the application, thus violating the client-
-        server protocol.
-
-        On the other hand, without closing the socket we have a race
-        condition. If "this" target thread passes the check of
-        thd->killed, and then the current thread runs through
-        THD::awake(), sets the 'killed' flag and completes the
-        signaling, and then the target thread runs into read(), it will
-        block on the socket. As a result of the discussions around
-        Bug#37780, it has been decided that we accept the race
-        condition. A second KILL awakes the target from read().
-
-        If we are killing ourselves, we know that we are not blocked.
-        We also know that we will check thd->killed before we go for
-        reading the next statement.
-      */
-
-      close_active_vio();
+      if(active_vio)
+        vio_shutdown(active_vio, SHUT_RDWR);
     }
 #endif
 
@@ -1668,7 +1643,7 @@ void THD::disconnect()
 
   /* Disconnect even if a active vio is not associated. */
   if (net.vio != vio)
-    vio_close(net.vio);
+     vio_close(net.vio);
 
   mysql_mutex_unlock(&LOCK_thd_data);
 }
@@ -1740,6 +1715,10 @@ bool THD::store_globals()
   mysys_var->stack_ends_here= thread_stack +    // for consistency, see libevent_thread_proc
                               STACK_DIRECTION * (long)my_thread_stack_size;
 
+#ifdef _WIN32
+  if (net.vio)
+    net.vio->thread_id= real_id; /* Required to support IO cancelation on XP */
+#endif
   /*
     We have to call thr_lock_info_init() again here as THD may have been
     created in another thread

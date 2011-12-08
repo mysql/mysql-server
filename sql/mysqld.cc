@@ -73,6 +73,7 @@
 #include <waiting_threads.h>
 #include "debug_sync.h"
 #include "sql_callback.h"
+#include "threadpool.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -5236,6 +5237,8 @@ default_service_handling(char **argv,
 
 int mysqld_main(int argc, char **argv)
 {
+  my_progname= argv[0];
+
   /*
     When several instances are running on the same machine, we
     need to have an  unique  named  hEventShudown  through the
@@ -7133,6 +7136,10 @@ SHOW_VAR status_vars[]= {
   {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG},
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
 #endif
+#ifndef EMBEDDED_LIBRARY
+  {"Threadpool_idle_threads",  (char *) &tp_stats.num_waiting_threads, SHOW_INT},
+  {"Threadpool_threads",       (char *) &tp_stats.num_worker_threads, SHOW_INT},
+#endif
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_NOFLUSH},
   {"Threads_connected",        (char*) &connection_count,       SHOW_INT},
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_NOFLUSH},
@@ -8018,7 +8025,9 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   else if (thread_handling == SCHEDULER_NO_THREADS)
     one_thread_scheduler(thread_scheduler);
   else
-    pool_of_threads_scheduler(thread_scheduler);  /* purecov: tested */
+    pool_of_threads_scheduler(thread_scheduler,  &max_connections,
+                                        &connection_count); 
+
   one_thread_per_connection_scheduler(extra_thread_scheduler,
                                       &extra_max_connections,
                                       &extra_connection_count);

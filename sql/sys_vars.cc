@@ -50,6 +50,7 @@
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#include "threadpool.h"
 
 /*
   The rule for this file: everything should be 'static'. When a sys_var
@@ -1804,7 +1805,13 @@ static Sys_var_enum Sys_thread_handling(
        ", pool-of-threads"
 #endif
        , READ_ONLY GLOBAL_VAR(thread_handling), CMD_LINE(REQUIRED_ARG),
-       thread_handling_names, DEFAULT(0));
+       thread_handling_names, 
+#ifdef HAVE_POOL_OF_THREADS
+       DEFAULT(2)
+#else
+       DEFAULT(0)
+#endif
+ );
 
 #ifdef HAVE_QUERY_CACHE
 static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
@@ -2173,14 +2180,67 @@ static Sys_var_ulong Sys_thread_cache_size(
        GLOBAL_VAR(thread_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
-#ifdef HAVE_POOL_OF_THREADS
-static Sys_var_ulong Sys_thread_pool_size(
-       "thread_pool_size",
-       "How many threads we should create to handle query requests in "
-       "case of 'thread_handling=pool-of-threads'",
-       GLOBAL_VAR(thread_pool_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 16384), DEFAULT(20), BLOCK_SIZE(0));
+#ifndef HAVE_POOL_OF_THREADS
+static bool fix_tp_max_threads(sys_var *, THD *, enum_var_type)
+{
+#ifdef _WIN32
+  tp_set_max_threads(threadpool_max_threads);
 #endif
+  return false;
+}
+
+#ifdef _WIN32
+static bool fix_tp_min_threads(sys_var *, THD *, enum_var_type)
+{
+  tp_set_min_threads(threadpool_min_threads);
+  return false;
+}
+#endif
+
+#ifdef _WIN32
+static Sys_var_uint Sys_threadpool_min_threads(
+  "thread_pool_min_threads",
+  "Minimuim number of threads in the thread pool.",
+  GLOBAL_VAR(threadpool_min_threads), CMD_LINE(REQUIRED_ARG),
+  VALID_RANGE(1, 256), DEFAULT(1), BLOCK_SIZE(1),
+  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+  ON_UPDATE(fix_tp_min_threads)
+  );
+#else
+static Sys_var_uint Sys_threadpool_idle_thread_timeout(
+  "thread_pool_idle_timeout",
+  "Timeout in seconds for an idle thread in the thread pool."
+  "Worker thread will be shut down after timeout",
+  GLOBAL_VAR(threadpool_idle_timeout), CMD_LINE(REQUIRED_ARG),
+  VALID_RANGE(1, UINT_MAX/100), DEFAULT(60000), BLOCK_SIZE(1)
+);
+static Sys_var_uint Sys_threadpool_size(
+ "thread_pool_size",
+ "Number of concurrently executing threads in the pool. "
+ "Leaving value default (0) sets it to the number of processors.",
+  GLOBAL_VAR(threadpool_size), CMD_LINE(REQUIRED_ARG),
+  VALID_RANGE(0, 128), DEFAULT(0), BLOCK_SIZE(1)
+);
+static Sys_var_uint Sys_threadpool_stall_limit(
+ "thread_pool_stall_limit",
+ "Maximum query execution time before in milliseconds,"
+ "before an executing non-yielding thread is considered stalled."
+ "If a worker thread is stalled, additional worker thread "
+ "may be created to handle remaining clients.",
+  GLOBAL_VAR(threadpool_stall_limit), CMD_LINE(REQUIRED_ARG),
+  VALID_RANGE(60, UINT_MAX), DEFAULT(500), BLOCK_SIZE(1)
+);
+#endif  /*! WIN32 */
+static Sys_var_uint Sys_threadpool_max_threads(
+  "thread_pool_max_threads",
+  "Maximum allowed number of worker threads in the thread pool",
+   GLOBAL_VAR(threadpool_max_threads), CMD_LINE(REQUIRED_ARG),
+   VALID_RANGE(1, UINT_MAX), DEFAULT(3000), BLOCK_SIZE(1),
+   NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), 
+   ON_UPDATE(fix_tp_max_threads)
+);
+#endif /* !HAVE_POOL_OF_THREADS */
+
 
 /**
   Can't change the 'next' tx_isolation if we are already in a

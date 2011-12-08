@@ -76,13 +76,11 @@ void one_thread_per_connection_scheduler(scheduler_functions *func,
     ulong *arg_max_connections, uint *arg_connection_count);
 void one_thread_scheduler(scheduler_functions *func);
 
-#if defined(HAVE_LIBEVENT) && !defined(EMBEDDED_LIBRARY)
 
-#define HAVE_POOL_OF_THREADS 1
-
-struct event;
- 
-class thd_scheduler
+/*
+ To be used for pool-of-threads (implemeneted differently on various OSs)
+*/
+struct thd_scheduler
 {
 public:
   /*
@@ -96,29 +94,33 @@ public:
     differently.
   */
   PSI_thread *m_psi;
-
-  bool logged_in;
-  struct event* io_event;
-  LIST list;
-  bool thread_attached;  /* Indicates if THD is attached to the OS thread */
-
-  thd_scheduler();
-  ~thd_scheduler();
-  bool init(THD* parent_thd);
-  bool thread_attach();
-  void thread_detach();
+  void *data;                  /* scheduler-specific data structure */
+#ifndef DBUG_OFF
+  bool  set_explain;
+  char  dbug_explain[512];
+#endif
 };
 
-void pool_of_threads_scheduler(scheduler_functions* func);
+void *thd_get_scheduler_data(THD *thd);
+void thd_set_scheduler_data(THD *thd, void *data);
+PSI_thread* thd_get_psi(THD *thd);
+void thd_set_psi(THD *thd, PSI_thread *psi);
+
+/* Common thread pool routines, suitable for different implementations */
+extern void threadpool_remove_connection(THD *thd);
+extern int  threadpool_process_request(THD *thd);
+extern int  threadpool_add_connection(THD *thd);
+
+
+extern scheduler_functions *thread_scheduler;
+#endif /* SCHEDULER_INCLUDED */
+
+#if !defined(EMBEDDED_LIBRARY)
+#define HAVE_POOL_OF_THREADS 1
+void pool_of_threads_scheduler(scheduler_functions* func,
+   ulong *arg_max_connections,
+   uint *arg_connection_count);
 #else
-
-#define pool_of_threads_scheduler(A) \
-  one_thread_per_connection_scheduler(A, &max_connections, \
-                                      &connection_count)
-
-class thd_scheduler
-{};
-
-#endif
-
+#define pool_of_threads_scheduler(A,B,C) \
+  one_thread_per_connection_scheduler(A, B, C)
 #endif

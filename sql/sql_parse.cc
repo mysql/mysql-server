@@ -678,6 +678,7 @@ void cleanup_items(Item *item)
   @retval
     1  request of thread shutdown (see dispatch_command() description)
 */
+int skip_net_wait_timeout = 0;
 
 bool do_command(THD *thd)
 {
@@ -700,7 +701,9 @@ bool do_command(THD *thd)
     the client, the connection is closed or "net_wait_timeout"
     number of seconds has passed.
   */
-  my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+  if(!skip_net_wait_timeout)
+    my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+
 
   /*
     XXX: this code is here only to clear possible errors of init_connect. 

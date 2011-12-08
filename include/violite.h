@@ -168,6 +168,7 @@ void vio_end(void);
 #define vio_should_retry(vio) 			(vio)->should_retry(vio)
 #define vio_was_interrupted(vio) 		(vio)->was_interrupted(vio)
 #define vio_close(vio)				((vio)->vioclose)(vio)
+#define vio_shutdown(vio,how)			((vio)->shutdown)(vio,how)
 #define vio_peer_addr(vio, buf, prt, buflen)	(vio)->peer_addr(vio, buf, prt, buflen)
 #define vio_timeout(vio, which, seconds)	(vio)->timeout(vio, which, seconds)
 #define vio_poll_read(vio, timeout)             (vio)->poll_read(vio, timeout)
@@ -219,6 +220,7 @@ struct st_vio
   void	  (*timeout)(Vio*, unsigned int which, unsigned int timeout);
   my_bool (*poll_read)(Vio *vio, uint timeout);
   my_bool (*is_connected)(Vio*);
+  int (*shutdown)(Vio *, int);
   my_bool (*has_data) (Vio*);
 #ifdef HAVE_OPENSSL
   void	  *ssl_arg;
@@ -235,6 +237,7 @@ struct st_vio
   char    *shared_memory_pos;
 #endif /* HAVE_SMEM */
 #ifdef _WIN32
+  DWORD thread_id; /* Used to XP only in vio_shutdown */
   OVERLAPPED pipe_overlapped;
   DWORD read_timeout_ms;
   DWORD write_timeout_ms;

@@ -842,7 +842,7 @@ my_real_read(NET *net, size_t *complen)
 
 	  DBUG_PRINT("info",("vio_read returned %ld  errno: %d",
 			     (long) length, vio_errno(net->vio)));
-#if !defined(__WIN__) || defined(MYSQL_SERVER)
+#if !defined(__WIN__) && defined(MYSQL_SERVER)
 	  /*
 	    We got an error that there was no data on the socket. We now set up
 	    an alarm to not 'read forever', change the socket to the blocking
@@ -874,7 +874,7 @@ my_real_read(NET *net, size_t *complen)
 	      continue;
 	    }
 	  }
-#endif /* (!defined(__WIN__) || defined(MYSQL_SERVER) */
+#endif /* (!defined(__WIN__) && defined(MYSQL_SERVER) */
 	  if (thr_alarm_in_use(&alarmed) && !thr_got_alarm(&alarmed) &&
 	      interrupted)
 	  {					/* Probably in MIT threads */

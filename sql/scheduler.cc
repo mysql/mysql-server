@@ -79,7 +79,7 @@ static void scheduler_wait_sync_end(void) {
   one_thread_scheduler() or one_thread_per_connection_scheduler() in
   mysqld.cc, so this init function will always be called.
  */
-static void scheduler_init() {
+void scheduler_init() {
   thr_set_lock_wait_callback(scheduler_wait_lock_begin,
                              scheduler_wait_lock_end);
   thr_set_sync_wait_callback(scheduler_wait_sync_begin,
@@ -124,25 +124,6 @@ void one_thread_scheduler(scheduler_functions *func)
 }
 
 
-#ifdef HAVE_POOL_OF_THREADS
-
-/*
-  thd_scheduler keeps the link between THD and events.
-  It's embedded in the THD class.
-*/
-
-thd_scheduler::thd_scheduler()
-  : m_psi(NULL), logged_in(FALSE), io_event(NULL), thread_attached(FALSE)
-{
-}
-
-
-thd_scheduler::~thd_scheduler()
-{
-  my_free(io_event);
-}
-
-#endif
 
 /*
   no pluggable schedulers in mariadb.

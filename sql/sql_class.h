@@ -2339,6 +2339,10 @@ public:
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = vio;
+#ifdef _WIN32
+    /* Required to support cancelation on XP */
+    active_vio->thread_id = pthread_self();
+#endif
     mysql_mutex_unlock(&LOCK_thd_data);
   }
   inline void clear_active_vio()
