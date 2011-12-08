@@ -152,14 +152,10 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
                                unsigned int digest_text_length)
 */
 {
-  /*
-    token count can not be zero here.
-  */
-  DBUG_ASSERT(digest_storage->m_token_count > 0);
-
   /* get digest pin. */
   LF_PINS *pins= get_digest_hash_pins(thread);
-  if (unlikely(pins == NULL))
+  /* There shoulod be at least one token. */
+  if(unlikely(pins == NULL) || !(digest_storage->m_token_count > 0))
   {
     return NULL;
   }
@@ -223,7 +219,7 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
     lf_hash_search_unpin(pins);
     if (res > 0)
     {
-      /* ERROR CONDITION */
+      /* TODO: Handle ERROR CONDITION */
       return NULL;
     }
     return pfs;

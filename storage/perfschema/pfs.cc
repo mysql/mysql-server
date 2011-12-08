@@ -4589,15 +4589,11 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
     /* Set digest stat. */
     digest_storage= &pfs->m_digest_storage;
-    /* 
-       TODO:Following condition should always be true. If a statement is
-       there, then atleast one token should be there.
-    */
-    if(digest_storage->m_token_count>0)
+    /* Populate PFS_statements_digest_stat with computed digest information. */
+    pfs->statement_digest_stat_ptr= 
+                       find_or_create_digest(thread, digest_storage);
+    if(pfs->statement_digest_stat_ptr)
     {
-      /* Populate PFS_statements_digest_stat with computed digest information. */
-      pfs->statement_digest_stat_ptr= 
-                         find_or_create_digest(thread, digest_storage);
       digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
     }
 
@@ -4649,15 +4645,11 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
     /* Set digest stat. */
     digest_storage= &pfs->m_digest_storage;
-    /* 
-       TODO:Following condition should always be true. If a statement is
-       there, then atleast one token should be there.
-    */
-    if(digest_storage->m_token_count>0)
+    /* Populate PFS_statements_digest_stat with computed digest information. */
+    pfs->statement_digest_stat_ptr= 
+                       find_or_create_digest(thread, digest_storage);
+    if(pfs->statement_digest_stat_ptr)
     {
-      /* Populate PFS_statements_digest_stat with computed digest information. */
-      pfs->statement_digest_stat_ptr= 
-                         find_or_create_digest(thread, digest_storage);
       digest_stat= &(pfs->statement_digest_stat_ptr->m_stat);
     }
 
