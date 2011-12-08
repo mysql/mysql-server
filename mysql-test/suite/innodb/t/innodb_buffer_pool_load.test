@@ -47,7 +47,7 @@ SET GLOBAL innodb_buffer_pool_dump_now = ON;
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
   FROM information_schema.global_status
-  WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
 -- source include/wait_condition.inc
 
 # Confirm the file has been created
@@ -76,14 +76,14 @@ SET GLOBAL innodb_buffer_pool_load_now = ON;
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
   FROM information_schema.global_status
-  WHERE variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 -- source include/wait_condition.inc
 
 # Show the status, interesting if the above timed out
 -- replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
 SELECT variable_value
 FROM information_schema.global_status
-WHERE variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
+WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 
 # Accept 329 for 16k page size, 662 for 8k page size & 1392 for 4k page size
 -- replace_result 329 {checked_valid} 662 {checked_valid} 1392 {checked_valid}
@@ -107,7 +107,7 @@ SET GLOBAL innodb_buffer_pool_load_now = ON;
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 13) = 'Error parsing'
   FROM information_schema.global_status
-  WHERE variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 -- source include/wait_condition.inc
 
 DROP TABLE ib_bp_test;
