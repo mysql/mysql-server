@@ -676,6 +676,7 @@ private:
   void execDROP_FRAG_REQ(Signal*);
 
   void execDBINFO_SCANREQ(Signal *signal);
+  void execNODE_STATE_REP(Signal*);
 
   // Statement blocks
   void ACCKEY_error(Uint32 fromWhere);
@@ -973,6 +974,10 @@ private:
   Uint32 cpageCount;
   Uint32 cnoOfAllocatedPages;
   Uint32 cnoOfAllocatedPagesMax;
+  Uint32 m_maxAllocPages; // == cpagesize * (100 - m_free_pct) / 100
+  Uint32 m_free_pct;
+  bool m_oom; // if cnoOfAllocatedPages > m_maxAllocPages
+
 /* --------------------------------------------------------------------------------- */
 /* ROOTFRAGMENTREC                                                                   */
 /*          DURING EXPAND FRAGMENT PROCESS, EACH FRAGMEND WILL BE EXPAND INTO TWO    */

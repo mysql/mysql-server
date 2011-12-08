@@ -20,6 +20,7 @@ package testsuite.clusterj;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 
 import org.junit.Ignore;
 
@@ -29,11 +30,13 @@ import org.junit.Ignore;
 @Ignore
 public class CoordinatedTransactionIdVariableTest extends AbstractClusterJTest {
 
-    /** Format is Uint32+Uint32:Uint64 */
-    private String newId = "1+1:9000000000000099";
+    /** Format is Uint32:Uint32:Uint32:Uint64 */
+    private String newId = "1:0:1:9000000000000099";
+    private String badIdTooLong = "123456789012345678901234567890123456789012345";
+    private String badIdTooShort = "1:1";
     private String sqlQuery = "select id from t_basic where id = 0";
-    private String getTransactionIdVariableName = "@@ndb_transaction_id";
-    private String setTransactionIdVariableName = "@@ndb_join_transaction_id";
+    private String transactionIdVariableName = "@@ndb_transaction_id";
+    private String joinTransactionIdVariableName = "@@ndb_join_transaction_id";
 
     @Override
     protected void localSetUp() {
@@ -48,42 +51,110 @@ public class CoordinatedTransactionIdVariableTest extends AbstractClusterJTest {
         return false;
     }
 
-    /** Verify that the initial value of the variable ndb_coordinated_transaction_id is null.
+    /** Verify that the initial value of the variable transaction_id is null.
      */
-    public void checkInitialValue() {
+    public void checkTransactionIdInitialValue() {
         getConnection();
-        String id = getJDBCCoordinatedTransactionId("checkInitialValue");
-        errorIfNotEqual("Coordinated transaction id must default to null.", null, id);
+        String id = getJDBCTransactionId("checkTransactionIdInitialValue");
+        errorIfNotEqual("Transaction id must default to null.", null, id);
     }
 
-    /** Try to set the ndb_coordinated_transaction_id variable to a new value
-     * and verify that it can be read back.
+    /** Verify that the initial value of the variable join_transaction_id is null.
      */
-    public void checkNewValue() {
+    public void checkJoinTransactionIdInitialValue() {
         getConnection();
-        // set the coordinated_transaction_id to some random value
-        setJDBCCoordinatedTransactionId("checkNewValue", newId);
-        String id = getJDBCCoordinatedTransactionId("checkNewValue");
-        errorIfNotEqual("failed to set coordinated transaction id.", newId, id);
-        executeJDBCQuery("checkNewValue");
+        String id = getJDBCJoinTransactionId("checkJoinTransactionIdInitialValue");
+        errorIfNotEqual("Join transaction id must default to null.", null, id);
+    }
+
+    /** Verify that you cannot set the value of the variable transaction_id.
+     */
+    public void checkSetTransactionId() {
+        getConnection();
+        setAutoCommit(connection, false);
+        // try set the transaction_id to a good value; expect error 1238 "read only variable"
+        setJDBCVariable("checkSetTransactionId", transactionIdVariableName, newId, 1238);
         // close the connection so the value isn't accidentally used by a new transaction
         closeConnection();
     }
 
-    /** Verify that after an ndb transaction is started the coordinated transaction id is not null
+    /** Try to set the join_transaction_id variable to a good value
+     * and verify that it can be read back. A null string is used to reset the value.
+     */
+    public void checkNewIdResetWithNullString() {
+        getConnection();
+        setAutoCommit(connection, false);
+        // set the coordinated_transaction_id to some value
+        setJDBCVariable("checkNewIdResetWithNullString", joinTransactionIdVariableName, newId, 0);
+        String id = getJDBCJoinTransactionId("checkNewIdResetWithNullString");
+        errorIfNotEqual("failed to set coordinated transaction id.", newId, id);
+        setJDBCVariable("checkNewIdResetWithNullString", joinTransactionIdVariableName, null, 0);
+        id = getJDBCJoinTransactionId("checkNewIdResetWithNullString");
+        errorIfNotEqual("failed to set coordinated transaction id to null.", null, id);
+        // close the connection so the value isn't accidentally used by a new transaction
+        closeConnection();
+    }
+
+    /** Try to set the join_transaction_id variable to a good value
+     * and verify that it can be read back. An empty string is used to reset the value.
+     */
+    public void checkNewIdResetWithEmptyString() {
+        getConnection();
+        setAutoCommit(connection, false);
+        // set the coordinated_transaction_id to some value
+        setJDBCVariable("checkNewIdResetWithEmptyString", joinTransactionIdVariableName, newId, 0);
+        String id = getJDBCJoinTransactionId("checkNewIdResetWithEmptyString");
+        errorIfNotEqual("failed to set coordinated transaction id.", newId, id);
+        setJDBCVariable("checkNewIdResetWithEmptyString", joinTransactionIdVariableName, "", 0);
+        id = getJDBCJoinTransactionId("checkNewIdResetWithEmptyString");
+        errorIfNotEqual("failed to set coordinated transaction id to null.", null, id);
+        // close the connection so the value isn't accidentally used by a new transaction
+        closeConnection();
+    }
+
+    /** Try to set the join_transaction_id variable to a bad value
+     * and verify that an exception is thrown.
+     */
+    public void checkBadIdTooLong() {
+        getConnection();
+        setAutoCommit(connection, false);
+        // set the join_transaction_id to a bad value and expect 1210 "Incorrect arguments to SET"
+        setJDBCVariable("checkBadIdTooLong", joinTransactionIdVariableName, badIdTooLong, 1210);
+        String id = getJDBCJoinTransactionId("checkBadIdTooLong");
+        errorIfNotEqual("failed to set coordinated transaction id.", null, id);
+        // close the connection so the value isn't accidentally used by a new transaction
+        closeConnection();
+    }
+
+    /** Try to set the join_transaction_id variable to a bad value
+     * and verify that an exception is thrown.
+     */
+    public void checkBadIdTooShort() {
+        getConnection();
+        setAutoCommit(connection, false);
+        // set the join_transaction_id to a bad value and expect 1210 "Incorrect arguments to SET"
+        setJDBCVariable("checkBadIdTooShort", joinTransactionIdVariableName, badIdTooShort, 1210);
+        String id = getJDBCJoinTransactionId("checkBadIdTooShort");
+        errorIfNotEqual("failed to set coordinated transaction id.", null, id);
+        // close the connection so the value isn't accidentally used by a new transaction
+        closeConnection();
+    }
+
+    /** Verify that after an ndb transaction is started the transaction id is not null
      * and is null after commit.
      */
     public void checkIdAfterTransactionStartAndCommit() {
         getConnection();
-        // execute a query statement that will cause the server to start an ndb transaction
+        setAutoCommit(connection, false);
+       // execute a query statement that will cause the server to start an ndb transaction
         executeJDBCQuery("checkIdAfterTransactionStartAndCommit");
         // the coordinated transaction id should now be available
-        String id = getJDBCCoordinatedTransactionId("checkIdAfterTransactionStartAndCommit");
+        String id = getJDBCTransactionId("checkIdAfterTransactionStartAndCommit");
         // we can only test for not null since we cannot predict the transaction id
-        errorIfEqual("Coordinated transaction must not be null after transaction start", null, id);
+        errorIfEqual("Transaction id must not be null after transaction start.", null, id);
         commitConnection();
-        id = getJDBCCoordinatedTransactionId("checkIdAfterTransactionStartAndCommit");
-        errorIfNotEqual("Coordinated transaction id must be null after commit.", null, id);
+        id = getJDBCTransactionId("checkIdAfterTransactionStartAndCommit");
+        errorIfNotEqual("Transaction id must be null after commit.", null, id);
         }
 
     /** Verify that after an ndb transaction is started the coordinated transaction id is not null
@@ -91,15 +162,16 @@ public class CoordinatedTransactionIdVariableTest extends AbstractClusterJTest {
      */
     public void checkIdAfterTransactionStartAndRollback() {
         getConnection();
+        setAutoCommit(connection, false);
         // execute a query statement that will cause the server to start an ndb transaction
         executeJDBCQuery("checkIdAfterTransactionStartAndRollback");
         // the coordinated transaction id should now be available
-        String id = getJDBCCoordinatedTransactionId("checkIdAfterTransactionStartAndRollback");
+        String id = getJDBCTransactionId("checkIdAfterTransactionStartAndRollback");
         // we can only test for not null since we cannot predict the transaction id
-        errorIfEqual("Coordinated transaction must not be null after transaction start", null, id);
+        errorIfEqual("Transaction must not be null after transaction start.", null, id);
         rollbackConnection();
-        id = getJDBCCoordinatedTransactionId("checkIdAfterTransactionStartAndRollback");
-        errorIfNotEqual("Coordinated transaction id must be null after rollback.", null, id);
+        id = getJDBCTransactionId("checkIdAfterTransactionStartAndRollback");
+        errorIfNotEqual("Transaction id must be null after rollback.", null, id);
         }
 
     /** Execute a SQL query. Throw away the results. Keep the transaction open.
@@ -132,38 +204,60 @@ public class CoordinatedTransactionIdVariableTest extends AbstractClusterJTest {
         }
     }
 
-    /** Set the coordinated_transaction_id variable in the server.
+    /** Set the variable in the server.
+     * @param where the context
+     * @param variableName the name of the server variable
      * @param newId the id to set
      */
-    protected void setJDBCCoordinatedTransactionId(String where, String newId) {
-        if (newId == null) {
-            fail(where + " test case error: coordinated transaction id must not be null.");
-        }
+    protected void setJDBCVariable(String where, String variableName, String newId, int expectedErrorCode) {
         try {
-            String setSql = "set " + setTransactionIdVariableName + " = '" + newId + "'";
-            PreparedStatement setCoordinatedTransactionIdStatement = connection.prepareStatement(setSql);
-            boolean result = setCoordinatedTransactionIdStatement.execute();
-            errorIfNotEqual(where + " set coordinated transaction id returned true.", false, result);
+            String setSql = "set " + variableName + " = ?";
+            PreparedStatement setVariableStatement = connection.prepareStatement(setSql);
+            if (newId == null) {
+                setVariableStatement.setNull(1, Types.VARCHAR);
+            } else {
+                setVariableStatement.setString(1, newId);
+            }
+            boolean resultNotUpdateCount = setVariableStatement.execute();
+            errorIfNotEqual(where + " set join transaction id returned true.", false, resultNotUpdateCount);
+            errorIfNotEqual(where + " set join transaction id failed to throw expected exception " +
+                    expectedErrorCode + " for " + newId, expectedErrorCode, 0);
         } catch (SQLException e) {
-            error(where + " caught exception on set coordinated transaction id:", e);
+            int errorCode = e.getErrorCode();
+            errorIfNotEqual(where + " caught wrong exception on set coordinated transaction id:" +
+                    " errorCode: " + errorCode + " SQLState: " + e.getSQLState(), expectedErrorCode, errorCode);
         }
     }
 
-    /** Get the coordinated_transaction_id variable from the server.
+    /** Get the join_transaction_id variable from the server.
      * @return the id from the server
      */
-    protected String getJDBCCoordinatedTransactionId(String where) {
-        String getId = "select " + getTransactionIdVariableName;
+    protected String getJDBCJoinTransactionId(String where) {
+        String getId = "select " + joinTransactionIdVariableName;
+        String result = executeSelect(where, getId);
+        return result;
+    }
+
+    /** Get the join_transaction_id variable from the server.
+     * @return the id from the server
+     */
+    protected String getJDBCTransactionId(String where) {
+        String getId = "select " + transactionIdVariableName;
+        String result = executeSelect(where, getId);
+        return result;
+    }
+
+    private String executeSelect(String where, String getId) {
         String result = null;
         try {
             PreparedStatement getCoordinatedTransactionIdStatement = connection.prepareStatement(getId);
             ResultSet rs = getCoordinatedTransactionIdStatement.executeQuery();
             boolean hasResult = rs.next();
-            errorIfNotEqual(where + " select coordinated transaction id returned false.", true, hasResult);
+            errorIfNotEqual(where + " select " + getId + " returned false.", true, hasResult);
             result = rs.getString(1);
-            if (getDebug()) System.out.println(where + " getJDBCCoordinatedTransactionId returns " + result);
+            if (getDebug()) System.out.println(where + " " + getId + " returns " + result);
         } catch (SQLException e) {
-            error(where + " caught exception on get coordinated transaction id.", e);
+            error(where + " caught exception on select " + getId + ".", e);
         }
         return result;
     }

@@ -55,6 +55,15 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
     private int offset;
     private int numberOfParameters;
 
+    private static final int FIELD_TYPE_BLOB = 252;
+    private static final int FIELD_TYPE_DOUBLE = 5;
+    private static final int FIELD_TYPE_FLOAT = 4;
+    private static final int FIELD_TYPE_LONG = 3;
+    private static final int FIELD_TYPE_LONGLONG = 8;
+    private static final int FIELD_TYPE_NEW_DECIMAL = 246;
+    private static final int FIELD_TYPE_SHORT = 2;
+    private static final int FIELD_TYPE_TINY = 1;
+
     public ValueHandlerBindValuesImpl(List<?> parameterSetList, int[] fieldNumberToColumnNumberMap) {
         this.parameterSetListIterator = parameterSetList.iterator();
         this.numberOfStatements = parameterSetList.size();
@@ -148,7 +157,21 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
 
     @Override
     public byte getByte(int fieldNumber) {
-        return (byte)bindValues[getIndex(fieldNumber)].longBinding;
+        BindValue bindValue = bindValues[getIndex(fieldNumber)];
+        switch(bindValue.bufferType) {
+            case FIELD_TYPE_DOUBLE:
+                return (byte)bindValue.doubleBinding;
+            case FIELD_TYPE_FLOAT:
+                return (byte)bindValue.floatBinding;
+            case FIELD_TYPE_LONG:
+            case FIELD_TYPE_LONGLONG:
+            case FIELD_TYPE_SHORT:
+            case FIELD_TYPE_TINY:
+                return (byte)bindValue.longBinding;
+            default:
+                throw new ClusterJUserException(
+                        local.message("ERR_Parameter_Wrong_Type", "byte", bindValue.getClass().getName()));
+        }
     }
 
     @Override
@@ -158,17 +181,59 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
 
     @Override
     public double getDouble(int fieldNumber) {
-        return bindValues[getIndex(fieldNumber)].doubleBinding;
+        BindValue bindValue = bindValues[getIndex(fieldNumber)];
+        switch(bindValue.bufferType) {
+            case FIELD_TYPE_DOUBLE:
+                return bindValue.doubleBinding;
+            case FIELD_TYPE_FLOAT:
+                return bindValue.floatBinding;
+            case FIELD_TYPE_LONG:
+            case FIELD_TYPE_LONGLONG:
+            case FIELD_TYPE_SHORT:
+            case FIELD_TYPE_TINY:
+                return bindValue.longBinding;
+            default:
+                throw new ClusterJUserException(
+                        local.message("ERR_Parameter_Wrong_Type", "double", bindValue.getClass().getName()));
+        }
     }
 
     @Override
     public float getFloat(int fieldNumber) {
-        return bindValues[getIndex(fieldNumber)].floatBinding;
+        BindValue bindValue = bindValues[getIndex(fieldNumber)];
+        switch(bindValue.bufferType) {
+            case FIELD_TYPE_DOUBLE:
+                return (float)bindValue.doubleBinding;
+            case FIELD_TYPE_FLOAT:
+                return bindValue.floatBinding;
+            case FIELD_TYPE_LONG:
+            case FIELD_TYPE_LONGLONG:
+            case FIELD_TYPE_SHORT:
+            case FIELD_TYPE_TINY:
+                return bindValue.longBinding;
+            default:
+                throw new ClusterJUserException(
+                        local.message("ERR_Parameter_Wrong_Type", "float", bindValue.getClass().getName()));
+        }
     }
 
     @Override
     public int getInt(int fieldNumber) {
-        return (int)bindValues[getIndex(fieldNumber)].longBinding;
+        BindValue bindValue = bindValues[getIndex(fieldNumber)];
+        switch(bindValue.bufferType) {
+            case FIELD_TYPE_DOUBLE:
+                return (int)bindValue.doubleBinding;
+            case FIELD_TYPE_FLOAT:
+                return (int)bindValue.floatBinding;
+            case FIELD_TYPE_LONG:
+            case FIELD_TYPE_LONGLONG:
+            case FIELD_TYPE_SHORT:
+            case FIELD_TYPE_TINY:
+                return (int)bindValue.longBinding;
+            default:
+                throw new ClusterJUserException(
+                        local.message("ERR_Parameter_Wrong_Type", "int", bindValue.getClass().getName()));
+        }
     }
 
     @Override
@@ -221,7 +286,21 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
 
     @Override
     public long getLong(int fieldNumber) {
-        return bindValues[getIndex(fieldNumber)].longBinding;
+        BindValue bindValue = bindValues[getIndex(fieldNumber)];
+        switch(bindValue.bufferType) {
+            case FIELD_TYPE_DOUBLE:
+                return (long)bindValue.doubleBinding;
+            case FIELD_TYPE_FLOAT:
+                return (long)bindValue.floatBinding;
+            case FIELD_TYPE_LONG:
+            case FIELD_TYPE_LONGLONG:
+            case FIELD_TYPE_SHORT:
+            case FIELD_TYPE_TINY:
+                return bindValue.longBinding;
+            default:
+                throw new ClusterJUserException(
+                        local.message("ERR_Parameter_Wrong_Type", "long", bindValue.getClass().getName()));
+        }
     }
 
     @Override
@@ -235,7 +314,7 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
         if (bindValue.isNull) {
             return null;
         } else {
-            return (byte)bindValue.longBinding;
+            return getByte(fieldNumber);
         }
     }
 
@@ -245,7 +324,7 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
         if (bindValue.isNull) {
             return null;
         } else {
-            return bindValue.doubleBinding;
+            return getDouble(fieldNumber);
         }
     }
 
@@ -255,7 +334,7 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
         if (bindValue.isNull) {
             return null;
         } else {
-            return bindValue.floatBinding;
+            return getFloat(fieldNumber);
         }
     }
 
@@ -265,7 +344,7 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
         if (bindValue.isNull) {
             return null;
         } else {
-            return (int)bindValue.longBinding;
+            return getInt(fieldNumber);
         }
     }
 
@@ -275,7 +354,7 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
         if (bindValue.isNull) {
             return null;
         } else {
-            return bindValue.longBinding;
+            return getLong(fieldNumber);
         }
     }
 
@@ -285,13 +364,27 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
         if (bindValue.isNull) {
             return null;
         } else {
-            return (short)bindValue.longBinding;
+            return getShort(fieldNumber);
         }
     }
 
     @Override
     public short getShort(int fieldNumber) {
-        return (short)bindValues[getIndex(fieldNumber)].longBinding;
+        BindValue bindValue = bindValues[getIndex(fieldNumber)];
+        switch(bindValue.bufferType) {
+            case FIELD_TYPE_DOUBLE:
+                return (short)bindValue.doubleBinding;
+            case FIELD_TYPE_FLOAT:
+                return (short)bindValue.floatBinding;
+            case FIELD_TYPE_LONG:
+            case FIELD_TYPE_LONGLONG:
+            case FIELD_TYPE_SHORT:
+            case FIELD_TYPE_TINY:
+                return (short)bindValue.longBinding;
+            default:
+                throw new ClusterJUserException(
+                        local.message("ERR_Parameter_Wrong_Type", "short", bindValue.getClass().getName()));
+        }
     }
 
     @Override
