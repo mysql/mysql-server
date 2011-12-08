@@ -456,6 +456,10 @@ ulong binlog_checksum_options;
 my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
+my_bool binlog_disable_transaction_unsafe_statements;
+ulong gtid_mode;
+const char *gtid_mode_names[]=
+{"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /**< Used in SIGSEGV handler. */
 #endif

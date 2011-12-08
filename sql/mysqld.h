@@ -198,6 +198,22 @@ extern ulong binlog_checksum_options;
 extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
+extern my_bool binlog_disable_transaction_unsafe_statements;
+#ifdef HAVE_GTID
+enum enum_gtid_mode
+{
+  /// Support only anonymous groups, not GTIDs.
+  GTID_MODE_OFF= 0,
+  /// Support both GTIDs and anonymous groups; generate anonymous groups.
+  GTID_MODE_UPGRADE_STEP_1= 1,
+  /// Support both GTIDs and anonymous groups; generate GTIDs.
+  GTID_MODE_UPGRADE_STEP_2= 2,
+  /// Support only GTIDs, not anonymous groups.
+  GTID_MODE_ON= 3
+};
+extern ulong gtid_mode;
+extern const char *gtid_mode_names[];
+#endif
 extern ulong thread_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
