@@ -4914,117 +4914,6 @@ static void set_socket_thread_owner_v1(PSI_socket *socket)
   pfs_socket->m_thread_owner= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
 }
 
-static struct PSI_digest_locker* digest_start_v1(PSI_statement_locker *locker)
-{
-  PSI_statement_locker_state *statement_state= NULL;
-  PSI_digest_locker_state    *state= NULL;
-  PFS_events_statements      *pfs= NULL;
-  PFS_digest_storage         *digest_storage= NULL;
-
-  /* 
-    If current statement is not instrumented
-  */
-  if(!locker || !(flag_thread_instrumentation && flag_events_statements_current))
-  {
-    return NULL;
-  }
-
-  /*
-    Get statement locker state from statement locker
-  */
-  statement_state= reinterpret_cast<PSI_statement_locker_state*> (locker);
-  DBUG_ASSERT(statement_state != NULL);
-  
-  /* 
-    Get digest_locker_state from statement_locker_state.
-  */
-  state= &statement_state->m_digest_state;
-  DBUG_ASSERT(state != NULL);
-  
-  /* 
-    Take out thread specific statement record. And then digest
-    storage information for this statement from it.
-  */
-  pfs= reinterpret_cast<PFS_events_statements*>(statement_state->m_statement);
-  digest_storage= &pfs->m_digest_storage;
-
-  /* 
-    Initialize token array and token count to 0.
-  */
-  digest_storage->m_token_count= PFS_MAX_TOKEN_COUNT;
-  while(digest_storage->m_token_count)
-    digest_storage->m_token_array[--digest_storage->m_token_count]= 0;
-  
-  /*
-    Set digest_locker_state's statement info pointer.
-  */
-  state->m_statement= pfs;
-
-  return reinterpret_cast<PSI_digest_locker*> (state);
-}
-
-static void digest_add_token_v1(PSI_digest_locker *locker, 
-                                uint token, 
-                                char *yytext, 
-                                int yylen)
-{
-  PSI_digest_locker_state *state= NULL;
-  PFS_events_statements   *pfs= NULL;
-  PFS_digest_storage      *digest_storage= NULL;
-
-  if(!locker)
-    return;
-
-  state= reinterpret_cast<PSI_digest_locker_state*> (locker);
-  DBUG_ASSERT(state != NULL);
-
-  pfs= reinterpret_cast<PFS_events_statements *>(state->m_statement);
-  digest_storage= &pfs->m_digest_storage;
-
-  if( digest_storage->m_token_count >= PFS_MAX_TOKEN_COUNT )
-  {
-    /* 
-      If digest storage record is full, do nothing.
-    */
-    return;
-  }
-  else 
-  {
-    /*
-      Add this token to digest storage.
-    */
-    digest_storage->m_token_array[digest_storage->m_token_count]= token;
-    digest_storage->m_token_count++;
-  }
-}
-
-static void digest_end_v1(PSI_digest_locker *locker)
-{
-  PSI_digest_locker_state *state= NULL;
-  PFS_events_statements   *pfs= NULL;
-  PFS_digest_storage      *digest_storage= NULL;
-
-  if(!locker)
-    return;
-
-  state= reinterpret_cast<PSI_digest_locker_state*> (locker);
-  DBUG_ASSERT(state != NULL);
-  
-  pfs= reinterpret_cast<PFS_events_statements *>(state->m_statement);
-  digest_storage= &pfs->m_digest_storage;
-  
-  /* 
-    Calculate MD5 Hash of the tokens recieved.
-  */
-  MY_MD5_HASH(digest_storage->m_digest_hash.m_md5, (unsigned char *)digest_storage->m_token_array,
-              (uint) sizeof(digest_storage->m_token_array));
-
-  /* 
-     Not resetting digest_storage->m_token_count to 0 here as it will be done in 
-     digest_start.
-  */
-}
-
 /**
   Implementation of the instrumentation interface.
   @sa PSI_v1.
@@ -5129,9 +5018,9 @@ PSI_v1 PFS_v1=
   set_socket_state_v1,
   set_socket_info_v1,
   set_socket_thread_owner_v1,
-  digest_start_v1,
-  digest_add_token_v1,
-  digest_end_v1
+  pfs_digest_start_v1,
+  pfs_digest_add_token_v1,
+  pfs_digest_end_v1
 };
 
 static void* get_interface(int version)

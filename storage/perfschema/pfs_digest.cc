@@ -23,9 +23,14 @@
 #include "pfs_instr.h"
 #include "pfs_digest.h"
 #include "pfs_global.h"
-#include "p_lex.h"
-#include "p_lex.cc"
+#include "table_helper.h"
+#include "my_md5.h"
 #include <string.h>
+
+/* Generated code */
+#define YYSTYPE_IS_DECLARED
+#include "sql_yacc.h"
+#include "pfs_lex_token.h"
 
 unsigned int statements_digest_size= 0;
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
@@ -54,8 +59,6 @@ const char* symbol[MAX_TOKEN_COUNT];
 int init_digest(unsigned int statements_digest_sizing)
 {
   unsigned int index;
-
-  initialize_lex_symbol();
 
   /* 
     TBD. Allocate memory for statements_digest_stat_array based on 
@@ -250,6 +253,7 @@ static void get_digest_text(char* digest_text,
                             unsigned int* token_array,
                             int token_count)
 {
+#ifdef BEFORE
   int i= 0;
   while(i<token_count)
   {
@@ -284,5 +288,221 @@ static void get_digest_text(char* digest_text,
     digest_text++;
   }
   digest_text= '\0';
+#endif
+
+  int i;
+  int tok;
+  lex_token_string *tok_data;
+
+  for (i= 0; i<token_count; i++)
+  {
+    tok= token_array[i];
+    tok_data= & lex_token_array[tok];
+
+    switch (tok)
+    {
+    /* All literals are printed as '?' */
+    case BIN_NUM:
+    case DECIMAL_NUM:
+    case FLOAT_NUM:
+    case HEX_NUM:
+    case LEX_HOSTNAME:
+    case LONG_NUM:
+    case NCHAR_STRING:
+    case TEXT_STRING:
+    case ULONGLONG_NUM:
+      *digest_text= '?';
+      digest_text++;
+      break;
+
+    /* All identifiers are printed with their name */
+    case IDENT:
+    case IDENT_QUOTED:
+      /* TODO, print the name, not ID. */
+      *digest_text= 'I';
+      digest_text++;
+      *digest_text= 'D';
+      digest_text++;
+      *digest_text= ' ';
+      digest_text++;
+      break;
+
+    /* Everything else is printed as is. */
+    default:
+      strncpy(digest_text,
+              tok_data->m_token_string,
+              tok_data->m_token_length);
+      digest_text+= tok_data->m_token_length;
+      *digest_text= ' ';
+      digest_text++;
+    }
+  }
+}
+
+struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
+{
+  PSI_statement_locker_state *statement_state= NULL;
+  PSI_digest_locker_state    *state= NULL;
+  PFS_events_statements      *pfs= NULL;
+  PFS_digest_storage         *digest_storage= NULL;
+
+  /*
+    If current statement is not instrumented
+  */
+  if(!locker || !(flag_thread_instrumentation && flag_events_statements_current))
+  {
+    return NULL;
+  }
+
+  /*
+    Get statement locker state from statement locker
+  */
+  statement_state= reinterpret_cast<PSI_statement_locker_state*> (locker);
+  DBUG_ASSERT(statement_state != NULL);
+
+  /*
+    Get digest_locker_state from statement_locker_state.
+  */
+  state= &statement_state->m_digest_state;
+  DBUG_ASSERT(state != NULL);
+
+  /*
+    Take out thread specific statement record. And then digest
+    storage information for this statement from it.
+  */
+  pfs= reinterpret_cast<PFS_events_statements*>(statement_state->m_statement);
+  digest_storage= &pfs->m_digest_storage;
+
+  /*
+    Initialize token array and token count to 0.
+  */
+  digest_storage->m_token_count= PFS_MAX_TOKEN_COUNT;
+  while(digest_storage->m_token_count)
+    digest_storage->m_token_array[--digest_storage->m_token_count]= 0;
+
+  /*
+    Set digest_locker_state's statement info pointer.
+  */
+  state->m_statement= pfs;
+
+  return reinterpret_cast<PSI_digest_locker*> (state);
+}
+
+void pfs_digest_add_token_v1(PSI_digest_locker *locker,
+                             uint token,
+                             char *yytext,
+                             int yylen)
+{
+  PSI_digest_locker_state *state= NULL;
+  PFS_events_statements   *pfs= NULL;
+  PFS_digest_storage      *digest_storage= NULL;
+
+  if(!locker)
+    return;
+
+  state= reinterpret_cast<PSI_digest_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  pfs= reinterpret_cast<PFS_events_statements *>(state->m_statement);
+  digest_storage= &pfs->m_digest_storage;
+
+  if( digest_storage->m_token_count >= PFS_MAX_TOKEN_COUNT )
+  {
+    /*
+      If digest storage record is full, do nothing.
+    */
+    return;
+  }
+
+  uint *current= & digest_storage->m_token_array[digest_storage->m_token_count];
+
+  switch (token)
+  {
+    case BIN_NUM:
+    case DECIMAL_NUM:
+    case FLOAT_NUM:
+    case HEX_NUM:
+    case LEX_HOSTNAME:
+    case LONG_NUM:
+    case NUM:
+    case TEXT_STRING:
+    case NCHAR_STRING:
+    case ULONGLONG_NUM:
+    {
+      /*
+        REDUCE:
+        TOK_PFS_GENERIC_VALUE := BIN_NUM | DECIMAL_NUM | ... | ULONGLONG_NUM
+      */
+      token= TOK_PFS_GENERIC_VALUE;
+
+      if (digest_storage->m_token_count >= 2)
+      {
+        if ((current[-2] == TOK_PFS_GENERIC_VALUE) &&
+            (current[-1] == ','))
+        {
+          /*
+            REDUCE:
+            TOK_PFS_GENERIC_VALUE_LIST :=
+              TOK_PFS_GENERIC_VALUE ',' TOK_PFS_GENERIC_VALUE
+          */
+          digest_storage->m_token_count-= 2;
+          token= TOK_PFS_GENERIC_VALUE_LIST;
+        }
+        else if ((current[-2] == TOK_PFS_GENERIC_VALUE_LIST) &&
+                 (current[-1] == ','))
+        {
+          /*
+            REDUCE:
+            TOK_PFS_GENERIC_VALUE_LIST :=
+              TOK_PFS_GENERIC_VALUE_LIST ',' TOK_PFS_GENERIC_VALUE
+          */
+          digest_storage->m_token_count-= 2;
+          token= TOK_PFS_GENERIC_VALUE_LIST;
+        }
+      }
+      break;
+    }
+#ifdef TODO
+    case xxx:
+    {
+      /* Code for reduces involving token xxx goes here. */
+      break;
+    }
+#endif
+  }
+
+  /*
+    Add this token or the resulting reduce to digest storage.
+  */
+  digest_storage->m_token_array[digest_storage->m_token_count]= token;
+  digest_storage->m_token_count++;
+}
+
+void pfs_digest_end_v1(PSI_digest_locker *locker)
+{
+  PSI_digest_locker_state *state= NULL;
+  PFS_events_statements   *pfs= NULL;
+  PFS_digest_storage      *digest_storage= NULL;
+
+  if(!locker)
+    return;
+
+  state= reinterpret_cast<PSI_digest_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  pfs= reinterpret_cast<PFS_events_statements *>(state->m_statement);
+  digest_storage= &pfs->m_digest_storage;
+
+  /*
+    Calculate MD5 Hash of the tokens received.
+  */
+  MY_MD5_HASH(digest_storage->m_digest_hash.m_md5,
+              (unsigned char *)digest_storage->m_token_array,
+              (uint) sizeof(digest_storage->m_token_array));
+
+  /*
+     Not resetting digest_storage->m_token_count to 0 here as it will be done in
+     digest_start.
+  */
 }
 
