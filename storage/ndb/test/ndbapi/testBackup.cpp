@@ -668,6 +668,8 @@ runBug57650(NDBT_Context* ctx, NDBT_Step* step)
   NdbSleep_SecSleep(5);
   res.waitClusterStarted();
 
+  res.insertErrorInAllNodes(0);
+
   return NDBT_OK;
 }
 
