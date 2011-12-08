@@ -11,7 +11,6 @@ SELECT @@global.slave_rows_search_algorithms;
 SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='HASH_SCAN';
 SELECT @@global.slave_rows_search_algorithms;
 
--- error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='INDEX_SCAN';
 SELECT @@global.slave_rows_search_algorithms;
 
@@ -39,6 +38,13 @@ SELECT @@global.slave_rows_search_algorithms;
 
 --error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='1';
+SELECT @@global.slave_rows_search_algorithms;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS=NULL;
+SELECT @@global.slave_rows_search_algorithms;
+
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS=DEFAULT;
 SELECT @@global.slave_rows_search_algorithms;
 
 set global slave_rows_search_algorithms = @saved_slave_rows_search_algorithms;

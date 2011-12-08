@@ -11,10 +11,9 @@ SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms
 HASH_SCAN
 SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='INDEX_SCAN';
-ERROR 42000: Variable 'slave_rows_search_algorithms' can't be set to the value of 'INDEX_SCAN'
 SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms
-HASH_SCAN
+INDEX_SCAN
 SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='TABLE_SCAN,HASH_SCAN';
 SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms
@@ -46,6 +45,15 @@ ERROR 42000: Variable 'slave_rows_search_algorithms' can't be set to the value o
 SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms
 INDEX_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS=NULL;
+ERROR 42000: Variable 'slave_rows_search_algorithms' can't be set to the value of 'NULL'
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+INDEX_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS=DEFAULT;
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+TABLE_SCAN,INDEX_SCAN
 set global slave_rows_search_algorithms = @saved_slave_rows_search_algorithms;
 SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms

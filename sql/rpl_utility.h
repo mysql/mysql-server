@@ -59,8 +59,8 @@ class Hash_slave_rows
 public:
 
   /**
-     This member function allocates an entry to be added to the hash
-     table. It should be called before calling member function add.
+     Allocates an entry to be added to the hash table. It should be
+     called before calling member function add.
      
      @param bi_start the position to where in the rows buffer the
                      before image begins.
@@ -76,7 +76,7 @@ public:
                                  const uchar *ai_start, const uchar *ai_ends);
 
   /**
-     Member function that puts data into the hash table.
+     Puts data into the hash table.
 
      @param table   The table holding the buffer used to calculate the
                     key, ie, table->record[0].
@@ -88,8 +88,8 @@ public:
   bool put(TABLE* table, MY_BITMAP *cols, HASH_ROW_POS_ENTRY* entry);
 
   /**
-     This member function gets the entry, from the hash table, that
-     matches the data in table->record[0] and signaled using cols.
+     Gets the entry, from the hash table, that matches the data in
+     table->record[0] and signaled using cols.
      
      @param table   The table holding the buffer containing data used to
                     make the entry lookup.
@@ -103,11 +103,11 @@ public:
   HASH_ROW_POS_ENTRY* get(TABLE *table, MY_BITMAP *cols);
 
   /**
-     This member function gets the entry that stands next to the one
-     pointed to by *entry. Before calling this member function, the
-     entry that one uses as parameter must have: 1. been obtained
-     through get() or next() invocations; and 2. must have not been
-     used before in a next() operation.
+     Gets the entry that stands next to the one pointed to by
+     *entry. Before calling this member function, the entry that one
+     uses as parameter must have: 1. been obtained through get() or
+     next() invocations; and 2. must have not been used before in a
+     next() operation.
 
      @param entry[IN/OUT] contains a pointer to an entry that we can
                           use to search for another adjacent entry
@@ -121,9 +121,10 @@ public:
   bool next(HASH_ROW_POS_ENTRY** entry);
 
   /**
-     Deletes the entry pointed by entry. This is the only
-     safe way to free memory allocated for the structure
-     pointed to by entry.
+     Deletes the entry pointed by entry. It also frees memory used
+     holding entry contents. This is the way to release memeory 
+     used for entry, freeing it explicitly with my_free will cause
+     undefined behavior.
 
      @param entry  Pointer to the entry to be deleted.
      @returns true if something went wrong, false otherwise.
