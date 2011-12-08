@@ -98,6 +98,13 @@ struct MBR
     if (mbr->ymax > ymax)
       ymax= mbr->ymax;
   }
+  void buffer(double d)
+  {
+    xmin-= d;
+    ymin-= d;
+    xmax+= d;
+    ymax+= d;
+  }
 
   int equals(const MBR *mbr)
   {

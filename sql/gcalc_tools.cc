@@ -650,15 +650,6 @@ Gcalc_operation_reducer(Gcalc_function *fn, modes mode, size_t blk_size) :
 }
 
 
-#ifdef TMP_BLOCK
-void Gcalc_operation_reducer::res_point::set(const Gcalc_scan_iterator *si)
-{
-  if ((intersection_point= si->intersection_step()))
-    ii= si->get_cur_ii();
-  else
-    pi= si->get_cur_pi();
-}
-#endif /*TMP_BLOCK*/
 void Gcalc_operation_reducer::res_point::set(const Gcalc_scan_iterator *si)
 {
   intersection_point= si->intersection_step();
