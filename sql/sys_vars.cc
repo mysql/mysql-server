@@ -33,8 +33,8 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "sql_class.h"                          // set_var.h: THD
-#include "sys_vars.h"
 #include "zgtids.h"
+#include "sys_vars.h"
 #include "mysql_com.h"
 
 #include "events.h"
@@ -3601,6 +3601,38 @@ static Sys_var_charptr Sys_ignore_db_dirs(
        IN_FS_CHARSET, DEFAULT(0));
 
 
+static bool check_binlog_disable_transaction_unsafe_statements(
+  sys_var *self, THD *thd, set_var *var)
+{
+  DBUG_ENTER("check_binlog_disable_transactional_unsafe_statements");
+
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+           "BINLOG_DISABLE_TRANSACTION_UNSAFE_STATEMENTS");
+  DBUG_RETURN(true);
+
+  if (check_top_level_stmt_and_super(self, thd, var) ||
+      check_outside_transaction(self, thd, var))
+    DBUG_RETURN(true);
+#ifdef HAVE_GTID
+  if (gtid_mode >= 2)
+  {
+    //my_error(ER_GTID_MODE_2_OR_3_REQUIRES_BINLOG_DISABLE_TRANSACTION_UNSAFE_STATEMENTS_OFF), MYF(0));
+    DBUG_RETURN(true);
+  }
+#endif
+  DBUG_RETURN(false);
+}
+
+static Sys_var_mybool Sys_binlog_disable_transaction_unsafe_statements(
+       "binlog_disable_transactional_unsafe_statements",
+       "Prevents execution of statements that would be impossible to log "
+       "in a transactionally safe manner. This currently includes updates to "
+       "non-transactional tables, and CREATE ... SELECT.",
+       GLOBAL_VAR(binlog_disable_transaction_unsafe_statements),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_binlog_disable_transaction_unsafe_statements));
+
 #ifdef HAVE_GTID
 
 static Sys_var_have Sys_have_gtid(
@@ -3662,4 +3694,66 @@ static Sys_var_gtid_lost Sys_gtid_lost(
        "gtid_lost",
        "The set of GTIDs that existed in previous, purged binary logs.");
 
-#endif
+static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
+{
+  DBUG_ENTER("check_binlog_disable_transactional_unsafe_statements");
+
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_MODE");
+  DBUG_RETURN(true);
+
+  if (check_top_level_stmt_and_super(self, thd, var) ||
+      check_outside_transaction(self, thd, var))
+    DBUG_RETURN(true);
+  uint new_gtid_mode= var->value->val_int();
+  if (abs(new_gtid_mode - gtid_mode) > 1)
+  {
+    //my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0))
+    DBUG_RETURN(true);
+  }
+  if (new_gtid_mode >= 2)
+  {
+    /*
+    if (new_gtid_mode == 3 &&
+        (there are un-processed anonymous transactions in relay log ||
+         there is a client executing an anonymous transaction))
+    {
+      my_error(ER_CANT_SET_GTID_MODE_3_WITH_ANONYMOUS_GROUPS_IN_RELAY_LOG,
+               MYF(0));
+      DBUG_RETURN(true);
+    }
+    */
+    if (binlog_disable_transaction_unsafe_statements)
+    {
+      //my_error(ER_GTID_MODE_2_OR_3_REQUIRES_BINLOG_DISABLE_TRANSACTION_UNSAFE_STATEMENTS_OFF), MYF(0));
+      DBUG_RETURN(true);
+    }
+  }
+  else
+  {
+    /*
+    if (new_gtid_mode == 0 &&
+        (there are un-processed GTIDs in relay log ||
+         there is a client executing a GTID transaction))
+    {
+      my_error(ER_CANT_SET_GTID_MODE_0_WITH_GTID_GROUPS_IN_RELAY_LOG, MYF(0));
+      DBUG_RETURN(true);
+    }
+    */
+  }
+  DBUG_RETURN(false);
+}
+
+static Sys_var_enum Sys_gtid_mode(
+       "gtid_mode",
+       "Whether Global Transaction IDentifiers are enabled: OFF, "
+       "UPGRADE_STEP_1, UPGRADE_STEP_2, or ON. OFF means GTIDs are not "
+       "supported at all, ON means GTIDs are supported by all servers in "
+       "the replication topology. To safely switch from OFF to ON, first "
+       "set all servers to UPGRADE_STEP_1, then set all servers to "
+       "UPGRADE_STEP_2, then wait for all anonymous transactions to "
+       "be re-executed on all servers, and finally set all servers to ON.",
+       GLOBAL_VAR(gtid_mode), CMD_LINE(REQUIRED_ARG),
+       gtid_mode_names, DEFAULT(GTID_MODE_OFF),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_gtid_mode));
+
+#endif // HAVE_GTID
