@@ -2552,8 +2552,9 @@ ndb_index_stat_wait(Ndb_index_stat *st,
     }
     if (st->sample_version > sample_version)
       break;
+    count++;
     DBUG_PRINT("index_stat", ("st %s wait count:%u",
-                              st->id, ++count));
+                              st->id, count));
     pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
     ndb_index_stat_waiter= true;
     pthread_cond_signal(&ndb_index_stat_thread.COND);
