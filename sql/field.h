@@ -2017,7 +2017,7 @@ public:
   longlong val_date_temporal();
   bool get_time(MYSQL_TIME *ltime)
   {
-    return get_date(ltime, 0);
+    return get_date(ltime, TIME_FUZZY_DATE);
   }
 };
 
