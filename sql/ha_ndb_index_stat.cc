@@ -2053,7 +2053,8 @@ ndb_index_stat_check_or_create_systables(Ndb_index_stat_proc &pr)
   }
 
   if (is->getNdbError().code == 721 ||
-      is->getNdbError().code == 4244)
+      is->getNdbError().code == 4244 ||
+      is->getNdbError().code == 4009) // no connection
   {
     // race between mysqlds, maybe
     DBUG_PRINT("index_stat", ("create index stats tables failed: error %d line %d",
@@ -2237,15 +2238,20 @@ Ndb_index_stat_thread::do_run()
   /*
     Wait for cluster to start
   */
-  pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
-  while (!g_ndb_status.cluster_node_id && (ndbcluster_hton->slot != ~(uint)0))
+  pthread_mutex_lock(&ndb_util_thread.LOCK);
+  while (!ndbcluster_terminating && !g_ndb_status.cluster_node_id &&
+         (ndbcluster_hton->slot != ~(uint)0))
   {
     /* ndb not connected yet */
-    pthread_cond_wait(&ndb_index_stat_thread.COND, &ndb_index_stat_thread.LOCK);
-    if (ndbcluster_terminating)
-      goto ndb_index_stat_thread_end;
+    pthread_cond_wait(&ndb_util_thread.COND, &ndb_util_thread.LOCK);
   }
-  pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+  pthread_mutex_unlock(&ndb_util_thread.LOCK);
+
+  if (ndbcluster_terminating)
+  {
+    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+    goto ndb_index_stat_thread_end;
+  }
 
   /* Get instance used for sys objects check and create */
   if (!(pr.is_util= new NdbIndexStat))
