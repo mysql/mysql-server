@@ -4960,7 +4960,10 @@ runLCPTakeOver(NDBT_Context* ctx, NDBT_Step* step)
   {
     NdbRestarter res;
     if (res.getNumDbNodes() < 4)
+    {
+      ctx->stopTest();
       return NDBT_OK;
+    }
   }
 
   for (int i = 0; master_err[i] != 0; i++)

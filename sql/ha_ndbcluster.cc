@@ -12390,7 +12390,7 @@ static int connect_callback()
   while ((node_id= g_ndb_cluster_connection->get_next_node(node_iter)))
     g_node_id_map[node_id]= i++;
 
-  pthread_cond_signal(&ndb_util_thread.COND);
+  pthread_cond_broadcast(&ndb_util_thread.COND);
   pthread_mutex_unlock(&ndb_util_thread.LOCK);
   return 0;
 }

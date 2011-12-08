@@ -18,6 +18,13 @@
 
 connection default;
 
+# This test is really a walking race-condition...
+#   and valgrind in PB2..."normally" gets timeout...
+#   so ignore this test in valgrind
+# In CluB it actually more frequently fails in gcc-madness, not sure why
+#   (same timeout)
+-- source include/not_valgrind.inc
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 CREATE DATABASE IF NOT EXISTS mysqlslap;
