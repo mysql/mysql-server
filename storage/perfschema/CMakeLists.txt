@@ -23,6 +23,8 @@ ADD_DEFINITIONS(-DMYSQL_SERVER)
 
 # Gen_pfs_lex_token
 ADD_EXECUTABLE(gen_pfs_lex_token gen_pfs_lex_token.cc)
+# gen_pfs_lex_token itself depends on ${CMAKE_CURRENT_BINARY_DIR}/sql/sql_yacc.h
+ADD_DEPENDENCIES(gen_pfs_lex_token GenServerSource)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pfs_lex_token.h
