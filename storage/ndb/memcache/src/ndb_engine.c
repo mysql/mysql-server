@@ -39,8 +39,9 @@
 #include "thread_identifier.h"
 #include "timing.h"
 
-/* A static global variable */
+/* Global variables */
 EXTENSION_LOGGER_DESCRIPTOR *logger;
+size_t global_max_item_size;
 
 /* Static and local to this file */
 const char * set_ops[] = { "","add","set","replace","append","prepend","cas" };
@@ -772,6 +773,8 @@ void read_cmdline_options(struct ndb_engine *ndb, struct default_engine *se,
       case 0: /* success */
         break;
   }
+  
+  global_max_item_size = se->config.item_size_max;
 }
 
 

@@ -37,8 +37,24 @@
 
 Operation::Operation(QueryPlan *p, int o, char *kbuf) : key_buffer(kbuf), 
                                                         plan(p), 
-                                                        op(o)                                                        
+                                                        op(o)
 {
+  set_default_record();
+}
+
+Operation::Operation(workitem *i) : key_buffer(i->ndb_key_buffer), 
+                                    plan(i->plan),
+                                    op(i->base.verb)
+{
+  set_default_record();
+}
+
+
+void Operation::set_default_record() {
+  row_mask[3] = row_mask[2] = row_mask[1] = row_mask[0] = 0;
+  key_mask[3] = key_mask[2] = key_mask[1] = key_mask[0] = 0;
+  read_mask_ptr = 0;
+  
   if(op == OP_READ) record = plan->val_record;
   else if(op == OP_FLUSH) record = plan->key_record;  // scanning delete 
   else record = plan->row_record;

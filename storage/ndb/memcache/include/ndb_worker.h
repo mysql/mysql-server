@@ -25,10 +25,14 @@
    1: worker_prepare_operation(), for normal async ops.
    2: ndb_flush_all(), for FLUSH commands, which are run synchronously.
 */
-
-
 op_status_t worker_prepare_operation(workitem *);
-
 ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *);
+
+
+/* An ndb_async_callback is used with NDB Async execution */
+typedef void ndb_async_callback(int, NdbTransaction *, void *);
+
+/* workitem.next_step is set to a function of type  worker_step */
+typedef void worker_step(NdbTransaction *, workitem *);
 
 #endif

@@ -56,7 +56,7 @@ int set_row(int v, QueryPlan *plan, Ndb *db,
   char key[50];
   char value[50];
   char ndbkeybuffer[300];
-  char ndbrowbuffer[8192];
+  char ndbrowbuffer[16384];
   
   strcpy(key, akey);
   strcpy(value, "munch");
@@ -84,7 +84,7 @@ int set_row(int v, QueryPlan *plan, Ndb *db,
     build_cas_routine(&code, plan, & old_cas);
     options.optionsPresent= NdbOperation::OperationOptions::OO_INTERPRETED;
     options.interpretedCode = & code;
-    op.updateInterpreted(tx, &options);
+    op.updateTuple(tx, &options);
   }
   else {
     /* Just a normal insert/update */
