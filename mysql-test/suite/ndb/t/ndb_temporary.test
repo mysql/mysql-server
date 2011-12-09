@@ -1,0 +1,45 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# creating a temporary table with engine=ndb should give an error
+#
+--error ER_ILLEGAL_HA_CREATE_OPTION
+create temporary table t1 (a int key) engine=ndb;
+
+
+#
+# alter temporary table to engine=ndb should give an error
+#
+create temporary table t1 (a int key) engine=myisam;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+alter table t1 engine=ndb;
+drop table t1;
+
+
+#
+# create temporary like on an ndb table should give an error (bug#57437)
+#
+CREATE TABLE bar ( id TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY ) ENGINE=NDBCluster ;
+--error ER_CANT_CREATE_TABLE
+CREATE TEMPORARY TABLE foo LIKE bar ;
+DROP TABLE bar;
+
+#
+# if default storage engine=ndb, temporary tables
+# without explicit engine= should be created as myisam
+#
+SET SESSION storage_engine=NDBCLUSTER;
+create table t1 (a int key);
+
+# verify that we have a ndb table
+select engine from information_schema.tables where table_name = 't1';
+drop table t1;
+
+# verify that we have a myisam table
+create temporary table t1 (a int key);
+show create table t1;
+drop table t1;

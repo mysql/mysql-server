@@ -1,0 +1,366 @@
+#########################################
+# Author: JBM
+# Date: 2006-01-03
+# Purpose: Test the NDB engine reaction to duplicate
+#          Table spaces and log groups. Also to test 
+#          Statement mixed case.
+############################################
+# Change Author:JBM
+# Change Date 2006-01-19
+# Change: Adding to test cases feedback from OB
+# 1) The 'duplicate' tests.
+#    a) The test is using the default (test) database and is not
+#       attempting to create databases (only logs, table spaces and
+#       tables). Is this intentional?
+#    b) What about a duplication of table name when one exists on disk and
+#       you are trying to create it again in memory?
+#
+#2) 'CaSE SensiTiVE' tests
+#    a) Suggest you include a test case where the case difference is in
+#       the file name. I know this is not an issue for *nix systems but
+#       will be when we expand to Windows and Mac. Better put it in now.
+############################################
+#
+# Jonas 2006-03-10
+# Add verification that ndb currently is limited to 1 logfile group
+#
+
+
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
+--enable_warnings
+
+############## Duplcate Statement Testing #########
+
+--echo **** Begin Duplicate Statement Testing ****
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+# Verify that one currently can create only 1 logfile group
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE LOGFILE GROUP lg2
+ADD UNDOFILE 'undofile2.dat'
+INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE 1M
+ENGINE NDB;
+SHOW WARNINGS;
+
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE 1M ENGINE NDB;
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE 1M ENGINE=NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 1M
+ENGINE NDB;
+
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 1M
+ENGINE NDB;
+
+
+ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile2.dat'
+INITIAL_SIZE 1M
+ENGINE=NDB;
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile2.dat'
+INITIAL_SIZE 1M
+ENGINE=NDB;
+
+CREATE TABLE mysqltest.t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+TABLESPACE ts1 STORAGE DISK
+ENGINE=NDB;
+
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE mysqltest.t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+TABLESPACE ts1 STORAGE DISK
+ENGINE=NDB;
+
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE mysqltest.t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+ENGINE=NDB;
+
+
+DROP TABLE mysqltest.t1;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile2.dat' 
+ENGINE=NDB;
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile2.dat' 
+ENGINE=NDB;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat' 
+ENGINE=NDB;
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat' 
+ENGINE=NDB;
+
+DROP TABLESPACE ts1 
+ENGINE=NDB;
+
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE ts1 
+ENGINE=NDB;
+
+DROP LOGFILE GROUP lg1 
+ENGINE=NDB;
+
+--error ER_DROP_FILEGROUP_FAILED
+DROP LOGFILE GROUP lg1 
+ENGINE=NDB;
+
+DROP DATABASE IF EXISTS mysqltest;
+
+--echo **** End Duplicate Statement Testing ****
+############# End Duplicate Statments ############
+--echo
+############ Begin CaSe Testing ##################
+--echo **** Begin Statment CaSe Testing ****
+
+creaTE LOgfilE GrOuP lg1
+adD undoFILE 'undofile.dat'
+initiAL_siZE 1M
+UnDo_BuFfEr_SiZe = 1M
+ENGInE=NDb;
+
+altER LOgFiLE GrOUp lg1
+AdD UnDOfILe 'uNdOfiLe02.daT'
+INItIAl_SIzE 1M ENgINE nDB;
+
+CrEAtE TABLEspaCE ts1
+ADD DATAfilE 'datafile.dat'
+UsE LoGFiLE GRoUP lg1
+INITiaL_SizE 1M
+ENGiNe NDb;
+
+AlTeR tAbLeSpAcE ts1
+AdD DaTaFiLe 'dAtAfiLe2.daT'
+InItIaL_SiZe 1M
+EnGiNe=NDB;
+
+CREATE TABLE t1
+(pk1 int not null primary key, b int not null, c int not null)
+TABLEspace ts1 storAGE dISk
+ENGine nDb;
+
+DROP TABLE t1;
+
+AlteR TAblespaCE ts1
+droP DATAfile 'dAtAfiLe2.daT' 
+ENGINE=NDB;
+
+ALter tablesPACE ts1
+dROp dAtAfIlE 'datafile.dat' 
+ENGine=Ndb;
+
+DrOp TaBleSpAcE ts1 
+engINE=ndB;
+
+DrOp lOgFiLe GrOuP lg1 
+EnGiNe=nDb;
+
+--echo **** End Statment CaSe Testing ****
+############ End CaSe Testing ##################
+--echo
+############ Begin = and no = Testing ##########
+--echo **** Begin = And No = Testing ****
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE=1M
+UNDO_BUFFER_SIZE=1M
+ENGINE=NDB;
+
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE=1M 
+ENGINE=NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE=1M
+ENGINE=NDB;
+
+ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile2.dat'
+INITIAL_SIZE=1M
+ENGINE=NDB;
+
+CREATE TABLE t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+TABLESPACE ts1 STORAGE DISK
+ENGINE=NDB;
+
+DROP TABLE t1;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile2.dat'
+ENGINE=NDB;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE=NDB;
+
+DROP TABLESPACE ts1
+ENGINE=NDB;
+
+DROP LOGFILE GROUP lg1
+ENGINE=NDB;
+
+--echo
+--echo **** End of = ****
+--echo
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE 1M
+ENGINE NDB;
+
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE 1M
+ENGINE NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 1M
+ENGINE NDB;
+
+ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile2.dat'
+INITIAL_SIZE 1M
+ENGINE NDB;
+
+CREATE TABLE t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+TABLESPACE ts1 STORAGE MEMORY
+ENGINE NDB;
+
+ALTER TABLE t1 STORAGE DISK;
+
+CREATE INDEX b_i on t1(b);
+CREATE INDEX bc_i on t1(b, c);
+
+DROP TABLE t1;
+
+# bug#20053
+
+CREATE TABLESPACE ts2
+ADD DATAFILE 'datafile3.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 1M
+ENGINE NDB;
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile3.dat'
+ENGINE NDB;
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile2.dat'
+ENGINE NDB;
+# bug#20053
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile2.dat'
+ENGINE NDB;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+
+DROP TABLESPACE ts1
+ENGINE NDB;
+
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile3.dat'
+ENGINE NDB;
+
+DROP TABLESPACE ts2
+ENGINE NDB;
+
+DROP LOGFILE GROUP lg1
+ENGINE NDB;
+
+--echo **** End = And No =  ****
+############ End = And No = ##################
+
+###
+#
+# bug#16341
+#create table t1 (a int primary key) engine = myisam;
+# 2007-08-22 Jeb
+# Removed the use of create table and manually 
+# created the file to cause failure due to
+# inconsistant results on other OS
+# see #bug30559
+
+# Create empty file
+--write_file $MYSQLTEST_VARDIR/tmp/t1.frm
+EOF
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CREATE_FILEGROUP_FAILED
+--eval create logfile group lg1 add undofile '$MYSQLTEST_VARDIR/tmp/t1.frm' initial_size 1M undo_buffer_size = 1M engine=ndb;
+
+create logfile group lg1
+add undofile 'undofile.dat'
+initial_size 1M
+undo_buffer_size = 1M
+engine=ndb;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_CREATE_FILEGROUP_FAILED
+--eval create tablespace ts1 add datafile '$MYSQLTEST_VARDIR/tmp/t1.frm' use logfile group lg1 initial_size 1M engine ndb;
+
+--error ER_DROP_FILEGROUP_FAILED
+drop tablespace ts1
+engine ndb;
+
+drop logfile group lg1
+engine ndb;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.frm
+
+
+# End 5.1 test

@@ -1,0 +1,328 @@
+show variables like 'log_bin';
+Variable_name	Value
+log_bin	ON
+show variables like 'log_bin';
+Variable_name	Value
+log_bin	ON
+show variables like 'log_bin';
+Variable_name	Value
+log_bin	OFF
+show variables like 'log_bin';
+Variable_name	Value
+log_bin	OFF
+create table t1 (a int) engine=ndbcluster;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+rename table t1 to t2;
+drop table t2;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+rename table t1 to t2;
+drop table t2;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+alter offline table t1 add column b int default 77;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+alter offline table t1 add column b int default 77;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int primary key) engine=ndbcluster
+partition by list(a) (partition p0 values in (0));
+alter offline table t1 add partition (partition p1 values in (1));
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int primary key) engine=ndbcluster
+partition by list(a) (partition p0 values in (0));
+alter offline table t1 add partition (partition p1 values in (1));
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int primary key) engine=ndbcluster;
+alter online table t1 add column b int column_format dynamic;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int primary key) engine=ndbcluster;
+alter offline table t1 add column b int column_format dynamic;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+create table t2 (a int) engine=ndbcluster;
+rename table t1 to tmp, t2 to t1, tmp to t2;
+drop table t1, t2;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+create table t2 (a int) engine=ndbcluster;
+rename table t1 to tmp, t2 to t1, tmp to t2;
+drop table t1, t2;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=myisam;
+create table t1 (a int) engine = ndb;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine = ndb;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine = ndb;
+drop table t1;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+drop table t1;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=myisam;
+create table t1 (a int) engine = ndb;
+alter offline table t1 add column b int column_format dynamic;
+drop table t1;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES		NULL	
+drop table t1;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES		NULL	
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=myisam;
+create table t1 (a int primary key) engine = ndb;
+alter online table t1 add column b int column_format dynamic;
+drop table t1;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	PRI	NULL	
+b	int(11)	YES		NULL	
+drop table t1;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	PRI	NULL	
+b	int(11)	YES		NULL	
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=myisam;
+create table t1 (a int) engine = ndb;
+rename table t1 to t2;
+desc t2;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+desc t2;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+drop table t2;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+drop table t1;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+create table if not exists t1 (a int) engine=ndbcluster;
+drop table t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+drop table if exists t1;
+drop table if exists t1;
+drop table if exists t1;
+drop table if exists t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+drop table if exists t1;
+drop table if exists t1;
+drop table if exists t1;
+drop table if exists t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+drop table if exists t1;
+drop table if exists t1;
+drop table if exists t1;
+drop table if exists t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+drop table if exists t1;
+drop table if exists t1;
+drop table if exists t1;
+drop table if exists t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+drop table if exists t1;
+drop table if exists t1;
+drop table if exists t1;
+drop table if exists t1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+create table t2 (a int) engine=ndbcluster;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+desc t2;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+desc t2;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+desc t2;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+desc t2;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+drop table t1, t2;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+create table t1 (a int) engine=ndbcluster;
+create table t2 (a int) engine=ndbcluster;
+desc t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+desc t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+desc t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+desc t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+desc t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+desc t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+desc t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+desc t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;
+set global ndb_check_shares=1;

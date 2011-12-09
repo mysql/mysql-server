@@ -1,0 +1,98 @@
+create table ba(ks int primary key, st int, lp int) engine = ndb;
+insert into ba values (1, 1, 1), (2,2,2), (3,3,3), (4,4,4);
+update ba set lp=40 where ks=4;
+delete from ba where ks=2;
+flush logs;
+flush logs;
+flush logs;
+flush logs;
+delete from ba;
+show variables like 'ndb_log_update%';
+Variable_name	Value
+ndb_log_update_as_write	ON
+ndb_log_updated_only	ON
+select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
+txt
+DELETE FROM test.ba WHERE   @1=2
+INSERT INTO test.ba SET   @1=1   @2=1   @3=1
+INSERT INTO test.ba SET   @1=2   @2=2   @3=2
+INSERT INTO test.ba SET   @1=3   @2=3   @3=3
+INSERT INTO test.ba SET   @1=4   @2=4   @3=4
+INSERT INTO test.ba SET   @1=4   @3=40
+select * from ba order by ks;
+ks	st	lp
+1	1	1
+3	3	3
+4	4	40
+delete from ba;
+show variables like 'ndb_log_update%';
+Variable_name	Value
+ndb_log_update_as_write	ON
+ndb_log_updated_only	OFF
+select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
+txt
+DELETE FROM test.ba WHERE   @1=2   @2=2   @3=2
+INSERT INTO test.ba SET   @1=1   @2=1   @3=1
+INSERT INTO test.ba SET   @1=2   @2=2   @3=2
+INSERT INTO test.ba SET   @1=3   @2=3   @3=3
+INSERT INTO test.ba SET   @1=4   @2=4   @3=4
+INSERT INTO test.ba SET   @1=4   @2=4   @3=40
+select * from ba order by ks;
+ks	st	lp
+1	1	1
+3	3	3
+4	4	40
+delete from ba;
+show variables like 'ndb_log_update%';
+Variable_name	Value
+ndb_log_update_as_write	OFF
+ndb_log_updated_only	ON
+select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
+txt
+DELETE FROM test.ba WHERE   @1=2
+INSERT INTO test.ba SET   @1=1   @2=1   @3=1
+INSERT INTO test.ba SET   @1=2   @2=2   @3=2
+INSERT INTO test.ba SET   @1=3   @2=3   @3=3
+INSERT INTO test.ba SET   @1=4   @2=4   @3=4
+UPDATE test.ba WHERE   @1=4   @3=4 SET   @1=4   @3=40
+select * from ba order by ks;
+ks	st	lp
+1	1	1
+3	3	3
+4	4	40
+delete from ba;
+show variables like 'ndb_log_update%';
+Variable_name	Value
+ndb_log_update_as_write	OFF
+ndb_log_updated_only	OFF
+select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
+txt
+DELETE FROM test.ba WHERE   @1=2   @2=2   @3=2
+INSERT INTO test.ba SET   @1=1   @2=1   @3=1
+INSERT INTO test.ba SET   @1=2   @2=2   @3=2
+INSERT INTO test.ba SET   @1=3   @2=3   @3=3
+INSERT INTO test.ba SET   @1=4   @2=4   @3=4
+UPDATE test.ba WHERE   @1=4   @2=4   @3=4 SET   @1=4   @2=4   @3=40
+select * from ba order by ks;
+ks	st	lp
+1	1	1
+3	3	3
+4	4	40
+drop table ba;
+reset master;
+show variables like 'ndb_log_update%';
+Variable_name	Value
+ndb_log_update_as_write	ON
+ndb_log_updated_only	ON
+create table bah (tst int primary key, cvy int, sqs int, unique(sqs)) engine=ndb;
+insert into bah values (1,1,1);
+update bah set cvy= 2 where tst=1;
+select * from bah order by tst;
+tst	cvy	sqs
+1	2	1
+drop table bah;
+Manually applying captured binlog
+select * from bah order by tst;
+tst	cvy	sqs
+1	2	1
+drop table bah;

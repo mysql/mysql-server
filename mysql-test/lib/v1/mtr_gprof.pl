@@ -1,6 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2004 MySQL AB, 2008 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (C) 2004 MySQL AB
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

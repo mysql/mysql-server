@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #define DBTUP_C
@@ -24,6 +26,10 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/EventReport.hpp>
 #include <Vector.hpp>
+
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
@@ -63,29 +69,137 @@ struct Chunk {
   Uint32 pageCount;
 };
 
-void
-Dbtup::reportMemoryUsage(Signal* signal, int incDec){
-  signal->theData[0] = NDB_LE_MemoryUsage;
-  signal->theData[1] = incDec;
-  signal->theData[2] = sizeof(Page);
-  signal->theData[3] = cnoOfAllocatedPages;
-  signal->theData[4] = c_page_pool.getSize();
-  signal->theData[5] = DBTUP;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
+void Dbtup::execDBINFO_SCANREQ(Signal* signal)
+{
+  jamEntry();
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor* cursor =
+    CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
+
+  Ndbinfo::Ratelimit rl;
+
+  switch(req.tableId){
+  case Ndbinfo::POOLS_TABLEID:
+  {
+    jam();
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Scan Lock",
+        c_scanLockPool.getUsed(),
+        c_scanLockPool.getSize(),
+        c_scanLockPool.getEntrySize(),
+        c_scanLockPool.getUsedHi(),
+        { CFG_DB_NO_LOCAL_SCANS,CFG_DB_BATCH_SIZE,0,0 }},
+      { "Scan Operation",
+        c_scanOpPool.getUsed(),
+        c_scanOpPool.getSize(),
+        c_scanOpPool.getEntrySize(),
+        c_scanOpPool.getUsedHi(),
+        { CFG_DB_NO_LOCAL_SCANS,0,0,0 }},
+      { "Trigger",
+        c_triggerPool.getUsed(),
+        c_triggerPool.getSize(),
+        c_triggerPool.getEntrySize(),
+        c_triggerPool.getUsedHi(),
+        { CFG_DB_NO_TRIGGERS,0,0,0 }},
+      { "Stored Proc",
+        c_storedProcPool.getUsed(),
+        c_storedProcPool.getSize(),
+        c_storedProcPool.getEntrySize(),
+        c_storedProcPool.getUsedHi(),
+        { CFG_DB_NO_LOCAL_SCANS,0,0,0 }},
+      { "Build Index",
+        c_buildIndexPool.getUsed(),
+        c_buildIndexPool.getSize(),
+        c_buildIndexPool.getEntrySize(),
+        c_buildIndexPool.getUsedHi(),
+        { 0,0,0,0 }},
+      { "Operation",
+        c_operation_pool.getUsed(),
+        c_operation_pool.getSize(),
+        c_operation_pool.getEntrySize(),
+        c_operation_pool.getUsedHi(),
+        { CFG_DB_NO_LOCAL_OPS,CFG_DB_NO_OPS,0,0 }},
+      { "Data memory",
+        m_pages_allocated,
+        0, // Allocated from global resource group RG_DATAMEM
+        sizeof(Page),
+        m_pages_allocated_max,
+        { CFG_DB_DATA_MEM,0,0,0 }},
+      { NULL, 0,0,0,0, { 0,0,0,0 }}
+    };
+
+    const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
+    Uint32 pool = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(pools[pool].poolname)
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance());   // block instance
+      row.write_string(pools[pool].poolname);
+
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
+      ndbinfo_send_row(signal, req, row, rl);
+      pool++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, pool);
+        return;
+      }
+    }
+    break;
+  }
+  case Ndbinfo::TEST_TABLEID:
+  {
+    Uint32 counter = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(counter < 1000)
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance()); // block instance
+      row.write_uint32(counter);
+      Uint64 counter2 = counter;
+      counter2 = counter2 << 32;
+      row.write_uint64(counter2);
+      ndbinfo_send_row(signal, req, row, rl);
+      counter++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, counter);
+        return;
+      }
+    }
+    break;
+  }
+  default:
+    break;
+  }
+
+  ndbinfo_send_scan_conf(signal, req, rl);
 }
 
 #ifdef VM_TRACE
-extern Uint32 fc_left, fc_right, fc_remove;
+static Uint32 fc_left = 0, fc_right = 0, fc_remove = 0;
 #endif
 
 void
 Dbtup::execDUMP_STATE_ORD(Signal* signal)
 {
   Uint32 type = signal->theData[0];
-  if(type == DumpStateOrd::DumpPageMemory && signal->getLength() == 1){
-    reportMemoryUsage(signal, 0);
-    return;
-  }
   DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
 
 #if 0
@@ -161,7 +275,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 #endif
 #if defined VM_TRACE
   if (type == 1211 || type == 1212 || type == 1213){
-    Uint32 seed = time(0);
+    Uint32 seed = (Uint32)time(0);
     if (signal->getLength() > 1)
       seed = signal->theData[1];
     ndbout_c("Startar modul test av Page Manager (seed: 0x%x)", seed);
@@ -177,7 +291,9 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 
       // Case
       Uint32 c = (rand() % 3);
-      const Uint32 free = c_page_pool.getSize() - cnoOfAllocatedPages;
+      Resource_limit rl;
+      m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
+      const Uint32 free = rl.m_max - rl.m_curr;
       
       Uint32 alloc = 0;
       if(free <= 1){
@@ -240,11 +356,12 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 	  PagePtr pagePtr;
 	  pagePtr.i = chunk.pageId + i;
 	  c_page_pool.getPtr(pagePtr);
-	  pagePtr.p->page_state = ~ZFREE_COMMON;
 	}
 
 	if(alloc == 1 && free > 0)
+        {
 	  ndbrequire(chunk.pageCount == alloc);
+        }
       }
 	break;
       }
@@ -260,6 +377,44 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
              max_loop);
   }
 #endif
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
+  {
+    {
+      Uint64 defaultValueWords= 0;
+      if (DefaultValuesFragment.i != RNIL)
+        defaultValueWords= calculate_used_var_words(DefaultValuesFragment.p);
+      Uint32 defaultValueWordsHi= (Uint32) (defaultValueWords >> 32);
+      Uint32 defaultValueWordsLo= (Uint32) (defaultValueWords & 0xFFFFFFFF);
+      RSS_OP_SNAPSHOT_SAVE(defaultValueWordsHi);
+      RSS_OP_SNAPSHOT_SAVE(defaultValueWordsLo);
+    }
+    RSS_OP_SNAPSHOT_SAVE(cnoOfFreeFragoprec);
+    RSS_OP_SNAPSHOT_SAVE(cnoOfFreeFragrec);
+    RSS_OP_SNAPSHOT_SAVE(cnoOfFreeTabDescrRec);
+
+    RSS_AP_SNAPSHOT_SAVE2(c_storedProcPool, c_storedProcCountNonAPI);
+    return;
+  }
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak)
+  {
+    {
+      Uint64 defaultValueWords= 0;
+      if (DefaultValuesFragment.i != RNIL)
+        defaultValueWords= calculate_used_var_words(DefaultValuesFragment.p);
+      Uint32 defaultValueWordsHi= (Uint32) (defaultValueWords >> 32);
+      Uint32 defaultValueWordsLo= (Uint32) (defaultValueWords & 0xFFFFFFFF);
+      RSS_OP_SNAPSHOT_CHECK(defaultValueWordsHi);
+      RSS_OP_SNAPSHOT_CHECK(defaultValueWordsLo);
+    }
+    RSS_OP_SNAPSHOT_CHECK(cnoOfFreeFragoprec);
+    RSS_OP_SNAPSHOT_CHECK(cnoOfFreeFragrec);
+    RSS_OP_SNAPSHOT_CHECK(cnoOfFreeTabDescrRec);
+
+    RSS_AP_SNAPSHOT_CHECK2(c_storedProcPool, c_storedProcCountNonAPI);
+    return;
+  }
 }//Dbtup::execDUMP_STATE_ORD()
 
 /* ---------------------------------------------------------------- */
@@ -356,23 +511,10 @@ operator<<(NdbOut& out, const Dbtup::Operationrec& op)
 NdbOut&
 operator<<(NdbOut& out, const Dbtup::Th& th)
 {
-  // ugly
-  Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP);
-  const Dbtup::Tablerec& tab = *tup->tabptr.p;
   unsigned i = 0;
   out << "[Th " << hex << &th;
   out << " [op " << hex << th.data[i++] << "]";
   out << " [version " << hex << (Uint16)th.data[i++] << "]";
-  if (tab.m_bits & Dbtup::Tablerec::TR_Checksum)
-    out << " [checksum " << hex << th.data[i++] << "]";
-  out << " [nullbits";
-  for (unsigned j = 0; j < tab.m_offsets[Dbtup::MM].m_null_words; j++)
-    out << " " << hex << th.data[i++];
-  out << "]";
-  out << " [data";
-  while (i < tab.m_offsets[Dbtup::MM].m_fix_header_size)
-    out << " " << hex << th.data[i++];
-  out << "]";
   out << "]";
   return out;
 }

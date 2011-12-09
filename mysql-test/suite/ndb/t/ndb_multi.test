@@ -1,0 +1,263 @@
+# test create 2 myisam tables with same name on
+# different servers hence disable test for embedded
+# which only runs on one
+-- source include/not_embedded.inc
+-- source include/have_multi_ndb.inc
+
+-- disable_query_log
+call mtr.add_suppression("Skipping locally defined table 'test.t1'");
+-- enable_query_log
+
+--disable_warnings
+connection server2;
+drop table if exists t1, t2, t3, t4;
+flush status;
+connection server1;
+drop table if exists t1, t2, t3, t4;
+flush status;
+--enable_warnings
+
+# Create test tables on server1
+create table t1 (a int) engine=ndbcluster;
+create table t2 (a int) engine=ndbcluster;
+insert into t1 value (2);
+insert into t2 value (3);
+select * from t1;
+select * from t2;
+show status like 'handler_discover%';
+
+# Check dropping and recreating table on same server
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+connection con1;
+select * from t1;
+connection con2;
+drop table t1;
+create table t1 (a int) engine=ndbcluster;
+insert into t1 value (2);
+connection con1;
+select * from t1;
+
+# Check dropping and recreating table on different server
+connection server2;
+show status like 'handler_discover%';
+drop table t1;
+create table t1 (a int) engine=ndbcluster;
+insert into t1 value (2);
+connection server1;
+select * from t1;
+select * from t1;
+
+# Connect to server2 and use the tables from there
+connection server2;
+flush status;
+select * from t1;
+update t1 set a=3 where a=2;
+show status like 'handler_discover%';
+
+# Create a new table on server2
+create table t3 (a int not null primary key, b varchar(22),
+c int, last_col text) engine=ndb;
+insert into t3 values(1, 'Hi!', 89, 'Longtext column');
+create table t4 (pk int primary key, b int) engine=ndb;
+
+# Check that the tables are accessible from server1
+connection server1;
+select * from t1;
+select * from t3;
+show tables like 't4';
+show tables;
+
+drop table t1, t2, t3, t4;
+# bug#21378
+connection server1;
+create table t1(c1 int key)ENGINE=MyISAM;
+insert into t1 values(1),(3),(5);
+select * from t1 order by c1;
+
+connection server2;
+show tables;
+create table t1(c1 int key)ENGINE=MyISAM;
+insert into t1 values(100),(344),(533);
+select * from t1 order by c1;
+
+connection server1;
+alter table t1 engine=ndb;
+
+connection server2;
+show tables;
+select * from t1 order by c1;
+drop table t1;
+
+connection server1;
+select * from t1 order by c1;
+drop table t1;
+# End of 4.1 tests
+
+# Check distributed drop of database in 5.1
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+
+connection server2;
+use db;
+show tables;
+
+connection server1;
+drop database db;
+
+connection server2;
+--error 1049
+show tables;
+
+connection server1;
+
+# bug#21495
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+
+connection server2;
+use db;
+create table t2(x int) engine=myisam;
+show tables;
+
+connection server1;
+drop database db;
+
+connection server2;
+show tables;
+drop database db;
+
+# Bug#44529 Cannot drop database with stale temporary tables
+connection server1;
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+connection server2;
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+use db;
+show tables;
+--write_file $MYSQLD_DATADIR/db/#sql-1c17_25d0.ndb
+EOF
+connection server1;
+drop database db;
+connection server2;
+--error ER_BAD_DB_ERROR
+use db;
+
+#
+# bug#31470, ndb table with special characters in name
+# are not discovered correctly
+connection server1;
+use test;
+create table `test`.`t1$EX`
+ (server_id int unsigned,
+  master_server_id int unsigned,
+  master_epoch bigint unsigned,
+  count int unsigned,
+  primary key(server_id, master_server_id,
+              master_epoch, count))
+  engine ndb;
+
+# check that table shows up ok on both servers
+# before bugfix table would not show up on server2
+--replace_regex /EX/ex/
+show tables like '%$%';
+connection server2;
+use test;
+--replace_regex /EX/ex/
+show tables like '%$%';
+
+# check cleanup
+drop table `test`.`t1$EX`;
+show tables like '%$%';
+
+connection server1;
+show tables like '%$%';
+
+#
+# Bug #42614 Mysql auto locate databases can overwrite frm data.
+#
+connection server1;
+create table t1(s char(1)) engine = myisam;
+insert into t1 values ("a"),("b"),("c");
+connection server2;
+create table t1(s char(1)) engine = ndb;
+insert into t1 values ("d"),("e"),("f");
+connection server1;
+## Restart mysqld nodes
+--echo Restarting mysqld
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+use test;
+select * from t1 order by s;
+connection server2;
+select * from t1 order by s;
+drop table t1;
+connection server1;
+select * from t1 order by s;
+connection server2;
+create table t1(s char(1)) engine = ndb;
+insert into t1 values ("g"),("h"),("i");
+connection server1;
+show tables;
+select * from t1 order by s;
+
+#
+# Clean-up
+#
+connection server1;
+drop table t1;
+connection server2;
+drop table t1;
+
+#
+--echo Bug 11894966 - second mysqld does not have table after non
+--echo                distributed table alter to ndb
+#
+# - only queries with "autodiscover" see the new table
+#   on second mysqld since schema distribution does not
+#   create the table on second mysqld(at least when !ndb_binlog_running)
+#
+connection server1;
+
+# Create table t1 in myisam
+create table t1(a int) engine myisam;
+insert into t1 values(37);
+
+# Alter t1 into ndb
+alter table t1 engine ndb;
+
+# Switch to other mysqld
+connection server2;
+
+# Check that .frm and .ndb file has been created
+# on second mysqld
+let $datadir2 = `select @@datadir`;
+#echo datadir2: $datadir2;
+--file_exists $datadir2/test/t1.frm
+--file_exists $datadir2/test/t1.ndb
+
+# Check that truncate works on second mysqld
+# (didn't work before fix)
+truncate t1;
+
+# Cleanup
+drop table t1;
+connection server1;
+
+# bug#7798
+create table t1(a int primary key, b int not null, index(b)) engine = ndb;
+insert into t1 values (1,1), (2,2);
+set autocommit=0;
+begin;
+select count(*) from t1;
+connection server2;
+ALTER OFFLINE TABLE t1 ADD COLUMN c int;
+connection server1;
+select a from t1 where b = 2;
+commit;
+show tables;
+drop table t1;
+

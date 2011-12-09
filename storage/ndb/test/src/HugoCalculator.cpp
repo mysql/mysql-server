@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include "HugoCalculator.hpp"
@@ -26,7 +28,7 @@ myRand(Uint64 * seed)
   Uint64 loc_result = *seed * mul + add;
 
   * seed= loc_result;
-  return loc_result >> 1;
+  return (Uint32)(loc_result >> 1);
 }
 
 static char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -104,6 +106,31 @@ calc_len(Uint32 rvalue, int maxlen)
   else
     minlen = 64;
 
+  if ((Uint32)maxlen <= minlen)
+    return maxlen;
+
+  /* Ensure coverage of maxlen */
+  if ((rvalue & 64) == 0)
+    return maxlen;
+
+  return minlen + (rvalue % (maxlen - minlen));
+}
+
+static
+Uint32
+calc_blobLen(Uint32 rvalue, int maxlen)
+{
+  int minlen = 1000;
+
+  if ((rvalue >> 16) < 4096)
+    minlen = 5000;
+  else if ((rvalue >> 16) < 8192)
+    minlen = 8000;
+  else if ((rvalue >> 16) < 16384)
+    minlen = 12000;
+  else
+    minlen = 16000;
+
   if (maxlen <= minlen)
     return maxlen;
 
@@ -169,8 +196,6 @@ HugoCalculator::calcValue(int record,
   case NdbDictionary::Column::Unsigned:
   case NdbDictionary::Column::Bigint:
   case NdbDictionary::Column::Bigunsigned:
-  case NdbDictionary::Column::Float:
-  case NdbDictionary::Column::Double:
   case NdbDictionary::Column::Olddecimal:
   case NdbDictionary::Column::Olddecimalunsigned:
   case NdbDictionary::Column::Decimal:
@@ -194,7 +219,26 @@ HugoCalculator::calcValue(int record,
       Uint32 bits= attr->getLength();
       Uint32 tmp = bits >> 5;
       Uint32 size = bits & 31;
-      ((Uint32*)buf)[tmp] &= ((1 << size) - 1);
+      Uint32 copy;
+      memcpy(&copy, ((Uint32*)buf)+tmp, 4);
+      copy &= ((1 << size) - 1);
+      memcpy(((Uint32*)buf)+tmp, &copy, 4);
+    }
+    break;
+  case NdbDictionary::Column::Float:
+    {
+      float x = (float)myRand(&seed);
+      memcpy(buf+pos, &x, 4);
+      pos += 4;
+      len -= 4;
+    }
+    break;
+  case NdbDictionary::Column::Double:
+    {
+      double x = (double)myRand(&seed);
+      memcpy(buf+pos, &x, 8);
+      pos += 8;
+      len -= 8;
     }
     break;
   case NdbDictionary::Column::Varbinary:
@@ -233,8 +277,13 @@ write_char:
     break;
   }
   case NdbDictionary::Column::Blob:
+    * outlen = calc_blobLen(myRand(&seed), len);
+    // Don't set any actual data...
+    break;
   case NdbDictionary::Column::Undefined:
   case NdbDictionary::Column::Text:
+  case NdbDictionary::Column::Year:
+  case NdbDictionary::Column::Timestamp:
     abort();
     break;
   }
@@ -255,7 +304,7 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
     if (i != m_updatesCol && id != m_idCol) {
       const NdbDictionary::Column* attr = m_tab.getColumn(i);      
       Uint32 len = attr->getSizeInBytes(), real_len;
-      char buf[8000];
+      char buf[NDB_MAX_TUPLE_SIZE];
       const char* res = calcValue(id, i, updates, buf, len, &real_len);
       if (res == NULL){
 	if (!pRow->attributeStore(i)->isNULL()){
@@ -301,6 +350,105 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
   return result;
 }
 
+
+int
+HugoCalculator::verifyRecAttr(int record,
+                              int updates,
+                              const NdbRecAttr* recAttr)
+{
+  const char* valPtr = NULL;
+  int attrib = recAttr->getColumn()->getAttrId();
+  Uint32 valLen = recAttr->get_size_in_bytes();
+  if (!recAttr->isNULL())
+    valPtr= (const char*) recAttr->aRef();
+  
+  return verifyColValue(record,
+                        attrib,
+                        updates,
+                        valPtr,
+                        valLen);
+}
+
+int
+HugoCalculator::verifyColValue(int record, 
+                               int attrib,
+                               int updates,
+                               const char* valPtr,
+                               Uint32 valLen)
+{
+  int result = 0;	  
+  
+  if (attrib == m_updatesCol)
+  {
+    int val= *((const int*) valPtr);
+    if (val != updates)
+    {
+      g_err << "|- Updates column (" << attrib << ")" << endl;
+      g_err << "|- Expected " << updates << " but found " << val << endl;
+      result = -1;
+    }
+  }
+  else if (attrib == m_idCol)
+  {
+    int val= *((const int*) valPtr);
+    if (val != record)
+    {
+      g_err << "|- Identity column (" << attrib << ")" << endl;
+      g_err << "|- Expected " << record << " but found " << val << endl;
+      result = -1;
+    }
+  }
+  else
+  {
+    /* 'Normal' data column */
+    const NdbDictionary::Column* attr = m_tab.getColumn(attrib);      
+    Uint32 len = attr->getSizeInBytes(), real_len;
+    char buf[NDB_MAX_TUPLE_SIZE];
+    const char* res = calcValue(record, attrib, updates, buf, len, &real_len);
+    if (res == NULL){
+      if (valPtr != NULL){
+        g_err << "|- NULL ERROR: expected a NULL but the column was not null" << endl;
+        g_err << "|- Column length is " << valLen << " bytes" << endl;
+        g_err << "|- Column data follows :" << endl;
+        for (Uint32 j = 0; j < valLen; j ++)
+        {
+          g_err << j << ":" << hex << (Uint32)(Uint8)valPtr[j] << endl;
+        }
+        result = -1;
+      }
+    } else{
+      if (real_len != valLen)
+      {
+        g_err << "|- Invalid data found in attribute " << attrib << ": \""
+              << "Length of expected=" << real_len << endl
+              << "Length of passed=" 
+              << valLen << endl;
+        result= -1;
+      }
+      else if (memcmp(res, valPtr, real_len) != 0)
+      {
+        g_err << "|- Expected data mismatch on column "
+              << attr->getName() << " length " << real_len 
+              << " bytes " << endl;
+        g_err << "|- Bytewise comparison follows :" << endl;
+        for (Uint32 j = 0; j < real_len; j++)
+        {
+          g_err << j << ":" << hex << (Uint32)(Uint8)buf[j] << "[" << hex << (Uint32)(Uint8)valPtr[j] << "]";
+          if (buf[j] != valPtr[j])
+          {
+            g_err << "==>Match failed!";
+          }
+          g_err << endl;
+        }
+        g_err << endl;
+        result = -1;
+      }
+    }    
+  }
+
+  return result;
+}
+
 int
 HugoCalculator::getIdValue(NDBT_ResultRow* const pRow) const {
   return pRow->attributeStore(m_idCol)->u_32_value();
@@ -311,3 +459,75 @@ HugoCalculator::getUpdatesValue(NDBT_ResultRow* const pRow) const {
   return pRow->attributeStore(m_updatesCol)->u_32_value();
 }
 
+int
+HugoCalculator::equalForRow(Uint8 * pRow,
+                            const NdbRecord* pRecord,
+                            int rowId)
+{
+  for(int attrId = 0; attrId < m_tab.getNoOfColumns(); attrId++)
+  {
+    const NdbDictionary::Column* attr = m_tab.getColumn(attrId);
+
+    if (attr->getPrimaryKey() == true)
+    {
+      char buf[8000];
+      int len = attr->getSizeInBytes();
+      memset(buf, 0, sizeof(buf));
+      Uint32 real_len;
+      const char * value = calcValue(rowId, attrId, 0, buf,
+                                     len, &real_len);
+      assert(value != 0); // NULLable PK not supported...
+      Uint32 off = 0;
+      bool ret = NdbDictionary::getOffset(pRecord, attrId, off);
+      if (!ret)
+        abort();
+      memcpy(pRow + off, buf, real_len);
+    }
+  }
+  return NDBT_OK;
+}
+
+int
+HugoCalculator::setValues(Uint8 * pRow,
+                          const NdbRecord* pRecord,
+                          int rowId,
+                          int updateVal)
+{
+  int res = equalForRow(pRow, pRecord, rowId);
+  if (res != 0)
+  {
+    return res;
+  }
+
+  for(int attrId = 0; attrId < m_tab.getNoOfColumns(); attrId++)
+  {
+    const NdbDictionary::Column* attr = m_tab.getColumn(attrId);
+
+    if (attr->getPrimaryKey() == false)
+    {
+      char buf[8000];
+      int len = attr->getSizeInBytes();
+      memset(buf, 0, sizeof(buf));
+      Uint32 real_len;
+      const char * value = calcValue(rowId, attrId, updateVal, buf,
+                                     len, &real_len);
+      if (value != 0)
+      {
+        Uint32 off = 0;
+        bool ret = NdbDictionary::getOffset(pRecord, attrId, off);
+        if (!ret)
+          abort();
+        memcpy(pRow + off, buf, real_len);
+        if (attr->getNullable())
+          NdbDictionary::setNull(pRecord, (char*)pRow, attrId, false);
+      }
+      else
+      {
+        assert(attr->getNullable());
+        NdbDictionary::setNull(pRecord, (char*)pRow, attrId, true);
+      }
+    }
+  }
+
+  return NDBT_OK;
+}

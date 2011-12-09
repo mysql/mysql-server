@@ -1,0 +1,68 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--connection master
+create table t1(pk int not null primary key, i int) engine = ndb;
+
+#
+# insert more records into tables
+#
+let $1=1000;
+disable_query_log;
+while ($1)
+{
+ eval insert into t1 values($1, $1);
+ dec $1;
+}
+enable_query_log;
+
+--sync_slave_with_master
+# connect to slave and ensure data is there.
+--connection slave
+select count(*) from t1;
+
+# Add suppression for the LOST_EVENTS error message
+# which will occur on slave when master is restarted while
+# slave is running
+--disable_query_log
+call mtr.add_suppression("Slave.*: The incident LOST_EVENTS occured on the master");
+--enable_query_log
+
+--connection master
+
+--echo Restarting mysqld
+ # Hack to allow using restart_mysqld.inc from rpl test
+let $allow_rpl_inited=1;
+
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+#show binlog events in 'master-bin.000002';
+let $log_name=master-bin.000002;
+let $start_pos=107;
+let $end_pos=143;
+let $off_set=0;
+-- source include/show_binlog_using_logname.inc
+
+drop table if exists t1;
+
+--echo Get IO thread to reconnect to Master
+--connection slave
+--disable_result_log
+start slave;
+--enable_result_log
+
+let $slave_sql_errno= 1590;
+let $show_slave_sql_error=1;
+-- source include/wait_for_slave_sql_error.inc
+
+let $status_items= Slave_IO_Running, Slave_SQL_Running, Last_Errno, Last_Error;	
+-- source include/show_slave_status.inc
+
+drop table if exists t1;
+
+--source include/stop_slave_io.inc
+RESET SLAVE;
+
+
+

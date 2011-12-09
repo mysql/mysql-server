@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006, 2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef LOGHANDLER_H
 #define LOGHANDLER_H
@@ -49,6 +52,8 @@ public:
    */
   virtual ~LogHandler();
 
+  virtual const char* handler_type() {return "NONE";};
+
   /**
    * Opens/initializes the log handler.
    *
@@ -62,7 +67,14 @@ public:
    * @return true if successful.
    */ 
   virtual bool close() = 0;
-  
+
+  /**
+   * Check if LogHandler is open
+   *
+   * @return true if open.
+   */
+  virtual bool is_open() = 0;
+
   /**
    * Append a log message to the output stream/file whatever.
    * append() will call writeHeader(), writeMessage() and writeFooter() for
@@ -159,6 +171,23 @@ public:
    * @return true if all parameters are correctly set, false otherwise
    */
   virtual bool checkParams();
+
+  /*
+   * Set repeat frequency, 0 means disable special repeated message handling
+   */
+  virtual void setRepeatFrequency(unsigned val);
+
+  /**
+   * Sets the config BaseString to the part of the LogDestination parameter
+   * needed in the config file to setup this LogHandler. i.e. passing the
+   * output of getParams to parseParams should do "nothing"
+   *
+   * @param config where to store parameters
+   */
+  virtual bool getParams(BaseString &config) {return false;};
+
+  virtual off_t getCurrentSize() {return -1;};
+  virtual off_t getMaxSize() {return -1;};
 
 protected:
   /** Max length of the date and time header in the log. */

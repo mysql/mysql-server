@@ -1,0 +1,49 @@
+-- source include/not_embedded.inc
+-- source include/have_multi_ndb.inc
+
+--echo *******************************
+--echo * basic concurent online alter test
+--echo *******************************
+--echo * With Commit
+--echo *******************************
+
+connection server1;
+
+CREATE TABLE t1 (a INT UNSIGNED, 
+                 b INT UNSIGNED not null, 
+                 primary key(a)) ENGINE NDB;
+let $v=100;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES($v,$v); 
+  dec $v;
+}
+enable_query_log;
+
+
+connection server2;
+begin;
+update t1 set b = b + 1 where a = 1;
+
+connection server1;
+--error 1205
+ALTER OFFLINE TABLE t1 ADD c CHAR(19);
+
+connection server2;
+commit;
+
+connection server1;
+--error 0
+ALTER OFFLINE TABLE t1 ADD c CHAR(19);
+
+connection server1;
+--error 1169
+create unique index b_unq on t1(b) using hash;
+
+update t1 set b = b - 1 where a = 1;
+
+connection server1;
+create unique index b_unq on t1(b) using hash;
+
+DROP TABLE t1;

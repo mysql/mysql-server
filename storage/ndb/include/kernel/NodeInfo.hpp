@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2007 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +13,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NODE_INFO_HPP
 #define NODE_INFO_HPP
 
 #include <NdbOut.hpp>
 #include <mgmapi_config_parameters.h>
+#include <ndb_version.h>
 
 class NodeInfo {
 public:
@@ -34,8 +38,9 @@ public:
   };
   NodeType getType() const;
   
-  Uint32 m_version;       ///< Node version
-  Uint32 m_signalVersion; ///< Signal version
+  Uint32 m_version;       ///< Ndb version
+  Uint32 m_mysql_version; ///< MySQL version
+  Uint32 m_lqh_workers;   ///< LQH workers
   Uint32 m_type;          ///< Node type
   Uint32 m_connectCount;  ///< No of times connected
   bool   m_connected;     ///< Node is connected
@@ -48,7 +53,8 @@ public:
 inline
 NodeInfo::NodeInfo(){
   m_version = 0;
-  m_signalVersion = 0;
+  m_mysql_version = 0;
+  m_lqh_workers = 0;
   m_type = INVALID;
   m_connectCount = 0;
   m_heartbeat_cnt= 0;
@@ -59,6 +65,27 @@ NodeInfo::NodeType
 NodeInfo::getType() const {
   return (NodeType)m_type;
 }
+
+
+class NdbVersion {
+  Uint32 m_ver;
+public:
+  NdbVersion(Uint32 ver) : m_ver(ver) {};
+
+  friend NdbOut& operator<<(NdbOut&, const NdbVersion&);
+};
+
+
+inline
+NdbOut&
+operator<<(NdbOut& ndbout, const NdbVersion& ver){
+  ndbout.print("%d.%d.%d",
+               ndbGetMajor(ver.m_ver),
+               ndbGetMinor(ver.m_ver),
+               ndbGetBuild(ver.m_ver));
+  return ndbout;
+}
+
 
 inline
 NdbOut &
@@ -82,8 +109,8 @@ operator<<(NdbOut& ndbout, const NodeInfo & info){
     break;
   }
 
-  ndbout << " version: " << info.m_version
-	 << " sig. version; " << info.m_signalVersion
+  ndbout << " ndb version: " << NdbVersion(info.m_version)
+	 << " mysql version: " << NdbVersion(info.m_mysql_version)
 	 << " connect count: " << info.m_connectCount
 	 << "]";
   return ndbout;

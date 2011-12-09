@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <parent>
+    <groupId>com.mysql.clusterj</groupId>
+    <artifactId>clusterj-aggregate</artifactId>
+    <version>7.1.16-SNAPSHOT</version>
+  </parent>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.mysql.clusterj</groupId>
+  <artifactId>clusterj-core</artifactId>
+  <packaging>bundle</packaging>
+  <version>7.1.16-SNAPSHOT</version>
+  <name>ClusterJ Core</name>
+  <description>The core implementation of ClusterJ</description>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <compilerArgument>-Xlint:all</compilerArgument>
+          <source>1.5</source>
+          <target>1.5</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <forkmode>once</forkmode>
+          <systemProperties>
+            <property>
+              <name>java.util.logging.config.file</name>
+              <value>logging.properties</value>
+            </property>
+          </systemProperties>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-versions</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>2.0.6</version>
+                </requireMavenVersion>
+                <requireJavaVersion>
+                  <version>1.5</version>
+                </requireJavaVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <version>1.4.0</version>
+        <extensions>true</extensions>
+        <configuration>
+          <instructions>
+            <Export-Package>com.mysql.clusterj.core.*</Export-Package>
+            <Import-Package>com.mysql.clusterj,com.mysql.clusterj.annotation,com.mysql.clusterj.query</Import-Package>
+          </instructions>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>   
+  <dependencies>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-api</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>   
+  <properties>
+    <netbeans.hint.useExternalMaven>false</netbeans.hint.useExternalMaven>
+  </properties>
+  <licenses>
+    <license>
+      <name>GPLv2</name>
+      <url>http://www.gnu.org/licenses/gpl-2.0.txt</url>
+    </license>
+  </licenses>
+</project>

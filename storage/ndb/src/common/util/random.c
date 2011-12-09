@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006 MySQL AB, 2008, 2010 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /***************************************************************
 * I N C L U D E D   F I L E S                                  *
@@ -68,8 +71,8 @@ static void localRandom48Init(long int seedval, DRand48Data *buffer)
       seedval &= 0xffffffffl;
 
 #if USHRT_MAX == 0xffffU
-  buffer->x[2] = seedval >> 16;
-  buffer->x[1] = seedval & 0xffffl;
+  buffer->x[2] = (unsigned short)(seedval >> 16);
+  buffer->x[1] = (unsigned short)(seedval & 0xffffl);
   buffer->x[0] = 0x330e;
 
   buffer->a[2] = 0x5;
@@ -126,20 +129,20 @@ static void localRandom48(DRand48Data *buffer, long int *result)
 
       loc_result = X * a + buffer->c;
 
-      buffer->x[0] = loc_result & 0xffff;
-      buffer->x[1] = (loc_result >> 16) & 0xffff;
-      buffer->x[2] = (loc_result >> 32) & 0xffff;
+      buffer->x[0] = (unsigned short)(loc_result & 0xffff);
+      buffer->x[1] = (unsigned short)((loc_result >> 16) & 0xffff);
+      buffer->x[2] = (unsigned short)((loc_result >> 32) & 0xffff);
    }
    else {
       X = (Uint64)buffer->x[2] << 16 | 
-           buffer->x[1] >> 16;
+          (Uint64)buffer->x[1] >> 16;
       a = (Uint64)buffer->a[2] << 16 |
-           buffer->a[1] >> 16;
+          (Uint64)buffer->a[1] >> 16;
 
       loc_result = X * a + buffer->c;
 
-      buffer->x[0] = loc_result >> 16 & 0xffffffffl;
-      buffer->x[1] = loc_result << 16 & 0xffff0000l;
+	  buffer->x[0] = (unsigned short)(loc_result >> 16 & 0xffffffffl);
+      buffer->x[1] = (unsigned short)(loc_result << 16 & 0xffff0000l);
    }
 
    /*--------------------*/
@@ -261,11 +264,11 @@ void printSequence(RandomSequence *seq, unsigned int numPerRow)
       ndbout_c("%d ", seq->values[i]);
 
       if((i+1) % numPerRow == 0)
-         ndbout_c("");
+        ndbout_c("%s", "");
    }
 
    if(i % numPerRow != 0)
-      ndbout_c("");
+     ndbout_c("%s", "");
 }
 
 void myRandom48Init(long int seedval)

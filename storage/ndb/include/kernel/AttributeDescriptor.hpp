@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef ATTRIBUTE_DESCRIPTOR_HPP
 #define ATTRIBUTE_DESCRIPTOR_HPP
@@ -48,6 +51,8 @@ public:
   static Uint32 getDynamic(const Uint32 &);
   static Uint32 getDiskBased(const Uint32 &);
 
+  static void clearArrayType(Uint32 &);
+
   Uint32 m_data;
 };
 
@@ -56,12 +61,18 @@ public:
  * a = Array type            - 2  Bits -> Max 3  (Bit 0-1)
  * t = Attribute type        - 5  Bits -> Max 31  (Bit 2-6)
  * s = Attribute size        - 3  Bits -> Max 7  (Bit 8-10)
+ *                                0 is for bit types, stored in bitmap
+ *                                1-2 unused
+ *                                3 for byte-sized (char...)
+ *                                4 for 16-bit sized
+ *                                etc.
  * d = Disk based            - 1  Bit 11
  * n = Nullable              - 1  Bit 12
  * k = Distribution Key Ind  - 1  Bit 13
  * p = Primary key attribute - 1  Bit 14
  * y = Dynamic attribute     - 1  Bit 15
  * z = Array size            - 16 Bits -> Max 65535 (Bit 16-31)
+ *                                Element size is determined by attribute size
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
@@ -111,6 +122,13 @@ void
 AttributeDescriptor::setArrayType(Uint32 & desc, Uint32 arrayType){
   assert(arrayType <= AD_ARRAY_TYPE_MASK);
   desc |= (arrayType << AD_ARRAY_TYPE_SHIFT);
+}
+
+inline
+void
+AttributeDescriptor::clearArrayType(Uint32 & desc)
+{
+  desc &= ~Uint32(AD_ARRAY_TYPE_MASK << AD_ARRAY_TYPE_SHIFT);
 }
 
 inline

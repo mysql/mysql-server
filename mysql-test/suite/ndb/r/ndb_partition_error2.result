@@ -1,0 +1,3 @@
+drop table if exists t1;
+create table t1 (s1 int) engine=ndbcluster;
+ERROR HY000: For the partitioned engine it is necessary to define all partitions

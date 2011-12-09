@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef __BUFFER_HPP_INCLUDED__
 #define __BUFFER_HPP_INCLUDED__
@@ -87,11 +89,28 @@ public:
     len = 0;
   }
 
-  int length() const { return len; }
+  int length() const { assert(Uint64(len) == Uint32(len)); return (int)len; }
 
   void *get_data() const { return data; }
 
   bool empty () const { return len == 0; }
+
+  bool equal(const UtilBuffer &cmp) const {
+    if(len==0 && cmp.len==0)
+      return true;
+    else if(len!=cmp.len)
+      return false;
+    else
+      return (memcmp(get_data(), cmp.get_data(), len) == 0);
+  }
+
+  int assign(const UtilBuffer& buf) {
+    int ret = 0;
+    if(this != &buf) {
+      ret = assign(buf.get_data(), buf.length());
+    }
+    return ret;
+  }
 private:
   void *data;          /* Pointer to data storage */
   size_t len;          /* Size of the stored data */

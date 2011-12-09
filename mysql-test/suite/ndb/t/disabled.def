@@ -1,0 +1,25 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+
+ndb_partition_error2 : Bug#40989 ndb_partition_error2 needs maintenance
+
+# the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
+ndb_cache_trans           : Bug#42197 Query cache and autocommit
+ndb_disconnect_ddl        : Bug#31853 flaky testcase...
+
+ndb_sql_allow_batching   : SEAGULL WL3733 xxx_allow_batching
+
+ndb_temporary : SEAGULL patch to disallow temporary tables does not work
+
+ndb_dbug_lock : SEAGULL gsl locking order
+
+ndb_ddl_open_trans : SEAGULL mdl locking...

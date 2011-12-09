@@ -1,0 +1,381 @@
+-- source include/have_query_cache.inc
+-- source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1, t2, t3, t4, t5;
+--enable_warnings
+
+
+# Turn on and reset query cache
+set GLOBAL query_cache_type=on;
+set GLOBAL query_cache_size=1355776;
+# Turn on thread that will fetch commit count for open tables
+set GLOBAL ndb_cache_check_time=100;
+reset query cache;
+flush status;
+
+# Create test tables in NDB
+CREATE TABLE t1 (
+  pk int not null primary key,
+  a1 int,
+  b1 int not null,
+  c1 varchar(20)
+) ENGINE=ndb;
+CREATE TABLE t2 (
+  pk int not null primary key,
+  a2 int,
+  b2 int not null
+) ENGINE=ndb;
+CREATE TABLE t3 (
+  pk int not null primary key,
+  a3 int,
+  b3 int not null,
+  c3 int not null,
+  d3 varchar(20)
+) ENGINE=ndb;
+CREATE TABLE t4 (
+  a4 int,
+  b4 int not null,
+  c4 char(20)
+) ENGINE=ndbcluster;
+CREATE TABLE t5 (
+  pk int not null primary key,
+  a5 int,
+  b5 int not null,
+  c5 varchar(255)
+) ENGINE=ndbcluster;
+insert into t1 value (1, 2, 3, 'First row');
+insert into t2 value (1, 2, 3);
+insert into t3 value (1, 2, 3, 4, '3 - First row');
+insert into t4 value (2, 3, '4 - First row');
+insert into t5 value (1, 2, 3, '5 - First row');
+
+# Perform one query which should be inserted in query cache
+select * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+# Perform the same query and make sure the query cache is hit
+select * from t1;
+show status like "Qcache_hits";
+
+# Update the table and make sure the correct data is returned
+update t1 set a1=3 where pk=1;
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
+
+select * from t1;
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+# Insert a new record and make sure the correct data is returned
+insert into t1 value (2, 7, 8, 'Second row');
+insert into t1 value (4, 5, 6, 'Fourth row');
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
+
+select * from t1 order by pk desc;
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+select * from t1 order by pk desc;
+show status like "Qcache_hits";
+
+# Perform a "new" query and make sure the query cache is not hit
+select * from t1 where b1=3;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+
+# Same query again...
+select * from t1 where b1=3;
+show status like "Qcache_hits";
+
+# Delete from the table
+delete from t1 where c1='Fourth row';
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
+show status like "Qcache_queries_in_cache";
+select * from t1 where b1=3;
+show status like "Qcache_hits";
+
+# Start another connection and check that the query cache is hit
+connect (con1,localhost,root,,);
+connection con1;
+use test;
+select * from t1 order by pk desc;
+select * from t1 where b1=3;
+show status like "Qcache_hits";
+
+# Update the table and switch to other connection
+update t1 set a1=4 where b1=3;
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
+
+connect (con2,localhost,root,,);
+connection con2;
+use test;
+show status like "Qcache_queries_in_cache";
+select * from t1 order by pk desc;
+select * from t1 order by pk desc;
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con1;
+select * from t1 order by pk desc;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+# Load all tables into cache
+select * from t2;
+select * from t3;
+select * from t4;
+select * from t5;
+show status like "Qcache_queries_in_cache";
+
+#####################################################################
+# Start transaction and perform update
+# Switch to other transaction and check that update does not show up
+# Switch back and commit transaction
+# Switch to other transaction and check that update shows up
+#####################################################################
+connection con1;
+flush status;
+begin;
+update t1 set a1=5 where pk=1;
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con2;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con1;
+commit;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con2;
+select * from t1 order by pk desc;
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con1;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+#####################################################################
+# Start transaction and perform update
+# Switch to other transaction and check that update does not show up
+# Switch back, perform selects and commit transaction
+# Switch to other transaction and check that update shows up
+#####################################################################
+connection con1;
+flush status;
+begin;
+update t1 set a1=6 where pk=1;
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con2;
+select * from t1 order by pk desc;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con1;
+# The two queries below will not hit cache since transaction is ongoing
+select * from t1 order by pk desc;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+commit;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con2;
+select * from t1 order by pk desc;
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con1;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+#####################################################################
+# Start transaction and perform insert
+# Switch to other transaction and check that insert does not show up
+# Switch back, perform selects and commit transaction
+# Switch to other transaction and check that update shows up
+#####################################################################
+connection con1;
+flush status;
+begin;
+insert into t1 set pk=5, a1=6, b1=3, c1="New row";
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con2;
+select * from t1 where pk=5;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con1;
+# The below four queries will not be cached, trans is ongoing
+select * from t1 where pk=5;
+select * from t1 where pk=5;
+select * from t1 order by pk desc;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+commit;
+
+connection con2;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+connection con1;
+
+#####################################################################
+# Start transaction and perform delete
+# Switch to other transaction and check that delete does not show up
+# Switch back, perform selects and commit transaction
+# Switch to other transaction and check that update shows up
+#####################################################################
+connection con1;
+flush status;
+begin;
+delete from t1 where pk=2;
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con2;
+select * from t1 where pk=2;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con1;
+# The below four queries will not be cached, trans is ongoing
+select * from t1 where pk=2;
+select * from t1 order by pk desc;
+select * from t1 order by pk desc;
+select * from t1 where pk=2;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+commit;
+
+connection con2;
+select * from t1 order by pk desc;
+select * from t1 where pk=2;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+connection con1;
+
+#####################################################################
+# Start a transaction which updates all tables
+# Switch to other transaction and check updates does not show up
+# Switch back, perform selects and commit transaction
+# Switch to other transaction and check that update shows up
+#####################################################################
+flush status;
+begin;
+update t1 set a1=9 where pk=1;
+update t2 set a2=9 where pk=1;
+update t3 set a3=9 where pk=1;
+update t4 set a4=9 where a4=2;
+update t5 set a5=9 where pk=1;
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con2;
+select * from t1 order by pk desc;
+select * from t2;
+select * from t3;
+select * from t4;
+select * from t5;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con1;
+# The below five queries will not be cached, trans is ongoing
+select * from t1 order by pk desc;
+select * from t1 order by pk desc;
+select * from t2;
+select * from t3;
+select * from t4;
+select * from t5;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+commit;
+
+connection con2;
+select * from t1 order by pk desc;
+select * from t2;
+select * from t3;
+select * from t4;
+select * from t5;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+connection con1;
+select * from t1 order by pk desc;
+select * from t2;
+select * from t3;
+select * from t4;
+select * from t5;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+select * from t1 order by pk desc;
+select * from t2;
+select * from t3;
+select * from t4;
+select * from t5;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+connection con2;
+select * from t1 order by pk desc;
+select * from t2;
+select * from t3;
+select * from t4;
+select * from t5;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+drop table t1, t2, t3, t4, t5;
+
+# There should be no queries in cache, when tables have been dropped
+show status like "Qcache_queries_in_cache";
+
+SET GLOBAL query_cache_size=0;
+SET GLOBAL ndb_cache_check_time=0;
+
+

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006, 2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +13,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <NdbConfig.h>
 #include <NdbEnv.h>
 #include <NdbMem.h>
+#include <NdbHost.h>
 #include <basestring_vsnprintf.h>
 
 static const char *datadir_path= 0;
@@ -79,7 +83,8 @@ char *get_prefix_buf(int len, int node_id)
   if (node_id > 0)
     basestring_snprintf(tmp_buf, sizeof(tmp_buf), "ndb_%u", node_id);
   else
-    basestring_snprintf(tmp_buf, sizeof(tmp_buf), "ndb_pid%u", getpid());
+    basestring_snprintf(tmp_buf, sizeof(tmp_buf), "ndb_pid%u",
+                        NdbHost_GetProcessId());
   tmp_buf[sizeof(tmp_buf)-1]= 0;
 
   buf= NdbConfig_AllocHomePath(len+strlen(tmp_buf));

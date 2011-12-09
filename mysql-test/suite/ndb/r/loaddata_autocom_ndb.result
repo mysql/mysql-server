@@ -1,0 +1,23 @@
+SET SESSION DEFAULT_STORAGE_ENGINE = ndbcluster;
+drop table if exists t1;
+create table t1 (id int unsigned not null auto_increment primary key, a text, b text);
+start transaction;
+load data infile 'LOAD_FILE' into table t1 fields terminated by ',' enclosed by '''' (a, b);
+Warnings:
+Warning	1261	Row 3 doesn't contain data for all columns
+commit;
+select count(*) from t1;
+count(*)
+4
+truncate table t1;
+start transaction;
+load data infile 'LOAD_FILE' into table t1 fields terminated by ',' enclosed by '''' (a, b);
+Warnings:
+Warning	1261	Row 3 doesn't contain data for all columns
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+select count(*) from t1;
+count(*)
+4
+drop table t1;

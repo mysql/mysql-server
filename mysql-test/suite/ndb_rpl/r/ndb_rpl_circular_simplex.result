@@ -1,0 +1,28 @@
+include/master-slave.inc
+[connection master]
+CREATE TABLE t1 (a int key, b int) ENGINE=NDB;
+SHOW TABLES;
+Tables_in_test
+t1
+RESET MASTER;
+INSERT INTO t1 VALUES (1,2);
+INSERT INTO t1 VALUES (2,3);
+STOP SLAVE;
+include/rpl_change_topology.inc [new topology=1->2->1]
+START SLAVE;
+include/wait_for_slave_to_start.inc
+include/check_slave_is_running.inc
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+2	3
+STOP SLAVE;
+START SLAVE;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+2	3
+include/wait_for_slave_to_start.inc
+include/check_slave_is_running.inc
+DROP TABLE t1;
+include/rpl_end.inc

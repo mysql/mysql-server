@@ -22,7 +22,7 @@
 #  server-system-variables.html                                                #
 #                                                                              #
 ################################################################################
-
+--source include/not_embedded.inc
 --source include/load_sysvars.inc
 
 ######################################################################## 
@@ -34,31 +34,31 @@
 #      Saving initial value of slave_allow_batching in a temporary variable    #
 ################################################################################ 
 
---Error ER_UNKNOWN_SYSTEM_VARIABLE
 SET @global_start_value = @@global.slave_allow_batching;
+SELECT @global_start_value;
 
 --echo '#--------------------FN_DYNVARS_145_01------------------------#'
 ######################################################################## 
 #           Display the DEFAULT value of slave_allow_batching          #
 ######################################################################## 
 
-#SET @@global.slave_allow_batching = 1;
-#SET @@global.slave_allow_batching = DEFAULT;
-#SELECT @@global.slave_allow_batching;
+SET @@global.slave_allow_batching = 1;
+SET @@global.slave_allow_batching = DEFAULT;
+SELECT @@global.slave_allow_batching;
 
 --echo '#---------------------FN_DYNVARS_145_02-------------------------#'
 ############################################################################# 
 #   Check if slave_allow_batching can be accessed with and without @@ sign  #
 ############################################################################# 
 
-#--Error ER_GLOBAL_VARIABLE
-#SET slave_allow_batching = 1;
-#SELECT @@slave_allow_batching;
-#--Error ER_UNKNOWN_TABLE
-#SELECT global.slave_allow_batching;
-#
-#SET global slave_allow_batching = 1;
-#SELECT @@global.slave_allow_batching;
+--Error ER_GLOBAL_VARIABLE
+SET slave_allow_batching = 1;
+SELECT @@slave_allow_batching;
+--Error ER_UNKNOWN_TABLE
+SELECT global.slave_allow_batching;
+
+SET global slave_allow_batching = 1;
+SELECT @@global.slave_allow_batching;
 
 
 --echo '#--------------------FN_DYNVARS_145_03------------------------#'
@@ -66,10 +66,10 @@ SET @global_start_value = @@global.slave_allow_batching;
 #    Change the value of slave_allow_batching to a valid value         #
 ######################################################################## 
 
-#SET @@global.slave_allow_batching = 0;
-#SELECT @@global.slave_allow_batching;
-#SET @@global.slave_allow_batching = 1;
-#SELECT @@global.slave_allow_batching;
+SET @@global.slave_allow_batching = 0;
+SELECT @@global.slave_allow_batching;
+SET @@global.slave_allow_batching = 1;
+SELECT @@global.slave_allow_batching;
 
 
 --echo '#--------------------FN_DYNVARS_145_04-------------------------#'
@@ -77,26 +77,26 @@ SET @global_start_value = @@global.slave_allow_batching;
 #               Change the value of slave_allow_batching to invalid value          #
 ########################################################################### 
 
-#--Error ER_WRONG_VALUE_FOR_VAR
-#SET @@global.slave_allow_batching = -1;
-#--Error ER_WRONG_VALUE_FOR_VAR
-#SET @@global.slave_allow_batching = 2;
-#--Error ER_WRONG_VALUE_FOR_VAR
-#SET @@global.slave_allow_batching = "T";
-#--Error ER_WRONG_VALUE_FOR_VAR
-#SET @@global.slave_allow_batching = "Y";
-#--Error ER_WRONG_VALUE_FOR_VAR
-#SET @@global.slave_allow_batching = YES;
-#--Error ER_WRONG_VALUE_FOR_VAR
-#SET @@global.slave_allow_batching = ONN;
-#--Error ER_WRONG_VALUE_FOR_VAR
-#SET @@global.slave_allow_batching = OOF;
-#--Error ER_WRONG_VALUE_FOR_VAR
-#SET @@global.slave_allow_batching = 0FF;
-#--Error ER_WRONG_VALUE_FOR_VAR
-#SET @@global.slave_allow_batching = ' 1';
-#--Error ER_WRONG_VALUE_FOR_VAR
-#SET @@global.slave_allow_batching = NO;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.slave_allow_batching = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.slave_allow_batching = 2;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.slave_allow_batching = "T";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.slave_allow_batching = "Y";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.slave_allow_batching = YES;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.slave_allow_batching = ONN;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.slave_allow_batching = OOF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.slave_allow_batching = 0FF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.slave_allow_batching = ' 1';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.slave_allow_batching = NO;
 
 
 --echo '#-------------------FN_DYNVARS_145_05----------------------------#'
@@ -104,23 +104,23 @@ SET @global_start_value = @@global.slave_allow_batching;
 #           Test if accessing session slave_allow_batching gives error             #
 ########################################################################### 
 
-#--Error ER_GLOBAL_VARIABLE
-#SET @@session.slave_allow_batching = 0;
-#--Error ER_GLOBAL_VARIABLE
-#SET @@slave_allow_batching = 0;
-#--Error ER_GLOBAL_VARIABLE
-#SET @@local.slave_allow_batching = 0;
-#--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
-#SELECT @@session.slave_allow_batching;
-#--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
-#SELECT @@local.slave_allow_batching;
+--Error ER_GLOBAL_VARIABLE
+SET @@session.slave_allow_batching = 0;
+--Error ER_GLOBAL_VARIABLE
+SET @@slave_allow_batching = 0;
+--Error ER_GLOBAL_VARIABLE
+SET @@local.slave_allow_batching = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.slave_allow_batching;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@local.slave_allow_batching;
 
 --echo '#----------------------FN_DYNVARS_145_06------------------------#'
 ######################################################################### 
 #     Check if the value in SESSION Table contains variable value       #
 #########################################################################
 
-#SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='slave_allow_batching';
+SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='slave_allow_batching';
 
 
 --echo '#----------------------FN_DYNVARS_145_07------------------------#'
@@ -128,38 +128,37 @@ SET @global_start_value = @@global.slave_allow_batching;
 #     Check if the value in GLOBAL Table matches value in variable     #
 #########################################################################
 
-#SELECT IF(@@global.slave_allow_batching, "ON", "OFF") = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='slave_allow_batching';
-#SELECT @@global.slave_allow_batching;
-#SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='slave_allow_batching';
-#--echo 'Bug: value in information schema does not match'
+SELECT @@global.slave_allow_batching = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='slave_allow_batching';
+SELECT @@global.slave_allow_batching;
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='slave_allow_batching';
 
 --echo '#---------------------FN_DYNVARS_145_08-------------------------#'
 ################################################################### 
 #        Check if ON and OFF values can be used on variable       #
 ################################################################### 
 
-#SET @@global.slave_allow_batching = OFF;
-#SELECT @@global.slave_allow_batching;
-#SET @@global.slave_allow_batching = ON;
-#SELECT @@global.slave_allow_batching;
+SET @@global.slave_allow_batching = OFF;
+SELECT @@global.slave_allow_batching;
+SET @@global.slave_allow_batching = ON;
+SELECT @@global.slave_allow_batching;
 
 --echo '#---------------------FN_DYNVARS_145_09----------------------#'
 ################################################################### 
 #      Check if TRUE and FALSE values can be used on variable     #
 ################################################################### 
 
-#SET @@global.slave_allow_batching = TRUE;
-#SELECT @@global.slave_allow_batching;
-#SET @@global.slave_allow_batching = FALSE;
-#SELECT @@global.slave_allow_batching;
+SET @@global.slave_allow_batching = TRUE;
+SELECT @@global.slave_allow_batching;
+SET @@global.slave_allow_batching = FALSE;
+SELECT @@global.slave_allow_batching;
 
 ##############################  
 #   Restore initial value    #
 ##############################
 
-#SET @@global.slave_allow_batching = @global_start_value;
-#SELECT @@global.slave_allow_batching;
+SET @@global.slave_allow_batching = @global_start_value;
+SELECT @@global.slave_allow_batching;
 
 ###############################################################
 #                    END OF slave_allow_batching TESTS        #
-############################################################### 
+###############################################################

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #define DBDIH_C
@@ -40,14 +42,18 @@ void Dbdih::initData()
     new (&nodeRecord[i]) NodeRecord();
   }
   
-  takeOverRecord = (TakeOverRecord*)allocRecord("TakeOverRecord",
-                                                sizeof(TakeOverRecord), 
-                                                MAX_NDB_NODES);
-  for(i = 0; i<MAX_NDB_NODES; i++)
-    new (&takeOverRecord[i]) TakeOverRecord();
-
-  for(i = 0; i<MAX_NDB_NODES; i++)
-    new (&takeOverRecord[i]) TakeOverRecord();
+  c_takeOverPool.setSize(MAX_NDB_NODES);
+  {
+    Ptr<TakeOverRecord> ptr;
+    while (c_activeTakeOverList.seize(ptr))
+    {
+      new (ptr.p) TakeOverRecord;
+    }
+    while (c_activeTakeOverList.first(ptr))
+    {
+      releaseTakeOver(ptr);
+    }
+  }
   
   waitGCPProxyPool.setSize(ZPROXY_FILE_SIZE);
   waitGCPMasterPool.setSize(ZPROXY_MASTER_FILE_SIZE);
@@ -57,20 +63,26 @@ void Dbdih::initData()
 
   cgcpOrderBlocked = 0;
   c_lcpState.ctcCounter = 0;
+  c_lcpState.m_lcp_trylock_timeout = 0;
   cwaitLcpSr       = false;
   c_blockCommit    = false;
   c_blockCommitNo  = 1;
   cntrlblockref    = RNIL;
   c_set_initial_start_flag = FALSE;
+  c_sr_wait_to = false;
+  c_2pass_inr = false;
 }//Dbdih::initData()
 
-void Dbdih::initRecords() 
+void Dbdih::initRecords()
 {
   // Records with dynamic sizes
-  apiConnectRecord = (ApiConnectRecord*)
-    allocRecord("ApiConnectRecord", 
-                sizeof(ApiConnectRecord),
-                capiConnectFileSize);
+  for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
+  {
+    c_diverify_queue[i].apiConnectRecord = (ApiConnectRecord*)
+      allocRecord("ApiConnectRecord",
+                  sizeof(ApiConnectRecord),
+                  capiConnectFileSize);
+  }
 
   connectRecord = (ConnectRecord*)allocRecord("ConnectRecord",
                                               sizeof(ConnectRecord), 
@@ -117,8 +129,10 @@ void Dbdih::initRecords()
 
 Dbdih::Dbdih(Block_context& ctx):
   SimulatedBlock(DBDIH, ctx),
+  c_activeTakeOverList(c_takeOverPool),
   c_waitGCPProxyList(waitGCPProxyPool),
-  c_waitGCPMasterList(waitGCPMasterPool)
+  c_waitGCPMasterList(waitGCPMasterPool),
+  c_waitEpochMasterList(waitGCPMasterPool)
 {
   BLOCK_CONSTRUCTOR(Dbdih);
 
@@ -129,6 +143,8 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_MASTER_GCPREF, &Dbdih::execMASTER_GCPREF);
   addRecSignal(GSN_MASTER_GCPCONF, &Dbdih::execMASTER_GCPCONF);
   addRecSignal(GSN_EMPTY_LCP_CONF, &Dbdih::execEMPTY_LCP_CONF);
+  addRecSignal(GSN_EMPTY_LCP_REP, &Dbdih::execEMPTY_LCP_REP);
+
   addRecSignal(GSN_MASTER_LCPREQ, &Dbdih::execMASTER_LCPREQ);
   addRecSignal(GSN_MASTER_LCPREF, &Dbdih::execMASTER_LCPREF);
   addRecSignal(GSN_MASTER_LCPCONF, &Dbdih::execMASTER_LCPCONF);
@@ -138,10 +154,19 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_START_PERMREF, &Dbdih::execSTART_PERMREF);
   addRecSignal(GSN_INCL_NODEREQ, &Dbdih::execINCL_NODEREQ);
   addRecSignal(GSN_INCL_NODECONF, &Dbdih::execINCL_NODECONF);
-  addRecSignal(GSN_END_TOREQ, &Dbdih::execEND_TOREQ);
-  addRecSignal(GSN_END_TOCONF, &Dbdih::execEND_TOCONF);
+
   addRecSignal(GSN_START_TOREQ, &Dbdih::execSTART_TOREQ);
+  addRecSignal(GSN_START_TOREF, &Dbdih::execSTART_TOREQ);
   addRecSignal(GSN_START_TOCONF, &Dbdih::execSTART_TOCONF);
+
+  addRecSignal(GSN_UPDATE_TOREQ, &Dbdih::execUPDATE_TOREQ);
+  addRecSignal(GSN_UPDATE_TOREF, &Dbdih::execUPDATE_TOREF);
+  addRecSignal(GSN_UPDATE_TOCONF, &Dbdih::execUPDATE_TOCONF);
+
+  addRecSignal(GSN_END_TOREQ, &Dbdih::execEND_TOREQ);
+  addRecSignal(GSN_END_TOREF, &Dbdih::execEND_TOREF);
+  addRecSignal(GSN_END_TOCONF, &Dbdih::execEND_TOCONF);
+
   addRecSignal(GSN_START_MEREQ, &Dbdih::execSTART_MEREQ);
   addRecSignal(GSN_START_MECONF, &Dbdih::execSTART_MECONF);
   addRecSignal(GSN_START_MEREF, &Dbdih::execSTART_MEREF);
@@ -151,11 +176,15 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_CREATE_FRAGREQ, &Dbdih::execCREATE_FRAGREQ);
   addRecSignal(GSN_CREATE_FRAGCONF, &Dbdih::execCREATE_FRAGCONF);
   addRecSignal(GSN_DIVERIFYREQ, &Dbdih::execDIVERIFYREQ);
+  addRecSignal(GSN_GCP_SAVEREQ, &Dbdih::execGCP_SAVEREQ);
+  addRecSignal(GSN_GCP_SAVEREF, &Dbdih::execGCP_SAVEREF);
   addRecSignal(GSN_GCP_SAVECONF, &Dbdih::execGCP_SAVECONF);
   addRecSignal(GSN_GCP_PREPARECONF, &Dbdih::execGCP_PREPARECONF);
   addRecSignal(GSN_GCP_PREPARE, &Dbdih::execGCP_PREPARE);
   addRecSignal(GSN_GCP_NODEFINISH, &Dbdih::execGCP_NODEFINISH);
   addRecSignal(GSN_GCP_COMMIT, &Dbdih::execGCP_COMMIT);
+  addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dbdih::execSUB_GCP_COMPLETE_REP);
+  addRecSignal(GSN_SUB_GCP_COMPLETE_ACK, &Dbdih::execSUB_GCP_COMPLETE_ACK);
   addRecSignal(GSN_DIHNDBTAMPER, &Dbdih::execDIHNDBTAMPER);
   addRecSignal(GSN_CONTINUEB, &Dbdih::execCONTINUEB);
   addRecSignal(GSN_COPY_GCIREQ, &Dbdih::execCOPY_GCIREQ);
@@ -179,12 +208,11 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_COPY_FRAGREF, &Dbdih::execCOPY_FRAGREF);
   addRecSignal(GSN_DIADDTABREQ, &Dbdih::execDIADDTABREQ);
   addRecSignal(GSN_DIGETNODESREQ, &Dbdih::execDIGETNODESREQ);
-  addRecSignal(GSN_DIRELEASEREQ, &Dbdih::execDIRELEASEREQ);
-  addRecSignal(GSN_DISEIZEREQ, &Dbdih::execDISEIZEREQ);
   addRecSignal(GSN_STTOR, &Dbdih::execSTTOR);
-  addRecSignal(GSN_DI_FCOUNTREQ, &Dbdih::execDI_FCOUNTREQ);
-  addRecSignal(GSN_DIGETPRIMREQ, &Dbdih::execDIGETPRIMREQ);
-  addRecSignal(GSN_GCP_SAVEREF, &Dbdih::execGCP_SAVEREF);
+  addRecSignal(GSN_DIH_SCAN_TAB_REQ, &Dbdih::execDIH_SCAN_TAB_REQ);
+  addRecSignal(GSN_DIH_SCAN_GET_NODES_REQ, &Dbdih::execDIH_SCAN_GET_NODES_REQ);
+  addRecSignal(GSN_DIH_SCAN_TAB_COMPLETE_REP,
+               &Dbdih::execDIH_SCAN_TAB_COMPLETE_REP);
   addRecSignal(GSN_GCP_TCFINISHED, &Dbdih::execGCP_TCFINISHED);
   addRecSignal(GSN_READ_NODESCONF, &Dbdih::execREAD_NODESCONF);
   addRecSignal(GSN_NDB_STTOR, &Dbdih::execNDB_STTOR);
@@ -196,6 +224,8 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_START_FRAGCONF, &Dbdih::execSTART_FRAGCONF);
   addRecSignal(GSN_ADD_FRAGCONF, &Dbdih::execADD_FRAGCONF);
   addRecSignal(GSN_ADD_FRAGREF, &Dbdih::execADD_FRAGREF);
+  addRecSignal(GSN_DROP_FRAG_REF, &Dbdih::execDROP_FRAG_REF);
+  addRecSignal(GSN_DROP_FRAG_CONF, &Dbdih::execDROP_FRAG_CONF);
   addRecSignal(GSN_FSOPENCONF, &Dbdih::execFSOPENCONF);
   addRecSignal(GSN_FSOPENREF, &Dbdih::execFSOPENREF, true);
   addRecSignal(GSN_FSCLOSECONF, &Dbdih::execFSCLOSECONF);
@@ -240,12 +270,7 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_WAIT_GCP_REF, &Dbdih::execWAIT_GCP_REF);
   addRecSignal(GSN_WAIT_GCP_CONF, &Dbdih::execWAIT_GCP_CONF);
 
-  addRecSignal(GSN_UPDATE_TOREQ, &Dbdih::execUPDATE_TOREQ);
-  addRecSignal(GSN_UPDATE_TOCONF, &Dbdih::execUPDATE_TOCONF);
-
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dbdih::execPREP_DROP_TAB_REQ);
-  addRecSignal(GSN_WAIT_DROP_TAB_REF, &Dbdih::execWAIT_DROP_TAB_REF);
-  addRecSignal(GSN_WAIT_DROP_TAB_CONF, &Dbdih::execWAIT_DROP_TAB_CONF);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbdih::execDROP_TAB_REQ);
 
   addRecSignal(GSN_ALTER_TAB_REQ, &Dbdih::execALTER_TAB_REQ);
@@ -264,27 +289,52 @@ Dbdih::Dbdih(Block_context& ctx):
 	       &Dbdih::execPREPARE_COPY_FRAG_REF);
   addRecSignal(GSN_PREPARE_COPY_FRAG_CONF,
 	       &Dbdih::execPREPARE_COPY_FRAG_CONF);
-  
-  apiConnectRecord = 0;
+
+  addRecSignal(GSN_UPGRADE_PROTOCOL_ORD,
+	       &Dbdih::execUPGRADE_PROTOCOL_ORD);
+
+  addRecSignal(GSN_CREATE_NODEGROUP_IMPL_REQ,
+               &Dbdih::execCREATE_NODEGROUP_IMPL_REQ);
+
+  addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ,
+               &Dbdih::execDROP_NODEGROUP_IMPL_REQ);
+
+
+  addRecSignal(GSN_DIH_GET_TABINFO_REQ,
+               &Dbdih::execDIH_GET_TABINFO_REQ);
+#if 0
+  addRecSignal(GSN_DIH_GET_TABINFO_REF,
+               &Dbdih::execDIH_GET_TABINFO_REF);
+  addRecSignal(GSN_DIH_GET_TABINFO_CONF,
+               &Dbdih::execDIH_GET_TABINFO_CONF);
+#endif
+
   connectRecord = 0;
   fileRecord = 0;
   fragmentstore = 0;
   pageRecord = 0;
   replicaRecord = 0;
   tabRecord = 0;
-  takeOverRecord = 0;
   createReplicaRecord = 0;
   nodeGroupRecord = 0;
   nodeRecord = 0;
   c_nextNodeGroup = 0;
+  c_fragments_per_node = 1;
+  bzero(c_node_groups, sizeof(c_node_groups));
+  c_diverify_queue_cnt = 1;
+
 }//Dbdih::Dbdih()
 
-Dbdih::~Dbdih() 
+Dbdih::~Dbdih()
 {
-  deallocRecord((void **)&apiConnectRecord, "ApiConnectRecord", 
-                sizeof(ApiConnectRecord),
-                capiConnectFileSize);
-  
+  for (Uint32 i = 0; i<c_diverify_queue_cnt; i++)
+  {
+    deallocRecord((void **)&c_diverify_queue[i].apiConnectRecord,
+                  "ApiConnectRecord",
+                  sizeof(ApiConnectRecord),
+                  capiConnectFileSize);
+  }
+
   deallocRecord((void **)&connectRecord, "ConnectRecord",
                 sizeof(ConnectRecord), 
                 cconnectFileSize);
@@ -319,11 +369,6 @@ Dbdih::~Dbdih()
   
   deallocRecord((void **)&nodeRecord, "NodeRecord", 
                 sizeof(NodeRecord), MAX_NDB_NODES);
-
-  deallocRecord((void **)&takeOverRecord, "TakeOverRecord",
-                sizeof(TakeOverRecord), 
-                MAX_NDB_NODES);
-
 }//Dbdih::~Dbdih()
 
 BLOCK_FUNCTIONS(Dbdih)

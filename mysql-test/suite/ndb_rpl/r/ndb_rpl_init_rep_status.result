@@ -1,0 +1,78 @@
+include/master-slave.inc
+[connection master]
+reset master;
+stop slave;
+Generate something in the Masters Binlog
+use test;
+create table t1 (a int primary key, b int) engine=ndb;
+insert into t1 values (1,1);
+Initial state
+select * from mysql.ndb_apply_status;
+server_id	epoch	log_name	start_pos	end_pos
+select variable_value from information_schema.global_status
+where variable_name like '%Ndb_slave_max_replicated_epoch%';
+variable_value
+0
+select @slave_server_id:=(variable_value+0) from information_schema.global_variables
+where variable_name like 'server_id';
+@slave_server_id:=(variable_value+0)
+2
+Default, no data, max replicated epoch will be 0.
+reset slave;
+start slave;
+select server_id from mysql.ndb_apply_status order by server_id;
+server_id
+1
+select variable_value from information_schema.global_status
+where variable_name like 'Ndb_slave_max_replicated_epoch';
+variable_value
+0
+Default, load of own serverid from ndb_apply_status, should be 111
+drop table test.t1;
+stop slave;
+reset slave;
+insert into mysql.ndb_apply_status values (@slave_server_id, 111, 'Fictional log', 222, 333);
+start slave;
+select server_id from mysql.ndb_apply_status order by server_id;
+server_id
+1
+2
+select variable_value from information_schema.global_status
+where variable_name like 'Ndb_slave_max_replicated_epoch';
+variable_value
+111
+drop table test.t1;
+Check that reset slave resets Ndb_slave_max_replicated_epoch
+stop slave;
+select variable_value from information_schema.global_status
+where variable_name like 'Ndb_slave_max_replicated_epoch';
+variable_value
+111
+reset slave;
+select variable_value from information_schema.global_status
+where variable_name like 'Ndb_slave_max_replicated_epoch';
+variable_value
+0
+Multiple-channel, load highest of configured serverids, should be 222
+set @other_local_server_id=@slave_server_id+1;
+set @other_remote_server_id=@slave_server_id+2;
+insert into mysql.ndb_apply_status values (@slave_server_id, 111, 'Fictional log', 222, 333);
+insert into mysql.ndb_apply_status values (@other_local_server_id, 222, 'Fictional log', 222, 333);
+insert into mysql.ndb_apply_status values (@other_remote_server_id, 444, 'Fictional log', 222, 333);
+CHANGE MASTER TO IGNORE_SERVER_IDS=(3);;
+start slave;
+select server_id from mysql.ndb_apply_status order by server_id;
+server_id
+1
+2
+3
+4
+select variable_value from information_schema.global_status
+where variable_name like 'Ndb_slave_max_replicated_epoch';
+variable_value
+222
+stop slave;
+CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+start slave;
+drop table test.t1;
+include/rpl_end.inc

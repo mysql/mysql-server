@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,45 +12,23 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_TCP_H
 #define NDB_TCP_H
 
 #include <ndb_global.h>
 #include <ndb_net.h>
+#include <ndb_socket.h>
+#include <portlib/ndb_socket_poller.h>
 
-#if defined NDB_WIN32
+#define NDB_SOCKET_TYPE ndb_socket_t
 
-/**
- * Include files needed
- */
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
-#define InetErrno WSAGetLastError()
-#define EWOULDBLOCK WSAEWOULDBLOCK
-#define NDB_SOCKET_TYPE SOCKET
-#define NDB_INVALID_SOCKET INVALID_SOCKET
-#define _NDB_CLOSE_SOCKET(x) closesocket(x)
-
-#else
-
-/**
- * Include files needed
- */
-#include <netdb.h>
-
-#define NDB_NONBLOCK O_NONBLOCK
-#define NDB_SOCKET_TYPE int
-#define NDB_INVALID_SOCKET -1
-#define _NDB_CLOSE_SOCKET(x) ::close(x)
-
-#define InetErrno errno
-
-#endif
-
-#define NDB_SOCKLEN_T SOCKET_SIZE_TYPE
+static inline
+void NDB_CLOSE_SOCKET(ndb_socket_t s) {
+  my_socket_close(s);
+}
 
 #ifdef	__cplusplus
 extern "C" {
@@ -67,12 +46,6 @@ extern "C" {
  *      inet_addr
  */
 int Ndb_getInAddr(struct in_addr * dst, const char *address);
-
-#ifdef DBUG_OFF
-#define NDB_CLOSE_SOCKET(fd) _NDB_CLOSE_SOCKET(fd)
-#else
-int NDB_CLOSE_SOCKET(int fd);
-#endif
 
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock);
 

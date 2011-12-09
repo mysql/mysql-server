@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 // 
 //  ndbapi_retries.cpp: Error handling and transaction retries
@@ -26,6 +28,7 @@
 //  should be handled by the application programmer.
 
 #include <mysql.h>
+#include <mysqld_error.h>
 #include <NdbApi.hpp>
 
 // Used for cout
@@ -182,29 +185,27 @@ int executeInsertTransaction(int transactionId, Ndb* myNdb,
 }
 
 /*********************************************************
- * Create a table named MYTABLENAME if it does not exist *
+ * Create a table named api_retries if it does not exist *
  *********************************************************/
 static void create_table(MYSQL &mysql)
 {
-  if (mysql_query(&mysql, 
-		  "CREATE TABLE"
-		  "  MYTABLENAME"
+  while(mysql_query(&mysql, 
+		  "CREATE TABLE "
+		  "  api_retries"
 		  "    (ATTR1 INT UNSIGNED NOT NULL PRIMARY KEY,"
 		  "     ATTR2 INT UNSIGNED NOT NULL)"
 		  "  ENGINE=NDB"))
-    MYSQLERROR(mysql);
+  {
+    if (mysql_errno(&mysql) == ER_TABLE_EXISTS_ERROR)
+    {
+      std::cout << "MySQL Cluster already has example table: api_scan. "
+	     << "Dropping it..." << std::endl; 
+        mysql_query(&mysql, "DROP TABLE api_retries");
+    }
+    else MYSQLERROR(mysql);
+  }
 }
 
-/***********************************
- * Drop a table named MYTABLENAME 
- ***********************************/
-static void drop_table(MYSQL &mysql)
-{
-  if (mysql_query(&mysql, 
-		  "DROP TABLE"
-		  "  MYTABLENAME"))
-    MYSQLERROR(mysql);
-}
 
 int main(int argc, char** argv)
 {
@@ -254,12 +255,12 @@ int main(int argc, char** argv)
   /********************************************
    * Connect to database via mysql-c          *
    ********************************************/
-  mysql_query(&mysql, "CREATE DATABASE TEST_DB_1");
-  if (mysql_query(&mysql, "USE TEST_DB_1") != 0) MYSQLERROR(mysql);
+  mysql_query(&mysql, "CREATE DATABASE ndb_examples");
+  if (mysql_query(&mysql, "USE ndb_examples") != 0) MYSQLERROR(mysql);
   create_table(mysql);
 
   Ndb* myNdb= new Ndb( cluster_connection,
-		       "TEST_DB_1" );  // Object representing the database
+		       "ndb_examples" );  // Object representing the database
   
   if (myNdb->init() == -1) {
     APIERROR(myNdb->getNdbError());
@@ -267,7 +268,7 @@ int main(int argc, char** argv)
   }
 
   const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_retries");
   if (myTable == NULL)
   {
     APIERROR(myDict->getNdbError());
@@ -276,15 +277,17 @@ int main(int argc, char** argv)
   /************************************
    * Execute some insert transactions *
    ************************************/
+   
+  std::cout << "Ready to insert rows.  You will see notices for temporary "
+    "errors, permenant errors, and retries. \n";
   for (int i = 10000; i < 20000; i++) {
     executeInsertTransaction(i, myNdb, myTable);
   }
+  std::cout << "Done.\n";
   
   delete myNdb;
   delete cluster_connection;
-  
-  drop_table(mysql);
-  
+    
   ndb_end(0);
   return 0;
 }

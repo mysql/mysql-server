@@ -1,0 +1,102 @@
+######################################################################
+# Test restoring backups of older/packed formats
+######################################################################
+
+-- source include/have_ndb.inc
+-- source include/have_case_sensitive_file_system.inc
+
+# Directory containing the saved backup files
+let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
+
+# This test currently requires case sensitive file system as the tables
+# are originally stored with uppercase
+
+#
+# Bug #18594 ndb_restore log boken in 5.1
+#
+
+--disable_warnings
+DROP DATABASE IF EXISTS BANK;
+--enable_warnings
+CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -p 1 -m -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -e -b 1 -n 2 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+USE BANK;
+--sorted_result
+SHOW TABLES;
+SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
+SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
+SELECT COUNT(*) FROM TRANSACTION;
+SELECT * FROM SYSTEM_VALUES ORDER BY SYSTEM_VALUES_ID;
+SELECT * FROM mysql.ndb_apply_status WHERE server_id=0;
+
+# Check that force varpart is set by ndb_restore
+--exec $NDB_DESC --no-defaults -d BANK GL | grep ForceVarPart
+--exec $NDB_DESC --no-defaults -d BANK ACCOUNT | grep ForceVarPart
+--exec $NDB_DESC --no-defaults -d BANK TRANSACTION | grep ForceVarPart
+--exec $NDB_DESC --no-defaults -d BANK SYSTEM_VALUES | grep ForceVarPart
+--exec $NDB_DESC --no-defaults -d BANK ACCOUNT_TYPE | grep ForceVarPart
+
+#
+# verify restore of 5.0 backup
+# here we must use the already created tables as restoring the old
+# table definitions will not work
+#
+TRUNCATE GL;
+TRUNCATE ACCOUNT;
+TRUNCATE TRANSACTION;
+TRUNCATE SYSTEM_VALUES;
+TRUNCATE ACCOUNT_TYPE;
+
+# Check that force varpart is not changed by truncate
+--exec $NDB_DESC --no-defaults -d BANK GL | grep ForceVarPart
+--exec $NDB_DESC --no-defaults -d BANK ACCOUNT | grep ForceVarPart
+--exec $NDB_DESC --no-defaults -d BANK TRANSACTION | grep ForceVarPart
+--exec $NDB_DESC --no-defaults -d BANK SYSTEM_VALUES | grep ForceVarPart
+--exec $NDB_DESC --no-defaults -d BANK ACCOUNT_TYPE | grep ForceVarPart
+
+# Restore data
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -p 1 -r $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -e -b 1 -n 2 -p 1 -r $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+
+# Check data
+SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
+SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
+SELECT COUNT(*) FROM TRANSACTION;
+SELECT * FROM SYSTEM_VALUES ORDER BY SYSTEM_VALUES_ID;
+SELECT * FROM mysql.ndb_apply_status WHERE server_id=0;
+--exec $NDB_RESTORE --no-defaults -b 2 -n 1 -m -p 1 -s -r $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b 2 -n 2 -p 1 -s -r $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+SELECT * FROM DESCRIPTION ORDER BY USERNAME;
+--exec $NDB_DESC --no-defaults -d BANK DESCRIPTION | grep SHORT_VAR
+--exec $NDB_DESC --no-defaults -d BANK DESCRIPTION | grep MEDIUM_VAR
+
+# Check backup in read-packed format
+DROP TABLE GL;
+DROP TABLE ACCOUNT;
+DROP TABLE TRANSACTION;
+DROP TABLE SYSTEM_VALUES;
+DROP TABLE ACCOUNT_TYPE;
+
+--exec $NDB_RESTORE --no-defaults -b 1 -n 2 -m $backup_data_dir/packed >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b 1 -n 2 -p 1 -r $backup_data_dir/packed >> $NDB_TOOLS_OUTPUT
+
+SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
+SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
+SELECT COUNT(*) FROM TRANSACTION;
+SELECT * FROM SYSTEM_VALUES ORDER BY SYSTEM_VALUES_ID;
+
+DROP DATABASE BANK;
+
+USE test;
+# hugo generated data...
+select a,b,hex(b0),hex(b1),hex(b2),hex(b3),b4,hex(b5),b6,hex(b7) from t1 order by 1,2;
+drop table t1;
+
+# bug#54613
+
+--error 1
+--exec $NDB_RESTORE --no-defaults -b 2 -n 2 -m --core=0 --include-databases=ham --skip-unknown-objects $backup_data_dir/bug54613 >> $NDB_TOOLS_OUTPUT
+
+--error 0
+--exec $NDB_RESTORE --no-defaults -b 2 -n 2 -m --core=0 --include-databases=ham --skip-unknown-objects --skip-broken-objects $backup_data_dir/bug54613 >> $NDB_TOOLS_OUTPUT

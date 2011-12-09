@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 
@@ -170,13 +173,14 @@ void md5_hash(Uint32 result[4], const Uint64* keybuf, Uint32 no_of_32_words)
    */
   Uint32 i;
   Uint32 buf[4];
-  Uint64 transform64_buf[8];
-  Uint32* transform32_buf;
+  union {
+    Uint64 transform64_buf[8];
+    Uint32 transform32_buf[16];
+  };
   Uint32 len = no_of_32_words << 2;
   const Uint64* key64buf = (const Uint64*)keybuf;
   const Uint32* key32buf = (const Uint32*)keybuf;
 
-  transform32_buf = (Uint32*)&transform64_buf[0];
   buf[0] = 0x67452301;
   buf[1] = 0xefcdab89;
   buf[2] = 0x98badcfe;

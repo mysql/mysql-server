@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef BACKUP_H
 #define BACKUP_H
@@ -40,8 +42,10 @@
  */
 class Backup : public SimulatedBlock
 {
+  friend class BackupProxy;
+
 public:
-  Backup(Block_context& ctx);
+  Backup(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Backup();
   BLOCK_DEFINES(Backup);
   
@@ -96,16 +100,16 @@ protected:
   void execLIST_TABLES_CONF(Signal* signal);
   void execGET_TABINFOREF(Signal* signal);
   void execGET_TABINFO_CONF(Signal* signal);
-  void execCREATE_TRIG_REF(Signal* signal);
-  void execCREATE_TRIG_CONF(Signal* signal);
-  void execDROP_TRIG_REF(Signal* signal);
-  void execDROP_TRIG_CONF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REF(Signal* signal);
+  void execCREATE_TRIG_IMPL_CONF(Signal* signal);
+  void execDROP_TRIG_IMPL_REF(Signal* signal);
+  void execDROP_TRIG_IMPL_CONF(Signal* signal);
 
   /**
    * DIH signals
    */
-  void execDI_FCOUNTCONF(Signal* signal);
-  void execDIGETPRIMCONF(Signal* signal);
+  void execDIH_SCAN_TAB_CONF(Signal* signal);
+  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
 
   /**
    * FS signals
@@ -147,10 +151,15 @@ protected:
 
   void execWAIT_GCP_REF(Signal* signal);
   void execWAIT_GCP_CONF(Signal* signal);
-  
+  void execBACKUP_LOCK_TAB_CONF(Signal *signal);
+  void execBACKUP_LOCK_TAB_REF(Signal *signal);
+
   void execLCP_PREPARE_REQ(Signal* signal);
   void execLCP_FRAGMENT_REQ(Signal*);
   void execEND_LCPREQ(Signal* signal);
+
+  void execDBINFO_SCANREQ(Signal *signal);
+
 private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
@@ -166,60 +175,53 @@ public:
 
 #define BACKUP_WORDS_PER_PAGE 8191
   struct Page32 {
-    Uint32 data[BACKUP_WORDS_PER_PAGE];
+    union {
+      Uint32 data[BACKUP_WORDS_PER_PAGE];
+      Uint32 chunkSize;
+      Uint32 nextChunk;
+      Uint32 lastChunk;
+    };
     Uint32 nextPool;
   };
   typedef Ptr<Page32> Page32Ptr;
 
-  struct Attribute {
-    enum Flags {
-      COL_NULLABLE = 0x1,
-      COL_FIXED    = 0x2,
-      COL_DISK     = 0x4
-    };
-    struct Data {
-      Uint16 m_flags;
-      Uint16 attrId;
-      Uint32 sz32;       // No of 32 bit words
-      Uint32 offset;     // Relative DataFixedAttributes/DataFixedKeys
-      Uint32 offsetNull; // In NullBitmask
-    } data;
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
-    Uint32 prevList;
-  };
-  typedef Ptr<Attribute> AttributePtr;
-  
   struct Fragment {
     Uint64 noOfRecords;
     Uint32 tableId;
     Uint16 node;
     Uint16 fragmentId;
+    Uint8 lqhInstanceKey;
     Uint8 scanned;  // 0 = not scanned x = scanned by node x
     Uint8 scanning; // 0 = not scanning x = scanning on node x
     Uint8 lcp_no;
-    Uint32 nextPool;
+    union {
+      Uint32 nextPool;
+      Uint32 chunkSize;
+      Uint32 nextChunk;
+      Uint32 lastChunk;
+    };
   };
   typedef Ptr<Fragment> FragmentPtr;
 
   struct Table {
-    Table(ArrayPool<Attribute> &, ArrayPool<Fragment> &);
+    Table(ArrayPool<Fragment> &);
     
     Uint64 noOfRecords;
 
     Uint32 tableId;
     Uint32 schemaVersion;
     Uint32 tableType;
-    Uint32 noOfNull;
-    Uint32 noOfAttributes;
-    Uint32 noOfVariable;
-    Uint32 sz_FixedAttributes;
+    Uint32 m_scan_cookie;
     Uint32 triggerIds[3];
     bool   triggerAllocated[3];
+    Uint32 maxRecordSize;
+    Uint32 attrInfoLen;
+    Uint32 noOfAttributes;
+    /**
+     * AttributeHeader::READ_PACKED + full mask + ( DISKREF ROWID ROWGCI )
+     */
+    Uint32 attrInfo[1+MAXNROFATTRIBUTESINWORDS+3];
     
-    DLFifoList<Attribute> attributes;
     Array<Fragment> fragments;
 
     Uint32 nextList;
@@ -253,27 +255,10 @@ public:
      * Per record
      */
     void newRecord(Uint32 * base);
-    bool finished();
-    
-    /**
-     * Per attribute
-     */
-    void     nullVariable();
-    void     nullAttribute(Uint32 nullOffset);
-    Uint32 * newNullable(Uint32 attrId, Uint32 sz);
-    Uint32 * newAttrib(Uint32 offset, Uint32 sz);
-    Uint32 * newVariable(Uint32 id, Uint32 sz);
+    void finished(Uint32 len);
     
   private:
     Uint32* base; 
-    Uint32* dst_Length;
-    Uint32* dst_Bitmask;
-    Uint32* dst_FixedAttribs;
-    BackupFormat::DataFile::VariableData* dst_VariableData;
-    
-    Uint32 noOfAttributes; // No of Attributes
-    Uint32 attrLeft;       // No of attributes left
-
     Uint32 opNoDone;
     Uint32 opNoConf;
     Uint32 opLen;
@@ -288,15 +273,16 @@ public:
     Uint64 noOfBytes;
     Uint32 maxRecordSize;
     
+    /*
+      keeps track of total written into backup file to be able to show
+      backup status
+    */
+    Uint64 m_records_total;
+    Uint64 m_bytes_total;
+
   private:
     Uint32* scanStart;
     Uint32* scanStop;
-
-    /**
-     * sizes of part
-     */
-    Uint32 sz_Bitmask;
-    Uint32 sz_FixedAttribs;
 
   public:
     union { Uint32 nextPool; Uint32 nextList; };
@@ -305,6 +291,7 @@ public:
 
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       backup.progError(line, cause, extra); 
     }
@@ -330,12 +317,13 @@ public:
    */
   struct BackupFile {
     BackupFile(Backup & backup, ArrayPool<Page32> & pp) 
-      : operation(backup),  pages(pp) {}
+      : operation(backup),  pages(pp) { m_retry_count = 0; }
     
     Uint32 backupPtr; // Pointer to backup record
     Uint32 tableId;
     Uint32 fragmentNo;
     Uint32 filePointer;
+    Uint32 m_retry_count;
     Uint32 errorCode;
     BackupFormat::FileType fileType;
     OperationRecord operation;
@@ -397,6 +385,7 @@ public:
     void forceState(State s);
     
     BlockNumber number() const { return backup.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       backup.progError(line, cause, extra); 
     }
@@ -429,8 +418,17 @@ public:
       , masterData(b), backup(b)
 
       {
+        /*
+          report of backup status uses these variables to keep track
+          if backup ia running and current state
+        */
+        m_gsn = 0;
+        masterData.gsn = 0;
       }
     
+    /* next time to report backup status */
+    Uint64 m_next_report;
+
     Uint32 m_gsn;
     CompoundState slaveState; 
     
@@ -485,6 +483,9 @@ public:
       SignalCounter sendCounter;
       Uint32 errorCode;
       union {
+        struct {
+          Uint32 retriesLeft;
+        } sequence;
 	struct {
 	  Uint32 startBackup;
 	} waitGCP;
@@ -517,6 +518,7 @@ public:
 
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       backup.progError(line, cause, extra); 
     }
@@ -536,6 +538,8 @@ public:
     Uint32 m_disk_synch_size;
     Uint32 m_diskless;
     Uint32 m_o_direct;
+    Uint32   m_compressed_backup;
+    Uint32 m_compressed_lcp;
   };
   
   /**
@@ -562,11 +566,12 @@ public:
 	       (2*MAX_WORDS_META_FILE + BACKUP_WORDS_PER_PAGE - 1) / 
 	       BACKUP_WORDS_PER_PAGE);
 
+  Uint32 m_backup_report_frequency;
+
   /**
    * Pools
    */
   ArrayPool<Table> c_tablePool;
-  ArrayPool<Attribute> c_attributePool;  
   ArrayPool<BackupRecord> c_backupPool;
   ArrayPool<BackupFile> c_backupFilePool;
   ArrayPool<Page32> c_pagePool;
@@ -607,6 +612,13 @@ public:
   void sendStartBackup(Signal*, BackupRecordPtr, TablePtr);
   void sendAlterTrig(Signal*, BackupRecordPtr ptr);
 
+  void sendScanFragReq(Signal*,
+                       BackupRecordPtr,
+                       BackupFilePtr,
+                       TablePtr,
+                       FragmentPtr,
+                       Uint32 delay);
+
   void sendDropTrig(Signal*, BackupRecordPtr ptr);
   void sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr);
   void dropTrigReply(Signal*, BackupRecordPtr ptr);
@@ -632,7 +644,7 @@ public:
   void checkNodeFail(Signal* signal,
 		     BackupRecordPtr ptr,
 		     NodeId newCoord,
-		     Uint32 theFailedNodes[NodeBitmask::Size]);
+		     Uint32 theFailedNodes[NdbNodeBitmask::Size]);
   void masterTakeOver(Signal* signal, BackupRecordPtr ptr);
 
 
@@ -649,6 +661,19 @@ public:
   void abort_scan(Signal*, BackupRecordPtr ptr);
   void removeBackup(Signal*, BackupRecordPtr ptr);
 
+  void sendUtilSequenceReq(Signal*, BackupRecordPtr ptr, Uint32 delay = 0);
+
+  /*
+    For periodic backup status reporting and explicit backup status reporting
+  */
+  /* Init at start of backup, timers etc... */
+  void initReportStatus(Signal* signal, BackupRecordPtr ptr);
+  /* Sheck timers for reporting at certain points */
+  void checkReportStatus(Signal* signal, BackupRecordPtr ptr);
+  /* Send backup status, invoked either periodically, or explicitly */
+  void reportStatus(Signal* signal, BackupRecordPtr ptr,
+                    BlockReference ref = CMVMI_REF);
+
   void sendSTTORRY(Signal*);
   void createSequence(Signal* signal);
   void createSequenceReply(Signal*, class UtilSequenceConf *);
@@ -656,96 +681,41 @@ public:
   void lcp_open_file(Signal* signal, BackupRecordPtr ptr);
   void lcp_open_file_done(Signal*, BackupRecordPtr);
   void lcp_close_file_conf(Signal* signal, BackupRecordPtr);
+  void read_lcp_descriptor(Signal*, BackupRecordPtr, TablePtr);
 
   bool ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP);
+
+  void afterGetTabinfoLockTab(Signal *signal,
+                              BackupRecordPtr ptr, TablePtr tabPtr);
+  void cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr);
+
+  BackupFormat::LogFile::LogEntry* get_log_buffer(Signal*,TriggerPtr, Uint32);
+
+  /*
+   * MT LQH.  LCP runs separately in each instance number.
+   * BACKUP uses instance key 1 (real instance 0 or 1).
+  */
+  STATIC_CONST( UserBackupInstanceKey = 1 );
+  Uint32 instanceKey(BackupRecordPtr ptr) {
+    return ptr.p->is_lcp() ? instance() : UserBackupInstanceKey;
+  }
 };
 
 inline
 void
-Backup::OperationRecord::newRecord(Uint32 * p){
-  base = p;
-  dst_Length       = p; p += 1;
-  dst_Bitmask      = p; p += sz_Bitmask;
-  dst_FixedAttribs = p; p += sz_FixedAttribs;
-  dst_VariableData = (BackupFormat::DataFile::VariableData*)p;
-  BitmaskImpl::clear(sz_Bitmask, dst_Bitmask);
-  attrLeft = noOfAttributes;
-  attrSzTotal = 0;
-}
-
-inline
-Uint32 *
-Backup::OperationRecord::newAttrib(Uint32 offset, Uint32 sz){
-  attrLeft--;
-  dst = dst_FixedAttribs + offset;
-  return dst;
-}
-
-inline
-void
-Backup::OperationRecord::nullAttribute(Uint32 offsetNull){
-  attrLeft --;
-  BitmaskImpl::set(sz_Bitmask, dst_Bitmask, offsetNull);
-}
-
-inline
-void
-Backup::OperationRecord::nullVariable()
+Backup::OperationRecord::newRecord(Uint32 * p)
 {
-  attrLeft --;
+  dst = p;
+  scanStop = p;
 }
 
 inline
-Uint32 *
-Backup::OperationRecord::newNullable(Uint32 id, Uint32 sz){
-  Uint32 sz32 = (sz + 3) >> 2;
-
-  attrLeft--;
-  
-  dst = &dst_VariableData->Data[0];
-  dst_VariableData->Sz = htonl(sz);
-  dst_VariableData->Id = htonl(id);
-  
-  dst_VariableData = (BackupFormat::DataFile::VariableData *)(dst + sz32);
-  
-  // Clear all bits on newRecord -> dont need to clear this
-  // BitmaskImpl::clear(sz_Bitmask, dst_Bitmask, offsetNull);
-  return dst;
-}
-
-inline
-Uint32 *
-Backup::OperationRecord::newVariable(Uint32 id, Uint32 sz){
-  Uint32 sz32 = (sz + 3) >> 2;
-
-  attrLeft--;
-  
-  dst = &dst_VariableData->Data[0];
-  dst_VariableData->Sz = htonl(sz);
-  dst_VariableData->Id = htonl(id);
-  
-  dst_VariableData = (BackupFormat::DataFile::VariableData *)(dst + sz32);
-  return dst;
-}
-
-inline
-bool
-Backup::OperationRecord::finished(){
-  if(attrLeft != 0){
-    return false;
-  }
-  
-  opLen += attrSzTotal;
+void
+Backup::OperationRecord::finished(Uint32 len)
+{
+  opLen += len;
   opNoDone++;
-  
-  scanStop = dst = (Uint32 *)dst_VariableData;
-  
-  const Uint32 len = (dst - base - 1);
-  * dst_Length = htonl(len);
-  
   noOfRecords++;
-  
-  return true;
 }
 
 #endif

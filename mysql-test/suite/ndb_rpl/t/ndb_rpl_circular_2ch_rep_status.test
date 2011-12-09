@@ -1,0 +1,247 @@
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave_2ch.inc
+--source include/have_binlog_format_mixed_or_row.inc
+
+#
+# Test that the Maximum replicated epoch is maintained
+# as expected in a circular, 2 channel configuration.
+# The channels are swapped, and replication is restarted
+# The MaxReplicatedEpoch is reloaded from ndb_apply_status
+# for the Servers considered local (IGNORE_SERVER_IDS)
+#
+--connection master
+--echo Cluster A servers have no epoch replication info
+select count(1) from mysql.ndb_apply_status;
+
+--echo Cluster A servers have no max replicated epoch value
+--echo Master(1)
+select variable_name, variable_value from information_schema.global_status
+  where variable_name='Ndb_slave_max_replicated_epoch';
+--connection master1
+--echo Master1(3)
+select variable_name, variable_value from information_schema.global_status
+  where variable_name='Ndb_slave_max_replicated_epoch';
+
+--echo Make a change originating at Cluster A
+--connection master
+--echo Master(1)
+use test;
+create table t1 (a int primary key, b varchar(100)) engine=ndb;
+insert into t1 values (1, "Venice");
+
+--echo Allow it to propagate to Cluster B
+--sync_slave_with_master slave
+
+--echo Originate a second unrelated change at Cluster B, to allow us to wait for
+--echo reverse propagation in the testcase
+--connection slave1
+--echo Slave1 (4)
+insert into t1 values (2, "Death");
+
+--echo Allow it to propagate to Cluster A
+--sync_slave_with_master master1
+
+--echo Observe new entry in ndb_apply_status on Cluster A
+--connection master
+--echo Master (1)
+select server_id from mysql.ndb_apply_status order by server_id;
+
+--echo Non-slave server on Cluster A will have no value for Max Replicated Epoch
+select variable_name, variable_value from information_schema.global_status
+  where variable_name='Ndb_slave_max_replicated_epoch';
+
+--echo Slave server on Cluster A has current value for Max Replicated Epoch
+--connection master1
+--echo Master1 (3)
+--echo Expect count 1
+# Here we join the max rep epoch with ndb_apply_status for server id 1
+# (Our site's current master server)
+select
+    count(1)
+  from
+    information_schema.global_status,
+    mysql.ndb_apply_status
+  where
+    server_id = 1
+    and
+    variable_name='Ndb_slave_max_replicated_epoch'
+    and
+    variable_value = epoch;
+
+--echo Now wait for all replication to quiesce
+
+--echo Now swap replication channels around
+--source include/rpl_stop_slaves.inc
+--let $rpl_topology= 2->1,3->4
+--source include/rpl_change_topology.inc
+
+# We've changed the direction, but need to set binlog filenames
+# and positions
+
+#
+# 'Normally' we should use the ndb_apply_status max applied epoch,
+# then lookup ndb_binlog_index etc.
+# However, in this case (and probably in lots of real cases), no changes
+# have been made after the last applied epoch, so there is no epoch
+# after the current one, and therefore no entry in ndb_binlog_index
+# to get the correct position from.
+# We could just re-apply the last epoch applied, but that's imprecise,
+# and causes us to create an ndb_apply_status entry for Server 3 when
+# it has not really been master for those changes.
+# So we just look at the Master status instead.
+#
+#--echo Get max applied epochs from a server on each cluster
+#--connection slave
+#let $max_applied_cluster_a_epoch = query_get_value("SELECT MAX(epoch) AS epoch FROM mysql.ndb_apply_status WHERE server_id IN (1,3)", epoch, 1);
+#--connection master
+#let $max_applied_cluster_b_epoch = query_get_value("SELECT MAX(epoch) AS epoch FROM mysql.ndb_apply_status WHERE server_id IN (2,4)", epoch, 1);
+#
+#--echo Get corresponding Binlog filename + pos from new Master servers
+#--connection master1
+#eval select * from mysql.ndb_binlog_index where epoch > $max_applied_cluster_a_epoch ;
+#let $cluster_a_master_log_file = query_get_value("SELECT SUBSTRING_INDEX(File, '/', -1) as File from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_a_epoch", File, 1);
+#let $cluster_a_master_log_pos = query_get_value("SELECT Position from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_a_epoch", Position, 1);
+#--connection slave
+#eval select * from mysql.ndb_binlog_index where epoch > $max_applied_cluster_b_epoch;
+#let $cluster_b_master_log_file = query_get_value("SELECT SUBSTRING_INDEX(File, '/', -1) as File from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_b_epoch", File, 1);
+#let $cluster_b_master_log_pos = query_get_value("SELECT Position from mysql.ndb_binlog_index WHERE epoch >= $max_applied_cluster_b_epoch", Position, 1);
+#--echo Now change new Slave servers to new Master file + pos
+#--connection master
+#--echo Changing master to $cluster_b_master_log_file, $cluster_b_master_log_pos
+#eval CHANGE MASTER TO MASTER_LOG_FILE="$cluster_b_master_log_file", MASTER_LOG_POS=$cluster_b_master_log_pos;
+#--connection slave1
+#--echo Changing master to $cluster_a_master_log_file, $cluster_a_master_log_pos
+#eval CHANGE MASTER TO MASTER_LOG_FILE="$cluster_a_master_log_file", MASTER_LOG_POS=$cluster_a_master_log_pos;
+
+--echo Get current master status on Cluster A new master (next pos in Binlog)
+--connection master1
+--echo Master1 (3)
+--echo Flush logs to ensure any pending update (e.g. reflected apply_status write row)
+--echo is skipped over.
+flush logs;
+let $cluster_a_master_log_file = query_get_value("SHOW MASTER STATUS", "File", 1);
+let $cluster_a_master_log_pos = query_get_value("SHOW MASTER STATUS", "Position", 1);
+--echo Setup slave on Cluster B to use it
+--connection slave1
+--echo Slave1 (4)
+--disable_query_log
+eval CHANGE MASTER TO MASTER_LOG_FILE="$cluster_a_master_log_file", MASTER_LOG_POS=$cluster_a_master_log_pos;
+--enable_query_log
+
+--echo Get current master status on Cluster B new master (next pos in Binlog)
+--connection slave
+--echo Slave (2)
+--echo  Flush logs to ensure any pending update (e.g. reflected apply_status write row)
+--echo is skipped over.
+flush logs;
+let $cluster_b_master_log_file = query_get_value("SHOW MASTER STATUS", "File", 1);
+let $cluster_b_master_log_pos = query_get_value("SHOW MASTER STATUS", "Position", 1);
+--echo Setup slave on Cluster A to use it
+--connection master
+--echo Master (1)
+--disable_query_log
+eval CHANGE MASTER TO MASTER_LOG_FILE="$cluster_b_master_log_file", MASTER_LOG_POS=$cluster_b_master_log_pos;
+--enable_query_log
+
+--connection master
+--echo Master (1)
+--echo Show that Cluster A Slave server (old master) has no Max replicated epoch before receiving data
+select variable_name, variable_value from information_schema.global_status
+  where variable_name='Ndb_slave_max_replicated_epoch';
+
+--connection master1
+--echo Master1 (3)
+--echo Cluster A Master server (old slave) has old Max replicated epoch
+select
+    count(1)
+  from
+    information_schema.global_status,
+    mysql.ndb_apply_status
+  where
+    server_id = 1
+    and
+    variable_name='Ndb_slave_max_replicated_epoch'
+    and
+    variable_value = epoch;
+
+--echo Now start slaves up
+--source include/rpl_start_slaves.inc
+
+--echo Show that applying something from Cluster B causes the
+--echo old Max Rep Epoch to be loaded from ndb_apply_status
+--echo There is no new Max Rep Epoch from Cluster A as it has not changed
+--echo anything yet
+
+--connection slave
+--echo Slave (2)
+insert into test.t1 values (3, "From the Sea");
+
+--echo Allow to propagate to Cluster A
+--sync_slave_with_master master
+
+--connection master
+--echo Master (1)
+--echo New Slave server on Cluster A has loaded old Max-Replicated-Epoch
+select server_id from mysql.ndb_apply_status order by server_id;
+select
+    count(1)
+  from
+    information_schema.global_status,
+    mysql.ndb_apply_status
+  where
+    server_id = 1
+    and
+    variable_name='Ndb_slave_max_replicated_epoch'
+    and
+    variable_value = epoch;
+
+--echo Now make a new Cluster A change and see that the Max Replicated Epoch advances
+--echo once it has propagated
+
+--connection master1
+--echo Master1 (3)
+insert into test.t1 values (4, "Brooke");
+
+--echo Propagate to Cluster B
+--sync_slave_with_master slave1
+
+--echo Make change on Cluster B to allow waiting for reverse propagation
+--connection slave
+--echo Slave (2)
+insert into test.t1 values (5, "Rupert");
+
+--echo Wait for propagation back to Cluster A
+--sync_slave_with_master master
+
+--connection master
+--echo Master (1)
+--echo Show that Cluster A now has 2 different server_id entries in ndb_apply_status
+--echo Those from the new master (server_id 3) are highest.
+select server_id from mysql.ndb_apply_status order by server_id;
+select
+    count(1)
+  from
+    information_schema.global_status,
+    mysql.ndb_apply_status
+  where
+    server_id = 3
+    and
+    variable_name='Ndb_slave_max_replicated_epoch'
+    and
+    variable_value = epoch;
+
+let $max_epoch = query_get_value("select max(epoch) as epoch from mysql.ndb_apply_status where server_id in (1,3)","epoch", 1);
+--disable_query_log
+# We have to constrain the search to master server ids 1,3 in case the
+# Slave happens to have similar epoch values
+eval select server_id as local_server_with_max_epoch from mysql.ndb_apply_status where epoch=$max_epoch and server_id in (1,3);
+--enable_query_log
+
+--echo Done
+
+--connection master1
+drop table t1;
+--sync_slave_with_master slave1
+
+--source suite/ndb_rpl/ndb_master-slave_2ch_end.inc
+

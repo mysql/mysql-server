@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005, 2006 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef CLOSE_COMREQCONF_HPP
 #define CLOSE_COMREQCONF_HPP
@@ -39,10 +42,17 @@ class CloseComReqConf {
   friend bool printCLOSECOMREQCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
   
 public:
-  STATIC_CONST( SignalLength = 3 + NodeBitmask::Size );
+  STATIC_CONST( SignalLength = 4 + NodeBitmask::Size );
 private:
   
+  enum RequestType {
+    RT_API_FAILURE   = 0,
+    RT_NODE_FAILURE  = 1,
+    RT_NO_REPLY      = 2
+  };
+
   Uint32 xxxBlockRef;
+  Uint32 requestType;
   Uint32 failNo;
   
   Uint32 noOfNodes;

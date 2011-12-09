@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +12,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef EVENTLOGGER_H
 #define EVENTLOGGER_H
 
 #include <logger/Logger.hpp>
-#include <logger/FileLogHandler.hpp>
 #include <kernel/kernel_types.h>
 #include <kernel/LogLevel.hpp>
 #include <kernel/signaldata/EventReport.hpp>
@@ -37,7 +38,7 @@ public:
    * threshold - is in range [0-15]
    * severity  - DEBUG to ALERT (Type of log message)
    */  
-  typedef void (* EventTextFunction)(char *,size_t,const Uint32*);
+  typedef void (* EventTextFunction)(char *,size_t,const Uint32*, Uint32 len);
 
   struct EventRepLogLevelMatrix {
     Ndb_logevent_type       eventType;
@@ -105,21 +106,6 @@ public:
   virtual ~EventLogger();
 
   /**
-   * Opens/creates the eventlog with the specified filename.
-   *
-   * @param aFileName the eventlog filename.
-   * @param maxNoFiles the maximum no of archived eventlog files.
-   * @param maxFileSize the maximum eventlog file size.
-   * @param maxLogEntries the maximum number of log entries before 
-   *                      checking time to archive.
-   * @return true if successful.
-   */
-  bool open(const char* logFileName,
-	    int maxNoFiles = FileLogHandler::MAX_NO_FILES, 
-	    long int maxFileSize = FileLogHandler::MAX_FILE_SIZE,
-	    unsigned int maxLogEntries = FileLogHandler::MAX_LOG_ENTRIES);
-
-  /**
    * Closes the eventlog.
    */
   void close();
@@ -131,7 +117,7 @@ public:
    * @param theData the event data.
    * @param nodeId the node id of event origin.
    */
-  virtual void log(int, const Uint32*, NodeId = 0,const class LogLevel * = 0);
+  virtual void log(int, const Uint32*, Uint32 len, NodeId = 0,const class LogLevel * = 0);
 
   
   /**
@@ -144,31 +130,14 @@ public:
    */
   static const char* getText(char * dst, size_t dst_len,
 			     EventTextFunction textF,
-			     const Uint32* theData, NodeId nodeId = 0);
-  
-  /**
-   * Returns the log level that is used to filter an event. The event will not
-   * be logged unless its event category's log level is <= levelFilter.
-   *
-   * @return the log level filter that is used for all event categories.
-   */
-  int getFilterLevel() const;
-
-  /**
-   * Sets log level filter. The event will be logged if 
-   * the event category's log level is <= 'filterLevel'.
-   *
-   * @param level the log level to filter.
-   */
-  void setFilterLevel(int filterLevel);
+			     const Uint32* theData, Uint32 len, 
+			     NodeId nodeId = 0);
 
 private:
   /** Prohibit */
   EventLogger(const EventLogger&);
   EventLogger operator = (const EventLogger&);
   bool operator == (const EventLogger&);
-
-  Uint32 m_filterLevel;
 
   STATIC_CONST(MAX_TEXT_LENGTH = 256);
 };

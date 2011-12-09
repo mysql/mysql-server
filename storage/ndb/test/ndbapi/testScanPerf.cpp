@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2004-2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
@@ -21,7 +24,7 @@
 #include <getarg.h>
 
 struct Parameter {
-  char * name;
+  const char * name;
   unsigned value;
   unsigned min;
   unsigned max; 
@@ -37,10 +40,13 @@ struct Parameter {
 #define P_ROWS    7
 #define P_LOOPS   8
 #define P_CREATE  9
-#define P_RESET  11
-#define P_MULTI  12
+#define P_MULTI  11
 
-#define P_MAX 13
+#define P_MAX 12
+
+/* Note that this tool can only be run against Hugo tables with an integer
+ * primary key
+ */
 
 static 
 Parameter 
@@ -48,16 +54,17 @@ g_paramters[] = {
   { "batch",       0, 0, 1 }, // 0, 15
   { "parallelism", 0, 0, 1 }, // 0,  1
   { "lock",        0, 0, 2 }, // read, exclusive, dirty
-  { "filter",      0, 0, 3 }, // all, none, 1, 100
-  { "range",       0, 0, 3 }, // all, none, 1, 100
-  { "access",      0, 0, 2 }, // scan, idx, idx sorted
-  { "fetch",       0, 0, 1 }, // No, yes
-  { "size",  1000000, 1, ~0 },
-  { "iterations",  3, 1, ~0 },
-  { "create_drop", 1, 0, 1 },
-  { "data",        1, 0, 1 },
-  { "q-reset bounds", 0, 1, 0 },
-  { "multi read range", 1000, 1, ~0 }
+  { "filter",      0, 0, 3 }, // Use ScanFilter to return : all, none, 1, 100
+  { "range",       0, 0, 3 }, // Use IndexBounds to return : all, none, 1, 100
+  // For range==3, Multiple index scans are used with a number of ranges specified
+  // per scan (Number is defined by multi read range.
+  { "access",      0, 0, 2 }, // Table, Index or Ordered Index scan
+  { "fetch",       0, 0, 1 }, // nextResult fetchAllowed.  No, yes
+  { "size",  1000000, 1, ~0 }, // Num rows to operate on
+  { "iterations",  3, 1, ~0 }, // Num times to repeat tests
+  { "create_drop", 1, 0, 2 }, // Whether to recreate the table
+  { "data",        1, 0, 1 }, // Ignored currently
+  { "multi read range", 1000, 1, ~0 } // Number of ranges to use in MRR access (range=3)
 };
 
 static Ndb* g_ndb = 0;
@@ -65,6 +72,8 @@ static const NdbDictionary::Table * g_table;
 static const NdbDictionary::Index * g_index;
 static char g_tablename[256];
 static char g_indexname[256];
+static const NdbRecord * g_table_record;
+static const NdbRecord * g_index_record;
 
 int create_table();
 int run_scan();
@@ -96,7 +105,7 @@ main(int argc, const char** argv){
     return NDBT_WRONGARGS;
   }
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
 
   Ndb_cluster_connection con;
   if(con.connect(12, 5, 1))
@@ -116,11 +125,11 @@ main(int argc, const char** argv){
   for(i = optind; i<argc; i++){
     const char * T = argv[i];
     g_info << "Testing " << T << endl;
-    BaseString::snprintf(g_tablename, sizeof(g_tablename), T);
+    BaseString::snprintf(g_tablename, sizeof(g_tablename), "%s", T);
     BaseString::snprintf(g_indexname, sizeof(g_indexname), "IDX_%s", T);
     if(create_table())
       goto error;
-    if(run_scan())
+    if(g_paramters[P_CREATE].value != 2 && run_scan())
       goto error;
   }
 
@@ -150,7 +159,7 @@ create_table(){
     x.setTable(g_tablename);
     x.setType(NdbDictionary::Index::OrderedIndex);
     x.setLogging(false);
-    for (unsigned k = 0; k < copy.getNoOfColumns(); k++){
+    for (unsigned k = 0; k < (unsigned) copy.getNoOfColumns(); k++){
       if(copy.getColumn(k)->getPrimaryKey()){
 	x.addColumnName(copy.getColumn(k)->getName());
       }
@@ -165,6 +174,66 @@ create_table(){
   g_index = dict->getIndex(g_indexname, g_tablename);
   assert(g_table);
   assert(g_index);
+
+  /* Obtain NdbRecord instances for the table and index */
+  {
+    NdbDictionary::RecordSpecification spec[ NDB_MAX_ATTRIBUTES_IN_TABLE ];
+    
+    Uint32 offset=0;
+    Uint32 cols= g_table->getNoOfColumns();
+    for (Uint32 colNum=0; colNum<cols; colNum++)
+    {
+      const NdbDictionary::Column* col= g_table->getColumn(colNum);
+      Uint32 colLength= col->getLength();
+      
+      spec[colNum].column= col;
+      spec[colNum].offset= offset;
+
+      offset+= colLength;
+
+      spec[colNum].nullbit_byte_offset= offset++;
+      spec[colNum].nullbit_bit_in_byte= 0;
+    }
+  
+    g_table_record= dict->createRecord(g_table,
+                                       &spec[0],
+                                       cols,
+                                       sizeof(NdbDictionary::RecordSpecification));
+
+    assert(g_table_record);
+  }
+  {
+    NdbDictionary::RecordSpecification spec[ NDB_MAX_ATTRIBUTES_IN_TABLE ];
+    
+    Uint32 offset=0;
+    Uint32 cols= g_index->getNoOfColumns();
+    for (Uint32 colNum=0; colNum<cols; colNum++)
+    {
+      /* Get column from the underlying table */
+      // TODO : Add this mechanism to dict->createRecord
+      // TODO : Add NdbRecord queryability methods so that an NdbRecord can
+      // be easily built and later used to read out data.
+      const NdbDictionary::Column* col= 
+        g_table->getColumn(g_index->getColumn(colNum)->getName());
+      Uint32 colLength= col->getLength();
+      
+      spec[colNum].column= col;
+      spec[colNum].offset= offset;
+
+      offset+= colLength;
+
+      spec[colNum].nullbit_byte_offset= offset++;
+      spec[colNum].nullbit_bit_in_byte= 0;
+    }
+  
+    g_index_record= dict->createRecord(g_index,
+                                       &spec[0],
+                                       cols,
+                                       sizeof(NdbDictionary::RecordSpecification));
+
+    assert(g_index_record);
+  }
+
 
   if(g_paramters[P_CREATE].value)
   {
@@ -186,12 +255,31 @@ void err(NdbError e){
 }
 
 int
+setEqBound(NdbIndexScanOperation *isop,
+           const NdbRecord *key_record,
+           Uint32 value,
+           Uint32 rangeNum)
+{
+  Uint32 space[2];
+  space[0]= value;
+  space[1]= 0; // Null bit set to zero.
+
+  NdbIndexScanOperation::IndexBound ib;
+  ib.low_key= ib.high_key= (char*) &space;
+  ib.low_key_count= ib.high_key_count= 1;
+  ib.low_inclusive= ib.high_inclusive= true;
+  ib.range_no= rangeNum;
+
+  return isop->setBound(key_record, ib);
+}
+
+int
 run_scan(){
   int iter = g_paramters[P_LOOPS].value;
   NDB_TICKS start1, stop;
   int sum_time= 0;
 
-  int sample_rows = 0;
+  Uint32 sample_rows = 0;
   int tot_rows = 0;
   NDB_TICKS sample_start = NdbTick_CurrentMillisecond();
 
@@ -215,7 +303,7 @@ run_scan(){
     }
     
     int par = g_paramters[P_PARRA].value;
-    int bat = 0; // g_paramters[P_BATCH].value;
+    int bat = g_paramters[P_BATCH].value;
     NdbScanOperation::LockMode lm;
     switch(g_paramters[P_LOCK].value){
     case 0:
@@ -231,105 +319,124 @@ run_scan(){
       abort();
     }
 
+    NdbScanOperation::ScanOptions options;
+    bzero(&options, sizeof(options));
+
+    options.optionsPresent= 
+      NdbScanOperation::ScanOptions::SO_SCANFLAGS |
+      NdbScanOperation::ScanOptions::SO_PARALLEL |
+      NdbScanOperation::ScanOptions::SO_BATCH;
+
+    bool ord= g_paramters[P_ACCESS].value == 2;
+    bool mrr= (g_paramters[P_ACCESS].value != 0) &&
+      (g_paramters[P_BOUND].value == 3);
+
+    options.scan_flags|= 
+      ( ord ? NdbScanOperation::SF_OrderBy:0 ) |
+      ( mrr ? NdbScanOperation::SF_MultiRange:0 );
+    options.parallel= par;
+    options.batch= bat;
+
+    switch(g_paramters[P_FILT].value){
+    case 0: // All
+      break;
+    case 1: // None
+      break;
+    case 2:  // 1 row
+    default: {
+      assert(g_table->getNoOfPrimaryKeys() == 1); // only impl. so far
+      abort();
+#if 0
+      int tot = g_paramters[P_ROWS].value;
+      int row = rand() % tot;
+      NdbInterpretedCode* ic= new NdbInterpretedCode(g_table);
+      NdbScanFilter filter(ic);   
+      filter.begin(NdbScanFilter::AND);
+      filter.eq(0, row);
+      filter.end();
+
+      options.scan_flags|= NdbScanOperation::SF_Interpreted;
+      options.interpretedCode= &ic;
+      break;
+#endif
+    }
+    }
+    
     if(g_paramters[P_ACCESS].value == 0){
-      pOp = pTrans->getNdbScanOperation(g_tablename);
+      pOp = pTrans->scanTable(g_table_record,
+                              lm,
+                              NULL, // Mask
+                              &options,
+                              sizeof(NdbScanOperation::ScanOptions));
       assert(pOp);
-      pOp->readTuples(lm, bat, par);
     } else {
-      if(g_paramters[P_RESET].value == 0 || pIOp == 0)
+      pOp= pIOp= pTrans->scanIndex(g_index_record,
+                                   g_table_record,
+                                   lm,
+                                   NULL, // Mask
+                                   NULL, // First IndexBound
+                                   &options,
+                                   sizeof(NdbScanOperation::ScanOptions));
+      if (pIOp == NULL)
       {
-	pOp= pIOp= pTrans->getNdbIndexScanOperation(g_indexname, g_tablename);
-	bool ord = g_paramters[P_ACCESS].value == 2;
-	pIOp->readTuples(lm, bat, par, ord);
+        err(pTrans->getNdbError());
+        abort();
       }
-      else
-      {
-	pIOp->reset_bounds();
-      }
+        
+      assert(pIOp);
 
       switch(g_paramters[P_BOUND].value){
       case 0: // All
 	break;
       case 1: // None
-	pIOp->setBound((Uint32)0, NdbIndexScanOperation::BoundEQ, 0);
+        check= setEqBound(pIOp, g_index_record, 0, 0);
+        assert(check == 0);
 	break;
       case 2: { // 1 row
       default:  
 	assert(g_table->getNoOfPrimaryKeys() == 1); // only impl. so far
 	int tot = g_paramters[P_ROWS].value;
 	int row = rand() % tot;
-#if 0
-	fix_eq_bound(pIOp, row);
-#else
-	pIOp->setBound((Uint32)0, NdbIndexScanOperation::BoundEQ, &row);
-#endif
-	if(g_paramters[P_RESET].value == 2)
-	  goto execute;
+
+        check= setEqBound(pIOp, g_index_record, row, 0);
+        assert(check == 0);
 	break;
       }
       case 3: { // read multi
 	int multi = g_paramters[P_MULTI].value;
 	int tot = g_paramters[P_ROWS].value;
-	for(; multi > 0 && i < iter; --multi, i++)
+        int rangeStart= i;
+        for(; multi > 0 && i < iter; --multi, i++)
 	{
 	  int row = rand() % tot;
-	  pIOp->setBound((Uint32)0, NdbIndexScanOperation::BoundEQ, &row);
-	  pIOp->end_of_bound(i);
+          /* Set range num relative to this set of bounds */
+          check= setEqBound(pIOp, g_index_record, row, i- rangeStart);
+          if (check != 0)
+          {
+            err(pIOp->getNdbError());
+            abort();
+          }
+          assert(check == 0);
 	}
-	if(g_paramters[P_RESET].value == 2)
-	  goto execute;
 	break;
       }
       }
     }
     assert(pOp);
     
-    switch(g_paramters[P_FILT].value){
-    case 0: // All
-      check = pOp->interpret_exit_ok();
-      break;
-    case 1: // None
-      check = pOp->interpret_exit_nok();
-      break;
-    case 2: { // 1 row
-    default:  
-      assert(g_table->getNoOfPrimaryKeys() == 1); // only impl. so far
-      abort();
-#if 0
-      int tot = g_paramters[P_ROWS].value;
-      int row = rand() % tot;
-      NdbScanFilter filter(pOp) ;   
-      filter.begin(NdbScanFilter::AND);
-      fix_eq(filter, pOp, row);
-      filter.end();
-      break;
-#endif
-    }
-    }
-    if(check != 0){
-      err(pOp->getNdbError());
-      return -1;
-    }
     assert(check == 0);
 
-    if(g_paramters[P_RESET].value == 1)
-      g_paramters[P_RESET].value = 2;
-    
-    for(int i = 0; i<g_table->getNoOfColumns(); i++){
-      pOp->getValue(i);
-    }
-
-    if(g_paramters[P_RESET].value == 1)
-      g_paramters[P_RESET].value = 2;
-execute:
     int rows = 0;
     check = pTrans->execute(NoCommit);
     assert(check == 0);
     int fetch = g_paramters[P_FETCH].value;
-    while((check = pOp->nextResult(true)) == 0){
+
+    const char * result_row_ptr;
+
+    while((check = pOp->nextResult(&result_row_ptr, true, false)) == 0){
       do {
 	rows++;
-      } while(!fetch && ((check = pOp->nextResult(false)) == 0));
+      } while(!fetch && ((check = pOp->nextResult(&result_row_ptr, false, false)) == 0));
       if(check == -1){
         err(pTrans->getNdbError());
         return -1;
@@ -342,11 +449,10 @@ execute:
       return -1;
     }
     assert(check == 1);
-    if(g_paramters[P_RESET].value == 0)
-    {
-      pTrans->close();
-      pTrans = 0;
-    }
+
+    pTrans->close();
+    pTrans = 0;
+
     stop = NdbTick_CurrentMillisecond();
     
     int time_passed= (int)(stop - start1);

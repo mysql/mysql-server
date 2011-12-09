@@ -1,0 +1,78 @@
+--source include/have_ndb.inc
+--source include/not_windows.inc
+
+CREATE TABLE t1(a int primary key, b varchar(255), c int) engine=ndb;
+
+select * from t1;
+insert into t1 values (1, "row 1", 2);
+
+connect(con1, localhost, root,,);
+connect(con2, localhost, root,,);
+connect(con3, localhost, root,,);
+
+connection con1;
+select * from t1;
+connection con2;
+select * from t1;
+connection con3;
+select * from t1;
+
+# Restart cluster nodes "nostart"
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all restart -n" >> $NDB_TOOLS_OUTPUT
+# Wait for all nodes to enter "nostart"
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --not-started >> $NDB_TOOLS_OUTPUT
+
+connection con1;
+--error 1296
+select * from t1;
+
+connection con2;
+--error 1296
+select * from t1;
+
+# Don't do anything with the third connection
+#connection con3;
+
+
+# Start cluster nodes again
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all start" >> $NDB_TOOLS_OUTPUT
+# Wait for all nodes to enter "started"
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+
+
+#
+# Wait until the connection to the
+# cluster has been restored or timeout occurs
+#
+connection default;
+--disable_result_log
+--disable_query_log
+--source include/ndb_not_readonly.inc
+--enable_result_log
+--enable_query_log
+
+# Run selects to show that the cluster are back
+
+connection con1;
+select a,b,c from t1;
+
+connection con2;
+select * from t1;
+
+connection con3;
+select * from t1;
+
+#
+# Wait until mysqld has connected properly to cluster
+#
+--disable_result_log
+--disable_query_log
+source include/ndb_not_readonly.inc;
+--enable_query_log
+--enable_result_log
+
+# Do an insert to see table is writable
+insert into t1 values (2, "row 1", 37);
+
+# cleanup
+drop table t1;

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef ConfigRetriever_H
 #define ConfigRetriever_H
@@ -26,15 +28,16 @@
  */
 class ConfigRetriever {
 public:
-  ConfigRetriever(const char * _connect_string,
-		  Uint32 version, Uint32 nodeType,
+  ConfigRetriever(const char * _connect_string, int force_nodeid,
+                  Uint32 version, ndb_mgm_node_type nodeType,
 		  const char * _bind_address = 0,
                   int timeout_ms = 30000);
   ~ConfigRetriever();
 
   int do_connect(int no_retries, int retry_delay_in_seconds, int verbose);
   int disconnect();
-  
+  bool is_connected();
+
   /**
    * Get configuration for current node.
    * 
@@ -46,7 +49,7 @@ public:
    * @return ndb_mgm_configuration object if succeeded, 
    *         NULL if erroneous local config file or configuration error.
    */
-  struct ndb_mgm_configuration * getConfig();
+  struct ndb_mgm_configuration * getConfig(Uint32 nodeid);
   
   void resetError();
   int hasError();
@@ -86,23 +89,16 @@ private:
   BaseString errorString;
   enum ErrorType {
     CR_NO_ERROR = 0,
-    CR_ERROR = 1,
-    CR_RETRY = 2
+    CR_ERROR = 1
   };
   ErrorType latestErrorType;
-  
+
   void setError(ErrorType, const char * errorMsg);
-  
-  Uint32      _ownNodeId;
+  void setError(ErrorType, BaseString err);
+
   bool m_end_session;
-
-  /*
-  Uint32      m_mgmd_port;
-  const char *m_mgmd_host;
-  */
-
   Uint32 m_version;
-  Uint32 m_node_type;
+  ndb_mgm_node_type m_node_type;
   NdbMgmHandle m_handle;
 };
 

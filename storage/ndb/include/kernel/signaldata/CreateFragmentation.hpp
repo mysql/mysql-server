@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006, 2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef CREATE_FRAGMENTATION_REQ_HPP
 #define CREATE_FRAGMENTATION_REQ_HPP
@@ -32,14 +35,20 @@ class CreateFragmentationReq {
   friend bool printCREATE_FRAGMENTATION_REQ(FILE *, 
 					    const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 7 );
   
+  enum RequestInfo {
+    RI_ADD_PARTITION = 0x1,
+    RI_GET_FRAGMENTATION = 0x2
+  };
 private:
   Uint32 senderRef;
   Uint32 senderData;
+  Uint32 requestInfo;
   Uint32 fragmentationType;
   Uint32 noOfFragments;
   Uint32 primaryTableId;  // use same fragmentation as this table if not RNIL
+  Uint32 map_ptr_i;
 };
 
 class CreateFragmentationRef {

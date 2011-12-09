@@ -92,8 +92,8 @@
 #define HA_CAN_INSERT_DELAYED  (1 << 14)
 /*
   If we get the primary key columns for free when we do an index read
-  It also implies that we have to retrive the primary key when using
-  position() and rnd_pos().
+  (usually, it also implies that HA_PRIMARY_KEY_REQUIRED_FOR_POSITION
+  flag is set).
 */
 #define HA_PRIMARY_KEY_IN_READ_INDEX (1 << 15)
 /*
@@ -167,6 +167,10 @@
  */
 #define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
+/*
+  The handler supports read before write removal optimization
+*/
+#define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */

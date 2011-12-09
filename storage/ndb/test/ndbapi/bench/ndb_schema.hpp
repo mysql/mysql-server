@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2005, 2006 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_SCHEMA_H
 #define NDB_SCHEMA_H
@@ -35,9 +38,11 @@
 #define SERVER_INSERTS           "NO_OF_INSERT"
 #define SERVER_DELETES           "NO_OF_DELETE"
 
+#undef GROUP_NAME /* Defined in Windows SDK (include\nb30.h), so we use NDB_GROUP_NAME */
+
 #define GROUP_TABLE              "GROUP_T"
 #define GROUP_ID                 "GROUP_ID"
-#define GROUP_NAME               "GROUP_NAME"
+#define NDB_GROUP_NAME           "GROUP_NAME"
 #define GROUP_ALLOW_READ         "ALLOW_READ"
 #define GROUP_ALLOW_INSERT       "ALLOW_INSERT"
 #define GROUP_ALLOW_DELETE       "ALLOW_DELETE"

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DICT_START_HPP
 #define DICT_START_HPP
@@ -27,27 +29,12 @@ class DictStartReq {
   friend class Dbdict;
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
 private:
   
   Uint32 restartGci;
   Uint32 senderRef;
+  Uint32 senderData;
 };
 
-class DictStartConf {
-  /**
-   * Sender(s)
-   */
-  friend class Dbdict;
-  /**
-   * Receiver(s)
-   */
-  friend class Dbdih;
-  
-public:
-private:
-  
-  Uint32 startingNodeId;
-  Uint32 startWord;
-};
 #endif

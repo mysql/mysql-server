@@ -1,0 +1,283 @@
+-- source include/have_query_cache.inc
+-- source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+# Turn on and reset query cache
+set GLOBAL query_cache_type=on;
+set GLOBAL query_cache_size=1355776;
+reset query cache;
+flush status;
+
+# Create test table in NDB
+CREATE TABLE t1 ( pk int not null primary key,
+ a int, b int not null, c varchar(20)) ENGINE=ndbcluster;
+insert into t1 value (1, 2, 3, 'First row');
+
+# Perform one query which should be inerted in query cache
+select * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+# Perform the same query and make sure the query cache is hit
+select * from t1;
+show status like "Qcache_hits";
+
+# Update the table and make sure the correct data is returned
+update t1 set a=3 where pk=1;
+select * from t1;
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+# Insert a new record and make sure the correct data is returned
+insert into t1 value (2, 7, 8, 'Second row');
+insert into t1 value (4, 5, 6, 'Fourth row');
+select * from t1 order by pk;
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+select * from t1 order by pk;
+show status like "Qcache_hits";
+
+# Perform a "new" query and make sure the query cache is not hit
+select * from t1 where b=3;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+
+# Same query again...
+select * from t1 where b=3;
+show status like "Qcache_hits";
+
+# Delete from the table
+delete from t1 where c='Fourth row';
+show status like "Qcache_queries_in_cache";
+select * from t1 where b=3;
+show status like "Qcache_hits";
+
+# Start another connection and check that the query cache is hit
+connect (con1,localhost,root,,);
+connection con1;
+use test;
+select * from t1 order by pk;
+select * from t1 where b=3;
+show status like "Qcache_hits";
+
+# Update the table and switch to other connection 
+update t1 set a=4 where b=3;
+connect (con2,localhost,root,,);
+connection con2;
+use test;
+show status like "Qcache_queries_in_cache";
+select * from t1 order by pk desc;
+select * from t1 order by pk desc;
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con1;
+select * from t1 order by pk desc;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+# Use transactions and make sure the query cache is not updated until
+# transaction is commited
+begin;
+update t1 set a=5 where pk=1;
+# Note!! the below test shows that table is invalidated 
+# before transaction is committed
+# TODO Fix so that cache is not invalidated HERE!
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con2;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con1;
+commit;
+# TODO Here query is invalidated once again, commit count in NDB has changed
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con2;
+select * from t1 order by pk desc;
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+connection con1;
+select * from t1 order by pk desc;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+drop table t1;
+
+show status like "Qcache_queries_in_cache";
+
+# End of 4.1 tests
+
+# Bug#39295 cluster table with TEXT column cannot be cached in query cache
+# Disk table scans and Ordered index scans with locks were resulting
+# in the table's commit_count being incremented, making the query cache
+# ineffective 
+
+reset query cache;
+flush status;
+
+create table t1 (a int primary key,
+                 b text,
+                 c int,
+                 key(c))
+                 engine=ndb;
+
+insert into t1 values (1,'Alexandra', 1), (2,'Palace', 2);
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# Normal, ACC sourced scan #1, should insert in cache
+select * from t1 order by a;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# Normal, ACC sourced scan #2, should hit in cache
+select * from t1 order by a;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# TUX sourced scan #1, should insert in cache
+select * from t1 force index(c) where c < 2 order by c;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# TUX sourced scan #2, should hit in cache
+select * from t1 force index(c) where c < 2 order by c;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+drop table t1;
+
+
+# Now test with TUP-sourced scan with DD
+CREATE LOGFILE GROUP lfg
+ADD UNDOFILE 'myundo.log'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+CREATE TABLESPACE tbsp
+ADD DATAFILE 'mydatafile.fil'
+USE LOGFILE GROUP lfg
+INITIAL_SIZE 12M
+ENGINE=NDB;
+
+create table t1 (a int primary key,
+                 b text,
+                 c int,
+                 key(c))
+                 storage disk tablespace tbsp engine ndb;
+
+insert into t1 values (1,'Alexandra', 1), (2,'Palace', 2);
+
+reset query cache;
+flush status;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# Normal, TUP sourced scan #1, should insert in cache
+select * from t1 order by a;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# Normal, TUP sourced scan #2, should hit in cache
+select * from t1 order by a;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# TUX sourced scan #1 should insert in cache
+select * from t1 force index (c) where c < 2 order by c;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# TUX sourced scan #2 should hit in cache
+select * from t1 force index (c) where c < 2 order by c;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+drop table t1;
+alter tablespace tbsp drop datafile 'mydatafile.fil' engine ndb;
+drop tablespace tbsp engine ndb;
+drop logfile group lfg engine ndb;
+
+# end of tests for bug#39395
+
+# bug#33158
+# bug#33158 NDB table name problem(sensitive/insensitive)
+# Check that tables with same letters, but different case
+# don't conflict in query cache
+reset query cache;
+flush status;
+disable_query_log;
+if (`SELECT @@lower_case_table_names = 0`)
+{
+  CREATE TABLE t1 ( pk int not null primary key,
+  a int, b int not null, c varchar(20)) ENGINE=ndbcluster;
+  insert into t1 value (1, 2, 3, 'First row');
+  select * from t1;
+  CREATE TABLE T1 ( pk int not null primary key,
+  a int, b int not null, c varchar(20)) ENGINE=ndbcluster;
+  insert into T1 value (1, 2, 3, 'First row');
+  select * from T1;
+  select * from T1;
+  drop table t1,T1;
+}
+if (`SELECT @@lower_case_table_names <> 0`)
+{
+  CREATE TABLE t1 ( pk int not null primary key,
+  a int, b int not null, c varchar(20)) ENGINE=ndbcluster;
+  insert into t1 value (1, 2, 3, 'First row');
+  select * from t1;
+  CREATE TABLE tt1 ( pk int not null primary key,
+  a int, b int not null, c varchar(20)) ENGINE=ndbcluster;
+  insert into tt1 value (1, 2, 3, 'First row');
+  select * from tt1;
+  select * from tt1;
+  drop table t1,tt1;
+}
+enable_query_log;
+show status like "Qcache_hits";
+
+SET GLOBAL query_cache_size=0;
+
+

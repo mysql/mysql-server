@@ -1,0 +1,66 @@
+#
+# Run the Cluster/J JUnit tests from MTR
+#
+--source include/have_ndb.inc
+--source include/have_big5.inc
+--source include/have_utf8.inc
+--source include/have_sjis.inc
+--source include/not_embedded.inc
+--source suite/ndb/include/have_connectorj.inc
+--source suite/ndb/include/have_java.inc
+--source suite/ndb/include/have_junit.inc
+--source suite/ndb/include/have_clusterj.inc
+
+--let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR
+--let JAVA_CLASSPATH_1=$CLUSTERJ_JAR
+# MTR_CLASSPATH automatically added to JAVA_CLASSPATH
+--let JAVA_JVM_OPTS= -ea -Xcheck:jni
+--let JAVA_JVM_OPTS_1= -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
+--let JAVA_JVM_OPTS_2= -Djava.library.path="$NDBCLIENT_LIB_DIR"
+--let JAVA_CLASS= testsuite.clusterj.AllTests
+--let JAVA_ARGUMENTS= $CLUSTERJ_TEST_JAR
+
+--source suite/ndb/include/run_java.inc
+
+--echo Clean up tables used in the JUnit tests.
+DROP TABLE a;
+DROP TABLE allprimitives;
+DROP TABLE b0;
+DROP TABLE bigintegertypes;
+DROP TABLE binarypk;
+DROP TABLE binarytypes;
+DROP TABLE bittypes;
+DROP TABLE blobtypes;
+DROP TABLE bytestype;
+DROP TABLE charsetbig5;
+DROP TABLE charsetlatin1;
+DROP TABLE charsetsjis;
+DROP TABLE charsetutf8;
+DROP TABLE datetimetypes;
+DROP TABLE datetypes;
+DROP TABLE decimaltypes;
+DROP TABLE dn2id;
+DROP TABLE doubletypes;
+DROP TABLE floattypes;
+DROP TABLE longintstringfk;
+DROP TABLE longintstringix;
+DROP TABLE longintstringpk;
+DROP TABLE longlongstringfk;
+DROP TABLE longlongstringpk;
+DROP TABLE longvarbinarypk;
+DROP TABLE nullvalues;
+DROP TABLE stringtype;
+DROP TABLE t_basic;
+DROP TABLE timestamptypes;
+DROP TABLE timetypes;
+DROP TABLE yeartypes;
+DROP TABLE localetypes;
+DROP TABLE stringtypes;
+DROP TABLE subscriber;
+DROP TABLE hashonlylongintstringpk;
+DROP TABLE varbinarypk;
+DROP TABLE varbinarytypes;
+DROP TABLE IF EXISTS test2.t_basic2;
+DROP DATABASE IF EXISTS test2;
+
+exit;

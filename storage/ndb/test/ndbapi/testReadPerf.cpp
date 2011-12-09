@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2004-2006 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
@@ -79,7 +82,6 @@ static const NdbDictionary::Index * g_i_ordered;
 static char g_table[256];
 static char g_unique[256];
 static char g_ordered[256];
-static char g_buffer[2*1024*1024];
 
 int create_table();
 int load_table();
@@ -115,7 +117,7 @@ main(int argc, const char** argv){
     return NDBT_WRONGARGS;
   }
   
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   memset(g_times, 0, sizeof(g_times));
 
   Ndb_cluster_connection con;
@@ -136,14 +138,14 @@ main(int argc, const char** argv){
   for(i = optind; i<argc; i++){
     const char * T = argv[i];
     g_info << "Testing " << T << endl;
-    BaseString::snprintf(g_table, sizeof(g_table), T);
+    BaseString::snprintf(g_table, sizeof(g_table), "%s", T);
     BaseString::snprintf(g_ordered, sizeof(g_ordered), "IDX_O_%s", T);
     BaseString::snprintf(g_unique, sizeof(g_unique), "IDX_U_%s", T);
     if(create_table())
       goto error;
     if(load_table())
       goto error;
-    for(int l = 0; l<g_paramters[P_LOOPS].value; l++){
+    for(int l = 0; l<(int)g_paramters[P_LOOPS].value; l++){
       for(int j = 0; j<P_OP_TYPES; j++){
 	g_paramters[P_OPER].value = j;
 	if(run_read())
@@ -178,7 +180,7 @@ create_table(){
     x.setTable(g_table);
     x.setType(NdbDictionary::Index::OrderedIndex);
     x.setLogging(false);
-    for (unsigned k = 0; k < copy.getNoOfColumns(); k++){
+    for (unsigned k = 0; k < (unsigned)copy.getNoOfColumns(); k++){
       if(copy.getColumn(k)->getPrimaryKey()){
 	x.addColumn(copy.getColumn(k)->getName());
       }
@@ -252,9 +254,9 @@ void err(NdbError e){
 
 int
 run_read(){
-  int iter = g_paramters[P_LOOPS].value;
+  //int iter = g_paramters[P_LOOPS].value;
   NDB_TICKS start1, stop;
-  int sum_time= 0;
+  //int sum_time= 0;
   
   const Uint32 rows = g_paramters[P_ROWS].value;
   const Uint32 range = g_paramters[P_RANGE].value;
@@ -269,7 +271,6 @@ run_read(){
   
   NdbOperation * pOp;
   NdbScanOperation * pSp;
-  NdbIndexOperation * pUp;
   NdbIndexScanOperation * pIp;
   
   Uint32 start_row = rand() % (rows - range);
@@ -398,7 +399,6 @@ print_result(){
   tmp *= g_paramters[P_RANGE].value;
   tmp *= g_paramters[P_LOOPS].value;
 
-  int t, t2;
   for(int i = 0; i<P_OP_TYPES; i++){
     g_err << g_ops[i] << " avg: "
 	  << (int)((1000*g_times[i])/tmp)

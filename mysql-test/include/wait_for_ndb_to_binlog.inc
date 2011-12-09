@@ -24,7 +24,7 @@
 
 let $_wait_time= 5;
 
-if (!$wait_time) {
+if ($wait_time) {
   let $_wait_time= $wait_time;
 }
 

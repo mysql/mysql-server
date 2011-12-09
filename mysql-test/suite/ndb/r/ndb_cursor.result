@@ -1,0 +1,42 @@
+drop table if exists t1;
+drop table if exists t2;
+create table t1 (
+a int not null primary key,
+b int not null
+) engine=ndb;
+create table t2 (
+a int not null primary key,
+b int not null
+) engine=ndb;
+insert into t1 values (1,10), (2,20), (3,30), (4, 40);
+create procedure test_cursor ()
+begin
+declare done int default 0;
+declare temp_a int;
+declare temp_b int;
+declare cur1 cursor for select a,b from t1;
+declare continue handler for sqlstate '02000' set done = 1;
+open cur1;
+repeat
+fetch cur1 into temp_a, temp_b;
+if not done then
+insert into t2 values (temp_a, temp_b);
+end if;
+until done end repeat;
+close cur1;
+end;
+//
+select * from t2 order by a;
+a	b
+call test_cursor();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+select * from t2 order by a;
+a	b
+1	10
+2	20
+3	30
+4	40
+drop procedure test_cursor;
+drop table t1,t2;
+end of 5.1 tests

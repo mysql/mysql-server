@@ -1,0 +1,69 @@
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+set @val = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
+set @val2 = 0x0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF;
+
+
+CREATE TABLE t1 (
+  pk INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  attr1 VARCHAR(1024),
+  attr2 VARBINARY(1024),
+  attr3 TEXT
+) ROW_FORMAT=DYNAMIC ENGINE=ndbcluster;
+
+CREATE UNIQUE INDEX ui on t1(pk,attr1,attr2);
+
+#
+# insert records into table
+#
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 256;
+let $1=1000;
+disable_query_log;
+while ($1)
+{
+  eval insert into t1(attr1, attr2, attr3) values (@val, @val2, @val),(@val, @val2, @val),(@val, @val2, @val),(@val, @val2, @val),(@val, @val2, @val),(@val, @val2, @val),(@val, @val2, @val),(@val, @val2, @val),(@val, @val2, @val),(@val, @val2, @val);
+  dec $1;
+}
+enable_query_log;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+select count(*) from t1;
+
+flush tables;
+select data_length from information_schema.tables where table_name like 't1' into @data_length0;
+
+#
+# delete some rows
+#
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+select count(*) from t1;
+select count(*) from t1 where mod(pk, 100) < 75;
+
+flush tables;
+select data_length from information_schema.tables where table_name like 't1' into @data_length;
+
+set ndb_optimization_delay = 0;
+optimize table t1;
+
+flush tables;
+select data_length from information_schema.tables where table_name like 't1' into @data_length2;
+
+select 100*(@data_length-@data_length2)/@data_length into @opt_level;
+
+#select @data_length0, @data_length,@data_length2,@opt_level;
+select @opt_level > 30;
+
+drop table t1;
