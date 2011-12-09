@@ -4081,6 +4081,12 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
   filePtr.p->fragmentNo = fragPtr.p->fragmentId;
   filePtr.p->m_retry_count = 0;
 
+  if (ptr.p->is_lcp())
+  {
+    jam();
+    filePtr.p->fragmentNo = 0;
+  }
+
   sendScanFragReq(signal, ptr, filePtr, tabPtr, fragPtr, 0);
 }
 
