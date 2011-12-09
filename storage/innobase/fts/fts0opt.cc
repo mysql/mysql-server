@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,13 +11,13 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /******************************************************************//**
-@file fts/fts0opt.c
+@file fts/fts0opt.cc
 Full Text Search optimize thread
 
 Created 2007/03/27 Sunny Bains
@@ -317,7 +317,7 @@ fts_zip_create(
 
 	zip->max_words = max_words;
 
-	zip->zp =  static_cast<z_stream*>(
+	zip->zp = static_cast<z_stream*>(
 		mem_heap_zalloc(heap, sizeof(*zip->zp)));
 
 	return(zip);
@@ -357,7 +357,8 @@ fts_word_init(
 	word->text.f_str = static_cast<byte*>(mem_heap_alloc(heap, len + 1));
 
 	/* Need to copy the NUL character too. */
-	memcpy(word->text.f_str, utf8, word->text.f_len + 1);
+	memcpy(word->text.f_str, utf8, word->text.f_len);
+	word->text.f_str[word->text.f_len] = 0;
 
 	word->heap_alloc = ib_heap_allocator_create(heap);
 
@@ -446,7 +447,7 @@ fts_optimize_index_fetch_node(
 	if (ib_vector_size(words) == 0) {
 
 		word = static_cast<fts_word_t*>(ib_vector_push(words, NULL));
-		fts_word_init(word, (byte*)data, dfield_len);
+		fts_word_init(word, (byte*) data, dfield_len);
 	}
 
 	word = static_cast<fts_word_t*>(ib_vector_last(words));
@@ -455,7 +456,7 @@ fts_optimize_index_fetch_node(
 	    || memcmp(word->text.f_str, data, dfield_len)) {
 
 		word = static_cast<fts_word_t*>(ib_vector_push(words, NULL));
-		fts_word_init(word, (byte*)data, dfield_len);
+		fts_word_init(word, (byte*) data, dfield_len);
 	}
 
 	fts_optimize_read_node(word, que_node_get_next(exp));
@@ -536,13 +537,13 @@ fts_index_fetch_nodes(
 			ut_print_timestamp(stderr);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
+				fprintf(stderr, " InnoDB: Warning: lock wait "
 					"timeout reading FTS index. "
 					"Retrying!\n");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: %lu "
+				fprintf(stderr, " InnoDB: Error: %lu "
 					"while reading FTS index.\n", error);
 
 				break;			/* Exit the loop. */
@@ -613,7 +614,7 @@ fts_zip_read_word(
 			}
 		}
 
-		switch(zip->status = inflate(zip->zp, flush)) {
+		switch (zip->status = inflate(zip->zp, flush)) {
 		case Z_OK:
 			if (zip->zp->avail_out == 0 && len > 0) {
 
@@ -643,8 +644,10 @@ fts_zip_read_word(
 	/* All blocks must be freed at end of inflate. */
 	if (zip->status != Z_OK) {
 		for (i = 0; i < ib_vector_size(zip->blocks); ++i) {
-			/* FIXME: this assertion needs to be visited
-			ut_ad(ib_vector_getp(zip->blocks, i) == NULL); */
+			if (ib_vector_getp(zip->blocks, i)) {
+				ut_free(ib_vector_getp(zip->blocks, i));
+				ib_vector_set(zip->blocks, i, &null);
+			}
 		}
 	}
 
@@ -706,7 +709,7 @@ fts_fetch_index_words(
 			zip->zp->avail_out = zip->block_sz;
 		}
 
-		switch(zip->status = deflate(zip->zp, Z_NO_FLUSH)) {
+		switch (zip->status = deflate(zip->zp, Z_NO_FLUSH)) {
 		case Z_OK:
 			if (zip->zp->avail_in == 0) {
 				zip->zp->next_in = static_cast<byte*>(data);
@@ -851,7 +854,7 @@ fts_index_fetch_words(
 					!= Z_OK)) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-					"  InnoDB: Error: ZLib deflateInit() "
+					" InnoDB: Error: ZLib deflateInit() "
 					"failed: %lu\n", error);
 
 				error = DB_ERROR;
@@ -882,7 +885,7 @@ fts_index_fetch_words(
 
 					optim->trx->error_state = DB_SUCCESS;
 				} else {
-					fprintf(stderr, "  InnoDB: Error: %lu "
+					fprintf(stderr, " InnoDB: Error: %lu "
 						"while reading document.\n",
 						error);
 
@@ -905,6 +908,8 @@ fts_index_fetch_words(
 		ut_a(zip->zp->avail_in == 0);
 
 		fts_zip_deflate_end(zip);
+	} else {
+		deflateEnd(zip->zp);
 	}
 
 	return(error);
@@ -1121,8 +1126,8 @@ fts_optimize_encode_node(
 	}
 
 	/* Calculate the space required to store the ilist. */
-	doc_id_delta = (ulint) (doc_id - node->last_doc_id);
-	enc_len = fts_get_encoded_len(doc_id_delta);
+	doc_id_delta = doc_id - node->last_doc_id;
+	enc_len = fts_get_encoded_len(static_cast<ulint>(doc_id_delta));
 
 	/* Calculate the size of the encoded pos array. */
 	while (*src) {
@@ -1166,9 +1171,9 @@ fts_optimize_encode_node(
 	src = enc->src_ilist_ptr;
 	dst = node->ilist + node->ilist_size;
 
-	/* Encode the doc id.
-	FIXME: fts_encode_int encode ulint instead of 8 bytes doc_id_t */
-	dst += fts_encode_int(doc_id_delta, dst);
+	/* Encode the doc id. Cast to ulint, the delta should be small and
+	therefore no loss of precision. */
+	dst += fts_encode_int((ulint) doc_id_delta, dst);
 
 	/* Copy the encoded pos array. */
 	memcpy(dst, src, pos_enc_len);
@@ -1213,7 +1218,7 @@ fts_optimize_node(
 	       && dst_node->ilist_size < FTS_ILIST_MAX_SIZE) {
 
 		doc_id_t	delta;
-		doc_id_t	del_doc_id = 0;
+		doc_id_t	del_doc_id = FTS_NULL_DOC_ID;
 
 		delta = fts_decode_vlc(&enc->src_ilist_ptr);
 
@@ -1455,7 +1460,7 @@ fts_optimize_write_word(
 
 	if (error != DB_SUCCESS) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%lu) during optimize, "
+		fprintf(stderr, " InnoDB: Error: (%lu) during optimize, "
 			"when deleting a word from the FTS index.\n", error);
 	}
 
@@ -1476,7 +1481,7 @@ fts_optimize_write_word(
 
 			if (error != DB_SUCCESS) {
 				ut_print_timestamp(stderr);
-				fprintf(stderr, "  InnoDB: Error: (%lu) "
+				fprintf(stderr, " InnoDB: Error: (%lu) "
 					"during optimize, while adding a "
 					"word to the FTS index.\n", error);
 			}
@@ -1603,7 +1608,7 @@ fts_optimize_create(
 	return(optim);
 }
 
-#ifdef  FTS_OPTIMIZE_DEBUG
+#ifdef FTS_OPTIMIZE_DEBUG
 /**********************************************************************//**
 Get optimize start time of an FTS index.
 @return DB_SUCCESS if all OK else error code */
@@ -1870,9 +1875,13 @@ fts_optimize_set_next_word(
 
 		last = TRUE;
 	} else {
+		ulint	value = fts_index_selector[selected].value;
+
+		ut_a(value <= 0xff);
+
 		/* Set to the first character of the next slot. */
 		word->f_len = 1;
-		*word->f_str = fts_index_selector[selected].value;
+		*word->f_str = (byte) value;
 	}
 
 	return(last);
@@ -2431,7 +2440,7 @@ fts_optimize_table(
 	fts_t*		fts = table->fts;
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: FTS start optimize %s\n", table->name);
+	fprintf(stderr, " InnoDB: FTS start optimize %s\n", table->name);
 
 	optim = fts_optimize_create(table);
 
@@ -2477,7 +2486,7 @@ fts_optimize_table(
 
 		/* Only after all indexes have been optimized can we
 		delete the (snapshot) doc ids in the pending delete,
-		and master deleted  tables. */
+		and master deleted tables. */
 		if (error == DB_SUCCESS
 		    && optim->n_completed == ib_vector_size(fts->indexes)) {
 
@@ -2506,7 +2515,7 @@ fts_optimize_table(
 	fts_optimize_free(optim);
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: FTS end optimize %s\n", table->name);
+	fprintf(stderr, " InnoDB: FTS end optimize %s\n", table->name);
 
 	return(error);
 }
@@ -2527,7 +2536,7 @@ fts_optimize_create_msg(
 	heap = mem_heap_create(sizeof(*msg) + sizeof(ib_list_node_t) + 16);
 	msg = static_cast<fts_msg_t*>(mem_heap_alloc(heap, sizeof(*msg)));
 
-	msg->ptr  = ptr;
+	msg->ptr = ptr;
 	msg->type = type;
 	msg->heap = heap;
 
@@ -2543,6 +2552,10 @@ fts_optimize_add_table(
 	dict_table_t*	table)			/*!< in: table to add */
 {
 	fts_msg_t*	msg;
+
+	if (!fts_optimize_wq) {
+		return;
+	}
 
 	msg = fts_optimize_create_msg(FTS_MSG_ADD_TABLE, table);
 
@@ -2608,7 +2621,7 @@ fts_optimize_remove_table(
 
 /**********************************************************************//**
 Find the slot for a particular table.
-@return slot if found else NULL.  */
+@return slot if found else NULL. */
 static
 fts_slot_t*
 fts_optimize_find_slot(
@@ -2646,7 +2659,7 @@ fts_optimize_start_table(
 
 	if (slot == NULL) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: table %s not registered "
+		fprintf(stderr, " InnoDB: Error: table %s not registered "
 			"with the optimize thread.\n", table->name);
 	} else {
 		slot->last_run = 0;
@@ -2725,7 +2738,7 @@ fts_optimize_del_table(
 		    && slot->table->id == table->id) {
 
 			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: FTS Optimize Removing "
+			fprintf(stderr, " InnoDB: FTS Optimize Removing "
 				"table %s\n", table->name);
 
 			slot->table = NULL;
@@ -2917,7 +2930,7 @@ fts_optimize_thread(
 				continue;
 			}
 
-			switch(msg->type) {
+			switch (msg->type) {
 			case FTS_MSG_START:
 				break;
 
@@ -2958,7 +2971,7 @@ fts_optimize_thread(
 				/* Signal the producer that we have
 				removed the table. */
 				os_event_set(
-					((fts_msg_del_t*)msg->ptr)->event);
+					((fts_msg_del_t*) msg->ptr)->event);
 				break;
 
 			default:
@@ -2994,9 +3007,12 @@ fts_optimize_thread(
 					DICT_ERR_IGNORE_INDEX_ROOT);
 
 				if (table) {
-					fts_sync_table(table);
-					fts_cache_clear(table->fts->cache,
-							TRUE);
+
+					if (dict_table_has_fts_index(table)) {
+						fts_sync_table(table);
+					}
+
+					fts_free(table);
 					dict_table_close(table, FALSE);
 				}
 			}
@@ -3006,7 +3022,7 @@ fts_optimize_thread(
 	ib_vector_free(tables);
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: FTS optimize thread exiting.\n");
+	fprintf(stderr, " InnoDB: FTS optimize thread exiting.\n");
 
 	ib_wqueue_free(wq);
 

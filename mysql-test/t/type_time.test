@@ -127,6 +127,17 @@ DROP TABLE t1;
 --echo #
 
 --echo #
+--echo # WL#946 Testing <=> operator with TIME
+--echo #
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('20:00:00'),('19:20:30');
+SELECT * FROM t1 WHERE a<=>'19:20:30';
+SELECT * FROM t1 WHERE a<=>TIME'19:20:30';
+SELECT * FROM t1 WHERE a<=>192030;
+DROP TABLE t1;
+
+
+--echo #
 --echo # WL#946: Testing rounding
 --echo #
 CREATE TABLE t1 (a TIME);

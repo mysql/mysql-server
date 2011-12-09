@@ -1736,6 +1736,11 @@ dict_col_name_is_reserved(
 	return(FALSE);
 }
 
+#if 1	/* This function is not very accurate at determining
+	whether an UNDO record will be too big. See innodb_4k.test,
+	Bug 13336585, for a testcase that shows an index that can
+	be created but cannot be updated. */
+
 /****************************************************************//**
 If an undo log record for this table might not fit on a single page,
 return TRUE.
@@ -1864,6 +1869,7 @@ is_ord_part:
 
 	return(undo_page_len >= UNIV_PAGE_SIZE);
 }
+#endif
 
 /****************************************************************//**
 If a record of this index might not fit on a single B-tree page,
@@ -2077,6 +2083,12 @@ too_big:
 		n_ord = new_index->n_uniq;
 	}
 
+#if 1	/* The following code predetermines whether to call
+	dict_index_too_big_for_undo().  This function is not
+	accurate. See innodb_4k.test, Bug 13336585, for a
+	testcase that shows an index that can be created but
+	cannot be updated. */
+
 	switch (dict_table_get_format(table)) {
 	case UNIV_FORMAT_A:
 		/* ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT store
@@ -2135,6 +2147,7 @@ too_big:
 	}
 
 undo_size_ok:
+#endif
 	/* Flag the ordering columns and also set column max_prefix */
 
 	for (i = 0; i < n_ord; i++) {
@@ -3636,10 +3649,15 @@ dict_scan_table_name(
 		memcpy(ref, database_name, database_name_len);
 		ref[database_name_len] = '/';
 		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+
 	} else {
+#ifndef __WIN__
 		if (innobase_get_lower_case_table_names() == 1) {
 			innobase_casedn_str(ref);
 		}
+#else
+		innobase_casedn_str(ref);
+#endif /* !__WIN__ */
 		*table = dict_table_get_low(ref);
 	}
 
@@ -5574,7 +5592,7 @@ dict_table_replace_index_in_foreign_list(
 				= dict_foreign_find_equiv_index(foreign);
 
 			/* There must exist an alternative index if
-			check_foreigns (FOREIGN_KEY_CHECKS) is on, 
+			check_foreigns (FOREIGN_KEY_CHECKS) is on,
 			since ha_innobase::prepare_drop_index had done
 			the check before we reach here. */
 

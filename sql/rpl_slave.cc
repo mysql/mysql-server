@@ -3790,8 +3790,11 @@ int check_temp_dir(char* tmp_file)
   /*
     Check permissions to create a file.
    */
+  //append the server UUID to the temp file name.
+  char *unique_tmp_file_name= (char*)my_malloc((FN_REFLEN+TEMP_FILE_MAX_LEN)*sizeof(char), MYF(0));
+  sprintf(unique_tmp_file_name, "%s%s", tmp_file, server_uuid);
   if ((fd= mysql_file_create(key_file_misc,
-                             tmp_file, CREATE_MODE,
+                             unique_tmp_file_name, CREATE_MODE,
                              O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
                              MYF(MY_WME))) < 0)
   DBUG_RETURN(1);
@@ -3800,8 +3803,9 @@ int check_temp_dir(char* tmp_file)
     Clean up.
    */
   mysql_file_close(fd, MYF(0));
-  mysql_file_delete(key_file_misc, tmp_file, MYF(0));
 
+  mysql_file_delete(key_file_misc, unique_tmp_file_name, MYF(0));
+  my_free(unique_tmp_file_name);
   DBUG_RETURN(0);
 }
 
@@ -5880,9 +5884,21 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                "terminated.");
     DBUG_RETURN(1);
   }
+
+  const char* user= mi->get_user();
+  if (user == NULL || user[0] == 0)
+  {
+    mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+               ER(ER_SLAVE_FATAL_ERROR),
+               "Invalid (empty) username when attempting to "
+               "connect to the master server. Connection attempt "
+               "terminated.");
+    DBUG_RETURN(1);
+  }
+
   while (!(slave_was_killed = io_slave_killed(thd,mi))
          && (reconnect ? mysql_reconnect(mysql) != 0 :
-             mysql_real_connect(mysql, mi->host, mi->get_user(),
+             mysql_real_connect(mysql, mi->host, user,
                                 password, 0, mi->port, 0, client_flag) == 0))
   {
     /*
@@ -6037,9 +6053,12 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
   if (!mi->is_start_user_configured())
     sql_print_warning("%s", ER(ER_INSECURE_CHANGE_MASTER));
 
-  if (mi->get_password(password, &password_size)
+  const char *user= mi->get_user();
+  if (user == NULL
+      || user[0] == 0
+      || mi->get_password(password, &password_size)
       || io_slave_killed(thd, mi)
-      || !mysql_real_connect(mysql, mi->host, mi->get_user(),
+      || !mysql_real_connect(mysql, mi->host, user,
                              password, 0, mi->port, 0, 0))
   {
     if (!io_slave_killed(thd, mi))

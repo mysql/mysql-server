@@ -1762,7 +1762,6 @@ multi_update::initialize_tables(JOIN *join)
       }
     }
     table->mark_columns_needed_for_update();
-    table->prepare_for_position();
 
     /*
       enable uncacheable flag if we update a view with check option
@@ -1821,6 +1820,13 @@ loop_end:
     TABLE *tbl= table;
     do
     {
+      /*
+        Signal each table (including tables referenced by WITH CHECK OPTION
+        clause) for which we will store row position in the temporary table
+        that we need a position to be read first.
+      */
+      tbl->prepare_for_position();
+
       Field_string *field= new Field_string(tbl->file->ref_length, 0,
                                             tbl->alias, &my_charset_bin);
       if (!field)

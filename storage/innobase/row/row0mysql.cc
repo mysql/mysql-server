@@ -694,18 +694,61 @@ UNIV_INTERN
 row_prebuilt_t*
 row_create_prebuilt(
 /*================*/
-	dict_table_t*	table)	/*!< in: Innobase table handle */
+	dict_table_t*	table,		/*!< in: Innobase table handle */
+	ulint		mysql_row_len)	/*!< in: length in bytes of a row in
+					the MySQL format */
 {
 	row_prebuilt_t*	prebuilt;
 	mem_heap_t*	heap;
 	dict_index_t*	clust_index;
 	dtuple_t*	ref;
 	ulint		ref_len;
+	ulint		search_tuple_n_fields;
 
-	heap = mem_heap_create(sizeof *prebuilt + 128);
+	search_tuple_n_fields = 2 * dict_table_get_n_cols(table);
+
+	clust_index = dict_table_get_first_index(table);
+
+	/* Make sure that search_tuple is long enough for clustered index */
+	ut_a(2 * dict_table_get_n_cols(table) >= clust_index->n_fields);
+
+	ref_len = dict_index_get_n_unique(clust_index);
+
+#define PREBUILT_HEAP_INITIAL_SIZE	\
+	( \
+	sizeof(*prebuilt) \
+	/* allocd in this function */ \
+	+ DTUPLE_EST_ALLOC(search_tuple_n_fields) \
+	+ DTUPLE_EST_ALLOC(ref_len) \
+	/* allocd in row_prebuild_sel_graph() */ \
+	+ sizeof(sel_node_t) \
+	+ sizeof(que_fork_t) \
+	+ sizeof(que_thr_t) \
+	/* allocd in row_get_prebuilt_update_vector() */ \
+	+ sizeof(upd_node_t) \
+	+ sizeof(upd_t) \
+	+ sizeof(upd_field_t) \
+	  * dict_table_get_n_cols(table) \
+	+ sizeof(que_fork_t) \
+	+ sizeof(que_thr_t) \
+	/* allocd in row_get_prebuilt_insert_row() */ \
+	+ sizeof(ins_node_t) \
+	/* mysql_row_len could be huge and we are not \
+	sure if this prebuilt instance is going to be \
+	used in inserts */ \
+	+ (mysql_row_len < 256 ? mysql_row_len : 0) \
+	+ DTUPLE_EST_ALLOC(dict_table_get_n_cols(table)) \
+	+ sizeof(que_fork_t) \
+	+ sizeof(que_thr_t) \
+	)
+
+	/* We allocate enough space for the objects that are likely to
+	be created later in order to minimize the number of malloc()
+	calls */
+	heap = mem_heap_create(PREBUILT_HEAP_INITIAL_SIZE);
 
 	prebuilt = static_cast<row_prebuilt_t*>(
-		mem_heap_zalloc(heap, sizeof *prebuilt));
+		mem_heap_zalloc(heap, sizeof(*prebuilt)));
 
 	prebuilt->magic_n = ROW_PREBUILT_ALLOCATED;
 	prebuilt->magic_n2 = ROW_PREBUILT_ALLOCATED;
@@ -715,21 +758,13 @@ row_create_prebuilt(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->heap = heap;
 
-	prebuilt->pcur = btr_pcur_create_for_mysql();
-	prebuilt->clust_pcur = btr_pcur_create_for_mysql();
+	btr_pcur_reset(&prebuilt->pcur);
+	btr_pcur_reset(&prebuilt->clust_pcur);
 
 	prebuilt->select_lock_type = LOCK_NONE;
 	prebuilt->stored_select_lock_type = LOCK_NONE_UNSET;
 
-	prebuilt->search_tuple = dtuple_create(
-		heap, 2 * dict_table_get_n_cols(table));
-
-	clust_index = dict_table_get_first_index(table);
-
-	/* Make sure that search_tuple is long enough for clustered index */
-	ut_a(2 * dict_table_get_n_cols(table) >= clust_index->n_fields);
-
-	ref_len = dict_index_get_n_unique(clust_index);
+	prebuilt->search_tuple = dtuple_create(heap, search_tuple_n_fields);
 
 	ref = dtuple_create(heap, ref_len);
 
@@ -740,7 +775,7 @@ row_create_prebuilt(
 	prebuilt->autoinc_error = 0;
 	prebuilt->autoinc_offset = 0;
 
-	/* Default to 1, we will set the actual value later in 
+	/* Default to 1, we will set the actual value later in
 	ha_innobase::get_auto_increment(). */
 	prebuilt->autoinc_increment = 1;
 
@@ -748,6 +783,8 @@ row_create_prebuilt(
 
 	/* During UPDATE and DELETE we need the doc id. */
 	prebuilt->fts_doc_id = 0;
+
+	prebuilt->mysql_row_len = mysql_row_len;
 
 	return(prebuilt);
 }
@@ -784,8 +821,8 @@ row_prebuilt_free(
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
 	prebuilt->magic_n2 = ROW_PREBUILT_FREED;
 
-	btr_pcur_free_for_mysql(prebuilt->pcur);
-	btr_pcur_free_for_mysql(prebuilt->clust_pcur);
+	btr_pcur_reset(&prebuilt->pcur);
+	btr_pcur_reset(&prebuilt->clust_pcur);
 
 	if (prebuilt->mysql_template) {
 		mem_free(prebuilt->mysql_template);
@@ -974,7 +1011,7 @@ row_update_statistics_if_needed(
 	a counter table which is very small and updated very often. */
 
 	if (counter > 2000000000
-	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
+	    || ((ib_int64_t) counter > 16 + table->stat_n_rows / 16)) {
 
 		ut_ad(!mutex_own(&dict_sys->mutex));
 		dict_stats_update(table, DICT_STATS_FETCH, FALSE);
@@ -1270,21 +1307,37 @@ error_exit:
 				"InnoDB: FTS Doc ID must be large than 0 \n");
 			err = DB_FTS_INVALID_DOCID;
 			trx->error_state = DB_FTS_INVALID_DOCID;
-			goto error_exit;	
+			goto error_exit;
 		}
 
 		if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			doc_id_t	next_doc_id
-				= table->fts->cache->next_doc_id;	
+				= table->fts->cache->next_doc_id;
 
 			if (doc_id < next_doc_id) {
 				fprintf(stderr,
 					"InnoDB: FTS Doc ID must be large than"
-					" "UINT64PF"for table",
+					" "UINT64PF" for table",
 					next_doc_id - 1);
 				ut_print_name(stderr, trx, TRUE, table->name);
 				putc('\n', stderr);
 
+				err = DB_FTS_INVALID_DOCID;
+				trx->error_state = DB_FTS_INVALID_DOCID;
+				goto error_exit;
+			}
+
+			/* Difference between Doc IDs are restricted within
+			4 bytes integer. See fts_get_encoded_len() */
+
+			if (doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
+				fprintf(stderr,
+					"InnoDB: Doc ID "UINT64PF" is too"
+					" big. Its difference with largest"
+					" used Doc ID "UINT64PF" cannot"
+					" exceed or equal to %d\n",
+					doc_id, next_doc_id - 1,
+					FTS_DOC_ID_MAX_STEP);
 				err = DB_FTS_INVALID_DOCID;
 				trx->error_state = DB_FTS_INVALID_DOCID;
 				goto error_exit;
@@ -1583,11 +1636,11 @@ row_update_for_mysql(
 
 	clust_index = dict_table_get_first_index(table);
 
-	if (prebuilt->pcur->btr_cur.index == clust_index) {
-		btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
+	if (prebuilt->pcur.btr_cur.index == clust_index) {
+		btr_pcur_copy_stored_position(node->pcur, &prebuilt->pcur);
 	} else {
 		btr_pcur_copy_stored_position(node->pcur,
-					      prebuilt->clust_pcur);
+					      &prebuilt->clust_pcur);
 	}
 
 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
@@ -1699,8 +1752,8 @@ row_unlock_for_mysql(
 					clust_pcur, and we do not need
 					to reposition the cursors. */
 {
-	btr_pcur_t*	pcur		= prebuilt->pcur;
-	btr_pcur_t*	clust_pcur	= prebuilt->clust_pcur;
+	btr_pcur_t*	pcur		= &prebuilt->pcur;
+	btr_pcur_t*	clust_pcur	= &prebuilt->clust_pcur;
 	trx_t*		trx		= prebuilt->trx;
 
 	ut_ad(prebuilt && trx);
@@ -2931,6 +2984,7 @@ row_truncate_table_for_mysql(
 	table_id_t	new_id;
 	ulint		recreate_space = 0;
 	pars_info_t*	info = NULL;
+	ibool		has_internal_doc_id;
 
 	/* How do we prevent crashes caused by ongoing operations on
 	the table? Old operations could try to access non-existent
@@ -3200,7 +3254,10 @@ next_rec:
 
 	/* Create new FTS auxiliary tables with the new_id, and
 	drop the old index later, only if everything runs successful. */
-	if (dict_table_has_fts_index(table)) {
+	has_internal_doc_id = dict_table_has_fts_index(table)
+			      || DICT_TF2_FLAG_IS_SET(
+				table, DICT_TF2_FTS_HAS_DOC_ID);
+	if (has_internal_doc_id) {
 		dict_table_t	fts_table;
 		ulint		i;
 
@@ -3273,7 +3330,7 @@ next_rec:
 
 		/* Fail to update the table id, so drop the new
 		FTS auxiliary tables */
-		if (dict_table_has_fts_index(table)) {
+		if (has_internal_doc_id) {
 			dict_table_t	fts_table;
 
 			fts_table.name = table->name;
@@ -3285,15 +3342,14 @@ next_rec:
 		err = DB_ERROR;
 	} else {
 		/* Drop the old FTS index */
-		if (dict_table_has_fts_index(table)) {
+		if (has_internal_doc_id) {
 			fts_drop_tables(trx, table);
 		}
 
 		dict_table_change_id_in_cache(table, new_id);
 
 		/* Reset the Doc ID in cache to 0 */
-		if (dict_table_has_fts_index(table)
-		    && table->fts->cache) {
+		if (has_internal_doc_id && table->fts->cache) {
 			table->fts->fts_status |= TABLE_DICT_LOCKED;
 			fts_update_next_doc_id(table, NULL, 0);
 			fts_cache_clear(table->fts->cache, TRUE);
