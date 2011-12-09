@@ -74,8 +74,8 @@ int do_incr(int v, QueryPlan *plan, Ndb *db, const char *akey,
   int r;
   char key[50];
   char ndbkeybuffer[300];
-  char ndbrowbuffer1[8192];
-  char ndbrowbuffer2[8192];
+  char ndbrowbuffer1[16384];
+  char ndbrowbuffer2[16384];
   
   strcpy(key, akey);
   
@@ -109,7 +109,7 @@ int do_incr(int v, QueryPlan *plan, Ndb *db, const char *akey,
     op1.buffer = ndbrowbuffer2;
     NdbOperation::LockMode lmod = NdbOperation::LM_Exclusive;
     
-    ndbop1 = op1.readMasked(tx, plan->math_mask_r, lmod);
+    ndbop1 = op1.readTuple(tx, lmod);
     if(! ndbop1) {
       detail(v, "  op 1 error: %d \n", tx->getNdbError().code);
       tx->close();
@@ -125,7 +125,7 @@ int do_incr(int v, QueryPlan *plan, Ndb *db, const char *akey,
     op.setColumnBigUnsigned(COL_STORE_MATH, -1ULL);
     options.optionsPresent = NdbOperation::OperationOptions::OO_ABORTOPTION;  
     options.abortOption = NdbOperation::AO_IgnoreError;
-    ndbop2 = op.insertMasked(tx, plan->math_mask_i, & options); 
+    ndbop2 = op.insertTuple(tx, & options); 
     if(! ndbop2) {
       detail(v, "  op 2 error: %d \n", tx->RESULT);
       tx->close();
@@ -147,7 +147,7 @@ int do_incr(int v, QueryPlan *plan, Ndb *db, const char *akey,
     options.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
     options.interpretedCode = & incr_code;
 
-    ndbop3 = op.updateInterpreted(tx,  & options, plan->math_mask_u);
+    ndbop3 = op.updateTuple(tx,  & options);
     if(! ndbop3) {
       detail(v,"  op 3 error: %d \n", tx->getNdbError().code);
       tx->close();

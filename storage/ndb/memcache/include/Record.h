@@ -24,6 +24,7 @@
 #error "This file is for C++ only"
 #endif
 
+#include <assert.h>
 #include <sys/types.h>
 #include <string.h>
 
@@ -41,9 +42,11 @@ enum {
   COL_STORE_MATH, 
   COL_STORE_EXPIRES, 
   COL_STORE_FLAGS, 
-  COL_STORE_KEY = 4,
-  COL_STORE_VALUE = 8,   /* COL_STORE_KEY + MAX_KEY_COLUMNS */
-  COL_MAX_COLUMNS = 24    /* COL_STORE_VLAUE + MAX_VAL_COLUMNS */
+  COL_STORE_EXT_ID, 
+  COL_STORE_EXT_SIZE,
+  COL_STORE_KEY,
+  COL_STORE_VALUE = COL_STORE_KEY   + MAX_KEY_COLUMNS,
+  COL_MAX_COLUMNS = COL_STORE_VALUE + MAX_VAL_COLUMNS
 };
 
 /** @class Record
@@ -65,32 +68,43 @@ class Record {
   void debug_dump();
 
   /* const public methods that operate on an (external) data buffer */
-  void clearNullBits(char *data) const;
-  bool isNull(int idx, char *data) const;
-  void setNull(int idx, char *data) const;
-  bool setIntValue(int idx, int value, char *buffer) const;
-  void * getPointer(int idx, char *data) const;
-  int getIntValue(int idx, char *data) const;
-  bool setUint64Value(int idx, Uint64 value, char *buffer) const;
-  Uint64 getUint64Value(int idx, char *data) const;
-  int encode(int idx, const char *key, int nkey, char *buffer) const;
+  /* Set masks */
+  void maskActive(int id, Uint8 *mask) const;
+  void maskInactive(int id, Uint8 *mask) const;
+
+  /* Readers */
+  bool isNull(int id, char *data) const;
+  void * getPointer(int id, char *data) const;
+  int getIntValue(int id, char *data) const;
+  Uint64 getUint64Value(int id, char *data) const;
   size_t getStringifiedLength(char *data) const;
-  bool decodeNoCopy(int idx, char **dest_ptr, size_t *len_ptr, 
+  bool decodeNoCopy(int id, char **dest_ptr, size_t *len_ptr, 
                     const char * const src) const;
-  size_t decodeCopy(int idx, char *dest, char *src) const;
-  bool appendCRLF(int idx, size_t offset, char *data) const;
+  size_t decodeCopy(int id, char *dest, char *src) const;
+  bool appendCRLF(int id, size_t offset, char *data) const;
   
+  /* Writers */
+  void clearNullBits(char *data) const;
+  void setNullBits(char *data) const;
+  void setNull(int id, char *data, Uint8 *mask) const;
+  void setNotNull(int id, char *data, Uint8 *mask) const;
+  bool setIntValue(int id, int value, char *buffer, Uint8 *mask) const;
+  bool setUint64Value(int id, Uint64 value, char *buffer, Uint8 *mask) const;
+  int encode(int id, const char *key, int nkey, char *buffer, Uint8 *mask) const;
+ 
   /* Public instance variables */
   const int ncolumns;
   size_t rec_size;
   NdbRecord *ndb_record; 
   int nkeys;
   int nvalues;
+  size_t value_length;         /* total length of text value columns */
   
   private:
   /* Private instance variables */
   int index;
-  short map[COL_MAX_COLUMNS];  /* map col. identifier to col. index in record */
+  short map[COL_MAX_COLUMNS];   /* map col. identifier to col index in record */
+  short tmap[COL_MAX_COLUMNS];  /* map col. identifier to col no. in table */
   int n_nullable;
   size_t start_of_nullmap;
   size_t size_of_nullmap;
@@ -102,6 +116,8 @@ class Record {
   const Record & operator=(const Record &) const;
   void build_null_bitmap();
   void pad_offset_for_alignment();
+  void nullmapSetNull(int idx, char *data) const;
+  void nullmapSetNotNull(int idx, char *data) const;
 };
 
 
@@ -111,20 +127,31 @@ inline void Record::clearNullBits(char *data) const {
   memset(data + start_of_nullmap, 0, size_of_nullmap);
 }
 
-inline void Record::setNull(int idx, char *data) const {  
-  *(data + specs[map[idx]].nullbit_byte_offset) |= 
-     (1 << specs[map[idx]].nullbit_bit_in_byte);
+inline void Record::setNullBits(char *data) const {
+  memset(data + start_of_nullmap, 0xFF, size_of_nullmap);
 }
 
-inline bool Record::isNull(int idx, char *data) const {
-  if(specs[map[idx]].column->getNullable())
-    return (*(data + specs[map[idx]].nullbit_byte_offset) & 
-             (1 << specs[map[idx]].nullbit_bit_in_byte));
+inline bool Record::isNull(int id, char *data) const {
+  if(specs[map[id]].column->getNullable())
+    return (*(data + specs[map[id]].nullbit_byte_offset) & 
+             (1 << specs[map[id]].nullbit_bit_in_byte));
   return false;
 }
 
 inline void * Record::getPointer(int idx, char *data) const {
   return data + specs[map[idx]].offset;
+}
+
+inline void Record::maskActive(int id, Uint8 *mask) const {
+  const short & col_num = tmap[id];
+  if(col_num >= 0)
+    mask[col_num >> 3] |= (1 << (col_num & 7));
+}
+
+inline void Record::maskInactive(int id, Uint8 *mask) const {
+  const short & col_num = tmap[id];
+  if(col_num >= 0)
+    mask[col_num >> 3] &= (0xff ^ (1 << (col_num & 7)));
 }
 
 

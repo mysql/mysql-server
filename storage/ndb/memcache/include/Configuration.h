@@ -57,13 +57,15 @@ class config_v0;
 class config_v1;
 class config_v1_0;
 class config_v1_1;
+class config_v1_2;
 
 enum config_ver_enum {
   CONFIG_VER_UNKNOWN, 
   CONFIG_VER_UNSUPPORTED,
   CONFIG_VER_0,
   CONFIG_VER_1_0,
-  CONFIG_VER_1_1
+  CONFIG_VER_1_1,
+  CONFIG_VER_1_2
 };
  
 class Configuration {
@@ -71,6 +73,7 @@ class Configuration {
   friend class config_v1;
   friend class config_v1_0;
   friend class config_v1_1;
+  friend class config_v1_2;
   
   public:
   /* public methods */

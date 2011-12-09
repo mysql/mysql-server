@@ -40,7 +40,7 @@ protected:
   bool get_prefixes(int role_id);
   bool store_prefix(const char *, TableSpec *, int, char *);
   TableSpec * get_container(char *name);
-  TableSpec * get_container_record(char *name);
+  virtual TableSpec * get_container_record(char *name);
   void log_signon();
   void set_initial_cas();
   
@@ -67,5 +67,14 @@ public:
   config_v1_1(Configuration * cf) : config_v1(cf) {};
   virtual void minor_version_config();  
 };
+
+
+class config_v1_2 : public config_v1 { 
+public:
+  config_v1_2(Configuration * cf) : config_v1(cf) {};
+  virtual TableSpec * get_container_record(char *name);
+  virtual void minor_version_config();
+};
+
 
 #endif

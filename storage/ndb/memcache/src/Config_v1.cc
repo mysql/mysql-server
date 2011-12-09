@@ -38,6 +38,7 @@
 #include "TableSpec.h"
 #include "QueryPlan.h"
 #include "Operation.h"
+#include "ExternalValue.h"
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
@@ -139,6 +140,18 @@ void * str_key_dup(const void *key, size_t) {
  `config_timestamp` timestamp 
  PRIMARY KEY (`role_name`) )
  ENGINE = ndbcluster;
+ 
+ ********************* SPECIFIC TO VERSION 1.2 ***************
+ ALTER TABLE containers add large_values_table VARCHAR(250);
+ CREATE TABLE IF NOT EXISTS `external_values` (
+   `id` INT UNSIGNED NOT NULL,
+   `part` TINYINT NOT NULL,
+   `content` VARBINARY(13950),
+    PRIMARY KEY (id,part)
+ ) ENGINE = ndbcluster PARTITION BY KEY(id);
+ 
+
+
  
  ****************/
 
@@ -651,7 +664,6 @@ void config_v1::log_signon() {
   Operation op(&plan, OPERATION_SET);
   op.buffer     = (char *) malloc(op.requiredBuffer());
   op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
-  op.clearNullBits();
   op.setKeyPartInt(COL_STORE_KEY,   db.getNodeId());  // node ID (in key)
   op.setColumnInt(COL_STORE_KEY,    db.getNodeId());  // node ID (in row)
   op.setColumn(COL_STORE_VALUE+0,   my_hostname, strlen(my_hostname));           // hostname
@@ -804,3 +816,44 @@ int server_roles_reload_waiter(Ndb_cluster_connection *conn,
     }
   }
 }
+
+/***************** VERSION 1.2 ****************/
+void config_v1_2::minor_version_config() {
+  conf.onlineReloadFlag = 1;
+  conf.reload_waiter = server_roles_reload_waiter;
+}
+
+
+TableSpec * config_v1_2::get_container_record(char *name) {
+  TableSpec * cont = config_v1::get_container_record(name);
+  if(cont) {
+    Ndb db(conf.primary_conn);
+    db.init(1);
+    TableSpec spec("ndbmemcache.containers", "name", "large_values_table");
+    QueryPlan plan(&db, &spec);
+    Operation op(&plan, OP_READ);
+    
+    op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
+    op.buffer     = (char *) malloc(op.requiredBuffer());
+    NdbTransaction *tx = db.startTransaction();
+    
+    op.clearKeyNullBits();
+    op.setKeyPart(COL_STORE_KEY, name, strlen(name));
+    op.readTuple(tx);
+    tx->execute(NdbTransaction::Commit);
+    
+    if(tx->getNdbError().classification == NdbError::NoError) {
+      char val[256];
+      if(! op.isNull(COL_STORE_VALUE + 0)) {
+        op.copyValue(COL_STORE_VALUE + 0, val);
+        cont->external_table = ExternalValue::createContainerRecord(val);
+      }
+    }
+
+    tx->close();
+    free(op.key_buffer);
+    free(op.buffer);
+  }
+  return cont;
+}  
+
