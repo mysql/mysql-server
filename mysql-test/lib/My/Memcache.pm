@@ -331,6 +331,7 @@ sub normalize_error {
   "STORED\r\n"                         => "OK",
   "EXISTS\r\n"                         => "KEY_EXISTS",
   "CLIENT_ERROR value too big\r\n"     => "VALUE_TOO_LARGE",
+  "SERVER_ERROR object too large for cache\r\n"     => "VALUE_TOO_LARGE",
   "CLIENT_ERROR invalid arguments\r\n" => "INVALID_ARGUMENTS",
   "SERVER_ERROR not my vbucket\r\n"    => "NOT_MY_VBUCKET",
   "SERVER_ERROR out of memory\r\n"     => "SERVER_OUT_OF_MEMORY",
@@ -519,12 +520,16 @@ sub replace {
 
 sub append {
   my ($self, $key, $value) = @_;
-  return $self->bin_store(BIN_CMD_APPEND, $key, $value);
+  $self->send_binary_request(BIN_CMD_APPEND, $key, $value, '');
+  my ($status) = $self->get_binary_response();
+  return ($status == 0) ? 1 : 0;
 }
 
 sub prepend {
   my ($self, $key, $value) = @_;
-  return $self->bin_store(BIN_CMD_PREPEND, $key, $value);
+  $self->send_binary_request(BIN_CMD_PREPEND, $key, $value, '');
+  my ($status) = $self->get_binary_response();
+  return ($status == 0) ? 1 : 0;
 }
 
 sub delete { 

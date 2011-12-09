@@ -149,7 +149,9 @@ prefix_info_t get_prefix_info_for_key(int nkey, const char *key) {
 
 /* This function has C linkage */
 void disconnect_all() {
-  active_config->disconnectAll();
+  /* Run only at shutdown time.  Disabled to silence a warning about 
+     "Deleting Ndb_cluster_connection with Ndb-object not deleted" */
+  // active_config->disconnectAll();
 }
 
 

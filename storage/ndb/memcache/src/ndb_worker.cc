@@ -41,6 +41,7 @@
 #include "workitem.h"
 #include "Configuration.h"
 #include "DataTypeHandler.h"
+#include "ExternalValue.h"
 #include "TabSeparatedValues.h"
 #include "debug.h"
 #include "Operation.h"
@@ -83,7 +84,7 @@ private:
   QueryPlan * &plan;
 
   /* Private methods*/
-  void setKeyAndStartTx(Operation &op);
+  void setKeyForReading(Operation &op);
 };
 
 
@@ -91,8 +92,9 @@ private:
    callback function defined in executeAsyncPrepare().
    In case of common errors, the main callback closes the tx and yields.
    The incr callback has special-case error handling for increments.
+
+   typedef void ndb_async_callback(int, NdbTransaction *, void *);
 */
-typedef void ndb_async_callback(int, NdbTransaction *, void *);
 
 ndb_async_callback callback_main;     // general purpose callback
 ndb_async_callback callback_incr;     // special callback for incr/decr
@@ -101,14 +103,16 @@ ndb_async_callback callback_incr;     // special callback for incr/decr
 /* 
    The next step is a function that conforms to the worker_step signature.
    It must either call yield() or reschedule(), and is also responsible for 
-   closing the transaction. 
-*/
-typedef void worker_step(NdbTransaction *, workitem *);
+   closing the transaction.  The signature is in ndb_worker.h: 
 
+   typedef void worker_step(NdbTransaction *, workitem *);
+*/
+
+worker_step worker_close;             /* Close tx and yield scheduler */
 worker_step worker_append; 
+worker_step worker_check_read;
 worker_step worker_finalize_read;
 worker_step worker_finalize_write;
-inline worker_step worker_close;             /* Close tx and yield scheduler */
 
 /*****************************************************************************/
 
@@ -155,7 +159,9 @@ status_block status_block_bad_replace =
   
 status_block status_block_idx_insert = 
   { ENGINE_NOT_STORED, "Cannot insert via unique index" };
-  
+
+status_block status_block_too_big = 
+  { ENGINE_E2BIG, "Value too large"                   };
 
 void worker_set_cas(ndb_pipeline *p, uint64_t *cas) {  
   /* Be careful here --  ndbmc_atomic32_t might be a signed type.
@@ -170,7 +176,35 @@ void worker_set_cas(ndb_pipeline *p, uint64_t *cas) {
   *cas = uint64_t(cas_lo) | (uint64_t(cas_hi) << 32);
   DEBUG_PRINT("hi:%lx lo:%lx cas:%llx (%llu)", cas_hi, cas_lo, *cas, *cas);
 }
+
+
+/* worker_set_ext_flag():
+   Determine whether a workitem should take the special "external values" path.
+   Sets item->base.use_ext_val
+*/
+void worker_set_ext_flag(workitem *item) {
+  bool result = false; 
   
+  if(item->plan->canHaveExternalValue()) {
+    switch(item->base.verb) {
+      /* INSERTS only need the special path if the value is large */
+      case OPERATION_ADD:
+        result = item->plan->shouldExternalizeValue(item->cache_item->nbytes);
+        break;
+
+      case OP_ARITHMETIC:
+        result = false;
+        break;
+      
+      default:
+        result = true;
+    }
+  }
+  item->base.use_ext_val = result;
+  DEBUG_PRINT(" %d.%d: %s", item->pipeline->id, item->id, result ? "T" : "F");
+}
+
+
 /* worker_prepare_operation(): 
    Called from the scheduler. 
    Returns true if executeAsynchPrepare() has been called on the item.
@@ -179,6 +213,8 @@ op_status_t worker_prepare_operation(workitem *newitem) {
   bool server_cas = (newitem->prefix_info.has_cas_col && newitem->cas);
   WorkerStep1 worker(newitem, server_cas);
   op_status_t r;
+
+  worker_set_ext_flag(newitem);
 
   /* Jump table */
   switch(newitem->base.verb) {
@@ -225,10 +261,20 @@ WorkerStep1::WorkerStep1(workitem *newitem, bool do_server_cas) :
 
 op_status_t WorkerStep1::do_delete() {
   DEBUG_ENTER();
+
+  if(wqitem->base.use_ext_val) {
+    return ExternalValue::do_delete(wqitem);
+  }
   
   const NdbOperation *ndb_op = 0;
   Operation op(plan, OP_DELETE);
-  setKeyAndStartTx(op);
+  
+  op.key_buffer = wqitem->ndb_key_buffer;
+  op.clearKeyNullBits();
+  const char *dbkey = workitem_get_key_suffix(wqitem);
+  op.setKeyPart(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);  
+  
+  tx = op.startTransaction(wqitem->ndb_instance->db);
   
   if(server_cas && * wqitem->cas) {
     // ndb_op = op.deleteTupleCAS(tx, & options);  
@@ -255,13 +301,17 @@ op_status_t WorkerStep1::do_delete() {
 
 op_status_t WorkerStep1::do_write() {
   DEBUG_PRINT("%s", workitem_get_operation(wqitem));
+
+  if(wqitem->base.use_ext_val) {
+    return ExternalValue::do_write(wqitem);
+  }
   
   uint64_t cas_in = *wqitem->cas;                       // read old value
   worker_set_cas(wqitem->pipeline, wqitem->cas);        // generate a new value
   hash_item_set_cas(wqitem->cache_item, * wqitem->cas); // store it
-  
+ 
   const NdbOperation *ndb_op = 0;
-  Operation op(plan, wqitem->base.verb, wqitem->ndb_key_buffer);
+  Operation op(wqitem);
   const char *dbkey = workitem_get_key_suffix(wqitem);
   bool op_ok;
   
@@ -275,7 +325,7 @@ op_status_t WorkerStep1::do_write() {
   op.buffer = wqitem->row_buffer_1;
   
   /* Set the row */
-  op.clearNullBits();  // no need to re-test for overflow...
+  op.setNullBits();
   op.setColumn(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);
   
   if(plan->spec->nvaluecols > 1) {
@@ -355,7 +405,7 @@ op_status_t WorkerStep1::do_write() {
       build_cas_routine(& cas_code, plan->cas_column_id, cas_in);
       options.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
       options.interpretedCode = & cas_code;
-      ndb_op = op.updateInterpreted(tx, & options);
+      ndb_op = op.updateTuple(tx, & options);
     }
   }
   else if(wqitem->base.verb == OPERATION_SET) {
@@ -383,11 +433,10 @@ op_status_t WorkerStep1::do_read() {
   DEBUG_ENTER();
   
   Operation op(plan, OP_READ);
-  setKeyAndStartTx(op);
+  setKeyForReading(op);
   
-  /* PK read can use SimpleRead, but unique index read needs a lock. */
-  NdbOperation::LockMode lockmode = 
-  plan->pk_access ? NdbOperation::LM_SimpleRead : NdbOperation::LM_Read;
+  NdbOperation::LockMode lockmode = plan->canUseSimpleRead() ?
+    NdbOperation::LM_SimpleRead : NdbOperation::LM_Read;
   
   if(! op.readTuple(tx, lockmode)) {
     logger->log(LOG_WARNING, 0, "readTuple(): %s\n", tx->getNdbError().message);
@@ -396,7 +445,8 @@ op_status_t WorkerStep1::do_read() {
   }
   
   /* Save the workitem in the transaction and prepare for async execution */ 
-  wqitem->next_step = (void *) worker_finalize_read;
+  wqitem->next_step = (void *) 
+    (wqitem->base.use_ext_val ? worker_check_read : worker_finalize_read);
   tx->executeAsynchPrepare(NdbTransaction::NoCommit, callback_main, (void *) wqitem);
   return op_async_prepared;  
 }
@@ -404,12 +454,13 @@ op_status_t WorkerStep1::do_read() {
 
 op_status_t WorkerStep1::do_append() {
   DEBUG_ENTER();
+  
   /* APPEND/PREPEND is currently not supported for tsv */
   if(wqitem->plan->spec->nvaluecols > 1)
     return op_not_supported;
   
   Operation op(plan, OP_READ);
-  setKeyAndStartTx(op);
+  setKeyForReading(op);
   
   /* Read with an exculsive lock */
   if(! op.readTuple(tx, NdbOperation::LM_Exclusive)) {
@@ -425,7 +476,7 @@ op_status_t WorkerStep1::do_append() {
 }
 
 
-void WorkerStep1::setKeyAndStartTx(Operation &op) {
+void WorkerStep1::setKeyForReading(Operation &op) {
   DEBUG_ENTER();
   
   /* Use the workitem's inline key buffer */
@@ -482,8 +533,12 @@ op_status_t WorkerStep1::do_math() {
    update and insert.  This is only because they will make slightly different
    use of records and buffers.   Both will use the inline key buffer.
    */
-  Operation op1(plan, OP_READ,       wqitem->ndb_key_buffer);
-  Operation op2(plan, OPERATION_ADD, wqitem->ndb_key_buffer);
+  Operation op1(plan, OP_READ, wqitem->ndb_key_buffer);
+  Operation op2(wqitem);    // insert
+  Operation op3(wqitem);    // update
+
+  op1.readSelectedColumns();
+  op1.readColumn(COL_STORE_MATH);
   
   if(! wqitem->base.retries) {
     /* Allocate & populate row buffers for these operations: 
@@ -493,6 +548,7 @@ op_status_t WorkerStep1::do_math() {
     workitem_allocate_rowbuffer_2(wqitem, needed);    
     op1.buffer = wqitem->row_buffer_1;
     op2.buffer = wqitem->row_buffer_2;
+    op3.buffer = wqitem->row_buffer_2;
     
     /* The two items share a key buffer, so we encode the key just once */
     op1.clearKeyNullBits();
@@ -503,11 +559,15 @@ op_status_t WorkerStep1::do_math() {
     op2.setColumn(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);
     
     /* CAS */
-    if(server_cas) op2.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);
-    
+    if(server_cas) {
+      op1.readColumn(COL_STORE_CAS);
+      op2.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);
+      op3.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);
+    }
     /* In "dup_numbers" mode, also null out the text version of the value */
     if(wqitem->plan->dup_numbers) {
       op2.setColumnNull(COL_STORE_VALUE);
+      op3.setColumnNull(COL_STORE_VALUE);
     }
   } 
   
@@ -516,9 +576,9 @@ op_status_t WorkerStep1::do_math() {
   
   /* NdbOperation #1: READ */
   {
-    ndbop1 = op1.readMasked(tx, plan->math_mask_r, NdbOperation::LM_Exclusive);
+    ndbop1 = op1.readTuple(tx, NdbOperation::LM_Exclusive);
     if(! ndbop1) {
-      logger->log(LOG_WARNING, 0, "readMasked(): %s\n", tx->getNdbError().message);
+      logger->log(LOG_WARNING, 0, "readTuple(): %s\n", tx->getNdbError().message);
       tx->close();
       return op_failed; 
     }
@@ -539,9 +599,9 @@ op_status_t WorkerStep1::do_math() {
     options.optionsPresent = NdbOperation::OperationOptions::OO_ABORTOPTION;  
     options.abortOption = NdbOperation::AO_IgnoreError;
     
-    ndbop2 = op2.insertMasked(tx, plan->math_mask_i, & options); 
+    ndbop2 = op2.insertTuple(tx, & options); 
     if(! ndbop2) {
-      logger->log(LOG_WARNING, 0, "insertMasked(): %s\n", tx->getNdbError().message);
+      logger->log(LOG_WARNING, 0, "insertTuple(): %s\n", tx->getNdbError().message);
       tx->close();
       return op_failed;
     }
@@ -579,7 +639,7 @@ op_status_t WorkerStep1::do_math() {
     options.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
     options.interpretedCode = & code;
     
-    ndbop3 = op2.updateInterpreted(tx, & options, plan->math_mask_u);
+    ndbop3 = op3.updateTuple(tx, & options);
     if(! ndbop3) {
       logger->log(LOG_WARNING, 0, "updateInterpreted(): %s\n", tx->getNdbError().message);
       tx->close();
@@ -746,15 +806,23 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
 
 /***************** WORKER STEPS **********************************************/
 
-inline void worker_close(NdbTransaction *tx, workitem *wqitem) {
+void worker_close(NdbTransaction *tx, workitem *wqitem) {
+  DEBUG_PRINT("%d.%d", wqitem->pipeline->id, wqitem->id);
   ndb_pipeline * & pipeline = wqitem->pipeline;
-  tx->close();  
+  tx->close();
+  if(wqitem->ext_val) 
+    delete wqitem->ext_val;
   pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
   pipeline->scheduler->yield(wqitem);
 }
 
 
 void worker_append(NdbTransaction *tx, workitem *item) {
+  if(item->base.use_ext_val) {
+    ExternalValue::append_after_read(tx, item);
+    return;
+  }
+    
   DEBUG_PRINT("%d.%d", item->pipeline->id, item->id);
  
   /* Strings and lengths: */
@@ -797,10 +865,11 @@ void worker_append(NdbTransaction *tx, workitem *item) {
     memcpy(current_val, affix_val, affix_len); 
   }
   * (current_val + total_len) = 0;
-  DEBUG_PRINT("New value: %s", current_val);
+  DEBUG_PRINT("New value: %.*s%s", total_len < 100 ? total_len : 100, 
+              current_val, total_len > 100 ? " ..." : "");
   
   /* Set the row */
-  op.clearNullBits();
+  op.setNullBits();
   op.setColumn(COL_STORE_KEY, workitem_get_key_suffix(item), item->base.nsuffix);
   op.setColumn(COL_STORE_VALUE, current_val, total_len);
   if(item->prefix_info.has_cas_col) 
@@ -824,13 +893,28 @@ void worker_append(NdbTransaction *tx, workitem *item) {
 }
 
 
+void worker_check_read(NdbTransaction *tx, workitem *wqitem) {
+  Operation op(wqitem->plan, OP_READ);
+  op.buffer = wqitem->row_buffer_1;
+
+  if(op.isNull(COL_STORE_EXT_SIZE)) {
+    worker_finalize_read(tx, wqitem);
+  }
+  else {
+    bool do_cas = wqitem->prefix_info.has_cas_col;
+    ExternalValue *ext_val = new ExternalValue(wqitem);
+    ext_val->worker_read_external(op, tx);
+  }
+}
+
+
 void worker_finalize_read(NdbTransaction *tx, workitem *wqitem) {
   DEBUG_PRINT("%d.%d",wqitem->pipeline->id, wqitem->id);
   
   Operation op(wqitem->plan, OP_READ);
   op.buffer = wqitem->row_buffer_1;
  
-  if(wqitem->prefix_info.has_cas_col) { /* FIXME: little-endian-only */
+  if(wqitem->prefix_info.has_cas_col) {
     wqitem->cas = (uint64_t *) op.getPointer(COL_STORE_CAS);  
   }
       
@@ -992,6 +1076,12 @@ ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *pipeline) {
         // To flush, scan the table and delete every row
         DEBUG_PRINT("prefix %d - deleting from %s", i, pfx->table->table_name);
         scan_delete(&inst, &plan);
+        // If there is an external store, also delete from the large value table
+        if(plan.canHaveExternalValue()) {
+          DEBUG_PRINT("prefix %d - deleting from %s", i, 
+                      plan.extern_store->spec->table_name);
+          scan_delete(&inst, plan.extern_store);
+        }
       }
       else DEBUG_PRINT("prefix %d - not scanning table %s -- accees path "
                        "is not primary key", i, pfx->table->table_name);
