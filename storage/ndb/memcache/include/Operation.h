@@ -142,7 +142,9 @@ inline void Operation::readColumn(int id) {
 /* Methods for writing to the key record */
 
 inline size_t Operation::requiredKeyBuffer() {
-  return plan->key_record->rec_size;
+  /* Malloc checkers complain if this +1 is not present.  Not sure why.
+     Theory: because the terminating null of a C-string may be written there. */
+  return plan->key_record->rec_size + 1;
 }
 
 inline void Operation::clearKeyNullBits() {
@@ -166,7 +168,7 @@ inline void Operation::setKeyPartNull(int id) {
 /*  Methods for writing to the row  */
 
 inline size_t Operation::requiredBuffer() {
-  return record->rec_size;
+  return record->rec_size + 1;
 }
 
 inline void Operation::setNullBits() {
