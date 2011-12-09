@@ -498,7 +498,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_TRUNCATE]|=        CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_LOAD]|=            CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_DROP_INDEX]|=      CF_PREOPEN_TMP_TABLES;
-  sql_command_flags[SQLCOM_CREATE_VIEW]|=     CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_UPDATE]|=          CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_UPDATE_MULTI]|=    CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_INSERT_SELECT]|=   CF_PREOPEN_TMP_TABLES;
