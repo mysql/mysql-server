@@ -61,8 +61,8 @@ void Record::addColumn(short col_type, const NdbDictionary::Column *column) {
   else if(col_type == COL_STORE_VALUE) 
     col_identifier += nvalues++;
     
-  assert(nkeys <= MAX_KEY_COLUMNS); 
-  assert(nvalues <= MAX_VALUE_COLUMNS);   
+  assert(nkeys <= MAX_KEY_COLUMNS);
+  assert(nvalues <= MAX_VAL_COLUMNS);
   
   /* The "record map" (map) is an array that maps a specifier like 
      "COL_STORE_VALUE + 1" (the second value column) or 
