@@ -1,0 +1,120 @@
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+b INT NOT NULL,
+c INT NOT NULL UNIQUE
+) ENGINE=ndbcluster;
+INSERT INTO t1 VALUES (0, 1, 0),(1,2,1),(2,3,2);
+UPDATE t1 set b = c;
+select * from t1 order by pk1;
+pk1	b	c
+0	0	0
+1	1	1
+2	2	2
+UPDATE t1 set pk1 = 4 where pk1 = 1;
+select * from t1 order by pk1;
+pk1	b	c
+0	0	0
+2	2	2
+4	1	1
+UPDATE t1 set pk1 = 4 where pk1 = 2;
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+UPDATE IGNORE t1 set pk1 = 4 where pk1 = 2;
+select * from t1 order by pk1;
+pk1	b	c
+0	0	0
+2	2	2
+4	1	1
+UPDATE t1 set pk1 = 2 where pk1 = 2;
+affected rows: 0
+info: Rows matched: 1  Changed: 0  Warnings: 0
+UPDATE t1 set c = 1 WHERE b IN(0,1,2,3,4);
+ERROR 23000: Duplicate entry '1' for key 'c'
+UPDATE IGNORE t1 set c = 1 WHERE b IN(0,1,2,3,4);
+UPDATE t1 set pk1 = 1, c = 2 where pk1 = 4;
+ERROR 23000: Duplicate entry '2' for key 'c'
+UPDATE IGNORE t1 set pk1 = 1, c = 2 where pk1 = 4;
+select * from t1 order by pk1;
+pk1	b	c
+0	0	0
+2	2	2
+4	1	1
+UPDATE t1 set pk1 = pk1 + 10;
+select * from t1 order by pk1;
+pk1	b	c
+10	0	0
+12	2	2
+14	1	1
+create unique index ib on t1(b);
+update t1 set c = 4 where pk1 = 12;
+update ignore t1 set b = 55 where pk1 = 14;
+select * from t1 order by pk1;
+pk1	b	c
+10	0	0
+12	2	4
+14	55	1
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a int, b int, KEY (a, b)) ENGINE=ndbcluster;
+CREATE TABLE t2 (a int, b int, UNIQUE KEY (a, b)) ENGINE=ndbcluster;
+CREATE TABLE t3 (a int, b int, PRIMARY KEY (a, b)) ENGINE=ndbcluster;
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t1 VALUES (2, 2);
+INSERT INTO t2 VALUES (1, 2);
+INSERT INTO t2 VALUES (2, 2);
+INSERT INTO t3 VALUES (1, 2);
+INSERT INTO t3 VALUES (2, 2);
+UPDATE t1 SET a = 1;
+UPDATE t1 SET a = 1 ORDER BY a;
+UPDATE t2 SET a = 1;
+ERROR 23000: Duplicate entry '1-2' for key 'a'
+UPDATE t2 SET a = 1 ORDER BY a;
+ERROR 23000: Duplicate entry '1-2' for key 'a'
+UPDATE t3 SET a = 1;
+ERROR 23000: Duplicate entry '1-2' for key 'PRIMARY'
+UPDATE t3 SET a = 1 ORDER BY a;
+ERROR 23000: Duplicate entry '1-2' for key 'PRIMARY'
+SELECT count(*) FROM t1;
+count(*)
+2
+SELECT count(*) FROM t2;
+count(*)
+2
+SELECT count(*) FROM t3;
+count(*)
+2
+SELECT * FROM t1 ORDER by a;
+a	b
+1	2
+1	2
+SELECT * FROM t2 ORDER by a;
+a	b
+1	2
+2	2
+SELECT * FROM t3 ORDER by a;
+a	b
+1	2
+2	2
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT,
+mytext CHAR(30) DEFAULT NULL,
+PRIMARY KEY (`id`) ) ENGINE=ndbcluster;
+insert into t1 values(NULL,"hello"),(NULL,"world"),(NULL,"hello"),(NULL,"world");
+select * from t1 order by id;
+id	mytext
+1	hello
+2	world
+3	hello
+4	world
+update t1 set mytext = "goodbye" where mytext = "world" order by mytext;
+select * from t1 order by id;
+id	mytext
+1	hello
+2	goodbye
+3	hello
+4	goodbye
+DROP TABLE IF EXISTS t1;
+End of 5.1 tests

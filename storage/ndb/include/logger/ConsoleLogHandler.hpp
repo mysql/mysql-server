@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005, 2006 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +13,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef CONSOLELOGHANDLER_H
 #define CONSOLELOGHANDLER_H
 
 #include "LogHandler.hpp"
+#include <NdbOut.hpp>
 
 /**
  * Logs messages to the console/stdout.
@@ -30,7 +34,7 @@ public:
   /**
    * Default constructor.
    */
-  ConsoleLogHandler();
+  ConsoleLogHandler(NdbOut &out= ndbout);
   /**
    * Destructor.
    */
@@ -39,13 +43,16 @@ public:
   virtual bool open();
   virtual bool close();
 
+  virtual bool is_open();
+
   virtual bool setParam(const BaseString &param, const BaseString &value);
   
 protected:	
   virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level);
   virtual void writeMessage(const char* pMsg);
   virtual void writeFooter();
-  	
+  NdbOut& _out;
+
 private:
   /** Prohibit*/
   ConsoleLogHandler(const ConsoleLogHandler&);

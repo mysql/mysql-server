@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,16 +12,17 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_VECTOR_HPP
 #define NDB_VECTOR_HPP
 
 #include <ndb_global.h>
-#include <NdbMutex.h>
+#include <portlib/NdbMutex.h>
 
 template<class T>
-struct Vector {
+class Vector {
 public:
   Vector(int sz = 10);
   ~Vector();
@@ -41,6 +43,16 @@ public:
   int fill(unsigned new_size, T & obj);
 
   Vector<T>& operator=(const Vector<T>&);
+
+  /** Does deep copy.*/
+  Vector(const Vector&); 
+  /**
+   * Shallow equal (i.e does memcmp)
+   */
+  bool equal(const Vector<T>& obj) const;
+
+  int assign(const T*, unsigned cnt);
+  int assign(const Vector<T>& obj) { return assign(obj.getBase(), obj.size());}
 
   T* getBase() { return m_items;}
   const T* getBase() const { return m_items;}
@@ -65,6 +77,26 @@ Vector<T>::Vector(int i){
   m_size = 0;
   m_arraySize = i;
   m_incSize = 50;
+}
+
+template<class T>
+Vector<T>::Vector(const Vector& src):
+  m_items(new T[src.m_size]),
+  m_size(src.m_size),
+  m_incSize(src.m_incSize),
+  m_arraySize(src.m_size)
+  
+{
+  if (unlikely(m_items == NULL)){
+    errno = ENOMEM;
+    m_size = 0;
+    m_arraySize = 0;
+    m_incSize = 0;
+    return;
+  }
+  for(unsigned i = 0; i < m_size; i++){
+    m_items[i] = src.m_items[i];
+  }
 }
 
 template<class T>
@@ -175,7 +207,7 @@ Vector<T>&
 Vector<T>::operator=(const Vector<T>& obj){
   if(this != &obj){
     clear();
-    for(size_t i = 0; i<obj.size(); i++){
+    for(unsigned i = 0; i<obj.size(); i++){
       push_back(obj[i]);
     }
   }
@@ -183,7 +215,32 @@ Vector<T>::operator=(const Vector<T>& obj){
 }
 
 template<class T>
-struct MutexVector : public NdbLockable {
+int
+Vector<T>::assign(const T* src, unsigned cnt)
+{
+  clear();
+  for (unsigned i = 0; i<cnt; i++)
+  {
+    int ret;
+    if ((ret = push_back(src[i])))
+      return ret;
+  }
+  return 0;
+}
+
+template<class T>
+bool
+Vector<T>::equal(const Vector<T>& obj) const
+{
+  if (size() != obj.size())
+    return false;
+
+  return memcmp(getBase(), obj.getBase(), size() * sizeof(T)) == 0;
+}
+
+template<class T>
+class MutexVector : public NdbLockable {
+public:
   MutexVector(int sz = 10);
   ~MutexVector();
 

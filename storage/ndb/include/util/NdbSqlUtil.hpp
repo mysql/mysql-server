@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_SQL_UTIL_HPP
 #define NDB_SQL_UTIL_HPP
@@ -22,26 +24,31 @@
 struct charset_info_st;
 typedef struct charset_info_st CHARSET_INFO;
 
+/**
+ * Helper class with comparison functions on NDB (column) data types.
+ *
+ * Notes: this Helper class
+ * - is used by kernel code
+ * - provides non-elementary functions
+ * - is not generic, template-based code
+ * - has link/library dependencies upon MySQL code
+ * (in contrast to other type utility classes, like ./NdbTypesUtil).
+ */
 class NdbSqlUtil {
 public:
   /**
-   * Compare attribute values.  Returns -1, 0, +1 for less, equal,
-   * greater, respectively.  Parameters are pointers to values and their
-   * lengths in bytes.  The lengths can differ.
+   * Compare attribute values.  Returns negative, zero, positive for
+   * less, equal, greater.  We trust DBTUP to validate all data and
+   * mysql upgrade to not invalidate them.  Bad values (such as NaN)
+   * causing undefined results crash here always (require, not assert)
+   * since they are likely to cause a more obscure crash in DBTUX.
+   * wl4163_todo: API probably should not crash.
    *
-   * First value is a full value but second value can be partial.  If
-   * the partial value is not enough to determine the result, CmpUnknown
-   * will be returned.  A shorter second value is not necessarily
-   * partial.  Partial values are allowed only for types where prefix
-   * comparison is possible (basically, binary strings).
-   *
-   * First parameter is a pointer to type specific extra info.  Char
-   * types receive CHARSET_INFO in it.
-   *
-   * If a value cannot be parsed, it compares like NULL i.e. less than
-   * any valid value.
+   * Parameters are pointers to values (no alignment requirements) and
+   * their lengths in bytes.  First parameter is a pointer to type
+   * specific extra info.  Char types receive CHARSET_INFO in it.
    */
-  typedef int Cmp(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full);
+  typedef int Cmp(const void* info, const void* p1, uint n1, const void* p2, uint n2);
 
   /**
    * Prototype for "like" comparison.  Defined for string types.  First
@@ -52,12 +59,14 @@ public:
    */
   typedef int Like(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2);
 
-  enum CmpResult {
-    CmpLess = -1,
-    CmpEqual = 0,
-    CmpGreater = 1,
-    CmpUnknown = 2      // insufficient partial data
-  };
+  /**
+   * Prototype for mask comparisons.  Defined for bit type.
+   *
+   * If common portion of data AND Mask is equal to mask
+   * return 0, else return 1.
+   * If cmpZero, compare data AND Mask to zero.
+   */
+  typedef int AndMask(const void* data, unsigned dataLen, const void* mask, unsigned maskLen, bool cmpZero); 
 
   struct Type {
     enum Enum {
@@ -96,19 +105,13 @@ public:
     Enum m_typeId;      // redundant
     Cmp* m_cmp;         // comparison method
     Like* m_like;       // "like" comparison method
+    AndMask* m_mask;    // Mask comparison method
   };
 
   /**
    * Get type by id.  Can return the Undefined type.
    */
   static const Type& getType(Uint32 typeId);
-
-  /**
-   * Get the normalized type used in hashing and key comparisons.
-   * Maps all string types to Binary.  This includes Var* strings
-   * because strxfrm result is padded to fixed (maximum) length.
-   */
-  static const Type& getTypeBinary(Uint32 typeId);
 
   /**
    * Check character set.
@@ -130,11 +133,27 @@ public:
   static int strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstLen, const unsigned char*src, unsigned srcLen);
 
   /**
-   * Compare decimal numbers.
+   * Wrapper for 'strnxfrm' who change prototype in 5.6
    */
-  static int cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n);
+  static size_t ndb_strnxfrm(struct charset_info_st * cs,
+                             uchar *dst, size_t dstlen,
+                             const uchar *src, size_t srclen);
+
+  /**
+   * Convert attribute data to/from network byte order
+   * This method converts the passed data of the passed type
+   * between host and network byte order.
+   * On little-endian (network order) hosts, it has no effect.
+   */
+  static void convertByteOrder(Uint32 typeId, 
+                               Uint32 typeLog2Size, 
+                               Uint32 arrayType, 
+                               Uint32 arraySize,
+                               uchar* data,
+                               Uint32 dataByteSize);
 
 private:
+  friend class NdbPack;
   /**
    * List of all types.  Must match Type::Enum.
    */
@@ -179,6 +198,8 @@ private:
   static Like likeVarbinary;
   static Like likeLongvarchar;
   static Like likeLongvarbinary;
+  //
+  static AndMask maskBit;
 };
 
 #endif

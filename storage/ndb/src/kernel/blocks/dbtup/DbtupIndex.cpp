@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,11 +12,12 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUP_C
 #define DBTUP_INDEX_CPP
-#include <Dblqh.hpp>
+#include <dblqh/Dblqh.hpp>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
@@ -24,6 +26,7 @@
 #include "AttributeOffset.hpp"
 #include <AttributeHeader.hpp>
 #include <signaldata/TuxMaint.hpp>
+#include <signaldata/AlterIndxImpl.hpp>
 
 // methods used by ordered index
 
@@ -31,38 +34,37 @@ void
 Dbtup::tuxGetTupAddr(Uint32 fragPtrI,
                      Uint32 pageId,
                      Uint32 pageIndex,
-                     Uint32& tupAddr)
+                     Uint32& lkey1,
+                     Uint32& lkey2)
 {
   jamEntry();
   PagePtr pagePtr;
   c_page_pool.getPtr(pagePtr, pageId);
-  Uint32 fragPageId= pagePtr.p->frag_page_id;
-  tupAddr= (fragPageId << MAX_TUPLES_BITS) | pageIndex;
+  lkey1 = pagePtr.p->frag_page_id;
+  lkey2 = pageIndex;
 }
 
 int
-Dbtup::tuxAllocNode(Signal* signal,
+Dbtup::tuxAllocNode(EmulatedJamBuffer * jamBuf,
                     Uint32 fragPtrI,
                     Uint32& pageId,
                     Uint32& pageOffset,
                     Uint32*& node)
 {
-  jamEntry();
+  thrjamEntry(jamBuf);
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   TablerecPtr tablePtr;
   tablePtr.i= fragPtr.p->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  terrorCode= 0;
 
   Local_key key;
-  Uint32* ptr, frag_page_id;
-  if ((ptr= alloc_fix_rec(fragPtr.p, tablePtr.p, &key, &frag_page_id)) == 0)
+  Uint32* ptr, frag_page_id, err;
+  if ((ptr= alloc_fix_rec(&err,fragPtr.p,tablePtr.p, &key, &frag_page_id)) == 0)
   {
-    jam();
-    terrorCode = ZMEM_NOMEM_ERROR; // caller sets error
-    return terrorCode;
+    thrjam(jamBuf);
+    return err;
   }
   pageId= key.m_page_no;
   pageOffset= key.m_page_idx;
@@ -73,10 +75,8 @@ Dbtup::tuxAllocNode(Signal* signal,
   return 0;
 }
 
-#if 0
 void
-Dbtup::tuxFreeNode(Signal* signal,
-                   Uint32 fragPtrI,
+Dbtup::tuxFreeNode(Uint32 fragPtrI,
                    Uint32 pageId,
                    Uint32 pageOffset,
                    Uint32* node)
@@ -88,15 +88,19 @@ Dbtup::tuxFreeNode(Signal* signal,
   TablerecPtr tablePtr;
   tablePtr.i= fragPtr.p->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+
+  Local_key key;
+  key.m_page_no = pageId;
+  key.m_page_idx = pageOffset;
   PagePtr pagePtr;
-  pagePtr.i= pageId;
-  ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+  Tuple_header* ptr = (Tuple_header*)get_ptr(&pagePtr, &key, tablePtr.p);
+
   Uint32 attrDescIndex= tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
   Uint32 attrDataOffset= AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
-  ndbrequire(node == &pagePtr.p->pageWord[pageOffset] + attrDataOffset);
-  freeTh(fragPtr.p, tablePtr.p, signal, pagePtr.p, pageOffset);
+  ndbrequire(node == (Uint32*)ptr + attrDataOffset);
+
+  free_fix_rec(fragPtr.p, tablePtr.p, &key, (Fix_page*)pagePtr.p);
 }
-#endif
 
 void
 Dbtup::tuxGetNode(Uint32 fragPtrI,
@@ -104,7 +108,6 @@ Dbtup::tuxGetNode(Uint32 fragPtrI,
                   Uint32 pageOffset,
                   Uint32*& node)
 {
-  jamEntry();
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -121,15 +124,17 @@ Dbtup::tuxGetNode(Uint32 fragPtrI,
     attrDataOffset;
 }
 int
-Dbtup::tuxReadAttrs(Uint32 fragPtrI,
+Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
+                    Uint32 fragPtrI,
                     Uint32 pageId,
                     Uint32 pageIndex,
                     Uint32 tupVersion,
                     const Uint32* attrIds,
                     Uint32 numAttrs,
-                    Uint32* dataOut)
+                    Uint32* dataOut,
+                    bool xfrmFlag)
 {
-  jamEntry();
+  thrjamEntry(jamBuf);
   // use own variables instead of globals
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
@@ -141,10 +146,13 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI,
   // search for tuple version if not original
 
   Operationrec tmpOp;
-  KeyReqStruct req_struct;
+  KeyReqStruct req_struct(jamBuf);
+  req_struct.tablePtrP = tablePtr.p;
+  req_struct.fragPtrP = fragPtr.p;
+
   tmpOp.m_tuple_location.m_page_no= pageId;
   tmpOp.m_tuple_location.m_page_idx= pageIndex;
-
+  tmpOp.op_struct.op_type = ZREAD; // valgrind
   setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
   Tuple_header *tuple_ptr= req_struct.m_tuple_ptr;
   if (tuple_ptr->get_tuple_version() != tupVersion)
@@ -158,8 +166,8 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI,
       if (opPtr.p->tupVersion == tupVersion) {
 	jam();
 	if (!opPtr.p->m_copy_tuple_location.isNull()) {
-	  req_struct.m_tuple_ptr= (Tuple_header*)
-	    c_undo_buffer.get_ptr(&opPtr.p->m_copy_tuple_location);
+	  req_struct.m_tuple_ptr=
+            get_copy_tuple(&opPtr.p->m_copy_tuple_location);
         }
 	break;
       }
@@ -170,14 +178,6 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI,
   }
   // read key attributes from found tuple version
   // save globals
-  TablerecPtr tabptr_old= tabptr;
-  FragrecordPtr fragptr_old= fragptr;
-  OperationrecPtr operPtr_old= operPtr;
-  // new globals
-  tabptr= tablePtr;
-  fragptr= fragPtr;
-  operPtr.i= RNIL;
-  operPtr.p= NULL;
   prepare_read(&req_struct, tablePtr.p, false); 
 
   // do it
@@ -186,16 +186,9 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI,
                            numAttrs,
                            dataOut,
                            ZNIL,
-                           true);
+                           xfrmFlag);
 
-  // restore globals
-  tabptr= tabptr_old;
-  fragptr= fragptr_old;
-  operPtr= operPtr_old;
   // done
-  if (ret == -1) {
-    ret = terrorCode ? (-(int)terrorCode) : -1;
-  }
   return ret;
 }
 int
@@ -214,7 +207,9 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataO
   tmpOp.m_tuple_location.m_page_no= pageId;
   tmpOp.m_tuple_location.m_page_idx= pageIndex;
   
-  KeyReqStruct req_struct;
+  KeyReqStruct req_struct(this);
+  req_struct.tablePtrP = tablePtr.p;
+  req_struct.fragPtrP = fragPtr.p;
  
   PagePtr page_ptr;
   Uint32* ptr= get_ptr(&page_ptr, &tmpOp.m_tuple_location, tablePtr.p);
@@ -238,25 +233,14 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataO
       Uint32 opPtrI= req_struct.m_tuple_ptr->m_operation_ptr_i;
       Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
       ndbassert(!opPtrP->m_copy_tuple_location.isNull());
-      req_struct.m_tuple_ptr= (Tuple_header*)
-	c_undo_buffer.get_ptr(&opPtrP->m_copy_tuple_location);
+      req_struct.m_tuple_ptr=
+	get_copy_tuple(&opPtrP->m_copy_tuple_location);
     }
     prepare_read(&req_struct, tablePtr.p, false);
     
     const Uint32* attrIds= &tableDescriptor[tablePtr.p->readKeyArray].tabDescr;
     const Uint32 numAttrs= tablePtr.p->noOfKeyAttr;
     // read pk attributes from original tuple
-    
-    // save globals
-    TablerecPtr tabptr_old= tabptr;
-    FragrecordPtr fragptr_old= fragptr;
-    OperationrecPtr operPtr_old= operPtr;
-    
-    // new globals
-    tabptr= tablePtr;
-    fragptr= fragPtr;
-    operPtr.i= RNIL;
-    operPtr.p= NULL;
     
     // do it
     ret = readAttributes(&req_struct,
@@ -265,12 +249,8 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataO
 			 dataOut,
 			 ZNIL,
 			 xfrmFlag);
-    // restore globals
-    tabptr= tabptr_old;
-    fragptr= fragptr_old;
-    operPtr= operPtr_old;
     // done
-    if (ret != -1) {
+    if (ret >= 0) {
       // remove headers
       Uint32 n= 0;
       Uint32 i= 0;
@@ -287,7 +267,7 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataO
       ndbrequire((int)i == ret);
       ret -= numAttrs;
     } else {
-      ret= terrorCode ? (-(int)terrorCode) : -1;
+      return ret;
     }
   }
   if (tablePtr.p->m_bits & Tablerec::TR_RowGCI)
@@ -351,12 +331,13 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
   pagePtr.i = pageId;
   c_page_pool.getPtr(pagePtr);
 
-  KeyReqStruct req_struct;
+  KeyReqStruct req_struct(this);
 
   {
     Operationrec tmpOp;
     tmpOp.m_tuple_location.m_page_no = pageId;
     tmpOp.m_tuple_location.m_page_idx = pageIndex;
+    tmpOp.op_struct.op_type = ZREAD; // valgrind
     setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
   }
 
@@ -435,7 +416,7 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
   Uint32 number_events;
 #endif
 void
-Dbtup::execBUILDINDXREQ(Signal* signal)
+Dbtup::execBUILD_INDX_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 #ifdef TIME_MEASUREMENT
@@ -443,40 +424,46 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
   tot_time_passed= 0;
   number_events= 1;
 #endif
+  const BuildIndxImplReq* const req =
+    (const BuildIndxImplReq*)signal->getDataPtr();
   // get new operation
   BuildIndexPtr buildPtr;
-  if (! c_buildIndexList.seize(buildPtr)) {
+  if (ERROR_INSERTED(4031) || ! c_buildIndexList.seize(buildPtr)) {
     jam();
     BuildIndexRec buildRec;
-    memcpy(buildRec.m_request, signal->theData, sizeof(buildRec.m_request));
-    buildRec.m_errorCode= BuildIndxRef::Busy;
+    buildRec.m_request = *req;
+    buildRec.m_errorCode = BuildIndxImplRef::Busy;
+    if (ERROR_INSERTED(4031))
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+    }
     buildIndexReply(signal, &buildRec);
     return;
   }
-  memcpy(buildPtr.p->m_request,
-         signal->theData,
-         sizeof(buildPtr.p->m_request));
+  buildPtr.p->m_request = *req;
+  const BuildIndxImplReq* buildReq = &buildPtr.p->m_request;
   // check
-  buildPtr.p->m_errorCode= BuildIndxRef::NoError;
+  buildPtr.p->m_errorCode= BuildIndxImplRef::NoError;
+  buildPtr.p->m_outstanding = 0;
   do {
-    const BuildIndxReq* buildReq= (const BuildIndxReq*)buildPtr.p->m_request;
-    if (buildReq->getTableId() >= cnoOfTablerec) {
+    if (buildReq->tableId >= cnoOfTablerec) {
       jam();
-      buildPtr.p->m_errorCode= BuildIndxRef::InvalidPrimaryTable;
+      buildPtr.p->m_errorCode= BuildIndxImplRef::InvalidPrimaryTable;
       break;
     }
     TablerecPtr tablePtr;
-    tablePtr.i= buildReq->getTableId();
+    tablePtr.i= buildReq->tableId;
     ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
     if (tablePtr.p->tableStatus != DEFINED) {
       jam();
-      buildPtr.p->m_errorCode= BuildIndxRef::InvalidPrimaryTable;
+      buildPtr.p->m_errorCode= BuildIndxImplRef::InvalidPrimaryTable;
       break;
     }
     // memory page format
     buildPtr.p->m_build_vs =
-      tablePtr.p->m_attributes[MM].m_no_of_varsize > 0;
-    if (DictTabInfo::isOrderedIndex(buildReq->getIndexType())) {
+      (tablePtr.p->m_attributes[MM].m_no_of_varsize +
+       tablePtr.p->m_attributes[MM].m_no_of_dynamic) > 0;
+    if (DictTabInfo::isOrderedIndex(buildReq->indexType)) {
       jam();
       const DLList<TupTriggerData>& triggerList = 
 	tablePtr.p->tuxCustomTriggers;
@@ -484,7 +471,7 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
       TriggerPtr triggerPtr;
       triggerList.first(triggerPtr);
       while (triggerPtr.i != RNIL) {
-	if (triggerPtr.p->indexId == buildReq->getIndexId()) {
+	if (triggerPtr.p->indexId == buildReq->indexId) {
 	  jam();
 	  break;
 	}
@@ -493,19 +480,26 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
       if (triggerPtr.i == RNIL) {
 	jam();
 	// trigger was not created
-	buildPtr.p->m_errorCode = BuildIndxRef::InternalError;
+        ndbassert(false);
+	buildPtr.p->m_errorCode = BuildIndxImplRef::InternalError;
 	break;
       }
-      buildPtr.p->m_indexId = buildReq->getIndexId();
+      buildPtr.p->m_indexId = buildReq->indexId;
       buildPtr.p->m_buildRef = DBTUX;
-    } else if(buildReq->getIndexId() == RNIL) {
+      AlterIndxImplReq* req = (AlterIndxImplReq*)signal->getDataPtrSend();
+      req->indexId = buildReq->indexId;
+      req->senderRef = 0;
+      req->requestType = AlterIndxImplReq::AlterIndexBuilding;
+      EXECUTE_DIRECT(DBTUX, GSN_ALTER_INDX_IMPL_REQ, signal, 
+                     AlterIndxImplReq::SignalLength);
+    } else if(buildReq->indexId == RNIL) {
       jam();
       // REBUILD of acc
       buildPtr.p->m_indexId = RNIL;
       buildPtr.p->m_buildRef = DBACC;
     } else {
       jam();
-      buildPtr.p->m_errorCode = BuildIndxRef::InvalidIndexType;
+      buildPtr.p->m_errorCode = BuildIndxImplRef::InvalidIndexType;
       break;
     }
 
@@ -515,7 +509,18 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
     buildPtr.p->m_pageId= 0;
     buildPtr.p->m_tupleNo= firstTupleNo;
     // start build
-    buildIndex(signal, buildPtr.i);
+
+    bool offline = !!(buildReq->requestType&BuildIndxImplReq::RF_BUILD_OFFLINE);
+    if (offline && m_max_parallel_index_build > 1)
+    {
+      jam();
+      buildIndexOffline(signal, buildPtr.i);
+    }
+    else
+    {
+      jam();
+      buildIndex(signal, buildPtr.i);
+    }
     return;
   } while (0);
   // check failed
@@ -530,10 +535,10 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
   BuildIndexPtr buildPtr;
   buildPtr.i= buildPtrI;
   c_buildIndexList.getPtr(buildPtr);
-  const BuildIndxReq* buildReq= (const BuildIndxReq*)buildPtr.p->m_request;
+  const BuildIndxImplReq* buildReq= &buildPtr.p->m_request;
   // get table
   TablerecPtr tablePtr;
-  tablePtr.i= buildReq->getTableId();
+  tablePtr.i= buildReq->tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
   const Uint32 firstTupleNo = 0;
@@ -566,23 +571,24 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
     // get page
     PagePtr pagePtr;
-    if (buildPtr.p->m_pageId >= fragPtr.p->noOfPages) {
+    if (buildPtr.p->m_pageId >= fragPtr.p->m_max_page_no) {
       jam();
       buildPtr.p->m_fragNo++;
       buildPtr.p->m_pageId= 0;
       buildPtr.p->m_tupleNo= firstTupleNo;
       break;
     }
-    Uint32 realPageId= getRealpid(fragPtr.p, buildPtr.p->m_pageId);
-    c_page_pool.getPtr(pagePtr, realPageId);
-    Uint32 pageState= pagePtr.p->page_state;
+    Uint32 realPageId= getRealpidCheck(fragPtr.p, buildPtr.p->m_pageId);
     // skip empty page
-    if (pageState == ZEMPTY_MM) {
+    if (realPageId == RNIL) 
+    {
       jam();
-      buildPtr.p->m_pageId++;
-      buildPtr.p->m_tupleNo= firstTupleNo;
-      break;
+      goto next_tuple;
     }
+
+    c_page_pool.getPtr(pagePtr, realPageId);
+
+next_tuple:
     // get tuple
     Uint32 pageIndex = ~0;
     const Tuple_header* tuple_ptr = 0;
@@ -593,6 +599,14 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       buildPtr.p->m_tupleNo= firstTupleNo;
       break;
     }
+    
+    if (realPageId == RNIL)
+    {
+      jam();
+      buildPtr.p->m_tupleNo++;
+      break;
+    }
+
     tuple_ptr = (Tuple_header*)&pagePtr.p->m_data[pageIndex];
     // skip over free tuple
     if (tuple_ptr->m_header_bits & Tuple_header::FREE) {
@@ -649,23 +663,64 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
        *      i.e delete's shouldnt be added 
        *      (unless it's the first op, when "original" should be added)
        */
-      do 
+
+      /*
+       * Start from first operation.  This is only to make things more
+       * clear.  It is not required by ordered index implementation.
+       */
+      c_operation_pool.getPtr(pageOperPtr);
+      while (pageOperPtr.p->prevActiveOp != RNIL)
       {
-	c_operation_pool.getPtr(pageOperPtr);
-	if(pageOperPtr.p->op_struct.op_type != ZDELETE ||
-	   pageOperPtr.p->is_first_operation())
-	{
-	  req->errorCode = RNIL;
-	  req->tupVersion= pageOperPtr.p->tupVersion;
-	  EXECUTE_DIRECT(buildPtr.p->m_buildRef, GSN_TUX_MAINT_REQ,
-			 signal, TuxMaintReq::SignalLength+2);
-	}
-	else
-	{
-	  req->errorCode= 0;
-	}
-	pageOperPtr.i= pageOperPtr.p->prevActiveOp;
-      } while(req->errorCode == 0 && pageOperPtr.i != RNIL);
+        jam();
+        pageOperPtr.i = pageOperPtr.p->prevActiveOp;
+        c_operation_pool.getPtr(pageOperPtr);
+      }
+      /*
+       * Do not use req->errorCode as global control.
+       */
+      bool ok = true;
+      /*
+       * If first operation is an update, add previous version.
+       * This version does not appear as the version of any operation.
+       * At commit this version is removed by executeTuxCommitTriggers.
+       * At abort it is preserved by executeTuxAbortTriggers.
+       */
+      if (pageOperPtr.p->op_struct.op_type == ZUPDATE)
+      {
+        jam();
+        req->errorCode = RNIL;
+        req->tupVersion = decr_tup_version(pageOperPtr.p->tupVersion);
+        EXECUTE_DIRECT(buildPtr.p->m_buildRef, GSN_TUX_MAINT_REQ,
+                       signal, TuxMaintReq::SignalLength+2);
+        ok = (req->errorCode == 0);
+      }
+      /*
+       * Add versions from all operations.
+       *
+       * Each operation has a tuple version.  For insert and update it
+       * is the newly created version.  For delete it is the version
+       * deleted.  The existence of operation tuple version implies that
+       * a corresponding tuple version exists for TUX to read.
+       *
+       * We could be in the middle of a commit.  The process here makes
+       * no assumptions about operation commit order.  (It should be
+       * first to last but this is not the place to assert it).
+       *
+       * Duplicate versions are possible e.g. a delete in the middle
+       * may have same version as the previous operation.  TUX ignores
+       * duplicate version errors during index build.
+       */
+      while (pageOperPtr.i != RNIL && ok)
+      {
+        jam();
+        c_operation_pool.getPtr(pageOperPtr);
+        req->errorCode = RNIL;
+        req->tupVersion = pageOperPtr.p->tupVersion;
+        EXECUTE_DIRECT(buildPtr.p->m_buildRef, GSN_TUX_MAINT_REQ,
+                       signal, TuxMaintReq::SignalLength+2);
+        pageOperPtr.i = pageOperPtr.p->nextActiveOp;
+        ok = (req->errorCode == 0);
+      }
     } 
     
     jamEntry();
@@ -673,7 +728,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       switch (req->errorCode) {
       case TuxMaintReq::NoMemError:
         jam();
-        buildPtr.p->m_errorCode= BuildIndxRef::AllocationFailure;
+        buildPtr.p->m_errorCode= BuildIndxImplRef::AllocationFailure;
         break;
       default:
         ndbrequire(false);
@@ -709,28 +764,313 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
   sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
 }
 
+Uint32 Dbtux_mt_buildIndexFragment_wrapper_C(void*);
+
+void
+Dbtup::buildIndexOffline(Signal* signal, Uint32 buildPtrI)
+{
+  jam();
+  /**
+   * We need to make table read-only...as mtoib does not work otherwise
+   */
+  BuildIndexPtr buildPtr;
+  buildPtr.i= buildPtrI;
+  c_buildIndexList.getPtr(buildPtr);
+  const BuildIndxImplReq* buildReq = 
+    (const BuildIndxImplReq*)&buildPtr.p->m_request;
+
+  AlterTabReq* req = (AlterTabReq*)signal->getDataPtrSend();
+  bzero(req, sizeof(req));
+  req->senderRef = reference();
+  req->senderData = buildPtrI;
+  req->tableId = buildReq->tableId;
+  req->requestType = AlterTabReq::AlterTableReadOnly;
+  sendSignal(calcInstanceBlockRef(DBLQH), GSN_ALTER_TAB_REQ, signal,
+             AlterTabReq::SignalLength, JBB);
+}
+
+void
+Dbtup::execALTER_TAB_CONF(Signal* signal)
+{
+  jamEntry();
+  AlterTabConf* conf = (AlterTabConf*)signal->getDataPtr();
+
+  BuildIndexPtr buildPtr;
+  buildPtr.i = conf->senderData;
+  c_buildIndexList.getPtr(buildPtr);
+
+
+  if (buildPtr.p->m_fragNo == 0)
+  {
+    jam();
+    buildIndexOffline_table_readonly(signal, conf->senderData);
+    return;
+  }
+  else
+  {
+    jam();
+    ndbrequire(buildPtr.p->m_fragNo >= MAX_FRAG_PER_NODE);
+    buildIndexReply(signal, buildPtr.p);
+    c_buildIndexList.release(buildPtr);
+    return;
+  }
+}
+
+void
+Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
+{
+  // get build record
+  BuildIndexPtr buildPtr;
+  buildPtr.i= buildPtrI;
+  c_buildIndexList.getPtr(buildPtr);
+  const BuildIndxImplReq* buildReq = 
+    (const BuildIndxImplReq*)&buildPtr.p->m_request;
+  // get table
+  TablerecPtr tablePtr;
+  tablePtr.i= buildReq->tableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+
+  for (;buildPtr.p->m_fragNo < MAX_FRAG_PER_NODE;
+       buildPtr.p->m_fragNo++)
+  {
+    jam();
+    FragrecordPtr fragPtr;
+    fragPtr.i = tablePtr.p->fragrec[buildPtr.p->m_fragNo];
+    if (fragPtr.i == RNIL)
+    {
+      jam();
+      continue;
+    }
+    ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+    mt_BuildIndxReq req;
+    bzero(&req, sizeof(req));
+    req.senderRef = reference();
+    req.senderData = buildPtr.i;
+    req.tableId = buildReq->tableId;
+    req.indexId = buildPtr.p->m_indexId;
+    req.fragId = tablePtr.p->fragid[buildPtr.p->m_fragNo];
+
+    SimulatedBlock * tux = globalData.getBlock(DBTUX);
+    if (instance() != 0)
+    {
+      tux = tux->getInstance(instance());
+      ndbrequire(tux != 0);
+    }
+    req.tux_ptr = tux;
+    req.tup_ptr = this;
+    req.func_ptr = Dbtux_mt_buildIndexFragment_wrapper_C;
+    req.buffer_size = 16*32768; // thread-local-buffer
+
+    Uint32 * req_ptr = signal->getDataPtrSend();
+    memcpy(req_ptr, &req, sizeof(req));
+
+    sendSignal(NDBFS_REF, GSN_BUILD_INDX_IMPL_REQ, signal,
+               (sizeof(req) + 15) / 4, JBB);
+
+    buildPtr.p->m_outstanding++;
+    if (buildPtr.p->m_outstanding >= m_max_parallel_index_build)
+    {
+      jam();
+      return;
+    }
+  }
+
+  if (buildPtr.p->m_outstanding == 0)
+  {
+    jam();
+    AlterTabReq* req = (AlterTabReq*)signal->getDataPtrSend();
+    bzero(req, sizeof(req));
+    req->senderRef = reference();
+    req->senderData = buildPtrI;
+    req->tableId = buildReq->tableId;
+    req->requestType = AlterTabReq::AlterTableReadWrite;
+    sendSignal(calcInstanceBlockRef(DBLQH), GSN_ALTER_TAB_REQ, signal,
+               AlterTabReq::SignalLength, JBB);
+    return;
+  }
+  else
+  {
+    jam();
+    // wait for replies
+    return;
+  }
+}
+
+int
+Dbtup::mt_scan_init(Uint32 tableId, Uint32 fragId,
+                    Local_key* pos, Uint32 * fragPtrI)
+{
+  TablerecPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+
+  FragrecordPtr fragPtr;
+  fragPtr.i = RNIL;
+  for (Uint32 i = 0; i<MAX_FRAG_PER_NODE; i++)
+  {
+    if (tablePtr.p->fragid[i] == fragId)
+    {
+      fragPtr.i = tablePtr.p->fragrec[i];
+      break;
+    }
+  }
+
+  if (fragPtr.i == RNIL)
+    return -1;
+
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+
+  Uint32 fragPageId = 0;
+  while (fragPageId < fragPtr.p->m_max_page_no)
+  {
+    Uint32 realPageId= getRealpidCheck(fragPtr.p, fragPageId);
+    if (realPageId != RNIL)
+    {
+      * fragPtrI = fragPtr.i;
+      pos->m_page_no = realPageId;
+      pos->m_page_idx = 0;
+      pos->m_file_no = 0;
+      return 0;
+    }
+    fragPageId++;
+  }
+
+  return 1;
+}
+
+int
+Dbtup::mt_scan_next(Uint32 tableId, Uint32 fragPtrI,
+                    Local_key* pos, bool moveNext)
+{
+  TablerecPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+
+  Uint32 tupheadsize = tablePtr.p->m_offsets[MM].m_fix_header_size;
+  if (moveNext)
+  {
+    pos->m_page_idx += tupheadsize;
+  }
+
+  PagePtr pagePtr;
+  c_page_pool.getPtr(pagePtr, pos->m_page_no);
+
+  while (1)
+  {
+    Tuple_header* tuple_ptr;
+    while (pos->m_page_idx + tupheadsize <= Fix_page::DATA_WORDS)
+    {
+      tuple_ptr = (Tuple_header*)(pagePtr.p->m_data + pos->m_page_idx);
+      // skip over free tuple
+      if (tuple_ptr->m_header_bits & Tuple_header::FREE)
+      {
+        pos->m_page_idx += tupheadsize;
+        continue;
+      }
+      pos->m_file_no = tuple_ptr->get_tuple_version();
+      return 0; // Found
+    }
+
+    // End of page...move to next
+    Uint32 fragPageId = pagePtr.p->frag_page_id + 1;
+    while (fragPageId < fragPtr.p->m_max_page_no)
+    {
+      Uint32 realPageId = getRealpidCheck(fragPtr.p, fragPageId);
+      if (realPageId != RNIL)
+      {
+        pos->m_page_no = realPageId;
+        break;
+      }
+      fragPageId++;
+    }
+
+    if (fragPageId == fragPtr.p->m_max_page_no)
+      break;
+
+    pos->m_page_idx = 0;
+    c_page_pool.getPtr(pagePtr, pos->m_page_no);
+  }
+
+  return 1;
+}
+
+void
+Dbtup::execBUILD_INDX_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  BuildIndxImplRef* ref = (BuildIndxImplRef*)signal->getDataPtrSend();
+  Uint32 ptr = ref->senderData;
+  Uint32 err = ref->errorCode;
+
+  BuildIndexPtr buildPtr;
+  c_buildIndexList.getPtr(buildPtr, ptr);
+  ndbrequire(buildPtr.p->m_outstanding);
+  buildPtr.p->m_outstanding--;
+
+  buildPtr.p->m_errorCode = (BuildIndxImplRef::ErrorCode)err;
+  buildPtr.p->m_fragNo = MAX_FRAG_PER_NODE; // No point in starting any more
+  buildIndexOffline_table_readonly(signal, ptr);
+}
+
+void
+Dbtup::execBUILD_INDX_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  BuildIndxImplConf* conf = (BuildIndxImplConf*)signal->getDataPtrSend();
+  Uint32 ptr = conf->senderData;
+
+  BuildIndexPtr buildPtr;
+  c_buildIndexList.getPtr(buildPtr, ptr);
+  ndbrequire(buildPtr.p->m_outstanding);
+  buildPtr.p->m_outstanding--;
+  buildPtr.p->m_fragNo++;
+
+  buildIndexOffline_table_readonly(signal, ptr);
+}
+
 void
 Dbtup::buildIndexReply(Signal* signal, const BuildIndexRec* buildPtrP)
 {
-  const BuildIndxReq* const buildReq=
-                    (const BuildIndxReq*)buildPtrP->m_request;
-  // conf is subset of ref
-  BuildIndxRef* rep= (BuildIndxRef*)signal->getDataPtr();
-  rep->setUserRef(buildReq->getUserRef());
-  rep->setConnectionPtr(buildReq->getConnectionPtr());
-  rep->setRequestType(buildReq->getRequestType());
-  rep->setTableId(buildReq->getTableId());
-  rep->setIndexType(buildReq->getIndexType());
-  rep->setIndexId(buildReq->getIndexId());
-  // conf
-  if (buildPtrP->m_errorCode == BuildIndxRef::NoError) {
+  const BuildIndxImplReq* buildReq = &buildPtrP->m_request;
+
+  AlterIndxImplReq* req = (AlterIndxImplReq*)signal->getDataPtrSend();
+  req->indexId = buildReq->indexId;
+  req->senderRef = 0; //
+  if (buildPtrP->m_errorCode == BuildIndxImplRef::NoError)
+  {
     jam();
-    sendSignal(rep->getUserRef(), GSN_BUILDINDXCONF,
-        signal, BuildIndxConf::SignalLength, JBB);
-    return;
+    req->requestType = AlterIndxImplReq::AlterIndexOnline;
   }
-  // ref
-  rep->setErrorCode(buildPtrP->m_errorCode);
-  sendSignal(rep->getUserRef(), GSN_BUILDINDXREF,
-      signal, BuildIndxRef::SignalLength, JBB);
+  else
+  {
+    jam();
+    req->requestType = AlterIndxImplReq::AlterIndexOffline;
+  }
+  EXECUTE_DIRECT(DBTUX, GSN_ALTER_INDX_IMPL_REQ, signal, 
+                 AlterIndxImplReq::SignalLength);
+
+  if (buildPtrP->m_errorCode == BuildIndxImplRef::NoError) {
+    jam();
+    BuildIndxImplConf* conf =
+      (BuildIndxImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = buildReq->senderData;
+
+    sendSignal(buildReq->senderRef, GSN_BUILD_INDX_IMPL_CONF,
+               signal, BuildIndxImplConf::SignalLength, JBB);
+  } else {
+    jam();
+    BuildIndxImplRef* ref =
+      (BuildIndxImplRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = buildReq->senderData;
+    ref->errorCode = buildPtrP->m_errorCode;
+
+    sendSignal(buildReq->senderRef, GSN_BUILD_INDX_IMPL_REF,
+               signal, BuildIndxImplRef::SignalLength, JBB);
+  }
 }

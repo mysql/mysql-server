@@ -1,0 +1,265 @@
+
+How to Install, Configure, and Run the CRUND Benchmark
+======================================================
+
+The benchmark consists of a generic Driver and multiple "*Load" classes,
+which implement the benchmark's operations against different persistence
+APIs and database.
+
+Depending upon which database APIs are to be benchmarked with CRUND, some
+external software may need to be downloaded, installed, and configured.
+
+
+0) Software Dependencies
+
+    These 3rd party software dependencies need to be satisfied for the
+    respective CRUND targets [in brackets, versions known to work]:
+
+ Action         Target                  Dependencies
+-------------------------------------------------------------------------------
+ build          Java Driver,            JDK [1.5 and 1.6]
+                 *Load.java             ANT [1.7]
+-------------------------------------------------------------------------------
+ build          C++ Driver,             GNU gcc [4.0.1, 4.2.4, 4.4.0]
+                NdbApiLoad              gmake [3.81]
+                                        "Martin's Little Helpers" Utilities
+                                        [shipped with CRUND, see below]
+-------------------------------------------------------------------------------
+ build, run     NdbJTieLoad             NDB [7.1] (jar files + shared libraries)
+-------------------------------------------------------------------------------
+ build, run     ClusterjLoad            NDB [7.1] (jar files)
+-------------------------------------------------------------------------------
+ build          JdbcLoad                JDK [1.5]
+-------------------------------------------------------------------------------
+ run            JdbcLoad on MySQL       MySQL Connector/J [5.1.7]
+-------------------------------------------------------------------------------
+ build          JpaLoad                 JPA [1.0 == EJB 3.0] (jar files)
+-------------------------------------------------------------------------------
+ run            JpaLoad on OpenJPA      OpenJPA [1.2.2] has dependencies upon:
+                                          JTA [1.1] API classes
+                                          Apache Commons Lang [2.1]
+                                          Apache Commons Collections [3.2]
+                                          [Apache Commons Pool [1.3]]
+                                          Sourceforge Serp Bytecode lib [1.13]
+                on MySQL                [see JdbcLoad on MySQL]
+                on Derby                [see JdbcLoad on Derby]
+-------------------------------------------------------------------------------
+ run            JdbcLoad on Derby       Apache Derby [10.4.2.0 and 10.5.1.1]
+-------------------------------------------------------------------------------
+ build, run     NdbjLoad                ndb-bindings [0.7.3]
+                                        NDB [6.3.20]
+-------------------------------------------------------------------------------
+
+
+    For example, put dependencies into a local lib/ directory:
+      commons-collections-3.2.jar
+      commons-lang-2.1.jar
+      commons-pool-1.3.jar
+      derby-10.5.1.1.jar
+      derbytools-10.5.1.1.jar
+      geronimo-jpa_3.0_spec-1.0.jar
+      geronimo-jta_1.1_spec-1.1.jar
+      mysql-connector-java-5.1.11-bin.jar
+      openjpa-1.2.2.jar
+      serp-1.13.1.jar
+
+
+1) Configure CRUND
+
+    Copy the sample configuration files (*.properties, *.cnf, and *.ini)
+        $ cp -v config_samples/* .
+        config_samples/config.ini -> ./config.ini
+        config_samples/crundClusterj.properties -> ./crundClusterj.properties
+        config_samples/crundMysql.properties -> ./crundMysql.properties
+        config_samples/crundNdbapi.properties -> ./crundNdbapi.properties
+        config_samples/crundNdbjtie.properties -> ./crundNdbjtie.properties
+        config_samples/crundOpenjpaClusterj.properties -> ./crundOpenjpaClusterj.properties
+        config_samples/crundOpenjpaMysql.properties -> ./crundOpenjpaMysql.properties
+        config_samples/crundRun.properties -> ./crundRun.properties
+        config_samples/env.properties -> ./env.properties
+        config_samples/my.cnf -> ./my.cnf
+
+    Edit the file
+        ./env.properties
+    for all the paths to CRUND's external software dependencies.
+
+    Edit the other *.properties, *.cnf, and *.ini files for cluster setup
+    and benchmark run parameters.
+
+
+2) Build "Martin's Little Helpers" Utilities
+
+    (Only needed if building/running NdbApiLoad or using 'make', see below)
+
+    See file README.txt in the subdirectory and run
+        $ cd martins_little_helpers/
+        $ make dep
+        $ make opt
+
+
+3) Build CRUND
+
+3.1) Build the Java classes using Ant (for better diagnostics)
+
+    Ant is used to build the Java Driver and *Load classes.
+
+    For an overview of the supported targets:
+        $ ant help
+
+    Specific build targets:
+        $ ant compile.ndbapi
+        $ ant compile.ndbjtie
+        $ ant compile.clusterj
+        $ ant compile.jdbc
+        $ ant compile.jpa
+        $ ant compile             // builds all of above
+
+    Additional compile.*.opt targets build optimized versions of the
+    classes (but typically, the performance difference can be neglected).
+
+    Other standard Ant targets:
+        $ ant javadoc
+        $ ant clean
+        $ ant clobber
+        $ ant distclean
+
+3.2) Build all C++ binaries and Java classes using Make
+
+    For an overview of the supported targets:
+        $ make help
+
+    Run once
+        $ make dep
+    to build the .depend files.
+
+    Then run either of
+        $ make dbg
+        $ make opt
+    to build debug or optimized binaries and classes.
+
+    To build only the C++ classes run these make targets from subdirectory
+        $ cd src/crundndb/
+
+    To delete all temporary, +logging, +database files run
+        $ make clean
+        $ make clobber
+        $ make distclean
+
+
+4) Start the Database and Load the Schema
+
+4.1) MySQL
+
+    CRUND's and TWS's schema file:
+        ./src/tables_mysql.sql
+        ./tws_benchmark/schema.sql
+
+    Edit these configuration files if using the convenience scripts below:
+        ./config.ini
+        ./my.cnf
+
+    Convenience scripts to start/stop the cluster or to load the schema:
+        $ cd ./scripts
+        $ ./start_cluster.sh
+        $ ./restart_cluster.sh 
+        $ ./load_shema.sh 
+        $ ./stop_cluster.sh 
+
+    By default, log and data files are written to:
+        ./scripts/ndblog/mysqld.log.err
+        ./scripts/ndblog/
+
+4.2) Apache Derby (Optional)
+
+    CRUND's database schema file:
+        ./src/tables_derby.sql
+
+    This Ant target loads the schema:
+        $ ant load.schema.derby
+
+    (Derby can be used in embedded or network server mode.)
+
+
+5) Run CRUND
+
+5.1) Configure a benchmark run
+
+    Configure the benchmark's dataset size and number of iterations in
+        ./crundRun.properties
+
+    Edit any load-specific connection and run settings:
+        ./crundNdbapi.properties
+        ./crundNdbjtie.properties
+        ./crundClusterj.properties
+        ./crundMysql.properties
+        ./crundOpenjpaMysql.properties
+        ./crundNdbj.properties
+        ./crundOpenjpaDerby.properties
+        ./crundDerby.properties
+
+5.2) Run the benchmark
+
+    Run the benchmark's Java driver on the respective *Load classes:
+        $ ant run.ndbapi
+        $ ant run.ndbjtie
+        $ ant run.clusterj
+        $ ant run.mysql
+        $ ant run.openjpa.mysql
+        $ ant run.openjpa.clusterj
+        $ ant run.ndbj
+        $ ant run.derby
+        $ ant run.openjpa.derby
+
+    Or start the Load classes directly with run properties as arguments
+    to the main() method:
+        $ java -classpath=... com.mysql.cluster.crund.JdbcLoad \
+                -p crundRun.properties \
+                -p crundMysql.properties
+
+    (Check for correct classpath/libpath printed by the run.* targets.)
+
+5.3) Inspect the result files
+
+    CRUND writes all measured time/memory values into a local log file:
+        ./log_<dtate>_<time>.txt
+
+    The data format is a tab-separated list, which can be easily imported
+    into a spreadsheet application for further processing or charting.
+
+5.4) Automate Benchmark runs
+
+     Run the Java/C++ driver on a *Load class and save the log files:
+        $ cd ./scripts
+        $ ./mytest.sh
+        $ ./mytestcxx.sh
+
+     Runs the Java driver on multiple *Load classes:
+        $ ./mytests.sh
+
+
+Hints for troubleshooting:
+
+- check the cluster's status
+        $ ndb_mgm -e show
+
+- create the database from the MySQL client tool
+        $ mysql
+        mysql> create database crunddb;
+        mysql> show databases;
+
+- if create fails fue to lack of privileges, login as root and grant
+
+        $ mysql -u root
+        mysql> grant all on *.* to <user name>@localhost;
+        mysql> grant all on *.* to ''@localhost;
+
+- load the schema script
+
+        mysql> \. ./src/tables_mysql.sql
+
+- check the database schema
+
+        mysql> use database crunddb;
+        mysql> show tables;
+        mysql> explain B0;
+        ...

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -25,6 +27,8 @@
 
 #include "userInterface.h"
 #include "dbGenerator.h"
+#include "ndb_schema.hpp"
+
 
 static int   numProcesses;
 static int   numSeconds;
@@ -33,6 +37,8 @@ static int   parallellism;
 static int   millisSendPoll;
 static int   minEventSendPoll;
 static int   forceSendPoll;
+static bool  useNdbRecord;
+static bool  useCombUpd;
 
 static ThreadData *data;
 static Ndb_cluster_connection *g_cluster_connection= 0;
@@ -53,8 +59,8 @@ static void usage(const char *prog)
      ++progname;
 
    ndbout_c(
-           "Usage: %s [-proc <num>] [-warm <num>] [-time <num>] [ -p <num>] " 
-	   "[-t <num> ] [ -e <num> ] [ -f <num>] \n"
+           "Usage: %s [-proc <num>] [-warm <num>] [-time <num>] [ -p <num>]" 
+	   "[-t <num> ] [ -e <num> ] [ -f <num>] [ -ndbrecord ]\n"
            "  -proc <num>    Specifies that <num> is the number of\n"
            "                 threads. The default is 1.\n"
            "  -time <num>    Specifies that the test will run for <num> sec.\n"
@@ -68,7 +74,11 @@ static void usage(const char *prog)
 	   "sendPoll\n"
 	   "                 Default is 1\n"
 	   "  -f <num>       force parameter to sendPoll\n"
-	   "                 Default is 0\n",
+	   "                 Default is 0\n"
+           "  -ndbrecord     Use NdbRecord Api.\n"
+           "                 Default is to use old Api\n"
+           "  -combupdread   Use update pre-read operation where possible\n"
+           "                 Default is to use separate read+update ops\n",
            progname);
 }
 
@@ -85,7 +95,8 @@ parse_args(int argc, const char **argv)
    millisSendPoll   = 10000;
    minEventSendPoll = 1;
    forceSendPoll    = 0;
-   
+   useNdbRecord     = false;
+   useCombUpd       = false;
 
    i = 1;
    while (i < argc){
@@ -156,6 +167,15 @@ parse_args(int argc, const char **argv)
        }
        i += 2;
      }
+     else if (strcmp("-ndbrecord",argv[i]) == 0) {
+       useNdbRecord= true;
+       i++;
+     }
+     else if (strcmp("-combupdread",argv[i]) == 0) {
+       /* Comb up some dread */
+       useCombUpd= true;
+       i++;
+     }
      else {
        return 1;
      }
@@ -168,6 +188,10 @@ parse_args(int argc, const char **argv)
      ndbout_c("very bad...");
      ndbout_c("exiting...");
      return 1;
+   }
+   if (useNdbRecord && useCombUpd){
+     ndbout_c("NdbRecord does not currently support combined update "
+              "and read.  Using separate read and update ops");
    }
    return 0;
 }
@@ -232,6 +256,7 @@ print_stats(const char       *title,
   ndbout_c("Processor     : %s", name);
   ndbout_c("Number of Proc: %d",numProc);
   ndbout_c("Parallellism  : %d", parallellism);
+  ndbout_c("UseNdbRecord  : %u", useNdbRecord);
   ndbout_c("\n");
 
   if( gen->totalTransactions == 0 ) {
@@ -252,6 +277,7 @@ print_stats(const char       *title,
     ndbout_c("     Transactions: %d", gen->totalTransactions);
     ndbout_c("     Outer       : %.0f TPS",gen->outerTps);
     ndbout_c("\n");
+    ndbout_c("NDBT_Observation;tps;%.0f", gen->outerTps);
   }
 }
 
@@ -316,19 +342,212 @@ NDB_COMMAND(DbAsyncGenerator, "DbAsyncGenerator",
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
     return 0;
   }
-  
+
+  NdbRecordSharedData* ndbRecordSharedDataPtr= NULL;
+
   g_cluster_connection= &con;
   data = (ThreadData*)malloc((numProcesses*parallellism)*sizeof(ThreadData));
- 
+
+  NdbInterpretedCode* prog1= 0;
+  NdbInterpretedCode* prog2= 0;
+  NdbInterpretedCode* prog3= 0;
+
+  if (useNdbRecord)
+  {
+    /* We'll create NdbRecord structures to match the TransactionData
+     * struct
+     */
+
+    ndbRecordSharedDataPtr= (NdbRecordSharedData*) 
+      malloc(sizeof(NdbRecordSharedData));
+    Ndb* tempNdb= asyncDbConnect(1);
+    NdbDictionary::Dictionary* dict= tempNdb->getDictionary();
+
+    NdbDictionary::RecordSpecification cols[7];
+    
+    const NdbDictionary::Table* tab= dict->getTable(SUBSCRIBER_TABLE);
+    cols[0].column= tab->getColumn((int) IND_SUBSCRIBER_NUMBER);
+    cols[0].offset= offsetof(TransactionData, number);
+    cols[0].nullbit_byte_offset= 0;
+    cols[0].nullbit_bit_in_byte=  0;
+    cols[1].column= tab->getColumn((int) IND_SUBSCRIBER_NAME);
+    cols[1].offset= offsetof(TransactionData, name);
+    cols[1].nullbit_byte_offset= 0;
+    cols[1].nullbit_bit_in_byte=  0;
+    cols[2].column= tab->getColumn((int) IND_SUBSCRIBER_GROUP);
+    cols[2].offset= offsetof(TransactionData, group_id);
+    cols[2].nullbit_byte_offset= 0;
+    cols[2].nullbit_bit_in_byte=  0;
+    cols[3].column= tab->getColumn((int) IND_SUBSCRIBER_LOCATION);
+    cols[3].offset= offsetof(TransactionData, location);
+    cols[3].nullbit_byte_offset= 0;
+    cols[3].nullbit_bit_in_byte=  0;
+    cols[4].column= tab->getColumn((int) IND_SUBSCRIBER_SESSIONS);
+    cols[4].offset= offsetof(TransactionData, sessions);
+    cols[4].nullbit_byte_offset= 0;
+    cols[4].nullbit_bit_in_byte=  0;
+    cols[5].column= tab->getColumn((int) IND_SUBSCRIBER_CHANGED_BY);
+    cols[5].offset= offsetof(TransactionData, changed_by);
+    cols[5].nullbit_byte_offset= 0;
+    cols[5].nullbit_bit_in_byte=  0;
+    cols[6].column= tab->getColumn((int) IND_SUBSCRIBER_CHANGED_TIME);
+    cols[6].offset= offsetof(TransactionData, changed_time);
+    cols[6].nullbit_byte_offset= 0;
+    cols[6].nullbit_bit_in_byte=  0;
+    
+    ndbRecordSharedDataPtr->subscriberTableNdbRecord= 
+      dict->createRecord(tab, cols, 7, sizeof(cols[0]), 0);
+
+    if (ndbRecordSharedDataPtr->subscriberTableNdbRecord == NULL)
+    {
+      ndbout << "Error creating record 1 : " << dict->getNdbError() << endl;
+      return -1;
+    }
+
+    tab= dict->getTable(GROUP_TABLE);
+    cols[0].column= tab->getColumn((int) IND_GROUP_ID);
+    cols[0].offset= offsetof(TransactionData, group_id);
+    cols[0].nullbit_byte_offset= 0;
+    cols[0].nullbit_bit_in_byte=  0;
+    /* GROUP_NAME not used via NdbRecord */
+    cols[1].column= tab->getColumn((int) IND_GROUP_ALLOW_READ);
+    cols[1].offset= offsetof(TransactionData, permission);
+    cols[1].nullbit_byte_offset= 0;
+    cols[1].nullbit_bit_in_byte=  0;
+
+    ndbRecordSharedDataPtr->groupTableAllowReadNdbRecord=
+      dict->createRecord(tab, cols, 2, sizeof(cols[0]), 0);
+
+    if (ndbRecordSharedDataPtr->groupTableAllowReadNdbRecord == NULL)
+    {
+      ndbout << "Error creating record 2.1: " << dict->getNdbError() << endl;
+      return -1;
+    }
+
+    cols[1].column= tab->getColumn((int) IND_GROUP_ALLOW_INSERT);
+    cols[1].offset= offsetof(TransactionData, permission);
+    cols[1].nullbit_byte_offset= 0;
+    cols[1].nullbit_bit_in_byte=  0;
+
+    ndbRecordSharedDataPtr->groupTableAllowInsertNdbRecord=
+      dict->createRecord(tab, cols, 2, sizeof(cols[0]), 0);
+
+    if (ndbRecordSharedDataPtr->groupTableAllowInsertNdbRecord == NULL)
+    {
+      ndbout << "Error creating record 2.2: " << dict->getNdbError() << endl;
+      return -1;
+    }
+
+    cols[1].column= tab->getColumn((int) IND_GROUP_ALLOW_DELETE);
+    cols[1].offset= offsetof(TransactionData, permission);
+    cols[1].nullbit_byte_offset= 0;
+    cols[1].nullbit_bit_in_byte=  0;
+
+    ndbRecordSharedDataPtr->groupTableAllowDeleteNdbRecord=
+      dict->createRecord(tab, cols, 2, sizeof(cols[0]), 0);
+
+    if (ndbRecordSharedDataPtr->groupTableAllowDeleteNdbRecord == NULL)
+    {
+      ndbout << "Error creating record 2.3: " << dict->getNdbError() << endl;
+      return -1;
+    }
+
+    tab= dict->getTable(SESSION_TABLE);
+    cols[0].column= tab->getColumn((int) IND_SESSION_SUBSCRIBER);
+    cols[0].offset= offsetof(TransactionData, number);
+    cols[0].nullbit_byte_offset= 0;
+    cols[0].nullbit_bit_in_byte=  0;
+    cols[1].column= tab->getColumn((int) IND_SESSION_SERVER);
+    cols[1].offset= offsetof(TransactionData, server_id);
+    cols[1].nullbit_byte_offset= 0;
+    cols[1].nullbit_bit_in_byte=  0;
+    cols[2].column= tab->getColumn((int) IND_SESSION_DATA);
+    cols[2].offset= offsetof(TransactionData, session_details);
+    cols[2].nullbit_byte_offset= 0;
+    cols[2].nullbit_bit_in_byte=  0;
+
+    ndbRecordSharedDataPtr->sessionTableNdbRecord=
+      dict->createRecord(tab, cols, 3, sizeof(cols[0]), 0);
+
+    if (ndbRecordSharedDataPtr->sessionTableNdbRecord == NULL)
+    {
+      ndbout << "Error creating record 3 : " << dict->getNdbError() << endl;
+      return -1;
+    }
+
+    tab= dict->getTable(SERVER_TABLE);
+    cols[0].column= tab->getColumn((int) IND_SERVER_SUBSCRIBER_SUFFIX);
+    cols[0].offset= offsetof(TransactionData, suffix);
+    cols[0].nullbit_byte_offset= 0;
+    cols[0].nullbit_bit_in_byte=  0;
+    cols[1].column= tab->getColumn((int) IND_SERVER_ID);
+    cols[1].offset= offsetof(TransactionData, server_id);
+    cols[1].nullbit_byte_offset= 0;
+    cols[1].nullbit_bit_in_byte=  0;
+    /* SERVER_NAME not used via NdbRecord*/
+    /* SERVER_READS not used via NdbRecord */
+    /* SERVER_INSERTS not used via NdbRecord */
+    /* SERVER_DELETES not used via NdbRecord */
+
+    ndbRecordSharedDataPtr->serverTableNdbRecord=
+      dict->createRecord(tab, cols, 2, sizeof(cols[0]), 0);
+
+    if (ndbRecordSharedDataPtr->serverTableNdbRecord == NULL)
+    {
+      ndbout << "Error creating record 4 : " << dict->getNdbError() << endl;
+      return -1;
+    }
+
+    /* Create program to increment server reads column */
+    prog1= new NdbInterpretedCode(tab);
+
+    if (prog1->add_val(IND_SERVER_READS, (Uint32)1) ||
+        prog1->interpret_exit_ok() ||
+        prog1->finalise())
+    {
+      ndbout << "Program 1 definition failed, exiting." << endl;
+      return -1;
+    }
+
+    prog2= new NdbInterpretedCode(tab);
+
+    if (prog2->add_val(IND_SERVER_INSERTS, (Uint32)1) ||
+        prog2->interpret_exit_ok() ||
+        prog2->finalise())
+    {
+      ndbout << "Program 2 definition failed, exiting." << endl;
+      return -1;
+    }
+
+    prog3= new NdbInterpretedCode(tab);
+
+    if (prog3->add_val(IND_SERVER_DELETES, (Uint32)1) ||
+        prog3->interpret_exit_ok() ||
+        prog3->finalise())
+    {
+      ndbout << "Program 3 definition failed, exiting." << endl;
+      return -1;
+    }
+
+    ndbRecordSharedDataPtr->incrServerReadsProg= prog1;
+    ndbRecordSharedDataPtr->incrServerInsertsProg= prog2;
+    ndbRecordSharedDataPtr->incrServerDeletesProg= prog3;
+
+    asyncDbDisconnect(tempNdb);      
+  }
+
   for(i = 0; i < numProcesses; i++) {
     for(j = 0; j<parallellism; j++){
-      data[i*parallellism+j].warmUpSeconds   = numWarmSeconds;
-      data[i*parallellism+j].testSeconds     = numSeconds;
-      data[i*parallellism+j].coolDownSeconds = numWarmSeconds;
-      data[i*parallellism+j].randomSeed      = 
-	NdbTick_CurrentMillisecond()+i+j;
-      data[i*parallellism+j].changedTime     = 0;
-      data[i*parallellism+j].runState        = Runnable;
+      int tid= i*parallellism + j;
+      data[tid].warmUpSeconds         = numWarmSeconds;
+      data[tid].testSeconds           = numSeconds;
+      data[tid].coolDownSeconds       = numWarmSeconds;
+      data[tid].randomSeed            = 
+	(unsigned long)(NdbTick_CurrentMillisecond()+i+j);
+      data[tid].changedTime           = 0;
+      data[tid].runState              = Runnable;
+      data[tid].ndbRecordSharedData   = ndbRecordSharedDataPtr;
+      data[tid].useCombinedUpdate     = useCombUpd;
     }
     sprintf(threadName, "AsyncThread[%d]", i);
     pThread = NdbThread_Create(threadRoutine, 
@@ -355,6 +574,14 @@ NDB_COMMAND(DbAsyncGenerator, "DbAsyncGenerator",
   }
    
   ndbout_c("All threads have finished");
+
+  if (useNdbRecord)
+  {
+    free(ndbRecordSharedDataPtr);
+    delete(prog1);
+    delete(prog2);
+    delete(prog3);
+  }
   
   /*-------------------------------------------*/
   /* Clear all structures for total statistics */
@@ -412,7 +639,6 @@ NDB_COMMAND(DbAsyncGenerator, "DbAsyncGenerator",
 #include <sys/types.h>
 #include <time.h>
 
-#include "ndb_schema.hpp"
 #include "ndb_error.hpp"
 #include "userInterface.h"
 #include <NdbMutex.h>
@@ -488,7 +714,7 @@ void showTime()
   now = ::time((time_t*)NULL);
   tm_now = ::gmtime(&now);
 
-  ::snprintf(buf, 128,
+  BaseString::snprintf(buf, 128,
 	     "%d-%.2d-%.2d %.2d:%.2d:%.2d", 
 	     tm_now->tm_year + 1900, 
 	     tm_now->tm_mon, 

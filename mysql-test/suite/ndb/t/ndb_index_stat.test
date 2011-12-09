@@ -1,0 +1,378 @@
+-- source include/have_ndb.inc
+
+# Notes on index stats in *.test.
+#
+# Most tables here have few table rows.  Index stats are not very
+# useful in such cases but the optimizer seems to use them anyway.
+# One reason may be that nested joins is only join method.
+#
+# In real production index stats are computed daily or weekly.
+# But tests here must compute them at once if "explain" is used.
+# Thus: insert (or other dml) - analyze table - explain.
+#
+# Index stats are approximate since only one replica was scanned
+# and values are interpolated from samples.  MTR however should be
+# deterministic.  If not use --replace column 9 # (rows).
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+set @is_enable_default = @@global.ndb_index_stat_enable;
+
+set @is_enable = 1;
+source ndb_index_stat_enable.inc;
+
+# test changing suboptions
+show global variables like 'ndb_index_stat_option';
+set @save_option = @@global.ndb_index_stat_option;
+# some options
+set @@global.ndb_index_stat_option = 'loop_idle=3333,cache_limit=44M';
+set @@global.ndb_index_stat_option = 'cache_lowpct=85,evict_delay=55';
+set @@global.ndb_index_stat_option = 'check_delay=234s';
+show global variables like 'ndb_index_stat_option';
+set @@global.ndb_index_stat_option = @save_option;
+show global variables like 'ndb_index_stat_option';
+
+# TEST: main
+create table t1 (
+  a1 int unsigned not null,
+  b1 int unsigned not null,
+  c1 int unsigned not null,
+  primary key (a1),
+  index b1x (b1),
+  index c1x (c1)
+) engine=ndb;
+
+create table t2 (
+  a2 int unsigned not null,
+  b2 int unsigned not null,
+  c2 int unsigned not null,
+  primary key (a2),
+  index b2x (b2),
+  index c2x (c2)
+) engine=ndb;
+
+# enough rows to make index stats more approximate
+
+--disable_query_log
+let $i = 1000;
+while ($i)
+{
+  dec $i;
+  eval insert into t1 values ($i, $i % 100, $i % 10);
+}
+let $i = 1000;
+while ($i)
+{
+  dec $i;
+  eval insert into t2 values ($i, $i % 10, $i % 100);
+}
+--enable_query_log
+analyze table t1, t2;
+
+# TEST: key equal constant
+
+--echo # must use b1x
+--replace_column 9 #
+explain select * from t1
+  where b1 = 5 and c1 = 5;
+
+--echo # must use c2x
+--replace_column 9 #
+explain select * from t2
+  where b2 = 5 and c2 = 5;
+
+# TEST: keys equal constant in join
+
+--echo # must use b1x, c2x
+--replace_column 9 #
+explain select * from t1, t2
+  where c1 = c2 and b1 = 5 and b2 = 5;
+
+--echo # must use c2x, b1x
+--replace_column 9 #
+explain select * from t1, t2
+  where b1 = b2 and c1 = 5 and c2 = 5;
+
+# TEST: join via keys of different selectivity
+
+--echo # must use t1, c2x
+--replace_column 9 #
+explain select * from t1, t2
+  where c1 = c2;
+--echo # must use t2, b1x
+--replace_column 9 #
+explain select * from t1, t2
+  where b1 = b2;
+
+# TEST: bug#44760 quick distinct
+# QUICK_GROUP_MIN_MAX_SELECT says "Using index for group-by".
+# Should happen only for low cardinality index.
+# wl4124_todo: result is wrong until HA_KEYREAD_ONLY is set
+
+--echo # should NOT say: Using index for group-by
+--replace_column 9 #
+explain select distinct (a1) from t1;
+
+--echo # must say: Using index for group by
+--replace_column 9 #
+explain select distinct (b1) from t1;
+
+--echo # must say: Using index for group by
+--replace_column 9 #
+explain select distinct (c1) from t1;
+
+# TEST: end
+drop table t1, t2;
+
+# turn index stats OFF in client (falls back on other methods)
+# code snippet moved from ndb_index_ordered.test
+
+create table t1 (a int, b int, c varchar(10) not null,
+  primary key using hash (a), index(b,c)) engine=ndb;
+insert into t1 values
+  (1,10,'aaa'),(2,10,'bbb'),(3,10,'ccc'),
+  (4,20,'aaa'),(5,20,'bbb'),(6,20,'ccc'),
+  (7,30,'aaa'),(8,30,'bbb'),(9,30,'ccc');
+analyze table t1;
+let $is_loop = 4;
+while ($is_loop)
+{
+  # 4-OFF 3-ON 2-OFF 1-ON
+  let $is_enable = `select ($is_loop=3 or $is_loop=1)`;
+  dec $is_loop;
+  eval set @@local.ndb_index_stat_enable = $is_enable;
+
+select count(*) from t1 where b < 10;
+select count(*) from t1 where b >= 10 and c >= 'bbb';
+select count(*) from t1 where b > 10;
+select count(*) from t1 where b <= 20 and c < 'ccc';
+select count(*) from t1 where b = 20 and c = 'ccc';
+select count(*) from t1 where b > 20;
+select count(*) from t1 where b = 30 and c > 'aaa';
+select count(*) from t1 where b <= 20;
+select count(*) from t1 where b >= 20 and c > 'aaa';
+}
+drop table t1;
+
+# bug#XXXXX
+# autocreate=false,enable=1 is now acceptable
+# following gives warning while "no stats" is counted as error
+create table t1 (a int, b int, primary key using hash (a), index x1 (b))
+engine=ndb;
+insert into t1 values (1,11),(2,22),(3,33);
+# make_join_statistics() -> info() -> ndb_index_stat_set_rpk()
+# error 4715 - no stats
+select * from t1 order by a;
+# error 9003 suppressed - previous recent error
+select * from t1 order by a;
+# analyze clears previous error at once
+analyze table t1;
+drop table t1;
+
+# bug#XXXXX
+# wrong byte size from some types to NdbPack
+# before error fixes causes stats to be ignored silently (error 4716)
+# best seen with debug and export NDB_PACK_ABORT_ON_ERROR=1
+# affected types: mediumint datetime date time timestamp
+
+create table t1 (
+  pk int not null,
+  a tinyint not null,
+  b tinyint unsigned not null,
+  c smallint not null,
+  d smallint unsigned not null,
+  e mediumint not null,
+  f mediumint unsigned not null,
+  g int not null,
+  h int unsigned not null,
+  i bigint not null,
+  j bigint unsigned not null,
+  k float not null,
+  l double not null,
+  m decimal not null,
+  n decimal unsigned not null,
+  primary key using hash (pk),
+  index (a),
+  index (b),
+  index (c),
+  index (d),
+  index (e),
+  index (f),
+  index (g),
+  index (h),
+  index (i),
+  index (j),
+  index (k),
+  index (l),
+  index (m),
+  index (n)
+) engine=ndb;
+insert into t1 values
+(1,11,11,11,11,11,11,11,11,11,11,11,11,11,11),
+(2,22,22,22,22,22,22,22,22,22,22,22,22,22,22),
+(3,33,33,33,33,33,33,33,33,33,33,33,33,33,33);
+let $i = 2;
+while ($i)
+{
+  dec $i;
+  if (!$i)
+  {
+    eval analyze table t1;
+  }
+  eval select count(*) from t1 where a > 22;
+  eval select count(*) from t1 where b > 22;
+  eval select count(*) from t1 where c > 22;
+  eval select count(*) from t1 where d > 22;
+  eval select count(*) from t1 where e > 22;
+  eval select count(*) from t1 where f > 22;
+  eval select count(*) from t1 where g > 22;
+  eval select count(*) from t1 where h > 22;
+  eval select count(*) from t1 where i > 22;
+  eval select count(*) from t1 where j > 22;
+  eval select count(*) from t1 where k > 22;
+  eval select count(*) from t1 where l > 22;
+  eval select count(*) from t1 where m > 22;
+  eval select count(*) from t1 where n > 22;
+}
+drop table t1;
+
+create table t1 (
+  pk int not null,
+  a datetime not null,
+  b date not null,
+  c year not null,
+  d time not null,
+  e timestamp not null,
+  primary key using hash (pk),
+  index (a),
+  index (b),
+  index (c),
+  index (d),
+  index (e)
+) engine=ndb;
+insert into t1 values
+(1,'1971-01-01 01:01:01','1971-01-01','1971','01:01:01','1971-01-01 01:01:01'),
+(2,'1972-02-02 02:02:02','1972-02-02','1972','02:02:02','1972-02-02 02:02:02'),
+(3,'1973-03-03 03:03:03','1973-03-03','1973','03:03:03','1973-03-03 03:03:03');
+let $i = 2;
+while ($i)
+{
+  dec $i;
+  if (!$i)
+  {
+    eval analyze table t1;
+  }
+  eval select count(*) from t1 where a > '1972-02-02 02:02:02';
+  eval select count(*) from t1 where b > '1972-02-02';
+  eval select count(*) from t1 where c > '1972';
+  eval select count(*) from t1 where d > '02:02:02';
+  eval select count(*) from t1 where e > '1972-02-02 02:02:02';
+}
+drop table t1;
+
+create table t1 (
+  pk int not null,
+  a char(10) not null,
+  b varchar(10) not null,
+  c varchar(1000) not null,
+  d binary(10) not null,
+  e varbinary(10) not null,
+  f varbinary(1000) not null,
+  primary key using hash (pk),
+  index (a),
+  index (b),
+  index (c),
+  index (d),
+  index (e),
+  index (f)
+) engine=ndb;
+insert into t1 values
+('1','111','111','111','111','111','111'),
+('2','222','222','222','222','222','222'),
+('3','333','333','333','333','333','333');
+let $i = 2;
+while ($i)
+{
+  dec $i;
+  if (!$i)
+  {
+    eval analyze table t1;
+  }
+  eval select count(*) from t1 where a > '222';
+  eval select count(*) from t1 where b > '222';
+  eval select count(*) from t1 where c > '222';
+  eval select count(*) from t1 where d > '222';
+  eval select count(*) from t1 where e > '222';
+  eval select count(*) from t1 where f > '222';
+}
+drop table t1;
+
+#
+# Check estimates of records per key for partial keys using unique/primary ordered index
+#
+
+create table t1 (a1 int, b1 int, primary key(b1), key(a1)) engine=ndbcluster partition by key() partitions 1;
+create table t2 (b2 int, c2 int, primary key(b2,c2)) engine=ndbcluster partition by key() partitions 1;
+
+--disable_query_log
+let $i = 100;
+while ($i)
+{
+  eval insert into t1 (a1,b1) values ($i,$i);
+  eval insert into t2 (b2,c2) values ($i mod 2, $i div 2);
+  dec $i;
+}
+--enable_query_log
+
+--echo # table t1 is only for forcing record by key count for table t2 that should be near 50 (not 1)
+analyze table t1, t2;
+# Hide Extra column
+--replace_column 10 #
+explain select * from t1, t2 where b2 = b1 and a1 = 1;
+
+drop table t1, t2;
+
+# bugXXXXX rule b3.3 fix
+
+CREATE TABLE t1(
+  K INT NOT NULL AUTO_INCREMENT,
+  I INT,
+  J INT,
+  L INT,
+  PRIMARY KEY(K),
+  KEY(I,J),
+  KEY(L)
+) ENGINE=ndbcluster
+  partition by key (K) partitions 1;
+
+INSERT INTO t1(I,J,L) VALUES
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(0,0,0);
+
+INSERT INTO t1(I,J,L) SELECT I,1,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,2,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,3,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,4,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,5,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,6,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,7,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,8,I FROM t1;
+
+select i, count(*) from t1 group by 1 order by 1;
+select l, count(*) from t1 group by 1 order by 1;
+
+ANALYZE TABLE t1;
+
+explain SELECT count(*) as Count FROM t1 WHERE I = 5;
+SELECT count(*) as Count FROM t1 WHERE I = 5;
+
+# before fix rows was 128 instead of 256
+explain SELECT count(*) as Count FROM t1 WHERE L = 5;
+SELECT count(*) as Count FROM t1 WHERE L = 5;
+
+drop table t1;
+
+set @is_enable = @is_enable_default;
+source ndb_index_stat_enable.inc;

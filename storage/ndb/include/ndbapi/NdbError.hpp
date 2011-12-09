@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +13,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_ERROR_HPP
 #define NDB_ERROR_HPP
 
-#include <ndberror.h>
+#include "ndberror.h"
 
 /**
  * @struct NdbError
@@ -205,6 +208,7 @@ struct NdbError {
    */
   const char * message;
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * The detailed description.  This is extra information regarding the 
    * error which is not included in the error message.
@@ -212,6 +216,7 @@ struct NdbError {
    * @note Is NULL when no details specified
    */
   char * details;
+#endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   NdbError(){

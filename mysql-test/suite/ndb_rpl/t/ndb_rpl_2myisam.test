@@ -1,0 +1,49 @@
+#############################################################
+# Author: JBM
+# Date: 2006-02-24
+# Purpose: Trying to test ability to replicate from cluster
+# to innodb, or myisam, or replicate from innodb/myisam to
+# cluster slave. Due to limitations I have created wrappers
+# to be able to use the same code for all these different
+# test and to have control over the tests.
+##############################################################
+-- source include/have_ndb.inc
+-- source include/master-slave.inc
+
+# workaround for Bug #34006 binlog race for temporary ndb table
+# - disable using temporary ndb tables
+-- connection master
+-- disable_query_log
+set ndb_table_temporary=0;
+-- enable_query_log
+
+-- connection slave
+
+# Remove any old ndb_apply_status from slaves datadir
+let $datadir= `SELECT @@datadir`;
+--error 0,1
+remove_file $datadir/mysql/ndb_apply_status.frm;
+--error 0,1
+remove_file $datadir/mysql/ndb_apply_status.ndb;
+
+set @@global.slave_exec_mode= 'IDEMPOTENT';
+CREATE TABLE mysql.ndb_apply_status
+                   ( server_id INT UNSIGNED NOT NULL,
+                   epoch BIGINT UNSIGNED NOT NULL,
+                   log_name VARCHAR(255) BINARY NOT NULL,
+                   start_pos BIGINT UNSIGNED NOT NULL,
+                   end_pos BIGINT UNSIGNED NOT NULL,
+                   PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
+
+-- connection master
+--disable_query_log
+set new=on;
+set default_storage_engine=ndbcluster;
+--enable_query_log
+
+--source suite/ndb_rpl/t/ndb_rpl_2multi_eng.inc
+
+--connection slave
+set @@global.slave_exec_mode= 'STRICT';
+drop table mysql.ndb_apply_status;
+--source include/rpl_end.inc

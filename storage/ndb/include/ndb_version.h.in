@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,30 +12,47 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_VERSION_H
 #define NDB_VERSION_H
 
 #include <ndb_types.h>
+#include <mysql_version.h>
 
-/* NDB build version */
-#define NDB_VERSION_BUILD @NDB_VERSION_BUILD@
-
-/* NDB major version */
-#define NDB_VERSION_MAJOR @NDB_VERSION_MAJOR@
-
-/* NDB minor version */
-#define NDB_VERSION_MINOR @NDB_VERSION_MINOR@
-
-/* NDB status version */
-#define NDB_VERSION_STATUS "@NDB_VERSION_STATUS@"
-
-
+/*
+  Creates a composite version number from major, minor and build
+  ex: NDB_MAKE_VERSION(5,1,47) => 0x00050147
+*/
 #define NDB_MAKE_VERSION(A,B,C) (((A) << 16) | ((B) << 8)  | ((C) << 0))
 
-#define NDB_VERSION_D NDB_MAKE_VERSION(NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD)
+/* NDB version numbers and status  */
+#define NDB_VERSION_MAJOR @NDB_VERSION_MAJOR@
+#define NDB_VERSION_MINOR @NDB_VERSION_MINOR@
+#define NDB_VERSION_BUILD @NDB_VERSION_BUILD@
+#define NDB_VERSION_STATUS "@NDB_VERSION_STATUS@"
+
+/* Composite version number for NDB */
+#define NDB_VERSION_D \
+  NDB_MAKE_VERSION(NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD)
+
+/*
+  The version number of the MySQL Server that NDB is built
+  with. Extracted from MYSQL_VERSION_ID
+*/
+#define NDB_MYSQL_VERSION_MAJOR ((MYSQL_VERSION_ID / 10000) % 100)
+#define NDB_MYSQL_VERSION_MINOR ((MYSQL_VERSION_ID /100) % 100)
+#define NDB_MYSQL_VERSION_BUILD (MYSQL_VERSION_ID % 100)
+
+/* Composite version number for MYSQL Server */
+#define NDB_MYSQL_VERSION_D \
+  NDB_MAKE_VERSION(NDB_MYSQL_VERSION_MAJOR, \
+                   NDB_MYSQL_VERSION_MINOR, \
+                   NDB_MYSQL_VERSION_BUILD)
+
 #define NDB_VERSION_STRING_BUF_SZ 100
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -49,7 +67,7 @@ Uint32 ndbGetMinor(Uint32 version);
   
 Uint32 ndbGetBuild(Uint32 version);
 
-const char* ndbGetVersionString(Uint32 version, const char * status,
+const char* ndbGetVersionString(Uint32 version, Uint32 mysql_version, const char * status,
                                 char *buf, unsigned sz);
 const char* ndbGetOwnVersionString();
 
@@ -64,12 +82,10 @@ Uint32 ndbGetOwnVersion();
 #define NDB_VERSION ndbGetOwnVersion()
 
 /**
- * Version id 
- *
- *  Used by transporter and when communicating with
- *     managment server
+ * This is updated each time a version of backup/lcp format is changed
+ *   when it's updated, it's set to version that made the change
  */
-/*#define NDB_VERSION_ID 0*/
+#define NDB_BACKUP_VERSION NDB_MAKE_VERSION(6,3,11)
 
 /**
  * From which version do we support rowid
@@ -86,7 +102,42 @@ Uint32 ndbGetOwnVersion();
 
 #define NDBD_QMGR_SINGLEUSER_VERSION_5 NDB_MAKE_VERSION(5,0,25)
 
+#define NDBD_SPLIT_VERSION NDB_MAKE_VERSION(6,1,0)
 #define NDBD_NODE_VERSION_REP NDB_MAKE_VERSION(6,1,1)
+
+#define NDBD_255_NODES_VERSION NDB_MAKE_VERSION(5,1,4)
+
+#define NDBD_MICRO_GCP_62 NDB_MAKE_VERSION(6,2,5)
+#define NDBD_MICRO_GCP_63 NDB_MAKE_VERSION(6,3,2)
+#define NDBD_RAW_LCP MAKE_VERSION(6,3,11)
+#define NDBD_LONG_TCKEYREQ NDB_MAKE_VERSION(6,4,0)
+#define NDBD_LONG_LQHKEYREQ MAKE_VERSION(6,4,0)
+#define NDBD_MAX_RECVBYTESIZE_32K MAKE_VERSION(6,3,18)
+#define NDBD_LONG_SCANTABREQ NDB_MAKE_VERSION(6,4,0)
+#define NDBD_LONG_SCANFRAGREQ MAKE_VERSION(6,4,0)
+#define NDBD_MT_LQH_VERSION MAKE_VERSION(6,4,0)
+
+#define NDBD_SCHEMA_TRANS_VERSION NDB_MAKE_VERSION(6,4,0)
+
+static
+inline
+int
+ndb_check_micro_gcp(Uint32 version)
+{	
+  if (version == NDB_VERSION_D)
+    return 1;
+  {
+    const Uint32 major = (version >> 16) & 0xFF;
+    const Uint32 minor = (version >>  8) & 0xFF;
+    if (major >= 6)
+    {
+      if (minor == 2)
+        return version >= NDBD_MICRO_GCP_62;
+      return version >= NDBD_MICRO_GCP_63;
+    }
+  }
+  return 0;
+}
 
 #define NDBD_PREPARE_COPY_FRAG_VERSION NDB_MAKE_VERSION(6,2,1)
 #define NDBD_PREPARE_COPY_FRAG_V2_51 NDB_MAKE_VERSION(5,1,23)
@@ -136,5 +187,510 @@ ndb_check_prep_copy_frag_version(Uint32 version)
   return 0;
 }
 
+#define NDBD_PNR NDB_MAKE_VERSION(6,3,8)
+
+static 
+inline
+int
+ndb_pnr(Uint32 version)
+{
+  return 
+    version == NDB_VERSION_D || version >= NDBD_PNR;
+}
+
+#define NDBD_SUMA_DICT_LOCK_62 NDB_MAKE_VERSION(6,2,14)
+#define NDBD_SUMA_DICT_LOCK_63 NDB_MAKE_VERSION(6,3,11)
+
+static
+inline
+int
+ndbd_suma_dictlock_startme(Uint32 x)
+{
+  if (x >= NDB_VERSION_D)
+    return 1;
+  
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+    
+    if (major >= 6)
+    {
+      if (minor == 2)
+      return x >= NDBD_SUMA_DICT_LOCK_62;
+    }
+    
+    return x >= NDBD_SUMA_DICT_LOCK_63;
+  }
+}
+
+#define NDBD_LONG_LIST_TABLES_CONF_62 NDB_MAKE_VERSION(6,2,16)
+#define NDBD_LONG_LIST_TABLES_CONF_63 NDB_MAKE_VERSION(6,3,15)
+
+static
+inline
+int
+ndbd_LIST_TABLES_CONF_long_signal(Uint32 x)
+{
+  if (x >= NDB_VERSION_D)
+    return 1;
+
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+    
+    if (major >= 6)
+    {
+      if (minor == 2)
+        return x >= NDBD_LONG_LIST_TABLES_CONF_62;
+    }
+    
+    return x >= NDBD_LONG_LIST_TABLES_CONF_63;
+  }
+}
+
+#if NOT_YET
+#define NDBD_FIRE_TRIG_ORD_TRANSID_63 NDB_MAKE_VERSION(6,3,9)
+#define NDBD_FIRE_TRIG_ORD_TRANSID_62 NDB_MAKE_VERSION(6,2,12)
 #endif
- 
+
+static
+inline
+int
+ndb_fire_trig_ord_transid(Uint32 version)
+{
+  if (version >= NDB_VERSION_D)
+    return 1;
+
+#if NOT_YET
+  const Uint32 major = (version >> 16) & 0xFF;
+  const Uint32 minor = (version >>  8) & 0xFF;
+  if (major >= 6)
+  {
+    if (minor == 2)
+    {
+      return version >= NDBD_FIRE_TRIG_ORD_TRANSID_62;
+    }
+
+    return version >= NDBD_FIRE_TRIG_ORD_TRANSID_63;
+  }
+#endif
+
+  return 0;
+}
+
+#define NDBD_SCAN_DISTKEY NDB_MAKE_VERSION(6,4,0)
+
+static
+inline
+int
+ndb_scan_distributionkey(Uint32 version)
+{
+  return version >= NDBD_SCAN_DISTKEY;
+}
+
+#define NDBD_FILTER_INSTANCE_63 NDB_MAKE_VERSION(6,3,16)
+#define NDBD_COPY_GCI_RESTART_NR NDB_MAKE_VERSION(6,3,18)
+
+#define NDBD_SUMA_DICTLOCK_HANDOVER NDB_MAKE_VERSION(6,4,0)
+
+static
+inline
+int
+ndbd_suma_dictlock_handover(Uint32 x)
+{
+  return (x >= NDBD_SUMA_DICTLOCK_HANDOVER);
+}
+
+#define NDBD_API_TAKE_OVERTCCONF_60 NDB_MAKE_VERSION(5,2,4)
+#define NDBD_API_TAKE_OVERTCCONF_62 NDB_MAKE_VERSION(6,2,17)
+#define NDBD_API_TAKE_OVERTCCONF_63 NDB_MAKE_VERSION(6,3,19)
+
+#define NDBD_DELAYED_COPY_ACTIVEREQ_63 NDB_MAKE_VERSION(6,3,29)
+#define NDBD_DELAYED_COPY_ACTIVEREQ_70 NDB_MAKE_VERSION(7,0,10)
+
+static
+inline
+int
+ndb_takeovertc(Uint32 x)
+{
+  if (x >= NDB_VERSION_D)
+    return 1;
+
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+    
+    if (major >= 6)
+    {
+      if (minor == 2)
+        return x >= NDBD_API_TAKE_OVERTCCONF_62;
+    }
+    
+    return x >= NDBD_API_TAKE_OVERTCCONF_63;
+  }
+}
+
+static
+inline
+int
+ndb_delayed_copy_active_req(Uint32 x)
+{
+  if (x >= NDB_VERSION_D)
+    return 1;
+
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+
+    if (major == 6)
+    {
+      return x >= NDBD_DELAYED_COPY_ACTIVEREQ_63;
+    }
+    else
+    {
+      return x >= NDBD_DELAYED_COPY_ACTIVEREQ_70;
+    }
+  }
+}
+
+#define NDBD_SUMA_NOTSTARTED_REF_63 NDB_MAKE_VERSION(6,3,29)
+#define NDBD_SUMA_NOTSTARTED_REF_70 NDB_MAKE_VERSION(7,0,10)
+
+static
+inline
+int
+ndb_suma_not_started_ref(Uint32 x)
+{
+  if (x >= NDB_VERSION_D)
+    return 1;
+
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+
+    if (major == 6)
+    {
+      return x >= NDBD_SUMA_NOTSTARTED_REF_63;
+    }
+    else
+    {
+      return x >= NDBD_SUMA_NOTSTARTED_REF_70;
+    }
+  }
+}
+
+#define NDBD_UNLOCK_OP_SUPPORTED NDB_MAKE_VERSION(7,0,12)
+
+#define NDBD_ROUTE_EXEC_FRAG NDB_MAKE_VERSION(7,0,13)
+
+static
+inline
+int
+ndb_route_exec_frag(Uint32 x)
+{
+  if (x >= NDB_VERSION_D)
+    return 1;
+
+  return x >= NDBD_ROUTE_EXEC_FRAG;
+}
+
+#define NDBD_NATIVE_DEFAULT_SUPPORT_70 NDB_MAKE_VERSION(7,0,15)
+#define NDBD_NATIVE_DEFAULT_SUPPORT_71 NDB_MAKE_VERSION(7,1,4)
+
+static
+inline
+int
+ndb_native_default_support(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor == 0)
+    return x >= NDBD_NATIVE_DEFAULT_SUPPORT_70;
+  
+  return x >= NDBD_NATIVE_DEFAULT_SUPPORT_71;
+}
+
+#define NDBD_HB_ORDER_VERSION_63 NDB_MAKE_VERSION(6,3,35)
+#define NDBD_HB_ORDER_VERSION_70 NDB_MAKE_VERSION(7,0,16)
+#define NDBD_HB_ORDER_VERSION_71 NDB_MAKE_VERSION(7,1,5)
+
+static
+inline
+int
+ndb_check_hb_order_version(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 6 && minor == 3)
+    {
+      return x >= NDBD_HB_ORDER_VERSION_63;
+    }
+    if (major == 7 && minor == 0)
+    {
+      return x >= NDBD_HB_ORDER_VERSION_70;
+    }
+    return x >= NDBD_HB_ORDER_VERSION_71;
+  }
+}
+
+#define NDBD_SYNCH_SP_70 NDB_MAKE_VERSION(7,0,17)
+#define NDBD_SYNCH_SP_71 NDB_MAKE_VERSION(7,1,6)
+
+static
+inline
+int
+ndb_wait_sp(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 7 && minor == 0)
+    {
+      return x >= NDBD_SYNCH_SP_70;
+    }
+    return x >= NDBD_SYNCH_SP_71;
+  }
+}
+
+#define NDBD_DIH_GET_TABINFO_70 NDB_MAKE_VERSION(7,0,17)
+#define NDBD_DIH_GET_TABINFO_71 NDB_MAKE_VERSION(7,1,6)
+
+static
+inline
+int
+ndb_dih_get_tabinfo(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 7 && minor == 0)
+    {
+      return x >= NDBD_DIH_GET_TABINFO_70;
+    }
+    return x >= NDBD_DIH_GET_TABINFO_71;
+  }
+}
+
+#define NDBD_SUMA_STOP_ME_63 NDB_MAKE_VERSION(6,3,37)
+#define NDBD_SUMA_STOP_ME_70 NDB_MAKE_VERSION(7,0,18)
+#define NDBD_SUMA_STOP_ME_71 NDB_MAKE_VERSION(7,1,7)
+
+static
+inline
+int
+ndbd_suma_stop_me(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 6)
+    {
+      return x >= NDBD_SUMA_STOP_ME_63;
+    }
+    if (major == 7 && minor == 0)
+    {
+      return x >= NDBD_SUMA_STOP_ME_70;
+    }
+    return x >= NDBD_SUMA_STOP_ME_71;
+  }
+}
+
+#define NDBD_DIH_SUB_GCP_COMPLETE_ACK_63 NDB_MAKE_VERSION(6,3,39)
+#define NDBD_DIH_SUB_GCP_COMPLETE_ACK_70 NDB_MAKE_VERSION(7,0,20)
+#define NDBD_DIH_SUB_GCP_COMPLETE_ACK_71 NDB_MAKE_VERSION(7,1,9)
+
+static
+inline
+int
+ndbd_dih_sub_gcp_complete_ack(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 6)
+    {
+      return x >= NDBD_DIH_SUB_GCP_COMPLETE_ACK_63;
+    }
+    if (major == 7 && minor == 0)
+    {
+      return x >= NDBD_DIH_SUB_GCP_COMPLETE_ACK_70;
+    }
+    return x >= NDBD_DIH_SUB_GCP_COMPLETE_ACK_71;
+  }
+}
+
+/**
+ * After this version, TC/BACKUP/SUMA does not use ScanFragReq::setAttrLen
+ *   when sending long SCAN_FRAGREQ
+ */
+#define NDBD_LONG_SCAN_FRAGREQ_70 NDB_MAKE_VERSION(7,0,20)
+#define NDBD_LONG_SCAN_FRAGREQ_71 NDB_MAKE_VERSION(7,1,9)
+
+#define NDBD_FAIL_REP_SOURCE_NODE_63 NDB_MAKE_VERSION(6,3,40)
+#define NDBD_FAIL_REP_SOURCE_NODE_70 NDB_MAKE_VERSION(7,0,21)
+#define NDBD_FAIL_REP_SOURCE_NODE_71 NDB_MAKE_VERSION(7,1,10)
+
+static 
+inline
+int
+ndbd_fail_rep_source_node(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 6)
+    {
+      return x >= NDBD_FAIL_REP_SOURCE_NODE_63;
+    }
+    if (major == 7 && minor == 0)
+    {
+      return x >= NDBD_FAIL_REP_SOURCE_NODE_70;
+    }
+    return x >= NDBD_FAIL_REP_SOURCE_NODE_71;
+  }
+}
+
+
+#define NDBD_SYNC_REQ_SUPPORT_70 NDB_MAKE_VERSION(7,0,20)
+#define NDBD_SYNC_REQ_SUPPORT_71 NDB_MAKE_VERSION(7,1,9)
+
+static
+inline
+int
+ndbd_sync_req_support(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor == 0)
+    return x >= NDBD_SYNC_REQ_SUPPORT_70;
+
+  return x >= NDBD_SYNC_REQ_SUPPORT_71;
+}
+
+/**
+ * Does not support CopyFragReq::CFR_NON_TRANSACTIONAL
+ */
+#define NDBD_NON_TRANS_COPY_FRAG_REQ_70 NDB_MAKE_VERSION(7,0,22)
+#define NDBD_NON_TRANS_COPY_FRAG_REQ_71 NDB_MAKE_VERSION(7,1,11)
+
+static
+inline
+int
+ndbd_non_trans_copy_frag_req(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor == 0)
+    return x >= NDBD_NON_TRANS_COPY_FRAG_REQ_70;
+
+  return x >= NDBD_NON_TRANS_COPY_FRAG_REQ_71;
+}
+
+#define NDBD_PING_REQ_70 NDB_MAKE_VERSION(7,0,24)
+#define NDBD_PING_REQ_71 NDB_MAKE_VERSION(7,1,13)
+
+static
+inline
+int
+ndbd_connectivity_check(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor == 0)
+    return x >= NDBD_PING_REQ_70;
+
+  return x >= NDBD_PING_REQ_71;
+}
+
+#define NDBD_DEFERRED_UNIQUE_CONSTRAINTS_70 NDB_MAKE_VERSION(7,0,25)
+#define NDBD_DEFERRED_UNIQUE_CONSTRAINTS_71 NDB_MAKE_VERSION(7,1,14)
+
+static
+inline
+int
+ndbd_deferred_unique_constraints(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor == 0)
+    return x >= NDBD_DEFERRED_UNIQUE_CONSTRAINTS_70;
+
+  return x >= NDBD_DEFERRED_UNIQUE_CONSTRAINTS_71;
+}
+
+#define NDBD_TUP_EXTRABITS_70 NDB_MAKE_VERSION(7,0,25)
+#define NDBD_TUP_EXTRABITS_71 NDB_MAKE_VERSION(7,1,14)
+#define NDBD_TUP_EXTRABITS_72 NDB_MAKE_VERSION(7,2,1)
+
+static
+inline
+int
+ndb_tup_extrabits(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 7 && minor < 2)
+    {
+      if (minor == 0)
+        return x >= NDBD_TUP_EXTRABITS_70;
+      else if (minor == 1)
+        return x >= NDBD_TUP_EXTRABITS_71;
+    }
+    return x >= NDBD_TUP_EXTRABITS_72;
+  }
+}
+
+#define NDBD_REFRESH_TUPLE_70 NDB_MAKE_VERSION(7,0,26)
+#define NDBD_REFRESH_TUPLE_71 NDB_MAKE_VERSION(7,1,15)
+#define NDBD_REFRESH_TUPLE_72 NDB_MAKE_VERSION(7,2,1)
+
+static
+inline
+int
+ndb_refresh_tuple(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 7 && minor < 2)
+    {
+      if (minor == 0)
+        return x >= NDBD_REFRESH_TUPLE_70;
+      else if (minor == 1)
+        return x >= NDBD_REFRESH_TUPLE_71;
+    }
+    return x >= NDBD_REFRESH_TUPLE_72;
+  }
+}
+
+#define NDBD_GET_CONFIG_SUPPORT_70 NDB_MAKE_VERSION(7,0,27)
+#define NDBD_GET_CONFIG_SUPPORT_71 NDB_MAKE_VERSION(7,1,16)
+
+static
+inline
+int
+ndbd_get_config_supported(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor == 0)
+    return x >= NDBD_GET_CONFIG_SUPPORT_70;
+
+  return x >= NDBD_GET_CONFIG_SUPPORT_71;
+}
+
+#endif

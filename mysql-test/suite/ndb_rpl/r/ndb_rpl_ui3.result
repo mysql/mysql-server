@@ -1,0 +1,51 @@
+include/master-slave.inc
+[connection master]
+CREATE TABLE t1 (pk int primary key, uk1 int not null, uk2 int not null,
+unique(uk1), unique(uk2)) engine=ndb;
+insert into t1 values (1,1,1);
+insert into t1 values (2,2,2);
+insert into t1 values (3,3,3);
+insert into t1 values (4,4,4);
+insert into t1 values (5,5,5);
+select * from t1 where uk1 in (1,2,3,4,5);
+pk	uk1	uk2
+1	1	1
+2	2	2
+3	3	3
+4	4	4
+5	5	5
+update t1 set uk1=uk1-1 order by pk;
+update t1 set uk2=uk2+1 order by pk desc;
+select * from t1 where uk1 in (0,1,2,3,4);
+pk	uk1	uk2
+1	0	2
+2	1	3
+3	2	4
+4	3	5
+5	4	6
+Master table contents
+select * from t1 order by pk;
+pk	uk1	uk2
+1	0	2
+2	1	3
+3	2	4
+4	3	5
+5	4	6
+flush logs;
+Slave table contents
+select * from t1 order by pk;
+pk	uk1	uk2
+1	0	2
+2	1	3
+3	2	4
+4	3	5
+5	4	6
+select * from t1 where uk1 in (0,1,2,3,4);
+pk	uk1	uk2
+1	0	2
+2	1	3
+3	2	4
+4	3	5
+5	4	6
+drop table t1;
+include/rpl_end.inc

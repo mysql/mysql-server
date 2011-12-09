@@ -1,4 +1,6 @@
-/* Copyright (C) 2008 MySQL AB
+/*
+   Copyright (C) 2007, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,24 +13,26 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* DbUtil.cpp: implementation of the database utilities class.*/
 
 #include "DbUtil.hpp"
 #include <NdbSleep.h>
-
+#include <NdbAutoPtr.hpp>
 
 /* Constructors */
 
 DbUtil::DbUtil(const char* _dbname,
-               const char* _user,
-               const char* _password,
                const char* _suffix):
-  m_connected(false),
-  m_dbname(_dbname),
   m_mysql(NULL),
-  m_free_mysql(true)
+  m_free_mysql(true),
+  m_connected(false),
+  m_user("root"),
+  m_pass(""),
+  m_dbname(_dbname),
+  m_silent(false)
 {
   const char* env= getenv("MYSQL_HOME");
   if (env && strlen(env))
@@ -45,17 +49,14 @@ DbUtil::DbUtil(const char* _dbname,
 
   ndbout << "default_file: " << m_default_file.c_str() << endl;
   ndbout << "default_group: " << m_default_group.c_str() << endl;
-
-  m_user.assign(_user);
-  m_pass.assign(_password);
 }
 
 
 
 DbUtil::DbUtil(MYSQL* mysql):
-  m_connected(true),
   m_mysql(mysql),
-  m_free_mysql(false)
+  m_free_mysql(false),
+  m_connected(true)
 {
 }
 
@@ -67,7 +68,7 @@ DbUtil::isConnected(){
     assert(m_mysql);
     return true;
   }
-  return connect() == 0;
+  return connect();
 }
 
 
@@ -103,7 +104,7 @@ DbUtil::~DbUtil()
 
 /* Database Login */
 
-void 
+bool
 DbUtil::databaseLogin(const char* system, const char* usr,
                            const char* password, unsigned int portIn,
                            const char* sockIn, bool transactional)
@@ -111,25 +112,26 @@ DbUtil::databaseLogin(const char* system, const char* usr,
   if (!(m_mysql = mysql_init(NULL)))
   {
     myerror("DB Login-> mysql_init() failed");
-    exit(DBU_FAILED);
+    return false;
   }
   setUser(usr);
   setHost(system);
   setPassword(password);
   setPort(portIn);
   setSocket(sockIn);
+  m_dbname.assign("test");
 
   if (!(mysql_real_connect(m_mysql, 
                            m_host.c_str(), 
                            m_user.c_str(), 
                            m_pass.c_str(), 
-                           "test", 
+                           m_dbname.c_str(),
                            m_port, 
                            m_socket.c_str(), 0)))
   {
     myerror("connection failed");
-    mysql_close(m_mysql);
-    exit(DBU_FAILED);
+    disconnect();
+    return false;
   }
 
   m_mysql->reconnect = TRUE;
@@ -146,17 +148,19 @@ DbUtil::databaseLogin(const char* system, const char* usr,
            (unsigned long) mysql_get_server_version(m_mysql));
   #endif
   selectDb();
+  m_connected= true;
+  return true;
 }
 
 /* Database Connect */
 
-int
+bool
 DbUtil::connect()
 {
   if (!(m_mysql = mysql_init(NULL)))
   {
     myerror("DB connect-> mysql_init() failed");
-    return DBU_FAILED;
+    return false;
   }
 
   /* Load connection parameters file and group */
@@ -164,24 +168,28 @@ DbUtil::connect()
       mysql_options(m_mysql, MYSQL_READ_DEFAULT_GROUP, m_default_group.c_str()))
   {
     myerror("DB Connect -> mysql_options failed");
-    return DBU_FAILED;
+    disconnect();
+    return false;
   }
 
   /*
     Connect, read settings from my.cnf
     NOTE! user and password can be stored there as well
-   */
-
-  if (mysql_real_connect(m_mysql, NULL, "root","", m_dbname.c_str(), 
+  */
+  if (mysql_real_connect(m_mysql, NULL,
+                         m_user.c_str(),
+                         m_pass.c_str(),
+                         m_dbname.c_str(),
                          0, NULL, 0) == NULL)
   {
     myerror("connection failed");
-    mysql_close(m_mysql);
-    return DBU_FAILED;
+    disconnect();
+    return false;
   }
   selectDb();
-  m_connected = true;
-  return DBU_OK;
+  m_connected= true;
+  assert(m_mysql);
+  return true;
 }
 
 
@@ -206,13 +214,11 @@ DbUtil::mysqlSimplePrepare(const char *query)
   #ifdef DEBUG
     printf("Inside DbUtil::mysqlSimplePrepare\n");
   #endif
-  int m_res = DBU_OK;
-
   MYSQL_STMT *my_stmt= mysql_stmt_init(this->getMysql());
-  if (my_stmt && (m_res = mysql_stmt_prepare(my_stmt, query, strlen(query)))){
+  if (my_stmt && mysql_stmt_prepare(my_stmt, query, strlen(query))){
     this->printStError(my_stmt,"Prepare Statement Failed");
     mysql_stmt_close(my_stmt);
-    exit(DBU_FAILED);
+    return NULL;
   }
   return my_stmt;
 }
@@ -261,57 +267,59 @@ DbUtil::printStError(MYSQL_STMT *stmt, const char *msg)
 
 /* Select which database to use */
 
-int
+bool
 DbUtil::selectDb()
 {
   if ((getDbName()) != NULL)
   {
     if(mysql_select_db(m_mysql, this->getDbName()))
     {
-      printError("mysql_select_db failed");
-      return DBU_FAILED;
+      //printError("mysql_select_db failed");
+      return false;
     }
-    return DBU_OK;   
+    return true;   
   }
   printError("getDbName() == NULL");
-  return DBU_FAILED;
+  return false;
 }
 
-int
+bool
 DbUtil::selectDb(const char * m_db)
 {
   {
     if(mysql_select_db(m_mysql, m_db))
     {
       printError("mysql_select_db failed");
-      return DBU_FAILED;
+      return false;
     }
-    return DBU_OK;
+    return true;
   }
 }
 
-int
+bool
 DbUtil::createDb(BaseString& m_db)
 {
   BaseString stm;
+  setDbName(m_db.c_str());
+  
   {
-    if(mysql_select_db(m_mysql, m_db.c_str()) == DBU_OK)
+    if(selectDb())
     {
       stm.assfmt("DROP DATABASE %s", m_db.c_str());
-      if(doQuery(m_db.c_str()) == DBU_FAILED)
-        return DBU_FAILED;
+      if(!doQuery(m_db.c_str()))
+        return false;
     }
     stm.assfmt("CREATE DATABASE %s", m_db.c_str());
-    if(doQuery(m_db.c_str()) == DBU_FAILED)
-      return DBU_FAILED;
-    return DBU_OK;
+    if(!doQuery(m_db.c_str()))
+      return false;
+    return true;
   }
 }
 
 
 /* Count Table Rows */
 
-unsigned long
+unsigned long long
 DbUtil::selectCountTable(const char * table)
 {
   BaseString query;
@@ -322,37 +330,23 @@ DbUtil::selectCountTable(const char * table)
     printError("select count(*) failed");
     return -1;
   }
-   return result.columnAsInt("count");
+   return result.columnAsLong("count");
 }
 
 
 /* Run Simple Queries */
 
 
-static bool is_int_type(enum_field_types type){
-  switch(type){
-  case MYSQL_TYPE_TINY:
-  case MYSQL_TYPE_SHORT:
-  case MYSQL_TYPE_LONGLONG:
-  case MYSQL_TYPE_INT24:
-  case MYSQL_TYPE_LONG:
-  case MYSQL_TYPE_ENUM:
-    return true;
-  default:
-    return false;
-  }
-  return false;
-}
-
-
 bool
 DbUtil::runQuery(const char* sql,
-                    const Properties& args,
-                    SqlResultSet& rows){
+                 const Properties& args,
+                 SqlResultSet& rows){
 
+  clear_error();
   rows.clear();
   if (!isConnected())
     return false;
+  assert(m_mysql);
 
   g_debug << "runQuery: " << endl
           << " sql: '" << sql << "'" << endl;
@@ -361,13 +355,15 @@ DbUtil::runQuery(const char* sql,
   MYSQL_STMT *stmt= mysql_stmt_init(m_mysql);
   if (mysql_stmt_prepare(stmt, sql, strlen(sql)))
   {
-    g_err << "Failed to prepare: " << mysql_error(m_mysql) << endl;
+    report_error("Failed to prepare: ", m_mysql);
     return false;
   }
 
   uint params= mysql_stmt_param_count(stmt);
-  MYSQL_BIND bind_param[params];
-  memset(bind_param, 0, sizeof(bind_param));
+  MYSQL_BIND *bind_param = new MYSQL_BIND[params];
+  NdbAutoObjArrayPtr<MYSQL_BIND> _guard(bind_param);
+
+  memset(bind_param, 0, params * sizeof(MYSQL_BIND));
 
   for(uint i= 0; i < mysql_stmt_param_count(stmt); i++)
   {
@@ -404,14 +400,14 @@ DbUtil::runQuery(const char* sql,
   }
   if (mysql_stmt_bind_param(stmt, bind_param))
   {
-    g_err << "Failed to bind param: " << mysql_error(m_mysql) << endl;
+    report_error("Failed to bind param: ", m_mysql);
     mysql_stmt_close(stmt);
     return false;
   }
 
   if (mysql_stmt_execute(stmt))
   {
-    g_err << "Failed to execute: " << mysql_error(m_mysql) << endl;
+    report_error("Failed to execute: ", m_mysql);
     mysql_stmt_close(stmt);
     return false;
   }
@@ -425,7 +421,7 @@ DbUtil::runQuery(const char* sql,
 
   if (mysql_stmt_store_result(stmt))
   {
-    g_err << "Failed to store result: " << mysql_error(m_mysql) << endl;
+    report_error("Failed to store result: ", m_mysql);
     mysql_stmt_close(stmt);
     return false;
   }
@@ -436,26 +432,41 @@ DbUtil::runQuery(const char* sql,
   {
     MYSQL_FIELD *fields= mysql_fetch_fields(res);
     uint num_fields= mysql_num_fields(res);
-    MYSQL_BIND bind_result[num_fields];
-    memset(bind_result, 0, sizeof(bind_result));
+    MYSQL_BIND *bind_result = new MYSQL_BIND[num_fields];
+    NdbAutoObjArrayPtr<MYSQL_BIND> _guard1(bind_result);
+    memset(bind_result, 0, num_fields * sizeof(MYSQL_BIND));
 
     for (uint i= 0; i < num_fields; i++)
     {
-      if (is_int_type(fields[i].type)){
-        bind_result[i].buffer_type= MYSQL_TYPE_LONG;
-        bind_result[i].buffer= malloc(sizeof(int));
+      unsigned long buf_len= sizeof(int);
+
+      switch(fields[i].type){
+      case MYSQL_TYPE_STRING:
+        buf_len = fields[i].length + 1;
+        break;
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_VAR_STRING:
+        buf_len= fields[i].max_length + 1;
+        break;
+      case MYSQL_TYPE_LONGLONG:
+        buf_len= sizeof(long long);
+        break;
+      case MYSQL_TYPE_LONG:
+        buf_len = sizeof(long);
+        break;
+      default:
+        break;
       }
-      else
-      {
-        uint max_length= fields[i].max_length + 1;
-        bind_result[i].buffer_type= MYSQL_TYPE_STRING;
-        bind_result[i].buffer= malloc(max_length);
-        bind_result[i].buffer_length= max_length;
-      }
+      
+      bind_result[i].buffer_type= fields[i].type;
+      bind_result[i].buffer= malloc(buf_len);
+      bind_result[i].buffer_length= buf_len;
+      bind_result[i].is_null = (my_bool*)malloc(sizeof(my_bool));
+      * bind_result[i].is_null = 0;
     }
 
     if (mysql_stmt_bind_result(stmt, bind_result)){
-      g_err << "Failed to bind result: " << mysql_error(m_mysql) << endl;
+      report_error("Failed to bind result: ", m_mysql);
       mysql_stmt_close(stmt);
       return false;
     }
@@ -464,10 +475,25 @@ DbUtil::runQuery(const char* sql,
     {
       Properties curr(true);
       for (uint i= 0; i < num_fields; i++){
-        if (is_int_type(fields[i].type))
-          curr.put(fields[i].name, *(int*)bind_result[i].buffer);
-        else
+        if (* bind_result[i].is_null)
+          continue;
+        switch(fields[i].type){
+        case MYSQL_TYPE_STRING:
+	  ((char*)bind_result[i].buffer)[fields[i].max_length] = 0;
+        case MYSQL_TYPE_VARCHAR:
+        case MYSQL_TYPE_VAR_STRING:
           curr.put(fields[i].name, (char*)bind_result[i].buffer);
+          break;
+
+        case MYSQL_TYPE_LONGLONG:
+          curr.put64(fields[i].name,
+                     *(unsigned long long*)bind_result[i].buffer);
+          break;
+
+        default:
+          curr.put(fields[i].name, *(int*)bind_result[i].buffer);
+          break;
+        }
       }
       rows.put("row", row++, &curr);
     }
@@ -475,17 +501,19 @@ DbUtil::runQuery(const char* sql,
     mysql_free_result(res);
 
     for (uint i= 0; i < num_fields; i++)
+    {
       free(bind_result[i].buffer);
-
+      free(bind_result[i].is_null);
+    }
   }
 
   // Save stats in result set
   rows.put("rows", row);
-  rows.put("affected_rows", mysql_affected_rows(m_mysql));
+  rows.put64("affected_rows", mysql_affected_rows(m_mysql));
   rows.put("mysql_errno", mysql_errno(m_mysql));
   rows.put("mysql_error", mysql_error(m_mysql));
   rows.put("mysql_sqlstate", mysql_sqlstate(m_mysql));
-  rows.put("insert_id", mysql_insert_id(m_mysql));
+  rows.put64("insert_id", mysql_insert_id(m_mysql));
 
   mysql_stmt_close(stmt);
   return true;
@@ -516,6 +544,12 @@ DbUtil::doQuery(const char* query, const Properties& args,
   return true;
 }
 
+bool
+DbUtil::doQuery(const char* query, const Properties& args){
+  SqlResultSet result;
+  return doQuery(query, args, result);
+}
+
 
 bool
 DbUtil::doQuery(BaseString& str){
@@ -536,6 +570,12 @@ DbUtil::doQuery(BaseString& str, const Properties& args,
 }
 
 
+bool
+DbUtil::doQuery(BaseString& str, const Properties& args){
+  return doQuery(str.c_str(), args);
+}
+
+
 /* Return MySQL Error String */
 
 const char *
@@ -551,6 +591,17 @@ DbUtil::getErrorNumber()
 {
   return mysql_errno(this->getMysql());
 }
+
+void
+DbUtil::report_error(const char* message, MYSQL* mysql)
+{
+  m_last_errno= mysql_errno(mysql);
+  m_last_error.assfmt("%d: %s", m_last_errno, mysql_error(mysql));
+
+  if (!m_silent)
+    g_err << message << m_last_error << endl;
+}
+
 
 /* DIE */
 
@@ -594,6 +645,13 @@ void SqlResultSet::remove(){
 }
 
 
+// Clear all rows and reset iterator
+void SqlResultSet::clear(){
+  reset();
+  Properties::clear();
+}
+
+
 SqlResultSet::SqlResultSet(): m_curr_row(0), m_curr_row_num(-1){
 }
 
@@ -629,16 +687,28 @@ uint SqlResultSet::columnAsInt(const char* col_name){
   return value;
 }
 
-
-uint SqlResultSet::insertId(){
-  return get_int("insert_id");
+unsigned long long SqlResultSet::columnAsLong(const char* col_name){
+  unsigned long long value;
+  if (!m_curr_row){
+    g_err << "ERROR: SqlResultSet::columnAsLong("<< col_name << ")" << endl
+          << "There is no row loaded, call next() before "
+          << "acessing the column values" << endl;
+    assert(m_curr_row);
+  }
+  if (!m_curr_row->get(col_name, &value))
+    return (uint)-1;
+  return value;
 }
 
 
-uint SqlResultSet::affectedRows(){
-  return get_int("affected_rows");
+unsigned long long SqlResultSet::insertId(){
+  return get_long("insert_id");
 }
 
+
+unsigned long long SqlResultSet::affectedRows(){
+  return get_long("affected_rows");
+}
 
 uint SqlResultSet::numRows(void){
   return get_int("rows");
@@ -662,6 +732,12 @@ const char* SqlResultSet::mysqlSqlstate(void){
 
 uint SqlResultSet::get_int(const char* name){
   uint value;
+  get(name, &value);
+  return value;
+}
+
+unsigned long long SqlResultSet::get_long(const char* name){
+  unsigned long long value;
   get(name, &value);
   return value;
 }

@@ -1,4 +1,6 @@
-/* Copyright (C) 2006 MySQL AB
+/*
+   Copyright (C) 2005-2007 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <signaldata/SignalData.hpp>
 #include "diskpage.hpp"
@@ -49,7 +52,7 @@ operator<<(NdbOut& out, const File_formats::Zero_page_header& obj)
   char buf[256];
   out << "page size:   " << obj.m_page_size << endl;
   out << "ndb version: " << obj.m_ndb_version << ", " <<
-    ndbGetVersionString(obj.m_ndb_version, 0, buf, sizeof(buf)) << endl;
+    ndbGetVersionString(obj.m_ndb_version, 0, 0, buf, sizeof(buf)) << endl;
   out << "ndb node id: " << obj.m_node_id << endl;
   out << "file type:   " << obj.m_file_type << endl;
   out << "time:        " << obj.m_time << ", " 

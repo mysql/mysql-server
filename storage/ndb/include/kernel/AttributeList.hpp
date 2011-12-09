@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef ATTRIBUTE_LIST_HPP
 #define ATTRIBUTE_LIST_HPP
@@ -24,6 +26,7 @@
  */
 
 typedef Bitmask<MAXNROFATTRIBUTESINWORDS> AttributeMask;
+typedef BitmaskPOD<MAXNROFATTRIBUTESINWORDS> AttributeMaskPOD;
 
 template <Uint32 SZ>
 struct Id_array
@@ -32,6 +35,6 @@ struct Id_array
   Uint32 id[SZ];
 };
 
-typedef Id_array<MAX_ATTRIBUTES_IN_INDEX> AttributeList;
+typedef Id_array<MAX_ATTRIBUTES_IN_INDEX> IndexAttributeList;
 
 #endif

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 //----------------------------------------------------------------
 // REDOLOGFILEREADER
@@ -25,6 +27,7 @@
 
 
 #include <ndb_global.h>
+#include <my_dir.h>
 
 #include "records.hpp"
 
@@ -46,15 +49,19 @@ bool theCheckFlag = true;
 bool onlyPageHeaders = false;
 bool onlyMbyteHeaders = false;
 bool onlyFileDesc = false;
-bool firstLap = true;
+bool onlyLap = false;
+bool theTwiddle = false;
 Uint32 startAtMbyte = 0;
 Uint32 startAtPage = 0;
 Uint32 startAtPageIndex = 0;
 Uint32 *redoLogPage;
 
+unsigned NO_MBYTE_IN_FILE = 16;
+
 NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read a redo log file", 16384) { 
-  int wordIndex = 0;
-  int oldWordIndex = 0;
+  ndb_init();
+  Int32 wordIndex = 0;
+  Uint32 oldWordIndex = 0;
   Uint32 recordType = 1234567890;
 
   PageHeader *thePageHeader;
@@ -74,6 +81,16 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
     perror("Error: open file");
     exit(RETURN_ERROR);
   }
+
+  {
+    MY_STAT buf;
+    my_stat(fileName, &buf, MYF(0));
+    NO_MBYTE_IN_FILE = buf.st_size / (1024 * 1024);
+    if (NO_MBYTE_IN_FILE != 16)
+    {
+      ndbout_c("Detected %umb files", NO_MBYTE_IN_FILE);
+    }
+  }
   
   Uint32 tmpFileOffset = startAtMbyte * PAGESIZE * NO_PAGES_IN_MBYTE * sizeof(Uint32);
   if (fseek(f, tmpFileOffset, FROM_BEGINNING)) {
@@ -88,32 +105,43 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   bool lastPage = false;
   for (Uint32 j = startAtMbyte; j < NO_MBYTE_IN_FILE && !lastPage; j++) {
 
+    ndbout_c("mb: %d", j);
     readFromFile(f, redoLogPage, PAGESIZE*NO_PAGES_IN_MBYTE);
 
     words_from_previous_page = 0;
 
     // Loop for every page.
-    for (int i = 0; i < NO_PAGES_IN_MBYTE; i++) {
+    for (int i = 0; i < NO_PAGES_IN_MBYTE; i++) 
+    {
       wordIndex = 0;
       thePageHeader = (PageHeader *) &redoLogPage[i*PAGESIZE];
       // Print out mbyte number, page number and page index.
       ndbout << j << ":" << i << ":" << wordIndex << endl 
 	     << " " << j*32 + i << ":" << wordIndex << " ";
       if (thePrintFlag) ndbout << (*thePageHeader);
+      if (onlyLap)
+      {
+	ndbout_c("lap: %d maxgcicompleted: %d maxgcistarted: %d",
+		 thePageHeader->m_lap,
+		 thePageHeader->m_max_gci_completed,
+		 thePageHeader->m_max_gci_started);
+	continue;
+      }
       if (theCheckFlag) {
 	if(!thePageHeader->check()) {
 	  ndbout << "Error in thePageHeader->check()" << endl;
 	  doExit();
 	}
-
+	
 	Uint32 checkSum = 37;
 	for (int ps = 1; ps < PAGESIZE; ps++)
 	  checkSum = redoLogPage[i*PAGESIZE+ps] ^ checkSum;
 
 	if (checkSum != redoLogPage[i*PAGESIZE]){
-	  ndbout << "WRONG CHECKSUM: checksum = " << redoLogPage[i*PAGESIZE]
-		 << " expected = " << checkSum << endl;
-	  doExit();
+	  ndbout_c("WRONG CHECKSUM: checksum = 0x%x expected: 0x%x",
+                   redoLogPage[i*PAGESIZE],
+                   checkSum);
+	  //doExit();
 	}
 	else
 	  ndbout << "expected checksum: " << checkSum << endl;
@@ -138,7 +166,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
       Uint32 *redoLogPagePos = redoLogPage + i*PAGESIZE;
       if (words_from_previous_page)
       {
-	memmove(redoLogPagePos + wordIndex ,
+	memmove(redoLogPagePos + wordIndex,
 		redoLogPagePos - words_from_previous_page,
 		words_from_previous_page*4);
       }
@@ -155,8 +183,8 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	else
 	{
 	  // Print out mbyte number, page number and word index.
-	  ndbout << j << ":" << i << ":" << wordIndex << endl 
-		 << " " << j*32 + i << ":" << wordIndex << " ";
+          ndbout_c("mb: %u fp: %u pos: %u",
+                   j, (j*32 + i), wordIndex);
 	}
 	redoLogPagePos = redoLogPage + i*PAGESIZE + wordIndex;
 	oldWordIndex = wordIndex;
@@ -282,12 +310,19 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	    ndbout_c("%-30d%-12u%-12x", k, unknown, unknown);
 	  }
 	  
-	  doExit();
+          if (theCheckFlag)
+          {
+            doExit();
+          }
+          else
+          {
+            wordIndex = lastWord;
+          }
 	}
-      } while(wordIndex < lastWord && i < NO_PAGES_IN_MBYTE);
+      } while(wordIndex < (Int32)lastWord && i < NO_PAGES_IN_MBYTE);
 
 
-      if (lastPage)
+      if (false && lastPage)
       {
 	if (theDumpFlag)
 	{
@@ -320,16 +355,36 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   exit(RETURN_OK);
 }
 
+static
+Uint32
+twiddle_32(Uint32 in)
+{
+  Uint32 retVal = 0;
+
+  retVal = ((in & 0x000000FF) << 24) |
+    ((in & 0x0000FF00) << 8)  |
+    ((in & 0x00FF0000) >> 8)  |
+    ((in & 0xFF000000) >> 24);
+
+  return(retVal);
+}
+
 //----------------------------------------------------------------
 // 
 //----------------------------------------------------------------
 
 Uint32 readFromFile(FILE * f, Uint32 *toPtr, Uint32 sizeInWords) {
   Uint32 noOfReadWords;
-  if ( !(noOfReadWords = fread(toPtr, sizeof(Uint32), sizeInWords, f)) ) {
+  if ( !(noOfReadWords = (Uint32)fread(toPtr, sizeof(Uint32), sizeInWords, f))){
     ndbout << "Error reading file" << endl;
     doExit();
   } 
+
+  if (theTwiddle)
+  {
+    for (Uint32 i = 0; i<noOfReadWords; i++)
+      toPtr[i] = twiddle_32(toPtr[i]);
+  }
 
   return noOfReadWords;
 }
@@ -344,7 +399,7 @@ void usage(const char * prg){
   ndbout << endl << "Usage: " << endl << prg 
 	 << " <Binary log file> [-noprint] [-nocheck] [-mbyte <0-15>] "
 	 << "[-mbyteheaders] [-pageheaders] [-filedescriptors] [-page <0-31>] "
-	 << "[-pageindex <12-8191>]" 
+	 << "[-pageindex <12-8191>] -twiddle"
 	 << endl << endl;
   
 }
@@ -365,6 +420,8 @@ void readArguments(int argc, const char** argv)
 	thePrintFlag = false;
       } else if (strcmp(argv[i], "-dump") == 0) {
 	theDumpFlag = true;
+      } else if (strcmp(argv[i], "-twiddle") == 0) {
+        theTwiddle = true;
       } else if (strcmp(argv[i], "-nocheck") == 0) {
 	theCheckFlag = false;
       } else if (strcmp(argv[i], "-mbyteheaders") == 0) {
@@ -373,12 +430,11 @@ void readArguments(int argc, const char** argv)
 	onlyPageHeaders = true;
       } else if (strcmp(argv[i], "-filedescriptors") == 0) {
 	onlyFileDesc = true;
+      } else if (strcmp(argv[i], "-lap") == 0) {
+	thePrintFlag = false;
+	onlyLap = true;
       } else if (strcmp(argv[i], "-mbyte") == 0) {
 	startAtMbyte = atoi(argv[i+1]);
-	if (startAtMbyte > 15) {
-	  usage(argv[0]);
-	  doExit();
-	}
 	argc--;
 	i++;
       } else if (strcmp(argv[i], "-page") == 0) {

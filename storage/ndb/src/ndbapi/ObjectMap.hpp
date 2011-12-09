@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,28 +13,28 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_OBJECT_ID_MAP_HPP
 #define NDB_OBJECT_ID_MAP_HPP
 
 #include <ndb_global.h>
-//#include <NdbMutex.h>
 #include <NdbOut.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 //#define DEBUG_OBJECTMAP
 
 /**
   * Global ObjectMap
   */
-class NdbObjectIdMap //: NdbLockable
+class NdbObjectIdMap
 {
 public:
-  STATIC_CONST( InvalidId = ~(Uint32)0 );
-  NdbObjectIdMap(NdbMutex*, Uint32 initalSize = 128, Uint32 expandSize = 10);
+  STATIC_CONST( InvalidId = 0x7fffffff );
+  NdbObjectIdMap(Uint32 initalSize, Uint32 expandSize);
   ~NdbObjectIdMap();
 
   Uint32 map(void * object);
@@ -40,32 +42,75 @@ public:
   
   void * getObject(Uint32 id);
 private:
+  const Uint32 m_expandSize;
   Uint32 m_size;
-  Uint32 m_expandSize;
   Uint32 m_firstFree;
-  union MapEntry {
-     Uint32 m_next;
-     void * m_obj;
-  } * m_map;
+  /**
+   * We put released entries at the end of the free list. That way, we delay
+   * re-use of an object id as long as possible. This minimizes the chance
+   * of sending an incoming message to the wrong object because the recipient
+   * object id was reused. 
+   */
+  Uint32 m_lastFree;
 
-  NdbMutex * m_mutex;
+  class MapEntry
+  {
+  public:
+    bool isFree() const
+    { 
+      return (m_val & 1) == 1; 
+    }
+
+    Uint32 getNext() const
+    {
+      assert(isFree());
+      return static_cast<Uint32>(m_val >> 1);
+    }
+
+    void setNext(Uint32 next)
+    { 
+      m_val = (next << 1) | 1; 
+    }
+
+    void* getObj() const
+    {
+      assert((m_val & 3) == 0);
+      return reinterpret_cast<void*>(m_val);
+    }
+    
+    void setObj(void* obj)
+    { 
+      m_val = reinterpret_cast<UintPtr>(obj); 
+      assert((m_val & 3) == 0);
+    }
+    
+  private:
+    /**
+     * This holds either a pointer to a mapped object *or* the index of the
+     * next entry in the free list. If it is a pointer, then the two least
+     * significant bits should be zero (requiring all mapped objects to be
+     * four-byte aligned). If it is an index, then bit 0 should be set.
+     */ 
+    UintPtr m_val;
+  };
+
+  MapEntry* m_map;
+
   int expand(Uint32 newSize);
+  // For debugging purposes.
+  bool checkConsistency();
 };
 
 inline
 Uint32
-NdbObjectIdMap::map(void * object){
-  
-  //  lock();
-  
+NdbObjectIdMap::map(void * object)
+{
   if(m_firstFree == InvalidId && expand(m_expandSize))
     return InvalidId;
   
-  Uint32 ff = m_firstFree;
-  m_firstFree = m_map[ff].m_next;
-  m_map[ff].m_obj = object;
-  
-  //  unlock();
+  const Uint32 ff = m_firstFree;
+  m_firstFree = m_map[ff].getNext();
+  m_map[ff].setObj(object);
   
   DBUG_PRINT("info",("NdbObjectIdMap::map(0x%lx) %u", (long) object, ff<<2));
 
@@ -74,25 +119,36 @@ NdbObjectIdMap::map(void * object){
 
 inline
 void *
-NdbObjectIdMap::unmap(Uint32 id, void *object){
+NdbObjectIdMap::unmap(Uint32 id, void *object)
+{
+  const Uint32 i = id>>2;
 
-  Uint32 i = id>>2;
-
-  //  lock();
-  if(i < m_size){
-    void * obj = m_map[i].m_obj;
-    if (object == obj) {
-      m_map[i].m_next = m_firstFree;
-      m_firstFree = i;
-    } else {
-      g_eventLogger.error("NdbObjectIdMap::unmap(%u, 0x%x) obj=0x%x",
-                          id, (long) object, (long) obj);
+  assert(i < m_size);
+  if(i < m_size)
+  {
+    void * const obj = m_map[i].getObj();
+    if (object == obj) 
+    {
+      m_map[i].setNext(InvalidId);
+      if (m_firstFree == InvalidId)
+      {
+        m_firstFree = i;
+      }
+      else
+      {
+        m_map[m_lastFree].setNext(i);
+      }
+      m_lastFree = i;
+    } 
+    else 
+    {
+      g_eventLogger->error("NdbObjectIdMap::unmap(%u, 0x%lx) obj=0x%lx",
+                           id, (long) object, (long) obj);
       DBUG_PRINT("error",("NdbObjectIdMap::unmap(%u, 0x%lx) obj=0x%lx",
                           id, (long) object, (long) obj));
+      assert(false);
       return 0;
     }
-    
-    //  unlock();
     
     DBUG_PRINT("info",("NdbObjectIdMap::unmap(%u) obj=0x%lx", id, (long) obj));
     
@@ -102,11 +158,21 @@ NdbObjectIdMap::unmap(Uint32 id, void *object){
 }
 
 inline void *
-NdbObjectIdMap::getObject(Uint32 id){
+NdbObjectIdMap::getObject(Uint32 id)
+{
   // DBUG_PRINT("info",("NdbObjectIdMap::getObject(%u) obj=0x%x", id,  m_map[id>>2].m_obj));
   id >>= 2;
-  if(id < m_size){
-    return m_map[id].m_obj;
+  assert(id < m_size);
+  if(id < m_size)
+  {
+    if(m_map[id].isFree())
+    {
+      return 0;
+    }
+    else
+    {
+      return m_map[id].getObj();
+    }
   }
   return 0;
 }

@@ -1,20 +1,36 @@
-Next QMGR 1
+# Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+Next QMGR 938
 Next NDBCNTR 1002
 Next NDBFS 2000
 Next DBACC 3002
-Next DBTUP 4029
-Next DBLQH 5050
-Next DBDICT 6008
-Next DBDIH 7195
-Next DBTC 8058
+Next DBTUP 4035
+Next DBLQH 5072
+Next DBDICT 6026
+Next DBDIH 7229
+Next DBTC 8092
 Next CMVMI 9000
-Next BACKUP 10038
+Next BACKUP 10042
 Next DBUTIL 11002
-Next DBTUX 12008
-Next SUMA 13034
-Next SUMA 13036
+Next DBTUX 12010
+Next SUMA 13047
 Next LGMAN 15001
 Next TSMAN 16001
+Next DBSPJ 17000
+Next TRIX 18000
 
 TESTING NODE FAILURE, ARBITRATION
 ---------------------------------
@@ -28,6 +44,8 @@ Crash president when he starts to run in ArbitState 1-9.
 
 935 : Crash master on node failure (delayed) 
       and skip sending GSN_COMMIT_FAILREQ to specified node
+
+938 : Resume communications (DUMP 9991) when > 25% nodes failed
 
 ERROR CODES FOR TESTING NODE FAILURE, GLOBAL CHECKPOINT HANDLING:
 -----------------------------------------------------------------
@@ -50,6 +68,21 @@ all nodes in the cluster.
 7004:
 Insert system error in master after completing global checkpoint with
 all nodes in the cluster.
+
+7186:
+Master: Dont send GCP_PREPARE to all node(s)...and die after 1s
+
+7187:
+Master: Dont send GCP_COMMIT to all node(s)...and die after 1s
+
+7188:
+Master: Dont send GCP_SAVE_REQ to all node(s)...and die after 1s
+
+7189:
+Master: Dont send COPY_GCIREQ (GCP) to all node(s)...and die after 1s
+
+7190:
+Master Dont send SUB_GCP_COMPLETE_REP to all node(s) and dies after 1s
 
 7005:
 Insert system error in GCP participant when receiving GCP_PREPARE.
@@ -168,6 +201,11 @@ And crash when all have "not" been sent
 7191: Crash when receiving LCP_COMPLETE_REP
 7192: Crash in setLcpActiveStatusStart - when dead node missed to LCP's
 
+7213: in GCP_COMMIT Kill specified node and self, stop processing
+7214: in GCP_TCFINISHED kill specified node
+
+7215: set c_fragments_per_node = 1 (needs to be done at startup)
+
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------
 
@@ -234,9 +272,13 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 5041: Crash is receiving simple read from other TC on different node
 
 8050: Send TCKEYREF is operation is non local
+8071: Send TCKEYREF is unique index operation is non local
+8072: 8050 || 8071
 
 5100,5101: Drop ABORT req in primary replica
            Crash on "next" ABORT
+
+5047: ZTRANSPORTER_OVERLOADED_ERROR in execLQHKEYREQ
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
@@ -259,10 +301,11 @@ Delay execution of COMPLETECONF signal 2 seconds to generate time-out.
 8045: (ABORTCONF only as part of take-over)
 Delay execution of ABORTCONF signal 2 seconds to generate time-out.
 
-8050: Send ZABORT_TIMEOUT_BREAK delayed
+8080: Send ZABORT_TIMEOUT_BREAK delayed
 
 8053: Crash in timeOutFoundLab, state CS_WAIT_COMMIT_CONF
 
+8054: Throw away TC_KEYCONF to api and die 5 seconds later.  To test commit ack markers
 5048: Crash in execCOMMIT
 5049: SET_ERROR_INSERT_VALUE(5048)
 
@@ -322,12 +365,38 @@ ABORT OF TCKEYREQ
 
 8038 : Simulate API disconnect just after SCAN_TAB_REQ
 
+8055 : Crash in sendApiCommit, disconnect API, and set 8056
+8056 : return directly in API_FAILREQ
 8057 : Send only 1 COMMIT per timeslice
 
 8052 : Simulate failure of TransactionBufferMemory allocation for OI lookup
 
 8051 : Simulate failure of allocation for saveINDXKEYINFO
+8078 : Activate error insert 8079 on receiving API_FAILREQ
+8079 : Crash if TCKEYREQ received from failed api
 
+DBTC LONG SIGNAL TESTING
+------------------------
+8065: Consume all but 10 long section segments on next TCKEYREQ
+8066: Consume all but 1 long section segments on next TCKEYREQ
+8067: Consume all long section segments on next TCKEYREQ
+8068: Free all segments hoarded by 8065, 8066, 8067
+
+8069: Always send 'short' LQHKEYREQ to LQH
+8070: Always send 'short' SCANFRAGREQ to LQH
+
+8074: Drop first fragment of fragmented SCANTABREQ
+8075: Drop middle fragments of fragmented SCANTABREQ
+8076: Drop last fragment of fragmented SCANTABREQ
+8077: Drop all fragments of fragmented SCANTABREQ
+
+8085: Simulate execFIRE_TRIG_ORD DataBuffer exhaustion
+8086: Simulate execFIRE_TRIG_ORD segmented section exhaustion
+
+DBLQH LONG SIGNAL TESTING
+-------------------------
+5051: Send short LQHKEYREQ to next replica
+5052: Fail to store KeyInfo from TUP in long section
 
 CMVMI
 -----
@@ -461,8 +530,10 @@ Backup Stuff:
 10034: define backup reply error
 10035: Fail to allocate buffers
 
-10036: Halt backup for table >= 2
-10037: Resume backup (from 10036)
+10039: Halt backup for table >= 2
+10040: Resume backup (from 10039)
+10038: Receive abort backup in the middle of locking tables.
+10041: delay backup after create trigger. for testing undo log file.
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 
@@ -479,6 +550,9 @@ Failed Create Table:
 4010 12004: Fail create last attribute in 1st fragment
 4011 12005: Fail create 1st attribute in 2nd fragment
 4012 12006: Fail create last attribute in 2nd fragment
+4032 : Fail to receive first default value
+4033 : Fail to receive last default value
+4034 : Fail to store default values in def values fragment
 
 Drop Table/Index:
 -----------------
@@ -493,6 +567,53 @@ Drop Table/Index:
 6006: Crash participant in create index
 
 4013: verify TUP tab descr before and after next DROP TABLE
+
+Dict transactions
+-----------------
+
+These should be applied separately to master and slave.
+CTa = create table, ATr = alter trigger, and so on
+
+6101: Fail seize of schema trans (err=780)
+6102: Kill api (client) at SCHEMA_TRANS_BEGIN_REQ (err=4009)
+6103: Delay SCHEMA_TRANS_IMPL_CONF (1000ms)
+
+6111: Fail seize of schema op (err=783) in CTa, DTa, ATa
+6112: Fail seize of schema op (err=783) in CIn, DIn
+6113: Fail seize of schema op (err=783) in AIn
+6114: Fail seize of schema op (err=783) in CTr, DTr
+6115: Fail seize of schema op (err=783) in ATr
+6116: Fail seize of schema op (err=783) in BIn
+
+6121: Fail parse (err=9121) in CTa, DTa, ATa
+6122: Fail parse (err=9122) in CIn, DIn
+6123: Fail parse (err=9123) in AIn
+6124: Fail parse (err=9124) in CTr, DTr
+6125: Fail parse (err=9125) in ATr
+6126: Fail parse (err=9126) in BIn
+
+6131: Fail prepare (err=9131) in CTa, DTa, ATa
+
+# these have no natural failures in DBDICT
+# use 8033, 4003, 8034 instead
+#6132: Fail prepare (err=9132) in CIn, DIn
+#6133: Fail prepare (err=9133) in AIn
+#6134: Fail prepare (err=9134) in CTr, DTr
+#6135: Fail prepare (err=9135) in ATr
+#6136: Fail prepare (err=9136) in BIn
+
+# Master failure, partial progress 
+6140: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_START
+6141: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_PARSE
+6142: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_FLUSH_PREPARE
+6143: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_PREPARE
+6144: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_ABORT_PARSE
+6145: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_ABORT_PREPARE
+6146: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_FLUSH_COMMIT
+6147: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_COMMIT
+6148: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_FLUSH_COMPLETE
+6149: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_COMPLETE
+6150: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_END
 
 System Restart:
 ---------------
@@ -525,6 +646,8 @@ Test routing of signals:
 Ordered index:
 --------------
 12007: Make next alloc node fail with no memory error
+12008: Fail seize scan op
+12009: Cause InvalidBounds error
 
 Dbdict:
 -------
@@ -532,6 +655,26 @@ Dbdict:
 6004 Crash in participant @ CreateTabReq::Commit
 6005 Crash in participant @ CreateTabReq::CreateDrop
 6007 Fail on readTableFile for READ_TAB_FILE1 (28770)
+6012 Bump up next table id to 4096
+6013 Master failure during prepare
+6014 Master failure during commit
+6015 Master failure after commit
+
+6022 Cluster failure before flush prepare
+6021 Cluster failure before prepare first
+6016
+6017 Cluster failure before flush commit
+6018 Cluster failure before commit first
+6019 Cluster failure before flush complete
+6020 Cluster failure before complete first
+
+6030 Do not round DD sizes in DBDICT. Check in ndb*out.log
+     that DBDICT and LGMAN/TSMAN round same way.
+
+6200 Set error code after handleTabInfoInit in master
+6201 Set error code after handleTabInfoInit in master (index)
+6202 Set error code before CREATE_FRAGMENTATION in master
+6203 Set error code before CREATE_FRAGMENTATION in master (index)
 
 Dbtup:
 4014 - handleInsert - Out of undo buffer
@@ -556,6 +699,16 @@ NDBCNTR:
 1000: Crash insertion on SystemError::CopyFragRef
 1001: Delay sending NODE_FAILREP (to own node), until error is cleared
 
+SUMA:
+13036: Simulate report MISSING_DATA at node failure
+13037: Simulate disconnect lagging subscribers
+13038: Simulate out of event buffer
+
+13039: Crash i DICT_LOCKCONF
+13040: Crash in SUB_CREATE_REQ if m_restart_server_node_id != RNIL
+13041: Crash in SUB_CREATE_REQ (no matter)
+13042: Crash in SUB_START_REQ (if m_restart_server_node_id != 0)
+
 LGMAN:
 -----
 15000: Fail to create log file
@@ -563,3 +716,21 @@ LGMAN:
 TSMAN:
 -----
 16000: Fail to create data file
+
+ACC bug#34348
+-------------
+3002: limit frags to 2 directory pages (instead of 256)
+      print (if VM_TRACE) LH variables at expand and shrink
+      apply before mass data load, reset with error insert 0
+
+TRIX
+----
+Index stats:
+18001: fail to seize statOp
+18002: fail to seize associated subRec
+18011: fail HEAD read - simulate UtilExecuteRef::AllocationError
+18012: fail HEAD insert/update/delete - as in 18011
+18021: fail RT_CLEAN_NEW - simulate TC error 626
+18022: fail RT_CLEAN_OLD (non-fatal) - as in 18021
+18023: fail RT_CLEAN_ALL (non-fatal) - as in 18021
+18024: fail RT_SCAN_FRAG - simulate TC error 630

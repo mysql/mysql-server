@@ -1,0 +1,87 @@
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+connection master;
+CREATE TABLE t1 (a int key, b int) ENGINE=NDB;
+sync_slave_with_master;
+SHOW TABLES;
+
+# Lose the events from the slave binary log: there is no
+# need to re-create the table on the master.
+connection slave;
+RESET MASTER;
+
+# Insert some values on the slave and master
+connection master;
+INSERT INTO t1 VALUES (1,2);
+# Switch to slave once event is applied and insert a row
+sync_slave_with_master;
+connection slave;
+INSERT INTO t1 VALUES (2,3);
+
+# ... it is now very probable that we have a mixed event in the binary
+# log.  If we don't, the test should still pass, but will not test the
+# mixed event situation.
+
+# The statement is disabled since it cannot reliably show the same
+# info all the time.  Use it for debug purposes.
+
+#SHOW BINLOG EVENTS;
+
+# Replicate back to the master to test this mixed event on the master
+STOP SLAVE;
+
+--let $rpl_topology= 1->2->1
+--source include/rpl_change_topology.inc
+connection master;
+
+START SLAVE;
+
+connection slave;
+sync_slave_with_master master;
+
+# The statement is disabled since it cannot reliably show the same
+# info all the time.  Use it for debug purposes.
+
+#SHOW BINLOG EVENTS;
+
+# Wait for slave threads to start before SHOWing status
+--source include/wait_for_slave_to_start.inc
+
+# Check that there is no error in replication
+source include/check_slave_is_running.inc;
+
+# Check that we have the data on the master
+SELECT * FROM t1 ORDER BY a;
+
+# We should now have another mixed event, likely with "slave" server
+# id last, and with the STMT_END_F flag set.
+
+# The statement is disabled since it cannot reliably show the same
+# info all the time.  Use it for debug purposes.
+
+#SHOW BINLOG EVENTS;
+
+# now lets see that this data is applied correctly on the slave
+STOP SLAVE;
+save_master_pos;
+
+connection slave;
+START SLAVE;
+
+# check that we have the data on the slave
+sync_with_master;
+SELECT * FROM t1 ORDER BY a;
+
+# Wait for slave threads to start before SHOWing status
+--source include/wait_for_slave_to_start.inc
+
+# Check that there is no error in replication
+source include/check_slave_is_running.inc;
+
+-- connection master
+DROP TABLE t1;
+-- sync_slave_with_master
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

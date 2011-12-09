@@ -1,0 +1,20 @@
+#############################################
+#Authors:    TU and Jeb
+#Date:       2007/04
+#Purpose:    Generic replication to cluster
+#            and ensuring that the ndb_apply_status
+#            table is updated.
+#############################################
+
+--disable_query_log
+--source include/have_ndb.inc
+--source include/have_innodb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+--enable_query_log
+
+# statement format is supported because master uses innodb
+SET binlog_format = STATEMENT;
+let $off_set = 6;
+let $rpl_format = 'SBR';
+--source suite/ndb_rpl/t/ndb_rpl_xxx_innodb.inc
+--source include/rpl_end.inc

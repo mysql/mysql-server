@@ -1,0 +1,52 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+#
+# Slave behaviour when replicating unique index operations
+#
+#
+
+--connection master
+
+CREATE TABLE t1 (pk int primary key, uk int not null, unique(uk)) engine=ndb;
+
+# Now perform some operations which do not result in uniqueness
+# violations when applied in-order, but which can result in them
+# when applied out-of-order
+# 5 distinct values chosen to increase the chance of different
+# fragments (and therefore potentially different SUMA->Binlog
+# orders) being seen.
+#
+insert into t1 values (1,1);
+insert into t1 values (2,2);
+insert into t1 values (3,3);
+insert into t1 values (4,4);
+insert into t1 values (5,5);
+
+--sorted_result
+select * from t1 where uk in (1,2,3,4,5);
+
+# Do a 'right shift' on the unique key values
+update t1 set uk=uk-1 order by pk;
+
+--sorted_result
+select * from t1 where uk in (0,1,2,3,4);
+
+--echo Master table contents
+select * from t1 order by pk;
+
+flush logs;
+
+--sync_slave_with_master
+
+--connection slave
+
+--echo Slave table contents
+select * from t1 order by pk;
+select * from t1 where uk in (0,1,2,3,4);
+
+--connection master
+drop table t1;
+
+--source include/rpl_end.inc

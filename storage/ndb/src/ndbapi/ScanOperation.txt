@@ -26,7 +26,8 @@ New protocol
    (only possible to block on nextResult(true) or closeScan)
 
 7) Instead of "ack"-ing each row with length,
-* Each row is sent in one lonw signal (unless to short)
+* Each row is sent in one long signal (unless short enough to fit in a normal
+  signal, but rows are never broken across signals)
 * Each NdbReceiver is ack-ed with #rows and sum(#length)
 * KeyInfo20 is one signal and included in sum(#length)
 
@@ -54,3 +55,51 @@ New protocol
 * Scan all fragments simultaniously (max parallelism)
 * Never return a row to the API if a NdbReciver is "outstanding"
 * Sort Receivers (only top row as they already are sorted within)
+
+
+# Scan implementation in NDB API.
+
+Scan is characterised by two parameters:
+1. Parallelism (0..number_of_fragments), we allocate this many NdbReceiver
+   objects, each receiving a separate stream.
+   Previous implementations had only one node sending rows at a time to the
+   NDB API, but now all nodes (up to parallelism) send in parallel, and API
+   is able to receive from all in parallel.
+   Parallelism is always equal to number of fragments for sorted index scans,
+   needed for doing the mergesort.
+2. Batch size, we will receive this many rows in each NdbReceiver between
+   NEXT_SCANREQ signals. Each receiver pre-allocates a list of batchsize *
+   number_of_columns_in_row to hang on to the attribute data as it is
+   received.
+
+
+# Scan algorithm, unordered scan.
+
+The unordered scan is done in NdbScanOperation::nextResultImpl().
+This is where the NDB API application calls in after execute() to fetch
+results.
+
+It walks the list of receivers (as many as the parallelism), returning rows
+from each one in turn until all are exhausted. Then it sends a SCAN_NEXTREQ
+signal (in NdbScanOperation::send_next_scan() to fetch a new batch of rows for
+each receiver.
+
+Rows from one batch of one fragment are never delivered to the NDB API until
+the whole batch has been received. This avoids the need for synchronisation
+between application thread and receiver thread for each row (at the cost of
+higher latency).
+
+Locks taken during the scan are only kept until SCAN_NEXTREQ is received (but
+locks can be taken over by executing updateCurrentTuple() etc. before sending
+SCAN_NEXTREQ). From the application this is controlled with the fetchAllowed
+parameter of nextResult().
+
+The unordered scan never request more rows (with SCAN_NEXTREQ) as long as
+there are still rows to deliver (in other batches fully received). So if two
+batches finish being received at the same time, the NDB API will deliver first
+one batch to the application, and then the other without first sending
+SCAN_NEXTREQ. Only when both batches have been delivered will (a single)
+SCAN_NEXTREQ be sent (now with a request for a two new batches, one from each
+fragment). This might increase latency a little (not sure if so in practise),
+but is partly due to limitations in the interface for the application to
+specify when to fetch new batches.

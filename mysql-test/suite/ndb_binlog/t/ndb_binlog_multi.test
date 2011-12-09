@@ -1,0 +1,108 @@
+--source include/ndb_have_online_alter.inc
+-- source include/have_multi_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+--disable_warnings
+connection server2;
+drop table if exists t1,t2,t3;
+connection server1;
+drop table if exists t1,t2,t3;
+--enable_warnings
+
+# Dummy table create/drop to avoid a race where table is created
+# before event subscription is set up, causing test failure (BUG#20677).
+connection server2;
+CREATE TABLE t3 (dummy INT PRIMARY KEY) ENGINE = NDB;
+connection server1;
+DROP TABLE t3;
+
+# reset for test
+connection server1;
+reset master;
+connection server2;
+reset master;
+
+#
+# basic test to see if one server sees the table from the other
+# and sets up the replication correctly
+#
+
+# create table on the other server
+connection server2;
+CREATE TABLE t2 (a INT PRIMARY KEY, b int) ENGINE = NDB;
+
+# insert something on server2
+INSERT INTO t2 VALUES (1,1),(2,2);
+# verify that we get the data in the binlog
+--source include/show_binlog_events2.inc
+select * from t2 order by a;
+--replace_column 1 <the_epoch>
+SELECT @the_epoch:=epoch,inserts,updates,deletes,schemaops FROM 
+  mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1;
+let $the_epoch= `SELECT @the_epoch`;
+
+# see if we got something on server1
+connection server1;
+SELECT * FROM t2 ORDER BY a;
+# doing drop table will ensure that all the events have been received
+DROP TABLE t2;
+# verify thar we have table and data in binlog
+--source include/show_binlog_events2.inc
+--replace_result $the_epoch <the_epoch>
+eval SELECT inserts,updates,deletes,schemaops FROM 
+  mysql.ndb_binlog_index WHERE epoch=$the_epoch;
+
+# reset for next test
+connection server1;
+reset master;
+connection server2;
+reset master;
+
+# single schema ops will not show
+connection server2;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = NDB;
+INSERT INTO t1 VALUES (1),(2);
+--source include/show_binlog_events2.inc
+--replace_column 1 <the_epoch2>
+SELECT @the_epoch2:=epoch,inserts,updates,deletes,schemaops FROM 
+  mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1;
+let $the_epoch2= `SELECT @the_epoch2`;
+
+--replace_result $the_epoch <the_epoch> $the_epoch2 <the_epoch2>
+eval SELECT inserts,updates,deletes,schemaops FROM
+   mysql.ndb_binlog_index WHERE epoch > $the_epoch AND epoch <= $the_epoch2;
+
+# now see that we have the events on the other server
+connection server2;
+# doing drop table will ensure that all the events have been received
+drop table t1;
+# verify thar we have table and data in binlog
+--source include/show_binlog_events2.inc
+--replace_result $the_epoch <the_epoch> $the_epoch2 <the_epoch2>
+eval SELECT inserts,updates,deletes,schemaops FROM
+   mysql.ndb_binlog_index WHERE epoch > $the_epoch AND epoch <= $the_epoch2;
+
+#
+# bug#XXX
+#
+create table t1 (
+  col0 int, col1 int, col2 int, col3 int,
+  col4 int, col5 int, col6 int, col7 int,
+  col8 int, col9 int, col10 int, col11 int,
+  col12 int, col13 int, col14 int, col15 int,
+  col16 int, col17 int, col18 int, col19 int,
+  col20 int, col21 int, col22 int, col23 int,
+  col24 int, col25 int, col26 int, col27 int,
+  col28 int, col29 int, col30 int, col31 int,
+  primary key(col0)) engine = ndb;
+
+connection server1;
+begin;
+insert into t1 (col0) values (1);
+
+connection server2;
+alter online table t1 add column col32 int COLUMN_FORMAT DYNAMIC;
+
+connection server1;
+commit;
+drop table t1;

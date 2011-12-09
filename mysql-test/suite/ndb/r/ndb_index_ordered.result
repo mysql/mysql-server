@@ -1,0 +1,809 @@
+drop table if exists t1, test1, test2;
+CREATE TABLE t1 (
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned,
+KEY(b)	
+) engine=ndbcluster;
+insert t1 values(1, 2, 3), (2,3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t1 order by b;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+select * from t1 where b >= 4 order by b;
+a	b	c
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+select * from t1 where b = 4 order by b;
+a	b	c
+3	4	6
+select * from t1 where b > 4 order by b;
+a	b	c
+4	5	8
+5	6	2
+6	7	2
+select * from t1 where b < 4 order by b;
+a	b	c
+1	2	3
+2	3	5
+select * from t1 where b <= 4 order by b;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+select tt1.* from t1 as tt1, t1 as tt2 use index(b) where tt1.b = tt2.b order by tt1.b;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+select a, b, c from t1 where a!=2 and c=6;
+a	b	c
+3	4	6
+select a, b, c from t1 where a!=2 order by a;
+a	b	c
+1	2	3
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+update t1 set c = 3 where b = 3;
+select * from t1 order by a;
+a	b	c
+1	2	3
+2	3	3
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+update t1 set c = 10 where b >= 6;
+select * from t1 order by a;
+a	b	c
+1	2	3
+2	3	3
+3	4	6
+4	5	8
+5	6	10
+6	7	10
+update t1 set c = 11 where b < 5;
+select * from t1 order by a;
+a	b	c
+1	2	11
+2	3	11
+3	4	11
+4	5	8
+5	6	10
+6	7	10
+update t1 set c = 12 where b > 0;
+select * from t1 order by a;
+a	b	c
+1	2	12
+2	3	12
+3	4	12
+4	5	12
+5	6	12
+6	7	12
+update t1 set c = 13 where b <= 3;
+select * from t1 order by a;
+a	b	c
+1	2	13
+2	3	13
+3	4	12
+4	5	12
+5	6	12
+6	7	12
+update t1 set b = b + 1 where b > 4 and b < 7;
+select * from t1 order by a;
+a	b	c
+1	2	13
+2	3	13
+3	4	12
+4	6	12
+5	7	12
+6	7	12
+update t1 set a = a + 10 where b > 1 and b < 7;
+select * from t1 order by a;
+a	b	c
+5	7	12
+6	7	12
+11	2	13
+12	3	13
+13	4	12
+14	6	12
+drop table t1;
+CREATE TABLE t1 (
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned,
+KEY(b)	
+) engine=ndbcluster;
+insert t1 values(1, 2, 13), (2,3, 13), (3, 4, 12), (4, 5, 12), (5,6, 12), (6,7, 12);
+delete from t1 where b = 3;
+select * from t1 order by a;
+a	b	c
+1	2	13
+3	4	12
+4	5	12
+5	6	12
+6	7	12
+delete from t1 where b >= 6;
+select * from t1 order by a;
+a	b	c
+1	2	13
+3	4	12
+4	5	12
+delete from t1 where b < 4;
+select * from t1 order by a;
+a	b	c
+3	4	12
+4	5	12
+delete from t1 where b > 5;
+select * from t1 order by a;
+a	b	c
+3	4	12
+4	5	12
+delete from t1 where b <= 4;
+select * from t1 order by a;
+a	b	c
+4	5	12
+drop table t1;
+CREATE TABLE t1 (
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned not null
+) engine = ndb;
+create index a1 on t1 (b, c);
+insert into t1 values (1, 2, 13);
+insert into t1 values (2,3, 13);
+insert into t1 values (3, 4, 12);
+insert into t1 values (4, 5, 12);
+insert into t1 values (5,6, 12);
+insert into t1 values (6,7, 12);
+insert into t1 values (7, 2, 1);
+insert into t1 values (8,3, 6);
+insert into t1 values (9, 4, 12);
+insert into t1 values (14, 5, 4);
+insert into t1 values (15,5,5);
+insert into t1 values (16,5, 6);
+insert into t1 values (17,4,4);
+insert into t1 values (18,1, 7);
+select * from t1 order by a;
+a	b	c
+1	2	13
+2	3	13
+3	4	12
+4	5	12
+5	6	12
+6	7	12
+7	2	1
+8	3	6
+9	4	12
+14	5	4
+15	5	5
+16	5	6
+17	4	4
+18	1	7
+select * from t1 where b<=5 order by a;
+a	b	c
+1	2	13
+2	3	13
+3	4	12
+4	5	12
+7	2	1
+8	3	6
+9	4	12
+14	5	4
+15	5	5
+16	5	6
+17	4	4
+18	1	7
+select * from t1 where b<=5 and c=0;
+a	b	c
+insert into t1 values (19,4, 0);
+select * from t1 where b<=5 and c=0;
+a	b	c
+19	4	0
+select * from t1 where b=4 and c<=5 order by a;
+a	b	c
+17	4	4
+19	4	0
+select * from t1 where b<=4 and c<=5 order by a;
+a	b	c
+7	2	1
+17	4	4
+19	4	0
+select * from t1 where b<=5 and c=0 or b<=5 and c=2;
+a	b	c
+19	4	0
+select count(*) from t1 where b = 0;
+count(*)
+0
+select count(*) from t1 where b = 1;
+count(*)
+1
+drop table t1;
+CREATE TABLE t1 (
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned,
+c int unsigned,
+KEY bc(b,c)
+) engine = ndb;
+insert into t1 values(1,1,1),(2,NULL,2),(3,NULL,NULL),(4,4,NULL);
+select * from t1 use index (bc) where b IS NULL order by a;
+a	b	c
+2	NULL	2
+3	NULL	NULL
+select * from t1 use index (bc)order by a;
+a	b	c
+1	1	1
+2	NULL	2
+3	NULL	NULL
+4	4	NULL
+select * from t1 use index (bc) order by a;
+a	b	c
+1	1	1
+2	NULL	2
+3	NULL	NULL
+4	4	NULL
+select * from t1 use index (PRIMARY) where b IS NULL order by a;
+a	b	c
+2	NULL	2
+3	NULL	NULL
+select * from t1 use index (bc) where b IS NULL order by a;
+a	b	c
+2	NULL	2
+3	NULL	NULL
+select * from t1 use index (bc) where b IS NULL and c IS NULL order by a;
+a	b	c
+3	NULL	NULL
+select * from t1 use index (bc) where b IS NULL and c = 2 order by a;
+a	b	c
+2	NULL	2
+select * from t1 use index (bc) where b < 4 order by a;
+a	b	c
+1	1	1
+select * from t1 use index (bc) where b IS NOT NULL order by a;
+a	b	c
+1	1	1
+4	4	NULL
+drop table t1;
+create table t1 (
+a int unsigned primary key,
+b int unsigned,
+c char(10),
+key bc (b, c)
+) engine=ndb;
+insert into t1 values(1,1,'a'),(2,2,'b'),(3,3,'c'),(4,4,'d'),(5,5,'e');
+insert into t1 select a*7,10*b,'f' from t1;
+insert into t1 select a*13,10*b,'g' from t1;
+insert into t1 select a*17,10*b,'h' from t1;
+insert into t1 select a*19,10*b,'i' from t1;
+insert into t1 select a*23,10*b,'j' from t1;
+insert into t1 select a*29,10*b,'k' from t1;
+select b, c from t1 where b <= 10 and c <'f' order by b, c;
+b	c
+1	a
+2	b
+3	c
+4	d
+5	e
+select b, c from t1 where b <= 10 and c <'f' order by b desc, c desc;
+b	c
+5	e
+4	d
+3	c
+2	b
+1	a
+select b, c from t1 where b=4000 and c<'k' order by b, c;
+b	c
+4000	h
+4000	i
+4000	i
+4000	i
+4000	j
+4000	j
+4000	j
+4000	j
+4000	j
+4000	j
+select b, c from t1 where b=4000 and c<'k' order by b desc, c desc;
+b	c
+4000	j
+4000	j
+4000	j
+4000	j
+4000	j
+4000	j
+4000	i
+4000	i
+4000	i
+4000	h
+select b, c from t1 where 1000<=b and b<=100000 and c<'j' order by b, c;
+b	c
+1000	h
+1000	i
+1000	i
+1000	i
+2000	h
+2000	i
+2000	i
+2000	i
+3000	h
+3000	i
+3000	i
+3000	i
+4000	h
+4000	i
+4000	i
+4000	i
+5000	h
+5000	i
+5000	i
+5000	i
+10000	i
+20000	i
+30000	i
+40000	i
+50000	i
+select b, c from t1 where 1000<=b and b<=100000 and c<'j' order by b desc, c desc;
+b	c
+50000	i
+40000	i
+30000	i
+20000	i
+10000	i
+5000	i
+5000	i
+5000	i
+5000	h
+4000	i
+4000	i
+4000	i
+4000	h
+3000	i
+3000	i
+3000	i
+3000	h
+2000	i
+2000	i
+2000	i
+2000	h
+1000	i
+1000	i
+1000	i
+1000	h
+select min(b), max(b) from t1;
+min(b)	max(b)
+1	5000000
+drop table t1;
+CREATE TABLE test1 (
+SubscrID int(11) NOT NULL auto_increment,
+UsrID int(11) NOT NULL default '0',
+PRIMARY KEY  (SubscrID),
+KEY idx_usrid (UsrID)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO test1 VALUES (2,224),(3,224),(1,224);
+CREATE TABLE test2 (
+SbclID int(11) NOT NULL auto_increment,
+SbcrID int(11) NOT NULL default '0',
+PRIMARY KEY  (SbclID),
+KEY idx_sbcrid (SbcrID)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO test2 VALUES (3,2),(1,1),(2,1),(4,2);
+select * from test1 order by 1;
+SubscrID	UsrID
+1	224
+2	224
+3	224
+select * from test2 order by 1;
+SbclID	SbcrID
+1	1
+2	1
+3	2
+4	2
+SELECT s.SubscrID,l.SbclID FROM test1 s left JOIN test2 l ON
+l.SbcrID=s.SubscrID WHERE s.UsrID=224 order by 1, 2;
+SubscrID	SbclID
+1	1
+1	2
+2	3
+2	4
+3	NULL
+drop table test1;
+drop table test2;
+create table t1 (
+pk int primary key,
+dt datetime not null,
+da date not null,
+ye year not null,
+ti time not null,
+ts timestamp not null,
+index(dt),
+index(da),
+index(ye),
+index(ti),
+index(ts)
+) engine=ndb;
+insert into t1 (pk,dt,da,ye,ti,ts) values
+(1, '1901-05-05 23:00:59', '1901-05-05', '1901', '23:00:59', '2001-01-01 23:00:59'),
+(2, '1912-09-05 13:00:59', '1912-09-05', '1912', '13:00:59', '2001-01-01 13:00:59'),
+(3, '1945-12-31 00:00:00', '1945-12-31', '1945', '00:00:00', '2001-01-01 00:00:00'),
+(4, '1955-12-31 00:00:00', '1955-12-31', '1955', '00:00:00', '2001-01-01 00:00:00'),
+(5, '1963-06-06 06:06:06', '1963-06-06', '1963', '06:06:06', '2001-01-01 06:06:06'),
+(6, '1993-06-06 06:06:06', '1993-06-06', '1993', '06:06:06', '2001-01-01 06:06:06'),
+(7, '2001-01-01 10:11:10', '2001-01-01', '2001', '10:11:10', '2001-01-01 10:11:10'),
+(8, '2001-01-01 10:11:11', '2001-01-01', '2001', '10:11:11', '2001-01-01 10:11:11'),
+(9, '2005-01-31 23:59:59', '2005-01-31', '2005', '23:59:59', '2001-01-01 23:59:59');
+select count(*)-9 from t1 use index (dt) where dt >  '1900-01-01 00:00:00';
+count(*)-9
+0
+select count(*)-6 from t1 use index (dt) where dt >= '1955-12-31 00:00:00';
+count(*)-6
+0
+select count(*)-5 from t1 use index (dt) where dt >  '1955-12-31 00:00:00';
+count(*)-5
+0
+select count(*)-5 from t1 use index (dt) where dt <  '1970-03-03 22:22:22';
+count(*)-5
+0
+select count(*)-7 from t1 use index (dt) where dt <  '2001-01-01 10:11:11';
+count(*)-7
+0
+select count(*)-8 from t1 use index (dt) where dt <= '2001-01-01 10:11:11';
+count(*)-8
+0
+select count(*)-9 from t1 use index (dt) where dt <= '2055-01-01 00:00:00';
+count(*)-9
+0
+select count(*)-9 from t1 use index (da) where da >  '1900-01-01';
+count(*)-9
+0
+select count(*)-6 from t1 use index (da) where da >= '1955-12-31';
+count(*)-6
+0
+select count(*)-5 from t1 use index (da) where da >  '1955-12-31';
+count(*)-5
+0
+select count(*)-5 from t1 use index (da) where da <  '1970-03-03';
+count(*)-5
+0
+select count(*)-6 from t1 use index (da) where da <  '2001-01-01';
+count(*)-6
+0
+select count(*)-8 from t1 use index (da) where da <= '2001-01-02';
+count(*)-8
+0
+select count(*)-9 from t1 use index (da) where da <= '2055-01-01';
+count(*)-9
+0
+select count(*)-9 from t1 use index (ye) where ye >  '1900';
+count(*)-9
+0
+select count(*)-6 from t1 use index (ye) where ye >= '1955';
+count(*)-6
+0
+select count(*)-5 from t1 use index (ye) where ye >  '1955';
+count(*)-5
+0
+select count(*)-5 from t1 use index (ye) where ye <  '1970';
+count(*)-5
+0
+select count(*)-6 from t1 use index (ye) where ye <  '2001';
+count(*)-6
+0
+select count(*)-8 from t1 use index (ye) where ye <= '2001';
+count(*)-8
+0
+select count(*)-9 from t1 use index (ye) where ye <= '2055';
+count(*)-9
+0
+select count(*)-9 from t1 use index (ti) where ti >= '00:00:00';
+count(*)-9
+0
+select count(*)-7 from t1 use index (ti) where ti >  '00:00:00';
+count(*)-7
+0
+select count(*)-7 from t1 use index (ti) where ti >  '05:05:05';
+count(*)-7
+0
+select count(*)-5 from t1 use index (ti) where ti >  '06:06:06';
+count(*)-5
+0
+select count(*)-5 from t1 use index (ti) where ti <  '10:11:11';
+count(*)-5
+0
+select count(*)-6 from t1 use index (ti) where ti <= '10:11:11';
+count(*)-6
+0
+select count(*)-8 from t1 use index (ti) where ti <  '23:59:59';
+count(*)-8
+0
+select count(*)-9 from t1 use index (ti) where ti <= '23:59:59';
+count(*)-9
+0
+select count(*)-9 from t1 use index (ts) where ts >= '2001-01-01 00:00:00';
+count(*)-9
+0
+select count(*)-7 from t1 use index (ts) where ts >  '2001-01-01 00:00:00';
+count(*)-7
+0
+select count(*)-7 from t1 use index (ts) where ts >  '2001-01-01 05:05:05';
+count(*)-7
+0
+select count(*)-5 from t1 use index (ts) where ts >  '2001-01-01 06:06:06';
+count(*)-5
+0
+select count(*)-5 from t1 use index (ts) where ts <  '2001-01-01 10:11:11';
+count(*)-5
+0
+select count(*)-6 from t1 use index (ts) where ts <= '2001-01-01 10:11:11';
+count(*)-6
+0
+select count(*)-8 from t1 use index (ts) where ts <  '2001-01-01 23:59:59';
+count(*)-8
+0
+select count(*)-9 from t1 use index (ts) where ts <= '2001-01-01 23:59:59';
+count(*)-9
+0
+drop table t1;
+create table t1 (
+a int primary key,
+s decimal(12),
+t decimal(12, 5),
+u decimal(12) unsigned,
+v decimal(12, 5) unsigned,
+key (s),
+key (t),
+key (u),
+key (v)
+) engine=ndb;
+insert into t1 values
+( 0, -000000000007, -0000061.00003,  000000000061,  0000965.00042),
+( 1, -000000000007, -0000061.00042,  000000000061,  0000965.00003),
+( 2, -071006035767,  4210253.00024,  000000000001,  0000001.84488),
+( 3,  000000007115,  0000000.77607,  000077350625,  0000018.00013),
+( 4, -000000068391, -0346486.00000,  000000005071,  0005334.00002),
+( 5, -521579890459, -1936874.00001,  000000000154,  0000003.00018),
+( 6, -521579890459, -1936874.00018,  000000000154,  0000003.00001),
+( 7,  000000000333,  0000051.39140,  000000907958,  0788643.08374),
+( 8,  000042731229,  0000009.00000,  000000000009,  6428667.00000),
+( 9, -000008159769,  0000918.00004,  000096951421,  7607730.00008);
+select count(*)- 5 from t1 use index (s) where s  < -000000000007;
+count(*)- 5
+0
+select count(*)- 7 from t1 use index (s) where s <= -000000000007;
+count(*)- 7
+0
+select count(*)- 2 from t1 use index (s) where s  = -000000000007;
+count(*)- 2
+0
+select count(*)- 5 from t1 use index (s) where s >= -000000000007;
+count(*)- 5
+0
+select count(*)- 3 from t1 use index (s) where s  > -000000000007;
+count(*)- 3
+0
+select count(*)- 4 from t1 use index (t) where t  < -0000061.00003;
+count(*)- 4
+0
+select count(*)- 5 from t1 use index (t) where t <= -0000061.00003;
+count(*)- 5
+0
+select count(*)- 1 from t1 use index (t) where t  = -0000061.00003;
+count(*)- 1
+0
+select count(*)- 6 from t1 use index (t) where t >= -0000061.00003;
+count(*)- 6
+0
+select count(*)- 5 from t1 use index (t) where t  > -0000061.00003;
+count(*)- 5
+0
+select count(*)- 2 from t1 use index (u) where u  <  000000000061;
+count(*)- 2
+0
+select count(*)- 4 from t1 use index (u) where u <=  000000000061;
+count(*)- 4
+0
+select count(*)- 2 from t1 use index (u) where u  =  000000000061;
+count(*)- 2
+0
+select count(*)- 8 from t1 use index (u) where u >=  000000000061;
+count(*)- 8
+0
+select count(*)- 6 from t1 use index (u) where u  >  000000000061;
+count(*)- 6
+0
+select count(*)- 5 from t1 use index (v) where v  <  0000965.00042;
+count(*)- 5
+0
+select count(*)- 6 from t1 use index (v) where v <=  0000965.00042;
+count(*)- 6
+0
+select count(*)- 1 from t1 use index (v) where v  =  0000965.00042;
+count(*)- 1
+0
+select count(*)- 5 from t1 use index (v) where v >=  0000965.00042;
+count(*)- 5
+0
+select count(*)- 4 from t1 use index (v) where v  >  0000965.00042;
+count(*)- 4
+0
+drop table t1;
+create table t1 (a int, c varchar(10),
+primary key using hash (a), index(c)) engine=ndb;
+insert into t1 (a, c) values (1,'aaa'),(3,'bbb');
+select count(*) from t1 where c<'bbb';
+count(*)
+1
+drop table t1;
+create table t1 (a int primary key) engine = ndb;
+insert into t1 values (1), (2), (3);
+begin;
+delete from t1 where a > 1;
+rollback;
+select * from t1 order by a;
+a
+1
+2
+3
+begin;
+delete from t1 where a > 1;
+rollback;
+begin;
+select * from t1 order by a;
+a
+1
+2
+3
+delete from t1 where a > 2;
+select * from t1 order by a;
+a
+1
+2
+delete from t1 where a > 1;
+select * from t1 order by a;
+a
+1
+delete from t1 where a > 0;
+select * from t1 order by a;
+a
+rollback;
+select * from t1 order by a;
+a
+1
+2
+3
+delete from t1;
+drop table t1;
+create table nationaldish (DishID int(10) unsigned NOT NULL AUTO_INCREMENT,
+CountryCode char(3) NOT NULL,
+DishTitle varchar(64) NOT NULL,
+calories smallint(5) unsigned DEFAULT NULL,
+PRIMARY KEY (DishID),
+INDEX i USING HASH (countrycode,calories)
+) ENGINE=ndbcluster;
+ERROR HY000: Can't create table 'test.nationaldish' (errno: 138)
+create table nationaldish (DishID int(10) unsigned NOT NULL AUTO_INCREMENT,
+CountryCode char(3) NOT NULL,
+DishTitle varchar(64) NOT NULL,
+calories smallint(5) unsigned DEFAULT NULL,
+PRIMARY KEY (DishID)
+) ENGINE=ndbcluster;
+create index i on nationaldish(countrycode,calories) using hash;
+ERROR 42000: Table 'nationaldish' uses an extension that doesn't exist in this MySQL version
+drop table nationaldish;
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+create table t1(c1 varchar(20) primary key, c2 char(20)) engine=ndbcluster;
+insert into t1(c1,c2) values ('ddd','jg');
+select * from t1 where  (c2 < 'b' AND c1 <> 'g')  OR  (c2 <> 'a' AND c1 <> 'd');
+c1	c2
+ddd	jg
+drop table t1;
+drop table if exists t1;
+create table t1 (
+a int unsigned,
+b varchar(1024) not null,
+primary key using hash (a),
+index x1 (b)
+) engine = ndbcluster
+default charset = utf8
+collate = utf8_unicode_ci;
+insert into t1 values (1,'a'),(2,'y'),(3,'z');
+select * from t1 where b = 'b';
+a	b
+select * from t1 where b = 'a';
+a	b
+1	a
+drop table t1;
+# bug#57396
+create table t1 (a int not null, b int not null, primary key (b,a)) engine=ndb;
+insert into t1(a,b) values(0,0);
+select * from t1 where b < 8 or b >= 8;
+a	b
+0	0
+drop table t1;
+# bug#56853
+create table t1 (
+x varchar(16) not null,
+primary key (x)
+)
+character set latin1
+collate latin1_swedish_ci
+engine ndb
+partition by key (x) partitions 8;
+insert into t1 (x) values ('aaa');
+insert into t1 (x) values ('bbb');
+insert into t1 (x) values ('ccc');
+insert into t1 (x) values ('ddd');
+select x from t1 where x like 'aa%';
+x
+aaa
+select x from t1 where x like 'aa_';
+x
+aaa
+select x from t1 where x like 'bb%';
+x
+bbb
+select x from t1 where x like 'bb_';
+x
+bbb
+select x from t1 where x like 'cc%';
+x
+ccc
+select x from t1 where x like 'cc_';
+x
+ccc
+select x from t1 where x like 'dd%';
+x
+ddd
+select x from t1 where x like 'dd_';
+x
+ddd
+drop table t1;
+create table t1 (
+x varchar(4) not null,
+primary key (x)
+)
+character set latin1
+collate latin1_swedish_ci
+engine ndb
+partition by key (x) partitions 8;
+insert into t1 (x) values ('aaaa');
+insert into t1 (x) values ('bbbb');
+insert into t1 (x) values ('cccc');
+insert into t1 (x) values ('dddd');
+select x from t1 where x like 'aaa%';
+x
+aaaa
+select x from t1 where x like 'aaa_';
+x
+aaaa
+select x from t1 where x like 'bbb%';
+x
+bbbb
+select x from t1 where x like 'bbb_';
+x
+bbbb
+select x from t1 where x like 'ccc%';
+x
+cccc
+select x from t1 where x like 'ccc_';
+x
+cccc
+select x from t1 where x like 'ddd%';
+x
+dddd
+select x from t1 where x like 'ddd_';
+x
+dddd
+drop table t1;

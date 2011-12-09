@@ -1,0 +1,626 @@
+include/master-slave.inc
+[connection master]
+CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), INDEX (C1)) ENGINE = 'NDB'  ;
+SELECT * FROM t1;
+C1	C2
+SELECT * FROM t1;
+C1	C2
+INSERT INTO t1 VALUES ('A','B'), ('X','Y'), ('X','X');
+INSERT INTO t1 VALUES ('A','C'), ('X','Z'), ('A','A');
+SELECT * FROM t1 ORDER BY C1,C2;
+C1	C2
+A	A
+A	B
+A	C
+X	X
+X	Y
+X	Z
+SELECT * FROM t1 ORDER BY C1,C2;
+C1	C2
+A	A
+A	B
+A	C
+X	X
+X	Y
+X	Z
+DELETE FROM t1 WHERE C1 = C2;
+SELECT * FROM t1 ORDER BY C1,C2;
+C1	C2
+A	B
+A	C
+X	Y
+X	Z
+SELECT * FROM t1 ORDER BY C1,C2;
+C1	C2
+A	B
+A	C
+X	Y
+X	Z
+UPDATE t1 SET C2 = 'I' WHERE C1 = 'A' AND C2 = 'C';
+SELECT * FROM t1 ORDER BY C1,C2;
+C1	C2
+A	B
+A	I
+X	Y
+X	Z
+SELECT * FROM t1 ORDER BY C1,C2;
+C1	C2
+A	B
+A	I
+X	Y
+X	Z
+UPDATE t1 SET c2 = 'Q' WHERE c1 = 'A' AND c2 = 'N';
+SELECT * FROM t1 ORDER BY c1,c2;
+C1	C2
+A	B
+A	I
+X	Y
+X	Z
+SELECT * FROM t1 ORDER BY c1,c2;
+C1	C2
+A	B
+A	I
+X	Y
+X	Z
+CREATE TABLE t2 (c1 INT, c12 char(1), c2 INT, PRIMARY KEY (c1)) ENGINE = 'NDB'  ;
+INSERT INTO t2
+VALUES (1,'A',2),  (2,'A',4),  (3,'A',9),  (4,'A',15), (5,'A',25),
+(6,'A',35), (7,'A',50), (8,'A',64), (9,'A',81);
+SELECT * FROM t2 ORDER BY c1,c2;
+c1	c12	c2
+1	A	2
+2	A	4
+3	A	9
+4	A	15
+5	A	25
+6	A	35
+7	A	50
+8	A	64
+9	A	81
+SELECT * FROM t2 WHERE c2 = c1 * c1 ORDER BY c1,c2;
+c1	c12	c2
+2	A	4
+3	A	9
+5	A	25
+8	A	64
+9	A	81
+SELECT * FROM t2 ORDER BY c1,c2;
+c1	c12	c2
+1	A	2
+2	A	4
+3	A	9
+4	A	15
+5	A	25
+6	A	35
+7	A	50
+8	A	64
+9	A	81
+SELECT * FROM t2 WHERE c2 = c1 * c1 ORDER BY c1,c2;
+c1	c12	c2
+2	A	4
+3	A	9
+5	A	25
+8	A	64
+9	A	81
+UPDATE t2 SET c2 = c1*c1 WHERE c2 != c1*c1;
+SELECT * FROM t2 WHERE c2 = c1 * c1 ORDER BY c1,c2;
+c1	c12	c2
+1	A	1
+2	A	4
+3	A	9
+4	A	16
+5	A	25
+6	A	36
+7	A	49
+8	A	64
+9	A	81
+SELECT * FROM t2 WHERE c2 = c1 * c1 ORDER BY c1,c2;
+c1	c12	c2
+1	A	1
+2	A	4
+3	A	9
+4	A	16
+5	A	25
+6	A	36
+7	A	49
+8	A	64
+9	A	81
+UPDATE t2 SET c12 = 'Q' WHERE c1 = 1 AND c2 = 999;
+SELECT * FROM t2 ORDER BY c1,c2;
+c1	c12	c2
+1	A	1
+2	A	4
+3	A	9
+4	A	16
+5	A	25
+6	A	36
+7	A	49
+8	A	64
+9	A	81
+SELECT * FROM t2 ORDER BY c1,c2;
+c1	c12	c2
+1	A	1
+2	A	4
+3	A	9
+4	A	16
+5	A	25
+6	A	36
+7	A	49
+8	A	64
+9	A	81
+DELETE FROM t2 WHERE c1 % 4 = 0;
+SELECT * FROM t2 ORDER BY c1,c2;
+c1	c12	c2
+1	A	1
+2	A	4
+3	A	9
+5	A	25
+6	A	36
+7	A	49
+9	A	81
+SELECT * FROM t2 ORDER BY c1,c2;
+c1	c12	c2
+1	A	1
+2	A	4
+3	A	9
+5	A	25
+6	A	36
+7	A	49
+9	A	81
+UPDATE t2 SET c12='X';
+CREATE TABLE t3 (C1 CHAR(1), C2 CHAR(1), pk1 INT, C3 CHAR(1), pk2 INT, PRIMARY KEY (pk1,pk2)) ENGINE = 'NDB'  ;
+INSERT INTO t3 VALUES ('A','B',1,'B',1), ('X','Y',2,'B',1), ('X','X',3,'B',1);
+INSERT INTO t3 VALUES ('A','C',1,'B',2), ('X','Z',2,'B',2), ('A','A',3,'B',2);
+SELECT * FROM t3 ORDER BY C1,C2;
+C1	C2	pk1	C3	pk2
+A	A	3	B	2
+A	B	1	B	1
+A	C	1	B	2
+X	X	3	B	1
+X	Y	2	B	1
+X	Z	2	B	2
+SELECT * FROM t3 ORDER BY C1,C2;
+C1	C2	pk1	C3	pk2
+A	A	3	B	2
+A	B	1	B	1
+A	C	1	B	2
+X	X	3	B	1
+X	Y	2	B	1
+X	Z	2	B	2
+DELETE FROM t3 WHERE C1 = C2;
+SELECT * FROM t3 ORDER BY C1,C2;
+C1	C2	pk1	C3	pk2
+A	B	1	B	1
+A	C	1	B	2
+X	Y	2	B	1
+X	Z	2	B	2
+SELECT * FROM t3 ORDER BY C1,C2;
+C1	C2	pk1	C3	pk2
+A	B	1	B	1
+A	C	1	B	2
+X	Y	2	B	1
+X	Z	2	B	2
+UPDATE t3 SET C2 = 'I' WHERE C1 = 'A' AND C2 = 'C';
+SELECT * FROM t3 ORDER BY C1,C2;
+C1	C2	pk1	C3	pk2
+A	B	1	B	1
+A	I	1	B	2
+X	Y	2	B	1
+X	Z	2	B	2
+SELECT * FROM t3 ORDER BY C1,C2;
+C1	C2	pk1	C3	pk2
+A	B	1	B	1
+A	I	1	B	2
+X	Y	2	B	1
+X	Z	2	B	2
+CREATE TABLE t6 (C1 CHAR(1), C2 CHAR(1), C3 INT) ENGINE = 'NDB' ;
+INSERT INTO t6 VALUES ('A','B',1), ('X','Y',2), ('X','X',3);
+INSERT INTO t6 VALUES ('A','C',4), ('X','Z',5), ('A','A',6);
+SELECT * FROM t6 ORDER BY C3;
+C1	C2	C3
+A	B	1
+X	Y	2
+X	X	3
+A	C	4
+X	Z	5
+A	A	6
+SELECT * FROM t6 ORDER BY C3;
+C1	C2	C3
+A	B	1
+X	Y	2
+X	X	3
+A	C	4
+X	Z	5
+A	A	6
+DELETE FROM t6 WHERE C1 = C2;
+SELECT * FROM t6 ORDER BY C3;
+C1	C2	C3
+A	B	1
+X	Y	2
+A	C	4
+X	Z	5
+SELECT * FROM t6 ORDER BY C3;
+C1	C2	C3
+A	B	1
+X	Y	2
+A	C	4
+X	Z	5
+UPDATE t6 SET C2 = 'I' WHERE C1 = 'A' AND C2 = 'C';
+SELECT * FROM t6 ORDER BY C3;
+C1	C2	C3
+A	B	1
+X	Y	2
+A	I	4
+X	Z	5
+SELECT * FROM t6 ORDER BY C3;
+C1	C2	C3
+A	B	1
+X	Y	2
+A	I	4
+X	Z	5
+CREATE TABLE t5 (C1 CHAR(1), C2 CHAR(1), C3 INT PRIMARY KEY) ENGINE = 'NDB'  ;
+INSERT INTO t5 VALUES ('A','B',1), ('X','Y',2), ('X','X',3);
+INSERT INTO t5 VALUES ('A','C',4), ('X','Z',5), ('A','A',6);
+UPDATE t5,t2,t3 SET t5.C2='Q', t2.c12='R', t3.C3 ='S' WHERE t5.C1 = t2.c12 AND t5.C1 = t3.C1;
+SELECT * FROM t5,t2,t3 WHERE t5.C2='Q' AND t2.c12='R' AND t3.C3 ='S' ORDER BY t5.C3,t2.c1,t3.pk1,t3.pk2;
+C1	C2	C3	c1	c12	c2	C1	C2	pk1	C3	pk2
+X	Q	2	1	R	1	X	Y	2	S	1
+X	Q	2	1	R	1	X	Z	2	S	2
+X	Q	2	2	R	4	X	Y	2	S	1
+X	Q	2	2	R	4	X	Z	2	S	2
+X	Q	2	3	R	9	X	Y	2	S	1
+X	Q	2	3	R	9	X	Z	2	S	2
+X	Q	2	5	R	25	X	Y	2	S	1
+X	Q	2	5	R	25	X	Z	2	S	2
+X	Q	2	6	R	36	X	Y	2	S	1
+X	Q	2	6	R	36	X	Z	2	S	2
+X	Q	2	7	R	49	X	Y	2	S	1
+X	Q	2	7	R	49	X	Z	2	S	2
+X	Q	2	9	R	81	X	Y	2	S	1
+X	Q	2	9	R	81	X	Z	2	S	2
+X	Q	3	1	R	1	X	Y	2	S	1
+X	Q	3	1	R	1	X	Z	2	S	2
+X	Q	3	2	R	4	X	Y	2	S	1
+X	Q	3	2	R	4	X	Z	2	S	2
+X	Q	3	3	R	9	X	Y	2	S	1
+X	Q	3	3	R	9	X	Z	2	S	2
+X	Q	3	5	R	25	X	Y	2	S	1
+X	Q	3	5	R	25	X	Z	2	S	2
+X	Q	3	6	R	36	X	Y	2	S	1
+X	Q	3	6	R	36	X	Z	2	S	2
+X	Q	3	7	R	49	X	Y	2	S	1
+X	Q	3	7	R	49	X	Z	2	S	2
+X	Q	3	9	R	81	X	Y	2	S	1
+X	Q	3	9	R	81	X	Z	2	S	2
+X	Q	5	1	R	1	X	Y	2	S	1
+X	Q	5	1	R	1	X	Z	2	S	2
+X	Q	5	2	R	4	X	Y	2	S	1
+X	Q	5	2	R	4	X	Z	2	S	2
+X	Q	5	3	R	9	X	Y	2	S	1
+X	Q	5	3	R	9	X	Z	2	S	2
+X	Q	5	5	R	25	X	Y	2	S	1
+X	Q	5	5	R	25	X	Z	2	S	2
+X	Q	5	6	R	36	X	Y	2	S	1
+X	Q	5	6	R	36	X	Z	2	S	2
+X	Q	5	7	R	49	X	Y	2	S	1
+X	Q	5	7	R	49	X	Z	2	S	2
+X	Q	5	9	R	81	X	Y	2	S	1
+X	Q	5	9	R	81	X	Z	2	S	2
+SELECT * FROM t5,t2,t3 WHERE t5.C2='Q' AND t2.c12='R' AND t3.C3 ='S' ORDER BY t5.C3,t2.c1,t3.pk1,t3.pk2;
+C1	C2	C3	c1	c12	c2	C1	C2	pk1	C3	pk2
+X	Q	2	1	R	1	X	Y	2	S	1
+X	Q	2	1	R	1	X	Z	2	S	2
+X	Q	2	2	R	4	X	Y	2	S	1
+X	Q	2	2	R	4	X	Z	2	S	2
+X	Q	2	3	R	9	X	Y	2	S	1
+X	Q	2	3	R	9	X	Z	2	S	2
+X	Q	2	5	R	25	X	Y	2	S	1
+X	Q	2	5	R	25	X	Z	2	S	2
+X	Q	2	6	R	36	X	Y	2	S	1
+X	Q	2	6	R	36	X	Z	2	S	2
+X	Q	2	7	R	49	X	Y	2	S	1
+X	Q	2	7	R	49	X	Z	2	S	2
+X	Q	2	9	R	81	X	Y	2	S	1
+X	Q	2	9	R	81	X	Z	2	S	2
+X	Q	3	1	R	1	X	Y	2	S	1
+X	Q	3	1	R	1	X	Z	2	S	2
+X	Q	3	2	R	4	X	Y	2	S	1
+X	Q	3	2	R	4	X	Z	2	S	2
+X	Q	3	3	R	9	X	Y	2	S	1
+X	Q	3	3	R	9	X	Z	2	S	2
+X	Q	3	5	R	25	X	Y	2	S	1
+X	Q	3	5	R	25	X	Z	2	S	2
+X	Q	3	6	R	36	X	Y	2	S	1
+X	Q	3	6	R	36	X	Z	2	S	2
+X	Q	3	7	R	49	X	Y	2	S	1
+X	Q	3	7	R	49	X	Z	2	S	2
+X	Q	3	9	R	81	X	Y	2	S	1
+X	Q	3	9	R	81	X	Z	2	S	2
+X	Q	5	1	R	1	X	Y	2	S	1
+X	Q	5	1	R	1	X	Z	2	S	2
+X	Q	5	2	R	4	X	Y	2	S	1
+X	Q	5	2	R	4	X	Z	2	S	2
+X	Q	5	3	R	9	X	Y	2	S	1
+X	Q	5	3	R	9	X	Z	2	S	2
+X	Q	5	5	R	25	X	Y	2	S	1
+X	Q	5	5	R	25	X	Z	2	S	2
+X	Q	5	6	R	36	X	Y	2	S	1
+X	Q	5	6	R	36	X	Z	2	S	2
+X	Q	5	7	R	49	X	Y	2	S	1
+X	Q	5	7	R	49	X	Z	2	S	2
+X	Q	5	9	R	81	X	Y	2	S	1
+X	Q	5	9	R	81	X	Z	2	S	2
+CREATE TABLE t4 (C1 CHAR(1) PRIMARY KEY, B1 BIT(1), B2 BIT(1) NOT NULL DEFAULT 0, C2 CHAR(1) NOT NULL DEFAULT 'A') ENGINE = 'NDB'  ;
+INSERT INTO t4 SET C1 = 1;
+SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
+C1	HEX(B1)	HEX(B2)
+1	NULL	0
+SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
+C1	HEX(B1)	HEX(B2)
+1	NULL	0
+CREATE TABLE t7 (C1 INT PRIMARY KEY, C2 INT) ENGINE = 'NDB'  ;
+--- on slave: original values ---
+INSERT INTO t7 VALUES (1,3), (2,6), (3,9);
+SELECT * FROM t7 ORDER BY C1;
+C1	C2
+1	3
+2	6
+3	9
+set @@global.slave_exec_mode= 'IDEMPOTENT';
+--- on master: new values inserted ---
+INSERT INTO t7 VALUES (1,2), (2,4), (3,6);
+SELECT * FROM t7 ORDER BY C1;
+C1	C2
+1	2
+2	4
+3	6
+set @@global.slave_exec_mode= default;
+--- on slave: old values should be overwritten by replicated values ---
+SELECT * FROM t7 ORDER BY C1;
+C1	C2
+1	2
+2	4
+3	6
+--- on master ---
+CREATE TABLE t8 (a INT PRIMARY KEY, b INT UNIQUE, c INT UNIQUE) ENGINE = 'NDB'  ;
+INSERT INTO t8 VALUES (99,99,99);
+INSERT INTO t8 VALUES (99,22,33);
+ERROR 23000: Duplicate entry '99' for key 'PRIMARY'
+INSERT INTO t8 VALUES (11,99,33);
+ERROR 23000: Duplicate entry '99' for key 'b'
+INSERT INTO t8 VALUES (11,22,99);
+ERROR 23000: Duplicate entry '99' for key 'c'
+SELECT * FROM t8 ORDER BY a;
+a	b	c
+99	99	99
+--- on slave ---
+SELECT * FROM t8 ORDER BY a;
+a	b	c
+99	99	99
+INSERT INTO t8 VALUES (1,2,3), (2,4,6), (3,6,9);
+SELECT * FROM t8 ORDER BY a;
+a	b	c
+1	2	3
+2	4	6
+3	6	9
+99	99	99
+set @@global.slave_exec_mode= 'IDEMPOTENT';
+--- on master ---
+INSERT INTO t8 VALUES (2,4,8);
+set @@global.slave_exec_mode= default;
+--- on slave ---
+SELECT * FROM t8 ORDER BY a;
+a	b	c
+1	2	3
+2	4	8
+3	6	9
+99	99	99
+**** Test for BUG#31552 ****
+**** On Master ****
+DELETE FROM t1;
+include/rpl_reset.inc
+**** On Master ****
+INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M');
+**** On Master ****
+set @@global.slave_exec_mode= 'IDEMPOTENT';
+DELETE FROM t1 WHERE C1 = 'L';
+DELETE FROM t1;
+SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
+COUNT(*)	0
+set @@global.slave_exec_mode= default;
+include/check_slave_is_running.inc
+SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
+COUNT(*)	0
+**** Test for BUG#37076 ****
+**** On Master ****
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a TIMESTAMP, b DATETIME, c DATE);
+INSERT INTO t1 VALUES(
+'2005-11-14 01:01:01', '2005-11-14 01:01:02', '2005-11-14');
+**** On Slave ****
+SELECT * FROM t1;
+a	b	c
+2005-11-14 01:01:01	2005-11-14 01:01:02	2005-11-14
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8;
+CREATE TABLE t1 (i INT NOT NULL,
+c CHAR(16) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'NDB'  ;
+CREATE TABLE t2 (i INT NOT NULL,
+c CHAR(16) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'NDB'  ;
+ALTER TABLE t2 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
+CREATE TABLE t3 (i INT NOT NULL,
+c CHAR(128) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'NDB'  ;
+ALTER TABLE t3 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
+CREATE TABLE t4 (i INT NOT NULL,
+c CHAR(128) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'NDB'  ;
+CREATE TABLE t5 (i INT NOT NULL,
+c CHAR(255) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'NDB'  ;
+ALTER TABLE t5 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
+CREATE TABLE t6 (i INT NOT NULL,
+c CHAR(255) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'NDB'  ;
+ALTER TABLE t6 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
+CREATE TABLE t7 (i INT NOT NULL,
+c CHAR(255) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'NDB'  ;
+SET @saved_slave_type_conversions = @@slave_type_conversions;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+[expecting slave to replicate correctly]
+INSERT INTO t1 VALUES (1, "", 1);
+INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
+include/diff_tables.inc [master:t1, slave:t1]
+[expecting slave to replicate correctly]
+INSERT INTO t2 VALUES (1, "", 1);
+INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
+include/diff_tables.inc [master:t2, slave:t2]
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 1 size mismatch.* Error_code: 1535");
+call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t1.* Error_code: 1032");
+call mtr.add_suppression("Slave SQL.*Column 1 of table .test.t.. cannot be converted from type.*, Error_code: 1677");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+include/rpl_reset.inc
+[expecting slave to replicate correctly]
+INSERT INTO t4 VALUES (1, "", 1);
+INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
+include/diff_tables.inc [master:t4, slave:t4]
+[expecting slave to stop]
+INSERT INTO t5 VALUES (1, "", 1);
+INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
+include/wait_for_slave_sql_error.inc [errno=1677 ]
+Last_SQL_Error = 'Column 1 of table 'test.t5' cannot be converted from type 'char(255)' to type 'char(16)''
+include/rpl_reset.inc
+[expecting slave to stop]
+INSERT INTO t6 VALUES (1, "", 1);
+INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
+include/wait_for_slave_sql_error.inc [errno=1677 ]
+Last_SQL_Error = 'Column 1 of table 'test.t6' cannot be converted from type 'char(255)' to type 'char(128)''
+include/rpl_reset.inc
+[expecting slave to replicate correctly]
+INSERT INTO t7 VALUES (1, "", 1);
+INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
+include/diff_tables.inc [master:t7, slave:t7]
+drop table t1, t2, t3, t4, t5, t6, t7;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE='NDB' ;
+INSERT INTO t1 VALUES (1), (2), (3);
+UPDATE t1 SET a = 10;
+ERROR 23000: Duplicate entry '10' for key 'PRIMARY'
+INSERT INTO t1 VALUES (4);
+include/diff_tables.inc [master:t1, slave:t1]
+drop table t1;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`int_nokey` int(11) NOT NULL,
+`int_key` int(11) NOT NULL,
+`date_key` date NOT NULL,
+`date_nokey` date NOT NULL,
+`time_key` time NOT NULL,
+`time_nokey` time NOT NULL,
+`datetime_key` datetime NOT NULL,
+`datetime_nokey` datetime NOT NULL,
+`varchar_key` varchar(1) NOT NULL,
+`varchar_nokey` varchar(1) NOT NULL,
+PRIMARY KEY (`pk`),
+KEY `int_key` (`int_key`),
+KEY `date_key` (`date_key`),
+KEY `time_key` (`time_key`),
+KEY `datetime_key` (`datetime_key`),
+KEY `varchar_key` (`varchar_key`)
+) ENGINE='NDB' ;
+INSERT INTO t1 VALUES (1,8,5,'0000-00-00','0000-00-00','10:37:38','10:37:38','0000-00-00 00:00:00','0000-00-00 00:00:00','p','p'),(2,0,9,'0000-00-00','0000-00-00','00:00:00','00:00:00','2007-10-14 00:00:00','2007-10-14 00:00:00','d','d');
+CREATE TABLE t2 (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`int_nokey` int(11) NOT NULL,
+`int_key` int(11) NOT NULL,
+`date_key` date NOT NULL,
+`date_nokey` date NOT NULL,
+`time_key` time NOT NULL,
+`time_nokey` time NOT NULL,
+`datetime_key` datetime NOT NULL,
+`datetime_nokey` datetime NOT NULL,
+`varchar_key` varchar(1) NOT NULL,
+`varchar_nokey` varchar(1) NOT NULL,
+PRIMARY KEY (`pk`),
+KEY `int_key` (`int_key`),
+KEY `date_key` (`date_key`),
+KEY `time_key` (`time_key`),
+KEY `datetime_key` (`datetime_key`),
+KEY `varchar_key` (`varchar_key`)
+) ENGINE='NDB' ;
+INSERT INTO t2 VALUES (1,1,6,'2005-12-23','2005-12-23','02:24:28','02:24:28','0000-00-00 00:00:00','0000-00-00 00:00:00','g','g'),(2,0,3,'2009-09-14','2009-09-14','00:00:00','00:00:00','2000-01-30 16:39:40','2000-01-30 16:39:40','q','q'),(3,0,3,'0000-00-00','0000-00-00','00:00:00','00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','c','c'),(4,1,6,'2007-03-29','2007-03-29','15:49:00','15:49:00','0000-00-00 00:00:00','0000-00-00 00:00:00','m','m'),(5,4,0,'2002-12-04','2002-12-04','00:00:00','00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','o','o'),(6,9,0,'2005-01-28','2005-01-28','00:00:00','00:00:00','2001-05-18 00:00:00','2001-05-18 00:00:00','w','w'),(7,6,0,'0000-00-00','0000-00-00','06:57:25','06:57:25','0000-00-00 00:00:00','0000-00-00 00:00:00','m','m'),(8,0,0,'0000-00-00','0000-00-00','00:00:00','00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','z','z'),(9,4,6,'2006-08-15','2006-08-15','00:00:00','00:00:00','2002-04-12 14:44:25','2002-04-12 14:44:25','j','j'),(10,0,5,'2006-12-20','2006-12-20','10:13:53','10:13:53','2008-07-22 00:00:00','2008-07-22 00:00:00','y','y'),(11,9,7,'0000-00-00','0000-00-00','00:00:00','00:00:00','2004-07-05 00:00:00','2004-07-05 00:00:00','{','{'),(12,4,3,'2007-01-26','2007-01-26','23:00:51','23:00:51','2001-05-16 00:00:00','2001-05-16 00:00:00','f','f'),(13,7,0,'2004-03-27','2004-03-27','00:00:00','00:00:00','2005-01-24 03:30:37','2005-01-24 03:30:37','',''),(14,6,0,'2006-07-26','2006-07-26','18:43:57','18:43:57','0000-00-00 00:00:00','0000-00-00 00:00:00','{','{'),(15,0,6,'2000-01-14','2000-01-14','00:00:00','00:00:00','2000-09-21 00:00:00','2000-09-21 00:00:00','o','o'),(16,9,8,'0000-00-00','0000-00-00','21:15:08','21:15:08','0000-00-00 00:00:00','0000-00-00 00:00:00','a','a'),(17,2,0,'2004-10-27','2004-10-27','00:00:00','00:00:00','2004-03-24 22:13:43','2004-03-24 22:13:43','',''),(18,7,4,'0000-00-00','0000-00-00','08:38:27','08:38:27','2002-03-18 19:51:44','2002-03-18 19:51:44','t','t'),(19,5,3,'2008-03-07','2008-03-07','03:29:07','03:29:07','2007-12-01 18:44:44','2007-12-01 18:44:44','t','t'),(20,0,0,'2002-04-09','2002-04-09','16:06:03','16:06:03','2009-04-22 00:00:00','2009-04-22 00:00:00','n','n');
+DELETE FROM t2 WHERE `int_key` < 3 LIMIT 1;
+UPDATE t1 SET `int_key` = 3 ORDER BY `pk` LIMIT 4;
+DELETE FROM t2 WHERE `int_key` < 3 LIMIT 1;
+DELETE FROM t2 WHERE `pk` < 6 LIMIT 1;
+UPDATE t1 SET `int_key` = 6 ORDER BY `pk` LIMIT 3;
+DELETE FROM t2 WHERE `pk` < 6 LIMIT 1;
+UPDATE t1 SET `pk` = 6 ORDER BY `int_key` LIMIT 6;
+ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
+DELETE FROM t2 WHERE `pk` < 7 LIMIT 1;
+UPDATE t1 SET `int_key` = 4 ORDER BY `pk` LIMIT 6;
+*** results: t2 must be consistent ****
+include/diff_tables.inc [master:t2, slave:t2]
+DROP TABLE t1, t2;
+EOF OF TESTS
+CREATE TABLE t1 (a int) ENGINE='NDB' ;
+INSERT IGNORE INTO t1 VALUES (NULL);
+INSERT INTO t1 ( a ) VALUES ( 0 );
+INSERT INTO t1 ( a ) VALUES ( 9 );
+INSERT INTO t1 ( a ) VALUES ( 2 );
+INSERT INTO t1 ( a ) VALUES ( 9 );
+INSERT INTO t1 ( a ) VALUES ( 5 );
+UPDATE t1 SET a = 5 WHERE a = 9;
+DELETE FROM t1 WHERE a < 6;
+UPDATE t1 SET a = 9 WHERE a < 3;
+INSERT INTO t1 ( a ) VALUES ( 3 );
+UPDATE t1 SET a = 0 WHERE a < 4;
+UPDATE t1 SET a = 8 WHERE a < 5;
+include/diff_tables.inc [master:t1, slave:t1]
+drop table t1;
+CREATE TABLE t1 (a bit) ENGINE='NDB' ;
+INSERT IGNORE INTO t1 VALUES (NULL);
+INSERT INTO t1 ( a ) VALUES ( 0 );
+UPDATE t1 SET a = 0 WHERE a = 1 LIMIT 3;
+INSERT INTO t1 ( a ) VALUES ( 5 );
+DELETE FROM t1 WHERE a < 2 LIMIT 4;
+DELETE FROM t1 WHERE a < 9 LIMIT 4;
+INSERT INTO t1 ( a ) VALUES ( 9 );
+UPDATE t1 SET a = 8 WHERE a = 0 LIMIT 6;
+INSERT INTO t1 ( a ) VALUES ( 8 );
+UPDATE t1 SET a = 0 WHERE a < 6 LIMIT 0;
+INSERT INTO t1 ( a ) VALUES ( 4 );
+INSERT INTO t1 ( a ) VALUES ( 3 );
+UPDATE t1 SET a = 0 WHERE a = 7 LIMIT 6;
+DELETE FROM t1 WHERE a = 4 LIMIT 7;
+UPDATE t1 SET a = 9 WHERE a < 2 LIMIT 9;
+UPDATE t1 SET a = 0 WHERE a < 9 LIMIT 2;
+DELETE FROM t1 WHERE a < 0 LIMIT 5;
+INSERT INTO t1 ( a ) VALUES ( 5 );
+UPDATE t1 SET a = 4 WHERE a < 6 LIMIT 4;
+INSERT INTO t1 ( a ) VALUES ( 5 );
+UPDATE t1 SET a = 9 WHERE a < 5 LIMIT 8;
+DELETE FROM t1 WHERE a < 8 LIMIT 8;
+INSERT INTO t1 ( a ) VALUES ( 6 );
+DELETE FROM t1 WHERE a < 6 LIMIT 7;
+UPDATE t1 SET a = 7 WHERE a = 3 LIMIT 7;
+UPDATE t1 SET a = 8 WHERE a = 0 LIMIT 6;
+INSERT INTO t1 ( a ) VALUES ( 7 );
+DELETE FROM t1 WHERE a < 9 LIMIT 4;
+INSERT INTO t1 ( a ) VALUES ( 7 );
+INSERT INTO t1 ( a ) VALUES ( 6 );
+UPDATE t1 SET a = 8 WHERE a = 3 LIMIT 4;
+DELETE FROM t1 WHERE a = 2 LIMIT 9;
+DELETE FROM t1 WHERE a = 1 LIMIT 4;
+UPDATE t1 SET a = 4 WHERE a = 2 LIMIT 7;
+INSERT INTO t1 ( a ) VALUES ( 0 );
+DELETE FROM t1 WHERE a < 3 LIMIT 0;
+UPDATE t1 SET a = 8 WHERE a = 5 LIMIT 2;
+INSERT INTO t1 ( a ) VALUES ( 1 );
+UPDATE t1 SET a = 9 WHERE a < 5 LIMIT 3;
+include/diff_tables.inc [master:t1, slave:t1]
+drop table t1;
+include/rpl_end.inc

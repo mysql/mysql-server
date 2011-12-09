@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef SCI_Transporter_H 
 #define SCI_Transporter_H 
@@ -69,8 +72,7 @@ class SCI_Transporter : public Transporter {
 public:   
  
   /** 
-   * Init the transporter. Allocate sendbuffers and open a SCI virtual device 
-   * for each adapter. 
+   * Init the transporter.
    * @return true if successful, otherwize false 
    */ 
   bool initTransporter();                 
@@ -123,7 +125,6 @@ public:
    */ 
   bool getConnectionStatus(); 
 
-  virtual Uint32 get_free_buffer() const;   
 private: 
   SCI_Transporter(TransporterRegistry &t_reg,
                   const char *local_host,
@@ -146,6 +147,9 @@ private:
    * Destructor. Disconnects the transporter. 
    */ 
 	~SCI_Transporter();    
+
+  virtual bool configure_derived(const TransporterConfiguration* conf);
+
   bool m_mapped; 
   bool m_initLocal; 
   bool m_sciinit; 
@@ -167,13 +171,6 @@ private:
   volatile Uint32 * m_localStatusFlag; 
   volatile Uint32 * m_remoteStatusFlag; 
   volatile Uint32 * m_remoteStatusFlag2; 
-
-  struct {
-    Uint32 * m_buffer;       // The buffer
-    Uint32 m_dataSize;       // No of words in buffer
-    Uint32 m_sendBufferSize; // Buffer size
-    Uint32 m_forceSendLimit; // Send when buffer is this full
-  } m_sendBuffer;
 
   SHM_Reader * reader; 
   SHM_Writer * writer; 
@@ -238,9 +235,6 @@ private:
  
   Uint32 m_PacketSize;        // The size of each data packet 
   Uint32 m_BufferSize;        // Mapped SCI buffer size  
- 
-  Uint32 * getWritePtr(Uint32 lenBytes, Uint32 prio);
-  void updateWritePtr(Uint32 lenBytes, Uint32 prio);
 
   /** 
    * doSend. Copies the data from the source (the send buffer) to the  
@@ -262,10 +256,6 @@ private:
   bool hasDataToRead() const { 
     return reader->empty() == false;
   } 
- 
-  bool hasDataToSend() const {
-    return m_sendBuffer.m_dataSize > 0;
-  }
 
   /**  
    * Make the local segment unavailable, no new connections will be accepted. 
@@ -281,12 +271,6 @@ private:
    
   void resetToInitialState(); 
              
-  /** 
-   *  It is always possible to send data with SCI! 
-   *  @return True (always) 
-   */ 
-  bool sendIsPossible(struct timeval * timeout); 
-   
   void getReceivePtr(Uint32 ** ptr, Uint32 ** eod){
     reader->getReadPtr(* ptr, * eod);
   }
@@ -333,6 +317,9 @@ private:
  
   bool init_local();
   bool init_remote();
+
+  bool send_limit_reached(int bufsize) { return (bufsize > m_PacketSize); }
+  bool send_is_possible(int timeout_millisec) const { return 1; }
 
 protected: 
    

@@ -1,0 +1,104 @@
+#!/bin/sh
+
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+#
+# Use like this in the ATRT test file:
+#
+# max-time: 180
+# cmd: atrt-mysqltest
+# args: --test-file=suite/ndb/t/smoke.test
+#
+set -x
+RUN_DIR=`pwd`
+
+RESULT_FILE="$RUN_DIR/mysqltest.out"
+MYSQL_TEST_DIR=$MYSQL_BASE_DIR/mysql-test
+RUN_LOG="$RUN_DIR/ndb_testrun.log"
+
+# Expected subdirectory by tests written for MTR.
+mkdir -p $RUN_DIR/tmp
+
+$MYSQL_BASE_DIR/bin/ndb_waiter -c $NDB_CONNECTSTRING > $RESULT_FILE
+
+cd $MYSQL_BASE_DIR/mysql-test
+
+NDB_MGM="$MYSQL_BASE_DIR/storage/ndb/src/mgmclient/ndb_mgm"
+if [ -f "$MYSQL_BASE_DIR/bin/ndb_mgm" ]; then
+  NDB_MGM="$MYSQL_BASE_DIR/bin/ndb_mgm"
+fi
+
+NDB_NDBD="$MYSQL_BASE_DIR/bin/ndbd"
+if [ -f "$MYSQL_BASE_DIR/bin/ndbmtd" ]; then
+  NDB_NDBD="$MYSQL_BASE_DIR/bin/ndbmtd"
+fi
+if [ -f "$MYSQL_BASE_DIR/storage/ndb/src/kernel/ndbd" ]; then
+  NDB_NDBD="$MYSQL_BASE_DIR/storage/ndb/src/kernel/ndbd"
+fi
+if [ -f "$MYSQL_BASE_DIR/storage/ndb/src/kernel/ndbmtd" ]; then
+  NDB_NDBD="$MYSQL_BASE_DIR/storage/ndb/src/kernel/ndbmtd"
+fi
+
+NDB_TOOLS_DIR="$MYSQL_BASE_DIR/bin"
+if [ -e "$MYSQL_BASE_DIR/storage/ndb/tools" ]; then
+  NDB_TOOLS_DIR="$MYSQL_BASE_DIR/storage/ndb/tools"
+fi
+
+NDB_EXAMPLES_DIR="$MYSQL_BASE_DIR/bin"
+if [ -e "$MYSQL_BASE_DIR/storage/ndb/ndbapi-examples" ]; then
+  NDB_EXAMPLES_DIR="$MYSQL_BASE_DIR/storage/ndb/ndbapi-examples"
+fi
+
+NDB_EXAMPLES_BINARY="$MYSQL_BASE_DIR/bin/ndbapi_simple"
+if [ -f "$MYSQL_BASE_DIR/storage/ndb/ndbapi-examples/ndbapi_simple/ndbapi_simple" ]; then
+  NDB_EXAMPLES_BINARY="$MYSQL_BASE_DIR/storage/ndb/ndbapi-examples/ndbapi_simple/ndbapi_simple"
+fi
+
+echo "Default group suffix: $MYSQL_GROUP_SUFFIX"
+
+# MYSQL_GROUP_SUFFIX: This is a MySQL client, started as a NDB API client by ATRT.
+NDB_CONNECTSTRING=$NDB_CONNECTSTRING MYSQL_TEST_DIR=$MYSQL_BASE_DIR/mysql-test \
+NDB_TOOLS_OUTPUT=$RUN_LOG NDB_EXAMPLES_OUTPUT=$RUN_LOG NDB_MGM=$NDB_MGM NDB_NDBD=NDB_NDBD \
+NDB_TOOLS_DIR=$NDB_TOOLS_DIR NDB_EXAMPLES_DIR=$NDB_EXAMPLES_DIR NDB_EXAMPLES_BINARY=$NDB_EXAMPLES_BINARY \
+MYSQLTEST_VARDIR=$RUN_DIR MYSQL_GROUP_SUFFIX=.1.4node \
+                              $MYSQL_BASE_DIR/bin/mysqltest --defaults-file=$MYSQL_HOME/my.cnf \
+                              --tmpdir=$RUN_DIR \
+                              --logdir=$RUN_DIR \
+                              --basedir=$MYSQL_BASE_DIR/mysql-test/ \
+                              --ps-protocol \
+                              --tail-lines=20 \
+                              --database=test \
+                              --nowarnings \
+                              --skip-safemalloc $* | tee -a $RESULT_FILE
+
+# Could be added, but would then also need the mtr database:
+#                              --include=include/mtr_check.sql \
+# We could also run the bootstrap scripts
+
+echo "Run complete, result code: '$?'"
+
+r=$?
+f=`grep -c '\[ fail \]' $RESULT_FILE`
+o=`grep -c '\[ pass \]' $RESULT_FILE`
+
+if [ ( $r -eq 0 ) -o ( $o -gt 0 -a $f -eq 0 ) ]
+then
+    echo "NDBT_ProgramExit: OK"
+    exit 0
+fi
+
+echo "NDBT_ProgramExit: Failed"
+exit 1

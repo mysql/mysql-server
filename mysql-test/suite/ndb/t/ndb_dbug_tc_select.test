@@ -1,0 +1,156 @@
+-- source include/have_ndb.inc
+
+# Test is using error insert, check that binaries support it
+--source have_ndb_error_insert.inc
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+
+# make ndb nodes die if correct tc is not selected
+
+--echo #
+--echo # Test tc select with 2-way joins with unique lookups
+--echo #
+
+create table t1 (a int key, b int) engine ndb;
+create table t2 (a int, b int, c int, d int, primary key(a,b), unique(d)) engine ndb partition by key(a);
+--disable_query_log
+--disable_result_log
+let $i= 100;
+let $j= 1;
+while ($i)
+{
+--eval insert into t1 values ("$i","$j")
+--eval insert into t2 values ("$i","$j",9999,"$j")
+dec $i;
+inc $j;
+}
+--enable_query_log
+--enable_result_log
+
+--echo #
+--echo # 2-way join tc selection in pk
+--echo #
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 8072" >> $NDB_TOOLS_OUTPUT
+--replace_column 9 #
+explain select t2.c from t1,t2 where t1.a=50 and t2.a=t1.a and t2.b=t1.b;
+--disable_query_log
+--disable_result_log
+let $i= 100;
+while ($i)
+{
+--eval select t2.c from t1,t2 where t1.a="$i" and t2.a=t1.a and t2.b=t1.b
+dec $i;
+}
+--enable_query_log
+--enable_result_log
+
+--echo #
+--echo # 2-way join tc selection in unique key
+--echo #
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 8071" >> $NDB_TOOLS_OUTPUT
+--replace_column 9 #
+explain select t1.b from t1,t2 where t2.d=50 and t1.a=t2.a;
+--disable_query_log
+--disable_result_log
+let $i= 100;
+while ($i)
+{
+--eval select t1.b from t1,t2 where t2.d="$i" and t1.a=t2.a
+dec $i;
+}
+--enable_query_log
+--enable_result_log
+
+# cleanup
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+drop table t1,t2;
+
+
+--echo #
+--echo # Test tc select with 2-way joins with scan followed by unique lookup
+--echo #
+
+create table t1 (a int, b int, primary key(a,b)) engine ndb partition by key (a);
+create table t2 (a int, b int, c int, primary key(a,b)) engine ndb partition by key (a);
+
+--disable_query_log
+--disable_result_log
+let $i= 100;
+let $j= 1;
+while ($i)
+{
+--eval insert into t1 values ("$i","$j")
+--eval insert into t2 values ("$i",9999,"$j")
+dec $i;
+inc $j;
+}
+--enable_query_log
+--enable_result_log
+
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 8071" >> $NDB_TOOLS_OUTPUT
+--replace_column 9 #
+explain select t2.c from t1,t2 where t1.a=50 and t2.a=t1.a and t2.b=t1.b;
+--disable_query_log
+--disable_result_log
+let $i= 100;
+while ($i)
+{
+--eval select t2.c from t1,t2 where t1.a="$i" and t2.a=t1.a and t2.b=t1.b
+dec $i;
+}
+--enable_query_log
+--enable_result_log
+
+# cleanup
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+drop table t1,t2;
+
+
+--let $type1= int 
+--let $type2= varchar(22)
+--source suite/ndb/t/ndb_dbug_tc_select_1.inc
+
+--let $type1= varchar(1024)
+--let $type2= int 
+--source suite/ndb/t/ndb_dbug_tc_select_1.inc
+
+--let $type1= varchar(32)
+--let $type2= varchar(257)
+--source suite/ndb/t/ndb_dbug_tc_select_1.inc
+
+--let $type1= int 
+--let $type2= int
+--let $type3= int
+--source suite/ndb/t/ndb_dbug_tc_select_2.inc
+
+--let $type1= int
+--let $type2= char(22) 
+--let $type3= char(12)
+--source suite/ndb/t/ndb_dbug_tc_select_2.inc
+
+--let $type1= varchar(32)
+--let $type2= int
+--let $type3= varchar(257)
+--source suite/ndb/t/ndb_dbug_tc_select_2.inc
+
+--let $type1= int 
+--let $type2= int
+--let $type3= int
+--let $type4= int
+--source suite/ndb/t/ndb_dbug_tc_select_3.inc
+
+--let $type1= int
+--let $type2= varchar(22) 
+--let $type3= char(12)
+--let $type4= varchar(257)
+--source suite/ndb/t/ndb_dbug_tc_select_3.inc
+
+--let $type1= varchar(1024)
+--let $type2= char(22)
+--let $type3= varchar(257)
+--let $type4= char(12)
+--source suite/ndb/t/ndb_dbug_tc_select_3.inc

@@ -1,0 +1,83 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+reset master;
+
+#
+# None of the below statements should be binlogged
+# since server is started with --binlog-ignore-db=mysqltest
+#
+
+create database mysqltest;
+use mysqltest;
+create table t1 (a int primary key, b int) engine=ndb;
+insert into t1 values (1, 1);
+
+use test;
+insert into mysqltest.t1 values(2,2);
+
+-- source include/show_binlog_events2.inc
+
+drop database mysqltest;
+
+--echo --bug58698 Epoch not in ndb_apply_status 
+reset master;
+use mysql;
+
+--echo -- MyISAM table in mysql db
+create table invisible(a int primary key) engine=myisam;
+insert into invisible values (1);
+insert into invisible values (2);
+delete from invisible;
+drop table invisible;
+
+--echo -- Should be nothing in binlog
+-- source include/show_binlog_events2.inc
+
+--echo -- Ndb table in mysql db
+create table invisible(a int primary key) engine=ndb;
+insert into invisible values (1);
+insert into invisible values (2);
+delete from invisible;
+drop table invisible;
+
+--echo -- Should be nothing in binlog
+-- source include/show_binlog_events2.inc
+
+--echo -- ndb_binlog_index table (MyISAM) in mysql db 
+
+insert into ndb_binlog_index values (12, 'F', 23, 0, 0, 0, 0, 3, 44, 55);
+insert into ndb_binlog_index values (20, 'G', 23, 0, 0, 0, 0, 5, 44, 55);
+
+delete from ndb_binlog_index;
+
+--echo -- Should be nothing in binlog
+-- source include/show_binlog_events2.inc
+
+--echo -- Non-ignored db (test2)
+create database test2;
+use test2;
+
+create table t1 (a int primary key) engine=ndb;
+
+insert into t1 values (1);
+insert into t1 values (2);
+
+delete from t1;
+
+drop table t1;
+
+drop database test2;
+
+--echo -- Should have events in Binlog, *including ndb_apply_status*
+use test;
+create table raw_binlog_rows (txt varchar(1000));
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+--enable_query_log
+
+select count(1) > 0 from raw_binlog_rows where txt like '%ndb_apply_status%';
+
+drop table raw_binlog_rows;

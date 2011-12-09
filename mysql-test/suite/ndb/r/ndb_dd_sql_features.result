@@ -1,0 +1,599 @@
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+DROP TABLE IF EXISTS test.t3;
+*****
+**** Copy data from table in one table space to table 
+**** in different table space
+*****
+CREATE LOGFILE GROUP lg
+ADD UNDOFILE './lg_group/undofile.dat'
+ INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE './table_space1/datafile.dat'
+ USE LOGFILE GROUP lg
+INITIAL_SIZE 25M
+ENGINE NDB;
+CREATE TABLESPACE ts2
+ADD DATAFILE './table_space2/datafile.dat'
+ USE LOGFILE GROUP lg
+INITIAL_SIZE 20M
+ENGINE NDB;
+CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB) 
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+CREATE TABLE test.t2 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB) 
+TABLESPACE ts2 STORAGE DISK  ENGINE=NDB;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` int(11) NOT NULL,
+  `a2` varchar(256) DEFAULT NULL,
+  `a3` blob,
+  PRIMARY KEY (`a1`)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE test.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a1` int(11) NOT NULL,
+  `a2` varchar(256) DEFAULT NULL,
+  `a3` blob,
+  PRIMARY KEY (`a1`)
+) /*!50100 TABLESPACE ts2 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+INSERT INTO test.t1 VALUES (1,'111111','aaaaaaaa');
+INSERT INTO test.t1 VALUES (2,'222222','bbbbbbbb');
+SELECT * FROM test.t1 ORDER BY a1;
+a1	a2	a3
+1	111111	aaaaaaaa
+2	222222	bbbbbbbb
+INSERT INTO test.t2(a1,a2,a3) SELECT * FROM test.t1;
+SELECT * FROM test.t2 ORDER BY a1;
+a1	a2	a3
+1	111111	aaaaaaaa
+2	222222	bbbbbbbb
+DROP TABLE test.t1, test.t2;
+set @vc1 = repeat('a', 200);
+set @vc2 = repeat('b', 500);
+set @vc3 = repeat('c', 1000);
+set @vc4 = repeat('d', 4000);
+set @x0 = '01234567012345670123456701234567';
+set @x0 = concat(@x0,@x0,@x0,@x0,@x0,@x0,@x0,@x0);
+set @b1 = 'b1';
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@x0);
+set @d1 = 'dd1';
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @b2 = 'b2';
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @d2 = 'dd2';
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+select length(@x0),length(@b1),length(@d1) from dual;
+length(@x0)	length(@b1)	length(@d1)
+256	2256	3000
+select length(@x0),length(@b2),length(@d2) from dual;
+length(@x0)	length(@b2)	length(@d2)
+256	20000	30000
+CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(5000), a3 BLOB) 
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+CREATE TABLE test.t2 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(5000), a3 BLOB) 
+TABLESPACE ts2 STORAGE DISK  ENGINE=NDB;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` int(11) NOT NULL,
+  `a2` varchar(5000) DEFAULT NULL,
+  `a3` blob,
+  PRIMARY KEY (`a1`)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE test.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a1` int(11) NOT NULL,
+  `a2` varchar(5000) DEFAULT NULL,
+  `a3` blob,
+  PRIMARY KEY (`a1`)
+) /*!50100 TABLESPACE ts2 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+INSERT INTO test.t1 VALUES (1,@vc1,@d1);
+INSERT INTO test.t1 VALUES (2,@vc2,@b1);
+INSERT INTO test.t1 VALUES (3,@vc3,@d2);
+INSERT INTO test.t1 VALUES (4,@vc4,@b2);
+SELECT a1,length(a2),substr(a2,180,2),length(a3),substr(a3,1+3*900,3)
+FROM test.t1 WHERE a1=1;
+a1	length(a2)	substr(a2,180,2)	length(a3)	substr(a3,1+3*900,3)
+1	200	aa	3000	dd1
+SELECT a1,length(a2),substr(a2,480,2),length(a3),substr(a3,1+2*900,3)
+FROM test.t1 where a1=2;
+a1	length(a2)	substr(a2,480,2)	length(a3)	substr(a3,1+2*900,3)
+2	500	bb	2256	b1b
+INSERT INTO test.t2(a1,a2,a3) SELECT * FROM test.t1;
+SELECT a1,length(a2),substr(a2,180,2),length(a3),substr(a3,1+3*900,3)
+FROM test.t2 WHERE a1=1;
+a1	length(a2)	substr(a2,180,2)	length(a3)	substr(a3,1+3*900,3)
+1	200	aa	3000	dd1
+SELECT a1,length(a2),substr(a2,480,2),length(a3),substr(a3,1+2*900,3)
+FROM test.t2 where a1=2;
+a1	length(a2)	substr(a2,480,2)	length(a3)	substr(a3,1+2*900,3)
+2	500	bb	2256	b1b
+DROP TABLE test.t1, test.t2;
+*****
+**** Insert, Update, Delete from NDB table with BLOB fields
+*****
+set @vc1 = repeat('a', 200);
+set @vc2 = repeat('b', 500);
+set @vc3 = repeat('c', 1000);
+set @vc4 = repeat('d', 4000);
+set @vc5 = repeat('d', 5000);
+set @bb1 = repeat('1', 2000);
+set @bb2 = repeat('2', 5000);
+set @bb3 = repeat('3', 10000);
+set @bb4 = repeat('4', 40000);
+set @bb5 = repeat('5', 50000);
+select length(@vc1),length(@vc2),length(@vc3),length(@vc4),length(@vc5) 
+from dual;
+length(@vc1)	length(@vc2)	length(@vc3)	length(@vc4)	length(@vc5)
+200	500	1000	4000	5000
+select length(@bb1),length(@bb2),length(@bb3),length(@bb4),length(@bb5) 
+from dual;
+length(@bb1)	length(@bb2)	length(@bb3)	length(@bb4)	length(@bb5)
+2000	5000	10000	40000	50000
+CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(5000), a3 BLOB) 
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+INSERT INTO test.t1 VALUES (1,@vc1,@bb1);
+INSERT INTO test.t1 VALUES (2,@vc2,@bb2);
+INSERT INTO test.t1 VALUES (3,@vc3,@bb3);
+INSERT INTO test.t1 VALUES (4,@vc4,@bb4);
+INSERT INTO test.t1 VALUES (5,@vc5,@bb5);
+UPDATE test.t1 SET a2=@vc5, a3=@bb5 WHERE a1=1;
+SELECT a1,length(a2),substr(a2,4998,2),length(a3),substr(a3,49997,3)
+FROM test.t1 WHERE a1=1;
+a1	length(a2)	substr(a2,4998,2)	length(a3)	substr(a3,49997,3)
+1	5000	dd	50000	555
+UPDATE test.t1 SET a2=@vc4, a3=@bb4 WHERE a1=2;
+SELECT a1,length(a2),substr(a2,3998,2),length(a3),substr(a3,39997,3)
+FROM test.t1 WHERE a1=2;
+a1	length(a2)	substr(a2,3998,2)	length(a3)	substr(a3,39997,3)
+2	4000	dd	40000	444
+UPDATE test.t1 SET a2=@vc2, a3=@bb2 WHERE a1=3;
+SELECT a1,length(a2),substr(a2,498,2),length(a3),substr(a3,3997,3)
+FROM test.t1 WHERE a1=3;
+a1	length(a2)	substr(a2,498,2)	length(a3)	substr(a3,3997,3)
+3	500	bb	5000	222
+UPDATE test.t1 SET a2=@vc3, a3=@bb3 WHERE a1=4;
+SELECT a1,length(a2),substr(a2,998,2),length(a3),substr(a3,9997,3)
+FROM test.t1 WHERE a1=4;
+a1	length(a2)	substr(a2,998,2)	length(a3)	substr(a3,9997,3)
+4	1000	cc	10000	333
+UPDATE test.t1 SET a2=@vc1, a3=@bb1 WHERE a1=5;
+SELECT a1,length(a2),substr(a2,198,2),length(a3),substr(a3,1997,3)
+FROM test.t1 WHERE a1=5;
+a1	length(a2)	substr(a2,198,2)	length(a3)	substr(a3,1997,3)
+5	200	aa	2000	111
+DELETE FROM test.t1 where a1=5;
+SELECT count(*) from test.t1;
+count(*)
+4
+DELETE FROM test.t1 where a1=4;
+SELECT count(*) from test.t1;
+count(*)
+3
+DELETE FROM test.t1 where a1=3;
+SELECT count(*) from test.t1;
+count(*)
+2
+DELETE FROM test.t1 where a1=2;
+SELECT count(*) from test.t1;
+count(*)
+1
+DELETE FROM test.t1 where a1=1;
+SELECT count(*) from test.t1;
+count(*)
+0
+DROP TABLE test.t1;
+*****
+**** Create Stored procedures that use disk based tables
+*****
+CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB)
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB//
+CREATE PROCEDURE test.sp1()
+BEGIN
+INSERT INTO test.t1 values (1,'111111','aaaaaaaa');
+END//
+CALL test.sp1();
+SELECT * FROM test.t1;
+a1	a2	a3
+1	111111	aaaaaaaa
+CREATE PROCEDURE test.sp2(n INT, vc VARCHAR(256), blb BLOB)
+BEGIN
+UPDATE test.t1 SET a2=vc, a3=blb where a1=n;
+END//
+CALL test.sp2(1,'222222','bbbbbbbb');
+SELECT * FROM test.t1;
+a1	a2	a3
+1	222222	bbbbbbbb
+DELETE FROM test.t1;
+DROP PROCEDURE test.sp1;
+DROP PROCEDURE test.sp2;
+DROP TABLE test.t1;
+*****
+***** Create function that operate on disk based tables
+*****
+CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB)
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+CREATE FUNCTION test.fn1(n INT) RETURNS INT
+BEGIN
+DECLARE v INT;
+SELECT a1 INTO v FROM test.t1 WHERE a1=n;
+RETURN v;
+END//
+CREATE FUNCTION test.fn2(n INT, blb BLOB) RETURNS BLOB
+BEGIN
+DECLARE vv BLOB;
+UPDATE test.t1 SET a3=blb where a1=n;
+SELECT a3 INTO vv FROM test.t1 WHERE a1=n;
+RETURN vv;
+END//
+SELECT test.fn1(10) FROM DUAL;
+test.fn1(10)
+10
+SELECT test.fn2(50, 'new BLOB content') FROM DUAL;
+test.fn2(50, 'new BLOB content')
+new BLOB content
+DELETE FROM test.t1;
+DROP FUNCTION test.fn1;
+DROP FUNCTION test.fn2;
+DROP TABLE test.t1;
+*****
+***** Create triggers that operate on disk based tables
+*****
+CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB)
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+CREATE TRIGGER test.trg1 BEFORE INSERT ON test.t1 FOR EACH ROW 
+BEGIN 
+if isnull(new.a2) then
+set new.a2:= 'trg1 works on a2 field';
+end if;
+if isnull(new.a3) then
+set new.a3:= 'trg1 works on a3 field';
+end if;
+end//
+insert into test.t1 (a1) values (1)//
+insert into test.t1 (a1,a2) values (2, 'ccccccc')//
+select * from test.t1 order by a1//
+a1	a2	a3
+1	trg1 works on a2 field	trg1 works on a3 field
+2	ccccccc	trg1 works on a3 field
+DELETE FROM test.t1;
+DROP TRIGGER test.trg1;
+DROP TABLE test.t1;
+*****
+***** Create, update views that operate on disk based tables
+*****
+CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB)
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+CREATE VIEW test.v1 AS SELECT * FROM test.t1;
+SELECT * FROM test.v1 order by a1;
+a1	a2	a3
+1	aaaaa1	bbbbb1
+2	aaaaa2	bbbbb2
+3	aaaaa3	bbbbb3
+4	aaaaa4	bbbbb4
+5	aaaaa5	bbbbb5
+6	aaaaa6	bbbbb6
+7	aaaaa7	bbbbb7
+8	aaaaa8	bbbbb8
+9	aaaaa9	bbbbb9
+10	aaaaa10	bbbbb10
+CHECK TABLE test.v1, test.t1;
+Table	Op	Msg_type	Msg_text
+test.v1	check	status	OK
+test.t1	check	note	The storage engine for the table doesn't support check
+UPDATE test.v1 SET a2='zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz' WHERE a1=5;
+SELECT * FROM test.v1 order by a1;
+a1	a2	a3
+1	aaaaa1	bbbbb1
+2	aaaaa2	bbbbb2
+3	aaaaa3	bbbbb3
+4	aaaaa4	bbbbb4
+5	zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz	bbbbb5
+6	aaaaa6	bbbbb6
+7	aaaaa7	bbbbb7
+8	aaaaa8	bbbbb8
+9	aaaaa9	bbbbb9
+10	aaaaa10	bbbbb10
+DROP VIEW test.v1;
+DELETE FROM test.t1;
+DROP TABLE test.t1;
+*****
+***** Create and use disk based table that use auto inc
+*****
+CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+a2 VARCHAR(256), a3 BLOB) 
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+SELECT * FROM test.t1 ORDER BY a1;
+a1	a2	a3
+1	aaaaa10	bbbbb10
+2	aaaaa9	bbbbb9
+3	aaaaa8	bbbbb8
+4	aaaaa7	bbbbb7
+5	aaaaa6	bbbbb6
+6	aaaaa5	bbbbb5
+7	aaaaa4	bbbbb4
+8	aaaaa3	bbbbb3
+9	aaaaa2	bbbbb2
+10	aaaaa1	bbbbb1
+DELETE FROM test.t1;
+DROP TABLE test.t1;
+*****
+***** Create test that use transaction (commit, rollback)
+*****
+SET AUTOCOMMIT=0;
+CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+a2 VARCHAR(256), a3 BLOB) 
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+INSERT INTO test.t1 VALUES(NULL, "aaaaa1", "bbbbb1");
+COMMIT;
+SELECT * FROM test.t1 ORDER BY a1;
+a1	a2	a3
+1	aaaaa1	bbbbb1
+INSERT INTO test.t1 VALUES(NULL, "aaaaa2", "bbbbb2");
+ROLLBACK;
+SELECT * FROM test.t1 ORDER BY a1;
+a1	a2	a3
+1	aaaaa1	bbbbb1
+DELETE FROM test.t1;
+DROP TABLE test.t1;
+SET AUTOCOMMIT=1;
+CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+a2 VARCHAR(256), a3 BLOB) 
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+START TRANSACTION;
+INSERT INTO test.t1 VALUES(NULL, "aaaaa1", "bbbbb1");
+COMMIT;
+SELECT * FROM test.t1 ORDER BY a1;
+a1	a2	a3
+1	aaaaa1	bbbbb1
+START TRANSACTION;
+INSERT INTO test.t1 VALUES(NULL, "aaaaa2", "bbbbb2");
+ROLLBACK;
+SELECT * FROM test.t1 ORDER BY a1;
+a1	a2	a3
+1	aaaaa1	bbbbb1
+DELETE FROM test.t1;
+DROP TABLE test.t1;
+*****
+***** Create test that uses locks
+*****
+drop table if exists test.t1;
+CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+a2 VARCHAR(256), a3 BLOB) 
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+LOCK TABLES test.t1 write;
+INSERT INTO test.t1 VALUES(NULL, "aaaaa1", "bbbbb1");
+INSERT INTO test.t1 VALUES(NULL, "aaaaa2", "bbbbb2");
+SELECT * FROM test.t1 ORDER BY a1;
+a1	a2	a3
+1	aaaaa1	bbbbb1
+2	aaaaa2	bbbbb2
+SELECT * FROM test.t1 ORDER BY a1;
+a1	a2	a3
+1	aaaaa1	bbbbb1
+2	aaaaa2	bbbbb2
+INSERT INTO test.t1 VALUES(NULL, "aaaaa3", "bbbbb3");
+UNLOCK TABLES;
+INSERT INTO test.t1 VALUES(NULL, "aaaaa3", "bbbbb3");
+SELECT * FROM test.t1 ORDER BY a1;
+a1	a2	a3
+1	aaaaa1	bbbbb1
+2	aaaaa2	bbbbb2
+3	aaaaa3	bbbbb3
+4	aaaaa3	bbbbb3
+DELETE FROM test.t1;
+DROP TABLE test.t1;
+*****
+***** Create large disk base table, do random queries, check cache hits
+*****
+set @vc1 = repeat('a', 200);
+SELECT @vc1 FROM DUAL;
+@vc1
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+set @vc2 = repeat('b', 500);
+set @vc3 = repeat('b', 998);
+set @x0 = '01234567012345670123456701234567';
+set @x0 = concat(@x0,@x0,@x0,@x0,@x0,@x0,@x0,@x0);
+set @b1 = 'b1';
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@x0);
+set @d1 = 'dd1';
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @b2 = 'b2';
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @d2 = 'dd2';
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+select length(@x0),length(@b1),length(@d1) from dual;
+length(@x0)	length(@b1)	length(@d1)
+256	2256	3000
+select length(@x0),length(@b2),length(@d2) from dual;
+length(@x0)	length(@b2)	length(@d2)
+256	20000	30000
+CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(1000), a3 BLOB)
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+INSERT INTO test.t1 values(1,@vc1,@d1);
+INSERT INTO test.t1 values(2,@vc2,@d2);
+explain SELECT * from test.t1 WHERE a1 = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	#	
+SELECT a1,length(a2),substr(a2,1+2*900,2),length(a3),substr(a3,1+3*900,3)
+FROM test.t1 WHERE a1=1 ORDER BY a1;
+a1	length(a2)	substr(a2,1+2*900,2)	length(a3)	substr(a3,1+3*900,3)
+1	200		3000	dd1
+SELECT a1,length(a2),substr(a2,1+2*9000,2),length(a3),substr(a3,1+3*9000,3)
+FROM test.t1 where a1=2 ORDER BY a1;
+a1	length(a2)	substr(a2,1+2*9000,2)	length(a3)	substr(a3,1+3*9000,3)
+2	500		30000	dd2
+UPDATE test.t1 set a2=@vc2,a3=@d2 where a1=1;
+UPDATE test.t1 set a2=@vc1,a3=@d1 where a1=2;
+SELECT a1,length(a2),substr(a2,1+2*9000,2),length(a3),substr(a3,1+3*9000,3)
+FROM test.t1 where a1=1;
+a1	length(a2)	substr(a2,1+2*9000,2)	length(a3)	substr(a3,1+3*9000,3)
+1	500		30000	dd2
+SELECT a1,length(a2),substr(a2,1+2*900,2),length(a3),substr(a3,1+3*900,3)
+FROM test.t1 where a1=2;
+a1	length(a2)	substr(a2,1+2*900,2)	length(a3)	substr(a3,1+3*900,3)
+2	200		3000	dd1
+DELETE FROM test.t1;
+DROP TABLE test.t1;
+*****
+***** Create test that uses COUNT(), SUM(), MAX(), MIN(), NOW(), 
+***** USER(), TRUNCATE
+*****
+CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256),
+a3 BLOB, a4 DATE, a5 CHAR(250))
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+SELECT COUNT(*) from test.t1;
+COUNT(*)
+100
+SELECT SUM(a1) from test.t1;
+SUM(a1)
+5050
+SELECT MIN(a1) from test.t1;
+MIN(a1)
+1
+SELECT MAX(a1) from test.t1;
+MAX(a1)
+100
+SELECT a5 from test.t1 where a1=50;
+a5
+root@localhost
+SELECT * from test.t1 order by a1;
+a1	a2	a3	a4	a5
+1	aaaaaaaaaaaaaaaa1	bbbbbbbbbbbbbbbbbb1	2006-06-20	root@localhost
+2	aaaaaaaaaaaaaaaa2	bbbbbbbbbbbbbbbbbb2	2006-06-20	root@localhost
+3	aaaaaaaaaaaaaaaa3	bbbbbbbbbbbbbbbbbb3	2006-06-20	root@localhost
+4	aaaaaaaaaaaaaaaa4	bbbbbbbbbbbbbbbbbb4	2006-06-20	root@localhost
+5	aaaaaaaaaaaaaaaa5	bbbbbbbbbbbbbbbbbb5	2006-06-20	root@localhost
+6	aaaaaaaaaaaaaaaa6	bbbbbbbbbbbbbbbbbb6	2006-06-20	root@localhost
+7	aaaaaaaaaaaaaaaa7	bbbbbbbbbbbbbbbbbb7	2006-06-20	root@localhost
+8	aaaaaaaaaaaaaaaa8	bbbbbbbbbbbbbbbbbb8	2006-06-20	root@localhost
+9	aaaaaaaaaaaaaaaa9	bbbbbbbbbbbbbbbbbb9	2006-06-20	root@localhost
+10	aaaaaaaaaaaaaaaa10	bbbbbbbbbbbbbbbbbb10	2006-06-20	root@localhost
+11	aaaaaaaaaaaaaaaa11	bbbbbbbbbbbbbbbbbb11	2006-06-20	root@localhost
+12	aaaaaaaaaaaaaaaa12	bbbbbbbbbbbbbbbbbb12	2006-06-20	root@localhost
+13	aaaaaaaaaaaaaaaa13	bbbbbbbbbbbbbbbbbb13	2006-06-20	root@localhost
+14	aaaaaaaaaaaaaaaa14	bbbbbbbbbbbbbbbbbb14	2006-06-20	root@localhost
+15	aaaaaaaaaaaaaaaa15	bbbbbbbbbbbbbbbbbb15	2006-06-20	root@localhost
+16	aaaaaaaaaaaaaaaa16	bbbbbbbbbbbbbbbbbb16	2006-06-20	root@localhost
+17	aaaaaaaaaaaaaaaa17	bbbbbbbbbbbbbbbbbb17	2006-06-20	root@localhost
+18	aaaaaaaaaaaaaaaa18	bbbbbbbbbbbbbbbbbb18	2006-06-20	root@localhost
+19	aaaaaaaaaaaaaaaa19	bbbbbbbbbbbbbbbbbb19	2006-06-20	root@localhost
+20	aaaaaaaaaaaaaaaa20	bbbbbbbbbbbbbbbbbb20	2006-06-20	root@localhost
+21	aaaaaaaaaaaaaaaa21	bbbbbbbbbbbbbbbbbb21	2006-06-20	root@localhost
+22	aaaaaaaaaaaaaaaa22	bbbbbbbbbbbbbbbbbb22	2006-06-20	root@localhost
+23	aaaaaaaaaaaaaaaa23	bbbbbbbbbbbbbbbbbb23	2006-06-20	root@localhost
+24	aaaaaaaaaaaaaaaa24	bbbbbbbbbbbbbbbbbb24	2006-06-20	root@localhost
+25	aaaaaaaaaaaaaaaa25	bbbbbbbbbbbbbbbbbb25	2006-06-20	root@localhost
+26	aaaaaaaaaaaaaaaa26	bbbbbbbbbbbbbbbbbb26	2006-06-20	root@localhost
+27	aaaaaaaaaaaaaaaa27	bbbbbbbbbbbbbbbbbb27	2006-06-20	root@localhost
+28	aaaaaaaaaaaaaaaa28	bbbbbbbbbbbbbbbbbb28	2006-06-20	root@localhost
+29	aaaaaaaaaaaaaaaa29	bbbbbbbbbbbbbbbbbb29	2006-06-20	root@localhost
+30	aaaaaaaaaaaaaaaa30	bbbbbbbbbbbbbbbbbb30	2006-06-20	root@localhost
+31	aaaaaaaaaaaaaaaa31	bbbbbbbbbbbbbbbbbb31	2006-06-20	root@localhost
+32	aaaaaaaaaaaaaaaa32	bbbbbbbbbbbbbbbbbb32	2006-06-20	root@localhost
+33	aaaaaaaaaaaaaaaa33	bbbbbbbbbbbbbbbbbb33	2006-06-20	root@localhost
+34	aaaaaaaaaaaaaaaa34	bbbbbbbbbbbbbbbbbb34	2006-06-20	root@localhost
+35	aaaaaaaaaaaaaaaa35	bbbbbbbbbbbbbbbbbb35	2006-06-20	root@localhost
+36	aaaaaaaaaaaaaaaa36	bbbbbbbbbbbbbbbbbb36	2006-06-20	root@localhost
+37	aaaaaaaaaaaaaaaa37	bbbbbbbbbbbbbbbbbb37	2006-06-20	root@localhost
+38	aaaaaaaaaaaaaaaa38	bbbbbbbbbbbbbbbbbb38	2006-06-20	root@localhost
+39	aaaaaaaaaaaaaaaa39	bbbbbbbbbbbbbbbbbb39	2006-06-20	root@localhost
+40	aaaaaaaaaaaaaaaa40	bbbbbbbbbbbbbbbbbb40	2006-06-20	root@localhost
+41	aaaaaaaaaaaaaaaa41	bbbbbbbbbbbbbbbbbb41	2006-06-20	root@localhost
+42	aaaaaaaaaaaaaaaa42	bbbbbbbbbbbbbbbbbb42	2006-06-20	root@localhost
+43	aaaaaaaaaaaaaaaa43	bbbbbbbbbbbbbbbbbb43	2006-06-20	root@localhost
+44	aaaaaaaaaaaaaaaa44	bbbbbbbbbbbbbbbbbb44	2006-06-20	root@localhost
+45	aaaaaaaaaaaaaaaa45	bbbbbbbbbbbbbbbbbb45	2006-06-20	root@localhost
+46	aaaaaaaaaaaaaaaa46	bbbbbbbbbbbbbbbbbb46	2006-06-20	root@localhost
+47	aaaaaaaaaaaaaaaa47	bbbbbbbbbbbbbbbbbb47	2006-06-20	root@localhost
+48	aaaaaaaaaaaaaaaa48	bbbbbbbbbbbbbbbbbb48	2006-06-20	root@localhost
+49	aaaaaaaaaaaaaaaa49	bbbbbbbbbbbbbbbbbb49	2006-06-20	root@localhost
+50	aaaaaaaaaaaaaaaa50	bbbbbbbbbbbbbbbbbb50	2006-06-20	root@localhost
+51	aaaaaaaaaaaaaaaa51	bbbbbbbbbbbbbbbbbb51	2006-06-20	root@localhost
+52	aaaaaaaaaaaaaaaa52	bbbbbbbbbbbbbbbbbb52	2006-06-20	root@localhost
+53	aaaaaaaaaaaaaaaa53	bbbbbbbbbbbbbbbbbb53	2006-06-20	root@localhost
+54	aaaaaaaaaaaaaaaa54	bbbbbbbbbbbbbbbbbb54	2006-06-20	root@localhost
+55	aaaaaaaaaaaaaaaa55	bbbbbbbbbbbbbbbbbb55	2006-06-20	root@localhost
+56	aaaaaaaaaaaaaaaa56	bbbbbbbbbbbbbbbbbb56	2006-06-20	root@localhost
+57	aaaaaaaaaaaaaaaa57	bbbbbbbbbbbbbbbbbb57	2006-06-20	root@localhost
+58	aaaaaaaaaaaaaaaa58	bbbbbbbbbbbbbbbbbb58	2006-06-20	root@localhost
+59	aaaaaaaaaaaaaaaa59	bbbbbbbbbbbbbbbbbb59	2006-06-20	root@localhost
+60	aaaaaaaaaaaaaaaa60	bbbbbbbbbbbbbbbbbb60	2006-06-20	root@localhost
+61	aaaaaaaaaaaaaaaa61	bbbbbbbbbbbbbbbbbb61	2006-06-20	root@localhost
+62	aaaaaaaaaaaaaaaa62	bbbbbbbbbbbbbbbbbb62	2006-06-20	root@localhost
+63	aaaaaaaaaaaaaaaa63	bbbbbbbbbbbbbbbbbb63	2006-06-20	root@localhost
+64	aaaaaaaaaaaaaaaa64	bbbbbbbbbbbbbbbbbb64	2006-06-20	root@localhost
+65	aaaaaaaaaaaaaaaa65	bbbbbbbbbbbbbbbbbb65	2006-06-20	root@localhost
+66	aaaaaaaaaaaaaaaa66	bbbbbbbbbbbbbbbbbb66	2006-06-20	root@localhost
+67	aaaaaaaaaaaaaaaa67	bbbbbbbbbbbbbbbbbb67	2006-06-20	root@localhost
+68	aaaaaaaaaaaaaaaa68	bbbbbbbbbbbbbbbbbb68	2006-06-20	root@localhost
+69	aaaaaaaaaaaaaaaa69	bbbbbbbbbbbbbbbbbb69	2006-06-20	root@localhost
+70	aaaaaaaaaaaaaaaa70	bbbbbbbbbbbbbbbbbb70	2006-06-20	root@localhost
+71	aaaaaaaaaaaaaaaa71	bbbbbbbbbbbbbbbbbb71	2006-06-20	root@localhost
+72	aaaaaaaaaaaaaaaa72	bbbbbbbbbbbbbbbbbb72	2006-06-20	root@localhost
+73	aaaaaaaaaaaaaaaa73	bbbbbbbbbbbbbbbbbb73	2006-06-20	root@localhost
+74	aaaaaaaaaaaaaaaa74	bbbbbbbbbbbbbbbbbb74	2006-06-20	root@localhost
+75	aaaaaaaaaaaaaaaa75	bbbbbbbbbbbbbbbbbb75	2006-06-20	root@localhost
+76	aaaaaaaaaaaaaaaa76	bbbbbbbbbbbbbbbbbb76	2006-06-20	root@localhost
+77	aaaaaaaaaaaaaaaa77	bbbbbbbbbbbbbbbbbb77	2006-06-20	root@localhost
+78	aaaaaaaaaaaaaaaa78	bbbbbbbbbbbbbbbbbb78	2006-06-20	root@localhost
+79	aaaaaaaaaaaaaaaa79	bbbbbbbbbbbbbbbbbb79	2006-06-20	root@localhost
+80	aaaaaaaaaaaaaaaa80	bbbbbbbbbbbbbbbbbb80	2006-06-20	root@localhost
+81	aaaaaaaaaaaaaaaa81	bbbbbbbbbbbbbbbbbb81	2006-06-20	root@localhost
+82	aaaaaaaaaaaaaaaa82	bbbbbbbbbbbbbbbbbb82	2006-06-20	root@localhost
+83	aaaaaaaaaaaaaaaa83	bbbbbbbbbbbbbbbbbb83	2006-06-20	root@localhost
+84	aaaaaaaaaaaaaaaa84	bbbbbbbbbbbbbbbbbb84	2006-06-20	root@localhost
+85	aaaaaaaaaaaaaaaa85	bbbbbbbbbbbbbbbbbb85	2006-06-20	root@localhost
+86	aaaaaaaaaaaaaaaa86	bbbbbbbbbbbbbbbbbb86	2006-06-20	root@localhost
+87	aaaaaaaaaaaaaaaa87	bbbbbbbbbbbbbbbbbb87	2006-06-20	root@localhost
+88	aaaaaaaaaaaaaaaa88	bbbbbbbbbbbbbbbbbb88	2006-06-20	root@localhost
+89	aaaaaaaaaaaaaaaa89	bbbbbbbbbbbbbbbbbb89	2006-06-20	root@localhost
+90	aaaaaaaaaaaaaaaa90	bbbbbbbbbbbbbbbbbb90	2006-06-20	root@localhost
+91	aaaaaaaaaaaaaaaa91	bbbbbbbbbbbbbbbbbb91	2006-06-20	root@localhost
+92	aaaaaaaaaaaaaaaa92	bbbbbbbbbbbbbbbbbb92	2006-06-20	root@localhost
+93	aaaaaaaaaaaaaaaa93	bbbbbbbbbbbbbbbbbb93	2006-06-20	root@localhost
+94	aaaaaaaaaaaaaaaa94	bbbbbbbbbbbbbbbbbb94	2006-06-20	root@localhost
+95	aaaaaaaaaaaaaaaa95	bbbbbbbbbbbbbbbbbb95	2006-06-20	root@localhost
+96	aaaaaaaaaaaaaaaa96	bbbbbbbbbbbbbbbbbb96	2006-06-20	root@localhost
+97	aaaaaaaaaaaaaaaa97	bbbbbbbbbbbbbbbbbb97	2006-06-20	root@localhost
+98	aaaaaaaaaaaaaaaa98	bbbbbbbbbbbbbbbbbb98	2006-06-20	root@localhost
+99	aaaaaaaaaaaaaaaa99	bbbbbbbbbbbbbbbbbb99	2006-06-20	root@localhost
+100	aaaaaaaaaaaaaaaa100	bbbbbbbbbbbbbbbbbb100	2006-06-20	root@localhost
+DROP TABLE test.t1;
+ALTER TABLESPACE ts1
+DROP DATAFILE './table_space1/datafile.dat'
+ ENGINE=NDB;
+DROP TABLESPACE ts1 ENGINE=NDB;
+ALTER TABLESPACE ts2
+DROP DATAFILE './table_space2/datafile.dat'
+ ENGINE=NDB;
+DROP TABLESPACE ts2 ENGINE=NDB;
+DROP LOGFILE GROUP lg
+ENGINE=NDB;

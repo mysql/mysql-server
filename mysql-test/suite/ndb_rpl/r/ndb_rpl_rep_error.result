@@ -1,0 +1,36 @@
+include/master-slave.inc
+[connection master]
+create table t1 (a int key, X int) engine ndb;
+Warnings:
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Wrong number of primary key parts, expected 3
+drop table t1;
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$X(X)");
+create table t1 (a int key, X int) engine ndb;
+ERROR HY000: Can't create table 'test.t1' (errno: 1626)
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$X(X), unknown conflict resolution function at 'NDB$X(X)'
+Error	1005	Can't create table 'test.t1' (errno: 1626)
+delete from mysql.ndb_replication;
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
+create table t1 (a int key, X int) engine ndb;
+Warnings:
+Warning	1626	Error in parsing conflict function. Message: column 'X' has wrong datatype
+drop table t1;
+delete from mysql.ndb_replication;
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX()");
+create table t1 (a int key, X int) engine ndb;
+ERROR HY000: Can't create table 'test.t1' (errno: 1626)
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$MAX(), missing function argument at ')'
+Error	1005	Can't create table 'test.t1' (errno: 1626)
+delete from mysql.ndb_replication;
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X Y)");
+create table t1 (a int key, X int) engine ndb;
+ERROR HY000: Can't create table 'test.t1' (errno: 1626)
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$MAX(X Y), missing ')' at 'Y)'
+Error	1005	Can't create table 'test.t1' (errno: 1626)
+delete from mysql.ndb_replication;

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/* 
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,169 +12,52 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
-#include <ndb_opt_defaults.h>
 #include <IPCConfig.hpp>
-#include <NdbOut.hpp>
-#include <NdbHost.h>
 
-#include <TransporterDefinitions.hpp>
 #include <TransporterRegistry.hpp>
-#include <Properties.hpp>
-
-#include <mgmapi_configuration.hpp>
-#include <mgmapi_config_parameters.h>
-
-#if defined DEBUG_TRANSPORTER
-#define DEBUG(t) ndbout << __FILE__ << ":" << __LINE__ << ":" << t << endl;
-#else
-#define DEBUG(t)
-#endif
-
-IPCConfig::IPCConfig(Properties * p)
-{
-  theNoOfRemoteNodes = 0;
-  the_ownId = 0;
-  if(p != 0)
-    props = new Properties(* p);
-  else
-    props = 0;
-}
-
-
-IPCConfig::~IPCConfig()
-{
-  if(props != 0){
-    delete props;
-  }
-}
-
-int
-IPCConfig::init(){
-  Uint32 nodeId;
-
-  if(props == 0) return -1;
-  if(!props->get("LocalNodeId", &nodeId)) {
-    DEBUG( "Did not find local node id." );
-    return -1;
-  }
-  the_ownId = nodeId;
-  
-  Uint32 noOfConnections;
-  if(!props->get("NoOfConnections", &noOfConnections)) {
-    DEBUG( "Did not find noOfConnections." );
-    return -1;
-  }
-  
-  for(Uint32 i = 0; i<noOfConnections; i++){
-    const Properties * tmp;
-    Uint32 node1, node2;
-
-    if(!props->get("Connection", i, &tmp)) {
-      DEBUG( "Did not find Connection." );
-      return -1;
-    }
-    if(!tmp->get("NodeId1", &node1)) {
-      DEBUG( "Did not find NodeId1." );
-      return -1;
-    }
-    if(!tmp->get("NodeId2", &node2)) {
-      DEBUG( "Did not find NodeId2." );
-      return -1;
-    }
-
-    if(node1 == the_ownId && node2 != the_ownId)
-      if(!addRemoteNodeId(node2)) {
-	DEBUG( "addRemoteNodeId(node2) failed." );
-	return -1;
-      }
-
-    if(node1 != the_ownId && node2 == the_ownId)
-      if(!addRemoteNodeId(node1)) {
-	DEBUG( "addRemoteNodeId(node2) failed." );
-	return -1;
-      }
-  }
-  return 0;
-}
-
-bool
-IPCConfig::addRemoteNodeId(NodeId nodeId){
-  for(int i = 0; i<theNoOfRemoteNodes; i++)
-    if(theRemoteNodeIds[i] == nodeId)
-      return false;
-  theRemoteNodeIds[theNoOfRemoteNodes] = nodeId;
-  theNoOfRemoteNodes++;
-  return true;
-}
-
-/**
- * Supply a nodeId,
- *  and get next higher node id
- * Returns false if none found
- */
-bool
-IPCConfig::getNextRemoteNodeId(NodeId & nodeId) const {
-  NodeId returnNode = MAX_NODES + 1;
-  for(int i = 0; i<theNoOfRemoteNodes; i++)
-    if(theRemoteNodeIds[i] > nodeId){
-      if(theRemoteNodeIds[i] < returnNode){
-	returnNode = theRemoteNodeIds[i];
-      }
-    }
-  if(returnNode == (MAX_NODES + 1))
-    return false;
-  nodeId = returnNode;
-  return true;
-}
-
-
-Uint32 
-IPCConfig::getREPHBFrequency(NodeId id) const {
-  const Properties * tmp;
-  Uint32 out;
-
-  /**
-   *  Todo: Fix correct heartbeat
-   */
-  if (!props->get("Node", id, &tmp) || 
-      !tmp->get("HeartbeatIntervalRepRep", &out)) {
-    DEBUG("Illegal Node or HeartbeatIntervalRepRep in config.");    
-    out = 10000;
-  }
-  
-  return out;
-}
-
-const char* 
-IPCConfig::getNodeType(NodeId id) const {
-  const char * out;
-  const Properties * tmp;
-
-  if (!props->get("Node", id, &tmp) || !tmp->get("Type", &out)) {
-    DEBUG("Illegal Node or NodeType in config.");
-    out = "Unknown";
-  }
-
-  return out;
-}
 
 #include <mgmapi.h>
-Uint32
+#include <mgmapi_configuration.hpp>
+
+
+/* Return true if node with "nodeId" is a MGM node */
+static bool is_mgmd(Uint32 nodeId,
+                    const struct ndb_mgm_configuration & config)
+{
+  ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
+  if (iter.find(CFG_NODE_ID, nodeId))
+    abort();
+  Uint32 type;
+  if(iter.get(CFG_TYPE_OF_SECTION, &type))
+    abort();
+
+  return (type == NODE_TYPE_MGM);
+}
+
+
+bool
 IPCConfig::configureTransporters(Uint32 nodeId,
-				 const class ndb_mgm_configuration & config,
-				 class TransporterRegistry & tr){
-  TransporterConfiguration conf;
+                                 const struct ndb_mgm_configuration & config,
+                                 class TransporterRegistry & tr,
+                                 bool transporter_to_self)
+{
+  bool result= true;
 
   DBUG_ENTER("IPCConfig::configureTransporters");
 
-  /**
-   * Iterate over all MGM's an construct a connectstring
-   * create mgm_handle and give it to the Transporter Registry
-   */
+
+  if (!is_mgmd(nodeId, config))
   {
+
+    /**
+     * Iterate over all MGM's and construct a connectstring
+     * create mgm_handle and give it to the Transporter Registry
+     */
+
     const char *separator= "";
     BaseString connect_string;
     ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
@@ -198,11 +82,27 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     }
   }
 
-  Uint32 noOfTransportersCreated= 0;
+
+  /* Remove transporter to nodes that does not exist anymore */
+  for (int i= 1; i < MAX_NODES; i++)
+  {
+    ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
+    if (tr.get_transporter(i) && iter.find(CFG_NODE_ID, i))
+    {
+      // Transporter exist in TransporterRegistry but not
+      // in configuration
+      ndbout_c("The connection to node %d could not "
+               "be removed at this time", i);
+      result= false; // Need restart
+    }
+  }
+
+  TransporterConfiguration conf;
+  TransporterConfiguration loopback_conf;
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_CONNECTION);
-  
   for(iter.first(); iter.valid(); iter.next()){
     
+    bzero(&conf, sizeof(conf));
     Uint32 nodeId1, nodeId2, remoteNodeId;
     const char * remoteHostName= 0, * localHostName= 0;
     if(iter.get(CFG_CONNECTION_NODE_1, &nodeId1)) continue;
@@ -210,6 +110,11 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 
     if(nodeId1 != nodeId && nodeId2 != nodeId) continue;
     remoteNodeId = (nodeId == nodeId1 ? nodeId2 : nodeId1);
+
+    if (nodeId1 == nodeId && nodeId2 == nodeId)
+    {
+      transporter_to_self = false; // One already present..ignore extra arg
+    }
 
     {
       const char * host1= 0, * host2= 0;
@@ -233,26 +138,23 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     Uint32 nodeIdServer= 0;
     if(iter.get(CFG_CONNECTION_NODE_ID_SERVER, &nodeIdServer)) break;
 
-    /*
-      We check the node type.
-    */
-    Uint32 node1type, node2type;
-    ndb_mgm_configuration_iterator node1iter(config, CFG_SECTION_NODE);
-    ndb_mgm_configuration_iterator node2iter(config, CFG_SECTION_NODE);
-    node1iter.find(CFG_NODE_ID,nodeId1);
-    node2iter.find(CFG_NODE_ID,nodeId2);
-    node1iter.get(CFG_TYPE_OF_SECTION,&node1type);
-    node2iter.get(CFG_TYPE_OF_SECTION,&node2type);
-
-    if(node1type==NODE_TYPE_MGM || node2type==NODE_TYPE_MGM)
+    if(is_mgmd(nodeId1, config) || is_mgmd(nodeId2, config))
+    {
+      // All connections with MGM uses the mgm port as server
       conf.isMgmConnection= true;
+    }
     else
       conf.isMgmConnection= false;
 
-    if (nodeId == nodeIdServer && !conf.isMgmConnection) {
-      tr.add_transporter_interface(remoteNodeId, localHostName, server_port);
-    }
+    Uint32 bindInAddrAny = 0;
+    iter.get(CFG_TCP_BIND_INADDR_ANY, &bindInAddrAny);
 
+    if (nodeId == nodeIdServer && !conf.isMgmConnection) {
+      tr.add_transporter_interface(remoteNodeId, 
+				   !bindInAddrAny ? localHostName : "", 
+				   server_port);
+    }
+    
     DBUG_PRINT("info", ("Transporter between this node %d and node %d using port %d, signalId %d, checksum %d",
                nodeId, remoteNodeId, server_port, sendSignalId, checksum));
     /*
@@ -280,21 +182,22 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       if(iter.get(CFG_SHM_KEY, &conf.shm.shmKey)) break;
       if(iter.get(CFG_SHM_BUFFER_MEM, &conf.shm.shmSize)) break;
 
-      Uint32 tmp;
-      if(iter.get(CFG_SHM_SIGNUM, &tmp)) break;
-      conf.shm.signum= tmp;
+      Uint32 signum;
+      if(iter.get(CFG_SHM_SIGNUM, &signum)) break;
+      conf.shm.signum= signum;
 
-      if(!tr.createSHMTransporter(&conf)){
-        DBUG_PRINT("error", ("Failed to create SHM Transporter from %d to %d",
+      conf.type = tt_SHM_TRANSPORTER;
+
+      if(!tr.configureTransporter(&conf)){
+        DBUG_PRINT("error", ("Failed to configure SHM Transporter "
+                             "from %d to %d",
 	           conf.localNodeId, conf.remoteNodeId));
-	ndbout << "Failed to create SHM Transporter from: " 
-	       << conf.localNodeId << " to: " << conf.remoteNodeId << endl;
-      } else {
-	noOfTransportersCreated++;
+	ndbout_c("Failed to configure SHM Transporter to node %d",
+                conf.remoteNodeId);
+        result = false;
       }
-      DBUG_PRINT("info", ("Created SHM Transporter using shmkey %d, "
+      DBUG_PRINT("info", ("Configured SHM Transporter using shmkey %d, "
 			  "buf size = %d", conf.shm.shmKey, conf.shm.shmSize));
-
       break;
 
     case CONNECTION_TYPE_SCI:
@@ -312,13 +215,16 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       } else {
         conf.sci.nLocalAdapters = 2;
       }
-     if(!tr.createSCITransporter(&conf)){
-        DBUG_PRINT("error", ("Failed to create SCI Transporter from %d to %d",
+      conf.type = tt_SCI_TRANSPORTER;
+      if(!tr.configureTransporter(&conf)){
+        DBUG_PRINT("error", ("Failed to configure SCI Transporter "
+                             "from %d to %d",
 	           conf.localNodeId, conf.remoteNodeId));
-	ndbout << "Failed to create SCI Transporter from: " 
-	       << conf.localNodeId << " to: " << conf.remoteNodeId << endl;
+	ndbout_c("Failed to configure SCI Transporter to node %d",
+                 conf.remoteNodeId);
+        result = false;
       } else {
-        DBUG_PRINT("info", ("Created SCI Transporter: Adapters = %d, "
+        DBUG_PRINT("info", ("Configured SCI Transporter: Adapters = %d, "
 			    "remote SCI node id %d",
                    conf.sci.nLocalAdapters, conf.sci.remoteSciNodeId0));
         DBUG_PRINT("info", ("Host 1 = %s, Host 2 = %s, sendLimit = %d, "
@@ -330,8 +236,6 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 			      "second remote SCI node id = %d",
 			      conf.sci.remoteSciNodeId1)); 
         }
-	noOfTransportersCreated++;
-	continue;
       }
      break;
 
@@ -346,16 +250,23 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 	  conf.s_port = atoi(proxy);
 	}
       }
+
+      iter.get(CFG_TCP_SND_BUF_SIZE, &conf.tcp.tcpSndBufSize);
+      iter.get(CFG_TCP_RCV_BUF_SIZE, &conf.tcp.tcpRcvBufSize);
+      iter.get(CFG_TCP_MAXSEG_SIZE, &conf.tcp.tcpMaxsegSize);
+      iter.get(CFG_CONNECTION_OVERLOAD, &conf.tcp.tcpOverloadLimit);
+
+      conf.type = tt_TCP_TRANSPORTER;
       
-      if(!tr.createTCPTransporter(&conf)){
-	ndbout << "Failed to create TCP Transporter from: " 
-	       << nodeId << " to: " << remoteNodeId << endl;
-      } else {
-	noOfTransportersCreated++;
+      if(!tr.configureTransporter(&conf)){
+	ndbout_c("Failed to configure TCP Transporter to node %d",
+                 conf.remoteNodeId);
+        result= false;
       }
-      DBUG_PRINT("info", ("Created TCP Transporter: sendBufferSize = %d, "
+      DBUG_PRINT("info", ("Configured TCP Transporter: sendBufferSize = %d, "
 			  "maxReceiveSize = %d", conf.tcp.sendBufferSize,
 			  conf.tcp.maxReceiveSize));
+      loopback_conf = conf; // reuse it...
       break;
     default:
       ndbout << "Unknown transporter type from: " << nodeId << 
@@ -364,6 +275,21 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     } // switch
   } // for
 
-  DBUG_RETURN(noOfTransportersCreated);
+  if (transporter_to_self)
+  {
+    loopback_conf.remoteNodeId = nodeId;
+    loopback_conf.localNodeId = nodeId;
+    loopback_conf.serverNodeId = 0; // always client
+    loopback_conf.remoteHostName = "localhost";
+    loopback_conf.localHostName = "localhost";
+    loopback_conf.s_port = 1; // prevent asking ndb_mgmd for port...
+    if (!tr.configureTransporter(&loopback_conf))
+    {
+      ndbout_c("Failed to configure Loopback Transporter");
+      result= false;
+    }
+  }
+
+  DBUG_RETURN(result);
 }
   

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
@@ -122,7 +124,7 @@ static bool                             tReadUpdate = true;
 static int                              tUpdateFreq = 20;
 static bool                             tLocal = false;
 static int                              tLocalPart = 0;
-static int                              tMinEvents = 0;
+static Uint32                           tMinEvents = 0;
 static int                              tSendForce = 0;
 static int                              tNoOfLoops = 1;
 static Uint32                           tNoOfThreads = 1;
@@ -147,7 +149,7 @@ static int                              theTableCreateFlag = 1;
 static void 
 resetThreads(){
 
-  for (int i = 0; i < tNoOfThreads ; i++) {
+  for (int i = 0; i < (int)tNoOfThreads ; i++) {
     ThreadReady[i] = 0;
     ThreadStart[i] = stIdle;
   }//for
@@ -160,7 +162,7 @@ waitForThreads(void)
   do {
     cont = 0;
     NdbSleep_MilliSleep(20);
-    for (int i = 0; i < tNoOfThreads ; i++) {
+    for (int i = 0; i < (int)tNoOfThreads ; i++) {
       if (ThreadReady[i] == 0) {
         cont = 1;
       }//if
@@ -171,7 +173,7 @@ waitForThreads(void)
 static void 
 tellThreads(StartType what)
 {
-  for (int i = 0; i < tNoOfThreads ; i++) 
+  for (int i = 0; i < (int)tNoOfThreads ; i++) 
     ThreadStart[i] = what;
 }
 
@@ -182,7 +184,6 @@ NDB_COMMAND(flexTT, "flexTT", "flexTT", "flexTT", 65535)
   ndb_init();
   ThreadNdb*            pThreadData;
   int                   returnValue = NDBT_OK;
-  int i;
   flexTTErrorData = new ErrorData;
   flexTTErrorData->resetErrorCounters();
 
@@ -266,7 +267,7 @@ NDB_COMMAND(flexTT, "flexTT", "flexTT", "flexTT", 65535)
      *  Create NDB objects.                                   *
      ****************************************************************/
     resetThreads();
-    for (i = 0; i < tNoOfThreads ; i++) {
+    for (int i = 0; i < (int)tNoOfThreads ; i++) {
       pThreadData[i].threadNo = i;
       threadLife[i] = NdbThread_Create(threadLoop,
                                        (void**)&pThreadData[i],
@@ -317,7 +318,7 @@ NDB_COMMAND(flexTT, "flexTT", "flexTT", "flexTT", 65535)
         
     execute(stStop);
     void * tmp;
-    for(i = 0; i<tNoOfThreads; i++){
+    for(int i = 0; i<(int)tNoOfThreads; i++){
       NdbThread_WaitFor(threadLife[i], &tmp);
       NdbThread_Destroy(&threadLife[i]);
     }
@@ -467,14 +468,16 @@ Uint32
 getKey(Uint32 aBase, Uint32 aThreadBase) {
   Uint32 Tfound = aBase;
   Uint32 hash;
-  Uint64 Tkey64;
-  Uint32* tKey32 = (Uint32*)&Tkey64;
+  union {
+    Uint64 Tkey64;
+    Uint32 tKey32[2];
+  };
   tKey32[0] = aThreadBase;
-  for (int i = aBase; i < (aBase + MAX_SEEK); i++) {
-    tKey32[1] = (Uint32)i;
+  for (Uint32 i = aBase; i < (aBase + MAX_SEEK); i++) {
+    tKey32[1] = i;
     hash = md5_hash((Uint64*)&Tkey64, (Uint32)2);
     hash = (hash >> 6) & (MAX_PARTS - 1);
-    if (hash == tLocalPart) {
+    if (hash == (Uint32)tLocalPart) {
       Tfound = i;
       break;
     }//if
@@ -536,7 +539,7 @@ executeCallback(int result, NdbConnection* NdbObject, void* aObject)
         tabThread->threadLoopCounter++;
         transNdbRef->vpn_identity = 0;
         tabThread->threadNextStart = 0;
-        if (tabThread->threadLoopCounter == tNoOfLoops) {
+        if (tabThread->threadLoopCounter == (Uint32)tNoOfLoops) {
           goto checkCompleted;
         }//if
       }//if
@@ -566,7 +569,7 @@ random_choice()
 // Generate a random key between 0 and tNoOfRecords - 1
 //----------------------------------------------------
    UintR random_number = lrand48() % 100;
-   if (random_number < tUpdateFreq)
+   if ((int)random_number < tUpdateFreq)
     return stUpdate;
   else
     return stRead;
@@ -778,6 +781,8 @@ bool error_handler(const NdbError& err){
   case NdbError::TimeoutExpired:
     ndbout << endl << "Attempting to recover and continue now..." << endl ;
     return true ; // return true to retry
+  default:
+    break;
   }
   return false;
 }
@@ -919,7 +924,7 @@ input_error(){
   
   ndbout_c("FLEXTT");
   ndbout_c("   Perform benchmark of insert, update and delete transactions");
-  ndbout_c("");
+  ndbout_c(" ");
   ndbout_c("Arguments:");
   ndbout_c("   -t Number of threads to start, default 1");
   ndbout_c("   -p Number of parallel transactions per thread, default 32");

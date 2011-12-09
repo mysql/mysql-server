@@ -1,0 +1,571 @@
+DROP TABLE IF EXISTS t1, t2;
+set @is_enable_default = @@global.ndb_index_stat_enable;
+set @is_enable = 1;
+set @is_enable = NULL;
+# is_enable_on=1 is_enable_off=0
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+set @@global.ndb_index_stat_enable = 1;
+set @@local.ndb_index_stat_enable = 1;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show global variables like 'ndb_index_stat_option';
+Variable_name	Value
+ndb_index_stat_option	loop_checkon=1000ms,loop_idle=1000ms,loop_busy=100ms,update_batch=1,read_batch=4,idle_batch=32,check_batch=32,check_delay=1m,delete_batch=8,clean_delay=0,error_batch=4,error_delay=1m,evict_batch=8,evict_delay=1m,cache_limit=32M,cache_lowpct=90
+set @save_option = @@global.ndb_index_stat_option;
+set @@global.ndb_index_stat_option = 'loop_idle=3333,cache_limit=44M';
+set @@global.ndb_index_stat_option = 'cache_lowpct=85,evict_delay=55';
+set @@global.ndb_index_stat_option = 'check_delay=234s';
+show global variables like 'ndb_index_stat_option';
+Variable_name	Value
+ndb_index_stat_option	loop_checkon=1000ms,loop_idle=3333ms,loop_busy=100ms,update_batch=1,read_batch=4,idle_batch=32,check_batch=32,check_delay=234s,delete_batch=8,clean_delay=0,error_batch=4,error_delay=1m,evict_batch=8,evict_delay=55s,cache_limit=44M,cache_lowpct=85
+set @@global.ndb_index_stat_option = @save_option;
+show global variables like 'ndb_index_stat_option';
+Variable_name	Value
+ndb_index_stat_option	loop_checkon=1000ms,loop_idle=1000ms,loop_busy=100ms,update_batch=1,read_batch=4,idle_batch=32,check_batch=32,check_delay=1m,delete_batch=8,clean_delay=0,error_batch=4,error_delay=1m,evict_batch=8,evict_delay=1m,cache_limit=32M,cache_lowpct=90
+create table t1 (
+a1 int unsigned not null,
+b1 int unsigned not null,
+c1 int unsigned not null,
+primary key (a1),
+index b1x (b1),
+index c1x (c1)
+) engine=ndb;
+create table t2 (
+a2 int unsigned not null,
+b2 int unsigned not null,
+c2 int unsigned not null,
+primary key (a2),
+index b2x (b2),
+index c2x (c2)
+) engine=ndb;
+analyze table t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+# must use b1x
+explain select * from t1
+where b1 = 5 and c1 = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	b1x,c1x	b1x	4	const	#	Using where with pushed condition
+# must use c2x
+explain select * from t2
+where b2 = 5 and c2 = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	b2x,c2x	c2x	4	const	#	Using where with pushed condition
+# must use b1x, c2x
+explain select * from t1, t2
+where c1 = c2 and b1 = 5 and b2 = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	b1x,c1x	b1x	4	const	#	Parent of 2 pushed join@1
+1	SIMPLE	t2	ref	b2x,c2x	c2x	4	test.t1.c1	#	Child of 't1' in pushed join@1; Using where with pushed condition
+# must use c2x, b1x
+explain select * from t1, t2
+where b1 = b2 and c1 = 5 and c2 = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	b2x,c2x	c2x	4	const	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	ref	b1x,c1x	b1x	4	test.t2.b2	#	Child of 't2' in pushed join@1; Using where with pushed condition
+# must use t1, c2x
+explain select * from t1, t2
+where c1 = c2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	c1x	NULL	NULL	NULL	#	Parent of 2 pushed join@1
+1	SIMPLE	t2	ref	c2x	c2x	4	test.t1.c1	#	Child of 't1' in pushed join@1
+# must use t2, b1x
+explain select * from t1, t2
+where b1 = b2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	b2x	NULL	NULL	NULL	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	ref	b1x	b1x	4	test.t2.b2	#	Child of 't2' in pushed join@1
+# should NOT say: Using index for group-by
+explain select distinct (a1) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	
+# must say: Using index for group by
+explain select distinct (b1) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b1x	4	NULL	#	
+# must say: Using index for group by
+explain select distinct (c1) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c1x	4	NULL	#	
+drop table t1, t2;
+create table t1 (a int, b int, c varchar(10) not null,
+primary key using hash (a), index(b,c)) engine=ndb;
+insert into t1 values
+(1,10,'aaa'),(2,10,'bbb'),(3,10,'ccc'),
+(4,20,'aaa'),(5,20,'bbb'),(6,20,'ccc'),
+(7,30,'aaa'),(8,30,'bbb'),(9,30,'ccc');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+set @@local.ndb_index_stat_enable = 0;
+select count(*) from t1 where b < 10;
+count(*)
+0
+select count(*) from t1 where b >= 10 and c >= 'bbb';
+count(*)
+6
+select count(*) from t1 where b > 10;
+count(*)
+6
+select count(*) from t1 where b <= 20 and c < 'ccc';
+count(*)
+4
+select count(*) from t1 where b = 20 and c = 'ccc';
+count(*)
+1
+select count(*) from t1 where b > 20;
+count(*)
+3
+select count(*) from t1 where b = 30 and c > 'aaa';
+count(*)
+2
+select count(*) from t1 where b <= 20;
+count(*)
+6
+select count(*) from t1 where b >= 20 and c > 'aaa';
+count(*)
+4
+set @@local.ndb_index_stat_enable = 1;
+select count(*) from t1 where b < 10;
+count(*)
+0
+select count(*) from t1 where b >= 10 and c >= 'bbb';
+count(*)
+6
+select count(*) from t1 where b > 10;
+count(*)
+6
+select count(*) from t1 where b <= 20 and c < 'ccc';
+count(*)
+4
+select count(*) from t1 where b = 20 and c = 'ccc';
+count(*)
+1
+select count(*) from t1 where b > 20;
+count(*)
+3
+select count(*) from t1 where b = 30 and c > 'aaa';
+count(*)
+2
+select count(*) from t1 where b <= 20;
+count(*)
+6
+select count(*) from t1 where b >= 20 and c > 'aaa';
+count(*)
+4
+set @@local.ndb_index_stat_enable = 0;
+select count(*) from t1 where b < 10;
+count(*)
+0
+select count(*) from t1 where b >= 10 and c >= 'bbb';
+count(*)
+6
+select count(*) from t1 where b > 10;
+count(*)
+6
+select count(*) from t1 where b <= 20 and c < 'ccc';
+count(*)
+4
+select count(*) from t1 where b = 20 and c = 'ccc';
+count(*)
+1
+select count(*) from t1 where b > 20;
+count(*)
+3
+select count(*) from t1 where b = 30 and c > 'aaa';
+count(*)
+2
+select count(*) from t1 where b <= 20;
+count(*)
+6
+select count(*) from t1 where b >= 20 and c > 'aaa';
+count(*)
+4
+set @@local.ndb_index_stat_enable = 1;
+select count(*) from t1 where b < 10;
+count(*)
+0
+select count(*) from t1 where b >= 10 and c >= 'bbb';
+count(*)
+6
+select count(*) from t1 where b > 10;
+count(*)
+6
+select count(*) from t1 where b <= 20 and c < 'ccc';
+count(*)
+4
+select count(*) from t1 where b = 20 and c = 'ccc';
+count(*)
+1
+select count(*) from t1 where b > 20;
+count(*)
+3
+select count(*) from t1 where b = 30 and c > 'aaa';
+count(*)
+2
+select count(*) from t1 where b <= 20;
+count(*)
+6
+select count(*) from t1 where b >= 20 and c > 'aaa';
+count(*)
+4
+drop table t1;
+create table t1 (a int, b int, primary key using hash (a), index x1 (b))
+engine=ndb;
+insert into t1 values (1,11),(2,22),(3,33);
+select * from t1 order by a;
+a	b
+1	11
+2	22
+3	33
+select * from t1 order by a;
+a	b
+1	11
+2	22
+3	33
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+drop table t1;
+create table t1 (
+pk int not null,
+a tinyint not null,
+b tinyint unsigned not null,
+c smallint not null,
+d smallint unsigned not null,
+e mediumint not null,
+f mediumint unsigned not null,
+g int not null,
+h int unsigned not null,
+i bigint not null,
+j bigint unsigned not null,
+k float not null,
+l double not null,
+m decimal not null,
+n decimal unsigned not null,
+primary key using hash (pk),
+index (a),
+index (b),
+index (c),
+index (d),
+index (e),
+index (f),
+index (g),
+index (h),
+index (i),
+index (j),
+index (k),
+index (l),
+index (m),
+index (n)
+) engine=ndb;
+insert into t1 values
+(1,11,11,11,11,11,11,11,11,11,11,11,11,11,11),
+(2,22,22,22,22,22,22,22,22,22,22,22,22,22,22),
+(3,33,33,33,33,33,33,33,33,33,33,33,33,33,33);
+select count(*) from t1 where a > 22;
+count(*)
+1
+select count(*) from t1 where b > 22;
+count(*)
+1
+select count(*) from t1 where c > 22;
+count(*)
+1
+select count(*) from t1 where d > 22;
+count(*)
+1
+select count(*) from t1 where e > 22;
+count(*)
+1
+select count(*) from t1 where f > 22;
+count(*)
+1
+select count(*) from t1 where g > 22;
+count(*)
+1
+select count(*) from t1 where h > 22;
+count(*)
+1
+select count(*) from t1 where i > 22;
+count(*)
+1
+select count(*) from t1 where j > 22;
+count(*)
+1
+select count(*) from t1 where k > 22;
+count(*)
+1
+select count(*) from t1 where l > 22;
+count(*)
+1
+select count(*) from t1 where m > 22;
+count(*)
+1
+select count(*) from t1 where n > 22;
+count(*)
+1
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select count(*) from t1 where a > 22;
+count(*)
+1
+select count(*) from t1 where b > 22;
+count(*)
+1
+select count(*) from t1 where c > 22;
+count(*)
+1
+select count(*) from t1 where d > 22;
+count(*)
+1
+select count(*) from t1 where e > 22;
+count(*)
+1
+select count(*) from t1 where f > 22;
+count(*)
+1
+select count(*) from t1 where g > 22;
+count(*)
+1
+select count(*) from t1 where h > 22;
+count(*)
+1
+select count(*) from t1 where i > 22;
+count(*)
+1
+select count(*) from t1 where j > 22;
+count(*)
+1
+select count(*) from t1 where k > 22;
+count(*)
+1
+select count(*) from t1 where l > 22;
+count(*)
+1
+select count(*) from t1 where m > 22;
+count(*)
+1
+select count(*) from t1 where n > 22;
+count(*)
+1
+drop table t1;
+create table t1 (
+pk int not null,
+a datetime not null,
+b date not null,
+c year not null,
+d time not null,
+e timestamp not null,
+primary key using hash (pk),
+index (a),
+index (b),
+index (c),
+index (d),
+index (e)
+) engine=ndb;
+insert into t1 values
+(1,'1971-01-01 01:01:01','1971-01-01','1971','01:01:01','1971-01-01 01:01:01'),
+(2,'1972-02-02 02:02:02','1972-02-02','1972','02:02:02','1972-02-02 02:02:02'),
+(3,'1973-03-03 03:03:03','1973-03-03','1973','03:03:03','1973-03-03 03:03:03');
+select count(*) from t1 where a > '1972-02-02 02:02:02';
+count(*)
+1
+select count(*) from t1 where b > '1972-02-02';
+count(*)
+1
+select count(*) from t1 where c > '1972';
+count(*)
+1
+select count(*) from t1 where d > '02:02:02';
+count(*)
+1
+select count(*) from t1 where e > '1972-02-02 02:02:02';
+count(*)
+1
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select count(*) from t1 where a > '1972-02-02 02:02:02';
+count(*)
+1
+select count(*) from t1 where b > '1972-02-02';
+count(*)
+1
+select count(*) from t1 where c > '1972';
+count(*)
+1
+select count(*) from t1 where d > '02:02:02';
+count(*)
+1
+select count(*) from t1 where e > '1972-02-02 02:02:02';
+count(*)
+1
+drop table t1;
+create table t1 (
+pk int not null,
+a char(10) not null,
+b varchar(10) not null,
+c varchar(1000) not null,
+d binary(10) not null,
+e varbinary(10) not null,
+f varbinary(1000) not null,
+primary key using hash (pk),
+index (a),
+index (b),
+index (c),
+index (d),
+index (e),
+index (f)
+) engine=ndb;
+insert into t1 values
+('1','111','111','111','111','111','111'),
+('2','222','222','222','222','222','222'),
+('3','333','333','333','333','333','333');
+select count(*) from t1 where a > '222';
+count(*)
+1
+select count(*) from t1 where b > '222';
+count(*)
+1
+select count(*) from t1 where c > '222';
+count(*)
+1
+select count(*) from t1 where d > '222';
+count(*)
+2
+select count(*) from t1 where e > '222';
+count(*)
+1
+select count(*) from t1 where f > '222';
+count(*)
+1
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select count(*) from t1 where a > '222';
+count(*)
+1
+select count(*) from t1 where b > '222';
+count(*)
+1
+select count(*) from t1 where c > '222';
+count(*)
+1
+select count(*) from t1 where d > '222';
+count(*)
+2
+select count(*) from t1 where e > '222';
+count(*)
+1
+select count(*) from t1 where f > '222';
+count(*)
+1
+drop table t1;
+create table t1 (a1 int, b1 int, primary key(b1), key(a1)) engine=ndbcluster partition by key() partitions 1;
+create table t2 (b2 int, c2 int, primary key(b2,c2)) engine=ndbcluster partition by key() partitions 1;
+# table t1 is only for forcing record by key count for table t2 that should be near 50 (not 1)
+analyze table t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+explain select * from t1, t2 where b2 = b1 and a1 = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	PRIMARY,a1	a1	5	const	2	#
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.b1	50	#
+drop table t1, t2;
+CREATE TABLE t1(
+K INT NOT NULL AUTO_INCREMENT,
+I INT,
+J INT,
+L INT,
+PRIMARY KEY(K),
+KEY(I,J),
+KEY(L)
+) ENGINE=ndbcluster
+partition by key (K) partitions 1;
+INSERT INTO t1(I,J,L) VALUES
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(0,0,0);
+INSERT INTO t1(I,J,L) SELECT I,1,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,2,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,3,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,4,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,5,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,6,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,7,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,8,I FROM t1;
+select i, count(*) from t1 group by 1 order by 1;
+i	count(*)
+0	256
+1	256
+2	256
+3	256
+4	256
+5	256
+6	256
+7	256
+8	256
+9	256
+select l, count(*) from t1 group by 1 order by 1;
+l	count(*)
+0	256
+1	256
+2	256
+3	256
+4	256
+5	256
+6	256
+7	256
+8	256
+9	256
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain SELECT count(*) as Count FROM t1 WHERE I = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	I	I	5	const	256	
+SELECT count(*) as Count FROM t1 WHERE I = 5;
+Count
+256
+explain SELECT count(*) as Count FROM t1 WHERE L = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	L	L	5	const	256	
+SELECT count(*) as Count FROM t1 WHERE L = 5;
+Count
+256
+drop table t1;
+set @is_enable = @is_enable_default;
+set @is_enable = NULL;
+# is_enable_on=0 is_enable_off=1
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	ON
+set @@local.ndb_index_stat_enable = 0;
+set @@global.ndb_index_stat_enable = 0;
+drop table mysql.ndb_index_stat_sample;
+drop table mysql.ndb_index_stat_head;
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF

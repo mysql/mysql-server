@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2007 MySQL AB
-# Use is subject to license terms.
+# Copyright (C) 2007 MySQL AB
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -21,10 +23,14 @@
 #include <NdbConfig.h>
 #include <kernel/BlockNumbers.h>
 #include <signaldata/ArbitSignalData.hpp>
+#include <signaldata/FailRep.hpp>
 #include <NodeState.hpp>
 #include <version.h>
+#include <ndb_version.h>
 
 #include <ndbd_exit_codes.h>
+
+#define make_uint64(a,b) (((Uint64)(a)) + (((Uint64)(b)) << 32))
 
 //
 // PUBLIC
@@ -34,7 +40,7 @@ EventLoggerBase::~EventLoggerBase()
   
 }
 
-#define QQQQ char *m_text, size_t m_text_len, const Uint32* theData
+#define QQQQ char *m_text, size_t m_text_len, const Uint32* theData, Uint32 len
 
 void getTextConnected(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
@@ -42,13 +48,17 @@ void getTextConnected(QQQQ) {
 		       theData[1]);
 }
 void getTextConnectedApiVersion(QQQQ) {
+  char tmp[100];
+  Uint32 mysql_version = theData[3];
+  if (theData[2] < NDBD_SPLIT_VERSION)
+  mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
-		       "Node %u: API version %d.%d.%d",
+		       "Node %u: API %s",
 		       theData[1],
-		       getMajor(theData[2]),
-		       getMinor(theData[2]),
-		       getBuild(theData[2]));
+		       ndbGetVersionString(theData[2], mysql_version, 0,
+                                           tmp, sizeof(tmp)));
 }
+
 void getTextDisconnected(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %u Disconnected", 
@@ -74,11 +84,15 @@ void getTextNDBStartStarted(QQQQ) {
   //-----------------------------------------------------------------------
   // Start of NDB has been initiated.
   //-----------------------------------------------------------------------
+
+  char tmp[100];
+  Uint32 mysql_version = theData[2];
+  if (theData[1] < NDBD_SPLIT_VERSION)
+    mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
-		       "Start initiated (version %d.%d.%d)", 
-		       getMajor(theData[1]),
-		       getMinor(theData[1]),
-		       getBuild(theData[1]));
+		       "Start initiated (%s)", 
+		       ndbGetVersionString(theData[1], mysql_version, 0,
+                                           tmp, sizeof(tmp)));
 }
 void getTextNDBStopStarted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len,
@@ -114,7 +128,8 @@ void getTextNDBStopForced(QQQQ) {
   int error         = theData[3];
   int sphase        = theData[4];
   int extra         = theData[5];
-  getRestartAction(theData[1],action_str);
+  if (signum)
+    getRestartAction(theData[1],action_str);
   if (signum)
     reason_str.appfmt(" Initiated by signal %d.", signum);
   if (error)
@@ -144,12 +159,17 @@ void getTextNDBStartCompleted(QQQQ) {
   //-----------------------------------------------------------------------
   // Start of NDB has been completed.
   //-----------------------------------------------------------------------
+
+  char tmp[100];
+  Uint32 mysql_version = theData[2];
+  if (theData[1] < NDBD_SPLIT_VERSION)
+    mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
-		       "Started (version %d.%d.%d)", 
-		       getMajor(theData[1]),
-		       getMinor(theData[1]),
-		       getBuild(theData[1]));
+		       "Started (%s)", 
+		       ndbGetVersionString(theData[1], mysql_version, 0,
+                                           tmp, sizeof(tmp)));
 }
+
 void getTextSTTORRYRecieved(QQQQ) {
   //-----------------------------------------------------------------------
   // STTORRY recevied after restart finished.
@@ -192,10 +212,10 @@ void getTextStartPhaseCompleted(QQQQ) {
 }
 void getTextCM_REGCONF(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
-		       "CM_REGCONF president = %u, own Node = %u, our dynamic id = %u",
+		       "CM_REGCONF president = %u, own Node = %u, our dynamic id = %u/%u",
 		       theData[2], 
 		       theData[1],
-		       theData[3]);
+		       (theData[3] >> 16), (theData[3] & 0xFFFF));
 }
 void getTextCM_REGREF(QQQQ) {
   const char* line = "";
@@ -380,6 +400,14 @@ void getTextArbitResult(QQQQ) {
       BaseString::snprintf(m_text, m_text_len,
 			   "Network partitioning - no arbitrator configured");
       break;
+    case ArbitCode::WinWaitExternal:{
+      char buf[8*4*2+1];
+      sd->mask.getText(buf);
+      BaseString::snprintf(m_text, m_text_len,
+			   "Continuing after wait for external arbitration, "
+                           "nodes: %s", buf);
+      break;
+    }
     default:
       ArbitCode::getErrText(code, errText, sizeof(errText));
       BaseString::snprintf(m_text, m_text_len,
@@ -469,12 +497,15 @@ void getTextNR_CopyFragDone(QQQQ) {
   //-----------------------------------------------------------------------
   // REPORT Node Restart copied a fragment.
   //-----------------------------------------------------------------------
+  Uint64 rows = theData[4] + (Uint64(theData[5]) << 32);
+  Uint64 bytes = theData[6] + (Uint64(theData[7]) << 32);
   BaseString::snprintf(m_text, m_text_len, 
-		       "Table ID = %u, fragment ID = %u have been copied "
-		       "to Node %u", 
+		       "Table ID = %u, fragment ID = %u have been synced "
+		       "to Node %u rows: %llu bytes: %llu ", 
 		       theData[2], 
 		       theData[3], 
-		       theData[1]);
+		       theData[1],
+                       rows, bytes);
 }
 void getTextNR_CopyFragsCompleted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
@@ -625,21 +656,15 @@ void getTextTransporterError(QQQQ) {
                          theData[2]);
 }
 void getTextTransporterWarning(QQQQ) {
-  getTextTransporterError(m_text, m_text_len, theData);
+  getTextTransporterError(m_text, m_text_len, theData, len);
 }
 void getTextMissedHeartbeat(QQQQ) {
-  //-----------------------------------------------------------------------
-  // REPORT Undo Logging blocked due to buffer near to overflow.
-  //-----------------------------------------------------------------------
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %d missed heartbeat %d",
 		       theData[1],
 		       theData[2]);
 }
 void getTextDeadDueToHeartbeat(QQQQ) {
-  //-----------------------------------------------------------------------
-  // REPORT Undo Logging blocked due to buffer near to overflow.
-  //-----------------------------------------------------------------------
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %d declared dead due to missed heartbeat",
 		       theData[1]);
@@ -648,6 +673,12 @@ void getTextJobStatistic(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
 		       "Mean loop Counter in doJob last 8192 times = %u",
 		       theData[1]);
+}
+void getTextThreadConfigLoop(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+  "8192 loops,tot %u usec,exec %u extra:loops = %u,time %u,const %u",
+		       theData[1], theData[3], theData[4], theData[5],
+                       theData[2]);
 }
 void getTextSendBytesStatistic(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
@@ -689,6 +720,21 @@ void getTextStartREDOLog(QQQQ) {
 		       theData[3],
 		       theData[4]);
 }
+void getTextRedoStatus(QQQQ) {
+  Uint64 total = (Uint64(theData[6]) << 32) + theData[7];
+  Uint64 free = (Uint64(theData[8]) << 32) + theData[9];
+  
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Logpart: %u head=[ file: %u mbyte: %u ] tail=[ file: %u mbyte: %u ] total mb: %llu free mb: %llu free%%: %u",
+		       theData[1],
+		       theData[2],
+		       theData[3],
+		       theData[4],
+		       theData[5],
+                       total,
+                       free,
+                       Uint32((100 * free) / total));
+}
 void getTextUNDORecordsExecuted(QQQQ) {
   const char* line = "";
   if (theData[1] == DBTUP){
@@ -712,7 +758,7 @@ void getTextUNDORecordsExecuted(QQQQ) {
 		       theData[11]);
 }
 void getTextInfoEvent(QQQQ) {
-  BaseString::snprintf(m_text, m_text_len, (char *)&theData[1]);
+  BaseString::snprintf(m_text, m_text_len, "%s", (char *)&theData[1]);
 }
 const char bytes_unit[]= "B";
 const char kbytes_unit[]= "KB";
@@ -741,18 +787,18 @@ void getTextEventBufferStatus(QQQQ) {
   convert_unit(alloc, alloc_unit);
   convert_unit(max_, max_unit);
   BaseString::snprintf(m_text, m_text_len,
-		       "Event buffer status: used=%d%s(%d%) alloc=%d%s(%d%) "
-		       "max=%d%s apply_gci=%lld latest_gci=%lld",
+		       "Event buffer status: used=%d%s(%d%%) alloc=%d%s(%d%%) "
+		       "max=%d%s apply_epoch=%u/%u latest_epoch=%u/%u",
 		       used, used_unit,
 		       theData[2] ? (Uint32)((((Uint64)theData[1])*100)/theData[2]) : 0,
 		       alloc, alloc_unit,
 		       theData[3] ? (Uint32)((((Uint64)theData[2])*100)/theData[3]) : 0,
 		       max_, max_unit,
-		       theData[4]+(((Uint64)theData[5])<<32),
-		       theData[6]+(((Uint64)theData[7])<<32));
+		       theData[5], theData[4],
+		       theData[7], theData[6]);
 }
 void getTextWarningEvent(QQQQ) {
-  BaseString::snprintf(m_text, m_text_len, (char *)&theData[1]);
+  BaseString::snprintf(m_text, m_text_len, "%s", (char *)&theData[1]);
 }
 void getTextGCP_TakeoverStarted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, "GCP Take over started");
@@ -787,7 +833,7 @@ void getTextMemoryUsage(QQQQ) {
 
 void getTextBackupStarted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
-		       "Backup %d started from node %d", 
+		       "Backup %u started from node %d", 
 		       theData[2], refToNode(theData[1]));
 }
 void getTextBackupFailedToStart(QQQQ) {
@@ -805,14 +851,91 @@ void getTextBackupCompleted(QQQQ) {
 		       theData[3], theData[4], theData[6], theData[8],
 		       theData[5], theData[7]);
 }
+void getTextBackupStatus(QQQQ) {
+  if (theData[1])
+    BaseString::snprintf(m_text, m_text_len, 
+                         "Local backup status: backup %u started from node %u\n" 
+                         " #Records: %llu #LogRecords: %llu\n"
+                         " Data: %llu bytes Log: %llu bytes",
+                         theData[2], refToNode(theData[1]),
+                         make_uint64(theData[5], theData[6]),
+                         make_uint64(theData[9], theData[10]),
+                         make_uint64(theData[3], theData[4]),
+                         make_uint64(theData[7], theData[8]));
+  else
+    BaseString::snprintf(m_text, m_text_len, 
+                         "Backup not started");
+}
 void getTextBackupAborted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
-		       "Backup %d started from %d has been aborted. Error: %d",
+		       "Backup %u started from %d has been aborted. Error: %d",
 		       theData[2], 
 		       refToNode(theData[1]), 
 		       theData[3]);
 }
-
+void getTextRestoreStarted(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restore started: backup %u from node %u",
+                       theData[1], theData[2]);
+}
+void getTextRestoreMetaData(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restore meta data: backup %u from node %u "
+                       "#Tables: %u\n"
+                       " #Tablespaces: %u #Logfilegroups: %u "
+                       "#datafiles: %u #undofiles: %u",
+                       theData[1], theData[2], theData[3],
+                       theData[4], theData[5], theData[6], theData[7]);
+}
+void getTextRestoreData(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restore data: backup %u from node %u "
+                       "#Records: %llu Data: %llu bytes",
+                       theData[1], theData[2],
+                       make_uint64(theData[3], theData[4]),
+                       make_uint64(theData[5], theData[6]));
+}
+void getTextRestoreLog(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restore log: backup %u from node %u "
+                       "#Records: %llu Data: %llu bytes",
+                       theData[1], theData[2],
+                       make_uint64(theData[3], theData[4]),
+                       make_uint64(theData[5], theData[6]));
+}
+void getTextRestoreCompleted(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restore completed: backup %u from node %u",
+                       theData[1], theData[2]);
+}
+void getTextLogFileInitStatus(QQQQ) {
+  if (theData[2])
+    BaseString::snprintf(m_text, m_text_len,
+                         "Local redo log file initialization status:\n"
+                         "#Total files: %u, Completed: %u\n"
+                         "#Total MBytes: %u, Completed: %u",
+//                         refToNode(theData[1]),
+                         theData[2], theData[3],
+                         theData[4], theData[5]);
+  else
+    BaseString::snprintf(m_text, m_text_len,
+                         "Node %u: Log file initializtion completed",
+                          refToNode(theData[1]));
+}
+void getTextLogFileInitCompStatus(QQQQ) {
+    BaseString::snprintf(m_text, m_text_len,
+                         "Local redo log file initialization completed:\n"
+                         "#Total files: %u, Completed: %u\n"
+                         "#Total MBytes: %u, Completed: %u",
+//                         refToNode(theData[1]),
+                         theData[2], theData[3],
+                         theData[4], theData[5]);
+}
 void getTextSingleUser(QQQQ) {
   switch (theData[1])
   {
@@ -837,85 +960,384 @@ void getTextSingleUser(QQQQ) {
 void getTextStartReport(QQQQ) {
   Uint32 time = theData[2];
   Uint32 sz = theData[3];
-  char mask1[100];
-  char mask2[100];
-  char mask3[100];
-  char mask4[100];
-  BitmaskImpl::getText(sz, theData + 4 + (0 * sz), mask1);
-  BitmaskImpl::getText(sz, theData + 4 + (1 * sz), mask2);
-  BitmaskImpl::getText(sz, theData + 4 + (2 * sz), mask3);
-  BitmaskImpl::getText(sz, theData + 4 + (3 * sz), mask4);
+  BaseString 
+    bstr0 = BaseString::getPrettyText(sz, theData + 4 + (0 * sz)), 
+    bstr1 = BaseString::getPrettyText(sz, theData + 4 + (1 * sz)), 
+    bstr2 = BaseString::getPrettyText(sz, theData + 4 + (2 * sz)), 
+    bstr3 = BaseString::getPrettyText(sz, theData + 4 + (3 * sz)),
+    bstr4 = BaseString::getPrettyText(sz, theData + 4 + (4 * sz));
+
+  if (len < 4 + 5 * sz)
+  {
+    bstr4.assign("<unknown>");
+  }
+
   switch(theData[1]){
   case 1: // Wait initial
     BaseString::snprintf
       (m_text, m_text_len,
        "Initial start, waiting for %s to connect, "
        " nodes [ all: %s connected: %s no-wait: %s ]",
-       mask4, mask1, mask2, mask3);
+       bstr3.c_str(), bstr0.c_str(), bstr1.c_str(), bstr2.c_str());
     break;
   case 2: // Wait partial
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting until nodes: %s connects, "
        "nodes [ all: %s connected: %s no-wait: %s ]",
-       mask4, mask1, mask2, mask3);
+       bstr3.c_str(), bstr0.c_str(), bstr1.c_str(), bstr2.c_str());
     break;
   case 3: // Wait partial timeout
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting %u sec for nodes %s to connect, "
        "nodes [ all: %s connected: %s no-wait: %s ]",
-       
-       time, mask4, mask1, mask2, mask3);
+       time, bstr3.c_str(), bstr0.c_str(), bstr1.c_str(), bstr2.c_str());
     break;
   case 4: // Wait partioned
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting for non partitioned start, "
        "nodes [ all: %s connected: %s missing: %s no-wait: %s ]",
-       
-       mask1, mask2, mask4, mask3);
+       bstr0.c_str(), bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   case 5:
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting %u sec for non partitioned start, "
        "nodes [ all: %s connected: %s missing: %s no-wait: %s ]",
-       
-       time, mask1, mask2, mask4, mask3);
+       time, bstr0.c_str(), bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
+  case 6:
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Initial start, waiting %u for %s to connect, "
+       "nodes [ all: %s connected: %s missing: %s no-wait: %s no-nodegroup: %s ]",
+       time, bstr4.c_str(),
+       bstr0.c_str(), bstr1.c_str(), bstr3.c_str(), bstr2.c_str(),
+       bstr4.c_str());
+    break;
+  case 7: // Wait no-nodes/partial timeout
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Waiting %u sec for nodes %s to connect, "
+       "nodes [ all: %s connected: %s no-wait: %s no-nodegroup: %s ]",
+       time, bstr3.c_str(), bstr0.c_str(), bstr1.c_str(), bstr2.c_str(),
+       bstr4.c_str());
+    break;
+
   case 0x8000: // Do initial
     BaseString::snprintf
       (m_text, m_text_len,
        "Initial start with nodes %s [ missing: %s no-wait: %s ]",
-       mask2, mask4, mask3);
+       bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   case 0x8001: // Do start
     BaseString::snprintf
       (m_text, m_text_len,
        "Start with all nodes %s",
-       mask2);
+       bstr1.c_str());
     break;
   case 0x8002: // Do partial
     BaseString::snprintf
       (m_text, m_text_len,
        "Start with nodes %s [ missing: %s no-wait: %s ]",
-       mask2, mask4, mask3);
+       bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   case 0x8003: // Do partioned
     BaseString::snprintf
       (m_text, m_text_len,
        "Start potentially partitioned with nodes %s "
        " [ missing: %s no-wait: %s ]",
-       mask2, mask4, mask3);
+       bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   default:
     BaseString::snprintf
       (m_text, m_text_len,
        "Unknown startreport: 0x%x [ %s %s %s %s ]", 
        theData[1],
-       mask1, mask2, mask3, mask4);
+       bstr0.c_str(), bstr1.c_str(), bstr2.c_str(), bstr3.c_str());
   }
+}
+void getTextMTSignalStatistics(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Signals delivered from thread %u: "
+                       "prio A %u (%u bytes) prio B %u (%u bytes)",
+		       theData[1],
+                       theData[2], theData[3], theData[4], theData[5]);
+}
+
+void getTextSubscriptionStatus(QQQQ)
+{
+  switch(theData[1]) {
+  case(1): // SubscriptionStatus::DISCONNECTED
+    BaseString::snprintf(m_text, m_text_len,
+                         "Disconnecting node %u because it has "
+                         "exceeded MaxBufferedEpochs (%u > %u), epoch %u/%u",
+                         theData[2],
+                         theData[5],
+                         theData[6],
+                         theData[4], theData[3]);
+    break;
+  case(2): // SubscriptionStatus::INCONSISTENT
+    BaseString::snprintf(m_text, m_text_len,
+                         "Nodefailure while out of event buffer: "
+                         "informing subscribers of possibly missing event data"
+                         ", epoch %u/%u",
+                         theData[4], theData[3]);
+    break;
+  }
+}
+
+void
+getTextStartReadLCP(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Start reading LCP for table %u fragment: %u",
+                       theData[1],
+                       theData[2]);
+}
+
+void
+getTextReadLCPComplete(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restored LCP for table %u fragment: %u rows: %llu",
+                       theData[1],
+                       theData[2],
+                       (Uint64(theData[3]) << 32) + Uint64(theData[4]));
+}
+
+void
+getTextRunRedo(QQQQ)
+{
+  const ndb_logevent_RunRedo * ev = (const ndb_logevent_RunRedo*)(theData+1);
+  if (ev->currgci == ev->startgci)
+  {
+    BaseString::snprintf(m_text, m_text_len,
+                         "Log part: %u phase: %u run redo from "
+                         " gci: %u (file: %u mb: %u) to "
+                         " gci: %u (file: %u mb: %u)",
+                         ev->logpart,
+                         ev->phase,
+                         ev->startgci,
+                         ev->startfile,
+                         ev->startmb,
+                         ev->stopgci,
+                         ev->stopfile,
+                         ev->stopmb);
+  }
+  else if (ev->currgci == ev->stopgci)
+  {
+    BaseString::snprintf(m_text, m_text_len,
+                         "Log part: %u phase: %u found stop "
+                         " gci: %u (file: %u mb: %u)",
+                         ev->logpart,
+                         ev->phase,
+                         ev->currgci,
+                         ev->currfile,
+                         ev->currmb);
+  }
+  else
+  {
+    BaseString::snprintf(m_text, m_text_len,
+                         "Log part: %u phase: %u at "
+                         " gci: %u (file: %u mb: %u)",
+                         ev->logpart,
+                         ev->phase,
+                         ev->currgci,
+                         ev->currfile,
+                         ev->currmb);
+  }
+}
+
+void
+getTextRebuildIndex(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "instace: %u rebuild index: %u",
+                       theData[1],
+                       theData[2]);
+}
+
+const
+char*
+getObjectTypeName(Uint32 type)
+{
+  return "object";
+}
+
+void
+getTextCreateSchemaObject(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "create %s id: %u version: %u (from %u)",
+                       getObjectTypeName(theData[3]),
+                       theData[1],
+                       theData[2],
+                       theData[4]);
+}
+
+void
+getTextAlterSchemaObject(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "alter %s id: %u version: %u (from %u)",
+                       getObjectTypeName(theData[3]),
+                       theData[1],
+                       theData[2],
+                       theData[4]);
+}
+
+void
+getTextDropSchemaObject(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "drop %s id: %u version: %u (from %u)",
+                       getObjectTypeName(theData[3]),
+                       theData[1],
+                       theData[2],
+                       theData[4]);
+}
+
+void getTextSavedEvent(QQQQ)
+{
+  abort();
+}
+
+void getTextConnectCheckStarted(QQQQ)
+{
+  /* EventReport format :
+   * 1 : other_node_count
+   * 2 : reason (FailRep causes or 0)
+   * 3 : causing_node (if from FailRep)
+   * 4 : bitmask wordsize
+   * 5 : bitmask[2]
+   */
+  Uint32 other_node_count = theData[1];
+  Uint32 reason = theData[2];
+  Uint32 causing_node = theData[3];
+  Uint32 bitmaskSz = theData[4];
+  char otherNodeMask[100];
+  char suspectNodeMask[100];
+  BitmaskImpl::getText(bitmaskSz, theData + 5 + (0 * bitmaskSz), otherNodeMask);
+  BitmaskImpl::getText(bitmaskSz, theData + 5 + (1 * bitmaskSz), suspectNodeMask);
+  Uint32 suspectCount = BitmaskImpl::count(bitmaskSz, theData + 5 + (1 * bitmaskSz));
+
+  if (reason)
+  {
+    /* Connect check started for specific reason */
+    const char * reasonText = NULL;
+    switch (reason)
+    {
+    case FailRep::ZHEARTBEAT_FAILURE:
+      reasonText = "Heartbeat failure";
+      break;
+    case FailRep::ZCONNECT_CHECK_FAILURE:
+      reasonText = "Connectivity check request";
+      break;
+    default:
+      reasonText = "UNKNOWN";
+      break;
+    }
+
+    BaseString::snprintf(m_text, m_text_len,
+                         "Connectivity Check of %u other nodes (%s) started due to %s from node %u.",
+                         other_node_count,
+                         otherNodeMask,
+                         reasonText,
+                         causing_node);
+  }
+  else
+  {
+    /* Connect check restarted due to suspect nodes */
+    BaseString::snprintf(m_text, m_text_len,
+                         "Connectivity Check of %u nodes (%s) restarting due to %u suspect nodes (%s).",
+                         other_node_count,
+                         otherNodeMask,
+                         suspectCount,
+                         suspectNodeMask);
+  }
+}
+
+void getTextConnectCheckCompleted(QQQQ)
+{
+  /* EventReport format
+   * 1 : Nodes checked
+   * 2 : Suspect nodes
+   * 3 : Failed nodes
+   */
+
+  Uint32 nodes_checked = theData[1];
+  Uint32 suspect_nodes = theData[2];
+  Uint32 failed_nodes = theData[3];
+
+  if ((failed_nodes + suspect_nodes) == 0)
+  {
+    /* All connectivity ok */
+    BaseString::snprintf(m_text, m_text_len,
+                         "Connectivity Check completed on %u nodes, connectivity ok",
+                         nodes_checked);
+  }
+  else
+  {
+    if (failed_nodes > 0)
+    {
+      if (suspect_nodes > 0)
+      {
+        BaseString::snprintf(m_text, m_text_len,
+                             "Connectivity Check completed on %u nodes.  %u nodes failed.  "
+                             "%u nodes still suspect, repeating check.",
+                             nodes_checked,
+                             failed_nodes,
+                             suspect_nodes);
+      }
+      else
+      {
+        BaseString::snprintf(m_text, m_text_len,
+                             "Connectivity Check completed on %u nodes.  %u nodes failed.  "
+                             "Connectivity now OK",
+                             nodes_checked,
+                             failed_nodes);
+      }
+    }
+    else
+    {
+      /* Just suspect nodes */
+      BaseString::snprintf(m_text, m_text_len,
+                           "Connectivity Check completed on %u nodes.  %u nodes still suspect, "
+                           "repeating check.",
+                           nodes_checked,
+                           suspect_nodes);
+    }
+  }
+}
+
+void getTextNodeFailRejected(QQQQ)
+{
+  Uint32 reason = theData[1];
+  Uint32 failed_node = theData[2];
+  Uint32 source_node = theData[3];
+
+  const char* reasonText = "Unknown";
+  switch (reason)
+  {
+  case FailRep::ZCONNECT_CHECK_FAILURE:
+    reasonText = "Connect Check Failure";
+    break;
+  case FailRep::ZLINK_FAILURE:
+    reasonText = "Link Failure";
+    break;
+  }
+
+  BaseString::snprintf(m_text, m_text_len,
+                       "Received FAIL_REP (%s (%u)) for node %u sourced by suspect node %u.  "
+                       "Rejecting as failure of node %u.",
+                       reasonText,
+                       reason,
+                       failed_node,
+                       source_node,
+                       source_node);
 }
 
 #if 0
@@ -946,10 +1368,11 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(GlobalCheckpointStarted, LogLevel::llCheckpoint,  9, Logger::LL_INFO ),
   ROW(GlobalCheckpointCompleted,LogLevel::llCheckpoint,10, Logger::LL_INFO ),
   ROW(LocalCheckpointStarted,  LogLevel::llCheckpoint,  7, Logger::LL_INFO ),
-  ROW(LocalCheckpointCompleted,LogLevel::llCheckpoint,  8, Logger::LL_INFO ),
+  ROW(LocalCheckpointCompleted,LogLevel::llCheckpoint,  7, Logger::LL_INFO ),
   ROW(LCPStoppedInCalcKeepGci, LogLevel::llCheckpoint,  0, Logger::LL_ALERT ),
   ROW(LCPFragmentCompleted,    LogLevel::llCheckpoint, 11, Logger::LL_INFO ),
   ROW(UndoLogBlocked,          LogLevel::llCheckpoint,  7, Logger::LL_INFO ),
+  ROW(RedoStatus,              LogLevel::llCheckpoint,  7, Logger::LL_INFO ),
 
   // STARTUP
   ROW(NDBStartStarted,         LogLevel::llStartUp,     1, Logger::LL_INFO ),
@@ -967,13 +1390,19 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(StartLog,                LogLevel::llStartUp,    10, Logger::LL_INFO ),
   ROW(UNDORecordsExecuted,     LogLevel::llStartUp,    15, Logger::LL_INFO ),
   ROW(StartReport,             LogLevel::llStartUp,     4, Logger::LL_INFO ),
-  
+  ROW(LogFileInitStatus,       LogLevel::llStartUp,     7, Logger::LL_INFO),
+  ROW(LogFileInitCompStatus,   LogLevel::llStartUp,     7, Logger::LL_INFO),
+  ROW(StartReadLCP,            LogLevel::llStartUp,    10, Logger::LL_INFO),
+  ROW(ReadLCPComplete,         LogLevel::llStartUp,    10, Logger::LL_INFO),
+  ROW(RunRedo,                 LogLevel::llStartUp,     8, Logger::LL_INFO),
+  ROW(RebuildIndex,            LogLevel::llStartUp,    10, Logger::LL_INFO),
+
   // NODERESTART
-  ROW(NR_CopyDict,             LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
-  ROW(NR_CopyDistr,            LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
-  ROW(NR_CopyFragsStarted,     LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
+  ROW(NR_CopyDict,             LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
+  ROW(NR_CopyDistr,            LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
+  ROW(NR_CopyFragsStarted,     LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
   ROW(NR_CopyFragDone,         LogLevel::llNodeRestart,10, Logger::LL_INFO ),
-  ROW(NR_CopyFragsCompleted,   LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
+  ROW(NR_CopyFragsCompleted,   LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
 
   ROW(NodeFailCompleted,       LogLevel::llNodeRestart, 8, Logger::LL_ALERT),
   ROW(NODE_FAILREP,            LogLevel::llNodeRestart, 8, Logger::LL_ALERT),
@@ -984,14 +1413,25 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(LCP_TakeoverStarted,     LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
   ROW(LCP_TakeoverCompleted,   LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
 
+  ROW(ConnectCheckStarted,     LogLevel::llNodeRestart, 6, Logger::LL_INFO ),
+  ROW(ConnectCheckCompleted,   LogLevel::llNodeRestart, 6, Logger::LL_INFO ),
+  ROW(NodeFailRejected,        LogLevel::llNodeRestart, 6, Logger::LL_ALERT ),
+
   // STATISTIC
   ROW(TransReportCounters,     LogLevel::llStatistic,   8, Logger::LL_INFO ),
   ROW(OperationReportCounters, LogLevel::llStatistic,   8, Logger::LL_INFO ), 
   ROW(TableCreated,            LogLevel::llStatistic,   7, Logger::LL_INFO ),
   ROW(JobStatistic,            LogLevel::llStatistic,   9, Logger::LL_INFO ),
+  ROW(ThreadConfigLoop,        LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(SendBytesStatistic,      LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(ReceiveBytesStatistic,   LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(MemoryUsage,             LogLevel::llStatistic,   5, Logger::LL_INFO ),
+  ROW(MTSignalStatistics,      LogLevel::llStatistic,   9, Logger::LL_INFO ),
+
+  // Schema
+  ROW(CreateSchemaObject,      LogLevel::llSchema,      8, Logger::LL_INFO ),
+  ROW(AlterSchemaObject,       LogLevel::llSchema,      8, Logger::LL_INFO ),
+  ROW(DropSchemaObject,        LogLevel::llSchema,      8, Logger::LL_INFO ),
 
   // ERROR
   ROW(TransporterError,        LogLevel::llError,  2, Logger::LL_ERROR   ),
@@ -999,6 +1439,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(MissedHeartbeat,         LogLevel::llError,  8, Logger::LL_WARNING ),
   ROW(DeadDueToHeartbeat,      LogLevel::llError,  8, Logger::LL_ALERT   ),
   ROW(WarningEvent,            LogLevel::llError,  2, Logger::LL_WARNING ),
+  ROW(SubscriptionStatus,      LogLevel::llError,  4, Logger::LL_WARNING ),
   // INFO
   ROW(SentHeartbeat,           LogLevel::llInfo,  12, Logger::LL_INFO ),
   ROW(CreateLogBytes,          LogLevel::llInfo,  11, Logger::LL_INFO ),
@@ -1010,15 +1451,23 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
 
   // Backup
   ROW(BackupStarted,           LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(BackupStatus,            LogLevel::llBackup, 7, Logger::LL_INFO ),
   ROW(BackupCompleted,         LogLevel::llBackup, 7, Logger::LL_INFO ),
   ROW(BackupFailedToStart,     LogLevel::llBackup, 7, Logger::LL_ALERT),
-  ROW(BackupAborted,           LogLevel::llBackup, 7, Logger::LL_ALERT )
+  ROW(BackupAborted,           LogLevel::llBackup, 7, Logger::LL_ALERT),
+  ROW(RestoreStarted,          LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(RestoreMetaData,         LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(RestoreData,             LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(RestoreLog,              LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(RestoreCompleted,        LogLevel::llBackup, 7, Logger::LL_INFO ),
+
+  ROW(SavedEvent,              LogLevel::llInfo,   7, Logger::LL_INFO)
 };
 
 const Uint32 EventLoggerBase::matrixSize=
 sizeof(EventLoggerBase::matrix)/sizeof(EventRepLogLevelMatrix);
 
-EventLogger::EventLogger() : m_filterLevel(15)
+EventLogger::EventLogger()
 {
   setCategory("EventLogger");
   enable(Logger::LL_INFO, Logger::LL_ALERT); 
@@ -1026,14 +1475,6 @@ EventLogger::EventLogger() : m_filterLevel(15)
 
 EventLogger::~EventLogger()
 {
-}
-
-bool
-EventLogger::open(const char* logFileName, int maxNoFiles, long maxFileSize, 
-		  unsigned int maxLogEntries)
-{
-  return addHandler(new FileLogHandler(logFileName, maxNoFiles, maxFileSize, 
-				       maxLogEntries));
 }
 
 void
@@ -1077,7 +1518,7 @@ EventLoggerBase::event_lookup(int eventType,
 const char*
 EventLogger::getText(char * dst, size_t dst_len,
 		     EventTextFunction textF,
-		     const Uint32* theData, NodeId nodeId )
+		     const Uint32* theData, Uint32 len, NodeId nodeId )
 {
   int pos= 0;
   if (nodeId != 0)
@@ -1086,13 +1527,13 @@ EventLogger::getText(char * dst, size_t dst_len,
     pos= strlen(dst);
   }
   if (dst_len-pos > 0)
-    textF(dst+pos,dst_len-pos,theData);
+    textF(dst+pos, dst_len-pos, theData, len);
   return dst;
 }
 
 void 
-EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
-		 const LogLevel* ll)
+EventLogger::log(int eventType, const Uint32* theData, Uint32 len,
+		 NodeId nodeId, const LogLevel* ll)
 {
   Uint32 threshold = 0;
   Logger::LoggerLevel severity = Logger::LL_WARNING;
@@ -1112,43 +1553,44 @@ EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
     DBUG_PRINT("info",("m_logLevel.getLogLevel=%d", m_logLevel.getLogLevel(cat)));
 
   if (threshold <= set){
-    getText(log_text,sizeof(log_text),textF,theData,nodeId);
+    getText(log_text, sizeof(log_text), textF, theData, len, nodeId);
 
     switch (severity){
     case Logger::LL_ALERT:
-      alert(log_text);
+      alert("%s", log_text);
       break;
     case Logger::LL_CRITICAL:
-      critical(log_text); 
+      critical("%s", log_text);
       break;
     case Logger::LL_WARNING:
-      warning(log_text); 
+      warning("%s", log_text);
       break;
     case Logger::LL_ERROR:
-      error(log_text); 
+      error("%s", log_text);
       break;
     case Logger::LL_INFO:
-      info(log_text); 
+      info("%s", log_text);
       break;
     case Logger::LL_DEBUG:
-      debug(log_text); 
+      debug("%s", log_text);
       break;
     default:
-      info(log_text); 
+      info("%s", log_text);
       break;
     }
   } // if (..
   DBUG_VOID_RETURN;
 }
 
-int
-EventLogger::getFilterLevel() const
+EventLogger*
+create_event_logger()
 {
-  return m_filterLevel;
+  return new EventLogger();
 }
 
-void 
-EventLogger::setFilterLevel(int filterLevel)
+void
+destroy_event_logger(class EventLogger ** g_eventLogger)
 {
-  m_filterLevel = filterLevel;
+  delete *g_eventLogger;
+  *g_eventLogger = 0;
 }

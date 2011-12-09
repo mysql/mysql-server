@@ -1,0 +1,320 @@
+include/master-slave.inc
+[connection master]
+***** Test 1 RPL of CDD and Alter *****
+***** Test 1 setup *****
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE 4M 
+ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 24M
+ENGINE=NDB;
+ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile02.dat'
+INITIAL_SIZE 8M 
+ENGINE=NDB;
+CREATE TABLE t1
+(c1 INT NOT NULL PRIMARY KEY, 
+c2 INT NOT NULL, 
+c3 INT NOT NULL)
+TABLESPACE ts1 STORAGE DISK
+ENGINE=NDB;
+***** insert some data *****
+***** Select from Master *****
+SELECT * FROM t1 ORDER BY c1 LIMIT 5;
+c1	c2	c3
+1	2	4
+2	4	5
+3	6	6
+4	8	7
+5	10	8
+***** Select from Slave *****
+SELECT * FROM t1 ORDER BY c1 LIMIT 5;
+c1	c2	c3
+1	2	4
+2	4	5
+3	6	6
+4	8	7
+5	10	8
+FILE_NAME	FILE_TYPE	TABLESPACE_NAME	LOGFILE_GROUP_NAME
+NULL	TABLESPACE	ts1	lg1
+NULL	UNDO LOG	NULL	lg1
+datafile.dat	DATAFILE	ts1	lg1
+datafile02.dat	DATAFILE	ts1	lg1
+undofile.dat	UNDO LOG	NULL	lg1
+undofile02.dat	UNDO LOG	NULL	lg1
+**** Do First Set of ALTERs in the master table ****
+CREATE INDEX t1_i ON t1(c2, c3);
+CREATE UNIQUE INDEX t1_i2 ON t1(c2);
+ALTER TABLE t1 ADD c4 TIMESTAMP;
+ALTER TABLE t1 ADD c5 DOUBLE;
+ALTER TABLE t1 ADD INDEX (c5);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL,
+  `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c5` double DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `t1_i2` (`c2`),
+  KEY `t1_i` (`c2`,`c3`),
+  KEY `c5` (`c5`)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+**** Show first set of ALTERs on SLAVE ****
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL,
+  `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c5` double DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `t1_i2` (`c2`),
+  KEY `t1_i` (`c2`,`c3`),
+  KEY `c5` (`c5`)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+**** Second set of alters test 1 ****
+ALTER TABLE t1 RENAME t2;
+ALTER TABLE t2 DROP INDEX c5;
+CREATE TABLE t1(c1 INT)ENGINE=NDB;
+INSERT INTO t1 VALUES(1);
+DROP TABLE t1;
+ALTER TABLE t2 RENAME t1;
+**** Show second set of ALTERs on MASTER ****
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL,
+  `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c5` double DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `t1_i2` (`c2`),
+  KEY `t1_i` (`c2`,`c3`)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+**** Show second set of ALTERs on SLAVE ****
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL,
+  `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c5` double DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `t1_i2` (`c2`),
+  KEY `t1_i` (`c2`,`c3`)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+**** Third and last set of alters for test1  ****
+ALTER TABLE t1 CHANGE c1 c1 DOUBLE;
+ALTER TABLE t1 CHANGE c2 c2 DECIMAL(10,2);
+ALTER TABLE t1 DROP COLUMN c3;
+ALTER TABLE t1 CHANGE c4 c4 TEXT CHARACTER SET utf8;
+ALTER TABLE t1 CHANGE c4 c4 BLOB;
+ALTER TABLE t1 CHANGE c4 c3 BLOB;
+set @b1 = 'b1';
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+UPDATE t1 SET c3=@b1 where c1 = 1;
+UPDATE t1 SET c3=@b1 where c1 = 2;
+**** Show last set of ALTERs on MASTER ****
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` double NOT NULL DEFAULT '0',
+  `c2` decimal(10,2) DEFAULT NULL,
+  `c3` blob,
+  `c5` double DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `t1_i2` (`c2`),
+  KEY `t1_i` (`c2`)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM t1 ORDER BY c1 LIMIT 5;
+c1	c2	c3	c5
+1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
+2	4.00	b1b1b1b1b1b1b1b1b1b1	NULL
+3	6.00	0000-00-00 00:00:00	NULL
+4	8.00	0000-00-00 00:00:00	NULL
+5	10.00	0000-00-00 00:00:00	NULL
+**** Show last set of ALTERs on SLAVE ****
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` double NOT NULL DEFAULT '0',
+  `c2` decimal(10,2) DEFAULT NULL,
+  `c3` blob,
+  `c5` double DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `t1_i2` (`c2`),
+  KEY `t1_i` (`c2`)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM t1 ORDER BY c1 LIMIT 5;
+c1	c2	c3	c5
+1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
+2	4.00	b1b1b1b1b1b1b1b1b1b1	NULL
+3	6.00	0000-00-00 00:00:00	NULL
+4	8.00	0000-00-00 00:00:00	NULL
+5	10.00	0000-00-00 00:00:00	NULL
+SELECT * FROM t1 where c1 = 1;
+c1	c2	c3	c5
+1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
+DROP TABLE t1;
+STOP SLAVE;
+RESET SLAVE;
+RESET MASTER;
+START SLAVE;
+******** Create additional TABLESPACE test 2 **************
+CREATE TABLESPACE ts2
+ADD DATAFILE 'datafile03.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 28M
+ENGINE=NDB;
+ALTER TABLESPACE ts2
+ADD DATAFILE 'datafile04.dat'
+INITIAL_SIZE 18M
+ENGINE=NDB;
+DROP DATABASE IF EXISTS tpcb;
+CREATE DATABASE tpcb;
+
+CREATE TABLE tpcb.account
+(id INT, bid INT, balance DECIMAL(10,2),
+filler CHAR(255), PRIMARY KEY(id))
+TABLESPACE ts2 STORAGE DISK
+ENGINE=NDBCLUSTER;
+
+CREATE TABLE tpcb.branch
+(bid INT, balance DECIMAL(10,2), filler VARCHAR(255),
+PRIMARY KEY(bid))TABLESPACE ts2 STORAGE DISK
+ENGINE=NDBCLUSTER;
+
+CREATE TABLE tpcb.teller
+(tid INT, balance DECIMAL(10,2), filler VARCHAR(255),
+PRIMARY KEY(tid)) TABLESPACE ts2 STORAGE DISK
+ENGINE=NDBCLUSTER;
+
+CREATE TABLE tpcb.history
+(id MEDIUMINT NOT NULL AUTO_INCREMENT,aid INT,
+tid INT, bid INT,  amount DECIMAL(10,2),
+tdate DATETIME, teller CHAR(20), uuidf LONGBLOB,
+filler CHAR(80),PRIMARY KEY (id))
+TABLESPACE ts2 STORAGE DISK
+ENGINE=NDBCLUSTER;
+
+--- Create stored procedures & functions ---
+
+
+*** Stored Procedures Created ***
+
+****** TEST 2 test time *********************************
+USE tpcb;
+*********** Load up the database ******************
+CALL tpcb.load();
+********** Check load master and slave **************
+SELECT COUNT(*) FROM account;
+COUNT(*)
+1000
+USE tpcb;
+SELECT COUNT(*) FROM account;
+COUNT(*)
+1000
+******** Run in some transactions ***************
+***** Time to try slave sync ***********
+**** Must make sure slave is clean *****
+STOP SLAVE;
+RESET SLAVE;
+DROP PROCEDURE IF EXISTS tpcb.load;
+DROP PROCEDURE IF EXISTS tpcb.trans;
+DROP TABLE IF EXISTS tpcb.account;
+DROP TABLE IF EXISTS tpcb.teller;
+DROP TABLE IF EXISTS tpcb.branch;
+DROP TABLE IF EXISTS tpcb.history;
+DROP DATABASE tpcb;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE=NDB;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile02.dat'
+ENGINE=NDB;
+DROP TABLESPACE ts1 ENGINE=NDB;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile03.dat'
+ENGINE=NDB;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile04.dat'
+ENGINE=NDB;
+DROP TABLESPACE ts2 ENGINE=NDB;
+DROP LOGFILE GROUP lg1 ENGINE=NDB;
+********** Take a backup of the Master *************
+SELECT COUNT(*) FROM history;
+COUNT(*)
+100
+SELECT COUNT(*) FROM history;
+COUNT(*)
+200
+************ Restore the slave ************************
+CREATE DATABASE tpcb;
+***** Check a few slave restore values ***************
+USE tpcb;
+SELECT COUNT(*) FROM account;
+COUNT(*)
+1000
+***** Add some more records to master *********
+***** Finsh the slave sync process *******
+@the_epoch:=MAX(epoch)
+<the_epoch>
+@the_pos:=Position	@the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\','/'), '/', -1)
+<the_pos>	master-bin.000001
+CHANGE MASTER TO
+master_log_file = 'master-bin.000001',
+master_log_pos = <the_pos> ;
+* 4. *
+* 5. *
+START SLAVE;
+**** We should be ready to continue on *************
+****** Let's make sure we match *******
+***** MASTER *******
+USE tpcb;
+SELECT COUNT(*) FROM history;
+COUNT(*)
+400
+****** SLAVE ********
+USE tpcb;
+SELECT COUNT(*) FROM history;
+COUNT(*)
+400
+*** DUMP MASTER & SLAVE FOR COMPARE ********
+*************** TEST 2 CLEANUP SECTION ********************
+DROP PROCEDURE IF EXISTS tpcb.load;
+DROP PROCEDURE IF EXISTS tpcb.trans;
+DROP TABLE tpcb.account;
+DROP TABLE tpcb.teller;
+DROP TABLE tpcb.branch;
+DROP TABLE tpcb.history;
+DROP DATABASE tpcb;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE=NDB;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile02.dat'
+ENGINE=NDB;
+DROP TABLESPACE ts1 ENGINE=NDB;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile03.dat'
+ENGINE=NDB;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile04.dat'
+ENGINE=NDB;
+DROP TABLESPACE ts2 ENGINE=NDB;
+DROP LOGFILE GROUP lg1 ENGINE=NDB;
+****** Do dumps compare ************
+include/rpl_end.inc

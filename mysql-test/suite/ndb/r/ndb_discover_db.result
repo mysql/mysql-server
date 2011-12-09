@@ -1,0 +1,35 @@
+drop database if exists discover_db;
+drop database if exists discover_db_2;
+create database discover_db;
+create table discover_db.t1 (a int key, b int) engine ndb;
+create database discover_db_2;
+alter database discover_db_2 character set binary;
+create table discover_db_2.t1 (a int key, b int) engine ndb;
+show create database discover_db;
+Database	Create Database
+discover_db	CREATE DATABASE `discover_db` /*!40100 DEFAULT CHARACTER SET latin1 */
+show create database discover_db_2;
+Database	Create Database
+discover_db_2	CREATE DATABASE `discover_db_2` /*!40100 DEFAULT CHARACTER SET binary */
+reset master;
+insert into discover_db.t1 values (1,1);
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+mysqld-bin.000001	#	Query	1	#	BEGIN
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (discover_db.t1)
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
+mysqld-bin.000001	#	Write_rows	1	#	table_id: #
+mysqld-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Query	1	#	COMMIT
+reset master;
+insert into discover_db_2.t1 values (1,1);
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+mysqld-bin.000001	#	Query	1	#	BEGIN
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (discover_db_2.t1)
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
+mysqld-bin.000001	#	Write_rows	1	#	table_id: #
+mysqld-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Query	1	#	COMMIT
+drop database discover_db;
+drop database discover_db_2;

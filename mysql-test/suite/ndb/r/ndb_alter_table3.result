@@ -1,0 +1,44 @@
+DROP TABLE IF EXISTS t1;
+create table t1 ( a int primary key, b varchar(10), c varchar(10), index (b) )
+engine=ndb;
+insert into t1 values (1,'one','one'), (2,'two','two'), (3,'three','three');
+create index c on t1(c);
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	a	A	3	NULL	NULL		BTREE		
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE		
+t1	1	c	1	c	A	NULL	NULL	NULL	YES	BTREE		
+select * from t1 where c = 'two';
+a	b	c
+2	two	two
+alter table t1 drop index c;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	a	A	3	NULL	NULL		BTREE		
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE		
+select * from t1 where c = 'two';
+a	b	c
+2	two	two
+drop table t1;
+create table t3 (a int primary key) engine=ndbcluster;
+insert into t3 values (1);
+alter table t3 rename t4;
+select * from t3;
+ERROR 42S02: Table 'test.t3' doesn't exist
+select * from t4;
+a
+1
+drop table t4;
+show tables;
+Tables_in_test
+drop table if exists t6;
+create table t6 (a int primary key ,b int) engine=ndbcluster;
+insert into t6 values(1,12), (2,12);
+alter table t6 add unique key ui_t(b);
+ERROR 23000: Can't write, because of unique constraint, to table 't6'
+delete from t6;
+insert into t6 values(1,12), (2,12);
+alter table t6 add unique key ui_t(b);
+ERROR 23000: Can't write, because of unique constraint, to table 't6'
+delete from t6;
+drop table t6;

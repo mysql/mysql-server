@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -32,7 +34,7 @@ static bool print_page(int page_no)
 }
 
 int g_verbosity = 1;
-int g_page_size = File_formats::NDB_PAGE_SIZE;
+unsigned g_page_size = File_formats::NDB_PAGE_SIZE;
 int (* g_print_page)(int count, void*, Uint32 sz) = print_zero_page;
 
 File_formats::Undofile::Zero_page g_uf_zero;
@@ -66,12 +68,12 @@ int main(int argc, char ** argv)
     const char * filename = argv[i];
     
     struct stat sbuf;
-    const int res = stat(filename, &sbuf);
-    if(res != 0){
+    if(stat(filename, &sbuf) != 0)
+    {
       ndbout << "Could not find file: \"" << filename << "\"" << endl;
       continue;
     }
-    const Uint32 bytes = sbuf.st_size;
+    //const Uint32 bytes = sbuf.st_size;
     
     UtilBuffer buffer;
     
@@ -85,7 +87,7 @@ int main(int argc, char ** argv)
     Uint32 j = 0;
     do {
       buffer.grow(g_page_size);
-      sz = fread(buffer.get_data(), 1, g_page_size, f);
+      sz = (Uint32)fread(buffer.get_data(), 1, g_page_size, f);
       if((* g_print_page)(j++, buffer.get_data(), sz))
 	break;
     } while(sz == g_page_size);
@@ -182,7 +184,7 @@ operator<<(NdbOut& out, const File_formats::Datafile::Extent_header& obj)
 
 int
 print_extent_page(int count, void* ptr, Uint32 sz){
-  if(count == g_df_zero.m_extent_pages)
+  if((unsigned)count == g_df_zero.m_extent_pages)
   {
     g_print_page = print_data_page;
   }
@@ -192,8 +194,8 @@ print_extent_page(int count, void* ptr, Uint32 sz){
   
   int no = count * per_page;
   
-  const int max = count < g_df_zero.m_extent_pages ? 
-    per_page : g_df_zero.m_extent_count % per_page;
+  const int max = count < int(g_df_zero.m_extent_pages) ? 
+    per_page : g_df_zero.m_extent_count - (g_df_zero.m_extent_count - 1) * per_page;
 
   File_formats::Datafile::Extent_page * page = 
     (File_formats::Datafile::Extent_page*)ptr;
@@ -201,7 +203,7 @@ print_extent_page(int count, void* ptr, Uint32 sz){
   ndbout << "Extent page: " << count
 	 << ", lsn = [ " 
 	 << page->m_page_header.m_page_lsn_hi << " " 
-	 << page->m_page_header.m_page_lsn_lo << "]" 
+	 << page->m_page_header.m_page_lsn_lo << "] " 
 	 << endl;
   for(int i = 0; i<max; i++)
   {
@@ -250,7 +252,7 @@ print_data_page(int count, void* ptr, Uint32 sz){
 
 int
 print_undo_page(int count, void* ptr, Uint32 sz){
-  if(count > g_uf_zero.m_undo_pages + 1)
+  if(count > int(g_uf_zero.m_undo_pages + 1))
   {
     ndbout_c(" ERROR to many pages in file!!");
     return 1;
@@ -392,7 +394,7 @@ print_undo_page(int count, void* ptr, Uint32 sz){
 	    {
 	      printf("%.8x ", page->m_data[pos]);
 	      if((pos + 1) % 7 == 0)
-		ndbout_c("");
+		ndbout_c("%s", "");
 	      pos++;
 	    }
 	  }
@@ -405,12 +407,13 @@ print_undo_page(int count, void* ptr, Uint32 sz){
     }
   }
   
-  if(count == g_uf_zero.m_undo_pages + 1)
+  if((unsigned)count == g_uf_zero.m_undo_pages + 1)
   {
   }
   
   return 0;
 }
 
-// hp3750
+// Dummy implementations
 Signal::Signal(){}
+SimulatedBlock::Callback SimulatedBlock::TheEmptyCallback = {0, 0};

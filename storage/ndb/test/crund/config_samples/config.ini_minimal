@@ -1,0 +1,23 @@
+#
+# config.ini -- MySQL Cluster configuration file
+#
+
+[ndbd default]
+
+NoOfReplicas= 1
+
+[ndb_mgmd default]
+
+[mysqld default]
+
+[tcp default]
+
+[ndb_mgmd]
+HostName=127.0.0.1		# hostname or IP address (default: localhost)
+
+[ndbd]
+HostName=127.0.0.1		# hostname or IP address
+
+[mysqld]
+
+[mysqld]

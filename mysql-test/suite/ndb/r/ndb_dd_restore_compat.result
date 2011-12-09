@@ -1,0 +1,90 @@
+select * from information_schema.columns
+where table_name = "t1";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+def	test	t1	a1	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	smallint(6)	PRI		#	
+def	test	t1	a2	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			#	
+def	test	t1	a3	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			#	
+def	test	t1	a4	4	NULL	YES	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)			#	
+def	test	t1	a5	5	NULL	YES	decimal	NULL	NULL	5	1	NULL	NULL	decimal(5,1)			#	
+def	test	t1	a6	6	NULL	YES	time	NULL	NULL	NULL	NULL	NULL	NULL	time			#	
+def	test	t1	a7	7	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			#	
+def	test	t1	a8	8	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			#	
+def	test	t1	a9	9	NULL	YES	varchar	255	255	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)			#	
+def	test	t1	a10	10	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	blob			#	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` smallint(6) NOT NULL,
+  `a2` int(11) NOT NULL,
+  `a3` bigint(20) NOT NULL,
+  `a4` char(10) DEFAULT NULL,
+  `a5` decimal(5,1) DEFAULT NULL,
+  `a6` time DEFAULT NULL,
+  `a7` date DEFAULT NULL,
+  `a8` datetime DEFAULT NULL,
+  `a9` varchar(255) DEFAULT NULL,
+  `a10` blob,
+  PRIMARY KEY (`a1`)
+) /*!50100 TABLESPACE ts */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a1 Smallint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+a2 Int NOT NULL AT=FIXED ST=DISK
+a3 Bigint NOT NULL AT=FIXED ST=DISK
+a4 Char(10;latin1_swedish_ci) NULL AT=FIXED ST=DISK
+a5 Decimal(5,1) NULL AT=FIXED ST=DISK
+a6 Time NULL AT=FIXED ST=DISK
+a7 Date NULL AT=FIXED ST=DISK
+a8 Datetime NULL AT=FIXED ST=DISK
+a9 Varchar(255;latin1_swedish_ci) NULL AT=FIXED ST=DISK
+a10 Blob(256,2000,16) NULL AT=FIXED ST=DISK BV=1 BT=NDB$BLOB_#_#
+select * from t1 order by a1;
+a1	a2	a3	a4	a5	a6	a7	a8	a9	a10
+1	2	2000000001	aaa1	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb1	binary data
+2	3	2000000002	aaa2	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb2	binary data
+3	4	2000000003	aaa3	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb3	binary data
+4	5	2000000004	aaa4	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb4	binary data
+5	6	2000000005	aaa5	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb5	binary data
+ALTER TABLE t1 ADD COLUMN c int;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` smallint(6) NOT NULL,
+  `a2` int(11) NOT NULL,
+  `a3` bigint(20) NOT NULL,
+  `a4` char(10) DEFAULT NULL,
+  `a5` decimal(5,1) DEFAULT NULL,
+  `a6` time DEFAULT NULL,
+  `a7` date DEFAULT NULL,
+  `a8` datetime DEFAULT NULL,
+  `a9` varchar(255) DEFAULT NULL,
+  `a10` blob,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a1`)
+) /*!50100 TABLESPACE ts */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+FLUSH TABLES;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` smallint(6) NOT NULL,
+  `a2` int(11) NOT NULL,
+  `a3` bigint(20) NOT NULL,
+  `a4` char(10) DEFAULT NULL,
+  `a5` decimal(5,1) DEFAULT NULL,
+  `a6` time DEFAULT NULL,
+  `a7` date DEFAULT NULL,
+  `a8` datetime DEFAULT NULL,
+  `a9` varchar(255) DEFAULT NULL,
+  `a10` blob,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a1`)
+) /*!50100 TABLESPACE ts */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table t1;
+ALTER TABLESPACE ts
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+drop tablespace ts
+engine ndb;
+drop logfile group lg
+engine ndb;

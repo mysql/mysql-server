@@ -1,0 +1,5 @@
+include/master-slave.inc
+[connection master]
+Variable_name	Value
+binlog_format	MIXED
+include/rpl_end.inc

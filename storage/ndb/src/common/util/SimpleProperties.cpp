@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <SimpleProperties.hpp>
@@ -65,7 +68,7 @@ SimpleProperties::Writer::add(Uint16 key, const char * value){
   head += key;
   if(!putWord(htonl(head)))
     return false;
-  Uint32 strLen = strlen(value) + 1; // Including NULL-byte
+  Uint32 strLen = Uint32(strlen(value) + 1); // Including NULL-byte
   if(!putWord(htonl(strLen)))
     return false;
 

@@ -1,0 +1,133 @@
+-- source include/have_ndb.inc
+
+#
+# Run all the commands which should take the global schema lock
+# and thus increment the ndb_schema_locks_count variable   
+#
+--source ndb_init_schema_locks_count.inc
+CREATE DATABASE test2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+ALTER DATABASE test2 CHARACTER SET latin2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+DROP DATABASE test2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+CREATE TABLE t1(a int not null primary key) ENGINE ndb;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+RENAME TABLE t1 TO t2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+CREATE TABLE t3 LIKE t2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+ALTER TABLE t3 ADD COLUMN b int default NULL;
+--source ndb_schema_locks_count.inc
+
+# Insert a row to truncate
+INSERT INTO t2 VALUES(1);
+
+--source ndb_init_schema_locks_count.inc
+TRUNCATE TABLE t2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+CREATE TABLE t4 ENGINE=NDB AS SELECT * FROM t2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+DROP TABLE t2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+DROP TABLE t3, t4;
+--source ndb_schema_locks_count.inc
+
+
+#
+# Testing GSL behaviour combined with LOCK TABLES
+#
+# NOTE! Using LOCK TABLES should not be a way to circumvent
+# global schema locking
+#
+
+CREATE TABLE t10(a int primary key) ENGINE ndb;
+
+#
+# Database DDL with READ lock, should return error
+#
+LOCK TABLES t10 READ;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+CREATE DATABASE test2;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+ALTER DATABASE test2 CHARACTER SET latin2;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+DROP DATABASE test2;
+UNLOCK TABLES;
+
+#
+# Database DDL with WRITE lock, should return error
+#
+LOCK TABLES t10 WRITE;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+CREATE DATABASE test2;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+ALTER DATABASE test2 CHARACTER SET latin2;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+DROP DATABASE test2;
+UNLOCK TABLES;
+
+#
+# Table DDL with READ lock
+#
+LOCK TABLES t10 READ;
+# Catch 22, not possible to lock table until created
+--error ER_TABLE_NOT_LOCKED
+CREATE TABLE t1(a int not null primary key);
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+RENAME TABLE t10 TO t2;
+# Catch 22, not possible to lock table until created
+--error ER_TABLE_NOT_LOCKED
+CREATE TABLE t3 LIKE t10;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+ALTER TABLE t10 ADD COLUMN b int default NULL;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+TRUNCATE TABLE t10;
+# Catch 22, not possible to lock table until created
+--error ER_TABLE_NOT_LOCKED
+CREATE TABLE t4 AS SELECT * FROM t10;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+DROP TABLE t10;
+UNLOCK TABLES;
+
+#
+# Table DDL with WRITE lock
+#
+LOCK TABLES t10 WRITE;
+# Catch 22, not possible to lock table until created
+--error ER_TABLE_NOT_LOCKED
+CREATE TABLE t1(a int not null primary key);
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+RENAME TABLE t10 TO t2;
+# Catch 22, not possible to lock table until created
+--error ER_TABLE_NOT_LOCKED
+CREATE TABLE t3 LIKE t10;
+--source ndb_init_schema_locks_count.inc
+ALTER TABLE t10 ADD COLUMN b int default NULL;
+--source ndb_schema_locks_count.inc
+--source ndb_init_schema_locks_count.inc
+TRUNCATE TABLE t10;
+--source ndb_schema_locks_count.inc
+# Catch 22, not possible to lock table until created
+--error ER_TABLE_NOT_LOCKED
+CREATE TABLE t4 AS SELECT * FROM t10;
+DROP TABLE t10;
+UNLOCK TABLES;

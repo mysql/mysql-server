@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -10,20 +12,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_WAITER_HPP
 #define NDB_WAITER_HPP
 
 #include <ndb_global.h>
-#include <NdbOut.hpp>
-#include <NdbError.hpp>
-#include <NdbCondition.h>
-#include <NdbReceiver.hpp>
-#include <NdbOperation.hpp>
-#include <kernel/ndb_limits.h>
-
 #include <NdbTick.h>
+#include <NdbOut.hpp>
 
 enum WaitSignalType { 
   NO_WAIT           = 0,
@@ -35,6 +32,8 @@ enum WaitSignalType {
   WAIT_NDB_TAMPER   = 5,
   WAIT_SCAN         = 6,
 
+  WAIT_TRANS        = 7,
+
   // DICT stuff
   WAIT_GET_TAB_INFO_REQ = 11,
   WAIT_CREATE_TAB_REQ = 12,
@@ -42,63 +41,52 @@ enum WaitSignalType {
   WAIT_ALTER_TAB_REQ = 14,
   WAIT_CREATE_INDX_REQ = 15,
   WAIT_DROP_INDX_REQ = 16,
-  WAIT_LIST_TABLES_CONF = 17
+  WAIT_LIST_TABLES_CONF = 17,
+  WAIT_SCHEMA_TRANS = 18
 };
 
 class NdbWaiter {
 public:
-  NdbWaiter();
+  NdbWaiter(class trp_client*);
   ~NdbWaiter();
 
-  void wait(int waitTime);
-  void nodeFail(Uint32 node);
   void signal(Uint32 state);
-  void cond_signal();
-  void set_poll_owner(bool poll_owner) { m_poll_owner= poll_owner; }
-  Uint32 get_state() { return m_state; }
+  void nodeFail(Uint32 node);
+
+  void clear_wait_state() { m_state = NO_WAIT; }
+  Uint32 get_wait_state() { return m_state; }
+  void set_wait_state(Uint32 s) { m_state = s;}
+
   void set_state(Uint32 state) { m_state= state; }
   void set_node(Uint32 node) { m_node= node; }
-  Uint32 get_cond_wait_index() { return m_cond_wait_index; }
-  void set_cond_wait_index(Uint32 index) { m_cond_wait_index= index; }
+  Uint32 get_state() { return m_state; }
+private:
 
   Uint32 m_node;
   Uint32 m_state;
-  NdbMutex * m_mutex;
-  bool m_poll_owner;
-  Uint32 m_cond_wait_index;
-  struct NdbCondition * m_condition;  
+  class trp_client* m_clnt;
 };
 
-inline
-void
-NdbWaiter::wait(int waitTime)
-{
-  assert(!m_poll_owner);
-  NdbCondition_WaitTimeout(m_condition, m_mutex, waitTime);
-}
+
+#include "trp_client.hpp"
 
 inline
 void
-NdbWaiter::nodeFail(Uint32 aNodeId){
-  if (m_state != NO_WAIT && m_node == aNodeId){
+NdbWaiter::nodeFail(Uint32 aNodeId)
+{
+  if (m_state != NO_WAIT && m_node == aNodeId)
+  {
     m_state = WAIT_NODE_FAILURE;
-    if (!m_poll_owner)
-      NdbCondition_Signal(m_condition);
+    m_clnt->wakeup();
   }
 }
 
 inline
 void 
-NdbWaiter::signal(Uint32 state){
+NdbWaiter::signal(Uint32 state)
+{
   m_state = state;
-  if (!m_poll_owner)
-    NdbCondition_Signal(m_condition);
+  m_clnt->wakeup();
 }
 
-inline
-void
-NdbWaiter::cond_signal()
-{
-  NdbCondition_Signal(m_condition);
-}
 #endif

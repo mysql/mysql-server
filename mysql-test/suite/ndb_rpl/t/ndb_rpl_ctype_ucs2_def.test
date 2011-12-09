@@ -1,0 +1,44 @@
+--source include/have_ucs2.inc
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+#
+# MySQL Bug#15276: MySQL ignores collation-server
+#
+show variables like 'collation_server';
+
+#
+# Check that NDB replication doesn't explode with default charset
+# being multibyte.
+#
+# Theorised that this could be a problem when dealing with:
+# Bug #27404 util thd mysql_parse sig11 when mysqld default multibyte charset
+#
+# Sort of related to:
+# Bug#18004 Connecting crashes server when default charset is UCS2
+#
+#
+show variables like "%character_set_ser%";
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
+                    `nom` char(4) default NULL,
+                    `prenom` char(4) default NULL,
+                    PRIMARY KEY  (`nid`))
+    ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES(1,"XYZ1","ABC1");
+select * from t1 order by nid;
+
+sync_slave_with_master;
+# connect to slave and ensure data it there.
+connection slave;
+select * from t1 order by nid;
+
+--echo ==== clean up ====
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+--source include/rpl_end.inc

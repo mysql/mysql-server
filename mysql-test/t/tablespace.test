@@ -120,3 +120,4 @@ copy_file std_data/cluster_7022_table.MYI $MYSQLD_DATADIR/test/t1.MYI;
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
+

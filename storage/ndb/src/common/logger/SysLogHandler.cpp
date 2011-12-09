@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
+#ifndef _WIN32
 
 #include "SysLogHandler.hpp"
 
@@ -24,14 +28,16 @@
 SysLogHandler::SysLogHandler() :
   m_severity(LOG_INFO),
   m_pIdentity("NDB"),
-  m_facility(LOG_USER)
+  m_facility(LOG_USER),
+  m_open(false)
 {
 }
 
 SysLogHandler::SysLogHandler(const char* pIdentity, int facility) : 
   m_severity(LOG_INFO), 
   m_pIdentity(pIdentity),
-  m_facility(facility)
+  m_facility(facility),
+  m_open(false)
 {
 
 }
@@ -45,7 +51,7 @@ SysLogHandler::open()
 {
   ::setlogmask(LOG_UPTO(LOG_DEBUG)); // Log from EMERGENCY down to DEBUG
   ::openlog(m_pIdentity, LOG_PID|LOG_CONS|LOG_ODELAY, m_facility); // PID, CONSOLE delay openlog
-
+  m_open= true;
   return true;
 }
 
@@ -53,8 +59,14 @@ bool
 SysLogHandler::close()
 {
   ::closelog();
-
+  m_open= false;
   return true;
+}
+
+bool
+SysLogHandler::is_open()
+{
+  return m_open;
 }
 
 void 
@@ -156,3 +168,5 @@ SysLogHandler::setFacility(const BaseString &facility) {
   setErrorStr("Invalid syslog facility name");
   return false;
 }
+
+#endif

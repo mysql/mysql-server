@@ -1,0 +1,18 @@
+-- source include/have_ndb.inc
+
+create table t1(
+  k int not null auto_increment primary key,
+  i int,
+  j int
+) engine=ndbcluster;
+
+insert into t1(i,j) values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7);
+
+select count(*) from t1;
+begin;
+delete from t1 where k = 10000; # none existant, rbwr
+select count(*) from t1;
+commit;
+select count(*) from t1;
+
+drop table t1;

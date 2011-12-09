@@ -1,4 +1,5 @@
-/* Copyright (C) 2004 MySQL AB
+/*
+   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef CNTR_START_HPP
 #define CNTR_START_HPP
@@ -79,6 +81,35 @@ private:
   Uint32 noStartNodes;
   Uint32 startedNodes[NdbNodeBitmask::Size];
   Uint32 startingNodes[NdbNodeBitmask::Size];
+};
+
+struct CntrWaitRep
+{
+  Uint32 nodeId;
+  Uint32 waitPoint;
+  Uint32 request;
+  Uint32 sp;
+
+  enum Request
+  {
+    WaitFor = 1,
+    Grant = 2
+  };
+
+  STATIC_CONST( SignalLength = 4 );
+
+  enum WaitPos
+  {
+    ZWAITPOINT_4_1  = 1
+    ,ZWAITPOINT_4_2 = 2
+    ,ZWAITPOINT_5_1 = 3
+    ,ZWAITPOINT_5_2 = 4
+    ,ZWAITPOINT_6_1 = 5
+    ,ZWAITPOINT_6_2 = 6
+    ,ZWAITPOINT_7_1 = 7
+    ,ZWAITPOINT_7_2 = 8
+    ,ZWAITPOINT_4_2_TO = 9 // We are forced to TO (during SR)
+  };
 };
 
 #endif

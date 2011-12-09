@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2004-2006, 2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 
@@ -23,19 +26,68 @@ bool
 printSCAN_FRAGREQ(FILE * output, const Uint32 * theData, 
 		  Uint32 len, Uint16 receiverBlockNo) {
   const ScanFragReq * const sig = (ScanFragReq *)theData;
-  fprintf(output, " senderData: %x\n", sig->senderData);
-  fprintf(output, " resultRef: %x\n", sig->resultRef);
-  fprintf(output, " savePointId: %x\n", sig->savePointId);
-  fprintf(output, " requestInfo: %x\n", sig->requestInfo);
-  fprintf(output, " tableId: %x\n", sig->tableId);
-  fprintf(output, " fragmentNo: %x\n", sig->fragmentNoKeyLen & 0xFFFF);
-  fprintf(output, " keyLen: %x\n", sig->fragmentNoKeyLen >> 16);
-  fprintf(output, " schemaVersion: %x\n", sig->schemaVersion);
-  fprintf(output, " transId1: %x\n", sig->transId1);
-  fprintf(output, " transId2: %x\n", sig->transId2);
-  fprintf(output, " clientOpPtr: %x\n", sig->clientOpPtr);
-  fprintf(output, " batch_size_rows: %x\n", sig->batch_size_rows);
-  fprintf(output, " batch_size_bytes: %x\n", sig->batch_size_bytes);
+  fprintf(output, " senderData: 0x%x\n", sig->senderData);
+  fprintf(output, " resultRef: 0x%x\n", sig->resultRef);
+  fprintf(output, " savePointId: %u\n", sig->savePointId);
+
+  fprintf(output, " flags: ");
+  if (ScanFragReq::getLockMode(sig->requestInfo))
+    fprintf(output, "X");
+  if (ScanFragReq::getHoldLockFlag(sig->requestInfo))
+    fprintf(output, "h");
+  if (ScanFragReq::getKeyinfoFlag(sig->requestInfo))
+    fprintf(output, "k");
+  if (ScanFragReq::getReadCommittedFlag(sig->requestInfo))
+    fprintf(output, "d");
+  if (ScanFragReq::getRangeScanFlag(sig->requestInfo))
+    fprintf(output, "r");
+  if (ScanFragReq::getDescendingFlag(sig->requestInfo))
+    fprintf(output, "(desc)");
+  if (ScanFragReq::getTupScanFlag(sig->requestInfo))
+    fprintf(output, "t");
+  if (ScanFragReq::getNoDiskFlag(sig->requestInfo))
+    fprintf(output, "(nodisk)");
+  fprintf(output, " attrLen: %u",
+          ScanFragReq::getAttrLen(sig->requestInfo));
+  fprintf(output, " reorg: %u",
+          ScanFragReq::getReorgFlag(sig->requestInfo));
+  fprintf(output, " corr: %u",
+          ScanFragReq::getCorrFactorFlag(sig->requestInfo));
+  fprintf(output, " stat: %u",
+          ScanFragReq::getStatScanFlag(sig->requestInfo));
+  fprintf(output, "\n");
+
+  fprintf(output, " tableId: %u\n", sig->tableId);
+  fprintf(output, " fragmentNo: %u\n", sig->fragmentNoKeyLen & 0xFFFF);
+  fprintf(output, " keyLen: %u\n", sig->fragmentNoKeyLen >> 16);
+  fprintf(output, " schemaVersion: 0x%x\n", sig->schemaVersion);
+  fprintf(output, " transId1: 0x%x\n", sig->transId1);
+  fprintf(output, " transId2: 0x%x\n", sig->transId2);
+  fprintf(output, " clientOpPtr: 0x%x\n", sig->clientOpPtr);
+  fprintf(output, " batch_size_rows: %u\n", sig->batch_size_rows);
+  fprintf(output, " batch_size_bytes: %u\n", sig->batch_size_bytes);
+
+  if (ScanFragReq::getCorrFactorFlag(sig->requestInfo))
+  {
+    fprintf(output, " corrFactorLo: 0x%x\n", sig->variableData[0]);
+    fprintf(output, " corrFactorHi: 0x%x\n", sig->variableData[1]);
+  }
+
   return true;
 }
 
+bool
+printSCAN_FRAGCONF(FILE * output, const Uint32 * theData,
+                   Uint32 len, Uint16 receiverBlockNo)
+{
+  const ScanFragConf * const sig =
+    reinterpret_cast<const ScanFragConf*>(theData);
+  fprintf(output, " senderData: 0x%x\n", sig->senderData);
+  fprintf(output, " completedOps: %u\n", sig->completedOps);
+  fprintf(output, " fragmentCompleted: 0x%x\n", sig->fragmentCompleted);
+  fprintf(output, " transId1: 0x%x\n", sig->transId1);
+  fprintf(output, " transId2: 0x%x\n", sig->transId2);
+  fprintf(output, " total_len: %u\n", sig->total_len);
+
+  return true;
+}

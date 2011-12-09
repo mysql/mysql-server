@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef ACC_SCAN_HPP
 #define ACC_SCAN_HPP
@@ -70,6 +72,9 @@ private:
 
   static Uint32 getLcpScanFlag(const Uint32 & requestInfo);
   static void setLcpScanFlag(Uint32 & requestInfo, Uint32 nr);
+
+  static Uint32 getStatScanFlag(const Uint32 & requestInfo);
+  static void setStatScanFlag(Uint32 & requestInfo, Uint32 nr);
 };
 
 /**
@@ -81,10 +86,11 @@ private:
  * d = No disk scan          - 1  Bit 7
  * n = Node recovery scan    - 1  Bit 8
  * c = LCP scan              - 1  Bit 9
+ * s = Statistics scan       - 1  Bit 4
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- *   l  hzdn   
+ *   l shzdn   
  */
 #define AS_LOCK_MODE_SHIFT       (2)
 #define AS_LOCK_MODE_MASK        (1)
@@ -93,6 +99,7 @@ private:
 #define AS_NO_DISK_SCAN          (7)
 #define AS_NR_SCAN               (8)
 #define AS_LCP_SCAN              (9)
+#define AS_STAT_SCAN             (4)
 
 inline 
 Uint32
@@ -172,6 +179,19 @@ AccScanReq::setLcpScanFlag(UintR & requestInfo, UintR val){
   requestInfo |= (val << AS_LCP_SCAN);
 }
 
+inline
+Uint32
+AccScanReq::getStatScanFlag(const Uint32 & requestInfo){
+  return (requestInfo >> AS_STAT_SCAN) & 1;
+}
+
+inline
+void
+AccScanReq::setStatScanFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "AccScanReq::setStatScanScanFlag");
+  requestInfo |= (val << AS_STAT_SCAN);
+}
+
 class AccScanConf {
   /**
    * Sender(s)
@@ -202,6 +222,26 @@ private:
   Uint32 unused4;
   Uint32 unused5;
   Uint32 flag;
+};
+
+class AccScanRef {
+  friend class Dbtux;
+  friend class Dblqh;
+
+  enum ErrorCode {
+    TuxNoFreeScanOp = 909,
+    TuxIndexNotOnline = 910,
+    TuxNoFreeStatOp = 911,
+    TuxInvalidLockMode = 912
+  };
+
+public:
+  STATIC_CONST( SignalLength = 3 );
+
+private:
+  Uint32 scanPtr;
+  Uint32 accPtr;
+  Uint32 errorCode;
 };
 
 class AccCheckScan {

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUP_C
 #define DBTUP_ABORT_CPP
@@ -20,42 +22,6 @@
 #include <ndb_limits.h>
 #include <pc.hpp>
 
-void Dbtup::freeAllAttrBuffers(Operationrec*  const regOperPtr)
-{
-  if (regOperPtr->storedProcedureId == RNIL) {
-    jam();
-    freeAttrinbufrec(regOperPtr->firstAttrinbufrec);
-  } else {
-    jam();
-    StoredProcPtr storedPtr;
-    c_storedProcPool.getPtr(storedPtr, (Uint32)regOperPtr->storedProcedureId);
-    ndbrequire(storedPtr.p->storedCode == ZSCAN_PROCEDURE);
-    storedPtr.p->storedCounter--;
-    regOperPtr->storedProcedureId = ZNIL;
-  }//if
-  regOperPtr->firstAttrinbufrec = RNIL;
-  regOperPtr->lastAttrinbufrec = RNIL;
-  regOperPtr->m_any_value = 0;
-}//Dbtup::freeAllAttrBuffers()
-
-void Dbtup::freeAttrinbufrec(Uint32 anAttrBuf) 
-{
-  Uint32 Ttemp;
-  AttrbufrecPtr localAttrBufPtr;
-  Uint32 RnoFree = cnoFreeAttrbufrec;
-  localAttrBufPtr.i = anAttrBuf;
-  while (localAttrBufPtr.i != RNIL) {
-    jam();
-    ptrCheckGuard(localAttrBufPtr, cnoOfAttrbufrec, attrbufrec);
-    Ttemp = localAttrBufPtr.p->attrbuf[ZBUF_NEXT];
-    localAttrBufPtr.p->attrbuf[ZBUF_NEXT] = cfirstfreeAttrbufrec;
-    cfirstfreeAttrbufrec = localAttrBufPtr.i;
-    localAttrBufPtr.i = Ttemp;
-    RnoFree++;
-  }//if
-  cnoFreeAttrbufrec = RnoFree;
-}//Dbtup::freeAttrinbufrec()
-
 /**
  * Abort abort this operation and all after (nextActiveOp's)
  */
@@ -63,6 +29,107 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
 {
   jamEntry();
   do_tup_abortreq(signal, 0);
+}
+
+bool
+Dbtup::do_tup_abort_operation(Signal* signal,
+                              Tuple_header *tuple_ptr,
+                              Operationrec* opPtrP,
+                              Fragrecord* fragPtrP,
+                              Tablerec* tablePtrP)
+{
+  bool change = true;
+
+  Uint32 bits= tuple_ptr->m_header_bits;  
+  if (opPtrP->op_struct.op_type != ZDELETE)
+  {
+    Tuple_header *copy= get_copy_tuple(&opPtrP->m_copy_tuple_location);
+    
+    if (opPtrP->op_struct.m_disk_preallocated)
+    {
+      jam();
+      Local_key key;
+      memcpy(&key, copy->get_disk_ref_ptr(tablePtrP), sizeof(key));
+      disk_page_abort_prealloc(signal, fragPtrP, &key, key.m_page_idx);
+    }
+
+    if(! (bits & Tuple_header::ALLOC))
+    {
+      jam();
+      if(bits & Tuple_header::MM_GROWN)
+      {
+        jam();
+	if (0) ndbout_c("abort grow");
+	Ptr<Page> vpage;
+	Uint32 idx= opPtrP->m_tuple_location.m_page_idx;
+        Uint32 *var_part;
+        
+	ndbassert(! (tuple_ptr->m_header_bits & Tuple_header::COPY_TUPLE));
+	
+	Var_part_ref *ref = tuple_ptr->get_var_part_ref_ptr(tablePtrP);
+        
+        Local_key tmp; 
+        ref->copyout(&tmp);
+	
+        idx= tmp.m_page_idx;
+        var_part= get_ptr(&vpage, *ref);
+        Var_page* pageP = (Var_page*)vpage.p;
+        Uint32 len= pageP->get_entry_len(idx) & ~Var_page::CHAIN;
+
+        /*
+          A MM_GROWN tuple was relocated with a bigger size in preparation for
+          commit, so we need to shrink it back. The original size is stored in
+          the last word of the relocated (oversized) tuple.
+        */
+        ndbassert(len > 0);
+        Uint32 sz= var_part[len-1];
+        ndbassert(sz < len);
+        if (sz)
+        {
+          jam();
+          pageP->shrink_entry(idx, sz);
+          update_free_page_list(fragPtrP, vpage);
+        }
+        else
+        {
+          jam();
+          free_var_part(fragPtrP, vpage, tmp.m_page_idx);
+          tmp.m_page_no = RNIL;
+          ref->assign(&tmp);
+          bits &= ~(Uint32)Tuple_header::VAR_PART;
+        }
+        tuple_ptr->m_header_bits= bits & ~Tuple_header::MM_GROWN;
+        change = true;
+      } 
+      else if(bits & Tuple_header::MM_SHRINK)
+      {
+        jam();
+	if (0) ndbout_c("abort shrink");
+      }
+    }
+    else if (opPtrP->is_first_operation())
+    {
+      jam();
+      /**
+       * Aborting last operation that performed ALLOC
+       */
+      change = true;
+      tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
+      tuple_ptr->m_header_bits |= Tuple_header::FREED;
+    }
+  }
+  else if (opPtrP->is_first_operation())
+  {
+    jam();
+    if (bits & Tuple_header::ALLOC)
+    {
+      jam();
+      change = true;
+      tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
+      tuple_ptr->m_header_bits |= Tuple_header::FREED;
+    }
+  }
+  return change;
 }
 
 void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
@@ -80,7 +147,6 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
              (trans_state == TRANS_IDLE));
   if (regOperPtr.p->op_struct.op_type == ZREAD) {
     jam();
-    freeAllAttrBuffers(regOperPtr.p);
     initOpConnection(regOperPtr.p);
     return;
   }//if
@@ -91,111 +157,90 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   regTabPtr.i = regFragPtr.p->fragTableId;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
 
-  if (get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
-  {
-    jam();
-    if (!regTabPtr.p->tuxCustomTriggers.isEmpty() &&
-        (flags & ZSKIP_TUX_TRIGGERS) == 0)
-      executeTuxAbortTriggers(signal,
-			      regOperPtr.p,
-			      regFragPtr.p,
-			      regTabPtr.p);
-    
-    OperationrecPtr loopOpPtr;
-    loopOpPtr.i = regOperPtr.p->nextActiveOp;
-    while (loopOpPtr.i != RNIL) {
-      jam();
-      c_operation_pool.getPtr(loopOpPtr);
-      if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED &&
-	  !regTabPtr.p->tuxCustomTriggers.isEmpty() &&
-          (flags & ZSKIP_TUX_TRIGGERS) == 0) {
-        jam();
-        executeTuxAbortTriggers(signal,
-                                loopOpPtr.p,
-                                regFragPtr.p,
-                                regTabPtr.p);
-      }
-      set_tuple_state(loopOpPtr.p, TUPLE_ALREADY_ABORTED);      
-      loopOpPtr.i = loopOpPtr.p->nextActiveOp;
-    }
-  }
-
   PagePtr page;
   Tuple_header *tuple_ptr= (Tuple_header*)
     get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
 
-  Uint32 bits= tuple_ptr->m_header_bits;  
-  if(regOperPtr.p->op_struct.op_type != ZDELETE)
+  if (get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
   {
-    Tuple_header *copy= (Tuple_header*)
-      c_undo_buffer.get_ptr(&regOperPtr.p->m_copy_tuple_location);
-    
-    if(regOperPtr.p->op_struct.m_disk_preallocated)
+    jam();
+
+    /**
+     * abort all TUX entries first...if present
+     */
+    if (!regTabPtr.p->tuxCustomTriggers.isEmpty() && 
+        ! (flags & ZSKIP_TUX_TRIGGERS))
     {
       jam();
-      Local_key key;
-      memcpy(&key, copy->get_disk_ref_ptr(regTabPtr.p), sizeof(key));
-      disk_page_abort_prealloc(signal, regFragPtr.p, &key, key.m_page_idx);
-    }
-    
+      executeTuxAbortTriggers(signal,
+                              regOperPtr.p,
+                              regFragPtr.p,
+                              regTabPtr.p);
 
-    Uint32 copy_bits= copy->m_header_bits;
-    if(! (bits & Tuple_header::ALLOC))
-    {
-      if(copy_bits & Tuple_header::MM_GROWN)
+      OperationrecPtr loopOpPtr;
+      loopOpPtr.i = regOperPtr.p->nextActiveOp;
+      while (loopOpPtr.i != RNIL) 
       {
-	if (0) ndbout_c("abort grow");
-	Ptr<Page> vpage;
-	Uint32 idx= regOperPtr.p->m_tuple_location.m_page_idx;
-	Uint32 mm_vars= regTabPtr.p->m_attributes[MM].m_no_of_varsize;
-	Uint32 *var_part;
-
-	ndbassert(tuple_ptr->m_header_bits & Tuple_header::CHAINED_ROW);
-	
-	Var_part_ref *ref = tuple_ptr->get_var_part_ref_ptr(regTabPtr.p);
-
-	Local_key tmp; 
-	ref->copyout(&tmp);
-	
-	idx= tmp.m_page_idx;
-	var_part= get_ptr(&vpage, *ref);
-	Var_page* pageP = (Var_page*)vpage.p;
-	Uint32 len= pageP->get_entry_len(idx) & ~Var_page::CHAIN;
-	Uint32 sz = ((((mm_vars + 1) << 1) + (((Uint16*)var_part)[mm_vars]) + 3)>> 2);
-	ndbassert(sz <= len);
-	pageP->shrink_entry(idx, sz);
-	update_free_page_list(regFragPtr.p, vpage);
-      } 
-      else if(bits & Tuple_header::MM_SHRINK)
-      {
-	if (0) ndbout_c("abort shrink");
+        jam();
+        c_operation_pool.getPtr(loopOpPtr);
+        if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED)
+        {
+          jam();
+          executeTuxAbortTriggers(signal,
+                                  loopOpPtr.p,
+                                  regFragPtr.p,
+                                  regTabPtr.p);
+        }
+        loopOpPtr.i = loopOpPtr.p->nextActiveOp;
       }
     }
-    else if (regOperPtr.p->is_first_operation() && 
-	     regOperPtr.p->is_last_operation())
+
+    /**
+     * Then abort all data changes
+     */
     {
-      /**
-       * Aborting last operation that performed ALLOC
-       */
-      tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
-      tuple_ptr->m_header_bits |= Tuple_header::FREED;
-    }
-  }
-  else if (regOperPtr.p->is_first_operation() && 
-	   regOperPtr.p->is_last_operation())
-  {
-    if (bits & Tuple_header::ALLOC)
-    {
-      tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
-      tuple_ptr->m_header_bits |= Tuple_header::FREED;
+      bool change = do_tup_abort_operation(signal, 
+                                           tuple_ptr,
+                                           regOperPtr.p,
+                                           regFragPtr.p,
+                                           regTabPtr.p);
+      
+      OperationrecPtr loopOpPtr;
+      loopOpPtr.i = regOperPtr.p->nextActiveOp;
+      while (loopOpPtr.i != RNIL) 
+      {
+        jam();
+        c_operation_pool.getPtr(loopOpPtr);
+        if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED)
+        {
+          jam();
+          change |= do_tup_abort_operation(signal,
+                                           tuple_ptr,
+                                           loopOpPtr.p,
+                                           regFragPtr.p,
+                                           regTabPtr.p);
+          set_tuple_state(loopOpPtr.p, TUPLE_ALREADY_ABORTED);      
+        }
+        loopOpPtr.i = loopOpPtr.p->nextActiveOp;
+      }
+    
+      if (change && (regTabPtr.p->m_bits & Tablerec::TR_Checksum)) 
+      {
+        jam();
+        setChecksum(tuple_ptr, regTabPtr.p);
+      }
     }
   }
   
   if(regOperPtr.p->is_first_operation() && regOperPtr.p->is_last_operation())
   {
     if (regOperPtr.p->m_undo_buffer_space)
-      c_lgman->free_log_space(regFragPtr.p->m_logfile_group_id, 
-			      regOperPtr.p->m_undo_buffer_space);
+    {
+      jam();
+      D("Logfile_client - do_tup_abortreq");
+      Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
+      lgman.free_log_space(regOperPtr.p->m_undo_buffer_space);
+    }
   }
 
   removeActiveOpList(regOperPtr.p, tuple_ptr);
@@ -205,7 +250,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
 /* **************************************************************** */
 /* ********************** TRANSACTION ERROR MODULE **************** */
 /* **************************************************************** */
-int Dbtup::TUPKEY_abort(Signal* signal, int error_type)
+int Dbtup::TUPKEY_abort(KeyReqStruct * req_struct, int error_type)
 {
   switch(error_type) {
   case 1:
@@ -309,10 +354,10 @@ int Dbtup::TUPKEY_abort(Signal* signal, int error_type)
     break;
 
   case 39:
-    if (get_trans_state(operPtr.p) == TRANS_TOO_MUCH_AI) {
+    if (get_trans_state(req_struct->operPtrP) == TRANS_TOO_MUCH_AI) {
       jam();
       terrorCode = ZTOO_MUCH_ATTRINFO_ERROR;
-    } else if (get_trans_state(operPtr.p) == TRANS_ERROR_WAIT_TUPKEYREQ) {
+    } else if (get_trans_state(req_struct->operPtrP) == TRANS_ERROR_WAIT_TUPKEYREQ) {
       jam();
       terrorCode = ZSEIZE_ATTRINBUFREC_ERROR;
     } else {
@@ -327,23 +372,23 @@ int Dbtup::TUPKEY_abort(Signal* signal, int error_type)
     ndbrequire(false);
     break;
   }//switch
-  tupkeyErrorLab(signal);
+  tupkeyErrorLab(req_struct);
   return -1;
 }
 
-void Dbtup::early_tupkey_error(Signal* signal)
+void Dbtup::early_tupkey_error(KeyReqStruct* req_struct)
 {
-  Operationrec * const regOperPtr = operPtr.p;
+  Operationrec * const regOperPtr = req_struct->operPtrP;
   ndbrequire(!regOperPtr->op_struct.in_active_list);
   set_trans_state(regOperPtr, TRANS_IDLE);
   set_tuple_state(regOperPtr, TUPLE_PREPARED);
   initOpConnection(regOperPtr);
-  send_TUPKEYREF(signal, regOperPtr);
+  send_TUPKEYREF(req_struct->signal, regOperPtr);
 }
 
-void Dbtup::tupkeyErrorLab(Signal* signal) 
+void Dbtup::tupkeyErrorLab(KeyReqStruct* req_struct)
 {
-  Operationrec * const regOperPtr = operPtr.p;
+  Operationrec * const regOperPtr = req_struct->operPtrP;
   set_trans_state(regOperPtr, TRANS_IDLE);
   set_tuple_state(regOperPtr, TUPLE_PREPARED);
 
@@ -358,8 +403,10 @@ void Dbtup::tupkeyErrorLab(Signal* signal)
   if (regOperPtr->m_undo_buffer_space &&
       (regOperPtr->is_first_operation() && regOperPtr->is_last_operation()))
   {
-    c_lgman->free_log_space(fragPtr.p->m_logfile_group_id, 
-			    regOperPtr->m_undo_buffer_space);
+    jam();
+    D("Logfile_client - tupkeyErrorLab");
+    Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
+    lgman.free_log_space(regOperPtr->m_undo_buffer_space);
   }
 
   Uint32 *ptr = 0;
@@ -372,7 +419,7 @@ void Dbtup::tupkeyErrorLab(Signal* signal)
 
   removeActiveOpList(regOperPtr, (Tuple_header*)ptr);
   initOpConnection(regOperPtr);
-  send_TUPKEYREF(signal, regOperPtr);
+  send_TUPKEYREF(req_struct->signal, regOperPtr);
 }
 
 void Dbtup::send_TUPKEYREF(Signal* signal,
@@ -381,7 +428,8 @@ void Dbtup::send_TUPKEYREF(Signal* signal,
   TupKeyRef * const tupKeyRef = (TupKeyRef *)signal->getDataPtrSend();  
   tupKeyRef->userRef = regOperPtr->userpointer;
   tupKeyRef->errorCode = terrorCode;
-  sendSignal(DBLQH_REF, GSN_TUPKEYREF, signal, 
+  BlockReference lqhRef = calcInstanceBlockRef(DBLQH);
+  sendSignal(lqhRef, GSN_TUPKEYREF, signal, 
              TupKeyRef::SignalLength, JBB);
 }
 

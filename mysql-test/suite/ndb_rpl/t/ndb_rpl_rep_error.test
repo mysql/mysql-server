@@ -1,0 +1,86 @@
+#
+# Some negative tests of the ndb_replication table
+#
+#
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+#
+# wrong schema for the table
+#
+--disable_warnings
+--disable_query_log
+drop table if exists mysql.ndb_replication;
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+--enable_warnings
+--enable_query_log
+
+# gives warning when trying to create table as logging
+# may not be as intended
+create table t1 (a int key, X int) engine ndb;
+drop table t1;
+
+#
+# correct schema for the table
+# but other errors
+#
+--disable_warnings
+--disable_query_log
+drop table mysql.ndb_replication;
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+--enable_warnings
+--enable_query_log
+
+# Non existant conflict_fn
+# gives error when creating table
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$X(X)");
+--error 1005
+create table t1 (a int key, X int) engine ndb;
+show warnings;
+delete from mysql.ndb_replication;
+
+# Column type cannot be used for this function
+# gives warning when creating table
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
+create table t1 (a int key, X int) engine ndb;
+drop table t1;
+delete from mysql.ndb_replication;
+
+# Too few arguments
+# gives error when creating table
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX()");
+--error 1005
+create table t1 (a int key, X int) engine ndb;
+show warnings;
+delete from mysql.ndb_replication;
+
+# Too many arguments
+# gives error when creating table
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X Y)");
+--error 1005
+create table t1 (a int key, X int) engine ndb;
+show warnings;
+delete from mysql.ndb_replication;
+
+--disable_query_log
+--sync_slave_with_master
+stop slave;
+drop table mysql.ndb_replication;
+--connection master
+drop table mysql.ndb_replication;
+--enable_query_log

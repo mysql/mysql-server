@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NdbEventOperationImpl_H
 #define NdbEventOperationImpl_H
@@ -76,9 +78,6 @@ struct EventBufData
 
   EventBufData() {}
 
-  // Get blob part number from blob data
-  Uint32 get_blob_part_no() const;
-
   /*
    * Main item does not include summary of parts (space / performance
    * tradeoff).  The summary is needed when moving single data item.
@@ -142,7 +141,17 @@ public:
   };
   struct Gci_ops                // 2
   {
+    Gci_ops()
+      : m_gci(0),
+        m_consistent(true),
+        m_gci_op_list(NULL),
+        m_next(NULL),
+        m_gci_op_count(0)
+      {};
+    ~Gci_ops() {};
+
     Uint64 m_gci;
+    bool m_consistent;
     Gci_op *m_gci_op_list;
     Gci_ops *m_next;
     Uint32 m_gci_op_count;
@@ -163,7 +172,7 @@ public:
     Uint32 m_is_not_multi_list;  // 2
   };
   Gci_ops *first_gci_ops();
-  Gci_ops *next_gci_ops();
+  Gci_ops *delete_next_gci_ops();
   // case 1 above; add Gci_op to single list
   void add_gci_op(Gci_op g);
 private:
@@ -201,7 +210,7 @@ EventBufData_list::~EventBufData_list()
   {
     Gci_ops *op = first_gci_ops();
     while (op)
-      op = next_gci_ops();
+      op = delete_next_gci_ops();
   }
   DBUG_VOID_RETURN_EVENT;
 }
@@ -274,7 +283,7 @@ EventBufData_list::first_gci_ops()
 }
 
 inline EventBufData_list::Gci_ops *
-EventBufData_list::next_gci_ops()
+EventBufData_list::delete_next_gci_ops()
 {
   assert(!m_is_not_multi_list);
   Gci_ops *first = m_gci_ops_list;
@@ -323,11 +332,14 @@ struct Gci_container
 {
   enum State 
   {
-    GC_COMPLETE = 0x1 // GCI is complete, but waiting for out of order
+    GC_COMPLETE     = 0x1, // GCI is complete, but waiting for out of order
+    GC_INCONSISTENT = 0x2  // GCI might be missing event data
+    ,GC_CHANGE_CNT  = 0x4  // Change m_total_buckets
   };
+
   
-  Uint32 m_state;
-  Uint32 m_gcp_complete_rep_count; // Remaining SUB_GCP_COMPLETE_REP until done
+  Uint16 m_state;
+  Uint16 m_gcp_complete_rep_count; // Remaining SUB_GCP_COMPLETE_REP until done
   Uint64 m_gci;                    // GCI
   EventBufData_list m_data;
   EventBufData_hash m_data_hash;
@@ -359,7 +371,9 @@ public:
   NdbRecAttr *getValue(const NdbColumnImpl *, char *aValue, int n);
   NdbBlob *getBlobHandle(const char *colName, int n);
   NdbBlob *getBlobHandle(const NdbColumnImpl *, int n);
-  int readBlobParts(char* buf, NdbBlob* blob, Uint32 part, Uint32 count);
+  Uint32 get_blob_part_no(bool hasDist);
+  int readBlobParts(char* buf, NdbBlob* blob,
+                    Uint32 part, Uint32 count, Uint16* lenLoc);
   int receive_event();
   bool tableNameChanged() const;
   bool tableFrmChanged() const;
@@ -368,8 +382,9 @@ public:
   Uint64 getGCI();
   Uint32 getAnyValue() const;
   Uint64 getLatestGCI();
-  bool execSUB_TABLE_DATA(NdbApiSignal * signal, 
-                          LinearSectionPtr ptr[3]);
+  Uint64 getTransId() const;
+  bool execSUB_TABLE_DATA(const NdbApiSignal * signal,
+                          const LinearSectionPtr ptr[3]);
 
   NdbDictionary::Event::TableEvent getEventType();
 
@@ -393,6 +408,7 @@ public:
   NdbBlob* theBlobList;
   NdbEventOperationImpl* theBlobOpList; // in main op, list of blob ops
   NdbEventOperationImpl* theMainOp; // in blob op, the main op
+  int theBlobVersion; // in blob op, NDB_BLOB_V1 or NDB_BLOB_V2
 
   NdbEventOperation::State m_state; /* note connection to mi_type */
   Uint32 mi_type; /* should be == 0 if m_state != EO_EXECUTING
@@ -402,31 +418,10 @@ public:
   Uint32 m_oid;
 
   /*
-    m_node_bit_mask keeps track of which ndb nodes have reference to
-    an event op
-
-    - add    - TE_ACTIVE
-    - remove - TE_STOP, TE_NODE_FAILURE, TE_CLUSTER_FAILURE
-
-    TE_NODE_FAILURE and TE_CLUSTER_FAILURE are created as events
-    and added to all event ops listed as active or pending delete
-    in m_dropped_ev_op using insertDataL, includeing the blob
-    event ops referenced by a regular event op.
-    - NdbEventBuffer::report_node_failure
-    - NdbEventBuffer::completeClusterFailed
-
-    TE_ACTIVE is sent from the kernel on initial execute/start of the
-    event op, but is also internally generetad on node connect like
-    TE_NODE_FAILURE and TE_CLUSTER_FAILURE
-    - NdbEventBuffer::report_node_connected
-
-    when m_node_bit_mask becomes clear, the kernel reference is
-    removed from m_ref_count
-
-    node id 0 is used to denote that cluster has a reference
-   */
-
-  Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> m_node_bit_mask;
+    when parsed gci > m_stop_gci it is safe to drop operation
+    as kernel will not have any more references
+  */
+  Uint64 m_stop_gci;
 
   /*
     m_ref_count keeps track of outstanding references to an event
@@ -487,8 +482,14 @@ public:
   NdbEventBuffer(Ndb*);
   ~NdbEventBuffer();
 
-  const Uint32 &m_system_nodes;
+  Uint32 m_total_buckets;
+  Uint16 m_min_gci_index;
+  Uint16 m_max_gci_index;
+  Vector<Uint64> m_known_gci;
   Vector<Gci_container_pod> m_active_gci;
+  STATIC_CONST( ACTIVE_GCI_DIRECTORY_SIZE = 4 );
+  STATIC_CONST( ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1 );
+
   NdbEventOperation *createEventOperation(const char* eventName,
 					  NdbError &);
   NdbEventOperationImpl *createEventOperationImpl(NdbEventImpl& evnt,
@@ -507,14 +508,13 @@ public:
 
   // accessed from the "receive thread"
   int insertDataL(NdbEventOperationImpl *op,
-		  const SubTableData * const sdata,
+		  const SubTableData * const sdata, Uint32 len,
 		  LinearSectionPtr ptr[3]);
-  void execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep);
+  void execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const, Uint32 len,
+                                int complete_cluster_failure= 0);
   void complete_outof_order_gcis();
   
-  void report_node_connected(Uint32 node_id);
-  void report_node_failure(Uint32 node_id);
-  void completeClusterFailed();
+  void report_node_failure_completed(Uint32 node_id);
 
   // used by user thread 
   Uint64 getLatestGCI();
@@ -523,9 +523,12 @@ public:
   int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
   int flushIncompleteEvents(Uint64 gci);
   NdbEventOperation *nextEvent();
+  bool isConsistent(Uint64& gci);
+  bool isConsistentGCI(Uint64 gci);
+
   NdbEventOperationImpl* getGCIEventOperations(Uint32* iter,
                                                Uint32* event_types);
-  void deleteUsedEventOperations();
+  void deleteUsedEventOperations(Uint64 last_consumed_gci);
 
   NdbEventOperationImpl *move_data();
 
@@ -536,11 +539,11 @@ public:
                 Uint32 * change_sz);
   void dealloc_mem(EventBufData* data,
                    Uint32 * change_sz);
-  int copy_data(const SubTableData * const sdata,
+  int copy_data(const SubTableData * const sdata, Uint32 len,
                 LinearSectionPtr ptr[3],
                 EventBufData* data,
                 Uint32 * change_sz);
-  int merge_data(const SubTableData * const sdata,
+  int merge_data(const SubTableData * const sdata, Uint32 len,
                  LinearSectionPtr ptr[3],
                  EventBufData* data,
                  Uint32 * change_sz);
@@ -564,8 +567,15 @@ public:
 #endif
 
   Ndb *m_ndb;
-  Uint64 m_latestGCI;           // latest "handover" GCI
+
+  // "latest gci" variables updated in receiver thread
+  Uint64 m_latestGCI;           // latest GCI completed in order
   Uint64 m_latest_complete_GCI; // latest complete GCI (in case of outof order)
+  Uint64 m_highest_sub_gcp_complete_GCI; // highest gci seen in api
+  // "latest gci" variables updated in user thread
+  Uint64 m_latest_poll_GCI; // latest gci handed over to user thread
+
+  bool m_startup_hack;
 
   NdbMutex *m_mutex;
   struct NdbCondition *p_cond;
@@ -624,6 +634,30 @@ private:
 
   Uint32 m_active_op_count;
   NdbMutex *m_add_drop_mutex;
+
+  inline Gci_container* find_bucket(Uint64 gci){
+    Uint32 pos = (Uint32)(gci & ACTIVE_GCI_MASK);
+    Gci_container *bucket= ((Gci_container*)(m_active_gci.getBase())) + pos;
+    if(likely(gci == bucket->m_gci))
+      return bucket;
+
+    return find_bucket_chained(gci);
+  }
+
+#ifdef VM_TRACE
+  void verify_known_gci(bool allowempty);
+#endif
+  Gci_container* find_bucket_chained(Uint64 gci);
+  void complete_bucket(Gci_container*);
+  bool find_max_known_gci(Uint64 * res) const;
+  void resize_known_gci();
+
+  Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> m_alive_node_bit_mask;
+
+  void handle_change_nodegroup(const SubGcpCompleteRep*);
+
+public:
+  void set_total_buckets(Uint32);
 };
 
 inline

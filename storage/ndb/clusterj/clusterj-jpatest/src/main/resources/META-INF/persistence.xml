@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+-->
+<persistence version="1.0" xmlns="http://java.sun.com/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_1_0.xsd">
+  <persistence-unit name="enhance" transaction-type="RESOURCE_LOCAL">
+    <provider>org.apache.openjpa.persistence.PersistenceProviderImpl</provider>
+    <class>com.mysql.clusterj.jpatest.model.Employee</class>
+    <class>com.mysql.clusterj.jpatest.model.A</class>
+    <class>com.mysql.clusterj.jpatest.model.B0</class>
+    <class>com.mysql.clusterj.jpatest.model.BigIntegerTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.BlobTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.ClobTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.DecimalTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.Embedding</class>
+    <class>com.mysql.clusterj.jpatest.model.Embedded</class>
+    <class>com.mysql.clusterj.jpatest.model.LazyEmployee</class>
+    <class>com.mysql.clusterj.jpatest.model.LongIntStringPKOneOne</class>
+    <class>com.mysql.clusterj.jpatest.model.LongIntStringFKOneOne</class>
+    <class>com.mysql.clusterj.jpatest.model.LongLongStringPK</class>
+    <class>com.mysql.clusterj.jpatest.model.LongLongStringPKOneMany</class>
+    <class>com.mysql.clusterj.jpatest.model.LongLongStringFKManyOne</class>
+    <class>com.mysql.clusterj.jpatest.model.DateAsUtilDateTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.DateAsSqlDateTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.DatetimeAsUtilDateTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.DatetimeAsSqlTimestampTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.TimeAsUtilDateTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.TimeAsSqlTimeTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.TimestampAsUtilDateTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.TimestampAsSqlTimestampTypes</class>
+  </persistence-unit>
+</persistence>

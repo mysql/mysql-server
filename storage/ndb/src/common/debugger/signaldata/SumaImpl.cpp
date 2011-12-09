@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005-2007 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <signaldata/SumaImpl.hpp>
 
@@ -25,6 +28,7 @@ printSUB_CREATE_REQ(FILE * output, const Uint32 * theData,
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " subscriptionType: %x\n", sig->subscriptionType);
   fprintf(output, " tableId: %x\n", sig->tableId);
+  fprintf(output, " schemaTransId: %x\n", sig->schemaTransId);
   return false;
 }
 
@@ -173,10 +177,16 @@ printSUB_TABLE_DATA(FILE * output, const Uint32 * theData,
 		    Uint32 len, Uint16 receiverBlockNo) {
   const SubTableData * const sig = (SubTableData *)theData;
   fprintf(output, " senderData: %x\n", sig->senderData);
-  fprintf(output, " gci: %x\n", sig->gci);
+  fprintf(output, " gci_hi: %x\n", sig->gci_hi);
+  fprintf(output, " gci_lo: %x\n", sig->gci_lo);
   fprintf(output, " tableId: %x\n", sig->tableId);
   fprintf(output, " operation: %x\n", 
 	  SubTableData::getOperation(sig->requestInfo));
+  if (len == SubTableData::SignalLengthWithTransId)
+  {
+    fprintf(output, " TransId : %x %x\n",
+            sig->transId1, sig->transId2);
+  }
   return false;
 }
 
@@ -211,7 +221,7 @@ bool
 printSUB_GCP_COMPLETE_REP(FILE * output, const Uint32 * theData, 
 			  Uint32 len, Uint16 receiverBlockNo) {
   const SubGcpCompleteRep * const sig = (SubGcpCompleteRep *)theData;
-  fprintf(output, " gci: %x\n", sig->gci);
+  fprintf(output, " gci_hi: %x gci_lo: %x\n", sig->gci_hi, sig->gci_lo);
   return false;
 }
 

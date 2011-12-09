@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2007 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef HUGO_TRANSACTIONS_HPP
 #define HUGO_TRANSACTIONS_HPP
@@ -64,8 +67,14 @@ public:
   int pkReadRecords(Ndb*, 
 		    int records,
 		    int batchsize = 1,
-		    NdbOperation::LockMode = NdbOperation::LM_Read);
+		    NdbOperation::LockMode = NdbOperation::LM_Read,
+                    int rand = 0);
   
+  int pkReadUnlockRecords(Ndb*,
+                          int records,
+                          int batchsize = 1,
+                          NdbOperation::LockMode = NdbOperation::LM_Read);
+
   int scanUpdateRecords(Ndb*, NdbScanOperation::ScanFlag, 
 			int records,
 			int abort = 0,
@@ -101,6 +110,9 @@ public:
 		   int batch = 1,
 		   bool allowConstraintViolation = true,
 		   int doSleep = 0);
+
+  int pkRefreshRecords(Ndb*, int startFrom, int count = 1, int batch = 1);
+
   int lockRecords(Ndb*,
 		  int records,
 		  int percentToLock = 1,
@@ -126,7 +138,7 @@ public:
 
   void setRetryMax(int retryMax = 100) { m_retryMax = retryMax; }
   
-  Uint32 m_latest_gci;
+  Uint64 m_latest_gci;
 
   void setStatsLatency(NDBT_Stats* stats) { m_stats_latency = stats; }
 
