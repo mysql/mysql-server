@@ -16,7 +16,7 @@
 -- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 -- 02110-1301  USA
 
--- Configuration version 1.0
+-- Configuration version 1.2
 
 
 CREATE SCHEMA IF NOT EXISTS `ndbmemcache` DEFAULT CHARACTER SET latin1 ;
@@ -130,7 +130,8 @@ CREATE  TABLE IF NOT EXISTS `containers` (
   `flags` VARCHAR(250) NOT NULL DEFAULT "0",
   `increment_column` VARCHAR(250),
   `cas_column` VARCHAR(250),
-  `expire_time_column` VARCHAR(250)
+  `expire_time_column` VARCHAR(250),
+  `large_values_table` VARCHAR(250) 
 ) ENGINE = ndbcluster;
 
 
@@ -179,14 +180,47 @@ CREATE TABLE IF NOT EXISTS `demo_table` (
   `mkey` VARCHAR(250) NOT NULL ,
   `math_value` BIGINT UNSIGNED,
   `cas_value` BIGINT UNSIGNED, 
-  `string_value` VARCHAR(13500),
+  `string_value` VARBINARY(13500),
   PRIMARY KEY USING HASH (mkey)
 ) ENGINE = ndbcluster;
 
 -- ------------------------------------------------------------------------
--- Table`demo_table_tabs`
+-- Table `demo_table_large`
+--
+-- A table demonstrating externalized large values.
+-- Use with key prefix "b:"
+--
+-- ------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `demo_table_large` (
+  `mkey` VARCHAR(250) NOT NULL,
+  `cas_value` BIGINT UNSIGNED,
+  `string_value` VARBINARY(2000), 
+  `ext_id` INT UNSIGNED,
+  `ext_size` INT UNSIGNED,
+  PRIMARY KEY USING HASH (mkey)
+) ENGINE = ndbcluster;
+
+-- ------------------------------------------------------------------------
+-- Table `external_values` 
+--
+-- Used with demo_table_large to store large values 
+--
+-- ------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `external_values` (
+  `id` INT UNSIGNED AUTO_INCREMENT NOT NULL,
+  `part` SMALLINT NOT NULL,
+  `content` VARBINARY(13950) NOT NULL,
+  PRIMARY KEY (id,part)
+ ) ENGINE = ndbcluster;
+
+
+-- ------------------------------------------------------------------------
+-- Table `demo_table_tabs`
 --
 -- A table demonstrating three value columns and tab-separated output.
+-- Use with key prefix "t:"
 --
 -- ------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `demo_table_tabs` (
@@ -196,13 +230,16 @@ CREATE TABLE IF NOT EXISTS `demo_table_tabs` (
   `val3` INT
 ) ENGINE = ndbcluster;
 
+
+
+
 -- -----------------------------------------------------
 -- Default entries for all tables 
 -- -----------------------------------------------------
 
 -- meta table
 -- Create an entry for ndbmemcache metadata v1
-INSERT INTO meta VALUES ("ndbmemcache", "1.1");
+INSERT INTO meta VALUES ("ndbmemcache", "1.2");
 
 -- memcache_server_roles table
 -- Create an entry for the default role and example roles.
@@ -232,10 +269,17 @@ UPDATE cache_policies set flush_from_db = "true" where policy_name = "ndb-test";
 INSERT INTO containers 
   SET name = "demo_table", db_schema = "ndbmemcache", db_table = "demo_table",
       key_columns = "mkey", value_columns = "string_value", 
-      increment_column = "math_value", cas_column = "cas_value";         
+      increment_column = "math_value", cas_column = "cas_value";
+
 INSERT INTO containers 
   SET name = "demo_tabs", db_schema = "ndbmemcache", db_table = "demo_table_tabs",
       key_columns = "mkey", value_columns = "val1,val2,val3";
+
+INSERT INTO containers
+  SET name = "demo_ext", db_schema = "ndbmemcache", db_table = "demo_table_large",
+      key_columns = "mkey", value_columns = "string_value", 
+      cas_column = "cas_value", 
+      large_values_table = "ndbmemcache.external_values";
 
 -- key_prefixes table
 INSERT INTO key_prefixes (server_role_id, key_prefix, cluster_id, 
@@ -243,13 +287,17 @@ INSERT INTO key_prefixes (server_role_id, key_prefix, cluster_id,
   VALUES (0, "",    0, "ndb-test", "demo_table"),
          (0, "mc:", 0, "memcache-only", NULL),
          (0, "t:",  0, "ndb-test", "demo_tabs"),    /* default role */
+         (0, "b:",  0, "ndb-test", "demo_ext"),
 
          (1, "",    0, "ndb-only", "demo_table"),
          (1, "t:",  0, "ndb-only", "demo_tabs"),    /* db-only role */
+         (1, "b:",  0, "ndb-only", "demo_ext"),
 
          (2, "",    0, "memcache-only", NULL),      /* mc-only role */
 
-         (3, "",    0, "caching", "demo_table")     /* ndb-caching role */
+         (3, "",    0, "caching", "demo_table"),    /* ndb-caching role */
+         (3, "t:",  0, "caching", "demo_tabs"),
+         (3, "b:",  0, "caching", "demo_ext")
 ;
 
 
