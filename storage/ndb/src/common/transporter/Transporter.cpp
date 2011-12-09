@@ -44,8 +44,6 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     isServer(lNodeId==serverNodeId),
     m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
     m_overload_limit(0xFFFFFFFF), isMgmConnection(_isMgmConnection),
-    m_connection_refused_counter(0),
-    m_connect_block_end(0),
     m_connected(false),
     m_type(_type),
     m_transporter_registry(t_reg)
@@ -228,7 +226,6 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   {
     DBUG_PRINT("error", ("Failed to read reply"));
     NDB_CLOSE_SOCKET(sockfd);
-    connection_refused();
     DBUG_RETURN(false);
   }
 
@@ -244,16 +241,9 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
     break;
   default:
     DBUG_PRINT("error", ("Failed to parse reply"));
-    connection_refused();
     NDB_CLOSE_SOCKET(sockfd);
     DBUG_RETURN(false);
   }
-
-  /*
-     At this point the server has accepted the connection
-     and any connection block should be reset
-   */
-  reset_connection_block();
 
   DBUG_PRINT("info", ("nodeId=%d remote_transporter_type=%d",
 		      nodeId, remote_transporter_type));
@@ -300,49 +290,3 @@ Transporter::doDisconnect() {
   disconnectImpl();
 }
 
-static const Uint32 MAX_BLOCK_TIME = 10; // seconds
-static const Uint32 MIN_CONNECTIONS_REFUSED = 3;
-
-void
-Transporter::connection_refused()
-{
-  m_connection_refused_counter++;
-
-  if (m_connection_refused_counter < MIN_CONNECTIONS_REFUSED)
-    return; // Not blocked yet
-
-#if 0
-  if (m_connect_block_end == 0)
-    g_eventLogger->debug("Connection to %d blocked", remoteNodeId);
-#endif
-
-  // Calculate time when block should expire, limit to MAX_BLOCK_TIME
-  m_connect_block_end = NdbTick_CurrentMillisecond() +
-    min(MAX_BLOCK_TIME,
-        m_connection_refused_counter - MIN_CONNECTIONS_REFUSED) * 1000;
-}
-
-void
-Transporter::reset_connection_block()
-{
-  m_connection_refused_counter = 0;
-  m_connect_block_end = 0;
-}
-
-bool
-Transporter::is_connect_blocked(void)
-{
-  if (m_connect_block_end == 0)
-    return false;
-
-  if (NdbTick_CurrentMillisecond() > m_connect_block_end)
-  {
-#if 0
-    g_eventLogger->debug("Connection to %d unblocked", remoteNodeId);
-#endif
-    m_connect_block_end = 0;
-    return false;
-  }
-
-  return true; // Blocked
-}
