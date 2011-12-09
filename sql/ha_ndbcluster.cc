@@ -2186,7 +2186,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
       Field* field= table->field[f]; // Use Field struct from MySQLD table rep
       const NdbDictionary::Column* ndbCol= ndbtab->getColumn(field->field_index); 
       bool isTimeStampWithAutoValue = ((field->type() == MYSQL_TYPE_TIMESTAMP) &&
-                                       (field->table->timestamp_field == field));
+                                       (field->table->get_timestamp_field() == field));
 
       if ((! (field->flags & (PRI_KEY_FLAG |
                               NO_DEFAULT_VALUE_FLAG))) &&
@@ -5046,7 +5046,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 
   ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
 
   /*
      Setup OperationOptions
@@ -5602,8 +5602,8 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
   {
-    table->timestamp_field->set_time();
-    bitmap_set_bit(table->write_set, table->timestamp_field->field_index);
+    table->get_timestamp_field()->set_time();
+    bitmap_set_bit(table->write_set, table->get_timestamp_field()->field_index);
   }
 
   bool skip_partition_for_unique_index= FALSE;
@@ -8596,7 +8596,7 @@ static int create_ndb_column(THD *thd,
     {
       /* Ndb does not support auto-set Timestamp default values natively */
       bool isTimeStampWithAutoValue = ((mysql_type == MYSQL_TYPE_TIMESTAMP) &&
-                                       (field->table->timestamp_field == field));
+                                       (field->table->get_timestamp_field() == field));
 
       if ((!(field->flags & PRI_KEY_FLAG) ) &&
           type_supports_default_value(mysql_type) &&
