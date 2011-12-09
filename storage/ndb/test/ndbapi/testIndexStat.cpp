@@ -29,15 +29,6 @@
 #define min(a, b) ((a) <= (b) ? (a) : (b))
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 
-inline NdbOut&
-NdbOut::operator<<(double x)
-{
-  char buf[100];
-  sprintf(buf, "%.2f", x);
-  *this << buf;
-  return *this;
-}
-
 struct Opts {
   int loglevel;
   uint seed;
