@@ -649,7 +649,9 @@ int Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
   {
     if ((*a)->is_temporal() && (*b)->is_temporal())
     {
-      func= &Arg_comparator::compare_temporal_packed;
+      func= is_owner_equal_func() ?
+            &Arg_comparator::compare_e_time_packed :
+            &Arg_comparator::compare_time_packed;
     }
     else if (func == &Arg_comparator::compare_int_signed)
     {
@@ -933,8 +935,7 @@ get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
     TS-TODO: perhaps such cases should be evaluated without
     calling get_time_value at all.
 
-    See a similar comment in Arg_comparator::compare_temporal_packed,
-    for DATETIME comparison.
+    See a similar comment in Arg_comparator::compare_time_packed.
   */
   value= item->val_time_temporal();
   *is_null= item->null_value;
@@ -1549,7 +1550,7 @@ int Arg_comparator::compare_int_signed()
 /**
   Compare arguments using numeric packed temporal representation.
 */
-int Arg_comparator::compare_temporal_packed()
+int Arg_comparator::compare_time_packed()
 {
   /*
     Note, we cannot do this:
@@ -1585,6 +1586,20 @@ int Arg_comparator::compare_temporal_packed()
     owner->null_value= 1;
   return -1;
 }
+
+
+/**
+  Compare arguments using numeric packed representation for '<=>'.
+*/
+int Arg_comparator::compare_e_time_packed()
+{
+  longlong val1= (*a)->val_time_temporal();
+  longlong val2= (*b)->val_time_temporal();
+  if ((*a)->null_value || (*b)->null_value)
+    return test((*a)->null_value && (*b)->null_value);
+  return test(val1 == val2);
+}
+
 
 
 /**

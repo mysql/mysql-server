@@ -91,7 +91,8 @@ public:
   int compare_int_signed_unsigned();
   int compare_int_unsigned_signed();
   int compare_int_unsigned();
-  int compare_temporal_packed();
+  int compare_time_packed();
+  int compare_e_time_packed();
   int compare_row();             // compare args[0] & args[1]
   int compare_e_string();	 // compare args[0] & args[1]
   int compare_e_binary_string(); // compare args[0] & args[1]

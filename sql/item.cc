@@ -7114,9 +7114,10 @@ void Item_ref::cleanup()
   Transform an Item_ref object with a transformer callback function.
 
   The function first applies the transform function to the item
-  referenced by this Item_ref object. If this returns a new item the
-  old 'ref' item is substituted by the new one. After this the transformer
-  is applied to the Item_ref object.
+  referenced by this Item_ref object. If this replaces the item with a
+  new one, this item object is returned as the result of the
+  transform. Otherwise the transform function is applied to the
+  Item_ref object itself.
 
   @param transformer   the transformer callback function to be applied to
                        the nodes of the tree of the object
@@ -7138,11 +7139,11 @@ Item* Item_ref::transform(Item_transformer transformer, uchar *arg)
     return NULL;
 
   /*
-    Record the new item in the 'ref' pointer, in a manner safe for 
-    prepared execution.
+    If the object is transformed into a new object, discard the Item_ref
+    object and return the new object as result.
   */
-  if (*ref != new_item)
-    current_thd->change_item_tree(ref, new_item);
+  if (new_item != *ref)
+    return new_item;
 
   /* Transform the item ref object. */
   Item *transformed_item= (this->*transformer)(arg);
@@ -7156,10 +7157,10 @@ Item* Item_ref::transform(Item_transformer transformer, uchar *arg)
   callback function.
 
   First the function applies the analyzer to the Item_ref
-  object. Second it applies the compile method to the object the
-  Item_ref object is referencing. If a new item is returned the old
-  item is substituted by the new one. After this the transformer is
-  applied to the Item_ref object itself.
+  object. Second it applies the compile function to the object the
+  Item_ref object is referencing. If this replaces the item with a new
+  one, this object is returned as the result of the compile.
+  Otherwise we apply the transformer to the Item_ref object itself.
 
   @param analyzer      the analyzer callback function to be applied to the
                        nodes of the tree of the object
@@ -7179,8 +7180,15 @@ Item* Item_ref::compile(Item_analyzer analyzer, uchar **arg_p,
 
   DBUG_ASSERT((*ref) != NULL);
   Item *new_item= (*ref)->compile(analyzer, arg_p, transformer, arg_t);
-  if (new_item && *ref != new_item)
-    current_thd->change_item_tree(ref, new_item);
+  if (!new_item)
+    return NULL;
+
+  /*
+    If the object is compiled into a new object, discard the Item_ref
+    object and return the new object as result.
+  */
+  if (new_item != *ref)
+    return new_item;
   
   return (this->*transformer)(arg_t);
 }
@@ -8713,8 +8721,8 @@ my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val)
 
 int Item_cache_str::save_in_field(Field *field, bool no_conversions)
 {
-  if (!has_value())
-    return 0;
+  if (!value_cached && !cache_value())
+    return -1;                      // Fatal: couldn't cache the value
   int res= Item_cache::save_in_field(field, no_conversions);
   return (is_varbinary && field->type() == MYSQL_TYPE_STRING &&
           value->length() < field->field_length) ? 1 : res;
