@@ -1248,6 +1248,17 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   List_item *values;
   DBUG_ENTER("mysql_test_insert");
 
+  /*
+    Since INSERT DELAYED doesn't support temporary tables, we could
+    not pre-open temporary tables for SQLCOM_INSERT / SQLCOM_REPLACE.
+    Open them here instead.
+  */
+  if (table_list->lock_type != TL_WRITE_DELAYED)
+  {
+    if (open_temporary_tables(thd, table_list))
+      goto error;
+  }
+
   if (insert_precheck(thd, table_list))
     goto error;
 
