@@ -18,4 +18,3 @@ loose-innodb_data_file_path=      ibdata1:10M:autoextend
 slave-net-timeout=120
 
 log-bin=mysqld-bin
-ndb-index-stat-enable=0
