@@ -3173,6 +3173,7 @@ bool setup_sj_materialization_part1(JOIN_TAB *sjm_tab)
                                      HA_POS_ERROR /*rows_limit */, 
                                      (char*)"sj-materialize")))
     DBUG_RETURN(TRUE); /* purecov: inspected */
+  sjm->table->map=  emb_sj_nest->nested_join->used_tables;
   sjm->table->file->extra(HA_EXTRA_WRITE_CACHE);
   sjm->table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
 

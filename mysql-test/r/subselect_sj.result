@@ -2094,4 +2094,28 @@ a
 5
 set optimizer_switch= @tmp_otimizer_switch;
 DROP TABLE t1,t2,t3;
+#
+# Bug #901312: materialized semijoin + right join
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (4), (1);
+CREATE TABLE t2 (b int);
+INSERT INTO t2 VALUES (4), (1);
+CREATE TABLE t3 (c int);
+INSERT INTO t3 VALUES (4), (1);
+set @tmp_otimizer_switch= @@optimizer_switch;
+SET SESSION optimizer_switch='semijoin=on,materialization=on';
+EXPLAIN
+SELECT * FROM t1 RIGHT JOIN t2 ON b = a WHERE t2.b IN (SELECT c FROM t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t1 RIGHT JOIN t2 ON b = a WHERE t2.b IN (SELECT c FROM t3);
+a	b
+4	4
+1	1
+set optimizer_switch= @tmp_otimizer_switch;
+DROP TABLE t1,t2,t3;
 set optimizer_switch=@subselect_sj_tmp;
