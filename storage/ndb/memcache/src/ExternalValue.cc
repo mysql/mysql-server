@@ -370,6 +370,8 @@ bool ExternalValue::update() {
   /* If the new value is long, create parts */
   if(shouldExternalize(new_hdr.length))
     insertParts();
+
+  return true;
 }
 
 
@@ -463,7 +465,7 @@ bool ExternalValue::insertParts(int offset, int nparts, char * val, size_t val_l
   if(key_buffer == 0 || row_buffer == 0) 
     return false;
   
-  int this_part_size = part_size;
+  size_t this_part_size = part_size;
   for(int i = 0 ; i < nparts ; i++) {
     if(i == (nparts - 1)) 
       this_part_size = val_length % part_size;

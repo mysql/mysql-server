@@ -142,6 +142,7 @@ bool Record::complete(NdbDictionary::Dictionary *dict,
     return false;
   }
   assert(NdbDictionary::getRecordRowLength(ndb_record) == rec_size);
+  debug_dump();
   return true;
 }
 
@@ -241,7 +242,8 @@ void Record::setNull(int id, char *data, Uint8 *mask) const {
   if(idx == -1) 
     return;
   maskActive(id, mask);
-  nullmapSetNull(idx, data);
+  if(specs[idx].column->getNullable())
+    nullmapSetNull(idx, data);
 }
 
 
@@ -250,7 +252,8 @@ void Record::setNotNull(int id, char *data, Uint8 *mask) const {
   if(idx == -1) 
     return;
   maskActive(id, mask);
-  nullmapSetNull(idx, data);
+  if(specs[idx].column->getNullable())
+    nullmapSetNull(idx, data);
 }
 
 
@@ -276,7 +279,8 @@ bool Record::setIntValue(int id, int value, char *data, Uint8 *mask) const {
   if(idx == -1) 
     return true;
   maskActive(id, mask);
-  nullmapSetNotNull(idx, data);
+  if(specs[idx].column->getNullable())
+    nullmapSetNotNull(idx, data);
 
   NumericHandler * h = handlers[idx]->native_handler;
   char * buffer = data + specs[idx].offset;
@@ -312,7 +316,8 @@ bool Record::setUint64Value(int id, Uint64 value, char *data, Uint8 *mask) const
   if(idx == -1) 
     return true;
   maskActive(id, mask);
-  nullmapSetNotNull(idx, data);
+  if(specs[idx].column->getNullable())
+    nullmapSetNotNull(idx, data);
   char * buffer = data + specs[idx].offset;
 
   if(specs[idx].column->getType() != NdbDictionary::Column::Bigunsigned) {
@@ -332,7 +337,8 @@ int Record::encode(int id, const char *key, int nkey,
   if(idx == -1) 
     return 0;
   maskActive(id, mask);
-  nullmapSetNotNull(idx, buffer);
+  if(specs[idx].column->getNullable())
+    nullmapSetNotNull(idx, buffer);
   return handlers[idx]->writeToNdb(specs[idx].column, nkey, key, 
                                    buffer + specs[idx].offset);
 }
@@ -373,11 +379,16 @@ void Record::pad_offset_for_alignment() {
 
 
 void Record::debug_dump() {
+  DEBUG_PRINT("---------- Record ------------------");
+  DEBUG_PRINT("Record size: %d", rec_size);
+  DEBUG_PRINT("Nullmap start:   %d  Nullmap size:  %d", start_of_nullmap, 
+              size_of_nullmap);
   for(int i = 0 ; i < ncolumns ; i++) {
-    DEBUG_PRINT("Col %d column  : %s %d/%d", i, specs[i].column->getName()
+    DEBUG_PRINT(" Col %d column  : %s %d/%d", i, specs[i].column->getName()
                 , specs[i].column->getSize(), specs[i].column->getSizeInBytes());
-    DEBUG_PRINT("Col %d offset  : %d", i, specs[i].offset);
-    DEBUG_PRINT("Col %d null bit: %d.%d", i,
+    DEBUG_PRINT(" Col %d offset  : %d", i, specs[i].offset);
+    DEBUG_PRINT(" Col %d null bit: %d.%d", i,
                 specs[i].nullbit_byte_offset, specs[i].nullbit_bit_in_byte);
   }
+  DEBUG_PRINT("-------------------------------------");
 }
