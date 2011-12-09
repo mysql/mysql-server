@@ -121,12 +121,6 @@ toku_create_new_brtnode (
         NULL);
 }
 
-//
-// The intent of toku_pin_brtnode(_holding_lock) is to abstract the process of retrieving a node from
-// the rest of brt.c, so that there is only one place where we need to worry applying ancestor
-// messages to a leaf node. The idea is for all of brt.c (search, splits, merges, flushes, etc)
-// to access a node via toku_pin_brtnode(_holding_lock)
-//
 int
 toku_pin_brtnode(
     BRT brt,
@@ -170,7 +164,6 @@ toku_pin_brtnode(
     return r;
 }
 
-// see comments for toku_pin_brtnode
 void
 toku_pin_brtnode_holding_lock(
     BRT brt,
@@ -280,7 +273,6 @@ checkpoint_nodes(struct brt_header* h,
 
 void
 toku_unpin_brtnode_off_client_thread(struct brt_header* h, BRTNODE node)
-// Effect: Unpin a brt node.
 {
     int r = toku_cachetable_unpin(
         h->cf,
@@ -294,7 +286,6 @@ toku_unpin_brtnode_off_client_thread(struct brt_header* h, BRTNODE node)
 
 void
 toku_unpin_brtnode(BRT brt, BRTNODE node)
-// Effect: Unpin a brt node.
 {
     // printf("%*sUnpin %ld\n", 8-node->height, "", node->thisnodename.b);
     VERIFY_NODE(brt,node);

@@ -11,6 +11,9 @@
 
 C_BEGIN
 
+/**
+ *
+ */
 void
 cachetable_put_empty_node_with_dep_nodes(
     struct brt_header* h,
@@ -21,6 +24,9 @@ cachetable_put_empty_node_with_dep_nodes(
     BRTNODE* result
     );
 
+/**
+ *
+ */
 void
 create_new_brtnode_with_dep_nodes(
     struct brt_header* h,
@@ -31,6 +37,9 @@ create_new_brtnode_with_dep_nodes(
     BRTNODE* dependent_nodes
     );
 
+/**
+ *
+ */
 void
 toku_create_new_brtnode (
     BRT t,
@@ -39,17 +48,9 @@ toku_create_new_brtnode (
     int n_children
     );
 
-void
-toku_pin_brtnode_off_client_thread(
-    struct brt_header* h,
-    BLOCKNUM blocknum,
-    u_int32_t fullhash,
-    BRTNODE_FETCH_EXTRA bfe,
-    u_int32_t num_dependent_nodes,
-    BRTNODE* dependent_nodes,
-    BRTNODE *node_p
-    );
-
+/**
+ *
+ */
 void
 checkpoint_nodes(
     struct brt_header* h,
@@ -57,6 +58,13 @@ checkpoint_nodes(
     BRTNODE* dependent_nodes
     );
 
+/**
+ * The intent of toku_pin_brtnode(_holding_lock) is to abstract the
+ * process of retrieving a node from the rest of brt.c, so that there is
+ * only one place where we need to worry applying ancestor messages to a
+ * leaf node. The idea is for all of brt.c (search, splits, merges,
+ * flushes, etc) to access a node via toku_pin_brtnode(_holding_lock)
+ */
 int
 toku_pin_brtnode(
     BRT brt,
@@ -70,6 +78,9 @@ toku_pin_brtnode(
     BRTNODE *node_p
     ) __attribute__((__warn_unused_result__));
 
+/**
+ * see comments for toku_pin_brtnode
+ */
 void
 toku_pin_brtnode_holding_lock(
     BRT brt,
@@ -82,9 +93,29 @@ toku_pin_brtnode_holding_lock(
     BRTNODE *node_p
     );
 
+/**
+ *
+ */
+void
+toku_pin_brtnode_off_client_thread(
+    struct brt_header* h,
+    BLOCKNUM blocknum,
+    u_int32_t fullhash,
+    BRTNODE_FETCH_EXTRA bfe,
+    u_int32_t num_dependent_nodes,
+    BRTNODE* dependent_nodes,
+    BRTNODE *node_p
+    );
+
+/**
+ * Effect: Unpin a brt node.
+ */
 void
 toku_unpin_brtnode_off_client_thread(struct brt_header* h, BRTNODE node);
 
+/**
+ * Effect: Unpin a brt node.
+ */
 void
 toku_unpin_brtnode(BRT brt, BRTNODE node);
 
