@@ -2536,7 +2536,7 @@ NdbBlob::prepareColumn()
   }
   // these buffers are always used
   theKeyBuf.alloc(theTable->m_keyLenInWords << 2);
-  thePackKeyBuf.alloc(max(theTable->m_keyLenInWords, theAccessTable->m_keyLenInWords) << 2);
+  thePackKeyBuf.alloc(MAX(theTable->m_keyLenInWords, theAccessTable->m_keyLenInWords) << 2);
   theHeadInlineBuf.alloc(getHeadInlineSize());
   theInlineData = theHeadInlineBuf.data + theHeadSize;
   // no length bytes
