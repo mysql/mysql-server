@@ -97,7 +97,7 @@ private:
   bool startTransaction(Operation &);
   void readStoredCas(Operation &);
 
-  void warnCorruption(NdbTransaction *) const;
+  void warnCorruption() const;
   void build_hash_item() const;
   void setMiscColumns(Operation &) const;
   void setValueColumns(Operation &) const;

@@ -711,7 +711,7 @@ void ExternalValue::append() {
 }
 
 
-void ExternalValue::warnCorruption(NdbTransaction *tx) const {
+void ExternalValue::warnCorruption() const {
   logger->log(LOG_WARNING, 0, "Detected corruption in external long value:\n"
               " -- Table %s, ext_id %d.\n"
               " -- Memcache Key: %.*s\n"
@@ -813,7 +813,7 @@ void callback_ext_parts_read(int, NdbTransaction *tx, void *itemptr) {
   }
   else {
     /* should do this on 626 */
-    wqitem->ext_val->warnCorruption(tx);
+    wqitem->ext_val->warnCorruption();
     wqitem->status = & status_block_misc_error;
   }
   
