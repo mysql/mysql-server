@@ -560,7 +560,7 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
     DBUG_RETURN(1);
   else if (status == Group_cache::APPEND_NEW_GROUP)
   {
-    Gtid_log_event gtid_ev(thd);
+    Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache());
     if (gtid_ev.write(cache) != 0)
       DBUG_RETURN(1);
   }
@@ -604,7 +604,8 @@ int gtid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
     DBUG_ASSERT(group_cache->get_n_groups() == 1);
     Cached_group *cached_group= group_cache->get_unsafe_pointer(0);
     DBUG_ASSERT(cached_group->spec.type != AUTOMATIC_GROUP);
-    Gtid_log_event gtid_ev(thd, &cached_group->spec);
+    Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache(),
+                           &cached_group->spec);
     my_off_t saved_position= cache_data->get_byte_position();
     IO_CACHE *cache_log= &cache_data->cache_log;
     my_b_seek(cache_log, 0);
@@ -2119,8 +2120,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
           global_sid_lock.wrlock();
         else
           global_sid_lock.assert_some_wrlock();
-        Previous_gtids_log_event prev_gtids_ev(current_thd,
-                                               previous_gtid_set);
+        Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
         if (need_sid_lock)
           global_sid_lock.unlock();
         if (prev_gtids_ev.write(&log_file))

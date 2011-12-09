@@ -671,16 +671,8 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   crc(0), thd(thd_arg),
   checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
-  if (thd)
-  {
-    server_id= thd->server_id;
-    when= thd->start_time;
-  }
-  else
-  {
-    server_id= ::server_id;
-    when= 0;
-  }
+  server_id= thd->server_id;
+  when= thd->start_time;
 }
 
 /**
@@ -11594,9 +11586,11 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 }
 
 #ifndef MYSQL_CLIENT
-Gtid_log_event::Gtid_log_event(THD *thd_arg, const Gtid_specification *spec_arg)
+Gtid_log_event::Gtid_log_event(THD *thd_arg, bool using_trans,
+                               const Gtid_specification *spec_arg)
 : Log_event(thd_arg, spec_arg->type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
+            using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
             Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *, const Gtid_specification *)");
@@ -11608,9 +11602,10 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, const Gtid_specification *spec_arg)
   DBUG_VOID_RETURN;
 }
 
-Gtid_log_event::Gtid_log_event(THD* thd_arg)
+Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans)
 : Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
+            using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
             Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *)");
@@ -11713,7 +11708,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
 Previous_gtids_log_event::Previous_gtids_log_event(
   const char *buffer, uint event_len,
   const Format_description_log_event *descr_event)
-  : Ignorable_log_event(buffer, descr_event)
+  : Log_event(buffer, descr_event)
 {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
   uint8 const common_header_len=
@@ -11731,9 +11726,9 @@ Previous_gtids_log_event::Previous_gtids_log_event(
 }
 
 #ifndef MYSQL_CLIENT
-Previous_gtids_log_event::Previous_gtids_log_event(THD* thd_arg,
-                                                   const Gtid_set *set)
-: Ignorable_log_event(thd_arg)
+Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
+: Log_event(Log_event::EVENT_NO_CACHE,
+            Log_event::EVENT_IMMEDIATE_LOGGING)
 {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event(THD *, const Gtid_set *)");
   global_sid_lock.assert_some_lock();

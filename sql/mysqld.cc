@@ -5042,8 +5042,7 @@ int mysqld_main(int argc, char **argv)
         /Alfranio
       */
       global_sid_lock.rdlock();
-      Previous_gtids_log_event prev_gtids_ev(current_thd,
-                                             gtid_state.get_logged_gtids());
+      Previous_gtids_log_event prev_gtids_ev(gtid_state.get_logged_gtids());
       global_sid_lock.unlock();
       if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
         unireg_abort(1);

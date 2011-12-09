@@ -4551,9 +4551,10 @@ class Gtid_log_event : public Log_event
 public:
 #ifndef MYSQL_CLIENT
   /// Create a new event using the GTID from @@SESSION.GTID_NEXT
-  Gtid_log_event(THD *thd_arg);
+  Gtid_log_event(THD *thd_arg, bool using_trans);
   /// Create a new event using the given Gtid_specification
-  Gtid_log_event(THD *thd_arg, const Gtid_specification *spec);
+  Gtid_log_event(THD *thd_arg, bool using_trans,
+                 const Gtid_specification *spec);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -4672,11 +4673,11 @@ private:
 };
 
 
-class Previous_gtids_log_event : public Ignorable_log_event
+class Previous_gtids_log_event : public Log_event
 {
 public:
 #ifndef MYSQL_CLIENT
-  Previous_gtids_log_event(THD* thd_arg, const Gtid_set *set);
+  Previous_gtids_log_event(const Gtid_set *set);
 #endif
 
 #ifndef MYSQL_CLIENT
