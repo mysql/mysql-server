@@ -101,12 +101,12 @@ private:
   void build_hash_item() const;
   void setMiscColumns(Operation &) const;
   void setValueColumns(Operation &) const;
-  bool shouldExternalize(int len) const;
+  bool shouldExternalize(size_t len) const;
 };
 
 /* Inline Methods */
 
-inline bool ExternalValue::shouldExternalize(int len) const {
+inline bool ExternalValue::shouldExternalize(size_t len) const {
   return (len > value_size_in_header);
 };
 

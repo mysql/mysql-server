@@ -61,7 +61,7 @@ class QueryPlan {
   bool dup_numbers;                /* dup_numbers mode for ascii incr/decr */
   bool pk_access;                  /* access by primary key */
   bool is_scan;
-  int max_value_len;
+  size_t max_value_len;
   const TableSpec *spec;
   NdbDictionary::Dictionary *dict;
   const NdbDictionary::Table *table;
