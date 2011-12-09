@@ -65,6 +65,8 @@ ADD_EXECUTABLE(testSpj testSpj.cpp)
 TARGET_LINK_LIBRARIES(testBackup ndbbank)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank)
 ADD_EXECUTABLE(testLimits testLimits.cpp)
+ADD_EXECUTABLE(testSingleUserMode testSingleUserMode.cpp)
+ADD_EXECUTABLE(testIndexStat testIndexStat.cpp)
 
 SET(BINS create_all_tabs create_tab
   drop_all_tabs flexAsynch flexBench
@@ -77,7 +79,9 @@ SET(BINS create_all_tabs create_tab
   testDeadlock test_event ndbapi_slow_select testReadPerf
   testLcp testPartitioning testBitfield DbCreate
   DbAsyncGenerator test_event_merge testNdbinfo
-  testNativeDefault testLimits testSpj)
+  testNativeDefault testLimits testSpj
+  testSingleUserMode
+  testIndexStat)
 
 IF(MSVC)
   
