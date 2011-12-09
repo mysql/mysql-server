@@ -27,6 +27,7 @@ static int dummy_cmp(DB *db __attribute__((unused)),
     return c;
 }
 
+// generate size random bytes into dest
 static void
 rand_bytes(void *dest, int size)
 {
@@ -39,6 +40,8 @@ rand_bytes(void *dest, int size)
     }
 }
 
+// generate size random bytes into dest, with a lot less entropy (every
+// group of 4 bytes is the same)
 static void
 rand_bytes_limited(void *dest, int size)
 {
@@ -55,6 +58,8 @@ rand_bytes_limited(void *dest, int size)
     }
 }
 
+// generate a random message with xids and a key starting with pfx, insert
+// it in bnc, and save it in output params save and is_fresh_out
 static void
 insert_random_message(NONLEAF_CHILDINFO bnc, BRT_MSG_S **save, bool *is_fresh_out, XIDS xids, int pfx)
 {
@@ -88,6 +93,8 @@ insert_random_message(NONLEAF_CHILDINFO bnc, BRT_MSG_S **save, bool *is_fresh_ou
     assert_zero(r);
 }
 
+// generate a random message with xids and a key starting with pfx, insert
+// it into blb, and save it in output param save
 static void
 insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xids, int pfx)
 {
@@ -121,6 +128,11 @@ insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xid
     }
 }
 
+// generate a random message with xids and a key starting with pfx, insert
+// it into blb1 and also into blb2, and save it in output param save
+//
+// used for making two leaf nodes the same in order to compare the result
+// of 'maybe_apply' and a normal buffer flush
 static void
 insert_same_message_to_leaves(BRT t, BASEMENTNODE blb1, BASEMENTNODE blb2, LEAFENTRY *save, XIDS xids, int pfx)
 {
@@ -172,6 +184,12 @@ orthopush_flush_update_fun(DB * UU(db), const DBT *UU(key), const DBT *UU(old_va
     return 0;
 }
 
+// generate a random update message with xids and a key starting with pfx,
+// insert it into blb, and save it in output param save, and update the
+// max msn so far in max_msn
+//
+// the update message will overwrite the value with something generated
+// here, and add one to the int pointed to by applied
 static void
 insert_random_update_message(NONLEAF_CHILDINFO bnc, BRT_MSG_S **save, bool is_fresh, XIDS xids, int pfx, int *applied, MSN *max_msn)
 {
@@ -212,6 +230,8 @@ insert_random_update_message(NONLEAF_CHILDINFO bnc, BRT_MSG_S **save, bool is_fr
 
 const int M = 1024 * 1024;
 
+// flush from one internal node to another, where both only have one
+// buffer
 static void
 flush_to_internal(BRT t) {
     int r;
@@ -326,6 +346,7 @@ flush_to_internal(BRT t) {
     toku_free(child_messages_is_fresh);
 }
 
+// flush from one internal node to another, where the child has 8 buffers
 static void
 flush_to_internal_multiple(BRT t) {
     int r;
@@ -467,6 +488,14 @@ flush_to_internal_multiple(BRT t) {
     toku_free(child_messages_is_fresh);
 }
 
+// flush from one internal node to a leaf node, which has 8 basement
+// nodes
+//
+// if make_leaf_up_to_date is true, then apply the messages that are stale
+// in the parent to the leaf before doing the flush, otherwise assume the
+// leaf was just read off disk
+//
+// if use_flush is true, use a buffer flush, otherwise, use maybe_apply
 static void
 flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     int r;
@@ -690,6 +719,12 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     toku_free(parent_messages_applied);
 }
 
+// flush from one internal node to a leaf node, which has 8 basement
+// nodes, but only using maybe_apply, and with actual pivot bounds
+//
+// if make_leaf_up_to_date is true, then apply the messages that are stale
+// in the parent to the leaf before doing the flush, otherwise assume the
+// leaf was just read off disk
 static void
 flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     int r;
@@ -856,6 +891,13 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     toku_free(parent_messages_applied);
 }
 
+// create identical leaf nodes and then buffer flush to one and
+// maybe_apply to the other, and compare the results, they should be the
+// same.
+//
+// if make_leaf_up_to_date is true, then apply the messages that are stale
+// in the parent to the leaf before doing the flush, otherwise assume the
+// leaf was just read off disk
 static void
 compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
     int r;
@@ -1078,6 +1120,8 @@ test_main (int argc, const char *argv[]) {
     r = toku_open_brt(fname, 1, &t, 4*M, 64*1024, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
     r = toku_brt_set_update(t, orthopush_flush_update_fun); assert(r==0);
 
+    // normally, just check a few things, but if --slow is provided, then
+    // be thorough about it and repeat tests (since they're randomized)
     if (!slow) {
         flush_to_internal(t);
         flush_to_internal_multiple(t);
