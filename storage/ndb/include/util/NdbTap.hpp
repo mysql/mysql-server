@@ -47,6 +47,11 @@ int name##_test()
 extern "C" void __gcov_flush(void);
 #endif
 
+/* stacktrace.c needs min unless MY_MIN is defined */
+#if !defined MY_MIN && !defined min
+#define min(a, b)    ((a) < (b) ? (a) : (b)) 
+#endif
+
 #include <../../../mysys/stacktrace.c>
 
 
