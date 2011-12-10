@@ -1835,7 +1835,7 @@ ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
 
       DBUG_PRINT("value", ("set blob ptr: 0x%lx  len: %u",
                            (long) blob_ptr, blob_len));
-      DBUG_DUMP("value", blob_ptr, min(blob_len, 26));
+      DBUG_DUMP("value", blob_ptr, MIN(blob_len, 26));
 
       /*
         NdbBlob requires the data pointer to remain valid until execute() time.
@@ -12961,7 +12961,7 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
     }
     else
     {
-      size_t bounds_len= min(min_key_length,max_key_length);
+      size_t bounds_len= MIN(min_key_length,max_key_length);
       uint eq_bound_len= 0;
       uint eq_bound_offs= 0;
 
@@ -13017,7 +13017,7 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
       rows= 2;
     else if (rows < 3)
       rows= 3;
-    DBUG_RETURN(min(rows,table_rows));
+    DBUG_RETURN(MIN(rows,table_rows));
   } while (0);
 
   DBUG_RETURN(10); /* Poor guess when you don't know anything */
