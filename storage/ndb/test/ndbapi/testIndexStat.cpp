@@ -1732,7 +1732,7 @@ querystat_v2(Rng& rng)
 
   Stval& st = rng.m_st_stat;
   chkrc(count < (1 << 30));
-  st.rir_v2 = count;
+  st.rir_v2 = (Uint32)count;
   ll2("querystat_v2: " << st.rir_v2 << " rows");
   return 0;
 }
