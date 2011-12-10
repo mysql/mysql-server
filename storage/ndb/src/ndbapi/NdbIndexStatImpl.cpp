@@ -389,6 +389,14 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
 {
   Sys sys(this, ndb);
 
+  NdbDictionary::Dictionary* const dic = sys.m_dic;
+
+  if (dic->beginSchemaTrans() == -1)
+  {
+    setError(dic->getNdbError().code, __LINE__);
+    return -1;
+  }
+
   if (get_systables(sys) == -1)
     return -1;
 
@@ -401,14 +409,6 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
   if (sys.m_obj_cnt != 0)
   {
     setError(BadSysTables, __LINE__);
-    return -1;
-  }
-
-  NdbDictionary::Dictionary* const dic = sys.m_dic;
-
-  if (dic->beginSchemaTrans() == -1)
-  {
-    setError(dic->getNdbError().code, __LINE__);
     return -1;
   }
 
@@ -493,10 +493,6 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
 {
   Sys sys(this, ndb);
 
-  if (get_systables(sys) == -1 &&
-      m_error.code != BadSysTables)
-    return -1;
-
   NdbDictionary::Dictionary* const dic = sys.m_dic;
 
   if (dic->beginSchemaTrans() == -1)
@@ -504,6 +500,10 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
     setError(dic->getNdbError().code, __LINE__);
     return -1;
   }
+
+  if (get_systables(sys) == -1 &&
+      m_error.code != BadSysTables)
+    return -1;
 
   if (sys.m_headtable != 0)
   {
