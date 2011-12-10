@@ -8988,6 +8988,39 @@ err:
   return NDBT_FAILED;
 }
 
+int
+runIndexStatCreate(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbIndexStat is;
+
+  const int loops = ctx->getNumLoops();
+
+  pNdb->setDatabaseName("mysql");
+
+  Uint64 end = NdbTick_CurrentMillisecond() + 1000 * loops;
+  do
+  {
+    if (is.create_systables(pNdb) == 0)
+    {
+      /**
+       * OK
+       */
+    }
+    else if (! (is.getNdbError().code == 721 ||
+                is.getNdbError().code == 4244 ||
+                is.getNdbError().code == 4009)) // no connection
+    {
+      ndbout << is.getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    is.drop_systables(pNdb);
+  } while (!ctx->isTestStopped() && NdbTick_CurrentMillisecond() < end);
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
@@ -9294,6 +9327,10 @@ TESTCASE("Bug13416603", "")
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug13416603);
   FINALIZER(runDropTheTable);
+}
+TESTCASE("IndexStatCreate", "")
+{
+  STEPS(runIndexStatCreate, 10);
 }
 NDBT_TESTSUITE_END(testDict);
 

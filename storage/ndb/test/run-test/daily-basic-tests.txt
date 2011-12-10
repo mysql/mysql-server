@@ -1859,3 +1859,7 @@ max-time: 300
 cmd: testDict
 args: -n Bug13416603 I2
 
+max-time: 300
+cmd: testDict
+args: -n IndexStatCreate T1
+
