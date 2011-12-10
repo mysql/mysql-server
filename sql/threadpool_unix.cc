@@ -124,7 +124,6 @@ struct connection_t
 };
 
 /* Externals functions and variables  we use */
-extern uint thread_created;
 extern void scheduler_init();
 extern pthread_attr_t *get_connection_attrib(void);
 extern int skip_net_wait_timeout;
@@ -408,7 +407,7 @@ static void timeout_check(pool_timer_t *timer)
     if (thd->net.reading_or_writing != 1)
       continue;
 
-    connection_t *connection= (connection_t *)thd->scheduler.data;
+    connection_t *connection= (connection_t *)thd->event_scheduler.data;
     if (!connection)
      continue;
 
@@ -416,7 +415,7 @@ static void timeout_check(pool_timer_t *timer)
     {
       /* Wait timeout exceeded, kill connection. */
       mysql_mutex_lock(&thd->LOCK_thd_data);
-      thd->killed = THD::KILL_CONNECTION;
+      thd->killed = KILL_CONNECTION;
       tp_post_kill_notification(thd);
       mysql_mutex_unlock(&thd->LOCK_thd_data);
     }
@@ -449,7 +448,7 @@ static void* timer_thread(void *param)
   
   pool_timer_t* timer=(pool_timer_t *)param;
   timer->next_timeout_check= ULONGLONG_MAX;
-  timer->current_microtime= my_micro_time();
+  timer->current_microtime= microsecond_interval_timer();
   
   my_thread_init();
   DBUG_ENTER("timer_thread");
@@ -464,7 +463,7 @@ static void* timer_thread(void *param)
       break;
     if (err == ETIMEDOUT)
     {
-      timer->current_microtime= my_micro_time();
+      timer->current_microtime= microsecond_interval_timer();
       
       /* Check stallls in thread groups */
       for(i=0; i< threadpool_size;i++)
@@ -643,7 +642,7 @@ static int create_worker(thread_group_t *thread_group)
   if (!err)
   {
     thread_group->pending_thread_start_count++;
-    thread_group->last_thread_creation_time=my_micro_time();
+    thread_group->last_thread_creation_time=microsecond_interval_timer();
   }
   DBUG_RETURN(err);
 }
@@ -673,7 +672,7 @@ static int wake_or_create_thread(thread_group_t *thread_group)
     DBUG_RETURN(create_worker(thread_group));
   }
 
-  now = my_micro_time();
+  now = microsecond_interval_timer();
   time_since_last_thread_created = 
       (now - thread_group->last_thread_creation_time)/1000;
 
@@ -994,7 +993,7 @@ void tp_add_connection(THD *thd)
     mysql_mutex_lock(&c->thread_group->mutex);
     c->thread_group->connection_count++;
     mysql_mutex_unlock(&c->thread_group->mutex);
-    c->thd->scheduler.data = c;
+    c->thd->event_scheduler.data = c;
     post_event(c->thread_group,&c->event);
   }
   
@@ -1032,7 +1031,7 @@ void tp_wait_begin(THD *thd, int type)
   if (!thd)
     DBUG_VOID_RETURN;
 
-  connection_t *connection = (connection_t *)thd->scheduler.data;
+  connection_t *connection = (connection_t *)thd->event_scheduler.data;
   if(connection)
   {
     DBUG_ASSERT(!connection->waiting);
@@ -1049,7 +1048,7 @@ void tp_wait_end(THD *thd)
   if (!thd)
    DBUG_VOID_RETURN;
 
-  connection_t *connection = (connection_t *)thd->scheduler.data;
+  connection_t *connection = (connection_t *)thd->event_scheduler.data;
   if(connection)
   {
     DBUG_ASSERT(connection->waiting);
@@ -1077,7 +1076,7 @@ static void set_wait_timeout(connection_t *c)
   DBUG_ENTER("set_wait_timeout");
   /* 
     Calculate wait deadline for this connection.
-    Instead of using my_micro_time() which has a syscall 
+    Instead of using microsecond_interval_timer() which has a syscall 
     overhead, use pool_timer.current_microtime and take 
     into account that its value could be off by at most 
     one tick interval.

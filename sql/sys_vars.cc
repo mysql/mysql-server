@@ -2180,7 +2180,7 @@ static Sys_var_ulong Sys_thread_cache_size(
        GLOBAL_VAR(thread_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
-#ifndef HAVE_POOL_OF_THREADS
+
 static bool fix_tp_max_threads(sys_var *, THD *, enum_var_type)
 {
 #ifdef _WIN32
@@ -2196,6 +2196,7 @@ static bool fix_tp_min_threads(sys_var *, THD *, enum_var_type)
   return false;
 }
 #endif
+
 
 #ifdef _WIN32
 static Sys_var_uint Sys_threadpool_min_threads(
@@ -2239,7 +2240,6 @@ static Sys_var_uint Sys_threadpool_max_threads(
    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), 
    ON_UPDATE(fix_tp_max_threads)
 );
-#endif /* !HAVE_POOL_OF_THREADS */
 
 
 /**

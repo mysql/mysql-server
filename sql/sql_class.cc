@@ -766,6 +766,8 @@ THD::THD()
   stmt_arena= this;
   thread_stack= 0;
   scheduler= thread_scheduler;                 // Will be fixed later
+  event_scheduler.data= 0;
+  event_scheduler.m_psi= 0;
   extra_port= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
