@@ -15,11 +15,7 @@ if($r == 0) {
   print STDERR "DID NOT CONNECT TO MEMCACHE AT PORT $port \n";
 }
 
-
-# Some values 
-my $val_short = "Melville Tolstoy Austen Balzac ";
-my $val_long  = ($val_short . " ... ") x 1500;
-
+$mc->flush();
 
 ## Test expiry times
 $mc->set_expires(0);    $mc->set("t:1", "Groen");  ## Will not expire

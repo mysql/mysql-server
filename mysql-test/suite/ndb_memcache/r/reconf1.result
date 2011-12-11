@@ -11,3 +11,4 @@ test_key_1	1515
 RENAME TABLE reconf_test_table TO demo_table ;
 UPDATE containers 
 SET db_table = "demo_table" WHERE db_table = "reconf_test_table";
+UPDATE memcache_server_roles set update_timestamp = NOW();
