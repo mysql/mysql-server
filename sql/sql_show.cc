@@ -729,7 +729,6 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   Protocol *protocol= thd->protocol;
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
-  char *save_db, *save_table_name;
   bool retval= TRUE;                             // Assume error
   List<Item> field_list;
   DBUG_ENTER("mysqld_show_create");
@@ -738,10 +737,6 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   /* We want to preserve the tree for views. */
   thd->lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
-
-  /* Store original names if called from SP */
-  save_db=         table_list->db;
-  save_table_name= table_list->table_name;
 
   {
     Show_create_error_handler view_error_suppressor(thd, table_list);
@@ -825,11 +820,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   retval= FALSE;                                // ok
 
 error:
-  /* Restore table list if called by stored procedure */
-  table_list->db=         save_db;
-  table_list->table_name= save_table_name;
   DBUG_RETURN(retval);
-
 }
 
 bool mysqld_show_create_db(THD *thd, char *dbname,
