@@ -169,6 +169,10 @@ CREATE  TABLE IF NOT EXISTS `last_memcached_signon` (
 
 
 -- ------------------------------------------------------------------------
+-- DEMONSTRATION TABLES 
+-- ------------------------------------------------------------------------
+
+-- ------------------------------------------------------------------------
 -- Table `demo_table`
 -- 
 -- The demo_table is not strictly part of the configuration schema, but
@@ -219,15 +223,17 @@ CREATE TABLE IF NOT EXISTS `external_values` (
 -- ------------------------------------------------------------------------
 -- Table `demo_table_tabs`
 --
--- A table demonstrating three value columns and tab-separated output.
--- Use with key prefix "t:"
+-- A table demonstrating three value columns, tab-separated output, and 
+-- expire times. 
+-- By default you can use this table with key prefix "t:"
 --
 -- ------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `demo_table_tabs` (
   `mkey` INT NOT NULL PRIMARY KEY,
   `val1` VARCHAR(60),
   `val2` varchar(10),
-  `val3` INT
+  `val3` INT,
+   expire_time timestamp NULL
 ) ENGINE = ndbcluster;
 
 
@@ -273,7 +279,8 @@ INSERT INTO containers
 
 INSERT INTO containers 
   SET name = "demo_tabs", db_schema = "ndbmemcache", db_table = "demo_table_tabs",
-      key_columns = "mkey", value_columns = "val1,val2,val3";
+      key_columns = "mkey", value_columns = "val1,val2,val3", 
+      expire_time_column = "expire_time";
 
 INSERT INTO containers
   SET name = "demo_ext", db_schema = "ndbmemcache", db_table = "demo_table_large",
