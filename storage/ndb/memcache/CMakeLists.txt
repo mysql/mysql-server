@@ -79,6 +79,7 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/Config_v1.cc
     src/ConnQueryPlanSet.cc
     src/DataTypeHandler.cc
+    src/ExpireTime.cc
     src/ExternalValue.cc
     src/KeyPrefix.cc
     src/NdbInstance.cc

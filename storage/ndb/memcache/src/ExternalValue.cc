@@ -24,6 +24,7 @@
 #include "Operation.h"
 #include "Scheduler.h"
 #include "status_block.h"
+#include "ExpireTime.h"
 #include "ExternalValue.h"
 
 /* Externs */
@@ -214,7 +215,8 @@ ExternalValue::ExternalValue(workitem *item, NdbTransaction *t) :
   new_hdr(item->plan->extern_store->val_record->value_length),
   value(0),
   stored_cas(0),
-  value_size_in_header(item->plan->row_record->value_length)
+  value_size_in_header(item->plan->row_record->value_length),
+  exp_time(0)
 {
   do_server_cas = (item->prefix_info.has_cas_col && item->cas);
   wqitem->ext_val = this;
@@ -225,6 +227,8 @@ ExternalValue::ExternalValue(workitem *item, NdbTransaction *t) :
 /* Destructor */
 ExternalValue::~ExternalValue() {
   DEBUG_ENTER();
+  if(exp_time)
+    delete exp_time;
   memory_pool_free(pool);
   memory_pool_destroy(pool);
   wqitem->ext_val = 0;
@@ -236,13 +240,21 @@ void ExternalValue::worker_read_external(Operation &op,
                                          NdbTransaction *the_read_tx) {
   tx = the_read_tx;
   old_hdr.readFromHeader(op);
+  exp_time = new ExpireTime(wqitem);
 
-  if(stored_item_has_expired(wqitem, op)) {
+  if(exp_time->stored_item_has_expired(op)) {
     DEBUG_PRINT("EXPIRED");
     deleteParts();
     delete_expired_item(wqitem, tx);
     return;
   }
+
+  if(wqitem->prefix_info.has_flags_col && ! op.isNull(COL_STORE_FLAGS))
+    wqitem->math_flags = htonl(op.getIntValue(COL_STORE_FLAGS));
+  else if(wqitem->plan->static_flags)
+    wqitem->math_flags = htonl(wqitem->plan->static_flags);
+  else
+    wqitem->math_flags = 0;
   
   readParts();
   wqitem->pipeline->scheduler->reschedule(wqitem);
@@ -743,7 +755,9 @@ void ExternalValue::build_hash_item() const {
   
   /* item_alloc(engine, key, nkey, flags, exptime, nbytes, cookie) */
   hash_item * item = item_alloc(se, wqitem->key, wqitem->base.nkey, 
-                                0, 0, new_hdr.length + 3, wqitem->cookie);
+                                wqitem->math_flags, 
+                                exp_time->local_cache_expire_time,
+                                new_hdr.length + 3, wqitem->cookie);
   
   if(item) {
     /* Now populate the item with the result */

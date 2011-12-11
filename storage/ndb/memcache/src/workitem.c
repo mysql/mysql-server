@@ -158,7 +158,7 @@ workitem *new_workitem_for_arithmetic(ndb_pipeline *pipeline,
   item->base.verb = OP_ARITHMETIC;
   item->base.math_incr = increment;
   item->base.math_create = create;  
-  item->math_delta = delta;
+  item->math_flags = delta;
   item->math_value = initial;
   item->cas = cas;
   return item;

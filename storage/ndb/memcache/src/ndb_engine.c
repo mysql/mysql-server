@@ -662,7 +662,7 @@ static bool ndb_get_item_info(ENGINE_HANDLE *handle,
     item_info->cas = wqitem->cas ? *(wqitem->cas) : 0;
     item_info->exptime = 0;  
     item_info->nbytes = wqitem->value_size;
-    item_info->flags = 0;  /* FIXME: need to get flags from the workitem */
+    item_info->flags = wqitem->math_flags;
     item_info->clsid = slabs_clsid(default_handle(ndb_eng), wqitem->value_size);
     item_info->nkey = wqitem->base.nkey;
     item_info->nvalue = 1;  /* how many iovecs */
