@@ -4660,7 +4660,7 @@ sub extract_warning_lines ($$) {
   $Ferr = undef; # Close error log file
 
   # mysql_client_test.test sends a COM_DEBUG packet to the server
-  # to provoke a SAFEMALLOC leak report, ignore any warnings
+  # to provoke a safemalloc leak report, ignore any warnings
   # between "Begin/end safemalloc memory dump"
   if ( grep(/Begin safemalloc memory dump:/, @lines) > 0)
   {

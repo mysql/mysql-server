@@ -33,6 +33,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c
 				rijndael.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c my_getpagesize.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
+                                my_addr_resolve.c
 				my_atomic.c my_getncpus.c my_safehash.c my_chmod.c my_rnd.c
                                 my_uuid.c wqueue.c waiting_threads.c ma_dyncol.c
 				my_rdtsc.c)
@@ -69,6 +70,10 @@ ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})
 TARGET_LINK_LIBRARIES(mysys dbug strings ${ZLIB_LIBRARY} 
  ${LIBNSL} ${LIBM} ${LIBRT})
 DTRACE_INSTRUMENT(mysys)
+
+IF(HAVE_BFD_H)
+  TARGET_LINK_LIBRARIES(mysys bfd)  
+ENDIF(HAVE_BFD_H)
 
 IF (WIN32)
   TARGET_LINK_LIBRARIES(mysys IPHLPAPI)  

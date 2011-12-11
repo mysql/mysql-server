@@ -55,6 +55,24 @@ void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
 #endif
 #endif
 
+#ifndef SAFEMALLOC
+#undef HAVE_BFD_H
+#endif
+
+#ifdef HAVE_BFD_H
+#define HAVE_MY_ADDR_RESOLVE 1
+#endif
+
+#ifdef HAVE_MY_ADDR_RESOLVE
+typedef struct {
+  const char *file;
+  const char *func;
+  uint line;
+} my_addr_loc;
+int my_addr_resolve(void *ptr, my_addr_loc *loc);
+const char *my_addr_resolve_init();
+#endif
+
 #ifdef HAVE_WRITE_CORE
 void my_write_core(int sig);
 #endif

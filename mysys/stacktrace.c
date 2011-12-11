@@ -210,25 +210,52 @@ static void my_demangle_symbols(char **addrs, int n)
 
 #endif /* BACKTRACE_DEMANGLE */
 
+#if HAVE_MY_ADDR_RESOLVE
+static int print_with_addr_resolve(void **addrs, int n)
+{
+  int i;
+  const char *err;
+
+  if ((err= my_addr_resolve_init()))
+  {
+    fprintf(stderr, "(my_addr_resolve failure: %s)\n", err);
+    return 0;
+  }
+
+  for (i= 0; i < n; i++)
+  {
+    my_addr_loc loc;
+    if (my_addr_resolve(addrs[i], &loc))
+      backtrace_symbols_fd(addrs+i, 1, fileno(stderr));
+    else
+      fprintf(stderr, "%s:%u(%s)[%p]\n",
+              loc.file, loc.line, loc.func, addrs[i]);
+  }
+  return 1;
+}
+#endif
+
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 {
   void *addrs[128];
-  char **strings= NULL;
+  char **strings __attribute__((unused)) = NULL;
   int n = backtrace(addrs, array_elements(addrs));
   fprintf(stderr, "stack_bottom = %p thread_stack 0x%lx\n",
           stack_bottom, thread_stack);
+#if HAVE_MY_ADDR_RESOLVE
+  if (print_with_addr_resolve(addrs, n))
+    return;
+#endif
 #if BACKTRACE_DEMANGLE
   if ((strings= backtrace_symbols(addrs, n)))
   {
     my_demangle_symbols(strings, n);
     free(strings);
+    return;
   }
 #endif
 #if HAVE_BACKTRACE_SYMBOLS_FD
-  if (!strings)
-  {
-    backtrace_symbols_fd(addrs, n, fileno(stderr));
-  }
+  backtrace_symbols_fd(addrs, n, fileno(stderr));
 #endif
 }
 
