@@ -1524,22 +1524,7 @@ JOIN::optimize()
     }
   }
 
-  /*
-    Check if we need to create a temporary table.
-    This has to be done if all tables are not already read (const tables)
-    and one of the following conditions holds:
-    - We are using DISTINCT (simple distinct's are already optimized away)
-    - We are using an ORDER BY or GROUP BY on fields not in the first table
-    - We are using different ORDER BY and GROUP BY orders
-    - The user wants us to buffer the result.
-    When the WITH ROLLUP modifier is present, we cannot skip temporary table
-    creation for the DISTINCT clause just because there are only const tables.
-  */
-  need_tmp= ((const_tables != table_count &&
-	     ((select_distinct || !simple_order || !simple_group) ||
-	      (group_list && order) ||
-	      test(select_options & OPTION_BUFFER_RESULT))) ||
-             (rollup.state != ROLLUP::STATE_NONE && select_distinct));
+  need_tmp= test_if_need_tmp_table();
 
   /*
     If the hint FORCE INDEX FOR ORDER BY/GROUP BY is used for the table
