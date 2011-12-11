@@ -21,8 +21,10 @@
 #define NDBMEMCACHE_EXTERNALVALUE_H
 
 #include "TableSpec.h"
+#include "ExpireTime.h"
 #include "ndb_pipeline.h"
 #include "ndb_worker.h"
+
 
 #define EXTERN_VAL_MAX_PARTS 256
 
@@ -73,6 +75,7 @@ private:
   size_t value_size_in_header;
   bool do_server_cas;
   Uint64 stored_cas;
+  ExpireTime *exp_time;
   
   /* Private methods */
   op_status_t do_update();

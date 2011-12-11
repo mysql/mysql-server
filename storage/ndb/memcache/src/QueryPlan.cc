@@ -80,7 +80,8 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
   dup_numbers(false),
   db(my_ndb),
   spec(my_spec), 
-  is_scan(false)
+  is_scan(false),
+  static_flags(spec->static_flags)
 {  
   const NdbDictionary::Column *col;
   bool op_ok = false; 
@@ -116,6 +117,12 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
   else 
     extern_store = 0;
 
+  /* Data on Disk? */
+  has_disk_storage = 
+    (table->getStorageType() == NdbDictionary::Column::StorageTypeDisk);
+  if(extern_store && extern_store->has_disk_storage) 
+    has_disk_storage = true;
+  
   /* Process the TableSpec */
   int ncols  = spec->nkeycols + spec->nvaluecols 
              + ( spec->math_column    ? 1 : 0 )

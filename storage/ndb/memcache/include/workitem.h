@@ -59,7 +59,7 @@ typedef struct workitem {
   struct workitem *previous;   /*! used to chain workitems in multi-key get */
   prefix_info_t prefix_info;   /*! essential info for the key prefix */
   uint64_t * cas;              /*! in/out CAS */
-  uint32_t math_delta;         /*! operand for incr/decr operation */
+  uint32_t math_flags;         /*! IN: math_delta  OUT: flags */
   uint64_t math_value;         /*! IN: incr initial value; OUT: incr result */
   hash_item * cache_item;      /*! used for write requests */
   ndb_pipeline *pipeline;      /*! pointer back to request pipeline */

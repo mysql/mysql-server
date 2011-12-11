@@ -298,6 +298,10 @@ config_ver_enum Configuration::get_supported_version() {
     }
     if(fetch_meta_record(&plan, &db, "1.1")) {
       DEBUG_PRINT("1.1");
+      logger->log(LOG_WARNING, 0, "\n"
+                  "Configuration schema version 1.1 is installed. To upgrade\n"
+                  "to version 1.2, run the update_to_1.2.sql script "
+                  "and restart memcached.\n");
       return CONFIG_VER_1_1;
     }
     if(fetch_meta_record(&plan, &db, "1.0")) {

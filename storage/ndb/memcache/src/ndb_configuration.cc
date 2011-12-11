@@ -160,9 +160,6 @@ void print_debug_startup_info() {
   int sz[4];
   DEBUG_PRINT("  sizeof Ndb        : %lu", sz[0]=sizeof(Ndb));
   DEBUG_PRINT("  sizeof NdbInstance: %lu", sz[1]=sizeof(NdbInstance));
-  DEBUG_PRINT("  sizeof QueryPlan  : %lu", sz[2]=sizeof(QueryPlan));
-  DEBUG_PRINT("  sizeof Record     : %lu (x3 per QueryPlan)", sz[3]=sizeof(Record));
-  DEBUG_PRINT("              TOTAL : %lu", sz[0]+sz[1]+sz[2]+(3*sz[3]));
   DEBUG_PRINT("  sizeof workitem: %lu", sizeof(workitem));
 }
 

@@ -55,6 +55,7 @@ class QueryPlan {
   bool canUseSimpleRead() const;
   Uint64 getAutoIncrement() const;
   void debug_dump() const;
+  bool hasDataOnDisk() const;
    
   /* public instance variables */
   bool initialized;
@@ -84,6 +85,7 @@ class QueryPlan {
 
   /* Private instance variables */
   Ndb *db;
+  bool has_disk_storage;
 };
 
 
@@ -95,6 +97,10 @@ inline bool QueryPlan::shouldExternalizeValue(size_t length) const {
 
 inline bool QueryPlan::canHaveExternalValue() const {
   return (extern_store);
+}
+
+inline bool QueryPlan::hasDataOnDisk() const {
+  return has_disk_storage;
 }
 
 inline bool QueryPlan::canUseSimpleRead() const {

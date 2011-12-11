@@ -42,6 +42,7 @@
 #include "workitem.h"
 #include "Configuration.h"
 #include "DataTypeHandler.h"
+#include "Expiretime.h"
 #include "ExternalValue.h"
 #include "TabSeparatedValues.h"
 #include "debug.h"
@@ -122,7 +123,7 @@ worker_step worker_finalize_write;
 void worker_set_cas(ndb_pipeline *, uint64_t *);
 int build_cas_routine(NdbInterpretedCode *r, int cas_col, uint64_t cas_val);
 bool scan_delete(NdbInstance *, QueryPlan *);
-void build_hash_item(workitem *, Operation &);
+void build_hash_item(workitem *, Operation &,  ExpireTime &);
 
 /* Extern pointers */
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
@@ -608,9 +609,9 @@ op_status_t WorkerStep1::do_math() {
     /* Offset the initial value to compensate for the update */
     uint64_t initial_value;
     if(wqitem->base.math_incr)
-      initial_value = wqitem->math_value - wqitem->math_delta;  // incr
+      initial_value = wqitem->math_value - wqitem->math_flags;  // incr
     else
-      initial_value = wqitem->math_value + wqitem->math_delta;  // decr
+      initial_value = wqitem->math_value + wqitem->math_flags;  // decr
     op2.setColumnBigUnsigned(COL_STORE_MATH, initial_value);
     
     /* If this insert gets an error, the transaction should continue. */
@@ -634,14 +635,14 @@ op_status_t WorkerStep1::do_math() {
     NdbInterpretedCode code(plan->table, program, program_size);
     
     if(wqitem->base.math_incr) {                                  // incr
-      code.add_val(plan->math_column_id, wqitem->math_delta);   
+      code.add_val(plan->math_column_id, wqitem->math_flags);   
       code.interpret_exit_ok();
     }
     else {                                                        // decr
       const Uint32 Rdel = 1, Rcol = 2, Rres = 3;       // registers 1,2,3
       const Uint32 SUB_ZERO = 0;                       // a label
       
-      code.load_const_u64(Rdel, wqitem->math_delta);   // load R1, delta
+      code.load_const_u64(Rdel, wqitem->math_flags);   // load R1, delta
       code.read_attr     (Rcol, plan->math_column_id); // load R2, math_col
       code.branch_gt     (Rdel, Rcol, SUB_ZERO);       // if R1 > R2 goto SUB_ZERO
       code.sub_reg       (Rres, Rcol, Rdel);           // let R3 = R2 - R1
@@ -781,13 +782,13 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
     op.buffer = wqitem->row_buffer_1;
     uint64_t stored = op.getBigUnsignedValue(COL_STORE_MATH);
     if(wqitem->base.math_incr) {              // incr
-      wqitem->math_value = stored + wqitem->math_delta;
+      wqitem->math_value = stored + wqitem->math_flags;
     }
     else {                                    // decr
-      if(wqitem->math_delta > stored)
+      if(wqitem->math_flags > stored)
         wqitem->math_value = 0; // underflow < 0 is not allowed
       else
-        wqitem->math_value = stored - wqitem->math_delta;
+        wqitem->math_value = stored - wqitem->math_flags;
     }
     
     wqitem->status = & status_block_generic_success;
@@ -934,22 +935,6 @@ void worker_check_read(NdbTransaction *tx, workitem *wqitem) {
 }
 
 
-bool stored_item_has_expired(workitem *wqitem, Operation &op) {
-  bool is_expired = false;
-
-  if(wqitem->prefix_info.has_expire_col && ! op.isNull(COL_STORE_EXPIRES)) {
-    SERVER_CORE_API * SERVER = wqitem->pipeline->engine->server.core;
-    rel_time_t current_time = SERVER->get_current_time();
-    time_t stored_exptime = op.getIntValue(COL_STORE_EXPIRES);
-    rel_time_t exptime = SERVER->realtime(stored_exptime);
-    
-    if(exptime > 0 && exptime < current_time)
-      is_expired = true;  
-  }
-  return is_expired;
-}
-
-
 void delete_expired_item(workitem *wqitem, NdbTransaction *tx) {
   DEBUG_PRINT(" Deleting [%d.%d]", wqitem->pipeline->id, wqitem->id);
   Operation op(wqitem);
@@ -963,14 +948,22 @@ void delete_expired_item(workitem *wqitem, NdbTransaction *tx) {
 void worker_finalize_read(NdbTransaction *tx, workitem *wqitem) {
   DEBUG_PRINT("%d.%d",wqitem->pipeline->id, wqitem->id);
   
+  ExpireTime exp_time(wqitem);
   Operation op(wqitem->plan, OP_READ);
   op.buffer = wqitem->row_buffer_1;
  
-  if(stored_item_has_expired(wqitem, op)) {
+  if(exp_time.stored_item_has_expired(op)) {
     delete_expired_item(wqitem, tx);
     return;
   }
  
+  if(wqitem->prefix_info.has_flags_col && ! op.isNull(COL_STORE_FLAGS))
+    wqitem->math_flags = htonl(op.getIntValue(COL_STORE_FLAGS));
+  else if(wqitem->plan->static_flags)
+    wqitem->math_flags = htonl(wqitem->plan->static_flags);
+  else
+    wqitem->math_flags = 0;
+
   if(wqitem->prefix_info.has_cas_col) {
     wqitem->cas = (uint64_t *) op.getPointer(COL_STORE_CAS);  
   }
@@ -992,7 +985,7 @@ void worker_finalize_read(NdbTransaction *tx, workitem *wqitem) {
   }
   else {
     /* Copy the value into a new buffer */
-    build_hash_item(wqitem, op);
+    build_hash_item(wqitem, op, exp_time);
   }
 
   worker_close(tx, wqitem);
@@ -1030,19 +1023,20 @@ void worker_finalize_write(NdbTransaction *tx, workitem *wqitem) {
 /*  Allocate a hash table item, populate it with the original key 
     and the results from the read, then store it.    
  */
-void build_hash_item(workitem *wqitem, Operation &op) {
+void build_hash_item(workitem *wqitem, Operation &op, ExpireTime & exp_time) {
   DEBUG_ENTER();
   ndb_pipeline * & pipeline = wqitem->pipeline;
   struct default_engine *se;
-  size_t nbytes;
-     
   se = (struct default_engine *) pipeline->engine->m_default_engine;      
-  nbytes = op.getStringifiedLength() + 2;  /* 2 bytes for \r\n */
-  
+
+  size_t nbytes = op.getStringifiedLength() + 2;  /* 2 bytes for \r\n */
+    
   /* Allocate a hash item */
   /* item_alloc(engine, key, nkey, flags, exptime, nbytes, cookie) */
   hash_item * item = item_alloc(se, wqitem->key, wqitem->base.nkey, 
-                                0, 0, nbytes, wqitem->cookie);
+                                wqitem->math_flags,
+                                exp_time.local_cache_expire_time, 
+                                nbytes, wqitem->cookie);
   
   if(item) {
     /* Now populate the item with the result */

@@ -29,7 +29,6 @@ op_status_t worker_prepare_operation(workitem *);
 ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *);
 
 /* Expiration */
-bool stored_item_has_expired(workitem *, Operation &);
 void delete_expired_item(workitem *, NdbTransaction *);
 
 /* An ndb_async_callback is used with NDB Async execution */

@@ -233,10 +233,9 @@ CREATE TABLE IF NOT EXISTS `demo_table_tabs` (
   `val1` VARCHAR(60),
   `val2` varchar(10),
   `val3` INT,
-   expire_time timestamp NULL
+  `flags` INT UNSIGNED NULL,
+   expire_time TIMESTAMP NULL
 ) ENGINE = ndbcluster;
-
-
 
 
 -- -----------------------------------------------------
@@ -279,7 +278,7 @@ INSERT INTO containers
 
 INSERT INTO containers 
   SET name = "demo_tabs", db_schema = "ndbmemcache", db_table = "demo_table_tabs",
-      key_columns = "mkey", value_columns = "val1,val2,val3", 
+      key_columns = "mkey", value_columns = "val1,val2,val3", flags = "flags",
       expire_time_column = "expire_time";
 
 INSERT INTO containers

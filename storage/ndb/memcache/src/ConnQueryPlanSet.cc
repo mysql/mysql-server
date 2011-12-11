@@ -43,7 +43,6 @@ void ConnQueryPlanSet:: buildSetForConfiguration(const Configuration *cf,
 {
   const KeyPrefix *k = cf->getNextPrefixForCluster(cluster_id, NULL);
   while(k) {
-    DEBUG_PRINT("Building plan for prefix %d", k->info.prefix_id);
     getPlanForPrefix(k);
     k = cf->getNextPrefixForCluster(cluster_id, k);
   }
