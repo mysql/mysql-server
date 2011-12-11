@@ -18,7 +18,8 @@
  02110-1301  USA
  */
 
-#include "assert.h"
+#include <arpa/inet.h>
+#include <assert.h>
 
 #include "workitem.h"
 #include "Operation.h"
