@@ -1266,28 +1266,29 @@ static void setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* b
     //printf("node height %d, blocknum %"PRId64", type %d lc %d rc %d\n", node->height, node->thisnodename.b, bfe->type, lc, rc);
     for (int i = 0; i < node->n_children; i++) {
         BP_INIT_UNTOUCHED_CLOCK(node,i);
-	if (data_in_memory) {
-	    BP_STATE(node, i) = ((toku_bfe_wants_child_available(bfe, i) || (lc <= i && i <= rc))
-				 ? PT_AVAIL : PT_COMPRESSED);
-	} else {
-	    BP_STATE(node, i) = PT_ON_DISK;
-	}
+        if (data_in_memory) {
+            BP_STATE(node, i) = ((toku_bfe_wants_child_available(bfe, i) || (lc <= i && i <= rc))
+                                 ? PT_AVAIL : PT_COMPRESSED);
+        } else {
+            BP_STATE(node, i) = PT_ON_DISK;
+        }
         BP_WORKDONE(node,i) = 0;
-	switch (BP_STATE(node,i)) {
-	case PT_AVAIL:
+
+        switch (BP_STATE(node,i)) {
+        case PT_AVAIL:
             setup_available_brtnode_partition(node, i);
             BP_TOUCH_CLOCK(node,i);
-	    continue;
-	case PT_COMPRESSED:
+            continue;
+        case PT_COMPRESSED:
             set_BSB(node, i, sub_block_creat());
-	    continue;
-	case PT_ON_DISK:
-	    set_BNULL(node, i);
-	    continue;
-	case PT_INVALID:
-	    break;
-	}
-	assert(FALSE);
+            continue;
+        case PT_ON_DISK:
+            set_BNULL(node, i);
+            continue;
+        case PT_INVALID:
+            break;
+        }
+        assert(FALSE);
     }
 }
 
@@ -1371,18 +1372,18 @@ check_and_copy_compressed_sub_block_worker(struct rbuf curr_rbuf, struct sub_blo
 }
 
 static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnode,
-								 BLOCKNUM blocknum,
-								 u_int32_t fullhash,
-								 struct brtnode_fetch_extra *bfe,
-								 struct rbuf *rb,
-								 int fd)
+                                                                 BLOCKNUM blocknum,
+                                                                 u_int32_t fullhash,
+                                                                 struct brtnode_fetch_extra *bfe,
+                                                                 struct rbuf *rb,
+                                                                 int fd)
 // If we have enough information in the rbuf to construct a header, then do so.
 // Also fetch in the basement node if needed.
 // Return 0 if it worked.  If something goes wrong (including that we are looking at some old data format that doesn't have partitions) then return nonzero.
 {
     int r;
     BRTNODE node = toku_xmalloc(sizeof(*node));
-    
+
     // fill in values that are known and not stored in rb
     node->fullhash = fullhash;
     node->thisnodename = blocknum;
@@ -1408,13 +1409,14 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
         r = EINVAL;
         goto cleanup;
     }
-    
+
     node->layout_version = node->layout_version_read_from_disk;
     node->layout_version_original = rbuf_int(rb);
     node->build_id = rbuf_int(rb);
     node->n_children = rbuf_int(rb);
-    // Guaranteed to be have been able to read up to here.  If n_children is too big, we may have a problem, so check that we won't overflow while
-    // reading the partition locations.
+    // Guaranteed to be have been able to read up to here.  If n_children
+    // is too big, we may have a problem, so check that we won't overflow
+    // while reading the partition locations.
     unsigned int nhsize =  serialize_node_header_size(node); // we can do this because n_children is filled in.
     unsigned int needed_size = nhsize + 12; // we need 12 more so that we can read the compressed block size information that follows for the nodeinfo.
     if (needed_size > rb->size) {
@@ -1442,10 +1444,11 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
     sb_node_info.compressed_size = rbuf_int(rb); // we'll be able to read these because we checked the size earlier.
     sb_node_info.uncompressed_size = rbuf_int(rb);
     if (rb->size-rb->ndone < sb_node_info.compressed_size + 8) {
-	r = EINVAL; // we won't 
+	r = EINVAL; // we won't
 	goto cleanup;
     }
     // We got the entire header and node info!
+    toku_brt_status_update_pivot_fetch_reason(bfe);
 
     // Finish reading compressed the sub_block
     bytevec* cp = (bytevec*)&sb_node_info.compressed_ptr;
@@ -1458,7 +1461,7 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
     // Now decompress the subblock
     sb_node_info.uncompressed_ptr = toku_xmalloc(sb_node_info.uncompressed_size);
     assert(sb_node_info.uncompressed_ptr);
-    
+
     toku_decompress(
         sb_node_info.uncompressed_ptr,
         sb_node_info.uncompressed_size,
@@ -1471,7 +1474,9 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
     toku_free(sb_node_info.uncompressed_ptr);
     sb_node_info.uncompressed_ptr = NULL;
 
-    // Now we have the brtnode_info.  We have a bunch more stuff in the rbuf, so we might be able to store the compressed data for some objects.
+    // Now we have the brtnode_info.  We have a bunch more stuff in the
+    // rbuf, so we might be able to store the compressed data for some
+    // objects.
     // We can proceed to deserialize the individual subblocks.
     assert(bfe->type == brtnode_fetch_none || bfe->type == brtnode_fetch_subset || bfe->type == brtnode_fetch_all || bfe->type == brtnode_fetch_prefetch);
 
@@ -1480,29 +1485,17 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
     // for partitions staying compressed, create sub_block
     setup_brtnode_partitions(node, bfe, false);
 
-    // determine the range to preetch
-    int lc, rc;
-    if (bfe->type == brtnode_fetch_subset || bfe->type == brtnode_fetch_prefetch) {
-        lc = toku_bfe_leftmost_child_wanted(bfe, node);
-        rc = toku_bfe_rightmost_child_wanted(bfe, node);
-    } else {
-        lc = -1;
-        rc = -1;
+    if (bfe->type != brtnode_fetch_none) {
+        PAIR_ATTR attr;
+        toku_brtnode_pf_callback(node, bfe, fd, &attr);
     }
-
-    cilk_for (int i = 0; i < node->n_children; i++) {
-	assert(BP_STATE(node, i) == PT_ON_DISK);
-        // We only touch the clock for basement nodes that the bfe wants,
-        // and not basement nodes that the are being prefetched
+    // handle clock
+    for (int i = 0; i < node->n_children; i++) {
         if (toku_bfe_wants_child_available(bfe, i)) {
+            assert(BP_STATE(node,i) == PT_AVAIL);
             BP_TOUCH_CLOCK(node,i);
         }
-        if ((lc <= i && i <= rc) || toku_bfe_wants_child_available(bfe, i)) {
-	    assert(BP_STATE(node,i) == PT_ON_DISK);
-	    toku_deserialize_bp_from_disk(node, i, fd, bfe);
-        }
     }
-
     *brtnode = node;
     r = 0;
 

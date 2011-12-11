@@ -251,7 +251,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     r = toku_brt_open(t, name, 0, 0, ct, null_txn, 0); assert(r==0);
 
     BRT_CURSOR cursor = NULL;
-    r = toku_brt_cursor(t, &cursor, NULL, FALSE); assert(r == 0);
+    r = toku_brt_cursor(t, &cursor, NULL, FALSE, FALSE); assert(r == 0);
 
     int i;
     for (i=0; i<n; i++) {

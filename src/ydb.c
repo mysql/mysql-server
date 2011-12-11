@@ -2091,6 +2091,25 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
             engstat->msg_bytes_max = brt_stat.msg_bytes_max;
             engstat->msg_num = brt_stat.msg_num;
             engstat->msg_num_broadcast = brt_stat.msg_num_broadcast;
+            engstat->num_basements_decompressed_normal = brt_stat.num_basements_decompressed_normal;
+            engstat->num_basements_decompressed_aggressive = brt_stat.num_basements_decompressed_aggressive;
+            engstat->num_basements_decompressed_prefetch = brt_stat.num_basements_decompressed_prefetch;
+            engstat->num_basements_decompressed_write = brt_stat.num_basements_decompressed_write;
+            engstat->num_msg_buffer_decompressed_normal = brt_stat.num_msg_buffer_decompressed_normal;
+            engstat->num_msg_buffer_decompressed_aggressive = brt_stat.num_msg_buffer_decompressed_aggressive;
+            engstat->num_msg_buffer_decompressed_prefetch = brt_stat.num_msg_buffer_decompressed_prefetch;
+            engstat->num_msg_buffer_decompressed_write = brt_stat.num_msg_buffer_decompressed_write;
+            engstat->num_pivots_fetched_query = brt_stat.num_pivots_fetched_query;
+            engstat->num_pivots_fetched_prefetch = brt_stat.num_pivots_fetched_prefetch;
+            engstat->num_pivots_fetched_write = brt_stat.num_pivots_fetched_write;
+            engstat->num_basements_fetched_normal = brt_stat.num_basements_fetched_normal;
+            engstat->num_basements_fetched_aggressive = brt_stat.num_basements_fetched_aggressive;
+            engstat->num_basements_fetched_prefetch = brt_stat.num_basements_fetched_prefetch;
+            engstat->num_basements_fetched_write = brt_stat.num_basements_fetched_write;
+            engstat->num_msg_buffer_fetched_normal = brt_stat.num_msg_buffer_fetched_normal;
+            engstat->num_msg_buffer_fetched_aggressive = brt_stat.num_msg_buffer_fetched_aggressive;
+            engstat->num_msg_buffer_fetched_prefetch = brt_stat.num_msg_buffer_fetched_prefetch;
+            engstat->num_msg_buffer_fetched_write = brt_stat.num_msg_buffer_fetched_write;
 	}
 	{
 	    u_int64_t fsync_count, fsync_time;
@@ -2353,6 +2372,25 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
         n += snprintf(buff + n, bufsiz - n, "msg_bytes_max                    %"PRIu64"\n", engstat.msg_bytes_max); 
         n += snprintf(buff + n, bufsiz - n, "msg_num                          %"PRIu64"\n", engstat.msg_num); 
         n += snprintf(buff + n, bufsiz - n, "msg_num_broadcast                %"PRIu64"\n", engstat.msg_num_broadcast); 
+        n += snprintf(buff + n, bufsiz - n, "num_basements_decompressed_normal      %"PRIu64"\n", engstat.num_basements_decompressed_normal);
+        n += snprintf(buff + n, bufsiz - n, "num_basements_decompressed_aggressive  %"PRIu64"\n", engstat.num_basements_decompressed_aggressive);
+        n += snprintf(buff + n, bufsiz - n, "num_basements_decompressed_prefetch    %"PRIu64"\n", engstat.num_basements_decompressed_prefetch);
+        n += snprintf(buff + n, bufsiz - n, "num_basements_decompressed_write       %"PRIu64"\n", engstat.num_basements_decompressed_write);
+        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_decompressed_normal      %"PRIu64"\n", engstat.num_msg_buffer_decompressed_normal);
+        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_decompressed_aggressive  %"PRIu64"\n", engstat.num_msg_buffer_decompressed_aggressive);
+        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_decompressed_prefetch    %"PRIu64"\n", engstat.num_msg_buffer_decompressed_prefetch);
+        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_decompressed_write       %"PRIu64"\n", engstat.num_msg_buffer_decompressed_write);
+        n += snprintf(buff + n, bufsiz - n, "num_pivots_fetched_query               %"PRIu64"\n", engstat.num_pivots_fetched_query);
+        n += snprintf(buff + n, bufsiz - n, "num_pivots_fetched_prefetch            %"PRIu64"\n", engstat.num_pivots_fetched_prefetch);
+        n += snprintf(buff + n, bufsiz - n, "num_pivots_fetched_write               %"PRIu64"\n", engstat.num_pivots_fetched_write);
+        n += snprintf(buff + n, bufsiz - n, "num_basements_fetched_normal           %"PRIu64"\n", engstat.num_basements_fetched_normal);
+        n += snprintf(buff + n, bufsiz - n, "num_basements_fetched_aggressive       %"PRIu64"\n", engstat.num_basements_fetched_aggressive);
+        n += snprintf(buff + n, bufsiz - n, "num_basements_fetched_prefetch         %"PRIu64"\n", engstat.num_basements_fetched_prefetch);
+        n += snprintf(buff + n, bufsiz - n, "num_basements_fetched_write            %"PRIu64"\n", engstat.num_basements_fetched_write);
+        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_fetched_normal           %"PRIu64"\n", engstat.num_msg_buffer_fetched_normal);
+        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_fetched_aggressive       %"PRIu64"\n", engstat.num_msg_buffer_fetched_aggressive);
+        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_fetched_prefetch         %"PRIu64"\n", engstat.num_msg_buffer_fetched_prefetch);
+        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_fetched_write            %"PRIu64"\n", engstat.num_msg_buffer_fetched_write);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts                    %"PRIu64"\n", engstat.multi_inserts);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts_fail               %"PRIu64"\n", engstat.multi_inserts_fail);
 	n += snprintf(buff + n, bufsiz - n, "multi_deletes                    %"PRIu64"\n", engstat.multi_deletes);
@@ -4189,7 +4227,7 @@ toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
     //   lock_flags |= DB_PRELOCKED
     //}
     
-    r = toku_db_cursor(cursor->dbp, dbc_struct_i(cursor)->txn, &count_cursor, 0, 0);
+    r = toku_db_cursor(cursor->dbp, dbc_struct_i(cursor)->txn, &count_cursor, DBC_DISABLE_PREFETCHING, 0);
     if (r != 0) goto finish;
 
     r = toku_c_getf_set(count_cursor, lock_flags, &currentkey, ydb_getf_do_nothing, NULL);
@@ -4218,7 +4256,7 @@ db_getf_set(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTIO
     DBC *c;
     uint32_t create_flags = flags & (DB_ISOLATION_FLAGS | DB_RMW);
     flags &= ~DB_ISOLATION_FLAGS;
-    int r = toku_db_cursor(db, txn, &c, create_flags, 1);
+    int r = toku_db_cursor(db, txn, &c, create_flags | DBC_DISABLE_PREFETCHING, 1);
     if (r==0) {
         r = toku_c_getf_set(c, flags, key, f, extra);
         int r2 = toku_c_close(c);
@@ -4464,7 +4502,7 @@ toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporar
     DB_ENV* env = db->dbenv;
     int r;
     size_t result_size = sizeof(DBC)+sizeof(struct __toku_dbc_internal); // internal stuff stuck on the end
-    if (flags & ~(DB_SERIALIZABLE | DB_INHERIT_ISOLATION | DB_RMW)) {
+    if (flags & ~(DB_SERIALIZABLE | DB_INHERIT_ISOLATION | DB_RMW | DBC_DISABLE_PREFETCHING)) {
         return toku_ydb_do_error(
             env, 
             EINVAL, 
@@ -4527,7 +4565,8 @@ toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporar
         db->i->brt, 
         &dbc_struct_i(result)->c,
         txn ? db_txn_struct_i(txn)->tokutxn : NULL,
-        is_snapshot_read
+        is_snapshot_read,
+        ((flags & DBC_DISABLE_PREFETCHING) != 0)
         );
     assert(r == 0 || r == TOKUDB_MVCC_DICTIONARY_TOO_NEW);
     if (r == 0) {
@@ -4565,7 +4604,7 @@ toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
 
 
     DBC *dbc;
-    r = toku_db_cursor(db, txn, &dbc, iso_flags, 1);
+    r = toku_db_cursor(db, txn, &dbc, iso_flags | DBC_DISABLE_PREFETCHING, 1);
     if (r!=0) return r;
     u_int32_t c_get_flags = DB_SET;
     r = toku_c_get(dbc, key, data, c_get_flags | lock_flags);

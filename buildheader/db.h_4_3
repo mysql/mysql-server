@@ -214,6 +214,25 @@ typedef struct __toku_engine_status {
   uint64_t         msg_bytes_max;               /* how many bytes of messages currently in trees (estimate)*/
   uint64_t         msg_num;                     /* how many messages injected at root*/
   uint64_t         msg_num_broadcast;           /* how many broadcast messages injected at root*/
+  uint64_t         num_basements_decompressed_normal;  /* how many basement nodes were decompressed because they were the target of a query */
+  uint64_t         num_basements_decompressed_aggressive; /* ... because they were between lc and rc */
+  uint64_t         num_basements_decompressed_prefetch;
+  uint64_t         num_basements_decompressed_write;
+  uint64_t         num_msg_buffer_decompressed_normal;  /* how many msg buffers were decompressed because they were the target of a query */
+  uint64_t         num_msg_buffer_decompressed_aggressive; /* ... because they were between lc and rc */
+  uint64_t         num_msg_buffer_decompressed_prefetch;
+  uint64_t         num_msg_buffer_decompressed_write;
+  uint64_t         num_pivots_fetched_query;           /* how many pivots were fetched were fetched for a query */
+  uint64_t         num_pivots_fetched_prefetch;        /* ... for a prefetch */
+  uint64_t         num_pivots_fetched_write;           /* ... for a write */
+  uint64_t         num_basements_fetched_normal;       /* how many basement nodes were fetched because they were the target of a query */
+  uint64_t         num_basements_fetched_aggressive;      /* ... because they were between lc and rc */
+  uint64_t         num_basements_fetched_prefetch;
+  uint64_t         num_basements_fetched_write;
+  uint64_t         num_msg_buffer_fetched_normal;       /* how many msg buffers were fetched because they were the target of a query */
+  uint64_t         num_msg_buffer_fetched_aggressive;      /* ... because they were between lc and rc */
+  uint64_t         num_msg_buffer_fetched_prefetch;
+  uint64_t         num_msg_buffer_fetched_write;
   u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ 
   u_int64_t        le_max_provisional_xr;   /* max provisional transaction records in any packed le   */ 
   u_int64_t        le_max_memsize;          /* max memsize of any packed le     */ 
@@ -332,6 +351,7 @@ typedef enum {
 #define DB_PRELOCKED_WRITE 0x00400000
 #define DB_PRELOCKED_FILE_READ 0x00200000
 #define DB_IS_HOT_INDEX 0x00100000
+#define DBC_DISABLE_PREFETCHING 0x20000000
 #define DB_DBT_APPMALLOC 1
 #define DB_DBT_DUPOK 64
 #define DB_DBT_MALLOC 4

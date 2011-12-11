@@ -23,7 +23,7 @@ le_cursor_create(LE_CURSOR *le_cursor_result, BRT brt, TOKUTXN txn) {
     if (le_cursor == NULL)
         result = errno;
     else {
-        result = toku_brt_cursor(brt, &le_cursor->brt_cursor, txn, FALSE);
+        result = toku_brt_cursor(brt, &le_cursor->brt_cursor, txn, FALSE, FALSE);
         if (result == 0) {
             // TODO move the leaf mode to the brt cursor constructor
             toku_brt_cursor_set_leaf_mode(le_cursor->brt_cursor);

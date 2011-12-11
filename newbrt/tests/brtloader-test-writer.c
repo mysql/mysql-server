@@ -58,7 +58,7 @@ static void verify_dbfile(int n, const char *name) {
     if (verbose) traceit("Verified brt internals");
 
     BRT_CURSOR cursor = NULL;
-    r = toku_brt_cursor(t, &cursor, NULL, FALSE); assert(r == 0);
+    r = toku_brt_cursor(t, &cursor, NULL, FALSE, FALSE); assert(r == 0);
 
     int i;
     for (i=0; ; i++) {

@@ -186,7 +186,7 @@ int toku_verify_brt_with_progress (BRT brt, int (*progress_callback)(void *extra
 //int show_brt_blocknumbers(BRT);
 
 typedef struct brt_cursor *BRT_CURSOR;
-int toku_brt_cursor (BRT, BRT_CURSOR*, TOKUTXN, BOOL)  __attribute__ ((warn_unused_result));
+int toku_brt_cursor (BRT, BRT_CURSOR*, TOKUTXN, BOOL, BOOL)  __attribute__ ((warn_unused_result));
 void toku_brt_cursor_set_leaf_mode(BRT_CURSOR);
 int toku_brt_cursor_is_leaf_mode(BRT_CURSOR);
 void toku_brt_cursor_set_range_lock(BRT_CURSOR, const DBT *, const DBT *, BOOL, BOOL);

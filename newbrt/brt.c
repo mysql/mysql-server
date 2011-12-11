@@ -538,16 +538,28 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
 }
 
+void
+toku_brt_status_update_pivot_fetch_reason(struct brtnode_fetch_extra *bfe)
+{
+    if (bfe->type == brtnode_fetch_prefetch) {
+        brt_status.num_pivots_fetched_prefetch++;
+    } else if (bfe->type == brtnode_fetch_all) {
+        brt_status.num_pivots_fetched_write++;
+    } else if (bfe->type == brtnode_fetch_subset) {
+        brt_status.num_pivots_fetched_query++;
+    }
+}
 
 //fd is protected (must be holding fdlock)
-int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM nodename, u_int32_t fullhash, 
-				 void **brtnode_pv, PAIR_ATTR *sizep, int *dirtyp, void *extraargs) {
+int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM nodename, u_int32_t fullhash,
+                                 void **brtnode_pv, PAIR_ATTR *sizep, int *dirtyp, void *extraargs) {
     assert(extraargs);
     assert(*brtnode_pv == NULL);
     struct brtnode_fetch_extra *bfe = (struct brtnode_fetch_extra *)extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
-    // deserialize the node, must pass the bfe in because we cannot evaluate what piece of the 
-    // the node is necessary until we get it at least partially into memory
+    // deserialize the node, must pass the bfe in because we cannot
+    // evaluate what piece of the the node is necessary until we get it at
+    // least partially into memory
     int r = toku_deserialize_brtnode_from(fd, nodename, fullhash, result, bfe);
     if (r == 0) {
 	*sizep = make_brtnode_pair_attr(*result);
@@ -781,6 +793,9 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
         brt_status_update_partial_fetch(BP_STATE(node, bfe->child_to_read));
     }
     else if (bfe->type == brtnode_fetch_prefetch) {
+        // makes no sense to have prefetching disabled
+        // and still call this function
+        assert(!bfe->disable_prefetching);
         int lc = toku_bfe_leftmost_child_wanted(bfe, node);
         int rc = toku_bfe_rightmost_child_wanted(bfe, node);
         for (int i = lc; i <= rc; ++i) {
@@ -797,6 +812,71 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
     return retval;
 }
 
+static void
+brt_status_update_partial_fetch_reason(
+    struct brtnode_fetch_extra *bfe,
+    int i,
+    int state,
+    BOOL is_leaf
+    )
+{
+    invariant(state == PT_COMPRESSED || state == PT_ON_DISK);
+    if (is_leaf) {
+        if (bfe->type == brtnode_fetch_prefetch) {
+            if (state == PT_COMPRESSED) {
+                brt_status.num_basements_decompressed_prefetch++;
+            } else {
+                brt_status.num_basements_fetched_prefetch++;
+            }
+        } else if (bfe->type == brtnode_fetch_all) {
+            if (state == PT_COMPRESSED) {
+                brt_status.num_basements_decompressed_write++;
+            } else {
+                brt_status.num_basements_fetched_write++;
+            }
+        } else if (i == bfe->child_to_read) {
+            if (state == PT_COMPRESSED) {
+                brt_status.num_basements_decompressed_normal++;
+            } else {
+                brt_status.num_basements_fetched_normal++;
+            }
+        } else {
+            if (state == PT_COMPRESSED) {
+                brt_status.num_basements_decompressed_aggressive++;
+            } else {
+                brt_status.num_basements_fetched_aggressive++;
+            }
+        }
+    }
+    else {
+        if (bfe->type == brtnode_fetch_prefetch) {
+            if (state == PT_COMPRESSED) {
+                brt_status.num_msg_buffer_decompressed_prefetch++;
+            } else {
+                brt_status.num_msg_buffer_fetched_prefetch++;
+            }
+        } else if (bfe->type == brtnode_fetch_all) {
+            if (state == PT_COMPRESSED) {
+                brt_status.num_msg_buffer_decompressed_write++;
+            } else {
+                brt_status.num_msg_buffer_fetched_write++;
+            }
+        } else if (i == bfe->child_to_read) {
+            if (state == PT_COMPRESSED) {
+                brt_status.num_msg_buffer_decompressed_normal++;
+            } else {
+                brt_status.num_msg_buffer_fetched_normal++;
+            }
+        } else {
+            if (state == PT_COMPRESSED) {
+                brt_status.num_msg_buffer_decompressed_aggressive++;
+            } else {
+                brt_status.num_msg_buffer_fetched_aggressive++;
+            }
+        }
+    }
+}
+
 // callback for partially reading a node
 // could have just used toku_brtnode_fetch_callback, but wanted to separate the two cases to separate functions
 int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, PAIR_ATTR* sizep) {
@@ -807,7 +887,10 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, PAI
     assert((bfe->type == brtnode_fetch_subset) || (bfe->type == brtnode_fetch_all) || (bfe->type == brtnode_fetch_prefetch));
     // determine the range to prefetch
     int lc, rc;
-    if (bfe->type == brtnode_fetch_subset || bfe->type == brtnode_fetch_prefetch) {
+    if (!bfe->disable_prefetching && 
+        (bfe->type == brtnode_fetch_subset || bfe->type == brtnode_fetch_prefetch)
+        ) 
+    {
         lc = toku_bfe_leftmost_child_wanted(bfe, node);
         rc = toku_bfe_rightmost_child_wanted(bfe, node);
     } else {
@@ -821,6 +904,7 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, PAI
             continue;
         }
         if ((lc <= i && i <= rc) || toku_bfe_wants_child_available(bfe, i)) {
+            brt_status_update_partial_fetch_reason(bfe, i, BP_STATE(node, i), (node->height == 0));
             if (BP_STATE(node,i) == PT_COMPRESSED) {
                 cilk_spawn toku_deserialize_bp_from_compressed(node, i, &bfe->h->descriptor, bfe->h->compare_fun);
             }
@@ -3843,7 +3927,8 @@ int toku_brt_cursor (
     BRT brt, 
     BRT_CURSOR *cursorptr, 
     TOKUTXN ttxn, 
-    BOOL is_snapshot_read
+    BOOL is_snapshot_read,
+    BOOL disable_prefetching
     ) 
 {
     if (is_snapshot_read) {
@@ -3868,6 +3953,7 @@ int toku_brt_cursor (
     cursor->is_snapshot_read = is_snapshot_read;
     cursor->is_leaf_mode = FALSE;
     cursor->ttxn = ttxn;
+    cursor->disable_prefetching = disable_prefetching;
     toku_list_push(&brt->cursors, &cursor->cursors_link);
     *cursorptr = cursor;
     return 0;
@@ -4543,7 +4629,7 @@ brt_node_maybe_prefetch(BRT brt, BRTNODE node, int childnum, BRT_CURSOR brtcurso
 
     // if we want to prefetch in the tree
     // then prefetch the next children if there are any
-    if (*doprefetch && brt_cursor_prefetching(brtcursor)) {
+    if (*doprefetch && brt_cursor_prefetching(brtcursor) && !brtcursor->disable_prefetching) {
         int rc = brt_cursor_rightmost_child_wanted(brtcursor, brt, node);
         for (int i = childnum + 1; (i <= childnum + TOKU_DO_PREFETCH) && (i <= rc); i++) {
             BLOCKNUM nextchildblocknum = BP_BLOCKNUM(node, i);
@@ -4612,7 +4698,8 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
         &brtcursor->range_lock_left_key,
         &brtcursor->range_lock_right_key,
         brtcursor->left_is_neg_infty,
-        brtcursor->right_is_pos_infty
+        brtcursor->right_is_pos_infty,
+        brtcursor->disable_prefetching
         );
     {
         int rr = toku_pin_brtnode(brt, childblocknum, fullhash,
@@ -4858,7 +4945,8 @@ try_again:
         &brtcursor->range_lock_left_key,
         &brtcursor->range_lock_right_key,
         brtcursor->left_is_neg_infty,
-        brtcursor->right_is_pos_infty
+        brtcursor->right_is_pos_infty,
+        brtcursor->disable_prefetching
         );
     r = toku_pin_brtnode(brt, *rootp, fullhash,(UNLOCKERS)NULL,(ANCESTORS)NULL, &infinite_bounds, &bfe, TRUE, &node);
     assert(r==0 || r== TOKUDB_TRY_AGAIN);
@@ -5015,7 +5103,7 @@ int
 toku_brt_flatten(BRT brt, TOKUTXN ttxn)
 {
     BRT_CURSOR tmp_cursor;
-    int r = toku_brt_cursor(brt, &tmp_cursor, ttxn, FALSE);
+    int r = toku_brt_cursor(brt, &tmp_cursor, ttxn, FALSE, FALSE);
     if (r!=0) return r;
     brt_search_t search; brt_search_init(&search, brt_cursor_compare_one, BRT_SEARCH_LEFT, 0, tmp_cursor->brt);
     r = brt_cursor_search(tmp_cursor, &search, brt_flatten_getf, NULL, FALSE);
@@ -5281,7 +5369,7 @@ toku_brt_lookup (BRT brt, DBT *k, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
     int r, rr;
     BRT_CURSOR cursor;
 
-    rr = toku_brt_cursor(brt, &cursor, NULL, FALSE);
+    rr = toku_brt_cursor(brt, &cursor, NULL, FALSE, FALSE);
     if (rr != 0) return rr;
 
     int op = DB_SET;

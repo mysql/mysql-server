@@ -79,6 +79,14 @@ struct brtnode_fetch_extra {
     brt_search_t* search;
     DBT *range_lock_left_key, *range_lock_right_key;
     BOOL left_is_neg_infty, right_is_pos_infty;
+    // states if we should try to aggressively fetch basement nodes 
+    // that are not specifically needed for current query, 
+    // but may be needed for other cursor operations user is doing
+    // For example, if we have not disabled prefetching,
+    // and the user is doing a dictionary wide scan, then
+    // even though a query may only want one basement node,
+    // we fetch all basement nodes in a leaf node.
+    BOOL disable_prefetching; 
     // this value will be set during the fetch_callback call by toku_brtnode_fetch_callback or toku_brtnode_pf_req_callback
     // thi callbacks need to evaluate this anyway, so we cache it here so the search code does not reevaluate it
     int child_to_read;
@@ -485,6 +493,7 @@ struct brtenv {
     long long checksum_number;
 };
 
+void toku_brt_status_update_pivot_fetch_reason(struct brtnode_fetch_extra *bfe);
 extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
 extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, PAIR_ATTR *sizep, int*dirty, void*extraargs);
 extern void toku_brtnode_pe_est_callback(void* brtnode_pv, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void* write_extraargs);
@@ -522,6 +531,7 @@ struct brt_cursor {
     BOOL left_is_neg_infty, right_is_pos_infty;
     BOOL is_snapshot_read; // true if query is read_committed, false otherwise
     BOOL is_leaf_mode;
+    BOOL disable_prefetching;
     TOKUTXN ttxn;
     struct brt_cursor_leaf_info  leaf_info;
 };
@@ -541,6 +551,7 @@ static inline void fill_bfe_for_full_read(struct brtnode_fetch_extra *bfe, struc
     bfe->left_is_neg_infty = FALSE;
     bfe->right_is_pos_infty = FALSE;
     bfe->child_to_read = -1;
+    bfe->disable_prefetching = FALSE;
 }
 
 //
@@ -556,7 +567,8 @@ static inline void fill_bfe_for_subset_read(
     DBT *left,
     DBT *right,
     BOOL left_is_neg_infty,
-    BOOL right_is_pos_infty
+    BOOL right_is_pos_infty,
+    BOOL disable_prefetching
     )
 {
     bfe->type = brtnode_fetch_subset;
@@ -567,6 +579,7 @@ static inline void fill_bfe_for_subset_read(
     bfe->left_is_neg_infty = left_is_neg_infty;
     bfe->right_is_pos_infty = right_is_pos_infty;
     bfe->child_to_read = -1;
+    bfe->disable_prefetching = disable_prefetching;
 }
 
 //
@@ -584,6 +597,7 @@ static inline void fill_bfe_for_min_read(struct brtnode_fetch_extra *bfe, struct
     bfe->left_is_neg_infty = FALSE;
     bfe->right_is_pos_infty = FALSE;
     bfe->child_to_read = -1;
+    bfe->disable_prefetching = FALSE;
 }
 
 static inline void destroy_bfe_for_prefetch(struct brtnode_fetch_extra *bfe) {
@@ -628,6 +642,7 @@ static inline void fill_bfe_for_prefetch(struct brtnode_fetch_extra *bfe,
     bfe->left_is_neg_infty = c->left_is_neg_infty;
     bfe->right_is_pos_infty = c->right_is_pos_infty;
     bfe->child_to_read = -1;
+    bfe->disable_prefetching = c->disable_prefetching;
 }
 
 struct ancestors {
@@ -787,6 +802,25 @@ struct brt_status {
     uint64_t  msg_bytes_max;               // how many bytes of messages currently in trees (estimate)
     uint64_t  msg_num;                     // how many messages injected at root
     uint64_t  msg_num_broadcast;           // how many broadcast messages injected at root
+    uint64_t  num_basements_decompressed_normal;  // how many basement nodes were decompressed because they were the target of a query
+    uint64_t  num_basements_decompressed_aggressive; // ... because they were between lc and rc
+    uint64_t  num_basements_decompressed_prefetch;
+    uint64_t  num_basements_decompressed_write;
+    uint64_t  num_msg_buffer_decompressed_normal;  // how many msg buffers were decompressed because they were the target of a query
+    uint64_t  num_msg_buffer_decompressed_aggressive; // ... because they were between lc and rc
+    uint64_t  num_msg_buffer_decompressed_prefetch;
+    uint64_t  num_msg_buffer_decompressed_write;
+    uint64_t  num_pivots_fetched_query;           // how many pivots were fetched for a query
+    uint64_t  num_pivots_fetched_prefetch;        // ... for a prefetch
+    uint64_t  num_pivots_fetched_write;           // ... for a write
+    uint64_t  num_basements_fetched_normal;       // how many basement nodes were fetched because they were the target of a query
+    uint64_t  num_basements_fetched_aggressive;      // ... because they were between lc and rc
+    uint64_t  num_basements_fetched_prefetch;
+    uint64_t  num_basements_fetched_write;
+    uint64_t  num_msg_buffer_fetched_normal;       // how many msg buffers were fetched because they were the target of a query
+    uint64_t  num_msg_buffer_fetched_aggressive;      // ... because they were between lc and rc
+    uint64_t  num_msg_buffer_fetched_prefetch;
+    uint64_t  num_msg_buffer_fetched_write;
 };
 
 void toku_brt_get_status(BRT_STATUS);
