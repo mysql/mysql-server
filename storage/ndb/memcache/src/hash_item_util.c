@@ -45,6 +45,13 @@ uint32_t hash_item_get_data_len(const hash_item *item) {
   return item->nbytes;
 }
 
+rel_time_t hash_item_get_exptime(const hash_item *item) {
+  return item->exptime;
+}
+
+uint32_t hash_item_get_flags(const hash_item *item) {
+  return item->flags;
+}
 
 uint64_t hash_item_get_cas(const hash_item* item)
 {

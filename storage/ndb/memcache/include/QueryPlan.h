@@ -98,7 +98,7 @@ inline bool QueryPlan::canHaveExternalValue() const {
 }
 
 inline bool QueryPlan::canUseSimpleRead() const {
-  return(pk_access && ! extern_store);
+  return(pk_access && (! extern_store) && (! spec->exp_column));
 }
 
 #endif

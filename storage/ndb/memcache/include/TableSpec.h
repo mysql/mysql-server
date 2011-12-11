@@ -43,6 +43,7 @@ class TableSpec {
   void setTable(const char *db, const char *table);
   void setKeyColumns(const char *col1, ...);
   void setValueColumns(const char *col1, ...);
+  bool isValid() const;
   
   /* Public instance variables */
   int nkeycols;
@@ -91,8 +92,7 @@ inline TableSpec::TableSpec(int nkeys, int nvals) :
                             value_columns(new const char *[nvals]),
                             external_table(0) { 
   must_free.none = 1; 
-};
-
+}
 
 inline TableSpec::TableSpec(const char *db, const char *tab, 
                             int nkeys, int nvals) :
@@ -104,7 +104,7 @@ inline TableSpec::TableSpec(const char *db, const char *tab,
                             value_columns(new const char *[nvals]),
                             external_table(0) {
   must_free.none = 1; 
-};
+}
 
 inline void TableSpec::setTable(const char *db, const char *table) {
   schema_name = db;
@@ -113,6 +113,9 @@ inline void TableSpec::setTable(const char *db, const char *table) {
   must_free.table_name  = 1;
 }
 
+inline bool TableSpec::isValid() const {
+  return (schema_name && table_name && nkeycols);
+}
 
 #endif
 

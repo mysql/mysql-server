@@ -142,7 +142,6 @@ bool Record::complete(NdbDictionary::Dictionary *dict,
     return false;
   }
   assert(NdbDictionary::getRecordRowLength(ndb_record) == rec_size);
-  debug_dump();
   return true;
 }
 

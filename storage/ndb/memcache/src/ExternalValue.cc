@@ -32,10 +32,12 @@ extern status_block status_block_memcache_error;
 extern status_block status_block_misc_error;
 extern status_block status_block_too_big;
 extern status_block status_block_cas_mismatch;
+extern status_block status_block_item_not_found;
 extern void worker_set_cas(ndb_pipeline *p, uint64_t *cas);
 
 /* Callback functions from ndb_worker.cc */
 extern ndb_async_callback callback_main;
+extern ndb_async_callback callback_close;
 extern worker_step worker_finalize_write;
 extern worker_step worker_close;
 extern worker_step worker_append;
@@ -145,16 +147,7 @@ void ExternalValue::append_after_read(NdbTransaction *tx, workitem *item) {
   
   Operation readop(item->plan, OP_READ);
   readop.buffer = item->row_buffer_1;
-  
-  /* CAS check */
-  //  if(item->prefix_info.has_cas_col && item->cas &&
-  //     * (item->cas) != readop.getBigUnsignedValue(COL_STORE_CAS)) {
-  //    DEBUG_PRINT("CAS FAIL: %llu in, %llu stored");
-  //    item->status = & status_block_cas_mismatch;
-  //    worker_close(tx, item);
-  //    return;
-  //  }
-  
+    
   /* Several possibilities: 
    A. the old value was short, and the new value is also short.
    B. the old value was short and the new value is long.
@@ -243,6 +236,14 @@ void ExternalValue::worker_read_external(Operation &op,
                                          NdbTransaction *the_read_tx) {
   tx = the_read_tx;
   old_hdr.readFromHeader(op);
+
+  if(stored_item_has_expired(wqitem, op)) {
+    DEBUG_PRINT("EXPIRED");
+    deleteParts();
+    delete_expired_item(wqitem, tx);
+    return;
+  }
+  
   readParts();
   wqitem->pipeline->scheduler->reschedule(wqitem);
   tx->executeAsynchPrepare(NdbTransaction::Commit, callback_ext_parts_read, (void *) wqitem);
@@ -526,7 +527,23 @@ void ExternalValue::setMiscColumns(Operation & op) const {
   op.setColumn(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);
 
   /* Set the CAS value in the header row */
-  op.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);  
+  if(do_server_cas) 
+    op.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);  
+  
+  /* Set expire time */
+  rel_time_t exptime = hash_item_get_exptime(wqitem->cache_item);
+  if(exptime && wqitem->prefix_info.has_expire_col) {
+    time_t abs_expires = 
+      wqitem->pipeline->engine->server.core->abstime(exptime);
+    op.setColumnInt(COL_STORE_EXPIRES, abs_expires); 
+  }
+  
+  /* Set flags */
+  if(wqitem->prefix_info.has_flags_col) {
+    uint32_t flags = hash_item_get_flags(wqitem->cache_item);
+    if(flags)
+      op.setColumnInt(COL_STORE_FLAGS, ntohl(flags));
+  }
 }
 
 
