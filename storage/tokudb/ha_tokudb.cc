@@ -4289,8 +4289,12 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
     DBUG_ASSERT(keynr <= table->s->keys);
     DBUG_ASSERT(share->key_file[keynr]);
     cursor_flags = get_cursor_isolation_flags(lock.type, thd);
-    if (use_write_locks)
+    if (use_write_locks) {
         cursor_flags |= DB_RMW;
+    }
+    if (get_disable_prefetching(thd)) {
+        cursor_flags |= DBC_DISABLE_PREFETCHING;
+    }
     if ((error = share->key_file[keynr]->cursor(share->key_file[keynr], transaction, &cursor, cursor_flags))) {
         if (error == TOKUDB_MVCC_DICTIONARY_TOO_NEW) {
             error = HA_ERR_TABLE_DEF_CHANGED;

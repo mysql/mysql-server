@@ -93,6 +93,13 @@ static MYSQL_THDVAR_BOOL(create_index_online,
   NULL, 
   FALSE
   );
+static MYSQL_THDVAR_BOOL(disable_prefetching,
+  0,
+  "if on, prefetching disabled",
+  NULL, 
+  NULL, 
+  FALSE
+  );
 static MYSQL_THDVAR_BOOL(prelock_empty,
   0,
   "Tokudb Prelock Empty Table",
@@ -652,6 +659,10 @@ bool get_create_index_online(THD* thd) {
     return (THDVAR(thd, create_index_online) != 0);
 }
 
+bool get_disable_prefetching(THD* thd) {
+    return (THDVAR(thd, disable_prefetching) != 0);
+}
+
 bool get_prelock_empty(THD* thd) {
     return (THDVAR(thd, prelock_empty) != 0);
 }
@@ -1124,7 +1135,7 @@ format_time(u_int64_t time64, char *buf) {
                                           val, \
                                           strlen(val))
 
-#define showval(v) \
+#define SHOWVAL(v) \
     snprintf(buf, bufsiz, "%" PRIu64, engstat.v); \
     STATPRINT(#v, buf);
 
@@ -1210,8 +1221,8 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("txn close (commit+abort)", buf);
 
       //3988
-      showval(txn_num_open);
-      showval(txn_max_open);
+      SHOWVAL(txn_num_open);
+      SHOWVAL(txn_max_open);
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_oldest_live);
       STATPRINT("txn oldest live", buf);
@@ -1270,40 +1281,59 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%" PRIu64, engstat.search_tries_gt_heightplus3);
       STATPRINT("search_tries_gt_heightplus3", buf);
 
-      showval(cleaner_executions);
-    showval(cleaner_total_nodes);
-    showval(cleaner_h1_nodes);
-    showval(cleaner_hgt1_nodes);
-    showval(cleaner_empty_nodes);
-    showval(cleaner_nodes_dirtied);
-    showval(cleaner_max_buffer_size);
-    showval(cleaner_min_buffer_size);
-    showval(cleaner_total_buffer_size);
-    showval(cleaner_max_buffer_workdone);
-    showval(cleaner_min_buffer_workdone);
-    showval(cleaner_total_buffer_workdone);
-    showval(flush_total);
-    showval(flush_in_memory);
-    showval(flush_needed_io);
-    showval(flush_cascades);
-    showval(flush_cascades_1);
-    showval(flush_cascades_2);
-    showval(flush_cascades_3);
-    showval(flush_cascades_4);
-    showval(flush_cascades_5);
-    showval(flush_cascades_gt_5);
-    showval(disk_flush_leaf);
-    showval(disk_flush_nonleaf);
-    showval(disk_flush_leaf_for_checkpoint);
-    showval(disk_flush_nonleaf_for_checkpoint);
-    showval(destroy_leaf);
-    showval(destroy_nonleaf);
-    showval(msg_bytes_in);
-    showval(msg_bytes_out);
-    showval(msg_bytes_curr);
-    showval(msg_bytes_max);
-    showval(msg_num);
-    showval(msg_num_broadcast);
+      SHOWVAL(cleaner_executions);
+      SHOWVAL(cleaner_total_nodes);
+      SHOWVAL(cleaner_h1_nodes);
+      SHOWVAL(cleaner_hgt1_nodes);
+      SHOWVAL(cleaner_empty_nodes);
+      SHOWVAL(cleaner_nodes_dirtied);
+      SHOWVAL(cleaner_max_buffer_size);
+      SHOWVAL(cleaner_min_buffer_size);
+      SHOWVAL(cleaner_total_buffer_size);
+      SHOWVAL(cleaner_max_buffer_workdone);
+      SHOWVAL(cleaner_min_buffer_workdone);
+      SHOWVAL(cleaner_total_buffer_workdone);
+      SHOWVAL(flush_total);
+      SHOWVAL(flush_in_memory);
+      SHOWVAL(flush_needed_io);
+      SHOWVAL(flush_cascades);
+      SHOWVAL(flush_cascades_1);
+      SHOWVAL(flush_cascades_2);
+      SHOWVAL(flush_cascades_3);
+      SHOWVAL(flush_cascades_4);
+      SHOWVAL(flush_cascades_5);
+      SHOWVAL(flush_cascades_gt_5);
+      SHOWVAL(disk_flush_leaf);
+      SHOWVAL(disk_flush_nonleaf);
+      SHOWVAL(disk_flush_leaf_for_checkpoint);
+      SHOWVAL(disk_flush_nonleaf_for_checkpoint);
+      SHOWVAL(destroy_leaf);
+      SHOWVAL(destroy_nonleaf);
+      SHOWVAL(msg_bytes_in);
+      SHOWVAL(msg_bytes_out);
+      SHOWVAL(msg_bytes_curr);
+      SHOWVAL(msg_bytes_max);
+      SHOWVAL(msg_num);
+      SHOWVAL(msg_num_broadcast);
+      SHOWVAL(num_basements_decompressed_normal);
+      SHOWVAL(num_basements_decompressed_aggressive);
+      SHOWVAL(num_basements_decompressed_prefetch);
+      SHOWVAL(num_basements_decompressed_write);
+      SHOWVAL(num_msg_buffer_decompressed_normal);
+      SHOWVAL(num_msg_buffer_decompressed_aggressive);
+      SHOWVAL(num_msg_buffer_decompressed_prefetch);
+      SHOWVAL(num_msg_buffer_decompressed_write);
+      SHOWVAL(num_pivots_fetched_query);
+      SHOWVAL(num_pivots_fetched_prefetch);
+      SHOWVAL(num_pivots_fetched_write);
+      SHOWVAL(num_basements_fetched_normal);
+      SHOWVAL(num_basements_fetched_aggressive);
+      SHOWVAL(num_basements_fetched_prefetch);
+      SHOWVAL(num_basements_fetched_write);
+      SHOWVAL(num_msg_buffer_fetched_normal);
+      SHOWVAL(num_msg_buffer_fetched_aggressive);
+      SHOWVAL(num_msg_buffer_fetched_prefetch);
+      SHOWVAL(num_msg_buffer_fetched_write);
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts);
       STATPRINT("dictionary inserts multi", buf);
@@ -1324,10 +1354,10 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("dictionary sequential queries", buf);
 
       //3988
-    showval(num_db_open);
-    showval(num_db_close);
-    showval(num_open_dbs);
-    showval(max_open_dbs);
+      SHOWVAL(num_db_open);
+      SHOWVAL(num_db_close);
+      SHOWVAL(num_open_dbs);
+      SHOWVAL(max_open_dbs);
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.le_max_committed_xr);
       STATPRINT("le_max_committed_xr", buf);
@@ -1435,11 +1465,11 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("range write locks exhausted", buf);
 
       //3988
-      showval(range_lt_create);
-      showval(range_lt_create_fail);
-      showval(range_lt_destroy);
-      showval(range_lt_num);
-      showval(range_lt_num_max);
+      SHOWVAL(range_lt_create);
+      SHOWVAL(range_lt_create_fail);
+      SHOWVAL(range_lt_destroy);
+      SHOWVAL(range_lt_num);
+      SHOWVAL(range_lt_num_max);
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.directory_read_locks);
       STATPRINT("directory_read_locks", buf);
@@ -1792,6 +1822,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(load_save_space),
     MYSQL_SYSVAR(disable_slow_alter),
     MYSQL_SYSVAR(create_index_online),
+    MYSQL_SYSVAR(disable_prefetching),
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(init_flags),
     MYSQL_SYSVAR(checkpointing_period),
