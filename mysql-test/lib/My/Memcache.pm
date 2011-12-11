@@ -37,6 +37,9 @@
 ###  $mc->decr(key, amount)             like incr
 ###  $mc->flush()                       flush_all
 ###
+###  $mc->set_expires(sec)              Set TTL for all store operations
+###  $mc->set_flags(int_flags)          Set numeric flags for store operations
+###
 ###  $mc->note_config_version() 
 ###    Store the generation number of the running config in the filesystem,
 ###    for later use by wait_for_reconf()
@@ -60,7 +63,9 @@ package My::Memcache;
 
 sub new {
   my $pkg = shift;
-  bless { "created" => 1 , "error" => "" , "cf_gen" => 0 }, $pkg;
+  bless { "created" => 1 , "error" => "" , "cf_gen" => 0,
+          "exptime" => 0 , "flags" => 0
+        }, $pkg;
 }
 
 sub connect {
@@ -93,7 +98,6 @@ sub DESTROY {
   $self->{connection}->close();
 }
 
-
 sub note_config_version {
   my $self = shift;
 
@@ -108,6 +112,19 @@ sub note_config_version {
   $self->{cf_gen} = $ver;
 }
 
+sub set_expires {
+  my $self = shift;
+  my $delta = shift;
+  
+  $self->{exptime} = $delta;
+}
+
+sub set_flags {
+  my $self = shift;
+  my $flags = shift;
+  
+  $self->{flags} = $flags;
+}
 
 sub wait_for_reconf {
   my $self = shift;
@@ -182,7 +199,8 @@ sub _txt_store {
   my $value = shift;
   my $sock = $self->{connection};
   
-  $sock->printf("%s %s %d %d %d\r\n%s\r\n",$cmd, $key, 0, 0, length($value), $value);
+  $sock->printf("%s %s %d %d %d\r\n%s\r\n",$cmd, $key, 
+                $self->{flags}, $self->{exptime}, length($value), $value);
   return $sock->getline();
 }
 
@@ -244,7 +262,7 @@ sub get {
   else
   {
     $response =~ /^VALUE (.*) (\d+) (\d+)/;
-    my $flags = $2;
+    $self->{flags} = $2;
     my $len = $3;
     $sock->read($val, $len);
     $sock->getline();  # \r\n after value
@@ -463,7 +481,7 @@ sub bin_store {
   my $key = shift;
   my $value = shift;
   
-  my $extra_header = pack "NN", 0, 0;  # FLAGS and EXPIRE
+  my $extra_header = pack "NN", $self->{flags}, $self->{exptime};
   $self->send_binary_request($cmd, $key, $value, $extra_header);
   
   my ($status) = $self->get_binary_response();

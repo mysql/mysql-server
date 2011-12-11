@@ -87,6 +87,14 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
   bool last_value_col_is_int = false;
   int  first_value_col_id = -1;
   
+  if(! (spec->isValid())) {
+    logger->log(LOG_WARNING, 0, "Container record (%s.%s) is not valid. %s\n",
+                spec->schema_name ? spec->schema_name : "??",
+                spec->table_name  ? spec->table_name  : "??",
+                spec->nkeycols ? "" : "[No key columns defined]");
+    return;
+  }
+
   /* Get the data dictionary */
   db->setDatabaseName(spec->schema_name);
   dict = db->getDictionary(); 
@@ -94,7 +102,7 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
     logger->log(LOG_WARNING, 0,  "Could not get NDB dictionary.\n");
     return;
   }    
-  /* Get the table */
+  /* Get the table */  
   table = dict->getTable(spec->table_name);
   if(! table) {
     logger->log(LOG_WARNING, 0, "Invalid table \"%s.%s\"\n", 
@@ -142,6 +150,10 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
       DEBUG_PRINT("Using Index: %s on Table: %s %s", plan_idx->getName(), 
                   spec->table_name, is_scan ? "[SCAN]" : "");
       op_ok = key_record->complete(dict, plan_idx);
+    }
+    else {
+      logger->log(LOG_WARNING, 0, "No usable keys found on %s.%s\n",
+                  spec->schema_name, spec->table_name);
     }
   }
   if(op_ok == false) return;

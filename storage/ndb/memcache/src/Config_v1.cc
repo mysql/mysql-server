@@ -478,7 +478,7 @@ TableSpec * config_v1::get_container_record(char *name) {
   }
   else {
     container = 0;
-    DEBUG_PRINT("\"%s\" NOT FOUND in database.", name);
+    logger->log(LOG_WARNING, 0, "\"%s\" NOT FOUND in database.\n", name);
   }
   
   tx->close();

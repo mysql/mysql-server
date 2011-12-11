@@ -26,6 +26,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <ctype.h>
+#include <arpa/inet.h>
 
 /* Memcache headers */
 #include "memcached/types.h"
@@ -98,6 +99,7 @@ private:
 
 ndb_async_callback callback_main;     // general purpose callback
 ndb_async_callback callback_incr;     // special callback for incr/decr
+ndb_async_callback callback_close;    // just call worker_close() 
 
 
 /* 
@@ -306,10 +308,12 @@ op_status_t WorkerStep1::do_write() {
     return ExternalValue::do_write(wqitem);
   }
   
-  uint64_t cas_in = *wqitem->cas;                       // read old value
-  worker_set_cas(wqitem->pipeline, wqitem->cas);        // generate a new value
-  hash_item_set_cas(wqitem->cache_item, * wqitem->cas); // store it
- 
+  uint64_t cas_in = *wqitem->cas;                  // read old value
+  if(server_cas) {
+    worker_set_cas(wqitem->pipeline, wqitem->cas);    // generate a new value
+    hash_item_set_cas(wqitem->cache_item, * wqitem->cas); // store it
+  }
+  
   const NdbOperation *ndb_op = 0;
   Operation op(wqitem);
   const char *dbkey = workitem_get_key_suffix(wqitem);
@@ -374,6 +378,21 @@ op_status_t WorkerStep1::do_write() {
       }
     }
     else op.setColumnNull(COL_STORE_MATH);      
+  }
+
+  /* Set expire time */
+  rel_time_t exptime = hash_item_get_exptime(wqitem->cache_item);
+  if(exptime && wqitem->prefix_info.has_expire_col) {
+    time_t abs_expires = 
+      wqitem->pipeline->engine->server.core->abstime(exptime);
+    op.setColumnInt(COL_STORE_EXPIRES, abs_expires); 
+  }
+  
+  /* Set flags */
+  if(wqitem->prefix_info.has_flags_col) {
+    uint32_t flags = hash_item_get_flags(wqitem->cache_item);
+    if(flags)
+      op.setColumnInt(COL_STORE_FLAGS, ntohl(flags));
   }
   
   /* Start the transaction */
@@ -804,6 +823,14 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
 }
 
 
+void callback_close(int result, NdbTransaction *tx, void *itemptr) {
+  if(result) 
+    DEBUG_PRINT("%d %s !!", result, tx->getNdbError().message);
+  workitem *wqitem = (workitem *) itemptr;
+  worker_close(tx, wqitem);
+}
+
+
 /***************** WORKER STEPS **********************************************/
 
 void worker_close(NdbTransaction *tx, workitem *wqitem) {
@@ -901,10 +928,35 @@ void worker_check_read(NdbTransaction *tx, workitem *wqitem) {
     worker_finalize_read(tx, wqitem);
   }
   else {
-    bool do_cas = wqitem->prefix_info.has_cas_col;
     ExternalValue *ext_val = new ExternalValue(wqitem);
     ext_val->worker_read_external(op, tx);
   }
+}
+
+
+bool stored_item_has_expired(workitem *wqitem, Operation &op) {
+  bool is_expired = false;
+
+  if(wqitem->prefix_info.has_expire_col && ! op.isNull(COL_STORE_EXPIRES)) {
+    SERVER_CORE_API * SERVER = wqitem->pipeline->engine->server.core;
+    rel_time_t current_time = SERVER->get_current_time();
+    time_t stored_exptime = op.getIntValue(COL_STORE_EXPIRES);
+    rel_time_t exptime = SERVER->realtime(stored_exptime);
+    
+    if(exptime > 0 && exptime < current_time)
+      is_expired = true;  
+  }
+  return is_expired;
+}
+
+
+void delete_expired_item(workitem *wqitem, NdbTransaction *tx) {
+  DEBUG_PRINT(" Deleting [%d.%d]", wqitem->pipeline->id, wqitem->id);
+  Operation op(wqitem);
+  op.deleteTuple(tx);
+  wqitem->status = & status_block_item_not_found;
+  wqitem->pipeline->scheduler->reschedule(wqitem);
+  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_close, (void *) wqitem);    
 }
 
 
@@ -913,6 +965,11 @@ void worker_finalize_read(NdbTransaction *tx, workitem *wqitem) {
   
   Operation op(wqitem->plan, OP_READ);
   op.buffer = wqitem->row_buffer_1;
+ 
+  if(stored_item_has_expired(wqitem, op)) {
+    delete_expired_item(wqitem, tx);
+    return;
+  }
  
   if(wqitem->prefix_info.has_cas_col) {
     wqitem->cas = (uint64_t *) op.getPointer(COL_STORE_CAS);  
