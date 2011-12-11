@@ -4138,6 +4138,16 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           {
             /* Looks like we'll be using join buffer */
             first_table= join->const_tables;
+            /* 
+              Make sure that possible sorting of rows from the head table 
+              is not to be employed.
+            */
+            if (join->get_sort_by_join_tab())
+	    {
+              join->simple_order= 0;
+              join->simple_group= 0;
+              join->need_tmp= join->test_if_need_tmp_table();
+            }
             break;
           }
         }

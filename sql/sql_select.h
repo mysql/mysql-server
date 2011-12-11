@@ -1319,6 +1319,25 @@ public:
     return test(allowed_join_cache_types & JOIN_CACHE_HASHED_BIT) &&
            max_allowed_join_cache_level > JOIN_CACHE_HASHED_BIT;
   }
+  /*
+    Check if we need to create a temporary table.
+    This has to be done if all tables are not already read (const tables)
+    and one of the following conditions holds:
+    - We are using DISTINCT (simple distinct's are already optimized away)
+    - We are using an ORDER BY or GROUP BY on fields not in the first table
+    - We are using different ORDER BY and GROUP BY orders
+    - The user wants us to buffer the result.
+    When the WITH ROLLUP modifier is present, we cannot skip temporary table
+    creation for the DISTINCT clause just because there are only const tables.
+  */
+  bool test_if_need_tmp_table()
+  {
+    return ((const_tables != table_count &&
+	    ((select_distinct || !simple_order || !simple_group) ||
+	     (group_list && order) ||
+	     test(select_options & OPTION_BUFFER_RESULT))) ||
+            (rollup.state != ROLLUP::STATE_NONE && select_distinct));
+  }
   bool choose_subquery_plan(table_map join_tables);
   void get_partial_cost_and_fanout(int end_tab_idx,
                                    table_map filter_map,
