@@ -124,8 +124,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     DBUG_RETURN(TRUE);
   }
 
-  select_lex->no_error= thd->lex->ignore;
-
   const_cond_result= const_cond && (!conds || conds->val_int());
   if (thd->is_error())
   {
@@ -365,16 +363,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       }
       else
       {
-	table->file->print_error(error,MYF(0));
-	/*
-	  In < 4.0.14 we set the error number to 0 here, but that
-	  was not sensible, because then MySQL would not roll back the
-	  failed DELETE, and also wrote it to the binlog. For MyISAM
-	  tables a DELETE probably never should fail (?), but for
-	  InnoDB it can fail in a FOREIGN KEY error or an
-	  out-of-tablespace error.
-	*/
-        if (!select_lex->no_error)
+	table->file->print_error(error,
+                                 MYF(thd->lex->ignore ? ME_JUST_WARNING : 0));
+        if (thd->is_error())
         {
           error= 1;
           break;
@@ -809,7 +800,7 @@ int multi_delete::send_data(List<Item> &values)
   TABLE_LIST *del_table;
   DBUG_ENTER("multi_delete::send_data");
 
-  bool ignore= thd->lex->current_select->no_error;
+  bool ignore= thd->lex->ignore;
 
   for (del_table= delete_tables;
        del_table;
@@ -958,11 +949,11 @@ int multi_delete::do_deletes()
        table_being_deleted= table_being_deleted->next_local, counter++)
   { 
     TABLE *table = table_being_deleted->table;
+    int local_error; 
     if (tempfiles[counter]->get(table))
       DBUG_RETURN(1);
 
-    int local_error= 
-      do_table_deletes(table, thd->lex->current_select->no_error);
+    local_error= do_table_deletes(table, thd->lex->ignore);
 
     if (thd->killed && !local_error)
       DBUG_RETURN(1);

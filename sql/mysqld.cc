@@ -3187,41 +3187,25 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
 
     thd->is_slave_error=  1; // needed to catch query errors during replication
 
-    /*
-      thd->lex->current_select == 0 if lex structure is not inited
-      (not query command (COM_QUERY))
-    */
-    if (thd->lex->current_select &&
-	thd->lex->current_select->no_error && !thd->is_fatal_error)
+    if (thd->main_da.is_ok() && !thd->main_da.can_overwrite_status)
     {
-      DBUG_PRINT("error",
-                 ("Error converted to warning: current_select: no_error %d  "
-                  "fatal_error: %d",
-                  (thd->lex->current_select ?
-                   thd->lex->current_select->no_error : 0),
-                  (int) thd->is_fatal_error));
+      /*
+        Client has already got ok packet and we are not in net_flush(), so
+        we write a message to error log.
+        This could happen if we get an error in implicit commit.
+        This should never happen in normal operation, so lets
+        assert here in debug builds.
+      */
+      DBUG_ASSERT(0);
+      func= sql_print_error;
+      MyFlags|= ME_NOREFRESH;
     }
-    else
+    else if (! thd->main_da.is_error()) // Return only first message
     {
-      if (thd->main_da.is_ok() && !thd->main_da.can_overwrite_status)
-      {
-        /*
-          Client has already got ok packet and we are not in net_flush(), so
-          we write a message to error log.
-          This could happen if we get an error in implicit commit.
-          This should never happen in normal operation, so lets
-          assert here in debug builds.
-        */
-        DBUG_ASSERT(0);
-        func= sql_print_error;
-        MyFlags|= ME_NOREFRESH;
-      }
-      else if (! thd->main_da.is_error()) // Return only first message
-      {
-        thd->main_da.set_error_status(thd, error, str);
-      }
-      query_cache_abort(&thd->net);
+      thd->main_da.set_error_status(thd, error, str);
     }
+    query_cache_abort(&thd->net);
+
     /*
       If a continue handler is found, the error message will be cleared
       by the stored procedures code.

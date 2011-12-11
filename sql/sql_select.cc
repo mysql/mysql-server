@@ -284,7 +284,6 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   }
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
 		     thd->is_error()));
-  DBUG_ASSERT(res == 0 || thd->is_error());
   res|= thd->is_error();
   if (unlikely(res))
     result->abort();
@@ -1615,9 +1614,6 @@ JOIN::optimize()
 
   error= 0;
 
-  // Ignore errors of execution if option IGNORE present
-  if (thd->lex->ignore)
-    thd->lex->current_select->no_error= 1;
   DBUG_RETURN(0);
 
 setup_subq_exit:
@@ -9602,8 +9598,6 @@ bool error_if_full_join(JOIN *join)
   {
     if (tab->type == JT_ALL && (!tab->select || !tab->select->quick))
     {
-      /* This error should not be ignored. */
-      join->select_lex->no_error= FALSE;
       my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                  ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
       return(1);

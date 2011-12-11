@@ -8549,9 +8549,11 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   Item *value, *fld;
   Item_field *field;
   TABLE *table= 0, *vcol_table= 0;
-  bool abort_on_warning_saved= thd->abort_on_warning;
+  bool save_abort_on_warning= thd->abort_on_warning;
+  bool save_no_errors= thd->no_errors;
   DBUG_ENTER("fill_record");
 
+  thd->no_errors= ignore_errors;
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
     only one row.
@@ -8596,7 +8598,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
                           ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
                           rfield->field_name, table->s->table_name.str);
     }
-    if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
+    if ((value->save_in_field(rfield, 0)) < 0 && !ignore_errors)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       goto err;
@@ -8614,10 +8616,13 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
         goto err;
     }
   }
-  thd->abort_on_warning= abort_on_warning_saved;
+  thd->abort_on_warning= save_abort_on_warning;
+  thd->no_errors=        save_no_errors;
   DBUG_RETURN(thd->is_error());
+
 err:
-  thd->abort_on_warning= abort_on_warning_saved;
+  thd->abort_on_warning= save_abort_on_warning;
+  thd->no_errors=        save_no_errors;
   if (table)
     table->auto_increment_field_not_null= FALSE;
   DBUG_RETURN(TRUE);
