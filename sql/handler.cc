@@ -275,7 +275,7 @@ handler *get_ha_partition(partition_info *part_info)
   }
   else
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(ha_partition));
+    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(ha_partition)));
   }
   DBUG_RETURN(((handler*) partition));
 }
@@ -1661,7 +1661,8 @@ int ha_recover(HASH *commit_list)
   }
   if (!info.list)
   {
-    sql_print_error(ER(ER_OUTOFMEMORY), info.len*sizeof(XID));
+    sql_print_error(ER(ER_OUTOFMEMORY),
+                    static_cast<int>(info.len*sizeof(XID)));
     DBUG_RETURN(1);
   }
 
@@ -2828,7 +2829,23 @@ void handler::print_error(int error, myf errflag)
       char key[MAX_KEY_LENGTH];
       String str(key,sizeof(key),system_charset_info);
       /* Table is opened and defined at this point */
-      key_unpack(&str,table,(uint) key_nr);
+
+      /*
+        Use primary_key instead of key_nr because key_nr is a key
+        number in the child FK table, not in our 'table'. See
+        Bug#12661768 UPDATE IGNORE CRASHES SERVER IF TABLE IS INNODB
+        AND IT IS PARENT FOR OTHER ONE This bug gets a better fix in
+        MySQL 5.6, but it is too risky to get that in 5.1 and 5.5
+        (extending the handler interface and adding new error message
+        codes)
+      */
+      if (table->s->primary_key < MAX_KEY)
+        key_unpack(&str,table,table->s->primary_key);
+      else
+      {
+        LEX_CUSTRING tmp= {USTRING_WITH_LEN("Unknown key value")};
+        str.set((const char*) tmp.str, tmp.length, system_charset_info);
+      }
       max_length= (MYSQL_ERRMSG_SIZE-
                    (uint) strlen(ER(ER_FOREIGN_DUPLICATE_KEY)));
       if (str.length() >= max_length)
@@ -2836,15 +2853,15 @@ void handler::print_error(int error, myf errflag)
         str.length(max_length-4);
         str.append(STRING_WITH_LEN("..."));
       }
-      my_error(ER_FOREIGN_DUPLICATE_KEY, MYF(0), table_share->table_name.str,
-        str.c_ptr_safe(), key_nr+1);
+      my_error(ER_FOREIGN_DUPLICATE_KEY, errflag, table_share->table_name.str,
+               str.c_ptr_safe(), key_nr+1);
       DBUG_VOID_RETURN;
     }
     textno= ER_DUP_KEY;
     break;
   }
   case HA_ERR_NULL_IN_SPATIAL:
-    my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
+    my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, errflag);
     DBUG_VOID_RETURN;
   case HA_ERR_FOUND_DUPP_UNIQUE:
     textno=ER_DUP_UNIQUE;
@@ -2914,21 +2931,21 @@ void handler::print_error(int error, myf errflag)
   {
     String str;
     get_error_message(error, &str);
-    my_error(ER_ROW_IS_REFERENCED_2, MYF(0), str.c_ptr_safe());
+    my_error(ER_ROW_IS_REFERENCED_2, errflag, str.c_ptr_safe());
     DBUG_VOID_RETURN;
   }
   case HA_ERR_NO_REFERENCED_ROW:
   {
     String str;
     get_error_message(error, &str);
-    my_error(ER_NO_REFERENCED_ROW_2, MYF(0), str.c_ptr_safe());
+    my_error(ER_NO_REFERENCED_ROW_2, errflag, str.c_ptr_safe());
     DBUG_VOID_RETURN;
   }
   case HA_ERR_TABLE_DEF_CHANGED:
     textno=ER_TABLE_DEF_CHANGED;
     break;
   case HA_ERR_NO_SUCH_TABLE:
-    my_error(ER_NO_SUCH_TABLE, MYF(0), table_share->db.str,
+    my_error(ER_NO_SUCH_TABLE, errflag, table_share->db.str,
              table_share->table_name.str);
     DBUG_VOID_RETURN;
   case HA_ERR_RBR_LOGGING_FAILED:
@@ -2940,7 +2957,7 @@ void handler::print_error(int error, myf errflag)
     uint key_nr= get_dup_key(error);
     if ((int) key_nr >= 0)
       ptr= table->key_info[key_nr].name;
-    my_error(ER_DROP_INDEX_FK, MYF(0), ptr);
+    my_error(ER_DROP_INDEX_FK, errflag, ptr);
     DBUG_VOID_RETURN;
   }
   case HA_ERR_TABLE_NEEDS_UPGRADE:
@@ -2969,12 +2986,12 @@ void handler::print_error(int error, myf errflag)
       {
 	const char* engine= table_type();
 	if (temporary)
-	  my_error(ER_GET_TEMPORARY_ERRMSG, MYF(0), error, str.c_ptr(),
+	  my_error(ER_GET_TEMPORARY_ERRMSG, errflag, error, str.c_ptr(),
                    engine);
 	else
         {
           SET_FATAL_ERROR;
-	  my_error(ER_GET_ERRMSG, MYF(0), error, str.c_ptr(), engine);
+	  my_error(ER_GET_ERRMSG, errflag, error, str.c_ptr(), engine);
         }
       }
       else
@@ -2982,15 +2999,19 @@ void handler::print_error(int error, myf errflag)
       DBUG_VOID_RETURN;
     }
   }
-  if (fatal_error && (debug_assert_if_crashed_table ||
-                      global_system_variables.log_warnings > 1))
+  if (fatal_error)
   {
-    /*
-      Log error to log before we crash or if extended warnings are requested
-    */
-    errflag|= ME_NOREFRESH;
-  }
-    
+    /* Ensure this becomes a true error */
+    errflag&= ~(ME_JUST_WARNING | ME_JUST_INFO);
+    if ((debug_assert_if_crashed_table ||
+                      global_system_variables.log_warnings > 1))
+    {
+      /*
+        Log error to log before we crash or if extended warnings are requested
+      */
+      errflag|= ME_NOREFRESH;
+    }
+  }    
   my_error(textno, errflag, table_share->table_name.str, error);
   DBUG_ASSERT(!fatal_error || !debug_assert_if_crashed_table);
   DBUG_VOID_RETURN;

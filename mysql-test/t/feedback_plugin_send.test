@@ -17,7 +17,16 @@ replace_result https http;
 perl;
   $log_error= $ENV{'MYSQLTEST_VARDIR'} . '/log/mysqld.1.err';
   open(LOG, '<', $log_error) or die "open(< $log_error): $!";
-  /feedback plugin:.*/ && print "$&\n" while $_=<LOG>;
+
+  # Get the first few rows (as there may be different number rows in the log)
+  $i= 0;
+  while ($_=<LOG>)
+  {
+    if (/feedback plugin:.*/)
+    {
+      print "$&\n";
+      break if ($i++ >= 3);
+    }
+  }
   close LOG;
 EOF
-

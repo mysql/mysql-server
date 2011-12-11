@@ -239,7 +239,7 @@ alter server s1 options (database 'db_bogus');
 
 connection master;
 flush tables;
---error ER_DBACCESS_DENIED_ERROR
+--error ER_DBACCESS_DENIED_ERROR,ER_CONNECT_TO_FOREIGN_DATA_SOURCE
 select * from federated.t1;
 
 connection conn_select;

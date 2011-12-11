@@ -15,7 +15,7 @@ insert into t1 values (-5, 1, 1),
 (10, 1, 1);
 explain select * from t1 force index(key1, key2) where key1 < 3 or key2 < 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	key1,key2	key1,key2	5,5	NULL	4	Using sort_union(key1,key2); Using where
+1	SIMPLE	t1	index_merge	key1,key2	key1,key2	5,5	NULL	5	Using sort_union(key1,key2); Using where
 select * from t1 force index(key1, key2) where key1 < 3 or key2 < 3;
 pk1	key1	key2
 -100	1	1

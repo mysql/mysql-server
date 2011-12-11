@@ -1,4 +1,5 @@
-/* Copyright 2004-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2006, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 #include "event_db_repository.h"
@@ -227,9 +229,16 @@ mysql_event_fill_row(THD *thd,
   if (fields[f_num= ET_FIELD_NAME]->store(et->name.str, et->name.length, scs))
     goto err_truncate;
 
-  /* both ON_COMPLETION and STATUS are NOT NULL thus not calling set_notnull()*/
+  /* ON_COMPLETION field is NOT NULL thus not calling set_notnull()*/
   rs|= fields[ET_FIELD_ON_COMPLETION]->store((longlong)et->on_completion, TRUE);
-  rs|= fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
+
+  /*
+    Set STATUS value unconditionally in case of CREATE EVENT.
+    For ALTER EVENT set it only if value of this field was changed.
+    Since STATUS field is NOT NULL call to set_notnull() is not needed.
+  */
+  if (!is_update || et->status_changed)
+    rs|= fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
   rs|= fields[ET_FIELD_ORIGINATOR]->store((longlong)et->originator, TRUE);
 
   if (!is_update)
@@ -587,6 +596,14 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
 
   *table= tables.table;
   tables.table->use_all_columns();
+
+  if (table_intact.check(*table, &event_table_def))
+  {
+    close_thread_tables(thd);
+    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   DBUG_RETURN(FALSE);
 }
 
@@ -601,18 +618,21 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
   only creates a record on disk.
   @pre The thread handle has no open tables.
 
-  @param[in,out] thd           THD
-  @param[in]     parse_data    Parsed event definition
-  @param[in]     create_if_not TRUE if IF NOT EXISTS clause was provided
-                               to CREATE EVENT statement
-
+  @param[in,out] thd                   THD
+  @param[in]     parse_data            Parsed event definition
+  @param[in]     create_if_not         TRUE if IF NOT EXISTS clause was provided
+                                       to CREATE EVENT statement
+  @param[out]    event_already_exists  When method is completed successfully
+                                       set to true if event already exists else
+                                       set to false
   @retval FALSE  success
   @retval TRUE   error
 */
 
 bool
 Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
-                                  bool create_if_not)
+                                  bool create_if_not,
+                                  bool *event_already_exists)
 {
   int ret= 1;
   TABLE *table= NULL;
@@ -638,6 +658,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   {
     if (create_if_not)
     {
+      *event_already_exists= true;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                           ER_EVENT_ALREADY_EXISTS, ER(ER_EVENT_ALREADY_EXISTS),
                           parse_data->name.str);
@@ -645,8 +666,10 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     }
     else
       my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), parse_data->name.str);
+
     goto end;
-  }
+  } else
+    *event_already_exists= false;
 
   DBUG_PRINT("info", ("non-existent, go forward"));
 
@@ -682,8 +705,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   */
   if (mysql_event_fill_row(thd, table, parse_data, sp, saved_mode, FALSE))
     goto end;
-
-  table->field[ET_FIELD_STATUS]->store((longlong)parse_data->status, TRUE);
 
   if ((ret= table->file->ha_write_row(table->record[0])))
   {

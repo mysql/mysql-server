@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -406,7 +406,8 @@ row_purge_upd_exist_or_extern_func(
 
 	ut_ad(node);
 
-	if (node->rec_type == TRX_UNDO_UPD_DEL_REC) {
+	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
+	    || (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 
 		goto skip_secondaries;
 	}
@@ -530,14 +531,14 @@ row_purge_parse_undo_rec(
 	roll_ptr_t	roll_ptr;
 	ulint		info_bits;
 	ulint		type;
-	ulint		cmpl_info;
 
 	ut_ad(node && thr);
 
 	trx = thr_get_trx(thr);
 
-	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info,
-				    updated_extern, &undo_no, &table_id);
+	ptr = trx_undo_rec_get_pars(
+		node->undo_rec, &type, &node->cmpl_info,
+		updated_extern, &undo_no, &table_id);
 	node->rec_type = type;
 
 	if (type == TRX_UNDO_UPD_DEL_REC && !(*updated_extern)) {
@@ -550,7 +551,8 @@ row_purge_parse_undo_rec(
 	node->table = NULL;
 
 	if (type == TRX_UNDO_UPD_EXIST_REC
-	    && cmpl_info & UPD_NODE_NO_ORD_CHANGE && !(*updated_extern)) {
+	    && node->cmpl_info & UPD_NODE_NO_ORD_CHANGE
+	    && !(*updated_extern)) {
 
 		/* Purge requires no changes to indexes: we may return */
 
@@ -600,7 +602,7 @@ err_exit:
 
 	/* Read to the partial row the fields that occur in indexes */
 
-	if (!(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+	if (!(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 		ptr = trx_undo_rec_get_partial_row(
 			ptr, clust_index, &node->row,
 			type == TRX_UNDO_UPD_DEL_REC,

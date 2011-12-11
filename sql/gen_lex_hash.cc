@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
   @file
@@ -347,6 +349,7 @@ static void usage(int version)
   if (version)
     return;
   puts("Copyright (C) 2001 MySQL AB, by VVA and Monty");
+  puts("Copyright (C) 2011 Oracle");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n");
   puts("This program generates a perfect hashing function for the sql_lex.cc");
@@ -452,6 +455,7 @@ int main(int argc,char **argv)
 
   printf("\
 /* Copyright (C) 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.\n\
+   Copyright (C) 2008-2011 Oracle\n\
 \n\
    This program is free software; you can redistribute it and/or modify\n\
    it under the terms of the GNU General Public License as published by\n\

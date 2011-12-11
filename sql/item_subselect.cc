@@ -1671,6 +1671,13 @@ bool Item_allany_subselect::transform_into_max_min(JOIN *join)
       thd->change_item_tree(it.ref(), item);
     }
 
+    DBUG_EXECUTE("where",
+                 print_where(item, "rewrite with MIN/MAX", QT_ORDINARY););
+    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+    {
+      select_lex->set_non_agg_field_used(false);
+    }
+
     save_allow_sum_func= thd->lex->allow_sum_func;
     thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
     /*
@@ -2651,7 +2658,8 @@ subselect_single_select_engine(THD *thd_arg, st_select_lex *select,
 			       select_result_interceptor *result_arg,
 			       Item_subselect *item_arg)
   :subselect_engine(thd_arg, item_arg, result_arg),
-   prepared(0), executed(0), select_lex(select), join(0)
+   prepared(0), executed(0), optimize_error(0),
+   select_lex(select), join(0)
 {
   select_lex->master_unit()->item= item_arg;
 }
@@ -2664,7 +2672,7 @@ int subselect_single_select_engine::get_identifier()
 void subselect_single_select_engine::cleanup()
 {
   DBUG_ENTER("subselect_single_select_engine::cleanup");
-  prepared= executed= 0;
+  prepared= executed= optimize_error= 0;
   join= 0;
   result->cleanup();
   select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
@@ -2894,9 +2902,14 @@ int join_read_next_same_or_null(READ_RECORD *info);
 int subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
+
+  if (optimize_error)
+    DBUG_RETURN(1);
+
   char const *save_where= thd->where;
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;
+
   if (!join->optimized)
   {
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
@@ -2905,7 +2918,7 @@ int subselect_single_select_engine::exec()
     if (join->optimize())
     {
       thd->where= save_where;
-      executed= 1;
+      executed= optimize_error= 1;
       thd->lex->current_select= save_select;
       DBUG_RETURN(join->error ? join->error : 1);
     }

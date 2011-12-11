@@ -794,7 +794,7 @@ xtPublic void xt_ind_check_cache(XTIndexPtr ind)
 	ASSERT_NS(ind_cac_globals.cg_free_count == free_count);
 
 	/* Check the LRU list: */
-	XTIndBlockPtr list_block, plist_block;
+	XTIndBlockPtr list_block, plist_block __attribute__((unused));
 	
 	plist_block = NULL;
 	list_block = ind_cac_globals.cg_lru_block;

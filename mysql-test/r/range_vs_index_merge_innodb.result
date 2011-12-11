@@ -336,7 +336,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN
 SELECT * FROM City WHERE (ID < 600) OR (ID BETWEEN 900 AND 1500);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	2006	Using index condition; Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	1198	Using index condition; Using where
 EXPLAIN
 SELECT * FROM City WHERE Country > 'A' AND Country < 'ARG';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -362,7 +362,7 @@ WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
 OR ((ID BETWEEN 900 AND 1500) AND 
 (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Name,Country,Population	35,3,4	NULL	188	Using sort_union(Name,Country,Population); Using where
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Name,Country,PRIMARY	35,3,4	NULL	681	Using sort_union(Name,Country,PRIMARY); Using where
 EXPLAIN
 SELECT * FROM City
 WHERE ((ID < 200) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
@@ -601,7 +601,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN 
 SELECT * FROM City WHERE ID BETWEEN 3400 AND 3800;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	944	Using index condition
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	400	Using index condition
 EXPLAIN 
 SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -617,7 +617,7 @@ WHERE ((Population > 101000 AND Population < 102000) AND
 ((ID BETWEEN 3400 AND 3800) AND 
 (Country < 'AGO' OR Name LIKE 'Pa%'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Country,Name,Population	3,35,4	NULL	114	Using sort_union(Country,Name,Population); Using where
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Population,PRIMARY	4,4	NULL	438	Using sort_union(Population,PRIMARY); Using where
 EXPLAIN
 SELECT * FROM City
 WHERE ((Population > 101000 AND Population < 110000) AND
@@ -1434,7 +1434,7 @@ EXPLAIN
 SELECT * FROM t1
 WHERE a BETWEEN 4 AND 5 AND b IN (255,4) OR a IN (2,14,25) OR a!=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,idx	PRIMARY	0	NULL	1	Using index condition; Using where
+1	SIMPLE	t1	index	PRIMARY,idx	idx	5	NULL	2	Using where; Using index
 SELECT * FROM t1
 WHERE a BETWEEN 4 AND 5 AND b IN (255,4) OR a IN (2,14,25) OR a!=2;
 a	b

@@ -1036,13 +1036,31 @@ create table `t2` (`id` int( 11 ) not null default '0',unique key `id` ( `id` ) 
 insert into `t2`values ( 1 ) ;
 create table `t3` (`id` int( 11 ) not null default '0',key `id` ( `id` ) ,constraint `t2_id_fk` foreign key ( `id` ) references `t2` (`id` )) engine = innodb;
 insert into `t3`values ( 1 ) ;
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
---error 1054
+--error ER_BAD_FIELD_ERROR
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 drop table t3,t2,t1;
+
+# test ON UPDATE CASCADE
+CREATE TABLE t1 (
+        c1 VARCHAR(8), c2 VARCHAR(8),
+	PRIMARY KEY (c1, c2)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+        c0 INT PRIMARY KEY,
+        c1 VARCHAR(8) UNIQUE,
+        FOREIGN KEY (c1) REFERENCES t1 (c1) ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('old', 'somevalu'), ('other', 'anyvalue');
+INSERT INTO t2 VALUES (10, 'old'), (20, 'other');
+-- error ER_FOREIGN_DUPLICATE_KEY
+UPDATE t1 SET c1 = 'other' WHERE c1 = 'old';
+DROP TABLE t2,t1;
 
 #
 # test for recursion depth limit

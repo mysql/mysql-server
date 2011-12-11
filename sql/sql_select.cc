@@ -419,7 +419,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
 
     if (!ref->fixed && ref->fix_fields(thd, 0))
       return TRUE;
-    thd->used_tables|= item->used_tables();
+    thd->lex->used_tables|= item->used_tables();
   }
   return false;
 }
@@ -439,19 +439,18 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
   int res;
   nesting_map save_allow_sum_func=thd->lex->allow_sum_func ;
   /* 
-    Need to save the value, so we can turn off only the new NON_AGG_FIELD
+    Need to save the value, so we can turn off only any new non_agg_field_used
     additions coming from the WHERE
   */
-  uint8 saved_flag= thd->lex->current_select->full_group_by_flag;
+  const bool saved_non_agg_field_used=
+    thd->lex->current_select->non_agg_field_used();
   DBUG_ENTER("setup_without_group");
 
   thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
   res= setup_conds(thd, tables, leaves, conds);
 
   /* it's not wrong to have non-aggregated columns in a WHERE */
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-    thd->lex->current_select->full_group_by_flag= saved_flag |
-      (thd->lex->current_select->full_group_by_flag & ~NON_AGG_FIELD_USED);
+  thd->lex->current_select->set_non_agg_field_used(saved_non_agg_field_used);
 
   thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
@@ -693,7 +692,8 @@ JOIN::prepare(Item ***rref_pointer_array,
         select_lex->master_unit()->item->is_in_predicate() &&
         ((Item_in_subselect*)select_lex->master_unit()->item)->
         test_set_strategy(SUBS_MAXMIN_INJECTED)) &&
-      select_lex->full_group_by_flag == (NON_AGG_FIELD_USED | SUM_FUNC_USED))
+      select_lex->non_agg_field_used() &&
+      select_lex->agg_func_used())
   {
     my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
                ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
@@ -977,9 +977,6 @@ JOIN::optimize()
   select_limit= unit->select_limit_cnt;
   if (having || (select_options & OPTION_FOUND_ROWS))
     select_limit= HA_POS_ERROR;
-  // Ignore errors of execution if option IGNORE present
-  if (thd->lex->ignore)
-    thd->lex->current_select->no_error= 1;
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
   if (having && !group_list && !sum_func_count)
@@ -1477,7 +1474,10 @@ JOIN::optimize()
       DBUG_RETURN(1);
     }
     if (old_group_list && !group_list)
+    {
+      DBUG_ASSERT(group);
       select_distinct= 0;
+    }
   }
   if (!group_list && group)
   {
@@ -1485,6 +1485,7 @@ JOIN::optimize()
     simple_order=1;
     select_distinct= 0;                       // No need in distinct for 1 row
     group_optimized_away= 1;
+    implicit_grouping= TRUE;
   }
 
   calc_group_buffer(this, group_list);
@@ -1671,6 +1672,7 @@ JOIN::optimize()
     tmp_table_param.precomputed_group_by= TRUE;
 
   error= 0;
+
   DBUG_RETURN(0);
 
 setup_subq_exit:
@@ -2939,7 +2941,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     if (!(join= new JOIN(thd, fields, select_options, result)))
 	DBUG_RETURN(TRUE);
     thd_proc_info(thd, "init");
-    thd->used_tables=0;                         // Updated by setup_fields
+    thd->lex->used_tables=0;
     if ((err= join->prepare(rref_pointer_array, tables, wild_num,
                             conds, og_num, order, group, having, proc_param,
                             select_lex, unit)))
@@ -3095,6 +3097,14 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
     error= tables->fetch_number_of_rows();
+    DBUG_EXECUTE_IF("bug11747970_raise_error",
+                    {
+                      if (!error)
+                      {
+                        my_error(ER_UNKNOWN_ERROR, MYF(0));
+                        goto error;
+                      }
+                    });
     if (error)
     {
       table->file->print_error(error, MYF(0));
@@ -9694,8 +9704,6 @@ bool error_if_full_join(JOIN *join)
   {
     if (tab->type == JT_ALL && (!tab->select || !tab->select->quick))
     {
-      /* This error should not be ignored. */
-      join->select_lex->no_error= FALSE;
       my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                  ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
       return(1);
@@ -14097,6 +14105,9 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
     if (open_tmp_table(table))
       goto err;
   }
+
+  // Make empty record so random data is not written to disk
+  empty_record(table);
 
   thd->mem_root= mem_root_save;
 

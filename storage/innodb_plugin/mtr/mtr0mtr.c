@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -211,40 +211,6 @@ mtr_commit(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************//**
-Releases the latches stored in an mtr memo down to a savepoint.
-NOTE! The mtr must not have made changes to buffer pages after the
-savepoint, as these can be handled only by mtr_commit. */
-UNIV_INTERN
-void
-mtr_rollback_to_savepoint(
-/*======================*/
-	mtr_t*	mtr,		/*!< in: mtr */
-	ulint	savepoint)	/*!< in: savepoint */
-{
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-	ulint		offset;
-
-	ut_ad(mtr);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_ACTIVE);
-
-	memo = &(mtr->memo);
-
-	offset = dyn_array_get_data_size(memo);
-	ut_ad(offset >= savepoint);
-
-	while (offset > savepoint) {
-		offset -= sizeof(mtr_memo_slot_t);
-
-		slot = dyn_array_get_element(memo, offset);
-
-		ut_ad(slot->type != MTR_MEMO_MODIFY);
-		mtr_memo_slot_release(mtr, slot);
-	}
-}
-
 /***************************************************//**
 Releases an object in the memo stack. */
 UNIV_INTERN

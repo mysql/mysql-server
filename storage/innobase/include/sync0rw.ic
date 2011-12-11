@@ -238,6 +238,7 @@ rw_lock_s_lock_func(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED)); /* see NOTE above */
+	ut_ad(!rw_lock_own(lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	mutex_enter(rw_lock_get_mutex(lock));

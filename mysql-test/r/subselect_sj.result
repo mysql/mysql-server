@@ -1970,7 +1970,7 @@ WHERE t4.f4 < t2.f5
 ) AND ( 'p' , 'k' ) IN (
 SELECT f4 , f4 FROM t6
 );
-ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
 set max_join_size= @tmp_mjs_861147;
 set optimizer_switch= @tmp_os_861147;
 DROP TABLE t1,t2,t3,t4,t5,t6;

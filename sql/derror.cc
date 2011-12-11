@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2005 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
    Copyright (C) 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -12,8 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -142,7 +141,6 @@ static bool read_texts(const char *file_name,const char ***point,
   char name[FN_REFLEN];
   uchar *buff;
   uchar head[32],*pos;
-  const char *errmsg;
   DBUG_ENTER("read_texts");
 
   *point= 0;
@@ -214,20 +212,10 @@ Error message file '%s' had only %d error messages, but it should contain at lea
   DBUG_RETURN(0);
 
 err:
-  switch (funktpos) {
-  case 3:
-    errmsg= "Not enough memory for messagefile '%s'";
-    break;
-  case 2:
-    errmsg= "Incompatible header in messagefile '%s'. Probably from another version of MariaDB";
-  case 1:
-    errmsg= "Can't read from messagefile '%s'";
-    break;
-  default:
-    errmsg= "Can't find messagefile '%s'";
-    break;
-  }
-  sql_print_error(errmsg, name);
+  sql_print_error((funktpos == 3) ? "Not enough memory for messagefile '%s'" :
+                  (funktpos == 2) ? "Incompatible header in messagefile '%s'. Probably from another version of MariaDB" :
+                  ((funktpos == 1) ? "Can't read from messagefile '%s'" :
+                   "Can't find messagefile '%s'"), name);
 err1:
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));

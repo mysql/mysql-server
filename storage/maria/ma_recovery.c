@@ -2892,7 +2892,7 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
 
 static int run_undo_phase(uint uncommitted)
 {
-  LSN last_undo;
+  LSN last_undo __attribute__((unused));
   DBUG_ENTER("run_undo_phase");
 
   if (uncommitted > 0)

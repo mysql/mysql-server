@@ -1116,7 +1116,7 @@ log_io_complete(
 		    && srv_unix_file_flush_method != SRV_UNIX_ALL_O_DIRECT
 		    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
 
-			fil_flush(group->space_id);
+			fil_flush(group->space_id, FALSE);
 		}
 
 #ifdef UNIV_DEBUG
@@ -1139,7 +1139,7 @@ log_io_complete(
 	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
 	    && srv_flush_log_at_trx_commit != 2) {
 
-		fil_flush(group->space_id);
+		fil_flush(group->space_id, FALSE);
 	}
 
 	mutex_enter(&(log_sys->mutex));
@@ -1530,7 +1530,7 @@ loop:
 
 		group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
-		fil_flush(group->space_id);
+		fil_flush(group->space_id, FALSE);
 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
 	}
 
@@ -2706,7 +2706,7 @@ log_io_complete_archive(void)
 
 	mutex_exit(&(log_sys->mutex));
 
-	fil_flush(group->archive_space_id);
+	fil_flush(group->archive_space_id, TRUE);
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -3209,12 +3209,13 @@ loop:
 		goto loop;
 	}
 
-	/* Check that there are no longer transactions. We need this wait even
-	for the 'very fast' shutdown, because the InnoDB layer may have
-	committed or prepared transactions and we don't want to lose them. */
+	/* Check that there are no longer transactions, except for
+	PREPARED ones. We need this wait even for the 'very fast'
+	shutdown, because the InnoDB layer may have committed or
+	prepared transactions and we don't want to lose them. */
 
 	if (trx_n_mysql_transactions > 0
-	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
+	    || UT_LIST_GET_LEN(trx_sys->trx_list) > trx_n_prepared) {
 
 		mutex_exit(&kernel_mutex);
 

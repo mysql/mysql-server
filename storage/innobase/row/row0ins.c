@@ -423,11 +423,9 @@ row_ins_cascade_calc_update_vec(
 	dict_table_t*	table		= foreign->foreign_table;
 	dict_index_t*	index		= foreign->foreign_index;
 	upd_t*		update;
-	upd_field_t*	ufield;
 	dict_table_t*	parent_table;
 	dict_index_t*	parent_index;
 	upd_t*		parent_update;
-	upd_field_t*	parent_ufield;
 	ulint		n_fields_updated;
 	ulint		parent_field_no;
 	ulint		i;
@@ -463,12 +461,14 @@ row_ins_cascade_calc_update_vec(
 			dict_index_get_nth_col_no(parent_index, i));
 
 		for (j = 0; j < parent_update->n_fields; j++) {
-			parent_ufield = parent_update->fields + j;
+			const upd_field_t*	parent_ufield
+				= &parent_update->fields[j];
 
 			if (parent_ufield->field_no == parent_field_no) {
 
 				ulint			min_size;
 				const dict_col_t*	col;
+				upd_field_t*		ufield;
 
 				col = dict_index_get_nth_col(index, i);
 
@@ -973,10 +973,9 @@ row_ins_foreign_check_on_constraint(
 		goto nonstandard_exit_func;
 	}
 
-	if ((node->is_delete
-	     && (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL))
-	    || (!node->is_delete
-		&& (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL))) {
+	if (node->is_delete
+	    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
+	    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
 
 		/* Build the appropriate update vector which sets
 		foreign->n_fields first fields in rec to SQL NULL */
@@ -985,6 +984,8 @@ row_ins_foreign_check_on_constraint(
 
 		update->info_bits = 0;
 		update->n_fields = foreign->n_fields;
+		UNIV_MEM_INVALID(update->fields,
+				 update->n_fields * sizeof *update->fields);
 
 		for (i = 0; i < foreign->n_fields; i++) {
 			(update->fields + i)->field_no
@@ -1672,7 +1673,7 @@ row_ins_scan_sec_index_for_duplicate(
 
 	btr_pcur_open(index, entry, PAGE_CUR_GE, BTR_SEARCH_LEAF, &pcur, &mtr);
 
-	allow_duplicates = thr_get_trx(thr)->duplicates & TRX_DUP_IGNORE;
+	allow_duplicates = thr_get_trx(thr)->duplicates;
 
 	/* Scan index records and check if there is a duplicate */
 
@@ -1812,7 +1813,7 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 
-			if (trx->duplicates & TRX_DUP_IGNORE) {
+			if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
@@ -1854,7 +1855,7 @@ row_ins_duplicate_error_in_clust(
 			offsets = rec_get_offsets(rec, cursor->index, offsets,
 						  ULINT_UNDEFINED, &heap);
 
-			if (trx->duplicates & TRX_DUP_IGNORE) {
+			if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for

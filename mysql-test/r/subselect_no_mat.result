@@ -1403,7 +1403,7 @@ insert into t1 values (1,0), (2,0), (3,0);
 insert into t2 values (1,1), (2,1), (3,1), (2,2);
 update ignore t1 set b=(select b from t2 where t1.a=t2.a);
 Warnings:
-Error	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
 select * from t1;
 a	b
 1	1
@@ -4551,6 +4551,32 @@ pk	int_key
 3	3
 7	3
 DROP TABLE t1,t2;
+#
+# Bug#12329653 
+# EXPLAIN, UNION, PREPARED STATEMENT, CRASH, SQL_FULL_GROUP_BY
+#
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
+1
+1
+1
+PREPARE stmt FROM 
+'SELECT 1 UNION ALL 
+SELECT 1 FROM t1
+ORDER BY
+(SELECT 1 FROM t1 AS t1_0  
+  WHERE 1 < SOME (SELECT a1 FROM t1)
+)' ;
+EXECUTE stmt ;
+ERROR 21000: Subquery returns more than 1 row
+EXECUTE stmt ;
+ERROR 21000: Subquery returns more than 1 row
+SET SESSION sql_mode=@old_sql_mode;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 End of 5.0 tests.
 create table t_out (subcase char(3),
 a1 char(2), b1 char(2), c1 char(2));
@@ -5457,7 +5483,6 @@ b	c
 9	NULL
 drop table t1, t2, t3;
 End of 5.3 tests
-End of 5.5 tests.
 #
 # Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
 #

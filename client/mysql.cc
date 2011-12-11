@@ -1,5 +1,5 @@
 /* Copyright (C) 2000-2009 MySQL AB
-   Copyright 2000, 2010, Oracle and/or its affiliates.
+   Copyright 2000, 2010-2011, Oracle and/or its affiliates.
    Copyright 2000-2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -2780,6 +2780,8 @@ static int reconnect(void)
   }
   if (!connected)
     return put_info("Can't connect to the server\n",INFO_ERROR);
+  my_free(server_version,MYF(MY_ALLOW_ZERO_PTR));
+  server_version= 0;
   /* purecov: end */
   return 0;
 }
@@ -4402,7 +4404,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   {
     char init_command[100];
     sprintf(init_command,
-	    "SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=%lu,SQL_MAX_JOIN_SIZE=%lu",
+	    "SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=%lu,MAX_JOIN_SIZE=%lu",
 	    select_limit,max_join_size);
     mysql_options(&mysql, MYSQL_INIT_COMMAND, init_command);
   }

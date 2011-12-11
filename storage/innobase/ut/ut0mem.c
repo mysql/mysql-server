@@ -408,53 +408,6 @@ ut_strlcpy_rev(
 }
 
 /**************************************************************************
-Make a quoted copy of a NUL-terminated string.	Leading and trailing
-quotes will not be included; only embedded quotes will be escaped.
-See also ut_strlenq() and ut_memcpyq(). */
-
-char*
-ut_strcpyq(
-/*=======*/
-				/* out: pointer to end of dest */
-	char*		dest,	/* in: output buffer */
-	char		q,	/* in: the quote character */
-	const char*	src)	/* in: null-terminated string */
-{
-	while (*src) {
-		if ((*dest++ = *src++) == q) {
-			*dest++ = q;
-		}
-	}
-
-	return(dest);
-}
-
-/**************************************************************************
-Make a quoted copy of a fixed-length string.  Leading and trailing
-quotes will not be included; only embedded quotes will be escaped.
-See also ut_strlenq() and ut_strcpyq(). */
-
-char*
-ut_memcpyq(
-/*=======*/
-				/* out: pointer to end of dest */
-	char*		dest,	/* in: output buffer */
-	char		q,	/* in: the quote character */
-	const char*	src,	/* in: string to be quoted */
-	ulint		len)	/* in: length of src */
-{
-	const char*	srcend = src + len;
-
-	while (src < srcend) {
-		if ((*dest++ = *src++) == q) {
-			*dest++ = q;
-		}
-	}
-
-	return(dest);
-}
-
-/**************************************************************************
 Return the number of times s2 occurs in s1. Overlapping instances of s2
 are only counted once. */
 

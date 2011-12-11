@@ -88,6 +88,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "thr0loc.h"
 # include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 # include "zlib.h" /* for ZLIB_VERSION */
+# include "buf0lru.h" /* for buf_LRU_file_restore() */
 
 /** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
@@ -126,9 +127,9 @@ static mutex_t		ios_mutex;
 static ulint		ios;
 
 /** io_handler_thread parameters for thread identification */
-static ulint		n[SRV_MAX_N_IO_THREADS + 7 + 64];
+static ulint		n[SRV_MAX_N_IO_THREADS + 7 + UNIV_MAX_PARALLELISM];
 /** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 7 + 64];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 7 + UNIV_MAX_PARALLELISM];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -1200,6 +1201,12 @@ innobase_start_or_create_for_mysql(void)
 		);
 #endif
 
+#ifdef UNIV_BLOB_DEBUG
+	fprintf(stderr,
+		"InnoDB: !!!!!!!! UNIV_BLOB_DEBUG switched on !!!!!!!!!\n"
+		"InnoDB: Server restart may fail with UNIV_BLOB_DEBUG\n");
+#endif /* UNIV_BLOB_DEBUG */
+
 #ifdef UNIV_SYNC_DEBUG
 	fprintf(stderr,
 		"InnoDB: !!!!!!!! UNIV_SYNC_DEBUG switched on !!!!!!!!!\n");
@@ -1741,8 +1748,6 @@ innobase_start_or_create_for_mysql(void)
 		Note that this is not as heavy weight as it seems. At
 		this point there will be only ONE page in the buf_LRU
 		and there must be no page in the buf_flush list. */
-		/* buffer_pool_shm should not be reused when recovery was needed. */
-		if (!srv_buffer_pool_shm_is_reused)
 		buf_pool_invalidate();
 
 		/* We always try to do a recovery, even if the database had
@@ -1871,6 +1876,11 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the thread which automaticaly dumps/restore buffer pool */
 	os_thread_create(&srv_LRU_dump_restore_thread, NULL,
 			 thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+
+	/* If srv_blocking_lru_restore is TRUE, load buffer pool contents
+	synchronously */
+	if (srv_auto_lru_dump && srv_blocking_lru_restore)
+		buf_LRU_file_restore();
 
 	srv_is_being_started = FALSE;
 

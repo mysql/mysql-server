@@ -1,5 +1,4 @@
-/* Copyright tommy@valley.ne.jp.
-   Copyright (c) 2002, 2011, Oracle and/or its affiliates.
+/* Copyright (c) 2002-2007 MySQL AB & tommy@valley.ne.jp
    Copyright (c) 2009-2011, Monty Program Ab
    
    This library is free software; you can redistribute it and/or
@@ -14,8 +13,9 @@
    
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA 02110-1301, USA
+*/
 
 /* This file is for binary pseudo charset, created by bar@mysql.com */
 
