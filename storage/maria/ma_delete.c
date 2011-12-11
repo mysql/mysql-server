@@ -247,6 +247,7 @@ my_bool _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEY *key,
 
       if (page.size <= page.node + share->keypage_header + 1)
       {
+        DBUG_ASSERT(page.size == page.node + share->keypage_header);
 	if (page.node)
 	  *root= _ma_kpos(page.node, root_buff +share->keypage_header +
                           page.node);

@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*****************************************************************************
 **
@@ -712,7 +714,6 @@ THD::THD()
   is_slave_error= thread_specific_used= FALSE;
   hash_clear(&handler_tables_hash);
   tmp_table=0;
-  used_tables=0;
   cuted_fields= sent_row_count= row_count= 0L;
   limit_found_rows= 0;
   row_count_func= -1;
@@ -1435,6 +1436,25 @@ bool THD::store_globals()
   pthread_mutex_unlock(&mysys_var->mutex);
   pthread_mutex_unlock(&LOCK_thd_data);
 #endif
+  return 0;
+}
+
+/*
+  Remove the thread specific info (THD and mem_root pointer) stored during
+  store_global call for this thread.
+*/
+bool THD::restore_globals()
+{
+  /*
+    Assert that thread_stack is initialized: it's necessary to be able
+    to track stack overrun.
+  */
+  DBUG_ASSERT(thread_stack);
+  
+  /* Undocking the thread specific data. */
+  my_pthread_setspecific_ptr(THR_THD, NULL);
+  my_pthread_setspecific_ptr(THR_MALLOC, NULL);
+  
   return 0;
 }
 
@@ -2334,7 +2354,7 @@ int select_export::send_data(List<Item> &items)
         */
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
-                            item->full_name(), row_count);
+                            item->full_name(), static_cast<long>(row_count));
       }
       cvt_str.length(bytes);
       res= &cvt_str;
@@ -3884,6 +3904,7 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
     xs->xa_state=xa_state;
     xs->xid.set(xid);
     xs->in_thd=0;
+    xs->rm_error=0;
     res=my_hash_insert(&xid_cache, (uchar*)xs);
   }
   pthread_mutex_unlock(&LOCK_xid_cache);

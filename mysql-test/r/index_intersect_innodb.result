@@ -372,7 +372,7 @@ EXPLAIN
 SELECT * FROM City 
 WHERE Name BETWEEN 'G' AND 'K' AND Population > 500000 AND Country LIKE 'C%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	index_merge	Population,Name,Country	Population,Name,Country	#	NULL	#	Using sort_intersect(Population,Name,Country); Using where
+1	SIMPLE	City	index_merge	Population,Name,Country	Name,Population,Country	#	NULL	#	Using sort_intersect(Name,Population,Country); Using where
 SELECT * FROM City USE INDEX ()
 WHERE Name BETWEEN 'M' AND 'N' AND Population > 1000000 AND Country LIKE 'C%';
 ID	Name	Country	Population
@@ -485,7 +485,7 @@ SELECT * FROM City
 WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
 AND Country BETWEEN 'S' AND 'Z' ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	index_merge	PRIMARY,Population,Country	PRIMARY,Population,Country	4,4,3	NULL	#	Using sort_intersect(PRIMARY,Population,Country); Using where
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country	PRIMARY,Country,Population	4,3,4	NULL	#	Using sort_intersect(PRIMARY,Country,Population); Using where
 SELECT * FROM City USE INDEX ()
 WHERE ID BETWEEN 501 AND 1000 AND Population > 700000 AND Country LIKE 'C%';
 ID	Name	Country	Population

@@ -257,48 +257,5 @@ do {									\
 	ut_a(ut_list_node_313 == NULL);					\
 } while (0)
 
-/********************************************************************//**
-Align nodes with moving location.
-@param NAME		the name of the list
-@param TYPE		node type
-@param BASE		base node (not a pointer to it)
-@param OFFSET		offset moved */
-#define UT_LIST_OFFSET(NAME, TYPE, BASE, FADDR, FOFFSET, BOFFSET)	\
-do {									\
-	ulint	ut_list_i_313;						\
-	TYPE*	ut_list_node_313;					\
-									\
-	if ((BASE).start)						\
-		(BASE).start = (void*)((byte*)((BASE).start)			\
-			+ (((void*)((BASE).start) > (void*)FADDR)?FOFFSET:BOFFSET));\
-	if ((BASE).end)							\
-		(BASE).end   = (void*)((byte*)((BASE).end)			\
-			+ (((void*)((BASE).end) > (void*)FADDR)?FOFFSET:BOFFSET));\
-									\
-	ut_list_node_313 = (BASE).start;				\
-									\
-	for (ut_list_i_313 = (BASE).count; ut_list_i_313--; ) {		\
-		ut_a(ut_list_node_313);					\
-		if ((ut_list_node_313->NAME).prev)			\
-			(ut_list_node_313->NAME).prev = (void*)((byte*)((ut_list_node_313->NAME).prev)\
-				+ (((void*)((ut_list_node_313->NAME).prev) > (void*)FADDR)?FOFFSET:BOFFSET));\
-		if ((ut_list_node_313->NAME).next)			\
-			(ut_list_node_313->NAME).next =	(void*)((byte*)((ut_list_node_313->NAME).next)\
-				+ (((void*)((ut_list_node_313->NAME).next)> (void*)FADDR)?FOFFSET:BOFFSET));\
-		ut_list_node_313 = (ut_list_node_313->NAME).next;	\
-	}								\
-									\
-	ut_a(ut_list_node_313 == NULL);					\
-									\
-	ut_list_node_313 = (BASE).end;					\
-									\
-	for (ut_list_i_313 = (BASE).count; ut_list_i_313--; ) {		\
-		ut_a(ut_list_node_313);					\
-		ut_list_node_313 = (ut_list_node_313->NAME).prev;	\
-	}								\
-									\
-	ut_a(ut_list_node_313 == NULL);					\
-} while (0)
-
 #endif
 

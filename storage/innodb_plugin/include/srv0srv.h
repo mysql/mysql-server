@@ -143,6 +143,7 @@ extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
+extern my_bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;
 extern ulint	srv_n_read_io_threads;
 extern ulint	srv_n_write_io_threads;
@@ -618,6 +619,7 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
 	ulint innodb_buffer_pool_pages_flushed;	/*!< srv_buf_pool_flushed */
 	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
+	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
 	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
 	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */

@@ -2613,6 +2613,8 @@ ibuf_insert_low(
 
 	ut_a(trx_sys_multiple_tablespace_format);
 
+	ut_ad(!(thr_get_trx(thr)->fake_changes));
+
 	do_merge = FALSE;
 
 	mutex_enter(&ibuf_mutex);

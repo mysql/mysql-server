@@ -264,7 +264,7 @@ my $opt_strace_client;
 
 our $opt_user = "root";
 
-my $opt_valgrind= 0;
+our $opt_valgrind= 0;
 my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
 our $opt_valgrind_mysqld= 0;
@@ -2238,8 +2238,14 @@ sub environment_setup {
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  mysql_fix_arguments();
-  $ENV{'MYSQLD'}=                   mysqld_client_arguments();
+  $ENV{'MYSQLD_SIMPLE_CMD'}=        mysqld_client_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
+
+  my $exe_mysqld= find_mysqld($basedir);
+  $ENV{'MYSQLD'}= $exe_mysqld;
+  my $extra_opts= join (" ", @opt_extra_mysqld_opt);
+  $ENV{'MYSQLD_CMD'}= "$exe_mysqld --defaults-group-suffix=.1 ".
+    "--defaults-file=$path_config_file $extra_opts";
 
   # ----------------------------------------------------
   # bug25714 executable may _not_ exist in
@@ -2606,7 +2612,7 @@ sub check_debug_support ($) {
 #
 # Helper function to find the correct value for the opt_vs_config
 # if it was not set explicitly.
-# 
+#
 # the configuration with the most recent build dir in sql/ is selected.
 #
 # note: looking for all BuildLog.htm files everywhere in the tree with the
@@ -2632,6 +2638,33 @@ sub fix_vs_config_dir () {
 
   mtr_report("VS config: $opt_vs_config");
   $opt_vs_config="/$opt_vs_config" if $opt_vs_config;
+}
+
+
+#
+# Helper function to handle configuration-based subdirectories which Visual
+# Studio uses for storing binaries.  If opt_vs_config is set, this returns
+# a path based on that setting; if not, it returns paths for the default
+# /release/ and /debug/ subdirectories.
+#
+# $exe can be undefined, if the directory itself will be used
+#
+sub vs_config_dirs ($$) {
+  my ($path_part, $exe) = @_;
+
+  $exe = "" if not defined $exe;
+
+  # Don't look in these dirs when not on windows
+  return () unless IS_WINDOWS;
+
+  if ($opt_vs_config)
+  {
+    return ("$basedir/$path_part/$opt_vs_config/$exe");
+  }
+
+  return ("$basedir/$path_part/release/$exe",
+          "$basedir/$path_part/relwithdebinfo/$exe",
+          "$basedir/$path_part/debug/$exe");
 }
 
 
@@ -3830,7 +3863,7 @@ sub run_testcase ($$) {
   # Allow only alpanumerics pluss _ - + . in combination names,
   # or anything beginning with -- (the latter comes from --combination)
   my $combination= $tinfo->{combination};
-  if ($combination && $combination !~ /^\w[-\w\.\+]+$/
+  if ($combination && $combination !~ /^\w[-\w\.\+]*$/
                    && $combination !~ /^--/)
   {
     mtr_error("Combination '$combination' contains illegal characters");
@@ -4290,6 +4323,11 @@ sub extract_server_log ($$) {
       else
       {
 	push(@lines, $line);
+	if (scalar(@lines) > 1000000) {
+	  $Ferr = undef;
+	  mtr_warning("Too much log from test, bailing out from extracting");
+	  return ();
+	}
       }
     }
     else
@@ -4966,6 +5004,9 @@ sub mysqld_arguments ($$$) {
   }
 
   my $found_skip_core= 0;
+  my @plugins;
+  my %seen;
+  my $plugin;
   foreach my $arg ( @$extra_opts )
   {
     # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
@@ -4982,6 +5023,11 @@ sub mysqld_arguments ($$$) {
     {
       ; # Dont add --skip-log-bin when mysqld have --log-slave-updates in config
     }
+    elsif ($plugin = mtr_match_prefix($arg,  "--plugin-load="))
+    {
+      push @plugins, $plugin unless $seen{$plugin};
+      $seen{$plugin} = 1;
+    }
     else
     {
       mtr_add_arg($args, "%s", $arg);
@@ -4997,6 +5043,11 @@ sub mysqld_arguments ($$$) {
   # Facility stays disabled if timeout value is zero.
   mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
               $opt_debug_sync_timeout) unless $opt_user_args;
+
+  if (@plugins) {
+    my $sep = (IS_WINDOWS) ? ';' : ':';
+    mtr_add_arg($args, "--plugin-load=%s" .  join($sep, @plugins));
+  }
 
   return $args;
 }

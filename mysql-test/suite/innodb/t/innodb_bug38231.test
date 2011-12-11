@@ -72,6 +72,7 @@ UNLOCK TABLES;
 # clean up
 
 -- connection con2
+-- error 0, 1205
 -- reap
 UNLOCK TABLES;
 

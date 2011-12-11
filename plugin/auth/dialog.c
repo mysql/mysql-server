@@ -33,13 +33,16 @@
   a correct password. It shows the situation when a number of questions
   is not known in advance.
 */
-#define _GNU_SOURCE /* for RTLD_DEFAULT */
+#include <my_global.h>
+#include <mysql/client_plugin.h>
+#include <mysql.h>
+#include <string.h>
+
+#if defined (_WIN32)
+# define RTLD_DEFAULT GetModuleHandle(NULL)
+#endif
 
 #include <mysql/plugin_auth.h>
-#include <mysql/client_plugin.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 /**
   first byte of the question string is the question "type".
@@ -50,8 +53,6 @@
 #define LAST_QUESTION           "\3"
 #define PASSWORD_QUESTION       "\4"
 #define LAST_PASSWORD           "\5"
-
-typedef unsigned char uchar;
 
 /********************* SERVER SIDE ****************************************/
 
@@ -216,9 +217,6 @@ maria_declare_plugin_end;
   dialog plugin will use it for communication with the user. Otherwise
   a default gets() based implementation will be used.
 */
-#include <mysql.h>
-#include <dlfcn.h>
-
 static mysql_authentication_dialog_ask_t ask;
 
 static char *builtin_ask(MYSQL *mysql __attribute__((unused)),

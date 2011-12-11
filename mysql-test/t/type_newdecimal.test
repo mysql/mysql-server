@@ -1245,6 +1245,27 @@ show create table t1;
 select * from t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#12563865
+--echo # ROUNDED,TMP_BUF,DECIMAL_VALUE STACK CORRUPTION IN ALL VERSIONS >=5.0
+--echo #
+
+let $nine_81=
+999999999999999999999999999999999999999999999999999999999999999999999999999999999;
+
+eval SELECT substring(('M') FROM ($nine_81)) AS foo;
+eval SELECT min($nine_81) AS foo;
+eval SELECT multipolygonfromtext(('4294967294.1'),($nine_81)) AS foo;
+eval SELECT convert(($nine_81), decimal(30,30)) AS foo;
+eval SELECT bit_xor($nine_81) AS foo;
+eval SELECT -($nine_81) AS foo;
+eval SELECT date_sub(($nine_81),
+                     interval ((SELECT date_add((0x77500000),
+                                                 interval ('Oml') second)))
+                     day_minute)
+AS foo;
+eval SELECT truncate($nine_81, 28) AS foo;
+
 --echo End of 5.0 tests
 
 #
@@ -1510,5 +1531,33 @@ group by PAY.id + 1;
 
 DROP TABLE currencies, payments, sub_tasks;
 
+--echo #
+--echo # Bug#55436: buffer overflow in debug binary of dbug_buff in
+--echo #            Field_new_decimal::store_value
+--echo #
+
+# this threw memory warnings on Windows. Also make sure future changes
+# don't change these results, as per usual.
+SET SQL_MODE='';
+CREATE TABLE t1(f1 DECIMAL(44,24)) ENGINE=MYISAM;
+INSERT INTO t1 SET f1 = -64878E-85;
+SELECT f1 FROM t1;
+DROP TABLE IF EXISTS t1;
+
+
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # BUG#12911710 - VALGRIND FAILURE IN 
+--echo # ROW-DEBUG:PERFSCHEMA.SOCKET_SUMMARY_BY_INSTANCE_FUNC 
+--echo #
+
+CREATE TABLE t1(d1 DECIMAL(60,0) NOT NULL,
+                d2 DECIMAL(60,0) NOT NULL);
+
+INSERT INTO t1 (d1, d2) VALUES(0.0, 0.0);
+SELECT d1 * d2 FROM t1;
+
+DROP TABLE t1;
+

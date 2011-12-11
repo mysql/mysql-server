@@ -28,6 +28,19 @@
 #include <stdlib.h>
 #endif
 
+#ifdef MYSQL_PLUGIN_EXPORT
+#undef MYSQL_PLUGIN_EXPORT
+#endif
+#if defined(_MSC_VER)
+  #ifdef __cplusplus
+    #define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
+  #else
+    #define MYSQL_PLUGIN_EXPORT __declspec(dllexport)
+  #endif
+#else /*_MSC_VER */
+#define MYSQL_PLUGIN_EXPORT
+#endif
+
 /* known plugin types */
 #define MYSQL_CLIENT_reserved1               0
 #define MYSQL_CLIENT_reserved2               1
@@ -38,6 +51,7 @@
 #define MYSQL_CLIENT_MAX_PLUGINS             3
 
 #define mysql_declare_client_plugin(X)          \
+     MYSQL_PLUGIN_EXPORT                        \
      struct st_mysql_client_plugin_ ## X        \
         _mysql_client_plugin_declaration_ = {   \
           MYSQL_CLIENT_ ## X ## _PLUGIN,        \

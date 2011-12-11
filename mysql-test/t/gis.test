@@ -754,18 +754,20 @@ drop table t1;
 --echo #
 create table t1(a char(32) not null) engine=myisam;
 --replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_SPATIAL_MUST_HAVE_GEOM_COL
+--error ER_WRONG_ARGUMENTS
 create spatial index i on t1 (a);
 drop table t1;
 
 
---echo End of 5.1 tests
+#
+# Bug#11767480 - SPATIAL INDEXES ON NON-SPATIAL COLUMNS CAUSE CRASHES.
+#
+CREATE TABLE t0 (a BINARY(32) NOT NULL);
+--error ER_WRONG_ARGUMENTS
+CREATE SPATIAL INDEX i on t0 (a);
+INSERT INTO t0 VALUES (1);
 
-#
-# Bug #50574 5.5.x allows spatial indexes on non-spatial 
-#           columns, causing crashes!
-#
---error ER_SPATIAL_MUST_HAVE_GEOM_COL
+--error ER_WRONG_ARGUMENTS
 CREATE TABLE t1(
   col0 BINARY NOT NULL,
   col2 TIMESTAMP,
@@ -778,10 +780,10 @@ CREATE TABLE t1 (
   col2 TIMESTAMP
 ) ENGINE=MyISAM;
 
---error ER_SPATIAL_MUST_HAVE_GEOM_COL
+--error ER_WRONG_ARGUMENTS
 CREATE SPATIAL INDEX idx0 ON t1(col0);
 
---error ER_SPATIAL_MUST_HAVE_GEOM_COL
+--error ER_WRONG_ARGUMENTS
 ALTER TABLE t1 ADD SPATIAL INDEX i1 (col0);
 
 CREATE TABLE t2 (
@@ -802,8 +804,9 @@ CREATE TABLE t3 (
 );
 
 # cleanup
-DROP TABLE t1;
-DROP TABLE t2;
+DROP TABLE t0, t1, t2;
+
+--echo End of 5.1 tests
 
 #bug 850775 ST_AREA does not work on GEOMETRYCOLLECTIONs in maria-5.3-gis
 select ST_AREA(ST_GEOMCOLLFROMTEXT(' GEOMETRYCOLLECTION(LINESTRING(100 100, 31 10, 77 80), POLYGON((0 0,4 7,1 1,0 0)), POINT(20 20))'));

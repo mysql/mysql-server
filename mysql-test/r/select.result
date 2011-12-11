@@ -5018,6 +5018,33 @@ ON t3.f31 = t6.f61
 WHERE t7.f71>0;
 f23
 DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+CREATE TABLE t1(f1 int UNSIGNED) engine=myisam;
+INSERT INTO t1 VALUES (3),(2),(1);
+set sql_buffer_result=0;
+SELECT f1 FROM t1 GROUP BY 1;
+f1
+1
+2
+3
+SELECT f1 FROM t1 GROUP BY '123' = 'abc';
+f1
+3
+SELECT 1 FROM t1 GROUP BY 1;
+1
+1
+set sql_buffer_result=1;
+SELECT f1 FROM t1 GROUP BY 1;
+f1
+1
+2
+3
+SELECT f1 FROM t1 GROUP BY '123' = 'abc';
+f1
+3
+SELECT 1 FROM t1 GROUP BY 1;
+1
+1
+drop table t1;
 End of 5.1 tests
 #
 # BUG#776274: substitution of a single row table

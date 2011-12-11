@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +25,8 @@ Created 11/17/1995 Heikki Tuuri
 
 #ifndef buf0types_h
 #define buf0types_h
+
+#include "page0types.h"
 
 /** Buffer page (uncompressed or compressed) */
 typedef	struct buf_page_struct		buf_page_t;
@@ -58,17 +60,10 @@ enum buf_io_fix {
 
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /* @{ */
-#if UNIV_WORD_SIZE <= 4 /* 32-bit system */
-/** Base-2 logarithm of the smallest buddy block size */
-# define BUF_BUDDY_LOW_SHIFT	6
-#else /* 64-bit system */
-/** Base-2 logarithm of the smallest buddy block size */
-# define BUF_BUDDY_LOW_SHIFT	7
-#endif
+#define BUF_BUDDY_LOW_SHIFT	PAGE_ZIP_MIN_SIZE_SHIFT
+
 #define BUF_BUDDY_LOW		(1 << BUF_BUDDY_LOW_SHIFT)
-					/*!< minimum block size in the binary
-					buddy system; must be at least
-					sizeof(buf_page_t) */
+
 #define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
 					/*!< number of buddy sizes */
 

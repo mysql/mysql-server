@@ -86,6 +86,11 @@ Created 10/8/1995 Heikki Tuuri
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 
+/* prototypes of new functions added to ha_innodb.cc for kill_idle_transaction */
+ibool		innobase_thd_is_idle(const void* thd);
+ib_int64_t	innobase_thd_get_start_time(const void* thd);
+void		innobase_thd_kill(void* thd);
+
 /* prototypes for new functions added to ha_innodb.cc */
 ibool	innobase_get_slow_log();
 
@@ -99,6 +104,9 @@ UNIV_INTERN ulint	srv_activity_count	= 0;
 
 /* The following is the maximum allowed duration of a lock wait. */
 UNIV_INTERN ulint	srv_fatal_semaphore_wait_threshold = 600;
+
+/**/
+UNIV_INTERN long long	srv_kill_idle_transaction = 0;
 
 /* How much data manipulation language (DML) statements need to be delayed,
 in microseconds, in order to reduce the lagging of the purge thread. */
@@ -225,16 +233,14 @@ UNIV_INTERN ulint	srv_buf_pool_curr_size	= 0;
 UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
-/* key value for shm */
-UNIV_INTERN uint	srv_buffer_pool_shm_key	= 0;
-UNIV_INTERN ibool	srv_buffer_pool_shm_is_reused = FALSE;
-UNIV_INTERN ibool	srv_buffer_pool_shm_checksum = TRUE;
-
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
 UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
+
+/* Switch to enable random read ahead. */
+UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
 
 /* The universal page size of the database */
 UNIV_INTERN ulint	srv_page_size_shift	= 0;
@@ -333,6 +339,9 @@ UNIV_INTERN ulint srv_buf_pool_reads = 0;
 
 /** Time in seconds between automatic buffer pool dumps */
 UNIV_INTERN uint srv_auto_lru_dump = 0;
+
+/** Whether startup should be blocked until buffer pool is fully restored */
+UNIV_INTERN ibool srv_blocking_lru_restore;
 
 /* structure to pass status variables to MySQL */
 UNIV_INTERN export_struc export_vars;
@@ -2167,6 +2176,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
 	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
 	export_vars.innodb_buffer_pool_reads = srv_buf_pool_reads;
+	export_vars.innodb_buffer_pool_read_ahead_rnd
+		= buf_pool->stat.n_ra_pages_read_rnd;
 	export_vars.innodb_buffer_pool_read_ahead
 		= buf_pool->stat.n_ra_pages_read;
 	export_vars.innodb_buffer_pool_read_ahead_evicted
@@ -2499,6 +2510,12 @@ srv_error_monitor_thread(
 	ulint		fatal_cnt	= 0;
 	ib_uint64_t	old_lsn;
 	ib_uint64_t	new_lsn;
+	/* longest waiting thread for a semaphore */
+	os_thread_id_t	waiter		= os_thread_get_curr_id();
+	os_thread_id_t	old_waiter	= waiter;
+	/* the semaphore that is being waited for */
+	const void*	sema		= NULL;
+	const void*	old_sema	= NULL;
 
 	old_lsn = srv_start_lsn;
 
@@ -2547,7 +2564,8 @@ loop:
 
 	sync_arr_wake_threads_if_sema_free();
 
-	if (sync_array_print_long_waits()) {
+	if (sync_array_print_long_waits(&waiter, &sema)
+	    && sema == old_sema && os_thread_eq(waiter, old_waiter)) {
 		fatal_cnt++;
 		if (fatal_cnt > 10) {
 
@@ -2562,6 +2580,38 @@ loop:
 		}
 	} else {
 		fatal_cnt = 0;
+		old_waiter = waiter;
+		old_sema = sema;
+	}
+
+	if (srv_kill_idle_transaction && trx_sys) {
+		trx_t*	trx;
+		time_t	now;
+rescan_idle:
+		now = time(NULL);
+		mutex_enter(&kernel_mutex);
+		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+		while (trx) {
+			if (trx->conc_state == TRX_ACTIVE
+			    && trx->mysql_thd
+			    && innobase_thd_is_idle(trx->mysql_thd)) {
+				ib_int64_t	start_time; /* as stmt ID */
+
+				start_time = innobase_thd_get_start_time(trx->mysql_thd);
+				if (trx->last_stmt_start != start_time) {
+					trx->idle_start = now;
+					trx->last_stmt_start = start_time;
+				} else if (difftime(now, trx->idle_start)
+					   > srv_kill_idle_transaction) {
+					/* kill the session */
+					mutex_exit(&kernel_mutex);
+					innobase_thd_kill(trx->mysql_thd);
+					goto rescan_idle;
+				}
+			}
+			trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
+		}
+		mutex_exit(&kernel_mutex);
 	}
 
 	/* Flush stderr so that a database user gets the output
@@ -2607,7 +2657,9 @@ srv_LRU_dump_restore_thread(
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
 
-	if (srv_auto_lru_dump)
+	/* If srv_blocking_lru_restore is TRUE, restore will be done
+	synchronously on startup. */
+	if (srv_auto_lru_dump && !srv_blocking_lru_restore)
 		buf_LRU_file_restore();
 
 	last_dump_time = time(NULL);

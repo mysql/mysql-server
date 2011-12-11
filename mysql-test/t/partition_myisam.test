@@ -1,0 +1,62 @@
+-- source include/have_partition.inc
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+#
+# Bug#30102: rename table does corrupt tables with partition files on failure
+#
+--echo # Bug#30102 test
+CREATE TABLE t1 (a INT)
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (6),
+ PARTITION `p1....................` VALUES LESS THAN (9),
+ PARTITION p2 VALUES LESS THAN MAXVALUE);
+# partition p1 is 't1#P#p1' + @002e * 20 = 107 characters + file ending
+# total path lenght of './test/t1#P#p1@002e@002e<...>@002e.MY[ID]' is 118 chars
+--echo # List of files in database `test`, all original t1-files here
+--list_files $MYSQLD_DATADIR/test t1*
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+--echo # Renaming to a file name where the first partition is 250 chars
+--echo # and the second partition is 350 chars
+# 7,7 avoids the error message, which is not deterministic.
+--error 7,7
+RENAME TABLE t1 TO `t2_new..............................................end`;
+#                         1234567890123456789012345678901234567890123456
+--echo # List of files in database `test`, should not be any t2-files here
+--list_files $MYSQLD_DATADIR/test t2*
+--echo # List of files in database `test`, should be all t1-files here
+--list_files $MYSQLD_DATADIR/test t1*
+--sorted_result
+SELECT * FROM t1;
+--echo # List of files in database `test`, should be all t1-files here
+--list_files $MYSQLD_DATADIR/test t1*
+--echo # Renaming to a file name where the first partition is 156 chars
+--echo # and the second partition is 256 chars
+# 7,7 avoids the error message, which is not deterministic.
+--error 7,7
+RENAME TABLE t1 TO `t2_............................_end`;
+#                      1234567890123456789012345678
+# 7 + 4 + 5 + 28 * 5 = 16 + 140 = 156
+--echo # List of files in database `test`, should not be any t2-files here
+--list_files $MYSQLD_DATADIR/test t2*
+--echo # List of files in database `test`, should be all t1-files here
+--list_files $MYSQLD_DATADIR/test t1*
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+--echo # Should not be any files left here
+--list_files $MYSQLD_DATADIR/test t1*
+--list_files $MYSQLD_DATADIR/test t2*
+--echo # End of bug#30102 test.
+
+--echo # Test of post-push fix for bug#11766249/59316
+CREATE TABLE t1 (a INT, b VARCHAR(255), PRIMARY KEY (a))
+ENGINE = MyISAM
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (0) MAX_ROWS=100,
+ PARTITION p1 VALUES LESS THAN (100) MAX_ROWS=100,
+ PARTITION pMax VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1, "Partition p1, first row");
+DROP TABLE t1;

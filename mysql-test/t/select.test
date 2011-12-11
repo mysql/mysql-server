@@ -4214,6 +4214,22 @@ SELECT t2.f23 FROM
     WHERE t7.f71>0;
 
 DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+#
+# Bug #780425: "sql_buffer_result=1 gives wrong result for GROUP BY with a
+# constant expression"
+#
+
+CREATE TABLE t1(f1 int UNSIGNED) engine=myisam;
+INSERT INTO t1 VALUES (3),(2),(1);
+set sql_buffer_result=0;
+SELECT f1 FROM t1 GROUP BY 1;
+SELECT f1 FROM t1 GROUP BY '123' = 'abc';
+SELECT 1 FROM t1 GROUP BY 1;
+set sql_buffer_result=1;
+SELECT f1 FROM t1 GROUP BY 1;
+SELECT f1 FROM t1 GROUP BY '123' = 'abc';
+SELECT 1 FROM t1 GROUP BY 1;
+drop table t1;
 
 --echo End of 5.1 tests
 

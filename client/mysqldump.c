@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* mysqldump.c  - Dump a tables contents and format to an ASCII file
 **
@@ -571,7 +573,7 @@ static void short_usage_sub(void)
 static void usage(void)
 {
   print_version();
-  puts("By Igor Romanenko, Monty, Jani & Sinisa.");
+  puts("By Igor Romanenko, Monty, Jani & Sinisa and others.");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license.\n");
   puts("Dumping structure and contents of MySQL databases and tables.");
   short_usage_sub();

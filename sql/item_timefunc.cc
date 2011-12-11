@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -1392,6 +1394,10 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     return 1;
   bzero(ltime, sizeof(MYSQL_TIME));
   get_date_from_daynr((long) value, &ltime->year, &ltime->month, &ltime->day);
+
+  if ((null_value= ((fuzzy_date & TIME_NO_ZERO_DATE) && ltime->year == 0)))
+    return TRUE;
+
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return 0;
 }
@@ -2228,6 +2234,18 @@ String *Item_char_typecast::val_str(String *str)
     }
   }
   null_value= 0;
+
+  if (res->length() > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			cast_cs == &my_charset_bin ?
+                        "cast_as_binary" : func_name(),
+                        current_thd->variables.max_allowed_packet);
+    null_value= 1;
+    return 0;
+  }
   return res;
 }
 
@@ -2371,7 +2389,7 @@ bool Item_func_makedate::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   long days;
 
   if (args[0]->null_value || args[1]->null_value ||
-      year < 0 || daynr <= 0)
+      year < 0 || year > 9999 || daynr <= 0)
     goto err;
 
   if (year < 100)

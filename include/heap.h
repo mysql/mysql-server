@@ -1,4 +1,4 @@
-/* Copyright (C) 2000,2004 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,6 +50,7 @@ typedef struct st_heapinfo		/* Struct from heap_info */
   uint reclength;			/* Length of one record */
   int errkey;
   ulonglong auto_increment;
+  time_t create_time;
 } HEAPINFO;
 
 
@@ -148,6 +149,7 @@ typedef struct st_heap_share
   uint open_count;
   uchar *del_link;			/* Link to next block with del. rec */
   char * name;			/* Name of "memory-file" */
+  time_t create_time;
 #ifdef THREAD
   THR_LOCK lock;
   pthread_mutex_t intern_lock;		/* Locking for use with _locking */

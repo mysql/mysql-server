@@ -1,6 +1,5 @@
-/* Copyright (C) 2002-2006 MySQL AB
+/* Copyright (c) 2011, Oracle and/or its affiliates
    Copyright (C) 2009-2011 Monty Program Ab
-   Copyright (c) 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

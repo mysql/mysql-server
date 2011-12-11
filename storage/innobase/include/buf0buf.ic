@@ -561,52 +561,6 @@ buf_page_hash_get(
 }
 
 /************************************************************************
-Tries to get the page, but if file io is required, releases all latches
-in mtr down to the given savepoint. If io is required, this function
-retrieves the page to buffer buf_pool, but does not bufferfix it or latch
-it. */
-UNIV_INLINE
-buf_frame_t*
-buf_page_get_release_on_io(
-/*=======================*/
-				/* out: pointer to the frame, or NULL
-				if not in buffer buf_pool */
-	ulint	space,		/* in: space id */
-	ulint	offset,		/* in: offset of the page within space
-				in units of a page */
-	buf_frame_t* guess,	/* in: guessed frame or NULL */
-	ulint	rw_latch,	/* in: RW_X_LATCH, RW_S_LATCH,
-				or RW_NO_LATCH */
-	ulint	savepoint,	/* in: mtr savepoint */
-	mtr_t*	mtr)		/* in: mtr */
-{
-	buf_frame_t*	frame;
-
-	frame = buf_page_get_gen(space, offset, rw_latch, guess,
-				 BUF_GET_IF_IN_POOL,
-				 __FILE__, __LINE__,
-				 mtr);
-	if (frame != NULL) {
-
-		return(frame);
-	}
-
-	/* The page was not in the buffer buf_pool: release the latches
-	down to the savepoint */
-
-	mtr_rollback_to_savepoint(mtr, savepoint);
-
-	buf_page_get(space, offset, RW_S_LATCH, mtr);
-
-	/* When we get here, the page is in buffer, but we release
-	the latches again down to the savepoint, before returning */
-
-	mtr_rollback_to_savepoint(mtr, savepoint);
-
-	return(NULL);
-}
-
-/************************************************************************
 Decrements the bufferfix count of a buffer control block and releases
 a latch, if specified. */
 UNIV_INLINE
@@ -660,6 +614,6 @@ buf_page_dbg_add_level(
 	ulint		level __attribute__((unused))) /* in: latching order
 				level */
 {
-	sync_thread_add_level(&(buf_block_align(frame)->lock), level);
+	sync_thread_add_level(&(buf_block_align(frame)->lock), level, FALSE);
 }
 #endif /* UNIV_SYNC_DEBUG */

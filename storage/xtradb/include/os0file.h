@@ -473,7 +473,8 @@ UNIV_INTERN
 ibool
 os_file_flush(
 /*==========*/
-	os_file_t	file);	/*!< in, own: handle to a file */
+	os_file_t	file,	/*!< in, own: handle to a file */
+	ibool		metadata);
 /***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may

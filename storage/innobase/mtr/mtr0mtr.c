@@ -201,40 +201,6 @@ mtr_commit(
 	dyn_array_free(&(mtr->log));
 }
 
-/**************************************************************
-Releases the latches stored in an mtr memo down to a savepoint.
-NOTE! The mtr must not have made changes to buffer pages after the
-savepoint, as these can be handled only by mtr_commit. */
-
-void
-mtr_rollback_to_savepoint(
-/*======================*/
-	mtr_t*	mtr,		/* in: mtr */
-	ulint	savepoint)	/* in: savepoint */
-{
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-	ulint		offset;
-
-	ut_ad(mtr);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_ACTIVE);
-
-	memo = &(mtr->memo);
-
-	offset = dyn_array_get_data_size(memo);
-	ut_ad(offset >= savepoint);
-
-	while (offset > savepoint) {
-		offset -= sizeof(mtr_memo_slot_t);
-
-		slot = dyn_array_get_element(memo, offset);
-
-		ut_ad(slot->type != MTR_MEMO_MODIFY);
-		mtr_memo_slot_release(mtr, slot);
-	}
-}
-
 /*******************************************************
 Releases an object in the memo stack. */
 

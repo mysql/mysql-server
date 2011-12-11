@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -459,7 +459,9 @@ buf_flush_remove(
 	case BUF_BLOCK_ZIP_DIRTY:
 		buf_page_set_state(bpage, BUF_BLOCK_ZIP_PAGE);
 		UT_LIST_REMOVE(flush_list, buf_pool->flush_list, bpage);
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		buf_LRU_insert_zip_clean(bpage);
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		break;
 	case BUF_BLOCK_FILE_PAGE:
 		UT_LIST_REMOVE(flush_list, buf_pool->flush_list, bpage);
@@ -769,7 +771,7 @@ corrupted_page:
 flush:
 	/* Now flush the doublewrite buffer data to disk */
 
-	fil_flush(srv_doublewrite_file ? TRX_DOUBLEWRITE_SPACE : TRX_SYS_SPACE);
+	fil_flush(srv_doublewrite_file ? TRX_DOUBLEWRITE_SPACE : TRX_SYS_SPACE, FALSE);
 
 	/* We know that the writes have been flushed to disk now
 	and in recovery we will find them in the doublewrite buffer
@@ -1084,7 +1086,7 @@ buf_flush_page_try(
 /*===============*/
 	buf_block_t*	block)		/*!< in/out: buffer control block */
 {
-	ut_ad(buf_pool_mutex_own());
+	//ut_ad(buf_pool_mutex_own());
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(mutex_own(&block->mutex));
 
@@ -1092,8 +1094,11 @@ buf_flush_page_try(
 		return(FALSE);
 	}
 
+	buf_pool_mutex_enter();
+
 	if (buf_pool->n_flush[BUF_FLUSH_LRU] > 0
 	    || buf_pool->init_flush[BUF_FLUSH_LRU]) {
+		buf_pool_mutex_exit();
 		/* There is already a flush batch of the same type running */
 		return(FALSE);
 	}

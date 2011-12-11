@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2009 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
 **	   mysqlimport.c  - Imports all given files
@@ -198,10 +200,10 @@ static void print_version(void)
 
 static void usage(void)
 {
-  print_version();
   puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license.\n");
-  printf("\
+  puts("Copyright 2008-2011 Oracle and Monty Program Ab.");
+  print_version();
+  printf("\n\
 Loads tables from text files in various formats.  The base name of the\n\
 text file must be the name of the table that should be used.\n\
 If one uses sockets to connect to the MySQL server, the server will open and\n\

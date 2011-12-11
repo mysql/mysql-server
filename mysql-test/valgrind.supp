@@ -1,5 +1,5 @@
-# Copyright (c) 2005, 2010, Oracle and/or its affiliates.
-# Copyright (c) 2009-2011, Monty Program Ab
+# Copyright (c) 2005, 2011, Oracle and/or its affiliates.
+# Copyright (c) 2008-2011, Monty Program Ab
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -1207,4 +1207,14 @@
    fun:buf_LRU_invalidate_tablespace
    fun:fil_delete_tablespace
    fun:row_drop_table_for_mysql
+}
+
+{
+  Problem with udf and libresolve
+  Memcheck:Cond
+   obj:*/libresolv*.so
+   fun:__libc_res_nquery
+   fun:_nss_dns_gethostbyaddr2_r
+   fun:_nss_dns_gethostbyaddr_r
+   fun:gethostbyaddr_r
 }

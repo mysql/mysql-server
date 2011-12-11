@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* Copy data from a textfile to table */
@@ -140,7 +142,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   */
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
-  bool transactional_table;
+  bool transactional_table __attribute__((unused));
   DBUG_ENTER("mysql_load");
 
   /*
@@ -353,21 +355,21 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
 #if !defined(__WIN__) && ! defined(__NETWARE__)
     MY_STAT stat_info;
-    if (!my_stat(name,&stat_info,MYF(MY_WME)))
-	    DBUG_RETURN(TRUE);
+    if (!my_stat(name, &stat_info, MYF(MY_WME)))
+      DBUG_RETURN(TRUE);
 
     // if we are not in slave thread, the file must be:
     if (!thd->slave_thread &&
-	      !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
-	        (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
-	        ((stat_info.st_mode & S_IFREG) == S_IFREG ||
-	         (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
+        !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
+          (stat_info.st_mode & S_IFLNK) != S_IFLNK &&  // and not a symlink
+          ((stat_info.st_mode & S_IFREG) == S_IFREG || // and a regular file
+           (stat_info.st_mode & S_IFIFO) == S_IFIFO))) // or FIFO
     {
-	    my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
-	    DBUG_RETURN(TRUE);
+      my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
+      DBUG_RETURN(TRUE);
     }
     if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
-	    is_fifo = 1;
+      is_fifo= 1;
 #endif
 
     if ((file=my_open(name,O_RDONLY,MYF(MY_WME))) < 0)

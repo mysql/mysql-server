@@ -202,6 +202,7 @@ row_build(
 
 	ut_ad(index && rec && heap);
 	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(!mutex_own(&kernel_mutex));
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,
@@ -209,6 +210,26 @@ row_build(
 	} else {
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	/* This condition can occur during crash recovery before
+	trx_rollback_or_clean_all_without_sess() has completed
+	execution.
+
+	This condition is possible if the server crashed
+	during an insert or update before
+	btr_store_big_rec_extern_fields() did mtr_commit() all
+	BLOB pointers to the clustered index record.
+
+	If the record contains a null BLOB pointer, look up the
+	transaction that holds the implicit lock on this record, and
+	assert that it is active. (In this version of InnoDB, we
+	cannot assert that it was recovered, because there is no
+	trx->is_recovered field.) */
+
+	ut_a(!rec_offs_any_null_extern(rec, offsets)
+	     || trx_assert_active(row_get_rec_trx_id(rec, index, offsets)));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 	if (type != ROW_COPY_POINTERS) {
 		/* Take a copy of rec to heap */
@@ -302,6 +323,10 @@ row_rec_to_index_entry(
 		rec = rec_copy(buf, rec, offsets);
 		/* Avoid a debug assertion in rec_offs_validate(). */
 		rec_offs_make_valid(rec, index, offsets);
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	} else {
+		ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 	}
 
 	rec_len = rec_offs_n_fields(offsets);
