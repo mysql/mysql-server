@@ -139,7 +139,8 @@ extern my_bool relay_log_recovery;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern ulong delay_key_write_options;
-extern char *opt_logname, *opt_slow_logname;
+extern char *opt_logname, *opt_slow_logname, *opt_bin_logname, 
+            *opt_relay_logname;
 extern char *opt_backup_history_logname, *opt_backup_progress_logname,
             *opt_backup_settings_name;
 extern const char *log_output_str;
