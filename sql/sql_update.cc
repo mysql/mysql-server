@@ -348,18 +348,18 @@ int mysql_update(THD *thd,
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
     DBUG_RETURN(1);
   }
-  if (table->timestamp_field)
+  if (table->get_timestamp_field())
   {
     // Don't set timestamp column if this is modified
     if (bitmap_is_set(table->write_set,
-                      table->timestamp_field->field_index))
+                      table->get_timestamp_field()->field_index))
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
     {
       if (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
           table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH)
         bitmap_set_bit(table->write_set,
-                       table->timestamp_field->field_index);
+                       table->get_timestamp_field()->field_index);
     }
   }
 
@@ -392,7 +392,7 @@ int mysql_update(THD *thd,
     to compare records and detect data change.
   */
   if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
-      table->timestamp_field &&
+      table->get_timestamp_field() &&
       (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
        table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
     bitmap_union(table->read_set, table->write_set);
@@ -1309,9 +1309,9 @@ int mysql_multi_update_prepare(THD *thd)
   {
     TABLE *table= tl->table;
     /* Only set timestamp column if this is not modified */
-    if (table->timestamp_field &&
+    if (table->get_timestamp_field() &&
         bitmap_is_set(table->write_set,
-                      table->timestamp_field->field_index))
+                      table->get_timestamp_field()->field_index))
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     /* if table will be updated then check that it is unique */
@@ -1551,7 +1551,7 @@ int multi_update::prepare(List<Item> &not_used_values,
         to compare records and detect data change.
         */
       if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
-          table->timestamp_field &&
+          table->get_timestamp_field() &&
           (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
            table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
         bitmap_union(table->read_set, table->write_set);
@@ -1762,7 +1762,6 @@ multi_update::initialize_tables(JOIN *join)
       }
     }
     table->mark_columns_needed_for_update();
-    table->prepare_for_position();
 
     /*
       enable uncacheable flag if we update a view with check option
@@ -1821,6 +1820,13 @@ loop_end:
     TABLE *tbl= table;
     do
     {
+      /*
+        Signal each table (including tables referenced by WITH CHECK OPTION
+        clause) for which we will store row position in the temporary table
+        that we need a position to be read first.
+      */
+      tbl->prepare_for_position();
+
       Field_string *field= new Field_string(tbl->file->ref_length, 0,
                                             tbl->alias, &my_charset_bin);
       if (!field)

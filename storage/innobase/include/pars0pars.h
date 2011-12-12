@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -38,7 +38,7 @@ Created 11/19/1996 Heikki Tuuri
 and varies in type, while 'user_arg' is a user-supplied argument. The
 meaning of the return type also varies. See the individual use cases, e.g.
 the FETCH statement, for details on them. */
-typedef void* (*pars_user_func_cb_t)(void* arg, void* user_arg);
+typedef ibool	(*pars_user_func_cb_t)(void* arg, void* user_arg);
 
 /** If the following is set TRUE, the parser will emit debugging
 information */
@@ -74,6 +74,7 @@ extern pars_res_word_t	pars_distinct_token;
 extern pars_res_word_t	pars_binary_token;
 extern pars_res_word_t	pars_blob_token;
 extern pars_res_word_t	pars_int_token;
+extern pars_res_word_t	pars_bigint_token;
 extern pars_res_word_t	pars_char_token;
 extern pars_res_word_t	pars_float_token;
 extern pars_res_word_t	pars_update_token;
@@ -105,13 +106,13 @@ pars_sql(
 	pars_info_t*	info,	/*!< in: extra information, or NULL */
 	const char*	str);	/*!< in: SQL string */
 /*************************************************************//**
-Retrieves characters to the lexical analyzer. */
+Retrieves characters to the lexical analyzer.
+@return number of characters copied or 0 on EOF */
 UNIV_INTERN
-void
+int
 pars_get_lex_chars(
 /*===============*/
 	char*	buf,		/*!< in/out: buffer where to copy */
-	int*	result,		/*!< out: number of characters copied or EOF */
 	int	max_size);	/*!< in: maximum number of characters which fit
 				in the buffer */
 /*************************************************************//**
@@ -140,6 +141,17 @@ pars_func(
 /*======*/
 	que_node_t*	res_word,/*!< in: function name reserved word */
 	que_node_t*	arg);	/*!< in: first argument in the argument list */
+/*************************************************************************
+Rebind a LIKE search string. NOTE: We ignore any '%' characters embedded
+within the search string.
+@return	own: function node in a query tree */
+UNIV_INTERN
+int
+pars_like_rebind(
+/*=============*/
+        sym_node_t*     node,   /* in: The search string node.*/
+        const byte*     ptr,    /* in: literal to (re) bind */
+        ulint           len);   /* in: length of literal to (re) bind*/
 /*********************************************************************//**
 Parses an operator expression.
 @return	own: function node in a query tree */
@@ -397,7 +409,10 @@ pars_create_table(
 	sym_node_t*	table_sym,	/*!< in: table name node in the symbol
 					table */
 	sym_node_t*	column_defs,	/*!< in: list of column names */
-	void*		not_fit_in_memory);/*!< in: a non-NULL pointer means that
+	sym_node_t*	compact,	/* in: non-NULL if COMPACT table. */
+	sym_node_t*	block_size,	/* in: block size (can be NULL) */
+	void*		not_fit_in_memory);
+					/*!< in: a non-NULL pointer means that
 					this is a table which in simulations
 					should be simulated as not fitting
 					in memory; thread is put to sleep
@@ -498,7 +513,76 @@ pars_info_add_str_literal(
 	pars_info_t*	info,		/*!< in: info struct */
 	const char*	name,		/*!< in: name */
 	const char*	str);		/*!< in: string */
+/********************************************************************
+If the literal value already exists then it rebinds otherwise it
+creates a new entry.*/
+UNIV_INTERN
+void
+pars_info_bind_literal(
+/*===================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const void*	address,	/* in: address */
+	ulint		length,		/* in: length of data */
+	ulint		type,		/* in: type, e.g. DATA_FIXBINARY */
+	ulint		prtype);	/* in: precise type, e.g. */
+/********************************************************************
+If the literal value already exists then it rebinds otherwise it
+creates a new entry.*/
+UNIV_INTERN
+void
+pars_info_bind_varchar_literal(
+/*===========================*/
+	pars_info_t*	info,		/*!< in: info struct */
+	const char*	name,		/*!< in: name */
+	const byte*	str,		/*!< in: string */
+	ulint		str_len);	/*!< in: string length */
+/****************************************************************//**
+Equivalent to:
 
+char buf[4];
+mach_write_to_4(buf, val);
+pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
+
+except that the buffer is dynamically allocated from the info struct's
+heap. */
+UNIV_INTERN
+void
+pars_info_bind_int4_literal(
+/*=======================*/
+	pars_info_t*		info,		/*!< in: info struct */
+	const char*		name,		/*!< in: name */
+	const ib_uint32_t*	val);		/*!< in: value */
+/********************************************************************
+If the literal value already exists then it rebinds otherwise it
+creates a new entry. */
+UNIV_INTERN
+void
+pars_info_bind_int8_literal(
+/*=======================*/
+	pars_info_t*		info,		/*!< in: info struct */
+	const char*		name,		/*!< in: name */
+	const ib_uint64_t*	val);		/*!< in: value */
+/****************************************************************//**
+Add user function. */
+UNIV_INTERN
+void
+pars_info_bind_function(
+/*===================*/
+	pars_info_t*		info,	/*!< in: info struct */
+	const char*		name,	/*!< in: function name */
+	pars_user_func_cb_t	func,	/*!< in: function address */
+	void*			arg);	/*!< in: user-supplied argument */
+/****************************************************************//**
+Add bound id. */
+UNIV_INTERN
+void
+pars_info_bind_id(
+/*=============*/
+	pars_info_t*		info,	/*!< in: info struct */
+	ibool			copy_name,/* in: make a copy of name if TRUE */
+	const char*		name,	/*!< in: name */
+	const char*		id);	/*!< in: id */
 /****************************************************************//**
 Equivalent to:
 
@@ -532,16 +616,6 @@ pars_info_add_ull_literal(
 	pars_info_t*	info,		/*!< in: info struct */
 	const char*	name,		/*!< in: name */
 	ib_uint64_t	val);		/*!< in: value */
-/****************************************************************//**
-Add user function. */
-UNIV_INTERN
-void
-pars_info_add_function(
-/*===================*/
-	pars_info_t*		info,	/*!< in: info struct */
-	const char*		name,	/*!< in: function name */
-	pars_user_func_cb_t	func,	/*!< in: function address */
-	void*			arg);	/*!< in: user-supplied argument */
 
 /****************************************************************//**
 Add bound id. */
@@ -619,6 +693,7 @@ struct pars_bound_lit_struct {
 	ulint		length;		/*!< length of data */
 	ulint		type;		/*!< type, e.g. DATA_FIXBINARY */
 	ulint		prtype;		/*!< precise type, e.g. DATA_UNSIGNED */
+	sym_node_t*	node;		/*!< symbol node */
 };
 
 /** Bound identifier. */
@@ -638,7 +713,7 @@ is also used for some non-functions like the assignment ':=' */
 struct func_node_struct{
 	que_common_t	common;	/*!< type: QUE_NODE_FUNC */
 	int		func;	/*!< token code of the function name */
-	ulint		class;	/*!< class of the function */
+	ulint		fclass;	/*!< class of the function */
 	que_node_t*	args;	/*!< argument(s) of the function */
 	UT_LIST_NODE_T(func_node_t) cond_list;
 				/*!< list of comparison conditions; defined

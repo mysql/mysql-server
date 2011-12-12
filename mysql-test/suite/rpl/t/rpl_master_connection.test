@@ -1,0 +1,354 @@
+################################################################################
+# This test case aims to verify if the changes made to the START SLAVE command
+# in the context of the WL#4143 work as specified. The following properties
+# are verified:
+#
+# 0 - This aims at checking syntax.
+#
+# 1 - If START SLAVE works with regular users and different combinations
+#     of USER and PASSWORD.
+#
+# 2 - If START SLAVE USER=xxxx PASSWORD=yyyy works with pluggable users
+#     and different combinations of DEFAULT_AUTH and PLUGIN_DIR.
+#     It is always required to provide a password when pluggable users are
+#     used. The password is the name of the proxy user.
+# 
+# 3 - If START SLAVE works with pluggable users defined in the master info
+#     repository.
+#
+# 4 - The warning message "Sending passwords in plain text without SSL/TLS is"
+#      extremely insecure" is not printed out if a SSL connection is in use.
+################################################################################
+--source include/have_plugin_auth.inc
+--source include/not_embedded.inc
+--source include/master-slave.inc
+--source include/have_openssl.inc
+
+################################################################################
+# 1. Prepare the environment
+################################################################################
+SET SQL_LOG_BIN=0;
+
+--sorted_result
+SELECT user, plugin, authentication_string, password FROM mysql.user WHERE user != 'root';
+
+CREATE USER 'plug_user_p' IDENTIFIED WITH 'test_plugin_server' AS 'proxy_user_p';
+CREATE USER 'plug_user_wp' IDENTIFIED WITH 'test_plugin_server' AS 'proxy_user_wp';
+CREATE USER 'proxy_user_p' IDENTIFIED BY 'password';
+CREATE USER 'proxy_user_wp' IDENTIFIED BY '';
+CREATE USER 'regular_user_p' IDENTIFIED BY 'password';
+CREATE USER 'regular_user_wp' IDENTIFIED BY '';
+
+--sorted_result
+SELECT user, plugin, authentication_string, password FROM mysql.user WHERE user != 'root';
+
+GRANT PROXY ON proxy_user_p to plug_user_p;
+GRANT PROXY ON proxy_user_wp to plug_user_wp;
+GRANT REPLICATION SLAVE ON *.* TO proxy_user_p;
+GRANT REPLICATION SLAVE ON *.* TO proxy_user_wp;
+GRANT REPLICATION SLAVE ON *.* TO regular_user_p;
+GRANT REPLICATION SLAVE ON *.* TO regular_user_wp;
+
+SET SQL_LOG_BIN=1;
+
+###############################################################################
+# 2. Test if different type of users can connect when CHANGE MASTER
+#    START SLAVE are specified
+###############################################################################
+--connection slave
+--let $slave_io_errno= 2059
+--let $show_slave_io_error= 0
+
+#
+# Check Property 0
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--error ER_SQLTHREAD_WITH_SECURE_SLAVE
+--eval START SLAVE SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password'
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--error ER_SQLTHREAD_WITH_SECURE_SLAVE
+--eval START SLAVE SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin'
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--error ER_SQLTHREAD_WITH_SECURE_SLAVE
+--eval START SLAVE SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD USER= 'regular_user_p' PASSWORD= 'password'
+--source include/wait_for_slave_io_to_start.inc
+--source include/stop_slave_io.inc
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin'
+--source include/wait_for_slave_io_to_start.inc
+--source include/stop_slave_io.inc
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+--source include/wait_for_slave_io_to_start.inc
+--source include/stop_slave_io.inc
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password'
+--source include/wait_for_slave_io_to_start.inc
+--source include/stop_slave_io.inc
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin'
+--source include/wait_for_slave_io_to_start.inc
+--source include/stop_slave_io.inc
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+--source include/wait_for_slave_io_to_start.inc
+--source include/stop_slave_io.inc
+
+#
+# Check Property 1.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--eval START SLAVE USER= 'regular_user_p' PASSWORD= 'password'
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 1.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--eval START SLAVE USER= 'regular_user_wp' PASSWORD= ''
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 1.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--eval START SLAVE USER= 'regular_user_p' PASSWORD= 'password'
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 1.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--eval START SLAVE USER= 'regular_user_wp' PASSWORD= ''
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 1.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--eval START SLAVE USER= 'regular_user_wp'
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 2.
+#
+--source include/stop_slave.inc
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--eval START SLAVE USER= 'plug_user_p' PASSWORD= 'proxy_user_p'
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 2.
+#
+--source include/stop_slave.inc
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--eval START SLAVE USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp'
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 2.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE USER= 'plug_user_p' PASSWORD= 'proxy_user_p' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 2.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 2.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE USER= 'plug_user_p' PASSWORD= 'proxy_user_p' DEFAULT_AUTH= 'auth_test_plugin'
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 2.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' DEFAULT_AUTH= 'auth_test_plugin'
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 2.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE USER= 'plug_user_p' PASSWORD= 'proxy_user_p' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 2.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 3.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'plug_user_p', MASTER_PASSWORD= 'proxy_user_p';
+--source include/start_slave.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 3.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'plug_user_wp', MASTER_PASSWORD= 'proxy_user_wp';
+--source include/start_slave.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 4
+#
+
+--connection slave
+CREATE USER 'ssl_user' IDENTIFIED BY '';
+GRANT ALL ON *.* TO ssl_user REQUIRE SSL;
+--source include/stop_slave.inc
+--replace_result $SLAVE_MYPORT SLAVE_MYPORT
+connect (con_ssl,127.0.0.1,ssl_user,,test,$SLAVE_MYPORT,,SSL);
+--connection con_ssl
+CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD = '';
+--source include/start_slave.inc
+
+--source include/stop_slave.inc
+--eval START SLAVE USER= 'root' PASSWORD= ''
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+# 
+# Bug#13410464: FOR START SLAVE .. PASSWORD=<PASSWORD>, THE PASSWORD IS LOGGED IN PLAIN TEXT  
+#
+
+SET @old_log_output= @@log_output;
+SET GLOBAL log_output= 'TABLE,FILE';
+
+call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
+--disable_warnings
+
+--source include/stop_slave.inc
+TRUNCATE mysql.general_log;
+START SLAVE PASSWORD='secret';
+--let $slave_io_errno=1593
+--source include/wait_for_slave_io_error.inc
+
+--source include/stop_slave.inc
+TRUNCATE mysql.general_log;
+START SLAVE USER='root' PASSWORD='secret';
+--let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
+# execute it to see if the rewrite generated a (syntatically) valid command 
+--source include/stop_slave.inc
+--eval $rewritten
+
+--source include/stop_slave.inc
+TRUNCATE mysql.general_log;
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+--let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
+# execute it to see if the rewrite generated a (syntatically) valid command 
+--source include/stop_slave.inc
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval $rewritten
+
+--source include/stop_slave.inc
+TRUNCATE mysql.general_log;
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD, SQL_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+--let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
+# execute it to see if the rewrite generated a (syntatically) valid command 
+--source include/stop_slave.inc
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval $rewritten
+
+--source include/stop_slave.inc
+TRUNCATE mysql.general_log;
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD, SQL_THREAD UNTIL MASTER_LOG_FILE='dummy-log.000001', MASTER_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+--let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
+# execute it to see if the rewrite generated a (syntatically) valid command 
+--source include/stop_slave.inc
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval $rewritten
+
+--source include/stop_slave.inc
+TRUNCATE mysql.general_log;
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD, SQL_THREAD UNTIL RELAY_LOG_FILE='dummy-log.000001', RELAY_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+--let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
+# execute it to see if the rewrite generated a (syntatically) valid command 
+--source include/stop_slave.inc
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval $rewritten
+
+--source include/stop_slave.inc
+
+--enable_warnings
+
+SET GLOBAL log_output= @old_log_output;
+TRUNCATE mysql.general_log;
+--source include/start_slave.inc
+
+################################################################################
+# 3. Clean the environment
+################################################################################
+--connection master
+SET SQL_LOG_BIN=0;
+DROP USER plug_user_p, plug_user_wp, regular_user_p, regular_user_wp, proxy_user_p, proxy_user_wp;
+SET SQL_LOG_BIN=1;
+
+--connection slave
+DROP USER ssl_user;
+disconnect con_ssl;
+
+--source include/rpl_end.inc

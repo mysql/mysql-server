@@ -84,7 +84,12 @@ int mi_close(register MI_INFO *info)
     }
 #ifdef HAVE_MMAP
     if (share->file_map)
-      _mi_unmap_file(info);
+    {
+      if (share->options & HA_OPTION_COMPRESS_RECORD)
+        _mi_unmap_file(info);
+      else
+        mi_munmap_file(info);
+    }
 #endif
     if (share->decode_trees)
     {

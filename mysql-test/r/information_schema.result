@@ -209,8 +209,8 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 c	varchar(64)	utf8_general_ci	NO				select,insert,update,references	
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-def	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+def	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 show columns from mysqltest.t1 where field like "%a%";
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -879,8 +879,8 @@ TABLES	TABLE_NAME	select
 TABLE_CONSTRAINTS	TABLE_NAME	select
 TABLE_PRIVILEGES	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
-INNODB_BUFFER_PAGE	TABLE_NAME	select
 INNODB_BUFFER_PAGE_LRU	TABLE_NAME	select
+INNODB_BUFFER_PAGE	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
@@ -1176,15 +1176,15 @@ DROP TABLE t1;
 DROP VIEW v1;
 DROP FUNCTION func1;
 DROP FUNCTION func2;
-select column_type, group_concat(table_schema, '.', table_name), count(*) as num
-from information_schema.columns where
-table_schema='information_schema' and
-(column_type = 'varchar(7)' or column_type = 'varchar(20)'
- or column_type = 'varchar(27)')
-group by column_type order by num;
-column_type	group_concat(table_schema, '.', table_name)	num
-varchar(27)	information_schema.COLUMNS	1
+SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name), COUNT(*) AS num
+FROM information_schema.columns WHERE
+table_schema='information_schema' AND
+(column_type = 'varchar(7)' OR column_type = 'varchar(20)'
+ OR column_type = 'varchar(30)')
+GROUP BY column_type ORDER BY num;
+column_type	GROUP_CONCAT(table_schema, '.', table_name)	num
 varchar(7)	information_schema.ROUTINES,information_schema.VIEWS	2
+varchar(30)	information_schema.COLUMNS,information_schema.PROFILING,information_schema.PROFILING	3
 varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
@@ -1537,9 +1537,9 @@ WHERE TABLE_SCHEMA='mysql' and TABLE_NAME= 'db';
 TABLE_COLLATION
 utf8_bin
 select * from information_schema.columns where table_schema = NULL;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 select * from `information_schema`.`COLUMNS` where `TABLE_NAME` = NULL;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_SCHEMA` = NULL;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
 select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_NAME` = NULL;
@@ -1736,17 +1736,17 @@ returns char(10) return null;
 create procedure p1 (p1 float(8,5), p2 char(32), p3 varchar(10)) begin end;
 create procedure p2 (p1 enum('c', 's'), p2 blob, p3 text) begin end;
 select * from information_schema.parameters where specific_schema='test';
-SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
-def	test	f1	0	NULL	NULL	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)	FUNCTION
-def	test	f1	1	IN	p1	int	NULL	NULL	10	0	NULL	NULL	int(11)	FUNCTION
-def	test	f1	2	IN	p2	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime	FUNCTION
-def	test	f1	3	IN	p3	decimal	NULL	NULL	10	2	NULL	NULL	decimal(10,2)	FUNCTION
-def	test	p1	1	IN	p1	float	NULL	NULL	8	5	NULL	NULL	float(8,5)	PROCEDURE
-def	test	p1	2	IN	p2	char	32	32	NULL	NULL	latin1	latin1_swedish_ci	char(32)	PROCEDURE
-def	test	p1	3	IN	p3	varchar	10	10	NULL	NULL	latin1	latin1_swedish_ci	varchar(10)	PROCEDURE
-def	test	p2	1	IN	p1	enum	1	1	NULL	NULL	latin1	latin1_swedish_ci	enum('c','s')	PROCEDURE
-def	test	p2	2	IN	p2	blob	65535	65535	NULL	NULL	NULL	NULL	blob	PROCEDURE
-def	test	p2	3	IN	p3	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text	PROCEDURE
+SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
+def	test	f1	0	NULL	NULL	char	10	10	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(10)	FUNCTION
+def	test	f1	1	IN	p1	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	FUNCTION
+def	test	f1	2	IN	p2	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime	FUNCTION
+def	test	f1	3	IN	p3	decimal	NULL	NULL	10	2	NULL	NULL	NULL	decimal(10,2)	FUNCTION
+def	test	p1	1	IN	p1	float	NULL	NULL	8	5	NULL	NULL	NULL	float(8,5)	PROCEDURE
+def	test	p1	2	IN	p2	char	32	32	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(32)	PROCEDURE
+def	test	p1	3	IN	p3	varchar	10	10	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(10)	PROCEDURE
+def	test	p2	1	IN	p1	enum	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('c','s')	PROCEDURE
+def	test	p2	2	IN	p2	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob	PROCEDURE
+def	test	p2	3	IN	p3	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text	PROCEDURE
 select data_type, character_maximum_length,
 character_octet_length, numeric_precision,
 numeric_scale, character_set_name,
@@ -1860,7 +1860,7 @@ LEFT JOIN INFORMATION_SCHEMA.COLUMNS
 USING (TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)
 WHERE COLUMNS.TABLE_SCHEMA = 'test'
 AND COLUMNS.TABLE_NAME = 't1';
-TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	TABLE_CATALOG	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	TABLE_CATALOG	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 #
 # A test case for Bug#56540 "Exception (crash) in sql_show.cc
 # during rqg_info_schema test on Windows"
@@ -2013,6 +2013,62 @@ event_object_table	trigger_name
 #
 # Switching to connection 'default'.
 #
+#
+# Test case to test DATETIME_PRECISION of information_schema.columns table
+# 
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+create table mysqltest.t(a int, b date, c time, d datetime, e timestamp);
+create table mysqltest.t0(a int, b date, c time(0), d datetime(0), e timestamp(0));
+create table mysqltest.t1(a int, b date, c time(1), d datetime(1), e timestamp(1));
+create table mysqltest.t2(a int, b date, c time(2), d datetime(2), e timestamp(2));
+create table mysqltest.t3(a int, b date, c time(3), d datetime(3), e timestamp(3));
+create table mysqltest.t4(a int, b date, c time(4), d datetime(4), e timestamp(4));
+create table mysqltest.t5(a int, b date, c time(5), d datetime(5), e timestamp(5));
+create table mysqltest.t6(a int, b date, c time(6), d datetime(6), e timestamp(6));
+select TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATETIME_PRECISION from information_schema.columns where TABLE_SCHEMA='mysqltest';
+TABLE_NAME	COLUMN_NAME	DATA_TYPE	DATETIME_PRECISION
+t	a	int	NULL
+t	b	date	NULL
+t	c	time	0
+t	d	datetime	0
+t	e	timestamp	0
+t0	a	int	NULL
+t0	b	date	NULL
+t0	c	time	0
+t0	d	datetime	0
+t0	e	timestamp	0
+t1	a	int	NULL
+t1	b	date	NULL
+t1	c	time	1
+t1	d	datetime	1
+t1	e	timestamp	1
+t2	a	int	NULL
+t2	b	date	NULL
+t2	c	time	2
+t2	d	datetime	2
+t2	e	timestamp	2
+t3	a	int	NULL
+t3	b	date	NULL
+t3	c	time	3
+t3	d	datetime	3
+t3	e	timestamp	3
+t4	a	int	NULL
+t4	b	date	NULL
+t4	c	time	4
+t4	d	datetime	4
+t4	e	timestamp	4
+t5	a	int	NULL
+t5	b	date	NULL
+t5	c	time	5
+t5	d	datetime	5
+t5	e	timestamp	5
+t6	a	int	NULL
+t6	b	date	NULL
+t6	c	time	6
+t6	d	datetime	6
+t6	e	timestamp	6
 #
 # Clean-up.
 drop database mysqltest;

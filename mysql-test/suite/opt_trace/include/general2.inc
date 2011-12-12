@@ -159,6 +159,7 @@ ORDER BY f2;
 --echo Maps should say that t2 and t3 depend on t1
 --echo (because of straight_join), they don't, this is
 --echo bug#11766858 and bug#11752239
+--replace_regex /("sort_buffer_size":) [0-9]+/\1 NNN/
 select TRACE from information_schema.OPTIMIZER_TRACE;
 
 DROP TABLES t1,t2,t3;
@@ -171,6 +172,7 @@ DROP TABLES t1,t2,t3;
 create table t1 (a int, b int);
 insert into t1 values (1,1), (2,null), (3, 4);
 select max(x) from (select sum(a) as x from t1 group by b) as teeone;
+--replace_regex /("sort_buffer_size":) [0-9]+/\1 NNN/
 select TRACE from information_schema.OPTIMIZER_TRACE;
 drop table t1;
 
@@ -614,6 +616,7 @@ SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
 STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
 GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk ;
 eval $query;
+--replace_regex /("sort_buffer_size":) [0-9]+/\1 NNN/
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 DROP TABLE t1,t2;

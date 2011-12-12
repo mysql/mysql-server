@@ -39,6 +39,11 @@
 #include "transaction.h"       // trans_commit_stmt
 #include "opt_trace.h"         // opt_trace_disable_etc
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 /*
   Sufficient max length of printed destinations and frame offsets (all uints).
 */
@@ -65,13 +70,13 @@ static void reset_start_time_for_sp(THD *thd)
     /*
       First investigate if there is a cached time stamp
     */
-    if (thd->user_time)
+    if (thd->user_time.tv_sec || thd->user_time.tv_usec)
     {
       thd->start_time= thd->user_time;
     }
     else
     {
-      my_micro_time_and_time(&thd->start_time);
+      my_micro_time_to_timeval(my_micro_time(), &thd->start_time);
     }
   }
 }
@@ -1736,7 +1741,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   DBUG_PRINT("info", ("function %s", m_name.str));
 
   LINT_INIT(binlog_save_options);
-
+  // Resetting THD::where to its default value
+  thd->where= THD::DEFAULT_WHERE;
   /*
     Check that the function is called with all specified arguments.
 
@@ -2601,8 +2607,7 @@ sp_head::show_create_routine(THD *thd, int type)
     */
 
     Item_empty_string *stmt_fld=
-      new Item_empty_string(col3_caption,
-                            max(m_defstr.length, 1024));
+      new Item_empty_string(col3_caption, max<size_t>(m_defstr.length, 1024U));
 
     stmt_fld->maybe_null= TRUE;
 
@@ -2802,7 +2807,7 @@ sp_head::show_routine_code(THD *thd)
   field_list.push_back(new Item_uint("Pos", 9));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Instruction",
-                                             max(buffer.length(), 1024)));
+                                             max(buffer.length(), 1024U)));
   if (protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS |
                                          Protocol::SEND_EOF))
     DBUG_RETURN(1);

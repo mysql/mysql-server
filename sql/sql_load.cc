@@ -39,6 +39,11 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 class XML_TAG {
 public:
   int level;
@@ -289,15 +294,15 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       Check whenever TIMESTAMP field with auto-set feature specified
       explicitly.
     */
-    if (table->timestamp_field)
+    if (table->get_timestamp_field())
     {
       if (bitmap_is_set(table->write_set,
-                        table->timestamp_field->field_index))
+                        table->get_timestamp_field()->field_index))
         table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
       else
       {
         bitmap_set_bit(table->write_set,
-                       table->timestamp_field->field_index);
+                       table->get_timestamp_field()->field_index);
       }
     }
     /* Fix the expressions in SET clause */
@@ -841,7 +846,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                             ER(ER_WARN_TOO_FEW_RECORDS),
                             thd->get_stmt_da()->current_row_for_warning());
         if (!field->maybe_null() && field->type() == FIELD_TYPE_TIMESTAMP)
-            ((Field_timestamp*) field)->set_time();
+            field->set_time();
       }
       else
       {
@@ -972,7 +977,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           if (!field->maybe_null())
           {
             if (field->type() == MYSQL_TYPE_TIMESTAMP)
-              ((Field_timestamp*) field)->set_time();
+              field->set_time();
             else if (field != table->next_number_field)
               field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                  ER_WARN_NULL_TO_NOTNULL, 1);
@@ -1041,7 +1046,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             DBUG_RETURN(1);
           }
           if (!field->maybe_null() && field->type() == FIELD_TYPE_TIMESTAMP)
-              ((Field_timestamp*) field)->set_time();
+              field->set_time();
           /*
             QQ: We probably should not throw warning for each field.
             But how about intention to always have the same number
@@ -1178,7 +1183,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           if (!field->maybe_null())
           {
             if (field->type() == FIELD_TYPE_TIMESTAMP)
-              ((Field_timestamp *) field)->set_time();
+              field->set_time();
             else if (field != table->next_number_field)
               field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                  ER_WARN_NULL_TO_NOTNULL, 1);

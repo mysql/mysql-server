@@ -1,13 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
-Copyright (c) 2009, Sun Microsystems, Inc.
-
-Portions of this file contain modifications contributed and copyrighted by
-Sun Microsystems, Inc. Those modifications are gratefully acknowledged and
-are described briefly in the InnoDB documentation. The contributions by
-Sun Microsystems are incorporated with their permission, and subject to the
-conditions contained in the file COPYING.Sun_Microsystems.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -18,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -34,6 +27,8 @@ Created 1/20/1994 Heikki Tuuri
 #define ut0ut_h
 
 #include "univ.i"
+
+#ifndef UNIV_INNOCHECKSUM
 
 #include "db0err.h"
 
@@ -57,27 +52,32 @@ Created 1/20/1994 Heikki Tuuri
 typedef time_t	ib_time_t;
 
 #ifndef UNIV_HOTBACKUP
-#if defined(HAVE_PAUSE_INSTRUCTION)
+# if defined(HAVE_PAUSE_INSTRUCTION)
    /* According to the gcc info page, asm volatile means that the
    instruction has important side-effects and must not be removed.
    Also asm volatile may trigger a memory barrier (spilling all registers
    to memory). */
-#  define UT_RELAX_CPU() __asm__ __volatile__ ("pause")
-#elif defined(HAVE_FAKE_PAUSE_INSTRUCTION)
+#  ifdef __SUNPRO_CC
+#   define UT_RELAX_CPU() asm ("pause" )
+#  else
+#   define UT_RELAX_CPU() __asm__ __volatile__ ("pause")
+#  endif /* __SUNPRO_CC */
+
+# elif defined(HAVE_FAKE_PAUSE_INSTRUCTION)
 #  define UT_RELAX_CPU() __asm__ __volatile__ ("rep; nop")
-#elif defined(HAVE_ATOMIC_BUILTINS)
+# elif defined(HAVE_ATOMIC_BUILTINS)
 #  define UT_RELAX_CPU() do { \
      volatile lint	volatile_var; \
      os_compare_and_swap_lint(&volatile_var, 0, 1); \
    } while (0)
-#elif defined(HAVE_WINDOWS_ATOMICS)
+# elif defined(HAVE_WINDOWS_ATOMICS)
    /* In the Win32 API, the x86 PAUSE instruction is executed by calling
    the YieldProcessor macro defined in WinNT.h. It is a CPU architecture-
    independent way by using YieldProcessor. */
 #  define UT_RELAX_CPU() YieldProcessor()
-#else
+# else
 #  define UT_RELAX_CPU() ((void)0) /* avoid warning for an empty statement */
-#endif
+# endif
 
 /*********************************************************************//**
 Delays execution for at most max_wait_us microseconds or returns earlier
@@ -96,9 +96,8 @@ do {								\
 } while (0)
 #endif /* !UNIV_HOTBACKUP */
 
-/* beware of possible side effects like UT_MIN(x, y++); */
-#define UT_MIN(a, b)	((a) < (b) ? (a) : (b))
-#define UT_MAX(a, b)	((a) > (b) ? (a) : (b))
+template <class T> T ut_min(T a, T b) { return(a < b ? a : b); }
+template <class T> T ut_max(T a, T b) { return(a > b ? a : b); }
 
 /******************************************************//**
 Calculates the minimum of two ulints.
@@ -257,6 +256,16 @@ ut_time_ms(void);
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************//**
+Returns the number of milliseconds since some epoch.  The
+value may wrap around.  It should only be used for heuristic
+purposes.
+@return ms since epoch */
+UNIV_INTERN
+ulint
+ut_time_ms(void);
+/*============*/
+
+/**********************************************************//**
 Returns the difference of two times in seconds.
 @return	time2 - time1 expressed in seconds */
 UNIV_INTERN
@@ -265,6 +274,9 @@ ut_difftime(
 /*========*/
 	ib_time_t	time2,	/*!< in: time */
 	ib_time_t	time1);	/*!< in: time */
+
+#endif /* !UNIV_INNOCHECKSUM */
+
 /**********************************************************//**
 Prints a timestamp to a file. */
 UNIV_INTERN
@@ -273,6 +285,9 @@ ut_print_timestamp(
 /*===============*/
 	FILE*	file)	/*!< in: file where to print */
 	UNIV_COLD __attribute__((nonnull));
+
+#ifndef UNIV_INNOCHECKSUM
+
 /**********************************************************//**
 Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
 UNIV_INTERN
@@ -444,6 +459,8 @@ ut_ulint_sort(
 #ifndef UNIV_NONINL
 #include "ut0ut.ic"
 #endif
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif
 

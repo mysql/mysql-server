@@ -1091,6 +1091,15 @@ FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
 Warnings:
 Warning	1441	Datetime function: datetime field overflow
 DROP TABLE g1;
+#
+# Bug#13013970 MORE CRASHES IN FIELD_BLOB::GET_KEY_IMAGE
+#
+CREATE TABLE g1(a TEXT NOT NULL, KEY(a(255)));
+INSERT INTO g1 VALUES ('a'),('a');
+SELECT 1 FROM g1 WHERE a >= ANY
+(SELECT 1 FROM g1 WHERE a = geomfromtext('') OR a) ;
+1
+DROP TABLE g1;
 End of 5.5 tests
 DROP DATABASE IF EXISTS gis_ogs;
 CREATE DATABASE gis_ogs;
@@ -1450,3 +1459,9 @@ WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
 count(*)
 1
 DROP DATABASE gis_ogs;
+#
+# Bug#13362660 ASSERTION `FIELD_POS < FIELD_COUNT' FAILED. IN PROTOCOL_TEXT::STORE
+#
+SELECT ST_Union('', ''), md5(1);
+ST_Union('', '')	md5(1)
+NULL	c4ca4238a0b923820dcc509a6f75849b

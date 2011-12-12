@@ -60,7 +60,7 @@ USE INFORMATION_SCHEMA;
 SHOW CREATE TABLE INFORMATION_SCHEMA.ROUTINES;
 
 # embedded server does not display privileges
---replace_column 18 #
+--replace_column 19 #
 query_vertical SELECT * FROM information_schema.columns
 WHERE table_schema = 'information_schema'
   AND table_name   = 'routines'
@@ -73,9 +73,8 @@ DESCRIBE INFORMATION_SCHEMA.ROUTINES;
 #                     I_S.ROUTINES view
 ###############################################################################
 -- echo # ========== routines.2 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
---enable_warnings
 
 CREATE DATABASE i_s_routines_test;
 USE i_s_routines_test;
@@ -84,7 +83,7 @@ USE i_s_routines_test;
 --error ER_PARSE_ERROR
 CREATE FUNCTION test_func1 (s char(20) RETURNS CHAR(50)
 RETURN CONCAT('Hello', ,s,'!');
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 
@@ -94,20 +93,19 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 #                                     function / procedure
 ###############################################################################
 -- echo # ========== routines.3 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
---enable_warnings
 
 CREATE DATABASE i_s_routines_test;
 USE i_s_routines_test;
 
 CREATE FUNCTION test_func1 (s char(20)) RETURNS CHAR(50)
 RETURN CONCAT('Hello, ',s,'!');
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 DROP FUNCTION test_func1;
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 
@@ -117,9 +115,8 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 #                    stored procedure
 ################################################################################
 -- echo # ========== routines.4 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
---enable_warnings
 
 CREATE DATABASE i_s_routines_test;
 USE i_s_routines_test;
@@ -131,7 +128,7 @@ CREATE PROCEDURE testproc (OUT param1 INT)
   END;
 //
 delimiter ;//
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'testproc';
 
@@ -144,16 +141,15 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'testproc';
 #                    for CHAR functions
 ################################################################################
 -- echo # ========== routines.5 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
---enable_warnings
 
 CREATE DATABASE i_s_routines_test;
 USE i_s_routines_test;
 
 CREATE FUNCTION test_func1 (s char(20)) RETURNS CHAR(50)
 RETURN CONCAT('Hello, ',s,'!');
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 
@@ -167,15 +163,14 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 #                    for numeric functions
 ################################################################################
 -- echo # ========== routines.6 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
---enable_warnings
 
 CREATE DATABASE i_s_routines_test;
 USE i_s_routines_test;
 
 CREATE FUNCTION test_func2 (s int) RETURNS INT RETURN s*2;
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func2';
 
@@ -186,16 +181,15 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func2';
 #                    or time data
 ################################################################################
 -- echo # ========== routines.7 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
---enable_warnings
 
 CREATE DATABASE i_s_routines_test;
 USE i_s_routines_test;
 
 CREATE FUNCTION test_func5 (s date) RETURNS TIMESTAMP
 RETURN CURRENT_TIMESTAMP;
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
 
@@ -205,20 +199,19 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
 #                     I_S.ROUTINES.COMMENT
 ###############################################################################
 -- echo # ========== routines.8 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
---enable_warnings
 
 CREATE DATABASE i_s_routines_test;
 USE i_s_routines_test;
 
 CREATE FUNCTION test_func5 (s date) RETURNS TIMESTAMP
 RETURN CURRENT_TIMESTAMP;
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
 ALTER FUNCTION test_func5 COMMENT 'new comment added';
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
 
@@ -229,9 +222,8 @@ WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
 #                     Normally both values are equal
 ###############################################################################
 -- echo # ========== routines.9 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_routines_test;
---enable_warnings
 
 
 CREATE DATABASE i_s_routines_test CHARACTER SET  utf8;
@@ -239,9 +231,64 @@ USE i_s_routines_test;
 
 CREATE FUNCTION test_func5 (s CHAR(20)) RETURNS VARCHAR(30)
 RETURN CONCAT('XYZ, ' ,s);
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
+
+###############################################################################
+# Testcase Routine.10: Test case to test DATETIME_PRECISION in 
+# information_schema.routines table.
+###############################################################################
+-- echo # ========== routines.10 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_routines_test;
+--enable_warnings
+
+CREATE DATABASE i_s_routines_test;
+USE i_s_routines_test;
+
+delimiter \\;
+CREATE PROCEDURE test_proc1 (OUT p_p1 timestamp) BEGIN SELECT 1 ; END; \\
+delimiter ;\\
+
+CREATE FUNCTION test_func_t (f_p1 DATETIME) RETURNS TIME RETURN NULL;
+CREATE FUNCTION test_func_dt (f_p1 DATETIME) RETURNS DATETIME RETURN NULL;
+CREATE FUNCTION test_func_ts (f_p1 DATETIME) RETURNS TIMESTAMP RETURN NULL;
+
+CREATE FUNCTION test_func_t0 (f_p1 DATETIME) RETURNS TIME(0) RETURN NULL;
+CREATE FUNCTION test_func_dt0 (f_p1 DATETIME) RETURNS DATETIME(0) RETURN NULL;
+CREATE FUNCTION test_func_ts0 (f_p1 DATETIME) RETURNS TIMESTAMP(0) RETURN NULL;
+
+CREATE FUNCTION test_func_t1 (f_p1 DATETIME) RETURNS TIME(1) RETURN NULL;
+CREATE FUNCTION test_func_dt1 (f_p1 DATETIME) RETURNS DATETIME(1) RETURN NULL;
+CREATE FUNCTION test_func_ts1 (f_p1 DATETIME) RETURNS TIMESTAMP(1) RETURN NULL;
+
+CREATE FUNCTION test_func_t2 (f_p1 DATETIME) RETURNS TIME(2) RETURN NULL;
+CREATE FUNCTION test_func_dt2 (f_p1 DATETIME) RETURNS DATETIME(2) RETURN NULL;
+CREATE FUNCTION test_func_ts2 (f_p1 DATETIME) RETURNS TIMESTAMP(2) RETURN NULL;
+
+CREATE FUNCTION test_func_t3 (f_p1 DATETIME) RETURNS TIME(3) RETURN NULL;
+CREATE FUNCTION test_func_dt3 (f_p1 DATETIME) RETURNS DATETIME(3) RETURN NULL;
+CREATE FUNCTION test_func_ts3 (f_p1 DATETIME) RETURNS TIMESTAMP(3) RETURN NULL;
+
+CREATE FUNCTION test_func_t4 (f_p1 DATETIME) RETURNS TIME(4) RETURN NULL;
+CREATE FUNCTION test_func_dt4 (f_p1 DATETIME) RETURNS DATETIME(4) RETURN NULL;
+CREATE FUNCTION test_func_ts4 (f_p1 DATETIME) RETURNS TIMESTAMP(4) RETURN NULL;
+
+CREATE FUNCTION test_func_t5 (f_p1 DATETIME) RETURNS TIME(5) RETURN NULL;
+CREATE FUNCTION test_func_dt5 (f_p1 DATETIME) RETURNS DATETIME(5) RETURN NULL;
+CREATE FUNCTION test_func_ts5 (f_p1 DATETIME) RETURNS TIMESTAMP(5) RETURN NULL;
+
+CREATE FUNCTION test_func_t6 (f_p1 DATETIME) RETURNS TIME(6) RETURN NULL;
+CREATE FUNCTION test_func_dt6 (f_p1 DATETIME) RETURNS DATETIME(6) RETURN NULL;
+CREATE FUNCTION test_func_ts6 (f_p1 DATETIME) RETURNS TIMESTAMP(6) RETURN NULL;
+
+# Here return type for test_proc1 is not defined so DATETIME_PRECISION for this
+# would be NULL. But return type for test_func1 is TIME, so DATETIME_PRECISION
+# would be 0.
+SELECT ROUTINE_NAME, ROUTINE_TYPE, DATA_TYPE, DATETIME_PRECISION from 
+INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='i_s_routines_test';
+
 
 # final clean up
 DROP DATABASE i_s_routines_test;

@@ -21,6 +21,7 @@
 #
 
 --source include/not_embedded.inc
+--source include/have_innodb_16k.inc
 
 # Add the datadir, basedir, plugin_dir to the bootstrap command
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -142,8 +143,11 @@ EOF
 --echo # Simulate loading a plugin libary with multiple entry points.
 --echo # This will test the DISABLE to ensure all rows are removed.
 --echo #
+--replace_regex /\.dll/.so/
 eval INSERT INTO mysql.plugin VALUES ('wicky', '$DAEMONEXAMPLE'); 
+--replace_regex /\.dll/.so/
 eval INSERT INTO mysql.plugin VALUES ('wacky', '$DAEMONEXAMPLE'); 
+--replace_regex /\.dll/.so/
 eval INSERT INTO mysql.plugin VALUES ('wonky', '$DAEMONEXAMPLE'); 
 
 --echo #

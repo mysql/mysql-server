@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -219,7 +219,7 @@ mem_heap_get_size(
 Use this macro instead of the corresponding function!
 Macro for memory buffer allocation */
 
-#define mem_zalloc(N)	memset(mem_alloc(N), 0, (N));
+#define mem_zalloc(N)	memset(mem_alloc(N), 0, (N))
 
 #define mem_alloc(N)	mem_alloc_func((N), NULL, __FILE__, __LINE__)
 #define mem_alloc2(N,S)	mem_alloc_func((N), (S), __FILE__, __LINE__)
@@ -318,7 +318,7 @@ mem_heap_dup(
 	ulint		len);	/*!< in: length of data, in bytes */
 
 /****************************************************************//**
-A simple (s)printf replacement that dynamically allocates the space for the
+A simple sprintf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type).

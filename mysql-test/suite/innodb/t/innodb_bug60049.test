@@ -4,6 +4,7 @@
 
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc
+-- source include/have_innodb_16k.inc
 
 -- disable_query_log
 let $create1 = query_get_value(SHOW CREATE TABLE mysql.innodb_table_stats, Create Table, 1);

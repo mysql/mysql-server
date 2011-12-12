@@ -692,12 +692,18 @@ typedef struct st_cache_field {
     trailing sequence of offsets.
   */ 
   uint referenced_field_no; 
-  TABLE *get_rowid; /**< only for ROWID fields used for Duplicate Elimination */
+  /// Used to chain rowid copy objects belonging to one join_tab
+  st_cache_field *next_copy_rowid;
   /* The remaining structure fields are used as containers for temp values */
   uint blob_length; /**< length of the blob to be copied */
   uint offset;      /**< field offset to be saved in cache buffer */
 
-  void bind_buffer(uchar *buffer) { str= buffer; }
+  void bind_buffer(uchar *buffer)
+  {
+    if (next_copy_rowid != NULL)
+      next_copy_rowid->bind_buffer(buffer);
+    str= buffer;
+  }
 } CACHE_FIELD;
 
 
@@ -960,7 +966,8 @@ protected:
   /* Shall calculate how much space is remaining in the join buffer */ 
   virtual ulong rem_space() 
   { 
-    return max(buff_size-(end_pos-buff)-aux_buff_size,0);
+    using std::max;
+    return max(buff_size-(end_pos-buff)-aux_buff_size, 0UL);
   }
 
   /* Shall skip record from the join buffer if its match flag is on */
@@ -1444,7 +1451,8 @@ protected:
   */ 
   ulong rem_space() 
   { 
-    return max(last_key_entry-end_pos-aux_buff_size,0);
+    using std::max;
+    return max(last_key_entry-end_pos-aux_buff_size, 0UL);
   }
 
   /* 
@@ -1588,7 +1596,7 @@ typedef struct st_position : public Sql_alloc
   
   
   /* These form a stack of partial join order costs and output sizes */
-  COST_VECT prefix_cost;
+  Cost_estimate prefix_cost;
   double    prefix_record_count;
 
   /*
@@ -1935,8 +1943,6 @@ public:
   */
   Item       *conds;                      ///< The where clause item tree
   Item       *having;                     ///< The having clause item tree
-  Item       *conds_history;              ///< store WHERE for explain
-  Item       *having_history;             ///< Store having for explain
   Item       *tmp_having; ///< To store having when processed temporary table
   TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
@@ -2022,7 +2028,7 @@ public:
     thd= thd_arg;
     sum_funcs= sum_funcs2= 0;
     procedure= 0;
-    having= tmp_having= having_history= 0;
+    having= tmp_having= 0;
     select_options= select_options_arg;
     result= result_arg;
     lock= thd_arg->lock;
@@ -2068,6 +2074,8 @@ public:
   int optimize();
   void reset();
   void exec();
+  bool prepare_result(List<Item> **columns_list);
+  void explain();
   bool destroy();
   void restore_tmp();
   bool alloc_func_list();
@@ -2134,12 +2142,16 @@ public:
   bool save_join_tab();
   bool init_save_join_tab();
   /**
-     Send a row even if the join produced no rows if:
+    Return whether the caller should send a row even if the join 
+    produced no rows if:
      - there is an aggregate function (sum_func_count!=0), and
      - the query is not grouped, and
      - a possible HAVING clause evaluates to TRUE.
+
+    @note: if there is a having clause, it must be evaluated before
+    returning the row.
   */
-  bool send_row_on_empty_set()
+  bool send_row_on_empty_set() const
   {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
 	    group_list == NULL && !group_optimized_away &&
@@ -2157,6 +2169,47 @@ public:
   bool get_best_combination();
 
 private:
+  /**
+    Execute current query. To be called from @c JOIN::exec.
+
+    If current query is a dependent subquery, this execution is performed on a
+    temporary copy of the original JOIN object in order to be able to restore
+    the original content for re-execution and EXPLAIN. (@note Subqueries may
+    be executed as part of EXPLAIN.) In such cases, execution data that may be
+    reused for later executions will be copied to the original 
+    @c JOIN object (@c parent).
+
+    @param parent Original @c JOIN object when current object is a temporary 
+                  copy. @c NULL, otherwise
+  */
+  void execute(JOIN *parent);
+  
+  /**
+    Create a temporary table to be used for processing DISTINCT/ORDER
+    BY/GROUP BY.
+
+    @note Will modify JOIN object wrt sort/group attributes
+
+    @param tmp_table_fields List of items that will be used to define
+                            column types of the table.
+    @param tmp_table_group  Group key to use for temporary table, NULL if none.
+    @param save_sum_fields  If true, do not replace Item_sum items in 
+                            @c tmp_fields list with Item_field items referring 
+                            to fields in temporary table.
+
+    @returns Pointer to temporary table on success, NULL on failure
+  */
+  TABLE* create_intermediate_table(List<Item> *tmp_table_fields,
+                                   ORDER *tmp_table_group, bool save_sum_fields);
+
+  /**
+    Optimize distinct when used on a subset of the tables.
+
+    E.g.,: SELECT DISTINCT t1.a FROM t1,t2 WHERE t1.b=t2.b
+    In this case we can stop scanning t2 when we have found one t1.a
+  */
+  void optimize_distinct();
+
   /**
     TRUE if the query contains an aggregate function but has no GROUP
     BY clause. 
@@ -2429,7 +2482,8 @@ bool const_expression_in_where(Item *cond, Item *comp_item,
 bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
                            MI_COLUMNDEF *start_recinfo,
                            MI_COLUMNDEF **recinfo,
-                           ulonglong options, my_bool big_tables);
+                           ulonglong options, my_bool big_tables,
+                           Opt_trace_context *trace);
 
 /**
   Printing the transformed query in EXPLAIN EXTENDED or optimizer trace

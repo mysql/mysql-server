@@ -44,6 +44,9 @@
 #include "message.h"
 #endif
 
+using std::min;
+using std::max;
+
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
 #define MAX_TIME_SIZE 32
@@ -456,9 +459,7 @@ bool Log_to_csv_event_handler::
     goto err;
 
   DBUG_ASSERT(table->field[GLT_FIELD_EVENT_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
-
-  ((Field_timestamp*) table->field[GLT_FIELD_EVENT_TIME])->store_timestamp(
-      (my_time_t) event_time);
+  table->field[GLT_FIELD_EVENT_TIME]->store_timestamp(event_time);
 
   /* do a write */
   if (table->field[GLT_FIELD_USER_HOST]->store(user_host, user_host_len,
@@ -599,8 +600,7 @@ bool Log_to_csv_event_handler::
 
   /* store the time and user values */
   DBUG_ASSERT(table->field[SQLT_FIELD_START_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
-  ((Field_timestamp*) table->field[SQLT_FIELD_START_TIME])->store_timestamp(
-      (my_time_t) current_time);
+  table->field[SQLT_FIELD_START_TIME]->store_timestamp(current_time);
   if (table->field[SQLT_FIELD_USER_HOST]->store(user_host, user_host_len,
                                                 client_cs))
     goto err;
@@ -618,12 +618,12 @@ bool Log_to_csv_event_handler::
     t.neg= 0;
 
     /* fill in query_time field */
-    calc_time_from_sec(&t, (long) min(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
-    if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
+    calc_time_from_sec(&t, min<long>(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t))
       goto err;
     /* lock_time */
-    calc_time_from_sec(&t, (long) min(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
-    if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
+    calc_time_from_sec(&t, min<long>(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t))
       goto err;
     /* rows_sent */
     if (table->field[SQLT_FIELD_ROWS_SENT]->store((longlong) thd->get_sent_row_count(), TRUE))
@@ -1080,7 +1080,8 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length)
     }
 
     for (current_handler= slow_log_handler_list; *current_handler ;)
-      error= (*current_handler++)->log_slow(thd, current_time, thd->start_time,
+      error= (*current_handler++)->log_slow(thd, current_time,
+                                            thd->start_time.tv_sec,
                                             user_host_buff, user_host_len,
                                             query_utime, lock_utime, is_command,
                                             query, query_length) || error;
@@ -1649,14 +1650,18 @@ void MYSQL_LOG::close(uint exiting)
 
     if (mysql_file_sync(log_file.file, MYF(MY_WME)) && ! write_error)
     {
+      char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno,
+                      my_strerror(errbuf, sizeof(errbuf), errno));
     }
 
     if (mysql_file_close(log_file.file, MYF(MY_WME)) && ! write_error)
     {
+      char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno,
+                      my_strerror(errbuf, sizeof(errbuf), errno));
     }
   }
 
@@ -1838,8 +1843,10 @@ err:
 
   if (!write_error)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     write_error= 1;
-    sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+    sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno,
+                    my_strerror(errbuf, sizeof(errbuf), errno));
   }
   mysql_mutex_unlock(&LOCK_log);
   return TRUE;
@@ -1989,8 +1996,10 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
       error= 1;
       if (! write_error)
       {
+        char errbuf[MYSYS_STRERROR_SIZE];
         write_error= 1;
-        sql_print_error(ER(ER_ERROR_ON_WRITE), name, error);
+        sql_print_error(ER(ER_ERROR_ON_WRITE), name, error,
+                        my_strerror(errbuf, sizeof(errbuf), errno));
       }
     }
   }
@@ -2019,7 +2028,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
   {
     char *p= fn_ext(log_name);
     uint length= (uint) (p - log_name);
-    strmake(buff, log_name, min(length, FN_REFLEN-1));
+    strmake(buff, log_name, min<size_t>(length, FN_REFLEN-1));
     return (const char*)buff;
   }
   return log_name;

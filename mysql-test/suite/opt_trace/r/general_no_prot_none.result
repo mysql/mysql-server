@@ -280,7 +280,7 @@ EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -375,14 +375,14 @@ EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5	{
             } /* join_optimization */
           },
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -608,6 +608,18 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 9,
+                "key_length": 8,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 116508
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
           },
           {
             "expanded_query": "/* select#1 */ select (/* select#2 */ select 1 from `test`.`t6` where (`test`.`t6`.`d` = ifnull(`test`.`t5`.`c`,NULL)) union /* select#3 */ select 2 from `test`.`t6` where (`test`.`t6`.`d` = ifnull(`test`.`t5`.`c`,NULL))) AS `RESULT` from `test`.`t5`"
@@ -1045,6 +1057,18 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
             } /* join_preparation */
           },
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 9,
+                "key_length": 8,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 116508
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "expanded_query": "/* select#1 */ select `test`.`t5`.`c` AS `c` from `test`.`t5` where <in_optimizer>(5,<exists>(/* select#2 */ select 1 from `test`.`t6` where ((`test`.`t6`.`d` = ifnull(`test`.`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 1 from `test`.`t6` where ((`test`.`t6`.`d` = ifnull(`test`.`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
           }
         ] /* steps */
@@ -1316,8 +1340,8 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 NULL	NULL
 select length(@trace);
 length(@trace)
-14121
-set optimizer_trace_max_mem_size=13500;
+14543
+set optimizer_trace_max_mem_size=13900;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 length(@query)+length(@trace) > @@optimizer_trace_max_mem_size
 1
@@ -1325,7 +1349,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
 c
 select (@missing_bytes:=missing_bytes_beyond_max_mem_size) from information_schema.OPTIMIZER_TRACE;
 (@missing_bytes:=missing_bytes_beyond_max_mem_size)
-735
+761
 select (@query2:=QUERY)+NULL,(@trace2:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 (@query2:=QUERY)+NULL	(@trace2:=TRACE)+NULL
 NULL	NULL
@@ -1333,7 +1357,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-13386	1	1
+13782	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -1475,7 +1499,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -1634,14 +1658,14 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
             } /* join_optimization */
           },
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -1764,7 +1788,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -1923,14 +1947,14 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
             } /* join_optimization */
           },
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -2082,7 +2106,7 @@ explain extended select * from t1 where s1 > any (select s2 from t1)	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -2161,14 +2185,14 @@ explain extended select * from t1 where s1 > any (select s2 from t1)	{
             } /* join_optimization */
           },
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -2316,7 +2340,7 @@ explain extended select * from t1 where s1 > any (select max(s2) from t1)	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -2395,14 +2419,14 @@ explain extended select * from t1 where s1 > any (select max(s2) from t1)	{
             } /* join_optimization */
           },
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -2568,7 +2592,7 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -2671,14 +2695,14 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
             } /* join_optimization */
           },
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -2844,7 +2868,7 @@ explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -2947,14 +2971,14 @@ explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
             } /* join_optimization */
           },
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -3140,11 +3164,11 @@ explain select * from t1,t2	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -3254,11 +3278,11 @@ explain select * from t1,t2	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -3457,7 +3481,7 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -3560,14 +3584,14 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
             } /* join_optimization */
           },
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -3989,6 +4013,18 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
           }
         ] /* steps */
       } /* join_preparation */
+    },
+    {
+      "creating_tmp_table": {
+        "tmp_table_info": {
+          "table": "intermediate_tmp_table",
+          "row_length": 5,
+          "key_length": 5,
+          "unique_constraint": false,
+          "location": "memory (heap)",
+          "row_limit_estimate": 209715
+        } /* tmp_table_info */
+      } /* creating_tmp_table */
     },
     {
       "join_optimization": {
@@ -4505,7 +4541,7 @@ concat(c1,'y') IN
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -4608,11 +4644,11 @@ concat(c1,'y') IN
             } /* join_optimization */
           },
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 3,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           },
           {
             "join_optimization": {
@@ -4714,14 +4750,14 @@ concat(c1,'y') IN
             } /* join_optimization */
           },
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -5817,11 +5853,22 @@ trace
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 30,
+                "key_length": 5,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 34952
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "a"
               }
             ] /* filesort_information */,
@@ -5835,6 +5882,7 @@ trace
               "rows": 2,
               "examined_rows": 2,
               "number_of_tmp_files": 0,
+              "sort_buffer_size": NNN,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -6207,6 +6255,18 @@ insert into t6 select * from t6 where d>7	{
       "join_execution": {
         "select#": 1,
         "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 5,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 209715
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          }
         ] /* steps */
       } /* join_execution */
     }
@@ -6363,6 +6423,18 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                 "chosen": true
               }
             ] /* considered_execution_plans */
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 12,
+                "key_length": 7,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 87381
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
           },
           {
             "attaching_conditions_to_tables": {
@@ -10027,11 +10099,11 @@ explain select * from v1 where id="b"	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -10325,18 +10397,31 @@ explain select * from v1 where id="b"	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
-            "join_execution": {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "v1",
+                "row_length": 21,
+                "key_length": 16,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 49932
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -10350,6 +10435,19 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 select * from information_schema.session_variables where
 VARIABLE_NAME="optimizer_trace"	{
   "steps": [
+    {
+      "creating_tmp_table": {
+        "tmp_table_info": {
+          "database": "information_schema",
+          "table": "session_variables",
+          "row_length": 3268,
+          "key_length": 0,
+          "unique_constraint": false,
+          "location": "memory (heap)",
+          "row_limit_estimate": 320
+        } /* tmp_table_info */
+      } /* creating_tmp_table */
+    },
     {
       "join_preparation": {
         "select#": 1,
@@ -10494,6 +10592,18 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
             "expanded_query": "/* select#2 */ select 2 AS `2`"
           }
         ]
+      }
+    },
+    {
+      "creating_tmp_table": {
+        "tmp_table_info": {
+          "table": "intermediate_tmp_table",
+          "row_length": 9,
+          "key_length": 8,
+          "unique_constraint": false,
+          "location": "memory (heap)",
+          "row_limit_estimate": 116508
+        }
       }
     },
     {

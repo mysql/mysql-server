@@ -55,12 +55,20 @@ size_t my_fread(FILE *stream, uchar *Buffer, size_t Count, myf MyFlags)
     if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
     {
       if (ferror(stream))
-	my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
-		 my_filename(my_fileno(stream)),errno);
+      {
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
+                 my_filename(my_fileno(stream)),
+                 errno, my_strerror(errbuf, sizeof(errbuf), errno));
+      }
       else
       if (MyFlags & (MY_NABP | MY_FNABP))
-	my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
-		 my_filename(my_fileno(stream)),errno);
+      {
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
+                 my_filename(my_fileno(stream)), errno,
+                 my_strerror(errbuf, sizeof(errbuf), errno));
+      }
     }
     my_errno=errno ? errno : -1;
     if (ferror(stream) || MyFlags & (MY_NABP | MY_FNABP))
@@ -138,13 +146,15 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
 #endif
       if (ferror(stream) || (MyFlags & (MY_NABP | MY_FNABP)))
       {
-	if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
-	{
-	  my_error(EE_WRITE, MYF(ME_BELL+ME_WAITTANG),
-		   my_filename(my_fileno(stream)),errno);
-	}
-	writtenbytes= (size_t) -1;        /* Return that we got error */
-	break;
+        if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
+        {
+          char errbuf[MYSYS_STRERROR_SIZE];
+          my_error(EE_WRITE, MYF(ME_BELL+ME_WAITTANG),
+                   my_filename(my_fileno(stream)),
+                   errno, my_strerror(errbuf, sizeof(errbuf), errno));
+        }
+        writtenbytes= (size_t) -1;        /* Return that we got error */
+        break;
       }
     }
     if (MyFlags & (MY_NABP | MY_FNABP))
