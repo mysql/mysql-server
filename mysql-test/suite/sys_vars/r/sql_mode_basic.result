@@ -382,9 +382,9 @@ SELECT @@global.sql_mode;
 '#---------------------FN_DYNVARS_152_09----------------------#'
 SET sql_mode = 'ANSI';
 SET session.sql_mode = 'ANSI';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'sql_mode = 'ANSI'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'sql_mode = 'ANSI'' at line 1
 SET global.sql_mode = 'ANSI';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'sql_mode = 'ANSI'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'sql_mode = 'ANSI'' at line 1
 SET session sql_mode = 1;
 SELECT @@sql_mode;
 @@sql_mode

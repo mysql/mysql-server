@@ -170,11 +170,11 @@ SELECT @@div_precision_increment;
 @@div_precision_increment
 1
 SET local.div_precision_increment = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'div_precision_increment = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'div_precision_increment = 1' at line 1
 SELECT local.div_precision_increment;
 ERROR 42S02: Unknown table 'local' in field list
 SET session.div_precision_increment = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'div_precision_increment = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'div_precision_increment = 1' at line 1
 SELECT session.div_precision_increment;
 ERROR 42S02: Unknown table 'session' in field list
 SELECT div_precision_increment = @@session.div_precision_increment;

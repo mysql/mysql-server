@@ -470,11 +470,11 @@ a
 9999999999
 drop table t1;
 CREATE TABLE t1 (a_dec DECIMAL(-1,0));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1,0))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-1,0))' at line 1
 CREATE TABLE t1 (a_dec DECIMAL(-2,1));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2,1))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-2,1))' at line 1
 CREATE TABLE t1 (a_dec DECIMAL(-1,1));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1,1))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-1,1))' at line 1
 CREATE TABLE t1 (a_dec DECIMAL(0,11));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'a_dec').
 create table t1(a decimal(7,3));

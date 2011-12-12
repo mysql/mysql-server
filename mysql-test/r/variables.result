@@ -538,7 +538,7 @@ Warning	1292	Truncated incorrect read_buffer_size value: '100'
 set read_rnd_buffer_size=100;
 set global rpl_recovery_rank=100;
 Warnings:
-Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MySQL 7.0.
+Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MariaDB 7.0.
 set global server_id=100;
 set global slow_launch_time=100;
 set sort_buffer_size=100;
@@ -675,15 +675,15 @@ select @a, @b;
 @a	@b
 2	1
 set @@global.global.key_buffer_size= 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size= 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key_buffer_size= 1' at line 1
 set GLOBAL global.key_buffer_size= 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size= 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key_buffer_size= 1' at line 1
 SELECT @@global.global.key_buffer_size;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key_buffer_size' at line 1
 SELECT @@global.session.key_buffer_size;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key_buffer_size' at line 1
 SELECT @@global.local.key_buffer_size;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key_buffer_size' at line 1
 set @tstlw = @@log_warnings;
 show global variables like 'log_warnings';
 Variable_name	Value
@@ -1000,11 +1000,11 @@ select * from information_schema.session_variables where variable_name like 'log
 VARIABLE_NAME	VARIABLE_VALUE
 LOG_QUERIES_NOT_USING_INDEXES	OFF
 select @@"";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '""' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '""' at line 1
 select @@&;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '&' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '&' at line 1
 select @@@;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '@' at line 1
 select @@hostname;
 @@hostname
 #
@@ -1060,7 +1060,7 @@ set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
 set global rpl_recovery_rank         =@my_rpl_recovery_rank;
 Warnings:
-Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MySQL 7.0.
+Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MariaDB 7.0.
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;

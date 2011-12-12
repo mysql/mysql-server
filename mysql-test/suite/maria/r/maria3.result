@@ -34,9 +34,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, key key_block_size=1024 (a));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=1024 (a))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '=1024 (a))' at line 1
 create table t1 (a int not null, key `a` key_block_size=1024 (a));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_block_size=1024 (a))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key_block_size=1024 (a))' at line 1
 CREATE TABLE t1 (
 c1 INT,
 c2 VARCHAR(300),

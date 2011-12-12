@@ -22,7 +22,7 @@ SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 utf8
 SET global.character_set_filesystem=utf8;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'character_set_filesystem=utf8' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'character_set_filesystem=utf8' at line 1
 SET session character_set_filesystem=utf8;
 SELECT session character_set_filesystem;
 ERROR 42S22: Unknown column 'session' in 'field list'

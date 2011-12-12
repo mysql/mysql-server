@@ -84,11 +84,11 @@ SELECT @@event_scheduler = @@global.event_scheduler;
 SET event_scheduler = ON;
 ERROR HY000: Variable 'event_scheduler' is a GLOBAL variable and should be set with SET GLOBAL
 SET local.event_scheduler = OFF;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'event_scheduler = OFF' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'event_scheduler = OFF' at line 1
 SELECT local.event_scheduler;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.event_scheduler = ON;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'event_scheduler = ON' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'event_scheduler = ON' at line 1
 SELECT global.event_scheduler;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT event_scheduler = @@session.event_scheduler;

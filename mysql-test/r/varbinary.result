@@ -18,7 +18,7 @@ Warnings:
 Note	1003	select 00000001 AS `ID`,004084688022709641610 AS `UNIQ` from `test`.`t1` where 1
 drop table t1;
 select x'hello';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'x'hello'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'x'hello'' at line 1
 select 0xfg;
 ERROR 42S22: Unknown column '0xfg' in 'field list'
 create table t1 select 1 as x, 2 as xx;

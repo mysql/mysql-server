@@ -3371,14 +3371,6 @@ static Sys_var_mybool Sys_replicate_annotate_row_events(
        CMD_LINE(OPT_ARG), DEFAULT(0));
 #endif
 
-#if 0
-static Sys_var_mybool Sys_safemalloc(
-       "safemalloc",
-       "Check all memory allocations for every malloc/free call (can be slow)",
-       GLOBAL_VAR(sf_malloc_trough_check),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
-#endif
-
 static Sys_var_ulonglong Sys_join_buffer_space_limit(
        "join_buffer_space_limit",
        "The limit of the space for all join buffers used by a query",
@@ -3393,18 +3385,18 @@ static Sys_var_ulong Sys_progress_report_time(
        SESSION_VAR(progress_report_time), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX), DEFAULT(56), BLOCK_SIZE(1));
 
-static Sys_var_mybool Sys_thread_alarm(
-       "thread_alarm",
-       "Enable system thread alarm calls. Disabling it may be useful "
+static Sys_var_mybool Sys_no_thread_alarm(
+       "debug_no_thread_alarm",
+       "Disable system thread alarm calls. Disabling it may be useful "
        "in debugging or testing, never do it in production",
-       READ_ONLY GLOBAL_VAR(opt_thread_alarm), CMD_LINE(OPT_ARG),
-       DEFAULT(TRUE));
+       READ_ONLY GLOBAL_VAR(my_disable_thr_alarm), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_query_cache_strip_comments(
        "query_cache_strip_comments",
        "Strip all comments from a query before storing it "
        "in the query cache",
-       GLOBAL_VAR(opt_query_cache_strip_comments), CMD_LINE(OPT_ARG),
+       SESSION_VAR(query_cache_strip_comments), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
 
 static ulonglong in_transaction(THD *thd)

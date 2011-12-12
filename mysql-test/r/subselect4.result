@@ -271,7 +271,7 @@ set @old_optimizer_switch          = @@session.optimizer_switch,
 SET SESSION OPTIMIZER_SWITCH = 'materialization=off,semijoin=off,loosescan=off,firstmatch=off,mrr=on';
 SET SESSION engine_condition_pushdown = 1;
 Warnings:
-Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MariaDB 7.0. Please use '@@optimizer_switch' instead
 SELECT `time_nokey` G1  FROM t1  WHERE ( `varchar_nokey`  , `varchar_key`  )  IN ( 
 SELECT `varchar_nokey`  , `varchar_nokey`  )  AND `varchar_key`  >= 'c' HAVING G1  ORDER 
 BY `pk`   ;
@@ -279,7 +279,7 @@ G1
 set @@session.optimizer_switch          = @old_optimizer_switch,
 @@session.engine_condition_pushdown = @old_engine_condition_pushdown;
 Warnings:
-Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MariaDB 7.0. Please use '@@optimizer_switch' instead
 DROP TABLE t1;
 #
 # During work with BUG#45863 I had problems with a query that was
@@ -466,7 +466,7 @@ SELECT @old_icp:=@@engine_condition_pushdown;
 #
 SET SESSION engine_condition_pushdown = 'ON';
 Warnings:
-Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MariaDB 7.0. Please use '@@optimizer_switch' instead
 
 SELECT pk
 FROM t2
@@ -481,7 +481,7 @@ pk
 # Restore old value for Index condition pushdown
 SET SESSION engine_condition_pushdown=@old_icp;
 Warnings:
-Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MariaDB 7.0. Please use '@@optimizer_switch' instead
 DROP TABLE t1,t2;
 #
 # End of 5.3 tests.

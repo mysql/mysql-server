@@ -973,7 +973,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS -1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-1' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -985,7 +985,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS -1
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-1
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (214' at line 9
 CREATE TABLE t1 (
@@ -1041,7 +1041,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS -2.0;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2.0' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-2.0' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1053,7 +1053,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS -2.0
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2.0
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-2.0
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2' at line 9
 CREATE TABLE t1 (
@@ -1202,7 +1202,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS -2.0E+0;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2.0E+0' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-2.0E+0' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1214,7 +1214,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS -2.0E+0
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2.0E+0
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-2.0E+0
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN' at line 9
 CREATE TABLE t1 (
@@ -1318,7 +1318,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS '2';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''2'' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''2'' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1330,7 +1330,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS '2'
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''2'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''2'
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (21' at line 9
 CREATE TABLE t1 (
@@ -1341,7 +1341,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS '2.0';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''2.0'' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''2.0'' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1353,7 +1353,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS '2.0'
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''2.0'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''2.0'
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (' at line 9
 CREATE TABLE t1 (
@@ -1364,7 +1364,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS '0.2E+1';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''0.2E+1'' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''0.2E+1'' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1376,7 +1376,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS '0.2E+1'
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''0.2E+1'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''0.2E+1'
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THA' at line 9
 CREATE TABLE t1 (
@@ -1387,7 +1387,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS '2A';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''2A'' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''2A'' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1399,7 +1399,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS '2A'
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''2A'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''2A'
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2' at line 9
 CREATE TABLE t1 (
@@ -1410,7 +1410,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS 'A2';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''A2'' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''A2'' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1422,7 +1422,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS 'A2'
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''A2'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''A2'
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2' at line 9
 CREATE TABLE t1 (
@@ -1433,7 +1433,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS '';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '''' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '''' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1445,7 +1445,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS ''
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '''
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '''
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (214' at line 9
 CREATE TABLE t1 (
@@ -1456,7 +1456,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS 'GARBAGE';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''GARBAGE'' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''GARBAGE'' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1468,7 +1468,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS 'GARBAGE'
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''GARBAGE'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''GARBAGE'
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS TH' at line 9
 # 4.2.5 partition/subpartition numbers other notations
@@ -1480,7 +1480,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS 2A;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2A' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '2A' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1492,7 +1492,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS 2A
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2A
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '2A
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (214' at line 9
 CREATE TABLE t1 (
@@ -1503,7 +1503,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS A2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'A2' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'A2' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1515,7 +1515,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS A2
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'A2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'A2
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (214' at line 9
 CREATE TABLE t1 (
@@ -1526,7 +1526,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS GARBAGE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GARBAGE' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'GARBAGE' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1538,7 +1538,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS GARBAGE
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GARBAGE
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'GARBAGE
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN' at line 9
 CREATE TABLE t1 (
@@ -1549,7 +1549,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS "2";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"2"' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '"2"' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1561,7 +1561,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS "2"
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"2"
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '"2"
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (21' at line 9
 CREATE TABLE t1 (
@@ -1572,7 +1572,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS "2A";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"2A"' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '"2A"' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1584,7 +1584,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS "2A"
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"2A"
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '"2A"
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2' at line 9
 CREATE TABLE t1 (
@@ -1595,7 +1595,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS "A2";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"A2"' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '"A2"' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1607,7 +1607,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS "A2"
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"A2"
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '"A2"
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2' at line 9
 CREATE TABLE t1 (
@@ -1618,7 +1618,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS "GARBAGE";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"GARBAGE"' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '"GARBAGE"' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1630,7 +1630,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS "GARBAGE"
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"GARBAGE"
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '"GARBAGE"
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS TH' at line 9
 # 4.2.6 (negative) partition/subpartition numbers per @variables
@@ -1643,7 +1643,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS @aux;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@aux' at line 8
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '@aux' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1655,7 +1655,7 @@ PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1)
 SUBPARTITIONS @aux = 5
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THAN (2147483646));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@aux = 5
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '@aux = 5
 (PARTITION part1 VALUES LESS THAN (10),
 PARTITION part2 VALUES LESS THA' at line 9
 #------------------------------------------------------------------------

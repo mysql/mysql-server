@@ -536,6 +536,7 @@ typedef struct system_variables
   my_bool old_alter_table;
   my_bool old_passwords;
   my_bool big_tables;
+  my_bool query_cache_strip_comments;
 
   plugin_ref table_plugin;
 

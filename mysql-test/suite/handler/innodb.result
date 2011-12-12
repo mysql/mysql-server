@@ -1666,7 +1666,7 @@ CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1);
 HANDLER t1 OPEN;
 HANDLER t1 READ FIRST WHERE f1() = 1;
-ERROR 42000: This version of MySQL doesn't yet support 'stored functions in HANDLER ... READ'
+ERROR 42000: This version of MariaDB doesn't yet support 'stored functions in HANDLER ... READ'
 HANDLER t1 CLOSE;
 DROP FUNCTION f1;
 DROP TABLE t1;
@@ -1681,7 +1681,7 @@ INSERT INTO t1 VALUES (1), (2);
 CREATE FUNCTION f1() RETURNS INT RETURN 1;
 HANDLER t1 OPEN;
 HANDLER t1 READ FIRST WHERE f1() = 1;
-ERROR 42000: This version of MySQL doesn't yet support 'stored functions in HANDLER ... READ'
+ERROR 42000: This version of MariaDB doesn't yet support 'stored functions in HANDLER ... READ'
 HANDLER t1 CLOSE;
 DROP FUNCTION f1;
 DROP TABLE t1;

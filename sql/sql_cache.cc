@@ -1770,7 +1770,7 @@ Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
     goto err_unlock;
 
   Query_cache_block *query_block;
-  if (opt_query_cache_strip_comments)
+  if (thd->variables.query_cache_strip_comments)
   {
     make_base_query(&thd->base_query, sql, (size_t) (sql_end - sql),
                     thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);

@@ -21,13 +21,13 @@ show errors;
 Level	Code	Message
 Error	1115	Unknown character set: 'qwerty'
 create table t (i);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ')' at line 1
 show count(*) errors;
 @@session.error_count
 1
 show errors;
 Level	Code	Message
-Error	1064	You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+Error	1064	You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ')' at line 1
 insert into t1 values (1);
 insert into t1 values ("hej");
 Warnings:

@@ -103,11 +103,11 @@ SELECT @@read_only;
 @@read_only
 1
 SET local.read_only = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read_only = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'read_only = 1' at line 1
 SELECT local.read_only;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.read_only = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read_only = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'read_only = 1' at line 1
 SELECT global.read_only;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT read_only = @@session.read_only;

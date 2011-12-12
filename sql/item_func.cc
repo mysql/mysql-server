@@ -1064,7 +1064,7 @@ longlong Item_func_signed::val_int()
   return value;
 
 err:
-  push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+  push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_UNKNOWN_ERROR,
                "Cast to signed converted positive out-of-range integer to "
                "it's negative complement");
   return value;
@@ -1120,7 +1120,7 @@ longlong Item_func_unsigned::val_int()
   return value;
 
 err:
-  push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+  push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_UNKNOWN_ERROR,
                "Cast to unsigned converted negative integer to it's "
                "positive complement");
   return value;

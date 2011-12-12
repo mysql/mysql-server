@@ -1,0 +1,21 @@
+select @@global.debug_no_thread_alarm;
+@@global.debug_no_thread_alarm
+0
+select @@session.debug_no_thread_alarm;
+ERROR HY000: Variable 'debug_no_thread_alarm' is a GLOBAL variable
+show global variables like 'debug_no_thread_alarm';
+Variable_name	Value
+debug_no_thread_alarm	OFF
+show session variables like 'debug_no_thread_alarm';
+Variable_name	Value
+debug_no_thread_alarm	OFF
+select * from information_schema.global_variables where variable_name='debug_no_thread_alarm';
+VARIABLE_NAME	VARIABLE_VALUE
+DEBUG_NO_THREAD_ALARM	OFF
+select * from information_schema.session_variables where variable_name='debug_no_thread_alarm';
+VARIABLE_NAME	VARIABLE_VALUE
+DEBUG_NO_THREAD_ALARM	OFF
+set global debug_no_thread_alarm=1;
+ERROR HY000: Variable 'debug_no_thread_alarm' is a read only variable
+set session debug_no_thread_alarm=1;
+ERROR HY000: Variable 'debug_no_thread_alarm' is a read only variable

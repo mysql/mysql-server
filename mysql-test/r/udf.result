@@ -93,10 +93,10 @@ FR
 DROP TABLE bug19904;
 CREATE DEFINER=CURRENT_USER() FUNCTION should_not_parse
 RETURNS STRING SONAME "should_not_parse.so";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RETURNS STRING SONAME "should_not_parse.so"' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'RETURNS STRING SONAME "should_not_parse.so"' at line 2
 CREATE DEFINER=someone@somewhere FUNCTION should_not_parse
 RETURNS STRING SONAME "should_not_parse.so";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RETURNS STRING SONAME "should_not_parse.so"' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'RETURNS STRING SONAME "should_not_parse.so"' at line 2
 create table t1(f1 int);
 insert into t1 values(1),(2);
 explain select myfunc_int(f1) from t1 order by 1;
@@ -134,7 +134,7 @@ ERROR 42000: Incorrect parameters in the call to stored function 'fn'
 SELECT myfunc_int(fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
 ERROR 42000: Incorrect parameters in the call to stored function 'fn'
 SELECT myfunc_int(test.fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xx)) as c FROM t1 GROUP BY a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'xx)) as c FROM t1 GROUP BY a' at line 1
 SELECT myfunc_int(fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
 c
 1

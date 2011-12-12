@@ -88,7 +88,7 @@ SELECT @@local_infile;
 @@local_infile
 1
 SET global.local_infile = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local_infile = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'local_infile = 1' at line 1
 SELECT global.local_infile;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT local_infile = @@session.local_infile;

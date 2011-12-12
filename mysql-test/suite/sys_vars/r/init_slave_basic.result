@@ -16,7 +16,7 @@ SET global init_slave='SET autocomit=0';
 SELECT global init_slave;
 ERROR 42S22: Unknown column 'global' in 'field list'
 SELECT @@global init_slave;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'init_slave' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'init_slave' at line 1
 '#--------------------FN_DYNVARS_037_02-------------------------#'
 SET @@global.init_slave = 'SET join_buffer_size=8200';
 SET @@global.init_slave = DEFAULT;

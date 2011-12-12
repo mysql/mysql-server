@@ -542,7 +542,6 @@ extern uint internal_tmp_table_max_key_length;
 extern uint internal_tmp_table_max_key_segments;
 
 extern uint volatile global_disable_checkpoint;
-extern my_bool opt_help, opt_thread_alarm;
-extern my_bool opt_query_cache_strip_comments;
+extern my_bool opt_help;
 
 #endif /* MYSQLD_INCLUDED */

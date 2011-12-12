@@ -2,12 +2,12 @@ select CAST(1-2 AS UNSIGNED);
 CAST(1-2 AS UNSIGNED)
 18446744073709551615
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER);
 CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER)
 -1
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select CAST('10 ' as unsigned integer);
 CAST('10 ' as unsigned integer)
 10
@@ -17,14 +17,14 @@ select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
 cast(-5 as unsigned) | 1	cast(-5 as unsigned) & -1
 18446744073709551611	18446744073709551611
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
 cast(-5 as unsigned) -1	cast(-5 as unsigned) + 1
 18446744073709551610	18446744073709551612
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select ~5, cast(~5 as signed);
 ~5	cast(~5 as signed)
 18446744073709551610	-6
@@ -359,12 +359,12 @@ select cast('9223372036854775809' as signed);
 cast('9223372036854775809' as signed)
 -9223372036854775807
 Warnings:
-Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+Note	1105	Cast to signed converted positive out-of-range integer to it's negative complement
 select cast('-1' as unsigned);
 cast('-1' as unsigned)
 18446744073709551615
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select cast('abc' as signed);
 cast('abc' as signed)
 0
@@ -554,7 +554,7 @@ select cast('18446744073709551615' as signed);
 cast('18446744073709551615' as signed)
 -1
 Warnings:
-Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+Note	1105	Cast to signed converted positive out-of-range integer to it's negative complement
 select cast('9223372036854775807' as signed);
 cast('9223372036854775807' as signed)
 9223372036854775807
@@ -565,7 +565,7 @@ select cast(concat('184467440','73709551615') as signed);
 cast(concat('184467440','73709551615') as signed)
 -1
 Warnings:
-Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+Note	1105	Cast to signed converted positive out-of-range integer to it's negative complement
 select cast(repeat('1',20) as unsigned);
 cast(repeat('1',20) as unsigned)
 11111111111111111111
@@ -573,7 +573,7 @@ select cast(repeat('1',20) as signed);
 cast(repeat('1',20) as signed)
 -7335632962598440505
 Warnings:
-Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+Note	1105	Cast to signed converted positive out-of-range integer to it's negative complement
 select cast(1.0e+300 as signed int);
 cast(1.0e+300 as signed int)
 9223372036854775807

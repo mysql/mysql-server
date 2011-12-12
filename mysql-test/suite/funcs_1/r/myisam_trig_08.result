@@ -281,7 +281,7 @@ BEGIN
 ELSEIF new.f120='2' then
 END IF;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ELSEIF new.f120='2' then
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ELSEIF new.f120='2' then
 END IF;
 END' at line 3
 drop trigger trg3//
@@ -292,7 +292,7 @@ set @test_var2='2nd if', new.f120='d';
 ELSE
 set @test_var2='2nd else', new.f120='D';
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 7
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 7
 drop trigger trg4;
 drop trigger trg2;
 delete from tb3 where f121='Test 3.5.8.5-if';
@@ -386,7 +386,7 @@ BEGIN
 CASE
 when new.f136<100 then set new.f120='p';
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 5
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 5
 drop trigger trg3a;
 drop trigger trg3;
 delete from tb3 where f121='Test 3.5.8.5-case';
@@ -427,7 +427,7 @@ Label1: loop
 set @counter=@counter+1;
 END;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ';
 END' at line 5
 drop trigger trg4_2;
 drop trigger trg4;
@@ -455,7 +455,7 @@ BEGIN
 REPEAT
 SET @counter2 = @counter2 + 1;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'END' at line 5
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'END' at line 5
 drop trigger trg6;
 delete from tb3 where f122='Test 3.5.8.5-repeat';
 
@@ -479,7 +479,7 @@ BEGIN
 WHILE @counter1 < new.f136
 SET @counter1 = @counter1 + 1;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SET @counter1 = @counter1 + 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SET @counter1 = @counter1 + 1;
 END' at line 4
 delete from tb3 where f122='Test 3.5.8.5-while';
 drop trigger trg7;

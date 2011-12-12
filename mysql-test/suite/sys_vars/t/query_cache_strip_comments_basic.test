@@ -1,12 +1,8 @@
-# bool global
+# bool session
 
 SET @start_global_value = @@global.query_cache_strip_comments;
 
-#
-# exists as global only
-#
 select @@global.query_cache_strip_comments;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.query_cache_strip_comments;
 show global variables like 'query_cache_strip_comments';
 show session variables like 'query_cache_strip_comments';
@@ -22,17 +18,22 @@ set global query_cache_strip_comments=OFF;
 select @@global.query_cache_strip_comments;
 set global query_cache_strip_comments=1;
 select @@global.query_cache_strip_comments;
---error ER_GLOBAL_VARIABLE
-set session query_cache_strip_comments=1;
 
+set session query_cache_strip_comments=ON;
+select @@session.query_cache_strip_comments;
+set session query_cache_strip_comments=OFF;
+select @@session.query_cache_strip_comments;
+set session query_cache_strip_comments=1;
+select @@session.query_cache_strip_comments;
 #
 # incorrect types
 #
 --error ER_WRONG_TYPE_FOR_VAR
 set global query_cache_strip_comments=1.1;
 --error ER_WRONG_TYPE_FOR_VAR
-set global query_cache_strip_comments=1e1;
+set session query_cache_strip_comments=1e1;
 --error ER_WRONG_VALUE_FOR_VAR
-set global query_cache_strip_comments="foo";
+set session query_cache_strip_comments="foo";
 
 SET @@global.query_cache_strip_comments = @start_global_value;
+

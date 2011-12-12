@@ -1,0 +1,21 @@
+# bool readonly
+
+#
+# show values;
+#
+select @@global.debug_no_thread_alarm;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.debug_no_thread_alarm;
+show global variables like 'debug_no_thread_alarm';
+show session variables like 'debug_no_thread_alarm';
+select * from information_schema.global_variables where variable_name='debug_no_thread_alarm';
+select * from information_schema.session_variables where variable_name='debug_no_thread_alarm';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global debug_no_thread_alarm=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session debug_no_thread_alarm=1;
+

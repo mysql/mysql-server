@@ -218,7 +218,7 @@ select column_get(column_create(1, -1212 AS int), 1 as unsigned int);
 column_get(column_create(1, -1212 AS int), 1 as unsigned int)
 18446744073709550404
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as unsigned int);
 column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as unsigned int)
 18446744073709551615
@@ -309,7 +309,7 @@ select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as i
 column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as int)
 -1
 Warnings:
-Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+Note	1105	Cast to signed converted positive out-of-range integer to it's negative complement
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as int);
 column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as int)
 9223372036854775807
@@ -345,7 +345,7 @@ select column_get(COLUMN_CREATE(1, ~0), 1 as signed);
 column_get(COLUMN_CREATE(1, ~0), 1 as signed)
 -1
 Warnings:
-Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+Note	1105	Cast to signed converted positive out-of-range integer to it's negative complement
 select column_get(COLUMN_CREATE(1, ~0), 1 as unsigned);
 column_get(COLUMN_CREATE(1, ~0), 1 as unsigned)
 18446744073709551615
@@ -356,7 +356,7 @@ select column_get(COLUMN_CREATE(1, -1), 1 as unsigned);
 column_get(COLUMN_CREATE(1, -1), 1 as unsigned)
 18446744073709551615
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 #
 #column get char
 #
@@ -1146,7 +1146,7 @@ column_list(column_create(1, NULL as integer))
 select HEX(COLUMN_CREATE(1, 5, 1, 5));
 ERROR 22007: Illegal value used as argument of dynamic column function
 select HEX(COLUMN_CREATE("", 1, 5, 1, 5));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '))' at line 1
 select COLUMN_LIST("a");
 ERROR HY000: Encountered illegal format of dynamic column string
 select column_delete("a", 1);

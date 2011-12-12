@@ -79,11 +79,11 @@ SELECT @@general_log = @@global.general_log;
 SET general_log = ON;
 ERROR HY000: Variable 'general_log' is a GLOBAL variable and should be set with SET GLOBAL
 SET local.general_log = OFF;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'general_log = OFF' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'general_log = OFF' at line 1
 SELECT local.general_log;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.general_log = ON;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'general_log = ON' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'general_log = ON' at line 1
 SELECT global.general_log;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT general_log = @@session.general_log;

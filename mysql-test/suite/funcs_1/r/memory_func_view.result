@@ -2464,7 +2464,7 @@ NULL	NULL	1
 130000	13:00:00	4
 100000	10:00:00	5
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_time` as unsigned) AS `CAST(my_time AS UNSIGNED INTEGER)`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2478,7 +2478,7 @@ NULL	NULL	1
 130000	13:00:00	4
 100000	10:00:00	5
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 DROP VIEW v1;
 
 
@@ -2573,9 +2573,9 @@ NULL	NULL	1
 18446744073709551615	-1	5
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e308'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e308'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_double` as unsigned) AS `CAST(my_double AS UNSIGNED INTEGER)`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2590,9 +2590,9 @@ NULL	NULL	1
 18446744073709551615	-1	5
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e308'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e308'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 DROP VIEW v1;
 
 
@@ -2642,8 +2642,8 @@ NULL	NULL	1
 0	0	4
 18446744073709551615	-1	5
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_bigint` as unsigned) AS `CAST(my_bigint AS UNSIGNED INTEGER)`,`t1_values`.`my_bigint` AS `my_bigint`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2657,8 +2657,8 @@ NULL	NULL	1
 0	0	4
 18446744073709551615	-1	5
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 DROP VIEW v1;
 
 
@@ -2677,7 +2677,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect INTEGER value: ' ---‰÷¸ﬂ@µ*$-- '
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varbinary_1000` as unsigned) AS `CAST(my_varbinary_1000 AS UNSIGNED INTEGER)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2694,7 +2694,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect INTEGER value: ' ---‰÷¸ﬂ@µ*$-- '
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 DROP VIEW v1;
 
 
@@ -2714,7 +2714,7 @@ Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect INTEGER value: ' ---‰÷¸ﬂ@µ*$-- '
 Warning	1292	Truncated incorrect INTEGER value: '-1'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_binary_30` as unsigned) AS `CAST(my_binary_30 AS UNSIGNED INTEGER)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2732,7 +2732,7 @@ Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect INTEGER value: ' ---‰÷¸ﬂ@µ*$-- '
 Warning	1292	Truncated incorrect INTEGER value: '-1'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 DROP VIEW v1;
 
 
@@ -2751,7 +2751,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect INTEGER value: ' ---‰÷¸ﬂ@µ*$-- '
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varchar_1000` as unsigned) AS `CAST(my_varchar_1000 AS UNSIGNED INTEGER)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2768,7 +2768,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
 Warning	1292	Truncated incorrect INTEGER value: ' ---‰÷¸ﬂ@µ*$-- '
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 DROP VIEW v1;
 
 
@@ -2787,7 +2787,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect INTEGER value: ' ---‰÷¸ﬂ@µ*$--'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_char_30` as unsigned) AS `CAST(my_char_30 AS UNSIGNED INTEGER)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2804,7 +2804,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
 Warning	1292	Truncated incorrect INTEGER value: ' ---‰÷¸ﬂ@µ*$--'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 DROP VIEW v1;
 
 

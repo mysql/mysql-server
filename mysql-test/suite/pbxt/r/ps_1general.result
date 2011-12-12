@@ -63,23 +63,23 @@ DEALLOCATE PREPARE stmt ;
 prepare stmt1 from ' select 1 as my_col ' ;
 prepare stmt1 from ' select ? as my_col ' ;
 prepare ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 prepare stmt1 ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 prepare stmt1 from ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 prepare_garbage stmt1 from ' select 1 ' ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'prepare_garbage stmt1 from ' select 1 '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'prepare_garbage stmt1 from ' select 1 '' at line 1
 prepare stmt1 from_garbage ' select 1 ' ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'from_garbage ' select 1 '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'from_garbage ' select 1 '' at line 1
 prepare stmt1 from ' select_garbage 1 ' ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select_garbage 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'select_garbage 1' at line 1
 prepare from ' select 1 ' ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'from ' select 1 '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'from ' select 1 '' at line 1
 prepare stmt1 ' select 1 ' ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' select 1 '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' select 1 '' at line 1
 prepare ? from ' select ? as my_col ' ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? from ' select ? as my_col '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '? from ' select ? as my_col '' at line 1
 set @arg00='select 1 as my_col';
 prepare stmt1 from @arg00;
 set @arg00='';
@@ -87,7 +87,7 @@ prepare stmt1 from @arg00;
 ERROR 42000: Query was empty
 set @arg00=NULL;
 prepare stmt1 from @arg01;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'NULL' at line 1
 prepare stmt1 from ' select * from t1 where a <= 2 ' ;
 prepare stmt1 from ' select * from t1 where x <= 2 ' ;
 ERROR 42S22: Unknown column 'x' in 'where clause'
@@ -99,10 +99,10 @@ drop table if exists not_exist ;
 prepare stmt1 from ' select * from not_exist where a <= 2 ' ;
 ERROR 42S02: Table 'test.not_exist' doesn't exist
 prepare stmt1 from ' insert into t1 values(? ' ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 prepare stmt1 from ' select a, b from t1
                      where a=? and where ' ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'where' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'where' at line 2
 execute never_prepared ;
 ERROR HY000: Unknown prepared statement handler (never_prepared) given to EXECUTE
 prepare stmt1 from ' select * from t1 where a <= 2 ' ;

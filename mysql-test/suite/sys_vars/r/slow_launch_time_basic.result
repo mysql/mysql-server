@@ -118,11 +118,11 @@ SELECT @@slow_launch_time;
 @@slow_launch_time
 1
 SET local.slow_launch_time = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'slow_launch_time = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'slow_launch_time = 1' at line 1
 SELECT local.slow_launch_time;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.slow_launch_time = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'slow_launch_time = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'slow_launch_time = 1' at line 1
 SELECT global.slow_launch_time;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT slow_launch_time = @@session.slow_launch_time;

@@ -34,8 +34,8 @@ select @@global.aria_checkpoint_log_activity;
 0
 set global aria_checkpoint_log_activity=cast(-1 as unsigned int);
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect aria_checkpoint_log_activity value: '18446744073709551615'
 select @@global.aria_checkpoint_log_activity;
 @@global.aria_checkpoint_log_activity

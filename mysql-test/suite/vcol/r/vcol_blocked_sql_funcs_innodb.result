@@ -213,7 +213,7 @@ ERROR HY000: Function or expression is not allowed for column 'b'
 #
 create table t1 (a int);
 create table t2 (a int, b int as (select count(*) from t1));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select count(*) from t1))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'select count(*) from t1))' at line 1
 drop table t1;
 create table t1 (a int, b int as ((select 1)));
 ERROR HY000: Function or expression is not allowed for column 'b'

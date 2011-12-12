@@ -67,29 +67,29 @@ FLUSH TABLE t2;
 # has broken triggers. The parse error refers to the first broken 
 # trigger.
 CREATE TRIGGER tr16 AFTER UPDATE ON t1 FOR EACH ROW INSERT INTO t1 VALUES (1);
-ERROR 42000: Trigger 'tr13' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'a USING t1 a' at line 1'
+ERROR 42000: Trigger 'tr13' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'a USING t1 a' at line 1'
 CREATE TRIGGER tr22 BEFORE INSERT ON t2 FOR EACH ROW DELETE FROM non_existing_table;
-ERROR 42000: Unknown trigger has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'Not allowed syntax here, and trigger name cant be extracted either.' at line 1'
+ERROR 42000: Unknown trigger has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'Not allowed syntax here, and trigger name cant be extracted either.' at line 1'
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 tr11	INSERT	t1	DELETE FROM t3	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 tr12	INSERT	t1	DELETE FROM t3	AFTER	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 tr14	DELETE	t1	DELETE FROM non_existing_table	AFTER	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 INSERT INTO t1 VALUES (1);
-ERROR 42000: Trigger 'tr13' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'a USING t1 a' at line 1'
+ERROR 42000: Trigger 'tr13' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'a USING t1 a' at line 1'
 INSERT INTO t2 VALUES (1);
-ERROR 42000: Unknown trigger has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'Not allowed syntax here, and trigger name cant be extracted either.' at line 1'
+ERROR 42000: Unknown trigger has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'Not allowed syntax here, and trigger name cant be extracted either.' at line 1'
 DELETE FROM t1;
-ERROR 42000: Trigger 'tr13' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'a USING t1 a' at line 1'
+ERROR 42000: Trigger 'tr13' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'a USING t1 a' at line 1'
 UPDATE t1 SET a = 1 WHERE a = 1;
-ERROR 42000: Trigger 'tr13' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'a USING t1 a' at line 1'
+ERROR 42000: Trigger 'tr13' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'a USING t1 a' at line 1'
 SELECT * FROM t1;
 a
 1
 2
 3
 RENAME TABLE t1 TO t1_2;
-ERROR 42000: Trigger 'tr13' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'a USING t1 a' at line 1'
+ERROR 42000: Trigger 'tr13' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'a USING t1 a' at line 1'
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 tr11	INSERT	t1	DELETE FROM t3	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci

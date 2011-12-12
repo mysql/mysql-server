@@ -51,7 +51,7 @@ select @@sql_big_selects;
 0
 set max_join_size=cast(-1 as unsigned int);
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select @@sql_big_selects;
 @@sql_big_selects
 1

@@ -22,7 +22,7 @@ SELECT @@session.character_set_database;
 @@session.character_set_database
 utf8
 SET global.character_set_database=utf8;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'character_set_database=utf8' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'character_set_database=utf8' at line 1
 SET session character_set_database=utf8;
 SELECT session character_set_database;
 ERROR 42S22: Unknown column 'session' in 'field list'
@@ -429,7 +429,7 @@ SELECT @total_charset;
 SET @@character_set_database = "grek";
 ERROR 42000: Unknown character set: 'grek'
 SET @@character_set_database = utf 8;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '8' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '8' at line 1
 SET @@character_set_database = 0;
 ERROR 42000: Unknown character set: '0'
 SET @@character_set_database = 1.1;

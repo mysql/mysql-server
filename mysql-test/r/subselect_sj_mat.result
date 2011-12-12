@@ -192,7 +192,7 @@ a1	a2
 1 - 01	2 - 01
 1 - 02	2 - 02
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2i limit 1,1);
-ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+ERROR 42000: This version of MariaDB doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 set @save_optimizer_switch=@@optimizer_switch;
 set @@optimizer_switch=@optimizer_switch_local_default;
 set @@optimizer_switch='semijoin=off';
