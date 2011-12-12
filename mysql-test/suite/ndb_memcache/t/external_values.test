@@ -56,10 +56,15 @@ sub run_test() {
   ($mc->get("b:short") == $val_40)    || Carp::confess("GET results unexpected");
   $mc->delete("b:short")              || Carp::confess("delete failed");
 
-
-  # Do a SET, then a read
+  # Insert using SET.  Then read.  Then attempt an ADD, which should fail.
+  # Short values
+  $mc->set("b:test_short_set", "Mikrokosmos");
+  ($mc->get("b:test_short_set") == "Mikrokosmos" ) || Carp::confess("GET fail");
+  $mc->add("b:test_short_set", "!!") && Carp::confess("ADD should fail");
+  # Long values
   $mc->set("b:test_set", $val_60k)     || Carp::confess("Failed SET as insert: t4");
   ($mc->get("b:test_set") == $val_60k) || Carp::confess("GET results unexpected: t4");
+  $mc->add("b:test_set", $val_100k)    && Carp::confess("ADD should fail");
 
   # UPDATE via SET from a long value to a long value
   $mc->set("b:test_set", $val_100k)     || Carp::confess("Failed SET as update:t5");

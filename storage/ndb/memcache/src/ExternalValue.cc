@@ -211,13 +211,13 @@ void ExternalValue::append_after_read(NdbTransaction *tx, workitem *item) {
 ExternalValue::ExternalValue(workitem *item, NdbTransaction *t) :
   tx(t),
   wqitem(item),
+  expire_time(item),
   ext_plan(item->plan->extern_store),
-  old_hdr(item->plan->extern_store->val_record->value_length), 
+  old_hdr(item->plan->extern_store->val_record->value_length),  // (part size)
   new_hdr(item->plan->extern_store->val_record->value_length),
   value(0),
   stored_cas(0),
-  value_size_in_header(item->plan->row_record->value_length),
-  exp_time(0)
+  value_size_in_header(item->plan->row_record->value_length)
 {
   do_server_cas = (item->prefix_info.has_cas_col && item->cas);
   wqitem->ext_val = this;
@@ -228,8 +228,6 @@ ExternalValue::ExternalValue(workitem *item, NdbTransaction *t) :
 /* Destructor */
 ExternalValue::~ExternalValue() {
   DEBUG_ENTER();
-  if(exp_time)
-    delete exp_time;
   memory_pool_free(pool);
   memory_pool_destroy(pool);
   wqitem->ext_val = 0;
@@ -241,9 +239,8 @@ void ExternalValue::worker_read_external(Operation &op,
                                          NdbTransaction *the_read_tx) {
   tx = the_read_tx;
   old_hdr.readFromHeader(op);
-  exp_time = new ExpireTime(wqitem);
 
-  if(exp_time->stored_item_has_expired(op)) {
+  if(expire_time.stored_item_has_expired(op)) {
     DEBUG_PRINT("EXPIRED");
     deleteParts();
     delete_expired_item(wqitem, tx);
@@ -383,7 +380,7 @@ bool ExternalValue::update() {
 
   /* If the new value is long, create parts */
   if(shouldExternalize(new_hdr.length))
-    insertParts();
+    insertParts(value, new_hdr.length, new_hdr.nparts, 0);
 
   return true;
 }
@@ -454,15 +451,7 @@ bool ExternalValue::readFinalPart() {
 }  
   
 
-bool ExternalValue::insertParts() {
-  if(! shouldExternalize(new_hdr.length))   // Short value; no parts
-    return true;
-  
-  return insertParts(0, new_hdr.nparts, value, new_hdr.length);
-}
-  
-
-bool ExternalValue::insertParts(int offset, int nparts, char * val, size_t val_length) {
+bool ExternalValue::insertParts(char * val, size_t val_length, int nparts, int offset) {
   const size_t part_size = new_hdr.part_size;
   const Uint64 ext_id    = new_hdr.id;
   assert(part_size);
@@ -592,9 +581,12 @@ bool ExternalValue::startTransaction(Operation &op) {
 
 bool ExternalValue::insert() {
   DEBUG_ENTER();
+
   /* Set the id, length, and parts count */
-  new_hdr.id = ext_plan->getAutoIncrement();
   new_hdr.setLength(wqitem->cache_item->nbytes);
+  if(shouldExternalize(new_hdr.length)) {
+    new_hdr.id = ext_plan->getAutoIncrement();
+  }
   value = hash_item_get_data(wqitem->cache_item);
   
   /* Get an Operation */
@@ -624,7 +616,10 @@ bool ExternalValue::insert() {
   op.insertTuple(tx); 
 
   /* Insert parts */
-  return insertParts();
+  if(shouldExternalize(new_hdr.length))
+    insertParts(value, new_hdr.length, new_hdr.nparts, 0);
+
+  return true;
 }
 
 
@@ -634,9 +629,13 @@ void ExternalValue::affix_short(int current_len, char * current_val) {
   
   const char * affix_val = hash_item_get_data(wqitem->cache_item);
   const size_t affix_len = wqitem->cache_item->nbytes;
+  const size_t len = current_len + affix_len;
   
-  new_hdr.id = old_hdr.id ? old_hdr.id : ext_plan->getAutoIncrement();
-  new_hdr.setLength(current_len + affix_len);
+  if(shouldExternalize(len) && (old_hdr.id == 0))
+    new_hdr.id = ext_plan->getAutoIncrement();
+  else 
+    new_hdr.id = old_hdr.id;
+  new_hdr.setLength(len);
 
   value = (char *) memory_pool_alloc(pool, new_hdr.length);
 
@@ -659,7 +658,8 @@ void ExternalValue::affix_short(int current_len, char * current_val) {
   setValueColumns(op);
   op.updateTuple(tx);
 
-  insertParts();
+  if(shouldExternalize(len)) 
+    insertParts(value, new_hdr.length, new_hdr.nparts, 0);
   
   finalize_write();
 }
@@ -702,7 +702,7 @@ void ExternalValue::append() {
 
   if(old_hdr.length % old_hdr.part_size == 0) {
     /* Old value ended on part boundary; just add new parts */
-    insertParts(old_hdr.nparts, nparts, affix_val, affix_len);
+    insertParts(affix_val, affix_len, nparts, old_hdr.nparts);
     DEBUG_PRINT(" Update optimized away.  %d new parts", nparts);
   }
   else {
@@ -722,8 +722,8 @@ void ExternalValue::append() {
     updatePart(old_hdr.id, old_hdr.nparts - 1, read_val, read_len + update_len);
     
     if(affix_len > update_len) 
-      insertParts(old_hdr.nparts, nparts, 
-                  affix_val + update_len, affix_len - update_len);
+      insertParts(affix_val + update_len, affix_len - update_len,
+                  nparts, old_hdr.nparts);
     DEBUG_PRINT(" %d byte part update + %d new parts", update_len, nparts);
   }
   
@@ -741,12 +741,13 @@ void ExternalValue::append() {
 }
 
 
-void ExternalValue::warnCorruption() const {
-  logger->log(LOG_WARNING, 0, "Detected corruption in external long value:\n"
+void ExternalValue::warnMissingParts() const {
+  logger->log(LOG_WARNING, 0, 
+              "Expected parts in external long value table but did not find them.\n"
               " -- Table %s, ext_id %d.\n"
-              " -- Memcache Key: %.*s\n"
-              " -- NDB Error: %s\n", ext_plan->spec->table_name, old_hdr.id, 
-              wqitem->base.nkey, wqitem->key, tx->getNdbError().message);
+              " -- Memcache Key: %.*s\n", 
+              ext_plan->spec->table_name, old_hdr.id, 
+              wqitem->base.nkey, wqitem->key);
 }
 
 
@@ -757,7 +758,7 @@ void ExternalValue::build_hash_item() const {
   /* item_alloc(engine, key, nkey, flags, exptime, nbytes, cookie) */
   hash_item * item = item_alloc(se, wqitem->key, wqitem->base.nkey, 
                                 wqitem->math_flags, 
-                                exp_time->local_cache_expire_time,
+                                expire_time.local_cache_expire_time,
                                 new_hdr.length + 3, wqitem->cookie);
   
   if(item) {
@@ -832,7 +833,8 @@ void callback_ext_parts_read(int, NdbTransaction *tx, void *itemptr) {
     switch(wqitem->base.verb) {
       case OP_READ:
         wqitem->ext_val->build_hash_item();
-        break;
+        worker_close(tx, wqitem);
+        return;
       case OPERATION_APPEND:
         wqitem->ext_val->append();
         return;
@@ -843,12 +845,11 @@ void callback_ext_parts_read(int, NdbTransaction *tx, void *itemptr) {
         assert(0);
     }
   }
-  else {
-    /* should do this on 626 */
-    wqitem->ext_val->warnCorruption();
-    wqitem->status = & status_block_misc_error;
+  else if(tx->getNdbError().classification == NdbError::NoDataFound) {
+    wqitem->ext_val->warnMissingParts();
   }
-  
+
+  wqitem->status = & status_block_misc_error;  
   worker_close(tx, wqitem);
 }
  

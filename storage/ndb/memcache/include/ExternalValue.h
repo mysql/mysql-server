@@ -67,6 +67,7 @@ private:
   /* Private member variables */
   Spec old_hdr;   /** The "old" value is the one read or deleted */
   Spec new_hdr;   /** The "new" value is the one to be updated or inserted */
+  ExpireTime expire_time;
   NdbTransaction *tx;
   workitem * const wqitem;
   QueryPlan * const ext_plan;  
@@ -75,7 +76,6 @@ private:
   size_t value_size_in_header;
   bool do_server_cas;
   Uint64 stored_cas;
-  ExpireTime *exp_time;
   
   /* Private methods */
   op_status_t do_update();
@@ -93,14 +93,13 @@ private:
   bool readParts();
   bool readFinalPart();
   bool deleteParts();
-  bool insertParts();
-  bool insertParts(int offset, int nparts, char * val, size_t len);
+  bool insertParts(char * val, size_t len, int nparts, int offset);
   bool updatePart(int id, int part, char * val, size_t len);
 
   bool startTransaction(Operation &);
   void readStoredCas(Operation &);
 
-  void warnCorruption() const;
+  void warnMissingParts() const;
   void build_hash_item() const;
   void setMiscColumns(Operation &) const;
   void setValueColumns(Operation &) const;
