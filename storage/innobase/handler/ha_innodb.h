@@ -462,19 +462,33 @@ innobase_fts_load_stopword(
 	THD*		thd);		/*!< in: current thread */
 
 /** Some defines for innobase_fts_check_doc_id_index() return value */
-#define	FTS_INCORRECT_DOC_ID_INDEX	1
-#define	FTS_EXIST_DOC_ID_INDEX		2
-#define	FTS_NOT_EXIST_DOC_ID_INDEX	3
+enum fts_doc_id_index_enum {
+	FTS_INCORRECT_DOC_ID_INDEX,
+	FTS_EXIST_DOC_ID_INDEX,
+	FTS_NOT_EXIST_DOC_ID_INDEX
+};
+
 /*******************************************************************//**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
 @return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
 UNIV_INTERN
-ulint
+enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 /*============================*/
 	dict_table_t*	table,		/*!< in: table definition */
 	ulint*		fts_doc_col_no);/*!< out: The column number for
 					Doc ID */
 
+/*******************************************************************//**
+Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
+on the Doc ID column in MySQL create index definition.
+@return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
+FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
+UNIV_INTERN
+enum fts_doc_id_index_enum
+innobase_fts_check_doc_id_index_in_def(
+/*===================================*/
+	ulint		n_key,		/*!< in: Number of keys */
+	KEY*		key_info);	/*!< in: Key definition */

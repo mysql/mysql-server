@@ -69,12 +69,13 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
 
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
       {
+        char errbuf[MYSYS_STRERROR_SIZE];
         if (readbytes == (size_t) -1)
-          my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
-                   my_filename(Filedes),my_errno);
+          my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG), my_filename(Filedes),
+                   my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
         else if (MyFlags & (MY_NABP | MY_FNABP))
-          my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
-                   my_filename(Filedes),my_errno);
+          my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG), my_filename(Filedes),
+                   my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
       }
       if (readbytes == (size_t) -1 ||
           ((MyFlags & (MY_FNABP | MY_NABP)) && !(MyFlags & MY_FULL_IO)))

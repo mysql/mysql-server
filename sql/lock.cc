@@ -867,31 +867,30 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
 
 static void print_lock_error(int error, const char *table)
 {
-  int textno;
   DBUG_ENTER("print_lock_error");
 
   switch (error) {
   case HA_ERR_LOCK_WAIT_TIMEOUT:
-    textno=ER_LOCK_WAIT_TIMEOUT;
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), error);
     break;
   case HA_ERR_READ_ONLY_TRANSACTION:
-    textno=ER_READ_ONLY_TRANSACTION;
+    my_error(ER_READ_ONLY_TRANSACTION, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG),
+             error);
     break;
   case HA_ERR_LOCK_DEADLOCK:
-    textno=ER_LOCK_DEADLOCK;
+    my_error(ER_LOCK_DEADLOCK, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), error);
     break;
   case HA_ERR_WRONG_COMMAND:
-    textno=ER_ILLEGAL_HA;
+    my_error(ER_ILLEGAL_HA, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), table);
     break;
   default:
-    textno=ER_CANT_LOCK;
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_CANT_LOCK, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG),
+               error, my_strerror(errbuf, sizeof(errbuf), error));
+    }
     break;
   }
-
-  if ( textno == ER_ILLEGAL_HA )
-    my_error(textno, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), table);
-  else
-    my_error(textno, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), error);
 
   DBUG_VOID_RETURN;
 }
