@@ -2629,7 +2629,8 @@ bool Firstmatch_picker::check_qep(JOIN *join,
              - read_time is the same (i.e. FirstMatch doesn't add any cost
              - remove fanout added by the last table
           */
-          *record_count /= join->positions[idx].records_read;
+          if (*record_count)
+            *record_count /= join->positions[idx].records_read;
         }
         else
         {
