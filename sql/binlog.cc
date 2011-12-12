@@ -2123,6 +2123,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
         Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
         if (need_sid_lock)
           global_sid_lock.unlock();
+        prev_gtids_ev.checksum_alg= s.checksum_alg;
         if (prev_gtids_ev.write(&log_file))
           goto err;
         bytes_written+= prev_gtids_ev.data_written;

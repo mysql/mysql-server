@@ -5044,6 +5044,7 @@ int mysqld_main(int argc, char **argv)
       global_sid_lock.rdlock();
       Previous_gtids_log_event prev_gtids_ev(gtid_state.get_logged_gtids());
       global_sid_lock.unlock();
+      prev_gtids_ev.checksum_alg= binlog_checksum_options;
       if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
         unireg_abort(1);
       mysql_bin_log.add_bytes_written(prev_gtids_ev.data_written);
