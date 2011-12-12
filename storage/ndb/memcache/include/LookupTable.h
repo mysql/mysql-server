@@ -34,13 +34,13 @@ public:
     size(sz), 
     symtab(new Entry *[sz]) 
   {
-    for(Uint32 i = 0 ; i < size ; i++) 
+    for(int i = 0 ; i < size ; i++) 
       symtab[i] = 0;
   }
 
 
   ~LookupTable() {
-    for(Uint32 i = 0 ; i < size ; i++) {
+    for(int i = 0 ; i < size ; i++) {
       Entry *sym = symtab[i];
       while(sym) {
         Entry *next = sym->next;
