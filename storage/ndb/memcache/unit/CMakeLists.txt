@@ -11,6 +11,7 @@ set(UNIT_SOURCE_FILES
     queue.cc
     stub_logger.c
     tsv.cc
+    lookuptable.cc
  )
 add_executable(run_unit_tests ${UNIT_SOURCE_FILES})
 target_link_libraries(run_unit_tests ndbmemcache)
@@ -29,12 +30,3 @@ if(LIBRT)
   target_link_libraries(test_workqueue rt)
 endif()
 ##########################################
-
-
-# Tests which can run without a cluster:
-
-enable_testing()
-add_test(cas_bitshifting run_unit_tests -t 2)
-add_test(allocator       run_unit_tests -t 4)
-add_test(tsv             run_unit_tests -t 6)
-add_test(queue           run_unit_tests -t 7)
