@@ -1700,7 +1700,8 @@ run_again:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
-	if (dict_table_has_fts_index(table)) {
+	if (dict_table_has_fts_index(table)
+	    && trx->fts_next_doc_id != UINT64_UNDEFINED) {
 		err = row_fts_update_or_delete(prebuilt);
 		if (err != DB_SUCCESS) {
 			trx->op_info = "";
