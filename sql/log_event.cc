@@ -945,13 +945,18 @@ my_bool Log_event::need_checksum()
                   the local RL's Rotate and the master's Rotate
                   which IO thread instantiates via queue_binlog_ver_3_event.
                */
-               get_type_code() == ROTATE_EVENT
-               ||  /* FD is always checksummed */
+               get_type_code() == ROTATE_EVENT ||
+               /*
+                 This is written directly to the binary and relay logs
+                 and are checksummed acording to the current
+                 configuration.
+               */
+               get_type_code() == PREVIOUS_GTIDS_LOG_EVENT ||
+               /* FD is always checksummed */
                get_type_code() == FORMAT_DESCRIPTION_EVENT) && 
                checksum_alg != BINLOG_CHECKSUM_ALG_OFF));
 
   DBUG_ASSERT(checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
-
   DBUG_ASSERT(((get_type_code() != ROTATE_EVENT &&
                 get_type_code() != STOP_EVENT) ||
                get_type_code() != FORMAT_DESCRIPTION_EVENT) ||
@@ -6206,8 +6211,6 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
   DBUG_PRINT("enter",("new_log_ident: %s  pos: %s  flags: %lu", new_log_ident_arg,
                       llstr(pos_arg, buff), (ulong) flags));
 #endif
-  event_cache_type= EVENT_NO_CACHE;
-  event_logging_type= EVENT_IMMEDIATE_LOGGING;
   if (flags & DUP_NAME)
     new_log_ident= my_strndup(new_log_ident_arg, ident_len, MYF(MY_WME));
   if (flags & RELAY_LOG)

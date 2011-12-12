@@ -2062,6 +2062,9 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
     Rotate_log_event *ev= new Rotate_log_event(rli->ign_master_log_name_end,
                                                0, rli->ign_master_log_pos_end,
                                                Rotate_log_event::DUP_NAME);
+    if (rli->relay_log.description_event_for_queue)
+       ev->checksum_alg= rli->relay_log.description_event_for_queue->checksum_alg;
+    
     rli->ign_master_log_name_end[0]= 0;
     /* can unlock before writing as slave SQL thd will soon see our Rotate */
     mysql_mutex_unlock(log_lock);
