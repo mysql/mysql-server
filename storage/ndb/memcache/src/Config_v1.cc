@@ -29,7 +29,6 @@
 
 #include <memcached/extension_loggers.h>
 #include <memcached/util.h>
-#include <memcached/genhash.h>
 
 #include "ndbmemcache_global.h"
 #include "debug.h"
@@ -41,36 +40,6 @@
 #include "ExternalValue.h"
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
-
-bool kludge_to_help_with_linking() {
-  int i;
-  i = genhash_string_hash("abc", 4);
-  return (i < 6);
-}
-
-
-/* Functions used by genhash */
-extern "C" {
-  int str_eq(const void *, size_t, const void *, size_t);
-  void * str_key_dup(const void *, size_t);
-}
-
-struct hash_ops string_to_pointer_hash = {
-  genhash_string_hash,   /* hash function */
-  str_eq,                /* equality tester */
-  str_key_dup,           /* duplicate a key */
-  NULL,                  /* duplicate a value */
-  free,                  /* free a key */
-  NULL                   /* free a value */
-};
-
-int str_eq(const void *k1, size_t s1, const void *k2, size_t s2) {
-  return s1 == s2 && memcmp(k1, k2, s1) == 0;
-}
-
-void * str_key_dup(const void *key, size_t) {
-  return strdup((const char *) key);
-}
 
 
 /*********** VERSION 1 METADATA *******************/
@@ -87,10 +56,10 @@ config_v1::config_v1(Configuration * cf) :
 config_v1::~config_v1() {
   DEBUG_ENTER_METHOD("config_v1 destructor");
   if(containers_map) {
-    genhash_clear(containers_map);
+    delete containers_map;    
   }
   if(policies_map) {
-    genhash_clear(policies_map);
+    delete policies_map;
   }
 }
 
@@ -99,9 +68,9 @@ bool config_v1::read_configuration() {
  
   for(int i = 0 ; i < MAX_CLUSTERS ; i++) cluster_ids[i] = 0;
   
-  containers_map  = genhash_init(30, string_to_pointer_hash);
-  policies_map    = genhash_init(10, string_to_pointer_hash);
-  
+  containers_map  = new LookupTable<TableSpec>();
+  policies_map    = new LookupTable<prefix_info_t>();
+ 
   bool success = false;  
   server_role_id = get_server_role_id();
   if(! (server_role_id < 0)) success = get_policies();
@@ -197,7 +166,8 @@ bool config_v1::get_policies() {
     prefix_info_t * info = (prefix_info_t *) calloc(1, sizeof(prefix_info_t));
     
     char name[41];          //   `policy_name` VARCHAR(40) NOT NULL
-    op.copyValue(COL_STORE_KEY, name);
+    size_t name_len = op.copyValue(COL_STORE_KEY, name);
+    assert(name_len > 0);
     
     /*  ENUM('cache_only','ndb_only','caching','disabled') NOT NULL 
      is:      1            2          3         4                   */
@@ -225,14 +195,13 @@ bool config_v1::get_policies() {
     DEBUG_PRINT("%s:  get-%d set-%d del-%d flush-%d addr-%p",
                 name, get_policy, set_policy, del_policy, flush_policy, info);
     
-    genhash_store(policies_map, name, strlen(name), info, sizeof(void *));
+    policies_map->insert(name, info);
     
   }
   if(res == -1) {
     logger->log(LOG_WARNING, 0, scan->getNdbError().message);
     success = false;
   }
-  DEBUG_PRINT("map size: %d", genhash_size(policies_map));
   
   tx->close();
   
@@ -305,12 +274,11 @@ bool config_v1::get_connections() {
 
 
 TableSpec * config_v1::get_container(char *name) {
-  TableSpec *c;
-  
-  c = (TableSpec *) genhash_find(containers_map, name, strlen(name));
+  TableSpec *c = containers_map->find(name);
+
   if(c == NULL) {
     c = get_container_record(name);
-    genhash_store(containers_map, name, strlen(name), c, sizeof(void *));
+    containers_map->insert(name, c);
   }
   else {
     DEBUG_PRINT("\"%s\" found in local map (\"%s\").", name, c->table_name);
@@ -499,8 +467,7 @@ bool config_v1::store_prefix(const char * name,
   KeyPrefix prefix(name);
   prefix_info_t * info_ptr;
   
-  info_ptr = (prefix_info_t *) genhash_find(policies_map, 
-                                            cache_policy, strlen(cache_policy));
+  info_ptr = policies_map->find(cache_policy);
   if(info_ptr == 0) {  
     /* policy from key_prefixes doesn't exist in cache_policies */
     logger->log(LOG_WARNING, 0, "Invalid cache policy \"%s\" named in "

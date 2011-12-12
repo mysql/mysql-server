@@ -20,9 +20,10 @@
 #ifndef NDBMEMCACHE_CONFIG_V1_H
 #define NDBMEMCACHE_CONFIG_V1_H
 
-#include <memcached/genhash.h>
-
 #include "Configuration.h" 
+#include "LookupTable.h"
+#include "KeyPrefix.h"
+#include "TableSpec.h"
 
 class config_v1 {
 public:
@@ -50,8 +51,8 @@ protected:
   Uint64 signon_gci;  
   int nclusters;
   int cluster_ids[MAX_CLUSTERS];
-  genhash_t *policies_map;
-  genhash_t *containers_map;
+  LookupTable<prefix_info_t> * policies_map;
+  LookupTable<TableSpec> * containers_map;
 };
 
 
