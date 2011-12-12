@@ -8,6 +8,7 @@
 *.core
 *.d
 *.da
+*.dir
 *.exe
 *.gcda
 *.gcno
@@ -25,6 +26,7 @@
 *.pdb
 *.reject
 *.res
+*.rule
 *.sbr
 *.so
 *.so.*
@@ -32,13 +34,19 @@
 *.user
 *.vcproj
 *.vcproj.cmake
+*.vcxproj
+*.vcxproj.filters
 */*.dir/*
+Debug
+MySql.sdf
+Win32
 */*_pure_*warnings
 */.deps
 */.libs/*
 */.pure
 */debug/*
 */release/*
+RelWithDebInfo
 *~
 .*.swp
 ./CMakeCache.txt
@@ -83,6 +91,7 @@ BitKeeper/tmp/*
 BitKeeper/tmp/bkr3sAHD
 BitKeeper/tmp/gone
 CMakeFiles/*
+CMakeFiles
 COPYING
 COPYING.LIB
 Docs/#manual.texi#
