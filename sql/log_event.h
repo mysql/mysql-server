@@ -43,6 +43,7 @@
 #include "rpl_record.h"
 #include "rpl_reporting.h"
 #include "sql_class.h"                          /* THD */
+#include "rpl_utility.h"                        /* Hash_slave_rows */
 #endif
 
 /* Forward declarations */
@@ -3827,6 +3828,14 @@ private:
 class Rows_log_event : public Log_event
 {
 public:
+  enum row_lookup_mode {
+       ROW_LOOKUP_UNDEFINED= 0,
+       ROW_LOOKUP_NOT_NEEDED= 1,
+       ROW_LOOKUP_INDEX_SCAN= 2,
+       ROW_LOOKUP_TABLE_SCAN= 3,
+       ROW_LOOKUP_HASH_SCAN= 4,
+  };
+
   /**
      Enumeration of the errors that can be returned.
    */
@@ -4002,6 +4011,19 @@ protected:
   ulong       m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
   ulong       m_width;          /* The width of the columns bitmap */
+#ifndef MYSQL_CLIENT
+  /**
+     Hash table that will hold the entries for while using HASH_SCAN
+     algorithm to search and update/delete rows.
+   */
+  Hash_slave_rows m_hash;
+
+  /**
+     The algorithm to use while searching for rows using the before
+     image.
+  */
+  uint            m_rows_lookup_algorithm;  
+#endif
   /*
     Bitmap for columns available in the after image, if present. These
     fields are only available for Update_rows events. Observe that the
@@ -4029,9 +4051,9 @@ protected:
   const uchar *m_curr_row;     /* Start of the row being processed */
   const uchar *m_curr_row_end; /* One-after the end of the current row */
   uchar    *m_key;      /* Buffer to keep key value during searches */
+  uint     m_key_index;
 
   int find_row(const Relay_log_info *const);
-  int write_row(const Relay_log_info *const, const bool);
 
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,
@@ -4106,6 +4128,55 @@ private:
       
   */
   virtual int do_exec_row(const Relay_log_info *const rli) = 0;
+
+  /**
+    Private member function called while handling idempotent errors.
+
+    @param err[IN/OUT] the error to handle. If it is listed as
+                       idempotent related error, then it is cleared.
+    @returns true if the slave should stop executing rows.
+   */
+  int handle_idempotent_errors(Relay_log_info const *rli, int *err);
+
+  /**
+     Private member function called after updating/deleting a row. It
+     performs some assertions and more importantly, it updates
+     m_curr_row so that the next row is processed during the row
+     execution main loop (@c Rows_log_event::do_apply_event()).
+
+     @param err[IN] the current error code.
+   */
+  void do_post_row_operations(Relay_log_info const *rli, int err);
+
+  /**
+     Commodity wrapper around do_exec_row(), that deals with resetting
+     the thd reference in the table.
+   */
+  int do_apply_row(Relay_log_info const *rli);
+
+  /**
+     Implementation of the index scan and update algorithm. It uses
+     PK, UK or regular Key to search for the record to update. When
+     found it updates it.
+   */
+  int do_index_scan_and_update(Relay_log_info const *rli);
+  
+  /**
+     Implementation of the hash_scan and update algorithm. It collects
+     rows positions in a hashtable until the last row is
+     unpacked. Then it scans the table to update and when a record in
+     the table matches the one in the hashtable, the update/delete is
+     performed.
+   */
+  int do_hash_scan_and_update(Relay_log_info const *rli);
+
+  /**
+     Implementation of the legacy table_scan and update algorithm. For
+     each unpacked row it scans the storage engine table for a
+     match. When a match is found, the update/delete operations are
+     performed.
+   */
+  int do_table_scan_and_update(Relay_log_info const *rli);
 #endif /* defined(MYSQL_SERVER) && defined(HAVE_REPLICATION) */
 
   friend class Old_rows_log_event;
@@ -4148,6 +4219,9 @@ public:
                                  after_record);
   }
 #endif
+
+protected:
+  int write_row(const Relay_log_info *const, const bool);
 
 private:
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
