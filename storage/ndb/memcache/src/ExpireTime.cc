@@ -30,8 +30,7 @@
 ExpireTime::ExpireTime(workitem *i) :
   item(i),
   is_expired(false),
-  ndb_expire_time(0),
-  local_cache_expire_time(0)
+  ndb_expire_time(0)
 {
   SERVER_CORE_API * SERVER = item->pipeline->engine->server.core;
   current_time = SERVER->get_current_time();

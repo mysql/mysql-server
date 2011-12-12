@@ -9,7 +9,7 @@ my $do_test = '';
 my $bin = '';
 my $do_all = '';
 
-GetOptions("f"  => \$do_flush, 
+GetOptions("flush"  => \$do_flush, 
            "all" => \$do_all, 
            "test=s" => \$do_test,  
            "bin" => \$bin
@@ -43,7 +43,7 @@ if($do_flush || $do_all) {
   $mc->flush();
 }
 
-# Do two INSERTS.  The first should succeed, the second should fail.
+# Do two inserts using ADD.  The first should succeed, the second should fail.
 if($do_test=='1' || $do_all) {
   $mc->add("b:long_val_1", $val_100k)  ||  Carp::confess("Failed insert: t1");
   $mc->add("b:long_val_1", $val_100k)  &&  Carp::confess("Insert should fail: t1");
@@ -63,10 +63,17 @@ if($do_test=='3' || $do_all) {
   $mc->get("b:long_val_2")                && Carp::confess("GET should fail: t3");
 }
 
-# Do a SET, then a read
+# Insert using SET.  Then read.  Then attempt an ADD, which should fail.
 if($do_test=='4' || $do_all) {
+  # Short values
+  $mc->set("b:test_short_set", "Mikrokosmos");
+  ($mc->get("b:test_short_set") == "Mikrokosmos" ) || Carp::confess("GET fail");
+  $mc->add("b:test_short_set", "!!") && Carp::confess("ADD should fail");
+
+  # Long values
   $mc->set("b:test_set", $val_60k)     || Carp::confess("Failed SET as insert: t4");
   ($mc->get("b:test_set") == $val_60k) || Carp::confess("GET results unexpected: t4");
+  $mc->add("b:test_set", $val_100k)    && Carp::confess("ADD should fail");
 }
 
 # UPDATE via SET
@@ -186,6 +193,3 @@ if($do_test=='11' || $do_all) {
   $mc->set("b:testtoobig", $val_too_big);
   $mc->{error} =~ "VALUE_TOO_LARGE" || Carp::confess "Expected TOO_LARGE";
 }
-
-
-
