@@ -153,8 +153,10 @@ extern void *my_realloc(void *oldpoint, size_t Size, myf MyFlags);
 extern void my_free(void *ptr);
 extern void *my_memdup(const void *from,size_t length,myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
-extern char *my_strndup(const char *from, size_t length,
-				   myf MyFlags);
+extern char *my_strndup(const char *from, size_t length, myf MyFlags);
+
+extern int sf_leaking_memory; /* set to 1 to disable memleak detection */
+
 #if defined(ENABLED_DEBUG_SYNC)
 extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #define DEBUG_SYNC_C(_sync_point_name_) do {                            \

@@ -1747,7 +1747,7 @@ select * from words2;
 
 # Drop table "words" and run with threads, should fail
 drop table words;
---replace_regex /.*mysqlimport(\.exe)*/mysql-import/
+--replace_regex /.*mysqlimport(\.exe)*/mysqlimport/
 --error 1
 --exec $MYSQL_IMPORT --silent --use-threads=2 test $MYSQLTEST_VARDIR/tmp/t1.txt $MYSQLTEST_VARDIR/tmp/t2.txt $MYSQLTEST_VARDIR/std_data/words.dat $MYSQLTEST_VARDIR/std_data/words2.dat 2>&1
 

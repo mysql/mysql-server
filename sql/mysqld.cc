@@ -333,8 +333,6 @@ static PSI_rwlock_key key_rwlock_openssl;
 #endif
 #endif /* HAVE_PSI_INTERFACE */
 
-#undef SAFEMALLOC
-
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
 static bool max_long_data_size_used= false;
@@ -3509,6 +3507,8 @@ static int init_common_variables()
 
   tzset();			// Set tzname
 
+  sf_leaking_memory= 0; // no memory leaks from now on
+
   max_system_variables.pseudo_thread_id= (ulong)~0;
   server_start_time= flush_status_time= my_time(0);
 
@@ -4709,6 +4709,7 @@ int mysqld_main(int argc, char **argv)
     to be able to read defaults files and parse options.
   */
   my_progname= argv[0];
+  sf_leaking_memory= 1; // no safemalloc memory leak reports if we exit early
 #ifndef _WIN32
   // For windows, my_init() is called from the win specific mysqld_main
   if (my_init())                 // init my_sys library & pthreads

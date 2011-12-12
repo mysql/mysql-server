@@ -1786,11 +1786,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'V':
     usage(1);
-    exit(0);
+    status.exit_status= 0;
+    mysql_end(-1);
   case 'I':
   case '?':
     usage(0);
-    exit(0);
+    status.exit_status= 0;
+    mysql_end(-1);
   }
   return 0;
 }

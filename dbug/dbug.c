@@ -98,9 +98,6 @@
 #include <process.h>
 #endif
 
-#include <my_valgrind.h>        /* TRASH */
-#include <my_stacktrace.h>      /* my_safe_print_str */
-
 /*
  *            Manifest constants which may be "tuned" if desired.
  */
@@ -131,6 +128,7 @@
 #define SANITY_CHECK_ON (1 << 12)  /* Check memory on every DBUG_ENTER/RETURN */
 #define TRACE_ON        ((uint)1 << 31)  /* Trace enabled. MUST be the highest bit!*/
 
+#define sf_sanity() (0)
 #define TRACING (cs->stack->flags & TRACE_ON)
 #define DEBUGGING (cs->stack->flags & DEBUG_ON)
 
@@ -207,8 +205,6 @@ static BOOLEAN init_done= FALSE; /* Set to TRUE when initialization done */
 static struct settings init_settings;
 static const char *db_process= 0;/* Pointer to process name; argv[0] */
 my_bool _dbug_on_= TRUE;	 /* FALSE if no debugging at all */
-static const char *unknown_func= "?func";
-static const char *unknown_file= "?file";
 
 typedef struct _db_code_state_ {
   const char *process;          /* Pointer to process name; usually argv[0] */
@@ -289,8 +285,6 @@ static void DbugExit(const char *why);
 static const char *DbugStrTok(const char *s);
 static void DbugVfprintf(FILE *stream, const char* format, va_list args);
 
-static void DbugErr(CODE_STATE *, uint, const char* format, ...);
-
 /*
  *      Miscellaneous printf format strings.
  */
@@ -313,18 +307,12 @@ static void DbugErr(CODE_STATE *, uint, const char* format, ...);
 #define WRITABLE(pathname)       (access(pathname, W_OK) == 0)
 #endif
 
-static int sf_sanity();
-static void sf_terminate();
-
 /*
 ** Macros to allow dbugging with threads
 */
 
 #include <my_pthread.h>
 static pthread_mutex_t THR_LOCK_dbug;
-
-/* this mutex protects all sf_* variables, and nothing else*/
-static pthread_mutex_t sf_mutex;
 
 static CODE_STATE *code_state(void)
 {
@@ -341,7 +329,6 @@ static CODE_STATE *code_state(void)
   {
     init_done=TRUE;
     pthread_mutex_init(&THR_LOCK_dbug, NULL);
-    pthread_mutex_init(&sf_mutex, NULL);
     bzero(&init_settings, sizeof(init_settings));
     init_settings.out_file=stderr;
     init_settings.flags=OPEN_APPEND;
@@ -354,8 +341,8 @@ static CODE_STATE *code_state(void)
     cs=(CODE_STATE*) DbugMalloc(sizeof(*cs));
     bzero((uchar*) cs,sizeof(*cs));
     cs->process= db_process ? db_process : "dbug";
-    cs->func= unknown_func;
-    cs->file= unknown_file;
+    cs->func= "?func";
+    cs->file= "?file";
     cs->stack=&init_settings;
     *cs_ptr= cs;
   }
@@ -1637,7 +1624,6 @@ void _db_end_()
   init_settings.keywords= 0;
   init_settings.processes= 0;
   FreeState(cs, &tmp, 0);
-  sf_terminate();
 }
 
 
@@ -2159,348 +2145,6 @@ const char* _db_get_func_(void)
   CODE_STATE *cs;
   get_code_state_or_return NULL;
   return cs->func;
-}
-
-/*
-  prints the error message, followed by a stack trace
-  of the specified depth
-*/
-static void DbugErr(CODE_STATE *cs, uint depth, const char* format, ...)
-{
-  va_list args;
-  va_start(args,format);
-  vfprintf(stderr, format, args);
-  va_end(args);
-  
-  if (cs || ((cs= code_state())))
-  {
-    uint i= depth;
-    struct _db_stack_frame_ *frame= cs->framep;
-    while (i-- && frame)
-    {
-      fprintf(stderr, ", at %s", frame->func);
-      frame= frame->prev;
-    }
-  }
-
-  fprintf(stderr, "\n");
-}
-
-/********************************************************************
-  memory debugger
-  based on safemalloc, memory sub-system, written by Bjorn Benson
-********************************************************************/
-
-#ifndef SF_REMEMBER_FRAMES
-#define SF_REMEMBER_FRAMES 16
-#endif
-
-/*
-  Structure that stores information of an allocated memory block
-  The data is at &struct_adr+sizeof(struct irem)
-  Note that sizeof(struct st_irem) % sizeof(double) == 0
-*/
-struct st_irem
-{
-  struct st_irem *next;        /* Linked list of structures       */
-  struct st_irem *prev;        /* Other link                      */
-  size_t datasize;             /* Size requested                  */
-  const char *frame[SF_REMEMBER_FRAMES]; /* call stack            */
-  uint32 marker;               /* Underrun marker value           */
-};
-
-/*
-  DBUG_MALLOC/DBUG_REALLOC/DBUG_FREE can be called even
-  before dbug is initialized. We cannot properly take into account
-  these calls, but we can at least wrap allocated memory
-  in st_irem's and check for overrun/underruns.
-  These special irem's - that are not linked into a global list -
-  are distinguished by a special value in the 'next' pointer.
-*/
-#define NOT_LINKED ((struct st_irem *)1)
-
-size_t sf_malloc_mem_limit= (intptr)~0ULL;
-static size_t sf_malloc_cur_memory= 0L;       /* Current memory usage */
-static size_t sf_malloc_max_memory= 0L;       /* Maximum memory usage */
-
-static int    sf_malloc_count= 0;              /* Number of allocated chunks */
-
-static void  *sf_min_adress= (void*) (intptr)~0ULL,
-             *sf_max_adress= 0;
-
-static struct st_irem *sf_malloc_root = 0;
-
-#define MAGICSTART      0x14235296      /* A magic value for underrun key */
-
-#define MAGICEND0       0x68            /* Magic values for overrun keys  */
-#define MAGICEND1       0x34            /*              "                 */
-#define MAGICEND2       0x7A            /*              "                 */
-#define MAGICEND3       0x15            /*              "                 */
-
-static int bad_ptr(const char *where, void *ptr);
-static void free_memory(void *ptr);
-
-/*
- *  FUNCTION
- *
- *            _db_malloc_ allocates memory
- *
- *  SYNOPSIS
- *
- *            void *_db_malloc_(size_t size)
- *            size_t size;               Bytes to allocate
- */
-
-void *_db_malloc_(size_t size)
-{
-#ifndef SAFEMALLOC
-  return malloc(size);
-#else
-  CODE_STATE *cs= code_state();
-  struct st_irem *irem;
-  uchar *data;
-  struct _db_stack_frame_ *frame;
-  int i= 0;
-
-  if (size + sf_malloc_cur_memory > sf_malloc_mem_limit)
-    irem= 0;
-  else
-    irem= (struct st_irem *) malloc (sizeof(struct st_irem) + size + 4);
-
-  if (!irem)
-    return 0;
-
-  compile_time_assert(sizeof(struct st_irem) % sizeof(double) == 0);
-
-  /* Fill up the structure */
-  data= (uchar*) (irem + 1);
-  irem->datasize= size;
-  irem->prev=     0;
-  irem->marker=   MAGICSTART; 
-  data[size + 0]= MAGICEND0;
-  data[size + 1]= MAGICEND1;
-  data[size + 2]= MAGICEND2;
-  data[size + 3]= MAGICEND3;
-
-  if (cs && cs->framep)
-  {
-    for (frame= cs->framep;
-         i < SF_REMEMBER_FRAMES && frame->func != unknown_func;
-         i++, frame= frame->prev)
-      irem->frame[i]= frame->func;
-  }
-
-  if (i < SF_REMEMBER_FRAMES)
-    irem->frame[i]= unknown_func;
-  if (i==0)
-    irem->frame[0]= (char*)1;
-
-  if (init_done)
-  {
-    pthread_mutex_lock(&sf_mutex);
-    /* Add this structure to the linked list */
-    if ((irem->next= sf_malloc_root))
-      sf_malloc_root->prev= irem;
-    sf_malloc_root= irem;
-
-    /* Keep the statistics */
-    sf_malloc_count++;
-    sf_malloc_cur_memory+= size;
-    set_if_bigger(sf_malloc_max_memory, sf_malloc_cur_memory);
-    set_if_smaller(sf_min_adress, (void*)data);
-    set_if_bigger(sf_max_adress, (void*)data);
-    pthread_mutex_unlock(&sf_mutex);
-  }
-  else
-  {
-    set_if_bigger(sf_malloc_max_memory, sf_malloc_cur_memory);
-    set_if_smaller(sf_min_adress, (void*)data);
-    set_if_bigger(sf_max_adress, (void*)data);
-    irem->next= NOT_LINKED;
-  }
-
-  TRASH_ALLOC(data, size);
-  return data;
-#endif
-}
-
-void *_db_realloc_(void *ptr, size_t size)
-{
-#ifndef SAFEMALLOC
-  return realloc(ptr, size);
-#else
-  char *data;
-
-  if (!ptr)
-    return _db_malloc_(size);
-
-  if (bad_ptr("Reallocating", ptr))
-    return 0;
-
-  if ((data= _db_malloc_(size)))
-  {
-    struct st_irem *irem= (struct st_irem *)ptr - 1;
-    set_if_smaller(size, irem->datasize);
-    memcpy(data, ptr, size);
-    free_memory(ptr);
-  }
-  return data;
-#endif
-}
-
-void _db_free_(void *ptr)
-{
-#ifndef SAFEMALLOC
-  free(ptr);
-#else
-  if (!ptr || bad_ptr("Freeing", ptr))
-    return;
-
-   free_memory(ptr);
-#endif
-}
-
-static void free_memory(void *ptr)
-{
-  struct st_irem *irem= (struct st_irem *)ptr - 1;
-
-  if (irem->next != NOT_LINKED)
-  {
-    pthread_mutex_lock(&sf_mutex);
-    /* Remove this structure from the linked list */
-    if (irem->prev)
-      irem->prev->next= irem->next;
-     else
-      sf_malloc_root= irem->next;
-
-    if (irem->next)
-      irem->next->prev= irem->prev;
-
-    /* Handle the statistics */
-    sf_malloc_cur_memory-= irem->datasize;
-    sf_malloc_count--;
-    pthread_mutex_unlock(&sf_mutex);
-  }
-
-  /* only trash the data and magic values, but keep the stack trace */
-  TRASH_FREE((uchar*)(irem + 1) - 4, irem->datasize + 8);
-  free(irem);
-  return;
-}
-
-#define SF_ADD_NL 1
-#define SF_USE_SAFE_PRINT 2
-static void print_allocated_at(struct st_irem *irem, int flags)
-{
-  int i;
-  const char *allocated= flags & SF_ADD_NL ? "Allocated" : ", allocated";
-
-  for (i=0;
-       i < SF_REMEMBER_FRAMES && irem->frame[i] != unknown_func;
-       i++)
-  {
-    fprintf(stderr, "%s at ", i ? "," : allocated);
-    if (flags & SF_USE_SAFE_PRINT)
-      my_safe_print_str(irem->frame[i], 80);
-    else
-      fputs(irem->frame[i], stderr);
-  }
-  if (i && (flags & SF_ADD_NL))
-    fprintf(stderr, "\n");
-}
-
-static int bad_ptr(const char *where, void *ptr)
-{
-  struct st_irem *irem= (struct st_irem *)ptr - 1;
-  const uchar *magicend;
-
-  if (((intptr) ptr) % sizeof(double))
-  {
-    DbugErr(0, SF_REMEMBER_FRAMES, "Error: %s wrong aligned pointer", where);
-    return 1;
-  }
-  if (ptr < sf_min_adress || ptr > sf_max_adress)
-  {
-    DbugErr(0, SF_REMEMBER_FRAMES, "Error: %s pointer out of range", where);
-    return 1;
-  }
-  if (irem->marker != MAGICSTART)
-  {
-    DbugErr(0, SF_REMEMBER_FRAMES,
-            "Error: %s unallocated data or underrun buffer", where);
-    /*
-      we cannot use print_allocated_at here:
-      if the memory was not allocated, there's nothing to print,
-      if it was allocated and underrun, call stack may be corrupted
-    */
-    return 1;
-  }
-
-  magicend= (uchar*)ptr + irem->datasize;
-  if (magicend[0] != MAGICEND0 ||
-      magicend[1] != MAGICEND1 ||
-      magicend[2] != MAGICEND2 ||
-      magicend[3] != MAGICEND3)
-  {
-    DbugErr(0, SF_REMEMBER_FRAMES, "Error: %s overrun buffer", where);
-    print_allocated_at(irem, SF_ADD_NL);
-    return 1;
-  }
-
-  return 0;
-}
-
-/* check all allocated memory list for consistency */
-static int sf_sanity()
-{
-  struct st_irem *irem;
-  int flag= 0;
-  int count= 0;
-
-  pthread_mutex_lock(&sf_mutex);
-  count= sf_malloc_count;
-  for (irem= sf_malloc_root; irem && count > 0; count--, irem= irem->next)
-    flag+= bad_ptr("Safemalloc", irem + 1);
-  pthread_mutex_unlock(&sf_mutex);
-  if (count || irem)
-  {
-    DbugErr(0, SF_REMEMBER_FRAMES, "Error: Safemalloc link list destroyed");
-    return 1;
-  }
-  return 0;
-}
-
-/*
- *  FUNCTION
- *
- *     sf_terminate Report on all the memory pieces that have not been free'd
- *
- *  SYNOPSIS
- *
- *     void sf_terminate()
- */
-
-static void sf_terminate()
-{
-  struct st_irem *irem;
-
-  sf_sanity();
-
-  /* Report on all the memory that was allocated but not free'd */
-  if ((irem= sf_malloc_root))
-  {
-    while (irem)
-    {
-      fprintf(stderr, "Warning: %6lu bytes at %p are not freed", (ulong) irem->datasize, irem + 1);
-      print_allocated_at(irem, SF_USE_SAFE_PRINT);
-      fprintf(stderr, "\n");
-      irem= irem->next;
-    }
-    fprintf(stderr, "Memory lost: %lu bytes in %d chunks\n",
-            (ulong) sf_malloc_cur_memory, sf_malloc_count);
-  }
-
-  return;
 }
 
 #endif /* DBUG_OFF */

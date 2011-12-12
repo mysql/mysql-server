@@ -55,6 +55,7 @@ void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
 #endif
 #endif
 
+/* at the moment, safemalloc is the main user of libbfd */
 #ifndef SAFEMALLOC
 #undef HAVE_BFD_H
 #endif
