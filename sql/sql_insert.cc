@@ -63,6 +63,8 @@
 #include "slave.h"
 #include "rpl_mi.h"
 
+#include "debug_sync.h"
+
 #ifndef EMBEDDED_LIBRARY
 static bool delayed_get_table(THD *thd, TABLE_LIST *table_list);
 static int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
@@ -1411,6 +1413,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	error= HA_ERR_FOUND_DUPP_KEY;         /* Database can't find key */
 	goto err;
       }
+      DEBUG_SYNC(thd, "write_row_replace");
+
       /* Read all columns for the row we are going to replace */
       table->use_all_columns();
       /*
@@ -1604,6 +1608,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
   }
   else if ((error=table->file->ha_write_row(table->record[0])))
   {
+    DEBUG_SYNC(thd, "write_row_noreplace");
     if (!info->ignore ||
         table->file->is_fatal_error(error, HA_CHECK_DUP))
       goto err;
