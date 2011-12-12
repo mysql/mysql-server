@@ -3242,10 +3242,11 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
 			    bool need_lock)
 {
   int error= 0;
-  char *fname= linfo->log_file_name;
-  uint log_name_len= log_name ? (uint) strlen(log_name) : 0;
+  char *full_fname= linfo->log_file_name;
+  char full_log_name[FN_REFLEN], fname[FN_REFLEN];
+  uint log_name_len= 0, fname_len= 0;
   DBUG_ENTER("find_log_pos");
-  DBUG_PRINT("enter",("log_name: %s", log_name ? log_name : "NULL"));
+  full_log_name[0]= full_fname[0]= 0;
 
   /*
     Mutex needed because we need to make sure the file pointer does not
@@ -3254,6 +3255,20 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   if (need_lock)
     mysql_mutex_lock(&LOCK_index);
   mysql_mutex_assert_owner(&LOCK_index);
+
+  // extend relative paths for log_name to be searched
+  if (log_name)
+  {
+    if(normalize_binlog_name(full_log_name, log_name, is_relay_log))
+    {
+      error= LOG_INFO_EOF;
+      goto end;
+    }
+  }
+
+  log_name_len= log_name ? (uint) strlen(full_log_name) : 0;
+  DBUG_PRINT("enter", ("log_name: %s, full_log_name: %s", 
+                       log_name ? log_name : "NULL", full_log_name));
 
   /* As the file is flushed, we can't get an error here */
   (void) reinit_io_cache(&index_file, READ_CACHE, (my_off_t) 0, 0, 0);
@@ -3273,19 +3288,28 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
       break;
     }
 
+    // extend relative paths and match against full path
+    if (normalize_binlog_name(full_fname, fname, is_relay_log))
+    {
+      error= LOG_INFO_EOF;
+      break;
+    }
+    fname_len= (uint) strlen(full_fname);
+
     // if the log entry matches, null string matching anything
     if (!log_name ||
-	(log_name_len == length-1 && fname[log_name_len] == '\n' &&
-	 !memcmp(fname, log_name, log_name_len)))
+	(log_name_len == fname_len-1 && full_fname[log_name_len] == '\n' &&
+	 !memcmp(full_fname, full_log_name, log_name_len)))
     {
-      DBUG_PRINT("info",("Found log file entry"));
-      fname[length-1]=0;			// remove last \n
+      DBUG_PRINT("info", ("Found log file entry"));
+      full_fname[fname_len-1]= 0;			// remove last \n
       linfo->index_file_start_offset= offset;
       linfo->index_file_offset = my_b_tell(&index_file);
       break;
     }
   }
 
+end:
   if (need_lock)
     mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
@@ -3320,7 +3344,8 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
 {
   int error= 0;
   uint length;
-  char *fname= linfo->log_file_name;
+  char fname[FN_REFLEN];
+  char *full_fname= linfo->log_file_name;
 
   if (need_lock)
     mysql_mutex_lock(&LOCK_index);
@@ -3336,8 +3361,19 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
     error = !index_file.error ? LOG_INFO_EOF : LOG_INFO_IO;
     goto err;
   }
-  fname[length-1]=0;				// kill \n
-  linfo->index_file_offset = my_b_tell(&index_file);
+
+  if (fname[0] != 0)
+  {
+    if(normalize_binlog_name(full_fname, fname, is_relay_log))
+    {
+      error= LOG_INFO_EOF;
+      goto err;
+    }
+    length= strlen(full_fname);
+  }
+
+  full_fname[length-1]= 0;			// kill \n
+  linfo->index_file_offset= my_b_tell(&index_file);
 
 err:
   if (need_lock)

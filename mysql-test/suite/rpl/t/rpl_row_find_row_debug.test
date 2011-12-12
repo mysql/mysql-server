@@ -1,0 +1,62 @@
+#
+# Bug#11760927: 53375: RBR + NO PK => HIGH LOAD ON SLAVE (TABLE SCAN/CPU) => SLAVE FAILURE
+#
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+# SETUP
+# - setup log_warnings and debug 
+--connection slave
+--source include/stop_slave.inc
+--let $debug_save= `SELECT @@GLOBAL.debug`
+--let $log_warnings_save= `SELECT @@GLOBAL.log_warnings`
+
+SET GLOBAL log_warnings = 2;
+
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if(!$log_error_)
+{
+    # MySQL Server on windows is started with --console and thus
+    # does not know the location of its .err log, use default location
+    let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.2.err;
+}
+
+# Assign env variable LOG_ERROR
+let LOG_ERROR=$log_error_;
+
+# force printing the notes to the error log
+SET GLOBAL debug="d,inject_long_find_row_note";
+--source include/start_slave.inc
+
+# test
+--connection master
+CREATE TABLE t1 (c1 INT);
+--sync_slave_with_master
+--connection master
+
+INSERT INTO t1 VALUES (1), (2);
+UPDATE t1 SET c1= 1000 WHERE c1=2;
+DELETE FROM t1;
+DROP TABLE t1;
+--sync_slave_with_master
+
+--echo # Check if any note related to long DELETE_ROWS and UPDATE_ROWS appears in the error log
+perl;
+  use strict;
+  my $log_error= $ENV{'LOG_ERROR'} or die "LOG_ERROR not set";
+  open(FILE, "$log_error") or die("Unable to open $log_error: $!\n");
+  my $upd_count = () = grep(/The slave is applying a ROW event on behalf of an UPDATE statement on table t1 and is currently taking a considerable amount/g,<FILE>);
+  seek(FILE, 0, 0) or die "Can't seek to beginning of file: $!";
+  my $del_count = () = grep(/The slave is applying a ROW event on behalf of a DELETE statement on table t1 and is currently taking a considerable amount/g,<FILE>);
+  print "Occurrences: update=$upd_count, delete=$del_count\n";
+  close(FILE);
+EOF
+
+# cleanup
+--source include/stop_slave.inc
+--eval SET GLOBAL debug = '$debug_save'
+--eval SET GLOBAL log_warnings = $log_warnings_save
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

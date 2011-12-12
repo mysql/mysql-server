@@ -1,0 +1,59 @@
+-- source include/have_innodb.inc
+
+let $per_table=`select @@innodb_file_per_table`;
+let $format=`select @@innodb_file_format`;
+
+-- let $query_i_s = SELECT page_size FROM information_schema.innodb_cmpmem WHERE pages_used > 0
+
+set global innodb_file_per_table=on;
+set global innodb_file_format=`1`;
+ 
+create table t1(a text) engine=innodb key_block_size=8;
+
+-- disable_query_log
+
+# insert some rows so we are using compressed pages
+-- let $i = 10
+while ($i)
+{
+  insert into t1 values(repeat('abcdefghijklmnopqrstuvwxyz',100));
+  dec $i;
+}
+-- enable_query_log
+
+# we should be using some 8K pages
+-- eval $query_i_s
+
+drop table t1;
+
+# because of lazy eviction at drop table in 5.5 there should be some
+# used 8K pages
+-- eval $query_i_s
+
+# create a non-compressed table and insert enough into it to evict
+# compressed pages
+create table t2(a text) engine=innodb;
+
+-- disable_query_log
+
+-- let $i = 400
+while ($i)
+{
+  insert into t2 values(repeat('abcdefghijklmnopqrstuvwxyz',1000));
+  dec $i;
+}
+
+-- enable_query_log
+
+# now there should be no 8K pages in the buffer pool
+-- eval $query_i_s
+
+drop table t2;
+
+#
+# restore environment to the state it was before this test execution
+#
+
+-- disable_query_log
+eval set global innodb_file_format=$format;
+eval set global innodb_file_per_table=$per_table;

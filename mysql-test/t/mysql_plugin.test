@@ -142,8 +142,11 @@ EOF
 --echo # Simulate loading a plugin libary with multiple entry points.
 --echo # This will test the DISABLE to ensure all rows are removed.
 --echo #
+--replace_regex /\.dll/.so/
 eval INSERT INTO mysql.plugin VALUES ('wicky', '$DAEMONEXAMPLE'); 
+--replace_regex /\.dll/.so/
 eval INSERT INTO mysql.plugin VALUES ('wacky', '$DAEMONEXAMPLE'); 
+--replace_regex /\.dll/.so/
 eval INSERT INTO mysql.plugin VALUES ('wonky', '$DAEMONEXAMPLE'); 
 
 --echo #

@@ -731,7 +731,15 @@ impossible position";
         /Alfranio
       */
       if (binlog_can_be_corrupted)
-         sql_print_information("The binlog may be corrupted.");
+      {
+        /*
+           Don't try to print out warning messages because this generates
+           erroneous messages in the error log and causes performance
+           problems.
+
+           /Alfranio
+        */
+      }
       
       pos = my_b_tell(&log);
       if (RUN_HOOK(binlog_transmit, before_send_event,
