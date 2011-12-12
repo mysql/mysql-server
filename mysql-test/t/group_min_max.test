@@ -1114,4 +1114,27 @@ select (select t2.a from t2 where t2.a >= t1.a group by t2.a) from t1;
 
 drop table t1, t2;
 
+--echo #
+--echo # LP BUG#900375 Wrong result with derived_merge=ON, DISTINCT or GROUP BY, EXISTS
+--echo #
+
+CREATE TABLE t1 ( a INT, b INT, KEY (b) );
+INSERT INTO t1 VALUES
+(100,10),(101,11),(102,12),(103,13),(104,14),
+(105,15),(106,16),(107,17),(108,18),(109,19);
+
+EXPLAIN
+SELECT alias1.* FROM t1, (SELECT * FROM t1) AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+SELECT alias1.* FROM t1, (SELECT * FROM t1) AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+
+EXPLAIN
+SELECT alias1.* FROM t1, t1 AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+SELECT alias1.* FROM t1, t1 AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+
+drop table t1;
+
 --echo End of 5.1 tests
