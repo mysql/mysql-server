@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -146,7 +146,7 @@ do {\
 
 #ifdef UNIV_HASH_DEBUG
 # define HASH_ASSERT_VALID(DATA) ut_a((void*) (DATA) != (void*) -1)
-# define HASH_INVALIDATE(DATA, NAME) DATA->NAME = (void*) -1
+# define HASH_INVALIDATE(DATA, NAME) *(void**) (&DATA->NAME) = (void*) -1
 #else
 # define HASH_ASSERT_VALID(DATA) do {} while (0)
 # define HASH_INVALIDATE(DATA, NAME) do {} while (0)
@@ -281,7 +281,7 @@ do {\
 \
 	HASH_DELETE(TYPE, NAME, TABLE, fold111, NODE);\
 \
-	top_node111 = (TYPE*)mem_heap_get_top(\
+	top_node111 = (TYPE*) mem_heap_get_top(\
 				hash_get_heap(TABLE, fold111),\
 							sizeof(TYPE));\
 \
@@ -306,11 +306,12 @@ do {\
 		} else {\
 			/* We have to look for the predecessor of the top\
 			node */\
-			node111 = cell111->node;\
+			node111 = static_cast<TYPE*>(cell111->node);\
 \
 			while (top_node111 != HASH_GET_NEXT(NAME, node111)) {\
 \
-				node111 = HASH_GET_NEXT(NAME, node111);\
+				node111 = static_cast<TYPE*>(\
+					HASH_GET_NEXT(NAME, node111));\
 			}\
 \
 			/* Now we have the predecessor node */\

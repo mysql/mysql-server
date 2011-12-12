@@ -62,6 +62,9 @@
 
 #include "debug_sync.h"
 
+using std::min;
+using std::max;
+
 #define PAR_FILE_ENGINE_OFFSET 12
 static const char *ha_par_ext= ".par";
 
@@ -3455,7 +3458,7 @@ int ha_partition::write_row(uchar * buf)
 
   /* If we have a timestamp column, update it to the current time */
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   /*
@@ -3571,7 +3574,7 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
     inside m_file[*]->update_row() methods
   */
   if (orig_timestamp_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   if ((error= get_parts_for_update(old_data, new_data, table->record[0],
@@ -6489,7 +6492,7 @@ const key_map *ha_partition::keys_to_use_for_scanning()
   DBUG_RETURN(m_file[0]->keys_to_use_for_scanning());
 }
 
-#define MAX_PARTS_FOR_OPTIMIZER_CALLS 10
+#define MAX_PARTS_FOR_OPTIMIZER_CALLS 10U
 /*
   Prepare start variables for estimating optimizer costs.
 
@@ -6503,7 +6506,8 @@ void ha_partition::partitions_optimizer_call_preparations(uint *first,
 {
   *first= bitmap_get_first_set(&(m_part_info->read_partitions));
   *num_used_parts= bitmap_bits_set(&(m_part_info->read_partitions));
-  *check_min_num= min(MAX_PARTS_FOR_OPTIMIZER_CALLS, *num_used_parts);
+  *check_min_num= min<uint>(MAX_PARTS_FOR_OPTIMIZER_CALLS,
+                            *num_used_parts);
 }
 
 

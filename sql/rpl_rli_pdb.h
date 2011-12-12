@@ -312,6 +312,8 @@ public:
   volatile int curr_jobs; // number of active  assignments
   // number of partitions allocated to the worker at point in time
   long usage_partition;
+  // symmetric to rli->mts_end_group_sets_max_dbs
+  bool end_group_sets_max_dbs;
 
   volatile bool relay_log_change_notified; // Coord sets and resets, W can read
   volatile bool checkpoint_notified; // Coord sets and resets, W can read

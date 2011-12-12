@@ -404,7 +404,7 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
     for (; frac>0; frac-=DIG_PER_DEC1)
     {
       dec1 x=*buf++;
-      for (i=min(frac, DIG_PER_DEC1); i; i--)
+      for (i= MY_MIN(frac, DIG_PER_DEC1); i; i--)
       {
         dec1 y=x/DIG_MASK;
         *s1++='0'+(uchar)y;
@@ -427,7 +427,7 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
     for (buf=buf0+ROUND_UP(intg); intg>0; intg-=DIG_PER_DEC1)
     {
       dec1 x=*--buf;
-      for (i=min(intg, DIG_PER_DEC1); i; i--)
+      for (i= MY_MIN(intg, DIG_PER_DEC1); i; i--)
       {
         dec1 y=x/10;
         *--s='0'+(uchar)(x-y*10);
@@ -1102,6 +1102,76 @@ int decimal2longlong(decimal_t *from, longlong *to)
   return E_DEC_OK;
 }
 
+
+#define LLDIV_MIN -1000000000000000000LL
+#define LLDIV_MAX  1000000000000000000LL
+
+/**
+  Convert decimal value to lldiv_t value.
+  @param      from  The decimal value to convert from.
+  @param OUT  to    The lldiv_t variable to convert to.
+  @return           0 on success, error code on error.
+*/
+int decimal2lldiv_t(const decimal_t *from, lldiv_t *to)
+{
+  int int_part= ROUND_UP(from->intg);
+  int frac_part= ROUND_UP(from->frac);
+  if (int_part > 2)
+  {
+    to->rem= 0;
+    to->quot= from->sign ? LLDIV_MIN : LLDIV_MAX;
+    return E_DEC_OVERFLOW;
+  }
+  if (int_part == 2)
+    to->quot= ((longlong) from->buf[0]) * DIG_BASE + from->buf[1];
+  else if (int_part == 1)
+    to->quot= from->buf[0];
+  else
+    to->quot= 0;
+  to->rem= frac_part ? from->buf[int_part] : 0;
+  if (from->sign)
+  {
+    to->quot= -to->quot;
+    to->rem= -to->rem;
+  }
+  return 0;
+}
+
+
+/**
+  Convert double value to lldiv_t valie.
+  @param     from The double value to convert from.
+  @param OUT to   The lldit_t variable to convert to.
+  @return         0 on success, error code on error.
+
+  Integer part goes into lld.quot.
+  Fractional part multiplied to 1000000000 (10^9) goes to lld.rem.
+  Typically used in datetime calculations to split seconds
+  and nanoseconds.
+*/
+int double2lldiv_t(double nr, lldiv_t *lld)
+{
+  if (nr > LLDIV_MAX)
+  {
+    lld->quot= LLDIV_MAX;
+    lld->rem= 0;
+    return E_DEC_OVERFLOW;
+  }
+  else if (nr < LLDIV_MIN)
+  {
+    lld->quot= LLDIV_MIN;
+    lld->rem= 0;
+    return E_DEC_OVERFLOW;
+  }
+  /* Truncate fractional part toward zero and store into "quot" */
+  lld->quot= (longlong) (nr > 0 ? floor(nr) : ceil(nr));
+  /* Multiply reminder to 10^9 and store into "rem" */
+  lld->rem= (longlong) rint((nr - (double) lld->quot) * 1000000000);
+  return E_DEC_OK;
+}
+
+
+
 /*
   Convert decimal to its binary fixed-length representation
   two representations of the same length can be compared with memcmp
@@ -1520,8 +1590,8 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
 
   if (to != from)
   {
-    dec1 *p0= buf0+intg0+max(frac1, frac0);
-    dec1 *p1= buf1+intg0+max(frac1, frac0);
+    dec1 *p0= buf0 + intg0 + MY_MAX(frac1, frac0);
+    dec1 *p1= buf1 + intg0 + MY_MAX(frac1, frac0);
 
     DBUG_ASSERT(p0 - buf0 <= len);
     DBUG_ASSERT(p1 - buf1 <= len);
@@ -1532,7 +1602,7 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
     buf0=to->buf;
     buf1=to->buf;
     to->sign=from->sign;
-    to->intg=min(intg0, len)*DIG_PER_DEC1;
+    to->intg= MY_MIN(intg0, len) * DIG_PER_DEC1;
   }
 
   if (frac0 > frac1)
@@ -1634,7 +1704,7 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
         scale=frac0*DIG_PER_DEC1;
         error=E_DEC_TRUNCATED; /* XXX */
       }
-      for (buf1=to->buf+intg0+max(frac0,0); buf1 > to->buf; buf1--)
+      for (buf1=to->buf + intg0 + MY_MAX(frac0, 0); buf1 > to->buf; buf1--)
       {
         buf1[0]=buf1[-1];
       }
@@ -1653,7 +1723,7 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
         /* making 'zero' with the proper scale */
         dec1 *p0= to->buf + frac0 + 1;
         to->intg=1;
-        to->frac= max(scale, 0);
+        to->frac= MY_MAX(scale, 0);
         to->sign= 0;
         for (buf1= to->buf; buf1<p0; buf1++)
           *buf1= 0;
@@ -1702,11 +1772,11 @@ int decimal_result_size(decimal_t *from1, decimal_t *from2, char op, int param)
 {
   switch (op) {
   case '-':
-    return ROUND_UP(max(from1->intg, from2->intg)) +
-           ROUND_UP(max(from1->frac, from2->frac));
+    return ROUND_UP(MY_MAX(from1->intg, from2->intg)) +
+           ROUND_UP(MY_MAX(from1->frac, from2->frac));
   case '+':
-    return ROUND_UP(max(from1->intg, from2->intg)+1) +
-           ROUND_UP(max(from1->frac, from2->frac));
+    return ROUND_UP(MY_MAX(from1->intg, from2->intg)+1) +
+           ROUND_UP(MY_MAX(from1->frac, from2->frac));
   case '*':
     return ROUND_UP(from1->intg+from2->intg)+
            ROUND_UP(from1->frac)+ROUND_UP(from2->frac);
@@ -1721,7 +1791,7 @@ static int do_add(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
 {
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac),
-      frac0=max(frac1, frac2), intg0=max(intg1, intg2), error;
+      frac0= MY_MAX(frac1, frac2), intg0= MY_MAX(intg1, intg2), error;
   dec1 *buf1, *buf2, *buf0, *stop, *stop2, x, carry;
 
   sanity(to);
@@ -1746,7 +1816,7 @@ static int do_add(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
   buf0=to->buf+intg0+frac0;
 
   to->sign=from1->sign;
-  to->frac=max(from1->frac, from2->frac);
+  to->frac= MY_MAX(from1->frac, from2->frac);
   to->intg=intg0*DIG_PER_DEC1;
   if (unlikely(error))
   {
@@ -1803,7 +1873,7 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
 {
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac);
-  int frac0=max(frac1, frac2), error;
+  int frac0= MY_MAX(frac1, frac2), error;
   dec1 *buf1, *buf2, *buf0, *stop1, *stop2, *start1, *start2, carry=0;
 
   /* let carry:=1 if from2 > from1 */
@@ -1878,7 +1948,7 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
   FIX_INTG_FRAC_ERROR(to->len, intg1, frac0, error);
   buf0=to->buf+intg1+frac0;
 
-  to->frac=max(from1->frac, from2->frac);
+  to->frac= MY_MAX(from1->frac, from2->frac);
   to->intg=intg1*DIG_PER_DEC1;
   if (unlikely(error))
   {
@@ -2180,7 +2250,7 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
          intg=intg2
     */
     to->sign=from1->sign;
-    to->frac=max(from1->frac, from2->frac);
+    to->frac= MY_MAX(from1->frac, from2->frac);
     frac0=0;
   }
   else
@@ -2347,7 +2417,7 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
       }
       DBUG_ASSERT(intg0 <= ROUND_UP(from2->intg));
       stop1=start1+frac0+intg0;
-      to->intg=min(intg0*DIG_PER_DEC1, from2->intg);
+      to->intg= MY_MIN(intg0 * DIG_PER_DEC1, from2->intg);
     }
     if (unlikely(intg0+frac0 > to->len))
     {

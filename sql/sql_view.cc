@@ -436,6 +436,18 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   lex->link_first_table_back(view, link_to_local);
   view->open_type= OT_BASE_ONLY;
 
+  /*
+    No pre-opening of temporary tables is possible since must
+    wait until TABLE_LIST::open_type is set. So we have to open
+    them here instead.
+  */
+  if (open_temporary_tables(thd, lex->query_tables))
+  {
+    view= lex->unlink_first_table(&link_to_local);
+    res= true;
+    goto err;
+  }
+
   if (open_and_lock_tables(thd, lex->query_tables, TRUE, 0))
   {
     view= lex->unlink_first_table(&link_to_local);

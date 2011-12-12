@@ -1,0 +1,196 @@
+# This is the basic function tests for innodb FTS
+
+-- source include/have_innodb.inc
+
+# Create FTS table
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+# Insert six rows
+INSERT INTO articles (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+# Create the FTS index
+CREATE FULLTEXT INDEX idx on articles (title, body);
+
+SELECT * FROM articles WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+SELECT COUNT(*) FROM articles
+        WHERE MATCH (title, body)
+        AGAINST ('database' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles
+     WHERE MATCH (title, body)
+     AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+
+SELECT COUNT(IF(MATCH (title, body)
+        AGAINST ('database' IN NATURAL LANGUAGE MODE), 1, NULL))
+        AS count FROM articles;
+
+# Boolean search
+# Select rows contain "MySQL" but not "YourSQL"
+SELECT * FROM articles WHERE MATCH (title,body)
+        AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
+
+# Select rows contain at least one of the two words
+SELECT * FROM articles WHERE MATCH (title,body)
+        AGAINST ('DBMS Security' IN BOOLEAN MODE);
+
+# Select rows contain both "MySQL" and "YourSQL"
+SELECT * FROM articles WHERE MATCH (title,body)
+        AGAINST ('+MySQL +YourSQL' IN BOOLEAN MODE);
+
+DROP INDEX idx ON articles;
+
+# Create the FTS index
+CREATE FULLTEXT INDEX idx on articles (title, body);
+
+CREATE FULLTEXT INDEX idx1 on articles (title);
+
+SELECT * FROM articles WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+DROP INDEX idx ON articles;
+
+DROP INDEX idx1 ON articles;
+
+CREATE FULLTEXT INDEX idx1 on articles (title);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+drop table articles;
+
+# Create FTS table
+CREATE TABLE articles (
+	FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+create unique index FTS_DOC_ID_INDEX on articles(FTS_DOC_ID);
+
+# Insert six rows
+INSERT INTO articles (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+# Create the FTS index
+CREATE FULLTEXT INDEX idx on articles (title, body);
+
+# "the" is in the default stopword, it would not be selected
+SELECT * FROM articles WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+drop table articles;
+
+# Create FTS table
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+# Insert six rows
+INSERT INTO articles (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+CREATE FULLTEXT INDEX idx on articles (title);
+CREATE FULLTEXT INDEX idx2 on articles (body);
+
+# "the" is in the default stopword, it would not be selected
+--error 1191
+SELECT * FROM articles WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+drop index idx2 on articles;
+
+--error 1191
+SELECT * FROM articles WHERE MATCH (body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+CREATE FULLTEXT INDEX idx2 on articles (body);
+
+SELECT * FROM articles WHERE MATCH (body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+UPDATE articles set title = 'aaaa'
+WHERE MATCH(title) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('aaaa' IN NATURAL LANGUAGE MODE);
+
+drop table articles;
+
+CREATE TABLE articles (
+         FTS_DOC_ID BIGINT UNSIGNED NOT NULL ,
+	 title VARCHAR(200),
+         body TEXT
+         ) ENGINE=InnoDB;
+
+CREATE FULLTEXT INDEX idx on articles (title);
+
+INSERT INTO articles  VALUES (9, 'MySQL Tutorial','DBMS stands for DataBase ...');
+
+# This should fail since we did not supply a new Doc ID
+-- error 182
+UPDATE articles set title = 'bbbb'  WHERE MATCH(title) AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+
+# This should fail, since the Doc ID supplied is less than the old value 9
+-- error 182
+UPDATE articles set title = 'bbbb', FTS_DOC_ID=8  WHERE MATCH(title) AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+
+# This should be successful
+UPDATE articles set title = 'bbbb', FTS_DOC_ID=10  WHERE MATCH(title) AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+
+# Check update to be successful
+SELECT * FROM articles WHERE MATCH (title) AGAINST ('bbbb' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title) AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+
+CREATE FULLTEXT INDEX idx2 ON articles (body);
+
+SELECT * FROM articles WHERE MATCH (body) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+
+UPDATE articles set body = 'bbbb', FTS_DOC_ID=11  WHERE MATCH(body) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+
+drop table articles;
+
+create table `articles`(`a` varchar(2) not null)engine=innodb;
+
+# This create index should fail. FTS_DOC_ID_INDEX is reserved as a unique
+# index on FTS_DOC_ID
+--error ER_UNSUPPORTED_EXTENSION
+create fulltext index `FTS_DOC_ID_INDEX` on `articles`(`a`);
+
+create unique index `a` on `articles`(`a`);
+
+drop table articles;

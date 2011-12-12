@@ -1528,24 +1528,20 @@ delete from t1;                 # delete_row
 delete from t1;                 # delete_all_rows
 --disable_info
 insert t1 values (1),(2);
---enable_info
+--enable_info ONCE
 delete from t1;                 # delete_all_rows
---disable_info
 insert t1 values (1),(2),(3);
 flush tables;
---enable_info
+--enable_info ONCE
 delete from t1;                 # delete_row
---disable_info
 insert t1 values (1),(2),(3),(4);
 flush tables;
 select count(*) from t1;
---enable_info
+--enable_info ONCE
 delete from t1;                 # delete_all_rows
---disable_info
 insert t1 values (1),(2),(3),(4),(5);
---enable_info
+--enable_info ONCE
 truncate table t1;              # truncate
---disable_info
 drop table t1;
 
 #
@@ -1781,9 +1777,8 @@ SHOW WARNINGS;
 #
 create table t1 (c1 tinyblob not null) engine=csv;
 insert into t1 values("This");
---enable_info            
+--enable_info ONCE
 update t1 set c1="That" where c1="This";
---disable_info
 select * from t1;
 drop table t1;
 
@@ -1795,7 +1790,8 @@ lock tables t1 read;
 connect (con1,localhost,root,,);
 --connection con1
 --remove_file $MYSQLD_DATADIR/test/t1.CSV
---replace_result $MYSQLD_DATADIR MYSQLD_DATADIR/ ./ MYSQLD_DATADIR/ 13 2
+# Error returned depends on platform
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR/ ./ MYSQLD_DATADIR/ "13 - Permission denied" "2 - No such file or directory"
 # EE_FILENOTFOUND 29
 --error 29
 select * from t1;

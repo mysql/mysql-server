@@ -1,6 +1,7 @@
 # Test for optimizer tracing of subqueries
 
 --source include/have_optimizer_trace.inc
+--source include/have_64bit.inc
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
 SET optimizer_trace="enabled=on,end_marker=on,one_line=off";
@@ -174,6 +175,7 @@ sq4_alias3.`col_varchar_nokey` <> alias1.`col_varchar_key` ) ) and
 alias1.`col_int_key` not in (214) group by field1,field2,field3,
 field4,field5,field6; 
 
+--replace_regex /("sort_buffer_size":) [0-9]+/\1 NNN/
 select * from information_schema.optimizer_trace;
 set optimizer_switch=@old_opt_switch;
 drop table t1,t2,t3,t4,t5;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -23,6 +23,8 @@ to the machine format.
 
 Created 11/28/1995 Heikki Tuuri
 ***********************************************************************/
+
+#ifndef UNIV_INNOCHECKSUM
 
 #include "ut0mem.h"
 
@@ -38,7 +40,7 @@ mach_write_to_1(
 	ut_ad(b);
 	ut_ad((n | 0xFFUL) <= 0xFFUL);
 
-	b[0] = (byte)n;
+	b[0] = (byte) n;
 }
 
 /********************************************************//**
@@ -165,8 +167,10 @@ mach_write_to_4(
 	b[0] = (byte)(n >> 24);
 	b[1] = (byte)(n >> 16);
 	b[2] = (byte)(n >> 8);
-	b[3] = (byte)n;
+	b[3] = (byte) n;
 }
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 /********************************************************//**
 The following function is used to fetch data from 4 consecutive
@@ -185,6 +189,8 @@ mach_read_from_4(
 		| (ulint)(b[3])
 		);
 }
+
+#ifndef UNIV_INNOCHECKSUM
 
 /*********************************************************//**
 Writes a ulint in a compressed form where the first byte codes the
@@ -280,13 +286,13 @@ UNIV_INLINE
 void
 mach_write_to_8(
 /*============*/
-	byte*		b,	/*!< in: pointer to 8 bytes where to store */
+	void*		b,	/*!< in: pointer to 8 bytes where to store */
 	ib_uint64_t	n)	/*!< in: 64-bit integer to be stored */
 {
 	ut_ad(b);
 
-	mach_write_to_4(b, (ulint) (n >> 32));
-	mach_write_to_4(b + 4, (ulint) n);
+	mach_write_to_4(static_cast<byte*>(b), (ulint) (n >> 32));
+	mach_write_to_4(static_cast<byte*>(b) + 4, (ulint) n);
 }
 
 /********************************************************//**
@@ -550,7 +556,7 @@ mach_double_read(
 	ulint	i;
 	byte*	ptr;
 
-	ptr = (byte*)&d;
+	ptr = (byte*) &d;
 
 	for (i = 0; i < sizeof(double); i++) {
 #ifdef WORDS_BIGENDIAN
@@ -575,7 +581,7 @@ mach_double_write(
 	ulint	i;
 	byte*	ptr;
 
-	ptr = (byte*)&d;
+	ptr = (byte*) &d;
 
 	for (i = 0; i < sizeof(double); i++) {
 #ifdef WORDS_BIGENDIAN
@@ -599,7 +605,7 @@ mach_float_read(
 	ulint	i;
 	byte*	ptr;
 
-	ptr = (byte*)&d;
+	ptr = (byte*) &d;
 
 	for (i = 0; i < sizeof(float); i++) {
 #ifdef WORDS_BIGENDIAN
@@ -624,7 +630,7 @@ mach_float_write(
 	ulint	i;
 	byte*	ptr;
 
-	ptr = (byte*)&d;
+	ptr = (byte*) &d;
 
 	for (i = 0; i < sizeof(float); i++) {
 #ifdef WORDS_BIGENDIAN
@@ -648,7 +654,6 @@ mach_read_from_n_little_endian(
 	ulint	n	= 0;
 	const byte*	ptr;
 
-	ut_ad(buf_size <= sizeof(ulint));
 	ut_ad(buf_size > 0);
 
 	ptr = buf + buf_size;
@@ -736,7 +741,7 @@ Convert integral type from storage byte order (big endian) to
 host byte order.
 @return	integer value */
 UNIV_INLINE
-ullint
+ib_uint64_t
 mach_read_int_type(
 /*===============*/
 	const byte*	src,		/*!< in: where to read from */
@@ -772,3 +777,4 @@ mach_read_int_type(
 	return(ret);
 }
 #endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_INNOCHECKSUM */

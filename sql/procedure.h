@@ -78,6 +78,14 @@ public:
     return s;
   }
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_real(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_real(ltime);
+  }
   unsigned int size_of() { return sizeof(*this);}
 };
 
@@ -97,6 +105,14 @@ public:
   longlong val_int() { return value; }
   String *val_str(String *s) { s->set(value, default_charset()); return s; }
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
+  }
   unsigned int size_of() { return sizeof(*this);}
 };
 
@@ -125,6 +141,14 @@ public:
     int err;
     const CHARSET_INFO *cs=str_value.charset();
     return my_strntoll(cs,str_value.ptr(),str_value.length(),10,NULL,&err);
+  }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
   }
   String *val_str(String*)
   {

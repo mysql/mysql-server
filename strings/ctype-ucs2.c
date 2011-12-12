@@ -57,7 +57,7 @@ my_bincmp(const uchar *s, const uchar *se,
           const uchar *t, const uchar *te)
 {
   int slen= (int) (se - s), tlen= (int) (te - t);
-  int len= min(slen, tlen);
+  int len= MY_MIN(slen, tlen);
   int cmp= memcmp(s, t, len);
   return cmp ? cmp : slen - tlen;
 }
@@ -2649,7 +2649,7 @@ my_strnncollsp_utf32_bin(const CHARSET_INFO *cs __attribute__((unused)),
   se= s + slen;
   te= t + tlen;
 
-  for (minlen= min(slen, tlen); minlen; minlen-= 4)
+  for (minlen= MY_MIN(slen, tlen); minlen; minlen-= 4)
   {
     my_wc_t s_wc= my_utf32_get(s);
     my_wc_t t_wc= my_utf32_get(t);
@@ -3109,7 +3109,7 @@ static int my_strnncollsp_ucs2(const CHARSET_INFO *cs __attribute__((unused)),
   se= s + slen;
   te= t + tlen;
 
-  for (minlen= min(slen, tlen); minlen; minlen-= 2)
+  for (minlen= MY_MIN(slen, tlen); minlen; minlen-= 2)
   {
     int s_wc = uni_plane->page[s[0]] ? (int) uni_plane->page[s[0]][s[1]].sort :
                                        (((int) s[0]) << 8) + (int) s[1];
@@ -3186,7 +3186,7 @@ size_t my_well_formed_len_ucs2(const CHARSET_INFO *cs __attribute__((unused)),
   size_t nbytes= ((size_t) (e-b)) & ~(size_t) 1;
   *error= 0;
   nchars*= 2;
-  return min(nbytes, nchars);
+  return MY_MIN(nbytes, nchars);
 }
 
 
@@ -3262,7 +3262,7 @@ static int my_strnncollsp_ucs2_bin(const CHARSET_INFO *cs
   se= s + slen;
   te= t + tlen;
 
-  for (minlen= min(slen, tlen); minlen; minlen-= 2)
+  for (minlen= MY_MIN(slen, tlen); minlen; minlen-= 2)
   {
     int s_wc= s[0] * 256 + s[1];
     int t_wc= t[0] * 256 + t[1];

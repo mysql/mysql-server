@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -75,6 +75,63 @@ cmp_data_data_slow(
 	const byte*	data2,	/*!< in: data field (== a pointer to a memory
 				buffer) */
 	ulint		len2);	/*!< in: data field length or UNIV_SQL_NULL */
+
+/*****************************************************************
+This function is used to compare two data fields for which we know the
+data type to be VARCHAR.
+@return	1, 0, -1, if lhs is greater, equal, less than rhs, respectively */
+UNIV_INTERN
+int
+cmp_data_data_slow_varchar(
+/*=======================*/
+	const byte*	lhs,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		lhs_len,/* in: data field length or UNIV_SQL_NULL */
+	const byte*	rhs,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		rhs_len);/* in: data field length or UNIV_SQL_NULL */
+/*****************************************************************
+This function is used to compare two varchar/char fields. The comparison
+is for the LIKE operator.
+@return	1, 0, -1, if lhs is greater, equal, less than rhs, respectively */
+UNIV_INTERN
+int
+cmp_data_data_slow_like_prefix(
+/*===========================*/
+	const byte*	data1,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
+	const byte*	data2,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len2);	/* in: data field length or UNIV_SQL_NULL */
+/*****************************************************************
+This function is used to compare two varchar/char fields. The comparison
+is for the LIKE operator.
+@return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
+UNIV_INTERN
+int
+cmp_data_data_slow_like_suffix(
+/*===========================*/
+	const byte*	data1,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
+	const byte*	data2,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len2);	/* in: data field length or UNIV_SQL_NULL */
+/*****************************************************************
+This function is used to compare two varchar/char fields. The comparison
+is for the LIKE operator.
+@return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
+UNIV_INTERN
+int
+cmp_data_data_slow_like_substr(
+/*===========================*/
+	const byte*	data1,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
+	const byte*	data2,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len2);	/* in: data field length or UNIV_SQL_NULL */
 /*************************************************************//**
 This function is used to compare two dfields where at least the first
 has its data type field set.
@@ -192,6 +249,39 @@ cmp_rec_rec(
 	const ulint*	offsets2,/*!< in: rec_get_offsets(rec2, index) */
 	dict_index_t*	index);	/*!< in: data dictionary index */
 
+/*****************************************************************
+This function is used to compare two dfields where at least the first
+has its data type field set. */
+UNIV_INTERN
+int
+cmp_dfield_dfield_like_prefix(
+/*==========================*/
+				/* out: 1, 0, -1, if dfield1 is greater, equal,
+				less than dfield2, respectively */
+	dfield_t*	dfield1,/* in: data field; must have type field set */
+	dfield_t*	dfield2);/* in: data field */
+/*****************************************************************
+This function is used to compare two dfields where at least the first
+has its data type field set. */
+UNIV_INLINE
+int
+cmp_dfield_dfield_like_substr(
+/*==========================*/
+				/* out: 1, 0, -1, if dfield1 is greater, equal,
+				less than dfield2, respectively */
+	dfield_t*	dfield1,/* in: data field; must have type field set */
+	dfield_t*	dfield2);/* in: data field */
+/*****************************************************************
+This function is used to compare two dfields where at least the first
+has its data type field set. */
+UNIV_INLINE
+int
+cmp_dfield_dfield_like_suffix(
+/*==========================*/
+				/* out: 1, 0, -1, if dfield1 is greater, equal,
+				less than dfield2, respectively */
+	dfield_t*	dfield1,/* in: data field; must have type field set */
+	dfield_t*	dfield2);/* in: data field */
 
 #ifndef UNIV_NONINL
 #include "rem0cmp.ic"

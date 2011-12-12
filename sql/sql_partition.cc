@@ -68,6 +68,10 @@
 #include "opt_range.h"                  // store_key_image_to_rec
 #include "sql_analyse.h"                // append_escaped
 
+#include <algorithm>
+using std::max;
+using std::min;
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 
@@ -1647,7 +1651,7 @@ bool field_is_partition_charset(Field *field)
       !(field->type() == MYSQL_TYPE_VARCHAR))
     return FALSE;
   {
-    const CHARSET_INFO *cs= ((Field_str*)field)->charset();
+    const CHARSET_INFO *cs= field->charset();
     if (!(field->type() == MYSQL_TYPE_STRING) ||
         !(cs->state & MY_CS_BINSORT))
       return TRUE;
@@ -1690,7 +1694,7 @@ bool check_part_func_fields(Field **ptr, bool ok_with_charsets)
     */
     if (field_is_partition_charset(field))
     {
-      const CHARSET_INFO *cs= ((Field_str*)field)->charset();
+      const CHARSET_INFO *cs= field->charset();
       if (!ok_with_charsets ||
           cs->mbmaxlen > 1 ||
           cs->strxfrm_multiply > 1)
@@ -2172,6 +2176,8 @@ static int check_part_field(enum_field_types sql_type,
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIME2:
+    case MYSQL_TYPE_DATETIME2:
       *result_type= STRING_RESULT;
       *need_cs_check= TRUE;
       return FALSE;
@@ -2184,6 +2190,7 @@ static int check_part_field(enum_field_types sql_type,
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_NULL:
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
@@ -2900,7 +2907,7 @@ static void copy_to_part_field_buffers(Field **ptr,
     restore_ptr++;
     if (!field->maybe_null() || !field->is_null())
     {
-      const CHARSET_INFO *cs= ((Field_str*)field)->charset();
+      const CHARSET_INFO *cs= field->charset();
       uint max_len= field->pack_length();
       uint data_len= field->data_length();
       uchar *field_buf= *field_bufs;
@@ -4663,6 +4670,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
   if (table->part_info && (alter_info->flags & ALTER_FOREIGN_KEY))
   {
     my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  /* Remove partitioning on a not partitioned table is not possible */
+  if (!table->part_info && (alter_info->flags & ALTER_REMOVE_PARTITIONING))
+  {
+    my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -6452,8 +6465,24 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   lpt->table= 0;
   lpt->old_table= 0;
   lpt->table_list->table= 0;
-  if (thd->locked_tables_list.reopen_tables(thd))
-    sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
+  if (thd->locked_tables_mode)
+  {
+    Diagnostics_area *stmt_da= NULL;
+    Diagnostics_area tmp_stmt_da;
+
+    if (thd->is_error())
+    {
+      /* reopen might fail if we have a previous error, use a temporary da. */
+      stmt_da= thd->get_stmt_da();
+      thd->set_stmt_da(&tmp_stmt_da);
+    }
+
+    if (thd->locked_tables_list.reopen_tables(thd))
+      sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
+
+    if (stmt_da)
+      thd->set_stmt_da(stmt_da);
+  }
 }
 
 

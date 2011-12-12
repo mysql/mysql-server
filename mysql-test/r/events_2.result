@@ -378,7 +378,7 @@ do
 select 1;
 alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
   ends '1999-01-02 00:00:00';
-ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
+ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future.
 drop event event_35981;
 create event event_35981 on schedule every 1 hour starts current_timestamp
 on completion not preserve
@@ -399,7 +399,7 @@ Warnings:
 Note	1544	Event execution time is in the past. Event has been disabled
 alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
   ends '1999-01-02 00:00:00' on completion not preserve;
-ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
+ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future.
 alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
   ends '1999-01-02 00:00:00' on completion preserve;
 Warnings:

@@ -954,11 +954,22 @@ TRACE
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 3,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 349525
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f2"
               }
             ] /* filesort_information */,
@@ -1119,6 +1130,7 @@ TRACE
               "rows": 4,
               "examined_rows": 4,
               "number_of_tmp_files": 0,
+              "sort_buffer_size": NNN,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -1332,15 +1344,39 @@ TRACE
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "teeone",
+                "row_length": 16,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 65536
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "join_execution": {
               "select#": 2,
               "steps": [
                 {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "table": "intermediate_tmp_table",
+                      "row_length": 22,
+                      "key_length": 5,
+                      "unique_constraint": false,
+                      "location": "memory (heap)",
+                      "row_limit_estimate": 47662
+                    } /* tmp_table_info */
+                  } /* creating_tmp_table */
+                },
+                {
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "database": "",
-                      "table": "",
+                      "table": "intermediate_tmp_table",
                       "field": "b"
                     }
                   ] /* filesort_information */,
@@ -1354,6 +1390,7 @@ TRACE
                     "rows": 3,
                     "examined_rows": 3,
                     "number_of_tmp_files": 0,
+                    "sort_buffer_size": NNN,
                     "sort_mode": "<sort_key, rowid>"
                   } /* filesort_summary */
                 }
@@ -2714,7 +2751,7 @@ from t0 where a in
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -3230,14 +3267,14 @@ from t0 where a in
             } /* join_optimization */
           },
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -3645,6 +3682,19 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
       "join_execution": {
         "select#": 1,
         "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "tmp",
+                "row_length": 10,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 104857
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
           {
             "join_execution": {
               "select#": 2,
@@ -4842,11 +4892,22 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 18,
+                "key_length": 4,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 58254
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "col_int_key"
               }
             ] /* filesort_information */,
@@ -4860,6 +4921,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "rows": 8,
               "examined_rows": 8,
               "number_of_tmp_files": 0,
+              "sort_buffer_size": NNN,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }

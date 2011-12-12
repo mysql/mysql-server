@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2009, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -34,6 +34,16 @@ extern ulint	data_mysql_default_charset_coll;
 
 /* SQL data type struct */
 typedef struct dtype_struct		dtype_t;
+
+/* SQL Like operator comparison types */
+enum ib_like_enum {
+	IB_LIKE_EXACT,                  /* e.g.  STRING */
+	IB_LIKE_PREFIX,                 /* e.g., STRING% */
+	IB_LIKE_SUFFIX,                 /* e.g., %STRING */
+	IB_LIKE_SUBSTR,                 /* e.g., %STRING% */
+	IB_LIKE_REGEXP                  /* Future */
+};
+typedef enum ib_like_enum               ib_like_t;
 
 /*-------------------------------------------*/
 /* The 'MAIN TYPE' of a column */
@@ -138,6 +148,8 @@ be less than 256 */
 #define DATA_ROLL_PTR_LEN 7
 
 #define	DATA_N_SYS_COLS 3	/* number of system columns defined above */
+
+#define DATA_FTS_DOC_ID	3	/* Used as FTS DOC ID column */
 
 #define DATA_SYS_PRTYPE_MASK 0xF /* mask to extract the above from prtype */
 

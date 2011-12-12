@@ -129,6 +129,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   workers= c_rli->workers; // shallow copying is sufficient
   wq_size_waits_cnt= groups_done= events_done= curr_jobs= 0;
   usage_partition= 0;
+  end_group_sets_max_dbs= false;
   last_group_done_index= c_rli->gaq->size; // out of range
 
   jobs.avail= 0;
@@ -1358,7 +1359,7 @@ int wait_for_workers_to_finish(Relay_log_info const *rli, Slave_worker *ignore)
   DBUG_ENTER("wait_for_workers_to_finish");
 
   llstr(const_cast<Relay_log_info*>(rli)->get_event_relay_log_pos(), llbuf);
-  if (global_system_variables.log_warnings > 1)
+  if (log_warnings > 1)
     sql_print_information("Coordinator and workers enter synchronization procedure "
                           "when scheduling event relay-log: %s pos: %s", 
                           const_cast<Relay_log_info*>(rli)->get_event_relay_log_name(), 
@@ -1416,7 +1417,7 @@ int wait_for_workers_to_finish(Relay_log_info const *rli, Slave_worker *ignore)
 
   if (!ignore)
   {
-    if (global_system_variables.log_warnings > 1)
+    if (log_warnings > 1)
       sql_print_information("Coordinator synchronized with Workers, "
                             "waited entries: %d, cant_sync: %d", 
                             ret, cant_sync);
@@ -1678,19 +1679,21 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   thd->server_id = ev->server_id;
   thd->set_time();
   thd->lex->current_select= 0;
-  if (!ev->when)
-    ev->when= my_time(0);
+  if (!ev->when.tv_sec)
+    ev->when.tv_sec= my_time(0);
   ev->thd= thd; // todo: assert because up to this point, ev->thd == 0
 
   DBUG_PRINT("slave_worker_exec_job:", ("W_%lu <- job item: %p data: %p thd: %p", worker->id, job_item, ev, thd));
 
   if (ev->starts_group())
   {
+    worker->end_group_sets_max_dbs= true;
     worker->curr_group_seen_begin= TRUE; // The current group is started with B-event
   } 
   else
   {
-    if ((part_event= ev->contains_partition_info()))
+    if ((part_event=
+         ev->contains_partition_info(worker->end_group_sets_max_dbs)))
     {
       uint num_dbs=  ev->mts_number_dbs();
       DYNAMIC_ARRAY *ep= &worker->curr_group_exec_parts;
@@ -1720,6 +1723,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
           insert_dynamic(ep, (uchar*) &ev->mts_assigned_partitions[k]);
         }
       }
+      worker->end_group_sets_max_dbs= false;
     }
   }
   worker->set_future_event_relay_log_pos(ev->future_event_relay_log_pos);
@@ -1815,7 +1819,7 @@ err:
   if (error)
   {
 
-    if (global_system_variables.log_warnings > 1)
+    if (log_warnings > 1)
       sql_print_information("Worker %lu is exiting: killed %i, error %i, "
                             "running_status %d",
                             worker->id, thd->killed, thd->is_error(),
