@@ -11607,6 +11607,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     DBUG_RETURN(NULL);
   if (table->s->keys == 0)        /* There are no indexes to use. */
     DBUG_RETURN(NULL);
+  if (join->conds && join->conds->used_tables() & OUTER_REF_TABLE_BIT)
+    DBUG_RETURN(NULL); /* Cannot execute with correlated conditions. */
 
   /* Analyze the query in more detail. */
   List_iterator<Item> select_items_it(join->fields_list);
@@ -12916,6 +12918,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   int result;
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
+  seen_first_key= FALSE;
   if (!head->key_read)
   {
     doing_key_read= 1;

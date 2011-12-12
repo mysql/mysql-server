@@ -25,21 +25,17 @@
   for functions.
 */
 #if defined(_MSC_VER)
-#if defined(MYSQL_DYNAMIC_PLUGIN)
   #ifdef __cplusplus
     #define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
   #else
     #define MYSQL_PLUGIN_EXPORT __declspec(dllexport)
   #endif
-#else /* MYSQL_DYNAMIC_PLUGIN */
-  #ifdef __cplusplus
-    #define  MYSQL_PLUGIN_EXPORT extern "C"
-  #else
-    #define MYSQL_PLUGIN_EXPORT 
-  #endif
-#endif /*MYSQL_DYNAMIC_PLUGIN */
 #else /*_MSC_VER */
-#define MYSQL_PLUGIN_EXPORT
+  #ifdef __cplusplus
+    #define MYSQL_PLUGIN_EXPORT extern "C"
+  #else
+    #define MYSQL_PLUGIN_EXPORT
+  #endif
 #endif
 
 #ifdef __cplusplus
@@ -129,14 +125,20 @@ struct st_maria_plugin DECLS[]= {
 #else
 
 #define __MYSQL_DECLARE_PLUGIN(NAME, VERSION, PSIZE, DECLS)                   \
-MYSQL_PLUGIN_EXPORT int _mysql_plugin_interface_version_= MYSQL_PLUGIN_INTERFACE_VERSION;         \
-MYSQL_PLUGIN_EXPORT int _mysql_sizeof_struct_st_plugin_= sizeof(struct st_mysql_plugin);          \
-MYSQL_PLUGIN_EXPORT struct st_mysql_plugin _mysql_plugin_declarations_[]= {
+MYSQL_PLUGIN_EXPORT int _mysql_plugin_interface_version_;                     \
+int _mysql_plugin_interface_version_= MYSQL_PLUGIN_INTERFACE_VERSION;         \
+MYSQL_PLUGIN_EXPORT int _mysql_sizeof_struct_st_plugin_;                      \
+int _mysql_sizeof_struct_st_plugin_= sizeof(struct st_mysql_plugin);          \
+MYSQL_PLUGIN_EXPORT struct st_mysql_plugin _mysql_plugin_declarations_[];     \
+struct st_mysql_plugin _mysql_plugin_declarations_[]= {
 
-#define MARIA_DECLARE_PLUGIN__(NAME, VERSION, PSIZE, DECLS)                \
-MYSQL_PLUGIN_EXPORT int _maria_plugin_interface_version_= MARIA_PLUGIN_INTERFACE_VERSION;   \
-MYSQL_PLUGIN_EXPORT int _maria_sizeof_struct_st_plugin_= sizeof(struct st_maria_plugin);    \
-MYSQL_PLUGIN_EXPORT struct st_maria_plugin _maria_plugin_declarations_[]= {
+#define MARIA_DECLARE_PLUGIN__(NAME, VERSION, PSIZE, DECLS)                    \
+MYSQL_PLUGIN_EXPORT int _maria_plugin_interface_version_;                      \
+int _maria_plugin_interface_version_= MARIA_PLUGIN_INTERFACE_VERSION;          \
+MYSQL_PLUGIN_EXPORT int _maria_sizeof_struct_st_plugin_;                       \
+int _maria_sizeof_struct_st_plugin_= sizeof(struct st_maria_plugin);           \
+MYSQL_PLUGIN_EXPORT struct st_maria_plugin _maria_plugin_declarations_[];      \
+struct st_maria_plugin _maria_plugin_declarations_[]= {
 
 #endif
 

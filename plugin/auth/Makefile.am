@@ -4,7 +4,7 @@ AM_LDFLAGS=-module -rpath $(pkgplugindir)
 AM_CPPFLAGS=-DMYSQL_DYNAMIC_PLUGIN -I$(top_srcdir)/include
 
 pkgplugin_LTLIBRARIES=  dialog.la
-dialog_la_SOURCES= dialog.c
+dialog_la_SOURCES= dialog.c $(top_srcdir)/libmysql/get_password.c
 
 if HAVE_PEERCRED
 pkgplugin_LTLIBRARIES+= auth_socket.la

@@ -28,9 +28,7 @@
 #include <stdlib.h>
 #endif
 
-#ifdef MYSQL_PLUGIN_EXPORT
 #undef MYSQL_PLUGIN_EXPORT
-#endif
 #if defined(_MSC_VER)
   #ifdef __cplusplus
     #define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
@@ -38,7 +36,11 @@
     #define MYSQL_PLUGIN_EXPORT __declspec(dllexport)
   #endif
 #else /*_MSC_VER */
-#define MYSQL_PLUGIN_EXPORT
+  #ifdef __cplusplus
+    #define MYSQL_PLUGIN_EXPORT extern "C"
+  #else
+    #define MYSQL_PLUGIN_EXPORT
+  #endif
 #endif
 
 /* known plugin types */

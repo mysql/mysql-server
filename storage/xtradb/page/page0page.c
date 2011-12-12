@@ -1596,7 +1596,7 @@ page_rec_get_n_recs_before(
 	n--;
 
 	ut_ad(n >= 0);
-	ut_ad(n < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
+	ut_ad(n < (lint)UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
 
 	return((ulint) n);
 }
