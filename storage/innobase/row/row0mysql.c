@@ -289,21 +289,21 @@ row_mysql_pad_col(
 		/* space=0x0020 */
 		pad_end = pad + len;
 		ut_a(!(len % 2));
-		do {
+		while (pad < pad_end) {
 			*pad++ = 0x00;
 			*pad++ = 0x20;
-		} while (pad < pad_end);
+		};
 		break;
 	case 4:
 		/* space=0x00000020 */
 		pad_end = pad + len;
 		ut_a(!(len % 4));
-		do {
+		while (pad < pad_end) {
 			*pad++ = 0x00;
 			*pad++ = 0x00;
 			*pad++ = 0x00;
 			*pad++ = 0x20;
-		} while (pad < pad_end);
+		}
 		break;
 	}
 }
