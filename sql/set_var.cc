@@ -939,11 +939,11 @@ static sys_var_const_str        sys_hostname(&vars, "hostname", glob_hostname);
 static sys_var_const_str_ptr    sys_log_basename(&vars, "log_basename",
                                                  &opt_log_basename);
 
+static sys_var_bool_ptr       sys_query_cache_strip_comments(&vars, "query_cache_strip_comments",
+                                                       &opt_query_cache_strip_comments);
 #ifndef EMBEDDED_LIBRARY
 static sys_var_const_str_ptr    sys_repl_report_host(&vars, "report_host", &report_host);
 static sys_var_const_str_ptr    sys_repl_report_user(&vars, "report_user", &report_user);
-static sys_var_bool_ptr       sys_query_cache_strip_comments(&vars, "query_cache_strip_comments",
-                                                       &opt_query_cache_strip_comments);
 static sys_var_const_str_ptr    sys_repl_report_password(&vars, "report_password", &report_password);
 
 static uchar *slave_get_report_port(THD *thd)
