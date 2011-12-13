@@ -1218,6 +1218,7 @@ ha_innobase::add_index(
 					       indexed_table, trx, heap);
 		/* FTS_DOC_ID_INDEX is internal defined new index */
 		num_of_idx++;
+		num_created++;
 	}
 
 	if (num_fts_index) {
@@ -1301,6 +1302,10 @@ error_handling:
 		my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
 		/* fall through */
 	case DB_DUPLICATE_KEY:
+		if (fts_add_doc_idx
+		    && prebuilt->trx->error_key_num == num_of_idx - 1) {
+			prebuilt->trx->error_key_num = ULINT_UNDEFINED;
+		}
 error_exit:
 		prebuilt->trx->error_info = NULL;
 		/* fall through */

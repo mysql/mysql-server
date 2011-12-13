@@ -2407,7 +2407,7 @@ fts_optimize_table_bk(
 
 		return(DB_SUCCESS);
 
-	} else if (fts->cache
+	} else if (fts && fts->cache
 		   && fts->cache->deleted >= FTS_OPTIMIZE_THRESHOLD) {
 
 		error = fts_optimize_table(table);
