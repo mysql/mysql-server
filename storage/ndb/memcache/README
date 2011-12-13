@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------
-The Memcache API for MySQL Cluster -- October 2011 Release
+The Memcache API for MySQL Cluster 7.2
 -------------------------------------------------------------------------
 
 
@@ -71,24 +71,48 @@ delete key1
 
 
 -------------------------------------------------------------------------
+UPGRADING THE CONFIGURATION SCHEMA FROM EARLIER PRE-RELEASE VERSIONS
+-------------------------------------------------------------------------
+The current version of the configuration schema and demonstration tables 
+is 1.2. The SQL script "update_to_1.2.sql" is available and can be used 
+to update version 1.1 configuration and demo tables to version 1.2.
+
+
+-------------------------------------------------------------------------
 THE DEFAULT SERVER ROLE
 -------------------------------------------------------------------------
 
-In the default configuration, all keys except those beginning with "mc:" and
-"t:" are stored in the table called "demo_table" in the ndbmemcache schema.
+In the default configuration, all keys except those beginning with "mc:", "t:" 
+or "b:" are stored in the table called "demo_table" in the ndbmemcache schema.
+In this table, memcache keys are stored in the 250-byte VARCHAR column called
+mkey, and memcache values are stored in the VARBINARY(13500) column called
+string_value.  Values larger than 13,500 bytes cannot be stored in this table.
+
+Keys beginning with "b:" allow storage of large values.  For this prefix, 
+a main table row is stored in the demo_table_large table, and large values 
+are partitioned into stripes in the table called external_values.  The size 
+limit on large objects depends on the stripe size of the parts table; in
+the demonstration schema, the size limit is approximately 3.5 MB.  However, 
+memcached itself also imposes a size limit values, which by default is 1 MB.
 
 Keys beginning with "mc:" are stored only in local cache (their cache policy
 is "mc-only").
 
-Keys beginning with "t:" demonstrate using tab-separated values to store data
-in multiple database columns.  These values are stored in "demo_table_tabs". 
+Keys beginning with "t:" demonstrate some other features of the memcached 
+server, including: 
+  * using tab-separated values to store data in multiple columns.
+  * automatically expiring stored data based on stored expiration times
+  * storing of memcached flags in the database
+These values are stored in "demo_table_tabs".  Note that the key to this table
+is an integer, so valid memcache keys are "t:1", "t:2", etc.
 
 
 -------------------------------------------------------------------------
 LIMITATIONS
 -------------------------------------------------------------------------
 
-In this preview release, all data types are supported except for TEXT and BLOB 
-types, and bitfields.  The lack of support for BLOB columns means that stored
-values are limited by the maximum size of a row in MySQL Cluster.  This row size 
-limit is 14,000 bytes.  
+"SET" and "ENUM" columns rely on metadata which is only properly available to
+the MySQL server.  While they may work in some situations, they are not 
+fully supported.  Bitfields are not supported at all.  TEXT and BLOB columns 
+are also not supported, though BLOB-like large values can be stored in an 
+external values table, as described above.  
