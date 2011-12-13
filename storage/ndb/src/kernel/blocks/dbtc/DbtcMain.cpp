@@ -3409,6 +3409,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     TlastReplicaNo = tnoOfBackup + tnoOfStandby;
     regTcPtr->lastReplicaNo = (Uint8)TlastReplicaNo;
     regTcPtr->noOfNodes = (Uint8)(TlastReplicaNo + 1);
+    if (regTcPtr->tcNodedata[0] == getOwnNodeId())
+      c_counters.clocalWriteCount++;
 
     if (unlikely((Toperation == ZREFRESH) &&
                  (! isRefreshSupported())))
@@ -13261,7 +13263,8 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
       { Ndbinfo::ABORTS_COUNTER, c_counters.cabortCount },
       { Ndbinfo::TABLE_SCANS_COUNTER, c_counters.c_scan_count },
       { Ndbinfo::RANGE_SCANS_COUNTER, c_counters.c_range_scan_count },
-      { Ndbinfo::LOCAL_READ_COUNTER, c_counters.clocalReadCount }
+      { Ndbinfo::LOCAL_READ_COUNTER, c_counters.clocalReadCount },
+      { Ndbinfo::LOCAL_WRITE_COUNTER, c_counters.clocalWriteCount }
     };
     const size_t num_counters = sizeof(counters) / sizeof(counters[0]);
 
