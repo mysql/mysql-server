@@ -172,5 +172,36 @@ SELECT t1.* FROM t1 WHERE (SELECT COUNT(*) FROM t3,t2 WHERE t3.c=t2.a
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # Bug #902356: DISTINCT in materialized subquery 
+--echo #
+
+CREATE TABLE t1 (pk int PRIMARY KEY, a int, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, 4), (8, 6);
+
+CREATE TABLE t2 (pk int PRIMARY KEY, a int, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (0, 4), (8, 6);
+
+CREATE TABLE t3 (b INT, KEY(b));
+INSERT INTO t3 VALUES (7), (0), (4), (2);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SET @tmp_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on,in_to_exists=on';
+
+EXPLAIN
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM t1) OR a = b;
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM t1) OR a = b;
+
+EXPLAIN
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM v1) OR a = b;
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM v1) OR a = b;
+
+SET optimizer_switch=@tmp_optimizer_switch;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
 set optimizer_switch=@subselect2_test_tmp;
 
