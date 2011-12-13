@@ -146,4 +146,37 @@ and t2.a='1' AND t1.a=t3.b) > 0;
 a
 2
 DROP TABLE t1,t2,t3;
+#
+# Bug #902356: DISTINCT in materialized subquery 
+#
+CREATE TABLE t1 (pk int PRIMARY KEY, a int, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, 4), (8, 6);
+CREATE TABLE t2 (pk int PRIMARY KEY, a int, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (0, 4), (8, 6);
+CREATE TABLE t3 (b INT, KEY(b));
+INSERT INTO t3 VALUES (7), (0), (4), (2);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SET @tmp_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on,in_to_exists=on';
+EXPLAIN
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM t1) OR a = b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	a	a	5	NULL	2	Using index
+1	PRIMARY	t3	index	b	b	5	NULL	4	Using where; Using index; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t1	index	PRIMARY,a	a	5	NULL	2	Using index
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM t1) OR a = b;
+pk	a	b
+0	4	4
+EXPLAIN
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM v1) OR a = b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	a	a	5	NULL	2	Using index
+1	PRIMARY	t3	index	b	b	5	NULL	4	Using where; Using index; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t1	index	PRIMARY,a	a	5	NULL	2	Using index
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM v1) OR a = b;
+pk	a	b
+0	4	4
+SET optimizer_switch=@tmp_optimizer_switch;
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
 set optimizer_switch=@subselect2_test_tmp;
