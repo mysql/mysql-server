@@ -1,3 +1,9 @@
+2011-12-13	The InnoDB Team
+
+	* handler/ha_innodb.cc, innodb.test, innodb.result:
+	Fix Bug#13117023: InnoDB was incrementing the handler_read_key, 
+	also the SSV::ha_read_key_count, at the wrong place.   
+
 2011-12-10	The InnoDB Team
 
 	* include/page0page.h, page/page0page.c:
