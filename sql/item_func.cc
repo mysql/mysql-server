@@ -789,9 +789,10 @@ void Item_num_op::find_num_type(void)
   DBUG_ASSERT(arg_count == 2);
   Item_result r0= args[0]->numeric_context_result_type();
   Item_result r1= args[1]->numeric_context_result_type();
+  
+  DBUG_ASSERT(r0 != STRING_RESULT && r1 != STRING_RESULT);
 
-  if (r0 == REAL_RESULT || r1 == REAL_RESULT ||
-      r0 == STRING_RESULT || r1 ==STRING_RESULT)
+  if (r0 == REAL_RESULT || r1 == REAL_RESULT)
   {
     /*
       Since DATE/TIME/DATETIME data types return INT_RESULT/DECIMAL_RESULT
