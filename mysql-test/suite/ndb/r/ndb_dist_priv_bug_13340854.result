@@ -1,5 +1,3 @@
-connect(127.0.0.1,root,,test,MASTER_PORT1,MASTER_SOCKET);
-ERROR HY000: Can't connect to MySQL server on '127.0.0.1' (111)
 call mysql.mysql_cluster_move_privileges();
 select mysql.mysql_cluster_privileges_are_distributed();
 mysql.mysql_cluster_privileges_are_distributed()
