@@ -912,16 +912,16 @@ public:
      *       would cost performance and doesn't seem like a good 
      *       idea. This is simple and it works.
      */
-    Uint16 gcpFilePtr[4];
+    Uint16 gcpFilePtr[NDB_MAX_LOG_PARTS];
     /** 
      *       The page number within the file for each log part.
      */
-    Uint16 gcpPageNo[4];
+    Uint16 gcpPageNo[NDB_MAX_LOG_PARTS];
     /**
      *       The word number within the last page that was written for
      *       each log part.
      */
-    Uint16 gcpWordNo[4];
+    Uint16 gcpWordNo[NDB_MAX_LOG_PARTS];
     /**
      *       The identity of this global checkpoint.
      */
@@ -929,12 +929,12 @@ public:
     /**
      *       The state of this global checkpoint, one for each log part.
      */
-    Uint8 gcpLogPartState[4];
+    Uint8 gcpLogPartState[NDB_MAX_LOG_PARTS];
     /**
      *       The sync state of this global checkpoint, one for each
      *       log part.
      */
-    Uint8 gcpSyncReady[4];
+    Uint8 gcpSyncReady[NDB_MAX_LOG_PARTS];
     /**
      *       User pointer of the sender of gcp_savereq (= master DIH).
      */
