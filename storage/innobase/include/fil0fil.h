@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -27,6 +27,9 @@ Created 10/25/1995 Heikki Tuuri
 #define fil0fil_h
 
 #include "univ.i"
+
+#ifndef UNIV_INNOCHECKSUM
+
 #include "dict0types.h"
 #include "ut0byte.h"
 #include "os0file.h"
@@ -70,6 +73,8 @@ struct fil_addr_struct{
 
 /** The null file address */
 extern fil_addr_t	fil_addr_null;
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 /** The byte offsets on a file page for various variables @{ */
 #define FIL_PAGE_SPACE_OR_CHKSUM 0	/*!< in < MySQL-4.0.14 space id the
@@ -127,6 +132,8 @@ extern fil_addr_t	fil_addr_null;
 					to the last 4 bytes of FIL_PAGE_LSN */
 #define FIL_PAGE_DATA_END	8	/*!< size of the page trailer */
 /* @} */
+
+#ifndef UNIV_INNOCHECKSUM
 
 /** File page types (values of FIL_PAGE_TYPE) @{ */
 #define FIL_PAGE_INDEX		17855	/*!< B-tree node */
@@ -328,22 +335,27 @@ fil_write_flushed_lsn_to_data_files(
 	lsn_t	lsn,		/*!< in: lsn to write */
 	ulint	arch_log_no);	/*!< in: latest archived log file number */
 /*******************************************************************//**
-Reads the flushed lsn and arch no fields from a data file at database
-startup. */
+Reads the flushed lsn, arch no, and tablespace flag fields from a data
+file at database startup. */
 UNIV_INTERN
 void
-fil_read_flushed_lsn_and_arch_log_no(
-/*=================================*/
+fil_read_first_page(
+/*================*/
 	os_file_t	data_file,		/*!< in: open data file */
 	ibool		one_read_already,	/*!< in: TRUE if min and max
 						parameters below already
 						contain sensible data */
+	ulint*		flags,			/*!< out: tablespace flags */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,	/*!< in/out: */
-	ulint*		max_arch_log_no,	/*!< in/out: */
+	ulint*		min_arch_log_no,	/*!< out: min of archived
+						log numbers in data files */
+	ulint*		max_arch_log_no,	/*!< out: max of archived
+						log numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
-	lsn_t*		min_flushed_lsn,	/*!< in/out: */
-	lsn_t*		max_flushed_lsn);	/*!< in/out: */
+	lsn_t*		min_flushed_lsn,	/*!< out: min of flushed
+						lsn values in data files */
+	lsn_t*		max_flushed_lsn);	/*!< out: max of flushed
+						lsn values in data files */
 /*******************************************************************//**
 Increments the count of pending insert buffer page merges, if space is not
 being deleted.
@@ -647,7 +659,7 @@ fil_io(
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
-into segments (see os0file.c for more info). The thread specifies which
+into segments (see os0file.cc for more info). The thread specifies which
 segment it wants to wait for. */
 UNIV_INTERN
 void
@@ -731,5 +743,7 @@ fil_tablespace_is_being_deleted(
 	ulint		id);	/*!< in: space id */
 
 typedef	struct fil_space_struct	fil_space_t;
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif

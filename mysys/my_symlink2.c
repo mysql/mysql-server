@@ -56,14 +56,18 @@ File my_create_with_symlink(const char *linkname, const char *filename,
   {
     if (!access(filename,F_OK))
     {
+      char errbuf[MYSYS_STRERROR_SIZE];
       my_errno= errno= EEXIST;
-      my_error(EE_CANTCREATEFILE, MYF(0), filename, EEXIST);
+      my_error(EE_CANTCREATEFILE, MYF(0), filename,
+               EEXIST, my_strerror(errbuf, sizeof(errbuf), EEXIST));
       DBUG_RETURN(-1);
     }
     if (create_link && !access(linkname,F_OK))
     {
+      char errbuf[MYSYS_STRERROR_SIZE];
       my_errno= errno= EEXIST;
-      my_error(EE_CANTCREATEFILE, MYF(0), linkname, EEXIST);
+      my_error(EE_CANTCREATEFILE, MYF(0), linkname,
+               EEXIST, my_strerror(errbuf, sizeof(errbuf), EEXIST));
       DBUG_RETURN(-1);
     }
   }
@@ -144,7 +148,11 @@ int my_rename_with_symlink(const char *from, const char *to, myf MyFlags)
   {
     my_errno= EEXIST;
     if (MyFlags & MY_WME)
-      my_error(EE_CANTCREATEFILE, MYF(0), tmp_name, EEXIST);
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(EE_CANTCREATEFILE, MYF(0), tmp_name,
+               EEXIST, my_strerror(errbuf, sizeof(errbuf), EEXIST));
+    }
     DBUG_RETURN(1);
   }
 

@@ -1,0 +1,18 @@
+include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+include/stop_slave.inc
+SET @old_log_output= @@log_output;
+SET GLOBAL log_output= 'TABLE';
+TRUNCATE mysql.general_log;
+include/start_slave.inc
+CREATE TABLE t1 (i int NOT NULL PRIMARY KEY);
+include/assert.inc [The slave thread does not write the same statement twice to the general log]
+DROP TABLE t1;
+include/stop_slave.inc
+SET GLOBAL log_output= @old_log_output;
+TRUNCATE mysql.general_log;
+include/start_slave.inc
+include/rpl_end.inc

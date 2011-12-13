@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -233,8 +233,7 @@ page_is_comp(
 /*=========*/
 	const page_t*	page)	/*!< in: index page */
 {
-	return(UNIV_EXPECT(page_header_get_field(page, PAGE_N_HEAP) & 0x8000,
-			   0x8000));
+	return(page_header_get_field(page, PAGE_N_HEAP) & 0x8000);
 }
 
 /************************************************************//**
@@ -345,10 +344,10 @@ page_rec_is_user_rec_low(
 #endif
 	ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
 
-	return(UNIV_LIKELY(offset != PAGE_NEW_SUPREMUM)
-	       && UNIV_LIKELY(offset != PAGE_NEW_INFIMUM)
-	       && UNIV_LIKELY(offset != PAGE_OLD_INFIMUM)
-	       && UNIV_LIKELY(offset != PAGE_OLD_SUPREMUM));
+	return(offset != PAGE_NEW_SUPREMUM
+	       && offset != PAGE_NEW_INFIMUM
+	       && offset != PAGE_OLD_INFIMUM
+	       && offset != PAGE_OLD_SUPREMUM);
 }
 
 /************************************************************//**
@@ -363,8 +362,8 @@ page_rec_is_supremum_low(
 	ut_ad(offset >= PAGE_NEW_INFIMUM);
 	ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
 
-	return(UNIV_UNLIKELY(offset == PAGE_NEW_SUPREMUM)
-	       || UNIV_UNLIKELY(offset == PAGE_OLD_SUPREMUM));
+	return(offset == PAGE_NEW_SUPREMUM
+	       || offset == PAGE_OLD_SUPREMUM);
 }
 
 /************************************************************//**
@@ -379,8 +378,7 @@ page_rec_is_infimum_low(
 	ut_ad(offset >= PAGE_NEW_INFIMUM);
 	ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
 
-	return(UNIV_UNLIKELY(offset == PAGE_NEW_INFIMUM)
-	       || UNIV_UNLIKELY(offset == PAGE_OLD_INFIMUM));
+	return(offset == PAGE_NEW_INFIMUM || offset == PAGE_OLD_INFIMUM);
 }
 
 /************************************************************//**
@@ -484,12 +482,14 @@ page_cmp_dtuple_rec_with_match(
 
 	rec_offset = page_offset(rec);
 
-	if (UNIV_UNLIKELY(rec_offset == PAGE_NEW_INFIMUM)
-	    || UNIV_UNLIKELY(rec_offset == PAGE_OLD_INFIMUM)) {
+	if (rec_offset == PAGE_NEW_INFIMUM
+	    || rec_offset == PAGE_OLD_INFIMUM) {
+
 		return(1);
-	}
-	if (UNIV_UNLIKELY(rec_offset == PAGE_NEW_SUPREMUM)
-	    || UNIV_UNLIKELY(rec_offset == PAGE_OLD_SUPREMUM)) {
+
+	} else if (rec_offset == PAGE_NEW_SUPREMUM
+		   || rec_offset == PAGE_OLD_SUPREMUM) {
+
 		return(-1);
 	}
 
@@ -731,21 +731,19 @@ page_rec_get_next_low(
 
 	offs = rec_get_next_offs(rec, comp);
 
-	if (UNIV_UNLIKELY(offs >= UNIV_PAGE_SIZE)) {
+	if (offs >= UNIV_PAGE_SIZE) {
 		fprintf(stderr,
 			"InnoDB: Next record offset is nonsensical %lu"
 			" in record at offset %lu\n"
 			"InnoDB: rec address %p, space id %lu, page %lu\n",
-			(ulong)offs, (ulong) page_offset(rec),
+			(ulong) offs, (ulong) page_offset(rec),
 			(void*) rec,
 			(ulong) page_get_space_id(page),
 			(ulong) page_get_page_no(page));
 		buf_page_print(page, 0);
 
 		ut_error;
-	}
-
-	if (UNIV_UNLIKELY(offs == 0)) {
+	} else if (offs == 0) {
 
 		return(NULL);
 	}
@@ -797,11 +795,7 @@ page_rec_set_next(
 	ut_ad(!next || !page_rec_is_infimum(next));
 	ut_ad(!next || page_align(rec) == page_align(next));
 
-	if (UNIV_LIKELY(next != NULL)) {
-		offs = page_offset(next);
-	} else {
-		offs = 0;
-	}
+	offs = next != NULL ? page_offset(next) : 0;
 
 	if (page_rec_is_comp(rec)) {
 		rec_set_next_offs_new(rec, offs);
@@ -976,7 +970,7 @@ page_get_free_space_of_empty(
 /*=========================*/
 	ulint	comp)		/*!< in: nonzero=compact page layout */
 {
-	if (UNIV_LIKELY(comp)) {
+	if (comp) {
 		return((ulint)(UNIV_PAGE_SIZE
 			       - PAGE_NEW_SUPREMUM_END
 			       - PAGE_DIR

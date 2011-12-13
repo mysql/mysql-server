@@ -638,7 +638,7 @@ public:
   inline void empty() { first= &last; last.prev= &first; }
   base_ilist() { empty(); }
   inline bool is_empty() {  return first == &last; }
-  inline void append(ilink *a)
+  inline void push_front(ilink *a)
   {
     first->prev= &a->next;
     a->next=first; a->prev= &first; first=a;
@@ -715,7 +715,7 @@ public:
   I_List() :base_ilist()	{}
   inline void empty()		{ base_ilist::empty(); }
   inline bool is_empty()        { return base_ilist::is_empty(); } 
-  inline void append(T* a)	{ base_ilist::append(a); }
+  inline void push_front(T* a)	{ base_ilist::push_front(a); }
   inline void push_back(T* a)	{ base_ilist::push_back(a); }
   inline T* get()		{ return (T*) base_ilist::get(); }
   inline T* head()		{ return (T*) base_ilist::head(); }

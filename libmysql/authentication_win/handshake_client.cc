@@ -161,6 +161,21 @@ int Handshake_client::write_packet(Blob &data)
       keep all the data.
     */
     unsigned block_count= data.len()/512 + ((data.len() % 512) ? 1 : 0);
+
+#if !defined(DBUG_OFF) && defined(WINAUTH_USE_DBUG_LIB)
+
+    /*
+      For testing purposes, use wrong block count to see how server
+      handles this.
+    */
+    DBUG_EXECUTE_IF("winauth_first_packet_test",{
+      block_count= data.len() == 601 ? 0 :
+                   data.len() == 602 ? 1 : 
+                   block_count;
+    });
+
+#endif
+
     DBUG_ASSERT(block_count < (unsigned)0x100);
     saved_byte= data[254];
     data[254] = block_count;

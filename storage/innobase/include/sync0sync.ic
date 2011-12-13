@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -94,7 +94,7 @@ mutex_test_and_set(
 		mutex->lock_word = 1;
 	}
 
-	return((byte)ret);
+	return((byte) ret);
 #endif
 }
 
@@ -241,7 +241,7 @@ pfs_mutex_enter_func(
 
 	locker = PSI_CALL(get_thread_mutex_locker)(
 		&state, mutex->pfs_psi, PSI_MUTEX_LOCK);
-	if (UNIV_LIKELY(locker != NULL)) {
+	if (locker != NULL) {
 		PSI_CALL(start_mutex_wait)(locker, file_name, line);
 		mutex_enter_func(mutex, file_name, line);
 		PSI_CALL(end_mutex_wait)(locker, 0);
@@ -271,7 +271,7 @@ pfs_mutex_enter_nowait_func(
 
 	locker = PSI_CALL(get_thread_mutex_locker)(
 			&state, mutex->pfs_psi, PSI_MUTEX_TRYLOCK);
-	if (UNIV_LIKELY(locker != NULL)) {
+	if (locker != NULL) {
 		PSI_CALL(start_mutex_wait)(locker, file_name, line);
 		ret = mutex_enter_nowait_func(mutex, file_name, line);
 		PSI_CALL(end_mutex_wait)(locker, (int) ret);

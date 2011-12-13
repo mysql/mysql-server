@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -314,11 +314,11 @@ dtype_new_store_for_order_and_null_size(
 	buf[0] = (byte)(type->mtype & 0xFFUL);
 
 	if (type->prtype & DATA_BINARY_TYPE) {
-		buf[0] = buf[0] | 128;
+		buf[0] |= 128;
 	}
 
 	/* In versions < 4.1.2 we had:	if (type->prtype & DATA_NONLATIN1) {
-	buf[0] = buf[0] | 64;
+	buf[0] |= 64;
 	}
 	*/
 
@@ -355,7 +355,7 @@ dtype_read_for_order_and_null_size(
 	type->prtype = buf[1];
 
 	if (buf[0] & 128) {
-		type->prtype = type->prtype | DATA_BINARY_TYPE;
+		type->prtype |= DATA_BINARY_TYPE;
 	}
 
 	type->len = mach_read_from_2(buf + 2);
@@ -570,9 +570,8 @@ dtype_get_fixed_size_low(
 				dtype_get_charset_coll(prtype),
 				&i_mbminlen, &i_mbmaxlen);
 
-			if (UNIV_UNLIKELY
-			    (DATA_MBMINMAXLEN(i_mbminlen, i_mbmaxlen)
-			     != mbminmaxlen)) {
+			if (DATA_MBMINMAXLEN(i_mbminlen, i_mbmaxlen)
+			     != mbminmaxlen) {
 
 				ut_print_timestamp(stderr);
 				fprintf(stderr, "  InnoDB: "

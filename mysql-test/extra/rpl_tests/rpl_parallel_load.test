@@ -6,16 +6,9 @@
 # load volume parameter
 #
 
-let $iter = 50;
-
-# windows run on PB2 is too slow to time out
-disable_query_log;
-if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") as "TRUE"`)
-{
-  let $iter = 100;
-}
-enable_query_log;
-
+# The value of iteration is chosen to be rather low to satisfy
+# slow PB environments that are not just Win.
+let $iter = 20;
 let $databases = 16;
 
 connection slave;

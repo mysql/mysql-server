@@ -43,6 +43,10 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "hash0hash.h"
 #include "trx0types.h"
+#include "fts0fts.h"
+
+/* Forward declaration. */
+typedef struct ib_rbt_struct ib_rbt_t;
 
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
@@ -54,48 +58,113 @@ combination of types */
 #define	DICT_IBUF	8	/*!< insert buffer tree */
 #define	DICT_CORRUPT	16	/*!< bit to store the corrupted flag
 				in SYS_INDEXES.TYPE */
+#define	DICT_FTS	32	/* FTS index; can't be combined with the
+				other flags */
 
-#define	DICT_IT_BITS	5	/*!< number of bits used for
+#define	DICT_IT_BITS	6	/*!< number of bits used for
 				SYS_INDEXES.TYPE */
 /* @} */
 
+#if 0 /* not implemented, retained for history */
 /** Types for a table object */
 #define DICT_TABLE_ORDINARY		1 /*!< ordinary table */
-#if 0 /* not implemented */
 #define	DICT_TABLE_CLUSTER_MEMBER	2
 #define	DICT_TABLE_CLUSTER		3 /* this means that the table is
 					  really a cluster definition */
 #endif
 
-/** Table flags.  All unused bits must be 0. */
-/* @{ */
-/** Compact page format.
-This flag is set for all row formats later than Redundant.  It identifies
-the Compact row format.  It is also used for the later formats, Compressed
-and Dynamic, because they add features to the Compact structure. */
-#define DICT_TF_COMPACT			1
+/* Table and tablespace flags are generally not used for the Antelope file
+format except for the low order bit, which is used differently depending on
+where the flags are stored.
 
-/** Compressed page size (0=uncompressed, up to 15 compressed sizes) */
-/* @{ */
-#define DICT_TF_ZSSIZE_SHIFT		1
-#define DICT_TF_ZSSIZE_MASK		(15 << DICT_TF_ZSSIZE_SHIFT)
-#define DICT_TF_ZSSIZE_MAX (UNIV_PAGE_SIZE_SHIFT - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
-/* @} */
+==================== Low order flags bit =========================
+                    | REDUNDANT | COMPACT | COMPRESSED and DYNAMIC
+SYS_TABLES.TYPE     |     1     |    1    |     1
+dict_table_t::flags |     0     |    1    |     1
+FSP_SPACE_FLAGS     |     0     |    0    |     1
+fil_space_t::flags  |     0     |    0    |     1
 
-/** File format */
-/* @{ */
-#define DICT_TF_FORMAT_SHIFT		5	/* file format */
-#define DICT_TF_FORMAT_MASK		\
-((~(~0 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT))) << DICT_TF_FORMAT_SHIFT)
-#define DICT_N_COLS_COMPACT	0x80000000UL	/*!< Set if ROW_FORMAT!=REDUNDANT */
+Before the 5.1 plugin, SYS_TABLES.TYPE was always DICT_TABLE_ORDINARY (1)
+and the tablespace flags field was always 0. In the 5.1 plugin, these fields
+were repurposed to identify compressed and dynamic row formats.
 
-/* @} */
-#define DICT_TF_BITS			6	/*!< number of flag bits */
-#if (1 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT)) <= UNIV_FORMAT_MAX
-# error "DICT_TF_BITS is insufficient for UNIV_FORMAT_MAX"
-#endif
-/** Valid table flag bits */
-#define DICT_TF_BIT_MASK		(~(~0 << DICT_TF_BITS))	
+The following types and constants describe the flags found in dict_table_t
+and SYS_TABLES.TYPE.  Similar flags found in fil_space_t and FSP_SPACE_FLAGS
+are described in fsp0fsp.h. */
+
+/* @{ */
+/** SYS_TABLES.TYPE can be equal to 1 which means that the Row format
+is one of two Antelope row formats, Redundant or Compact. */
+#define SYS_TABLE_TYPE_ANTELOPE		1
+/** dict_table_t::flags can be equal to 0 if the row format = Redundant */
+#define DICT_TF_REDUNDANT		0	/*!< Redundant row format. */
+/** dict_table_t::flags can be equal to 1 if the row format = Compact */
+#define DICT_TF_COMPACT			1	/*!< Compact row format. */
+
+/** This bitmask is used in SYS_TABLES.N_COLS to set and test whether
+the Compact page format is used, i.e ROW_FORMAT != REDUNDANT */
+#define DICT_N_COLS_COMPACT	0x80000000UL
+
+/** Width of the COMPACT flag */
+#define DICT_TF_WIDTH_COMPACT		1
+/** Width of the ZIP_SSIZE flag */
+#define DICT_TF_WIDTH_ZIP_SSIZE		4
+/** Width of the ATOMIC_BLOBS flag.  The Antelope file formats broke up
+BLOB and TEXT fields, storing the first 768 bytes in the clustered index.
+Brracuda row formats store the whole blob or text field off-page atomically.
+Secondary indexes are created from this external data using row_ext_t
+to cache the BLOB prefixes. */
+#define DICT_TF_WIDTH_ATOMIC_BLOBS	1
+/** Width of all the currently known table flags */
+#define DICT_TF_BITS	(DICT_TF_WIDTH_COMPACT		\
+			+ DICT_TF_WIDTH_ZIP_SSIZE	\
+			+ DICT_TF_WIDTH_ATOMIC_BLOBS)
+/** Width of all the currently unknown/unused table flags */
+#define DICT_TF_WIDTH_UNUSED	((UNIV_WORD_SIZE * 8) - DICT_TF_BITS)
+
+/** A mask of all the known/used bits in table flags */
+#define DICT_TF_BIT_MASK	(~(~0 << DICT_TF_BITS))
+
+/** Zero relative shift position of the COMPACT field */
+#define DICT_TF_POS_COMPACT		0
+/** Zero relative shift position of the ZIP_SSIZE field */
+#define DICT_TF_POS_ZIP_SSIZE		(DICT_TF_POS_COMPACT		\
+					+ DICT_TF_WIDTH_COMPACT)
+/** Zero relative shift position of the ATOMIC_BLOBS field */
+#define DICT_TF_POS_ATOMIC_BLOBS	(DICT_TF_POS_ZIP_SSIZE		\
+					+ DICT_TF_WIDTH_ZIP_SSIZE)
+/** Zero relative shift position of the start of the UNUSED bits */
+#define DICT_TF_POS_UNUSED		(DICT_TF_POS_ATOMIC_BLOBS	\
+					+ DICT_TF_WIDTH_ATOMIC_BLOBS)
+
+/** Bit mask of the COMPACT field */
+#define DICT_TF_MASK_COMPACT				\
+		((~(~0 << DICT_TF_WIDTH_COMPACT))	\
+		<< DICT_TF_POS_COMPACT)
+/** Bit mask of the ZIP_SSIZE field */
+#define DICT_TF_MASK_ZIP_SSIZE				\
+		((~(~0 << DICT_TF_WIDTH_ZIP_SSIZE))	\
+		<< DICT_TF_POS_ZIP_SSIZE)
+/** Bit mask of the ATOMIC_BLOBS field */
+#define DICT_TF_MASK_ATOMIC_BLOBS			\
+		((~(~0 << DICT_TF_WIDTH_ATOMIC_BLOBS))	\
+		<< DICT_TF_POS_ATOMIC_BLOBS)
+
+/** Return the value of the COMPACT field */
+#define DICT_TF_GET_COMPACT(flags)			\
+		((flags & DICT_TF_MASK_COMPACT)		\
+		>> DICT_TF_POS_COMPACT)
+/** Return the value of the ZIP_SSIZE field */
+#define DICT_TF_GET_ZIP_SSIZE(flags)			\
+		((flags & DICT_TF_MASK_ZIP_SSIZE)	\
+		>> DICT_TF_POS_ZIP_SSIZE)
+/** Return the value of the ATOMIC_BLOBS field */
+#define DICT_TF_HAS_ATOMIC_BLOBS(flags)			\
+		((flags & DICT_TF_MASK_ATOMIC_BLOBS)	\
+		>> DICT_TF_POS_ATOMIC_BLOBS)
+/** Return the contents of the UNUSED bits */
+#define DICT_TF_GET_UNUSED(flags)			\
+		(flags >> DICT_TF_POS_UNUSED)
 /* @} */
 
 /** @brief Table Flags set number 2.
@@ -106,11 +175,28 @@ created with old versions of InnoDB that only implemented
 ROW_FORMAT=REDUNDANT. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS		1
-#define DICT_TF2_BIT_MASK	~(~0 << DICT_TF2_BITS)
+#define DICT_TF2_BITS			4
+#define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
 
-#define DICT_TF2_TEMPORARY	(1<<0)	/*!< 1 if CREATE TEMPORARY TABLE */
+#define DICT_TF2_TEMPORARY		1	/*!< TRUE for tables from
+						CREATE TEMPORARY TABLE. */
+#define DICT_TF2_FTS_HAS_DOC_ID		2	/* Has internal defined
+						DOC ID column */
+#define DICT_TF2_FTS			4	/* has an FTS index */
+#define DICT_TF2_FTS_ADD_DOC_ID		8	/* Need to add Doc ID column
+						for FTS index build.
+						This is a transient bit
+						for index build */
 /* @} */
+
+#define DICT_TF2_FLAG_SET(table, flag)				\
+	(table->flags2 |= (flag))
+
+#define DICT_TF2_FLAG_IS_SET(table, flag)			\
+	(table->flags2 & (flag))
+
+#define DICT_TF2_FLAG_UNSET(table, flag)			\
+	(table->flags2 &= ~(flag))
 
 /** Tables could be chained together with Foreign key constraint. When
 first load the parent table, we would load all of its descedents.
@@ -319,17 +405,16 @@ files would be at risk! */
 
 /** Find out maximum indexed column length by its table format.
 For ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT, the maximum
-field length is REC_ANTELOPE_MAX_INDEX_COL_LEN - 1 (767). For new
-barracuda format, the length could be REC_VERSION_56_MAX_INDEX_COL_LEN
-(3072) bytes */
+field length is REC_ANTELOPE_MAX_INDEX_COL_LEN - 1 (767). For
+Barracuda row formats COMPRESSED and DYNAMIC, the length could
+be REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes */
 #define DICT_MAX_FIELD_LEN_BY_FORMAT(table)				\
 		((dict_table_get_format(table) < UNIV_FORMAT_B)		\
 			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
 			: REC_VERSION_56_MAX_INDEX_COL_LEN)
 
 #define DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags)			\
-		((((flags & DICT_TF_FORMAT_MASK) >> DICT_TF_FORMAT_SHIFT)\
-		    < UNIV_FORMAT_B)					\
+		((DICT_TF_HAS_ATOMIC_BLOBS(flags) < UNIV_FORMAT_B)	\
 			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
 			: REC_VERSION_56_MAX_INDEX_COL_LEN)
 
@@ -431,7 +516,7 @@ struct dict_index_struct{
 #ifdef UNIV_BLOB_DEBUG
 	mutex_t		blobs_mutex;
 				/*!< mutex protecting blobs */
-	void*		blobs;	/*!< map of (page_no,heap_no,field_no)
+	ib_rbt_t*	blobs;	/*!< map of (page_no,heap_no,field_no)
 				to first_blob_page_no; protected by
 				blobs_mutex; @see btr_blob_dbg_t */
 #endif /* UNIV_BLOB_DEBUG */
@@ -662,6 +747,7 @@ struct dict_table_struct{
 				/*!< The transaction that currently holds the
 				the AUTOINC lock on this table.
 				Protected by lock_sys->mutex. */
+	fts_t*		fts;	/* FTS specific state variables */
 				/* @} */
 	/*----------------------*/
 	ulint		n_rec_locks;

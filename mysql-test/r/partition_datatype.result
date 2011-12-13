@@ -401,7 +401,7 @@ INSERT INTO t1 VALUES ('0000-00-00 00:00:00', 'Moscow');
 # Test invalid values
 INSERT INTO t1 VALUES ('0000-00-00 03:00:00', 'MoscowI');
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
 INSERT INTO t1 VALUES ('1901-01-01 00:00:00', 'MoscowI');
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1

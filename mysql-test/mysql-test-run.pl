@@ -163,7 +163,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema,funcs_1,opt_trace";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_fts,perfschema,funcs_1,opt_trace";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -282,6 +282,7 @@ my $opt_reorder= 1;
 my $opt_force_restart= 0;
 
 my $opt_strace_client;
+my $opt_strace_server;
 
 our $opt_user = "root";
 
@@ -387,6 +388,7 @@ sub main {
       }
     }
   }
+  mtr_report("Using suites: $opt_suites") unless @opt_cases;
 
   init_timers();
 
@@ -1120,7 +1122,8 @@ sub command_line_setup {
 	     'debugger=s'               => \$opt_debugger,
 	     'boot-dbx'                 => \$opt_boot_dbx,
 	     'client-debugger=s'        => \$opt_client_debugger,
-             'strace-client:s'          => \$opt_strace_client,
+             'strace-server'            => \$opt_strace_server,
+             'strace-client'            => \$opt_strace_client,
              'max-save-core=i'          => \$opt_max_save_core,
              'max-save-datadir=i'       => \$opt_max_save_datadir,
              'max-test-fail=i'          => \$opt_max_test_fail,
@@ -1737,6 +1740,19 @@ sub command_line_setup {
     $debug_d= "d,query,info,error,enter,exit";
   }
 
+  if ( $opt_strace_server && ($^O ne "linux") )
+  {
+    $opt_strace_server=0;
+    mtr_warning("Strace only supported in Linux ");
+  }
+
+  if ( $opt_strace_client && ($^O ne "linux") )
+  {
+    $opt_strace_client=0;
+    mtr_warning("Strace only supported in Linux ");
+  }
+
+
   mtr_report("Checking supported features...");
 
   check_ndbcluster_support(\%mysqld_variables);
@@ -1997,7 +2013,8 @@ sub executable_setup () {
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
   $exe_mysql_plugin=   mtr_exe_exists("$path_client_bindir/mysql_plugin");
 
-  $exe_mysql_embedded= mtr_exe_maybe_exists("$basedir/libmysqld/examples/mysql_embedded");
+  $exe_mysql_embedded= mtr_exe_maybe_exists("$basedir/libmysqld/examples/mysql_embedded",
+                                            "$bindir/bin/mysql_embedded");
 
   if ( ! $opt_skip_ndbcluster )
   {
@@ -2405,6 +2422,7 @@ sub environment_setup {
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
   $ENV{'MYSQL_PLUGIN'}=             $exe_mysql_plugin;
   $ENV{'MYSQL_EMBEDDED'}=           $exe_mysql_embedded;
+  $ENV{'PATH_CONFIG_FILE'}=         $path_config_file;
 
   my $exe_mysqld= find_mysqld($basedir);
   $ENV{'MYSQLD'}= $exe_mysqld;
@@ -4431,6 +4449,16 @@ sub check_warnings ($) {
 	if ( $res == 0 ) {
 	  # Check completed with problem
 	  my $report= mtr_grab_file($err_file);
+	  # In rare cases on Windows, exit code 62 is lost, so check output
+	  if (IS_WINDOWS and
+	      $report =~ /^The test .* is not supported by this installation/) {
+	    # Extra sanity check
+	    if ($report =~ /^reason: OK$/m) {
+	      $res= 62;
+	      mtr_print("Seems to have lost exit code 62, assume no warn\n");
+	      goto LOST62;
+	    }
+	  }
 	  # Log to var/log/warnings file
 	  mtr_tofile("$opt_vardir/log/warnings",
 		     $tname."\n".$report);
@@ -4438,7 +4466,7 @@ sub check_warnings ($) {
 	  $tinfo->{'warnings'}.= $report;
 	  $result= 1;
 	}
-
+      LOST62:
 	if ( $res == 62 ) {
 	  # Test case was ok and called "skip"
 	  # Remove the .err file the check generated
@@ -4895,6 +4923,12 @@ sub mysqld_start ($$) {
 
   my $args;
   mtr_init_args(\$args);
+# implementation for strace-server
+  if ( $opt_strace_server )
+  {
+    strace_server_arguments($args, \$exe, $mysqld->name());
+  }
+
 
   if ( $opt_valgrind_mysqld )
   {
@@ -5483,6 +5517,14 @@ sub start_mysqltest ($) {
 
   mtr_init_args(\$args);
 
+  if ( $opt_strace_client )
+  {
+    $exe=  "strace";
+    mtr_add_arg($args, "-o");
+    mtr_add_arg($args, "%s/log/mysqltest.strace", $opt_vardir);
+    mtr_add_arg($args, "$exe_mysqltest");
+  }
+
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
@@ -5529,13 +5571,6 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--cursor-protocol");
   }
 
-  if ( $opt_strace_client )
-  {
-    $exe=  $opt_strace_client || "strace";
-    mtr_add_arg($args, "-o");
-    mtr_add_arg($args, "%s/log/mysqltest.strace", $opt_vardir);
-    mtr_add_arg($args, "$exe_mysqltest");
-  }
 
   mtr_add_arg($args, "--timer-file=%s/log/timer", $opt_vardir);
 
@@ -5836,6 +5871,19 @@ sub debugger_arguments {
   }
 }
 
+#
+# Modify the exe and args so that program is run in strace 
+#
+sub strace_server_arguments {
+  my $args= shift;
+  my $exe=  shift;
+  my $type= shift;
+
+  mtr_add_arg($args, "-o");
+  mtr_add_arg($args, "%s/log/%s.strace", $opt_vardir, $type);
+  mtr_add_arg($args, $$exe);
+  $$exe= "strace";
+}
 
 #
 # Modify the exe and args so that program is run in valgrind
@@ -6130,11 +6178,15 @@ Options to run test on running server
 
 Options for debugging the product
 
+  boot-dbx              Start bootstrap server in dbx
+  boot-ddd              Start bootstrap server in ddd
+  boot-gdb              Start bootstrap server in gdb
+  client-dbx            Start mysqltest client in dbx
   client-ddd            Start mysqltest client in ddd
   client-debugger=NAME  Start mysqltest in the selected debugger
   client-gdb            Start mysqltest client in gdb
-  client-dbx            Start mysqltest client in dbx
-  ddd                   Start mysqld in ddd
+  dbx                   Start the mysqld(s) in dbx
+  ddd                   Start the mysqld(s) in ddd
   debug                 Dump trace output for all servers and client programs
   debug-common          Same as debug, but sets 'd' debug flags to
                         "query,info,error,enter,exit"; you need this if you
@@ -6144,7 +6196,6 @@ Options for debugging the product
                         tracing
   debugger=NAME         Start mysqld in the selected debugger
   gdb                   Start the mysqld(s) in gdb
-  dbx                   Start the mysqld(s) in dbx
   manual-debug          Let user manually start mysqld in debugger, before
                         running test(s)
   manual-gdb            Let user manually start mysqld in gdb, before running
@@ -6153,9 +6204,8 @@ Options for debugging the product
                         test(s)
   manual-dbx            Let user manually start mysqld in dbx, before running
                         test(s)
-  strace-client[=path]  Create strace output for mysqltest client, optionally
-                        specifying name and path to the trace program to use.
-                        Example: $0 --strace-client=ktrace
+  strace-client         Create strace output for mysqltest client, 
+  strace-server         Create strace output for mysqltest server, 
   max-save-core         Limit the number of core files saved (to avoid filling
                         up disks for heavily crashing server). Defaults to
                         $opt_max_save_core, set to 0 for no limit. Set

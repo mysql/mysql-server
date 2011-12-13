@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -42,6 +42,8 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0types.h"
 #include "page0types.h"
 #include "ut0bh.h"
+
+typedef UT_LIST_BASE_NODE_T(trx_t) trx_list_t;
 
 /** In a MySQL replication slave, in crash recovery we store the master log
 file name and position here. */
@@ -125,7 +127,7 @@ trx_sys_hdr_page(
 	ulint	page_no);/*!< in: page number */
 /*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
-system. This is called when the database is started. 
+system. This is called when the database is started.
 @return min binary heap of rsegs to purge */
 UNIV_INTERN
 ib_bh_t*
@@ -251,38 +253,28 @@ trx_read_trx_id(
 /*============*/
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
 /****************************************************************//**
-Looks for the trx handle with the given id in trx_list.
+Looks for the trx instance with the given id in the rw trx_list.
 The caller must be holding trx_sys->mutex.
 @return	the trx handle or NULL if not found;
 the pointer must not be dereferenced unless lock_sys->mutex was
 acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
-trx_get_on_id(
-/*==========*/
+trx_get_rw_trx_by_id(
+/*=================*/
 	trx_id_t	trx_id);/*!< in: trx id to search for */
 /****************************************************************//**
-Returns the minimum trx id in trx list. This is the smallest id for which
-the trx can possibly be active. (But, you must look at the trx->lock.state
-to find out if the minimum trx id transaction itself is active, or already
-committed.). The caller must be holding the trx_sys_t::lock in shared mode.
-@return	the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
-UNIV_INLINE
-trx_id_t
-trx_list_get_min_trx_id_low(void);
-/*=============================*/
-/****************************************************************//**
-Returns the minimum trx id in trx list. This is the smallest id for which
+Returns the minimum trx id in rw trx list. This is the smallest id for which
 the trx can possibly be active. (But, you must look at the trx->state to
 find out if the minimum trx id transaction itself is active, or already
 committed.)
 @return	the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
 UNIV_INLINE
 trx_id_t
-trx_list_get_min_trx_id(void);
-/*=========================*/
+trx_rw_min_trx_id(void);
+/*===================*/
 /****************************************************************//**
-Checks if a transaction with the given id is active. Caller must hold
+Checks if a rw transaction with the given id is active. Caller must hold
 trx_sys->mutex in shared mode. If the caller is not holding
 lock_sys->mutex, the transaction may already have been committed.
 @return	transaction instance if active, or NULL;
@@ -290,13 +282,13 @@ the pointer must not be dereferenced unless lock_sys->mutex was
 acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
-trx_is_active_low(
-/*==============*/
+trx_rw_is_active_low(
+/*=================*/
 	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
 	ibool*		corrupt);	/*!< in: NULL or pointer to a flag
 					that will be set if corrupt */
 /****************************************************************//**
-Checks if a transaction with the given id is active. If the caller is
+Checks if a rw transaction with the given id is active. If the caller is
 not holding lock_sys->mutex, the transaction may already have been
 committed.
 @return	transaction instance if active, or NULL;
@@ -304,14 +296,14 @@ the pointer must not be dereferenced unless lock_sys->mutex was
 acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
-trx_is_active(
-/*==========*/
+trx_rw_is_active(
+/*=============*/
 	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
 	ibool*		corrupt);	/*!< in: NULL or pointer to a flag
 					that will be set if corrupt */
 #ifdef UNIV_DEBUG
 /****************************************************************//**
-Checks that trx is in the trx list.
+Checks whether a trx is in one of rw_trx_list or ro_trx_list.
 @return	TRUE if is in */
 UNIV_INTERN
 ibool
@@ -419,8 +411,8 @@ Get the number of transaction in the system, independent of their state.
 @return count of transactions in trx_sys_t::trx_list */
 UNIV_INLINE
 ulint
-trx_sys_get_n_trx(void);
-/*===================*/
+trx_sys_get_n_rw_trx(void);
+/*======================*/
 
 /*********************************************************************
 Check if there are any active (non-prepared) transactions.
@@ -561,8 +553,8 @@ We must remember this limit in order to keep file compatibility. */
 /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
 #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
 
-#if UNIV_PAGE_SIZE < 4096
-# error "UNIV_PAGE_SIZE < 4096"
+#if UNIV_PAGE_SIZE_MIN < 4096
+# error "UNIV_PAGE_SIZE_MIN < 4096"
 #endif
 /** The offset of the MySQL replication info in the trx system header;
 this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
@@ -691,13 +683,29 @@ struct trx_sys_struct{
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
 					transaction number */
-	UT_LIST_BASE_NODE_T(trx_t) trx_list;
-					/*!< List of active and committed in
-					memory transactions, sorted on trx id,
-					biggest first */
-	UT_LIST_BASE_NODE_T(trx_t) mysql_trx_list;
-					/*!< List of transactions created
-					for MySQL */
+	trx_list_t	rw_trx_list;	/*!< List of active and committed in
+					memory read-write transactions, sorted
+					on trx id, biggest first. Recovered
+					transactions are always on this list. */
+	trx_list_t	ro_trx_list;	/*!< List of active and committed in
+					memory read-only transactions, sorted
+					on trx id, biggest first. NOTE:
+					The order for read-only transactions
+					is not necessary. We should exploit
+					this and increase concurrency during
+					add/remove. */
+	trx_list_t	mysql_trx_list;	/*!< List of transactions created
+					for MySQL. All transactions on
+					ro_trx_list are on mysql_trx_list. The
+					rw_trx_list can contain system
+					transactions and recovered transactions
+					that will not be in the mysql_trx_list.
+					There can be active non-locking
+					auto-commit read only transactions that
+					are on this list but not on ro_trx_list.
+					mysql_trx_list may additionally contain
+					transactions that have not yet been
+					started in InnoDB. */
 	trx_rseg_t*	const rseg_array[TRX_SYS_N_RSEGS];
 					/*!< Pointer array to rollback
 					segments; NULL if slot not in use;

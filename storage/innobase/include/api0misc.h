@@ -11,14 +11,21 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
-/**********************************************************************
-This file contains the functions that don't have a proper home yet.
-************************************************************************/
+/**************************************************//**
+@file include/api0misc.h
+InnoDB Native API
+
+3/20/2011 Jimmy Yang extracted from Embedded InnoDB
+2008 Created by Sunny Bains
+*******************************************************/
+
+#ifndef api0misc_h
+#define	api0misc_h
 
 #include "univ.i"
 #include "os0file.h"
@@ -28,17 +35,10 @@ This file contains the functions that don't have a proper home yet.
 /** Whether binlog is enabled for applications using InnoDB APIs */
 extern my_bool                  ib_binlog_enabled;
 
-/**********************************************************************
-Create a temporary file using the OS specific function. */
-UNIV_INTERN
-int
-ib_create_tempfile(
-/*===============*/
-	const char*	filename);	/*!< in: temp filename prefix */
-	
 /********************************************************************
 Handles user errors and lock waits detected by the database engine.
-@return	TRUE if it was a lock wait and we should continue running the query thread */
+@return	TRUE if it was a lock wait and we should continue running
+the query thread */
 UNIV_INTERN
 ibool
 ib_handle_errors(
@@ -63,11 +63,4 @@ ib_trx_lock_table_with_retry(
 	dict_table_t*	table,		/*!< in: table to lock */
 	enum lock_mode	mode);		/*!< in: lock mode */
 
-/*************************************************************************
-Updates the table modification counter and calculates new estimates
-for table and index statistics if necessary. */
-UNIV_INTERN
-void
-ib_update_statistics_if_needed(
-/*===========================*/
-	dict_table_t*	table);	/*!< in/out: table */
+#endif /* api0misc_h */

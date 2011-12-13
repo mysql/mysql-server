@@ -1,0 +1,176 @@
+DROP TABLE IF EXISTS t1,t2,t3;
+CREATE TABLE t1 (
+a INT AUTO_INCREMENT PRIMARY KEY,
+message CHAR(20),
+FULLTEXT(message)
+) ENGINE = InnoDB comment = 'original testcase by sroussey@network54.com';
+INSERT INTO t1 (message) VALUES ("Testing"),("table"),("testbug"),
+("steve"),("is"),("cool"),("steve is cool");
+SELECT a, FORMAT(MATCH (message) AGAINST ('steve'),6) FROM t1 WHERE MATCH (message) AGAINST ('steve');
+a	FORMAT(MATCH (message) AGAINST ('steve'),6)
+4	0.296010
+7	0.296010
+SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) FROM t1 WHERE MATCH (message) AGAINST ('steve');
+a	MATCH (message) AGAINST ('steve' IN BOOLEAN MODE)
+4	0.2960100471973419
+7	0.2960100471973419
+SELECT a, FORMAT(MATCH (message) AGAINST ('steve'),6) FROM t1 WHERE MATCH (message) AGAINST ('steve' IN BOOLEAN MODE);
+a	FORMAT(MATCH (message) AGAINST ('steve'),6)
+4	0.296010
+7	0.296010
+SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) FROM t1 WHERE MATCH (message) AGAINST ('steve' IN BOOLEAN MODE);
+a	MATCH (message) AGAINST ('steve' IN BOOLEAN MODE)
+4	0.2960100471973419
+7	0.2960100471973419
+SELECT a, FORMAT(MATCH (message) AGAINST ('steve'),6) FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY a;
+a	FORMAT(MATCH (message) AGAINST ('steve'),6)
+4	0.296010
+7	0.296010
+SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) FROM t1 WHERE MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) ORDER BY a;
+a	MATCH (message) AGAINST ('steve' IN BOOLEAN MODE)
+4	0.2960100471973419
+7	0.2960100471973419
+SELECT a, FORMAT(MATCH (message) AGAINST ('steve'),6) FROM t1 WHERE a in (2,7,4) and MATCH (message) AGAINST ('steve') ORDER BY a DESC;
+a	FORMAT(MATCH (message) AGAINST ('steve'),6)
+7	0.296010
+4	0.296010
+SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) FROM t1 WHERE a in (2,7,4) and MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) ORDER BY a DESC;
+a	MATCH (message) AGAINST ('steve' IN BOOLEAN MODE)
+7	0.2960100471973419
+4	0.2960100471973419
+SELECT a, FORMAT(MATCH (message) AGAINST ('steve'),6) FROM t1 WHERE a=7 and MATCH (message) AGAINST ('steve') ORDER BY 1;
+a	FORMAT(MATCH (message) AGAINST ('steve'),6)
+7	0.296010
+SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) FROM t1 WHERE a=7 and MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) ORDER BY 1;
+a	MATCH (message) AGAINST ('steve' IN BOOLEAN MODE)
+7	0.2960100471973419
+SELECT a, FORMAT(MATCH (message) AGAINST ('steve'),6) as rel FROM t1 ORDER BY rel;
+a	rel
+1	0.000000
+2	0.000000
+3	0.000000
+5	0.000000
+6	0.000000
+4	0.296010
+7	0.296010
+SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) as rel FROM t1 ORDER BY rel;
+a	rel
+1	0
+2	0
+3	0
+5	0
+6	0
+4	0.2960100471973419
+7	0.2960100471973419
+alter table t1 add key m (message);
+explain SELECT message FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY message;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	fulltext	message	message	0		1	Using where; Using filesort
+SELECT message FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY message desc;
+message
+steve is cool
+steve
+drop table t1;
+CREATE TABLE t1 (
+a INT AUTO_INCREMENT PRIMARY KEY,
+message CHAR(20),
+FULLTEXT(message)
+) ENGINE = InnoDB;
+INSERT INTO t1 (message) VALUES ("testbug"),("testbug foobar");
+SELECT a, MATCH (message) AGAINST ('t* f*' IN BOOLEAN MODE) as rel FROM t1;
+a	rel
+1	0.000000001885928302414186
+2	0.0906190574169159
+SELECT a, MATCH (message) AGAINST ('t* f*' IN BOOLEAN MODE) as rel FROM t1 ORDER BY rel,a;
+a	rel
+1	0.000000001885928302414186
+2	0.0906190574169159
+drop table t1;
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+thread int(11) NOT NULL default '0',
+beitrag longtext NOT NULL,
+PRIMARY KEY  (id),
+KEY thread (thread),
+FULLTEXT KEY beitrag (beitrag)
+) ENGINE =InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=7923 ;
+CREATE TABLE t2 (
+id int(11) NOT NULL auto_increment,
+text varchar(100) NOT NULL default '',
+PRIMARY KEY  (id),
+KEY text (text)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=63 ;
+CREATE TABLE t3 (
+id int(11) NOT NULL auto_increment,
+forum int(11) NOT NULL default '0',
+betreff varchar(70) NOT NULL default '',
+PRIMARY KEY  (id),
+KEY forum (forum),
+FULLTEXT KEY betreff (betreff)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=996 ;
+select a.text, b.id, b.betreff
+from 
+t2 a inner join t3 b on a.id = b.forum inner join
+t1 c on b.id = c.thread
+where 
+match(b.betreff) against ('+abc' in boolean mode)
+group by a.text, b.id, b.betreff
+union
+select a.text, b.id, b.betreff
+from 
+t2 a inner join t3 b on a.id = b.forum inner join
+t1 c on b.id = c.thread
+where 
+match(c.beitrag) against ('+abc' in boolean mode)
+group by 
+a.text, b.id, b.betreff
+order by 
+match(b.betreff) against ('+abc' in boolean mode) desc;
+ERROR 42000: Incorrect usage/placement of 'MATCH()'
+select a.text, b.id, b.betreff
+from 
+t2 a inner join t3 b on a.id = b.forum inner join
+t1 c on b.id = c.thread
+where 
+match(b.betreff) against ('+abc' in boolean mode)
+union
+select a.text, b.id, b.betreff
+from 
+t2 a inner join t3 b on a.id = b.forum inner join
+t1 c on b.id = c.thread
+where 
+match(c.beitrag) against ('+abc' in boolean mode)
+order by 
+match(b.betreff) against ('+abc' in boolean mode) desc;
+ERROR 42000: Incorrect usage/placement of 'MATCH()'
+select a.text, b.id, b.betreff
+from 
+t2 a inner join t3 b on a.id = b.forum inner join
+t1 c on b.id = c.thread
+where 
+match(b.betreff) against ('+abc' in boolean mode)
+union
+select a.text, b.id, b.betreff
+from 
+t2 a inner join t3 b on a.id = b.forum inner join
+t1 c on b.id = c.thread
+where 
+match(c.beitrag) against ('+abc' in boolean mode)
+order by 
+match(betreff) against ('+abc' in boolean mode) desc;
+ERROR 42000: Incorrect usage/placement of 'MATCH()'
+(select b.id, b.betreff from t3 b) union 
+(select b.id, b.betreff from t3 b) 
+order by match(betreff) against ('+abc' in boolean mode) desc;
+id	betreff
+(select b.id, b.betreff from t3 b) union 
+(select b.id, b.betreff from t3 b) 
+order by match(betreff) against ('+abc') desc;
+ERROR HY000: Can't find FULLTEXT index matching the column list
+select distinct b.id, b.betreff from t3 b 
+order by match(betreff) against ('+abc' in boolean mode) desc;
+id	betreff
+select b.id, b.betreff from t3 b group by b.id+1 
+order by match(betreff) against ('+abc' in boolean mode) desc;
+id	betreff
+drop table t1,t2,t3;

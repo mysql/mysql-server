@@ -216,20 +216,7 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 DROP TABLE t1,t2;
 
-CREATE TABLE `t1` (
-      `mot` varchar(4) NOT NULL,
-      `topic` int NOT NULL,
-       PRIMARY KEY  (`mot`,`topic`)
-    );
-INSERT INTO t1 VALUES ('joce','40143'), ('joce','43506');
-
-# rechecking_index_usage/no_indices_to_analyze
-SELECT * from t1 where topic = all (SELECT topic FROM t1 GROUP BY topic);
---echo
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
---echo
-
-drop table t1;
+SET optimizer_trace_features=default;
 
 # Range analysis in test_if_skip_sort_order 
 # (records_estimation_for_index_ordering)
@@ -299,3 +286,25 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 --echo
 drop table t1;
+
+--echo #
+--echo # Tracing of when test_if_skip_sort_order() switches to another
+--echo # index and we abandon ICP,
+--echo # see "disabling_pushed_condition_on_old_index" in trace.
+--echo #
+
+CREATE TABLE t1 (
+  c1 VARCHAR(2) NOT NULL,
+  i1 INTEGER NOT NULL,
+  c2 VARCHAR(2) NOT NULL,
+  KEY k1 (c1),
+  KEY k2 (c1, i1)
+);
+
+INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1');
+
+EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1;
+
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+DROP TABLE t1;
