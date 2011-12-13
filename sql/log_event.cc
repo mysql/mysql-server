@@ -11724,7 +11724,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(
 
   buf= (const uchar *)buffer + common_header_len + post_header_len;
   buf_size= (const uchar *)buffer + event_len - buf;
-  DBUG_PRINT("info", ("data size of the event: %ld", buf_size));
+  DBUG_PRINT("info", ("data size of the event: %d", buf_size));
   DBUG_VOID_RETURN;
 }
 
@@ -11824,7 +11824,7 @@ char *Previous_gtids_log_event::get_str(
 bool Previous_gtids_log_event::write_data_body(IO_CACHE *file)
 {
   DBUG_ENTER("Previous_gtids_log_event::write_data_body");
-  DBUG_PRINT("info", ("size=%ld", buf_size));
+  DBUG_PRINT("info", ("size=%d", buf_size));
   bool ret= wrapper_my_b_safe_write(file, buf, buf_size);
   DBUG_RETURN(ret);
 }
