@@ -43,11 +43,11 @@ typedef struct blocknum_s { int64_t b; } BLOCKNUM; // make a struct so that we w
 static inline BLOCKNUM make_blocknum(int64_t b) { BLOCKNUM result={b}; return result; }
 
 typedef struct pair_attr_s {
-    long size;
-    long nonleaf_size;
-    long leaf_size;
-    long rollback_size;
-    long cache_pressure_size;
+    long size; // size PAIR's value takes in memory
+    long nonleaf_size; // size if PAIR is a nonleaf node, 0 otherwise
+    long leaf_size; // size if PAIR is a leaf node, 0 otherwise
+    long rollback_size; // size of PAIR is a rollback node, 0 otherwise
+    long cache_pressure_size; // amount PAIR contributes to cache pressure, is sum of buffer sizes and workdone counts
 } PAIR_ATTR;
 
 static inline PAIR_ATTR make_pair_attr(long size) { 
