@@ -4719,7 +4719,7 @@ public:
 #endif
 
 private:
-  size_t buf_size;
+  int buf_size;
   const uchar *buf;
 };
 #endif
