@@ -5520,7 +5520,6 @@ ha_innobase::innobase_get_index(
 	dict_index_t*	index = 0;
 
 	DBUG_ENTER("innobase_get_index");
-	ha_statistic_increment(&SSV::ha_read_key_count);
 
 	if (keynr != MAX_KEY && table->s->keys > 0) {
 		key = table->key_info + keynr;
