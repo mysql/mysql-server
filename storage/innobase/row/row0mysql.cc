@@ -92,8 +92,9 @@ static const char S_innodb_monitor[] = "innodb_monitor";
 static const char S_innodb_lock_monitor[] = "innodb_lock_monitor";
 static const char S_innodb_tablespace_monitor[] = "innodb_tablespace_monitor";
 static const char S_innodb_table_monitor[] = "innodb_table_monitor";
+#ifdef UNIV_MEM_DEBUG
 static const char S_innodb_mem_validate[] = "innodb_mem_validate";
-static const char S_innodb_sql[] = "innodb_sql";
+#endif /* UNIV_MEM_DEBUG */
 /* @} */
 
 /** Evaluates to true if str1 equals str2_onstack, used for comparing
@@ -2101,9 +2102,7 @@ err_exit:
 	Certain table names starting with 'innodb_' have their special
 	meaning regardless of the database name.  Thus, we need to
 	ignore the database name prefix in the comparisons. */
-	table_name = strchr(table->name, '/');
-	ut_a(table_name);
-	table_name++;
+	table_name = dict_remove_db_name(table->name);
 	table_name_len = strlen(table_name) + 1;
 
 	if (STR_EQ(table_name, table_name_len, S_innodb_monitor)) {
@@ -2133,6 +2132,7 @@ err_exit:
 
 		srv_print_innodb_table_monitor = TRUE;
 		os_event_set(srv_timeout_event);
+#ifdef UNIV_MEM_DEBUG
 	} else if (STR_EQ(table_name, table_name_len,
 			  S_innodb_mem_validate)) {
 		/* We define here a debugging feature intended for
@@ -2145,36 +2145,9 @@ err_exit:
 		      "quiet because allocation from a mem heap"
 		      " is not protected\n"
 		      "by any semaphore.\n", stderr);
-#ifdef UNIV_MEM_DEBUG
 		ut_a(mem_validate());
 		fputs("Memory validated\n", stderr);
-#else /* UNIV_MEM_DEBUG */
-		fputs("Memory NOT validated (recompile with UNIV_MEM_DEBUG)\n",
-		      stderr);
 #endif /* UNIV_MEM_DEBUG */
-	} else if (table_name_len == sizeof S_innodb_sql
-		   && !memcmp(table_name, S_innodb_sql,
-			      sizeof S_innodb_sql)) {
-#ifdef UNIV_DIRECT_SQL_DEBUG
-		/* Check that the table contains exactly one column of type
-		TEXT NOT NULL in Latin-1 encoding. */
-		dtype_t type;
-
-		ut_a(dict_table_get_n_user_cols(table) == 1);
-
-		dict_col_copy_type(dict_table_get_nth_col(table, 0), &type);
-
-		ut_a(dtype_get_mtype(&type) == DATA_BLOB);
-		ut_a((dtype_get_prtype(&type) & DATA_BINARY_TYPE) == 0);
-		ut_a(dtype_get_prtype(&type) & DATA_NOT_NULL);
-		ut_a(dtype_get_charset_coll(dtype_get_prtype(&type))
-		     == DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL);
-
-#else
-		fputs("Created table 'innodb_sql' is not special since the\n"
-		      "program was compiled without UNIV_DIRECT_SQL_DEBUG.\n",
-                      stderr);
-#endif
         }
 
 
@@ -4717,21 +4690,17 @@ row_is_magic_monitor_table(
 	const char*	name; /* table_name without database/ */
 	ulint		len;
 
-	name = strchr(table_name, '/');
-	ut_a(name != NULL);
-	name++;
+	name = dict_remove_db_name(table_name);
 	len = strlen(name) + 1;
 
-	if (STR_EQ(name, len, S_innodb_monitor)
-	    || STR_EQ(name, len, S_innodb_lock_monitor)
-	    || STR_EQ(name, len, S_innodb_tablespace_monitor)
-	    || STR_EQ(name, len, S_innodb_table_monitor)
-	    || STR_EQ(name, len, S_innodb_mem_validate)) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(STR_EQ(name, len, S_innodb_monitor)
+	       || STR_EQ(name, len, S_innodb_lock_monitor)
+	       || STR_EQ(name, len, S_innodb_tablespace_monitor)
+	       || STR_EQ(name, len, S_innodb_table_monitor)
+#ifdef UNIV_MEM_DEBUG
+	       || STR_EQ(name, len, S_innodb_mem_validate)
+#endif /* UNIV_MEM_DEBUG */
+	       );
 }
 
 /*********************************************************************//**
