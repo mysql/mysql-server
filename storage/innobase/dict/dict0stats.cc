@@ -51,7 +51,7 @@ Created Jan 06, 2010 Vasil Dimov
 
 The algorithm is controlled by one number - srv_stats_persistent_sample_pages,
 let it be A, which is the number of leaf pages to analyze for a given index
-for each n-prefix (if the index is on 3 columns, then 3*A pages will be
+for each n-prefix (if the index is on 3 columns, then 3*A leaf pages will be
 analyzed).
 
 Let the total number of leaf pages in the table be T.
@@ -68,7 +68,7 @@ We avoid diving below boring records when searching for a leaf page to
 estimate the number of distinct records because we know that such a leaf
 page will have number of distinct records == 1.
 
-For each n-prefix start from the root level and full scan subsequent lower
+For each n-prefix: start from the root level and full scan subsequent lower
 levels until a level that contains at least A*10 distinct records is found.
 Lets call this level LA.
 As an optimization the search is canceled if it has reached level 1 (never
@@ -96,10 +96,10 @@ each page and diving below it.
 
 This way, a total of A leaf pages are analyzed for the given n-prefix.
 
-Let the number of different key values found in page i be Pi (i=1..A)
-Let the number of different key values in the whole level LA be V.
-Then the total number of different key values in the whole tree is:
-V * (P1 + P2 + ... PA) / A.
+Let the number of different key values found in each leaf page i be Pi (i=1..A).
+Let the number of leaf pages be N.
+Then the total number of different key values on the leaf level is:
+N * (P1 + P2 + ... + PA) / A
 
 The above describes how to calculate the cardinality of an index.
 This algorithm is executed for each n-prefix of a multi-column index
@@ -604,15 +604,17 @@ dict_stats_analyze_index_level(
 #ifdef UNIV_STATS_DEBUG
 	for (i = 1; i <= n_uniq; i++) {
 
-		DEBUG_PRINTF("    %s(): total recs: %llu, total pages: %llu, "
-			     "n_diff[%lu]: %lld\n",
-			     __func__, *total_recs, *total_pages,
+		DEBUG_PRINTF("    %s(): total recs: " UINT64PF
+			     ", total pages: " UINT64PF
+			     ", n_diff[%lu]: " UINT64PF "\n",
+			     __func__, *total_recs,
+			     *total_pages,
 			     i, n_diff[i]);
 
 		if (n_diff_boundaries != NULL) {
 			ib_uint64_t	j;
 
-			printf("boundaries: ");
+			DEBUG_PRINTF("    %s(): boundaries: ", __func__);
 			for (j = 0; j < n_diff[i]; j++) {
 				ib_uint64_t	idx;
 
@@ -620,9 +622,10 @@ dict_stats_analyze_index_level(
 					&n_diff_boundaries[i],
 					j * sizeof(ib_uint64_t));
 
-				printf(UINT64PF "=" UINT64PF ", ", j, idx);
+				DEBUG_PRINTF(UINT64PF "=" UINT64PF ", ",
+					     j, idx);
 			}
-			printf("\n");
+			DEBUG_PRINTF("\n");
 		}
 	}
 #endif /* UNIV_STATS_DEBUG */
@@ -915,8 +918,6 @@ dict_stats_analyze_index_for_n_prefix(
 	dict_index_t*	index,			/*!< in/out: index */
 	ulint		level,			/*!< in: level,
 						must be >= 1 */
-	ib_uint64_t	total_recs_on_level,	/*!< in: total number of
-						records on the given level */
 	ulint		n_prefix,		/*!< in: look at first
 						n_prefix columns when
 						comparing records */
@@ -924,7 +925,6 @@ dict_stats_analyze_index_for_n_prefix(
 						records on the given level,
 						when looking at the first
 						n_prefix columns */
-
 	dyn_array_t*	boundaries)		/*!< in: array that contains
 						n_diff_for_this_prefix
 						integers each of which
@@ -948,15 +948,13 @@ dict_stats_analyze_index_for_n_prefix(
 
 #if 0
 	DEBUG_PRINTF("    %s(table=%s, index=%s, level=%lu, n_prefix=%lu, "
-		     "n_diff_for_this_prefix=%llu)\n",
+		     "n_diff_for_this_prefix=" UINT64PF ")\n",
 		     __func__, index->table->name, index->name, level,
 		     n_prefix, n_diff_for_this_prefix);
 #endif
 
-	/* if some of those is 0 then this means that there is exactly one
-	page in the B-tree and it is empty and we should have done full scan
-	and should not be here */
-	ut_ad(total_recs_on_level > 0);
+	/* if this is 0 then there is exactly one page in the B-tree and it
+	is empty and we should have done full scan and should not be here */
 	ut_ad(n_diff_for_this_prefix > 0);
 
 	/* this is configured to be min 1, someone has changed the code */
@@ -1060,8 +1058,8 @@ dict_stats_analyze_index_for_n_prefix(
 					     * sizeof(ib_uint64_t)));
 
 #if 0
-		DEBUG_PRINTF("    %s(): dive below rec_idx=%llu\n",
-			     __func__, dive_below_idx);
+		DEBUG_PRINTF("    %s(): dive below record with index="
+			     UINT64PF "\n", __func__, dive_below_idx);
 #endif
 
 		/* seek to the record with index dive_below_idx */
@@ -1090,12 +1088,12 @@ dict_stats_analyze_index_for_n_prefix(
 	}
 
 	index->stat_n_diff_key_vals[n_prefix]
-		= total_recs_on_level * n_diff_sum_of_all_analyzed_pages
+		= index->stat_n_leaf_pages * n_diff_sum_of_all_analyzed_pages
 		/ n_recs_to_dive_below;
 
 	index->stat_n_sample_sizes[n_prefix] = n_recs_to_dive_below;
 
-	DEBUG_PRINTF("    %s(): n_diff=%llu for n_prefix=%lu\n",
+	DEBUG_PRINTF("    %s(): n_diff=" UINT64PF " for n_prefix=%lu\n",
 		     __func__, index->stat_n_diff_key_vals[n_prefix],
 		     n_prefix);
 
@@ -1306,8 +1304,8 @@ dict_stats_analyze_index(
 		}
 found_level:
 
-		DEBUG_PRINTF("  %s(): found level %lu that has %llu "
-			     "distinct records for n_prefix=%lu\n",
+		DEBUG_PRINTF("  %s(): found level %lu that has " UINT64PF
+			     " distinct records for n_prefix=%lu\n",
 			     __func__, level, n_diff_on_level[n_prefix],
 			     n_prefix);
 
@@ -1323,7 +1321,7 @@ found_level:
 		the given n_prefix */
 
 		dict_stats_analyze_index_for_n_prefix(
-			index, level, total_recs, n_prefix,
+			index, level, n_prefix,
 			n_diff_on_level[n_prefix],
 			&n_diff_boundaries[n_prefix]);
 	}

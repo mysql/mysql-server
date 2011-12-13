@@ -213,10 +213,13 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
 
   if (MyFlags & MY_WME)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     if (locktype == F_UNLCK)
-      my_error(EE_CANTUNLOCK,MYF(ME_BELL+ME_WAITTANG),my_errno);
+      my_error(EE_CANTUNLOCK, MYF(ME_BELL+ME_WAITTANG),
+               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
     else
-      my_error(EE_CANTLOCK,MYF(ME_BELL+ME_WAITTANG),my_errno);
+      my_error(EE_CANTLOCK, MYF(ME_BELL+ME_WAITTANG),
+               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
   }
   DBUG_PRINT("error",("my_errno: %d (%d)",my_errno,errno));
   DBUG_RETURN(-1);

@@ -560,13 +560,18 @@ buf_LRU_free_from_unzip_LRU_list(
 	     scanned = 1, freed = FALSE;
 	     block != NULL && !freed
 	     && (scan_all || scanned < srv_LRU_scan_depth);
-	     block = UT_LIST_GET_PREV(unzip_LRU, block), ++scanned) {
+	     ++scanned) {
+
+		buf_block_t*	prev_block = UT_LIST_GET_PREV(unzip_LRU,
+						block);
 
 		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 		ut_ad(block->in_unzip_LRU_list);
 		ut_ad(block->page.in_LRU_list);
 
 		freed = buf_LRU_free_block(&block->page, FALSE);
+
+		block = prev_block;
 	}
 
 	MONITOR_INC_VALUE_CUMULATIVE(
@@ -599,9 +604,11 @@ buf_LRU_free_from_common_LRU_list(
 	     scanned = 1, freed = FALSE;
 	     bpage != NULL && !freed
 	     && (scan_all || scanned < srv_LRU_scan_depth);
-	     bpage = UT_LIST_GET_PREV(LRU, bpage), ++scanned) {
+	     ++scanned) {
 
 		unsigned	accessed;
+		buf_page_t*	prev_bpage = UT_LIST_GET_PREV(LRU,
+						bpage);
 
 		ut_ad(buf_page_in_file(bpage));
 		ut_ad(bpage->in_LRU_list);
@@ -614,6 +621,8 @@ buf_LRU_free_from_common_LRU_list(
 			the effectiveness of readahead */
 			++buf_pool->stat.n_ra_pages_evicted;
 		}
+
+		bpage = prev_bpage;
 	}
 
 	MONITOR_INC_VALUE_CUMULATIVE(

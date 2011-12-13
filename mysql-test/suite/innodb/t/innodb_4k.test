@@ -1,7 +1,7 @@
 # Tests for setting innodb-page-size=4k
 
--- source include/have_innodb.inc
--- source include/have_innodb_4k.inc
+--source include/have_innodb.inc
+--source include/have_innodb_4k.inc
 SET default_storage_engine=InnoDB;
 
 --disable_query_log
@@ -233,20 +233,56 @@ SET GLOBAL innodb_file_format = `Barracuda`;
 
 
 --echo # Test 8) Test creating a table that could lead to undo log overflow.
---echo # In the undo log, we write a 768-byte prefix (REC_MAX_INDEX_COL_LEN)
---echo # of each externally stored column that appears as a column prefix in an index.
---echo # For this test case, it would suffice to write 1 byte, though.
-# This test was moved from mysql-index.test
 CREATE TABLE t1(a blob,b blob,c blob,d blob,e blob,f blob,g blob,
                 h blob,i blob,j blob,k blob,l blob,m blob,n blob,
 		o blob,p blob,q blob,r blob,s blob,t blob,u blob)
 		ENGINE=InnoDB ROW_FORMAT=dynamic;
+SET @a = repeat('a', 767);
+SET @b = repeat('b', 767);
+SET @c = repeat('c', 767);
+SET @d = repeat('d', 767);
+SET @e = repeat('e', 767);
+
+# With no indexes defined, we can update all columns to max key part length.
+INSERT INTO t1 VALUES (@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a);
+UPDATE t1 SET a=@b,b=@b,c=@b,d=@b,e=@b,f=@b,g=@b,h=@b,i=@b,j=@b,
+              k=@b,l=@b,m=@b,n=@b,o=@b,p=@b,q=@b,r=@b,s=@b,t=@b,u=@b;
+
+# With one index defined, we can still update all fields.
 CREATE INDEX t1a ON t1 (a(767));
+UPDATE t1 SET a=@c,b=@c,c=@c,d=@c,e=@c,f=@c,g=@c,h=@c,i=@c,j=@c,
+              k=@c,l=@c,m=@c,n=@c,o=@c,p=@c,q=@c,r=@c,s=@c,t=@c,u=@c;
+
+# Add one more index and the UNDO record becomes too big to update all columns.
+# But a single transaction can update the columns in separate statements.
+# because the UNDO records will be smaller.
 CREATE INDEX t1b ON t1 (b(767));
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE t1 SET a=@d,b=@d,c=@d,d=@d,e=@d,f=@d,g=@d,h=@d,i=@d,j=@d,
+              k=@d,l=@d,m=@d,n=@d,o=@d,p=@d,q=@d,r=@d,s=@d,t=@d,u=@d;
+BEGIN;
+UPDATE t1 SET a=@d,b=@d,c=@d,d=@d,e=@d;
+UPDATE t1 SET f=@d,g=@d,h=@d,i=@d,j=@d,k=@d,l=@d,m=@d,
+              n=@d,o=@d,p=@d,q=@d,r=@d,s=@d,t=@d,u=@d;
+COMMIT;
+
+# Another index can still be added and a single field can still be updated
 CREATE INDEX t1c ON t1 (c(767));
+UPDATE t1 SET c=@e;
+
+# Add one more index and we cannot update a column to its defined index length.
+# This is a problem.  It means that the DDL is allowed to create a table
+# that CANNOT be updated.  See bug#12953735.
 CREATE INDEX t1d ON t1 (d(767));
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE t1 SET d=@e;
+
+# The function dict_index_too_big_for_undo() prevents us from adding
+# one more index.  But it is too late.  The record is already too big.
+# See bug#12953735
 --error 139
 CREATE INDEX t1e ON t1 (e(767));
+
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 

@@ -51,13 +51,13 @@ to the two Barracuda row formats COMPRESSED and DYNAMIC. */
 /** Number of flag bits used to indicate the tablespace page size */
 #define FSP_FLAGS_WIDTH_PAGE_SSIZE	4
 /** Width of all the currently known tablespace flags */
-#define FSP_FLAGS_BITS		(FSP_FLAGS_WIDTH_POST_ANTELOPE	\
+#define FSP_FLAGS_WIDTH		(FSP_FLAGS_WIDTH_POST_ANTELOPE	\
 				+ FSP_FLAGS_WIDTH_ZIP_SSIZE	\
-				+ FSP_FLAGS_WIDTH_ATOMIC_BLOBS)	\
+				+ FSP_FLAGS_WIDTH_ATOMIC_BLOBS	\
 				+ FSP_FLAGS_WIDTH_PAGE_SSIZE)
 
 /** A mask of all the known/used bits in tablespace flags */
-#define FSP_FLAGS_MASK		(~(~0 << FSP_FLAGS_BITS))
+#define FSP_FLAGS_MASK		(~(~0 << FSP_FLAGS_WIDTH))
 
 /** Zero relative shift position of the POST_ANTELOPE field */
 #define FSP_FLAGS_POS_POST_ANTELOPE	0
