@@ -8887,4 +8887,15 @@ CALL p1();
 
 DROP PROCEDURE p1;
 
+--echo #
+--echo # BUG #11748187 - 35410: STORED FUNCTION: CONFUSING 'ORDER CLAUSE' IN ERROR MESSAGE
+--echo #
+
+--disable_warnings
+DROP FUNCTION if exists f1;
+--enable_warnings
+CREATE FUNCTION f1 (p_value INT) RETURNS INT DETERMINISTIC RETURN x;
+--error ER_BAD_FIELD_ERROR
+SELECT f1(1);
+DROP FUNCTION f1;
 --echo # End of 5.6 tests

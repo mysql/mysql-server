@@ -347,11 +347,15 @@ fil_read_first_page(
 						contain sensible data */
 	ulint*		flags,			/*!< out: tablespace flags */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,	/*!< out: */
-	ulint*		max_arch_log_no,	/*!< out: */
+	ulint*		min_arch_log_no,	/*!< out: min of archived
+						log numbers in data files */
+	ulint*		max_arch_log_no,	/*!< out: max of archived
+						log numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
-	lsn_t*		min_flushed_lsn,	/*!< out: */
-	lsn_t*		max_flushed_lsn);	/*!< out: */
+	lsn_t*		min_flushed_lsn,	/*!< out: min of flushed
+						lsn values in data files */
+	lsn_t*		max_flushed_lsn);	/*!< out: max of flushed
+						lsn values in data files */
 /*******************************************************************//**
 Increments the count of pending insert buffer page merges, if space is not
 being deleted.
