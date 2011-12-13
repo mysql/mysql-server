@@ -23,14 +23,7 @@ let $MYSQL2 = $MYSQL2 --defaults-group-suffix=.2.1;
 
 connection server2;
 --let $mysqld_name=mysqld.2.1
---source include/stop_mysqld.inc
-
-#
-# verify that server is really down...
-#
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT1 MASTER_PORT1
---error 2003
-connect (should_fail_server2,127.0.0.1,root,,test,$MASTER_MYPORT1,);
+--source suite/ndb/include/stop_mysqld.inc
 
 connection server1;
 call mysql.mysql_cluster_move_privileges();
@@ -39,7 +32,7 @@ select mysql.mysql_cluster_privileges_are_distributed();
 CREATE USER 'billy1'@'127.0.0.1' IDENTIFIED by 'mypass';
 
 connection server2;
---source include/start_mysqld.inc
+--source suite/ndb/include/start_mysqld.inc
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT1 MASTER_PORT1
 connect (server2_as_billy1,127.0.0.1,billy1,mypass,test,$MASTER_MYPORT1,);
