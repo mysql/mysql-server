@@ -1256,7 +1256,8 @@ static void cachetable_fetch_pair(
     CACHEFILE cf, 
     PAIR p, 
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
-    void* read_extraargs
+    void* read_extraargs,
+    BOOL keep_pair_locked
     ) 
 {
     // helgrind
@@ -1289,14 +1290,23 @@ static void cachetable_fetch_pair(
     p->value = toku_value;
     p->attr = attr;
     cachetable_add_pair_attr(ct, attr);
-    if (p->cq) {
-        workitem_init(&p->asyncwork, NULL, p);
-        workqueue_enq(p->cq, &p->asyncwork, 1);
-        return;
-    }
     p->state = CTPAIR_IDLE;
-    
-    nb_mutex_write_unlock(&p->nb_mutex);
+    if (keep_pair_locked) {
+        // if the caller wants the pair to remain locked
+        // that means the caller requests continued
+        // ownership of the PAIR, so there better not
+        // be a cq asking to transfer ownership
+        assert(!p->cq);
+    }
+    else {
+        if (p->cq) {
+            workitem_init(&p->asyncwork, NULL, p);
+            workqueue_enq(p->cq, &p->asyncwork, 1);
+        }
+        else {
+            nb_mutex_write_unlock(&p->nb_mutex);
+        }
+    }
     if (0) printf("%s:%d %"PRId64" complete\n", __FUNCTION__, __LINE__, key.b);
 }
 
@@ -2139,10 +2149,9 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
         nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
 	uint64_t t0 = get_tnow();
 
-        cachetable_fetch_pair(ct, cachefile, p, fetch_callback, read_extraargs);
+        cachetable_fetch_pair(ct, cachefile, p, fetch_callback, read_extraargs, TRUE);
         cachetable_miss++;
         cachetable_misstime += get_tnow() - t0;
-        nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
         goto got_value;
     }
 got_value:
@@ -2452,7 +2461,7 @@ int toku_cachetable_get_and_pin_nonblocking (
     run_unlockers(unlockers); // we hold the ct mutex.
     if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
     u_int64_t t0 = get_tnow();
-    cachetable_fetch_pair(ct, cf, p, fetch_callback, read_extraargs);
+    cachetable_fetch_pair(ct, cf, p, fetch_callback, read_extraargs, FALSE);
     cachetable_miss++;
     cachetable_misstime += get_tnow() - t0;
     cachetable_unlock(ct);
@@ -3381,7 +3390,8 @@ static void cachetable_reader(WORKITEM wi) {
         cpargs->p->cachefile,
         cpargs->p,
         cpargs->fetch_callback,
-        cpargs->read_extraargs
+        cpargs->read_extraargs,
+        FALSE
         );
     cachetable_unlock(ct);
     toku_free(cpargs);
