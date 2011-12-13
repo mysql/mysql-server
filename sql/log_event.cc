@@ -11809,7 +11809,7 @@ char *Previous_gtids_log_event::get_str(
     DBUG_RETURN(NULL);
   set.dbug_print("set");
   size_t length= set.get_string_length(string_format);
-  DBUG_PRINT("info", ("string length= %ld", length));
+  DBUG_PRINT("info", ("string length= %lu", (ulong) length));
   char* buf= (char *)my_malloc(length + 1, MYF(MY_WME));
   if (buf != NULL)
   {
