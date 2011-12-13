@@ -1,0 +1,10 @@
+connect(127.0.0.1,root,,test,13002,/home/jonas/src/cluster-5.5/mysql-test/var/tmp/mysqld.1.1.sock);
+ERROR HY000: Can't connect to MySQL server on '127.0.0.1' (111)
+call mysql.mysql_cluster_move_privileges();
+select mysql.mysql_cluster_privileges_are_distributed();
+mysql.mysql_cluster_privileges_are_distributed()
+1
+CREATE USER 'billy1'@'127.0.0.1' IDENTIFIED by 'mypass';
+SELECT USER();
+USER()
+billy1@localhost

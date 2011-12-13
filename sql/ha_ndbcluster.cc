@@ -57,6 +57,7 @@
 #include "ndb_schema_dist.h"
 #include "ndb_component.h"
 #include "ndb_util_thread.h"
+#include "ndb_local_connection.h"
 
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal();
@@ -12401,6 +12402,8 @@ static int connect_callback()
 Ndb_util_thread ndb_util_thread;
 Ndb_index_stat_thread ndb_index_stat_thread;
 
+extern THD * ndb_create_thd(char * stackptr);
+
 #ifndef NDB_NO_WAIT_SETUP
 static int ndb_wait_setup_func_impl(ulong max_wait)
 {
@@ -12436,6 +12439,32 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
   }
 
   pthread_mutex_unlock(&ndbcluster_mutex);
+
+  do
+  {
+    /**
+     * Check if we (might) need a flush privileges
+     */
+    THD* thd= current_thd;
+    bool own_thd= thd == NULL;
+    if (own_thd)
+    {
+      thd= ndb_create_thd((char*)&thd);
+      if (thd == 0)
+        break;
+    }
+
+    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
+    {
+      Ndb_local_connection mysqld(thd);
+      mysqld.raw_run_query("FLUSH PRIVILEGES", sizeof("FLUSH PRIVILEGES"), 0);
+    }
+
+    if (own_thd)
+    {
+      delete thd;
+    }
+  } while (0);
 
   DBUG_RETURN((ndb_setup_complete == 1)? 0 : 1);
 }

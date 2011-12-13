@@ -472,10 +472,10 @@ static int ndbcluster_reset_logs(THD *thd)
   Setup THD object
   'Inspired' from ha_ndbcluster.cc : ndb_util_thread_func
 */
-static THD *
-setup_thd(char * stackptr)
+THD *
+ndb_create_thd(char * stackptr)
 {
-  DBUG_ENTER("setup_thd");
+  DBUG_ENTER("ndb_create_thd");
   THD * thd= new THD; /* note that contructor of THD uses DBUG_ */
   if (thd == 0)
   {
@@ -536,7 +536,7 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
    */
   if (thd == 0)
   {
-    if ((thd = setup_thd((char*)&save_thd)) == 0)
+    if ((thd = ndb_create_thd((char*)&save_thd)) == 0)
     {
       /**
        * TODO return proper error code here,
@@ -578,8 +578,8 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
 
 #ifndef NDB_WITHOUT_DIST_PRIV
 // Determine if privilege tables are distributed, ie. stored in NDB
-static bool
-priv_tables_are_in_ndb(THD *thd)
+bool
+Ndb_dist_priv_util::priv_tables_are_in_ndb(THD* thd)
 {
   bool distributed= false;
   Ndb_dist_priv_util dist_priv;
@@ -667,7 +667,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
 #ifndef NDB_WITHOUT_DIST_PRIV
   case LOGCOM_CREATE_USER:
     type= SOT_CREATE_USER;
-    if (priv_tables_are_in_ndb(thd))
+    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
       DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
       log= 1;
@@ -675,7 +675,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     break;
   case LOGCOM_DROP_USER:
     type= SOT_DROP_USER;
-    if (priv_tables_are_in_ndb(thd))
+    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
       DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
       log= 1;
@@ -683,7 +683,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     break;
   case LOGCOM_RENAME_USER:
     type= SOT_RENAME_USER;
-    if (priv_tables_are_in_ndb(thd))
+    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
       DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
       log= 1;
@@ -691,7 +691,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     break;
   case LOGCOM_GRANT:
     type= SOT_GRANT;
-    if (priv_tables_are_in_ndb(thd))
+    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
       DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
       log= 1;
@@ -699,7 +699,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     break;
   case LOGCOM_REVOKE:
     type= SOT_REVOKE;
-    if (priv_tables_are_in_ndb(thd))
+    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
       DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
       log= 1;
