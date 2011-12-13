@@ -813,9 +813,10 @@ fts_drop_index(
 
 	ut_a(indexes);
 
-	if (ib_vector_size(indexes) == 1
+	if ((ib_vector_size(indexes) == 1
 	    && (index == static_cast<dict_index_t*>(
-			ib_vector_getp(table->fts->indexes, 0)))) {
+			ib_vector_getp(table->fts->indexes, 0))))
+	   || ib_vector_is_empty(indexes)) {
 
 		/* If we are dropping the only FTS index of the table,
 		remove it from optimize thread */
