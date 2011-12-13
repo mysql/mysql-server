@@ -5145,10 +5145,10 @@ sub mysqld_start ($$) {
     # Write a message about this to the normal log file
     my $trace_name= "$opt_vardir/log/".$mysqld->name().".trace";
     mtr_tofile($output,
-	       "NOTE: When running with --valgrind --debug the output from",
-	       "mysqld(where the valgrind messages shows up) is stored ",
+               "NOTE: When running with --valgrind --debug the output from ",
+	       "mysqld (where the valgrind messages shows up) is stored ",
 	       "together with the trace file to make it ",
-	       "easier to find the exact position of valgrind errors.",
+	       "easier to find the exact position of valgrind errors. ",
 	       "See trace file $trace_name.\n");
     $output= $trace_name;
 

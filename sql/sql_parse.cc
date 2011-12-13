@@ -508,10 +508,10 @@ static void handle_bootstrap_impl(THD *thd)
 
     query= (char *) thd->memdup_w_gap(buff, length + 1,
                                       thd->db_length + 1 +
+                                      QUERY_CACHE_DB_LENGTH_SIZE +
                                       QUERY_CACHE_FLAGS_SIZE);
-    size_t db_len= 0;
-    memcpy(query + length + 1, (char *) &db_len, sizeof(size_t));
     thd->set_query(query, length);
+    int2store(query + length + 1, 0);           // No db in bootstrap
     DBUG_PRINT("query",("%-.4096s", thd->query()));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
     thd->profiling.start_new_query();
@@ -1880,7 +1880,8 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
   */
   if (! (query= (char*) thd->memdup_w_gap(packet,
                                           packet_length,
-                                          1 + sizeof(size_t) + thd->db_length +
+                                          1 + thd->db_length +
+                                          QUERY_CACHE_DB_LENGTH_SIZE +
                                           QUERY_CACHE_FLAGS_SIZE)))
       return TRUE;
   query[packet_length]= '\0';
@@ -1889,8 +1890,7 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
     also store this length, in case current database is changed during
     execution.  We might need to reallocate the 'query' buffer
   */
-  char *len_pos = (query + packet_length + 1);
-  memcpy(len_pos, (char *) &thd->db_length, sizeof(size_t));
+  int2store(query + packet_length + 1, thd->db_length);
     
   thd->set_query(query, packet_length);
 

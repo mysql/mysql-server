@@ -912,13 +912,13 @@ a
 a
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	1
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	18
+Qcache_inserts	19
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	6
+Qcache_hits	7
 DROP TABLE t1;
 SET GLOBAL query_cache_size=0;
 SET SESSION query_cache_type = 2;
@@ -1070,10 +1070,10 @@ flush status;
 a
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	1
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	0
+Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	0
@@ -1081,13 +1081,30 @@ Qcache_hits	0
 a
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	1
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	0
+Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	0
+Qcache_hits	1
+set global query_cache_strip_comments=1;
+(select a from t1) union (select a from t1);
+a
+(select a from t1) /* */union (select a from t1);
+a
+set global query_cache_strip_comments=0;
+(select a from t1) union (select a from t1);
+a
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	4
 drop table t1;
 create table t1 (a int);
 insert into t1 values (1),(2);

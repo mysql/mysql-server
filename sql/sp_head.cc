@@ -1024,17 +1024,18 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
        buffer :==
             <statement>   The input statement(s)
             '\0'          Terminating null char
-            <length>      Length of following current database name (size_t)
+            <length>      Length of following current database name 2
             <db_name>     Name of current database
             <flags>       Flags struct
   */
-  buf_len= qbuf.length() + 1 + sizeof(size_t) + thd->db_length + 
-           QUERY_CACHE_FLAGS_SIZE + 1;
+  buf_len= (qbuf.length() + 1 + QUERY_CACHE_DB_LENGTH_SIZE + thd->db_length +
+            QUERY_CACHE_FLAGS_SIZE + 1);
   if ((pbuf= (char *) alloc_root(thd->mem_root, buf_len)))
   {
+    char *ptr= pbuf + qbuf.length();
     memcpy(pbuf, qbuf.ptr(), qbuf.length());
-    pbuf[qbuf.length()]= 0;
-    memcpy(pbuf+qbuf.length()+1, (char *) &thd->db_length, sizeof(size_t));
+    *ptr= 0;
+    int2store(ptr+1, thd->db_length);
   }
   else
     DBUG_RETURN(TRUE);
