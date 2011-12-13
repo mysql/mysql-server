@@ -4535,4 +4535,44 @@ DROP TABLE t1, t2;
 
 --echo # End of test for bug#13424134.
 
+--echo #
+--echo # Bug#13414014: Extra rows in result on semijoin query with where ...
+--echo #
+
+CREATE TABLE t1 (
+  c INT,
+  d INT,
+  a VARCHAR(1),
+  b VARCHAR(1),
+  KEY a (a)
+);
+
+INSERT INTO t1 VALUES
+ (NULL,8,'x','x'), (7,4,'q','q'), (6,8,'c','c');
+
+CREATE TABLE t2 (
+  a VARCHAR(1),
+  KEY a (a)
+);
+
+INSERT INTO t2 VALUES
+ ('c'), (NULL), ('x'), ('q');
+
+let $query=
+SELECT *
+FROM t2 AS ot
+WHERE (a, a) IN
+   (SELECT a, b
+    FROM t1 AS it
+    WHERE it.a = 'x' OR it.c > it.d
+   )
+;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13414014.
+
 --echo # End of 5.6 tests
