@@ -3592,6 +3592,10 @@ my_bool _ma_reenable_logging_for_table(MARIA_HA *info, my_bool flush_pages)
 
     if (flush_pages)
     {
+      /* Ensure that recover is not executing any redo before this */
+      if (!maria_in_recovery)
+        share->state.is_of_horizon= share->state.create_rename_lsn=
+          share->state.skip_redo_lsn= translog_get_horizon();
       /*
         We are going to change callbacks; if a page is flushed at this moment
         this can cause race conditions, that's one reason to flush pages
