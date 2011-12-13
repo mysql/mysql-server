@@ -12,7 +12,9 @@
 C_BEGIN
 
 /**
- *
+ * Put an empty node (that is, no fields filled) into the cachetable. 
+ * In the process, write dependent nodes out for checkpoint if 
+ * necessary.
  */
 void
 cachetable_put_empty_node_with_dep_nodes(
@@ -25,7 +27,9 @@ cachetable_put_empty_node_with_dep_nodes(
     );
 
 /**
- *
+ * Create a new brtnode with specified height and number of children.
+ * In the process, write dependent nodes out for checkpoint if 
+ * necessary.
  */
 void
 create_new_brtnode_with_dep_nodes(
@@ -38,7 +42,9 @@ create_new_brtnode_with_dep_nodes(
     );
 
 /**
- *
+ * Create a new brtnode with specified height
+ * and children. 
+ * Used for test functions only.
  */
 void
 toku_create_new_brtnode (
@@ -49,7 +55,7 @@ toku_create_new_brtnode (
     );
 
 /**
- *
+ * write nodes for checkpoint, if necessary
  */
 void
 checkpoint_nodes(
@@ -94,7 +100,11 @@ toku_pin_brtnode_holding_lock(
     );
 
 /**
- *
+ * Pin a brtnode off the client thread, which means
+ * it is pinned without the ydb lock being held.
+ * As a result, unlike toku_pin_brtnode and 
+ * toku_pin_brtnode_holding_lock, we cannot apply ancestor
+ * messages.
  */
 void
 toku_pin_brtnode_off_client_thread(
@@ -108,13 +118,15 @@ toku_pin_brtnode_off_client_thread(
     );
 
 /**
- * Effect: Unpin a brt node.
+ * Effect: Unpin a brt node. Used for
+ * nodes that were pinned off client thread.
  */
 void
 toku_unpin_brtnode_off_client_thread(struct brt_header* h, BRTNODE node);
 
 /**
  * Effect: Unpin a brt node.
+ * Used for nodes pinned on a client thread
  */
 void
 toku_unpin_brtnode(BRT brt, BRTNODE node);
