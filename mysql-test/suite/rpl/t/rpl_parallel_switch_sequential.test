@@ -40,6 +40,11 @@ let $slave_status= 0;
 let $trx= 0;
 let $alter= 0;
 let $i= 200; # with bigger value test times out on some PB hosts 
+if ($VALGRIND_TEST)
+{
+  # test may be slow on Valgrind
+  let $i=50;
+}
 if (`select @@binlog_format like "STATEMENT"`) {
    # relax mtr to scan unsafe warnings
    let $i=50;

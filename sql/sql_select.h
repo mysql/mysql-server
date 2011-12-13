@@ -123,7 +123,12 @@ typedef struct st_table_ref : public Sql_alloc
   int           key;                      ///< key no
   uchar         *key_buff;                ///< value to look for with key
   uchar         *key_buff2;               ///< key_buff+key_length
-  store_key     **key_copy;               //
+  /**
+     Used to store the value from each keypart field. These values are
+     used for ref access. If key_copy[key_part] == NULL it means that
+     the value is constant and does not need to be reevaluated
+  */
+  store_key     **key_copy;
   Item          **items;                  ///< val()'s for each keypart
   /*  
     Array of pointers to trigger variables. Some/all of the pointers may be
@@ -224,9 +229,68 @@ typedef struct st_table_ref : public Sql_alloc
 /*
   The structs which holds the join connections and join states
 */
-enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
-		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT, JT_REF_OR_NULL,
-		 JT_UNIQUE_SUBQUERY, JT_INDEX_SUBQUERY, JT_INDEX_MERGE};
+enum join_type { /*
+                   Initial state. Access type has not yet been decided
+                   for the table
+                 */
+                 JT_UNKNOWN,
+                 /* Table has exactly one row */
+                 JT_SYSTEM,
+                 /*
+                   Table has at most one matching row. Values read
+                   from this row can be treated as constants. Example:
+                   "WHERE table.pk = 3"
+                  */
+                 JT_CONST,
+                 /*
+                   '=' operator is used on unique index. At most one
+                   row is read for each combination of rows from
+                   preceding tables
+                 */
+                 JT_EQ_REF,
+                 /*
+                   '=' operator is used on non-unique index
+                 */
+                 JT_REF,
+                 /*
+                   Full table scan or range scan.
+                   If select->quick != NULL, it is range access.
+                   Otherwise it is table scan.
+                 */
+                 JT_ALL,
+                 /*
+                   Range scan. Note that range scan is not indicated
+                   by JT_RANGE but by "JT_ALL + select->quick" except
+                   when printing EXPLAIN output. @see calc_join_type()
+                 */
+                 JT_RANGE,
+                 /*
+                   Like table scan, but scans index leaves instead of
+                   the table
+                 */
+                 JT_INDEX_SCAN,
+                 /* Fulltext index is used */
+                 JT_FT,
+                 /*
+                   Like ref, but with extra search for NULL values.
+                   E.g. used for "WHERE col = ... OR col IS NULL"
+                  */
+                 JT_REF_OR_NULL,
+                 /*
+                   Like eq_ref for subqueries: Replaces subquery with
+                   index lookup in unique index
+                  */
+                 JT_UNIQUE_SUBQUERY,
+                 /*
+                   Like unique_subquery but for non-unique index
+                 */
+                 JT_INDEX_SUBQUERY,
+                 /*
+                   Do multiple range scans over one table and combine
+                   the results into one. The merge can be used to
+                   produce unions and intersections
+                 */
+                 JT_INDEX_MERGE};
 
 class JOIN;
 
@@ -268,6 +332,8 @@ inline bool sj_is_materialize_strategy(uint strategy)
     Bits describing quick select type
 */
 enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
+
+struct st_cache_field;
 
 typedef struct st_join_table : public Sql_alloc
 {
@@ -313,7 +379,6 @@ public:
     The following two fields are used for a [NOT] IN subquery if it is
     executed by an alternative full table scan when the left operand of
     the subquery predicate is evaluated to NULL.
-    save_read_first_record is also used by semi-join materialization strategy.
   */  
   READ_RECORD::Setup_func save_read_first_record;/* to save read_first_record */
   READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
@@ -425,9 +490,11 @@ public:
   
   /*
     Used by DuplicateElimination. tab->table->ref must have the rowid
-    whenever we have a current record.
+    whenever we have a current record. copy_current_rowid needed because
+    we cannot bind to the rowid buffer before the table has been opened.
   */
   int  keep_current_rowid;
+  st_cache_field *copy_current_rowid;
 
   /* NestedOuterJoins: Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
@@ -581,6 +648,7 @@ st_join_table::st_join_table()
     found_match(FALSE),
 
     keep_current_rowid(0),
+    copy_current_rowid(NULL),
     embedding_map(0)
 {
   /**
@@ -624,10 +692,18 @@ typedef struct st_cache_field {
     trailing sequence of offsets.
   */ 
   uint referenced_field_no; 
-  TABLE *get_rowid; /**< only for ROWID fields used for Duplicate Elimination */
+  /// Used to chain rowid copy objects belonging to one join_tab
+  st_cache_field *next_copy_rowid;
   /* The remaining structure fields are used as containers for temp values */
   uint blob_length; /**< length of the blob to be copied */
   uint offset;      /**< field offset to be saved in cache buffer */
+
+  void bind_buffer(uchar *buffer)
+  {
+    if (next_copy_rowid != NULL)
+      next_copy_rowid->bind_buffer(buffer);
+    str= buffer;
+  }
 } CACHE_FIELD;
 
 
@@ -890,7 +966,8 @@ protected:
   /* Shall calculate how much space is remaining in the join buffer */ 
   virtual ulong rem_space() 
   { 
-    return max(buff_size-(end_pos-buff)-aux_buff_size,0);
+    using std::max;
+    return max(buff_size-(end_pos-buff)-aux_buff_size, 0UL);
   }
 
   /* Shall skip record from the join buffer if its match flag is on */
@@ -1374,7 +1451,8 @@ protected:
   */ 
   ulong rem_space() 
   { 
-    return max(last_key_entry-end_pos-aux_buff_size,0);
+    using std::max;
+    return max(last_key_entry-end_pos-aux_buff_size, 0UL);
   }
 
   /* 
@@ -1518,7 +1596,7 @@ typedef struct st_position : public Sql_alloc
   
   
   /* These form a stack of partial join order costs and output sizes */
-  COST_VECT prefix_cost;
+  Cost_estimate prefix_cost;
   double    prefix_record_count;
 
   /*
@@ -1739,22 +1817,9 @@ public:
   POSITION *best_positions;
 
 /******* Join optimization state members start *******/
-  /*
-    If non-NULL, we are optimizing a materialized semi-join nest.
-    If NULL, we are optimizing a complete join plan.
-    This member is used only within the class Optimize_table_order, and
-    within class Loose_scan_opt (called from best_access_path()).
-  */
-  TABLE_LIST *emb_sjm_nest;
   
   /* Current join optimization state */
   POSITION *positions;  
-  /*
-    Bitmap of inner tables of semi-join nests that have a proper subset of
-    their tables in the current join prefix. That is, of those semi-join
-    nests that have their tables both in and outside of the join prefix.
-  */
-  table_map cur_sj_inner_tables;
 
   /* We also maintain a stack of join optimization states in * join->positions[] */
 /******* Join optimization state members end *******/
@@ -1878,8 +1943,6 @@ public:
   */
   Item       *conds;                      ///< The where clause item tree
   Item       *having;                     ///< The having clause item tree
-  Item       *conds_history;              ///< store WHERE for explain
-  Item       *having_history;             ///< Store having for explain
   Item       *tmp_having; ///< To store having when processed temporary table
   TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
@@ -1965,7 +2028,7 @@ public:
     thd= thd_arg;
     sum_funcs= sum_funcs2= 0;
     procedure= 0;
-    having= tmp_having= having_history= 0;
+    having= tmp_having= 0;
     select_options= select_options_arg;
     result= result_arg;
     lock= thd_arg->lock;
@@ -2011,6 +2074,8 @@ public:
   int optimize();
   void reset();
   void exec();
+  bool prepare_result(List<Item> **columns_list);
+  void explain();
   bool destroy();
   void restore_tmp();
   bool alloc_func_list();
@@ -2077,12 +2142,16 @@ public:
   bool save_join_tab();
   bool init_save_join_tab();
   /**
-     Send a row even if the join produced no rows if:
+    Return whether the caller should send a row even if the join 
+    produced no rows if:
      - there is an aggregate function (sum_func_count!=0), and
      - the query is not grouped, and
      - a possible HAVING clause evaluates to TRUE.
+
+    @note: if there is a having clause, it must be evaluated before
+    returning the row.
   */
-  bool send_row_on_empty_set()
+  bool send_row_on_empty_set() const
   {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
 	    group_list == NULL && !group_optimized_away &&
@@ -2097,7 +2166,50 @@ public:
   void cache_const_exprs();
   bool generate_derived_keys();
   void drop_unused_derived_keys();
+  bool get_best_combination();
+
 private:
+  /**
+    Execute current query. To be called from @c JOIN::exec.
+
+    If current query is a dependent subquery, this execution is performed on a
+    temporary copy of the original JOIN object in order to be able to restore
+    the original content for re-execution and EXPLAIN. (@note Subqueries may
+    be executed as part of EXPLAIN.) In such cases, execution data that may be
+    reused for later executions will be copied to the original 
+    @c JOIN object (@c parent).
+
+    @param parent Original @c JOIN object when current object is a temporary 
+                  copy. @c NULL, otherwise
+  */
+  void execute(JOIN *parent);
+  
+  /**
+    Create a temporary table to be used for processing DISTINCT/ORDER
+    BY/GROUP BY.
+
+    @note Will modify JOIN object wrt sort/group attributes
+
+    @param tmp_table_fields List of items that will be used to define
+                            column types of the table.
+    @param tmp_table_group  Group key to use for temporary table, NULL if none.
+    @param save_sum_fields  If true, do not replace Item_sum items in 
+                            @c tmp_fields list with Item_field items referring 
+                            to fields in temporary table.
+
+    @returns Pointer to temporary table on success, NULL on failure
+  */
+  TABLE* create_intermediate_table(List<Item> *tmp_table_fields,
+                                   ORDER *tmp_table_group, bool save_sum_fields);
+
+  /**
+    Optimize distinct when used on a subset of the tables.
+
+    E.g.,: SELECT DISTINCT t1.a FROM t1,t2 WHERE t1.b=t2.b
+    In this case we can stop scanning t2 when we have found one t1.a
+  */
+  void optimize_distinct();
+
   /**
     TRUE if the query contains an aggregate function but has no GROUP
     BY clause. 
@@ -2105,6 +2217,8 @@ private:
   bool implicit_grouping; 
   bool make_simple_join(JOIN *join, TABLE *tmp_table);
   void cleanup_item_list(List<Item> &items) const;
+  void set_semijoin_info();
+  bool set_access_methods();
 };
 
 
@@ -2368,7 +2482,8 @@ bool const_expression_in_where(Item *cond, Item *comp_item,
 bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
                            MI_COLUMNDEF *start_recinfo,
                            MI_COLUMNDEF **recinfo,
-                           ulonglong options, my_bool big_tables);
+                           ulonglong options, my_bool big_tables,
+                           Opt_trace_context *trace);
 
 /**
   Printing the transformed query in EXPLAIN EXTENDED or optimizer trace

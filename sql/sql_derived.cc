@@ -44,6 +44,11 @@
   derived tables of different type are handled separately. Because of this
   SELECT_LEX::handle_derived can't be used here (it employs
   TABLE_LIST::handle_derived).
+  Derived tables processing doesn't run in hierarchical order thus this
+  function is suitable mostly for prepare and create stages as they don't
+  depend on whether underlying derived tables were prepared or created already.
+  This function uses SELECT_LEX::table_list/TABLE_LIST::next_local chain as
+  the list of tables.
 
   @see TABLE_LIST::handle_derived.
 
@@ -344,7 +349,7 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
                              thd->lex->select_lex.options |
                              thd->variables.option_bits |
                              TMP_TABLE_ALL_COLUMNS),
-                             thd->variables.big_tables))
+                            thd->variables.big_tables, &thd->opt_trace))
     DBUG_RETURN(TRUE);
 
   table->file->extra(HA_EXTRA_WRITE_CACHE);

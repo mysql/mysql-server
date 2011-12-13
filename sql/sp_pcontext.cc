@@ -18,133 +18,87 @@
 #include "sp_pcontext.h"
 #include "sp_head.h"
 
-/* Initial size for the dynamic arrays in sp_pcontext */
-#define PCONTEXT_ARRAY_INIT_ALLOC 16
-/* Increment size for the dynamic arrays in sp_pcontext */
-#define PCONTEXT_ARRAY_INCREMENT_ALLOC 8
 
-/*
-  Sanity check for SQLSTATEs. Will not check if it's really an existing
-  state (there are just too many), but will check length and bad characters.
-  Returns TRUE if it's ok, FALSE if it's bad.
-*/
-bool
-sp_cond_check(LEX_STRING *sqlstate)
+bool sp_condition_value::equals(const sp_condition_value *cv) const
 {
-  int i;
-  const char *p;
+  DBUG_ASSERT(cv);
 
-  if (sqlstate->length != 5)
-    return FALSE;
-  for (p= sqlstate->str, i= 0 ; i < 5 ; i++)
+  if (this == cv)
+    return true;
+
+  if (type != cv->type)
+    return false;
+
+  switch (type)
   {
-    char c = p[i];
+  case sp_condition_value::ERROR_CODE:
+    return (mysqlerr == cv->mysqlerr);
 
-    if ((c < '0' || '9' < c) &&
-	(c < 'A' || 'Z' < c))
-      return FALSE;
+  case sp_condition_value::SQLSTATE:
+    return (strcmp(sql_state, cv->sql_state) == 0);
+
+  default:
+    return true;
   }
-  /* SQLSTATE class '00' : completion condition */
-  if (strncmp(sqlstate->str, "00", 2) == 0)
-    return FALSE;
-  return TRUE;
 }
+
+
+void sp_pcontext::init(uint var_offset,
+                       uint cursor_offset,
+                       int num_case_expressions)
+{
+  m_var_offset= var_offset;
+  m_cursor_offset= cursor_offset;
+  m_num_case_exprs= num_case_expressions;
+
+  m_labels.empty();
+}
+
 
 sp_pcontext::sp_pcontext()
   : Sql_alloc(),
-  m_max_var_index(0), m_max_cursor_index(0), m_max_handler_index(0),
-  m_context_handlers(0), m_parent(NULL), m_pboundary(0),
+  m_max_var_index(0), m_max_cursor_index(0),
+  m_parent(NULL), m_pboundary(0),
   m_scope(REGULAR_SCOPE)
 {
-  (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable *),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_conds, sizeof(sp_condition *),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_condition_value *),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  m_label.empty();
-  m_children.empty();
-
-  m_var_offset= m_cursor_offset= 0;
-  m_num_case_exprs= 0;
+  init(0, 0, 0);
 }
+
 
 sp_pcontext::sp_pcontext(sp_pcontext *prev, sp_pcontext::enum_scope scope)
   : Sql_alloc(),
-  m_max_var_index(0), m_max_cursor_index(0), m_max_handler_index(0),
-  m_context_handlers(0), m_parent(prev), m_pboundary(0),
+  m_max_var_index(0), m_max_cursor_index(0),
+  m_parent(prev), m_pboundary(0),
   m_scope(scope)
 {
-  (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable *),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_conds, sizeof(sp_condition *),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_condition_value *),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  m_label.empty();
-  m_children.empty();
-
-  m_var_offset= prev->m_var_offset + prev->m_max_var_index;
-  m_cursor_offset= prev->current_cursor_count();
-  m_num_case_exprs= prev->get_num_case_exprs();
+  init(prev->m_var_offset + prev->m_max_var_index,
+       prev->current_cursor_count(),
+       prev->get_num_case_exprs());
 }
 
-void
-sp_pcontext::destroy()
+
+sp_pcontext::~sp_pcontext()
 {
-  List_iterator_fast<sp_pcontext> li(m_children);
-  sp_pcontext *child;
-
-  while ((child= li++))
-    child->destroy();
-
-  m_children.empty();
-  m_label.empty();
-  delete_dynamic(&m_vars);
-  delete_dynamic(&m_case_expr_id_lst);
-  delete_dynamic(&m_conds);
-  delete_dynamic(&m_cursors);
-  delete_dynamic(&m_handlers);
+  for (int i= 0; i < m_children.elements(); ++i)
+    delete m_children.at(i);
 }
 
-sp_pcontext *
-sp_pcontext::push_context(sp_pcontext::enum_scope scope)
+
+sp_pcontext *sp_pcontext::push_context(THD *thd, sp_pcontext::enum_scope scope)
 {
-  sp_pcontext *child= new sp_pcontext(this, scope);
+  sp_pcontext *child= new (thd->mem_root) sp_pcontext(this, scope);
 
   if (child)
-    m_children.push_back(child);
+    m_children.append(child);
   return child;
 }
 
-sp_pcontext *
-sp_pcontext::pop_context()
+
+sp_pcontext *sp_pcontext::pop_context()
 {
   m_parent->m_max_var_index+= m_max_var_index;
 
-  uint submax= max_handler_index();
-  if (submax > m_parent->m_max_handler_index)
-    m_parent->m_max_handler_index= submax;
-
-  submax= max_cursor_index();
+  uint submax= max_cursor_index();
   if (submax > m_parent->m_max_cursor_index)
     m_parent->m_max_cursor_index= submax;
 
@@ -154,142 +108,118 @@ sp_pcontext::pop_context()
   return m_parent;
 }
 
-uint
-sp_pcontext::diff_handlers(sp_pcontext *ctx, bool exclusive)
+
+uint sp_pcontext::diff_handlers(const sp_pcontext *ctx, bool exclusive) const
 {
   uint n= 0;
-  sp_pcontext *pctx= this;
-  sp_pcontext *last_ctx= NULL;
+  const sp_pcontext *pctx= this;
+  const sp_pcontext *last_ctx= NULL;
 
   while (pctx && pctx != ctx)
   {
-    n+= pctx->m_context_handlers;
+    n+= pctx->m_handlers.elements();
     last_ctx= pctx;
     pctx= pctx->parent_context();
   }
   if (pctx)
-    return (exclusive && last_ctx ? n - last_ctx->m_context_handlers : n);
+    return (exclusive && last_ctx ? n - last_ctx->m_handlers.elements() : n);
   return 0;			// Didn't find ctx
 }
 
-uint
-sp_pcontext::diff_cursors(sp_pcontext *ctx, bool exclusive)
+
+uint sp_pcontext::diff_cursors(const sp_pcontext *ctx, bool exclusive) const
 {
   uint n= 0;
-  sp_pcontext *pctx= this;
-  sp_pcontext *last_ctx= NULL;
+  const sp_pcontext *pctx= this;
+  const sp_pcontext *last_ctx= NULL;
 
   while (pctx && pctx != ctx)
   {
-    n+= pctx->m_cursors.elements;
+    n+= pctx->m_cursors.elements();
     last_ctx= pctx;
     pctx= pctx->parent_context();
   }
   if (pctx)
-    return  (exclusive && last_ctx ? n - last_ctx->m_cursors.elements : n);
+    return  (exclusive && last_ctx ? n - last_ctx->m_cursors.elements() : n);
   return 0;			// Didn't find ctx
 }
 
-/*
-  This does a linear search (from newer to older variables, in case
-  we have shadowed names).
-  It's possible to have a more efficient allocation and search method,
-  but it might not be worth it. The typical number of parameters and
-  variables will in most cases be low (a handfull).
-  ...and, this is only called during parsing.
-*/
-sp_variable *
-sp_pcontext::find_variable(LEX_STRING *name, my_bool scoped)
+
+sp_variable *sp_pcontext::find_variable(LEX_STRING name,
+                                        bool current_scope_only) const
 {
-  uint i= m_vars.elements - m_pboundary;
+  uint i= m_vars.elements() - m_pboundary;
 
   while (i--)
   {
-    sp_variable *p;
+    sp_variable *p= m_vars.at(i);
 
-    get_dynamic(&m_vars, (uchar*)&p, i);
     if (my_strnncoll(system_charset_info,
-		     (const uchar *)name->str, name->length,
+		     (const uchar *)name.str, name.length,
 		     (const uchar *)p->name.str, p->name.length) == 0)
     {
       return p;
     }
   }
-  if (!scoped && m_parent)
-    return m_parent->find_variable(name, scoped);
-  return NULL;
+
+  return (!current_scope_only && m_parent) ?
+    m_parent->find_variable(name, false) :
+    NULL;
 }
 
-/*
-  Find a variable by offset from the top.
-  This used for two things:
-  - When evaluating parameters at the beginning, and setting out parameters
-    at the end, of invokation. (Top frame only, so no recursion then.)
-  - For printing of sp_instr_set. (Debug mode only.)
-*/
-sp_variable *
-sp_pcontext::find_variable(uint offset)
-{
-  if (m_var_offset <= offset && offset < m_var_offset + m_vars.elements)
-  {                           // This frame
-    sp_variable *p;
 
-    get_dynamic(&m_vars, (uchar*)&p, offset - m_var_offset);
-    return p;
-  }
-  if (m_parent)
-    return m_parent->find_variable(offset); // Some previous frame
-  return NULL;                  // index out of bounds
+sp_variable *sp_pcontext::find_variable(uint offset) const
+{
+  if (m_var_offset <= offset && offset < m_var_offset + m_vars.elements())
+    return m_vars.at(offset - m_var_offset);  // This frame
+
+  return m_parent ?
+         m_parent->find_variable(offset) :    // Some previous frame
+         NULL;                                // Index out of bounds
 }
 
-sp_variable *
-sp_pcontext::push_variable(LEX_STRING *name, enum enum_field_types type,
-                           sp_variable::enum_mode mode)
+
+sp_variable *sp_pcontext::add_variable(THD *thd,
+                                       LEX_STRING name,
+                                       enum enum_field_types type,
+                                       sp_variable::enum_mode mode)
 {
-  sp_variable *p= (sp_variable *)sql_alloc(sizeof(sp_variable));
+  sp_variable *p=
+    new (thd->mem_root) sp_variable(name, type,mode, current_var_count());
 
   if (!p)
     return NULL;
 
   ++m_max_var_index;
 
-  p->name.str= name->str;
-  p->name.length= name->length;
-  p->type= type;
-  p->mode= mode;
-  p->offset= current_var_count();
-  p->dflt= NULL;
-  if (insert_dynamic(&m_vars, &p))
+  return m_vars.append(p) ? NULL : p;
+}
+
+
+sp_label *sp_pcontext::push_label(THD *thd, LEX_STRING name, uint ip)
+{
+  sp_label *label=
+    new (thd->mem_root) sp_label(name, ip, sp_label::IMPLICIT, this);
+
+  if (!label)
     return NULL;
-  return p;
+
+  m_labels.push_front(label);
+
+  return label;
 }
 
 
-sp_label *
-sp_pcontext::push_label(char *name, uint ip)
+sp_label *sp_pcontext::find_label(LEX_STRING name)
 {
-  sp_label *lab = (sp_label *)sql_alloc(sizeof(sp_label));
-
-  if (lab)
-  {
-    lab->name= name;
-    lab->ip= ip;
-    lab->type= sp_label::IMPLICIT;
-    lab->ctx= this;
-    m_label.push_front(lab);
-  }
-  return lab;
-}
-
-sp_label *
-sp_pcontext::find_label(char *name)
-{
-  List_iterator_fast<sp_label> li(m_label);
+  List_iterator_fast<sp_label> li(m_labels);
   sp_label *lab;
 
   while ((lab= li++))
-    if (my_strcasecmp(system_charset_info, name, lab->name) == 0)
+  {
+    if (my_strcasecmp(system_charset_info, name.str, lab->name.str) == 0)
       return lab;
+  }
 
   /*
     Note about exception handlers.
@@ -299,159 +229,253 @@ sp_pcontext::find_label(char *name)
     In short, a DECLARE HANDLER block can not refer
     to labels from the parent context, as they are out of scope.
   */
-  if (m_parent && (m_scope == REGULAR_SCOPE))
-    return m_parent->find_label(name);
-  return NULL;
+  return (m_parent && (m_scope == REGULAR_SCOPE)) ?
+         m_parent->find_label(name) :
+         NULL;
 }
 
-int
-sp_pcontext::push_cond(LEX_STRING *name, sp_condition_value *val)
+
+bool sp_pcontext::add_condition(THD *thd,
+                                LEX_STRING name,
+                                sp_condition_value *value)
 {
-  sp_condition *p= (sp_condition *)sql_alloc(sizeof(sp_condition));
+  sp_condition *p= new (thd->mem_root) sp_condition(name, value);
 
   if (p == NULL)
-    return 1;
-  p->name.str= name->str;
-  p->name.length= name->length;
-  p->val= val;
-  return insert_dynamic(&m_conds, &p);
+    return true;
+
+  return m_conditions.append(p);
 }
 
-/*
-  See comment for find_variable() above
-*/
-sp_condition_value *
-sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
+
+sp_condition_value *sp_pcontext::find_condition(LEX_STRING name,
+                                                bool current_scope_only) const
 {
-  uint i= m_conds.elements;
+  uint i= m_conditions.elements();
 
   while (i--)
   {
-    sp_condition *p;
+    sp_condition *p= m_conditions.at(i);
 
-    get_dynamic(&m_conds, (uchar*)&p, i);
     if (my_strnncoll(system_charset_info,
-		     (const uchar *)name->str, name->length,
-		     (const uchar *)p->name.str, p->name.length) == 0)
+		     (const uchar *) name.str, name.length,
+		     (const uchar *) p->name.str, p->name.length) == 0)
     {
-      return p->val;
+      return p->value;
     }
   }
-  if (!scoped && m_parent)
-    return m_parent->find_cond(name, scoped);
-  return NULL;
+
+  return (!current_scope_only && m_parent) ?
+    m_parent->find_condition(name, false) :
+    NULL;
 }
 
-/*
-  This only searches the current context, for error checking of
-  duplicates.
-  Returns TRUE if found.
-*/
-bool
-sp_pcontext::find_handler(sp_condition_value *cond)
+
+sp_handler *sp_pcontext::add_handler(THD *thd,
+                                     sp_handler::enum_type type)
 {
-  uint i= m_handlers.elements;
+  sp_handler *h= new (thd->mem_root) sp_handler(type);
 
-  while (i--)
+  if (!h)
+    return NULL;
+
+  return m_handlers.append(h) ? NULL : h;
+}
+
+
+bool sp_pcontext::check_duplicate_handler(
+  const sp_condition_value *cond_value) const
+{
+  for (int i= 0; i < m_handlers.elements(); ++i)
   {
-    sp_condition_value *p;
+    sp_handler *h= m_handlers.at(i);
 
-    get_dynamic(&m_handlers, (uchar*)&p, i);
-    if (cond->type == p->type)
+    List_iterator_fast<sp_condition_value> li(h->condition_values);
+    sp_condition_value *cv;
+
+    while ((cv= li++))
     {
-      switch (p->type)
+      if (cond_value->equals(cv))
+        return true;
+    }
+  }
+
+  return false;
+}
+
+
+sp_handler*
+sp_pcontext::find_handler(const char *sql_state,
+                          uint sql_errno,
+                          Sql_condition::enum_warning_level level) const
+{
+  sp_handler *found_handler= NULL;
+  sp_condition_value *found_cv= NULL;
+
+  for (int i= 0; i < m_handlers.elements(); ++i)
+  {
+    sp_handler *h= m_handlers.at(i);
+
+    List_iterator_fast<sp_condition_value> li(h->condition_values);
+    sp_condition_value *cv;
+
+    while ((cv= li++))
+    {
+      switch (cv->type)
       {
-      case sp_condition_value::number:
-	if (cond->mysqlerr == p->mysqlerr)
-	  return TRUE;
-	break;
-      case sp_condition_value::state:
-	if (strcmp(cond->sqlstate, p->sqlstate) == 0)
-	  return TRUE;
-	break;
-      default:
-	return TRUE;
+      case sp_condition_value::ERROR_CODE:
+        if (sql_errno == cv->mysqlerr &&
+            (!found_cv ||
+             found_cv->type > sp_condition_value::ERROR_CODE))
+        {
+          found_cv= cv;
+          found_handler= h;
+        }
+        break;
+
+      case sp_condition_value::SQLSTATE:
+        if (strcmp(sql_state, cv->sql_state) == 0 &&
+            (!found_cv ||
+             found_cv->type > sp_condition_value::SQLSTATE))
+        {
+          found_cv= cv;
+          found_handler= h;
+        }
+        break;
+
+      case sp_condition_value::WARNING:
+        if ((is_sqlstate_warning(sql_state) ||
+             level == Sql_condition::WARN_LEVEL_WARN) && !found_cv)
+        {
+          found_cv= cv;
+          found_handler= h;
+        }
+        break;
+
+      case sp_condition_value::NOT_FOUND:
+        if (is_sqlstate_not_found(sql_state) && !found_cv)
+        {
+          found_cv= cv;
+          found_handler= h;
+        }
+        break;
+
+      case sp_condition_value::EXCEPTION:
+        if (is_sqlstate_exception(sql_state) &&
+            level == Sql_condition::WARN_LEVEL_ERROR && !found_cv)
+        {
+          found_cv= cv;
+          found_handler= h;
+        }
+        break;
       }
     }
   }
-  return FALSE;
+
+  if (found_handler)
+    return found_handler;
+
+
+  // There is no appropriate handler in this parsing context. We need to look up
+  // in parent contexts. There might be two cases here:
+  //
+  // 1. The current context has REGULAR_SCOPE. That means, it's a simple
+  // BEGIN..END block:
+  //     ...
+  //     BEGIN
+  //       ... # We're here.
+  //     END
+  //     ...
+  // In this case we simply call find_handler() on parent's context recursively.
+  //
+  // 2. The current context has HANDLER_SCOPE. That means, we're inside an
+  // SQL-handler block:
+  //   ...
+  //   DECLARE ... HANDLER FOR ...
+  //   BEGIN
+  //     ... # We're here.
+  //   END
+  //   ...
+  // In this case we can not just call parent's find_handler(), because
+  // parent's handler don't catch conditions from this scope. Instead, we should
+  // try to find first parent context (we might have nested handler
+  // declarations), which has REGULAR_SCOPE (i.e. which is regular BEGIN..END
+  // block).
+
+  const sp_pcontext *p= this;
+
+  while (p && p->m_scope == HANDLER_SCOPE)
+    p= p->m_parent;
+
+  if (!p || !p->m_parent)
+    return NULL;
+
+  return p->m_parent->find_handler(sql_state, sql_errno, level);
 }
 
-int
-sp_pcontext::push_cursor(LEX_STRING *name)
-{
-  LEX_STRING n;
 
-  if (m_cursors.elements == m_max_cursor_index)
-    m_max_cursor_index+= 1;
-  n.str= name->str;
-  n.length= name->length;
-  return insert_dynamic(&m_cursors, &n);
+bool sp_pcontext::add_cursor(LEX_STRING name)
+{
+  if (m_cursors.elements() == (int) m_max_cursor_index)
+    ++m_max_cursor_index;
+
+  return m_cursors.append(name);
 }
 
-/*
-  See comment for find_variable() above
-*/
-my_bool
-sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
+
+bool sp_pcontext::find_cursor(LEX_STRING name,
+                              uint *poff,
+                              bool current_scope_only) const
 {
-  uint i= m_cursors.elements;
+  uint i= m_cursors.elements();
 
   while (i--)
   {
-    LEX_STRING n;
+    LEX_STRING n= m_cursors.at(i);
 
-    get_dynamic(&m_cursors, (uchar*)&n, i);
     if (my_strnncoll(system_charset_info,
-		     (const uchar *)name->str, name->length,
-		     (const uchar *)n.str, n.length) == 0)
+		     (const uchar *) name.str, name.length,
+		     (const uchar *) n.str, n.length) == 0)
     {
       *poff= m_cursor_offset + i;
-      return TRUE;
+      return true;
     }
   }
-  if (!scoped && m_parent)
-    return m_parent->find_cursor(name, poff, scoped);
-  return FALSE;
+
+  return (!current_scope_only && m_parent) ?
+    m_parent->find_cursor(name, poff, false) :
+    false;
 }
 
 
-void
-sp_pcontext::retrieve_field_definitions(List<Create_field> *field_def_lst)
+void sp_pcontext::retrieve_field_definitions(
+  List<Create_field> *field_def_lst) const
 {
   /* Put local/context fields in the result list. */
 
-  for (uint i = 0; i < m_vars.elements; ++i)
+  for (int i= 0; i < m_vars.elements(); ++i)
   {
-    sp_variable *var_def;
-    get_dynamic(&m_vars, (uchar*) &var_def, i);
+    sp_variable *var_def= m_vars.at(i);
 
     field_def_lst->push_back(&var_def->field_def);
   }
 
   /* Put the fields of the enclosed contexts in the result list. */
 
-  List_iterator_fast<sp_pcontext> li(m_children);
-  sp_pcontext *ctx;
-
-  while ((ctx = li++))
-    ctx->retrieve_field_definitions(field_def_lst);
+  for (int i= 0; i < m_children.elements(); ++i)
+    m_children.at(i)->retrieve_field_definitions(field_def_lst);
 }
 
-/*
-  Find a cursor by offset from the top.
-  This is only used for debugging.
-*/
-my_bool
-sp_pcontext::find_cursor(uint offset, LEX_STRING *n)
+
+const LEX_STRING *sp_pcontext::find_cursor(uint offset) const
 {
   if (m_cursor_offset <= offset &&
-      offset < m_cursor_offset + m_cursors.elements)
-  {                           // This frame
-    get_dynamic(&m_cursors, (uchar*)n, offset - m_cursor_offset);
-    return TRUE;
+      offset < m_cursor_offset + m_cursors.elements())
+  {
+    return &m_cursors.at(offset - m_cursor_offset);   // This frame
   }
-  if (m_parent)
-    return m_parent->find_cursor(offset, n); // Some previous frame
-  return FALSE;                 // index out of bounds
+
+  return m_parent ?
+         m_parent->find_cursor(offset) :  // Some previous frame
+         NULL;                            // Index out of bounds
 }

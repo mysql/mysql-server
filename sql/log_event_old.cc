@@ -32,6 +32,11 @@
 #include "rpl_record_old.h"
 #include "transaction.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 
 // Old implementation of do_apply_event()
@@ -185,7 +190,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    ev_thd->set_time((time_t)ev->when);
+    ev_thd->set_time(&ev->when);
     /*
       There are a few flags that are replicated with each row event.
       Make sure to set/clear them before executing the main body of
@@ -1414,7 +1419,7 @@ int Old_rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     trigger false warnings.
    */
 #ifndef HAVE_purify
-  DBUG_DUMP("row_data", row_data, min(length, 32));
+  DBUG_DUMP("row_data", row_data, min<size_t>(length, 32));
 #endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
@@ -1600,7 +1605,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    thd->set_time((time_t)when);
+    thd->set_time(&when);
     /*
       There are a few flags that are replicated with each row event.
       Make sure to set/clear them before executing the main body of

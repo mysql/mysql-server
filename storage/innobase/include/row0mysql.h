@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2000, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -116,7 +116,7 @@ row_mysql_pad_col(
 /**************************************************************//**
 Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
-row0sel.c.
+row0sel.cc.
 @return	up to which byte we used buf in the conversion */
 UNIV_INTERN
 byte*
@@ -127,7 +127,10 @@ row_mysql_store_col_in_innobase_format(
 					this function is called! */
 	byte*		buf,		/*!< in/out: buffer for a converted
 					integer value; this must be at least
-					col_len long then! */
+					col_len long then! NOTE that dfield
+					may also get a pointer to 'buf',
+					therefore do not discard this as long
+					as dfield is used! */
 	ibool		row_format_col,	/*!< TRUE if the mysql_data is from
 					a MySQL row, FALSE if from a MySQL
 					key value;
@@ -168,7 +171,9 @@ UNIV_INTERN
 row_prebuilt_t*
 row_create_prebuilt(
 /*================*/
-	dict_table_t*	table);	/*!< in: Innobase table handle */
+	dict_table_t*	table,		/*!< in: Innobase table handle */
+	ulint		mysql_row_len);	/*!< in: length in bytes of a row in
+					the MySQL format */
 /********************************************************************//**
 Free a prebuilt struct for a MySQL table handle. */
 UNIV_INTERN
@@ -404,7 +409,7 @@ row_table_add_foreign_constraints(
 					any foreign keys are found. */
 
 /*********************************************************************//**
-The master thread in srv0srv.c calls this regularly to drop tables which
+The master thread in srv0srv.cc calls this regularly to drop tables which
 we must drop in background after queries to them have ended. Such lazy
 dropping of tables is needed in ALTER TABLE on Unix.
 @return	how many tables dropped + remaining tables in list */
@@ -681,9 +686,9 @@ struct row_prebuilt_struct {
 					in inserts */
 	que_fork_t*	upd_graph;	/*!< Innobase SQL query graph used
 					in updates or deletes */
-	btr_pcur_t*	pcur;		/*!< persistent cursor used in selects
+	btr_pcur_t	pcur;		/*!< persistent cursor used in selects
 					and updates */
-	btr_pcur_t*	clust_pcur;	/*!< persistent cursor used in
+	btr_pcur_t	clust_pcur;	/*!< persistent cursor used in
 					some selects and updates */
 	que_fork_t*	sel_graph;	/*!< dummy query graph used in
 					selects */
@@ -693,6 +698,12 @@ struct row_prebuilt_struct {
 					generated, the row id of the
 					last row fetched is stored
 					here */
+	doc_id_t	fts_doc_id;	/* if the table has an FTS index on
+					it then we fetch the doc_id.
+					FTS-FIXME: Currently we fetch it always
+					but in the future we must only fetch
+					it when FTS columns are being
+					updated */
 	dtuple_t*	clust_ref;	/*!< prebuilt dtuple used in
 					sel/upd/del */
 	ulint		select_lock_type;/*!< LOCK_NONE, LOCK_S, or LOCK_X */
@@ -769,6 +780,7 @@ struct row_prebuilt_struct {
 					to this heap */
 	mem_heap_t*	old_vers_heap;	/*!< memory heap where a previous
 					version is built in consistent read */
+	fts_result_t*	result;		/* The result of an FTS query */
 	/*----------------------*/
 	ulonglong	autoinc_last_value;
 					/*!< last value of AUTO-INC interval */

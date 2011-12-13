@@ -137,7 +137,6 @@
 #cmakedefine HAVE_CLOCK_GETTIME 1
 #cmakedefine HAVE_CRYPT 1
 #cmakedefine HAVE_CUSERID 1
-#cmakedefine HAVE_CXX_NEW 1
 #cmakedefine HAVE_DIRECTIO 1
 #cmakedefine HAVE_DLERROR 1
 #cmakedefine HAVE_DLOPEN 1
@@ -398,7 +397,7 @@
 
 #cmakedefine HAVE_MBSTATE_T
 
-#define MAX_INDEXES 64
+#define MAX_INDEXES 64U
 
 #cmakedefine QSORT_TYPE_IS_VOID 1
 #cmakedefine RETQSORTTYPE @RETQSORTTYPE@
@@ -416,8 +415,9 @@
 #cmakedefine WORDS_BIGENDIAN 1 
 #endif
 
-/* Define to `__inline__' or `__inline' if that's what the C compiler calls
-   it, or to nothing if 'inline' is not supported under any name.  */
+/*
+  Define to `__inline__' or `__inline' if that's what the C compiler calls it.
+*/
 #cmakedefine C_HAS_inline 1
 #if !(C_HAS_inline)
 #ifndef __cplusplus

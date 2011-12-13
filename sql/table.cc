@@ -73,6 +73,10 @@ static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 			      uint types, char **names);
 static uint find_field(Field **fields, uchar *record, uint start, uint length);
 
+static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
+                               const char *name,
+                               Name_resolution_context *context);
+
 inline bool is_system_table_name(const char *name, uint length);
 
 static ulong get_form_pos(File file, uchar *head);
@@ -1173,7 +1177,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     }
     else
 #endif
-    if (share->mysql_version >= 50110)
+    if (share->mysql_version >= 50110 && next_chunk < buff_end)
     {
       /* New auto_partitioned indicator introduced in 5.1.11 */
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -1521,13 +1525,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                                    decimals,
                                                    f_is_dec(pack_flag) == 0);
       sql_print_error("Found incompatible DECIMAL field '%s' in %s; "
-                      "Please do \"ALTER TABLE '%s' FORCE\" to fix it!",
+                      "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
                       share->fieldnames.type_names[i], share->table_name.str,
                       share->table_name.str);
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_CRASHED_ON_USAGE,
                           "Found incompatible DECIMAL field '%s' in %s; "
-                          "Please do \"ALTER TABLE '%s' FORCE\" to fix it!",
+                          "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
                           share->fieldnames.type_names[i],
                           share->table_name.str,
                           share->table_name.str);
@@ -1728,13 +1732,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                               field->key_length());
             key_part->length= (uint16)field->key_length();
             sql_print_error("Found wrong key definition in %s; "
-                            "Please do \"ALTER TABLE '%s' FORCE \" to fix it!",
+                            "Please do \"ALTER TABLE `%s` FORCE \" to fix it!",
                             share->table_name.str,
                             share->table_name.str);
             push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                                 ER_CRASHED_ON_USAGE,
                                 "Found wrong key definition in %s; "
-                                "Please do \"ALTER TABLE '%s' FORCE\" to fix "
+                                "Please do \"ALTER TABLE `%s` FORCE\" to fix "
                                 "it!",
                                 share->table_name.str,
                                 share->table_name.str);
@@ -2015,8 +2019,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     outparam->found_next_number_field=
       outparam->field[(uint) (share->found_next_number_field - share->field)];
   if (share->timestamp_field)
-    outparam->timestamp_field= (Field_timestamp*) outparam->field[share->timestamp_field_offset];
-
+    outparam->set_timestamp_field(outparam->
+                                  field[share->timestamp_field_offset]);
 
   /* Fix key->name and key_part->field */
   if (share->key_parts)
@@ -2459,6 +2463,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
 {
   int err_no;
   char buff[FN_REFLEN];
+  char errbuf[MYSYS_STRERROR_SIZE];
   myf errortype= ME_ERROR+ME_WAITTANG;
   DBUG_ENTER("open_table_error");
 
@@ -2471,7 +2476,8 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
     {
       strxmov(buff, share->normalized_path.str, reg_ext, NullS);
       my_error((db_errno == EMFILE) ? ER_CANT_OPEN_FILE : ER_FILE_NOT_FOUND,
-               errortype, buff, db_errno);
+               errortype, buff,
+               db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
     }
     break;
   case 2:
@@ -2491,7 +2497,8 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
     err_no= (db_errno == ENOENT) ? ER_FILE_NOT_FOUND : (db_errno == EAGAIN) ?
       ER_FILE_USED : ER_CANT_OPEN_FILE;
     strxmov(buff, share->normalized_path.str, datext, NullS);
-    my_error(err_no,errortype, buff, db_errno);
+    my_error(err_no,errortype, buff,
+             db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
     delete file;
     break;
   }
@@ -2889,7 +2896,7 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
   }
   if (!(to= strmake_root(mem, str.ptr(), length)))
     length= 0;                                  // Safety fix
-  res->set(to, length, ((Field_str*)field)->charset());
+  res->set(to, length, field->charset());
   return 0;
 }
 
@@ -4431,8 +4438,9 @@ Item *Natural_join_column::create_item(THD *thd)
   if (view_field)
   {
     DBUG_ASSERT(table_field == NULL);
+    SELECT_LEX *select= thd->lex->current_select;
     return create_view_field(thd, table_ref, &view_field->item,
-                             view_field->name);
+                             view_field->name, &select->context);
   }
   return table_field;
 }
@@ -4522,11 +4530,14 @@ const char *Field_iterator_view::name()
 
 Item *Field_iterator_view::create_item(THD *thd)
 {
-  return create_view_field(thd, view, &ptr->item, ptr->name);
+  SELECT_LEX *select= thd->lex->current_select;
+  return create_view_field(thd, view, &ptr->item, ptr->name,
+                           &select->context);
 }
 
-Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
-                        const char *name)
+static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
+                               const char *name,
+                               Name_resolution_context *context)
 {
   bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
   Item *field= *field_ref;
@@ -4559,7 +4570,8 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   {
     DBUG_RETURN(field);
   }
-  Item *item= new Item_direct_view_ref(view, field_ref, name);
+  Item *item= new Item_direct_view_ref(context, field_ref,
+                                       view->alias, view->table_name, name);
   DBUG_RETURN(item);
 }
 
@@ -5263,29 +5275,46 @@ bool TABLE::alloc_keys(uint key_count)
         purposes
 
   @return TRUE OOM error.
-  @return FALSE the key was created or ignored (key over a BLOB field).
+  @return FALSE the key was created or ignored (too long key).
 */
 
-bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
+bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
 {
   DBUG_ASSERT(!created && s->keys < max_keys && key_parts);
 
   KEY* cur_key= key_info + s->keys;
   Field **reg_field;
-  uint i= 0;
+  uint i;
   bool key_start= TRUE;
   uint field_count= 0;
   uchar *key_buf;
   KEY_PART_INFO* key_part_info;
+  uint key_len= 0;
 
-  for (reg_field=field ; *reg_field; i++, reg_field++)
+  for (i= 0, reg_field=field ; *reg_field; i++, reg_field++)
   {
-    // Ensure that we're not creating a key over a blob field.
-    DBUG_ASSERT(!((key_parts & (1ULL << i)) &&
-                (*reg_field)->flags & BLOB_FLAG));
+    if (key_parts->is_set(i))
+    {
+      KEY_PART_INFO tkp;
+      // Ensure that we're not creating a key over a blob field.
+      DBUG_ASSERT(!((*reg_field)->flags & BLOB_FLAG));
+      /*
+        Check if possible key is too long, ignore it if so.
+        The reason to use MI_MAX_KEY_LENGTH (myisam's default) is that it is
+        smaller than MAX_KEY_LENGTH (heap's default) and it's unknown whether
+        myisam or heap will be used for tmp table.
+      */
+      tkp.init_from_field(*reg_field);
+      key_len+= tkp.store_length;
+      if (key_len > MI_MAX_KEY_LENGTH)
+      {
+        max_keys--;
+        return FALSE;
+      }
+    }
     field_count++;
   }
-  uint key_part_count= my_count_bits(key_parts);
+  const uint key_part_count= key_parts->bits_set();
 
   /* Allocate key parts in the tables' mem_root. */
   size_t key_buf_size= sizeof(KEY_PART_INFO) * key_part_count +
@@ -5298,7 +5327,7 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   cur_key->key_part= key_part_info= (KEY_PART_INFO*) key_buf;
   cur_key->usable_key_parts= cur_key->key_parts= key_part_count;
   s->key_parts+= key_part_count;
-  cur_key->key_length=0;
+  cur_key->key_length= key_len;
   cur_key->algorithm= HA_KEY_ALG_BTREE;
   cur_key->name= key_name;
   cur_key->flags= HA_GENERATED_KEY;
@@ -5311,7 +5340,7 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   keys_in_use_for_order_by.set_bit(s->keys);
   for (i= 0, reg_field=field ; *reg_field; i++, reg_field++)
   {
-    if (!(key_parts & (1ULL << i)))
+    if (!(key_parts->is_set(i)))
       continue;
 
     if (key_start)
@@ -5321,7 +5350,6 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
     (*reg_field)->part_of_sortkey.set_bit(s->keys);
     (*reg_field)->flags|= PART_KEY_FLAG;
     key_part_info->init_from_field(*reg_field);
-    cur_key->key_length+= key_part_info->store_length;
     key_part_info++;
   }
   set_if_bigger(s->max_key_length, cur_key->key_length);
@@ -5910,7 +5938,7 @@ bool TABLE_LIST::generate_keys()
   while ((entry= it++))
   {
     sprintf(buf, "auto_key%i", key++);
-    if (table->add_tmp_key(entry->used_fields.to_ulonglong(),
+    if (table->add_tmp_key(&entry->used_fields,
                            table->in_use->strdup(buf)))
       return TRUE;
   }
@@ -6010,6 +6038,20 @@ bool TABLE::update_const_key_parts(Item *conds)
   }
   return FALSE;
 }
+
+
+void TABLE::set_timestamp_field(Field *field_arg)
+{
+  DBUG_ASSERT(!field_arg || field_arg->is_temporal_with_date_and_time());
+  timestamp_field= (Field_temporal_with_date_and_time *) field_arg;
+}
+
+
+Field *TABLE::get_timestamp_field()
+{
+  return (Field *) timestamp_field;
+}
+
 
 /**
   Test if the order list consists of simple field expressions

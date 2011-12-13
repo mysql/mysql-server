@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -56,7 +56,10 @@ enum buf_flush {
 enum buf_io_fix {
 	BUF_IO_NONE = 0,		/**< no pending I/O */
 	BUF_IO_READ,			/**< read pending */
-	BUF_IO_WRITE			/**< write pending */
+	BUF_IO_WRITE,			/**< write pending */
+	BUF_IO_PIN			/**< disallow relocation of
+					block and its removal of from
+					the flush_list */
 };
 
 /** Alternatives for srv_checksum_algorithm, which can be changed by
@@ -72,7 +75,7 @@ enum srv_checksum_algorithm_enum {
 						innodb when reading */
 	SRV_CHECKSUM_ALGORITHM_NONE,		/*!< Write none, allow crc32,
 						innodb or none when reading */
-	SRV_CHECKSUM_ALGORITHM_STRICT_NONE,	/*!< Write none, allow none
+	SRV_CHECKSUM_ALGORITHM_STRICT_NONE	/*!< Write none, allow none
 						when reading */
 };
 
@@ -80,12 +83,18 @@ typedef enum srv_checksum_algorithm_enum	srv_checksum_algorithm_t;
 
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /* @{ */
+/** Zip shift value for the smallest page size */
 #define BUF_BUDDY_LOW_SHIFT	UNIV_ZIP_SIZE_SHIFT_MIN
 
-#define BUF_BUDDY_LOW		(1 << BUF_BUDDY_LOW_SHIFT)
+/** Smallest buddy page size */
+#define BUF_BUDDY_LOW		(1U << BUF_BUDDY_LOW_SHIFT)
 
+/** Actual number of buddy sizes based on current page size */
 #define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
-					/*!< number of buddy sizes */
+
+/** Maximum number of buddy sizes based on the max page size */
+#define BUF_BUDDY_SIZES_MAX	(UNIV_PAGE_SIZE_SHIFT_MAX	\
+				- BUF_BUDDY_LOW_SHIFT)
 
 /** twice the maximum block size of the buddy system;
 the underlying memory is aligned by this amount:
@@ -93,5 +102,4 @@ this must be equal to UNIV_PAGE_SIZE */
 #define BUF_BUDDY_HIGH	(BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
 /* @} */
 
-#endif
-
+#endif /* buf0types.h */

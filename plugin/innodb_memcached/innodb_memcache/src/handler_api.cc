@@ -47,7 +47,7 @@ handler_create_thd(void)
 	thd->store_globals();
 
 	mysql_mutex_lock(&LOCK_thread_count);
-	threads.append(thd);
+	//threads.append(thd);
 	mysql_mutex_unlock(&LOCK_thread_count);
 
 	thd->binlog_setup_trx_data();

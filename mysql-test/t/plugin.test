@@ -17,7 +17,7 @@ eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 
-# Let's do some advanced ops with the example engine :)
+--error ER_ILLEGAL_HA
 SELECT * FROM t1;
 
 DROP TABLE t1;

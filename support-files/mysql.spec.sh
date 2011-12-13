@@ -280,11 +280,12 @@ documentation and the manual for more information.
 ##############################################################################
 
 %package -n MySQL-server%{product_suffix}
-Summary:        MySQL: a very fast and reliable SQL database server
-Group:          Applications/Databases
-Requires:       %{distro_requires}
-Provides:       msqlormysql mysql-server mysql MySQL MySQL-server
-Obsoletes:      MySQL mysql mysql-server MySQL-server MySQL-server-community
+Summary:	MySQL: a very fast and reliable SQL database server
+Group:		Applications/Databases
+Requires:	%{distro_requires}
+Provides:	msqlormysql mysql MySQL mysql-server MySQL-server
+Obsoletes:	mysql MySQL mysql-server MySQL-server
+Obsoletes:	MySQL-server-community MySQL-server-advanced
 
 %description -n MySQL-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -300,7 +301,7 @@ licenses from %{mysql_vendor} if you do not wish to be bound by the terms of
 the GPL. See the chapter "Licensing and Support" in the manual for
 further info.
 
-The MySQL web site (http://www.mysql.com/) provides the latest news and 
+The MySQL web site (http://www.mysql.com/) provides the latest news and
 information about the MySQL software.  Also please see the documentation
 and the manual for more information.
 
@@ -312,10 +313,11 @@ package "MySQL-client%{product_suffix}" as well!
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-client%{product_suffix}
-Summary:        MySQL - Client
-Group:          Applications/Databases
-Obsoletes:      mysql-client MySQL-client MySQL-client-community
-Provides:       mysql-client MySQL-client
+Summary:	MySQL - Client
+Group:		Applications/Databases
+Provides:	mysql-client MySQL-client
+Obsoletes:	mysql-client MySQL-client
+Obsoletes:	MySQL-client-community MySQL-client-advanced
 
 %description -n MySQL-client%{product_suffix}
 This package contains the standard MySQL clients and administration tools.
@@ -324,12 +326,13 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-test%{product_suffix}
-Requires:       MySQL-client%{product_suffix} perl
-Summary:        MySQL - Test suite
-Group:          Applications/Databases
-Provides:       mysql-test
-Obsoletes:      mysql-bench mysql-test MySQL-test-community
-AutoReqProv:    no
+Summary:	MySQL - Test suite
+Group:		Applications/Databases
+Requires:	MySQL-client perl
+Provides:	mysql-test MySQL-test
+Obsoletes:	mysql-test MySQL-test
+Obsoletes:	MySQL-test-community MySQL-test-advanced
+AutoReqProv:	no
 
 %description -n MySQL-test%{product_suffix}
 This package contains the MySQL regression test suite.
@@ -338,10 +341,11 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-devel%{product_suffix}
-Summary:        MySQL - Development header files and libraries
-Group:          Applications/Databases
-Provides:       mysql-devel
-Obsoletes:      mysql-devel MySQL-devel-community
+Summary:	MySQL - Development header files and libraries
+Group:		Applications/Databases
+Provides:	mysql-devel MySQL-devel
+Obsoletes:	mysql-devel MySQL-devel
+Obsoletes:	MySQL-devel-community MySQL-devel-advanced
 
 %description -n MySQL-devel%{product_suffix}
 This package contains the development header files and libraries necessary
@@ -351,10 +355,11 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-shared%{product_suffix}
-Summary:        MySQL - Shared libraries
-Group:          Applications/Databases
-Provides:       mysql-shared
-Obsoletes:      MySQL-shared-community
+Summary:	MySQL - Shared libraries
+Group:		Applications/Databases
+Provides:	mysql-shared MySQL-shared
+Obsoletes:	mysql-shared MySQL-shared
+Obsoletes:	MySQL-shared-community MySQL-shared-advanced
 
 %description -n MySQL-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
@@ -362,10 +367,12 @@ and applications need to dynamically load and use MySQL.
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-embedded%{product_suffix}
-Summary:        MySQL - embedded library
-Group:          Applications/Databases
-Requires:       MySQL-devel%{product_suffix}
-Obsoletes:      mysql-embedded MySQL-embedded-community
+Summary:	MySQL - Embedded library
+Group:		Applications/Databases
+Requires:	MySQL-devel
+Provides:	mysql-embedded MySQL-embedded
+Obsoletes:	mysql-embedded MySQL-embedded
+Obsoletes:	MySQL-embedded-community MySQL-embedded-advanced
 
 %description -n MySQL-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
@@ -397,11 +404,6 @@ touch optional-files-devel
 # name, finally a default.  RPM_OPT_FLAGS is assumed to be a part of the
 # default RPM build environment.
 #
-# We set CXX=gcc by default to support so-called 'generic' binaries, where we
-# do not have a dependancy on libgcc/libstdc++.  This only works while we do
-# not require C++ features such as exceptions, and may need to be removed at
-# a later date.
-#
 
 # This is a hack, $RPM_OPT_FLAGS on ia64 hosts contains flags which break
 # the compile in cmd-line-utils/readline - needs investigation, but for now
@@ -412,9 +414,9 @@ RPM_OPT_FLAGS=
 
 export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
-export CXX=${MYSQL_BUILD_CXX:-${CXX:-gcc}}
+export CXX=${MYSQL_BUILD_CXX:-${CXX:-g++}}
 export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
-export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
+export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-}
@@ -483,23 +485,6 @@ install -d $RBR%{_sbindir}
 (
   cd $MBD/release
   make DESTDIR=$RBR install
-)
-
-# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  Do
-# this in a sub-shell to ensure we don't pollute the install environment
-# with compiler bits.
-(
-  PATH=${MYSQL_BUILD_PATH:-$PATH}
-  CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
-  CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
-  if "${CC}" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1; then
-    libgcc=`${CC} ${CFLAGS} --print-libgcc-file`
-    if [ -f ${libgcc} ]; then
-      mkdir -p $RBR%{_libdir}/mysql
-      install -m 644 ${libgcc} $RBR%{_libdir}/mysql/libmygcc.a
-      echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
-    fi
-  fi
 )
 
 # FIXME: at some point we should stop doing this and just install everything
@@ -1002,7 +987,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
@@ -1020,7 +1004,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysql_setpermission
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
-%attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_zap
 %attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysqld_multi
@@ -1131,6 +1114,21 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Sep 28 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Fix duplicate mentioning of "mysql_plugin" and its manual page,
+  it is better to keep alphabetic order in the files list (merging!).
+  
+* Wed Sep 14 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Let the RPM capabilities ("obsoletes" etc) ensure that an upgrade may replace
+  the RPMs of any configuration (of the current or the preceding release series)
+  by the new ones. This is done by not using the implicitly generated capabilities
+  (which include the configuration name) and relying on more generic ones which
+  just list the function ("server", "client", ...).
+  The implicit generation cannot be prevented, so all these capabilities must be
+  explicitly listed in "Obsoletes:"
+
 * Tue Sep 13 2011 Jonathan Perkin <jonathan.perkin@oracle.com>
 
 - Add support for Oracle Linux 6 and Red Hat Enterprise Linux 6.  Due to
@@ -1145,6 +1143,12 @@ echo "====="                                     >> $STATUS_HISTORY
 * Thu Sep 08 2011 Daniel Fischer <daniel.fischer@oracle.com>
 
 - Add mysql_plugin man page.
+
+* Tue Aug 30 2011 Tor Didriksen <tor.didriksen@oracle.com>
+
+- Set CXX=g++ by default to add a dependency on libgcc/libstdc++.
+  Also, remove the use of the -fno-exceptions and -fno-rtti flags.
+  TODO: update distro_buildreq/distro_requires
 
 * Tue Aug 30 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 

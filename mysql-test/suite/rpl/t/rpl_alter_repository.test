@@ -1,0 +1,258 @@
+###############################################################################
+# Check that replication will fail safely if we inappropriately change
+# replication tables. Besides we check if some maintenance commands
+# can run without a problem.
+###############################################################################
+
+--source include/master-slave.inc
+--source include/have_innodb.inc
+--source include/not_mts_slave_parallel_workers.inc
+--connection slave
+--source include/stop_slave.inc
+SHOW CREATE TABLE mysql.slave_relay_log_info;
+ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
+SHOW CREATE TABLE mysql.slave_relay_log_info;
+--let $saved_relay_repo= `SELECT @@global.relay_log_info_repository`
+--let $saved_master_repo= `SELECT @@global.master_info_repository`
+--let $saved_sync_master= `SELECT @@global.sync_master_info`
+SET @@global.relay_log_info_repository="TABLE";
+SET @@global.master_info_repository="TABLE";
+SET @@global.sync_master_info= 1;
+--source include/start_slave.inc
+
+--connection master
+CREATE TABLE t_innodb (id INTEGER) engine= Innodb;
+
+--connection slave
+call mtr.add_suppression("Error writing relay log configuration.");
+call mtr.add_suppression("Column count of mysql.slave_relay_log_info is wrong.");
+call mtr.add_suppression("Error running query, slave SQL thread aborted.");
+call mtr.add_suppression("Info table is not ready to be used.");
+call mtr.add_suppression("Error writing master configuration.");
+call mtr.add_suppression("Failed to flush master info.");
+call mtr.add_suppression(" Error while checking replication metadata.");
+
+###############################################################################
+#           Checking if replication can fail safely (SQL Thread)
+###############################################################################
+#
+# The test executes the following steps:
+#  1 - Changes mysql.slave_relay_log_info and SQL Thread stops gracefully.
+#  2 - Shows that it is possible to restart the server setting --skip-slave-start
+#      and a dummy repository while the problem is fixed.
+#  3 - Shows that after fixing the problem the server can be restared with the
+#      correct repository.
+#  4 - Shows that trying to fix the problem with START SLAVE, RESET SLAVE may
+#      not work and requires to manually back up positions to restart
+#      replication.
+#
+
+#
+#  1 - Changes mysql.slave_relay_log_info and SQL Thread stops gracefully.
+#
+--connection master
+INSERT INTO t_innodb VALUES (1), (2), (3);
+--sync_slave_with_master
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Sql_delay;
+--connection master
+INSERT INTO t_innodb VALUES (1), (2), (3);
+--connection slave
+--let $slave_sql_errno= 1701
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
+--source include/stop_slave_io.inc
+
+#
+#  2 - Shows that it is possible to restart the server setting --skip-slave-start
+#      and a dummy repository while the problem is fixed.
+#
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --relay-log-info-repository=FILE --skip-slave-start
+--source include/rpl_restart_server.inc
+--connection slave
+ALTER TABLE mysql.slave_relay_log_info ADD COLUMN (Sql_delay INTEGER NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.');
+
+#
+#  3 - After fixing the problem the server is restared with the correct
+#      repository.
+#
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
+--source include/rpl_restart_server.inc
+--connection slave
+--source include/start_slave.inc
+
+#  4 - Shows that trying to fix the problem with START SLAVE, RESET SLAVE may
+#      not work and requires to manually back up positions to restart
+#      replication.
+#
+--connection master
+INSERT INTO t_innodb VALUES (1), (2), (3);
+--sync_slave_with_master
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Sql_delay;
+--connection master
+INSERT INTO t_innodb VALUES (1), (2), (3);
+--connection slave
+--let $slave_sql_errno= 1701
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
+--source include/stop_slave_io.inc
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+START SLAVE SQL_THREAD;
+
+--let $_slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
+--let $_slave_master_user= query_get_value(SHOW SLAVE STATUS, Master_User, 1)
+--let $_slave_master_port= query_get_value(SHOW SLAVE STATUS, Master_Port, 1)
+--let $_slave_master_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Master_Log_File, 1)
+--let $_slave_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+RESET SLAVE ALL;
+--replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+--eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
+ALTER TABLE mysql.slave_relay_log_info ADD COLUMN (Sql_delay INTEGER NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.');
+RESET SLAVE ALL;
+--replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
+--eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
+--source include/start_slave.inc
+--connection master
+--sync_slave_with_master
+
+###############################################################################
+#          Checking if replication can fail safely (I/O Thread)
+###############################################################################
+#
+# The test executes the following steps:
+#  1 - Changes mysql.slave_master_info and SQL Thread stops gracefully.
+#  2 - Shows that it is possible to restart the server setting --skip-slave-start
+#      and a dummy repository while the problem is fixed.
+#  3 - Shows that after fixing the problem the server can be restared with the
+#      correct repository.
+#  4 - Shows that trying to fix the problem with START SLAVE, RESET SLAVE may
+#      not work and requires to manually back up positions to restart
+#      replication.
+#
+
+#
+#  1 - Changes mysql.slave_relay_log_info and SQL Thread stops gracefully.
+#
+--connection slave
+ALTER TABLE mysql.slave_master_info DROP COLUMN Retry_count;
+--connection master
+INSERT INTO t_innodb VALUES (1), (2), (3);
+--connection slave
+--let $slave_io_errno= 1593
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
+
+#
+#  2 - Shows that it is possible to restart the server setting --skip-slave-start
+#      and a dummy repository while the problem is fixed.
+#
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --master-info-repository=FILE --skip-slave-start
+--source include/rpl_restart_server.inc
+--connection slave
+ALTER TABLE mysql.slave_master_info ADD COLUMN (Retry_count BIGINT UNSIGNED NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.');
+
+#
+#  3 - After fixing the problem the server is restared with the correct
+#      repository.
+#
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
+--source include/rpl_restart_server.inc
+--connection slave
+--source include/start_slave.inc
+
+#  4 - Shows that trying to fix the problem with START SLAVE, RESET SLAVE may
+#      not work and requires to manually back up positions to restart
+#      replication.
+#
+--connection slave
+ALTER TABLE mysql.slave_master_info DROP COLUMN Retry_count;
+--connection master
+INSERT INTO t_innodb VALUES (1), (2), (3);
+--connection slave
+--let $slave_io_errno= 1593
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+START SLAVE SQL_THREAD;
+
+--let $_slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
+--let $_slave_master_user= query_get_value(SHOW SLAVE STATUS, Master_User, 1)
+--let $_slave_master_port= query_get_value(SHOW SLAVE STATUS, Master_Port, 1)
+--let $_slave_master_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Master_Log_File, 1)
+--let $_slave_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+RESET SLAVE ALL;
+--replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+--eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
+ALTER TABLE mysql.slave_master_info ADD COLUMN (Retry_count BIGINT UNSIGNED NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.');
+RESET SLAVE ALL;
+--replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
+--eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
+--source include/start_slave.inc
+--connection master
+--sync_slave_with_master
+
+###############################################################################
+# Checking ANALYZE TABLE, CHECK TABLE, CHECKSUM TABLE, OPTIMIZE TABLE,
+#          REPAIR TABLE, SHOW CREATE TABLE and MYSQLDUMP
+###############################################################################
+
+#
+# Check ANALYZE TABLE, CHECK TABLE and CHECKSUM TABLE
+#
+ANALYZE TABLE mysql.slave_master_info, mysql.slave_relay_log_info;
+CHECK TABLE mysql.slave_master_info, mysql.slave_relay_log_info EXTENDED;
+
+#
+# Check OPTIMIZE TABLE and REPAIR TABLE
+#
+OPTIMIZE TABLE mysql.slave_master_info, mysql.slave_relay_log_info;
+REPAIR TABLE mysql.slave_master_info, mysql.slave_relay_log_info EXTENDED;
+
+#
+# Check SHOW CREATE TABLE
+#
+SHOW CREATE TABLE mysql.slave_master_info;
+SHOW CREATE TABLE mysql.slave_relay_log_info;
+
+#
+# Check MYSQLDUMP
+#
+--echo # Search for occurrences of slave_master_info in the output from mysqldump
+--let $MYSQLD_DATADIR= `select @@datadir`
+--exec $MYSQL_DUMP mysql slave_master_info slave_relay_log_info > $MYSQLTEST_VARDIR/tmp/accessing_repository.sql
+--let OUTF=$MYSQLTEST_VARDIR/tmp/accessing_repository.sql
+perl;
+  use strict;
+  my $outf= $ENV{'OUTF'} or die "OUTF not set";
+  open(FILE, "$outf") or die("Unable to open $outf: $!\n");
+  my $count = () = grep(/CREATE TABLE `slave_master_info`/gi,<FILE>);
+  print "- Occurrences: $count\n";
+  close(FILE);
+EOF
+--remove_file $MYSQLTEST_VARDIR/tmp/accessing_repository.sql
+
+###############################################################################
+# Cleaning up
+###############################################################################
+--connection master
+DROP TABLE t_innodb;
+--sync_slave_with_master
+
+--source include/stop_slave.inc
+
+--disable_query_log
+--eval SET @@global.relay_log_info_repository="$saved_relay_repo"
+--eval SET @@global.master_info_repository="$saved_master_repo"
+--eval SET @@global.sync_master_info=$saved_sync_master
+--enable_query_log
+--source include/start_slave.inc
+--source include/rpl_end.inc

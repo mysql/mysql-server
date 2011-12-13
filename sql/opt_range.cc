@@ -114,6 +114,10 @@
 #include <m_ctype.h>
 #include "sql_select.h"
 #include "opt_trace.h"
+#include "filesort.h"         // filesort_free_buffers
+
+using std::min;
+using std::max;
 
 #ifndef EXTRA_DEBUG
 #define test_rb_tree(A,B) {}
@@ -839,7 +843,7 @@ static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts);
 static ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                                   SEL_ARG *tree, bool update_tbl_stats, 
                                   uint *mrr_flags, uint *bufsize,
-                                  COST_VECT *cost);
+                                  Cost_estimate *cost);
 QUICK_RANGE_SELECT *get_quick_select(PARAM *param,uint index,
                                      SEL_ARG *key_tree, uint mrr_flags, 
                                      uint mrr_buf_size, MEM_ROOT *alloc);
@@ -1049,7 +1053,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
 {
   keys_map= arg->keys_map;
   type= arg->type;
-  for (int idx= 0; idx < MAX_KEY; idx++)
+  for (uint idx= 0; idx < MAX_KEY; idx++)
   {
     if ((keys[idx]= arg->keys[idx]))
       keys[idx]->increment_use_count(1);
@@ -2103,7 +2107,7 @@ void TRP_RANGE::trace_basic_info(const PARAM *param,
   const KEY_PART_INFO *key_part= cur_key.key_part;
 
   trace_object->add_alnum("type", "range_scan").
-    add_utf8("index", cur_key.name).add("records", records);
+    add_utf8("index", cur_key.name).add("rows", records);
 
   Opt_trace_array trace_range(&param->thd->opt_trace, "ranges");
 
@@ -2167,7 +2171,7 @@ void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
 {
 #ifdef OPTIMIZER_TRACE
   trace_object->add_alnum("type", "index_roworder_intersect").
-    add("records", records).
+    add("rows", records).
     add("cost", read_cost).
     add("covering", is_covering).
     add("clustered_pk_scan", cpk_scan != NULL);
@@ -2183,7 +2187,7 @@ void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
 
     Opt_trace_object trace_isect_idx(trace);
     trace_isect_idx.add_alnum("type", "range_scan").
-      add_utf8("index", cur_key.name).add("records", (*cur_scan)->records);
+      add_utf8("index", cur_key.name).add("rows", (*cur_scan)->records);
 
     Opt_trace_array trace_range(trace, "ranges");
     for (const SEL_ARG *current= (*cur_scan)->sel_arg;
@@ -2362,7 +2366,7 @@ void TRP_GROUP_MIN_MAX::trace_basic_info(const PARAM *param,
   trace_object->add("min_aggregate", have_min).
     add("max_aggregate", have_max).
     add("distinct_aggregate", have_agg_distinct).
-    add("records", records).
+    add("rows", records).
     add("cost", read_cost);
 
   const KEY_PART_INFO *key_part= index_info->key_part;
@@ -2530,7 +2534,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   Opt_trace_context * const trace= &thd->opt_trace;
   Opt_trace_object trace_range(trace, "range_analysis");
   Opt_trace_object(trace, "table_scan").
-    add("records", head->file->stats.records).
+    add("rows", head->file->stats.records).
     add("cost", read_time);
 
   keys_to_use.intersect(head->keys_in_use_for_query);
@@ -2830,7 +2834,7 @@ free_mem:
                                           "range_access_plan");
         best_trp->trace_basic_info(&param, &trace_range_plan);
       }
-      trace_range_summary.add("records_for_plan", quick->records).
+      trace_range_summary.add("rows_for_plan", quick->records).
         add("cost_for_plan", quick->read_time).
         add("chosen", true);
     }
@@ -4280,7 +4284,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 
   /* Calculate cost(rowid_to_row_scan) */
   {
-    COST_VECT sweep_cost;
+    Cost_estimate sweep_cost;
     JOIN *join= param->thd->lex->select_lex.join;
     bool is_interrupted= test(join && join->tables != 1);
     get_sweep_read_cost(param->table, non_cpk_scan_records, is_interrupted,
@@ -4428,7 +4432,7 @@ skip_to_ror_scan:
   */
   double roru_total_cost;
   {
-    COST_VECT sweep_cost;
+    Cost_estimate sweep_cost;
     JOIN *join= param->thd->lex->select_lex.join;
     bool is_interrupted= test(join && join->tables != 1);
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
@@ -4892,7 +4896,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   DBUG_PRINT("info", ("info->total_cost: %g", info->total_cost));
   if (!info->is_covering)
   {
-    COST_VECT sweep_cost;
+    Cost_estimate sweep_cost;
     JOIN *join= info->param->thd->lex->select_lex.join;
     bool is_interrupted= test(join && join->tables == 1);
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
@@ -5082,7 +5086,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     }
     
     trace_idx.add("usable", true).
-      add("matching_records_now", intersect->out_rows).
+      add("matching_rows_now", intersect->out_rows).
       add("cumulated_cost", intersect->total_cost).
       add("isect_covering_with_this_index", intersect->is_covering);
 
@@ -5167,7 +5171,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     trp->index_scan_costs= intersect_best->index_scan_costs;
     trp->cpk_scan= cpk_scan_used? cpk_scan: NULL;
 
-    trace_ror.add("records", trp->records).
+    trace_ror.add("rows", trp->records).
       add("cost", trp->read_cost).
       add("covering", trp->is_covering).
       add("chosen", true);
@@ -5355,7 +5359,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   trp->cpk_scan= NULL;
   set_if_smaller(param->table->quick_condition_rows, records); 
 
-  trace_covering.add("records", trp->records).
+  trace_covering.add("rows", trp->records).
     add("cost", trp->read_cost).
     add("chosen", true);
 
@@ -5419,7 +5423,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
     if (*key)
     {
       ha_rows found_records;
-      COST_VECT cost;
+      Cost_estimate cost;
       double found_read_time;
       uint mrr_flags, buf_size;
       uint keynr= param->real_keynr[idx];
@@ -5454,7 +5458,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 #endif
 
       trace_idx.add("index_only", read_index_only).
-        add("records", found_records).
+        add("rows", found_records).
         add("cost", cost.total_cost());
 
       if ((found_records != HA_POS_ERROR) && param->is_ror_scan)
@@ -6088,8 +6092,21 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
   if (cond_func->functype() == Item_func::BETWEEN ||
       cond_func->functype() == Item_func::IN_FUNC)
     inv= ((Item_func_opt_neg *) cond_func)->negated;
-  else if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
-    DBUG_RETURN(0);			       
+  else
+  {
+    /*
+      During the cond_func->select_optimize() evaluation we can come across a
+      subselect item which may allocate memory on the thd->mem_root and assumes
+      all the memory allocated has the same life span as the subselect item
+      itself. So we have to restore the thread's mem_root here.
+    */
+    MEM_ROOT *tmp_root= param->mem_root;
+    param->thd->mem_root= param->old_root;
+    Item_func::optimize_type opt_type= cond_func->select_optimize();
+    param->thd->mem_root= tmp_root;
+    if (opt_type == Item_func::OPTIMIZE_NONE)
+      DBUG_RETURN(NULL);
+  }
 
   param->cond= cond;
 
@@ -6290,10 +6307,10 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
   */
   if (field->result_type() == STRING_RESULT &&
-      ((Field_str*) field)->match_collation_to_optimize_range() &&
+      field->match_collation_to_optimize_range() &&
       value->result_type() == STRING_RESULT &&
       key_part->image_type == Field::itRAW &&
-      ((Field_str*)field)->charset() != conf_func->compare_collation() &&
+      field->charset() != conf_func->compare_collation() &&
       !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC)))
   {
@@ -8608,7 +8625,7 @@ walk_up_n_right:
   }
 
   seq->param->range_count++;
-  seq->param->max_key_part=max(seq->param->max_key_part,key_tree->part);
+  seq->param->max_key_part=max<uint>(seq->param->max_key_part,key_tree->part);
 
   return 0;
 }
@@ -8645,7 +8662,7 @@ walk_up_n_right:
 static
 ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                            SEL_ARG *tree, bool update_tbl_stats, 
-                           uint *mrr_flags, uint *bufsize, COST_VECT *cost)
+                           uint *mrr_flags, uint *bufsize, Cost_estimate *cost)
 {
   SEL_ARG_RANGE_SEQ seq;
   RANGE_SEQ_IF seq_if = {sel_arg_range_seq_init, sel_arg_range_seq_next, 0, 0};
@@ -9141,7 +9158,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   QUICK_RANGE *range;
   uint part;
   bool create_err= FALSE;
-  COST_VECT cost;
+  Cost_estimate cost;
 
   old_root= thd->mem_root;
   /* The following call may change thd->mem_root */
@@ -9283,7 +9300,10 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
                        thd->variables.sortbuff_size);
   }
   else
+  {
     unique->reset();
+    filesort_free_buffers(head, true);
+  }
 
   DBUG_ASSERT(file->ref_length == unique->get_size());
   DBUG_ASSERT(thd->variables.sortbuff_size == unique->get_max_in_memory_size());
@@ -9337,7 +9357,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   doing_pk_scan= FALSE;
   /* index_merge currently doesn't support "using index" at all */
   head->set_keyread(FALSE);
-  init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1 , 1, TRUE);
+  if (init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1, 1, TRUE))
+    DBUG_RETURN(1);
   DBUG_RETURN(result);
 }
 
@@ -10382,6 +10403,11 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
          except MIN and MAX. For queries with DISTINCT, aggregate functions
          are allowed.
     SA5. The select list in DISTINCT queries should not contain expressions.
+    SA6. Clustered index can not be used by GROUP_MIN_MAX quick select
+         for AGG_FUNC(DISTINCT ...) optimization because cursor position is
+         never stored after a unique key lookup in the clustered index and
+         furhter index_next/prev calls can not be used. So loose index scan
+         optimization can not be used in this case.
     GA1. If Q has a GROUP BY clause, then GA is a prefix of I. That is, if
          G_i = A_j => i = j.
     GA2. If Q has a DISTINCT clause, then there is a permutation of SA that
@@ -10886,7 +10912,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       cur_index_tree= get_index_range_tree(cur_index, tree, param,
                                            &cur_param_idx);
       /* Check if this range tree can be used for prefix retrieval. */
-      COST_VECT dummy_cost;
+      Cost_estimate dummy_cost;
       uint mrr_flags= HA_MRR_USE_DEFAULT_IMPL;
       uint mrr_bufsize=0;
       cur_quick_prefix_records= check_quick_select(param, cur_param_idx, 
@@ -10918,7 +10944,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       Do not compare doubles directly because they may have different
       representations (64 vs. 80 bits).
     */
-    trace_idx.add("records", cur_records).add("cost", cur_read_cost);
+    trace_idx.add("rows", cur_records).add("cost", cur_read_cost);
     if (cur_read_cost < best_read_cost - (DBL_EPSILON * cur_read_cost))
     {
       index_info= cur_index_info;
@@ -10958,6 +10984,14 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       add_alnum("cause", "unsupported_predicate_on_agg_attribute");
     DBUG_RETURN(NULL);
   }
+
+  /*
+    Check (SA6) if clustered key is used
+  */
+  if (is_agg_distinct && index == table->s->primary_key &&
+      table->file->primary_key_is_clustered())
+    DBUG_RETURN(NULL);
+
   /* The query passes all tests, so construct a new TRP object. */
   read_plan= new (param->mem_root)
                  TRP_GROUP_MIN_MAX(have_min, have_max, is_agg_distinct,
@@ -11107,8 +11141,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
             */
             ((args[1]->result_type() == STRING_RESULT &&
               image_type == Field::itRAW &&
-              ((Field_str*) min_max_arg_item->field)->charset() !=
-              pred->compare_collation())
+              min_max_arg_item->field->charset() != pred->compare_collation())
              ||
              /*
                We can't always use indexes when comparing a string index to a
@@ -11434,7 +11467,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
       p_overlap= (blocks_per_group * (keys_per_subgroup - 1)) / keys_per_group;
       p_overlap= min(p_overlap, 1.0);
     }
-    io_cost= (double) min(num_groups * (1 + p_overlap), num_blocks);
+    io_cost= min<double>(num_groups * (1 + p_overlap), num_blocks);
   }
   else
     io_cost= (keys_per_group > keys_per_block) ?

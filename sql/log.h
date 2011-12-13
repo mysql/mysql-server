@@ -418,8 +418,7 @@ public:
   void cleanup_end();
   bool error_log_print(enum loglevel level, const char *format,
                       va_list args);
-  bool slow_log_print(THD *thd, const char *query, uint query_length,
-                      ulonglong current_utime);
+  bool slow_log_print(THD *thd, const char *query, uint query_length);
   bool general_log_print(THD *thd,enum enum_server_command command,
                          const char *format, va_list args);
   bool general_log_write(THD *thd, enum enum_server_command command,
@@ -479,8 +478,7 @@ extern sql_print_message_func sql_print_message_handlers[];
 int error_log_print(enum loglevel level, const char *format,
                     va_list args);
 
-bool slow_log_print(THD *thd, const char *query, uint query_length,
-                    ulonglong current_utime);
+bool slow_log_print(THD *thd, const char *query, uint query_length);
 
 bool general_log_print(THD *thd, enum enum_server_command command,
                        const char *format,...);

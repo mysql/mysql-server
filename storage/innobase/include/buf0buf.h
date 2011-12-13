@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -239,13 +239,11 @@ buf_pool_free(
 	ulint	n_instances);	/*!< in: numbere of instances to free */
 
 /********************************************************************//**
-Drops the adaptive hash index.  To prevent a livelock, this function
-is only to be called while holding btr_search_latch and while
-btr_search_enabled == FALSE. */
+Clears the adaptive hash index on all pages in the buffer pool. */
 UNIV_INTERN
 void
-buf_pool_drop_hash_index(void);
-/*==========================*/
+buf_pool_clear_hash_index(void);
+/*===========================*/
 
 /********************************************************************//**
 Relocate a buffer control block.  Relocates the block on the LRU list
@@ -282,6 +280,7 @@ UNIV_INTERN
 lsn_t
 buf_pool_get_oldest_modification(void);
 /*==================================*/
+
 /********************************************************************//**
 Allocates a buf_page_t descriptor. This function must succeed. In case
 of failure we assert in this function. */
@@ -568,17 +567,6 @@ buf_page_peek_if_too_old(
 /*=====================*/
 	const buf_page_t*	bpage);	/*!< in: block to make younger */
 /********************************************************************//**
-Returns the current state of is_hashed of a page. FALSE if the page is
-not in the pool. NOTE that this operation does not fix the page in the
-pool if it is found there.
-@return	TRUE if page hash index is built in search system */
-UNIV_INTERN
-ibool
-buf_page_peek_if_search_hashed(
-/*===========================*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset);/*!< in: page number */
-/********************************************************************//**
 Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet.
 @return	newest modification to page */
@@ -677,6 +665,17 @@ buf_pool_contains_zip(
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	const void*	data);		/*!< in: pointer to compressed page */
 #endif /* UNIV_DEBUG */
+
+/***********************************************************************
+FIXME_FTS: Gets the frame the pointer is pointing to. */
+UNIV_INLINE
+buf_frame_t*
+buf_frame_align(
+/*============*/
+                        /* out: pointer to frame */
+        byte*   ptr);   /* in: pointer to a frame */
+
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /*********************************************************************//**
 Validates the buffer pool data structure.
@@ -938,7 +937,27 @@ buf_block_set_io_fix(
 /*=================*/
 	buf_block_t*	block,	/*!< in/out: control block */
 	enum buf_io_fix	io_fix);/*!< in: io_fix state */
-
+/*********************************************************************//**
+Makes a block sticky. A sticky block implies that even after we release
+the buf_pool->mutex and the block->mutex:
+* it cannot be removed from the flush_list
+* the block descriptor cannot be relocated
+* it cannot be removed from the LRU list
+Note that:
+* the block can still change its position in the LRU list
+* the next and previous pointers can change. */
+UNIV_INLINE
+void
+buf_page_set_sticky(
+/*================*/
+	buf_page_t*	bpage);	/*!< in/out: control block */
+/*********************************************************************//**
+Removes stickiness of a block. */
+UNIV_INLINE
+void
+buf_page_unset_sticky(
+/*==================*/
+	buf_page_t*	bpage);	/*!< in/out: control block */
 /********************************************************************//**
 Determine if a buffer block can be relocated in memory.  The block
 can be dirty, but it must not be I/O-fixed or bufferfixed. */
@@ -1614,13 +1633,16 @@ struct buf_block_struct{
 	/* @} */
 
 	/** @name Hash search fields
-	These 6 fields may only be modified when we have
+	These 5 fields may only be modified when we have
 	an x-latch on btr_search_latch AND
 	- we are holding an s-latch or x-latch on buf_block_struct::lock or
 	- we know that buf_block_struct::buf_fix_count == 0.
 
 	An exception to this is when we init or create a page
-	in the buffer pool in buf0buf.c. */
+	in the buffer pool in buf0buf.cc.
+
+	Another exception is that assigning block->index = NULL
+	is allowed whenever holding an x-latch on btr_search_latch. */
 
 	/* @{ */
 
@@ -1629,20 +1651,20 @@ struct buf_block_struct{
 					pointers in the adaptive hash index
 					pointing to this frame */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	unsigned	is_hashed:1;	/*!< TRUE if hash index has
-					already been built on this
-					page; note that it does not
-					guarantee that the index is
-					complete, though: there may
-					have been hash collisions,
-					record deletions, etc. */
 	unsigned	curr_n_fields:10;/*!< prefix length for hash indexing:
 					number of full fields */
 	unsigned	curr_n_bytes:15;/*!< number of bytes in hash
 					indexing */
 	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
-	dict_index_t*	index;		/*!< Index for which the adaptive
-					hash index has been created. */
+	dict_index_t*	index;		/*!< Index for which the
+					adaptive hash index has been
+					created, or NULL if the page
+					does not exist in the
+					index. Note that it does not
+					guarantee that the index is
+					complete, though: there may
+					have been hash collisions,
+					record deletions, etc. */
 	/* @} */
 # ifdef UNIV_SYNC_DEBUG
 	/** @name Debug fields */
@@ -1762,7 +1784,7 @@ struct buf_pool_struct{
 	time_t		last_printout_time;
 					/*!< when buf_print_io was last time
 					called */
-	buf_buddy_stat_t buddy_stat[BUF_BUDDY_SIZES + 1];
+	buf_buddy_stat_t buddy_stat[BUF_BUDDY_SIZES_MAX + 1];
 					/*!< Statistics of buddy system,
 					indexed by block size */
 	buf_pool_stat_t	stat;		/*!< current statistics */
@@ -1847,7 +1869,7 @@ struct buf_pool_struct{
 	ulint		LRU_old_len;	/*!< length of the LRU list from
 					the block to which LRU_old points
 					onward, including that block;
-					see buf0lru.c for the restrictions
+					see buf0lru.cc for the restrictions
 					on this value; 0 if LRU_old == NULL;
 					NOTE: LRU_old_len must be adjusted
 					whenever LRU_old shrinks or grows! */
@@ -1866,17 +1888,14 @@ struct buf_pool_struct{
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
+	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES_MAX];
 					/*!< buddy free lists */
 
 	buf_page_t*			watch;
 					/*!< Sentinel records for buffer
 					pool watches. Protected by
-				       	buf_pool->mutex. */
+					buf_pool->mutex. */
 
-#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
-# error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
-#endif
 #if BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN
 # error "BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN"
 #endif
@@ -2021,6 +2040,32 @@ FILE_PAGE => NOT_USED	NOTE: This transition is allowed if and only if
 				(2) oldest_modification == 0, and
 				(3) io_fix == 0.
 */
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+/** Functor to validate the LRU list. */
+struct	CheckInLRUList {
+	void	operator()(const buf_page_t* elem) const
+	{
+		ut_a(elem->in_LRU_list);
+	}
+};
+
+/** Functor to validate the LRU list. */
+struct	CheckInFreeList {
+	void	operator()(const buf_page_t* elem) const
+	{
+		ut_a(elem->in_free_list);
+	}
+};
+
+struct	CheckUnzipLRUAndLRUList {
+	void	operator()(const buf_block_t* elem) const
+	{
+                ut_a(elem->page.in_LRU_list);
+                ut_a(elem->in_unzip_LRU_list);
+	}
+};
+#endif /* UNIV_DEBUG || defined UNIV_BUF_DEBUG */
 
 #ifndef UNIV_NONINL
 #include "buf0buf.ic"

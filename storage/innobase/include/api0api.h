@@ -652,7 +652,8 @@ ib_err_t
 ib_trx_start(
 /*=========*/
 	ib_trx_t	ib_trx,
-	ib_trx_level_t	ib_trx_level) UNIV_NO_IGNORE;
+	ib_trx_level_t	ib_trx_level,
+	void*		thd);
 
 /*****************************************************************//**
 Begin a transaction. This will allocate a new transaction handle and

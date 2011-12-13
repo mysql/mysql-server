@@ -539,13 +539,15 @@ col_1_blob = REPEAT("c", 4000)
 DROP TABLE worklog5743_key8;
 CREATE TABLE worklog5743 (
 col_1_varbinary VARBINARY (4000) , col_2_varchar VARCHAR (4000) ,
-col_3_text TEXT (4000), col_4_blob BLOB (4000),col_5_text TEXT (4000),
+col_3_text TEXT (4000), col_4_blob BLOB (4000), col_5_text TEXT (4000),
 col_6_varchar VARCHAR (4000), col_7_binary BINARY (255)
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
 REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
 REPEAT("a", 4000) ,  REPEAT("a", 255)
 );
+CREATE INDEX prefix_idx1 ON worklog5743(col_1_varbinary (3072));
+CREATE INDEX prefix_idx2 ON worklog5743(col_2_varchar (3072));
 INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000),
 REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
 REPEAT("a", 4000) , REPEAT("a", 255)
@@ -570,6 +572,19 @@ SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743;
 col_1_varbinary = REPEAT("c", 4000)
 1
 0
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) ,  REPEAT("a", 255)
+);
+CREATE INDEX prefix_idx3 ON worklog5743(col_3_text (3072));
+CREATE INDEX prefix_idx4 ON worklog5743(col_4_blob (3072));
+CREATE INDEX prefix_idx5 ON worklog5743(col_5_text (3072));
+UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
+WHERE col_1_varbinary = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
+ERROR HY000: Undo log record is too big.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1743	Undo log record is too big.
 DROP TABLE worklog5743;
 CREATE TABLE worklog5743 (
 col_1_varbinary VARBINARY (4000) , col_2_varchar VARCHAR (4000) ,
@@ -607,6 +622,13 @@ REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
 REPEAT("a", 4000) , REPEAT("a", 255)
 );
 ROLLBACK;
+UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
+WHERE col_1_varbinary = REPEAT("a", 4000)
+AND col_2_varchar = REPEAT("o", 4000);
+ERROR HY000: Undo log record is too big.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1743	Undo log record is too big.
 SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743
 WHERE col_1_varbinary = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
 col_1_varbinary = REPEAT("c", 4000)
@@ -1348,7 +1370,3 @@ Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
 Warning	1071	Specified key was too long; max key length is 767 bytes
 DROP TABLE worklog5743;
-SET GLOBAL innodb_file_format=Antelope;
-SET GLOBAL innodb_file_per_table=0;
-SET GLOBAL innodb_file_format_max=Antelope;
-SET GLOBAL innodb_large_prefix=0;

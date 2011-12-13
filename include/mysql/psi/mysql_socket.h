@@ -105,10 +105,19 @@ mysql_socket_invalid()
   @param addr unformatted socket address
   @param adr_len length of socket addres
 */
+
 static inline void
-mysql_socket_set_address(MYSQL_SOCKET socket,
-                         const struct sockaddr *addr,
-                         socklen_t addr_len)
+mysql_socket_set_address(
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+  MYSQL_SOCKET socket,
+  const struct sockaddr *addr,
+  socklen_t addr_len
+#else
+  MYSQL_SOCKET socket __attribute__ ((unused)),
+  const struct sockaddr *addr __attribute__ ((unused)),
+  socklen_t addr_len __attribute__ ((unused))
+#endif
+)
 {
 #ifdef HAVE_PSI_SOCKET_INTERFACE
   PSI_CALL(set_socket_info)(socket.m_psi, NULL, addr, addr_len);
@@ -121,7 +130,13 @@ mysql_socket_set_address(MYSQL_SOCKET socket,
   @param thread instrumented owning thread
 */
 static inline void
-mysql_socket_set_thread_owner(MYSQL_SOCKET socket)
+mysql_socket_set_thread_owner(
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+MYSQL_SOCKET socket
+#else
+MYSQL_SOCKET socket __attribute__ ((unused))
+#endif
+)
 {
 #ifdef HAVE_PSI_SOCKET_INTERFACE
   PSI_CALL(set_socket_thread_owner)(socket.m_psi);

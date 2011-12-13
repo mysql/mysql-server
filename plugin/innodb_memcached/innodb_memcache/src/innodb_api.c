@@ -393,7 +393,7 @@ innodb_api_search(
 			idx_crsr = cursor_data->c_idx_crsr;
 		}
 
-		ib_cursor_set_cluster_access(idx_crsr);
+		//ib_cursor_set_cluster_access(idx_crsr);
 
 		key_tpl = ib_cb_search_tuple_create(idx_crsr);
 
@@ -1060,7 +1060,7 @@ innodb_api_arithmetic(
 
 	/* Can't find the row, decide whether to insert a new row */
 	if (err != DB_SUCCESS) {
-		ib_tuple_delete(old_tpl);
+		//ib_tuple_delete(old_tpl);
 
 		if (create) {
 			snprintf(value_buf, sizeof(value_buf), "%llu", initial);
@@ -1282,7 +1282,7 @@ innodb_api_store(
 		break;
 	}
 
-	ib_tuple_delete(old_tpl);
+	//ib_tuple_delete(old_tpl);
 
 	if (engine->enable_binlog && cursor_data->mysql_tbl) {
 		handler_unlock_table(cursor_data->thd,

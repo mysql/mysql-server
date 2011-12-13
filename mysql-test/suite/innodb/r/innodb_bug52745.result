@@ -96,10 +96,10 @@ col88=16894,
 col89=6161,
 col90=repeat('gale',48);
 Warnings:
-Warning	1265	Data truncated for column 'col53' at row 1
+Warning	1264	Out of range value for column 'col53' at row 1
 Warning	1264	Out of range value for column 'col54' at row 1
 Warning	1265	Data truncated for column 'col59' at row 1
-Warning	1265	Data truncated for column 'col61' at row 1
+Warning	1264	Out of range value for column 'col61' at row 1
 Warning	1264	Out of range value for column 'col64' at row 1
 Warning	1265	Data truncated for column 'col65' at row 1
 Warning	1264	Out of range value for column 'col66' at row 1
@@ -111,10 +111,10 @@ Warning	1265	Data truncated for column 'col79' at row 1
 Warning	1264	Out of range value for column 'col84' at row 1
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1265	Data truncated for column 'col53' at row 1
+Warning	1264	Out of range value for column 'col53' at row 1
 Warning	1264	Out of range value for column 'col54' at row 1
 Warning	1265	Data truncated for column 'col59' at row 1
-Warning	1265	Data truncated for column 'col61' at row 1
+Warning	1264	Out of range value for column 'col61' at row 1
 Warning	1264	Out of range value for column 'col64' at row 1
 Warning	1265	Data truncated for column 'col65' at row 1
 Warning	1264	Out of range value for column 'col66' at row 1
@@ -126,5 +126,4 @@ Warning	1265	Data truncated for column 'col79' at row 1
 Warning	1264	Out of range value for column 'col84' at row 1
 DROP TABLE bug52745;
 SET GLOBAL innodb_file_format=Antelope;
-SET GLOBAL innodb_file_format_max=Antelope;
 SET GLOBAL innodb_file_per_table=0;
