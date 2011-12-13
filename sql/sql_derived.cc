@@ -211,8 +211,6 @@ exit:
       }
       orig_table_list->derived_result= derived_result;
       orig_table_list->table= table;
-      orig_table_list->table_name=        table->s->table_name.str;
-      orig_table_list->table_name_length= table->s->table_name.length;
       table->derived_select_number= first_select->select_number;
       table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
