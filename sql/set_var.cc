@@ -650,6 +650,7 @@ static sys_var_thd_enum	sys_query_cache_type(&vars, "query_cache_type",
 static sys_var_thd_bool
 sys_query_cache_wlock_invalidate(&vars, "query_cache_wlock_invalidate",
 				 &SV::query_cache_wlock_invalidate);
+static sys_var_bool_ptr       sys_query_cache_strip_comments(&vars, "query_cache_strip_comments", &opt_query_cache_strip_comments);
 #endif /* HAVE_QUERY_CACHE */
 static sys_var_bool_ptr	sys_secure_auth(&vars, "secure_auth", &opt_secure_auth);
 static sys_var_const_str_ptr sys_secure_file_priv(&vars, "secure_file_priv",
@@ -942,8 +943,6 @@ static sys_var_const_str_ptr    sys_log_basename(&vars, "log_basename",
 #ifndef EMBEDDED_LIBRARY
 static sys_var_const_str_ptr    sys_repl_report_host(&vars, "report_host", &report_host);
 static sys_var_const_str_ptr    sys_repl_report_user(&vars, "report_user", &report_user);
-static sys_var_bool_ptr       sys_query_cache_strip_comments(&vars, "query_cache_strip_comments",
-                                                       &opt_query_cache_strip_comments);
 static sys_var_const_str_ptr    sys_repl_report_password(&vars, "report_password", &report_password);
 
 static uchar *slave_get_report_port(THD *thd)
