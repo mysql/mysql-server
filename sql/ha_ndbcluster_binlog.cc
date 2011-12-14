@@ -1430,8 +1430,7 @@ ndb_binlog_setup(THD *thd)
 
   ndb_binlog_tables_inited= TRUE;
 
-  if (ndb_binlog_tables_inited &&
-      ndb_binlog_running && ndb_binlog_is_ready)
+  if (ndb_binlog_running && ndb_binlog_is_ready)
   {
     if (opt_ndb_extra_logging)
       sql_print_information("NDB Binlog: ndb tables writable");
