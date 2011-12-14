@@ -122,7 +122,7 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
     DBUG_RETURN(true);
   }
 
-  // Qeury returned ok, thd should have no error
+  // Query returned ok, thd should have no error
   assert(!m_thd->is_error());
 
   DBUG_RETURN(false); // Success
