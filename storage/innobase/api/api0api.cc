@@ -2016,14 +2016,18 @@ ib_cursor_position(
 {
 	ib_err_t	err;
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
-	char		buf[UNIV_PAGE_SIZE];
+	unsigned char*	buf;
+
+	buf = static_cast<unsigned char*>(mem_alloc(UNIV_PAGE_SIZE));
 
 	/* We want to position at one of the ends, row_search_for_mysql()
 	uses the search_tuple fields to work out what to do. */
 	dtuple_set_n_fields(prebuilt->search_tuple, 0);
 
 	err = static_cast<ib_err_t>(row_search_for_mysql(
-		(unsigned char *) &buf, mode, prebuilt, 0, 0));
+		buf, mode, prebuilt, 0, 0));
+
+	mem_free(buf);
 
 	return(err);
 }
