@@ -55,23 +55,22 @@ void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
 #endif
 #endif
 
-/* at the moment, safemalloc is the main user of libbfd */
-#ifndef SAFEMALLOC
-#undef HAVE_BFD_H
-#endif
-
 #ifdef HAVE_BFD_H
 #define HAVE_MY_ADDR_RESOLVE 1
 #endif
 
-#ifdef HAVE_MY_ADDR_RESOLVE
 typedef struct {
   const char *file;
   const char *func;
   uint line;
 } my_addr_loc;
+
+#ifdef HAVE_MY_ADDR_RESOLVE
 int my_addr_resolve(void *ptr, my_addr_loc *loc);
 const char *my_addr_resolve_init();
+#else
+#define my_addr_resolve_init()  (0)
+#define my_addr_resolve(A,B)    (1)
 #endif
 
 #ifdef HAVE_WRITE_CORE

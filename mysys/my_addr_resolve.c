@@ -21,6 +21,7 @@
 /**
   strip the path, leave the file name and the last dirname
 */
+static const char *strip_path(const char *s) __attribute__((unused));
 static const char *strip_path(const char *s)
 {
   const char *prev, *last;

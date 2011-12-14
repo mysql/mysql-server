@@ -225,7 +225,7 @@ static void print_stack(void **frame)
       fprintf(stderr, ", ");
 
     if (my_addr_resolve(frame[i], &loc))
-      fprintf(stderr, "...");
+      fprintf(stderr, "%p", frame[i]);
     else
       fprintf(stderr, "%s:%u", loc.file, loc.line);
   }

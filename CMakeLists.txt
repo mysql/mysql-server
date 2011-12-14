@@ -166,6 +166,7 @@ ENDIF()
 OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
 
+OPTION(NOT_FOR_DISTRIBUTION "Allow linking with GPLv2-incompatible system libraries. Only set it you never plan to distribute the resulting binaries" OFF)
  
 OPTION(ENABLE_DEBUG_SYNC "Enable debug sync (debug builds only)" ON) 
 IF(ENABLE_DEBUG_SYNC) 
@@ -264,9 +265,9 @@ MYSQL_CHECK_READLINE()
 #
 IF(MYSQL_MAINTAINER_MODE)
   # Set compiler flags required under maintainer mode.
-  MESSAGE(STATUS "C warning options: ${MY_MAINTAINER_C_WARNINGS}")
+  #MESSAGE(STATUS "C warning options: ${MY_MAINTAINER_C_WARNINGS}")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MY_MAINTAINER_C_WARNINGS}")
-  MESSAGE(STATUS "C++ warning options: ${MY_MAINTAINER_CXX_WARNINGS}")
+  #MESSAGE(STATUS "C++ warning options: ${MY_MAINTAINER_CXX_WARNINGS}")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MY_MAINTAINER_CXX_WARNINGS}")
 ENDIF()
 
@@ -392,3 +393,9 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     PATTERN "sp-imp-spec.txt" EXCLUDE
   )
 ENDIF()
+
+IF(NON_DISTRIBUTABLE_WARNING)
+  MESSAGE(WARNING "
+You have linked MariaDB with GPLv3 libraries!  You may not distribute the resulting binary. If you do, you will put yourself into a legal problem with Free Software Foundation.")
+ENDIF()
+
