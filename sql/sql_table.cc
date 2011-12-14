@@ -53,6 +53,7 @@
 #include "sql_show.h"
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
+#include "sql_resolver.h"              // setup_order, fix_inner_refs
 
 #ifdef __WIN__
 #include <io.h>
