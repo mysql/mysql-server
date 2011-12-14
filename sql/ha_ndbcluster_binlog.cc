@@ -1385,9 +1385,15 @@ ndb_binlog_setup(THD *thd)
   if (ndb_binlog_tables_inited)
     return true; // Already setup -> OK
 
+  /*
+    Take the global schema lock to make sure that
+    the schema is not changed in the cluster while
+    running setup.
+  */
   Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
   if (global_schema_lock_guard.lock(false, false))
     return false;
+
   if (!ndb_schema_share &&
       ndbcluster_check_ndb_schema_share() == 0)
   {
@@ -1417,28 +1423,32 @@ ndb_binlog_setup(THD *thd)
     return false;
   }
 
-  if (!ndbcluster_find_all_files(thd))
+  if (ndbcluster_find_all_files(thd))
   {
-    ndb_binlog_tables_inited= TRUE;
-    if (ndb_binlog_tables_inited &&
-        ndb_binlog_running && ndb_binlog_is_ready)
-    {
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB Binlog: ndb tables writable");
-      close_cached_tables(NULL, NULL, TRUE, FALSE, FALSE);
-      
-      /* 
-         Signal any waiting thread that ndb table setup is
-         now complete
-      */
-      ndb_notify_tables_writable();
-    }
-    /* Signal injector thread that all is setup */
-    pthread_cond_signal(&injector_cond);
-
-    return true; // Setup completed -> OK
+    return false;
   }
-  return false;
+
+  ndb_binlog_tables_inited= TRUE;
+
+  if (ndb_binlog_tables_inited &&
+      ndb_binlog_running && ndb_binlog_is_ready)
+  {
+    if (opt_ndb_extra_logging)
+      sql_print_information("NDB Binlog: ndb tables writable");
+
+    close_cached_tables(NULL, NULL, TRUE, FALSE, FALSE);
+
+    /*
+       Signal any waiting thread that ndb table setup is
+       now complete
+    */
+    ndb_notify_tables_writable();
+  }
+
+  /* Signal injector thread that all is setup */
+  pthread_cond_signal(&injector_cond);
+
+  return true; // Setup completed -> OK
 }
 
 /*
