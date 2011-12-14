@@ -18,13 +18,12 @@
 #ifndef NDB_LOCAL_SCHEMA_H
 #define NDB_LOCAL_SCHEMA_H
 
-/*
-  Base functionality for working with local schema
-  objects like tables, triggers and databases
-*/
-
 class Ndb_local_schema
 {
+  /*
+    Base functionality for working with local schema
+    objects like tables, triggers and databases
+  */
   class Base {
     bool m_have_mdl_lock;
 
@@ -50,7 +49,7 @@ public:
 
   /*
     Class used for working with a table in the
-    local MySQl Servers "dictionary"
+    local MySQL Servers "dictionary"
   */
 
   class Table : protected Base
