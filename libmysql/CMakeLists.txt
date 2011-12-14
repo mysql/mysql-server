@@ -134,12 +134,6 @@ CACHE INTERNAL "Functions exported by client API"
 
 )
 
-IF(WIN32)
-  ADD_SUBDIRECTORY(authentication_win)
-  SET(WITH_AUTHENTICATION_WIN 1)
-  ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
-ENDIF(WIN32)
-
 SET(CLIENT_SOURCES
   get_password.c 
   libmysql.c
@@ -157,9 +151,15 @@ ADD_DEPENDENCIES(clientlib GenError)
 
 SET(LIBS clientlib dbug strings vio mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES} ${LIBDL})
 
-IF(WITH_AUTHENTICATION_WIN)
+#
+# On Windows platform client library includes the client-side 
+# Windows Native Authentication plugin.
+#
+IF(WIN32)
+  ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
+  ADD_SUBDIRECTORY(authentication_win)
   LIST(APPEND LIBS auth_win_client)
-ENDIF(WITH_AUTHENTICATION_WIN)
+ENDIF()
 
 # Merge several convenience libraries into one big mysqlclient
 # and link them together into shared library.

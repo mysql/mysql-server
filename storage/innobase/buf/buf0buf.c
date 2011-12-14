@@ -839,6 +839,16 @@ pfs_register_buffer_block(
 		rwlock->pfs_psi = (PSI_server)
 			? PSI_server->init_rwlock(buf_block_lock_key, rwlock)
 			: NULL;
+
+#   ifdef UNIV_SYNC_DEBUG
+		rwlock = &block->debug_latch;
+		ut_a(!rwlock->pfs_psi);
+		rwlock->pfs_psi = (PSI_server)
+			? PSI_server->init_rwlock(buf_block_debug_latch_key,
+						  rwlock)
+			: NULL;
+#   endif /* UNIV_SYNC_DEBUG */
+
 #  endif /* UNIV_PFS_RWLOCK */
 		block++;
 	}
@@ -895,17 +905,24 @@ buf_block_init(
 
 	mutex_create(PFS_NOT_INSTRUMENTED, &block->mutex, SYNC_BUF_BLOCK);
 	rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, SYNC_LEVEL_VARYING);
+
+# ifdef UNIV_SYNC_DEBUG
+	rw_lock_create(PFS_NOT_INSTRUMENTED,
+		       &block->debug_latch, SYNC_NO_ORDER_CHECK);
+# endif /* UNIV_SYNC_DEBUG */
+
 #else /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 	mutex_create(buffer_block_mutex_key, &block->mutex, SYNC_BUF_BLOCK);
 	rw_lock_create(buf_block_lock_key, &block->lock, SYNC_LEVEL_VARYING);
+
+# ifdef UNIV_SYNC_DEBUG
+	rw_lock_create(buf_block_debug_latch_key,
+		       &block->debug_latch, SYNC_NO_ORDER_CHECK);
+# endif /* UNIV_SYNC_DEBUG */
 #endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
 	ut_ad(rw_lock_validate(&(block->lock)));
 
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_create(buf_block_debug_latch_key,
-		       &block->debug_latch, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 }
 
 /********************************************************************//**
@@ -1202,6 +1219,24 @@ buf_pool_free_instance(
 {
 	buf_chunk_t*	chunk;
 	buf_chunk_t*	chunks;
+	buf_page_t*	bpage;
+
+	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	while (bpage != NULL) {
+		buf_page_t*	prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
+		enum buf_page_state	state = buf_page_get_state(bpage);
+
+		ut_ad(buf_page_in_file(bpage));
+		ut_ad(bpage->in_LRU_list);
+
+		if (state != BUF_BLOCK_FILE_PAGE) {
+			/* We must not have any dirty block. */
+			ut_ad(state == BUF_BLOCK_ZIP_PAGE);
+			buf_page_free_descriptor(bpage);
+		}
+
+		bpage = prev_bpage;
+	}
 
 	chunks = buf_pool->chunks;
 	chunk = chunks + buf_pool->n_chunks;
