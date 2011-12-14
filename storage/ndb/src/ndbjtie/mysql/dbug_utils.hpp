@@ -43,7 +43,10 @@ inline
 const char*
 dbugExplain(char * buffer, int length)
   {
-    int result = DBUG_EXPLAIN(buffer, length);
+    int result = 1;
+#if !defined(DBUG_OFF)
+    result = DBUG_EXPLAIN(buffer, length);
+#endif
     if (result) {
       return NULL;
     } else {
