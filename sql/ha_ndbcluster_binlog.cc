@@ -2090,6 +2090,8 @@ private:
 };
 
 
+#include "ndb_local_schema.h"
+
 class Ndb_schema_event_handler {
 
   class Ndb_schema_op
@@ -2901,35 +2903,35 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    if (is_local_table(schema->db, schema->name))
+    Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
+    if (tab.is_local_table())
     {
-      /* Tables exists as a local table, print error and leave it */
-      sql_print_error("NDB Binlog: Skipping dropping locally "
+      /* Table is not a NDB table in this mysqld -> leave it */
+      sql_print_error("NDB Binlog: Skipping drop of locally "
                       "defined table '%s.%s' from binlog schema "
                       "event '%s' from node %d. ",
                       schema->db, schema->name, schema->query,
                       schema->node_id);
+
+      // There should be no NDB_SHARE for this table
+      assert(!get_share(schema));
+
       DBUG_VOID_RETURN;
     }
 
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-    const int no_print_error[2]=
-      {ER_BAD_TABLE_ERROR, 0}; /* ignore missing table */
-    run_query(m_thd, schema->query,
-              schema->query + schema->query_length,
-              no_print_error);
+    tab.remove_table();
 
-    NDB_SHARE *share= get_share(schema);
-    // invalidation already handled by binlog thread
+    NDB_SHARE *share= get_share(schema); // temporary ref.
     if (!share || !share->op)
     {
       ndbapi_invalidate_table(schema->db, schema->name);
       mysqld_close_cached_table(schema->db, schema->name);
     }
     if (share)
-      free_share(&share);
+    {
+      free_share(&share); // temporary ref.
+      free_share(&share); // server ref.
+    }
 
     ndbapi_invalidate_table(schema->db, schema->name);
     mysqld_close_cached_table(schema->db, schema->name);
@@ -2937,6 +2939,12 @@ class Ndb_schema_event_handler {
     DBUG_VOID_RETURN;
   }
 
+
+  /*
+    The RENAME is performed in two steps.
+    1) PREPARE_RENAME - sends the new table key to participants
+    2) RENAME - perform the actual rename
+  */
 
   void
   handle_rename_table_prepare(Ndb_schema_op* schema)
@@ -2948,12 +2956,26 @@ class Ndb_schema_event_handler {
     if (schema->node_id == own_nodeid())
       DBUG_VOID_RETURN;
 
-    NDB_SHARE *share= get_share(schema);
-    if (share)
-    {
-      ndbcluster_prepare_rename_share(share, schema->query);
-      free_share(&share);
+    const char* new_key_for_table= schema->query;
+    DBUG_PRINT("info", ("new_key_for_table: '%s'", new_key_for_table));
+
+    NDB_SHARE *share= get_share(schema); // temporary ref.
+    if (!share)
+     {
+      // The RENAME_PREPARE needs the share as a place to
+      // save the new key. Normally it should find the
+      // share, but just to be safe... but for example
+      // in ndb_share.test there are no share after restore
+      // of backup
+      // DBUG_ASSERT(share);
+      DBUG_VOID_RETURN;
     }
+
+    // Save the new key in the share and hope for the best(i.e
+    // that it can be found later when the RENAME arrives)
+    ndbcluster_prepare_rename_share(share, new_key_for_table);
+    free_share(&share); // temporary ref.
+
     DBUG_VOID_RETURN;
   }
 
@@ -2970,7 +2992,8 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    if (is_local_table(schema->db, schema->name))
+    Ndb_local_schema::Table from(m_thd, schema->db, schema->name);
+    if (from.is_local_table())
     {
       /* Tables exists as a local table, print error and leave it */
       sql_print_error("NDB Binlog: Skipping renaming locally "
@@ -2981,31 +3004,41 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-    const int no_print_error[2]=
-      {ER_BAD_TABLE_ERROR, 0}; /* ignore missing table */
-    run_query(m_thd, schema->query,
-              schema->query + schema->query_length,
-              no_print_error);
-
-    NDB_SHARE *share= get_share(schema);
-    // invalidation already handled by binlog thread
+    NDB_SHARE *share= get_share(schema); // temporary ref.
     if (!share || !share->op)
     {
       ndbapi_invalidate_table(schema->db, schema->name);
       mysqld_close_cached_table(schema->db, schema->name);
     }
     if (share)
-      free_share(&share);
+      free_share(&share);  // temporary ref.
 
-    share= get_share(schema);
-    if (share)
+    share= get_share(schema);  // temporary ref.
+    if (!share)
     {
-      ndbcluster_rename_share(m_thd, share);
-      free_share(&share);
+      // The RENAME need to find share, since that's where
+      // the RENAME_PREPARE has saved the new name
+      DBUG_ASSERT(share);
+      DBUG_VOID_RETURN;
     }
+
+    const char* new_key_for_table= share->new_key;
+    if (!new_key_for_table)
+    {
+      // The rename need the share to have new_key set
+      // by a previous RENAME_PREPARE
+      DBUG_ASSERT(new_key_for_table);
+      DBUG_VOID_RETURN;
+    }
+
+    // Split the new key into db and table name
+    char new_db[FN_REFLEN + 1], new_name[FN_REFLEN + 1];
+    ha_ndbcluster::set_dbname(new_key_for_table, new_db);
+    ha_ndbcluster::set_tabname(new_key_for_table, new_name);
+    from.rename_table(new_db, new_name);
+    ndbcluster_rename_share(m_thd, share);
+    free_share(&share);  // temporary ref.
+
     DBUG_VOID_RETURN;
   }
 
