@@ -311,6 +311,7 @@ my $valgrind_reports= 0;
 my $opt_callgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
+my $warn_seconds = 60;
 
 sub testcase_timeout ($) {
   my ($tinfo)= @_;
@@ -1737,12 +1738,6 @@ sub command_line_setup {
     $opt_valgrind= 1;
     $opt_valgrind_mysqld= 1;
     $opt_valgrind_mysqltest= 1;
-
-    # Increase the timeouts when running with valgrind
-    $opt_testcase_timeout*= 10;
-    $opt_suite_timeout*= 6;
-    $opt_start_timeout*= 10;
-
   }
   elsif ( $opt_valgrind_mysqld )
   {
@@ -1753,6 +1748,15 @@ sub command_line_setup {
   {
     mtr_report("Turning on valgrind for mysqltest and mysql_client_test only");
     $opt_valgrind= 1;
+  }
+
+  if ($opt_valgrind)
+  {
+    # Increase the timeouts when running with valgrind
+    $opt_testcase_timeout*= 10;
+    $opt_suite_timeout*= 6;
+    $opt_start_timeout*= 10;
+    $warn_seconds*= 10;
   }
 
   if ( $opt_callgrind )
@@ -3229,7 +3233,8 @@ sub mysql_server_wait {
 
   return not sleep_until_file_created($mysqld->value('pid-file'),
                                       $opt_start_timeout,
-                                      $mysqld->{'proc'});
+                                      $mysqld->{'proc'},
+                                      $warn_seconds);
 }
 
 sub create_config_file_for_extern {
@@ -5472,7 +5477,8 @@ sub mysqld_start ($$) {
   if ( $wait_for_pid_file &&
        !sleep_until_file_created($mysqld->value('pid-file'),
 				 $opt_start_timeout,
-				 $mysqld->{'proc'}))
+				 $mysqld->{'proc'},
+                                 $warn_seconds))
   {
     my $mname= $mysqld->name();
     mtr_error("Failed to start mysqld $mname with command $exe");
