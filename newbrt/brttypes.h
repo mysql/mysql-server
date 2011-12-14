@@ -42,11 +42,20 @@ typedef struct blocknum_s { int64_t b; } BLOCKNUM; // make a struct so that we w
 
 static inline BLOCKNUM make_blocknum(int64_t b) { BLOCKNUM result={b}; return result; }
 
+// This struct hold information about values stored in the cachetable.
+// As one can tell from the names, we are probably violating an
+// abstraction layer by placing names.
+//
+// The purpose of having this struct is to have a way for the 
+// cachetable to accumulate the some totals we are interested in.
+// Breaking this abstraction layer by having these names was the 
+// easiest way.
+//
 typedef struct pair_attr_s {
     long size; // size PAIR's value takes in memory
-    long nonleaf_size; // size if PAIR is a nonleaf node, 0 otherwise
-    long leaf_size; // size if PAIR is a leaf node, 0 otherwise
-    long rollback_size; // size of PAIR is a rollback node, 0 otherwise
+    long nonleaf_size; // size if PAIR is a nonleaf node, 0 otherwise, used only for engine status
+    long leaf_size; // size if PAIR is a leaf node, 0 otherwise, used only for engine status
+    long rollback_size; // size of PAIR is a rollback node, 0 otherwise, used only for engine status
     long cache_pressure_size; // amount PAIR contributes to cache pressure, is sum of buffer sizes and workdone counts
 } PAIR_ATTR;
 
