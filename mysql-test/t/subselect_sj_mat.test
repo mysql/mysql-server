@@ -1466,6 +1466,7 @@ SELECT MIN(a) FROM t1, t2 WHERE b IN (SELECT c FROM t3 GROUP BY c);
 DROP TABLE t1,t2,t3;
 
 --echo #
+--echo #
 --echo # BUG#902632: Crash or invalid read at st_join_table::cleanup, st_table::disable_keyread
 --echo #
 CREATE TABLE t1 ( a INT );
@@ -1481,6 +1482,18 @@ SELECT * FROM t1 WHERE EXISTS (
         AND b IN ( SELECT c FROM t3 GROUP BY c )
    );
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # BUG#901506: Crash in TABLE_LIST::print on EXPLAIN EXTENDED
+--echo #
+CREATE TABLE t1 ( a INT, KEY(a) );
+INSERT INTO t1 VALUES (8);
+
+EXPLAIN EXTENDED
+  SELECT * FROM t1
+   WHERE a IN ( SELECT MIN(a) FROM t1 );
+
+DROP TABLE t1;
 
 --echo # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;

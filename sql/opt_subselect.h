@@ -10,6 +10,8 @@ int check_and_do_in_subquery_rewrites(JOIN *join);
 bool convert_join_subqueries_to_semijoins(JOIN *join);
 int pull_out_semijoin_tables(JOIN *join);
 bool optimize_semijoin_nests(JOIN *join, table_map all_table_map);
+bool setup_jtbm_semi_joins(JOIN *join, List<TABLE_LIST> *join_list,  
+                           Item **join_where);
 
 // used by Loose_scan_opt
 ulonglong get_bound_sj_equalities(TABLE_LIST *sj_nest, 

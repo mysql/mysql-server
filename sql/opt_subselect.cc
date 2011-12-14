@@ -4623,6 +4623,234 @@ enum_nested_loop_state join_tab_execution_startup(JOIN_TAB *tab)
 }
 
 
+/*
+  Create a dummy temporary table, useful only for the sake of having a 
+  TABLE* object with map,tablenr and maybe_null properties.
+  
+  This is used by non-mergeable semi-join materilization code to handle
+  degenerate cases where materialized subquery produced "Impossible WHERE" 
+  and thus wasn't materialized.
+*/
+
+TABLE *create_dummy_tmp_table(THD *thd)
+{
+  DBUG_ENTER("create_dummy_tmp_table");
+  TABLE *table;
+  TMP_TABLE_PARAM sjm_table_param;
+  sjm_table_param.init();
+  sjm_table_param.field_count= 1;
+  List<Item> sjm_table_cols;
+  Item *column_item= new Item_int(1);
+  sjm_table_cols.push_back(column_item);
+  if (!(table= create_tmp_table(thd, &sjm_table_param, 
+                                sjm_table_cols, (ORDER*) 0, 
+                                TRUE /* distinct */, 
+                                1, /*save_sum_fields*/
+                                thd->options | TMP_TABLE_ALL_COLUMNS, 
+                                HA_POS_ERROR /*rows_limit */, 
+                                (char*)"dummy", TRUE /* Do not open */)))
+  {
+    DBUG_RETURN(NULL);
+  }
+  DBUG_RETURN(table);
+}
+
+
+/*
+  A class that is used to catch one single tuple that is sent to the join
+  output, and save it in Item_cache element(s).
+
+  It is very similar to select_singlerow_subselect but doesn't require a 
+  Item_singlerow_subselect item.
+*/
+
+class select_value_catcher :public select_subselect
+{
+public:
+  select_value_catcher(Item_subselect *item_arg)
+    :select_subselect(item_arg)
+  {}
+  int send_data(List<Item> &items);
+  int setup(List<Item> *items);
+  bool assigned;  /* TRUE <=> we've caught a value */
+  uint n_elements; /* How many elements we get */
+  Item_cache **row; /* Array of cache elements */
+};
+
+
+int select_value_catcher::setup(List<Item> *items)
+{
+  assigned= FALSE;
+  n_elements= items->elements;
+ 
+  if (!(row= (Item_cache**) sql_alloc(sizeof(Item_cache*)*n_elements)))
+    return TRUE;
+  
+  Item *sel_item;
+  List_iterator<Item> li(*items);
+  for (uint i= 0; (sel_item= li++); i++)
+  {
+    if (!(row[i]= Item_cache::get_cache(sel_item)))
+      return TRUE;
+    row[i]->setup(sel_item);
+  }
+  return FALSE;
+}
+
+
+int select_value_catcher::send_data(List<Item> &items)
+{
+  DBUG_ENTER("select_value_catcher::send_data");
+  DBUG_ASSERT(!assigned);
+  DBUG_ASSERT(items.elements == n_elements);
+
+  if (unit->offset_limit_cnt)
+  {				          // Using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(0);
+  }
+
+  Item *val_item;
+  List_iterator_fast<Item> li(items);
+  for (uint i= 0; (val_item= li++); i++)
+  {
+    row[i]->store(val_item);
+    row[i]->cache_value();
+  }
+  assigned= TRUE;
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Setup JTBM join tabs for execution
+*/
+
+bool setup_jtbm_semi_joins(JOIN *join, List<TABLE_LIST> *join_list, 
+                           Item **join_where)
+{
+  TABLE_LIST *table;
+  NESTED_JOIN *nested_join;
+  List_iterator<TABLE_LIST> li(*join_list);
+  DBUG_ENTER("setup_jtbm_semi_joins");
+  
+  while ((table= li++))
+  {
+    Item_in_subselect *item;
+    
+    if ((item= table->jtbm_subselect))
+    {
+      Item_in_subselect *subq_pred= item;
+      double rows;
+      double read_time;
+
+      /*
+        Perform optimization of the subquery, so that we know estmated
+        - cost of materialization process 
+        - how many records will be in the materialized temp.table
+      */
+      if (subq_pred->optimize(&rows, &read_time))
+        DBUG_RETURN(TRUE);
+
+      subq_pred->jtbm_read_time= read_time;
+      subq_pred->jtbm_record_count=rows;
+      JOIN *subq_join= subq_pred->unit->first_select()->join;
+
+      if (!subq_join->tables_list || !subq_join->table_count)
+      {
+        /*
+          A special case; subquery's join is degenerate, and it either produces
+          0 or 1 record. Examples of both cases:
+
+            select * from ot where col in (select ... from it where 2>3) 
+            select * from ot where col in (select min(it.key) from it)
+          
+          in this case, the subquery predicate has not been setup for
+          materialization. In particular, there is no materialized temp.table.
+          We'll now need to
+          1. Check whether 1 or 0 records are produced, setup this as a
+             constant join tab.
+          2. Create a dummy temporary table, because all of the join
+             optimization code relies on TABLE object being present (here we
+             follow a bad tradition started by derived tables)
+        */
+        DBUG_ASSERT(subq_pred->engine->engine_type() == 
+                    subselect_engine::SINGLE_SELECT_ENGINE);
+        subselect_single_select_engine *engine=
+          (subselect_single_select_engine*)subq_pred->engine;
+        select_value_catcher *new_sink;
+        if (!(new_sink= new select_value_catcher(subq_pred)))
+          DBUG_RETURN(TRUE);
+        if (new_sink->setup(&engine->select_lex->join->fields_list) ||
+            engine->select_lex->join->change_result(new_sink) ||
+            engine->exec())
+        {
+          DBUG_RETURN(TRUE);
+        }
+        subq_pred->is_jtbm_const_tab= TRUE;
+
+        if (new_sink->assigned)
+        {
+          subq_pred->jtbm_const_row_found= TRUE;
+          /* 
+            Subselect produced one row, which is saved in new_sink->row. 
+            Inject "left_expr[i] == row[i] equalities into parent's WHERE.
+          */
+          Item *eq_cond;
+          for (uint i= 0; i < subq_pred->left_expr->cols(); i++)
+          {
+            eq_cond= new Item_func_eq(subq_pred->left_expr->element_index(i),
+                                      new_sink->row[i]);
+            if (!eq_cond || eq_cond->fix_fields(join->thd, &eq_cond))
+              DBUG_RETURN(1);
+
+            (*join_where)= and_items(*join_where, eq_cond);
+          }
+        }
+        else
+        {
+          /* Subselect produced no rows. Just set the flag, */
+          subq_pred->jtbm_const_row_found= FALSE;
+        }
+
+        /* Set up a dummy TABLE*, optimizer code needs JOIN_TABs to have TABLE */
+        TABLE *dummy_table;
+        if (!(dummy_table= create_dummy_tmp_table(join->thd)))
+          DBUG_RETURN(1);
+        table->table= dummy_table;
+        table->table->pos_in_table_list= table;
+        setup_table_map(table->table, table, table->jtbm_table_no);
+      }
+      else
+      {
+        DBUG_ASSERT(subq_pred->test_set_strategy(SUBS_MATERIALIZATION));
+        subq_pred->is_jtbm_const_tab= FALSE;
+        subselect_hash_sj_engine *hash_sj_engine=
+          ((subselect_hash_sj_engine*)item->engine);
+        
+        table->table= hash_sj_engine->tmp_table;
+        table->table->pos_in_table_list= table;
+
+        setup_table_map(table->table, table, table->jtbm_table_no);
+
+        Item *sj_conds= hash_sj_engine->semi_join_conds;
+
+        (*join_where)= and_items(*join_where, sj_conds);
+        if (!(*join_where)->fixed)
+          (*join_where)->fix_fields(join->thd, join_where);
+      }
+    }
+
+    if ((nested_join= table->nested_join))
+    {
+      if (setup_jtbm_semi_joins(join, &nested_join->join_list, join_where))
+        DBUG_RETURN(TRUE);
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
 /**
   Choose an optimal strategy to execute an IN/ALL/ANY subquery predicate
   based on cost.
@@ -4931,8 +5159,16 @@ bool JOIN::choose_tableless_subquery_plan()
          NULL.
       */
     }
-
-    if (subs_predicate->is_in_predicate())
+    
+    /*
+      For IN subqueries, use IN->EXISTS transfomation, unless the subquery 
+      has been converted to a JTBM semi-join. In that case, just leave
+      everything as-is, setup_jtbm_semi_joins() has special handling for cases
+      like this.
+    */
+    if (subs_predicate->is_in_predicate() && 
+        !(subs_predicate->substype() == Item_subselect::IN_SUBS && 
+          ((Item_in_subselect*)subs_predicate)->is_jtbm_merged))
     {
       Item_in_subselect *in_subs;
       in_subs= (Item_in_subselect*) subs_predicate;

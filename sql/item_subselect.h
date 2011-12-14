@@ -448,11 +448,44 @@ public:
     Same as above, but they also allow to scan the materialized table. 
   */
   bool sjm_scan_allowed;
-  double jtbm_read_time;
-  double jtbm_record_count;   
-  bool is_jtbm_merged;
-  bool is_jtbm_const_tab;
 
+  /* 
+    JoinTaB Materialization (JTBM) members
+  */
+  
+  /* 
+    TRUE <=> This subselect has been converted into non-mergeable semi-join
+    table.
+  */
+  bool is_jtbm_merged;
+  
+  /* (Applicable if is_jtbm_merged==TRUE) Time required to run the materialized join */
+  double jtbm_read_time;
+
+  /* (Applicable if is_jtbm_merged==TRUE) Number of output rows in materialized join */
+  double jtbm_record_count;   
+  
+  /*
+    (Applicable if is_jtbm_merged==TRUE) TRUE <=> The materialized subselect is
+    a degenerate subselect which produces 0 or 1 rows, which we know at
+    optimization phase.
+    Examples:
+    1. subquery has "Impossible WHERE": 
+
+      SELECT * FROM ot WHERE ot.column IN (SELECT it.col FROM it WHERE 2 > 3)
+    
+    2. Subquery produces one row which opt_sum.cc is able to get with one lookup:
+
+      SELECT * FROM ot WHERE ot.column IN (SELECT MAX(it.key_col) FROM it)
+  */
+  bool is_jtbm_const_tab;
+  
+  /* 
+    (Applicable if is_jtbm_const_tab==TRUE) Whether the subquery has produced 
+     the row (or not)
+  */
+  bool jtbm_const_row_found;
+  
   /*
     TRUE<=>this is a flattenable semi-join, false overwise.
   */
@@ -744,6 +777,9 @@ public:
 
   friend class subselect_hash_sj_engine;
   friend class Item_in_subselect;
+  friend bool setup_jtbm_semi_joins(JOIN *join, List<TABLE_LIST> *join_list,
+                                    Item **join_where);
+
 };
 
 
