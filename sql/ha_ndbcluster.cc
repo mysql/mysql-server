@@ -13745,8 +13745,8 @@ NDB_SHARE::create(const char* key, size_t key_length,
   if (ndbcluster_binlog_init_share(current_thd, share, table))
   {
     DBUG_PRINT("error", ("get_share: %s could not init share", key));
-    free_root(&share->mem_root, MYF(0));
-    my_free(share, 0);
+    DBUG_ASSERT(share->event_data == NULL);
+    NDB_SHARE::destroy(share);
     *root_ptr= old_root;
     return NULL;
   }
