@@ -109,6 +109,24 @@ truncate table t1;
 check table t1 extended;
 drop table t1;
 
+#
+# Test for BUG#887051; Failure in recovery with delete
+#
+
+let $mvr_restore_old_snapshot=0;
+let $mms_compare_physically=0;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
+CREATE TABLE t1 ( word VARCHAR(255) PRIMARY KEY ) ENGINE=Aria;
+LOAD DATA INFILE '../../std_data/bug887051.txt' INTO TABLE t1;
+SET AUTOCOMMIT=0;
+DELETE FROM t1;
+LOAD DATA INFILE '../../std_data/bug887051.txt' INTO TABLE t1 IGNORE 1 LINES;
+COMMIT; 
+-- source include/maria_verify_recovery.inc
+select * from t1;
+drop table t1;
+
 # clean up everything
 let $mms_purpose=feeding_recovery;
 eval drop database mysqltest_for_$mms_purpose;
