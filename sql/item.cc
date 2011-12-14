@@ -39,6 +39,7 @@
                                        // RESOLVED_AGAINST_ALIAS, ...
 #include "log_event.h"                 // append_query_string
 #include "sql_test.h"                  // print_where
+#include "sql_optimizer.h"             // JOIN
 
 using std::min;
 using std::max;
