@@ -2462,9 +2462,13 @@ public:
   uchar type;
 
 #ifdef MYSQL_SERVER
-  Intvar_log_event(THD* thd_arg,uchar type_arg, ulonglong val_arg)
-    :Log_event(thd_arg,0,0),val(val_arg),type(type_arg)
-  {}
+Intvar_log_event(THD* thd_arg,uchar type_arg, ulonglong val_arg,
+                 bool using_trans, bool direct)
+    :Log_event(thd_arg,0,using_trans),val(val_arg),type(type_arg)
+  {
+    if (direct)
+      cache_type= Log_event::EVENT_NO_CACHE;
+  }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -2538,9 +2542,13 @@ class Rand_log_event: public Log_event
   ulonglong seed2;
 
 #ifdef MYSQL_SERVER
-  Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg)
-    :Log_event(thd_arg,0,0),seed1(seed1_arg),seed2(seed2_arg)
-  {}
+  Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg,
+                 bool using_trans, bool direct)
+    :Log_event(thd_arg,0,using_trans),seed1(seed1_arg),seed2(seed2_arg)
+  {
+    if (direct)
+      cache_type= Log_event::EVENT_NO_CACHE;
+  }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -2641,11 +2649,17 @@ public:
 #ifdef MYSQL_SERVER
   User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
-		     uint charset_number_arg, uchar flags_arg)
-    :Log_event(), name(name_arg), name_len(name_len_arg), val(val_arg),
+		     uint charset_number_arg, uchar flags_arg,
+                     bool using_trans, bool direct)
+    :Log_event(thd_arg, 0, using_trans),
+    name(name_arg), name_len(name_len_arg), val(val_arg),
     val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg),
     flags(flags_arg)
-    { is_null= !val; }
+    {
+      is_null= !val;
+      if (direct)
+        cache_type= Log_event::EVENT_NO_CACHE;
+    }
   void pack_info(Protocol* protocol);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3158,7 +3172,7 @@ class Annotate_rows_log_event: public Log_event
 {
 public:
 #ifndef MYSQL_CLIENT
-  Annotate_rows_log_event(THD*, uint16 cache_type_arg);
+  Annotate_rows_log_event(THD*, bool using_trans, bool direct);
 #endif
   Annotate_rows_log_event(const char *buf, uint event_len,
                           const Format_description_log_event*);

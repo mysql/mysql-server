@@ -186,16 +186,8 @@ SELECT count(*) FROM t4;
 
 -- echo ### check that the incident event is written to the current log
 SET GLOBAL debug="-d,error_unique_log_filename";
--- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
--- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
-
-# 53 is the size of the incident event, so we start from 22 bytes before the
-# current position
--- let $binlog_start = `SELECT $binlog_start - 53`
-FLUSH LOGS;
--- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $binlog_start <binlog_start> $binlog_file BINLOG_FILE
--- replace_column 2 # 4 # 5 #
--- eval SHOW BINLOG EVENTS IN '$binlog_file' FROM $binlog_start LIMIT 1
+-- let $binlog_limit= 4,1
+-- source include/show_binlog_events.inc
 
 # clean up and move to next test
 DELETE FROM t4;
