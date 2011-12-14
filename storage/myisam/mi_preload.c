@@ -53,6 +53,9 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
   if (!keys || !mi_is_any_key_active(key_map) || key_file_length == pos)
     DBUG_RETURN(0);
 
+  /* Preload into a non initialized key cache should never happen. */
+  DBUG_ASSERT(share->key_cache->key_cache_inited);
+
   block_length= keyinfo[0].block_length;
 
   if (ignore_leaves)
