@@ -5063,8 +5063,7 @@ no_commit:
 
 			switch (sql_command) {
 			case SQLCOM_LOAD:
-				if ((trx->duplicates
-				    & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))) {
+				if (trx->duplicates) {
 
 					goto set_max_autoinc;
 				}
@@ -5340,8 +5339,7 @@ ha_innobase::update_row(
 	    && table->next_number_field
 	    && new_row == table->record[0]
 	    && thd_sql_command(user_thd) == SQLCOM_INSERT
-	    && (trx->duplicates & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))
-		== TRX_DUP_IGNORE)  {
+	    && trx->duplicates)  {
 
 		ulonglong	auto_inc;
 		ulonglong	col_max_value;
@@ -5701,6 +5699,7 @@ ha_innobase::index_read(
 			(byte*) key_ptr,
 			(ulint) key_len,
 			prebuilt->trx);
+		DBUG_ASSERT(prebuilt->search_tuple->n_fields > 0);
 	} else {
 		/* We position the cursor to the last or the first entry
 		in the index */
@@ -5807,13 +5806,13 @@ ha_innobase::innobase_get_index(
 			table. Only print message if the index translation
 			table exists */
 			if (share->idx_trans_tbl.index_mapping) {
-				sql_print_error("InnoDB could not find "
-						"index %s key no %u for "
-						"table %s through its "
-						"index translation table",
-						key ? key->name : "NULL",
-						keynr,
-						prebuilt->table->name);
+				sql_print_warning("InnoDB could not find "
+						  "index %s key no %u for "
+						  "table %s through its "
+						  "index translation table",
+						  key ? key->name : "NULL",
+						  keynr,
+						  prebuilt->table->name);
 			}
 
 			index = dict_table_get_index_on_name(prebuilt->table,
@@ -7528,6 +7527,7 @@ ha_innobase::records_in_range(
 	mem_heap_t*	heap;
 
 	DBUG_ENTER("records_in_range");
+	DBUG_ASSERT(min_key || max_key);
 
 	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
@@ -7577,6 +7577,9 @@ ha_innobase::records_in_range(
 					 (const uchar*) 0),
 				(ulint) (min_key ? min_key->length : 0),
 				prebuilt->trx);
+	DBUG_ASSERT(min_key
+		    ? range_start->n_fields > 0
+		    : range_start->n_fields == 0);
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_end, (byte*) key_val_buff2,
@@ -7585,6 +7588,9 @@ ha_innobase::records_in_range(
 					 (const uchar*) 0),
 				(ulint) (max_key ? max_key->length : 0),
 				prebuilt->trx);
+	DBUG_ASSERT(max_key
+		    ? range_end->n_fields > 0
+		    : range_end->n_fields == 0);
 
 	mode1 = convert_search_mode_to_innobase(min_key ? min_key->flag :
 						HA_READ_KEY_EXACT);
@@ -8286,7 +8292,10 @@ ha_innobase::check(
 		putc('\n', stderr);
 #endif
 
-		if (!btr_validate_index(index, prebuilt->trx)) {
+		/* If this is an index being created, break */
+		if (*index->name == TEMP_INDEX_PREFIX) {
+			break;
+		}  else if (!btr_validate_index(index, prebuilt->trx)) {
 			is_ok = FALSE;
 
 			innobase_format_name(
@@ -8835,6 +8844,7 @@ ha_innobase::extra(
 			break;
 		case HA_EXTRA_RESET_STATE:
 			reset_template(prebuilt);
+			thd_to_trx(ha_thd())->duplicates = 0;
 			break;
 		case HA_EXTRA_NO_KEYREAD:
 			prebuilt->read_just_key = 0;
@@ -8852,18 +8862,17 @@ ha_innobase::extra(
 			parameters below.  We must not invoke update_thd()
 			either, because the calling threads may change.
 			CAREFUL HERE, OR MEMORY CORRUPTION MAY OCCUR! */
-		case HA_EXTRA_IGNORE_DUP_KEY:
+		case HA_EXTRA_INSERT_WITH_UPDATE:
 			thd_to_trx(ha_thd())->duplicates |= TRX_DUP_IGNORE;
+			break;
+		case HA_EXTRA_NO_IGNORE_DUP_KEY:
+			thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_IGNORE;
 			break;
 		case HA_EXTRA_WRITE_CAN_REPLACE:
 			thd_to_trx(ha_thd())->duplicates |= TRX_DUP_REPLACE;
 			break;
 		case HA_EXTRA_WRITE_CANNOT_REPLACE:
 			thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_REPLACE;
-			break;
-		case HA_EXTRA_NO_IGNORE_DUP_KEY:
-			thd_to_trx(ha_thd())->duplicates &=
-				~(TRX_DUP_IGNORE | TRX_DUP_REPLACE);
 			break;
 		default:/* Do nothing */
 			;

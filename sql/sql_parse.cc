@@ -2888,7 +2888,7 @@ end_with_restore_list:
       {
         Incident_log_event ev(thd, incident);
         (void) mysql_bin_log.write(&ev);        /* error is ignored */
-        if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+        if (mysql_bin_log.rotate_and_purge(true))
         {
           res= 1;
           break;
