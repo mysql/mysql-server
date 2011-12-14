@@ -57,10 +57,16 @@ bool Ndb_local_schema::Base::mdl_try_lock(void) const
   if (m_thd->mdl_context.acquire_locks(&mdl_requests,
                                        0 /* don't wait for lock */))
   {
-    log_warning("Failed to aquire mdl lock");
+    // Check that an error has been pushed to thd and then
+    // clear it since this is just a _try lock_
+    assert(m_thd->is_error());
+    m_thd->clear_error();
+
+    log_warning("Failed to acquire metadata lock");
+
     return false;
   }
-  DBUG_PRINT("info", ("aqcuired mdl lock"));
+  DBUG_PRINT("info", ("acquired metadata lock"));
   return true;
 }
 
