@@ -4839,6 +4839,7 @@ void do_get_errcodes(struct st_command *command)
   struct st_match_err *to= saved_expected_errors.err;
   char *p= command->first_argument;
   uint count= 0;
+  char *next;
 
   DBUG_ENTER("do_get_errcodes");
 
@@ -4857,6 +4858,17 @@ void do_get_errcodes(struct st_command *command)
     end= p;
     while (*end && *end != ',' && *end != ' ')
       end++;
+
+    next=end;
+
+    /* code to handle variables passed to mysqltest */
+     if( *p == '$')
+     {
+        const char* fin;
+        VAR *var = var_get(p,&fin,0,0);
+        p=var->str_val;
+        end=p+var->str_val_len;
+     }
 
     if (*p == 'S')
     {
@@ -4932,7 +4944,7 @@ void do_get_errcodes(struct st_command *command)
       die("Too many errorcodes specified");
 
     /* Set pointer to the end of the last error code */
-    p= end;
+    p= next;
 
     /* Find next ',' */
     while (*p && *p != ',')
@@ -5364,6 +5376,7 @@ do_handle_error:
 
   var_set_errno(0);
   handle_no_error(command);
+  revert_properties();
   return 1; /* Connected */
 }
 
@@ -7319,6 +7332,7 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
   /* If we come here the query is both executed and read successfully */
   handle_no_error(command);
+  revert_properties();
 
 end:
 
@@ -7514,8 +7528,6 @@ void handle_no_error(struct st_command *command)
     die("query '%s' succeeded - should have failed with sqlstate %s...",
         command->query, command->expected_errors.err[0].code.sqlstate);
   }
-
-  revert_properties();
   DBUG_VOID_RETURN;
 }
 
@@ -7546,9 +7558,6 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
 
-  /* Remember disable_result_log since handle_no_error() may reset it */
-  my_bool dis_res= disable_result_log;
-  
   /*
     Init a new stmt if it's not already one created for this connection
   */
@@ -7644,7 +7653,7 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
   /* If we got here the statement was both executed and read successfully */
   handle_no_error(command);
-  if (!dis_res)
+  if (!disable_result_log)
   {
     /*
       Not all statements creates a result set. If there is one we can
@@ -7720,7 +7729,7 @@ end:
     dynstr_free(&ds_prepare_warnings);
     dynstr_free(&ds_execute_warnings);
   }
-
+  revert_properties();
 
   /* Close the statement if - no reconnect, need new prepare */
   if (mysql->reconnect)
