@@ -2213,7 +2213,7 @@ static Sys_var_uint Sys_threadpool_idle_thread_timeout(
   "Timeout in seconds for an idle thread in the thread pool."
   "Worker thread will be shut down after timeout",
   GLOBAL_VAR(threadpool_idle_timeout), CMD_LINE(REQUIRED_ARG),
-  VALID_RANGE(1, UINT_MAX/100), DEFAULT(60000), BLOCK_SIZE(1)
+  VALID_RANGE(1, UINT_MAX), DEFAULT(60), BLOCK_SIZE(1)
 );
 static Sys_var_uint Sys_threadpool_size(
  "thread_pool_size",
