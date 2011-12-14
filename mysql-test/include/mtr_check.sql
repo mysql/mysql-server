@@ -27,7 +27,8 @@ BEGIN
   -- Dump all global variables except those
   -- that are supposed to change
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-    WHERE variable_name != 'timestamp' ORDER BY VARIABLE_NAME;
+    WHERE variable_name NOT IN ('timestamp', 'innodb_file_format_max')
+      ORDER BY VARIABLE_NAME;
 
   -- Dump all databases, there should be none
   -- except those that was created during bootstrap
