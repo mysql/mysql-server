@@ -14473,6 +14473,7 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
     goto err;
   }
   status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
+  table->in_use->query_plan_flags|= QPLAN_TMP_DISK;
   share->db_record_offset= 1;
   table->created= TRUE;
   DBUG_RETURN(0);
