@@ -12,4 +12,5 @@ connect(localhost,root,,test,port,socket);
 ERROR HY000: Too many connections
 SET GLOBAL max_connections = @old_max_connections;
 SET GLOBAL log_warnings = @old_log_warnings;
-1
+[log_grep.inc] file: percona.log_connection_error.err pattern: Too many connections
+[log_grep.inc] lines:   1

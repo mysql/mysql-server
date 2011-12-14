@@ -512,6 +512,7 @@ struct trx_struct{
 					FALSE, one can save CPU time and about
 					150 bytes in the undo log size as then
 					we skip XA steps */
+	ulint		fake_changes;
 	ulint		flush_log_later;/* In 2PC, we hold the
 					prepare_commit mutex across
 					both phases. In that case, we
@@ -594,6 +595,8 @@ struct trx_struct{
 					replication has processed */
 	const char*	mysql_relay_log_file_name;
 	ib_int64_t	mysql_relay_log_pos;
+	time_t		idle_start;
+	ib_int64_t	last_stmt_start;
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current

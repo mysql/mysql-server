@@ -303,4 +303,15 @@ ulint
 innobase_get_lower_case_table_names(void);
 /*=====================================*/
 
+/******************************************************************//**
+Returns true if innodb_expand_fast_index_creation is enabled for the current
+session.
+@return	the value of the server's innodb_expand_fast_index_creation variable */
+
+ibool
+thd_expand_fast_index_creation(
+/*==================*/
+	void*	thd);	/*!< in: thread handle (THD*) */
+
+
 #endif

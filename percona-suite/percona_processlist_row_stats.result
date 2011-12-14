@@ -6,69 +6,65 @@ INSERT INTO t2 VALUES(10);
 INSERT INTO t2 VALUES(20);
 INSERT INTO t2 VALUES(10);
 INSERT INTO t2 VALUES(20);
-Issuing operation that should not return any rows and stopping the thread #1
 SET DEBUG_SYNC= 'locked_table_name SIGNAL thread1_ready WAIT_FOR threads_dumped';
 CREATE TABLE t1 (a INT);
 SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
-Thread #1 stopped
-Issuing row-returning query and stopping the thread #2 at the end of query
 SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FOR threads_dumped';
 SELECT a FROM t2 WHERE a > 15;
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
-Thread #2 stopped
-Look at thread states
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST	0	0	2
 ###	root	###	test	Query	###	###	CREATE TABLE t1 (a INT)	0	0	1
 ###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a > 15	2	5	6
-SELECT id, info, rows_sent, rows_examined, rows_read FROM information_schema.processlist 
-ORDER BY id;
+SELECT id, info, rows_sent, rows_examined, rows_read FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id;
 id	info	rows_sent	rows_examined	rows_read
-###	SELECT id, info, rows_sent, rows_examined, rows_read FROM information_schema.processlist 
-ORDER BY id	0	0	1
+###	SELECT id, info, rows_sent, rows_examined, rows_read FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id	0	0	1
 ###	CREATE TABLE t1 (a INT)	0	0	1
 ###	SELECT a FROM t2 WHERE a > 15	2	5	6
-Let threads #1 and #2 finish their job
 SET DEBUG_SYNC= 'now SIGNAL threads_dumped';
 a
 20
 20
-Issuing row-returning query and stopping the thread #2 in the middle of query
+SET DEBUG_SYNC= 'sent_row SIGNAL thread1_ready WAIT_FOR threads_dumped';
+SELECT a FROM t2 WHERE a < 15;
+SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
 SET DEBUG_SYNC= 'sent_row SIGNAL thread2_ready WAIT_FOR threads_dumped';
 SELECT a FROM t2 WHERE a > 15;
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
-Thread #2 stopped, look at its state
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST	0	0	4
-###	root	###	test	Sleep	###	###	NULL	0	0	1
+###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a < 15	1	0	1
 ###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a > 15	1	0	3
-SELECT id,rows_sent,rows_examined,rows_read FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY Id;
-id	rows_sent	rows_examined	rows_read
-###	0	0	1
-###	0	0	1
-###	1	0	3
+SELECT id, info, rows_sent, rows_examined, rows_read FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id;
+id	info	rows_sent	rows_examined	rows_read
+###	SELECT id, info, rows_sent, rows_examined, rows_read FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id	0	0	1
+###	SELECT a FROM t2 WHERE a < 15	1	0	1
+###	SELECT a FROM t2 WHERE a > 15	1	0	3
 SET DEBUG_SYNC= 'now SIGNAL threads_dumped';
-Let thread #2 finish its job
+a
+10
+10
+10
 a
 20
 20
-Issuing an UPDATE and stopping thread #2
+SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread1_ready WAIT_FOR threads_dumped';
+UPDATE t2 SET a = 15 WHERE a = 20;
+SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
 SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FOR threads_dumped';
 UPDATE t2 SET a = 15 WHERE a = 10;
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
-Thread #2 stopped, look at its state
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST	0	0	4
-###	root	###	test	Sleep	###	###	NULL	0	0	1
+###	root	###	test	Query	###	###	UPDATE t2 SET a = 15 WHERE a = 20	0	5	6
 ###	root	###	test	Query	###	###	UPDATE t2 SET a = 15 WHERE a = 10	0	5	6
-SELECT id,rows_sent,rows_examined,rows_read FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY Id;
-id	rows_sent	rows_examined	rows_read
-###	0	0	1
-###	0	0	1
-###	0	5	6
+SELECT id, info, rows_sent, rows_examined, rows_read FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id;
+id	info	rows_sent	rows_examined	rows_read
+###	SELECT id, info, rows_sent, rows_examined, rows_read FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id	0	0	1
+###	UPDATE t2 SET a = 15 WHERE a = 20	0	5	6
+###	UPDATE t2 SET a = 15 WHERE a = 10	0	5	6
 SET DEBUG_SYNC= 'now SIGNAL threads_dumped';
-Let thread #2 finish its job
 DROP TABLES t1, t2;

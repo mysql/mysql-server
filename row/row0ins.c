@@ -118,6 +118,9 @@ ins_node_create_entry_list(
 					      node->entry_sys_heap);
 		UT_LIST_ADD_LAST(tuple_list, node->entry_list, entry);
 
+		/* We will include all indexes (include those corrupted
+		secondary indexes) in the entry list. Filteration of
+		these corrupted index will be done in row_ins() */
 		index = dict_table_get_next_index(index);
 	}
 }
@@ -1499,6 +1502,11 @@ exit_func:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
+
+	if (trx->fake_changes) {
+		err = DB_SUCCESS;
+	}
+
 	return(err);
 }
 
@@ -2004,7 +2012,7 @@ row_ins_index_entry_low(
 	}
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-				    search_mode,
+				    thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : search_mode,
 				    &cursor, 0, __FILE__, __LINE__, &mtr);
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
@@ -2053,7 +2061,6 @@ row_ins_index_entry_low(
 			mtr_start(&mtr);
 
 			if (err != DB_SUCCESS) {
-
 				goto function_exit;
 			}
 
@@ -2065,7 +2072,7 @@ row_ins_index_entry_low(
 
 			btr_cur_search_to_nth_level(index, 0, entry,
 						    PAGE_CUR_LE,
-						    mode | BTR_INSERT,
+						    thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : (mode | BTR_INSERT),
 						    &cursor, 0,
 						    __FILE__, __LINE__, &mtr);
 		}
@@ -2119,6 +2126,22 @@ function_exit:
 	if (UNIV_LIKELY_NULL(big_rec)) {
 		rec_t*	rec;
 		ulint*	offsets;
+
+		if (thr_get_trx(thr)->fake_changes) {
+			/* skip store extern */
+			if (modify) {
+				dtuple_big_rec_free(big_rec);
+			} else {
+				dtuple_convert_back_big_rec(index, entry, big_rec);
+			}
+
+			if (UNIV_LIKELY_NULL(heap)) {
+				mem_heap_free(heap);
+			}
+
+			return(err);
+		}
+
 		mtr_start(&mtr);
 
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
@@ -2403,6 +2426,13 @@ row_ins(
 
 		node->index = dict_table_get_next_index(node->index);
 		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+
+		/* Skip corrupted secondar index and its entry */
+		while (node->index && dict_index_is_corrupted(node->index)) {
+
+			node->index = dict_table_get_next_index(node->index);
+			node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+		}
 	}
 
 	ut_ad(node->entry == NULL);

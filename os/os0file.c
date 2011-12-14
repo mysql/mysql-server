@@ -4161,7 +4161,7 @@ os_aio_func(
 		and os_file_write_func() */
 
 		if (type == OS_FILE_READ) {
-			return(os_file_read_trx(file, buf, offset,
+			return(os_file_read_func(file, buf, offset,
 					    offset_high, n, trx));
 		}
 
