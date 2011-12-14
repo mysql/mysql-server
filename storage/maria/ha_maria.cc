@@ -2562,8 +2562,16 @@ int ha_maria::extra_opt(enum ha_extra_function operation, ulong cache_size)
 int ha_maria::delete_all_rows()
 {
   THD *thd= table->in_use;
-  (void) translog_log_debug_info(file->trn, LOGREC_DEBUG_INFO_QUERY,
-                                 (uchar*) thd->query(), thd->query_length());
+#ifdef EXTRA_DEBUG
+  TRN *trn= file->trn;
+  if (trn && ! (trnman_get_flags(trn) & TRN_STATE_INFO_LOGGED))
+  {
+    trnman_set_flags(trn, trnman_get_flags(trn) | TRN_STATE_INFO_LOGGED |
+                     TRN_STATE_TABLES_CAN_CHANGE);
+    (void) translog_log_debug_info(trn, LOGREC_DEBUG_INFO_QUERY,
+                                   (uchar*) thd->query(), thd->query_length());
+  }
+#endif
   if (file->s->now_transactional &&
       ((table->in_use->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
        table->in_use->locked_tables))

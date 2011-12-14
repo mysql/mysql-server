@@ -67,9 +67,9 @@ inline void xt_atomic_inc1(volatile xtWord1 *mptr)
 #elif defined(XT_ATOMIC_GNUC_X86)
 	xtWord1 val;
 
-	asm volatile ("movb %1,%0" : "=r" (val) : "m" (*mptr) : "memory");
+	asm volatile ("movb %1,%0" : "=q" (val) : "m" (*mptr) : "memory");
 	val++;
-	asm volatile ("xchgb %1,%0" : "=r" (val) : "m" (*mptr), "0" (val) : "memory");
+	asm volatile ("xchgb %1,%0" : "=q" (val) : "m" (*mptr), "0" (val) : "memory");
 #elif defined(XT_ATOMIC_SOLARIS_LIB)
 	atomic_inc_8(mptr);
 #else
@@ -91,9 +91,9 @@ inline xtWord1 xt_atomic_dec1(volatile xtWord1 *mptr)
 #elif defined(XT_ATOMIC_GNUC_X86)
 	xtWord1 val2;
 
-	asm volatile ("movb %1, %0" : "=r" (val) : "m" (*mptr) : "memory");
+	asm volatile ("movb %1, %0" : "=q" (val) : "m" (*mptr) : "memory");
 	val--;
-	asm volatile ("xchgb %1,%0" : "=r" (val2) : "m" (*mptr), "0" (val) : "memory");
+	asm volatile ("xchgb %1,%0" : "=q" (val2) : "m" (*mptr), "0" (val) : "memory");
 	/* Should work, but compiler makes a mistake?
 	 * asm volatile ("xchgb %1, %0" : : "r" (val), "m" (*mptr) : "memory");
 	 */
