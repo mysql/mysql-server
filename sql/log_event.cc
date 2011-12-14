@@ -2465,7 +2465,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         gaq->get_job_group(rli->gaq->assigned_group_index)->
         worker_id != MTS_WORKER_UNDEF)))
   {
-    if (!rli->curr_group_seen_gtid)
+    if (!rli->curr_group_seen_gtid && !rli->curr_group_seen_begin)
     {
       ulong gaq_idx;
       rli->mts_groups_assigned++;
@@ -2712,8 +2712,8 @@ int Log_event::apply_event(Relay_log_info *rli)
   {
     bool skip= 
       bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index) &&
-      (get_mts_execution_mode(::server_id, 
-                          rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
+      (get_mts_execution_mode(::server_id,
+       rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
        == EVENT_EXEC_PARALLEL);
     if (skip)
     {
@@ -6330,10 +6330,11 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         rli->get_group_master_log_name(),
                         (ulong) rli->get_group_master_log_pos()));
 
+    bool change= strncmp(rli->get_group_master_log_name(), new_log_ident, ident_len + 1);
     memcpy((void *)rli->get_group_master_log_name(),
            new_log_ident, ident_len + 1);
     rli->notify_group_master_log_name_update();
-    if ((error=  rli->inc_group_relay_log_pos(pos, true)))
+    if ((error=  rli->inc_group_relay_log_pos(pos, change, true)))
     {
       mysql_mutex_unlock(&rli->data_lock);
       goto err;
@@ -7338,7 +7339,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
     rli->inc_event_relay_log_pos();
   else
   {
-    error_inc= rli->inc_group_relay_log_pos(false);
+    error_inc= rli->inc_group_relay_log_pos(0, false, false);
     error_flush= rli->flush_info(TRUE);
   }
   return (error_inc || error_flush);

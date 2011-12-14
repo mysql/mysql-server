@@ -375,7 +375,8 @@ public:
   }
 
   int inc_group_relay_log_pos(ulonglong log_pos,
-			       bool skip_lock= FALSE);
+                              bool changed_name,
+                              bool skip_lock);
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);

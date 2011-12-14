@@ -3120,10 +3120,15 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
 
       See sql/rpl_rli.h for further details.
     */
+    /*
+      This needs to be improved because the GTID needs to be handled as
+      group and group positions are incremented at the end.
+    */
     int error= 0;
     if (*ptr_ev &&
         (ev->get_type_code() != XID_EVENT ||
          skip_event || (rli->is_mts_recovery() &&
+         ev->get_type_code() != GTID_LOG_EVENT &&
          (ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
           bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index))))
     {
@@ -3173,13 +3178,15 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
 
     if (!error && rli->is_mts_recovery() &&
         ev->get_type_code() != ROTATE_EVENT &&
-        ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
+        ev->get_type_code() != FORMAT_DESCRIPTION_EVENT &&
+        ev->get_type_code() != PREVIOUS_GTIDS_LOG_EVENT)
     {
       if (ev->starts_group())
       {
-        rli->mts_recovery_group_seen_begin= TRUE;
+        rli->mts_recovery_group_seen_begin= true;
       }
-      if (ev->ends_group() || !rli->mts_recovery_group_seen_begin)
+      else if ((ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
+               (ev->get_type_code() != GTID_LOG_EVENT))
       {
         rli->mts_recovery_index++;
         if (--rli->mts_recovery_group_cnt == 0)
@@ -3187,7 +3194,7 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
           rli->recovery_parallel_workers= rli->slave_parallel_workers;
           rli->mts_recovery_index= 0;
         }
-        rli->mts_recovery_group_seen_begin= FALSE;
+        rli->mts_recovery_group_seen_begin= false;
 
         error= rli->flush_info(TRUE);
       }
@@ -4256,7 +4263,7 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
       */
       if (!checksum_detected)
       {
-        for (int i=0; i < 3; i++)
+        for (int i=0; i < 4; i++)
         {
           if ((ev= Log_event::read_log_event(&log,
                                              (mysql_mutex_t*) 0, p_fdle, 0))
@@ -4285,7 +4292,8 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
           p_fdle->checksum_alg= ev->checksum_alg;
 
         if (ev->get_type_code() == ROTATE_EVENT ||
-            ev->get_type_code() == FORMAT_DESCRIPTION_EVENT) 
+            ev->get_type_code() == FORMAT_DESCRIPTION_EVENT ||
+            ev->get_type_code() == PREVIOUS_GTIDS_LOG_EVENT)
         {
           delete ev;
           ev= NULL;
@@ -4298,14 +4306,15 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
 
         if (ev->starts_group())
         {
-          flag_group_seen_begin= TRUE;
+          flag_group_seen_begin= true;
         }
-        if (ev->ends_group() || !flag_group_seen_begin)
+        else if ((ev->ends_group() || !flag_group_seen_begin) &&
+                 (ev->get_type_code() != GTID_LOG_EVENT))
         {
           int ret= 0;
           LOG_POS_COORD ev_coord= { (char *) rli->get_group_master_log_name(),
                                       ev->log_pos };
-          flag_group_seen_begin= FALSE;
+          flag_group_seen_begin= false;
           recovery_group_cnt++;
 
           sql_print_information("Group Recoverying relay log info "
