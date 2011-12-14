@@ -239,6 +239,34 @@ CACHE INDEX t2 INDEX (`inx_b`) IN hot_cache;
 CACHE INDEX t1 PARTITION (p0) KEY (`inx_b`) IN hot_cache;
 CACHE INDEX t1 INDEX (`inx_b`) IN hot_cache;
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#12361113: crash when load index into cache
+--echo #
+--echo # Note that this creates an empty disabled key cache!
+SET GLOBAL key_cache_none.key_cache_block_size = 1024;
+CREATE TABLE t1 (a INT, b INTEGER NOT NULL, KEY (b) )
+ENGINE = MYISAM
+PARTITION BY HASH(a) PARTITIONS 2;
+INSERT INTO t1 VALUES (1, 1);
+--error ER_UNKNOWN_KEY_CACHE
+CACHE INDEX t1 IN key_cache_none;
+--error ER_UNKNOWN_KEY_CACHE
+CACHE INDEX t1 PARTITION (p0) IN key_cache_none;
+--error ER_UNKNOWN_KEY_CACHE
+CACHE INDEX t1 PARTITION (p1) IN key_cache_none;
+--error ER_UNKNOWN_KEY_CACHE
+CACHE INDEX t1 PARTITION (p0) KEY (`b`) IN key_cache_none;
+--error ER_UNKNOWN_KEY_CACHE
+CACHE INDEX t1 PARTITION (p1) KEY (`b`) IN key_cache_none;
+--echo # The bug crashed the server at LOAD INDEX below. Now it will succeed
+--echo # since the default cache is used due to CACHE INDEX failed for
+--echo # key_cache_none.
+LOAD INDEX INTO CACHE t1;
+DROP TABLE t1;
+
+
+--echo # Clean up
 SET GLOBAL hot_cache.key_buffer_size = 0;
 SET GLOBAL warm_cache.key_buffer_size = 0;
 SET @@global.cold_cache.key_buffer_size = 0;
