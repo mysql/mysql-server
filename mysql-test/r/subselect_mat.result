@@ -1764,6 +1764,20 @@ SELECT MIN(a) FROM t1, t2 WHERE b IN (SELECT c FROM t3 GROUP BY c);
 MIN(a)
 1
 DROP TABLE t1,t2,t3;
+#
+# BUG#901506: Crash in TABLE_LIST::print on EXPLAIN EXTENDED
+#
+CREATE TABLE t1 ( a INT, KEY(a) );
+INSERT INTO t1 VALUES (8);
+EXPLAIN EXTENDED
+SELECT * FROM t1
+WHERE a IN ( SELECT MIN(a) FROM t1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	select 8 AS `a` from `test`.`t1` where <expr_cache><8>(<in_optimizer>(8,<exists>(select min(`test`.`t1`.`a`) from `test`.`t1` having (<cache>(8) = <ref_null_helper>(min(`test`.`t1`.`a`))))))
+DROP TABLE t1;
 # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set @subselect_mat_test_optimizer_switch_value=null;
