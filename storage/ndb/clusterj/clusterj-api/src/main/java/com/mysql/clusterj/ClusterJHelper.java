@@ -35,6 +35,14 @@ import java.util.Map;
  */
 public class ClusterJHelper {
 
+    /** Return a new Dbug instance.
+     * 
+     * @return a new Dbug instance
+     */
+    public static Dbug newDbug() {
+        return getServiceInstance(Dbug.class);
+    }
+
     /** Locate a SessionFactory implementation by services lookup. The class loader
      * used is the thread's context class loader.
      *

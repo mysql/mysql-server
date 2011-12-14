@@ -53,6 +53,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/DatetimeAsUtilDateTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DecimalTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DefaultConnectValuesTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/DbugTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DeleteAllByClassTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DeleteInsertTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DeleteQueryAllPrimitivesTest.java \

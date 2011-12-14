@@ -24,6 +24,7 @@
 // API to wrap
 #include "CharsetMap.hpp"
 #include "decimal_utils.hpp"
+#include "dbug_utils.hpp"
 
 struct MysqlUtilsWrapper {
 
@@ -98,6 +99,37 @@ struct MysqlUtilsWrapper {
         return ::decimal_bin2str(p0, p1, p2, p3, p4, p5);
     }
     
+
+    static void
+    dbugPush
+    ( const char * state )
+    {
+        ::dbugPush(state);
+    }
+
+    static void
+    dbugPop
+    ()
+    {
+        ::dbugPop();
+    }
+
+    static void
+    dbugSet
+    ( const char * state )
+    {
+        ::dbugSet(state);
+    }
+
+    static const char *
+    dbugExplain
+    (char * buffer, int length)
+    {
+        return ::dbugExplain(buffer, length);
+    }
+
+        // ---------------------------------------------------------------------------
+
 // ---------------------------------------------------------------------------
 
 };
