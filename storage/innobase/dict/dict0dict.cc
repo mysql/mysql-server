@@ -878,9 +878,16 @@ dict_table_open_on_name_low(
 	ut_ad(!table || table->cached);
 
 	if (table != NULL) {
+
 		/* If table is corrupted, return NULL */
 		if (ignore_err == DICT_ERR_IGNORE_NONE
 		    && table->corrupted) {
+
+			/* Make life easy for drop table. */
+			if (table->can_be_evicted) {
+				dict_table_move_from_lru_to_non_lru(table);
+			}
+
 			if (!dict_locked) {
 				mutex_exit(&dict_sys->mutex);
 			}
