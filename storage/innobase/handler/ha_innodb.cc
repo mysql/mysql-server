@@ -9333,6 +9333,7 @@ innobase_drop_database(
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
 }
+
 /*********************************************************************//**
 Renames an InnoDB table.
 @return	0 or error code */
@@ -11161,6 +11162,19 @@ ha_innobase::external_lock(
 
 			fprintf(stderr, "Begin: FTWRL: %lu\n",
 				prebuilt->table->n_ref_count);
+
+			ulint	n_bytes_merged = ibuf_contract_in_background(
+				prebuilt->table->id, TRUE);
+
+			fprintf(stderr, "bytes merged: %lu\n", n_bytes_merged);
+
+			ulint	n_pages = buf_flush_list(
+				prebuilt->table->space,
+				ULINT_MAX, ULINT_UNDEFINED);
+
+			buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+
+			fprintf(stderr, "pages flushed: %lu\n", n_pages);
 
 			// FIXME: Ignore races for now.
 			prebuilt->table->quiesce = QUIESCE_START;

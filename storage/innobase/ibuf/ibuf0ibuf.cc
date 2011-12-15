@@ -2889,6 +2889,9 @@ ibuf_contract_ext(
 		for (ulint i = 0; i < *n_pages; ++i) {
 			ut_a(spaces[i] == space);
 			ut_a(i == 0 || versions[i] == versions[i - 1]);
+#if 1
+			fprintf(stderr, "pg: %lu\n", pages[i]);
+#endif
 		}
 #endif /* UNIV_DEBUG */
 
