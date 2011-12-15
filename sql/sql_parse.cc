@@ -536,6 +536,8 @@ static void handle_bootstrap_impl(THD *thd)
     query= (char *) thd->memdup_w_gap(buff, length + 1,
                                       thd->db_length + 1 +
                                       QUERY_CACHE_FLAGS_SIZE);
+    size_t db_len= 0;
+    memcpy(query + length + 1, (char *) &db_len, sizeof(size_t));
     thd->set_query_and_id(query, length, thd->charset(), next_query_id());
     DBUG_PRINT("query",("%-.4096s",thd->query()));
 #if defined(ENABLED_PROFILING)
@@ -1218,6 +1220,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_REFRESH:
   {
     int not_used;
+
+    /*
+      Initialize thd->lex since it's used in many base functions, such as
+      open_tables(). Otherwise, it remains unitialized and may cause crash
+      during execution of COM_REFRESH.
+    */
+    lex_start(thd);
+    
     status_var_increment(thd->status_var.com_stat[SQLCOM_FLUSH]);
     ulong options= (ulong) (uchar) packet[0];
     if (trans_commit_implicit(thd))
@@ -1629,13 +1639,30 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
     pos--;
     packet_length--;
   }
-  /* We must allocate some extra memory for query cache */
+  /* We must allocate some extra memory for query cache 
+
+    The query buffer layout is:
+       buffer :==
+            <statement>   The input statement(s)
+            '\0'          Terminating null char  (1 byte)
+            <length>      Length of following current database name (size_t)
+            <db_name>     Name of current database
+            <flags>       Flags struct
+  */
   if (! (query= (char*) thd->memdup_w_gap(packet,
                                           packet_length,
-                                          1 + thd->db_length +
+                                          1 + sizeof(size_t) + thd->db_length +
                                           QUERY_CACHE_FLAGS_SIZE)))
       return TRUE;
   query[packet_length]= '\0';
+  /*
+    Space to hold the name of the current database is allocated.  We
+    also store this length, in case current database is changed during
+    execution.  We might need to reallocate the 'query' buffer
+  */
+  char *len_pos = (query + packet_length + 1);
+  memcpy(len_pos, (char *) &thd->db_length, sizeof(size_t));
+    
   thd->set_query(query, packet_length);
 
   /* Reclaim some memory */
@@ -2387,6 +2414,19 @@ case SQLCOM_PREPARE:
       select_result *result;
 
       /*
+        CREATE TABLE...IGNORE/REPLACE SELECT... can be unsafe, unless
+        ORDER BY PRIMARY KEY clause is used in SELECT statement. We therefore
+        use row based logging if mixed or row based logging is available.
+        TODO: Check if the order of the output of the select statement is
+        deterministic. Waiting for BUG#42415
+      */
+      if(lex->ignore)
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_IGNORE_SELECT);
+      
+      if(lex->duplicates == DUP_REPLACE)
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT);
+
+      /*
         If:
         a) we inside an SP and there was NAME_CONST substitution,
         b) binlogging is on (STMT mode),
@@ -2727,6 +2767,16 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
+
+    /*
+      UPDATE IGNORE can be unsafe. We therefore use row based
+      logging if mixed or row based logging is available.
+      TODO: Check if the order of the output of the select statement is
+      deterministic. Waiting for BUG#42415
+    */
+    if (lex->ignore)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_UPDATE_IGNORE);
+
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
     MYSQL_UPDATE_START(thd->query());
@@ -2845,7 +2895,7 @@ end_with_restore_list:
       {
         Incident_log_event ev(thd, incident);
         (void) mysql_bin_log.write(&ev);        /* error is ignored */
-        if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+        if (mysql_bin_log.rotate_and_purge(true))
         {
           res= 1;
           break;
@@ -2893,6 +2943,23 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= insert_precheck(thd, all_tables)))
       break;
+    /*
+      INSERT...SELECT...ON DUPLICATE KEY UPDATE/REPLACE SELECT/
+      INSERT...IGNORE...SELECT can be unsafe, unless ORDER BY PRIMARY KEY
+      clause is used in SELECT statement. We therefore use row based
+      logging if mixed or row based logging is available.
+      TODO: Check if the order of the output of the select statement is
+      deterministic. Waiting for BUG#42415
+    */
+    if (lex->sql_command == SQLCOM_INSERT_SELECT &&
+        lex->duplicates == DUP_UPDATE)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_SELECT_UPDATE);
+
+    if (lex->sql_command == SQLCOM_INSERT_SELECT && lex->ignore)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_IGNORE_SELECT);
+
+    if (lex->sql_command == SQLCOM_REPLACE_SELECT)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_REPLACE_SELECT);
 
     /* Fix lock for first table */
     if (first_table->lock_type == TL_WRITE_DELAYED)

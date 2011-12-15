@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2000, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -289,21 +289,21 @@ row_mysql_pad_col(
 		/* space=0x0020 */
 		pad_end = pad + len;
 		ut_a(!(len % 2));
-		do {
+		while (pad < pad_end) {
 			*pad++ = 0x00;
 			*pad++ = 0x20;
-		} while (pad < pad_end);
+		};
 		break;
 	case 4:
 		/* space=0x00000020 */
 		pad_end = pad + len;
 		ut_a(!(len % 4));
-		do {
+		while (pad < pad_end) {
 			*pad++ = 0x00;
 			*pad++ = 0x00;
 			*pad++ = 0x00;
 			*pad++ = 0x20;
-		} while (pad < pad_end);
+		}
 		break;
 	}
 }
@@ -3995,6 +3995,7 @@ end:
 			trx->error_state = DB_SUCCESS;
 			trx_general_rollback_for_mysql(trx, NULL);
 			trx->error_state = DB_SUCCESS;
+			err = DB_ERROR;
 			goto funct_exit;
 		}
 

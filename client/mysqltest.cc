@@ -502,6 +502,31 @@ struct st_command *curr_command= 0;
 
 char builtin_echo[FN_REFLEN];
 
+struct st_replace_regex
+{
+DYNAMIC_ARRAY regex_arr; /* stores a list of st_regex subsitutions */
+
+/*
+Temporary storage areas for substitutions. To reduce unnessary copying
+and memory freeing/allocation, we pre-allocate two buffers, and alternate
+their use, one for input/one for output, the roles changing on the next
+st_regex substition. At the end of substitutions  buf points to the
+one containing the final result.
+*/
+char* buf;
+char* even_buf;
+char* odd_buf;
+int even_buf_len;
+int odd_buf_len;
+};
+
+struct st_replace_regex *glob_replace_regex= 0;
+
+struct st_replace;
+struct st_replace *glob_replace= 0;
+void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
+const char *from, int len);
+
 static void cleanup_and_exit(int exit_code) __attribute__((noreturn));
 
 void die(const char *fmt, ...)
@@ -531,6 +556,7 @@ void str_to_file2(const char *fname, char *str, int size, my_bool append);
 
 void fix_win_paths(const char *val, int len);
 const char *get_errname_from_code (uint error_code);
+int multi_reg_replace(struct st_replace_regex* r,char* val);
 
 #ifdef __WIN__
 void free_tmp_sh_file();
@@ -2432,7 +2458,23 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
       if (row[i])
       {
         /* Add column to tab separated string */
-	dynstr_append_mem(&result, row[i], lengths[i]);
+	char *val= row[i];
+	int len= lengths[i];
+	
+	if (glob_replace_regex)
+	{
+	  /* Regex replace */
+	  if (!multi_reg_replace(glob_replace_regex, (char*)val))
+	  {
+	    val= glob_replace_regex->buf;
+	    len= strlen(val);
+	  }
+	}
+	
+	if (glob_replace)
+	  replace_strings_append(glob_replace, &result, val, len);
+	else
+	  dynstr_append_mem(&result, val, len);
       }
       dynstr_append_mem(&result, "\t", 1);
     }
@@ -3344,8 +3386,9 @@ void do_copy_file(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("Copy %s to %s", ds_from_file.str, ds_to_file.str));
+  /* MY_HOLD_ORIGINAL_MODES prevents attempts to chown the file */
   error= (my_copy(ds_from_file.str, ds_to_file.str,
-                  MYF(MY_DONT_OVERWRITE_FILE)) != 0);
+                  MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
@@ -4799,6 +4842,7 @@ void do_get_errcodes(struct st_command *command)
   struct st_match_err *to= saved_expected_errors.err;
   char *p= command->first_argument;
   uint count= 0;
+  char *next;
 
   DBUG_ENTER("do_get_errcodes");
 
@@ -4817,6 +4861,17 @@ void do_get_errcodes(struct st_command *command)
     end= p;
     while (*end && *end != ',' && *end != ' ')
       end++;
+
+    next=end;
+
+    /* code to handle variables passed to mysqltest */
+     if( *p == '$')
+     {
+        const char* fin;
+        VAR *var = var_get(p,&fin,0,0);
+        p=var->str_val;
+        end=p+var->str_val_len;
+     }
 
     if (*p == 'S')
     {
@@ -4892,7 +4947,7 @@ void do_get_errcodes(struct st_command *command)
       die("Too many errorcodes specified");
 
     /* Set pointer to the end of the last error code */
-    p= end;
+    p= next;
 
     /* Find next ',' */
     while (*p && *p != ',')
@@ -5324,6 +5379,7 @@ do_handle_error:
 
   var_set_errno(0);
   handle_no_error(command);
+  revert_properties();
   return 1; /* Connected */
 }
 
@@ -7279,6 +7335,7 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
   /* If we come here the query is both executed and read successfully */
   handle_no_error(command);
+  revert_properties();
 
 end:
 
@@ -7474,8 +7531,6 @@ void handle_no_error(struct st_command *command)
     die("query '%s' succeeded - should have failed with sqlstate %s...",
         command->query, command->expected_errors.err[0].code.sqlstate);
   }
-
-  revert_properties();
   DBUG_VOID_RETURN;
 }
 
@@ -7506,9 +7561,6 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
 
-  /* Remember disable_result_log since handle_no_error() may reset it */
-  my_bool dis_res= disable_result_log;
-  
   /*
     Init a new stmt if it's not already one created for this connection
   */
@@ -7604,7 +7656,7 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
   /* If we got here the statement was both executed and read successfully */
   handle_no_error(command);
-  if (!dis_res)
+  if (!disable_result_log)
   {
     /*
       Not all statements creates a result set. If there is one we can
@@ -7680,7 +7732,7 @@ end:
     dynstr_free(&ds_prepare_warnings);
     dynstr_free(&ds_execute_warnings);
   }
-
+  revert_properties();
 
   /* Close the statement if - no reconnect, need new prepare */
   if (mysql->reconnect)
@@ -9070,15 +9122,10 @@ typedef struct st_pointer_array {		/* when using array-strings */
   uint	array_allocs,max_count,length,max_length;
 } POINTER_ARRAY;
 
-struct st_replace;
 struct st_replace *init_replace(char * *from, char * *to, uint count,
 				char * word_end_chars);
 int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name);
-void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
-                            const char *from, int len);
 void free_pointer_array(POINTER_ARRAY *pa);
-
-struct st_replace *glob_replace;
 
 /*
   Get arguments for replace. The syntax is:
@@ -9222,26 +9269,6 @@ struct st_regex
   char* replace; /* String or expression to replace the pattern with */
   int icase; /* true if the match is case insensitive */
 };
-
-struct st_replace_regex
-{
-  DYNAMIC_ARRAY regex_arr; /* stores a list of st_regex subsitutions */
-
-  /*
-    Temporary storage areas for substitutions. To reduce unnessary copying
-    and memory freeing/allocation, we pre-allocate two buffers, and alternate
-    their use, one for input/one for output, the roles changing on the next
-    st_regex substition. At the end of substitutions  buf points to the
-    one containing the final result.
-  */
-  char* buf;
-  char* even_buf;
-  char* odd_buf;
-  int even_buf_len;
-  int odd_buf_len;
-};
-
-struct st_replace_regex *glob_replace_regex= 0;
 
 int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replace,
                 char *string, int icase);
@@ -9441,7 +9468,13 @@ void do_get_replace_regex(struct st_command *command)
 {
   char *expr= command->first_argument;
   free_replace_regex();
-  if (!(glob_replace_regex=init_replace_regex(expr)))
+  /* Allow variable for the *entire* list of replacements */
+  if (*expr == '$') 
+  {
+    VAR *val= var_get(expr, NULL, 0, 1);
+    expr= val ? val->str_val : NULL;
+  }
+  if (expr && *expr && !(glob_replace_regex=init_replace_regex(expr)))
     die("Could not init replace_regex");
   command->last_argument= command->end;
 }

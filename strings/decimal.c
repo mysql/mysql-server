@@ -1474,9 +1474,8 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
 {
   int frac0=scale>0 ? ROUND_UP(scale) : scale/DIG_PER_DEC1,
     frac1=ROUND_UP(from->frac), UNINIT_VAR(round_digit),
-      intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len,
-      intg1=ROUND_UP(from->intg +
-                     (((intg0 + frac0)>0) && (from->buf[0] == DIG_MAX)));
+    intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len;
+
   dec1 *buf0=from->buf, *buf1=to->buf, x, y, carry=0;
   int first_dig;
 
@@ -1491,6 +1490,12 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
   default: DBUG_ASSERT(0);
   }
 
+  /*
+    For my_decimal we always use len == DECIMAL_BUFF_LENGTH == 9
+    For internal testing here (ifdef MAIN) we always use len == 100/4
+   */
+  DBUG_ASSERT(from->len == to->len);
+
   if (unlikely(frac0+intg0 > len))
   {
     frac0=len-intg0;
@@ -1504,17 +1509,17 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
     return E_DEC_OK;
   }
 
-  if (to != from || intg1>intg0)
+  if (to != from)
   {
     dec1 *p0= buf0+intg0+max(frac1, frac0);
-    dec1 *p1= buf1+intg1+max(frac1, frac0);
+    dec1 *p1= buf1+intg0+max(frac1, frac0);
+
+    DBUG_ASSERT(p0 - buf0 <= len);
+    DBUG_ASSERT(p1 - buf1 <= len);
 
     while (buf0 < p0)
       *(--p1) = *(--p0);
-    if (unlikely(intg1 > intg0))
-      to->buf[0]= 0;
 
-    intg0= intg1;
     buf0=to->buf;
     buf1=to->buf;
     to->sign=from->sign;

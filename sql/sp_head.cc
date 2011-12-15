@@ -1005,6 +1005,8 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     if ((*splocal)->limit_clause_param)
     {
       res|= qbuf.append_ulonglong((*splocal)->val_uint());
+      if (res)
+        break;
       continue;
     }
 
@@ -1029,19 +1031,29 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 
     thd->query_name_consts++;
   }
-  res|= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
-  if (res)
+  if (res ||
+      qbuf.append(cur + prev_pos, query_str->length - prev_pos))
     DBUG_RETURN(TRUE);
 
   /*
     Allocate additional space at the end of the new query string for the
     query_cache_send_result_to_client function.
+
+    The query buffer layout is:
+       buffer :==
+            <statement>   The input statement(s)
+            '\0'          Terminating null char
+            <length>      Length of following current database name (size_t)
+            <db_name>     Name of current database
+            <flags>       Flags struct
   */
-  buf_len= qbuf.length() + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE + 1;
+  buf_len= qbuf.length() + 1 + sizeof(size_t) + thd->db_length + 
+           QUERY_CACHE_FLAGS_SIZE + 1;
   if ((pbuf= (char *) alloc_root(thd->mem_root, buf_len)))
   {
     memcpy(pbuf, qbuf.ptr(), qbuf.length());
     pbuf[qbuf.length()]= 0;
+    memcpy(pbuf+qbuf.length()+1, (char *) &thd->db_length, sizeof(size_t));
   }
   else
     DBUG_RETURN(TRUE);
