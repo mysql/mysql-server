@@ -1312,14 +1312,13 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   if (isNdbMtLqh())
   {
     jam();
-    c_fragments_per_node = getLqhWorkers();
+    c_fragments_per_node_ = 0;
     // try to get some LQH workers which initially handle no fragments
     if (ERROR_INSERTED(7215)) {
-      c_fragments_per_node = 1;
+      c_fragments_per_node_ = 1;
+      ndbout_c("Using %u fragments per node", c_fragments_per_node_);
     }
   }
-  ndbout_c("Using %u fragments per node", c_fragments_per_node);
-  
   ndb_mgm_get_int_parameter(p, CFG_DB_LCP_TRY_LOCK_TIMEOUT, 
                             &c_lcpState.m_lcp_trylock_timeout);
 
@@ -7545,6 +7544,42 @@ static Uint32 find_min_index(const Uint32* array, Uint32 cnt)
   return m;
 }
 
+Uint32
+Dbdih::getFragmentsPerNode()
+{
+  jam();
+  if (c_fragments_per_node_ != 0)
+  {
+    return c_fragments_per_node_;
+  }
+
+  c_fragments_per_node_ = getLqhWorkers();
+  if (c_fragments_per_node_ == 0)
+    c_fragments_per_node_ = 1; // ndbd
+
+  NodeRecordPtr nodePtr;
+  nodePtr.i = cfirstAliveNode;
+  do
+  {
+    jam();
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    Uint32 workers = getNodeInfo(nodePtr.i).m_lqh_workers;
+    if (workers == 0) // ndbd
+      workers = 1;
+
+    c_fragments_per_node_ = MIN(workers, c_fragments_per_node_);
+    nodePtr.i = nodePtr.p->nextNode;
+  } while (nodePtr.i != RNIL);
+
+  if (c_fragments_per_node_ == 0)
+  {
+    ndbassert(false);
+    c_fragments_per_node_ = 1;
+  }
+  ndbout_c("Using %u fragments per node", c_fragments_per_node_);
+  return c_fragments_per_node_;
+}
+
 void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 {
   Uint16 node_group_id[MAX_NDB_PARTITIONS];
@@ -7561,11 +7596,9 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   const Uint32 flags = req->requestInfo;
 
   Uint32 err = 0;
-  const Uint32 defaultFragments = 
-    c_fragments_per_node * cnoOfNodeGroups * cnoReplicas;
-  const Uint32 maxFragments =
-    MAX_FRAG_PER_LQH * (getLqhWorkers() ? getLqhWorkers() : 1) *
-    cnoOfNodeGroups * cnoReplicas;
+  const Uint32 defaultFragments =
+    getFragmentsPerNode() * cnoOfNodeGroups * cnoReplicas;
+  const Uint32 maxFragments = MAX_FRAG_PER_LQH * defaultFragments;
 
   do {
     NodeGroupRecordPtr NGPtr;
@@ -16190,8 +16223,8 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   case CheckNodeGroups::GetDefaultFragments:
     jam();
     ok = true;
-    sd->output = (cnoOfNodeGroups + sd->extraNodeGroups) 
-      * c_fragments_per_node * cnoReplicas;
+    sd->output = (cnoOfNodeGroups + sd->extraNodeGroups)
+      * getFragmentsPerNode() * cnoReplicas;
     break;
   }
   ndbrequire(ok);
