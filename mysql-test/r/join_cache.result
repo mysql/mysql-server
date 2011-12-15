@@ -40,6 +40,7 @@ COUNT(*)
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	131072
+set join_cache_level=1;
 show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	1
@@ -453,7 +454,7 @@ Côte d?Ivoire	14786000	NULL	NULL
 Czech Republic	10278100	NULL	NULL
 DROP INDEX City_Population ON City;
 DROP INDEX City_Name ON City;
-set join_cache_level=default;
+set join_cache_level=1;
 set join_buffer_size=256;
 show variables like 'join_buffer_size';
 Variable_name	Value
@@ -776,7 +777,7 @@ Variable_name	Value
 join_buffer_size	131072
 show variables like 'join_cache_level';
 Variable_name	Value
-join_cache_level	1
+join_cache_level	2
 DROP DATABASE world;
 CREATE DATABASE world;
 use world;
@@ -2690,7 +2691,7 @@ Variable_name	Value
 join_buffer_size	131072
 show variables like 'join_cache_level';
 Variable_name	Value
-join_cache_level	1
+join_cache_level	2
 set join_cache_level=1;
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
@@ -3875,6 +3876,7 @@ create table t2 (a int, b int);
 insert into t2 values (1,1),(2,2);
 create table t3 (a int, b int);
 insert into t3 values (1,1),(2,2);
+set join_cache_level=1;
 explain select t1.* from t1,t2,t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	

@@ -7,9 +7,11 @@ set join_cache_level=6;
 show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	6
+set @join_cache_level_for_subselect3_test=@@join_cache_level;
 drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
 set @subselect3_tmp= @@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on';
+set join_cache_level=@join_cache_level_for_subselect3_test;
 create table t1 (oref int, grp int, ie int) ;
 insert into t1 (oref, grp, ie) values
 (1, 1, 1),
@@ -1502,5 +1504,6 @@ set @@optimizer_switch=@subselect3_tmp;
 set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value
-join_cache_level	1
+join_cache_level	2
 set @@optimizer_switch=@save_optimizer_switch;
+set @join_cache_level_for_subselect3_test=NULL;

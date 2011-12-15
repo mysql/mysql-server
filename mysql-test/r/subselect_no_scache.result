@@ -2,11 +2,14 @@ select @@optimizer_switch like '%subquery_cache=on%';
 @@optimizer_switch like '%subquery_cache=on%'
 1
 set optimizer_switch='subquery_cache=off';
+set join_cache_level=1;
+set @join_cache_level_for_subselect_test=@@join_cache_level;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 drop view if exists v2;
 set @subselect_tmp=@@optimizer_switch;
 set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_test,
 "semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
+set join_cache_level=@join_cache_level_for_subselect_test;
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 select (select 2);
 (select 2)
@@ -5906,3 +5909,4 @@ set optimizer_switch=default;
 select @@optimizer_switch like '%subquery_cache=on%';
 @@optimizer_switch like '%subquery_cache=on%'
 1
+set @join_cache_level_for_subselect_test=NULL;

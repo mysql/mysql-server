@@ -3,6 +3,8 @@ set @subselect_sj_mat_tmp= @@optimizer_switch;
 set optimizer_switch=ifnull(@subselect_mat_test_optimizer_switch_value, 'semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on');
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 set @optimizer_switch_local_default= @@optimizer_switch;
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=1;
 drop table if exists t1, t2, t3, t4, t5, t1i, t2i, t3i;
 drop table if exists columns;
 drop table if exists t1_16, t2_16, t3_16;
@@ -1797,6 +1799,7 @@ Note	1003	select 8 AS `a` from `test`.`t1` where <expr_cache><8>(<in_optimizer>(
 DROP TABLE t1;
 # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
+set join_cache_level=@save_join_cache_level;
 set @subselect_mat_test_optimizer_switch_value=null;
 set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';

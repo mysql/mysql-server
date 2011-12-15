@@ -15,6 +15,14 @@ drop view if exists v1;
 
 SET @save_optimizer_switch=@@optimizer_switch;
 SET optimizer_switch=ifnull(@optimizer_switch_for_select_test,'outer_join_with_cache=off');
+if (`select @join_cache_level_for_select_test is null`)
+{
+  set join_cache_level=1;
+}
+if (`select @join_cache_level_for_select_test is not null`)
+{
+  set join_cache_level=@join_cache_level_for_select_test;
+}
 
 CREATE TABLE t1 (
   Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,

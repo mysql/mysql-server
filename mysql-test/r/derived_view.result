@@ -1,8 +1,10 @@
 drop table if exists t1,t2;
 drop view if exists v1,v2,v3,v4;
 set @exit_optimizer_switch=@@optimizer_switch;
+set @exit_join_cache_level=@@join_cache_level;
 set optimizer_switch='derived_merge=on,derived_with_keys=on';
 set @save_optimizer_switch=@@optimizer_switch;
+set join_cache_level=1;
 create table t1(f1 int, f11 int);
 create table t2(f2 int, f22 int);
 insert into t1 values(1,1),(2,2),(3,3),(5,5),(9,9),(7,7);
@@ -1871,3 +1873,4 @@ col_varchar_key	pk	col_varchar_key	col_varchar_nokey
 set max_heap_table_size= @tmp_882994;
 drop table t1,t2,t3;
 set optimizer_switch=@exit_optimizer_switch;
+set join_cache_level=@exit_join_cache_level;

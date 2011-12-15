@@ -14,6 +14,7 @@ set join_cache_level=6;
 show variables like 'join_cache_level';
 
 set @optimizer_switch_for_subselect_sj_test=@@optimizer_switch;
+set @join_cache_level_for_subselect_sj_test=@@join_cache_level;
 
 --source t/subselect_sj.test
 
@@ -94,3 +95,4 @@ show variables like 'join_cache_level';
 
 set @@optimizer_switch=@save_optimizer_switch_jcl6;
 set @optimizer_switch_for_subselect_sj_test=NULL;
+set @join_cache_level_subselect_sj_test=NULL;

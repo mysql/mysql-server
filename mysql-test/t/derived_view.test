@@ -4,9 +4,11 @@ drop view if exists v1,v2,v3,v4;
 --enable_warnings
 
 set @exit_optimizer_switch=@@optimizer_switch;
+set @exit_join_cache_level=@@join_cache_level;
 set optimizer_switch='derived_merge=on,derived_with_keys=on';
 # The 'default' value within the scope of this test:
 set @save_optimizer_switch=@@optimizer_switch;
+set join_cache_level=1;
 
 create table t1(f1 int, f11 int);
 create table t2(f2 int, f22 int);
@@ -1276,3 +1278,4 @@ drop table t1,t2,t3;
 
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
+set join_cache_level=@exit_join_cache_level;
