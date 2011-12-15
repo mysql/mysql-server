@@ -26,11 +26,11 @@ INSERT INTO t2 VALUES (20);
 INSERT INTO t3 VALUES (30);
 
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, crashed WRITE;
-SET GLOBAL debug="+d,myisam_pretend_crashed_table_on_open";
+SET GLOBAL debug_dbug="+d,myisam_pretend_crashed_table_on_open";
 --disable_warnings
 CREATE TRIGGER t1_ai AFTER INSERT ON crashed FOR EACH ROW INSERT INTO t2 VALUES(29);
 --enable_warnings
-SET GLOBAL debug=@orig_debug;
+SET GLOBAL debug_dbug=@orig_debug;
 --error ER_TABLE_NOT_LOCKED
 INSERT INTO t4 VALUES (39);
 --error ER_TABLE_NOT_LOCKED

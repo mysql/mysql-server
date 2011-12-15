@@ -6,7 +6,7 @@
 set storage_engine=innodb;
 set @save_time_zone= @@time_zone;
 set time_zone='+03:00';
-set session debug="+d,optimizer_innodb_icp";
+set session debug_dbug="+d,optimizer_innodb_icp";
 
 ######## Running INSERT tests for TIMESTAMP ########
 

@@ -48,7 +48,7 @@ delete from t1 limit 1;
 # --send on the connection during aria_verify_recovery.inc, which makes that
 # script fail if it were to try to use that connection before --reap.
 connect (extra, localhost, root,,mysqltest,,);
-set session debug="+d,info,enter,exit,maria_over_alloc_bitmap";
+set session debug_dbug="+d,info,enter,exit,maria_over_alloc_bitmap";
 send insert into t1 values ("aaaaaaaaa");
 connection admin;
 # Leave time for INSERT to block after modifying bitmap;

@@ -565,7 +565,13 @@ static Sys_var_charptr Sys_datadir(
 
 #ifndef DBUG_OFF
 static Sys_var_dbug Sys_dbug(
-       "debug", "Debug log", sys_var::SESSION,
+       "debug", "Built-in DBUG debugger", sys_var::SESSION,
+       CMD_LINE(OPT_ARG, '#'), DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_has_super), ON_UPDATE(0),
+       DEPRECATED(50600, "'@@debug_dbug'"));
+
+static Sys_var_dbug Sys_debug_dbug(
+       "debug_dbug", "Built-in DBUG debugger", sys_var::SESSION,
        CMD_LINE(OPT_ARG, '#'), DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_has_super));
 #endif

@@ -214,7 +214,7 @@ my $opt_cursor_protocol;
 my $opt_view_protocol;
 
 our $opt_debug;
-my $debug_d= "d";
+my $debug_d= "d,*";
 my $opt_debug_common;
 our $opt_debug_server;
 our @opt_cases;                  # The test cases names in argv
@@ -3471,7 +3471,7 @@ sub mysql_install_db {
 
   if ( $opt_debug )
   {
-    mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/bootstrap.trace",
+    mtr_add_arg($args, "--debug-dbug=$debug_d:t:i:A,%s/log/bootstrap.trace",
 		$path_vardir_trace);
   }
 
@@ -5383,7 +5383,7 @@ sub mysqld_start ($$) {
 
   if ( $opt_debug )
   {
-    mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/%s.trace",
+    mtr_add_arg($args, "--debug-dbug=$debug_d:t:i:A,%s/log/%s.trace",
 		$path_vardir_trace, $mysqld->name());
   }
 

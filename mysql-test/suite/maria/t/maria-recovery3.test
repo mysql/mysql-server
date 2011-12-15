@@ -42,7 +42,7 @@ let $mms_compare_physically=0;
 create table t1(a int primary key) engine=aria;
 insert into t1 values(1);
 -- source include/maria_make_snapshot_for_comparison.inc
-set session debug="+d,maria_sleep_in_commit";
+set session debug_dbug="+d,maria_sleep_in_commit";
 send insert into t1 values(2);
 sleep 1;
 # Now the INSERT of 2 has written a commit record

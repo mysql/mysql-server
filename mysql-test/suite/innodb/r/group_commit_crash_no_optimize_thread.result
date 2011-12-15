@@ -8,11 +8,11 @@ create table t2 like t1;
 create procedure setcrash(IN i INT)
 begin
 CASE i
-WHEN 1 THEN SET SESSION debug="d,crash_commit_after_prepare";
-WHEN 2 THEN SET SESSION debug="d,crash_commit_after_log";
-WHEN 3 THEN SET SESSION debug="d,crash_commit_before_unlog";
-WHEN 4 THEN SET SESSION debug="d,crash_commit_after";
-WHEN 5 THEN SET SESSION debug="d,crash_commit_before";
+WHEN 1 THEN SET SESSION debug_dbug="d,crash_commit_after_prepare";
+WHEN 2 THEN SET SESSION debug_dbug="d,crash_commit_after_log";
+WHEN 3 THEN SET SESSION debug_dbug="d,crash_commit_before_unlog";
+WHEN 4 THEN SET SESSION debug_dbug="d,crash_commit_after";
+WHEN 5 THEN SET SESSION debug_dbug="d,crash_commit_before";
 ELSE BEGIN END;
 END CASE;
 end //

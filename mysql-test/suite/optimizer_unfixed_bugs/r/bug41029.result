@@ -2,7 +2,7 @@ select @default_binlog_format:=@@global.binlog_format;
 @default_binlog_format:=@@global.binlog_format
 STATEMENT
 set global binlog_format=row;
-set session debug="+d,optimizer_innodb_ds_mrr";
+set session debug_dbug="+d,optimizer_innodb_ds_mrr";
 set autocommit=0;
 use test;
 drop table if exists t1;

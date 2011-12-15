@@ -8,7 +8,6 @@
 --source include/not_staging.inc
 
 use INFORMATION_SCHEMA;
---replace_result Tables_in_INFORMATION_SCHEMA Tables_in_information_schema
 show tables;
 
 #

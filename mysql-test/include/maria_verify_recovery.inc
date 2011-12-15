@@ -32,7 +32,7 @@ system echo wait-maria_verify_recovery.inc >> $MYSQLTEST_VARDIR/tmp/mysqld.1.exp
 # but that would implicitely commit all work, which the tester may
 # not want (tester may want to observe rollback happening).
 
-eval SET SESSION debug=$mvr_debug_option;
+eval SET SESSION debug_dbug=$mvr_debug_option;
 --echo * crashing mysqld intentionally
 --error 2013
 eval $mvr_crash_statement; # this will crash (DBUG magic)

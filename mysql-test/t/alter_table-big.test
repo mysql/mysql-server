@@ -38,7 +38,7 @@ insert into t1 values (RAND()*1000, RAND()*1000, RAND()*1000);
 # Later we use binlog to check the order in which statements are
 # executed so let us reset it first.
 reset master;
-set session debug="+d,sleep_alter_enable_indexes";
+set session debug_dbug="+d,sleep_alter_enable_indexes";
 --send alter table t1 enable keys;
 connection addconroot;
 --sleep 2
@@ -50,7 +50,7 @@ insert into t2 values (1);
 insert into t1 values (1, 1, 1);
 connection default;
 --reap
-set session debug="-d,sleep_alter_enable_indexes";
+set session debug_dbug="-d,sleep_alter_enable_indexes";
 # Check that statements were executed/binlogged in correct order.
 source include/show_binlog_events.inc;
 
@@ -75,7 +75,7 @@ drop table if exists t1, t2, t3;
 create table t1 (i int);
 # We are going to check that statements are logged in correct order
 reset master;
-set session debug="+d,sleep_alter_before_main_binlog";
+set session debug_dbug="+d,sleep_alter_before_main_binlog";
 --send alter table t1 change i c char(10) default 'Test1';
 connect (addconroot, localhost, root,,);
 connection addconroot;
@@ -109,7 +109,7 @@ connection default;
 --reap
 disconnect addconroot;
 drop table t3;
-set session debug="-d,sleep_alter_before_main_binlog";
+set session debug_dbug="-d,sleep_alter_before_main_binlog";
 
 # Check that all statements were logged in correct order
 source include/show_binlog_events.inc;

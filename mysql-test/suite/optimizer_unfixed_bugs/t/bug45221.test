@@ -4,7 +4,7 @@
 --source include/have_debug.inc
 
 # bug goes away with
-#set session debug="+d,optimizer_no_icp";
+#set session debug_dbug="+d,optimizer_no_icp";
 
 # those don't remove the problem but make the result diff different:
 #set optimizer_switch="materialization=off";

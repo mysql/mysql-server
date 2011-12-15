@@ -696,9 +696,9 @@ END|
 
 delimiter ;|
 
-SET SESSION debug="+d,bug23032_emit_warning";
+SET SESSION debug_dbug="+d,bug23032_emit_warning";
 CALL p1();
-SET SESSION debug="-d,bug23032_emit_warning";
+SET SESSION debug_dbug="-d,bug23032_emit_warning";
 
 DROP PROCEDURE p1;
 DROP TABLE t1;

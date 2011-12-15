@@ -4,7 +4,7 @@
 --source include/have_debug.inc
 
 # Goes away with
-#set session debug=+d,optimizer_no_icp;
+#set session debug_dbug=+d,optimizer_no_icp;
 
 CREATE TABLE t1(c1 TIME NOT NULL, c2 TIME NULL, c3 DATE, PRIMARY
 KEY(c1), UNIQUE INDEX(c2));

@@ -29,8 +29,8 @@
 ##########################################################################
 
 connection slave;
---let $old_debug= `SELECT @@GLOBAL.DEBUG`
-SET @@GLOBAL.DEBUG = '+d,remove_slave_load_file_before_write';
+--let $old_debug= `SELECT @@global.debug_dbug`
+SET @@global.debug_dbug= '+d,remove_slave_load_file_before_write';
 
 connection master;
 
@@ -74,7 +74,7 @@ call mtr.add_suppression("Slave: File.* not found.*");
 call mtr.add_suppression("Slave SQL: Error .File.* not found.* Error_code: 29");
 --let $rpl_only_running_threads= 1
 
-eval SET @@GLOBAL.DEBUG = '$old_debug';
+eval SET @@global.debug_dbug= '$old_debug';
 
 --source include/rpl_end.inc
 

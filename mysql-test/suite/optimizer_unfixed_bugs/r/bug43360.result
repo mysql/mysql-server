@@ -1,7 +1,7 @@
 #
 # Bug#43360 - Server crash with a simple multi-table update
 #
-set session debug="+d,optimizer_innodb_icp";
+set session debug_dbug="+d,optimizer_innodb_icp";
 CREATE TABLE t1 (
 a CHAR(2) NOT NULL PRIMARY KEY, 
 b VARCHAR(20) NOT NULL,

@@ -1,4 +1,6 @@
 set session debug="L";
+Warnings:
+Warning	1287	The syntax '@@debug' is deprecated and will be removed in MariaDB 5.6. Please use '@@debug_dbug' instead
 select @@global.debug="1";
 @@global.debug="1"
 0

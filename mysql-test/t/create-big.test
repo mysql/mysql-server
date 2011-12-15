@@ -34,7 +34,7 @@ drop table if exists t1,t2,t3,t4,t5;
 # What happens in situation when other statement messes with
 # table to be created before it is created ?
 # Concurrent CREATE TABLE
-set session debug="+d,sleep_create_select_before_create";
+set session debug_dbug="+d,sleep_create_select_before_create";
 --send create table t1 select 1 as i;
 connection addconroot1;
 --sleep 2
@@ -97,7 +97,7 @@ show create table t1;
 drop table t1, t3;
 # What happens if other statement sneaks in after the table
 # creation but before its opening ?
-set session debug="-d,sleep_create_select_before_create:+d,sleep_create_select_before_open";
+set session debug_dbug="-d,sleep_create_select_before_create:+d,sleep_create_select_before_open";
 # Concurrent DROP TABLE
 --send create table t1 select 1 as i;
 connection addconroot1;
@@ -141,7 +141,7 @@ connection default;
 select @a;
 drop table t1;
 # Okay, now the same tests for the potential gap between open and lock
-set session debug="-d,sleep_create_select_before_open:+d,sleep_create_select_before_lock";
+set session debug_dbug="-d,sleep_create_select_before_open:+d,sleep_create_select_before_lock";
 # Concurrent DROP TABLE
 --send create table t1 select 1 as i;
 connection addconroot1;
@@ -185,7 +185,7 @@ connection default;
 select @a;
 drop table t1;
 # Some tests for case with existing table
-set session debug="-d,sleep_create_select_before_lock:+d,sleep_create_select_before_check_if_exists";
+set session debug_dbug="-d,sleep_create_select_before_lock:+d,sleep_create_select_before_check_if_exists";
 create table t1 (i int);
 # Concurrent DROP TABLE
 --send create table if not exists t1 select 1 as i;
@@ -206,7 +206,7 @@ connection default;
 select @a;
 select * from t1;
 drop table t1;
-set session debug="-d,sleep_create_select_before_check_if_exists";
+set session debug_dbug="-d,sleep_create_select_before_check_if_exists";
 
 
 # Test for some details of CREATE TABLE ... SELECT implementation.
@@ -290,7 +290,7 @@ drop table if exists t1,t2;
 # What happens if some statements sneak in right after we have
 # opened source table ?
 create table t1 (i int);
-set session debug="+d,sleep_create_like_before_check_if_exists";
+set session debug_dbug="+d,sleep_create_like_before_check_if_exists";
 # Reset binlog to have clear start
 reset master;
 --send create table t2 like t1;
@@ -310,7 +310,7 @@ source include/show_binlog_events.inc;
 # Now let us check the gap between check for target table
 # existance and copying of .frm file. 
 create table t1 (i int);
-set session debug="-d,sleep_create_like_before_check_if_exists:+d,sleep_create_like_before_copy";
+set session debug_dbug="-d,sleep_create_like_before_check_if_exists:+d,sleep_create_like_before_copy";
 # It should be impossible to create target table concurrently
 --send create table t2 like t1;
 connection addconroot1;
@@ -333,7 +333,7 @@ source include/show_binlog_events.inc;
 
 # And now he gap between copying of .frm file and ha_create_table() call. 
 create table t1 (i int);
-set session debug="-d,sleep_create_like_before_copy:+d,sleep_create_like_before_ha_create";
+set session debug_dbug="-d,sleep_create_like_before_copy:+d,sleep_create_like_before_ha_create";
 # Both DML and DDL on target table should wait till operation completes
 reset master;
 --send create table t2 like t1;
@@ -361,7 +361,7 @@ source include/show_binlog_events.inc;
 
 # Finally we check the gap between ha_create_table() and binlogging
 create table t1 (i int);
-set session debug="-d,sleep_create_like_before_ha_create:+d,sleep_create_like_before_binlogging";
+set session debug_dbug="-d,sleep_create_like_before_ha_create:+d,sleep_create_like_before_binlogging";
 reset master;
 --send create table t2 like t1;
 connection addconroot1;
@@ -385,4 +385,4 @@ connection default;
 drop table t2;
 source include/show_binlog_events.inc;
 
-set session debug="-d,sleep_create_like_before_binlogging";
+set session debug_dbug="-d,sleep_create_like_before_binlogging";

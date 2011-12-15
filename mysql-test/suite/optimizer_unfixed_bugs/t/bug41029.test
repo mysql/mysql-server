@@ -13,7 +13,7 @@ connect (con2,localhost,root,,);
 connection con1;
 
 # bug requires this
-set session debug="+d,optimizer_innodb_ds_mrr";
+set session debug_dbug="+d,optimizer_innodb_ds_mrr";
 
 set autocommit=0;
 use test;

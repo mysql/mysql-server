@@ -9,7 +9,7 @@ create table t1 (a varchar(1000)) engine=aria;
 insert into t1 values ("00000000");
 flush table t1;
 * copied t1 for comparison
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -32,7 +32,7 @@ flush table t1;
 * copied t1 for comparison
 lock tables t1 write;
 insert into t1 values ("aaaaaaaaa");
-SET SESSION debug="+d,maria_crash";
+SET SESSION debug_dbug="+d,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -53,7 +53,7 @@ flush table t1;
 * copied t1 for comparison
 lock tables t1 write;
 insert into t1 values ("aaaaaaaaa");
-SET SESSION debug="+d,maria_flush_whole_page_cache,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_page_cache,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -75,7 +75,7 @@ flush table t1;
 * copied t1 for comparison
 lock tables t1 write;
 insert into t1 values ("aaaaaaaaa");
-SET SESSION debug="+d,maria_flush_states,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_states,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -98,7 +98,7 @@ flush table t1;
 * copied t1 for comparison
 lock tables t1 write;
 insert into t1 values ("aaaaaaaaa");
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -133,7 +133,7 @@ LENGTH(b)
 5001
 flush table t1;
 * copied t1 for comparison
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -163,7 +163,7 @@ insert into t1 values(null,"a"), (null,"c"), (null,"d");
 delete from t1 where c="d";
 flush table t1;
 * copied t1 for comparison
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -189,7 +189,7 @@ t1	CREATE TABLE `t1` (
 update t1 set i=15 where c="a";
 flush table t1;
 * copied t1 for comparison
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -215,7 +215,7 @@ flush table t1;
 * copied t1 for comparison
 lock tables t1 write;
 insert into t1 values(null, "e");
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query

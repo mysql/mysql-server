@@ -9,7 +9,7 @@ tinnodb	CREATE TABLE `tinnodb` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 set @old_debug= @@debug;
-set @@debug= 'd,do_not_write_xid';
+set @@debug_dbug= 'd,do_not_write_xid';
 ==== Test ====
 INSERT INTO tinnodb VALUES (1);
 SELECT * FROM tinnodb ORDER BY a;
@@ -33,7 +33,7 @@ a
 ==== Clean up ====
 [on master]
 DROP TABLE tinnodb;
-set @@debug= @old_debug;
+set @@debug_dbug= @old_debug;
 [on slave]
 DROP TABLE tinnodb;
 include/rpl_end.inc

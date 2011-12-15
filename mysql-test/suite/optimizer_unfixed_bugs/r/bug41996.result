@@ -1,4 +1,4 @@
-set session debug="+d,optimizer_innodb_icp";
+set session debug_dbug="+d,optimizer_innodb_icp";
 drop table if exists `t1`;
 Warnings:
 Note	1051	Unknown table 't1'

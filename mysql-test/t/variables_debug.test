@@ -6,11 +6,11 @@ SET @old_debug = @@GLOBAL.debug;
 # Bug#34678 @@debug variable's incremental mode
 #
 
-set debug= 'T';
+set debug_dbug= 'T';
 select @@debug;
-set debug= '+P';
+set debug_dbug= '+P';
 select @@debug;
-set debug= '-P';
+set debug_dbug= '-P';
 select @@debug;
 
 #
@@ -19,7 +19,7 @@ select @@debug;
 
 SELECT @@session.debug, @@global.debug;
 
-SET SESSION debug = '';
+SET SESSION debug_dbug= '';
 
 SELECT @@session.debug, @@global.debug;
 
@@ -28,12 +28,12 @@ SELECT @@session.debug, @@global.debug;
 --echo #  binlog.binlog_write_error
 --echo #
 
-SET GLOBAL debug='d,injecting_fault_writing';
+SET GLOBAL debug_dbug='d,injecting_fault_writing';
 SELECT @@global.debug;
-SET GLOBAL debug='';
+SET GLOBAL debug_dbug='';
 SELECT @@global.debug;
 
-SET GLOBAL debug=@old_debug;
+SET GLOBAL debug_dbug=@old_debug;
 
 --echo #
 --echo # Bug #56709: Memory leaks at running the 5.1 test suite
@@ -41,12 +41,12 @@ SET GLOBAL debug=@old_debug;
 
 SET @old_local_debug = @@debug;
 
-SET @@debug='d,foo';
+SET @@debug_dbug='d,foo';
 SELECT @@debug;
-SET @@debug='';
+SET @@debug_dbug='';
 SELECT @@debug;
 
-SET @@debug = @old_local_debug;
+SET @@debug_dbug= @old_local_debug;
 
 --echo End of 5.1 tests
 
@@ -59,57 +59,57 @@ SET @old_globaldebug = @@global.debug;
 SET @old_sessiondebug= @@session.debug;
 
 --echo # Test 1 - Bug test case, single connection
-SET GLOBAL  debug= '+O,../../log/bug46165.1.trace';
-SET SESSION debug= '-d:-t:-i';
+SET GLOBAL  debug_dbug= '+O,../../log/bug46165.1.trace';
+SET SESSION debug_dbug= '-d:-t:-i';
 
-SET GLOBAL  debug= '';
-SET SESSION debug= '';
+SET GLOBAL  debug_dbug= '';
+SET SESSION debug_dbug= '';
 
 --echo # Test 2 - Bug test case, two connections
 --echo # Connection default
 connection default;
-SET GLOBAL  debug= '+O,../../log/bug46165.2.trace';
-SET SESSION debug= '-d:-t:-i';
+SET GLOBAL  debug_dbug= '+O,../../log/bug46165.2.trace';
+SET SESSION debug_dbug= '-d:-t:-i';
 
 --echo # Connection con1
 connect (con1, localhost, root);
-SET GLOBAL  debug= '';
+SET GLOBAL  debug_dbug= '';
 
 --echo # Connection default
 connection default;
-SET SESSION debug= '';
+SET SESSION debug_dbug= '';
 --echo # Connection con1
 connection con1;
 disconnect con1;
 --source include/wait_until_disconnected.inc
 --echo # Connection default
 connection default;
-SET GLOBAL  debug= '';
+SET GLOBAL  debug_dbug= '';
 
 --echo # Test 3 - Active session trace file on disconnect
 --echo # Connection con1
 connect (con1, localhost, root);
-SET GLOBAL  debug= '+O,../../log/bug46165.3.trace';
-SET SESSION debug= '-d:-t:-i';
-SET GLOBAL  debug= '';
+SET GLOBAL  debug_dbug= '+O,../../log/bug46165.3.trace';
+SET SESSION debug_dbug= '-d:-t:-i';
+SET GLOBAL  debug_dbug= '';
 disconnect con1;
 --source include/wait_until_disconnected.inc
 
 --echo # Test 4 - Active session trace file on two connections
 --echo # Connection default
 connection default;
-SET GLOBAL  debug= '+O,../../log/bug46165.4.trace';
-SET SESSION debug= '-d:-t:-i';
+SET GLOBAL  debug_dbug= '+O,../../log/bug46165.4.trace';
+SET SESSION debug_dbug= '-d:-t:-i';
 
 --echo # Connection con1
 connect (con1, localhost, root);
-SET SESSION debug= '-d:-t:-i';
-SET GLOBAL  debug= '';
-SET SESSION debug= '';
+SET SESSION debug_dbug= '-d:-t:-i';
+SET GLOBAL  debug_dbug= '';
+SET SESSION debug_dbug= '';
 
 --echo # Connection default
 connection default;
-SET SESSION debug= '';
+SET SESSION debug_dbug= '';
 --echo # Connection con1
 connection con1;
 disconnect con1;
@@ -118,9 +118,9 @@ disconnect con1;
 connection default;
 
 --echo # Test 5 - Different trace files
-SET SESSION debug= '+O,../../log/bug46165.5.trace';
-SET SESSION debug= '+O,../../log/bug46165.6.trace';
-SET SESSION debug= '-O';
+SET SESSION debug_dbug= '+O,../../log/bug46165.5.trace';
+SET SESSION debug_dbug= '+O,../../log/bug46165.6.trace';
+SET SESSION debug_dbug= '-O';
 
-SET GLOBAL  debug= @old_globaldebug;
-SET SESSION debug= @old_sessiondebug;
+SET GLOBAL  debug_dbug= @old_globaldebug;
+SET SESSION debug_dbug= @old_sessiondebug;

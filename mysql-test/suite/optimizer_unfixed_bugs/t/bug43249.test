@@ -4,7 +4,7 @@
 --source include/have_debug.inc
 --source include/have_innodb.inc
 
-set session debug="+d,optimizer_innodb_icp";
+set session debug_dbug="+d,optimizer_innodb_icp";
 
 CREATE TABLE t1(c1 TIME NOT NULL, c2 TIME NULL, c3 DATE, PRIMARY
 KEY(c1), UNIQUE INDEX(c2)) engine=innodb;

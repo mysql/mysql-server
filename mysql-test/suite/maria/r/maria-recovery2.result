@@ -14,7 +14,7 @@ flush table t1;
 lock tables t1 write;
 insert into t1 values(3);
 delete from t1 where a in (1,2,3);
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -28,7 +28,7 @@ ok
 use mysqltest;
 drop table t1;
 * TEST of checkpoint
-set global debug="+d,info,query,enter,exit,loop,maria_checkpoint_indirect";
+set global debug_dbug="+d,info,query,enter,exit,loop,maria_checkpoint_indirect";
 set global aria_checkpoint_interval=10000;
 create table t1(a int, b varchar(10), index(a,b)) engine=aria;
 insert into t1 values(1,"a"),(2,"b"),(3,"c");
@@ -45,7 +45,7 @@ Variable_name	Value
 Aria_pagecache_blocks_not_flushed	3
 set global aria_checkpoint_interval=10000;
 update t1 set b="i" where a=5;
-SET SESSION debug="+d,maria_crash";
+SET SESSION debug_dbug="+d,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -74,7 +74,7 @@ a
 1
 2
 3
-SET SESSION debug="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -107,7 +107,7 @@ flush table t1;
 lock tables t1 write, t2 read;
 delete from t1 limit 1;
 insert into t1 select * from t2;
-SET SESSION debug="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -128,7 +128,7 @@ create table t_corrupted1 (a varchar(100), key(a)) engine=aria;
 insert into t_corrupted1 select (rand()) from t2;
 flush table t_corrupted1;
 * copied t_corrupted1 for comparison
-SET SESSION debug="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash_sort_index";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash_sort_index";
 * crashing mysqld intentionally
 optimize table t_corrupted1;
 ERROR HY000: Lost connection to MySQL server during query

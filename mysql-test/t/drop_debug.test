@@ -21,14 +21,14 @@ CREATE TABLE mysql_test.t2(b INT);
 CREATE TABLE mysql_test.t3(c INT);
 
 --echo
-SET SESSION DEBUG = "+d,bug43138";
+SET SESSION debug_dbug= "+d,bug43138";
 
 --echo
 --sorted_result
 DROP DATABASE mysql_test;
 
 --echo
-SET SESSION DEBUG = "-d,bug43138";
+SET SESSION debug_dbug= "-d,bug43138";
 
 --echo
 --echo # --
