@@ -552,6 +552,7 @@ ErrorBundle ErrorCodes[] = {
   { 4718, DMEC, IE, "Index stats samples data or memory cache is invalid" },
   { 4719, DMEC, IE, "Index stats internal error" },
   { 4720, DMEC, AE, "Index stats sys tables " NDB_INDEX_STAT_PREFIX " partly missing or invalid" },
+  { 4721, DMEC, AE, "Index stats were deleted/updated by another process " },
   
   /**
    * Still uncategorized
