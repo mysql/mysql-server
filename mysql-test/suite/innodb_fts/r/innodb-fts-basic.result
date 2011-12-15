@@ -1,0 +1,231 @@
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+SELECT COUNT(*) FROM articles
+WHERE MATCH (title,body)
+AGAINST ('database' IN NATURAL LANGUAGE MODE);
+COUNT(*)
+2
+SELECT * FROM articles
+WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT COUNT(IF(MATCH (title,body)
+AGAINST ('database' IN NATURAL LANGUAGE MODE), 1, NULL))
+AS count FROM articles;
+count
+2
+SELECT id,  body, MATCH (title,body)
+AGAINST ('Database' IN NATURAL LANGUAGE MODE) AS score
+FROM articles;
+id	body	score
+1	DBMS stands for DataBase ...	0.22764469683170319
+2	After you went through a ...	0
+3	In this tutorial we will show ...	0
+4	1. Never run mysqld as root. 2. ...	0
+5	In the following database comparison ...	0.22764469683170319
+6	When configured properly, MySQL ...	0
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
+id	title	body
+6	MySQL Security	When configured properly, MySQL ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
+id	title	body
+6	MySQL Security	When configured properly, MySQL ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('DBMS Security' IN BOOLEAN MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+6	MySQL Security	When configured properly, MySQL ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('+MySQL +YourSQL' IN BOOLEAN MODE);
+id	title	body
+5	MySQL vs. YourSQL	In the following database comparison ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('+MySQL YourSQL' IN BOOLEAN MODE);
+id	title	body
+5	MySQL vs. YourSQL	In the following database comparison ...
+6	MySQL Security	When configured properly, MySQL ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('+MySQL ~YourSQL' IN BOOLEAN MODE);
+id	title	body
+6	MySQL Security	When configured properly, MySQL ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('t*' IN BOOLEAN MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('MY*' IN BOOLEAN MODE);
+id	title	body
+6	MySQL Security	When configured properly, MySQL ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('ru*' IN BOOLEAN MODE);
+id	title	body
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('+ MySQL >Well < stands' IN BOOLEAN MODE);
+id	title	body
+2	How To Use MySQL Well	After you went through a ...
+6	MySQL Security	When configured properly, MySQL ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('+ MySQL - (Well stands)' IN BOOLEAN MODE);
+id	title	body
+6	MySQL Security	When configured properly, MySQL ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('+ MySQL + (>Well < stands)' IN BOOLEAN MODE);
+id	title	body
+2	How To Use MySQL Well	After you went through a ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('YourSQL + (+MySQL - (Tricks Security))' IN BOOLEAN MODE);
+id	title	body
+5	MySQL vs. YourSQL	In the following database comparison ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('(+MySQL - (Tricks Security)) - YourSQL' IN BOOLEAN MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT COUNT(*) FROM articles
+WHERE MATCH (title,body)
+AGAINST ('database' WITH QUERY EXPANSION);
+COUNT(*)
+6
+INSERT INTO articles (title,body) VALUES
+('test query expansion','for database ...');
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('test' WITH QUERY EXPANSION);
+id	title	body
+7	test query expansion	for database ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"following comparison"@19' IN BOOLEAN MODE);
+id	title	body
+5	MySQL vs. YourSQL	In the following database comparison ...
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"following comparison"@18' IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"following database"' IN BOOLEAN MODE);
+id	title	body
+5	MySQL vs. YourSQL	In the following database comparison ...
+INSERT INTO articles (title,body) VALUES
+('test proximity search, test, proximity and phrase',
+'search, with proximity innodb');
+INSERT INTO articles (title,body) VALUES
+('test proximity fts search, test, proximity and phrase',
+'search, with proximity innodb');
+INSERT INTO articles (title,body) VALUES
+('test more proximity fts search, test, more proximity and phrase',
+'search, with proximity innodb');
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+id	title	body
+8	test proximity search, test, proximity and phrase	search, with proximity innodb
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"proximity search"@9' IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
+id	title	body
+8	test proximity search, test, proximity and phrase	search, with proximity innodb
+9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
+10	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"test proximity"@5' IN BOOLEAN MODE);
+id	title	body
+8	test proximity search, test, proximity and phrase	search, with proximity innodb
+9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"test proximity"@4' IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"test proximity"@10' IN BOOLEAN MODE);
+id	title	body
+8	test proximity search, test, proximity and phrase	search, with proximity innodb
+9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
+10	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"test proximity"@9' IN BOOLEAN MODE);
+id	title	body
+8	test proximity search, test, proximity and phrase	search, with proximity innodb
+9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"more test proximity"@10' IN BOOLEAN MODE);
+id	title	body
+10	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"more test proximity"@9' IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"more test proximity"' IN BOOLEAN MODE);
+id	title	body
+drop table articles;

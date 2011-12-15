@@ -159,6 +159,8 @@ JOIN::prepare(TABLE_LIST *tables_init,
 
   if (having)
   {
+    Query_arena backup, *arena;
+    arena= thd->activate_stmt_arena_if_needed(&backup);
     nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
     thd->where="having clause";
     thd->lex->allow_sum_func|= 1 << select_lex_arg->nest_level;
@@ -168,6 +170,9 @@ JOIN::prepare(TABLE_LIST *tables_init,
 			 (having->fix_fields(thd, &having) ||
 			  having->check_cols(1)));
     select_lex->having_fix_field= 0;
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+
     select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
     if (having_fix_rc || thd->is_error())
       DBUG_RETURN(-1);				/* purecov: inspected */
@@ -575,8 +580,11 @@ bool resolve_subquery(THD *thd, JOIN *join)
       6. No execution method was already chosen (by a prepared statement).
       7. Involved expression types allow materialization (temporary only)
 
-      (*) The subquery must be part of a SELECT statement. The current
-           condition also excludes multi-table update statements.
+      (*) The subquery must be part of a SELECT or CREATE SELECT statement. We
+           should relax this and allow it in multi/single-table UPDATE/DELETE,
+           INSERT SELECT (after studying potential problems when the
+           inserts/updates/deletes are done to a table which is itself part of
+           the subquery).
 
       We have to determine whether we will perform subquery materialization
       before calling the IN=>EXISTS transformation, so that we know whether to
@@ -589,7 +597,8 @@ bool resolve_subquery(THD *thd, JOIN *join)
         subq_predicate_substype == Item_subselect::IN_SUBS &&        // 1
         !select_lex->is_part_of_union() &&                              // 2
         select_lex->master_unit()->first_select()->leaf_tables &&       // 3
-        thd->lex->sql_command == SQLCOM_SELECT &&                       // *
+        (thd->lex->sql_command == SQLCOM_SELECT ||
+         thd->lex->sql_command == SQLCOM_CREATE_TABLE) &&               // *
         outer->leaf_tables &&                                           // 3A
         in_predicate->is_top_level_item() &&                            // 4
         !in_predicate->is_correlated &&                                 // 5

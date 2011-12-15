@@ -49,12 +49,18 @@ typedef struct st_cache_field {
     trailing sequence of offsets.
   */ 
   uint referenced_field_no; 
-  TABLE *get_rowid; /**< only for ROWID fields used for Duplicate Elimination */
+  /// Used to chain rowid copy objects belonging to one join_tab
+  st_cache_field *next_copy_rowid;
   /* The remaining structure fields are used as containers for temp values */
   uint blob_length; /**< length of the blob to be copied */
   uint offset;      /**< field offset to be saved in cache buffer */
 
-  void bind_buffer(uchar *buffer) { str= buffer; }
+  void bind_buffer(uchar *buffer)
+  {
+    if (next_copy_rowid != NULL)
+      next_copy_rowid->bind_buffer(buffer);
+    str= buffer;
+  }
 } CACHE_FIELD;
 
 

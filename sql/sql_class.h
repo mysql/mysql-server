@@ -2362,16 +2362,16 @@ public:
 
   /** Current statement instrumentation. */
   PSI_statement_locker *m_statement_psi;
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   /** Current statement instrumentation state. */
   PSI_statement_locker_state m_statement_state;
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_PSI_STATEMENT_INTERFACE */
   /** Idle instrumentation. */
   PSI_idle_locker *m_idle_psi;
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_PSI_IDLE_INTERFACE
   /** Idle instrumentation state. */
   PSI_idle_locker_state m_idle_state;
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_PSI_IDLE_INTERFACE */
   /** True if the server code is IDLE for this connection. */
   bool m_server_idle;
 

@@ -51,6 +51,7 @@ typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
+#define LONG_FIND_ROW_THRESHOLD 60 /* seconds */
 
 /**
    Either assert or return an error.
@@ -1404,7 +1405,7 @@ public:
   /**
      @return TRUE  if events carries partitioning data (database names).
   */
-  bool contains_partition_info();
+  bool contains_partition_info(bool);
 
   /*
     @return  the number of updated by the event databases.

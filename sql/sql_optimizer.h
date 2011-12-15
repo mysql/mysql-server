@@ -421,12 +421,16 @@ public:
   bool save_join_tab();
   bool init_save_join_tab();
   /**
-     Send a row even if the join produced no rows if:
+    Return whether the caller should send a row even if the join 
+    produced no rows if:
      - there is an aggregate function (sum_func_count!=0), and
      - the query is not grouped, and
      - a possible HAVING clause evaluates to TRUE.
+
+    @note: if there is a having clause, it must be evaluated before
+    returning the row.
   */
-  bool send_row_on_empty_set()
+  bool send_row_on_empty_set() const
   {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
 	    group_list == NULL && !group_optimized_away &&
