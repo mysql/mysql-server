@@ -1996,6 +1996,11 @@ buf_do_flush_list_batch(
 			break;
 		}
 
+#if 1
+		fprintf(stderr, "space: %lu pg: %lu\n",
+			space, buf_page_get_page_no(bpage));
+#endif
+
 		ut_a(bpage->oldest_modification > 0);
 
 		ut_ad(bpage->in_flush_list);
