@@ -925,6 +925,13 @@ ndb_index_stat_ref_count(Ndb_index_stat *st, bool flag)
 
 /* Find or add entry under the share */
 
+/* Saved in get_share() under stat_mutex */
+struct Ndb_index_stat_snap {
+  time_t load_time;
+  uint sample_version;
+  Ndb_index_stat_snap() { load_time= 0; sample_version= 0; }
+};
+
 Ndb_index_stat*
 ndb_index_stat_alloc(const NDBINDEX *index,
                      const NDBTAB *table,
@@ -997,6 +1004,7 @@ Ndb_index_stat*
 ndb_index_stat_get_share(NDB_SHARE *share,
                          const NDBINDEX *index,
                          const NDBTAB *table,
+                         Ndb_index_stat_snap &snap,
                          int &err_out,
                          bool allow_add,
                          bool force_update)
@@ -1043,6 +1051,8 @@ ndb_index_stat_get_share(NDB_SHARE *share,
     }
     if (force_update)
       ndb_index_stat_force_update(st, true);
+    snap.load_time= st->load_time;
+    snap.sample_version= st->sample_version;
     st->access_time= now;
   }
   while (0);
@@ -2581,7 +2591,7 @@ ndb_index_stat_round(double x)
 
 int
 ndb_index_stat_wait(Ndb_index_stat *st,
-                    uint sample_version,
+                    const Ndb_index_stat_snap &snap,
                     bool from_analyze)
 {
   DBUG_ENTER("ndb_index_stat_wait");
@@ -2630,8 +2640,17 @@ ndb_index_stat_wait(Ndb_index_stat *st,
         glob.analyze_error++;
       break;
     }
+    /* Query waits for any samples, analyze for newer samples */
+    const uint sample_version = !from_analyze ? 0 : snap.sample_version;
     if (st->sample_version > sample_version)
       break;
+    /* Try to detect changes behind our backs (to avoid hang) */
+    if (st->load_time != snap.load_time ||
+        st->sample_version != snap.sample_version)
+    {
+      err= NdbIndexStat::AlienUpdate;
+      break;
+    }
     if (st->abort_request)
     {
       err= Ndb_index_stat_error_ABORT_REQUEST;
@@ -2672,7 +2691,7 @@ ndb_index_stat_wait(Ndb_index_stat *st,
     DBUG_RETURN(err);
   }
   DBUG_PRINT("index_stat", ("st %s wait ok: sample_version %u -> %u",
-                            st->id, sample_version, st->sample_version));
+                            st->id, snap.sample_version, st->sample_version));
   DBUG_RETURN(0);
 }
 
@@ -2697,16 +2716,16 @@ ha_ndbcluster::ndb_index_stat_query(uint inx,
   compute_index_bounds(ib, key_info, min_key, max_key, from);
   ib.range_no= 0;
 
+  Ndb_index_stat_snap snap;
   Ndb_index_stat *st=
-    ndb_index_stat_get_share(m_share, index, m_table, err, true, false);
+    ndb_index_stat_get_share(m_share, index, m_table, snap, err, true, false);
   if (st == 0)
     DBUG_RETURN(err);
   /* Now holding reference to st */
 
   do
   {
-    /* Pass old version 0 so existing stats terminates wait at once */
-    err= ndb_index_stat_wait(st, 0, false);
+    err= ndb_index_stat_wait(st, snap, false);
     if (err != 0)
       break;
     assert(st->sample_version != 0);
@@ -2812,9 +2831,9 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
 
   struct Req {
     Ndb_index_stat *st;
-    uint sample_version;
+    Ndb_index_stat_snap snap;
     int err;
-    Req() { st= 0; sample_version= 0; err= 0; }
+    Req() { st= 0; err= 0; }
   };
   Req req[MAX_INDEXES];
 
@@ -2828,12 +2847,9 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
     DBUG_PRINT("index_stat", ("force update: %s", index->getName()));
 
     r.st=
-      ndb_index_stat_get_share(m_share, index, m_table, r.err, true, true);
+      ndb_index_stat_get_share(m_share, index, m_table, r.snap, r.err, true, true);
     assert((r.st != 0) == (r.err == 0));
     /* Now holding reference to r.st if r.err == 0 */
-
-    if (r.err == 0)
-      r.sample_version= r.st->sample_version;
   }
 
   /* Wait for each update */
@@ -2847,7 +2863,7 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
     if (r.err == 0)
     {
       DBUG_PRINT("index_stat", ("wait for update: %s", index->getName()));
-      r.err=ndb_index_stat_wait(r.st, r.sample_version, true);
+      r.err=ndb_index_stat_wait(r.st, r.snap, true);
       /* Release reference to r.st */
       pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
       ndb_index_stat_ref_count(r.st, false);

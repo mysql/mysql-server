@@ -103,7 +103,8 @@ public:
     HaveSysTables = 4244, // create error if all sys tables exist
     NoSysEvents = 4710,
     BadSysEvents = BadSysTables,
-    HaveSysEvents = 746
+    HaveSysEvents = 746,
+    AlienUpdate = 4721    // mysqld: somebody else messed with stats
   };
 
   /*
