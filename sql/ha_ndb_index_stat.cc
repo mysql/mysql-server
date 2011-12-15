@@ -1202,6 +1202,32 @@ ndb_index_stat_cache_clean(Ndb_index_stat *st)
   glob.cache_clean_bytes-= old_clean_bytes;
 }
 
+void
+ndb_index_stat_cache_evict(Ndb_index_stat *st)
+{
+  NdbIndexStat::Head head;
+  NdbIndexStat::CacheInfo infoBuild;
+  NdbIndexStat::CacheInfo infoQuery;
+  NdbIndexStat::CacheInfo infoClean;
+  st->is->get_head(head);
+  st->is->get_cache_info(infoBuild, NdbIndexStat::CacheBuild);
+  st->is->get_cache_info(infoQuery, NdbIndexStat::CacheQuery);
+  st->is->get_cache_info(infoClean, NdbIndexStat::CacheClean);
+
+  DBUG_PRINT("index_stat",
+             ("evict table: %u index: %u version: %u"
+              " sample version: %u"
+              " cache bytes build:%u query:%u clean:%u",
+              head.m_tableId, head.m_indexId, head.m_indexVersion,
+              head.m_sampleVersion,
+              infoBuild.m_totalBytes, infoQuery.m_totalBytes, infoClean.m_totalBytes));
+
+  /* Twice to move all caches to clean */
+  ndb_index_stat_cache_move(st);
+  ndb_index_stat_cache_move(st);
+  ndb_index_stat_cache_clean(st);
+}
+
 /* Misc in/out parameters for process steps */
 struct Ndb_index_stat_proc {
   NdbIndexStat* is_util; // For metadata and polling
@@ -1544,39 +1570,6 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr)
     pr.busy= true;
 }
 
-/* Only evict the caches */
-void
-ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
-{
-  Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-
-  NdbIndexStat::Head head;
-  NdbIndexStat::CacheInfo infoBuild;
-  NdbIndexStat::CacheInfo infoQuery;
-  NdbIndexStat::CacheInfo infoClean;
-  st->is->get_head(head);
-  st->is->get_cache_info(infoBuild, NdbIndexStat::CacheBuild);
-  st->is->get_cache_info(infoQuery, NdbIndexStat::CacheQuery);
-  st->is->get_cache_info(infoClean, NdbIndexStat::CacheClean);
-
-  DBUG_PRINT("index_stat",
-             ("evict table: %u index: %u version: %u"
-              " sample version: %u"
-              " cache bytes build:%u query:%u clean:%u",
-              head.m_tableId, head.m_indexId, head.m_indexVersion,
-              head.m_sampleVersion,
-              infoBuild.m_totalBytes, infoQuery.m_totalBytes, infoClean.m_totalBytes));
-
-  /* Twice to move all caches to clean */
-  ndb_index_stat_cache_move(st);
-  ndb_index_stat_cache_move(st);
-  ndb_index_stat_cache_clean(st);
-
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-  glob.set_status();
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-}
-
 /* Check if need to evict more */
 bool
 ndb_index_stat_proc_evict()
@@ -1697,7 +1690,7 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
 
     Ndb_index_stat *st= st_lru_arr[cnt];
     DBUG_PRINT("index_stat", ("st %s proc evict %s", st->id, list.name));
-    ndb_index_stat_proc_evict(pr, st);
+    ndb_index_stat_cache_evict(st);
     pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
     ndb_index_stat_free(st);
     pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
@@ -1743,7 +1736,7 @@ ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
     ndb_index_stat_no_stats(st, false);
     pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 
-    ndb_index_stat_proc_evict(pr, st);
+    ndb_index_stat_cache_evict(st);
     ndb_index_stat_list_remove(st);
     delete st->is;
     delete st;
