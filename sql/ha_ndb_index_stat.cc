@@ -97,6 +97,8 @@ struct Ndb_index_stat {
   time_t check_time;    /* when checked for updated stats (>= read_time) */
   uint query_bytes;     /* cache query bytes in use */
   uint clean_bytes;     /* cache clean bytes waiting to be deleted */
+  uint drop_bytes;      /* cache bytes waiting for drop */
+  uint evict_bytes;     /* cache bytes waiting for evict */
   bool force_update;    /* one-time force update from analyze table */
   bool no_stats;        /* have detected that no stats exist */
   NdbIndexStat::Error error;
@@ -569,6 +571,8 @@ struct Ndb_index_stat_glob {
   uint cache_query_bytes; /* In use */
   uint cache_clean_bytes; /* Obsolete versions not yet removed */
   uint cache_high_bytes;  /* Max ever of above */
+  uint cache_drop_bytes;  /* Part of above waiting to be evicted */
+  uint cache_evict_bytes; /* Part of above waiting to be evicted */
   char status[2][512];
   uint status_i;
 
@@ -600,6 +604,8 @@ Ndb_index_stat_glob::Ndb_index_stat_glob()
   cache_query_bytes= 0;
   cache_clean_bytes= 0;
   cache_high_bytes= 0;
+  cache_drop_bytes= 0;
+  cache_evict_bytes= 0;
   memset(status, 0, sizeof(status));
   status_i= 0;
 }
@@ -661,8 +667,12 @@ Ndb_index_stat_glob::set_status()
     cache_pct= (double)100.0 * (double)cache_total / (double)cache_limit;
     cache_high_pct= (double)100.0 * (double)cache_high_bytes / (double)cache_limit;
   }
-  sprintf(p, ",cache:(query:%u,clean:%u,usedpct:%.2f,highpct:%.2f)",
-             cache_query_bytes, cache_clean_bytes, cache_pct, cache_high_pct);
+  sprintf(p, ",cache:(query:%u,clean:%u"
+             ",drop:%u,evict:%u"
+             ",usedpct:%.2f,highpct:%.2f)",
+             cache_query_bytes, cache_clean_bytes,
+             cache_drop_bytes, cache_evict_bytes,
+             cache_pct, cache_high_pct);
   p+= strlen(p);
 
   // alternating status buffers to keep this lock short
@@ -711,6 +721,8 @@ Ndb_index_stat::Ndb_index_stat()
   check_time= 0;
   query_bytes= 0;
   clean_bytes= 0;
+  drop_bytes= 0;
+  evict_bytes= 0;
   force_update= false;
   no_stats= false;
   error_time= 0;
@@ -1084,12 +1096,15 @@ ndb_index_stat_free(NDB_SHARE *share, int index_id, int index_version)
     {
       ndb_index_stat_free(st);
       found++;
+      glob.drop_count++;
+      assert(st->drop_bytes == 0);
+      st->drop_bytes= st->query_bytes + st->clean_bytes;
+      glob.cache_drop_bytes+= st->drop_bytes;
       break;
     }
     st= st->share_next;
   }
 
-  glob.drop_count+= found;
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
@@ -1117,9 +1132,12 @@ ndb_index_stat_free(NDB_SHARE *share)
     assert(!st->to_delete);
     st->to_delete= true;
     found++;
+    glob.drop_count++;
+    assert(st->drop_bytes == 0);
+    st->drop_bytes+= st->query_bytes + st->clean_bytes;
+    glob.cache_drop_bytes+= st->drop_bytes;
   }
 
-  glob.drop_count+= found;
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
@@ -1577,6 +1595,11 @@ ndb_index_stat_proc_evict()
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   uint curr_size= glob.cache_query_bytes + glob.cache_clean_bytes;
+
+  /* Subtract bytes already scheduled for evict */
+  assert(curr_size >= glob.cache_evict_bytes);
+  curr_size-= glob.cache_evict_bytes;
+
   const uint cache_lowpct= opt.get(Ndb_index_stat_opt::Icache_lowpct);
   const uint cache_limit= opt.get(Ndb_index_stat_opt::Icache_limit);
   if (100 * curr_size <= cache_lowpct * cache_limit)
@@ -1694,8 +1717,12 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
 
     Ndb_index_stat *st= st_lru_arr[cnt];
     DBUG_PRINT("index_stat", ("st %s proc evict %s", st->id, list.name));
-    ndb_index_stat_cache_evict(st);
+
+    /* Entry may have requests.  Cache is evicted at delete. */
     ndb_index_stat_free(st);
+    assert(st->evict_bytes == 0);
+    st->evict_bytes= st->query_bytes + st->clean_bytes;
+    glob.cache_evict_bytes+= st->evict_bytes;
     cnt++;
   }
   if (cnt == batch)
@@ -1739,6 +1766,10 @@ ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
     ndb_index_stat_no_stats(st, false);
 
     ndb_index_stat_cache_evict(st);
+    assert(glob.cache_drop_bytes >= st->drop_bytes);
+    glob.cache_drop_bytes-= st->drop_bytes;
+    assert(glob.cache_evict_bytes >= st->evict_bytes);
+    glob.cache_evict_bytes-= st->evict_bytes;
     ndb_index_stat_list_remove(st);
     delete st->is;
     delete st;
