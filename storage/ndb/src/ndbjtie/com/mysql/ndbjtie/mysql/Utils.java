@@ -46,4 +46,6 @@ public class Utils
     static public final native String dbugExplain(ByteBuffer buffer, int length);
     /* Set the state of the DBUG package */
     static public final native void dbugSet(String state);
+    /* Print a message */
+    static public final native void dbugPrint(String keyword, String message);
 }

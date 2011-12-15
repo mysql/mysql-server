@@ -64,6 +64,11 @@ public interface Dbug {
      */
     String get();
 
+    /** Print debug message.
+     * 
+     */
+    void print(String keyword, String message);
+
     /** Set the list of debug keywords.
      * @param strings the debug keywords
      * @return this
