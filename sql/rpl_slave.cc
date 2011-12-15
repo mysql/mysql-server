@@ -2198,7 +2198,7 @@ bool show_master_info(THD* thd, Master_info* mi)
 
     /Alfranio
   */
-  /*global_sid_lock.wrlock();
+  global_sid_lock.wrlock();
   const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
   const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
   if (sql_gtid_set->to_string(&sql_gtid_set_buffer, &sql_gtid_set_size) ||
@@ -2210,7 +2210,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     global_sid_lock.unlock();
     DBUG_RETURN(true);
   }
-  global_sid_lock.unlock();*/
+  global_sid_lock.unlock();
 #endif
 
   field_list.push_back(new Item_empty_string("Slave_IO_State",
