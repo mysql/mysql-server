@@ -31,7 +31,7 @@ typedef int(*BRT_GET_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, bytevec, void
 int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, int basementnodesize, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*), DB*) __attribute__ ((warn_unused_result));
 int toku_brt_change_descriptor(BRT t, const DBT* old_descriptor, const DBT* new_descriptor, BOOL do_log, TOKUTXN txn);
 int toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd);
-
+// Note: See the locking discussion in brt.c for toku_brt_change_descriptor and toku_update_descriptor.
 
 int toku_dictionary_redirect (const char *dst_fname_in_env, BRT old_brt, TOKUTXN txn) __attribute__ ((warn_unused_result));
 // See the brt.c file for what this toku_redirect_brt does
