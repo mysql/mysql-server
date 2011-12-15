@@ -2155,6 +2155,33 @@ a	a
 SET optimizer_prune_level=DEFAULT;
 SET optimizer_switch=@tmp_optimizer_switch;
 DROP TABLE t1,t2,t3,t4;
+#
+# BUG#901399: Wrong result (extra row) with semijoin=ON, materialization=OFF, optimizer_prune_level=0
+#
+set @opl_901399= @@optimizer_prune_level;
+set @os_091399= @@optimizer_switch;
+SET optimizer_prune_level=0;
+SET optimizer_switch = 'materialization=off';
+CREATE TABLE t1 ( c INT ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+(0),(1),(2),(3),(4),(5),
+(6),(7),(8),(9),(10),(11),(12);
+CREATE TABLE t2 ( a INT, b INT, KEY(a)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3,20),(2,21),(3,22);
+SELECT *
+FROM t1 AS alias1, t1 AS alias2
+WHERE ( alias1.c, alias2.c )
+IN (
+SELECT alias3.a, alias3.a
+FROM t2 AS alias3, t2 alias4
+WHERE alias3.b = alias4.b
+);
+c	c
+2	2
+3	3
+set optimizer_prune_level= @opl_901399;
+set optimizer_switch= @os_091399;
+DROP TABLE t1,t2;
 set optimizer_switch=@subselect_sj_tmp;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
