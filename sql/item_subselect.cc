@@ -803,6 +803,36 @@ my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value)
 }
 
 
+bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  if (!exec() && !value->null_value)
+  {
+    null_value= false;
+    return value->get_date(ltime, fuzzydate);
+  }
+  else
+  {
+    reset();
+    return true;
+  }
+}
+
+
+bool Item_singlerow_subselect::get_time(MYSQL_TIME *ltime)
+{
+  if (!exec() && !value->null_value)
+  {
+    null_value= false;
+    return value->get_time(ltime);
+  }
+  else
+  {
+    reset();
+    return true;
+  }
+}
+
+
 bool Item_singlerow_subselect::val_bool()
 {
   if (!exec() && !value->null_value)

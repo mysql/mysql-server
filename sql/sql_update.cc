@@ -351,18 +351,18 @@ int mysql_update(THD *thd,
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
     DBUG_RETURN(1);
   }
-  if (table->timestamp_field)
+  if (table->get_timestamp_field())
   {
     // Don't set timestamp column if this is modified
     if (bitmap_is_set(table->write_set,
-                      table->timestamp_field->field_index))
+                      table->get_timestamp_field()->field_index))
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
     {
       if (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
           table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH)
         bitmap_set_bit(table->write_set,
-                       table->timestamp_field->field_index);
+                       table->get_timestamp_field()->field_index);
     }
   }
 
@@ -395,7 +395,7 @@ int mysql_update(THD *thd,
     to compare records and detect data change.
   */
   if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
-      table->timestamp_field &&
+      table->get_timestamp_field() &&
       (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
        table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
     bitmap_union(table->read_set, table->write_set);
@@ -501,12 +501,15 @@ int mysql_update(THD *thd,
       We can't update table directly;  We must first search after all
       matching rows before updating the table!
     */
+
+    // Verify that table->restore_column_maps_after_mark_index() will work
+    DBUG_ASSERT(table->read_set == &table->def_read_set);
+    DBUG_ASSERT(table->write_set == &table->def_write_set);
+
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
       table->add_read_columns_used_by_index(used_index);
     else
-    {
       table->use_all_columns();
-    }
 
     /* note: We avoid sorting if we sort on the used index */
     if (using_filesort)
@@ -636,8 +639,11 @@ int mysql_update(THD *thd,
       if (error >= 0)
         goto exit_without_my_ok;
     }
-    if (table->key_read)
-      table->restore_column_maps_after_mark_index();
+    /*
+      This restore bitmaps, works for add_read_columns_used_by_index() and
+      use_all_columns():
+    */
+    table->restore_column_maps_after_mark_index();
   }
 
   if (ignore)
@@ -1312,9 +1318,9 @@ int mysql_multi_update_prepare(THD *thd)
   {
     TABLE *table= tl->table;
     /* Only set timestamp column if this is not modified */
-    if (table->timestamp_field &&
+    if (table->get_timestamp_field() &&
         bitmap_is_set(table->write_set,
-                      table->timestamp_field->field_index))
+                      table->get_timestamp_field()->field_index))
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     /* if table will be updated then check that it is unique */
@@ -1554,7 +1560,7 @@ int multi_update::prepare(List<Item> &not_used_values,
         to compare records and detect data change.
         */
       if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
-          table->timestamp_field &&
+          table->get_timestamp_field() &&
           (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
            table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
         bitmap_union(table->read_set, table->write_set);

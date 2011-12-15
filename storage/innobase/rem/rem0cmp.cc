@@ -289,7 +289,7 @@ cmp_whole_field(
 	case DATA_MYSQL:
 		return(innobase_mysql_cmp(
 			       (int)(prtype & DATA_MYSQL_TYPE_MASK),
-			       (uint)dtype_get_charset_coll(prtype),
+			       (uint) dtype_get_charset_coll(prtype),
 			       a, a_length, b, b_length));
 	default:
 		fprintf(stderr,
@@ -323,7 +323,7 @@ cmp_dfield_dfield_like_prefix(
 	if (type->mtype >= DATA_FLOAT) {
 		ret = innobase_mysql_cmp_prefix(
 			(int)(type->prtype & DATA_MYSQL_TYPE_MASK),
-			(uint)dtype_get_charset_coll(type->prtype),
+			(uint) dtype_get_charset_coll(type->prtype),
 			static_cast<byte*>(dfield_get_data(dfield1)),
 			dfield_get_len(dfield1),
                         static_cast<byte*>(dfield_get_data(dfield2)),
@@ -758,7 +758,7 @@ cmp_dtuple_rec_with_match(
 		/* Set the pointers at the current byte */
 
 		rec_b_ptr = rec_b_ptr + cur_bytes;
-		dtuple_b_ptr = (byte*)dfield_get_data(dtuple_field)
+		dtuple_b_ptr = (byte*) dfield_get_data(dtuple_field)
 			+ cur_bytes;
 		/* Compare then the fields */
 

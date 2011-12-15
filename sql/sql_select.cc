@@ -139,7 +139,7 @@ bool types_allow_materialization(Item *outer, Item *inner)
     return FALSE;
   switch (outer->result_type()) {
   case STRING_RESULT:
-    if (outer->is_datetime() != inner->is_datetime())
+    if (outer->is_temporal_with_date() != inner->is_temporal_with_date())
       return FALSE;
     if (!(outer->collation.collation == inner->collation.collation
         /*&& outer->max_length <= inner->max_length */))
@@ -682,7 +682,9 @@ static int clear_sj_tmp_tables(JOIN *join)
   List_iterator<Semijoin_mat_exec> it2(join->sjm_exec_list);
   while ((sjm= it2++))
   {
-    sjm->materialized= FALSE;
+    sjm->materialized= false;
+    if (sjm->tab_ref != NULL)
+      sjm->tab_ref->key_err= true;
   }
   return 0;
 }
@@ -1279,6 +1281,7 @@ bool JOIN::set_access_methods()
         In a materialized semi-join nest, only the inner tables are available.
         @see make_join_select()
         @see Item_equal::get_subst_item()
+        @see eliminate_item_equal()
       */
       const table_map available_tables=
         sj_is_materialize_strategy(tab->get_sj_strategy()) ?
@@ -1684,11 +1687,11 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       case 0:
 	return NULL;
       case 1:
-        new_cond->used_tables_cache= used_tables;
+        new_cond->set_used_tables(used_tables);
 	return new_cond->argument_list()->head();
       default:
 	new_cond->quick_fix_field();
-        new_cond->used_tables_cache= used_tables;
+        new_cond->set_used_tables(used_tables);
 	return new_cond;
       }
     }
@@ -1710,7 +1713,7 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
       new_cond->quick_fix_field();
-      new_cond->used_tables_cache= ((Item_cond_or*) cond)->used_tables_cache;
+      new_cond->set_used_tables(cond->used_tables());
       new_cond->top_level_item();
       return new_cond;
     }
@@ -1763,7 +1766,7 @@ static Item *make_cond_remainder(Item *cond, bool exclude_index)
 	return new_cond->argument_list()->head();
       default:
 	new_cond->quick_fix_field();
-        ((Item_cond*)new_cond)->used_tables_cache= tbl_map;
+        new_cond->set_used_tables(tbl_map);
 	return new_cond;
       }
     }
@@ -1783,7 +1786,7 @@ static Item *make_cond_remainder(Item *cond, bool exclude_index)
         tbl_map |= fix->used_tables();
       }
       new_cond->quick_fix_field();
-      ((Item_cond*)new_cond)->used_tables_cache= tbl_map;
+      new_cond->set_used_tables(tbl_map);
       new_cond->top_level_item();
       return new_cond;
     }
@@ -4098,8 +4101,7 @@ fix_ICP:
       {
         const char *new_type= tab->type == JT_INDEX_SCAN ? "index_scan" :
           (tab->select && tab->select->quick) ?
-          "range" : "unknown";
-        DBUG_ASSERT(new_type[0] != 'u');
+          "range" : join_type_str[tab->type];
         trace_change_index.add_alnum("access_type", new_type);
       }
     }
@@ -4232,20 +4234,16 @@ calc_group_buffer(JOIN *join,ORDER *group)
         break;
       case STRING_RESULT:
       {
-        enum enum_field_types type= group_item->field_type();
         /*
           As items represented as DATE/TIME fields in the group buffer
           have STRING_RESULT result type, we increase the length 
           by 8 as maximum pack length of such fields.
         */
-        if (type == MYSQL_TYPE_TIME ||
-            type == MYSQL_TYPE_DATE ||
-            type == MYSQL_TYPE_DATETIME ||
-            type == MYSQL_TYPE_TIMESTAMP)
+        if (group_item->is_temporal())
         {
           key_length+= 8;
         }
-        else if (type == MYSQL_TYPE_BLOB)
+        else if (group_item->field_type() == MYSQL_TYPE_BLOB)
           key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {

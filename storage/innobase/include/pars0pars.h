@@ -150,8 +150,8 @@ int
 pars_like_rebind(
 /*=============*/
         sym_node_t*     node,   /* in: The search string node.*/
-        const byte*     ptr,    /* in: literal to (re)bind */
-        ulint           len);   /* in: length of literal to (re)bind*/
+        const byte*     ptr,    /* in: literal to (re) bind */
+        ulint           len);   /* in: length of literal to (re) bind*/
 /*********************************************************************//**
 Parses an operator expression.
 @return	own: function node in a query tree */

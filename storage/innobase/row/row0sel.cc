@@ -2224,7 +2224,7 @@ row_fetch_print(
 		dfield_t*	dfield = que_node_get_val(exp);
 		const dtype_t*	type = dfield_get_type(dfield);
 
-		fprintf(stderr, " column %lu:\n", (ulong)i);
+		fprintf(stderr, " column %lu:\n", (ulong) i);
 
 		dtype_print(type);
 		putc('\n', stderr);
@@ -3361,7 +3361,7 @@ row_sel_dequeue_cached_row_for_mysql(
 				buf[templ->mysql_null_byte_offset]
 					^= (buf[templ->mysql_null_byte_offset]
 					    ^ cached_rec[templ->mysql_null_byte_offset])
-					& (byte)templ->mysql_null_bit_mask;
+					& (byte) templ->mysql_null_bit_mask;
 			}
 		}
 	} else if (prebuilt->mysql_prefix_len > 63) {

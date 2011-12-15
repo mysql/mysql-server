@@ -1179,7 +1179,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
 
       if (field_item->result_type() == STRING_RESULT)
       {
-        const CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
+        const CHARSET_INFO *cs= field_item->field->charset();
         if (!item)
         {
           Item_func_eq *eq_item;
@@ -1798,6 +1798,17 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
           if (item->find_item_equal(upper_levels) == upper)
             break;
         }
+        /*
+          If the field belongs to a semi-join nest that is used for
+          MaterializeLookup and was rejected due to being covered by an upper-
+          level multiple equality, the upper-level multiple equality may
+          refer to tables that are outside of the materialized semi-join nest.
+          We play it safe and generate the equality predicate regardless.
+        */
+        if (item != item_field &&
+            sj_is_materialize_strategy(
+              item_field->field->table->reginfo.join_tab->get_sj_strategy()))
+          item= item_field;
       }
     }
     if (item == item_field)
@@ -1831,8 +1842,9 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
         against the first item within the SJM nest (if the item is not the first
         item within the SJM nest), or match against the first item in the
         list (if the item is the first one in the SJM nest).
-        @see create_ref_for_key()
+        @see set_access_methods()
         @see make_join_select()
+        @see Item_equal::get_subst_item()
       */
       head= item_const ? item_const : item_equal->get_subst_item(item_field);
       if (head == item_field)                   // First item in SJM nest
@@ -3436,11 +3448,8 @@ static uint get_tmp_table_rec_length(List<Item> &items)
         len += 4;
       break;
     case STRING_RESULT:
-      enum enum_field_types type;
       /* DATE/TIME and GEOMETRY fields have STRING_RESULT result type.  */
-      if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
-          type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
-          type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
+      if (item->is_temporal() || item->field_type() == MYSQL_TYPE_GEOMETRY)
         len += 8;
       else
         len += item->max_length;
@@ -4460,11 +4469,13 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         else
         {
           /*
-            We can't use indexes if the effective collation
+            Can't optimize datetime_column=indexed_varchar_column,
+            also can't use indexes if the effective collation
             of the operation differ from the field collation.
           */
-          if (field->cmp_type() == STRING_RESULT &&
-              ((Field_str*)field)->charset() != cond->compare_collation())
+          if ((!field->is_temporal() && value[0]->is_temporal()) ||
+              (field->cmp_type() == STRING_RESULT &&
+               field->charset() != cond->compare_collation()))
           {
             warn_index_not_applicable(stat->join->thd, field, possible_keys);
             return;
@@ -6764,9 +6775,8 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
           are fixed or do not need fix_fields, too
         */
         new_cond->quick_fix_field();
-        new_cond->used_tables_cache=
-          ((Item_cond_and*) cond)->used_tables_cache & tables;
-          return new_cond;
+        new_cond->set_used_tables(cond->used_tables() & tables);
+        return new_cond;
       }
     }
     else
@@ -6790,7 +6800,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
 	are fixed or do not need fix_fields, too
       */
       new_cond->quick_fix_field();
-      new_cond->used_tables_cache= ((Item_cond_or*) cond)->used_tables_cache;
+      new_cond->set_used_tables(cond->used_tables());
       new_cond->top_level_item();
       return new_cond;
     }
@@ -6923,8 +6933,7 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
           are fixed or do not need fix_fields, too
 	*/
         new_cond->quick_fix_field();
-        new_cond->used_tables_cache=
-          ((Item_cond_and*) cond)->used_tables_cache & tables;
+        new_cond->set_used_tables(cond->used_tables() & tables);
         return new_cond;
       }
     }
@@ -6947,7 +6956,7 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
         are fixed or do not need fix_fields, too
       */
       new_cond->quick_fix_field();
-      new_cond->used_tables_cache= ((Item_cond_or*) cond)->used_tables_cache;
+      new_cond->set_used_tables(cond->used_tables());
       new_cond->top_level_item();
       return new_cond;
     }
@@ -7124,8 +7133,9 @@ static bool make_join_select(JOIN *join, Item *cond)
         conditions referring to preceding non-const tables.
          - If we're looking at the first SJM table, reset used_tables
            to refer to only allowed tables
-        @see create_ref_for_key()
+        @see set_access_methods()
         @see Item_equal::get_subst_item()
+        @see eliminate_item_equal()
       */
       if (sj_is_materialize_strategy(tab->get_sj_strategy()) &&
           !(used_tables & tab->emb_sj_nest->sj_inner_tables))

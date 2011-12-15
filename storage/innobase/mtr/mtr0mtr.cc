@@ -84,16 +84,16 @@ mtr_memo_slot_release(
 
 	if (UNIV_LIKELY(object != NULL)) {
 		if (type <= MTR_MEMO_BUF_FIX) {
-			buf_page_release((buf_block_t*)object, type);
+			buf_page_release((buf_block_t*) object, type);
 		} else if (type == MTR_MEMO_S_LOCK) {
-			rw_lock_s_unlock((rw_lock_t*)object);
+			rw_lock_s_unlock((rw_lock_t*) object);
 		} else if (type != MTR_MEMO_X_LOCK) {
 			ut_ad(type == MTR_MEMO_MODIFY
 			      || type == MTR_MEMO_FREE_CLUST_LEAF);
 			ut_ad(mtr_memo_contains(mtr, object,
 						MTR_MEMO_PAGE_X_FIX));
 		} else {
-			rw_lock_x_unlock((rw_lock_t*)object);
+			rw_lock_x_unlock((rw_lock_t*) object);
 		}
 	}
 
