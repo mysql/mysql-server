@@ -276,7 +276,13 @@ error:
 void NTService::SetRunning()
 {
   if (pService)
-    pService->SetStatus(SERVICE_RUNNING,NO_ERROR, 0, 0, 0);
+    pService->SetStatus(SERVICE_RUNNING, NO_ERROR, 0, 0, 0);
+}
+
+void NTService::SetSlowStarting(unsigned long timeout)
+{
+  if (pService)
+    pService->SetStatus(SERVICE_START_PENDING,NO_ERROR, 0, 0, timeout);
 }
 
 
