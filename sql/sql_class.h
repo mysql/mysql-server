@@ -3139,9 +3139,29 @@ public:
   {
     /* TODO: check for OOM condition here */
     if (!stmt_arena->is_conventional())
+    {
+      DBUG_PRINT("info",
+                 ("change_item_tree place %p old_value %p new_value %p",
+                  place, *place, new_value));
       nocheck_register_item_tree_change(place, *place, mem_root);
+    }
     *place= new_value;
   }
+
+/*
+  Find and update change record of an underlying item.
+
+  @param old_ref The old place of moved expression.
+  @param new_ref The new place of moved expression.
+  @details
+  During permanent transformations, e.g. join flattening in simplify_joins,
+  a condition could be moved from one place to another, e.g. from on_expr
+  to WHERE condition. If the moved condition has replaced some other with
+  change_item_tree() function, the change record will restore old value
+  to the wrong place during rollback_item_tree_changes. This function goes
+  through the list of change records, and replaces Item_change_record::place.
+*/
+  void change_item_tree_place(Item **old_ref, Item **new_ref);
   void nocheck_register_item_tree_change(Item **place, Item *old_value,
                                          MEM_ROOT *runtime_memroot);
   void rollback_item_tree_changes();
