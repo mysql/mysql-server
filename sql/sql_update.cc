@@ -2217,16 +2217,15 @@ int multi_update::do_updates()
           else if (error == VIEW_CHECK_ERROR)
             goto err;
         }
-	if ((local_error=table->file->ha_update_row(table->record[1],
-						    table->record[0])) &&
-            local_error != HA_ERR_RECORD_IS_THE_SAME)
-	{
-	  if (!ignore ||
-              table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
-	    goto err;
-	}
-        if (local_error != HA_ERR_RECORD_IS_THE_SAME)
+        local_error= table->file->ha_update_row(table->record[1],
+                                                table->record[0]);
+        if (!local_error)
           updated++;
+        else if (local_error == HA_ERR_RECORD_IS_THE_SAME)
+          local_error= 0;
+        else if (!ignore ||
+                 table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+          goto err;
         else
           local_error= 0;
       }
