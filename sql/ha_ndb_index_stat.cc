@@ -1019,7 +1019,7 @@ ndb_index_stat_get_share(NDB_SHARE *share,
   list and set "to_delete" flag.  Stats thread does real delete.
 */
 
-/* caller must hold list_mutex */
+/* caller must hold list_mutex and stat_mutex */
 void
 ndb_index_stat_free(Ndb_index_stat *st)
 {
@@ -1060,9 +1060,7 @@ ndb_index_stat_free(Ndb_index_stat *st)
   assert(found == 1);
   share->index_stat_list= st_head;
 
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   glob.set_status();
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -1075,6 +1073,7 @@ ndb_index_stat_free(NDB_SHARE *share, int index_id, int index_version)
                             index_id, index_version));
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
+  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
 
   uint found= 0;
   Ndb_index_stat *st= share->index_stat_list;
@@ -1090,7 +1089,6 @@ ndb_index_stat_free(NDB_SHARE *share, int index_id, int index_version)
     st= st->share_next;
   }
 
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   glob.drop_count+= found;
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
@@ -1104,6 +1102,8 @@ ndb_index_stat_free(NDB_SHARE *share)
   DBUG_ENTER("ndb_index_stat_free");
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
+  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+
   uint found= 0;
   Ndb_index_stat *st;
   while ((st= share->index_stat_list) != 0)
@@ -1118,7 +1118,7 @@ ndb_index_stat_free(NDB_SHARE *share)
     st->to_delete= true;
     found++;
   }
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+
   glob.drop_count+= found;
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
@@ -1612,6 +1612,10 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
   if (!ndb_index_stat_proc_evict())
     return;
 
+  /* Mutex entire routine (protect access_time) */
+  pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
+  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+
   /* Create a LRU batch */
   Ndb_index_stat* st_lru_arr[ndb_index_stat_max_evict_batch + 1];
   uint st_lru_cnt= 0;
@@ -1691,18 +1695,15 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
     Ndb_index_stat *st= st_lru_arr[cnt];
     DBUG_PRINT("index_stat", ("st %s proc evict %s", st->id, list.name));
     ndb_index_stat_cache_evict(st);
-    pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
     ndb_index_stat_free(st);
-    pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
     cnt++;
   }
-
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-  glob.evict_count+= cnt;
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-
   if (cnt == batch)
     pr.busy= true;
+
+  glob.evict_count+= cnt;
+  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
 }
 
 void
@@ -1722,6 +1723,9 @@ ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
   const uint delete_batch= opt.get(Ndb_index_stat_opt::Idelete_batch);
   const uint batch= !pr.end ? delete_batch : ~(uint)0;
 
+  /* Mutex entire routine */
+  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+
   Ndb_index_stat *st_loop= list.head;
   uint cnt= 0;
   while (st_loop != 0 && cnt < batch)
@@ -1731,10 +1735,8 @@ ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
     DBUG_PRINT("index_stat", ("st %s proc %s", st->id, list.name));
 
     // adjust global counters at drop
-    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     ndb_index_stat_force_update(st, false);
     ndb_index_stat_no_stats(st, false);
-    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 
     ndb_index_stat_cache_evict(st);
     ndb_index_stat_list_remove(st);
@@ -1745,7 +1747,6 @@ ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
   if (cnt == batch)
     pr.busy= true;
 
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
