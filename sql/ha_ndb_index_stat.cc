@@ -112,6 +112,7 @@ struct Ndb_index_stat {
   struct NDB_SHARE *share;
   uint ref_count;       /* from client requests */
   bool to_delete;       /* detached from share and marked for delete */
+  bool abort_request;   /* abort all requests and allow no more */
   Ndb_index_stat();
 };
 
@@ -736,6 +737,7 @@ Ndb_index_stat::Ndb_index_stat()
   share= 0;
   ref_count= 0;
   to_delete= false;
+  abort_request= false;
 }
 
 void
@@ -1034,6 +1036,11 @@ ndb_index_stat_get_share(NDB_SHARE *share,
       ndb_index_stat_list_add(st, Ndb_index_stat::LT_New);
       glob.set_status();
     }
+    else if (unlikely(st->abort_request))
+    {
+      err_out= Ndb_index_stat_error_ABORT_REQUEST;
+      break;
+    }
     if (force_update)
       ndb_index_stat_force_update(st, true);
     st->access_time= now;
@@ -1084,6 +1091,7 @@ ndb_index_stat_free(Ndb_index_stat *st)
       assert(st->lt != Ndb_index_stat::LT_Delete);
       assert(!st->to_delete);
       st->to_delete= true;
+      st->abort_request= true;
       found++;
     }
     else
@@ -1159,6 +1167,7 @@ ndb_index_stat_free(NDB_SHARE *share)
     assert(st->lt != Ndb_index_stat::LT_Delete);
     assert(!st->to_delete);
     st->to_delete= true;
+    st->abort_request= true;
     found++;
     glob.drop_count++;
     assert(st->drop_bytes == 0);
@@ -1793,8 +1802,17 @@ ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
     ndb_index_stat_force_update(st, false);
     ndb_index_stat_no_stats(st, false);
 
-    // can fail (intentionally) before abort-requests patch
-    assert(st->ref_count == 0);
+    /*
+      Do not wait for requests to terminate since this could
+      risk stats thread hanging.  Instead try again next time.
+      Presumably clients will eventually notice abort_request.
+    */
+    if (st->ref_count != 0)
+    {
+      DBUG_PRINT("index_stat", ("st %s proc %s: ref_count:%u",
+                 st->id, list.name, st->ref_count));
+      continue;
+    }
 
     ndb_index_stat_cache_evict(st);
     assert(glob.cache_drop_bytes >= st->drop_bytes);
@@ -2614,6 +2632,11 @@ ndb_index_stat_wait(Ndb_index_stat *st,
     }
     if (st->sample_version > sample_version)
       break;
+    if (st->abort_request)
+    {
+      err= Ndb_index_stat_error_ABORT_REQUEST;
+      break;
+    }
     count++;
     DBUG_PRINT("index_stat", ("st %s wait count:%u",
                               st->id, count));
