@@ -53,6 +53,7 @@
 #include "sql_table.h"                          // build_table_filename
 #include "datadict.h"   // dd_frm_type()
 #include "sql_hset.h"   // Hash_set
+#include "sql_tmp_table.h" // free_tmp_table
 #ifdef  __WIN__
 #include <io.h>
 #endif
