@@ -368,6 +368,9 @@ my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+ulong slow_start_timeout;
+#endif
 /*
   True if the bootstrap thread is running. Protected by LOCK_thread_count,
   just like thread_count.
@@ -4369,6 +4372,14 @@ int mysqld_main(int argc, char **argv)
 #endif
   }
 
+  /* 
+   The subsequent calls may take a long time : e.g. innodb log read.
+   Thus set the long running service control manager timeout
+  */
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+  Service.SetSlowStarting(slow_start_timeout);
+#endif
+
   if (init_server_components())
     unireg_abort(1);
 
@@ -5883,6 +5894,13 @@ struct my_option my_long_options[]=
    "Don't give threads different priorities. This option is deprecated "
    "because it has no effect; the implied behavior is already the default.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+  {"slow-start-timeout", 0,
+   "Maximum number of milliseconds that the service control manager should wait "
+   "before trying to kill the windows service during startup"
+   "(Default: 15000).", &slow_start_timeout, &slow_start_timeout, 0,
+   GET_ULONG, REQUIRED_ARG, 15000, 0, 0, 0, 0, 0},
+#endif
 #ifdef HAVE_REPLICATION
   {"sporadic-binlog-dump-fail", 0,
    "Option used by mysql-test for debugging and testing of replication.",
