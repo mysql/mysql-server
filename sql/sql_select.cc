@@ -61,7 +61,7 @@ static bool sort_and_filter_keyuse(THD *thd, DYNAMIC_ARRAY *keyuse,
                                    bool skip_unprefixed_keyparts);
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
-			       table_map used_tables);
+			       bool allow_full_scan, table_map used_tables);
 void best_access_path(JOIN *join, JOIN_TAB *s, 
                              table_map remaining_tables, uint idx, 
                              bool disable_jbuf, double record_count,
@@ -3313,7 +3313,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
 	        s->type= JT_CONST;
 	        join->const_table_map|=table->map;
 	        set_position(join,const_count++,s,start_keyuse);
-	        if (create_ref_for_key(join, s, start_keyuse,
+	        if (create_ref_for_key(join, s, start_keyuse, FALSE,
 				       found_const_table_map))
                   goto error;
 	        if ((tmp=join_read_const_table(s,
@@ -7068,15 +7068,21 @@ get_best_combination(JOIN *join)
 
     if (j->type == JT_SYSTEM)
       goto loop_end;
-    if ( !(keyuse= join->best_positions[tablenr].key) || 
-        (join->best_positions[tablenr].sj_strategy == SJ_OPT_LOOSE_SCAN))
+    if ( !(keyuse= join->best_positions[tablenr].key))
     {
       j->type=JT_ALL;
-      j->index= join->best_positions[tablenr].loosescan_picker.loosescan_key;
       if (tablenr != join->const_tables)
 	join->full_join=1;
     }
-    else if (create_ref_for_key(join, j, keyuse, used_tables))
+
+    /*if (join->best_positions[tablenr].sj_strategy == SJ_OPT_LOOSE_SCAN)
+    {
+      DBUG_ASSERT(!keyuse || keyuse->key ==
+                             join->best_positions[tablenr].loosescan_picker.loosescan_key);
+      j->index= join->best_positions[tablenr].loosescan_picker.loosescan_key;
+    }*/
+    
+    if (keyuse && create_ref_for_key(join, j, keyuse, TRUE, used_tables))
       DBUG_RETURN(TRUE);                        // Something went wrong
 
     if ((j->type == JT_REF || j->type == JT_EQ_REF) &&
@@ -7249,7 +7255,8 @@ static bool are_tables_local(JOIN_TAB *jtab, table_map used_tables)
 }
 
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
-                               KEYUSE *org_keyuse, table_map used_tables)
+                               KEYUSE *org_keyuse, bool allow_full_scan, 
+                               table_map used_tables)
 {
   uint keyparts, length, key;
   TABLE *table;
@@ -7307,6 +7314,14 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
       keyuse++;
     } while (keyuse->table == table && keyuse->key == key);
   } /* not ftkey */
+  
+  if (!keyparts && allow_full_scan)
+  {
+    /* It's a LooseIndexScan strategy scanning whole index */
+    j->type= JT_ALL;
+    j->index= key;
+    DBUG_RETURN(FALSE);
+  }
 
   /* set up fieldref */
   j->ref.key_parts= keyparts;
@@ -15188,7 +15203,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
         join_tab->loosescan_match_tab->found_match)
     {
       KEY *key= join_tab->table->key_info + join_tab->index;
-      key_copy(join_tab->loosescan_buf, info->record, key, 
+      key_copy(join_tab->loosescan_buf, join_tab->table->record[0], key, 
                join_tab->loosescan_key_len);
       skip_over= TRUE;
     }
@@ -17571,7 +17586,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit_arg,
           while (keyuse->key != new_ref_key && keyuse->table == tab->table)
             keyuse++;
 
-          if (create_ref_for_key(tab->join, tab, keyuse, 
+          if (create_ref_for_key(tab->join, tab, keyuse, FALSE,
                                  tab->join->const_table_map))
             goto use_filesort;
 

@@ -296,7 +296,16 @@ typedef struct st_join_table {
   double        partial_join_cardinality;
 
   table_map	dependent,key_dependent;
-  uint		use_quick,index;
+  /*
+     1 - use quick select
+     2 - use "Range checked for each record"
+  */
+  uint		use_quick;
+  /*
+    Index to use. Note: this is valid only for 'index' access, but not range or
+    ref access.
+  */
+  uint          index;
   uint		status;				///< Save status for cache
   uint		used_fields;
   ulong         used_fieldlength;
