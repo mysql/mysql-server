@@ -1886,7 +1886,8 @@ private:
   } m_local_lcp_state;
 
   // MT LQH
-  Uint32 c_fragments_per_node;
+  Uint32 c_fragments_per_node_;
+  Uint32 getFragmentsPerNode();
   Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
     ndbrequire(!tFragPtr.isNull());
     Uint32 log_part_id = tFragPtr.p->m_log_part_id;
