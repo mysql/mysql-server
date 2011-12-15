@@ -471,10 +471,6 @@ cachefile_refup (CACHEFILE cf) {
     cf->refcount++;
 }
 
-int toku_cachefile_fd(CACHEFILE cf) {
-    return cf->fd;
-}
-
 // What cachefile goes with particular iname (iname relative to env)?
 // The transaction that is adding the reference might not have a reference
 // to the brt, therefore the cachefile might be closing.
