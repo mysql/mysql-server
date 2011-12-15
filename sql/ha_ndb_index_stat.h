@@ -82,5 +82,8 @@ compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
 
 /* request on stats entry with recent error was ignored */
 #define Ndb_index_stat_error_HAS_ERROR          9003
+ 
+/* stats thread aborted request on stats entry */
+#define Ndb_index_stat_error_ABORT_REQUEST      9004
 
 #endif
