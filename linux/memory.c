@@ -36,7 +36,7 @@ toku_memory_startup(void) {
     // to get version and mmap threshold configuration.
     typedef int (*mallctl_fun_t)(const char *, void *, size_t *, void *, size_t);
     mallctl_fun_t mallctl_f;
-    mallctl_f = (mallctl_fun_t) dlsym(NULL, "mallctl");
+    mallctl_f = (mallctl_fun_t) dlsym(RTLD_DEFAULT, "mallctl");
     if (mallctl_f) { // jemalloc is loaded
         size_t version_length = sizeof status.mallocator_version;
         result = mallctl_f("version", &status.mallocator_version, &version_length, NULL, 0);
