@@ -1,9 +1,8 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
 CREATE TABLE t1 (c1 INT);
 CREATE TABLE t2 (c1 INT PRIMARY KEY);
 CREATE TABLE t3 (c1 INT UNIQUE KEY);
@@ -44,9 +43,6 @@ UPDATE t2 SET c1= 7;
 UPDATE t3 SET c1= 7;
 UPDATE t4 SET c1= 7;
 SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+DROP TABLE IF EXISTS t1, t2, t3, t4;
+include/rpl_reset.inc
+include/rpl_end.inc

@@ -19,7 +19,7 @@ set @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
 SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,TABLE_SCAN';
 -- source extra/rpl_tests/rpl_row_idempotency.test
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 
 SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
 -- source extra/rpl_tests/rpl_row_idempotency.test
