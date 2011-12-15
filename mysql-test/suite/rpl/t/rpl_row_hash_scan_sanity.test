@@ -166,7 +166,13 @@ UPDATE t4 SET c1= 7;
 -- connection slave
 
 SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
--- source include/master-slave-reset.inc
 
--- source include/master-slave-end.inc
+#clean Up
+--connection master
+DROP TABLE IF EXISTS t1, t2, t3, t4;
+--sync_slave_with_master
+  
+-- source include/rpl_reset.inc
+
+-- source include/rpl_end.inc
 
