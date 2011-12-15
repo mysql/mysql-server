@@ -5,6 +5,9 @@ drop table if exists t1,t2,t3;
 drop view if exists v1,v2;
 --enable_warnings
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 #
 # Test different join syntaxes
 #
@@ -1025,3 +1028,4 @@ insert into t2 values ('1:1:1');
 select t2.i from t1 left join t2 on t2.i = t1.i where t1.i = '1:1:1';
 drop table t1,t2;
 
+SET optimizer_switch=@save_optimizer_switch;

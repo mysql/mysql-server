@@ -15,7 +15,16 @@ drop view if exists v2;
 set @subselect_tmp=@@optimizer_switch;
 set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_test,
                               "semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
-set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
+if (`select @join_cache_level_for_subselect_test is null`)
+{
+  set join_cache_level=1;
+}
+if (`select @join_cache_level_for_subselect_test is not null`)
+{
+  set join_cache_level=@join_cache_level_for_subselect_test;
+}
+ set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 
 select (select 2);
 explain extended select (select 2);
@@ -4587,6 +4596,9 @@ INSERT INTO t2 VALUES (20,9),(20,9);
 create table t3 (d int, e int);
 insert into t3 values (2, 9), (3,10);
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 EXPLAIN
 SELECT t2.b , t1.c
 FROM t2 LEFT JOIN t1 ON t1.c < 3
@@ -4595,6 +4607,8 @@ WHERE (t2.b , t1.c) NOT IN (SELECT * from t3);
 SELECT t2.b , t1.c
 FROM t2 LEFT JOIN t1 ON t1.c < 3
 WHERE (t2.b, t1.c) NOT IN (SELECT * from t3);
+
+SET optimizer_switch=@save_optimizer_switch;
 
 drop table t1, t2, t3;
 

@@ -6,6 +6,9 @@
 drop table if exists t0,t1,t2,t3,t4,t5;
 --enable_warnings
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 CREATE TABLE t1 (
   grp int(11) default NULL,
   a bigint(20) unsigned default NULL,
@@ -808,6 +811,8 @@ SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 2=2);
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 1=0);
 
 DROP TABLE t1,t2;
+
+SET optimizer_switch=@save_optimizer_switch;
 
 --disable_query_log
 drop database pbxt;

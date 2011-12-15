@@ -428,6 +428,8 @@ select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2 where t1.b > 'a' and t2.c > 'b1' )
 group by a1,a2,b;
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 explain select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2
                where t2.c in (select c from t3 where t3.c > t1.b) and
@@ -439,6 +441,7 @@ where exists ( select * from t2
                where t2.c in (select c from t3 where t3.c > t1.b) and
                t2.c > 'b1' )
 group by a1,a2,b;
+SET optimizer_switch=@save_optimizer_switch;
 
 # correlated subselect that references the min/max argument
 explain select a1,a2,b,c,min(c), max(c) from t1
@@ -449,6 +452,8 @@ select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2 where t1.c > 'a' and t2.c > 'b1' )
 group by a1,a2,b;
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 explain select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2
                where t2.c in (select c from t3 where t3.c > t1.c) and
@@ -460,6 +465,7 @@ where exists ( select * from t2
                where t2.c in (select c from t3 where t3.c > t1.c) and
                t2.c > 'b1' )
 group by a1,a2,b;
+SET optimizer_switch=@save_optimizer_switch;
 
 
 # A,B,C) Predicates referencing mixed classes of attributes

@@ -78,6 +78,9 @@ INSERT INTO t2 VALUES (1, 1, 'data');
 --echo # we would need to have thousands of records and/or more columns in both
 --echo # tables so that the join buffer is filled and re-scans are triggered).
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 SET SESSION debug = '+d,only_one_Unique_may_be_created';
 
 --replace_column 1 x 2 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x
@@ -86,6 +89,8 @@ SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
 
 SET SESSION debug = DEFAULT;
+
+SET optimizer_switch=@save_optimizer_switch;
 
 DROP TABLE t1, t2;
 

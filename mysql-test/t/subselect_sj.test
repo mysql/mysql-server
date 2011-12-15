@@ -10,6 +10,17 @@ drop procedure if exists p1;
 set @subselect_sj_tmp= @@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+SET optimizer_switch=ifnull(@optimizer_switch_for_subselect_sj_test,'outer_join_with_cache=off');
+SET optimizer_switch=ifnull(@optimizer_switch_for_subselect_sj_test,'semijoin_with_cache=off');
+if (`select @join_cache_level_for_subselect_sj_test is null`)
+{
+  set join_cache_level=1;
+}
+if (`select @join_cache_level_for_subselect_sj_test is not null`)
+{
+  set join_cache_level=@join_cache_level_for_subselect_sj_test;
+}
+
 # The 'default' value within the scope of this test:
 set @save_optimizer_switch=@@optimizer_switch;
 

@@ -1,4 +1,6 @@
 drop table if exists t1,t2,t3,t4,t5,t6,t7;
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=1;
 create table t1 (
 c11 integer,c12 integer,c13 integer,c14 integer,c15 integer,c16 integer,
 primary key (c11)
@@ -655,3 +657,4 @@ show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 drop table t1,t2,t3,t4,t5,t6,t7;
+set join_cache_level=@save_join_cache_level;
