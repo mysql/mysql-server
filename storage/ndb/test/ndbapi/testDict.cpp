@@ -9007,9 +9007,10 @@ runIndexStatCreate(NDBT_Context* ctx, NDBT_Step* step)
        * OK
        */
     }
-    else if (! (is.getNdbError().code == 721 ||
-                is.getNdbError().code == 4244 ||
-                is.getNdbError().code == 4009)) // no connection
+    else if (! (is.getNdbError().code == 701  || // timeout
+                is.getNdbError().code == 721  || // already exists
+                is.getNdbError().code == 4244 || // already exists
+                is.getNdbError().code == 4009))  // no connection
     {
       ndbout << is.getNdbError() << endl;
       return NDBT_FAILED;
