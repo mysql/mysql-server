@@ -2025,7 +2025,9 @@ static int clear_sj_tmp_tables(JOIN *join)
   List_iterator<Semijoin_mat_exec> it2(join->sjm_exec_list);
   while ((sjm= it2++))
   {
-    sjm->materialized= FALSE;
+    sjm->materialized= false;
+    if (sjm->tab_ref != NULL)
+      sjm->tab_ref->key_err= true;
   }
   return 0;
 }
@@ -10101,6 +10103,7 @@ bool JOIN::set_access_methods()
         In a materialized semi-join nest, only the inner tables are available.
         @see make_join_select()
         @see Item_equal::get_subst_item()
+        @see eliminate_item_equal()
       */
       const table_map available_tables=
         sj_is_materialize_strategy(tab->get_sj_strategy()) ?
@@ -10981,8 +10984,9 @@ static bool make_join_select(JOIN *join, Item *cond)
         conditions referring to preceding non-const tables.
          - If we're looking at the first SJM table, reset used_tables
            to refer to only allowed tables
-        @see create_ref_for_key()
+        @see set_access_methods()
         @see Item_equal::get_subst_item()
+        @see eliminate_item_equal()
       */
       if (sj_is_materialize_strategy(tab->get_sj_strategy()) &&
           !(used_tables & tab->emb_sj_nest->sj_inner_tables))
@@ -14469,6 +14473,17 @@ Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
           if (item->find_item_equal(upper_levels) == upper)
             break;
         }
+        /*
+          If the field belongs to a semi-join nest that is used for
+          MaterializeLookup and was rejected due to being covered by an upper-
+          level multiple equality, the upper-level multiple equality may
+          refer to tables that are outside of the materialized semi-join nest.
+          We play it safe and generate the equality predicate regardless.
+        */
+        if (item != item_field &&
+            sj_is_materialize_strategy(
+              item_field->field->table->reginfo.join_tab->get_sj_strategy()))
+          item= item_field;
       }
     }
     if (item == item_field)
@@ -14502,8 +14517,9 @@ Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
         against the first item within the SJM nest (if the item is not the first
         item within the SJM nest), or match against the first item in the
         list (if the item is the first one in the SJM nest).
-        @see create_ref_for_key()
+        @see set_access_methods()
         @see make_join_select()
+        @see Item_equal::get_subst_item()
       */
       head= item_const ? item_const : item_equal->get_subst_item(item_field);
       if (head == item_field)                   // First item in SJM nest
