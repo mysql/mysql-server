@@ -3095,10 +3095,13 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1),(2);
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 PREPARE stmt FROM 'EXPLAIN EXTENDED SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
 EXECUTE stmt;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+SET optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1;
 
 --echo #

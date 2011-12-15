@@ -4,6 +4,14 @@ drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
 
 set @subselect3_tmp= @@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on';
+if (`select @join_cache_level_for_subselect3_test is null`)
+{
+  set join_cache_level=1;
+}
+if (`select @join_cache_level_for_subselect3_test is not null`)
+{
+  set join_cache_level=@join_cache_level_for_subselect3_test;
+}
 
 #
 # 1. Subquery with GROUP/HAVING

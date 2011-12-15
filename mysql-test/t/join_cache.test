@@ -33,6 +33,8 @@ SELECT COUNT(*) FROM CountryLanguage;
 
 show variables like 'join_buffer_size';
 
+set join_cache_level=1;
+
 show variables like 'join_cache_level';
 
 EXPLAIN
@@ -196,7 +198,7 @@ SELECT Country.Name, Country.Population, City.Name, City.Population
 DROP INDEX City_Population ON City;
 DROP INDEX City_Name ON City;
 
-set join_cache_level=default;
+set join_cache_level=1;
 
 set join_buffer_size=256;
 show variables like 'join_buffer_size';
@@ -2190,6 +2192,8 @@ create table t2 (a int, b int);
 insert into t2 values (1,1),(2,2);
 create table t3 (a int, b int);
 insert into t3 values (1,1),(2,2);
+
+set join_cache_level=1;
 
 explain select t1.* from t1,t2,t3;
 select t1.* from t1,t2,t3; 

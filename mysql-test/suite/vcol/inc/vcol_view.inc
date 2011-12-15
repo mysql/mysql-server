@@ -106,6 +106,10 @@ drop view v1;
 #
 # outer join based on VIEW with WHERE clause
 #
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 create table t1 (a int, 
 		 b int as (-a),
 		 c int as (-a) persistent,
@@ -118,6 +122,8 @@ create view v1 (x,y,z) as select a,b,c from t1 where c < -1;
 select t1.a, v1.x, v1.y, v1.z from t1 left join v1 on (t1.c= v1.z);
 drop view v1;
 drop table t1;
+
+SET optimizer_switch=@save_optimizer_switch;
 
 #
 # VIEW built over UNION

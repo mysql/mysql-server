@@ -991,6 +991,9 @@ INSERT INTO t3 VALUES ('a'), ('b'), ('c');
 CREATE TABLE t4 (c1 varchar(1) primary key);
 INSERT INTO t4 VALUES ('k'), ('d');
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 EXPLAIN
 SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
 SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
@@ -1003,6 +1006,9 @@ SELECT * FROM (t2 LEFT JOIN t1 ON t1.c1) LEFT JOIN t3 on t3.c1 WHERE 's' IN (SEL
 EXPLAIN
 SELECT * FROM t4 LEFT JOIN t2 ON t4.c1 WHERE 's' IN (SELECT c1 FROM t2);
 SELECT * FROM t4 LEFT JOIN t2 ON t4.c1 WHERE 's' IN (SELECT c1 FROM t2);
+
+SET optimizer_switch=@save_optimizer_switch;
+
 drop table t1, t2, t3, t4;
 
 --echo #
@@ -1297,6 +1303,8 @@ INSERT INTO t2 VALUES
 (10,5,'d1d');
 
 set @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 set @@optimizer_switch = 'materialization=off';
 
 EXPLAIN

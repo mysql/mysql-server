@@ -500,8 +500,8 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "mrr=off,"
                                         "mrr_cost_based=off,"
                                         "mrr_sort_keys=off,"
-                                        "outer_join_with_cache=off,"
-                                        "semijoin_with_cache=off,"
+                                        "outer_join_with_cache=on,"
+                                        "semijoin_with_cache=on,"
                                         "join_cache_incremental=on,"
                                         "join_cache_hashed=on,"
                                         "join_cache_bka=on,"
@@ -7294,7 +7294,7 @@ each time the SQL thread starts.",
    "Controls what join operations can be executed with join buffers. Odd numbers are used for plain join buffers while even numbers are used for linked buffers",
    &global_system_variables.join_cache_level,
    &max_system_variables.join_cache_level,
-   0, GET_ULONG, REQUIRED_ARG, 1, 0, 8, 0, 1, 0},
+   0, GET_ULONG, REQUIRED_ARG, 2, 0, 8, 0, 1, 0},
   {"keep_files_on_create", OPT_KEEP_FILES_ON_CREATE,
    "Don't overwrite stale .MYD and .MYI even if no directory is specified.",
    &global_system_variables.keep_files_on_create,

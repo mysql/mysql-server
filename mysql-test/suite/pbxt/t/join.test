@@ -4,6 +4,9 @@
 drop table if exists t1,t2,t3;
 --enable_warnings
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 #
 # Test different join syntaxes
 #
@@ -647,6 +650,8 @@ DESCRIBE tv2;
 
 DROP VIEW v1;
 DROP TABLE t1,t2,tv1,tv2;
+
+SET optimizer_switch=@save_optimizer_switch;
 
 --disable_query_log
 drop database pbxt;

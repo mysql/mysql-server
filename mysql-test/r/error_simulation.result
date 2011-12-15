@@ -62,6 +62,8 @@ INSERT INTO t2 VALUES (1, 1, 'data');
 # re-scanned for every record in the outer table. if we used inner join,
 # we would need to have thousands of records and/or more columns in both
 # tables so that the join buffer is filled and re-scans are triggered).
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 SET SESSION debug = '+d,only_one_Unique_may_be_created';
 EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
@@ -81,6 +83,7 @@ a	a	b	filler
 8	1	1	data
 9	1	1	data
 SET SESSION debug = DEFAULT;
+SET optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1, t2;
 #
 # Bug#11747970 34660: CRASH WHEN FEDERATED TABLE LOSES CONNECTION DURING INSERT ... SELECT

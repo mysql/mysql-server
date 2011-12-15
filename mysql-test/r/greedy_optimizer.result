@@ -1,4 +1,6 @@
 drop table if exists t1,t2,t3,t4,t5,t6,t7;
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=1;
 create table t1 (
 c11 integer,c12 integer,c13 integer,c14 integer,c15 integer,c16 integer,
 primary key (c11)
@@ -732,3 +734,4 @@ t4 LEFT JOIN (t5 JOIN t5_1 ON t5.l = t5_1.l) ON t5.d = t4.d
 SET optimizer_search_depth = DEFAULT;
 DROP TABLE t1,t2,t2_1,t3,t3_1,t4,t4_1,t5,t5_1;
 End of 5.0 tests
+set join_cache_level=@save_join_cache_level;

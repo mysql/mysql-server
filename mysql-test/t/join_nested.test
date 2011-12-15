@@ -3,6 +3,18 @@
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
 --enable_warnings
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch=ifnull(@optimizer_switch_for_join_nested_test,'outer_join_with_cache=off');
+if (`select @join_cache_level_for_join_nested_test is null`)
+{
+  set join_cache_level=1;
+}
+if (`select @join_cache_level_for_join_nested_test is not null`)
+{
+  set join_cache_level=@join_cache_level_for_join_nested_test;
+}
+
+
 CREATE TABLE t0 (a int, b int, c int);
 CREATE TABLE t1 (a int, b int, c int);
 CREATE TABLE t2 (a int, b int, c int);
@@ -1270,6 +1282,8 @@ SELECT * FROM t1 LEFT JOIN
    WHERE t3.a IS NULL;
 
 DROP TABLE t1,t2,t3,t4;
+
+SET optimizer_switch=@save_optimizer_switch;
 
 --echo End of 5.0 tests
 
