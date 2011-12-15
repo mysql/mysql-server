@@ -1302,7 +1302,10 @@ ndb_index_stat_cache_evict(Ndb_index_stat *st)
   /* Twice to move all caches to clean */
   ndb_index_stat_cache_move(st);
   ndb_index_stat_cache_move(st);
-  bool ok= ndb_index_stat_cache_clean(st);
+  /* Unused variable release vs debug nonsense */
+  bool ok= false;
+  (void)ok; // USED
+  ok= ndb_index_stat_cache_clean(st);
   assert(ok);
 }
 
@@ -2938,6 +2941,7 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
     uint inx= inx_list[i];
     const NDB_INDEX_DATA &data= m_index[inx];
     const NDBINDEX *index= data.index;
+    (void)index; // USED
 
     if (r.err == 0)
     {
