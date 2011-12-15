@@ -567,6 +567,8 @@ struct Ndb_index_stat_glob {
   uint event_ok;          /* Events received for known index */
   uint event_miss;        /* Events received for unknown index */
   uint refresh_count;     /* Successful cache refreshes */
+  uint clean_count;       /* Times old caches (1 or more) cleaned */
+  uint pinned_count;      /* Times not cleaned due to old cache ref count */
   uint drop_count;        /* From index drop */
   uint evict_count;       /* From LRU cleanup */
   /* Cache */
@@ -601,6 +603,8 @@ Ndb_index_stat_glob::Ndb_index_stat_glob()
   event_ok= 0;
   event_miss= 0;
   refresh_count= 0;
+  clean_count= 0;
+  pinned_count= 0;
   drop_count= 0;
   evict_count= 0;
   cache_query_bytes= 0;
@@ -650,11 +654,13 @@ Ndb_index_stat_glob::set_status()
   p+= strlen(p);
   sprintf(p, "analyze:(all:%u,error:%u)", analyze_count, analyze_error);
   p+= strlen(p);
-  sprintf(p, ",query:(all:%u,nostats:%u,error:%u)", query_count, query_no_stats, query_error);
+  sprintf(p, ",query:(all:%u,nostats:%u,error:%u)",
+             query_count, query_no_stats, query_error);
   p+= strlen(p);
   sprintf(p, ",event:(ok:%u,miss:%u)", event_ok, event_miss);
   p+= strlen(p);
-  sprintf(p, ",cache:(refresh:%u,drop:%u,evict:%u)", refresh_count, drop_count, evict_count);
+  sprintf(p, ",cache:(refresh:%u,clean:%u,pinned:%u,drop:%u,evict:%u)",
+             refresh_count, clean_count, pinned_count, drop_count, evict_count);
   p+= strlen(p);
   sprintf(p, ")");
   p+= strlen(p);
@@ -698,6 +704,8 @@ Ndb_index_stat_glob::zero_total()
   event_ok= 0;
   event_miss= 0;
   refresh_count= 0;
+  clean_count= 0;
+  pinned_count= 0;
   drop_count= 0;
   evict_count= 0;
   /* Reset highest use seen to current */
@@ -1251,7 +1259,7 @@ ndb_index_stat_cache_move(Ndb_index_stat *st)
     glob.cache_high_bytes= cache_total;
 }
 
-void
+bool
 ndb_index_stat_cache_clean(Ndb_index_stat *st)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1259,12 +1267,16 @@ ndb_index_stat_cache_clean(Ndb_index_stat *st)
 
   st->is->get_cache_info(infoClean, NdbIndexStat::CacheClean);
   const uint old_clean_bytes= infoClean.m_totalBytes;
-  DBUG_PRINT("index_stat", ("st %s cache clean: clean:%u",
-                            st->id, old_clean_bytes));
+  const uint ref_count= infoClean.m_ref_count;
+  DBUG_PRINT("index_stat", ("st %s cache clean: clean:%u ref_count:%u",
+                            st->id, old_clean_bytes, ref_count));
+  if (ref_count != 0)
+    return false;
   st->is->clean_cache();
   st->clean_bytes= 0;
   assert(glob.cache_clean_bytes >= old_clean_bytes);
   glob.cache_clean_bytes-= old_clean_bytes;
+  return true;
 }
 
 void
@@ -1290,7 +1302,8 @@ ndb_index_stat_cache_evict(Ndb_index_stat *st)
   /* Twice to move all caches to clean */
   ndb_index_stat_cache_move(st);
   ndb_index_stat_cache_move(st);
-  ndb_index_stat_cache_clean(st);
+  bool ok= ndb_index_stat_cache_clean(st);
+  assert(ok);
 }
 
 /* Misc in/out parameters for process steps */
@@ -1482,6 +1495,7 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr)
 void
 ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
+  Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
   const longlong clean_delay= opt.get(Ndb_index_stat_opt::Iclean_delay);
   const longlong check_delay= opt.get(Ndb_index_stat_opt::Icheck_delay);
@@ -1506,7 +1520,10 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 
   if (st->clean_bytes != 0 && clean_wait <= 0)
   {
-    ndb_index_stat_cache_clean(st);
+    if (ndb_index_stat_cache_clean(st))
+      glob.clean_count++;
+    else
+      glob.pinned_count++;
   }
   if (st->force_update)
   {
@@ -2792,7 +2809,6 @@ ha_ndbcluster::ndb_index_stat_query(uint inx,
     if (err != 0)
       break;
     assert(st->sample_version != 0);
-
     uint8 bound_lo_buffer[NdbIndexStat::BoundBufferBytes];
     uint8 bound_hi_buffer[NdbIndexStat::BoundBufferBytes];
     NdbIndexStat::Bound bound_lo(st->is, bound_lo_buffer);
