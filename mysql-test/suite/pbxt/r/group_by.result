@@ -450,6 +450,8 @@ drop table t1,t2;
 CREATE TABLE t1 (ID1 int, ID2 int, ID int NOT NULL AUTO_INCREMENT,PRIMARY KEY(ID
 ));
 insert into t1 values (1,244,NULL),(2,243,NULL),(134,223,NULL),(185,186,NULL);
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 select S.ID as xID, S.ID1 as xID1 from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2;
 xID	xID1
 1	1
@@ -468,6 +470,7 @@ xID	xID1	Level
 2	2	**
 3	134	***
 4	185	****
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1;
 CREATE TABLE t1 (
 pid int(11) unsigned NOT NULL default '0',

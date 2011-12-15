@@ -1,4 +1,6 @@
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 CREATE TABLE t0 (a int, b int, c int);
 CREATE TABLE t1 (a int, b int, c int);
 CREATE TABLE t2 (a int, b int, c int);
@@ -1614,3 +1616,4 @@ WHERE t1.id='5';
 id	ct	pc	nm
 5	NULL	NULL	NULL
 DROP TABLE t1,t2,t3,t4;
+SET optimizer_switch=@save_optimizer_switch;

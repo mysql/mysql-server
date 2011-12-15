@@ -3012,6 +3012,8 @@ DROP TABLE t1;
 #
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1),(2);
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 PREPARE stmt FROM 'EXPLAIN EXTENDED SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3026,6 +3028,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(1) where 1
 DEALLOCATE PREPARE stmt;
+SET optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1;
 #
 # Bug#54488 crash when using explain and prepared statements with subqueries

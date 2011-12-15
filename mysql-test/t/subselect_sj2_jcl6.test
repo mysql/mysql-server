@@ -11,6 +11,8 @@ set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 set join_cache_level=6;
 show variables like 'join_cache_level';
 
+set @optimizer_switch_for_subselect_sj2_test=@@optimizer_switch;
+
 --source t/subselect_sj2.test
 
 --echo #
@@ -101,4 +103,5 @@ set join_cache_level=default;
 show variables like 'join_cache_level';
 
 set @@optimizer_switch=@save_optimizer_switch_jcl6;
+set @optimizer_switch_for_subselect_sj2_test=NULL;
 

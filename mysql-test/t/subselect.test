@@ -4587,6 +4587,9 @@ INSERT INTO t2 VALUES (20,9),(20,9);
 create table t3 (d int, e int);
 insert into t3 values (2, 9), (3,10);
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 EXPLAIN
 SELECT t2.b , t1.c
 FROM t2 LEFT JOIN t1 ON t1.c < 3
@@ -4595,6 +4598,8 @@ WHERE (t2.b , t1.c) NOT IN (SELECT * from t3);
 SELECT t2.b , t1.c
 FROM t2 LEFT JOIN t1 ON t1.c < 3
 WHERE (t2.b, t1.c) NOT IN (SELECT * from t3);
+
+SET optimizer_switch=@save_optimizer_switch;
 
 drop table t1, t2, t3;
 

@@ -154,6 +154,8 @@ insert into v1 (a,e) values (60,15);
 ERROR HY000: The target table v1 of the INSERT is not insertable-into
 drop table t1;
 drop view v1;
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 create table t1 (a int, 
 b int as (-a),
 c int as (-a) persistent,
@@ -174,6 +176,7 @@ a	x	y	z
 3	3	-3	-3
 drop view v1;
 drop table t1;
+SET optimizer_switch=@save_optimizer_switch;
 create table t1 (a1 int,
 b1 int as (-a1),
 c1 int as (-a1) persistent);
