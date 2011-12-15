@@ -325,7 +325,7 @@ buf_flush_insert_into_flush_list(
 
 	/* If we are in the recovery then we need to update the flush
 	red-black tree as well. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt) {
 		buf_flush_list_mutex_exit(buf_pool);
 		buf_flush_insert_sorted_into_flush_list(buf_pool, block, lsn);
 		return;
@@ -468,7 +468,7 @@ buf_flush_ready_for_replace(
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(bpage->in_LRU_list);
 
-	if (UNIV_LIKELY(buf_page_in_file(bpage))) {
+	if (buf_page_in_file(bpage)) {
 
 		return(bpage->oldest_modification == 0
 		       && buf_page_get_io_fix(bpage) == BUF_IO_NONE
@@ -477,10 +477,9 @@ buf_flush_ready_for_replace(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: Error: buffer block state %lu"
-		" in the LRU list!\n",
+		" InnoDB: Error: buffer block state %lu in the LRU list!\n",
 		(ulong) buf_page_get_state(bpage));
-	ut_print_buf(stderr, bpage, sizeof(buf_page_t));
+	ut_print_buf(stderr, bpage, sizeof(*bpage));
 	putc('\n', stderr);
 
 	return(FALSE);
@@ -572,7 +571,7 @@ buf_flush_remove(
 	}
 
 	/* If the flush_rbt is active then delete from there as well. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt) {
 		buf_flush_delete_from_flush_rbt(bpage);
 	}
 
@@ -633,7 +632,7 @@ buf_flush_relocate_on_flush_list(
 
 	/* If recovery is active we must swap the control blocks in
 	the flush_rbt as well. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt) {
 		buf_flush_delete_from_flush_rbt(bpage);
 		prev_b = buf_flush_insert_in_flush_rbt(dpage);
 	}
@@ -1552,6 +1551,7 @@ buf_flush_page_try(
 	return(TRUE);
 }
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 /***********************************************************//**
 Flushes to disk all flushable pages within the flush area.
 @return	number of pages flushed */
@@ -1607,7 +1607,8 @@ buf_flush_try_neighbors(
 
 		buf_page_t*	bpage;
 
-		if ((count + n_flushed) >= n_to_flush) {
+		if (n_to_flush != ULINT_UNDEFINED
+		    && (count + n_flushed) >= n_to_flush) {
 
 			/* We have already flushed enough pages and
 			should call it a day. There is, however, one
@@ -1672,10 +1673,10 @@ buf_flush_try_neighbors(
 
 	if (count > 0) {
 		MONITOR_INC_VALUE_CUMULATIVE(
-					MONITOR_FLUSH_NEIGHBOR_TOTAL_PAGE,
-					MONITOR_FLUSH_NEIGHBOR_COUNT,
-					MONITOR_FLUSH_NEIGHBOR_PAGES,
-					(count - 1));
+			MONITOR_FLUSH_NEIGHBOR_TOTAL_PAGE,
+			MONITOR_FLUSH_NEIGHBOR_COUNT,
+			MONITOR_FLUSH_NEIGHBOR_PAGES,
+			(count - 1));
 	}
 
 	return(count);
@@ -1698,7 +1699,8 @@ buf_flush_page_and_try_neighbors(
 	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 	ulint		n_to_flush,	/*!< in: number of pages to
-					flush */
+					flush, or ULINT_UNDEFINED if there
+					is no upper limit */
 	ulint*		count)		/*!< in/out: number of pages
 					flushed */
 {
@@ -1732,11 +1734,8 @@ buf_flush_page_and_try_neighbors(
 		mutex_exit(block_mutex);
 
 		/* Try to flush also all the neighbors */
-		*count += buf_flush_try_neighbors(space,
-						  offset,
-						  flush_type,
-						  *count,
-						  n_to_flush);
+		*count += buf_flush_try_neighbors(
+			space, offset, flush_type, *count, n_to_flush);
 
 		buf_pool_mutex_enter(buf_pool);
 		flushed = TRUE;
@@ -1865,8 +1864,7 @@ buf_flush_LRU_list_batch(
 				bpage = UT_LIST_GET_PREV(LRU, bpage);
 			}
 		} else if (buf_flush_page_and_try_neighbors(
-				bpage,
-				BUF_FLUSH_LRU, max, &count)) {
+				bpage, BUF_FLUSH_LRU, max, &count)) {
 
 			/* buf_pool->mutex was released.
 			Restart the scan. */
@@ -1935,6 +1933,8 @@ ulint
 buf_do_flush_list_batch(
 /*====================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	ulint           space,          /*!< in: flush pages from only this
+					tablespace */
 	ulint		min_n,		/*!< in: wished minimum mumber
 					of blocks flushed (it is not
 					guaranteed that the actual
@@ -1946,11 +1946,16 @@ buf_do_flush_list_batch(
 					min_n) */
 {
 	ulint		len;
-	buf_page_t*	bpage;
+	buf_page_t*	bpage = 0;
 	ulint		count = 0;
 	ulint		scanned = 0;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
+
+	if (space != ULINT_UNDEFINED) {
+		lsn_limit = LSN_MAX;
+		min_n = ULINT_UNDEFINED;
+	}
 
 	/* If we have flushed enough, leave the loop */
 	do {
@@ -1965,7 +1970,20 @@ buf_do_flush_list_batch(
 		set a limit on how farther we are willing to traverse
 		the list. */
 		len = UT_LIST_GET_LEN(buf_pool->flush_list);
-		bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+
+		if (space == ULINT_UNDEFINED) {
+			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+		} else {
+			if (!bpage) {
+				bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+			}
+
+			while (bpage != 0
+			       && space != buf_page_get_space(bpage)) {
+
+			       bpage = UT_LIST_GET_PREV(list, bpage);
+			}
+		}
 
 		if (bpage) {
 			ut_a(bpage->oldest_modification > 0);
@@ -1993,10 +2011,11 @@ buf_do_flush_list_batch(
 				bpage, BUF_FLUSH_LIST, min_n, &count)) {
 
 			++scanned;
+
 			buf_flush_list_mutex_enter(buf_pool);
 
 			/* If we are here that means that buf_pool->mutex
-			 was not released in buf_flush_page_and_try_neighbors()
+			was not released in buf_flush_page_and_try_neighbors()
 			above and this guarantees that bpage didn't get
 			relocated since we released the flush_list
 			mutex above. There is a chance, however, that
@@ -2022,10 +2041,11 @@ buf_do_flush_list_batch(
 
 	} while (count < min_n && bpage != NULL && len > 0);
 
-	MONITOR_INC_VALUE_CUMULATIVE(MONITOR_FLUSH_BATCH_SCANNED,
-				     MONITOR_FLUSH_BATCH_SCANNED_NUM_CALL,
-				     MONITOR_FLUSH_BATCH_SCANNED_PER_CALL,
-				     scanned);
+	MONITOR_INC_VALUE_CUMULATIVE(
+		MONITOR_FLUSH_BATCH_SCANNED,
+		MONITOR_FLUSH_BATCH_SCANNED_NUM_CALL,
+		MONITOR_FLUSH_BATCH_SCANNED_PER_CALL,
+		scanned);
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
@@ -2045,6 +2065,9 @@ ulint
 buf_flush_batch(
 /*============*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	ulint           space,          /*!< in: flush pages from only this
+					tablespace, ULINT_UNDEFINED for all
+					pages */
 	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST; if BUF_FLUSH_LIST,
 					then the caller must not own any
@@ -2075,7 +2098,8 @@ buf_flush_batch(
 		count = buf_do_LRU_batch(buf_pool, min_n);
 		break;
 	case BUF_FLUSH_LIST:
-		count = buf_do_flush_list_batch(buf_pool, min_n, lsn_limit);
+		count = buf_do_flush_list_batch(
+			buf_pool, space, min_n, lsn_limit);
 		break;
 	default:
 		ut_error;
@@ -2239,7 +2263,8 @@ buf_flush_LRU(
 		return(ULINT_UNDEFINED);
 	}
 
-	page_count = buf_flush_batch(buf_pool, BUF_FLUSH_LRU, min_n, 0);
+	page_count = buf_flush_batch(
+		buf_pool, ULINT_UNDEFINED, BUF_FLUSH_LRU, min_n, 0);
 
 	buf_flush_end(buf_pool, BUF_FLUSH_LRU);
 
@@ -2258,6 +2283,9 @@ UNIV_INTERN
 ulint
 buf_flush_list(
 /*===========*/
+	ulint           space,          /*!< in: Flush pages only from this
+					tablespace, ULINT_UNDEFINED for all
+					tablespaces. */
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
@@ -2288,6 +2316,7 @@ buf_flush_list(
 		buf_pool = buf_pool_from_array(i);
 
 		if (!buf_flush_start(buf_pool, BUF_FLUSH_LIST)) {
+
 			/* We have two choices here. If lsn_limit was
 			specified then skipping an instance of buffer
 			pool means we cannot guarantee that all pages
@@ -2304,7 +2333,8 @@ buf_flush_list(
 		}
 
 		page_count = buf_flush_batch(
-			buf_pool, BUF_FLUSH_LIST, min_n, lsn_limit);
+			buf_pool, space, BUF_FLUSH_LIST,
+			min_n, lsn_limit);
 
 		buf_flush_end(buf_pool, BUF_FLUSH_LIST);
 
@@ -2636,7 +2666,8 @@ page_cleaner_do_flush_batch(
 
 	ut_ad(n_to_flush == ULINT_MAX || lsn_limit == LSN_MAX);
 
-	n_flushed = buf_flush_list(n_to_flush, lsn_limit);
+	n_flushed = buf_flush_list(ULINT_UNDEFINED, n_to_flush, lsn_limit);
+
 	if (n_flushed == ULINT_UNDEFINED) {
 		n_flushed = 0;
 	}
@@ -2689,9 +2720,8 @@ page_cleaner_flush_pages_if_needed(void)
 			n_pages_flushed);
 	}
 
-	if (UNIV_UNLIKELY(n_pages_flushed < PCT_IO(100)
-			  && buf_get_modified_ratio_pct()
-			     > srv_max_buf_pool_modified_pct)) {
+	if (n_pages_flushed < PCT_IO(100)
+	    && buf_get_modified_ratio_pct() > srv_max_buf_pool_modified_pct) {
 
 		/* Try to keep the number of modified pages in the
 		buffer pool under the limit wished by the user */
@@ -2763,17 +2793,17 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
-	ulint	next_loop_time = ut_time_ms() + 1000;
 	ulint	n_flushed = 0;
+	ulint	next_loop_time = ut_time_ms() + 1000;
 	ulint	last_activity = srv_get_activity_count();
-	ulint	i;
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(buf_page_cleaner_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	fprintf(stderr, "InnoDB: page_cleaner thread running, id %lu\n",
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: page_cleaner thread running, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
@@ -2802,8 +2832,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 			n_flushed += page_cleaner_flush_pages_if_needed();
 		} else {
 			n_flushed = page_cleaner_do_flush_batch(
-							PCT_IO(100),
-							LSN_MAX);
+				PCT_IO(100), LSN_MAX);
 
 			if (n_flushed) {
 				MONITOR_INC_VALUE_CUMULATIVE(
@@ -2860,7 +2889,9 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 
 	do {
 
-		n_flushed = buf_flush_list(PCT_IO(100), LSN_MAX);
+		n_flushed = buf_flush_list(
+			ULINT_UNDEFINED, PCT_IO(100), LSN_MAX);
+
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 	} while (n_flushed > 0);
@@ -2868,7 +2899,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	/* Some sanity checks */
 	ut_a(srv_get_active_thread_type() == SRV_NONE);
 	ut_a(srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE);
-	for (i = 0; i < srv_buf_pool_instances; i++) {
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t* buf_pool = buf_pool_from_array(i);
 		ut_a(UT_LIST_GET_LEN(buf_pool->flush_list) == 0);
 	}
@@ -2916,7 +2947,7 @@ buf_flush_validate_low(
 	/* If we are in recovery mode i.e.: flush_rbt != NULL
 	then each block in the flush_list must also be present
 	in the flush_rbt. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt) {
 		rnode = rbt_first(buf_pool->flush_rbt);
 	}
 
@@ -2937,7 +2968,7 @@ buf_flush_validate_low(
 		     || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 		ut_a(om > 0);
 
-		if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+		if (buf_pool->flush_rbt) {
 			buf_page_t** prpage;
 
 			ut_a(rnode);

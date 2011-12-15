@@ -97,6 +97,9 @@ UNIV_INTERN
 ulint
 buf_flush_list(
 /*============*/
+        ulint           space,          /*!< in: Flush pages only from this
+                                        tablespace, ULINT_UNDEFINED for all
+                                        tablespaces. */
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
