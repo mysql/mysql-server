@@ -292,6 +292,7 @@ typedef struct st_lex_master_info
   char *relay_log_name;
   ulong relay_log_pos;
   DYNAMIC_ARRAY repl_ignore_server_ids;
+  ulong server_ids_buffer[2];
 } LEX_MASTER_INFO;
 
 typedef struct st_lex_reset_slave
