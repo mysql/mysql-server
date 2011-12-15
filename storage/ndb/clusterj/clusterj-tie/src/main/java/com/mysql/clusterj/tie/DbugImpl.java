@@ -73,6 +73,10 @@ public class DbugImpl implements Dbug {
         push(toState());
     }
 
+    public void print(String keyword, String message) {
+        Utils.dbugPrint(keyword, message);
+    }
+
     public Dbug trace(boolean trace) {
         this.propertyTrace = trace;
         return this;

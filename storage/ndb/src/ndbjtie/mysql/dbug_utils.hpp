@@ -54,4 +54,10 @@ dbugExplain(char * buffer, int length)
     }
   }
 
+inline
+void
+dbugPrint(const char* keyword, const char * message)
+  {
+    DBUG_PRINT(keyword, (message));
+  }
 #endif // dbug_utils_h

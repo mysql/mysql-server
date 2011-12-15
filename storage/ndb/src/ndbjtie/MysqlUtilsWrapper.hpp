@@ -128,6 +128,12 @@ struct MysqlUtilsWrapper {
         return ::dbugExplain(buffer, length);
     }
 
+    static void
+    dbugPrint
+    (const char * keyword, const char * message)
+    {
+        ::dbugPrint(keyword, message);
+    }
         // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
