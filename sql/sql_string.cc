@@ -27,9 +27,6 @@
 
 #include "sql_string.h"
 
-#ifdef MYSQL_CLIENT
-#error Attempt to use server-side sql_string on client. Use client/sql_string.cc
-#endif 
 /*****************************************************************************
 ** String functions
 *****************************************************************************/

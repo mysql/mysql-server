@@ -26,10 +26,6 @@
 #include "my_sys.h"              /* alloc_root, my_free, my_realloc */
 #include "m_string.h"                           /* TRASH */
 
-#ifdef MYSQL_CLIENT
-#error Attempt to use server-side sql_string on client. Use client/sql_string.h
-#endif 
-
 class String;
 typedef struct st_io_cache IO_CACHE;
 typedef struct st_mem_root MEM_ROOT;
