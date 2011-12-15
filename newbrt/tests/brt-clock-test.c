@@ -135,7 +135,6 @@ static int search_cmp(struct brt_search* UU(so), DBT* UU(key)) {
 
 static void
 test2(int fd, struct brt_header *brt_h, BRTNODE *dn) {
-    int r;
     struct brtnode_fetch_extra bfe_subset;
     DBT left, right;
     DB dummy_db;
@@ -162,7 +161,8 @@ test2(int fd, struct brt_header *brt_h, BRTNODE *dn) {
         FALSE
         );
 
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe_subset);
+    int r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe_subset);
+    assert(r==0);
     BOOL is_leaf = ((*dn)->height == 0);
     // at this point, although both partitions are available, only the 
     // second basement node should have had its clock
@@ -194,7 +194,6 @@ test2(int fd, struct brt_header *brt_h, BRTNODE *dn) {
 
 static void
 test3_leaf(int fd, struct brt_header *brt_h, BRTNODE *dn) {
-    int r;
     struct brtnode_fetch_extra bfe_min;
     DBT left, right;
     DB dummy_db;
@@ -208,7 +207,8 @@ test3_leaf(int fd, struct brt_header *brt_h, BRTNODE *dn) {
         brt_h
         );
 
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe_min);
+    int r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe_min);
+    assert(r==0);
     //
     // make sure we have a leaf
     //

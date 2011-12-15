@@ -362,8 +362,6 @@ static void print_struct (const char *structname, enum need_internal_type need_i
 	assert(diff64<8); /* there could be a few left from alignment. */ 
     }
     if (need_internal==INTERNAL_AT_END) {
-	printf("  char iic[0] __attribute__((aligned(__BIGGEST_ALIGNMENT__)));\n");
-	printf("#define %s_struct_i(x) ((struct __toku_%s_internal *)(&(x)->iic))\n", structname, structname);
 	did_toku_internal = 1;
     }
     printf("};\n");

@@ -223,7 +223,7 @@ static int uint_cmp(const void *ap, const void *bp) {
 
 static void check_results(DB **dbs) {
     for(int j=0;j<NUM_DBS;j++) {
-        unsigned int prev_k = 0, prev_v = 0;
+        unsigned int prev_k = 0;
 
         DBT key, val;
         unsigned int k=0, v=0;
@@ -271,7 +271,7 @@ static void check_results(DB **dbs) {
                 assert(prev_k < k);
 
             // update prev = current
-            prev_k = k; prev_v = v;
+            prev_k = k;
         }
 
         toku_free(expected_key);

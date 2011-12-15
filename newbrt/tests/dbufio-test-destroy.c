@@ -13,7 +13,6 @@ static void test1 (size_t chars_per_file, size_t bytes_per_read) {
     int fds[N];
     char fnames[N][100];
     size_t n_read[N];
-    int still_live[N];
     int n_live=N;
     for (int i=0; i<N; i++) {
 	snprintf(fnames[i], 100, "dbufio-test-destroy-file%d.data", i);
@@ -22,7 +21,6 @@ static void test1 (size_t chars_per_file, size_t bytes_per_read) {
 	//printf("fds[%d]=%d is %s\n", i, fds[i], fnames[i]);
 	assert(fds[i]>=0);
 	n_read[i]=0;
-	still_live[i]=i;
 	for (size_t j=0; j<chars_per_file; j++) {
 	    unsigned char c = (i+j)%256;
 	    int r = toku_os_write(fds[i], &c, 1);

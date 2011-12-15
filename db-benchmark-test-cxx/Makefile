@@ -30,7 +30,7 @@ endif
 
 ifdef BDBDIR
 BDB_CPPFLAGS = -I$(BDBDIR)/include -DHAVE_CXX_STDHEADERS
-BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb_cxx -Wl,-rpath,$(BDBDIR)/lib
+BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb_cxx -Wl,-rpath,$(BDBDIR)/lib -ldl
 else
 BDB_CPPFLAGS =
 BDB_LDFLAGS = -ldb_cxx

@@ -45,11 +45,10 @@ toku_do_backtrace_abort(void) {
     fflush(stderr);
     
     if (toku_maybe_get_engine_status_text_p) {
-	int r;
 	int buffsize = 1024 * 32;
 	char buff[buffsize];
 	
-	r = toku_maybe_get_engine_status_text_p(buff, buffsize);  
+	toku_maybe_get_engine_status_text_p(buff, buffsize);  
 	fprintf(stderr, "Engine status:\n%s\n", buff);
     }
     else
