@@ -180,6 +180,7 @@ public:
     Uint32 m_totalBytes;  // total bytes memory used
     Uint64 m_save_time;   // microseconds to read stats into cache
     Uint64 m_sort_time;   // microseconds to sort the cache
+    Uint32 m_ref_count;   // in use by query_stat
     // end v4 fields
   };
 

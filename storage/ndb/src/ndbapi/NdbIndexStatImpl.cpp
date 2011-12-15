@@ -23,6 +23,7 @@
 #include <NdbSqlUtil.hpp>
 #include <NdbRecord.hpp>
 #include <NdbEventOperation.hpp>
+#include <NdbSleep.h>
 #include "NdbIndexStatImpl.hpp"
 
 #undef min
@@ -1460,6 +1461,8 @@ NdbIndexStatImpl::Cache::Cache()
   // performance
   m_save_time = 0;
   m_sort_time = 0;
+  // in use by query_stat
+  m_ref_count = 0;
 }
 
 int
@@ -2033,23 +2036,41 @@ int
 NdbIndexStatImpl::query_stat(const Range& range, Stat& stat)
 {
   NdbMutex_Lock(m_query_mutex);
-  const Cache* cacheTmp = m_cacheQuery;
-  NdbMutex_Unlock(m_query_mutex);
-
-  if (unlikely(cacheTmp == 0))
+  if (unlikely(m_cacheQuery == 0))
   {
+    NdbMutex_Unlock(m_query_mutex);
     setError(UsageError, __LINE__);
     return -1;
   }
-  const Cache& c = *cacheTmp;
+  const Cache& c = *m_cacheQuery;
   if (unlikely(!c.m_valid))
   {
+    NdbMutex_Unlock(m_query_mutex);
     setError(InvalidCache, __LINE__);
     return -1;
   }
+  c.m_ref_count++;
+  NdbMutex_Unlock(m_query_mutex);
 
+#ifdef VM_TRACE
+  {
+    const char* p = NdbEnv_GetEnv("NDB_INDEX_STAT_SLOW_QUERY", (char*)0, 0);
+    if (p != 0 && strchr("1Y", p[0]) != 0)
+    {
+      int ms = 1 + rand() % 20;
+      NdbSleep_MilliSleep(ms);
+    }
+  }
+#endif
+
+  // clients run these in parallel
   query_interpolate(c, range, stat);
   query_normalize(c, stat.m_value);
+
+  NdbMutex_Lock(m_query_mutex);
+  assert(c.m_ref_count != 0);
+  c.m_ref_count--;
+  NdbMutex_Unlock(m_query_mutex);
   return 0;
 }
 
