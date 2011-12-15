@@ -521,10 +521,34 @@ commit;
 call p_verify_status_increment(2, 2, 2, 2);
 --echo # 15. Read-write statement: UPDATE IGNORE, change 0 rows. 
 --echo #
+--disable_warnings
 update ignore t1 set a=2 where a=1;
-call p_verify_status_increment(2, 2, 1, 0);
+--enable_warnings
+if (`select @@binlog_format = 'STATEMENT'`)
+{
+  --disable_query_log
+  call p_verify_status_increment(2, 2, 1, 0);
+  --enable_query_log
+}
+if (`select @@binlog_format != 'STATEMENT'`)
+{
+  --disable_query_log
+  call p_verify_status_increment(1, 0, 1, 0);
+  --enable_query_log
+}
 commit;
-call p_verify_status_increment(2, 2, 1, 0);
+if (`select @@binlog_format = 'STATEMENT'`)
+{
+  --disable_query_log
+  call p_verify_status_increment(2, 2, 1, 0);
+  --enable_query_log
+}
+if (`select @@binlog_format != 'STATEMENT'`)
+{
+  --disable_query_log
+  call p_verify_status_increment(1, 0, 1, 0);
+  --enable_query_log
+}
 --echo #
 --echo # Create a stored function that modifies a
 --echo # non-transactional table. Demonstrate that changes in
@@ -603,7 +627,9 @@ call p_verify_status_increment(2, 0, 1, 0);
 
 --echo # 21. Read-write statement: UPDATE, change 0 (transactional) rows. 
 --echo #
+--disable_warnings
 update t1 set a=2 where a=f1()+10;
+--enable_warnings
 call p_verify_status_increment(2, 0, 1, 0);
 commit;
 call p_verify_status_increment(2, 0, 1, 0);
@@ -703,7 +729,9 @@ call p_verify_status_increment(4, 4, 4, 4);
 --echo # 
 insert into t2 select a from t1;
 commit;
+--disable_warnings
 replace into t2 select a from t1;
+--enable_warnings
 commit;
 call p_verify_status_increment(8, 8, 8, 8);
 #
