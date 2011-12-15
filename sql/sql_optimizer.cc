@@ -7554,6 +7554,46 @@ only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
 
 
 /**
+  Check if an expression in ORDER BY or GROUP BY is a duplicate of a
+  preceding expression.
+
+  @param  first_order   the first expression in the ORDER BY or
+                        GROUP BY clause
+  @param  possible_dup  the expression that might be a duplicate of
+                        another expression preceding it the ORDER BY
+                        or GROUP BY clause
+
+  @returns true if possible_dup is a duplicate, false otherwise
+*/
+static bool duplicate_order(const ORDER *first_order, 
+                            const ORDER *possible_dup)
+{
+  const ORDER *order;
+  for (order=first_order; order ; order=order->next)
+  {
+    if (order == possible_dup)
+    {
+      // all expressions preceding possible_dup have been checked.
+      return false;
+    }
+    else 
+    {
+      const Item *it1= order->item[0]->real_item();
+      const Item *it2= possible_dup->item[0]->real_item();
+
+      if (it1->type() == Item::FIELD_ITEM &&
+          it2->type() == Item::FIELD_ITEM &&
+          (static_cast<const Item_field*>(it1)->field ==
+           static_cast<const Item_field*>(it2)->field))
+      {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
   Remove all constants and check if ORDER only contains simple
   expressions.
 
@@ -7638,6 +7678,16 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
       }
       trace_one_item.add("uses_only_constant_tables", true);
       continue;					// skip const item
+    }
+    else if (duplicate_order(first_order, order))
+    {
+      /* 
+        If 'order' is a duplicate of an expression earlier in the
+        ORDER/GROUP BY sequence, it can be removed from the ORDER BY
+        or GROUP BY clause.
+      */
+      trace_one_item.add("duplicate_item", true);
+      continue;
     }
     else
     {

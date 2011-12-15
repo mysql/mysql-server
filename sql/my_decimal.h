@@ -98,12 +98,31 @@ inline int my_decimal_int_part(uint precision, uint decimals)
 
 class my_decimal :public decimal_t
 {
+  /*
+    Several of the routines in strings/decimal.c have had buffer
+    overrun/underrun problems. These are *not* caught by valgrind.
+    To catch them, we allocate dummy fields around the buffer,
+    and test that their values do not change.
+   */
+#if !defined(DBUG_OFF)
+  int foo1;
+#endif
+
   decimal_digit_t buffer[DECIMAL_BUFF_LENGTH];
+
+#if !defined(DBUG_OFF)
+  int foo2;
+  static const int test_value= 123;
+#endif
 
 public:
 
   my_decimal(const my_decimal &rhs) : decimal_t(rhs)
   {
+#if !defined(DBUG_OFF)
+    foo1= test_value;
+    foo2= test_value;
+#endif
     for (uint i= 0; i < DECIMAL_BUFF_LENGTH; i++)
       buffer[i]= rhs.buffer[i];
     fix_buffer_pointer();
@@ -111,6 +130,10 @@ public:
 
   my_decimal& operator=(const my_decimal &rhs)
   {
+#if !defined(DBUG_OFF)
+    foo1= test_value;
+    foo2= test_value;
+#endif
     if (this == &rhs)
       return *this;
     decimal_t::operator=(rhs);
@@ -122,6 +145,10 @@ public:
 
   void init()
   {
+#if !defined(DBUG_OFF)
+    foo1= test_value;
+    foo2= test_value;
+#endif
     len= DECIMAL_BUFF_LENGTH;
     buf= buffer;
   }
@@ -130,6 +157,17 @@ public:
   {
     init();
   }
+  ~my_decimal()
+  {
+    sanity_check();
+  }
+
+  void sanity_check()
+  {
+    DBUG_ASSERT(foo1 == test_value);
+    DBUG_ASSERT(foo2 == test_value);
+  }
+
   void fix_buffer_pointer() { buf= buffer; }
 
   bool sign() const { return decimal_t::sign; }

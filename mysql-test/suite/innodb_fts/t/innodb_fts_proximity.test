@@ -1,0 +1,105 @@
+# This is the DDL function tests for innodb FTS
+# Functional testing with FTS proximity search using '@' 
+# and try search default words
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+
+# Create FTS table
+CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE= InnoDB;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...');
+
+# Try to Search default stopword from innodb, "where", "will", "what"
+# and "when" are all stopwords
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("where will");
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("when");
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("what" WITH QUERY EXPANSION);
+
+# boolean No result expected
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("whe*" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+what +will" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+from" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+where +(show what)" IN BOOLEAN MODE);
+
+# no result expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"where will"@6' IN BOOLEAN MODE);
+
+# no result expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"where will"@9' IN BOOLEAN MODE);
+
+# insert record with @ character which is used in proximity search
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','request docteam@oraclehelp.com ...')  ,
+        ('Trial version','query performace @1255 minute on 2.1Hz Memory 2GB...')  ,
+        ('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+# proximity search with @ charcter
+
+# do we always need more than one word in proximity search
+# how should following query behave wth only word in proximity search
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"request"@10' IN BOOLEAN MODE);
+
+# it will return rows not having request word ? ans: no rows
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"-request"@10' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"-request"' IN BOOLEAN MODE);
+
+# returns a row , there can not be 0 distance between words.
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"Trial version"@0' IN BOOLEAN MODE);
+
+# @ is word seperator
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"request docteam@oraclehelp.com"@10' IN BOOLEAN MODE);
+
+# This should only return the first document
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"1255 minute"@10' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"1255"@10' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('1255' WITH QUERY EXPANSION);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"request docteam"@10' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"1255 minute"' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request docteam@oraclehelp.com');
+
+DROP TABLE t1;

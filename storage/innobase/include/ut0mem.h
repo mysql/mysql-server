@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -122,7 +122,7 @@ ut_free(
 	void* ptr);  /*!< in, own: memory block, can be NULL */
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
-Implements realloc. This is needed by /pars/lexyy.c. Otherwise, you should not
+Implements realloc. This is needed by /pars/lexyy.cc. Otherwise, you should not
 use this function because the allocation functions in mem0mem.h are the
 recommended ones in InnoDB.
 
@@ -231,6 +231,18 @@ ut_strreplace(
 	const char*	str,	/*!< in: string to operate on */
 	const char*	s1,	/*!< in: string to replace */
 	const char*	s2);	/*!< in: string to replace s1 with */
+
+/********************************************************************
+Concatenate 3 strings.*/
+
+char*
+ut_str3cat(
+/*=======*/
+				/* out, own: concatenated string, must be
+				freed with mem_free() */
+	const char*	s1,	/* in: string 1 */
+	const char*	s2,	/* in: string 2 */
+	const char*	s3);	/* in: string 3 */
 
 /**********************************************************************//**
 Converts a raw binary data to a NUL-terminated hex string. The output is

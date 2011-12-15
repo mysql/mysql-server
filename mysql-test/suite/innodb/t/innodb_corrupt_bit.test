@@ -2,6 +2,7 @@
 # Test for persistent corrupt bit for corrupted index and table
 #
 -- source include/have_innodb.inc
+-- source include/have_innodb_16k.inc
 
 # This test needs debug server
 --source include/have_debug.inc

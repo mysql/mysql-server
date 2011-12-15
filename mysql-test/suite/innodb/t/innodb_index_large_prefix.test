@@ -1,6 +1,8 @@
 # Testcase for worklog #5743: Lift the limit of index key prefixes
 
 --source include/have_innodb.inc
+--source include/have_innodb_16k.inc
+SET default_storage_engine=InnoDB;
 
 let $innodb_file_format_orig=`select @@innodb_file_format`;
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
@@ -10,10 +12,11 @@ set global innodb_file_format="Barracuda";
 set global innodb_file_per_table=1;
 set global innodb_large_prefix=1;
 
+-- echo ### Test 1 ###
 # Create a table of DYNAMIC format, with a primary index of 1000 bytes in
 # size
-create table worklog5743(a TEXT not null, primary key (a(1000)))
-ROW_FORMAT=DYNAMIC, engine = innodb;
+create table worklog5743(a TEXT not null, primary key (a(1000))) ROW_FORMAT=DYNAMIC;
+show warnings;
 
 # Do some insertion and update to excercise the external cache
 # code path
@@ -24,6 +27,7 @@ update worklog5743 set a = (repeat("b", 16000));
 
 # Create a secondary index
 create index idx on worklog5743(a(2000));
+show warnings;
 
 # Start a few sessions to do selections on table being updated in default
 # session, so it would rebuild the previous version from undo log.
@@ -56,11 +60,12 @@ rollback;
 
 drop table worklog5743;
 
+-- echo ### Test 2 ###
 # Create a table with only a secondary index has large prefix column
-create table worklog5743(a1 int, a2 TEXT not null)
-ROW_FORMAT=DYNAMIC, engine = innodb;
-
+create table worklog5743(a1 int, a2 TEXT not null) ROW_FORMAT=DYNAMIC;
+show warnings;
 create index idx on worklog5743(a1, a2(2000));
+show warnings;
 
 insert into worklog5743 values(9, repeat("a", 10000));
 
@@ -86,9 +91,9 @@ rollback;
 
 drop table worklog5743;
 
+-- echo ### Test 3 ###
 # Create a table with a secondary index has small (50 bytes) prefix column
-create table worklog5743(a1 int, a2 TEXT not null)
-ROW_FORMAT=DYNAMIC, engine = innodb;
+create table worklog5743(a1 int, a2 TEXT not null) ROW_FORMAT=DYNAMIC;
 
 create index idx on worklog5743(a1, a2(50));
 
@@ -116,72 +121,225 @@ rollback;
 
 drop table worklog5743;
 
-# Create a table of ROW_FORMAT=COMPRESSED format
-create table worklog5743_2(a1 int, a2 TEXT not null)
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2, engine = innodb;
+-- echo ### Test 4 ###
+# Create compressed tables with each KEY_BLOCK_SIZE.
+create table worklog5743_1(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=1;
+create table worklog5743_2(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=2;
+create table worklog5743_4(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=4;
+create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
+create table worklog5743_16(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=16;
 
-create table worklog5743_4(a1 int, a2 TEXT not null)
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4, engine = innodb;
+# The maximum overall index record (not prefix) length of a
+# compressed table is dependent on innodb-page-size (IPS),
+# key_block_size (KBS) and the number of fields (NF).
+# "Too big row" error (HA_ERR_TO_BIG_ROW) will be returned if this
+# limit is exceeded.
+# See page_zip_empty_size() and Bug #47495 for more detail.
 
-# The maximum overall index record (not prefix) length for this table
-# is page_zip_empty_size() / 2, which is 960. "Too big row" error (
-# HA_ERR_TO_BIG_ROW) will be printed if this limit is exceeded.
-# Considering other fields and their overhead, the maximum length
-# for column a2 is 940 or 941 depending on the zlib version used and
-# compressBound() value used in page_zip_empty_size() (please refer
-# to Bug #47495 for more detail).
+# Test edge cases for indexes using key_block_size=1
+set global innodb_large_prefix=0;
 -- error 139
-create index idx1 on worklog5743_2(a1, a2(942));
-
-create index idx1 on worklog5743_2(a1, a2(940));
-
-# similarly, the maximum index record length for the table is
-# 1984. Considering other fields and their overhead, the
-# maximum length for column a2 is 1964 or 1965 (please refer
-# to Bug #47495 for more detail).
+create index idx1 on worklog5743_1(a2(4000));
+show warnings;
+set global innodb_large_prefix=1;
 -- error 139
-create index idx1 on worklog5743_4(a1, a2(1966));
+create index idx2 on worklog5743_1(a2(4000));
+show warnings;
+-- error 139
+create index idx3 on worklog5743_1(a2(436));
+show warnings;
+# Bug#13391353 Limit is one byte less on on 32bit-Linux only
+create index idx4 on worklog5743_1(a2(434));
+show warnings;
+-- error 139
+create index idx5 on worklog5743_1(a1, a2(430));
+show warnings;
+# Bug#13391353 Limit is one byte less on on 32bit-Linux only
+create index idx6 on worklog5743_1(a1, a2(428));
+show warnings;
 
-create index idx1 on worklog5743_4(a1, a2(1964));
+# Test edge cases for indexes using key_block_size=2
+set global innodb_large_prefix=0;
+create index idx1 on worklog5743_2(a2(4000));
+show warnings;
+set global innodb_large_prefix=1;
+-- error 139
+create index idx2 on worklog5743_2(a2(4000));
+show warnings;
+-- error 139
+create index idx3 on worklog5743_2(a2(948));
+show warnings;
+# Bug#13391353 Limit is one byte less on on 32bit-Linux only
+create index idx4 on worklog5743_2(a2(946));
+show warnings;
+-- error 139
+create index idx5 on worklog5743_2(a1, a2(942));
+show warnings;
+# Bug#13391353 Limit is one byte less on on 32bit-Linux only
+create index idx6 on worklog5743_2(a1, a2(940));
+show warnings;
 
+# Test edge cases for indexes using key_block_size=4
+set global innodb_large_prefix=0;
+create index idx1 on worklog5743_4(a2(4000));
+show warnings;
+set global innodb_large_prefix=1;
+-- error 139
+create index idx2 on worklog5743_4(a2(4000));
+show warnings;
+-- error 139
+create index idx3 on worklog5743_4(a2(1972));
+show warnings;
+# Bug#13391353 Limit is one byte less on on 32bit-Linux only
+create index idx4 on worklog5743_4(a2(1970));
+show warnings;
+-- error 139
+create index idx5 on worklog5743_4(a1, a2(1966));
+show warnings;
+# Bug#13391353 Limit is one byte less on on 32bit-Linux only
+create index idx6 on worklog5743_4(a1, a2(1964));
+show warnings;
+
+# Test edge cases for indexes using key_block_size=8
+set global innodb_large_prefix=0;
+create index idx1 on worklog5743_8(a2(1000));
+show warnings;
+set global innodb_large_prefix=1;
+create index idx2 on worklog5743_8(a2(3073));
+show warnings;
+create index idx3 on worklog5743_8(a2(3072));
+show warnings;
+-- error ER_TOO_LONG_KEY
+create index idx4 on worklog5743_8(a1, a2(3069));
+show warnings;
+create index idx5 on worklog5743_8(a1, a2(3068));
+show warnings;
+-- error ER_TOO_LONG_KEY
+create index idx6 on worklog5743_8(a1, a2(2000), a3(1069));
+show warnings;
+create index idx7 on worklog5743_8(a1, a2(2000), a3(1068));
+show warnings;
+
+# Test edge cases for indexes using key_block_size=16
+set global innodb_large_prefix=0;
+create index idx1 on worklog5743_16(a2(1000));
+show warnings;
+set global innodb_large_prefix=1;
+create index idx2 on worklog5743_16(a2(3073));
+show warnings;
+create index idx3 on worklog5743_16(a2(3072));
+show warnings;
+-- error ER_TOO_LONG_KEY
+create index idx4 on worklog5743_16(a1, a2(3069));
+show warnings;
+create index idx5 on worklog5743_16(a1, a2(3068));
+show warnings;
+-- error ER_TOO_LONG_KEY
+create index idx6 on worklog5743_16(a1, a2(2000), a3(1069));
+show warnings;
+create index idx7 on worklog5743_16(a1, a2(2000), a3(1068));
+show warnings;
+
+# Insert a large record into each of these tables.
+insert into worklog5743_1 values(9, repeat("a", 10000));
 insert into worklog5743_2 values(9, repeat("a", 10000));
 insert into worklog5743_4 values(9, repeat("a", 10000));
+insert into worklog5743_8 values(9, repeat("a", 10000), repeat("a", 10000));
+insert into worklog5743_16 values(9, repeat("a", 10000), repeat("a", 10000));
+
+# Now if we change the global innodb_large_prefix back to 767,
+# updates to these indexes should still be allowed.
+set global innodb_large_prefix=0;
+insert into worklog5743_1 values(2, repeat("b", 10000));
+insert into worklog5743_2 values(2, repeat("b", 10000));
+insert into worklog5743_4 values(2, repeat("b", 10000));
+insert into worklog5743_8 values(2, repeat("b", 10000), repeat("b", 10000));
+insert into worklog5743_16 values(2, repeat("b", 10000), repeat("b", 10000));
+set global innodb_large_prefix=1;
+
+select a1, left(a2, 20) from worklog5743_1;
+select a1, left(a2, 20) from worklog5743_2;
+select a1, left(a2, 20) from worklog5743_4;
+select a1, left(a2, 20) from worklog5743_8;
+select a1, left(a2, 20) from worklog5743_16;
 
 begin;
 
+update worklog5743_1 set a1 = 1000;
 update worklog5743_2 set a1 = 1000;
 update worklog5743_4 set a1 = 1000;
+update worklog5743_8 set a1 = 1000;
+update worklog5743_16 set a1 = 1000;
+select a1, left(a2, 20) from worklog5743_1;
+select a1, left(a2, 20) from worklog5743_2;
+select a1, left(a2, 20) from worklog5743_4;
+select a1, left(a2, 20) from worklog5743_8;
+select a1, left(a2, 20) from worklog5743_16;
+
 
 # Do a select from another connection that would use the secondary index
 --connection con1
 select @@session.tx_isolation;
-explain select a1, a2 = repeat("a", 10000) from worklog5743_2 where a1 = 9;
-select a1, a2 = repeat("a", 10000) from worklog5743_2 where a1 = 9;
-select a1, a2 = repeat("a", 10000) from worklog5743_4 where a1 = 9;
+explain select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
+explain select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
+explain select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
+explain select a1, left(a2, 20) from worklog5743_8 where a1 = 9;
+explain select a1, left(a2, 20) from worklog5743_16 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_8 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_16 where a1 = 9;
 
 # Do read uncommitted in another session, it would show there is no
 # row with a1 = 9
 --connection con2
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 select @@session.tx_isolation;
-select a1, a2 = repeat("a", 10000) from worklog5743_2 where a1 = 9;
-select a1, a2 = repeat("a", 10000) from worklog5743_4 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_8 where a1 = 9;
+select a1, left(a2, 20) from worklog5743_16 where a1 = 9;
 
 --connection default
 rollback;
 
+drop table worklog5743_1;
 drop table worklog5743_2;
 drop table worklog5743_4;
+drop table worklog5743_8;
+drop table worklog5743_16;
 
-# Create a table with varchar column, and create index directly on this
-# large column (without prefix)
-create table worklog5743(a1 int, a2 varchar(3000))
-ROW_FORMAT=DYNAMIC, engine = innodb;
+-- echo ### Test 5 ###
+# Create a table with large varchar columns and create indexes
+# directly on these large columns to show that prefix limit is
+# automatically applied and to show that limit.
+create table worklog5743(a1 int,
+	a2 varchar(20000),
+	a3 varchar(3073),
+	a4 varchar(3072),
+	a5 varchar(3069),
+	a6 varchar(3068))
+	ROW_FORMAT=DYNAMIC;
+create index idx1 on worklog5743(a2);
+create index idx2 on worklog5743(a3);
+create index idx3 on worklog5743(a4);
+show warnings;
+-- error ER_TOO_LONG_KEY
+create index idx4 on worklog5743(a1, a2);
+show warnings;
+-- error ER_TOO_LONG_KEY
+create index idx5 on worklog5743(a1, a5);
+show warnings;
+create index idx6 on worklog5743(a1, a6);
+show warnings;
+show create table worklog5743;
 
-# Create an index with large column without prefix
-create index idx on worklog5743(a1, a2);
-
-insert into worklog5743 values(9, repeat("a", 3000));
+insert into worklog5743 values(9,
+	repeat("a", 20000), repeat("a", 3073),
+	repeat("a", 3072), repeat("a", 3069),
+	repeat("a", 3068));
 
 begin;
 
@@ -204,19 +362,19 @@ rollback;
 
 drop table worklog5743;
 
+-- echo ### Test 6 ###
 # Create a table with old format, and the limit is 768 bytes.
 -- error ER_INDEX_COLUMN_TOO_LONG
-create table worklog5743(a TEXT not null, primary key (a(1000)))
-engine = innodb;
+create table worklog5743(a TEXT not null, primary key (a(1000)));
 
-create table worklog5743(a TEXT) engine = innodb;
+create table worklog5743(a TEXT);
 
 # Excercise the column length check in ha_innobase::add_index()
 -- error ER_INDEX_COLUMN_TOO_LONG
-create index idx on worklog5743(a(1000));
+create index idx on worklog5743(a(768));
 
 # This should be successful
-create index idx on worklog5743(a(725));
+create index idx on worklog5743(a(767));
 
 # Perform some DMLs
 insert into worklog5743 values(repeat("a", 20000));
@@ -241,28 +399,31 @@ rollback;
 
 drop table worklog5743;
 
-# Some border line test on the column length.
+-- echo ### Test 7 ###
+# Some border line tests on the column length.
 # We have a limit of 3072 bytes for Barracuda table
-create table worklog5743(a TEXT not null) ROW_FORMAT=DYNAMIC, engine = innodb;
+create table worklog5743(a TEXT not null) ROW_FORMAT=DYNAMIC;
 
-# Length exceeds maximum supported key length, will auto-truncated to 3072
-create index idx on worklog5743(a(3073));
-
+# Length exceeds maximum supported key length
+# It will be auto-truncated to 3072
+create index idx1 on worklog5743(a(3073));
 create index idx2 on worklog5743(a(3072));
-
 show create table worklog5743;
-
 drop table worklog5743;
 
-# We have a limit of 767 bytes for Antelope table
-create table worklog5743(a TEXT not null) engine = innodb;
-
+# We have a limit of 767 bytes for Antelope tables
+create table worklog5743(a TEXT not null) ROW_FORMAT=REDUNDANT;
 -- error ER_INDEX_COLUMN_TOO_LONG
 create index idx on worklog5743(a(768));
-
 create index idx2 on worklog5743(a(767));
-
 drop table worklog5743;
+
+create table worklog5743(a TEXT not null) ROW_FORMAT=COMPACT;
+-- error ER_INDEX_COLUMN_TOO_LONG
+create index idx on worklog5743(a(768));
+create index idx2 on worklog5743(a(767));
+drop table worklog5743;
+
 
 eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;

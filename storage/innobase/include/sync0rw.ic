@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -308,7 +308,6 @@ rw_lock_s_lock_low(
 	const char*	file_name, /*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	/* TODO: study performance of UNIV_LIKELY branch prediction hints. */
 	if (!rw_lock_lock_word_decr(lock, 1)) {
 		/* Locking did not succeed */
 		return(FALSE);
@@ -409,7 +408,6 @@ rw_lock_s_lock_func(
 	ut_ad(!rw_lock_own(lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	/* TODO: study performance of UNIV_LIKELY branch prediction hints. */
 	if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
 
 		return; /* Success */
@@ -685,7 +683,7 @@ pfs_rw_lock_x_lock_func(
 	locker = PSI_CALL(get_thread_rwlock_locker)(
 		&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK);
 
-	if (UNIV_LIKELY(locker != NULL)) {
+	if (locker != NULL) {
 		PSI_CALL(start_rwlock_wrwait)(locker, file_name, line);
 		rw_lock_x_lock_func(lock, pass, file_name, line);
 		PSI_CALL(end_rwlock_wrwait)(locker, 0);
@@ -717,7 +715,7 @@ pfs_rw_lock_x_lock_func_nowait(
 	locker = PSI_CALL(get_thread_rwlock_locker)(
 		&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK);
 
-	if (UNIV_LIKELY(locker != NULL)) {
+	if (locker != NULL) {
 		PSI_CALL(start_rwlock_wrwait)(locker, file_name, line);
 		ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
 		PSI_CALL(end_rwlock_wrwait)(locker, 0);
@@ -764,7 +762,7 @@ pfs_rw_lock_s_lock_func(
 	/* Instrumented to inform we are aquiring a shared rwlock */
 	locker = PSI_CALL(get_thread_rwlock_locker)(
 		&state, lock->pfs_psi, PSI_RWLOCK_READLOCK);
-	if (UNIV_LIKELY(locker != NULL)) {
+	if (locker != NULL) {
 		PSI_CALL(start_rwlock_rdwait)(locker, file_name, line);
 		rw_lock_s_lock_func(lock, pass, file_name, line);
 		PSI_CALL(end_rwlock_rdwait)(locker, 0);
@@ -796,7 +794,7 @@ pfs_rw_lock_s_lock_low(
 	/* Instrumented to inform we are aquiring a shared rwlock */
 	locker = PSI_CALL(get_thread_rwlock_locker)(
 		&state, lock->pfs_psi, PSI_RWLOCK_READLOCK);
-	if (UNIV_LIKELY(locker != NULL)) {
+	if (locker != NULL) {
 		PSI_CALL(start_rwlock_rdwait)(locker, file_name, line);
 		ret = rw_lock_s_lock_low(lock, pass, file_name, line);
 		PSI_CALL(end_rwlock_rdwait)(locker, 0);
