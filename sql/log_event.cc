@@ -687,7 +687,8 @@ Log_event::Log_event(enum_event_cache_type cache_type_arg,
     We can't call my_time() here as this would cause a call before
     my_init() is called
   */
-  when=		0;
+  when.tv_sec=  0;
+  when.tv_usec= 0;
   log_pos=	0;
 }
 #endif /* !MYSQL_CLIENT */
@@ -707,7 +708,8 @@ Log_event::Log_event(const char* buf,
 #ifndef MYSQL_CLIENT
   thd = 0;
 #endif
-  when = uint4korr(buf);
+  when.tv_sec= uint4korr(buf);
+  when.tv_usec= 0;
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
   data_written= uint4korr(buf + EVENT_LEN_OFFSET);
   if (description_event->binlog_version==1)
@@ -1594,7 +1596,7 @@ void Log_event::print_header(IO_CACHE* file,
   DBUG_ENTER("Log_event::print_header");
 
   my_b_printf(file, "#");
-  print_timestamp(file);
+  print_timestamp(file, NULL);
   my_b_printf(file, " server id %lu  end_log_pos %s ", (ulong) server_id,
               llstr(log_pos,llbuff));
 
@@ -1709,16 +1711,17 @@ void Log_event::print_header(IO_CACHE* file,
   @param[in] file              IO cache
   @param[in] prt               Pointer to string
   @param[in] length            String length
+  @param[in] esc_all        Whether to escape all characters
 */
 
 static void
-my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
+my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length, bool esc_all)
 {
   const uchar *s;
   my_b_printf(file, "'");
   for (s= ptr; length > 0 ; s++, length--)
   {
-    if (*s > 0x1F)
+    if (*s > 0x1F && !esc_all)
       my_b_write(file, s, 1);
     else
     {
@@ -1728,6 +1731,13 @@ my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
     }
   }
   my_b_printf(file, "'");
+}
+
+
+static void
+my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
+{
+  my_b_write_quoted(file, ptr, length, false);
 }
 
 
@@ -1951,6 +1961,17 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       return 4;
     }
 
+  case MYSQL_TYPE_TIMESTAMP2:
+    {
+      char buf[MAX_DATE_STRING_REP_LENGTH];
+      struct timeval tm;
+      my_timestamp_from_binary(&tm, ptr, meta);
+      int buflen= my_timeval_to_str(&tm, buf, meta);
+      my_b_write(file, buf, buflen);
+      my_snprintf(typestr, typestr_length, "TIMESTAMP(%d)", meta);
+      return my_timestamp_binary_length(meta);
+    }
+
   case MYSQL_TYPE_DATETIME:
     {
       size_t d, t;
@@ -1964,15 +1985,39 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       return 8;
     }
 
+  case MYSQL_TYPE_DATETIME2:
+    {
+      char buf[MAX_DATE_STRING_REP_LENGTH];
+      MYSQL_TIME ltime;
+      longlong packed= my_datetime_packed_from_binary(ptr, meta);
+      TIME_from_longlong_datetime_packed(&ltime, packed);
+      int buflen= my_datetime_to_str(&ltime, buf, meta);
+      my_b_write_quoted(file, (uchar *) buf, buflen);
+      my_snprintf(typestr, typestr_length, "DATETIME(%d)", meta);
+      return my_datetime_binary_length(meta);
+    }
+
   case MYSQL_TYPE_TIME:
     {
       uint32 i32= uint3korr(ptr);
       my_b_printf(file, "'%02d:%02d:%02d'",
                   i32 / 10000, (i32 % 10000) / 100, i32 % 100);
-      my_snprintf(typestr,  typestr_length, "TIME");
+      my_snprintf(typestr, typestr_length, "TIME");
       return 3;
     }
-    
+
+  case MYSQL_TYPE_TIME2:
+    {
+      char buf[MAX_DATE_STRING_REP_LENGTH];
+      MYSQL_TIME ltime;
+      longlong packed= my_time_packed_from_binary(ptr, meta);
+      TIME_from_longlong_time_packed(&ltime, packed);
+      int buflen= my_time_to_str(&ltime, buf, meta);
+      my_b_write_quoted(file, (uchar *) buf, buflen);
+      my_snprintf(typestr, typestr_length, "TIME(%d)", meta);
+      return my_time_binary_length(meta);
+    }
+
   case MYSQL_TYPE_NEWDATE:
     {
       uint32 tmp= uint3korr(ptr);
@@ -1999,16 +2044,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       my_snprintf(typestr, typestr_length, "DATE");
       return 3;
     }
-    
-  case MYSQL_TYPE_DATE:
-    {
-      uint i32= uint3korr(ptr);
-      my_b_printf(file , "'%04d:%02d:%02d'",
-                  (i32 / (16L * 32L)), (i32 / 32L % 16L), (i32 % 32L));
-      my_snprintf(typestr, typestr_length, "DATE");
-      return 3;
-    }
-  
+
   case MYSQL_TYPE_YEAR:
     {
       uint32 i32= *ptr;
@@ -2332,17 +2368,22 @@ void Log_event::print_base64(IO_CACHE* file,
   Log_event::print_timestamp()
 */
 
-void Log_event::print_timestamp(IO_CACHE* file, time_t* ts)
+void Log_event::print_timestamp(IO_CACHE* file, time_t *ts)
 {
   struct tm *res;
+  /*
+    In some Windows versions timeval.tv_sec is defined as "long",
+    not as "time_t" and can be of a different size.
+    Let's use a temporary time_t variable to execute localtime()
+    with a correct argument type.
+  */
+  time_t ts_tmp= ts ? *ts : when.tv_sec;
   DBUG_ENTER("Log_event::print_timestamp");
-  if (!ts)
-    ts = &when;
 #ifdef MYSQL_SERVER				// This is always false
   struct tm tm_tmp;
-  localtime_r(ts,(res= &tm_tmp));
+  localtime_r(&ts_tmp, (res= &tm_tmp));
 #else
-  res=localtime(ts);
+  res= localtime(&ts_tmp);
 #endif
 
   my_b_printf(file,"%02d%02d%02d %2d:%02d:%02d",
@@ -2702,7 +2743,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       ret_worker->checkpoint_notified= TRUE;
     }
     ptr_group->checkpoint_seqno= rli->checkpoint_seqno;
-    ptr_group->ts= when + (time_t) exec_time;       // Seconds_behind_master related
+    ptr_group->ts= when.tv_sec + (time_t) exec_time; // Seconds_behind_master related
     rli->checkpoint_seqno++;
 
     // reclaiming resources allocated during the group scheduling
@@ -3172,6 +3213,14 @@ bool Query_log_event::write(IO_CACHE* file)
     }
   }
 
+  if (thd && thd->query_start_usec_used)
+  {
+    *start++= Q_MICROSECONDS;
+    get_time();
+    int3store(start, when.tv_usec);
+    start+= 3;
+  }
+
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
@@ -3269,7 +3318,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   error_code= errcode;
 
   time(&end_time);
-  exec_time = (ulong) (end_time  - thd_arg->start_time);
+  exec_time = (ulong) (end_time  - thd_arg->start_time.tv_sec);
   /**
     @todo this means that if we have no catalog, then it is replicated
     as an existing catalog of length zero. is that safe? /sven
@@ -3545,6 +3594,7 @@ code_name(int code)
   case Q_TABLE_MAP_FOR_UPDATE_CODE: return "Q_TABLE_MAP_FOR_UPDATE_CODE";
   case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
   case Q_UPDATED_DB_NAMES: return "Q_UPDATED_DB_NAMES";
+  case Q_MICROSECONDS: return "Q_MICROSECONDS";
   }
   sprintf(buf, "CODE#%d", code);
   return buf;
@@ -3749,6 +3799,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       data_written= master_data_written= uint4korr(pos);
       pos+= 4;
       break;
+    case Q_MICROSECONDS:
+    {
+      CHECK_SPACE(pos, end, 3);
+      when.tv_usec= uint3korr(pos);
+      pos+= 3;
+      break;
+    }
     case Q_INVOKER:
     {
       CHECK_SPACE(pos, end, 1);
@@ -3866,7 +3923,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 					 PRINT_EVENT_INFO* print_event_info)
 {
   // TODO: print the catalog ??
-  char buff[40],*end;				// Enough for SET TIMESTAMP
+  char buff[48], *end;  // Enough for "SET TIMESTAMP=1305535348.123456"
   bool different_db= 1;
   uint32 tmp;
 
@@ -3892,9 +3949,12 @@ void Query_log_event::print_query_header(IO_CACHE* file,
       my_b_printf(file, "use %s%s\n", db, print_event_info->delimiter);
   }
 
-  end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
+  end=int10_to_str((long) when.tv_sec, strmov(buff,"SET TIMESTAMP="),10);
+  if (when.tv_usec)
+    end+= sprintf(end, ".%06d", (int) when.tv_usec);
   end= strmov(end, print_event_info->delimiter);
   *end++='\n';
+  DBUG_ASSERT(end < buff + sizeof(buff));
   my_b_write(file, (uchar*) buff, (uint) (end-buff));
   if ((!print_event_info->thread_id_printed ||
        ((flags & LOG_EVENT_THREAD_SPECIFIC_F) &&
@@ -4237,7 +4297,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   */
   if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
-    thd->set_time((time_t) when);
+    thd->set_time(&when);
     thd->set_query_and_id((char*)query_arg, q_len_arg,
                           thd->charset(), next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
@@ -4663,7 +4723,7 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
     print_header(head, print_event_info, FALSE);
     my_b_printf(head, "\tStart: binlog v %d, server v %s created ",
                 binlog_version, server_version);
-    print_timestamp(head);
+    print_timestamp(head, NULL);
     if (created)
       my_b_printf(head," at startup");
     my_b_printf(head, "\n");
@@ -4729,7 +4789,7 @@ bool Start_log_event_v3::write(IO_CACHE* file)
   int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
   memcpy(buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
   if (!dont_set_created)
-    created= when= get_time();
+    created= get_time();
   int4store(buff + ST_CREATED_OFFSET,created);
   return (write_header(file, sizeof(buff)) ||
           wrapper_my_b_safe_write(file, (uchar*) buff, sizeof(buff)) ||
@@ -5157,7 +5217,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
   int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
   memcpy((char*) buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
   if (!dont_set_created)
-    created= when= get_time();
+    created= get_time();
   int4store(buff + ST_CREATED_OFFSET,created);
   buff[ST_COMMON_HEADER_LEN_OFFSET]= LOG_EVENT_HEADER_LEN;
   memcpy((char*) buff+ST_COMMON_HEADER_LEN_OFFSET + 1, (uchar*) post_header_len,
@@ -5602,7 +5662,7 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 {
   time_t end_time;
   time(&end_time);
-  exec_time = (ulong) (end_time  - thd_arg->start_time);
+  exec_time = (ulong) (end_time  - thd_arg->start_time.tv_sec);
   /* db can never be a zero pointer in 4.0 */
   db_len = (uint32) strlen(db);
   table_name_len = (uint32) strlen(table_name);
@@ -5967,7 +6027,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   */
   if (rpl_filter->db_ok(thd->db))
   {
-    thd->set_time((time_t) when);
+    thd->set_time(&when);
     thd->set_query_id(next_query_id());
     thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
 
@@ -6382,7 +6442,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
     if (rli->is_parallel_exec())
-      rli->reset_notified_checkpoint(0, when + (time_t) exec_time);
+      rli->reset_notified_checkpoint(0, when.tv_sec + (time_t) exec_time);
 
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
@@ -8880,7 +8940,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    thd->set_time((time_t) when);
+    thd->set_time(&when);
 
     /*
       Now we are in a statement and will stay in a statement until we
@@ -9422,7 +9482,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   {
     m_coltype= reinterpret_cast<uchar*>(m_memory);
     for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
-      m_coltype[i]= m_table->field[i]->type();
+      m_coltype[i]= m_table->field[i]->binlog_type();
   }
 
   /*

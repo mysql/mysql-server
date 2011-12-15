@@ -62,6 +62,17 @@ public:
     illegal_method_call((const char*)"val_decimal");
     return 0;
   };
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    illegal_method_call((const char *) "get_date");
+    return true;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    illegal_method_call((const char *) "get_time");
+    return true;
+  }
+
   bool fix_fields(THD *thd, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
                          st_select_lex *removed_select, Item **ref);

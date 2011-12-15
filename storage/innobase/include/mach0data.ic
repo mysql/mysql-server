@@ -40,7 +40,7 @@ mach_write_to_1(
 	ut_ad(b);
 	ut_ad((n | 0xFFUL) <= 0xFFUL);
 
-	b[0] = (byte)n;
+	b[0] = (byte) n;
 }
 
 /********************************************************//**
@@ -167,7 +167,7 @@ mach_write_to_4(
 	b[0] = (byte)(n >> 24);
 	b[1] = (byte)(n >> 16);
 	b[2] = (byte)(n >> 8);
-	b[3] = (byte)n;
+	b[3] = (byte) n;
 }
 
 #endif /* !UNIV_INNOCHECKSUM */
@@ -556,7 +556,7 @@ mach_double_read(
 	ulint	i;
 	byte*	ptr;
 
-	ptr = (byte*)&d;
+	ptr = (byte*) &d;
 
 	for (i = 0; i < sizeof(double); i++) {
 #ifdef WORDS_BIGENDIAN
@@ -581,7 +581,7 @@ mach_double_write(
 	ulint	i;
 	byte*	ptr;
 
-	ptr = (byte*)&d;
+	ptr = (byte*) &d;
 
 	for (i = 0; i < sizeof(double); i++) {
 #ifdef WORDS_BIGENDIAN
@@ -605,7 +605,7 @@ mach_float_read(
 	ulint	i;
 	byte*	ptr;
 
-	ptr = (byte*)&d;
+	ptr = (byte*) &d;
 
 	for (i = 0; i < sizeof(float); i++) {
 #ifdef WORDS_BIGENDIAN
@@ -630,7 +630,7 @@ mach_float_write(
 	ulint	i;
 	byte*	ptr;
 
-	ptr = (byte*)&d;
+	ptr = (byte*) &d;
 
 	for (i = 0; i < sizeof(float); i++) {
 #ifdef WORDS_BIGENDIAN

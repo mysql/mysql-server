@@ -8,20 +8,20 @@ period_add("9602",-12)	period_diff(199505,"9404")
 199502	13
 select now()-now(),weekday(curdate())-weekday(now()),unix_timestamp()-unix_timestamp(now());
 now()-now()	weekday(curdate())-weekday(now())	unix_timestamp()-unix_timestamp(now())
-0.000000	0	0
+0	0	0
 select from_unixtime(unix_timestamp("1994-03-02 10:11:12")),from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s"),from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0;
 from_unixtime(unix_timestamp("1994-03-02 10:11:12"))	from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s")	from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0
-1994-03-02 10:11:12	1994-03-02 10:11:12	19940302101112.000000
+1994-03-02 10:11:12	1994-03-02 10:11:12	19940302101112
 select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22"),
 sec_to_time(time_to_sec("0:30:47")/6.21);
 sec_to_time(9001)	sec_to_time(9001)+0	time_to_sec("15:12:22")	sec_to_time(time_to_sec("0:30:47")/6.21)
-02:30:01	23001.000000	54742	00:04:57
+02:30:01	23001	54742	00:04:57.4235
 select sec_to_time(time_to_sec('-838:59:59'));
 sec_to_time(time_to_sec('-838:59:59'))
 -838:59:59
 select now()-curdate()*1000000-curtime();
 now()-curdate()*1000000-curtime()
-0.000000
+0
 select strcmp(current_timestamp(),concat(current_date()," ",current_time()));
 strcmp(current_timestamp(),concat(current_date()," ",current_time()))
 0
@@ -336,7 +336,7 @@ extract(DAY_HOUR FROM "1999-01-02 10:11:12")
 210
 select extract(DAY_MINUTE FROM "02 10:11:12");
 extract(DAY_MINUTE FROM "02 10:11:12")
-21011
+5811
 select extract(DAY_SECOND FROM "225 10:11:12");
 extract(DAY_SECOND FROM "225 10:11:12")
 8385959
@@ -549,6 +549,9 @@ unix_timestamp('1969-12-01 19:00:01')
 0
 select from_unixtime(-1);
 from_unixtime(-1)
+NULL
+SELECT FROM_UNIXTIME(-0.000001);
+FROM_UNIXTIME(-0.000001)
 NULL
 select from_unixtime(2147483647);
 from_unixtime(2147483647)
@@ -788,9 +791,7 @@ TIMESTAMPDIFF(year,'2006-01-10 14:30:28','2008-01-10 14:30:29')
 2
 select date_add(time,INTERVAL 1 SECOND) from t1;
 date_add(time,INTERVAL 1 SECOND)
-NULL
-Warnings:
-Warning	1264	Out of range value for column 'time' at row 1
+06:07:09
 drop table t1;
 select last_day('2000-02-05') as f1, last_day('2002-12-31') as f2,
 last_day('2003-03-32') as f3, last_day('2003-04-01') as f4,
@@ -930,10 +931,10 @@ sec_to_time(1) + 0, from_unixtime(1) + 0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `now() - now()` double(23,6) NOT NULL DEFAULT '0.000000',
-  `curtime() - curtime()` double(23,6) NOT NULL DEFAULT '0.000000',
-  `sec_to_time(1) + 0` double(23,6) DEFAULT NULL,
-  `from_unixtime(1) + 0` double(23,6) DEFAULT NULL
+  `now() - now()` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `curtime() - curtime()` int(10) NOT NULL DEFAULT '0',
+  `sec_to_time(1) + 0` bigint(12) DEFAULT NULL,
+  `from_unixtime(1) + 0` bigint(20) unsigned DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 SELECT SEC_TO_TIME(3300000);
@@ -943,7 +944,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: '3300000'
 SELECT SEC_TO_TIME(3300000)+0;
 SEC_TO_TIME(3300000)+0
-8385959.000000
+8385959
 Warnings:
 Warning	1292	Truncated incorrect time value: '3300000'
 SELECT SEC_TO_TIME(3600 * 4294967296);
@@ -1071,6 +1072,8 @@ select isnull(week(now() + 0)), isnull(week(now() + 0.2)),
 week(20061108), week(20061108.01), week(20061108085411.000002);
 isnull(week(now() + 0))	isnull(week(now() + 0.2))	week(20061108)	week(20061108.01)	week(20061108085411.000002)
 0	0	45	45	45
+Warnings:
+Warning	1292	Truncated incorrect date value: '20061108.01'
 End of 4.1 tests
 select time_format('100:00:00', '%H %k %h %I %l');
 time_format('100:00:00', '%H %k %h %I %l')
@@ -1199,9 +1202,7 @@ DROP TABLE t1,t2;
 set time_zone= @@global.time_zone;
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
-NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '10:00 PM' for function str_to_date
+22:10:00
 create table t1 (field DATE);
 insert into t1 values ('2006-11-06');
 select * from t1 where field < '2006-11-06 04:08:36.0';
@@ -1485,5 +1486,7 @@ Warning	1292	Truncated incorrect INTEGER value: '%Z'
 create table t1(a time);
 insert into t1 values ('00:00:00'),('00:01:00');
 select 1 from t1 where 1 < some (select cast(a as datetime) from t1);
+1
+1
 1
 drop table t1;

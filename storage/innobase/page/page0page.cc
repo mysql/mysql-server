@@ -2322,7 +2322,7 @@ page_validate(
 	if (UNIV_UNLIKELY(!(page_header_get_ptr(page, PAGE_HEAP_TOP)
 			    <= page_dir_get_nth_slot(page, n_slots - 1)))) {
 
-		fprintf(stderr, 
+		fprintf(stderr,
 			"InnoDB: Record heap and dir overlap"
 			" on space %lu page %lu index %s, %p, %p\n",
 			(ulong) page_get_space_id(page),
@@ -2365,7 +2365,7 @@ page_validate(
 			if (UNIV_UNLIKELY
 			    (1 != cmp_rec_rec(rec, old_rec,
 					      offsets, old_offsets, index))) {
-				fprintf(stderr, 
+				fprintf(stderr,
 					"InnoDB: Records in wrong order"
 					" on space %lu page %lu index %s\n",
 					(ulong) page_get_space_id(page),
@@ -2536,7 +2536,7 @@ func_exit:
 
 	if (UNIV_UNLIKELY(ret == FALSE)) {
 func_exit2:
-		fprintf(stderr, 
+		fprintf(stderr,
 			"InnoDB: Apparent corruption"
 			" in space %lu page %lu index %s\n",
 			(ulong) page_get_space_id(page),

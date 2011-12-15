@@ -247,8 +247,8 @@ dict_stats_persistent_storage_check(
 		{"table_name", DATA_VARMYSQL,
 			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
-		{"stats_timestamp", DATA_INT,
-			DATA_NOT_NULL | DATA_UNSIGNED, 4},
+		{"stats_timestamp", DATA_FIXBINARY,
+			DATA_NOT_NULL, 4},
 
 		{"n_rows", DATA_INT,
 			DATA_NOT_NULL | DATA_UNSIGNED, 8},
@@ -276,8 +276,8 @@ dict_stats_persistent_storage_check(
 		{"index_name", DATA_VARMYSQL,
 			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
-		{"stat_timestamp", DATA_INT,
-			DATA_NOT_NULL | DATA_UNSIGNED, 4},
+		{"stat_timestamp", DATA_FIXBINARY,
+			DATA_NOT_NULL, 4},
 
 		{"stat_name", DATA_VARMYSQL,
 			DATA_NOT_NULL, 64*3},
@@ -2182,7 +2182,7 @@ dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
 	dict_stats_upd_option_t	stats_upd_option,
-					/*!< in: whether to (re)calc
+					/*!< in: whether to (re) calc
 					the stats or to fetch them from
 					the persistent statistics
 					storage */
