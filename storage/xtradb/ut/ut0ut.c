@@ -674,8 +674,6 @@ ut_strerr(
 		return("Cannot add constraint");
 	case DB_CORRUPTION:
 		return("Data structure corruption");
-	case DB_COL_APPEARS_TWICE_IN_INDEX:
-		return("Column appears twice in index");
 	case DB_CANNOT_DROP_CONSTRAINT:
 		return("Cannot drop constraint");
 	case DB_NO_SAVEPOINT:
@@ -714,6 +712,10 @@ ut_strerr(
 		return("No index on referencing keys in referencing table");
 	case DB_PARENT_NO_INDEX:
 		return("No index on referenced keys in referenced table");
+	case DB_INDEX_CORRUPT:
+		return("Index corrupted");
+	case DB_UNDO_RECORD_TOO_BIG:
+		return("Undo record too big");
 	case DB_END_OF_INDEX:
 		return("End of index");
         case DB_SEARCH_ABORTED_BY_USER:

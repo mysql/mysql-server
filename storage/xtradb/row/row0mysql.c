@@ -578,6 +578,7 @@ handle_new_error:
 	case DB_DUPLICATE_KEY:
 	case DB_FOREIGN_DUPLICATE_KEY:
 	case DB_TOO_BIG_RECORD:
+	case DB_UNDO_RECORD_TOO_BIG:
 	case DB_ROW_IS_REFERENCED:
 	case DB_NO_REFERENCED_ROW:
 	case DB_CANNOT_ADD_CONSTRAINT:
@@ -1246,6 +1247,7 @@ run_again:
 		prebuilt->table->stat_n_rows--;
 	}
 
+	if (!(trx->fake_changes))
 	row_update_statistics_if_needed(prebuilt->table);
 	trx->op_info = "";
 
@@ -1505,6 +1507,7 @@ run_again:
 	that changes indexed columns, UPDATEs that change only non-indexed
 	columns would not affect statistics. */
 	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+		if (!(trx->fake_changes))
 		row_update_statistics_if_needed(prebuilt->table);
 	}
 
@@ -1722,6 +1725,7 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
+	if (!(trx->fake_changes))
 	row_update_statistics_if_needed(table);
 
 	return(err);
@@ -2027,41 +2031,13 @@ row_create_index_for_mysql(
 
 	trx_start_if_not_started(trx);
 
-	/* Check that the same column does not appear twice in the index.
-	Starting from 4.0.14, InnoDB should be able to cope with that, but
-	safer not to allow them. */
-
-	for (i = 0; i < dict_index_get_n_fields(index); i++) {
-		ulint		j;
-
-		for (j = 0; j < i; j++) {
-			if (0 == ut_strcmp(
-				    dict_index_get_nth_field(index, j)->name,
-				    dict_index_get_nth_field(index, i)->name)) {
-				ut_print_timestamp(stderr);
-
-				fputs("  InnoDB: Error: column ", stderr);
-				ut_print_name(stderr, trx, FALSE,
-					      dict_index_get_nth_field(
-						      index, i)->name);
-				fputs(" appears twice in ", stderr);
-				dict_index_name_print(stderr, trx, index);
-				fputs("\n"
-				      "InnoDB: This is not allowed"
-				      " in InnoDB.\n", stderr);
-
-				err = DB_COL_APPEARS_TWICE_IN_INDEX;
-
-				goto error_handling;
-			}
-		}
-
-		/* Check also that prefix_len and actual length
-		is less than that from DICT_MAX_FIELD_LEN_BY_FORMAT() */
+	for (i = 0; i < index->n_def; i++) {
+		/* Check that prefix_len and actual length
+		< DICT_MAX_INDEX_COL_LEN */
 
 		len = dict_index_get_nth_field(index, i)->prefix_len;
 
-		if (field_lengths) {
+		if (field_lengths && field_lengths[i]) {
 			len = ut_max(len, field_lengths[i]);
 		}
 
@@ -2069,6 +2045,7 @@ row_create_index_for_mysql(
 		if (len > (ulint) DICT_MAX_FIELD_LEN_BY_FORMAT(table)) {
 			err = DB_TOO_BIG_INDEX_COL;
 
+			dict_mem_index_free(index);
 			goto error_handling;
 		}
 	}
@@ -2611,10 +2588,29 @@ row_discard_tablespace_for_mysql(
 
 			err = DB_ERROR;
 		} else {
+			dict_index_t*	index;
+
 			/* Set the flag which tells that now it is legal to
 			IMPORT a tablespace for this table */
 			table->tablespace_discarded = TRUE;
 			table->ibd_file_missing = TRUE;
+
+			/* check adaptive hash entries */
+			index = dict_table_get_first_index(table);
+			while (index) {
+				ulint ref_count = btr_search_info_get_ref_count(index->search_info, index->id);
+				if (ref_count) {
+					fprintf(stderr, "InnoDB: Warning:"
+						" hash index ref_count (%lu) is not zero"
+						" after fil_discard_tablespace().\n"
+						"index: \"%s\""
+						" table: \"%s\"\n",
+						ref_count,
+						index->name,
+						table->name);
+				}
+				index = dict_table_get_next_index(index);
+			}
 		}
 	}
 
@@ -2963,6 +2959,19 @@ row_truncate_table_for_mysql(
 			table->space = space;
 			index = dict_table_get_first_index(table);
 			do {
+				ulint ref_count = btr_search_info_get_ref_count(index->search_info, index->id);
+				/* check adaptive hash entries */
+				if (ref_count) {
+					fprintf(stderr, "InnoDB: Warning:"
+						" hash index ref_count (%lu) is not zero"
+						" after fil_discard_tablespace().\n"
+						"index: \"%s\""
+						" table: \"%s\"\n",
+						ref_count,
+						index->name,
+						table->name);
+				}
+
 				index->space = space;
 				index = dict_table_get_next_index(index);
 			} while (index);
@@ -3212,7 +3221,8 @@ row_drop_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	table = dict_table_get_low_ignore_err(name, DICT_ERR_IGNORE_INDEX_ROOT);
+	table = dict_table_get_low_ignore_err(
+		name, DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -3359,6 +3369,19 @@ check_next_foreign:
 			   "index_id CHAR;\n"
 			   "foreign_id CHAR;\n"
 			   "found INT;\n"
+
+			   "DECLARE CURSOR cur_fk IS\n"
+			   "SELECT ID FROM SYS_FOREIGN\n"
+			   "WHERE FOR_NAME = :table_name\n"
+			   "AND TO_BINARY(FOR_NAME)\n"
+			   "  = TO_BINARY(:table_name)\n"
+			   "LOCK IN SHARE MODE;\n"
+
+			   "DECLARE CURSOR cur_idx IS\n"
+			   "SELECT ID FROM SYS_INDEXES\n"
+			   "WHERE TABLE_ID = table_id\n"
+			   "LOCK IN SHARE MODE;\n"
+
 			   "BEGIN\n"
 			   "SELECT ID INTO table_id\n"
 			   "FROM SYS_TABLES\n"
@@ -3381,13 +3404,9 @@ check_next_foreign:
 			   "IF (:table_name = 'SYS_FOREIGN_COLS') THEN\n"
 			   "       found := 0;\n"
 			   "END IF;\n"
+			   "OPEN cur_fk;\n"
 			   "WHILE found = 1 LOOP\n"
-			   "       SELECT ID INTO foreign_id\n"
-			   "       FROM SYS_FOREIGN\n"
-			   "       WHERE FOR_NAME = :table_name\n"
-			   "               AND TO_BINARY(FOR_NAME)\n"
-			   "                 = TO_BINARY(:table_name)\n"
-			   "               LOCK IN SHARE MODE;\n"
+			   "       FETCH cur_fk INTO foreign_id;\n"
 			   "       IF (SQL % NOTFOUND) THEN\n"
 			   "               found := 0;\n"
 			   "       ELSE\n"
@@ -3397,12 +3416,11 @@ check_next_foreign:
 			   "               WHERE ID = foreign_id;\n"
 			   "       END IF;\n"
 			   "END LOOP;\n"
+			   "CLOSE cur_fk;\n"
 			   "found := 1;\n"
+			   "OPEN cur_idx;\n"
 			   "WHILE found = 1 LOOP\n"
-			   "       SELECT ID INTO index_id\n"
-			   "       FROM SYS_INDEXES\n"
-			   "       WHERE TABLE_ID = table_id\n"
-			   "       LOCK IN SHARE MODE;\n"
+			   "       FETCH cur_idx INTO index_id;\n"
 			   "       IF (SQL % NOTFOUND) THEN\n"
 			   "               found := 0;\n"
 			   "       ELSE\n"
@@ -3415,6 +3433,7 @@ check_next_foreign:
 			   "               AND TABLE_ID = table_id;\n"
 			   "       END IF;\n"
 			   "END LOOP;\n"
+			   "CLOSE cur_idx;\n"
 			   "DELETE FROM SYS_COLUMNS\n"
 			   "WHERE TABLE_ID = table_id;\n"
 			   "DELETE FROM SYS_TABLES\n"

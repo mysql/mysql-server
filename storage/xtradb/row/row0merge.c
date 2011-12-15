@@ -56,6 +56,7 @@ Completed by Sunny Bains and Marko Makela
 #include "log0log.h"
 #include "ut0sort.h"
 #include "handler0alter.h"
+#include "ha_prototypes.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined __WIN__
@@ -2563,8 +2564,9 @@ row_merge_is_index_usable(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to check */
 {
-	return(!trx->read_view
-	       || read_view_sees_trx_id(trx->read_view, index->trx_id));
+	return(!dict_index_is_corrupted(index)
+	       && (!trx->read_view
+	           || read_view_sees_trx_id(trx->read_view, index->trx_id)));
 }
 
 /*********************************************************************//**

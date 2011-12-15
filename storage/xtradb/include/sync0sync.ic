@@ -272,11 +272,10 @@ pfs_mutex_enter_nowait_func(
 	ulint	ret;
 	struct PSI_mutex_locker*	locker = NULL;
 	PSI_mutex_locker_state		state;
-	int	result = 0;
 
 	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
 		locker = PSI_server->get_thread_mutex_locker(
-				&state, mutex->pfs_psi, PSI_MUTEX_LOCK);
+				&state, mutex->pfs_psi, PSI_MUTEX_TRYLOCK);
 		if (locker) {
 			PSI_server->start_mutex_wait(locker, file_name, line);
 		}
@@ -285,7 +284,7 @@ pfs_mutex_enter_nowait_func(
 	ret = mutex_enter_nowait_func(mutex, file_name, line);
 
 	if (locker) {
-		PSI_server->end_mutex_wait(locker, result);
+		PSI_server->end_mutex_wait(locker, ret);
 	}
 
 	return(ret);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -54,6 +54,7 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "row0merge.h"
 #include "m_ctype.h" /* my_isspace() */
 #include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str()*/
+#include "row0upd.h"
 #include "srv0start.h" /* SRV_LOG_SPACE_FIRST_ID */
 
 #include <ctype.h>
@@ -615,8 +616,7 @@ dict_table_get_on_id(
 {
 	dict_table_t*	table;
 
-	if (table_id <= DICT_FIELDS_ID
-	    || trx->dict_operation_lock_mode == RW_X_LATCH) {
+	if (trx->dict_operation_lock_mode == RW_X_LATCH) {
 
 		/* Note: An X latch implies that the transaction
 		already owns the dictionary mutex. */
@@ -1780,7 +1780,8 @@ undo_size_ok:
 
 	new_index->page = page_no;
 	rw_lock_create(index_tree_rw_lock_key, &new_index->lock,
-		       SYNC_INDEX_TREE);
+		       dict_index_is_ibuf(index)
+		       ? SYNC_IBUF_INDEX_TREE : SYNC_INDEX_TREE);
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 
@@ -5523,6 +5524,189 @@ dict_close(void)
 	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
 		rw_lock_free(&dict_table_stats_latches[i]);
 	}
+}
+
+/**********************************************************************//**
+Find a table in dict_sys->table_LRU list with specified space id
+@return table if found, NULL if not */
+static
+dict_table_t*
+dict_find_table_by_space(
+/*=====================*/
+	ulint	space_id)		/*!< in: space ID */
+{
+	dict_table_t*   table;
+	ulint		num_item;
+	ulint		count = 0;
+
+	ut_ad(space_id > 0);
+
+	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	num_item =  UT_LIST_GET_LEN(dict_sys->table_LRU);
+
+	/* This function intentionally does not acquire mutex as it is used
+	by error handling code in deep call stack as last means to avoid
+	killing the server, so it worth to risk some consequencies for
+	the action. */
+	while (table && count < num_item) {
+		if (table->space == space_id) {
+			return(table);
+		}
+
+		table = UT_LIST_GET_NEXT(table_LRU, table);
+		count++;
+	}
+
+	return(NULL);
+}
+
+/**********************************************************************//**
+Flags a table with specified space_id corrupted in the data dictionary
+cache
+@return TRUE if successful */
+UNIV_INTERN
+ibool
+dict_set_corrupted_by_space(
+/*========================*/
+	ulint	space_id)		/*!< in: space ID */
+{
+	dict_table_t*   table;
+
+	table = dict_find_table_by_space(space_id);
+
+	if (!table) {
+		return(FALSE);
+	}
+
+	/* mark the table->corrupted bit only, since the caller
+	could be too deep in the stack for SYS_INDEXES update */
+	table->corrupted = TRUE;
+
+	return(TRUE);
+}
+
+/**********************************************************************//**
+Flags an index corrupted both in the data dictionary cache
+and in the SYS_INDEXES */
+UNIV_INTERN
+void
+dict_set_corrupted(
+/*===============*/
+	dict_index_t*	index)		/*!< in/out: index */
+{
+	mem_heap_t*	heap;
+	mtr_t		mtr;
+	dict_index_t*	sys_index;
+	dtuple_t*	tuple;
+	dfield_t*	dfield;
+	byte*		buf;
+	const char*	status;
+	btr_cur_t	cursor;
+
+	ut_ad(index);
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
+	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
+
+#ifdef UNIV_SYNC_DEBUG
+        ut_ad(sync_thread_levels_empty_except_dict());
+#endif
+
+	/* Mark the table as corrupted only if the clustered index
+	is corrupted */
+	if (dict_index_is_clust(index)) {
+		index->table->corrupted = TRUE;
+	}
+
+	if (UNIV_UNLIKELY(dict_index_is_corrupted(index))) {
+		/* The index was already flagged corrupted. */
+		ut_ad(index->table->corrupted);
+		return;
+	}
+
+	heap = mem_heap_create(sizeof(dtuple_t) + 2 * (sizeof(dfield_t)
+			       + sizeof(que_fork_t) + sizeof(upd_node_t)
+			       + sizeof(upd_t) + 12));
+	mtr_start(&mtr);
+	index->type |= DICT_CORRUPT;
+
+	sys_index = UT_LIST_GET_FIRST(dict_sys->sys_indexes->indexes);
+
+	/* Find the index row in SYS_INDEXES */
+	tuple = dtuple_create(heap, 2);
+
+	dfield = dtuple_get_nth_field(tuple, 0);
+	buf = mem_heap_alloc(heap, 8);
+	mach_write_to_8(buf, index->table->id);
+	dfield_set_data(dfield, buf, 8);
+
+	dfield = dtuple_get_nth_field(tuple, 1);
+	buf = mem_heap_alloc(heap, 8);
+	mach_write_to_8(buf, index->id);
+	dfield_set_data(dfield, buf, 8);
+
+	dict_index_copy_types(tuple, sys_index, 2);
+
+	btr_cur_search_to_nth_level(sys_index, 0, tuple, PAGE_CUR_GE,
+				    BTR_MODIFY_LEAF,
+				    &cursor, 0, __FILE__, __LINE__, &mtr);
+
+	if (cursor.up_match == dtuple_get_n_fields(tuple)) {
+		/* UPDATE SYS_INDEXES SET TYPE=index->type
+		WHERE TABLE_ID=index->table->id AND INDEX_ID=index->id */
+		ulint	len;
+		byte*	field	= rec_get_nth_field_old(
+			btr_cur_get_rec(&cursor),
+			DICT_SYS_INDEXES_TYPE_FIELD, &len);
+		if (len != 4) {
+			goto fail;
+		}
+		mlog_write_ulint(field, index->type, MLOG_4BYTES, &mtr);
+		status = "  InnoDB: Flagged corruption of ";
+	} else {
+fail:
+		status = "  InnoDB: Unable to flag corruption of ";
+	}
+
+	mtr_commit(&mtr);
+	mem_heap_free(heap);
+
+	ut_print_timestamp(stderr);
+	fputs(status, stderr);
+	dict_index_name_print(stderr, NULL, index);
+	putc('\n', stderr);
+}
+
+/**********************************************************************//**
+Flags an index corrupted in the data dictionary cache only. This
+is used mostly to mark a corrupted index when index's own dictionary
+is corrupted, and we force to load such index for repair purpose */
+UNIV_INTERN
+void
+dict_set_corrupted_index_cache_only(
+/*================================*/
+	dict_index_t*	index,		/*!< in/out: index */
+	dict_table_t*	table)		/*!< in/out: table */
+{
+	ut_ad(index);
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
+	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
+
+	/* Mark the table as corrupted only if the clustered index
+	is corrupted */
+	if (dict_index_is_clust(index)) {
+		dict_table_t*	corrupt_table;
+
+		corrupt_table = table ? table : index->table;
+		ut_ad(!index->table || !table || index->table  == table);
+
+		if (corrupt_table) {
+			corrupt_table->corrupted = TRUE;
+		}
+	}
+
+	index->type |= DICT_CORRUPT;
 }
 
 /*************************************************************************

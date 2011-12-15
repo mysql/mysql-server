@@ -121,6 +121,8 @@ trx_create(
 
 	trx->support_xa = TRUE;
 
+	trx->fake_changes = FALSE;
+
 	trx->check_foreigns = TRUE;
 	trx->check_unique_secondary = TRUE;
 
@@ -142,6 +144,9 @@ trx_create(
 	trx->mysql_master_log_pos = 0;
 	trx->mysql_relay_log_file_name = "";
 	trx->mysql_relay_log_pos = 0;
+
+	trx->idle_start = 0;
+	trx->last_stmt_start = 0;
 
 	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
 

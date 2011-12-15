@@ -1,0 +1,45 @@
+DROP TABLE IF EXISTS t1;
+SET autocommit=0;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
+Variable_name	Value
+innodb_kill_idle_transaction	0
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_KILL_IDLE_TRANSACTION	0
+SET GLOBAL innodb_kill_idle_transaction=5;
+SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
+Variable_name	Value
+innodb_kill_idle_transaction	5
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_KILL_IDLE_TRANSACTION	5
+BEGIN;
+INSERT INTO t1 VALUES (1),(2),(3);
+COMMIT;
+SELECT * FROM t1;
+a
+1
+2
+3
+### Locking rows. Lock should be released when idle trx is killed.
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+a
+1
+2
+3
+UPDATE t1 set a=4;
+SELECT * FROM t1;
+a
+4
+4
+4
+DROP TABLE t1;
+SET GLOBAL innodb_kill_idle_transaction=0;
+SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
+Variable_name	Value
+innodb_kill_idle_transaction	0
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_KILL_IDLE_TRANSACTION	0

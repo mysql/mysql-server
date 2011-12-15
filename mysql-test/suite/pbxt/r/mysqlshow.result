@@ -114,29 +114,29 @@ Database: information_schema
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
 | VIEWS                                 |
-| INNODB_CMPMEM_RESET                   |
-| PBXT_STATISTICS                       |
-| INNODB_CMPMEM                         |
+| INNODB_SYS_COLUMNS                    |
 | INNODB_RSEG                           |
+| INNODB_CMP                            |
+| INNODB_TRX                            |
 | INNODB_SYS_TABLESTATS                 |
 | INNODB_LOCK_WAITS                     |
-| INNODB_INDEX_STATS                    |
-| INNODB_CMP                            |
+| INNODB_BUFFER_POOL_PAGES_INDEX        |
+| INNODB_LOCKS                          |
 | INNODB_SYS_FOREIGN_COLS               |
 | INNODB_CMP_RESET                      |
 | INNODB_BUFFER_POOL_PAGES              |
-| INNODB_TRX                            |
-| INNODB_BUFFER_POOL_PAGES_INDEX        |
-| INNODB_LOCKS                          |
-| INNODB_BUFFER_POOL_PAGES_BLOB         |
 | INNODB_SYS_TABLES                     |
+| PBXT_STATISTICS                       |
+| INNODB_CMPMEM                         |
+| INNODB_BUFFER_POOL_PAGES_BLOB         |
+| INNODB_CMPMEM_RESET                   |
 | INNODB_SYS_FIELDS                     |
-| INNODB_SYS_COLUMNS                    |
-| INNODB_SYS_STATS                      |
+| INNODB_TABLE_STATS                    |
 | INNODB_SYS_FOREIGN                    |
 | INNODB_SYS_INDEXES                    |
+| INNODB_INDEX_STATS                    |
 | XTRADB_ADMIN_COMMAND                  |
-| INNODB_TABLE_STATS                    |
+| INNODB_SYS_STATS                      |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -177,29 +177,29 @@ Database: INFORMATION_SCHEMA
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
 | VIEWS                                 |
-| INNODB_CMPMEM_RESET                   |
-| PBXT_STATISTICS                       |
-| INNODB_CMPMEM                         |
+| INNODB_SYS_COLUMNS                    |
 | INNODB_RSEG                           |
+| INNODB_CMP                            |
+| INNODB_TRX                            |
 | INNODB_SYS_TABLESTATS                 |
 | INNODB_LOCK_WAITS                     |
-| INNODB_INDEX_STATS                    |
-| INNODB_CMP                            |
+| INNODB_BUFFER_POOL_PAGES_INDEX        |
+| INNODB_LOCKS                          |
 | INNODB_SYS_FOREIGN_COLS               |
 | INNODB_CMP_RESET                      |
 | INNODB_BUFFER_POOL_PAGES              |
-| INNODB_TRX                            |
-| INNODB_BUFFER_POOL_PAGES_INDEX        |
-| INNODB_LOCKS                          |
-| INNODB_BUFFER_POOL_PAGES_BLOB         |
 | INNODB_SYS_TABLES                     |
+| PBXT_STATISTICS                       |
+| INNODB_CMPMEM                         |
+| INNODB_BUFFER_POOL_PAGES_BLOB         |
+| INNODB_CMPMEM_RESET                   |
 | INNODB_SYS_FIELDS                     |
-| INNODB_SYS_COLUMNS                    |
-| INNODB_SYS_STATS                      |
+| INNODB_TABLE_STATS                    |
 | INNODB_SYS_FOREIGN                    |
 | INNODB_SYS_INDEXES                    |
+| INNODB_INDEX_STATS                    |
 | XTRADB_ADMIN_COMMAND                  |
-| INNODB_TABLE_STATS                    |
+| INNODB_SYS_STATS                      |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

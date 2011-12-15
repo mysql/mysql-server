@@ -38,3 +38,6 @@ percona_show_slave_status_nolock: Feature not merged into MariaDB
 percona_slow_extended-slave_innodb_stats: Feature not merged into MariaDB
 percona_slow_extended-slave_statements-and-use_global_long_query_time: Feature not merged into MariaDB
 userstat_bug602047:		      Feature not merged into MariaDB
+percona_innodb_expand_fast_index_creation: Feature not merged into MariaDB
+percona_innodb_kill_idle_trx:         Feature not merged into MariaDB
+percona_innodb_kill_idle_trx_locks:   Feature not merged into MariaDB

@@ -148,6 +148,8 @@ struct buf_pool_info_struct{
 	ulint	n_pages_created;	/*!< buf_pool->n_pages_created */
 	ulint	n_pages_written;	/*!< buf_pool->n_pages_written */
 	ulint	n_page_gets;		/*!< buf_pool->n_page_gets */
+	ulint	n_ra_pages_read_rnd;	/*!< buf_pool->n_ra_pages_read_rnd,
+					number of pages readahead */
 	ulint	n_ra_pages_read;	/*!< buf_pool->n_ra_pages_read, number
 					of pages readahead */
 	ulint	n_ra_pages_evicted;	/*!< buf_pool->n_ra_pages_evicted,
@@ -172,6 +174,8 @@ struct buf_pool_info_struct{
 					last printout */
 
 	/* Statistics about read ahead algorithm.  */
+	double	pages_readahead_rnd_rate;/*!< random readahead rate in pages per
+					second */
 	double	pages_readahead_rate;	/*!< readahead rate in pages per
 					second */
 	double	pages_evicted_rate;	/*!< rate of readahead page evicted
@@ -261,12 +265,6 @@ buf_relocate(
 				BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE */
 	buf_page_t*	dpage)	/*!< in/out: destination control block */
 	__attribute__((nonnull));
-/********************************************************************//**
-Resizes the buffer pool. */
-UNIV_INTERN
-void
-buf_pool_resize(void);
-/*=================*/
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in bytes.
 @return	size in bytes */
@@ -289,6 +287,23 @@ UNIV_INTERN
 ib_uint64_t
 buf_pool_get_oldest_modification(void);
 /*==================================*/
+/********************************************************************//**
+Allocates a buf_page_t descriptor. This function must succeed. In case
+of failure we assert in this function. */
+UNIV_INLINE
+buf_page_t*
+buf_page_alloc_descriptor(void)
+/*===========================*/
+	__attribute__((malloc));
+/********************************************************************//**
+Free a buf_page_t descriptor. */
+UNIV_INLINE
+void
+buf_page_free_descriptor(
+/*=====================*/
+	buf_page_t*	bpage)	/*!< in: bpage descriptor to free. */
+	__attribute__((nonnull));
+
 /********************************************************************//**
 Allocates a buffer block.
 @return	own: the allocated block, in state BUF_BLOCK_MEMORY */
@@ -545,6 +560,18 @@ buf_block_get_freed_page_clock(
 	const buf_block_t*	block)	/*!< in: block */
 	__attribute__((pure));
 
+/********************************************************************//**
+Tells if a block is still close enough to the MRU end of the LRU list
+meaning that it is not in danger of getting evicted and also implying
+that it has been accessed recently.
+Note that this is for heuristics only and does not reserve buffer pool
+mutex.
+@return	TRUE if block is close to MRU end of LRU */
+UNIV_INLINE
+ibool
+buf_page_peek_if_young(
+/*===================*/
+	const buf_page_t*	bpage);	/*!< in: block */
 /********************************************************************//**
 Recommends a move of a block to the start of the LRU list if there is danger
 of dropping from the buffer pool. NOTE: does not reserve the buffer pool
@@ -1233,7 +1260,7 @@ ulint
 buf_get_free_list_len(void);
 /*=======================*/
 
-/********************************************************************
+/********************************************************************//**
 Determine if a block is a sentinel for a buffer pool watch.
 @return	TRUE if a sentinel for a buffer pool watch, FALSE if not */
 UNIV_INTERN
@@ -1622,6 +1649,8 @@ struct buf_pool_stat_struct{
 	ulint	n_pages_written;/*!< number write operations */
 	ulint	n_pages_created;/*!< number of pages created
 				in the pool with no read */
+	ulint	n_ra_pages_read_rnd;/*!< number of pages read in
+				as part of random read ahead */
 	ulint	n_ra_pages_read;/*!< number of pages read in
 				as part of read ahead */
 	ulint	n_ra_pages_evicted;/*!< number of read ahead
@@ -1766,7 +1795,7 @@ struct buf_pool_struct{
 	UT_LIST_BASE_NODE_T(buf_page_t) LRU;
 					/*!< base node of the LRU list */
 	buf_page_t*	LRU_old;	/*!< pointer to the about
-					buf_LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
+					LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
 					oldest blocks in the LRU list;
 					NULL if LRU length less than
 					BUF_LRU_OLD_MIN_LEN;
@@ -1790,8 +1819,10 @@ struct buf_pool_struct{
 	frames and buf_page_t descriptors of blocks that exist
 	in the buffer pool only in compressed form. */
 	/* @{ */
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES_MAX];
 					/*!< buddy free lists */
 

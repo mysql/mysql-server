@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,18 +29,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "univ.i"
 #include "ut0byte.h"
 #include "buf0types.h"
-
-/** The return type of buf_LRU_free_block() */
-enum buf_lru_free_block_status {
-	/** freed */
-	BUF_LRU_FREED = 0,
-	/** not freed because the caller asked to remove the
-	uncompressed frame but the control block cannot be
-	relocated */
-	BUF_LRU_CANNOT_RELOCATE,
-	/** not freed because of some other reason */
-	BUF_LRU_NOT_FREED
-};
 
 /******************************************************************//**
 Tries to remove LRU flushed blocks from the end of the LRU list and put them
@@ -85,6 +73,7 @@ void
 buf_LRU_invalidate_tablespace(
 /*==========================*/
 	ulint	id);	/*!< in: space id */
+
 /******************************************************************//**
 */
 UNIV_INTERN
@@ -92,6 +81,7 @@ void
 buf_LRU_mark_space_was_deleted(
 /*===========================*/
 	ulint	id);	/*!< in: space id */
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
 UNIV_INTERN
@@ -99,22 +89,22 @@ void
 buf_LRU_insert_zip_clean(
 /*=====================*/
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /******************************************************************//**
 Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
-NOTE: If this function returns BUF_LRU_FREED, it will temporarily
+NOTE: If this function returns TRUE, it will temporarily
 release buf_pool->mutex.  Furthermore, the page frame will no longer be
 accessible via bpage.
 
 The caller must hold buf_pool->mutex and buf_page_get_mutex(bpage) and
 release these two mutexes after the call.  No other
 buf_page_get_mutex() may be held when calling this function.
-@return BUF_LRU_FREED if freed, BUF_LRU_CANNOT_RELOCATE or
-BUF_LRU_NOT_FREED otherwise. */
+@return TRUE if freed, FALSE otherwise. */
 UNIV_INTERN
-enum buf_lru_free_block_status
+ibool
 buf_LRU_free_block(
 /*===============*/
 	buf_page_t*	bpage,	/*!< in: block to be freed */
@@ -204,7 +194,7 @@ buf_LRU_make_block_old(
 /*===================*/
 	buf_page_t*	bpage);	/*!< in: control block */
 /**********************************************************************//**
-Updates buf_LRU_old_ratio.
+Updates buf_pool->LRU_old_ratio.
 @return	updated old_pct */
 UNIV_INTERN
 ulint
@@ -213,7 +203,7 @@ buf_LRU_old_ratio_update(
 	uint	old_pct,/*!< in: Reserve this percentage of
 			the buffer pool for "old" blocks. */
 	ibool	adjust);/*!< in: TRUE=adjust the LRU list;
-			FALSE=just assign buf_LRU_old_ratio
+			FALSE=just assign buf_pool->LRU_old_ratio
 			during the initialization of InnoDB */
 /********************************************************************//**
 Update the historical stats that we are collecting for LRU eviction
@@ -235,6 +225,17 @@ ibool
 buf_LRU_file_restore(void);
 /*======================*/
 
+/******************************************************************//**
+Remove one page from LRU list and put it to free list */
+UNIV_INTERN
+void
+buf_LRU_free_one_page(
+/*==================*/
+	buf_page_t*	bpage)	/*!< in/out: block, must contain a file page and
+				be in a state where it can be freed; there
+				may or may not be a hash index to the page */
+	__attribute__((nonnull));
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**
 Validates the LRU list.
@@ -254,18 +255,15 @@ buf_LRU_print(void);
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /** @name Heuristics for detecting index scan @{ */
-/** Reserve this much/BUF_LRU_OLD_RATIO_DIV of the buffer pool for
-"old" blocks.  Protected by buf_pool->mutex. */
-extern uint	buf_LRU_old_ratio;
-/** The denominator of buf_LRU_old_ratio. */
+/** The denominator of buf_pool->LRU_old_ratio. */
 #define BUF_LRU_OLD_RATIO_DIV	1024
-/** Maximum value of buf_LRU_old_ratio.
+/** Maximum value of buf_pool->LRU_old_ratio.
 @see buf_LRU_old_adjust_len
-@see buf_LRU_old_ratio_update */
+@see buf_pool->LRU_old_ratio_update */
 #define BUF_LRU_OLD_RATIO_MAX	BUF_LRU_OLD_RATIO_DIV
-/** Minimum value of buf_LRU_old_ratio.
+/** Minimum value of buf_pool->LRU_old_ratio.
 @see buf_LRU_old_adjust_len
-@see buf_LRU_old_ratio_update
+@see buf_pool->LRU_old_ratio_update
 The minimum must exceed
 (BUF_LRU_OLD_TOLERANCE + 5) * BUF_LRU_OLD_RATIO_DIV / BUF_LRU_OLD_MIN_LEN. */
 #define BUF_LRU_OLD_RATIO_MIN	51

@@ -87,6 +87,12 @@ Created 10/8/1995 Heikki Tuuri
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 
+/* prototypes of new functions added to ha_innodb.cc for kill_idle_transaction */
+ibool		innobase_thd_is_idle(const void* thd);
+ib_int64_t	innobase_thd_get_start_time(const void* thd);
+void		innobase_thd_kill(ulong thd_id);
+ulong		innobase_thd_get_thread_id(const void* thd);
+
 /* prototypes for new functions added to ha_innodb.cc */
 ibool	innobase_get_slow_log();
 
@@ -96,6 +102,9 @@ UNIV_INTERN ulint	srv_activity_count	= 0;
 
 /* The following is the maximum allowed duration of a lock wait. */
 UNIV_INTERN ulint	srv_fatal_semaphore_wait_threshold = 600;
+
+/**/
+UNIV_INTERN lint	srv_kill_idle_transaction = 0;
 
 /* How much data manipulation language (DML) statements need to be delayed,
 in microseconds, in order to reduce the lagging of the purge thread. */
@@ -234,6 +243,9 @@ UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
 
+/* Switch to enable random read ahead. */
+UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
+
 /* The universal page size of the database */
 UNIV_INTERN ulint	srv_page_size_shift	= 0;
 UNIV_INTERN ulint	srv_page_size		= 0;
@@ -341,6 +353,9 @@ UNIV_INTERN ulint srv_buf_pool_reads = 0;
 
 /** Time in seconds between automatic buffer pool dumps */
 UNIV_INTERN uint srv_auto_lru_dump = 0;
+
+/** Whether startup should be blocked until buffer pool is fully restored */
+UNIV_INTERN ibool srv_blocking_lru_restore;
 
 /* structure to pass status variables to MySQL */
 UNIV_INTERN export_struc export_vars;
@@ -2319,6 +2334,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
 	export_vars.innodb_buffer_pool_pages_LRU_flushed = buf_lru_flush_page_count;
 	export_vars.innodb_buffer_pool_reads = srv_buf_pool_reads;
+	export_vars.innodb_buffer_pool_read_ahead_rnd
+		= stat.n_ra_pages_read_rnd;
 	export_vars.innodb_buffer_pool_read_ahead
 		= stat.n_ra_pages_read;
 	export_vars.innodb_buffer_pool_read_ahead_evicted
@@ -2829,6 +2846,36 @@ loop:
 		old_sema = sema;
 	}
 
+	if (srv_kill_idle_transaction && trx_sys) {
+		trx_t*	trx;
+		time_t	now;
+rescan_idle:
+		now = time(NULL);
+		mutex_enter(&kernel_mutex);
+		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+		while (trx) {
+			if (trx->conc_state == TRX_ACTIVE
+			    && trx->mysql_thd
+			    && innobase_thd_is_idle(trx->mysql_thd)) {
+				ib_int64_t	start_time = innobase_thd_get_start_time(trx->mysql_thd);
+				ulong		thd_id = innobase_thd_get_thread_id(trx->mysql_thd);
+
+				if (trx->last_stmt_start != start_time) {
+					trx->idle_start = now;
+					trx->last_stmt_start = start_time;
+				} else if (difftime(now, trx->idle_start)
+					   > srv_kill_idle_transaction) {
+					/* kill the session */
+					mutex_exit(&kernel_mutex);
+					innobase_thd_kill(thd_id);
+					goto rescan_idle;
+				}
+			}
+			trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
+		}
+		mutex_exit(&kernel_mutex);
+	}
+
 	/* Flush stderr so that a database user gets the output
 	to possible MySQL error file */
 
@@ -2874,7 +2921,9 @@ srv_LRU_dump_restore_thread(
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
 
-	if (srv_auto_lru_dump)
+	/* If srv_blocking_lru_restore is TRUE, restore will be done
+	synchronously on startup. */
+	if (srv_auto_lru_dump && !srv_blocking_lru_restore)
 		buf_LRU_file_restore();
 
 	last_dump_time = time(NULL);
@@ -3042,7 +3091,7 @@ srv_master_do_purge(void)
 
 	ut_ad(!mutex_own(&kernel_mutex));
 
-	ut_a(srv_n_purge_threads == 0);
+	ut_a(srv_n_purge_threads == 0 || (srv_shutdown_state > 0 && srv_n_threads_active[SRV_WORKER] == 0));
 
 	do {
 		/* Check for shutdown and change in purge config. */
@@ -3542,7 +3591,7 @@ retry_flush_batch:
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
 
-	if (srv_n_purge_threads == 0) {
+	if (srv_n_purge_threads == 0 || (srv_shutdown_state > 0 && srv_n_threads_active[SRV_WORKER] == 0)) {
 		srv_main_thread_op_info = "master purging";
 
 		srv_master_do_purge();
@@ -3620,7 +3669,7 @@ background_loop:
 		}
 	}
 
-	if (srv_n_purge_threads == 0) {
+	if (srv_n_purge_threads == 0 || (srv_shutdown_state > 0 && srv_n_threads_active[SRV_WORKER] == 0)) {
 		srv_main_thread_op_info = "master purging";
 
 		srv_master_do_purge();

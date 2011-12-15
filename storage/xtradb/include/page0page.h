@@ -68,10 +68,7 @@ typedef	byte		page_header_t;
 #define PAGE_MAX_TRX_ID	 18	/* highest id of a trx which may have modified
 				a record on the page; trx_id_t; defined only
 				in secondary indexes and in the insert buffer
-				tree; NOTE: this may be modified only
-				when the thread has an x-latch to the page,
-				and ALSO an x-latch to btr_search_latch
-				if there is a hash index to the page! */
+				tree */
 #define PAGE_HEADER_PRIV_END 26	/* end of private data structure of the page
 				header which are set in a page create */
 /*----*/

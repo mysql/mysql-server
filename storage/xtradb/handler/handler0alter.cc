@@ -695,6 +695,10 @@ ha_innobase::add_index(
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
+	if (prebuilt->trx->fake_changes) {
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
+
 	/* Check if the index name is reserved. */
 	if (innobase_index_name_is_reserved(user_thd, key_info, num_of_keys)) {
 		DBUG_RETURN(ER_WRONG_NAME_FOR_INDEX);
@@ -732,6 +736,13 @@ ha_innobase::add_index(
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
+	if (trx->fake_changes) {
+		mem_heap_free(heap);
+		trx_general_rollback_for_mysql(trx, NULL);
+		trx_free_for_mysql(trx);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
+
 	trx_start_if_not_started(trx);
 
 	/* Create table containing all indexes to be built in this
@@ -1092,6 +1103,10 @@ ha_innobase::prepare_drop_index(
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 	trx = prebuilt->trx;
 
+	if (trx->fake_changes) {
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
+
 	/* Test and mark all the indexes to be dropped */
 
 	row_mysql_lock_data_dictionary(trx);
@@ -1296,6 +1311,12 @@ ha_innobase::final_drop_index(
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
+	if (trx->fake_changes) {
+		trx_general_rollback_for_mysql(trx, NULL);
+		trx_free_for_mysql(trx);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
+
 	trx_start_if_not_started(trx);
 
 	/* Flag this transaction as a dictionary operation, so that
