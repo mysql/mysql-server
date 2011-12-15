@@ -2589,12 +2589,16 @@ ndb_index_stat_round(double x)
   return n;
 }
 
+/*
+  Client waits for query or analyze.  The routines are
+  similar but separated for clarity.
+*/
+
 int
-ndb_index_stat_wait(Ndb_index_stat *st,
-                    const Ndb_index_stat_snap &snap,
-                    bool from_analyze)
+ndb_index_stat_wait_query(Ndb_index_stat *st,
+                          const Ndb_index_stat_snap &snap)
 {
-  DBUG_ENTER("ndb_index_stat_wait");
+  DBUG_ENTER("ndb_index_stat_wait_query");
 
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
@@ -2606,24 +2610,16 @@ ndb_index_stat_wait(Ndb_index_stat *st,
     int ret= 0;
     if (count == 0)
     {
-      if (!from_analyze)
-      {
-        glob.wait_stats++;
-        glob.query_count++;
-      }
-      else
-      {
-        glob.wait_update++;
-        glob.analyze_count++;
-      }
-      if (st->lt == Ndb_index_stat::LT_Error && !from_analyze)
+      glob.wait_stats++;
+      glob.query_count++;
+      if (st->lt == Ndb_index_stat::LT_Error)
       {
         err= Ndb_index_stat_error_HAS_ERROR;
         break;
       }
       ndb_index_stat_clear_error(st);
     }
-    if (st->no_stats && !from_analyze)
+    if (st->no_stats)
     {
       /* Have detected no stats now or before */
       err= NdbIndexStat::NoIndexStats;
@@ -2634,21 +2630,20 @@ ndb_index_stat_wait(Ndb_index_stat *st,
     {
       /* A new error has occured */
       err= st->error.code;
-      if (!from_analyze)
-        glob.query_error++;
-      else
-        glob.analyze_error++;
+      glob.query_error++;
       break;
     }
-    /* Query waits for any samples, analyze for newer samples */
-    const uint sample_version = !from_analyze ? 0 : snap.sample_version;
-    if (st->sample_version > sample_version)
+    /* Query waits for any samples */
+    if (st->sample_version > 0)
       break;
-    /* Try to detect changes behind our backs (to avoid hang) */
+    /*
+      Try to detect changes behind our backs.  Should really not
+      happen but make sure.
+    */
     if (st->load_time != snap.load_time ||
         st->sample_version != snap.sample_version)
     {
-      err= NdbIndexStat::AlienUpdate;
+      err= NdbIndexStat::NoIndexStats;
       break;
     }
     if (st->abort_request)
@@ -2657,7 +2652,7 @@ ndb_index_stat_wait(Ndb_index_stat *st,
       break;
     }
     count++;
-    DBUG_PRINT("index_stat", ("st %s wait count:%u",
+    DBUG_PRINT("index_stat", ("st %s wait_query count:%u",
                               st->id, count));
     pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
     ndb_index_stat_waiter= true;
@@ -2673,24 +2668,92 @@ ndb_index_stat_wait(Ndb_index_stat *st,
       break;
     }
   }
-  if (!from_analyze)
-  {
-    assert(glob.wait_stats != 0);
-    glob.wait_stats--;
-  }
-  else
-  {
-    assert(glob.wait_update != 0);
-    glob.wait_update--;
-  }
+  assert(glob.wait_stats != 0);
+  glob.wait_stats--;
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   if (err != 0)
   {
-    DBUG_PRINT("index_stat", ("st %s wait error: %d",
+    DBUG_PRINT("index_stat", ("st %s wait_query error: %d",
                                st->id, err));
     DBUG_RETURN(err);
   }
-  DBUG_PRINT("index_stat", ("st %s wait ok: sample_version %u -> %u",
+  DBUG_PRINT("index_stat", ("st %s wait_query ok: sample_version %u -> %u",
+                            st->id, snap.sample_version, st->sample_version));
+  DBUG_RETURN(0);
+}
+
+int
+ndb_index_stat_wait_analyze(Ndb_index_stat *st,
+                            const Ndb_index_stat_snap &snap)
+{
+  DBUG_ENTER("ndb_index_stat_wait_analyze");
+
+  Ndb_index_stat_glob &glob= ndb_index_stat_glob;
+  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  int err= 0;
+  uint count= 0;
+  struct timespec abstime;
+  while (true)
+  {
+    int ret= 0;
+    if (count == 0)
+    {
+      glob.wait_update++;
+      glob.analyze_count++;
+      ndb_index_stat_clear_error(st);
+    }
+    if (st->error.code != 0)
+    {
+      /* A new error has occured */
+      err= st->error.code;
+      glob.analyze_error++;
+      break;
+    }
+    /* Analyze waits for newer samples */
+    if (st->sample_version > snap.sample_version)
+      break;
+    /*
+      Try to detect changes behind our backs.  If another process
+      deleted stats, an analyze here could wait forever.
+    */
+    if (st->load_time != snap.load_time ||
+        st->sample_version != snap.sample_version)
+    {
+      err= NdbIndexStat::AlienUpdate;
+      break;
+    }
+    if (st->abort_request)
+    {
+      err= Ndb_index_stat_error_ABORT_REQUEST;
+      break;
+    }
+    count++;
+    DBUG_PRINT("index_stat", ("st %s wait_analyze count:%u",
+                              st->id, count));
+    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+    ndb_index_stat_waiter= true;
+    pthread_cond_signal(&ndb_index_stat_thread.COND);
+    pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+    set_timespec(abstime, 1);
+    ret= pthread_cond_timedwait(&ndb_index_stat_thread.stat_cond,
+                                &ndb_index_stat_thread.stat_mutex,
+                                &abstime);
+    if (ret != 0 && ret != ETIMEDOUT)
+    {
+      err= ret;
+      break;
+    }
+  }
+  assert(glob.wait_update != 0);
+  glob.wait_update--;
+  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  if (err != 0)
+  {
+    DBUG_PRINT("index_stat", ("st %s wait_analyze error: %d",
+                               st->id, err));
+    DBUG_RETURN(err);
+  }
+  DBUG_PRINT("index_stat", ("st %s wait_analyze ok: sample_version %u -> %u",
                             st->id, snap.sample_version, st->sample_version));
   DBUG_RETURN(0);
 }
@@ -2725,7 +2788,7 @@ ha_ndbcluster::ndb_index_stat_query(uint inx,
 
   do
   {
-    err= ndb_index_stat_wait(st, snap, false);
+    err= ndb_index_stat_wait_query(st, snap);
     if (err != 0)
       break;
     assert(st->sample_version != 0);
@@ -2863,7 +2926,7 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
     if (r.err == 0)
     {
       DBUG_PRINT("index_stat", ("wait for update: %s", index->getName()));
-      r.err=ndb_index_stat_wait(r.st, r.snap, true);
+      r.err=ndb_index_stat_wait_analyze(r.st, r.snap);
       /* Release reference to r.st */
       pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
       ndb_index_stat_ref_count(r.st, false);
