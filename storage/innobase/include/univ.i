@@ -493,6 +493,8 @@ typedef ib_uint64_t	ib_id_t;
 /** The 'undefined' value for a ullint */
 #define ULLINT_UNDEFINED        ((ullint)(-1))
 
+#define IB_ID_UNDEFINED         ULLINT_UNDEFINED
+
 /** This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */
 #define ibool			ulint

@@ -390,10 +390,13 @@ UNIV_INTERN
 ulint
 ibuf_contract_in_background(
 /*========================*/
-	ibool	full);	/*!< in: TRUE if the caller wants to do a full
-			contract based on PCT_IO(100). If FALSE then
-			the size of contract batch is determined based
-			on the current size of the ibuf tree. */
+	ib_id_t	table_id,	/*!< in: if merge should be done only for
+				a specific table, for all tables this should
+				be IB_ID_UNDEFINED */
+	ibool	full);		/*!< in: TRUE if the caller wants to do a full
+				contract based on PCT_IO(100). If FALSE then
+				the size of contract batch is determined based
+				on the current size of the ibuf tree. */
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Parses a redo log record of an ibuf bitmap page init.
