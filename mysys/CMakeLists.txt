@@ -33,7 +33,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c
 				rijndael.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c my_getpagesize.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
-                                my_addr_resolve.c safemalloc.c
+                                my_addr_resolve.c safemalloc.c my_new.cc
 				my_atomic.c my_getncpus.c my_safehash.c my_chmod.c my_rnd.c
                                 my_uuid.c wqueue.c waiting_threads.c ma_dyncol.c
 				my_rdtsc.c)
@@ -42,24 +42,12 @@ IF (WIN32)
  SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_winthread.c my_wincond.c my_winerr.c my_winfile.c my_windac.c my_conio.c)
 ENDIF()
 
+IF(NOT HAVE_CXX_NEW)
+ ADD_DEFINITIONS( -DUSE_MYSYS_NEW)
+ENDIF()
+
 IF(HAVE_ALARM)
  SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_alarm.c)
-ENDIF()
-
-IF(WIN32)
- SET(DEFAULT_SAFEMALLOC OFF)
-ELSE()
- SET(DEFAULT_SAFEMALLOC ON)
-ENDIF()
-OPTION(WITH_SAFEMALLOC "Use safemalloc for debug builds. Will result in slower execution." ${DEFAULT_SAFEMALLOC})
-
-IF(WITH_SAFEMALLOC)
- ADD_DEFINITIONS( -DSAFEMALLOC)
-ENDIF()
-
-IF(NOT HAVE_CXX_NEW OR WITH_SAFEMALLOC)
- SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_new.cc)
- ADD_DEFINITIONS( -DUSE_MYSYS_NEW)
 ENDIF()
 
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")

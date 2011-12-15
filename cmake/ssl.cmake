@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 MACRO (CHANGE_SSL_SETTINGS string)
-  SET(WITH_SSL ${string} CACHE STRING "Options are : no, bundled, yes (prefer os library if present otherwise use bundled), system (use os library)" FORCE)
+  SET(WITH_SSL ${string} CACHE STRING "Options are: no bundled yes(prefer os library if present otherwise use bundled) system(use os library)" FORCE)
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_SSL)

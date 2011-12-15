@@ -68,7 +68,7 @@ IF(NOT INSTALL_LAYOUT)
 ENDIF()
 
 SET(INSTALL_LAYOUT "${DEFAULT_INSTALL_LAYOUT}"
-CACHE STRING "Installation directory layout. Options are: STANDALONE (as in zip or tar.gz installer), RPM, DEB, SVR4")
+CACHE STRING "Installation directory layout. Options are: STANDALONE (as in zip or tar.gz installer) RPM DEB SVR4")
 
 IF(UNIX)
   IF(INSTALL_LAYOUT MATCHES "RPM")

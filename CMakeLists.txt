@@ -22,19 +22,6 @@ endif()
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
-# First, decide about build type (debug or release)
-# If custom compiler flags are set or cmake is invoked with -DCMAKE_BUILD_TYPE, 
-# respect user wishes and do not (re)define CMAKE_BUILD_TYPE. If WITH_DEBUG{_FULL} 
-# is given, set CMAKE_BUILD_TYPE = Debug. Otherwise, use Relwithdebinfo.
-
-
-IF(DEFINED CMAKE_BUILD_TYPE)
-  SET(HAVE_CMAKE_BUILD_TYPE TRUE)
-ENDIF()
-SET(CUSTOM_C_FLAGS $ENV{CFLAGS})
-
-OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
-
 # Distinguish between community and non-community builds, with the
 # default being a community build. This does not impact the feature
 # set that will be compiled in; it's merely provided as a hint to
@@ -42,43 +29,33 @@ OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
 OPTION(COMMUNITY_BUILD "Set to true if this is a community build" ON) 
 
 # Use a default manufacturer if no manufacturer was identified.
-SET(MANUFACTURER_DOCSTRING
-  "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")
 IF(NOT DEFINED MANUFACTURER) 
-  SET(MANUFACTURER "Built from Source" CACHE  STRING ${MANUFACTURER_DOCSTRING})
+  SET(MANUFACTURER "Built from Source" CACHE  STRING
+     "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")
   MARK_AS_ADVANCED(MANUFACTURER)
 ENDIF()
 
-# We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
-# which turns out to be not trivial, as this involves synchronization 
-# between CMAKE_BUILD_TYPE and WITH_DEBUG. Besides, we have to deal with cases
-# where WITH_DEBUG is  reset from ON to OFF  and here we need to reset 
-# CMAKE_BUILD_TYPE to either none or default RelWithDebInfo
+SET(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
+   "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel")
 
-SET(BUILDTYPE_DOCSTRING
- "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or
- CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel")
- 
-IF(WITH_DEBUG)
-  SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
-  SET(MYSQL_MAINTAINER_MODE ON CACHE BOOL
-      "MySQL maintainer-specific development environment")
-  IF(UNIX AND NOT APPLE)
-    # Compiling with PIC speeds up embedded build, on PIC sensitive systems 
-    # Predefine it to ON, in case user chooses to build embedded. 
-    SET(WITH_PIC ON CACHE BOOL "Compile with PIC")
+
+
+IF(UNIX AND NOT APPLE)
+  # Note, that generally one should not change settings depending
+  # on CMAKE_BUILD_TYPE, because VS and Xcode configure once (with
+  # the empty CMAKE_BUILD_TYPE) and the build many times for
+  # different build types without re-running cmake!
+  # But we only care about WITH_PIC on Unix, where the check for
+  # CMAKE_BUILD_TYPE hapen to work.
+  IF (CMAKE_BUILD_TYPE MATCHES "Debug")
+    SET(WITH_PIC_DEFAULT ON)
+  ELSE()
+    SET(WITH_PIC_DEFAULT OFF)
   ENDIF()
-  SET(OLD_WITH_DEBUG 1 CACHE INTERNAL "" FORCE)
-ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
-  IF(CUSTOM_C_FLAGS)
-    SET(CMAKE_BUILD_TYPE "" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
-  ELSE(CMAKE_BUILD_TYPE MATCHES "Debug" OR NOT HAVE_CMAKE_BUILD_TYPE)
-    SET(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING 
-       ${BUILDTYPE_DOCSTRING} FORCE)
-  ENDIF()
-  SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
+  # Compiling with PIC speeds up embedded build, on PIC sensitive systems 
+  # Predefine it to OFF in release builds, because of the performance penalty
+  SET(WITH_PIC ${WITH_PIC_DEFAULT} CACHE BOOL "Compile with PIC.")
 ENDIF()
-
 
 PROJECT(MySQL)
 IF(BUILD_CONFIG)
@@ -117,23 +94,21 @@ ENDIF()
 #
 INCLUDE(maintainer)
 
-OPTION(MYSQL_MAINTAINER_MODE
-       "MySQL maintainer-specific development environment" OFF)
+SET(MYSQL_MAINTAINER_MODE "AUTO" CACHE STRING "MySQL maintainer-specific development environment. Options are: ON OFF AUTO.")
+MARK_AS_ADVANCED(MYSQL_MAINTAINER_MODE)
 
 # Whether the maintainer mode compiler options should be enabled.
-IF(MYSQL_MAINTAINER_MODE)
-  IF(CMAKE_C_COMPILER_ID MATCHES "GNU")
-    SET_MYSQL_MAINTAINER_GNU_C_OPTIONS()
-  ENDIF()
-  IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS()
-  ENDIF()
-  IF(CMAKE_C_COMPILER_ID MATCHES "Intel")
-    SET_MYSQL_MAINTAINER_INTEL_C_OPTIONS()
-  ENDIF()
-  IF(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-    SET_MYSQL_MAINTAINER_INTEL_CXX_OPTIONS()
-  ENDIF()
+IF(CMAKE_C_COMPILER_ID MATCHES "GNU")
+  SET_MYSQL_MAINTAINER_GNU_C_OPTIONS()
+ENDIF()
+IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+  SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS()
+ENDIF()
+IF(CMAKE_C_COMPILER_ID MATCHES "Intel")
+  SET_MYSQL_MAINTAINER_INTEL_C_OPTIONS()
+ENDIF()
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
+  SET_MYSQL_MAINTAINER_INTEL_CXX_OPTIONS()
 ENDIF()
 
 # Add macros
@@ -191,8 +166,11 @@ MARK_AS_ADVANCED(WITH_FAST_MUTEXES)
 # Set DBUG_OFF and other optional release-only flags for non-debug project types
 FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
   FOREACH(LANG C CXX)
-    SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} 
-     "${CMAKE_${LANG}_FLAGS_${BUILD_TYPE}} -DDBUG_OFF")
+    IF (NOT CMAKE_${LANG}_FLAGS_${BUILD_TYPE} MATCHES "DDBUG_" AND
+        NOT CMAKE_${LANG}_FLAGS MATCHES "DDBUG_")
+      SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} 
+       "${CMAKE_${LANG}_FLAGS_${BUILD_TYPE}} -DDBUG_OFF")
+    ENDIF()
     IF(WITH_FAST_MUTEXES)
       SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} 
         "${CMAKE_${LANG}_FLAGS_${BUILD_TYPE}} -DMY_PTHREAD_FASTMUTEX=1")
@@ -200,27 +178,28 @@ FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
   ENDFOREACH()
 ENDFOREACH()
 
-IF(NOT CMAKE_BUILD_TYPE
-    AND NOT CMAKE_GENERATOR MATCHES "Visual Studio" 
-    AND NOT CMAKE_GENERATOR MATCHES "Xcode") 
-    # This is the case of no CMAKE_BUILD_TYPE choosen, typical for VS and Xcode
-    # or if custom C flags are set. In VS and Xcode for non-Debug configurations 
-    # DBUG_OFF is already correctly set. Use DBUG_OFF for Makefile based projects 
-    # without build type too, unless user specifically requests DBUG. 
-    IF(NOT CMAKE_C_FLAGS MATCHES "-DDBUG_ON")
-      ADD_DEFINITIONS(-DDBUG_OFF)
-    ENDIF()
-ENDIF()
-
 # Add safemutex for debug configurations, except on Windows
 # (safemutex has never worked on Windows)
-IF(WITH_DEBUG AND NOT WIN32)
+IF(NOT WIN32)
   FOREACH(LANG C CXX)
-      SET(CMAKE_${LANG}_FLAGS_DEBUG
-          "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
+      SET(CMAKE_${LANG}_FLAGS_DEBUG "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
   ENDFOREACH()
 ENDIF()
 
+# safemalloc can be enabled and disabled independently
+SET(WITH_SAFEMALLOC "AUTO" CACHE STRING "Use safemalloc memory debugger. Will result in slower execution. Options are: ON OFF AUTO.")
+
+# force -DUSE_MYSYS_NEW unless already done by HAVE_CXX_NEW
+IF(HAVE_CXX_NEW)
+  SET(DUSE_MYSYS_NEW "-DUSE_MYSYS_NEW")
+ENDIF()
+
+IF(WITH_SAFEMALLOC MATCHES "ON")
+  ADD_DEFINITIONS( -DSAFEMALLOC ${DUSE_MYSYS_NEW})
+ELSEIF(WITH_SAFEMALLOC MATCHES "AUTO" AND NOT WIN32)
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC")
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC ${DUSE_MYSYS_NEW}")
+ENDIF()
 
 # Set commonly used variables
 IF(WIN32)
@@ -263,12 +242,12 @@ MYSQL_CHECK_READLINE()
 # not run with the warning options as to not perturb fragile checks
 # (i.e. do not make warnings into errors).
 #
-IF(MYSQL_MAINTAINER_MODE)
-  # Set compiler flags required under maintainer mode.
-  #MESSAGE(STATUS "C warning options: ${MY_MAINTAINER_C_WARNINGS}")
+IF(MYSQL_MAINTAINER_MODE MATCHES "ON")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MY_MAINTAINER_C_WARNINGS}")
-  #MESSAGE(STATUS "C++ warning options: ${MY_MAINTAINER_CXX_WARNINGS}")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MY_MAINTAINER_CXX_WARNINGS}")
+ELSEIF(MYSQL_MAINTAINER_MODE MATCHES "AUTO")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${MY_MAINTAINER_C_WARNINGS}")
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${MY_MAINTAINER_CXX_WARNINGS}")
 ENDIF()
 
 IF(WITH_UNIT_TESTS)
