@@ -2561,8 +2561,8 @@ int ha_maria::extra_opt(enum ha_extra_function operation, ulong cache_size)
 
 int ha_maria::delete_all_rows()
 {
-  THD *thd= table->in_use;
 #ifdef EXTRA_DEBUG
+  THD *thd= table->in_use;
   TRN *trn= file->trn;
   if (trn && ! (trnman_get_flags(trn) & TRN_STATE_INFO_LOGGED))
   {
