@@ -2216,6 +2216,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
              ("name: %s  db_type: %d  db_stat: %d  mode: %d  lock_test: %d",
               name, ht->db_type, table_arg->db_stat, mode,
               test_if_locked));
+  DBUG_PRINT("info", ("this: 0x%p", this));
 
   table= table_arg;
   DBUG_ASSERT(table->s == table_share);
@@ -2266,41 +2267,167 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 
 int handler::ha_close(void)
 {
+  DBUG_ENTER("handler::ha_close");
+  DBUG_PRINT("info", ("this: 0x%p", this));
 #ifdef HAVE_PSI_TABLE_INTERFACE
   PSI_CALL(close_table)(m_psi);
   m_psi= NULL; /* instrumentation handle, invalid after close_table() */
 #endif
+  // TODO: set table= NULL to mark the handler as closed?
   DBUG_ASSERT(m_psi == NULL);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
-  return close();
+  DBUG_RETURN(close());
 }
+
+
+/**
+  Initialize use of index.
+
+  @param idx     Index to use
+  @param sorted  Use sorted order
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
+*/
+
+int handler::ha_index_init(uint idx, bool sorted)
+{
+  int result;
+  DBUG_ENTER("ha_index_init");
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited==NONE);
+  if (!(result= index_init(idx, sorted)))
+    inited=INDEX;
+  end_range= NULL;
+  DBUG_RETURN(result);
+}
+
+
+/**
+  End use of index.
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
+*/
+
+int handler::ha_index_end()
+{
+  DBUG_ENTER("ha_index_end");
+  /* Due to the HANDLER SQL command we cannot enforse this */
+  /*
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
+  */
+  DBUG_ASSERT(inited==INDEX);
+  inited=NONE;
+  end_range= NULL;
+  DBUG_RETURN(index_end());
+}
+
+
+/**
+  Initialize table for random read or scan.
+
+  @param scan  if true: Initialize for random scans through rnd_next()
+               if false: Initialize for random reads through rnd_pos()
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
+*/
+
+int handler::ha_rnd_init(bool scan)
+{
+  int result;
+  DBUG_ENTER("ha_rnd_init");
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited==NONE || (inited==RND && scan));
+  inited= (result= rnd_init(scan)) ? NONE: RND;
+  end_range= NULL;
+  DBUG_RETURN(result);
+}
+
+
+/**
+  End use of random access.
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
+*/
+
+int handler::ha_rnd_end()
+{
+  DBUG_ENTER("ha_rnd_end");
+  /* Due to the HANDLER SQL command we cannot enforse this */
+  /*
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
+  */
+  DBUG_ASSERT(inited==RND);
+  inited=NONE;
+  end_range= NULL;
+  DBUG_RETURN(rnd_end());
+}
+
+
+/**
+  Read next row via random scan.
+
+  @param buf  Buffer to read the row into
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
+*/
 
 int handler::ha_rnd_next(uchar *buf)
 {
   int result;
+  DBUG_ENTER("handler::ha_rnd_next");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == RND);
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
                             PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
   result= rnd_next(buf);
   MYSQL_END_TABLE_IO_WAIT(locker);
-  return result;
+  DBUG_RETURN(result);
 }
+
+
+/**
+  Read row via random scan from position.
+
+  @param buf  Buffer to read the row into
+  @param pos  Position from position() call
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
+*/
 
 int handler::ha_rnd_pos(uchar *buf, uchar *pos)
 {
   int result;
+  DBUG_ENTER("handler::ha_rnd_pos");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  /* TODO: Find out how to solve ha_rnd_pos when finding duplicate update. */
+  /* DBUG_ASSERT(inited == RND); */
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
                             PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
   result= rnd_pos(buf, pos);
   MYSQL_END_TABLE_IO_WAIT(locker);
-  return result;
+  DBUG_RETURN(result);
 }
 
 int handler::ha_index_read_map(uchar *buf, const uchar *key,
@@ -2310,6 +2437,7 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
@@ -2339,15 +2467,17 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
 int handler::ha_index_next(uchar * buf)
 {
   int result;
+  DBUG_ENTER("handler::ha_index_next");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
                             PSI_TABLE_FETCH_ROW, active_index, 0);
   result= index_next(buf);
   MYSQL_END_TABLE_IO_WAIT(locker);
-  return result;
+  DBUG_RETURN(result);
 }
 
 int handler::ha_index_prev(uchar * buf)
@@ -2355,6 +2485,7 @@ int handler::ha_index_prev(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
@@ -2369,6 +2500,7 @@ int handler::ha_index_first(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
@@ -2383,6 +2515,7 @@ int handler::ha_index_last(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
@@ -2397,6 +2530,7 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
@@ -2412,6 +2546,7 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
@@ -2426,6 +2561,7 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
@@ -2851,7 +2987,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   table->mark_columns_used_by_index_no_reset(table->s->next_number_index,
                                         table->read_set);
   column_bitmaps_signal();
-  index_init(table->s->next_number_index, 1);
+  ha_index_init(table->s->next_number_index, 1);
   if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start
     error= ha_index_last(table->record[1]);
@@ -2885,7 +3021,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   else
     nr= ((ulonglong) table->next_number_field->
          val_int_offset(table->s->rec_buff_length)+1);
-  index_end();
+  ha_index_end();
   (void) extra(HA_EXTRA_NO_KEYREAD);
   *first_value= nr;
 }
@@ -3514,6 +3650,43 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
   if (result == HA_ADMIN_OK)
     result= update_frm_version(table);
   return result;
+}
+
+
+/**
+  Start bulk insert.
+
+  Allow the handler to optimize for multiple row insert.
+
+  @param rows  Estimated rows to insert
+*/
+
+void handler::ha_start_bulk_insert(ha_rows rows)
+{
+  DBUG_ENTER("handler::ha_start_bulk_insert");
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type == F_WRLCK);
+  estimation_rows_to_insert= rows;
+  start_bulk_insert(rows);
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  End bulk insert.
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Failure (error code returned)
+*/
+
+int handler::ha_end_bulk_insert()
+{
+  DBUG_ENTER("handler::ha_end_bulk_insert");
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type == F_WRLCK);
+  estimation_rows_to_insert= 0;
+  DBUG_RETURN(end_bulk_insert());
 }
 
 
@@ -5062,8 +5235,9 @@ static int rowid_cmp(void *h, uchar *a, uchar *b)
 int DsMrr_impl::dsmrr_fill_buffer()
 {
   char *range_info;
-  int res;
+  int res= HA_ERR_END_OF_FILE;
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_buffer");
+  DBUG_ASSERT(rowids_buf < rowids_buf_end);
 
   rowids_buf_cur= rowids_buf;
   while ((rowids_buf_cur < rowids_buf_end) && 
@@ -5957,6 +6131,27 @@ int handler::ha_external_lock(THD *thd, int lock_type)
               ((lock_type != F_UNLCK && m_lock_type == F_UNLCK) ||
                lock_type == F_UNLCK));
               
+#ifndef DBUG_OFF
+  if (inited != NONE)
+  {
+    DBUG_PRINT("error", ("inited (%d) != NONE in ha_external_lock (%d, was %d)",
+                         inited, lock_type, m_lock_type));
+#ifdef NOT_YET_DUE_TO_HANDLER_SQL_INTERFACE
+    /* HANDLER t READ... uses this even between locks */
+    inited= NONE;
+    DBUG_ASSERT(0);
+#endif
+  }
+  /* If this handler is cloned, then table->file is not this handler! */
+  // TODO: have an indicator in the handler to show that it is clone,
+  // since table->file may point to ha_partition too...
+  if (table->key_read != 0 && table->file == this)
+  {
+    DBUG_PRINT("error", ("key_read != 0 (%d)", table->key_read));
+    table->key_read= 0;
+    DBUG_ASSERT(0);
+  }
+#endif
 
   if (MYSQL_HANDLER_RDLOCK_START_ENABLED() ||
       MYSQL_HANDLER_WRLOCK_START_ENABLED() ||
@@ -6031,6 +6226,7 @@ int handler::ha_external_lock(THD *thd, int lock_type)
 int handler::ha_reset()
 {
   DBUG_ENTER("handler::ha_reset");
+  DBUG_PRINT("info", ("this: 0x%p", this));
   /* Check that we have called all proper deallocation functions */
   DBUG_ASSERT((uchar*) table->def_read_set.bitmap +
               table->s->column_bitmap_size ==
@@ -6062,6 +6258,7 @@ int handler::ha_write_row(uchar *buf)
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   DBUG_ENTER("handler::ha_write_row");
+  DBUG_PRINT("info", ("this: 0x%p", this));
 
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
