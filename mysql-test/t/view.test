@@ -4210,6 +4210,23 @@ DROP VIEW v1;
 DROP FUNCTION f2;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#13418197: ASSERTION `(*TABLES)->REGINFO.LOCK_TYPE >=
+--echo #               TL_READ' FAILED | MYSQL_LOCK_TABLES
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TEMPORARY TABLE t1 (a INT) engine=InnoDB;
+CREATE VIEW t1 AS SELECT 1;
+
+DROP VIEW t1;
+DROP TEMPORARY TABLE t1;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

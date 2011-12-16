@@ -2964,7 +2964,12 @@ void handler::print_error(int error, myf errflag)
     textno=ER_FILE_USED;
     break;
   case ENOENT:
-    textno=ER_FILE_NOT_FOUND;
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      textno=ER_FILE_NOT_FOUND;
+      my_error(textno, errflag, table_share->table_name.str,
+               error, my_strerror(errbuf, sizeof(errbuf), error));
+    }
     break;
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:
@@ -3156,7 +3161,8 @@ void handler::print_error(int error, myf errflag)
       DBUG_VOID_RETURN;
     }
   }
-  my_error(textno, errflag, table_share->table_name.str, error);
+  if (textno != ER_FILE_NOT_FOUND)
+    my_error(textno, errflag, table_share->table_name.str, error);
   DBUG_VOID_RETURN;
 }
 
@@ -5168,7 +5174,7 @@ ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
   DBUG_ASSERT(!res);
 
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) || 
-      choose_mrr_impl(keyno, rows, &def_flags, &def_bufsz, cost))
+      choose_mrr_impl(keyno, rows, flags, bufsz, cost))
   {
     /* Default implementation is choosen */
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
@@ -5265,12 +5271,9 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
     return TRUE;
   }
   
-  uint add_len= table->key_info[keyno].key_length + h->ref_length; 
-  *bufsz -= add_len;
   Cost_estimate dsmrr_cost;
   if (get_disk_sweep_mrr_cost(keyno, rows, *flags, bufsz, &dsmrr_cost))
     return TRUE;
-  *bufsz += add_len;
   
   bool force_dsmrr;
   /* 

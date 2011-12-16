@@ -70,13 +70,13 @@ static void reset_start_time_for_sp(THD *thd)
     /*
       First investigate if there is a cached time stamp
     */
-    if (thd->user_time)
+    if (thd->user_time.tv_sec || thd->user_time.tv_usec)
     {
       thd->start_time= thd->user_time;
     }
     else
     {
-      my_micro_time_and_time(&thd->start_time);
+      my_micro_time_to_timeval(my_micro_time(), &thd->start_time);
     }
   }
 }
@@ -1741,7 +1741,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   DBUG_PRINT("info", ("function %s", m_name.str));
 
   LINT_INIT(binlog_save_options);
-
+  // Resetting THD::where to its default value
+  thd->where= THD::DEFAULT_WHERE;
   /*
     Check that the function is called with all specified arguments.
 

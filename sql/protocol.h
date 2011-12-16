@@ -107,9 +107,9 @@ public:
                      const CHARSET_INFO *tocs)=0;
   virtual bool store(float from, uint32 decimals, String *buffer)=0;
   virtual bool store(double from, uint32 decimals, String *buffer)=0;
-  virtual bool store(MYSQL_TIME *time)=0;
+  virtual bool store(MYSQL_TIME *time, uint precision)=0;
   virtual bool store_date(MYSQL_TIME *time)=0;
-  virtual bool store_time(MYSQL_TIME *time)=0;
+  virtual bool store_time(MYSQL_TIME *time, uint precision)=0;
   virtual bool store(Field *field)=0;
 
   virtual bool send_out_parameters(List<Item_param> *sp_params)=0;
@@ -151,9 +151,9 @@ public:
   virtual bool store(const char *from, size_t length,
   		     const CHARSET_INFO *fromcs,
                      const CHARSET_INFO *tocs);
-  virtual bool store(MYSQL_TIME *time);
+  virtual bool store(MYSQL_TIME *time, uint precision);
   virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time);
+  virtual bool store_time(MYSQL_TIME *time, uint precision);
   virtual bool store(float nr, uint32 decimals, String *buffer);
   virtual bool store(double from, uint32 decimals, String *buffer);
   virtual bool store(Field *field);
@@ -188,9 +188,9 @@ public:
   virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
   		     const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
-  virtual bool store(MYSQL_TIME *time);
+  virtual bool store(MYSQL_TIME *time, uint precision);
   virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time);
+  virtual bool store_time(MYSQL_TIME *time, uint precision);
   virtual bool store(float nr, uint32 decimals, String *buffer);
   virtual bool store(double from, uint32 decimals, String *buffer);
   virtual bool store(Field *field);

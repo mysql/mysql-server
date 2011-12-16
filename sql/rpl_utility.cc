@@ -18,7 +18,7 @@
 #ifndef MYSQL_CLIENT
 #include "unireg.h"                      // REQUIRED by later includes
 #include "rpl_rli.h"
-#include "sql_select.h"
+#include "sql_tmp_table.h"               // tmp tables
 
 #include <algorithm>
 
@@ -112,12 +112,15 @@ max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
 
   case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIME2:
     return 3;
 
   case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
     return 4;
 
   case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
     return 8;
 
   case MYSQL_TYPE_BIT:
@@ -267,11 +270,20 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   case MYSQL_TYPE_TIME:
     length= 3;
     break;
+  case MYSQL_TYPE_TIME2:
+    length= my_time_binary_length(m_field_metadata[col]);
+    break;
   case MYSQL_TYPE_TIMESTAMP:
     length= 4;
     break;
+  case MYSQL_TYPE_TIMESTAMP2:
+    length= my_timestamp_binary_length(m_field_metadata[col]);
+    break;
   case MYSQL_TYPE_DATETIME:
     length= 8;
+    break;
+  case MYSQL_TYPE_DATETIME2:
+    length= my_datetime_binary_length(m_field_metadata[col]);
     break;
   case MYSQL_TYPE_BIT:
   {
@@ -381,6 +393,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str,
     break;
 
   case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
     str->set_ascii(STRING_WITH_LEN("timestamp"));
     break;
 
@@ -398,10 +411,12 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str,
     break;
 
   case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIME2:
     str->set_ascii(STRING_WITH_LEN("time"));
     break;
 
   case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
     str->set_ascii(STRING_WITH_LEN("datetime"));
     break;
 
@@ -620,6 +635,23 @@ can_convert_field_to(Field *field,
     else
       DBUG_RETURN(false);
   }
+  else if (metadata == 0 &&
+           ((field->real_type() == MYSQL_TYPE_TIMESTAMP2 &&
+             source_type == MYSQL_TYPE_TIMESTAMP) ||
+            (field->real_type() == MYSQL_TYPE_TIME2 &&
+             source_type == MYSQL_TYPE_TIME) ||
+            (field->real_type() == MYSQL_TYPE_DATETIME2 &&
+             source_type == MYSQL_TYPE_DATETIME)))
+  {
+    /*
+      TS-TODO: conversion from FSP1>FSP2.
+      Can do non-lossy conversion
+      from old TIME, TIMESTAMP, DATETIME
+      to new TIME(0), TIMESTAMP(0), DATETIME(0).
+    */
+    *order_var= -1;
+    DBUG_RETURN(true);
+  }
   else if (!slave_type_conversions_options)
     DBUG_RETURN(false);
 
@@ -744,6 +776,9 @@ can_convert_field_to(Field *field,
   case MYSQL_TYPE_NULL:
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_TIMESTAMP2:
+  case MYSQL_TYPE_DATETIME2:
+  case MYSQL_TYPE_TIME2:
     DBUG_RETURN(false);
   }
   DBUG_RETURN(false);                                 // To keep GCC happy
@@ -939,7 +974,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
 
     DBUG_PRINT("debug", ("sql_type: %d, target_field: '%s', max_length: %d, decimals: %d,"
                          " maybe_null: %d, unsigned_flag: %d, pack_length: %u",
-                         type(col), target_table->field[col]->field_name,
+                         binlog_type(col), target_table->field[col]->field_name,
                          max_length, decimals, TRUE, FALSE, pack_length));
     field_def->init_for_tmp_table(type(col),
                                   max_length,
@@ -994,7 +1029,7 @@ table_def::table_def(unsigned char *types, ulong size,
     int index= 0;
     for (unsigned int i= 0; i < m_size; i++)
     {
-      switch (m_type[i]) {
+      switch (binlog_type(i)) {
       case MYSQL_TYPE_TINY_BLOB:
       case MYSQL_TYPE_BLOB:
       case MYSQL_TYPE_MEDIUM_BLOB:
@@ -1043,6 +1078,11 @@ table_def::table_def(unsigned char *types, ulong size,
         m_field_metadata[i]= x;
         break;
       }
+      case MYSQL_TYPE_TIME2:
+      case MYSQL_TYPE_DATETIME2:
+      case MYSQL_TYPE_TIMESTAMP2:
+        m_field_metadata[i]= field_metadata[index++];
+        break;
       default:
         m_field_metadata[i]= 0;
         break;

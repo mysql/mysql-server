@@ -1588,13 +1588,14 @@ page_rec_print(
 			" n_owned: %lu; heap_no: %lu; next rec: %lu\n",
 			(ulong) rec_get_n_owned_old(rec),
 			(ulong) rec_get_heap_no_old(rec),
-			(ulong) rec_get_next_offs(rec, TRUE));
+			(ulong) rec_get_next_offs(rec, FALSE));
 	}
 
 	page_rec_check(rec);
 	rec_validate(rec, offsets);
 }
 
+# ifdef UNIV_BTR_PRINT
 /***************************************************************//**
 This is used to print the contents of the directory for
 debugging purposes. */
@@ -1755,6 +1756,7 @@ page_print(
 	page_dir_print(page, dn);
 	page_print_list(block, index, rn);
 }
+# endif /* UNIV_BTR_PRINT */
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**
@@ -2322,7 +2324,7 @@ page_validate(
 	if (UNIV_UNLIKELY(!(page_header_get_ptr(page, PAGE_HEAP_TOP)
 			    <= page_dir_get_nth_slot(page, n_slots - 1)))) {
 
-		fprintf(stderr, 
+		fprintf(stderr,
 			"InnoDB: Record heap and dir overlap"
 			" on space %lu page %lu index %s, %p, %p\n",
 			(ulong) page_get_space_id(page),
@@ -2365,7 +2367,7 @@ page_validate(
 			if (UNIV_UNLIKELY
 			    (1 != cmp_rec_rec(rec, old_rec,
 					      offsets, old_offsets, index))) {
-				fprintf(stderr, 
+				fprintf(stderr,
 					"InnoDB: Records in wrong order"
 					" on space %lu page %lu index %s\n",
 					(ulong) page_get_space_id(page),
@@ -2536,7 +2538,7 @@ func_exit:
 
 	if (UNIV_UNLIKELY(ret == FALSE)) {
 func_exit2:
-		fprintf(stderr, 
+		fprintf(stderr,
 			"InnoDB: Apparent corruption"
 			" in space %lu page %lu index %s\n",
 			(ulong) page_get_space_id(page),

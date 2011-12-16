@@ -995,7 +995,7 @@ int ha_archive::write_row(uchar *buf)
 
   ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   mysql_mutex_lock(&share->mutex);
 
   if (!share->archive_write_open)
@@ -1831,17 +1831,16 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
   int rc= 0;
   const char *old_proc_info;
-  ha_rows count= share->rows_recorded;
+  ha_rows count;
   DBUG_ENTER("ha_archive::check");
 
   old_proc_info= thd_proc_info(thd, "Checking table");
+  mysql_mutex_lock(&share->mutex);
+  count= share->rows_recorded;
   /* Flush any waiting data */
   if (share->archive_write_open)
-  {
-    mysql_mutex_lock(&share->mutex);
     azflush(&(share->archive_write), Z_SYNC_FLUSH);
-    mysql_mutex_unlock(&share->mutex);
-  }
+  mysql_mutex_unlock(&share->mutex);
 
   if (init_archive_reader())
     DBUG_RETURN(HA_ADMIN_CORRUPT);
@@ -1850,18 +1849,34 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
     start of the file.
   */
   read_data_header(&archive);
+  for (ha_rows cur_count= count; cur_count; cur_count--)
+  {
+    if ((rc= get_row(&archive, table->record[0])))
+      goto error;
+  }
+  /*
+    Now read records that may have been inserted concurrently.
+    Acquire share->mutex so tail of the table is not modified by
+    concurrent writers.
+  */
+  mysql_mutex_lock(&share->mutex);
+  count= share->rows_recorded - count;
+  if (share->archive_write_open)
+    azflush(&(share->archive_write), Z_SYNC_FLUSH);
   while (!(rc= get_row(&archive, table->record[0])))
     count--;
-
-  thd_proc_info(thd, old_proc_info);
+  mysql_mutex_unlock(&share->mutex);
 
   if ((rc && rc != HA_ERR_END_OF_FILE) || count)  
-  {
-    share->crashed= FALSE;
-    DBUG_RETURN(HA_ADMIN_CORRUPT);
-  }
+    goto error;
 
+  thd_proc_info(thd, old_proc_info);
   DBUG_RETURN(HA_ADMIN_OK);
+
+error:
+  thd_proc_info(thd, old_proc_info);
+  share->crashed= FALSE;
+  DBUG_RETURN(HA_ADMIN_CORRUPT);
 }
 
 /*

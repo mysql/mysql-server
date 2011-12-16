@@ -727,7 +727,7 @@ srv_release_threads(
 
 /**********************************************************************//**
 Check whether any background thread are active. If so print which thread
-is active. Send the threads wakeup signal. 
+is active. Send the threads wakeup signal.
 @return name of thread that is active or NULL */
 UNIV_INTERN
 const char*

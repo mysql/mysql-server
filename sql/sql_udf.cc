@@ -509,7 +509,9 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   if (error)
   {
-    my_error(ER_ERROR_ON_WRITE, MYF(0), "mysql.func", error);
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(ER_ERROR_ON_WRITE, MYF(0), "mysql.func", error,
+             my_strerror(errbuf, sizeof(errbuf), error));
     del_udf(u_d);
     goto err;
   }

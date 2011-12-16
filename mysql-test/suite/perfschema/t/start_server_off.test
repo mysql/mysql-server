@@ -8,3 +8,14 @@
 # Expecting all off / zero
 show status like "performance_schema%";
 
+# Expect all consumers disabled
+
+select * from performance_schema.setup_consumers;
+
+# Expect no instruments
+
+select * from performance_schema.setup_instruments;
+
+select * from performance_schema.setup_actors;
+select * from performance_schema.setup_objects;
+select * from performance_schema.setup_timers;
