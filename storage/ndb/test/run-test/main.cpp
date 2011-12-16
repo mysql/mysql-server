@@ -1327,7 +1327,7 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
     return false;
   }
 
-  for (size_t i ; i<config.m_processes.size(); i++)
+  for (size_t i = 0; i<config.m_processes.size(); i++)
   {
     atrt_process & proc = *config.m_processes[i];
     if (proc.m_type == atrt_process::AP_NDB_API ||
