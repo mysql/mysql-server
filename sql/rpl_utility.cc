@@ -18,7 +18,7 @@
 #ifndef MYSQL_CLIENT
 #include "unireg.h"                      // REQUIRED by later includes
 #include "rpl_rli.h"
-#include "sql_select.h"
+#include "sql_tmp_table.h"               // tmp tables
 
 #include <algorithm>
 

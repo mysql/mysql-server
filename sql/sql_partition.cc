@@ -8030,8 +8030,7 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
   while (part_iter->field_vals.cur != part_iter->field_vals.end)
   {
     longlong dummy;
-    field->store(part_iter->field_vals.cur++,
-                 ((Field_num*)field)->unsigned_flag);
+    field->store(part_iter->field_vals.cur++, field->flags & UNSIGNED_FLAG);
     if ((part_iter->part_info->is_sub_partitioned() &&
         !part_iter->part_info->get_part_partition_id(part_iter->part_info,
                                                      &part_id, &dummy)) ||
@@ -8055,12 +8054,11 @@ static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR *part_iter)
     part_iter->field_vals.cur= part_iter->field_vals.start;
     return NOT_A_PARTITION_ID;
   }
-  field->store(part_iter->field_vals.cur++, FALSE);
+  field->store(part_iter->field_vals.cur++, field->flags & UNSIGNED_FLAG);
   if (part_iter->part_info->get_subpartition_id(part_iter->part_info,
                                                 &res))
     return NOT_A_PARTITION_ID;
   return res;
-
 }
 
 
