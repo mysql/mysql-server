@@ -88,6 +88,7 @@ SET(SQL_SHARED_SOURCES
   scheduler.cc 
   set_var.cc 
   sha2.cc
+  signal_handler.cc
   sp.cc
   sp_cache.cc
   sp_head.cc

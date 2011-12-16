@@ -1790,7 +1790,8 @@ lock tables t1 read;
 connect (con1,localhost,root,,);
 --connection con1
 --remove_file $MYSQLD_DATADIR/test/t1.CSV
---replace_result $MYSQLD_DATADIR MYSQLD_DATADIR/ ./ MYSQLD_DATADIR/ 13 2
+# Error returned depends on platform
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR/ ./ MYSQLD_DATADIR/ "13 - Permission denied" "2 - No such file or directory"
 # EE_FILENOTFOUND 29
 --error 29
 select * from t1;
