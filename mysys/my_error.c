@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #include <m_string.h>
 #include <stdarg.h>
 #include <m_ctype.h>
+#include "my_base.h"
+#include "my_handler_errors.h"
 
 /* Max length of a error message. Should be kept in sync with MYSQL_ERRMSG_SIZE. */
 #define ERRMSGSIZE      (512)
@@ -55,6 +57,55 @@ static struct my_err_head
 } my_errmsgs_globerrs = {NULL, get_global_errmsgs, EE_ERROR_FIRST, EE_ERROR_LAST};
 
 static struct my_err_head *my_errmsgs_list= &my_errmsgs_globerrs;
+
+
+char *my_strerror(char *buf, size_t len, int nr)
+{
+  char *msg= NULL;
+
+  buf[0]= '\0';                                  /* failsafe */
+
+  /*
+    These (handler-) error messages are shared by perror, as required
+    by the principle of least surprise.
+  */
+  if ((nr >= HA_ERR_FIRST) && (nr <= HA_ERR_LAST))
+    msg= (char *) handler_error_messages[nr - HA_ERR_FIRST];
+
+  if (msg != NULL)
+    strmake(buf, msg, len - 1);
+  else
+  {
+    /*
+      On Windows, do things the Windows way. On a system that supports both
+      the GNU and the XSI variant, use whichever was configured (GNU); if
+      this choice is not advertised, use the default (POSIX/XSI).  Testing
+      for __GNUC__ is not sufficient to determine whether this choice exists.
+    */
+#if defined(__WIN__)
+    strerror_s(buf, len, nr);
+#elif ((defined _POSIX_C_SOURCE && (_POSIX_C_SOURCE >= 200112L)) ||    \
+       (defined _XOPEN_SOURCE   && (_XOPEN_SOURCE >= 600)))      &&    \
+      ! defined _GNU_SOURCE
+    strerror_r(nr, buf, len);             /* I can build with or without GNU */
+#elif defined _GNU_SOURCE
+    char *r= strerror_r(nr, buf, len);
+    if (r != buf)                         /* Want to help, GNU? */
+      strmake(buf, r, len - 1);           /* Then don't. */
+#else
+    strerror_r(nr, buf, len);
+#endif
+  }
+
+  /*
+    strerror() return values are implementation-dependent, so let's
+    be pragmatic.
+  */
+  if (!buf[0])
+    strmake(buf, "unknown error", len - 1);
+
+  return buf;
+}
 
 
 /*

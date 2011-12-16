@@ -976,7 +976,7 @@
    fun:my_write
    ...
    fun:my_b_flush_io_cache
-   fun:_Z15merge_many_buffP13st_sort_paramPhP10st_buffpekPjP11st_io_cache
+   fun:_Z15merge_many_buffP10Sort_paramPhP10st_buffpekPjP11st_io_cache
    fun:_Z8filesortP3THDP5TABLEP13st_sort_fieldjP10SQL_SELECTybPyS7_
 }
 

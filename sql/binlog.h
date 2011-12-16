@@ -16,6 +16,7 @@
 
 #define BINLOG_H_INCLUDED
 
+#include "mysqld.h"                             /* opt_relay_logname */
 #include "log_event.h"
 #include "log.h"
 

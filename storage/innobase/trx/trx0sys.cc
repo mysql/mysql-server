@@ -316,8 +316,9 @@ start_again:
 		mtr_commit(&mtr);
 		trx_doublewrite_buf_is_being_created = FALSE;
 	} else {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Doublewrite buffer not found:"
+			" InnoDB: Doublewrite buffer not found:"
 			" creating new\n");
 
 		if (buf_pool_get_curr_size()
@@ -417,7 +418,7 @@ start_again:
 				ut_a(page_no == prev_page_no + 1);
 			}
 
-			if (((i + 1) & 25) == 0) {
+			if (((i + 1) & 15) == 0) {
 				/* rw_locks can only be recursively x-locked
 				2048 times. (on 32 bit platforms,
 				(lint) 0 - (X_LOCK_DECR * 2049)
@@ -457,7 +458,8 @@ start_again:
 		/* Remove doublewrite pages from LRU */
 		buf_pool_invalidate();
 
-		fprintf(stderr, "InnoDB: Doublewrite buffer created\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Doublewrite buffer created\n");
 
 		trx_sys_multiple_tablespace_format = TRUE;
 

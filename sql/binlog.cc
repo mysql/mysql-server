@@ -2126,7 +2126,9 @@ void MYSQL_BIN_LOG::set_write_error(THD *thd, bool is_transactional)
   }
   else
   {
-    my_error(ER_ERROR_ON_WRITE, MYF(MY_WME), name, errno);
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(ER_ERROR_ON_WRITE, MYF(MY_WME), name,
+             errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
 
   DBUG_VOID_RETURN;
@@ -3332,9 +3334,12 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
       if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event", (error=close_on_error=TRUE), FALSE) ||
         (error= r.write(&log_file)))
       {
+        char errbuf[MYSYS_STRERROR_SIZE];
         DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
         close_on_error= TRUE;
-        my_printf_error(ER_ERROR_ON_WRITE, ER(ER_CANT_OPEN_FILE), MYF(ME_FATALERROR), name, errno);
+        my_printf_error(ER_ERROR_ON_WRITE, ER(ER_CANT_OPEN_FILE),
+                        MYF(ME_FATALERROR), name,
+                        errno, my_strerror(errbuf, sizeof(errbuf), errno));
         goto end;
       }
       bytes_written += r.data_written;
@@ -3382,8 +3387,10 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   /* handle reopening errors */
   if (error)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     my_printf_error(ER_CANT_OPEN_FILE, ER(ER_CANT_OPEN_FILE), 
-                    MYF(ME_FATALERROR), file_to_open, error);
+                    MYF(ME_FATALERROR), file_to_open,
+                    error, my_strerror(errbuf, sizeof(errbuf), error));
     close_on_error= TRUE;
   }
   my_free(old_name);
@@ -4276,7 +4283,9 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, bool incident, bool prepare
         goto err;
       if (cache->error)				// Error on read
       {
-        sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name, errno);
+        char errbuf[MYSYS_STRERROR_SIZE];
+        sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name,
+                        errno, my_strerror(errbuf, sizeof(errbuf), errno));
         write_error=1;				// Don't give more errors
         goto err;
       }
@@ -4322,8 +4331,10 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, bool incident, bool prepare
 err:
   if (!write_error)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     write_error= 1;
-    sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+    sql_print_error(ER(ER_ERROR_ON_WRITE), name,
+                    errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
   mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(1);
@@ -4461,8 +4472,10 @@ void MYSQL_BIN_LOG::close(uint exiting)
     end_io_cache(&index_file);
     if (mysql_file_close(index_file.file, MYF(0)) < 0 && ! write_error)
     {
+      char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE), index_file_name, errno);
+      sql_print_error(ER(ER_ERROR_ON_WRITE), index_file_name,
+                      errno, my_strerror(errbuf, sizeof(errbuf), errno));
     }
   }
   log_state= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;

@@ -2070,7 +2070,7 @@ buf_flush_batch(
 
 	/* Note: The buffer pool mutex is released and reacquired within
 	the flush functions. */
-	switch(flush_type) {
+	switch (flush_type) {
 	case BUF_FLUSH_LRU:
 		count = buf_do_LRU_batch(buf_pool, min_n);
 		break;

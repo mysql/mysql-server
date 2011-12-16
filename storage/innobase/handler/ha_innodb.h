@@ -76,13 +76,14 @@ class ha_innobase: public handler
 	INNOBASE_SHARE*	share;		/*!< information for MySQL
 					table locking */
 
-	uchar*		upd_buff;	/*!< buffer used in updates */
-	uchar*		key_val_buff;	/*!< buffer used in converting
+	uchar*		upd_buf;	/*!< buffer used in updates */
+	ulint		upd_buf_size;	/*!< the size of upd_buf in bytes */
+	uchar		srch_key_val1[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
+	uchar		srch_key_val2[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
+					/*!< buffers used in converting
 					search key values from MySQL format
-					to Innodb format */
-	ulong		upd_and_key_val_buff_len;
-					/* the length of each of the previous
-					two buffers */
+					to InnoDB format. "+ 2" for the two
+					bytes where the length is stored */
 	Table_flags	int_table_flags;
 	uint		primary_key;
 	ulong		start_of_scan;	/*!< this is set to 1 when we are
@@ -419,7 +420,7 @@ innobase_index_name_is_reserved(
 Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
-extern "C"
+UNIV_INTERN
 float
 innobase_fts_retrieve_ranking(
 /*==========================*/
@@ -429,7 +430,7 @@ innobase_fts_retrieve_ranking(
 Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id
 @return the relevance ranking value */
-extern "C"
+UNIV_INTERN
 float
 innobase_fts_find_ranking(
 /*==========================*/
@@ -438,7 +439,7 @@ innobase_fts_find_ranking(
 	uint		len);		/*!< in: Unused */
 /*********************************************************************//**
 Free the memory for the FTS handler */
-extern "C"
+UNIV_INTERN
 void
 innobase_fts_close_ranking(
 /*==========================*/
@@ -452,7 +453,7 @@ innobase_fts_close_ranking(
 /*****************************************************************//**
 Initialize the table FTS stopword list
 @return TRUE is succeed */
-extern "C"
+UNIV_INTERN
 ibool
 innobase_fts_load_stopword(
 /*=======================*/
@@ -461,19 +462,33 @@ innobase_fts_load_stopword(
 	THD*		thd);		/*!< in: current thread */
 
 /** Some defines for innobase_fts_check_doc_id_index() return value */
-#define	FTS_INCORRECT_DOC_ID_INDEX	1
-#define	FTS_EXIST_DOC_ID_INDEX		2
-#define	FTS_NOT_EXIST_DOC_ID_INDEX	3
+enum fts_doc_id_index_enum {
+	FTS_INCORRECT_DOC_ID_INDEX,
+	FTS_EXIST_DOC_ID_INDEX,
+	FTS_NOT_EXIST_DOC_ID_INDEX
+};
+
 /*******************************************************************//**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
 @return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
-extern "C"
-ulint
+UNIV_INTERN
+enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 /*============================*/
 	dict_table_t*	table,		/*!< in: table definition */
 	ulint*		fts_doc_col_no);/*!< out: The column number for
 					Doc ID */
 
+/*******************************************************************//**
+Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
+on the Doc ID column in MySQL create index definition.
+@return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
+FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
+UNIV_INTERN
+enum fts_doc_id_index_enum
+innobase_fts_check_doc_id_index_in_def(
+/*===================================*/
+	ulint		n_key,		/*!< in: Number of keys */
+	KEY*		key_info);	/*!< in: Key definition */
