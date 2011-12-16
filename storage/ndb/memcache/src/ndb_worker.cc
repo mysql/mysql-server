@@ -676,7 +676,7 @@ op_status_t WorkerStep1::do_math() {
 
 void callback_main(int, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
-  ndb_pipeline * & pipeline = wqitem->pipeline;
+  // ndb_pipeline * & pipeline = wqitem->pipeline;
     
   /************** Error handling ***********/  
   /* No Error */
@@ -736,7 +736,7 @@ void callback_main(int, NdbTransaction *tx, void *itemptr) {
 
 void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
-  ndb_pipeline * & pipeline = wqitem->pipeline;
+  // ndb_pipeline * & pipeline = wqitem->pipeline;
   
   /*  read  insert  update cr_flag response
    ------------------------------------------------------------------------

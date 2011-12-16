@@ -82,5 +82,14 @@ struct ndb_engine {
   ndbmc_atomic32_t cas_lo;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern size_t global_max_item_size;
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif

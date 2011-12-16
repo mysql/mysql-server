@@ -31,9 +31,11 @@
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
 Record::Record(int ncol) : ncolumns(ncol), rec_size(0), nkeys(0), nvalues(0),  
-                           index(0), n_nullable(0),
-                           start_of_nullmap(0), size_of_nullmap(0), 
                            value_length(0),
+                           index(0),
+                           n_nullable(0),
+                           start_of_nullmap(0),
+                           size_of_nullmap(0),
                            handlers(new DataTypeHandler *[ncol]),
                            specs(new NdbDictionary::RecordSpecification[ncol])
 {
