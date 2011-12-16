@@ -1896,7 +1896,7 @@ int toku_cachetable_put_with_dep_pairs(
     cachetable_wait_write(ct);
     int rval;
     {
-	BEGIN_CRITICAL_REGION;
+	BEGIN_CRITICAL_REGION;   // checkpoint may not begin inside critical region, detect and crash if one begins
 
 	get_key_and_fullhash(key, fullhash, get_key_and_fullhash_extra);
 	rval = cachetable_put_internal(
@@ -1925,7 +1925,7 @@ int toku_cachetable_put_with_dep_pairs(
 				   dependent_dirty
 				   );
 
-	END_CRITICAL_REGION;
+	END_CRITICAL_REGION;    // checkpoint after this point would no longer cause a threadsafety bug
     }
     cachetable_unlock(ct);
     return rval;
@@ -2199,7 +2199,7 @@ got_value:
 
 
     {
-	BEGIN_CRITICAL_REGION;
+	BEGIN_CRITICAL_REGION;   // checkpoint may not begin inside critical region, detect and crash if one begins
 
 	//
 	// A checkpoint must not begin while we are checking dependent pairs or pending bits. 
@@ -2236,7 +2236,7 @@ got_value:
 				   dependent_dirty
 				   );
 
-	END_CRITICAL_REGION;
+	END_CRITICAL_REGION;    // checkpoint after this point would no longer cause a threadsafety bug
     }
 
     r = maybe_flush_some(ct, 0);
