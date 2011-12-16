@@ -1183,7 +1183,6 @@ mysql_select(THD *thd,
              SELECT_LEX *select_lex)
 {
   bool free_join= 1;
-  bool store_in_query_cache= false;
   uint og_num= 0;
   ORDER *first_order= NULL;
   ORDER *first_group= NULL;
