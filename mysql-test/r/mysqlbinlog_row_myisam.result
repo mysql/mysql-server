@@ -2252,6 +2252,11 @@ DELIMITER /*!*/;
 #010909  4:46:40 server id 1  end_log_pos # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	Previous-GTIDs
+# [empty]
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
@@ -2354,6 +2359,8 @@ crn INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.time_zone='SYSTEM'/*!*/;
@@ -2450,6 +2457,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -2545,6 +2554,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -2723,6 +2734,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -2898,6 +2911,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3073,6 +3088,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3248,6 +3265,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3423,6 +3442,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3518,6 +3539,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3613,6 +3636,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3708,6 +3733,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3897,6 +3924,11 @@ DELIMITER /*!*/;
 #010909  4:46:40 server id 1  end_log_pos # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	Previous-GTIDs
+# [empty]
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
@@ -3915,6 +3947,8 @@ crn INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -3974,6 +4008,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4051,6 +4087,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4270,6 +4308,11 @@ DELIMITER /*!*/;
 #010909  4:46:40 server id 1  end_log_pos # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	Previous-GTIDs
+# [empty]
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
@@ -4288,6 +4331,8 @@ c_1_n INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 CREATE TABLE t2 (
@@ -4297,6 +4342,8 @@ c_2_n INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 CREATE TABLE t3 (
@@ -4306,6 +4353,8 @@ c_3_n INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4365,6 +4414,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4424,6 +4475,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4483,6 +4536,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4667,6 +4722,8 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -4841,6 +4898,11 @@ DELIMITER /*!*/;
 #010909  4:46:40 server id 1  end_log_pos # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	Previous-GTIDs
+# [empty]
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
@@ -4859,6 +4921,8 @@ c3 VARCHAR(60)
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
+#010909  4:46:40 server id 1  end_log_pos # 	GTID [commit=yes]
+SET @@SESSION.GTID_NEXT= 'GTID';# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
