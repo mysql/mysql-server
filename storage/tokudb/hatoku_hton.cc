@@ -1293,6 +1293,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       SHOWVAL(cleaner_max_buffer_workdone);
       SHOWVAL(cleaner_min_buffer_workdone);
       SHOWVAL(cleaner_total_buffer_workdone);
+      SHOWVAL(cleaner_num_leaves_unmerged);
       SHOWVAL(flush_total);
       SHOWVAL(flush_in_memory);
       SHOWVAL(flush_needed_io);
