@@ -152,3 +152,8 @@ FTS_DOC_ID	title	body
 10	bbbb	DBMS stands for DataBase ...
 UPDATE articles set body = 'bbbb', FTS_DOC_ID=11  WHERE MATCH(body) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 drop table articles;
+create table `articles`(`a` varchar(2) not null)engine=innodb;
+create fulltext index `FTS_DOC_ID_INDEX` on `articles`(`a`);
+ERROR 42000: Table 'articles' uses an extension that doesn't exist in this MySQL version
+create unique index `a` on `articles`(`a`);
+drop table articles;

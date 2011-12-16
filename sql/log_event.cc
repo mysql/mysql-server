@@ -447,11 +447,9 @@ static char *slave_load_file_stem(char *buf, uint file_id,
   fn_format(buf,PREFIX_SQL_LOAD,slave_load_tmpdir, "", MY_UNPACK_FILENAME);
   to_unix_path(buf);
 
-  buf = strend(buf);
-  buf = int10_to_str(::server_id, buf, 10);
-  *buf++ = '-';
-  buf = int10_to_str(event_server_id, buf, 10);
-  *buf++ = '-';
+  buf= strend(buf);
+  int appended_length= sprintf(buf, "%s-%d-", server_uuid, event_server_id);
+  buf+= appended_length;
   res= int10_to_str(file_id, buf, 10);
   strmov(res, ext);                             // Add extension last
   return res;                                   // Pointer to extension
@@ -470,7 +468,7 @@ static void cleanup_load_tmpdir()
   MY_DIR *dirp;
   FILEINFO *file;
   uint i;
-  char fname[FN_REFLEN], prefbuf[31], *p;
+  char fname[FN_REFLEN], prefbuf[TEMP_FILE_MAX_LEN], *p;
 
   if (!(dirp=my_dir(slave_load_tmpdir,MYF(0))))
     return;
@@ -484,9 +482,7 @@ static void cleanup_load_tmpdir()
      LOAD DATA.
   */
   p= strmake(prefbuf, STRING_WITH_LEN(PREFIX_SQL_LOAD));
-  p= int10_to_str(::server_id, p, 10);
-  *(p++)= '-';
-  *p= 0;
+  sprintf(p,"%s-",server_uuid);
 
   for (i=0 ; i < (uint)dirp->number_off_files; i++)
   {
@@ -7642,7 +7638,7 @@ void Create_file_log_event::pack_info(Protocol *protocol)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  char fname_buf[FN_REFLEN+10];
+  char fname_buf[FN_REFLEN+TEMP_FILE_MAX_LEN];
   char *ext;
   int fd = -1;
   IO_CACHE file;
@@ -7824,7 +7820,7 @@ int Append_block_log_event::get_create_or_append() const
 
 int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  char fname[FN_REFLEN+10];
+  char fname[FN_REFLEN+TEMP_FILE_MAX_LEN];
   int fd;
   int error = 1;
   DBUG_ENTER("Append_block_log_event::do_apply_event");
@@ -7974,7 +7970,7 @@ void Delete_file_log_event::pack_info(Protocol *protocol)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  char fname[FN_REFLEN+10];
+  char fname[FN_REFLEN+TEMP_FILE_MAX_LEN];
   char *ext= slave_load_file_stem(fname, file_id, server_id, ".data");
   mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   strmov(ext, ".info");
@@ -8074,7 +8070,7 @@ void Execute_load_log_event::pack_info(Protocol *protocol)
 
 int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  char fname[FN_REFLEN+10];
+  char fname[FN_REFLEN+TEMP_FILE_MAX_LEN];
   char *ext;
   int fd;
   int error= 1;
@@ -8347,7 +8343,7 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
   int error;
 
   buf= (char*) my_malloc(q_len + 1 - (fn_pos_end - fn_pos_start) +
-                         (FN_REFLEN + 10) + 10 + 8 + 5, MYF(MY_WME));
+                         (FN_REFLEN + TEMP_FILE_MAX_LEN) + 10 + 8 + 5, MYF(MY_WME));
 
   DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error", my_free(buf); buf= NULL;);
 

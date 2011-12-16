@@ -68,13 +68,13 @@ SET TIMESTAMP=1321611141/*!*/;
 BEGIN
 /*!*/;
 # at 422
+# at 447
 #111118 13:12:21 server id 1  end_log_pos 447 
 # Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
 #      1a6 85 2f c6 4e   0e   01 00 00 00   19 00 00 00   bf 01 00 00   00 00
 #      1b9 01 00 00 00 32 01                                |....2.|
 # 	User_var
 SET @`2`:=NULL/*!*/;
-# at 447
 #111118 13:12:21 server id 1  end_log_pos 552 
 # Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
 #      1bf 85 2f c6 4e   02   01 00 00 00   69 00 00 00   28 02 00 00   00 00

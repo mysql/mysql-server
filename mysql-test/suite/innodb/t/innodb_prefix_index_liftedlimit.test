@@ -17,9 +17,11 @@
 --source include/have_innodb_16k.inc
 
 # Save innodb variables
-let $innodb_file_format_orig=`select @@innodb_file_format`;
-let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
-let $innodb_large_prefix_orig=`select @@innodb_large_prefix`;
+--disable_query_log
+let $innodb_file_format_orig = `select @@innodb_file_format`;
+let $innodb_file_per_table_orig = `select @@innodb_file_per_table`;
+let $innodb_large_prefix_orig = `select @@innodb_large_prefix`;
+--enable_query_log
 
 # Set Innodb file format as feature works for Barracuda file format
 set global innodb_file_format="Barracuda";
@@ -483,10 +485,10 @@ DROP TABLE worklog5743_key8;
 #------------------------------------------------------------------------------
 # Create mutiple prefix index. We can not create prefix index length > 16K
 # as index is written in undo log page which of 16K size.
-# So we can create max 5 prefix index of length 3072 on table
+# So we can create max 2 prefix index of length 3072 on table
 CREATE TABLE worklog5743 (
 col_1_varbinary VARBINARY (4000) , col_2_varchar VARCHAR (4000) ,
-col_3_text TEXT (4000), col_4_blob BLOB (4000),col_5_text TEXT (4000),
+col_3_text TEXT (4000), col_4_blob BLOB (4000), col_5_text TEXT (4000),
 col_6_varchar VARCHAR (4000), col_7_binary BINARY (255)
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
@@ -494,13 +496,10 @@ REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
 REPEAT("a", 4000) ,  REPEAT("a", 255)
 );
 
-# Update hangs if we create following 5 indexes. Uncomment them once its fix
+# Update reports ER_UNDO_RECORD_TOO_BIG if we create more than 2 indexes.
 # Bug#12547647 - UPDATE LOGGING COULD EXCEED LOG PAGE SIZE
-#CREATE INDEX prefix_idx1 ON worklog5743(col_1_varbinary (3072));
-#CREATE INDEX prefix_idx2 ON worklog5743(col_2_varchar (3072));
-#CREATE INDEX prefix_idx3 ON worklog5743(col_3_text (3072));
-#CREATE INDEX prefix_idx4 ON worklog5743(col_4_blob (3072));
-#CREATE INDEX prefix_idx5 ON worklog5743(col_5_text (3072));
+CREATE INDEX prefix_idx1 ON worklog5743(col_1_varbinary (3072));
+CREATE INDEX prefix_idx2 ON worklog5743(col_2_varchar (3072));
 
 INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000),
 REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
@@ -512,14 +511,29 @@ UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
 WHERE col_1_varbinary = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
 SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743
 WHERE col_1_varbinary = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
+
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
 REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
 REPEAT("a", 4000) , REPEAT("a", 255)
 );
 DELETE FROM worklog5743 WHERE col_1_varbinary = REPEAT("b", 4000);
 SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743;
-DROP TABLE worklog5743;
 
+# Add 3 more indexes.
+# Update used to hang but now ER_UNDO_RECORD_TOO_BIG is reported;
+# Bug#12547647 - UPDATE LOGGING COULD EXCEED UNDO LOG PAGE SIZE
+INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
+REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
+REPEAT("a", 4000) ,  REPEAT("a", 255)
+);
+CREATE INDEX prefix_idx3 ON worklog5743(col_3_text (3072));
+CREATE INDEX prefix_idx4 ON worklog5743(col_4_blob (3072));
+CREATE INDEX prefix_idx5 ON worklog5743(col_5_text (3072));
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
+WHERE col_1_varbinary = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
+SHOW WARNINGS;
+DROP TABLE worklog5743;
 
 #------------------------------------------------------------------------------
 # Create mutiple prefix index. We can not create prefix index length > 16K as
@@ -533,7 +547,8 @@ col_6_varchar VARCHAR (4000), col_7_binary BINARY (255)
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
 
 
-# Update hangs if we create following 5 indexes. Uncomment them once its fix
+# Update used to hang if we create following 5 indexes. Fixed in;
+# Bug#12547647 - UPDATE LOGGING COULD EXCEED UNDO LOG PAGE SIZE
 CREATE INDEX prefix_idx1 ON worklog5743(col_1_varbinary (3072));
 CREATE INDEX prefix_idx2 ON worklog5743(col_2_varchar (3072));
 CREATE INDEX prefix_idx3 ON worklog5743(col_3_text (3072));
@@ -563,11 +578,13 @@ REPEAT("a", 4000) , REPEAT("o", 4000), REPEAT("a", 4000),
 REPEAT("a", 4000) , REPEAT("a", 255)
 );
 ROLLBACK;
-# Uncomment Update fater Bug#12547647 is fixed - UPDATE LOGGING COULD EXCEED LOG PAGE SIZE
 # Bug#12547647 - UPDATE LOGGING COULD EXCEED LOG PAGE SIZE
-#UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
-#WHERE col_1_varbinary = REPEAT("a", 4000)
-#AND col_2_varchar = REPEAT("o", 4000);
+# Instead of this error, it would hang before this fix.
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE worklog5743 SET col_1_varbinary = REPEAT("c", 4000)
+WHERE col_1_varbinary = REPEAT("a", 4000)
+AND col_2_varchar = REPEAT("o", 4000);
+SHOW WARNINGS;
 SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743
 WHERE col_1_varbinary = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000),
@@ -600,13 +617,27 @@ SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743;
 DROP TABLE worklog5743;
 
 # Prefix index with utf8 charset + varchar.
-# For varchar we also log the column itself as oppose of TEXT so it error
-# with limit 1024 due to overhead.
--- error 1118
+# utf8 charcter takes 3 bytes in mysql so prefix index limit is 3072/3 = 1024
+# This is a case where dict_index_too_big_for_undo() is too conservative.
+# If it did not return error 1118, to commented code would work.
+# See bug#12953735.
+-- error ER_TOO_BIG_ROWSIZE
 CREATE TABLE worklog5743 (col_1_varchar VARCHAR (4000) CHARACTER SET 'utf8',
 col_2_varchar VARCHAR (4000) CHARACTER SET 'utf8' ,
 PRIMARY KEY (col_1_varchar(1024))
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
+#INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
+#CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (1024));
+#INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
+#SELECT col_1_varchar = REPEAT("a", 4000) , col_2_varchar = REPEAT("o", 4000) FROM worklog5743;
+#UPDATE worklog5743 SET col_1_varchar = REPEAT("c", 4000)
+#WHERE col_1_varchar = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
+#SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743
+#WHERE col_1_varchar = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
+#INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
+#DELETE FROM worklog5743 WHERE col_1_varchar = REPEAT("b", 4000);
+#SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743;
+#DROP TABLE worklog5743;
 
 #------------------------------------------------------------------------------
 # prefinx index on utf8 charset with transaction
@@ -1333,6 +1364,8 @@ CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (1000));
 DROP TABLE worklog5743;
 #------------------------------------------------------------------------------
 
-eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
-eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
-eval SET GLOBAL innodb_large_prefix=$innodb_large_prefix_orig;
+--disable_query_log
+eval set global innodb_file_format = $innodb_file_format_orig;
+eval set global innodb_file_per_table = $innodb_file_per_table_orig;
+eval set global innodb_large_prefix = $innodb_large_prefix_orig;
+--enable_query_log
