@@ -1353,6 +1353,10 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
   GCALC_DBUG_ENTER("Gcalc_operation_reducer::get_result");
   *m_res_hook= NULL;
 
+  /* This is to workaround an old gcc's bug */
+  if (m_res_hook == (Gcalc_dyn_list::Item **) &m_result)
+    goto done;
+
   while (m_result)
   {
     Gcalc_function::shape_type shape= m_result->type;
@@ -1403,6 +1407,7 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
     }
   }
   
+done:
   m_res_hook= (Gcalc_dyn_list::Item **)&m_result;
   storage->done();
   GCALC_DBUG_RETURN(0);

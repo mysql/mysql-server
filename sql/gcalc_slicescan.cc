@@ -432,7 +432,7 @@ void gcalc_mul_coord(Gcalc_internal_coord *result, int result_len,
       gcalc_coord2 cur_b= n_b ? b[n_b] : FIRST_DIGIT(b[0]);
       gcalc_coord2 mul= cur_a * cur_b + carry + result[n_a + n_b + 1];
       result[n_a + n_b + 1]= mul % GCALC_DIG_BASE;
-      carry= (gcalc_digit_t) (mul / GCALC_DIG_BASE);
+      carry= (gcalc_digit_t) (mul / (gcalc_coord2) GCALC_DIG_BASE);
     } while (n_b--);
     if (carry)
     {
