@@ -2640,8 +2640,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     do
     {
       embedded= embedding;
-      if (embedded->on_expr)
-         update_const_equal_items(embedded->on_expr, tab);
+      if (embedded->join_cond())
+        update_const_equal_items(embedded->join_cond(), tab);
       embedding= embedded->embedding;
     }
     while (embedding &&
