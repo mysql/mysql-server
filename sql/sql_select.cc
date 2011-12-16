@@ -2207,6 +2207,8 @@ JOIN::optimize()
                This also excludes semi-joins.  Is that intentional?)
         This will try to prune non-static conditions, which can
         be used after the tables are locked.
+        TODO: See if possible to cache things done in the previous call
+        (in JOIN::prepare).
       */
       if (!tbl->embedding)
       {
@@ -16877,8 +16879,6 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
       return (Item*) 0;
     }
   }
-  /* TODO: Fix this so one can properly delay locking */
-//#ifdef FIXED_DELAYED_LOCKING_ISSUE
   else if (cond->const_item() && !cond->is_expensive())
   /*
     DontEvaluateMaterializedSubqueryTooEarly:
@@ -16894,7 +16894,6 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
     *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
     return (Item*) 0;
   }
-//#endif
   else if ((*cond_value= cond->eq_cmp_result()) != Item::COND_OK)
   {						// boolan compare function
     Item *left_item=	((Item_func*) cond)->arguments()[0];

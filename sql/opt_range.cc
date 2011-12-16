@@ -6463,6 +6463,17 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       (field->type() == MYSQL_TYPE_DATE ||
        field->type() == MYSQL_TYPE_DATETIME))
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
+
+  // TODO: don't use file, use something else, like query_tables_status.
+  if (field->table->file->get_lock_type() == F_UNLCK &&
+      (!value->const_item() || value->has_subquery()))
+  {
+    /* Don't eval non const or subqueries if not locked. I.e. prepare phase */
+    tree= 0;
+    field->table->in_use->variables.sql_mode= orig_sql_mode;
+    goto end;
+  }
+  else
   {
     // Note that value may be a stored function call, executed here.
     err= value->save_in_field_no_warnings(field, 1);
