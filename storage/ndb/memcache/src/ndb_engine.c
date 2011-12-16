@@ -41,7 +41,6 @@
 
 /* Global variables */
 EXTENSION_LOGGER_DESCRIPTOR *logger;
-size_t global_max_item_size;
 
 /* Static and local to this file */
 const char * set_ops[] = { "","add","set","replace","append","prepend","cas" };

@@ -426,9 +426,9 @@ void S::SchedulerWorker::add_stats(const char *stat_key,
 
 /* Cluster methods */
 S::Cluster::Cluster(SchedulerGlobal *global, int _id) : 
-  cluster_id(_id), 
-  nreferences(0),
-  threads_started(false)
+  threads_started(false),
+  cluster_id(_id),
+  nreferences(0)
 {
   DEBUG_PRINT("%d", cluster_id);
   

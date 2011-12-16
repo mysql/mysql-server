@@ -59,7 +59,7 @@ void store_connection_pool_for_cluster(const char *name,
                                        ClusterConnectionPool *p) {
   DEBUG_ENTER();
   if(name == 0) name = "[default]";
-  int name_len = strlen(name);
+  // int name_len = strlen(name);
 
   if(pthread_mutex_lock(& conn_pool_map_lock) == 0) {
     if(conn_pool_map == 0) {

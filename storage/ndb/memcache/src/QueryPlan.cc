@@ -31,9 +31,7 @@
 #include "ExternalValue.h"
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
-extern "C" {
-  size_t global_max_item_size;
-}
+size_t global_max_item_size;
 
 /* For each pair [TableSpec,NDB Object], we can cache some dictionary 
    lookups, acccess path information, NdbRecords, etc.
@@ -78,11 +76,11 @@ inline const NdbDictionary::Column *get_ndb_col(const TableSpec *spec,
 QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  : 
   initialized(0), 
   dup_numbers(false),
-  db(my_ndb),
-  spec(my_spec), 
   is_scan(false),
-  static_flags(spec->static_flags)
-{  
+  spec(my_spec),
+  static_flags(spec->static_flags),
+  db(my_ndb)
+{
   const NdbDictionary::Column *col;
   bool op_ok = false; 
   bool last_value_col_is_int = false;
@@ -139,7 +137,7 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
   /* Key Columns */
   for(int i = 0; i < spec->nkeycols ; i++) {
     col = get_ndb_col(spec, table, spec->key_columns[i]);
-    int this_col_id = col->getColumnNo();
+    // int this_col_id = col->getColumnNo();
     key_record->addColumn(COL_STORE_KEY, col);
     row_record->addColumn(COL_STORE_KEY, col);
   }

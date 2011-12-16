@@ -209,15 +209,15 @@ void ExternalValue::append_after_read(NdbTransaction *tx, workitem *item) {
 
 /* Constructor */
 ExternalValue::ExternalValue(workitem *item, NdbTransaction *t) :
-  tx(t),
-  wqitem(item),
-  expire_time(item),
-  ext_plan(item->plan->extern_store),
   old_hdr(item->plan->extern_store->val_record->value_length),  // (part size)
   new_hdr(item->plan->extern_store->val_record->value_length),
+  expire_time(item),
+  tx(t),
+  wqitem(item),
+  ext_plan(item->plan->extern_store),
   value(0),
-  stored_cas(0),
-  value_size_in_header(item->plan->row_record->value_length)
+  value_size_in_header(item->plan->row_record->value_length),
+  stored_cas(0)
 {
   do_server_cas = (item->prefix_info.has_cas_col && item->cas);
   wqitem->ext_val = this;
