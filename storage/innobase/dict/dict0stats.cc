@@ -358,7 +358,7 @@ an index. Each of the 1..n_uniq prefixes are looked up and the results are
 saved in the array n_diff[]. Notice that n_diff[] must be able to store
 n_uniq+1 numbers because the results are saved in
 n_diff[1] .. n_diff[n_uniq]. The total number of records on the level is
-saved in total.
+saved in total_recs.
 Also, the index of the last record in each group of equal records is saved
 in n_diff_boundaries[1..n_uniq], records indexing starts from the leftmost
 record on the level and continues cross pages boundaries, counting from 0.
@@ -611,10 +611,13 @@ dict_stats_analyze_index_level(
 			     *total_pages,
 			     i, n_diff[i]);
 
+#if 0
 		if (n_diff_boundaries != NULL) {
 			ib_uint64_t	j;
 
-			DEBUG_PRINTF("    %s(): boundaries: ", __func__);
+			DEBUG_PRINTF("    %s(): boundaries[%lu]: ",
+				     __func__, i);
+
 			for (j = 0; j < n_diff[i]; j++) {
 				ib_uint64_t	idx;
 
@@ -627,6 +630,7 @@ dict_stats_analyze_index_level(
 			}
 			DEBUG_PRINTF("\n");
 		}
+#endif
 	}
 #endif /* UNIV_STATS_DEBUG */
 
@@ -724,7 +728,6 @@ dict_stats_scan_page(
 				       offsets_rec, offsets_next_rec,
 				       index, FALSE, &matched_fields,
 				       &matched_bytes);
-
 
 		if (matched_fields < n_prefix) {
 			/* rec != next_rec, => rec is non-boring */
@@ -852,7 +855,7 @@ dict_stats_analyze_index_below_cur(
 
 		/* pages on level > 0 are not allowed to be empty */
 		ut_a(offsets_rec != NULL);
-		/* if page is not empty (rec != NULL) then n_diff must
+		/* if page is not empty (offsets_rec != NULL) then n_diff must
 		be > 0, otherwise there is a bug in dict_stats_scan_page() */
 		ut_a(n_diff > 0);
 
@@ -894,7 +897,7 @@ dict_stats_analyze_index_below_cur(
 	}
 
 #if 0
-	DEBUG_PRINTF("      %s(): n_diff below page_no=%lu: %llu\n",
+	DEBUG_PRINTF("      %s(): n_diff below page_no=%lu: " UINT64PF "\n",
 		     __func__, page_no, n_diff);
 #endif
 
@@ -1093,9 +1096,15 @@ dict_stats_analyze_index_for_n_prefix(
 
 	index->stat_n_sample_sizes[n_prefix] = n_recs_to_dive_below;
 
-	DEBUG_PRINTF("    %s(): n_diff=" UINT64PF " for n_prefix=%lu\n",
+	DEBUG_PRINTF("    %s(): n_diff=" UINT64PF " for n_prefix=%lu "
+		     "(%lu"
+		     " * " UINT64PF " / " UINT64PF
+		     " * " UINT64PF " / " UINT64PF ")\n",
 		     __func__, index->stat_n_diff_key_vals[n_prefix],
-		     n_prefix);
+		     n_prefix,
+		     index->stat_n_leaf_pages,
+		     n_diff_for_this_prefix, total_recs_on_level,
+		     n_diff_sum_of_all_analyzed_pages, n_recs_to_dive_below);
 
 	btr_pcur_close(&pcur);
 
@@ -2226,11 +2235,11 @@ dict_stats_update(
 
 		/* FTS auxiliary tables do not need persistent stats */
 		if ((ut_strcount(table->name, "FTS") > 0
-		&& (ut_strcount(table->name, "CONFIG") > 0
-		    || ut_strcount(table->name, "INDEX") > 0
-		    || ut_strcount(table->name, "DELETED") > 0
-		    || ut_strcount(table->name, "DOC_ID") > 0
-		    || ut_strcount(table->name, "ADDED") > 0))) {
+		     && (ut_strcount(table->name, "CONFIG") > 0
+			 || ut_strcount(table->name, "INDEX") > 0
+			 || ut_strcount(table->name, "DELETED") > 0
+			 || ut_strcount(table->name, "DOC_ID") > 0
+			 || ut_strcount(table->name, "ADDED") > 0))) {
 			goto transient;
 		}
 
