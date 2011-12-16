@@ -174,8 +174,8 @@ IF(GTEST_DOWNLOADED)
     ${GTEST_SOURCE_DIR} 
     ${GTEST_SOURCE_DIR}/include
   )
-  ADD_LIBRARY(gtest SHARED ${GTEST_SOURCE_DIR}/src/gtest-all.cc)
-  
+  ADD_LIBRARY(gtest STATIC ${GTEST_SOURCE_DIR}/src/gtest-all.cc)
+
   # Set CMake variables to make FindPackage(GTest) happy next time.
   SET(GTEST_FOUND 1 CACHE INTERNAL "")
   SET(GTEST_LIBRARY gtest CACHE INTERNAL "")
@@ -244,11 +244,13 @@ SET(TESTS
 
 # Add tests (link them with gunit library and the server libraries) 
 SET(SERVER_TESTS
+  field
   item
   my_decimal
   opt_range
   opt_trace
   get_diagnostics
+  segfault
 )
 
 FOREACH(test ${TESTS})

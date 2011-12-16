@@ -206,16 +206,16 @@ retry:
 
 	UNIV_MEM_ALLOC(ret, n + sizeof(ut_mem_block_t));
 
-	((ut_mem_block_t*)ret)->size = n + sizeof(ut_mem_block_t);
-	((ut_mem_block_t*)ret)->magic_n = UT_MEM_MAGIC_N;
+	((ut_mem_block_t*) ret)->size = n + sizeof(ut_mem_block_t);
+	((ut_mem_block_t*) ret)->magic_n = UT_MEM_MAGIC_N;
 
 	ut_total_allocated_memory += n + sizeof(ut_mem_block_t);
 
 	UT_LIST_ADD_FIRST(mem_block_list, ut_mem_block_list,
-			  ((ut_mem_block_t*)ret));
+			  ((ut_mem_block_t*) ret));
 	os_fast_mutex_unlock(&ut_list_mutex);
 
-	return((void*)((byte*)ret + sizeof(ut_mem_block_t)));
+	return((void*)((byte*) ret + sizeof(ut_mem_block_t)));
 #else /* !UNIV_HOTBACKUP */
 	void*	ret = malloc(n);
 	ut_a(ret || !assert_on_error);
@@ -308,7 +308,7 @@ ut_free(
 		return;
 	}
 
-	block = (ut_mem_block_t*)((byte*)ptr - sizeof(ut_mem_block_t));
+	block = (ut_mem_block_t*)((byte*) ptr - sizeof(ut_mem_block_t));
 
 	os_fast_mutex_lock(&ut_list_mutex);
 
@@ -379,7 +379,7 @@ ut_realloc(
 		return(NULL);
 	}
 
-	block = (ut_mem_block_t*)((byte*)ptr - sizeof(ut_mem_block_t));
+	block = (ut_mem_block_t*)((byte*) ptr - sizeof(ut_mem_block_t));
 
 	ut_a(block->magic_n == UT_MEM_MAGIC_N);
 
@@ -570,7 +570,7 @@ ut_strreplace(
 	ulint		s1_len = strlen(s1);
 	ulint		s2_len = strlen(s2);
 	ulint		count = 0;
-	int		len_delta = (int)s2_len - (int)s1_len;
+	int		len_delta = (int) s2_len - (int) s1_len;
 
 	str_end = str + str_len;
 

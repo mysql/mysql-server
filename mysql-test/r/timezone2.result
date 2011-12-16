@@ -309,3 +309,33 @@ CONVERT_TZ(1, 1, a)
 NULL
 DROP TABLE t1;
 End of 5.1 tests
+#
+# Start of 5.6 tests
+#
+SET time_zone='Europe/Moscow';
+CREATE TABLE t1 (a TIMESTAMP, b VARCHAR(30));
+INSERT INTO t1 VALUES
+('2003-03-30 01:59:59', 'Before the gap'),
+('2003-03-30 02:30:00', 'Inside the gap'),
+('2003-03-30 03:00:00',  'After the gap');
+Warnings:
+Warning	1299	Invalid TIMESTAMP value in column 'a' at row 2
+SELECT a, UNIX_TIMESTAMP(a), b FROM t1;
+a	UNIX_TIMESTAMP(a)	b
+2003-03-30 01:59:59	1048978799	Before the gap
+2003-03-30 03:00:00	1048978800	Inside the gap
+2003-03-30 03:00:00	1048978800	After the gap
+DROP TABLE t1;
+SELECT UNIX_TIMESTAMP('2003-03-30 01:59:59'), 'Before the gap' AS b;
+UNIX_TIMESTAMP('2003-03-30 01:59:59')	b
+1048978799	Before the gap
+SELECT UNIX_TIMESTAMP('2003-03-30 02:30:00'), 'Inside the gap' AS b;
+UNIX_TIMESTAMP('2003-03-30 02:30:00')	b
+1048978800	Inside the gap
+SELECT UNIX_TIMESTAMP('2003-03-30 03:00:00'), 'After the gap' AS b;
+UNIX_TIMESTAMP('2003-03-30 03:00:00')	b
+1048978800	After the gap
+SET time_zone=DEFAULT;
+#
+# End of 5.6 tests
+#

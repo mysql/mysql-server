@@ -4442,4 +4442,137 @@ DROP TABLE t1, t2, t3;
 
 --echo # End of test for bug#13334882.
 
+--echo #
+--echo # Bug#13339643: Assertion on JOIN::flatten_subqueries on second execution
+--echo #
+
+CREATE TABLE t1 (
+  col_int_nokey INT,
+  col_varchar_nokey VARCHAR(1)
+);
+
+INSERT INTO t1 VALUES
+ (1,'o'),
+ (2,'t');
+
+CREATE TABLE t2 LIKE t1;
+
+INSERT INTO t2 VALUES
+ (1,'o'),
+ (4,'f');
+
+CREATE VIEW v_t2 AS SELECT * FROM t2;
+
+CREATE TABLE t3 LIKE t1;
+
+INSERT INTO t3 VALUES
+ (1,'o'),
+ (4,'f');
+
+let $query=
+SELECT alias1.col_varchar_nokey
+FROM t1 AS alias1
+     INNER JOIN v_t2 AS alias2
+     ON alias2.col_int_nokey = alias1.col_int_nokey AND
+          'o' IN (SELECT col_varchar_nokey
+                  FROM t3);
+eval explain $query;
+eval $query;
+
+eval PREPARE stmt FROM "$query";
+EXECUTE stmt;
+
+DROP VIEW v_t2;
+DROP TABLE t1, t2, t3;
+--echo # End of test for bug#13339643.
+
+--echo #
+--echo # Bug#13424134: Wrong result on JOIN + nested WHERE ... IN clauses
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyIsam;
+
+INSERT INTO t1 VALUES
+ (10,1,7), (13,7,3), (18,0,1), (23,8,1);
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_key int NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyIsam;
+
+INSERT INTO t2 VALUES (1,7);
+
+let $query=
+SELECT t1a.*
+FROM t1 AS t1a
+  JOIN t1 AS t1b USING ( col_int_nokey )
+WHERE t1a.col_int_key IN (
+  SELECT pk
+  FROM t2
+  WHERE col_int_key IN (
+    SELECT col_int_nokey
+    FROM t1
+  )
+);
+
+eval EXPLAIN $query;
+eval $query;
+
+ALTER TABLE t1 ENGINE=Innodb;
+ALTER TABLE t2 ENGINE=Innodb;
+
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13424134.
+
+--echo #
+--echo # Bug#13414014: Extra rows in result on semijoin query with where ...
+--echo #
+
+CREATE TABLE t1 (
+  c INT,
+  d INT,
+  a VARCHAR(1),
+  b VARCHAR(1),
+  KEY a (a)
+);
+
+INSERT INTO t1 VALUES
+ (NULL,8,'x','x'), (7,4,'q','q'), (6,8,'c','c');
+
+CREATE TABLE t2 (
+  a VARCHAR(1),
+  KEY a (a)
+);
+
+INSERT INTO t2 VALUES
+ ('c'), (NULL), ('x'), ('q');
+
+let $query=
+SELECT *
+FROM t2 AS ot
+WHERE (a, a) IN
+   (SELECT a, b
+    FROM t1 AS it
+    WHERE it.a = 'x' OR it.c > it.d
+   )
+;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13414014.
+
 --echo # End of 5.6 tests

@@ -568,9 +568,11 @@ static int default_local_infile_init(void **ptr, const char *filename,
   fn_format(tmp_name, filename, "", "", MY_UNPACK_FILENAME);
   if ((data->fd = my_open(tmp_name, O_RDONLY, MYF(0))) < 0)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     data->error_num= my_errno;
     my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
-                EE(EE_FILENOTFOUND), tmp_name, data->error_num);
+                EE(EE_FILENOTFOUND), tmp_name, data->error_num,
+                my_strerror(errbuf, sizeof(errbuf), data->error_num));
     return 1;
   }
   return 0; /* ok */
@@ -599,10 +601,11 @@ static int default_local_infile_read(void *ptr, char *buf, uint buf_len)
 
   if ((count= (int) my_read(data->fd, (uchar *) buf, buf_len, MYF(0))) < 0)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     data->error_num= EE_READ; /* the errmsg for not entire file read */
     my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
-		EE(EE_READ),
-		data->filename, my_errno);
+                EE(EE_READ), data->filename,
+                my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
   }
   return count;
 }
@@ -3103,7 +3106,6 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
                                          uint length)
 {
   char *buffer= (char *)param->buffer;
-  int err= 0;
   char *endptr= value + length;
 
   /*
@@ -3115,6 +3117,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     break;
   case MYSQL_TYPE_TINY:
   {
+    int err;
     longlong data= my_strtoll10(value, &endptr, &err);
     *param->error= (IS_TRUNCATED(data, param->is_unsigned,
                                  INT_MIN8, INT_MAX8, UINT_MAX8) || err > 0);
@@ -3123,6 +3126,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_SHORT:
   {
+    int err;
     longlong data= my_strtoll10(value, &endptr, &err);
     *param->error= (IS_TRUNCATED(data, param->is_unsigned,
                                  INT_MIN16, INT_MAX16, UINT_MAX16) || err > 0);
@@ -3131,6 +3135,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_LONG:
   {
+    int err;
     longlong data= my_strtoll10(value, &endptr, &err);
     *param->error= (IS_TRUNCATED(data, param->is_unsigned,
                                  INT_MIN32, INT_MAX32, UINT_MAX32) || err > 0);
@@ -3139,6 +3144,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_LONGLONG:
   {
+    int err;
     longlong data= my_strtoll10(value, &endptr, &err);
     *param->error= param->is_unsigned ? err != 0 :
                                        (err > 0 || (err == 0 && data < 0));
@@ -3147,6 +3153,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_FLOAT:
   {
+    int err;
     double data= my_strntod(&my_charset_latin1, value, length, &endptr, &err);
     float fdata= (float) data;
     *param->error= (fdata != data) | test(err);
@@ -3155,6 +3162,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_DOUBLE:
   {
+    int err;
     double data= my_strntod(&my_charset_latin1, value, length, &endptr, &err);
     *param->error= test(err);
     doublestore(buffer, data);
@@ -3162,19 +3170,22 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_TIME:
   {
+    MYSQL_TIME_STATUS status;
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
-    str_to_time(value, length, tm, &err);
-    *param->error= test(err);
+    str_to_time(value, length, tm, &status);
+    *param->error= test(status.warnings);
     break;
   }
   case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
   {
+    MYSQL_TIME_STATUS status;
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
-    (void) str_to_datetime(value, length, tm, TIME_FUZZY_DATE, &err);
-    *param->error= test(err) && (param->buffer_type == MYSQL_TYPE_DATE &&
-                                 tm->time_type != MYSQL_TIMESTAMP_DATE);
+    (void) str_to_datetime(value, length, tm, TIME_FUZZY_DATE, &status);
+    *param->error= test(status.warnings) &&
+                   (param->buffer_type == MYSQL_TYPE_DATE &&
+                    tm->time_type != MYSQL_TIMESTAMP_DATE);
     break;
   }
   case MYSQL_TYPE_TINY_BLOB:
@@ -3501,7 +3512,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
       fetch_string_with_conversion:
     */
     char buff[MAX_DATE_STRING_REP_LENGTH];
-    uint length= my_TIME_to_str(my_time, buff);
+    uint length= my_TIME_to_str(my_time, buff, field->decimals);
     /* Resort to string conversion */
     fetch_string_with_conversion(param, (char *)buff, length);
     break;
@@ -3978,7 +3989,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
     field->max_length= MAX_DOUBLE_STRING_REP_LENGTH;
     break;
   case MYSQL_TYPE_TIME:
-    field->max_length= 15;                    /* 19:23:48.123456 */
+    field->max_length= 17;                    /* -819:23:48.123456 */
     param->skip_result= skip_result_with_length;
     break;
   case MYSQL_TYPE_DATE:

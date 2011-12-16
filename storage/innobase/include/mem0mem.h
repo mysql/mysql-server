@@ -318,7 +318,7 @@ mem_heap_dup(
 	ulint		len);	/*!< in: length of data, in bytes */
 
 /****************************************************************//**
-A simple (s)printf replacement that dynamically allocates the space for the
+A simple sprintf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type).

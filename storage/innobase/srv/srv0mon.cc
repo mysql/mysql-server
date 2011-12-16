@@ -1264,7 +1264,7 @@ srv_mon_set_module_control(
 		turn them on again (which could reset counter value) */
 		if (MONITOR_IS_ON(ix) && (set_option == MONITOR_TURN_ON)) {
 			fprintf(stderr, "Monitor '%s' is already enabled.\n",
-				srv_mon_get_name((monitor_id_t)ix));
+				srv_mon_get_name((monitor_id_t) ix));
 			continue;
 		}
 

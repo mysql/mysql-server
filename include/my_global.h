@@ -1481,4 +1481,16 @@ enum loglevel {
 };
 
 
+/*
+  Visual Studio before the version 2010 did not have lldiv_t.
+  In Visual Studio 2010, _MSC_VER is defined as 1600.
+*/
+#if defined(_MSC_VER) && (_MSC_VER < 1600)
+typedef struct
+{
+  long long int quot;   /* Quotient.  */
+  long long int rem;    /* Remainder.  */
+} lldiv_t;
+#endif
+
 #endif  // MY_GLOBAL_INCLUDED

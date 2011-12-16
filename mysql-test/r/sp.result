@@ -6443,7 +6443,7 @@ DROP TABLE t1;
 
 CALL p1('text');
 Warnings:
-Warning	1264	Out of range value for column 'v' at row 1
+Warning	1265	Data truncated for column 'v' at row 1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -7614,6 +7614,26 @@ f1()
 1
 DROP FUNCTION f1;
 #
+# Bug#12577230
+# RERUN OF STORED FUNCTION CAUSES SEGFAULT IN MAKE_JOIN_SELECT
+#
+CREATE TABLE t1 (a INT) ENGINE=myisam;
+INSERT INTO t1 VALUES (1);
+CREATE VIEW v1 AS SELECT a FROM t1;
+CREATE PROCEDURE p1()
+SELECT 1 FROM v1 JOIN t1 ON v1.a
+WHERE (SELECT 1 FROM t1 WHERE v1.a)
+;
+CALL p1();
+1
+1
+CALL p1();
+1
+1
+DROP PROCEDURE p1;
+DROP TABLE t1;
+DROP VIEW v1;
+#
 # WL#2111: Add non-reserved ROW_COUNT keyword.
 #
 DROP PROCEDURE IF EXISTS p1;
@@ -7635,4 +7655,12 @@ row_count()
 ROW_COUNT
 0
 DROP PROCEDURE p1;
+#
+# BUG #11748187 - 35410: STORED FUNCTION: CONFUSING 'ORDER CLAUSE' IN ERROR MESSAGE
+#
+DROP FUNCTION if exists f1;
+CREATE FUNCTION f1 (p_value INT) RETURNS INT DETERMINISTIC RETURN x;
+SELECT f1(1);
+ERROR 42S22: Unknown column 'x' in 'field list'
+DROP FUNCTION f1;
 # End of 5.6 tests
