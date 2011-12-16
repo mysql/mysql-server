@@ -33,7 +33,6 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)
 {
   bool res;
-  bool store_in_query_cache= false;
   DBUG_ENTER("mysql_union");
 
   if (open_query_tables(thd))
