@@ -52,8 +52,9 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
     goto err;
 
   /*
-    We must wait after locking to store the query in the query cache.
-    Transactional engines must been signalled that the statement started.
+    Tables must be locked before storing the query in the query cache.
+    Transactional engines must been signalled that the statement started,
+    which external_lock signals.
   */
   if (store_in_query_cache)
     query_cache_store_query(thd, thd->lex->query_tables);

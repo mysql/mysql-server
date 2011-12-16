@@ -3402,23 +3402,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     lex->current_select->options|= OPTION_BUFFER_RESULT;
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
-#ifdef MOVED_TO_PREPARE2
-  else if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-           thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-           !thd->lex->describe)
-  {
-    /*
-      We must not yet prepare the result table if it is the same as one of the 
-      source tables (INSERT SELECT). The preparation may disable 
-      indexes on the result table, which may be used during the select, if it
-      is the same table (Bug #6034). Do the preparation after the select phase
-      in select_insert::prepare2().
-      We won't start bulk inserts at all if this statement uses functions or
-      should invoke triggers since they may access to the same table too.
-    */
-    table->file->ha_start_bulk_insert((ha_rows) 0);
-  }
-#endif
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
 

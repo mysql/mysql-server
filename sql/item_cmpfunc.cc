@@ -5324,7 +5324,9 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
       We could also do boyer-more for non-const items, but as we would have to
       recompute the tables for each row it's not worth it.
     */
-    if (args[1]->const_item() && !args[1]->has_subquery() &&
+    if (args[1]->const_item() &&
+        /* Do not evaluate subqueries unless the tables are locked */
+        (thd->lex->is_query_tables_locked() || !args[1]->has_subquery()) &&
         !use_strnxfrm(collation.collation) &&
         !(specialflag & SPECIAL_NO_NEW_FUNC))
     {

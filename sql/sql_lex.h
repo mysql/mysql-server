@@ -1206,9 +1206,8 @@ public:
       Then it might be not own tables left any way.
       This can be checked by comparing query_tables_own_last with
       query_tables_last and if they is not the same, then
-      first not own is query_tables.
+      first_not_own_table is query_tables.
     */
-    // TODO: check if this works
     if (query_tables_own_last)
     {
       if (*query_tables_own_last)
@@ -1220,7 +1219,6 @@ public:
       }
     }
     return NULL;
-    //return (query_tables_own_last ? *query_tables_own_last : 0);
   }
   void chop_off_not_own_tables()
   {

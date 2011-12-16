@@ -5919,10 +5919,6 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         master and slave inconsistent.
         We can solve these problems in mixed mode by switching to binlogging 
         if at least one updated table is used by sub-statement
-        TODO: Verify what to do if first_not_own_table is not correct here?
-        I.e. when the first table have been unlinked, but there rest are
-        not own tables, i.e. when query_tables_own_last is set,
-        but *query_tables_own_last is NULL.
       */
       if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables && 
           has_write_table_with_auto_increment(thd->lex->first_not_own_table()))
@@ -5941,23 +5937,6 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         thd->lex->sql_command != SQLCOM_LOCK_TABLES)
     {
       TABLE_LIST *first_not_own= thd->lex->first_not_own_table();
-#ifdef TEST_FIRST_NOT_OWN
-      if (!first_not_own)
-      {
-        /*
-          It is either only own tables.
-          Or the first table may have been removed by unlink_first_table,
-          which sets first/query_tables->next_global to NULL and to which
-          query_tables_own_last pointed to. This can only happen in
-          CREATE TABLE t [SELECT...].
-        */
-        if (thd->lex->query_tables_own_last != thd->lex->query_tables_last)
-        {
-          DBUG_ASSERT(thd->lex->sql_command == SQLCOM_CREATE_TABLE);
-          first_not_own= thd->lex->query_tables;
-        }
-      }
-#endif /* TEST_FIRST_NOT_OWN */
       /*
         We just have done implicit LOCK TABLES, and now we have
         to emulate first open_and_lock_tables() after it.

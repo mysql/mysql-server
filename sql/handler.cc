@@ -2216,7 +2216,6 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
              ("name: %s  db_type: %d  db_stat: %d  mode: %d  lock_test: %d",
               name, ht->db_type, table_arg->db_stat, mode,
               test_if_locked));
-  DBUG_PRINT("info", ("this: 0x%p", this));
 
   table= table_arg;
   DBUG_ASSERT(table->s == table_share);
@@ -2268,7 +2267,6 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 int handler::ha_close(void)
 {
   DBUG_ENTER("handler::ha_close");
-  DBUG_PRINT("info", ("this: 0x%p", this));
 #ifdef HAVE_PSI_TABLE_INTERFACE
   PSI_CALL(close_table)(m_psi);
   m_psi= NULL; /* instrumentation handle, invalid after close_table() */
@@ -2316,11 +2314,10 @@ int handler::ha_index_init(uint idx, bool sorted)
 int handler::ha_index_end()
 {
   DBUG_ENTER("ha_index_end");
-  /* Due to the HANDLER SQL command we cannot enforse this */
-  /*
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+  /* SQL HANDLER function can call this without having it locked. */
+  DBUG_ASSERT(ha_table_flags() & HA_CAN_SQL_HANDLER ||
+              table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  */
   DBUG_ASSERT(inited==INDEX);
   inited=NONE;
   end_range= NULL;
@@ -2363,11 +2360,10 @@ int handler::ha_rnd_init(bool scan)
 int handler::ha_rnd_end()
 {
   DBUG_ENTER("ha_rnd_end");
-  /* Due to the HANDLER SQL command we cannot enforse this */
-  /*
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+  /* SQL HANDLER function can call this without having it locked. */
+  DBUG_ASSERT(ha_table_flags() & HA_CAN_SQL_HANDLER ||
+              table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  */
   DBUG_ASSERT(inited==RND);
   inited=NONE;
   end_range= NULL;
@@ -6139,11 +6135,12 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   {
     DBUG_PRINT("error", ("inited (%d) != NONE in ha_external_lock (%d, was %d)",
                          inited, lock_type, m_lock_type));
-#ifdef NOT_YET_DUE_TO_HANDLER_SQL_INTERFACE
     /* HANDLER t READ... uses this even between locks */
-    inited= NONE;
-    DBUG_ASSERT(0);
-#endif
+    if (!(ha_table_flags() & HA_CAN_SQL_HANDLER))
+    {
+      inited= NONE;
+      DBUG_ASSERT(0);
+    }
   }
   /* If this handler is cloned, then table->file is not this handler! */
   // TODO: have an indicator in the handler to show that it is clone,
@@ -6229,7 +6226,6 @@ int handler::ha_external_lock(THD *thd, int lock_type)
 int handler::ha_reset()
 {
   DBUG_ENTER("handler::ha_reset");
-  DBUG_PRINT("info", ("this: 0x%p", this));
   /* Check that we have called all proper deallocation functions */
   DBUG_ASSERT((uchar*) table->def_read_set.bitmap +
               table->s->column_bitmap_size ==
@@ -6261,7 +6257,6 @@ int handler::ha_write_row(uchar *buf)
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   DBUG_ENTER("handler::ha_write_row");
-  DBUG_PRINT("info", ("this: 0x%p", this));
 
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();

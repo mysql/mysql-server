@@ -1539,6 +1539,7 @@ void Item_func_substr::fix_length_and_dec()
 
   agg_arg_charsets_for_string_result(collation, args, 1);
   DBUG_ASSERT(collation.collation != NULL);
+  /* Don't evaluate subqueries during prepare. */
   if (args[1]->const_item() && !args[1]->has_subquery())
   {
     int32 start= (int32) args[1]->val_int();
