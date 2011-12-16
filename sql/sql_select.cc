@@ -1183,6 +1183,7 @@ mysql_select(THD *thd,
              SELECT_LEX *select_lex)
 {
   bool free_join= 1;
+  bool store_in_query_cache= false;
   uint og_num= 0;
   ORDER *first_order= NULL;
   ORDER *first_group= NULL;
@@ -1205,7 +1206,7 @@ mysql_select(THD *thd,
 
   /* Only register the query if it was opened above. */
   if (thd->lex->tables_state < Query_tables_list::TABLES_STATE_LOCKED)
-    query_cache_store_query(thd, thd->lex->query_tables);
+    store_in_query_cache= true;
 
   if (mysql_prepare_select(thd, tables, wild_num, fields,
                            conds, og_num, first_order, first_group, having,
@@ -1229,6 +1230,13 @@ mysql_select(THD *thd,
     }
     DBUG_RETURN(true);
   }
+
+  /*
+    We must wait after locking to store the query in the query cache.
+    Transactional engines must been signalled that the statement started.
+  */
+  if (store_in_query_cache)
+    query_cache_store_query(thd, thd->lex->query_tables);
 
   if (mysql_execute_select(thd, select_lex, free_join, join))
     DBUG_RETURN(true);

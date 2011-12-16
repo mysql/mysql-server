@@ -33,6 +33,7 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)
 {
   bool res;
+  bool store_in_query_cache= false;
   DBUG_ENTER("mysql_union");
 
   if (open_query_tables(thd))
@@ -40,7 +41,7 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
 
   /* Only register the query if it was opened above */
   if (thd->lex->tables_state < Query_tables_list::TABLES_STATE_LOCKED)
-    query_cache_store_query(thd, thd->lex->query_tables);
+    store_in_query_cache= true;
 
   res= unit->prepare(thd, result,
 		     SELECT_NO_UNLOCK | setup_tables_done_option);
@@ -49,6 +50,13 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
 
   if (lock_query_tables(thd))
     goto err;
+
+  /*
+    We must wait after locking to store the query in the query cache.
+    Transactional engines must been signalled that the statement started.
+  */
+  if (store_in_query_cache)
+    query_cache_store_query(thd, thd->lex->query_tables);
 
   res= unit->optimize() || unit->exec();
   res|= unit->cleanup();
