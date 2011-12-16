@@ -2069,6 +2069,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->cleaner_max_buffer_workdone = brt_stat.cleaner_max_buffer_workdone;
 	    engstat->cleaner_min_buffer_workdone = brt_stat.cleaner_min_buffer_workdone;
 	    engstat->cleaner_total_buffer_workdone = brt_stat.cleaner_total_buffer_workdone;
+            engstat->cleaner_num_leaves_unmerged = brt_stat.cleaner_num_leaves_unmerged;
             engstat->flush_total = brt_stat.flush_total;
             engstat->flush_in_memory = brt_stat.flush_in_memory;
             engstat->flush_needed_io = brt_stat.flush_needed_io;
@@ -2359,6 +2360,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "cleaner_max_buffer_workdone      %"PRIu64"\n", engstat.cleaner_max_buffer_workdone);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_min_buffer_workdone      %"PRIu64"\n", engstat.cleaner_min_buffer_workdone);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_total_buffer_workdone    %"PRIu64"\n", engstat.cleaner_total_buffer_workdone);
+        n += snprintf(buff + n, bufsiz - n, "cleaner_num_leaves_unmerged      %"PRIu64"\n", engstat.cleaner_num_leaves_unmerged);
         n += snprintf(buff + n, bufsiz - n, "flush_total                      %"PRIu64"\n", engstat.flush_total);
         n += snprintf(buff + n, bufsiz - n, "flush_in_memory                  %"PRIu64"\n", engstat.flush_in_memory);
         n += snprintf(buff + n, bufsiz - n, "flush_needed_io                  %"PRIu64"\n", engstat.flush_needed_io);

@@ -585,6 +585,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  uint64_t         cleaner_max_buffer_workdone;   /* max workdone value of any message buffer flushed by cleaner thread */\n");
     printf("  uint64_t         cleaner_min_buffer_workdone;   /* min workdone value of any message buffer flushed by cleaner thread */\n");
     printf("  uint64_t         cleaner_total_buffer_workdone; /* total workdone value of message buffers flushed by cleaner thread */\n");
+    printf("  uint64_t         cleaner_num_leaves_unmerged;   /* number of leaves left unmerged by the cleaner thread */\n");
     printf("  uint64_t         flush_total;                 /* total number of flushes done by flusher threads or cleaner threads */\n");
     printf("  uint64_t         flush_in_memory;             /* number of in memory flushes */\n");
     printf("  uint64_t         flush_needed_io;             /* number of flushes that had to read a child (or part) off disk */\n");

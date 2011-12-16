@@ -810,6 +810,7 @@ struct brt_status {
     uint64_t  cleaner_max_buffer_workdone; // max workdone value of any message buffer flushed by cleaner thread
     uint64_t  cleaner_min_buffer_workdone;
     uint64_t  cleaner_total_buffer_workdone;
+    uint64_t  cleaner_num_leaves_unmerged; // number of leaves left unmerged by the cleaner thread
     uint64_t  flush_total;                 // total number of flushes done by flusher threads or cleaner threads
     uint64_t  flush_in_memory;             // number of in memory flushes
     uint64_t  flush_needed_io;             // number of flushes that had to read a child (or part) off disk
