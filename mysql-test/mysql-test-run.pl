@@ -3130,11 +3130,14 @@ sub memcached_start {
 
 
 sub memcached_load_metadata($) {
-  my $cluster = shift;
+  my $cluster= shift;
     
-  my $sql_script= my_find_file($basedir,
-                             ["share", "storage/ndb/memcache/scripts"],
-                             "ndb_memcache_metadata.sql", NOT_REQUIRED);
+  my $sql_script= my_find_file($bindir,
+                              ["share/mysql/memcache-api", # RPM install
+                               "share/memcache-api",       # Other installs
+                               "scripts"                   # Build tree
+                              ],
+                              "ndb_memcache_metadata.sql", NOT_REQUIRED);
 
   foreach my $mysqld (mysqlds()) {
     if(-d $mysqld->value('datadir') . "/" . "ndbmemcache") {
