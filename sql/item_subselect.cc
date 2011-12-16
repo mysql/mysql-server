@@ -2574,7 +2574,8 @@ bool subselect_uniquesubquery_engine::scan_table()
   if (table->file->inited)
     table->file->ha_index_end();
  
-  table->file->ha_rnd_init(1);
+  if (table->file->ha_rnd_init(1))
+    DBUG_RETURN(true);
   table->file->extra_opt(HA_EXTRA_CACHE,
                          current_thd->variables.read_buff_size);
   table->null_row= 0;

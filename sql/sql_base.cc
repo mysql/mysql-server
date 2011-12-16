@@ -1566,6 +1566,9 @@ void close_thread_tables(THD *thd)
     /* Ensure we are calling ha_reset() for all used tables */
     mark_used_tables_as_free_for_reuse(thd, thd->open_tables);
 
+    /* Set the tables_state to be able to reopen/reuse the tables */
+    thd->lex->tables_state= Query_tables_list::TABLES_STATE_REUSABLE;
+
     /*
       We are under simple LOCK TABLES or we're inside a sub-statement
       of a prelocked statement, so should not do anything else.
@@ -1607,6 +1610,7 @@ void close_thread_tables(THD *thd)
      */
     (void)thd->binlog_flush_pending_rows_event(TRUE);
     mysql_unlock_tables(thd, thd->lock);
+    thd->lex->tables_state= Query_tables_list::TABLES_STATE_UNLOCKED;
     thd->lock=0;
   }
   /*
@@ -1615,6 +1619,8 @@ void close_thread_tables(THD *thd)
   */
   if (thd->open_tables)
     close_open_tables(thd);
+
+  thd->lex->tables_state= Query_tables_list::TABLES_STATE_CLOSED;
 
   DBUG_VOID_RETURN;
 }
@@ -3169,6 +3175,23 @@ retry_share:
   DBUG_ASSERT(table->file->pushed_cond == NULL);
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
   table_list->table= table;
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /* Set all [named] partitions as used. */
+  if (table->part_info)
+  {
+    if (table->part_info->set_partition_bitmaps(table_list))
+      DBUG_RETURN(true);
+  }
+  else if (table_list &&
+           table_list->partition_names &&
+           table_list->partition_names->elements)
+  {
+    /* Don't allow PARTITION () clause on a nonpartitioned table */
+    my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
+    DBUG_RETURN(true);
+  }
+#endif
 
   table->init(thd, table_list);
 
@@ -4851,47 +4874,6 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
 }
 
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-/*
-  TODO: Move all this to prune_partitions() when implementing WL#4443.
-  Needs all items and conds fixed (as in first part in JOIN::optimize,
-  mysql_prepare_delete). Ensure that prune_partitions() is called for all
-  statements supported by WL#5217.
-
-  TODO: When adding support for FK in partitioned tables, update this function
-  so the referenced table get correct locking.
-*/
-static bool prune_partition_locks(TABLE_LIST *tables)
-{
-  TABLE_LIST *table;
-  DBUG_ENTER("prune_partition_locks");
-  for (table= tables; table; table= table->next_global)
-  {
-    /* Avoid to lock/start_stmt partitions not used in the statement. */
-    if (!table->placeholder())
-    {
-      if (table->table->part_info)
-      {
-        /*
-          Initialize and set partitions bitmaps, using table's mem_root,
-          destroyed in closefrm().
-        */
-        if (table->table->part_info->set_partition_bitmaps(table))
-          DBUG_RETURN(TRUE);
-      }
-      else if (table->partition_names && table->partition_names->elements)
-      {
-        /* Don't allow PARTITION () clause on a nonpartitioned table */
-        my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-    }
-  }
-  DBUG_RETURN(FALSE);
-}
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
-
-
 /**
   Open all tables in list
 
@@ -5174,16 +5156,6 @@ restart:
       }
     }
   }
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  /* TODO: move this to prune_partitions() when implementing WL#4443. */
-  /* Prune partitions to avoid unneccesary locks */
-  if (prune_partition_locks(*start))
-  {
-    error= TRUE;
-    goto err;
-  }
-#endif
 
 err:
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
@@ -5632,6 +5604,119 @@ end:
 
 
 /**
+  Cleanup failed open or lock tables.
+
+  @param thd            Thread context.
+  @param mdl_savepoint  Savepoint for rollback.
+*/
+
+void open_and_lock_tables_cleanup(THD *thd,
+                                  const MDL_savepoint &mdl_savepoint)
+{
+  if (!thd->in_sub_stmt)
+    trans_rollback_stmt(thd);  /* Necessary if derived handling failed. */
+  close_thread_tables(thd);
+  /* Don't keep locks for a failed statement. */
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+}
+
+
+/**
+  Cleanup failed open or lock tables.
+
+  @param thd            Thread context.
+  @param mdl_savepoint  Savepoint for rollback.
+*/
+
+void open_and_lock_query_tables_cleanup(THD *thd)
+{
+  if (thd->lex->is_query_tables_opened())
+    open_and_lock_tables_cleanup(thd, thd->lex->mdl_open_savepoint);
+  thd->lex->tables_state= Query_tables_list::TABLES_STATE_CLOSED;
+}
+
+
+/**
+  Open tables and open derived tables and prepares them.
+
+  @param         thd            Thread context.
+
+  @return Operation status
+    @retval false  OK
+    @retval true   Error
+*/
+
+bool open_query_tables(THD *thd)
+{
+  DBUG_ENTER("open_query_tables");
+
+  if (thd->lex->is_query_tables_opened())
+  {
+    DBUG_PRINT("info", ("Query tables already opened"));
+    DBUG_RETURN(false);
+  }
+
+ 
+  thd->lex->mdl_open_savepoint= thd->mdl_context.mdl_savepoint();
+  
+  /* if prepare, then we must use shared mdl. */
+  if (open_tables(thd,
+                  &thd->lex->query_tables,
+                  &thd->lex->tables_lock_count,
+                  (thd->stmt_arena->is_stmt_prepare()
+                   ? MYSQL_OPEN_FORCE_SHARED_MDL : 0)))
+    DBUG_RETURN(true);
+
+  thd->lex->tables_state= Query_tables_list::TABLES_STATE_OPENED;
+
+  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
+  {
+    open_and_lock_query_tables_cleanup(thd);
+    DBUG_RETURN(true);
+  }
+  
+  thd->lex->tables_state= Query_tables_list::TABLES_STATE_DERIVED_PREPARED;
+
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Lock query tables.
+
+  @param         thd            Thread context.
+
+  @return Operation status
+    @retval false  OK
+    @retval true   Error
+*/
+
+bool lock_query_tables(THD *thd)
+{
+  DBUG_ENTER("lock_query_tables");
+
+  if (thd->lex->is_query_tables_locked())
+  {
+    DBUG_PRINT("info", ("Query tables already locked"));
+    DBUG_RETURN(false);
+  }
+
+  DBUG_ASSERT(thd->lex->tables_state >=
+              Query_tables_list::TABLES_STATE_OPENED);
+
+  if (lock_tables(thd,
+                  thd->lex->query_tables,
+                  thd->lex->tables_lock_count, 0))
+  {
+    open_and_lock_query_tables_cleanup(thd);
+    DBUG_RETURN(true);
+  }
+  thd->lex->tables_state= Query_tables_list::TABLES_STATE_LOCKED;
+  DBUG_RETURN(false);
+}
+
+
+/**
   Open all tables in list, locks them and optionally process derived tables.
 
   @param thd		      Thread context.
@@ -5678,11 +5763,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
 
   DBUG_RETURN(FALSE);
 err:
-  if (! thd->in_sub_stmt)
-    trans_rollback_stmt(thd);  /* Necessary if derived handling failed. */
-  close_thread_tables(thd);
-  /* Don't keep locks for a failed statement. */
-  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+  open_and_lock_tables_cleanup(thd, mdl_savepoint);
   DBUG_RETURN(TRUE);
 }
 
@@ -5838,6 +5919,10 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         master and slave inconsistent.
         We can solve these problems in mixed mode by switching to binlogging 
         if at least one updated table is used by sub-statement
+        TODO: Verify what to do if first_not_own_table is not correct here?
+        I.e. when the first table have been unlinked, but there rest are
+        not own tables, i.e. when query_tables_own_last is set,
+        but *query_tables_own_last is NULL.
       */
       if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables && 
           has_write_table_with_auto_increment(thd->lex->first_not_own_table()))
@@ -5856,6 +5941,23 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         thd->lex->sql_command != SQLCOM_LOCK_TABLES)
     {
       TABLE_LIST *first_not_own= thd->lex->first_not_own_table();
+#ifdef TEST_FIRST_NOT_OWN
+      if (!first_not_own)
+      {
+        /*
+          It is either only own tables.
+          Or the first table may have been removed by unlink_first_table,
+          which sets first/query_tables->next_global to NULL and to which
+          query_tables_own_last pointed to. This can only happen in
+          CREATE TABLE t [SELECT...].
+        */
+        if (thd->lex->query_tables_own_last != thd->lex->query_tables_last)
+        {
+          DBUG_ASSERT(thd->lex->sql_command == SQLCOM_CREATE_TABLE);
+          first_not_own= thd->lex->query_tables;
+        }
+      }
+#endif /* TEST_FIRST_NOT_OWN */
       /*
         We just have done implicit LOCK TABLES, and now we have
         to emulate first open_and_lock_tables() after it.

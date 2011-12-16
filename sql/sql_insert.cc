@@ -60,6 +60,7 @@
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_insert.h"
 #include "sql_update.h"                         // compare_record
+#include "sql_derived.h"                        // mysql_derived_*
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_cache.h"                          // query_cache_*
 #include "key.h"                                // key_copy
@@ -80,6 +81,11 @@
 #include "opt_explain.h"
 #include "sql_tmp_table.h"    // tmp tables
 #include "sql_optimizer.h"    // JOIN
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "sql_partition.h"
+// TODO: make partition_info.h self sufficient!
+#include "partition_info.h"            // partition_info
+#endif
 
 #include "debug_sync.h"
 
@@ -671,6 +677,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   bool was_insert_delayed= (table_list->lock_type ==  TL_WRITE_DELAYED);
+  bool is_locked= false;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -719,11 +726,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   {
     if (open_and_lock_for_insert_delayed(thd, table_list))
       DBUG_RETURN(TRUE);
+    is_locked= true;
   }
   else
   {
-    if (open_and_lock_tables(thd, table_list, TRUE, 0))
-      DBUG_RETURN(TRUE);
+    if (open_query_tables(thd))
+      DBUG_RETURN(true);
   }
   lock_type= table_list->lock_type;
 
@@ -765,6 +773,27 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   table_list->next_local= 0;
   context->resolve_in_table_list_only(table_list);
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (table->part_info)
+  {
+#ifdef ADD_INSERT_VALUE_PRUNING
+    if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT ||
+        /* all inserted rows must explicitly set auto increment column */
+        (table->found_next_number_field && TRUE) /* WAS HERE */
+    {
+      /* Pruning not possible, must mark all partitions for read/lock */
+    }
+    else
+    {
+      /*
+        Pruning probably possible, must mark none partitions for read/lock,
+        and add them on row by row basis (if any row does not set auto_inc
+        value explicitly, all partitions must be marked).
+      */
+    }
+#endif
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   while ((values= its++))
   {
     counter++;
@@ -775,6 +804,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_READ, 0, 0))
       goto exit_without_my_ok;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    /* TODO: calculate partition id and store for reuse */
+    /* Must check for table->auto_increment_field_not_null -> prune none. */
+    /* If auto_increment_filed_not_null + val_int() (NOT_ZERO...) */
+    /* Perhaps only do this if its.elements < MAX_INSERT_ROWS_TO_PRUNE */
+    /* Must check for on duplicate key ... */
+    /* WASHERE */
+
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   }
   its.rewind ();
  
@@ -792,6 +830,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     goto exit_without_my_ok;
   }
 
+  /* Lock the tables now if not delayed/already locked. */
+  if (!is_locked &&
+      lock_query_tables(thd))
+    DBUG_RETURN(true);
+ 
   /*
     Fill in the given fields and dump it to the table file
   */
@@ -1585,8 +1628,15 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	goto err;
       if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
       {
-	if (table->file->ha_rnd_pos(table->record[1],table->file->dup_ref))
-	  goto err;
+        if (table->file->ha_rnd_init(0))
+          goto err;
+        if (table->file->ha_rnd_pos(table->record[1],table->file->dup_ref))
+        {
+          (void) table->file->ha_rnd_end();
+          goto err;
+        }
+        if (table->file->ha_rnd_end())
+          goto err;
       }
       else
       {
@@ -3352,6 +3402,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     lex->current_select->options|= OPTION_BUFFER_RESULT;
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
+#ifdef MOVED_TO_PREPARE2
   else if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
            thd->locked_tables_mode <= LTM_LOCK_TABLES &&
            !thd->lex->describe)
@@ -3367,6 +3418,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     */
     table->file->ha_start_bulk_insert((ha_rows) 0);
   }
+#endif
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
 
@@ -3419,10 +3471,12 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
-  if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
-      thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+  if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
       !thd->lex->describe)
+  {
+    // TODO: Is there no better estimation than 0 == Unknown number of rows?
     table->file->ha_start_bulk_insert((ha_rows) 0);
+  }
   DBUG_RETURN(0);
 }
 
@@ -3635,7 +3689,8 @@ void select_insert::abort_result_set() {
       If we are not in prelocked mode, we end the bulk insert started
       before.
     */
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+        thd->lex->is_query_tables_locked())
       table->file->ha_end_bulk_insert();
 
     /*

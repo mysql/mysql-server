@@ -11,8 +11,8 @@ username	event_name	sql_text
 user1	statement/sql/select	select test.f1()
 username	event_name	nesting_event_type
 username	event_name	nesting_event_type
-user1	stage/sql/System lock	STATEMENT
 user1	stage/sql/init	STATEMENT
+user1	stage/sql/System lock	STATEMENT
 user1	stage/sql/optimizing	STATEMENT
 user1	stage/sql/executing	STATEMENT
 user1	stage/sql/Opening tables	STATEMENT
