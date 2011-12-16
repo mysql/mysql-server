@@ -687,6 +687,14 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     DBUG_PRINT("info",("Got signal of master update or timed out"));
     if (error == ETIMEDOUT || error == ETIME)
     {
+#ifndef DBUG_OFF
+      /*
+        Doing this to generate a stack trace and make debugging
+        easier. 
+      */
+      if (DBUG_EVALUATE_IF("debug_crash_slave_time_out",1,0)) 
+        DBUG_ASSERT(0);
+#endif
       error= -1;
       break;
     }
