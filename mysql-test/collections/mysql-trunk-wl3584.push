@@ -1,4 +1,4 @@
-perl mysql-test-run.pl --timer 
+perl mysql-test-run.pl --timer \
                        --force \
                        --retry=0 \
                        --max-test-fail=0 \
