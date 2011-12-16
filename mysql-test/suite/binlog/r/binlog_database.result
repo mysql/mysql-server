@@ -9,7 +9,7 @@ create procedure sp1 (a int) insert into t1 values(a);
 drop database testing_1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	create database testing_1
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
@@ -34,7 +34,7 @@ insert into t1 values (1);
 drop table tt1, t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; create temporary table tt1 (a int)
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
@@ -94,7 +94,7 @@ Tables_in_db1
 t2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE IF EXISTS `t1`
 DROP TABLE t3;
@@ -110,7 +110,7 @@ create procedure sp1 (a int) insert into t1 values(a);
 drop database testing_1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	create database testing_1
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
@@ -135,7 +135,7 @@ insert into t1 values (1);
 drop table tt1, t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; create temporary table tt1 (a int)
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
@@ -195,7 +195,7 @@ Tables_in_db1
 t2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE IF EXISTS `t1`
 DROP TABLE t3;
@@ -211,7 +211,7 @@ create procedure sp1 (a int) insert into t1 values(a);
 drop database testing_1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	create database testing_1
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
@@ -236,7 +236,7 @@ insert into t1 values (1);
 drop table tt1, t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
@@ -296,7 +296,7 @@ Tables_in_db1
 t2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE IF EXISTS `t1`
 DROP TABLE t3;
