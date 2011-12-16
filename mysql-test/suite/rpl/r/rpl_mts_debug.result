@@ -21,4 +21,19 @@ include/stop_slave.inc
 SET @@global.slave_parallel_workers= save_slave_parallel_workers;
 SET @@global.debug= "";
 include/start_slave.inc
+call mtr.add_suppression('Error reading slave worker configuration');
+call mtr.add_suppression('Failed during slave workers initialization');
+call mtr.add_suppression('Failed during slave worker thread create');
+include/stop_slave.inc
+set @save.slave_checkpoint_group= @@global.slave_checkpoint_group;
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+set @save.debug= @@global.debug;
+SET @@global.debug= "d,mts_worker_thread_fails";
+set @@global.slave_parallel_workers= 2;
+start slave sql_thread;
+include/wait_for_slave_sql_error.inc [errno=1593]
+set @@global.slave_checkpoint_group= @save.slave_checkpoint_group;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.debug= @save.debug;
+include/start_slave.inc
 include/rpl_end.inc
