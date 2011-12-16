@@ -4591,6 +4591,7 @@ public:
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   int do_apply_event(Relay_log_info const *rli);
+  int do_update_pos(Relay_log_info *rli);
 #endif
 
   /**

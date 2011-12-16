@@ -11707,6 +11707,12 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
 
   DBUG_RETURN(0);
 }
+
+int Gtid_log_event::do_update_pos(Relay_log_info *rli)
+{
+  rli->inc_event_relay_log_pos();
+  return 0;
+}
 #endif
 
 Previous_gtids_log_event::Previous_gtids_log_event(
