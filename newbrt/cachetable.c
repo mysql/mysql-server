@@ -169,6 +169,8 @@ struct cachetable {
     KIBBUTZ kibbutz;              // another pool of worker threads and jobs to do asynchronously.  
 
     LSN lsn_of_checkpoint_in_progress;
+    uint64_t checkpoint_sequence_number; // just a free-running sequence number, used for detecting threadsafety bugs
+    uint64_t checkpoint_prohibited;   // nonzero when checkpoints are prohibited,  used for detecting threadsafety bugs
     u_int32_t checkpoint_num_files;  // how many cachefiles are in the checkpoint
     u_int32_t checkpoint_num_txns;   // how many transactions are in the checkpoint
     PAIR pending_head;           // list of pairs marked with checkpoint_pending
@@ -195,6 +197,18 @@ struct cachetable {
     int64_t size_rollback;
     int64_t size_cachepressure;
 };
+
+// Code bracketed with {BEGIN_CRITICAL_REGION; ... END_CRITICAL_REGION;} macros
+// are critical regions in which a checkpoint is not permitted to begin.
+#define BEGIN_CRITICAL_REGION {uint64_t cp_seqnum = ct->checkpoint_sequence_number; \
+	__sync_fetch_and_add(&ct->checkpoint_prohibited, 1);
+
+#define END_CRITICAL_REGION invariant(cp_seqnum == ct->checkpoint_sequence_number); \
+	invariant(ct->checkpoint_prohibited > 0); \
+        __sync_fetch_and_sub(&ct->checkpoint_prohibited, 1); }
+
+
+
 
 // Lock the cachetable
 static inline void cachefiles_lock(CACHETABLE ct) {
@@ -1840,6 +1854,7 @@ void toku_checkpoint_pairs(
         );
 }
 
+
 int toku_cachetable_put_with_dep_pairs(
     CACHEFILE cachefile, 
     CACHETABLE_GET_KEY_AND_FULLHASH get_key_and_fullhash,
@@ -1879,35 +1894,41 @@ int toku_cachetable_put_with_dep_pairs(
     // cachetable_put_internal does not release the cachetable lock
     //
     cachetable_wait_write(ct);
-    get_key_and_fullhash(key, fullhash, get_key_and_fullhash_extra);
-    int r = cachetable_put_internal(
-        cachefile,
-        *key,
-        *fullhash,
-        value,
-        attr,
-        flush_callback,
-        pe_est_callback,
-        pe_callback,
-        cleaner_callback,
-        write_extraargs
-        );
+    int rval;
+    {
+	BEGIN_CRITICAL_REGION;
 
-    //
-    // now that we have inserted the row, let's checkpoint the 
-    // dependent nodes, if they need checkpointing
-    //
-    checkpoint_dependent_pairs(
-        ct,
-        num_dependent_pairs,
-        dependent_cfs,
-        dependent_keys,
-        dependent_fullhash,
-        dependent_dirty
-        );
+	get_key_and_fullhash(key, fullhash, get_key_and_fullhash_extra);
+	rval = cachetable_put_internal(
+				       cachefile,
+				       *key,
+				       *fullhash,
+				       value,
+				       attr,
+				       flush_callback,
+				       pe_est_callback,
+				       pe_callback,
+				       cleaner_callback,
+				       write_extraargs
+				       );
 
+	//
+	// now that we have inserted the row, let's checkpoint the 
+	// dependent nodes, if they need checkpointing
+	//
+	checkpoint_dependent_pairs(
+				   ct,
+				   num_dependent_pairs,
+				   dependent_cfs,
+				   dependent_keys,
+				   dependent_fullhash,
+				   dependent_dirty
+				   );
+
+	END_CRITICAL_REGION;
+    }
     cachetable_unlock(ct);
-    return r;
+    return rval;
 }
 
 
@@ -2176,40 +2197,47 @@ got_value:
     *value = p->value;
     if (sizep) *sizep = p->attr.size;
 
-    //
-    // A checkpoint cannot begin while we are checking dependent pairs or pending bits. 
-    // Here is why.
-    //
-    // Now that we have all of the locks on the pairs we 
-    // care about, we can take care of the necessary checkpointing.
-    // For each pair, we simply need to write the pair if it is 
-    // pending a checkpoint. If no pair is pending a checkpoint,
-    // then all of this work will be done with the cachetable lock held,
-    // so we don't need to worry about a checkpoint beginning 
-    // in the middle of any operation below. If some pair
-    // is pending a checkpoint, then the checkpoint thread
-    // will not complete its current checkpoint until it can
-    // successfully grab a lock on the pending pair and 
-    // remove it from its list of pairs pending a checkpoint.
-    // This cannot be done until we release the lock
-    // that we have, which is not done in this function.
-    // So, the point is, it is impossible for a checkpoint
-    // to begin while we write any of these locked pairs
-    // for checkpoint, even though writing a pair releases
-    // the cachetable lock.
-    //
-    if (p->checkpoint_pending) {
-        write_locked_pair_for_checkpoint(ct, p);
-    }
+
+    {
+	BEGIN_CRITICAL_REGION;
+
+	//
+	// A checkpoint must not begin while we are checking dependent pairs or pending bits. 
+	// Here is why.
+	//
+	// Now that we have all of the locks on the pairs we 
+	// care about, we can take care of the necessary checkpointing.
+	// For each pair, we simply need to write the pair if it is 
+	// pending a checkpoint. If no pair is pending a checkpoint,
+	// then all of this work will be done with the cachetable lock held,
+	// so we don't need to worry about a checkpoint beginning 
+	// in the middle of any operation below. If some pair
+	// is pending a checkpoint, then the checkpoint thread
+	// will not complete its current checkpoint until it can
+	// successfully grab a lock on the pending pair and 
+	// remove it from its list of pairs pending a checkpoint.
+	// This cannot be done until we release the lock
+	// that we have, which is not done in this function.
+	// So, the point is, it is impossible for a checkpoint
+	// to begin while we write any of these locked pairs
+	// for checkpoint, even though writing a pair releases
+	// the cachetable lock.
+	//
+	if (p->checkpoint_pending) {
+	    write_locked_pair_for_checkpoint(ct, p);
+	}
     
-    checkpoint_dependent_pairs(
-        ct,
-        num_dependent_pairs,
-        dependent_cfs,
-        dependent_keys,
-        dependent_fullhash,
-        dependent_dirty
-        );
+	checkpoint_dependent_pairs(
+				   ct,
+				   num_dependent_pairs,
+				   dependent_cfs,
+				   dependent_keys,
+				   dependent_fullhash,
+				   dependent_dirty
+				   );
+
+	END_CRITICAL_REGION;
+    }
 
     r = maybe_flush_some(ct, 0);
     cachetable_unlock(ct);
@@ -3111,6 +3139,8 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
             assert(r==0);
         }
 	cachetable_lock(ct);
+	invariant(ct->checkpoint_prohibited == 0);  // detect threadsafety bugs
+	ct->checkpoint_sequence_number++; 
 	//Initialize accountability counters
 	ct->checkpoint_num_files = 0;
 	ct->checkpoint_num_txns  = 0;
