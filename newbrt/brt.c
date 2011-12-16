@@ -983,8 +983,8 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, PAI
 // Copy the descriptor into a temporary variable, and tell DRD that subsequent code happens after reading that pointer.
 // In combination with the annotation in toku_update_descriptor, this seems to be enough to convince test_4015 that all is well.
 // Otherwise, drd complains that the newly malloc'd descriptor string is touched later by some comparison operation.
+static const struct __toku_db zero_db; // it's static, so it's all zeros.  icc needs this to be a global
 static inline void setup_fake_db (DB *fake_db, DESCRIPTOR fake_desc, DESCRIPTOR orig_desc) {
-    static const struct __toku_db zero_db; // it's static, so it's all zeros.
     *fake_db = zero_db;
     if (orig_desc) {
 	fake_db->descriptor = fake_desc;
