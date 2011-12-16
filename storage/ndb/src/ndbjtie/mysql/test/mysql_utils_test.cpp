@@ -23,12 +23,55 @@
 #include <stdlib.h> // not using namespaces yet
 #include <assert.h> // not using namespaces yet
 
+#include "dbug_utils.hpp"
 #include "decimal_utils.hpp"
 #include "CharsetMap.hpp"
 
 #include "my_global.h"
 #include "my_sys.h"
 #include "mysql.h"
+
+void test_dbug_utils()
+{
+    const int DBUG_BUF_SIZE = 1024;
+    char buffer[DBUG_BUF_SIZE];
+
+    const char * s0 = "";
+    const char * s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
+    assert(!strcmp(s1, s0));
+
+    s1 = dbugExplain(NULL, DBUG_BUF_SIZE);
+    assert(s1 == NULL);
+
+    s1 = dbugExplain(buffer, 0);
+    assert(s1 == NULL);
+
+    s0 = "t";
+    dbugSet(s0);
+    s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
+    assert(!strcmp(s1, s0));
+
+    dbugSet(NULL);
+    s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
+    assert(!strcmp(s1, s0));
+
+    const char * s2 = "d,jointx:o,/tmp/jointx";
+    dbugPush(s2);
+    s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
+    assert(!strcmp(s1, s2));
+
+    dbugPush(NULL);
+    s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
+    assert(!strcmp(s1, s2));
+
+    dbugPop();
+    s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
+    assert(!strcmp(s1, s0));
+
+    dbugPush(NULL);
+    s1 = dbugExplain(buffer, DBUG_BUF_SIZE);
+    assert(!strcmp(s1, s0));
+}
 
 void test_decimal(const char *s, int prec, int scale, int expected_rv) 
 {
@@ -51,14 +94,15 @@ void test_decimal(const char *s, int prec, int scale, int expected_rv)
     }
 }
 
-
 int main()
 {
-    printf("==== init MySQL lib ====\n");
+    printf("==== BEGIN: MySQL Utils Unit Test ====\n");
+
+    printf("\n==== init MySQL lib, CharsetMap ====\n");
     my_init();
     CharsetMap::init();
 
-    printf("==== decimal_str2bin() / decimal_bin2str() ====\n");
+    printf("\n==== decimal_str2bin() / decimal_bin2str() ====\n");
     
     test_decimal("100", 3, -1, E_DEC_BAD_SCALE); 
     test_decimal("3.3", 2, 1, E_DEC_OK);
@@ -128,7 +172,7 @@ int main()
     lengths[1] = 32;
     CharsetMap::RecodeStatus rr1 = csmap.recode(lengths, utf8_num, latin1_num, 
                                                 my_word_utf8, result_buff_1);
-    printf("Recode Test 1 - UTF-8 to Latin-1: %d %ld %ld \"%s\" => \"%s\" \n", 
+    printf("Recode Test 1 - UTF-8 to Latin-1: %d %d %d \"%s\" => \"%s\" \n", 
            rr1, lengths[0], lengths[1], my_word_utf8, result_buff_1);
     assert(rr1 == CharsetMap::RECODE_OK);
     assert(lengths[0] == 7);
@@ -140,7 +184,7 @@ int main()
     lengths[1] = 32;
     CharsetMap::RecodeStatus rr2 = csmap.recode(lengths, latin1_num, utf8_num,
                                                 my_word_latin1, result_buff_2);
-    printf("Recode Test 2 - Latin-1 to UTF-8: %d %ld %ld \"%s\" => \"%s\" \n", 
+    printf("Recode Test 2 - Latin-1 to UTF-8: %d %d %d \"%s\" => \"%s\" \n", 
            rr2, lengths[0], lengths[1], my_word_latin1, result_buff_2);
     assert(rr2 == CharsetMap::RECODE_OK);
     assert(lengths[0] == 6);
@@ -152,7 +196,7 @@ int main()
     lengths[1] = 4;
     CharsetMap::RecodeStatus rr3 = csmap.recode(lengths, latin1_num, utf8_num,
                                                 my_word_latin1, result_buff_too_small);
-    printf("Recode Test 3 - too-small buffer: %d %ld %ld \"%s\" => \"%s\" \n", 
+    printf("Recode Test 3 - too-small buffer: %d %d %d \"%s\" => \"%s\" \n", 
            rr3, lengths[0], lengths[1], my_word_latin1, result_buff_too_small);
     assert(rr3 == CharsetMap::RECODE_BUFF_TOO_SMALL);
     assert(lengths[0] == 3);
@@ -201,7 +245,11 @@ int main()
     // If there is not at least one of each, then something is probably wrong
     assert(nNull && nSingle && nMulti);
   
+    printf("\n==== DBUG Utilities ====\n");    
+    test_dbug_utils();    
     
-    
+    printf("\n==== unload CharsetMap ====\n");
     CharsetMap::unload();
+
+    printf("\n==== END: MySQL Utils Unit Test ====\n");
 }
