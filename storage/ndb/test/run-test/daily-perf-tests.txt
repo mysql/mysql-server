@@ -79,62 +79,72 @@ type: bench
 
 # sql
 max-time: 600
-client: ndb-sql-perf-create-table.sh
-args: t1
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-create-table.sh t1
+cmd-type: mysql
 
 max-time: 600
-client: ndb-sql-perf-select.sh
-args: t1 1 64
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-select.sh t1 1 64
 mysqld: --ndb-cluster-connection-pool=1
 type: bench
+cmd-type: mysql
 
 max-time: 600
-client: ndb-sql-perf-select.sh
-args: t1 1 64
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-select.sh t1 1 64
 mysqld: --ndb-cluster-connection-pool=4
 type: bench
+cmd-type: mysql
 
 max-time: 600
-client: ndb-sql-perf-update.sh
-args: t1 1 64
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-update.sh t1 1 64
 mysqld: --ndb-cluster-connection-pool=1
 type: bench
+cmd-type: mysql
 
 max-time: 600
-client: ndb-sql-perf-update.sh
-args: t1 1 64
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-update.sh t1 1 64
 mysqld: --ndb-cluster-connection-pool=4
 type: bench
+cmd-type: mysql
 
 max-time: 600
-client: ndb-sql-perf-drop-table.sh
-args: t1
-mysqld:
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-drop-table.sh t1
+cmd-type: mysql
 
 # sql join
 max-time: 600
-client: ndb-sql-perf-load-tpcw.sh
-args:
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-load-tpcw.sh
+cmd-type: mysql
 
 max-time: 600
-client: ndb-sql-perf-tpcw-getBestSeller.sh
-args:
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-tpcw-getBestSeller.sh
+cmd-type: mysql
 type: bench
 
 max-time: 600
-client: ndb-sql-perf-drop-tpcw.sh
-args:
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-drop-tpcw.sh
+cmd-type: mysql
 
 max-time: 600
-client: ndb-sql-perf-load-music-store.sh
-args:
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-load-music-store.sh
+cmd-type: mysql
 
 max-time: 600
-client: ndb-sql-perf-select-music-store.sh
-args:
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-select-music-store.sh
+cmd-type: mysql
 type: bench
 
 max-time: 600
-client: ndb-sql-perf-drop-music-store.sh
-args:
-
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-drop-music-store.sh
+cmd-type: mysql
