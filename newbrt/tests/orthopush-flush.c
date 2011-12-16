@@ -10,6 +10,8 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 static char fname[] = __FILE__ ".brt";
+static struct brt_header my_fake_header;
+static struct brt_header *my_header = &my_fake_header;
 
 static int dummy_cmp(DB *db __attribute__((unused)),
                      const DBT *a, const DBT *b) {
@@ -96,7 +98,7 @@ insert_random_message(NONLEAF_CHILDINFO bnc, BRT_MSG_S **save, bool *is_fresh_ou
 // generate a random message with xids and a key starting with pfx, insert
 // it into blb, and save it in output param save
 static void
-insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xids, int pfx)
+insert_random_message_to_leaf(BRT t, BRTNODE leafnode, BASEMENTNODE blb, LEAFENTRY *save, XIDS xids, int pfx)
 {
     int keylen = (random() % 16) + 16;
     int vallen = (random() % 1024) + 16;
@@ -122,10 +124,11 @@ insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xid
     msg.u.id.key = keydbt;
     msg.u.id.val = valdbt;
     size_t memsize;
-    int r = apply_msg_to_leafentry(&msg, NULL, &memsize, save, NULL, NULL, NULL, NULL, NULL);
+    int64_t numbytes;
+    int r = apply_msg_to_leafentry(&msg, NULL, &memsize, save, NULL, NULL, NULL, NULL, NULL, &numbytes);
     assert_zero(r);
     bool made_change;
-    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb, &msg, &made_change, NULL, NULL, NULL);
+    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, leafnode, blb, &msg, &made_change, NULL, NULL, NULL);
     if (msn.msn > blb->max_msn_applied.msn) {
         blb->max_msn_applied = msn;
     }
@@ -137,7 +140,7 @@ insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xid
 // used for making two leaf nodes the same in order to compare the result
 // of 'maybe_apply' and a normal buffer flush
 static void
-insert_same_message_to_leaves(BRT t, BASEMENTNODE blb1, BASEMENTNODE blb2, LEAFENTRY *save, XIDS xids, int pfx)
+insert_same_message_to_leaves(BRT t, BRTNODE child1, BASEMENTNODE blb1, BRTNODE child2, BASEMENTNODE blb2, LEAFENTRY *save, XIDS xids, int pfx)
 {
     int keylen = (random() % 16) + 16;
     int vallen = (random() % 1024) + 16;
@@ -163,14 +166,15 @@ insert_same_message_to_leaves(BRT t, BASEMENTNODE blb1, BASEMENTNODE blb2, LEAFE
     msg.u.id.key = keydbt;
     msg.u.id.val = valdbt;
     size_t memsize;
-    int r = apply_msg_to_leafentry(&msg, NULL, &memsize, save, NULL, NULL, NULL, NULL, NULL);
+    int64_t numbytes;
+    int r = apply_msg_to_leafentry(&msg, NULL, &memsize, save, NULL, NULL, NULL, NULL, NULL, &numbytes);
     assert_zero(r);
     bool made_change;
-    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb1, &msg, &made_change, NULL, NULL, NULL);
+    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, child1, blb1, &msg, &made_change, NULL, NULL, NULL);
     if (msn.msn > blb1->max_msn_applied.msn) {
         blb1->max_msn_applied = msn;
     }
-    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb2, &msg, &made_change, NULL, NULL, NULL);
+    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, child2, blb2, &msg, &made_change, NULL, NULL, NULL);
     if (msn.msn > blb2->max_msn_applied.msn) {
         blb2->max_msn_applied = msn;
     }
@@ -271,7 +275,7 @@ flush_to_internal(BRT t) {
 
     BRTNODE XMALLOC(child);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child, blocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0);
+    toku_initialize_empty_brtnode(child, blocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
     destroy_nonleaf_childinfo(BNC(child, 0));
     set_BNC(child, 0, child_bnc);
     BP_STATE(child, 0) = PT_AVAIL;
@@ -401,7 +405,7 @@ flush_to_internal_multiple(BRT t) {
 
     BRTNODE XMALLOC(child);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child, blocknum, 1, 8, BRT_LAYOUT_VERSION, 4*M, 0);
+    toku_initialize_empty_brtnode(child, blocknum, 1, 8, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
     for (i = 0; i < 8; ++i) {
         destroy_nonleaf_childinfo(BNC(child, i));
         set_BNC(child, i, child_bncs[i]);
@@ -519,7 +523,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     CKERR(r);
     r = xids_create_child(xids_0, &xids_234, (TXNID)234);
     CKERR(r);
-
+    
     BASEMENTNODE child_blbs[8];
     DBT childkeys[7];
     int i;
@@ -532,7 +536,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
 
     BRTNODE XMALLOC(child);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0);
+    toku_initialize_empty_brtnode(child, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
     for (i = 0; i < 8; ++i) {
         destroy_basement_node(BLB(child, i));
         set_BLB(child, i, child_blbs[i]);
@@ -542,7 +546,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     int total_size = 0;
     for (i = 0; total_size < 4*M; ++i) {
         total_size -= child_blbs[i%8]->n_bytes_in_buffer;
-        insert_random_message_to_leaf(t, child_blbs[i%8], &child_messages[i], xids_123, i%8);
+        insert_random_message_to_leaf(t, child, child_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child_blbs[i%8]->n_bytes_in_buffer;
         if (i % 8 < 7) {
             u_int32_t keylen;
@@ -609,7 +613,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     } else {
         BRTNODE XMALLOC(parentnode);
         BLOCKNUM parentblocknum = { 17 };
-        toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0);
+        toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
         destroy_nonleaf_childinfo(BNC(parentnode, 0));
         set_BNC(parentnode, 0, parent_bnc);
         BP_STATE(parentnode, 0) = PT_AVAIL;
@@ -759,7 +763,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
 
     BRTNODE XMALLOC(child);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0);
+    toku_initialize_empty_brtnode(child, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
     for (i = 0; i < 8; ++i) {
         destroy_basement_node(BLB(child, i));
         set_BLB(child, i, child_blbs[i]);
@@ -769,7 +773,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     int total_size = 0;
     for (i = 0; total_size < 4*M; ++i) {
         total_size -= child_blbs[i%8]->n_bytes_in_buffer;
-        insert_random_message_to_leaf(t, child_blbs[i%8], &child_messages[i], xids_123, i%8);
+        insert_random_message_to_leaf(t, child, child_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child_blbs[i%8]->n_bytes_in_buffer;
         u_int32_t keylen;
         char *key = le_key_and_len(child_messages[i], &keylen);
@@ -829,7 +833,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
 
     BRTNODE XMALLOC(parentnode);
     BLOCKNUM parentblocknum = { 17 };
-    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0);
+    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
     destroy_nonleaf_childinfo(BNC(parentnode, 0));
     set_BNC(parentnode, 0, parent_bnc);
     BP_STATE(parentnode, 0) = PT_AVAIL;
@@ -936,8 +940,8 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
 
     BRTNODE XMALLOC(child1), XMALLOC(child2);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child1, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0);
-    toku_initialize_empty_brtnode(child2, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0);
+    toku_initialize_empty_brtnode(child1, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
+    toku_initialize_empty_brtnode(child2, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
     for (i = 0; i < 8; ++i) {
         destroy_basement_node(BLB(child1, i));
         set_BLB(child1, i, child1_blbs[i]);
@@ -950,7 +954,7 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
     int total_size = 0;
     for (i = 0; total_size < 4*M; ++i) {
         total_size -= child1_blbs[i%8]->n_bytes_in_buffer;
-        insert_same_message_to_leaves(t, child1_blbs[i%8], child2_blbs[i%8], &child_messages[i], xids_123, i%8);
+        insert_same_message_to_leaves(t, child1, child1_blbs[i%8], child2, child2_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child1_blbs[i%8]->n_bytes_in_buffer;
         if (i % 8 < 7) {
             u_int32_t keylen;
@@ -1013,7 +1017,7 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
 
     BRTNODE XMALLOC(parentnode);
     BLOCKNUM parentblocknum = { 17 };
-    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0);
+    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
     destroy_nonleaf_childinfo(BNC(parentnode, 0));
     set_BNC(parentnode, 0, parent_bnc);
     BP_STATE(parentnode, 0) = PT_AVAIL;
@@ -1128,7 +1132,7 @@ test_main (int argc, const char *argv[]) {
 
     // normally, just check a few things, but if --slow is provided, then
     // be thorough about it and repeat tests (since they're randomized)
-    if (!slow) {
+    if (!slow) {;
         flush_to_internal(t);
         flush_to_internal_multiple(t);
         flush_to_leaf(t, true, false);

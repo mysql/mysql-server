@@ -206,8 +206,17 @@ typedef struct __toku_engine_status {
   uint64_t         disk_flush_nonleaf;          /* number of nonleaf nodes flushed to disk, not for checkpoint */
   uint64_t         disk_flush_leaf_for_checkpoint; /* number of leaf nodes flushed to disk for checkpoint */
   uint64_t         disk_flush_nonleaf_for_checkpoint; /* number of nonleaf nodes flushed to disk for checkpoint */
+  uint64_t         create_leaf;                 /* number of leaf nodes created */
+  uint64_t         create_nonleaf;              /* number of nonleaf nodes created */
   uint64_t         destroy_leaf;                /* number of leaf nodes destroyed */
   uint64_t         destroy_nonleaf;             /* number of nonleaf nodes destroyed */
+  uint64_t         split_leaf;                  /* number of leaf nodes split */
+  uint64_t         split_nonleaf;               /* number of nonleaf nodes split */
+  uint64_t         merge_leaf;                  /* number of times leaf nodes are merged */
+  uint64_t         merge_nonleaf;               /* number of times nonleaf nodes are merged  */
+  uint64_t         dirty_leaf;                  /* number of times leaf nodes are dirtied when previously clean */
+  uint64_t         dirty_nonleaf;               /* number of times nonleaf nodes are dirtied when previously clean */
+  uint64_t         balance_leaf;                /* number of times a leaf node is balanced inside brt */
   uint64_t         msg_bytes_in;                /* how many bytes of messages injected at root (for all trees)*/
   uint64_t         msg_bytes_out;               /* how many bytes of messages flushed from h1 nodes to leaves*/
   uint64_t         msg_bytes_curr;              /* how many bytes of messages currently in trees (estimate)*/

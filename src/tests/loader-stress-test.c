@@ -432,10 +432,7 @@ static void test_loader(DB **dbs)
                            NUM_ROWS, stats.bt_nkeys, stats.bt_ndata, stats.bt_dsize, stats.bt_fsize);
 		assert(stats.bt_nkeys <= (u_int64_t)NUM_ROWS);  // Fix as part of #4129.  Was ==
 		assert(stats.bt_ndata <= (u_int64_t)NUM_ROWS);
-		// Fix as part of #4129.
-		// Was: 	//assert(stats.bt_dsize == ((u_int64_t)NUM_ROWS) * 2 * sizeof(unsigned int));
-		// Now is
-		assert(stats.bt_dsize == stats.bt_nkeys * 100);
+		assert(stats.bt_dsize == ((u_int64_t)NUM_ROWS) * 2 * sizeof(unsigned int));
 		r = txn->commit(txn, 0);
 		CKERR(r);
 	    }

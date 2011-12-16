@@ -233,7 +233,9 @@ enum brt_header_flags {
     TOKU_DB_VALCMP_BUILTIN_13  = (1<<3),
 };
 
-int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u_int64_t *greater)  __attribute__ ((warn_unused_result));
+int 
+toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u_int64_t *greater) __attribute__ ((warn_unused_result));
+
 struct brtstat64_s {
     u_int64_t nkeys; /* estimate how many unique keys (even when flattened this may be an estimate)     */
     u_int64_t ndata; /* estimate the number of pairs (exact when flattened and committed)               */
@@ -245,10 +247,9 @@ struct brtstat64_s {
     u_int64_t modify_time_sec; /* time of last serialization, in seconds. */ 
     u_int64_t verify_time_sec; /* time of last verification, in seconds */
 };
-int toku_brt_stat64 (BRT, TOKUTXN,
-		     struct brtstat64_s *stat
-		     )
-    __attribute__ ((warn_unused_result));
+
+int 
+toku_brt_stat64 (BRT, TOKUTXN, struct brtstat64_s *stat) __attribute__ ((warn_unused_result));
 
 int toku_brt_init(void (*ydb_lock_callback)(void),
                   void (*ydb_unlock_callback)(void),

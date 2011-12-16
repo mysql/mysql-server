@@ -33,6 +33,8 @@
 
 static LE_STATUS_S status;
 
+static uint32_t ule_get_innermost_numbytes(ULE ule);
+
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Accessor functions used by outside world (e.g. indexer)
@@ -305,14 +307,19 @@ apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
 		       struct mempool *mp, 
 		       void **maybe_free,
                        OMT snapshot_xids,
-                       OMT live_list_reverse) {
+                       OMT live_list_reverse,
+                       int64_t * numbytes_delta_p) {  // change in total size of key and val, not including any overhead
     ULE_S ule;
     int rval;
+    int64_t oldnumbytes = 0;
+    int64_t newnumbytes = 0;
 
-    if (old_leafentry == NULL)           // if leafentry does not exist ...
-        msg_init_empty_ule(&ule, msg);   // ... create empty unpacked leaf entry
-    else 
+    if (old_leafentry == NULL)            // if leafentry does not exist ...
+        msg_init_empty_ule(&ule, msg);    // ... create empty unpacked leaf entry
+    else {
         le_unpack(&ule, old_leafentry); // otherwise unpack leafentry 
+	oldnumbytes = ule_get_innermost_numbytes(&ule);
+    }
     msg_modify_ule(&ule, msg);          // modify unpacked leafentry
     if (snapshot_xids && live_list_reverse) {
         garbage_collection(&ule, snapshot_xids, live_list_reverse);
@@ -322,8 +329,10 @@ apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
 		   new_leafentry_p,
 		   omt,
 		   mp,
-		   maybe_free
-        );                       
+		   maybe_free);                       
+    if (new_leafentry_p) 
+	newnumbytes = ule_get_innermost_numbytes(&ule);
+    *numbytes_delta_p = newnumbytes - oldnumbytes;
     ule_cleanup(&ule);
     return rval;
 }
@@ -1709,6 +1718,22 @@ uint32_t
 ule_get_keylen(ULE ule) {
     return ule->keylen;
 }
+
+
+// return size of data for innermost uxr, size of key plus size of val
+uint32_t
+ule_get_innermost_numbytes(ULE ule) {
+    uint32_t rval;
+    UXR uxr = ule_get_innermost_uxr(ule);
+    if (uxr_is_delete(uxr))
+	rval = 0;
+    else {
+	rval = uxr_get_vallen(uxr);
+	rval += ule_get_keylen(ule);
+    }
+    return rval;
+}
+
 
 /////////////////////////////////////////////////////////////////////////////////
 //  This layer of abstraction (uxr_xxx) understands uxr and nothing else.

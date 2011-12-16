@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -148,11 +149,14 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     BASEMENTNODE bn = BLB(node, childnum);
     void * maybe_free = 0;
     
-    r = apply_msg_to_leafentry(&cmd, NULL, //No old leafentry
-                               &newlesize, &leafentry, 
-			       bn->buffer, &bn->buffer_mempool, &maybe_free,
-                               NULL, NULL);
-    assert(r==0);
+    {
+	int64_t ignoreme;
+	r = apply_msg_to_leafentry(&cmd, NULL, //No old leafentry
+				   &newlesize, &leafentry, 
+				   bn->buffer, &bn->buffer_mempool, &maybe_free,
+				   NULL, NULL, &ignoreme);
+	assert(r==0);
+    }
 
 
     struct cmd_leafval_heaviside_extra be = {brt->compare_fun, &brt->h->descriptor, &keydbt};

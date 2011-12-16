@@ -51,6 +51,13 @@ enum { BUFFER_HEADER_SIZE = (4 // height//
 			     + TREE_FANOUT * 8 // children
 			     ) };
 
+typedef struct {
+    int64_t numrows;           // delta versions in basements could be negative
+    int64_t numbytes;
+} STAT64INFO_S, *STAT64INFO;
+
+static const STAT64INFO_S ZEROSTATS = {0,0};
+
 //
 // Field in brtnode_fetch_extra that tells the 
 // partial fetch callback what piece of the node
@@ -155,6 +162,7 @@ struct brtnode_leaf_basement_node {
     unsigned int seqinsert;         // number of sequential inserts to this leaf 
     MSN max_msn_applied;            // max message sequence number applied
     bool stale_ancestor_messages_applied;
+    STAT64INFO_S stat64_delta;      // change in stat64 counters since basement was last written to disk
 };
 
 enum  __attribute__((__packed__)) pt_state {  // declare this to be packed so that when used below it will only take 1 byte.
@@ -223,6 +231,7 @@ struct   __attribute__((__packed__)) brtnode_partition {
 
 struct brtnode {
     MSN      max_msn_applied_to_node_on_disk; // max_msn_applied that will be written to disk
+    struct brt_header *h;    // in-memory only
     unsigned int nodesize;
     unsigned int flags;
     BLOCKNUM thisnodename;   // Which block number is this node?
@@ -392,6 +401,9 @@ struct brt_header {
 
     brt_compare_func compare_fun;
     brt_update_func update_fun;
+    STAT64INFO_S in_memory_stats;
+    STAT64INFO_S on_disk_stats;
+    STAT64INFO_S checkpoint_staging_stats;
 };
 
 struct brt {
@@ -447,6 +459,10 @@ int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2le
 
 void toku_verify_or_set_counts(BRTNODE);
 
+void 
+toku_brt_header_init(struct brt_header *h,
+                     BLOCKNUM root_blocknum_on_disk, LSN checkpoint_lsn, TXNID root_xid_that_created, uint32_t target_nodesize, uint32_t target_basementnodesize);
+
 int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h, int64_t address_translation, int64_t size_translation);
@@ -468,6 +484,14 @@ void toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *
 
 // append a cmd to a nonleaf node child buffer
 void toku_brt_append_to_child_buffer(brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node, int childnum, int type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val);
+
+// Mark a node as dirty and update statistics in header.
+// Other than the node's constructor, this should be the ONLY place
+// a brt node is marked as dirty.
+void toku_mark_node_dirty(BRTNODE node);
+
+STAT64INFO_S toku_get_and_clear_basement_stats(BRTNODE leafnode);
+
 
 #if 1
 #define DEADBEEF ((void*)0xDEADBEEF)
@@ -545,6 +569,7 @@ struct brt_cursor {
 // is required, such as for flushes.
 //
 static inline void fill_bfe_for_full_read(struct brtnode_fetch_extra *bfe, struct brt_header *h) {
+    invariant(h->type == BRTHEADER_CURRENT);
     bfe->type = brtnode_fetch_all;
     bfe->h = h;
     bfe->search = NULL;
@@ -573,6 +598,7 @@ static inline void fill_bfe_for_subset_read(
     BOOL disable_prefetching
     )
 {
+    invariant(h->type == BRTHEADER_CURRENT);
     bfe->type = brtnode_fetch_subset;
     bfe->h = h;
     bfe->search = search;
@@ -591,6 +617,7 @@ static inline void fill_bfe_for_subset_read(
 // Currently used for stat64.
 //
 static inline void fill_bfe_for_min_read(struct brtnode_fetch_extra *bfe, struct brt_header *h) {
+    invariant(h->type == BRTHEADER_CURRENT);
     bfe->type = brtnode_fetch_none;
     bfe->h = h;
     bfe->search = NULL;
@@ -622,6 +649,7 @@ static inline void destroy_bfe_for_prefetch(struct brtnode_fetch_extra *bfe) {
 static inline void fill_bfe_for_prefetch(struct brtnode_fetch_extra *bfe,
                                          struct brt_header *h,
                                          BRT_CURSOR c) {
+    invariant(h->type == BRTHEADER_CURRENT);
     bfe->type = brtnode_fetch_prefetch;
     bfe->h = h;
     bfe->search = NULL;
@@ -682,7 +710,7 @@ void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children
 
 // Effect: Fill in N as an empty brtnode.
 void toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num_children, 
-                                    int layout_version, unsigned int nodesize, unsigned int flags);
+                                    int layout_version, unsigned int nodesize, unsigned int flags, struct brt_header *h);
 
 unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
                                       DESCRIPTOR desc, brt_compare_func cmp)
@@ -796,8 +824,17 @@ struct brt_status {
     uint64_t  disk_flush_nonleaf;          // number of nonleaf nodes flushed to disk, not for checkpoint
     uint64_t  disk_flush_leaf_for_checkpoint; // number of leaf nodes flushed to disk for checkpoint
     uint64_t  disk_flush_nonleaf_for_checkpoint; // number of nonleaf nodes flushed to disk for checkpoint
+    uint64_t  create_leaf;                 // number of leaf nodes created
+    uint64_t  create_nonleaf;              // number of nonleaf nodes created
     uint64_t  destroy_leaf;                // number of leaf nodes destroyed
     uint64_t  destroy_nonleaf;             // number of nonleaf nodes destroyed
+    uint64_t  split_leaf;                  // number of leaf nodes split
+    uint64_t  split_nonleaf;               // number of nonleaf nodes split
+    uint64_t  merge_leaf;                  // number of times leaf nodes are merged
+    uint64_t  merge_nonleaf;               // number of times nonleaf nodes are merged    
+    uint64_t  dirty_leaf;                  // number of times leaf nodes are dirtied when previously clean
+    uint64_t  dirty_nonleaf;               // number of times nonleaf nodes are dirtied when previously clean    
+    uint64_t  balance_leaf;                // number of times a leaf node is balanced inside brt
     uint64_t  msg_bytes_in;                // how many bytes of messages injected at root (for all trees)
     uint64_t  msg_bytes_out;               // how many bytes of messages flushed from h1 nodes to leaves
     uint64_t  msg_bytes_curr;              // how many bytes of messages currently in trees (estimate)
@@ -828,10 +865,11 @@ struct brt_status {
 void toku_brt_get_status(BRT_STATUS);
 
 void
-brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, BOOL create_new_node, u_int32_t num_dependent_nodes, BRTNODE* dependent_nodes);
+brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, BOOL create_new_node, u_int32_t num_dependent_nodes, BRTNODE* dependent_nodes, BRT_STATUS brt_status);
 
 void
 brt_leaf_apply_cmd_once (
+    BRTNODE leafnode,
     BASEMENTNODE bn,
     const BRT_MSG cmd,
     u_int32_t idx,
@@ -846,6 +884,7 @@ brt_leaf_put_cmd (
     brt_compare_func compare_fun,
     brt_update_func update_fun,
     DESCRIPTOR desc,
+    BRTNODE leafnode,
     BASEMENTNODE bn, 
     BRT_MSG cmd, 
     bool* made_change,

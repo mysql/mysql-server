@@ -68,10 +68,12 @@ static BOOL true_pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs))
 
 static int err_pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep)) {
   assert(FALSE);
+  return 0; // gcov
 }
 
 static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep)) {
   assert(FALSE);
+  return 0; // gcov
 }
 
 static int true_pf_callback(void* UU(brtnode_pv), void* read_extraargs, int UU(fd), PAIR_ATTR* sizep) {

@@ -1,13 +1,9 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2011 Tokutek Inc.  All rights reserved."
 
 #include "test.h"
-
 #include "includes.h"
-
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-
 
 static  int
 int64_key_cmp (DB *db UU(), const DBT *a, const DBT *b) {

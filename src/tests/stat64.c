@@ -36,7 +36,6 @@ test_stat64 (unsigned int N) {
     r=env->txn_begin(env, 0, &txn, 0);  CKERR(r);
 
     // insert sequential keys into the databases
-
     unsigned int i;
     u_int64_t dsize=0;
     for (i=0; i<N; i++) {
@@ -71,14 +70,14 @@ test_stat64 (unsigned int N) {
             printf("fsize=%" PRIu64 "\n", s.bt_fsize);
             printf("expected dsize=%" PRIu64 "\n", dsize); 
         }
-        assert(s.bt_nkeys <= 4*N);      // This can probably be tightened up when we fix #3995.
-        assert(s.bt_ndata <= 4*N);      // This can probably be tightened up when we fix #3995.
-        assert(s.bt_dsize <= 16*dsize); // This can probably be tightened up when we fix #3995.
+        assert(0 < s.bt_nkeys && s.bt_nkeys <= N);
+        assert(s.bt_ndata == s.bt_nkeys);
+        assert(0 < s.bt_dsize && s.bt_dsize <= dsize);
         assert(s.bt_fsize > N);
     }
     r=txn->commit(txn, 0); CKERR(r);
 
-    // get the last row, this forces the root estimates to be updated
+    // get the last row, this forces the root estimates to be updated.
     {
         r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
         DBC *c = NULL;
@@ -105,9 +104,9 @@ test_stat64 (unsigned int N) {
             printf("fsize=%" PRIu64 "\n", s.bt_fsize);
             printf("expected dsize=%" PRIu64 "\n", dsize); 
         }
-        assert(s.bt_nkeys <= 4*N);
-        assert(s.bt_ndata <= 4*N);
-        assert(s.bt_dsize <= 16*dsize); // This can probably be tightened up when we fix #3995.
+        assert(0 < s.bt_nkeys && s.bt_nkeys <= N);
+        assert(s.bt_ndata == s.bt_nkeys);
+        assert(0 < s.bt_dsize && s.bt_dsize <= dsize);
         assert(s.bt_fsize > N);
     }
     r=txn->commit(txn, 0); CKERR(r);

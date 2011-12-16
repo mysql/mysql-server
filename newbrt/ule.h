@@ -60,7 +60,8 @@ int apply_msg_to_leafentry(BRT_MSG   msg,
 			   struct mempool *mp, 
 			   void **maybe_free,
                            OMT snapshot_xids,
-                           OMT live_list_reverse);
+                           OMT live_list_reverse,
+                           int64_t * numbytes_delta_p);
 
 
 TXNID toku_get_youngest_live_list_txnid_for(TXNID xc, OMT live_list_reverse);

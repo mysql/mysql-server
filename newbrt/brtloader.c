@@ -2060,15 +2060,17 @@ struct dbout {
     int64_t n_translations_limit;
     struct translation *translation;
     toku_pthread_mutex_t mutex;
+    struct brt_header *h;
 };
 
-static inline void dbout_init(struct dbout *out) {
+static inline void dbout_init(struct dbout *out, struct brt_header *h) {
     out->fd = -1;
     out->current_off = 0;
     out->n_translations = out->n_translations_limit = 0;
     out->translation = NULL;
     int r = toku_pthread_mutex_init(&out->mutex, NULL);
     resource_assert_zero(r);
+    out->h = h;
 }
 
 static inline void dbout_destroy(struct dbout *out) {
@@ -2194,7 +2196,7 @@ static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc)
     }
 
     BRTNODE XMALLOC(node);
-    toku_initialize_empty_brtnode(node, lbuf->blocknum, 0 /*height*/, 1 /*basement nodes*/, BRT_LAYOUT_VERSION, target_nodesize, 0);
+    toku_initialize_empty_brtnode(node, lbuf->blocknum, 0 /*height*/, 1 /*basement nodes*/, BRT_LAYOUT_VERSION, target_nodesize, 0, out->h);
     BP_STATE(node, 0) = PT_AVAIL;
     lbuf->node = node;
 
@@ -2207,7 +2209,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
 CILK_END
 static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen, int this_leafentry_size);
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p);
-static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn, TXNID root_xid, uint32_t target_nodesize, uint32_t target_basementnodesize);
+static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk);
 
 static void drain_writer_q(QUEUE q) {
     void *item;
@@ -2276,8 +2278,15 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     }
     FILE *pivots_stream = toku_bl_fidx2file(bl, pivots_file);
 
+    TXNID root_xid_that_created = TXNID_NONE;
+    if (bl->root_xids_that_created)
+        root_xid_that_created = bl->root_xids_that_created[which_db];
+
+    struct brt_header h; 
+    toku_brt_header_init(&h, (BLOCKNUM){0}, bl->load_lsn, root_xid_that_created, target_nodesize, target_basementnodesize);
+
     struct dbout out;
-    dbout_init(&out);
+    dbout_init(&out, &h);
     out.fd = fd;
     out.current_off = 8192; // leave 8K reserved at beginning
     out.n_translations = 3; // 3 translations reserved at the beginning
@@ -2439,7 +2448,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
     {
 	invariant(sts.n_subtrees==1);
-	BLOCKNUM root_block = make_blocknum(sts.subtrees[0].block);
+	out.h->root = make_blocknum(sts.subtrees[0].block);
 	toku_free(sts.subtrees); sts.subtrees = NULL;
 
 	// write the descriptor
@@ -2472,11 +2481,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
             result = r; goto error;
         }
 
-        TXNID root_xid_that_created = TXNID_NONE;
-        if (bl->root_xids_that_created) {
-            root_xid_that_created = bl->root_xids_that_created[which_db];
-        }
-        r = write_header(&out, off_of_translation, (out.n_translations+1)*16+4, root_block, bl->load_lsn, root_xid_that_created, target_nodesize, target_basementnodesize);
+        r = write_header(&out, off_of_translation, (out.n_translations+1)*16+4);
         if (r) {
             result = r; goto error;
         }
@@ -2768,7 +2773,7 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     DBT theval = { .data = val, .size = vallen };
     BRT_MSG_S cmd = { BRT_INSERT, ZERO_MSN, lbuf->xids, .u.id = { &thekey, &theval } };
     uint64_t workdone=0;
-    brt_leaf_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, NULL, NULL, &workdone);
+    brt_leaf_apply_cmd_once(leafnode, BLB(leafnode,0), &cmd, idx, NULL, NULL, NULL, &workdone);
 }
 
 static int write_literal(struct dbout *out, void*data,  size_t len) {
@@ -2844,37 +2849,19 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
     return result;
 }
 
-
 static int
-write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk,
-              LSN load_lsn, TXNID root_xid_that_created, uint32_t target_nodesize, uint32_t target_basementnodesize) {
+write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk) {
     int result = 0;
 
-    struct brt_header h; memset(&h, 0, sizeof h);
-    h.layout_version   = BRT_LAYOUT_VERSION;
-    h.layout_version_original = BRT_LAYOUT_VERSION;
-    h.build_id         = BUILD_ID;
-    h.build_id_original = BUILD_ID;
-    uint64_t now = (uint64_t) time(NULL);
-    h.time_of_creation = now;
-    h.time_of_last_modification = now;
-    h.time_of_last_verification = 0;
-    h.checkpoint_count = 1;
-    h.checkpoint_lsn   = load_lsn;
-    h.nodesize         = target_nodesize;
-    h.basementnodesize = target_basementnodesize;
-    h.root             = root_blocknum_on_disk;
-    h.flags            = 0;
-    h.root_xid_that_created = root_xid_that_created;
-
-    unsigned int size = toku_serialize_brt_header_size (&h);
+    out->h->checkpoint_staging_stats = out->h->in_memory_stats; // #4184
+    unsigned int size = toku_serialize_brt_header_size (out->h);
     struct wbuf wbuf;
     char *MALLOC_N(size, buf);
     if (buf == NULL) {
         result = errno;
     } else {
         wbuf_init(&wbuf, buf, size);
-        toku_serialize_brt_header_to_wbuf(&wbuf, &h, translation_location_on_disk, translation_size_on_disk);
+        toku_serialize_brt_header_to_wbuf(&wbuf, out->h, translation_location_on_disk, translation_size_on_disk);
         if (wbuf.ndone != size)
             result = EINVAL;
         else
@@ -2993,7 +2980,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 
     BRTNODE XMALLOC(node);
     toku_initialize_empty_brtnode(node, make_blocknum(blocknum_of_new_node), height, n_children, 
-                                 BRT_LAYOUT_VERSION, target_nodesize, 0);
+				  BRT_LAYOUT_VERSION, target_nodesize, 0, NULL);
     for (int i=0; i<n_children-1; i++)
         node->childkeys[i] = NULL;
     unsigned int totalchildkeylens = 0;

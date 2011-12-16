@@ -60,6 +60,7 @@ static void verify_dbfile(int n, const char *name) {
     BRT_CURSOR cursor = NULL;
     r = toku_brt_cursor(t, &cursor, NULL, FALSE, FALSE); assert(r == 0);
 
+    size_t userdata = 0;
     int i;
     for (i=0; ; i++) {
 	int kk = i;
@@ -71,11 +72,17 @@ static void verify_dbfile(int n, const char *name) {
 	    break;
 	}
 	assert(pair.call_count==1);
+        userdata += pair.keylen + pair.vallen;
     }
 
     assert(i == n);
 
     r = toku_brt_cursor_close(cursor); assert(r == 0);
+
+    struct brtstat64_s s;
+    r = toku_brt_stat64(t, NULL, &s); assert(r == 0);
+    assert(s.nkeys == (u_int64_t)n && s.ndata == (u_int64_t)n && s.dsize == userdata);
+
     r = toku_close_brt(t, 0); assert(r==0);
     r = toku_cachetable_close(&ct);assert(r==0);
     if (verbose) traceit("verify done");

@@ -42,7 +42,7 @@ append_leaf(BRTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen
 
     // apply an insert to the leaf node
     BRT_MSG_S cmd = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &theval } };
-    brt_leaf_apply_cmd_once(BLB(leafnode, 0), &cmd, idx, NULL, NULL, NULL, NULL);
+    brt_leaf_apply_cmd_once(leafnode, BLB(leafnode, 0), &cmd, idx, NULL, NULL, NULL, NULL);
 
     // Create bad tree (don't do following):
     // leafnode->max_msn_applied_to_node = msn;

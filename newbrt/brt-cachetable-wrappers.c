@@ -99,7 +99,8 @@ create_new_brtnode_with_dep_nodes(
         n_children,
         h->layout_version,
         h->nodesize,
-        h->flags);
+        h->flags, 
+        h);
 
     assert((*result)->nodesize > 0);
     (*result)->fullhash = fullhash;

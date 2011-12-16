@@ -164,7 +164,7 @@ handle_split_of_child(
     }
                  )
 
-    node->dirty = 1;
+    toku_mark_node_dirty(node);
 
     XREALLOC_N(node->n_children+1, node->bp);
     XREALLOC_N(node->n_children, node->childkeys);
@@ -379,14 +379,35 @@ brtleaf_split(
     DBT *splitk,
     BOOL create_new_node,
     u_int32_t num_dependent_nodes,
-    BRTNODE* dependent_nodes)
+    BRTNODE* dependent_nodes,
+    BRT_STATUS brt_status)
+// Effect: Split a leaf node.
+// Argument "node" is node to be split.
+// Upon return:
+//   nodea and nodeb point to new nodes that result from split of "node"
+//   nodea is the left node that results from the split
+//   splitk is the right-most key of nodea
 {
 
-    //    printf("###### brtleaf_split():  create_new_node = %d, num_dependent_nodes = %d\n", create_new_node, num_dependent_nodes);
-    BRTNODE B;
+    invariant(node->height == 0);
+    brt_status->split_leaf++;
+    if (node->n_children) {
+	// First move all the accumulated stat64info deltas into the first basement.
+	// After the split, either both nodes or neither node will be included in the next checkpoint.
+	// The accumulated stats in the dictionary will be correct in either case.
+	// By moving all the deltas into one (arbitrary) basement, we avoid the need to maintain
+	// correct information for a basement that is divided between two leafnodes (i.e. when split is 
+	// not on a basement boundary).
+	STAT64INFO_S delta_for_leafnode = toku_get_and_clear_basement_stats(node);
+	BASEMENTNODE bn = BLB(node,0);
+	bn->stat64_delta = delta_for_leafnode;
+    }
 
+
+    BRTNODE B;
     u_int32_t fullhash;
     BLOCKNUM name;
+
     if (create_new_node) {
         // put value in cachetable and do checkpointing
         // of dependent nodes
@@ -462,8 +483,8 @@ brtleaf_split(
                 num_children_in_b,
                 h->layout_version,
                 h->nodesize,
-                h->flags
-                );
+                h->flags,
+                h);
             assert(B->nodesize > 0);
             B->fullhash = fullhash;
         }
@@ -481,9 +502,8 @@ brtleaf_split(
                 set_BLB(B, i, toku_create_empty_bn());
             }
         }
-        //
-        // first move all the data
-        //
+
+        // now move all the data
 
         int curr_src_bn_index = last_bn_on_left;
         int curr_dest_bn_index = 0;
@@ -550,23 +570,17 @@ brtleaf_split(
         splitk->flags=0;
     }
 
-    node->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
-    B->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
-
-    node->dirty = 1;
-    B->dirty = 1;
-
     verify_all_in_mempool(node);
     verify_all_in_mempool(B);
 
+    node->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
+    B->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
+
+    toku_mark_node_dirty(node);
+    toku_mark_node_dirty(B);
+
     *nodea = node;
     *nodeb = B;
-
-    //printf("%s:%d new sizes Node %" PRIu64 " size=%u omtsize=%d dirty=%d; Node %" PRIu64 " size=%u omtsize=%d dirty=%d\n", __FILE__, __LINE__,
-    //		 node->thisnodename.b, toku_serialize_brtnode_size(node), node->height==0 ? (int)(toku_omt_size(node->u.l.buffer)) : -1, node->dirty,
-    //		 B   ->thisnodename.b, toku_serialize_brtnode_size(B   ), B   ->height==0 ? (int)(toku_omt_size(B   ->u.l.buffer)) : -1, B->dirty);
-    //toku_dump_brtnode(t, node->thisnodename, 0, NULL, 0, NULL, 0);
-    //toku_dump_brtnode(t, B   ->thisnodename, 0, NULL, 0, NULL, 0);
 
 }    // end of brtleaf_split()
 
@@ -578,9 +592,11 @@ brt_nonleaf_split(
     BRTNODE *nodeb,
     DBT *splitk,
     u_int32_t num_dependent_nodes,
-    BRTNODE* dependent_nodes)
+    BRTNODE* dependent_nodes,
+    BRT_STATUS brt_status)
 {
     //VERIFY_NODE(t,node);
+    brt_status->split_nonleaf++;
     toku_assert_entire_node_in_memory(node);
     int old_n_children = node->n_children;
     int n_children_in_a = old_n_children/2;
@@ -634,8 +650,8 @@ brt_nonleaf_split(
     node->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
     B->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
 
-    node->dirty = 1;
-    B->dirty = 1;
+    toku_mark_node_dirty(node);
+    toku_mark_node_dirty(B);
     toku_assert_entire_node_in_memory(node);
     toku_assert_entire_node_in_memory(B);
     //VERIFY_NODE(t,node);
@@ -684,9 +700,9 @@ brt_split_child(
     dep_nodes[0] = node;
     dep_nodes[1] = child;
     if (child->height==0) {
-        brtleaf_split(h, child, &nodea, &nodeb, &splitk, TRUE, 2, dep_nodes);
+        brtleaf_split(h, child, &nodea, &nodeb, &splitk, TRUE, 2, dep_nodes, brt_status);
     } else {
-        brt_nonleaf_split(h, child, &nodea, &nodeb, &splitk, 2, dep_nodes);
+        brt_nonleaf_split(h, child, &nodea, &nodeb, &splitk, 2, dep_nodes, brt_status);
     }
     // printf("%s:%d child did split\n", __FILE__, __LINE__);
     handle_split_of_child (node, childnum, nodea, nodeb, &splitk);
@@ -735,8 +751,8 @@ flush_this_child(
     assert(child->thisnodename.b!=0);
     // VERIFY_NODE does not work off client thread as of now
     //VERIFY_NODE(t, child);
-    node->dirty = TRUE;
-    child->dirty = TRUE;
+    toku_mark_node_dirty(node);
+    toku_mark_node_dirty(child);
 
     BP_WORKDONE(node, childnum) = 0;  // this buffer is drained, no work has been done by its contents
     NONLEAF_CHILDINFO bnc = BNC(node, childnum);
@@ -748,14 +764,22 @@ flush_this_child(
 }
 
 static void
-merge_leaf_nodes(BRTNODE a, BRTNODE b)
+merge_leaf_nodes(BRTNODE a, BRTNODE b, BRT_STATUS brt_status)
 {
+    brt_status->merge_leaf++;
     toku_assert_entire_node_in_memory(a);
     toku_assert_entire_node_in_memory(b);
     assert(a->height == 0);
     assert(b->height == 0);
     assert(a->n_children > 0);
     assert(b->n_children > 0);
+
+    // Mark nodes as dirty before moving basements from b to a.
+    // This way, whatever deltas are accumulated in the basements are
+    // applied to the in_memory_stats in the header if they have not already
+    // been (if nodes are clean).
+    toku_mark_node_dirty(a);
+    toku_mark_node_dirty(b);
 
     // this BOOL states if the last basement node in a has any items or not
     // If it does, then it stays in the merge. If it does not, the last basement node
@@ -811,25 +835,25 @@ merge_leaf_nodes(BRTNODE a, BRTNODE b)
     // b can remain untouched, as it will be destroyed later
     b->totalchildkeylens = 0;
     b->n_children = 0;
-    a->dirty = 1;
-    b->dirty = 1;
 }
 
 static int
 balance_leaf_nodes(
     BRTNODE a,
     BRTNODE b,
-    struct kv_pair **splitk)
+    struct kv_pair **splitk,
+    BRT_STATUS brt_status)
 // Effect:
 //  If b is bigger then move stuff from b to a until b is the smaller.
 //  If a is bigger then move stuff from a to b until a is the smaller.
 {
+    brt_status->balance_leaf++;
     DBT splitk_dbt;
     // first merge all the data into a
-    merge_leaf_nodes(a,b);
+    merge_leaf_nodes(a,b, brt_status);
     // now split them
     // because we are not creating a new node, we can pass in no dependent nodes
-    brtleaf_split(NULL, a, &a, &b, &splitk_dbt, FALSE, 0, NULL);
+    brtleaf_split(NULL, a, &a, &b, &splitk_dbt, FALSE, 0, NULL, brt_status);
     *splitk = splitk_dbt.data;
 
     return 0;
@@ -842,7 +866,8 @@ maybe_merge_pinned_leaf_nodes(
     struct kv_pair *parent_splitk,
     BOOL *did_merge,
     BOOL *did_rebalance,
-    struct kv_pair **splitk)
+    struct kv_pair **splitk,
+    BRT_STATUS brt_status)
 // Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = TRUE.
 //	   (We do this if the resulting node is not fissible)
 //	   or distribute the leafentries evenly between a and b, and set *did_rebalance = TRUE.
@@ -862,7 +887,7 @@ maybe_merge_pinned_leaf_nodes(
         // one is less than 1/4 of a node, and together they are more than 3/4 of a node.
         toku_free(parent_splitk); // We don't need the parent_splitk any more. If we need a splitk (if we don't merge) we'll malloc a new one.
         *did_rebalance = TRUE;
-        int r = balance_leaf_nodes(a, b, splitk);
+        int r = balance_leaf_nodes(a, b, splitk, brt_status);
         assert(r==0);
     } else {
         // we are merging them.
@@ -870,7 +895,7 @@ maybe_merge_pinned_leaf_nodes(
         *did_rebalance = FALSE;
         *splitk = 0;
         toku_free(parent_splitk); // if we are merging, the splitk gets freed.
-        merge_leaf_nodes(a, b);
+        merge_leaf_nodes(a, b, brt_status);
     }
 }
 
@@ -881,7 +906,8 @@ maybe_merge_pinned_nonleaf_nodes(
     BRTNODE b,
     BOOL *did_merge,
     BOOL *did_rebalance,
-    struct kv_pair **splitk)
+    struct kv_pair **splitk,
+    BRT_STATUS brt_status)
 {
     toku_assert_entire_node_in_memory(a);
     toku_assert_entire_node_in_memory(b);
@@ -905,12 +931,14 @@ maybe_merge_pinned_nonleaf_nodes(
     b->totalchildkeylens = 0;
     b->n_children = 0;
 
-    a->dirty = 1;
-    b->dirty = 1;
+    toku_mark_node_dirty(a);
+    toku_mark_node_dirty(b);
 
     *did_merge = TRUE;
     *did_rebalance = FALSE;
     *splitk = NULL;
+    
+    brt_status->merge_nonleaf++;
 }
 
 static void
@@ -921,7 +949,8 @@ maybe_merge_pinned_nodes(
     BRTNODE b,
     BOOL *did_merge,
     BOOL *did_rebalance,
-    struct kv_pair **splitk)
+    struct kv_pair **splitk,
+    BRT_STATUS brt_status)
 // Effect: either merge a and b into one node (merge them into a) and set *did_merge = TRUE.
 //	   (We do this if the resulting node is not fissible)
 //	   or distribute a and b evenly and set *did_merge = FALSE and *did_rebalance = TRUE
@@ -945,7 +974,7 @@ maybe_merge_pinned_nodes(
     toku_assert_entire_node_in_memory(parent);
     toku_assert_entire_node_in_memory(a);
     toku_assert_entire_node_in_memory(b);
-    parent->dirty = 1; // just to make sure
+    toku_mark_node_dirty(parent);   // just to make sure 
     {
         MSN msna = a->max_msn_applied_to_node_on_disk;
         MSN msnb = b->max_msn_applied_to_node_on_disk;
@@ -955,9 +984,9 @@ maybe_merge_pinned_nodes(
         }
     }
     if (a->height == 0) {
-        maybe_merge_pinned_leaf_nodes(a, b, parent_splitk, did_merge, did_rebalance, splitk);
+        maybe_merge_pinned_leaf_nodes(a, b, parent_splitk, did_merge, did_rebalance, splitk, brt_status);
     } else {
-        maybe_merge_pinned_nonleaf_nodes(parent_splitk, a, b, did_merge, did_rebalance, splitk);
+        maybe_merge_pinned_nonleaf_nodes(parent_splitk, a, b, did_merge, did_rebalance, splitk, brt_status);
     }
     if (*did_merge || *did_rebalance) {
         // accurate for leaf nodes because all msgs above have been
@@ -1047,7 +1076,7 @@ brt_merge_child(
         struct kv_pair *splitk_kvpair = 0;
         struct kv_pair *old_split_key = node->childkeys[childnuma];
         unsigned int deleted_size = toku_brt_pivot_key_len(old_split_key);
-        maybe_merge_pinned_nodes(node, node->childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk_kvpair);
+        maybe_merge_pinned_nodes(node, node->childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk_kvpair, brt_status);
         if (childa->height>0) { int i; for (i=0; i+1<childa->n_children; i++) assert(childa->childkeys[i]); }
         //toku_verify_estimates(t,childa);
         // the tree did react if a merge (did_merge) or rebalance (new spkit key) occurred
@@ -1069,14 +1098,14 @@ brt_merge_child(
                     (node->n_children-childnumb)*sizeof(node->childkeys[0]));
             REALLOC_N(node->n_children-1, node->childkeys);
             assert(BP_BLOCKNUM(node, childnuma).b == childa->thisnodename.b);
-            childa->dirty = 1; // just to make sure
-            childb->dirty = 1; // just to make sure
+	    toku_mark_node_dirty(childa);  // just to make sure
+	    toku_mark_node_dirty(childb);  // just to make sure
         } else {
             assert(splitk_kvpair);
             // If we didn't merge the nodes, then we need the correct pivot.
             node->childkeys[childnuma] = splitk_kvpair;
             node->totalchildkeylens += toku_brt_pivot_key_len(node->childkeys[childnuma]);
-            node->dirty = 1;
+	    toku_mark_node_dirty(node);
         }
     }
     //
@@ -1206,7 +1235,7 @@ flush_some_child(
     assert(child->thisnodename.b!=0);
     //VERIFY_NODE(brt, child);
 
-    parent->dirty = 1;
+    toku_mark_node_dirty(parent);
 
     // detach buffer
     BP_WORKDONE(parent, childnum) = 0;  // this buffer is drained, no work has been done by its contents
@@ -1229,7 +1258,7 @@ flush_some_child(
     // so that we can proceed and apply the flush
     //
     bring_node_fully_into_memory(child, h);
-    child->dirty = 1;
+    toku_mark_node_dirty(child);
 
     // It is possible after reading in the entire child,
     // that we now know that the child is not reactive
@@ -1406,7 +1435,7 @@ static void flush_node_fun(void *fe_v)
     // read them back in, or just do the regular partial fetch.  If we
     // don't, that means fe->node is a parent, so we need to do this anyway.
     bring_node_fully_into_memory(fe->node,fe->h);
-    fe->node->dirty = 1;
+    toku_mark_node_dirty(fe->node);
 
     if (fe->bnc) {
         // In this case, we have a bnc to flush to a node
@@ -1521,7 +1550,7 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent, BRT_STATUS brt_status)
             //
             // can detach buffer and unpin root here
             //
-            parent->dirty = 1;
+	    toku_mark_node_dirty(parent);
             BP_WORKDONE(parent, childnum) = 0;  // this buffer is drained, no work has been done by its contents
             NONLEAF_CHILDINFO bnc = BNC(parent, childnum);
             set_BNC(parent, childnum, toku_create_empty_nl());
