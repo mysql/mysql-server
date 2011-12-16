@@ -57,12 +57,85 @@
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
+
 /*
   This forward declaration is needed because including sql_base.h
   causes further includes.  [TODO] Eliminate this forward declaration
   and include a file with the prototype instead.
 */
 extern void close_thread_tables(THD *thd);
+
+
+static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
+                               ptrdiff_t offset, ulonglong new_value)
+{
+  bool error= false;
+  DBUG_ASSERT(offset == offsetof(KEY_CACHE, param_buff_size));
+
+  if (new_value == 0)
+  {
+    if (key_cache == dflt_key_cache)
+    {
+      my_error(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE, MYF(0));
+      return true;
+    }
+
+    if (key_cache->key_cache_inited)            // If initied
+    {
+      /*
+        Move tables using this key cache to the default key cache
+        and clear the old key cache.
+      */
+      key_cache->in_init= 1;
+      mysql_mutex_unlock(&LOCK_global_system_variables);
+      key_cache->param_buff_size= 0;
+      ha_resize_key_cache(key_cache);
+      ha_change_key_cache(key_cache, dflt_key_cache);
+      /*
+        We don't delete the key cache as some running threads my still be in
+        the key cache code with a pointer to the deleted (empty) key cache
+      */
+      mysql_mutex_lock(&LOCK_global_system_variables);
+      key_cache->in_init= 0;
+    }
+    return error;
+  }
+
+  key_cache->param_buff_size= new_value;
+
+  /* If key cache didn't exist initialize it, else resize it */
+  key_cache->in_init= 1;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  if (!key_cache->key_cache_inited)
+    error= ha_init_key_cache(0, key_cache);
+  else
+    error= ha_resize_key_cache(key_cache);
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  key_cache->in_init= 0;
+
+  return error;
+}
+
+static bool update_keycache_param(THD *thd, KEY_CACHE *key_cache,
+                                  ptrdiff_t offset, ulonglong new_value)
+{
+  bool error= false;
+  DBUG_ASSERT(offset != offsetof(KEY_CACHE, param_buff_size));
+
+  keycache_var(key_cache, offset)= new_value;
+
+  key_cache->in_init= 1;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+  error= ha_resize_key_cache(key_cache);
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  key_cache->in_init= 0;
+
+  return error;
+}
 
 /*
   The rule for this file: everything should be 'static'. When a sys_var
@@ -1302,6 +1375,29 @@ static Sys_var_mybool Sys_log_queries_not_using_indexes(
        "slow log if it is open",
        GLOBAL_VAR(opt_log_queries_not_using_indexes),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static bool update_log_throttle_queries_not_using_indexes(sys_var *self,
+                                                          THD *thd,
+                                                          enum_var_type type)
+{
+  // Check if we should print a summary of any suppressed lines to the slow log
+  // now since opt_log_throttle_queries_not_using_indexes was changed.
+  log_throttle_qni.flush(thd);
+  return false;
+}
+
+static Sys_var_ulong Sys_log_throttle_queries_not_using_indexes(
+       "log_throttle_queries_not_using_indexes",
+       "Log at most this many 'not using index' warnings per minute to the "
+       "slow log. Any further warnings will be condensed into a single "
+       "summary line. A value of 0 disables throttling. "
+       "Option has no effect unless --log_queries_not_using_indexes is set.",
+       GLOBAL_VAR(opt_log_throttle_queries_not_using_indexes),
+       CMD_LINE(OPT_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(update_log_throttle_queries_not_using_indexes));
 
 static Sys_var_ulong Sys_log_warnings(
        "log_warnings",

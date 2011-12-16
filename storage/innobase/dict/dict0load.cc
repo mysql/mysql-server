@@ -1622,6 +1622,9 @@ err_len:
 	/* MIX_LEN may hold additional flags in post-antelope file formats. */
 	flags2 = mach_read_from_4(field);
 
+	/* DICT_TF2_FTS will be set when indexes is being loaded */
+	flags2 &= ~DICT_TF2_FTS;
+
 	rec_get_nth_field_offs_old(rec, 8/*CLUSTER_ID*/, &len);
 	if (UNIV_UNLIKELY(len != UNIV_SQL_NULL)) {
 		goto err_len;
@@ -2038,8 +2041,9 @@ static
 void
 dict_load_foreign_cols(
 /*===================*/
-	const char*	id,	/*!< in: foreign constraint id as a
-				null-terminated string */
+	const char*	id,	/*!< in: foreign constraint id, not
+				necessary '\0'-terminated */
+	ulint		id_len,	/*!< in: id length */
 	dict_foreign_t*	foreign)/*!< in: foreign constraint object */
 {
 	dict_table_t*	sys_foreign_cols;
@@ -2073,7 +2077,7 @@ dict_load_foreign_cols(
 	tuple = dtuple_create(foreign->heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
 
-	dfield_set_data(dfield, id, ut_strlen(id));
+	dfield_set_data(dfield, id, id_len);
 	dict_index_copy_types(tuple, sys_index, 1);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
@@ -2086,7 +2090,7 @@ dict_load_foreign_cols(
 		ut_a(!rec_get_deleted_flag(rec, 0));
 
 		field = rec_get_nth_field_old(rec, 0, &len);
-		ut_a(len == ut_strlen(id));
+		ut_a(len == id_len);
 		ut_a(ut_memcmp(id, field, len) == 0);
 
 		field = rec_get_nth_field_old(rec, 1, &len);
@@ -2115,8 +2119,9 @@ static
 ulint
 dict_load_foreign(
 /*==============*/
-	const char*	id,	/*!< in: foreign constraint id as a
-				null-terminated string */
+	const char*	id,	/*!< in: foreign constraint id, not
+				necessary '\0'-terminated */
+	ulint		id_len,	/*!< in: id length */
 	ibool		check_charsets,
 				/*!< in: TRUE=check charset compatibility */
 	ibool		check_recursive)
@@ -2153,7 +2158,7 @@ dict_load_foreign(
 	tuple = dtuple_create(heap2, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
 
-	dfield_set_data(dfield, id, ut_strlen(id));
+	dfield_set_data(dfield, id, id_len);
 	dict_index_copy_types(tuple, sys_index, 1);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
@@ -2165,8 +2170,8 @@ dict_load_foreign(
 		/* Not found */
 
 		fprintf(stderr,
-			"InnoDB: Error A: cannot load foreign constraint %s\n",
-			id);
+			"InnoDB: Error A: cannot load foreign constraint "
+			"%.*s\n", (int) id_len, id);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -2178,11 +2183,11 @@ dict_load_foreign(
 	field = rec_get_nth_field_old(rec, 0, &len);
 
 	/* Check if the id in record is the searched one */
-	if (len != ut_strlen(id) || ut_memcmp(id, field, len) != 0) {
+	if (len != id_len || ut_memcmp(id, field, len) != 0) {
 
 		fprintf(stderr,
-			"InnoDB: Error B: cannot load foreign constraint %s\n",
-			id);
+			"InnoDB: Error B: cannot load foreign constraint "
+			"%.*s\n", (int) id_len, id);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -2208,7 +2213,7 @@ dict_load_foreign(
 	foreign->type = (unsigned int) (n_fields_and_type >> 24);
 	foreign->n_fields = (unsigned int) (n_fields_and_type & 0x3FFUL);
 
-	foreign->id = mem_heap_strdup(foreign->heap, id);
+	foreign->id = mem_heap_strdupl(foreign->heap, id, id_len);
 
 	field = rec_get_nth_field_old(rec, 3, &len);
 
@@ -2224,7 +2229,7 @@ dict_load_foreign(
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	dict_load_foreign_cols(id, foreign);
+	dict_load_foreign_cols(id, id_len, foreign);
 
 	ref_table = dict_table_check_if_in_cache_low(
 			foreign->referenced_table_name_lookup);
@@ -2303,8 +2308,8 @@ dict_load_foreigns(
 	ibool		check_charsets)	/*!< in: TRUE=check charset
 					compatibility */
 {
+	char		tuple_buf[DTUPLE_EST_ALLOC(1)];
 	btr_pcur_t	pcur;
-	mem_heap_t*	heap;
 	dtuple_t*	tuple;
 	dfield_t*	dfield;
 	dict_index_t*	sec_index;
@@ -2312,7 +2317,6 @@ dict_load_foreigns(
 	const rec_t*	rec;
 	const byte*	field;
 	ulint		len;
-	char*		id ;
 	ulint		err;
 	mtr_t		mtr;
 
@@ -2339,9 +2343,8 @@ dict_load_foreigns(
 	sec_index = dict_table_get_next_index(
 		dict_table_get_first_index(sys_foreign));
 start_load:
-	heap = mem_heap_create(256);
 
-	tuple  = dtuple_create(heap, 1);
+	tuple = dtuple_create_from_mem(tuple_buf, sizeof(tuple_buf), 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
 
 	dfield_set_data(dfield, table_name, ut_strlen(table_name));
@@ -2397,7 +2400,6 @@ loop:
 
 	/* Now we get a foreign key constraint id */
 	field = rec_get_nth_field_old(rec, 1, &len);
-	id = mem_heap_strdupl(heap, (char*) field, len);
 
 	btr_pcur_store_position(&pcur, &mtr);
 
@@ -2405,11 +2407,11 @@ loop:
 
 	/* Load the foreign constraint definition to the dictionary cache */
 
-	err = dict_load_foreign(id, check_charsets, check_recursive);
+	err = dict_load_foreign((char*) field, len, check_charsets,
+				check_recursive);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);
-		mem_heap_free(heap);
 
 		return(err);
 	}
@@ -2425,7 +2427,6 @@ next_rec:
 load_next_index:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
-	mem_heap_free(heap);
 
 	sec_index = dict_table_get_next_index(sec_index);
 

@@ -1014,7 +1014,9 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   if (! thd->locked_tables_mode &&
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
-    mi_check_print_error(&param,ER(ER_CANT_LOCK),my_errno);
+    char errbuf[MYSYS_STRERROR_SIZE];
+    mi_check_print_error(&param, ER(ER_CANT_LOCK), my_errno,
+                         my_strerror(errbuf, sizeof(errbuf), my_errno));
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
 
