@@ -20,6 +20,7 @@
 
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
+#include <portlib/NdbEnv.h>
 
 static int opt_stop_on_error = 0;
 
@@ -34,8 +35,9 @@ NDBT_Context::NDBT_Context(Ndb_cluster_connection& con)
   stopped = false;
   propertyMutexPtr = NdbMutex_Create();
   propertyCondPtr = NdbCondition_Create();
+  m_env_timeout = 0;
+  m_test_start_time = NdbTick_CurrentMillisecond();
 }
-
 
 NDBT_Context::~NDBT_Context(){
   NdbCondition_Destroy(propertyCondPtr);
@@ -317,7 +319,6 @@ NDBT_Step::tearDown(){
   delete m_ndb;
   m_ndb = NULL;
 }
-
 
 Ndb* NDBT_Step::getNdb() const {
   assert(m_ndb != NULL);
@@ -970,8 +971,8 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
       if (opt_stop_on_error != 0 && numTestsFail > 0)
         break;
 
-      if (_testname != NULL && 
-	      strcasecmp(tests[t]->getName(), _testname) != 0)
+      if (_testname != NULL &&
+          strcasecmp(tests[t]->getName(), _testname) != 0)
         continue;
 
       tests[t]->initBeforeTest();
@@ -1646,6 +1647,42 @@ void
 NDBT_Context::sync_up_and_wait(const char * key, Uint32 value){
   setProperty(key, value);
   getPropertyWait(key, (unsigned)0);
+}
+
+bool
+NDBT_Context::closeToTimeout(int safety)
+{
+  if (safety == 0)
+    return false;
+
+  if (m_env_timeout == 0)
+  {
+    char buf[1024];
+    const char * p = NdbEnv_GetEnv("ATRT_TIMEOUT", buf, sizeof(buf));
+    if (p)
+    {
+      m_env_timeout = atoi(p);
+      ndbout_c("FOUND ATRT_TIMEOUT: %d", m_env_timeout);
+    }
+    else
+    {
+      m_env_timeout = -1;
+    }
+  }
+
+  if (m_env_timeout < 0)
+    return false;
+
+  Uint64 to = (1000 * m_env_timeout * (100 - safety)) / 100;
+  Uint64 now = NdbTick_CurrentMillisecond();
+  if (now >= m_test_start_time + to)
+  {
+    ndbout_c("closeToTimeout(%d) => true env(timeout): %d",
+             safety, m_env_timeout);
+    return true;
+  }
+
+  return false;
 }
 
 template class Vector<NDBT_TestCase*>;
