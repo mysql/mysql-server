@@ -1675,7 +1675,7 @@ NDBT_Context::closeToTimeout(int safety)
 
   Uint64 to = (1000 * m_env_timeout * (100 - safety)) / 100;
   Uint64 now = NdbTick_CurrentMillisecond();
-  if (NdbTick_CurrentMillisecond() >= m_test_start_time + to)
+  if (now >= m_test_start_time + to)
   {
     ndbout_c("closeToTimeout(%d) => true env(timeout): %d",
              safety, m_env_timeout);
