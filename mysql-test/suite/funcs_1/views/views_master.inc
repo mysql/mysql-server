@@ -2541,6 +2541,10 @@ Select f59, f60, f61, t1.a, t2.b
 FROM t2 natural left outer join t1;
 
 # Testcase 3.3.1.61 ;
+
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='outer_join_with_cache=off';
+
 Create or replace view test.v1 as
 Select t1.f59 t1_f59, t2.f59 t2_f59, t1.f60 t1_f60, t2.f60 t2_f60,
        t1.f61 t1_f61, t2.f61 t2_f61
@@ -2557,6 +2561,8 @@ FROM t2 natural right outer join t1;
 Select * from v1 order by f59 desc;
 Select f59, f60, a, b
 FROM t2 natural right outer join t1;
+
+set optimizer_switch=@save_optimizer_switch;
 
 drop table t1, t2;
 drop view  v1 ;
