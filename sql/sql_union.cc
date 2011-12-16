@@ -41,7 +41,7 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
 
   /* Only register the query if it was opened above */
   if (thd->lex->tables_state < Query_tables_list::TABLES_STATE_LOCKED)
-    store_in_query_cache= true;
+    query_cache_store_query(thd, thd->lex->query_tables);
 
   res= unit->prepare(thd, result,
 		     SELECT_NO_UNLOCK | setup_tables_done_option);
@@ -50,10 +50,6 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
 
   if (lock_query_tables(thd))
     goto err;
-
-  /* We should not store the query until after we got the locks */
-  if (store_in_query_cache)
-    query_cache_store_query(thd, thd->lex->query_tables);
 
   res= unit->optimize() || unit->exec();
   res|= unit->cleanup();

@@ -2500,7 +2500,10 @@ int handler::ha_index_first(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+#ifdef BUG11746399_IS_FIXED
+  /* Fails in innodb.innodb-index + innodb.innodb_corrupt_bit */
   DBUG_ASSERT(inited == INDEX);
+#endif
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,

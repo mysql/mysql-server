@@ -1206,7 +1206,7 @@ mysql_select(THD *thd,
 
   /* Only register the query if it was opened above. */
   if (thd->lex->tables_state < Query_tables_list::TABLES_STATE_LOCKED)
-    store_in_query_cache= true;
+    query_cache_store_query(thd, thd->lex->query_tables);
 
   if (mysql_prepare_select(thd, tables, wild_num, fields,
                            conds, og_num, first_order, first_group, having,
@@ -1230,10 +1230,6 @@ mysql_select(THD *thd,
     }
     DBUG_RETURN(true);
   }
-
-  /* We must wait after locking until we can store in the query cache */
-  if (store_in_query_cache)
-    query_cache_store_query(thd, thd->lex->query_tables);
 
   if (mysql_execute_select(thd, select_lex, free_join, join))
     DBUG_RETURN(true);
