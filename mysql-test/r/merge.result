@@ -2403,11 +2403,6 @@ REPAIR TABLE m1;
 Table	Op	Msg_type	Msg_text
 test.m1	repair	note	The storage engine for the table doesn't support repair
 DROP TABLE m1, t1;
-#
-# BUG#11763712 - 56458: KILLING A FLUSH TABLE FOR A MERGE/CHILD
-#                       CRASHES SERVER
-#
-# Disabled in 5.5 by Mattias. TODO: FIX THIS!
 End of 5.1 tests
 #
 # An additional test case for Bug#27430 Crash in subquery code
