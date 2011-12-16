@@ -11711,6 +11711,9 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
 int Gtid_log_event::do_update_pos(Relay_log_info *rli)
 {
   rli->inc_event_relay_log_pos();
+  DBUG_EXECUTE_IF("crash_after_update_pos_gtid",
+                  sql_print_information("Crashing crash_after_update_pos_gtid.");
+                  DBUG_SUICIDE(););
   return 0;
 }
 #endif
