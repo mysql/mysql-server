@@ -931,7 +931,17 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, PAI
 // Copy the descriptor into a temporary variable, and tell DRD that subsequent code happens after reading that pointer.
 // In combination with the annotation in toku_update_descriptor, this seems to be enough to convince test_4015 that all is well.
 // Otherwise, drd complains that the newly malloc'd descriptor string is touched later by some comparison operation.
-#define FAKE_DB(db, desc_var, desc) DESCRIPTOR_S desc_var = *(desc); struct __toku_db db = {.descriptor= &desc_var}; ANNOTATE_HAPPENS_AFTER(&(desc)->dbt.data);
+static inline void setup_fake_db (DB *fake_db, DESCRIPTOR fake_desc, DESCRIPTOR orig_desc) {
+    static const struct __toku_db zero_db; // it's static, so it's all zeros.
+    *fake_db = zero_db;
+    if (orig_desc) {
+	fake_db->descriptor = fake_desc;
+	*fake_desc = *orig_desc;
+	ANNOTATE_HAPPENS_AFTER(&orig_desc->dbt.data);
+    }
+}
+
+#define FAKE_DB(db, desc_var, desc) DESCRIPTOR_S desc_var; struct __toku_db db; setup_fake_db(&db, &desc_var, (desc))
 
 static int
 leafval_heaviside_le (u_int32_t klen, void *kval,
