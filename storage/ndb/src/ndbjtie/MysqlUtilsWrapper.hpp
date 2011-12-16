@@ -101,13 +101,12 @@ struct MysqlUtilsWrapper {
     {
         return ::decimal_bin2str(p0, p1, p2, p3, p4, p5);
     }
-    
 
     static void
     dbugPush
-    ( const char * state )
+    ( const char * p0 )
     {
-        ::dbugPush(state);
+        ::dbugPush(p0);
     }
 
     static void
@@ -119,25 +118,24 @@ struct MysqlUtilsWrapper {
 
     static void
     dbugSet
-    ( const char * state )
+    ( const char * p0 )
     {
-        ::dbugSet(state);
+        ::dbugSet(p0);
     }
 
     static const char *
     dbugExplain
-    (char * buffer, int length)
+    ( char * p0, int p1 )
     {
-        return ::dbugExplain(buffer, length);
+        return ::dbugExplain(p0, p1);
     }
 
     static void
     dbugPrint
-    (const char * keyword, const char * message)
+    ( const char * p0, const char * p1 )
     {
-        ::dbugPrint(keyword, message);
+        ::dbugPrint(p0, p1);
     }
-        // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 
