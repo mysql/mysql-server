@@ -97,9 +97,15 @@ each page and diving below it.
 This way, a total of A leaf pages are analyzed for the given n-prefix.
 
 Let the number of different key values found in each leaf page i be Pi (i=1..A).
+Let N_DIFF_AVG_LEAF be (P1 + P2 + ... + PA) / A.
+Let the number of different key values on level LA be N_DIFF_LA.
+Let the total number of records on level LA be TOTAL_LA.
+Let R be N_DIFF_LA / TOTAL_LA, we assume this ratio is the same on the
+leaf level.
 Let the number of leaf pages be N.
 Then the total number of different key values on the leaf level is:
-N * (P1 + P2 + ... + PA) / A
+N * R * N_DIFF_AVG_LEAF.
+See REF01 for the implementation.
 
 The above describes how to calculate the cardinality of an index.
 This algorithm is executed for each n-prefix of a multi-column index
@@ -921,6 +927,8 @@ dict_stats_analyze_index_for_n_prefix(
 	dict_index_t*	index,			/*!< in/out: index */
 	ulint		level,			/*!< in: level,
 						must be >= 1 */
+	ib_uint64_t	total_recs_on_level,	/*!< in: total number of
+						records on the given level */
 	ulint		n_prefix,		/*!< in: look at first
 						n_prefix columns when
 						comparing records */
@@ -956,8 +964,10 @@ dict_stats_analyze_index_for_n_prefix(
 		     n_prefix, n_diff_for_this_prefix);
 #endif
 
-	/* if this is 0 then there is exactly one page in the B-tree and it
-	is empty and we should have done full scan and should not be here */
+	/* if some of those is 0 then this means that there is exactly one
+	page in the B-tree and it is empty and we should have done full scan
+	and should not be here */
+	ut_ad(total_recs_on_level > 0);
 	ut_ad(n_diff_for_this_prefix > 0);
 
 	/* this is configured to be min 1, someone has changed the code */
@@ -1085,13 +1095,44 @@ dict_stats_analyze_index_for_n_prefix(
 
 		ut_a(rec_idx == dive_below_idx);
 
-		n_diff_sum_of_all_analyzed_pages
-			+= dict_stats_analyze_index_below_cur(
-				btr_pcur_get_btr_cur(&pcur), n_prefix, &mtr);
+		ib_uint64_t	n_diff_on_leaf_page;
+
+		n_diff_on_leaf_page = dict_stats_analyze_index_below_cur(
+			btr_pcur_get_btr_cur(&pcur), n_prefix, &mtr);
+
+		/* We adjust n_diff_on_leaf_page here to avoid counting
+		one record twice - once as the last on some page and once
+		as the first on another page. Consider the following example:
+		Leaf level:
+		page: (2,2,2,2,3,3)
+		... many pages like (3,3,3,3,3,3) ...
+		page: (3,3,3,3,5,5)
+		... many pages like (5,5,5,5,5,5) ...
+		page: (5,5,5,5,8,8)
+		page: (8,8,8,8,9,9)
+		our algo would (correctly) get an estimate that there are
+		2 distinct records per page (average). Having 4 pages below
+		non-boring records, it would (wrongly) estimate the number
+		of distinct records to 8. */
+		if (n_diff_on_leaf_page > 0) {
+			n_diff_on_leaf_page--;
+		}
+
+		n_diff_sum_of_all_analyzed_pages += n_diff_on_leaf_page;
 	}
 
+	if (n_diff_sum_of_all_analyzed_pages == 0) {
+		n_diff_sum_of_all_analyzed_pages = 1;
+	}
+
+	/* See REF01 for an explanation of the algorithm */
 	index->stat_n_diff_key_vals[n_prefix]
-		= index->stat_n_leaf_pages * n_diff_sum_of_all_analyzed_pages
+		= index->stat_n_leaf_pages
+
+		* n_diff_for_this_prefix
+		/ total_recs_on_level
+
+		* n_diff_sum_of_all_analyzed_pages
 		/ n_recs_to_dive_below;
 
 	index->stat_n_sample_sizes[n_prefix] = n_recs_to_dive_below;
@@ -1330,7 +1371,7 @@ found_level:
 		the given n_prefix */
 
 		dict_stats_analyze_index_for_n_prefix(
-			index, level, n_prefix,
+			index, level, total_recs, n_prefix,
 			n_diff_on_level[n_prefix],
 			&n_diff_boundaries[n_prefix]);
 	}
