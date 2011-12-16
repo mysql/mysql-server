@@ -2929,7 +2929,7 @@ srv_LRU_dump_restore_thread(
 	last_dump_time = time(NULL);
 
 loop:
-	os_thread_sleep(5000000);
+	os_event_wait_time_low(srv_shutdown_event, 5000000, 0);
 
 	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
 		goto exit_func;
@@ -3240,9 +3240,11 @@ loop:
 			/* Get sleep interval in micro seconds. We use
 			ut_min() to avoid long sleep in case of
 			wrap around. */
-			os_thread_sleep(ut_min(1000000,
-					(next_itr_time - cur_time)
-					 * 1000));
+			os_event_wait_time_low(srv_shutdown_event,
+					       ut_min(1000000,
+						      (next_itr_time - cur_time)
+						      * 1000),
+					       0);
 			srv_main_sleeps++;
 
 			/*
@@ -3835,6 +3837,7 @@ srv_purge_thread(
 	ulint		retries = 0;
 	ulint		n_total_purged = ULINT_UNDEFINED;
 	ulint		next_itr_time;
+	ib_int64_t	sig_count;
 
 	ut_a(srv_n_purge_threads == 1);
 
@@ -3909,12 +3912,13 @@ srv_purge_thread(
 		srv_sync_log_buffer_in_background();
 
 		cur_time = ut_time_ms();
-		os_event_reset(srv_shutdown_event);
+		sig_count = os_event_reset(srv_shutdown_event);
 		if (next_itr_time > cur_time) {
-			os_event_wait_time(srv_shutdown_event,
-					ut_min(1000000,
-					(next_itr_time - cur_time)
-					 * 1000));
+			os_event_wait_time_low(srv_shutdown_event,
+					       ut_min(1000000,
+						      (next_itr_time - cur_time)
+						      * 1000),
+					       sig_count);
 			next_itr_time = ut_time_ms() + 1000;
 		} else {
 			next_itr_time = cur_time + 1000;
