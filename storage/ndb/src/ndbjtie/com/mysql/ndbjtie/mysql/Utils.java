@@ -36,16 +36,9 @@ public class Utils
     //static public final int E_DEC_FATAL_ERROR = 30; // MMM not used at this time?
     static public final native int decimal_str2bin(ByteBuffer/*_const char *_*/ str, int str_len, int prec, int scale, ByteBuffer/*_void *_*/ dest, int buf_len);
     static public final native int decimal_bin2str(ByteBuffer/*_const void *_*/ bin, int bin_len, int prec, int scale, ByteBuffer/*_char *_*/ dest, int buf_len);
-
-    /** These methods implement a subset of the DBUG package used in MySQL. */
-    /* push the state of the DBUG package */
     static public final native void dbugPush(String state);
-    /* Pop the state of the DBUG package */
     static public final native void dbugPop();
-    /* Return the state of the DBUG package */
-    static public final native String dbugExplain(ByteBuffer buffer, int length);
-    /* Set the state of the DBUG package */
     static public final native void dbugSet(String state);
-    /* Print a message */
+    static public final native String dbugExplain(ByteBuffer buffer, int length);
     static public final native void dbugPrint(String keyword, String message);
 }

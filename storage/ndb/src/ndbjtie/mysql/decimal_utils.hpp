@@ -19,8 +19,8 @@
  * decimal_utils.hpp
  */
 
-#ifndef decimal_utils_h
-#define decimal_utils_h
+#ifndef decimal_utils_hpp
+#define decimal_utils_hpp
 
 /* return values (redeclared here if to be mapped to Java) */
 #define E_DEC_OK                0
@@ -36,11 +36,11 @@
 /* 
  decimal_str2bin: Convert string directly to on-disk binary format. 
  str  - string to convert 
- len - length of string
+ str_len - length of string
  prec - precision of column
  scale - scale of column
- dest - buffer for binary representation 
- len - length of buffer 
+ bin - buffer for binary representation 
+ bin_len - length of buffer 
 
  NOTES
    Added so that NDB API programs can convert directly between  the stored
@@ -59,8 +59,8 @@ int decimal_str2bin(const char *str, int str_len,
  bin_len - length to convert 
  prec - precision of column
  scale - scale of column
- dest - buffer for string representation   
- len - length of buffer 
+ str - buffer for string representation   
+ str_len - length of buffer 
 
  NOTES
    Added so that NDB API programs can convert directly between  the stored
@@ -74,4 +74,4 @@ int decimal_bin2str(const void *bin, int bin_len,
                     int prec, int scale, 
                     char *str, int str_len);
 
-#endif // decimal_utils_h
+#endif // decimal_utils_hpp
