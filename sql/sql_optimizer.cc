@@ -2357,16 +2357,37 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
         /* Add ON expression to the WHERE or upper-level ON condition. */
         if (conds)
         {
-          if (!(conds= and_conds(conds, table->on_expr)))
+          Item_cond_and *new_cond=
+            static_cast<Item_cond_and*>(and_conds(conds, table->on_expr));
+          if (!new_cond)
             DBUG_RETURN(true);
+          conds= new_cond;
           conds->top_level_item();
           /* conds is always a new item as both cond and on_expr existed */
           DBUG_ASSERT(!conds->fixed);
           if (conds->fix_fields(join->thd, &conds))
             DBUG_RETURN(true);
+
+          /* In case on_expr has a pending rollback in THD::change_list */
+          List_iterator<Item> lit(*new_cond->argument_list());
+          Item *arg;
+          while ((arg= lit++))
+          {
+            /*
+              on_expr isn't necessarily the second argument anymore,
+              since fix_fields may have merged it into an existing AND expr.
+            */
+            if (arg == table->on_expr)
+              join->thd->
+                change_item_tree_place(&table->on_expr, lit.ref());
+          }
         }
         else
+        {
           conds= table->on_expr; 
+          /* In case on_expr has a pending rollback in THD::change_list */
+          join->thd->change_item_tree_place(&table->on_expr, &conds);
+        }
         table->prep_on_expr= table->on_expr= 0;
       }
     }
