@@ -2255,7 +2255,8 @@ fts_trx_add_op(
 	dict_table_t*	table,			/*!< in: table */
 	doc_id_t	doc_id,			/*!< in: new doc id */
 	fts_row_state	state,			/*!< in: state of the row */
-	ib_vector_t*	fts_indexes)		/*!< in: FTS indexes affected */
+	ib_vector_t*	fts_indexes)		/*!< in: FTS indexes affected
+						(NULL=all) */
 {
 	fts_trx_table_t*	tran_ftt;
 	fts_trx_table_t*	stmt_ftt;
