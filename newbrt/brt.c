@@ -2153,22 +2153,8 @@ void toku_apply_cmd_to_leaf(
 
 
 static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
-// Effect:  Put CMD into brt by descending into the tree as deeply as we can
-//   without performing I/O (but we must fetch the root),
-//   bypassing only empty FIFOs
-//   If the cmd is a broadcast message, we copy the message as needed as we descend the tree so that each relevant subtree receives the message.
-//   At the end of the descent, we are either at a leaf, or we hit a nonempty FIFO.
-//     If it's a leaf, and the leaf is gorged or hungry, then we split the leaf or merge it with the neighbor.
-//	Note: for split operations, no disk I/O is required.  For merges, I/O may be required, so for a broadcast delete, quite a bit
-//	 of I/O could be induced in the worst case.
-//     If it's a nonleaf, and the node is gorged or hungry, then we flush everything in the heaviest fifo to the child.
-//	 During flushing, we allow the child to become gorged.
-//	   (And for broadcast messages, we simply place the messages into all the relevant fifos of the child, rather than trying to descend.)
-//	 After flushing to a child, if the child is gorged (underful), then
-//	     if the child is leaf, we split (merge) it
-//	     if the child is a nonleaf, we flush the heaviest child recursively.
-//	 Note: After flushing, a node could still be gorged (or possibly hungry.)  We let it remain so.
-//	 Note: During the initial descent, we may gorged many nonleaf nodes.  We wish to flush only one nonleaf node at each level.
+// Effect:  Put CMD into brt's root node, and update 
+// the value of root's max_msn_applied_to_node_on_disk
 {
     BRTNODE node = *nodep;
     toku_assert_entire_node_in_memory(node);
