@@ -1713,11 +1713,11 @@ static int cachetable_put_internal(
             count++;
             if (p->key.b==key.b && p->cachefile==cachefile) {
                 // Ideally, we would like to just assert(FALSE) here
-		// and not return an error, but as of Dr. Noga,
-		// cachetable-test2 depends on this behavior.
-		// To replace the following with an assert(FALSE)
-		// we need to change the behavior of cachetable-test2
-		//
+                // and not return an error, but as of Dr. Noga,
+                // cachetable-test2 depends on this behavior.
+                // To replace the following with an assert(FALSE)
+                // we need to change the behavior of cachetable-test2
+                //
                 // Semantically, these two asserts are not strictly right.  After all, when are two functions eq?
                 // In practice, the functions better be the same.
                 assert(p->flush_callback==flush_callback);
