@@ -11595,7 +11595,8 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, bool using_trans,
 : Log_event(thd_arg, spec_arg->type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
-            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
+            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING),
+  commit_flag(true)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *, const Gtid_specification *)");
   DBUG_ASSERT(spec_arg->type != AUTOMATIC_GROUP);
@@ -11610,7 +11611,8 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans)
 : Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
-            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
+            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING),
+  commit_flag(true)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *)");
   spec= thd_arg->variables.gtid_next;
