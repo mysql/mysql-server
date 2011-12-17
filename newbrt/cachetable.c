@@ -1864,7 +1864,7 @@ int toku_cachetable_put_with_dep_pairs(
     CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
     CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
     CACHETABLE_CLEANER_CALLBACK cleaner_callback,
-    void *write_extraargs,
+    void *write_extraargs, // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
     void *get_key_and_fullhash_extra,
     u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
@@ -1937,7 +1937,8 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
 			CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
                         CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback,
                         CACHETABLE_CLEANER_CALLBACK cleaner_callback,
-                        void *write_extraargs) {
+                        void *write_extraargs // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
+                        ) {
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
     CACHETABLE ct = cachefile->cachetable;
     cachetable_lock(ct);
@@ -2069,8 +2070,8 @@ int toku_cachetable_get_and_pin (
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
     CACHETABLE_CLEANER_CALLBACK cleaner_callback,
-    void* read_extraargs,
-    void* write_extraargs
+    void* read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
+    void* write_extraargs // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
     ) 
 {
     return toku_cachetable_get_and_pin_with_dep_pairs (
@@ -2110,8 +2111,8 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
     CACHETABLE_CLEANER_CALLBACK cleaner_callback,
-    void* read_extraargs,
-    void* write_extraargs,
+    void* read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
+    void* write_extraargs, // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
     u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
     CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
@@ -2395,7 +2396,7 @@ int toku_cachetable_get_and_pin_nonblocking (
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
     CACHETABLE_CLEANER_CALLBACK cleaner_callback,
     void *read_extraargs,
-    void* write_extraargs,
+    void* write_extraargs, // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
     UNLOCKERS unlockers
     )
 // Effect:  If the block is in the cachetable, then pin it and return it. 
@@ -2413,7 +2414,7 @@ int toku_cachetable_get_and_pin_nonblocking (
 
             //
             // In Dr. No, the ydb lock ensures that only one client may be successfully
-            // doing a query on a dictionary table at any given time. This function
+            // doing a query on a dictionary at any given time. This function
             // is called with the ydb lock held. So, if there is a write lock grabbed
             // on the PAIR that we want to lock, then some expensive operation 
             // MUST be happening (read from disk, write to disk, flush, etc...), 
@@ -2539,7 +2540,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                             CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
                             CACHETABLE_CLEANER_CALLBACK cleaner_callback,
                             void *read_extraargs,
-                            void *write_extraargs,
+                            void *write_extraargs, // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
                             BOOL *doing_prefetch)
 // Effect: See the documentation for this function in cachetable.h
 {
