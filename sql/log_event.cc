@@ -11595,7 +11595,8 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, bool using_trans,
 : Log_event(thd_arg, spec_arg->type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
-            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
+            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING),
+  commit_flag(true)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *, const Gtid_specification *)");
   DBUG_ASSERT(spec_arg->type != AUTOMATIC_GROUP);
@@ -11610,7 +11611,8 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans)
 : Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
-            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
+            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING),
+  commit_flag(true)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *)");
   spec= thd_arg->variables.gtid_next;
@@ -11861,6 +11863,7 @@ st_print_event_info::st_print_event_info()
    auto_increment_increment(0),auto_increment_offset(0), charset_inited(0),
    lc_time_names_number(~0),
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
+   thread_id(0), thread_id_printed(false),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
    have_unflushed_events(FALSE)
 {
