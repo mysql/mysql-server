@@ -21,11 +21,6 @@ cachetable_put_test (int n) {
         assert(r == 0);
         assert(toku_cachefile_count_pinned(f1, 0) == i);
 
-        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), def_flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
-        assert(r == -1);
-        assert(toku_cachefile_count_pinned(f1, 0) == i);
-        
-
         void *v;
         r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, &v);
         assert(r == -1);
