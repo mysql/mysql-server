@@ -2411,6 +2411,14 @@ int toku_cachetable_get_and_pin_nonblocking (
 {
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
+    // 
+    // Even though there is a risk that cachetable_wait_write may wait on a bunch
+    // of I/O to complete, we call this with the ydb lock held, because if we 
+    // are in this situation where a lot of data is being evicted on writer threads
+    // then we are in a screw case anyway, so it should be ok to hold the ydb lock,
+    // until a bunch of data is written out.
+    //
+    cachetable_wait_write(ct);
     int count = 0;
     PAIR p;
     for (p = ct->table[fullhash&(ct->table_size-1)]; p; p = p->hash_chain) {
