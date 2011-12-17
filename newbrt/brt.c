@@ -2089,9 +2089,8 @@ static const struct pivot_bounds infinite_bounds = {.lower_bound_exclusive=NULL,
 
 
 // Effect: applies the cmd to the leaf if the appropriate basement node is in memory.
-//           If the appropriate basement node is not in memory, then nothing gets applied
-//           If the appropriate basement node must be in memory, it is the caller's responsibility to ensure
-//             that it is
+//           This function is called during message injection and/or flushing, so the entire
+//           node MUST be in memory.
 void toku_apply_cmd_to_leaf(
     brt_compare_func compare_fun, 
     brt_update_func update_fun, 
@@ -2105,52 +2104,44 @@ void toku_apply_cmd_to_leaf(
     ) 
 {
     VERIFY_NODE(t, node);
-    // ignore messages that have already been applied to this leaf
+    toku_assert_entire_node_in_memory(node);
 
     if (brt_msg_applies_once(cmd)) {
         unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, desc, compare_fun);
-        // only apply the message if we have an available basement node that is up to date
-        // we know it is up to date if partition_requires_msg_application returns FALSE
-        if (BP_STATE(node,childnum) == PT_AVAIL) {
-            if (cmd->msn.msn > BLB(node, childnum)->max_msn_applied.msn) {
-                BLB(node, childnum)->max_msn_applied = cmd->msn;
-                brt_leaf_put_cmd(compare_fun,
-                                 update_fun,
-                                 desc,
-                                 node, 
-                                 BLB(node, childnum),
-                                 cmd,
-                                 made_change,
-                                 workdone,
-                                 snapshot_txnids,
-                                 live_list_reverse);
-            } else {
-                brt_status.msn_discards++;
-            }
+        if (cmd->msn.msn > BLB(node, childnum)->max_msn_applied.msn) {
+            BLB(node, childnum)->max_msn_applied = cmd->msn;
+            brt_leaf_put_cmd(compare_fun,
+                             update_fun,
+                             desc,
+                             node, 
+                             BLB(node, childnum),
+                             cmd,
+                             made_change,
+                             workdone,
+                             snapshot_txnids,
+                             live_list_reverse);
+        } else {
+            brt_status.msn_discards++;
         }
     }
     else if (brt_msg_applies_all(cmd)) {
         bool bn_made_change = false;
         for (int childnum=0; childnum<node->n_children; childnum++) {
-            // only apply the message if we have an available basement node that is up to date
-            // we know it is up to date if partition_requires_msg_application returns FALSE
-            if (BP_STATE(node,childnum) == PT_AVAIL) {
-                if (cmd->msn.msn > BLB(node, childnum)->max_msn_applied.msn) {
-                    BLB(node, childnum)->max_msn_applied = cmd->msn;
-                    brt_leaf_put_cmd(compare_fun,
-                                     update_fun,
-                                     desc,
-                                     node,
-                                     BLB(node, childnum),
-                                     cmd,
-                                     &bn_made_change,
-                                     workdone,
-                                     snapshot_txnids,
-                                     live_list_reverse);
-                    if (bn_made_change) *made_change = 1;
-                } else {
-                    brt_status.msn_discards++;
-                }
+            if (cmd->msn.msn > BLB(node, childnum)->max_msn_applied.msn) {
+                BLB(node, childnum)->max_msn_applied = cmd->msn;
+                brt_leaf_put_cmd(compare_fun,
+                                 update_fun,
+                                 desc,
+                                 node,
+                                 BLB(node, childnum),
+                                 cmd,
+                                 &bn_made_change,
+                                 workdone,
+                                 snapshot_txnids,
+                                 live_list_reverse);
+                if (bn_made_change) *made_change = 1;
+            } else {
+                brt_status.msn_discards++;
             }
         }
     }
