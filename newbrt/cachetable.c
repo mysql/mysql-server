@@ -2421,7 +2421,9 @@ int toku_cachetable_get_and_pin_nonblocking (
             //
             // In Dr. No, the ydb lock ensures that only one client may be successfully
             // doing a query on a dictionary at any given time. This function
-            // is called with the ydb lock held. So, if there is a write lock grabbed
+            // is called with the ydb lock held. This implies that only ONE client can ever be
+            // in get_and_pin_nonblocking while the ydb lock is held. 
+            // So, if there is a write lock grabbed
             // on the PAIR that we want to lock, then some expensive operation 
             // MUST be happening (read from disk, write to disk, flush, etc...), 
             // and we should run the unlockers and release the ydb lock
