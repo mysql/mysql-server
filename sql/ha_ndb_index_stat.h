@@ -40,10 +40,10 @@ public:
   pthread_cond_t COND;
   pthread_cond_t COND_ready;
 
-  /* protect entry lists where needed */
-  pthread_mutex_t list_mutex;
-
-  /* protect and signal changes in stats entries */
+  /*
+    protect stats entry lists where needed
+    protect and signal changes in stats entries
+  */
   pthread_mutex_t stat_mutex;
   pthread_cond_t stat_cond;
 

@@ -57,7 +57,6 @@ Ndb_index_stat_thread::Ndb_index_stat_thread()
   pthread_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND, NULL);
   pthread_cond_init(&COND_ready, NULL);
-  pthread_mutex_init(&list_mutex, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&stat_mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&stat_cond, NULL);
 }
@@ -67,7 +66,6 @@ Ndb_index_stat_thread::~Ndb_index_stat_thread()
   pthread_mutex_destroy(&LOCK);
   pthread_cond_destroy(&COND);
   pthread_cond_destroy(&COND_ready);
-  pthread_mutex_destroy(&list_mutex);
   pthread_mutex_destroy(&stat_mutex);
   pthread_cond_destroy(&stat_cond);
 }
@@ -1020,7 +1018,6 @@ ndb_index_stat_get_share(NDB_SHARE *share,
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
 
   pthread_mutex_lock(&share->mutex);
-  pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
   pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   time_t now= ndb_index_stat_time();
   err_out= 0;
@@ -1074,7 +1071,6 @@ ndb_index_stat_get_share(NDB_SHARE *share,
     st= 0;
 
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-  pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
   pthread_mutex_unlock(&share->mutex);
   return st;
 }
@@ -1084,7 +1080,7 @@ ndb_index_stat_get_share(NDB_SHARE *share,
   list and set "to_delete" flag.  Stats thread does real delete.
 */
 
-/* caller must hold list_mutex and stat_mutex */
+/* caller must hold stat_mutex */
 void
 ndb_index_stat_free(Ndb_index_stat *st)
 {
@@ -1138,7 +1134,6 @@ ndb_index_stat_free(NDB_SHARE *share, int index_id, int index_version)
   DBUG_PRINT("index_stat", ("(index_id:%d index_version:%d",
                             index_id, index_version));
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-  pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
   pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
 
   uint found= 0;
@@ -1161,7 +1156,6 @@ ndb_index_stat_free(NDB_SHARE *share, int index_id, int index_version)
 
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-  pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -1170,7 +1164,6 @@ ndb_index_stat_free(NDB_SHARE *share)
 {
   DBUG_ENTER("ndb_index_stat_free");
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-  pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
   pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
 
   uint found= 0;
@@ -1195,7 +1188,6 @@ ndb_index_stat_free(NDB_SHARE *share)
 
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-  pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -1206,7 +1198,7 @@ ndb_index_stat_find_entry(int index_id, int index_version, int table_id)
 {
   DBUG_ENTER("ndb_index_stat_find_entry");
   pthread_mutex_lock(&ndbcluster_mutex);
-  pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
+  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   DBUG_PRINT("index_stat", ("find index:%d version:%d table:%d",
                             index_id, index_version, table_id));
 
@@ -1219,7 +1211,7 @@ ndb_index_stat_find_entry(int index_id, int index_version, int table_id)
       if (st->index_id == index_id &&
           st->index_version == index_version)
       {
-        pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
+        pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
         pthread_mutex_unlock(&ndbcluster_mutex);
         DBUG_RETURN(st);
       }
@@ -1227,7 +1219,7 @@ ndb_index_stat_find_entry(int index_id, int index_version, int table_id)
     }
   }
 
-  pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
+  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   pthread_mutex_unlock(&ndbcluster_mutex);
   DBUG_RETURN(0);
 }
@@ -1345,7 +1337,7 @@ void
 ndb_index_stat_proc_new(Ndb_index_stat_proc &pr)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-  pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
+  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   const int lt= Ndb_index_stat::LT_New;
   Ndb_index_stat_list &list= ndb_index_stat_list[lt];
 
@@ -1359,10 +1351,8 @@ ndb_index_stat_proc_new(Ndb_index_stat_proc &pr)
     assert(pr.lt != lt);
     ndb_index_stat_list_move(st, pr.lt);
   }
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-  pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
 }
 
 void
@@ -1703,7 +1693,6 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
     return;
 
   /* Mutex entire routine (protect access_time) */
-  pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
   pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
 
   /* Create a LRU batch */
@@ -1797,7 +1786,6 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
 
   glob.evict_count+= cnt;
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-  pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
 }
 
 void
@@ -2115,7 +2103,7 @@ void
 ndb_index_stat_list_verify(Ndb_index_stat_proc &pr)
 {
   const Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-  pthread_mutex_lock(&ndb_index_stat_thread.list_mutex);
+  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   pr.cache_query_bytes= 0;
   pr.cache_clean_bytes= 0;
 
@@ -2124,7 +2112,7 @@ ndb_index_stat_list_verify(Ndb_index_stat_proc &pr)
 
   assert(glob.cache_query_bytes == pr.cache_query_bytes);
   assert(glob.cache_clean_bytes == pr.cache_clean_bytes);
-  pthread_mutex_unlock(&ndb_index_stat_thread.list_mutex);
+  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
 void
