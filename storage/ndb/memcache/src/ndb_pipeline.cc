@@ -85,15 +85,14 @@ ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *engine) {
   /* Fetch the partially initialized pipeline */
   ndb_pipeline * self = (ndb_pipeline *) engine->pipelines[id];
   
-  /* Set my id */
-  self->id = id;
-    
+  assert(self->id == id);
+  
   /* Set the pointer back to the engine */
   self->engine = engine;
   
   /* And the thread id */
   self->engine_thread_id = pthread_self(); 
-    
+
   /* Create and set a thread identity */
   tid = (thread_identifier *) memory_pool_alloc(self->pool, sizeof(thread_identifier));
   tid->pipeline = self;
@@ -109,13 +108,13 @@ ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *engine) {
 
 
 /* Allocate and initialize a generic request pipeline */
-ndb_pipeline * get_request_pipeline() { 
+ndb_pipeline * get_request_pipeline(int thd_id) { 
   /* Allocate the pipeline */
   ndb_pipeline *self = (ndb_pipeline *) malloc(sizeof(ndb_pipeline)); 
   
-  /* Initialize */
+  /* Initialize */  
   self->engine = 0;
-  self->id = 0;  
+  self->id = thd_id;
   self->nworkitems = 0;
 
   /* Say hi to the alligator */  
