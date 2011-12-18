@@ -100,6 +100,7 @@ struct Ndb_index_stat {
   bool force_update;    /* one-time force update from analyze table */
   bool no_stats;        /* have detected that no stats exist */
   NdbIndexStat::Error error;
+  NdbIndexStat::Error client_error;
   time_t error_time;
   uint error_count;
   struct Ndb_index_stat *share_next; /* per-share list */
@@ -746,21 +747,33 @@ Ndb_index_stat::Ndb_index_stat()
   abort_request= false;
 }
 
+/*
+  Called by stats thread and (rarely) by client.  Caller must hold
+  stat_mutex.  Client errors currently have no effect on execution
+  since they are probably local e.g. bad range (internal error).
+  Argument "from" is 0=stats thread 1=client.
+*/
 void
-ndb_index_stat_error(Ndb_index_stat *st, const char* place, int line)
+ndb_index_stat_error(Ndb_index_stat *st,
+                     int from, const char* place, int line)
 {
   time_t now= ndb_index_stat_time();
   NdbIndexStat::Error error= st->is->getNdbError();
   if (error.code == 0)
   {
-    // XXX why this if
+    /* Make sure code is not 0 */
     NdbIndexStat::Error error2;
     error= error2;
     error.code= NdbIndexStat::InternalError;
     error.status= NdbError::TemporaryError;
   }
-  st->error= error;
-  st->error_time= now;
+  if (from == 0)
+  {
+    st->error= error;
+    st->error_time= now; /* Controls proc_error */
+  }
+  else
+    st->client_error= error;
   st->error_count++;
 
   DBUG_PRINT("index_stat", ("%s line %d: error %d line %d extra %d",
@@ -938,6 +951,7 @@ struct Ndb_index_stat_snap {
   Ndb_index_stat_snap() { load_time= 0; sample_version= 0; }
 };
 
+/* Subroutine, have lock */
 Ndb_index_stat*
 ndb_index_stat_alloc(const NDBINDEX *index,
                      const NDBTAB *table,
@@ -956,8 +970,8 @@ ndb_index_stat_alloc(const NDBINDEX *index,
 #endif
     if (is->set_index(*index, *table) == 0)
       return st;
-    ndb_index_stat_error(st, "set_index", __LINE__);
-    err_out= st->error.code;
+    ndb_index_stat_error(st, 1, "set_index", __LINE__);
+    err_out= st->client_error.code;
   }
   else
   {
@@ -1360,8 +1374,8 @@ ndb_index_stat_proc_update(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
   if (st->is->update_stat(pr.ndb) == -1)
   {
-    ndb_index_stat_error(st, "update_stat", __LINE__);
     pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    ndb_index_stat_error(st, 0, "update_stat", __LINE__);
 
     /*
       Turn off force update or else proc_error() thinks
@@ -1415,7 +1429,7 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   if (st->is->read_stat(pr.ndb) == -1)
   {
     pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-    ndb_index_stat_error(st, "read_stat", __LINE__);
+    ndb_index_stat_error(st, 0, "read_stat", __LINE__);
     const bool force_update= st->force_update;
     ndb_index_stat_force_update(st, false);
 
@@ -1590,7 +1604,8 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   NdbIndexStat::Head head;
   if (st->is->read_head(pr.ndb) == -1)
   {
-    ndb_index_stat_error(st, "read_head", __LINE__);
+    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    ndb_index_stat_error(st, 0, "read_head", __LINE__);
     /* no stats is not unexpected error */
     if (st->is->getNdbError().code == NdbIndexStat::NoIndexStats)
     {
@@ -1601,6 +1616,8 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
     {
       pr.lt= Ndb_index_stat::LT_Error;
     }
+    pthread_cond_broadcast(&ndb_index_stat_thread.stat_cond);
+    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
     return;
   }
   st->is->get_head(head);
@@ -2809,15 +2826,19 @@ ha_ndbcluster::ndb_index_stat_query(uint inx,
     const NdbRecord* key_record= data.ndb_record_key;
     if (st->is->convert_range(range, key_record, &ib) == -1)
     {
-      ndb_index_stat_error(st, "convert_range", __LINE__);
-      err= st->error.code;
+      pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+      ndb_index_stat_error(st, 1, "convert_range", __LINE__);
+      err= st->client_error.code;
+      pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
       break;
     }
     if (st->is->query_stat(range, stat) == -1)
     {
       /* Invalid cache - should remove the entry */
-      ndb_index_stat_error(st, "query_stat", __LINE__);
-      err= st->error.code;
+      pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+      ndb_index_stat_error(st, 1, "query_stat", __LINE__);
+      err= st->client_error.code;
+      pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
       break;
     }
   }
