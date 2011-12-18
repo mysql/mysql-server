@@ -107,6 +107,8 @@ public:
   // delete
   const NdbOperation *deleteTuple(NdbTransaction *tx,
                                   NdbOperation::OperationOptions *options = 0);
+  const NdbOperation *deleteCurrentTuple(NdbScanOperation *, NdbTransaction *,
+                                         NdbOperation::OperationOptions *opts = 0);
 
   // write
   const NdbOperation *writeTuple(NdbTransaction *tx);
@@ -116,10 +118,11 @@ public:
                                   NdbOperation::OperationOptions *options = 0);
 
   // scan
-  NdbScanOperation *scanTable(NdbTransaction *tx);
+  NdbScanOperation *scanTable(NdbTransaction *tx,
+                              NdbOperation::LockMode lmod = NdbOperation::LM_Read,
+                              NdbScanOperation::ScanOptions *options = 0);
   NdbIndexScanOperation *scanIndex(NdbTransaction *tx,
                                    NdbIndexScanOperation::IndexBound *bound);
-
  };
   
 
@@ -268,8 +271,20 @@ inline const NdbOperation *
                          row_mask, options);
 }
 
-inline NdbScanOperation * Operation::scanTable(NdbTransaction *tx) {
-  return tx->scanTable(record->ndb_record);
+inline NdbScanOperation * 
+  Operation::scanTable(NdbTransaction *tx, NdbOperation::LockMode lmode,
+                       NdbScanOperation::ScanOptions *opts) {
+    return tx->scanTable(record->ndb_record, lmode,
+                         read_mask_ptr, opts, 0);
 }
+
+inline const NdbOperation * 
+  Operation::deleteCurrentTuple(NdbScanOperation *scanop,
+                                NdbTransaction *tx,
+                                NdbOperation::OperationOptions *opts) {
+    return scanop->deleteCurrentTuple(tx, record->ndb_record, buffer, 
+                                      read_mask_ptr, opts);
+}
+
 
 #endif
