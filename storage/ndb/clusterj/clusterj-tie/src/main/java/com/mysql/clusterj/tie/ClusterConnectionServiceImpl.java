@@ -40,7 +40,30 @@ public class ClusterConnectionServiceImpl
         LoggerFactoryService.getFactory().registerLogger("com.mysql.clusterj.tie");
     }
 
+    /** Load the ndbclient system library only once */
+    static boolean ndbclientLoaded = false;
+
+    static protected void loadSystemLibrary(String name) {
+        // this is not thread-protected so it might be executed multiple times but no matter
+        if (ndbclientLoaded) {
+            return;
+        }
+        try {
+            System.loadLibrary(name);
+            // initialize the charset map
+            Utility.getCharsetMap();
+            ndbclientLoaded = true;
+        } catch (Throwable e) {
+            String path = getLoadLibraryPath();
+            String message = local.message("ERR_Failed_Loading_Library",
+                    name, path, e.getClass(), e.getLocalizedMessage());
+            logger.fatal(message);
+            throw new ClusterJFatalUserException(message, e);
+        }
+    }
+
     public ClusterConnection create(String connectString, int nodeId) {
+        loadSystemLibrary("ndbclient");
         try {
             return new ClusterConnectionImpl(connectString, nodeId);
         } catch (ClusterJFatalUserException cjex) {
@@ -50,6 +73,19 @@ public class ClusterConnectionServiceImpl
             logger.fatal(message);
             throw new ClusterJFatalUserException(message, e);
         }
+    }
+
+    /**
+     * @return the load library path or the Exception string
+     */
+    private static String getLoadLibraryPath() {
+        String path;
+        try {
+            path = System.getProperty("java.library.path");
+        } catch (Exception ex) {
+            path = "<Exception: " + ex.getMessage() + ">";
+        }
+        return path;
     }
 
 }
