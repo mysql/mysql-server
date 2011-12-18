@@ -64,6 +64,7 @@ struct ndb_engine {
   struct {
     size_t nthreads;
     bool cas_enabled;  
+    size_t verbose;
   } server_options;
   
   union {

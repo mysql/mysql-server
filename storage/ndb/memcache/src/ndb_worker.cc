@@ -54,6 +54,7 @@
 #include "ndb_engine.h"
 #include "hash_item_util.h"
 #include "ndb_worker.h"
+#include "ndb_error_logger.h"
 
 /**********************************************************
   Schedduler::schedule()
@@ -122,7 +123,6 @@ worker_step worker_finalize_write;
 /* Misc utility functions */
 void worker_set_cas(ndb_pipeline *, uint64_t *);
 int build_cas_routine(NdbInterpretedCode *r, int cas_col, uint64_t cas_val);
-bool scan_delete(NdbInstance *, QueryPlan *);
 void build_hash_item(workitem *, Operation &,  ExpireTime &);
 
 /* Extern pointers */
@@ -165,6 +165,9 @@ status_block status_block_idx_insert =
 
 status_block status_block_too_big = 
   { ENGINE_E2BIG, "Value too large"                   };
+
+status_block status_block_no_mem =
+  { ENGINE_ENOMEM, "NDB out of data memory"           }; 
 
 void worker_set_cas(ndb_pipeline *p, uint64_t *cas) {  
   /* Be careful here --  ndbmc_atomic32_t might be a signed type.
@@ -723,10 +726,21 @@ void callback_main(int, NdbTransaction *tx, void *itemptr) {
   else if(tx->getNdbError().code == 897) {
     wqitem->status = & status_block_idx_insert;
   }
+  /* Out of memory */
+  else if(tx->getNdbError().code == 827) {
+    log_ndb_error(tx->getNdbError());
+    wqitem->status = & status_block_no_mem;
+  }
+  /* 284: Table not defined in TC (stale definition) */
+  else if(tx->getNdbError().code == 284) {
+    /* TODO: find a way to handle this error, after an ALTER TABLE */
+    log_ndb_error(tx->getNdbError());
+    wqitem->status = & status_block_misc_error;
+  }
+  
   /* Some other error */
   else  {
-    DEBUG_PRINT("[%d]: %s", 
-                       tx->getNdbError().code, tx->getNdbError().message);
+    log_ndb_error(tx->getNdbError());
     wqitem->status = & status_block_misc_error;
   }
 
@@ -1103,153 +1117,5 @@ int build_cas_routine(NdbInterpretedCode *r, int cas_col, uint64_t cas_val) {
   r->interpret_exit_nok(2010);               // abort the operation
   
   return r->finalise();                      // resolve the label/branch
-}
-
-
-/*************** SYNCHRONOUS IMPLEMENTATION OF "FLUSH ALL" ******************/
-
-/* Flush all is a fully synchronous operation -- 
-   the memcache server is waiting for a response, and the thread is blocked.
-*/
-ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *pipeline) {
-  DEBUG_ENTER();
-  const Configuration &conf = get_Configuration();
-  
-  DEBUG_PRINT(" %d prefixes", conf.nprefixes);
-  for(unsigned int i = 0 ; i < conf.nprefixes ; i++) {
-    const KeyPrefix *pfx = conf.getPrefix(i);
-    if(pfx->info.use_ndb && pfx->info.do_db_flush) {
-      ClusterConnectionPool *pool = conf.getConnectionPoolById(pfx->info.cluster_id);
-      Ndb_cluster_connection *conn = pool->getMainConnection();
-      NdbInstance inst(conn, 128);
-      QueryPlan plan(inst.db, pfx->table);
-      if(plan.pk_access) {
-        // To flush, scan the table and delete every row
-        DEBUG_PRINT("prefix %d - deleting from %s", i, pfx->table->table_name);
-        scan_delete(&inst, &plan);
-        // If there is an external store, also delete from the large value table
-        if(plan.canHaveExternalValue()) {
-          DEBUG_PRINT("prefix %d - deleting from %s", i, 
-                      plan.extern_store->spec->table_name);
-          scan_delete(&inst, plan.extern_store);
-        }
-      }
-      else DEBUG_PRINT("prefix %d - not scanning table %s -- accees path "
-                       "is not primary key", i, pfx->table->table_name);
-    }
-    else DEBUG_PRINT("prefix %d - not scanning table %s -- use_ndb:%d flush:%d",
-                     i, pfx->table ? pfx->table->table_name : "",
-                     pfx->info.use_ndb, pfx->info.do_db_flush);
-  }
-  
-  return ENGINE_SUCCESS;
-}
-
-
-bool scan_delete(NdbInstance *inst, QueryPlan *plan) {
-  DEBUG_ENTER();
-  int check;
-  bool rescan;
-  int res = 0;
-  const int max_batch_size = 1000;
-  int batch_size = 1;
-  int delTxRowCount = 0;
-  int force_send = 1;
-  struct {
-    unsigned short scans;
-    unsigned short errors;
-    unsigned short rows;
-    unsigned short commit_batches;
-  } stats = {0, 0, 0, 0 };
-  
-  /* To securely scan a whole table, use an outer transaction only for the scan, 
-     but take over each lock in an inner transaction (with a row count) that 
-     deletes 1000 rows per transaction 
-  */  
-  do {
-    stats.scans += 1;
-    rescan = false;
-    NdbTransaction *scanTx = inst->db->startTransaction();
-    NdbTransaction *delTx = inst->db->startTransaction();
-    NdbScanOperation *scan = scanTx->getNdbScanOperation(plan->table);
-    scan->readTuplesExclusive();
-    
-    /* execute NoCommit */
-    if((res = scanTx->execute(NdbTransaction::NoCommit)) != 0) 
-      logger->log(LOG_WARNING, 0, "execute(NoCommit): %s\n", 
-                  scanTx->getNdbError().message);
-    
-    /* scan and delete.  delTx takes over the lock. */
-    while(scan->nextResult(true) == 0) {
-      do {
-        if((res = scan->deleteCurrentTuple(delTx)) == 0) {
-          delTxRowCount += 1;
-        }
-        else {      
-          logger->log(LOG_WARNING, 0, "deleteCurrentTuple(): %s\n", 
-                      scanTx->getNdbError().message);
-        }
-       } while((check = scan->nextResult(false)) == 0);
-      
-      /* execute a batch (NoCommit) */
-      if(check != -1) {
-        res = delTx->execute(NdbTransaction::NoCommit,
-                             NdbOperation::AbortOnError, force_send);
-        if(res != 0) {
-          stats.errors += 1;
-          if(delTx->getNdbError().code == 827) { 
-            /* DataMemory is full, and the kernel could not create a Copy Tuple
-               for a deleted row.  Rollback this batch, turn off force-send 
-               (for throttling), make batches smalller, and trigger a
-               rescan to clean up these rows. */
-            rescan = true;
-            delTx->execute(NdbTransaction::Rollback);
-            delTx->close();
-            delTx = inst->db->startTransaction();
-            delTxRowCount = 0;
-            if(batch_size > 1) batch_size /= 2;
-            force_send = 0;
-          }
-          else {
-            logger->log(LOG_WARNING, 0, "execute(NoCommit): %s\n", 
-                        delTx->getNdbError().message);
-          }
-        }
-      }
-      
-      /* Execute & commit a batch */
-      if(delTxRowCount >= batch_size) {
-        stats.commit_batches += 1;
-        res = delTx->execute(NdbTransaction::Commit, 
-                             NdbOperation::AbortOnError, force_send);
-        if(res != 0) {
-          stats.errors++;
-          logger->log(LOG_WARNING, 0, "execute(Commit): %s\n", 
-                      delTx->getNdbError().message);
-        }
-        stats.rows += delTxRowCount;
-        delTxRowCount = 0;
-        delTx->close();
-        delTx = inst->db->startTransaction();
-        batch_size *= 2;
-        if(batch_size > max_batch_size) {
-          batch_size = max_batch_size;
-          force_send = 1;
-        }
-      }
-    }
-    /* Final execute & commit */
-    res = delTx->execute(NdbTransaction::Commit);
-    delTx->close();
-    scanTx->close();
-
-  } while(rescan);
-  
-  logger->log(EXTENSION_LOG_INFO, 0, "Flushed all rows from %s.%s: "
-              "Scans: %d  Batches: %d  Rows: %d  Errors: %d",
-              plan->spec->schema_name, plan->spec->table_name, 
-              stats.scans, stats.commit_batches, stats.rows, stats.errors);
-
-  return (res == 0);
 }
 

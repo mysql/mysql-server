@@ -70,6 +70,42 @@ TableSpec * ExternalValue::createContainerRecord(const char *sqltab) {
 }
 
 
+/* This is called from FLUSH_ALL.
+   It returns the number of parts deleted.
+   It uses a memory pool, passed in, to allocate key buffers.
+*/
+int ExternalValue::do_delete(memory_pool *mpool, NdbTransaction *delTx, 
+                             QueryPlan *plan, Operation & op) {
+  Uint32 id, nparts = 0;
+  QueryPlan * extern_plan = plan->extern_store;
+  
+  if(extern_plan 
+     && ! (op.isNull(COL_STORE_EXT_SIZE) || op.isNull(COL_STORE_EXT_ID))) {
+
+    /* How many parts? */
+    Uint32 stripe_size = extern_plan->val_record->value_length;
+    Uint32 len = op.getIntValue(COL_STORE_EXT_SIZE);
+    id  = op.getIntValue(COL_STORE_EXT_ID);  
+    nparts = len / stripe_size;
+    if(len % stripe_size) nparts += 1;
+
+    /* Delete them */
+    int key_size = extern_plan->key_record->rec_size;
+    
+    for(int i = 0; i < nparts ; i++) {
+      Operation part_op(extern_plan);
+      part_op.key_buffer = (char *) memory_pool_alloc(mpool, key_size);
+      
+      part_op.clearKeyNullBits();
+      part_op.setKeyPartInt(COL_STORE_KEY + 0, id);
+      part_op.setKeyPartInt(COL_STORE_KEY + 1, i);    
+      part_op.deleteTuple(delTx);
+    }
+  }
+  return nparts;
+}
+
+
 inline bool ExternalValue::setupKey(workitem *item, Operation &op) {
   op.key_buffer = item->ndb_key_buffer;
   op.clearKeyNullBits();

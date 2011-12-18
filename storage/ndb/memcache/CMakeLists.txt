@@ -93,6 +93,8 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/hash_item_util.c
     src/ndb_configuration.cc
     src/ndb_engine_private.h
+    src/ndb_error_logger.cc
+    src/ndb_flush.cc
     src/ndb_pipeline.cc
     src/ndb_worker.cc
     src/schedulers

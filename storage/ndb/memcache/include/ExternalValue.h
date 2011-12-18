@@ -54,6 +54,7 @@ public:
   static TableSpec * createContainerRecord(const char *);
   static op_status_t do_write(workitem *);
   static op_status_t do_delete(workitem *);
+  static int do_delete(memory_pool *, NdbTransaction *, QueryPlan *, Operation &);
   static op_status_t do_read_header(workitem *, ndb_async_callback *, worker_step *);
   static void append_after_read(NdbTransaction *, workitem *);
   static bool setupKey(workitem *, Operation &);
