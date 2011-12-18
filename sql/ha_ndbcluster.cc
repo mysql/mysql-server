@@ -1240,9 +1240,9 @@ void ha_ndbcluster::set_rec_per_key()
             /* no stats is not unexpected error */
             err != NdbIndexStat::NoIndexStats &&
             /* warning was printed at first error */
-            err != Ndb_index_stat_error_HAS_ERROR &&
+            err != NdbIndexStat::MyHasError &&
             /* stats thread aborted request */
-            err != Ndb_index_stat_error_ABORT_REQUEST)
+            err != NdbIndexStat::MyAbortReq)
         {
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_CANT_GET_STAT, /* pun? */
@@ -12700,9 +12700,9 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
           /* no stats is not unexpected error */
           err != NdbIndexStat::NoIndexStats &&
           /* warning was printed at first error */
-          err != Ndb_index_stat_error_HAS_ERROR &&
+          err != NdbIndexStat::MyHasError &&
           /* stats thread aborted request */
-          err != Ndb_index_stat_error_ABORT_REQUEST)
+          err != NdbIndexStat::MyAbortReq)
       {
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_CANT_GET_STAT, /* pun? */
