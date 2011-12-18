@@ -31,6 +31,7 @@
 #include "NdbInstance.h"
 #include "thread_identifier.h"
 #include "Scheduler.h"
+#include "ExternalValue.h"
 
 /* A static global variable */
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
@@ -158,9 +159,10 @@ void disconnect_all() {
 /* This function has C linkage */
 void print_debug_startup_info() {
   int sz[4];
-  DEBUG_PRINT("  sizeof Ndb        : %lu", sz[0]=sizeof(Ndb));
-  DEBUG_PRINT("  sizeof NdbInstance: %lu", sz[1]=sizeof(NdbInstance));
-  DEBUG_PRINT("  sizeof workitem: %lu", sizeof(workitem));
+  DEBUG_PRINT("  sizeof Ndb           : %lu", sz[0]=sizeof(Ndb));
+  DEBUG_PRINT("  sizeof NdbInstance   : %lu", sz[1]=sizeof(NdbInstance));
+  DEBUG_PRINT("  sizeof workitem      : %lu", sizeof(workitem));
+  DEBUG_PRINT("  sizeof ExternalValue : %lu", sizeof(ExternalValue));
 }
 
 

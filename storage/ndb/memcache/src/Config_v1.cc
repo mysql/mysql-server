@@ -463,7 +463,6 @@ bool config_v1::store_prefix(const char * name,
                              TableSpec *table, 
                              int cluster_id, 
                              char *cache_policy) {
-  DEBUG_PRINT("%s", name);
   KeyPrefix prefix(name);
   prefix_info_t * info_ptr;
   
