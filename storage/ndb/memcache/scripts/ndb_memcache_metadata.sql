@@ -252,6 +252,7 @@ INSERT INTO memcache_server_roles (role_name, role_id) VALUES ("default_role", 0
 INSERT INTO memcache_server_roles (role_name, role_id) VALUES ("db-only", 1);
 INSERT INTO memcache_server_roles (role_name, role_id) VALUES ("mc-only", 2);
 INSERT INTO memcache_server_roles (role_name, role_id) VALUES ("ndb-caching", 3);
+INSERT INTO memcache_server_roles (role_name, role_id) VALUES ("large", 4);
 
 -- ndb_clusters table 
 -- Create an entry for the primary cluster.
@@ -303,7 +304,9 @@ INSERT INTO key_prefixes (server_role_id, key_prefix, cluster_id,
 
          (3, "",    0, "caching", "demo_table"),    /* ndb-caching role */
          (3, "t:",  0, "caching", "demo_tabs"),
-         (3, "b:",  0, "caching", "demo_ext")
+         (3, "b:",  0, "caching", "demo_ext"),
+         
+         (4, ""  ,  0, "ndb-test", "demo_ext");
 ;
 
 
