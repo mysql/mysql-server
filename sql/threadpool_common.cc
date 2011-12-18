@@ -17,13 +17,11 @@ extern void thd_cleanup(THD *thd);
 extern void delete_thd(THD *thd);
 
 /* Threadpool parameters */
-#ifdef _WIN32
+
 uint threadpool_min_threads;
-#else
 uint threadpool_idle_timeout;
 uint threadpool_size;
 uint threadpool_stall_limit;
-#endif
 uint threadpool_max_threads;
 
 
@@ -127,7 +125,7 @@ int threadpool_add_connection(THD *thd)
        thd->net.reading_or_writing= 1;
     }
   }
-
+  thd->skip_wait_timeout= true;
   thread_detach(thd, psi_thread);
   return retval;
 }

@@ -1198,7 +1198,6 @@ bool tp_init()
   DBUG_ENTER("tp_init");
   started = true;  
   scheduler_init();
-  skip_net_wait_timeout= 1;
   if (threadpool_size == 0)
   {
     threadpool_size= my_getncpus();

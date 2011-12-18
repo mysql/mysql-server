@@ -2220,7 +2220,7 @@ static Sys_var_uint Sys_threadpool_size(
  "Number of concurrently executing threads in the pool. "
  "Leaving value default (0) sets it to the number of processors.",
   GLOBAL_VAR(threadpool_size), CMD_LINE(REQUIRED_ARG),
-  VALID_RANGE(0, 128), DEFAULT(0), BLOCK_SIZE(1)
+  VALID_RANGE(1, 128), DEFAULT(my_getncpus()), BLOCK_SIZE(1)
 );
 static Sys_var_uint Sys_threadpool_stall_limit(
  "thread_pool_stall_limit",
@@ -2231,12 +2231,12 @@ static Sys_var_uint Sys_threadpool_stall_limit(
   GLOBAL_VAR(threadpool_stall_limit), CMD_LINE(REQUIRED_ARG),
   VALID_RANGE(60, UINT_MAX), DEFAULT(500), BLOCK_SIZE(1)
 );
-#endif  /*! WIN32 */
+#endif /* !WIN32 */
 static Sys_var_uint Sys_threadpool_max_threads(
   "thread_pool_max_threads",
   "Maximum allowed number of worker threads in the thread pool",
    GLOBAL_VAR(threadpool_max_threads), CMD_LINE(REQUIRED_ARG),
-   VALID_RANGE(1, UINT_MAX), DEFAULT(3000), BLOCK_SIZE(1),
+   VALID_RANGE(1, UINT_MAX), DEFAULT(500), BLOCK_SIZE(1),
    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), 
    ON_UPDATE(fix_tp_max_threads)
 );

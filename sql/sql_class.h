@@ -1697,6 +1697,9 @@ public:
   /* True if we want to log all errors */
   bool log_all_errors;
 
+  /* Do not set socket timeouts for wait_timeout (used with threadpool) */
+  bool skip_wait_timeout;
+
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 

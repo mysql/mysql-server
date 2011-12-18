@@ -520,7 +520,6 @@ bool tp_init(void)
   }
 #endif
 
-  skip_net_wait_timeout = 1;
   return 0;
 }
 

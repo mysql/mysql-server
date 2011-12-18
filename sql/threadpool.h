@@ -1,12 +1,9 @@
 
 /* Threadpool parameters */
-#ifdef _WIN32
 extern uint threadpool_min_threads;  /* Minimum threads in pool */
-#else
 extern uint threadpool_idle_timeout; /* Shutdown idle worker threads  after this timeout */
 extern uint threadpool_size; /* Number of parallel executing threads */
 extern uint threadpool_stall_limit;  /* time interval in 10 ms units for stall checks*/
-#endif
 extern uint threadpool_max_threads;  /* Maximum threads in pool */
 
 /*
