@@ -25,6 +25,8 @@ import com.mysql.clusterj.Dbug;
  */
 public class DbugTest extends AbstractClusterJTest{
 
+    static String tmpFileName = System.getProperty("MYSQL_TMP_DIR", "/tmp") + "/clusterj-test-dbug";
+
     public boolean getDebug() {
         return false;
     }
@@ -44,7 +46,7 @@ public class DbugTest extends AbstractClusterJTest{
             return;
         }
         String originalState = "t";
-        String newState = "d,jointx:o,/tmp/clusterj-test-dbug";
+        String newState = "d,jointx:o," + tmpFileName;
         dbug.set(originalState);
         String actualState = dbug.get();
         errorIfNotEqual("Failed to set original state", originalState, actualState);
@@ -56,17 +58,17 @@ public class DbugTest extends AbstractClusterJTest{
         errorIfNotEqual("Failed to pop original state", originalState, actualState);
 
         dbug = ClusterJHelper.newDbug();
-        dbug.output("/tmp/clusterj-test-dbug").flush().debug(new String[] {"a", "b", "c", "d", "e", "f"}).push();
+        dbug.output(tmpFileName).flush().debug(new String[] {"a", "b", "c", "d", "e", "f"}).push();
         actualState = dbug.get();
         // keywords are stored LIFO
-        errorIfNotEqual("Wrong state created", "d,f,e,d,c,b,a:O,/tmp/clusterj-test-dbug", actualState);
+        errorIfNotEqual("Wrong state created", "d,f,e,d,c,b,a:O," + tmpFileName, actualState);
         dbug.pop();
 
         dbug = ClusterJHelper.newDbug();
-        dbug.append("/tmp/clusterj-test-dbug").trace().debug("a,b,c,d,e,f").set();
+        dbug.append(tmpFileName).trace().debug("a,b,c,d,e,f").set();
         actualState = dbug.get();
         // keywords are stored LIFO
-        errorIfNotEqual("Wrong state created", "d,f,e,d,c,b,a:a,/tmp/clusterj-test-dbug:t", actualState);
+        errorIfNotEqual("Wrong state created", "d,f,e,d,c,b,a:a," + tmpFileName + ":t", actualState);
         dbug.pop();
 
         failOnError();
