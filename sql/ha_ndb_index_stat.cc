@@ -619,6 +619,8 @@ Ndb_index_stat_glob::Ndb_index_stat_glob()
 void
 Ndb_index_stat_glob::set_status()
 {
+  safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex);
+
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
   char* p= status[status_i];
 
@@ -757,6 +759,8 @@ void
 ndb_index_stat_error(Ndb_index_stat *st,
                      int from, const char* place, int line)
 {
+  safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex);
+
   time_t now= ndb_index_stat_time();
   NdbIndexStat::Error error= st->is->getNdbError();
   if (error.code == 0)
@@ -881,6 +885,8 @@ ndb_index_stat_list_move(Ndb_index_stat *st, int lt)
 void
 ndb_index_stat_force_update(Ndb_index_stat *st, bool onoff)
 {
+  safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex);
+
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   if (onoff)
   {
@@ -906,6 +912,8 @@ ndb_index_stat_force_update(Ndb_index_stat *st, bool onoff)
 void
 ndb_index_stat_no_stats(Ndb_index_stat *st, bool flag)
 {
+  safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex);
+
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   if (st->no_stats != flag)
   {
@@ -927,6 +935,8 @@ ndb_index_stat_no_stats(Ndb_index_stat *st, bool flag)
 void
 ndb_index_stat_ref_count(Ndb_index_stat *st, bool flag)
 {
+  safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex);
+
   uint old_count= st->ref_count;
   (void)old_count; // USED
   if (flag)
@@ -1098,6 +1108,8 @@ ndb_index_stat_get_share(NDB_SHARE *share,
 void
 ndb_index_stat_free(Ndb_index_stat *st)
 {
+  safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex);
+
   DBUG_ENTER("ndb_index_stat_free");
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   NDB_SHARE *share= st->share;
