@@ -2118,7 +2118,6 @@ void toku_apply_cmd_to_leaf(
 {
     VERIFY_NODE(t, node);
     toku_assert_entire_node_in_memory(node);
-    MSN cmd_msn = cmd->msn;
     
     //
     // Because toku_apply_cmd_to_leaf is called with the intent of permanently
@@ -2126,8 +2125,11 @@ void toku_apply_cmd_to_leaf(
     // and will be purged from the system after this call, as opposed to
     // maybe_apply_ancestors_messages_to_node, which applies a message
     // for a query, but the message may still reside in the system and 
-    // be reapplied later), we take the opportunity to update
-    // node->max_msn_applied_to_node_on_disk.
+    // be reapplied later), we mark the node as dirty and 
+    // take the opportunity to update node->max_msn_applied_to_node_on_disk.
+    //
+    toku_mark_node_dirty(node);
+    
     //
     // we cannot blindly update node->max_msn_applied_to_node_on_disk,
     // we must check to see if the msn is greater that the one already stored,
@@ -2137,6 +2139,7 @@ void toku_apply_cmd_to_leaf(
     // This is why we handle node->max_msn_applied_to_node_on_disk both here
     // and in brt_nonleaf_put_cmd, as opposed to in one location, brtnode_put_cmd.
     //
+    MSN cmd_msn = cmd->msn;
     if (cmd_msn.msn > node->max_msn_applied_to_node_on_disk.msn) {
         node->max_msn_applied_to_node_on_disk = cmd_msn;
     }
@@ -2208,7 +2211,12 @@ static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
         snapshot_txnids,
         live_list_reverse
         );
-    toku_mark_node_dirty(node);
+    //
+    // assumption is that brtnode_put_cmd will
+    // mark the node as dirty.
+    // enforcing invariant here.
+    //
+    invariant(node->dirty != 0);
 
     // update some status variables
     if (node->height != 0) {
