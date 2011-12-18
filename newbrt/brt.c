@@ -1913,6 +1913,13 @@ brt_nonleaf_put_cmd (brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node
 //  The re_array[i] gets set to the reactivity of any modified child i.	 (And there may be several such children.)
 //
 {
+
+    //
+    // see comments in toku_apply_cmd_to_leaf
+    // to understand why we handle setting
+    // node->max_msn_applied_to_node_on_disk here,
+    // and don't do it in brtnode_put_cmd
+    //        
     MSN cmd_msn = cmd->msn;
     invariant(cmd_msn.msn > node->max_msn_applied_to_node_on_disk.msn);
     node->max_msn_applied_to_node_on_disk = cmd_msn;
@@ -2065,6 +2072,12 @@ brtnode_put_cmd (
 //   The node may become overfull.  That's not our problem.
 {
     toku_assert_entire_node_in_memory(node);
+    //
+    // see comments in toku_apply_cmd_to_leaf
+    // to understand why we don't handle setting
+    // node->max_msn_applied_to_node_on_disk here,
+    // and instead defer to these functions
+    //
     if (node->height==0) {
         bool made_change = false;
         uint64_t workdone = 0;
@@ -2120,6 +2133,9 @@ void toku_apply_cmd_to_leaf(
     // we must check to see if the msn is greater that the one already stored,
     // because the cmd may have already been applied earlier (via 
     // maybe_apply_ancestors_messages_to_node) to answer a query
+    //
+    // This is why we handle node->max_msn_applied_to_node_on_disk both here
+    // and in brt_nonleaf_put_cmd, as opposed to in one location, brtnode_put_cmd.
     //
     if (cmd_msn.msn > node->max_msn_applied_to_node_on_disk.msn) {
         node->max_msn_applied_to_node_on_disk = cmd_msn;
