@@ -1031,7 +1031,7 @@ ndb_index_stat_get_share(NDB_SHARE *share,
   {
     if (unlikely(!ndb_index_stat_allow()))
     {
-      err_out= Ndb_index_stat_error_NOT_ALLOW;
+      err_out= NdbIndexStat::MyNotAllow;
       break;
     }
     st= ndb_index_stat_find_share(share, index, st_last);
@@ -1039,7 +1039,7 @@ ndb_index_stat_get_share(NDB_SHARE *share,
     {
       if (!allow_add)
       {
-        err_out= Ndb_index_stat_error_NOT_FOUND;
+        err_out= NdbIndexStat::MyNotFound;
         break;
       }
       st= ndb_index_stat_alloc(index, table, err_out);
@@ -1054,7 +1054,7 @@ ndb_index_stat_get_share(NDB_SHARE *share,
     }
     else if (unlikely(st->abort_request))
     {
-      err_out= Ndb_index_stat_error_ABORT_REQUEST;
+      err_out= NdbIndexStat::MyAbortReq;
       break;
     }
     if (force_update)
@@ -2634,7 +2634,7 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
       glob.query_count++;
       if (st->lt == Ndb_index_stat::LT_Error)
       {
-        err= Ndb_index_stat_error_HAS_ERROR;
+        err= NdbIndexStat::MyHasError;
         break;
       }
       ndb_index_stat_clear_error(st);
@@ -2668,7 +2668,7 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
     }
     if (st->abort_request)
     {
-      err= Ndb_index_stat_error_ABORT_REQUEST;
+      err= NdbIndexStat::MyAbortReq;
       break;
     }
     count++;
@@ -2744,7 +2744,7 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
     }
     if (st->abort_request)
     {
-      err= Ndb_index_stat_error_ABORT_REQUEST;
+      err= NdbIndexStat::MyAbortReq;
       break;
     }
     count++;

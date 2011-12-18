@@ -104,7 +104,15 @@ public:
     NoSysEvents = 4710,
     BadSysEvents = BadSysTables,
     HaveSysEvents = 746,
-    AlienUpdate = 4721    // mysqld: somebody else messed with stats
+    /*
+     * Following are for mysqld.  Most are consumed by mysqld itself
+     * and should therefore not be seen by clients.
+     */
+    MyNotAllow = 4721,    // stats thread not open for requests
+    MyNotFound = 4722,    // stats entry unexpectedly not found
+    MyHasError = 4723,    // request ignored due to recent error
+    MyAbortReq = 4724,    // request aborted by stats thread
+    AlienUpdate = 4725    // somebody else messed with stats
   };
 
   /*
