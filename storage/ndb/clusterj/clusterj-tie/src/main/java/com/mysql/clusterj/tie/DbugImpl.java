@@ -42,6 +42,10 @@ public class DbugImpl implements Dbug {
 
     private static final int DBUG_SIZE = 256;
 
+    /* Load the native library so we can set up debugging before anything else */
+    static {
+        ClusterConnectionImpl.loadSystemLibrary("ndbclient");
+    }
     boolean propertyTrace = false;
     String fileName = "";
     Character fileStrategy = 'o';
