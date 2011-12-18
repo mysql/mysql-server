@@ -2,7 +2,8 @@
 
 [mysqld.1]
 loose-thread-handling=   pool-of-threads
-loose-thread_pool_size=  2
+loose-thread_pool_size=  1
+loose-thread_pool_max_threads=  2
 extra-port=        @ENV.MASTER_EXTRA_PORT
 extra-max-connections=1
 

@@ -624,14 +624,22 @@ static pool_event_t * listener(worker_thread_t *current_thread,
 
 
 
-/* Creates a new worker thread. thread_mutex must be held when calling this function */
+/* 
+  Creates a new worker thread. 
+  thread_mutex must be held when calling this function 
+
+  NOTE: in rare cases, the number of threads can exceed
+  threadpool_max_threads, because we need at least 2 threads
+  per group to prevent deadlocks (one listener + one worker)
+*/
 
 static int create_worker(thread_group_t *thread_group)
 {
   pthread_t thread_id;
   int err;
   DBUG_ENTER("create_worker");
-  if (tp_stats.num_worker_threads >= (int)threadpool_max_threads)
+  if (tp_stats.num_worker_threads >= (int)threadpool_max_threads
+     && thread_group->thread_count >= 2)
   {
     DBUG_PRINT("info", 
      ("Cannot create new thread (maximum allowed threads reached)"));
@@ -665,6 +673,9 @@ static int wake_or_create_thread(thread_group_t *thread_group)
     DBUG_RETURN(0);
 
   if (thread_group->pending_thread_start_count > 0)
+    DBUG_RETURN(-1);
+
+  if (thread_group->thread_count > thread_group->connection_count)
     DBUG_RETURN(-1);
 
   if (thread_group->thread_count < 4)

@@ -13,7 +13,7 @@
 # connections on the extra port.
 
 # First set two connections running, and check that extra connection
-# on normal port fails due to--thread-pool-size=2
+# on normal port fails due to--thread-pool-max_threads=2
 connection default;
 send SELECT sleep(5);
 
@@ -32,11 +32,11 @@ connect(con3,localhost,root,,);
 let $error = $mysql_errno;
 if (!$error)
 {
-  --echo # -- Error: managed to establish more than --thread-pool-size connections
+  --echo # -- Error: managed to establish more than --thread_pool_max_threads connections
 }
 if ($error)
 {
-  --echo # -- Success: more than --thread-pool-size normal connections not possible
+  --echo # -- Success: more than --thread_pool_max_threads normal connections not possible
 }
 
 connection default;
