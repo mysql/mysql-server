@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS `external_values` (
 
 INSERT INTO meta VALUES ("ndbmemcache", "1.2");
 
+INSERT INTO memcache_server_roles (role_name, role_id) VALUES ("large", 4);
+
 UPDATE  containers 
   SET   expire_time_column = "expire_time",
         flags = "flags" 
@@ -67,6 +69,8 @@ INSERT INTO key_prefixes (server_role_id, key_prefix, cluster_id,
           (0, "b:",  0, "ndb-test", "demo_ext"),
           (1, "b:",  0, "ndb-only", "demo_ext"),
           (3, "t:",  0, "caching", "demo_tabs"),
-          (3, "b:",  0, "caching", "demo_ext")     ;
+          (3, "b:",  0, "caching", "demo_ext"),
+          (4, ""  ,  0, "ndb-test", "demo_ext");
+
  
 
