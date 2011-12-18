@@ -2005,6 +2005,21 @@ NdbIndexStatImpl::convert_range(Range& range,
       return -1;
     }
   }
+
+#ifdef VM_TRACE
+  {
+    const char* p = NdbEnv_GetEnv("NDB_INDEX_STAT_RANGE_ERROR", (char*)0, 0);
+    if (p != 0 && strchr("1Y", p[0]) != 0)
+    {
+      if (rand() % 10 == 0)
+      {
+        setError(InternalError, __LINE__, NdbIndexStat::InternalError);
+        return -1;
+      }
+    }
+  }
+#endif
+
   return 0;
 }
 
