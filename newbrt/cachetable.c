@@ -1517,13 +1517,6 @@ static void cachetable_partial_eviction(WORKITEM wi) {
 }
 
 
-//
-// This function MUST NOT release the cachetable lock. The implementation
-// of toku_cachetable_put_with_dep_pairs depends on this.
-// That means we cannot try to grab the PAIR lock of any node unless
-// we are absolutely sure that we will successfully grab it without
-// releasing the cachetable lock
-//
 static void maybe_flush_some (CACHETABLE ct, long size) {
 
     //
@@ -1733,7 +1726,6 @@ static int cachetable_put_internal(
             }
         }
     }
-    maybe_flush_some(ct, attr.size);
     // flushing could change the table size, but wont' change the fullhash
     cachetable_puts++;
     PAIR p = cachetable_insert_at(
@@ -1903,6 +1895,17 @@ int toku_cachetable_put_with_dep_pairs(
     // cachetable_put_internal does not release the cachetable lock
     //
     cachetable_wait_write(ct);
+    //
+    // we call maybe_flush_some outside of cachetable_put_internal
+    // because maybe_flush_some may release the cachetable lock
+    // and we require what comes below to not do so.
+    // we require get_key_and_fullhash and cachetable_put_internal
+    // to not release the cachetable lock, and we require the critical
+    // region described below to not begin a checkpoint. The cachetable lock
+    // is used to ensure that a checkpoint is not begun during 
+    // cachetable_put_internal
+    // 
+    maybe_flush_some(ct, attr.size);
     int rval;
     {
 	BEGIN_CRITICAL_REGION;   // checkpoint may not begin inside critical region, detect and crash if one begins
@@ -1952,6 +1955,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
     CACHETABLE ct = cachefile->cachetable;
     cachetable_lock(ct);
     cachetable_wait_write(ct);
+    maybe_flush_some(ct, attr.size);
     int r = cachetable_put_internal(
         cachefile,
         key,
