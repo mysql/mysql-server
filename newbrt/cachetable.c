@@ -1084,6 +1084,9 @@ static unsigned int hashit (CACHETABLE ct, CACHEKEY key, CACHEFILE cachefile) {
 }
 #endif
 
+// has ct locked on entry
+// This function MUST NOT release and reacquire the cachetable lock
+// Its callers (toku_cachetable_put_with_dep_pairs) depend on this behavior.
 static void cachetable_rehash (CACHETABLE ct, u_int32_t newtable_size) {
     // printf("rehash %p %d %d %d\n", t, primeindexdelta, ct->n_in_table, ct->table_size);
 
@@ -1519,6 +1522,14 @@ static void cachetable_partial_eviction(WORKITEM wi) {
     cachetable_unlock(ct);
 }
 
+
+//
+// This function MUST NOT release the cachetable lock. The implementation
+// of toku_cachetable_put_with_dep_pairs depends on this.
+// That means we cannot try to grab the PAIR lock of any node unless
+// we are absolutely sure that we will successfully grab it without
+// releasing the cachetable lock
+//
 static int maybe_flush_some (CACHETABLE ct, long size) {
     int r = 0;
 
@@ -1627,6 +1638,9 @@ void toku_cachetable_maybe_flush_some(CACHETABLE ct) {
     cachetable_unlock(ct);
 }
 
+// has ct locked on entry
+// This function MUST NOT release and reacquire the cachetable lock
+// Its callers (toku_cachetable_put_with_dep_pairs) depend on this behavior.
 static PAIR cachetable_insert_at(CACHETABLE ct, 
                                  CACHEFILE cachefile, CACHEKEY key, void *value, 
                                  enum ctpair_state state,
