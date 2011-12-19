@@ -52,8 +52,8 @@ sym_tab_create(
 	sym_tab = static_cast<sym_tab_t*>(
 		mem_heap_alloc(heap, sizeof(sym_tab_t)));
 
-	UT_LIST_INIT(sym_tab->sym_list);
-	UT_LIST_INIT(sym_tab->func_node_list);
+	UT_LIST_INIT(sym_tab->sym_list, &sym_node_t::sym_list);
+	UT_LIST_INIT(sym_tab->func_node_list, &func_node_t::func_node_list);
 
 	sym_tab->heap = heap;
 
@@ -145,7 +145,7 @@ sym_tab_add_int_lit(
 	node->prefetch_buf = NULL;
 	node->cursor_def = NULL;
 
-	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
+	UT_LIST_ADD_LAST(sym_tab->sym_list, node);
 
 	node->like_node = NULL;
 
@@ -184,7 +184,7 @@ sym_tab_add_str_lit(
 		  DATA_VARCHAR, DATA_ENGLISH, 0);
 
 	data = (len) ? static_cast<byte*>(mem_heap_dup(sym_tab->heap, str, len))
-	      	     : NULL;
+		: NULL;
 
 	dfield_set_data(&(node->common.val), data, len);
 
@@ -192,7 +192,7 @@ sym_tab_add_str_lit(
 	node->prefetch_buf = NULL;
 	node->cursor_def = NULL;
 
-	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
+	UT_LIST_ADD_LAST(sym_tab->sym_list, node);
 
 	node->like_node = NULL;
 
@@ -273,7 +273,7 @@ sym_tab_add_bound_lit(
 	node->prefetch_buf = NULL;
 	node->cursor_def = NULL;
 
-	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
+	UT_LIST_ADD_LAST(sym_tab->sym_list, node);
 
 	blit->node = node;
 	node->like_node = NULL;
@@ -356,7 +356,7 @@ sym_tab_add_null_lit(
 	node->prefetch_buf = NULL;
 	node->cursor_def = NULL;
 
-	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
+	UT_LIST_ADD_LAST(sym_tab->sym_list, node);
 
 	node->like_node = NULL;
 
@@ -386,7 +386,7 @@ sym_tab_add_id(
 	node->name = mem_heap_strdupl(sym_tab->heap, (char*) name, len);
 	node->name_len = len;
 
-	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
+	UT_LIST_ADD_LAST(sym_tab->sym_list, node);
 
 	dfield_set_null(&node->common.val);
 
@@ -424,7 +424,7 @@ sym_tab_add_bound_id(
 	node->name = mem_heap_strdup(sym_tab->heap, bid->id);
 	node->name_len = strlen(node->name);
 
-	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
+	UT_LIST_ADD_LAST(sym_tab->sym_list, node);
 
 	dfield_set_null(&node->common.val);
 
