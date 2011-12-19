@@ -1,5 +1,16 @@
 DROP TABLE IF EXISTS t1;
 #
+# Bug#13357766: ASSERT IN HANDLER::HA_CREATE
+#
+CREATE TABLE t1
+(a INT)
+PARTITION BY KEY(a) PARTITIONS 3;
+ALTER TABLE t1 REPAIR PARTITION p2,p3,p1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	error	Error in list of partitions to test.t1
+ALTER TABLE t1 ORDER BY a;
+DROP TABLE t1;
+#
 # Bug#11764110/bug#56909: REORGANIZE PARTITION is allowed on
 #                         HASH/KEY partitioned tables
 #
