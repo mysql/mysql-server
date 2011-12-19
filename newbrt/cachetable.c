@@ -2458,19 +2458,6 @@ int toku_cachetable_get_and_pin_nonblocking (
                 // and then call a callback to retrieve what we need
                 //
                 if (partial_fetch_required) {
-                    //
-                    // The reason we have this assert is a sanity check
-                    // to make sure that it is ok to set the 
-                    // state of the pair to CTPAIR_READING.
-                    // 
-                    // As of this writing, the checkpoint code assumes
-                    // that every pair that is in the CTPAIR_READING state
-                    // is not dirty. Because we require dirty nodes to be
-                    // fully in memory, we should never have a dirty node 
-                    // require a partial fetch. So, just to be sure that 
-                    // we can set the pair to CTPAIR_READING, we assert
-                    // that the pair is not dirty
-                    //
                     p->state = CTPAIR_READING;
                     run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
                     if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
