@@ -552,7 +552,9 @@ struct trx_lock_struct {
 	mem_heap_t*	lock_heap;	/*!< memory heap for trx_locks;
 					protected by lock_sys->mutex */
 
-	trx_lock_list_t trx_locks;	/*!< locks requested by the transaction;
+	UT_LIST_BASE_NODE_T(lock_t)
+			trx_locks;	/*!< locks requested
+					by the transaction;
 					insertions are protected by trx->mutex
 					and lock_sys->mutex; removals are
 					protected by lock_sys->mutex */

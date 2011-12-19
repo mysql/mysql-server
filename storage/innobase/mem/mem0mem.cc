@@ -453,7 +453,7 @@ mem_heap_add_block(
 
 	/* Add the new block as the last block */
 
-	UT_LIST_INSERT_AFTER(heap->base, block, new_block);
+	UT_LIST_INSERT_AFTER(list, heap->base, block, new_block);
 
 	return(new_block);
 }
@@ -479,12 +479,12 @@ mem_heap_block_free(
 		mem_analyze_corruption(block);
 	}
 
-	UT_LIST_REMOVE(heap->base, block);
+	UT_LIST_REMOVE(list, heap->base, block);
 
 #ifdef MEM_PERIODIC_CHECK
 	mutex_enter(&(mem_comm_pool->mutex));
 
-	UT_LIST_REMOVE(mem_block_list, block);
+	UT_LIST_REMOVE(mem_block_list, mem_block_list, block);
 
 	mutex_exit(&(mem_comm_pool->mutex));
 #endif

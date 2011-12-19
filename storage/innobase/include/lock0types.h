@@ -30,9 +30,6 @@ Created 5/7/1996 Heikki Tuuri
 typedef struct lock_struct	lock_t;
 typedef struct lock_sys_struct	lock_sys_t;
 
-/** A table lock */
-typedef struct lock_table_struct	lock_table_t;
-
 /* Basic lock modes */
 enum lock_mode {
 	LOCK_IS = 0,	/* intention shared */
@@ -46,6 +43,5 @@ enum lock_mode {
 	LOCK_NONE_UNSET = 255
 };
 
-typedef UT_LIST_BASE_NODE_T(lock_t) trx_lock_list_t;
 
 #endif
