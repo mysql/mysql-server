@@ -164,8 +164,8 @@ public:
   char *part_func_string;
   char *subpart_func_string;
 
-  partition_element *curr_part_elem;
-  partition_element *current_partition;
+  partition_element *curr_part_elem;     // part or sub part
+  partition_element *current_partition;  // partition
   part_elem_value *curr_list_val;
   uint curr_list_object;
   uint num_columns;
@@ -213,14 +213,14 @@ public:
   bool use_default_num_subpartitions;
   bool default_partitions_setup;
   bool defined_max_value;
-  bool list_of_part_fields;
-  bool list_of_subpart_fields;
-  bool linear_hash_ind;
+  bool list_of_part_fields;                  // KEY or COLUMNS PARTITIONING
+  bool list_of_subpart_fields;               // KEY SUBPARTITIONING
+  bool linear_hash_ind;                      // LINEAR HASH/KEY
   bool fixed;
   bool is_auto_partitioned;
   bool from_openfrm;
   bool has_null_value;
-  bool column_list;
+  bool column_list;                          // COLUMNS PARTITIONING, 5.5+
 
   partition_info()
   : get_partition_id(NULL), get_part_partition_id(NULL),
@@ -289,17 +289,17 @@ public:
   void print_no_partition_found(TABLE *table);
   void print_debug(const char *str, uint*);
   Item* get_column_item(Item *item, Field *field);
-  int fix_partition_values(THD *thd,
-                           part_elem_value *val,
-                           partition_element *part_elem,
-                           uint part_id);
+  bool fix_partition_values(THD *thd,
+                            part_elem_value *val,
+                            partition_element *part_elem,
+                            uint part_id);
   bool fix_column_value_functions(THD *thd,
                                   part_elem_value *val,
                                   uint part_id);
-  int fix_parser_data(THD *thd);
-  int add_max_value();
+  bool fix_parser_data(THD *thd);
+  bool add_max_value();
   void init_col_val(part_column_list_val *col_val, Item *item);
-  int reorganize_into_single_field_col_val();
+  bool reorganize_into_single_field_col_val();
   part_column_list_val *add_column_value();
   bool set_part_expr(char *start_token, Item *item_ptr,
                      char *end_token, bool is_subpart);
