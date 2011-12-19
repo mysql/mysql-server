@@ -84,7 +84,7 @@ static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
     false
   },
   {
-    { C_STRING_WITH_LEN("statement_digest") },
+    { C_STRING_WITH_LEN("statements_digest") },
     &flag_statements_digest,
     false
   }
