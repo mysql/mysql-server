@@ -379,10 +379,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           open_error= open_and_lock_tables(thd, table, TRUE, 0);
       }
 
-      /* Make sure this table instance is not reused after the operation. */
-      if (table->table)
-        table->table->m_needs_reopen= true;
-
       table->next_global= save_next_global;
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
@@ -453,6 +449,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       case  1:           // error, message written to net
         trans_rollback_stmt(thd);
         trans_rollback(thd);
+        /* Make sure this table instance is not reused after the operation. */
+        if (table->table)
+          table->table->m_needs_reopen= true;
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
         DBUG_PRINT("admin", ("simple error, admin next table"));
@@ -525,6 +524,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       protocol->store(buff, length, system_charset_info);
       trans_commit_stmt(thd);
       trans_commit(thd);
+      /* Make sure this table instance is not reused after the operation. */
+      if (table->table)
+        table->table->m_needs_reopen= true;
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
       lex->reset_query_tables_list(FALSE);
@@ -601,6 +603,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
         trans_rollback_stmt(thd);
         trans_rollback(thd);
+        /* Make sure this table instance is not reused after the operation. */
+        if (table->table)
+          table->table->m_needs_reopen= true;
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
 
@@ -821,6 +826,9 @@ send_result_message:
           }
           thd->clear_error();
         }
+        /* Make sure this table instance is not reused after the operation. */
+        if (table->table)
+          table->table->m_needs_reopen= true;
       }
       result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
       table->next_local= save_next_local;
@@ -920,6 +928,9 @@ send_result_message:
 err:
   trans_rollback_stmt(thd);
   trans_rollback(thd);
+  /* Make sure this table instance is not reused after the operation. */
+  if (table->table)
+    table->table->m_needs_reopen= true;
   close_thread_tables(thd);			// Shouldn't be needed
   thd->mdl_context.release_transactional_locks();
   DBUG_RETURN(TRUE);
