@@ -21396,8 +21396,17 @@ void TABLE_LIST::print(THD *thd, table_map eliminated_tables, String *str,
   }
   else if (jtbm_subselect)
   {
-    if (jtbm_subselect->is_jtbm_const_tab)
+    if (jtbm_subselect->engine->engine_type() ==
+          subselect_engine::SINGLE_SELECT_ENGINE)
     {
+      /* 
+        We get here when conversion into materialization didn't finish (this
+        happens when
+        - The subquery is a degenerate case which produces 0 or 1 record
+        - subquery's optimization didn't finish because of @@max_join_size
+          limits
+        - ... maybe some other cases like this 
+      */
       str->append(STRING_WITH_LEN(" <materialize> ("));
       jtbm_subselect->engine->print(str, query_type);
       str->append(')');

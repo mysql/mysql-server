@@ -897,3 +897,25 @@ set optimizer_switch=default;
 select @@optimizer_switch like '%materialization=on%';
 @@optimizer_switch like '%materialization=on%'
 1
+#
+# BUG#906385: EXPLAIN EXTENDED crashes in TABLE_LIST::print with limited max_join_size
+#
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES
+(1),(2),(3),(4),(5),
+(6),(7),(8),(9),(10),
+(11),(12),(13),(14),(15),
+(16),(17),(18),(19),(20);
+set @tmp_906385=@@max_join_size;
+SET max_join_size = 80;
+EXPLAIN EXTENDED
+SELECT COUNT(*) FROM t1
+WHERE a IN
+( SELECT b FROM t2 GROUP BY b )
+AND ( 6 ) IN
+( SELECT MIN( t2.b ) FROM t2 alias1, t2 );
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
+DROP TABLE t1, t2;
+set max_join_size= @tmp_906385;
