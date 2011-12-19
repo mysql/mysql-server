@@ -222,5 +222,10 @@ COMMIT;
 include/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+RESET MASTER;
+include/start_slave.inc
 DROP TABLE t1;
 include/rpl_end.inc
