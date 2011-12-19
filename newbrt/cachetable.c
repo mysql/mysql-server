@@ -2087,6 +2087,12 @@ int toku_cachetable_get_and_pin (
     void* write_extraargs // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
     ) 
 {
+    // We have separate parameters of read_extraargs and write_extraargs because
+    // the lifetime of the two parameters are different. write_extraargs may be used
+    // long after this function call (e.g. after a flush to disk), whereas read_extraargs
+    // will not be used after this function returns. As a result, the caller may allocate
+    // read_extraargs on the stack, whereas write_extraargs must be allocated
+    // on the heap.
     return toku_cachetable_get_and_pin_with_dep_pairs (
         cachefile, 
         key, 
