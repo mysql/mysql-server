@@ -425,6 +425,73 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
 }
 
 /**
+   The following clauses are redundant for subqueries:
+
+   DISTINCT
+   GROUP BY   if there are no aggregate functions and no HAVING
+              clause
+
+   Because redundant clauses are removed both from JOIN and
+   select_lex, the removal is permanent. Thus, it only makes sense to
+   call this function for normal queries and on first execution of
+   SP/PS
+
+   @param subq_select_lex   select_lex that is part of a subquery 
+                            predicate. This object and the associated 
+                            join is modified.
+*/
+
+static
+void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
+{
+  Item_subselect *subq_predicate= subq_select_lex->master_unit()->item;
+  /*
+    The removal should happen for IN, ALL, ANY and EXISTS subqueries,
+    which means all but single row subqueries. Example single row
+    subqueries: 
+       a) SELECT * FROM t1 WHERE t1.a = (<single row subquery>) 
+       b) SELECT a, (<single row subquery) FROM t1
+   */
+  if (subq_predicate->substype() == Item_subselect::SINGLEROW_SUBS)
+    return;
+
+  /* A subquery that is not single row should be one of IN/ALL/ANY/EXISTS. */
+  DBUG_ASSERT (subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
+               subq_predicate->is_in_predicate());
+
+  if (subq_select_lex->options & SELECT_DISTINCT)
+  {
+    subq_select_lex->join->select_distinct= false;
+    subq_select_lex->options&= ~SELECT_DISTINCT;
+  }
+
+  /*
+    Remove GROUP BY if there are no aggregate functions and no HAVING
+    clause
+  */
+  if (subq_select_lex->group_list.elements &&
+      !subq_select_lex->with_sum_func && !subq_select_lex->join->having)
+  {
+    subq_select_lex->join->group_list= NULL;
+    subq_select_lex->group_list.empty();
+  }
+
+  /*
+    TODO: This would prevent processing quries with ORDER BY ... LIMIT
+    therefore we disable this optimization for now.
+    Remove GROUP BY if there are no aggregate functions and no HAVING
+    clause
+  if (subq_select_lex->group_list.elements &&
+      !subq_select_lex->with_sum_func && !subq_select_lex->join->having)
+  {
+    subq_select_lex->join->group_list= NULL;
+    subq_select_lex->group_list.empty();
+  }
+  */
+}
+
+
+/**
   Function to setup clauses without sum functions.
 */
 inline int setup_without_group(THD *thd, Item **ref_pointer_array,
@@ -521,6 +588,22 @@ JOIN::prepare(Item ***rref_pointer_array,
                                     tables_list, select_lex->leaf_tables,
                                     FALSE, SELECT_ACL, SELECT_ACL, FALSE))
       DBUG_RETURN(-1);
+
+  /*
+    Permanently remove redundant parts from the query if
+      1) This is a subquery
+      2) This is the first time this query is optimized (since the
+         transformation is permanent
+      3) Not normalizing a view. Removal should take place when a
+         query involving a view is optimized, not when the view
+         is created
+  */
+  if (select_lex->master_unit()->item &&                               // 1)
+      select_lex->first_cond_optimization &&                           // 2)
+      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) // 3)
+  {
+    remove_redundant_subquery_clauses(select_lex);
+  }
   
   /*
     TRUE if the SELECT list mixes elements with and without grouping,

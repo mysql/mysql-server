@@ -972,10 +972,18 @@ SET join_cache_level = 3;
 EXPLAIN
 SELECT * FROM t1 WHERE b IN (SELECT a FROM t2 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t1); Using join buffer (flat, BNL join)
+SELECT * FROM t1 WHERE b IN (SELECT a FROM t2 GROUP BY a);
+a	b
+v	v
+EXPLAIN
+SELECT * FROM t1 WHERE b IN (SELECT max(a) FROM t2 GROUP BY a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	Using where
 1	PRIMARY	<subquery2>	hash_ALL	distinct_key	#hash#distinct_key	5	test.t1.b	1	Using join buffer (flat, BNLH join)
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	1	Using temporary
-SELECT * FROM t1 WHERE b IN (SELECT a FROM t2 GROUP BY a);
+SELECT * FROM t1 WHERE b IN (SELECT max(a) FROM t2 GROUP BY a);
 a	b
 v	v
 set optimizer_switch=@tmp_optimizer_switch;

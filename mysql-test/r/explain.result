@@ -265,7 +265,7 @@ CREATE TABLE t1(f1 VARCHAR(6) NOT NULL,
 FULLTEXT KEY(f1),UNIQUE(f1));
 INSERT INTO t1 VALUES ('test');
 EXPLAIN SELECT 1 FROM t1
-WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
+WHERE 1 > ALL((SELECT t1.f1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
 WHERE t1.f1 GROUP BY t1.f1));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
@@ -273,7 +273,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	SUBQUERY	t1	fulltext	f1_2,f1	f1	0		1	Using where
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
- WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a
+ WHERE 1 > ALL((SELECT t1.f1 FROM t1 RIGHT OUTER JOIN t1 a
  ON (MATCH(t1.f1) AGAINST (""))
  WHERE t1.f1 GROUP BY t1.f1))';
 EXECUTE stmt;
@@ -289,7 +289,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DEALLOCATE PREPARE stmt;
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
- WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a
+ WHERE 1 > ALL((SELECT t1.f1 FROM t1 JOIN t1 a
  ON (MATCH(t1.f1) AGAINST (""))
  WHERE t1.f1 GROUP BY t1.f1))';
 EXECUTE stmt;

@@ -94,6 +94,10 @@ EXPLAIN
 SELECT * FROM t1 WHERE b IN (SELECT a FROM t2 GROUP BY a);
 SELECT * FROM t1 WHERE b IN (SELECT a FROM t2 GROUP BY a);
 
+EXPLAIN
+SELECT * FROM t1 WHERE b IN (SELECT max(a) FROM t2 GROUP BY a);
+SELECT * FROM t1 WHERE b IN (SELECT max(a) FROM t2 GROUP BY a);
+
 set optimizer_switch=@tmp_optimizer_switch;
 set join_cache_level=default;
 

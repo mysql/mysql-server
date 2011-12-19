@@ -642,27 +642,27 @@ CREATE TABLE t2 (f11 varchar(1)) ;
 INSERT INTO t2 VALUES ('f'),('d');
 
 SET @old_optimizer_switch = @@session.optimizer_switch;
-SET SESSION optimizer_switch = 'materialization=on,in_to_exists=off,';
+SET @@optimizer_switch = 'materialization=on,in_to_exists=off,semijoin=off';
 
 EXPLAIN
 SELECT * FROM t1
 WHERE f3 = (
         SELECT t1.f3 FROM t1
-        WHERE ( t1.f10 ) IN ( SELECT f11 FROM t2 GROUP BY f11 ));
+        WHERE ( t1.f10 ) IN ( SELECT max(f11) FROM t2 GROUP BY f11 ));
 SELECT * FROM t1
 WHERE f3 = (
         SELECT t1.f3 FROM t1
-        WHERE ( t1.f10 ) IN ( SELECT f11 FROM t2 GROUP BY f11 ));
+        WHERE ( t1.f10 ) IN ( SELECT max(f11) FROM t2 GROUP BY f11 ));
 
 EXPLAIN
 SELECT * FROM t1
 WHERE f3 = (
         SELECT f3 FROM t1
-        WHERE ( f10, f10 ) IN ( SELECT f11, f11 FROM t2 GROUP BY f11 ));
+        WHERE ( f10, f10 ) IN ( SELECT max(f11), f11 FROM t2 GROUP BY f11 ));
 SELECT * FROM t1
 WHERE f3 = (
         SELECT f3 FROM t1
-        WHERE ( f10, f10 ) IN ( SELECT f11, f11 FROM t2 GROUP BY f11 ));
+        WHERE ( f10, f10 ) IN ( SELECT max(f11), f11 FROM t2 GROUP BY f11 ));
 
 SET SESSION optimizer_switch = @old_optimizer_switch;
 drop table t1,t2;
@@ -1084,7 +1084,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE
 (SELECT f2 FROM t2
  WHERE f4 <= ALL
-       (SELECT SQ1_t1.f4
+       (SELECT max(SQ1_t1.f4)
         FROM t3 AS SQ1_t1 JOIN t3 AS SQ1_t3 ON SQ1_t3.f4
         GROUP BY SQ1_t1.f4));
 
@@ -1305,47 +1305,47 @@ INSERT INTO t2 VALUES
 set @save_optimizer_switch=@@optimizer_switch;
 SET optimizer_switch='outer_join_with_cache=off';
 
-set @@optimizer_switch = 'materialization=off';
+set @@optimizer_switch = 'in_to_exists=on,materialization=off,semijoin=off';
 
 EXPLAIN
 SELECT alias2.f1 , alias2.f2
 FROM t0 AS alias1
 RIGHT JOIN t0 AS alias2 ON alias2.f10
-WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT max(f2) , f1 FROM t0 GROUP BY f2 , f1 );
 
 SELECT alias2.f1 , alias2.f2
 FROM t0 AS alias1
 RIGHT JOIN t0 AS alias2 ON alias2.f10
-WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT max(f2) , f1 FROM t0 GROUP BY f2 , f1 );
 
 EXPLAIN
-SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
-SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT max(f1a), f2a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT max(f1a), f2a FROM t1 GROUP BY f1a, f2a);
 
 EXPLAIN
-SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
-SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b) IN (SELECT max(f1a) FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b) IN (SELECT max(f1a) FROM t1 GROUP BY f1a, f2a);
 
-SET @@optimizer_switch = 'materialization=on';
+set @@optimizer_switch = 'in_to_exists=off,materialization=on,semijoin=off';
 
 EXPLAIN
 SELECT alias2.f1 , alias2.f2
 FROM t0 AS alias1
 RIGHT JOIN t0 AS alias2 ON alias2.f10
-WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT max(f2) , f1 FROM t0 GROUP BY f2 , f1 );
 
 SELECT alias2.f1 , alias2.f2
 FROM t0 AS alias1
 RIGHT JOIN t0 AS alias2 ON alias2.f10
-WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT max(f2) , f1 FROM t0 GROUP BY f2 , f1 );
 
 EXPLAIN
-SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
-SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT max(f1a), f2a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT max(f1a), f2a FROM t1 GROUP BY f1a, f2a);
 
 EXPLAIN
-SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
-SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b) IN (SELECT max(f1a) FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b) IN (SELECT max(f1a) FROM t1 GROUP BY f1a, f2a);
 
 set @@optimizer_switch=@save_optimizer_switch;
 

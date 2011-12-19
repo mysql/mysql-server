@@ -167,8 +167,8 @@ CREATE TABLE t3 ( f2 varchar(1)) ;
 EXPLAIN SELECT f2 FROM t3 WHERE (
         SELECT MAX( pk ) FROM t1
         WHERE EXISTS (
-                SELECT DISTINCT f1
-                FROM t2
+                SELECT max(f1)
+                FROM t2 GROUP BY f1
         )
 ) IS NULL ;
 

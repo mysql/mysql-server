@@ -88,8 +88,8 @@ select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 
 --replace_column 6 # 8 # 11 #
 explain extended
-select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
-select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
+select * from t1i where a1 in (select max(b1) from t2i where b1 > '0' group by b1);
+select * from t1i where a1 in (select max(b1) from t2i where b1 > '0' group by b1);
 
 --replace_column 7 #
 --replace_regex /it1.*/_it1_idx/  /test.t2i.*/_ref_/  /Using index$// /Using where$//
@@ -99,8 +99,8 @@ select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
 
 --replace_column 6 # 7 # 8 # 11 #
 explain extended
-select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
-select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
+select * from t1i where (a1, a2) in (select b1, max(b2) from t2i where b1 > '0' group by b1);
+select * from t1i where (a1, a2) in (select b1, max(b2) from t2i where b1 > '0' group by b1);
 
 --replace_column 6 # 7 # 8 # 11 #
 explain extended
@@ -835,14 +835,14 @@ create table t2 (b1 int);
 insert into t1 values (5);
 
 # Query with group by, executed via materialization
-explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
-select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
+explain select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
+select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 # Query with group by, executed via IN=>EXISTS
 set @save_optimizer_switch=@@optimizer_switch;
 set @@optimizer_switch=@optimizer_switch_local_default;
 set @@optimizer_switch='materialization=off,in_to_exists=on';
-explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
-select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
+explain select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
+select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 
 # Executed with materialization
 set @@optimizer_switch=@optimizer_switch_local_default;
@@ -900,7 +900,7 @@ WHERE (t1i)  IN (
    SELECT t2i
    FROM t2  
    WHERE (t2i)  IN (  
-     SELECT t3i
+     SELECT max(t3i)
      FROM t3  
      GROUP BY t3i
      )  

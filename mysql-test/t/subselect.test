@@ -3418,8 +3418,8 @@ drop table t1, t2;
 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2);
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 GROUP BY a);
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 WHERE a > 3 GROUP BY a);
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT min(a) FROM t1 GROUP BY a);
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT min(a) FROM t1 WHERE a > 3 GROUP BY a);
 DROP TABLE t1;
 
 --echo #
@@ -4442,7 +4442,8 @@ DROP table t1,t2;
 
 CREATE TABLE t1 (a int, b int) ;
 INSERT INTO t1 VALUES (0,0),(0,0);
-
+set @optimizer_switch_save=@@optimizer_switch;
+set @@optimizer_switch='semijoin=off,materialization=on,in_to_exists=on';
 EXPLAIN
 SELECT b FROM t1
   WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
@@ -4451,7 +4452,7 @@ SELECT b FROM t1
 SELECT b FROM t1
   WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
     GROUP BY b;
-
+set @@optimizer_switch=@optimizer_switch_save;
 DROP TABLE t1;
 
 --echo #
