@@ -1676,6 +1676,7 @@ public:
     table= 0;           // required by Item_func_match::eq()
     DBUG_VOID_RETURN;
   }
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
   enum Functype functype() const { return FT_FUNC; }
   const char *func_name() const { return "match"; }
   void update_used_tables() {}
