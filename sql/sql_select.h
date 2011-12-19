@@ -525,8 +525,6 @@ enum_nested_loop_state
 end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 		bool end_of_records);
 
-/* psergey */ 
-
 
 struct st_position;
 
