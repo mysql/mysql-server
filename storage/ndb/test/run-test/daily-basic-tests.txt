@@ -12,7 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-max-time: 900
+max-time: 1800
 cmd: testIndex
 args: -n DeferredError
 
@@ -20,7 +20,7 @@ max-time: 900
 cmd: testIndex
 args: -n DeferredMixedLoad T1 T6 T13
 
-max-time: 1800
+max-time: 2000
 cmd: testIndex
 args: -n DeferredMixedLoadError T1 T6 T13
 
@@ -28,7 +28,7 @@ max-time: 900
 cmd: testIndex
 args: -n NF_DeferredMixed T1 T6 T13
 
-max-time: 900
+max-time: 1800
 cmd: testIndex
 args: -n NF_Mixed T1 T6 T13
 
@@ -1751,7 +1751,7 @@ max-time: 300
 cmd: testBasic
 args: -n UnlockUpdateBatch T3
 
-max-time: 300
+max-time: 600
 cmd: testNodeRestart
 args: -n MixReadUnlockRestart T1
 
