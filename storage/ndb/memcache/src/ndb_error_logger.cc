@@ -53,7 +53,7 @@ class ErrorEntry;
 ErrorEntry * error_hash_table[ERROR_HASH_TABLE_SIZE];
 
 /* Prototypes */
-void manage_error(const NdbError &, const char * mesg, int interval);
+void manage_error(const NdbError &, const char * mesg, rel_time_t interval);
 
 
 
@@ -96,7 +96,7 @@ int log_ndb_error(const NdbError &error) {
 
 class ErrorEntry {
 public:
-  unsigned int error_code;
+  int error_code;
   rel_time_t first;
   rel_time_t time[2];   /* odd and even timestamps */
   Uint32 count;
@@ -147,7 +147,7 @@ ErrorEntry * error_table_lookup(int code, rel_time_t now) {
 
 
 /* Record the error message, and possibly log it. */
-void manage_error(const NdbError & error, const char *type_mesg, int interval) {
+void manage_error(const NdbError & error, const char *type_mesg, rel_time_t interval) {
   char note[256];
   ErrorEntry *entry = 0;
   bool first_ever, interval_passed, flood = false;
@@ -170,7 +170,7 @@ void manage_error(const NdbError & error, const char *type_mesg, int interval) {
     first_ever = (entry->count == 1);
     interval_passed = (entry->time[current] - entry->time[prior] > interval);
     if(! interval_passed) 
-      for(int i = 10 ; i <= entry->count ; i *= 10) 
+      for(Uint32 i = 10 ; i <= entry->count ; i *= 10) 
         if(entry->count < (10 * i) && (entry->count % i == 0))
           { flood = true; break; }
   }

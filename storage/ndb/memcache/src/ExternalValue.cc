@@ -92,7 +92,7 @@ int ExternalValue::do_delete(memory_pool *mpool, NdbTransaction *delTx,
     /* Delete them */
     int key_size = extern_plan->key_record->rec_size;
     
-    for(int i = 0; i < nparts ; i++) {
+    for(Uint32 i = 0; i < nparts ; i++) {
       Operation part_op(extern_plan);
       part_op.key_buffer = (char *) memory_pool_alloc(mpool, key_size);
       

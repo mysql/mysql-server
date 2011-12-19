@@ -73,7 +73,7 @@ void init_pool_header(allocation_reference *head, int slab_class);
 /* initialize a new pipeline for an NDB engine thread */
 ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *engine) {
   bool did_inc;
-  int id;
+  unsigned int id;
   thread_identifier * tid;
 
   /* Get my pipeline id */
