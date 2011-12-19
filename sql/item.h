@@ -1024,6 +1024,10 @@ public:
   virtual bool eval_not_null_tables(uchar *opt_arg) { return 0; }
   virtual bool clear_sum_processor(uchar *opt_arg) { return 0; }
   virtual bool is_subquery_processor (uchar *opt_arg) { return 0; }
+  virtual bool limit_index_condition_pushdown_processor(uchar *opt_arg)
+  { 
+    return FALSE;
+  }
 
   /* To call bool function for all arguments */
   struct bool_func_call_args

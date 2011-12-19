@@ -1870,6 +1870,10 @@ public:
   {
     return trace_unsupported_by_check_vcol_func_processor(func_name());
   }
+  bool limit_index_condition_pushdown_processor(uchar *opt_arg)
+  {
+    return TRUE;
+  }
 };
 
 

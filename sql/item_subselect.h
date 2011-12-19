@@ -229,6 +229,10 @@ public:
   virtual bool expr_cache_is_needed(THD *);
   virtual void get_cache_parameters(List<Item> &parameters);
   virtual bool is_subquery_processor (uchar *opt_arg) { return 1; }
+  bool limit_index_condition_pushdown_processor(uchar *opt_arg) 
+  {
+    return TRUE;
+   }
 
   friend class select_result_interceptor;
   friend class Item_in_optimizer;
