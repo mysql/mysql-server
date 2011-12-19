@@ -1,3 +1,13 @@
+# ==== Purpose ====
+#
+# Unknown. Something related to replication of transactions.
+
+# ==== References ====
+#
+# BUG#55798
+# BUG#50407
+# BUG#43263
+
 source include/master-slave.inc;
 source include/have_innodb.inc;
 source include/have_binlog_format_statement.inc;
@@ -13,16 +23,11 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 SET @@session.binlog_direct_non_transactional_updates= FALSE;
 
 #
-# Calculating the size of the GUID.
+# Calculating the size of the Gtid_log_event.
 #
 let $size_gtid_ini= query_get_value(SHOW BINLOG EVENTS, Pos, 2);
 let $size_gtid_end= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 2);
 let $size_gtid=`SELECT $size_gtid_end - $size_gtid_ini`;
-
-disable_warnings;
-DROP DATABASE IF EXISTS db1;
-DROP DATABASE IF EXISTS db2;
-enable_warnings;
 
 CREATE DATABASE db1;
 CREATE DATABASE db2;

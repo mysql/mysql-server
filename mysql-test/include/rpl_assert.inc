@@ -9,6 +9,10 @@
 #     The square bracket is replaced by the result from SQL STATEMENT,
 #     in the given COLUMN and ROW.
 #
+#   [SQL STATEMENT]
+#     This is a shorthand form of the above syntax. It works only when the
+#     result set contains exactly one row and one column.
+#
 #   <1>
 #     This is a shorthand for the result of the first executed square
 #     bracket. <2> is a shorthand for the second executed square
@@ -68,7 +72,15 @@ while ($_rpl_assert_lbracket)
   }
   # Get sub-statement and result of it
   --let $_rpl_assert_substmt= `SELECT SUBSTRING('$_rpl_interpolated_cond', $_rpl_assert_lbracket + 1, $_rpl_assert_rbracket - $_rpl_assert_lbracket - 1)`
-  --let $_rpl_assert_substmt_result= query_get_value($_rpl_assert_substmt)
+  --let $_rpl_assert_substmt_contains_commas= `SELECT LOCATE(',', '$_rpl_assert_substmt') != 0`
+  if (!$_rpl_assert_substmt_contains_commas)
+  {
+    --let $_rpl_assert_substmt_result= `$_rpl_assert_substmt`
+  }
+  if ($_rpl_assert_substmt_contains_commas)
+  {
+    --let $_rpl_assert_substmt_result= query_get_value($_rpl_assert_substmt)
+  }
   if ($rpl_debug)
   {
     --echo # debug: sub-statement='$_rpl_assert_substmt' result='$rpl_assert_result'

@@ -1931,9 +1931,9 @@ public:
         gs->clear();
       // Add specified set of groups to Gtid_set.
       global_sid_lock.rdlock();
-      int ret= gs->add(value);
+      enum_return_status ret= gs->add(value);
       global_sid_lock.unlock();
-      if (ret != 0)
+      if (ret != RETURN_STATUS_OK)
       {
         gsn->set_null();
         DBUG_RETURN(true);
@@ -2147,6 +2147,62 @@ public:
 
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   { DBUG_ASSERT(0); }
+};
+
+
+class Sys_var_gtid_owned : Sys_var_gtid_set_func
+{
+public:
+  Sys_var_gtid_owned(const char *name_arg, const char *comment_arg)
+    : Sys_var_gtid_set_func(name_arg, comment_arg, SESSION) {}
+
+public:
+  uchar *session_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    DBUG_ENTER("Sys_var_gtid_owned::session_value_ptr");
+    if (thd->owned_gtid.sidno == 0)
+      DBUG_RETURN((uchar *)thd->strdup(""));
+    char *buf;
+    if (thd->owned_gtid.sidno == -1)
+    {
+      buf= (char *)thd->alloc(thd->owned_gtid_set.get_string_length() + 1);
+      if (buf)
+      {
+        global_sid_lock.rdlock();
+        thd->owned_gtid_set.to_string(buf);
+        global_sid_lock.unlock();
+      }
+      else
+        my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    }
+    else
+    {
+      buf= (char *)thd->alloc(Gtid::MAX_TEXT_LENGTH + 1);
+      if (buf)
+      {
+        global_sid_lock.rdlock();
+        thd->owned_gtid.to_string(&global_sid_map, buf);
+        global_sid_lock.unlock();
+      }
+      else
+        my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    }
+    DBUG_RETURN((uchar *)buf);
+  }
+
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    DBUG_ENTER("Sys_var_gtid_owned::global_value_ptr");
+    const Owned_gtids *owned_gtids= gtid_state.get_owned_gtids();
+    global_sid_lock.wrlock();
+    char *buf= (char *)thd->alloc(owned_gtids->get_max_string_length());
+    if (buf)
+      owned_gtids->to_string(buf);
+    else
+      my_error(ER_OUT_OF_RESOURCES, MYF(0)); // thd->alloc faile
+    global_sid_lock.unlock();
+    DBUG_RETURN((uchar *)buf);
+  }
 };
 
 

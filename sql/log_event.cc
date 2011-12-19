@@ -11605,6 +11605,11 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, const Gtid_specification *spec_arg)
   global_sid_lock.rdlock();
   sid= *global_sid_map.sidno_to_sid(spec.gtid.sidno);
   global_sid_lock.unlock();
+#ifndef NO_DBUG
+  char buf[MAX_SET_STRING_LENGTH + 1];
+  to_string(buf);
+  DBUG_PRINT("info", ("%s", buf));
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -11623,6 +11628,11 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg)
   }
   else
     sid.clear();
+#ifndef NO_DBUG
+  char buf[MAX_SET_STRING_LENGTH + 1];
+  to_string(buf);
+  DBUG_PRINT("info", ("%s", buf));
+#endif
   DBUG_VOID_RETURN;
 }
 #endif

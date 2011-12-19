@@ -38,32 +38,101 @@ void Gtid_state::clear()
 }
 
 
-enum_return_status
-Gtid_state::acquire_ownership(rpl_sidno sidno, rpl_gno gno, const THD *thd)
+enum_return_status Gtid_state::acquire_ownership(Gtid gtid, THD *thd)
 {
   DBUG_ENTER("Gtid_state::acquire_ownership");
-  DBUG_ASSERT(!logged_gtids.contains_gtid(sidno, gno));
-  DBUG_PRINT("info", ("group=%d:%lld", sidno, gno));
-  PROPAGATE_REPORTED_ERROR(owned_gtids.add(sidno, gno, thd->thread_id));
+  DBUG_ASSERT(!logged_gtids.contains_gtid(gtid));
+  DBUG_PRINT("info", ("group=%d:%lld", gtid.sidno, gtid.gno));
+  DBUG_ASSERT(thd->owned_gtid.sidno == 0);
+  if (owned_gtids.add(gtid, thd->thread_id) != RETURN_STATUS_OK)
+    goto err2;
+  if (thd->get_gtid_next_list() != NULL)
+  {
+    if (thd->owned_gtid_set._add(gtid) != RETURN_STATUS_OK)
+      goto err1;
+    thd->owned_gtid.sidno= -1;
+  }
+  else
+    thd->owned_gtid= gtid;
   RETURN_OK;
+err1:
+  owned_gtids.remove(gtid);
+err2:
+  if (thd->get_gtid_next_list() != NULL)
+  {
+    Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
+    Gtid g= git.get();
+    while (g.sidno != 0)
+      owned_gtids.remove(g);
+  }
+  thd->owned_gtid_set.clear();
+  thd->owned_gtid.sidno= 0;
+  RETURN_REPORTED_ERROR;
 }
 
 
-void Gtid_state::release_ownership(rpl_sidno sidno, rpl_gno gno)
+void Gtid_state::lock_owned_sidnos(const THD *thd)
 {
-  DBUG_ENTER("Gtid_state::release_ownership");
-  owned_gtids.remove(sidno, gno);
-  DBUG_VOID_RETURN;
+  if (thd->owned_gtid.sidno == -1)
+    lock_sidnos(&thd->owned_gtid_set);
+  else if (thd->owned_gtid.sidno > 0)
+    lock_sidno(thd->owned_gtid.sidno);
 }
 
 
-enum_return_status Gtid_state::log_group(rpl_sidno sidno, rpl_gno gno)
+void Gtid_state::unlock_owned_sidnos(const THD *thd)
 {
-  DBUG_ENTER("Gtid_state::log_group");
-  DBUG_PRINT("info", ("group=%d:%lld", sidno, gno));
-  owned_gtids.remove(sidno, gno);
-  PROPAGATE_REPORTED_ERROR(logged_gtids._add(sidno, gno));
-  RETURN_OK;
+  if (thd->owned_gtid.sidno == -1)
+    unlock_sidnos(&thd->owned_gtid_set);
+  else if (thd->owned_gtid.sidno > 0)
+    unlock_sidno(thd->owned_gtid.sidno);
+}
+
+
+void Gtid_state::broadcast_owned_sidnos(const THD *thd)
+{
+  if (thd->owned_gtid.sidno == -1)
+    broadcast_sidnos(&thd->owned_gtid_set);
+  else if (thd->owned_gtid.sidno > 0)
+    broadcast_sidno(thd->owned_gtid.sidno);
+}
+
+
+enum_return_status Gtid_state::update(THD *thd, bool commit)
+{
+  DBUG_ENTER("Gtid_state::update");
+  enum_return_status ret= RETURN_STATUS_OK;
+
+  if (thd->owned_gtid.sidno == -1)
+  {
+    rpl_sidno prev_sidno= 0;
+    Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
+    Gtid g= git.get();
+    while (g.sidno != 0)
+    {
+      if (g.sidno != prev_sidno)
+        sid_locks.lock(g.sidno);
+      owned_gtids.remove(g);
+      if (commit && ret == RETURN_STATUS_OK)
+        ret= logged_gtids._add(g);
+      git.next();
+      g= git.get();
+    }
+  }
+  else if (thd->owned_gtid.sidno > 0)
+  {
+    lock_sidno(thd->owned_gtid.sidno);
+    owned_gtids.remove(thd->owned_gtid);
+    if (commit)
+      ret= logged_gtids._add(thd->owned_gtid);
+  }
+
+  broadcast_owned_sidnos(thd);
+  unlock_owned_sidnos(thd);
+
+  thd->clear_owned_gtids();
+
+  DBUG_RETURN(ret);
 }
 
 
@@ -72,39 +141,42 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
   DBUG_ENTER("Gtid_state::get_automatic_gno");
   //logged_gtids.ensure_sidno(sidno);
   Gtid_set::Const_interval_iterator ivit(&logged_gtids, sidno);
-  rpl_gno next_candidate= 1;
+  Gtid next_candidate= { sidno, 1 };
   while (true)
   {
     Gtid_set::Interval *iv= ivit.get();
     rpl_gno next_interval_start= iv != NULL ? iv->start : MAX_GNO;
-    while (next_candidate < next_interval_start)
+    while (next_candidate.gno < next_interval_start)
     {
-      if (owned_gtids.get_owner(sidno, next_candidate) == 0)
-        DBUG_RETURN(next_candidate);
-      next_candidate++;
+      if (owned_gtids.get_owner(next_candidate) == 0)
+        DBUG_RETURN(next_candidate.gno);
+      next_candidate.gno++;
     }
     if (iv == NULL)
     {
       my_error(ER_GNO_EXHAUSTED, MYF(0));
       DBUG_RETURN(-1);
     }
-    next_candidate= iv->end;
+    next_candidate.gno= iv->end;
     ivit.next();
   }
 }
 
 
-void Gtid_state::wait_for_gtid(THD *thd, Gtid g)
+void Gtid_state::wait_for_gtid(THD *thd, Gtid gtid)
 {
   DBUG_ENTER("Gtid_state::wait_for_gtid");
   // Enter cond, wait, exit cond.
   PSI_stage_info old_stage;
-  DBUG_PRINT("info", ("SIDNO=%d GNO=%lld", g.sidno, g.gno));
-  sid_locks.enter_cond(thd, g.sidno,
+  DBUG_PRINT("info", ("SIDNO=%d GNO=%lld owner(sidno,gno)=%lu thread_id=%lu",
+                      gtid.sidno, gtid.gno,
+                      owned_gtids.get_owner(gtid), thd->thread_id));
+  DBUG_ASSERT(owned_gtids.get_owner(gtid) != thd->thread_id);
+  sid_locks.enter_cond(thd, gtid.sidno,
                        &stage_waiting_for_group_to_be_written_to_binary_log,
                        &old_stage);
   //while (get_owner(g.sidno, g.gno) != 0 && !thd->killed && !abort_loop)
-  sid_locks.wait(g.sidno);
+  sid_locks.wait(gtid.sidno);
   thd->EXIT_COND(&old_stage);
 
   DBUG_VOID_RETURN;

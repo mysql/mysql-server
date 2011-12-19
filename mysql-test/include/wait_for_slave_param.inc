@@ -29,7 +29,7 @@
 #     --let $slave_param_comparison= !=
 #
 # $slave_timeout
-#   The default timeout is $default_timeout seconds. You can change the timeout by
+#   The default timeout is 60 seconds. You can change the timeout by
 #   setting $slave_timeout. The unit is one second.
 #
 # $slave_error_param

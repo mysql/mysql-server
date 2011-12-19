@@ -9,10 +9,6 @@
 -- source include/master-slave.inc
 -- source include/have_binlog_format_row.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 
 --echo **** Testing WL#3228 changes. ****
 --echo *** Create "wider" table on slave ***

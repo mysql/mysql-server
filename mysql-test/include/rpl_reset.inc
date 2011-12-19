@@ -27,6 +27,9 @@
 #   $rpl_debug
 #     See include/rpl_init.inc
 #
+#   $rpl_no_start_slave
+#     Don't execute START SLAVE.
+#
 #   $slave_timeout
 #     Set the timeout when waiting for slave threads to stop and
 #     start, respectively.  See include/wait_for_slave_param.inc
@@ -74,7 +77,10 @@ while ($_rpl_server)
 }
 
 
---source include/rpl_start_slaves.inc
+if (!$rpl_no_start_slave)
+{
+  --source include/rpl_start_slaves.inc
+}
 
 
 --let $include_filename= rpl_reset.inc

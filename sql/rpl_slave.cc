@@ -7154,7 +7154,6 @@ int reset_slave(THD *thd, Master_info* mi)
   int thread_mask= 0, error= 0;
   uint sql_errno=ER_UNKNOWN_ERROR;
   const char* errmsg= "Unknown error occured while reseting slave";
-  Gtid_set* gtid_set= NULL;
   DBUG_ENTER("reset_slave");
 
   lock_slave_threads(mi);
@@ -7167,14 +7166,6 @@ int reset_slave(THD *thd, Master_info* mi)
   }
 
   ha_reset_slave(thd);
-
-  /*
-    Clear gtid set as relay log files are about to be removed.
-  */
-  global_sid_lock.wrlock();
-  gtid_set= const_cast<Gtid_set *>(mi->rli->get_gtid_set());
-  gtid_set->clear();
-  global_sid_lock.unlock();
 
   // delete relay logs, clear relay log coordinates
   if ((error= mi->rli->purge_relay_logs(thd,

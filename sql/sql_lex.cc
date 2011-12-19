@@ -3278,8 +3278,10 @@ bool LEX::is_partition_management() const
 
 bool LEX::is_binloggable() const
 {
-  return !(sql_command_flags[sql_command] & CF_ONLY_BINLOGGABLE_WITH_SF) ||
-    uses_stored_routines();
+  // todo: add flag 'cf_not_binloggable' and set for
+  // sqlcom_empty_query (and possibly for more statements?)
+  return (!(sql_command_flags[sql_command] & CF_ONLY_BINLOGGABLE_WITH_SF) ||
+          uses_stored_routines()) && sql_command != SQLCOM_EMPTY_QUERY;
 }
 
 

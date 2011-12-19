@@ -187,6 +187,8 @@ extern void check_return_status(enum_return_status status,
 const rpl_gno MAX_GNO= LONGLONG_MAX;
 /// The length of MAX_GNO when printed in decimal.
 const int MAX_GNO_TEXT_LENGTH= 19;
+/// The maximal possible length of thread_id when printed in decimal.
+const int MAX_THREAD_ID_TEXT_LENGTH= 19;
 
 
 /**
@@ -711,7 +713,7 @@ private:
 
 
 /**
-  Holds information about a group: the sidno and the gno.
+  Holds information about a GTID: the sidno and the gno.
 */
 struct Gtid
 {
@@ -723,6 +725,8 @@ struct Gtid
   static bool is_valid(const char *text);
   int to_string(const rpl_sid *sid, char *buf) const;
   int to_string(const Sid_map *sid_map, char *buf) const;
+  bool equals(const Gtid *other) const
+  { return sidno == other->sidno && gno == other->gno; }
   /**
     Parses the given string and stores in this Gtid.
 
@@ -823,7 +827,7 @@ public:
   */
   void clear();
   /**
-    Adds the given group to this Gtid_set.
+    Adds the given GTID to this Gtid_set.
 
     The SIDNO must exist in the Gtid_set before this function is called.
 
@@ -836,6 +840,15 @@ public:
     Interval_iterator ivit(this, sidno);
     return add(&ivit, gno, gno + 1);
   }
+  /**
+    Adds the given GTID to this Gtid_set.
+
+    The SIDNO must exist in the Gtid_set before this function is called.
+
+    @param gtid Gtid to add.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status _add(Gtid gtid) { return _add(gtid.sidno, gtid.gno); }
   /**
     Adds all groups from the given Gtid_set to this Gtid_set.
 
@@ -889,8 +902,11 @@ public:
     @return GS_SUCCESS or GS_ERROR_PARSE or GS_ERROR_OUT_OF_MEMORY
   */
   enum_return_status add(const uchar *encoded, size_t length);
-  /// Return true iff the given group exists in this set.
+  /// Return true iff the given GTID exists in this set.
   bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const;
+  /// Return true iff the given GTID exists in this set.
+  bool contains_gtid(Gtid gtid) const
+  { return contains_gtid(gtid.sidno, gtid.gno); }
   /// Returns the maximal sidno that this Gtid_set currently has space for.
   rpl_sidno get_max_sidno() const
   {
@@ -1018,8 +1034,12 @@ public:
   /**
     Returns the length of the output from to_string.
 
+    @warning This does not include the trailing '\0', so your buffer
+    needs space for get_string_length() + 1 characters.
+
     @param string_format String_format object that specifies
     separators in the resulting text.
+    @return The length.
   */
   int get_string_length(const String_format *string_format= NULL) const;
   /**
@@ -1513,33 +1533,30 @@ public:
   /// Destroys this Owned_gtids.
   ~Owned_gtids();
   /**
-    Add a group to this Owned_gtids.
+    Add a GTID to this Owned_gtids.
 
-    @param sidno The SIDNO of the group to add.
-    @param gno The GNO of the group to add.
+    @param gtid The Gtid to add.
     @param owner The my_thread_id of the group to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add(rpl_sidno sidno, rpl_gno gno, my_thread_id owner);
+  enum_return_status add(Gtid gtid, my_thread_id owner);
   /**
-    Returns the owner of the given group, or 0 if the group is not owned.
+    Returns the owner of the given GTID, or 0 if the GTID is not owned.
 
-    @param sidno The group's SIDNO
-    @param gno The group's GNO
+    @param Gtid The Gtid to query.
     @return my_thread_id of the thread that owns the group, or
     0 if the group is not owned.
   */
-  my_thread_id get_owner(rpl_sidno sidno, rpl_gno gno) const;
+  my_thread_id get_owner(Gtid gtid) const;
   /**
-    Removes the given group.
+    Removes the given GTID.
 
     If the group does not exist in this Owned_gtids object, does
     nothing.
 
-    @param sidno The group's SIDNO.
-    @param gno The group's GNO.
+    @param gtid The Gtid.
   */
-  void remove(rpl_sidno sidno, rpl_gno gno);
+  void remove(Gtid gtid);
   /**
     Ensures that this Owned_gtids object can accomodate SIDNOs up to
     the given SIDNO.
@@ -1560,10 +1577,64 @@ public:
     return sidno_to_hash.elements;
   }
 
-#ifndef DBUG_OFF
-  int to_string(const Sid_map *sm, char *out) const
+  /**
+    Write a string representation of this Owned_groups to the given buffer.
+
+    @param out Buffer to write to.
+    @return Number of characters written.
+  */
+  int to_string(char *out) const
   {
     char *p= out;
+    rpl_sidno max_sidno= get_max_sidno();
+    rpl_sidno sid_map_max_sidno= global_sid_map.get_max_sidno();
+    for (rpl_sidno sid_i= 0; sid_i < sid_map_max_sidno; sid_i++)
+    {
+      rpl_sidno sidno= global_sid_map.get_sorted_sidno(sid_i);
+      if (sidno > max_sidno)
+        continue;
+      HASH *hash= get_hash(sidno);
+      bool printed_sid= false;
+      for (uint i= 0; i < hash->records; i++)
+      {
+        Node *node= (Node *)my_hash_element(hash, i);
+        DBUG_ASSERT(node != NULL);
+        if (!printed_sid)
+        {
+          p+= global_sid_map.sidno_to_sid(sidno)->to_string(p);
+          printed_sid= true;
+        }
+        p+= sprintf(p, ":%lld#%lu", node->gno, node->owner);
+      }
+    }
+    return p - out;
+  }
+
+  /**
+    Return an upper bound on the length of the string representation
+    of this Owned_groups.  The actual length may be smaller.  This
+    includes the trailing '\0'.
+  */
+  size_t get_max_string_length() const
+  {
+    rpl_sidno max_sidno= get_max_sidno();
+    size_t ret= 0;
+    for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
+    {
+      HASH *hash= get_hash(sidno);
+      if (hash->records > 0)
+        ret+= rpl_sid::TEXT_LENGTH +
+          hash->records * (1 + MAX_GNO_TEXT_LENGTH +
+                           1 + MAX_THREAD_ID_TEXT_LENGTH);
+    }
+    return 1 + ret;
+  }
+
+  /**
+    Return true if the given thread is the owner of any groups.
+  */
+  bool thread_owns_anything(my_thread_id thd_id) const
+  {
     rpl_sidno max_sidno= get_max_sidno();
     for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
     {
@@ -1572,42 +1643,32 @@ public:
       {
         Node *node= (Node *)my_hash_element(hash, i);
         DBUG_ASSERT(node != NULL);
-        p+= sm->sidno_to_sid(sidno)->to_string(p);
-        p+= sprintf(p, "/%d:%lld owned by thread %lu\n",
-                    sidno, node->gno, node->owner);
+        if (node->owner == thd_id)
+          return true;
       }
     }
-    return p - out;
+    return false;
   }
-  size_t get_string_length() const
+
+#ifndef DBUG_OFF
+  char *to_string() const
   {
-    rpl_sidno max_sidno= get_max_sidno();
-    size_t ret= 0;
-    for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
-    {
-      HASH *hash= get_hash(sidno);
-      ret+= hash->records * 256; // should be enough
-    }
-    return ret;
-  }
-  char *to_string(const Sid_map *sm) const
-  {
-    char *str= (char *)malloc(get_string_length());
+    char *str= (char *)malloc(get_max_string_length());
     DBUG_ASSERT(str != NULL);
-    to_string(sm, str);
+    to_string(str);
     return str;
   }
-  void print(const Sid_map *sm) const
+  void print() const
   {
-    char *str= to_string(sm);
+    char *str= to_string();
     printf("%s\n", str);
     free(str);
   }
 #endif
-  void dbug_print(const Sid_map *sid_map, const char *text= "") const
+  void dbug_print(const char *text= "") const
   {
 #ifndef DBUG_OFF
-    char *str= to_string(sid_map);
+    char *str= to_string();
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
     free(str);
 #endif
@@ -1643,15 +1704,10 @@ private:
     Returns the Node for the given group, or NULL if the group does
     not exist in this Owned_gtids object.
   */
-  Node *get_node(rpl_sidno sidno, rpl_gno gno) const
-  {
-    return get_node(get_hash(sidno), gno);
-  };
+  Node *get_node(Gtid gtid) const
+  { return get_node(get_hash(gtid.sidno), gtid.gno); };
   /// Return true iff this Owned_gtids object contains the given group.
-  bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const
-  {
-    return get_node(sidno, gno) != NULL;
-  }
+  bool contains_gtid(Gtid gtid) const { return get_node(gtid) != NULL; }
   /// Growable array of hashes.
   DYNAMIC_ARRAY sidno_to_hash;
 };
@@ -1708,73 +1764,53 @@ public:
   */
   void clear();
   /**
-    Returns true if the given group is logged.
+    Returns true if the given GTID is logged.
 
-    @param sidno The SIDNO to check.
-    @param gno The GNO to check.
+    @param gtid The Gtid to check.
 
     @retval true The group is logged in the binary log.
     @retval false The group is not logged in the binary log.
   */
-  bool is_logged(rpl_sidno sidno, rpl_gno gno) const
+  bool is_logged(Gtid gtid) const
   {
     DBUG_ENTER("Gtid_state::is_logged");
-    bool ret= logged_gtids.contains_gtid(sidno, gno);
+    bool ret= logged_gtids.contains_gtid(gtid);
     DBUG_RETURN(ret);
   }
   /**
-    Returns the owner of the given group, or 0 if the group is not owned.
+    Returns the owner of the given GTID, or 0 if the group is not owned.
 
-    @param sidno The SIDNO to check.
-    @param gno The GNO to check.
+    @param gtid The Gtid to check.
     @return my_thread_id of the thread that owns the group, or
     0 if the group is not owned.
   */
-  my_thread_id get_owner(rpl_sidno sidno, rpl_gno gno) const
-  { return owned_gtids.get_owner(sidno, gno); }
-  /**
-    Marks the group as not owned any more.
-
-    If the group is not owned, does nothing.
-
-    @param sidno The SIDNO of the group
-    @param gno The GNO of the group.
-  */
-  /*UNUSED
-  void mark_not_owned(rpl_sidno sidno, rpl_gno gno)
-  { owned_gtids.remove(sidno, gno); }
-  */
+  my_thread_id get_owner(Gtid gtid) const
+  { return owned_gtids.get_owner(gtid); }
+#ifndef MYSQL_CLIENT
   /**
     Acquires ownership of the given GTID, on behalf of the given thread.
 
-    @param sidno The SIDNO.
-    @param gno The GNO.
-    @param owner The thread that will own the group.
+    @param gtid The Gtid to acquire ownership of.
+    @param thd The thread that will own the GTID.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-#ifndef MYSQL_CLIENT
-  enum_return_status acquire_ownership(rpl_sidno sidno, rpl_gno gno,
-                                       const THD *thd);
+  enum_return_status acquire_ownership(Gtid gtid, THD *thd);
   /**
-    Releases ownership of the given group.
+    Update the state after the given thread has committed or rolled back.
 
-    This is called when a re-executed transaction is rolled back.
+    This will:
+     - release ownership of all GTIDs owned by the THD;
+     - if 'commit' is set, add all GTIDs in the Group_cache
+     - remove all owned GTIDS from thd->owned_gtid and thd->owned_gtid_set.
+     - send a broadcast on the condition variable for every sidno for
+       which we released ownership
 
-    @param sidno The SIDNO.
-    @param gno The GNO.
-    @return This function cannot fail.
+    @param thd Thread for which owned groups are updated.
+    @param commit If true, the thread commits all owned GTIDs;
+    otherwise it rolls back.
   */
-  void release_ownership(rpl_sidno sidno, rpl_gno gno);
+  enum_return_status update(THD *thd, bool commit);
 #endif // ifndef MYSQL_CLIENT
-  /**
-    Logs the given group, i.e., moves it from the set of 'owned
-    groups' to the set of 'logged groups'.
-
-    @param sidno The group's SIDNO.
-    @param gno The group's GNO.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status log_group(rpl_sidno sidno, rpl_gno gno);
   /**
     Allocates a GNO for an automatically numbered group.
 
@@ -1820,6 +1856,9 @@ public:
     Gtid_set has at least one group.
   */
   void broadcast_sidnos(const Gtid_set *set);
+  void lock_owned_sidnos(const THD *thd);
+  void unlock_owned_sidnos(const THD *thd);
+  void broadcast_owned_sidnos(const THD *thd);
   /**
     Ensure that owned_gtids, logged_gtids, @todo lost_gtids, and
     sid_locks have room for at least as many SIDNOs as sid_map.
@@ -1845,9 +1884,9 @@ public:
   // Return the server's SID's SIDNO
   //Checkable_rwlock *get_sid_lock() const { return &sid_lock; }
 #ifndef DBUG_OFF
-  size_t get_string_length() const
+  size_t get_max_string_length() const
   {
-    return owned_gtids.get_string_length() +
+    return owned_gtids.get_max_string_length() +
       logged_gtids.get_string_length() +
       lost_gtids.get_string_length() +
       100;
@@ -1858,14 +1897,14 @@ public:
     p+= sprintf(p, "Logged GTIDs:\n");
     p+= logged_gtids.to_string(p);
     p+= sprintf(p, "\nOwned GTIDs:\n");
-    p+= owned_gtids.to_string(sid_map, p);
+    p+= owned_gtids.to_string(p);
     p+= sprintf(p, "\nLost GTIDs:\n");
     p+= lost_gtids.to_string(p);
     return p - buf;
   }
   char *to_string() const
   {
-    char *str= (char *)malloc(get_string_length());
+    char *str= (char *)malloc(get_max_string_length());
     DBUG_ASSERT(str != NULL);
     to_string(str);
     return str;
@@ -1949,11 +1988,10 @@ struct Gtid_specification
   bool equals(const Gtid_specification *other) const
   {
     return (type == other->type &&
-            (type != GTID_GROUP ||
-             (gtid.sidno == other->gtid.sidno && gtid.gno == other->gtid.gno)));
+            (type != GTID_GROUP || gtid.equals(&other->gtid)));
   }
-  bool equals(rpl_sidno sidno, rpl_gno gno) const
-  { return type == GTID_GROUP && gtid.sidno == sidno && gtid.gno == gno; }
+  bool equals(Gtid other_gtid) const
+  { return type == GTID_GROUP && gtid.equals(&other_gtid); }
   /**
     Parses the given string and stores in this Gtid_specification.
 
@@ -2063,47 +2101,17 @@ public:
   /**
     Adds an empty group with the given (SIDNO, GNO) to this cache.
 
-    @param sidno The SIDNO of the group.
-    @param gno The GNO of the group.
+    @param gtid The GTID of the group.
 
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_add_group_status add_empty_group(rpl_sidno sidno, rpl_gno gno);
-  /**
-    Add the given GTID to this cache as an empty group, unless the
-    cache or the Gtid_state already contains it.
-
-    @param gls Gtid_state, used to determine if the group is
-    unlogged or not.
-    @param sidno The SIDNO of the group to add.
-    @param gno The GNO of the group to add.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status
-    add_empty_group_if_missing(const Gtid_state *gls,
-                               rpl_sidno sidno, rpl_gno gno);
-  /**
-    Add all GTIDs in the given Gtid_set to this cache as empty groups,
-    except GTIDs that exist in this cache or in the Gtid_state.
-
-    @param gls Gtid_state, used to determine if the group is logged
-    or not.
-    @param gtid_set The set of GTIDs to possibly add.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status
-    add_empty_groups_if_missing(const Gtid_state *gls,
-                                const Gtid_set *gtid_set);
+  enum_add_group_status add_empty_group(Gtid gtid);
 #ifndef MYSQL_CLIENT
   /**
-    Update the binary log's Gtid_state to the state after this
-    cache has been flushed.
-
-    @param thd The THD that this Gtid_state belongs to.
-    @param gls The binary log's Gtid_state
+    Write all gtids in this cache to the global Gtid_state.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status update_gtid_state(const THD *thd, Gtid_state *gls) const;
+  enum_return_status write_to_gtid_state() const;
   /**
     Writes all groups in the cache to the index.
 
@@ -2125,21 +2133,18 @@ public:
     type==GTID_GROUP and gno<=0.
 
     @param thd The THD that this Gtid_state belongs to.
-    @param gls The Gtid_state where group ownership is acquired.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR
   */
-  enum_return_status generate_automatic_gno(const THD *thd,
-                                            Gtid_state *gls);
+  enum_return_status generate_automatic_gno(THD *thd);
 #endif // ifndef MYSQL_CLIENT
   /**
     Return true if this Group_cache contains the given GTID.
 
-    @param sidno The SIDNO of the group to check.
-    @param gno The GNO of the group to check.
+    @param gtid The Gtid to check.
     @retval true The group exists in this cache.
     @retval false The group does not exist in this cache.
   */
-  bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const;
+  bool contains_gtid(Gtid gtid) const;
   /**
     Add all GTIDs that exist in this Group_cache to the given Gtid_set.
 
@@ -2171,14 +2176,14 @@ public:
     sprintf(s, "}\n");
     return s - buf;
   }
-  size_t get_string_length() const
+  size_t get_max_string_length() const
   {
     return (2 + Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 4 + 2 +
             40 + 10 + 21 + 1 + 100/*margin*/) * get_n_groups() + 100/*margin*/;
   }
   char *to_string(const Sid_map *sm) const
   {
-    char *str= (char *)malloc(get_string_length());
+    char *str= (char *)malloc(get_max_string_length());
     to_string(sm, str);
     return str;
   }
@@ -2310,15 +2315,7 @@ enum enum_gtid_statement_status
    - starts the group (if no group is active)
 */
 enum_gtid_statement_status
-gtid_before_statement(THD *thd, Checkable_rwlock *lock,
-                      Gtid_state *gls,
-                      Group_cache *gsc, Group_cache *gtc);
-/**
-  Before the transaction cache is flushed, this function checks if we
-  need to add an ending empty groups groups.
-*/
-int gtid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
-                                Gtid_state *gls, Group_cache *gc);
+gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc);
 
 /**
   When a transaction is rolled back, this function releases ownership
