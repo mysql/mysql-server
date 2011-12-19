@@ -44,8 +44,8 @@ dyn_array_add_block(
 	ut_ad(arr->magic_n == DYN_BLOCK_MAGIC_N);
 
 	if (arr->heap == NULL) {
-		UT_LIST_INIT(arr->base);
-		UT_LIST_ADD_FIRST(list, arr->base, arr);
+		UT_LIST_INIT(arr->base, &dyn_array_t::list);
+		UT_LIST_ADD_FIRST(arr->base, arr);
 
 		arr->heap = mem_heap_create(sizeof(dyn_block_t));
 	}
@@ -60,7 +60,7 @@ dyn_array_add_block(
 
 	block->used = 0;
 
-	UT_LIST_ADD_LAST(list, arr->base, block);
+	UT_LIST_ADD_LAST(arr->base, block);
 
 	return(block);
 }

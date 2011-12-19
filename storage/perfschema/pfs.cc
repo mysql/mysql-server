@@ -4091,6 +4091,9 @@ static void start_stage_v1(PSI_stage_key key, const char *src_file, int src_line
         insert_events_stages_history_long(pfs);
     }
 
+    /* This stage event is now complete. */
+    pfs->m_class= NULL;
+
     /* New waits will now be attached directly to the parent statement. */
     child_wait->m_event_id= parent_statement->m_event_id;
     child_wait->m_event_type= parent_statement->m_event_type;
@@ -4100,13 +4103,13 @@ static void start_stage_v1(PSI_stage_key key, const char *src_file, int src_line
   /* Start new event */
 
   PFS_stage_class *new_klass= find_stage_class(key);
-  pfs->m_class= new_klass;
   if (unlikely(new_klass == NULL))
     return;
 
   if (! new_klass->m_enabled)
     return;
 
+  pfs->m_class= new_klass;
   if (new_klass->m_timed)
   {
     /*

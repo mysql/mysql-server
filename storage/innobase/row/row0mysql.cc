@@ -92,8 +92,9 @@ static const char S_innodb_monitor[] = "innodb_monitor";
 static const char S_innodb_lock_monitor[] = "innodb_lock_monitor";
 static const char S_innodb_tablespace_monitor[] = "innodb_tablespace_monitor";
 static const char S_innodb_table_monitor[] = "innodb_table_monitor";
+#ifdef UNIV_MEM_DEBUG
 static const char S_innodb_mem_validate[] = "innodb_mem_validate";
-static const char S_innodb_sql[] = "innodb_sql";
+#endif /* UNIV_MEM_DEBUG */
 /* @} */
 
 /** Evaluates to true if str1 equals str2_onstack, used for comparing
@@ -1344,7 +1345,7 @@ error_exit:
 			}
 		}
 
-		/* Pass NULL for the colums affected, since an INSERT affects
+		/* Pass NULL for the columns affected, since an INSERT affects
 		all FTS indexes. */
 		fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
 	}
@@ -1419,7 +1420,8 @@ row_create_update_node_for_mysql(
 
 	node->update_n_fields = dict_table_get_n_cols(table);
 
-	UT_LIST_INIT(node->columns);
+	UT_LIST_INIT(node->columns, &sym_node_t::col_var_list);
+
 	node->has_clust_rec_x_lock = TRUE;
 	node->cmpl_info = 0;
 
@@ -1700,7 +1702,8 @@ run_again:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
-	if (dict_table_has_fts_index(table)) {
+	if (dict_table_has_fts_index(table)
+	    && trx->fts_next_doc_id != UINT64_UNDEFINED) {
 		err = row_fts_update_or_delete(prebuilt);
 		if (err != DB_SUCCESS) {
 			trx->op_info = "";
@@ -2100,9 +2103,7 @@ err_exit:
 	Certain table names starting with 'innodb_' have their special
 	meaning regardless of the database name.  Thus, we need to
 	ignore the database name prefix in the comparisons. */
-	table_name = strchr(table->name, '/');
-	ut_a(table_name);
-	table_name++;
+	table_name = dict_remove_db_name(table->name);
 	table_name_len = strlen(table_name) + 1;
 
 	if (STR_EQ(table_name, table_name_len, S_innodb_monitor)) {
@@ -2132,6 +2133,7 @@ err_exit:
 
 		srv_print_innodb_table_monitor = TRUE;
 		os_event_set(srv_timeout_event);
+#ifdef UNIV_MEM_DEBUG
 	} else if (STR_EQ(table_name, table_name_len,
 			  S_innodb_mem_validate)) {
 		/* We define here a debugging feature intended for
@@ -2144,36 +2146,9 @@ err_exit:
 		      "quiet because allocation from a mem heap"
 		      " is not protected\n"
 		      "by any semaphore.\n", stderr);
-#ifdef UNIV_MEM_DEBUG
 		ut_a(mem_validate());
 		fputs("Memory validated\n", stderr);
-#else /* UNIV_MEM_DEBUG */
-		fputs("Memory NOT validated (recompile with UNIV_MEM_DEBUG)\n",
-		      stderr);
 #endif /* UNIV_MEM_DEBUG */
-	} else if (table_name_len == sizeof S_innodb_sql
-		   && !memcmp(table_name, S_innodb_sql,
-			      sizeof S_innodb_sql)) {
-#ifdef UNIV_DIRECT_SQL_DEBUG
-		/* Check that the table contains exactly one column of type
-		TEXT NOT NULL in Latin-1 encoding. */
-		dtype_t type;
-
-		ut_a(dict_table_get_n_user_cols(table) == 1);
-
-		dict_col_copy_type(dict_table_get_nth_col(table, 0), &type);
-
-		ut_a(dtype_get_mtype(&type) == DATA_BLOB);
-		ut_a((dtype_get_prtype(&type) & DATA_BINARY_TYPE) == 0);
-		ut_a(dtype_get_prtype(&type) & DATA_NOT_NULL);
-		ut_a(dtype_get_charset_coll(dtype_get_prtype(&type))
-		     == DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL);
-
-#else
-		fputs("Created table 'innodb_sql' is not special since the\n"
-		      "program was compiled without UNIV_DIRECT_SQL_DEBUG.\n",
-                      stderr);
-#endif
         }
 
 
@@ -2532,7 +2507,7 @@ loop:
 already_dropped:
 	mutex_enter(&row_drop_list_mutex);
 
-	UT_LIST_REMOVE(row_mysql_drop_list, row_mysql_drop_list, drop);
+	UT_LIST_REMOVE(row_mysql_drop_list, drop);
 
 	MONITOR_DEC(MONITOR_BACKGROUND_DROP_TABLE);
 
@@ -2610,7 +2585,7 @@ row_add_table_to_background_drop_list(
 
 	drop->table_name = mem_strdup(name);
 
-	UT_LIST_ADD_LAST(row_mysql_drop_list, row_mysql_drop_list, drop);
+	UT_LIST_ADD_LAST(row_mysql_drop_list, drop);
 
 	MONITOR_INC(MONITOR_BACKGROUND_DROP_TABLE);
 
@@ -4716,21 +4691,17 @@ row_is_magic_monitor_table(
 	const char*	name; /* table_name without database/ */
 	ulint		len;
 
-	name = strchr(table_name, '/');
-	ut_a(name != NULL);
-	name++;
+	name = dict_remove_db_name(table_name);
 	len = strlen(name) + 1;
 
-	if (STR_EQ(name, len, S_innodb_monitor)
-	    || STR_EQ(name, len, S_innodb_lock_monitor)
-	    || STR_EQ(name, len, S_innodb_tablespace_monitor)
-	    || STR_EQ(name, len, S_innodb_table_monitor)
-	    || STR_EQ(name, len, S_innodb_mem_validate)) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(STR_EQ(name, len, S_innodb_monitor)
+	       || STR_EQ(name, len, S_innodb_lock_monitor)
+	       || STR_EQ(name, len, S_innodb_tablespace_monitor)
+	       || STR_EQ(name, len, S_innodb_table_monitor)
+#ifdef UNIV_MEM_DEBUG
+	       || STR_EQ(name, len, S_innodb_mem_validate)
+#endif /* UNIV_MEM_DEBUG */
+	       );
 }
 
 /*********************************************************************//**
@@ -4742,9 +4713,11 @@ row_mysql_init(void)
 {
 	mutex_create(
 		row_drop_list_mutex_key,
-	       	&row_drop_list_mutex, SYNC_NO_ORDER_CHECK);
+		&row_drop_list_mutex, SYNC_NO_ORDER_CHECK);
 
-	UT_LIST_INIT(row_mysql_drop_list);
+	UT_LIST_INIT(
+		row_mysql_drop_list,
+		&row_mysql_drop_t::row_mysql_drop_list);
 
 	row_mysql_drop_list_inited = TRUE;
 }

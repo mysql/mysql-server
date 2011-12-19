@@ -813,9 +813,10 @@ fts_drop_index(
 
 	ut_a(indexes);
 
-	if (ib_vector_size(indexes) == 1
+	if ((ib_vector_size(indexes) == 1
 	    && (index == static_cast<dict_index_t*>(
-			ib_vector_getp(table->fts->indexes, 0)))) {
+			ib_vector_getp(table->fts->indexes, 0))))
+	   || ib_vector_is_empty(indexes)) {
 
 		/* If we are dropping the only FTS index of the table,
 		remove it from optimize thread */
@@ -2254,7 +2255,8 @@ fts_trx_add_op(
 	dict_table_t*	table,			/*!< in: table */
 	doc_id_t	doc_id,			/*!< in: new doc id */
 	fts_row_state	state,			/*!< in: state of the row */
-	ib_vector_t*	fts_indexes)		/*!< in: FTS indexes affected */
+	ib_vector_t*	fts_indexes)		/*!< in: FTS indexes affected
+						(NULL=all) */
 {
 	fts_trx_table_t*	tran_ftt;
 	fts_trx_table_t*	stmt_ftt;

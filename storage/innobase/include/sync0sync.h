@@ -42,7 +42,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0arr.h"
 
 #if  defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
-extern my_bool	timed_mutexes;
+extern "C" my_bool	timed_mutexes;
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
 #ifdef HAVE_WINDOWS_ATOMICS
@@ -799,9 +799,10 @@ extern ibool	sync_order_checks_on;
 extern ibool	sync_initialized;
 
 /** Global list of database mutexes (not OS mutexes) created. */
-typedef UT_LIST_BASE_NODE_T(mutex_t)  ut_list_base_node_t;
+typedef UT_LIST_BASE_NODE_T(mutex_t) mutex_list_t;
+
 /** Global list of database mutexes (not OS mutexes) created. */
-extern ut_list_base_node_t  mutex_list;
+extern mutex_list_t mutex_list;
 
 /** Mutex protecting the mutex_list variable */
 extern mutex_t mutex_list_mutex;
