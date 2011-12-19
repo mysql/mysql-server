@@ -2672,7 +2672,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     TABLE    *const table= tab->table;
     bool icp_other_tables_ok;
     tab->read_record.table= table;
-    tab->read_record.unlock_row= rr_unlock_row;
     tab->next_select=sub_select;		/* normal select */
     tab->cache_idx_cond= 0;
     /*
@@ -2706,8 +2705,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     }
     switch (tab->type) {
     case JT_EQ_REF:
-      tab->read_record.unlock_row= join_read_key_unlock_row;
-      /* fall through */
     case JT_REF_OR_NULL:
     case JT_REF:
       if (tab->select)
