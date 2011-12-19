@@ -12352,20 +12352,18 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
   my_hash_free(&ok_tables);
   my_hash_free(&ndb_tables);
 
-  // Delete schema file from files
+  /* Hide mysql.ndb_schema table */
   if (!strcmp(db, NDB_REP_DB))
   {
-    uint count = 0;
-    while (count++ < files->elements)
+    LEX_STRING* file_name;
+    List_iterator<LEX_STRING> it(*files);
+    while ((file_name= it++))
     {
-      file_name = (LEX_STRING *)files->pop();
       if (!strcmp(file_name->str, NDB_SCHEMA_TABLE))
       {
-        DBUG_PRINT("info", ("skip %s.%s table, it should be hidden to user",
-                   NDB_REP_DB, NDB_SCHEMA_TABLE));
-        continue;
+        DBUG_PRINT("info", ("Hiding table '%s.%s'", db, file_name->str));
+        it.remove();
       }
-      files->push_back(file_name); 
     }
   }
   } // extra bracket to avoid gcc 2.95.3 warning
