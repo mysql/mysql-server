@@ -3048,6 +3048,9 @@ class Ndb_schema_event_handler {
     ndbcluster_rename_share(m_thd, share);
     free_share(&share);  // temporary ref.
 
+    ndbapi_invalidate_table(schema->db, schema->name);
+    mysqld_close_cached_table(schema->db, schema->name);
+
     DBUG_VOID_RETURN;
   }
 
