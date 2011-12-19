@@ -241,7 +241,7 @@ mem_pool_create(
 
 	for (i = 0; i < 64; i++) {
 
-		UT_LIST_INIT(pool->free_list[i]);
+		UT_LIST_INIT(pool->free_list[i], &mem_area_t::free_list);
 	}
 
 	used = 0;
@@ -264,7 +264,7 @@ mem_pool_create(
 		UNIV_MEM_FREE(MEM_AREA_EXTRA_SIZE + (byte*) area,
 			      ut_2_exp(i) - MEM_AREA_EXTRA_SIZE);
 
-		UT_LIST_ADD_FIRST(free_list, pool->free_list[i], area);
+		UT_LIST_ADD_FIRST(pool->free_list[i], area);
 
 		used = used + ut_2_exp(i);
 	}
@@ -342,7 +342,7 @@ mem_pool_fill_free_list(
 		ut_error;
 	}
 
-	UT_LIST_REMOVE(free_list, pool->free_list[i + 1], area);
+	UT_LIST_REMOVE(pool->free_list[i + 1], area);
 
 	area2 = (mem_area_t*)(((byte*) area) + ut_2_exp(i));
 	UNIV_MEM_ALLOC(area2, MEM_AREA_EXTRA_SIZE);
@@ -350,11 +350,11 @@ mem_pool_fill_free_list(
 	mem_area_set_size(area2, ut_2_exp(i));
 	mem_area_set_free(area2, TRUE);
 
-	UT_LIST_ADD_FIRST(free_list, pool->free_list[i], area2);
+	UT_LIST_ADD_FIRST(pool->free_list[i], area2);
 
 	mem_area_set_size(area, ut_2_exp(i));
 
-	UT_LIST_ADD_FIRST(free_list, pool->free_list[i], area);
+	UT_LIST_ADD_FIRST(pool->free_list[i], area);
 
 	return(TRUE);
 }
@@ -448,7 +448,7 @@ mem_area_alloc(
 
 	mem_area_set_free(area, FALSE);
 
-	UT_LIST_REMOVE(free_list, pool->free_list[n], area);
+	UT_LIST_REMOVE(pool->free_list[n], area);
 
 	pool->reserved += mem_area_get_size(area);
 
@@ -606,7 +606,7 @@ mem_area_free(
 
 		/* Remove the buddy from its free list and merge it to area */
 
-		UT_LIST_REMOVE(free_list, pool->free_list[n], buddy);
+		UT_LIST_REMOVE(pool->free_list[n], buddy);
 
 		pool->reserved += ut_2_exp(n);
 
@@ -617,7 +617,7 @@ mem_area_free(
 
 		return;
 	} else {
-		UT_LIST_ADD_FIRST(free_list, pool->free_list[n], area);
+		UT_LIST_ADD_FIRST(pool->free_list[n], area);
 
 		mem_area_set_free(area, TRUE);
 
@@ -652,7 +652,7 @@ mem_pool_validate(
 
 	for (i = 0; i < 64; i++) {
 
-		UT_LIST_CHECK(free_list, mem_area_t, pool->free_list[i]);
+		UT_LIST_CHECK(pool->free_list[i]);
 
 		for (area = UT_LIST_GET_FIRST(pool->free_list[i]);
 		     area != 0;

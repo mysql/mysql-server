@@ -79,6 +79,12 @@ dict_mem_table_create(
 	table = static_cast<dict_table_t*>(
 		mem_heap_zalloc(heap, sizeof(dict_table_t)));
 
+	lock_table_lock_list_init(&table->locks);
+
+	UT_LIST_INIT(table->indexes, &dict_index_t::indexes);
+	UT_LIST_INIT(table->foreign_list, &dict_foreign_t::foreign_list);
+	UT_LIST_INIT(table->referenced_list, &dict_foreign_t::referenced_list);
+
 	table->heap = heap;
 
 	table->flags = (unsigned int) flags;
@@ -136,6 +142,15 @@ dict_mem_table_free(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_d(table->cached = FALSE);
 
+        if (dict_table_has_fts_index(table)
+            || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
+            || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
+		if (table->fts) {
+			fts_free(table);
+		}
+
+		fts_optimize_remove_table(table);
+	}
 #ifndef UNIV_HOTBACKUP
 	mutex_free(&(table->autoinc_mutex));
 #endif /* UNIV_HOTBACKUP */
