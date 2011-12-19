@@ -104,7 +104,16 @@ public:
     HaveSysTables = 4244, // create error if all sys tables exist
     NoSysEvents = 4710,
     BadSysEvents = BadSysTables,
-    HaveSysEvents = 746
+    HaveSysEvents = 746,
+    /*
+     * Following are for mysqld.  Most are consumed by mysqld itself
+     * and should therefore not be seen by clients.
+     */
+    MyNotAllow = 4721,    // stats thread not open for requests
+    MyNotFound = 4722,    // stats entry unexpectedly not found
+    MyHasError = 4723,    // request ignored due to recent error
+    MyAbortReq = 4724,    // request aborted by stats thread
+    AlienUpdate = 4725    // somebody else messed with stats
   };
 
   /*
@@ -180,6 +189,7 @@ public:
     Uint32 m_totalBytes;  // total bytes memory used
     Uint64 m_save_time;   // microseconds to read stats into cache
     Uint64 m_sort_time;   // microseconds to sort the cache
+    Uint32 m_ref_count;   // in use by query_stat
     // end v4 fields
   };
 

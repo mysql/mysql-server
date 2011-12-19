@@ -552,6 +552,11 @@ ErrorBundle ErrorCodes[] = {
   { 4718, DMEC, IE, "Index stats samples data or memory cache is invalid" },
   { 4719, DMEC, IE, "Index stats internal error" },
   { 4720, DMEC, AE, "Index stats sys tables " NDB_INDEX_STAT_PREFIX " partly missing or invalid" },
+  { 4721, DMEC, IE, "Mysqld: index stats thread not open for requests" },
+  { 4722, DMEC, IE, "Mysqld: index stats entry unexpectedly not found" },
+  { 4723, DMEC, AE, "Mysqld: index stats request ignored due to recent error" },
+  { 4724, DMEC, AE, "Mysqld: index stats request aborted by stats thread" },
+  { 4725, DMEC, AE, "Index stats were deleted by another process" },
   
   /**
    * Still uncategorized
