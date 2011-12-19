@@ -2189,6 +2189,7 @@ static bool fix_tp_max_threads(sys_var *, THD *, enum_var_type)
   return false;
 }
 
+
 #ifdef _WIN32
 static bool fix_tp_min_threads(sys_var *, THD *, enum_var_type)
 {
@@ -2197,6 +2198,14 @@ static bool fix_tp_min_threads(sys_var *, THD *, enum_var_type)
 }
 #endif
 
+
+#ifndef  _WIN32
+static bool fix_threadpool_size(sys_var*, THD*, enum_var_type)
+{
+  tp_set_threadpool_size(threadpool_size);
+  return false;
+}
+#endif
 
 #ifdef _WIN32
 static Sys_var_uint Sys_threadpool_min_threads(
@@ -2220,7 +2229,9 @@ static Sys_var_uint Sys_threadpool_size(
  "Number of concurrently executing threads in the pool. "
  "Leaving value default (0) sets it to the number of processors.",
   GLOBAL_VAR(threadpool_size), CMD_LINE(REQUIRED_ARG),
-  VALID_RANGE(1, 128), DEFAULT(my_getncpus()), BLOCK_SIZE(1)
+  VALID_RANGE(1, MAX_THREAD_GROUPS), DEFAULT(my_getncpus()), BLOCK_SIZE(1),
+  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+  ON_UPDATE(fix_threadpool_size)
 );
 static Sys_var_uint Sys_threadpool_stall_limit(
  "thread_pool_stall_limit",

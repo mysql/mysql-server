@@ -1,4 +1,6 @@
 
+#define MAX_THREAD_GROUPS 128
+
 /* Threadpool parameters */
 extern uint threadpool_min_threads;  /* Minimum threads in pool */
 extern uint threadpool_idle_timeout; /* Shutdown idle worker threads  after this timeout */
@@ -38,6 +40,7 @@ extern TP_STATISTICS tp_stats;
 /* Functions to set threadpool parameters */
 extern void tp_set_min_threads(uint val);
 extern void tp_set_max_threads(uint val);
+extern int tp_set_threadpool_size(uint val);
 
 /* Activate threadpool scheduler */
 extern void tp_scheduler(void);
