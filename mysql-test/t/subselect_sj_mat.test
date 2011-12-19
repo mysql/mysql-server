@@ -1497,6 +1497,19 @@ EXPLAIN EXTENDED
 
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#904432: Wrong result with LEFT JOIN, constant table, semijoin=ON,materialization=ON
+--echo #
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4);
+CREATE TABLE t2 ( b INT NOT NULL, c INT );
+INSERT INTO t2 VALUES (4,2),(4,2),(4,4),(1,1);
+
+SELECT * FROM t1 LEFT JOIN t2 ON ( a = b )
+  WHERE a IN ( SELECT c FROM t2 );
+
+DROP TABLE t1,t2;
+
 --echo # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;

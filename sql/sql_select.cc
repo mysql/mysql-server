@@ -8343,9 +8343,39 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           COND *tmp_cond= make_cond_for_table(thd, on_expr, used_tables2,
                                               current_map, /*(tab - first_tab)*/ -1,
 					      FALSE, FALSE);
-          if (tab == first_inner_tab && tab->on_precond)
+          bool is_sjm_lookup_tab= FALSE;
+          if (tab->bush_children)
+          {
+            /*
+              'tab' is an SJ-Materialization tab, i.e. we have a join order 
+              like this:
+
+                ot1 sjm_tab LEFT JOIN ot2 ot3
+                         ^          ^
+                   'tab'-+          +--- left join we're adding triggers for
+
+              LEFT JOIN's ON expression may not have references to subquery
+              columns.  The subquery was in the WHERE clause, so IN-equality 
+              is in the WHERE clause, also.
+              However, equality propagation code may have propagated the
+              IN-equality into ON expression, and we may get things like
+
+                subquery_inner_table=const
+
+              in the ON expression. We must not check such conditions during
+              SJM-lookup, because 1) subquery_inner_table has no valid current
+              row (materialization temp.table has it instead), and 2) they
+              would be true anyway.
+            */
+            SJ_MATERIALIZATION_INFO *sjm=
+              tab->bush_children->start->emb_sj_nest->sj_mat_info;
+            if (sjm->is_used && !sjm->is_sj_scan)
+              is_sjm_lookup_tab= TRUE;
+          }
+
+          if (tab == first_inner_tab && tab->on_precond && !is_sjm_lookup_tab)
             add_cond_and_fix(thd, &tmp_cond, tab->on_precond);
-          if (tmp_cond)
+          if (tmp_cond && !is_sjm_lookup_tab)
           {
             JOIN_TAB *cond_tab= tab < first_inner_tab ? first_inner_tab : tab;
             Item **sel_cond_ref= tab < first_inner_tab ?

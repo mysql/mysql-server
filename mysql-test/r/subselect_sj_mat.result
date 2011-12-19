@@ -1834,6 +1834,20 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select 8 AS `a` from  <materialize> (select min(`test`.`t1`.`a`) from `test`.`t1`) join `test`.`t1` where 1
 DROP TABLE t1;
+#
+# BUG#904432: Wrong result with LEFT JOIN, constant table, semijoin=ON,materialization=ON
+#
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4);
+CREATE TABLE t2 ( b INT NOT NULL, c INT );
+INSERT INTO t2 VALUES (4,2),(4,2),(4,4),(1,1);
+SELECT * FROM t1 LEFT JOIN t2 ON ( a = b )
+WHERE a IN ( SELECT c FROM t2 );
+a	b	c
+4	4	2
+4	4	2
+4	4	4
+DROP TABLE t1,t2;
 # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;
