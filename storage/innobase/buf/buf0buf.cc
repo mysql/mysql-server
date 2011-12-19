@@ -1047,7 +1047,7 @@ buf_chunk_init(
 		memset(block->frame, '\0', UNIV_PAGE_SIZE);
 #endif
 		/* Add the block to the free list */
-		UT_LIST_ADD_LAST(list, buf_pool->free, (&block->page));
+		UT_LIST_ADD_LAST(buf_pool->free, &block->page);
 
 		ut_d(block->page.in_free_list = TRUE);
 		ut_ad(buf_pool_from_block(block) == buf_pool);
@@ -1221,7 +1221,19 @@ buf_pool_init_instance(
 		buf_pool->chunks = chunk =
 			(buf_chunk_t*) mem_zalloc(sizeof *chunk);
 
-		UT_LIST_INIT(buf_pool->free);
+		UT_LIST_INIT(buf_pool->LRU, &buf_page_t::LRU);
+		UT_LIST_INIT(buf_pool->free, &buf_page_t::list);
+		UT_LIST_INIT(buf_pool->flush_list, &buf_page_t::list);
+		UT_LIST_INIT(buf_pool->unzip_LRU, &buf_block_t::unzip_LRU);
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+		UT_LIST_INIT(buf_pool->zip_clean, &buf_page_t::list);
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+
+		for (i = 0; i < UT_ARR_SIZE(buf_pool->zip_free); ++i) {
+			UT_LIST_INIT(
+				buf_pool->zip_free[i], &buf_page_t::list);
+		}
 
 		if (!buf_chunk_init(buf_pool, chunk, buf_pool_size)) {
 			mem_free(chunk);
@@ -1481,12 +1493,12 @@ buf_relocate(
 
 	/* relocate buf_pool->LRU */
 	b = UT_LIST_GET_PREV(LRU, bpage);
-	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
+	UT_LIST_REMOVE(buf_pool->LRU, bpage);
 
 	if (b) {
-		UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU, b, dpage);
+		UT_LIST_INSERT_AFTER(buf_pool->LRU, b, dpage);
 	} else {
-		UT_LIST_ADD_FIRST(LRU, buf_pool->LRU, dpage);
+		UT_LIST_ADD_FIRST(buf_pool->LRU, dpage);
 	}
 
 	if (UNIV_UNLIKELY(buf_pool->LRU_old == bpage)) {
@@ -1506,8 +1518,7 @@ buf_relocate(
 #endif /* UNIV_LRU_DEBUG */
 	}
 
-        ut_d(UT_LIST_VALIDATE(
-		LRU, buf_page_t, buf_pool->LRU, CheckInLRUList()));
+        ut_d(UT_LIST_VALIDATE(buf_pool->LRU, CheckInLRUList()));
 
 	/* relocate buf_pool->page_hash */
 	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, bpage);
@@ -2639,8 +2650,7 @@ wait_until_unfixed:
 		if (buf_page_get_state(&block->page)
 		    == BUF_BLOCK_ZIP_PAGE) {
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-			UT_LIST_REMOVE(list, buf_pool->zip_clean,
-				       &block->page);
+			UT_LIST_REMOVE(buf_pool->zip_clean, &block->page);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 			ut_ad(!block->page.in_flush_list);
 		} else {
