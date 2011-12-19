@@ -2892,6 +2892,11 @@ locked_txn_commit_with_progress(DB_TXN *txn, u_int32_t flags,
     // will grab the multi operation lock, and then not be able to complete the checkpoint because
     // this thread has its rollback log pinned and is trying to grab the multi operation lock.
     //
+    // We grab the ydb lock because the checkpoint thread also unpins inprogress rollback logs,
+    // so the ydb lock protects a race of both this thread and the checkpoint thread unpinning the
+    // inprogress rollback log. If we want, we can probably have the checkpoint thread to not
+    // unpin inprogress rollback logs, making this ydb lock grab unnecessary.
+    //
     toku_ydb_lock();
     int r = toku_unpin_inprogress_rollback_log(ttxn);
     toku_ydb_unlock();
