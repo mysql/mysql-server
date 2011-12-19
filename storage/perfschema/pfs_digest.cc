@@ -348,8 +348,10 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
 
   /*
     If current statement is not instrumented
+    or if statement_digest consumer is not enabled.
   */
-  if(!locker || !(flag_thread_instrumentation && flag_events_statements_current))
+  if(!locker || !(flag_thread_instrumentation && flag_events_statements_current)
+             || (!flag_statements_digest))
   {
     return NULL;
   }

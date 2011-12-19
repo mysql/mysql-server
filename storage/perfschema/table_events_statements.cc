@@ -387,6 +387,12 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
     m_row.m_digest.m_digest_text_length=
            statement->statement_digest_stat_ptr->m_digest_text_length;
   }
+  else
+  {
+    m_row.m_digest.m_digest_length= 0;
+    m_row.m_digest.m_digest_text_length= 0;
+  }
+
 
   m_row_exists= true;
   return;

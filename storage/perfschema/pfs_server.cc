@@ -122,6 +122,7 @@ initialize_performance_schema(const PFS_global_param *param)
   flag_events_waits_history_long=      param->m_consumer_events_waits_history_long_enabled;
   flag_global_instrumentation=         param->m_consumer_global_instrumentation_enabled;
   flag_thread_instrumentation=         param->m_consumer_thread_instrumentation_enabled;
+  flag_statements_digest=              param->m_consumer_statement_digest_enabled;
 
   install_default_setup(&PFS_bootstrap);
   return &PFS_bootstrap;
