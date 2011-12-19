@@ -131,7 +131,7 @@ trx_rseg_mem_free(
 
 		next_undo = UT_LIST_GET_NEXT(undo_list, undo);
 
-		UT_LIST_REMOVE(rseg->update_undo_cached, undo);
+		UT_LIST_REMOVE(undo_list, rseg->update_undo_cached, undo);
 
 		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 
@@ -144,7 +144,7 @@ trx_rseg_mem_free(
 
 		next_undo = UT_LIST_GET_NEXT(undo_list, undo);
 
-		UT_LIST_REMOVE(rseg->insert_undo_cached, undo);
+		UT_LIST_REMOVE(undo_list, rseg->insert_undo_cached, undo);
 
 		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 

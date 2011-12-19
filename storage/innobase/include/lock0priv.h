@@ -41,7 +41,6 @@ those functions in lock/ */
 
 /** A table lock */
 typedef struct lock_table_struct	lock_table_t;
-
 /** A table lock */
 struct lock_table_struct {
 	dict_table_t*	table;		/*!< database table in dictionary
