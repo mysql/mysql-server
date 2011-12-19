@@ -3642,6 +3642,7 @@ static Sys_var_have Sys_have_gtid(
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_next_list");
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_NEXT_LIST");
   if (check_top_level_stmt_and_super(self, thd, var) ||
       check_outside_transaction(self, thd, var))
     DBUG_RETURN(true);
@@ -3672,7 +3673,9 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 
 static Sys_var_gtid_set Sys_gtid_next_list(
        "gtid_next_list",
-       "Before re-executing a transaction that contains multiple Global Transaction Identifiers, this variable must be set to the set of all re-executed transactions.",
+       "Before re-executing a transaction that contains multiple "
+       "Global Transaction Identifiers, this variable must be set "
+       "to the set of all re-executed transactions.",
        SESSION_ONLY(gtid_next_list), NO_CMD_LINE,
        DEFAULT(NULL), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_gtid_next_list));
@@ -3680,7 +3683,8 @@ export sys_var *Sys_gtid_next_list_ptr= &Sys_gtid_next_list;
 
 static Sys_var_gtid_specification Sys_gtid_next(
        "gtid_next",
-       "The Global Transaction Identifier for the following statement to re-execute.",
+       "Specified the Global Transaction Identifier for the following "
+       "re-executed statement.",
        SESSION_ONLY(gtid_next), NO_CMD_LINE,
        DEFAULT("AUTOMATIC"), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_gtid_next));
@@ -3688,11 +3692,18 @@ export sys_var *Sys_gtid_next_ptr= &Sys_gtid_next;
 
 static Sys_var_gtid_done Sys_gtid_done(
        "gtid_done",
-       "The global variable contains the set of GTIDs in the binary log. The session variable contains the set of groups in the current, ongoing transaction.");
+       "The global variable contains the set of GTIDs in the "
+       "binary log. The session variable contains the set of GTIDs "
+       "in the current, ongoing transaction.");
 
 static Sys_var_gtid_lost Sys_gtid_lost(
        "gtid_lost",
        "The set of GTIDs that existed in previous, purged binary logs.");
+
+static Sys_var_gtid_owned Sys_gtid_owned(
+       "gtid_owned",
+       "The global variable lists all GTIDs owned by all threads. "
+       "The session variable lists all GTIDs owned by the current thread.");
 
 static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
 {

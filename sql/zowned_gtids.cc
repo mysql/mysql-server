@@ -106,21 +106,21 @@ error:
 
 
 enum_return_status
-Owned_gtids::add(rpl_sidno sidno, rpl_gno gno, my_thread_id owner)
+Owned_gtids::add(Gtid gtid, my_thread_id owner)
 {
   DBUG_ENTER("Owned_gtids::add");
-  DBUG_ASSERT(!contains_gtid(sidno, gno));
-  DBUG_ASSERT(sidno <= get_max_sidno());
+  DBUG_ASSERT(!contains_gtid(gtid));
+  DBUG_ASSERT(gtid.sidno <= get_max_sidno());
   Node *n= (Node *)malloc(sizeof(Node));
   if (n == NULL)
     goto error;
-  n->gno= gno;
+  n->gno= gtid.gno;
   n->owner= owner;
   /*
   printf("Owned_gtids(%p)::add sidno=%d gno=%lld n=%p n->owner=%u\n",
          this, sidno, gno, n, n?n->owner:0);
   */
-  if (my_hash_insert(get_hash(sidno), (const uchar *)n))
+  if (my_hash_insert(get_hash(gtid.sidno), (const uchar *)n) != 0)
   {
     free(n);
     goto error;
@@ -132,14 +132,14 @@ error:
 }
 
 
-void Owned_gtids::remove(rpl_sidno sidno, rpl_gno gno)
+void Owned_gtids::remove(Gtid gtid)
 {
   DBUG_ENTER("Owned_gtids::remove");
   //printf("Owned_gtids::remove(sidno=%d gno=%lld)\n", sidno, gno);
   //DBUG_ASSERT(contains_gtid(sidno, gno)); // allow group not owned
-  HASH *hash= get_hash(sidno);
+  HASH *hash= get_hash(gtid.sidno);
   DBUG_ASSERT(hash != NULL);
-  Node *node= get_node(hash, gno);
+  Node *node= get_node(hash, gtid.gno);
   if (node != NULL)
   {
 #ifdef DBUG_OFF
@@ -153,9 +153,9 @@ void Owned_gtids::remove(rpl_sidno sidno, rpl_gno gno)
 }
 
 
-my_thread_id Owned_gtids::get_owner(rpl_sidno sidno, rpl_gno gno) const
+my_thread_id Owned_gtids::get_owner(Gtid gtid) const
 {
-  Node *n= get_node(sidno, gno);
+  Node *n= get_node(gtid);
   if (n != NULL)
     return n->owner;
   return 0;

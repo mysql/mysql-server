@@ -3074,18 +3074,46 @@ public:
   }
 
 #ifdef HAVE_GTID
+  /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
   Gtid_set *get_gtid_next_list()
   {
     return variables.gtid_next_list.is_non_null ?
       variables.gtid_next_list.gtid_set : NULL;
   }
 
+  /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
   const Gtid_set *get_gtid_next_list_const() const
   {
     return const_cast<const Gtid_set *>(const_cast<THD *>(this)->get_gtid_next_list());
   }
 
+  /**
+    Return the statement or transaction group cache for this thread.
+    @param is_transactional if true, return the transaction group cache.
+    If false, return the transaction group cache.
+  */
   Group_cache *get_group_cache(bool is_transactional);
+
+  /**
+    If this thread owns a single GTID, then owned_gtid is set to that
+    group.  If this thread does not own any GTID at all,
+    owned_gtid.sidno==0.  If owned_gtid_set contains the set of owned
+    gtids, owned_gtid.sidno==-1.
+  */
+  Gtid owned_gtid;
+  /**
+    If this thread owns a set of GTIDs (i.e., GTID_NEXT_LIST != NULL),
+    then this member variable contains the subset of those GTIDs that
+    are owned by this thread.
+  */
+  Gtid_set owned_gtid_set;
+
+  void clear_owned_gtids()
+  {
+    if (owned_gtid.sidno == -1)
+      owned_gtid_set.clear();
+    owned_gtid.sidno= 0;
+  }
 #endif
 
   /**
@@ -4154,7 +4182,7 @@ public:
   be rolled back or that do not expect any previously metadata
   locked tables.
 */
-#define CF_IMPLICT_COMMIT_BEGIN   (1U << 6)
+#define CF_IMPLICIT_COMMIT_BEGIN  (1U << 6)
 /**
   Implicitly commit after the SQL statement.
 
@@ -4167,12 +4195,12 @@ public:
 */
 #define CF_IMPLICIT_COMMIT_END    (1U << 7)
 /**
-  CF_IMPLICT_COMMIT_BEGIN and CF_IMPLICIT_COMMIT_END are used
+  CF_IMPLICIT_COMMIT_BEGIN and CF_IMPLICIT_COMMIT_END are used
   to ensure that the active transaction is implicitly committed
   before and after every DDL statement and any statement that
   modifies our currently non-transactional system tables.
 */
-#define CF_AUTO_COMMIT_TRANS  (CF_IMPLICT_COMMIT_BEGIN | CF_IMPLICIT_COMMIT_END)
+#define CF_AUTO_COMMIT_TRANS  (CF_IMPLICIT_COMMIT_BEGIN | CF_IMPLICIT_COMMIT_END)
 
 /**
   Diagnostic statement.

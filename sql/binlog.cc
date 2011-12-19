@@ -564,15 +564,57 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
     if (gtid_ev.write(cache) != 0)
       DBUG_RETURN(1);
   }
-  if (ev->write(cache) != 0)
+  if (ev != NULL)
+    if (ev->write(cache) != 0)
+      DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
+static int write_one_empty_group_to_cache(THD *thd, Group_cache *gc,
+                                          Gtid gtid, IO_CACHE *cache)
+{
+  DBUG_ENTER("write_one_empty_group_to_cache");
+  if (gc->contains_gtid(gtid))
+    DBUG_RETURN(0);
+  Group_cache::enum_add_group_status status= gc->add_empty_group(gtid);
+  if (status == Group_cache::ERROR)
+    DBUG_RETURN(1);
+  DBUG_ASSERT(status == Group_cache::APPEND_NEW_GROUP);
+  Gtid_specification spec= { GTID_GROUP, gtid };
+  Gtid_log_event gtid_ev(thd, &spec);
+  if (gtid_ev.write(cache) != 0)
     DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
 
-#ifdef HAVE_GTID
-int gtid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
+static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
 {
-  DBUG_ENTER("gtid_flush_group_cache");
+  DBUG_ENTER("write_empty_groups_to_cache");
+  Group_cache *group_cache= &cache_data->group_cache;
+  IO_CACHE *cache= &cache_data->cache_log;
+  if (thd->owned_gtid.sidno == -1)
+  {
+    Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
+    Gtid gtid= git.get();
+    while (gtid.sidno != 0)
+    {
+      if (write_one_empty_group_to_cache(thd, group_cache, gtid, cache) != 0)
+        DBUG_RETURN(1);
+      git.next();
+      gtid= git.get();
+    }
+  }
+  else if (thd->owned_gtid.sidno > 0)
+    if (write_one_empty_group_to_cache(thd, group_cache, thd->owned_gtid,
+                                       cache) != 0)
+      DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
+#ifdef HAVE_GTID
+int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
+{
+  DBUG_ENTER("gtid_before_write_cache");
   
   Group_cache* group_cache= &cache_data->group_cache;
   
@@ -580,18 +622,23 @@ int gtid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
 
   if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
   {
-    if (group_cache->generate_automatic_gno(thd, &gtid_state) !=
+    if (group_cache->generate_automatic_gno(thd) !=
         RETURN_STATUS_OK)
     {
       global_sid_lock.unlock();
       DBUG_RETURN(1); 
     }
   }
-  if (group_cache->update_gtid_state(thd, &gtid_state) != RETURN_STATUS_OK)
+  if (write_empty_groups_to_cache(thd, cache_data) != 0)
+    DBUG_RETURN(1);
+  /// @todo: this is too early, we should update state only once we know the binlog was updated correctly /sven
+  if (gtid_state.update(thd, true) != RETURN_STATUS_OK)
   {
     global_sid_lock.unlock();
     DBUG_RETURN(1); 
   }
+
+  gtid_state.dbug_print();
 
   global_sid_lock.unlock();
 
@@ -646,7 +693,7 @@ binlog_flush_cache(THD *thd, binlog_cache_mngr *cache_mngr,
       DBUG_RETURN(1);
 
 #ifdef HAVE_GTID
-    if (gtid_flush_group_cache(thd, cache_data))
+    if (gtid_before_write_cache(thd, cache_data))
       DBUG_RETURN(1);
 #endif
 
@@ -835,7 +882,10 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
               YESNO(thd->transaction.stmt.cannot_safely_rollback())));
 
   if (!cache_mngr->stmt_cache.is_binlog_empty())
-    error= binlog_commit_flush_stmt_cache(thd, cache_mngr);
+    error= write_empty_groups_to_cache(thd, &cache_mngr->stmt_cache) ||
+      binlog_commit_flush_stmt_cache(thd, cache_mngr);
+  else
+    error= write_empty_groups_to_cache(thd, &cache_mngr->trx_cache) != 0;
 
   if (cache_mngr->trx_cache.is_binlog_empty())
   {
@@ -2540,7 +2590,7 @@ err:
 
 
 /**
-  Execute a RESET MASTER statement.
+  Remove files, as part of a RESET MASTER or RESET SLAVE statement.
 
   Delete all logs refered to in the index file.
   Start writing to a new log file.
@@ -2672,11 +2722,22 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     need_start_event=1;
 
 #ifdef HAVE_GTID
-  gtid_state.clear();
-  // don't clear global_sid_map because it's used by the relay log too
-  if (gtid_state.init() != 0 ||
-      gtid_state.ensure_sidno() != RETURN_STATUS_OK)
-    goto err;
+#ifdef HAVE_REPLICATION
+  if (is_relay_log)
+  {
+    DBUG_ASSERT(active_mi != NULL);
+    DBUG_ASSERT(active_mi->rli != NULL);
+    (const_cast<Gtid_set *>(active_mi->rli->get_gtid_set()))->clear();
+  }
+  else
+  {
+    gtid_state.clear();
+    // don't clear global_sid_map because it's used by the relay log too
+    if (gtid_state.init() != 0 ||
+        gtid_state.ensure_sidno() != RETURN_STATUS_OK)
+      goto err;
+  }
+#endif
 #endif
 
   if (!open_index_file(index_file_name, 0, FALSE))
@@ -4018,7 +4079,7 @@ err:
     if (event_info->is_using_immediate_logging())
     {
 #ifdef HAVE_GTID
-      error |= gtid_flush_group_cache(thd, cache_data);
+      error |= gtid_before_write_cache(thd, cache_data);
 #endif
       error |= mysql_bin_log.write_cache(thd, cache_mngr, cache_data, FALSE);
       cache_data->reset();
@@ -5107,6 +5168,50 @@ int THD::binlog_setup_trx_data()
 }
 
 /**
+
+*/
+void register_binlog_handler(THD *thd, bool trx)
+{
+  DBUG_ENTER("register_binlog_handler");
+  /*
+    If this is the first call to this function while processing a statement,
+    the transactional cache does not have a savepoint defined. So, in what
+    follows:
+      . an implicit savepoint is defined;
+      . callbacks are registered;
+      . binary log is set as read/write.
+
+    The savepoint allows for truncating the trx-cache transactional changes
+    fail. Callbacks are necessary to flush caches upon committing or rolling
+    back a statement or a transaction. However, notifications do not happen
+    if the binary log is set as read/write.
+  */
+  binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
+  if (cache_mngr->trx_cache.get_prev_position() == MY_OFF_T_UNDEF)
+  {
+    /*
+      Set an implicit savepoint in order to be able to truncate a trx-cache.
+    */
+    my_off_t pos= 0;
+    binlog_trans_log_savepos(thd, &pos);
+    cache_mngr->trx_cache.set_prev_position(pos);
+
+    /*
+      Set callbacks in order to be able to call commmit or rollback.
+    */
+    if (trx)
+      trans_register_ha(thd, TRUE, binlog_hton);
+    trans_register_ha(thd, FALSE, binlog_hton);
+
+    /*
+      Set the binary log as read/write otherwise callbacks are not called.
+    */
+    thd->ha_data[binlog_hton->slot].ha_info[0].set_trx_read_write();
+  }
+  DBUG_VOID_RETURN;
+}
+
+/**
   Function to start a statement and optionally a transaction for the
   binary log.
 
@@ -5134,7 +5239,7 @@ int THD::binlog_setup_trx_data()
   @param start_event The first event requested to be written into the
                      binary log
  */
-inline int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
+static int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
 {
   DBUG_ENTER("binlog_start_trans_and_stmt");
  
@@ -5168,40 +5273,7 @@ inline int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
     DBUG_RETURN(0);
   }
 
-  /*
-    If this is the first call to this funciton while processing a statement,
-    the transactional cache does not have a savepoint defined. So, in what
-    follows:
-      . an implicit savepoint is defined;
-      . callbacks are registered;
-      . binary log is set as read/write.
-
-    The savepoint allows for truncating the trx-cache transactional changes
-    fail. Callbacks are necessary to flush caches upon committing or rolling
-    back a statement or a transaction. However, notifications do not happen
-    if the binary log is set as read/write.
-  */
-  if (cache_mngr->trx_cache.get_prev_position() == MY_OFF_T_UNDEF)
-  {
-    /*
-      Set an implicit savepoint in order to be able to truncate a trx-cache.
-    */
-    my_off_t pos= 0;
-    binlog_trans_log_savepos(thd, &pos);
-    cache_mngr->trx_cache.set_prev_position(pos);
-
-    /*
-      Set callbacks in order to be able to call commmit or rollback.
-    */
-    if (thd->in_multi_stmt_transaction_mode())
-      trans_register_ha(thd, TRUE, binlog_hton);
-    trans_register_ha(thd, FALSE, binlog_hton);
-
-    /*
-      Set the binary log as read/write otherwise callbacks are not called.
-    */
-    thd->ha_data[binlog_hton->slot].ha_info[0].set_trx_read_write();
-  }
+  register_binlog_handler(thd, thd->in_multi_stmt_transaction_mode());
 
   /*
     If the cache is empty log "BEGIN" at the beginning of every transaction.

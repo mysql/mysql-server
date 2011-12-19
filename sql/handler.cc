@@ -1013,11 +1013,12 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   {
     trans= &thd->transaction.all;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
+    DBUG_PRINT("info", ("setting SERVER_STATUS_IN_TRANS"));
   }
   else
     trans= &thd->transaction.stmt;
 
-  ha_info= thd->ha_data[ht_arg->slot].ha_info + static_cast<unsigned>(all);
+  ha_info= thd->ha_data[ht_arg->slot].ha_info + (all ? 1 : 0);
 
   if (ha_info->is_started())
     DBUG_VOID_RETURN; /* already registered, return */
@@ -1167,6 +1168,8 @@ int ha_commit_trans(THD *thd, bool all)
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   DBUG_ENTER("ha_commit_trans");
 
+  DBUG_PRINT("info", ("all=%d thd->in_sub_stmt=%d ha_info=%p is_real_trans=%d",
+                      all, thd->in_sub_stmt, ha_info, is_real_trans));
   /*
     We must not commit the normal transaction if a statement
     transaction is pending. Otherwise statement transaction
@@ -1174,7 +1177,9 @@ int ha_commit_trans(THD *thd, bool all)
     counterpart.
   */
   DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
-              trans == &thd->transaction.stmt);
+              trans == &thd->transaction.stmt ||
+              thd->get_gtid_next_list() != NULL ||
+              thd->variables.gtid_next.type == GTID_GROUP); // @todo: are the two extra clauses for gtids correct? /sven
 
   if (thd->in_sub_stmt)
   {
@@ -1400,7 +1405,9 @@ int ha_rollback_trans(THD *thd, bool all)
     transaction is pending.
   */
   DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
-              trans == &thd->transaction.stmt);
+              trans == &thd->transaction.stmt ||
+              thd->get_gtid_next_list() != NULL ||
+              thd->variables.gtid_next.type == GTID_GROUP); // @todo: are the two extra clauses for gtids correct? /sven
 
   if (thd->in_sub_stmt)
   {

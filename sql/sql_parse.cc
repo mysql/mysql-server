@@ -157,7 +157,7 @@ const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Set option") },
   { C_STRING_WITH_LEN("Fetch") },
   { C_STRING_WITH_LEN("Daemon") },
-  { C_STRING_WITH_LEN("Binlog Dump GTId") },
+  { C_STRING_WITH_LEN("Binlog Dump GTID") },
   { C_STRING_WITH_LEN("Error") }  // Last command number
 };
 
@@ -2299,6 +2299,15 @@ mysql_execute_command(THD *thd)
 #endif
 
 #ifdef HAVE_GTID
+#ifndef DBUG_OFF
+  {
+    char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
+    global_sid_lock.rdlock();
+    thd->variables.gtid_next.to_string(&global_sid_map, buf);
+    global_sid_lock.unlock();
+    DBUG_PRINT("info", ("before gtid_before_statment: gtid_next=%s sqlcom=%d query='%s'", buf, lex->sql_command, thd->query()));
+  }
+#endif
   /*
     Execute gtid_before_statement, so that we acquire ownership of
     groups as specified by gtid_next and gtid_next_list.
@@ -2313,8 +2322,7 @@ mysql_execute_command(THD *thd)
     */
     thd->binlog_setup_trx_data();
     enum_gtid_statement_status state=
-      gtid_before_statement(thd, &global_sid_lock,
-                            &gtid_state,
+      gtid_before_statement(thd,
                             thd->get_group_cache(false),
                             thd->get_group_cache(true));
     if (state == GTID_STATEMENT_CANCEL)
@@ -2326,6 +2334,15 @@ mysql_execute_command(THD *thd)
       DBUG_RETURN(0);
     }
   }
+#ifndef DBUG_OFF
+  {
+    char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
+    global_sid_lock.rdlock();
+    thd->variables.gtid_next.to_string(&global_sid_map, buf);
+    global_sid_lock.unlock();
+    DBUG_PRINT("info", ("after gtid_before_statment: gtid_next=%s sqlcom=%d query='%s'", buf, lex->sql_command, thd->query()));
+  }
+#endif
 #endif
 
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
@@ -2345,7 +2362,7 @@ mysql_execute_command(THD *thd)
     not run in it's own transaction it may simply never appear on
     the slave in case the outside transaction rolls back.
   */
-  if (stmt_causes_implicit_commit(thd, CF_IMPLICT_COMMIT_BEGIN))
+  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN))
   {
     /*
       Note that this should never happen inside of stored functions
@@ -4937,7 +4954,7 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
   if (check_single_table_access (thd,privilege,all_tables, FALSE))
     return 1;
 
-  /* Check rights on tables of subselects and implictly opened tables */
+  /* Check rights on tables of subselects and implicitly opened tables */
   TABLE_LIST *subselects_tables, *view= all_tables->view ? all_tables : 0;
   if ((subselects_tables= all_tables->next_global))
   {
