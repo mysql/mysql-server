@@ -3716,7 +3716,7 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
       check_outside_transaction(self, thd, var))
     DBUG_RETURN(true);
   uint new_gtid_mode= var->value->val_int();
-  if (abs(new_gtid_mode - gtid_mode) > 1)
+  if (abs((long)(new_gtid_mode - gtid_mode)) > 1)
   {
     //my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0))
     DBUG_RETURN(true);

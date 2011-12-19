@@ -1686,9 +1686,9 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
 
   if (ev->starts_group())
   {
-    worker->curr_group_seen_begin= true; // The current group is started with B-event // ALFRANIO CHECK THIS
+    worker->curr_group_seen_begin= true; // The current group is started with B-event
   } 
-  else
+  else if (ev->get_type_code() != GTID_LOG_EVENT)
   {
     if ((part_event= ev->contains_partition_info()))
     {
@@ -1724,13 +1724,13 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   }
   worker->set_future_event_relay_log_pos(ev->future_event_relay_log_pos);
   error= ev->do_apply_event_worker(worker);
-  if (ev->ends_group() || (!worker->curr_group_seen_begin && // ALFRANIO CHECK THIS
+  if (ev->ends_group() || (!worker->curr_group_seen_begin &&
                            /* 
                               p-events of B/T-less {p,g} group (see
                               legends of Log_event::get_slave_worker)
                               obviously can't commit.
                            */
-                           part_event))
+                           part_event && ev->get_type_code() != GTID_LOG_EVENT))
   {
     DBUG_PRINT("slave_worker_exec_job:",
                (" commits GAQ index %lu, last committed  %lu",

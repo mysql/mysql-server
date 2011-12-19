@@ -1,0 +1,143 @@
+################################################################################
+# This file aims to check if a log, either binary or relay log, has correctly
+# stored the Previous_gtids_log_event and Gtid_log_event events.
+#
+# Options:
+# (Type of the log: binlog or relaylog)
+# --let $binlog= <type_log>
+# (Check in the current log has <set_ini>-<set_end> in Previous GTids)
+# $gtid_set_ini= <set_ini>
+# $gtid_set_end= <set_end>
+# (Check in the current log has GTids from <gtid_ini> to <gtid_end>)
+# $gtid_ini= <gtid_ini>
+# $gtid_end= <gtid_end>
+# (Enable or disable debug)
+# --let $debug= <enabled>
+#
+# Usage:
+# --let $binlog= <type_log>
+# --let $gtid_set_ini= <set_ini>
+# --let $gtid_set_end= <set_end>
+# --let $gtid_ini= <gtid_ini>
+# --let $gtid_end= <gtid_end>
+# --source extra/rpl_tests/rpl_check_gtid.inc
+#
+# Example (Checking both Previous GTids and current Gtids in the master's
+#          current binary log):
+# --connection master
+# --let $binlog= binlog
+# --let $gtid_set_ini= <set_ini>
+# --let $gtid_set_end= <set_end>
+# --let $gtid_ini= <gtid_ini>
+# --let $gtid_end= <gtid_end>
+# --source extra/rpl_tests/rpl_check_gtid.inc
+#
+# Example (Checking Previous GTids in the slave's current binary log):
+# --connection slave
+# --let $binlog= binlog
+# --let $gtid_set_ini= <set_ini>
+# --let $gtid_set_end= <set_end>
+# --let $gtid_ini=
+# --let $gtid_end=
+# --source extra/rpl_tests/rpl_check_gtid.inc
+#
+# Example (Checking GTids in the slave's current relay log):
+# --connection slave
+# --let $binlog= relaylog
+# --let $gtid_set_ini=
+# --let $gtid_set_end=
+# --let $gtid_ini= <gtid_ini>
+# --let $gtid_end= <gtid_end>
+# --source extra/rpl_tests/rpl_check_gtid.inc
+################################################################################
+
+--let $include_filename= rpl_check_gtid.inc
+--source include/begin_include_file.inc
+
+if (`SELECT "$binlog" = "binlog"`)
+{
+  --let $command_set= SHOW MASTER STATUS
+  --let $command_set_info= File
+  --let $command_show= SHOW BINLOG EVENTS
+}
+
+if (`SELECT "$binlog" = "relaylog"`)
+{
+  --let $command_set= SHOW SLAVE STATUS
+  --let $command_set_info= Relay_Log_File
+  --let $command_show= SHOW RELAYLOG EVENTS
+}
+
+
+if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`)
+{
+  --let $master_binlog= query_get_value($command_set, $command_set_info, 1)
+  if (`SELECT "$debug" <> ""`)
+  {
+    --eval $command_show in "$master_binlog"
+  }
+  --let $type= query_get_value($command_show in "$master_binlog", Event_type, 2)
+  --let $info= query_get_value($command_show in "$master_binlog", Info, 2)
+  if ($type != Previous_gtids)
+  {
+    --echo $type $info --- Type should be Previous_gtids.
+    --eval $command_show in "$master_binlog"
+    --die
+  }
+  if ($gtid_set_end == 0 && $gtid_set_ini == 0)
+  {
+    if (`SELECT "$info" <> ""`)
+    {
+      --echo $type $info -- Info should be empty.
+      --eval $command_show in "$master_binlog"
+      --die
+    }
+  }
+  if (`SELECT $gtid_set_end <> 0 and $gtid_set_ini <> 0 and $gtid_set_end <> $gtid_set_ini`)
+  {
+    if (`SELECT NOT ("$info" REGEXP "^$master_uuid:$gtid_set_ini-$gtid_set_end")`)
+    {
+      --echo $type $info -- Info should be $master_uuid:$gtid_set_ini-$gtid_set_end.
+      --eval $command_show in "$master_binlog"
+      --die
+    }
+  }
+  if ($gtid_set_end != 0 && $gtid_set_ini != 0 && $gtid_set_end == $gtid_set_ini)
+  {
+    if (`SELECT NOT ("$info" REGEXP "^$master_uuid:$gtid_set_ini")`)
+    {
+      --echo $type $info -- Info should be $master_uuid:$gtid_set_ini.
+      --eval $command_show in "$master_binlog"
+      --die
+    }
+  }
+}
+
+if (`SELECT "$binlog" <> "" and "$gtid_end" <> "" and "$gtid_ini" <> ""`)
+{
+  --let $type= unknown
+  --let $trans= `SELECT $gtid_ini`
+  --let $pos= 1
+  while (`SELECT $trans <= $gtid_end AND "$type" <> "No such row"`)
+  {
+    --let $type= query_get_value($command_show in "$master_binlog", Event_type, $pos)
+    if ($type == Gtid)
+    {
+      --let $info= query_get_value($command_show in "$master_binlog", Info, $pos)
+      if (`SELECT "$info" REGEXP "^SET @@SESSION.GTID_NEXT= '$master_uuid:$trans'"`)
+      {
+        --let $trans= `SELECT $trans + 1`
+      }
+    }
+    --inc $pos
+  }
+  if ($trans <=  $gtid_end)
+  {
+    --echo $type $info -- We should retrieve from $gtid_ini to $gtid_end.
+    --eval $command_show in "$master_binlog"
+    --die
+  }
+}
+
+--let $include_filename= rpl_check_gtid.inc
+--source include/end_include_file.inc

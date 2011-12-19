@@ -2062,6 +2062,9 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
     Rotate_log_event *ev= new Rotate_log_event(rli->ign_master_log_name_end,
                                                0, rli->ign_master_log_pos_end,
                                                Rotate_log_event::DUP_NAME);
+    if (rli->relay_log.description_event_for_queue)
+       ev->checksum_alg= rli->relay_log.description_event_for_queue->checksum_alg;
+    
     rli->ign_master_log_name_end[0]= 0;
     /* can unlock before writing as slave SQL thd will soon see our Rotate */
     mysql_mutex_unlock(log_lock);
@@ -2195,7 +2198,7 @@ bool show_master_info(THD* thd, Master_info* mi)
 
     /Alfranio
   */
-  /*global_sid_lock.wrlock();
+  global_sid_lock.wrlock();
   const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
   const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
   if (sql_gtid_set->to_string(&sql_gtid_set_buffer, &sql_gtid_set_size) ||
@@ -2207,7 +2210,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     global_sid_lock.unlock();
     DBUG_RETURN(true);
   }
-  global_sid_lock.unlock();*/
+  global_sid_lock.unlock();
 #endif
 
   field_list.push_back(new Item_empty_string("Slave_IO_State",
@@ -3117,10 +3120,15 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
 
       See sql/rpl_rli.h for further details.
     */
+    /*
+      This needs to be improved because the GTID needs to be handled as
+      group and group positions are incremented at the end.
+    */
     int error= 0;
     if (*ptr_ev &&
         (ev->get_type_code() != XID_EVENT ||
          skip_event || (rli->is_mts_recovery() &&
+         ev->get_type_code() != GTID_LOG_EVENT &&
          (ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
           bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index))))
     {
@@ -3170,13 +3178,15 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
 
     if (!error && rli->is_mts_recovery() &&
         ev->get_type_code() != ROTATE_EVENT &&
-        ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
+        ev->get_type_code() != FORMAT_DESCRIPTION_EVENT &&
+        ev->get_type_code() != PREVIOUS_GTIDS_LOG_EVENT)
     {
       if (ev->starts_group())
       {
-        rli->mts_recovery_group_seen_begin= TRUE;
+        rli->mts_recovery_group_seen_begin= true;
       }
-      if (ev->ends_group() || !rli->mts_recovery_group_seen_begin)
+      else if ((ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
+               (ev->get_type_code() != GTID_LOG_EVENT))
       {
         rli->mts_recovery_index++;
         if (--rli->mts_recovery_group_cnt == 0)
@@ -3184,7 +3194,7 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
           rli->recovery_parallel_workers= rli->slave_parallel_workers;
           rli->mts_recovery_index= 0;
         }
-        rli->mts_recovery_group_seen_begin= FALSE;
+        rli->mts_recovery_group_seen_begin= false;
 
         error= rli->flush_info(TRUE);
       }
@@ -4253,7 +4263,7 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
       */
       if (!checksum_detected)
       {
-        for (int i=0; i < 3; i++)
+        for (int i=0; i < 4; i++)
         {
           if ((ev= Log_event::read_log_event(&log,
                                              (mysql_mutex_t*) 0, p_fdle, 0))
@@ -4282,7 +4292,8 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
           p_fdle->checksum_alg= ev->checksum_alg;
 
         if (ev->get_type_code() == ROTATE_EVENT ||
-            ev->get_type_code() == FORMAT_DESCRIPTION_EVENT) 
+            ev->get_type_code() == FORMAT_DESCRIPTION_EVENT ||
+            ev->get_type_code() == PREVIOUS_GTIDS_LOG_EVENT)
         {
           delete ev;
           ev= NULL;
@@ -4295,14 +4306,15 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
 
         if (ev->starts_group())
         {
-          flag_group_seen_begin= TRUE;
+          flag_group_seen_begin= true;
         }
-        if (ev->ends_group() || !flag_group_seen_begin)
+        else if ((ev->ends_group() || !flag_group_seen_begin) &&
+                 (ev->get_type_code() != GTID_LOG_EVENT))
         {
           int ret= 0;
           LOG_POS_COORD ev_coord= { (char *) rli->get_group_master_log_name(),
                                       ev->log_pos };
-          flag_group_seen_begin= FALSE;
+          flag_group_seen_begin= false;
           recovery_group_cnt++;
 
           sql_print_information("Group Recoverying relay log info "

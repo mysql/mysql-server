@@ -560,7 +560,7 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
     DBUG_RETURN(1);
   else if (status == Group_cache::APPEND_NEW_GROUP)
   {
-    Gtid_log_event gtid_ev(thd);
+    Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache());
     if (gtid_ev.write(cache) != 0)
       DBUG_RETURN(1);
   }
@@ -570,43 +570,58 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
   DBUG_RETURN(0);
 }
 
-static int write_one_empty_group_to_cache(THD *thd, Group_cache *gc,
-                                          Gtid gtid, IO_CACHE *cache)
+/**
+  Checks if the given GTID exists in the Group_cache. If not, add it
+  as an empty group.
+
+  @param thd THD object that owns the Group_cache
+  @param cache_data binlog_cache_data object for the cache
+  @param gtid GTID to check
+*/
+static int write_one_empty_group_to_cache(THD *thd,
+                                          binlog_cache_data *cache_data,
+                                          Gtid gtid)
 {
   DBUG_ENTER("write_one_empty_group_to_cache");
-  if (gc->contains_gtid(gtid))
+  Group_cache *group_cache= &cache_data->group_cache;
+  IO_CACHE *cache= &cache_data->cache_log;
+  if (group_cache->contains_gtid(gtid))
     DBUG_RETURN(0);
-  Group_cache::enum_add_group_status status= gc->add_empty_group(gtid);
+  Group_cache::enum_add_group_status status= group_cache->add_empty_group(gtid);
   if (status == Group_cache::ERROR)
     DBUG_RETURN(1);
   DBUG_ASSERT(status == Group_cache::APPEND_NEW_GROUP);
   Gtid_specification spec= { GTID_GROUP, gtid };
-  Gtid_log_event gtid_ev(thd, &spec);
+  Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache(), &spec);
   if (gtid_ev.write(cache) != 0)
     DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
 
+/**
+  Writes all GTIDs that the thread owns to the stmt/trx cache, if the
+  GTID is not already in the cache.
+
+  @param thd THD object for the thread that owns the cache.
+  @param cache_data The cache.
+*/
 static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
 {
   DBUG_ENTER("write_empty_groups_to_cache");
-  Group_cache *group_cache= &cache_data->group_cache;
-  IO_CACHE *cache= &cache_data->cache_log;
   if (thd->owned_gtid.sidno == -1)
   {
     Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
     Gtid gtid= git.get();
     while (gtid.sidno != 0)
     {
-      if (write_one_empty_group_to_cache(thd, group_cache, gtid, cache) != 0)
+      if (write_one_empty_group_to_cache(thd, cache_data, gtid) != 0)
         DBUG_RETURN(1);
       git.next();
       gtid= git.get();
     }
   }
   else if (thd->owned_gtid.sidno > 0)
-    if (write_one_empty_group_to_cache(thd, group_cache, thd->owned_gtid,
-                                       cache) != 0)
+    if (write_one_empty_group_to_cache(thd, cache_data, thd->owned_gtid) != 0)
       DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
@@ -651,7 +666,8 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
     DBUG_ASSERT(group_cache->get_n_groups() == 1);
     Cached_group *cached_group= group_cache->get_unsafe_pointer(0);
     DBUG_ASSERT(cached_group->spec.type != AUTOMATIC_GROUP);
-    Gtid_log_event gtid_ev(thd, &cached_group->spec);
+    Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache(),
+                           &cached_group->spec);
     my_off_t saved_position= cache_data->get_byte_position();
     IO_CACHE *cache_log= &cache_data->cache_log;
     my_b_seek(cache_log, 0);
@@ -2169,10 +2185,10 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
           global_sid_lock.wrlock();
         else
           global_sid_lock.assert_some_wrlock();
-        Previous_gtids_log_event prev_gtids_ev(current_thd,
-                                               previous_gtid_set);
+        Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
         if (need_sid_lock)
           global_sid_lock.unlock();
+        prev_gtids_ev.checksum_alg= s.checksum_alg;
         if (prev_gtids_ev.write(&log_file))
           goto err;
         bytes_written+= prev_gtids_ev.data_written;

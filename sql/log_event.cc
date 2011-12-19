@@ -671,16 +671,8 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   crc(0), thd(thd_arg),
   checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
-  if (thd)
-  {
-    server_id= thd->server_id;
-    when= thd->start_time;
-  }
-  else
-  {
-    server_id= ::server_id;
-    when= 0;
-  }
+  server_id= thd->server_id;
+  when= thd->start_time;
 }
 
 /**
@@ -953,13 +945,18 @@ my_bool Log_event::need_checksum()
                   the local RL's Rotate and the master's Rotate
                   which IO thread instantiates via queue_binlog_ver_3_event.
                */
-               get_type_code() == ROTATE_EVENT
-               ||  /* FD is always checksummed */
+               get_type_code() == ROTATE_EVENT ||
+               /*
+                 This is written directly to the binary and relay logs
+                 and are checksummed acording to the current
+                 configuration.
+               */
+               get_type_code() == PREVIOUS_GTIDS_LOG_EVENT ||
+               /* FD is always checksummed */
                get_type_code() == FORMAT_DESCRIPTION_EVENT) && 
                checksum_alg != BINLOG_CHECKSUM_ALG_OFF));
 
   DBUG_ASSERT(checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
-
   DBUG_ASSERT(((get_type_code() != ROTATE_EVENT &&
                 get_type_code() != STOP_EVENT) ||
                get_type_code() != FORMAT_DESCRIPTION_EVENT) ||
@@ -2468,7 +2465,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         gaq->get_job_group(rli->gaq->assigned_group_index)->
         worker_id != MTS_WORKER_UNDEF)))
   {
-    if (!rli->curr_group_seen_gtid)
+    if (!rli->curr_group_seen_gtid && !rli->curr_group_seen_begin)
     {
       ulong gaq_idx;
       rli->mts_groups_assigned++;
@@ -2715,8 +2712,8 @@ int Log_event::apply_event(Relay_log_info *rli)
   {
     bool skip= 
       bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index) &&
-      (get_mts_execution_mode(::server_id, 
-                          rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
+      (get_mts_execution_mode(::server_id,
+       rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
        == EVENT_EXEC_PARALLEL);
     if (skip)
     {
@@ -6214,8 +6211,6 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
   DBUG_PRINT("enter",("new_log_ident: %s  pos: %s  flags: %lu", new_log_ident_arg,
                       llstr(pos_arg, buff), (ulong) flags));
 #endif
-  event_cache_type= EVENT_NO_CACHE;
-  event_logging_type= EVENT_IMMEDIATE_LOGGING;
   if (flags & DUP_NAME)
     new_log_ident= my_strndup(new_log_ident_arg, ident_len, MYF(MY_WME));
   if (flags & RELAY_LOG)
@@ -6335,10 +6330,11 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         rli->get_group_master_log_name(),
                         (ulong) rli->get_group_master_log_pos()));
 
+    bool change= strncmp(rli->get_group_master_log_name(), new_log_ident, ident_len + 1);
     memcpy((void *)rli->get_group_master_log_name(),
            new_log_ident, ident_len + 1);
     rli->notify_group_master_log_name_update();
-    if ((error=  rli->inc_group_relay_log_pos(pos, true)))
+    if ((error=  rli->inc_group_relay_log_pos(pos, change, true)))
     {
       mysql_mutex_unlock(&rli->data_lock);
       goto err;
@@ -7343,7 +7339,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
     rli->inc_event_relay_log_pos();
   else
   {
-    error_inc= rli->inc_group_relay_log_pos(false);
+    error_inc= rli->inc_group_relay_log_pos(0, false, false);
     error_flush= rli->flush_info(TRUE);
   }
   return (error_inc || error_flush);
@@ -11594,10 +11590,13 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 }
 
 #ifndef MYSQL_CLIENT
-Gtid_log_event::Gtid_log_event(THD *thd_arg, const Gtid_specification *spec_arg)
+Gtid_log_event::Gtid_log_event(THD *thd_arg, bool using_trans,
+                               const Gtid_specification *spec_arg)
 : Log_event(thd_arg, spec_arg->type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
-            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
+            using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING),
+  commit_flag(true)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *, const Gtid_specification *)");
   DBUG_ASSERT(spec_arg->type != AUTOMATIC_GROUP);
@@ -11613,10 +11612,12 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, const Gtid_specification *spec_arg)
   DBUG_VOID_RETURN;
 }
 
-Gtid_log_event::Gtid_log_event(THD* thd_arg)
+Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans)
 : Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
-            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
+            using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING),
+  commit_flag(true)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *)");
   spec= thd_arg->variables.gtid_next;
@@ -11718,12 +11719,21 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
 
   DBUG_RETURN(0);
 }
+
+int Gtid_log_event::do_update_pos(Relay_log_info *rli)
+{
+  rli->inc_event_relay_log_pos();
+  DBUG_EXECUTE_IF("crash_after_update_pos_gtid",
+                  sql_print_information("Crashing crash_after_update_pos_gtid.");
+                  DBUG_SUICIDE(););
+  return 0;
+}
 #endif
 
 Previous_gtids_log_event::Previous_gtids_log_event(
   const char *buffer, uint event_len,
   const Format_description_log_event *descr_event)
-  : Ignorable_log_event(buffer, descr_event)
+  : Log_event(buffer, descr_event)
 {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
   uint8 const common_header_len=
@@ -11736,14 +11746,14 @@ Previous_gtids_log_event::Previous_gtids_log_event(
 
   buf= (const uchar *)buffer + common_header_len + post_header_len;
   buf_size= (const uchar *)buffer + event_len - buf;
-  DBUG_PRINT("info", ("data size of the event: %ld", buf_size));
+  DBUG_PRINT("info", ("data size of the event: %d", buf_size));
   DBUG_VOID_RETURN;
 }
 
 #ifndef MYSQL_CLIENT
-Previous_gtids_log_event::Previous_gtids_log_event(THD* thd_arg,
-                                                   const Gtid_set *set)
-: Ignorable_log_event(thd_arg)
+Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
+: Log_event(Log_event::EVENT_NO_CACHE,
+            Log_event::EVENT_IMMEDIATE_LOGGING)
 {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event(THD *, const Gtid_set *)");
   global_sid_lock.assert_some_lock();
@@ -11821,7 +11831,7 @@ char *Previous_gtids_log_event::get_str(
     DBUG_RETURN(NULL);
   set.dbug_print("set");
   size_t length= set.get_string_length(string_format);
-  DBUG_PRINT("info", ("string length= %ld", length));
+  DBUG_PRINT("info", ("string length= %lu", (ulong) length));
   char* buf= (char *)my_malloc(length + 1, MYF(MY_WME));
   if (buf != NULL)
   {
@@ -11836,7 +11846,7 @@ char *Previous_gtids_log_event::get_str(
 bool Previous_gtids_log_event::write_data_body(IO_CACHE *file)
 {
   DBUG_ENTER("Previous_gtids_log_event::write_data_body");
-  DBUG_PRINT("info", ("size=%ld", buf_size));
+  DBUG_PRINT("info", ("size=%d", buf_size));
   bool ret= wrapper_my_b_safe_write(file, buf, buf_size);
   DBUG_RETURN(ret);
 }
@@ -11863,6 +11873,7 @@ st_print_event_info::st_print_event_info()
    auto_increment_increment(0),auto_increment_offset(0), charset_inited(0),
    lc_time_names_number(~0),
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
+   thread_id(0), thread_id_printed(false),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
    have_unflushed_events(FALSE)
 {
