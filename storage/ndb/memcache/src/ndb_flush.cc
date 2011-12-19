@@ -108,7 +108,7 @@ bool scan_delete(NdbInstance *inst, QueryPlan *plan) {
   bool rescan, fetch_option;
   int rFetch, rExec, rDel, batch_size, rows_deleted;
   int error_status = 0;
-  const int max_errors = 100000;
+  const unsigned int max_errors = 100000;
   
   struct {
     unsigned int errors;
