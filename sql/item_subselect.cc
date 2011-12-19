@@ -38,11 +38,8 @@
 #include "sql_derived.h"                        // mysql_derived_create, ...
 #include "debug_sync.h"
 #include "sql_test.h"
-
-inline Item * and_items(Item* cond, Item *item)
-{
-  return (cond? (new Item_cond_and(cond, item)) : item);
-}
+#include "sql_join_buffer.h"                    // JOIN_CACHE
+#include "sql_optimizer.h"                      // JOIN
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), traced_before(false),
@@ -2415,10 +2412,8 @@ void subselect_uniquesubquery_engine::fix_length_and_dec(Item_cache **row)
   DBUG_ASSERT(0);
 }
 
-int  read_first_record_seq(JOIN_TAB *tab);
+int read_first_record_seq(JOIN_TAB *tab);
 int rr_sequential(READ_RECORD *info);
-int join_read_always_key_or_null(JOIN_TAB *tab);
-int join_read_next_same_or_null(READ_RECORD *info);
 
 bool subselect_single_select_engine::exec()
 {

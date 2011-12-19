@@ -1,4 +1,136 @@
 drop table if exists t1;
+#
+# Bug#62505: ALTER TABLE ADD PARTITION fails for LIST partitions with
+#            more than 16 items
+#
+CREATE TABLE t1 (a INT);
+# SUCCESS with 20 items because this is initial partitioning action
+# (The parser already knows that it is only on column)
+ALTER TABLE t1
+PARTITION BY LIST(a)
+(PARTITION p1 VALUES IN (1,2,3,4,5,6,7,8,9,10,
+11,12,13,14,15,16,17,18,19,20));
+# BUG: FAILED, because number of items > 16 during partition add
+# (The parser do not know how many columns the table is partitioned on)
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30,
+31,32,33,34,35,36,37,38,39,40));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p1 VALUES IN (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20) ENGINE = MyISAM,
+ PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40) ENGINE = MyISAM) */
+# Test with single column LIST COLUMNS too
+ALTER TABLE t1
+PARTITION BY LIST COLUMNS (a)
+(PARTITION p1 VALUES IN (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20));
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p2 VALUES IN ((71),(72),(73),(74),(75),(76),(77),(78),(79),(80),
+(81),(82),(83),(84),(85),(86),(87),(88),(89),(90)));
+ERROR 42000: Row expressions in VALUES IN only allowed for multi-field column partitioning near '))' at line 3
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30,
+31,32,33,34,35,36,37,38,39,40));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY LIST  COLUMNS(a)
+(PARTITION p1 VALUES IN (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20) ENGINE = MyISAM,
+ PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40) ENGINE = MyISAM) */
+DROP TABLE t1;
+# Test with two columns in LIST COLUMNS partitioning
+CREATE TABLE t1
+(a INT,
+b CHAR(2))
+PARTITION BY LIST COLUMNS (a, b)
+(PARTITION p0_a VALUES IN
+((0, "a0"), (0, "a1"), (0, "a2"), (0, "a3"), (0, "a4"), (0, "a5"), (0, "a6"),
+(0, "a7"), (0, "a8"), (0, "a9"), (0, "aa"), (0, "ab"), (0, "ac"), (0, "ad"),
+(0, "ae"), (0, "af"), (0, "ag"), (0, "ah"), (0, "ai"), (0, "aj"), (0, "ak"),
+(0, "al")));
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p1_a VALUES IN
+((1, "a0"), (1, "a1"), (1, "a2"), (1, "a3"), (1, "a4"), (1, "a5"), (1, "a6"),
+(1, "a7"), (1, "a8"), (1, "a9"), (1, "aa"), (1, "ab"), (1, "ac"), (1, "ad"),
+(1, "ae"), (1, "af"), (1, "ag"), (1, "ah"), (1, "ai"), (1, "aj"), (1, "ak"),
+(1, "al")));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` char(2) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY LIST  COLUMNS(a,b)
+(PARTITION p0_a VALUES IN ((0,'a0'),(0,'a1'),(0,'a2'),(0,'a3'),(0,'a4'),(0,'a5'),(0,'a6'),(0,'a7'),(0,'a8'),(0,'a9'),(0,'aa'),(0,'ab'),(0,'ac'),(0,'ad'),(0,'ae'),(0,'af'),(0,'ag'),(0,'ah'),(0,'ai'),(0,'aj'),(0,'ak'),(0,'al')) ENGINE = MyISAM,
+ PARTITION p1_a VALUES IN ((1,'a0'),(1,'a1'),(1,'a2'),(1,'a3'),(1,'a4'),(1,'a5'),(1,'a6'),(1,'a7'),(1,'a8'),(1,'a9'),(1,'aa'),(1,'ab'),(1,'ac'),(1,'ad'),(1,'ae'),(1,'af'),(1,'ag'),(1,'ah'),(1,'ai'),(1,'aj'),(1,'ak'),(1,'al')) ENGINE = MyISAM) */
+# Test of the parser for '('
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p2_a VALUES IN
+(((1 + 1), "a0"), (2, "a1"), (2, "a2"), (2, "a3"), (2, "a4"), (2, "a5"),
+(2, "a6"), (2, "a7"), (2, "a8"), (2, "a9"), (2, "aa"), (2, "ab"), (2, "ac"),
+(2, "ad"), (2, "ae"), (2, "af"), (2, "ag"), (2, "ah"), (2, "ai"), (2, "aj"),
+(2, "ak"), (2, "al")));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` char(2) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY LIST  COLUMNS(a,b)
+(PARTITION p0_a VALUES IN ((0,'a0'),(0,'a1'),(0,'a2'),(0,'a3'),(0,'a4'),(0,'a5'),(0,'a6'),(0,'a7'),(0,'a8'),(0,'a9'),(0,'aa'),(0,'ab'),(0,'ac'),(0,'ad'),(0,'ae'),(0,'af'),(0,'ag'),(0,'ah'),(0,'ai'),(0,'aj'),(0,'ak'),(0,'al')) ENGINE = MyISAM,
+ PARTITION p1_a VALUES IN ((1,'a0'),(1,'a1'),(1,'a2'),(1,'a3'),(1,'a4'),(1,'a5'),(1,'a6'),(1,'a7'),(1,'a8'),(1,'a9'),(1,'aa'),(1,'ab'),(1,'ac'),(1,'ad'),(1,'ae'),(1,'af'),(1,'ag'),(1,'ah'),(1,'ai'),(1,'aj'),(1,'ak'),(1,'al')) ENGINE = MyISAM,
+ PARTITION p2_a VALUES IN ((2,'a0'),(2,'a1'),(2,'a2'),(2,'a3'),(2,'a4'),(2,'a5'),(2,'a6'),(2,'a7'),(2,'a8'),(2,'a9'),(2,'aa'),(2,'ab'),(2,'ac'),(2,'ad'),(2,'ae'),(2,'af'),(2,'ag'),(2,'ah'),(2,'ai'),(2,'aj'),(2,'ak'),(2,'al')) ENGINE = MyISAM) */
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p3_a VALUES IN ((1 + 1 + 1), "a0"));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"a0"))' at line 2
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p3_a VALUES IN (1 + 1 + 1, "a0"));
+ERROR HY000: Inconsistency in usage of column lists for partitioning
+# Test with 3 columns when it only has 2.
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p3_a VALUES IN ((3, "a1", 0), (3, "a2", 0)));
+ERROR HY000: Inconsistency in usage of column lists for partitioning
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p3_a VALUES IN ((1 + 1 + 1, "a0")));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` char(2) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY LIST  COLUMNS(a,b)
+(PARTITION p0_a VALUES IN ((0,'a0'),(0,'a1'),(0,'a2'),(0,'a3'),(0,'a4'),(0,'a5'),(0,'a6'),(0,'a7'),(0,'a8'),(0,'a9'),(0,'aa'),(0,'ab'),(0,'ac'),(0,'ad'),(0,'ae'),(0,'af'),(0,'ag'),(0,'ah'),(0,'ai'),(0,'aj'),(0,'ak'),(0,'al')) ENGINE = MyISAM,
+ PARTITION p1_a VALUES IN ((1,'a0'),(1,'a1'),(1,'a2'),(1,'a3'),(1,'a4'),(1,'a5'),(1,'a6'),(1,'a7'),(1,'a8'),(1,'a9'),(1,'aa'),(1,'ab'),(1,'ac'),(1,'ad'),(1,'ae'),(1,'af'),(1,'ag'),(1,'ah'),(1,'ai'),(1,'aj'),(1,'ak'),(1,'al')) ENGINE = MyISAM,
+ PARTITION p2_a VALUES IN ((2,'a0'),(2,'a1'),(2,'a2'),(2,'a3'),(2,'a4'),(2,'a5'),(2,'a6'),(2,'a7'),(2,'a8'),(2,'a9'),(2,'aa'),(2,'ab'),(2,'ac'),(2,'ad'),(2,'ae'),(2,'af'),(2,'ag'),(2,'ah'),(2,'ai'),(2,'aj'),(2,'ak'),(2,'al')) ENGINE = MyISAM,
+ PARTITION p3_a VALUES IN ((3,'a0')) ENGINE = MyISAM) */
+# Test with more than 16 columns (cause of regression)
+ALTER TABLE t1 ADD PARTITION
+(PARTITION part_2 VALUES IN ((21 ,22, 23, 24, 25, 26, 27, 28, 29, 30,
+31 ,32, 33, 34, 35, 36, 37, 38, 39, 40),
+(41 ,42, 43, 44, 45, 46, 47, 48, 49, 50,
+51 ,52, 53, 54, 55, 56, 57, 58, 59, 60)));
+ERROR 42000: Row expressions in VALUES IN only allowed for multi-field column partitioning near '))' at line 5
+ALTER TABLE t1 ADD PARTITION
+(PARTITION part_2 VALUES IN (21 ,22, 23, 24, 25, 26, 27, 28, 29, 30,
+31 ,32, 33, 34, 35, 36, 37, 38, 39, 40));
+ERROR HY000: Inconsistency in usage of column lists for partitioning
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` char(2) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY LIST  COLUMNS(a,b)
+(PARTITION p0_a VALUES IN ((0,'a0'),(0,'a1'),(0,'a2'),(0,'a3'),(0,'a4'),(0,'a5'),(0,'a6'),(0,'a7'),(0,'a8'),(0,'a9'),(0,'aa'),(0,'ab'),(0,'ac'),(0,'ad'),(0,'ae'),(0,'af'),(0,'ag'),(0,'ah'),(0,'ai'),(0,'aj'),(0,'ak'),(0,'al')) ENGINE = MyISAM,
+ PARTITION p1_a VALUES IN ((1,'a0'),(1,'a1'),(1,'a2'),(1,'a3'),(1,'a4'),(1,'a5'),(1,'a6'),(1,'a7'),(1,'a8'),(1,'a9'),(1,'aa'),(1,'ab'),(1,'ac'),(1,'ad'),(1,'ae'),(1,'af'),(1,'ag'),(1,'ah'),(1,'ai'),(1,'aj'),(1,'ak'),(1,'al')) ENGINE = MyISAM,
+ PARTITION p2_a VALUES IN ((2,'a0'),(2,'a1'),(2,'a2'),(2,'a3'),(2,'a4'),(2,'a5'),(2,'a6'),(2,'a7'),(2,'a8'),(2,'a9'),(2,'aa'),(2,'ab'),(2,'ac'),(2,'ad'),(2,'ae'),(2,'af'),(2,'ag'),(2,'ah'),(2,'ai'),(2,'aj'),(2,'ak'),(2,'al')) ENGINE = MyISAM,
+ PARTITION p3_a VALUES IN ((3,'a0')) ENGINE = MyISAM) */
+DROP TABLE t1;
 create table t1 (a int unsigned)
 partition by list (a)
 (partition p0 values in (0),

@@ -53,6 +53,7 @@
 #include "sql_table.h"                          // build_table_filename
 #include "datadict.h"   // dd_frm_type()
 #include "sql_hset.h"   // Hash_set
+#include "sql_tmp_table.h" // free_tmp_table
 #ifdef  __WIN__
 #include <io.h>
 #endif
@@ -2844,7 +2845,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       if (dd_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
         if (!tdc_open_view(thd, table_list, alias, key, key_length,
-                           mem_root, 0))
+                           mem_root, CHECK_METADATA_VERSION))
         {
           DBUG_ASSERT(table_list->view != 0);
           DBUG_RETURN(FALSE); // VIEW
@@ -2982,6 +2983,11 @@ retry_share:
     DBUG_RETURN(TRUE);
   }
 
+  /*
+    Check if this TABLE_SHARE-object corresponds to a view. Note, that there is
+    no need to call TABLE_SHARE::has_old_version() as we do for regular tables,
+    because view shares are always up to date.
+  */
   if (share->is_view)
   {
     /*
@@ -3817,6 +3823,24 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
                                OPEN_VIEW, &error,
                                hash_value)))
     goto err;
+
+  if ((flags & CHECK_METADATA_VERSION))
+  {
+    /*
+      Check TABLE_SHARE-version of view only if we have been instructed to do
+      so. We do not need to check the version if we're executing CREATE VIEW or
+      ALTER VIEW statements.
+
+      In the future, this functionality should be moved out from
+      tdc_open_view(), and  tdc_open_view() should became a part of a clean
+      table-definition-cache interface.
+    */
+    if (check_and_update_table_version(thd, table_list, share))
+    {
+      release_table_share(share);
+      goto err;
+    }
+  }
 
   if (share->is_view &&
       !open_new_frm(thd, share, alias,

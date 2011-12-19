@@ -25,6 +25,8 @@
 #include "sql_select.h"
 #include "opt_trace.h"
 #include "keycaches.h"
+#include "sql_optimizer.h"  // JOIN
+#include "opt_explain.h"    // join_type_str
 #include <hash.h>
 #include <thr_alarm.h>
 #if defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_H)
