@@ -5042,12 +5042,17 @@ int mysqld_main(int argc, char **argv)
         /Alfranio
       */
       global_sid_lock.rdlock();
-      Previous_gtids_log_event prev_gtids_ev(current_thd,
-                                             gtid_state.get_logged_gtids());
+      Previous_gtids_log_event prev_gtids_ev(gtid_state.get_logged_gtids());
       global_sid_lock.unlock();
+      prev_gtids_ev.checksum_alg= binlog_checksum_options;
+
       if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
         unireg_abort(1);
       mysql_bin_log.add_bytes_written(prev_gtids_ev.data_written);
+
+      if (flush_io_cache(mysql_bin_log.get_log_file()) ||
+        mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
+        unireg_abort(1);
     }
 #endif
   }

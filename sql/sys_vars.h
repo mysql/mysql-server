@@ -2146,7 +2146,7 @@ public:
   }
 
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
-  { DBUG_ASSERT(0); }
+  { DBUG_ASSERT(0); return NULL; }
 };
 
 

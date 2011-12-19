@@ -604,7 +604,7 @@ a	b
 4	4
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t2,t1 SET t2.a=t1.a+2
@@ -618,7 +618,7 @@ UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a

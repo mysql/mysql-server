@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS db_bug_13684.t;
 DROP DATABASE IF EXISTS db_bug_13684;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; DROP PROCEDURE IF EXISTS db_bug_13684.p
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
@@ -42,7 +42,7 @@ RETURNS CHAR(50) DETERMINISTIC
 RETURN s;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; DROP PROCEDURE IF EXISTS db_bug_13684.p
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
@@ -89,7 +89,7 @@ DROP TABLE IF EXISTS db_bug_13684.t;
 DROP DATABASE IF EXISTS db_bug_13684;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; DROP PROCEDURE IF EXISTS db_bug_13684.p
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';

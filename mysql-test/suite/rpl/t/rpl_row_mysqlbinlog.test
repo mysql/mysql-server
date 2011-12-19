@@ -119,6 +119,7 @@ connection master;
 reset master;
 connection slave;
 reset slave;
+reset master;
 start slave;
 --source include/wait_for_slave_to_start.inc
 connection master;
@@ -199,6 +200,7 @@ connection master;
 reset master;
 connection slave;
 reset slave;
+reset master;
 start slave;
 --source include/wait_for_slave_to_start.inc
 connection master;
@@ -273,6 +275,7 @@ connection master;
 reset master;
 connection slave;
 reset slave;
+reset master;
 start slave;
 --source include/wait_for_slave_to_start.inc
 connection master;

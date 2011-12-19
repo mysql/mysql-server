@@ -186,7 +186,7 @@ SELECT count(*) FROM t4;
 
 -- echo ### check that the incident event is written to the current log
 SET GLOBAL debug="-d,error_unique_log_filename";
--- let $binlog_limit= 5,1
+-- let $binlog_limit= 6,1
 -- source include/show_binlog_events.inc
 
 # clean up and move to next test
@@ -256,7 +256,7 @@ SET GLOBAL debug="-d,error_unique_log_filename";
 ###            while registering the index file and the binary log
 ###            file or failure to write the rotate event.
 
-call mtr.add_suppression("MSYQL_BIN_LOG::open failed to sync the index file.");
+call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
 call mtr.add_suppression("Could not open .*");
 
 RESET MASTER;

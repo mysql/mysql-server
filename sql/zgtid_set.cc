@@ -1079,7 +1079,7 @@ enum_return_status Gtid_set::add(const uchar *encoded, size_t length)
   // read number of SIDs
   if (length < 8)
   {
-    DBUG_PRINT("error", ("(length=%lu) < 8", length));
+    DBUG_PRINT("error", ("(length=%lu) < 8", (ulong) length));
     goto report_error;
   }
   n_sids= uint8korr(encoded);
@@ -1091,8 +1091,8 @@ enum_return_status Gtid_set::add(const uchar *encoded, size_t length)
     if (length - pos < 16 + 8)
     {
       DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < 16 + 8. "
-                           "[n_sids=%d i=%d]",
-                           length, pos, n_sids, i));
+                           "[n_sids=%u i=%u]",
+                           (ulong) length, (ulong) pos, n_sids, i));
       goto report_error;
     }
     rpl_sid sid;
@@ -1111,7 +1111,7 @@ enum_return_status Gtid_set::add(const uchar *encoded, size_t length)
     if (length - pos < 2 * 8 * n_intervals)
     {
       DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < 2 * 8 * (n_intervals=%u)",
-                           length, pos, n_intervals));
+                           (ulong) length, (ulong) pos, n_intervals));
       goto report_error;
     }
     Interval_iterator ivit(this, sidno);
@@ -1142,7 +1142,7 @@ enum_return_status Gtid_set::add(const uchar *encoded, size_t length)
   }
   if (pos != length)
   {
-    DBUG_PRINT("error", ("(pos=%lu) != (length=%lu)", pos, length));
+    DBUG_PRINT("error", ("(pos=%lu) != (length=%lu)", (ulong) pos, (ulong) length));
     goto report_error;
   }
   RETURN_OK;

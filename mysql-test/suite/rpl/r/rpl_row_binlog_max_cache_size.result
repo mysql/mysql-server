@@ -13,9 +13,7 @@ SET GLOBAL binlog_stmt_cache_size = 4096;
 CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
 CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
-########################################################################################
-#                                   1 - SINGLE STATEMENT
-########################################################################################
+###### 1 - SINGLE STATEMENT  ######
 *** Single statement on transactional table ***
 Got one of the listed errors
 *** Single statement on non-transactional table ***
@@ -25,9 +23,7 @@ include/wait_for_slave_sql_error_and_skip.inc [errno=1590]
 Got one of the listed errors
 include/wait_for_slave_sql_error_and_skip.inc [errno=1590]
 include/diff_tables.inc [master:t1,slave:t1]
-########################################################################################
-#                             2 - BEGIN - IMPLICIT COMMIT by DDL
-########################################################################################
+#########  2 - BEGIN - IMPLICIT COMMIT by DDL #########
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
@@ -43,9 +39,7 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 include/diff_tables.inc [master:t1,slave:t1]
-########################################################################################
-#                                     3 - BEGIN - COMMIT
-########################################################################################
+###### 3 - BEGIN - COMMIT ######
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
@@ -55,9 +49,7 @@ Got one of the listed errors
 Got one of the listed errors
 COMMIT;
 include/diff_tables.inc [master:t1,slave:t1]
-########################################################################################
-#                                      4 - BEGIN - ROLLBACK
-########################################################################################
+####### 4 - BEGIN - ROLLBACK  #######
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
@@ -69,9 +61,7 @@ ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 include/diff_tables.inc [master:t1,slave:t1]
-########################################################################################
-#                                         5 - PROCEDURE 
-########################################################################################
+###### 5 - PROCEDURE  #######
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
@@ -93,9 +83,7 @@ BEGIN;
 Got one of the listed errors
 ROLLBACK;
 include/diff_tables.inc [master:t1,slave:t1]
-########################################################################################
-#                                           6 - XID
-########################################################################################
+####### 6 - XID ######
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
@@ -108,9 +96,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 COMMIT;
 include/diff_tables.inc [master:t1,slave:t1]
-########################################################################################
-#                                        7 - NON-TRANS TABLE
-########################################################################################
+####### 7 - NON-TRANS TABLE #######
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
@@ -123,10 +109,8 @@ BEGIN;
 Got one of the listed errors
 COMMIT;
 include/diff_tables.inc [master:t1,slave:t1]
-########################################################################
-#      8 - Bug#55375(Regression Bug) Transaction bigger than
-#          max_binlog_cache_size crashes slave
-########################################################################
+######### 8 - Bug#55375(Regression Bug) Transaction bigger than  ##########
+#########     max_binlog_cache_size crashes slave                ##########
 # [ On Slave ]
 SET GLOBAL max_binlog_cache_size = 4096;
 Warnings:
@@ -166,9 +150,7 @@ include/start_slave.inc
 SELECT count(*) FROM t1;
 count(*)
 128
-########################################################################################
-#                       CHECK MAX_BINLOG_CACHE_SIZE and BINLOG_CACHE_SIZE
-########################################################################################
+######## CHECK MAX_BINLOG_CACHE_SIZE and BINLOG_CACHE_SIZE #########
 SET @@GLOBAL.MAX_BINLOG_CACHE_SIZE= 8192;
 Warnings:
 Warning	1712	Option binlog_cache_size (32768) is greater than max_binlog_cache_size (8192); setting binlog_cache_size equal to max_binlog_cache_size.
@@ -196,9 +178,7 @@ max_binlog_cache_size	4096
 SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
 Variable_name	Value
 binlog_cache_size	4096
-########################################################################################
-#                                        CLEAN
-########################################################################################
+######### CLEAN #########
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
