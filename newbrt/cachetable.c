@@ -169,8 +169,9 @@ struct cachetable {
     KIBBUTZ kibbutz;              // another pool of worker threads and jobs to do asynchronously.  
 
     LSN lsn_of_checkpoint_in_progress;
-    uint64_t checkpoint_sequence_number; // just a free-running sequence number, used for detecting threadsafety bugs
-    uint64_t checkpoint_prohibited;   // nonzero when checkpoints are prohibited,  used for detecting threadsafety bugs
+    // Variables used to detect threadsafety bugs are declared volatile to prevent compiler from using thread-local cache.
+    volatile BOOL checkpoint_is_beginning;    // TRUE during begin_checkpoint(), used for detecting threadsafety bugs
+    volatile uint64_t checkpoint_prohibited;  // nonzero when checkpoints are prohibited,  used for detecting threadsafety bugs
     u_int32_t checkpoint_num_files;  // how many cachefiles are in the checkpoint
     u_int32_t checkpoint_num_txns;   // how many transactions are in the checkpoint
     PAIR pending_head;           // list of pairs marked with checkpoint_pending
@@ -200,14 +201,13 @@ struct cachetable {
 
 // Code bracketed with {BEGIN_CRITICAL_REGION; ... END_CRITICAL_REGION;} macros
 // are critical regions in which a checkpoint is not permitted to begin.
-#define BEGIN_CRITICAL_REGION {uint64_t cp_seqnum = ct->checkpoint_sequence_number; \
-	__sync_fetch_and_add(&ct->checkpoint_prohibited, 1);
+// Must increment checkpoint_prohibited before testing checkpoint_is_beginning
+// on entry to critical region.
+#define BEGIN_CRITICAL_REGION {__sync_fetch_and_add(&ct->checkpoint_prohibited, 1); invariant(!ct->checkpoint_is_beginning);}
 
-#define END_CRITICAL_REGION invariant(cp_seqnum == ct->checkpoint_sequence_number); \
-	invariant(ct->checkpoint_prohibited > 0); \
-        __sync_fetch_and_sub(&ct->checkpoint_prohibited, 1); }
-
-
+// Testing checkpoint_prohibited at end of critical region is just belt-and-suspenders redundancy,
+// verifying that we just incremented it with the matching BEGIN macro.
+#define END_CRITICAL_REGION {invariant(ct->checkpoint_prohibited > 0); __sync_fetch_and_sub(&ct->checkpoint_prohibited, 1);}
 
 
 // Lock the cachetable
@@ -3165,8 +3165,8 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
             assert(r==0);
         }
 	cachetable_lock(ct);
-	invariant(ct->checkpoint_prohibited == 0);  // detect threadsafety bugs
-	ct->checkpoint_sequence_number++; 
+	ct->checkpoint_is_beginning = TRUE;         // detect threadsafety bugs, must set checkpoint_is_beginning ...
+	invariant(ct->checkpoint_prohibited == 0);  // ... before testing checkpoint_prohibited
 	//Initialize accountability counters
 	ct->checkpoint_num_files = 0;
 	ct->checkpoint_num_txns  = 0;
@@ -3294,7 +3294,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 	    }
             cachefiles_unlock(ct);
 	}
-
+	ct->checkpoint_is_beginning = FALSE;  // clear before releasing cachetable lock
 	cachetable_unlock(ct);
     }
     return 0;
