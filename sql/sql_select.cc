@@ -14466,11 +14466,9 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     table->sort.io_cache= NULL;
 
     select->cleanup();				// filesort did select
-    tab->select= 0;
     table->quick_keys.clear_all();  // as far as we cleanup select->quick
     table->sort.io_cache= tablesort_result_cache;
   }
-  tab->select_cond=0;
   tab->last_inner= 0;
   tab->first_unmatched= 0;
   tab->type=JT_ALL;				// Read with normal read_record
