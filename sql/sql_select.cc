@@ -4049,6 +4049,7 @@ check_reverse_order:
         */
         tab->read_first_record= join_read_last_key;
         tab->read_record.read_record= join_read_prev_same;
+        tab->read_record.unlock_row= rr_unlock_row;
       }
     }
     else if (select && select->quick)
