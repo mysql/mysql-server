@@ -25,15 +25,28 @@ import com.mysql.clusterj.Dbug;
  */
 public class DbugTest extends AbstractClusterJTest{
 
+    static String tmpFileName = System.getProperty("MYSQL_TMP_DIR", "/tmp") + "/clusterj-test-dbug";
+
     public boolean getDebug() {
         return false;
     }
 
     public void test() {
-        String originalState = "t";
-        String newState = "d,jointx:o,/tmp/jointx";
         Dbug dbug = ClusterJHelper.newDbug();
-        errorIfEqual("Failed to get new Dbug", null, dbug);
+        if (dbug == null) {
+            // nothing else can be tested
+            fail("Failed to get new Dbug");
+        }
+        if (dbug.get() == null) {
+            // ndbclient is compiled without DBUG; just make sure nothing blows up
+            dbug.set("nothing");
+            dbug.push("nada");
+            dbug.pop();
+            dbug.print("keyword", "message");
+            return;
+        }
+        String originalState = "t";
+        String newState = "d,jointx:o," + tmpFileName;
         dbug.set(originalState);
         String actualState = dbug.get();
         errorIfNotEqual("Failed to set original state", originalState, actualState);
@@ -45,15 +58,17 @@ public class DbugTest extends AbstractClusterJTest{
         errorIfNotEqual("Failed to pop original state", originalState, actualState);
 
         dbug = ClusterJHelper.newDbug();
-        dbug.output("/fully/qualified").flush().debug(new String[] {"how", "now"}).push();
+        dbug.output(tmpFileName).flush().debug(new String[] {"a", "b", "c", "d", "e", "f"}).push();
         actualState = dbug.get();
-        errorIfNotEqual("Wrong state created", "d,how,now:O,/fully/qualified", actualState);
+        // keywords are stored LIFO
+        errorIfNotEqual("Wrong state created", "d,f,e,d,c,b,a:O," + tmpFileName, actualState);
         dbug.pop();
 
         dbug = ClusterJHelper.newDbug();
-        dbug.append("partly/qualified").trace().debug(new String[] {"brown", "cow"}).set();
+        dbug.append(tmpFileName).trace().debug("a,b,c,d,e,f").set();
         actualState = dbug.get();
-        errorIfNotEqual("Wrong state created", "t:d,brown,cow:a,partly/qualified", actualState);
+        // keywords are stored LIFO
+        errorIfNotEqual("Wrong state created", "d,f,e,d,c,b,a:a," + tmpFileName + ":t", actualState);
         dbug.pop();
 
         failOnError();

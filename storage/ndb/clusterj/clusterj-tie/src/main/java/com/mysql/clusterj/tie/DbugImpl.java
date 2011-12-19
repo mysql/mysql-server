@@ -47,6 +47,11 @@ public class DbugImpl implements Dbug {
     Character fileStrategy = 'o';
     String debugList;
     
+    public DbugImpl() {
+        // Load the native library so we can set up debugging before anything else
+        ClusterConnectionServiceImpl.loadSystemLibrary("ndbclient");
+    }
+
     public String get() {
         ByteBuffer buffer = ByteBuffer.allocateDirect(DBUG_SIZE);
         String result = Utils.dbugExplain(buffer, DBUG_SIZE);

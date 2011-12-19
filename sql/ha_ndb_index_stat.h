@@ -40,10 +40,10 @@ public:
   pthread_cond_t COND;
   pthread_cond_t COND_ready;
 
-  /* protect entry lists where needed */
-  pthread_mutex_t list_mutex;
-
-  /* protect and signal changes in stats entries */
+  /*
+    protect stats entry lists where needed
+    protect and signal changes in stats entries
+  */
   pthread_mutex_t stat_mutex;
   pthread_cond_t stat_cond;
 
@@ -82,5 +82,8 @@ compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
 
 /* request on stats entry with recent error was ignored */
 #define Ndb_index_stat_error_HAS_ERROR          9003
+ 
+/* stats thread aborted request on stats entry */
+#define Ndb_index_stat_error_ABORT_REQUEST      9004
 
 #endif
