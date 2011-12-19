@@ -3803,11 +3803,11 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
   uint i= 0;
   DBUG_ENTER("ha_partition::truncate_partition");
 
-  if (set_part_state(alter_info, m_part_info, PART_ADMIN))
-    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
-
   /* Only binlog when it starts any call to the partitions handlers */
   *binlog_stmt= false;
+
+  if (set_part_state(alter_info, m_part_info, PART_ADMIN))
+    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
 
   /*
     TRUNCATE also means resetting auto_increment. Hence, reset
