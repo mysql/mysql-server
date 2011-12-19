@@ -1738,6 +1738,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     last_tab->read_record.copy_field_end= sjm->copy_field +
                                           sjm->table_cols.elements;
     last_tab->read_record.read_record= rr_sequential_and_unpack;
+    DBUG_ASSERT(last_tab->read_record.unlock_row == rr_unlock_row);
 
     // Clear possible outer join information from earlier use of this join tab
     last_tab->last_inner= NULL;
@@ -3188,35 +3189,41 @@ pick_table_access_method(JOIN_TAB *tab)
   case JT_REF:
     tab->read_first_record= join_read_always_key;
     tab->read_record.read_record= join_read_next_same;
+    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
   case JT_REF_OR_NULL:
     tab->read_first_record= join_read_always_key_or_null;
     tab->read_record.read_record= join_read_next_same_or_null;
+    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
   case JT_CONST:
     tab->read_first_record= join_read_const;
     tab->read_record.read_record= join_no_more_records;
+    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
   case JT_EQ_REF:
     tab->read_first_record= join_read_key;
     tab->read_record.read_record= join_no_more_records;
+    tab->read_record.unlock_row= join_read_key_unlock_row;
     break;
 
   case JT_FT:
     tab->read_first_record= join_ft_read_first;
     tab->read_record.read_record= join_ft_read_next;
+    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
   case JT_SYSTEM:
     tab->read_first_record= join_read_system;
     tab->read_record.read_record= join_no_more_records;
+    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
-  /* keep gcc happy */  
   default:
+    tab->read_record.unlock_row= rr_unlock_row;
     break;  
   }
 }
