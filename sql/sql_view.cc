@@ -675,6 +675,15 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   res= mysql_register_view(thd, view, mode);
 
+  /*
+    View TABLE_SHARE must be removed from the table definition cache in order to
+    make ALTER VIEW work properly. Otherwise, we would not be able to detect
+    meta-data changes after ALTER VIEW.
+  */
+
+  if (!res)
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
+
   if (mysql_bin_log.is_open())
   {
     String buff;

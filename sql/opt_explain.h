@@ -54,6 +54,8 @@ class THD;
 
 #include "my_base.h"
 
+extern const char *join_type_str[];
+
 bool explain_no_table(THD *thd, JOIN *join, const char *message);
 bool explain_no_table(THD *thd, const char *message,
                       ha_rows rows= HA_POS_ERROR);

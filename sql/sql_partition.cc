@@ -4550,11 +4550,20 @@ error:
 }
 
 
-/*
-  Sets which partitions to be used in the command
+/**
+  Sets which partitions to be used in the command.
+
+  @param alter_info     Alter_info pointer holding partition names and flags.
+  @param tab_part_info  partition_info holding all partitions.
+  @param part_state     Which state to set for the named partitions.
+
+  @return Operation status
+    @retval false  Success
+    @retval true   Failure
 */
-uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
-               enum partition_state part_state)
+
+bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
+                    enum partition_state part_state)
 {
   uint part_count= 0;
   uint num_parts_found= 0;
@@ -4580,7 +4589,21 @@ uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
     else
       part_elem->part_state= PART_NORMAL;
   } while (++part_count < tab_part_info->num_parts);
-  return num_parts_found;
+
+  if (num_parts_found != alter_info->partition_names.elements &&
+      !(alter_info->flags & ALTER_ALL_PARTITION))
+  {
+    /* Not all given partitions found, revert and return failure */
+    part_it.rewind();
+    part_count= 0;
+    do
+    {
+      partition_element *part_elem= part_it++;
+      part_elem->part_state= PART_NORMAL;
+    } while (++part_count < tab_part_info->num_parts);
+    return true;
+  }
+  return false;
 }
 
 
@@ -5149,11 +5172,7 @@ that are reorganised.
     }
     else if (alter_info->flags & ALTER_REBUILD_PARTITION)
     {
-      uint num_parts_found;
-      uint num_parts_opt= alter_info->partition_names.elements;
-      num_parts_found= set_part_state(alter_info, tab_part_info, PART_CHANGED);
-      if (num_parts_found != num_parts_opt &&
-          (!(alter_info->flags & ALTER_ALL_PARTITION)))
+      if (set_part_state(alter_info, tab_part_info, PART_CHANGED))
       {
         my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "REBUILD");
         goto err;
@@ -5316,6 +5335,8 @@ state of p1.
       alt_part_info->subpart_type= tab_part_info->subpart_type;
       alt_part_info->num_subparts= tab_part_info->num_subparts;
       DBUG_ASSERT(!alt_part_info->use_default_partitions);
+      /* We specified partitions explicitly so don't use defaults anymore. */
+      tab_part_info->use_default_partitions= FALSE;
       if (alt_part_info->set_up_defaults_for_partitioning(new_table->file,
                                                           ULL(0), 
                                                           0))
@@ -8028,8 +8049,7 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
   while (part_iter->field_vals.cur != part_iter->field_vals.end)
   {
     longlong dummy;
-    field->store(part_iter->field_vals.cur++,
-                 ((Field_num*)field)->unsigned_flag);
+    field->store(part_iter->field_vals.cur++, field->flags & UNSIGNED_FLAG);
     if ((part_iter->part_info->is_sub_partitioned() &&
         !part_iter->part_info->get_part_partition_id(part_iter->part_info,
                                                      &part_id, &dummy)) ||
@@ -8053,12 +8073,11 @@ static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR *part_iter)
     part_iter->field_vals.cur= part_iter->field_vals.start;
     return NOT_A_PARTITION_ID;
   }
-  field->store(part_iter->field_vals.cur++, FALSE);
+  field->store(part_iter->field_vals.cur++, field->flags & UNSIGNED_FLAG);
   if (part_iter->part_info->get_subpartition_id(part_iter->part_info,
                                                 &res))
     return NOT_A_PARTITION_ID;
   return res;
-
 }
 
 

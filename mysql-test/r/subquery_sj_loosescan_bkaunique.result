@@ -7164,6 +7164,115 @@ o
 DROP VIEW v_t2;
 DROP TABLE t1, t2, t3;
 # End of test for bug#13339643.
+#
+# Bug#13424134: Wrong result on JOIN + nested WHERE ... IN clauses
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int_nokey int NOT NULL,
+col_int_key int NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyIsam;
+INSERT INTO t1 VALUES
+(10,1,7), (13,7,3), (18,0,1), (23,8,1);
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_int_key int NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyIsam;
+INSERT INTO t2 VALUES (1,7);
+EXPLAIN SELECT t1a.*
+FROM t1 AS t1a
+JOIN t1 AS t1b USING ( col_int_nokey )
+WHERE t1a.col_int_key IN (
+SELECT pk
+FROM t2
+WHERE col_int_key IN (
+SELECT col_int_nokey
+FROM t1
+)
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1a	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	PRIMARY	t1b	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t2	system	PRIMARY,col_int_key	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary; End temporary
+SELECT t1a.*
+FROM t1 AS t1a
+JOIN t1 AS t1b USING ( col_int_nokey )
+WHERE t1a.col_int_key IN (
+SELECT pk
+FROM t2
+WHERE col_int_key IN (
+SELECT col_int_nokey
+FROM t1
+)
+);
+pk	col_int_nokey	col_int_key
+18	0	1
+23	8	1
+ALTER TABLE t1 ENGINE=Innodb;
+ALTER TABLE t2 ENGINE=Innodb;
+SELECT t1a.*
+FROM t1 AS t1a
+JOIN t1 AS t1b USING ( col_int_nokey )
+WHERE t1a.col_int_key IN (
+SELECT pk
+FROM t2
+WHERE col_int_key IN (
+SELECT col_int_nokey
+FROM t1
+)
+);
+pk	col_int_nokey	col_int_key
+18	0	1
+23	8	1
+DROP TABLE t1, t2;
+# End of test for bug#13424134.
+#
+# Bug#13414014: Extra rows in result on semijoin query with where ...
+#
+CREATE TABLE t1 (
+c INT,
+d INT,
+a VARCHAR(1),
+b VARCHAR(1),
+KEY a (a)
+);
+INSERT INTO t1 VALUES
+(NULL,8,'x','x'), (7,4,'q','q'), (6,8,'c','c');
+CREATE TABLE t2 (
+a VARCHAR(1),
+KEY a (a)
+);
+INSERT INTO t2 VALUES
+('c'), (NULL), ('x'), ('q');
+explain SELECT *
+FROM t2 AS ot
+WHERE (a, a) IN
+(SELECT a, b
+FROM t1 AS it
+WHERE it.a = 'x' OR it.c > it.d
+)
+;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	it	ALL	a	NULL	NULL	NULL	3	Using where; Start temporary
+1	PRIMARY	ot	index	a	a	4	NULL	4	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+SELECT *
+FROM t2 AS ot
+WHERE (a, a) IN
+(SELECT a, b
+FROM t1 AS it
+WHERE it.a = 'x' OR it.c > it.d
+)
+;
+a
+q
+x
+DROP TABLE t1, t2;
+# End of test for bug#13414014.
 # End of 5.6 tests
 set optimizer_switch=default;
 set optimizer_switch=default;
