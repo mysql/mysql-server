@@ -472,7 +472,6 @@
    obj:/lib*/ld-*.so
    obj:/lib*/libdl-*.so
    fun:dlclose
-   fun:_ZL15free_plugin_memP12st_plugin_dl
 }
 
 {
