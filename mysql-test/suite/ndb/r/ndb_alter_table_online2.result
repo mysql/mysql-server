@@ -49,7 +49,7 @@ name
 ~ Starting mysqlslap using column b
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
-update t1 set b= 0;
+update t1 set b = 0 where pk = 1;
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ Alter table t1 add column c
@@ -74,10 +74,10 @@ name
 ~ Starting mysqlslap using column c
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-update t1 set c= 0;
+update t1 set c = 0 where pk = 1;
 select * from t1;
 pk	a	b	c
-1	5000	5000	5000
+1	2000	2000	2000
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ Alter table t1 and try to add partitions

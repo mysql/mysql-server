@@ -422,17 +422,17 @@ main(int argc, char ** argv)
     if(!read_test_case(g_test_case_file, test_case, lineno))
       goto end;
     
-    g_logger.info("#%d - %s %s", 
+    g_logger.info("#%d - %s",
 		  test_no,
-		  test_case.m_command.c_str(), test_case.m_args.c_str());
-    
+		  test_case.m_name.c_str());
+
     // Assign processes to programs
-    if(!setup_test_case(g_config, test_case))
+    if (!setup_test_case(g_config, test_case))
     {
       g_logger.critical("Failed to setup test case");
       goto end;
     }
-    
+
     if(!start_processes(g_config, p_clients))
     {
       g_logger.critical("Failed to start client processes");
@@ -1091,6 +1091,11 @@ stop_process(atrt_process & proc){
     return true;
   }
 
+  if (proc.m_type == atrt_process::AP_MYSQLD)
+  {
+    disconnect_mysqld(proc);
+  }
+
   {
     Properties reply;
     if(proc.m_host->m_cpcd->stop_process(proc.m_proc.m_id, reply) != 0){
@@ -1248,24 +1253,24 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
       tmp.trim(" \t\n\r");
       Vector<BaseString> split;
       tmp.split(split, " ", 2);
-      tc.m_command = split[0];
+      tc.m_cmd.m_exe = split[0];
       if(split.size() == 2)
-	tc.m_args = split[1];
+	tc.m_cmd.m_args = split[1];
       else
-	tc.m_args = "";
+	tc.m_cmd.m_args = "";
       tc.m_max_time = 60000;
       return true;
     }
     return false;
   }
 
-  if(!p.get("cmd", tc.m_command)){
+  if(!p.get("cmd", tc.m_cmd.m_exe)){
     g_logger.critical("Invalid test file: cmd is missing near line: %d", line);
     return false;
   }
   
-  if(!p.get("args", tc.m_args))
-    tc.m_args = "";
+  if(!p.get("args", tc.m_cmd.m_args))
+    tc.m_cmd.m_args = "";
 
   const char * mt = 0;
   if(!p.get("max-time", &mt))
@@ -1283,17 +1288,33 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
   else
     tc.m_run_all= false;
 
+  const char * str;
+  if (p.get("mysqld", &str))
+  {
+    tc.m_mysqld_options.assign(str);
+  }
+  else
+  {
+    tc.m_mysqld_options.assign("");
+  }
+
+  tc.m_cmd.m_cmd_type = atrt_process::AP_NDB_API;
+  if (p.get("cmd-type", &str) && strcmp(str, "mysql") == 0)
+  {
+    tc.m_cmd.m_cmd_type = atrt_process::AP_CLIENT;
+  }
+
   if (!p.get("name", &mt))
   {
     tc.m_name.assfmt("%s %s", 
-		     tc.m_command.c_str(),
-		     tc.m_args.c_str());
+		     tc.m_cmd.m_exe.c_str(),
+		     tc.m_cmd.m_args.c_str());
   }
   else
   {
     tc.m_name.assign(mt);
   }
-  
+
   return true;
 }
 
@@ -1306,46 +1327,87 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
     return false;
   }
 
-  size_t i = 0;
-  for(; i<config.m_processes.size(); i++)
+  for (size_t i = 0; i<config.m_processes.size(); i++)
   {
-    atrt_process & proc = *config.m_processes[i]; 
-    if(proc.m_type == atrt_process::AP_NDB_API || 
-       proc.m_type == atrt_process::AP_CLIENT)
-    {
-      BaseString cmd;
-      char * p = find_bin_path(tc.m_command.c_str());
-      if (p == 0)
-      {
-        g_logger.critical("Failed to locate '%s'", tc.m_command.c_str());
-        return false;
-      }
-      cmd.assign(p);
-      free(p);
-
-      if (0) // valgrind
-      {
-        proc.m_proc.m_path = "/usr/bin/valgrind";
-        proc.m_proc.m_args.appfmt("%s %s", cmd.c_str(), tc.m_args.c_str());
-      }
-      else
-      {
-        proc.m_proc.m_path = cmd;
-        proc.m_proc.m_args.assign(tc.m_args);
-      }
-      if(!tc.m_run_all)
-        break;
-    }
-  }
-  for(i++; i<config.m_processes.size(); i++){
-    atrt_process & proc = *config.m_processes[i]; 
-    if(proc.m_type == atrt_process::AP_NDB_API || 
-       proc.m_type == atrt_process::AP_CLIENT)
+    atrt_process & proc = *config.m_processes[i];
+    if (proc.m_type == atrt_process::AP_NDB_API ||
+        proc.m_type == atrt_process::AP_CLIENT)
     {
       proc.m_proc.m_path.assign("");
       proc.m_proc.m_args.assign("");
     }
   }
+
+  BaseString cmd;
+  char * p = find_bin_path(tc.m_cmd.m_exe.c_str());
+  if (p == 0)
+  {
+    g_logger.critical("Failed to locate '%s'", tc.m_cmd.m_exe.c_str());
+    return false;
+  }
+  cmd.assign(p);
+  free(p);
+
+  for (size_t i = 0; i<config.m_processes.size(); i++)
+  {
+    atrt_process & proc = *config.m_processes[i];
+    if (proc.m_type == tc.m_cmd.m_cmd_type &&
+        proc.m_proc.m_path == "")
+    {
+      proc.m_save.m_proc = proc.m_proc;
+      proc.m_save.m_saved = true;
+
+      proc.m_proc.m_env.appfmt(" ATRT_TIMEOUT=%ld", tc.m_max_time);
+      if (0) // valgrind
+      {
+        proc.m_proc.m_path = "/usr/bin/valgrind";
+        proc.m_proc.m_args.appfmt("%s %s", cmd.c_str(),
+                                  tc.m_cmd.m_args.c_str());
+      }
+      else
+      {
+        proc.m_proc.m_path = cmd;
+        proc.m_proc.m_args.assign(tc.m_cmd.m_args.c_str());
+      }
+      if (!tc.m_run_all)
+        break;
+    }
+  }
+
+  if (tc.m_mysqld_options != "")
+  {
+    g_logger.info("restarting mysqld with extra options: %s",
+                  tc.m_mysqld_options.c_str());
+
+    /**
+     * Apply testcase specific mysqld options
+     */
+    for (size_t i = 0; i<config.m_processes.size(); i++)
+    {
+      atrt_process & proc = *config.m_processes[i];
+      if (proc.m_type == atrt_process::AP_MYSQLD)
+      {
+        proc.m_save.m_proc = proc.m_proc;
+        proc.m_save.m_saved = true;
+        proc.m_proc.m_args.appfmt(" %s", tc.m_mysqld_options.c_str());
+        if (!stop_process(proc))
+        {
+          return false;
+        }
+
+        if (!start_process(proc))
+        {
+          return false;
+        }
+
+        if (!connect_mysqld(proc))
+        {
+          return false;
+        }
+      }
+    }
+  }
+
   return true;
 }
 
@@ -1562,10 +1624,14 @@ reset_config(atrt_config & config)
     atrt_process & proc = *config.m_processes[i]; 
     if (proc.m_save.m_saved)
     {
-      if (!stop_process(proc))
-        return false;
-      
-      changed = true;
+      if (proc.m_proc.m_status == "running")
+      {
+        if (!stop_process(proc))
+          return false;
+
+        changed = true;
+      }
+
       proc.m_save.m_saved = false;
       proc.m_proc = proc.m_save.m_proc;
       proc.m_proc.m_id = -1;
