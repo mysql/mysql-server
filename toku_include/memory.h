@@ -106,7 +106,7 @@ typedef struct memory_status {
     uint64_t requested;       // number of bytes requested
     uint64_t used;            // number of bytes used (requested + overhead), obtained from malloc_usable_size()
     uint64_t freed;           // number of bytes freed;
-    uint64_t max_in_use;      // maximum memory footprint (used - freed), approximate (not worth threadsafety overhead for exact)
+    volatile uint64_t max_in_use;      // maximum memory footprint (used - freed), approximate (not worth threadsafety overhead for exact)
     const char *mallocator_version;
     uint64_t mmap_threshold;
 } MEMORY_STATUS_S, *MEMORY_STATUS;
