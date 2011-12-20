@@ -39,13 +39,6 @@ enum THD_NDB_OPTIONS
     lock, as one other mysqld already has the lock.
   */
   TNO_NO_LOCK_SCHEMA_OP= 1 << 1
-  /*
-    Skip drop of ndb table in delete_table.  Used when calling
-    mysql_rm_table_part2 in "show tables", as we do not want to
-    remove ndb tables "by mistake".  The table should not exist
-    in ndb in the first place.
-  */
-  ,TNO_NO_NDB_DROP_TABLE=    1 << 2
 };
 
 enum THD_NDB_TRANS_OPTIONS
