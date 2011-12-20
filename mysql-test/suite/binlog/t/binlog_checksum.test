@@ -22,10 +22,14 @@ reset master;
 
 create table t1 (a int);
 flush logs;
+copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.saved;
 drop table t1;
 
+# Reset GTIDs
+RESET MASTER;
+
+--exec $MYSQL_BINLOG -c $MYSQLD_DATADIR/master-bin.saved | $MYSQL
 --source include/show_binlog_events.inc
---exec $MYSQL_BINLOG -c $MYSQLD_DATADIR/master-bin.000001 | $MYSQL
 show tables;
 
 # clean-up 
