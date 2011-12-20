@@ -593,11 +593,6 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32	/*!< ON UPDATE NO ACTION */
 /* @} */
 
-/** List of locks that different transactions have acquired on a table. This
-list has a list node that is embedded in a nested union/structure. We have to
-generate a specific template for it. */
-typedef ut_list_base<lock_t, ut_list_node<lock_t> lock_table_t::*>
-	table_lock_list_t;
 
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
@@ -731,7 +726,7 @@ struct dict_table_struct{
 				lock we keep a pointer to the transaction
 				here in the autoinc_trx variable. This is to
 				avoid acquiring the lock_sys_t::mutex and
-				scanning the vector in trx_t.
+			       	scanning the vector in trx_t.
 
 				When an AUTOINC lock has to wait, the
 				corresponding lock instance is created on
@@ -782,7 +777,7 @@ struct dict_table_struct{
 				NOT allowed until this count gets to zero;
 				MySQL does NOT itself check the number of
 				open handles at drop */
-	table_lock_list_t
+	UT_LIST_BASE_NODE_T(lock_t)
 			locks; /*!< list of locks on the table; protected
 			       by lock_sys->mutex */
 #endif /* !UNIV_HOTBACKUP */

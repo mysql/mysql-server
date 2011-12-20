@@ -67,7 +67,7 @@ struct	CheckZipFree {
 };
 
 #define BUF_BUDDY_LIST_VALIDATE(bp, i)				\
-	UT_LIST_VALIDATE(bp->zip_free[i], CheckZipFree())
+	UT_LIST_VALIDATE(list, buf_page_t, bp->zip_free[i], CheckZipFree())
 
 /**********************************************************************//**
 Add a block to the head of the appropriate buddy free list. */
@@ -83,7 +83,7 @@ buf_buddy_add_to_free(
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 	ut_ad(buf_pool->zip_free[i].start != bpage);
-	UT_LIST_ADD_FIRST(buf_pool->zip_free[i], bpage);
+	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
 }
 
 /**********************************************************************//**
@@ -107,7 +107,7 @@ buf_buddy_remove_from_free(
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
-	UT_LIST_REMOVE(buf_pool->zip_free[i], bpage);
+	UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
 }
 
 /**********************************************************************//**

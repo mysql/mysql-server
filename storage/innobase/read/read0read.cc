@@ -221,7 +221,7 @@ read_view_list_validate(void)
 {
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	ut_list_map(trx_sys->view_list, Check());
+	ut_list_map(trx_sys->view_list, &read_view_t::view_list, Check());
 
 	return(TRUE);
 }
@@ -317,9 +317,10 @@ read_view_add(
 	}
 
 	if (prev_elem == NULL) {
-		UT_LIST_ADD_FIRST(trx_sys->view_list, view);
+		UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
 	} else {
-		UT_LIST_INSERT_AFTER(trx_sys->view_list, prev_elem, view);
+		UT_LIST_INSERT_AFTER(
+			view_list, trx_sys->view_list, prev_elem, view);
 	}
 
 	ut_ad(read_view_list_validate());
@@ -403,7 +404,7 @@ read_view_open_now_low(
 
 	/* No active transaction should be visible, except cr_trx */
 
-	ut_list_map(trx_sys->rw_trx_list, CreateView(view));
+	ut_list_map(trx_sys->rw_trx_list, &trx_t::trx_list, CreateView(view));
 
 	if (view->n_trx_ids > 0) {
 		/* The last active transaction has the smallest id: */
@@ -540,7 +541,7 @@ read_view_remove(
 
 	ut_ad(read_view_validate(view));
 
-	UT_LIST_REMOVE(trx_sys->view_list, view);
+	UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
 
 	ut_ad(read_view_list_validate());
 
@@ -654,7 +655,7 @@ read_cursor_view_create_for_mysql(
 
 	/* No active transaction should be visible */
 
-	ut_list_map(trx_sys->rw_trx_list, CreateView(view));
+	ut_list_map(trx_sys->rw_trx_list, &trx_t::trx_list, CreateView(view));
 
 	view->creator_trx_id = cr_trx->id;
 

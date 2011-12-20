@@ -82,7 +82,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    rows_query_ev(NULL), last_event_start_time(0),
    slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
-   checkpoint_group(mts_checkpoint_group), mts_recovery_group_cnt(0),
+   checkpoint_group(opt_mts_checkpoint_group), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),

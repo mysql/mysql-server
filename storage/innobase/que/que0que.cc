@@ -153,8 +153,6 @@ que_fork_create(
 
 	fork->graph = (graph != NULL) ? graph : fork;
 
-	UT_LIST_INIT(fork->thrs, &que_thr_t::thrs);
-
 	return(fork);
 }
 
@@ -186,7 +184,7 @@ que_thr_create(
 
 	thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
-	UT_LIST_ADD_LAST(parent->thrs, thr);
+	UT_LIST_ADD_LAST(thrs, parent->thrs, thr);
 
 	return(thr);
 }
@@ -202,7 +200,7 @@ que_thr_t*
 que_thr_end_lock_wait(
 /*==================*/
 	trx_t*		trx)	/*!< in: transaction with que_state in
-				QUE_THR_LOCK_WAIT */
+		       		QUE_THR_LOCK_WAIT */
 {
 	que_thr_t*	thr;
 	ibool		was_active;
