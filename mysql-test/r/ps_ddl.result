@@ -355,25 +355,24 @@ a
 drop view v1;
 create view v1 as select a from t2;
 set @var=8;
-# XXX: bug, the SQL statement in the trigger is still
-# pointing at table 't3', since the view was expanded
-# at first statement execution.
-# Since the view definition is inlined in the statement
-# at prepare, changing the view definition does not cause 
-# repreparation.
-# Repreparation of the main statement doesn't cause repreparation
+# View in the INSERT-statement in the trigger is still pointing to
+# table 't3', because the trigger hasn't noticed the change
+# in view definition. This will be fixed by WL#4179.
+#
+# The prepared INSERT-statement however does notice the change,
+# but repreparation of the main statement doesn't cause repreparation
 # of trigger statements.
+#
+# The following EXECUTE results in ER_NO_SUCH_TABLE (t3) error, because
+# pre-locking list of the prepared statement has been changed
+# (the prepared statement has noticed the meta-data change),
+# but the trigger still tries to deal with 't3', which is not opened.
+# That's why '8' is not inserted neither into 't2', nor into 't3'.
 execute stmt using @var;
-call p_verify_reprepare_count(0);
+ERROR 42S02: Table 'test.t3' doesn't exist
+call p_verify_reprepare_count(1);
 SUCCESS
 
-#
-# Sic: the insert went into t3, even though the view now
-# points at t2. This is because neither the merged view
-#  nor its prelocking list are affected by view DDL
-# The binary log is of course wrong, since it is not
-# using prepared statements
-#
 select * from t2;
 a
 5
@@ -381,7 +380,6 @@ select * from t3;
 a
 6
 7
-8
 flush table t1;
 set @var=9;
 execute stmt using @var;
@@ -396,7 +394,6 @@ select * from t3;
 a
 6
 7
-8
 drop view v1;
 drop table t1,t2,t3;
 # Test 7-d: dependent TABLE has changed
@@ -816,17 +813,14 @@ a	b	c
 10	20	50
 20	40	100
 30	60	150
-# Currently a different result from conventional statements.
-# A view is inlined once at prepare, later on view DDL
-# does not affect prepared statement and it is not re-prepared.
-# This is reported in Bug#36002 Prepared statements: if a view
-# used in a statement is replaced, bad data
+# This is actually a test case for Bug#11748352 (36002 Prepared
+# statements: if a view used in a statement is replaced, bad data).
 execute stmt;
 a	b	c
-10	20	30
-20	40	60
-30	60	90
-call p_verify_reprepare_count(0);
+10	20	50
+20	40	100
+30	60	150
+call p_verify_reprepare_count(1);
 SUCCESS
 
 flush table t2;
@@ -838,8 +832,199 @@ a	b	c
 call p_verify_reprepare_count(1);
 SUCCESS
 
+# Check that we properly handle ALTER VIEW statements.
+execute stmt;
+a	b	c
+10	20	50
+20	40	100
+30	60	150
+call p_verify_reprepare_count(0);
+SUCCESS
+
+alter view t1 as select a, 3*a as b, 4*a as c from t2;
+execute stmt;
+a	b	c
+10	30	40
+20	60	80
+30	90	120
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+a	b	c
+10	30	40
+20	60	80
+30	90	120
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+a	b	c
+10	30	40
+20	60	80
+30	90	120
+call p_verify_reprepare_count(0);
+SUCCESS
+
+select * from t1;
+a	b	c
+10	30	40
+20	60	80
+30	90	120
+# Check that DROP & CREATE is properly handled under LOCK TABLES.
+drop view t1;
+flush tables;
+create view t1 as select a, 5*a as b, 6*a as c from t2;
+lock tables t1 read, t2 read;
+execute stmt;
+a	b	c
+10	50	60
+20	100	120
+30	150	180
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+a	b	c
+10	50	60
+20	100	120
+30	150	180
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+a	b	c
+10	50	60
+20	100	120
+30	150	180
+call p_verify_reprepare_count(0);
+SUCCESS
+
+unlock tables;
+#   ... and once again...
+drop view t1;
+create view t1 as select a, 6*a as b, 7*a as c from t2;
+lock tables t1 read, t2 read;
+execute stmt;
+a	b	c
+10	60	70
+20	120	140
+30	180	210
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+a	b	c
+10	60	70
+20	120	140
+30	180	210
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+a	b	c
+10	60	70
+20	120	140
+30	180	210
+call p_verify_reprepare_count(0);
+SUCCESS
+
+unlock tables;
+# Check that ALTER VIEW is properly handled under LOCK TABLES.
+alter view t1 as select a, 7*a as b, 8*a as c from t2;
+lock tables t1 read, t2 read;
+execute stmt;
+a	b	c
+10	70	80
+20	140	160
+30	210	240
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+a	b	c
+10	70	80
+20	140	160
+30	210	240
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+a	b	c
+10	70	80
+20	140	160
+30	210	240
+call p_verify_reprepare_count(0);
+SUCCESS
+
+unlock tables;
 drop table t2;
 drop view t1;
+deallocate prepare stmt;
+# Check that DROP & CREATE is properly handled under LOCK TABLES when
+# LOCK TABLES does not contain the complete set of views.
+create table t1(a int);
+insert into t1 values (1), (2), (3);
+create view v1 as select a from t1;
+lock tables t1 read, v1 read;
+prepare stmt from 'select * from v1';
+execute stmt;
+a
+1
+2
+3
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+a
+1
+2
+3
+call p_verify_reprepare_count(0);
+SUCCESS
+
+unlock tables;
+drop view v1;
+create view v1 as select 2*a from t1;
+lock tables t1 read;
+execute stmt;
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+unlock tables;
+drop table t1;
+drop view v1;
+deallocate prepare stmt;
+# Check that ALTER VIEW is properly handled under LOCK TABLES when
+# LOCK TABLES does not contain the complete set of views.
+create table t1(a int);
+insert into t1 values (1), (2), (3);
+create view v1 as select a from t1;
+lock tables t1 read, v1 read;
+prepare stmt from 'select * from v1';
+execute stmt;
+a
+1
+2
+3
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+a
+1
+2
+3
+call p_verify_reprepare_count(0);
+SUCCESS
+
+unlock tables;
+alter view v1 as select 2*a from t1;
+lock tables t1 read;
+execute stmt;
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+unlock tables;
+drop table t1;
+drop view v1;
 deallocate prepare stmt;
 =====================================================================
 Part 18: VIEW -> VIEW (VIEW dependencies) transitions
@@ -938,15 +1123,15 @@ drop view v2;
 create view v2 as select a from t2;
 execute stmt;
 a
-1
-2
-3
+4
+5
+6
 execute stmt;
 a
-1
-2
-3
-call p_verify_reprepare_count(0);
+4
+5
+6
+call p_verify_reprepare_count(1);
 SUCCESS
 
 flush table t1;
@@ -955,7 +1140,7 @@ a
 4
 5
 6
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
 SUCCESS
 
 execute stmt;

@@ -17,10 +17,18 @@
 
 #include "opt_explain.h"
 #include "sql_select.h"
+#include "sql_optimizer.h" // JOIN
 #include "sql_partition.h" // for make_used_partitions_str()
+#include "sql_join_buffer.h" // JOIN_CACHE
 
 static bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit,
                                select_result *result);
+const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
+			      "ALL","range","index","fulltext",
+			      "ref_or_null","unique_subquery","index_subquery",
+                              "index_merge"
+};
+
 
 /**
   A base for all Explain_* classes

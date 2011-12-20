@@ -467,7 +467,7 @@ public:
   ulong slave_parallel_workers; // the one slave session time number of workers
   ulong recovery_parallel_workers; // number of workers while recovering
   uint checkpoint_seqno;  // counter of groups executed after the most recent CP
-  uint checkpoint_group;  // number of groups in one checkpoint interval (period).
+  uint checkpoint_group;  // cache for ::opt_mts_checkpoint_group 
   MY_BITMAP recovery_groups;  // bitmap used during recovery
   ulong mts_recovery_group_cnt; // number of groups to execute at recovery
   ulong mts_recovery_index;     // running index of recoverable groups
