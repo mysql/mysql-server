@@ -38,6 +38,7 @@
 #include "log_event.h"                   // class Table_map_log_event
 #include <m_ctype.h>
 #include <errno.h>
+#include "sql_join_buffer.h"             // CACHE_FIELD
 
 using std::max;
 using std::min;

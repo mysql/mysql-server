@@ -42,7 +42,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0arr.h"
 
 #if  defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
-extern my_bool	timed_mutexes;
+extern "C" my_bool	timed_mutexes;
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
 #ifdef HAVE_WINDOWS_ATOMICS

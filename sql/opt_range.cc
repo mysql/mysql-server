@@ -115,6 +115,7 @@
 #include "sql_select.h"
 #include "opt_trace.h"
 #include "filesort.h"         // filesort_free_buffers
+#include "sql_optimizer.h"    // is_indexed_agg_distinct
 
 using std::min;
 using std::max;
@@ -1292,8 +1293,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
     memset(&alloc, 0, sizeof(alloc));
   file= head->file;
   record= head->record[0];
-  save_read_set= head->read_set;
-  save_write_set= head->write_set;
 
   /* Allocate a bitmap for used columns (Q: why not on MEM_ROOT?) */
   if (!(bitmap= (my_bitmap_map*) my_malloc(head->s->column_bitmap_size,
@@ -1357,7 +1356,6 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
     free_root(&alloc,MYF(0));
     my_free(column_bitmap.bitmap);
   }
-  head->column_bitmaps_set(save_read_set, save_write_set);
   my_free(mrr_buf_desc);
   DBUG_VOID_RETURN;
 }
@@ -1485,6 +1483,8 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
 {
   handler *save_file= file, *org_file;
   THD *thd;
+  MY_BITMAP * const save_read_set= head->read_set;
+  MY_BITMAP * const save_write_set= head->write_set;
   DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_merged_scan");
 
   in_ror_merged_scan= 1;
@@ -9763,7 +9763,10 @@ char* &mrr_get_ptr_by_idx(range_seq_t seq, uint idx)
 int QUICK_RANGE_SELECT::get_next()
 {
   char *dummy;
+  MY_BITMAP * const save_read_set= head->read_set;
+  MY_BITMAP * const save_write_set= head->write_set;
   DBUG_ENTER("QUICK_RANGE_SELECT::get_next");
+
   if (in_ror_merged_scan)
   {
     /*
