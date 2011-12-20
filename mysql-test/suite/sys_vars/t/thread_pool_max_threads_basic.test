@@ -18,7 +18,7 @@ select * from information_schema.session_variables where variable_name='thread_p
 #
 set global thread_pool_max_threads=1;
 select @@global.thread_pool_max_threads;
-set global thread_pool_max_threads=4294967295;
+set global thread_pool_max_threads=65536;
 select @@global.thread_pool_max_threads;
 --error ER_GLOBAL_VARIABLE
 set session thread_pool_max_threads=1;

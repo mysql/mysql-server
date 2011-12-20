@@ -1,5 +1,5 @@
 # uint global
-
+--source include/not_windows.inc
 SET @start_global_value = @@global.thread_pool_idle_timeout;
 
 #
