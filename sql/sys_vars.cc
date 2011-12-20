@@ -248,7 +248,7 @@ static Sys_var_mybool Sys_pfs_consumer_statement_digest(
        "performance_schema_consumer_statements_digest",
        "Default startup value for the statements_digest consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_statement_digest_enabled),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_events_waits_history_long_size(
