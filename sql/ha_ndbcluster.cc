@@ -58,6 +58,7 @@
 #include "ndb_component.h"
 #include "ndb_util_thread.h"
 #include "ndb_local_connection.h"
+#include "ndb_local_schema.h"
 
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal();
@@ -11205,8 +11206,7 @@ int ha_ndbcluster::delete_table(const char *name)
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
 
-  if ((thd == injector_thd) ||
-      (thd_ndb->options & TNO_NO_NDB_DROP_TABLE))
+  if (thd == injector_thd)
   {
     /*
       Table was dropped remotely is already
@@ -12298,44 +12298,45 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-#ifndef NDB_NO_MYSQL_RM_TABLE_PART2
-  /*
-    Delete old files
-
-    ndbcluster_find_files() may be called from I_S code and ndbcluster_binlog
-    thread in situations when some tables are already open. This means that
-    code below will try to obtain exclusive metadata lock on some table
-    while holding shared meta-data lock on other tables. This might lead to a
-    deadlock but such a deadlock should be detected by MDL deadlock detector.
-  */
-  List_iterator_fast<char> it3(delete_list);
-  while ((file_name_str= it3++))
+  if (thd == injector_thd)
   {
-    DBUG_PRINT("info", ("Removing table %s/%s", db, file_name_str));
-    // Delete the table and all related files
-    TABLE_LIST table_list;
-    table_list.init_one_table(db, strlen(db),
-                              file_name_str, strlen(file_name_str),
-                              file_name_str,
-                              TL_WRITE);
-    table_list.mdl_request.set_type(MDL_EXCLUSIVE);
     /*
-      set TNO_NO_NDB_DROP_TABLE flag to not drop ndb table.
-      it should not exist anyways
+      Don't delete anything when called from
+      the binlog thread. This is a kludge to avoid
+      that something is deleted when "Ndb schema dist"
+      uses find_files() to check for "local tables in db"
     */
-    thd_ndb->options|= TNO_NO_NDB_DROP_TABLE;
-    (void)mysql_rm_table_part2(thd, &table_list,
-                               false,   /* if_exists */
-                               false,   /* drop_temporary */
-                               false,   /* drop_view */
-                               true     /* dont_log_query*/);
-    thd_ndb->options&= ~TNO_NO_NDB_DROP_TABLE;
-    trans_commit_implicit(thd); /* Safety, should be unnecessary. */
-    thd->mdl_context.release_transactional_locks();
-    /* Clear error message that is returned when table is deleted */
-    thd->clear_error();
   }
-#endif
+  else
+  {
+    /*
+      Delete old files
+      (.frm files with corresponding .ndb + does not exists in NDB)
+    */
+    List_iterator_fast<char> it3(delete_list);
+    while ((file_name_str= it3++))
+    {
+      DBUG_PRINT("info", ("Deleting local files for table '%s.%s'",
+                          db, file_name_str));
+
+      // Delete the table and its related files from disk
+      Ndb_local_schema::Table local_table(thd, db, file_name_str);
+      local_table.remove_table();
+
+      // Flush the table out of ndbapi's dictionary cache
+      Ndb_table_guard ndbtab_g(ndb->getDictionary(), file_name_str);
+      ndbtab_g.invalidate();
+
+      // Flush the table from table def. cache.
+      TABLE_LIST table_list;
+      memset(&table_list, 0, sizeof(table_list));
+      table_list.db= (char*)db;
+      table_list.alias= table_list.table_name= file_name_str;
+      close_cached_tables(thd, &table_list, false, 0);
+
+      DBUG_ASSERT(!thd->is_error());
+    }
+  }
 
   // Create new files
   List_iterator_fast<char> it2(create_list);

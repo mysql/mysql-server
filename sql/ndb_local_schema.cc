@@ -85,8 +85,19 @@ void Ndb_local_schema::Base::log_warning(const char* fmt, ...) const
   my_vsnprintf(buf, sizeof(buf), fmt, args);
   va_end(args);
 
-  sql_print_warning("Ndb schema[%s.%s]: %s",
-                    m_db, m_name, buf);
+  if (m_push_warnings)
+  {
+    // Append the error which caused the error to thd's warning list
+    push_warning_printf(m_thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        ER_GET_ERRMSG, "Ndb schema[%s.%s]: %s",
+                        m_db, m_name, buf);
+  }
+  else
+  {
+    // Print the warning to log file
+    sql_print_warning("Ndb schema[%s.%s]: %s",
+                      m_db, m_name, buf);
+  }
 }
 
 
@@ -94,6 +105,12 @@ Ndb_local_schema::Base::Base(THD* thd, const char* db, const char* name) :
   m_thd(thd),
   m_db(db), m_name(name)
 {
+  /*
+    System(or daemon) threads report error to log file
+    all other threads use push_warning
+  */
+  m_push_warnings = (thd->command != COM_DAEMON);
+
   m_have_mdl_lock= mdl_try_lock();
 }
 
