@@ -338,38 +338,9 @@ BOOL toku_txn_requires_checkpoint(TOKUTXN txn) {
 
 //Called during a yield (ydb lock NOT held).
 static void
-local_checkpoints_and_log_xcommit(void *thunk) {
+log_xcommit(void *thunk) {
     struct xcommit_info *info = thunk;
     TOKUTXN txn = info->txn;
-
-#if 0
-    if (!txn->parent && !toku_list_empty(&txn->checkpoint_before_commit)) {
-        toku_poll_txn_progress_function(txn, TRUE, TRUE);
-        //Do local checkpoints that must happen BEFORE logging xcommit
-        uint32_t num_cachefiles = 0;
-        uint32_t list_size = 16;
-        CACHEFILE *cachefiles= NULL;
-        XMALLOC_N(list_size, cachefiles);
-        while (!toku_list_empty(&txn->checkpoint_before_commit)) {
-            struct toku_list *list = toku_list_pop(&txn->checkpoint_before_commit);
-            struct brt_header *h = toku_list_struct(list,
-                                                    struct brt_header,
-                                                    checkpoint_before_commit_link);
-            cachefiles[num_cachefiles++] = h->cf;
-            if (num_cachefiles == list_size) {
-                list_size *= 2;
-                XREALLOC_N(list_size, cachefiles);
-            }
-        }
-        assert(num_cachefiles);
-        CACHETABLE ct = toku_cachefile_get_cachetable(cachefiles[0]);
-
-        int r = toku_cachetable_local_checkpoint_for_commit(ct, txn, num_cachefiles, cachefiles);
-        assert_zero(r);
-        toku_free(cachefiles);
-        toku_poll_txn_progress_function(txn, TRUE, FALSE);
-    }
-#endif
     // not sure how the elements in the list are getting freed, so I am doing this
     if (!txn->parent && !toku_list_empty(&txn->checkpoint_before_commit)) {
         while (!toku_list_empty(&txn->checkpoint_before_commit)) {
@@ -400,7 +371,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
             .r = 0,
             .txn = txn,
         };
-        yield(local_checkpoints_and_log_xcommit, &info, yieldv);
+        yield(log_xcommit, &info, yieldv);
         r = info.r;
     }
     if (r!=0)

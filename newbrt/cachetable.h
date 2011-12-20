@@ -189,7 +189,7 @@ void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
     int (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
     int (*close_userdata)(CACHEFILE, int, void*, char **/*error_string*/, BOOL, LSN),
     int (*checkpoint_userdata)(CACHEFILE, int, void*),
-    int (*begin_checkpoint_userdata)(CACHEFILE, int, LSN, void*),
+    int (*begin_checkpoint_userdata)(LSN, void*),
     int (*end_checkpoint_userdata)(CACHEFILE, int, void*),
     int (*note_pin_by_checkpoint)(CACHEFILE, void*),
     int (*note_unpin_by_checkpoint)(CACHEFILE, void*));
@@ -544,10 +544,6 @@ void toku_cachetable_set_lock_unlock_for_io (CACHETABLE ct, void (*ydb_lock_call
 // Effect: When we do I/O we may need to release locks (e.g., the ydb lock).  These functions release the lock acquire the lock.
 
     
-#if 0
-int toku_cachetable_local_checkpoint_for_commit(CACHETABLE ct, TOKUTXN txn, uint32_t n, CACHEFILE cachefiles[]);
-#endif
-
 void cachefile_kibbutz_enq (CACHEFILE cf, void (*f)(void*), void *extra);
 // Effect: Add a job to the cachetable's collection of work to do.  Note that function f must call remove_background_job()
 
