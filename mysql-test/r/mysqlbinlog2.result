@@ -19,7 +19,7 @@ insert into t1 values(null, "f");
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# GROUPS: GTID:(X,X)
+# [empty]
 SET @@SESSION.GTID_NEXT= 'GTID';
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
@@ -227,7 +227,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# GROUPS: GTID:(X,X)
+# [empty]
 SET @@SESSION.GTID_NEXT= 'GTID';
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
@@ -352,7 +352,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# GROUPS: GTID:(X,X)
+# [empty]
 SET @@SESSION.GTID_NEXT= 'GTID';
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
@@ -399,7 +399,7 @@ flush logs;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# GROUPS: GTID:(X,X)
+# [empty]
 SET @@SESSION.GTID_NEXT= 'GTID';
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
@@ -470,7 +470,7 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-# GROUPS: GTID:(X,X)
+# GTID:(X,Y)
 SET @@SESSION.GTID_NEXT= 'GTID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
@@ -570,7 +570,7 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-# GROUPS: GTID:(X,X)
+# GTID:(X,Y)
 SET @@SESSION.GTID_NEXT= 'GTID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
@@ -645,7 +645,7 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-# GROUPS: GTID:(X,X)
+# GTID:(X,Y)
 SET @@SESSION.GTID_NEXT= 'GTID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
@@ -723,7 +723,7 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-# GROUPS: GTID:(X,X)
+# GTID:(X,Y)
 SET @@SESSION.GTID_NEXT= 'GTID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
@@ -754,7 +754,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# GROUPS: GTID:(X,X)
+# [empty]
 SET @@SESSION.GTID_NEXT= 'GTID';
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
@@ -800,7 +800,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# GROUPS: GTID:(X,X)
+# [empty]
 SET @@SESSION.GTID_NEXT= 'GTID';
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
@@ -1007,7 +1007,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# GROUPS: GTID:(X,X)
+# [empty]
 SET @@SESSION.GTID_NEXT= 'GTID';
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
@@ -1131,7 +1131,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# GROUPS: GTID:(X,X)
+# [empty]
 SET @@SESSION.GTID_NEXT= 'GTID';
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
@@ -1177,7 +1177,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# GROUPS: GTID:(X,X)
+# [empty]
 SET @@SESSION.GTID_NEXT= 'GTID';
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
@@ -1248,7 +1248,7 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-# GROUPS: GTID:(X,X)
+# GTID:(X,Y)
 SET @@SESSION.GTID_NEXT= 'GTID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
@@ -1348,7 +1348,7 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-# GROUPS: GTID:(X,X)
+# GTID:(X,Y)
 SET @@SESSION.GTID_NEXT= 'GTID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
@@ -1422,7 +1422,7 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-# GROUPS: GTID:(X,X)
+# GTID:(X,Y)
 SET @@SESSION.GTID_NEXT= 'GTID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
@@ -1453,7 +1453,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# GROUPS: GTID:(X,X)
+# [empty]
 SET @@SESSION.GTID_NEXT= 'GTID';
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
@@ -1524,7 +1524,7 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-# GROUPS: GTID:(X,X)
+# GTID:(X,Y)
 SET @@SESSION.GTID_NEXT= 'GTID';
 DELIMITER ;
 # End of log file
@@ -1580,7 +1580,7 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-# GROUPS: GTID:(X,X)
+# GTID:(X,Y)
 SET @@SESSION.GTID_NEXT= 'GTID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
@@ -1609,7 +1609,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# GROUPS: GTID:(X,X)
+# [empty]
 SET @@SESSION.GTID_NEXT= 'GTID';
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
@@ -1655,7 +1655,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# GROUPS: GTID:(X,X)
+# [empty]
 SET @@SESSION.GTID_NEXT= 'GTID';
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
@@ -1724,7 +1724,7 @@ insert into t1 values(null, "e")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
-# GROUPS: GTID:(X,X)
+# GTID:(X,Y)
 SET @@SESSION.GTID_NEXT= 'GTID';
 SET TIMESTAMP=1579609943/*!*/;
 BEGIN
@@ -1736,7 +1736,7 @@ insert into t1 values(null, "f")
 SET TIMESTAMP=1579609943/*!*/;
 COMMIT
 /*!*/;
-# GROUPS: GTID:(X,X)
+# GTID:(X,Y)
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
