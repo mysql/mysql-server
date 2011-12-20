@@ -26,6 +26,7 @@ class Ndb_local_schema
   */
   class Base {
     bool m_have_mdl_lock;
+    bool m_push_warnings;
 
     bool mdl_try_lock(void) const;
     void mdl_unlock(void);
