@@ -156,7 +156,7 @@ events_waits_history	YES
 events_waits_history_long	YES
 global_instrumentation	YES
 thread_instrumentation	YES
-statement_digest	YES
+statements_digest	YES
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
 idle	MICROSECOND

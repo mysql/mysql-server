@@ -29,7 +29,7 @@ events_waits_history	YES
 events_waits_history_long	YES
 global_instrumentation	YES
 thread_instrumentation	NO
-statement_digest	YES
+statements_digest	YES
 flush tables;
 truncate performance_schema.objects_summary_global_by_type;
 truncate performance_schema.table_io_waits_summary_by_index_usage;
