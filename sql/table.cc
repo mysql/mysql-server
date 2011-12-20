@@ -5161,6 +5161,9 @@ void st_table::mark_virtual_columns_for_write(bool insert_fl)
   Field **vfield_ptr, *tmp_vfield;
   bool bitmap_updated= FALSE;
 
+  if (!vfield)
+    return;
+
   for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
   {
     tmp_vfield= *vfield_ptr;

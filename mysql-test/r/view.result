@@ -3926,3 +3926,14 @@ drop table t1,t2;
 # -----------------------------------------------------------------
 # -- End of 5.1 tests.
 # -----------------------------------------------------------------
+#
+# Bug #794005: crash in st_table::mark_virtual_columns_for_write
+#
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE VIEW v1 AS SELECT * FROM v2;
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW v2 AS SELECT * FROM t1;
+UPDATE v1 SET a = 10;
+DROP VIEW v1,v2;
+DROP TABLE t1,t2;
