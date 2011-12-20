@@ -1527,17 +1527,17 @@ a
 explain extended select * from t3 where a >= all (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	Using temporary
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>(<in_optimizer>(`test`.`t3`.`a`,(<max>(select `test`.`t2`.`b` from `test`.`t2` group by 1) > <cache>(`test`.`t3`.`a`))))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>(<in_optimizer>(`test`.`t3`.`a`,((select max(`test`.`t2`.`b`) from `test`.`t2`) > <cache>(`test`.`t3`.`a`))))
 select * from t3 where a >= some (select b from t2 group by 1);
 a
 explain extended select * from t3 where a >= some (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	Using temporary
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>(<in_optimizer>(`test`.`t3`.`a`,(<min>(select `test`.`t2`.`b` from `test`.`t2` group by 1) <= <cache>(`test`.`t3`.`a`))))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>(<in_optimizer>(`test`.`t3`.`a`,((select min(`test`.`t2`.`b`) from `test`.`t2`) <= <cache>(`test`.`t3`.`a`))))
 select * from t3 where NULL >= any (select b from t2);
 a
 explain extended select * from t3 where NULL >= any (select b from t2);
@@ -1551,9 +1551,9 @@ a
 explain extended select * from t3 where NULL >= any (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	Using temporary
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>(<in_optimizer>(NULL,(<min>(select `test`.`t2`.`b` from `test`.`t2` group by 1) <= NULL)))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>(<in_optimizer>(NULL,((select min(`test`.`t2`.`b`) from `test`.`t2`) <= NULL)))
 select * from t3 where NULL >= some (select b from t2);
 a
 explain extended select * from t3 where NULL >= some (select b from t2);
@@ -1567,9 +1567,9 @@ a
 explain extended select * from t3 where NULL >= some (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	Using temporary
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>(<in_optimizer>(NULL,(<min>(select `test`.`t2`.`b` from `test`.`t2` group by 1) <= NULL)))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>(<in_optimizer>(NULL,((select min(`test`.`t2`.`b`) from `test`.`t2`) <= NULL)))
 insert into t2 values (2,2), (2,1), (3,3), (3,1);
 select * from t3 where a > all (select max(b) from t2 group by a);
 a
@@ -2849,9 +2849,9 @@ Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `tes
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where; Using temporary
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<expr_cache><`test`.`t1`.`one`,`test`.`t1`.`two`>(<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where (`test`.`t2`.`flag` = '0') group by `test`.`t2`.`one`,`test`.`t2`.`two` having (trigcond(((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`))) and trigcond(((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`))) and trigcond(<is_not_null_test>(`test`.`t2`.`one`)) and trigcond(<is_not_null_test>(`test`.`t2`.`two`)))))) AS `test` from `test`.`t1`
+Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<expr_cache><`test`.`t1`.`one`,`test`.`t1`.`two`>(<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and trigcond(((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`))) and trigcond(((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)))) having (trigcond(<is_not_null_test>(`test`.`t2`.`one`)) and trigcond(<is_not_null_test>(`test`.`t2`.`two`)))))) AS `test` from `test`.`t1`
 DROP TABLE t1,t2;
 set @@optimizer_switch=@save_optimizer_switch;
 CREATE TABLE t1 (a char(5), b char(5));
