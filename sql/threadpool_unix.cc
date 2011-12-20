@@ -1136,18 +1136,15 @@ static int change_group(connection_t *c,
   if (c->logged_in)
     io_poll_disassociate_fd(old_group->pollfd,fd);
   c->thread_group->connection_count--;
-  mysql_mutex_lock(&old_group->mutex);
+  mysql_mutex_unlock(&old_group->mutex);
   
   /* Add connection to the new group. */
   mysql_mutex_lock(&new_group->mutex);
-
   c->thread_group= new_group;
   new_group->connection_count++;
-
   /* Ensure that there is a listener in the new group. */
   if(!new_group->thread_count && !new_group->pending_thread_start_count)
     ret= create_worker(new_group);
-
   mysql_mutex_unlock(&new_group->mutex);
   return ret;
 }
