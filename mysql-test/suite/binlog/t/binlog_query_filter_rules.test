@@ -21,6 +21,10 @@ flush logs;
 --exec $MYSQL_BINLOG  $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/bug36099.sql
 
 drop table t1;
+
+# Reset GTIDs
+RESET MASTER;
+# Run statements
 --exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/bug36099.sql"
 
 --echo *** must be 1 ***

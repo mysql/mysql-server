@@ -17,13 +17,18 @@
 --source include/have_binlog_format_mixed.inc
 
 CREATE TABLE t1(id INT);
+let $datadir = `SELECT @@DATADIR`;
 let $binlog= query_get_value(SHOW MASTER STATUS, File, 1);
 let $binlog_path= `SELECT CONCAT(@@DATADIR, '$binlog')`;
 SHOW TABLES;
 FLUSH LOGS;
+copy_file $binlog_path $datadir/master-bin.saved;
 DROP TABLE t1;
 
---exec $MYSQL_BINLOG $binlog_path | $MYSQL test
+# Reset GTIDs
+RESET MASTER;
+# Replay binlog
+--exec $MYSQL_BINLOG $datadir/master-bin.saved | $MYSQL test
 SHOW TABLES;
 
 # Clean up

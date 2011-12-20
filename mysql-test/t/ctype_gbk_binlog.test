@@ -28,7 +28,10 @@ DROP PROCEDURE p1;
 RENAME TABLE t1 to t2;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --force-if-open --short-form $MYSQLD_DATADIR/master-bin.000001 | $MYSQL
+copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.saved;
+# Reset GTIDs
+RESET MASTER;
+--exec $MYSQL_BINLOG --force-if-open --short-form $MYSQLD_DATADIR/master-bin.saved | $MYSQL
 SELECT hex(f1) FROM t2;
 SELECT hex(f1) FROM t1;
 
