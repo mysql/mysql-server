@@ -307,8 +307,8 @@ void
 os_sync_init(void)
 /*==============*/
 {
-	UT_LIST_INIT(os_mutex_list, &os_mutex_str_t::os_mutex_list);
-	UT_LIST_INIT(os_event_list, &os_event_struct::os_event_list);
+	UT_LIST_INIT(os_event_list);
+	UT_LIST_INIT(os_mutex_list);
 
 	os_sync_mutex = NULL;
 	os_sync_mutex_inited = FALSE;
@@ -422,7 +422,7 @@ os_event_create(
 	}
 
 	/* Put to the list of events */
-	UT_LIST_ADD_FIRST(os_event_list, event);
+	UT_LIST_ADD_FIRST(os_event_list, os_event_list, event);
 
 	os_event_count++;
 
@@ -526,7 +526,7 @@ os_event_free_internal(
 	}
 
 	/* Remove from the list of events */
-	UT_LIST_REMOVE(os_event_list, event);
+	UT_LIST_REMOVE(os_event_list, os_event_list, event);
 
 	os_event_count--;
 
@@ -557,7 +557,7 @@ os_event_free(
 	/* Remove from the list of events */
 	os_mutex_enter(os_sync_mutex);
 
-	UT_LIST_REMOVE(os_event_list, event);
+	UT_LIST_REMOVE(os_event_list, os_event_list, event);
 
 	os_event_count--;
 
@@ -766,7 +766,7 @@ os_mutex_create(void)
 		os_mutex_enter(os_sync_mutex);
 	}
 
-	UT_LIST_ADD_FIRST(os_mutex_list, mutex_str);
+	UT_LIST_ADD_FIRST(os_mutex_list, os_mutex_list, mutex_str);
 
 	os_mutex_count++;
 
@@ -818,15 +818,15 @@ os_mutex_free(
 {
 	ut_a(mutex);
 
-	if (!os_sync_free_called) {
+	if (UNIV_LIKELY(!os_sync_free_called)) {
 		os_event_free_internal(mutex->event);
 	}
 
-	if (os_sync_mutex_inited) {
+	if (UNIV_LIKELY(os_sync_mutex_inited)) {
 		os_mutex_enter(os_sync_mutex);
 	}
 
-	UT_LIST_REMOVE(os_mutex_list, mutex);
+	UT_LIST_REMOVE(os_mutex_list, os_mutex_list, mutex);
 
 	os_mutex_count--;
 
