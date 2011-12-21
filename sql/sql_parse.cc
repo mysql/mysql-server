@@ -2298,6 +2298,39 @@ mysql_execute_command(THD *thd)
   } /* endif unlikely slave */
 #endif
 
+  status_var_increment(thd->status_var.com_stat[lex->sql_command]);
+
+  Opt_trace_start ots(thd, all_tables, lex->sql_command, &lex->var_list,
+                      thd->query(), thd->query_length(), NULL,
+                      thd->variables.character_set_client);
+
+  Opt_trace_object trace_command(&thd->opt_trace);
+  Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
+
+  DBUG_ASSERT(thd->transaction.stmt.cannot_safely_rollback() == FALSE);
+
+  /*
+    End a active transaction so that this command will have it's
+    own transaction and will also sync the binary log. If a DDL is
+    not run in it's own transaction it may simply never appear on
+    the slave in case the outside transaction rolls back.
+  */
+  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN))
+  {
+    /*
+      Note that this should never happen inside of stored functions
+      or triggers as all such statements prohibited there.
+    */
+    DBUG_ASSERT(! thd->in_sub_stmt);
+    /* Commit or rollback the statement transaction. */
+    thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+    /* Commit the normal transaction if one is active. */
+    if (trans_commit_implicit(thd))
+      goto error;
+    /* Release metadata locks acquired in this transaction. */
+    thd->mdl_context.release_transactional_locks();
+  }
+
 #ifdef HAVE_GTID
 #ifndef DBUG_OFF
   {
@@ -2344,39 +2377,6 @@ mysql_execute_command(THD *thd)
   }
 #endif
 #endif
-
-  status_var_increment(thd->status_var.com_stat[lex->sql_command]);
-
-  Opt_trace_start ots(thd, all_tables, lex->sql_command, &lex->var_list,
-                      thd->query(), thd->query_length(), NULL,
-                      thd->variables.character_set_client);
-
-  Opt_trace_object trace_command(&thd->opt_trace);
-  Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
-
-  DBUG_ASSERT(thd->transaction.stmt.cannot_safely_rollback() == FALSE);
-
-  /*
-    End a active transaction so that this command will have it's
-    own transaction and will also sync the binary log. If a DDL is
-    not run in it's own transaction it may simply never appear on
-    the slave in case the outside transaction rolls back.
-  */
-  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN))
-  {
-    /*
-      Note that this should never happen inside of stored functions
-      or triggers as all such statements prohibited there.
-    */
-    DBUG_ASSERT(! thd->in_sub_stmt);
-    /* Commit or rollback the statement transaction. */
-    thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-    /* Commit the normal transaction if one is active. */
-    if (trans_commit_implicit(thd))
-      goto error;
-    /* Release metadata locks acquired in this transaction. */
-    thd->mdl_context.release_transactional_locks();
-  }
 
 #ifndef DBUG_OFF
   if (lex->sql_command != SQLCOM_SET_OPTION)

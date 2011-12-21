@@ -1499,7 +1499,7 @@ bool show_binlog_info(THD* thd)
 
     /Alfranio
   */
-  global_sid_lock.rdlock();
+  global_sid_lock.wrlock();
   const Gtid_set* gtid_set= gtid_state.get_logged_gtids();
   if (gtid_set->to_string(&gtid_set_buffer, &gtid_set_size))
   {

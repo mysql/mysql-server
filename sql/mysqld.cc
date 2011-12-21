@@ -5041,7 +5041,7 @@ int mysqld_main(int argc, char **argv)
 
         /Alfranio
       */
-      global_sid_lock.rdlock();
+      global_sid_lock.wrlock();
       Previous_gtids_log_event prev_gtids_ev(gtid_state.get_logged_gtids());
       global_sid_lock.unlock();
       prev_gtids_ev.checksum_alg= binlog_checksum_options;

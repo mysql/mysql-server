@@ -373,9 +373,13 @@ gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc)
       RETURN_STATUS_OK)
     DBUG_RETURN(GTID_STATEMENT_CANCEL);
 
-  global_sid_lock.rdlock();
-
+#ifndef NO_DBUG
+  global_sid_lock.wrlock();
   gtid_state.dbug_print();
+  global_sid_lock.unlock();
+#endif
+
+  global_sid_lock.rdlock();
 
   // begin commit-sequence, i.e., acquire group ownerships
   enum_gtid_statement_status ret=

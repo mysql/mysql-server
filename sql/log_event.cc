@@ -8674,6 +8674,29 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Rows_log_event::do_apply_event(Relay_log_info*)");
   int error= 0;
+
+#ifdef HAVE_GTID
+  if (opt_bin_log)
+  {
+    /*
+      Initialize the cache manager if this was not done yet.
+      binlog_setup_trx_data is idempotent and if it's not called here
+      it's called elsewhere.  It is needed here just so that
+      thd->get_group_cache won't crash.
+    */
+    thd->binlog_setup_trx_data();
+    enum_gtid_statement_status state=
+      gtid_before_statement(thd,
+                            thd->get_group_cache(false),
+                            thd->get_group_cache(true));
+    if (state == GTID_STATEMENT_CANCEL)
+      // error has already been printed; don't print anything more here
+      DBUG_RETURN(-1);
+    else if (state == GTID_STATEMENT_SKIP)
+      DBUG_RETURN(0);
+  }
+#endif
+
   /*
     If m_table_id == ~0UL, then we have a dummy event that does not
     contain any data.  In that case, we just remove all tables in the
