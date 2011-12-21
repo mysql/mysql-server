@@ -670,6 +670,40 @@ buf_flush_relocate_on_flush_list(
 }
 
 /********************************************************************//**
+Updates the doublewrite buffer when an IO request that is part of an
+LRU or flush batch is completed. */
+UNIV_INLINE
+void
+buf_flush_update_doublewrite(void)
+/*==============================*/
+{
+	if (!srv_use_doublewrite_buf || trx_doublewrite == NULL) {
+		return;
+	}
+
+	mutex_enter(&trx_doublewrite->mutex);
+
+	ut_ad(trx_doublewrite->batch_running);
+	ut_ad(trx_doublewrite->b_reserved > 0);
+
+	trx_doublewrite->b_reserved--;
+	if (trx_doublewrite->b_reserved == 0) {
+
+		mutex_exit(&trx_doublewrite->mutex);
+		/* This will finish the batch. Sync data files
+		to the disk. */
+		fil_flush_file_spaces(FIL_TABLESPACE);
+		mutex_enter(&trx_doublewrite->mutex);
+
+		/* We can now reuse the doublewrite memory buffer: */
+		trx_doublewrite->first_free = 0;
+		trx_doublewrite->batch_running = FALSE;
+	}
+
+	mutex_exit(&trx_doublewrite->mutex);
+}
+
+/********************************************************************//**
 Updates the flush system data structures when a write is completed. */
 UNIV_INTERN
 void
@@ -696,6 +730,19 @@ buf_flush_write_complete(
 		/* The running flush batch has ended */
 
 		os_event_set(buf_pool->no_flush[flush_type]);
+	}
+
+	switch (flush_type) {
+	case BUF_FLUSH_LIST:
+	case BUF_FLUSH_LRU:
+		buf_flush_update_doublewrite();
+		break;
+	case BUF_FLUSH_SINGLE_PAGE:
+		/* Single page flushes are synchronous. No need
+		to update doublewrite */
+		break;
+	case BUF_FLUSH_N_TYPES:
+		ut_error;
 	}
 }
 
@@ -970,16 +1017,11 @@ flush:
 		buf_flush_write_block_to_datafile(block);
 	}
 
-	/* Sync the writes to the disk. */
-	buf_flush_sync_datafiles();
-
-	mutex_enter(&trx_doublewrite->mutex);
-
-	/* We can now reuse the doublewrite memory buffer: */
-	trx_doublewrite->first_free = 0;
-	trx_doublewrite->batch_running = FALSE;
-
-	mutex_exit(&(trx_doublewrite->mutex));
+	/* Wake possible simulated aio thread to actually post the
+	writes to the operating system. We don't flush the files
+	at this point. We leave it to the IO helper thread to flush
+	datafiles when the whole batch has been processed. */
+	os_aio_simulated_wake_handler_threads();
 }
 
 /********************************************************************//**
@@ -1046,6 +1088,9 @@ try_again:
 	trx_doublewrite->buf_block_arr[trx_doublewrite->first_free] = bpage;
 
 	trx_doublewrite->first_free++;
+	trx_doublewrite->b_reserved++;
+
+	ut_ad(trx_doublewrite->b_reserved <= srv_doublewrite_batch_size);
 
 	if (trx_doublewrite->first_free == srv_doublewrite_batch_size) {
 		mutex_exit(&(trx_doublewrite->mutex));
@@ -1105,7 +1150,7 @@ buf_flush_write_to_dblwr_and_datafile(
 
 retry:
 	mutex_enter(&trx_doublewrite->mutex);
-	if (trx_doublewrite->n_reserved == n_slots) {
+	if (trx_doublewrite->s_reserved == n_slots) {
 
 		mutex_exit(&trx_doublewrite->mutex);
 		/* All slots are reserved. Since it involves two IOs
@@ -1125,7 +1170,7 @@ retry:
 	/* We are guaranteed to find a slot. */
 	ut_a(i < size);
 	trx_doublewrite->in_use[i] = TRUE;
-	trx_doublewrite->n_reserved++;
+	trx_doublewrite->s_reserved++;
 	trx_doublewrite->buf_block_arr[i] = bpage;
 	mutex_exit(&trx_doublewrite->mutex);
 
@@ -1182,7 +1227,7 @@ retry:
 
 	mutex_enter(&trx_doublewrite->mutex);
 
-	trx_doublewrite->n_reserved--;
+	trx_doublewrite->s_reserved--;
 	trx_doublewrite->buf_block_arr[i] = NULL;
 	trx_doublewrite->in_use[i] = FALSE;
 
