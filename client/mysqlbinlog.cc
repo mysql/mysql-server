@@ -2070,24 +2070,22 @@ static Exit_status check_header(IO_CACHE* file,
 static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           const char* logname)
 {
-  DBUG_ENTER("dump_local_log_entries");
   File fd = -1;
   IO_CACHE cache,*file= &cache;
   uchar tmp_buff[BIN_LOG_HEADER_SIZE];
   Exit_status retval= OK_CONTINUE;
-  bool opened_iocache= false;
 
   if (logname && strcmp(logname, "-") != 0)
   {
+    /* read from normal file */
     if ((fd = my_open(logname, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
-      goto err;
+      return ERROR_STOP;
     if (init_io_cache(file, fd, 0, READ_CACHE, start_position_mot, 0,
 		      MYF(MY_WME | MY_NABP)))
     {
       my_close(fd, MYF(MY_WME));
-      goto err;
+      return ERROR_STOP;
     }
-    opened_iocache= true;
     if ((retval= check_header(file, print_event_info, logname)) != OK_CONTINUE)
       goto end;
   }
@@ -2106,16 +2104,15 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     if (_setmode(fileno(stdin), O_BINARY) == -1)
     {
       error("Could not set binary mode on stdin.");
-      goto err;
+      return ERROR_STOP;
     }
 #endif 
     if (init_io_cache(file, my_fileno(stdin), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
     {
       error("Failed to init IO cache.");
-      goto err;
+      return ERROR_STOP;
     }
-    opened_iocache= true;
     if ((retval= check_header(file, print_event_info, logname)) != OK_CONTINUE)
       goto end;
     if (start_position)
@@ -2146,7 +2143,6 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     error("Failed reading from file.");
     goto err;
   }
-
   for (;;)
   {
     char llbuff[21];
@@ -2172,7 +2168,6 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       // file->error == 0 means EOF, that's OK, we break in this case
       goto end;
     }
-
     if ((retval= process_event(print_event_info, ev, old_off, logname)) !=
         OK_CONTINUE)
       goto end;
@@ -2186,9 +2181,8 @@ err:
 end:
   if (fd >= 0)
     my_close(fd, MYF(MY_WME));
-  if (opened_iocache)
-    end_io_cache(file);
-  DBUG_RETURN(retval);
+  end_io_cache(file);
+  return retval;
 }
 
 /* Post processing of arguments to check for conflicts and other setups */
@@ -2360,7 +2354,6 @@ int main(int argc, char** argv)
 #include "log_event.cc"
 #include "log_event_old.cc"
 #include "rpl_utility.cc"
-
 #include "zsid_map.cc"
 #include "zreturn.cc"
 #include "zuuid.cc"

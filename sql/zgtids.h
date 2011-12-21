@@ -1992,6 +1992,7 @@ struct Gtid_specification
   }
   bool equals(Gtid other_gtid) const
   { return type == GTID_GROUP && gtid.equals(&other_gtid); }
+#ifndef MYSQL_CLIENT
   /**
     Parses the given string and stores in this Gtid_specification.
 
@@ -1999,6 +2000,14 @@ struct Gtid_specification
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status parse(Sid_map *sid_map, const char *text);
+  /**
+    Returns the type of the group, if the given string is a valid Gtid_specification; INVALID otherwise.
+  */
+  static enum_group_type get_type(const char *text);
+  /// Returns true if the given string is a valid Gtid_specification.
+  static bool is_valid(const char *text)
+  { return Gtid_specification::get_type(text) != INVALID_GROUP; }
+#endif
   static const int MAX_TEXT_LENGTH= Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
   /**
     Writes this Gtid_specification to the given string buffer.
@@ -2019,13 +2028,6 @@ struct Gtid_specification
     @buf[out]
   */
   int to_string(const rpl_sid *sid, char *buf) const;
-  /**
-    Returns the type of the group, if the given string is a valid Gtid_specification; INVALID otherwise.
-  */
-  static enum_group_type get_type(const char *text);
-  /// Returns true if the given string is a valid Gtid_specification.
-  static bool is_valid(const char *text)
-  { return Gtid_specification::get_type(text) != INVALID_GROUP; }
 #ifndef DBUG_OFF
   void print() const
   {
