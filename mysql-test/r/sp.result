@@ -2738,6 +2738,9 @@ set plus = 1;
 end if;
 select plus;
 end|
+call bug6857(300000)|
+plus
+1
 drop procedure bug6857|
 drop procedure if exists bug8757|
 create procedure bug8757()
