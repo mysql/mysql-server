@@ -1719,14 +1719,29 @@ private:
   group, and a Mutex_cond_array that protects updates to groups of
   each SIDNO.
 
+  Locking:
+
   This data structure has a read-write lock that protects the number
-  of SIDNOs.  The lock is provided by the invoker of the constructor
-  and it is generally the caller's responsibility to acquire the read
-  lock.  Access methods assert that the caller already holds the read
-  (or write) lock.  If a method of this class grows the number of
-  SIDNOs, then the method temporarily upgrades this lock to a write
-  lock and then degrades it to a read lock again; there will be a
-  short period when the lock is not held at all.
+  of SIDNOs, and a Mutex_cond_array that contains one mutex per SIDNO.
+  The rwlock is always the global_sid_lock.
+
+  Access methods generally assert that the caller already holds the
+  appropriate lock:
+
+   - before accessing any global data, hold at least the rdlock.
+
+   - before accessing a specific SIDNO in a Gtid_set or Owned_gtids
+     (e.g., calling Gtid_set::_add(Gtid)), hold either the rdlock and
+     the SIDNO's mutex lock; or the wrlock.  If you need to hold
+     multiple mutexes, they must be acquired in order of increasing
+     SIDNO.
+
+   - before starting an operation that needs to access all SIDs
+     (e.g. Gtid_set::to_string()), hold the wrlock.
+
+  The access type (read/write) does not matter; the write lock only
+  implies that the entire data structure is locked whereas the read
+  lock implies that everything except SID-specific data is locked.
 */
 class Gtid_state
 {
@@ -1741,7 +1756,9 @@ public:
   Gtid_state(Checkable_rwlock *_sid_lock, Sid_map *_sid_map)
     : sid_lock(_sid_lock), sid_locks(sid_lock),
     sid_map(_sid_map),
-    logged_gtids(sid_map), lost_gtids(sid_map), owned_gtids(sid_lock) {}
+    logged_gtids(sid_map, sid_lock),
+    lost_gtids(sid_map, sid_lock),
+    owned_gtids(sid_lock) {}
   /**
     Add @@GLOBAL.SERVER_UUID to this binlog's Sid_map.
 
@@ -1919,6 +1936,7 @@ public:
   void dbug_print(const char *text= "") const
   {
 #ifndef DBUG_OFF
+    sid_lock->assert_some_wrlock();
     char *str= to_string();
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
     free(str);

@@ -671,7 +671,7 @@ bool Gtid_set::contains_gtid(rpl_sidno sidno, rpl_gno gno) const
   DBUG_ENTER("Gtid_set::contains_gtid");
   DBUG_ASSERT(sidno >= 1 && gno >= 1);
   if (sid_lock != NULL)
-    sid_lock->assert_some_wrlock();
+    sid_lock->assert_some_lock();
   if (sidno > get_max_sidno())
     DBUG_RETURN(false);
   Const_interval_iterator ivit(this, sidno);
@@ -767,6 +767,7 @@ int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
   memcpy(s, sf->end, sf->end_length);
   s += sf->end_length;
   *s= '\0';
+  DBUG_PRINT("info", ("ret='%s' strlen(s)=%ld s-buf=%ld get_string_length=%d", buf, strlen(buf), s - buf, get_string_length(sf)));
   DBUG_ASSERT(s - buf == get_string_length(sf));
   DBUG_RETURN(s - buf);
 }

@@ -632,8 +632,13 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
   DBUG_ENTER("gtid_before_write_cache");
   
   Group_cache* group_cache= &cache_data->group_cache;
-  
+
+  // in dbug mode, take wrlock so that we can call gtid_state.dbug_print
+#ifdef NO_DBUG  
   global_sid_lock.rdlock();
+#else
+  global_sid_lock.wrlock();
+#endif
 
   if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
   {
@@ -891,16 +896,37 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
 
   DBUG_PRINT("debug",
-             ("all: %d, in_transaction: %s, all.cannot_safely_rollback(): %s, stmt.cannot_safely_rollback(): %s",
+             ("all: %d, in_transaction: %s, all.cannot_safely_rollback(): %s, stmt.cannot_safely_rollback(): %s stmt_cache_empty=%d trx_cache_empty=%d",
               all,
               YESNO(thd->in_multi_stmt_transaction_mode()),
               YESNO(thd->transaction.all.cannot_safely_rollback()),
-              YESNO(thd->transaction.stmt.cannot_safely_rollback())));
+              YESNO(thd->transaction.stmt.cannot_safely_rollback()),
+              cache_mngr->stmt_cache.is_binlog_empty(),
+              cache_mngr->trx_cache.is_binlog_empty()));
 
+  /*
+    If there is anything in the stmt cache, and GTIDs are enabled,
+    then this is a single statement outside a transaction and it is
+    impossible that there is anything in the trx cache.  Hence, we
+    write any empty group(s) to the stmt cache.
+
+    Otherwise, we write any empty group(s) to the trx cache at the end
+    of the transaction.
+  */
   if (!cache_mngr->stmt_cache.is_binlog_empty())
     error= write_empty_groups_to_cache(thd, &cache_mngr->stmt_cache) ||
       binlog_commit_flush_stmt_cache(thd, cache_mngr);
-  else
+  /*
+    todo: what is the exact condition to check here?
+
+    normally, we only write empty groups at the end of the
+    transaction, i.e., when all==true.
+
+    if we are not in a multi-stmt-transaction, then we can't wait for
+    ha_commit(all=true), so we have to write empty groups to the
+    trx_cache even when all==0.
+  */
+  else if (all || !thd->in_multi_stmt_transaction_mode())
     error= write_empty_groups_to_cache(thd, &cache_mngr->trx_cache) != 0;
 
   if (cache_mngr->trx_cache.is_binlog_empty())

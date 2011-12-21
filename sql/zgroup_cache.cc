@@ -145,7 +145,10 @@ enum_return_status Group_cache::generate_automatic_gno(THD *thd)
         gtid_state.lock_sidno(automatic_gtid.sidno);
         automatic_gtid.gno= gtid_state.get_automatic_gno(automatic_gtid.sidno);
         if (automatic_gtid.gno == -1)
+        {
+          gtid_state.unlock_sidno(automatic_gtid.sidno);
           RETURN_REPORTED_ERROR;
+        }
         gtid_state.acquire_ownership(automatic_gtid, thd);
         gtid_state.unlock_sidno(automatic_gtid.sidno);
       }
