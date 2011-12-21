@@ -12374,7 +12374,7 @@ static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
 #else
 #define TMP_STR "No effect for this build."
 #endif
-static MYSQL_SYSVAR_LONG(kill_idle_transaction, srv_kill_idle_transaction,
+static MYSQL_SYSVAR_ULONG(kill_idle_transaction, srv_kill_idle_transaction,
   PLUGIN_VAR_RQCMDARG,
   TMP_STR,
   NULL, NULL, 0, 0, LONG_MAX, 0);
