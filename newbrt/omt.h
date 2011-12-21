@@ -427,6 +427,12 @@ int toku_omt_clone_pool(OMT *dest, OMT src, u_int32_t eltsize);
 // Performance: time between O(n) and O(n log n), depending how long it
 //  takes to traverse src.
 
+void toku_omt_free_items_pool(OMT omt);
+// Effect: Frees the memory containing the items in an omt created with toku_omt_clone_pool.
+//  Since toku_omt_clone_pool allocates a contiguous chunk of memory and
+//  the first item is at the first position, this just gets the first
+//  value out of the omt and frees it for you.
+
 int toku_omt_clone_noptr(OMT *dest, OMT src);
 // Effect: Creates a copy of an omt.
 //  Sets *dest to the clone
