@@ -194,12 +194,6 @@ trx_doublewrite_init(
 	ut_a(srv_doublewrite_batch_size > 0
 	     && srv_doublewrite_batch_size < buf_size);
 
-	/* Since we now start to use the doublewrite buffer, no need to call
-	fsync() after every write to a data file */
-#ifdef UNIV_DO_FLUSH
-	os_do_not_call_flush_at_each_write = TRUE;
-#endif /* UNIV_DO_FLUSH */
-
 	mutex_create(trx_doublewrite_mutex_key,
 		     &trx_doublewrite->mutex, SYNC_DOUBLEWRITE);
 
