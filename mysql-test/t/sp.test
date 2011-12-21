@@ -3213,7 +3213,7 @@ end|
 #     painful.
 # Make sure this takes at least one second on all machines in all builds.
 # 30000 makes it about 3 seconds on an old 1.1GHz linux.
-call bug6857(300000)|
+#call bug6857(300000)|
 
 drop procedure bug6857|
 
