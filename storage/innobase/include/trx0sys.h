@@ -651,8 +651,10 @@ struct trx_doublewrite_struct{
 	ulint	block2;		/*!< page number of the second block */
 	ulint	first_free;	/*!< first free position in write_buf measured
 				in units of UNIV_PAGE_SIZE */
-	ulint	n_reserved;	/*!< number of slots currently reserved
+	ulint	s_reserved;	/*!< number of slots currently reserved
 				for single page flushes. */
+	ulint	b_reserved;	/*!< number of slots currently reserved
+				for batch flush. */
 	ibool*	in_use;		/*!< flag used to indicate if a slot is
 				in use. Only used for single page
 				flushes. */

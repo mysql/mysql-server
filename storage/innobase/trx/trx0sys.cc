@@ -204,7 +204,8 @@ trx_doublewrite_init(
 		     &trx_doublewrite->mutex, SYNC_DOUBLEWRITE);
 
 	trx_doublewrite->first_free = 0;
-	trx_doublewrite->n_reserved = 0;
+	trx_doublewrite->s_reserved = 0;
+	trx_doublewrite->b_reserved = 0;
 
 	trx_doublewrite->block1 = mach_read_from_4(
 		doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK1);
@@ -1736,7 +1737,8 @@ trx_sys_close(void)
 
 	/* Free the double write data structures. */
 	ut_a(trx_doublewrite != NULL);
-	ut_ad(trx_doublewrite->n_reserved == 0);
+	ut_ad(trx_doublewrite->s_reserved == 0);
+	ut_ad(trx_doublewrite->b_reserved == 0);
 
 	ut_free(trx_doublewrite->write_buf_unaligned);
 	trx_doublewrite->write_buf_unaligned = NULL;
