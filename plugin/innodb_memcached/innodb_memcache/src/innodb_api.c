@@ -33,8 +33,7 @@ Created 04/12/2011 Jimmy Yang
 #include "memcached/util.h"
 #include <innodb_cb_api.h>
 
-/** Whether to update all columns' value or a specific value
-column */
+/** Whether to update all columns' value or a specific column value */
 #define UPDATE_ALL_VAL_COL	-1
 
 /** Defines for handler_binlog_row()'s mode field */
@@ -84,7 +83,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_table_truncate,
 	(ib_cb_t*) &ib_cb_cursor_open_index_using_name,
 	(ib_cb_t*) &ib_cb_close_thd,
-	(ib_cb_t*) &ib_cb_binlog_enabled
+	(ib_cb_t*) &ib_cb_binlog_enabled,
+	(ib_cb_t*) &ib_cb_cursor_set_cluster_access
 };
 
 /*************************************************************//**
@@ -135,7 +135,7 @@ innodb_api_begin(
 		err  = ib_cb_open_table(table_name, ib_trx, crsr);
 
 		if (err != DB_SUCCESS) {
-			fprintf(stderr, "  InnoDB_Memcached: Unable open"
+			fprintf(stderr, "  InnoDB_Memcached: Unable to open"
 					" table '%s'\n", table_name);
 			return(err);
 		}
@@ -393,7 +393,7 @@ innodb_api_search(
 			idx_crsr = cursor_data->c_idx_crsr;
 		}
 
-		//ib_cursor_set_cluster_access(idx_crsr);
+		ib_cb_cursor_set_cluster_access(idx_crsr);
 
 		key_tpl = ib_cb_search_tuple_create(idx_crsr);
 
@@ -1060,7 +1060,7 @@ innodb_api_arithmetic(
 
 	/* Can't find the row, decide whether to insert a new row */
 	if (err != DB_SUCCESS) {
-		//ib_tuple_delete(old_tpl);
+		ib_cb_tuple_delete(old_tpl);
 
 		if (create) {
 			snprintf(value_buf, sizeof(value_buf), "%llu", initial);
@@ -1282,7 +1282,7 @@ innodb_api_store(
 		break;
 	}
 
-	//ib_tuple_delete(old_tpl);
+	ib_cb_tuple_delete(old_tpl);
 
 	if (engine->enable_binlog && cursor_data->mysql_tbl) {
 		handler_unlock_table(cursor_data->thd,
