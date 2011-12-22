@@ -225,7 +225,7 @@ static void *read_random_numbers(void *arg) {
             assert(r1 == 0);
         }
     }
-    printf("leaving\n");
+    if (verbose) printf("leaving\n");
     return arg;
 }
 
