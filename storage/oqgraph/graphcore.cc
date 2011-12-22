@@ -414,7 +414,7 @@ namespace open_query {
           if (record_weight && u != v)
           {
             typename graph_traits<Graph>::out_edge_iterator ei, ei_end;
-            for (tie(ei, ei_end)= out_edges(v, g); ei != ei_end; ++ei)
+            for (boost::tuples::tie(ei, ei_end)= out_edges(v, g); ei != ei_end; ++ei)
             {
               if (target(*ei, g) == u)
               {
@@ -479,14 +479,14 @@ namespace open_query
     if (in_degree(dest, g) >= out_degree(orig, g))
     {
       graph_traits<Graph>::out_edge_iterator ei, ei_end;
-      tie(ei, ei_end)= out_edges(orig, g);
+      boost::tuples::tie(ei, ei_end)= out_edges(orig, g);
       if ((ei= find_if(ei, ei_end, target_equals(dest, g))) != ei_end)
         return *ei;
     }
     else
     {
       graph_traits<Graph>::in_edge_iterator ei, ei_end;
-      tie(ei, ei_end)= in_edges(dest, g);
+      boost::tuples::tie(ei, ei_end)= in_edges(dest, g);
       if ((ei= find_if(ei, ei_end, source_equals(orig, g))) != ei_end)
         return *ei;
     }
@@ -727,7 +727,7 @@ namespace open_query
         if ((cursor= new (std::nothrow) stack_cursor(share)) && orig)
         {
           graph_traits<Graph>::out_edge_iterator ei, ei_end;
-          for (tie(ei, ei_end)= out_edges(*orig, share->g); ei != ei_end; ++ei)
+          for (boost::tuples::tie(ei, ei_end)= out_edges(*orig, share->g); ei != ei_end; ++ei)
           {
             Vertex v= target(*ei, share->g);
             static_cast<stack_cursor*>(cursor)->
@@ -741,7 +741,7 @@ namespace open_query
 	    dest)
         {
           graph_traits<Graph>::in_edge_iterator ei, ei_end;
-          for (tie(ei, ei_end)= in_edges(*dest, share->g); ei != ei_end; ++ei)
+          for (boost::tuples::tie(ei, ei_end)= in_edges(*dest, share->g); ei != ei_end; ++ei)
           {
             Vertex v= source(*ei, share->g);
             static_cast<stack_cursor*>(cursor)->
@@ -876,7 +876,7 @@ namespace open_query
           switch (ALGORITHM & op)
           {
           case DIJKSTRAS:
-            dijkstra_shortest_paths(r, *dest,
+            dijkstra_shortest_paths(r.m_g, *dest,
                 weight_map(
                   share->weightmap
                 ).
@@ -1067,7 +1067,7 @@ int edges_cursor::fetch_row(const row &row_info, row &result)
   edge_iterator it, end;
   reference ref;
   size_t count= position;
-  for (tie(it, end)= edges(share->g); count && it != end; ++it, --count)
+  for (boost::tuples::tie(it, end)= edges(share->g); count && it != end; ++it, --count)
     ;
   if (it != end)
     ref= reference(position+1, *it);
