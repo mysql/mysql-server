@@ -1126,12 +1126,13 @@ ib_cursor_open_index_using_name(
 {
 	dict_table_t*	table;
 	dict_index_t*	index;
-	ib_idd_t		index_id = 0;
+	ib_idd_t	index_id = 0;
 	ib_err_t	err = DB_TABLE_NOT_FOUND;
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_open_crsr;
 
 	*idx_type = 0;
 	*idx_id = 0;
+	*ib_crsr = NULL;
 
 	/* We want to increment the ref count, so we do a redundant search. */
 	table = dict_table_open_on_id(cursor->prebuilt->table->id, FALSE);
@@ -1143,14 +1144,17 @@ ib_cursor_open_index_using_name(
 	/* Traverse the user defined indexes. */
 	while (index != NULL) {
 		if (innobase_strcasecmp(index->name, index_name) == 0) {
-			index_id = (index->id);
+			index_id = index->id;
 			*idx_type = index->type;
 			*idx_id = index_id;
 		}
 		index = UT_LIST_GET_NEXT(indexes, index);
 	}
 
-	*ib_crsr = NULL;
+	if (!index_id) {
+		dict_table_close(table, FALSE);
+		return(DB_ERROR);
+	}
 
 	if (index_id > 0) {
 		err = ib_create_cursor(
@@ -1310,7 +1314,7 @@ ib_cursor_close(
 		--trx->n_mysql_tables_in_use;
 	}
 
-	row_prebuilt_free(cursor->prebuilt, FALSE);
+	row_prebuilt_free(prebuilt, FALSE);
 
 	mem_heap_free(cursor->query_heap);
 	mem_heap_free(cursor->heap);

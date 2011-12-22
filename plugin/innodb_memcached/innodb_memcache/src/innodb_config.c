@@ -366,15 +366,42 @@ innodb_config_container(
 
 	err = innodb_cb_read_row(crsr, tpl);
 
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, "  InnoDB_Memcached: fail to read row from"
+				" config table '%s' in database '%s' \n",
+			INNODB_META_CONTAINER_TABLE, INNODB_META_DB);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
-	assert(n_cols >= META_CONTAINER_TO_GET);
+	if (n_cols < META_CONTAINER_TO_GET) {
+		fprintf(stderr, "  InnoDB_Memcached: config table '%s' in"
+				" database '%s' has only %d column(s),"
+				" server is expecting %d columns\n",
+			INNODB_META_CONTAINER_TABLE, INNODB_META_DB,
+			n_cols, META_CONTAINER_TO_GET);
+		err = DB_ERROR;
+		goto func_exit;
+	}
 
 	for (i = 0; i < META_CONTAINER_TO_GET; ++i) {
 
 		data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
 
-		assert(data_len != IB_SQL_NULL);
+		if (data_len == IB_SQL_NULL) {
+			fprintf(stderr, "  InnoDB_Memcached: column %d in"
+					" the entry for config table '%s' in"
+					" database '%s' has an invalid"
+					" NULL value\n",
+				i, INNODB_META_CONTAINER_TABLE, INNODB_META_DB);
+
+			err = DB_ERROR;
+			goto func_exit;
+
+
+		}
 
 		item->m_item[i].m_len = data_len;
 
@@ -473,7 +500,7 @@ innodb_config_value_col_verify(
 				
 			
 /**********************************************************************//**
-This function verify the table configuration information, and fill
+This function verifies the table configuration information, and fills
 in columns used for memcached functionalities (cas, exp etc.)
 @return TRUE if everything works out fine */
 bool
