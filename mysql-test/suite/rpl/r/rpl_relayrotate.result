@@ -1,3 +1,4 @@
+call mtr.add_suppression('Slave SQL: Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group');
 include/master-slave.inc
 Warnings:
 Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.

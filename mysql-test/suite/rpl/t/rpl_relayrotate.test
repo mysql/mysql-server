@@ -4,6 +4,7 @@
 # Added comments section and to skip when ndb is      #
 # Default engine.                                     #
 #######################################################
+call mtr.add_suppression('Slave SQL: Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group');
 -- source include/not_ndb_default.inc
 -- source include/have_innodb.inc
 -- source include/master-slave.inc
