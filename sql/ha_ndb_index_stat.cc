@@ -89,6 +89,7 @@ struct Ndb_index_stat {
   char id[32];
 #endif
   time_t access_time;   /* by any table handler */
+  time_t update_time;   /* latest successful update by us */
   time_t load_time;     /* when stats were created by kernel */
   time_t read_time;     /* when stats were read by us (>= load_time) */
   uint sample_version;  /* goes with read_time */
@@ -563,7 +564,8 @@ struct Ndb_index_stat_glob {
   uint query_count;
   uint query_no_stats;
   uint query_error;
-  uint event_ok;          /* Events received for known index */
+  uint event_act;         /* Events acted on */
+  uint event_skip;        /* Events skipped (likely event-to-self) */
   uint event_miss;        /* Events received for unknown index */
   uint refresh_count;     /* Successful cache refreshes */
   uint clean_count;       /* Times old caches (1 or more) cleaned */
@@ -576,7 +578,7 @@ struct Ndb_index_stat_glob {
   uint cache_high_bytes;  /* Max ever of above */
   uint cache_drop_bytes;  /* Part of above waiting to be evicted */
   uint cache_evict_bytes; /* Part of above waiting to be evicted */
-  char status[2][512];
+  char status[2][1024];
   uint status_i;
 
   Ndb_index_stat_glob();
@@ -599,7 +601,8 @@ Ndb_index_stat_glob::Ndb_index_stat_glob()
   query_count= 0;
   query_no_stats= 0;
   query_error= 0;
-  event_ok= 0;
+  event_act= 0;
+  event_skip= 0;
   event_miss= 0;
   refresh_count= 0;
   clean_count= 0;
@@ -658,7 +661,8 @@ Ndb_index_stat_glob::set_status()
   sprintf(p, ",query:(all:%u,nostats:%u,error:%u)",
              query_count, query_no_stats, query_error);
   p+= strlen(p);
-  sprintf(p, ",event:(ok:%u,miss:%u)", event_ok, event_miss);
+  sprintf(p, ",event:(act:%u,skip:%u,miss:%u)",
+             event_act, event_skip, event_miss);
   p+= strlen(p);
   sprintf(p, ",cache:(refresh:%u,clean:%u,pinned:%u,drop:%u,evict:%u)",
              refresh_count, clean_count, pinned_count, drop_count, evict_count);
@@ -702,7 +706,8 @@ Ndb_index_stat_glob::zero_total()
   query_count= 0;
   query_no_stats= 0;
   query_error= 0;
-  event_ok= 0;
+  event_act= 0;
+  event_skip= 0;
   event_miss= 0;
   refresh_count= 0;
   clean_count= 0;
@@ -726,6 +731,7 @@ Ndb_index_stat::Ndb_index_stat()
   memset(id, 0, sizeof(id));
 #endif
   access_time= 0;
+  update_time= 0;
   load_time= 0;
   read_time= 0;
   sample_version= 0;
@@ -1331,6 +1337,7 @@ ndb_index_stat_cache_evict(Ndb_index_stat *st)
 struct Ndb_index_stat_proc {
   NdbIndexStat* is_util; // For metadata and polling
   Ndb *ndb;
+  time_t start; // start of current processing slice
   time_t now;
   int lt;
   bool busy;
@@ -1401,6 +1408,9 @@ ndb_index_stat_proc_update(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
     pr.lt= Ndb_index_stat::LT_Error;
     return;
   }
+
+  pr.now= ndb_index_stat_time();
+  st->update_time= pr.now;
   pr.lt= Ndb_index_stat::LT_Read;
 }
 
@@ -1950,11 +1960,30 @@ ndb_index_stat_proc_event(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   /*
     Put on Check list if idle.
     We get event also for our own analyze but this should not matter.
+
+    bug#13524696
+    The useless event-to-self makes an immediate second analyze wait
+    for loop_idle time since the entry moves to LT_Check temporarily.
+    Ignore the event if an update was done near this processing slice.
    */
   pr.lt= st->lt;
   if (st->lt == Ndb_index_stat::LT_Idle ||
       st->lt == Ndb_index_stat::LT_Error)
-    pr.lt= Ndb_index_stat::LT_Check;
+  {
+    if (st->update_time < pr.start)
+    {
+      DBUG_PRINT("index_stat", ("st %s accept event for check", st->id));
+      pr.lt= Ndb_index_stat::LT_Check;
+    }
+    else
+    {
+      DBUG_PRINT("index_stat", ("st %s ignore likely event to self", st->id));
+    }
+  }
+  else
+  {
+    DBUG_PRINT("index_stat", ("st %s ignore event on lt=%d", st->id, st->lt));
+  }
 }
 
 void
@@ -2002,11 +2031,15 @@ ndb_index_stat_proc_event(Ndb_index_stat_proc &pr)
      */
     if (st != 0)
     {
-      DBUG_PRINT("index_stat", ("st %s proc %s", st->id, "Event"));
+      DBUG_PRINT("index_stat", ("st %s proc %s", st->id, "event"));
       ndb_index_stat_proc_event(pr, st);
       if (pr.lt != st->lt)
+      {
         ndb_index_stat_list_move(st, pr.lt);
-      glob.event_ok++;
+        glob.event_act++;
+      }
+      else
+        glob.event_skip++;
     }
     else
     {
@@ -2170,6 +2203,8 @@ ndb_index_stat_proc(Ndb_index_stat_proc &pr)
   ndb_index_stat_list_verify(pr);
   Ndb_index_stat_glob old_glob= ndb_index_stat_glob;
 #endif
+
+  pr.start= pr.now= ndb_index_stat_time();
 
   ndb_index_stat_proc_new(pr);
   ndb_index_stat_proc_update(pr);
