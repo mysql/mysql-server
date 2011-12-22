@@ -692,7 +692,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
         Doing this to generate a stack trace and make debugging
         easier. 
       */
-      if (DBUG_EVALUATE_IF("debug_crash_slave_time_out",1,0)) 
+      if (DBUG_EVALUATE_IF("debug_crash_slave_time_out",1,0))
         DBUG_ASSERT(0);
 #endif
       error= -1;
@@ -719,6 +719,150 @@ improper_arguments: %d  timed_out: %d",
   }
   DBUG_RETURN( error ? error : event_count );
 }
+
+#ifdef HAVE_GTID
+/*
+  TODO: This is a duplicated code that needs to be simplified. Alfranio.
+*/
+int Relay_log_info::wait_for_gtid(THD* thd, String* gtid,
+                                  longlong timeout)
+{
+  int event_count = 0;
+  ulong init_abort_pos_wait;
+  int error=0;
+  struct timespec abstime; // for timeout checking
+  PSI_stage_info old_stage;
+  char *gtid_set_buffer= NULL;
+  int gtid_set_size= 0;
+  DBUG_ENTER("Relay_log_info::wait_for_gtid");
+
+  if (!inited)
+    DBUG_RETURN(-2);
+
+  DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid->c_ptr_safe(),
+             timeout));
+
+  set_timespec(abstime, timeout);
+  mysql_mutex_lock(&data_lock);
+  thd->ENTER_COND(&data_cond, &data_lock,
+                  &stage_waiting_for_the_slave_thread_to_advance_position,
+                  &old_stage);
+  /*
+     This function will abort when it notices that some CHANGE MASTER or
+     RESET MASTER has changed the master info.
+     To catch this, these commands modify abort_pos_wait ; We just monitor
+     abort_pos_wait and see if it has changed.
+     Why do we have this mechanism instead of simply monitoring slave_running
+     in the loop (we do this too), as CHANGE MASTER/RESET SLAVE require that
+     the SQL thread be stopped?
+     This is becasue if someones does:
+     STOP SLAVE;CHANGE MASTER/RESET SLAVE; START SLAVE;
+     the change may happen very quickly and we may not notice that
+     slave_running briefly switches between 1/0/1.
+  */
+  init_abort_pos_wait= abort_pos_wait;
+  Gtid_set gtid_set(&global_sid_map);
+  global_sid_lock.rdlock();
+  if (gtid_set.add(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
+  { 
+    global_sid_lock.unlock();
+    goto err;
+  }
+  global_sid_lock.unlock();
+
+  /* The "compare and wait" main loop */
+  while (!thd->killed &&
+         init_abort_pos_wait == abort_pos_wait &&
+         slave_running)
+  {
+    DBUG_PRINT("info",
+               ("init_abort_pos_wait: %ld  abort_pos_wait: %ld",
+                init_abort_pos_wait, abort_pos_wait));
+
+    //wait for master update, with optional timeout.
+
+    global_sid_lock.rdlock();
+
+#ifndef DBUG_OFF
+    const Gtid_set* gtid_ptr_state= gtid_state.get_logged_gtids();
+    if (gtid_ptr_state->to_string(&gtid_set_buffer, &gtid_set_size))
+    {
+      my_free(gtid_set_buffer);
+      global_sid_lock.unlock();
+      goto err;
+    }
+    DBUG_PRINT("info", ("Waiting for %s. We are at %s and subset %d",
+      gtid->c_ptr_safe(), gtid_set_buffer, gtid_set.is_subset(gtid_ptr_state)));
+#endif
+
+    if (gtid_set.is_subset(gtid_state.get_logged_gtids()))
+    {
+      global_sid_lock.unlock();
+      break;
+    }
+    global_sid_lock.unlock();
+
+    DBUG_PRINT("info",("Waiting for master update"));
+
+    /*
+      We are going to mysql_cond_(timed)wait(); if the SQL thread stops it
+      will wake us up.
+    */
+    thd_wait_begin(thd, THD_WAIT_BINLOG);
+    if (timeout > 0)
+    {
+      /*
+        Note that mysql_cond_timedwait checks for the timeout
+        before for the condition ; i.e. it returns ETIMEDOUT
+        if the system time equals or exceeds the time specified by abstime
+        before the condition variable is signaled or broadcast, _or_ if
+        the absolute time specified by abstime has already passed at the time
+        of the call.
+        For that reason, mysql_cond_timedwait will do the "timeoutting" job
+        even if its condition is always immediately signaled (case of a loaded
+        master).
+      */
+      error= mysql_cond_timedwait(&data_cond, &data_lock, &abstime);
+    }
+    else
+      mysql_cond_wait(&data_cond, &data_lock);
+    thd_wait_end(thd);
+    DBUG_PRINT("info",("Got signal of master update or timed out"));
+    if (error == ETIMEDOUT || error == ETIME)
+    {
+#ifndef DBUG_OFF
+      /*
+        Doing this to generate a stack trace and make debugging
+        easier. 
+      */
+      if (DBUG_EVALUATE_IF("debug_crash_slave_time_out", 1, 0))
+        DBUG_ASSERT(0);
+#endif
+      error= -1;
+      break;
+    }
+    error=0;
+    event_count++;
+    DBUG_PRINT("info",("Testing if killed or SQL thread not running"));
+  }
+
+err:
+  thd->EXIT_COND(&old_stage);
+  DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
+improper_arguments: %d  timed_out: %d",
+                     thd->killed_errno(),
+                     (int) (init_abort_pos_wait != abort_pos_wait),
+                     (int) slave_running,
+                     (int) (error == -2),
+                     (int) (error == -1)));
+  if (thd->killed || init_abort_pos_wait != abort_pos_wait ||
+      !slave_running)
+  {
+    error= -2;
+  }
+  DBUG_RETURN( error ? error : event_count );
+}
+#endif
 
 int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
                                             bool changed_name,

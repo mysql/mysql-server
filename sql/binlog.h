@@ -198,10 +198,6 @@ public:
   {
     previous_gtid_set= previous_gtid_set_param;
   }
-  bool get_previous_gtid_set()
-  {
-    return previous_gtid_set;
-  }
 private:
   Gtid_set* previous_gtid_set;
 #endif

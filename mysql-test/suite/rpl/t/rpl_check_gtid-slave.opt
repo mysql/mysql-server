@@ -1,1 +1,1 @@
---relay-log-purge=0 --relay-log-recovery=1
+--relay-log-recovery=1

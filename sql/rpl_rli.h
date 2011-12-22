@@ -380,6 +380,9 @@ public:
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
+#ifdef HAVE_GTID
+  int wait_for_gtid(THD* thd, String* gtid, longlong timeout);
+#endif
   void close_temporary_tables();
 
   /* Check if UNTIL condition is satisfied. See slave.cc for more. */

@@ -143,11 +143,23 @@ public:
   }
   size_t get_number_info_mi_fields();
 
+  bool is_auto_position()
+  {
+    return auto_position;
+  }
+
+  void set_auto_position(bool auto_position_param)
+  {
+    auto_position= auto_position_param;
+  }
+
 private:
   void init_master_log_pos();
 
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
+
+  bool auto_position;
 
   Master_info(
 #ifdef HAVE_PSI_INTERFACE
