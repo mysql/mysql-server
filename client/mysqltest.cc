@@ -260,6 +260,7 @@ struct Parser
 struct MasterPos
 {
   char file[FN_REFLEN];
+  char gtid[FN_REFLEN]; // TODO: Make this dynamic. /Alfranio
   ulong pos;
 } master_pos;
 
@@ -328,6 +329,7 @@ enum enum_commands {
   Q_REQUIRE,	    Q_SAVE_MASTER_POS,
   Q_SYNC_WITH_MASTER,
   Q_SYNC_SLAVE_WITH_MASTER,
+  Q_SYNC_SLAVE_GTID_WITH_MASTER,
   Q_ERROR,
   Q_SEND,		    Q_REAP,
   Q_DIRTY_CLOSE,	    Q_REPLACE, Q_REPLACE_COLUMN,
@@ -386,6 +388,7 @@ const char *command_names[]=
   "save_master_pos",
   "sync_with_master",
   "sync_slave_with_master",
+  "sync_slave_gtid_with_master",
   "error",
   "send",
   "reap",
@@ -4206,19 +4209,11 @@ void do_wait_for_slave_to_stop(struct st_command *c __attribute__((unused)))
 }
 
 
-void do_sync_with_master2(struct st_command *command, long offset)
+void do_sync_exec(char* query_buf, struct st_command* command, int timeout)
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
   MYSQL *mysql= &cur_con->mysql;
-  char query_buf[FN_REFLEN+128];
-  int timeout= 300; /* seconds */
-
-  if (!master_pos.file[0])
-    die("Calling 'sync_with_master' without calling 'save_master_pos'");
-
-  sprintf(query_buf, "select master_pos_wait('%s', %ld, %d)",
-          master_pos.file, master_pos.pos + offset, timeout);
 
   if (mysql_query(mysql, query_buf))
     die("failed in '%s': %d: %s", query_buf, mysql_errno(mysql),
@@ -4273,8 +4268,41 @@ void do_sync_with_master2(struct st_command *command, long offset)
   return;
 }
 
+
 void do_sync_with_master(struct st_command *command)
 {
+  char query_buf[FN_REFLEN + 128];
+  int timeout= 300; /* seconds */
+
+  if (!master_pos.file[0])
+    die("Calling 'sync_with_master' without calling 'save_master_pos'");
+
+  sprintf(query_buf, "select master_pos_wait('%s', %ld, %d)",
+          master_pos.file, master_pos.pos, timeout);
+
+  do_sync_exec(query_buf, command, timeout);
+}
+
+
+void do_sync_gtid_with_master(struct st_command *command)
+{
+  char query_buf[FN_REFLEN + 128];
+  int timeout= 300; /* seconds */
+
+  if (!master_pos.gtid[0])
+    die("Calling 'sync_gtid_with_master' without calling 'save_master_pos'");
+
+  sprintf(query_buf, "select master_gtid_wait('%s', %d)",
+          master_pos.gtid, timeout);
+
+  do_sync_exec(query_buf, command, timeout);
+}
+
+
+void do_sync_with_master_offset(struct st_command *command)
+{
+  char query_buf[FN_REFLEN + 128];
+  int timeout= 300; /* seconds */
   long offset= 0;
   char *p= command->first_argument;
   const char *offset_start= p;
@@ -4287,8 +4315,14 @@ void do_sync_with_master(struct st_command *command)
       die("Invalid integer argument \"%s\"", offset_start);
     command->last_argument= p;
   }
-  do_sync_with_master2(command, offset);
-  return;
+
+  if (!master_pos.file[0])
+    die("Calling 'sync_with_master' without calling 'save_master_pos'");
+
+  sprintf(query_buf, "select master_pos_wait('%s', %ld, %d)",
+          master_pos.file, master_pos.pos + offset, timeout);
+
+  do_sync_exec(query_buf, command, timeout);
 }
 
 
@@ -4450,12 +4484,16 @@ int do_save_master_pos()
     die("mysql_store_result() retuned NULL for '%s'", query);
   if (!(row = mysql_fetch_row(res)))
     die("empty result in show master status");
-  strnmov(master_pos.file, row[0], sizeof(master_pos.file)-1);
+
+  strnmov(master_pos.file, row[0], sizeof(master_pos.file) - 1);
   master_pos.pos = strtoul(row[1], (char**) 0, 10);
+#ifdef HAVE_GTID
+  strnmov(master_pos.gtid, row[4], sizeof(master_pos.gtid) - 1);
+#endif
+
   mysql_free_result(res);
   DBUG_RETURN(0);
 }
-
 
 /*
   Assign the variable <var_name> with <var_val>
@@ -8881,7 +8919,7 @@ int main(int argc, char **argv)
 	do_get_replace_column(command);
 	break;
       case Q_SAVE_MASTER_POS: do_save_master_pos(); break;
-      case Q_SYNC_WITH_MASTER: do_sync_with_master(command); break;
+      case Q_SYNC_WITH_MASTER: do_sync_with_master_offset(command); break;
       case Q_SYNC_SLAVE_WITH_MASTER:
       {
 	do_save_master_pos();
@@ -8889,8 +8927,18 @@ int main(int argc, char **argv)
 	  select_connection(command);
 	else
 	  select_connection_name("slave");
-	do_sync_with_master2(command, 0);
+	do_sync_with_master(command);
 	break;
+      }
+      case Q_SYNC_SLAVE_GTID_WITH_MASTER:
+      {
+        do_save_master_pos();
+        if (*command->first_argument)
+          select_connection(command);
+        else
+          select_connection_name("slave");
+        do_sync_gtid_with_master(command);
+        break;
       }
       case Q_COMMENT:
       {

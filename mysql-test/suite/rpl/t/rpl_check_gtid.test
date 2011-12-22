@@ -26,6 +26,11 @@
 # Property 3.2 - RESET MASTER cleans the GTids and previous GTids' state
 #                storead in the binary log.
 #
+# 4. With CHANGE MASTER TO MASTER_AUTO_POSITION coordinates are not used.
+#
+# Property 4.1 - When MASTER_AUTO_POSITION is specified only missing data
+#                transactions on the slave are retrieved from the master.
+#          
 # We check if the aforementioned properties hold after generating a set
 # of transactions and rotating logs through different methods: 
 #
@@ -39,6 +44,9 @@
 #    restarting the server.
 # 5. RESET SLAVE must not affect its binary log. On the master, rotate logs
 #    by restarting the server.
+# 6. On the slave, rotate logs by start/stop and calling CHANGE MASTER TO
+#    with MASTER_AUTO_POSITION enabled. On the master, rotate logs through
+#    FLUSH LOGS.
 #
 # --- TODO ---
 # There are two cases not consider here:
@@ -48,8 +56,6 @@
 --source include/master-slave.inc
 --source include/not_embedded.inc
 --source include/not_windows.inc
-
-# tests needs debug build
 --source include/have_debug.inc
 
 call mtr.add_suppression("Recovery from master pos .*");
@@ -208,7 +214,7 @@ while ($i != 5)
 #
 --connection slave
 --source include/stop_slave.inc
-SET GLOBAL debug="d,";
+SET GLOBAL debug="-d,rotate_slave_debug_group";
 RESET MASTER;
 RESET SLAVE;
 --connection master
@@ -459,7 +465,20 @@ while ($i != 5)
   inc $i;
 }
 
-# Cleaning up after executing the test case.
+#
+# 6. This part of the test case:
+#
+#  6.1 - Generates a set of transactions on the master.
+#
+#  6.2 - Makes the slave to retrieve and apply these transactions through
+#        sync_slave_gtid_with_master
+#
+#  6.3 - Stop the slave, call CHANGE MASTER TO with MASTER_AUTO_POSITION and
+#        start the slave to rotate the relay log.
+#
+#  6.4 - Rotates the binary log on master by calling FLUSH LOGS.
+#
+
 --connection slave
 --source include/stop_slave.inc
 RESET SLAVE;
@@ -467,7 +486,49 @@ RESET MASTER;
 --connection master
 RESET MASTER;
 --connection slave
+--let $slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
+--error ER_BAD_SLAVE_AUTO_POSITION
+CHANGE MASTER TO MASTER_AUTO_POSITION= 1, MASTER_LOG_FILE= 'master-bin.000001', MASTER_LOG_POS= 4;
 --source include/start_slave.inc
+
+--let $i=1
+while ($i != 4)
+{
+  # 6.1 - Generates a set of transactions on the master.
+  --connection master
+  BEGIN;
+  INSERT INTO t1 VALUES(1);
+  INSERT INTO t1 VALUES(2);
+  COMMIT;
+
+  BEGIN;
+  INSERT INTO t1 VALUES(1);
+  INSERT INTO t1 VALUES(2);
+  COMMIT;
+
+  # 6.2 - Makes the slave to retrieve and apply these transactions.
+  --sync_slave_gtid_with_master
+
+  # Check property 4.1
+  --let $binlog= relaylog
+  --let $gtid_set_ini=
+  --let $gtid_set_end=
+  --let $gtid_ini= `SELECT ($i * 2) - 1`
+  --let $gtid_end= `SELECT $i * 2`
+  --source extra/rpl_tests/rpl_check_gtid.inc
+
+  # 6.3 - Stop and start the slave, call CHANGE MASTER TO with MASTER_AUTO_POSITION.
+  --source include/stop_slave.inc
+  --replace_result $slave_master_host SLAVE_MASTER_HOST
+  --eval CHANGE MASTER TO MASTER_HOST= '$slave_master_host', MASTER_AUTO_POSITION= 1
+  --source include/start_slave.inc
+
+  # 6.4 - Rotates the binary log on master by calling FLUSH LOGS.
+  --connection master
+  FLUSH LOGS;
+
+  inc $i;
+}
 
 --connection master
 DROP TABLE t1;

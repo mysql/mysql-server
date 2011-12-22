@@ -623,6 +623,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   char search_file_name[FN_REFLEN], *name;
 
   ulong ev_offset;
+  bool using_gtid_proto= is_master_slave_proto(flags, BINLOG_THROUGH_GTID);
+  bool searching_first_gtid= using_gtid_proto;
   bool skip_group= false;
 
   IO_CACHE log;
@@ -772,8 +774,9 @@ impossible position";
     given that we want minimum modification of 4.0, we send the normal
     and fake Rotates.
   */
-  if (fake_rotate_event(net, packet, log_file_name, pos, &errmsg,
-                        get_binlog_checksum_value_at_connect(current_thd)))
+  if (!searching_first_gtid &&
+      fake_rotate_event(net, packet, log_file_name, pos, &errmsg,
+      get_binlog_checksum_value_at_connect(current_thd)))
   {
     /*
        This error code is not perfect, as fake_rotate_event() does not
@@ -934,6 +937,7 @@ impossible position";
                                                              STRING_WITH_LEN(act)));
                         }
                       });
+
       if (event_type == FORMAT_DESCRIPTION_EVENT)
       {
         skip_group= false;
@@ -957,73 +961,48 @@ impossible position";
         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
                                       LOG_EVENT_BINLOG_IN_USE_F);
         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
-        if (grp_set != NULL)
-        {
-          /*
-            Fixes the information on the checksum algorithm when a new
-            format description is read. Notice that this only necessary
-            when we need to filter out some transactions which were
-            already processed.
-          */
-          p_fdle->checksum_alg= current_checksum_alg;
-        }
+        /*
+          Fixes the information on the checksum algorithm when a new
+          format description is read. Notice that this only necessary
+          when we need to filter out some transactions which were
+          already processed.
+        */
+        p_fdle->checksum_alg= current_checksum_alg;
+      }
+      else if (event_type == GTID_LOG_EVENT && using_gtid_proto)
+      {
+        /* TODO: Double check this code with Andrei */
+        ulonglong checksum_size= ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+                                   p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
+                                   BINLOG_CHECKSUM_LEN + BINLOG_CHECKSUM_ALG_DESC_LEN: ev_offset);
+        Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
+                                                 packet->length() - checksum_size,
+                                                 p_fdle);
+        skip_group= grp_set->contains_gtid(gtid->get_sidno(true),
+                                                gtid->get_gno());
+        searching_first_gtid= skip_group;
+#ifndef DBUG_OFF
+        DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
+                   "searching gtid(%d).", gtid->get_sidno(true), gtid->get_gno(),
+                   skip_group, searching_first_gtid));
+#endif
+        delete gtid;
       }
       else if (event_type == STOP_EVENT)
       {
-        skip_group= false;
+        skip_group= searching_first_gtid;
         binlog_can_be_corrupted= false;
-      }
-      else if (event_type == GTID_LOG_EVENT && grp_set != NULL)
-      {
-      /* Sven, please, restore the group size and enable this. */
-      /*
-        rpl_sid sid_decode;
-        rpl_sidno sidno= 0;
-        rpl_gno gno= 0;
-        Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
-                                                 packet->length() - ev_offset,
-                                                 p_fdle);
-        sid_decode.copy_from(gtid->get_gtid_sid());
-        gno= gtid->get_gtid_gno();
-        mysql_bin_log.sid_lock.rdlock();
-        sidno= mysql_bin_log.sid_map.sid_to_sidno(&sid_decode);
-        mysql_bin_log.sid_lock.rdlock();
-        if ((skip_group= grp_set->contains_group(sidno, gno)))
-        {
-          my_off_t prv_pos= my_b_tell(&log);
-          my_off_t adv_pos= prv_pos + gtid->get_group_size();
-          my_b_seek(&log, adv_pos);
-          coord->pos= adv_pos;
-          DBUG_PRINT("info", ("previous pos %lld new pos %lld current new pos %lld.",
-                     prv_pos, adv_pos, my_b_tell(&log)));
-        }
-#ifndef DBUG_OFF
-        char buffer[Gtid_log_event::GTID_STRING_INFO_LEN];
-        size_t gtid_str_size= sid_decode.to_string(buffer);
-        buffer[gtid_str_size]= 0;
-        DBUG_PRINT("info", ("Dumping GTID %s:%lld sidno(%d) found group(%d)",
-                   buffer, gno, sidno, skip_group));
-#endif
-        delete gtid;
-      */
       }
       else if (event_type == PREVIOUS_GTIDS_LOG_EVENT ||
                event_type == INCIDENT_EVENT ||
                event_type == ROTATE_EVENT)
       {
-        skip_group= false;
-        /*
-          It would be nice if even with a simple implementation we could
-          avoid sending such events if not extremelly necessary.
-          We need to think on this and improve the code.
-
-          Note however that filtering out any of these events will make
-          the binary log's size to increase but slaves will never get
-          any event and will not be able to synchronize with the master.
-
-          /Alfranio
-        */
+        skip_group= searching_first_gtid;
       }
+
+      DBUG_PRINT("info", ("EVENT_TYPE %d SEARCHING %d SKIP_GROUP %d file %s pos %lld\n",
+                 event_type, searching_first_gtid, skip_group, log_file_name,
+                 my_b_tell(&log)));
 
       /*
         Introduced this code to make the gcc 4.6.1 compiler happy. When
@@ -1225,40 +1204,74 @@ impossible position";
 
 	if (read_packet)
         {
-          THD_STAGE_INFO(thd, stage_sending_binlog_event_to_slave);
-          pos = my_b_tell(&log);
-          if (RUN_HOOK(binlog_transmit, before_send_event,
-                       (thd, flags, packet, log_file_name, pos)))
+          if (event_type == GTID_LOG_EVENT && using_gtid_proto)
           {
-            my_errno= ER_UNKNOWN_ERROR;
-            errmsg= "run 'before_send_event' hook failed";
-            goto err;
+            /* TODO: Double check this code with Andrei. /Alfranio */
+            ulonglong checksum_size= ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+                                       p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
+                                       BINLOG_CHECKSUM_LEN + BINLOG_CHECKSUM_ALG_DESC_LEN: ev_offset);
+            Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
+                                                     packet->length() - checksum_size,
+                                                     p_fdle);
+            skip_group= grp_set->contains_gtid(gtid->get_sidno(true),
+                                               gtid->get_gno());
+            searching_first_gtid= skip_group;
+#ifndef DBUG_OFF
+            DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
+                       "searching gtid(%d).", gtid->get_sidno(true), gtid->get_gno(),
+                       skip_group, searching_first_gtid));
+#endif
+            delete gtid;
           }
-	  
-	  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) )
-	  {
-	    errmsg = "Failed on my_net_write()";
-	    my_errno= ER_UNKNOWN_ERROR;
-	    goto err;
-	  }
+          else if (event_type == STOP_EVENT)
+          {
+            skip_group= searching_first_gtid;
+            binlog_can_be_corrupted= false;
+          }
+          else if (event_type == PREVIOUS_GTIDS_LOG_EVENT ||
+                   event_type == INCIDENT_EVENT ||
+                   event_type == ROTATE_EVENT)
+          {
+            skip_group= searching_first_gtid;
+          }
 
-	  if (event_type == LOAD_EVENT)
-	  {
-	    if (send_file(thd))
+          if (!skip_group)
+          {
+            THD_STAGE_INFO(thd, stage_sending_binlog_event_to_slave);
+            pos = my_b_tell(&log);
+            if (RUN_HOOK(binlog_transmit, before_send_event,
+                         (thd, flags, packet, log_file_name, pos)))
+            {
+              my_errno= ER_UNKNOWN_ERROR;
+              errmsg= "run 'before_send_event' hook failed";
+              goto err;
+            }
+	  
+	    if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) )
 	    {
-	      errmsg = "failed in send_file()";
+	      errmsg = "Failed on my_net_write()";
 	      my_errno= ER_UNKNOWN_ERROR;
 	      goto err;
 	    }
-	  }
 
-          if (RUN_HOOK(binlog_transmit, after_send_event, (thd, flags, packet)))
-          {
-            my_errno= ER_UNKNOWN_ERROR;
-            errmsg= "Failed to run hook 'after_send_event'";
-            goto err;
-          }
-	}
+	    if (event_type == LOAD_EVENT)
+	    {
+	      if (send_file(thd))
+	      {
+	        errmsg = "failed in send_file()";
+	        my_errno= ER_UNKNOWN_ERROR;
+	        goto err;
+	      }
+	    }
+
+            if (RUN_HOOK(binlog_transmit, after_send_event, (thd, flags, packet)))
+            {
+              my_errno= ER_UNKNOWN_ERROR;
+              errmsg= "Failed to run hook 'after_send_event'";
+              goto err;
+            }
+	  }
+        }
 
 	log.error=0;
       }

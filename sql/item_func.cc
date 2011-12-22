@@ -3750,6 +3750,31 @@ longlong Item_master_pos_wait::val_int()
   return event_count;
 }
 
+longlong Item_master_gtid_wait::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  THD* thd = current_thd;
+  String *gtid= args[0]->val_str(&value);
+  int event_count= 0;
+
+  null_value=0;
+  if (thd->slave_thread || !gtid || !gtid->length())
+  {
+    null_value = 1;
+    return event_count;
+  }
+
+#if defined(HAVE_REPLICATION) && defined(HAVE_GTID)
+  longlong timeout = (arg_count== 2) ? args[1]->val_int() : 0;
+  if ((event_count = active_mi->rli->wait_for_gtid(thd, gtid, timeout)) == -2)
+  {
+    null_value = 1;
+    event_count=0;
+  }
+#endif
+
+  return event_count;
+}
 
 #ifdef HAVE_GTID
 /**

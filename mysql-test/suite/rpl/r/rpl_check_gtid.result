@@ -60,7 +60,7 @@ COMMIT;
 include/rpl_check_gtid.inc
 FLUSH LOGS;
 include/stop_slave.inc
-SET GLOBAL debug="d,";
+SET GLOBAL debug="-d,rotate_slave_debug_group";
 RESET MASTER;
 RESET SLAVE;
 RESET MASTER;
@@ -226,6 +226,47 @@ include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
 RESET MASTER;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 1, MASTER_LOG_FILE= 'master-bin.000001', MASTER_LOG_POS= 4;
+ERROR HY000: Parameters MASTER_LOG_FILE, MASTER_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when MASTER_AUTO_POSITION is active.
 include/start_slave.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl_check_gtid.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
+include/start_slave.inc
+FLUSH LOGS;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl_check_gtid.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
+include/start_slave.inc
+FLUSH LOGS;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl_check_gtid.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
+include/start_slave.inc
+FLUSH LOGS;
 DROP TABLE t1;
 include/rpl_end.inc

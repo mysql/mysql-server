@@ -2690,15 +2690,16 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
 
     /*
       The current implementation decides whether the Gtid must be
-      used or not based on the requested binary log name. We need
-      to double check if this is enough. /Alfranio
+      used based on the mi->auto_position field and the positions
+      in the binary log one wants to retrieve.
     */
-    DBUG_PRINT("info", ("Do I know something about the master? (%d - %s).",
-               BINLOG_NAME_INFO_SIZE != 0, mi->get_master_log_name()));
     add_master_slave_proto(&binlog_flags,
-                           (BINLOG_NAME_INFO_SIZE == 0 &&
-                            mi->get_master_log_pos() == BIN_LOG_HEADER_SIZE) ?
-                            BINLOG_THROUGH_GTID : BINLOG_THROUGH_POSITION);
+                           mi->is_auto_position() &&
+                           BINLOG_NAME_INFO_SIZE == 0 &&
+                           mi->get_master_log_pos() == BIN_LOG_HEADER_SIZE ?
+                           BINLOG_THROUGH_GTID : BINLOG_THROUGH_POSITION);
+    DBUG_PRINT("info", ("Do I know something about the master? (binary log's name %s - auto position %d).",
+               mi->get_master_log_name(), mi->is_auto_position()));
     int2store(ptr_buffer, binlog_flags);
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
@@ -7238,7 +7239,7 @@ bool change_master(THD* thd, Master_info* mi)
   if (thread_mask) // We refuse if any slave thread is running
   {
     my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
-    ret= TRUE;
+    ret= true;
     goto err;
   }
   thread_mask= SLAVE_IO | SLAVE_SQL;
@@ -7260,8 +7261,27 @@ bool change_master(THD* thd, Master_info* mi)
   if (init_info(mi, FALSE, thread_mask))
   {
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
-    ret= TRUE;
+    ret= true;
     goto err;
+  }
+
+  /*
+    We cannot specify auto position and set either the coordinates
+    on master or slave. If we try to do so, an error message is
+    printed out.
+  */
+  if (lex_mi->log_file_name != NULL || lex_mi->pos != 0 || 
+      lex_mi->relay_log_name != NULL || lex_mi->relay_log_pos != 0)
+  {
+    if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE ||
+        (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_DISABLE &&
+         mi->is_auto_position()))
+    {
+      my_message(ER_BAD_SLAVE_AUTO_POSITION,
+                 ER(ER_BAD_SLAVE_AUTO_POSITION), MYF(0));
+      ret= true;
+      goto err;
+    }
   }
 
   /*
@@ -7471,6 +7491,15 @@ bool change_master(THD* thd, Master_info* mi)
       goto err;
     }
   }
+
+  /*
+    Sets if the slave should connect to the master and look for
+    GTids.
+  */
+  if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->set_auto_position(
+      (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE));
+
   /*
     Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
     so restore them to good values. If we left them to ''/0, that would work;

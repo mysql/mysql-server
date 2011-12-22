@@ -6630,4 +6630,7 @@ ER_MALFORMED_GTID_SPECIFICATION
   eng "Malformed GTID specification '%.200s'."
 
 ER_GNO_EXHAUSTED
-  eng "Impossible to generate automatic GNO: the space of possible values is exhausted.  Restart the server with a new SID."
+  eng "Impossible to generate automatic GNO: the space of possible values is exhausted. Restart the server with a new SID."
+
+ER_BAD_SLAVE_AUTO_POSITION
+  eng "Parameters MASTER_LOG_FILE, MASTER_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when MASTER_AUTO_POSITION is active."

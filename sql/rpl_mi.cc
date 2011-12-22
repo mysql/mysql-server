@@ -52,8 +52,11 @@ enum {
   /* line for ssl_crl */
   LINE_FOR_SSL_CRLPATH= 22,
 
+  /* line for auto_position */
+  LINE_FOR_AUTO_POSITION= 23,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_SSL_CRLPATH
+  LINES_IN_MASTER_INFO= LINE_FOR_AUTO_POSITION
 };
 
 /*
@@ -85,6 +88,7 @@ const char *info_mi_fields []=
   "retry_count",
   "ssl_crl",
   "ssl_crlpath",
+  "auto_position"
 };
 
 Master_info::Master_info(
@@ -111,7 +115,8 @@ Master_info::Master_info(
    clock_diff_with_master(0), heartbeat_period(0),
    received_heartbeats(0), last_heartbeat(0), master_id(0),
    checksum_alg_before_fd(BINLOG_CHECKSUM_ALG_UNDEF),
-   retry_count(master_retry_count), master_support_gtid(false)
+   retry_count(master_retry_count), master_support_gtid(false),
+   auto_position(false)
 {
   host[0] = 0; user[0] = 0; password[0] = 0; bind_addr[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
@@ -325,6 +330,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   ulong temp_master_log_pos= 0;
   int temp_ssl= 0;
   int temp_ssl_verify_server_cert= 0;
+  int temp_auto_position= 0;
 
   DBUG_ENTER("Master_info::read_info");
 
@@ -454,9 +460,16 @@ bool Master_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(TRUE);
   }
 
+  if (lines >= LINE_FOR_AUTO_POSITION)
+  {
+    if (from->get_info(&temp_auto_position, (int) 0))
+      DBUG_RETURN(TRUE);
+  }
+
   ssl= (my_bool) test(temp_ssl);
   ssl_verify_server_cert= (my_bool) test(temp_ssl_verify_server_cert);
   master_log_pos= (my_off_t) temp_master_log_pos;
+  auto_position= temp_auto_position;
 #ifndef HAVE_OPENSSL
   if (ssl)
     sql_print_warning("SSL information in the master info file "
@@ -501,7 +514,8 @@ bool Master_info::write_info(Rpl_info_handler *to)
       to->set_info(master_uuid) ||
       to->set_info(retry_count) ||
       to->set_info(ssl_crl) ||
-      to->set_info(ssl_crlpath))
+      to->set_info(ssl_crlpath) ||
+      to->set_info((int) auto_position))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);

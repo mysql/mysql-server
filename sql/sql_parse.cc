@@ -1385,7 +1385,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         Before going GA, we need to make this protocol extensible without
         breaking compatitibilty. /Alfranio.
 
-        Moreover, move it from sql_parse.cc to rpl_slave.cc /Sven
+        Moreover, move it from sql_parse.cc to rpl_master.cc /Sven
       */
       String slave_uuid;
       ushort flags= 0;
