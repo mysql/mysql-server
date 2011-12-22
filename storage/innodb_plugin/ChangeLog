@@ -1,3 +1,8 @@
+2011-12-22	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#63775 Server crash on handler read next after delete record.
+
 2011-12-13	The InnoDB Team
 
 	* handler/ha_innodb.cc, innodb.test, innodb.result:
