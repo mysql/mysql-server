@@ -781,9 +781,8 @@ int Relay_log_info::wait_for_gtid(THD* thd, String* gtid,
 
     //wait for master update, with optional timeout.
 
-    global_sid_lock.rdlock();
-
 #ifndef DBUG_OFF
+    global_sid_lock.wrlock();
     const Gtid_set* gtid_ptr_state= gtid_state.get_logged_gtids();
     if (gtid_ptr_state->to_string(&gtid_set_buffer, &gtid_set_size))
     {
@@ -793,6 +792,8 @@ int Relay_log_info::wait_for_gtid(THD* thd, String* gtid,
     }
     DBUG_PRINT("info", ("Waiting for %s. We are at %s and subset %d",
       gtid->c_ptr_safe(), gtid_set_buffer, gtid_set.is_subset(gtid_ptr_state)));
+#else
+    global_sid_lock.rdlock();
 #endif
 
     if (gtid_set.is_subset(gtid_state.get_logged_gtids()))
