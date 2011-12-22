@@ -1108,8 +1108,8 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-net-timeout 3600
 slave-parallel-workers 0
-slave-rows-search-algorithms TABLE_SCAN,INDEX_SCAN
 slave-pending-jobs-size-max 16777216
+slave-rows-search-algorithms TABLE_SCAN,INDEX_SCAN
 slave-skip-errors (No default value)
 slave-sql-verify-checksum TRUE
 slave-transaction-retries 10
