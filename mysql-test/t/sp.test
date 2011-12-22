@@ -3340,9 +3340,8 @@ create procedure bug6857()
 begin
   declare t0, t1 int;
   declare plus bool default 0;
-
   set t0 = unix_timestamp();
-  select sleep(1.1); 
+  select sleep(1.1);
   set t1 = unix_timestamp();
   if t1 > t0 then
     set plus = 1;
