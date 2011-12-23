@@ -214,7 +214,7 @@ typedef struct st_lex_master_info
   int sql_delay;
   ulonglong pos;
   ulong server_id, retry_count;
-  char *gtid_set;
+  char *gtid;
 
   /*
     Enum is used for making it possible to detect if the user

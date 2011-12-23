@@ -1077,7 +1077,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  GROUP_SYM                     /* SQL-2003-R */
 %token  GROUP_CONCAT_SYM
 %token  GT_SYM                        /* OPERATOR */
-%token  GTID_SET_SYM
+%token  GTID_SYM
 %token  HANDLER_SYM
 %token  HASH_SYM
 %token  HAVING                        /* SQL-2003-R */
@@ -7257,10 +7257,10 @@ slave_until:
             LEX *lex=Lex;
             if (((lex->mi.log_file_name || lex->mi.pos) &&
                 (lex->mi.relay_log_name || lex->mi.relay_log_pos) &&
-                (lex->mi.gtid_set)) ||
+                lex->mi.gtid) ||
                 !((lex->mi.log_file_name && lex->mi.pos) ||
                   (lex->mi.relay_log_name && lex->mi.relay_log_pos) ||
-                  (lex->mi.gtid_set)))
+                  lex->mi.gtid))
             {
                my_message(ER_BAD_SLAVE_UNTIL_COND,
                           ER(ER_BAD_SLAVE_UNTIL_COND), MYF(0));
@@ -7272,9 +7272,9 @@ slave_until:
 slave_until_opts:
           master_file_def
         | slave_until_opts ',' master_file_def
-        | GTID_SET_SYM EQ TEXT_STRING_sys
+        | GTID_SYM EQ TEXT_STRING_sys
           {
-            Lex->mi.gtid_set = $3.str;
+            Lex->mi.gtid= $3.str;
           }
         ;
 
@@ -13004,7 +13004,7 @@ keyword_sp:
         | GET_FORMAT               {}
         | GRANTS                   {}
         | GLOBAL_SYM               {}
-        | GTID_SET_SYM             {}
+        | GTID_SYM                 {}
         | HASH_SYM                 {}
         | HOSTS_SYM                {}
         | HOUR_SYM                 {}

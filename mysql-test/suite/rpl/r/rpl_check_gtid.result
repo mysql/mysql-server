@@ -281,7 +281,9 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL GTID_SET= "GTID_SET";
+START SLAVE UNTIL GTID= "MASTER_UUID:1";
+include/wait_for_slave_sql_to_stop.inc
+include/stop_slave.inc
 include/rpl_check_gtid.inc
 FLUSH LOGS;
 BEGIN;
@@ -292,7 +294,9 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL GTID_SET= "GTID_SET";
+START SLAVE UNTIL GTID= "MASTER_UUID:3";
+include/wait_for_slave_sql_to_stop.inc
+include/stop_slave.inc
 include/rpl_check_gtid.inc
 FLUSH LOGS;
 BEGIN;
@@ -303,7 +307,9 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL GTID_SET= "GTID_SET";
+START SLAVE UNTIL GTID= "MASTER_UUID:5";
+include/wait_for_slave_sql_to_stop.inc
+include/stop_slave.inc
 include/rpl_check_gtid.inc
 FLUSH LOGS;
 include/start_slave.inc

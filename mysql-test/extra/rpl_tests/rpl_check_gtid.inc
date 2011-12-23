@@ -118,6 +118,7 @@ if (`SELECT "$binlog" <> "" and "$gtid_end" <> "" and "$gtid_ini" <> ""`)
   --let $type= unknown
   --let $trans= `SELECT $gtid_ini`
   --let $pos= 1
+  --let $info= unknown
   --let $master_binlog= query_get_value($command_set, $command_set_info, 1)
   while (`SELECT $trans <= $gtid_end AND "$type" <> "No such row"`)
   {
