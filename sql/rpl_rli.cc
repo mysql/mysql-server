@@ -784,7 +784,13 @@ int Relay_log_info::wait_for_gtid(THD* thd, String* gtid,
 
 #ifndef DBUG_OFF
     global_sid_lock.wrlock();
+#else
+    global_sid_lock.rdlock();
+#endif
+
     const Gtid_set* gtid_ptr_state= gtid_state.get_logged_gtids();
+
+#ifndef DBUG_OFF
     if (gtid_ptr_state->to_string(&gtid_set_buffer, &gtid_set_size))
     {
       my_free(gtid_set_buffer);
@@ -793,11 +799,9 @@ int Relay_log_info::wait_for_gtid(THD* thd, String* gtid,
     }
     DBUG_PRINT("info", ("Waiting for %s. We are at %s and subset %d",
       gtid->c_ptr_safe(), gtid_set_buffer, gtid_set.is_subset(gtid_ptr_state)));
-#else
-    global_sid_lock.rdlock();
 #endif
 
-    if (gtid_set.is_subset(gtid_state.get_logged_gtids()))
+    if (gtid_set.is_subset(gtid_ptr_state))
     {
       global_sid_lock.unlock();
       break;
@@ -1090,10 +1094,6 @@ err:
 
 bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
 {
-  const char *log_name= NULL;
-  char*  gtid_set_buffer= NULL;
-  int  gtid_set_size= 0;
-  ulonglong log_pos= 0;
   char error_msg[]= "Slave SQL thread is stopped because UNTIL "
                     "condition is bad.";
   DBUG_ENTER("Relay_log_info::is_until_satisfied");
@@ -1102,6 +1102,9 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
 
   if (until_condition == UNTIL_MASTER_POS || until_condition == UNTIL_RELAY_POS)
   {
+    const char *log_name= NULL;
+    ulonglong log_pos= 0;
+
     if (until_condition == UNTIL_MASTER_POS)
     {
       if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
@@ -1175,37 +1178,34 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
              log_pos >= until_log_pos) ||
             until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_GREATER));
   }
-  else
+  else if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
   {
-
-    Gtid_set gtid_set(&global_sid_map);
+    Gtid gtid_param;
+    Gtid gtid_event;
 
 #ifndef DBUG_OFF
     global_sid_lock.wrlock();
 #else
     global_sid_lock.rdlock();
 #endif
-    if (gtid_set.add(until_gtid.c_str()) != RETURN_STATUS_OK)
+
+    if (gtid_param.parse(&global_sid_map, until_gtid.c_str()) != RETURN_STATUS_OK)
     {
       sql_print_error("%s", error_msg);
       global_sid_lock.unlock();
       DBUG_RETURN(true);
     }
+    gtid_event.sidno= ((Gtid_log_event *)(ev))->get_sidno(false);
+    gtid_event.gno= ((Gtid_log_event *)(ev))->get_gno();
 
 #ifndef DBUG_OFF
-    const Gtid_set* gtid_ptr_state= gtid_state.get_logged_gtids();
-    if (gtid_ptr_state->to_string(&gtid_set_buffer, &gtid_set_size))
-    {
-      sql_print_error("%s", error_msg);
-      my_free(gtid_set_buffer);
-      global_sid_lock.unlock();
-      DBUG_RETURN(true);
-    }
-    DBUG_PRINT("info", ("Waiting for %s. We are at %s and subset %d",
-      until_gtid.c_str(), gtid_set_buffer, gtid_set.is_subset(gtid_ptr_state)));
+    char dbug_buffer[Gtid::MAX_TEXT_LENGTH + 1];
+    gtid_event.to_string(&global_sid_map, dbug_buffer);
+
+    DBUG_PRINT("info", ("Waiting for %s. We are at %s.", until_gtid.c_str(), dbug_buffer));
 #endif
 
-    if (gtid_set.is_subset(gtid_state.get_logged_gtids()))
+    if (gtid_param.equals(&gtid_event))
     {
       global_sid_lock.unlock();
       DBUG_RETURN(true);

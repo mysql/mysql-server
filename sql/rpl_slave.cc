@@ -3316,7 +3316,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                               " UNTIL position %s", llstr(rli->until_pos(), buf));
       else
         sql_print_information("Slave SQL thread stopped because it reached its"
-                              " UNTIL GTID SET %s", rli->until_gtid.c_str());
+                              " UNTIL GTID %s", rli->until_gtid.c_str());
       /*
         Setting abort_slave flag because we do not want additional message about
         error in query execution to be printed.
@@ -5000,7 +5000,7 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
                             " UNTIL position %s", llstr(rli->until_pos(), buf));
     else
       sql_print_information("Slave SQL thread stopped because it reached its"
-                            " UNTIL GTID SET %s", rli->until_gtid.c_str());
+                            " UNTIL GTID %s", rli->until_gtid.c_str());
     mysql_mutex_unlock(&rli->data_lock);
     goto err;
   }
@@ -7007,15 +7007,15 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
           strmake(mi->rli->until_log_name, thd->lex->mi.relay_log_name,
                   sizeof(mi->rli->until_log_name)-1);
         }
-        else if (thd->lex->mi.gtid_set)
+        else if (thd->lex->mi.gtid)
         {
           /*
-            TODO: Try to set an upper limit on the size of the gtid_set. /Alfranio
+            TODO: Try to set an upper limit on the size of the gtid. /Alfranio
           */
           mi->rli->until_gtid.clear();
-          mi->rli->until_condition= Relay_log_info::UNTIL_GTID_SET;
-          mi->rli->until_gtid.append(thd->lex->mi.gtid_set,
-                                     strlen(thd->lex->mi.gtid_set));
+          mi->rli->until_condition= Relay_log_info::UNTIL_GTID;
+          mi->rli->until_gtid.append(thd->lex->mi.gtid,
+                                     strlen(thd->lex->mi.gtid));
         }
         else
           mi->rli->clear_until_condition();

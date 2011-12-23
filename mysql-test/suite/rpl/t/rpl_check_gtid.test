@@ -48,7 +48,7 @@
 #    with MASTER_AUTO_POSITION enabled. On the master, rotate logs through
 #    FLUSH LOGS.
 # 7. On the slave, rotate logs by start/stop and calling START SLAVE UNTIL
-#    GTID_SET. On the master, rotate logs through FLUSH LOGS.
+#    GTID. On the master, rotate logs through FLUSH LOGS.
 #
 # --- TODO ---
 # There are two cases not consider here:
@@ -540,7 +540,7 @@ while ($i != 4)
 #  7.1 - Generates a set of transactions on the master.
 #
 #  7.2 - Makes the slave to retrieve and apply these transactions through
-#        START SLAVE UNTIL GTID_SET.
+#        START SLAVE UNTIL GTID.
 #
 #  7.3 - Rotates the binary log on master by calling FLUSH LOGS.
 #
@@ -572,17 +572,19 @@ while ($i != 4)
   COMMIT;
 
   # 7.2 - Makes the slave to retrieve and apply these transactions.
-  --let $executed_gtid= query_get_value(SHOW MASTER STATUS, Executed_Gtid_Set, 1)
   --connection slave
-  --replace_result $executed_gtid GTID_SET
-  --eval START SLAVE UNTIL GTID_SET= "$executed_gtid"
+  --let $sequence= `SELECT ($i * 2) - 1`
+  --replace_result $master_uuid MASTER_UUID
+  --eval START SLAVE UNTIL GTID= "$master_uuid:$sequence"
+  --source include/wait_for_slave_sql_to_stop.inc
+  --source include/stop_slave.inc
 
   # Check property 1.2 and 4.1.
-  --let $binlog= relaylog
+  --let $binlog= binlog
   --let $gtid_set_ini=
   --let $gtid_set_end=
-  --let $gtid_ini= `SELECT ($i * 2) - 1`
-  --let $gtid_end= `SELECT $i * 2`
+  --let $gtid_ini= 1
+  --let $gtid_end= `SELECT ($i * 2) - 2`
   --source extra/rpl_tests/rpl_check_gtid.inc
 
   # 7.3 - Rotates the binary log on master by calling FLUSH LOGS.

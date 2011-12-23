@@ -242,7 +242,7 @@ static SYMBOL symbols[] = {
   { "GRANT",		SYM(GRANT)},
   { "GRANTS",	        SYM(GRANTS)},
   { "GROUP",		SYM(GROUP_SYM)},
-  { "GTID_SET",		SYM(GTID_SET_SYM)},
+  { "GTID",             SYM(GTID_SYM)},
   { "HANDLER",		SYM(HANDLER_SYM)},
   { "HASH",		SYM(HASH_SYM)},
   { "HAVING",		SYM(HAVING)},

@@ -303,7 +303,7 @@ public:
      notify_*_log_name_updated() methods. (They need to be called only if SQL
      thread is running).
    */
-  enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS, UNTIL_GTID_SET} until_condition;
+  enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS, UNTIL_GTID} until_condition;
   char until_log_name[FN_REFLEN];
   ulonglong until_log_pos;
   /* extension extracted from log_name and converted to int */
