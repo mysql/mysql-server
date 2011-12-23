@@ -47,6 +47,8 @@
 # 6. On the slave, rotate logs by start/stop and calling CHANGE MASTER TO
 #    with MASTER_AUTO_POSITION enabled. On the master, rotate logs through
 #    FLUSH LOGS.
+# 7. On the slave, rotate logs by start/stop and calling START SLAVE UNTIL
+#    GTID_SET. On the master, rotate logs through FLUSH LOGS.
 #
 # --- TODO ---
 # There are two cases not consider here:
@@ -62,6 +64,7 @@ call mtr.add_suppression("Recovery from master pos .*");
 
 --let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
+
 
 #
 # 1. This part of the test case:
@@ -529,6 +532,67 @@ while ($i != 4)
 
   inc $i;
 }
+
+
+#
+# 7. This part of the test case:
+#
+#  7.1 - Generates a set of transactions on the master.
+#
+#  7.2 - Makes the slave to retrieve and apply these transactions through
+#        START SLAVE UNTIL GTID_SET.
+#
+#  7.3 - Rotates the binary log on master by calling FLUSH LOGS.
+#
+
+--connection slave
+--source include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+--connection master
+RESET MASTER;
+--connection slave
+--let $slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
+--replace_result $slave_master_host SLAVE_MASTER_HOST
+--eval CHANGE MASTER TO MASTER_HOST= '$slave_master_host', MASTER_AUTO_POSITION= 1
+
+--let $i=1
+while ($i != 4)
+{
+  # 7.1 - Generates a set of transactions on the master.
+  --connection master
+  BEGIN;
+  INSERT INTO t1 VALUES(1);
+  INSERT INTO t1 VALUES(2);
+  COMMIT;
+
+  BEGIN;
+  INSERT INTO t1 VALUES(1);
+  INSERT INTO t1 VALUES(2);
+  COMMIT;
+
+  # 7.2 - Makes the slave to retrieve and apply these transactions.
+  --let $executed_gtid= query_get_value(SHOW MASTER STATUS, Executed_Gtid_Set, 1)
+  --connection slave
+  --replace_result $executed_gtid GTID_SET
+  --eval START SLAVE UNTIL GTID_SET= "$executed_gtid"
+
+  # Check property 1.2 and 4.1.
+  --let $binlog= relaylog
+  --let $gtid_set_ini=
+  --let $gtid_set_end=
+  --let $gtid_ini= `SELECT ($i * 2) - 1`
+  --let $gtid_end= `SELECT $i * 2`
+  --source extra/rpl_tests/rpl_check_gtid.inc
+
+  # 7.3 - Rotates the binary log on master by calling FLUSH LOGS.
+  --connection master
+  FLUSH LOGS;
+
+  inc $i;
+}
+--connection slave
+--source include/start_slave.inc
 
 --connection master
 DROP TABLE t1;
