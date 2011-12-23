@@ -942,7 +942,7 @@ main(int argc, char** argv)
 
 TAPTEST(DynArr256)
 {
-  Pool_context pc = test_context(10000);
+  Pool_context pc = test_context(100);
 
   OK(true);
 
