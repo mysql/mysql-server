@@ -1405,7 +1405,7 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
   HugoTransactions hugoTrans(*ctx->getTab());
   while(i<=loops && result != NDBT_FAILED)
   {
-    if (i > 0 && ctx->closeToTimeout(15))
+    if (i > 0 && ctx->closeToTimeout(30))
       break;
 
     if (lcploop)
@@ -1510,7 +1510,7 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
   HugoTransactions hugoTrans(*ctx->getTab());
   while(i<=loops && result != NDBT_FAILED)
   {
-    if (i > 0 && ctx->closeToTimeout(15))
+    if (i > 0 && ctx->closeToTimeout(30))
       break;
 
     if (lcploop)
@@ -1616,7 +1616,7 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
   HugoTransactions hugoTrans(*ctx->getTab());
   while(i<=loops && result != NDBT_FAILED)
   {
-    if (i > 0 && ctx->closeToTimeout(15))
+    if (i > 0 && ctx->closeToTimeout(30))
       break;
 
     if (lcploop)
