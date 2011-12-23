@@ -293,6 +293,7 @@ void Relay_log_info::clear_until_condition()
   until_condition= Relay_log_info::UNTIL_NONE;
   until_log_name[0]= 0;
   until_log_pos= 0;
+  until_gtid.clear();
   DBUG_VOID_RETURN;
 }
 
@@ -1089,85 +1090,130 @@ err:
 
 bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
 {
-  const char *log_name;
-  ulonglong log_pos;
+  const char *log_name= NULL;
+  char*  gtid_set_buffer= NULL;
+  int  gtid_set_size= 0;
+  ulonglong log_pos= 0;
+  char error_msg[]= "Slave SQL thread is stopped because UNTIL "
+                    "condition is bad.";
   DBUG_ENTER("Relay_log_info::is_until_satisfied");
 
   DBUG_ASSERT(until_condition != UNTIL_NONE);
 
-  if (until_condition == UNTIL_MASTER_POS)
+  if (until_condition == UNTIL_MASTER_POS || until_condition == UNTIL_RELAY_POS)
   {
-    if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
-      DBUG_RETURN(FALSE);
-    log_name= group_master_log_name;
-    log_pos= (!ev)? group_master_log_pos :
-      ((thd->variables.option_bits & OPTION_BEGIN || !ev->log_pos) ?
-       group_master_log_pos : ev->log_pos - ev->data_written);
-  }
-  else
-  { /* until_condition == UNTIL_RELAY_POS */
-    log_name= group_relay_log_name;
-    log_pos= group_relay_log_pos;
-  }
-
-#ifndef DBUG_OFF
-  {
-    char buf[32];
-    DBUG_PRINT("info", ("group_master_log_name='%s', group_master_log_pos=%s",
-                        group_master_log_name, llstr(group_master_log_pos, buf)));
-    DBUG_PRINT("info", ("group_relay_log_name='%s', group_relay_log_pos=%s",
-                        group_relay_log_name, llstr(group_relay_log_pos, buf)));
-    DBUG_PRINT("info", ("(%s) log_name='%s', log_pos=%s",
-                        until_condition == UNTIL_MASTER_POS ? "master" : "relay",
-                        log_name, llstr(log_pos, buf)));
-    DBUG_PRINT("info", ("(%s) until_log_name='%s', until_log_pos=%s",
-                        until_condition == UNTIL_MASTER_POS ? "master" : "relay",
-                        until_log_name, llstr(until_log_pos, buf)));
-  }
-#endif
-
-  if (until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_UNKNOWN)
-  {
-    /*
-      We have no cached comparison results so we should compare log names
-      and cache result.
-      If we are after RESET SLAVE, and the SQL slave thread has not processed
-      any event yet, it could be that group_master_log_name is "". In that case,
-      just wait for more events (as there is no sensible comparison to do).
-    */
-
-    if (*log_name)
+    if (until_condition == UNTIL_MASTER_POS)
     {
-      const char *basename= log_name + dirname_length(log_name);
-
-      const char *q= (const char*)(fn_ext(basename)+1);
-      if (strncmp(basename, until_log_name, (int)(q-basename)) == 0)
-      {
-        /* Now compare extensions. */
-        char *q_end;
-        ulong log_name_extension= strtoul(q, &q_end, 10);
-        if (log_name_extension < until_log_name_extension)
-          until_log_names_cmp_result= UNTIL_LOG_NAMES_CMP_LESS;
-        else
-          until_log_names_cmp_result=
-            (log_name_extension > until_log_name_extension) ?
-            UNTIL_LOG_NAMES_CMP_GREATER : UNTIL_LOG_NAMES_CMP_EQUAL ;
-      }
-      else
-      {
-        /* Probably error so we aborting */
-        sql_print_error("Slave SQL thread is stopped because UNTIL "
-                        "condition is bad.");
-        DBUG_RETURN(TRUE);
-      }
+      if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
+        DBUG_RETURN(FALSE);
+      log_name= group_master_log_name;
+      log_pos= (!ev)? group_master_log_pos :
+        ((thd->variables.option_bits & OPTION_BEGIN || !ev->log_pos) ?
+         group_master_log_pos : ev->log_pos - ev->data_written);
     }
     else
-      DBUG_RETURN(until_log_pos == 0);
+    { /* until_condition == UNTIL_RELAY_POS */
+      log_name= group_relay_log_name;
+      log_pos= group_relay_log_pos;
+    }
+
+#ifndef DBUG_OFF
+    {
+      char buf[32];
+      DBUG_PRINT("info", ("group_master_log_name='%s', group_master_log_pos=%s",
+                          group_master_log_name, llstr(group_master_log_pos, buf)));
+      DBUG_PRINT("info", ("group_relay_log_name='%s', group_relay_log_pos=%s",
+                          group_relay_log_name, llstr(group_relay_log_pos, buf)));
+      DBUG_PRINT("info", ("(%s) log_name='%s', log_pos=%s",
+                          until_condition == UNTIL_MASTER_POS ? "master" : "relay",
+                          log_name, llstr(log_pos, buf)));
+      DBUG_PRINT("info", ("(%s) until_log_name='%s', until_log_pos=%s",
+                          until_condition == UNTIL_MASTER_POS ? "master" : "relay",
+                          until_log_name, llstr(until_log_pos, buf)));
+    }
+#endif
+
+    if (until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_UNKNOWN)
+    {
+      /*
+        We have no cached comparison results so we should compare log names
+        and cache result.
+        If we are after RESET SLAVE, and the SQL slave thread has not processed
+        any event yet, it could be that group_master_log_name is "". In that case,
+        just wait for more events (as there is no sensible comparison to do).
+      */
+
+      if (*log_name)
+      {
+        const char *basename= log_name + dirname_length(log_name);
+
+        const char *q= (const char*)(fn_ext(basename)+1);
+        if (strncmp(basename, until_log_name, (int)(q-basename)) == 0)
+        {
+          /* Now compare extensions. */
+          char *q_end;
+          ulong log_name_extension= strtoul(q, &q_end, 10);
+          if (log_name_extension < until_log_name_extension)
+            until_log_names_cmp_result= UNTIL_LOG_NAMES_CMP_LESS;
+          else
+            until_log_names_cmp_result=
+              (log_name_extension > until_log_name_extension) ?
+              UNTIL_LOG_NAMES_CMP_GREATER : UNTIL_LOG_NAMES_CMP_EQUAL ;
+        }
+        else
+        {
+          /* Probably error so we aborting */
+          sql_print_error("%s", error_msg);
+          DBUG_RETURN(TRUE);
+        }
+      }
+      else
+        DBUG_RETURN(until_log_pos == 0);
+    }
+
+    DBUG_RETURN(((until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_EQUAL &&
+             log_pos >= until_log_pos) ||
+            until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_GREATER));
+  }
+  else
+  {
+
+    Gtid_set gtid_set(&global_sid_map);
+
+#ifndef DBUG_OFF
+    global_sid_lock.wrlock();
+#else
+    global_sid_lock.rdlock();
+#endif
+    if (gtid_set.add(until_gtid.c_str()) != RETURN_STATUS_OK)
+    {
+      sql_print_error("%s", error_msg);
+      global_sid_lock.unlock();
+      DBUG_RETURN(true);
+    }
+
+#ifndef DBUG_OFF
+    const Gtid_set* gtid_ptr_state= gtid_state.get_logged_gtids();
+    if (gtid_ptr_state->to_string(&gtid_set_buffer, &gtid_set_size))
+    {
+      sql_print_error("%s", error_msg);
+      my_free(gtid_set_buffer);
+      global_sid_lock.unlock();
+      DBUG_RETURN(true);
+    }
+    DBUG_PRINT("info", ("Waiting for %s. We are at %s and subset %d",
+      until_gtid.c_str(), gtid_set_buffer, gtid_set.is_subset(gtid_ptr_state)));
+#endif
+
+    if (gtid_set.is_subset(gtid_state.get_logged_gtids()))
+    {
+      global_sid_lock.unlock();
+      DBUG_RETURN(true);
+    }
+    global_sid_lock.unlock();
   }
 
-  DBUG_RETURN(((until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_EQUAL &&
-           log_pos >= until_log_pos) ||
-          until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_GREATER));
+  DBUG_RETURN(false);
 }
 
 

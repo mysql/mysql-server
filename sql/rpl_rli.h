@@ -25,10 +25,13 @@
 #include "log.h"                         /* LOG_INFO */
 #include "binlog.h"                      /* MYSQL_BIN_LOG */
 #include "sql_class.h"                   /* THD */
+#include <string>
 
 struct RPL_TABLE_LIST;
 class Master_info;
 extern uint sql_slave_skip_counter;
+
+using std::string;
 
 /*******************************************************************************
 Replication SQL Thread
@@ -300,11 +303,12 @@ public:
      notify_*_log_name_updated() methods. (They need to be called only if SQL
      thread is running).
    */
-  enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS} until_condition;
+  enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS, UNTIL_GTID_SET} until_condition;
   char until_log_name[FN_REFLEN];
   ulonglong until_log_pos;
   /* extension extracted from log_name and converted to int */
-  ulong until_log_name_extension;   
+  ulong until_log_name_extension;
+  string until_gtid;
   /* 
      Cached result of comparison of until_log_name and current log name
      -2 means unitialised, -1,0,1 are comarison results 
