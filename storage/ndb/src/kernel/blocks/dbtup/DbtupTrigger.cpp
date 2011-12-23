@@ -741,6 +741,7 @@ Dbtup::checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
       NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
       return;
     }
+    triggerList.next(trigPtr);
   }
 }
 

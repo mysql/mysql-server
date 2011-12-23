@@ -2345,6 +2345,17 @@ Dbacc::removerow(Uint32 opPtrI, const Local_key* key)
   /* Mark element disappeared */
   opbits |= Operationrec::OP_ELEMENT_DISAPPEARED;
   opbits &= ~Uint32(Operationrec::OP_COMMIT_DELETE_CHECK);
+
+  /**
+   * This function is (currently?) only used when refreshTuple()
+   *   inserts a record...and later wants to remove it
+   *
+   * Since this should not affect row-count...we change the optype to UPDATE
+   *   execACC_COMMITREQ will be called in same timeslice as this change...
+   */
+  opbits &= ~Uint32(Operationrec::OP_MASK);
+  opbits |= ZUPDATE;
+
   operationRecPtr.p->m_op_bits = opbits;
 
 #ifdef VM_TRACE
@@ -2383,6 +2394,11 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 	return;
       } else {
 	jam();
+#ifdef ERROR_INSERT
+        ndbrequire(fragrecptr.p->noOfElements > 0);
+#else
+        ndbassert(fragrecptr.p->noOfElements > 0);
+#endif
 	fragrecptr.p->noOfElements--;
 	fragrecptr.p->slack += fragrecptr.p->elementLength;
 	if (fragrecptr.p->slack > fragrecptr.p->slackCheck) { 
@@ -2402,16 +2418,6 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       }//if
     } else {
       jam();                                                /* EXPAND PROCESS HANDLING */
-      if (unlikely(opbits & Operationrec::OP_ELEMENT_DISAPPEARED))
-      {
-        jam();
-        /* Commit of refresh of non existing tuple.
-         *   ZREFRESH->ZWRITE->ZINSERT
-         * Do not affect element count
-         */
-        ndbrequire((opbits & Operationrec::OP_MASK) == ZINSERT);
-        return;
-      }
       fragrecptr.p->noOfElements++;
       fragrecptr.p->slack -= fragrecptr.p->elementLength;
       if (fragrecptr.p->slack >= (1u << 31)) { 
