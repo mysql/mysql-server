@@ -2594,6 +2594,9 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
 
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped())
   {
+    if (i > 0 && ctx->closeToTimeout(100 / loops))
+      break;
+
     int id = lastId % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(id);
     int err = 5048 + ((i+offset) % 2);
