@@ -1658,7 +1658,8 @@ int ha_federated::close(void)
     if the original query was not issued against the FEDERATED table.
     So, don't propagate errors from mysql_close().
   */
-  table->in_use->clear_error();
+  if (table->in_use)
+    table->in_use->clear_error();
 
   DBUG_RETURN(free_share(share));
 }
