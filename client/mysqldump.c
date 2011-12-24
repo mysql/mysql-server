@@ -562,6 +562,8 @@ static void verbose_msg(const char *fmt, ...)
   vfprintf(stderr, fmt, args);
   va_end(args);
 
+  fflush(stderr);
+
   DBUG_VOID_RETURN;
 }
 
