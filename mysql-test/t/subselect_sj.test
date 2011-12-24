@@ -1777,52 +1777,43 @@ DROP TABLE t1, t2, t4, t5;
 --echo #
 --echo # BUG#861147: Assertion `fixed == 1' failed in Item_func_eq::val_int() with semijoin + materialization + max_join_size
 --echo #
-CREATE TABLE t1 ( f2 int) ;
-CREATE TABLE t2 ( f1 int, f3 int, f4 varchar(3), f5 varchar(35)) ;
-INSERT INTO t2 VALUES (4057,9,'USA','Visalia'),(3993,11,'USA','Waco'),
-  (3948,14,'USA','Warren'),(3813,57,'USA','Washington'),
-  (4010,11,'USA','Waterbury'),(4017,11,'USA','West Covina'),
-  (4004,11,'USA','West Valley City'),(4033,10,'USA','Westminster'),
-  (3842,34,'USA','Wichita'),(4018,10,'USA','Wichita Falls'),
-  (3899,19,'USA','Winston-Salem'),(3914,17,'USA','Worcester'),
-  (3888,20,'USA','Yonkers');
+#CREATE TABLE t1 ( f2 int) ;
+#CREATE TABLE t2 ( f1 int, f3 int, f4 varchar(3), f5 varchar(35)) ;
+#INSERT INTO t2 VALUES (4057,9,'USA','Visalia'),(3993,11,'USA','Waco'),
+#  (3948,14,'USA','Warren'),(3813,57,'USA','Washington'),
+#  (4010,11,'USA','Waterbury'),(4017,11,'USA','West Covina'),
+#  (4004,11,'USA','West Valley City'),(4033,10,'USA','Westminster'),
+#  (3842,34,'USA','Wichita'),(4018,10,'USA','Wichita Falls'),
+#  (3899,19,'USA','Winston-Salem'),(3914,17,'USA','Worcester'),
+#  (3888,20,'USA','Yonkers');
 
-CREATE TABLE t3 ( f3 int, f4 varchar(3)) ;
-INSERT INTO t3 VALUES (86,'USA');
+#CREATE TABLE t3 ( f3 int, f4 varchar(3)) ;
+#INSERT INTO t3 VALUES (86,'USA');
 
-CREATE TABLE t4 ( f3 int, f4 varchar(3), f5 varchar(52)) ;
-INSERT INTO t4 VALUES (0,'RUS','Belorussian'),(0,'USA','Portuguese');
+#CREATE TABLE t4 ( f3 int, f4 varchar(3), f5 varchar(52)) ;
+#INSERT INTO t4 VALUES (0,'RUS','Belorussian'),(0,'USA','Portuguese');
 
-CREATE TABLE t5 ( f2 int) ;
+#CREATE TABLE t5 ( f2 int) ;
 
-CREATE TABLE t6 ( f4 varchar(3));
-INSERT INTO t6 VALUES ('RUS'),('USA');
+#CREATE TABLE t6 ( f4 varchar(3));
+#INSERT INTO t6 VALUES ('RUS'),('USA');
 
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 set @tmp_mjs_861147= @@max_join_size;
 SET max_join_size=10;
 set @tmp_os_861147= @@optimizer_switch;
 set @@optimizer_switch='semijoin=on,materialization=on';
 
 --error ER_TOO_BIG_SELECT
-SELECT *
-FROM t1
-WHERE ( 1 , 3 ) IN (
-        SELECT t2.f1 , MAX( t3.f3 )
-        FROM t2
-        JOIN t3
-        WHERE t3.f4 IN (
-                SELECT t4.f5
-                FROM t4
-                STRAIGHT_JOIN t5
-                WHERE t4.f4 < t2.f5
-        )
-) AND ( 'p' , 'k' ) IN (
-        SELECT f4 , f4 FROM t6
-);
+explain
+select * from t1 where a in (select max(A.a + B.a + C.a) from t1 A, t1 B, t1 C);
+
 set max_join_size= @tmp_mjs_861147;
 set optimizer_switch= @tmp_os_861147;
 
-DROP TABLE t1,t2,t3,t4,t5,t6;
+#DROP TABLE t1,t2,t3,t4,t5,t6;
+drop table t1;
 
 --echo #
 --echo # BUG#877288: Wrong result with semijoin + materialization + multipart key

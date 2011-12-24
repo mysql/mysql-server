@@ -512,8 +512,8 @@ FROM City JOIN Country ON City.Country = Country.Code
 GROUP BY City.Name
 HAVING City.Name IN (select Name from Country where population < 1000000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	City	ALL	Country	NULL	NULL	NULL	4080	Using temporary; Using filesort
-1	PRIMARY	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	1	Using index
+1	PRIMARY	Country	index	PRIMARY	PRIMARY	3	NULL	239	Using index; Using temporary; Using filesort
+1	PRIMARY	City	ref	Country	Country	3	world.Country.Code	18	
 2	MATERIALIZED	Country	ALL	Name	NULL	NULL	NULL	239	Using where
 SELECT City.Name, City.Population
 FROM City JOIN Country ON City.Country = Country.Code

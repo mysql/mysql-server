@@ -5020,6 +5020,8 @@ best_access_path(JOIN      *join,
   MY_BITMAP *eq_join_set= &s->table->eq_join_set;
   KEYUSE *hj_start_key= 0;
 
+  disable_jbuf= disable_jbuf || idx == join->const_tables;  
+
   Loose_scan_opt loose_scan_opt;
   DBUG_ENTER("best_access_path");
   
@@ -5880,7 +5882,8 @@ optimize_straight_join(JOIN *join, table_map join_tables)
 
     /* compute the cost of the new plan extended with 's' */
     record_count*= join->positions[idx].records_read;
-    read_time+=    join->positions[idx].read_time;
+    read_time+= join->positions[idx].read_time +
+                record_count / (double) TIME_FOR_COMPARE;
     advance_sj_state(join, join_tables, idx, &record_count, &read_time,
                      &loose_scan_pos);
 
@@ -5888,14 +5891,13 @@ optimize_straight_join(JOIN *join, table_map join_tables)
     ++idx;
   }
 
-  read_time+= record_count / (double) TIME_FOR_COMPARE;
   if (join->sort_by_table &&
       join->sort_by_table != join->positions[join->const_tables].table->table)
     read_time+= record_count;  // We have to make a temp table
   memcpy((uchar*) join->best_positions, (uchar*) join->positions,
          sizeof(POSITION)*idx);
   join->record_count= record_count;
-  join->best_read= read_time;
+  join->best_read= read_time - 0.001;
 }
 
 
@@ -6063,7 +6065,8 @@ greedy_search(JOIN      *join,
 
     /* compute the cost of the new plan extended with 'best_table' */
     record_count*= join->positions[idx].records_read;
-    read_time+=    join->positions[idx].read_time;
+    read_time+= join->positions[idx].read_time + 
+                record_count / (double) TIME_FOR_COMPARE;
 
     remaining_tables&= ~(best_table->table->map);
     --size_remain;
@@ -6171,7 +6174,7 @@ void JOIN::get_partial_cost_and_fanout(int end_tab_idx,
     if (tab->records_read && (cur_table_map & filter_map))
     {
       record_count *= tab->records_read;
-      read_time += tab->read_time;
+      read_time += tab->read_time + record_count / (double) TIME_FOR_COMPARE;
       if (tab->emb_sj_nest)
         sj_inner_fanout *= tab->records_read;
     }
@@ -6395,21 +6398,19 @@ best_extension_by_limited_search(JOIN      *join,
       /* Compute the cost of extending the plan with 's' */
 
       current_record_count= record_count * position->records_read;
-      current_read_time=    read_time + position->read_time;
+      current_read_time=read_time + position->read_time +
+                        current_record_count / (double) TIME_FOR_COMPARE;
 
       advance_sj_state(join, remaining_tables, idx, &current_record_count,
                        &current_read_time, &loose_scan_pos);
 
       /* Expand only partial plans with lower cost than the best QEP so far */
-      if ((current_read_time +
-           current_record_count / (double) TIME_FOR_COMPARE) >= join->best_read)
+      if (current_read_time >= join->best_read)
       {
         DBUG_EXECUTE("opt", print_plan(join, idx+1,
                                        current_record_count,
                                        read_time,
-                                       (current_read_time +
-                                        current_record_count / 
-                                        (double) TIME_FOR_COMPARE),
+                                       current_read_time,
                                        "prune_by_cost"););
         restore_prev_nj_state(s);
         restore_prev_sj_state(remaining_tables, s, idx);
@@ -6468,13 +6469,12 @@ best_extension_by_limited_search(JOIN      *join,
           'join' is either the best partial QEP with 'search_depth' relations,
           or the best complete QEP so far, whichever is smaller.
         */
-        current_read_time+= current_record_count / (double) TIME_FOR_COMPARE;
         if (join->sort_by_table &&
             join->sort_by_table !=
             join->positions[join->const_tables].table->table)
           /* We have to make a temp table */
           current_read_time+= current_record_count;
-        if ((search_depth == 1) || (current_read_time < join->best_read))
+        if (current_read_time < join->best_read)
         {
           memcpy((uchar*) join->best_positions, (uchar*) join->positions,
                  sizeof(POSITION) * (idx + 1));

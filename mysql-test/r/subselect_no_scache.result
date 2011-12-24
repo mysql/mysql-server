@@ -4342,6 +4342,9 @@ LEFT(t1.a1,1)
 SELECT a2 FROM t2 WHERE t2.a2 IN (SELECT t1.a1 FROM t1,t3 WHERE t1.b1=t3.a3);
 a2
 DROP TABLE t1, t2, t3;
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
+SET optimizer_switch='materialization=off';
 CREATE TABLE t1 (a CHAR(1), b VARCHAR(10));
 INSERT INTO t1 VALUES ('a', 'aa');
 INSERT INTO t1 VALUES ('a', 'aaa');
@@ -4373,6 +4376,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 a	b
 DROP TABLE t1,t2;
+SET optimizer_switch= @save_optimizer_switch;
 CREATE TABLE t1(a INT, b INT);
 INSERT INTO t1 VALUES (1,1), (1,2), (2,3), (2,4);
 EXPLAIN
@@ -4469,20 +4473,23 @@ a
 drop table t1, t2;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2);
+SET @save_join_cache_level=@@join_cache_level;
+SET join_cache_level=0;
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT min(a) FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
 1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	5	const	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
 2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Note	1003	select 1 AS `1` from  <materialize> (select min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a`) join `test`.`t1` where (`<subquery2>`.`min(a)` = 1)
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT min(a) FROM t1 WHERE a > 3 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
 1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	5	const	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
 2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using temporary
 Warnings:
 Note	1003	select 1 AS `1` from  <materialize> (select min(`test`.`t1`.`a`) from `test`.`t1` where (`test`.`t1`.`a` > 3) group by `test`.`t1`.`a`) join `test`.`t1` where (`<subquery2>`.`min(a)` = 1)
+SET join_cache_level=@save_join_cache_level;
 DROP TABLE t1;
 #
 # Bug#45061: Incorrectly market field caused wrong result.
@@ -5233,16 +5240,19 @@ CREATE TABLE t2 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL);
 INSERT INTO t2 VALUES (11,1);
 INSERT INTO t2 VALUES (12,2);
 INSERT INTO t2 VALUES (15,4);
+SET @save_join_cache_level=@@join_cache_level;
+SET join_cache_level=0;
 EXPLAIN SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
 1	PRIMARY	it	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	Using index
-1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	3	Using index; FirstMatch(it); Using join buffer (flat, BNL join)
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	3	Using index; FirstMatch(it)
 SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
 pk	i
 11	0
 12	5
 15	0
+SET join_cache_level=@save_join_cache_level;
 DROP table t1,t2;
 #
 # Bug#751350: crash with pushed condition for outer references when

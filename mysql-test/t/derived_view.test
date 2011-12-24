@@ -1036,6 +1036,7 @@ CREATE TABLE t3 (
   b int NOT NULL, e varchar(1) NOT NULL, d varchar(1) NOT NULL, KEY (e,b)
 );
 INSERT INTO t3 VALUES (4,'x','x'),(9,'w','w'),(4,'d','d'),(8,'e','e');
+INSERT INTO t3 VALUES (14,'a','a'),(19,'b','b'),(14,'c','c'),(18,'d','d');
 
 CREATE TABLE t4 (i int NOT NULL, m varchar(1) NOT NULL) ;
 INSERT INTO t4 VALUES (8,'m'),(9,'d'),(2,'s'),(4,'r'),(8,'m');

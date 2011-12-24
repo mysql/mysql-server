@@ -1148,8 +1148,8 @@ create table t3 (a int);
 insert into t3 select A.a + 10*B.a from t0 A, t0 B;
 explain select * from t3 where a in (select kp1 from t1 where kp1<20);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	PRIMARY	t1	ref	kp1	kp1	5	test.t3.a	1	Using index; FirstMatch(t3)
+1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using where; Using index; LooseScan
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer (flat, BNL join)
 create table t4 (pk int primary key);
 insert into t4 select a from t3;
 explain select * from t3 where a in (select t1.kp1 from t1,t4 where kp1<20
@@ -1345,10 +1345,10 @@ create table t2 as select a as a, a as b from t0 where a < 3;
 insert into t2 select * from t2;
 explain select * from t1 where (a,b,c) in (select X.a, Y.a, Z.a from t2 X, t2 Y, t2 Z where X.b=33);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	PRIMARY	X	hash_ALL	NULL	#hash#$hj	5	test.t1.a	6	Using where; Start temporary; Using join buffer (flat, BNLH join)
-1	PRIMARY	Y	hash_ALL	NULL	#hash#$hj	5	test.t1.b	6	Using where; Using join buffer (incremental, BNLH join)
-1	PRIMARY	Z	hash_ALL	NULL	#hash#$hj	5	test.t1.c	6	Using where; End temporary; Using join buffer (incremental, BNLH join)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	Y	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (incremental, BNL join)
+1	PRIMARY	Z	ALL	NULL	NULL	NULL	NULL	6	Using where; FirstMatch(t1); Using join buffer (incremental, BNL join)
 drop table t0,t1,t2;
 set @@optimizer_switch=@save_optimizer_switch;
 

@@ -180,8 +180,8 @@ create table t2 (dt datetime not null);
 insert into t1 values ('2001-01-01 1:1:1', '1:1:1'),
 ('2001-01-01 1:1:1', '1:1:1');
 insert into t2 values ('2001-01-01 1:1:1'), ('2001-01-01 1:1:1');
-SET @save_optimizer_switch=@@optimizer_switch;
-SET optimizer_switch='semijoin_with_cache=off';
+SET @save_join_cache_level=@@join_cache_level;
+SET join_cache_level=0;
 flush tables;
 EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
 flush tables;
@@ -190,7 +190,7 @@ flush tables;
 EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' ); 
 flush tables;
 SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
-SET optimizer_switch=@save_optimizer_switch;
+SET join_cache_level=@save_join_cache_level;
 drop tables t1, t2;
 
 --echo #

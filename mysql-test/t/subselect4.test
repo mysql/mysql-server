@@ -993,13 +993,16 @@ INSERT INTO t4 VALUES ('k'), ('d');
 
 SET @save_optimizer_switch=@@optimizer_switch;
 SET optimizer_switch='outer_join_with_cache=off';
+SET optimizer_switch='semijoin_with_cache=off';
 
+SET optimizer_switch='materialization=off';
 EXPLAIN
 SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
 SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
 EXPLAIN
 SELECT * FROM t2 LEFT JOIN t1 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
 SELECT * FROM t2 LEFT JOIN t1 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+SET optimizer_switch='materialization=on';
 EXPLAIN
 SELECT * FROM (t2 LEFT JOIN t1 ON t1.c1) LEFT JOIN t3 on t3.c1 WHERE 's' IN (SELECT c1 FROM t2);
 SELECT * FROM (t2 LEFT JOIN t1 ON t1.c1) LEFT JOIN t3 on t3.c1 WHERE 's' IN (SELECT c1 FROM t2);

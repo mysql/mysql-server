@@ -1592,6 +1592,7 @@ CREATE TABLE t3 (
 b int NOT NULL, e varchar(1) NOT NULL, d varchar(1) NOT NULL, KEY (e,b)
 );
 INSERT INTO t3 VALUES (4,'x','x'),(9,'w','w'),(4,'d','d'),(8,'e','e');
+INSERT INTO t3 VALUES (14,'a','a'),(19,'b','b'),(14,'c','c'),(18,'d','d');
 CREATE TABLE t4 (i int NOT NULL, m varchar(1) NOT NULL) ;
 INSERT INTO t4 VALUES (8,'m'),(9,'d'),(2,'s'),(4,'r'),(8,'m');
 CREATE TABLE t5 (
@@ -1607,30 +1608,36 @@ SET SESSION join_buffer_size = 512;
 EXPLAIN
 SELECT t2.d FROM t1,t2,v3 WHERE v3.e = t2.d AND v3.i < 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t3	ref	e	e	3	test.t2.d	1	Using index
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	2	
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	SIMPLE	t3	ref	e	e	3	test.t2.d	1	Using index
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer (flat, BNL join)
 SELECT t2.d FROM t1,t2,v3 WHERE v3.e = t2.d AND v3.i < 3;
 d
 w
-d
-e
+w
+w
+w
+w
 w
 d
-e
-w
+d
+d
+d
+d
+d
+d
+d
+d
+d
+d
 d
 e
-w
-d
 e
-w
-d
 e
-w
-d
+e
+e
 e
 SET SESSION join_cache_level = DEFAULT;
 SET SESSION join_buffer_size = DEFAULT;

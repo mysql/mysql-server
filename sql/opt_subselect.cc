@@ -2738,10 +2738,12 @@ bool Duplicate_weedout_picker::check_qep(JOIN *join,
     }
     
     table_map dups_removed_fanout= 0;
+    double current_fanout= prefix_rec_count;
     for (uint j= first_dupsweedout_table; j <= idx; j++)
     {
       POSITION *p= join->positions + j;
-      dups_cost += p->read_time;
+      current_fanout *= p->records_read;
+      dups_cost += p->read_time + current_fanout / TIME_FOR_COMPARE;
       if (p->table->emb_sj_nest)
       {
         sj_inner_fanout *= p->records_read;

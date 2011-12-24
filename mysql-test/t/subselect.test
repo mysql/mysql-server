@@ -3248,6 +3248,10 @@ DROP TABLE t1, t2, t3;
 # Bug#30788 Inconsistent retrieval of char/varchar
 #
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
+SET optimizer_switch='materialization=off';
+
 CREATE TABLE t1 (a CHAR(1), b VARCHAR(10));
 INSERT INTO t1 VALUES ('a', 'aa');
 INSERT INTO t1 VALUES ('a', 'aaa');
@@ -3269,6 +3273,7 @@ SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 
 DROP TABLE t1,t2;
 
+SET optimizer_switch= @save_optimizer_switch;
 
 #
 # Bug#32400 Complex SELECT query returns correct result only on some occasions
@@ -3418,8 +3423,11 @@ drop table t1, t2;
 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2);
+SET @save_join_cache_level=@@join_cache_level;
+SET join_cache_level=0;
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT min(a) FROM t1 GROUP BY a);
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT min(a) FROM t1 WHERE a > 3 GROUP BY a);
+SET join_cache_level=@save_join_cache_level;
 DROP TABLE t1;
 
 --echo #
@@ -4430,8 +4438,12 @@ INSERT INTO t2 VALUES (11,1);
 INSERT INTO t2 VALUES (12,2);
 INSERT INTO t2 VALUES (15,4);
 
+
+SET @save_join_cache_level=@@join_cache_level;
+SET join_cache_level=0;
 EXPLAIN SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
 SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
+SET join_cache_level=@save_join_cache_level;
 
 DROP table t1,t2;
 
