@@ -4762,3 +4762,7 @@ UNLOCK TABLES;
 DROP TABLE b12809202_db.t1;
 DROP TABLE b12809202_db.t2;
 DROP DATABASE b12809202_db;
+#
+# Delete all existing binary logs.
+#
+RESET MASTER;

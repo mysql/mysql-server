@@ -2243,9 +2243,15 @@ INSERT INTO b12809202_db.t2 VALUES (1), (2), (3);
 --echo
 --echo #### Dump ends here ####
 
+# Cleanup
 DROP TABLE b12809202_db.t1;
 DROP TABLE b12809202_db.t2;
 DROP DATABASE b12809202_db;
+
+--echo #
+--echo # Delete all existing binary logs.
+--echo #
+RESET MASTER;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
