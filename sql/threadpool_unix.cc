@@ -190,6 +190,10 @@ static void set_next_timeout_check(ulonglong abstime);
 */
 
 #if defined (__linux__)
+#ifndef EPOLLRDHUP
+/* Early 2.6 kernel did not have EPOLLRDHUP */
+#define EPOLLRDHUP 0
+#endif
 static int io_poll_create()
 {
   return epoll_create(1);
