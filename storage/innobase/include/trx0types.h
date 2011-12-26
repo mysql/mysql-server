@@ -60,8 +60,6 @@ typedef struct trx_struct	trx_t;
 typedef struct trx_lock_struct	trx_lock_t;
 /** Transaction system */
 typedef struct trx_sys_struct	trx_sys_t;
-/** Doublewrite information */
-typedef struct trx_doublewrite_struct	trx_doublewrite_t;
 /** Signal */
 typedef struct trx_sig_struct	trx_sig_t;
 /** Rollback segment */

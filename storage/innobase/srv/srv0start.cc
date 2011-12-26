@@ -2148,10 +2148,10 @@ innobase_start_or_create_for_mysql(void)
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 	page_get_free_space_of_empty() / 2); */
 
-	if (trx_doublewrite == NULL) {
+	if (buf_dblwr == NULL) {
 		/* Create the doublewrite buffer to a new tablespace */
 
-		trx_sys_create_doublewrite_buf();
+		buf_dblwr_create();
 	}
 
 	/* Here the double write buffer has already been created and so
@@ -2387,67 +2387,6 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	fflush(stderr);
-
-	if (trx_doublewrite_must_reset_space_ids) {
-		/* Actually, we did not change the undo log format between
-		4.0 and 4.1.1, and we would not need to run purge to
-		completion. Note also that the purge algorithm in 4.1.1
-		can process the history list again even after a full
-		purge, because our algorithm does not cut the end of the
-		history list in all cases so that it would become empty
-		after a full purge. That mean that we may purge 4.0 type
-		undo log even after this phase.
-
-		The insert buffer record format changed between 4.0 and
-		4.1.1. It is essential that the insert buffer is emptied
-		here! */
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: You are upgrading to an"
-			" InnoDB version which allows multiple\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: tablespaces. Wait that purge"
-			" and insert buffer merge run to\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: completion...\n");
-		for (;;) {
-			os_thread_sleep(1000000);
-
-			if (0 == strcmp(srv_main_thread_op_info,
-					"waiting for server activity")) {
-
-				ut_a(ibuf_is_empty());
-
-				break;
-			}
-		}
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Full purge and insert buffer merge"
-			" completed.\n");
-
-		trx_sys_mark_upgraded_to_multiple_tablespaces();
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: You have now successfully upgraded"
-			" to the multiple tablespaces\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: format. You should NOT DOWNGRADE"
-			" to an earlier version of\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: InnoDB! But if you absolutely need to"
-			" downgrade, see\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: " REFMAN "multiple-tablespaces.html\n"
-			" InnoDB: for instructions.\n");
-	}
 
 	if (srv_force_recovery == 0) {
 		/* In the insert buffer we may have even bigger tablespace

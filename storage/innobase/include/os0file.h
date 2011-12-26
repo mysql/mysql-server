@@ -46,9 +46,6 @@ Created 10/21/1995 Heikki Tuuri
 /** File node of a tablespace or the log data space */
 typedef	struct fil_node_struct	fil_node_t;
 
-#ifdef UNIV_DO_FLUSH
-extern ibool	os_do_not_call_flush_at_each_write;
-#endif /* UNIV_DO_FLUSH */
 extern ibool	os_has_said_disk_full;
 /** Flag: enable debug printout for asynchronous i/o */
 extern ibool	os_aio_print_debug;
