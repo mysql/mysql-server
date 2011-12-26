@@ -49,7 +49,7 @@ select @@global.join_buffer_space_limit;
 2048
 set session join_buffer_space_limit=cast(-1 as unsigned int);
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect join_buffer_space_limit value: '18446744073709551615'
 select @@session.join_buffer_space_limit;
 @@session.join_buffer_space_limit

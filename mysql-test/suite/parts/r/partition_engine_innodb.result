@@ -1432,7 +1432,7 @@ PARTITION BY HASH(f_int1)
 ( PARTITION part1 STORAGE ENGINE = 'InnoDB',
 PARTITION part2
 );
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MariaDB
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1444,7 +1444,7 @@ PARTITION BY HASH(f_int1)
 ( PARTITION part1                         ,
 PARTITION part2 STORAGE ENGINE = 'InnoDB'
 );
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MariaDB
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1461,7 +1461,7 @@ PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21 STORAGE ENGINE = 'InnoDB',
 SUBPARTITION subpart22 STORAGE ENGINE = 'InnoDB')
 );
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MariaDB
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1478,7 +1478,7 @@ PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21,
 SUBPARTITION subpart22 )
 );
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MariaDB
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1962,7 +1962,7 @@ PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21 STORAGE ENGINE = 'InnoDB',
 SUBPARTITION subpart22 STORAGE ENGINE = 'InnoDB')
 );
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MariaDB
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,

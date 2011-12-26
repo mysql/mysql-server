@@ -669,7 +669,7 @@ public:
 };
 #endif
 
-#define KEYCACHE_VAR(X) sys_var::GLOBAL,offsetof(KEY_CACHE, X), sizeof(((KEY_CACHE *)0)->X)
+#define KEYCACHE_VAR(X) GLOBAL_VAR(dflt_key_cache_var.X)
 #define keycache_var_ptr(KC, OFF) (((uchar*)(KC))+(OFF))
 #define keycache_var(KC, OFF) (*(ulonglong*)keycache_var_ptr(KC, OFF))
 typedef bool (*keycache_update_function)(THD *, KEY_CACHE *, ptrdiff_t, ulonglong);
@@ -706,7 +706,8 @@ public:
   {
     option.var_type|= GET_ASK_ADDR;
     option.value= (uchar**)1; // crash me, please
-    keycache_var(dflt_key_cache, off)= def_val;
+    // fix an offset from global_system_variables to be an offset in KEY_CACHE
+    offset= global_var_ptr() - (uchar*)dflt_key_cache;
     SYSVAR_ASSERT(scope() == GLOBAL);
   }
   bool global_update(THD *thd, set_var *var)

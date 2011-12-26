@@ -7,7 +7,7 @@
 --source include/have_innodb.inc
 
 # Valgrind errors happen only with this:
-set session debug="+d,optimizer_innodb_icp";
+set session debug_dbug="+d,optimizer_innodb_icp";
 
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;

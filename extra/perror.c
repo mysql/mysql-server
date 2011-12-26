@@ -419,6 +419,8 @@ int main(int argc,char *argv[])
   if (unknown_error)
     free(unknown_error);
 
+  my_handler_error_unregister();
+  my_end(0);
   exit(error);
   return error;
 }

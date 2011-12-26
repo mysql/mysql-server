@@ -2,12 +2,12 @@ CALL mtr.add_suppression("Error writing file 'master-bin'");
 RESET MASTER;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
 INSERT INTO t1 VALUES(0);
-SET SESSION debug='+d,fail_binlog_write_1';
+SET SESSION debug_dbug='+d,fail_binlog_write_1';
 INSERT INTO t1 VALUES(1);
 ERROR HY000: Error writing file 'master-bin' (errno: 28)
 INSERT INTO t1 VALUES(2);
 ERROR HY000: Error writing file 'master-bin' (errno: 28)
-SET SESSION debug='';
+SET SESSION debug_dbug='';
 INSERT INTO t1 VALUES(3);
 SELECT * FROM t1;
 a

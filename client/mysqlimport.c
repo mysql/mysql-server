@@ -62,6 +62,8 @@ static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static longlong opt_ignore_lines= -1;
 #include <sslopt-vars.h>
 
+static char **argv_to_free;
+
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
 #endif
@@ -475,10 +477,18 @@ static void db_disconnect(char *host, MYSQL *mysql)
 
 static void safe_exit(int error, MYSQL *mysql)
 {
-  if (ignore_errors)
+  if (error && ignore_errors)
     return;
   if (mysql)
     mysql_close(mysql);
+
+#ifdef HAVE_SMEM
+  my_free(shared_memory_base_name);
+#endif
+  free_defaults(argv_to_free);
+  mysql_library_end();
+  my_free(opt_password);
+  my_end(my_end_arg);
   exit(error);
 }
 
@@ -597,7 +607,6 @@ error:
 int main(int argc, char **argv)
 {
   int error=0;
-  char **argv_to_free;
   MY_INIT(argv[0]);
 
   if (load_defaults("my",load_default_groups,&argc,&argv))
@@ -687,11 +696,6 @@ int main(int argc, char **argv)
           exitcode= error;
     db_disconnect(current_host, mysql);
   }
-  my_free(opt_password);
-#ifdef HAVE_SMEM
-  my_free(shared_memory_base_name);
-#endif
-  free_defaults(argv_to_free);
-  my_end(my_end_arg);
+  safe_exit(0, 0);
   return(exitcode);
 }

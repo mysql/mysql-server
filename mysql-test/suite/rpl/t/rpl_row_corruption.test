@@ -28,7 +28,7 @@ call mtr.add_suppression(".*Found table map event mapping table id 0 which was a
 # stop the slave and inject corruption
 --source include/stop_slave.inc
 SET @save_debug= @@global.debug;
-SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
+SET GLOBAL debug_dbug="+d,inject_tblmap_same_id_maps_diff_table";
 --source include/start_slave.inc
 --connection master
 # both tables get mapped to 0 (in a way, simulating scenario 
@@ -42,7 +42,7 @@ SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
 --source include/stop_slave.inc
 
 # clean up
-SET GLOBAL debug="-d,inject_tblmap_same_id_maps_diff_table";
+SET GLOBAL debug_dbug="-d,inject_tblmap_same_id_maps_diff_table";
 --source include/start_slave.inc
 --connection master
 --source include/rpl_reset.inc
@@ -55,7 +55,7 @@ SET GLOBAL debug="-d,inject_tblmap_same_id_maps_diff_table";
 
 --connection slave
 --source include/stop_slave.inc
-SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
+SET GLOBAL debug_dbug="+d,inject_tblmap_same_id_maps_diff_table";
 --source include/start_slave.inc
 --source include/rpl_reset.inc
 --connection master
@@ -92,7 +92,7 @@ AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=
 #110708 12:21:44 server id 1  end_log_pos 855   Update_rows: table id 66
 # at 855
 #110708 12:21:44 server id 1  end_log_pos 895   Update_rows: table id 67 flags: STMT_END_F
-SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
+SET GLOBAL debug_dbug="+d,inject_tblmap_same_id_maps_diff_table";
 --error ER_SLAVE_FATAL_ERROR
 BINLOG '
 SOgWThMBAAAAKQAAAAYDAAAAAEIAAAAAAAEABHRlc3QAAnQxAAEDAAE=
@@ -105,11 +105,11 @@ SOgWThgBAAAAKAAAAH8DAAAAAEMAAAAAAAEAAf///gEAAAD+BAAAAA==
 # clean up
 DROP TABLE t1,t2;
 --connection slave
-SET GLOBAL debug="-d,inject_tblmap_same_id_maps_diff_table";
+SET GLOBAL debug_dbug="-d,inject_tblmap_same_id_maps_diff_table";
 --connection master
 --eval DROP TABLE $t1
 --eval DROP TABLE $t2_ign
 --sync_slave_with_master
-SET GLOBAL debug= @save_debug;
+SET GLOBAL debug_dbug= @save_debug;
 
 --source include/rpl_end.inc

@@ -4,9 +4,6 @@ The following options may be given as the first argument:
 --defaults-file=# Only read default options from the given file #.
 --defaults-extra-file=# Read this file after the global files are read.
 
- --abort-slave-event-count=# 
- Option used by mysql-test for debugging and testing of
- replication.
  --allow-suspicious-udfs 
  Allows use of UDFs consisting of only one symbol xxx()
  without corresponding xxx_init() or xxx_deinit(). That
@@ -151,9 +148,6 @@ The following options may be given as the first argument:
  handling INSERT DELAYED. If the queue becomes full, any
  client that does INSERT DELAYED will wait until there is
  room in the queue again
- --disconnect-slave-event-count=# 
- Option used by mysql-test for debugging and testing of
- replication.
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
@@ -165,7 +159,6 @@ The following options may be given as the first argument:
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
  deactivated, it cannot be activated run-time)
- -T, --exit-info[=#] Used for debugging. Use at your own risk.
  --expire-logs-days=# 
  If non-zero, binary logs will be purged after
  expire_logs_days days; possible purges happen at startup
@@ -195,7 +188,7 @@ The following options may be given as the first argument:
  Number of best matches to use for query expansion
  --ft-stopword-file=name 
  Use stopwords from this file instead of built-in list
- --gdb               Set up signals usable for debugging.
+ --gdb               Set up signals usable for debugging. Deprecated, use
  --general-log       Log connections and queries to a table or log file.
  Defaults logging to a file 'hostname'.log or a table
  mysql.general_logif --log-output=TABLE is used
@@ -359,9 +352,6 @@ The following options may be given as the first argument:
  Max packet length to send to or receive from the server
  --max-binlog-cache-size=# 
  Sets the total size of the transactional cache
- --max-binlog-dump-events=# 
- Option used by mysql-test for debugging and testing of
- replication.
  --max-binlog-size=# Binary log will be rotated automatically when the size
  exceeds this value. Will also apply to relay logs if
  max_relay_log_size is 0
@@ -771,9 +761,6 @@ The following options may be given as the first argument:
  --sort-buffer-size=# 
  Each thread that needs to do a sort allocates a buffer of
  this size
- --sporadic-binlog-dump-fail 
- Option used by mysql-test for debugging and testing of
- replication.
  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
  for the complete list of valid sql modes
  --stack-trace       Print a symbolic stack trace on failure
@@ -793,9 +780,6 @@ The following options may be given as the first argument:
  Synchronously flush relay log info to disk after every
  #th transaction. Use 0 (default) to disable synchronous
  flushing
- --sync-sys          Enable system sync calls. Disable only when running tests
- or debugging!
- (Defaults to on; use --skip-sync-sys to disable.)
  --sysdate-is-now    Non-default option to alias SYSDATE() to NOW() to make it
  safe-replicable. Since 5.0, SYSDATE() returns a `dynamic'
  value different for different invocations, even within
@@ -808,9 +792,6 @@ The following options may be given as the first argument:
  --tc-heuristic-recover=name 
  Decision to use in heuristic recover process. Possible
  values are COMMIT or ROLLBACK.
- --thread-alarm      Enable system thread alarm calls. Disabling it may be
- useful in debugging or testing, never do it in production
- (Defaults to on; use --skip-thread-alarm to disable.)
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-stack=#    The stack size for each thread
@@ -848,7 +829,6 @@ The following options may be given as the first argument:
  connection before closing it
 
 Variables (--variable-name=value)
-abort-slave-event-count 0
 allow-suspicious-udfs FALSE
 auto-increment-increment 1
 auto-increment-offset 1
@@ -889,7 +869,6 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
-disconnect-slave-event-count 0
 div-precision-increment 4
 engine-condition-pushdown FALSE
 event-scheduler OFF
@@ -955,7 +934,6 @@ master-retry-count 86400
 master-verify-checksum FALSE
 max-allowed-packet 8388608
 max-binlog-cache-size 18446744073709547520
-max-binlog-dump-events 0
 max-binlog-size 1073741824
 max-binlog-stmt-cache-size 18446744073709547520
 max-connect-errors 10
@@ -1067,7 +1045,6 @@ slave-type-conversions
 slow-launch-time 2
 slow-query-log FALSE
 sort-buffer-size 2097152
-sporadic-binlog-dump-fail FALSE
 sql-mode 
 stack-trace TRUE
 symbolic-links FALSE
@@ -1076,13 +1053,11 @@ sync-frm FALSE
 sync-master-info 0
 sync-relay-log 0
 sync-relay-log-info 0
-sync-sys TRUE
 sysdate-is-now FALSE
 table-cache 400
 table-definition-cache 400
 table-open-cache 400
 tc-heuristic-recover COMMIT
-thread-alarm TRUE
 thread-cache-size 0
 thread-stack 294912
 time-format %H:%i:%s

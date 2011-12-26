@@ -74,7 +74,7 @@ close ($file);
 EOF
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-SET SESSION debug="d,crash_before_rotate_relaylog";
+SET SESSION debug_dbug="d,crash_before_rotate_relaylog";
 --error 2013
 FLUSH LOGS;
 
@@ -122,7 +122,7 @@ close FILE;
 EOF
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-SET SESSION debug="d,crash_before_rotate_relaylog";
+SET SESSION debug_dbug="d,crash_before_rotate_relaylog";
 --error 2013
 FLUSH LOGS;
 

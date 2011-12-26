@@ -8,11 +8,11 @@ create table t1(a int primary key) engine=aria;
 insert into t1 values(1);
 flush table t1;
 * copied t1 for comparison
-set session debug="+d,maria_sleep_in_commit";
+set session debug_dbug="+d,maria_sleep_in_commit";
 insert into t1 values(2);
 set global aria_checkpoint_interval=1000;
 delete from t1 where a=2;
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -48,7 +48,7 @@ mysqltest.t1	check	status	OK
 flush table t1;
 * copied t1 for comparison
 * compared t1 to old version
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -71,7 +71,7 @@ truncate table t1;
 flush table t1;
 * copied t1 for comparison
 truncate table t1;
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash_create_table";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash_create_table";
 * crashing mysqld intentionally
 truncate table t1;
 ERROR HY000: Lost connection to MySQL server during query

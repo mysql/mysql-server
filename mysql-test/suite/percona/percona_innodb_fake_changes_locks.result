@@ -1,0 +1,19 @@
+DROP TABLE IF EXISTS t1;
+# Verifying that X_LOCK not acquired
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+SET autocommit=0;
+SET innodb_fake_changes=1;
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+a
+1
+SET innodb_lock_wait_timeout=3;
+UPDATE t1 SET a=2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1 LOCK IN SHARE MODE;
+a
+1
+ROLLBACK;
+SET innodb_fake_changes=default;
+DROP TABLE t1;

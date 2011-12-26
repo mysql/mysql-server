@@ -290,7 +290,7 @@
 
   === Co-work with the DBUG facility ===
 
-  When running the MySQL test suite with the --debug command line
+  When running the MySQL test suite with the --debug-dbug command line
   option, the Debug Sync Facility writes trace messages to the DBUG
   trace. The following shell commands proved very useful in extracting
   relevant information:

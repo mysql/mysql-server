@@ -60,7 +60,7 @@ call mtr.add_suppression('Got fatal error 1236 from master when reading data fro
 connection slave;
 # 1236 = ER_MASTER_FATAL_ERROR_READING_BINLOG
 --let $slave_io_errno= 1236
---let $show_slave_io_error= 1
+--let $show_slave_io_error= 0
 --source include/wait_for_slave_io_error.inc
 
 connection master;

@@ -241,7 +241,7 @@ Blob Handshake_client::process_data(const Blob &data)
     This code is executed if debug flag "winauth_first_packet_test" is
     set, e.g. using client option:
 
-     --debug="d,winauth_first_packet_test"
+     --debug-dbug="d,winauth_first_packet_test"
 
      The same debug flag must be enabled in the server, e.g. using 
      statement:

@@ -28,6 +28,7 @@
 #cmakedefine HAVE_CRYPT_H 1
 #cmakedefine HAVE_CURSES_H 1
 #cmakedefine HAVE_CXXABI_H 1
+#cmakedefine HAVE_BFD_H 1
 #cmakedefine HAVE_NCURSES_H 1
 #cmakedefine HAVE_NDIR_H 1
 #cmakedefine HAVE_DIRENT_H 1

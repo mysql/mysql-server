@@ -10,7 +10,7 @@ CREATE TABLE mysql_test.t1(a INT);
 CREATE TABLE mysql_test.t2(b INT);
 CREATE TABLE mysql_test.t3(c INT);
 
-SET SESSION DEBUG = "+d,bug43138";
+SET SESSION debug_dbug= "+d,bug43138";
 
 DROP DATABASE mysql_test;
 Warnings:
@@ -18,7 +18,7 @@ Error	1051	Unknown table 't1'
 Error	1051	Unknown table 't2'
 Error	1051	Unknown table 't3'
 
-SET SESSION DEBUG = "-d,bug43138";
+SET SESSION debug_dbug= "-d,bug43138";
 
 # --
 # -- End of Bug#43138.

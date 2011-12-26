@@ -134,7 +134,7 @@ as cmake-gui. It is less user-friendly compared to cmake-gui but works also
 on exotic Unixes like HPUX, AIX or Solaris.
 
 Besides storage engines, probably the most important parameter from a 
-developer's point of view is WITH_DEBUG (this allows to build server with 
+developer's point of view is CMAKE_BUILD_TYPE (this allows to build server with 
 dbug tracing library and with debug compile flags).
 
 After changing the configuration, recompile using

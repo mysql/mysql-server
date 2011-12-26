@@ -368,7 +368,7 @@ CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
 CREATE FUNCTION test_func1 (s char(20) RETURNS CHAR(50)
 RETURN CONCAT('Hello', ,s,'!');
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RETURNS CHAR(50)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'RETURNS CHAR(50)
 RETURN CONCAT('Hello', ,s,'!')' at line 1
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';

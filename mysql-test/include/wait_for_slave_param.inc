@@ -79,7 +79,7 @@ if ($_slave_check_configured == 'No such row')
 
 # mysqltest doesn't provide any better way to multiply by 10
 --let $_wait_for_slave_param_zero= 0
---let $_slave_timeout_counter= $_slave_timeout$zero
+--let $_slave_timeout_counter= $_slave_timeout$_wait_for_slave_param_zero
 --let $_slave_continue= 1
 while ($_slave_continue)
 {

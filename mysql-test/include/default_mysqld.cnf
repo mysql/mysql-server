@@ -26,7 +26,7 @@ connect-timeout=            60
 plugin-dir=@OPT.plugindir
 
 log-basename=mysqld
-disable-sync-sys
+debug-no-sync
 
 log-bin-trust-function-creators=1
 key_buffer_size=            1M

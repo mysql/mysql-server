@@ -8575,14 +8575,16 @@ void Rows_log_event::print_helper(FILE *file,
 
 #ifndef MYSQL_CLIENT
 Annotate_rows_log_event::Annotate_rows_log_event(THD *thd,
-                                                 uint16 cache_type_arg)
-  : Log_event(thd, 0, true),
+                                                 bool using_trans,
+                                                 bool direct)
+  : Log_event(thd, 0, using_trans),
     m_save_thd_query_txt(0),
     m_save_thd_query_len(0)
 {
   m_query_txt= thd->query();
   m_query_len= thd->query_length();
-  cache_type= cache_type_arg;
+  if (direct)
+    cache_type= Log_event::EVENT_NO_CACHE;
 }
 #endif
 

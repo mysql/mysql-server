@@ -117,11 +117,11 @@ SELECT @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
 5000
 SET local.max_prepared_stmt_count = 7000;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'max_prepared_stmt_count = 7000' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'max_prepared_stmt_count = 7000' at line 1
 SELECT local.max_prepared_stmt_count;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.max_prepared_stmt_count = 8000;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'max_prepared_stmt_count = 8000' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'max_prepared_stmt_count = 8000' at line 1
 SELECT global.max_prepared_stmt_count;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT max_prepared_stmt_count = @@session.max_prepared_stmt_count;

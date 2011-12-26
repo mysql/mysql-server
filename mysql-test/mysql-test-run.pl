@@ -214,7 +214,7 @@ my $opt_cursor_protocol;
 my $opt_view_protocol;
 
 our $opt_debug;
-my $debug_d= "d";
+my $debug_d= "d,*";
 my $opt_debug_common;
 our $opt_debug_server;
 our @opt_cases;                  # The test cases names in argv
@@ -311,6 +311,7 @@ my $valgrind_reports= 0;
 my $opt_callgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
+my $warn_seconds = 60;
 
 sub testcase_timeout ($) {
   my ($tinfo)= @_;
@@ -1737,12 +1738,6 @@ sub command_line_setup {
     $opt_valgrind= 1;
     $opt_valgrind_mysqld= 1;
     $opt_valgrind_mysqltest= 1;
-
-    # Increase the timeouts when running with valgrind
-    $opt_testcase_timeout*= 10;
-    $opt_suite_timeout*= 6;
-    $opt_start_timeout*= 10;
-
   }
   elsif ( $opt_valgrind_mysqld )
   {
@@ -1753,6 +1748,15 @@ sub command_line_setup {
   {
     mtr_report("Turning on valgrind for mysqltest and mysql_client_test only");
     $opt_valgrind= 1;
+  }
+
+  if ($opt_valgrind)
+  {
+    # Increase the timeouts when running with valgrind
+    $opt_testcase_timeout*= 10;
+    $opt_suite_timeout*= 6;
+    $opt_start_timeout*= 10;
+    $warn_seconds*= 10;
   }
 
   if ( $opt_callgrind )
@@ -3229,7 +3233,8 @@ sub mysql_server_wait {
 
   return not sleep_until_file_created($mysqld->value('pid-file'),
                                       $opt_start_timeout,
-                                      $mysqld->{'proc'});
+                                      $mysqld->{'proc'},
+                                      $warn_seconds);
 }
 
 sub create_config_file_for_extern {
@@ -3468,7 +3473,7 @@ sub mysql_install_db {
 
   if ( $opt_debug )
   {
-    mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/bootstrap.trace",
+    mtr_add_arg($args, "--debug-dbug=$debug_d:t:i:A,%s/log/bootstrap.trace",
 		$path_vardir_trace);
   }
 
@@ -4662,7 +4667,7 @@ sub extract_warning_lines ($$) {
   $Ferr = undef; # Close error log file
 
   # mysql_client_test.test sends a COM_DEBUG packet to the server
-  # to provoke a SAFEMALLOC leak report, ignore any warnings
+  # to provoke a safemalloc leak report, ignore any warnings
   # between "Begin/end safemalloc memory dump"
   if ( grep(/Begin safemalloc memory dump:/, @lines) > 0)
   {
@@ -5380,7 +5385,7 @@ sub mysqld_start ($$) {
 
   if ( $opt_debug )
   {
-    mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/%s.trace",
+    mtr_add_arg($args, "--debug-dbug=$debug_d:t:i:A,%s/log/%s.trace",
 		$path_vardir_trace, $mysqld->name());
   }
 
@@ -5474,7 +5479,8 @@ sub mysqld_start ($$) {
   if ( $wait_for_pid_file &&
        !sleep_until_file_created($mysqld->value('pid-file'),
 				 $opt_start_timeout,
-				 $mysqld->{'proc'}))
+				 $mysqld->{'proc'},
+                                 $warn_seconds))
   {
     my $mname= $mysqld->name();
     mtr_error("Failed to start mysqld $mname with command $exe");

@@ -247,7 +247,7 @@ drop user 'mysqltest_1b', 'mysqltest_2b', 'mysqltest_3b';
 ERROR HY000: Operation DROP USER failed for 'mysqltest_2b'@'%'
 create user 'mysqltest_2' identified by 'Mysqltest-2';
 drop user 'mysqltest_2' identified by 'Mysqltest-2';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'identified by 'Mysqltest-2'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'identified by 'Mysqltest-2'' at line 1
 drop user 'mysqltest_2';
 create user '%@b'@'b';
 show grants for '%@b'@'b';

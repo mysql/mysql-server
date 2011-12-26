@@ -1461,7 +1461,7 @@ shell> ./configure --with-debug
        (http://forge.mysql.com/wiki/MySQL_Internals_Porting).
        As of MySQL 5.1.12, using --with-debug to configure MySQL with
        debugging support enables you to use the
-       --debug="d,parser_debug" option when you start the server.
+       --debug-dbug="d,parser_debug" option when you start the server.
        This causes the Bison parser that is used to process SQL
        statements to dump a parser trace to the server's standard
        error output. Typically, this output is written to the error
@@ -4725,7 +4725,7 @@ Note
    the screen that may help solve the problem.
 
    The last option is to start mysqld with the --standalone and
-   --debug options. In this case, mysqld writes a log file
+   --debug-dbug options. In this case, mysqld writes a log file
    C:\mysqld.trace that should contain the reason why mysqld doesn't
    start. See MySQL Internals: Porting
    (http://forge.mysql.com/wiki/MySQL_Internals_Porting).
@@ -7716,7 +7716,7 @@ Can't start server: Bind on unix socket...
    MIT-pthreads.
 
    If you cannot get mysqld to start, you can try to make a trace
-   file to find the problem by using the --debug option. See MySQL
+   file to find the problem by using the --debug-dbug option. See MySQL
    Internals: Porting
    (http://forge.mysql.com/wiki/MySQL_Internals_Porting).
 

@@ -22,7 +22,7 @@ CREATE TABLE t1(a INT,
 INSERT INTO t1 VALUES (1,2),(2,3),(3,4),(4,5),(5,6);
 
 --echo # Setup the mysqld to crash at certain point
-SET SESSION debug="d,crash_before_flush_keys";
+SET SESSION debug_dbug="d,crash_before_flush_keys";
 
 --echo # Write file to make mysql-test-run.pl expect crash
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

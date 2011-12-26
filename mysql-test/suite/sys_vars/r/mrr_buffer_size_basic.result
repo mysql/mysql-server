@@ -43,7 +43,7 @@ select @@global.mrr_buffer_size;
 8192
 set session mrr_buffer_size=cast(-1 as unsigned int);
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect mrr_buffer_size value: '18446744073709551615'
 select @@session.mrr_buffer_size;
 @@session.mrr_buffer_size

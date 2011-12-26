@@ -6782,6 +6782,7 @@ int ha_partition::final_add_index(handler_add_index *add, bool commit)
     if (table_arg->key_info == add->key_info)
       table_arg->key_info= NULL;
   }
+  delete add;
   DBUG_RETURN(0);
 }
 

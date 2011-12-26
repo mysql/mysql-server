@@ -25,7 +25,7 @@ flush table t2;
 * copied t2 for comparison
 flush table t1;
 * copied t1 for comparison
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -51,7 +51,7 @@ flush table t2;
 flush table t1;
 * copied t1 for comparison
 lock tables t1 write, t2 write;
-SET SESSION debug="+d,maria_crash";
+SET SESSION debug_dbug="+d,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -74,7 +74,7 @@ flush table t2;
 flush table t1;
 * copied t1 for comparison
 lock tables t1 write, t2 write;
-SET SESSION debug="+d,maria_flush_whole_page_cache,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_page_cache,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -97,7 +97,7 @@ flush table t2;
 flush table t1;
 * copied t1 for comparison
 lock tables t1 write, t2 write;
-SET SESSION debug="+d,maria_flush_states,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_states,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -120,7 +120,7 @@ flush table t2;
 flush table t1;
 * copied t1 for comparison
 lock tables t1 write, t2 write;
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query
@@ -138,7 +138,7 @@ mysqltest.t1	check	status	OK
 Checksum-check
 ok
 use mysqltest;
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query

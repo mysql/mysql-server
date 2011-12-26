@@ -201,7 +201,7 @@ func2: info: s=ko
 | | <func3
 <main
 % ./tests t:d:-d,ret3:f:-f,func2 +d,dump,explain:P
-dbug: >main
+dbug-tests: >main
 dbug-tests: | >func1
 dbug-tests: | | | >func3
 dbug-tests: | | | <func3
@@ -216,7 +216,7 @@ dbug-tests: | | >func3
 dbug-tests: | | <func3
 dbug-tests: <main
 % ./tests t:d:-d,ret3:f:-f,func2 +d,dump,explain:P:F
-dbug:        tests.c: >main
+dbug-tests:        tests.c: >main
 dbug-tests:        tests.c: | >func1
 dbug-tests:        tests.c: | | | >func3
 dbug-tests:        tests.c: | | | <func3

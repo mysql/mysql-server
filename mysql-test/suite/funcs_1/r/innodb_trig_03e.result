@@ -1612,7 +1612,7 @@ NULL
 ##### trigger privilege on column level? #######
 ------------------------------------------------
 grant TRIGGER(f1) on priv_db.t1 to test_yesprivs@localhost;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(f1) on priv_db.t1 to test_yesprivs@localhost' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '(f1) on priv_db.t1 to test_yesprivs@localhost' at line 1
 select current_user;
 current_user
 root@localhost

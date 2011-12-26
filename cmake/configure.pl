@@ -149,6 +149,11 @@ foreach my $option (@ARGV)
     $cmakeargs = $cmakeargs." -DWITH_SSL=yes";
     next;
   }
+  if($option =~ /with-debug/)
+  {
+    $cmakeargs = $cmakeargs." -DCMAKE_BUILD_TYPE=Debug";
+    next;
+  }
   if($option =~ /with-ssl/)
   {
     $cmakeargs = $cmakeargs." -DWITH_SSL=bundled";

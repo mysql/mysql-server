@@ -21,16 +21,16 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/strings
-  ${READLINE_INCLUDE_DIR}
+  ${MY_READLINE_INCLUDE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-ADD_DEFINITIONS(${READLINE_DEFINES})
 ADD_DEFINITIONS(${SSL_DEFINES})
-MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc)
+MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc
+                           ${CMAKE_SOURCE_DIR}/sql/sql_string.cc)
 TARGET_LINK_LIBRARIES(mysql mysqlclient)
 IF(UNIX)
-  TARGET_LINK_LIBRARIES(mysql ${READLINE_LIBRARY})
+  TARGET_LINK_LIBRARIES(mysql ${MY_READLINE_LIBRARY})
   SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -rdynamic")
 ENDIF(UNIX)
 

@@ -40,19 +40,21 @@ SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
 1
 SET @@global.delayed_insert_limit = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect delayed_insert_limit value: '42949672950'
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
-42949672950
+4294967295
 SET @@global.delayed_insert_limit = 429496729.5;
 ERROR 42000: Incorrect argument type to variable 'delayed_insert_limit'
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
-42949672950
+4294967295
 SET @@global.delayed_insert_limit = ON;
 ERROR 42000: Incorrect argument type to variable 'delayed_insert_limit'
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
-42949672950
+4294967295
 '#-------------------FN_DYNVARS_024_05----------------------------#'
 SET @@session.delayed_insert_limit = 0;
 ERROR HY000: Variable 'delayed_insert_limit' is a GLOBAL variable and should be set with SET GLOBAL
@@ -94,11 +96,11 @@ SELECT @@delayed_insert_limit;
 @@delayed_insert_limit
 1
 SET local.delayed_insert_limit = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'delayed_insert_limit = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'delayed_insert_limit = 1' at line 1
 SELECT local.delayed_insert_limit;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.delayed_insert_limit = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'delayed_insert_limit = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'delayed_insert_limit = 1' at line 1
 SELECT global.delayed_insert_limit;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT delayed_insert_limit = @@session.delayed_insert_limit;

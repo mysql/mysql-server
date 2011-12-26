@@ -506,10 +506,13 @@ static ulonglong get_heartbeat_period(THD * thd)
     the dump thread.
 */
 static int send_heartbeat_event(NET* net, String* packet,
-                                const struct event_coordinates *coord)
+                                const struct event_coordinates *coord,
+                                uint8 checksum_alg_arg)
 {
   DBUG_ENTER("send_heartbeat_event");
   char header[LOG_EVENT_HEADER_LEN];
+  my_bool do_checksum= checksum_alg_arg != BINLOG_CHECKSUM_ALG_OFF &&
+    checksum_alg_arg != BINLOG_CHECKSUM_ALG_UNDEF;
   /*
     'when' (the timestamp) is set to 0 so that slave could distinguish between
     real and fake Rotate events (if necessary)
@@ -521,7 +524,8 @@ static int send_heartbeat_event(NET* net, String* packet,
   char* p= coord->file_name + dirname_length(coord->file_name);
 
   uint ident_len = strlen(p);
-  ulong event_len = ident_len + LOG_EVENT_HEADER_LEN;
+  ulong event_len = ident_len + LOG_EVENT_HEADER_LEN +
+    (do_checksum ? BINLOG_CHECKSUM_LEN : 0);
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
   int2store(header + FLAGS_OFFSET, 0);
@@ -530,6 +534,16 @@ static int send_heartbeat_event(NET* net, String* packet,
 
   packet->append(header, sizeof(header));
   packet->append(p, ident_len);             // log_file_name
+
+  if (do_checksum)
+  {
+    char b[BINLOG_CHECKSUM_LEN];
+    ha_checksum crc= my_checksum(0L, NULL, 0);
+    crc= my_checksum(crc, (uchar*) header, sizeof(header));
+    crc= my_checksum(crc, (uchar*) p, ident_len);
+    int4store(b, crc);
+    packet->append(b, sizeof(b));
+  }
 
   if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) ||
       net_flush(net))
@@ -1046,7 +1060,7 @@ impossible position";
                 thd->exit_cond(old_msg);
                 goto err;
               }
-              if (send_heartbeat_event(net, packet, coord))
+              if (send_heartbeat_event(net, packet, coord, current_checksum_alg))
               {
                 errmsg = "Failed on my_net_write()";
                 my_errno= ER_UNKNOWN_ERROR;

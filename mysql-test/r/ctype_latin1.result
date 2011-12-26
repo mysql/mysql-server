@@ -365,7 +365,7 @@ c2h
 ab_def
 drop table t1;
 CREATE TABLE „a (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '„a (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '„a (a int)' at line 1
 SELECT '„a' as str;
 str
 „a

@@ -251,7 +251,7 @@
     gdb ./mysqld
 
     Then, withn the (gdb) prompt:
-    (gdb) run --gdb --port=5554 --socket=/tmp/mysqld.5554 --skip-innodb --debug
+    (gdb) run --gdb --port=5554 --socket=/tmp/mysqld.5554 --skip-innodb --debug-dbug
 
     Next, I open several windows for each:
 

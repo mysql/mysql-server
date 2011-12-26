@@ -1,5 +1,5 @@
 rename database testdb1 to testdb2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'database testdb1 to testdb2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'database testdb1 to testdb2' at line 1
 ALTER DATABASE wrong UPGRADE DATA DIRECTORY NAME;
 ERROR HY000: Incorrect usage of ALTER DATABASE UPGRADE DATA DIRECTORY NAME and name
 ALTER DATABASE `#mysql41#not-supported` UPGRADE DATA DIRECTORY NAME;

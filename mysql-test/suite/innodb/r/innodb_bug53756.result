@@ -92,7 +92,7 @@ pk	c1
 # Crash server.
 START TRANSACTION;
 INSERT INTO bug_53756 VALUES (666,666);
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug_dbug="+d,crash_commit_before";
 COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 

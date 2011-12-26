@@ -162,13 +162,13 @@ RESET SLAVE;
 
 *** Misc incorrect values ***
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD='-1';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''-1'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''-1'' at line 1
 RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD='123abc';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''123abc'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''123abc'' at line 1
 RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD='';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '''' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '''' at line 1
 RESET SLAVE;
 
 *** Running slave ***

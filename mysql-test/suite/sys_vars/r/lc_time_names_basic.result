@@ -22,7 +22,7 @@ SELECT @@session.lc_time_names;
 @@session.lc_time_names
 ar_AE
 SET global.lc_time_names=ar_AE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'lc_time_names=ar_AE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'lc_time_names=ar_AE' at line 1
 SET session lc_time_names=ar_AE;
 SELECT session lc_time_names;
 ERROR 42S22: Unknown column 'session' in 'field list'

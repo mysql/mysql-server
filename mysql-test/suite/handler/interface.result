@@ -9,20 +9,20 @@ insert into t1 values
 (20,"ggg"),(21,"hhh"),(22,"iii"),(23,"xxx"),(24,"xxx"),(25,"xxx");
 handler t1 open;
 handler t1 read a=(SELECT 1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SELECT 1)' at line 1
 handler t1 read a=(1) FIRST;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FIRST' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'FIRST' at line 1
 handler t1 read a=(1) NEXT;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NEXT' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'NEXT' at line 1
 handler t1 read last;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 handler t1 close;
 drop table t1;
 CREATE TABLE t1(a INT, PRIMARY KEY(a));
 insert into t1 values(1),(2);
 handler t1 open;
 handler t1 read primary=(1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'primary=(1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'primary=(1)' at line 1
 handler t1 read `primary`=(1);
 a
 1
@@ -54,31 +54,31 @@ handler t1 open;
 ERROR 42000: Not unique table/alias: 't1'
 use test;
 handler test.t1 read first limit 9;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read first limit 9' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'read first limit 9' at line 1
 handler test_test.t1 read first limit 9;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read first limit 9' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'read first limit 9' at line 1
 handler t1 read first limit 9;
 table_id
 test_test.t1
 
 handler test_test.t2 read first limit 9;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read first limit 9' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'read first limit 9' at line 1
 handler t2 read first limit 9;
 table_id
 test_test.t2
 
 handler test_test.t1 close;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'close' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'close' at line 1
 handler t1 close;
 drop table test_test.t1;
 handler test_test.t2 close;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'close' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'close' at line 1
 handler t2 close;
 drop table test_test.t2;
 drop database test_test;
 use test;
 handler test.t1 close;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'close' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'close' at line 1
 handler t1 close;
 ERROR 42S02: Unknown table 't1' in HANDLER
 drop table test.t1;
@@ -113,7 +113,7 @@ handler t1 read first limit 9;
 c1
 test_test.t1
 handler test.t1 close;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'close' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'close' at line 1
 handler test.t1 open h1;
 ERROR 42000: Not unique table/alias: 'h1'
 handler test_test.t1 open h1;
@@ -136,7 +136,7 @@ handler h2 read first limit 9;
 c1
 t1
 handler test.h1 close;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'close' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'close' at line 1
 handler t1 close;
 handler h1 close;
 handler h2 close;
@@ -157,7 +157,7 @@ handler h3 read first limit 9;
 c1
 test_test.t3
 handler test.h3 read first limit 9;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read first limit 9' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'read first limit 9' at line 1
 handler h3 close;
 use test;
 drop table t3;

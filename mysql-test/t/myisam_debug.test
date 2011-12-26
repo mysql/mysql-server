@@ -36,7 +36,7 @@ commit;
 
 --echo # Switch to insert Connection
 CONNECTION insertConn;
-SET SESSION debug='+d,wait_in_enable_indexes';
+SET SESSION debug_dbug='+d,wait_in_enable_indexes';
 --echo # Send insert data
 SEND INSERT INTO t1(id) SELECT id  FROM t2; 
 

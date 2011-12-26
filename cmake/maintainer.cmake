@@ -27,7 +27,7 @@ MACRO(SET_MYSQL_MAINTAINER_GNU_C_OPTIONS)
   ENDIF()
   SET(MY_MAINTAINER_C_WARNINGS
       "${MY_MAINTAINER_WARNINGS} ${MY_MAINTAINER_DECLARATION_AFTER_STATEMENT}"
-      CACHE STRING "C warning options used in maintainer builds.")
+      CACHE INTERNAL "C warning options used in maintainer builds.")
   # Do not make warnings in checks into errors.
   SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Wno-error")
 ENDMACRO()
@@ -36,19 +36,19 @@ ENDMACRO()
 MACRO(SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS)
   SET(MY_MAINTAINER_CXX_WARNINGS
       "${MY_MAINTAINER_WARNINGS} -Wno-unused-parameter -Woverloaded-virtual"
-      CACHE STRING "C++ warning options used in maintainer builds.")
+      CACHE INTERNAL "C++ warning options used in maintainer builds.")
 ENDMACRO()
 
 # Setup ICC (Intel C Compiler) warning options.
 MACRO(SET_MYSQL_MAINTAINER_INTEL_C_OPTIONS)
   SET(MY_MAINTAINER_WARNINGS "-Wcheck")
   SET(MY_MAINTAINER_C_WARNINGS "${MY_MAINTAINER_WARNINGS}"
-      CACHE STRING "C warning options used in maintainer builds.")
+    CACHE INTERNAL "C warning options used in maintainer builds.")
 ENDMACRO()
 
 # Setup ICPC (Intel C++ Compiler) warning options.
 MACRO(SET_MYSQL_MAINTAINER_INTEL_CXX_OPTIONS)
   SET(MY_MAINTAINER_CXX_WARNINGS "${MY_MAINTAINER_WARNINGS}"
-      CACHE STRING "C++ warning options used in maintainer builds.")
+    CACHE INTERNAL "C++ warning options used in maintainer builds.")
 ENDMACRO()
 

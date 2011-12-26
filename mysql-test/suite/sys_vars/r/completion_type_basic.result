@@ -119,11 +119,11 @@ SELECT @@completion_type;
 @@completion_type
 CHAIN
 SET local.completion_type = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'completion_type = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'completion_type = 1' at line 1
 SELECT local.completion_type;
 ERROR 42S02: Unknown table 'local' in field list
 SET session.completion_type = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'completion_type = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'completion_type = 1' at line 1
 SELECT session.completion_type;
 ERROR 42S02: Unknown table 'session' in field list
 SELECT completion_type = @@session.completion_type;

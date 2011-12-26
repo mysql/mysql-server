@@ -15,6 +15,7 @@
 
 
 /* Some defines to make it easier to use valgrind */
+#include <m_string.h>           /* bfill */
 
 #ifdef HAVE_valgrind
 #define IF_VALGRIND(A,B) A

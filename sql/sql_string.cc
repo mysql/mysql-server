@@ -27,9 +27,6 @@
 
 #include "sql_string.h"
 
-#ifdef MYSQL_CLIENT
-#error Attempt to use server-side sql_string on client. Use client/sql_string.cc
-#endif 
 /*****************************************************************************
 ** String functions
 *****************************************************************************/
@@ -81,7 +78,7 @@ bool String::real_alloc(uint32 length)
 
    @retval true An error occured when attempting to allocate memory.
 */
-bool String::realloc(uint32 alloc_length)
+bool String::realloc_raw(uint32 alloc_length)
 {
   if (Alloced_length <= alloc_length)
   {
@@ -109,7 +106,6 @@ bool String::realloc(uint32 alloc_length)
     Ptr= new_ptr;
     Alloced_length= len;
   }
-  Ptr[alloc_length]=0;			// This make other funcs shorter
   return FALSE;
 }
 

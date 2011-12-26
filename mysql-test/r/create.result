@@ -303,11 +303,11 @@ ERROR 42000: Incorrect database name 'db1 '
 create table t1(`a ` int);
 ERROR 42000: Incorrect column name 'a '
 create table t1 (a int,);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ')' at line 1
 create table t1 (a int,,b int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'b int)' at line 1
 create table t1 (,b int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'b int)' at line 1
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t1,t2;
@@ -1942,7 +1942,7 @@ CREATE TRIGGER f BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN 
 UPDATE A SET `pk`=1 WHERE `pk`=0 ; 
 END ;|
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR 42000: This version of MariaDB doesn't yet support 'multiple triggers with the same action time and event for one table'
 DROP TABLE t1;
 DROP TABLE B;
 #

@@ -23,7 +23,7 @@ set tmp_table_size=1024;
 
 # Set debug flag so an error is returned when
 # tmp table in query is converted from heap to myisam
-set session debug="d,raise_error";
+set session debug_dbug="d,raise_error";
 
 --replace_regex /in table '[^']+'/in table 'tmp_table'/
 --error ER_DUP_KEY
@@ -38,9 +38,9 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1 (a INT(100) NOT NULL);
 INSERT INTO t1 VALUES (1), (0), (2);
-SET SESSION debug='+d,alter_table_only_index_change';
+SET SESSION debug_dbug='+d,alter_table_only_index_change';
 ALTER TABLE t1 ADD INDEX a(a);
-SET SESSION debug=DEFAULT;
+SET SESSION debug_dbug=DEFAULT;
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
@@ -51,11 +51,11 @@ DROP TABLE t1;
 
 CREATE TABLE t1(a BLOB);
 
-SET SESSION debug="+d,bug42064_simulate_oom";
+SET SESSION debug_dbug="+d,bug42064_simulate_oom";
 # May fail with either ER_OUT_OF_RESOURCES or EE_OUTOFMEMORY
 --error ER_OUT_OF_RESOURCES, 5
 INSERT INTO t1 VALUES("");
-SET SESSION debug=DEFAULT;
+SET SESSION debug_dbug=DEFAULT;
 
 DROP TABLE t1;
 
@@ -78,14 +78,14 @@ INSERT INTO t2 VALUES (1, 1, 'data');
 --echo # we would need to have thousands of records and/or more columns in both
 --echo # tables so that the join buffer is filled and re-scans are triggered).
 
-SET SESSION debug = '+d,only_one_Unique_may_be_created';
+SET SESSION debug_dbug= '+d,only_one_Unique_may_be_created';
 
 --replace_column 1 x 2 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x
 EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
 
-SET SESSION debug = DEFAULT;
+SET SESSION debug_dbug= DEFAULT;
 
 DROP TABLE t1, t2;
 

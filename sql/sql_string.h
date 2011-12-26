@@ -26,10 +26,6 @@
 #include "my_sys.h"              /* alloc_root, my_free, my_realloc */
 #include "m_string.h"                           /* TRASH */
 
-#ifdef MYSQL_CLIENT
-#error Attempt to use server-side sql_string on client. Use client/sql_string.h
-#endif 
-
 class String;
 typedef struct st_io_cache IO_CACHE;
 typedef struct st_mem_root MEM_ROOT;
@@ -255,17 +251,30 @@ public:
     return real_alloc(arg_length);
   }
   bool real_alloc(uint32 arg_length);			// Empties old string
-  bool realloc(uint32 arg_length);
+  bool realloc_raw(uint32 arg_length);
+  bool realloc(uint32 arg_length)
+  {
+    if (realloc_raw(arg_length))
+      return TRUE;
+    Ptr[arg_length]=0;        // This make other funcs shorter
+    return FALSE;
+  }
   bool realloc_with_extra(uint32 arg_length)
   {
     if (extra_alloc < 4096)
       extra_alloc= extra_alloc*2+128;
-    return realloc(arg_length + extra_alloc);
+    if (realloc_raw(arg_length + extra_alloc))
+      return TRUE;
+    Ptr[arg_length]=0;        // This make other funcs shorter
+    return FALSE;
   }
   bool realloc_with_extra_if_needed(uint32 arg_length)
   {
     if (arg_length < Alloced_length)
+    {
+      Ptr[arg_length]=0; // behave as if realloc was called.
       return 0;
+    }
     return realloc_with_extra(arg_length);
   }
   inline void shrink(uint32 arg_length)		// Shrink buffer

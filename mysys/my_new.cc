@@ -16,7 +16,10 @@
 
 /*
   This is a replacement of new/delete operators to be used when compiling
-  with gcc 3.0.x to avoid including libstdc++
+  with gcc 3.0.x to avoid including libstdc++ 
+  
+  It is also used to make all memory allocations to go through
+  my_malloc/my_free wrappers (for debugging/safemalloc and accounting)
 */
 
 #include "mysys_priv.h"
@@ -25,24 +28,22 @@
 
 void *operator new (size_t sz)
 {
-  return (void *) malloc (sz ? sz : 1);
+  return (void *) my_malloc (sz ? sz : 1, MYF(0));
 }
 
 void *operator new[] (size_t sz)
 {
-  return (void *) malloc (sz ? sz : 1);
+  return (void *) my_malloc (sz ? sz : 1, MYF(0));
 }
 
 void operator delete (void *ptr)
 {
-  if (ptr)
-    free(ptr);
+  my_free(ptr);
 }
 
 void operator delete[] (void *ptr) throw ()
 {
-  if (ptr)
-    free(ptr);
+  my_free(ptr);
 }
 
 C_MODE_START

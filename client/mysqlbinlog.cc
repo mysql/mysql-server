@@ -45,7 +45,7 @@
 
 #include "mysqld.h"
 
-Rpl_filter *binlog_filter;
+Rpl_filter *binlog_filter= 0;
 
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
@@ -77,7 +77,7 @@ static void error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
 static bool one_database=0, to_last_remote_log= 0, disable_log_bin= 0;
-static bool opt_hexdump= 0;
+static bool opt_hexdump= 0, opt_version= 0;
 const char *base64_output_mode_names[]=
 {"NEVER", "AUTO", "ALWAYS", "UNSPEC", "DECODE-ROWS", NullS};
 TYPELIB base64_output_mode_typelib=
@@ -1430,6 +1430,7 @@ static void cleanup()
   my_free(user);
   my_free(const_cast<char*>(dirname_for_local_load));
 
+  delete binlog_filter;
   delete glob_description_event;
   if (mysql)
     mysql_close(mysql);
@@ -1588,10 +1589,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'V':
     print_version();
-    exit(0);
+    opt_version= 1;
+    break;
   case '?':
     usage();
-    exit(0);
+    opt_version= 1;
+    break;
   }
   if (tty_password)
     pass= get_tty_password(NullS);
@@ -2303,24 +2306,26 @@ int main(int argc, char** argv)
   my_init_time(); // for time functions
 
   init_alloc_root(&s_mem_root, 16384, 0);
+  if (load_defaults("my", load_groups, &argc, &argv))
+    exit(1);
+
   if (!(binlog_filter= new Rpl_filter))
   {
     error("Failed to create Rpl_filter");
     exit(1);
   }
 
-  if (load_defaults("my", load_groups, &argc, &argv))
-    exit(1);
-
   defaults_argv= argv;
   parse_args(&argc, (char***)&argv);
 
-  if (!argc)
+  if (!argc || opt_version)
   {
-    usage();
+    if (!argc)
+      usage();
+    cleanup();
     free_defaults(defaults_argv);
     my_end(my_end_arg);
-    exit(1);
+    exit(!opt_version);
   }
 
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
@@ -2407,7 +2412,6 @@ int main(int argc, char** argv)
     my_fclose(result_file, MYF(0));
   cleanup();
   free_annotate_event();
-  delete binlog_filter;
   free_root(&s_mem_root, MYF(0));
   free_defaults(defaults_argv);
   my_free_open_file_info();

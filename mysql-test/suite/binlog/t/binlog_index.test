@@ -90,7 +90,7 @@ reset master;
 flush logs;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="+d,crash_purge_before_update_index";
+SET SESSION debug_dbug="+d,crash_purge_before_update_index";
 --error 2013
 purge binary logs TO 'master-bin.000002';
 
@@ -110,7 +110,7 @@ SELECT @index;
 flush logs;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="+d,crash_purge_non_critical_after_update_index";
+SET SESSION debug_dbug="+d,crash_purge_non_critical_after_update_index";
 --error 2013
 purge binary logs TO 'master-bin.000004';
 
@@ -133,7 +133,7 @@ SELECT @index;
 flush logs;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="+d,crash_purge_critical_after_update_index";
+SET SESSION debug_dbug="+d,crash_purge_critical_after_update_index";
 --error 2013
 purge binary logs TO 'master-bin.000006';
 
@@ -156,7 +156,7 @@ SELECT @index;
 
 --echo # crash_create_non_critical_before_update_index
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="+d,crash_create_non_critical_before_update_index";
+SET SESSION debug_dbug="+d,crash_create_non_critical_before_update_index";
 --error 2013
 flush logs;
 
@@ -174,7 +174,7 @@ SELECT @index;
 
 --echo # crash_create_critical_before_update_index
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="+d,crash_create_critical_before_update_index";
+SET SESSION debug_dbug="+d,crash_create_critical_before_update_index";
 --error 2013
 flush logs;
 
@@ -194,7 +194,7 @@ SELECT @index;
 
 --echo # crash_create_after_update_index
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="+d,crash_create_after_update_index";
+SET SESSION debug_dbug="+d,crash_create_after_update_index";
 --error 2013
 flush logs;
 
@@ -222,7 +222,7 @@ SELECT @index;
 SELECT @index;
 
 --echo # fault_injection_registering_index
-SET SESSION debug="+d,fault_injection_registering_index";
+SET SESSION debug_dbug="+d,fault_injection_registering_index";
 -- replace_regex /\.[\\\/]master/master/
 -- error ER_CANT_OPEN_FILE
 flush logs;
@@ -242,7 +242,7 @@ SELECT @index;
 SELECT @index;
 
 --echo # fault_injection_updating_index
-SET SESSION debug="+d,fault_injection_updating_index";
+SET SESSION debug_dbug="+d,fault_injection_updating_index";
 -- replace_regex /\.[\\\/]master/master/
 -- error ER_CANT_OPEN_FILE
 flush logs;
@@ -261,6 +261,6 @@ SELECT @index;
 -- replace_regex /\.[\\\/]master/master/
 SELECT @index;
 
-eval SET SESSION debug="$old";
+eval SET SESSION debug_dbug="$old";
 
 --echo End of tests

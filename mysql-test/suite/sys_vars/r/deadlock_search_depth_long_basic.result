@@ -37,7 +37,7 @@ select @@global.deadlock_search_depth_long;
 0
 set session deadlock_search_depth_long=cast(-1 as unsigned int);
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect deadlock_search_depth_long value: '18446744073709551615'
 select @@session.deadlock_search_depth_long;
 @@session.deadlock_search_depth_long

@@ -153,8 +153,10 @@ extern void *my_realloc(void *oldpoint, size_t Size, myf MyFlags);
 extern void my_free(void *ptr);
 extern void *my_memdup(const void *from,size_t length,myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
-extern char *my_strndup(const char *from, size_t length,
-				   myf MyFlags);
+extern char *my_strndup(const char *from, size_t length, myf MyFlags);
+
+extern int sf_leaking_memory; /* set to 1 to disable memleak detection */
+
 #if defined(ENABLED_DEBUG_SYNC)
 extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #define DEBUG_SYNC_C(_sync_point_name_) do {                            \
@@ -211,7 +213,7 @@ extern void (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
 extern uint my_file_limit;
-extern ulong my_thread_stack_size;
+extern ulonglong my_thread_stack_size;
 
 extern const char *(*proc_info_hook)(MYSQL_THD, const char *, const char *,
                                      const char *, const unsigned int);

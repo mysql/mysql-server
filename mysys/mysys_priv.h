@@ -69,6 +69,15 @@ extern PSI_file_key key_file_proc_meminfo;
 extern PSI_file_key key_file_charset, key_file_cnf;
 #endif /* HAVE_PSI_INTERFACE */
 
+#ifdef SAFEMALLOC
+void *sf_malloc(size_t size);
+void *sf_realloc(void *ptr, size_t size);
+void sf_free(void *ptr);
+#else
+#define sf_malloc(X)    malloc(X)
+#define sf_realloc(X,Y) realloc(X,Y)
+#define sf_free(X)      free(X)
+#endif
 
 /*
   EDQUOT is used only in 3 C files only in mysys/. If it does not exist on

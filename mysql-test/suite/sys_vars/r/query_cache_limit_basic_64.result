@@ -38,18 +38,22 @@ SELECT @@global.query_cache_limit;
 @@global.query_cache_limit
 0
 SET @@global.query_cache_limit = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect query_cache_limit value: '4294967296'
 SELECT @@global.query_cache_limit;
 @@global.query_cache_limit
-4294967296
+4294967295
 SET @@global.query_cache_limit = 10240022115;
+Warnings:
+Warning	1292	Truncated incorrect query_cache_limit value: '10240022115'
 SELECT @@global.query_cache_limit;
 @@global.query_cache_limit
-10240022115
+4294967295
 SET @@global.query_cache_limit = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'query_cache_limit'
 SELECT @@global.query_cache_limit;
 @@global.query_cache_limit
-10240022115
+4294967295
 SET @@global.query_cache_limit = -1024;
 Warnings:
 Warning	1292	Truncated incorrect query_cache_limit value: '-1024'
@@ -57,25 +61,27 @@ SELECT @@global.query_cache_limit;
 @@global.query_cache_limit
 0
 SET @@global.query_cache_limit = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect query_cache_limit value: '42949672950'
 SELECT @@global.query_cache_limit;
 @@global.query_cache_limit
-42949672950
+4294967295
 SET @@global.query_cache_limit = ON;
 ERROR 42000: Incorrect argument type to variable 'query_cache_limit'
 SELECT @@global.query_cache_limit;
 @@global.query_cache_limit
-42949672950
+4294967295
 SET @@global.query_cache_limit = 'test';
 ERROR 42000: Incorrect argument type to variable 'query_cache_limit'
 SELECT @@global.query_cache_limit;
 @@global.query_cache_limit
-42949672950
+4294967295
 '#-------------------FN_DYNVARS_131_05----------------------------#'
 SET @@session.query_cache_limit = 0;
 ERROR HY000: Variable 'query_cache_limit' is a GLOBAL variable and should be set with SET GLOBAL
 SELECT @@query_cache_limit;
 @@query_cache_limit
-42949672950
+4294967295
 '#----------------------FN_DYNVARS_131_06------------------------#'
 SELECT @@global.query_cache_limit = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
@@ -108,11 +114,11 @@ SELECT @@query_cache_limit;
 @@query_cache_limit
 1
 SET local.query_cache_limit = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'query_cache_limit = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'query_cache_limit = 1' at line 1
 SELECT local.query_cache_limit;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.query_cache_limit = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'query_cache_limit = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'query_cache_limit = 1' at line 1
 SELECT global.query_cache_limit;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT query_cache_limit = @@session.query_cache_limit;

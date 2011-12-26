@@ -59,6 +59,6 @@ include/diff_tables.inc [master:t1,slave:t1]
 # Verify it can restore the '!', if the it is an uncomplete conditional
 # comments
 SELECT c1 FROM /*!99999 t1 WHEREN;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*!99999 t1 WHEREN' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '/*!99999 t1 WHEREN' at line 1
 DROP TABLE t1;
 include/rpl_end.inc

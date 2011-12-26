@@ -1492,7 +1492,7 @@ WHERE (
 SELECT b , a
 FROM t3
 );
-ERROR 42000: This version of MySQL doesn't yet support 'SUBQUERY in ROW in left expression of IN/ALL/ANY'
+ERROR 42000: This version of MariaDB doesn't yet support 'SUBQUERY in ROW in left expression of IN/ALL/ANY'
 set optimizer_switch=@optimizer_switch_save;
 drop table t1,t2,t3;
 End of 5.3 tests

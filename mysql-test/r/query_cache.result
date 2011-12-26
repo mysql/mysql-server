@@ -1770,9 +1770,9 @@ DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
 CREATE TABLE t1( a INT );
 SET @v = ( SELECT SQL_CACHE    1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1 )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '1 )' at line 1
 SET @v = ( SELECT SQL_NO_CACHE 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1 )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '1 )' at line 1
 SELECT a FROM t1 WHERE a IN ( SELECT SQL_CACHE    a FROM t1 );
 ERROR 42S22: Unknown column 'SQL_CACHE' in 'field list'
 SELECT a FROM t1 WHERE a IN ( SELECT SQL_NO_CACHE a FROM t1 );

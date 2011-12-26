@@ -24,7 +24,7 @@ SELECT 4;
 4
 4
 KILL (SELECT COUNT(*) FROM mysql.user);
-ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+ERROR 42000: This version of MariaDB doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
 SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
 SET DEBUG_SYNC= 'before_do_command_net_read SIGNAL con1_read WAIT_FOR kill';
 SET DEBUG_SYNC= 'now WAIT_FOR con1_read';

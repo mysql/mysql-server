@@ -290,7 +290,8 @@ The wrapper functions have the prefix of "innodb_". */
 			      __FILE__, __LINE__)
 
 # define os_file_read_trx(file, buf, offset, offset_high, n, trx)	\
-	os_file_read_func(file, buf, offset, offset_high, n, trx)
+	pfs_os_file_read_func(file, buf, offset, offset_high, n, trx,	\
+			      __FILE__, __LINE__)
 
 # define os_file_read_no_error_handling(file, buf, offset,		\
 					offset_high, n)			\

@@ -1394,6 +1394,7 @@ static void cleanup_and_exit(int exit_code)
     }
   }
 
+  sf_leaking_memory= 0; /* all memory should be freed by now */
   exit(exit_code);
 }
 
@@ -8461,6 +8462,9 @@ int main(int argc, char **argv)
   bool empty_result= FALSE;
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
+
+  /* mysqltest has no way to free all its memory correctly */
+  sf_leaking_memory= 1;
 
   save_file[0]= 0;
   TMPDIR[0]= 0;

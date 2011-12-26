@@ -4,7 +4,7 @@
 --source include/have_innodb.inc
 
 # crash requires this
-set session debug="+d,optimizer_innodb_icp";
+set session debug_dbug="+d,optimizer_innodb_icp";
 
 create table `t1` (`c1` char(1) default null,`c2` char(10) default null,
 key (`c1`))

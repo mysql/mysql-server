@@ -3541,7 +3541,7 @@ skip_info:
 										ULINT_UNDEFINED, &heap);
 								n_fields = rec_offs_n_fields(offsets);
 								if (!offset) {
-									offset = row_get_trx_id_offset(rec, index, offsets);
+									offset = row_get_trx_id_offset(index, offsets);
 								}
 								trx_write_trx_id(rec + offset, 1);
 
@@ -3826,7 +3826,7 @@ convert_err_exit:
 						ULINT_UNDEFINED, &heap);
 				n_fields = rec_offs_n_fields(offsets);
 				if (!offset) {
-					offset = row_get_trx_id_offset(rec, index, offsets);
+					offset = row_get_trx_id_offset(index, offsets);
 				}
 				trx_write_trx_id(rec + offset, 1);
 

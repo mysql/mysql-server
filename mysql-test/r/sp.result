@@ -3621,7 +3621,7 @@ begin
 set f1= concat( 'hello', f1 );
 return f1;
 end|
-ERROR 42000: This version of MySQL doesn't yet support 'return value collation'
+ERROR 42000: This version of MariaDB doesn't yet support 'return value collation'
 drop procedure if exists bug12849_1|
 create procedure bug12849_1(inout x char) select x into x|
 set @var='a'|

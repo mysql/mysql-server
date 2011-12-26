@@ -13,7 +13,7 @@ create table tm (a int auto_increment primary key) engine=myisam;
 create table ti (a int auto_increment primary key) engine=innodb;
 
 sync_slave_with_master;
-set @@global.debug="+d,stop_slave_middle_group";
+set @@global.debug_dbug="+d,stop_slave_middle_group";
 
 connection master;
 
@@ -43,7 +43,7 @@ eval SELECT "NO$error" AS Last_SQL_Error, @check as `true`;
 select count(*) as one from tm;
 select count(*) as one from ti;
 
-set @@global.debug="-d";
+set @@global.debug_dbug="-d";
 
 #
 # bug#45940 issues around rli->last_event_start_time
@@ -67,8 +67,8 @@ truncate table ti;
 #connection slave;
 sync_slave_with_master;
 
-set @@global.debug="+d,stop_slave_middle_group";
-set @@global.debug="+d,incomplete_group_in_relay_log";
+set @@global.debug_dbug="+d,stop_slave_middle_group";
+set @@global.debug_dbug="+d,incomplete_group_in_relay_log";
 
 connection master;
 
@@ -96,7 +96,7 @@ eval SELECT "$error" AS Last_SQL_Error, @check as `true`;
 select count(*) as one  from tm;
 select count(*) as zero from ti;
 
-set @@global.debug="-d";
+set @@global.debug_dbug="-d";
 
 #
 # The mixed multi-table update
@@ -109,8 +109,8 @@ connection master;
 
 #connection slave;
 sync_slave_with_master;
-set @@global.debug="+d,stop_slave_middle_group";
-set @@global.debug="+d,incomplete_group_in_relay_log";
+set @@global.debug_dbug="+d,stop_slave_middle_group";
+set @@global.debug_dbug="+d,incomplete_group_in_relay_log";
 
 connection master;
 update tm as t1, ti as t2 set t1.a=t1.a * 2, t2.a=t2.a * 2;
@@ -135,7 +135,7 @@ eval SELECT "$error" AS Last_SQL_Error, @check as `true`;
 select max(a) as two from tm;
 select max(a) as one from ti;
 
-set @@global.debug="-d";
+set @@global.debug_dbug="-d";
 
 #
 # clean-up

@@ -124,9 +124,9 @@ create table t1_433a (f1a char (5)) engine = <engine_to_be_used>;
 CREATE TRIGGER trg3 BEFORE INSERT on t1_433 for each row
 set new.f1 = 'Trigger 3.5.4.3';
 Drop trigger t1.433.trg3;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.trg3' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '.trg3' at line 1
 Drop trigger db_drop3.t1.433.trg3;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.433.trg3' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '.433.trg3' at line 1
 Drop trigger mysql.trg3;
 ERROR HY000: Trigger does not exist
 Drop trigger tbx.trg3;
@@ -269,9 +269,9 @@ Testcase 3.5.6.2 (see Testcase 3.5.1.1)
 Testcase 3.5.6.3:
 -----------------
 Create trigger trg3_1 DURING UPDATE on tb3 for each row set new.f132=25;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DURING UPDATE on tb3 for each row set new.f132=25' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'DURING UPDATE on tb3 for each row set new.f132=25' at line 1
 Create trigger trg3_2 TIME INSERT on tb3 for each row set new.f132=15;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TIME INSERT on tb3 for each row set new.f132=15' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'TIME INSERT on tb3 for each row set new.f132=15' at line 1
 drop trigger tb3.trg3_1;
 drop trigger tb3.trg3_2;
 
@@ -293,9 +293,9 @@ Testcase 3.5.7.3 (see Testcase 3.5.1.1)
 Testcase 3.5.7.4:
 -----------------
 Create trigger trg4_1 BEFORE SELECT on tb3 for each row set new.f132=5;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT on tb3 for each row set new.f132=5' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SELECT on tb3 for each row set new.f132=5' at line 1
 Create trigger trg4_2 AFTER VALUE on tb3 for each row set new.f132=1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VALUE on tb3 for each row set new.f132=1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VALUE on tb3 for each row set new.f132=1' at line 1
 drop trigger tb3.trg4_1;
 drop trigger tb3.trg4_2;
 
@@ -305,7 +305,7 @@ Create trigger trg5_1 BEFORE INSERT
 on tb3 for each row set new.f122='Trigger1 3.5.7.5/6';
 Create trigger trg5_2 BEFORE INSERT
 on tb3 for each row set new.f122='Trigger2 3.5.7.5';
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR 42000: This version of MariaDB doesn't yet support 'multiple triggers with the same action time and event for one table'
 Insert into tb3 (f121,f122) values ('Test 3.5.7.5/6','Insert 3.5.7.5');
 Select f121,f122 from tb3 where f121='Test 3.5.7.5/6';
 f121	f122
@@ -325,7 +325,7 @@ Create trigger trg6_1 AFTER INSERT
 on tb3 for each row set @test_var='Trigger1 3.5.7.7/8';
 Create trigger trg6_2 AFTER INSERT
 on tb3 for each row set @test_var='Trigger2 3.5.7.7';
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR 42000: This version of MariaDB doesn't yet support 'multiple triggers with the same action time and event for one table'
 select @test_var;
 @test_var
 Before trig 3.5.7.7
@@ -353,7 +353,7 @@ Create trigger trg7_1 BEFORE UPDATE
 on tb3 for each row set new.f122='Trigger1 3.5.7.9/10';
 Create trigger trg7_2 BEFORE UPDATE
 on tb3 for each row set new.f122='Trigger2 3.5.7.9';
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR 42000: This version of MariaDB doesn't yet support 'multiple triggers with the same action time and event for one table'
 Insert into tb3 (f121,f122) values ('Test 3.5.7.9/10','Insert 3.5.7.9');
 Select f121,f122 from tb3 where f121='Test 3.5.7.9/10';
 f121	f122
@@ -373,7 +373,7 @@ Create trigger trg8_1 AFTER UPDATE
 on tb3 for each row set @test_var='Trigger 3.5.7.11/12';
 Create trigger trg8_2 AFTER UPDATE
 on tb3 for each row set @test_var='Trigger2 3.5.7.11';
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR 42000: This version of MariaDB doesn't yet support 'multiple triggers with the same action time and event for one table'
 select @test_var;
 @test_var
 Before trig 3.5.7.11
@@ -403,7 +403,7 @@ Create trigger trg9_1 BEFORE DELETE
 on tb3 for each row set @test_var=@test_var+1;
 Create trigger trg9_2 BEFORE DELETE
 on tb3 for each row set @test_var=@test_var+10;
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR 42000: This version of MariaDB doesn't yet support 'multiple triggers with the same action time and event for one table'
 select @test_var;
 @test_var
 1
@@ -435,7 +435,7 @@ Create trigger trg_3_406010_1 AFTER DELETE
 on tb3 for each row set @test_var=@test_var+5;
 Create trigger trg_3_406010_2 AFTER DELETE
 on tb3 for each row set @test_var=@test_var+50;
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR 42000: This version of MariaDB doesn't yet support 'multiple triggers with the same action time and event for one table'
 Create trigger trg_3_406010_1 AFTER INSERT
 on tb3 for each row set @test_var=@test_var+1;
 ERROR HY000: Trigger already exists

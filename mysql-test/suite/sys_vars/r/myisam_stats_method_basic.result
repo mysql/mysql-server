@@ -106,9 +106,9 @@ nulls_unequal
 '#---------------------FN_DYNVARS_097_09----------------------#'
 SET myisam_stats_method = 'nulls_equal';
 SET session.myisam_stats_method = 'nulls_equal';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'myisam_stats_method = 'nulls_equal'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'myisam_stats_method = 'nulls_equal'' at line 1
 SET global.myisam_stats_method = 'nulls_equal';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'myisam_stats_method = 'nulls_equal'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'myisam_stats_method = 'nulls_equal'' at line 1
 SET session myisam_stats_method = 'nulls_equal';
 SELECT @@myisam_stats_method;
 @@myisam_stats_method

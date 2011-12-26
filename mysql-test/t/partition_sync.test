@@ -66,7 +66,7 @@ SELECT * FROM tbl_with_partitions;
 --echo # Connection 2
 --echo # Alter table, abort after prepare
 connection con2;
-set session debug="+d,abort_copy_table";
+set session debug_dbug="+d,abort_copy_table";
 --error ER_LOCK_WAIT_TIMEOUT
 ALTER TABLE tbl_with_partitions ADD COLUMN f INT;
 

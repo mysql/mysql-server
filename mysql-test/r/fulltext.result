@@ -49,7 +49,7 @@ a	b
 Full-text indexes	are called collections
 Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN BOOLEAN MODE WITH QUERY EXPANSION);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'QUERY EXPANSION)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'QUERY EXPANSION)' at line 1
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	fulltext	a	a	0		1	Using where
@@ -575,12 +575,12 @@ DROP TABLE t1;
 #
 CREATE TABLE t1(col1 TEXT,
 FULLTEXT INDEX USING BTREE (col1));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING BTREE (col1))' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'USING BTREE (col1))' at line 2
 CREATE TABLE t2(col1 TEXT);
 CREATE FULLTEXT INDEX USING BTREE ON t2(col);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING BTREE ON t2(col)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'USING BTREE ON t2(col)' at line 1
 ALTER TABLE t2 ADD FULLTEXT INDEX USING BTREE (col1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING BTREE (col1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'USING BTREE (col1)' at line 1
 DROP TABLE t2;
 End of 5.0 tests
 #

@@ -696,13 +696,13 @@ section	subsection	title	reviewer
 3	3	Stored Functions	You
 2	3	Server	Me
 alter table table_24562 order by 12;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '12' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '12' at line 1
 alter table table_24562 order by (section + 12);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(section + 12)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '(section + 12)' at line 1
 alter table table_24562 order by length(title);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(title)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '(title)' at line 1
 alter table table_24562 order by (select 12 from dual);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select 12 from dual)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '(select 12 from dual)' at line 1
 alter table table_24562 order by no_such_col;
 ERROR 42S22: Unknown column 'no_such_col' in 'order clause'
 drop table table_24562;

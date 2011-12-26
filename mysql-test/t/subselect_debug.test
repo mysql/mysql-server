@@ -10,8 +10,8 @@ INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t1 SELECT a.id FROM t1 a,t1 b,t1 c,t1 d;
 # Setup the mysqld to crash at certain point
 SET @orig_debug=@@debug;
-SET GLOBAL debug="d,subselect_exec_fail";
+SET GLOBAL debug_dbug="d,subselect_exec_fail";
 SELECT SUM(EXISTS(SELECT RAND() FROM t1)) FROM t1;
 SELECT REVERSE(EXISTS(SELECT RAND() FROM t1));
-SET GLOBAL debug=@orig_debug;
+SET GLOBAL debug_dbug=@orig_debug;
 DROP TABLE t1;

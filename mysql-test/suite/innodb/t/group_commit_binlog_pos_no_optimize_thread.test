@@ -62,7 +62,7 @@ reap;
 # Now crash the server with 1+2 in-memory committed, 3 only prepared.
 connection default;
 system echo wait-group_commit_binlog_pos_no_optimize_thread.test >> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
-SET SESSION debug="+d,crash_dispatch_command_before";
+SET SESSION debug_dbug="+d,crash_dispatch_command_before";
 --error 2006,2013
 SELECT 1;
 

@@ -76,6 +76,32 @@ buf_read_page(
 	ulint	offset, /*!< in: page number */
 	trx_t*	trx);
 /********************************************************************//**
+Applies a random read-ahead in buf_pool if there are at least a threshold
+value of accessed pages from the random read-ahead area. Does not read any
+page, not even the one at the position (space, offset), if the read-ahead
+mechanism is not activated. NOTE 1: the calling thread may own latches on
+pages: to avoid deadlocks this function must be written such that it cannot
+end up waiting for these latches! NOTE 2: the calling thread must want
+access to the page given: this rule is set to prevent unintended read-aheads
+performed by ibuf routines, a situation which could result in a deadlock if
+the OS does not support asynchronous i/o.
+@return number of page read requests issued; NOTE that if we read ibuf
+pages, it may happen that the page at the given page number does not
+get read even if we return a positive value!
+@return	number of page read requests issued */
+UNIV_INTERN
+ulint
+buf_read_ahead_random(
+/*==================*/
+	ulint	space,		/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes,
+				or 0 */
+	ulint	offset,		/*!< in: page number of a page which
+				the current thread wants to access */
+	ibool	inside_ibuf,	/*!< in: TRUE if we are inside ibuf
+				routine */
+	trx_t*	trx);
+/********************************************************************//**
 Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
 Does not read any page if the read-ahead mechanism is not activated. Note

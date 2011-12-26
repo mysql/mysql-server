@@ -12,7 +12,7 @@ PRIMARY KEY(a , b),
 KEY(b)) ENGINE=MyISAM DELAY_KEY_WRITE = 1;
 INSERT INTO t1 VALUES (1,2),(2,3),(3,4),(4,5),(5,6);
 # Setup the mysqld to crash at certain point
-SET SESSION debug="d,crash_before_flush_keys";
+SET SESSION debug_dbug="d,crash_before_flush_keys";
 # Write file to make mysql-test-run.pl expect crash
 # Run the crashing query
 FLUSH TABLE t1;

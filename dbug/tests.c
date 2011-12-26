@@ -5,6 +5,7 @@
 char *push1=0;
 
 #include <my_global.h>  /* This includes dbug.h */
+#include <my_sys.h>
 #include <my_pthread.h>
 #include <string.h>
 
@@ -44,7 +45,7 @@ int main (int argc, char *argv[])
   if (argc == 1)
     return 0;
 
-  my_thread_global_init();
+  MY_INIT("dbug-tests");
 
   dup2(1, 2);
   for (i = 1; i < argc; i++)
@@ -56,7 +57,6 @@ int main (int argc, char *argv[])
   }
   {
     DBUG_ENTER ("main");
-    DBUG_PROCESS ("dbug-tests");
     func1();
     DBUG_EXECUTE_IF("dump",
     {
@@ -78,6 +78,9 @@ int main (int argc, char *argv[])
       DBUG_PRINT("explain", ("dbug explained: %s", s));
     }
     func2();
-    DBUG_RETURN (0);
+    DBUG_LEAVE;
   }
+  DBUG_SET(""); /* to not have my_end() in the traces */
+  my_end(0);
+  return 0;
 }

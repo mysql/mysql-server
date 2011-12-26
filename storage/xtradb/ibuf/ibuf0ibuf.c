@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -402,7 +402,7 @@ ibuf_tree_root_get(
 	block = buf_page_get(
 		IBUF_SPACE_ID, 0, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH, mtr);
 
-	buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+	buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE_NEW);
 
 	root = buf_block_get_frame(block);
 
@@ -590,7 +590,7 @@ ibuf_init_at_db_start(void)
 		block = buf_page_get(
 			IBUF_SPACE_ID, 0, FSP_IBUF_TREE_ROOT_PAGE_NO,
 			RW_X_LATCH, &mtr);
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 
 		root = buf_block_get_frame(block);
 	}
@@ -2251,16 +2251,17 @@ ibuf_add_free_page(void)
 	} else {
 		buf_block_t*	block = buf_page_get(
 			IBUF_SPACE_ID, 0, page_no, RW_X_LATCH, &mtr);
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
+
+		ibuf_enter(&mtr);
+
+		mutex_enter(&ibuf_mutex);
+
+		root = ibuf_tree_root_get(&mtr);
+
+		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE_NEW);
 
 		page = buf_block_get_frame(block);
 	}
-
-	ibuf_enter(&mtr);
-
-	mutex_enter(&ibuf_mutex);
-
-	root = ibuf_tree_root_get(&mtr);
 
 	/* Add the page to the free list and update the ibuf size data */
 
@@ -2374,8 +2375,7 @@ ibuf_remove_free_page(void)
 		block = buf_page_get(
 			IBUF_SPACE_ID, 0, page_no, RW_X_LATCH, &mtr);
 
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-
+		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 
 		page = buf_block_get_frame(block);
 	}
@@ -3066,7 +3066,7 @@ ibuf_get_volume_buffered(
 			IBUF_SPACE_ID, 0, prev_page_no, RW_X_LATCH,
 			mtr);
 
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 
 
 		prev_page = buf_block_get_frame(block);
@@ -3139,7 +3139,7 @@ count_later:
 			IBUF_SPACE_ID, 0, next_page_no, RW_X_LATCH,
 			mtr);
 
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 
 
 		next_page = buf_block_get_frame(block);
@@ -3377,7 +3377,7 @@ ibuf_set_entry_counter(
 				IBUF_SPACE_ID, 0, prev_page_no,
 				RW_X_LATCH, mtr);
 
-			buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+			buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 
 			prev_page = buf_block_get_frame(block);
 
@@ -3495,6 +3495,8 @@ ibuf_insert_low(
 	ut_a(op < IBUF_OP_COUNT);
 
 	ut_a(trx_sys_multiple_tablespace_format);
+
+	ut_ad(!(thr_get_trx(thr)->fake_changes));
 
 	do_merge = FALSE;
 
@@ -4465,6 +4467,7 @@ ibuf_merge_or_delete_for_page(
 	ut_ad(!block || buf_block_get_space(block) == space);
 	ut_ad(!block || buf_block_get_page_no(block) == page_no);
 	ut_ad(!block || buf_block_get_zip_size(block) == zip_size);
+	ut_ad(!block || buf_block_get_io_fix(block) == BUF_IO_READ);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE
 	    || trx_sys_hdr_page(space, page_no)) {
@@ -4617,7 +4620,13 @@ loop:
 
 		ut_a(success);
 
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+		/* This is a user page (secondary index leaf page),
+		but we pretend that it is a change buffer page in
+		order to obey the latching order. This should be OK,
+		because buffered changes are applied immediately while
+		the block is io-fixed. Other threads must not try to
+		latch an io-fixed block. */
+		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 	}
 
 	/* Position pcur in the insert buffer at the first entry for this
@@ -4721,7 +4730,12 @@ loop:
 					__FILE__, __LINE__, &mtr);
 				ut_a(success);
 
-				buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+				/* This is a user page (secondary
+				index leaf page), but it should be OK
+				to use too low latching order for it,
+				as the block is io-fixed. */
+				buf_block_dbg_add_level(
+					block, SYNC_IBUF_TREE_NODE);
 
 				if (!ibuf_restore_pos(space, page_no,
 						      search_tuple,

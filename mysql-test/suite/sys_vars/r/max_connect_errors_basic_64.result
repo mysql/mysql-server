@@ -42,14 +42,16 @@ SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
 1
 SET @@global.max_connect_errors = 100000000000;
+Warnings:
+Warning	1292	Truncated incorrect max_connect_errors value: '100000000000'
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
-100000000000
+4294967295
 SET @@global.max_connect_errors = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'max_connect_errors'
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
-100000000000
+4294967295
 SET @@global.max_connect_errors = -1024;
 Warnings:
 Warning	1292	Truncated incorrect max_connect_errors value: '-1024'
@@ -63,19 +65,21 @@ SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
 1
 SET @@global.max_connect_errors = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect max_connect_errors value: '4294967296'
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
-4294967296
+4294967295
 SET @@global.max_connect_errors = ON;
 ERROR 42000: Incorrect argument type to variable 'max_connect_errors'
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
-4294967296
+4294967295
 SET @@global.max_connect_errors = 'test';
 ERROR 42000: Incorrect argument type to variable 'max_connect_errors'
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
-4294967296
+4294967295
 '#-------------------FN_DYNVARS_073_05----------------------------#'
 SET @@session.max_connect_errors = 4096;
 ERROR HY000: Variable 'max_connect_errors' is a GLOBAL variable and should be set with SET GLOBAL
@@ -115,11 +119,11 @@ SELECT @@max_connect_errors;
 @@max_connect_errors
 5000
 SET local.max_connect_errors = 7000;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'max_connect_errors = 7000' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'max_connect_errors = 7000' at line 1
 SELECT local.max_connect_errors;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.max_connect_errors = 8000;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'max_connect_errors = 8000' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'max_connect_errors = 8000' at line 1
 SELECT global.max_connect_errors;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT max_connect_errors = @@session.max_connect_errors;

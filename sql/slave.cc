@@ -4274,7 +4274,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       HB (heartbeat) cannot come before RL (Relay)
     */
     char  llbuf[22];
-    Heartbeat_log_event hb(buf, event_len, mi->rli.relay_log.description_event_for_queue);
+    Heartbeat_log_event hb(buf,
+                           mi->rli.relay_log.relay_log_checksum_alg
+                           != BINLOG_CHECKSUM_ALG_OFF ?
+                           event_len - BINLOG_CHECKSUM_LEN : event_len,
+                           mi->rli.relay_log.description_event_for_queue);
     if (!hb.is_valid())
     {
       error= ER_SLAVE_HEARTBEAT_FAILURE;

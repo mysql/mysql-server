@@ -47,7 +47,10 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 {
   int res;
   if ((res= find_type_with_warning(x, typelib, option)) <= 0)
+  {
+    sf_leaking_memory= 1; /* no memory leak reports here */
     exit(1);
+  }
   return res;
 }
 

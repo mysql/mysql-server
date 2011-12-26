@@ -301,20 +301,17 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 int main(int argc,char *argv[])
 {
-  int error= 0, ho_error;
+  int error= 0;
   MYSQL mysql;
   char **commands, **save_argv;
 
   MY_INIT(argv[0]);
   mysql_init(&mysql);
-  if (load_defaults("my",load_default_groups,&argc,&argv))
-   exit(1); 
+  if ((error= load_defaults("my",load_default_groups,&argc,&argv)))
+    goto err1;
   save_argv = argv;				/* Save for free_defaults */
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    free_defaults(save_argv);
-    exit(ho_error);
-  }
+  if ((error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    goto err2;
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
@@ -463,6 +460,7 @@ int main(int argc,char *argv[])
   }                                             /* got connection */
 
   mysql_close(&mysql);
+err2:
   mysql_library_end();
   my_free(opt_password);
   my_free(user);
@@ -470,8 +468,9 @@ int main(int argc,char *argv[])
   my_free(shared_memory_base_name);
 #endif
   free_defaults(save_argv);
+err1:
   my_end(my_end_arg);
-  exit(error ? 1 : 0);
+  exit(error);
   return 0;
 }
 

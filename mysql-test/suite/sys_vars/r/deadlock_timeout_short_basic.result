@@ -37,8 +37,9 @@ select @@global.deadlock_timeout_short;
 0
 set session deadlock_timeout_short=cast(-1 as unsigned int);
 Warnings:
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect deadlock_timeout_short value: '18446744073709551615'
 select @@session.deadlock_timeout_short;
 @@session.deadlock_timeout_short
-18446744073709551615
+4294967295
 SET @@global.deadlock_timeout_short = @start_global_value;

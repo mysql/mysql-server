@@ -961,6 +961,7 @@ static void safe_exit(int error)
     DBUG_VOID_RETURN;
   if (sock)
     mysql_close(sock);
+  sf_leaking_memory= 1; /* don't check for memory leaks */
   exit(error);
   DBUG_VOID_RETURN;
 }
@@ -972,7 +973,6 @@ int main(int argc, char **argv)
   char **defaults_argv;
 
   MY_INIT(argv[0]);
-  mysql_library_init(-1, 0, 0);
   /*
   ** Check out the args
   */

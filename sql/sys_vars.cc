@@ -212,23 +212,23 @@ static Sys_var_charptr Sys_basedir(
        READ_ONLY GLOBAL_VAR(mysql_home_ptr), CMD_LINE(REQUIRED_ARG, 'b'),
        IN_FS_CHARSET, DEFAULT(0));
 
-static Sys_var_ulong Sys_binlog_cache_size(
+static Sys_var_ulonglong Sys_binlog_cache_size(
        "binlog_cache_size", "The size of the transactional cache for "
        "updates to transactional engines for the binary log. "
        "If you often use transactions containing many statements, "
        "you can increase this to get more performance",
        GLOBAL_VAR(binlog_cache_size),
        CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE));
+       VALID_RANGE(IO_SIZE, ULONGLONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE));
 
-static Sys_var_ulong Sys_binlog_stmt_cache_size(
+static Sys_var_ulonglong Sys_binlog_stmt_cache_size(
        "binlog_stmt_cache_size", "The size of the statement cache for "
        "updates to non-transactional engines for the binary log. "
        "If you often use statements updating a great number of rows, "
        "you can increase this to get more performance",
        GLOBAL_VAR(binlog_stmt_cache_size),
        CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE));
+       VALID_RANGE(IO_SIZE, ULONGLONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE));
 
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
@@ -354,11 +354,11 @@ static Sys_var_mybool Sys_binlog_direct(
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_direct_check));
 
-static Sys_var_ulong Sys_bulk_insert_buff_size(
+static Sys_var_ulonglong Sys_bulk_insert_buff_size(
        "bulk_insert_buffer_size", "Size of tree cache used in bulk "
        "insert optimisation. Note that this is a limit per thread!",
        SESSION_VAR(bulk_insert_buff_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(8192*1024), BLOCK_SIZE(1));
+       VALID_RANGE(0, ULONGLONG_MAX), DEFAULT(8192*1024), BLOCK_SIZE(1));
 
 static Sys_var_charptr Sys_character_sets_dir(
        "character_sets_dir", "Directory where character sets are",
@@ -566,7 +566,13 @@ static Sys_var_charptr Sys_datadir(
 
 #ifndef DBUG_OFF
 static Sys_var_dbug Sys_dbug(
-       "debug", "Debug log", sys_var::SESSION,
+       "debug", "Built-in DBUG debugger", sys_var::SESSION,
+       CMD_LINE(OPT_ARG, '#'), DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_has_super), ON_UPDATE(0),
+       DEPRECATED(50600, "'@@debug_dbug'"));
+
+static Sys_var_dbug Sys_debug_dbug(
+       "debug_dbug", "Built-in DBUG debugger", sys_var::SESSION,
        CMD_LINE(OPT_ARG, '#'), DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_has_super));
 #endif
@@ -612,7 +618,7 @@ static Sys_var_ulong Sys_delayed_insert_limit(
        "handler will check if there are any SELECT statements pending. "
        "If so, it allows these to execute before continuing",
        GLOBAL_VAR(delayed_insert_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_LIMIT), BLOCK_SIZE(1));
+       VALID_RANGE(1, UINT_MAX), DEFAULT(DELAYED_LIMIT), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_delayed_insert_timeout(
        "delayed_insert_timeout",
@@ -628,7 +634,7 @@ static Sys_var_ulong Sys_delayed_queue_size(
        "DELAYED. If the queue becomes full, any client that does INSERT "
        "DELAYED will wait until there is room in the queue again",
        GLOBAL_VAR(delayed_queue_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_QUEUE_SIZE), BLOCK_SIZE(1));
+       VALID_RANGE(1, UINT_MAX), DEFAULT(DELAYED_QUEUE_SIZE), BLOCK_SIZE(1));
 
 #ifdef HAVE_EVENT_SCHEDULER
 static const char *event_scheduler_names[]= { "OFF", "ON", "DISABLED", NullS };
@@ -810,11 +816,11 @@ static Sys_var_ulong Sys_interactive_timeout(
        CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(NET_WAIT_TIMEOUT), BLOCK_SIZE(1));
 
-static Sys_var_ulong Sys_join_buffer_size(
+static Sys_var_ulonglong Sys_join_buffer_size(
        "join_buffer_size",
        "The size of the buffer that is used for joins",
        SESSION_VAR(join_buff_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(128, ULONG_MAX), DEFAULT(128*1024), BLOCK_SIZE(128));
+       VALID_RANGE(128, ULONGLONG_MAX), DEFAULT(128*1024), BLOCK_SIZE(128));
 
 static Sys_var_keycache Sys_key_buffer_size(
        "key_buffer_size", "The size of the buffer used for "
@@ -852,7 +858,7 @@ static Sys_var_keycache Sys_key_cache_age_threshold(
        "blocks in key cache",
        KEYCACHE_VAR(param_age_threshold),
        CMD_LINE(REQUIRED_ARG, OPT_KEY_CACHE_AGE_THRESHOLD),
-       VALID_RANGE(100, ULONG_MAX), DEFAULT(300),
+       VALID_RANGE(100, UINT_MAX), DEFAULT(300),
        BLOCK_SIZE(100), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(change_keycache_param));
 
@@ -934,7 +940,7 @@ static Sys_var_ulong Sys_log_warnings(
        "Value can be between 0 and 11. Higher values mean more verbosity",
        SESSION_VAR(log_warnings),
        CMD_LINE(OPT_ARG, 'W'),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(1), BLOCK_SIZE(1));
 
 static bool update_cached_long_query_time(sys_var *self, THD *thd,
                                           enum_var_type type)
@@ -1042,20 +1048,20 @@ static Sys_var_ulong Sys_max_allowed_packet(
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_max_allowed_packet));
 
-static Sys_var_ulong Sys_max_binlog_cache_size(
+static Sys_var_ulonglong Sys_max_binlog_cache_size(
        "max_binlog_cache_size",
        "Sets the total size of the transactional cache",
        GLOBAL_VAR(max_binlog_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(IO_SIZE, ULONG_MAX),
-       DEFAULT((ULONG_MAX/IO_SIZE)*IO_SIZE),
+       VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
+       DEFAULT((UINT_MAX/IO_SIZE)*IO_SIZE),
        BLOCK_SIZE(IO_SIZE));
 
-static Sys_var_ulong Sys_max_binlog_stmt_cache_size(
+static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
        "max_binlog_stmt_cache_size",
        "Sets the total size of the statement cache",
        GLOBAL_VAR(max_binlog_stmt_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(IO_SIZE, ULONG_MAX),
-       DEFAULT((ULONG_MAX/IO_SIZE)*IO_SIZE),
+       VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
+       DEFAULT((UINT_MAX/IO_SIZE)*IO_SIZE),
        BLOCK_SIZE(IO_SIZE));
 
 static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
@@ -1098,7 +1104,7 @@ static Sys_var_ulong Sys_max_connect_errors(
        "If there is more than this number of interrupted connections from "
        "a host this host will be blocked from further connections",
        GLOBAL_VAR(max_connect_errors), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(MAX_CONNECT_ERRORS),
+       VALID_RANGE(1, UINT_MAX), DEFAULT(MAX_CONNECT_ERRORS),
        BLOCK_SIZE(1));
 
 static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
@@ -1171,7 +1177,7 @@ static Sys_var_ulong Sys_max_seeks_for_key(
        "max_seeks_for_key",
        "Limit assumed max number of seeks when looking up rows based on a key",
        SESSION_VAR(max_seeks_for_key), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(ULONG_MAX), BLOCK_SIZE(1));
+       VALID_RANGE(1, UINT_MAX), DEFAULT(UINT_MAX), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_max_length_for_sort_data(
        "max_length_for_sort_data",
@@ -1263,20 +1269,20 @@ static Sys_var_ulong Sys_max_tmp_tables(
        "max_tmp_tables",
        "Maximum number of temporary tables a client can keep open at a time",
        SESSION_VAR(max_tmp_tables), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(32), BLOCK_SIZE(1));
+       VALID_RANGE(1, UINT_MAX), DEFAULT(32), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_max_write_lock_count(
        "max_write_lock_count",
        "After this many write locks, allow some read locks to run in between",
        GLOBAL_VAR(max_write_lock_count), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(ULONG_MAX), BLOCK_SIZE(1));
+       VALID_RANGE(1, UINT_MAX), DEFAULT(UINT_MAX), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_min_examined_row_limit(
        "min_examined_row_limit",
        "Don't write queries to slow log that examine fewer rows "
        "than that",
        SESSION_VAR(min_examined_row_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 #ifdef _WIN32
 static Sys_var_mybool Sys_named_pipe(
@@ -1349,7 +1355,7 @@ static Sys_var_ulong Sys_net_retry_count(
        "If a read on a communication port is interrupted, retry this "
        "many times before giving up",
        SESSION_VAR(net_retry_count), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(MYSQLD_NET_RETRY_COUNT),
+       VALID_RANGE(1, UINT_MAX), DEFAULT(MYSQLD_NET_RETRY_COUNT),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_net_retry_count));
 
@@ -1661,7 +1667,7 @@ static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
        "Allocation block size for storing ranges during optimization",
        SESSION_VAR(range_alloc_block_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(RANGE_ALLOC_BLOCK_SIZE, ULONG_MAX),
+       VALID_RANGE(RANGE_ALLOC_BLOCK_SIZE, UINT_MAX),
        DEFAULT(RANGE_ALLOC_BLOCK_SIZE), BLOCK_SIZE(1024));
 
 static Sys_var_ulong Sys_multi_range_count(
@@ -1683,7 +1689,7 @@ static Sys_var_ulong Sys_query_alloc_block_size(
        "query_alloc_block_size",
        "Allocation block size for query parsing and execution",
        SESSION_VAR(query_alloc_block_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
+       VALID_RANGE(1024, UINT_MAX), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_thd_mem_root));
 
@@ -1691,7 +1697,7 @@ static Sys_var_ulong Sys_query_prealloc_size(
        "query_prealloc_size",
        "Persistent buffer for query parsing and execution",
        SESSION_VAR(query_prealloc_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(QUERY_ALLOC_PREALLOC_SIZE, ULONG_MAX),
+       VALID_RANGE(QUERY_ALLOC_PREALLOC_SIZE, UINT_MAX),
        DEFAULT(QUERY_ALLOC_PREALLOC_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_thd_mem_root));
@@ -1747,10 +1753,10 @@ static Sys_var_ulong Sys_thread_concurrency(
        READ_ONLY GLOBAL_VAR(concurrency), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, 512), DEFAULT(DEFAULT_CONCURRENCY), BLOCK_SIZE(1));
 
-static Sys_var_ulong Sys_thread_stack(
+static Sys_var_ulonglong Sys_thread_stack(
        "thread_stack", "The stack size for each thread",
        READ_ONLY GLOBAL_VAR(my_thread_stack_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(128*1024, ULONG_MAX), DEFAULT(DEFAULT_THREAD_STACK),
+       VALID_RANGE(128*1024, ULONGLONG_MAX), DEFAULT(DEFAULT_THREAD_STACK),
        BLOCK_SIZE(1024));
 
 static Sys_var_charptr Sys_tmpdir(
@@ -1777,7 +1783,7 @@ static Sys_var_ulong Sys_trans_alloc_block_size(
        "transaction_alloc_block_size",
        "Allocation block size for transactions to be stored in binary log",
        SESSION_VAR(trans_alloc_block_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
+       VALID_RANGE(1024, UINT_MAX), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
@@ -1785,7 +1791,7 @@ static Sys_var_ulong Sys_trans_prealloc_size(
        "transaction_prealloc_size",
        "Persistent buffer for transactions to be stored in binary log",
        SESSION_VAR(trans_prealloc_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
+       VALID_RANGE(1024, UINT_MAX), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
@@ -1829,11 +1835,11 @@ static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
   query_cache_size= new_cache_size;
   return false;
 }
-static Sys_var_ulong Sys_query_cache_size(
+static Sys_var_ulonglong Sys_query_cache_size(
        "query_cache_size",
        "The memory allocated to store results from old queries",
        GLOBAL_VAR(query_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1024),
+       VALID_RANGE(0, ULONGLONG_MAX), DEFAULT(0), BLOCK_SIZE(1024),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_query_cache_size));
 
@@ -1841,7 +1847,7 @@ static Sys_var_ulong Sys_query_cache_limit(
        "query_cache_limit",
        "Don't cache results that are bigger than this",
        GLOBAL_VAR(query_cache.query_cache_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1));
 
 static bool fix_qcache_min_res_unit(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -1853,7 +1859,7 @@ static Sys_var_ulong Sys_query_cache_min_res_unit(
        "query_cache_min_res_unit",
        "The minimum size for blocks allocated by the query cache",
        GLOBAL_VAR(query_cache_min_res_unit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(QUERY_CACHE_MIN_RESULT_DATA_SIZE),
+       VALID_RANGE(0, UINT_MAX), DEFAULT(QUERY_CACHE_MIN_RESULT_DATA_SIZE),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_qcache_min_res_unit));
 
@@ -1992,11 +1998,11 @@ static Sys_var_ulong Sys_slow_launch_time(
        GLOBAL_VAR(slow_launch_time), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(2), BLOCK_SIZE(1));
 
-static Sys_var_ulong Sys_sort_buffer(
+static Sys_var_ulonglong Sys_sort_buffer(
        "sort_buffer_size",
        "Each thread that needs to do a sort allocates a buffer of this size",
        SESSION_VAR(sortbuff_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(MAX_SORT_MEMORY),
+       VALID_RANGE(MIN_SORT_MEMORY, ULONGLONG_MAX), DEFAULT(MAX_SORT_MEMORY),
        BLOCK_SIZE(1));
 
 export ulonglong expand_sql_mode(ulonglong sql_mode)
@@ -2767,11 +2773,11 @@ static Sys_var_ulong Sys_default_week_format(
        SESSION_VAR(default_week_format), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 7), DEFAULT(0), BLOCK_SIZE(1));
 
-static Sys_var_ulong Sys_group_concat_max_len(
+static Sys_var_ulonglong Sys_group_concat_max_len(
        "group_concat_max_len",
        "The maximum length of the result of function  GROUP_CONCAT()",
        SESSION_VAR(group_concat_max_len), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(4, ULONG_MAX), DEFAULT(1024), BLOCK_SIZE(1));
+       VALID_RANGE(4, ULONGLONG_MAX), DEFAULT(1024), BLOCK_SIZE(1));
 
 static char *glob_hostname_ptr;
 static Sys_var_charptr Sys_hostname(
@@ -3191,7 +3197,7 @@ static Sys_var_charptr Sys_slave_skip_errors(
 static Sys_var_ulonglong Sys_relay_log_space_limit(
        "relay_log_space_limit", "Maximum space to use for all relay logs",
        READ_ONLY GLOBAL_VAR(relay_log_space_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, ULONGLONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_uint Sys_sync_relaylog_period(
        "sync_relay_log", "Synchronously flush relay log to disk after "
@@ -3225,7 +3231,7 @@ static Sys_var_ulong Sys_slave_trans_retries(
        "thread will retry a transaction in case it failed with a deadlock "
        "or elapsed lock wait timeout, before giving up and stopping",
        GLOBAL_VAR(slave_trans_retries), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(10), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(10), BLOCK_SIZE(1));
 #endif
 
 static bool check_locale(sys_var *self, THD *thd, set_var *var)
@@ -3323,13 +3329,13 @@ static Sys_var_ulong Sys_deadlock_timeout_depth_short(
        "deadlock_timeout_short",
        "Short timeout for the two-step deadlock detection (in microseconds)",
        SESSION_VAR(wt_timeout_short), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(10000), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(10000), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_deadlock_timeout_depth_long(
        "deadlock_timeout_long",
        "Long timeout for the two-step deadlock detection (in microseconds)",
        SESSION_VAR(wt_timeout_long), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(50000000), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(50000000), BLOCK_SIZE(1));
 
 #ifndef DBUG_OFF
 static Sys_var_ulong Sys_debug_crc_break(
@@ -3388,7 +3394,7 @@ static Sys_var_ulong Sys_log_slow_rate_limit(
        "Increase it to reduce the size of the slow or the performance impact "
        "of slow logging",
        SESSION_VAR(log_slow_rate_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
+       VALID_RANGE(1, UINT_MAX), DEFAULT(1), BLOCK_SIZE(1));
 
 static const char *log_slow_verbosity_names[]= { "innodb", "query_plan", 0 };
 static Sys_var_set Sys_log_slow_verbosity(
@@ -3442,14 +3448,6 @@ static Sys_var_mybool Sys_replicate_annotate_row_events(
        CMD_LINE(OPT_ARG), DEFAULT(0));
 #endif
 
-#if 0
-static Sys_var_mybool Sys_safemalloc(
-       "safemalloc",
-       "Check all memory allocations for every malloc/free call (can be slow)",
-       GLOBAL_VAR(sf_malloc_trough_check),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
-#endif
-
 static Sys_var_ulonglong Sys_join_buffer_space_limit(
        "join_buffer_space_limit",
        "The limit of the space for all join buffers used by a query",
@@ -3462,20 +3460,20 @@ static Sys_var_ulong Sys_progress_report_time(
        "Seconds between sending progress reports to the client for "
        "time-consuming statements. Set to 0 to disable progress reporting.",
        SESSION_VAR(progress_report_time), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(56), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(56), BLOCK_SIZE(1));
 
-static Sys_var_mybool Sys_thread_alarm(
-       "thread_alarm",
-       "Enable system thread alarm calls. Disabling it may be useful "
+static Sys_var_mybool Sys_no_thread_alarm(
+       "debug_no_thread_alarm",
+       "Disable system thread alarm calls. Disabling it may be useful "
        "in debugging or testing, never do it in production",
-       READ_ONLY GLOBAL_VAR(opt_thread_alarm), CMD_LINE(OPT_ARG),
-       DEFAULT(TRUE));
+       READ_ONLY GLOBAL_VAR(my_disable_thr_alarm), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_query_cache_strip_comments(
        "query_cache_strip_comments",
        "Strip all comments from a query before storing it "
        "in the query cache",
-       GLOBAL_VAR(opt_query_cache_strip_comments), CMD_LINE(OPT_ARG),
+       SESSION_VAR(query_cache_strip_comments), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
 
 static ulonglong in_transaction(THD *thd)
@@ -3494,6 +3492,6 @@ static Sys_var_ulong Sys_debug_binlog_fsync_sleep(
        "Extra sleep (in microseconds) to add to binlog fsync(), for debugging",
        GLOBAL_VAR(opt_binlog_dbug_fsync_sleep),
        CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
 #endif
 

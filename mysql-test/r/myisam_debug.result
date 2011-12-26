@@ -13,7 +13,7 @@ KEY (id1), KEY(id)
 ) ENGINE=MyISAM;
 INSERT INTO t2 (id) VALUES (123);
 # Switch to insert Connection
-SET SESSION debug='+d,wait_in_enable_indexes';
+SET SESSION debug_dbug='+d,wait_in_enable_indexes';
 # Send insert data
 INSERT INTO t1(id) SELECT id  FROM t2;
 # Switch to default Connection

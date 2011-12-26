@@ -4821,7 +4821,7 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
     cache_mngr->get_binlog_cache_log(use_trans_cache(this, is_transactional));
   if (with_annotate && *with_annotate)
   {
-    Annotate_rows_log_event anno(current_thd, is_transactional);
+    Annotate_rows_log_event anno(current_thd, is_transactional, false);
     /* Annotate event should be written not more than once */
     *with_annotate= 0;
     if ((error= anno.write(file)))
@@ -4993,6 +4993,8 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
   DBUG_ENTER("MYSQL_BIN_LOG::write(Log_event *)");
   binlog_cache_data *cache_data= 0;
   bool is_trans_cache= FALSE;
+  bool using_trans= event_info->use_trans_cache();
+  bool direct= event_info->use_direct_logging();
 
   if (thd->binlog_evt_union.do_union)
   {
@@ -5001,8 +5003,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
       We will log the function call to the binary log on function exit
     */
     thd->binlog_evt_union.unioned_events= TRUE;
-    thd->binlog_evt_union.unioned_events_trans |=
-      event_info->use_trans_cache();
+    thd->binlog_evt_union.unioned_events_trans |= using_trans;
     DBUG_RETURN(0);
   }
 
@@ -5013,8 +5014,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
   */
   bool const end_stmt=
     thd->locked_tables_mode && thd->lex->requires_prelocking();
-  if (thd->binlog_flush_pending_rows_event(end_stmt,
-                                           event_info->use_trans_cache()))
+  if (thd->binlog_flush_pending_rows_event(end_stmt, using_trans))
     DBUG_RETURN(error);
 
   /*
@@ -5041,7 +5041,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
 
     IO_CACHE *file= NULL;
 
-    if (event_info->use_direct_logging())
+    if (direct)
     {
       file= &log_file;
       my_org_b_tell= my_b_tell(file);
@@ -5055,7 +5055,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
       binlog_cache_mngr *const cache_mngr=
         (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
 
-      is_trans_cache= use_trans_cache(thd, event_info->use_trans_cache());
+      is_trans_cache= use_trans_cache(thd, using_trans);
       file= cache_mngr->get_binlog_cache_log(is_trans_cache);
       cache_data= cache_mngr->get_binlog_cache_data(is_trans_cache);
 
@@ -5078,7 +5078,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
     if (with_annotate && *with_annotate)
     {
       DBUG_ASSERT(event_info->get_type_code() == TABLE_MAP_EVENT);
-      Annotate_rows_log_event anno(thd, event_info->cache_type);
+      Annotate_rows_log_event anno(thd, using_trans, direct);
       /* Annotate event should be written not more than once */
       *with_annotate= 0;
       if (anno.write(file))
@@ -5093,7 +5093,8 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
         if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
         {
           Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
-                             thd->first_successful_insert_id_in_prev_stmt_for_binlog);
+                             thd->first_successful_insert_id_in_prev_stmt_for_binlog,
+                             using_trans, direct);
           if (e.write(file))
             goto err;
         }
@@ -5104,13 +5105,14 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
                              nb_elements()));
           Intvar_log_event e(thd, (uchar) INSERT_ID_EVENT,
                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.
-                             minimum());
+                             minimum(), using_trans, direct);
           if (e.write(file))
             goto err;
         }
         if (thd->rand_used)
         {
-          Rand_log_event e(thd,thd->rand_saved_seed1,thd->rand_saved_seed2);
+          Rand_log_event e(thd,thd->rand_saved_seed1,thd->rand_saved_seed2,
+                           using_trans, direct);
           if (e.write(file))
             goto err;
         }
@@ -5132,7 +5134,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
                                  user_var_event->length,
                                  user_var_event->type,
                                  user_var_event->charset_number,
-                                 flags);
+                                 flags,
+                                 using_trans,
+                                 direct);
             if (e.write(file))
               goto err;
           }
@@ -5149,7 +5153,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
 
     error= 0;
 err:
-    if (event_info->use_direct_logging())
+    if (direct)
     {
       my_off_t offset= my_b_tell(file);
 

@@ -45,10 +45,10 @@ if(!`select LENGTH('$log_error_')`)
   # does not know the location of its .err log, use default location
   let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
 }
-# Assign env variable LOG_ERROR
-let LOG_ERROR=$log_error_;
 
---let grep_file = $log_error
---let grep_pattern = Too many connections
---source grep.inc
-exec $cmd;
+--let log_error=$log_error_
+--let log_file=percona.log_connection_error.err
+--let log_file_full_path=$log_error
+--let grep_pattern= Too many connections
+--source log_grep.inc
+

@@ -27,6 +27,7 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "dict0load.h"
 #include "rem0types.h"
+#include "srv0srv.h"
 
 /*********************************************************************//**
 Gets the minimum number of bytes per character.
@@ -849,7 +850,7 @@ dict_table_check_if_in_cache_low(
 }
 
 /**********************************************************************//**
-load a table into dictionary cache, ignore any error specified during load; 
+load a table into dictionary cache, ignore any error specified during load;
 @return	table, NULL if not found */
 UNIV_INLINE
 dict_table_t*
@@ -892,6 +893,18 @@ dict_table_get_low(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	table = dict_table_check_if_in_cache_low(table_name);
+
+	if (table && table->corrupted) {
+		fprintf(stderr, "InnoDB: table");
+		ut_print_name(stderr, NULL, TRUE, table->name);
+		if (srv_load_corrupted) {
+			fputs(" is corrupted, but"
+			      " innodb_force_load_corrupted is set\n", stderr);
+		} else {
+			fputs(" is corrupted\n", stderr);
+			return(NULL);
+		}
+	}
 
 	if (table == NULL) {
 		table = dict_load_table(table_name, TRUE, DICT_ERR_IGNORE_NONE);
@@ -962,6 +975,37 @@ dict_max_field_len_store_undo(
 	}
 
 	return(prefix_len);
+}
+
+/********************************************************************//**
+Check whether the table is corrupted.
+@return	nonzero for corrupted table, zero for valid tables */
+UNIV_INLINE
+ulint
+dict_table_is_corrupted(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	return(UNIV_UNLIKELY(table->corrupted));
+}
+
+/********************************************************************//**
+Check whether the index is corrupted.
+@return	nonzero for corrupted index, zero for valid indexes */
+UNIV_INLINE
+ulint
+dict_index_is_corrupted(
+/*====================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return(UNIV_UNLIKELY((index->type & DICT_CORRUPT)
+	       || (index->table && index->table->corrupted)));
 }
 
 #endif /* !UNIV_HOTBACKUP */

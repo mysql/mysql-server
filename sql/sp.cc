@@ -732,7 +732,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, ulonglong sql_mode,
   thd->variables.sql_mode= sql_mode;
   thd->variables.select_limit= HA_POS_ERROR;
 
-  if (parser_state.init(thd, defstr->c_ptr(), defstr->length()))
+  if (parser_state.init(thd, defstr->c_ptr_safe(), defstr->length()))
   {
     thd->variables.sql_mode= old_sql_mode;
     thd->variables.select_limit= old_select_limit;

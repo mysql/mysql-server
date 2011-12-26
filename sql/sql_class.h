@@ -467,11 +467,13 @@ typedef struct system_variables
   ulonglong join_buff_space_limit;
   ulonglong log_slow_filter; 
   ulonglong log_slow_verbosity; 
+  ulonglong bulk_insert_buff_size;
+  ulonglong join_buff_size;
+  ulonglong sortbuff_size;
+  ulonglong group_concat_max_len;
   ha_rows select_limit;
   ha_rows max_join_size;
   ulong auto_increment_increment, auto_increment_offset;
-  ulong bulk_insert_buff_size;
-  ulong join_buff_size;
   ulong lock_wait_timeout;
   ulong join_cache_level;
   ulong max_allowed_packet;
@@ -496,7 +498,6 @@ typedef struct system_variables
   ulong read_rnd_buff_size;
   ulong mrr_buff_size;
   ulong div_precincrement;
-  ulong sortbuff_size;
   /* Total size of all buffers used by the subselect_rowid_merge_engine. */
   ulong rowid_merge_buff_size;
   ulong max_sp_recursion_depth;
@@ -508,7 +509,6 @@ typedef struct system_variables
   ulong trans_alloc_block_size;
   ulong trans_prealloc_size;
   ulong log_warnings;
-  ulong group_concat_max_len;
   /* Flags for slow log filtering */
   ulong log_slow_rate_limit; 
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
@@ -536,6 +536,7 @@ typedef struct system_variables
   my_bool old_alter_table;
   my_bool old_passwords;
   my_bool big_tables;
+  my_bool query_cache_strip_comments;
 
   plugin_ref table_plugin;
 

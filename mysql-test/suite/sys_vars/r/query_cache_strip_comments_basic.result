@@ -3,7 +3,8 @@ select @@global.query_cache_strip_comments;
 @@global.query_cache_strip_comments
 0
 select @@session.query_cache_strip_comments;
-ERROR HY000: Variable 'query_cache_strip_comments' is a GLOBAL variable
+@@session.query_cache_strip_comments
+0
 show global variables like 'query_cache_strip_comments';
 Variable_name	Value
 query_cache_strip_comments	OFF
@@ -28,12 +29,22 @@ set global query_cache_strip_comments=1;
 select @@global.query_cache_strip_comments;
 @@global.query_cache_strip_comments
 1
+set session query_cache_strip_comments=ON;
+select @@session.query_cache_strip_comments;
+@@session.query_cache_strip_comments
+1
+set session query_cache_strip_comments=OFF;
+select @@session.query_cache_strip_comments;
+@@session.query_cache_strip_comments
+0
 set session query_cache_strip_comments=1;
-ERROR HY000: Variable 'query_cache_strip_comments' is a GLOBAL variable and should be set with SET GLOBAL
+select @@session.query_cache_strip_comments;
+@@session.query_cache_strip_comments
+1
 set global query_cache_strip_comments=1.1;
 ERROR 42000: Incorrect argument type to variable 'query_cache_strip_comments'
-set global query_cache_strip_comments=1e1;
+set session query_cache_strip_comments=1e1;
 ERROR 42000: Incorrect argument type to variable 'query_cache_strip_comments'
-set global query_cache_strip_comments="foo";
+set session query_cache_strip_comments="foo";
 ERROR 42000: Variable 'query_cache_strip_comments' can't be set to the value of 'foo'
 SET @@global.query_cache_strip_comments = @start_global_value;

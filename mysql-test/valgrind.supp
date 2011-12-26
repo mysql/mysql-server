@@ -150,12 +150,12 @@
 }
 
 {  
-   strlen/_dl_init_paths/dl_main/_dl_sysdep_start(Cond)
+   somewhere in ld.so, when loading mysqld
    Memcheck:Cond
-   fun:strlen
-   fun:_dl_init_paths
+   ...
    fun:dl_main
    fun:_dl_sysdep_start
+   fun:_dl_start
 }
 
 {

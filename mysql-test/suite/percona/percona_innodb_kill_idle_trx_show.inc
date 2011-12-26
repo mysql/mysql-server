@@ -1,0 +1,2 @@
+SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';

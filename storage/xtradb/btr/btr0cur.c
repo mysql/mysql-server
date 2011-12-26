@@ -249,7 +249,8 @@ btr_cur_latch_leaves(
 	case BTR_SEARCH_LEAF:
 	case BTR_MODIFY_LEAF:
 		mode = latch_mode == BTR_SEARCH_LEAF ? RW_S_LATCH : RW_X_LATCH;
-		get_block = btr_block_get(space, zip_size, page_no, mode, mtr);
+		get_block = btr_block_get(
+			space, zip_size, page_no, mode, cursor->index, mtr);
 
 		if (srv_pass_corrupt_table && !get_block) {
 			return;
@@ -265,9 +266,9 @@ btr_cur_latch_leaves(
 		left_page_no = btr_page_get_prev(page, mtr);
 
 		if (left_page_no != FIL_NULL) {
-			get_block = btr_block_get(space, zip_size,
-						  left_page_no,
-						  RW_X_LATCH, mtr);
+			get_block = btr_block_get(
+				space, zip_size, left_page_no,
+				RW_X_LATCH, cursor->index, mtr);
 
 			if (srv_pass_corrupt_table && !get_block) {
 				return;
@@ -282,8 +283,9 @@ btr_cur_latch_leaves(
 			get_block->check_index_page_at_flush = TRUE;
 		}
 
-		get_block = btr_block_get(space, zip_size, page_no,
-					  RW_X_LATCH, mtr);
+		get_block = btr_block_get(
+			space, zip_size, page_no,
+			RW_X_LATCH, cursor->index, mtr);
 
 		if (srv_pass_corrupt_table && !get_block) {
 			return;
@@ -297,9 +299,9 @@ btr_cur_latch_leaves(
 		right_page_no = btr_page_get_next(page, mtr);
 
 		if (right_page_no != FIL_NULL) {
-			get_block = btr_block_get(space, zip_size,
-						  right_page_no,
-						  RW_X_LATCH, mtr);
+			get_block = btr_block_get(
+				space, zip_size, right_page_no,
+				RW_X_LATCH, cursor->index, mtr);
 
 			if (srv_pass_corrupt_table && !get_block) {
 				return;
@@ -323,8 +325,9 @@ btr_cur_latch_leaves(
 		left_page_no = btr_page_get_prev(page, mtr);
 
 		if (left_page_no != FIL_NULL) {
-			get_block = btr_block_get(space, zip_size,
-						  left_page_no, mode, mtr);
+			get_block = btr_block_get(
+				space, zip_size,
+				left_page_no, mode, cursor->index, mtr);
 			cursor->left_block = get_block;
 
 			if (srv_pass_corrupt_table && !get_block) {
@@ -340,7 +343,8 @@ btr_cur_latch_leaves(
 			get_block->check_index_page_at_flush = TRUE;
 		}
 
-		get_block = btr_block_get(space, zip_size, page_no, mode, mtr);
+		get_block = btr_block_get(
+			space, zip_size, page_no, mode, cursor->index, mtr);
 
 		if (srv_pass_corrupt_table && !get_block) {
 			return;
@@ -722,7 +726,9 @@ retry_page_get:
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+		buf_block_dbg_add_level(
+			block, dict_index_is_ibuf(index)
+			? SYNC_IBUF_TREE_NODE : SYNC_TREE_NODE);
 	}
 
 	ut_ad(index->id == btr_page_get_index_id(page));
@@ -820,7 +826,7 @@ retry_page_get:
 	if (level != 0) {
 		/* x-latch the page */
 		page = btr_page_get(
-			space, zip_size, page_no, RW_X_LATCH, mtr);
+			space, zip_size, page_no, RW_X_LATCH, index, mtr);
 
 		ut_a((ibool)!!page_is_comp(page)
 		     == dict_table_is_comp(index->table));
@@ -1167,6 +1173,11 @@ btr_cur_ins_lock_and_undo(
 	rec_t*		rec;
 	roll_ptr_t	roll_ptr;
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, UNDO */
+		return(DB_SUCCESS);
+	}
+
 	/* Check if we have to wait for a lock: enqueue an explicit lock
 	request if yes */
 
@@ -1298,7 +1309,7 @@ btr_cur_optimistic_insert(
 	}
 #endif /* UNIV_DEBUG */
 
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	max_size = page_get_max_insert_size_after_reorganize(page, 1);
 	leaf = page_is_leaf(page);
 
@@ -1391,6 +1402,12 @@ fail_err:
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
 		goto fail_err;
+	}
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip CHANGE, LOG */
+		*big_rec = big_rec_vec;
+		return(err); /* == DB_SUCCESS */
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -1535,10 +1552,10 @@ btr_cur_pessimistic_insert(
 
 	*big_rec = NULL;
 
-	ut_ad(mtr_memo_contains(mtr,
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr,
 				dict_index_get_lock(btr_cur_get_index(cursor)),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
 
 	/* Try first an optimistic insert; reset the cursor flag: we do not
@@ -1604,6 +1621,16 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip CHANGE, LOG */
+		if (n_extents > 0) {
+			fil_space_release_free_extents(index->space,
+						       n_reserved);
+		}
+		*big_rec = big_rec_vec;
+		return(DB_SUCCESS);
+	}
+
 	if (dict_index_get_page(index)
 	    == buf_block_get_page_no(btr_cur_get_block(cursor))) {
 
@@ -1659,6 +1686,11 @@ btr_cur_upd_lock_and_undo(
 	ulint		err;
 
 	ut_ad(cursor && update && thr && roll_ptr);
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, UNDO */
+		return(DB_SUCCESS);
+	}
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
@@ -1917,6 +1949,7 @@ btr_cur_update_in_place(
 	roll_ptr_t	roll_ptr	= 0;
 	trx_t*		trx;
 	ulint		was_delete_marked;
+	ibool		is_hashed;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -1958,7 +1991,29 @@ btr_cur_update_in_place(
 		return(err);
 	}
 
-	if (block->is_hashed) {
+	if (trx->fake_changes) {
+		/* skip CHANGE, LOG */
+		if (UNIV_LIKELY_NULL(heap)) {
+			mem_heap_free(heap);
+		}
+		return(err); /* == DB_SUCCESS */
+	}
+
+	if (!(flags & BTR_KEEP_SYS_FLAG)) {
+		row_upd_rec_sys_fields(rec, NULL,
+				       index, offsets, trx, roll_ptr);
+	}
+
+	was_delete_marked = rec_get_deleted_flag(
+		rec, page_is_comp(buf_block_get_frame(block)));
+
+	is_hashed = block->is_hashed;
+
+	if (is_hashed) {
+		/* TO DO: Can we skip this if none of the fields
+		index->search_info->curr_n_fields
+		are being updated? */
+
 		/* The function row_upd_changes_ord_field_binary works only
 		if the update vector was built for a clustered index, we must
 		NOT call it if index is secondary */
@@ -1974,17 +2029,9 @@ btr_cur_update_in_place(
 		rw_lock_x_lock(btr_search_get_latch(cursor->index->id));
 	}
 
-	if (!(flags & BTR_KEEP_SYS_FLAG)) {
-		row_upd_rec_sys_fields(rec, NULL,
-				       index, offsets, trx, roll_ptr);
-	}
-
-	was_delete_marked = rec_get_deleted_flag(
-		rec, page_is_comp(buf_block_get_frame(block)));
-
 	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
 
-	if (block->is_hashed) {
+	if (is_hashed) {
 		rw_lock_x_unlock(btr_search_get_latch(cursor->index->id));
 	}
 
@@ -2061,7 +2108,7 @@ btr_cur_optimistic_update(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 
@@ -2172,6 +2219,11 @@ any_extern:
 	if (err != DB_SUCCESS) {
 
 		goto err_exit;
+	}
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip CHANGE, LOG */
+		goto err_exit; /* == DB_SUCCESS */
 	}
 
 	/* Ok, we may do the replacement. Store on the page infimum the
@@ -2324,9 +2376,9 @@ btr_cur_pessimistic_update(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -2414,6 +2466,9 @@ btr_cur_pessimistic_update(
 
 		ut_ad(big_rec_vec == NULL);
 
+		/* fake_changes should not cause undo. so never reaches here */
+		ut_ad(!(trx->fake_changes));
+
 		btr_rec_free_updated_extern_fields(
 			index, rec, page_zip, offsets, update,
 			trx_is_recv(trx) ? RB_RECOVERY : RB_NORMAL, mtr);
@@ -2446,6 +2501,12 @@ make_external:
 			err = DB_TOO_BIG_RECORD;
 			goto return_after_reservations;
 		}
+	}
+
+	if (trx->fake_changes) {
+		/* skip CHANGE, LOG */
+		err = DB_SUCCESS;
+		goto return_after_reservations;
 	}
 
 	/* Store state of explicit locks on rec on the page infimum record,
@@ -2685,7 +2746,8 @@ btr_cur_parse_del_mark_set_clust_rec(
 
 		/* We do not need to reserve btr_search_latch, as the page
 		is only being recovered, and there cannot be a hash index to
-		it. */
+		it. Besides, these fields are being updated in place
+		and the adaptive hash index does not depend on them. */
 
 		btr_rec_set_deleted_flag(rec, page_zip, val);
 
@@ -2749,6 +2811,11 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, UNDO, CHANGE, LOG */
+		return(DB_SUCCESS);
+	}
+
 	err = lock_clust_rec_modify_check_and_lock(flags, block,
 						   rec, index, offsets, thr);
 
@@ -2765,9 +2832,9 @@ btr_cur_del_mark_set_clust_rec(
 		return(err);
 	}
 
-	if (block->is_hashed) {
-		rw_lock_x_lock(btr_search_get_latch(index->id));
-	}
+	/* The btr_search_latch is not needed here, because
+	the adaptive hash index does not depend on the delete-mark
+	and the delete-mark is being updated in place. */
 
 	page_zip = buf_block_get_page_zip(block);
 
@@ -2779,10 +2846,6 @@ btr_cur_del_mark_set_clust_rec(
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_rec_sys_fields(rec, page_zip,
 				       index, offsets, trx, roll_ptr);
-	}
-
-	if (block->is_hashed) {
-		rw_lock_x_unlock(btr_search_get_latch(index->id));
 	}
 
 	btr_cur_del_mark_set_clust_rec_log(flags, rec, index, val, trx,
@@ -2860,7 +2923,8 @@ btr_cur_parse_del_mark_set_sec_rec(
 
 		/* We do not need to reserve btr_search_latch, as the page
 		is only being recovered, and there cannot be a hash index to
-		it. */
+		it. Besides, the delete-mark flag is being updated in place
+		and the adaptive hash index does not depend on it. */
 
 		btr_rec_set_deleted_flag(rec, page_zip, val);
 	}
@@ -2886,6 +2950,11 @@ btr_cur_del_mark_set_sec_rec(
 	rec_t*		rec;
 	ulint		err;
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, CHANGE, LOG */
+		return(DB_SUCCESS);
+	}
+
 	block = btr_cur_get_block(cursor);
 	rec = btr_cur_get_rec(cursor);
 
@@ -2908,15 +2977,10 @@ btr_cur_del_mark_set_sec_rec(
 	ut_ad(!!page_rec_is_comp(rec)
 	      == dict_table_is_comp(cursor->index->table));
 
-	if (block->is_hashed) {
-		rw_lock_x_lock(btr_search_get_latch(cursor->index->id));
-	}
-
+	/* We do not need to reserve btr_search_latch, as the
+	delete-mark flag is being updated in place and the adaptive
+	hash index does not depend on it. */
 	btr_rec_set_deleted_flag(rec, buf_block_get_page_zip(block), val);
-
-	if (block->is_hashed) {
-		rw_lock_x_unlock(btr_search_get_latch(cursor->index->id));
-	}
 
 	btr_cur_del_mark_set_sec_rec_log(rec, val, mtr);
 
@@ -2938,8 +3002,11 @@ btr_cur_set_deleted_flag_for_ibuf(
 	ibool		val,		/*!< in: value to set */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	/* We do not need to reserve btr_search_latch, as the page has just
-	been read to the buffer pool and there cannot be a hash index to it. */
+	/* We do not need to reserve btr_search_latch, as the page
+	has just been read to the buffer pool and there cannot be
+	a hash index to it.  Besides, the delete-mark flag is being
+	updated in place and the adaptive hash index does not depend
+	on it. */
 
 	btr_rec_set_deleted_flag(rec, page_zip, val);
 
@@ -3598,7 +3665,6 @@ static
 void
 btr_record_not_null_field_in_rec(
 /*=============================*/
-	rec_t*		rec __attribute__ ((unused)),/*!< in: physical record */
 	ulint		n_unique,	/*!< in: dict_index_get_n_unique(index),
 					number of columns uniquely determine
 					an index entry */
@@ -3739,7 +3805,7 @@ btr_estimate_number_of_different_key_vals(
 
 			if (n_not_null) {
 				btr_record_not_null_field_in_rec(
-					rec, n_cols, offsets_rec, n_not_null);
+					n_cols, offsets_rec, n_not_null);
 			}
 		}
 
@@ -3774,7 +3840,7 @@ btr_estimate_number_of_different_key_vals(
 
 			if (n_not_null) {
 				btr_record_not_null_field_in_rec(
-					next_rec, n_cols, offsets_next_rec,
+					n_cols, offsets_next_rec,
 					n_not_null);
 			}
 
@@ -4183,7 +4249,7 @@ btr_blob_free(
 	    && buf_block_get_space(block) == space
 	    && buf_block_get_page_no(block) == page_no) {
 
-		if (buf_LRU_free_block(&block->page, all, TRUE) != BUF_LRU_FREED
+		if (!buf_LRU_free_block(&block->page, all, TRUE)
 		    && all && block->page.zip.data
 		    /* Now, buf_LRU_free_block() may release mutex temporarily */
 		    && buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE

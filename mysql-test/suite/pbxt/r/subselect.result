@@ -918,9 +918,9 @@ Note	1003	select `test`.`t1`.`a` AS `a`,<expr_cache><`test`.`t1`.`a`>(<in_optimi
 drop table t1,t2,t3;
 create table t1 (a float);
 select 10.5 IN (SELECT * from t1 LIMIT 1);
-ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+ERROR 42000: This version of MariaDB doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 select 10.5 IN (SELECT * from t1 LIMIT 1 UNION SELECT 1.5);
-ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+ERROR 42000: This version of MariaDB doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 drop table t1;
 create table t1 (a int, b int, c varchar(10));
 create table t2 (a int);
@@ -972,7 +972,7 @@ select ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a');
 ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a')
 1
 select ROW(1, 1, 'a') IN (select b,a,c from t1 limit 2);
-ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+ERROR 42000: This version of MariaDB doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 drop table t1;
 create table t1 (a int);
 insert into t1 values (1);
@@ -993,7 +993,7 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 CREATE TABLE t1 (a int, KEY(a));
 HANDLER t1 OPEN;
 HANDLER t1 READ a=((SELECT 1));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SELECT 1))' at line 1
 HANDLER t1 CLOSE;
 drop table t1;
 create table t1 (a int);
@@ -1791,7 +1791,7 @@ create table t1(id int);
 create table t2(id int);
 create table t3(flag int);
 select (select * from t3 where id not null) from t1, t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null) from t1, t2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'null) from t1, t2' at line 1
 drop table t1,t2,t3;
 CREATE TABLE t1 (id INT);
 CREATE TABLE t2 (id INT);
@@ -3583,10 +3583,10 @@ SELECT sql_no_cache * FROM t1 WHERE NOT EXISTS
 i
 SELECT * FROM t1 
 WHERE NOT EXISTS (((SELECT i FROM t1) UNION (SELECT i FROM t1)));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT i FROM t1)))' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION (SELECT i FROM t1)))' at line 2
 explain select ((select t11.i from t1 t11) union (select t12.i from t1 t12))
 from t1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union (select t12.i from t1 t12))
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'union (select t12.i from t1 t12))
 from t1' at line 1
 explain select * from t1 where not exists 
 ((select t11.i from t1 t11) union (select t12.i from t1 t12));

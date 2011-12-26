@@ -334,8 +334,6 @@ static PSI_rwlock_key key_rwlock_openssl;
 #endif
 #endif /* HAVE_PSI_INTERFACE */
 
-#undef SAFEMALLOC
-
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
 static bool max_long_data_size_used= false;
@@ -343,7 +341,6 @@ static bool volatile select_thread_in_use, signal_thread_in_use;
 static volatile bool ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
-static my_bool opt_sync= 0;
 static uint kill_cached_threads, wake_thread;
 static ulong max_used_connections;
 static volatile ulong cached_thread_count= 0;
@@ -366,7 +363,7 @@ static mysql_cond_t COND_thread_cache, COND_flush_thread_cache;
 bool opt_bin_log, opt_ignore_builtin_innodb= 0;
 my_bool opt_log, opt_slow_log, debug_assert_if_crashed_table= 0, opt_help= 0;
 ulonglong log_output_options;
-my_bool opt_userstat_running, opt_thread_alarm;
+my_bool opt_userstat_running;
 my_bool opt_log_queries_not_using_indexes= 0;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
@@ -428,7 +425,6 @@ my_bool opt_secure_auth= 0;
 char* opt_secure_file_priv;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
-my_bool opt_query_cache_strip_comments = 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 my_bool opt_super_large_pages= 0;
@@ -474,11 +470,11 @@ uint  slave_net_timeout;
 ulong slave_exec_mode_options;
 ulonglong slave_type_conversions_options;
 ulong thread_cache_size=0;
-ulong binlog_cache_size=0;
-ulong max_binlog_cache_size=0;
-ulong binlog_stmt_cache_size=0;
-ulong  max_binlog_stmt_cache_size=0;
-ulong query_cache_size=0;
+ulonglong binlog_cache_size=0;
+ulonglong max_binlog_cache_size=0;
+ulonglong binlog_stmt_cache_size=0;
+ulonglong  max_binlog_stmt_cache_size=0;
+ulonglong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
 my_atomic_rwlock_t global_query_id_lock;
@@ -2801,7 +2797,7 @@ and this may fail.\n\n");
   fprintf(stderr, "thread_count=%u\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_threads = %lu K\n\
-bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
+bytes of memory\n", (ulong) (dflt_key_cache->key_cache_mem_size +
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
 		     (thread_scheduler->max_threads + extra_max_connections) +
@@ -3509,6 +3505,8 @@ static int init_common_variables()
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
 
   tzset();			// Set tzname
+
+  sf_leaking_memory= 0; // no memory leaks from now on
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   server_start_time= flush_status_time= my_time(0);
@@ -4710,6 +4708,7 @@ int mysqld_main(int argc, char **argv)
     to be able to read defaults files and parse options.
   */
   my_progname= argv[0];
+  sf_leaking_memory= 1; // no safemalloc memory leak reports if we exit early
 #ifndef _WIN32
   // For windows, my_init() is called from the win specific mysqld_main
   if (my_init())                 // init my_sys library & pthreads
@@ -4886,8 +4885,8 @@ int mysqld_main(int argc, char **argv)
     if (stack_size && stack_size < my_thread_stack_size)
     {
       if (global_system_variables.log_warnings)
-	sql_print_warning("Asked for %lu thread stack, but got %ld",
-			  my_thread_stack_size, (long) stack_size);
+	sql_print_warning("Asked for %llu thread stack, but got %zu",
+			  my_thread_stack_size, stack_size);
 #if defined(__ia64__) || defined(__ia64)
       my_thread_stack_size= stack_size*2;
 #else
@@ -6177,7 +6176,7 @@ struct my_option my_long_options[]=
    &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
 #ifdef HAVE_REPLICATION
-  {"abort-slave-event-count", 0,
+  {"debug-abort-slave-event-count", 0,
    "Option used by mysql-test for debugging and testing of replication.",
    &abort_slave_event_count,  &abort_slave_event_count,
    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6263,7 +6262,7 @@ struct my_option my_long_options[]=
    0, 0, 0, 0, 0, 0},
 #endif /* HAVE_OPENSSL */
 #ifdef HAVE_REPLICATION
-  {"disconnect-slave-event-count", 0,
+  {"debug-disconnect-slave-event-count", 0,
    "Option used by mysql-test for debugging and testing of replication.",
    &disconnect_slave_event_count, &disconnect_slave_event_count,
    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6272,7 +6271,7 @@ struct my_option my_long_options[]=
   {"stack-trace", 0 , "Print a symbolic stack trace on failure",
    &opt_stack_trace, &opt_stack_trace, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* HAVE_STACKTRACE */
-  {"exit-info", 'T', "Used for debugging. Use at your own risk.", 0, 0, 0,
+  {"debug-exit-info", 'T', "Used for debugging. Use at your own risk.", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"external-locking", 0, "Use system (external) locking (disabled by "
    "default).  With this option enabled you can run myisamchk to test "
@@ -6282,6 +6281,10 @@ struct my_option my_long_options[]=
   /* We must always support the next option to make scripts like mysqltest
      easier to do */
   {"gdb", 0,
+   "Set up signals usable for debugging. Deprecated, use --debug-gdb instead.",
+   &opt_debugging, &opt_debugging,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-gdb", 0,
    "Set up signals usable for debugging.",
    &opt_debugging, &opt_debugging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -6375,7 +6378,7 @@ struct my_option my_long_options[]=
   {"init-rpl-role", 0, "Set the replication role.",
    &rpl_status, &rpl_status, &rpl_role_typelib,
    GET_ENUM, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"max-binlog-dump-events", 0,
+  {"debug-max-binlog-dump-events", 0,
    "Option used by mysql-test for debugging and testing of replication.",
    &max_binlog_dump_events, &max_binlog_dump_events, 0,
    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6478,7 +6481,7 @@ struct my_option my_long_options[]=
    "because it has no effect; the implied behavior is already the default.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
-  {"sporadic-binlog-dump-fail", 0,
+  {"debug-sporadic-binlog-dump-fail", 0,
    "Option used by mysql-test for debugging and testing of replication.",
    &opt_sporadic_binlog_dump_fail,
    &opt_sporadic_binlog_dump_fail, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
@@ -6503,9 +6506,9 @@ struct my_option my_long_options[]=
      option if compiled with valgrind support.
    */
    IF_VALGRIND(0,1), 0, 0, 0, 0, 0},
-  {"sync_sys", 0,
-   "Enable system sync calls. Disable only when running tests or debugging!",
-   &opt_sync, &opt_sync, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"debug-no-sync", 0,
+   "Disables system sync calls. Only for running tests or debugging!",
+   &my_disable_sync, &my_disable_sync, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"sysdate-is-now", 0,
    "Non-default option to alias SYSDATE() to NOW() to make it safe-replicable. "
    "Since 5.0, SYSDATE() returns a `dynamic' value different for different "
@@ -7984,8 +7987,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     In most cases the global variables will not be used
   */
   my_disable_locking= myisam_single_user= test(opt_external_locking == 0);
-  my_disable_sync= opt_sync == 0;
-  my_disable_thr_alarm= opt_thread_alarm == 0;
   my_default_record_cache_size=global_system_variables.read_buff_size;
 
   /*

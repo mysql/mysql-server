@@ -218,7 +218,7 @@ count_col1	group_col2
 20	hello
 30	hello
 select sum(col1) as co12 from t1 group by col2 having col2 10;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '10' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '10' at line 1
 select sum(col1) as co2, count(col2) as cc from t1 group by col1 having col1 =10;
 co2	cc
 40	4

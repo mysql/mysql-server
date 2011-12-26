@@ -640,10 +640,6 @@ or row lock! */
 #define SYNC_DICT_HEADER	995
 #define SYNC_IBUF_HEADER	914
 #define SYNC_IBUF_PESS_INSERT_MUTEX 912
-#define SYNC_IBUF_MUTEX		910	/* ibuf mutex is really below
-					SYNC_FSP_PAGE: we assign a value this
-					high only to make the program to pass
-					the debug checks */
 /*-------------------------------*/
 #define	SYNC_INDEX_TREE		900
 #define SYNC_TREE_NODE_NEW	892
@@ -659,8 +655,11 @@ or row lock! */
 #define	SYNC_FSP		400
 #define	SYNC_FSP_PAGE		395
 /*------------------------------------- Insert buffer headers */
-/*------------------------------------- ibuf_mutex */
+#define SYNC_IBUF_MUTEX		370	/* ibuf_mutex */
 /*------------------------------------- Insert buffer tree */
+#define SYNC_IBUF_INDEX_TREE	360
+#define SYNC_IBUF_TREE_NODE_NEW	359
+#define SYNC_IBUF_TREE_NODE	358
 #define	SYNC_IBUF_BITMAP_MUTEX	351
 #define	SYNC_IBUF_BITMAP	350
 /*------------------------------------- MySQL query cache mutex */
@@ -693,7 +692,6 @@ or row lock! */
 #define SYNC_DOUBLEWRITE	140
 #define	SYNC_OUTER_ANY_LATCH	136
 #define	SYNC_ANY_LATCH		135
-#define SYNC_THR_LOCAL		133
 #define	SYNC_MEM_HASH		131
 #define	SYNC_MEM_POOL		130
 

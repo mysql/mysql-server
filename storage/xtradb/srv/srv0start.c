@@ -87,6 +87,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "btr0pcur.h"
 # include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 # include "zlib.h" /* for ZLIB_VERSION */
+# include "buf0lru.h" /* for buf_LRU_file_restore() */
 
 /** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
@@ -1994,6 +1995,11 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the thread which automaticaly dumps/restore buffer pool */
 	os_thread_create(&srv_LRU_dump_restore_thread, NULL,
 			 thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+
+	/* If srv_blocking_lru_restore is TRUE, load buffer pool contents
+	synchronously */
+	if (srv_auto_lru_dump && srv_blocking_lru_restore)
+		buf_LRU_file_restore();
 
 	srv_is_being_started = FALSE;
 

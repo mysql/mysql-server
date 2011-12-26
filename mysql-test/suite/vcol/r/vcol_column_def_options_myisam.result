@@ -8,42 +8,42 @@ SET @@session.storage_engine = 'MyISAM';
 #            - [PRIMARY] KEY
 # NOT NULL
 create table t1 (a int, b int as (a+1) not null);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'not null)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'not null)' at line 1
 create table t1 (a int);
 alter table t1 add column b int as (a+1) not null;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'not null' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'not null' at line 1
 drop table t1;
 # NULL  
 create table t1 (a int, b int as (a+1) null);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'null)' at line 1
 create table t1 (a int);
 alter table t1 add column b int as (a+1) null;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'null' at line 1
 drop table t1;
 # DEFAULT
 create table t1 (a int, b int as (a+1) default 0);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'default 0)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'default 0)' at line 1
 create table t1 (a int);
 alter table t1 add column b int as (a+1) default 0;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'default 0' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'default 0' at line 1
 drop table t1;
 # AUTO_INCREMENT
 create table t1 (a int, b int as (a+1) AUTO_INCREMENT);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AUTO_INCREMENT)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AUTO_INCREMENT)' at line 1
 create table t1 (a int);
 alter table t1 add column b int as (a+1) AUTO_INCREMENT;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AUTO_INCREMENT' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AUTO_INCREMENT' at line 1
 drop table t1;
 # [PRIMARY] KEY
 create table t1 (a int, b int as (a+1) key);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key)' at line 1
 create table t1 (a int, b int as (a+1) primary key);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'primary key)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'primary key)' at line 1
 create table t1 (a int);
 alter table t1 add column b int as (a+1) key;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key' at line 1
 alter table t1 add column b int as (a+1) primary key;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'primary key' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'primary key' at line 1
 drop table t1;
 # Section 2. Other column definition options
 #            - COMMENT
@@ -136,7 +136,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (a int, b int as (a % 2));
 alter table t1 modify b int as (a % 2) persistent references t2(a);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'references t2(a)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'references t2(a)' at line 1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
