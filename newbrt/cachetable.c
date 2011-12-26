@@ -3778,6 +3778,9 @@ toku_cleaner_thread (void *cachetable_v)
             cachetable_unlock(ct);
             break;
         }
+        // here we select a PAIR for cleaning
+        // look at some number of PAIRS, and 
+        // pick what we think is the best one for cleaning
         do {
             if (nb_mutex_users(&ct->cleaner_head->nb_mutex) > 0 || ct->cleaner_head->cachefile->is_flushing) {
                 goto next_pair;
@@ -3791,6 +3794,10 @@ toku_cleaner_thread (void *cachetable_v)
         next_pair:
             ct->cleaner_head = ct->cleaner_head->clock_next;
         } while (ct->cleaner_head != first_pair && n_seen < CLEANER_N_TO_CHECK);
+        //
+        // at this point, if we have found a PAIR for cleaning, 
+        // that is, best_pair != NULL, we do the clean
+        //
         if (best_pair) {
             nb_mutex_write_lock(&best_pair->nb_mutex, ct->mutex);
             // the order of operations for these two pieces is important
@@ -3807,38 +3814,56 @@ toku_cleaner_thread (void *cachetable_v)
             if (best_pair->checkpoint_pending) {
                 write_locked_pair_for_checkpoint(ct, best_pair);
             }
-        }
-        cachetable_unlock(ct);
-        if (best_pair) {
+
+            CACHEFILE cf = best_pair->cachefile;
+            BOOL cleaner_callback_called = FALSE;
+            // grab the fdlock, because the cleaner callback
+            // will access the fd.
+            rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
+            
             // it's theoretically possible that after writing a PAIR for checkpoint, the
             // PAIR's heuristic tells us nothing needs to be done. It is not possible
             // in Dr. Noga, but unit tests verify this behavior works properly.
-            CACHEFILE cf = best_pair->cachefile;
-            if (cleaner_thread_rate_pair(best_pair) > 0) {
+            // 
+            // also, because the cleaner thread needs to act as a client
+            // and honor the same invariants that client threads honor,
+            // we refuse to call the cleaner callback if the cachefile
+            // has been redirected to /dev/null, because client threads
+            // do not call APIs that access the file if the file has been
+            // redirected to /dev/null
+            if (!toku_cachefile_is_dev_null_unlocked(cf) && 
+                cleaner_thread_rate_pair(best_pair) > 0) 
+            {
+                cachetable_unlock(ct);
                 int r = best_pair->cleaner_callback(best_pair->value,
                                                     best_pair->key,
                                                     best_pair->fullhash,
                                                     best_pair->write_extraargs);
                 assert_zero(r);
-                // The cleaner callback must have unlocked the pair, so we
-                // don't need to unlock it here.
-            }
-            else {
+                cleaner_callback_called = TRUE;
                 cachetable_lock(ct);
-                nb_mutex_write_unlock(&best_pair->nb_mutex);
-                cachetable_unlock(ct);
             }
+
+            // The cleaner callback must have unlocked the pair, so we
+            // don't need to unlock it if the cleaner callback is called.
+            if (!cleaner_callback_called) {
+                nb_mutex_write_unlock(&best_pair->nb_mutex);
+            }
+            rwlock_read_unlock(&cf->fdlock);
             // We need to make sure the cachefile sticks around so a close
             // can't come destroy it.  That's the purpose of this
             // "add/remove_background_job" business, which means the
             // cachefile is still valid here, even though the cleaner
-            // callback unlocks the pair.            
-            remove_background_job(cf, false);
-        } else {
+            // callback unlocks the pair. 
+            remove_background_job(cf, true);
+            cachetable_unlock(ct);
+        }
+        else {
+            cachetable_unlock(ct);
             // If we didn't find anything this time around the cachetable,
             // we probably won't find anything if we run around again, so
-            // just break out now and we'll try again when the cleaner
-            // thread runs again.
+            // just break out from the for-loop now and 
+            // we'll try again when the cleaner thread runs again.
             break;
         }
     }
