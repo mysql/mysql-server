@@ -3902,7 +3902,7 @@ buf_page_io_complete(
 			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 		if (bpage->space == TRX_SYS_SPACE
-		    && trx_doublewrite_page_inside(bpage->offset)) {
+		    && buf_dblwr_page_inside(bpage->offset)) {
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
