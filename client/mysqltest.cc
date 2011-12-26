@@ -257,10 +257,21 @@ struct Parser
   int read_lines,current_line;
 } parser;
 
+#ifdef HAVE_GTID
+/*
+  (XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX : GNO_INI - GNO_END)+
+  Do not try to get a reference to the gtid's classes because
+  this will cause unnecessary and erroneous dependencies.
+*/
+const int GTID_SETS_SIZES= 256;
+#endif 
+
 struct MasterPos
 {
   char file[FN_REFLEN];
-  char gtid[FN_REFLEN]; // TODO: Make this dynamic. /Alfranio
+#ifdef HAVE_GTID
+  char gtid_sets[GTID_SETS_SIZES];
+#endif
   ulong pos;
 } master_pos;
 
@@ -329,7 +340,9 @@ enum enum_commands {
   Q_REQUIRE,	    Q_SAVE_MASTER_POS,
   Q_SYNC_WITH_MASTER,
   Q_SYNC_SLAVE_WITH_MASTER,
+#ifdef HAVE_GTID
   Q_SYNC_SLAVE_GTID_WITH_MASTER,
+#endif
   Q_ERROR,
   Q_SEND,		    Q_REAP,
   Q_DIRTY_CLOSE,	    Q_REPLACE, Q_REPLACE_COLUMN,
@@ -388,7 +401,9 @@ const char *command_names[]=
   "save_master_pos",
   "sync_with_master",
   "sync_slave_with_master",
+#ifdef HAVE_GTID
   "sync_slave_gtid_with_master",
+#endif
   "error",
   "send",
   "reap",
@@ -4284,19 +4299,21 @@ void do_sync_with_master(struct st_command *command)
 }
 
 
+#ifdef HAVE_GTID
 void do_sync_gtid_with_master(struct st_command *command)
 {
   char query_buf[FN_REFLEN + 128];
   int timeout= 300; /* seconds */
 
-  if (!master_pos.gtid[0])
+  if (!master_pos.gtid_sets[0])
     die("Calling 'sync_gtid_with_master' without calling 'save_master_pos'");
 
   sprintf(query_buf, "select master_gtid_wait('%s', %d)",
-          master_pos.gtid, timeout);
+          master_pos.gtid_sets, timeout);
 
   do_sync_exec(query_buf, command, timeout);
 }
+#endif
 
 
 void do_sync_with_master_offset(struct st_command *command)
@@ -4488,7 +4505,11 @@ int do_save_master_pos()
   strnmov(master_pos.file, row[0], sizeof(master_pos.file) - 1);
   master_pos.pos = strtoul(row[1], (char**) 0, 10);
 #ifdef HAVE_GTID
-  strnmov(master_pos.gtid, row[4], sizeof(master_pos.gtid) - 1);
+  ulong *lengths= mysql_fetch_lengths(res);
+  if (lengths[4] < (ulong) GTID_SETS_SIZES)
+    strnmov(master_pos.gtid_sets, row[4], sizeof(master_pos.gtid_sets) - 1);
+  else
+    die("show master status: result's length is too large %s", row[4]);
 #endif
 
   mysql_free_result(res);
@@ -8930,6 +8951,7 @@ int main(int argc, char **argv)
 	do_sync_with_master(command);
 	break;
       }
+#ifdef HAVE_GTID
       case Q_SYNC_SLAVE_GTID_WITH_MASTER:
       {
         do_save_master_pos();
@@ -8940,6 +8962,7 @@ int main(int argc, char **argv)
         do_sync_gtid_with_master(command);
         break;
       }
+#endif
       case Q_COMMENT:
       {
         command->last_argument= command->end;

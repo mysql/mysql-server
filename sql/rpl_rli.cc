@@ -100,7 +100,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
 
   group_relay_log_name[0]= event_relay_log_name[0]=
     group_master_log_name[0]= 0;
-  until_log_name[0]= ign_master_log_name_end[0]= 0;
+  until_log_name[0]= ign_master_log_name_end[0]= 
+  until_gtid[0]= 0;
   set_timespec_nsec(last_clock, 0);
   bitmap_init(&recovery_groups, NULL, checkpoint_group, FALSE);
   memset(&cache_buf, 0, sizeof(cache_buf));
@@ -293,7 +294,7 @@ void Relay_log_info::clear_until_condition()
   until_condition= Relay_log_info::UNTIL_NONE;
   until_log_name[0]= 0;
   until_log_pos= 0;
-  until_gtid.clear();
+  until_gtid[0]= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -725,8 +726,8 @@ improper_arguments: %d  timed_out: %d",
 /*
   TODO: This is a duplicated code that needs to be simplified. Alfranio.
 */
-int Relay_log_info::wait_for_gtid(THD* thd, String* gtid,
-                                  longlong timeout)
+int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
+                                      longlong timeout)
 {
   int event_count = 0;
   ulong init_abort_pos_wait;
@@ -1189,7 +1190,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     global_sid_lock.rdlock();
 #endif
 
-    if (gtid_param.parse(&global_sid_map, until_gtid.c_str()) != RETURN_STATUS_OK)
+    if (gtid_param.parse(&global_sid_map, until_gtid) != RETURN_STATUS_OK)
     {
       sql_print_error("%s", error_msg);
       global_sid_lock.unlock();
@@ -1202,7 +1203,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     char dbug_buffer[Gtid::MAX_TEXT_LENGTH + 1];
     gtid_event.to_string(&global_sid_map, dbug_buffer);
 
-    DBUG_PRINT("info", ("Waiting for %s. We are at %s.", until_gtid.c_str(), dbug_buffer));
+    DBUG_PRINT("info", ("Waiting for %s. We are at %s.", until_gtid, dbug_buffer));
 #endif
 
     if (gtid_param.equals(&gtid_event))

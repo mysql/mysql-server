@@ -25,13 +25,10 @@
 #include "log.h"                         /* LOG_INFO */
 #include "binlog.h"                      /* MYSQL_BIN_LOG */
 #include "sql_class.h"                   /* THD */
-#include <string>
 
 struct RPL_TABLE_LIST;
 class Master_info;
 extern uint sql_slave_skip_counter;
-
-using std::string;
 
 /*******************************************************************************
 Replication SQL Thread
@@ -308,7 +305,9 @@ public:
   ulonglong until_log_pos;
   /* extension extracted from log_name and converted to int */
   ulong until_log_name_extension;
-  string until_gtid;
+#ifdef HAVE_GTID
+  char until_gtid[Gtid::MAX_TEXT_LENGTH + 1];
+#endif
   /* 
      Cached result of comparison of until_log_name and current log name
      -2 means unitialised, -1,0,1 are comarison results 
@@ -385,7 +384,7 @@ public:
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
 #ifdef HAVE_GTID
-  int wait_for_gtid(THD* thd, String* gtid, longlong timeout);
+  int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
 #endif
   void close_temporary_tables();
 

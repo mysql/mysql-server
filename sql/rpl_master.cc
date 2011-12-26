@@ -1506,12 +1506,6 @@ bool show_binlog_info(THD* thd)
   DBUG_ENTER("show_binlog_info");
 
 #ifdef HAVE_GTID
-  /*
-    Temporarly disabled because this was causing deadlock
-    problems. We need to investigage this.
-
-    /Alfranio
-  */
   global_sid_lock.wrlock();
   const Gtid_set* gtid_set= gtid_state.get_logged_gtids();
   if (gtid_set->to_string(&gtid_set_buffer, &gtid_set_size))
