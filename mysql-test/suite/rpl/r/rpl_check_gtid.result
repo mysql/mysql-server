@@ -9,6 +9,11 @@ COMMIT;
 include/rpl_check_gtid.inc
 include/rpl_check_gtid.inc
 include/rpl_check_gtid.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
 BEGIN;
@@ -18,6 +23,11 @@ COMMIT;
 include/rpl_check_gtid.inc
 include/rpl_check_gtid.inc
 include/rpl_check_gtid.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
 BEGIN;
@@ -26,6 +36,11 @@ INSERT INTO t1 VALUES(2);
 COMMIT;
 include/rpl_check_gtid.inc
 include/rpl_check_gtid.inc
+include/rpl_check_gtid.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
 include/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;

@@ -52,7 +52,6 @@
 #
 # --- TODO ---
 # There are two cases not consider here:
-# . Events being generated at both master and slave.
 # . Crahes after creating logs and corrupted Previous Gtids.
 ################################################################################
 --source include/master-slave.inc
@@ -61,10 +60,11 @@
 --source include/have_debug.inc
 
 call mtr.add_suppression("Recovery from master pos .*");
-
---let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
 
+--let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--connection slave
+--let $slave_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 #
 # 1. This part of the test case:
@@ -80,6 +80,7 @@ CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
 while ($i != 4)
 {
   #  1.1 - Generates a set of transactions on the master.
+  --connection master
   BEGIN;
   INSERT INTO t1 VALUES(1);
   INSERT INTO t1 VALUES(2);
@@ -87,6 +88,7 @@ while ($i != 4)
 
   # Check property 1.1 and 2.1.
   --let $binlog= binlog
+  --let $server_uuid= $master_uuid
   if ($i == 1)
   {
     --let $gtid_set_ini= 0
@@ -109,6 +111,7 @@ while ($i != 4)
 
   # Check property 1.2 and 2.1.
   --let $binlog= binlog
+  --let $server_uuid= $master_uuid
   if ($i == 1)
   {
     --let $gtid_set_ini= 0
@@ -127,6 +130,7 @@ while ($i != 4)
   
   # Check property 1.3 and 2.2.
   --let $binlog= relaylog
+  --let $server_uuid= $master_uuid
   if ($i == 1)
   {
     --let $gtid_set_ini= 0
@@ -140,6 +144,30 @@ while ($i != 4)
     --let $gtid_set_end= `SELECT $i + 1`
     --let $gtid_ini= `SELECT $i + 2`
     --let $gtid_end= `SELECT $i + 2`
+  }
+  --source extra/rpl_tests/rpl_check_gtid.inc
+
+  BEGIN;
+  INSERT INTO t1 VALUES(1);
+  INSERT INTO t1 VALUES(2);
+  COMMIT;
+
+  # Check property 1.1 and 2.1.
+  --let $binlog= binlog
+  --let $server_uuid= $slave_uuid
+  if ($i == 1)
+  {
+    --let $gtid_set_ini= 0
+    --let $gtid_set_end= 0
+    --let $gtid_ini= `SELECT $i`
+    --let $gtid_end= `SELECT $i`
+  }
+  if ($i != 1)
+  {
+    --let $gtid_set_ini= 1
+    --let $gtid_set_end= `SELECT $i - 1`
+    --let $gtid_ini= `SELECT $i`
+    --let $gtid_end= `SELECT $i`
   }
   --source extra/rpl_tests/rpl_check_gtid.inc
 
@@ -190,6 +218,7 @@ while ($i != 5)
 
   # Check property 2.2.
   --let $binlog= relaylog
+  --let $server_uuid= $master_uuid
   --let $gtid_set_ini= 1
   --let $gtid_set_end= `SELECT $i`
   --let $gtid_ini=
@@ -241,6 +270,7 @@ while ($i != 5)
   # Check property 1.2 and 2.1.
   --connection slave
   --let $binlog= binlog
+  --let $server_uuid= $master_uuid
   if ($i == 1)
   {
     --let $gtid_set_ini= 0
@@ -259,6 +289,7 @@ while ($i != 5)
 
   # Check property 1.3 and 2.2.
   --let $binlog= relaylog
+  --let $server_uuid= $master_uuid
   if ($i == 1)
   {
     --let $gtid_set_ini= 0
@@ -325,6 +356,7 @@ while ($i != 5)
 
   # Check property 1.1 and 2.1.
   --let $binlog= binlog
+  --let $server_uuid= $master_uuid
   if ($i == 1)
   {
     --let $gtid_set_ini= 0
@@ -347,6 +379,7 @@ while ($i != 5)
   # Check property 1.2 and 2.1.
   --connection slave
   --let $binlog= binlog
+  --let $server_uuid= $master_uuid
   if ($i == 1)
   {
     --let $gtid_set_ini= 0
@@ -365,6 +398,7 @@ while ($i != 5)
 
   # Check property 1.3 and 2.2.
   --let $binlog= relaylog
+  --let $server_uuid= $master_uuid
   if ($i == 1)
   {
     --let $gtid_set_ini= 0
@@ -442,22 +476,12 @@ while ($i != 5)
   --sync_slave_with_master
 
   # Check property 1.2, 2.1, 3.1 and 3.2
-  if ($i == 1)
-  {
-    --let $binlog= binlog
-    --let $gtid_set_ini= 1
-    --let $gtid_set_end= 4
-    --let $gtid_ini=
-    --let $gtid_end=
-  }
-  if ($i != 1)
-  {
-    --let $binlog= binlog
-    --let $gtid_set_ini= 1
-    --let $gtid_set_end= 4
-    --let $gtid_ini=
-    --let $gtid_end=
-  }
+  --let $binlog= binlog
+  --let $server_uuid= $master_uuid
+  --let $gtid_set_ini= 1
+  --let $gtid_set_end= 4
+  --let $gtid_ini=
+  --let $gtid_end=
   --source extra/rpl_tests/rpl_check_gtid.inc
 
   #  5.4 - Rotates both the binary logs on the slave and master.
@@ -514,6 +538,7 @@ while ($i != 4)
 
   # Check property 4.1
   --let $binlog= relaylog
+  --let $server_uuid= $master_uuid
   --let $gtid_set_ini=
   --let $gtid_set_end=
   --let $gtid_ini= `SELECT ($i * 2) - 1`
@@ -581,6 +606,7 @@ while ($i != 4)
 
   # Check property 1.2 and 4.1.
   --let $binlog= binlog
+  --let $server_uuid= $master_uuid
   --let $gtid_set_ini=
   --let $gtid_set_end=
   --let $gtid_ini= 1

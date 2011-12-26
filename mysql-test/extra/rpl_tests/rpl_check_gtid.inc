@@ -71,17 +71,17 @@ if (`SELECT "$binlog" = "relaylog"`)
 
 if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`)
 {
-  --let $master_binlog= query_get_value($command_set, $command_set_info, 1)
+  --let $server_log= query_get_value($command_set, $command_set_info, 1)
   if (`SELECT "$debug" <> ""`)
   {
-    --eval $command_show in "$master_binlog"
+    --eval $command_show in "$server_log"
   }
-  --let $type= query_get_value($command_show in "$master_binlog", Event_type, 2)
-  --let $info= query_get_value($command_show in "$master_binlog", Info, 2)
+  --let $type= query_get_value($command_show in "$server_log", Event_type, 2)
+  --let $info= query_get_value($command_show in "$server_log", Info, 2)
   if ($type != Previous_gtids)
   {
     --echo $type $info --- Type should be Previous_gtids.
-    --eval $command_show in "$master_binlog"
+    --eval $command_show in "$server_log"
     --die
   }
   if ($gtid_set_end == 0 && $gtid_set_ini == 0)
@@ -89,25 +89,25 @@ if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`
     if (`SELECT "$info" <> ""`)
     {
       --echo $type $info -- Info should be empty.
-      --eval $command_show in "$master_binlog"
+      --eval $command_show in "$server_log"
       --die
     }
   }
   if (`SELECT $gtid_set_end <> 0 and $gtid_set_ini <> 0 and $gtid_set_end <> $gtid_set_ini`)
   {
-    if (`SELECT NOT ("$info" REGEXP "^$master_uuid:$gtid_set_ini-$gtid_set_end")`)
+    if (`SELECT NOT ("$info" REGEXP "$server_uuid:$gtid_set_ini-$gtid_set_end")`)
     {
-      --echo $type $info -- Info should be $master_uuid:$gtid_set_ini-$gtid_set_end.
-      --eval $command_show in "$master_binlog"
+      --echo $type $info -- Info should be $server_uuid:$gtid_set_ini-$gtid_set_end.
+      --eval $command_show in "$server_log"
       --die
     }
   }
   if ($gtid_set_end != 0 && $gtid_set_ini != 0 && $gtid_set_end == $gtid_set_ini)
   {
-    if (`SELECT NOT ("$info" REGEXP "^$master_uuid:$gtid_set_ini")`)
+    if (`SELECT NOT ("$info" REGEXP "$server_uuid:$gtid_set_ini")`)
     {
-      --echo $type $info -- Info should be $master_uuid:$gtid_set_ini.
-      --eval $command_show in "$master_binlog"
+      --echo $type $info -- Info should be $server_uuid:$gtid_set_ini.
+      --eval $command_show in "$server_log"
       --die
     }
   }
@@ -119,14 +119,14 @@ if (`SELECT "$binlog" <> "" and "$gtid_end" <> "" and "$gtid_ini" <> ""`)
   --let $trans= `SELECT $gtid_ini`
   --let $pos= 1
   --let $info= unknown
-  --let $master_binlog= query_get_value($command_set, $command_set_info, 1)
+  --let $server_log= query_get_value($command_set, $command_set_info, 1)
   while (`SELECT $trans <= $gtid_end AND "$type" <> "No such row"`)
   {
-    --let $type= query_get_value($command_show in "$master_binlog", Event_type, $pos)
+    --let $type= query_get_value($command_show in "$server_log", Event_type, $pos)
     if ($type == Gtid)
     {
-      --let $info= query_get_value($command_show in "$master_binlog", Info, $pos)
-      if (`SELECT "$info" REGEXP "^SET @@SESSION.GTID_NEXT= '$master_uuid:$trans'"`)
+      --let $info= query_get_value($command_show in "$server_log", Info, $pos)
+      if (`SELECT "$info" REGEXP "^SET @@SESSION.GTID_NEXT= '$server_uuid:$trans'"`)
       {
         --let $trans= `SELECT $trans + 1`
       }
@@ -136,7 +136,7 @@ if (`SELECT "$binlog" <> "" and "$gtid_end" <> "" and "$gtid_ini" <> ""`)
   if ($trans <=  $gtid_end)
   {
     --echo $type $info -- We should retrieve from $gtid_ini to $gtid_end.
-    --eval $command_show in "$master_binlog"
+    --eval $command_show in "$server_log"
     --die
   }
 }

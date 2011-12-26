@@ -3750,7 +3750,7 @@ longlong Item_master_pos_wait::val_int()
   return event_count;
 }
 
-longlong Item_master_gtid_wait::val_int()
+longlong Item_master_gtid_set_wait::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   THD* thd = current_thd;
@@ -3766,7 +3766,7 @@ longlong Item_master_gtid_wait::val_int()
 
 #if defined(HAVE_REPLICATION) && defined(HAVE_GTID)
   longlong timeout = (arg_count== 2) ? args[1]->val_int() : 0;
-  if ((event_count = active_mi->rli->wait_for_gtid(thd, gtid, timeout)) == -2)
+  if ((event_count = active_mi->rli->wait_for_gtid_set(thd, gtid, timeout)) == -2)
   {
     null_value = 1;
     event_count=0;
