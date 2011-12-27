@@ -4698,6 +4698,20 @@ public:
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 #ifdef MYSQL_SERVER
+  bool write(IO_CACHE* file)
+  {
+    if (DBUG_EVALUATE_IF("debug_skip_create_gtid_set", 1, 0))
+      return false;
+
+    if (DBUG_EVALUATE_IF("debug_error_create_gtid_set", 1, 0))
+      return(Log_event::write_header(file, get_data_size()) ||
+             Log_event::write_data_header(file));
+  
+    return(Log_event::write_header(file, get_data_size()) ||
+           Log_event::write_data_header(file) ||
+           write_data_body(file) ||
+           Log_event::write_footer(file));
+  }
   bool write_data_body(IO_CACHE *file);
 #endif
 
