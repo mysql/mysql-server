@@ -1,11 +1,12 @@
 # uint global
 --source include/not_windows.inc
+--source include/not_embedded.inc
 SET @start_global_value = @@global.thread_pool_size;
 
 #
 # exists as global only
 #
---replace_column 2 #
+--replace_column 1 #
 select @@global.thread_pool_size;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.thread_pool_size;

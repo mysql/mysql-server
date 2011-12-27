@@ -1,5 +1,5 @@
 # uint global
-
+--source include/not_embedded.inc
 SET @start_global_value = @@global.thread_pool_max_threads;
 
 #
