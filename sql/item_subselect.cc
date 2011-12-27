@@ -1117,8 +1117,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
                               (Item**)optimizer->get_cache(),
 			      (char *)"<no matter>",
 			      (char *)in_left_expr_name);
-
-    master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
+    if (!left_expr->const_item())
+      master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
   if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards)
   {
@@ -1127,7 +1127,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     pushed_cond_guards[0]= TRUE;
   }
 
-  select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
+  if (!left_expr->const_item())
+    select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   if (join->having || select_lex->with_sum_func ||
       select_lex->group_list.elements)
   {
@@ -1338,7 +1339,8 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     optimizer->keep_top_level_cache();
 
     thd->lex->current_select= current;
-    master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
+    if (!left_expr->const_item())
+      master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
 
     if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards)
     {
@@ -1350,7 +1352,8 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     }
   }
 
-  select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
+  if (!left_expr->const_item())
+    select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   if (is_having_used)
   {
     /*

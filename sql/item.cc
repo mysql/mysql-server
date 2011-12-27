@@ -7915,6 +7915,27 @@ void view_error_processor(THD *thd, void *data)
   ((TABLE_LIST *)data)->hide_view_error(thd);
 }
 
+#ifndef DBUG_OFF
+
+/* Debugger help function */
+static char dbug_item_print_buf[256];
+
+const char *dbug_print_item(Item *item)
+{
+  char *buf= dbug_item_print_buf;
+  String str(buf, sizeof(dbug_item_print_buf), &my_charset_bin);
+  str.length(0);
+  if (!item)
+    return "(Item*)NULL";
+  item->print(&str ,QT_ORDINARY);
+  if (str.c_ptr() == buf)
+    return buf;
+  else
+    return "Couldn't fit into buffer";
+}
+
+#endif /*DBUG_OFF*/
+
 /*****************************************************************************
 ** Instantiate templates
 *****************************************************************************/
