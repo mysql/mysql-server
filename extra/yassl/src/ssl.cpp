@@ -1607,10 +1607,10 @@ unsigned long ERR_get_error()
     }
 
 
-    int SSL_CTX_use_certificate_chain_file(SSL_CTX*, const char*)
+    int SSL_CTX_use_certificate_chain_file(SSL_CTX* ctx, const char* file)
     {
-        // TDOD:
-        return SSL_SUCCESS;
+        // For the moment, treat like use_certificate_file
+        return read_file(ctx, file, SSL_FILETYPE_PEM, Cert);
     }
 
 
