@@ -71,7 +71,9 @@ static inline bool thread_attach(THD* thd, char *stack_start, PSI_thread **save_
 static inline void thread_detach(THD* thd, PSI_thread *restore_psi_thread)
 {
   DBUG_ENTER("thread_detach");
+  mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->mysys_var = NULL;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
 #ifndef DBUG_OFF
   /*
     If during the session @@session.dbug was assigned, the
@@ -161,7 +163,7 @@ int threadpool_process_request(THD *thd)
   PSI_thread *psi_thread;
   thread_attach(thd, (char *)&thd, &psi_thread);
 
-  if (thd->killed == KILL_CONNECTION)
+  if (thd->killed >= KILL_CONNECTION)
   {
     /* 
       kill flag can be set have been killed by 

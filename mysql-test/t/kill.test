@@ -142,9 +142,12 @@ KILL @id;
 SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
 
 connection con1;
---error 1317,1053,2006,2013
+--error 1317,1053,2006,2013,1927
 reap;
+--disable_query_log
+--error 2013,0
 SELECT 1;
+--enable_query_log
 
 connection default;
 SET DEBUG_SYNC = 'RESET';
