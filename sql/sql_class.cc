@@ -749,7 +749,6 @@ THD::THD()
    derived_tables_processing(FALSE),
    spcont(NULL),
    m_parser_state(NULL),
-   skip_wait_timeout(false),
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -769,6 +768,7 @@ THD::THD()
   scheduler= thread_scheduler;                 // Will be fixed later
   event_scheduler.data= 0;
   event_scheduler.m_psi= 0;
+  skip_wait_timeout= false;
   extra_port= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
