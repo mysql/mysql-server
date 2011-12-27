@@ -1941,6 +1941,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
   DBUG_PRINT("info", ("lost_groups=%p; so we are recovering a %s log",
                       lost_groups, lost_groups == NULL ? "relay" : "binary"));
+
   /*
     Creates a format descriptor that is used to read events from
     either the binary or relay log.
@@ -2033,6 +2034,11 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
       if (ev != fd_ev_p)
         delete ev;
     }
+
+    if (log.error < 0)
+      sql_print_error("Failed to read information on Previous GTids. Please, "
+                      "check the documentation and take the necessary actions "
+                      "to make the information on GTids consistent.");
 
     if (fd_ev_p != &fd_ev)
     {
@@ -5128,7 +5134,8 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
       Recorded valid position for the crashed binlog file
       which did not contain incorrect events.
     */
-    if (!log->error && !in_transaction)
+    if (!log->error && !in_transaction &&
+        ev->get_type_code() != GTID_LOG_EVENT)
       *valid_pos= my_b_tell(log);
 
     delete ev;
