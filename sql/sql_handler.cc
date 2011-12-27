@@ -668,18 +668,19 @@ retry:
   {
     switch (mode) {
     case RNEXT:
-      if (table->file->inited != handler::NONE)
+      if (m_key_name)
       {
-        if (m_key_name)
+        if (table->file->inited == handler::INDEX)
         {
           /* Check if we read from the same index. */
           DBUG_ASSERT((uint) keyno == table->file->get_index());
           error= table->file->ha_index_next(table->record[0]);
+          break;
         }
-        else
-        {
-          error= table->file->ha_rnd_next(table->record[0]);
-        }
+      }
+      else if (table->file->inited == handler::RND)
+      {
+        error= table->file->ha_rnd_next(table->record[0]);
         break;
       }
       /* else fall through */
@@ -687,8 +688,8 @@ retry:
       if (m_key_name)
       {
         table->file->ha_index_or_rnd_end();
-        table->file->ha_index_init(keyno, 1);
-        error= table->file->ha_index_first(table->record[0]);
+        if (!(error= table->file->ha_index_init(keyno, 1)))
+          error= table->file->ha_index_first(table->record[0]);
       }
       else
       {
@@ -702,7 +703,7 @@ retry:
       DBUG_ASSERT(m_key_name != 0);
       /* Check if we read from the same index. */
       DBUG_ASSERT((uint) keyno == table->file->get_index());
-      if (table->file->inited != handler::NONE)
+      if (table->file->inited == handler::INDEX)
       {
         error= table->file->ha_index_prev(table->record[0]);
         break;
@@ -710,15 +711,19 @@ retry:
       /* else fall through */
     case RLAST:
       DBUG_ASSERT(m_key_name != 0);
-      table->file->ha_index_or_rnd_end();
-      table->file->ha_index_init(keyno, 1);
-      error= table->file->ha_index_last(table->record[0]);
+      if (!(error= table->file->ha_index_or_rnd_end()) &&
+          !(error= table->file->ha_index_init(keyno, 1)))
+        error= table->file->ha_index_last(table->record[0]);
       mode=RPREV;
       break;
     case RNEXT_SAME:
       /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
       DBUG_ASSERT(m_key_name != 0);
-      error= table->file->ha_index_next_same(table->record[0], key, key_len);
+      /* Continue scan, or start a new scan if no previous index scan */
+      if (table->file->inited == handler::INDEX ||
+          (!(error= table->file->ha_index_or_rnd_end()) &&
+           !(error= table->file->ha_index_init(keyno, 1))))
+         error= table->file->ha_index_next_same(table->record[0], key, key_len);
       break;
     case RKEY:
     {
@@ -755,11 +760,12 @@ retry:
 
       if (!(key= (uchar*) thd->calloc(ALIGN_SIZE(key_len))))
 	goto err;
-      table->file->ha_index_or_rnd_end();
-      table->file->ha_index_init(keyno, 1);
+      if ((error= table->file->ha_index_or_rnd_end()))
+        break;
       key_copy(key, table->record[0], table->key_info + keyno, key_len);
-      error= table->file->ha_index_read_map(table->record[0],
-                                            key, keypart_map, m_rkey_mode);
+      if (!(error= table->file->ha_index_init(keyno, 1)))
+        error= table->file->ha_index_read_map(table->record[0],
+                                              key, keypart_map, m_rkey_mode);
       mode=rkey_to_rnext[(int)m_rkey_mode];
       break;
     }
