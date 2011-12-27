@@ -304,7 +304,6 @@ verify_valid_blocknum (struct translation *t, BLOCKNUM b) {
 //Can be freed
 static inline void
 verify_valid_freeable_blocknum (struct translation *t, BLOCKNUM b) {
-    assert(t->type == TRANSLATION_CURRENT);
     assert(b.b >= RESERVED_BLOCKNUMS);
     assert(b.b < t->smallest_never_used_blocknum.b);
 
@@ -556,21 +555,33 @@ toku_allocate_blocknum(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h) {
 }
 
 static void
-free_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *bp, struct brt_header * h) {
+free_blocknum_in_translation(struct translation *t, BLOCKNUM b)
+{
+    verify_valid_freeable_blocknum(t, b);
+    struct block_translation_pair old_pair = t->block_translation[b.b];
+    assert(old_pair.size != size_is_free);
+    
+    PRNTF("free_blocknum", b.b, t->block_translation[b.b].size, t->block_translation[b.b].u.diskoff, bt);
+    t->block_translation[b.b].size                 = size_is_free;
+    t->block_translation[b.b].u.next_free_blocknum = t->blocknum_freelist_head;
+    t->blocknum_freelist_head                      = b;
+}
+
+static void
+free_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *bp, struct brt_header * h, BOOL for_checkpoint) {
 // Effect: Free a blocknum.
 // If the blocknum holds the only reference to a block on disk, free that block
     assert(bt->is_locked);
     BLOCKNUM b = *bp;
     bp->b = 0; //Remove caller's reference.
-    struct translation *t = &bt->current;
-    verify_valid_freeable_blocknum(t, b);
-    struct block_translation_pair old_pair = t->block_translation[b.b];
-    assert(old_pair.size != size_is_free);
 
-PRNTF("free_blocknum", b.b, t->block_translation[b.b].size, t->block_translation[b.b].u.diskoff, bt);
-    t->block_translation[b.b].size                 = size_is_free;
-    t->block_translation[b.b].u.next_free_blocknum = t->blocknum_freelist_head;
-    t->blocknum_freelist_head                      = b;
+    struct block_translation_pair old_pair = bt->current.block_translation[b.b];
+
+    free_blocknum_in_translation(&bt->current, b);
+    if (for_checkpoint) {
+        assert(h->checkpoint_header->type == BRTHEADER_CHECKPOINT_INPROGRESS);
+        free_blocknum_in_translation(&bt->inprogress, b);        
+    }
 
     //If the size is 0, no disk block has ever been assigned to this blocknum.
     if (old_pair.size > 0) {
@@ -584,13 +595,13 @@ PRNTF("free_blocknum_free", b.b, old_pair.size, old_pair.u.diskoff, bt);
         }
     }
     else assert(old_pair.size==0 && old_pair.u.diskoff == diskoff_unused);
-    brtheader_set_dirty(h, FALSE);
+    brtheader_set_dirty(h, for_checkpoint);
 }
 
 void
-toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *bp, struct brt_header * h) {
+toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *bp, struct brt_header * h, BOOL for_checkpoint) {
     lock_for_blocktable(bt);
-    free_blocknum_unlocked(bt, bp, h);
+    free_blocknum_unlocked(bt, bp, h, for_checkpoint);
     unlock_for_blocktable(bt);
 }
     
@@ -606,7 +617,7 @@ toku_block_translation_truncate_unlocked(BLOCK_TABLE bt, int fd, struct brt_head
     int64_t i;
     for (i=RESERVED_BLOCKNUMS; i<t->smallest_never_used_blocknum.b; i++) {
         BLOCKNUM b = make_blocknum(i);
-        if (t->block_translation[i].size >= 0) free_blocknum_unlocked(bt, &b, h);
+        if (t->block_translation[i].size >= 0) free_blocknum_unlocked(bt, &b, h, FALSE);
     }
     maybe_truncate_cachefile(bt, fd, h, allocated_limit_at_start);
 }

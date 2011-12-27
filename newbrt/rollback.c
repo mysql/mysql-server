@@ -56,9 +56,9 @@ toku_delete_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     if (txn->pinned_inprogress_rollback_log == log) {
         txn->pinned_inprogress_rollback_log = NULL;
     }
-    r = toku_cachetable_unpin_and_remove (cf, log->thislogname, FALSE);
+    r = toku_cachetable_unpin_and_remove (cf, log->thislogname, NULL, NULL);
     assert(r==0);
-    toku_free_blocknum(h->blocktable, &to_free, h);
+    toku_free_blocknum(h->blocktable, &to_free, h, FALSE);
     return r;
 }
 

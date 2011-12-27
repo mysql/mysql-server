@@ -997,6 +997,16 @@ maybe_merge_pinned_nodes(
     }
 }
 
+static void merge_remove_key_callback(
+    BLOCKNUM* bp, 
+    BOOL for_checkpoint, 
+    void* extra
+    )
+{
+    struct brt_header* h = extra;
+    toku_free_blocknum(h->blocktable, bp, h, for_checkpoint);    
+}
+
 //
 // Takes as input a locked node and a childnum_to_merge
 // As output, two of node's children are merged or rebalanced, and node is unlocked
@@ -1058,16 +1068,6 @@ brt_merge_child(
         flush_this_child(h, node, childb, childnumb, started_at_root, brt_status);
     }
 
-    //
-    //prelock cachetable, do checkpointing
-    //
-    toku_cachetable_prelock(h->cf);
-    BRTNODE dependent_nodes[3];
-    dependent_nodes[0] = node;
-    dependent_nodes[1] = childa;
-    dependent_nodes[2] = childb;
-    checkpoint_nodes(h, 3, dependent_nodes);
-
     // now we have both children pinned in main memory, and cachetable locked,
     // so no checkpoints will occur.
 
@@ -1112,12 +1112,16 @@ brt_merge_child(
     // now we possibly flush the children
     //
     if (did_merge) {
-	BLOCKNUM bn = childb->thisnodename;
-	int rrb = toku_cachetable_unpin_and_remove(h->cf, bn, TRUE);
-	assert(rrb==0);
-	toku_free_blocknum(h->blocktable, &bn, h);
-        // unlock cachetable
-        toku_cachetable_unlock(h->cf);
+        BLOCKNUM bn = childb->thisnodename;
+        // merge_remove_key_callback will free the blocknum
+        int rrb = toku_cachetable_unpin_and_remove(
+            h->cf, 
+            bn, 
+            merge_remove_key_callback, 
+            h
+            );
+        assert(rrb==0);
+
         // for test
         call_flusher_thread_callback(ft_flush_after_merge);
 
@@ -1126,8 +1130,6 @@ brt_merge_child(
         toku_unpin_brtnode_off_client_thread(h, node);
     }
     else {
-        // unlock cachetable
-        toku_cachetable_unlock(h->cf);
         // for test
         call_flusher_thread_callback(ft_flush_after_rebalance);
 

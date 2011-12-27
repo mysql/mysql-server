@@ -57,7 +57,7 @@ run_test (void) {
 
     // give checkpoint thread a chance to start waiting on lock
     sleep(1);
-    r = toku_cachetable_unpin_and_remove(f1, make_blocknum(1), FALSE);
+    r = toku_cachetable_unpin_and_remove(f1, make_blocknum(1), NULL, NULL);
     assert(r==0);
 
     void* ret;

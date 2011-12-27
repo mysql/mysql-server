@@ -1829,26 +1829,6 @@ static void checkpoint_dependent_pairs(
      }
 }
 
-void toku_checkpoint_pairs(
-    CACHEFILE cf,
-    u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
-    CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
-    CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
-    u_int32_t* dependent_fullhash, //array of fullhashes of dependent pairs
-    enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
-    )
-{
-    checkpoint_dependent_pairs(
-        cf->cachetable,
-        num_dependent_pairs,
-        dependent_cfs,
-        dependent_keys,
-        dependent_fullhash,
-        dependent_dirty
-        );
-}
-
-
 int toku_cachetable_put_with_dep_pairs(
     CACHEFILE cachefile, 
     CACHETABLE_GET_KEY_AND_FULLHASH get_key_and_fullhash,
@@ -2373,13 +2353,6 @@ int toku_cachetable_unpin_ct_prelocked_no_flush(CACHEFILE cachefile, CACHEKEY ke
     return cachetable_unpin_internal(cachefile, key, fullhash, dirty, attr, TRUE, FALSE);
 }
 
-void toku_cachetable_prelock(CACHEFILE cf) {
-    cachetable_lock(cf->cachetable);
-}
-
-void toku_cachetable_unlock(CACHEFILE cf) {
-    cachetable_unlock(cf->cachetable);
-}
 static void
 run_unlockers (UNLOCKERS unlockers) {
     while (unlockers) {
@@ -2991,19 +2964,61 @@ toku_cachetable_close (CACHETABLE *ctp) {
     return 0;
 }
 
-int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key, BOOL ct_prelocked) {
+int toku_cachetable_unpin_and_remove (
+    CACHEFILE cachefile, 
+    CACHEKEY key,
+    CACHETABLE_REMOVE_KEY remove_key,
+    void* remove_key_extra
+    ) 
+{
     int r = ENOENT;
     // Removing something already present is OK.
     CACHETABLE ct = cachefile->cachetable;
     PAIR p;
     int count = 0;
-    if (!ct_prelocked) cachetable_lock(ct);
+    cachetable_lock(ct);
     u_int32_t fullhash = toku_cachetable_hash(cachefile, key);
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
         count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
 	    p->dirty = CACHETABLE_CLEAN; // clear the dirty bit.  We're just supposed to remove it.
 	    assert(nb_mutex_writers(&p->nb_mutex));
+
+            //
+            // take care of key removal
+            //
+            BOOL for_checkpoint = p->checkpoint_pending;
+            // now let's wipe out the pending bit, because we are
+            // removing the PAIR
+            p->checkpoint_pending = FALSE;
+            //
+            // Here is a tricky thing.
+            // In the code below, we may release the
+            // cachetable lock if there are blocked writers
+            // on this pair. While the cachetable lock is released,
+            // we may theoretically begin another checkpoint, or start
+            // a cleaner thread.
+            // So, in order for this PAIR to not be marked
+            // for the impending checkpoint, we mark the
+            // PAIR as clean. For the PAIR to not be picked by the
+            // cleaner thread, we mark the cachepressure_size to be 0
+            //
+            p->dirty = CACHETABLE_CLEAN;
+            CACHEKEY key_to_remove = key;
+            p->attr.cache_pressure_size = 0;
+            //
+            // callback for removing the key
+            // for BRTNODEs, this leads to calling
+            // toku_free_blocknum
+            //
+            if (remove_key) {
+                remove_key(
+                    &key_to_remove, 
+                    for_checkpoint, 
+                    remove_key_extra
+                    );
+            }
+            
             nb_mutex_write_unlock(&p->nb_mutex);
             //
             // need to find a way to assert that 
@@ -3050,6 +3065,13 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key, BOOL ct
                     cachetable_lock(ct);
                     assert(nb_mutex_writers(&p->nb_mutex) == 1);
                     BOOL destroyed = FALSE;
+                    // let's also assert that this PAIR was not somehow marked 
+                    // as pending a checkpoint. Above, when calling
+                    // remove_key(), we cleared the dirty bit so that
+                    // this PAIR cannot be marked for checkpoint, so let's
+                    // make sure that our assumption is valid.
+                    assert(!p->checkpoint_pending);
+                    assert(p->attr.cache_pressure_size == 0);
                     // Because we assume it is just the checkpoint thread
                     // that may have been blocked (as argued above),
                     // it is safe to simply remove the PAIR from the 
@@ -3073,7 +3095,7 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key, BOOL ct
     }
  done:
     note_hash_count(count);
-    if (!ct_prelocked) cachetable_unlock(ct);
+    cachetable_unlock(ct);
     return r;
 }
 
@@ -3781,6 +3803,13 @@ toku_cleaner_thread (void *cachetable_v)
         // here we select a PAIR for cleaning
         // look at some number of PAIRS, and 
         // pick what we think is the best one for cleaning
+        //***** IMPORTANT ******
+        // we MUST not pick a PAIR whose rating is 0. We have
+        // numerous assumptions in other parts of the code that
+        // this is the case:
+        //  - this is how rollback nodes and leaf nodes are not selected for cleaning
+        //  - this is how a thread that is calling unpin_and_remove will prevent
+        //     the cleaner thread from picking its PAIR (see comments in that function)
         do {
             if (nb_mutex_users(&ct->cleaner_head->nb_mutex) > 0 || ct->cleaner_head->cachefile->is_flushing) {
                 goto next_pair;
@@ -3800,6 +3829,8 @@ toku_cleaner_thread (void *cachetable_v)
         //
         if (best_pair) {
             nb_mutex_write_lock(&best_pair->nb_mutex, ct->mutex);
+            // verify a key assumption.
+            assert(cleaner_thread_rate_pair(best_pair) > 0);
             // the order of operations for these two pieces is important
             // we must add the background job first, while we still have the
             // cachetable lock and we are assured that the best_pair's

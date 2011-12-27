@@ -248,31 +248,6 @@ toku_pin_brtnode_off_client_thread(
 }
 
 void
-checkpoint_nodes(struct brt_header* h,
-                 u_int32_t num_dependent_nodes,
-                 BRTNODE* dependent_nodes)
-{
-    CACHEFILE dependent_cf[num_dependent_nodes];
-    BLOCKNUM dependent_keys[num_dependent_nodes];
-    u_int32_t dependent_fullhash[num_dependent_nodes];
-    enum cachetable_dirty dependent_dirty_bits[num_dependent_nodes];
-    for (u_int32_t i = 0; i < num_dependent_nodes; i++) {
-        dependent_cf[i] = h->cf;
-        dependent_keys[i] = dependent_nodes[i]->thisnodename;
-        dependent_fullhash[i] = toku_cachetable_hash(h->cf, dependent_nodes[i]->thisnodename);
-        dependent_dirty_bits[i] = (enum cachetable_dirty) dependent_nodes[i]->dirty;
-    }
-    toku_checkpoint_pairs(
-        h->cf,
-        num_dependent_nodes,
-        dependent_cf,
-        dependent_keys,
-        dependent_fullhash,
-        dependent_dirty_bits
-        );
-}
-
-void
 toku_unpin_brtnode_off_client_thread(struct brt_header* h, BRTNODE node)
 {
     int r = toku_cachetable_unpin(
