@@ -356,11 +356,12 @@ static I_List<THD> thread_cache;
 static bool binlog_format_used= false;
 LEX_STRING opt_init_connect, opt_init_slave;
 static mysql_cond_t COND_thread_cache, COND_flush_thread_cache;
+static DYNAMIC_ARRAY all_options;
 
 /* Global variables */
 
 bool opt_bin_log, opt_ignore_builtin_innodb= 0;
-my_bool opt_log, opt_slow_log, debug_assert_if_crashed_table= 0, opt_help= 0;
+my_bool opt_log, opt_slow_log, debug_assert_if_crashed_table= 0, opt_help= 0, opt_abort;
 ulonglong log_output_options;
 my_bool opt_userstat_running;
 my_bool opt_log_queries_not_using_indexes= 0;
@@ -1177,8 +1178,9 @@ bool mysqld_embedded=1;
 static my_bool plugins_are_initialized= FALSE;
 
 #ifndef DBUG_OFF
-static const char* default_dbug_option, *current_dbug_option;
+static const char* default_dbug_option;
 #endif
+static const char *current_dbug_option;
 #ifdef HAVE_LIBWRAP
 const char *libwrapName= NULL;
 int allow_severity = LOG_INFO;
@@ -1709,7 +1711,7 @@ extern "C" void unireg_abort(int exit_code)
     usage();
   if (exit_code)
     sql_print_error("Aborting\n");
-  clean_up(!opt_help && (exit_code || !opt_bootstrap)); /* purecov: inspected */
+  clean_up(!opt_abort && (exit_code || !opt_bootstrap)); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
   mysqld_exit(exit_code);
 }
@@ -1725,9 +1727,8 @@ static void mysqld_exit(int exit_code)
   mysql_audit_finalize();
   clean_up_mutexes();
   clean_up_error_log_mutex();
-  my_end((opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0) | MY_DONT_FREE_DBUG);
+  my_end((opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0));
   shutdown_performance_schema();        // we do it as late as possible
-  DBUG_END();                           // but this - even later
   exit(exit_code); /* purecov: inspected */
 }
 
@@ -1802,6 +1803,7 @@ void clean_up(bool print_message)
   free_global_client_stats();
   free_global_table_stats();
   free_global_index_stats();
+  delete_dynamic(&all_options);
 #ifdef HAVE_REPLICATION
   end_slave_list();
 #endif
@@ -3645,7 +3647,7 @@ static int init_common_variables()
   set_server_version();
 
 #ifndef EMBEDDED_LIBRARY
-  if (opt_help && !opt_verbose)
+  if (opt_abort && !opt_verbose)
     unireg_abort(0);
 #endif /*!EMBEDDED_LIBRARY*/
 
@@ -4206,7 +4208,7 @@ static int init_server_components()
     help information. Since the implementation of plugin server
     variables the help output is now written much later.
   */
-  if (opt_error_log && !opt_help)
+  if (opt_error_log && !opt_abort)
   {
     if (!log_error_file_ptr[0])
       fn_format(log_error_file, pidfile_name, mysql_data_home, ".err",
@@ -4365,7 +4367,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   if (plugin_init(&remaining_argc, remaining_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
-                  (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
+                  (opt_abort ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
   {
     sql_print_error("Failed to initialize plugins.");
     unireg_abort(1);
@@ -4409,7 +4411,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     }
   }
 
-  if (opt_help)
+  if (opt_abort)
     unireg_abort(0);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
@@ -4914,7 +4916,7 @@ int mysqld_main(int argc, char **argv)
     We have enough space for fiddling with the argv, continue
   */
   check_data_home(mysql_real_data_home);
-  if (my_setwd(mysql_real_data_home, opt_help ? 0 : MYF(MY_WME)) && !opt_help)
+  if (my_setwd(mysql_real_data_home, opt_abort ? 0 : MYF(MY_WME)) && !opt_abort)
     unireg_abort(1);				/* purecov: inspected */
 
   if ((user_info= check_user(mysqld_user)))
@@ -6159,8 +6161,6 @@ error:
   Handle start options
 ******************************************************************************/
 
-DYNAMIC_ARRAY all_options;
-
 /**
   System variables are automatically command-line options (few
   exceptions are documented in sys_var.h), so don't need
@@ -6172,6 +6172,11 @@ struct my_option my_long_options[]=
   {"help", '?', "Display this help and exit.", 
    &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
+#ifdef DBUG_OFF
+  {"debug", '#', "Built in DBUG debugger. Disabled in this build.",
+   &current_dbug_option, &current_dbug_option, 0, GET_STR, OPT_ARG,
+   0, 0, 0, 0, 0, 0},
+#endif
 #ifdef HAVE_REPLICATION
   {"debug-abort-slave-event-count", 0,
    "Option used by mysql-test for debugging and testing of replication.",
@@ -7203,7 +7208,6 @@ static void print_help()
   my_print_variables((my_option*) all_options.buffer);
 
   free_root(&mem_root, MYF(0));
-  delete_dynamic(&all_options);
 }
 
 static void usage(void)
@@ -7471,8 +7475,8 @@ mysqld_get_one_option(int optid,
                       char *argument)
 {
   switch(optid) {
-#ifndef DBUG_OFF
   case '#':
+#ifndef DBUG_OFF
     if (!argument)
       argument= (char*) default_dbug_option;
     if (argument[0] == '0' && !argument[1])
@@ -7485,8 +7489,10 @@ mysqld_get_one_option(int optid,
       break;
     DBUG_SET_INITIAL(argument);
     opt_endinfo=1;				/* unireg: memory allocation */
-    break;
+#else
+    sql_print_warning("'%s' is disabled in this build", opt->name);
 #endif
+    break;
   case OPT_DEPRECATED_OPTION:
     sql_print_warning("'%s' is deprecated. It does nothing and exists only "
                       "for compatiblity with old my.cnf files.",
@@ -7529,7 +7535,8 @@ mysqld_get_one_option(int optid,
 #ifndef EMBEDDED_LIBRARY
   case 'V':
     print_version();
-    exit(0);
+    opt_abort= 1;                    // Abort after parsing all options
+    break;
 #endif /*EMBEDDED_LIBRARY*/
   case 'W':
     if (!argument)
@@ -7872,6 +7879,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   if (!opt_help)
     delete_dynamic(&all_options);
+  else
+    opt_abort= 1;
 
   /* Add back the program name handle_options removes */
   (*argc_ptr)++;
@@ -8272,7 +8281,7 @@ static int test_if_case_insensitive(const char *dir_name)
   if ((file= mysql_file_create(key_file_casetest,
                                buff, 0666, O_RDWR, MYF(0))) < 0)
   {
-    if (!opt_help)
+    if (!opt_abort)
       sql_print_warning("Can't create test file %s", buff);
     DBUG_RETURN(-1);
   }

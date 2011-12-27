@@ -1398,12 +1398,12 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
   nd0= nd;
   if (s < end - 1 && c == '.')
   {
-    c= *++s;
+    ++s;
     if (!nd)
     {
-      for (; s < end && c == '0'; c= *++s)
+      for (; s < end && (c= *s) == '0'; ++s)
         nz++;
-      if (s < end && c > '0' && c <= '9')
+      if (s < end && (c= *s) > '0' && c <= '9')
       {
         s0= s;
         nf+= nz;
@@ -1412,7 +1412,7 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
       }
       goto dig_done;
     }
-    for (; s < end && c >= '0' && c <= '9'; c = *++s)
+    for (; s < end && (c= *s) >= '0' && c <= '9'; ++s)
     {
  have_dig:
       nz++;
