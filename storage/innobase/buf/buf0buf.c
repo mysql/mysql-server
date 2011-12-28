@@ -989,11 +989,8 @@ buf_chunk_init(
 	for (i = chunk->size; i--; ) {
 
 		buf_block_init(buf_pool, block, frame);
+		UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 
-#ifdef HAVE_purify
-		/* Wipe contents of frame to eliminate a Purify warning */
-		memset(block->frame, '\0', UNIV_PAGE_SIZE);
-#endif
 		/* Add the block to the free list */
 		UT_LIST_ADD_LAST(list, buf_pool->free, (&block->page));
 
