@@ -1805,4 +1805,27 @@ MAX(a)
 NULL
 DROP TABLE t1,t2;
 #
+# Bug #879860: MIN/MAX for subquery returning empty set 
+#
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a int NOT NULL);
+INSERT INTO t2 VALUES (10);
+CREATE TABLE t3 ( a int, b int);
+INSERT INTO t3 VALUES (19,1), (20,5);
+EXPLAIN EXTENDED
+SELECT (SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b) FROM t3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1276	Field or reference 'test.t3.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	select (select min('1') from `test`.`t1` join `test`.`t2` where ('10' = `test`.`t3`.`b`)) AS `(SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b)` from `test`.`t3`
+SELECT (SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b) FROM t3;
+(SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b)
+NULL
+NULL
+DROP TABLE t1,t2,t3;
+#
 End of 5.2 tests
