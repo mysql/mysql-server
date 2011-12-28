@@ -656,7 +656,8 @@ static int create_worker(thread_group_t *thread_group)
     DBUG_RETURN(-1);
   }
 
-  err= pthread_create(&thread_id, thread_group->pthread_attr, worker_main, thread_group);
+  err= mysql_thread_create(key_worker_thread, &thread_id, 
+         thread_group->pthread_attr, worker_main, thread_group);
   if (!err)
   {
     thread_group->pending_thread_start_count++;
