@@ -92,13 +92,13 @@ check-default: $(TARGET_TDB)
 	./$(TARGET_TDB) $(VERBVERBOSE) $(SUMMARIZE_CMD)
 # The small one can run valgrind
 check-default-small: $(TARGET_TDB)
-	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) 1 $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) --env default.small $(VERBVERBOSE) 1 $(SUMMARIZE_CMD)
 
 check-x: $(TARGET_TDB)
 	./$(TARGET_TDB) $(VERBVERBOSE) -x --xcount 1000 --periter 100000 --env x.dir 10 $(SUMMARIZE_CMD)
 # The small one can run valgrind
 check-x-small: $(TARGET_TDB)
-	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) -x --xcount 100  --periter 10000  --env x.dir 1 $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) -x --xcount 100  --periter 10000  --env x.dir.small 1 $(SUMMARIZE_CMD)
 
 
 # check-scanrace: VGRIND=tcheck_cl -w 140 -s 4 -p nothreads,delay=2,stall=900,noverbose
