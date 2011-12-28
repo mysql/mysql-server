@@ -77,7 +77,7 @@ endif
 build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB) $(WINDOWS_BDB_LIB_NAME) $(TXNCOMMIT_BDB)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB) $(MULTIBENCH_TDB) $(PTQUERY_TDB) $(TXNCOMMIT_TDB)
 
-check: check-default check-rowsize check-xfast check-x check-no-rollback check-4G child.benchmark.dir
+check: check-default check-default-small check-rowsize check-xfast check-x check-x-small check-no-rollback check-4G child.benchmark.dir
 
 SUPPORT_KEYSIZE=$$((3*1024)) 	# at least 3KiB
 SUPPORT_ROWSIZE=$$((80*1024))  	# at least 80KiB
@@ -89,10 +89,17 @@ check-rowsize: $(TARGET_TDB)
           $(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.keyval.dir               --keysize $(SUPPORT_KEYSIZE) --valsize $(SUPPORT_ROWSIZE) --periter 256 1 ) $(SUMMARIZE_CMD)
 
 check-default: $(TARGET_TDB)
-	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) $(SUMMARIZE_CMD)
+	./$(TARGET_TDB) $(VERBVERBOSE) $(SUMMARIZE_CMD)
+# The small one can run valgrind
+check-default-small: $(TARGET_TDB)
+	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) 1 $(SUMMARIZE_CMD)
 
 check-x: $(TARGET_TDB)
-	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) -x --xcount 1000 --periter 100000 --env x.dir 10 $(SUMMARIZE_CMD)
+	./$(TARGET_TDB) $(VERBVERBOSE) -x --xcount 1000 --periter 100000 --env x.dir 10 $(SUMMARIZE_CMD)
+# The small one can run valgrind
+check-x-small: $(TARGET_TDB)
+	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) -x --xcount 100  --periter 10000  --env x.dir 1 $(SUMMARIZE_CMD)
+
 
 # check-scanrace: VGRIND=tcheck_cl -w 140 -s 4 -p nothreads,delay=2,stall=900,noverbose
 check-scanrace: $(SCANRACE_TDB) $(TARGET_TDB)
