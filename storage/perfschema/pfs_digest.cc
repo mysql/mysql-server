@@ -466,20 +466,13 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
           digest_storage->m_token_count-= 1;
           token= TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE;
         }
-        else if((current[-2] == TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE) &&
+        else if((current[-2] == TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE ||
+                 current[-2] == TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE) &&
                 (current[-1] == ','))
         {
           /*
             REDUCE:
               "(#" , "#" => "(#,#" 
-          */
-          digest_storage->m_token_count-= 2;
-          token= TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE;
-        }
-        else if((current[-2] == TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE) &&
-                (current[-1] == ','))
-        {
-          /*
             REDUCE:
               "(#,#" , "#" => "(#,#"
           */
@@ -491,50 +484,60 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
     }
     case ')':
     {
-      if(current[-1] == TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE) 
-      { 
-        /*
-          REDUCE:
-            "(#" , ")" => "(#)"
-        */
-        digest_storage->m_token_count-= 1;
-        token= TOK_PFS_ROW_SINGLE_VALUE;
-      
-        if((current[-3] == TOK_PFS_ROW_SINGLE_VALUE ||
-            current[-3] == TOK_PFS_ROW_SINGLE_VALUE_LIST) &&
-           (current[-2] == ','))
-        {
-          /*
-            REDUCE:
-              "(#)" , "(#)" => "(#),(#)"
-            REDUCE:
-              "(#),(#)" , "(#)" => "(#),(#)"
-          */
-          digest_storage->m_token_count-= 2;
-          token= TOK_PFS_ROW_SINGLE_VALUE_LIST;
-        }
-      }
-
-      else if(current[-1] == TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE)
+      if (digest_storage->m_token_count > 0)
       {
-        /*
-          REDUCE:
-            "(#,#" , ")" => "(#,#)"
-        */
-        digest_storage->m_token_count-= 1;
-        token= TOK_PFS_ROW_MULTIPLE_VALUE;
-        if((current[-3] == TOK_PFS_ROW_MULTIPLE_VALUE ||
-            current[-3] == TOK_PFS_ROW_MULTIPLE_VALUE_LIST) &&
-           (current[-2] == ','))
+        if(current[-1] == TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE) 
+        { 
+          /*
+            REDUCE:
+              "(#" , ")" => "(#)"
+          */
+          digest_storage->m_token_count-= 1;
+          token= TOK_PFS_ROW_SINGLE_VALUE;
+        
+          if (digest_storage->m_token_count >= 2)
+          {
+            if((current[-3] == TOK_PFS_ROW_SINGLE_VALUE ||
+                current[-3] == TOK_PFS_ROW_SINGLE_VALUE_LIST) &&
+               (current[-2] == ','))
+            {
+              /*
+                REDUCE:
+                  "(#)" , "(#)" => "(#),(#)"
+                REDUCE:
+                  "(#),(#)" , "(#)" => "(#),(#)"
+              */
+              digest_storage->m_token_count-= 2;
+              token= TOK_PFS_ROW_SINGLE_VALUE_LIST;
+            }
+          }
+        }
+  
+        else if(current[-1] == TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE)
         {
           /*
             REDUCE:
-              "(#,#)" , "(#,#)" ) => "(#,#),(#,#)"
-            REDUCE:
-              "(#,#),(#,#)" , "(#,#)" ) => "(#,#),(#,#)"
+              "(#,#" , ")" => "(#,#)"
           */
-          digest_storage->m_token_count-= 2;
-          token= TOK_PFS_ROW_MULTIPLE_VALUE_LIST;
+          digest_storage->m_token_count-= 1;
+          token= TOK_PFS_ROW_MULTIPLE_VALUE;
+  
+          if (digest_storage->m_token_count >= 2)
+          {
+            if((current[-3] == TOK_PFS_ROW_MULTIPLE_VALUE ||
+                current[-3] == TOK_PFS_ROW_MULTIPLE_VALUE_LIST) &&
+               (current[-2] == ','))
+            {
+              /*
+                REDUCE:
+                  "(#,#)" , "(#,#)" ) => "(#,#),(#,#)"
+                REDUCE:
+                  "(#,#),(#,#)" , "(#,#)" ) => "(#,#),(#,#)"
+              */
+              digest_storage->m_token_count-= 2;
+              token= TOK_PFS_ROW_MULTIPLE_VALUE_LIST;
+            }
+          }
         }
       }
       break;
