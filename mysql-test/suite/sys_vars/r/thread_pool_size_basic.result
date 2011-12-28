@@ -1,7 +1,7 @@
 SET @start_global_value = @@global.thread_pool_size;
 select @@global.thread_pool_size;
 @@global.thread_pool_size
-1
+#
 select @@session.thread_pool_size;
 ERROR HY000: Variable 'thread_pool_size' is a GLOBAL variable
 show global variables like 'thread_pool_size';
