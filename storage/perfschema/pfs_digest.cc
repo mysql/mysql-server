@@ -416,6 +416,7 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
     return;
   }
 
+  /* Take very last token from collected till now. */
   uint *current= & digest_storage->m_token_array[digest_storage->m_token_count];
 
   switch (token)
@@ -439,21 +440,15 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
 
       if (digest_storage->m_token_count >= 2)
       {
-        if ((current[-2] == TOK_PFS_GENERIC_VALUE) &&
+        if ((current[-2] == TOK_PFS_GENERIC_VALUE ||
+             current[-2] == TOK_PFS_GENERIC_VALUE_LIST) &&
             (current[-1] == ','))
         {
           /*
             REDUCE:
             TOK_PFS_GENERIC_VALUE_LIST :=
               TOK_PFS_GENERIC_VALUE ',' TOK_PFS_GENERIC_VALUE
-          */
-          digest_storage->m_token_count-= 2;
-          token= TOK_PFS_GENERIC_VALUE_LIST;
-        }
-        else if ((current[-2] == TOK_PFS_GENERIC_VALUE_LIST) &&
-                 (current[-1] == ','))
-        {
-          /*
+            
             REDUCE:
             TOK_PFS_GENERIC_VALUE_LIST :=
               TOK_PFS_GENERIC_VALUE_LIST ',' TOK_PFS_GENERIC_VALUE
@@ -461,16 +456,89 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
           digest_storage->m_token_count-= 2;
           token= TOK_PFS_GENERIC_VALUE_LIST;
         }
+
+        else if(current[-1] == '(')
+        {
+          /*
+            REDUCE:
+              "(" , "#" => "(#" 
+          */
+          digest_storage->m_token_count-= 1;
+          token= TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE;
+        }
+        else if((current[-2] == TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE) &&
+                (current[-1] == ','))
+        {
+          /*
+            REDUCE:
+              "(#" , "#" => "(#,#" 
+          */
+          digest_storage->m_token_count-= 2;
+          token= TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE;
+        }
+        else if((current[-2] == TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE) &&
+                (current[-1] == ','))
+        {
+          /*
+            REDUCE:
+              "(#,#" , "#" => "(#,#"
+          */
+          digest_storage->m_token_count-= 2;
+          token= TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE;
+        }
       }
       break;
     }
-#ifdef TODO
-    case xxx:
+    case ')':
     {
-      /* Code for reduces involving token xxx goes here. */
+      if(current[-1] == TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE) 
+      { 
+        /*
+          REDUCE:
+            "(#" , ")" => "(#)"
+        */
+        digest_storage->m_token_count-= 1;
+        token= TOK_PFS_ROW_SINGLE_VALUE;
+      
+        if((current[-3] == TOK_PFS_ROW_SINGLE_VALUE ||
+            current[-3] == TOK_PFS_ROW_SINGLE_VALUE_LIST) &&
+           (current[-2] == ','))
+        {
+          /*
+            REDUCE:
+              "(#)" , "(#)" => "(#),(#)"
+            REDUCE:
+              "(#),(#)" , "(#)" => "(#),(#)"
+          */
+          digest_storage->m_token_count-= 2;
+          token= TOK_PFS_ROW_SINGLE_VALUE_LIST;
+        }
+      }
+
+      else if(current[-1] == TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE)
+      {
+        /*
+          REDUCE:
+            "(#,#" , ")" => "(#,#)"
+        */
+        digest_storage->m_token_count-= 1;
+        token= TOK_PFS_ROW_MULTIPLE_VALUE;
+        if((current[-3] == TOK_PFS_ROW_MULTIPLE_VALUE ||
+            current[-3] == TOK_PFS_ROW_MULTIPLE_VALUE_LIST) &&
+           (current[-2] == ','))
+        {
+          /*
+            REDUCE:
+              "(#,#)" , "(#,#)" ) => "(#,#),(#,#)"
+            REDUCE:
+              "(#,#),(#,#)" , "(#,#)" ) => "(#,#),(#,#)"
+          */
+          digest_storage->m_token_count-= 2;
+          token= TOK_PFS_ROW_MULTIPLE_VALUE_LIST;
+        }
+      }
       break;
     }
-#endif
   }
 
   /*
