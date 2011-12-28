@@ -1,0 +1,69 @@
+####################################
+# SETUP
+####################################
+create database statements_digest;
+use statements_digest;
+create table t1(a int);
+create table t2(a int);
+create table t3(a int, b int);
+create table t4(a int, b int);
+create table t5(a int, b int, c int);
+####################################
+# EXECUTION
+####################################
+update performance_schema.setup_consumers
+set enabled='YES' where name='statements_digest';
+select 1 from t1;
+1
+select 1,2 from t1;
+1	2
+select 1, 2, 3, 4 from t1;
+1	2	3	4
+select 1 from t2;
+1
+select 1,2 from t2;
+1	2
+select 1, 2, 3, 4 from t2;
+1	2	3	4
+insert into t1 values (1);
+insert into t2 values (1);
+insert into t3 values (1, 2);
+insert into t4 values (1, 2);
+insert into t5 values (1, 2, 3);
+insert into t1 values (1), (2), (3);
+insert into t1 values (1), (2), (3), (4);
+insert into t3 values (1, 2), (3, 4), (5, 6);
+insert into t5 values (1, 2, 3), (4, 5, 6), (7, 8, 9);
+####################################
+# QUERYING PS STATEMENT DIGEST
+####################################
+use performance_schema;
+select DIGEST, DIGEST_TEXT, COUNT_STAR from events_statements_summary_by_digest;
+DIGEST	DIGEST_TEXT	COUNT_STAR
+d653d1281782b5e6	SHOW SLAVE STATUS  	1
+09f222399f1ff5cc	SELECT # = #  	1
+169ffc24ec704d77	CREATE DEFINER = ID @ ID PROCEDURE ID ( ) BEGIN IF ( ( SELECT COUNT ( * ) FROM ID . ID WHERE ENGINE = # AND ID = # ) = # ) THEN BEGIN BEGIN DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END ; SELECT * FROM ID . ID WHERE ID = # ORDER BY NAME ; END ; SELECT * FROM ID . ID ORDER BY NAME ; SELECT * FROM ID . ID ORDER BY SYSTEM_USER , HOST ; SELECT * FROM ID . ID ORDER BY ID , ID , ID ; END ; END IF ; END  	2
+4b76d252a0165dc8	SELECT ID ( ) LIKE # AS #  	1
+9f5fb719d3e76d05	SELECT COUNT ( * ) FROM ID . ID WHERE ( ID = # OR ID = # ) AND ENGINE = #  	1
+5057d979ab43ca33	CREATE SCHEMA ID  	1
+e465b463797ef48f	USE ID  	2
+6bd5a0ecf894b7da	CREATE TABLE ID ( ID INTEGER )  	2
+8ac419795130a28b	CREATE TABLE ID ( ID INTEGER , ID INTEGER )  	2
+0e486b6cac8061e8	CREATE TABLE ID ( ID INTEGER , ID INTEGER , ID INTEGER )  	1
+5c8520ef69799e72	UPDATE ID . ID SET ID = # WHERE NAME = #  	1
+89098056976d499b	SELECT # FROM ID  	2
+67d4fdbc91c296f6	SELECT #,# FROM ID  	4
+fcca45f32a578e33	INSERT INTO ID VALUES (#)  	2
+de4735d2ec38cc75	INSERT INTO ID VALUES (#,#)  	3
+aefa0a1987e628a2	INSERT INTO ID VALUES (#),(#)  	2
+078fc2c78d15c811	INSERT INTO ID VALUES (#,#),(#,#)  	2
+####################################
+# CLEANUP
+####################################
+use statements_digest;
+drop table if exists t1;
+drop table if exists t2;
+drop table if exists t3;
+drop table if exists t4;
+drop table if exists t5;
+drop database if exists statements_digest;
