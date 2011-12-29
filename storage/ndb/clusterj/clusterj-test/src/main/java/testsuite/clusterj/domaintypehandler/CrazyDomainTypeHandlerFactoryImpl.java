@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -196,6 +196,10 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                 public void objectSetKeys(Object keys, Object instance) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
+
+                public void setUnsupported(String reason) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+               }
             };
         } else {
             return null;

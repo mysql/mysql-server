@@ -255,7 +255,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
             } else {
                 objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
                 error(
-                    local.message("ERR_Unsupported_Field_Type", type.getName()));
+                    local.message("ERR_Unsupported_Field_Type", type.getName(), name));
             }
         }
         // Handle indexes. One index can be annotated on this field.
@@ -438,7 +438,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     this.type = Byte.class;
                     break;
                 case Undefined:
-                    error(local.message("ERR_Unsupported_Field_Type", "Undefined"));
+                    error(local.message("ERR_Unsupported_Field_Type", "Undefined", name));
                     objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
                     break;
                 case Unsigned:
@@ -458,7 +458,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     this.type = Short.class;
                     break;
                 default:
-                    error(local.message("ERR_Unsupported_Field_Type", this.storeColumnType));
+                    error(local.message("ERR_Unsupported_Field_Type", this.storeColumnType, name));
                     objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
             }
         }
