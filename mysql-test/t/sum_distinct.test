@@ -93,3 +93,15 @@ SELECT SUM(DISTINCT id) FROM t1;
 SELECT SUM(DISTINCT id % 11) FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #777654: empty subselect in FROM clause returning  
+--echo #              SUM(DISTINCT) over non-nullable field 
+--echo #
+
+CREATE TABLE t1 (a int NOT NULL) ;
+
+SELECT SUM(DISTINCT a) FROM t1;
+SELECT * FROM (SELECT SUM(DISTINCT a) FROM t1) AS t;
+
+DROP TABLE t1;
