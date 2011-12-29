@@ -3816,9 +3816,8 @@ retry:
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
-	prebuilt = row_create_prebuilt(ib_table);
+	prebuilt = row_create_prebuilt(ib_table, table->s->reclength);
 
-	prebuilt->mysql_row_len = table->s->reclength;
 	prebuilt->default_rec = table->s->default_values;
 	ut_ad(prebuilt->default_rec);
 
