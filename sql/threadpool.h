@@ -41,6 +41,7 @@ extern TP_STATISTICS tp_stats;
 extern void tp_set_min_threads(uint val);
 extern void tp_set_max_threads(uint val);
 extern int tp_set_threadpool_size(uint val);
+extern void tp_set_threadpool_stall_limit(uint val);
 
 /* Activate threadpool scheduler */
 extern void tp_scheduler(void);

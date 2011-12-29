@@ -1324,6 +1324,7 @@ bool tp_init()
   DBUG_RETURN(0);
 }
 
+
 void tp_end()
 {
   DBUG_ENTER("tp_end");
@@ -1364,4 +1365,14 @@ int tp_set_threadpool_size(uint size)
   }
   group_count= size;
   return 0;
+}
+
+void tp_set_threadpool_stall_limit(uint limit)
+{
+  if (!started)
+    return;
+  mysql_mutex_lock(&(pool_timer.mutex));
+  pool_timer.tick_interval= limit;
+  mysql_cond_signal(&(pool_timer.cond));
+  mysql_mutex_unlock(&(pool_timer.mutex));
 }

@@ -2211,6 +2211,12 @@ static bool fix_threadpool_size(sys_var*, THD*, enum_var_type)
   tp_set_threadpool_size(threadpool_size);
   return false;
 }
+
+
+static bool fix_threadpool_stall_limit(sys_var*, THD*, enum_var_type)
+{
+  tp_set_threadpool_stall_limit(threadpool_size);
+}
 #endif
 
 #ifdef _WIN32
@@ -2241,12 +2247,14 @@ static Sys_var_uint Sys_threadpool_size(
 );
 static Sys_var_uint Sys_threadpool_stall_limit(
  "thread_pool_stall_limit",
- "Maximum query execution time before in milliseconds,"
+ "Maximum query execution time in milliseconds,"
  "before an executing non-yielding thread is considered stalled."
  "If a worker thread is stalled, additional worker thread "
  "may be created to handle remaining clients.",
   GLOBAL_VAR(threadpool_stall_limit), CMD_LINE(REQUIRED_ARG),
-  VALID_RANGE(60, UINT_MAX), DEFAULT(500), BLOCK_SIZE(1)
+  VALID_RANGE(60, UINT_MAX), DEFAULT(500), BLOCK_SIZE(1),
+  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), 
+  ON_UPDATE(fix_threadpool_stall_limit)
 );
 #endif /* !WIN32 */
 static Sys_var_uint Sys_threadpool_max_threads(
