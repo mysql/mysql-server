@@ -2726,9 +2726,9 @@ sub setup_vardir() {
            <../plugin/*/.libs/*.so>,
            <../plugin/*/*/.libs/*.so>,
            <../sql/.libs/*.so>,
-           <../storage/*/*.so>,
-           <../plugin/*/*.so>,
-           <../sql/*.so>)
+           <$bindir/storage/*/*.so>,
+           <$bindir/plugin/*/*.so>,
+           <$bindir/sql/*.so>)
       {
         my $pname=basename($_);
         symlink rel2abs($_), "$plugindir/$pname";

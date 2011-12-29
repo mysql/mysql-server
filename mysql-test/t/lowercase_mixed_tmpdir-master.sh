@@ -1,3 +1,4 @@
+#!/bin/sh
 # This test requires a non-lowercase tmpdir directory on a case-sensitive
 # filesystem.
 
