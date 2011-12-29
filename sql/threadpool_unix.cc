@@ -470,7 +470,10 @@ static void* timer_thread(void *param)
     mysql_mutex_lock(&timer->mutex);
     int err = mysql_cond_timedwait(&timer->cond, &timer->mutex, &ts);
     if (timer->shutdown)
+    {
+      mysql_mutex_unlock(&timer->mutex);
       break;
+    }
     if (err == ETIMEDOUT)
     {
       timer->current_microtime= microsecond_interval_timer();
@@ -488,6 +491,8 @@ static void* timer_thread(void *param)
     }
     mysql_mutex_unlock(&timer->mutex);
   }
+
+  mysql_mutex_destroy(&timer->mutex);
   DBUG_POP();
   my_thread_end();
   return NULL;
