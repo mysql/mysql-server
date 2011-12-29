@@ -1343,6 +1343,9 @@ void tp_end()
 int tp_set_threadpool_size(uint size)
 {
   bool success= true;
+  if (!started)
+    return 0;
+
   for(uint i=0; i< size; i++)
   {
     thread_group_t *group= &all_groups[i];
