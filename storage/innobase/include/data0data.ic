@@ -356,15 +356,15 @@ dtuple_t*
 dtuple_create(
 /*==========*/
 	mem_heap_t*	heap,	/*!< in: memory heap where the tuple
-				is created */
+				is created, DTUPLE_EST_ALLOC(n_fields)
+				bytes will be allocated from this heap */
 	ulint		n_fields) /*!< in: number of fields */
 {
 	dtuple_t*	tuple;
 
 	ut_ad(heap);
 
-	tuple = (dtuple_t*) mem_heap_alloc(heap, sizeof(dtuple_t)
-					   + n_fields * sizeof(dfield_t));
+	tuple = (dtuple_t*) mem_heap_alloc(heap, DTUPLE_EST_ALLOC(n_fields));
 	tuple->info_bits = 0;
 	tuple->n_fields = n_fields;
 	tuple->n_fields_cmp = n_fields;

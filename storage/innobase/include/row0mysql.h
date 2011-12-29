@@ -168,7 +168,9 @@ UNIV_INTERN
 row_prebuilt_t*
 row_create_prebuilt(
 /*================*/
-	dict_table_t*	table);	/*!< in: Innobase table handle */
+	dict_table_t*	table,		/*!< in: Innobase table handle */
+	ulint		mysql_row_len);	/*!< in: length in bytes of a row in
+					the MySQL format */
 /********************************************************************//**
 Free a prebuilt struct for a MySQL table handle. */
 UNIV_INTERN
