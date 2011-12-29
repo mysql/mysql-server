@@ -29,6 +29,8 @@
 #define START_TOKEN_NUMBER 258
 
 extern bool flag_statements_digest;
+extern unsigned int statements_digest_size;
+extern unsigned int digest_index;
 struct PFS_thread;
 
 /**

@@ -30,6 +30,7 @@ create table t5(a int, b int, c int);
 update performance_schema.setup_consumers
   set enabled='YES' where name='statements_digest';
 
+truncate table performance_schema.events_statements_summary_by_digest;
 # SQL Queries to test normalizations
 select 1 from t1;
 select 1,2 from t1;

@@ -41,7 +41,7 @@ bool flag_statements_digest= true;
   Current index in Stat array where new record is to be inserted.
   index 0 is reserved for "all else" case when entire array is full.
 */
-int digest_index= 1;
+unsigned int digest_index= 1;
 
 static LF_HASH digest_hash;
 static bool digest_hash_inited= false;
@@ -337,6 +337,7 @@ static void get_digest_text(char* digest_text,
       digest_text++;
     }
   }
+  *digest_text= '\0';
 }
 
 struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
