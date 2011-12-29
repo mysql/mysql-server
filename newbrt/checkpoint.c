@@ -77,7 +77,11 @@ static BOOL initialized = FALSE;     // sanity check
 
 static int 
 multi_operation_lock_init(void) {
-    int r = toku_pthread_rwlock_init(&multi_operation_lock, NULL); 
+    pthread_rwlockattr_t attr;
+    pthread_rwlockattr_init(&attr);
+    pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+    int r = toku_pthread_rwlock_init(&multi_operation_lock, &attr); 
+    pthread_rwlockattr_destroy(&attr);
     assert(r == 0);
     return r;
 }
