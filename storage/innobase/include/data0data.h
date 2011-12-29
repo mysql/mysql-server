@@ -238,6 +238,20 @@ creating a new dtuple_t object */
 	(sizeof(dtuple_t) + (n_fields) * sizeof(dfield_t))
 
 /**********************************************************//**
+Creates a data tuple from an already allocated chunk of memory.
+The size of the chunk must be at least DTUPLE_EST_ALLOC(n_fields).
+The default value for number of fields used in record comparisons
+for this tuple is n_fields.
+@return	created tuple (inside buf) */
+UNIV_INLINE
+dtuple_t*
+dtuple_create_from_mem(
+/*===================*/
+	void*	buf,		/*!< in, out: buffer to use */
+	ulint	buf_size,	/*!< in: buffer size */
+	ulint	n_fields);	/*!< in: number of fields */
+
+/**********************************************************//**
 Creates a data tuple to a memory heap. The default value for number
 of fields used in record comparisons for this tuple is n_fields.
 @return	own: created tuple */
