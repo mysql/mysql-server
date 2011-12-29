@@ -138,6 +138,8 @@ my_bool my_net_init(NET *net, Vio* vio)
   net->net_skip_rest_factor= 0;
   net->last_errno=0;
   net->unused= 0;
+  net->read_timeout=0;
+  net->write_timeout=0;
 
   if (vio != 0)					/* If real connection */
   {

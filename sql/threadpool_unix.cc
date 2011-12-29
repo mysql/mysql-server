@@ -203,6 +203,7 @@ static int io_poll_create()
 int io_poll_associate_fd(int pollfd, int fd, void *data)
 {
   struct epoll_event ev;
+  ev.data.u64= 0; /* Keep valgrind happy */
   ev.data.ptr= data;
   ev.events=  EPOLLIN|EPOLLET|EPOLLERR|EPOLLRDHUP|EPOLLONESHOT;
   return epoll_ctl(pollfd, EPOLL_CTL_ADD,  fd, &ev);
@@ -213,6 +214,7 @@ int io_poll_associate_fd(int pollfd, int fd, void *data)
 int io_poll_start_read(int pollfd, int fd, void *data)
 {
   struct epoll_event ev;
+  ev.data.u64= 0; /* Keep valgrind happy */
   ev.data.ptr= data;
   ev.events=  EPOLLIN|EPOLLET|EPOLLERR|EPOLLRDHUP|EPOLLONESHOT;
   return epoll_ctl(pollfd, EPOLL_CTL_MOD,  fd, &ev); 
