@@ -3927,9 +3927,7 @@ extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
   return sqlcom_can_generate_row_events(thd);
 }
 
-#ifdef NOT_USED /* we'll do the correctly instead */
-extern "C" void thd_pool_wait_begin(MYSQL_THD thd, int wait_type);
-extern "C" void thd_pool_wait_end(MYSQL_THD thd);
+
 
 /*
   Interface for MySQL Server, plugins and storage engines to report
@@ -3954,7 +3952,10 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
 */
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
-  MYSQL_CALLBACK(thd->scheduler, thd_wait_begin, (thd, wait_type));
+  if(!thd) 
+    thd= current_thd;
+  if (thd)
+    MYSQL_CALLBACK(thd->scheduler, thd_wait_begin, (thd, wait_type));
 }
 
 /**
@@ -3965,21 +3966,12 @@ extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 */
 extern "C" void thd_wait_end(MYSQL_THD thd)
 {
-  MYSQL_CALLBACK(thd->scheduler, thd_wait_end, (thd));
-}
-#else
-extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
-{
-  /* do NOTHING for the embedded library */
-  return;
+  if(!thd) 
+    thd= current_thd;
+  if (thd)
+    MYSQL_CALLBACK(thd->scheduler, thd_wait_end, (thd));
 }
 
-extern "C" void thd_wait_end(MYSQL_THD thd)
-{
-  /* do NOTHING for the embedded library */
-  return;
-}
-#endif
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
 /****************************************************************************
