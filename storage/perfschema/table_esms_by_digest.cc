@@ -196,7 +196,27 @@ table_esms_by_digest::create(void)
 int
 table_esms_by_digest::delete_all_rows(void)
 {
-  /* TBD */
+  uint index;
+
+  /*
+    Reset statements_digest_stat_array.
+  */
+  for (index= 0; index < statements_digest_size; index++)
+  {
+    statements_digest_stat_array[index].m_digest[0]= '\0';
+    statements_digest_stat_array[index].m_digest_length= 0;
+    statements_digest_stat_array[index].m_digest_text[0]= '\0';;
+    statements_digest_stat_array[index].m_digest_text_length= 0;
+    statements_digest_stat_array[index].m_md5_hash.m_md5[0]= '\0';
+    statements_digest_stat_array[index].m_stat.reset();
+  }
+
+  /* 
+     Reset index which indicates where the next calculated digest informationi
+     to be inserted in statements_digest_stat_array.
+  */
+  digest_index= 1;
+
   return 0;
 }
 
