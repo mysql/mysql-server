@@ -115,6 +115,9 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
     /** Set of index names to check for duplicates. */
     protected Set<String> indexNames = new HashSet<String>();
 
+    /** Errors reported during construction; see getUnsupported(), setUnsupported(String) */
+    private StringBuilder reasons = null;
+
     /** Register a primary key column field. This is used to associate
      * primary key and partition key column names with field handlers.
      * This method is called by the DomainFieldHandlerImpl constructor
@@ -426,6 +429,17 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
 
     public String[] getFieldNames() {
         return fieldNames;
+    }
+
+    public void setUnsupported(String reason) {
+        if (reasons == null) {
+            reasons = new StringBuilder();
+        }
+        reasons.append(reason);
+    }
+
+    public String getUnsupported() {
+        return reasons == null?null:reasons.toString();
     }
 
 }
