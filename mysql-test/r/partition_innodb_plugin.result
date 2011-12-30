@@ -1,4 +1,4 @@
-call mtr.add_suppression("nnoDB: Error: table `test`.`t1` .* Partition.* InnoDB internal");
+call mtr.add_suppression("InnoDB: Error: table `test`.`t1` .* InnoDB internal");
 #
 # Bug#55091: Server crashes on ADD PARTITION after a failed attempt
 #
