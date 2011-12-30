@@ -90,4 +90,6 @@ public interface DomainTypeHandler<T> {
 
     public void operationSetValues(ValueHandler valueHandler, Operation op);
 
+    public void setUnsupported(String reason);
+
 }
