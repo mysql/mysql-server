@@ -20,8 +20,8 @@
 --source include/have_innodb.inc
 
 # Check if builtins are enabled
-if (`SELECT VARIABLE_VALUE='OFF' FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE variable_name = 'INNODB_HAVE_ATOMIC_BUILTINS'`) {
+if (`SELECT LOWER(VARIABLE_VALUE)='off' FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+    WHERE LOWER(variable_name) = 'innodb_have_atomic_builtins'`) {
 	--skip Test requires InnoDB atomic builtins
 }
 

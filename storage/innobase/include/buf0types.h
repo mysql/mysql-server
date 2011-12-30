@@ -38,6 +38,8 @@ typedef	struct buf_pool_struct		buf_pool_t;
 typedef	struct buf_pool_stat_struct	buf_pool_stat_t;
 /** Buffer pool buddy statistics struct */
 typedef	struct buf_buddy_stat_struct	buf_buddy_stat_t;
+/** Doublewrite memory struct */
+typedef struct buf_dblwr_struct		buf_dblwr_t;
 
 /** A buffer frame. @see page_t */
 typedef	byte	buf_frame_t;

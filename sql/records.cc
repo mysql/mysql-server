@@ -26,6 +26,7 @@
 #include "filesort.h"            // filesort_free_buffers
 #include "opt_range.h"                          // SQL_SELECT
 #include "sql_class.h"                          // THD
+#include "sql_select.h"          // JOIN_TAB
 
 
 static int rr_quick(READ_RECORD *info);
@@ -716,3 +717,17 @@ static int rr_cmp(uchar *a,uchar *b)
   return (int) a[7] - (int) b[7];
 #endif
 }
+
+
+/**
+  The default implementation of unlock-row method of READ_RECORD,
+  used in all access methods.
+*/
+
+void rr_unlock_row(st_join_table *tab)
+{
+  READ_RECORD *info= &tab->read_record;
+  info->table->file->unlock_row();
+}
+
+

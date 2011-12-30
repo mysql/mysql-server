@@ -23,6 +23,9 @@
 
 #include "sql_priv.h"
 #include "sql_select.h"
+#include "sql_tmp_table.h"                 // create_tmp_table
+#include "sql_resolver.h"                  // setup_order, fix_inner_refs
+#include "sql_optimizer.h"                 // JOIN
 
 using std::min;
 using std::max;
@@ -1294,7 +1297,6 @@ void Item_sum_sum::fix_length_and_dec()
   decimals= args[0]->decimals;
   switch (args[0]->numeric_context_result_type()) {
   case REAL_RESULT:
-  case STRING_RESULT:
     hybrid_type= REAL_RESULT;
     sum= 0.0;
     break;
@@ -1311,6 +1313,7 @@ void Item_sum_sum::fix_length_and_dec()
     my_decimal_set_zero(dec_buffs);
     break;
   }
+  case STRING_RESULT:
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);

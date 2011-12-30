@@ -470,7 +470,9 @@ fts_trx_add_op(
 	dict_table_t*	table,			/*!< in: table */
 	doc_id_t	doc_id,			/*!< in: doc id */
 	fts_row_state	state,			/*!< in: state of the row */
-	ib_vector_t*	indexes);		/*!< in: FTS indexes affected */
+	ib_vector_t*	fts_indexes)		/*!< in: FTS indexes affected
+						(NULL=all) */
+	__attribute__((nonnull(1,2)));
 
 /******************************************************************//**
 Free an FTS trx. */
