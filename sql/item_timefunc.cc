@@ -79,59 +79,51 @@ adjust_time_range_with_warn(MYSQL_TIME *ltime, uint8 decimals)
 
 
 /*
-  Convert seconds to MYSQL_TIME value with overflow checking
+  Convert seconds to MYSQL_TIME value with overflow checking.
 
   SYNOPSIS:
     sec_to_time()
     seconds          number of seconds
-    unsigned_flag    1, if 'seconds' is unsigned, 0, otherwise
     ltime            output MYSQL_TIME value
-    send_warn        whether to send a generic warning on truncation
 
   DESCRIPTION
     If the 'seconds' argument is inside MYSQL_TIME data range, convert it to a
     corresponding value.
-    Otherwise, truncate the resulting value to the nearest endpoint, and
-    produce a warning message.
+    Otherwise, truncate the resulting value to the nearest endpoint.
 
   RETURN
     1                if the value was truncated during conversion
     0                otherwise
 */
 
-static bool sec_to_time(longlong seconds, bool unsigned_flag,
-                        MYSQL_TIME *ltime, bool send_warn)
+static bool sec_to_time(lldiv_t seconds, MYSQL_TIME *ltime)
 {
-  uint sec;
+  int warning= 0;
 
   set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
   
-  if (seconds < 0)
+  if (seconds.quot < 0 || seconds.rem < 0)
   {
-    if (unsigned_flag)
-      goto overflow;
     ltime->neg= 1;
-    if (seconds < -3020399)
-      goto overflow;
-    seconds= -seconds;
+    seconds.quot= -seconds.quot;
+    seconds.rem= -seconds.rem;
   }
-  else if (seconds > 3020399)
-    goto overflow;
   
-  sec= (uint) ((ulonglong) seconds % 3600);
-  ltime->hour= (uint) (seconds/3600);
-  ltime->minute= sec/60;
+  if (seconds.quot > TIME_MAX_VALUE_SECONDS)
+  {
+    set_max_hhmmss(ltime);
+    return true;
+  }
+
+  ltime->hour= (uint) (seconds.quot / 3600);
+  uint sec= (uint) (seconds.quot % 3600);
+  ltime->minute= sec / 60;
   ltime->second= sec % 60;
+  ltime->second_part= (uint) (seconds.rem / 1000);
+  
+  adjust_time_range(ltime, &warning);
 
-  return 0;
-
-overflow:
-  set_max_hhmmss(ltime);
-
-  if (send_warn)
-    make_truncated_value_warning(ErrConvString(seconds, unsigned_flag),
-                                 MYSQL_TIMESTAMP_TIME);
-  return 1;
+  return warning ? true : false;
 }
 
 
@@ -1927,13 +1919,9 @@ bool Item_func_sec_to_time::get_time(MYSQL_TIME *ltime)
     make_truncated_value_warning(ErrConvString(val), MYSQL_TIMESTAMP_TIME);
     return false;
   }
-  sec_to_time(seconds.quot, 0, ltime, true);
-  /*
-    Both negative seconds.quot and negative seconds.rem
-    affect ltime->neg, hence "|=" to combine them.
-  */
-  ltime->neg|= seconds.rem < 0;
-  ltime->second_part= (seconds.rem < 0 ? -seconds.rem : seconds.rem) / 1000;
+  if (sec_to_time(seconds, ltime))
+    make_truncated_value_warning(ErrConvString(val),
+                                 MYSQL_TIMESTAMP_TIME);
   return false;
 }
 
@@ -2335,8 +2323,11 @@ bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime)
                       interval.second_part) *
                       (interval.neg ? -1 : 1);
   longlong diff= usec1 + usec2;
+  lldiv_t seconds;
+  seconds.quot= diff / 1000000;
+  seconds.rem= diff % 1000000 * 1000; /* time->second_part= lldiv.rem / 1000 */
   if ((null_value= (interval.year || interval.month ||
-                    sec_to_time(diff / 1000000, 0, ltime, false))))
+                    sec_to_time(seconds, ltime))))
   {
     push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_DATETIME_FUNCTION_OVERFLOW,
@@ -2344,8 +2335,6 @@ bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime)
                         "time");
     return true;
   }  
-  ltime->second_part= (diff % 1000000) * (diff < 0 ? -1 : 1);
-  ltime->time_type= MYSQL_TIMESTAMP_TIME;
   return false;
 }
 

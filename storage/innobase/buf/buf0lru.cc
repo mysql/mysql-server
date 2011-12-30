@@ -41,6 +41,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "btr0btr.h"
 #include "buf0buddy.h"
 #include "buf0buf.h"
+#include "buf0dblwr.h"
 #include "buf0flu.h"
 #include "buf0rea.h"
 #include "btr0sea.h"
@@ -866,7 +867,7 @@ loop:
 
 	if (buf_pool->init_flush[BUF_FLUSH_LRU]
 	    && srv_use_doublewrite_buf
-	    && trx_doublewrite != NULL) {
+	    && buf_dblwr != NULL) {
 
 		/* If there is an LRU flush happening in the background
 		then we wait for it to end instead of trying a single

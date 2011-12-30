@@ -528,7 +528,7 @@ ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
 uint sync_binlog_period= 0, sync_relaylog_period= 0,
      sync_relayloginfo_period= 0, sync_masterinfo_period= 0,
-     mts_checkpoint_period= 0, mts_checkpoint_group= 0;
+     opt_mts_checkpoint_period, opt_mts_checkpoint_group;
 ulong expire_logs_days = 0;
 
 const double log_10[] = {
