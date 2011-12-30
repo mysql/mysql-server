@@ -1,0 +1,30 @@
+install plugin unix_socket soname 'auth_socket.so';
+#
+# with named user
+#
+create user USER identified via unix_socket;
+#
+# name match = ok
+#
+select user(), current_user(), database();
+user()	current_user()	database()
+USER@localhost	USER@%	test
+#
+# name does not match = failure
+#
+drop user USER;
+#
+# and now with anonymous user
+#
+grant SELECT ON test.* TO '' identified via unix_socket;
+#
+# name match = ok
+#
+select user(), current_user(), database();
+user()	current_user()	database()
+USER@localhost	@%	test
+#
+# name does not match = failure
+#
+delete from mysql.user where user='';
+uninstall plugin unix_socket;
