@@ -1954,7 +1954,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   if (table->file->indexes_are_disabled())
     new_table.file->ha_disable_indexes(HA_KEY_SWITCH_ALL);
   table->file->ha_index_or_rnd_end();
-  table->file->ha_rnd_init(1);
+  if ((error= table->file->ha_rnd_init(1)))
+    goto err;
   if (table->no_rows)
   {
     new_table.file->extra(HA_EXTRA_NO_ROWS);
@@ -2035,7 +2036,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
  err:
   DBUG_PRINT("error",("Got error: %d",write_err));
   table->file->print_error(write_err, MYF(0));
-  (void) table->file->ha_rnd_end();
+  if (table->file->inited == handler::RND)
+    (void) table->file->ha_rnd_end();
   (void) new_table.file->ha_close();
  err1:
   new_table.file->ha_delete_table(new_table.s->table_name.str);

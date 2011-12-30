@@ -389,7 +389,11 @@ int opt_sum_query(THD *thd,
             const_result= 0;
             break;
           }
-          table->file->ha_index_init((uint) ref.key, 1);
+          if ((error= table->file->ha_index_init((uint) ref.key, 1)))
+          {
+            table->file->print_error(error, MYF(0));
+            DBUG_RETURN(error);
+          }
 
           error= is_max ? 
                  get_index_max_value(table, &ref, range_fl) :
