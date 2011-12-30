@@ -1137,6 +1137,7 @@ SELECT * FROM t1 UNION SELECT * FROM t1
   ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
 
 --echo # Should not crash
+--sorted_result
 (SELECT * FROM t1) UNION (SELECT * FROM t1)
   ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
 
