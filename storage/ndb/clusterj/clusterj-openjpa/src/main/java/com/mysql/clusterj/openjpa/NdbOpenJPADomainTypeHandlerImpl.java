@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -653,7 +653,7 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
         }
     }
 
-    private void setUnsupported(String reason) {
+    public void setUnsupported(String reason) {
         if (status != Status.BAD) {
             if (logger.isDetailEnabled()) logger.detail("Class " + typeName + " marked as BAD.");
             status = Status.BAD;
