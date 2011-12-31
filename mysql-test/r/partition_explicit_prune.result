@@ -75,10 +75,10 @@ SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_COMMIT	1
-HANDLER_EXTERNAL_LOCK	6
+HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	18
 # Should be 1 commit
-# 6 external locks
+# 4 external locks (6 before WL#4443)
 # (1 ha_partition + 2 ha_innobase) x 2 (lock + unlock)
 # and 18 write (1 ha_innobase + 17 internal I_S write)
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, "pNeg(-subp1)");
@@ -363,11 +363,12 @@ ERROR HY000: Found a row not matching the given partition set
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_EXTERNAL_LOCK	4
-HANDLER_ROLLBACK	1
+HANDLER_EXTERNAL_LOCK	2
 HANDLER_WRITE	17
-# 4 locks (1 ha_partition + 1 ha_innobase) x 2 (lock/unlock)
-# 1 rollback (failure)
+# 2 locks (1 ha_partition) x 2 (lock/unlock), Was 4 locks before WL4443
+# explicit pruning says part_id 0 and implicit pruning says part_id 1
+# so no partition will be locked! (TODO: should we fail before locking?)
+# 0 rollback (since no locked partition)
 # 17 writes (I_S internal)
 FLUSH STATUS;
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'Insert by REPLACE');

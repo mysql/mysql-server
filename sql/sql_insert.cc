@@ -657,6 +657,83 @@ create_insert_stmt_from_insert_delayed(THD *thd, String *buf)
 
 
 /**
+  Set default values of record.
+
+  @param lex     LEX to ...
+  @param table  Table the record belongs to
+*/
+
+static void default_record(table_map used_tables, TABLE *table)
+{
+  if (used_tables)                           // Column used in values()
+    restore_record(table,s->default_values); // Get empty record
+  else
+  {
+    TABLE_SHARE *share= table->s;
+
+    /*
+      Fix delete marker. No need to restore rest of record since it will
+      be overwritten by fill_record() anyway (and fill_record() does not
+      use default values in this case).
+    */
+    table->record[0][0]= share->default_values[0];
+
+    /* Fix undefined null_bits. */
+    if (share->null_bytes > 1 && share->last_null_bit_pos)
+    {
+      table->record[0][share->null_bytes - 1]= 
+        share->default_values[share->null_bytes - 1];
+    }
+  }
+}
+
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+/**
+  Mark the partition, the record belongs to, as used.
+
+  @param thd              Thread context
+  @param table            Table to use
+  @param fields           Fields to set
+  @param values           Values to use
+  @param used_partitions  Bitmap to set
+
+  @returns Operational status
+    @retval false  Success
+    @retval true   Failure
+*/
+
+static bool set_partition(THD *thd, TABLE *table, List<Item> &fields,
+                          List<Item> &values, MY_BITMAP *used_partitions)
+{
+  uint32 part_id;
+  longlong func_value;
+  DBUG_ENTER("set_partition");
+  default_record(thd->lex->used_tables, table);
+  if (fields.elements || !values.elements)
+  {
+    DBUG_ASSERT(thd->lex->used_tables);
+    if (fill_record(thd, fields, values, false))
+      DBUG_RETURN(true);
+  }
+  else
+  {
+    if (fill_record(thd, table->field, values, false))
+      DBUG_RETURN(true);
+  }
+  if (table->part_info->get_partition_id(table->part_info, &part_id,
+                                         &func_value))
+  {
+    DBUG_RETURN(true);
+  }
+  DBUG_PRINT("info", ("Insert into partition %u", part_id));
+  bitmap_set_bit(used_partitions, part_id);
+  DBUG_RETURN(false);
+}
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
+
+/**
   INSERT statement implementation
 
   @note Like implementations of other DDL/DML in MySQL, this function
@@ -698,6 +775,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 #endif
   thr_lock_type lock_type;
   Item *unused_conds= 0;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  uint num_partitions= 0;
+  enum enum_can_prune {PRUNE_NO= 0, PRUNE_DEFAULTS, PRUNE_YES};
+  enum_can_prune can_prune_partitions= PRUNE_NO;
+  MY_BITMAP used_partitions;
+#endif /* WITH_PARITITION_STORAGE_ENGINE */
   DBUG_ENTER("mysql_insert");
 
   /*
@@ -774,26 +857,100 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   context->resolve_in_table_list_only(table_list);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (table->part_info)
+  if (!is_locked && table->part_info)
   {
-#ifdef ADD_INSERT_VALUE_PRUNING
-    if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT ||
-        /* all inserted rows must explicitly set auto increment column */
-        (table->found_next_number_field && TRUE) /* WAS HERE */
+    /* Only prune if the tables are not yet locked. */
+    if (thd->locked_tables_mode == LTM_NONE)
+      can_prune_partitions= PRUNE_YES;
+    /*
+      Note: It makes no sense to prune on partition/subpartition level when
+      only partition/subpartition fields are affected.
+      For subpartitioned tables, there makes little sense to prune only on
+      partition level or subpartition level. Since it is only possible in
+      few cases (update/auto_inc fields only in part OR subpart fields).
+      Cannot be INSERT SELECT.
+    */
+#if 0
+    if (can_prune_partitions &&
+        table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     {
-      /* Pruning not possible, must mark all partitions for read/lock */
+      /* TODO: Test if this is a problem, it should use the timestamp which is set when the statement starts? */
+      can_prune_partitions= PRUNE_NO;
     }
-    else
+#endif
+    /* all inserted rows must explicitly set auto increment column */
+    if (can_prune_partitions && table->found_next_number_field)
     {
+      Field *field;
+      /*
+        If the field is used in the partitioning expression, we cannot prune.
+        TODO: Hmm, if all rows have not null values and
+        is not 0 (with NO_AUTO_VALUE_ON_ZERO sql_mode), then pruning is possible!
+      */
+      for (field= table->part_info->full_part_field_array[0]; field; field++)
+      {
+        if (field == table->found_next_number_field)
+        {
+          can_prune_partitions= PRUNE_NO;
+          break;
+        }
+      }
+    }
+    
+    /*
+      If a updating a field in the partitioning expression, we cannot prune.
+    */
+    if (can_prune_partitions && duplic == DUP_UPDATE)
+    {
+      /* TODO: add check for static update values, which can be pruned. */
+      if (table->part_info->is_field_in_part_expr(update_fields))
+        can_prune_partitions= PRUNE_NO;
+    }
+
+    /*
+      If no partitioning field in set (e.g. defaults) check pruning only once.
+    */
+    if (can_prune_partitions && fields.elements)
+    {
+      if (!table->part_info->is_field_in_part_expr(fields))
+        can_prune_partitions= PRUNE_DEFAULTS;
+    }
+
+    if (can_prune_partitions != PRUNE_NO)
+    {
+      uint32 *bitmap_buf;
+      uint bitmap_bytes;
+      DBUG_ASSERT(table->part_info->bitmaps_are_initialized);
+
       /*
         Pruning probably possible, must mark none partitions for read/lock,
         and add them on row by row basis (if any row does not set auto_inc
         value explicitly, all partitions must be marked).
       */
+      num_partitions= table->part_info->lock_partitions.n_bits;
+      bitmap_bytes= bitmap_buffer_size(num_partitions);
+      if (!(bitmap_buf= (uint32*) thd->alloc(bitmap_bytes)))
+      {
+        mem_alloc_error(bitmap_bytes);
+        goto exit_without_my_ok;
+      }
+      /* Also clears all bits. */
+      if (bitmap_init(&used_partitions, bitmap_buf, num_partitions, FALSE))
+      {
+        mem_alloc_error(bitmap_bytes);   /* Cannot happen, due to pre-alloc */
+        goto exit_without_my_ok;
+      }
+      /* Check the first INSERT value. */
+      /*
+        Do not fail here, since that would break MyISAM behavior of inserting
+        all rows before failing row.
+      */
+      if (set_partition(thd, table, fields, *values, &used_partitions))
+        can_prune_partitions= PRUNE_NO;
     }
-#endif
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
+
   while ((values= its++))
   {
     counter++;
@@ -804,14 +961,24 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_READ, 0, 0))
       goto exit_without_my_ok;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    /* TODO: calculate partition id and store for reuse */
-    /* Must check for table->auto_increment_field_not_null -> prune none. */
-    /* If auto_increment_filed_not_null + val_int() (NOT_ZERO...) */
-    /* Perhaps only do this if its.elements < MAX_INSERT_ROWS_TO_PRUNE */
-    /* Must check for on duplicate key ... */
-    /* WASHERE */
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    /*
+      TODO: Is it possible to store the calculated part_id and reuse in
+      ha_partition::write_row()?
+      Should it also be done if num rows >> num partitions? Yes to increase
+      concurrancy on partitioned MyISAM tables.
+    */
+    if (can_prune_partitions == PRUNE_YES)
+    {
+      if (set_partition(thd, table, fields, *values, &used_partitions))
+        can_prune_partitions= PRUNE_NO;
+      if (!(counter % num_partitions))
+      {
+        if (bitmap_is_set_all(&used_partitions))
+          can_prune_partitions= PRUNE_NO;
+      }
+    }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
   }
   its.rewind ();
@@ -829,6 +996,17 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     err= explain_no_table(thd, "No tables used");
     goto exit_without_my_ok;
   }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (can_prune_partitions != PRUNE_NO)
+  {
+    /* Set read/lock partitions to used_partitions. */
+    bitmap_intersect(&(table->part_info->read_partitions),
+                     &used_partitions);
+    bitmap_intersect(&(table->part_info->lock_partitions),
+                     &used_partitions);
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   /* Lock the tables now if not delayed/already locked. */
   if (!is_locked &&
@@ -937,26 +1115,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     else
     {
-      if (thd->lex->used_tables)		      // Column used in values()
-	restore_record(table,s->default_values);	// Get empty record
-      else
-      {
-        TABLE_SHARE *share= table->s;
-
-        /*
-          Fix delete marker. No need to restore rest of record since it will
-          be overwritten by fill_record() anyway (and fill_record() does not
-          use default values in this case).
-        */
-        table->record[0][0]= share->default_values[0];
-
-        /* Fix undefined null_bits. */
-        if (share->null_bytes > 1 && share->last_null_bit_pos)
-        {
-          table->record[0][share->null_bytes - 1]= 
-            share->default_values[share->null_bytes - 1];
-        }
-      }
+      default_record(thd->lex->used_tables, table);
       if (fill_record_n_invoke_before_triggers(thd, table->field, *values, 0,
                                                table->triggers,
                                                TRG_EVENT_INSERT))

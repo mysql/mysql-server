@@ -8890,7 +8890,7 @@ err_no_arena:
     TRUE    error occured
 */
 
-static bool
+bool
 fill_record(THD * thd, List<Item> &fields, List<Item> &values,
             bool ignore_errors)
 {
