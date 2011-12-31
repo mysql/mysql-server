@@ -187,6 +187,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &item, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func);
+bool fill_record(THD * thd, List<Item> &fields, List<Item> &values,
+                 bool ignore_errors);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
                  bool ignore_errors);
 
