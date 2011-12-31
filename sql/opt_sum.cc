@@ -847,7 +847,6 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     1   Can use key to optimize MIN()/MAX().
     In this case ref, range_fl and prefix_len are updated
 */
-
       
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 Field* field, COND *cond,
@@ -876,7 +875,8 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
       continue;
     uint jdx= 0;
     *prefix_len= 0;
-    for (part= keyinfo->key_part, part_end= part+keyinfo->key_parts ;
+    part_end= keyinfo->key_part+table->actual_n_key_parts(keyinfo);
+    for (part= keyinfo->key_part ;
          part != part_end ;
          part++, jdx++, key_part_to_use= (key_part_to_use << 1) | 1)
     {

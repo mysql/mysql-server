@@ -592,7 +592,8 @@ protected:
 #define OPTIMIZER_SWITCH_JOIN_CACHE_BKA            (1ULL << 23)
 #define OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE (1ULL << 24)
 #define OPTIMIZER_SWITCH_TABLE_ELIMINATION         (1ULL << 25)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 26)
+#define OPTIMIZER_SWITCH_EXTENDED_KEYS             (1ULL << 26)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 27)
 
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
 #define OPTIMIZER_SWITCH_DEFAULT   (OPTIMIZER_SWITCH_INDEX_MERGE | \
