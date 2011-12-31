@@ -268,6 +268,7 @@ BDB_DONTRUN_TESTS = \
 	test_large_update_broadcast_small_cachetable \
         test_logflush \
 	test_query \
+	test_multiple_checkpoints_block_commit \
 	test_redirect_func \
 	test_stress1 \
 	test_stress2 \
