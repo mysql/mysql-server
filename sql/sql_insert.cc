@@ -881,15 +881,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     /* all inserted rows must explicitly set auto increment column */
     if (can_prune_partitions && table->found_next_number_field)
     {
-      Field *field;
+      Field **field;
       /*
         If the field is used in the partitioning expression, we cannot prune.
         TODO: Hmm, if all rows have not null values and
         is not 0 (with NO_AUTO_VALUE_ON_ZERO sql_mode), then pruning is possible!
       */
-      for (field= table->part_info->full_part_field_array[0]; field; field++)
+      for (field= table->part_info->full_part_field_array; *field; field++)
       {
-        if (field == table->found_next_number_field)
+        if (*field == table->found_next_number_field)
         {
           can_prune_partitions= PRUNE_NO;
           break;
