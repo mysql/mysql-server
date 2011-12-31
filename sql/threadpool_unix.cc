@@ -839,13 +839,13 @@ static void post_event(thread_group_t *thread_group, pool_event_t* ev)
 
 
 /* 
-   Check if pool is already overcommited. 
    This is used to prevent too many threads executing at the same time,
    if the workload is not CPU bound.
 */
 static bool too_many_threads(thread_group_t *thread_group)
 {
-  return (thread_group->active_thread_count >= 4 && !thread_group->stalled);
+  return (thread_group->active_thread_count >= 1+(int)threadpool_oversubscribe 
+   && !thread_group->stalled);
 }
 
 

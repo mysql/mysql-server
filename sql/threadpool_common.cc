@@ -23,6 +23,7 @@ uint threadpool_idle_timeout;
 uint threadpool_size;
 uint threadpool_stall_limit;
 uint threadpool_max_threads;
+uint threadpool_oversubscribe;
 
 
 /*

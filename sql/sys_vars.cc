@@ -2215,7 +2215,8 @@ static bool fix_threadpool_size(sys_var*, THD*, enum_var_type)
 
 static bool fix_threadpool_stall_limit(sys_var*, THD*, enum_var_type)
 {
-  tp_set_threadpool_stall_limit(threadpool_size);
+  tp_set_threadpool_stall_limit(threadpool_stall_limit);
+  return false;
 }
 #endif
 
@@ -2236,6 +2237,12 @@ static Sys_var_uint Sys_threadpool_idle_thread_timeout(
   GLOBAL_VAR(threadpool_idle_timeout), CMD_LINE(REQUIRED_ARG),
   VALID_RANGE(1, UINT_MAX), DEFAULT(60), BLOCK_SIZE(1)
 );
+static Sys_var_uint Sys_threadpool_oversubscribe(
+  "thread_pool_oversubscribe",
+  "How many additional active worker threads in a group are allowed.",
+  GLOBAL_VAR(threadpool_oversubscribe), CMD_LINE(REQUIRED_ARG),
+  VALID_RANGE(1, 1000), DEFAULT(3), BLOCK_SIZE(1)
+);
 static Sys_var_uint Sys_threadpool_size(
  "thread_pool_size",
  "Number of concurrently executing threads in the pool. "
@@ -2252,7 +2259,7 @@ static Sys_var_uint Sys_threadpool_stall_limit(
  "If a worker thread is stalled, additional worker thread "
  "may be created to handle remaining clients.",
   GLOBAL_VAR(threadpool_stall_limit), CMD_LINE(REQUIRED_ARG),
-  VALID_RANGE(60, UINT_MAX), DEFAULT(500), BLOCK_SIZE(1),
+  VALID_RANGE(10, UINT_MAX), DEFAULT(500), BLOCK_SIZE(1),
   NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), 
   ON_UPDATE(fix_threadpool_stall_limit)
 );

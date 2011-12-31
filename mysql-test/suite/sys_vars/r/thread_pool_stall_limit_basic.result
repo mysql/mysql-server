@@ -37,7 +37,7 @@ Warnings:
 Warning	1292	Truncated incorrect thread_pool_stall_limit value: '-1'
 select @@global.thread_pool_stall_limit;
 @@global.thread_pool_stall_limit
-60
+10
 set global thread_pool_stall_limit=10000000000;
 Warnings:
 Warning	1292	Truncated incorrect thread_pool_stall_limit value: '10000000000'
