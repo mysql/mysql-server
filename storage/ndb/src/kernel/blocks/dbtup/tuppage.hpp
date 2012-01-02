@@ -259,6 +259,11 @@ struct Tup_varsize_page
   {
     return ((get_index_word(page_idx) & FREE) != 0) ? true : false;
   }
+
+  bool is_empty() const
+  {
+    return high_index == 1;
+  }
 };
 
 NdbOut& operator<< (NdbOut& out, const Tup_varsize_page& page);

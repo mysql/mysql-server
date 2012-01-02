@@ -4617,11 +4617,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     nextPos += 2;
   }
 
+  regTcPtr->m_fire_trig_pass = 0;
   Uint32 Tdeferred = LqhKeyReq::getDeferredConstraints(Treqinfo);
   if (isLongReq && Tdeferred)
   {
     regTcPtr->m_flags |= TcConnectionrec::OP_DEFERRED_CONSTRAINTS;
-    regTcPtr->m_fire_trig_pass = 0;
   }
 
   UintR TitcKeyLen = 0;
@@ -11910,6 +11910,12 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
 #endif
   const bool longable = true; // TODO is_api && !old_dest;
 
+  if (isNdbMtLqh())
+  {
+    jam();
+    nodeId = 0; // prevent execute direct
+  }
+
   Uint32 * dst = keyInfo->keyData;
   dst += nodeId == getOwnNodeId() ? 0 : KeyInfo20::DataLength;
 
@@ -11943,11 +11949,6 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   {
     jam();
     
-    if (isNdbMtLqh() && instance() != refToInstance(ref))
-    {
-      jam();
-      nodeId = 0; // prevent execute direct
-    }
     if (nodeId == getOwnNodeId())
     {
       EXECUTE_DIRECT(refToBlock(ref), GSN_KEYINFO20, signal,
