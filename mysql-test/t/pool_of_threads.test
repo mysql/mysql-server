@@ -16,11 +16,12 @@
 # on normal port fails due to--thread-pool-max_threads=2
 connection default;
 send SELECT sleep(5);
+--sleep  1 
 
 connect(con2,localhost,root,,);
 connection con2;
 send SELECT sleep(5);
---sleep 1
+--sleep  0.5
 
 --disable_abort_on_error
 --disable_result_log
