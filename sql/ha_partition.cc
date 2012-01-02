@@ -6891,14 +6891,11 @@ handler::Table_flags ha_partition::table_flags() const
   {
     /*
       The flags are cached after external_lock, and may depend on isolation
-      level. So we must use a locked partition to get the correct flags.
+      level. So we should use a locked partition to get the correct flags.
     */
     first_used_partition= bitmap_get_first_set(&m_part_info->lock_partitions);
     if (first_used_partition == MY_BIT_NONE)
-    {
-      DBUG_ASSERT(0);
       first_used_partition= 0;
-    }
   }
   DBUG_RETURN((m_file[first_used_partition]->ha_table_flags() &
                  ~(PARTITION_DISABLED_TABLE_FLAGS)) |
