@@ -5580,7 +5580,7 @@ bool st_table::is_filled_at_execution()
   @return number of considered key components
 */ 
 
-inline uint st_table::actual_n_key_parts(KEY *keyinfo)
+uint st_table::actual_n_key_parts(KEY *keyinfo)
 {
   return optimizer_flag(in_use, OPTIMIZER_SWITCH_EXTENDED_KEYS) ?
            keyinfo->ext_key_parts : keyinfo->key_parts;

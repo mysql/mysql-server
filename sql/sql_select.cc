@@ -5193,7 +5193,8 @@ best_access_path(JOIN      *join,
             }
             else
             {
-              if (!(records=keyinfo->rec_per_key[keyinfo->key_parts-1]))
+              uint key_parts= table->actual_n_key_parts(keyinfo);
+              if (!(records=keyinfo->rec_per_key[key_parts-1]))
               {                                   /* Prefer longer keys */
                 records=
                   ((double) s->records / (double) rec *

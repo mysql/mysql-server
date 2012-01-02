@@ -8230,11 +8230,6 @@ ha_innobase::read_time(
 		return(handler::read_time(index, ranges, rows));
 	}
 
-	if (rows <= 2) {
-
-		return((double) rows);
-	}
-
 	/* Assume that the read time is proportional to the scan time for all
 	rows + at most one seek per range. */
 
@@ -8679,30 +8674,37 @@ ha_innobase::info_low(
 			}
 
                         KEY *key_info= table->key_info+i; 
-                        key_part_map ext_key_part_map= key_info->ext_key_part_map;                               
+                        key_part_map ext_key_part_map=
+                                             key_info->ext_key_part_map;                               
 
                         if (key_info->key_parts != key_info->ext_key_parts) {
 
-
                                 KEY *pk_key_info= key_info+
                                                   table->s->primary_key;
-                                uint k= key_info->key_parts;
-                                                              
-                                for (j = 0; j < pk_key_info->key_parts; j++) {
+                                uint k = key_info->key_parts;
+                                ha_rows k_rec_per_key = rec_per_key;
+                                uint pk_parts = pk_key_info->key_parts;
+                          
+		                index= innobase_get_index(
+                                        table->s->primary_key);
+                                    
+                                for (j = 0; j < pk_parts; j++) {
  
 				         if (ext_key_part_map & 1<<j) {
 
-		                                index = innobase_get_index(
-                                                         table->s->primary_key);
                                                 rec_per_key =
 						innodb_rec_per_key(index,
                                                         j, stats.records);
                                
-                        
 				                if (rec_per_key == 0) {
 					                rec_per_key = 1;
 				                }
-
+                                                else if (rec_per_key > 1) {
+                                                        rec_per_key =
+                                                        k_rec_per_key *
+						        (double)rec_per_key /
+							n_rows;
+						}
                                                 
 				                key_info->rec_per_key[k++]=
 				                rec_per_key >= ~(ulong) 0 ?
