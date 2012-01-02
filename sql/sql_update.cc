@@ -275,7 +275,6 @@ int mysql_update(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
-  uint          table_count= 0;
   ha_rows	updated, found;
   key_map	old_covering_keys;
   TABLE		*table;
@@ -287,22 +286,7 @@ int mysql_update(THD *thd,
   THD::killed_state killed_status= THD::NOT_KILLED;
   DBUG_ENTER("mysql_update");
 
-  if (open_tables(thd, &table_list, &table_count, 0))
-    DBUG_RETURN(1);
-
-  if (table_list->multitable_view)
-  {
-    DBUG_ASSERT(table_list->view != 0);
-    DBUG_PRINT("info", ("Switch to multi-update"));
-    /* pass counter value */
-    thd->lex->table_count= table_count;
-    /* convert to multiupdate */
-    DBUG_RETURN(2);
-  }
-  if (lock_tables(thd, table_list, table_count, 0))
-    DBUG_RETURN(1);
-
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
+  if (open_query_tables(thd))
     DBUG_RETURN(1);
 
   if (thd->fill_derived_tables() &&
@@ -310,6 +294,14 @@ int mysql_update(THD *thd,
   {
     mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
     DBUG_RETURN(1);
+  }
+
+  if (table_list->multitable_view)
+  {
+    DBUG_ASSERT(table_list->view != 0);
+    DBUG_PRINT("info", ("Switch to multi-update"));
+    /* convert to multiupdate */
+    DBUG_RETURN(2);
   }
 
   THD_STAGE_INFO(thd, stage_init);
@@ -403,7 +395,10 @@ int mysql_update(THD *thd,
   table->covering_keys.clear_all();
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (prune_partitions(thd, table, conds))
+  bool no_parts_used;
+  if (prune_partitions(thd, table, conds, &no_parts_used))
+    DBUG_RETURN(1);
+  if (no_parts_used)
   { // No matching records
     if (thd->lex->describe)
     {
@@ -417,6 +412,9 @@ int mysql_update(THD *thd,
     DBUG_RETURN(0);
   }
 #endif
+  if (lock_query_tables(thd))
+    DBUG_RETURN(1);
+
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
@@ -1248,12 +1246,6 @@ int mysql_multi_update_prepare(THD *thd)
   List<Item> *fields= &lex->select_lex.item_list;
   table_map tables_for_update;
   bool update_view= 0;
-  /*
-    if this multi-update was converted from usual update, here is table
-    counter else junk will be assigned here, but then replaced with real
-    count in open_tables()
-  */
-  uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
   DBUG_ENTER("mysql_multi_update_prepare");
@@ -1268,11 +1260,7 @@ int mysql_multi_update_prepare(THD *thd)
     keep prepare of multi-UPDATE compatible with concurrent LOCK TABLES WRITE
     and global read lock.
   */
-  if ((original_multiupdate &&
-       open_tables(thd, &table_list, &table_count,
-                   (thd->stmt_arena->is_stmt_prepare() ?
-                    MYSQL_OPEN_FORCE_SHARED_MDL : 0))) ||
-      mysql_handle_derived(lex, &mysql_derived_prepare))
+  if (original_multiupdate && open_query_tables(thd))
     DBUG_RETURN(TRUE);
   /*
     setup_tables() need for VIEWs. JOIN::prepare() will call setup_tables()
@@ -1386,12 +1374,6 @@ int mysql_multi_update_prepare(THD *thd)
     }
   }
 
-  /* now lock and fill tables */
-  if (!thd->stmt_arena->is_stmt_prepare() &&
-      lock_tables(thd, table_list, table_count, 0))
-  {
-    DBUG_RETURN(TRUE);
-  }
   /* @todo: downgrade the metadata locks here. */
 
   /*
@@ -1461,7 +1443,8 @@ bool mysql_multi_update(THD *thd,
     res= mysql_select(thd,
                       table_list, select_lex->with_wild,
                       total_list,
-                      conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
+                      conds, (SQL_I_List<ORDER> *) NULL,
+                      (SQL_I_List<ORDER> *)NULL, (Item *) NULL,
                       (ORDER *)NULL,
                       options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                       OPTION_SETUP_TABLES_DONE,

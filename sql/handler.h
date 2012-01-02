@@ -2410,6 +2410,7 @@ public:
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
+  int get_lock_type() const { return m_lock_type; }
 };
 
 
@@ -2431,7 +2432,7 @@ public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
 
   DsMrr_impl()
-    : h2(NULL) {};
+    : h2(NULL), rowids_buf(NULL), rowids_buf_cur(NULL) {};
   
   /*
     The "owner" handler object (the one that calls dsmrr_XXX functions.

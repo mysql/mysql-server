@@ -1,0 +1,515 @@
+--source include/have_innodb.inc
+--source include/have_partition.inc
+
+--echo # Original tests for WL#4443
+
+--echo # Must have InnoDB as engine to get the same statistics results.
+--echo # embedded uses MyISAM as default. CREATE SELECT uses the default engine.
+SET @old_default_storage_engine = @@default_storage_engine;
+SET @@default_storage_engine = 'InnoDB';
+
+let $get_handler_status_counts= SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+
+
+
+CREATE TABLE t1 (a int PRIMARY KEY, b varchar(128), KEY (b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 13;
+
+CREATE TABLE t2 (a int PRIMARY KEY AUTO_INCREMENT, b varchar(128))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 13;
+
+
+--echo # Test insert
+--echo # TODO: Implement lock pruning for INSERT
+FLUSH STATUS;
+INSERT INTO t1 VALUES (1, 'First row, p1');
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1, 'First row, duplicate');
+eval $get_handler_status_counts;
+FLUSH STATUS;
+INSERT INTO t1 VALUES (0, 'First row, p0'), (2, 'First row, p2'),
+                      (3, 'First row, p3'), (4, 'First row, p4');
+eval $get_handler_status_counts;
+FLUSH STATUS;
+INSERT INTO t1 VALUES (1 * 13, 'Second row, p0'), (2 * 13, 'Third row, p0'),
+                      (3 * 13, 'Fourth row, p0'), (4 * 13, 'Fifth row, p0');
+eval $get_handler_status_counts;
+FLUSH STATUS;
+INSERT INTO t2 VALUES (NULL, 'First auto-inc row');
+eval $get_handler_status_counts;
+
+
+--echo # Test insert select
+FLUSH STATUS;
+TRUNCATE TABLE t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+INSERT INTO t2 SELECT a, b FROM t1 WHERE a IN (1,4);
+eval $get_handler_status_counts;
+
+
+--echo # Test insert on duplicated key update
+
+
+--echo # Test select
+FLUSH STATUS;
+--sorted_result
+SELECT * FROM t1;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM t1 where a in (0, 1, 4) ORDER BY a;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+SELECT * FROM t1 where a in (13, 26, 39, 52);
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+SELECT * FROM t1 where a = 3;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM t1 where b like 'First%' ORDER BY a;
+eval $get_handler_status_counts;
+
+--echo # Test pruning of non static values
+--echo # They will need to lock all partitions, but will allow pruning
+--echo # due to a second pruning call in optimize.
+CREATE TABLE t3 (a INT);
+INSERT INTO t3 VALUES (1);
+SHOW CREATE TABLE t1;
+FLUSH STATUS;
+SELECT * FROM t1 WHERE a = (SELECT a FROM t3);
+eval $get_handler_status_counts;
+--echo # TODO: Partition wise joins ?
+FLUSH STATUS;
+SELECT t1.a FROM t1 INNER JOIN t3 ON t1.a = t3.a;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT t1.a, t1.b FROM t1 INNER JOIN t3 ON t1.a = t3.a;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = (SELECT a FROM t3);
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM t1 WHERE a = 1;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM t1 WHERE a = (SELECT COUNT(*) FROM t3);
+eval $get_handler_status_counts;
+CREATE TABLE t4 SELECT a, b FROM t1;
+ALTER TABLE t4 PARTITION BY HASH (a) PARTITIONS 5;
+FLUSH STATUS;
+SELECT * FROM t4 WHERE a = (SELECT a FROM t3);
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM t4 WHERE a = (SELECT a FROM t3);
+eval $get_handler_status_counts;
+INSERT INTO t3 VALUES (3);
+--error ER_SUBQUERY_NO_1_ROW
+SELECT * FROM t4 WHERE a = (SELECT a FROM t3);
+--error ER_SUBQUERY_NO_1_ROW
+EXPLAIN PARTITIONS SELECT * FROM t4 WHERE a = (SELECT a FROM t3);
+EXPLAIN PARTITIONS SELECT * FROM t4 WHERE a = (SELECT a FROM t3 LIMIT 1);
+EXPLAIN PARTITIONS SELECT * FROM t4 WHERE a = (SELECT MAX(a) FROM t3);
+DROP TABLE t3;
+DROP TABLE t4;
+
+
+--echo # Test select * from (select * from ...)
+--echo # Currently derived tables can only be optimized/pruned after locking?
+FLUSH STATUS;
+SELECT * FROM (SELECT * FROM t1 WHERE a in (0,2,3,13,26)) t3;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a in (0,2,3,13,26)) t3) t4;
+eval $get_handler_status_counts;
+
+--echo # Test EXPLAIN select * from (select * from ...)
+FLUSH STATUS;
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a in (0,2,3,13,26)) t3;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a in (0,2,3,13,26)) t3) t4;
+eval $get_handler_status_counts;
+
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM t1 WHERE a in (0,2,3,13,26)) t3;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a in (0,2,3,13,26)) t3) t4;
+eval $get_handler_status_counts;
+
+
+--echo # Test select ... UNION select ...
+FLUSH STATUS;
+SELECT * FROM t1 UNION SELECT * from t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * from t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * from t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * from t2) t3) t4;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * from t2) t4;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3) t4 UNION SELECT * from t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * from t2 WHERE a = 1) t4;
+eval $get_handler_status_counts;
+
+
+--echo # Test EXPLAIN select ... UNION select ...
+FLUSH STATUS;
+EXPLAIN SELECT * FROM t1 UNION SELECT * from t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * from t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * from t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * from t2) t3) t4;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * from t2) t4;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3) t4 UNION SELECT * from t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * from t2 WHERE a = 1) t4;
+eval $get_handler_status_counts;
+
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM t1 UNION SELECT * from t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * from t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * from t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4) UNION SELECT * from t2) t3) t4;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * from t2) t4;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3) t4 UNION SELECT * from t2;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4)) t3 UNION SELECT * from t2 WHERE a = 1) t4;
+eval $get_handler_status_counts;
+
+
+
+--echo # Test EXPLAIN select
+FLUSH STATUS;
+--sorted_result
+EXPLAIN SELECT * FROM t1;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN SELECT * FROM t1 where a in (0, 1, 4) ORDER BY a;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+EXPLAIN SELECT * FROM t1 where a in (13, 26, 39, 52);
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+EXPLAIN SELECT * FROM t1 where a = 3;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN SELECT * FROM t1 where b like 'First%' ORDER BY a;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+EXPLAIN PARTITIONS SELECT * FROM t1;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM t1 where a in (0, 1, 4) ORDER BY a;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+EXPLAIN PARTITIONS SELECT * FROM t1 where a in (13, 26, 39, 52);
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+EXPLAIN PARTITIONS SELECT * FROM t1 where a = 3;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM t1 where b like 'First%' ORDER BY a;
+eval $get_handler_status_counts;
+--echo # Test EXPLAIN select * from (select * from ...)
+--echo # Test EXPLAIN select ... UNION select ...
+--echo # Test delete
+--echo # Test multi table delete
+--echo # Test load ?
+--echo # Test load ?
+--echo # Test insert
+--echo # Test insert on duplicated key update
+--echo # Test insert select
+--echo # Test replace
+
+
+--echo # Test update
+--sorted_result
+SELECT * FROM t1;
+--echo # This should be prunable (does not change the partitioning key)
+FLUSH STATUS;
+UPDATE t1 set b = concat(b, ", updated 1") WHERE a IN (13, 26, 39, 52);
+eval $get_handler_status_counts;
+--echo # This should not be prunable (only after implementing 'update pruning')
+--echo # i.e if all changed partitioning field is set to constant values,
+--echo # set lock_partitions to be a union of read_partition and the matching
+--echo # partition for the constants. Easy if all partitioning fields are set,
+--echo # probably needs a second round of prune_partitions() with these fields
+--echo # set to see if possible to prune locks.
+FLUSH STATUS;
+UPDATE t1 set a = 99, b = concat(b, ", updated 2 -> p8") WHERE a = 13;
+eval $get_handler_status_counts;
+--echo # This should use ha_update_row instead of ha_write_row + ha_delete_row
+FLUSH STATUS;
+UPDATE t1 set a = 13 + 99, b = concat(b, ", updated 3") WHERE a = 99;
+eval $get_handler_status_counts;
+--echo # This should not be prunable (only after implementing
+--echo # 'optimized update pruning', which will probably never happen, since
+--echo # it depends on which partitioning type is used (for this only hash is
+--echo # simple, but range and list is possible, key is very hard)
+FLUSH STATUS;
+UPDATE t1 set a = a + 1, b = concat(b, ", updated 4 -> p9") WHERE a = 112;
+eval $get_handler_status_counts;
+
+
+--echo # Test multi table update
+--sorted_result
+SELECT * FROM t1;
+--echo # Test CREATE SELECT
+
+
+--echo # Test Stored procedures
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp_insert;
+DROP PROCEDURE IF EXISTS sp_insert_partition;
+DROP PROCEDURE IF EXISTS sp_select_all;
+DROP PROCEDURE IF EXISTS sp_select_exact;
+DROP PROCEDURE IF EXISTS sp_select_partition;
+DROP PROCEDURE IF EXISTS sp_select_range;
+--enable_warnings
+CREATE PROCEDURE sp_insert(a INT, b CHAR(16))
+  INSERT INTO test.t1 VALUES (a, b);
+
+delimiter |;
+CREATE PROCEDURE sp_insert_partition(p CHAR(16), a INT, b CHAR(16))
+BEGIN
+  SET @str = concat("INSERT INTO test.t1 PARTITION(", p, ") VALUES (?, ?)");
+  set @x = a, @y = b;
+  PREPARE stmt FROM @str;
+  EXECUTE stmt USING @x, @y;
+END|
+delimiter ;|
+
+CREATE PROCEDURE sp_select_all()
+  SELECT * FROM test.t1;
+
+CREATE PROCEDURE sp_select_exact(x INT)
+  SELECT * FROM test.t1 WHERE a = x;
+
+delimiter |;
+CREATE PROCEDURE sp_select_partition(p CHAR(16))
+BEGIN
+  SET @str = concat("SELECT * FROM test.t1 PARTITION(", p, ")");
+  PREPARE stmt FROM @str;
+  EXECUTE stmt;
+END|
+delimiter ;|
+
+
+CREATE PROCEDURE sp_select_range(x INT, y INT)
+  SELECT * FROM test.t1 WHERE a between x and y;
+
+FLUSH STATUS;
+CALL sp_insert(313,"Test313");
+eval $get_handler_status_counts;
+FLUSH STATUS;
+CALL sp_insert_partition("p7", 98, "Test98");
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
+CALL sp_insert_partition("p8", 111, "Test111");
+eval $get_handler_status_counts;
+FLUSH STATUS;
+CALL sp_insert_partition("p7,p8", 111, "Test111");
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+CALL sp_select_all();
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+CALL sp_select_exact(98);
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+CALL sp_select_partition("p7");
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+CALL sp_select_partition("p8");
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+CALL sp_select_partition("p7,p8");
+eval $get_handler_status_counts;
+FLUSH STATUS;
+--sorted_result
+CALL sp_select_range(1,5);
+eval $get_handler_status_counts;
+DROP PROCEDURE sp_insert;
+DROP PROCEDURE sp_insert_partition;
+DROP PROCEDURE sp_select_all;
+DROP PROCEDURE sp_select_partition;
+DROP PROCEDURE sp_select_range;
+DROP PROCEDURE sp_select_exact;
+DROP TABLE t1, t2;
+
+--echo # DO is not supported by WL#4443 !!!
+--echo # Test of DO (eg. SELECT without returning values)
+CREATE TABLE t1 (a INT, b VARCHAR(66))
+PARTITION BY HASH (a) PARTITIONS 3;
+INSERT INTO t1 VALUES (1, "One"), (2, "Two"), (3, "Three"), (4, "Four"), (5, "Five"), (6, "Six"), (0, "Zero");
+DO (SELECT a FROM t1);
+FLUSH STATUS;
+DO (SELECT @x:= b FROM t1 WHERE a = 5);
+eval $get_handler_status_counts;
+SELECT @x;
+--echo # TODO: Report this as a bug:
+--echo # EXPLAIN PARTITIONS DO (SELECT @x:= b FROM t1 WHERE a = 5);
+FLUSH STATUS;
+DO (SELECT @x:= b FROM t1 WHERE a = 5 or a = 1 ORDER BY b LIMIT 1);
+eval $get_handler_status_counts;
+SELECT @x;
+--echo # TODO: Report this as a bug:
+--echo # EXPLAIN PARTITIONS DO (SELECT @x:= b FROM t1 WHERE a = 5 or a = 1 ORDER BY b LIMIT 1);
+
+DROP TABLE t1;
+
+--echo # Test EXCHANGE PARTITION to only lock exchanged partition
+CREATE TABLE t1 (a INT, b VARCHAR(44));
+CREATE TABLE t2 (a INT, b VARCHAR(44))
+PARTITION BY HASH (a) PARTITIONS 3;
+INSERT INTO t1 VALUES (10, "Ten"), (13, "Thirteen"), (16, "Sixteen");
+INSERT INTO t2 VALUES (0, "Zero"), (1, "One"), (2, "Two"),
+                      (3, "Three"), (4, "Four"), (5, "Five"),
+                      (6, "Six"), (7, "Seven"), (8, "Eight");
+FLUSH STATUS;
+ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
+eval $get_handler_status_counts;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+DROP TABLE t1, t2;
+
+--echo # TODO: Add variants for LOCK TABLES
+--echo # TODO: add delayed locking/pruning for multi-table update
+--echo # TODO: Document that functions in WHERE clause can now be evaluated
+--echo #       before any locks are taken (i.e. if optimization is possible
+--echo #       before locking).
+
+--echo # Prepared statement
+CREATE TABLE t1 (N int, M tinyint); 
+INSERT INTO t1 VALUES (1,0),(1,0),(2,0),(2,0),(3,0);
+PREPARE stmt FROM 'UPDATE t1 AS P1 INNER JOIN (SELECT N FROM t1 GROUP BY N HAVING COUNT(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2';
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
+--echo # Check if we can infer from condition on partition fields that 
+--echo # no records will match.
+create table t1 ( a int not null) partition by hash(a) partitions 2;
+insert into t1 values (1),(2),(3);
+explain select * from t1 where a=5 and a=6;
+drop table t1;
+
+# Test of pruning locks of non used partitions
+
+# TODO:
+# More prepared statements (incl. update, insert and delete w multi tables)
+# More stored procedures
+# Triggers
+
+#from the WL:
+# SELECT (including UNION and JOIN) should only lock the same partitions that
+# needs to read.
+# 
+# single table UPDATE will only be pruned for locking if no partitioning field is
+# given for update. (Not yet part of this worklog: One could optimize this if the
+# partitioning fields to be updated is constants only, then one could add those
+# matching partitions to be locked too).
+# 
+# multi table UPDATE will only prune locks for tables that does not update any
+# partitioning fields. (for enhancements see single table UPDATE). 
+# 
+# REPLACE/INSERT ... VALUES should only lock the partitions having rows to be
+# inserted/replaced. This means that we need to iterate over every row to be
+# inserted/replaced and evaluate which partition it belongs to and mark that
+# partition for use/lock.
+# TODO: test if it makes sense to have an upper limit of inserted rows before just
+# use/lock all partitions, since the overhead of iterate over all rows to be
+# inserted can be higher than the overhead of locking all partitions.
+# NOTE: If a AUTO_INCREMENT or TIMESTAMP will be generated and it is a part of the
+# partitioning fields then all partitions must be locked (Not yet part of this
+# worklog: Optimization may be possible for range partitioning).
+# 
+# INSERT ... VALUES ... ON DUPLICATE KEY will only be pruned for use/lock if no
+# partition field is given for update (for optimization, see single-table UPDATE)
+# 
+# INSERT SELECT, for the SELECT clause see SELECT above, for the INSERT table all
+# partitions needs to be locked. (One could optimize this if the SELECT will
+# return a known/constant set of values for the partitioning key, but that is not
+# a part of this worklog).
+# 
+# LOAD will not be pruned, since it is mainly used for inserting a large batch of
+# rows. It would need the input file to be read and parsed and each row to
+# evaluate its partitioning function to determine which partitions to use prior
+# locking. In case of large batches the gain (pruning of locks) seems smaller than
+# the cost (reading, parsing and calculate the partition id). (One could optimize
+# this if all partitioning fields are static, and only non partitioning fields are
+# read from the file. TODO: check if PARTITIONS (p1,...) is supported for LOAD? Not yet part of this worklog. Note: special care with
+# REPLACE, see INSERT).
+#
+
+# TODO: ...
+# 
+# NOTEs:
+# * INSERT DELAYED is not supported by partitioned tables (so it will not need to
+# be enhanced).
+# * LOCK TABLES cannot prune partition locks.
+# * CREATE VIEW will not support partition lock pruning. Too small gain for
+# considering to implement it (and is DDL too).
+# 
+# To investigate:
+# * effects on replication (statement and row)
+# * effects on stored procedures (open_and_lock_tables() are called from sp_head.cc).
+# * how to support lock pruning for EXCHANGE PARTITION - is really a DDL, but
+# might gain on partition lock pruning. Also true for other ALTER TABLE t ...
+# PARTITION, like TRUNCATE etc.
+# * should CALL be supported for partitioning lock pruning?
+# * should DO be supported for partitioning lock pruning?
+# * should SET be supported for partitioning lock pruning? NO - it is a DB Admin
+# statement.
+
