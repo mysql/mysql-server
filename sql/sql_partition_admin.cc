@@ -340,12 +340,12 @@ static bool exchange_name_with_ddl_log(THD *thd,
     2) write the execution entry with a link to the action entry
   */
   DBUG_EXECUTE_IF("exchange_partition_fail_1", goto err_no_action_written;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_1", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_1", DBUG_SUICIDE(););
   if (write_ddl_log_entry(&exchange_entry, &log_entry))
     goto err_no_action_written;
 
   DBUG_EXECUTE_IF("exchange_partition_fail_2", goto err_no_execute_written;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_2", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_2", DBUG_SUICIDE(););
   if (write_execute_ddl_log_entry(log_entry->entry_pos, FALSE, &exec_log_entry))
     goto err_no_execute_written;
   /* ddl_log is written and synced */
@@ -364,7 +364,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
                            name, tmp_name, 0, "n/a");
                   error_set= TRUE;
                   goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_3", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_3", DBUG_SUICIDE(););
   if (file->ha_rename_table(name, tmp_name))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
@@ -374,7 +374,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
     goto err_rename;
   }
   DBUG_EXECUTE_IF("exchange_partition_fail_4", goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_4", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_4", DBUG_SUICIDE(););
   if (deactivate_ddl_log_entry(log_entry->entry_pos))
     goto err_rename;
 
@@ -384,7 +384,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
                            from_name, name, 0, "n/a");
                   error_set= TRUE;
                   goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_5", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_5", DBUG_SUICIDE(););
   if (file->ha_rename_table(from_name, name))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
@@ -394,7 +394,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
     goto err_rename;
   }
   DBUG_EXECUTE_IF("exchange_partition_fail_6", goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_6", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_6", DBUG_SUICIDE(););
   if (deactivate_ddl_log_entry(log_entry->entry_pos))
     goto err_rename;
 
@@ -404,7 +404,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
                            tmp_name, from_name, 0, "n/a");
                   error_set= TRUE;
                   goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_7", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_7", DBUG_SUICIDE(););
   if (file->ha_rename_table(tmp_name, from_name))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
@@ -414,13 +414,13 @@ static bool exchange_name_with_ddl_log(THD *thd,
     goto err_rename;
   }
   DBUG_EXECUTE_IF("exchange_partition_fail_8", goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_8", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_8", DBUG_SUICIDE(););
   if (deactivate_ddl_log_entry(log_entry->entry_pos))
     goto err_rename;
 
   /* The exchange is complete and ddl_log is deactivated */
   DBUG_EXECUTE_IF("exchange_partition_fail_9", goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_9", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_9", DBUG_SUICIDE(););
   /* all OK */
   error= FALSE;
   delete file;
