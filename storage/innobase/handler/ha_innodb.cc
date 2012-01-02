@@ -569,6 +569,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_num_open_files,		  SHOW_LONG},
   {"truncated_status_writes",
   (char*) &export_vars.innodb_truncated_status_writes,	  SHOW_LONG},
+  {"available_undo_logs",
+  (char*) &export_vars.innodb_available_undo_logs,        SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -13315,6 +13317,39 @@ innodb_change_buffer_max_size_update(
 	ibuf_max_size_update(innobase_change_buffer_max_size);
 }
 
+/********************************************************************
+Check if innodb_undo_logs is valid. This function is registered as
+a callback with MySQL.
+@return	0 for valid innodb_undo_logs
+@see mysql_var_check_func */
+static
+int
+innodb_undo_logs_validate(
+/*======================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: ptr to sys var */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+        long long rsegs;
+
+	DBUG_ENTER("innodb_undo_logs_validate");
+
+	DBUG_ASSERT(save != NULL);
+	DBUG_ASSERT(value != NULL);
+	DBUG_ASSERT(srv_available_undo_logs <= TRX_SYS_N_RSEGS);
+
+	value->val_int(value, &rsegs);
+
+        if (rsegs > (long long) srv_available_undo_logs) {
+		rsegs = srv_available_undo_logs;
+	}
+	*reinterpret_cast<ulint*>(save) = static_cast<ulint>(rsegs);
+
+	DBUG_RETURN(0);
+}
+
 /*************************************************************//**
 Find the corresponding ibuf_use_t value that indexes into
 innobase_change_buffering_values[] array for the input
@@ -14664,7 +14699,7 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
 static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
   PLUGIN_VAR_OPCMDARG,
   "Number of undo logs to use.",
-  NULL, NULL,
+  innodb_undo_logs_validate, NULL,
   TRX_SYS_N_RSEGS,	/* Default setting */
   1,			/* Minimum value */
   TRX_SYS_N_RSEGS, 0);	/* Maximum value */
@@ -15181,3 +15216,5 @@ ha_innobase::idx_cond_push(
 	/* We will evaluate the condition entirely */
 	DBUG_RETURN(NULL);
 }
+
+

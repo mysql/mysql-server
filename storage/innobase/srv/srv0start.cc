@@ -2170,12 +2170,11 @@ innobase_start_or_create_for_mysql(void)
 	ut_a(srv_undo_logs > 0);
 	ut_a(srv_undo_logs <= TRX_SYS_N_RSEGS);
 
-	/* Note: We set the config variable here to the number of rollback
-	segments that are actually active. This allows the user to discover
-	the currently configured number of undo segments in an existing
-	instance. */
+	/* The number of rsegs that exist in InnoDB is given by status
+	variable srv_available_undo_logs. The number of rsegs to use can
+	be set using the dynamic global variable srv_undo_logs. */
 
-	srv_undo_logs = trx_sys_create_rsegs(
+	srv_available_undo_logs = trx_sys_create_rsegs(
 		srv_undo_tablespaces, srv_undo_logs);
 
 	/* Create the thread which watches the timeouts for lock waits */

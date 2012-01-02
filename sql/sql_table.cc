@@ -2421,6 +2421,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       error= ha_delete_table(thd, table_type, path, db, table->table_name,
                              !dont_log_query);
 
+      if (error == HA_ERR_TOO_MANY_CONCURRENT_TRXS)
+        goto err;
+
       /* No error if non existent table and 'IF EXIST' clause or view */
       if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
 	  (if_exists || table_type == NULL))
@@ -2470,7 +2473,12 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                                non_trans_tmp_table_deleted);
   error= 0;
 err:
-  if (wrong_tables.length())
+  if (error == HA_ERR_TOO_MANY_CONCURRENT_TRXS)
+  {
+    my_error(HA_ERR_TOO_MANY_CONCURRENT_TRXS, MYF(0));
+    error= 1;
+  }
+  else if (wrong_tables.length())
   {
     if (!foreign_key_error)
       my_printf_error(ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR), MYF(0),
