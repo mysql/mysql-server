@@ -3031,37 +3031,34 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
 /*
   Perform partition pruning for a given table and condition.
 
-  SYNOPSIS
-    prune_partitions()
-      thd           Thread handle
-      table         Table to perform partition pruning for
-      pprune_cond   Condition to use for partition pruning
+  @param      thd            Thread handle
+  @param      table          Table to perform partition pruning for
+  @param      pprune_cond    Condition to use for partition pruning
+  @param[out] no_parts_used  If no partitions can fulfil the condition
   
-  DESCRIPTION
-    This function assumes that all partitions are marked as unused when it
-    is invoked. The function analyzes the condition, finds partitions that
-    need to be used to retrieve the records that match the condition, and 
-    marks them as used by setting appropriate bit in part_info->read_partitions
-    In the worst case all partitions are marked as used.
+  @note This function assumes that all partitions are marked as unused when it
+  is invoked. The function analyzes the condition, finds partitions that
+  need to be used to retrieve the records that match the condition, and 
+  marks them as used by setting appropriate bit in part_info->read_partitions
+  In the worst case all partitions are marked as used.
 
-  NOTE
-    This function returns promptly if called for non-partitioned table.
+  This function returns promptly if called for non-partitioned table.
 
-  RETURN
-    TRUE   We've inferred that no partitions need to be used (i.e. no table
-           records will satisfy pprune_cond)
-    FALSE  Otherwise
+  @return Operation status
+    @retval true  Failure
+    @retval false Success
 */
 
-bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
+bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond,
+                      bool *no_parts_used)
 {
-  bool retval= FALSE;
   partition_info *part_info = table->part_info;
   DBUG_ENTER("prune_partitions");
+  *no_parts_used= false;
 
   if (!part_info)
     DBUG_RETURN(FALSE); /* not a partitioned table */
-  
+
   if (!pprune_cond)
   {
     mark_all_partitions_as_used(part_info);
@@ -3113,10 +3110,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     goto all_used;
 
   if (tree->type == SEL_TREE::IMPOSSIBLE)
-  {
-    retval= TRUE;
     goto end;
-  }
 
   if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER)
     goto all_used;
@@ -3169,16 +3163,9 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     }
   }
   
-  /*
-    res == 0 => no used partitions => retval=TRUE
-    res == 1 => some used partitions => retval=FALSE
-    res == -1 - we jump over this line to all_used:
-  */
-  retval= test(!res);
   goto end;
 
 all_used:
-  retval= FALSE; // some partitions are used
   mark_all_partitions_as_used(prune_param.part_info);
 end:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
@@ -3188,9 +3175,20 @@ end:
   /* Must be a subset of the locked partitions */
   bitmap_intersect(&(prune_param.part_info->read_partitions),
                    &(prune_param.part_info->lock_partitions));
+  /*
+    If not yet locked, also prune partitions to lock if not UPDATEing
+    partition key fields.
+    TODO: enhance this prune locking to also allow pruning of
+    'UPDATE t SET part_key = const WHERE cond_is_prunable' so it adds
+    a lock for part_key partition.
+  */
+  if (table->file->get_lock_type() == F_UNLCK &&
+      !partition_key_modified(table, table->write_set))
+    bitmap_intersect(&(prune_param.part_info->lock_partitions),
+                     &(prune_param.part_info->read_partitions));
   if (bitmap_is_clear_all(&(prune_param.part_info->read_partitions)))
-    retval= TRUE;
-  DBUG_RETURN(retval);
+    *no_parts_used= true;
+  DBUG_RETURN(false);
 }
 
 
@@ -6466,6 +6464,16 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       (field->type() == MYSQL_TYPE_DATE ||
        field->type() == MYSQL_TYPE_DATETIME))
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
+
+  if (!param->thd->lex->is_query_tables_locked() &&
+      (!value->const_item() || value->has_subquery()))
+  {
+    /* Don't eval non const or subqueries if not locked. I.e. in prepare. */
+    tree= 0;
+    field->table->in_use->variables.sql_mode= orig_sql_mode;
+    goto end;
+  }
+  else
   {
     // Note that value may be a stored function call, executed here.
     err= value->save_in_field_no_warnings(field, 1);

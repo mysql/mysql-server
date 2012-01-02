@@ -68,8 +68,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   THD::enum_binlog_query_type query_type= THD::ROW_QUERY_TYPE;
   DBUG_ENTER("mysql_delete");
 
-  if (open_and_lock_tables(thd, table_list, TRUE, 0))
+  if (open_query_tables(thd))
     DBUG_RETURN(TRUE);
+
   if (!(table= table_list->table))
   {
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
@@ -102,6 +103,32 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       DBUG_RETURN(TRUE);
     }
   }
+  
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /*
+    Non delete tables are pruned in JOIN::prepare,
+    only the delete table needs this.
+  */
+  bool no_parts_used;
+  if (prune_partitions(thd, table, conds, &no_parts_used))
+    DBUG_RETURN(true);
+  if (no_parts_used)
+  {
+    /* No matching records */
+    if (thd->lex->describe)
+    {
+      err= explain_no_table(thd, "No matching rows after partition pruning");
+      goto exit_without_my_ok;
+    }
+
+    free_underlaid_joins(thd, select_lex);
+    my_ok(thd, 0);
+    DBUG_RETURN(0);
+  }
+#endif
+  
+  if (lock_query_tables(thd))
+    DBUG_RETURN(true);
 
   const_cond= (!conds || conds->const_item());
   safe_update=test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
@@ -187,27 +214,13 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     }
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (prune_partitions(thd, table, conds))
-  {
-    /* No matching records */
-    if (thd->lex->describe)
-    {
-      err= explain_no_table(thd, "No matching rows after partition pruning");
-      goto exit_without_my_ok;
-    }
-
-    free_underlaid_joins(thd, select_lex);
-    my_ok(thd, 0);
-    DBUG_RETURN(0);
-  }
-#endif
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   table->covering_keys.clear_all();
   table->quick_keys.clear_all();		// Can't use 'only index'
 
+  // TODO: verify that subqueries does re-prune here.
   select=make_select(table, 0, 0, conds, 0, &error);
   if (error)
     DBUG_RETURN(TRUE);

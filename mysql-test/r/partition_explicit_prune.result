@@ -65,9 +65,9 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 INSERT INTO t1 PARTITION () VALUES (1, "error");
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ') VALUES (1, "error")' at line 1
 INSERT INTO t1 PARTITION (pNonExisting) VALUES (1, "error");
-ERROR HY000: partition 'pNonExisting' doesn't exist
+ERROR HY000: Unknown partition 'pNonExisting' in table 't1'
 INSERT INTO t1 PARTITION (pNeg, pNonExisting) VALUES (1, "error");
-ERROR HY000: partition 'pNonExisting' doesn't exist
+ERROR HY000: Unknown partition 'pNonExisting' in table 't1'
 # Duplicate partitions and overlapping partitions and subpartitios is OK
 FLUSH STATUS;
 INSERT INTO t1 PARTITION (pNeg, pNeg) VALUES (-1, "pNeg(-subp1)");
@@ -75,10 +75,10 @@ SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_COMMIT	1
-HANDLER_EXTERNAL_LOCK	6
+HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	18
 # Should be 1 commit
-# 6 external locks
+# 4 external locks (6 before WL#4443)
 # (1 ha_partition + 2 ha_innobase) x 2 (lock + unlock)
 # and 18 write (1 ha_innobase + 17 internal I_S write)
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, "pNeg(-subp1)");
@@ -171,7 +171,7 @@ p100-99999	subp6	2
 p100-99999	subp7	1
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (pNonexistent);
-ERROR HY000: partition 'pNonexistent' doesn't exist
+ERROR HY000: Unknown partition 'pNonexistent' in table 't1'
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -298,7 +298,7 @@ HANDLER_WRITE	89
 # + 18 for unlock (same as lock above) (100 is not in pNeg, no match)
 # Test that EXPLAIN PARTITION works
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (pNonexistent);
-ERROR HY000: partition 'pNonexistent' doesn't exist
+ERROR HY000: Unknown partition 'pNonexistent' in table 't1'
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0-9_subp2	index	NULL	b	71	NULL	2	Using index
@@ -363,11 +363,12 @@ ERROR HY000: Found a row not matching the given partition set
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_EXTERNAL_LOCK	4
-HANDLER_ROLLBACK	1
+HANDLER_EXTERNAL_LOCK	2
 HANDLER_WRITE	17
-# 4 locks (1 ha_partition + 1 ha_innobase) x 2 (lock/unlock)
-# 1 rollback (failure)
+# 2 locks (1 ha_partition) x 2 (lock/unlock), Was 4 locks before WL4443
+# explicit pruning says part_id 0 and implicit pruning says part_id 1
+# so no partition will be locked! (TODO: should we fail before locking?)
+# 0 rollback (since no locked partition)
 # 17 writes (I_S internal)
 FLUSH STATUS;
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'Insert by REPLACE');
@@ -562,9 +563,9 @@ SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_COMMIT	1
-HANDLER_EXTERNAL_LOCK	18
+HANDLER_EXTERNAL_LOCK	10
 HANDLER_WRITE	17
-# 18 locks (Note that locks all partitions!!!)
+# 10 locks (table + 4 partition) x (lock + unlock)
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 a	b
 FLUSH STATUS;
@@ -576,7 +577,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_EXTERNAL_LOCK	6
 HANDLER_ROLLBACK	1
 HANDLER_WRITE	21
-# 6 locks (1 ha_partiiton + 2 ha_innobase) x 2 (lock+unlock)
+# 6 locks (1 ha_partition + 2 ha_innobase) x 2 (lock+unlock)
 # 1 rollback
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 a	b
@@ -639,32 +640,71 @@ HANDLER_WRITE	17
 # 2 read key (innobase_get_index from rnd_init +
 #             read next row from second rnd_next)
 # 1 update (update the row)
+EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pNeg_subp0	ALL	PRIMARY,b	PRIMARY	4	NULL	2	
 SELECT * FROM t1 PARTITION (subp0) ORDER BY a;
 a	b
 -2	(pNeg-)subp0, Updated
 FLUSH STATUS;
-UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
+UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = -2;
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
+HANDLER_READ_KEY	1
+HANDLER_UPDATE	1
 HANDLER_WRITE	17
 # 1 commit
 # 4 lock
-# nothing more since all partitions is pruned away.
+# 1 read key
+# 1 update
+EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = -2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pNeg_subp0	range	PRIMARY,b	PRIMARY	4	NULL	1	Using where
+FLUSH STATUS;
+UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2')
+WHERE a = -2;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_READ_KEY	2
+HANDLER_READ_RND	1
+HANDLER_UPDATE	1
+HANDLER_WRITE	17
+# 1 commit
+# 4 lock
+# 2 read key - (2 index read)
+# 1 read rnd - rnd_pos
+# 1 update
+EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pNeg_subp0	ALL	PRIMARY,b	PRIMARY	4	NULL	2	Using temporary
+FLUSH STATUS;
+UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_WRITE	17
+# Nothing, since impossible PARTITION+WHERE clause.
+EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -2, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	1
-HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	17
-# 1 commit
-# 4 lock
-# nothing more since all partitions is pruned away.
+# Nothing, since impossible PARTITION+WHERE clause.
+EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0)
+SET a = -2, b = concat(b, ', Updated from a = 100') WHERE a = 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 FLUSH STATUS;
 UPDATE t1 PARTITION(`p100-99999`) SET a = -2, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
@@ -682,7 +722,7 @@ HANDLER_WRITE	17
 # 1 read rnd (rnd pos)
 # 1 rollback
 FLUSH STATUS;
-UPDATE t1 PARTITION(`p100-99999`, pNeg) SET a = -2, b = concat(b, ', Updated from a = 100')
+UPDATE t1 PARTITION(`p100-99999`, pNeg) SET a = -4, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
 Got one of the listed errors
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -719,8 +759,8 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 -222	`p100-99999`(-subp6), Updated from a = 100
 -21	REPLACEd by REPLACE
+-4	(pNeg-)subp0, Updated, Updated2, Updated from a = -2
 -3	pNeg(-subp1)
--2	(pNeg-)subp0, Updated
 -1	pNeg(-subp1)
 1	subp3
 3	subp3
@@ -734,19 +774,15 @@ UPDATE t1 SET b = concat(b, ', Updated2') WHERE a = 1000000;
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	1
-HANDLER_EXTERNAL_LOCK	18
 HANDLER_WRITE	17
-# only 18 lock and 1 commit (no matching partition found, but no pruning)
+# Nothing (no matching partition found)
 FLUSH STATUS;
 UPDATE t1 PARTITION (pNeg) SET b = concat(b, ', Updated2') WHERE a = 1000000;
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
-HANDLER_COMMIT	1
-HANDLER_EXTERNAL_LOCK	6
 HANDLER_WRITE	17
-# only 6 lock and 1 commit (no matching partition found, with pruning)
+# Nothing (no matching partition found)
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -804,7 +840,7 @@ HANDLER_WRITE	72
 #
 SELECT * FROM t1 ORDER BY b, a;
 a	b
--2	(pNeg-)subp0, Updated
+-4	(pNeg-)subp0, Updated, Updated2, Updated from a = -2
 5	p0-9:subp3
 10	p10-99
 -3	pNeg(-subp1)
@@ -822,12 +858,12 @@ WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_COMMIT	1
 HANDLER_DELETE	1
-HANDLER_EXTERNAL_LOCK	6
+HANDLER_EXTERNAL_LOCK	4
 HANDLER_READ_KEY	1
 HANDLER_WRITE	17
 # 1 delete
-# 6 locks
-# 2 read key (index init + index read)
+# 4 locks (pruning works!).
+# 1 read key (index read)
 FLUSH STATUS;
 DELETE FROM t1 PARTITION (subp1) WHERE b like '%subp1%';
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -945,7 +981,7 @@ SUBPARTITION BY HASH (a)
   SUBPARTITION subp7 ENGINE = InnoDB)) */
 SELECT * FROM t1;
 a	b
--2	(pNeg-)subp0, Updated
+-4	(pNeg-)subp0, Updated, Updated2, Updated from a = -2
 -222	`p100-99999`(-subp6), Updated from a = 100
 -21	REPLACEd by REPLACE
 1	subp3
@@ -990,7 +1026,7 @@ t3	CREATE TABLE `t3` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t3;
 a	b
--2	(pNeg-)subp0, Updated
+-4	(pNeg-)subp0, Updated, Updated2, Updated from a = -2
 -222	`p100-99999`(-subp6), Updated from a = 100
 -21	REPLACEd by REPLACE
 1	subp3
@@ -1057,7 +1093,7 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 -222	`p100-99999`(-subp6), Updated from a = 100
 -21	REPLACEd by REPLACE
--2	(pNeg-)subp0, Updated
+-4	(pNeg-)subp0, Updated, Updated2, Updated from a = -2
 1	subp3
 3	subp3
 10	p10-99
@@ -1072,7 +1108,7 @@ SELECT * FROM t3 ORDER BY a;
 a	b
 -222	`p100-99999`(-subp6), Updated from a = 100
 -21	REPLACEd by REPLACE
--2	(pNeg-)subp0, Updated
+-4	(pNeg-)subp0, Updated, Updated2, Updated from a = -2
 110	`p100-99999`(-subp7), Updated to 103, Updated to 110
 1000	`p100-99999`(-subp6)
 # Test TRUNCATE TABLE (should fail, since one should use
@@ -1087,9 +1123,9 @@ SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_COMMIT	1
-HANDLER_EXTERNAL_LOCK	18
+HANDLER_EXTERNAL_LOCK	6
 HANDLER_WRITE	17
-# 18 locks (Since ALTER, no lock pruning, the same with TRUNCATE...)
+# 6 locks (lock/unlock two subpartitions + table)
 # Test on non partitioned table
 SELECT * FROM t3 PARTITION (pNeg);
 ERROR HY000: PARTITION () clause on non partitioned table
@@ -1159,7 +1195,7 @@ id
 SELECT * FROM t1 PARTITION (p3) WHERE id = 2;
 id
 SELECT * FROM t1 PARTITION (foo);
-ERROR HY000: partition 'foo' doesn't exist
+ERROR HY000: Unknown partition 'foo' in table 't1'
 CREATE TABLE `t2` (
 `id` int(11) NOT NULL DEFAULT 0,
 PRIMARY KEY (`id`)
@@ -1231,7 +1267,7 @@ id
 SELECT * FROM t2 PARTITION (p3) WHERE id = 2;
 id
 SELECT * FROM t2 PARTITION (foo);
-ERROR HY000: partition 'foo' doesn't exist
+ERROR HY000: Unknown partition 'foo' in table 't2'
 CREATE TABLE `t3` (
 `id` int(32) default NULL,
 `name` varchar(32) default NULL

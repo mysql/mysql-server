@@ -176,7 +176,7 @@ Variable_name	Value
 Qcache_hits	7
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	7
+Qcache_not_cached	4
 ----- establish connection user4 (user=mysqltest_1) -----
 select "user4";
 user4
@@ -207,7 +207,7 @@ Variable_name	Value
 Qcache_hits	8
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	8
+Qcache_not_cached	5
 ----- close connections -----
 ----- switch to connection default -----
 set names binary;

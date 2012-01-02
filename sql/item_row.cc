@@ -78,7 +78,14 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
     // we can't assign 'item' before, because fix_fields() can change arg
     Item *item= *arg;
     used_tables_cache |= item->used_tables();
-    const_item_cache&= item->const_item() && !with_null;
+    /*
+      Do not treat subqueries as const ones here as it will cause their
+      evaluation during prepare stage, unless the query tables are locked.
+    */
+    const_item_cache&= item->const_item() &&
+          /* Do not evaluate subqueries unless the tables are locked */
+          (thd->lex->is_query_tables_locked() || !item->has_subquery()) &&
+          !with_null;
     not_null_tables_cache|= item->not_null_tables();
 
     if (const_item_cache)
