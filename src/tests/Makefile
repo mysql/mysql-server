@@ -269,6 +269,7 @@ BDB_DONTRUN_TESTS = \
         test_logflush \
         test_multiple_checkpoints_block_commit \
 	test_query \
+	test_rand_insert_mult_db \
 	test_redirect_func \
 	test_stress1 \
 	test_stress2 \
