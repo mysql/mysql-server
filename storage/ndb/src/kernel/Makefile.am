@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SUBDIRS = vm error blocks
+SUBDIRS = error vm blocks
 EXTRA_DIST = CMakeLists.txt
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
