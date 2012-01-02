@@ -7679,66 +7679,26 @@ int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
 int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     TOKUDB_DBUG_ENTER("ha_tokudb::optimize");
     int error;
-    DBC* tmp_cursor = NULL;
-    tokudb_trx_data *trx = NULL;
-    DB_TXN* txn = NULL;
-    bool do_commit = false;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
-
-    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
-    if (trx == NULL) {
-        error = HA_ERR_UNSUPPORTED;
-        goto cleanup;
-    }
-
     //
-    // optimize may be called without a valid transaction, so we have to do this
-    // in order to get a valid transaction
-    // this is a bit hacky, but it is the best we have right now
-    //
-    txn = trx->sub_sp_level ? trx->sub_sp_level : trx->sp_level;
-    if (txn == NULL) { 
-        error = db_env->txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED);
-        if (error) {
-            goto cleanup;
-        }
-        do_commit = true;
-    }
-
-    //
-    // for each DB, scan through entire table and do nothing
+    // for each DB, run optimize and hot_optimize
     //
     for (uint i = 0; i < curr_num_DBs; i++) {
-        error = share->key_file[i]->optimize(share->key_file[i]);
+        DB* db = share->key_file[i];
+        error = db->optimize(db);
         if (error) {
             goto cleanup;
         }
-        error = share->key_file[i]->cursor(share->key_file[i], txn, &tmp_cursor, 0);
+        /*
+        error = db->hot_optimize(db);
         if (error) {
-            tmp_cursor = NULL;
             goto cleanup;
         }
-        while (error != DB_NOTFOUND) {
-            error = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_do_nothing, NULL);
-            if (error && error != DB_NOTFOUND) {
-                goto cleanup;
-            }
-        }
-        error = tmp_cursor->c_close(tmp_cursor);
-        assert(error==0);
-        tmp_cursor = NULL;
+        */
     }
 
     error = 0;
 cleanup:
-    if (tmp_cursor) {
-        int r = tmp_cursor->c_close(tmp_cursor);
-        assert(r==0);
-        tmp_cursor = NULL;
-    }
-    if (do_commit) {
-        commit_txn(txn, 0);
-    }
     TOKUDB_DBUG_RETURN(error);
 }
 
