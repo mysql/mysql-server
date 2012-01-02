@@ -6,8 +6,8 @@ CREATE TABLE t1(a int) ENGINE=ARCHIVE;
 DROP TABLE t1;
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN archive SONAME '$HA_ARCHIVE_SO';
---error 1125
 --replace_regex /\.dll/.so/
+--error 1125
 eval INSTALL PLUGIN ARCHIVE SONAME '$HA_ARCHIVE_SO';
 
 UNINSTALL PLUGIN archive;

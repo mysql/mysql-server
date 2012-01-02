@@ -1,14 +1,14 @@
-CHECK_CXX_SOURCE_COMPILES(
-"#include <boost/version.hpp>
-#if BOOST_VERSION >= 104000
-#else
-#error oops
-#endif
-int main() { return 0; }" BOOST_OK)
+FIND_PACKAGE(Boost 1.45.0) # we need at least 1.45 if we want  -fno-rtti for the server
+IF(NOT Boost_FOUND)
+  RETURN()
+ENDIF()
+INCLUDE_DIRECTORIES(BEFORE ${Boost_INCLUDE_DIRS})
 
 # lp:756966 OQGRAPH on Win64 does not compile
 IF(MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
   SET(BOOST_OK 0)
+ELSE()
+  SET(BOOST_OK 1)
 ENDIF()
 
 IF(BOOST_OK)
