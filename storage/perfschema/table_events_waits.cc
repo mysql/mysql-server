@@ -21,10 +21,12 @@
 #include "my_global.h"
 #include "my_pthread.h"
 #include "table_events_waits.h"
+#include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
 #include "pfs_timer.h"
+#include "m_string.h"
 
 THR_LOCK table_events_waits_current::m_table_lock;
 
@@ -37,6 +39,11 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("EVENT_ID") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("END_EVENT_ID") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
@@ -124,7 +131,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_events_waits_current::m_field_def=
-{ 18, field_types };
+{ 19, field_types };
 
 PFS_engine_table_share
 table_events_waits_current::m_share=
@@ -191,6 +198,7 @@ void table_events_waits_common::clear_object_columns()
   m_row.m_object_schema_length= 0;
   m_row.m_object_name_length= 0;
   m_row.m_index_name_length= 0;
+  m_row.m_object_instance_addr= 0;
 }
 
 int table_events_waits_common::make_table_object_columns(volatile PFS_events_waits *wait)
@@ -250,6 +258,7 @@ int table_events_waits_common::make_table_object_columns(volatile PFS_events_wai
     m_row.m_index_name_length= 0;
   }
 
+  m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
   return 0;
 }
 
@@ -264,6 +273,7 @@ int table_events_waits_common::make_file_object_columns(volatile PFS_events_wait
   m_row.m_object_type= "FILE";
   m_row.m_object_type_length= 4;
   m_row.m_object_schema_length= 0;
+  m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
 
   if (safe_file->get_version() == wait->m_weak_version)
   {
@@ -273,6 +283,58 @@ int table_events_waits_common::make_file_object_columns(volatile PFS_events_wait
                  (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
       return 1;
     memcpy(m_row.m_object_name, safe_file->m_filename, m_row.m_object_name_length);
+  }
+  else
+  {
+    m_row.m_object_name_length= 0;
+  }
+
+  m_row.m_index_name_length= 0;
+
+  return 0;
+}
+
+int table_events_waits_common::make_socket_object_columns(volatile PFS_events_waits *wait)
+{
+  PFS_socket *safe_socket;
+
+  safe_socket= sanitize_socket(wait->m_weak_socket);
+  if (unlikely(safe_socket == NULL))
+    return 1;
+
+  m_row.m_object_type= "SOCKET";
+  m_row.m_object_type_length= 6;
+  m_row.m_object_schema_length= 0;
+  m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
+
+  if (safe_socket->get_version() == wait->m_weak_version)
+  {
+    /* Convert port number to string, include delimiter in port name length */
+
+    uint port;
+    char port_str[128];
+    char ip_str[INET6_ADDRSTRLEN+1];
+    uint ip_len= 0;
+    port_str[0]= ':';
+
+    /* Get the IP address and port number */
+    ip_len= pfs_get_socket_address(ip_str, sizeof(ip_str), &port,
+                                   &safe_socket->m_sock_addr,
+                                   safe_socket->m_addr_len);
+
+    /* Convert port number to a string (length includes ':') */
+    int port_len= int10_to_str(port, (port_str+1), 10) - port_str + 1;
+
+    /* OBJECT NAME */
+    m_row.m_object_name_length= ip_len + port_len;
+
+    if (unlikely((m_row.m_object_name_length == 0) ||
+                 (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
+      return 1;
+
+    char *name= m_row.m_object_name;
+    memcpy(name, ip_str, ip_len);
+    memcpy(name + ip_len, port_str, port_len);
   }
   else
   {
@@ -335,6 +397,10 @@ void table_events_waits_common::make_row(bool thread_own_wait,
   */
   switch (wait->m_wait_class)
   {
+  case WAIT_CLASS_IDLE:
+    clear_object_columns();
+    safe_class= sanitize_idle_class(wait->m_class);
+    break;
   case WAIT_CLASS_MUTEX:
     clear_object_columns();
     safe_class= sanitize_mutex_class((PFS_mutex_class*) wait->m_class);
@@ -357,6 +423,11 @@ void table_events_waits_common::make_row(bool thread_own_wait,
       return;
     safe_class= sanitize_file_class((PFS_file_class*) wait->m_class);
     break;
+  case WAIT_CLASS_SOCKET:
+    if (make_socket_object_columns(wait))
+      return;
+    safe_class= sanitize_socket_class((PFS_socket_class*) wait->m_class);
+    break;
   case NO_WAIT_CLASS:
   default:
     return;
@@ -367,14 +438,13 @@ void table_events_waits_common::make_row(bool thread_own_wait,
 
   m_row.m_thread_internal_id= safe_thread->m_thread_internal_id;
   m_row.m_event_id= wait->m_event_id;
+  m_row.m_end_event_id= wait->m_end_event_id;
   m_row.m_nesting_event_id= wait->m_nesting_event_id;
   m_row.m_nesting_event_type= wait->m_nesting_event_type;
 
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
   normalizer->to_pico(wait->m_timer_start, wait->m_timer_end,
                       & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
-
-  m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
 
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
@@ -474,7 +544,27 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("write low priority") },
   { C_STRING_WITH_LEN("write normal") },
   { C_STRING_WITH_LEN("read external") },
-  { C_STRING_WITH_LEN("write external") }
+  { C_STRING_WITH_LEN("write external") },
+
+  /* Socket operations */
+  { C_STRING_WITH_LEN("create") },
+  { C_STRING_WITH_LEN("connect") },
+  { C_STRING_WITH_LEN("bind") },
+  { C_STRING_WITH_LEN("close") },
+  { C_STRING_WITH_LEN("send") },
+  { C_STRING_WITH_LEN("recv") },
+  { C_STRING_WITH_LEN("sendto") },
+  { C_STRING_WITH_LEN("recvfrom") },
+  { C_STRING_WITH_LEN("sendmsg") },
+  { C_STRING_WITH_LEN("recvmsg") },
+  { C_STRING_WITH_LEN("seek") },
+  { C_STRING_WITH_LEN("opt") },
+  { C_STRING_WITH_LEN("stat") },
+  { C_STRING_WITH_LEN("shutdown") },
+  { C_STRING_WITH_LEN("select") },
+
+  /* Idle operations */
+  { C_STRING_WITH_LEN("idle") }
 };
 
 
@@ -517,34 +607,40 @@ int table_events_waits_common::read_row_values(TABLE *table,
       case 1: /* EVENT_ID */
         set_field_ulonglong(f, m_row.m_event_id);
         break;
-      case 2: /* EVENT_NAME */
+      case 2: /* END_EVENT_ID */
+        if (m_row.m_end_event_id > 0)
+          set_field_ulonglong(f, m_row.m_end_event_id - 1);
+        else
+          f->set_null();
+        break;
+      case 3: /* EVENT_NAME */
         set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
         break;
-      case 3: /* SOURCE */
+      case 4: /* SOURCE */
         set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
         break;
-      case 4: /* TIMER_START */
+      case 5: /* TIMER_START */
         if (m_row.m_timer_start != 0)
           set_field_ulonglong(f, m_row.m_timer_start);
         else
           f->set_null();
         break;
-      case 5: /* TIMER_END */
+      case 6: /* TIMER_END */
         if (m_row.m_timer_end != 0)
           set_field_ulonglong(f, m_row.m_timer_end);
         else
           f->set_null();
         break;
-      case 6: /* TIMER_WAIT */
+      case 7: /* TIMER_WAIT */
         if (m_row.m_timer_wait != 0)
           set_field_ulonglong(f, m_row.m_timer_wait);
         else
           f->set_null();
         break;
-      case 7: /* SPINS */
+      case 8: /* SPINS */
         f->set_null();
         break;
-      case 8: /* OBJECT_SCHEMA */
+      case 9: /* OBJECT_SCHEMA */
         if (m_row.m_object_schema_length > 0)
         {
           set_field_varchar_utf8(f, m_row.m_object_schema,
@@ -553,7 +649,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 9: /* OBJECT_NAME */
+      case 10: /* OBJECT_NAME */
         if (m_row.m_object_name_length > 0)
         {
           set_field_varchar_utf8(f, m_row.m_object_name,
@@ -562,7 +658,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 10: /* INDEX_NAME */
+      case 11: /* INDEX_NAME */
         if (m_row.m_index_name_length > 0)
         {
           set_field_varchar_utf8(f, m_row.m_index_name,
@@ -571,7 +667,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 11: /* OBJECT_TYPE */
+      case 12: /* OBJECT_TYPE */
         if (m_row.m_object_type)
         {
           set_field_varchar_utf8(f, m_row.m_object_type,
@@ -580,34 +676,38 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 12: /* OBJECT_INSTANCE */
+      case 13: /* OBJECT_INSTANCE */
         set_field_ulonglong(f, m_row.m_object_instance_addr);
         break;
-      case 13: /* NESTING_EVENT_ID */
+      case 14: /* NESTING_EVENT_ID */
         if (m_row.m_nesting_event_id != 0)
           set_field_ulonglong(f, m_row.m_nesting_event_id);
         else
           f->set_null();
         break;
-      case 14: /* NESTING_EVENT_TYPE */
+      case 15: /* NESTING_EVENT_TYPE */
         if (m_row.m_nesting_event_id != 0)
           set_field_enum(f, m_row.m_nesting_event_type);
         else
           f->set_null();
         break;
-      case 15: /* OPERATION */
+      case 16: /* OPERATION */
         operation= &operation_names_map[(int) m_row.m_operation - 1];
         set_field_varchar_utf8(f, operation->str, operation->length);
         break;
-      case 16: /* NUMBER_OF_BYTES */
+      case 17: /* NUMBER_OF_BYTES */
         if ((m_row.m_operation == OPERATION_TYPE_FILEREAD) ||
             (m_row.m_operation == OPERATION_TYPE_FILEWRITE) ||
-            (m_row.m_operation == OPERATION_TYPE_FILECHSIZE))
+            (m_row.m_operation == OPERATION_TYPE_FILECHSIZE) ||
+            (m_row.m_operation == OPERATION_TYPE_SOCKETSEND) ||
+            (m_row.m_operation == OPERATION_TYPE_SOCKETRECV) ||
+            (m_row.m_operation == OPERATION_TYPE_SOCKETSENDTO) ||
+            (m_row.m_operation == OPERATION_TYPE_SOCKETRECVFROM))
           set_field_ulonglong(f, m_row.m_number_of_bytes);
         else
           f->set_null();
         break;
-      case 17: /* FLAGS */
+      case 18: /* FLAGS */
         f->set_null();
         break;
       default:

@@ -123,6 +123,7 @@ void cleanup_host(void)
   host_max= 0;
 }
 
+C_MODE_START
 static uchar *host_hash_get_key(const uchar *entry, size_t *length,
                                 my_bool)
 {
@@ -137,6 +138,7 @@ static uchar *host_hash_get_key(const uchar *entry, size_t *length,
   result= host->m_key.m_hash_key;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
 }
+C_MODE_END
 
 /**
   Initialize the host hash.

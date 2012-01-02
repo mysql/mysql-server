@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -53,6 +53,8 @@ first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 #define MTR_MEMO_MODIFY		54
 #define	MTR_MEMO_S_LOCK		55
 #define	MTR_MEMO_X_LOCK		56
+/** The mini-transaction freed a clustered index leaf page. */
+#define MTR_MEMO_FREE_CLUST_LEAF	57
 
 /** @name Log item types
 The log items are declared 'byte' so that the compiler can warn if val
@@ -216,16 +218,6 @@ ulint
 mtr_set_savepoint(
 /*==============*/
 	mtr_t*	mtr);	/*!< in: mtr */
-/**********************************************************//**
-Releases the latches stored in an mtr memo down to a savepoint.
-NOTE! The mtr must not have made changes to buffer pages after the
-savepoint, as these can be handled only by mtr_commit. */
-UNIV_INTERN
-void
-mtr_rollback_to_savepoint(
-/*======================*/
-	mtr_t*	mtr,		/*!< in: mtr */
-	ulint	savepoint);	/*!< in: savepoint */
 #ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Releases the (index tree) s-latch stored in an mtr memo after a
@@ -380,12 +372,16 @@ struct mtr_struct{
 #endif
 	dyn_array_t	memo;	/*!< memo stack for locks etc. */
 	dyn_array_t	log;	/*!< mini-transaction log */
-	ibool		inside_ibuf;
+	unsigned	inside_ibuf:1;
 				/*!< TRUE if inside ibuf changes */
-	ibool		modifications;
-				/* TRUE if the mtr made modifications to
-				buffer pool pages */
-	ibool		made_dirty;/*!< TRUE if mtr has made at least
+	unsigned	modifications:1;
+				/*!< TRUE if the mini-transaction
+				modified buffer pool pages */
+	unsigned	freed_clust_leaf:1;
+				/*!< TRUE if MTR_MEMO_FREE_CLUST_LEAF
+				was logged in the mini-transaction */
+	unsigned	made_dirty:1;
+				/*!< TRUE if mtr has made at least
 				one buffer pool page dirty */
 	ulint		n_log_recs;
 				/* count of how many page initial log records

@@ -2,9 +2,8 @@
 # Stored PROCEDURE error tests
 #
 
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1, t2;
---enable_warnings
 
 # Backup the mysql.proc table
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -34,9 +33,8 @@ create procedure syntaxerror(t int)|
 #create function foo returns real soname "foo.so"|
 
 
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t3|
---enable_warnings
 create table t3 ( x int )|
 insert into t3 values (2), (3)|
 
@@ -228,9 +226,8 @@ begin
   close c;
 end|
 
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1|
---enable_warnings
 create table t1 (val int)|
 
 create procedure p()
@@ -262,9 +259,8 @@ alter procedure bar3 sql security invoker|
 
 drop table t1|
 
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1|
---enable_warnings
 create table t1 (val int, x float)|
 insert into t1 values (42, 3.1), (19, 1.2)|
 
@@ -366,9 +362,8 @@ begin
 end|
 
 # Check in and inout arguments.
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists p|
---enable_warnings
 create procedure p(in x int, inout y int, out z int)
 begin
   set y = x+y;
@@ -417,9 +412,8 @@ unlock tables|
 # Check that in functions we don't allow to update tables which
 # are used by statements which invoke these functions.
 #
---disable_warnings
+--disable_warnings ONCE
 drop function if exists f1|
---enable_warnings
 create function f1(i int) returns int
 begin
   insert into t1 (val) values (i);
@@ -465,9 +459,8 @@ select 1 into a|
 #
 # BUG#1653
 #
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t3|
---enable_warnings
 create table t3 (column_1_0 int)|
 
 create procedure bug1653()
@@ -569,9 +562,8 @@ drop procedure bug3287|
 #
 # BUG#3297
 #
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t3|
---enable_warnings
 create table t3 (s1 int, primary key (s1))|
 insert into t3 values (5),(6)|
 
@@ -636,9 +628,8 @@ create procedure bug4344() drop function bug4344|
 #
 # BUG#3294: Stored procedure crash if table dropped before use
 # (Actually, when an error occurs within an error handler.)
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists bug3294|
---enable_warnings
 create procedure bug3294()
 begin
   declare continue handler for sqlexception drop table t5;
@@ -712,9 +703,8 @@ create procedure bug6600()
 # We should not think that mysql.proc table does not exist if we are unable
 # to open it under LOCK TABLE or in prelocked mode.
 #
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists bug9566|
---enable_warnings
 create procedure bug9566()
 begin
   select * from t1;
@@ -733,9 +723,8 @@ drop procedure bug9566|
 #
 # BUG#7299: Stored procedures: exception handler catches not-found conditions
 #
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists bug7299|
---enable_warnings
 create procedure bug7299()
 begin
   declare v int;
@@ -785,9 +774,8 @@ begin
 end|
 
 # This should still work.
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists bug9073|
---enable_warnings
 create procedure bug9073()
 begin
   declare condname1 condition for sqlstate '42000';
@@ -882,9 +870,8 @@ truncate table t1|
 # BUG#10537: Server crashes while loading data file into table through
 #            procedure.
 # Disable load until it's PS and SP safe
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists bug10537|
---enable_warnings
 --error ER_SP_BADSTATEMENT
 create procedure bug10537()
   load data local infile '/tmp/somefile' into table t1|
@@ -893,9 +880,8 @@ create procedure bug10537()
 #
 # BUG#8409: Stored procedure crash if function contains FLUSH
 #
---disable_warnings
+--disable_warnings ONCE
 drop function if exists bug8409|
---enable_warnings
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function bug8409()
   returns int
@@ -949,9 +935,8 @@ create procedure bug9529_9012345678901234567890123456789012345678901234567890123
 begin
 end|
 
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists bug17015_0123456789012345678901234567890123456789012345678901234|
---enable_warnings
 # Check the upper limit, just to make sure.
 create procedure bug17015_0123456789012345678901234567890123456789012345678901234()
 begin
@@ -965,9 +950,8 @@ drop procedure bug17015_0123456789012345678901234567890123456789012345678901234|
 #
 # BUG#10969: Stored procedures: crash if default() function
 #
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists bug10969|
---enable_warnings
 --error ER_WRONG_COLUMN_NAME
 create procedure bug10969()
 begin
@@ -1125,9 +1109,8 @@ drop function bug11834_2;
 # Bug#12953 "Stored procedures: crash if OPTIMIZE TABLE in function"
 #
 delimiter |;
---disable_warnings
+--disable_warnings ONCE
 DROP FUNCTION IF EXISTS bug12953|
---enable_warnings
 --error ER_SP_NO_RETSET
 CREATE FUNCTION bug12953() RETURNS INT
 BEGIN
@@ -1140,9 +1123,8 @@ delimiter ;|
 # Bug##12995 "Inside function "Table 't4' was not locked with LOCK TABLES"
 #
 delimiter |;
---disable_warnings
+--disable_warnings ONCE
 DROP FUNCTION IF EXISTS bug12995|
---enable_warnings
 --error ER_SP_BADSTATEMENT
 CREATE FUNCTION bug12995() RETURNS INT
 BEGIN
@@ -1226,9 +1208,8 @@ create trigger bug12712
 # BUG#9367: Stored procedures: client hang after "show warnings"
 #
 --disable_parsing
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists bug9367;
---enable_warnings
 create table t1 (s1 int);
 select s1 from t1;
 delimiter |;
@@ -1309,9 +1290,8 @@ drop procedure bug13510_4|
 # containing such statement should produce error (includes test for
 # bug #13627).
 #
---disable_warnings
+--disable_warnings ONCE
 drop function if exists bug_13627_f|
---enable_warnings
 
 CREATE TABLE t1 (a int)|
 -- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
@@ -1560,9 +1540,8 @@ use test;
 # Bug#13012 "SP: REPAIR/BACKUP/RESTORE TABLE crashes the server"
 #
 delimiter |;
---disable_warnings
+--disable_warnings ONCE
 DROP FUNCTION IF EXISTS bug13012|
---enable_warnings
 --error ER_SP_NO_RETSET
 CREATE FUNCTION bug13012() RETURNS INT
 BEGIN
@@ -1650,9 +1629,8 @@ drop view v1;
 #
 # BUG#15658: Server crashes after creating function as empty string
 #
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists ` bug15658`;
---enable_warnings
 
 --error ER_SP_WRONG_NAME
 create procedure ``() select 1;
@@ -1706,9 +1684,8 @@ drop table t1;
 # BUG#15091: Sp Returns Unknown error in order clause....and 
 #            there is no order by clause
 #
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists bug15091;
---enable_warnings
 
 delimiter |;
 create procedure bug15091()
@@ -1736,9 +1713,8 @@ drop procedure bug15091;
 #
 # BUG#16896: Stored function: unused AGGREGATE-clause in CREATE FUNCTION
 #
---disable_warnings
+--disable_warnings ONCE
 drop function if exists bug16896;
---enable_warnings
 
 --error ER_PARSE_ERROR
 create aggregate function bug16896() returns int return 1;
@@ -1751,9 +1727,8 @@ create aggregate function bug16896() returns int return 1;
 # Misleading error message was given when IF NOT EXISTS was used in
 # CREATE PROCEDURE.
 #
---disable_warnings
+--disable_warnings ONCE
 DROP PROCEDURE IF EXISTS bug14702;
---enable_warnings
 
 --error ER_PARSE_ERROR
 CREATE IF NOT EXISTS PROCEDURE bug14702()
@@ -1772,9 +1747,8 @@ END;
 #
 # See test case for what syntax is forbidden in a view.
 #
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1;
---enable_warnings
 
 CREATE TABLE t1 (i INT);
 
@@ -2026,9 +2000,8 @@ drop function func_25345_b;
 # Bug#16164 "Easter egg": check that SHOW AUTHORS is disabled in
 # stored functions/triggers
 #
---disable_warnings
+--disable_warnings ONCE
 drop function if exists bug16164;
---enable_warnings
 delimiter |;
 --error ER_SP_NO_RETSET
 create function bug16164() returns int
@@ -2042,9 +2015,8 @@ delimiter ;|
 #
 # BUG#20701: BINARY keyword should be forbidden in stored routines
 #
---disable_warnings
+--disable_warnings ONCE
 drop function if exists bug20701;
---enable_warnings
 #
 # This was disabled in 5.1.12. See bug #20701
 # When collation support in SP is implemented, then this test should
@@ -2155,9 +2127,8 @@ delimiter ;//
 # Bug#29223 declare cursor c for SHOW .....
 #
 
---disable_warnings
+--disable_warnings ONCE
 DROP PROCEDURE IF EXISTS p1;
---enable_warnings
 --delimiter |
 --error ER_PARSE_ERROR
 CREATE PROCEDURE p1()
@@ -2176,9 +2147,8 @@ END|
 # Bug#29816 Syntactically wrong query fails with misleading error message
 #
 
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS mysqltest;
---enable_warnings
 CREATE DATABASE mysqltest;
 USE mysqltest;
 DROP DATABASE mysqltest;
@@ -2357,9 +2327,8 @@ delimiter ;|
 # Bug#21801: SQL exception handlers and warnings
 #
 
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists p1;
---enable_warnings
 delimiter |;
 create procedure p1()
 begin
@@ -2375,9 +2344,8 @@ drop procedure p1;
 # Bug#8759 (Stored Procedures: SQLSTATE '00000' should be illegal)
 #
 
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists proc_8759;
---enable_warnings
 
 delimiter $$;
 
@@ -2400,9 +2368,8 @@ delimiter ;$$
 # Bug#36510 (Stored Procedures: mysql_error_code 0 should be illegal)
 #
 
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists proc_36510;
---enable_warnings
 
 delimiter $$;
 
@@ -2437,9 +2404,8 @@ delimiter ;$$
 # Bug#15192: "fatal errors" are caught by handlers in stored procedures
 #
 
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists p1;
---enable_warnings
 set @old_recursion_depth = @@max_sp_recursion_depth;
 set @@max_sp_recursion_depth = 255;
 delimiter |;
@@ -2535,6 +2501,28 @@ DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#12428824 - PARSER STACK OVERFLOW AND CRASH IN SP_ADD_USED_ROUTINE
+--echo #                WITH OBSCURE QUERY
+--echo #
+
+--error ER_TOO_LONG_IDENT
+SELECT very_long_fn_name_1111111111111111111111111111111111111111111111111111111111111111111111111222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222225555555555555555555555555577777777777777777777777777777777777777777777777777777777777777777777777788888888999999999999999999999();
+
+--error ER_TOO_LONG_IDENT
+CALL very_long_pr_name_1111111111111111111111111111111111111111111111111111111111111111111111111222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222225555555555555555555555555577777777777777777777777777777777777777777777777777777777777777777777777788888888999999999999999999999();
+
+--error ER_WRONG_DB_NAME
+SELECT very_long_db_name_1111111111111111111111111111111111111111111111111111111111111111111111111222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222225555555555555555555555555577777777777777777777777777777777777777777777777777777777777777777777777788888888999999999999999999999.simple_func();
+
+--error ER_WRONG_DB_NAME
+CALL very_long_db_name_1111111111111111111111111111111111111111111111111111111111111111111111111222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222225555555555555555555555555577777777777777777777777777777777777777777777777777777777777777777777777788888888999999999999999999999.simple_proc();
+
+--error ER_TOO_LONG_IDENT
+SELECT db_name.very_long_fn_name_111111111111111111111111111111111111111111111111111111111111111111111111122222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222999999999999999999999();
+
+--error ER_TOO_LONG_IDENT
+CALL db_name.very_long_pr_name_111111111111111111111111111111111111111111111111111111111111111111111111122222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222999999999999999999999();
 --echo End of 5.1 tests
 
 --echo #
@@ -2579,9 +2567,8 @@ DROP PROCEDURE p2;
 --echo # - Case 2
 --echo
 
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1;
---enable_warnings
 
 CREATE TABLE t1(a INT);
 
@@ -2669,9 +2656,8 @@ DROP TABLE t1;
 --echo # - Case 3: check that "Exception trumps No Data".
 --echo
 
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1;
---enable_warnings
 
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -2882,3 +2868,973 @@ SHOW WARNINGS;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP PROCEDURE p1;
+
+--echo
+--echo ###################################################################
+--echo # Tests for the following bugs:
+--echo #   - Bug#11763171: 55852 - Possibly inappropriate handler activation.
+--echo #   - Bug#11749343: 38806 - Wrong scope for SQL HANDLERS in SP.
+--echo ###################################################################
+--echo
+
+#
+# Structure of SQL-block:
+# BEGIN
+#   <Handler declaration block>
+#   <Statement block>
+# END
+#
+# Scope of Handler-decl-block is Statement-block.
+# I.e. SQL-conditions thrown in the Handler-decl-block can not be handled by
+# the same block, only by outer SQL-blocks.
+#
+# This rule is recursive, i.e. if a Handler-decl-block has nested SQL-blocks,
+# the SQL-conditions from those nested blocks can not be handled by the this
+# Handler-decl-block, only by outer SQL-blocks.
+#
+
+delimiter |;
+
+--echo
+--echo # -- Check that SQL-conditions thrown by Statement-blocks are
+--echo # -- handled by Handler-decl blocks properly.
+--echo
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+    SELECT 'H1' AS HandlerId;
+
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+    SELECT 'H2' AS HandlerId;
+
+  SIGNAL SQLSTATE '01000'; # Should be handled by H2.
+END|
+
+--echo
+CALL p1()|
+
+--echo
+--echo # -- Check that SQL-conditions thrown by Statement-blocks are
+--echo # -- handled by Handler-decl blocks properly in case of nested
+--echo # -- SQL-blocks.
+--echo
+
+CREATE PROCEDURE p2()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+    SELECT 'H1' AS HandlerId;
+
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+    SELECT 'H2' AS HandlerId;
+
+  BEGIN
+
+    SELECT 'B1' AS BlockId;
+    BEGIN
+
+      SELECT 'B2' AS BlockId;
+      BEGIN
+        SELECT 'B3' AS BlockId;
+        SIGNAL SQLSTATE '01000'; # Should be handled by H2.
+      END;
+
+    END;
+
+  END;
+
+END|
+
+--echo
+CALL p2()|
+
+--echo
+--echo # -- Check SQL-handler resolution rules.
+--echo
+
+CREATE PROCEDURE p3()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+    SELECT 'H1' AS HandlerId;
+
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+    SELECT 'H2' AS HandlerId;
+
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+    SELECT 'H3' AS HandlerId;
+
+  SIGNAL SQLSTATE '01000'; # Should be handled by H3.
+END|
+
+--echo
+CALL p3()|
+--echo
+
+CREATE PROCEDURE p4()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+    SELECT 'H1' AS HandlerId;
+
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+    SELECT 'H2' AS HandlerId;
+
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+    SELECT 'H3' AS HandlerId;
+
+  SIGNAL SQLSTATE '01000'; # Should be handled by H2.
+END|
+
+--echo
+CALL p4()|
+--echo
+
+CREATE PROCEDURE p5()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+    SELECT 'H1' AS HandlerId;
+
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+    SELECT 'H2' AS HandlerId;
+
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+      SELECT 'H3' AS HandlerId;
+
+    SIGNAL SQLSTATE '01000'; # Should be handled by H3.
+  END;
+END|
+
+--echo
+CALL p5()|
+
+--echo
+--echo # -- Check that handlers don't handle its own exceptions.
+--echo
+
+CREATE PROCEDURE p6()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+  BEGIN
+    SELECT 'H1' AS HandlerId;
+    SIGNAL SQLSTATE 'HY000'; # Should *not* be handled by H1.
+  END;
+
+  SELECT 'S1' AS SignalId;
+  SIGNAL SQLSTATE 'HY000'; # Should be handled by H1.
+END|
+
+--echo
+--error ER_SIGNAL_EXCEPTION
+CALL p6()|
+
+--echo
+--echo # -- Check that handlers don't handle its own warnings.
+--echo
+
+CREATE PROCEDURE p7()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+  BEGIN
+    SELECT 'H1' AS HandlerId;
+    SIGNAL SQLSTATE '01000'; # Should *not* be handled by H1.
+  END;
+
+  SELECT 'S1' AS SignalId;
+  SIGNAL SQLSTATE '01000'; # Should be handled by H1.
+END|
+
+--echo
+CALL p7()|
+
+--echo
+--echo # -- Check that conditions for handlers are not handled by the handlers
+--echo # -- from the same block.
+--echo
+
+CREATE PROCEDURE p8()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+    SELECT 'H1' AS HandlerId;
+
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+  BEGIN
+    SELECT 'H2' AS HandlerId;
+    SIGNAL SQLSTATE '01000'; # Should *not* be handled by H1.
+  END;
+
+  SELECT 'S1' AS SignalId;
+  SIGNAL SQLSTATE 'HY000'; # Should be handled by H2.
+END|
+
+--echo
+CALL p8()|
+
+--echo
+--echo # -- Check that conditions for handlers are not handled by the handlers
+--echo # -- from the same block even if they are thrown deep down the stack.
+--echo
+
+CREATE PROCEDURE p9()
+BEGIN
+
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+    SELECT 'Wrong:H1:1' AS HandlerId;
+
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+    SELECT 'Wrong:H1:2' AS HandlerId;
+
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+  BEGIN
+
+    DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+      SELECT 'Wrong:H2:1' AS HandlerId;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+      SELECT 'Wrong:H2:2' AS HandlerId;
+
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+    BEGIN
+
+      DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+        SELECT 'Wrong:H3:1' AS HandlerId;
+
+      DECLARE CONTINUE HANDLER FOR SQLWARNING
+        SELECT 'Wrong:H3:2' AS HandlerId;
+
+      DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+      BEGIN
+
+        DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+          SELECT 'Wrong:H4:1' AS HandlerId;
+
+        DECLARE CONTINUE HANDLER FOR SQLWARNING
+          SELECT 'Wrong:H4:2' AS HandlerId;
+
+        DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+        BEGIN
+
+          DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+            SELECT 'Wrong:H5:1' AS HandlerId;
+
+          DECLARE CONTINUE HANDLER FOR SQLWARNING
+            SELECT 'Wrong:H5:2' AS HandlerId;
+
+          DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+          BEGIN
+
+            DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+              SELECT 'Wrong:H6:1' AS HandlerId;
+
+            DECLARE CONTINUE HANDLER FOR SQLWARNING
+              SELECT 'Wrong:H6:2' AS HandlerId;
+
+            DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+            BEGIN
+              SELECT 'H2' AS HandlerId;
+              SIGNAL SQLSTATE '01000'; # Should *not* be handled by H1.
+            END;
+
+            SELECT 'S6' AS SignalId;
+            SIGNAL SQLSTATE 'HY000';
+          END;
+
+          SELECT 'S5' AS SignalId;
+          SIGNAL SQLSTATE 'HY000';
+
+        END;
+
+        SELECT 'S4' AS SignalId;
+        SIGNAL SQLSTATE 'HY000';
+
+      END;
+
+      SELECT 'S3' AS SignalId;
+      SIGNAL SQLSTATE 'HY000';
+
+    END;
+
+    SELECT 'S2' AS SignalId;
+    SIGNAL SQLSTATE 'HY000';
+
+  END;
+
+  SELECT 'S1' AS SignalId;
+  SIGNAL SQLSTATE 'HY000'; # Should be handled by H2.
+
+END|
+
+--echo
+CALL p9()|
+
+--echo
+--echo # -- Check that handlers are choosen properly in case of deep stack and
+--echo # -- nested SQL-blocks.
+--echo
+
+CREATE PROCEDURE p10()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+    SELECT 'H1' AS HandlerId;
+
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+    SELECT 'H2' AS HandlerId;
+
+  BEGIN
+    BEGIN
+      BEGIN
+
+        DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+          SELECT 'Wrong:H1:1' AS HandlerId;
+
+        DECLARE CONTINUE HANDLER FOR SQLWARNING
+          SELECT 'Wrong:H1:2' AS HandlerId;
+
+        DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+        BEGIN
+
+          DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+            SELECT 'Wrong:H2:1' AS HandlerId;
+
+          DECLARE CONTINUE HANDLER FOR SQLWARNING
+            SELECT 'Wrong:H2:2' AS HandlerId;
+
+          DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+          BEGIN
+
+            DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+              SELECT 'Wrong:H3:1' AS HandlerId;
+
+            DECLARE CONTINUE HANDLER FOR SQLWARNING
+              SELECT 'Wrong:H3:2' AS HandlerId;
+
+            DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+            BEGIN
+
+              DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+                SELECT 'Wrong:H4:1' AS HandlerId;
+
+              DECLARE CONTINUE HANDLER FOR SQLWARNING
+                SELECT 'Wrong:H4:2' AS HandlerId;
+
+              DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+              BEGIN
+
+                DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+                  SELECT 'Wrong:H5:1' AS HandlerId;
+
+                DECLARE CONTINUE HANDLER FOR SQLWARNING
+                  SELECT 'Wrong:H5:2' AS HandlerId;
+
+                DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+                BEGIN
+
+                  DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+                    SELECT 'Wrong:H6:1' AS HandlerId;
+
+                  DECLARE CONTINUE HANDLER FOR SQLWARNING
+                    SELECT 'Wrong:H6:2' AS HandlerId;
+
+                  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+                  BEGIN
+                    SELECT 'H2' AS HandlerId;
+                    SIGNAL SQLSTATE '01000'; # Should be handled by H1.
+                  END;
+
+                  SELECT 'S6' AS SignalId;
+                  SIGNAL SQLSTATE 'HY000';
+                END;
+
+                SELECT 'S5' AS SignalId;
+                SIGNAL SQLSTATE 'HY000';
+
+              END;
+
+              SELECT 'S4' AS SignalId;
+              SIGNAL SQLSTATE 'HY000';
+
+            END;
+
+            SELECT 'S3' AS SignalId;
+            SIGNAL SQLSTATE 'HY000';
+
+          END;
+
+          SELECT 'S2' AS SignalId;
+          SIGNAL SQLSTATE 'HY000';
+
+        END;
+
+        SELECT 'S1' AS SignalId;
+        SIGNAL SQLSTATE 'HY000'; # Should be handled by H2.
+
+      END;
+    END;
+  END;
+END|
+
+--echo
+CALL p10()|
+
+--echo
+--echo # -- Test stored procedure from Peter's mail.
+--echo
+
+CREATE PROCEDURE p11()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+    SELECT 'H1' AS HandlerId;
+
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+    SELECT 'H2' AS HandlerId;
+
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLSTATE '01000', 1249
+    BEGIN
+      DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+        SELECT 'H3' AS HandlerId;
+
+      DECLARE CONTINUE HANDLER FOR SQLWARNING
+        SELECT 'H4' AS HandlerId;
+
+      BEGIN
+        SELECT 'H5' AS HandlerId;
+
+        SELECT 'S3' AS SignalId;
+        SIGNAL SQLSTATE 'HY000'; # H3
+
+        SELECT 'S4' AS SignalId;
+        SIGNAL SQLSTATE '22003'; # H3
+
+        SELECT 'S5' AS SignalId;
+        SIGNAL SQLSTATE '01000' SET MYSQL_ERRNO = 1249; # H4
+      END;
+    END;
+
+    SELECT 'S6' AS SignalId;
+    SIGNAL SQLSTATE 'HY000'; # H1
+
+    SELECT 'S7' AS SignalId;
+    SIGNAL SQLSTATE '22003'; # H1
+
+    SELECT 'S8' AS SignalId;
+    SIGNAL SQLSTATE '01000' SET MYSQL_ERRNO = 1249; # H5
+  END;
+
+  SELECT 'S1' AS SignalId;
+  SIGNAL SQLSTATE 'HY000'; # H1
+
+  SELECT 'S2' AS SignalId;
+  SIGNAL SQLSTATE '01000' SET MYSQL_ERRNO = 1249; # H2
+END|
+
+--echo
+CALL p11()|
+
+--echo
+--echo # -- Check that runtime stack-trace can be deeper than parsing-time one.
+--echo
+
+CREATE PROCEDURE p12()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '01001'
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLSTATE '01001'
+    BEGIN
+      DECLARE CONTINUE HANDLER FOR SQLSTATE '01001'
+      BEGIN
+        DECLARE CONTINUE HANDLER FOR SQLSTATE '01001'
+        BEGIN
+          DECLARE CONTINUE HANDLER FOR SQLSTATE '01001'
+          BEGIN
+            SELECT 'H1:5' AS HandlerId;
+            SIGNAL SQLSTATE '01002';
+          END;
+          SELECT 'H1:4' AS HandlerId;
+          SIGNAL SQLSTATE '01001';
+        END;
+        SELECT 'H1:3' AS HandlerId;
+        SIGNAL SQLSTATE '01001';
+      END;
+      SELECT 'H1:2' AS HandlerId;
+      SIGNAL SQLSTATE '01001';
+    END;
+    SELECT 'H1:1' AS HandlerId;
+    SIGNAL SQLSTATE '01001';
+  END;
+
+  #########################################################
+
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '01002'
+    SELECT 'OK' AS Msg;
+
+  #########################################################
+
+  BEGIN
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+      DECLARE CONTINUE HANDLER FOR SQLWARNING
+      BEGIN
+        DECLARE CONTINUE HANDLER FOR SQLWARNING
+        BEGIN
+          DECLARE CONTINUE HANDLER FOR SQLWARNING
+          BEGIN
+            DECLARE CONTINUE HANDLER FOR SQLWARNING
+            BEGIN
+              SELECT 'H2:5' AS HandlerId;
+              SIGNAL SQLSTATE '01001';
+            END;
+            SELECT 'H2:4' AS HandlerId;
+            SIGNAL SQLSTATE '01000';
+          END;
+          SELECT 'H2:3' AS HandlerId;
+          SIGNAL SQLSTATE '01000';
+        END;
+        SELECT 'H2:2' AS HandlerId;
+        SIGNAL SQLSTATE '01000';
+      END;
+      SELECT 'H2:1' AS HandlerId;
+      SIGNAL SQLSTATE '01000';
+    END;
+
+    #######################################################
+
+    SELECT 'Throw 01000' AS Msg;
+    SIGNAL SQLSTATE '01000';
+  END;
+
+END|
+
+--echo
+CALL p12()|
+
+--echo
+--echo # -- Check that handler-call-frames are removed properly for EXIT
+--echo # -- handlers.
+--echo
+
+CREATE PROCEDURE p13()
+BEGIN
+  
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+      DECLARE EXIT HANDLER FOR SQLWARNING
+      BEGIN
+        SELECT 'EXIT handler 3' AS Msg;
+      END;
+
+      SELECT 'CONTINUE handler 2: 1' AS Msg;
+      SIGNAL SQLSTATE '01000';
+      SELECT 'CONTINUE handler 2: 2' AS Msg;
+    END;
+
+    SELECT 'CONTINUE handler 1: 1' AS Msg;
+    SIGNAL SQLSTATE '01000';
+    SELECT 'CONTINUE handler 1: 2' AS Msg;
+  END;
+
+  SELECT 'Throw 01000' AS Msg;
+  SIGNAL SQLSTATE '01000';
+END|
+
+--echo
+CALL p13()|
+
+delimiter ;|
+
+--echo
+--echo # That's it. Cleanup.
+--echo
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+DROP PROCEDURE p5;
+DROP PROCEDURE p6;
+DROP PROCEDURE p7;
+DROP PROCEDURE p8;
+DROP PROCEDURE p9;
+DROP PROCEDURE p10;
+DROP PROCEDURE p11;
+DROP PROCEDURE p12;
+DROP PROCEDURE p13;
+
+--echo
+--echo # Bug#12731619: NESTED SP HANDLERS CAN TRIGGER ASSERTION
+--echo
+
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(msg VARCHAR(255));
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION               # handler 1
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION             # handler 2
+    BEGIN
+      INSERT INTO t1 VALUE('WRONG: Inside H2');
+      RETURN 2;
+    END;
+
+    INSERT INTO t1 VALUE('CORRECT: Inside H1');
+    RETURN 1;
+  END;
+
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLWARNING               # handler 3
+    BEGIN
+      INSERT INTO t1 VALUE('WRONG: Inside H3');
+      RETURN 3;
+    END;
+
+    INSERT INTO t1 VALUE('CORRECT: Calling f1()');
+    RETURN f1(); # -- exception here
+  END;
+
+  INSERT INTO t1 VALUE('WRONG: Returning 10');
+  RETURN 10;
+
+END|
+
+delimiter ;|
+
+--echo
+SELECT f1();
+--echo
+SELECT * FROM t1;
+--echo
+
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+
+--echo
+--echo # Check that handled SQL-conditions are properly cleared from DA.
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE IF EXISTS p4;
+DROP PROCEDURE IF EXISTS p5;
+--enable_warnings
+
+CREATE TABLE t1(a CHAR, b CHAR, c CHAR);
+CREATE TABLE t2(a SMALLINT, b SMALLINT, c SMALLINT);
+
+delimiter |;
+
+--echo
+--echo # Check that SQL-conditions for which SQL-handler has been invoked,
+--echo # are cleared from the Diagnostics Area. Note, there might be several
+--echo # SQL-conditions, but SQL-handler must be invoked only once.
+--echo
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLWARNING
+    SELECT 'Warning caught' AS msg;
+
+  # The INSERT below raises 3 SQL-conditions (warnings). The EXIT HANDLER
+  # above must be invoked once (for one condition), but all three conditions
+  # must be cleared from the Diagnostics Area.
+
+  INSERT INTO t1 VALUES('qqqq', 'ww', 'eee');
+
+  # The following INSERT will not be executed, because of the EXIT HANDLER.
+
+  INSERT INTO t1 VALUES('zzz', 'xx', 'yyyy');
+END|
+
+--echo
+CALL p1()|
+--echo
+SELECT * FROM t1|
+
+--echo
+--echo # Check that SQL-conditions for which SQL-handler has *not* been
+--echo # invoked, are *still* cleared from the Diagnostics Area.
+--echo
+
+CREATE PROCEDURE p2()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR 1292
+    SELECT 'Warning 1292 caught' AS msg;
+
+  # The following INSERT raises 6 SQL-warnings with code 1292,
+  # and 3 SQL-warnings with code 1264. The CONTINUE HANDLER above must be
+  # invoked once, and all nine SQL-warnings must be cleared from
+  # the Diagnostics Area.
+
+  INSERT INTO t2
+  SELECT
+    CAST(CONCAT(CAST('1 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+    CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+    CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+--echo
+CALL p2()|
+
+--echo
+--echo # Check that if there are two equally ranked SQL-handlers to handle
+--echo # SQL-conditions from SQL-statement, only one of them will be invoked.
+--echo
+
+CREATE PROCEDURE p3()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR 1292
+    SELECT 'Warning 1292 caught' AS msg;
+
+  DECLARE CONTINUE HANDLER FOR 1264
+    SELECT 'Warning 1264 caught' AS msg;
+
+  # The following INSERT raises 6 SQL-warnings with code 1292,
+  # and 3 SQL-warnings with code 1264. Only one of the CONTINUE HANDLERs above
+  # must be called, and only once. The SQL Standard does not define, which one
+  # should be invoked.
+
+  INSERT INTO t2
+  SELECT
+    CAST(CONCAT(CAST('1 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+    CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+    CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+--echo
+CALL p3()|
+
+--echo
+--echo # The same as p3, but 1264 comes first.
+--echo
+
+CREATE PROCEDURE p4()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR 1292
+    SELECT 'Warning 1292 caught' AS msg;
+
+  DECLARE CONTINUE HANDLER FOR 1264
+    SELECT 'Warning 1264 caught' AS msg;
+
+  # The following INSERT raises 4 SQL-warnings with code 1292,
+  # and 3 SQL-warnings with code 1264. Only one of the CONTINUE HANDLERs above
+  # must be called, and only once. The SQL Standard does not define, which one
+  # should be invoked.
+
+  INSERT INTO t2
+  SELECT
+    CAST(999999 AS SIGNED INTEGER),
+    CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+    CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+--echo
+CALL p4()|
+
+--echo
+--echo # Check that if a SQL-handler raised its own SQL-conditions, there are
+--echo # preserved after handler exit.
+--echo
+
+CREATE PROCEDURE p5()
+BEGIN
+  DECLARE EXIT HANDLER FOR 1292
+  BEGIN
+    SELECT 'Handler for 1292 (1)' AS Msg;
+    SIGNAL SQLSTATE '01000' SET MYSQL_ERRNO = 1234;
+    SHOW WARNINGS;
+    SELECT 'Handler for 1292 (2)' AS Msg;
+  END;
+
+  INSERT INTO t2
+  SELECT
+    CAST(999999 AS SIGNED INTEGER),
+    CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+    CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+--echo
+CALL p5()|
+
+--echo
+--echo # Check that SQL-conditions are available inside the handler, but
+--echo # cleared after the handler exits.
+--echo
+
+CREATE PROCEDURE p6()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR 1292
+  BEGIN
+    SHOW WARNINGS;
+    SELECT 'Handler for 1292' Msg;
+  END;
+
+  INSERT INTO t2
+  SELECT
+    CAST(CONCAT(CAST('1 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+    CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+    CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+--echo
+CALL p6()|
+
+delimiter ;|
+
+--echo
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+DROP PROCEDURE p5;
+DROP PROCEDURE p6;
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo
+--echo # Bug#13059316: ASSERTION FAILURE IN SP_RCONTEXT.CC 
+--echo # Check DECLARE statements that raise conditions before handlers
+--echo # are declared.
+--echo
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+--enable_warnings
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var1 INTEGER DEFAULT 'string';
+  DECLARE EXIT HANDLER FOR SQLWARNING SELECT 'H1';
+END|
+
+--echo
+CALL p1()|
+--echo
+
+CREATE PROCEDURE p2()
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLWARNING SELECT 'H2';
+  CALL p1();
+END|
+
+--echo
+CALL p2()|
+
+delimiter ;|
+
+--echo
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+
+--echo #
+--echo # Bug#13113222 RQG_SIGNAL_RESIGNAL FAILED WITH ASSERTION.
+--echo #
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+--enable_warnings
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SELECT 'triggered p1';
+  # This will trigger an error.
+  SIGNAL SQLSTATE 'HY000';
+END|
+
+CREATE PROCEDURE p2()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLWARNING SELECT 'triggered p2';
+  # This will trigger a warning.
+  SIGNAL SQLSTATE '01000';
+END|
+delimiter ;|
+
+SET @old_max_error_count=  @@session.max_error_count;
+SET SESSION max_error_count= 0;
+CALL p1();
+CALL p2();
+SET SESSION max_error_count= @old_max_error_count;
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+--echo
+--echo # Bug#12652873: 61392: Continue handler for NOT FOUND being triggered
+--echo # from internal stored function.
+--echo
+
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+--echo
+--echo # f1() raises NOT_FOUND condition.
+--echo # Raising NOT_FOUND can not be simulated by SIGNAL,
+--echo # because SIGNAL would raise SQL-error in that case.
+--echo
+
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+  DECLARE v VARCHAR(5) DEFAULT -1;
+  SELECT b FROM t1 WHERE a = 2 INTO v;
+  RETURN v;
+END|
+
+--echo
+--echo # Here we check that the NOT_FOUND condition raised in f1()
+--echo # is not visible in the outer function (f2), i.e. the continue
+--echo # handler in f2() will not be called.
+--echo
+
+CREATE FUNCTION f2() RETURNS INTEGER
+BEGIN
+  DECLARE v INTEGER;
+
+  DECLARE CONTINUE HANDLER FOR NOT FOUND
+    SET @msg = 'Handler activated.';
+
+  SELECT f1() INTO v;
+
+  RETURN v;
+END|
+
+delimiter ;|
+
+SET @msg = '';
+
+--echo
+SELECT f2();
+--echo
+SELECT @msg;
+--echo
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP TABLE t1;

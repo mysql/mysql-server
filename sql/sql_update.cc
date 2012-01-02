@@ -43,6 +43,9 @@
                          // mysql_handle_derived,
                          // mysql_derived_filling
 #include "opt_trace.h"   // Opt_trace_object
+#include "sql_tmp_table.h"                      // tmp tables
+#include "sql_optimizer.h"                      // remove_eq_conds
+#include "sql_resolver.h"                       // setup_order, fix_inner_refs
 
 /**
    True if the table's input and output record buffers are comparable using
@@ -303,16 +306,20 @@ int mysql_update(THD *thd,
     DBUG_RETURN(1);
 
   if (thd->fill_derived_tables() &&
-      mysql_handle_derived(thd->lex, &mysql_derived_filling))
+      mysql_handle_derived(thd->lex, &mysql_derived_create))
   {
     mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
     DBUG_RETURN(1);
   }
-  if (!preserve_items_for_printing(thd))
-    mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
 
   THD_STAGE_INFO(thd, stage_init);
   table= table_list->table;
+
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
+    DBUG_RETURN(1);
+  }
 
   /* Calculate "table->covering_keys" based on the WHERE */
   table->covering_keys= table->s->keys_in_use;
@@ -344,18 +351,18 @@ int mysql_update(THD *thd,
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
     DBUG_RETURN(1);
   }
-  if (table->timestamp_field)
+  if (table->get_timestamp_field())
   {
     // Don't set timestamp column if this is modified
     if (bitmap_is_set(table->write_set,
-                      table->timestamp_field->field_index))
+                      table->get_timestamp_field()->field_index))
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
     {
       if (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
           table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH)
         bitmap_set_bit(table->write_set,
-                       table->timestamp_field->field_index);
+                       table->get_timestamp_field()->field_index);
     }
   }
 
@@ -388,7 +395,7 @@ int mysql_update(THD *thd,
     to compare records and detect data change.
   */
   if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
-      table->timestamp_field &&
+      table->get_timestamp_field() &&
       (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
        table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
     bitmap_union(table->read_set, table->write_set);
@@ -494,12 +501,15 @@ int mysql_update(THD *thd,
       We can't update table directly;  We must first search after all
       matching rows before updating the table!
     */
+
+    // Verify that table->restore_column_maps_after_mark_index() will work
+    DBUG_ASSERT(table->read_set == &table->def_read_set);
+    DBUG_ASSERT(table->write_set == &table->def_write_set);
+
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
       table->add_read_columns_used_by_index(used_index);
     else
-    {
       table->use_all_columns();
-    }
 
     /* note: We avoid sorting if we sort on the used index */
     if (using_filesort)
@@ -563,9 +573,12 @@ int mysql_update(THD *thd,
       */
 
       if (used_index == MAX_KEY || (select && select->quick))
-        init_read_record(&info, thd, table, select, 0, 1, FALSE);
+        error= init_read_record(&info, thd, table, select, 0, 1, FALSE);
       else
-        init_read_record_idx(&info, thd, table, 1, used_index, reverse);
+        error= init_read_record_idx(&info, thd, table, 1, used_index, reverse);
+
+      if (error)
+        goto exit_without_my_ok;
 
       THD_STAGE_INFO(thd, stage_searching_rows_for_update);
       ha_rows tmp_limit= limit;
@@ -626,8 +639,11 @@ int mysql_update(THD *thd,
       if (error >= 0)
         goto exit_without_my_ok;
     }
-    if (table->key_read)
-      table->restore_column_maps_after_mark_index();
+    /*
+      This restore bitmaps, works for add_read_columns_used_by_index() and
+      use_all_columns():
+    */
+    table->restore_column_maps_after_mark_index();
   }
 
   if (ignore)
@@ -636,7 +652,8 @@ int mysql_update(THD *thd,
   if (select && select->quick && select->quick->reset())
     goto exit_without_my_ok;
   table->file->try_semi_consistent_read(1);
-  init_read_record(&info, thd, table, select, 0, 1, FALSE);
+  if ((error= init_read_record(&info, thd, table, select, 0, 1, FALSE)))
+    goto exit_without_my_ok;
 
   updated= found= 0;
   /*
@@ -1134,6 +1151,83 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
 }
 
 
+/**
+  Check if there is enough privilege on specific table used by the
+  main select list of multi-update directly or indirectly (through
+  a view).
+
+  @param[in]      thd                Thread context.
+  @param[in]      table              Table list element for the table.
+  @param[in]      tables_for_update  Bitmap with tables being updated.
+  @param[in/out]  updated_arg        Set to true if table in question is
+                                     updated, also set to true if it is
+                                     a view and one of its underlying
+                                     tables is updated. Should be
+                                     initialized to false by the caller
+                                     before a sequence of calls to this
+                                     function.
+
+  @note To determine which tables/views are updated we have to go from
+        leaves to root since tables_for_update contains map of leaf
+        tables being updated and doesn't include non-leaf tables
+        (fields are already resolved to leaf tables).
+
+  @retval false - Success, all necessary privileges on all tables are
+                  present or might be present on column-level.
+  @retval true  - Failure, some necessary privilege on some table is
+                  missing.
+*/
+
+static bool multi_update_check_table_access(THD *thd, TABLE_LIST *table,
+                                            table_map tables_for_update,
+                                            bool *updated_arg)
+{
+  if (table->view)
+  {
+    bool updated= false;
+    /*
+      If it is a mergeable view then we need to check privileges on its
+      underlying tables being merged (including views). We also need to
+      check if any of them is updated in order to find if this view is
+      updated.
+      If it is a non-mergeable view then it can't be updated.
+    */
+    DBUG_ASSERT(table->merge_underlying_list ||
+                (!table->updatable &&
+                 !(table->table->map & tables_for_update)));
+
+    for (TABLE_LIST *tbl= table->merge_underlying_list; tbl;
+         tbl= tbl->next_local)
+    {
+      if (multi_update_check_table_access(thd, tbl, tables_for_update, &updated))
+        return true;
+    }
+    if (check_table_access(thd, updated ? UPDATE_ACL: SELECT_ACL, table,
+                           FALSE, 1, FALSE))
+      return true;
+    *updated_arg|= updated;
+    /* We only need SELECT privilege for columns in the values list. */
+    table->grant.want_privilege= SELECT_ACL & ~table->grant.privilege;
+  }
+  else
+  {
+    /* Must be a base or derived table. */
+    const bool updated= table->table->map & tables_for_update;
+    if (check_table_access(thd, updated ? UPDATE_ACL : SELECT_ACL, table,
+                           FALSE, 1, FALSE))
+      return true;
+    *updated_arg|= updated;
+    /* We only need SELECT privilege for columns in the values list. */
+    if (!table->derived)
+    {
+      table->grant.want_privilege= SELECT_ACL & ~table->grant.privilege;
+      table->table->grant.want_privilege= SELECT_ACL & ~table->table->grant.privilege;
+    }
+  }
+  return false;
+}
+
+
 /*
   make update specific preparation and checks after opening tables
 
@@ -1186,11 +1280,10 @@ int mysql_multi_update_prepare(THD *thd)
     call in setup_tables()).
   */
 
-  if (setup_tables_and_check_access(thd, &lex->select_lex.context,
-                                    &lex->select_lex.top_join_list,
-                                    table_list,
-                                    &lex->select_lex.leaf_tables, FALSE,
-                                    UPDATE_ACL, SELECT_ACL))
+  if (setup_tables(thd, &lex->select_lex.context,
+                   &lex->select_lex.top_join_list,
+                   table_list, &lex->select_lex.leaf_tables,
+                   FALSE))
     DBUG_RETURN(TRUE);
 
   if (setup_fields_with_no_wrap(thd, Ref_ptr_array(),
@@ -1225,9 +1318,9 @@ int mysql_multi_update_prepare(THD *thd)
   {
     TABLE *table= tl->table;
     /* Only set timestamp column if this is not modified */
-    if (table->timestamp_field &&
+    if (table->get_timestamp_field() &&
         bitmap_is_set(table->write_set,
-                      table->timestamp_field->field_index))
+                      table->get_timestamp_field()->field_index))
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     /* if table will be updated then check that it is unique */
@@ -1265,19 +1358,17 @@ int mysql_multi_update_prepare(THD *thd)
         tl->table->reginfo.lock_type= tl->lock_type;
     }
   }
+
+  /*
+    Check access privileges for tables being updated or read.
+    Note that unlike in the above loop we need to iterate here not only
+    through all leaf tables but also through all view hierarchy.
+  */
   for (tl= table_list; tl; tl= tl->next_local)
   {
-    /* Check access privileges for table */
-    if (!tl->derived)
-    {
-      uint want_privilege= tl->updating ? UPDATE_ACL : SELECT_ACL;
-      if (check_access(thd, want_privilege, tl->db,
-                       &tl->grant.privilege,
-                       &tl->grant.m_internal,
-                       0, 0) ||
-          check_grant(thd, want_privilege, tl, FALSE, 1, FALSE))
-        DBUG_RETURN(TRUE);
-    }
+    bool not_used= false;
+    if (multi_update_check_table_access(thd, tl, tables_for_update, &not_used))
+      DBUG_RETURN(TRUE);
   }
 
   /* check single table update for view compound from several tables */
@@ -1308,19 +1399,8 @@ int mysql_multi_update_prepare(THD *thd)
     skip all tables of UPDATE SELECT itself
   */
   lex->select_lex.exclude_from_table_unique_test= TRUE;
-  /* We only need SELECT privilege for columns in the values list */
   for (tl= leaves; tl; tl= tl->next_leaf)
   {
-    TABLE *table= tl->table;
-    TABLE_LIST *tlist;
-    if (!(tlist= tl->top_table())->derived)
-    {
-      tlist->grant.want_privilege=
-        (SELECT_ACL & ~tlist->grant.privilege);
-      table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
-    }
-    DBUG_PRINT("info", ("table: %s  want_privilege: %u", tl->alias,
-                        (uint) table->grant.want_privilege));
     if (tl->lock_type != TL_READ &&
         tl->lock_type != TL_READ_NO_INSERT)
     {
@@ -1337,16 +1417,6 @@ int mysql_multi_update_prepare(THD *thd)
     further check in multi_update::prepare whether to use record cache.
   */
   lex->select_lex.exclude_from_table_unique_test= FALSE;
- 
-  if (thd->fill_derived_tables() &&
-      mysql_handle_derived(lex, &mysql_derived_filling))
-  {
-    mysql_handle_derived(lex, &mysql_derived_cleanup);
-    DBUG_RETURN(TRUE);
-  }
-  if (!preserve_items_for_printing(thd))
-    mysql_handle_derived(lex, &mysql_derived_cleanup);
-
   DBUG_RETURN (FALSE);
 }
 
@@ -1490,7 +1560,7 @@ int multi_update::prepare(List<Item> &not_used_values,
         to compare records and detect data change.
         */
       if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
-          table->timestamp_field &&
+          table->get_timestamp_field() &&
           (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
            table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
         bitmap_union(table->read_set, table->write_set);
@@ -1701,7 +1771,6 @@ multi_update::initialize_tables(JOIN *join)
       }
     }
     table->mark_columns_needed_for_update();
-    table->prepare_for_position();
 
     /*
       enable uncacheable flag if we update a view with check option
@@ -1760,6 +1829,13 @@ loop_end:
     TABLE *tbl= table;
     do
     {
+      /*
+        Signal each table (including tables referenced by WITH CHECK OPTION
+        clause) for which we will store row position in the temporary table
+        that we need a position to be read first.
+      */
+      tbl->prepare_for_position();
+
       Field_string *field= new Field_string(tbl->file->ref_length, 0,
                                             tbl->alias, &my_charset_bin);
       if (!field)
@@ -2150,16 +2226,15 @@ int multi_update::do_updates()
           else if (error == VIEW_CHECK_ERROR)
             goto err;
         }
-	if ((local_error=table->file->ha_update_row(table->record[1],
-						    table->record[0])) &&
-            local_error != HA_ERR_RECORD_IS_THE_SAME)
-	{
-	  if (!ignore ||
-              table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
-	    goto err;
-	}
-        if (local_error != HA_ERR_RECORD_IS_THE_SAME)
+        local_error= table->file->ha_update_row(table->record[1],
+                                                table->record[0]);
+        if (!local_error)
           updated++;
+        else if (local_error == HA_ERR_RECORD_IS_THE_SAME)
+          local_error= 0;
+        else if (!ignore ||
+                 table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+          goto err;
         else
           local_error= 0;
       }

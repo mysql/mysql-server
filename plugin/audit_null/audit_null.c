@@ -205,7 +205,8 @@ mysql_declare_plugin(audit_null)
   0x0003,                     /* version                         */
   simple_status,              /* status variables                */
   NULL,                       /* system variables                */
-  NULL
+  NULL,
+  0,
 }
 mysql_declare_plugin_end;
 

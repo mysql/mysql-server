@@ -62,6 +62,9 @@
 
 #include "debug_sync.h"
 
+using std::min;
+using std::max;
+
 #define PAR_FILE_ENGINE_OFFSET 12
 static const char *ha_par_ext= ".par";
 
@@ -3455,7 +3458,7 @@ int ha_partition::write_row(uchar * buf)
 
   /* If we have a timestamp column, update it to the current time */
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   /*
@@ -3571,7 +3574,7 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
     inside m_file[*]->update_row() methods
   */
   if (orig_timestamp_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   if ((error= get_parts_for_update(old_data, new_data, table->record[0],
@@ -3798,13 +3801,13 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
   uint num_parts= m_part_info->num_parts;
   uint num_subparts= m_part_info->num_subparts;
   uint i= 0;
-  uint num_parts_set= alter_info->partition_names.elements;
-  uint num_parts_found= set_part_state(alter_info, m_part_info,
-                                        PART_ADMIN);
   DBUG_ENTER("ha_partition::truncate_partition");
 
   /* Only binlog when it starts any call to the partitions handlers */
   *binlog_stmt= false;
+
+  if (set_part_state(alter_info, m_part_info, PART_ADMIN))
+    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
 
   /*
     TRUNCATE also means resetting auto_increment. Hence, reset
@@ -3814,10 +3817,6 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
   table_share->ha_part_data->next_auto_inc_val= 0;
   table_share->ha_part_data->auto_inc_initialized= FALSE;
   unlock_auto_increment();
-
-  if (num_parts_set != num_parts_found &&
-      (!(alter_info->flags & ALTER_ALL_PARTITION)))
-    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
 
   *binlog_stmt= true;
 
@@ -6474,26 +6473,22 @@ void ha_partition::late_extra_no_cache(uint partition_id)
                 MODULE optimiser support
 ****************************************************************************/
 
-/*
-  Get keys to use for scanning
+/**
+  Get keys to use for scanning.
 
-  SYNOPSIS
-    keys_to_use_for_scanning()
+  @return key_map of keys usable for scanning
 
-  RETURN VALUE
-    key_map of keys usable for scanning
+  @note No need to use read_partitions here, since it does not depend on
+  which partitions is used, only which storage engine used.
 */
 
 const key_map *ha_partition::keys_to_use_for_scanning()
 {
-  uint first_used_partition;
   DBUG_ENTER("ha_partition::keys_to_use_for_scanning");
-
-  first_used_partition= bitmap_get_first_set(&(m_part_info->read_partitions));
-  DBUG_RETURN(m_file[first_used_partition]->keys_to_use_for_scanning());
+  DBUG_RETURN(m_file[0]->keys_to_use_for_scanning());
 }
 
-#define MAX_PARTS_FOR_OPTIMIZER_CALLS 10
+#define MAX_PARTS_FOR_OPTIMIZER_CALLS 10U
 /*
   Prepare start variables for estimating optimizer costs.
 
@@ -6507,7 +6502,8 @@ void ha_partition::partitions_optimizer_call_preparations(uint *first,
 {
   *first= bitmap_get_first_set(&(m_part_info->read_partitions));
   *num_used_parts= bitmap_bits_set(&(m_part_info->read_partitions));
-  *check_min_num= min(MAX_PARTS_FOR_OPTIMIZER_CALLS, *num_used_parts);
+  *check_min_num= min<uint>(MAX_PARTS_FOR_OPTIMIZER_CALLS,
+                            *num_used_parts);
 }
 
 
@@ -6909,49 +6905,81 @@ bool ha_partition::check_if_incompatible_data(HA_CREATE_INFO *create_info,
 
 
 /**
-  Support of in-place add/drop index
+  Helper class for [final_]add_index, see handler.h
 */
+
+class ha_partition_add_index : public handler_add_index
+{
+public:
+  handler_add_index **add_array;
+  ha_partition_add_index(TABLE* table_arg, KEY* key_info_arg,
+                         uint num_of_keys_arg)
+    : handler_add_index(table_arg, key_info_arg, num_of_keys_arg)
+  {}
+  ~ha_partition_add_index() {}
+};
+
+
+/**
+  Support of in-place add/drop index
+
+  @param      table_arg    Table to add index to
+  @param      key_info     Struct over the new keys to add
+  @param      num_of_keys  Number of keys to add
+  @param[out] add          Data to be submitted with final_add_index
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Failure (error code returned, and all operations rollbacked)
+*/
+
 int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
                             handler_add_index **add)
 {
-  handler **file;
+  uint i;
   int ret= 0;
+  THD *thd= ha_thd();
+  ha_partition_add_index *part_add_index;
 
   DBUG_ENTER("ha_partition::add_index");
-  *add= new handler_add_index(table, key_info, num_of_keys);
   /*
     There has already been a check in fix_partition_func in mysql_alter_table
     before this call, which checks for unique/primary key violations of the
     partitioning function. So no need for extra check here.
   */
-  for (file= m_file; *file; file++)
+ 
+  /*
+    This will be freed at the end of the statement.
+    And destroyed at final_add_index. (Sql_alloc does not free in delete).
+  */
+  part_add_index= new (thd->mem_root)
+                   ha_partition_add_index(table_arg, key_info, num_of_keys);
+  if (!part_add_index)
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  part_add_index->add_array= (handler_add_index **)
+                   thd->alloc(sizeof(void *) * m_tot_parts);
+  if (!part_add_index->add_array)
   {
-    handler_add_index *add_index;
-    if ((ret= (*file)->add_index(table_arg, key_info, num_of_keys, &add_index)))
-      goto err;
-    if ((ret= (*file)->final_add_index(add_index, true)))
+    delete part_add_index;
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  }
+
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    if ((ret= m_file[i]->add_index(table_arg, key_info, num_of_keys,
+                                   &part_add_index->add_array[i])))
       goto err;
   }
+  *add= part_add_index;
   DBUG_RETURN(ret);
 err:
-  if (file > m_file)
+  /* Rollback all prepared partitions. i - 1 .. 0 */
+  while (i)
   {
-    uint *key_numbers= (uint*) ha_thd()->alloc(sizeof(uint) * num_of_keys);
-    uint old_num_of_keys= table_arg->s->keys;
-    uint i;
-    /* The newly created keys have the last id's */
-    for (i= 0; i < num_of_keys; i++)
-      key_numbers[i]= i + old_num_of_keys;
-    if (!table_arg->key_info)
-      table_arg->key_info= key_info;
-    while (--file >= m_file)
-    {
-      (void) (*file)->prepare_drop_index(table_arg, key_numbers, num_of_keys);
-      (void) (*file)->final_drop_index(table_arg);
-    }
-    if (table_arg->key_info == key_info)
-      table_arg->key_info= NULL;
+    i--;
+    (void) m_file[i]->final_add_index(part_add_index->add_array[i], false);
   }
+  delete part_add_index;
   DBUG_RETURN(ret);
 }
 
@@ -6959,37 +6987,119 @@ err:
 /**
    Second phase of in-place add index.
 
+   @param add     Info from add_index
+   @param commit  Should we commit or rollback the add_index operation
+
+   @return Operation status
+     @retval 0     Success
+     @retval != 0  Failure (error code returned)
+
    @note If commit is false, index changes are rolled back by dropping the
          added indexes. If commit is true, nothing is done as the indexes
          were already made active in ::add_index()
- */
+*/
 
 int ha_partition::final_add_index(handler_add_index *add, bool commit)
 {
+  ha_partition_add_index *part_add_index;
+  uint i;
+  int ret= 0;
+
   DBUG_ENTER("ha_partition::final_add_index");
-  // Rollback by dropping indexes.
-  if (!commit)
+ 
+  if (!add)
   {
-    TABLE *table_arg= add->table;
-    uint num_of_keys= add->num_of_keys;
-    handler **file;
-    uint *key_numbers= (uint*) ha_thd()->alloc(sizeof(uint) * num_of_keys);
-    uint old_num_of_keys= table_arg->s->keys;
-    uint i;
-    /* The newly created keys have the last id's */
-    for (i= 0; i < num_of_keys; i++)
-      key_numbers[i]= i + old_num_of_keys;
-    if (!table_arg->key_info)
-      table_arg->key_info= add->key_info;
-    for (file= m_file; *file; file++)
-    {
-      (void) (*file)->prepare_drop_index(table_arg, key_numbers, num_of_keys);
-      (void) (*file)->final_drop_index(table_arg);
-    }
-    if (table_arg->key_info == add->key_info)
-      table_arg->key_info= NULL;
+    DBUG_ASSERT(!commit);
+    DBUG_RETURN(0);
   }
-  DBUG_RETURN(0);
+  part_add_index= static_cast<class ha_partition_add_index*>(add);
+
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    if ((ret= m_file[i]->final_add_index(part_add_index->add_array[i], commit)))
+      goto err;
+    DBUG_EXECUTE_IF("ha_partition_fail_final_add_index", {
+      /* Simulate a failure by rollback the second partition */
+      if (m_tot_parts > 1)
+      {
+        i++;
+        m_file[i]->final_add_index(part_add_index->add_array[i], false);
+        /* Set an error that is specific to ha_partition. */
+        ret= HA_ERR_NO_PARTITION_FOUND;
+        goto err;
+      }
+    });
+  }
+  delete part_add_index;
+  DBUG_RETURN(ret);
+err:
+  uint j;
+  uint *key_numbers= NULL;
+  KEY *old_key_info= NULL;
+  uint num_of_keys= 0;
+  int error;
+  
+  /* How could this happen? Needed to create a covering test case :) */
+  DBUG_ASSERT(ret == HA_ERR_NO_PARTITION_FOUND);
+
+  if (i > 0)
+  {
+    num_of_keys= part_add_index->num_of_keys;
+    key_numbers= (uint*) ha_thd()->alloc(sizeof(uint) * num_of_keys);
+    if (!key_numbers)
+    {
+      sql_print_error("Failed with error handling of adding index:\n"
+                      "committing index failed, and when trying to revert "
+                      "already committed partitions we failed allocating\n"
+                      "memory for the index for table '%s'",
+                      table_share->table_name.str);
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    }
+    old_key_info= table->key_info;
+    /*
+      Use the newly added key_info as table->key_info to remove them.
+      Note that this requires the subhandlers to use name lookup of the
+      index. They must use given table->key_info[key_number], they cannot
+      use their local view of the keys, since table->key_info only include
+      the indexes to be removed here.
+    */
+    for (j= 0; j < num_of_keys; j++)
+      key_numbers[j]= j;
+    table->key_info= part_add_index->key_info;
+  }
+
+  for (j= 0; j < m_tot_parts; j++)
+  {
+    if (j < i)
+    {
+      /* Remove the newly added index */
+      error= m_file[j]->prepare_drop_index(table, key_numbers, num_of_keys);
+      if (error || m_file[j]->final_drop_index(table))
+      {
+        sql_print_error("Failed with error handling of adding index:\n"
+                        "committing index failed, and when trying to revert "
+                        "already committed partitions we failed removing\n"
+                        "the index for table '%s' partition nr %d",
+                        table_share->table_name.str, j);
+      }
+    }
+    else if (j > i)
+    {
+      /* Rollback non finished partitions */
+      if (m_file[j]->final_add_index(part_add_index->add_array[j], false))
+      {
+        /* How could this happen? */
+        sql_print_error("Failed with error handling of adding index:\n"
+                        "Rollback of add_index failed for table\n"
+                        "'%s' partition nr %d",
+                        table_share->table_name.str, j);
+      }
+    }
+  }
+  if (i > 0)
+    table->key_info= old_key_info;
+  delete part_add_index;
+  DBUG_RETURN(ret);
 }
 
 int ha_partition::prepare_drop_index(TABLE *table_arg, uint *key_num,
@@ -7338,6 +7448,27 @@ void ha_partition::init_table_handle_for_HANDLER()
 }
 
 
+/**
+  Return the checksum of the table (all partitions)
+*/
+
+uint ha_partition::checksum() const
+{
+  ha_checksum sum= 0;
+
+  DBUG_ENTER("ha_partition::checksum");
+  if ((table_flags() & HA_HAS_CHECKSUM))
+  {
+    handler **file= m_file;
+    do
+    {
+      sum+= (*file)->checksum();
+    } while (*(++file));
+  }
+  DBUG_RETURN(sum);
+}
+
+
 /****************************************************************************
                 MODULE enable/disable indexes
 ****************************************************************************/
@@ -7433,7 +7564,8 @@ mysql_declare_plugin(partition)
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0,                          /* flags                           */
 }
 mysql_declare_plugin_end;
 

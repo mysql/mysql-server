@@ -231,7 +231,8 @@ Opt_trace_start::~Opt_trace_start()
 }
 
 
-void opt_trace_print_expanded_query(THD *thd, st_select_lex *select_lex)
+void opt_trace_print_expanded_query(THD *thd, st_select_lex *select_lex,
+                                    Opt_trace_object *trace_object)
 
 {
   Opt_trace_context * const trace= &thd->opt_trace;
@@ -258,7 +259,7 @@ void opt_trace_print_expanded_query(THD *thd, st_select_lex *select_lex)
   */
   select_lex->print(thd, &str, enum_query_type(QT_TO_SYSTEM_CHARSET |
                                                QT_SHOW_SELECT_NUMBER));
-  Opt_trace_object(trace).add_utf8("expanded_query", str.ptr(), str.length());
+  trace_object->add_utf8("expanded_query", str.ptr(), str.length());
 }
 
 
@@ -289,12 +290,12 @@ void opt_trace_disable_if_no_security_context_access(THD *thd)
   {
     /*
       @@optimizer_trace has "enabled=on" but trace is not started.
-      Either Opt_trace_start ctor was not called for our statement (1), or it
-      was called but at that time, the variable had "enabled=off" (2).
+      Either Opt_trace_start ctor was not called for our statement (3), or it
+      was called but at that time, the variable had "enabled=off" (4).
 
-      (1) can happen in execution of COM_FIELD_LIST on a view.
+      There are no known cases of (3).
 
-      (2) suggests that the user managed to change the variable during
+      (4) suggests that the user managed to change the variable during
       execution of the statement, and this statement is using
       view/routine (note that we have not been able to provoke this, maybe
       this is impossible). If it happens it is suspicious.
@@ -302,9 +303,21 @@ void opt_trace_disable_if_no_security_context_access(THD *thd)
       We disable I_S output. And we cannot do otherwise: we have no place to
       store a possible "missing privilege" information (no Opt_trace_stmt, as
       is_started() is false), so cannot do security checks, so cannot safely
-      do tracing, so have to disable I_S output.
+      do tracing, so have to disable I_S output. And even then, we don't know
+      when to re-enable I_S output, as we have no place to store the
+      information "re-enable tracing at the end of this statement", and we
+      don't even have a notion of statement here (statements in the optimizer
+      trace world mean an Opt_trace_stmt object, and there is none here). So
+      we must disable for the session's life.
+
+      COM_FIELD_LIST opens views, thus used to be a case of (3). To avoid
+      disabling I_S output for the session's life when this command is issued
+      (like in: "SET OPTIMIZER_TRACE='ENABLED=ON';USE somedb;" in the 'mysql'
+      command-line client), we have decided to create a Opt_trace_start for
+      this command. The command itself is not traced though
+      (SQLCOM_SHOW_FIELDS does not have CF_OPTIMIZER_TRACE).
     */
-    DBUG_ASSERT(thd->get_command() == COM_FIELD_LIST);
+    DBUG_ASSERT(false);
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }
@@ -336,7 +349,7 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp)
   Opt_trace_context * const trace= &thd->opt_trace;
   if (!trace->is_started())
   {
-    DBUG_ASSERT(thd->get_command() == COM_FIELD_LIST);
+    DBUG_ASSERT(false);
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }
@@ -365,7 +378,7 @@ void opt_trace_disable_if_no_view_access(THD *thd, TABLE_LIST *view,
   Opt_trace_context * const trace= &thd->opt_trace;
   if (!trace->is_started())
   {
-    DBUG_ASSERT(thd->get_command() == COM_FIELD_LIST);
+    DBUG_ASSERT(false);
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }
@@ -426,7 +439,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
   Opt_trace_context * const trace= &thd->opt_trace;
   if (!trace->is_started())
   {
-    DBUG_ASSERT(thd->get_command() == COM_FIELD_LIST);
+    DBUG_ASSERT(false);
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }
@@ -487,7 +500,6 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
 
 int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond)
 {
-#ifdef OPTIMIZER_TRACE
   TABLE *table= tables->table;
   Opt_trace_info info;
 
@@ -543,13 +555,9 @@ int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond)
   }
 
   return 0;
-#else
-  my_error(ER_FEATURE_DISABLED, MYF(0), "optimizer trace",
-           "-DOPTIMIZER_TRACE=1");
-  return 1;
-#endif
 }
 
+#endif // OPTIMIZER_TRACE
 
 ST_FIELD_INFO optimizer_trace_info[]=
 {
@@ -563,30 +571,6 @@ ST_FIELD_INFO optimizer_trace_info[]=
   {NULL, 0,  MYSQL_TYPE_STRING, 0, true, NULL, 0}
 };
 
-
-int make_optimizer_trace_table_for_show(THD *thd,
-                                        ST_SCHEMA_TABLE *schema_table)
-{
-  Name_resolution_context *context= &thd->lex->select_lex.context;
-
-  for (int i= 0; schema_table->fields_info[i].field_name != NULL; i++)
-  {
-    ST_FIELD_INFO *field_info= &schema_table->fields_info[i];
-    Item_field *field= new Item_field(context,
-                                      NullS, NullS, field_info->field_name);
-    if (field)
-    {
-      field->set_name(field_info->old_name,
-                      static_cast<uint>(strlen(field_info->old_name)),
-                      system_charset_info);
-      if (add_item_to_list(thd, field))
-        return 1;
-    }
-    else
-      return 1;
-  }
-  return 0;
-}
 
 /*
   LiteralsWithIntroducers :
@@ -617,5 +601,3 @@ int make_optimizer_trace_table_for_show(THD *thd,
   there would be no problem ('0', 'x', 'E', and 'D' are identical in latin1
   and utf8: they would be preserved during conversion).
 */
-
-#endif // OPTIMIZER_TRACE

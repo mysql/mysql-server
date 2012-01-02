@@ -1179,7 +1179,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
         pthread_mutex_lock(&THR_LOCK_dbug);
       DoPrefix(cs, _line_);
       Indent(cs, cs->level);
-      (void) fprintf(cs->stack->out_file, "<%s\n", cs->func);
+      (void) fprintf(cs->stack->out_file, "<%s %u\n", cs->func, _line_);
       DbugFlush(cs);
     }
   }
@@ -1323,7 +1323,7 @@ void _db_dump_(uint _line_, const char *keyword,
     if (TRACING)
     {
       Indent(cs, cs->level + 1);
-      pos= min(max(cs->level-cs->stack->sub_level,0)*INDENT,80);
+      pos= MY_MIN(MY_MAX(cs->level-cs->stack->sub_level,0)*INDENT,80);
     }
     else
     {
@@ -1743,7 +1743,7 @@ static void Indent(CODE_STATE *cs, int indent)
 {
   REGISTER int count;
 
-  indent= max(indent-1-cs->stack->sub_level,0)*INDENT;
+  indent= MY_MAX(indent-1-cs->stack->sub_level,0)*INDENT;
   for (count= 0; count < indent ; count++)
   {
     if ((count % INDENT) == 0)

@@ -460,57 +460,57 @@ insert into t2 values (1),(2);
 insert into t3 values (1,1),(2,2);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
 insert into t1 values (3),(4);
 insert into t2 values (3),(4);
 insert into t3 values (3,3),(4,4);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
 delete from t1 where a=3;
 delete from t2 where b=3;
 delete from t3 where a=3;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
 truncate table t1;
 truncate table t2;
 truncate table t3;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
 delete from t1 where a=5;
 delete from t2 where b=5;
 delete from t3 where a=5;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
 drop table t1, t2, t3;
 create database mysqltest;
 show create database mysqltest;
@@ -662,7 +662,7 @@ DROP TABLE t1;
 flush tables;
 SHOW TABLE STATUS like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	NULL	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Incorrect information in file: './test/t1.frm'
+t1	NULL	NULL	NULL	NULL	#	#	#	#	NULL	NULL	#	NULL	NULL	NULL	NULL	NULL	Incorrect information in file: './test/t1.frm'
 Warnings:
 Warning	1033	Incorrect information in file: './test/t1.frm'
 show create table t1;
@@ -966,7 +966,7 @@ def	information_schema	COLUMNS	COLUMNS	CHARACTER_SET_NAME	CHARACTER_SET_NAME	253
 def	information_schema	COLUMNS	COLUMNS	COLLATION_NAME	COLLATION_NAME	253	96	0	Y	0	0	33
 def	information_schema	COLUMNS	COLUMNS	COLUMN_TYPE	COLUMN_TYPE	252	589815	7	N	17	0	33
 def	information_schema	COLUMNS	COLUMNS	COLUMN_KEY	COLUMN_KEY	253	9	3	N	1	0	33
-def	information_schema	COLUMNS	COLUMNS	EXTRA	EXTRA	253	81	0	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	EXTRA	EXTRA	253	90	0	N	1	0	33
 def	information_schema	COLUMNS	COLUMNS	PRIVILEGES	PRIVILEGES	253	240	31	N	1	0	33
 def	information_schema	COLUMNS	COLUMNS	COLUMN_COMMENT	COLUMN_COMMENT	253	3072	0	N	1	0	33
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
@@ -985,7 +985,7 @@ def	information_schema	COLUMNS	COLUMNS	COLUMN_TYPE	Type	252	589815	7	N	17	0	33
 def	information_schema	COLUMNS	COLUMNS	IS_NULLABLE	Null	253	9	2	N	1	0	33
 def	information_schema	COLUMNS	COLUMNS	COLUMN_KEY	Key	253	9	3	N	1	0	33
 def	information_schema	COLUMNS	COLUMNS	COLUMN_DEFAULT	Default	252	589815	0	Y	16	0	33
-def	information_schema	COLUMNS	COLUMNS	EXTRA	Extra	253	81	0	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	EXTRA	Extra	253	90	0	N	1	0	33
 Field	Type	Null	Key	Default	Extra
 c	int(11)	NO	PRI	NULL	
 ----------------------------------------------------------------
@@ -1334,7 +1334,7 @@ CREATE DATABASE `ä`;
 CREATE TABLE `ä`.`ä` (a int) ENGINE=Memory;
 SHOW TABLE STATUS FROM `ä` LIKE 'ä';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-ä	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+ä	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
 DROP DATABASE `ä`;
 show columns from `#mysql50#????????`;
 Got one of the listed errors

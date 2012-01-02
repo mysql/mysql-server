@@ -46,6 +46,9 @@ This file contains the implementation of error and warnings related
 #include "sql_error.h"
 #include "sp_rcontext.h"
 
+using std::min;
+using std::max;
+
 /*
   Design notes about Sql_condition::m_message_text.
 
@@ -93,8 +96,7 @@ This file contains the implementation of error and warnings related
   (#6) The statements SHOW WARNINGS and SHOW ERRORS display the content of
   the warning list.
 
-  (#7) The GET DIAGNOSTICS statement (planned, not implemented yet) will
-  also read the content of:
+  (#7) The GET DIAGNOSTICS statement reads the content of:
   - the top level statement condition area (when executed in a query),
   - a sub statement (when executed in a stored program)
   and return the data stored in a Sql_condition.
@@ -145,7 +147,7 @@ This file contains the implementation of error and warnings related
 
   (#6) (SHOW WARNINGS) produces data in the 'error_message_charset_info' CHARSET
 
-  (#7) (GET DIAGNOSTICS) is not implemented.
+  (#7) (GET DIAGNOSTICS) is implemented.
 
   (#8) (RESIGNAL) produces data internally in UTF8 (see #3)
 
@@ -166,9 +168,6 @@ This file contains the implementation of error and warnings related
     In practice, this means changing the type of the message text to
     '<UTF8 String 128 class> Sql_condition::m_message_text', and is a direct
     consequence of WL#751.
-
-  - Implement (#9) (GET DIAGNOSTICS).
-    See WL#2111 (Stored Procedures: Implement GET DIAGNOSTICS)
 */
 
 Sql_condition::Sql_condition()
@@ -281,6 +280,8 @@ Sql_condition::set(uint sql_errno, const char* sqlstate,
   memcpy(m_returned_sqlstate, sqlstate, SQLSTATE_LENGTH);
   m_returned_sqlstate[SQLSTATE_LENGTH]= '\0';
 
+  set_class_origin();
+  set_subclass_origin();
   set_builtin_message_text(msg);
   m_level= level;
 }
@@ -316,6 +317,65 @@ Sql_condition::set_sqlstate(const char* sqlstate)
 {
   memcpy(m_returned_sqlstate, sqlstate, SQLSTATE_LENGTH);
   m_returned_sqlstate[SQLSTATE_LENGTH]= '\0';
+}
+
+static LEX_CSTRING sqlstate_origin[]= {
+  { STRING_WITH_LEN("ISO 9075") },
+  { STRING_WITH_LEN("MySQL") }
+};
+
+void
+Sql_condition::set_class_origin()
+{
+  char cls[2];
+  LEX_CSTRING *origin;
+
+  /* Let CLASS = the first two letters of RETURNED_SQLSTATE. */
+  cls[0]= m_returned_sqlstate[0];
+  cls[1]= m_returned_sqlstate[1];
+
+  /* Only digits and upper case latin letter are allowed. */
+  DBUG_ASSERT(my_isdigit(&my_charset_latin1, cls[0]) ||
+              my_isupper(&my_charset_latin1, cls[0]));
+
+  DBUG_ASSERT(my_isdigit(&my_charset_latin1, cls[1]) ||
+              my_isupper(&my_charset_latin1, cls[1]));
+
+  /*
+    If CLASS[1] is any of: 0 1 2 3 4 A B C D E F G H
+    and CLASS[2] is any of: 0-9 A-Z
+  */
+  if (((cls[0] >= '0' && cls[0] <= '4') || (cls[0] >= 'A' && cls[0] <= 'H')) &&
+      ((cls[1] >= '0' && cls[1] <= '9') || (cls[1] >= 'A' && cls[1] <= 'Z')))
+    /* then let CLASS_ORIGIN = 'ISO 9075'. */
+    origin= &sqlstate_origin[0];
+  else
+    /* let CLASS_ORIGIN = 'MySQL'. */
+    origin= &sqlstate_origin[1];
+
+  m_class_origin.set_ascii(origin->str, origin->length);
+}
+
+void
+Sql_condition::set_subclass_origin()
+{
+  LEX_CSTRING *origin;
+
+  DBUG_ASSERT(! m_class_origin.is_empty());
+
+  /*
+    Let SUBCLASS = the next three letters of RETURNED_SQLSTATE.
+    If CLASS_ORIGIN = 'ISO 9075' or SUBCLASS = '000'
+  */
+  if (! memcmp(m_class_origin.ptr(), STRING_WITH_LEN("ISO 9075")) ||
+      ! memcmp(m_returned_sqlstate+2, STRING_WITH_LEN("000")))
+    /* then let SUBCLASS_ORIGIN = 'ISO 9075'. */
+    origin= &sqlstate_origin[0];
+  else
+    /* let SUBCLASS_ORIGIN = 'MySQL'. */
+    origin= &sqlstate_origin[1];
+
+  m_subclass_origin.set_ascii(origin->str, origin->length);
 }
 
 Diagnostics_area::Diagnostics_area()
@@ -548,6 +608,7 @@ void Warning_info::clear(ulonglong new_id)
 {
   id(new_id);
   m_warn_list.empty();
+  m_marked_sql_conditions.empty();
   free_root(&m_warn_root, MYF(0));
   memset(m_warn_count, 0, sizeof(m_warn_count));
   m_current_statement_warn_count= 0;
@@ -562,16 +623,16 @@ void Warning_info::append_warning_info(THD *thd, const Warning_info *source)
   Diagnostics_area::Sql_condition_iterator it(source->m_warn_list);
   const Sql_condition *src_error_condition = source->get_error_condition();
 
-  /*
-    Don't use ::push_warning() to avoid invocation of condition
-    handlers or escalation of warnings to errors.
-  */
   while ((err= it++))
   {
+    // Do not use ::push_warning() to avoid invocation of THD-internal-handlers.
     Sql_condition *new_error= Warning_info::push_warning(thd, err);
 
     if (src_error_condition && src_error_condition == err)
       set_error_condition(new_error);
+
+    if (source->is_marked_for_removal(err))
+      mark_condition_for_removal(new_error);
   }
 }
 
@@ -589,46 +650,65 @@ void Diagnostics_area::copy_non_errors_from_wi(THD *thd,
                                                const Warning_info *src_wi)
 {
   Sql_condition_iterator it(src_wi->m_warn_list);
-  const Sql_condition *err;
+  const Sql_condition *cond;
+  Warning_info *wi= get_warning_info();
 
-  while ((err= it++))
+  while ((cond= it++))
   {
-    if (err->get_level() != Sql_condition::WARN_LEVEL_ERROR)
-      push_warning(thd, err);
+    if (cond->get_level() == Sql_condition::WARN_LEVEL_ERROR)
+      continue;
+
+    Sql_condition *new_condition= wi->push_warning(thd, cond);
+
+    if (src_wi->is_marked_for_removal(cond))
+      wi->mark_condition_for_removal(new_condition);
   }
 }
 
 
-void Warning_info::remove_sql_condition(const Sql_condition *sql_condition)
+void Warning_info::mark_sql_conditions_for_removal()
 {
-  if (!sql_condition)
-    return;
-
   Sql_condition_list::Iterator it(m_warn_list);
-  Sql_condition *err;
-  bool found = false;
+  Sql_condition *cond;
 
-  while ((err= it++))
+  while ((cond= it++))
+    mark_condition_for_removal(cond);
+}
+
+
+void Warning_info::remove_marked_sql_conditions()
+{
+  List_iterator_fast<Sql_condition> it(m_marked_sql_conditions);
+  Sql_condition *cond;
+
+  while ((cond= it++))
   {
-    if (err == sql_condition)
-    {
-      m_warn_list.remove(err);
-      found= true;
-      break;
-    }
+    m_warn_list.remove(cond);
+    m_warn_count[cond->get_level()]--;
+    m_current_statement_warn_count--;
+    if (cond == m_error_condition)
+      m_error_condition= NULL;
   }
 
-  if (!found)
-    return;
-
-  m_warn_count[sql_condition->get_level()]--;
-  m_current_statement_warn_count--;
-
-  if (sql_condition == m_error_condition)
-    m_error_condition= NULL;
-
-  return;
+  m_marked_sql_conditions.empty();
 }
+
+
+bool Warning_info::is_marked_for_removal(const Sql_condition *cond) const
+{
+  List_iterator_fast<Sql_condition> it(
+    const_cast<List<Sql_condition>&> (m_marked_sql_conditions));
+  Sql_condition *c;
+
+  while ((c= it++))
+  {
+    if (c == cond)
+      return true;
+  }
+
+  return false;
+}
+
 
 void Warning_info::reserve_space(THD *thd, uint count)
 {
@@ -817,6 +897,31 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 }
 
 
+ErrConvString::ErrConvString(double nr)
+{
+  // enough to print '-[digits].E+###'
+  DBUG_ASSERT(sizeof(err_buffer) > DBL_DIG + 8);
+  buf_length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE,
+                      sizeof(err_buffer) - 1, err_buffer, NULL);  
+}
+
+
+
+ErrConvString::ErrConvString(const my_decimal *nr)
+{
+  int len= sizeof(err_buffer);
+  (void) decimal2string((decimal_t *) nr, err_buffer, &len, 0, 0, 0);
+  buf_length= (uint) len;
+}
+
+
+ErrConvString::ErrConvString(const struct st_mysql_time *ltime, uint dec)
+{
+  buf_length= my_TIME_to_str(ltime, err_buffer,
+                             MY_MIN(dec, DATETIME_MAX_DECIMALS));
+}
+
+
 /**
    Convert value for dispatch to error message(see WL#751).
 
@@ -827,11 +932,11 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
    @param from_cs     charset from convert
  
    @retval
-   result string
+   number of bytes written to "to"
 */
 
-char *err_conv(char *buff, uint to_length, const char *from,
-               uint from_length, const CHARSET_INFO *from_cs)
+uint err_conv(char *buff, uint to_length, const char *from,
+              uint from_length, const CHARSET_INFO *from_cs)
 {
   char *to= buff;
   const char *from_start= from;
@@ -877,9 +982,10 @@ char *err_conv(char *buff, uint to_length, const char *from,
     uint errors;
     res= copy_and_convert(to, to_length, system_charset_info,
                           from, from_length, from_cs, &errors);
-    to[res]= 0;
+    to+= res;
+    *to= 0;
   }
-  return buff;
+  return to - buff;
 }
 
 
@@ -907,18 +1013,20 @@ uint32 convert_error_message(char *to, uint32 to_length,
   my_wc_t     wc;
   const uchar *from_end= (const uchar*) from+from_length;
   char *to_start= to;
-  uchar *to_end= (uchar*) to+to_length;
+  uchar *to_end;
   my_charset_conv_mb_wc mb_wc= from_cs->cset->mb_wc;
   my_charset_conv_wc_mb wc_mb;
   uint error_count= 0;
   uint length;
 
   DBUG_ASSERT(to_length > 0);
+  /* Make room for the null terminator. */
   to_length--;
+  to_end= (uchar*) (to + to_length);
 
   if (!to_cs || from_cs == to_cs || to_cs == &my_charset_bin)
   {
-    length= min(to_length, from_length);
+    length= MY_MIN(to_length, from_length);
     memmove(to, from, length);
     to[length]= 0;
     return length;
@@ -959,4 +1067,33 @@ uint32 convert_error_message(char *to, uint32 to_length,
   *to= 0;
   *errors= error_count;
   return (uint32) (to - to_start);
+}
+
+
+/**
+  Sanity check for SQLSTATEs. The function does not check if it's really an
+  existing SQL-state (there are just too many), it just checks string length and
+  looks for bad characters.
+
+  @param sqlstate the condition SQLSTATE.
+
+  @retval true if it's ok.
+  @retval false if it's bad.
+*/
+
+bool is_sqlstate_valid(const LEX_STRING *sqlstate)
+{
+  if (sqlstate->length != 5)
+    return false;
+
+  for (int i= 0 ; i < 5 ; ++i)
+  {
+    char c = sqlstate->str[i];
+
+    if ((c < '0' || '9' < c) &&
+	(c < 'A' || 'Z' < c))
+      return false;
+  }
+
+  return true;
 }

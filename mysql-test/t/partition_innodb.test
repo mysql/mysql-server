@@ -9,6 +9,17 @@ drop table if exists t1, t2;
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
 --echo #
+--echo # Bug#13007154: Crash in keys_to_use_for_scanning with ORDER BY
+--echo #               and PARTITIONING
+--echo #
+CREATE TABLE t1 (a INT, KEY(a))
+ENGINE = InnoDB
+PARTITION BY KEY (a) PARTITIONS 1;
+SELECT 1 FROM t1 WHERE a > (SELECT LAST_INSERT_ID() FROM t1 LIMIT 0)
+ORDER BY a;
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#56287: crash when using Partition datetime in sub in query
 --echo #
 
@@ -28,8 +39,8 @@ insert into t1(c2,c3) values ("Test row",'2010-01-01 00:00:00');
 
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 SELECT count(*) FROM t1 p where c3 in
-(select c3 from t1 t where t.c3 < date '2011-04-26 19:19:44'
- and t.c3 > date '2011-04-26 19:18:44') ;
+(SELECT c3 FROM t1 t WHERE t.c3 < TIMESTAMP'2011-04-26 19:19:44'
+ AND t.c3 > TIMESTAMP'2011-04-26 19:18:44') ;
 
 DROP TABLE t1;
 
@@ -39,7 +50,8 @@ DROP TABLE t1;
 --echo #            SELECT is not detected
 --echo #
 
-SET @old_innodb_thread_concurrency:= @@innodb_thread_concurrency;
+SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
+SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
 SET GLOBAL innodb_thread_concurrency = 1;
 
 CREATE TABLE t1
@@ -88,6 +100,7 @@ COMMIT;
 --connection default
 
 SET GLOBAL innodb_thread_concurrency = @old_innodb_thread_concurrency;
+SET GLOBAL innodb_thread_sleep_delay = @old_innodb_thread_sleep_delay;
 DROP TABLE t1;
 
 
@@ -356,9 +369,10 @@ DROP TABLE t1;
 # Bug #14673: Wrong InnoDB default row format
 #
 create table t1 (a int) engine=innodb partition by hash(a) ;
-# Data_free for InnoDB tablespace varies depending on which
-# tests have been run before this one
---replace_column 10 #
+# Avg_row_length (col 6) and Data_length (col 7) vary depending
+# on the page size.  Data_free for InnoDB tablespace varies
+# depending on which tests have been run before this one.
+--replace_column 6 # 7 # 10 #
 show table status like 't1';
 drop table t1;
 
@@ -368,33 +382,38 @@ drop table t1;
 create table t1 (a int)
 engine = innodb
 partition by key (a);
-# Data_free for InnoDB tablespace varies depending on which
-# tests have been run before this one
---replace_column 10 #
+# Avg_row_length (col 6) and Data_length (col 7) vary depending
+# on the page size.  Data_free for InnoDB tablespace varies
+# depending on which tests have been run before this one.
+--replace_column 6 # 7 # 10 #
 show table status;
 insert into t1 values (0), (1), (2), (3);
-# Data_free for InnoDB tablespace varies depending on which
-# tests have been run before this one
---replace_column 10 #
+# Avg_row_length (col 6) and Data_length (col 7) vary depending
+# on the page size.  Data_free for InnoDB tablespace varies
+# depending on which tests have been run before this one.
+--replace_column 6 # 7 # 10 #
 show table status;
 drop table t1;
 
 create table t1 (a int auto_increment primary key)
 engine = innodb
 partition by key (a);
-# Data_free for InnoDB tablespace varies depending on which
-# tests have been run before this one
---replace_column 10 #
+# Avg_row_length (col 6) and Data_length (col 7) vary depending
+# on the page size.  Data_free for InnoDB tablespace varies
+# depending on which tests have been run before this one.
+--replace_column 6 # 7 # 10 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
-# Data_free for InnoDB tablespace varies depending on which
-# tests have been run before this one
---replace_column 10 #
+# Avg_row_length (col 6) and Data_length (col 7) vary depending
+# on the page size.  Data_free for InnoDB tablespace varies
+# depending on which tests have been run before this one.
+--replace_column 6 # 7 # 10 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
-# Data_free for InnoDB tablespace varies depending on which
-# tests have been run before this one
---replace_column 10 #
+# Avg_row_length (col 6) and Data_length (col 7) vary depending
+# on the page size.  Data_free for InnoDB tablespace varies
+# depending on which tests have been run before this one.
+--replace_column 6 # 7 # 10 #
 show table status;
 drop table t1;
 

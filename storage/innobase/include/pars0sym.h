@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -67,7 +67,7 @@ sym_node_t*
 sym_tab_add_str_lit(
 /*================*/
 	sym_tab_t*	sym_tab,	/*!< in: symbol table */
-	byte*		str,		/*!< in: string with no quotes around
+	const byte*	str,		/*!< in: string with no quotes around
 					it */
 	ulint		len);		/*!< in: string length */
 /******************************************************************//**
@@ -80,6 +80,16 @@ sym_tab_add_bound_lit(
 	sym_tab_t*	sym_tab,	/*!< in: symbol table */
 	const char*	name,		/*!< in: name of bound literal */
 	ulint*		lit_type);	/*!< out: type of literal (PARS_*_LIT) */
+/**********************************************************************
+Rebind literal to a node in the symbol table. */
+
+sym_node_t*
+sym_tab_rebind_lit(
+/*===============*/
+                                        /* out: symbol table node */
+        sym_node_t*     node,           /* in: node that is bound to literal*/
+        const void*     address,        /* in: pointer to data */
+        ulint           length);        /* in: length of data */
 /******************************************************************//**
 Adds an SQL null literal to a symbol table.
 @return	symbol table node */
@@ -213,6 +223,7 @@ struct sym_node_struct{
 							the symbol table */
 	UT_LIST_NODE_T(sym_node_t)	sym_list;	/*!< list of symbol
 							nodes */
+	sym_node_t*			like_node;	/* LIKE operator node*/
 };
 
 /** Symbol table */

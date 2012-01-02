@@ -1842,6 +1842,14 @@ SELECT t1field
 FROM t1
 WHERE t1field IN (SELECT v1field FROM v1);
 
+SELECT t1.t1field
+FROM t1 LEFT JOIN t1 AS t2 ON t1.t1field IN (SELECT v1field FROM v1);
+
+EXPLAIN
+SELECT t1field
+FROM t1
+WHERE t1field IN (SELECT v1field FROM v1);
+
 delimiter |;
 CREATE PROCEDURE p1() 
   BEGIN 
@@ -3907,4 +3915,664 @@ eval $query;
 
 DROP TABLE t1, t2;
 
---echo # End of the test for bug#12603183.
+--echo # End of test for bug#12603183.
+
+--echo #
+--echo # Bug#12818569: Diff nr of rows returned when using IN/ALL+subquery
+--echo #
+
+CREATE TABLE t1 (
+ col_int_key INT NOT NULL,
+ col_datetime_key DATETIME NOT NULL,
+ col_varchar_key VARCHAR(1) NOT NULL,
+ KEY col_int_key (col_int_key),
+ KEY col_datetime_key(col_datetime_key),
+ KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+ (7,'2004-06-06 04:22:12','v'), (0,'2005-11-13 01:12:31','s'),
+ (9,'2002-05-04 01:50:00','l'), (3,'2004-10-27 10:28:45','y'),
+ (4,'2006-07-22 05:24:23','c'), (2,'2002-05-16 21:34:03','i'),
+ (5,'2008-04-17 10:45:30','h'), (3,'2009-04-21 02:58:02','q'),
+ (1,'2008-01-11 11:01:51','a'), (3,'1900-01-01 00:00:00','v'),
+ (6,'2007-05-17 18:24:57','u'), (7,'2007-08-07 00:00:00','s'),
+ (5,'2001-08-28 00:00:00','y'), (1,'2004-04-16 00:27:28','z'),
+ (204,'2005-05-03 07:06:22','h'), (224,'2009-03-11 17:09:50','p'),
+ (9,'2007-12-08 01:54:28','e'), (5,'2009-07-28 18:19:54','i'),
+ (0,'2008-06-08 00:00:00','y'), (3,'2005-02-09 09:20:26','w');
+
+CREATE TABLE t2 (
+ col_varchar_nokey VARCHAR(1) NOT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES ('v'), ('y'), ('j'), ('c'), ('d'), ('r');
+
+SELECT col_varchar_key
+FROM t1
+WHERE col_varchar_key IN (SELECT col_varchar_nokey
+                          FROM t2)
+ORDER BY col_datetime_key LIMIT 4;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#12818569.
+
+--echo #
+--echo # Bug#12803439: Assert in replace_subcondition() on update query
+--echo #
+
+CREATE TABLE t1(a INTEGER);
+
+INSERT INTO t1 values(1), (2);
+
+CREATE TABLE t2(a INTEGER);
+
+INSERT INTO t2 VALUES(1), (3);
+
+SELECT *
+FROM t1
+WHERE a IN (SELECT a
+            FROM t2
+            HAVING a IN (SELECT a
+                         FROM t2)
+            )
+HAVING a IN (SELECT a
+             FROM t2);
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#12803439.
+
+--echo #
+--echo # Bug#12797534: Segfault in hp_movelink still exists
+--echo #
+
+CREATE TABLE t1 (
+ g1 VARCHAR(1) NOT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('d'), ('s');
+
+CREATE TABLE t2 (
+ pk INT NOT NULL,
+ col_int_key INT NOT NULL,
+ col_varchar_key VARCHAR(1) NOT NULL,
+ col_varchar_nokey VARCHAR(1) NOT NULL,
+ PRIMARY KEY (pk),
+ KEY col_varchar_key(col_varchar_key, col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES
+ (1,4,'j','j'), (2,6,'v','v'), (3,3,'c','c'), (4,5,'m','m'),
+ (5,3,'d','d'), (6,246,'d','d'), (7,2,'y','y'), (8,9,'t','t'),
+ (9,3,'d','d'), (10,8,'s','s'), (11,1,'r','r'), (12,8,'m','m'),
+ (13,8,'b','b'), (14,5,'x','x'), (15,7,'g','g'), (16,5,'p','p'),
+ (17,1,'q','q'), (18,6,'w','w'), (19,2,'d','d'), (20,9,'e','e');
+
+CREATE TABLE t3 (
+ pk INTEGER NOT NULL,
+ PRIMARY KEY (pk)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES (10);
+
+let $query=
+SELECT *
+FROM t1
+WHERE g1 NOT IN
+   (SELECT  grandparent1.col_varchar_nokey AS g1
+    FROM t2 AS grandparent1
+    WHERE grandparent1.col_varchar_key IN
+       (SELECT parent1.col_varchar_nokey AS p1
+        FROM t2 AS parent1 LEFT JOIN t3 AS parent2 USING (pk)
+        )
+      AND grandparent1.col_varchar_key IS NOT NULL
+    );
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+CREATE TABLE t1 (
+ pk INTEGER AUTO_INCREMENT,
+ col_int_key INTEGER ,
+ col_varchar_key VARCHAR(1) ,
+ col_varchar_nokey VARCHAR(1) ,
+ PRIMARY KEY (pk),
+ KEY (col_varchar_key,col_int_key)
+ ) ENGINE=INNODB;
+INSERT INTO t1 (col_int_key,col_varchar_key,col_varchar_nokey) VALUES
+ (0,'x','x'), (1,'j','j'), (1,'r','r'), (9,'v','v'), (5,'r','r');
+
+CREATE TABLE t2 (
+ pk INTEGER AUTO_INCREMENT,
+ col_int_key INTEGER ,
+ col_varchar_key VARCHAR(1) ,
+ col_varchar_nokey VARCHAR(1) ,
+ PRIMARY KEY (pk),
+ KEY (col_int_key),
+ KEY (col_varchar_key,col_int_key)
+ ) AUTO_INCREMENT=10 ENGINE=INNODB;
+INSERT INTO t2 (col_int_key, col_varchar_key, col_varchar_nokey) VALUES
+ (NULL,'x','x'), (NULL,'j','j'), (8,'c','c');
+
+CREATE TABLE t3
+SELECT outr.col_varchar_nokey AS x
+FROM t1 AS outr
+WHERE outr.col_varchar_nokey IN
+   (SELECT innr.col_varchar_nokey AS y
+    FROM t2 AS innr
+    WHERE innr.col_int_key IS NULL)
+  AND outr.col_varchar_nokey IS NOT NULL
+  AND NOT col_varchar_key IS NULL;
+
+SELECT *
+FROM t3
+WHERE x NOT IN
+   (SELECT outr.col_varchar_nokey AS x
+    FROM t1 AS outr
+    WHERE outr.col_varchar_nokey IN
+       (SELECT innr.col_varchar_nokey AS y
+        FROM t2 AS innr
+        WHERE innr.col_int_key IS NULL)
+      AND outr.col_varchar_nokey IS NOT NULL
+      AND NOT col_varchar_key IS NULL);
+
+DROP TABLE t1, t2, t3;
+
+--echo # End of test for bug#12797534.
+
+--echo #
+--echo # Bug#12714094: Assert in optimize_semijoin_nests()
+--echo #
+
+CREATE TABLE it (
+  pk int NOT NULL,
+  col_varchar VARCHAR(10) DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO it VALUES (1, 'g');
+
+CREATE TABLE ot
+  SELECT alias1.pk AS field1
+  FROM it AS alias1
+    LEFT JOIN it AS alias2
+    ON alias1.col_varchar = alias2.col_varchar
+;
+SELECT *
+FROM ot
+WHERE field1 IN (
+  SELECT alias1.pk
+  FROM it AS alias1
+    LEFT JOIN it AS alias2
+    ON alias1.col_varchar = alias2.col_varchar
+);
+
+DROP TABLE it, ot;
+
+--echo # End of test for bug#12714094
+
+--echo #
+--echo # Bug#12867557: Valgrind: conditional jump/move at key_cmp
+--echo #
+
+CREATE TABLE t1 (
+ pk INTEGER AUTO_INCREMENT,
+ col_int_key INTEGER,
+ PRIMARY KEY (pk),
+ KEY (col_int_key)
+) AUTO_INCREMENT=10;
+
+INSERT INTO t1 (col_int_key) VALUES (8);
+
+CREATE TABLE t2 (
+ pk INTEGER AUTO_INCREMENT,
+ col_int_key INTEGER,
+ col_time_key TIME,
+ PRIMARY KEY (pk),
+ KEY (col_int_key),
+ KEY (col_time_key)
+)  AUTO_INCREMENT=10;
+
+INSERT INTO t2 (col_int_key, col_time_key)
+VALUES
+ (8, '22:55:23.019225'), (7, '10:19:31.050677'), (1, '14:40:36.038608'),
+ (7, '04:37:47.062416'), (9, '19:34:06.054514'), (NULL,'20:35:33.022996'),
+ (1, NULL), (9, '14:43:37.057393'), (2, '02:23:09.043438'),
+ (9, '01:22:45.041064'), (2, '00:00:00'), (4, '00:13:25.038482'),
+ (0, '03:47:16.042671'), (4, '01:41:48.007423'), (8, '00:00:00'),
+ (NULL, '22:32:04.047407'), (NULL, '16:44:14.028443'), (0, '17:38:37.059754'),
+ (NULL, '08:46:48.042388'), (8, '14:11:27.044095');
+
+CREATE TABLE t0
+SELECT DISTINCT grandparent1.col_time_key AS g1
+FROM t2 AS grandparent1
+WHERE grandparent1.col_int_key IN
+   (SELECT parent1.col_int_key AS p1
+    FROM t1 AS parent1)
+ AND grandparent1.pk > 9;
+
+UPDATE t0
+SET g1 = g1
+WHERE g1 IN
+   (SELECT grandparent1.col_time_key AS g1
+    FROM t2 AS grandparent1
+    WHERE grandparent1.col_int_key IN
+       (SELECT parent1.col_int_key AS p1
+        FROM t1 AS parent1)
+      AND grandparent1.pk > 9);
+
+DROP TABLE t0, t1, t2;
+
+--echo # End of test for bug#12867557
+
+--echo #
+--echo # Bug#12711441: crash in fix_after_pullout
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  col_time_key time DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+CREATE TABLE t2 (
+  col_int_key int DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_varchar_key(col_varchar_key, col_int_key)
+);
+
+CREATE TABLE t3 (
+  pk int NOT NULL,
+  col_int_key INT DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+CREATE TABLE t4 (
+  col_int_nokey INT DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_varchar_key(col_varchar_key)
+);
+
+CREATE TABLE ts
+  SELECT alias1.col_time_key AS field1
+  FROM v1 AS alias1
+       RIGHT JOIN t3 AS alias2
+       ON alias2.col_int_key = alias1.col_int_nokey
+  WHERE alias1.pk >= SOME(
+    SELECT SQ1_alias1.pk AS SQ1_field1
+    FROM t3 AS SQ1_alias1
+         INNER JOIN (t2 AS SQ1_alias2
+           INNER JOIN t4 AS SQ1_alias3
+           ON SQ1_alias3.col_varchar_key = SQ1_alias2.col_varchar_nokey)
+         ON SQ1_alias3.col_int_nokey = SQ1_alias2.col_int_key
+    WHERE SQ1_alias2.col_varchar_key <= alias1.col_varchar_key
+      AND SQ1_alias3.col_varchar_nokey <> alias1.col_varchar_key)
+;
+
+SELECT * FROM ts WHERE field1 IN (
+  SELECT alias1.col_time_key AS field1
+  FROM v1 AS alias1
+       RIGHT JOIN t3 AS alias2
+       ON alias2.col_int_key = alias1.col_int_nokey
+  WHERE alias1.pk >= SOME(
+    SELECT SQ1_alias1.pk AS SQ1_field1
+    FROM t3 AS SQ1_alias1
+         INNER JOIN (t2 AS SQ1_alias2
+           INNER JOIN t4 AS SQ1_alias3
+           ON SQ1_alias3.col_varchar_key = SQ1_alias2.col_varchar_nokey)
+          ON SQ1_alias3.col_int_nokey = SQ1_alias2.col_int_key
+    WHERE SQ1_alias2.col_varchar_key <= alias1.col_varchar_key
+      AND SQ1_alias3.col_varchar_nokey <> alias1.col_varchar_key)
+);
+
+DROP TABLE t1, t2, t3, t4, ts;
+DROP VIEW v1;
+
+--echo # End of test for bug#12711441.
+
+--echo #
+--echo # Bug#12664936: Same query executed as where subquery ...
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key VARCHAR(1),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t1 VALUES
+ ('o'), ('w'), ('m'), ('q'),
+ ('f'), ('p'), ('j'), ('c');
+
+CREATE TABLE t2 (
+  col_int_nokey INTEGER,
+  col_int_key INTEGER,
+  col_varchar_key varchar(1),
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t2 VALUES
+ (8,5,'u'),(4,5,'p'),(8,1,'o'),(NULL,7,'v'),
+ (1,2,'g'),(2,1,'q'),(NULL,7,'l'),(3,1,'n');
+
+CREATE TABLE t4
+SELECT t2.col_int_nokey, t2.col_varchar_key
+FROM t1 JOIN t2 ON t2.col_varchar_key = t1.col_varchar_key
+WHERE t2.col_int_key = 1;
+
+let $query=
+SELECT *
+FROM t4
+WHERE (col_int_nokey, col_varchar_key) IN
+   (SELECT t2.col_int_nokey, t2.col_varchar_key
+    FROM t1 JOIN t2 ON t2.col_varchar_key = t1.col_varchar_key
+    WHERE t2.col_int_key = 1
+);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t4;
+
+--echo # End of test for bug#12664936.
+
+--echo #
+--echo # Bug#13340270: assertion table->sort.record_pointers == __null
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_key int DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key, col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+(10,8,'x','x'),
+(11,7,'d','d'),
+(12,1,'r','r'),
+(13,7,'f','f'),
+(14,9,'y','y'),
+(15,NULL,'u','u'),
+(16,1,'m','m'),
+(17,9,NULL,NULL),
+(18,2,'o','o'),
+(19,9,'w','w'),
+(20,2,'m','m'),
+(21,4,'q','q');
+
+let $query=
+  SELECT alias1.col_varchar_nokey AS field1
+  FROM t1 AS alias1 JOIN t1 AS alias2
+    ON alias2.col_int_key = alias1.pk OR
+       alias2.col_int_key = alias1.col_int_key
+  WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
+;
+
+eval CREATE TABLE t2
+  $query
+;
+
+eval EXPLAIN SELECT *
+FROM t2
+WHERE (field1) IN ($query);
+
+eval SELECT *
+FROM t2
+WHERE (field1) IN ($query);
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13340270.
+
+--echo #
+--echo # Bug#13335319: Seg fault when analyzing FirstMatch semi-join strategy
+--echo #
+
+CREATE TABLE ot1(a INTEGER);
+
+INSERT INTO ot1 VALUES(1), (2), (3);
+
+CREATE TABLE ot2(a INTEGER);
+
+INSERT INTO ot2 VALUES(1), (2), (4), (6), (8), (10);
+
+CREATE TABLE it1(a INTEGER);
+
+INSERT INTO it1 VALUES(1), (3), (5), (7);
+
+CREATE TABLE it2(a INTEGER);
+
+INSERT INTO it2 VALUES(1), (3), (5), (7), (9);
+
+let $query=
+SELECT ot1.a, ot2.a
+FROM ot1, ot2
+WHERE ot1.a IN (SELECT a FROM it1) AND
+      ot2.a IN (SELECT a FROM it2);
+
+eval explain $query;
+eval $query;
+
+DROP TABLE ot1, ot2, it1, it2;
+
+--echo # End of test for bug#13335319.
+
+--echo #
+--echo # Bug#13334882: Assertion keypart_map failed in MyIsam function
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey INT NOT NULL,
+  col_int_key INT NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES
+(1,4,0),
+(2,6,8),
+(3,3,1),
+(7,2,6),
+(8,9,1),
+(9,3,6),
+(10,8,2),
+(11,1,4),
+(12,8,8),
+(13,8,4),
+(14,5,4);
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES
+(10,8,7);
+
+CREATE TABLE t3
+SELECT grandparent1.col_int_nokey AS g1
+FROM t1 AS grandparent1
+WHERE (grandparent1.col_int_nokey, grandparent1.col_int_key) IN
+   (SELECT parent1.col_int_key AS p1,
+           parent1.col_int_key AS p2
+    FROM t1 AS parent1
+      LEFT JOIN t2 AS parent2
+      ON parent1.col_int_nokey = parent2.col_int_key
+    )
+  AND grandparent1.col_int_key <> 3
+;
+
+let $query=
+SELECT * FROM t3
+WHERE g1 NOT IN
+   (SELECT grandparent1.col_int_nokey AS g1
+    FROM t1 AS grandparent1
+    WHERE (grandparent1.col_int_nokey, grandparent1.col_int_key) IN
+       (SELECT parent1.col_int_key AS p1,
+               parent1.col_int_key AS p2
+        FROM t1 AS parent1
+        LEFT JOIN t2 AS parent2
+        ON parent1.col_int_nokey = parent2.col_int_key
+        )
+      AND grandparent1.col_int_key <> 3
+);
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # End of test for bug#13334882.
+
+--echo #
+--echo # Bug#13339643: Assertion on JOIN::flatten_subqueries on second execution
+--echo #
+
+CREATE TABLE t1 (
+  col_int_nokey INT,
+  col_varchar_nokey VARCHAR(1)
+);
+
+INSERT INTO t1 VALUES
+ (1,'o'),
+ (2,'t');
+
+CREATE TABLE t2 LIKE t1;
+
+INSERT INTO t2 VALUES
+ (1,'o'),
+ (4,'f');
+
+CREATE VIEW v_t2 AS SELECT * FROM t2;
+
+CREATE TABLE t3 LIKE t1;
+
+INSERT INTO t3 VALUES
+ (1,'o'),
+ (4,'f');
+
+let $query=
+SELECT alias1.col_varchar_nokey
+FROM t1 AS alias1
+     INNER JOIN v_t2 AS alias2
+     ON alias2.col_int_nokey = alias1.col_int_nokey AND
+          'o' IN (SELECT col_varchar_nokey
+                  FROM t3);
+eval explain $query;
+eval $query;
+
+eval PREPARE stmt FROM "$query";
+EXECUTE stmt;
+
+DROP VIEW v_t2;
+DROP TABLE t1, t2, t3;
+--echo # End of test for bug#13339643.
+
+--echo #
+--echo # Bug#13424134: Wrong result on JOIN + nested WHERE ... IN clauses
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyIsam;
+
+INSERT INTO t1 VALUES
+ (10,1,7), (13,7,3), (18,0,1), (23,8,1);
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_key int NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyIsam;
+
+INSERT INTO t2 VALUES (1,7);
+
+let $query=
+SELECT t1a.*
+FROM t1 AS t1a
+  JOIN t1 AS t1b USING ( col_int_nokey )
+WHERE t1a.col_int_key IN (
+  SELECT pk
+  FROM t2
+  WHERE col_int_key IN (
+    SELECT col_int_nokey
+    FROM t1
+  )
+);
+
+eval EXPLAIN $query;
+eval $query;
+
+ALTER TABLE t1 ENGINE=Innodb;
+ALTER TABLE t2 ENGINE=Innodb;
+
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13424134.
+
+--echo #
+--echo # Bug#13414014: Extra rows in result on semijoin query with where ...
+--echo #
+
+CREATE TABLE t1 (
+  c INT,
+  d INT,
+  a VARCHAR(1),
+  b VARCHAR(1),
+  KEY a (a)
+);
+
+INSERT INTO t1 VALUES
+ (NULL,8,'x','x'), (7,4,'q','q'), (6,8,'c','c');
+
+CREATE TABLE t2 (
+  a VARCHAR(1),
+  KEY a (a)
+);
+
+INSERT INTO t2 VALUES
+ ('c'), (NULL), ('x'), ('q');
+
+let $query=
+SELECT *
+FROM t2 AS ot
+WHERE (a, a) IN
+   (SELECT a, b
+    FROM t1 AS it
+    WHERE it.a = 'x' OR it.c > it.d
+   )
+;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13414014.
+
+--echo # End of 5.6 tests

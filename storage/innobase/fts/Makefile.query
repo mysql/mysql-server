@@ -1,0 +1,32 @@
+LEX=flex
+YACC=bison
+PREFIX=fts
+
+all:	fts0pars.cc fts0blex.cc fts0tlex.cc
+
+fts0par.cc: fts0pars.y
+fts0blex.cc: fts0blex.l
+fts0tlex.cc: fts0tlex.l
+
+.l.cc:
+	$(LEX) -P$(subst lex,,$*) -o $*.cc --header-file=../include/$*.h $<
+
+.y.cc:
+	$(YACC) -p $(PREFIX) -o $*.cc -d $<
+	mv $*.h ../include
+LEX=flex
+YACC=bison
+PREFIX=fts
+
+all:	fts0pars.cc fts0blex.cc fts0tlex.cc
+
+fts0par.cc: fts0pars.y
+fts0blex.cc: fts0blex.l
+fts0tlex.cc: fts0tlex.l
+
+.l.cc:
+	$(LEX) -P$(subst lex,,$*) -o $*.cc --header-file=../include/$*.h $<
+
+.y.cc:
+	$(YACC) -p $(PREFIX) -o $*.cc -d $<
+	mv $*.h ../include

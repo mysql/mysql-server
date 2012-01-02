@@ -53,10 +53,15 @@
 #include "sql_show.h"
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
+#include "sql_resolver.h"              // setup_order, fix_inner_refs
 
 #ifdef __WIN__
 #include <io.h>
 #endif
+
+#include <algorithm>
+using std::max;
+using std::min;
 
 const char *primary_key_name="PRIMARY";
 
@@ -2243,6 +2248,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                   find_temporary_table(thd, table) &&
                   table->mdl_request.ticket != NULL));
 
+    thd->add_to_binlog_accessed_dbs(table->db);
+
     /*
       drop_temporary_table may return one of the following error codes:
       .  0 - a temporary table was successfully dropped.
@@ -2858,6 +2865,8 @@ int prepare_create_field(Create_field *sql_field,
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_TIME:
   case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIME2:
+  case MYSQL_TYPE_DATETIME2:
   case MYSQL_TYPE_NULL:
     sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
     break;
@@ -2876,6 +2885,7 @@ int prepare_create_field(Create_field *sql_field,
                           (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
     break;
   case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
     /* We should replace old TIMESTAMP fields with their newer analogs */
     if (sql_field->unireg_check == Field::TIMESTAMP_OLD_FIELD)
     {
@@ -3455,6 +3465,15 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     {
       if (!(file->ha_table_flags() & HA_CAN_FULLTEXT))
       {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+        if (file->ht == partition_hton)
+        {
+          my_message(ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING,
+                     ER(ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING),
+                     MYF(0));
+          DBUG_RETURN(TRUE);
+        }
+#endif
 	my_message(ER_TABLE_CANT_HANDLE_FT, ER(ER_TABLE_CANT_HANDLE_FT),
                    MYF(0));
 	DBUG_RETURN(TRUE);
@@ -3843,7 +3862,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
     if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
         !sql_field->def &&
-        sql_field->sql_type == MYSQL_TYPE_TIMESTAMP &&
+        real_type_with_now_as_default(sql_field->sql_type) &&
         (sql_field->flags & NOT_NULL_FLAG) &&
         (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
     {
@@ -4567,7 +4586,10 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     if (!thd->is_current_stmt_binlog_format_row() ||
         (thd->is_current_stmt_binlog_format_row() &&
          !(create_info->options & HA_LEX_CREATE_TMP_TABLE)))
+    {
+      thd->add_to_binlog_accessed_dbs(create_table->db);
       result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
+    }
   }
 end:
   DBUG_RETURN(result);
@@ -4698,7 +4720,11 @@ mysql_rename_table(handlerton *base, const char *old_db,
   if (error == HA_ERR_WRONG_COMMAND)
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
   else if (error)
-    my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
+  {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(ER_ERROR_ON_RENAME, MYF(0), from, to,
+             error, my_strerror(errbuf, sizeof(errbuf), error));
+  }
   DBUG_RETURN(error != 0);
 }
 
@@ -4743,6 +4769,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   if (open_tables(thd, &thd->lex->query_tables, &not_used, 0))
     goto err;
   src_table->table->use_all_columns();
+
+  DEBUG_SYNC(thd, "create_table_like_after_open");
 
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
   memset(&local_create_info, 0, sizeof(local_create_info));
@@ -4792,6 +4820,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
                                              table->table_name,
                                              MDL_EXCLUSIVE));
+
+  DEBUG_SYNC(thd, "create_table_like_before_binlog");
+
   /*
     CREATE TEMPORARY TABLE doesn't terminate a transaction. Calling
     stmt.mark_created_temp_table() guarantees the transaction can be binlogged
@@ -5609,10 +5640,22 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (def)
     {						// Field is changed
       def->field=field;
+      /*
+        Add column being updated to the list of new columns.
+        Note that columns with AFTER clauses are added to the end
+        of the list for now. Their positions will be corrected later.
+      */
+      new_create_list.push_back(def);
       if (!def->after)
       {
-	new_create_list.push_back(def);
-	def_it.remove();
+        /*
+          If this ALTER TABLE doesn't have an AFTER clause for the modified
+          column then remove this column from the list of columns to be
+          processed. So later we can iterate over the columns remaining
+          in this list and process modified columns with AFTER clause or
+          add new columns.
+        */
+        def_it.remove();
       }
     }
     else
@@ -5662,7 +5705,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     */
     if ((def->sql_type == MYSQL_TYPE_DATE ||
          def->sql_type == MYSQL_TYPE_NEWDATE ||
-         def->sql_type == MYSQL_TYPE_DATETIME) &&
+         def->sql_type == MYSQL_TYPE_DATETIME ||
+         def->sql_type == MYSQL_TYPE_DATETIME2) &&
          !alter_info->datetime_field &&
          !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
          thd->variables.sql_mode & MODE_NO_ZERO_DATE)
@@ -5672,25 +5716,43 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     }
     if (!def->after)
       new_create_list.push_back(def);
-    else if (def->after == first_keyword)
-    {
-      new_create_list.push_front(def);
-    }
     else
     {
       Create_field *find;
-      find_it.rewind();
-      while ((find=find_it++))			// Add new columns
+      if (def->change)
       {
-	if (!my_strcasecmp(system_charset_info,def->after, find->field_name))
-	  break;
+        find_it.rewind();
+        /*
+          For columns being modified with AFTER clause we should first remove
+          these columns from the list and then add them back at their correct
+          positions.
+        */
+        while ((find=find_it++))
+        {
+          if (!my_strcasecmp(system_charset_info, def->field_name, find->field_name))
+          {
+            find_it.remove();
+            break;
+          }
+        }
       }
-      if (!find)
+      if (def->after == first_keyword)
+        new_create_list.push_front(def);
+      else
       {
-	my_error(ER_BAD_FIELD_ERROR, MYF(0), def->after, table->s->table_name.str);
-        goto err;
+        find_it.rewind();
+        while ((find=find_it++))
+        {
+          if (!my_strcasecmp(system_charset_info, def->after, find->field_name))
+            break;
+        }
+        if (!find)
+        {
+          my_error(ER_BAD_FIELD_ERROR, MYF(0), def->after, table->s->table_name.str);
+          goto err;
+        }
+        find_it.after(def);			// Put column after this
       }
-      find_it.after(def);			// Put element after this
     }
   }
   if (alter_info->alter_list.elements)
@@ -6016,6 +6078,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   db=table_list->db;
   if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
     new_db= db;
+
+  thd->add_to_binlog_accessed_dbs(db);
+  if (new_db != db)
+    thd->add_to_binlog_accessed_dbs(new_db);
+
   build_table_filename(reg_path, sizeof(reg_path) - 1, db, table_name, reg_ext, 0);
   build_table_filename(path, sizeof(path) - 1, db, table_name, "", 0);
 
@@ -6210,6 +6277,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     case ENABLE:
       if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
         goto err;
+      DEBUG_SYNC(thd,"alter_table_enable_indexes");
       DBUG_EXECUTE_IF("sleep_alter_enable_indexes", my_sleep(6000000););
       error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       break;
@@ -6512,6 +6580,15 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           needed_inplace_with_read_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE;
           needed_inplace_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE;
         }
+      }
+      else if (key->flags & HA_FULLTEXT)
+      {
+        /*
+          Fulltext keys should be treated as primary keys as InnoDB might
+          need to rebuild the primary index.
+        */
+        needed_inplace_with_read_flags|= HA_INPLACE_ADD_PK_INDEX_NO_WRITE;
+        needed_inplace_flags|= HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE;
       }
       else
       {
@@ -7062,8 +7139,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     */
     char path[FN_REFLEN];
     TABLE *t_table;
-    build_table_filename(path + 1, sizeof(path) - 1, new_db, table_name, "", 0);
-    t_table= open_table_uncached(thd, path, new_db, tmp_name, FALSE);
+    build_table_filename(path, sizeof(path) - 1, new_db, new_name, "", 0);
+    t_table= open_table_uncached(thd, path, new_db, new_name, FALSE);
     if (t_table)
     {
       intern_close_table(t_table);
@@ -7118,27 +7195,30 @@ err:
   if (alter_info->error_if_not_empty &&
       thd->get_stmt_da()->current_row_for_warning())
   {
-    const char *f_val= 0;
+    uint f_length;
     enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
     switch (alter_info->datetime_field->sql_type)
     {
       case MYSQL_TYPE_DATE:
       case MYSQL_TYPE_NEWDATE:
-        f_val= "0000-00-00";
+        f_length= MAX_DATE_WIDTH; // "0000-00-00";
         t_type= MYSQL_TIMESTAMP_DATE;
         break;
       case MYSQL_TYPE_DATETIME:
-        f_val= "0000-00-00 00:00:00";
+      case MYSQL_TYPE_DATETIME2:
+        f_length= MAX_DATETIME_WIDTH; // "0000-00-00 00:00:00";
         t_type= MYSQL_TIMESTAMP_DATETIME;
         break;
       default:
         /* Shouldn't get here. */
+        f_length= 0;
         DBUG_ASSERT(0);
     }
     bool save_abort_on_warning= thd->abort_on_warning;
     thd->abort_on_warning= TRUE;
     make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                                 f_val, strlength(f_val), t_type,
+                                 ErrConvString(my_zero_datetime6, f_length),
+                                 t_type,
                                  alter_info->datetime_field->field_name);
     thd->abort_on_warning= save_abort_on_warning;
   }
@@ -7318,7 +7398,11 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE);
+  if (init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE))
+  {
+    error= 1;
+    goto err;
+  }
   if (ignore)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->get_stmt_da()->reset_current_row_for_warning();

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -143,9 +143,9 @@ struct read_view_struct{
 	ulint		n_trx_ids;
 				/*!< Number of cells in the trx_ids array */
 	trx_id_t*	trx_ids;/*!< Additional trx ids which the read should
-				not see: typically, these are the active
-				transactions at the time when the read is
-				serialized, except the reading transaction
+				not see: typically, these are the read-write
+				active transactions at the time when the read
+			       	is serialized, except the reading transaction
 				itself; the trx ids in this array are in a
 				descending order. These trx_ids should be
 				between the "low" and "high" water marks,

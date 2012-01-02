@@ -30,6 +30,11 @@
 #include "sql_table.h"                          // tablename_to_filename
 #include "sql_class.h"                          // THD
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 ulonglong myisam_recover_options;
 static ulong opt_myisam_block_size;
 
@@ -770,7 +775,7 @@ int ha_myisam::write_row(uchar *buf)
 
   /* If we have a timestamp column, update it to the current time */
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
 
   /*
     If we have an auto_increment column and we are writing a changed row
@@ -1009,7 +1014,9 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   if (! thd->locked_tables_mode &&
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
-    mi_check_print_error(&param,ER(ER_CANT_LOCK),my_errno);
+    char errbuf[MYSYS_STRERROR_SIZE];
+    mi_check_print_error(&param, ER(ER_CANT_LOCK), my_errno,
+                         my_strerror(errbuf, sizeof(errbuf), my_errno));
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
 
@@ -1022,6 +1029,18 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
 			mi_get_mask_all_keys_active(share->base.keys) :
 			share->state.key_map);
     uint testflag=param.testflag;
+#ifdef HAVE_MMAP
+    bool remap= test(share->file_map);
+    /*
+      mi_repair*() functions family use file I/O even if memory
+      mapping is available.
+
+      Since mixing mmap I/O and file I/O may cause various artifacts,
+      memory mapping must be disabled.
+    */
+    if (remap)
+      mi_munmap_file(file);
+#endif
     if (mi_test_if_sort_rep(file,file->state->records,key_map,0) &&
 	(local_testflag & T_REP_BY_SORT))
     {
@@ -1053,6 +1072,10 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
       error=  mi_repair(&param, file, fixed_name,
 			param.testflag & T_QUICK);
     }
+#ifdef HAVE_MMAP
+    if (remap)
+      mi_dynmap_file(file, file->state->data_file_length);
+#endif
     param.testflag=testflag;
     optimize_done=1;
   }
@@ -1535,7 +1558,7 @@ int ha_myisam::update_row(const uchar *old_data, uchar *new_data)
 {
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   return mi_update(file,old_data,new_data);
 }
 
@@ -1603,6 +1626,8 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                   key_part_map keypart_map,
                                   enum ha_rkey_function find_flag)
 {
+  DBUG_ASSERT(pushed_idx_cond == NULL);
+  DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   ha_statistic_increment(&SSV::ha_read_key_count);
   int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
@@ -2129,7 +2154,7 @@ int ha_myisam::multi_range_read_next(char **range_info)
 ha_rows ha_myisam::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                                void *seq_init_param, 
                                                uint n_ranges, uint *bufsz,
-                                               uint *flags, COST_VECT *cost)
+                                               uint *flags, Cost_estimate *cost)
 {
   /*
     This call is here because there is no location where this->table would
@@ -2143,7 +2168,7 @@ ha_rows ha_myisam::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 
 ha_rows ha_myisam::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                          uint *bufsz, uint *flags,
-                                         COST_VECT *cost)
+                                         Cost_estimate *cost)
 {
   ds_mrr.init(this, table);
   return ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost);
@@ -2164,7 +2189,7 @@ Item *ha_myisam::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
     pushed index condition and the BLOB field might be part of the
     range evaluation done by the ICP code.
   */
-  const KEY *key= &table->key_info[keyno_arg];
+  const KEY *key= &table_share->key_info[keyno_arg];
 
   for (uint k= 0; k < key->key_parts; ++k)
   {
@@ -2214,7 +2239,8 @@ mysql_declare_plugin(myisam)
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   myisam_sysvars,             /* system variables                */
-  NULL
+  NULL,
+  0,
 }
 mysql_declare_plugin_end;
 

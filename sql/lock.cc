@@ -115,22 +115,19 @@ static int thr_lock_errno_to_mysql[]=
 static int
 lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
 {
-  uint system_count, i;
-  bool is_superuser;
+  uint system_count= 0, i= 0;
+  bool is_superuser= false;
   /*
     Identifies if the executed sql command can updated either a log
     or rpl info table.
   */
-  bool log_table_write_query, rpl_info_table_write_query;
+  bool log_table_write_query= false;
 
   DBUG_ENTER("lock_tables_check");
 
-  system_count= 0;
   is_superuser= thd->security_ctx->master_access & SUPER_ACL;
   log_table_write_query=
      is_log_table_write_query(thd->lex->sql_command);
-  rpl_info_table_write_query=
-     is_rpl_info_table_write_query(thd->lex->sql_command);
 
   for (i=0 ; i<count; i++)
   {
@@ -145,23 +142,6 @@ lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
       When a user is requesting a lock, the following
       constraints are enforced:
     */
-    if (t->s->table_category == TABLE_CATEGORY_RPL_INFO &&
-        (flags & MYSQL_LOCK_RPL_INFO_TABLE) == 0 &&
-        !rpl_info_table_write_query)
-    {
-      /*
-        A user should not be able to prevent writes,
-        or hold any type of lock in a session,
-        since this would be a DOS attack.
-      */
-      if (t->reginfo.lock_type >= TL_READ_NO_INSERT ||
-          thd->lex->sql_command == SQLCOM_LOCK_TABLES)
-      {
-          my_error(ER_CANT_LOCK_RPL_INFO_TABLE, MYF(0));
-          DBUG_RETURN(1);
-      }
-    }
-
     if (t->s->table_category == TABLE_CATEGORY_LOG &&
         (flags & MYSQL_LOCK_LOG_TABLE) == 0 &&
         !log_table_write_query)
@@ -887,31 +867,30 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
 
 static void print_lock_error(int error, const char *table)
 {
-  int textno;
   DBUG_ENTER("print_lock_error");
 
   switch (error) {
   case HA_ERR_LOCK_WAIT_TIMEOUT:
-    textno=ER_LOCK_WAIT_TIMEOUT;
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), error);
     break;
   case HA_ERR_READ_ONLY_TRANSACTION:
-    textno=ER_READ_ONLY_TRANSACTION;
+    my_error(ER_READ_ONLY_TRANSACTION, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG),
+             error);
     break;
   case HA_ERR_LOCK_DEADLOCK:
-    textno=ER_LOCK_DEADLOCK;
+    my_error(ER_LOCK_DEADLOCK, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), error);
     break;
   case HA_ERR_WRONG_COMMAND:
-    textno=ER_ILLEGAL_HA;
+    my_error(ER_ILLEGAL_HA, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), table);
     break;
   default:
-    textno=ER_CANT_LOCK;
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_CANT_LOCK, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG),
+               error, my_strerror(errbuf, sizeof(errbuf), error));
+    }
     break;
   }
-
-  if ( textno == ER_ILLEGAL_HA )
-    my_error(textno, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), table);
-  else
-    my_error(textno, MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG), error);
 
   DBUG_VOID_RETURN;
 }

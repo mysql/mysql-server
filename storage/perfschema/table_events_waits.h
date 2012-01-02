@@ -39,6 +39,8 @@ struct row_events_waits
   ulong m_thread_internal_id;
   /** Column EVENT_ID. */
   ulonglong m_event_id;
+  /** Column END_EVENT_ID. */
+  ulonglong m_end_event_id;
   /** Column NESTING_EVENT_ID. */
   ulonglong m_nesting_event_id;
   /** Column NESTING_EVENT_TYPE. */
@@ -143,6 +145,7 @@ protected:
   void clear_object_columns();
   int make_table_object_columns(volatile PFS_events_waits *wait);
   int make_file_object_columns(volatile PFS_events_waits *wait);
+  int make_socket_object_columns(volatile PFS_events_waits *wait);
 
   void make_row(bool thread_own_wait, PFS_thread *pfs_thread,
                 volatile PFS_events_waits *wait);

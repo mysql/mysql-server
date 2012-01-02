@@ -28,7 +28,6 @@
 
 struct RPL_TABLE_LIST;
 class Master_info;
-class Rpl_info_factory;
 extern uint sql_slave_skip_counter;
 
 /*******************************************************************************
@@ -51,18 +50,17 @@ is rotated, (ii) SQL Thread is stopped, (iii) while processing a Xid_log_event,
 any statement written to the binary log without a transaction context.
 
 The Xid_log_event is a commit for transactional engines and must be handled
-differently to provide reliability/data integrity. While committing updates to
-transactional engines the following behavior shall be implemented:
+differently to provide reliability/data integrity. In this case, positions
+are updated within the context of the current transaction. So
 
-  . If the relay.info is stored in a transactional repository, for instance, a
-  system table created using Innodb, the positions are updated in the context
-  of the transaction that updated data. Therefore, should the server crash 
-  before successfully committing the transaction the changes to the position 
-  table will be rolled back too.
+  . If the relay.info is stored in a transactional repository and the server
+  crashes before successfully committing the transaction the changes to the
+  position table will be rolled back along with the data.
 
   . If the relay.info is stored in a non-transactional repository, for instance,
-  a file or a system table created using MyIsam, the positions are update after
-  processing the commit as in (iv) and (v).
+  a file or a system table created using MyIsam, and the server crashes before
+  successfully committing the transaction the changes to the position table
+  will not be rolled back but data will.
 
 In particular, when there are mixed transactions, i.e a transaction that updates
 both transaction and non-transactional engines, the Xid_log_event is still used
@@ -329,7 +327,12 @@ public:
     LOAD DATA INFILE. This is used for security reasons.
    */ 
   char slave_patternload_file[FN_REFLEN]; 
-  size_t slave_patternload_file_size;  
+  size_t slave_patternload_file_size;
+
+  /**
+    Identifies the last time a checkpoint routine has been executed.
+  */
+  struct timespec last_clock;
 
   /**
     Invalidates cached until_log_name and group_relay_log_name comparison
@@ -357,7 +360,7 @@ public:
     event_relay_log_pos= future_event_relay_log_pos;
   }
 
-  void inc_group_relay_log_pos(ulonglong log_pos,
+  int inc_group_relay_log_pos(ulonglong log_pos,
 			       bool skip_lock= FALSE);
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
@@ -416,6 +419,171 @@ public:
   */
   time_t last_event_start_time;
 
+  /*****************************************************************************
+    WL#5569 MTS
+
+    legends:
+    C  - Coordinator;
+    W  - Worker;
+    WQ - Worker Queue containing event assignments
+  */
+  DYNAMIC_ARRAY workers; // number's is determined by global slave_parallel_workers
+  volatile ulong pending_jobs;
+  mysql_mutex_t pending_jobs_lock;
+  mysql_cond_t pending_jobs_cond;
+  ulong       mts_slave_worker_queue_len_max;
+  ulonglong   mts_pending_jobs_size;      // actual mem usage by WQ:s
+  ulonglong   mts_pending_jobs_size_max;  // max of WQ:s size forcing C to wait
+  bool    mts_wq_oversize;      // C raises flag to wait some memory's released
+  Slave_worker  *last_assigned_worker;// is set to a Worker at assigning a group
+  /*
+    master-binlog ordered queue of Slave_job_group descriptors of groups
+    that are under processing. The queue size is @c checkpoint_group.
+  */
+  Slave_committed_queue *gaq;
+  /*
+    Container for references of involved partitions for the current event group
+  */
+  DYNAMIC_ARRAY curr_group_assigned_parts;
+  DYNAMIC_ARRAY curr_group_da;  // deferred array to hold partition-info-free events
+  bool curr_group_seen_begin;   // current group started with B-event or not
+  bool curr_group_isolated;     // current group requires execution in isolation
+  bool mts_end_group_sets_max_dbs; // flag indicates if partitioning info is discovered
+  volatile ulong mts_wq_underrun_w_id;  // Id of a Worker whose queue is getting empty
+  /* 
+     Ongoing excessive overrun counter to correspond to number of events that
+     are being scheduled while a WQ is close to be filled up.
+     `Close' is defined as (100 - mts_worker_underrun_level) %.
+     The counter is incremented each time a WQ get filled over that level
+     and decremented when the level drops below.
+     The counter therefore describes level of saturation that Workers 
+     are experiencing and is used as a parameter to compute a nap time for
+     Coordinator in order to avoid reaching WQ limits.
+  */
+  volatile long mts_wq_excess_cnt;
+  long  mts_worker_underrun_level; // % of WQ size at which W is considered hungry
+  ulong mts_coordinator_basic_nap; // C sleeps to avoid WQs overrun
+  ulong opt_slave_parallel_workers; // cache for ::opt_slave_parallel_workers
+  ulong slave_parallel_workers; // the one slave session time number of workers
+  ulong recovery_parallel_workers; // number of workers while recovering
+  uint checkpoint_seqno;  // counter of groups executed after the most recent CP
+  uint checkpoint_group;  // cache for ::opt_mts_checkpoint_group 
+  MY_BITMAP recovery_groups;  // bitmap used during recovery
+  ulong mts_recovery_group_cnt; // number of groups to execute at recovery
+  ulong mts_recovery_index;     // running index of recoverable groups
+  bool mts_recovery_group_seen_begin;
+
+  /*
+    Coordinator's specific mem-root to hold various temporary data while
+    the current group is being schedulled. The root is shunk to default size
+    at the end of the group distribution.
+  */
+  MEM_ROOT mts_coor_mem_root;
+
+  /*
+    While distibuting events basing on their properties MTS
+    Coordinator changes its mts group status.
+    Transition normally flowws to follow `=>' arrows on the diagram:
+
+            +----------------------------+
+            V                            |
+    MTS_NOT_IN_GROUP =>                  |
+        {MTS_IN_GROUP => MTS_END_GROUP --+} while (!killed) => MTS_KILLED_GROUP
+      
+    MTS_END_GROUP has `->' loop breaking link to MTS_NOT_IN_GROUP when
+    Coordinator synchronizes with Workers by demanding them to
+    complete their assignments.
+  */
+  enum
+  {
+    /* 
+       no new events were scheduled after last synchronization,
+       includes Single-Threaded-Slave case.
+    */
+    MTS_NOT_IN_GROUP,
+
+    MTS_IN_GROUP,    /* at least one not-terminal event scheduled to a Worker */
+    MTS_END_GROUP,   /* the last scheduled event is a terminal event */
+    MTS_KILLED_GROUP /* Coordinator gave up to reach MTS_END_GROUP */
+  } mts_group_status;
+
+  /*
+    MTS statistics: 
+  */
+  ulong mts_events_assigned; // number of events (statements) scheduled
+  ulong mts_groups_assigned; // number of groups (transactions) scheduled
+  volatile ulong mts_wq_overrun_cnt; // counter of all mts_wq_excess_cnt increments
+  ulong wq_size_waits_cnt;    // number of times C slept due to WQ:s oversize
+  /*
+    a counter for sleeps due to Coordinator 
+    experienced waiting when Workers get hungry again
+  */
+  ulong mts_wq_no_underrun_cnt;
+  ulong mts_wq_overfill_cnt;  // counter of C waited due to a WQ queue was full
+  /* 
+     A sorted array of the Workers' current assignement numbers to provide
+     approximate view on Workers loading.
+     The first row of the least occupied Worker is queried at assigning 
+     a new partition. Is updated at checkpoint commit to the main RLI.
+  */
+  DYNAMIC_ARRAY least_occupied_workers;
+  /* end of MTS statistics */
+
+  /* most of allocation in the coordinator rli is there */
+  void init_workers(ulong);
+
+  /* counterpart of the init */
+  void deinit_workers();
+
+  /**
+     returns true if there is any gap-group of events to execute
+                  at slave starting phase.
+  */
+  inline bool is_mts_recovery() const
+  {
+    return mts_recovery_group_cnt != 0;
+  }
+
+  /**
+     returns true if events are to be executed in parallel
+  */
+  inline bool is_parallel_exec() const
+  {
+    bool ret= (slave_parallel_workers > 0) && !is_mts_recovery();
+
+    DBUG_ASSERT(!ret || workers.elements > 0);
+
+    return ret;
+  }
+
+  /**
+     returns true if Coordinator is scheduling events belonging to
+     the same group and has not reached yet its terminal event.
+  */
+  inline bool is_mts_in_group()
+  {
+    return is_parallel_exec() &&
+      mts_group_status == MTS_IN_GROUP;
+  }
+
+  /**
+     While a group is executed by a Worker the relay log can change.
+     Coordinator notifies Workers about this event. Worker is supposed
+     to commit to the recovery table with the new info.
+  */
+  void reset_notified_relay_log_change();
+
+  /**
+     While a group is executed by a Worker the relay log can change.
+     Coordinator notifies Workers about this event. Coordinator and Workers
+     maintain a bitmap of executed group that is reset with a new checkpoint. 
+  */
+  void reset_notified_checkpoint(ulong, time_t);
+
+  /*
+   * End of MTS section ******************************************************/
+
+
   /**
     Helper function to do after statement completion.
 
@@ -429,7 +597,7 @@ public:
     relay log info and used to produce information for <code>SHOW
     SLAVE STATUS</code>.
   */
-  void stmt_done(my_off_t event_log_pos);
+  int stmt_done(my_off_t event_log_pos);
 
 
   /**
@@ -572,7 +740,58 @@ public:
   void set_sql_delay(time_t _sql_delay) { sql_delay= _sql_delay; }
   time_t get_sql_delay_end() { return sql_delay_end; }
 
+  Relay_log_info(bool is_slave_recovery
+#ifdef HAVE_PSI_INTERFACE
+                 ,PSI_mutex_key *param_key_info_run_lock,
+                 PSI_mutex_key *param_key_info_data_lock,
+                 PSI_mutex_key *param_key_info_sleep_lock,
+                 PSI_mutex_key *param_key_info_data_cond,
+                 PSI_mutex_key *param_key_info_start_cond,
+                 PSI_mutex_key *param_key_info_stop_cond,
+                 PSI_mutex_key *param_key_info_sleep_cond
+#endif
+                );
   virtual ~Relay_log_info();
+
+  /*
+    Determines if a warning message on unsafe execution was
+    already printed out to avoid clutering the error log
+    with several warning messages.
+  */
+  bool reported_unsafe_warning;
+
+  time_t get_row_stmt_start_timestamp()
+  {
+    return row_stmt_start_timestamp;
+  }
+
+  time_t set_row_stmt_start_timestamp()
+  {
+    if (row_stmt_start_timestamp == 0)
+      row_stmt_start_timestamp= my_time(0);
+
+    return row_stmt_start_timestamp;
+  }
+
+  void reset_row_stmt_start_timestamp()
+  {
+    row_stmt_start_timestamp= 0;
+  }
+
+  void set_long_find_row_note_printed()
+  {
+    long_find_row_note_printed= true;
+  }
+
+  void unset_long_find_row_note_printed()
+  {
+    long_find_row_note_printed= false;
+  }
+
+  bool is_long_find_row_note_printed()
+  {
+    return long_find_row_note_printed;
+  }
 
 private:
   /**
@@ -605,24 +824,35 @@ private:
   */
   static const int LINES_IN_RELAY_LOG_INFO_WITH_DELAY= 5;
 
+  /*
+    Before the WL#5599, relay_log.info had 5 lines. Now it has 6 lines.
+  */
+  static const int LINES_IN_RELAY_LOG_INFO_WITH_WORKERS= 6;
+
   bool read_info(Rpl_info_handler *from);
-  bool write_info(Rpl_info_handler *to, bool force);
+  bool write_info(Rpl_info_handler *to);
 
-  Relay_log_info(bool is_slave_recovery
-#ifdef HAVE_PSI_INTERFACE
-                 ,PSI_mutex_key *param_key_info_run_lock,
-                 PSI_mutex_key *param_key_info_data_lock,
-                 PSI_mutex_key *param_key_info_sleep_lock,
-                 PSI_mutex_key *param_key_info_data_cond,
-                 PSI_mutex_key *param_key_info_start_cond,
-                 PSI_mutex_key *param_key_info_stop_cond,
-                 PSI_mutex_key *param_key_info_sleep_cond
-#endif
-                );
   Relay_log_info(const Relay_log_info& info);
-
   Relay_log_info& operator=(const Relay_log_info& info);
+
+  /*
+    Runtime state for printing a note when slave is taking
+    too long while processing a row event.
+   */
+  time_t row_stmt_start_timestamp;
+  bool long_find_row_note_printed;
 };
 
 bool mysql_show_relaylog_events(THD* thd);
+
+THD* mts_get_coordinator_thd();
+
+/**
+   @param  thd a reference to THD
+   @return TRUE if thd belongs to a Worker thread and FALSE otherwise.
+*/
+inline bool is_mts_worker(const THD *thd)
+{
+  return thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER;
+}
 #endif /* RPL_RLI_H */

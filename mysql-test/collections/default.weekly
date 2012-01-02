@@ -5,6 +5,8 @@
 # 3. nist suite
 # 4. engine independant suite
 # 5. Covers debug and non-debug runs
+# 6. Covers all suites with Multi-Threaded-Slave and MIXED binlog-format
+# 7. Covers all suites with innodb-page-size=4k and 8k
 
 # Repeat daily run
 # big-test option for normal runs 
@@ -73,3 +75,22 @@ perl mysql-test-run.pl --timer --force --parallel=auto  --comment=eits-rpl-binlo
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --parallel=auto --comment=eits-tests-innodb-engine-big --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-innodb-engine-big --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --mysqld=--innodb --skip-test-list=collections/disabled-weekly.list
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=eits-rpl-binlog-row-tests-innodb-engine --experimental=collections/default.experimental --vardir=var-binlog-row-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --mysqld=--innodb --do-test=rpl --mysqld=--binlog-format=row --skip-test-list=collections/disabled-weekly.list
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=eits-rpl-binlog-mixed-tests-innodb-engine --experimental=collections/default.experimental --vardir=var-binlog-mixed-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --mysqld=--innodb --do-test=rpl --mysqld=--binlog-format=mixed --skip-test-list=collections/disabled-weekly.list
+
+# Multi-Thread Slave
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix-MTS --vardir=var-mts-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --unit-tests --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0
+
+# Run with 4K page size
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --unit-tests --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_ps_row_4k_size --vardir=var-main-ps_row --suite=main --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_embedded_4k_size --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --skip-ndb --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
+
+# Run with 8K page size
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --unit-tests --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_ps_row_8k_size --vardir=var-main-ps_row --suite=main --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_embedded_8k_size --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --skip-ndb --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
+
+# Run InnoDB with 4k page size
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_4k_size --vardir=var-innodb-4k --experimental=collections/default.experimental --skip-ndb --suite=innodb --mysqld=--innodb-page-size=4k
+
+# Run InnoDB with 8k page size
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_8k_size --vardir=var-innodb-8k --experimental=collections/default.experimental --skip-ndb --suite=innodb --mysqld=--innodb-page-size=8k

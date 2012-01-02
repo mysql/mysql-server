@@ -18,6 +18,7 @@
 #include "sql_cursor.h"
 #include "probes_mysql.h"
 #include "sql_parse.h"                        // mysql_execute_command
+#include "sql_tmp_table.h"                   // tmp tables
 
 /****************************************************************************
   Declarations.
@@ -387,7 +388,7 @@ bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
   if (create_result_table(unit->thd, unit->get_unit_column_types(),
                           FALSE,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
-                          "", FALSE))
+                          "", FALSE, TRUE))
     return TRUE;
 
   materialized_cursor= new (&table->mem_root)

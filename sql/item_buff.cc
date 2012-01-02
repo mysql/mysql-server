@@ -30,6 +30,9 @@
 #include "sql_class.h"          // THD
 #include "set_var.h"            // Cached_item, Cached_item_field, ...
 
+using std::min;
+using std::max;
+
 /**
   Create right type of Cached_item for an item.
 */
@@ -71,7 +74,7 @@ Cached_item::~Cached_item() {}
 
 Cached_item_str::Cached_item_str(THD *thd, Item *arg)
   :item(arg),
-   value_max_length(min(arg->max_length, thd->variables.max_sort_length)),
+   value_max_length(min<uint32>(arg->max_length, thd->variables.max_sort_length)),
    value(value_max_length)
 {}
 
@@ -137,16 +140,34 @@ bool Cached_item_int::cmp(void)
 bool Cached_item_field::cmp(void)
 {
   DBUG_ENTER("Cached_item_field::cmp");
-  bool tmp= field->cmp(buff) != 0;		// This is not a blob!
   DBUG_EXECUTE("info", dbug_print(););
-  if (tmp)
-    field->get_image(buff,length,field->charset());
-  if (null_value != field->is_null())
+
+  bool different= false;
+
+  if (field->is_null())
   {
-    null_value= !null_value;
-    tmp=TRUE;
+    if (!null_value)
+    {
+      different= true;
+      null_value= true;
+    }
   }
-  DBUG_RETURN(tmp);
+  else
+  {
+    if (null_value)
+    {
+      different= true;
+      null_value= false;
+      field->get_image(buff, length, field->charset());
+    }
+    else if (field->cmp(buff))                  // Not a blob: cmp() is OK
+    {
+      different= true;
+      field->get_image(buff, length, field->charset());
+    }
+  }
+
+  DBUG_RETURN(different);
 }
 
 

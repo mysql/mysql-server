@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -11,9 +11,9 @@ WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
 Public License for more details.
 
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ***********************************************************************/
 
@@ -75,6 +75,7 @@ typedef struct monitor_value_struct	monitor_value_t;
 /** Follwoing defines are possible values for "monitor_type" field in
 "struct monitor_info" */
 enum monitor_type_value {
+	MONITOR_NONE = 0,	/*!< No monitoring */
 	MONITOR_MODULE = 1,	/*!< This is a monitor module type,
 				not a counter */
 	MONITOR_EXISTING = 2,	/*!< The monitor carries information from
@@ -113,7 +114,7 @@ naming rules here:
 2) If the monitor uses exisitng counters from "status variable", its ID
 name shall start with MONITOR_OVLD
 
-Please refer to "innodb_counter_info" in srv/srv0mon.c for detail
+Please refer to "innodb_counter_info" in srv/srv0mon.cc for detail
 information for each monitor counter */
 
 enum monitor_id_value {
@@ -258,7 +259,9 @@ enum monitor_id_value {
 
 	/* Transaction related counters */
 	MONITOR_MODULE_TRX,
-	MONITOR_TRX_COMMIT,
+	MONITOR_TRX_RW_COMMIT,
+	MONITOR_TRX_RO_COMMIT,
+	MONITOR_TRX_NL_RO_COMMIT,
 	MONITOR_TRX_COMMIT_UNDO,
 	MONITOR_TRX_ROLLBACK,
 	MONITOR_TRX_ROLLBACK_SAVEPOINT,
@@ -527,6 +530,33 @@ on the counters */
 			MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);\
 		}							\
 	}
+
+#ifdef HAVE_ATOMIC_BUILTINS
+
+# define MONITOR_ATOMIC_INC(monitor)					\
+	if (MONITOR_IS_ON(monitor)) {					\
+		ib_uint64_t	value;					\
+		value  = os_atomic_increment_uint64(			\
+			(ib_uint64_t*) &MONITOR_VALUE(monitor),	 1);	\
+		/* Note: This is not 100% accurate because of the	\
+		inherent race, we ignore it due to performance. */	\
+		if (value > (ib_uint64_t) MONITOR_MAX_VALUE(monitor)) {	\
+			MONITOR_MAX_VALUE(monitor) = value;		\
+		}							\
+	}
+
+# define MONITOR_ATOMIC_DEC(monitor)					\
+	if (MONITOR_IS_ON(monitor)) {					\
+		ib_uint64_t	value;					\
+		value = os_atomic_decrement_ulint(			\
+			(ib_uint64_t*) &MONITOR_VALUE(monitor), 1);	\
+		/* Note: This is not 100% accurate because of the	\
+		inherent race, we ignore it due to performance. */	\
+		if (value < (ib_uint64_t) MONITOR_MIN_VALUE(monitor)) {	\
+			MONITOR_MIN_VALUE(monitor) = value;		\
+		}							\
+	}
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 #define	MONITOR_DEC(monitor)						\
 	if (MONITOR_IS_ON(monitor)) {					\

@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 
 # BUG#56118 STOP SLAVE does not wait till trx with CREATE TMP TABLE ends
@@ -76,6 +79,7 @@ include/wait_for_slave_sql_to_start.inc
 SET GLOBAL debug= '$debug_save';
 include/restart_slave.inc
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 [connection master]
 DROP TABLE t1, t2;
 

@@ -517,7 +517,7 @@ Increase max_allowed_packet on master";
     *errmsg = "memory allocation failed reading log event";
     break;
   case LOG_READ_TRUNC:
-    *errmsg = "binlog truncated in the middle of event";
+    *errmsg = "binlog truncated in the middle of event; consider out of disk space on master";
     break;
   case LOG_READ_CHECKSUM_FAILURE:
     *errmsg = "event read from binlog did not pass crc check";
@@ -629,6 +629,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   String* packet = &thd->packet;
   int error;
   const char *errmsg = "Unknown error";
+  const char *fmt= "%s; the last event was read from '%s' at %s, the last byte read was read from '%s' at %s.";
+  char llbuff1[22], llbuff2[22];
+  char error_text[MAX_SLAVE_ERRMSG]; // to be send to slave via my_message()
   NET* net = &thd->net;
   mysql_mutex_t *log_lock;
   mysql_cond_t *log_cond;
@@ -897,11 +900,9 @@ impossible position";
     if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
       goto err;
 
-    my_off_t prev_pos= pos;
-    while (!(error = Log_event::read_log_event(&log, packet, log_lock,
+    while (!(error= Log_event::read_log_event(&log, packet, log_lock,
                                                current_checksum_alg)))
     {
-      prev_pos= my_b_tell(&log);
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
       {
@@ -957,6 +958,27 @@ impossible position";
       else if (event_type == STOP_EVENT)
         binlog_can_be_corrupted= FALSE;
 
+      /*
+        Introduced this code to make the gcc 4.6.1 compiler happy. When
+        warnings are converted to errors, the compiler complains about
+        the fact that binlog_can_be_corrupted is defined but never used.
+
+        We need to check if this is a dead code or if someone removed any
+        code by mistake.
+
+        /Alfranio
+      */
+      if (binlog_can_be_corrupted)
+      {
+        /*
+           Don't try to print out warning messages because this generates
+           erroneous messages in the error log and causes performance
+           problems.
+
+           /Alfranio
+        */
+      }
+
       pos = my_b_tell(&log);
       if (RUN_HOOK(binlog_transmit, before_send_event,
                    (thd, flags, packet, log_file_name, pos)))
@@ -1004,18 +1026,6 @@ impossible position";
         goto err;
     }
 
-    /*
-      here we were reading binlog that was not closed properly (as a result
-      of a crash ?). treat any corruption as EOF
-    */
-    if (binlog_can_be_corrupted &&
-        error != LOG_READ_MEM &&
-        error != LOG_READ_CHECKSUM_FAILURE &&
-        error != LOG_READ_EOF)
-    {
-      my_b_seek(&log, prev_pos);
-      error=LOG_READ_EOF;
-    }
     /*
       TODO: now that we are logging the offset, check to make sure
       the recorded offset and the actual match.
@@ -1263,6 +1273,18 @@ end:
 
 err:
   THD_STAGE_INFO(thd, stage_waiting_to_finalize_termination);
+  if (my_errno == ER_MASTER_FATAL_ERROR_READING_BINLOG && my_b_inited(&log))
+  {
+    /* 
+       detailing the fatal error message with coordinates 
+       of the last position read.
+    */
+    my_snprintf(error_text, sizeof(error_text), fmt, errmsg,
+                coord->file_name, (llstr(coord->pos, llbuff1), llbuff1),
+                log_file_name, (llstr(my_b_tell(&log), llbuff2), llbuff2));
+  }
+  else
+    strcpy(error_text, errmsg);
   end_io_cache(&log);
   (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   /*
@@ -1280,7 +1302,7 @@ err:
   thd->variables.max_allowed_packet= old_max_allowed_packet;
 
   thd->set_stmt_da(saved_da);
-  my_message(my_errno, errmsg, MYF(0));
+  my_message(my_errno, error_text, MYF(0));
   DBUG_VOID_RETURN;
 }
 

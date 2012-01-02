@@ -579,7 +579,9 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   {
     if (my_errno != ENOENT)
     {
-      my_error(EE_STAT, MYF(0), path, my_errno);
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(EE_STAT, MYF(0), path,
+               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
       goto exit;
     }
     if (my_mkdir(path,0777,MYF(0)) < 0)
@@ -659,7 +661,7 @@ not_silent:
       */
       qinfo.db     = db;
       qinfo.db_len = strlen(db);
-
+      thd->add_to_binlog_accessed_dbs(db);
       /*
         These DDL methods and logging are protected with the exclusive
         metadata lock on the schema
@@ -969,6 +971,7 @@ update_binlog:
 
     if (query_pos != query_data_start)
     {
+      thd->add_to_binlog_accessed_dbs(db);
       /*
         These DDL methods and logging are protected with the exclusive
         metadata lock on the schema.
@@ -1099,7 +1102,9 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
       if (my_delete_with_symlink(filePath, MYF(0)) &&
           my_errno != ENOENT)
       {
-        my_error(EE_DELETE, MYF(0), filePath, my_errno);
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(EE_DELETE, MYF(0), filePath,
+                 my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
         DBUG_RETURN(true);
       }
     }

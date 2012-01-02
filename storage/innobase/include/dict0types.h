@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -55,7 +55,8 @@ be or-ed together */
 enum dict_err_ignore {
         DICT_ERR_IGNORE_NONE = 0,        /*!< no error to ignore */
         DICT_ERR_IGNORE_INDEX_ROOT = 1, /*!< ignore error if index root
-					page is FIL_NUL or incorrect value */
+					page is FIL_NULL or incorrect value */
+	DICT_ERR_IGNORE_CORRUPT = 2,	/*!< skip corrupted indexes */
         DICT_ERR_IGNORE_ALL = 0xFFFF	/*!< ignore all errors */
 };
 

@@ -226,6 +226,18 @@ INSERT INTO global_suppressions VALUES
  */
  (".*If a crash happens this configuration does not guarantee.*"),
 
+ /*
+   Warning messages introduced in the context of the WL#4143.
+ */
+ ("Storing MySQL user name or password information in the master.info repository is not secure.*"),
+ ("Sending passwords in plain text without SSL/TLS is extremely insecure."),
+
+ /*
+  In MTS if the user issues a stop slave sql while it is scheduling a group
+  of events, this warning is emitted.
+  */
+ ("Slave SQL: Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events.*"),
+
  ("THE_LAST_SUPPRESSION")||
 
 

@@ -44,6 +44,14 @@ public:
   longlong val_int();
   double val_real();
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
+  }
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
   bool fix_fields(THD *thd, Item **ref);
@@ -617,6 +625,16 @@ public:
 };
 
 
+class Item_func_space :public Item_str_func
+{
+public:
+  Item_func_space(Item *arg1):Item_str_func(arg1) {}
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "space"; }
+};
+
+
 class Item_func_rpad :public Item_str_func
 {
   String tmp_value, rpad_str;
@@ -791,9 +809,9 @@ public:
   void fix_length_and_dec()
   {
     collation.set(args[0]->collation);
-    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 +
+    ulong max_result_length= (ulong) args[0]->max_length * 2 +
                                   2 * collation.collation->mbmaxlen;
-    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
+    max_length= std::min<ulong>(max_result_length, MAX_BLOB_WIDTH);
   }
 };
 
@@ -894,10 +912,11 @@ class Item_func_weight_string :public Item_str_func
   uint flags;
   uint nweights;
   uint result_length;
+  Field *field;
 public:
   Item_func_weight_string(Item *a, uint result_length_arg,
                           uint nweights_arg, uint flags_arg)
-  :Item_str_func(a)
+  :Item_str_func(a), field(NULL)
   {
     nweights= nweights_arg;
     flags= flags_arg;

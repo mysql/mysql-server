@@ -101,6 +101,7 @@ proxies_priv
 servers
 slave_master_info
 slave_relay_log_info
+slave_worker_info
 slow_log
 tables_priv
 time_zone
@@ -208,8 +209,8 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 c	varchar(64)	utf8_general_ci	NO				select,insert,update,references	
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-def	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+def	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 show columns from mysqltest.t1 where field like "%a%";
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -316,7 +317,7 @@ information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	
-1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Using join buffer (Block Nested Loop)
 select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
 mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) AND a.ROUTINE_SCHEMA='test' order by 1;
 ROUTINE_NAME	name
@@ -878,8 +879,8 @@ TABLES	TABLE_NAME	select
 TABLE_CONSTRAINTS	TABLE_NAME	select
 TABLE_PRIVILEGES	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
-INNODB_BUFFER_PAGE	TABLE_NAME	select
 INNODB_BUFFER_PAGE_LRU	TABLE_NAME	select
+INNODB_BUFFER_PAGE	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
@@ -889,7 +890,7 @@ AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	31
-mysql	25
+mysql	26
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -1175,15 +1176,15 @@ DROP TABLE t1;
 DROP VIEW v1;
 DROP FUNCTION func1;
 DROP FUNCTION func2;
-select column_type, group_concat(table_schema, '.', table_name), count(*) as num
-from information_schema.columns where
-table_schema='information_schema' and
-(column_type = 'varchar(7)' or column_type = 'varchar(20)'
- or column_type = 'varchar(27)')
-group by column_type order by num;
-column_type	group_concat(table_schema, '.', table_name)	num
-varchar(27)	information_schema.COLUMNS	1
+SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name), COUNT(*) AS num
+FROM information_schema.columns WHERE
+table_schema='information_schema' AND
+(column_type = 'varchar(7)' OR column_type = 'varchar(20)'
+ OR column_type = 'varchar(30)')
+GROUP BY column_type ORDER BY num;
+column_type	GROUP_CONCAT(table_schema, '.', table_name)	num
 varchar(7)	information_schema.ROUTINES,information_schema.VIEWS	2
+varchar(30)	information_schema.COLUMNS,information_schema.PROFILING,information_schema.PROFILING	3
 varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
@@ -1292,7 +1293,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	Open_frm_only; Scanned all databases; Using filesort
 explain select * from (select table_name from information_schema.tables) as a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
 2	DERIVED	tables	ALL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
 drop view v1;
 create table t1 (f1 int(11));
@@ -1497,7 +1498,7 @@ from information_schema.tables a, information_schema.columns b
 where a.table_name='t1' and a.table_schema='test' and b.table_name=a.table_name;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	a	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	Using where; Skip_open_table; Scanned 0 databases
-1	SIMPLE	b	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned all databases; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	b	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned all databases; Using join buffer (Block Nested Loop)
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME = 'mysqltest';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
@@ -1536,9 +1537,9 @@ WHERE TABLE_SCHEMA='mysql' and TABLE_NAME= 'db';
 TABLE_COLLATION
 utf8_bin
 select * from information_schema.columns where table_schema = NULL;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 select * from `information_schema`.`COLUMNS` where `TABLE_NAME` = NULL;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_SCHEMA` = NULL;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
 select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_NAME` = NULL;
@@ -1735,17 +1736,17 @@ returns char(10) return null;
 create procedure p1 (p1 float(8,5), p2 char(32), p3 varchar(10)) begin end;
 create procedure p2 (p1 enum('c', 's'), p2 blob, p3 text) begin end;
 select * from information_schema.parameters where specific_schema='test';
-SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
-def	test	f1	0	NULL	NULL	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)	FUNCTION
-def	test	f1	1	IN	p1	int	NULL	NULL	10	0	NULL	NULL	int(11)	FUNCTION
-def	test	f1	2	IN	p2	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime	FUNCTION
-def	test	f1	3	IN	p3	decimal	NULL	NULL	10	2	NULL	NULL	decimal(10,2)	FUNCTION
-def	test	p1	1	IN	p1	float	NULL	NULL	8	5	NULL	NULL	float(8,5)	PROCEDURE
-def	test	p1	2	IN	p2	char	32	32	NULL	NULL	latin1	latin1_swedish_ci	char(32)	PROCEDURE
-def	test	p1	3	IN	p3	varchar	10	10	NULL	NULL	latin1	latin1_swedish_ci	varchar(10)	PROCEDURE
-def	test	p2	1	IN	p1	enum	1	1	NULL	NULL	latin1	latin1_swedish_ci	enum('c','s')	PROCEDURE
-def	test	p2	2	IN	p2	blob	65535	65535	NULL	NULL	NULL	NULL	blob	PROCEDURE
-def	test	p2	3	IN	p3	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text	PROCEDURE
+SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
+def	test	f1	0	NULL	NULL	char	10	10	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(10)	FUNCTION
+def	test	f1	1	IN	p1	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	FUNCTION
+def	test	f1	2	IN	p2	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime	FUNCTION
+def	test	f1	3	IN	p3	decimal	NULL	NULL	10	2	NULL	NULL	NULL	decimal(10,2)	FUNCTION
+def	test	p1	1	IN	p1	float	NULL	NULL	8	5	NULL	NULL	NULL	float(8,5)	PROCEDURE
+def	test	p1	2	IN	p2	char	32	32	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(32)	PROCEDURE
+def	test	p1	3	IN	p3	varchar	10	10	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(10)	PROCEDURE
+def	test	p2	1	IN	p1	enum	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('c','s')	PROCEDURE
+def	test	p2	2	IN	p2	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob	PROCEDURE
+def	test	p2	3	IN	p3	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text	PROCEDURE
 select data_type, character_maximum_length,
 character_octet_length, numeric_precision,
 numeric_scale, character_set_name,
@@ -1859,7 +1860,7 @@ LEFT JOIN INFORMATION_SCHEMA.COLUMNS
 USING (TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)
 WHERE COLUMNS.TABLE_SCHEMA = 'test'
 AND COLUMNS.TABLE_NAME = 't1';
-TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	TABLE_CATALOG	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	TABLE_CATALOG	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 #
 # A test case for Bug#56540 "Exception (crash) in sql_show.cc
 # during rqg_info_schema test on Windows"
@@ -1901,6 +1902,176 @@ unlock tables;
 # --> connection default
 drop table t1;
 drop view v1;
+#
+# Test for bug #12828477 - "MDL SUBSYSTEM CREATES BIG OVERHEAD FOR
+#                           CERTAIN QUERIES TO INFORMATION_SCHEMA".
+#
+# Check that metadata locks which are acquired during the process
+# of opening tables/.FRMs/.TRG files while filling I_S table are
+# not kept to the end of statement. Keeping the locks has caused
+# performance problems in cases when big number of tables (.FRMs
+# or .TRG files) were scanned as cost of new lock acquisition has
+# increased linearly.
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+create table t0 (i int);
+create table t1 (j int);
+create table t2 (k int);
+#
+# Test that we don't keep locks in case when we to fill
+# I_S table we perform full-blown table open.
+#
+# Acquire lock on 't2' so upcoming RENAME is
+# blocked.
+lock tables t2 read;
+#
+# Switching to connection 'con12828477_1'. 
+#
+# The below RENAME should wait on 't2' while
+# keeping X lock on 't1'.
+rename table t1 to t3, t2 to t1, t3 to t2;
+#
+# Switching to connection 'con12828477_2'. 
+#
+# Wait while the above RENAME is blocked.
+# Issue query to I_S which will open 't0' and get
+# blocked on 't1' because of RENAME.
+select table_name, auto_increment from information_schema.tables where table_schema='mysqltest';
+#
+# Switching to connection 'con12828477_3'. 
+#
+# Wait while the above SELECT is blocked.
+#
+# Check that it holds no lock on 't0' so it can be renamed.
+rename table t0 to t4;
+#
+# Switching to connection 'default'.
+#
+#
+# Unblock the first RENAME.
+unlock tables;
+#
+# Switching to connection 'con12828477_1'. 
+#
+# Reap the first RENAME
+#
+# Switching to connection 'con12828477_2'. 
+#
+# Reap SELECT to I_S.
+table_name	auto_increment
+t0	NULL
+t1	NULL
+t2	NULL
+#
+# Switching to connection 'default'.
+#
+#
+# Now test that we don't keep locks in case when we to fill
+# I_S table we read .FRM or .TRG file only (this was the case
+# for which problem existed).
+#
+rename table t4 to t0;
+# Acquire lock on 't2' so upcoming RENAME is
+# blocked.
+lock tables t2 read;
+#
+# Switching to connection 'con12828477_1'. 
+#
+# The below RENAME should wait on 't2' while
+# keeping X lock on 't1'.
+rename table t1 to t3, t2 to t1, t3 to t2;
+#
+# Switching to connection 'con12828477_2'. 
+#
+# Wait while the above RENAME is blocked.
+# Issue query to I_S which will open 't0' and get
+# blocked on 't1' because of RENAME.
+select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest';
+#
+# Switching to connection 'con12828477_3'. 
+#
+# Wait while the above SELECT is blocked.
+#
+# Check that it holds no lock on 't0' so it can be renamed.
+rename table t0 to t4;
+#
+# Switching to connection 'default'.
+#
+#
+# Unblock the first RENAME.
+unlock tables;
+#
+# Switching to connection 'con12828477_1'. 
+#
+# Reap the first RENAME
+#
+# Switching to connection 'con12828477_2'. 
+#
+# Reap SELECT to I_S.
+event_object_table	trigger_name
+#
+# Switching to connection 'default'.
+#
+#
+# Test case to test DATETIME_PRECISION of information_schema.columns table
+# 
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+create table mysqltest.t(a int, b date, c time, d datetime, e timestamp);
+create table mysqltest.t0(a int, b date, c time(0), d datetime(0), e timestamp(0));
+create table mysqltest.t1(a int, b date, c time(1), d datetime(1), e timestamp(1));
+create table mysqltest.t2(a int, b date, c time(2), d datetime(2), e timestamp(2));
+create table mysqltest.t3(a int, b date, c time(3), d datetime(3), e timestamp(3));
+create table mysqltest.t4(a int, b date, c time(4), d datetime(4), e timestamp(4));
+create table mysqltest.t5(a int, b date, c time(5), d datetime(5), e timestamp(5));
+create table mysqltest.t6(a int, b date, c time(6), d datetime(6), e timestamp(6));
+select TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATETIME_PRECISION from information_schema.columns where TABLE_SCHEMA='mysqltest';
+TABLE_NAME	COLUMN_NAME	DATA_TYPE	DATETIME_PRECISION
+t	a	int	NULL
+t	b	date	NULL
+t	c	time	0
+t	d	datetime	0
+t	e	timestamp	0
+t0	a	int	NULL
+t0	b	date	NULL
+t0	c	time	0
+t0	d	datetime	0
+t0	e	timestamp	0
+t1	a	int	NULL
+t1	b	date	NULL
+t1	c	time	1
+t1	d	datetime	1
+t1	e	timestamp	1
+t2	a	int	NULL
+t2	b	date	NULL
+t2	c	time	2
+t2	d	datetime	2
+t2	e	timestamp	2
+t3	a	int	NULL
+t3	b	date	NULL
+t3	c	time	3
+t3	d	datetime	3
+t3	e	timestamp	3
+t4	a	int	NULL
+t4	b	date	NULL
+t4	c	time	4
+t4	d	datetime	4
+t4	e	timestamp	4
+t5	a	int	NULL
+t5	b	date	NULL
+t5	c	time	5
+t5	d	datetime	5
+t5	e	timestamp	5
+t6	a	int	NULL
+t6	b	date	NULL
+t6	c	time	6
+t6	d	datetime	6
+t6	e	timestamp	6
+#
+# Clean-up.
+drop database mysqltest;
 #
 # End of 5.5 tests
 #

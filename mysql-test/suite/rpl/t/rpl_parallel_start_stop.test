@@ -1,0 +1,284 @@
+#
+# WL#5569 MTS
+#
+# The test checks START and STOP, graceful, killing or 
+# due to an error of a Worker.
+# START is considered to be with UNTIL that forces the sequential execution mode
+# and with non-zero @@global.sql_slave_skip_counter that is compatible to
+# the parallel mode.
+#
+
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+
+connection slave;
+
+call mtr.add_suppression('Slave SQL: Could not execute Write_rows event on table test.t1');
+call mtr.add_suppression('Slave SQL: Could not execute Update_rows event on table test.t1; Deadlock found when trying to get lock');
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
+create view worker_proc_list as SELECT id  from Information_Schema.processlist
+       where state like 'Waiting for an event from Coordinator';
+create view coord_proc_list  as SELECT id from Information_Schema.processlist where state like 'Slave has read all relay log%';
+
+source include/stop_slave.inc;
+
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+set @@global.slave_parallel_workers= 4;
+
+source include/start_slave.inc;
+
+let $count= `select @@global.slave_parallel_workers`;
+let $table= worker_proc_list;
+source include/wait_until_rows_count.inc;
+
+#
+# KILL of a Worker stops the pool and the Coordinator
+#
+select min(id) from worker_proc_list into @w_id;
+kill query @w_id;
+
+let $count= 0;
+let $table= worker_proc_list;
+source include/wait_until_rows_count.inc;
+
+source include/wait_for_slave_sql_to_stop.inc;
+
+#
+# KILL of the Coordinator stops the pool as well
+#
+source include/start_slave.inc;
+
+# testing of the poll is up
+
+let $count= `select @@global.slave_parallel_workers`;
+let $table= worker_proc_list;
+source include/wait_until_rows_count.inc;
+
+let $count= 1;
+let $table= coord_proc_list;
+source include/wait_until_rows_count.inc;
+
+select id from coord_proc_list into @c_id;
+
+kill query @c_id;
+
+let $count= 0;
+let $table= worker_proc_list;
+source include/wait_until_rows_count.inc;
+
+let $slave_sql_errno= 1742; # ER_MTS_PARALLEL_INCONSISTENT_DATA
+source include/wait_for_slave_sql_error.inc;
+
+source include/start_slave.inc;
+
+##
+# Errored-out Worker stops the pool and the Coordinator
+##
+
+# 
+# A. A regular error case
+#
+connection master;
+
+# make some load
+
+CREATE TABLE t1 (a int primary key) engine=innodb;
+
+insert into t1 values (1),(2);
+
+sync_slave_with_master;
+#connection slave;
+
+let $count= 2;
+let $table= t1;
+source include/wait_until_rows_count.inc;
+
+# create an offending record
+insert into t1 values (3);
+
+connection master;
+
+# hit it
+insert into t1 values (3);
+
+connection slave;
+
+let $count= 0;
+let $table= worker_proc_list;
+source include/wait_until_rows_count.inc;
+
+source include/wait_for_slave_sql_to_stop.inc;
+delete from t1 where a=3;
+
+source include/start_slave.inc;
+
+connection master;
+
+sync_slave_with_master;
+#connection slave;
+
+if (`select count(*) != 3 from t1`)
+{
+    query_vertical show slave status;
+    --die Wrong recovery after restart
+}
+
+# cleanup but leaving on t1
+
+connection master;
+delete from t1;
+
+sync_slave_with_master;
+#connection slave;
+
+#
+# B. In a temporary error execution is not retried
+#
+
+connection master;
+insert into t1 values (1),(2),(3);
+create table t2m (a int) engine=myisam; # non-trans engine to detect deadlock
+insert into t2m values (1);
+
+sync_slave_with_master;
+#connection slave;
+
+begin;
+# set up a deadlock
+update t1 set a=31 where a=3;
+insert into t1 values (5),(6),(7);
+
+connection master;
+
+begin;
+update t1 set a=20 where a=2;
+insert into t2m values (2);
+update t1 set a=30 where a=3;
+commit;
+
+
+connection slave;
+
+let $count= 2;
+let $table= t2m;
+source include/wait_until_rows_count.inc;
+
+# must victimize the master trans because of deadlock or timeout
+update t1 set a=21 where a=2;
+
+# slave is stopped
+
+# setting timeout to be as twice as greater than innodb's.
+--let $slave_timeout=`select 2*@@global.innodb_lock_wait_timeout`
+
+let $slave_sql_errno= 1213, 1205; 
+source include/wait_for_slave_sql_error.inc;
+
+##source include/wait_for_slave_sql_to_stop.inc;
+
+rollback;
+
+source include/start_slave.inc;
+
+connection master;
+
+# recovery is proved
+sync_slave_with_master;
+#connection slave;
+
+
+#
+# Skipping works with Parallel slave
+#
+
+connection slave;
+stop slave sql_thread;
+set @@global.sql_slave_skip_counter=7;
+
+connection master;
+
+# the following creates 8 events 
+begin;
+select max(a) + 1 from t1 into @a;
+insert into t1 set a=@a;
+commit;
+begin;
+select max(a) + 1 from t1 into @a;
+insert into t1 set a=@a;
+commit;
+
+# which will force to skip the two above transactions by the slave
+# And the third will be executed:
+
+begin;
+select max(a) + 1 from t1 into @a;
+insert into t1 set a=@a;
+commit;
+
+connection slave;
+
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+set @@global.slave_transaction_retries= 1; # must cause a warning
+start slave sql_thread;
+
+connection master;
+let $a=`select max(a) from t1`;
+
+sync_slave_with_master;
+#connection slave;
+
+if (`select $a - max(a) from t1`)
+{
+    eval select $a as 'max(a) from t1 on master';
+    eval select max(a) as 'max(a) from t1 on slave' from t1;
+    --die Wrong skipping logics or a flaw in the test
+}
+
+#
+# UNTIL condition is not supported by Parallel slave to reject
+# with a warning and no Worker thread is started
+#
+
+connection slave;
+source include/stop_slave.inc;
+
+connection master;
+create table t2 (a int);
+
+let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+insert into t2 values (1);
+
+connection slave;
+--replace_regex /master_log_pos=[0-9]+/master_log_pos=MASTER_LOG_POS/
+eval start slave until master_log_file='$master_log_file', master_log_pos=$master_log_pos;
+
+source include/wait_for_slave_sql_to_stop.inc;
+if (`select count(*) from t2`)
+{
+    select count(*) from t2;
+    --die Wrong UNTIL condtion handling or a flaw in the test
+}
+
+source include/start_slave.inc;
+
+##
+# cleanup
+##
+connection master;
+drop table t1;
+drop table t2m;
+drop table t2;
+
+sync_slave_with_master;
+#connection slave;
+
+drop view worker_proc_list;
+drop view coord_proc_list;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+
+--source include/rpl_end.inc
+

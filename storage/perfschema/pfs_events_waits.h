@@ -31,6 +31,7 @@ struct PFS_cond;
 struct PFS_table;
 struct PFS_file;
 struct PFS_thread;
+struct PFS_socket;
 struct PFS_instr_class;
 struct PFS_table_share;
 struct PFS_account;
@@ -45,7 +46,9 @@ enum events_waits_class
   WAIT_CLASS_RWLOCK,
   WAIT_CLASS_COND,
   WAIT_CLASS_TABLE,
-  WAIT_CLASS_FILE
+  WAIT_CLASS_FILE,
+  WAIT_CLASS_SOCKET,
+  WAIT_CLASS_IDLE
 };
 
 /** A wait event record. */
@@ -71,6 +74,8 @@ struct PFS_events_waits : public PFS_events
   PFS_table_share *m_weak_table_share;
   /** File, for file operations only. */
   PFS_file *m_weak_file;
+  /** Socket, for socket operations only. */
+  PFS_socket *m_weak_socket;
   /** For weak pointers, target object version. */
   uint32 m_weak_version;
   /** Address in memory of the object instance waited on. */

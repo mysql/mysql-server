@@ -398,7 +398,7 @@ int ha_example::write_row(uchar *buf)
   and updated timestamp field. You can do these for example by doing:
   @code
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   if (table->next_number_field && record == table->record[0])
     update_auto_increment();
   @endcode
@@ -1001,6 +1001,7 @@ mysql_declare_plugin(example)
   0x0001 /* 0.1 */,
   func_status,                                  /* status variables */
   example_system_variables,                     /* system variables */
-  NULL                                          /* config options */
+  NULL,                                         /* config options */
+  0,                                            /* flags */
 }
 mysql_declare_plugin_end;

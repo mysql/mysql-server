@@ -63,16 +63,188 @@ class Rpl_info_factory;
 
 class Master_info : public Rpl_info
 {
-  friend class Rpl_info_factory;
+friend class Rpl_info_factory;
 
 public:
-  /* the variables below are needed because we can change masters on the fly */
-  char host[HOSTNAME_LENGTH+1];
-  char user[USERNAME_LENGTH+1];
-  char password[MAX_PASSWORD_LENGTH+1];
+  /**
+    Host name or ip address stored in the master.info.
+  */
+  char host[HOSTNAME_LENGTH + 1];
+
+private:
+  /**
+    If true, USER/PASSWORD was specified when running START SLAVE.
+  */
+  bool start_user_configured;
+  /**
+    User's name stored in the master.info.
+  */
+  char user[USERNAME_LENGTH + 1];
+  /**
+    User's password stored in the master.info.
+  */
+  char password[MAX_PASSWORD_LENGTH + 1]; 
+  /**
+    User specified when running START SLAVE.
+  */
+  char start_user[USERNAME_LENGTH + 1];
+  /**
+    Password specified when running START SLAVE.
+  */
+  char start_password[MAX_PASSWORD_LENGTH + 1]; 
+  /**
+    Stores the autentication plugin specified when running START SLAVE.
+  */
+  char start_plugin_auth[FN_REFLEN + 1];
+  /**
+    Stores the autentication plugin directory specified when running
+    START SLAVE.
+  */
+  char start_plugin_dir[FN_REFLEN + 1];
+
+public:
+  /**
+    Returns if USER/PASSWORD was specified when running
+    START SLAVE.
+
+    @return true or false.
+  */
+  bool is_start_user_configured() const
+  {
+    return start_user_configured;
+  }
+  /**
+    Returns if DEFAULT_AUTH was specified when running START SLAVE.
+
+    @return true or false.
+  */
+  bool is_start_plugin_auth_configured() const
+  {
+    return (start_plugin_auth[0] != 0);
+  }
+  /**
+    Returns if PLUGIN_DIR was specified when running START SLAVE.
+
+    @return true or false.
+  */
+  bool is_start_plugin_dir_configured() const
+  {
+    return (start_plugin_dir[0] != 0);
+  }
+  /**
+    Defines that USER/PASSWORD was specified or not when running
+    START SLAVE.
+
+    @param config is true or false.
+  */
+  void set_start_user_configured(bool config)
+  {
+    start_user_configured= config;
+  }
+  /**
+    Sets either user's name in the master.info repository when CHANGE
+    MASTER is executed or user's name used in START SLAVE if USER is
+    specified.
+
+    @param user_arg is user's name.
+  */
+  void set_user(const char* user_arg)
+  {
+    if (user_arg && start_user_configured)
+    {
+      strmake(start_user, user_arg, sizeof(start_user) - 1);
+    }
+    else if (user_arg)
+    {
+      strmake(user, user_arg, sizeof(user) - 1);
+    }
+  }
+  /*
+    Returns user's size name. See @code get_user().
+
+    @return user's size name.
+  */
+  size_t get_user_size() const
+  {
+    return (start_user_configured ? sizeof(start_user) : sizeof(user));
+  }
+  /**
+    If an user was specified when running START SLAVE, this function returns
+    such user. Otherwise, it returns the user stored in master.info.
+
+    @return user's name.
+  */
+  const char *get_user() const
+  {
+    return start_user_configured ? start_user : user;
+  } 
+  /**
+    Stores either user's password in the master.info repository when CHANGE
+    MASTER is executed or user's password used in START SLAVE if PASSWORD
+    is specified.
+
+    @param password_arg is user's password.
+    @param password_arg_size is password's size.
+
+    @return false if there is no error, otherwise true is returned.
+  */
+  bool set_password(const char* password_arg, int password_arg_size);
+  /**
+    Returns either user's password in the master.info repository or
+    user's password used in START SLAVE.
+
+    @param password_arg is user's password.
+
+    @return false if there is no error, otherwise true is returned.
+  */
+  bool get_password(char *password_arg, int *password_arg_size);
+  /**
+    Cleans in-memory password defined by START SLAVE.
+  */
+  void reset_start_info();
+  /**
+    Returns the DEFAULT_AUTH defined by START SLAVE.
+
+    @return DEFAULT_AUTH.
+  */
+  const char *get_start_plugin_auth()
+  {
+    return start_plugin_auth;
+  }
+  /**
+    Returns the PLUGIN_DIR defined by START SLAVE.
+
+    @return PLUGIN_DIR.
+  */
+  const char *get_start_plugin_dir()
+  {
+    return start_plugin_dir;
+  }
+  /**
+    Stores the DEFAULT_AUTH defined by START SLAVE.
+
+    @param DEFAULT_AUTH.
+  */
+  void set_plugin_auth(const char* src)
+  {
+    if (src)
+      strmake(start_plugin_auth, src, sizeof(start_plugin_auth) - 1);
+  }
+  /**
+    Stores the DEFAULT_AUTH defined by START SLAVE.
+
+    @param DEFAULT_AUTH.
+  */
+  void set_plugin_dir(const char* src)
+  {
+    if (src)
+      strmake(start_plugin_dir, src, sizeof(start_plugin_dir) - 1);
+  }
+
   my_bool ssl; // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
   char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN];
+  char ssl_crl[FN_REFLEN], ssl_crlpath[FN_REFLEN];
   my_bool ssl_verify_server_cert;
 
   MYSQL* mysql;
@@ -92,8 +264,11 @@ public:
   long clock_diff_with_master;
   float heartbeat_period;         // interface with CHANGE MASTER or master.info
   ulonglong received_heartbeats;  // counter of received heartbeat events
+
   time_t last_heartbeat;
-  Server_ids *ignore_server_ids;
+
+  Dynamic_ids *ignore_server_ids;
+
   ulong master_id;
   /*
     to hold checksum alg in use until IO thread has received FD.
@@ -141,7 +316,7 @@ private:
   void init_master_log_pos();
 
   bool read_info(Rpl_info_handler *from);
-  bool write_info(Rpl_info_handler *to, bool force);
+  bool write_info(Rpl_info_handler *to);
 
   Master_info(
 #ifdef HAVE_PSI_INTERFACE
@@ -154,8 +329,8 @@ private:
               PSI_mutex_key *param_key_info_sleep_cond
 #endif
              );
-  Master_info(const Master_info& info);
 
+  Master_info(const Master_info& info);
   Master_info& operator=(const Master_info& info);
 };
 int change_master_server_id_cmp(ulong *id1, ulong *id2);

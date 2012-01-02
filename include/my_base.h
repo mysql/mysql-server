@@ -448,7 +448,10 @@ enum ha_base_keytype {
 /* There's no explicitly listed partition in table for the given value */
 #define HA_ERR_NOT_IN_LOCK_PARTITIONS 178
 #define HA_ERR_INDEX_COL_TOO_LONG 179	 /* Index column length exceeds limit */
-#define HA_ERR_LAST               179    /* Copy of last error nr */
+#define HA_ERR_INDEX_CORRUPT      180	 /* InnoDB index corrupted */
+#define HA_ERR_UNDO_REC_TOO_BIG   181    /* Undo log record too big */
+#define HA_FTS_INVALID_DOCID      182	/* Invalid InnoDB Doc ID */
+#define HA_ERR_LAST               182    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

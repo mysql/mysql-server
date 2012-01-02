@@ -186,6 +186,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
     share->auto_key= create_info->auto_key;
     share->auto_key_type= create_info->auto_key_type;
     share->auto_increment= create_info->auto_increment;
+    share->create_time= (long) time((time_t*) 0);
     /* Must be allocated separately for rename to work */
     if (!(share->name= my_strdup(name,MYF(0))))
     {
@@ -232,7 +233,7 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
 {
   uint i,recbuffer,records_in_block;
 
-  max_records= max(min_records,max_records);
+  max_records= MY_MAX(min_records, max_records);
   if (!max_records)
     max_records= 1000;			/* As good as quess as anything */
   recbuffer= (uint) (reclength + sizeof(uchar**) - 1) & ~(sizeof(uchar**) - 1);

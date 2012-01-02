@@ -8,8 +8,10 @@ source include/have_debug.inc;
 source include/have_binlog_checksum_off.inc;
 source include/master-slave.inc;
 
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+
 # Currently only statement-based-specific bugs are here
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/have_binlog_format_statement.inc
 
 
 #
@@ -28,6 +30,8 @@ connection master;
 INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
 SELECT * FROM t1;
 connection slave;
+
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 # show the error message 
 #1105 = ER_UNKNOWN_ERROR

@@ -1,0 +1,3 @@
+--echo # a simplified test to keep the suite happy.
+--echo # the real test is in main.
+select @@ssl_crlpath;

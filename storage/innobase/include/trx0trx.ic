@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -27,7 +27,9 @@ Created 3/26/1996 Heikki Tuuri
 Determines if a transaction is in the given state.
 The caller must hold trx_sys->mutex, or it must be the thread
 that is serving a running transaction.
-A running transaction must be in trx_sys->trx_list.
+A running transaction must be in trx_sys->ro_trx_list or trx_sys->rw_trx_list
+unless it is a non-locking autocommit read only transaction, which is only
+in trx_sys->mysql_trx_list.
 @return	TRUE if trx->state == state */
 UNIV_INLINE
 ibool
@@ -41,15 +43,23 @@ trx_state_eq(
 {
 #ifdef UNIV_DEBUG
 	switch (trx->state) {
+	case TRX_STATE_PREPARED:
+		assert_trx_in_rw_list(trx);
+		return(trx->state == state);
+
+	case TRX_STATE_ACTIVE:
+		assert_trx_nonlocking_or_in_list(trx);
+		return(state == trx->state);
+
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+		assert_trx_in_list(trx);
+		return(state == trx->state);
+
 	case TRX_STATE_NOT_STARTED:
 		/* This state is not allowed for running transactions. */
 		ut_a(state == TRX_STATE_NOT_STARTED);
-		ut_ad(!trx->in_trx_list);
-		return(state == trx->state);
-	case TRX_STATE_ACTIVE:
-	case TRX_STATE_COMMITTED_IN_MEMORY:
-	case TRX_STATE_PREPARED:
-		ut_ad(trx->in_trx_list);
+		ut_ad(!trx->in_rw_trx_list);
+		ut_ad(!trx->in_ro_trx_list);
 		return(state == trx->state);
 	}
 	ut_error;
@@ -114,7 +124,7 @@ trx_get_dict_operation(
 	}
 	ut_error;
 #endif /* UNIV_DEBUG */
-	return((enum trx_dict_op) UNIV_EXPECT(op, TRX_DICT_OP_NONE));
+	return((enum trx_dict_op) op);
 }
 /**********************************************************************//**
 Flag a transaction a dictionary operation. */
@@ -151,3 +161,19 @@ ok:
 
 	trx->dict_operation = op;
 }
+
+/********************************************************************//**
+Releases the search latch if trx has reserved it. */
+UNIV_INLINE
+void
+trx_search_latch_release_if_reserved(
+/*=================================*/
+	trx_t*	   trx) /*!< in: transaction */
+{
+	if (trx->has_search_latch) {
+		rw_lock_s_unlock(&btr_search_latch);
+
+		trx->has_search_latch = FALSE;
+	}
+}
+

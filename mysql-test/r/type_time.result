@@ -5,11 +5,11 @@ insert t1 values (30),(1230),("1230"),("12:30"),("12:30:35"),("1 12:30:31.32");
 select * from t1;
 t
 10:22:33
-12:34:56
+12:34:57
 00:00:10
 00:12:34
-12:34:56
-123:45:59
+12:34:57
+123:46:00
 00:00:01
 01:23:00
 01:23:45
@@ -33,11 +33,11 @@ Warning	1265	Data truncated for column 't' at row 6
 select * from t1;
 t
 10:22:33
-12:34:56
+12:34:57
 00:00:10
 00:12:34
-12:34:56
-123:45:59
+12:34:57
+123:46:00
 00:00:01
 01:23:00
 01:23:45
@@ -85,6 +85,38 @@ sec_to_time(time_to_sec(t))
 13:00:00
 09:00:00
 drop table t1;
+CREATE TABLE t1 (t TIME);
+INSERT INTO t1 VALUES (+10), (+10.0), (+10e0);
+INSERT INTO t1 VALUES (-10), (-10.0), (-10e0);
+SELECT * FROM t1;
+t
+00:00:10
+00:00:10
+00:00:10
+-00:00:10
+-00:00:10
+-00:00:10
+DROP TABLE t1;
+SELECT CAST(235959.123456 AS TIME);
+CAST(235959.123456 AS TIME)
+23:59:59
+SELECT CAST(0.235959123456e+6 AS TIME);
+CAST(0.235959123456e+6 AS TIME)
+23:59:59
+SELECT CAST(235959123456e-6 AS TIME);
+CAST(235959123456e-6 AS TIME)
+23:59:59
+SELECT CAST(235959.1234567 AS TIME);
+CAST(235959.1234567 AS TIME)
+23:59:59
+SELECT CAST(0.2359591234567e6 AS TIME);
+CAST(0.2359591234567e6 AS TIME)
+23:59:59
+SELECT CAST(0.2359591234567e+30 AS TIME);
+CAST(0.2359591234567e+30 AS TIME)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '2.359591234567e29'
 End of 4.1 tests
 select cast('100:55:50' as time) < cast('24:00:00' as time);
 cast('100:55:50' as time) < cast('24:00:00' as time)
@@ -142,12 +174,14 @@ End of 5.0 tests
 #
 # Bug#53942 valgrind warnings with timestamp() function and incomplete datetime values
 #
+SET @@timestamp=UNIX_TIMESTAMP('2001-01-01 01:00:00');
 CREATE TABLE t1(f1 TIME);
 INSERT INTO t1 VALUES ('23:38:57');
 SELECT TIMESTAMP(f1,'1') FROM t1;
 TIMESTAMP(f1,'1')
-NULL
+2001-01-01 23:38:58
 DROP TABLE t1;
+SET @@timestamp=default;
 End of 5.1 tests
 CREATE TABLE t1 (f1 TIME);
 INSERT INTO t1 VALUES ('24:00:00');
@@ -172,4 +206,121 @@ SELECT '-24:00:00' = (SELECT f1 FROM t1);
 '-24:00:00' = (SELECT f1 FROM t1)
 1
 DROP TABLE t1;
-End of 6.0 tests
+#
+# Start of 5.6 tests
+#
+#
+# WL#946 Testing <=> operator with TIME
+#
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('20:00:00'),('19:20:30');
+SELECT * FROM t1 WHERE a<=>'19:20:30';
+a
+19:20:30
+SELECT * FROM t1 WHERE a<=>TIME'19:20:30';
+a
+19:20:30
+SELECT * FROM t1 WHERE a<=>192030;
+a
+19:20:30
+DROP TABLE t1;
+#
+# WL#946: Testing rounding
+#
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('10:10:10.9999994'), ('10:10:10.9999995');
+INSERT INTO t1 VALUES (101010.9999994), (101010.9999995);
+SELECT * FROM t1;
+a
+10:10:11
+10:10:11
+10:10:11
+10:10:11
+DROP TABLE t1;
+#
+# Before WL#946 TIME did not reject too big negative minutes/seconds
+#
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('-10:60:59'), ('-10:59:60'), (-106059), (-105960);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+Warning	1264	Out of range value for column 'a' at row 4
+SELECT * FROM t1;
+a
+00:00:00
+00:00:00
+00:00:00
+00:00:00
+DROP TABLE t1;
+#
+# WL#946 Make sure case from number to TIME properly handles
+# too big negative minutes/secons
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (-106059), (-105960);
+SELECT CAST(a AS TIME) FROM t1;
+CAST(a AS TIME)
+NULL
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '-106059'
+Warning	1292	Truncated incorrect time value: '-105960'
+DROP TABLE t1;
+#
+# WL#946 Checking function TIME()
+#
+SELECT TIME('1000009:10:10');
+TIME('1000009:10:10')
+838:59:59
+Warnings:
+Warning	1292	Truncated incorrect time value: '1000009:10:10'
+SELECT TIME('1000009:10:10.1999999999999');
+TIME('1000009:10:10.1999999999999')
+838:59:59.000000
+Warnings:
+Warning	1292	Truncated incorrect time value: '1000009:10:10.1999999999999'
+SELECT TIME('10000090:10:10');
+TIME('10000090:10:10')
+838:59:59
+Warnings:
+Warning	1292	Truncated incorrect time value: '10000090:10:10'
+SELECT TIME('10000090:10:10.1999999999999');
+TIME('10000090:10:10.1999999999999')
+838:59:59.000000
+Warnings:
+Warning	1292	Truncated incorrect time value: '10000090:10:10.1999999999999'
+SELECT TIME('100000900:10:10');
+TIME('100000900:10:10')
+838:59:59
+Warnings:
+Warning	1292	Truncated incorrect time value: '100000900:10:10'
+SELECT TIME('100000900:10:10.1999999999999');
+TIME('100000900:10:10.1999999999999')
+838:59:59.000000
+Warnings:
+Warning	1292	Truncated incorrect time value: '100000900:10:10.1999999999999'
+SELECT TIME('1000009000:10:10');
+TIME('1000009000:10:10')
+838:59:59
+Warnings:
+Warning	1292	Truncated incorrect time value: '1000009000:10:10'
+SELECT TIME('1000009000:10:10.1999999999999');
+TIME('1000009000:10:10.1999999999999')
+838:59:59.000000
+Warnings:
+Warning	1292	Truncated incorrect time value: '1000009000:10:10.1999999999999'
+SELECT TIME('10000090000:10:10');
+TIME('10000090000:10:10')
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '10000090000:10:10'
+SELECT TIME('10000090000:10:10.1999999999999');
+TIME('10000090000:10:10.1999999999999')
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '10000090000:10:10.1999999999999'
+#
+# End of 5.6 tests
+#

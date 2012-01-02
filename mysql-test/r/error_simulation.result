@@ -67,7 +67,7 @@ EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 x	x	x	x	x	x	x	x	x	
-x	x	x	x	x	x	x	x	x	Using sort_union(a,b); Using where; Using join buffer (BNL, incremental buffers)
+x	x	x	x	x	x	x	x	x	Using sort_union(a,b); Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
 a	a	b	filler
 0	1	1	data
@@ -82,6 +82,19 @@ a	a	b	filler
 9	1	1	data
 SET SESSION debug = DEFAULT;
 DROP TABLE t1, t2;
+#
+# Bug#11747970 34660: CRASH WHEN FEDERATED TABLE LOSES CONNECTION DURING INSERT ... SELECT
+#
+CREATE TABLE t1(f1 INT, KEY(f1));
+CREATE TABLE t2(f1 INT);
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1),(2);
+SET SESSION debug='d,bug11747970_simulate_error';
+INSERT IGNORE INTO t2 SELECT f1 FROM t1 a WHERE NOT EXISTS (SELECT 1 FROM t2 b WHERE a.f1 = b.f1);
+Warnings:
+Error	1105	Unknown error
+SET SESSION debug = DEFAULT;
+DROP TABLE t1,t2;
 #
 # End of 5.1 tests
 #

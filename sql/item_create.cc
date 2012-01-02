@@ -32,6 +32,7 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "item_inetfunc.h"
+#include "sql_time.h"
 
 /*
 =============================================================================
@@ -2030,19 +2031,6 @@ public:
 protected:
   Create_func_round() {}
   virtual ~Create_func_round() {}
-};
-
-
-class Create_func_row_count : public Create_func_arg0
-{
-public:
-  virtual Item *create(THD *thd);
-
-  static Create_func_row_count s_singleton;
-
-protected:
-  Create_func_row_count() {}
-  virtual ~Create_func_row_count() {}
 };
 
 
@@ -4809,18 +4797,6 @@ Create_func_round::create_native(THD *thd, LEX_STRING name,
 }
 
 
-Create_func_row_count Create_func_row_count::s_singleton;
-
-Item*
-Create_func_row_count::create(THD *thd)
-{
-  DBUG_ENTER("Create_func_row_count::create");
-  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-  thd->lex->safe_to_cache_query= 0;
-  DBUG_RETURN(new (thd->mem_root) Item_func_row_count());
-}
-
-
 Create_func_rpad Create_func_rpad::s_singleton;
 
 Item*
@@ -4909,26 +4885,7 @@ Create_func_space Create_func_space::s_singleton;
 Item*
 Create_func_space::create(THD *thd, Item *arg1)
 {
-  /**
-    TODO: Fix Bug#23637
-    The parsed item tree should not depend on
-    <code>thd->variables.collation_connection</code>.
-  */
-  const CHARSET_INFO *cs= thd->variables.collation_connection;
-  Item *sp;
-
-  if (cs->mbminlen > 1)
-  {
-    uint dummy_errors;
-    sp= new (thd->mem_root) Item_string("", 0, cs, DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
-    sp->str_value.copy(" ", 1, &my_charset_latin1, cs, &dummy_errors);
-  }
-  else
-  {
-    sp= new (thd->mem_root) Item_string(" ", 1, cs, DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
-  }
-
-  return new (thd->mem_root) Item_func_repeat(sp, arg1);
+  return new (thd->mem_root) Item_func_space(arg1);
 }
 
 
@@ -5501,7 +5458,6 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("RELEASE_LOCK") }, BUILDER(Create_func_release_lock)},
   { { C_STRING_WITH_LEN("REVERSE") }, BUILDER(Create_func_reverse)},
   { { C_STRING_WITH_LEN("ROUND") }, BUILDER(Create_func_round)},
-  { { C_STRING_WITH_LEN("ROW_COUNT") }, BUILDER(Create_func_row_count)},
   { { C_STRING_WITH_LEN("RPAD") }, BUILDER(Create_func_rpad)},
   { { C_STRING_WITH_LEN("RTRIM") }, BUILDER(Create_func_rtrim)},
   { { C_STRING_WITH_LEN("SEC_TO_TIME") }, BUILDER(Create_func_sec_to_time)},
@@ -5717,11 +5673,20 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     res= new (thd->mem_root) Item_date_typecast(a);
     break;
   case ITEM_CAST_TIME:
-    res= new (thd->mem_root) Item_time_typecast(a);
-    break;
   case ITEM_CAST_DATETIME:
-    res= new (thd->mem_root) Item_datetime_typecast(a);
+  {
+    uint dec= c_dec ? strtoul(c_dec, NULL, 10) : 0;
+    if (dec > DATETIME_MAX_DECIMALS)
+    {
+      my_error(ER_TOO_BIG_PRECISION, MYF(0),
+               (int) dec, "CAST", DATETIME_MAX_DECIMALS);
+      return 0;
+    }
+    res= (cast_type == ITEM_CAST_TIME) ? 
+         (Item*) new (thd->mem_root) Item_time_typecast(a, dec) :
+         (Item*) new (thd->mem_root) Item_datetime_typecast(a, dec);
     break;
+  }
   case ITEM_CAST_DECIMAL:
   {
     ulong len= 0;
@@ -5803,4 +5768,63 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
   }
   }
   return res;
+}
+
+
+/**
+  Builder for datetime literals:
+    TIME'00:00:00', DATE'2001-01-01', TIMESTAMP'2001-01-01 00:00:00'.
+  @param thd          The current thread
+  @param str          Character literal
+  @param length       Length of str
+  @param type         Type of literal (TIME, DATE or DATETIME)
+  @param send_error   Whether to generate an error on failure
+*/
+
+Item *create_temporal_literal(THD *thd,
+                              const char *str, uint length,
+                              const CHARSET_INFO *cs,
+                              enum_field_types type, bool send_error)
+{
+  MYSQL_TIME_STATUS status;
+  MYSQL_TIME ltime;
+  Item *item= NULL;
+  ulonglong flags= TIME_FUZZY_DATE | thd->datetime_flags();
+
+  switch(type)
+  {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+    if (!str_to_datetime(cs, str, length, &ltime, flags, &status) &&
+        ltime.time_type == MYSQL_TIMESTAMP_DATE && !status.warnings)
+      item= new (thd->mem_root) Item_date_literal(&ltime);
+    break;
+  case MYSQL_TYPE_DATETIME:
+    if (!str_to_datetime(cs, str, length, &ltime, flags, &status) &&
+        ltime.time_type == MYSQL_TIMESTAMP_DATETIME && !status.warnings)
+      item= new (thd->mem_root) Item_datetime_literal(&ltime,
+                                                      status.fractional_digits);
+    break;
+  case MYSQL_TYPE_TIME:
+    if (!str_to_time(cs, str, length, &ltime, 0, &status) &&
+        ltime.time_type == MYSQL_TIMESTAMP_TIME && !status.warnings)
+      item= new (thd->mem_root) Item_time_literal(&ltime,
+                                                  status.fractional_digits);
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+
+  if (item)
+    return item;
+
+  if (send_error)
+  {
+    const char *typestr=
+      (type == MYSQL_TYPE_DATE) ? "DATE" :
+      (type == MYSQL_TYPE_TIME) ? "TIME" : "DATETIME";
+    ErrConvString err(str, length, thd->variables.character_set_client);
+    my_error(ER_WRONG_VALUE, MYF(0), typestr, err.ptr());
+  }
+  return NULL;
 }

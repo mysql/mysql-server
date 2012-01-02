@@ -25,6 +25,8 @@
 #include "sql_select.h"
 #include "opt_trace.h"
 #include "keycaches.h"
+#include "sql_optimizer.h"  // JOIN
+#include "opt_explain.h"    // join_type_str
 #include <hash.h>
 #include <thr_alarm.h>
 #if defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_H)
@@ -135,46 +137,6 @@ static void print_cached_tables(void)
   mysql_mutex_unlock(&LOCK_open);
   /* purecov: end */
   return;
-}
-
-
-void TEST_filesort(SORT_FIELD *sortorder,uint s_length)
-{
-  char buff[256],buff2[256];
-  String str(buff,sizeof(buff),system_charset_info);
-  String out(buff2,sizeof(buff2),system_charset_info);
-  const char *sep;
-  DBUG_ENTER("TEST_filesort");
-
-  out.length(0);
-  for (sep=""; s_length-- ; sortorder++, sep=" ")
-  {
-    out.append(sep);
-    if (sortorder->reverse)
-      out.append('-');
-    if (sortorder->field)
-    {
-      if (sortorder->field->table_name)
-      {
-	out.append(*sortorder->field->table_name);
-	out.append('.');
-      }
-      out.append(sortorder->field->field_name ? sortorder->field->field_name:
-		 "tmp_table_column");
-    }
-    else
-    {
-      str.length(0);
-      sortorder->item->print(&str, QT_ORDINARY);
-      out.append(str);
-    }
-  }
-  out.append('\0');				// Purify doesn't like c_ptr()
-  DBUG_LOCK_FILE;
-  (void) fputs("\nInfo about FILESORT\n",DBUG_FILE);
-  fprintf(DBUG_FILE,"Sortorder: %s\n",out.ptr());
-  DBUG_UNLOCK_FILE;
-  DBUG_VOID_RETURN;
 }
 
 
@@ -571,13 +533,13 @@ void mysql_print_status()
   process_key_caches(print_key_cache_status);
   mysql_mutex_lock(&LOCK_status);
   printf("\nhandler status:\n\
-read_key:   %10lu\n\
-read_next:  %10lu\n\
-read_rnd    %10lu\n\
-read_first: %10lu\n\
-write:      %10lu\n\
-delete      %10lu\n\
-update:     %10lu\n",
+read_key:   %10llu\n\
+read_next:  %10llu\n\
+read_rnd    %10llu\n\
+read_first: %10llu\n\
+write:      %10llu\n\
+delete      %10llu\n\
+update:     %10llu\n",
 	 tmp.ha_read_key_count,
 	 tmp.ha_read_next_count,
 	 tmp.ha_read_rnd_count,
@@ -591,7 +553,7 @@ Opened tables: %10lu\n\
 Open tables:   %10lu\n\
 Open files:    %10lu\n\
 Open streams:  %10lu\n",
-	 tmp.opened_tables,
+	 (ulong) tmp.opened_tables,
 	 (ulong) cached_open_tables(),
 	 (ulong) my_file_opened,
 	 (ulong) my_stream_opened);

@@ -1,0 +1,20 @@
+select @@ignore_db_dirs;
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+mkdir $MYSQLD_DATADIR/.mysqlgui;
+mkdir $MYSQLD_DATADIR/.otherdir;
+mkdir $MYSQLD_DATADIR/lost+found;
+--echo # Check that SHOW DATABASES ignores all directories from
+--echo # @@ignore_db_dirs and all directories with names starting
+--echo # with '.'
+SHOW DATABASES;
+rmdir $MYSQLD_DATADIR/.mysqlgui;
+rmdir $MYSQLD_DATADIR/.otherdir;
+rmdir $MYSQLD_DATADIR/lost+found;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.ignore_db_dirs = 'aha';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@local.ignore_db_dirs = 'aha';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@ignore_db_dirs = 'aha';

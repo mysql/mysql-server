@@ -34,7 +34,7 @@
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
 #include "sql_acl.h"    // SUPER_ACL
 #include "sql_select.h" // free_underlaid_joins
-#include "sql_show.h"   // make_default_log_name
+#include "sql_show.h"   // make_default_log_name, append_identifier
 #include "sql_view.h"   // updatable_views_with_limit_typelib
 #include "lock.h"                               // lock_global_read_lock,
                                                 // make_global_read_lock_block_commit,
@@ -77,10 +77,8 @@ error:
   DBUG_RETURN(1);
 }
 
-int sys_var_add_options(DYNAMIC_ARRAY *long_options, int parse_flags)
+int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags)
 {
-  uint saved_elements= long_options->elements;
-
   DBUG_ENTER("sys_var_add_options");
 
   for (sys_var *var=all_sys_vars.first; var; var= var->next)
@@ -93,7 +91,6 @@ int sys_var_add_options(DYNAMIC_ARRAY *long_options, int parse_flags)
 
 error:
   fprintf(stderr, "failed to initialize System variables");
-  long_options->elements= saved_elements;
   DBUG_RETURN(1);
 }
 
@@ -489,6 +486,10 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type)
       if (type == OPT_GLOBAL && var->check_type(type))
         continue;
 
+      /* don't show non-visible variables */
+      if (var->not_visible())
+        continue;
+
       show->name= var->name.str;
       show->value= (char*) var;
       show->type= SHOW_SYS;
@@ -529,6 +530,11 @@ sys_var *intern_find_sys_var(const char *str, uint length)
   */
   var= (sys_var*) my_hash_search(&system_variable_hash,
                               (uchar*) str, length ? length : strlen(str));
+
+  /* Don't show non-visible variables. */
+  if (var && var->not_visible())
+    return NULL;
+
   return var;
 }
 
@@ -668,6 +674,27 @@ int set_var::update(THD *thd)
   return value ? var->update(thd, this) : var->set_default(thd, type);
 }
 
+/**
+  Self-print assignment
+
+  @param   str    string buffer to append the partial assignment to
+*/
+void set_var::print(THD *thd, String *str)
+{
+  str->append(type == OPT_GLOBAL ? "GLOBAL " : "SESSION ");
+  if (base.length)
+  {
+    str->append(base.str, base.length);
+    str->append(STRING_WITH_LEN("."));
+  }
+  str->append(var->name.str,var->name.length);
+  str->append(STRING_WITH_LEN("="));
+  if (value)
+    value->print(str, QT_ORDINARY);
+  else
+    str->append(STRING_WITH_LEN("DEFAULT"));
+}
+
 
 /*****************************************************************************
   Functions to handle SET @user_variable=const_expr
@@ -718,6 +745,12 @@ int set_var_user::update(THD *thd)
 }
 
 
+void set_var_user::print(THD *thd, String *str)
+{
+  user_var_item->print(str, QT_ORDINARY);
+}
+
+
 /*****************************************************************************
   Functions to handle SET PASSWORD
 *****************************************************************************/
@@ -764,6 +797,24 @@ int set_var_password::update(THD *thd)
 #endif
 }
 
+void set_var_password::print(THD *thd, String *str)
+{
+  if (user->user.str != NULL && user->user.length > 0)
+  {
+    str->append(STRING_WITH_LEN("PASSWORD FOR "));
+    append_identifier(thd, str, user->user.str, user->user.length);
+    if (user->host.str != NULL && user->host.length > 0)
+    {
+      str->append(STRING_WITH_LEN("@"));
+      append_identifier(thd, str, user->host.str, user->host.length);
+    }
+    str->append(STRING_WITH_LEN("="));
+  }
+  else
+    str->append(STRING_WITH_LEN("PASSWORD FOR CURRENT_USER()="));
+  str->append(STRING_WITH_LEN("<secret>"));
+}
+
 /*****************************************************************************
   Functions to handle SET NAMES and SET CHARACTER SET
 *****************************************************************************/
@@ -791,3 +842,21 @@ int set_var_collation_client::update(THD *thd)
   return 0;
 }
 
+void set_var_collation_client::print(THD *thd, String *str)
+{
+  str->append((set_cs_flags & SET_CS_NAMES) ? "NAMES " : "CHARACTER SET ");
+  if (set_cs_flags & SET_CS_DEFAULT)
+    str->append("DEFAULT");
+  else
+  {
+    str->append("'");
+    str->append(character_set_client->csname);
+    str->append("'");
+    if (set_cs_flags & SET_CS_COLLATE)
+    {
+      str->append(" COLLATE '");
+      str->append(collation_connection->name);
+      str->append("'");
+    }
+  }
+}

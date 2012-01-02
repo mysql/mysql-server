@@ -2,10 +2,9 @@
 
 let $per_table=`select @@innodb_file_per_table`;
 let $format=`select @@innodb_file_format`;
-let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 let $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 
--- let $query_i_s = SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql'
+--let $query_i_s = SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql'
 
 set session innodb_strict_mode=0;
 set global innodb_file_per_table=off;
@@ -41,16 +40,20 @@ create table t13(a int primary key) engine=innodb
 row_format=compressed;
 create table t14(a int primary key) engine=innodb key_block_size=9;
 
--- eval $query_i_s
+--replace_result 16384 {valid} 8192 {valid} 4096 {valid} 2048 {valid}
+--eval $query_i_s
 
 drop table t0,t00,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14;
 alter table t1 key_block_size=0;
 alter table t1 row_format=dynamic;
--- eval $query_i_s
+--replace_result 16384 {valid} 8192 {valid} 4096 {valid}
+--eval $query_i_s
 alter table t1 row_format=compact;
--- eval $query_i_s
+--replace_result 16384 {valid} 8192 {valid} 4096 {valid}
+--eval $query_i_s
 alter table t1 row_format=redundant;
--- eval $query_i_s
+--replace_result 16384 {valid} 8192 {valid} 4096 {valid}
+--eval $query_i_s
 drop table t1;
 
 create table t1(a int not null, b text, index(b(10))) engine=innodb
@@ -82,34 +85,13 @@ connection default;
 disconnect a;
 disconnect b;
 
--- eval $query_i_s
+--replace_result 16384 {valid} 12288 {valid}
+--eval $query_i_s
 drop table t1,t2;
 
-# The following should fail in non-strict mode too.
-# (The fix of Bug #50945 only affects REDUNDANT and COMPACT tables.)
-SET SESSION innodb_strict_mode = off;
---error ER_TOO_BIG_ROWSIZE
-CREATE TABLE t1(
-	c TEXT NOT NULL, d TEXT NOT NULL,
-	PRIMARY KEY (c(767),d(767)))
-ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
---error ER_TOO_BIG_ROWSIZE
-CREATE TABLE t1(
-	c TEXT NOT NULL, d TEXT NOT NULL,
-	PRIMARY KEY (c(767),d(767)))
-ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=ASCII;
-CREATE TABLE t1(
-	c TEXT NOT NULL, d TEXT NOT NULL,
-	PRIMARY KEY (c(767),d(767)))
-ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 CHARSET=ASCII;
-drop table t1;
---error ER_TOO_BIG_ROWSIZE
-CREATE TABLE t1(c TEXT, PRIMARY KEY (c(440)))
-ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-CREATE TABLE t1(c TEXT, PRIMARY KEY (c(438)))
-ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));
-DROP TABLE t1;
+#
+# Bug #50945 moved to innodb_16k.test, innodb_8k.test, & innodb_4k.test
+#
 
 #
 # Test blob column inheritance (mantis issue#36)
@@ -183,8 +165,10 @@ show warnings;
 create table t3 (id int primary key) engine = innodb key_block_size = 1;
 create table t4 (id int primary key) engine = innodb key_block_size = 2;
 create table t5 (id int primary key) engine = innodb key_block_size = 4;
-create table t6 (id int primary key) engine = innodb key_block_size = 8;
-create table t7 (id int primary key) engine = innodb key_block_size = 16;
+# These tests are now done in innodb_16k, innodb_8k and innodb_4k
+# where they get different result depending on page size
+# create table t6 (id int primary key) engine = innodb key_block_size = 8;
+# create table t7 (id int primary key) engine = innodb key_block_size = 16;
 
 #check various ROW_FORMAT values.
 create table t8 (id int primary key) engine = innodb row_format = compressed;
@@ -192,32 +176,33 @@ create table t9 (id int primary key) engine = innodb row_format = dynamic;
 create table t10(id int primary key) engine = innodb row_format = compact;
 create table t11(id int primary key) engine = innodb row_format = redundant;
 
--- eval $query_i_s
-drop table t1, t3, t4, t5, t6, t7, t8, t9, t10, t11;
+--replace_result 16384 {valid} 8192 {valid} 4096 {valid} 2048 {valid}
+--eval $query_i_s
+drop table t1, t3, t4, t5, t8, t9, t10, t11;
 
 #test different values of ROW_FORMAT with KEY_BLOCK_SIZE
 create table t1 (id int primary key) engine = innodb
-key_block_size = 8 row_format = compressed;
+key_block_size = 4 row_format = compressed;
 
 --error ER_CANT_CREATE_TABLE
 create table t2 (id int primary key) engine = innodb
-key_block_size = 8 row_format = redundant;
+key_block_size = 4 row_format = redundant;
 show warnings;
 
 --error ER_CANT_CREATE_TABLE
 create table t3 (id int primary key) engine = innodb
-key_block_size = 8 row_format = compact;
+key_block_size = 4 row_format = compact;
 show warnings;
 
 --error ER_CANT_CREATE_TABLE
 create table t4 (id int primary key) engine = innodb
-key_block_size = 8 row_format = dynamic;
+key_block_size = 4 row_format = dynamic;
 show warnings;
 
 create table t5 (id int primary key) engine = innodb
-key_block_size = 8 row_format = default;
+key_block_size = 4 row_format = default;
 
--- eval $query_i_s
+--eval $query_i_s
 drop table t1, t5;
 
 #test multiple errors
@@ -236,7 +221,7 @@ create table t2 (id int primary key) engine = innodb
 key_block_size = 9 row_format = dynamic;
 show warnings;
 
--- eval $query_i_s
+--eval $query_i_s
 
 #test valid values with innodb_file_per_table unset
 set global innodb_file_per_table = off;
@@ -250,12 +235,10 @@ show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t3 (id int primary key) engine = innodb key_block_size = 4;
 show warnings;
---error ER_CANT_CREATE_TABLE
-create table t4 (id int primary key) engine = innodb key_block_size = 8;
-show warnings;
---error ER_CANT_CREATE_TABLE
-create table t5 (id int primary key) engine = innodb key_block_size = 16;
-show warnings;
+
+# Tests for key_block_size = 8 and 16 were moved to innodb_16k, innodb_8k
+# and innodb_4k since they get different warnings with smaller page sizes.
+
 --error ER_CANT_CREATE_TABLE
 create table t6 (id int primary key) engine = innodb row_format = compressed;
 show warnings;
@@ -265,7 +248,8 @@ show warnings;
 create table t8 (id int primary key) engine = innodb row_format = compact;
 create table t9 (id int primary key) engine = innodb row_format = redundant;
 
--- eval $query_i_s
+--replace_result 16384 {valid} 8192 {valid} 4096 {valid}
+--eval $query_i_s
 drop table t8, t9;
 
 #test valid values with innodb_file_format unset
@@ -281,12 +265,10 @@ show warnings;
 --error ER_CANT_CREATE_TABLE
 create table t3 (id int primary key) engine = innodb key_block_size = 4;
 show warnings;
---error ER_CANT_CREATE_TABLE
-create table t4 (id int primary key) engine = innodb key_block_size = 8;
-show warnings;
---error ER_CANT_CREATE_TABLE
-create table t5 (id int primary key) engine = innodb key_block_size = 16;
-show warnings;
+
+# Tests for key_block_size = 8 and 16 were moved to innodb_16k, innodb_8k
+# and innodb_4k since they get different warnings with smaller page sizes.
+
 --error ER_CANT_CREATE_TABLE
 create table t6 (id int primary key) engine = innodb row_format = compressed;
 show warnings;
@@ -296,7 +278,8 @@ show warnings;
 create table t8 (id int primary key) engine = innodb row_format = compact;
 create table t9 (id int primary key) engine = innodb row_format = redundant;
 
--- eval $query_i_s
+--replace_result 16384 {valid} 8192 {valid} 4096 {valid}
+--eval $query_i_s
 drop table t8, t9;
 
 eval set global innodb_file_per_table=$per_table;
@@ -314,7 +297,7 @@ create table normal_table (
 select @@innodb_file_format_max;
 create table zip_table (
   c1 int
-) engine = innodb key_block_size = 8;
+) engine = innodb key_block_size = 4;
 select @@innodb_file_format_max;
 set global innodb_file_format_max=`Antelope`;
 select @@innodb_file_format_max;
@@ -332,5 +315,4 @@ drop table normal_table, zip_table;
 -- disable_query_log
 eval set global innodb_file_format=$format;
 eval set global innodb_file_per_table=$per_table;
-eval set global innodb_file_format_max=$innodb_file_format_max_orig;
 eval set session innodb_strict_mode=$innodb_strict_mode_orig;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2009, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -48,7 +48,7 @@ enum dict_system_table_id {
 
 typedef enum dict_system_table_id	dict_system_id_t;
 
-/** Status bit for dict_process_sys_tables_rec() */
+/** Status bit for dict_process_sys_tables_rec_and_mtr_commit() */
 enum dict_table_info {
 	DICT_TABLE_LOAD_FROM_RECORD = 0,/*!< Directly populate a dict_table_t
 					structure with information from
@@ -243,15 +243,17 @@ both monitor table output and information schema innodb_sys_tables output.
 @return error message, or NULL on success */
 UNIV_INTERN
 const char*
-dict_process_sys_tables_rec(
-/*========================*/
+dict_process_sys_tables_rec_and_mtr_commit(
+/*=======================================*/
 	mem_heap_t*	heap,		/*!< in: temporary memory heap */
 	const rec_t*	rec,		/*!< in: SYS_TABLES record */
 	dict_table_t**	table,		/*!< out: dict_table_t to fill */
-	dict_table_info_t status);	/*!< in: status bit controls
+	dict_table_info_t status,	/*!< in: status bit controls
 					options such as whether we shall
 					look for dict_table_t from cache
 					first */
+	mtr_t*		mtr);		/*!< in/out: mini-transaction,
+					will be committed */
 /********************************************************************//**
 This function parses a SYS_INDEXES record and populate a dict_index_t
 structure with the information from the record. For detail information

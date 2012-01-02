@@ -50,6 +50,9 @@
 #include "hostname.h"
 #include "sql_db.h"
 
+using std::min;
+using std::max;
+
 bool mysql_user_table_is_in_short_password_format= false;
 
 static const
@@ -520,23 +523,9 @@ static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + \
                         1 + USERNAME_LENGTH + 1)
 
-#if defined(HAVE_OPENSSL)
-/*
-  Without SSL the handshake consists of one packet. This packet
-  has both client capabilities and scrambled password.
-  With SSL the handshake might consist of two packets. If the first
-  packet (client capabilities) has CLIENT_SSL flag set, we have to
-  switch to SSL and read the second packet. The scrambled password
-  is in the second packet and client_capabilities field will be ignored.
-  Maybe it is better to accept flags other than CLIENT_SSL from the
-  second packet?
-*/
-#define SSL_HANDSHAKE_SIZE      2
-#define NORMAL_HANDSHAKE_SIZE   6
-#define MIN_HANDSHAKE_SIZE      2
-#else
-#define MIN_HANDSHAKE_SIZE      6
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+/** Size of the header fields of an authentication packet. */
+#define AUTH_PACKET_HEADER_SIZE_PROTO_41    32
+#define AUTH_PACKET_HEADER_SIZE_PROTO_40    5  
 
 static DYNAMIC_ARRAY acl_hosts, acl_users, acl_dbs, acl_proxy_users;
 static MEM_ROOT mem, memex;
@@ -713,8 +702,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   acl_cache->clear(1);				// Clear locked hostname cache
 
   init_sql_alloc(&mem, ACL_ALLOC_BLOCK_SIZE, 0);
-  init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0, 
-                   FALSE);
+  if (init_read_record(&read_record_info, thd, table= tables[0].table,
+                       NULL, 1, 1, FALSE))
+    goto end;
   table->use_all_columns();
   (void) my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50);
   while (!(read_record_info.read_record(&read_record_info)))
@@ -763,7 +753,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_hosts);
 
-  init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0,FALSE);
+  if (init_read_record(&read_record_info, thd, table=tables[1].table,
+                       NULL, 1, 1, FALSE))
+    goto end;
   table->use_all_columns();
   (void) my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100);
   password_length= table->field[2]->field_length /
@@ -968,7 +960,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_users);
 
-  init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0,FALSE);
+  if (init_read_record(&read_record_info, thd, table=tables[2].table,
+                       NULL, 1, 1, FALSE))
+    goto end;
   table->use_all_columns();
   (void) my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100);
   while (!(read_record_info.read_record(&read_record_info)))
@@ -1031,8 +1025,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                                50, 100);
   if (tables[3].table)
   {
-    init_read_record(&read_record_info, thd, table= tables[3].table, NULL, 1, 
-                     0, FALSE);
+    if (init_read_record(&read_record_info, thd, table= tables[3].table,
+                         NULL, 1, 1, FALSE))
+      goto end;
     table->use_all_columns();
     while (!(read_record_info.read_record(&read_record_info)))
     {
@@ -1265,7 +1260,7 @@ static ulong get_sort(uint count,...)
         chars= 128;                             // Marker that chars existed
       }
     }
-    sort= (sort << 8) + (wild_pos ? min(wild_pos, 127) : chars);
+    sort= (sort << 8) + (wild_pos ? min(wild_pos, 127U) : chars);
   }
   va_end(args);
   return sort;
@@ -1888,17 +1883,17 @@ bool change_password(THD *thd, const char *host, const char *user,
     goto end;
   }
 
+  /* update loaded acl entry: */
+  set_user_salt(acl_user, new_password, new_password_len);
+
   if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
                     native_password_plugin_name.str) &&
       my_strcasecmp(system_charset_info, acl_user->plugin.str,
                     old_password_plugin_name.str))
-  {
     push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                  ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
-  }
-  /* update loaded acl entry: */
-  set_user_salt(acl_user, new_password, new_password_len);
-  set_user_plugin(acl_user, new_password_len);
+  else
+    set_user_plugin(acl_user, new_password_len);
 
   if (update_user_table(thd, table,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
@@ -3694,6 +3689,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     should_write_to_binlog= TRUE;
 
     db_name= table_list->get_db_name();
+    thd->add_to_binlog_accessed_dbs(db_name); // collecting db:s for MTS
     table_name= table_list->get_table_name();
 
     /* Find/create cached table grant */
@@ -3904,7 +3900,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     {
       result= TRUE;
       continue;
-    }  
+    }
+
     /* Create user if needed */
     error=replace_user_table(thd, tables[0].table, *Str,
 			     0, revoke_grant, create_new_users,
@@ -3917,8 +3914,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
 
     db_name= table_list->db;
+    if (write_to_binlog)
+      thd->add_to_binlog_accessed_dbs(db_name);
     table_name= table_list->table_name;
-
     grant_name= routine_hash_search(Str->host.str, NullS, db_name,
                                     Str->user.str, table_name, is_proc, 1);
     if (!grant_name)
@@ -3961,8 +3959,19 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (write_to_binlog && should_write_to_binlog)
   {
-    if (write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
-      result= TRUE;
+    if (revoke_grant)
+    {
+      if (write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+        result= TRUE;
+    }
+    else
+    {
+      DBUG_ASSERT(thd->rewritten_query.length());
+      if (write_bin_log(thd, FALSE,
+                        thd->rewritten_query.c_ptr_safe(),
+                        thd->rewritten_query.length()))
+        result= TRUE;
+    }
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
@@ -4079,6 +4088,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       result= TRUE;
       continue;
     }
+
     /*
       No User, but a password?
       They did GRANT ... TO CURRENT_USER() IDENTIFIED BY ... !
@@ -4086,6 +4096,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     */
     if (!tmp_Str->user.str && tmp_Str->password.str)
       Str->password= tmp_Str->password;
+
     if (replace_user_table(thd, tables[0].table, *Str,
                            (!db ? rights : 0), revoke_grant, create_new_users,
                            test(thd->variables.sql_mode &
@@ -4105,6 +4116,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 	my_error(ER_WRONG_USAGE, MYF(0), "DB GRANT", "GLOBAL PRIVILEGES");
 	result= -1;
       }
+      thd->add_to_binlog_accessed_dbs(db);
     }
     else if (is_proxy)
     {
@@ -4122,8 +4134,16 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   mysql_mutex_unlock(&acl_cache->lock);
 
   if (should_write_to_binlog)
-    result= result |
-            write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  {
+    if (thd->rewritten_query.length())
+      result= result |
+          write_bin_log(thd, FALSE,
+                        thd->rewritten_query.c_ptr_safe(),
+                        thd->rewritten_query.length());
+    else
+      result= result |
+              write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  }
 
   mysql_rwlock_unlock(&LOCK_grant);
 
@@ -5184,7 +5204,9 @@ static void add_user_option(String *grant, ulong value, const char *name)
   }
 }
 
-static const char *command_array[]=
+#endif /*NO_EMBEDDED_ACCESS_CHECKS */
+
+const char *command_array[]=
 {
   "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD",
   "SHUTDOWN", "PROCESS","FILE", "GRANT", "REFERENCES", "INDEX",
@@ -5194,12 +5216,26 @@ static const char *command_array[]=
   "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE"
 };
 
-static uint command_lengths[]=
+uint command_lengths[]=
 {
   6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
   14, 13, 11, 5, 7, 17
 };
 
+
+void append_int(String *str, const char *txt, size_t len,
+                long val, int cond)
+{
+  if (cond)
+  {
+    String numbuf(42);
+    str->append(txt,len);
+    numbuf.set((longlong)val,&my_charset_bin);
+    str->append(numbuf);
+  }
+}
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 static int show_routine_grants(THD *thd, LEX_USER *lex_user, HASH *hash,
                                const char *type, int typelen,
@@ -6412,6 +6448,8 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   DBUG_RETURN(result);
 }
 
+#endif /*NO_EMBEDDED_ACCESS_CHECKS */
+
 /**
   Auxiliary function for constructing a  user list string.
   @param str     A String to store the user list.
@@ -6420,8 +6458,8 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   @param ident   If TRUE, append ' IDENTIFIED BY/WITH...' after the user,
                  if the given user has credentials set with 'IDENTIFIED BY/WITH'
  */
-static void append_user(String *str, LEX_USER *user, bool comma= TRUE,
-                        bool ident= FALSE)
+void append_user(String *str, LEX_USER *user, bool comma= TRUE,
+                 bool ident= FALSE)
 {
   String from_user(user->user.str, user->user.length, system_charset_info);
   String from_plugin(user->plugin.str, user->plugin.length, system_charset_info);
@@ -6461,6 +6499,7 @@ static void append_user(String *str, LEX_USER *user, bool comma= TRUE,
   }
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 /*
   Create a list of users.
@@ -6479,7 +6518,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
   String wrong_users;
-  String log_query;
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
@@ -6508,7 +6546,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   mysql_rwlock_wrlock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
-  log_query.append(STRING_WITH_LEN("CREATE USER"));
   while ((tmp_user_name= user_list++))
   {
     if (!(user_name= get_current_user(thd, tmp_user_name)))
@@ -6517,24 +6554,20 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    log_query.append(' ');
-    append_user(&log_query, user_name, FALSE, TRUE);
-    log_query.append(',');
-
     /*
       Search all in-memory structures and grant tables
       for a mention of the new user name.
     */
     if (handle_grant_data(tables, 0, user_name, NULL))
     {
-      append_user(&wrong_users, user_name, wrong_users.length() > 0);
+      append_user(&wrong_users, user_name, wrong_users.length() > 0, FALSE);
       result= TRUE;
       continue;
     }
 
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
-      append_user(&wrong_users, user_name, wrong_users.length() > 0);
+      append_user(&wrong_users, user_name, wrong_users.length() > 0, FALSE);
       result= TRUE;
       continue;
     }
@@ -6549,9 +6582,9 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 
   if (some_users_created)
   {
-    /* Remove the last ',' */
-    log_query.length(log_query.length()-1);
-    result|= write_bin_log(thd, FALSE, log_query.c_ptr_safe(), log_query.length());
+    result|= write_bin_log(thd, FALSE,
+                           thd->rewritten_query.c_ptr_safe(),
+                           thd->rewritten_query.length());
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
@@ -6620,7 +6653,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }  
     if (handle_grant_data(tables, 1, user_name, NULL) <= 0)
     {
-      append_user(&wrong_users, user_name, wrong_users.length() > 0);
+      append_user(&wrong_users, user_name, wrong_users.length() > 0, FALSE);
       result= TRUE;
       continue;
     }
@@ -6716,7 +6749,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     if (handle_grant_data(tables, 0, user_to, NULL) ||
         handle_grant_data(tables, 0, user_from, user_to) <= 0)
     {
-      append_user(&wrong_users, user_from, wrong_users.length() > 0);
+      append_user(&wrong_users, user_from, wrong_users.length() > 0, FALSE);
       result= TRUE;
       continue;
     }
@@ -7998,7 +8031,7 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track 
       failed connections.
     */
-    if (global_system_variables.log_warnings > 1)
+    if (log_warnings > 1)
     {
       sql_print_warning(ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
                         mpvio->auth_info.user_name,
@@ -8020,7 +8053,7 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track 
       failed connections.
     */
-    if (global_system_variables.log_warnings > 1)
+    if (log_warnings > 1)
     {
       sql_print_warning(ER(ER_ACCESS_DENIED_ERROR),
                         mpvio->auth_info.user_name,
@@ -8640,37 +8673,92 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
 #ifndef EMBEDDED_LIBRARY
   NET *net= mpvio->net;
   char *end;
-
+  bool packet_has_required_size= false;
   DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
-
-  if (pkt_len < MIN_HANDSHAKE_SIZE)
-    return packet_error;
 
   if (mpvio->connect_errors)
     reset_host_errors(mpvio->ip);
 
-  ulong client_capabilities= uint2korr(net->read_pos);
-  if (client_capabilities & CLIENT_PROTOCOL_41)
+  uint charset_code= 0;
+  end= (char *)net->read_pos;
+  /*
+    In order to safely scan a head for '\0' string terminators
+    we must keep track of how many bytes remain in the allocated
+    buffer or we might read past the end of the buffer.
+  */
+  size_t bytes_remaining_in_packet= pkt_len;
+  
+  /*
+    Peek ahead on the client capability packet and determine which version of
+    the protocol should be used.
+  */
+  if (bytes_remaining_in_packet < 2)
+    return packet_error;
+    
+  mpvio->client_capabilities= uint2korr(end);
+
+  /*
+    JConnector only sends server capabilities before starting SSL
+    negotiation.  The below code is patch for this.
+  */
+  if (bytes_remaining_in_packet == 4 &&
+      mpvio->client_capabilities & CLIENT_SSL)
   {
-    client_capabilities|= ((ulong) uint2korr(net->read_pos + 2)) << 16;
-    mpvio->max_client_packet_length= uint4korr(net->read_pos + 4);
-    DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
-    if (mpvio->charset_adapter->init_client_charset((uint) net->read_pos[8]))
+    mpvio->client_capabilities= uint4korr(end);
+    mpvio->max_client_packet_length= 0xfffff;
+    charset_code= default_charset_info->number;
+    if (mpvio->charset_adapter->init_client_charset(charset_code))
       return packet_error;
-    end= (char*) net->read_pos + 32;
+    goto skip_to_ssl;
+  }
+  
+  if (mpvio->client_capabilities & CLIENT_PROTOCOL_41)
+    packet_has_required_size= bytes_remaining_in_packet >= 
+      AUTH_PACKET_HEADER_SIZE_PROTO_41;
+  else
+    packet_has_required_size= bytes_remaining_in_packet >=
+      AUTH_PACKET_HEADER_SIZE_PROTO_40;
+  
+  if (!packet_has_required_size)
+    return packet_error;
+  
+  if (mpvio->client_capabilities & CLIENT_PROTOCOL_41)
+  {
+    mpvio->client_capabilities= uint4korr(end);
+    mpvio->max_client_packet_length= uint4korr(end + 4);
+    charset_code= (uint)(uchar)*(end + 8);
+    /*
+      Skip 23 remaining filler bytes which have no particular meaning.
+    */
+    end+= AUTH_PACKET_HEADER_SIZE_PROTO_41;
+    bytes_remaining_in_packet-= AUTH_PACKET_HEADER_SIZE_PROTO_41;
   }
   else
   {
-    mpvio->max_client_packet_length= uint3korr(net->read_pos + 2);
-    end= (char*) net->read_pos + 5;
+    mpvio->client_capabilities= uint2korr(end);
+    mpvio->max_client_packet_length= uint3korr(end + 2);
+    end+= AUTH_PACKET_HEADER_SIZE_PROTO_40;
+    bytes_remaining_in_packet-= AUTH_PACKET_HEADER_SIZE_PROTO_40;
+    /**
+      Old clients didn't have their own charset. Instead the assumption
+      was that they used what ever the server used.
+    */
+    charset_code= default_charset_info->number;
   }
 
-  /* Disable those bits which are not supported by the client. */
-  mpvio->client_capabilities&= client_capabilities;
+  DBUG_PRINT("info", ("client_character_set: %u", charset_code));
+  if (mpvio->charset_adapter->init_client_charset(charset_code))
+    return packet_error;
 
-
+skip_to_ssl:
 #if defined(HAVE_OPENSSL)
   DBUG_PRINT("info", ("client capabilities: %lu", mpvio->client_capabilities));
+  
+  /*
+    If client requested SSL then we must stop parsing, try to switch to SSL,
+    and wait for the client to send a new handshake packet.
+    The client isn't expected to send any more bytes until SSL is initialized.
+  */
   if (mpvio->client_capabilities & CLIENT_SSL)
   {
     unsigned long errptr;
@@ -8687,18 +8775,42 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     }
 
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
-    pkt_len= my_net_read(net);
-    if (pkt_len == packet_error || pkt_len < NORMAL_HANDSHAKE_SIZE)
+    if ((pkt_len= my_net_read(net)) == packet_error)
     {
       DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
 			   pkt_len));
       return packet_error;
     }
-  }
-#endif
+    /*
+      A new packet was read and the statistics reflecting the remaining bytes
+      in the packet must be updated.
+    */
+    bytes_remaining_in_packet= pkt_len;
 
-  if (end > (char *)net->read_pos + pkt_len)
-    return packet_error;
+    /*
+      After the SSL handshake is performed the client resends the handshake
+      packet but because of legacy reasons we chose not to parse the packet
+      fields a second time and instead only assert the length of the packet.
+    */
+    if (mpvio->client_capabilities & CLIENT_PROTOCOL_41)
+    {
+      packet_has_required_size= bytes_remaining_in_packet >= 
+        AUTH_PACKET_HEADER_SIZE_PROTO_41;
+      end= (char *)net->read_pos + AUTH_PACKET_HEADER_SIZE_PROTO_41;
+      bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_41;
+    }
+    else
+    {
+      packet_has_required_size= bytes_remaining_in_packet >= 
+        AUTH_PACKET_HEADER_SIZE_PROTO_40;
+      end= (char *)net->read_pos + AUTH_PACKET_HEADER_SIZE_PROTO_40;
+      bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_40;
+    }
+    
+    if (!packet_has_required_size)
+      return packet_error;
+  }
+#endif /* HAVE_OPENSSL */
 
   if ((mpvio->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
@@ -8722,7 +8834,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     we must keep track of how many bytes remain in the allocated
     buffer or we might read past the end of the buffer.
   */
-  size_t bytes_remaining_in_packet= pkt_len - (end - (char *)net->read_pos);
+  bytes_remaining_in_packet= pkt_len - (end - (char *)net->read_pos);
 
   size_t user_len;
   char *user= get_string(&end, &bytes_remaining_in_packet, &user_len);
@@ -8908,24 +9020,18 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
 
 
 /**
-  Make sure that when sending plugin supplued data to the client they
+  Make sure that when sending plugin supplied data to the client they
   are not considered a special out-of-band command, like e.g. 
-  \255 (error) or \254 (change user request packet).
-  To avoid this we send plugin data packets starting with one of these
-  2 bytes "wrapped" in a command \1. 
-  For the above reason we have to wrap plugin data packets starting with
-  \1 as well.
+  \255 (error) or \254 (change user request packet) or \0 (OK).
+  To avoid this the server will send all plugin data packets "wrapped" 
+  in a command \1.
+  Note that the client will continue sending its replies unrwapped.
 */
-
-#define IS_OUT_OF_BAND_PACKET(packet,packet_len) \
-  ((packet_len) > 0 && \
-   (*(packet) == 1 || *(packet) == 255 || *(packet) == 254))
 
 static inline int 
 wrap_plguin_data_into_proper_command(NET *net, 
                                      const uchar *packet, int packet_len)
 {
-  DBUG_ASSERT(IS_OUT_OF_BAND_PACKET(packet, packet_len));
   return net_write_command(net, 1, (uchar *) "", 0, packet, packet_len);
 }
 
@@ -8962,13 +9068,8 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
     res= send_server_handshake_packet(mpvio, (char*) packet, packet_len);
   else if (mpvio->status == MPVIO_EXT::RESTART)
     res= send_plugin_request_packet(mpvio, packet, packet_len);
-  else if (IS_OUT_OF_BAND_PACKET(packet, packet_len))
-    res= wrap_plguin_data_into_proper_command(mpvio->net, packet, packet_len);
   else
-  {
-    res= my_net_write(mpvio->net, packet, packet_len) ||
-         net_flush(mpvio->net);
-  }
+    res= wrap_plguin_data_into_proper_command(mpvio->net, packet, packet_len);
   mpvio->packets_written++;
   DBUG_RETURN(res);
 }
@@ -9135,7 +9236,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->ssl_cipher, SSL_get_cipher(ssl)));
       if (strcmp(acl_user->ssl_cipher, SSL_get_cipher(ssl)))
       {
-        if (global_system_variables.log_warnings)
+        if (log_warnings)
           sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
                             acl_user->ssl_cipher, SSL_get_cipher(ssl));
         return 1;
@@ -9152,7 +9253,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->x509_issuer, ptr));
       if (strcmp(acl_user->x509_issuer, ptr))
       {
-        if (global_system_variables.log_warnings)
+        if (log_warnings)
           sql_print_information("X509 issuer mismatch: should be '%s' "
                             "but is '%s'", acl_user->x509_issuer, ptr);
         free(ptr);
@@ -9169,7 +9270,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->x509_subject, ptr));
       if (strcmp(acl_user->x509_subject, ptr))
       {
-        if (global_system_variables.log_warnings)
+        if (log_warnings)
           sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
                           acl_user->x509_subject, ptr);
         free(ptr);
@@ -9742,7 +9843,8 @@ mysql_declare_plugin(mysql_password)
   0x0100,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
   NULL,                                         /* system variables */
-  NULL                                          /* config options   */
+  NULL,                                         /* config options   */
+  0,                                            /* flags            */
 },
 {
   MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
@@ -9756,7 +9858,8 @@ mysql_declare_plugin(mysql_password)
   0x0100,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
   NULL,                                         /* system variables */
-  NULL                                          /* config options   */
+  NULL,                                         /* config options   */
+  0,                                            /* flags            */
 }
 mysql_declare_plugin_end;
 

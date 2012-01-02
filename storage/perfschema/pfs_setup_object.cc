@@ -72,6 +72,7 @@ void cleanup_setup_object(void)
   setup_object_max= 0;
 }
 
+C_MODE_START
 static uchar *setup_object_hash_get_key(const uchar *entry, size_t *length,
                                         my_bool)
 {
@@ -86,6 +87,7 @@ static uchar *setup_object_hash_get_key(const uchar *entry, size_t *length,
   result= setup_object->m_key.m_hash_key;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
 }
+C_MODE_END
 
 /**
   Initialize the setup objects hash.
