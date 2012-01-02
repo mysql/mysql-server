@@ -472,10 +472,11 @@ static my_bool _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEY *key,
   int error;
   my_off_t new_root= *root;
   uchar key_buff[MARIA_MAX_KEY_BUFF];
-  MARIA_KEY UNINIT_VAR(org_key); /* Set/used when now_transactional=TRUE */
+  MARIA_KEY org_key; /* Set/used when now_transactional=TRUE */
+  my_bool transactional= share->now_transactional;
   DBUG_ENTER("_ma_ck_write_btree_with_log");
   
-  if (share->now_transactional)
+  if (transactional)
   {
     /* Save original value as the key may change */
     org_key= *key;
@@ -483,7 +484,7 @@ static my_bool _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEY *key,
   }
 
   error= _ma_ck_real_write_btree(info, key, &new_root, comp_flag);
-  if (!error && share->now_transactional)
+  if (!error && transactional)
   {
     /* Log the original value */
     *key= org_key;
