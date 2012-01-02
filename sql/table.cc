@@ -697,10 +697,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos, *options;
   uchar *buff= 0;
-  ulong pos, record_offset, *rec_per_key, rec_buff_length;
+  ulong pos, record_offset;
+  ulong *rec_per_key= NULL;
+  ulong rec_buff_length;
   handler *handler_file= 0;
   KEY	*keyinfo;
-  KEY_PART_INFO *key_part;
+  KEY_PART_INFO *key_part= NULL;
   SQL_CRYPT *crypted=0;
   Field  **field_ptr, *reg_field;
   const char **interval_array;
