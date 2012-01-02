@@ -8619,6 +8619,7 @@ ha_innobase::info_low(
 
 		for (i = 0; i < table->s->keys; i++) {
 			ulong	j;
+                        rec_per_key = 1;
 			/* We could get index quickly through internal
 			index mapping with the index translation table.
 			The identity of index (match up index name with
@@ -8687,7 +8688,9 @@ ha_innobase::info_low(
                           
 		                index= innobase_get_index(
                                         table->s->primary_key);
-                                    
+                                
+                                n_rows= ib_table->stat_n_rows;
+    
                                 for (j = 0; j < pk_parts; j++) {
  
 				         if (ext_key_part_map & 1<<j) {
