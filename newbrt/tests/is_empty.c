@@ -41,7 +41,7 @@ static void test_it (int N) {
 
     r = toku_open_brt(FILENAME, 1, &brt, 1024, 256, ct, txn, toku_builtin_compare_fun, NULL);                    CKERR(r);
 
-    r = toku_txn_commit_txn(txn, FALSE, do_yield, NULL, NULL, NULL);                                        CKERR(r);
+    r = toku_txn_commit_txn(txn, FALSE, do_yield, NULL, NULL, NULL, false);                                 CKERR(r);
     toku_txn_close_txn(txn);
 
     r = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL);                                                CKERR(r);
@@ -51,7 +51,7 @@ static void test_it (int N) {
     for (int i=0; i<N; i++) {
 	r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_ROOT);                 CKERR(r);
 	r = toku_open_brt(FILENAME, 0, &brt, 1024, 256, ct, txn, toku_builtin_compare_fun, NULL);                CKERR(r);
-	r = toku_txn_commit_txn(txn, FALSE, do_yield, NULL, NULL, NULL);                                        CKERR(r);
+	r = toku_txn_commit_txn(txn, FALSE, do_yield, NULL, NULL, NULL, false);                             CKERR(r);
 	toku_txn_close_txn(txn);
 
 	r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_ROOT);                 CKERR(r);
@@ -62,7 +62,7 @@ static void test_it (int N) {
 	memset(val, 'v', sizeof(val));
 	val[sizeof(val)-1]=0;
 	r = toku_brt_insert(brt, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), txn);
-	r = toku_txn_commit_txn(txn, FALSE, do_yield, NULL, NULL, NULL);                                        CKERR(r);
+	r = toku_txn_commit_txn(txn, FALSE, do_yield, NULL, NULL, NULL, false);                                 CKERR(r);
 	toku_txn_close_txn(txn);
 
 
@@ -74,7 +74,7 @@ static void test_it (int N) {
     for (int i=0; i<N; i++) {
 	r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_ROOT);                     CKERR(r);
 	r = toku_open_brt(FILENAME, 0, &brt, 1024, 256, ct, txn, toku_builtin_compare_fun, NULL);                CKERR(r);
-	r = toku_txn_commit_txn(txn, FALSE, do_yield, NULL, NULL, NULL);                                        CKERR(r);
+	r = toku_txn_commit_txn(txn, FALSE, do_yield, NULL, NULL, NULL, false);                                 CKERR(r);
 	toku_txn_close_txn(txn);
 
 	r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_ROOT);                     CKERR(r);
@@ -89,7 +89,7 @@ static void test_it (int N) {
 	assert(!is_empty);
 	}
 	
-	r = toku_txn_commit_txn(txn, FALSE, do_yield, NULL, NULL, NULL);                                        CKERR(r);
+	r = toku_txn_commit_txn(txn, FALSE, do_yield, NULL, NULL, NULL, false);                                 CKERR(r);
 	toku_txn_close_txn(txn);
 
 
@@ -100,7 +100,7 @@ static void test_it (int N) {
     }
     r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_ROOT);                        CKERR(r);
     r = toku_open_brt(FILENAME, 0, &brt, 1024, 256, ct, txn, toku_builtin_compare_fun, NULL);                       CKERR(r);
-    r = toku_txn_commit_txn(txn, FALSE, do_yield, NULL, NULL, NULL);                                           CKERR(r);
+    r = toku_txn_commit_txn(txn, FALSE, do_yield, NULL, NULL, NULL, false);                                     CKERR(r);
     toku_txn_close_txn(txn);
 
     if (0) {

@@ -31,15 +31,19 @@ int toku_txn_begin_with_xid (
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
 int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
-			 TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
+			 TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
+			 bool release_multi_operation_client_lock);
 BOOL toku_txn_requires_checkpoint(TOKUTXN txn);
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
-			     TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
+			     TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
+			     bool release_multi_operation_client_lock);
 
 int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
-                       TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
+                       TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
+		       bool release_multi_operation_client_lock);
 int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
-                            TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
+                            TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
+			    bool release_multi_operation_client_lock);
 
 int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync, YIELDF yield, void *yieldv);
 
