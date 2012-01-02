@@ -146,7 +146,8 @@ mysql_declare_plugin(test_plugin)
   0x0100,
   NULL,
   NULL,
-  NULL
+  NULL,
+  0,
 },
 {
   MYSQL_AUTHENTICATION_PLUGIN,
@@ -160,7 +161,8 @@ mysql_declare_plugin(test_plugin)
   0x0100,
   NULL,
   NULL,
-  NULL
+  NULL,
+  0,
 }
 mysql_declare_plugin_end;
 

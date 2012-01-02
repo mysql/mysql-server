@@ -1,0 +1,165 @@
+include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+include/stop_slave.inc
+SHOW CREATE TABLE mysql.slave_relay_log_info;
+Table	Create Table
+slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
+  `Master_id` int(10) unsigned NOT NULL,
+  `Number_of_lines` int(10) unsigned NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.',
+  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the current relay log file.',
+  `Relay_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The relay log position of the last executed event.',
+  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
+  `Master_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The master log position of the last executed event.',
+  `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
+  `Number_of_workers` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`Master_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
+ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
+SHOW CREATE TABLE mysql.slave_relay_log_info;
+Table	Create Table
+slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
+  `Master_id` int(10) unsigned NOT NULL,
+  `Number_of_lines` int(10) unsigned NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.',
+  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the current relay log file.',
+  `Relay_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The relay log position of the last executed event.',
+  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
+  `Master_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The master log position of the last executed event.',
+  `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
+  `Number_of_workers` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`Master_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
+SET @@global.relay_log_info_repository="TABLE";
+SET @@global.master_info_repository="TABLE";
+SET @@global.sync_master_info= 1;
+include/start_slave.inc
+CREATE TABLE t_innodb (id INTEGER) engine= Innodb;
+call mtr.add_suppression("Error writing relay log configuration.");
+call mtr.add_suppression("Column count of mysql.slave_relay_log_info is wrong.");
+call mtr.add_suppression("Error running query, slave SQL thread aborted.");
+call mtr.add_suppression("Info table is not ready to be used.");
+call mtr.add_suppression("Error writing master configuration.");
+call mtr.add_suppression("Failed to flush master info.");
+call mtr.add_suppression(" Error while checking replication metadata.");
+INSERT INTO t_innodb VALUES (1), (2), (3);
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Sql_delay;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+include/wait_for_slave_sql_error.inc [errno=1701]
+Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted'
+include/stop_slave_io.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=FILE --skip-slave-start]
+ALTER TABLE mysql.slave_relay_log_info ADD COLUMN (Sql_delay INTEGER NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.');
+include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
+include/start_slave.inc
+INSERT INTO t_innodb VALUES (1), (2), (3);
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Sql_delay;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+include/wait_for_slave_sql_error.inc [errno=1701]
+Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted'
+include/stop_slave_io.inc
+START SLAVE SQL_THREAD;
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted
+RESET SLAVE ALL;
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted
+CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted
+ALTER TABLE mysql.slave_relay_log_info ADD COLUMN (Sql_delay INTEGER NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.');
+RESET SLAVE ALL;
+CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+include/start_slave.inc
+ALTER TABLE mysql.slave_master_info DROP COLUMN Retry_count;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+include/wait_for_slave_io_error.inc [errno=1593]
+Last_IO_Error = 'Fatal error: Failed to flush master info.'
+include/stop_slave_sql.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --master-info-repository=FILE --skip-slave-start]
+ALTER TABLE mysql.slave_master_info ADD COLUMN (Retry_count BIGINT UNSIGNED NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.');
+include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
+include/start_slave.inc
+ALTER TABLE mysql.slave_master_info DROP COLUMN Retry_count;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+include/wait_for_slave_io_error.inc [errno=1593]
+Last_IO_Error = 'Fatal error: Failed to flush master info.'
+include/stop_slave_sql.inc
+START SLAVE SQL_THREAD;
+ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 23, found 22. The table is probably corrupted
+RESET SLAVE ALL;
+ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 23, found 22. The table is probably corrupted
+CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
+ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 23, found 22. The table is probably corrupted
+ALTER TABLE mysql.slave_master_info ADD COLUMN (Retry_count BIGINT UNSIGNED NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.');
+RESET SLAVE ALL;
+CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+include/start_slave.inc
+ANALYZE TABLE mysql.slave_master_info, mysql.slave_relay_log_info;
+Table	Op	Msg_type	Msg_text
+mysql.slave_master_info	analyze	status	OK
+mysql.slave_relay_log_info	analyze	status	OK
+CHECK TABLE mysql.slave_master_info, mysql.slave_relay_log_info EXTENDED;
+Table	Op	Msg_type	Msg_text
+mysql.slave_master_info	check	status	OK
+mysql.slave_relay_log_info	check	status	OK
+OPTIMIZE TABLE mysql.slave_master_info, mysql.slave_relay_log_info;
+Table	Op	Msg_type	Msg_text
+mysql.slave_master_info	optimize	status	OK
+mysql.slave_relay_log_info	optimize	note	Table does not support optimize, doing recreate + analyze instead
+mysql.slave_relay_log_info	optimize	status	OK
+REPAIR TABLE mysql.slave_master_info, mysql.slave_relay_log_info EXTENDED;
+Table	Op	Msg_type	Msg_text
+mysql.slave_master_info	repair	status	OK
+mysql.slave_relay_log_info	repair	note	The storage engine for the table doesn't support repair
+SHOW CREATE TABLE mysql.slave_master_info;
+Table	Create Table
+slave_master_info	CREATE TABLE `slave_master_info` (
+  `Master_id` int(10) unsigned NOT NULL,
+  `Number_of_lines` int(10) unsigned NOT NULL COMMENT 'Number of lines in the file.',
+  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.',
+  `Master_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The master log position of the last read event.',
+  `Host` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The host name of the master.',
+  `User_name` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',
+  `User_password` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.',
+  `Port` int(10) unsigned NOT NULL COMMENT 'The network port used to connect to the master.',
+  `Connect_retry` int(10) unsigned NOT NULL COMMENT 'The period (in seconds) that the slave will wait before trying to reconnect to the master.',
+  `Enabled_ssl` tinyint(1) NOT NULL COMMENT 'Indicates whether the server supports SSL connections.',
+  `Ssl_ca` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.',
+  `Ssl_capath` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path to the Certificate Authority (CA) certificates.',
+  `Ssl_cert` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL certificate file.',
+  `Ssl_cipher` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the cipher in use for the SSL connection.',
+  `Ssl_key` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL key file.',
+  `Ssl_verify_server_cert` tinyint(1) NOT NULL COMMENT 'Whether to verify the server certificate.',
+  `Heartbeat` float NOT NULL,
+  `Bind` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',
+  `Ignored_server_ids` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The number of server IDs to be ignored, followed by the actual server IDs',
+  `Uuid` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The master server uuid.',
+  `Ssl_crl` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
+  `Ssl_crlpath` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
+  `Retry_count` bigint(20) unsigned NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.',
+  PRIMARY KEY (`Master_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Master Information'
+SHOW CREATE TABLE mysql.slave_relay_log_info;
+Table	Create Table
+slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
+  `Master_id` int(10) unsigned NOT NULL,
+  `Number_of_lines` int(10) unsigned NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.',
+  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the current relay log file.',
+  `Relay_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The relay log position of the last executed event.',
+  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
+  `Master_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The master log position of the last executed event.',
+  `Number_of_workers` int(10) unsigned NOT NULL,
+  `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
+  PRIMARY KEY (`Master_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
+# Search for occurrences of slave_master_info in the output from mysqldump
+- Occurrences: 1
+DROP TABLE t_innodb;
+include/stop_slave.inc
+include/start_slave.inc
+include/rpl_end.inc

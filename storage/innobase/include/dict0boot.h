@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -136,8 +136,10 @@ dict_create(void);
 					header is created */
 /*-------------------------------------------------------------*/
 
-/* The field number of the page number field in the sys_indexes table
-clustered index */
+/* The field numbers in the SYS_TABLES clustered index */
+#define DICT_SYS_TABLES_TYPE_FIELD		5
+
+/* The field numbers in the SYS_INDEXES clustered index */
 #define DICT_SYS_INDEXES_PAGE_NO_FIELD	 8
 #define DICT_SYS_INDEXES_SPACE_NO_FIELD	 7
 #define DICT_SYS_INDEXES_TYPE_FIELD	 6

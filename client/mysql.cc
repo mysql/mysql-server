@@ -41,6 +41,11 @@
 #include <signal.h>
 #include <violite.h>
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #if defined(USE_LIBEDIT_INTERFACE) && defined(HAVE_LOCALE_H)
 #include <locale.h>
 #endif
@@ -3499,9 +3504,9 @@ print_table_data(MYSQL_RES *result)
   {
     uint length= column_names ? field->name_length : 0;
     if (quick)
-      length=max(length,field->length);
+      length= max<size_t>(length, field->length);
     else
-      length=max(length,field->max_length);
+      length= max<size_t>(length, field->max_length);
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
     field->max_length=length;
@@ -3521,8 +3526,8 @@ print_table_data(MYSQL_RES *result)
                                                   field->name,
                                                   field->name + name_length);
       uint display_length= field->max_length + name_length - numcells;
-      tee_fprintf(PAGER, " %-*s |",(int) min(display_length,
-                                            MAX_COLUMN_LENGTH),
+      tee_fprintf(PAGER, " %-*s |",
+                  min<int>(display_length, MAX_COLUMN_LENGTH),
                   field->name);
       num_flag[off]= IS_NUM(field->type);
     }
@@ -3611,9 +3616,9 @@ static int get_field_disp_length(MYSQL_FIELD *field)
   uint length= column_names ? field->name_length : 0;
 
   if (quick)
-    length= max(length, field->length);
+    length= max<uint>(length, field->length);
   else
-    length= max(length, field->max_length);
+    length= max<uint>(length, field->max_length);
 
   if (length < 4 && !IS_NOT_NULL(field->flags))
     length= 4;				/* Room for "NULL" */
@@ -4446,8 +4451,12 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (opt_use_ssl)
+  {
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(&mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
+    mysql_options(&mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
+  }
   mysql_options(&mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                 (char*)&opt_ssl_verify_server_cert);
 #endif

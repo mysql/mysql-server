@@ -40,6 +40,13 @@ void *pfs_malloc(size_t size, myf flags);
 /** Free memory allocated with @sa pfs_malloc. */
 void pfs_free(void *ptr);
 
+
+uint pfs_get_socket_address(char *host,
+                            uint host_len,
+                            uint *port,
+                            const struct sockaddr_storage *src_addr,
+                            socklen_t src_len);
+
 /**
   Compute a random index value in an interval.
   @param ptr seed address

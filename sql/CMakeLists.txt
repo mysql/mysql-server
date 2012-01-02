@@ -88,6 +88,7 @@ SET(SQL_SHARED_SOURCES
   scheduler.cc 
   set_var.cc 
   sha2.cc
+  signal_handler.cc
   sp.cc
   sp_cache.cc
   sp_head.cc
@@ -112,23 +113,29 @@ SET(SQL_SHARED_SOURCES
   sql_derived.cc
   sql_do.cc 
   sql_error.cc
+  sql_executor.cc
+  sql_get_diagnostics.cc
   sql_handler.cc
   sql_help.cc
   sql_insert.cc
-  sql_join_cache.cc
+  sql_join_buffer.cc
   sql_lex.cc 
   sql_list.cc
   sql_load.cc
   sql_locale.cc
   sql_manager.cc
+  sql_optimizer.cc
   sql_parse.cc
   sql_partition.cc
   sql_partition_admin.cc
+  sql_planner.cc
   sql_plugin.cc
   sql_prepare.cc
   sql_profile.cc
   sql_reload.cc
-  sql_rename.cc 
+  sql_rename.cc
+  sql_resolver.cc
+  sql_rewrite.cc
   sql_select.cc
   sql_servers.cc
   sql_show.cc
@@ -139,6 +146,7 @@ SET(SQL_SHARED_SOURCES
   sql_tablespace.cc
   sql_test.cc
   sql_time.cc
+  sql_tmp_table.cc
   sql_trigger.cc
   sql_truncate.cc
   sql_udf.cc
@@ -188,6 +196,15 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 
+#
+# On Windows platform we compile in the clinet-side Windows Native Authentication
+# plugin which is used by the client connection code included in the server.
+#
+IF(WIN32)
+  ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
+  TARGET_LINK_LIBRARIES(sql auth_win_client)
+ENDIF()
+
 SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
 		   rpl_injector.cc)
@@ -202,7 +219,8 @@ ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
 		  rpl_info_handler.cc rpl_info_file.cc rpl_info_table.cc
 		  rpl_info_values.cc rpl_info.cc rpl_info_factory.cc
-		  rpl_info_table_access.cc server_ids.h)
+		  rpl_info_table_access.cc dynamic_ids.cc rpl_rli_pdb.cc
+		  rpl_info_dummy.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 ADD_LIBRARY(sqlgunitlib
@@ -218,6 +236,21 @@ ELSE()
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
+
+OPTION(DEBUG_EXTNAME "Build server as mysqld-debug (debug builds only)" OFF)
+MARK_AS_ADVANCED(DEBUG_EXTNAME)
+
+IF(DEBUG_EXTNAME)
+  SET_TARGET_PROPERTIES(mysqld PROPERTIES DEBUG_OUTPUT_NAME "mysqld-debug")
+ENDIF()
+
+IF(APPLE) 
+  # Add CoreServices framework since some dloadable plugins may need it 
+  FIND_LIBRARY(CORESERVICES NAMES CoreServices) 
+  IF(CORESERVICES) 
+    TARGET_LINK_LIBRARIES(mysqld ${CORESERVICES}) 
+  ENDIF() 
+ENDIF() 
 
 IF(NOT WITHOUT_DYNAMIC_PLUGINS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
@@ -276,10 +309,18 @@ IF(WITH_MYSQLD_LDFLAGS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS 
      "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
 ENDIF()
-INSTALL_DEBUG_TARGET(mysqld 
-  DESTINATION ${INSTALL_SBINDIR} 
-  PDB_DESTINATION ${INSTALL_SBINDIR}/debug
-  RENAME mysqld-debug)
+
+IF(DEBUG_EXTNAME)
+  INSTALL_DEBUG_TARGET(mysqld 
+    DESTINATION ${INSTALL_SBINDIR} 
+    PDB_DESTINATION ${INSTALL_SBINDIR}
+    SUFFIX "-debug")
+ELSE()
+  INSTALL_DEBUG_TARGET(mysqld 
+    DESTINATION ${INSTALL_SBINDIR} 
+    PDB_DESTINATION ${INSTALL_SBINDIR}/debug
+    RENAME mysqld-debug)
+ENDIF()
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
@@ -325,7 +366,7 @@ ADD_CUSTOM_TARGET(
 SET_TARGET_PROPERTIES(GenServerSource PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
-  ADD_LIBRARY(udf_example MODULE udf_example.c)
+  ADD_LIBRARY(udf_example MODULE udf_example.cc)
   SET_TARGET_PROPERTIES(udf_example PROPERTIES PREFIX "")
   # udf_example depends on strings 
   IF(WIN32)
@@ -373,7 +414,11 @@ INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test COMPONENT DataFiles)
 
 # Install initial database on windows
 IF(NOT CMAKE_CROSSCOMPILING)
-  GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION)
+  IF(DEBUG_EXTNAME)
+    GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION_DEBUG)
+  ELSE()
+    GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION)
+  ENDIF()
 ENDIF()
 IF(WIN32 AND MYSQLD_EXECUTABLE)
   CONFIGURE_FILE(

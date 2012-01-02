@@ -24,6 +24,7 @@
 
 --sync_slave_with_master
 call mtr.add_suppression(".*Found table map event mapping table id 0 which was already mapped but with different settings.*");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 # stop the slave and inject corruption
 --source include/stop_slave.inc

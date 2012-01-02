@@ -21,6 +21,7 @@
 */
 
 #include <my_getopt.h>
+#include <vector>
 
 class sys_var;
 class set_var;
@@ -30,6 +31,7 @@ class Item_func_set_user_var;
 
 // This include needs to be here since item.h requires enum_var_type :-P
 #include "item.h"                          /* Item */
+#include "sql_class.h"                     /* THD  */
 
 extern TYPELIB bool_typelib;
 
@@ -55,7 +57,7 @@ public:
   sys_var *next;
   LEX_CSTRING name;
   enum flag_enum { GLOBAL, SESSION, ONLY_SESSION, SCOPE_MASK=1023,
-                   READONLY=1024, ALLOCATED=2048 };
+                   READONLY=1024, ALLOCATED=2048, INVISIBLE=4096 };
   static const int PARSE_EARLY= 1;
   static const int PARSE_NORMAL= 2;
   /**
@@ -109,6 +111,7 @@ public:
   int scope() const { return flags & SCOPE_MASK; }
   const CHARSET_INFO *charset(THD *thd);
   bool is_readonly() const { return flags & READONLY; }
+  bool not_visible() const { return flags & INVISIBLE; }
   /**
     the following is only true for keycache variables,
     that support the syntax @@keycache_name.variable_name
@@ -127,10 +130,10 @@ public:
     }
     return true; // keep gcc happy
   }
-  bool register_option(DYNAMIC_ARRAY *array, int parse_flags)
+  bool register_option(std::vector<my_option> *array, int parse_flags)
   {
     return (option.id != -1) && (m_parse_flag & parse_flags) &&
-           insert_dynamic(array, &option);
+      (array->push_back(option), false);
   }
 
 private:
@@ -187,6 +190,7 @@ public:
   virtual int check(THD *thd)=0;           /* To check privileges etc. */
   virtual int update(THD *thd)=0;                  /* To set the value */
   virtual int light_check(THD *thd) { return check(thd); }   /* for PS */
+  virtual void print(THD *thd, String *str)=0;	/* To self-print */
   /// @returns whether this variable is @@@@optimizer_trace.
   virtual bool is_var_optimizer_trace() const { return false; }
 };
@@ -234,6 +238,7 @@ public:
   int check(THD *thd);
   int update(THD *thd);
   int light_check(THD *thd);
+  void print(THD *thd, String *str);	/* To self-print */
 #ifdef OPTIMIZER_TRACE
   virtual bool is_var_optimizer_trace() const
   {
@@ -255,6 +260,7 @@ public:
   int check(THD *thd);
   int update(THD *thd);
   int light_check(THD *thd);
+  void print(THD *thd, String *str);	/* To self-print */
 };
 
 /* For SET PASSWORD */
@@ -269,6 +275,7 @@ public:
   {}
   int check(THD *thd);
   int update(THD *thd);
+  void print(THD *thd, String *str);	/* To self-print */
 };
 
 
@@ -276,19 +283,24 @@ public:
 
 class set_var_collation_client: public set_var_base
 {
+  int   set_cs_flags;
   const CHARSET_INFO *character_set_client;
   const CHARSET_INFO *character_set_results;
   const CHARSET_INFO *collation_connection;
 public:
-  set_var_collation_client(const CHARSET_INFO *client_coll_arg,
+  enum  set_cs_flags_enum { SET_CS_NAMES=1, SET_CS_DEFAULT=2, SET_CS_COLLATE=4 };
+  set_var_collation_client(int set_cs_flags_arg,
+                           const CHARSET_INFO *client_coll_arg,
                            const CHARSET_INFO *connection_coll_arg,
                            const CHARSET_INFO *result_coll_arg)
-    :character_set_client(client_coll_arg),
+    :set_cs_flags(set_cs_flags_arg),
+     character_set_client(client_coll_arg),
      character_set_results(result_coll_arg),
      collation_connection(connection_coll_arg)
   {}
   int check(THD *thd);
   int update(THD *thd);
+  void print(THD *thd, String *str);	/* To self-print */
 };
 
 
@@ -322,7 +334,7 @@ extern sys_var *Sys_autocommit_ptr;
 const CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 
 int sys_var_init();
-int sys_var_add_options(DYNAMIC_ARRAY *long_options, int parse_flags);
+int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags);
 void sys_var_end(void);
 
 #endif

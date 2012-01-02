@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -35,6 +35,7 @@ Created June 2005 by Marko Makela
 #include "page0types.h"
 #include "buf0types.h"
 #include "dict0types.h"
+#include "srv0srv.h"
 #include "trx0types.h"
 #include "mem0mem.h"
 
@@ -444,8 +445,20 @@ ulint
 page_zip_calc_checksum(
 /*===================*/
         const void*     data,   /*!< in: compressed page */
-        ulint           size)   /*!< in: size of compressed page */
+        ulint           size,   /*!< in: size of compressed page */
+	srv_checksum_algorithm_t algo) /*!< in: algorithm to use */
 	__attribute__((nonnull));
+
+/**********************************************************************//**
+Verify a compressed page's checksum.
+@return	TRUE if the stored checksum is valid according to the value of
+innodb_checksum_algorithm */
+UNIV_INTERN
+ibool
+page_zip_verify_checksum(
+/*=====================*/
+	const void*	data,	/*!< in: compressed page */
+	ulint		size);	/*!< in: size of compressed page */
 
 #ifndef UNIV_HOTBACKUP
 /** Check if a pointer to an uncompressed page matches a compressed page.

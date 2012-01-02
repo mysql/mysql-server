@@ -23,6 +23,7 @@
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 
 class THD;
+class my_decimal;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -81,7 +82,7 @@ private:
     The interface of Sql_condition is mostly private, by design,
     so that only the following code:
     - various raise_error() or raise_warning() methods in class THD,
-    - the implementation of SIGNAL / RESIGNAL
+    - the implementation of SIGNAL / RESIGNAL / GET DIAGNOSTICS
     - catch / re-throw of SQL conditions in stored procedures (sp_rcontext)
     is allowed to create / modify a SQL condition.
     Enforcing this policy prevents confusion, since the only public
@@ -95,6 +96,7 @@ private:
   friend class Sql_cmd_signal;
   friend class Sql_cmd_resignal;
   friend class sp_rcontext;
+  friend class Condition_information_item;
 
   /**
     Default constructor.
@@ -148,6 +150,12 @@ private:
 
   /** Set the SQLSTATE of this condition. */
   void set_sqlstate(const char* sqlstate);
+
+  /** Set the CLASS_ORIGIN of this condition. */
+  void set_class_origin();
+
+  /** Set the SUBCLASS_ORIGIN of this condition. */
+  void set_subclass_origin();
 
   /**
     Clear this SQL condition.
@@ -276,6 +284,8 @@ class Warning_info
   Warning_info *m_next_in_da;
   Warning_info **m_prev_in_da;
 
+  List<Sql_condition> m_marked_sql_conditions;
+
 public:
   Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings);
   ~Warning_info();
@@ -342,11 +352,42 @@ private:
   { m_current_statement_warn_count= 0; }
 
   /**
-    Remove given SQL-condition from the list.
-
-    @param sql_condition The SQL-condition to remove (may be NULL).
+    Mark active SQL-conditions for later removal.
+    This is done to simulate stacked DAs for HANDLER statements.
   */
-  void remove_sql_condition(const Sql_condition *sql_condition);
+  void mark_sql_conditions_for_removal();
+
+  /**
+    Unmark SQL-conditions, which were marked for later removal.
+    This is done to simulate stacked DAs for HANDLER statements.
+  */
+  void unmark_sql_conditions_from_removal()
+  { m_marked_sql_conditions.empty(); }
+
+  /**
+    Remove SQL-conditions that are marked for deletion.
+    This is done to simulate stacked DAs for HANDLER statements.
+  */
+  void remove_marked_sql_conditions();
+
+  /**
+    Check if the given SQL-condition is marked for removal in this Warning_info
+    instance.
+
+    @param cond the SQL-condition.
+
+    @retval true if the given SQL-condition is marked for removal in this
+                 Warning_info instance.
+    @retval false otherwise.
+  */
+  bool is_marked_for_removal(const Sql_condition *cond) const;
+
+  /**
+    Mark a single SQL-condition for removal (add the given SQL-condition to the
+    removal list of this Warning_info instance).
+  */
+  void mark_condition_for_removal(Sql_condition *cond)
+  { m_marked_sql_conditions.push_back(cond, &m_warn_root); }
 
   /**
     Used for @@warning_count system variable, which prints
@@ -369,6 +410,14 @@ private:
   */
   ulong error_count() const
   { return m_warn_count[(uint) Sql_condition::WARN_LEVEL_ERROR]; }
+
+  /**
+    The number of conditions (errors, warnings and notes) in the list.
+  */
+  uint cond_count() const
+  {
+    return m_warn_list.elements();
+  }
 
   /** Id of the warning information area. */
   ulonglong id() const { return m_warn_id; }
@@ -473,37 +522,58 @@ private:
 
   // for:
   //   - m_next_in_da / m_prev_in_da
+  //   - is_marked_for_removal()
   friend class Diagnostics_area;
 };
 
-extern char *err_conv(char *buff, uint to_length, const char *from,
-                      uint from_length, const CHARSET_INFO *from_cs);
+uint err_conv(char *buff, uint to_length, const char *from,
+              uint from_length, const CHARSET_INFO *from_cs);
 
 class ErrConvString
 {
   char err_buffer[MYSQL_ERRMSG_SIZE];
-
+  uint buf_length;
 public:
   ErrConvString(String *str)
   {
-    (void) err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
-                    str->length(), str->charset());
+    buf_length= err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
+                         str->length(), str->charset());
   }
 
   ErrConvString(const char *str, const CHARSET_INFO* cs)
   {
-    (void) err_conv(err_buffer, sizeof(err_buffer),
-                    str, strlen(str), cs);
+    buf_length= err_conv(err_buffer, sizeof(err_buffer), str, strlen(str), cs);
+  }
+
+  ErrConvString(const char *str, uint length)
+  {
+    buf_length= err_conv(err_buffer, sizeof(err_buffer), str, length,
+                         &my_charset_latin1);
   }
 
   ErrConvString(const char *str, uint length, const CHARSET_INFO* cs)
   {
-    (void) err_conv(err_buffer, sizeof(err_buffer),
-                    str, length, cs);
+    buf_length= err_conv(err_buffer, sizeof(err_buffer), str, length, cs);
   }
 
+  ErrConvString(longlong nr)
+  {
+    buf_length= my_snprintf(err_buffer, sizeof(err_buffer), "%lld", nr);
+  }
+
+  ErrConvString(longlong nr, bool unsigned_flag)
+  {
+    buf_length= longlong10_to_str(nr, err_buffer, unsigned_flag ? 10 : -10) -
+                err_buffer;
+  }
+
+  ErrConvString(double nr);
+  ErrConvString(const my_decimal *nr);
+  ErrConvString(const struct st_mysql_time *ltime, uint dec);
+ 
   ~ErrConvString() { };
   char *ptr() { return err_buffer; }
+  uint length() const { return buf_length; }
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -672,6 +742,9 @@ public:
   ulong warn_count() const
   { return get_warning_info()->warn_count(); }
 
+  uint cond_count() const
+  { return get_warning_info()->cond_count(); }
+
   Sql_condition_iterator sql_conditions() const
   { return get_warning_info()->m_warn_list; }
 
@@ -691,8 +764,14 @@ public:
                                             sql_errno, sqlstate, level, msg);
   }
 
-  void remove_sql_condition(const Sql_condition *sql_condition)
-  { get_warning_info()->remove_sql_condition(sql_condition); }
+  void mark_sql_conditions_for_removal()
+  { get_warning_info()->mark_sql_conditions_for_removal(); }
+
+  void unmark_sql_conditions_from_removal()
+  { get_warning_info()->unmark_sql_conditions_from_removal(); }
+
+  void remove_marked_sql_conditions()
+  { get_warning_info()->remove_marked_sql_conditions(); }
 
   const Sql_condition *get_error_condition() const
   { return get_warning_info()->get_error_condition(); }
@@ -780,5 +859,60 @@ uint32 convert_error_message(char *to, uint32 to_length,
                              const CHARSET_INFO *from_cs, uint *errors);
 
 extern const LEX_STRING warning_level_names[];
+
+bool is_sqlstate_valid(const LEX_STRING *sqlstate);
+
+
+/**
+  Checks if the specified SQL-state-string defines COMPLETION condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param s the condition SQLSTATE.
+
+  @retval true if the given string defines COMPLETION condition.
+  @retval false otherwise.
+*/
+inline bool is_sqlstate_completion(const char *s)
+{ return s[0] == '0' && s[1] == '0'; }
+
+
+/**
+  Checks if the specified SQL-state-string defines WARNING condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param s the condition SQLSTATE.
+
+  @retval true if the given string defines WARNING condition.
+  @retval false otherwise.
+*/
+inline bool is_sqlstate_warning(const char *s)
+{ return s[0] == '0' && s[1] == '1'; }
+
+
+/**
+  Checks if the specified SQL-state-string defines NOT FOUND condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param s the condition SQLSTATE.
+
+  @retval true if the given string defines NOT FOUND condition.
+  @retval false otherwise.
+*/
+inline bool is_sqlstate_not_found(const char *s)
+{ return s[0] == '0' && s[1] == '2'; }
+
+
+/**
+  Checks if the specified SQL-state-string defines EXCEPTION condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param s the condition SQLSTATE.
+
+  @retval true if the given string defines EXCEPTION condition.
+  @retval false otherwise.
+*/
+inline bool is_sqlstate_exception(const char *s)
+{ return s[0] != '0' || s[1] > '2'; }
+
 
 #endif // SQL_ERROR_H

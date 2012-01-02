@@ -2903,7 +2903,7 @@ int ha_ndbcluster::write_row(uchar *record)
 
   ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
 
   if (!(op= trans->getNdbOperation(m_table)))
     ERR_RETURN(trans->getNdbError());
@@ -3144,7 +3144,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
   {
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
     bitmap_set_bit(table->write_set, table->timestamp_field->field_index);
   }
 
@@ -11136,7 +11136,8 @@ mysql_declare_plugin(ndbcluster)
   0x0100 /* 1.0 */,
   ndb_status_variables_export,/* status variables                */
   system_variables,           /* system variables                */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0,                          /* flags                           */
 }
 mysql_declare_plugin_end;
 

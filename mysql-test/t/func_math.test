@@ -135,12 +135,14 @@ DROP TABLE t1;
 #
 # InnoDB is required to reproduce the fault, but it is okay if we default to
 # MyISAM when testing.
+SET timestamp=UNIX_TIMESTAMP('2001-01-01 00:00:00');
 --disable_warnings
 create table t1 (a varchar(90), ts datetime not null, index (a)) engine=innodb default charset=utf8;
 --enable_warnings
 insert into t1 values ('http://www.foo.com/', now());
 select a from t1 where a='http://www.foo.com/' order by abs(timediff(ts, 0));
 drop table t1;
+SET timestamp=DEFAULT;
 
 # End of 4.1 tests
 
@@ -536,6 +538,16 @@ SELECT 1 div null;
 --echo # Bug #11792200 - DIVIDING LARGE NUMBERS CAUSES STACK CORRUPTIONS
 --echo #
 select (1.175494351E-37 div 1.7976931348623157E+308);
+
+--echo #
+--echo # Bug#12744991 - DECIMAL_ROUND(X,D) GIVES WRONG RESULTS WHEN D == N*(-9)
+--echo #
+
+select round(999999999, -9);
+select round(999999999.0, -9);
+select round(999999999999999999, -18);
+select round(999999999999999999.0, -18);
+
 
 --echo #
 --echo # Bug#12537160 ASSERTION FAILED:

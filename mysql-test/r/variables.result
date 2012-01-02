@@ -504,7 +504,7 @@ set low_priority_updates=1;
 set global max_allowed_packet=100;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '100'
-Warning	1732	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 set global max_binlog_cache_size=100;
 Warnings:
 Warning	1292	Truncated incorrect max_binlog_cache_size value: '100'
@@ -581,7 +581,6 @@ Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '100'
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
-set log_warnings=1;
 set global log_warnings=1;
 select @@session.insert_id;
 @@session.insert_id
@@ -981,6 +980,8 @@ ssl_ca	#
 ssl_capath	#
 ssl_cert	#
 ssl_cipher	#
+ssl_crl	#
+ssl_crlpath	#
 ssl_key	#
 select * from information_schema.session_variables where variable_name like 'ssl%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -988,6 +989,8 @@ SSL_CA	#
 SSL_CAPATH	#
 SSL_CERT	#
 SSL_CIPHER	#
+SSL_CRL	#
+SSL_CRLPATH	#
 SSL_KEY	#
 select @@log_queries_not_using_indexes;
 @@log_queries_not_using_indexes
@@ -1052,7 +1055,7 @@ set global myisam_data_pointer_size  =@my_myisam_data_pointer_size;
 set global myisam_max_sort_file_size =@my_myisam_max_sort_file_size;
 set global net_buffer_length         =@my_net_buffer_length;
 Warnings:
-Warning	1732	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
 set global query_cache_limit         =@my_query_cache_limit;

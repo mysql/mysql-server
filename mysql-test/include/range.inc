@@ -1503,3 +1503,164 @@ let $query= SELECT * FROM t100 WHERE I <> 6 OR (I <> 8 AND J = 5);
 --eval $query
 
 DROP TABLE t10,t100;
+
+--echo #
+--echo # BUG#12698916 - JOIN QUERY GIVES WRONG RESULT AT 2ND EXEC. OR
+--echo # AFTER FLUSH TABLES [-INT VS NULL]
+--echo #
+CREATE TABLE t1 (col_int INT, pk INT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (-100,1),(1,6);
+
+CREATE TABLE t2 (
+  col_int_key INT,
+  col_varchar VARCHAR(100) NOT NULL DEFAULT "DEFAULT",
+  pk INT NOT NULL,
+  PRIMARY KEY (pk),
+  KEY (col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES
+(1,"GOOD",1),(100,"",2),(200,"",3),(300,"",4),(400,"",5),(500,"",8);
+
+let $query=SELECT t1.*,t2.* FROM t1 straight_join t2
+ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+
+eval EXPLAIN $query;
+eval $query;
+--echo # need FLUSH so that InnoDB statistics change and thus plan changes
+FLUSH TABLES;
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#12694872 - 
+--echo # VALGRIND: 18,816 BYTES IN 196 BLOCKS ARE DEFINITELY LOST IN UNIQUE::GET
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER NOT NULL,
+  col_int_key INTEGER NOT NULL,
+
+  col_date_key DATE NOT NULL,
+
+  col_varchar_key VARCHAR(1) NOT NULL,
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_date_key),
+  KEY (col_varchar_key, col_int_key)
+);
+
+INSERT INTO t1 (
+   col_int_key,
+   col_int_nokey,
+   col_date_key,
+   col_varchar_key,
+   col_varchar_nokey
+) VALUES 
+(0, 4, '2011-08-25', 'j', 'j'),
+(8, 6, '2004-09-18', 'v', 'v'),
+(1, 3, '2009-12-01', 'c', 'c'),
+(8, 5, '2004-12-17', 'm', 'm'),
+(9, 3, '2000-03-14', 'd', 'd'),
+(6, 2, '2006-05-25', 'y', 'y'),
+(1, 9, '2008-01-23', 't', 't'),
+(6, 3, '2007-06-18', 'd', 'd'),
+(2, 8, '2002-10-13', 's', 's'),
+(4, 1, '1900-01-01', 'r', 'r'),
+(8, 8, '1959-04-25', 'm', 'm'),
+(4, 8, '2006-03-09', 'b', 'b'),
+(4, 5, '2001-06-05', 'x', 'x'),
+(7, 7, '2006-05-28', 'g', 'g'),
+(4, 5, '2001-04-19', 'p', 'p'),
+(1, 1, '1900-01-01', 'q', 'q'),
+(9, 6, '2004-08-20', 'w', 'w'),
+(4, 2, '2004-10-10', 'd', 'd'),
+(8, 9, '2000-04-02', 'e', 'e')
+;
+
+let $query=
+SELECT table2.col_date_key AS field1,
+       CONCAT ( table2.col_varchar_nokey, table1.col_varchar_nokey ) AS field2
+FROM ( t1 AS table1 INNER JOIN t1 AS table2
+       ON (( table2.pk <> table1.pk ) AND
+           ( table2.pk >= table1.col_int_nokey ) ) )
+WHERE ( table1.pk > 226 AND
+        table1.pk < ( 226 + 102 ) OR
+        ( table1.col_int_key > 226 AND
+          table1.col_int_key < ( 226 + 36 ) OR
+          ( table1.col_varchar_key <= 'h' OR
+            table1.col_int_key > 226 AND
+            table1.col_int_key < ( 226 + 227 ) )
+        ) 
+      )
+;
+
+ALTER TABLE t1 DISABLE KEYS;
+sorted_result;
+eval $query;
+ALTER TABLE t1 ENABLE KEYS;
+
+eval CREATE TABLE t2 $query;
+
+sorted_result;
+eval SELECT * FROM t2
+     WHERE (field1, field2) IN ($query);
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#12912171 - ASSERTION FAILED: QUICK->HEAD->READ_SET ==
+--echo # SAVE_READ_SET
+--echo #
+CREATE TABLE t1 (
+ a INT,
+ b INT,
+ c INT,
+ PRIMARY KEY (c,a), KEY (a),KEY (a)
+) ENGINE=INNODB PARTITION BY KEY () PARTITIONS 2;
+INSERT INTO t1 VALUES (1,5,1),(2,4,1),(3,3,1),(4,2,1),(5,1,1);
+UPDATE t1 SET b = 0, c=1 WHERE a <=>0;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#13256446 - ASSERTION QUICK->HEAD->READ_SET ==
+--echo # SAVE_READ_SET' FAILED IN OPT_RANGE.CC:1606 
+--echo #
+CREATE TABLE t1 (
+ f1 INT AUTO_INCREMENT,
+ f2 INT,
+ f3 INT,
+ f4 INT,
+ PRIMARY KEY (f1),KEY(f2)
+) ENGINE=INNODB;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT f1,f2,f3,f4 FROM t1 WHERE f2=103;
+INSERT INTO t1 VALUES (154,0,NULL,0),(0,NULL,9,0),
+ (NULL,102,NULL,3),(0,3,NULL,0), (9,0,NULL,0),(0,9,NULL,157);
+SELECT * FROM v2;
+UPDATE v2 SET f4=0, f2=NULL, f1=NULL WHERE f1 > 16 ORDER BY f1;
+SELECT * FROM v2;
+DROP TABLE t1;
+DROP VIEW v2;
+
+CREATE TABLE t1 (
+ f1 INT AUTO_INCREMENT,
+ f2 INT,
+ f3 INT,
+ f4 INT,
+ PRIMARY KEY (f1),KEY(f2)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1,NULL,NULL,0), (2,2,0,3), (9,0,107,18),
+ (10,0,0,0), (231,0,0,0), (232,0,8,0), (234,0,0,NULL), (235,8,0,3);
+CREATE ALGORITHM=MERGE VIEW v3 AS SELECT f1,f2,f3,f4 FROM t1 WHERE f1<=85 ;
+SELECT * FROM v3;
+UPDATE v3 SET f3=0, f4=4 WHERE f2=68 ORDER BY f1; 
+SELECT * FROM v3;
+DROP TABLE t1;
+DROP VIEW v3;

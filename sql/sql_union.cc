@@ -26,15 +26,17 @@
 #include "sql_cursor.h"
 #include "sql_base.h"                           // fill_record
 #include "filesort.h"                           // filesort_free_buffers
+#include "sql_tmp_table.h"                      // tmp tables
+#include "sql_optimizer.h"                      // JOIN
 
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)
 {
   DBUG_ENTER("mysql_union");
-  bool res;
-  if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
-                           setup_tables_done_option)))
-    res= unit->exec();
+  bool res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
+                           setup_tables_done_option) ||
+            unit->optimize() ||
+            unit->exec();
   res|= unit->cleanup();
   DBUG_RETURN(res);
 }
@@ -119,19 +121,23 @@ bool
 select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
                                   bool is_union_distinct, ulonglong options,
                                   const char *table_alias,
-                                  bool bit_fields_as_long)
+                                  bool bit_fields_as_long, bool create_table)
 {
   DBUG_ASSERT(table == 0);
   tmp_table_param.init();
   tmp_table_param.field_count= column_types->elements;
+  tmp_table_param.skip_create_table= !create_table;
   tmp_table_param.bit_fields_as_long= bit_fields_as_long;
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  (ORDER*) 0, is_union_distinct, 1,
                                  options, HA_POS_ERROR, (char*) table_alias)))
     return TRUE;
-  table->file->extra(HA_EXTRA_WRITE_CACHE);
-  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  if (create_table)
+  {
+    table->file->extra(HA_EXTRA_WRITE_CACHE);
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  }
   return FALSE;
 }
 
@@ -152,20 +158,22 @@ void select_union::cleanup()
 }
 
 
-/*
-  initialization procedures before fake_select_lex preparation()
+/**
+  Initialization procedures before fake_select_lex preparation()
 
-  SYNOPSIS
-    st_select_lex_unit::init_prepare_fake_select_lex()
-    thd		- thread handler
+  @param thd		 Thread handler
+  @param no_const_tables Skip reading const tables. TRUE for EXPLAIN.
 
-  RETURN
-    options of SELECT
+  @returns
+    TRUE  OOM
+    FALSE Ok
 */
 
-void
-st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg) 
+bool
+st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg,
+                                                 bool no_const_tables)
 {
+  DBUG_ENTER("st_select_lex_unit::init_prepare_fake_select_lex");
   thd_arg->lex->current_select= fake_select_lex;
   fake_select_lex->table_list.link_in_list(&result_table_list,
                                            &result_table_list.next_local);
@@ -186,6 +194,42 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg)
     (*order->item)->walk(&Item::change_context_processor, 0,
                          (uchar*) &fake_select_lex->context);
   }
+  if (!fake_select_lex->join)
+  {
+    /*
+      allocate JOIN for fake select only once (prevent
+      mysql_select automatic allocation)
+      TODO: The above is nonsense. mysql_select() will not allocate the
+      join if one already exists. There must be some other reason why we
+      don't let it allocate the join. Perhaps this is because we need
+      some special parameter values passed to join constructor?
+    */
+    if (!(fake_select_lex->join=
+        new JOIN(thd, item_list, fake_select_lex->options, result)))
+    {
+      fake_select_lex->table_list.empty();
+      DBUG_RETURN(true);
+    }
+    fake_select_lex->join->init(thd, item_list, fake_select_lex->options,
+                                result);
+    fake_select_lex->join->no_const_tables= no_const_tables;
+
+    /*
+      Fake st_select_lex should have item list for correct ref_array
+      allocation.
+    */
+    fake_select_lex->item_list= item_list;
+
+    /*
+      We need to add up n_sum_items in order to make the correct
+      allocation in setup_ref_array().
+      Don't add more sum_items if we have already done JOIN::prepare
+      for this (with a different join object)
+    */
+    if (fake_select_lex->ref_pointer_array.is_null())
+      fake_select_lex->n_child_sum_items+= global_parameters->n_sum_items;
+  }
+  DBUG_RETURN(false);
 }
 
 
@@ -224,6 +268,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
         sl->join->select_options|= SELECT_DESCRIBE;
         sl->join->reset();
       }
+      if (fake_select_lex->join)
+        fake_select_lex->join->result= result;
     }
     DBUG_RETURN(FALSE);
   }
@@ -388,7 +434,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       create_options= create_options | TMP_TABLE_FORCE_MYISAM;
 
     if (union_result->create_result_table(thd, &types, test(union_distinct),
-                                          create_options, "", FALSE))
+                                          create_options, "", FALSE, TRUE))
       goto err;
     memset(&result_table_list, 0, sizeof(result_table_list));
     result_table_list.db= (char*) "";
@@ -413,30 +459,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       if (thd->stmt_arena->is_stmt_prepare())
       {
         /* Validate the global parameters of this union */
-
-	init_prepare_fake_select_lex(thd);
-        /* Should be done only once (the only item_list per statement) */
-        DBUG_ASSERT(fake_select_lex->join == 0);
-	if (!(fake_select_lex->join=
-              new JOIN(thd, item_list, thd->variables.option_bits, result)))
-	{
-	  fake_select_lex->table_list.empty();
-	  DBUG_RETURN(TRUE);
-	}
-
-        /*
-          Fake st_select_lex should have item list for correct ref_array
-          allocation.
-        */
-	fake_select_lex->item_list= item_list;
-
-        thd_arg->lex->current_select= fake_select_lex;
-
-        /*
-          We need to add up n_sum_items in order to make the correct
-          allocation in setup_ref_array().
-        */
-        fake_select_lex->n_child_sum_items+= global_parameters->n_sum_items;
+        init_prepare_fake_select_lex(thd, false);
 
 	saved_error= fake_select_lex->join->
 	  prepare(fake_select_lex->table_list.first, // tables_init
@@ -473,19 +496,137 @@ err:
 }
 
 
+/**
+  Run optimization phase.
+
+  @return FALSE unit successfully passed optimization phase.
+  @return TRUE an error occur.
+*/
+
+bool st_select_lex_unit::optimize()
+{
+  DBUG_ENTER("st_select_lex_unit::optimize");
+
+  if (optimized && item && item->assigned() && !uncacheable && !describe)
+    DBUG_RETURN(FALSE);
+
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  {
+    DBUG_ASSERT(sl->join);
+    if (optimized)
+    {
+      saved_error= false;
+      sl->join->reset();
+    }
+    else
+    {
+      SELECT_LEX *lex_select_save= thd->lex->current_select;
+      thd->lex->current_select= sl;
+      set_limit(sl);
+      if ((sl == global_parameters && is_union()) || describe)
+      {
+        offset_limit_cnt= 0;
+        /*
+          We can't use LIMIT at this stage if we are using ORDER BY for the
+          whole UNION.
+        */
+        if (sl->order_list.first || describe)
+          select_limit_cnt= HA_POS_ERROR;
+      }
+
+      /*
+        When using braces, SQL_CALC_FOUND_ROWS affects the whole query:
+        we don't calculate found_rows() per union part.
+        Otherwise, SQL_CALC_FOUND_ROWS should be done on all sub parts.
+      */
+      sl->join->select_options= 
+        (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
+        sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
+
+      saved_error= sl->join->optimize();
+      /* Save estimated number of rows. */
+      result->estimated_rowcount+= sl->join->best_rowcount;
+      thd->lex->current_select= lex_select_save;
+    }
+    if (saved_error)
+      break;
+  }
+  if (!saved_error)
+    optimized= 1;
+
+  DBUG_RETURN(saved_error);
+}
+
+
+/**
+  Explain UNION.
+*/
+
+void st_select_lex_unit::explain()
+{
+  SELECT_LEX *lex_select_save= thd->lex->current_select;
+  DBUG_ENTER("st_select_lex_unit::explain");
+  JOIN *join;
+
+  DBUG_ASSERT((is_union() || fake_select_lex) && describe && optimized);
+  executed= true;
+
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  {
+    DBUG_ASSERT(sl->join);
+    sl->join->explain();
+  }
+
+  if (init_prepare_fake_select_lex(thd, true))
+    DBUG_VOID_RETURN;
+
+  if (thd->is_fatal_error)
+    DBUG_VOID_RETURN;
+  join= fake_select_lex->join;
+  /*
+    In EXPLAIN command, constant subqueries that do not use any
+    tables are executed two times:
+     - 1st time is a real evaluation to get the subquery value
+     - 2nd time is to produce EXPLAIN output rows.
+    1st execution sets certain members (e.g. select_result) to perform
+    subquery execution rather than EXPLAIN line production. In order 
+    to reset them back, we re-do all of the actions (yes it is ugly).
+  */
+  if (!join->optimized || !join->tables)
+  {
+    saved_error= mysql_select(thd,
+                          &result_table_list,
+                          0, item_list, NULL,
+                          global_parameters->order_list.elements,
+                          global_parameters->order_list.first,
+                          NULL, NULL, NULL,
+                          fake_select_lex->options | SELECT_NO_UNLOCK,
+                          result, this, fake_select_lex);
+  }
+  else
+    join->explain();
+  thd->lex->current_select= lex_select_save;
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Execute UNION.
+*/
+
 bool st_select_lex_unit::exec()
 {
   SELECT_LEX *lex_select_save= thd->lex->current_select;
-  SELECT_LEX *select_cursor=first_select();
   ulonglong add_rows=0;
   ha_rows examined_rows= 0;
   DBUG_ENTER("st_select_lex_unit::exec");
+  DBUG_ASSERT((is_union() || fake_select_lex) && !describe && optimized);
 
-  if (executed && !uncacheable && !describe)
+  if (executed && !uncacheable)
     DBUG_RETURN(false);
   executed= true;
   
-  if (uncacheable || !item || !item->assigned() || describe)
+  if (uncacheable || !item || !item->assigned())
   {
     if (item)
       item->reset_value_registration();
@@ -503,40 +644,22 @@ bool st_select_lex_unit::exec()
         DBUG_ASSERT(0);
       }
     }
-    for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
+    for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     {
       ha_rows records_at_start= 0;
+      DBUG_ASSERT(sl->join);
       thd->lex->current_select= sl;
 
-      if (optimized)
+      set_limit(sl);
+      if (sl == global_parameters || describe)
       {
-        saved_error= false;
-        sl->join->reset();
-      }
-      else
-      {
-        set_limit(sl);
-        if (sl == global_parameters || describe)
-        {
-          offset_limit_cnt= 0;
-          /*
-            We can't use LIMIT at this stage if we are using ORDER BY for the
-            whole query
-          */
-          if (sl->order_list.first || describe)
-            select_limit_cnt= HA_POS_ERROR;
-        }
-
+        offset_limit_cnt= 0;
         /*
-          When using braces, SQL_CALC_FOUND_ROWS affects the whole query:
-          we don't calculate found_rows() per union part.
-          Otherwise, SQL_CALC_FOUND_ROWS should be done on all sub parts.
+          We can't use LIMIT at this stage if we are using ORDER BY for the
+          whole query
         */
-        sl->join->select_options= 
-          (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
-          sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
-
-        saved_error= sl->join->optimize();
+        if (sl->order_list.first || describe)
+          select_limit_cnt= HA_POS_ERROR;
       }
       if (!saved_error)
       {
@@ -588,111 +711,51 @@ bool st_select_lex_unit::exec()
       }
     }
   }
-  optimized= true;
 
-  /* Send result to 'result' */
-  saved_error= true;
+  if (!saved_error && !thd->is_fatal_error)
   {
+    /* Send result to 'result' */
+    saved_error= true;
     List<Item_func_match> empty_list;
     empty_list.empty();
 
-    if (!thd->is_fatal_error)				// Check if EOM
+    set_limit(global_parameters);
+    if (init_prepare_fake_select_lex(thd, true))
+      DBUG_RETURN(true);
+    JOIN *join= fake_select_lex->join;
+    if (!join->optimized)
     {
-      set_limit(global_parameters);
-      init_prepare_fake_select_lex(thd);
-      JOIN *join= fake_select_lex->join;
-      if (!join)
-      {
-        /*
-          allocate JOIN for fake select only once (prevent
-          mysql_select automatic allocation)
-          TODO: The above is nonsense. mysql_select() will not allocate the
-          join if one already exists. There must be some other reason why we
-          don't let it allocate the join. Perhaps this is because we need
-          some special parameter values passed to join constructor?
-	*/
-        if (!(fake_select_lex->join=
-            new JOIN(thd, item_list, fake_select_lex->options, result)))
-	{
-          fake_select_lex->table_list.empty();
-          DBUG_RETURN(true);
-	}
-        fake_select_lex->join->no_const_tables= true;
-
-        /*
-          Fake st_select_lex should have item list for correct ref_array
-          allocation.
-        */
-        fake_select_lex->item_list= item_list;
-
-        /*
-          We need to add up n_sum_items in order to make the correct
-          allocation in setup_ref_array().
-          Don't add more sum_items if we have already done JOIN::prepare
-          for this (with a different join object)
-        */
-        if (fake_select_lex->ref_pointer_array.is_null())
-          fake_select_lex->n_child_sum_items+= global_parameters->n_sum_items;
-
-        saved_error=
-          mysql_select(thd,
-                       &result_table_list,      // tables
-                       0,                       // wild_num
-                       item_list,               // fields
-                       NULL,                    // conds
-                       global_parameters->order_list.elements, // og_num
-                       global_parameters->order_list.first,    // order
-                       NULL,                    // group
-                       NULL,                    // having
-                       NULL,                    // proc_param
-                       fake_select_lex->options | SELECT_NO_UNLOCK,
-                       result,                  // result
-                       this,                    // unit
-                       fake_select_lex);        // select_lex
-      }
-      else
-      {
-        if (describe)
-        {
-          /*
-            In EXPLAIN command, constant subqueries that do not use any
-            tables are executed two times:
-             - 1st time is a real evaluation to get the subquery value
-             - 2nd time is to produce EXPLAIN output rows.
-            1st execution sets certain members (e.g. select_result) to perform
-            subquery execution rather than EXPLAIN line production. In order 
-            to reset them back, we re-do all of the actions (yes it is ugly):
-          */
-          join->init(thd, item_list, fake_select_lex->options, result);
-          saved_error= mysql_select(thd,
-                                &result_table_list,
-                                0, item_list, NULL,
-                                global_parameters->order_list.elements,
-                                global_parameters->order_list.first,
-                                NULL, NULL, NULL,
-                                fake_select_lex->options | SELECT_NO_UNLOCK,
-                                result, this, fake_select_lex);
-        }
-        else
-        {
-          join->examined_rows= 0;
-          saved_error= false;
-          join->reset();
-          join->exec();
-        }
-      }
-
-      fake_select_lex->table_list.empty();
-      if (!saved_error)
-      {
-	thd->limit_found_rows = (ulonglong)table->file->stats.records + add_rows;
-        thd->inc_examined_row_count(examined_rows);
-      }
-      /*
-        Mark for slow query log if any of the union parts didn't use
-        indexes efficiently
-      */
+      saved_error=
+        mysql_select(thd,
+                     &result_table_list,      // tables
+                     0,                       // wild_num
+                     item_list,               // fields
+                     NULL,                    // conds
+                     global_parameters->order_list.elements, // og_num
+                     global_parameters->order_list.first,    // order
+                     NULL,                    // group
+                     NULL,                    // having
+                     NULL,                    // proc_param
+                     fake_select_lex->options | SELECT_NO_UNLOCK,
+                     result,                  // result
+                     this,                    // unit
+                     fake_select_lex);        // select_lex
     }
+    else
+    {
+      join->examined_rows= 0;
+      saved_error= false;
+      join->reset();
+      join->exec();
+    }
+
+    fake_select_lex->table_list.empty();
+  }
+  if (!saved_error && !thd->is_fatal_error)
+  {
+
+    thd->limit_found_rows = (ulonglong)table->file->stats.records + add_rows;
+    thd->inc_examined_row_count(examined_rows);
   }
   thd->lex->current_select= lex_select_save;
   DBUG_RETURN(saved_error);

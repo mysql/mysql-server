@@ -77,6 +77,7 @@ void cleanup_setup_actor(void)
   setup_actor_max= 0;
 }
 
+C_MODE_START
 static uchar *setup_actor_hash_get_key(const uchar *entry, size_t *length,
                                        my_bool)
 {
@@ -91,6 +92,7 @@ static uchar *setup_actor_hash_get_key(const uchar *entry, size_t *length,
   result= setup_actor->m_key.m_hash_key;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
 }
+C_MODE_END
 
 /**
   Initialize the setup actor hash.

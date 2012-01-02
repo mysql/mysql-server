@@ -500,7 +500,7 @@ explain (select * from t1 where a=1 and b=10) union (select straight_join t1.a,t
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	UNION	t1	index	PRIMARY	PRIMARY	4	NULL	4	Using index
-2	UNION	t2	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index; Using join buffer (BNL, incremental buffers)
+2	UNION	t2	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index; Using join buffer (Block Nested Loop)
 NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1643,6 +1643,63 @@ b
 1
 2
 DROP TABLE t1,t2;
+#
+# Bug#11765255 58201:
+# VALGRIND/CRASH WHEN ORDERING BY MULTIPLE AGGREGATE FUNCTIONS
+#
+select 1 as foo
+union
+select 2
+union
+select 3
+union
+select 4
+order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
+;
+foo
+1
+prepare stmt1 from 'select 1 as foo
+union
+select 2
+union
+select 3
+union
+select 4
+order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
+';
+execute stmt1;
+foo
+1
+execute stmt1;
+foo
+1
+select 1 as foo
+union
+select 2
+union
+select 3
+union
+(select 4)
+order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
+;
+foo
+1
+prepare stmt1 from 'select 1 as foo
+union
+select 2
+union
+select 3
+union
+(select 4)
+order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
+';
+execute stmt1;
+foo
+1
+execute stmt1;
+foo
+1
+deallocate prepare stmt1;
 End of 5.1 tests
 #
 # Bug#57986 ORDER BY clause is not used after a UNION, 

@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -209,6 +209,17 @@ UNIV_INTERN
 void
 buf_LRU_stat_update(void);
 /*=====================*/
+
+/******************************************************************//**
+Remove one page from LRU list and put it to free list */
+UNIV_INTERN
+void
+buf_LRU_free_one_page(
+/*==================*/
+	buf_page_t*	bpage)	/*!< in/out: block, must contain a file page and
+				be in a state where it can be freed; there
+				may or may not be a hash index to the page */
+	__attribute__((nonnull));
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**

@@ -4192,6 +4192,40 @@ CREATE TABLE table_broken AS SELECT * FROM t1, t2, t3;
 
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # Bug#11766440 59546: Assertion m_sp == __null fails in
+--echo # Item_func_sp::init_result_field with functions
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE FUNCTION f1 () RETURNS INTEGER RETURN 1;
+CREATE FUNCTION f2 (i INTEGER) RETURNS INTEGER RETURN 1;
+CREATE VIEW v1 AS SELECT f1() AS a FROM t1;
+CREATE VIEW v2 AS SELECT f2(a) AS a FROM v1;
+DROP FUNCTION f1;
+--error ER_VIEW_INVALID
+SELECT f2(a) FROM v2;
+DROP VIEW v2;
+DROP VIEW v1;
+DROP FUNCTION f2;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#13418197: ASSERTION `(*TABLES)->REGINFO.LOCK_TYPE >=
+--echo #               TL_READ' FAILED | MYSQL_LOCK_TABLES
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TEMPORARY TABLE t1 (a INT) engine=InnoDB;
+CREATE VIEW t1 AS SELECT 1;
+
+DROP VIEW t1;
+DROP TEMPORARY TABLE t1;
+
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.

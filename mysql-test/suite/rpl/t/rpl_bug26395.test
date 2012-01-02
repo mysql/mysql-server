@@ -37,6 +37,10 @@ source include/have_innodb.inc;
 source include/have_debug.inc;
 source include/master-slave.inc;
 
+# test adapts simulation of incomplete transaction that MTS does not tolerate
+# when is stopped. So it reacts with an error whereas the single-threaded is fine.
+-- source include/not_mts_slave_parallel_workers.inc
+
 
 --echo ==== Initialize ====
 
@@ -66,7 +70,6 @@ source include/sync_slave_io_with_master.inc;
 
 # Sync slave's SQL thread.
 sync_with_master 0;
-
 
 --echo ==== Verify results on slave ====
 

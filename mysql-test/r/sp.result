@@ -1460,11 +1460,11 @@ create procedure h_es()
 deterministic
 begin
 declare continue handler for 1062 -- ER_DUP_ENTRY
-select 'Outer (good)' as 'h_es';
+select 'Outer (bad)' as 'h_es';
 begin
 -- integrity constraint violation
 declare continue handler for sqlstate '23000'
-      select 'Inner (bad)' as 'h_es';
+      select 'Inner (good)' as 'h_es';
 insert into t3 values (1);
 end;
 end|
@@ -1472,11 +1472,11 @@ create procedure h_en()
 deterministic
 begin
 declare continue handler for 1329 -- ER_SP_FETCH_NO_DATA
-select 'Outer (good)' as 'h_en';
+select 'Outer (bad)' as 'h_en';
 begin
 declare x int;
 declare continue handler for sqlstate '02000' -- no data
-select 'Inner (bad)' as 'h_en';
+select 'Inner (good)' as 'h_en';
 select a into x from t3 where a = 42;
 end;
 end|
@@ -1484,10 +1484,10 @@ create procedure h_ew()
 deterministic
 begin
 declare continue handler for 1264 -- ER_WARN_DATA_OUT_OF_RANGE
-select 'Outer (good)' as 'h_ew';
+select 'Outer (bad)' as 'h_ew';
 begin
 declare continue handler for sqlwarning
-select 'Inner (bad)' as 'h_ew';
+select 'Inner (good)' as 'h_ew';
 insert into t3 values (123456789012);
 end;
 delete from t3;
@@ -1497,10 +1497,10 @@ create procedure h_ex()
 deterministic
 begin
 declare continue handler for 1062 -- ER_DUP_ENTRY
-select 'Outer (good)' as 'h_ex';
+select 'Outer (bad)' as 'h_ex';
 begin
 declare continue handler for sqlexception
-select 'Inner (bad)' as 'h_ex';
+select 'Inner (good)' as 'h_ex';
 insert into t3 values (1);
 end;
 end|
@@ -1535,11 +1535,11 @@ begin
 -- Note: '02000' is more specific than NOT FOUND ;
 --       there might be other not found states 
 declare continue handler for sqlstate '02000' -- no data
-select 'Outer (good)' as 'h_sn';
+select 'Outer (bad)' as 'h_sn';
 begin
 declare x int;
 declare continue handler for not found
-select 'Inner (bad)' as 'h_sn';
+select 'Inner (good)' as 'h_sn';
 select a into x from t3 where a = 42;
 end;
 end|
@@ -1548,10 +1548,10 @@ deterministic
 begin
 -- data exception - numeric value out of range
 declare continue handler for sqlstate '22003'
-    select 'Outer (good)' as 'h_sw';
+    select 'Outer (bad)' as 'h_sw';
 begin
 declare continue handler for sqlwarning
-select 'Inner (bad)' as 'h_sw';
+select 'Inner (good)' as 'h_sw';
 insert into t3 values (123456789012);
 end;
 delete from t3;
@@ -1562,10 +1562,10 @@ deterministic
 begin
 -- integrity constraint violation
 declare continue handler for sqlstate '23000' 
-select 'Outer (good)' as 'h_sx';
+select 'Outer (bad)' as 'h_sx';
 begin
 declare continue handler for sqlexception
-select 'Inner (bad)' as 'h_sx';
+select 'Inner (good)' as 'h_sx';
 insert into t3 values (1);
 end;
 end|
@@ -1684,16 +1684,16 @@ h_ee
 Inner (good)
 call h_es()|
 h_es
-Outer (good)
+Inner (good)
 call h_en()|
 h_en
-Outer (good)
+Inner (good)
 call h_ew()|
 h_ew
-Outer (good)
+Inner (good)
 call h_ex()|
 h_ex
-Outer (good)
+Inner (good)
 call h_se()|
 h_se
 Inner (good)
@@ -1702,13 +1702,13 @@ h_ss
 Inner (good)
 call h_sn()|
 h_sn
-Outer (good)
+Inner (good)
 call h_sw()|
 h_sw
-Outer (good)
+Inner (good)
 call h_sx()|
 h_sx
-Outer (good)
+Inner (good)
 call h_ne()|
 h_ne
 Inner (good)
@@ -2724,20 +2724,23 @@ userid
 drop procedure bug8116|
 drop table t3|
 drop procedure if exists bug6857|
-create procedure bug6857(counter int)
+create procedure bug6857()
 begin
 declare t0, t1 int;
 declare plus bool default 0;
-set t0 = current_time();
-while counter > 0 do
-set counter = counter - 1;
-end while;
-set t1 = current_time();
+set t0 = unix_timestamp();
+select sleep(1.1);
+set t1 = unix_timestamp();
 if t1 > t0 then
 set plus = 1;
 end if;
 select plus;
 end|
+call bug6857()|
+sleep(1.1)
+0
+plus
+1
 drop procedure bug6857|
 drop procedure if exists bug8757|
 create procedure bug8757()
@@ -2917,8 +2920,8 @@ call bug6900_9074(0)|
 sqlexception
 sqlexception
 call bug6900_9074(1)|
-23000
-23000
+sqlexception
+sqlexception
 drop procedure bug6900|
 drop procedure bug9074|
 drop procedure bug6900_9074|
@@ -5425,13 +5428,9 @@ end|
 select func_20028_a()|
 func_20028_a()
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 select func_20028_b()|
 func_20028_b()
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 select func_20028_c()|
 ERROR 22012: Division by 0
 call proc_20028_a()|
@@ -5484,13 +5483,9 @@ end|
 select func_20028_a()|
 func_20028_a()
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 select func_20028_b()|
 func_20028_b()
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 select func_20028_c()|
 func_20028_c()
 NULL
@@ -6110,8 +6105,6 @@ END|
 SELECT bug5274_f2()|
 bug5274_f2()
 x
-Warnings:
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
 DROP FUNCTION bug5274_f1|
 DROP FUNCTION bug5274_f2|
 drop procedure if exists proc_21513|
@@ -6204,19 +6197,13 @@ c1
 SELECT f1(2);
 f1(2)
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 PREPARE s1 FROM 'SELECT f1(2)';
 EXECUTE s1;
 f1(2)
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 EXECUTE s1;
 f1(2)
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP FUNCTION f1;
@@ -6459,7 +6446,7 @@ DROP TABLE t1;
 
 CALL p1('text');
 Warnings:
-Warning	1264	Out of range value for column 'v' at row 1
+Warning	1265	Data truncated for column 'v' at row 1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -7026,6 +7013,21 @@ SET @@GLOBAL.init_connect= @old_init_connect;
 DROP PROCEDURE p2;
 DROP PROCEDURE p5;
 #
+# Bug#11840395 (formerly known as bug#60347):
+# The string "versiondata" seems
+# to be 'leaking' into the schema name space
+#
+DROP DATABASE IF EXISTS mixedCaseDbName;
+CREATE DATABASE mixedCaseDbName;
+CREATE PROCEDURE mixedCaseDbName.tryMyProc() begin end|
+CREATE FUNCTION mixedCaseDbName.tryMyFunc() returns text begin return 'IT WORKS'; end
+|
+call mixedCaseDbName.tryMyProc();
+select mixedCaseDbName.tryMyFunc();
+mixedCaseDbName.tryMyFunc()
+IT WORKS
+DROP DATABASE mixedCaseDbName;
+#
 # Bug#11766594  59736: SELECT DISTINCT.. INCORRECT RESULT WITH DETERMINISTIC FUNCTION IN WHERE C
 #
 CREATE TABLE t1 (a INT, b INT, KEY(b));
@@ -7286,17 +7288,17 @@ ERROR 42000: Undeclared variable: a
 # Try to use data types not allowed in LIMIT 
 #
 create procedure p1(p1 date, p2 date) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer type in LIMIT clause
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
 create procedure p1(p1 integer, p2 float) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer type in LIMIT clause
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
 create procedure p1(p1 integer, p2 char(1)) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer type in LIMIT clause
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
 create procedure p1(p1 varchar(5), p2 char(1)) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer type in LIMIT clause
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
 create procedure p1(p1 decimal, p2 decimal) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer type in LIMIT clause
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
 create procedure p1(p1 double, p2 double) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer type in LIMIT clause
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
 #
 # Finally, test the valid case.
 #
@@ -7332,9 +7334,117 @@ call p1(3, 2);
 c1
 4
 5
+# Try to create a function that
+# refers to non-existing variables.
+create function f1(p1 integer, p2 integer)
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit a, b);
+return a;
+end|
+ERROR 42000: Undeclared variable: b
+create function f1()
+returns int
+begin
+declare a, b, c int;
+set a = (select count(*) from t1 limit b, c);
+return a;
+end|
+# How do we handle NULL limit values?
+select f1();
+f1()
+NULL
+drop function f1;
+#
+# Try to use data types not allowed in LIMIT 
+#
+create function f1(p1 date, p2 date)
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit p1, p2);
+return a;
+end|
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
+create function f1(p1 integer, p2 float)
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit p1, p2);
+return a;
+end|
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
+create function f1(p1 integer, p2 char(1))
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit p1, p2);
+return a;
+end|
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
+create function f1(p1 varchar(5), p2 char(1))
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit p1, p2);
+return a;
+end|
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
+create function f1(p1 decimal, p2 decimal)
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit p1, p2);
+return a;
+end|
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
+create function f1(p1 double, p2 double)
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit p1, p2);
+return a;
+end|
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
+#
+# Finally, test the valid case.
+#
+create function f1(p1 integer, p2 integer)
+returns int
+begin
+declare count int;
+set count= (select count(*) from (select * from t1 limit p1, p2) t_1);
+return count;
+end|
+select f1(0, 0);
+f1(0, 0)
+0
+select f1(0, -1);
+f1(0, -1)
+5
+select f1(-1, 0);
+f1(-1, 0)
+0
+select f1(-1, -1);
+f1(-1, -1)
+0
+select f1(0, 1);
+f1(0, 1)
+1
+select f1(1, 0);
+f1(1, 0)
+0
+select f1(1, 5);
+f1(1, 5)
+4
+select f1(3, 2);
+f1(3, 2)
+2
 # Cleanup
 drop table t1;
 drop procedure p1;
+drop function f1;
 # 
 # BUG#11766234: 59299: ASSERT (TABLE_REF->TABLE || TABLE_REF->VIEW) 
 #               FAILS IN SET_FIELD_ITERATOR
@@ -7455,7 +7565,37 @@ b
 DROP TABLE t1;
 DROP PROCEDURE p1;
 
-# End of 5.5 test
+#
+# Bug#12621017 - Crash if a sp variable is used in the
+#                limit clause of a set statement
+#
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+CREATE PROCEDURE p1() 
+BEGIN 
+DECLARE foo, cnt INT UNSIGNED DEFAULT 1; 
+SET foo = (SELECT MIN(c1) FROM t1 LIMIT cnt); 
+END|
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE iLimit INT;
+DECLARE iVal INT;
+DECLARE cur1 CURSOR FOR
+SELECT c1 FROM t1
+LIMIT iLimit;
+SET iLimit=1;
+OPEN cur1;
+FETCH cur1 INTO iVal;
+END|
+CALL p1();
+CALL p2();
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
+# End of 5.5 tests
 #
 # Bug#12663165 SP DEAD CODE REMOVAL DOESN'T UNDERSTAND CONTINUE HANDLERS
 #
@@ -7475,6 +7615,55 @@ END $
 SELECT f1();
 f1()
 1
-Warnings:
-Error	1305	FUNCTION test.f1 does not exist
 DROP FUNCTION f1;
+#
+# Bug#12577230
+# RERUN OF STORED FUNCTION CAUSES SEGFAULT IN MAKE_JOIN_SELECT
+#
+CREATE TABLE t1 (a INT) ENGINE=myisam;
+INSERT INTO t1 VALUES (1);
+CREATE VIEW v1 AS SELECT a FROM t1;
+CREATE PROCEDURE p1()
+SELECT 1 FROM v1 JOIN t1 ON v1.a
+WHERE (SELECT 1 FROM t1 WHERE v1.a)
+;
+CALL p1();
+1
+1
+CALL p1();
+1
+1
+DROP PROCEDURE p1;
+DROP TABLE t1;
+DROP VIEW v1;
+#
+# WL#2111: Add non-reserved ROW_COUNT keyword.
+#
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE row_count INT DEFAULT 1;
+SELECT row_count;
+SELECT row_count();
+ROW_COUNT: WHILE row_count > 0 DO
+SET row_count = row_count - 1;
+END WHILE ROW_COUNT;
+SELECT ROW_COUNT;
+END|
+CALL p1();
+row_count
+1
+row_count()
+-1
+ROW_COUNT
+0
+DROP PROCEDURE p1;
+#
+# BUG #11748187 - 35410: STORED FUNCTION: CONFUSING 'ORDER CLAUSE' IN ERROR MESSAGE
+#
+DROP FUNCTION if exists f1;
+CREATE FUNCTION f1 (p_value INT) RETURNS INT DETERMINISTIC RETURN x;
+SELECT f1(1);
+ERROR 42S22: Unknown column 'x' in 'field list'
+DROP FUNCTION f1;
+# End of 5.6 tests

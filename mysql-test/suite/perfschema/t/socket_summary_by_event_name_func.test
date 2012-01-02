@@ -1,0 +1,333 @@
+#
+# Some functional checks for the content of the performance_schema table
+# socket_summary_by_event_name.
+#
+# Created: cpowers 2011-08-18
+#==============================================================================
+#
+# Performance schema table socket_summary_by_event_name holds statistics
+# aggreagated by event name. Table socket_summary_by_instances maintains statistics
+# per socket instance.
+#
+# This test verifies that the statistics in socket_summary_by_event_name
+# are consistent with those in socket_summary_by_instance.
+#
+#==============================================================================
+# Embedded server does not support the performance_schema.
+--source include/not_embedded.inc
+
+# Not much can happen without the performance schema
+--source include/have_perfschema.inc
+
+# Wait for any clients from previous tests to disconnect
+--source ../include/wait_for_pfs_thread_count.inc
+
+# The values in the performance_schema tables depend on how much communication
+# happens per SQL statement within our MTR tests. And there is a significant
+# difference between standard statement execution and execution via
+# prepared statement.
+--source ../include/no_protocol.inc
+
+# Set this to enable debugging output
+let $my_socket_debug= 0;
+
+--echo #==============================================================================
+--echo # Establish the level of IPV6 support
+--echo #==============================================================================
+--source ../include/socket_ipv6.inc
+
+--echo #==============================================================================
+--echo # Get hostname, port number
+--echo #==============================================================================
+SELECT @@hostname INTO @MY_HOSTNAME;
+SELECT @@port INTO @MY_MASTER_PORT;
+
+if ($my_socket_debug)
+{
+  SELECT @MY_HOSTNAME AS 'Hostname';
+  SELECT @MY_MASTER_PORT AS 'Master Port';
+  --echo MASTER_MYPORT=$MASTER_MYPORT
+}
+#==============================================================================
+# Utility queries
+#==============================================================================
+let $count_client_connections=
+  SELECT COUNT(*) INTO @my_client_connections
+  FROM performance_schema.socket_instances
+  WHERE EVENT_NAME LIKE "%client_connection%";
+
+let $get_thread_id=
+  SELECT THREAD_ID INTO @my_thread_id
+  FROM performance_schema.threads
+  WHERE PROCESSLIST_ID = CONNECTION_ID();
+
+let $get_object_instance_begin=
+  SELECT OBJECT_INSTANCE_BEGIN INTO @my_object_instance_begin
+  FROM performance_schema.socket_instances
+  WHERE THREAD_ID = @my_thread_id;
+
+let $get_port=
+  SELECT PORT INTO @my_port
+  FROM performance_schema.socket_instances
+  WHERE THREAD_ID = @my_thread_id;
+
+let $get_write_count=
+SELECT sum(SUM_NUMBER_OF_BYTES_WRITE) INTO @my_write_count
+  FROM performance_schema.socket_summary_by_instance;
+#==============================================================================
+# Testcase queries
+#==============================================================================
+let $insert_totals=
+  INSERT INTO mysqltest.my_socket_summary SELECT EVENT_NAME,
+    SUM(t1.COUNT_STAR),  SUM(t1.SUM_TIMER_WAIT),  SUM(t1.MIN_TIMER_WAIT),  SUM(t1.AVG_TIMER_WAIT),  SUM(t1.MAX_TIMER_WAIT),
+    SUM(t1.COUNT_READ),  SUM(t1.SUM_TIMER_READ),  SUM(t1.MIN_TIMER_READ),  SUM(t1.AVG_TIMER_READ),  SUM(t1.MAX_TIMER_READ),  SUM(t1.SUM_NUMBER_OF_BYTES_READ),
+    SUM(t1.COUNT_WRITE), SUM(t1.SUM_TIMER_WRITE), SUM(t1.MIN_TIMER_WRITE), SUM(t1.AVG_TIMER_WRITE), SUM(t1.MAX_TIMER_WRITE), SUM(t1.SUM_NUMBER_OF_BYTES_WRITE),
+    SUM(t1.COUNT_MISC),  SUM(t1.SUM_TIMER_MISC),  SUM(t1.MIN_TIMER_MISC),  SUM(t1.AVG_TIMER_MISC),  SUM(t1.MAX_TIMER_MISC), NULL
+  FROM performance_schema.socket_summary_by_instance AS t1
+  WHERE EVENT_NAME LIKE '%client_connection%' GROUP BY EVENT_NAME;
+
+let $compare_tables_and_print=
+SELECT EVENT_NAME,
+    (SUM(t_inst.COUNT_STAR)     = t_name.COUNT_STAR)     AS CNT_STAR,
+    (SUM(t_inst.SUM_TIMER_WAIT) = t_name.SUM_TIMER_WAIT) AS SUM_WAIT,
+    (MAX(t_inst.MAX_TIMER_WAIT) = t_name.MAX_TIMER_WAIT) AS MAX_WAIT,
+#   (MIN(t_inst.MIN_TIMER_WAIT) = t_name.MIN_TIMER_WAIT) AS MIN_WAIT,
+    (SUM(t_inst.COUNT_READ)     = t_name.COUNT_READ)     AS CNT_READ,
+    (SUM(t_inst.SUM_TIMER_READ) = t_name.SUM_TIMER_READ) AS SUM_READ,
+    (MAX(t_inst.MAX_TIMER_READ) = t_name.MAX_TIMER_READ) AS MAX_READ,
+#   (MIN(t_inst.MIN_TIMER_READ) = t_name.MIN_TIMER_READ) AS MIN_READ,
+    (SUM(t_inst.SUM_NUMBER_OF_BYTES_READ) = t_name.SUM_NUMBER_OF_BYTES_READ) AS BYTES_READ,
+    (SUM(t_inst.COUNT_WRITE)     = t_name.COUNT_WRITE)     AS CNT_WRITE,
+    (SUM(t_inst.SUM_TIMER_WRITE) = t_name.SUM_TIMER_WRITE) AS SUM_WRITE,
+    (MAX(t_inst.MAX_TIMER_WRITE) = t_name.MAX_TIMER_WRITE) AS MAX_WRITE,
+#   (MIN(t_inst.MIN_TIMER_WRITE) = t_name.MIN_TIMER_WRITE) AS MIN_WRITE,
+    (SUM(t_inst.SUM_NUMBER_OF_BYTES_WRITE) = t_name.SUM_NUMBER_OF_BYTES_WRITE) AS BYTES_WRITE,
+    (SUM(t_inst.COUNT_MISC)     = t_name.COUNT_MISC)     AS CNT_MISC,
+    (SUM(t_inst.SUM_TIMER_MISC) = t_name.SUM_TIMER_MISC) AS SUM_MISC
+FROM performance_schema.socket_summary_by_instance t_inst
+JOIN performance_schema.socket_summary_by_event_name t_name
+USING (EVENT_NAME)
+WHERE t_inst.event_name LIKE '%client%'
+  AND t_inst.object_instance_begin <> @default_object_instance_begin;
+
+let $compare_tables_and_verify=
+SELECT (
+    (SUM(t_inst.COUNT_STAR)     = t_name.COUNT_STAR)       AND
+    (SUM(t_inst.SUM_TIMER_WAIT) = t_name.SUM_TIMER_WAIT)   AND
+    (MAX(t_inst.MAX_TIMER_WAIT) = t_name.MAX_TIMER_WAIT)   AND
+#   (MIN(t_inst.MIN_TIMER_WAIT) = t_name.MIN_TIMER_WAIT)   AND
+    (SUM(t_inst.COUNT_READ)     = t_name.COUNT_READ)       AND
+    (SUM(t_inst.SUM_TIMER_READ) = t_name.SUM_TIMER_READ)   AND
+    (MAX(t_inst.MAX_TIMER_READ) = t_name.MAX_TIMER_READ)   AND
+#   (MIN(t_inst.MIN_TIMER_READ) = t_name.MIN_TIMER_READ)   AND
+    (SUM(t_inst.SUM_NUMBER_OF_BYTES_READ) = t_name.SUM_NUMBER_OF_BYTES_READ) AND
+    (SUM(t_inst.COUNT_WRITE)     = t_name.COUNT_WRITE)     AND
+    (SUM(t_inst.SUM_TIMER_WRITE) = t_name.SUM_TIMER_WRITE) AND
+    (MAX(t_inst.MAX_TIMER_WRITE) = t_name.MAX_TIMER_WRITE) AND
+#   (MIN(t_inst.MIN_TIMER_WRITE) = t_name.MIN_TIMER_WRITE) AND
+    (SUM(t_inst.SUM_NUMBER_OF_BYTES_WRITE) = t_name.SUM_NUMBER_OF_BYTES_WRITE) AND
+    (SUM(t_inst.COUNT_MISC)     = t_name.COUNT_MISC)       AND
+    (SUM(t_inst.SUM_TIMER_MISC) = t_name.SUM_TIMER_MISC) ) = 1 INTO @tables_match
+FROM performance_schema.socket_summary_by_instance t_inst
+JOIN performance_schema.socket_summary_by_event_name t_name
+USING (EVENT_NAME)
+WHERE t_inst.event_name LIKE '%client%'
+  AND t_inst.object_instance_begin <> @default_object_instance_begin;
+
+--echo #==============================================================================
+--echo # 1.0 TEST INITIALIZATION
+--echo #==============================================================================
+--echo
+--echo # 1.1 Disable instrumentation of the default (this) connection
+--echo
+--connection default
+UPDATE performance_schema.threads
+  SET INSTRUMENTED='NO' WHERE PROCESSLIST_ID = CONNECTION_ID();
+
+--echo
+--echo # 1.2 Get the default THREAD_ID;
+--echo
+eval $get_thread_id;
+let $default_thread_id= `SELECT @my_thread_id`;
+
+--echo
+--echo # 1.3 Get the default OBJECT_INSTANCE_BEGIN
+--echo
+eval $get_object_instance_begin;
+let $default_object_instance_begin= `SELECT @my_object_instance_begin`;
+
+--disable_query_log
+SELECT @my_object_instance_begin INTO @default_object_instance_begin;
+--enable_query_log
+
+if ($my_socket_debug)
+{
+  --echo # Default object instance begin = $default_object_instance_begin
+  --echo # Default thread id = $default_thread_id
+}
+
+--echo
+--echo # 1.4 Create a test database
+--echo
+CREATE SCHEMA mysqltest;
+
+--echo
+--echo # 1.5 Create a table to store summary values from socket_summary_by_instance
+--echo        and socket_summary_by_event_name
+--echo
+CREATE TABLE mysqltest.my_socket_summary AS
+  SELECT * FROM performance_schema.socket_summary_by_instance
+  WHERE 1 = 0;
+
+--echo
+--echo # 1.6 Drop object_instance_begin from my_socket_summary
+--echo
+ALTER TABLE mysqltest.my_socket_summary
+  DROP COLUMN OBJECT_INSTANCE_BEGIN;
+
+--echo
+--echo # 1.7 Add an auto_inc column to my_socket_summary
+--echo
+ALTER TABLE mysqltest.my_socket_summary
+  ADD COLUMN (n INT AUTO_INCREMENT, PRIMARY KEY(n));
+
+--echo
+--echo # 1.8 Create test tables
+--echo
+CREATE TABLE mysqltest.t1 (n INT AUTO_INCREMENT, s1 VARCHAR(1024), PRIMARY KEY(n));
+CREATE TABLE mysqltest.t2 (n INT AUTO_INCREMENT, s1 VARCHAR(1024), PRIMARY KEY(n));
+
+--echo #==============================================================================
+--echo # 2.0 ESTABLISH CLIENT CONNECTIONS
+--echo #==============================================================================
+--echo
+--echo # 2.1 Connection 1 (tcp/ip, 127.0.0.1 or ::1)
+--echo
+--disable_query_log
+--connect (con1,$my_localhost,root,,,,$MASTER_MYPORT)
+--enable_query_log
+
+--echo
+--echo # 2.2 Connection 2 (localhost or unix domain socket)
+--echo
+--disable_query_log
+--connect (con2,localhost,root,,,,)
+--enable_query_log
+
+--echo #==============================================================================
+--echo # 3.0 RUN THE TESTS
+--echo #==============================================================================
+--echo
+--echo # 3.1 Clear performance schema tables
+--echo
+TRUNCATE performance_schema.socket_summary_by_instance;
+TRUNCATE performance_schema.socket_summary_by_event_name;
+
+--echo
+--echo # 3.2 Get the 'before' sum of bytes written from socket_summary_by_instance
+--echo       for later comparison to the 'after' byte count as a simple confirmation
+--echo       that the table was updated.
+--echo
+--connection default
+eval $get_write_count;
+let $my_count_before= `SELECT @my_write_count`;
+
+--echo
+--echo # 3.3 From connection 1, insert one a 1K row of data into t1
+--echo
+--connection con1
+USE mysqltest;
+INSERT INTO t1 (s1) VALUES (REPEAT('a', 1024));
+INSERT INTO t1 (s1) SELECT s1 FROM t1;
+
+--echo
+--echo # 3.4 From connection 2, insert one a 1K row of data into t2
+--echo
+--connection con2
+USE mysqltest;
+INSERT INTO t2 (s1) VALUES (REPEAT('a', 1024));
+INSERT INTO t2 (s1) SELECT s1 FROM t2;
+
+--echo
+--echo # 3.5 Get the 'after' sum of bytes written from socket_summary_by_instance
+--echo
+--connection default
+eval $get_write_count;
+let $my_count_after= `SELECT @my_write_count`;
+
+--echo
+--echo # 3.6 Verify that SUM_NUMBER_OF_BYTES_WRITE increased
+--echo
+
+if ($my_count_before >= $my_count_after)
+{
+  --echo
+  --echo # ERROR: Write count did not increaase
+  --echo #        Before = $my_count_before
+  --echo #        After  = $my_count_after
+  --echo
+  SELECT * FROM performance_schema.socket_summary_by_instance ORDER BY EVENT_NAME;
+  --echo
+  --echo # Abort
+  exit;
+}
+
+--echo
+--echo # socket_summary_by_instance was updated
+--echo
+
+--echo #==============================================================================
+--echo # 4.0 VERIFY RESULTS
+--echo #==============================================================================
+--echo
+--echo # 4.1 Verify that the totals in socket_summary_by_event_name are
+--echo       consistent with totals in socket_summary_by_instance
+--echo
+
+--disable_query_log
+eval $compare_tables_and_verify;
+
+if (`SELECT @tables_match = 0`)
+{
+  --echo
+  --echo # ERROR: Socket summary tables do not match
+  --echo # Column comparison results:
+  --echo
+   eval $compare_tables_and_print;
+  --enable_query_log
+  --echo
+  SELECT * FROM performance_schema.socket_summary_by_instance ORDER BY EVENT_NAME;
+  --echo
+  SELECT * FROM performance_schema.socket_summary_by_event_name ORDER BY EVENT_NAME;
+  --echo
+  --echo # Abort
+  exit;
+}
+--enable_query_log
+
+--echo #==============================================================================
+--echo # 5.0 Clean up
+--echo #==============================================================================
+
+--echo
+--echo # 5.1 Disconnect con1
+--echo
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo # 5.2 Disconnect con2
+--echo
+--connection con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo # 5.3 Drop mysqltest
+--echo
+--connection default
+DROP DATABASE mysqltest;
+
+exit;
+

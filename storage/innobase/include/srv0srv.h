@@ -26,8 +26,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -49,11 +49,12 @@ Created 10/10/1995 Heikki Tuuri
 #include "que0types.h"
 #include "trx0types.h"
 #include "srv0conc.h"
+#include "buf0checksum.h"
 
 extern const char*	srv_main_thread_op_info;
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
-extern const char	srv_mysql50_table_name_prefix[9];
+extern const char	srv_mysql50_table_name_prefix[10];
 
 /* When this event is set the lock timeout and InnoDB monitor
 thread starts running */
@@ -79,6 +80,9 @@ extern char*		srv_buf_dump_filename;
 and/or load it during startup. */
 extern char		srv_buffer_pool_dump_at_shutdown;
 extern char		srv_buffer_pool_load_at_startup;
+
+/* Whether to disable file system cache if it is defined */
+extern char		srv_disable_sort_file_cache;
 
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
@@ -106,26 +110,20 @@ extern FILE*	srv_misc_tmpfile;
 
 extern char*	srv_data_home;
 
-/** Server undo tablespaces directory, can be absolute path. */
-extern char*	srv_undo_dir;
-
-/** Number of undo tablespaces to use. */
-extern ulong	srv_undo_tablespaces;
-
-/* The number of undo segments to use */
-extern ulong	srv_undo_logs;
-
 #ifdef UNIV_LOG_ARCHIVE
 extern char*	srv_arch_dir;
 #endif /* UNIV_LOG_ARCHIVE */
 
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
-#ifndef UNIV_HOTBACKUP
 extern my_bool	srv_file_per_table;
-#else
-extern ibool	srv_file_per_table;
-#endif /* UNIV_HOTBACKUP */
+/** Sleep delay for threads waiting to enter InnoDB. In micro-seconds. */
+extern	ulong	srv_thread_sleep_delay;
+#if defined(HAVE_ATOMIC_BUILTINS)
+/** Maximum sleep delay (in micro-seconds), value of 0 disables it.*/
+extern	ulong	srv_adaptive_max_sleep_delay;
+#endif /* HAVE_ATOMIC_BUILTINS */
+
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
 /** Whether to check file format during startup.  A value of
@@ -136,6 +134,9 @@ extern ulint	srv_max_file_format_at_startup;
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
 
+/* Variable specifying the FTS parallel sort buffer size */
+extern ulong	srv_sort_buf_size;
+
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
@@ -143,8 +144,18 @@ Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
 #ifdef __WIN__
 extern ibool	srv_use_native_conditions;
-#endif
+#endif /* __WIN__ */
 #endif /* !UNIV_HOTBACKUP */
+
+/** Server undo tablespaces directory, can be absolute path. */
+extern char*	srv_undo_dir;
+
+/** Number of undo tablespaces to use. */
+extern ulong	srv_undo_tablespaces;
+
+/* The number of undo segments to use */
+extern ulong	srv_undo_logs;
+
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
@@ -165,6 +176,10 @@ extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern char	srv_adaptive_flushing;
 
+/* If this flag is TRUE, then we will load the indexes' (and tables') metadata
+even if they are marked as "corrupted". Mostly it is for DBA to process
+corrupted index and table */
+extern my_bool	srv_load_corrupted;
 
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
@@ -235,7 +250,7 @@ extern unsigned long long	srv_stats_persistent_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
-extern ibool	srv_use_checksums;
+extern ulong	srv_checksum_algorithm;
 
 extern ulong	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
@@ -274,6 +289,7 @@ extern ibool	srv_priority_boost;
 extern ulint	srv_n_lock_wait_count;
 
 extern ulint	srv_truncated_status_writes;
+extern ulint	srv_available_undo_logs;
 
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
@@ -531,15 +547,6 @@ srv_set_io_thread_op_info(
 	ulint		i,	/*!< in: the 'segment' of the i/o thread */
 	const char*	str);	/*!< in: constant char string describing the
 				state */
-/*********************************************************************//**
-The master thread controlling the server.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_master_thread(
-/*==============*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
 /*******************************************************************//**
 Tells the purge thread that there has been activity in the database
 and wakes up the purge thread if it is suspended (not sleeping).  Note
@@ -572,25 +579,6 @@ UNIV_INTERN
 void
 srv_wake_master_thread(void);
 /*========================*/
-/*********************************************************************//**
-A thread which prints the info output by various InnoDB monitors.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_monitor_thread(
-/*===============*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
-/*************************************************************************
-A thread which prints warnings about semaphore waits which have lasted
-too long. These can be used to track bugs which cause hangs.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_error_monitor_thread(
-/*=====================*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
 /******************************************************************//**
 Outputs to a file the output of the InnoDB Monitor.
 @return FALSE if not all information printed
@@ -655,13 +643,46 @@ enum srv_thread_type
 srv_get_active_thread_type(void);
 /*============================*/
 
+extern "C" {
+
+/*********************************************************************//**
+A thread which prints the info output by various InnoDB monitors.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+DECLARE_THREAD(srv_monitor_thread)(
+/*===============================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+
+/*********************************************************************//**
+The master thread controlling the server.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+DECLARE_THREAD(srv_master_thread)(
+/*==============================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+
+/*************************************************************************
+A thread which prints warnings about semaphore waits which have lasted
+too long. These can be used to track bugs which cause hangs.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+DECLARE_THREAD(srv_error_monitor_thread)(
+/*=====================================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+
 /*********************************************************************//**
 Purge coordinator thread that schedules the purge tasks.
 @return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
-srv_purge_coordinator_thread(
-/*=========================*/
+DECLARE_THREAD(srv_purge_coordinator_thread)(
+/*=========================================*/
 	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
 						required by os_thread_create */
 
@@ -670,10 +691,11 @@ Worker thread that reads tasks from the work queue and executes them.
 @return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
-srv_worker_thread(
-/*==============*/
+DECLARE_THREAD(srv_worker_thread)(
+/*==============================*/
 	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
 						required by os_thread_create */
+} /* extern "C" */
 
 /*******************************************************************//**
 Wakes up the worker threads. */
@@ -706,7 +728,7 @@ srv_release_threads(
 
 /**********************************************************************//**
 Check whether any background thread are active. If so print which thread
-is active. Send the threads wakeup signal. 
+is active. Send the threads wakeup signal.
 @return name of thread that is active or NULL */
 UNIV_INTERN
 const char*
@@ -770,6 +792,7 @@ struct export_var_struct{
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
 	ulint innodb_num_open_files;		/*!< fil_n_file_opened */
 	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
+	ulint innodb_available_undo_logs;       /*!< srv_available_undo_logs */
 };
 
 /** Thread slot in the thread table.  */
@@ -799,7 +822,6 @@ struct srv_slot_struct{
 
 #else /* !UNIV_HOTBACKUP */
 # define srv_use_adaptive_hash_indexes		FALSE
-# define srv_use_checksums			TRUE
 # define srv_use_native_aio			FALSE
 # define srv_force_recovery			0UL
 # define srv_set_io_thread_op_info(t,info)	((void) 0)

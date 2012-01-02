@@ -1244,3 +1244,14 @@ ALTER TABLE t1 FORCE;
 --disable_info
 
 DROP TABLE t1;
+
+--echo # Bug#11748057 (formerly known as 34972): ALTER TABLE statement doesn't
+--echo #                                         identify correct column name.
+--echo #
+
+CREATE TABLE t1 (c1 int unsigned , c2 char(100) not null default '');
+ALTER TABLE t1 ADD c3 char(16) NOT NULL DEFAULT '' AFTER c2,
+               MODIFY c2 char(100) NOT NULL DEFAULT '' AFTER c1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+

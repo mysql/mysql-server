@@ -446,8 +446,6 @@ create table t1 (a1 int key);
 create table t2 (b1 int);
 insert into t1 values (5);
 
-# The queries below do not give correct result when executed with subquery 
-# materialization (Bug#40037). Execution with semijoin is correct
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 explain select min(a1) from t1 where 7 in (select b1 from t2);
@@ -911,3 +909,23 @@ GROUP BY field3 ;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3; 
+
+
+--echo #
+--echo # Bug#13419028 - SUBQUERY MATERIALIZATION NOT USED IN CREATE
+--echo # SELECT
+--echo #
+
+CREATE TABLE t1(a int);
+INSERT INTO t1 values(1),(2);
+CREATE TABLE t2(a int);
+INSERT INTO t2 values(1),(2);
+
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT * FROM t2);
+FLUSH STATUS;
+SELECT * FROM t1 WHERE a IN (SELECT * FROM t2);
+CREATE TABLE t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2);
+SELECT * FROM t3;
+# prove that subquery materialization was used:
+SHOW STATUS LIKE "CREATED_TMP_TABLES";
+DROP TABLE t1,t2,t3;

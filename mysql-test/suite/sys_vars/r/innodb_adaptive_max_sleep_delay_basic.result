@@ -1,0 +1,46 @@
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+@@GLOBAL.innodb_adaptive_max_sleep_delay
+150000
+150000 Expected
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=100;
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=1000001;
+Warnings:
+Warning	1292	Truncated incorrect innodb_adaptive_max_sleep_delay value: '1000001'
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+@@GLOBAL.innodb_adaptive_max_sleep_delay
+1000000
+1000000 Expected
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=-1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_adaptive_max_sleep_delay value: '-1'
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+@@GLOBAL.innodb_adaptive_max_sleep_delay
+0
+0 Expected
+SELECT COUNT(@@GLOBAL.innodb_adaptive_max_sleep_delay);
+COUNT(@@GLOBAL.innodb_adaptive_max_sleep_delay)
+1
+1 Expected
+SELECT VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_adaptive_max_sleep_delay';
+VARIABLE_VALUE
+0
+100 Expected
+SELECT @@innodb_adaptive_max_sleep_delay = @@GLOBAL.innodb_adaptive_max_sleep_delay;
+@@innodb_adaptive_max_sleep_delay = @@GLOBAL.innodb_adaptive_max_sleep_delay
+1
+1000000 Expected
+SELECT COUNT(@@innodb_adaptive_max_sleep_delay);
+COUNT(@@innodb_adaptive_max_sleep_delay)
+1
+1 Expected
+SELECT COUNT(@@local.innodb_adaptive_max_sleep_delay);
+ERROR HY000: Variable 'innodb_adaptive_max_sleep_delay' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.innodb_adaptive_max_sleep_delay);
+ERROR HY000: Variable 'innodb_adaptive_max_sleep_delay' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT innodb_adaptive_max_sleep_delay = @@SESSION.innodb_adaptive_max_sleep_delay;
+ERROR 42S22: Unknown column 'innodb_adaptive_max_sleep_delay' in 'field list'
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=150000;

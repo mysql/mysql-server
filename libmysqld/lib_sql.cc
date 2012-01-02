@@ -37,6 +37,11 @@ C_MODE_START
 #include "errmsg.h"
 #include "embedded_priv.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 extern unsigned int mysql_server_last_errno;
 extern char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 static my_bool emb_read_query_result(MYSQL *mysql);
@@ -495,11 +500,14 @@ int init_embedded_server(int argc, char **argv, char **groups)
     This mess is to allow people to call the init function without
     having to mess with a fake argv
    */
-  int *argcp;
-  char ***argvp;
-  int fake_argc = 1;
-  char *fake_argv[] = { (char *)"", 0 };
-  const char *fake_groups[] = { "server", "embedded", 0 };
+  int *argcp= NULL;
+  char ***argvp= NULL;
+  int fake_argc= 1;
+  char *fake_argv[2];
+  char fake_server[]= "server";
+  char fake_embedded[]= "embedded";
+  char *fake_groups[]= { fake_server, fake_embedded, NULL };
+  char fake_name[]= "fake_name";
   my_bool acl_error;
 
   if (my_thread_init())
@@ -508,17 +516,21 @@ int init_embedded_server(int argc, char **argv, char **groups)
   if (argc)
   {
     argcp= &argc;
-    argvp= (char***) &argv;
+    argvp= &argv;
   }
   else
   {
+    fake_argv[0]= fake_name;
+    fake_argv[1]= NULL;
+
+    char **foo= &fake_argv[0];
     argcp= &fake_argc;
-    argvp= (char ***) &fake_argv;
+    argvp= &foo;
   }
   if (!groups)
-    groups= (char**) fake_groups;
+    groups= fake_groups;
 
-  my_progname= (char *)"mysql_embedded";
+  my_progname= "mysql_embedded";
 
   /*
     Perform basic logger initialization logger. Should be called after
@@ -690,7 +702,7 @@ void *create_embedded_thd(int client_flag)
   memset(&thd->net, 0, sizeof(thd->net));
 
   thread_count++;
-  threads.append(thd);
+  threads.push_front(thd);
   thd->mysys_var= 0;
   return thd;
 err:
@@ -888,7 +900,7 @@ write_eof_packet(THD *thd, uint server_status, uint statement_warn_count)
     is cleared between substatements, and mysqltest gets confused
   */
   thd->cur_data->embedded_info->warning_count=
-    (thd->spcont ? 0 : min(statement_warn_count, 65535));
+    (thd->spcont ? 0 : min(statement_warn_count, 65535U));
   return FALSE;
 }
 

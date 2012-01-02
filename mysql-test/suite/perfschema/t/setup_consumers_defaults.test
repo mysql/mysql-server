@@ -1,0 +1,18 @@
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+SELECT * FROM performance_schema.setup_consumers ORDER BY name;
+
+#
+# Verify that the consumer option settings cannot be changed or seen
+#
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@performance_schema_consumer_events_stages_current;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SET @@performance_schema_consumer_events_stages_current=0;
+
+SHOW VARIABLES LIKE "performance_schema_consumer%";

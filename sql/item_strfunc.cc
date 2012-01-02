@@ -55,6 +55,9 @@ C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
 
+using std::min;
+using std::max;
+
 /**
    @todo Remove this. It is not safe to use a shared String object.
  */
@@ -2421,7 +2424,7 @@ String *Item_func_format::val_str_ascii(String *str)
       return 0; /* purecov: inspected */
     nr= my_double_round(nr, (longlong) dec, FALSE, FALSE);
     str->set_real(nr, dec, &my_charset_numeric);
-    if (isnan(nr))
+    if (isnan(nr) || my_isinf(nr))
       return str;
     str_length=str->length();
   }
@@ -2477,6 +2480,7 @@ String *Item_func_format::val_str_ascii(String *str)
       For short values without thousands (<1000)
       replace decimal point to localized value.
     */
+    DBUG_ASSERT(dec_length <= str_length);
     ((char*) str->ptr())[str_length - dec_length]= lc->decimal_point;
   }
   return str;
@@ -2489,6 +2493,11 @@ void Item_func_format::print(String *str, enum_query_type query_type)
   args[0]->print(str, query_type);
   str->append(',');
   args[1]->print(str, query_type);
+  if(arg_count > 2)
+  {
+    str->append(',');
+    args[2]->print(str,query_type);
+  }
   str->append(')');
 }
 
@@ -2816,6 +2825,76 @@ err:
 }
 
 
+
+void Item_func_space::fix_length_and_dec()
+{
+  collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII); 
+  if (args[0]->const_item())
+  {
+    /* must be longlong to avoid truncation */
+    longlong count= args[0]->val_int();
+    if (args[0]->null_value)
+      goto end;
+    /*
+     Assumes that the maximum length of a String is < INT_MAX32. 
+     Set here so that rest of code sees out-of-bound value as such. 
+    */
+    if (count > INT_MAX32)
+      count= INT_MAX32;
+    fix_char_length_ulonglong(count); 
+    return;
+  }
+
+end:
+  max_length= MAX_BLOB_WIDTH;
+  maybe_null= 1;
+}
+
+
+String *Item_func_space::val_str(String *str)
+{
+  uint tot_length;
+  longlong count= args[0]->val_int();
+  const CHARSET_INFO *cs= collation.collation;
+   
+  if (args[0]->null_value)
+    goto err;				// string and/or delim are null
+  null_value= 0;
+
+  if (count <= 0 && (count == 0 || !args[0]->unsigned_flag))
+    return make_empty_result();
+  /*
+   Assumes that the maximum length of a String is < INT_MAX32. 
+   Bounds check on count:  If this is triggered, we will error. 
+  */
+  if ((ulonglong) count > INT_MAX32)
+    count= INT_MAX32;
+
+  // Safe length check
+  tot_length= (uint) count * cs->mbminlen;
+  if (tot_length > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        func_name(),
+                        current_thd->variables.max_allowed_packet);
+    goto err;
+   }
+
+  if (str->alloc(tot_length))
+    goto err;
+  str->length(tot_length);
+  str->set_charset(cs);
+  cs->cset->fill(cs, (char*) str->ptr(), tot_length, ' ');
+  return str; 
+
+err:
+  null_value= 1;
+  return 0;
+}
+
+
 void Item_func_rpad::fix_length_and_dec()
 {
   // Handle character set for args[0] and args[2].
@@ -3064,9 +3143,12 @@ String *Item_func_conv::val_str(String *str)
                                    from_base, &endptr, &err);
   }
 
-  ptr= longlong2str(dec, ans, to_base);
-  if (str->copy(ans, (uint32) (ptr-ans), default_charset()))
-    return make_empty_result();
+  if (!(ptr= longlong2str(dec, ans, to_base)) ||
+      str->copy(ans, (uint32) (ptr - ans), default_charset()))
+  {
+    null_value= 1;
+    return NULL;
+  }
   return str;
 }
 
@@ -3203,12 +3285,15 @@ void Item_func_weight_string::fix_length_and_dec()
   const CHARSET_INFO *cs= args[0]->collation.collation;
   collation.set(&my_charset_bin, args[0]->collation.derivation);
   flags= my_strxfrm_flag_normalize(flags, cs->levels_for_order);
+  field= args[0]->type() == FIELD_ITEM && args[0]->is_temporal() ?
+         ((Item_field *) (args[0]))->field : (Field *) NULL;
   /* 
     Use result_length if it was given explicitly in constructor,
     otherwise calculate max_length using argument's max_length
     and "nweights".
-  */
-  max_length= result_length ? result_length :
+  */  
+  max_length= field ? field->pack_length() :
+              result_length ? result_length :
               cs->mbmaxlen * max(args[0]->max_length, nweights);
   maybe_null= 1;
 }
@@ -3231,7 +3316,8 @@ String *Item_func_weight_string::val_str(String *str)
     explicitly, otherwise calculate result length
     from argument and "nweights".
   */
-  tmp_length= result_length ? result_length :
+  tmp_length= field ? field->pack_length() :
+              result_length ? result_length :
               cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
                                     max(res->length(), nweights));
 
@@ -3247,11 +3333,17 @@ String *Item_func_weight_string::val_str(String *str)
   if (tmp_value.alloc(tmp_length))
     goto nl;
 
-  frm_length= cs->coll->strnxfrm(cs,
-                                 (uchar*) tmp_value.ptr(), tmp_length,
-                                 nweights ? nweights : tmp_length,
-                                 (const uchar*) res->ptr(), res->length(),
-                                 flags);
+  if (field)
+  {
+    frm_length= field->pack_length();
+    field->sort_string((uchar *) tmp_value.ptr(), tmp_length);
+  }
+  else
+    frm_length= cs->coll->strnxfrm(cs,
+                                   (uchar *) tmp_value.ptr(), tmp_length,
+                                   nweights ? nweights : tmp_length,
+                                   (const uchar *) res->ptr(), res->length(),
+                                   flags);
   tmp_value.length(frm_length);
   null_value= 0;
   return &tmp_value;
@@ -3286,8 +3378,10 @@ String *Item_func_hex::val_str_ascii(String *str)
 
     if ((null_value= args[0]->null_value))
       return 0;
-    ptr= longlong2str(dec,ans,16);
-    if (str->copy(ans,(uint32) (ptr-ans), &my_charset_numeric))
+    
+    if (!(ptr= longlong2str(dec, ans, 16)) ||
+        str->copy(ans,(uint32) (ptr - ans),
+        &my_charset_numeric))
       return make_empty_result();		// End of memory
     return str;
   }
@@ -3546,7 +3640,7 @@ void Item_func_export_set::fix_length_and_dec()
   uint32 sep_length= (arg_count > 3 ? args[3]->max_char_length() : 1);
 
   if (agg_arg_charsets_for_string_result(collation,
-                                         args + 1, min(4, arg_count) - 1))
+                                         args + 1, min(4U, arg_count) - 1))
     return;
   fix_char_length(length * 64 + sep_length * 63);
 }
@@ -3968,7 +4062,7 @@ String *Item_func_uuid::val_str(String *str)
       /*
         -1 so we won't make tv= uuid_time for nanoseq >= (tv - uuid_time)
       */
-      ulong delta= min(nanoseq, (ulong) (tv - uuid_time -1));
+      ulong delta= min<ulong>(nanoseq, (ulong) (tv - uuid_time -1));
       tv-= delta;
       nanoseq-= delta;
     }

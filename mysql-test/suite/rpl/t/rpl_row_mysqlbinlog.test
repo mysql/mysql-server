@@ -16,15 +16,13 @@
 # Setup Section
 # we need this for getting fixed timestamps inside of this test
 
---disable_query_log
+--disable_query_log ONCE
 select "---Setup Section  --" as "";
---enable_query_log
 
 set timestamp=1000000000;
 
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1,t2,t3;
---enable_warnings
 
 connection master;
 CREATE TABLE t1(word VARCHAR(20));
@@ -61,9 +59,8 @@ while ($count)
 --enable_query_log
 
 
---disable_query_log
+--disable_query_log ONCE
 select "---Test1 check table load  --" as "";
---enable_query_log
 
 # Lets Check the tables on the Master
 SELECT COUNT(*) from t1;
@@ -92,9 +89,8 @@ insert into t1 values ("Alas");
 flush logs;
 
 # delimiters are for easier debugging in future
---disable_query_log
+--disable_query_log ONCE
 select "--- Test 1 Dump binlog to file --" as "";
---enable_query_log
 
 #
 #  Prepare local temporary file to recreate what we have currently.
@@ -105,9 +101,8 @@ let $MYSQLD_DATADIR= `select @@datadir;`;
 
 # Now that we have our file, lets get rid of the current database.
 # Cleanup the master and the slave and try to recreate.
---disable_query_log
+--disable_query_log ONCE
 select "--- Test 1 delete tables, clean master and slave  --" as "";
---enable_query_log
 
 DROP TABLE t1;
 DROP TABLE t2;
@@ -129,15 +124,13 @@ start slave;
 connection master;
 
 # We should be clean at this point, now we will run in the file from above.
---disable_query_log
+--disable_query_log ONCE
 select "--- Test 1 Load from Dump binlog file --" as "";
---enable_query_log
 
 --exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/master.sql"
 
---disable_query_log
+--disable_query_log ONCE
 select "--- Test 1 Check Load Results --" as "";
---enable_query_log
 
 # Lets Check the tables on the Master
 SELECT COUNT(*) from t1;
@@ -165,26 +158,23 @@ remove_file $MYSQLTEST_VARDIR/tmp/master.sql;
 
 # this test for start-position option
 # By setting this position to 416, we should only get the create of t3
---disable_query_log
+--disable_query_log ONCE
 select "--- Test 2 position test --" as "";
---enable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$position --stop-position=$stop_position $MYSQLD_DATADIR/master-bin.000001
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
 
---disable_query_log
+--disable_query_log ONCE
 select "--- Test 3 First Remote test --" as "";
---enable_query_log
 
 # This is broken now
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --stop-position=$stop_position --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
 
---disable_query_log
+--disable_query_log ONCE
 select "--- Test 4 Second Remote test --" as "";
---enable_query_log
 --exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 > $MYSQLTEST_VARDIR/tmp/remote.sql
 
 --exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002 >> $MYSQLTEST_VARDIR/tmp/remote.sql
@@ -249,31 +239,27 @@ connection master;
 
 # LOAD DATA
 
---disable_query_log
+--disable_query_log ONCE
 select "--- Test 5 LOAD DATA --" as "";
---enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --stop-position=$binlog_start_pos --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # Bug#7853 (mysqlbinlog does not accept input from stdin)
 
---disable_query_log
+--disable_query_log ONCE
 select "--- Test 6 reading stdin --" as "";
---enable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL_BINLOG --short-form --stop-position=$stop_position1 - < $MYSQLD_DATADIR/master-bin.000001
 
---disable_query_log
+--disable_query_log ONCE
 select "--- Test 7 reading stdin w/position --" as "";
---enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL_BINLOG --short-form --start-position=$position --stop-position=$stop_position - < $MYSQLD_DATADIR/master-bin.000001
        
 # Bug#16217 (mysql client did not know how not switch its internal charset)
---disable_query_log
+--disable_query_log ONCE
 select "--- Test 8 switch internal charset --" as "";
---enable_query_log
 sync_slave_with_master;
 
 #we expect STOP SLAVE to produce a warning as the slave is stopped
@@ -315,9 +301,8 @@ select HEX(f) from t4;
 select HEX(f) from t05;
 select HEX(f) from t5;
 
---disable_query_log
+--disable_query_log ONCE
 select "--- Test cleanup --" as "";
---enable_query_log
 # clean up
 connection master;
 sync_slave_with_master;
@@ -327,9 +312,8 @@ connection master;
 # BUG#17654 also test mysqlbinlog to ensure it can read the binlog from a remote server 
 # and ensure that the results are the same as if read from a file (the same file).
 
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1;
---enable_warnings
 
 CREATE TABLE t1 (a INT NOT NULL KEY, b INT);
 

@@ -237,7 +237,7 @@ a
 3
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
 select * from t1;
 a
@@ -1418,8 +1418,8 @@ a	a	b
 explain extended select * from t3 left join v3 on (t3.a = v3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
 create view v1 (a) as select a from t1;
@@ -1433,8 +1433,8 @@ a	a	b
 explain extended select * from t3 left join v4 on (t3.a = v4.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
 prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
@@ -1555,22 +1555,22 @@ execute stmt1 using @a;
 deallocate prepare stmt1;
 select * from v3;
 a	b
-100	1000
-101	1000
-300	1000
-301	1000
-100	10
-101	10
-300	10
-301	10
-100	2000
-101	2000
-300	2000
-301	2000
 100	0
 101	0
 300	0
 301	0
+100	10
+101	10
+300	10
+301	10
+100	1000
+101	1000
+300	1000
+301	1000
+100	2000
+101	2000
+300	2000
+301	2000
 drop view v3;
 drop tables t1,t2;
 create table t1(f1 int);
@@ -2353,7 +2353,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT * FROM v2 WHERE a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a	a	5	const	1	Using index
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
 DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
 create table t1 (f1 int);
@@ -4113,3 +4113,28 @@ ERROR HY000: Too many columns
 CREATE TABLE table_broken AS SELECT * FROM t1, t2, t3;
 ERROR HY000: Too many columns
 DROP TABLE t1, t2, t3;
+#
+# Bug#11766440 59546: Assertion m_sp == __null fails in
+# Item_func_sp::init_result_field with functions
+#
+CREATE TABLE t1 (a INT);
+CREATE FUNCTION f1 () RETURNS INTEGER RETURN 1;
+CREATE FUNCTION f2 (i INTEGER) RETURNS INTEGER RETURN 1;
+CREATE VIEW v1 AS SELECT f1() AS a FROM t1;
+CREATE VIEW v2 AS SELECT f2(a) AS a FROM v1;
+DROP FUNCTION f1;
+SELECT f2(a) FROM v2;
+ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DROP VIEW v2;
+DROP VIEW v1;
+DROP FUNCTION f2;
+DROP TABLE t1;
+#
+# Bug#13418197: ASSERTION `(*TABLES)->REGINFO.LOCK_TYPE >=
+#               TL_READ' FAILED | MYSQL_LOCK_TABLES
+#
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 (a INT) engine=InnoDB;
+CREATE VIEW t1 AS SELECT 1;
+DROP VIEW t1;
+DROP TEMPORARY TABLE t1;

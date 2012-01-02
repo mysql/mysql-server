@@ -227,7 +227,7 @@ int ha_heap::write_row(uchar * buf)
   int res;
   ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   if (table->next_number_field && buf == table->record[0])
   {
     if ((res= update_auto_increment()))
@@ -251,7 +251,7 @@ int ha_heap::update_row(const uchar * old_data, uchar * new_data)
   int res;
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   res= heap_update(file,old_data,new_data);
   if (!res && ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > 
               file->s->records)
@@ -412,6 +412,7 @@ int ha_heap::info(uint flag)
   stats.index_file_length=    hp_info.index_length;
   stats.max_data_file_length= hp_info.max_records * hp_info.reclength;
   stats.delete_length=        hp_info.deleted * hp_info.reclength;
+  stats.create_time=          (ulong) hp_info.create_time;
   if (flag & HA_STATUS_AUTO)
     stats.auto_increment_value= hp_info.auto_increment;
   /*
@@ -821,6 +822,7 @@ mysql_declare_plugin(heap)
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0,                          /* flags                           */
 }
 mysql_declare_plugin_end;

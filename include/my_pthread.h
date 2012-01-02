@@ -128,6 +128,8 @@ struct timespec {
   ((TS1.tv.i64 > TS2.tv.i64) ? 1 : \
    ((TS1.tv.i64 < TS2.tv.i64) ? -1 : 0))
 
+#define diff_timespec(TS1, TS2) \
+  ((TS1.tv.i64 - TS2.tv.i64) * 100)
 
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
@@ -457,6 +459,20 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #endif /* !cmp_timespec */
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
+#ifdef HAVE_TIMESPEC_TS_SEC
+#ifndef diff_timespec
+#define diff_timespec(TS1, TS2) \
+  (((TS1.ts_sec * 1000000000) + TS1.ts_nsec) - \
+   ((TS2.ts_sec * 1000000000) + TS2.ts_nsec))
+#endif /* !diff_timespec */
+#else
+#ifndef diff_timespec
+#define diff_timespec(TS1, TS2) \
+  (((TS1.tv_sec * 1000000000) + TS1.tv_nsec) - \
+   ((TS2.tv_sec * 1000000000) + TS2.tv_nsec))
+#endif /* !diff_timespec */
+#endif /* HAVE_TIMESPEC_TS_SEC */
+
 	/* safe_mutex adds checking to mutex for easier debugging */
 
 typedef struct st_safe_mutex_t
@@ -501,34 +517,33 @@ void safe_mutex_end(FILE *file);
 
 	/* Wrappers if safe mutex is actually used */
 #ifdef SAFE_MUTEX
-#undef pthread_mutex_init
-#undef pthread_mutex_lock
-#undef pthread_mutex_unlock
-#undef pthread_mutex_destroy
-#undef pthread_mutex_wait
-#undef pthread_mutex_timedwait
-#undef pthread_mutex_t
-#undef pthread_cond_wait
-#undef pthread_cond_timedwait
-#undef pthread_mutex_trylock
-#define pthread_mutex_init(A,B) safe_mutex_init((A),(B),__FILE__,__LINE__)
-#define pthread_mutex_lock(A) safe_mutex_lock((A), FALSE, __FILE__, __LINE__)
-#define pthread_mutex_unlock(A) safe_mutex_unlock((A),__FILE__,__LINE__)
-#define pthread_mutex_destroy(A) safe_mutex_destroy((A),__FILE__,__LINE__)
-#define pthread_cond_wait(A,B) safe_cond_wait((A),(B),__FILE__,__LINE__)
-#define pthread_cond_timedwait(A,B,C) safe_cond_timedwait((A),(B),(C),__FILE__,__LINE__)
-#define pthread_mutex_trylock(A) safe_mutex_lock((A), TRUE, __FILE__, __LINE__)
-#define pthread_mutex_t safe_mutex_t
 #define safe_mutex_assert_owner(mp) \
           DBUG_ASSERT((mp)->count > 0 && \
                       pthread_equal(pthread_self(), (mp)->thread))
 #define safe_mutex_assert_not_owner(mp) \
           DBUG_ASSERT(! (mp)->count || \
                       ! pthread_equal(pthread_self(), (mp)->thread))
+
+#define my_cond_timedwait(A,B,C) safe_cond_timedwait((A),(B),(C),__FILE__,__LINE__)
+#define my_cond_wait(A,B) safe_cond_wait((A), (B), __FILE__, __LINE__)
+
+#elif defined(MY_PTHREAD_FASTMUTEX)
+
+#define safe_mutex_assert_owner(mp) do {} while (0)
+#define safe_mutex_assert_not_owner(mp) do {} while (0)
+
+#define my_cond_timedwait(A,B,C) pthread_cond_timedwait((A), &(B)->mutex, (C))
+#define my_cond_wait(A,B) pthread_cond_wait((A), &(B)->mutex)
+
 #else
-#define safe_mutex_assert_owner(mp)
-#define safe_mutex_assert_not_owner(mp)
-#endif /* SAFE_MUTEX */
+
+#define safe_mutex_assert_owner(mp) do {} while (0)
+#define safe_mutex_assert_not_owner(mp) do {} while (0)
+
+#define my_cond_timedwait(A,B,C) pthread_cond_timedwait((A),(B),(C))
+#define my_cond_wait(A,B) pthread_cond_wait((A), (B))
+
+#endif /* !SAFE_MUTEX && ! MY_PTHREAD_FASTMUTEX */
 
 #if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
 typedef struct st_my_pthread_fastmutex_t
@@ -543,24 +558,6 @@ int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp,
                               const pthread_mutexattr_t *attr);
 int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 
-#undef pthread_mutex_init
-#undef pthread_mutex_lock
-#undef pthread_mutex_unlock
-#undef pthread_mutex_destroy
-#undef pthread_mutex_wait
-#undef pthread_mutex_timedwait
-#undef pthread_mutex_t
-#undef pthread_cond_wait
-#undef pthread_cond_timedwait
-#undef pthread_mutex_trylock
-#define pthread_mutex_init(A,B) my_pthread_fastmutex_init((A),(B))
-#define pthread_mutex_lock(A) my_pthread_fastmutex_lock(A)
-#define pthread_mutex_unlock(A) pthread_mutex_unlock(&(A)->mutex)
-#define pthread_mutex_destroy(A) pthread_mutex_destroy(&(A)->mutex)
-#define pthread_cond_wait(A,B) pthread_cond_wait((A),&(B)->mutex)
-#define pthread_cond_timedwait(A,B,C) pthread_cond_timedwait((A),&(B)->mutex,(C))
-#define pthread_mutex_trylock(A) pthread_mutex_trylock(&(A)->mutex)
-#define pthread_mutex_t my_pthread_fastmutex_t
 #endif /* defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX) */
 
 	/* READ-WRITE thread locking */

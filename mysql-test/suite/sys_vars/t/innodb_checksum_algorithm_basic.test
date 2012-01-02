@@ -1,0 +1,38 @@
+--source include/have_innodb.inc
+
+# Check the default value
+SET @orig = @@global.innodb_checksum_algorithm;
+SELECT @orig;
+
+SET GLOBAL innodb_checksum_algorithm = 'crc32';
+SELECT @@global.innodb_checksum_algorithm;
+
+SET GLOBAL innodb_checksum_algorithm = 'strict_crc32';
+SELECT @@global.innodb_checksum_algorithm;
+
+SET GLOBAL innodb_checksum_algorithm = 'innodb';
+SELECT @@global.innodb_checksum_algorithm;
+
+SET GLOBAL innodb_checksum_algorithm = 'strict_innodb';
+SELECT @@global.innodb_checksum_algorithm;
+
+SET GLOBAL innodb_checksum_algorithm = 'none';
+SELECT @@global.innodb_checksum_algorithm;
+
+SET GLOBAL innodb_checksum_algorithm = 'strict_none';
+SELECT @@global.innodb_checksum_algorithm;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_checksum_algorithm = '';
+SELECT @@global.innodb_checksum_algorithm;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_checksum_algorithm = 'foobar';
+SELECT @@global.innodb_checksum_algorithm;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_checksum_algorithm = 123;
+SELECT @@global.innodb_checksum_algorithm;
+
+SET GLOBAL innodb_checksum_algorithm = @orig;
+SELECT @@global.innodb_checksum_algorithm;

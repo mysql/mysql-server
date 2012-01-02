@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -28,7 +28,6 @@ Created 12/27/1996 Heikki Tuuri
 # include "trx0trx.h"
 # include "trx0undo.h"
 # include "row0row.h"
-# include "btr0sea.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "page0zip.h"
 
@@ -44,12 +43,12 @@ upd_create(
 {
 	upd_t*	update;
 
-	update = (upd_t*) mem_heap_alloc(heap, sizeof(upd_t));
+	update = (upd_t*) mem_heap_zalloc(heap, sizeof(upd_t));
 
 	update->info_bits = 0;
 	update->n_fields = n;
 	update->fields = (upd_field_t*)
-		mem_heap_alloc(heap, sizeof(upd_field_t) * n);
+		mem_heap_zalloc(heap, sizeof(upd_field_t) * n);
 
 	return(update);
 }
@@ -103,7 +102,7 @@ upd_field_set_field_no(
 	upd_field->field_no = field_no;
 	upd_field->orig_len = 0;
 
-	if (UNIV_UNLIKELY(field_no >= dict_index_get_n_fields(index))) {
+	if (field_no >= dict_index_get_n_fields(index)) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to access field %lu in ",
 			(ulong) field_no);
@@ -157,13 +156,8 @@ row_upd_rec_sys_fields(
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
-#ifdef UNIV_SYNC_DEBUG
-	if (!rw_lock_own(&btr_search_latch, RW_LOCK_EX)) {
-		ut_ad(!buf_block_align(rec)->is_hashed);
-	}
-#endif /* UNIV_SYNC_DEBUG */
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		ulint	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
 		page_zip_write_trx_id_and_roll_ptr(page_zip, rec, offsets,
 						   pos, trx->id, roll_ptr);

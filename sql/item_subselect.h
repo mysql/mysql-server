@@ -203,6 +203,8 @@ public:
   longlong val_int ();
   String *val_str (String *);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   bool val_bool();
   enum Item_result result_type() const;
   enum_field_types field_type() const;
@@ -306,6 +308,14 @@ public:
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
+  }
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
 
@@ -526,6 +536,7 @@ class subselect_single_select_engine: public subselect_engine
 private:
   bool prepared; /* simple subselect is prepared */
   bool executed; /* simple subselect is executed */
+  bool optimize_error; ///< simple subselect optimization failed
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
 public:
@@ -612,7 +623,6 @@ protected:
     expression is NULL.
   */
   bool empty_result_set;
-  bool null_keypart; /* TRUE <=> constructed search tuple has a NULL */
 public:
 
   // constructor can assign THD because it will be called after JOIN::prepare
@@ -632,7 +642,7 @@ public:
                              select_result_interceptor *result);
   virtual bool no_tables() const;
   bool scan_table();
-  bool copy_ref_key();
+  void copy_ref_key(bool *require_scan, bool *convert_error);
   virtual bool no_rows() const { return empty_result_set; }
   virtual enum_engine_type engine_type() const { return UNIQUESUBQUERY_ENGINE; }
 };

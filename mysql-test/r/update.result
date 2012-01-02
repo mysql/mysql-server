@@ -551,3 +551,45 @@ ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function
 DROP VIEW v1;
 DROP FUNCTION f1;
 DROP TABLE t1;
+#
+# Verify that UPDATE does the same number of handler_update
+# operations, no matter if there is ORDER BY or not.
+#
+CREATE TABLE t1 (i INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
+(20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
+(30),(31),(32),(33),(34),(35);
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2),
+INDEX idx (a,b(1),c)) ENGINE=INNODB;
+INSERT INTO t2 SELECT i, i, i, i FROM t1;
+FLUSH STATUS;
+START TRANSACTION;
+UPDATE t2 SET d = 10 WHERE b = 10 LIMIT 5;
+SHOW STATUS LIKE 'HANDLER_UPDATE';
+Variable_name	Value
+Handler_update	1
+ROLLBACK;
+FLUSH STATUS;
+START TRANSACTION;
+UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW STATUS LIKE 'HANDLER_UPDATE';
+Variable_name	Value
+Handler_update	1
+ROLLBACK;
+Same test with a different UPDATE.
+ALTER TABLE t2 DROP INDEX idx, ADD INDEX idx2 (a, b);
+FLUSH STATUS;
+START TRANSACTION;
+UPDATE t2 SET c = 10 LIMIT 5;
+SHOW STATUS LIKE 'HANDLER_UPDATE';
+Variable_name	Value
+Handler_update	5
+ROLLBACK;
+FLUSH STATUS;
+START TRANSACTION;
+UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
+SHOW STATUS LIKE 'HANDLER_UPDATE';
+Variable_name	Value
+Handler_update	5
+ROLLBACK;
+DROP TABLE t1, t2;

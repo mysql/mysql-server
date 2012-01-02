@@ -1,0 +1,75 @@
+################## mysql-test/t/innodb_adaptive_max_sleep_delay.test ##########
+#                                                                             #
+# Variable Name: innodb_adaptive_max_sleep_delay                              #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+#                                                                             #
+# Note: This variable is only defined if innodb_have_atomic_builtins=ON       #
+#                                                                             #
+# Creation Date: 2011-08-17                                                   #
+# Author : Sunny Bains                                                        #
+#                                                                             #
+#                                                                             #
+# Description: Dynamic config global variable innodb_adaptive_max_sleep_delay #
+#              * Value check                                                  #
+#              * Scope check                                                  #
+#                                                                             #
+###############################################################################
+
+--source include/have_innodb.inc
+
+# Check if builtins are enabled
+if (`SELECT LOWER(VARIABLE_VALUE)='off' FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+    WHERE LOWER(variable_name) = 'innodb_have_atomic_builtins'`) {
+	--skip Test requires InnoDB atomic builtins
+}
+
+# Display default value
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+--echo 150000 Expected
+
+# Check if value can be set
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=100;
+
+# Check for out of bounds
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=1000001;
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+--echo 1000000 Expected
+
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=-1;
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+--echo 0 Expected
+
+SELECT COUNT(@@GLOBAL.innodb_adaptive_max_sleep_delay);
+--echo 1 Expected
+
+# Check if the value in GLOBAL table matches value in variable
+SELECT VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_adaptive_max_sleep_delay';
+--echo 100 Expected
+
+# Check if accessing variable with and without GLOBAL point to same
+# variable
+SELECT @@innodb_adaptive_max_sleep_delay = @@GLOBAL.innodb_adaptive_max_sleep_delay;
+--echo 1000000 Expected
+
+# Check if innodb_adaptive_max_sleep_delay can be accessed with and
+# without @@ sign.
+SELECT COUNT(@@innodb_adaptive_max_sleep_delay);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_adaptive_max_sleep_delay);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_adaptive_max_sleep_delay);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_adaptive_max_sleep_delay = @@SESSION.innodb_adaptive_max_sleep_delay;
+
+# Reset the default
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=150000;

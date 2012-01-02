@@ -313,9 +313,17 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
     default:
       DBUG_ASSERT(0); // should never happen
     case FRMTYPE_ERROR:
-      my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
+      { 
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(ER_FILE_NOT_FOUND, MYF(0), name,
+                 my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+      }
       break;
   }
+
+  thd->add_to_binlog_accessed_dbs(ren_table->db);
+  thd->add_to_binlog_accessed_dbs(new_db);
+
   if (rc && !skip_error)
     DBUG_RETURN(1);
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +27,8 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "dict0load.h"
 #include "rem0types.h"
+#include "fsp0fsp.h"
+#include "srv0srv.h"
 
 /*********************************************************************//**
 Gets the minimum number of bytes per character.
@@ -102,7 +104,7 @@ dict_col_type_assert_equal(
 
 	ut_ad(col->mtype == type->mtype);
 	ut_ad(col->prtype == type->prtype);
-	ut_ad(col->len == type->len);
+	//ut_ad(col->len == type->len);
 # ifndef UNIV_HOTBACKUP
 	ut_ad(col->mbminmaxlen == type->mbminmaxlen);
 # endif /* !UNIV_HOTBACKUP */
@@ -249,7 +251,7 @@ dict_index_is_clust(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY(index->type & DICT_CLUSTERED));
+	return(index->type & DICT_CLUSTERED);
 }
 /********************************************************************//**
 Check whether the index is unique.
@@ -263,7 +265,7 @@ dict_index_is_unique(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY(index->type & DICT_UNIQUE));
+	return(index->type & DICT_UNIQUE);
 }
 
 /********************************************************************//**
@@ -278,7 +280,22 @@ dict_index_is_ibuf(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY(index->type & DICT_IBUF));
+	return(index->type & DICT_IBUF);
+}
+
+/********************************************************************//**
+Check whether the index is an universal index tree.
+@return	nonzero for universal tree, zero for other indexes */
+UNIV_INLINE
+ulint
+dict_index_is_univ(
+/*===============*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return(index->type & DICT_UNIVERSAL);
 }
 
 /********************************************************************//**
@@ -297,7 +314,7 @@ dict_index_is_sec_or_ibuf(
 
 	type = index->type;
 
-	return(UNIV_LIKELY(!(type & DICT_CLUSTERED) || (type & DICT_IBUF)));
+	return(!(type & DICT_CLUSTERED) || (type & DICT_IBUF));
 }
 
 /********************************************************************//**
@@ -419,11 +436,185 @@ dict_table_is_comp(
 {
 	ut_ad(table);
 
-#if DICT_TF_COMPACT != TRUE
-#error
+#if DICT_TF_COMPACT != 1
+#error "DICT_TF_COMPACT must be 1"
 #endif
 
-	return(UNIV_LIKELY(table->flags & DICT_TF_COMPACT));
+	return(table->flags & DICT_TF_COMPACT);
+}
+
+/************************************************************************
+Check if the table has an FTS index. */
+UNIV_INLINE
+ibool
+dict_table_has_fts_index(
+/*=====================*/
+				/* out: TRUE if table has an FTS index */
+	dict_table_t*   table)  /* in: table */
+{
+	ut_ad(table);
+
+	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS));
+}
+
+/********************************************************************//**
+Validate and return the table flags.
+@return	Same as input after validating it as dict_table_t::flags.
+If there is an error, trigger assertion failure. */
+UNIV_INLINE
+ulint
+dict_tf_validate(
+/*=============*/
+	ulint	flags)		/*!< in: table flags */
+{
+	ulint	compact = DICT_TF_GET_COMPACT(flags);
+	ulint	zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
+	ulint	atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(flags);
+	ulint	unused = DICT_TF_GET_UNUSED(flags);
+
+	/* Make sure there are no bits that we do not know about. */
+	ut_a(unused == 0);
+
+	if (atomic_blobs) {
+		/* Barracuda row formats COMPRESSED and DYNAMIC build on
+		the page structure introduced for the COMPACT row format
+		by allowing keys in secondary indexes to be made from
+		data stored off-page in the clustered index. */
+		ut_a(compact);
+	} else {
+		/* Antelope does not support COMPRESSED row format. */
+		ut_a(!zip_ssize);
+	}
+
+	if (zip_ssize) {
+		/* COMPRESSED row format must have compact and atomic_blobs
+		bits set. */
+		ut_a(compact);
+		ut_a(atomic_blobs);
+
+		/* Validate the number is within allowed range. */
+		ut_a(zip_ssize <= PAGE_ZIP_SSIZE_MAX);
+	}
+
+	/* Return the flags sent if we did not crash. */
+	return(flags);
+}
+
+/********************************************************************//**
+Validate a SYS_TABLES TYPE field and return it.
+@return	Same as input after validating it as a SYS_TABLES TYPE field.
+If there is an error, return ULINT_UNDEFINED. */
+UNIV_INLINE
+ulint
+dict_sys_tables_type_validate(
+/*==========================*/
+	ulint	type,		/*!< in: SYS_TABLES.TYPE */
+	ulint	n_cols)		/*!< in: SYS_TABLES.N_COLS */
+{
+	ulint	low_order_bit = DICT_TF_GET_COMPACT(type);
+	ulint	redundant = !(n_cols & DICT_N_COLS_COMPACT);
+	ulint	zip_ssize = DICT_TF_GET_ZIP_SSIZE(type);
+	ulint	atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(type);
+	ulint	unused = DICT_TF_GET_UNUSED(type);
+
+	/* If the format is UNIV_FORMAT_A, table->flags == 0, but
+	SYS_TABLES.TYPE == 1, which is defined as SYS_TABLE_TYPE_ANTELOPE.
+	The low order bit of SYS_TABLES.TYPE is always set to 1.
+	If the format is UNIV_FORMAT_B or higher, this field is the same
+	as dict_table_t::flags. Zero is not allowed here. */
+	if (!low_order_bit) {
+		return(ULINT_UNDEFINED);
+	}
+
+	if (redundant) {
+		/* This is Redundant row format, only the first bit
+		should be set in SYS_TABLES.TYPE */
+		if (type != SYS_TABLE_TYPE_ANTELOPE) {
+			return(ULINT_UNDEFINED);
+		}
+		return(DICT_TF_REDUNDANT);
+	}
+
+	/* Make sure there are no bits that we do not know about. */
+	if (unused) {
+		return(ULINT_UNDEFINED);
+	}
+
+	if (atomic_blobs) {
+		/* Barracuda row formats COMPRESSED and DYNAMIC build on
+		the page structure introduced for the COMPACT row format
+		by allowing keys in secondary indexes to be made from
+		data stored off-page in the clustered index.
+
+		The DICT_N_COLS_COMPACT flag should be in N_COLS,
+		but we already know that. */
+
+	} else if (zip_ssize) {
+		/* Antelope does not support COMPRESSED format. */
+		return(ULINT_UNDEFINED);
+	}
+
+	if (zip_ssize) {
+		/* COMPRESSED row format must have low_order_bit and
+		atomic_blobs bits set and the DICT_N_COLS_COMPACT flag
+		should be in N_COLS, but we already know about the
+		low_order_bit and DICT_N_COLS_COMPACT flags. */
+		if (!atomic_blobs) {
+			return(ULINT_UNDEFINED);
+		}
+
+		/* Validate that the number is within allowed range. */
+		if (zip_ssize > PAGE_ZIP_SSIZE_MAX) {
+			return(ULINT_UNDEFINED);
+		}
+	}
+
+	/* Return the validated SYS_TABLES.TYPE. */
+	return(type);
+}
+
+/********************************************************************//**
+Determine the file format from dict_table_t::flags
+The low order bit will be zero for REDUNDANT and 1 for COMPACT. For any
+other row_format, file_format is > 0 and DICT_TF_COMPACT will also be set.
+@return	file format version */
+UNIV_INLINE
+rec_format_t
+dict_tf_get_rec_format(
+/*===================*/
+	ulint		flags)	/*!< in: dict_table_t::flags */
+{
+	dict_tf_validate(flags);
+
+	if (!DICT_TF_GET_COMPACT(flags)) {
+		return(REC_FORMAT_REDUNDANT);
+	}
+
+	if (!DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
+		return(REC_FORMAT_COMPACT);
+	}
+
+	if (DICT_TF_GET_ZIP_SSIZE(flags)) {
+		return(REC_FORMAT_COMPRESSED);
+	}
+
+	return(REC_FORMAT_DYNAMIC);
+}
+
+/********************************************************************//**
+Determine the file format from a dict_table_t::flags.
+@return	file format version */
+UNIV_INLINE
+ulint
+dict_tf_get_format(
+/*===============*/
+	ulint		flags)	/*!< in: dict_table_t::flags */
+{
+	if (DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
+		return(UNIV_FORMAT_B);
+	}
+
+	return(UNIV_FORMAT_A);
 }
 
 /********************************************************************//**
@@ -437,41 +628,109 @@ dict_table_get_format(
 {
 	ut_ad(table);
 
-	return((table->flags & DICT_TF_FORMAT_MASK) >> DICT_TF_FORMAT_SHIFT);
+	return(dict_tf_get_format(table->flags));
 }
 
 /********************************************************************//**
-Determine the file format of a table. */
+Set the file format and zip size in a dict_table_t::flags.  If zip size
+is not needed, it should be 0. */
 UNIV_INLINE
 void
-dict_table_set_format(
-/*==================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	ulint		format)	/*!< in: file format version */
+dict_tf_set(
+/*========*/
+	ulint*		flags,		/*!< in/out: table flags */
+	rec_format_t	format,		/*!< in: file format */
+	ulint		zip_ssize)	/*!< in: zip shift size */
 {
-	ut_ad(table);
-
-	table->flags = (table->flags & ~DICT_TF_FORMAT_MASK)
-		| (format << DICT_TF_FORMAT_SHIFT);
+	switch (format) {
+	case REC_FORMAT_REDUNDANT:
+		*flags = 0;
+		ut_ad(zip_ssize == 0);
+		break;
+	case REC_FORMAT_COMPACT:
+		*flags = DICT_TF_COMPACT;
+		ut_ad(zip_ssize == 0);
+		break;
+	case REC_FORMAT_COMPRESSED:
+		*flags = DICT_TF_COMPACT
+			| (1 << DICT_TF_POS_ATOMIC_BLOBS)
+			| (zip_ssize << DICT_TF_POS_ZIP_SSIZE);
+		break;
+	case REC_FORMAT_DYNAMIC:
+		*flags = DICT_TF_COMPACT
+			| (1 << DICT_TF_POS_ATOMIC_BLOBS);
+		ut_ad(zip_ssize == 0);
+		break;
+	}
 }
 
 /********************************************************************//**
-Extract the compressed page size from table flags.
+Convert a 32 bit integer table flags to the 32 bit integer that is
+written into the tablespace header at the offset FSP_SPACE_FLAGS and is
+also stored in the fil_space_t::flags field.  The following chart shows
+the translation of the low order bit.  Other bits are the same.
+========================= Low order bit ==========================
+                    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
+dict_table_t::flags |     0     |    1    |     1      |    1
+fil_space_t::flags  |     0     |    0    |     1      |    1
+==================================================================
+@return	tablespace flags (fil_space_t::flags) */
+UNIV_INLINE
+ulint
+dict_tf_to_fsp_flags(
+/*=================*/
+	ulint	flags)	/*!< in: dict_table_t::flags */
+{
+	/* Adjust bit zero. */
+	flags = (flags == DICT_TF_COMPACT) ? 0 : flags;
+
+	/* In addition, tablespace flags also contain the page size. */
+	flags = fsp_flags_set_page_size(flags, UNIV_PAGE_SIZE);
+
+	return(fsp_flags_validate(flags));
+}
+
+/********************************************************************//**
+Convert a 32 bit integer table flags to the 32bit integer that is written
+to a SYS_TABLES.TYPE field. The following chart shows the translation of
+the low order bit.  Other bits are the same.
+========================= Low order bit ==========================
+                    | REDUNDANT | COMPACT | COMPRESSED and DYNAMIC
+dict_table_t::flags |     0     |    1    |     1
+SYS_TABLES.TYPE     |     1     |    1    |     1
+==================================================================
+@return	ulint containing SYS_TABLES.TYPE */
+UNIV_INLINE
+ulint
+dict_tf_to_sys_tables_type(
+/*=======================*/
+	ulint	flags)	/*!< in: dict_table_t::flags */
+{
+	if (!DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
+		ut_a(flags == DICT_TF_REDUNDANT
+		     || flags == DICT_TF_COMPACT);
+		return(SYS_TABLE_TYPE_ANTELOPE);
+	}
+
+	return(dict_tf_validate(flags));
+}
+
+/********************************************************************//**
+Extract the compressed page size from dict_table_t::flags.
+These flags are in memory, so assert that they are valid.
 @return	compressed page size, or 0 if not compressed */
 UNIV_INLINE
 ulint
-dict_table_flags_to_zip_size(
-/*=========================*/
+dict_tf_get_zip_size(
+/*=================*/
 	ulint	flags)	/*!< in: flags */
 {
-	ulint	zip_size = flags & DICT_TF_ZSSIZE_MASK;
+	ulint zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
+	ulint zip_size = (zip_ssize
+			  ? (UNIV_ZIP_SIZE_MIN >> 1) << zip_ssize
+			  : 0);
 
-	if (UNIV_UNLIKELY(zip_size)) {
-		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1)
-			 << (zip_size >> DICT_TF_ZSSIZE_SHIFT));
-
-		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
-	}
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 
 	return(zip_size);
 }
@@ -487,7 +746,7 @@ dict_table_zip_size(
 {
 	ut_ad(table);
 
-	return(dict_table_flags_to_zip_size(table->flags));
+	return(dict_tf_get_zip_size(table->flags));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -644,7 +903,7 @@ dict_index_get_sys_col_pos(
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	ut_ad(!(index->type & DICT_UNIVERSAL));
+	ut_ad(!dict_index_is_univ(index));
 
 	if (dict_index_is_clust(index)) {
 
@@ -821,6 +1080,33 @@ dict_index_get_space_reserve(void)
 }
 
 /**********************************************************************//**
+Check whether a column exists in an FTS index.
+@return ULINT_UNDEFINED if no match else the offset within the vector */
+UNIV_INLINE
+ulint
+dict_table_is_fts_column(
+/*=====================*/
+	ib_vector_t*	indexes,/*!< in: vector containing only FTS indexes */
+	ulint		col_no)	/*!< in: col number to search for */
+
+{
+	ulint		i;
+
+	for (i = 0; i < ib_vector_size(indexes); ++i) {
+		dict_index_t*	index;
+
+		index = (dict_index_t*) ib_vector_getp(indexes, i);
+
+		if (dict_index_contains_col_or_prefix(index, col_no)) {
+
+			return(i);
+		}
+	}
+
+	return(ULINT_UNDEFINED);
+}
+
+/**********************************************************************//**
 Determine bytes of column prefix to be stored in the undo log. Please
 note if the table format is UNIV_FORMAT_A (< UNIV_FORMAT_B), no prefix
 needs to be stored in the undo log.
@@ -843,6 +1129,37 @@ dict_max_field_len_store_undo(
 	}
 
 	return(prefix_len);
+}
+
+/********************************************************************//**
+Check whether the table is corrupted.
+@return	nonzero for corrupted table, zero for valid tables */
+UNIV_INLINE
+ulint
+dict_table_is_corrupted(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	return(table->corrupted);
+}
+
+/********************************************************************//**
+Check whether the index is corrupted.
+@return	nonzero for corrupted index, zero for valid indexes */
+UNIV_INLINE
+ulint
+dict_index_is_corrupted(
+/*====================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return((index->type & DICT_CORRUPT)
+	       || (index->table && index->table->corrupted));
 }
 
 #endif /* !UNIV_HOTBACKUP */

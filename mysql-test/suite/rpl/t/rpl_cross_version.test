@@ -12,6 +12,14 @@
 
 --source include/master-slave.inc
 
+# The test is disabled for windows due to 
+# Bug #42879 CHANGE MASTER RELAY_LOG_FILE=path fails on windows
+# Todo: release it from not_windows
+--source include/not_windows.inc
+
+# EXEC_LOAD_EVENT of 4.1 binlog can't be supported
+-- source include/not_mts_slave_parallel_workers.inc
+
 #
 # Bug#31240 load data infile replication between (4.0 or 4.1) and 5.1 fails
 #

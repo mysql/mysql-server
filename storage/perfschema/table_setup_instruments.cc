@@ -89,6 +89,10 @@ int table_setup_instruments::rnd_next(void)
 {
   PFS_instr_class *instr_class= NULL;
 
+  /* Do not advertise hard coded instruments when disabled. */
+  if (! pfs_initialized)
+    return HA_ERR_END_OF_FILE;
+
   for (m_pos.set_at(&m_next_pos);
        m_pos.has_more_view();
        m_pos.next_view())
@@ -119,6 +123,12 @@ int table_setup_instruments::rnd_next(void)
     case pos_setup_instruments::VIEW_STATEMENT:
       instr_class= find_statement_class(m_pos.m_index_2);
       break;
+    case pos_setup_instruments::VIEW_SOCKET:
+      instr_class= find_socket_class(m_pos.m_index_2);
+      break;
+    case pos_setup_instruments::VIEW_IDLE:
+      instr_class= find_idle_class(m_pos.m_index_2);
+      break;
     }
     if (instr_class)
     {
@@ -134,6 +144,10 @@ int table_setup_instruments::rnd_next(void)
 int table_setup_instruments::rnd_pos(const void *pos)
 {
   PFS_instr_class *instr_class= NULL;
+
+  /* Do not advertise hard coded instruments when disabled. */
+  if (! pfs_initialized)
+    return HA_ERR_END_OF_FILE;
 
   set_position(pos);
 
@@ -162,6 +176,12 @@ int table_setup_instruments::rnd_pos(const void *pos)
     break;
   case pos_setup_instruments::VIEW_STATEMENT:
     instr_class= find_statement_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_SOCKET:
+    instr_class= find_socket_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_IDLE:
+    instr_class= find_idle_class(m_pos.m_index_2);
     break;
   }
   if (instr_class)
@@ -268,6 +288,12 @@ int table_setup_instruments::update_row_values(TABLE *table,
       break;
     case pos_setup_instruments::VIEW_STAGE:
     case pos_setup_instruments::VIEW_STATEMENT:
+      /* No flag to update. */
+      break;
+    case pos_setup_instruments::VIEW_SOCKET:
+      update_socket_derived_flags();
+      break;
+    case pos_setup_instruments::VIEW_IDLE:
       /* No flag to update. */
       break;
     default:

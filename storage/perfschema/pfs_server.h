@@ -54,6 +54,12 @@
 #ifndef PFS_MAX_FILE_HANDLE
   #define PFS_MAX_FILE_HANDLE 32768
 #endif
+#ifndef PFS_MAX_SOCKETS
+  #define PFS_MAX_SOCKETS 1000
+#endif
+#ifndef PFS_MAX_SOCKET_CLASS
+  #define PFS_MAX_SOCKET_CLASS 10
+#endif
 #ifndef PFS_MAX_TABLE_SHARE
   #define PFS_MAX_TABLE_SHARE 1000
 #endif
@@ -104,7 +110,23 @@
 struct PFS_global_param
 {
   /** True if the performance schema is enabled. */
-  bool m_enabled;
+  bool m_enabled; 
+  /** Default values for SETUP_CONSUMERS. */
+  bool m_consumer_events_stages_current_enabled;
+  bool m_consumer_events_stages_history_enabled;
+  bool m_consumer_events_stages_history_long_enabled;
+  bool m_consumer_events_statements_current_enabled;
+  bool m_consumer_events_statements_history_enabled;
+  bool m_consumer_events_statements_history_long_enabled;
+  bool m_consumer_events_waits_current_enabled;
+  bool m_consumer_events_waits_history_enabled;
+  bool m_consumer_events_waits_history_long_enabled;
+  bool m_consumer_global_instrumentation_enabled;
+  bool m_consumer_thread_instrumentation_enabled;
+
+  /** Default instrument configuration option. */
+  char *m_pfs_instrument;
+
   /**
     Maximum number of instrumented mutex classes.
     @sa mutex_class_lost.
@@ -170,6 +192,16 @@ struct PFS_global_param
     @sa file_handle_lost.
   */
   ulong m_file_handle_sizing;
+  /**
+    Maxium number of instrumented socket instances
+    @sa socket_lost  
+  */
+  ulong m_socket_sizing;
+  /**
+    Maximum number of instrumented socket classes.
+    @sa socket_class_lost.
+  */
+  ulong m_socket_class_sizing;
   /** Maximum number of rows per thread in table EVENTS_WAITS_HISTORY. */
   ulong m_events_waits_history_sizing;
   /** Maximum number of rows in table EVENTS_WAITS_HISTORY_LONG. */
@@ -230,6 +262,17 @@ initialize_performance_schema(const PFS_global_param *param);
 void initialize_performance_schema_acl(bool bootstrap);
 
 void check_performance_schema();
+
+/**
+  Initialize the dynamic array holding individual instrument settings collected
+  from the server configuration options.
+*/
+void init_pfs_instrument_array();
+
+/**
+  Process one PFS_INSTRUMENT configuration string.
+*/
+int add_pfs_instr_to_array(const char* name, const char* value);
 
 /**
   Shutdown the performance schema.

@@ -1,0 +1,18 @@
+select @@ignore_db_dirs;
+@@ignore_db_dirs
+e,lost+found,.mysqlgui,test
+# Check that SHOW DATABASES ignores all directories from
+# @@ignore_db_dirs and all directories with names starting
+# with '.'
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+SET @@global.ignore_db_dirs = 'aha';
+ERROR HY000: Variable 'ignore_db_dirs' is a read only variable
+SET @@local.ignore_db_dirs = 'aha';
+ERROR HY000: Variable 'ignore_db_dirs' is a read only variable
+SET @@ignore_db_dirs = 'aha';
+ERROR HY000: Variable 'ignore_db_dirs' is a read only variable

@@ -25,6 +25,8 @@
 -- connection slave
 call mtr.add_suppression("Slave: Can\'t find record in \'t\' Error_code: 1032");
 call mtr.add_suppression("Slave SQL: Could not execute Update_rows event on table test.t; Can.t find record in .t.* Error_code: 1032");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
 -- connection master
 
 ## assertion: check that default value for binlog-row-image == 'FULL'
@@ -370,6 +372,37 @@ while (`SELECT HEX(@img_types) != HEX('')`)
     #   6. columns that are NOT NULL UK but not in PK are not in BI
     -- let $row_img_expected_master= 1:1 |
     -- let $row_img_expected_slave= 2:100 3:1000 | 
+    -- source include/rpl_row_img_parts_master_slave.inc
+
+    -- connection master
+    DROP TABLE t;
+    -- sync_slave_with_master
+
+    -- echo ####### MINIMAL OTHER PARTICULAR SCENARIO ######
+  
+    # ASSERTIONS: 
+    #    UPDATE/MINIMAL:
+    #      1. all columns needed to identify a row are in BI; as the
+    #      index is not unique, this means all columns of the table
+    #      2. columns that are in SET changed are in AI
+    #      3. columns that are not in SET are not in AI
+    #      4. table on slave has the same definition as table on
+    #      master, so points 1-2-3 apply to images in the slave's
+    #      binlog too.
+    #
+    -- connection master
+    CREATE TABLE t (c1 INT NOT NULL, c2 INT NOT NULL, KEY (c1));
+    INSERT INTO t VALUES (30,40);
+
+    -- connection slave
+
+    -- let $row_img_query= UPDATE t SET c2=100 ORDER BY c1;
+    #   1. all columns needed to identify a row are in BI
+    #   2. columns that are in SET changed are in AI
+    #   3. columns that are not in SET are not in AI
+    #   4. slave is as master as tables' definitions are identical
+    -- let $row_img_expected_master= 1:30 2:40 | 2:100
+    -- let $row_img_expected_slave = 1:30 2:40 | 2:100
     -- source include/rpl_row_img_parts_master_slave.inc
 
     -- connection master

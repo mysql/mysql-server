@@ -1,0 +1,188 @@
+# Test to check the proper nesting of events
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+# On windows, the socket instrumentation collects an extra "opt"
+# event, which changes the test output.
+--source include/not_windows.inc
+--source ../include/no_protocol.inc
+--source ../include/wait_for_pfs_thread_count.inc
+
+--disable_query_log
+
+grant ALL on *.* to user1@localhost;
+
+flush privileges;
+
+--disable_warnings
+drop table if exists test.setup_actors;
+--enable_warnings
+
+create table test.setup_actors as
+  select * from performance_schema.setup_actors;
+
+# Only instrument the user connections
+truncate table performance_schema.setup_actors;
+insert into performance_schema.setup_actors
+  set host= 'localhost', user= 'user1', role= '%';
+
+update performance_schema.threads set instrumented='NO';
+
+# Only instrument a few events of each kind
+update performance_schema.setup_instruments set enabled='NO', timed='NO';
+
+update performance_schema.setup_instruments set enabled='YES', timed='YES'
+  where name in ('idle',
+                 'wait/io/table/sql/handler',
+                 'wait/lock/table/sql/handler',
+                 'wait/io/socket/sql/client_connection',
+                 'wait/synch/rwlock/sql/LOCK_grant',
+                 'wait/synch/mutex/sql/THD::LOCK_thd_data',
+                 'wait/io/file/sql/query_log');
+
+update performance_schema.setup_instruments set enabled='YES', timed='YES'
+  where name like ('stage/sql/%');
+
+update performance_schema.setup_instruments set enabled='YES', timed='YES'
+  where name in ('statement/sql/select',
+                 'statement/com/',
+                 'statement/com/Query',
+                 'statement/com/error');
+
+# Start from a known clean state, to avoid noise from previous tests
+flush tables;
+flush status;
+
+truncate performance_schema.events_waits_current;
+truncate performance_schema.events_waits_history;
+truncate performance_schema.events_waits_history_long;
+truncate performance_schema.events_stages_current;
+truncate performance_schema.events_stages_history;
+truncate performance_schema.events_stages_history_long;
+truncate performance_schema.events_statements_current;
+truncate performance_schema.events_statements_history;
+truncate performance_schema.events_statements_history_long;
+
+--enable_query_log
+
+connect (con1, localhost, user1, , );
+
+echo "================== con1 connected ==================";
+
+select "MARKER_BEGIN" as marker;
+
+select "This is simple statement one" as payload;
+
+select "This is simple statement two" as payload;
+
+delimiter $$;
+select "This is the first part of a multi query" as payload;
+select "And this is the second part of a multi query" as payload;
+select "With a third part to make things complete" as payload;
+$$
+delimiter ;$$
+
+select "MARKER_END" as marker;
+
+select "Con1 is done with payload" as status;
+
+echo "================== con1 done ==================";
+
+--connection default
+
+set @con1_tid = (select thread_id from performance_schema.threads
+  where processlist_user = 'user1');
+
+select (@con1_tid is not null) as expected;
+
+set @marker_begin = (select event_id from performance_schema.events_statements_history_long
+  where sql_text like "%MARKER_BEGIN%" and thread_id = @con1_tid);
+
+select (@marker_begin is not null) as expected;
+
+set @marker_end = (select end_event_id from performance_schema.events_statements_history_long
+  where sql_text like "%MARKER_END%" and thread_id = @con1_tid);
+
+select (@marker_end is not null) as expected;
+
+# Will point to what happened on spurious test failures
+show status like "performance_schema%";
+
+#
+# This is the test itself:
+# the full trace of every recorded event between MARKER_BEGIN
+# end MARKER_END is dumped.
+# The value of EVENT_ID, END_EVENT_ID, NESTING_EVENT_TYPE, NESTING_EVENT_ID
+# should reflect the relations between each events,
+# and this structure should stay the same between runs.
+#
+# Things to observe in the output:
+# - there are IDLE events between top level queries,
+# - there are no IDLE events between multi queries
+# - STATEMENT starts right after the IDLE event
+# - STAGE init starts right after
+# - SOCKET events, when receiving the command,
+#   are childrens of the STATEMENT select / STAGE init
+
+select * from (
+(
+select (event_id - @marker_begin) as relative_event_id,
+       (end_event_id - @marker_begin) as relative_end_event_id,
+       event_name,
+       sql_text as comment,
+       nesting_event_type,
+       (nesting_event_id - @marker_begin) as relative_nesting_event_id
+   from performance_schema.events_statements_history_long
+   where (thread_id = @con1_tid)
+   and (@marker_begin <= event_id)
+   and (end_event_id <= @marker_end)
+)
+union
+(
+select (event_id - @marker_begin) as relative_event_id,
+       (end_event_id - @marker_begin) as relative_end_event_id,
+       event_name,
+       "(stage)" as comment,
+       nesting_event_type,
+       (nesting_event_id - @marker_begin) as relative_nesting_event_id
+   from performance_schema.events_stages_history_long
+   where (thread_id = @con1_tid)
+   and (@marker_begin <= event_id)
+   and (end_event_id <= @marker_end)
+)
+union
+(
+select (event_id - @marker_begin) as relative_event_id,
+       (end_event_id - @marker_begin) as relative_end_event_id,
+       event_name,
+       operation as comment,
+       nesting_event_type,
+       (nesting_event_id - @marker_begin) as relative_nesting_event_id
+   from performance_schema.events_waits_history_long
+   where (thread_id = @con1_tid)
+   and (@marker_begin <= event_id)
+   and (end_event_id <= @marker_end)
+)
+) all_events
+order by relative_event_id asc;
+
+# test cleanup
+
+--disconnect con1
+
+--disable_query_log
+revoke all privileges, grant option from user1@localhost;
+drop user user1@localhost;
+flush privileges;
+
+truncate table performance_schema.setup_actors;
+insert into performance_schema.setup_actors
+  select * from test.setup_actors;
+drop table test.setup_actors;
+
+update performance_schema.threads set instrumented='YES';
+update performance_schema.setup_instruments set enabled='YES', timed='YES';
+
+--enable_query_log
+
+

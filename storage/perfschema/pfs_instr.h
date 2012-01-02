@@ -27,7 +27,13 @@ struct PFS_cond_class;
 struct PFS_file_class;
 struct PFS_table_share;
 struct PFS_thread_class;
+struct PFS_socket_class;
 
+#ifdef __WIN__
+#include <winsock2.h>
+#else
+#include <arpa/inet.h>
+#endif
 #include "pfs_lock.h"
 #include "pfs_stat.h"
 #include "pfs_instr_class.h"
@@ -68,6 +74,8 @@ struct PFS_mutex : public PFS_instr
   const void *m_identity;
   /** Mutex class. */
   PFS_mutex_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /**
     Mutex lock usage statistics.
     This statistic is not exposed in user visible tables yet.
@@ -89,6 +97,8 @@ struct PFS_rwlock : public PFS_instr
   const void *m_identity;
   /** RWLock class. */
   PFS_rwlock_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /**
     RWLock read lock usage statistics.
     This statistic is not exposed in user visible tables yet.
@@ -122,6 +132,8 @@ struct PFS_cond : public PFS_instr
   const void *m_identity;
   /** Condition class. */
   PFS_cond_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /** Condition instance usage statistics. */
   PFS_cond_stat m_cond_stat;
 };
@@ -132,12 +144,16 @@ struct PFS_file : public PFS_instr
   uint32 get_version()
   { return m_lock.get_version(); }
 
+  /** File identity */
+  const void *m_identity;
   /** File name. */
   char m_filename[FN_REFLEN];
   /** File name length in bytes. */
   uint m_filename_length;
   /** File class. */
   PFS_file_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /** File usage statistics. */
   PFS_file_stat m_file_stat;
 };
@@ -166,6 +182,12 @@ struct PFS_table
   */
   bool m_lock_timed;
 
+  /** True if table io statistics have been collected. */
+  bool m_has_io_stats;
+
+  /** True if table lock statistics have been collected. */
+  bool m_has_lock_stats;
+
 public:
   /**
     Aggregate this table handle statistics to the parents.
@@ -174,8 +196,12 @@ public:
   */
   void aggregate(void)
   {
-    if (likely(m_thread_owner != NULL))
+    if (likely((m_thread_owner != NULL) && (m_has_io_stats || m_has_lock_stats)))
+    {
       safe_aggregate(& m_table_stat, m_share, m_thread_owner);
+      m_has_io_stats= false;
+      m_has_lock_stats= false;
+    }
   }
 
   /**
@@ -222,11 +248,51 @@ private:
                                   PFS_thread *safe_thread);
 };
 
+/** Instrumented socket implementation. @see PSI_socket. */
+struct PFS_socket : public PFS_instr
+{
+  uint32 get_version()
+  { return m_lock.get_version(); }
+
+  /** Socket identity, typically int */
+  const void *m_identity;
+  /** Owning thread, if applicable */
+  PFS_thread *m_thread_owner;
+  /** Socket file descriptor */
+  uint m_fd;
+  /** Raw socket address */
+  struct sockaddr_storage  m_sock_addr;
+  /** Length of address */
+  socklen_t m_addr_len;
+  /** Idle flag. */
+  bool m_idle;
+  /** Socket class. */
+  PFS_socket_class *m_class;
+  /** Socket usage statistics. */
+  PFS_socket_stat m_socket_stat;
+};
+
 /**
   @def WAIT_STACK_LOGICAL_SIZE
   Maximum number of nested waits.
+  Some waits, such as:
+  - "wait/io/table/sql/handler"
+  - "wait/lock/table/sql/handler"
+  are implemented by calling code in a storage engine,
+  that can cause nested waits (file io, mutex, ...)
+  Because of partitioned tables, a table io event (on the whole table)
+  can contain a nested table io event (on a partition).
+  Because of additional debug instrumentation,
+  waiting on what looks like a "mutex" (safe_mutex, innodb sync0sync, ...)
+  can cause nested waits to be recorded.
+  For example, a wait on innodb mutexes can lead to:
+  - wait/sync/mutex/innobase/some_mutex
+    - wait/sync/mutex/innobase/sync0sync
+      - wait/sync/mutex/innobase/os0sync
+  The max depth of the event stack must be sufficient
+  for these low level details to be visible.
 */
-#define WAIT_STACK_LOGICAL_SIZE 3
+#define WAIT_STACK_LOGICAL_SIZE 5
 /**
   @def WAIT_STACK_BOTTOM
   Maximum number dummy waits records.
@@ -447,6 +513,7 @@ PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe);
 PFS_cond *sanitize_cond(PFS_cond *unsafe);
 PFS_thread *sanitize_thread(PFS_thread *unsafe);
 PFS_file *sanitize_file(PFS_file *unsafe);
+PFS_socket *sanitize_socket(PFS_socket *unsafe);
 
 int init_instruments(const PFS_global_param *param);
 void cleanup_instruments();
@@ -473,6 +540,9 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
                         const void *identity);
 void destroy_table(PFS_table *pfs);
 
+PFS_socket* create_socket(PFS_socket_class *socket_class, const void *identity);
+void destroy_socket(PFS_socket *pfs);
+
 /* For iterators and show status. */
 
 extern ulong mutex_max;
@@ -489,6 +559,8 @@ extern long file_handle_max;
 extern ulong file_handle_lost;
 extern ulong table_max;
 extern ulong table_lost;
+extern ulong socket_max;
+extern ulong socket_lost;
 extern ulong events_waits_history_per_thread;
 extern ulong events_stages_history_per_thread;
 extern ulong events_statements_history_per_thread;
@@ -504,9 +576,11 @@ extern PFS_thread *thread_array;
 extern PFS_file *file_array;
 extern PFS_file **file_handle_array;
 extern PFS_table *table_array;
+extern PFS_socket *socket_array;
 
 void reset_events_waits_by_instance();
 void reset_file_instance_io();
+void reset_socket_instance_io();
 
 void aggregate_all_event_names(PFS_single_stat *from_array,
                                PFS_single_stat *to_array);
@@ -543,6 +617,8 @@ void update_cond_derived_flags();
 void update_file_derived_flags();
 /** Update derived flags for all table handles. */
 void update_table_derived_flags();
+/** Update derived flags for all socket instances. */
+void update_socket_derived_flags();
 /** Update derived flags for all instruments. */
 void update_instruments_derived_flags();
 

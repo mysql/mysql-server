@@ -35,9 +35,9 @@ pthread_handler_t test_atomic_add(void *arg)
     my_atomic_add32(&bad, -x);
     my_atomic_rwlock_wrunlock(&rwl);
   }
-  pthread_mutex_lock(&mutex);
-  if (!--running_threads) pthread_cond_signal(&cond);
-  pthread_mutex_unlock(&mutex);
+  mysql_mutex_lock(&mutex);
+  if (!--running_threads) mysql_cond_signal(&cond);
+  mysql_mutex_unlock(&mutex);
   return 0;
 }
 
@@ -58,13 +58,13 @@ pthread_handler_t test_atomic_add64(void *arg)
     my_atomic_add64(&a64, -x);
     my_atomic_rwlock_wrunlock(&rwl);
   }
-  pthread_mutex_lock(&mutex);
+  mysql_mutex_lock(&mutex);
   if (!--running_threads)
   {
     bad= (a64 != 0);
-    pthread_cond_signal(&cond);
+    mysql_cond_signal(&cond);
   }
-  pthread_mutex_unlock(&mutex);
+  mysql_mutex_unlock(&mutex);
   return 0;
 }
 
@@ -108,9 +108,9 @@ pthread_handler_t test_atomic_fas(void *arg)
   my_atomic_add32(&bad, -x);
   my_atomic_rwlock_wrunlock(&rwl);
 
-  pthread_mutex_lock(&mutex);
-  if (!--running_threads) pthread_cond_signal(&cond);
-  pthread_mutex_unlock(&mutex);
+  mysql_mutex_lock(&mutex);
+  if (!--running_threads) mysql_cond_signal(&cond);
+  mysql_mutex_unlock(&mutex);
   return 0;
 }
 
@@ -140,9 +140,9 @@ pthread_handler_t test_atomic_cas(void *arg)
       my_atomic_rwlock_wrunlock(&rwl);
     } while (!ok) ;
   }
-  pthread_mutex_lock(&mutex);
-  if (!--running_threads) pthread_cond_signal(&cond);
-  pthread_mutex_unlock(&mutex);
+  mysql_mutex_lock(&mutex);
+  if (!--running_threads) mysql_cond_signal(&cond);
+  mysql_mutex_unlock(&mutex);
   return 0;
 }
 
@@ -164,7 +164,14 @@ void do_tests()
   test_concurrently("my_atomic_cas32", test_atomic_cas, THREADS, CYCLES);
 
   {
-    int64 b=0x1000200030004000LL;
+    /*
+      If b is not volatile, the wrong assembly code is generated on OSX Lion
+      as the variable is optimized away as a constant.
+      See Bug#62533 / Bug#13030056.
+      Another workaround is to specify architecture explicitly using e.g.
+      CFLAGS/CXXFLAGS= "-m64".
+    */
+    volatile int64 b=0x1000200030004000LL;
     a64=0;
     my_atomic_add64(&a64, b);
     ok(a64==b, "add64");

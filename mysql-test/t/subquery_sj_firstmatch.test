@@ -33,8 +33,7 @@ if (`select locate('mrr', @@optimizer_switch) > 0`)
 --echo #
 
 SET @@default_storage_engine='innodb';
-SET @@optimizer_switch='semijoin=on,materialization=off,firstmatch=on,loosescan=off';
-SET @@optimizer_join_cache_level=0;
+SET @@optimizer_switch='semijoin=on,materialization=off,firstmatch=on,loosescan=off,block_nested_loop=off,batched_key_access=off';
 
 CREATE TABLE t0(a INTEGER);
 
@@ -87,7 +86,6 @@ DROP TABLE t0, t1, t2, t6, t8;
 
 SET @@default_storage_engine=default;
 SET @@optimizer_switch=default;
-SET @@optimizer_join_cache_level=default;
 
 --echo # End of bug#51457
 

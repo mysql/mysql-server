@@ -1,0 +1,24 @@
+# Test clients with and without CRL lists
+############ Test mysql ##############
+# Test mysql connecting to a server with an empty crl
+Variable_name	Value
+have_openssl	YES
+have_ssl	YES
+ssl_ca	MYSQL_TEST_DIR/std_data/crl-ca-cert.pem
+ssl_capath	
+ssl_cert	MYSQL_TEST_DIR/std_data/crl-client-cert.pem
+ssl_cipher	
+ssl_crl	
+ssl_crlpath	
+ssl_key	MYSQL_TEST_DIR/std_data/crl-client-key.pem
+# Test mysql connecting to a server with a certificate revoked by -crl
+# Test mysql connecting to a server with a certificate revoked by -crlpath
+############ Test mysqladmin ##############
+# Test mysqladmin connecting to a server with an empty crl
+mysqld is alive
+# Test mysqladmin connecting to a server with a certificate revoked by -crl
+mysqladmin: connect to server at 'localhost' failed
+error: 'SSL connection error: Failed to set ciphers to use'
+# Test mysqladmin connecting to a server with a certificate revoked by -crlpath
+mysqladmin: connect to server at 'localhost' failed
+error: 'SSL connection error: error:00000005:lib(0):func(0):DH lib'

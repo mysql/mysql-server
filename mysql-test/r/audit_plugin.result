@@ -1,0 +1,23 @@
+INSTALL PLUGIN audit_null SONAME 'adt_null.<expected_extension>';
+ERROR HY000: Can't find symbol 'audit_null' in library
+INSTALL PLUGIN null_audit SONAME 'adt_null.<expected_extension>';
+CREATE TABLE t1 (c1 INT, c2 CHAR(20));
+CREATE TABLE t1 (c1 INT, c2 CHAR(20));
+ERROR 42S01: Table 't1' already exists
+INSERT INTO t1 VALUES (1,'a'),(2,'b'),(3,'c');
+SELECT * FROM t1;
+c1	c2
+1	a
+2	b
+3	c
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+DROP TABLE t1;
+SHOW STATUS LIKE 'audit_null_called';
+Variable_name	Value
+Audit_null_called	<expected_number_of_calls>
+UNINSTALL PLUGIN audit_null;
+ERROR 42000: PLUGIN audit_null does not exist
+UNINSTALL PLUGIN null_audit;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown

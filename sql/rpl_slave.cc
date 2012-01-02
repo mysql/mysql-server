@@ -41,6 +41,7 @@
 #include <mysqld_error.h>
 #include <mysys_err.h>
 #include "rpl_handler.h"
+#include "rpl_info_dummy.h"
 #include <signal.h>
 #include <mysql.h>
 #include <myisam.h>
@@ -50,12 +51,16 @@
 #include "log_event.h"                          // Rotate_log_event,
                                                 // Create_file_log_event,
                                                 // Format_description_log_event
-#include "server_ids.h"
+#include "dynamic_ids.h"
+#include "rpl_rli_pdb.h"
 
 #ifdef HAVE_REPLICATION
 
 #include "rpl_tblmap.h"
 #include "debug_sync.h"
+
+using std::min;
+using std::max;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -75,6 +80,31 @@ ulonglong relay_log_space_limit = 0;
 
 const char *relay_log_index= 0;
 const char *relay_log_basename= 0;
+
+/*
+  MTS load-ballancing parameter.
+  Max length of one MTS Worker queue. The value also determines the size
+  of Relay_log_info::gaq (see @c slave_start_workers()).
+  It can be set to any value in [1, ULONG_MAX - 1] range.
+*/
+const ulong mts_slave_worker_queue_len_max= 16384;
+
+/*
+  MTS load-ballancing parameter.
+  Time in microsecs to sleep by MTS Coordinator to avoid the Worker queues
+  room overrun.
+*/
+const ulong mts_coordinator_basic_nap= 5;
+
+/*
+  MTS load-ballancing parameter.
+  Percent of Worker queue size at which Worker is considered to become
+  hungry.
+*/
+const ulong mts_worker_underrun_level= 10;
+Slave_job_item * de_queue(Slave_jobs_queue *jobs, Slave_job_item *ret);
+void append_item_to_jobs(slave_job_item *job_item,
+                         Slave_worker *w, Relay_log_info *rli);
 
 /*
   When slave thread exits, we need to remember the temporary tables so we
@@ -162,6 +192,9 @@ static int terminate_slave_thread(THD *thd,
                                   volatile uint *slave_running,
                                   bool skip_lock);
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
+int slave_worker_exec_job(Slave_worker * w, Relay_log_info *rli);
+static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
+static bool remove_workers(Relay_log_info* rli);
 
 /*
   Find out which replications threads are running
@@ -269,8 +302,8 @@ int init_slave()
   if (pthread_key_create(&RPL_MASTER_INFO, NULL))
     DBUG_RETURN(1);
 
-  if ((error= Rpl_info_factory::create(opt_mi_repository_id, &active_mi,
-                                       opt_rli_repository_id, &rli)))
+  if ((error= Rpl_info_factory::create_coordinators(opt_mi_repository_id, &active_mi,
+                                                    opt_rli_repository_id, &rli)))
   {
     error= 1;
     goto err;
@@ -307,6 +340,9 @@ int init_slave()
   /* If server id is not set, start_slave_thread() will say it */
   if (active_mi->host[0] && !opt_skip_slave_start)
   {
+    /* same as in start_slave() cache the global var values into rli's members */
+    active_mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
+    active_mi->rli->checkpoint_group= opt_mts_checkpoint_group;
     if (start_slave_threads(1 /* need mutex */,
                             0 /* no wait for start*/,
                             active_mi,
@@ -354,12 +390,31 @@ int init_recovery(Master_info* mi, const char** errmsg)
 {
   DBUG_ENTER("init_recovery");
 
+  int error= 0;
   Relay_log_info *rli= mi->rli;
-  const char *group_master_log_name=  rli->get_group_master_log_name();
-  if (group_master_log_name[0])
+  char *group_master_log_name= NULL;
+
+  if (rli->recovery_parallel_workers)
   {
-    mi->set_master_log_pos(max(BIN_LOG_HEADER_SIZE,
-                           rli->get_group_master_log_pos()));
+    /*
+      This is not idempotent and a crash after this function and before
+      the recovery is actually done may lead the system to an inconsistent
+      state.
+
+      This may happen because the gap is not persitent stored anywhere
+      and eventually old relay log files will be removed and further
+      calculations on the gaps will be impossible.
+
+      We need to improve this. /Alfranio.
+    */
+    error= mts_recovery_groups(rli, &rli->recovery_groups);
+  }
+
+  group_master_log_name= const_cast<char *>(rli->get_group_master_log_name());
+  if (!error && group_master_log_name[0])
+  {
+    mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
+                                               rli->get_group_master_log_pos()));
     mi->set_master_log_name(rli->get_group_master_log_name());
 
     sql_print_warning("Recovery from master pos %ld and file %s.",
@@ -371,16 +426,15 @@ int init_recovery(Master_info* mi, const char** errmsg)
     rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
 {
-  int error= 0;
-  int necessary_to_configure= 0;
-
   DBUG_ENTER("init_info");
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
+  int init_error= 0;
+  enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
 
   /*
     We need a mutex while we are changing master info parameters to
@@ -396,25 +450,30 @@ int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
     SLAVE_SQL thread is being started or was not initialized as it is
     required by the SLAVE_IO thread.
   */
-  necessary_to_configure= mi->check_info();
-  if (!(ignore_if_no_info && necessary_to_configure))
+  check_return= mi->check_info();
+  if (check_return == ERROR_CHECKING_REPOSITORY)
+    goto end;
+
+  if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST))
   {
     if ((thread_mask & SLAVE_IO) != 0 && mi->init_info())
-      error= 1;
+      init_error= 1;
   }
 
-  necessary_to_configure= mi->rli->check_info();
-  if (!(ignore_if_no_info && necessary_to_configure))
+  check_return= mi->rli->check_info();
+  if (check_return == ERROR_CHECKING_REPOSITORY)
+    goto end;
+  if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST))
   {
-     if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited))
-         && mi->rli->init_info())
-    error= 1;
+    if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited))
+        && mi->rli->init_info())
+      init_error= 1;
   }
 
+end:
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
-
-  DBUG_RETURN(error);
+  DBUG_RETURN(check_return == ERROR_CHECKING_REPOSITORY || init_error);
 }
 
 void end_info(Master_info* mi)
@@ -423,8 +482,8 @@ void end_info(Master_info* mi)
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
 
   /*
-    The previous implementation was not acquiring locks.
-    We do the same here. However, this is quite strange.
+    The previous implementation was not acquiring locks.  We do the same here.
+    However, this is quite strange.
   */
   mi->end_info();
   mi->rli->end_info();
@@ -434,7 +493,7 @@ void end_info(Master_info* mi)
 
 int remove_info(Master_info* mi)
 {
-  int error= 0;
+  int error= 1;
   DBUG_ENTER("remove_info");
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
 
@@ -454,9 +513,13 @@ int remove_info(Master_info* mi)
   mi->end_info();
   mi->rli->end_info();
 
-  if (mi->remove_info() || mi->rli->remove_info())
-    error= 1;
+  if (mi->remove_info() || remove_workers(mi->rli) ||
+      mi->rli->remove_info())
+    goto err;
 
+  error= 0;
+
+err:
   DBUG_RETURN(error);
 }
 
@@ -488,11 +551,47 @@ int flush_master_info(Master_info* mi, bool force)
 
   mysql_mutex_lock(log_lock);
 
-  int err=  (mi->rli->flush_current_log() ||  mi->flush_info(force));
+  int err=  (mi->rli->flush_current_log() ||
+             mi->flush_info(force));
 
   mysql_mutex_unlock(log_lock);
 
   DBUG_RETURN (err);
+}
+
+/*
+  Remove worker's entries from the repositories.
+*/
+bool remove_workers(Relay_log_info* rli)
+{
+  Slave_worker *worker= NULL;
+
+  for (uint id= 0; id < rli->recovery_parallel_workers; id++)
+  {
+    if (!(worker=
+          Rpl_info_factory::create_worker(opt_rli_repository_id, id, rli)))
+      goto err;
+
+    if (worker->init_info())
+    {
+      delete worker;
+      goto err;
+    }
+
+    worker->end_info();
+
+    if (worker->remove_info())
+    {
+      delete worker;
+      goto err;
+    }
+
+    delete worker;
+  }
+  return false;
+
+err:
+  return true;
 }
 
 /**
@@ -652,7 +751,10 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
       Flushes the relay log info regardles of the sync_relay_log_info option.
     */
     if (mi->rli->flush_info(TRUE))
+    {
+      mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+    }
 
     mysql_mutex_unlock(log_lock);
   }
@@ -677,14 +779,20 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
       Flushes the master info regardles of the sync_master_info option.
     */
     if (mi->flush_info(TRUE))
+    {
+      mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+    }
 
     /*
       Flushes the relay log regardles of the sync_relay_log option.
     */
     if (mi->rli->relay_log.is_open() &&
         mi->rli->relay_log.flush_and_sync(0, TRUE))
+    {
+      mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+    }
 
     mysql_mutex_unlock(log_lock);
   }
@@ -1004,8 +1112,14 @@ static bool io_slave_killed(THD* thd, Master_info* mi)
    The function analyzes a possible killed status and makes
    a decision whether to accept it or not.
    Normally upon accepting the sql thread goes to shutdown.
-   In the event of deffering decision @rli->last_event_start_time waiting
+   In the event of deferring decision @rli->last_event_start_time waiting
    timer is set to force the killed status be accepted upon its expiration.
+
+   Notice Multi-Threaded-Slave behaves similarly in that when it's being
+   stopped and the current group of assigned events has not yet scheduled 
+   completely, Coordinator defers to accept to leave its read-distribute
+   state. The above timeout ensures waiting won't last endlessly, and in
+   such case an error is reported.
 
    @param thd   pointer to a THD instance
    @param rli   pointer to Relay_log_info instance
@@ -1016,13 +1130,26 @@ static bool io_slave_killed(THD* thd, Master_info* mi)
 static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 {
   bool ret= FALSE;
+  bool is_parallel_warn= FALSE;
+
   DBUG_ENTER("sql_slave_killed");
 
   DBUG_ASSERT(rli->info_thd == thd);
-  DBUG_ASSERT(rli->slave_running == 1);// tracking buffer overrun
+  DBUG_ASSERT(rli->slave_running == 1);
   if (abort_loop || thd->killed || rli->abort_slave)
   {
-    if (thd->transaction.all.cannot_safely_rollback() && rli->is_in_group())
+    is_parallel_warn= (rli->is_parallel_exec() && 
+                       (rli->is_mts_in_group() || thd->killed));
+    /*
+      Slave can execute stop being in one of two MTS or Single-Threaded mode.
+      The modes define different criteria to accept the stop.
+      In particular that relates to the concept of groupping.
+      Killed Coordinator thread expects the worst so it warns on
+      possible consistency issue.
+    */
+    if (is_parallel_warn ||
+        (!rli->is_parallel_exec() &&
+         thd->transaction.all.cannot_safely_rollback() && rli->is_in_group()))
     {
       char msg_stopped[]=
         "... Slave SQL Thread stopped with incomplete event group "
@@ -1031,11 +1158,20 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
         "to restart the slave with --slave-exec-mode=IDEMPOTENT, which "
         "ignores duplicate key, key not found, and similar errors (see "
         "documentation for details).";
+      char msg_stopped_mts[]=
+        "... The slave coordinator and worker threads are stopped, possibly "
+        "leaving data in inconsistent state. A restart should "
+        "restore consistency automatically, although using non-transactional "
+        "storage for data or info tables or DDL queries could lead to problems. "
+        "In such cases you have to examine your data (see documentation for "
+        "details).";
 
+      ret= TRUE;
       if (rli->abort_slave)
       {
         DBUG_PRINT("info", ("Request to stop slave SQL Thread received while "
-                            "applying a group that has non-transactional "
+                            "applying an MTS group or a group that "
+                            "has non-transactional "
                             "changes; waiting for completion of the group ... "));
 
         /*
@@ -1057,24 +1193,31 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
                         DBUG_EXECUTE_IF("incomplete_group_in_relay_log",
                                         ret= TRUE;);); // time is over
 
-        if (ret == 0)
+        if (!ret && !rli->reported_unsafe_warning)
         {
           rli->report(WARNING_LEVEL, 0,
+                      !is_parallel_warn ?
                       "Request to stop slave SQL Thread received while "
                       "applying a group that has non-transactional "
-                      "changes; waiting for completion of the group ... ");
-        }
-        else
-        {
-          rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                      ER(ER_SLAVE_FATAL_ERROR), msg_stopped);
+                      "changes; waiting for completion of the group ... "
+                      :
+                      "Coordinator thread of multi-threaded slave is being "
+                      "stopped in the middle of assigning a group of events; "
+                      "deferring to exit until the group completion ... ");
+          rli->reported_unsafe_warning= true;
         }
       }
-      else
+      if (ret)
       {
-        ret= TRUE;
-        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
-                    msg_stopped);
+        if (is_parallel_warn)
+          rli->report(!rli->is_error() ? ERROR_LEVEL :
+                      WARNING_LEVEL,    // an error was reported by Worker
+                      ER_MTS_INCONSISTENT_DATA,
+                      ER(ER_MTS_INCONSISTENT_DATA),
+                      msg_stopped_mts);
+        else
+          rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                      ER(ER_SLAVE_FATAL_ERROR), msg_stopped);
       }
     }
     else
@@ -1083,7 +1226,13 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
     }
   }
   if (ret)
+  {
     rli->last_event_start_time= 0;
+    if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
+    {
+      rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
+    }
+  }
   
   DBUG_RETURN(ret);
 }
@@ -1525,7 +1674,7 @@ maybe it is a *VERY OLD MASTER*.");
     mysql_free_result(master_res);
     master_res= NULL;
   }
-  if (mi->master_id == 0 && mi->ignore_server_ids->server_ids.elements > 0)
+  if (mi->master_id == 0 && mi->ignore_server_ids->dynamic_ids.elements > 0)
   {
     errmsg= "Slave configured with server id filtering could not detect the master server id.";
     err_code= ER_SLAVE_FATAL_ERROR;
@@ -1880,7 +2029,7 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                    " inaccurate");
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
       if (flush_master_info(mi, TRUE))
-        sql_print_error("Failed to flush master info file");
+        sql_print_error("Failed to flush master info file.");
       delete ev;
     }
     else
@@ -1986,6 +2135,7 @@ bool show_master_info(THD* thd, Master_info* mi)
   // TODO: fix this for multi-master
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
+  char *slave_sql_running_state= NULL;
   DBUG_ENTER("show_master_info");
 
   field_list.push_back(new Item_empty_string("Slave_IO_State",
@@ -1993,7 +2143,7 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Master_Host",
                                                      sizeof(mi->host)));
   field_list.push_back(new Item_empty_string("Master_User",
-                                                     sizeof(mi->user)));
+                                                     mi->get_user_size()));
   field_list.push_back(new Item_return_int("Master_Port", 7,
                                            MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("Connect_Retry", 10,
@@ -2064,6 +2214,10 @@ bool show_master_info(THD* thd, Master_info* mi)
                                              sizeof(mi->bind_addr)));
   field_list.push_back(new Item_empty_string("Last_IO_Error_Timestamp", 20));
   field_list.push_back(new Item_empty_string("Last_SQL_Error_Timestamp", 20));
+  field_list.push_back(new Item_empty_string("Master_SSL_Crl",
+                                             sizeof(mi->ssl_crl)));
+  field_list.push_back(new Item_empty_string("Master_SSL_Crlpath",
+                                             sizeof(mi->ssl_crlpath)));
 
 
   if (protocol->send_result_set_metadata(&field_list,
@@ -2085,7 +2239,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     mysql_mutex_unlock(&mi->run_lock);
 
     mysql_mutex_lock(&mi->rli->run_lock);
-    const char *slave_sql_running_state= mi->rli->info_thd ? mi->rli->info_thd->get_proc_info() : "";
+    slave_sql_running_state= const_cast<char *>(mi->rli->info_thd ? mi->rli->info_thd->get_proc_info() : "");
     mysql_mutex_unlock(&mi->rli->run_lock);
 
     mysql_mutex_lock(&mi->data_lock);
@@ -2094,7 +2248,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     mysql_mutex_lock(&mi->rli->err_lock);
 
     protocol->store(mi->host, &my_charset_bin);
-    protocol->store(mi->user, &my_charset_bin);
+    protocol->store(mi->get_user(), &my_charset_bin);
     protocol->store((uint32) mi->port);
     protocol->store((uint32) mi->connect_retry);
     protocol->store(mi->get_master_log_name(), &my_charset_bin);
@@ -2176,7 +2330,7 @@ bool show_master_info(THD* thd, Master_info* mi)
         special marker to say "consider we have caught up".
       */
       protocol->store((longlong)(mi->rli->last_master_timestamp ?
-                                 max(0, time_diff) : 0));
+                                 max(0L, time_diff) : 0));
     }
     else
     {
@@ -2197,11 +2351,11 @@ bool show_master_info(THD* thd, Master_info* mi)
       char buff[FN_REFLEN];
       ulong i, cur_len;
       for (i= 0, buff[0]= 0, cur_len= 0;
-           i < mi->ignore_server_ids->server_ids.elements; i++)
+           i < mi->ignore_server_ids->dynamic_ids.elements; i++)
       {
         ulong s_id, slen;
         char sbuff[FN_REFLEN];
-        get_dynamic(&(mi->ignore_server_ids->server_ids), (uchar*) &s_id, i);
+        get_dynamic(&(mi->ignore_server_ids->dynamic_ids), (uchar*) &s_id, i);
         slen= sprintf(sbuff, (i == 0 ? "%lu" : ", %lu"), s_id);
         if (cur_len + slen + 4 > FN_REFLEN)
         {
@@ -2241,6 +2395,10 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(mi->last_error().timestamp, &my_charset_bin);
     // Last_SQL_Error_Timestamp
     protocol->store(mi->rli->last_error().timestamp, &my_charset_bin);
+    // Master_Ssl_Crl
+    protocol->store(mi->ssl_ca, &my_charset_bin);
+    // Master_Ssl_Crlpath
+    protocol->store(mi->ssl_capath, &my_charset_bin);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -2309,7 +2467,8 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 #if !defined(DBUG_OFF)
   int simulate_error= 0;
 #endif
-  thd->system_thread = (thd_type == SLAVE_THD_SQL) ?
+  thd->system_thread= (thd_type == SLAVE_THD_WORKER) ? 
+    SYSTEM_THREAD_SLAVE_WORKER : (thd_type == SLAVE_THD_SQL) ?
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO;
   thd->security_ctx->skip_grants();
   my_net_init(&thd->net, 0);
@@ -2534,7 +2693,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   {
     // The time when we should execute the event.
     time_t sql_delay_end=
-      ev->when + rli->mi->clock_diff_with_master + sql_delay;
+      ev->when.tv_sec + rli->mi->clock_diff_with_master + sql_delay;
     // The current time.
     time_t now= my_time(0);
     // The time we will have to sleep before executing the event.
@@ -2548,7 +2707,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
                         "now= %ld "
                         "sql_delay_end= %ld "
                         "nap_time= %ld",
-                        sql_delay, (long)ev->when,
+                        sql_delay, (long) ev->when.tv_sec,
                         rli->mi->clock_diff_with_master,
                         (long)now, (long)sql_delay_end, (long)nap_time));
 
@@ -2567,6 +2726,14 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   DBUG_RETURN(0);
 }
 
+/**
+   a sort_dynamic function on ulong type
+   returns as specified by @c qsort_cmp
+*/
+int ulong_cmp(ulong *id1, ulong *id2)
+{
+  return *id1 < *id2? -1 : (*id1 > *id2? 1 : 0);
+}
 
 /**
   Applies the given event and advances the relay log position.
@@ -2595,7 +2762,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
 
    - Reports errors as needed.
 
-  @param ev The event to apply.
+  @param ptr_ev a pointer to a reference to the event to apply.
 
   @param thd The client thread that executes the event (i.e., the
   slave sql thread if called from a replication slave, or the client
@@ -2605,6 +2772,9 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   a replication slave, or the client's thd->rli_fake if called to
   execute a BINLOG statement).
 
+  @note MTS can store NULL to @c ptr_ev location to indicate
+        the event is taken over by a Worker.
+
   @retval 0 OK.
 
   @retval 1 Error calling ev->apply_event().
@@ -2612,10 +2782,12 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   @retval 2 No error calling ev->apply_event(), but error calling
   ev->update_pos().
 */
-int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
+int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
 {
   int exec_res= 0;
   bool skip_event= FALSE;
+  Log_event *ev= *ptr_ev;
+  Log_event::enum_skip_reason reason= Log_event::EVENT_SKIP_NOT;
 
   DBUG_ENTER("apply_event_and_update_pos");
 
@@ -2654,11 +2826,22 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   thd->server_id = ev->server_id; // use the original server id for logging
   thd->set_time();                            // time the query
   thd->lex->current_select= 0;
-  if (!ev->when)
-    ev->when= my_time(0);
+  if (!ev->when.tv_sec)
+    my_micro_time_to_timeval(my_micro_time(), &ev->when);
   ev->thd = thd; // because up to this point, ev->thd == 0
 
-  int reason= ev->shall_skip(rli);
+  if (!(rli->is_mts_recovery() && bitmap_is_set(&rli->recovery_groups,
+                                                rli->mts_recovery_index)))
+  {
+    reason= ev->shall_skip(rli);
+  }
+
+  DBUG_PRINT("mts", ("Mts is recovering %d, number of bits set %d, "
+             "bitmap is set %d, index %lu.\n",
+             rli->is_mts_recovery(), bitmap_bits_set(&rli->recovery_groups),
+             bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index),
+             rli->mts_recovery_index));
+
   if (reason == Log_event::EVENT_SKIP_COUNT)
   {
     sql_slave_skip_counter= --rli->slave_skip_counter;
@@ -2669,72 +2852,180 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
     // Sleeps if needed, and unlocks rli->data_lock.
     if (sql_delay_event(ev, thd, rli))
       DBUG_RETURN(0);
+
     exec_res= ev->apply_event(rli);
+
+    if (!exec_res && (ev->worker != rli))
+    {
+      if (ev->worker)
+      {
+        Slave_job_item item= {ev}, *job_item= &item;
+        Slave_worker *w= (Slave_worker *) ev->worker;
+        // specially marked group typically with OVER_MAX_DBS_IN_EVENT_MTS db:s
+        bool need_sync= ev->is_mts_group_isolated();
+
+        // all events except BEGIN-query must be marked with a non-NULL Worker
+        DBUG_ASSERT(((Slave_worker*) ev->worker) == rli->last_assigned_worker);
+
+        DBUG_PRINT("Log_event::apply_event:",
+                   ("-> job item data %p to W_%lu", job_item->data, w->id));
+
+        // Reset mts in-group state
+        if (rli->mts_group_status == Relay_log_info::MTS_END_GROUP)
+        {
+          // CGAP cleanup
+          for (uint i= rli->curr_group_assigned_parts.elements; i > 0; i--)
+            delete_dynamic_element(&rli->
+                                   curr_group_assigned_parts, i - 1);
+          // reset the B-group marker
+          rli->curr_group_seen_begin= FALSE;
+          rli->last_assigned_worker= NULL;
+        }
+
+        if (rli->curr_group_da.elements > 0)
+        {
+          /*
+            the current event sorted out which partion the current group belongs to.
+            It's time now to processed deferred array events.
+          */
+          for (uint i= 0; i < rli->curr_group_da.elements; i++)
+          { 
+            Slave_job_item da_item;
+            get_dynamic(&rli->curr_group_da, (uchar*) &da_item.data, i);
+            DBUG_PRINT("mts", ("Assigning job %llu to worker %lu",
+                      ((Log_event* )da_item.data)->log_pos, w->id));
+            append_item_to_jobs(&da_item, w, rli);
+          }
+          if (rli->curr_group_da.elements > rli->curr_group_da.max_element)
+          {
+            // reallocate to less mem
+            rli->curr_group_da.elements= rli->curr_group_da.max_element;
+            rli->curr_group_da.max_element= 0;
+            freeze_size(&rli->curr_group_da); // restores max_element
+          }
+          rli->curr_group_da.elements= 0;
+        }
+
+        DBUG_PRINT("mts", ("Assigning job %llu to worker %lu\n",
+                   ((Log_event* )job_item->data)->log_pos, w->id));
+
+        /* Notice `ev' instance can be destoyed after `append()' */
+        append_item_to_jobs(job_item, w, rli);
+        if (need_sync)
+        {
+          /*
+            combination of over-max db:s and end of the current group
+            forces to wait for the assigned groups completion by assigned
+            to the event worker.
+            Indeed MTS group status could be safely set to MTS_NOT_IN_GROUP
+            after wait_() returns.
+            No need to know a possible error out of synchronization call.
+          */
+          (void) wait_for_workers_to_finish(rli);
+        }
+
+      }
+      *ptr_ev= NULL; // announcing the event is passed to w-worker
+    }
   }
   else
     mysql_mutex_unlock(&rli->data_lock);
-
-#ifndef DBUG_OFF
-  /*
-    This only prints information to the debug trace.
-
-    TODO: Print an informational message to the error log?
-  */
-  static const char *const explain[] = {
-    // EVENT_SKIP_NOT,
-    "not skipped",
-    // EVENT_SKIP_IGNORE,
-    "skipped because event should be ignored",
-    // EVENT_SKIP_COUNT
-    "skipped because event skip counter was non-zero"
-  };
-  DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
-                      test(thd->variables.option_bits & OPTION_BEGIN),
-                      rli->get_flag(Relay_log_info::IN_STMT)));
-  DBUG_PRINT("skip_event", ("%s event was %s",
-                            ev->get_type_str(), explain[reason]));
-#endif
-
+ 
   DBUG_PRINT("info", ("apply_event error = %d", exec_res));
   if (exec_res == 0)
   {
     /*
-      Positions are not updated here when an XID is processed and the relay
-      log info is stored in a transactional engine such as Innodb. To make
-      a slave crash-safe, positions must be updated while processing a XID
-      event and as such do not need to be updated here again.
+      Positions are not updated here when an XID is processed. To make
+      a slave crash-safe, positions must be updated while processing a
+      XID event and as such do not need to be updated here again.
 
-      However, if the event needs to be skipped, this means that it will not
-      be processed and then positions need to be updated here.
+      However, if the event needs to be skipped, this means that it
+      will not be processed and then positions need to be updated here.
 
       See sql/rpl_rli.h for further details.
     */
     int error= 0;
-    if (!(ev->get_type_code() == XID_EVENT && rli->is_transactional()) ||
-        skip_event)
-      error= ev->update_pos(rli);
-#ifndef DBUG_OFF
-    DBUG_PRINT("info", ("update_pos error = %d", error));
-    if (!rli->belongs_to_client())
+    if (*ptr_ev &&
+        (ev->get_type_code() != XID_EVENT ||
+         skip_event || (rli->is_mts_recovery() &&
+         (ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
+          bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index))))
     {
-      char buf[22];
-      DBUG_PRINT("info", ("group %s %s",
-                          llstr(rli->get_group_relay_log_pos(), buf),
-                          rli->get_group_relay_log_name()));
-      DBUG_PRINT("info", ("event %s %s",
-                          llstr(rli->get_event_relay_log_pos(), buf),
-                          rli->get_event_relay_log_name()));
-    }
+#ifndef DBUG_OFF
+      /*
+        This only prints information to the debug trace.
+        
+        TODO: Print an informational message to the error log?
+      */
+      static const char *const explain[] = {
+        // EVENT_SKIP_NOT,
+        "not skipped",
+        // EVENT_SKIP_IGNORE,
+        "skipped because event should be ignored",
+        // EVENT_SKIP_COUNT
+        "skipped because event skip counter was non-zero"
+      };
+      DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
+                          test(thd->variables.option_bits & OPTION_BEGIN),
+                          rli->get_flag(Relay_log_info::IN_STMT)));
+      DBUG_PRINT("skip_event", ("%s event was %s",
+                                ev->get_type_str(), explain[reason]));
 #endif
-    /*
-      The update should not fail, so print an error message and
-      return an error code.
 
-      TODO: Replace this with a decent error message when merged
-      with BUG#24954 (which adds several new error message).
-    */
+      error= ev->update_pos(rli);
+
+#ifndef DBUG_OFF
+      DBUG_PRINT("info", ("update_pos error = %d", error));
+      if (!rli->belongs_to_client())
+      {
+        char buf[22];
+        DBUG_PRINT("info", ("group %s %s",
+                            llstr(rli->get_group_relay_log_pos(), buf),
+                            rli->get_group_relay_log_name()));
+        DBUG_PRINT("info", ("event %s %s",
+                            llstr(rli->get_event_relay_log_pos(), buf),
+                            rli->get_event_relay_log_name()));
+      }
+#endif
+    }
+    else
+    {
+      DBUG_ASSERT(*ptr_ev == ev || rli->is_parallel_exec());
+
+      rli->inc_event_relay_log_pos();
+    }
+
+    if (!error && rli->is_mts_recovery() &&
+        ev->get_type_code() != ROTATE_EVENT &&
+        ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
+    {
+      if (ev->starts_group())
+      {
+        rli->mts_recovery_group_seen_begin= TRUE;
+      }
+      if (ev->ends_group() || !rli->mts_recovery_group_seen_begin)
+      {
+        rli->mts_recovery_index++;
+        if (--rli->mts_recovery_group_cnt == 0)
+        {
+          rli->recovery_parallel_workers= rli->slave_parallel_workers;
+          rli->mts_recovery_index= 0;
+        }
+        rli->mts_recovery_group_seen_begin= FALSE;
+
+        error= rli->flush_info(TRUE);
+      }
+    }
+
     if (error)
     {
+      /*
+        The update should not fail, so print an error message and
+        return an error code.
+        
+        TODO: Replace this with a decent error message when merged
+        with BUG#24954 (which adds several new error message).
+      */
       char buf[22];
       rli->report(ERROR_LEVEL, ER_UNKNOWN_ERROR,
                   "It was not possible to update the positions"
@@ -2791,7 +3082,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
    */
   mysql_mutex_lock(&rli->data_lock);
 
-  Log_event * ev = next_event(rli);
+  Log_event *ev = next_event(rli), **ptr_ev;
 
   DBUG_ASSERT(rli->info_thd==thd);
 
@@ -2805,6 +3096,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
   {
     int exec_res;
 
+    ptr_ev= &ev;
     /*
       Even if we don't execute this event, we keep the master timestamp,
       so that seconds behind master shows correct delta (there are events
@@ -2814,16 +3106,20 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       event) or ev->when is set to 0, or a FD from master, we don't update the
       last_master_timestamp.
     */
-    if (!(ev->is_artificial_event() || ev->is_relay_log_event() ||
-          (ev->when == 0) || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
+    if (!(rli->is_parallel_exec() ||
+          ev->is_artificial_event() || ev->is_relay_log_event() ||
+          (ev->when.tv_sec == 0) || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
     {
-      rli->last_master_timestamp= ev->when + (time_t) ev->exec_time;
+      rli->last_master_timestamp= ev->when.tv_sec + (time_t) ev->exec_time;
       DBUG_ASSERT(rli->last_master_timestamp >= 0);
     }
 
     /*
       This tests if the position of the beginning of the current event
       hits the UNTIL barrier.
+      MTS: since the master and the relay-group coordinates change 
+      asynchronously logics of rli->is_until_satisfied() can't apply.
+      Hence, UNTIL forces the sequential applying.
     */
     if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
         rli->is_until_satisfied(thd, ev))
@@ -2861,21 +3157,24 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                       };);
     }
 
-    exec_res= apply_event_and_update_pos(ev, thd, rli);
+    /* ptr_ev can change to NULL indicating MTS coorinator passed to a Worker */
+    exec_res= apply_event_and_update_pos(ptr_ev, thd, rli);
 
-    /*
-      Format_description_log_event should not be deleted because it will be
-      used to read info about the relay log's format; it will be deleted when
-      the SQL thread does not need it, i.e. when this thread terminates.
-    */
-    if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
+    if (*ptr_ev)
     {
-      if (thd->variables.binlog_rows_query_log_events)
-        handle_rows_query_log_event(ev, rli);
+      DBUG_ASSERT(*ptr_ev == ev); // event remains to belong to Coordinator
 
-      DBUG_PRINT("info", ("Deleting the event after it has been executed"));
-      if (ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
+      /*
+        Format_description_log_event should not be deleted because it will be
+        used to read info about the relay log's format; it will be deleted when
+        the SQL thread does not need it, i.e. when this thread terminates.
+        ROWS_QUERY_LOG_EVENT is destroyed at the end of the current statement
+        clean-up routine.
+      */
+      if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT &&
+          ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
       {
+        DBUG_PRINT("info", ("Deleting the event after it has been executed"));
         delete ev;
         ev= NULL;
       }
@@ -2927,7 +3226,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
             exec_res= 0;
             rli->cleanup_context(thd, 1);
             /* chance for concurrent connection to get more locks */
-            slave_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
+            slave_sleep(thd, min<ulong>(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                         sql_slave_killed, rli);
             mysql_mutex_lock(&rli->data_lock); // because of SHOW STATUS
             rli->trans_retries++;
@@ -2981,7 +3280,7 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
 {
   if (io_slave_killed(thd, mi))
   {
-    if (info && global_system_variables.log_warnings)
+    if (info && log_warnings)
       sql_print_information("%s", info);
     return TRUE;
   }
@@ -3056,7 +3355,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   }
   if (safe_reconnect(thd, mysql, mi, 1) || io_slave_killed(thd, mi))
   {
-    if (global_system_variables.log_warnings)
+    if (log_warnings)
       sql_print_information("%s", messages[SLAVE_RECON_MSG_KILLED_AFTER]);
     return 1;
   }
@@ -3074,7 +3373,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
 */
 pthread_handler_t handle_slave_io(void *arg)
 {
-  THD *thd; // needs to be first for thread_stack
+  THD *thd= NULL; // needs to be first for thread_stack
   MYSQL *mysql;
   Master_info *mi = (Master_info*)arg;
   Relay_log_info *rli= mi->rli;
@@ -3116,7 +3415,7 @@ pthread_handler_t handle_slave_io(void *arg)
     goto err;
   }
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.append(thd);
+  threads.push_front(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
   mi->slave_running = 1;
   mi->abort_slave = 0;
@@ -3150,7 +3449,7 @@ pthread_handler_t handle_slave_io(void *arg)
   {
     sql_print_information("Slave I/O thread: connected to master '%s@%s:%d',"
                           "replication started in log '%s' at position %s",
-                          mi->user, mi->host, mi->port,
+                          mi->get_user(), mi->host, mi->port,
 			  mi->get_io_rpl_log_name(),
 			  llstr(mi->get_master_log_pos(), llbuff));
   /*
@@ -3359,11 +3658,17 @@ Stopping slave I/O thread due to out-of-memory error from master");
         goto err;
       }
 
+      mysql_mutex_lock(&mi->data_lock);
       if (flush_master_info(mi, FALSE))
       {
-        sql_print_error("Failed to flush master info file");
+        mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                   ER(ER_SLAVE_FATAL_ERROR),
+                   "Failed to flush master info.");
+        mysql_mutex_unlock(&mi->data_lock);
         goto err;
       }
+      mysql_mutex_unlock(&mi->data_lock);
+
       /*
         See if the relay logs take too much space.
         We don't lock mi->rli->log_space_lock here; this dirty read saves time
@@ -3426,7 +3731,11 @@ err:
   write_ignored_events_info_to_relay_log(thd, mi);
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&mi->run_lock);
-
+  /*
+    Clean information used to start slave in order to avoid
+    security issues.
+  */
+  mi->reset_start_info();
   /* Forget the relay log's format */
   delete mi->rli->relay_log.description_event_for_queue;
   mi->rli->relay_log.description_event_for_queue= 0;
@@ -3482,8 +3791,11 @@ int check_temp_dir(char* tmp_file)
   /*
     Check permissions to create a file.
    */
+  //append the server UUID to the temp file name.
+  char *unique_tmp_file_name= (char*)my_malloc((FN_REFLEN+TEMP_FILE_MAX_LEN)*sizeof(char), MYF(0));
+  sprintf(unique_tmp_file_name, "%s%s", tmp_file, server_uuid);
   if ((fd= mysql_file_create(key_file_misc,
-                             tmp_file, CREATE_MODE,
+                             unique_tmp_file_name, CREATE_MODE,
                              O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
                              MYF(MY_WME))) < 0)
   DBUG_RETURN(1);
@@ -3492,9 +3804,828 @@ int check_temp_dir(char* tmp_file)
     Clean up.
    */
   mysql_file_close(fd, MYF(0));
-  mysql_file_delete(key_file_misc, tmp_file, MYF(0));
 
+  mysql_file_delete(key_file_misc, unique_tmp_file_name, MYF(0));
+  my_free(unique_tmp_file_name);
   DBUG_RETURN(0);
+}
+
+/*
+  Worker thread for the parallel execution of the replication events.
+*/
+pthread_handler_t handle_slave_worker(void *arg)
+{
+  THD *thd;                     /* needs to be first for thread_stack */
+  int error= 0;
+  Slave_worker *w= (Slave_worker *) arg;
+  Relay_log_info* rli= w->c_rli;
+  ulong purge_cnt= 0;
+  ulonglong purge_size= 0;
+  struct slave_job_item _item, *job_item= &_item;
+
+  my_thread_init();
+  DBUG_ENTER("handle_slave_worker");
+
+  thd= new THD;
+  if (!thd)
+  {
+    sql_print_error("Failed during slave worker initialization");
+    goto err;
+  }
+  w->info_thd= thd;
+  thd->thread_stack = (char*)&thd;
+  
+  pthread_detach_this_thread();
+  if (init_slave_thread(thd, SLAVE_THD_WORKER))
+  {
+    // todo make SQL thread killed
+    sql_print_error("Failed during slave worker initialization");
+    goto err;
+  }
+  thd->init_for_queries();
+  mysql_mutex_lock(&LOCK_thread_count);
+  threads.push_front(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
+
+  if (w->update_is_transactional())
+  {
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                "Error checking if the worker repository is transactional.");
+    goto err;
+  }
+
+  mysql_mutex_lock(&w->jobs_lock);
+  w->running_status= Slave_worker::RUNNING;
+  mysql_cond_signal(&w->jobs_cond);
+
+  mysql_mutex_unlock(&w->jobs_lock);
+
+  DBUG_ASSERT(thd->is_slave_error == 0);
+
+  while (!error)
+  {
+      error= slave_worker_exec_job(w, rli);
+  }
+
+  /* 
+     Cleanup after an error requires clear_error() go first.
+     Otherwise assert(!all) in binlog_rollback()
+  */
+  thd->clear_error();
+  w->cleanup_context(thd, error);
+
+  mysql_mutex_lock(&w->jobs_lock);
+
+  while(de_queue(&w->jobs, job_item))
+  {
+    purge_cnt++;
+    purge_size += ((Log_event*) (job_item->data))->data_written;
+    DBUG_ASSERT(job_item->data);
+    delete static_cast<Log_event*>(job_item->data);
+  }
+
+  DBUG_ASSERT(w->jobs.len == 0);
+
+  mysql_mutex_unlock(&w->jobs_lock);
+
+  mysql_mutex_lock(&rli->pending_jobs_lock);
+  rli->pending_jobs -= purge_cnt;
+  rli->mts_pending_jobs_size -= purge_size;
+  DBUG_ASSERT(rli->mts_pending_jobs_size < rli->mts_pending_jobs_size_max);
+
+  mysql_mutex_unlock(&rli->pending_jobs_lock);
+
+  mysql_mutex_lock(&w->jobs_lock);
+
+  w->running_status= Slave_worker::NOT_RUNNING;
+  if (log_warnings > 1)
+    sql_print_information("Worker %lu statistics: "
+                          "events processed = %lu "
+                          "hungry waits = %lu "
+                          "priv queue overfills = %llu ",
+                          w->id, w->events_done, w->wq_size_waits_cnt,
+                          w->jobs.waited_overfill);
+  mysql_cond_signal(&w->jobs_cond);  // famous last goodbye
+
+  mysql_mutex_unlock(&w->jobs_lock);
+
+err:
+
+  if (thd)
+  {
+    /*
+       The slave code is very bad. Notice that it is missing
+       several clean up calls here. I've just added what was
+       necessary to avoid valgrind errors.
+ 
+       /Alfranio
+    */
+    DBUG_ASSERT(thd->net.buff != 0);
+    net_end(&thd->net);
+
+    mysql_mutex_lock(&LOCK_thread_count);
+    THD_CHECK_SENTRY(thd);
+    /*
+      to avoid close_temporary_tables() closing temp tables as those
+      are Coordinator's burden.
+    */
+    thd->system_thread= NON_SYSTEM_THREAD;
+    delete thd;
+    mysql_mutex_unlock(&LOCK_thread_count);
+  }
+
+  my_thread_end();
+  pthread_exit(0);
+  DBUG_RETURN(0); 
+}
+
+/**
+   Orders jobs by comparing relay log information.
+*/
+
+int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2)
+{
+  longlong filecmp= strcmp(id1->file_name, id2->file_name);
+  longlong poscmp= id1->pos - id2->pos;
+  return (filecmp < 0  ? -1 : (filecmp > 0  ?  1 :
+         (poscmp  < 0  ? -1 : (poscmp  > 0  ?  1 : 0))));
+}
+
+bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
+{ 
+  Log_event *ev= NULL;
+  const char *errmsg= NULL;
+  bool error= FALSE;
+  bool curr_group_seen_begin= FALSE;
+  uint recovery_group_cnt= 0;
+  bool not_reached_commit= true;
+  DYNAMIC_ARRAY above_lwm_jobs;
+  Slave_job_group job_worker;
+  IO_CACHE log;
+  File file;
+  LOG_INFO linfo;
+  my_off_t offset= 0;
+
+  DBUG_ENTER("mts_recovery_groups");
+  DBUG_ASSERT(rli->recovery_parallel_workers > 0);
+
+  /*
+    Save relay log position to compare with worker's position.
+  */
+  LOG_POS_COORD cp=
+  {
+    (char *) rli->get_group_master_log_name(),
+    rli->get_group_master_log_pos()
+  };
+
+  Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
+
+  if (!p_fdle->is_valid())
+    DBUG_RETURN(TRUE);
+
+  /*
+    Gathers information on valuable workers and stores it in 
+    above_lwm_jobs in asc ordered by the master binlog coordinates.
+  */
+  my_init_dynamic_array(&above_lwm_jobs, sizeof(Slave_job_group),
+                        rli->recovery_parallel_workers, rli->recovery_parallel_workers);
+
+  for (uint id= 0; id < rli->recovery_parallel_workers; id++)
+  {
+    Slave_worker *worker=
+      Rpl_info_factory::create_worker(opt_rli_repository_id, id, rli);
+
+    if (!worker)
+    {
+      error= TRUE;
+      goto err;
+    }
+
+    worker->init_info();
+    LOG_POS_COORD w_last= { const_cast<char*>(worker->get_group_master_log_name()),
+                            worker->get_group_master_log_pos() };
+    if (mts_event_coord_cmp(&w_last, &cp) > 0)
+    {
+      /*
+        Inserts information into a dynamic array for further processing.
+        The jobs/workers are ordered by the last checkpoint positions
+        workers have seen.
+      */
+      job_worker.worker= worker;
+      job_worker.checkpoint_log_pos= worker->checkpoint_master_log_pos;
+      job_worker.checkpoint_log_name= worker->checkpoint_master_log_name;
+
+      insert_dynamic(&above_lwm_jobs, (uchar*) &job_worker);
+    }
+    else
+    {
+      /*
+        Deletes the worker because its jobs are included in the latest
+        checkpoint.
+      */
+      worker->end_info();
+      delete worker;
+    }
+  }
+
+  /*
+    In what follows, the group Recovery Bitmap is constructed.
+
+     seek(lwm);
+
+     while(w= next(above_lwm_w))
+       do
+         read G
+         if G == w->last_comm
+           w.B << group_cnt++;
+           RB |= w.B;
+            break;
+         else
+           group_cnt++;
+        while(!eof);
+        continue;
+  */
+
+  bitmap_clear_all(groups);
+  rli->mts_recovery_group_cnt= 0;
+  for (uint it_job= 0; it_job < above_lwm_jobs.elements; it_job++)
+  {
+    Slave_worker *w= ((Slave_job_group *)
+                      dynamic_array_ptr(&above_lwm_jobs, it_job))->worker;
+    LOG_POS_COORD w_last= { const_cast<char*>(w->get_group_master_log_name()),
+                            w->get_group_master_log_pos() };
+    bool checksum_detected= FALSE;
+
+    sql_print_information("Recovery relay log info based on Worker-Id %lu, "
+                          "group_relay_log_name %s, group_relay_log_pos %lu "
+                          "group_master_log_name %s, group_master_log_pos %lu",
+                          w->id,
+                          w->get_group_relay_log_name(),
+                          (ulong) w->get_group_relay_log_pos(),
+                          w->get_group_master_log_name(),
+                          (ulong) w->get_group_master_log_pos());
+
+    recovery_group_cnt= 0;
+    not_reached_commit= true;
+    if (rli->relay_log.find_log_pos(&linfo, rli->get_group_relay_log_name(), 1))
+    {
+      error= TRUE;
+      sql_print_error("Error looking for %s.", rli->get_group_relay_log_name());
+      goto err;
+    }
+    offset= rli->get_group_relay_log_pos();
+    for (int checking= 0 ; not_reached_commit; checking++)
+    {
+      if ((file= open_binlog(&log, linfo.log_file_name, &errmsg)) < 0)
+      {
+        error= TRUE;
+        sql_print_error("%s", errmsg);
+        goto err;
+      }
+      /*
+        Looking for the actual relay checksum algorithm that is present in
+        a FD at head events of the relay log.
+      */
+      if (!checksum_detected)
+      {
+        for (int i=0; i < 3; i++)
+        {
+          if ((ev= Log_event::read_log_event(&log,
+                                             (mysql_mutex_t*) 0, p_fdle, 0))
+              && ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+            p_fdle->checksum_alg= ev->checksum_alg;
+          checksum_detected= TRUE;
+        }
+        if (!checksum_detected)
+        {
+          error= TRUE;
+          sql_print_error("%s", "malformed or very old relay log which "
+                          "does not have FormatDescriptor");
+          goto err;
+        }
+      }
+
+      my_b_seek(&log, offset);
+
+      while (not_reached_commit &&
+             (ev= Log_event::read_log_event(&log, 0, p_fdle,
+                                            opt_slave_sql_verify_checksum)))
+      {
+        DBUG_ASSERT(ev->is_valid());
+
+        if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+          p_fdle->checksum_alg= ev->checksum_alg;
+
+        if (ev->get_type_code() == ROTATE_EVENT ||
+            ev->get_type_code() == FORMAT_DESCRIPTION_EVENT) 
+        {
+          delete ev;
+          ev= NULL;
+          continue;
+        }
+
+        DBUG_PRINT("mts", ("Event Recoverying relay log info "
+                   "group_mster_log_name %s, event_master_log_pos %llu type code %u.",
+                   linfo.log_file_name, ev->log_pos, ev->get_type_code()));
+
+        if (ev->starts_group())
+        {
+          curr_group_seen_begin= TRUE;
+        }
+        if (ev->ends_group() || !curr_group_seen_begin)
+        {
+          int ret= 0;
+          LOG_POS_COORD ev_coord= { (char *) rli->get_group_master_log_name(),
+                                      ev->log_pos };
+          curr_group_seen_begin= FALSE;
+          recovery_group_cnt++;
+
+          sql_print_information("Group Recoverying relay log info "
+                                "group_master_log_name %s, event_master_log_pos %llu.",
+                                rli->get_group_master_log_name(),
+                                ev->log_pos);
+          if ((ret= mts_event_coord_cmp(&ev_coord, &w_last)) == 0)
+          {
+#ifndef DBUG_OFF
+            for (uint i= 0; i <= w->checkpoint_seqno; i++)
+            {
+              if (bitmap_is_set(&w->group_executed, i))
+                DBUG_PRINT("mts", ("Bit %u is set.", i));
+              else
+                DBUG_PRINT("mts", ("Bit %u is not set.", i));
+            }
+#endif
+            DBUG_PRINT("mts",
+                       ("Doing a shift ini(%lu) end(%lu).",
+                       (w->checkpoint_seqno + 1) - recovery_group_cnt,
+                        w->checkpoint_seqno));
+
+            for (uint i= (w->checkpoint_seqno + 1) - recovery_group_cnt,
+                 j= 0; i <= w->checkpoint_seqno; i++, j++)
+            {
+              if (bitmap_is_set(&w->group_executed, i))
+              {
+                DBUG_PRINT("mts", ("Setting bit %u.", j));
+                bitmap_fast_test_and_set(groups, j);
+              }
+            }
+            not_reached_commit= false;
+          }
+          else
+            DBUG_ASSERT(ret < 0);
+        }
+        delete ev;
+        ev= NULL;
+      }
+      end_io_cache(&log);
+      mysql_file_close(file, MYF(MY_WME));
+      offset= BIN_LOG_HEADER_SIZE;
+      if (not_reached_commit && rli->relay_log.find_next_log(&linfo, 1))
+      {
+         error= TRUE;
+         sql_print_error("Error looking for file after %s.", linfo.log_file_name);
+         goto err;
+      }
+    }
+
+    rli->mts_recovery_group_cnt= (rli->mts_recovery_group_cnt < recovery_group_cnt ?
+      recovery_group_cnt : rli->mts_recovery_group_cnt);
+  }
+
+  DBUG_ASSERT(rli->mts_recovery_group_cnt < groups->n_bits);
+  DBUG_ASSERT(rli->mts_recovery_group_cnt < rli->checkpoint_group);
+
+err:
+  
+  for (uint it_job= 0; it_job < above_lwm_jobs.elements; it_job++)
+  {
+    get_dynamic(&above_lwm_jobs, (uchar *) &job_worker, it_job);
+    job_worker.worker->end_info();
+    delete job_worker.worker;
+  }
+
+  delete_dynamic(&above_lwm_jobs);
+
+  DBUG_RETURN(error);
+}
+
+/**
+   Processing rli->gaq to find out the low-water-mark (lwm) coordinates
+   which is stored into the cental recovery table.
+
+   @param rli    pointer to Relay-log-info of Coordinator
+   @param period period of processing GAQ, normally derived from 
+                 @c mts_checkpoint_period
+   @param force  if TRUE then hang in a loop till some progress
+   @param locked TRUE if rli->data_lock mutex is aquired by the caller.
+
+   @return FALSE success, TRUE otherwise
+*/
+bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
+                            bool force, bool locked)
+{
+  ulong cnt;
+  bool error= FALSE;
+  struct timespec curr_clock;
+
+  DBUG_ENTER("checkpoint_routine");
+
+#ifndef DBUG_OFF
+  if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
+  {
+    if (!rli->gaq->count_done(rli))
+      DBUG_RETURN(FALSE);
+  }
+#endif
+
+  /*
+    rli->checkpoint_group can have two possible values due to
+    two possible status of the last (being scheduled) group. 
+  */
+  DBUG_ASSERT(!rli->gaq->full() ||
+              ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
+                rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
+               rli->checkpoint_seqno == rli->checkpoint_group));
+
+  /*
+    Currently, the checkpoint routine is being called by the SQL Thread.
+    For that reason, this function is called call from appropriate points
+    in the SQL Thread's execution path and the elapsed time is calculated
+    here to check if it is time to execute it.
+  */
+  set_timespec_nsec(curr_clock, 0);
+  ulonglong diff= diff_timespec(curr_clock, rli->last_clock);
+  if (!force && diff < period)
+  {
+    /*
+      We do not need to execute the checkpoint now because
+      the time elapsed is not enough.
+    */
+    DBUG_RETURN(FALSE);
+  }
+
+  do
+  {
+    cnt= rli->gaq->move_queue_head(&rli->workers);
+#ifndef DBUG_OFF
+    if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
+        cnt != opt_mts_checkpoint_period)
+      sql_print_error("This an error cnt != mts_checkpoint_period");
+#endif
+  } while (!sql_slave_killed(rli->info_thd, rli) &&
+           cnt == 0 && force &&
+           !DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
+           (my_sleep(rli->mts_coordinator_basic_nap), 1));
+  /*
+    This checks how many consecutive jobs where processed.
+    If this value is different than zero the checkpoint
+    routine can proceed. Otherwise, there is nothing to be
+    done.
+  */      
+  if (cnt == 0)
+    goto end;
+
+
+  /* TODO: 
+     to turn the least occupied selection in terms of jobs pieces
+  */
+  for (uint i= 0; i < rli->workers.elements; i++)
+  {
+    Slave_worker *w_i;
+    get_dynamic(&rli->workers, (uchar *) &w_i, i);
+    set_dynamic(&rli->least_occupied_workers, (uchar*) &w_i->jobs.len, w_i->id);
+  };
+  sort_dynamic(&rli->least_occupied_workers, (qsort_cmp) ulong_cmp);
+
+  if (!locked)
+    mysql_mutex_lock(&rli->data_lock);
+
+  /*
+    "Coordinator::commit_positions" {
+
+    rli->gaq->lwm has been updated in move_queue_head() and 
+    to contain all but rli->group_master_log_name which 
+    is altered solely by Coordinator at special checkpoints.
+  */
+  rli->set_group_master_log_pos(rli->gaq->lwm.group_master_log_pos);
+  rli->set_group_relay_log_pos(rli->gaq->lwm.group_relay_log_pos);
+  DBUG_PRINT("mts", ("New checkpoint %llu %llu %s",
+             rli->gaq->lwm.group_master_log_pos,
+             rli->gaq->lwm.group_relay_log_pos,
+             rli->gaq->lwm.group_relay_log_name));
+
+  if (rli->gaq->lwm.group_relay_log_name[0] != 0)
+    rli->set_group_relay_log_name(rli->gaq->lwm.group_relay_log_name);
+
+  /* 
+     todo: uncomment notifies when UNTIL will be supported
+
+     rli->notify_group_master_log_name_update();
+     rli->notify_group_relay_log_name_update();
+
+     Todo: optimize with if (wait_flag) broadcast
+         waiter: set wait_flag; waits....; drops wait_flag;
+  */
+
+  error= rli->flush_info(TRUE);
+
+  mysql_cond_broadcast(&rli->data_cond);
+  if (!locked)
+    mysql_mutex_unlock(&rli->data_lock);
+
+  /*
+    We need to ensure that this is never called at this point when
+    cnt is zero. This value means that the checkpoint information
+    will be completely reset.
+  */
+  rli->reset_notified_checkpoint(cnt, rli->gaq->lwm.ts);
+
+  /* end-of "Coordinator::"commit_positions" */
+
+end:
+#ifndef DBUG_OFF
+  if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
+    DBUG_SUICIDE();
+#endif
+  set_timespec_nsec(rli->last_clock, 0);
+  
+  DBUG_RETURN(error);
+}
+
+/**
+   Instantiation of a Slave_worker and forking out a single Worker thread.
+   
+   @param  rli  Coordinator's Relay_log_info pointer
+   @param  i    identifier of the Worker
+
+   @return 0 suppress or 1 if fails
+*/
+int slave_start_single_worker(Relay_log_info *rli, ulong i)
+{
+  int error= 0;
+  pthread_t th;
+  Slave_worker *w= NULL;
+
+  if (!(w=
+      Rpl_info_factory::create_worker(opt_rli_repository_id, i, rli)))
+  {
+    sql_print_error("Failed during slave worker thread create");
+    error= 1;
+    goto err;
+  }
+
+  if (w->init_worker(rli, i))
+  {
+    sql_print_error("Failed during slave worker thread create");
+    error= 1;
+    goto err;
+  }
+  set_dynamic(&rli->workers, (uchar*) &w, i);
+
+  if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
+      pthread_create(&th, &connection_attrib, handle_slave_worker,
+                     (void*) w))
+  {
+    sql_print_error("Failed during slave worker thread create");
+    error= 1;
+    goto err;
+  }
+  
+  mysql_mutex_lock(&w->jobs_lock);
+  if (w->running_status == Slave_worker::NOT_RUNNING)
+    mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
+  mysql_mutex_unlock(&w->jobs_lock);
+  // Least occupied inited with zero
+  insert_dynamic(&rli->least_occupied_workers, (uchar*) &w->jobs.len);
+
+err:
+  if (error && w)
+  {
+    w->end_info();
+    delete_dynamic(&w->jobs.Q);
+    delete w;
+    /*
+      Any failure after dynarray inserted must follow with deletion
+      of just created item.
+    */
+    if (rli->workers.elements == i + 1)
+      delete_dynamic_element(&rli->workers, i);
+  }
+  return error;
+}
+
+/**
+   Initialization of the central rli members for Coordinator's role,
+   communication channels such as Assigned Partition Hash (APH),
+   and starting the Worker pool.
+
+   @return 0         success
+           non-zero  as failure
+*/
+int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
+{
+  uint i;
+  int error= 0;
+
+  if (n == 0) 
+    return error;
+
+  *mts_inited= true;
+
+  // RLI constructor time alloc/init
+
+  rli->init_workers(n);
+
+  // CGAP dynarray holds id:s of partitions of the Current being executed Group
+  my_init_dynamic_array(&rli->curr_group_assigned_parts,
+                        sizeof(db_worker_hash_entry*),
+                        SLAVE_INIT_DBS_IN_GROUP, 1);
+  rli->last_assigned_worker= NULL;     // associated with curr_group_assigned
+  my_init_dynamic_array(&rli->curr_group_da, sizeof(Log_event*), 8, 2);
+  // Least_occupied_workers array to hold items size of Slave_jobs_queue::len
+  my_init_dynamic_array(&rli->least_occupied_workers, sizeof(ulong), n, 0); 
+
+  /* 
+     GAQ  queue holds seqno:s of scheduled groups. C polls workers in 
+     @c opt_mts_checkpoint_period to update GAQ (see @c next_event())
+     The length of GAQ is set to be equal to checkpoint_group.
+     Notice, the size matters for mts_checkpoint_routine's progress loop.
+  */
+
+  rli->gaq= new Slave_committed_queue(rli->get_group_master_log_name(),
+                                      sizeof(Slave_job_group),
+                                      rli->checkpoint_group, n);
+  if (!rli->gaq->inited)
+    return 1;
+
+  // length of WQ is actually constant though can be made configurable
+  rli->mts_slave_worker_queue_len_max= mts_slave_worker_queue_len_max;
+  rli->mts_pending_jobs_size= 0;
+  rli->mts_pending_jobs_size_max= ::opt_mts_pending_jobs_size_max;
+  rli->mts_wq_underrun_w_id= MTS_WORKER_UNDEF;
+  rli->mts_wq_excess_cnt= 0;
+  rli->mts_wq_overrun_cnt= 0;
+  rli->mts_wq_oversize= FALSE;
+  rli->mts_coordinator_basic_nap= mts_coordinator_basic_nap;
+  rli->mts_worker_underrun_level= mts_worker_underrun_level;
+  rli->curr_group_seen_begin= FALSE;
+  rli->curr_group_isolated= FALSE;
+  rli->checkpoint_seqno= 0;
+  rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
+  /*
+    dyn memory to consume by Coordinator per event
+  */
+  init_alloc_root(&rli->mts_coor_mem_root, NAME_LEN,
+                  (MAX_DBS_IN_EVENT_MTS / 2) * NAME_LEN);
+
+  if (init_hash_workers(n))  // MTS: mapping_db_to_worker
+  {
+    sql_print_error("Failed to init partitions hash");
+    error= 1;
+    goto err;
+  }
+
+  for (i= 0; i < n; i++)
+  {
+    if ((error= slave_start_single_worker(rli, i)))
+      goto err;
+  }
+
+err:
+  rli->slave_parallel_workers= rli->workers.elements;
+  // end recovery right now if mts_recovery_groups() did not find any gaps
+  if (rli->mts_recovery_group_cnt == 0)
+    rli->recovery_parallel_workers= rli->slave_parallel_workers;
+
+  return error;
+}
+
+/* 
+   Ending Worker threads.
+
+   Not in case Coordinator is killed itself, it first waits for
+   Workers have finished their assignements, and then updates checkpoint. 
+   Workers are notified with setting KILLED status
+   and waited for their acknowledgment as specified by
+   worker's running_status.
+   Coordinator finalizes with its MTS running status to reset few objects.
+*/
+void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
+{
+  int i;
+  THD *thd= rli->info_thd;
+
+  if (!*mts_inited) 
+    return;
+  else if (rli->slave_parallel_workers == 0)
+    goto end;
+
+  /*
+    In case of the "soft" graceful stop Coordinator
+    guaranteed Workers were assigned with full groups so waiting
+    will be resultful.
+    "Hard" stop with KILLing Coordinator or erroring out by a Worker
+    can't wait for Workers' completion because those may not receive
+    commit-events of last assigned groups.
+  */
+  if (rli->mts_group_status != Relay_log_info::MTS_KILLED_GROUP &&
+      thd->killed == THD::NOT_KILLED)
+  {
+    DBUG_ASSERT(rli->mts_group_status != Relay_log_info::MTS_IN_GROUP ||
+                thd->is_error());
+
+#ifndef DBUG_OFF
+    if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
+    {
+      sql_print_error("This is not supposed to happen at this point...");
+      DBUG_SUICIDE();
+    }
+#endif
+    // No need to know a possible error out of synchronization call.
+    (void) wait_for_workers_to_finish(rli);
+    /*
+      At this point the coordinator has been stopped and the checkpoint
+      routine is executed to eliminate possible gaps.
+    */
+    (void) mts_checkpoint_routine(rli, 0, FALSE, FALSE); // TODO: ALFRANIO ERROR
+  }
+  for (i= rli->workers.elements - 1; i >= 0; i--)
+  {
+    Slave_worker *w;
+    get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
+    
+    mysql_mutex_lock(&w->jobs_lock);
+    
+    if (w->running_status != Slave_worker::RUNNING)
+    {
+      mysql_mutex_unlock(&w->jobs_lock);
+      continue;
+    }
+
+    w->running_status= Slave_worker::KILLED;
+    mysql_cond_signal(&w->jobs_cond);
+
+    mysql_mutex_unlock(&w->jobs_lock);
+
+    if (log_warnings > 1)
+      sql_print_information("Notifying Worker %lu to exit, thd %p", w->id,
+                            w->info_thd);
+  }
+
+  thd_proc_info(thd, "Waiting for workers to exit");
+
+  for (i= rli->workers.elements - 1; i >= 0; i--)
+  {
+    Slave_worker *w= NULL;
+    get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
+
+    mysql_mutex_lock(&w->jobs_lock);
+    while (w->running_status != Slave_worker::NOT_RUNNING)
+    {
+      PSI_stage_info old_stage;
+      DBUG_ASSERT(w->running_status == Slave_worker::KILLED ||
+                  w->running_status == Slave_worker::ERROR_LEAVING);
+
+      thd->ENTER_COND(&w->jobs_cond, &w->jobs_lock,
+                      &stage_slave_waiting_workers_to_exit, &old_stage);
+      mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
+      thd->EXIT_COND(&old_stage);
+      mysql_mutex_lock(&w->jobs_lock);
+    }
+    mysql_mutex_unlock(&w->jobs_lock);
+    w->end_info();
+
+    DBUG_ASSERT(w->jobs.Q.elements == w->jobs.size);
+    delete_dynamic(&w->jobs.Q);
+    delete_dynamic_element(&rli->workers, i);
+    delete w;
+  }
+
+  if (log_warnings > 1)
+    sql_print_information("Multi-threaded slave statistics: "
+                          "events processed = %lu ;"
+                          "worker queues filled over overrun level = %lu ;"
+                          "waited due a Worker queue full = %lu ;"
+                          "waited due the total size = %lu ;"
+                          "slept when Workers occupied = %lu ",
+                          rli->mts_events_assigned, rli->mts_wq_overrun_cnt,
+                          rli->mts_wq_overfill_cnt, rli->wq_size_waits_cnt,
+                          rli->mts_wq_no_underrun_cnt);
+
+  DBUG_ASSERT(rli->pending_jobs == 0);
+  DBUG_ASSERT(rli->mts_pending_jobs_size == 0);
+
+end:
+  rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
+  destroy_hash_workers(rli);
+  delete rli->gaq;
+  delete_dynamic(&rli->least_occupied_workers);    // least occupied
+  delete_dynamic(&rli->curr_group_da);             // GCDA
+  delete_dynamic(&rli->curr_group_assigned_parts); // GCAP
+  rli->deinit_workers();
+  rli->slave_parallel_workers= 0;
+  free_root(&rli->mts_coor_mem_root, MYF(0));
+  *mts_inited= false;
 }
 
 /**
@@ -3517,7 +4648,8 @@ pthread_handler_t handle_slave_sql(void *arg)
 
   Relay_log_info* rli = ((Master_info*)arg)->rli;
   const char *errmsg;
- 
+  bool mts_inited= false;
+
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
   DBUG_ENTER("handle_slave_sql");
@@ -3537,6 +4669,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   /* Inform waiting threads that slave has started */
   rli->slave_run_id++;
   rli->slave_running = 1;
+  rli->reported_unsafe_warning= false;
 
   pthread_detach_this_thread();
   if (init_slave_thread(thd, SLAVE_THD_SQL))
@@ -3555,8 +4688,18 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.append(thd);
+  threads.push_front(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
+
+  /* MTS: starting the worker pool */
+  if (slave_start_workers(rli, rli->opt_slave_parallel_workers, &mts_inited) != 0)
+  {
+    mysql_cond_broadcast(&rli->start_cond);
+    mysql_mutex_unlock(&rli->run_lock);
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
+                "Failed during slave workers initialization");
+    goto err;
+  }
   /*
     We are going to set slave_running to 1. Assuming slave I/O thread is
     alive and connected, this is going to make Seconds_Behind_Master be 0
@@ -3644,7 +4787,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   DBUG_PRINT("master_info",("log_file_name: %s  position: %s",
                             rli->get_group_master_log_name(),
                             llstr(rli->get_group_master_log_pos(),llbuff)));
-  if (global_system_variables.log_warnings)
+  if (log_warnings)
     sql_print_information("Slave SQL thread initialized, starting replication in \
 log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
                     llstr(rli->get_group_master_log_pos(),llbuff),rli->get_group_relay_log_name(),
@@ -3799,6 +4942,8 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
  err:
 
+  slave_stop_workers(rli, &mts_inited); // stopping worker pool
+
   /*
     Some events set some playgrounds, which won't be cleared because thread
     stops. Stopping of this thread may not be known to these events ("stop"
@@ -3815,6 +4960,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   thd->catalog= 0;
   thd->reset_query();
   thd->reset_db(NULL, 0);
+
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&rli->run_lock);
   /* We need data_lock, at least to wake up any waiting master_pos_wait() */
@@ -4322,7 +5468,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
       debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
       DBUG_PRINT("info", ("Corrupt the event at queue_event: byte on position %d", debug_cor_pos));
-      DBUG_SET("-d,corrupt_queue_event");
+      DBUG_SET("");
     }
   );
                                               
@@ -4554,7 +5700,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         If the master is on the ignore list, execution of
         format description log events and rotate events is necessary.
       */
-      (mi->ignore_server_ids->server_ids.elements > 0 &&
+      (mi->ignore_server_ids->dynamic_ids.elements > 0 &&
        mi->shall_ignore_server_id(s_id) &&
        /* everything is filtered out from non-master */
        (s_id != mi->master_id ||
@@ -4684,10 +5830,12 @@ static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi)
 static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                              bool reconnect, bool suppress_warnings)
 {
-  int slave_was_killed;
+  int slave_was_killed= 0;
   int last_errno= -2;                           // impossible error
   ulong err_count=0;
   char llbuff[22];
+  char password[MAX_PASSWORD_LENGTH + 1];
+  int password_size= sizeof(password);
   DBUG_ENTER("connect_to_master");
 
 #ifndef DBUG_OFF
@@ -4715,6 +5863,10 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                   mi->ssl_ca[0]?mi->ssl_ca:0,
                   mi->ssl_capath[0]?mi->ssl_capath:0,
                   mi->ssl_cipher[0]?mi->ssl_cipher:0);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRL, 
+                  mi->ssl_crl[0] ? mi->ssl_crl : 0);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, 
+                  mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &mi->ssl_verify_server_cert);
   }
@@ -4724,10 +5876,51 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
 
-  while (!(slave_was_killed = io_slave_killed(thd,mi)) &&
-         (reconnect ? mysql_reconnect(mysql) != 0 :
-          mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
-                             mi->port, 0, client_flag) == 0))
+  if (mi->is_start_plugin_auth_configured())
+  {
+    DBUG_PRINT("info", ("Slaving is using MYSQL_DEFAULT_AUTH %s",
+                        mi->get_start_plugin_auth()));
+    mysql_options(mysql, MYSQL_DEFAULT_AUTH, mi->get_start_plugin_auth());
+  }
+  
+  if (mi->is_start_plugin_dir_configured())
+  {
+    DBUG_PRINT("info", ("Slaving is using MYSQL_PLUGIN_DIR %s",
+                        mi->get_start_plugin_dir()));
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, mi->get_start_plugin_dir());
+  }
+  /* Set MYSQL_PLUGIN_DIR in case master asks for an external authentication plugin */
+  else if (opt_plugin_dir_ptr && *opt_plugin_dir_ptr)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir_ptr);
+  
+  if (!mi->is_start_user_configured())
+    sql_print_warning("%s", ER(ER_INSECURE_CHANGE_MASTER));
+
+  if (mi->get_password(password, &password_size))
+  {
+    mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+               ER(ER_SLAVE_FATAL_ERROR),
+               "Unable to configure password when attempting to "
+               "connect to the master server. Connection attempt "
+               "terminated.");
+    DBUG_RETURN(1);
+  }
+
+  const char* user= mi->get_user();
+  if (user == NULL || user[0] == 0)
+  {
+    mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+               ER(ER_SLAVE_FATAL_ERROR),
+               "Invalid (empty) username when attempting to "
+               "connect to the master server. Connection attempt "
+               "terminated.");
+    DBUG_RETURN(1);
+  }
+
+  while (!(slave_was_killed = io_slave_killed(thd,mi))
+         && (reconnect ? mysql_reconnect(mysql) != 0 :
+             mysql_real_connect(mysql, mi->host, user,
+                                password, 0, mi->port, 0, client_flag) == 0))
   {
     /*
        SHOW SLAVE STATUS will display the number of retries which
@@ -4740,7 +5933,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                "error %s to master '%s@%s:%d'"
                " - retry-time: %d  retries: %lu",
                (reconnect ? "reconnecting" : "connecting"),
-               mi->user, mi->host, mi->port,
+               mi->get_user(), mi->host, mi->port,
                mi->connect_retry, err_count + 1);
     /*
       By default we try forever. The reason is that failure will trigger
@@ -4761,9 +5954,9 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
     mi->clear_error(); // clear possible left over reconnect error
     if (reconnect)
     {
-      if (!suppress_warnings && global_system_variables.log_warnings)
+      if (!suppress_warnings && log_warnings)
         sql_print_information("Slave: connected to master '%s@%s:%d',\
-replication resumed in log '%s' at position %s", mi->user,
+replication resumed in log '%s' at position %s", mi->get_user(),
                         mi->host, mi->port,
                         mi->get_io_rpl_log_name(),
                         llstr(mi->get_master_log_pos(),llbuff));
@@ -4771,7 +5964,7 @@ replication resumed in log '%s' at position %s", mi->user,
     else
     {
       general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
-                        mi->user, mi->host, mi->port);
+                        mi->get_user(), mi->host, mi->port);
     }
 #ifdef SIGNAL_WITH_VIO_CLOSE
     thd->set_active_vio(mysql->net.vio);
@@ -4802,6 +5995,8 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,
 MYSQL *rpl_connect_master(MYSQL *mysql)
 {
   THD *thd= current_thd;
+  char password[MAX_PASSWORD_LENGTH + 1];
+  int password_size= sizeof(password);
   Master_info *mi= my_pthread_getspecific_ptr(Master_info*, RPL_MASTER_INFO);
   if (!mi)
   {
@@ -4846,6 +6041,10 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
                   mi->ssl_ca[0]?mi->ssl_ca:0,
                   mi->ssl_capath[0]?mi->ssl_capath:0,
                   mi->ssl_cipher[0]?mi->ssl_cipher:0);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRL, 
+                  mi->ssl_crl[0] ? mi->ssl_crl : 0);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, 
+                  mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &mi->ssl_verify_server_cert);
   }
@@ -4855,9 +6054,33 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
 
-  if (io_slave_killed(thd, mi)
-      || !mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
-                             mi->port, 0, 0))
+  if (mi->is_start_plugin_auth_configured())
+  {
+    DBUG_PRINT("info", ("Slaving is using MYSQL_DEFAULT_AUTH %s",
+                        mi->get_start_plugin_auth()));
+    mysql_options(mysql, MYSQL_DEFAULT_AUTH, mi->get_start_plugin_auth());
+  }
+
+  if (mi->is_start_plugin_dir_configured())
+  {
+    DBUG_PRINT("info", ("Slaving is using MYSQL_PLUGIN_DIR %s",
+                        mi->get_start_plugin_dir()));
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, mi->get_start_plugin_dir());
+  }
+  /* Set MYSQL_PLUGIN_DIR in case master asks for an external authentication plugin */
+  else if (opt_plugin_dir_ptr && *opt_plugin_dir_ptr)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir_ptr);
+
+  if (!mi->is_start_user_configured())
+    sql_print_warning("%s", ER(ER_INSECURE_CHANGE_MASTER));
+
+  const char *user= mi->get_user();
+  if (user == NULL
+      || user[0] == 0
+      || mi->get_password(password, &password_size)
+      || io_slave_killed(thd, mi)
+      || !mysql_real_connect(mysql, mi->host, user,
+                             password, 0, mi->port, 0, 0))
   {
     if (!io_slave_killed(thd, mi))
       sql_print_error("rpl_connect_master: error connecting to master: %s (server_error: %d)",
@@ -4889,8 +6112,8 @@ static IO_CACHE *reopen_relay_log(Relay_log_info *rli, const char **errmsg)
     relay_log_pos       Current log pos
     pending             Number of bytes already processed from the event
   */
-  rli->set_event_relay_log_pos(max(rli->get_event_relay_log_pos(),
-                                   BIN_LOG_HEADER_SIZE));
+  rli->set_event_relay_log_pos(max<ulonglong>(rli->get_event_relay_log_pos(),
+                                              BIN_LOG_HEADER_SIZE));
   my_b_seek(cur_log,rli->get_event_relay_log_pos());
   DBUG_RETURN(cur_log);
 }
@@ -4983,8 +6206,9 @@ static Log_event* next_event(Relay_log_info* rli)
       DBUG_PRINT("info", ("my_b_tell(cur_log)=%s rli->event_relay_log_pos=%s",
                           llstr(my_b_tell(cur_log),llbuf1),
                           llstr(rli->get_event_relay_log_pos(),llbuf2)));
+
       DBUG_ASSERT(my_b_tell(cur_log) >= BIN_LOG_HEADER_SIZE);
-      DBUG_ASSERT(my_b_tell(cur_log) == rli->get_event_relay_log_pos());
+      DBUG_ASSERT(my_b_tell(cur_log) == rli->get_event_relay_log_pos() || rli->is_parallel_exec());
 
       DBUG_PRINT("info", ("next_event group master %s %lu group relay %s %lu event %s %lu\n",
         rli->get_group_master_log_name(),
@@ -5017,8 +6241,29 @@ static Log_event* next_event(Relay_log_info* rli)
         inc_event_relay_log_pos()
       */
       rli->set_future_event_relay_log_pos(my_b_tell(cur_log));
+      ev->future_event_relay_log_pos= rli->get_future_event_relay_log_pos();
+
       if (hot_log)
         mysql_mutex_unlock(log_lock);
+
+      /* 
+         MTS checkpoint in the successful read branch 
+      */
+      bool force= (rli->checkpoint_seqno > (rli->checkpoint_group - 1));
+      if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 || force))
+      {
+        ulonglong period= static_cast<ulonglong>(opt_mts_checkpoint_period * 1000000ULL);
+        mysql_mutex_unlock(&rli->data_lock);
+        /*
+          At this point the coordinator has is delegating jobs to workers and
+          the checkpoint routine must be periodically invoked.
+        */
+        (void) mts_checkpoint_routine(rli, period, force, TRUE); // TODO: ALFRANIO ERROR
+        DBUG_ASSERT(!force ||
+                    (force && (rli->checkpoint_seqno <= (rli->checkpoint_group - 1))) ||
+                    sql_slave_killed(thd, rli));
+        mysql_mutex_lock(&rli->data_lock);
+      }
       DBUG_RETURN(ev);
     }
     DBUG_ASSERT(thd==rli->info_thd);
@@ -5062,9 +6307,21 @@ static Log_event* next_event(Relay_log_info* rli)
           reached.
         */
 
-        /* shows zero while it is sleeping (and until the next event 
-           is about to be executed) */
-        rli->last_master_timestamp= 0;
+        /* shows zero while it is sleeping (and until the next event
+           is about to be executed).  Note, in MTS case
+           Seconds_Behind_Master resetting follows slightly different
+           schema where reaching EOF is not enough.  The status
+           parameter is updated per some number of processed group of
+           events. The number can't be greater than
+           @@global.slave_checkpoint_group and anyway SBM updating
+           rate does not exceed @@global.slave_checkpoint_period.
+           Notice that SBM is set to a new value after processing the
+           terminal event (e.g Commit) of a group.  Coordinator resets
+           SBM when notices no more groups left neither to read from
+           Relay-log nor to process by Workers.
+        */
+        if (!rli->is_parallel_exec())
+          rli->last_master_timestamp= 0;
 
         DBUG_ASSERT(rli->relay_log.get_open_count() ==
                     rli->cur_log_old_open_count);
@@ -5130,7 +6387,42 @@ static Log_event* next_event(Relay_log_info* rli)
         mysql_mutex_unlock(&rli->log_space_lock);
         mysql_cond_broadcast(&rli->log_space_cond);
         // Note that wait_for_update_relay_log unlocks lock_log !
-        rli->relay_log.wait_for_update_relay_log(rli->info_thd);
+
+        if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 ||
+            DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)))
+        {
+          int ret= 0;
+          struct timespec waittime;
+          ulonglong period= static_cast<ulonglong>(opt_mts_checkpoint_period * 1000000ULL);
+          ulong signal_cnt= rli->relay_log.signal_cnt;
+
+          mysql_mutex_unlock(log_lock);
+          do
+          {
+            /*
+              At this point the coordinator has no job to delegate to workers.
+              However, workers are executing their assigned jobs and as such
+              the checkpoint routine must be periodically invoked.
+            */
+            (void) mts_checkpoint_routine(rli, period, FALSE, FALSE); // TODO: ALFRANIO ERROR
+            mysql_mutex_lock(log_lock);
+            // More to the empty relay-log all assigned events done so reset it.
+            if (rli->gaq->empty())
+              rli->last_master_timestamp= 0;
+
+            if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
+              period= 10000000ULL;
+
+            set_timespec_nsec(waittime, period);
+            ret= rli->relay_log.wait_for_update_relay_log(thd, &waittime);
+          } while ((ret == ETIMEDOUT || ret == ETIME) /* todo:remove */ &&
+                   signal_cnt == rli->relay_log.signal_cnt && !thd->killed);
+        }
+        else
+        {
+          rli->relay_log.wait_for_update_relay_log(thd, NULL);
+        }
+        
         // re-acquire data lock since we released it earlier
         mysql_mutex_lock(&rli->data_lock);
         continue;
@@ -5190,7 +6482,20 @@ static Log_event* next_event(Relay_log_info* rli)
         }
         rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
         rli->set_event_relay_log_name(rli->linfo.log_file_name);
+        /*
+          We may update the worker here but this is not extremlly
+          necessary. /Alfranio
+        */
         rli->flush_info();
+      }
+
+      /* Reset the relay-log-change-notified status of  Slave Workers */
+      if (rli->is_parallel_exec())
+      {
+        DBUG_PRINT("info", ("next_event: MTS group relay log changes to %s %lu\n",
+                            rli->get_group_relay_log_name(),
+                            (ulong) rli->get_group_relay_log_pos()));
+        rli->reset_notified_relay_log_change();
       }
 
       /*
@@ -5209,7 +6514,7 @@ static Log_event* next_event(Relay_log_info* rli)
       if (rli->relay_log.is_active(rli->linfo.log_file_name))
       {
 #ifdef EXTRA_DEBUG
-        if (global_system_variables.log_warnings)
+        if (log_warnings)
           sql_print_information("next log '%s' is currently active",
                                 rli->linfo.log_file_name);
 #endif
@@ -5296,7 +6601,7 @@ static Log_event* next_event(Relay_log_info* rli)
         from hot to cold, but not from cold to hot). No need for LOCK_log.
       */
 #ifdef EXTRA_DEBUG
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
         sql_print_information("next log '%s' is not active",
                               rli->linfo.log_file_name);
 #endif
@@ -5323,7 +6628,7 @@ event(errno: %d  cur_log->error: %d)",
       break;                                    // To end of function
     }
   }
-  if (!errmsg && global_system_variables.log_warnings)
+  if (!errmsg && log_warnings)
   {
     sql_print_information("Error reading relay log event: %s",
                           "slave SQL thread was killed");
@@ -5514,6 +6819,23 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
+
+  if (thd->lex->slave_connection.user ||
+      thd->lex->slave_connection.password)
+  {
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+    if (thd->vio_ok() && !thd->net.vio->ssl_arg)
+      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+                   ER_INSECURE_PLAIN_TEXT,
+                   ER(ER_INSECURE_PLAIN_TEXT));
+#endif
+#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+                 ER_INSECURE_PLAIN_TEXT,
+                 ER(ER_INSECURE_PLAIN_TEXT));
+#endif
+  }
+
   lock_slave_threads(mi);  // this allows us to cleanly read slave_running
   // Get a mask of _stopped_ threads
   init_thread_mask(&thread_mask,mi,1 /* inverse */);
@@ -5532,12 +6854,46 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
     else if (server_id_supplied && *mi->host)
     {
       /*
+        If we will start IO thread we need to take care of possible
+        options provided through the START SLAVE if there is any.
+      */
+      if (thread_mask & SLAVE_IO)
+      {
+        if (thd->lex->slave_connection.user)
+        {
+          mi->set_start_user_configured(true);
+          mi->set_user(thd->lex->slave_connection.user);
+        }
+        if (thd->lex->slave_connection.password)
+        {
+          mi->set_start_user_configured(true);
+          mi->set_password(thd->lex->slave_connection.password,
+                           strlen(thd->lex->slave_connection.password));
+        }
+        if (thd->lex->slave_connection.plugin_auth)
+          mi->set_plugin_auth(thd->lex->slave_connection.plugin_auth);
+        if (thd->lex->slave_connection.plugin_dir)
+          mi->set_plugin_dir(thd->lex->slave_connection.plugin_dir);
+      }
+ 
+      /*
         If we will start SQL thread we will care about UNTIL options If
         not and they are specified we will ignore them and warn user
         about this fact.
       */
       if (thread_mask & SLAVE_SQL)
       {
+        /*
+          To cache the MTS system var values and used them in the following
+          runtime. The system var:s can change meanwhile but having no other
+          effects.
+        */
+        mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
+#ifndef DBUG_OFF
+        if (!DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
+#endif
+          mi->rli->checkpoint_group= opt_mts_checkpoint_group;
+
         mysql_mutex_lock(&mi->rli->data_lock);
 
         if (thd->lex->mi.pos)
@@ -5590,9 +6946,29 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
             push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                          ER_MISSING_SKIP_SLAVE,
                          ER(ER_MISSING_SKIP_SLAVE));
+          if (mi->rli->opt_slave_parallel_workers != 0)
+          {
+            mi->rli->opt_slave_parallel_workers= 0;
+            push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+                                ER_MTS_FEATURE_IS_NOT_SUPPORTED,
+                                ER(ER_MTS_FEATURE_IS_NOT_SUPPORTED),
+                                "UNTIL condtion",
+                                "Slave is started in the sequential execution mode.");
+          }
         }
 
         mysql_mutex_unlock(&mi->rli->data_lock);
+
+        /* MTS technical limitation no support of trans retry */
+        if (mi->rli->opt_slave_parallel_workers != 0 && slave_trans_retries != 0)
+        {
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+                              ER_MTS_FEATURE_IS_NOT_SUPPORTED,
+                              ER(ER_MTS_FEATURE_IS_NOT_SUPPORTED),
+                              "slave_transaction_retries",
+                              "In the event of a transient failure, the slave will "
+                              "not retry the transaction and will stop.");
+        }
       }
       else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos)
         push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
@@ -5613,6 +6989,14 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
     push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_SLAVE_WAS_RUNNING,
                  ER(ER_SLAVE_WAS_RUNNING));
   }
+
+  /*
+    Clean up start information if there was an attempt to start
+    the IO thread to avoid any security issue.
+  */
+  if (slave_errno &&
+      (thread_mask & SLAVE_IO) == SLAVE_IO)
+    mi->reset_start_info();
 
   unlock_slave_threads(mi);
 
@@ -5732,6 +7116,7 @@ int reset_slave(THD *thd, Master_info* mi)
   }
 
   /* Clear master's log coordinates and associated information */
+  DBUG_ASSERT(!mi->rli || !mi->rli->slave_running); // none writes in rli table
   mi->clear_in_memory_info(thd->lex->reset_slave_info.all);
 
   if (remove_info(mi))
@@ -5848,14 +7233,45 @@ bool change_master(THD* thd, Master_info* mi)
   }
   DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
 
+  if (lex_mi->user || lex_mi->password)
+  {
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+    if (thd->vio_ok() && !thd->net.vio->ssl_arg)
+      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+                   ER_INSECURE_PLAIN_TEXT,
+                   ER(ER_INSECURE_PLAIN_TEXT));
+#endif
+#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+                 ER_INSECURE_PLAIN_TEXT,
+                 ER(ER_INSECURE_PLAIN_TEXT));
+#endif
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+                 ER_INSECURE_CHANGE_MASTER,
+                 ER(ER_INSECURE_CHANGE_MASTER));
+  }
+
+  if (lex_mi->user)
+    mi->set_user(lex_mi->user);
+
+  if (lex_mi->password)
+  {
+    if (mi->set_password(lex_mi->password, strlen(lex_mi->password)))
+    {
+      /*
+        After implementing WL#5769, we should create a better error message
+        to denote that the call may have failed due to an error while trying
+        to encrypt/store the password in a secure key store.
+      */
+      my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
+      ret= false;
+      goto err;
+    }
+  }
   if (lex_mi->host)
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
   if (lex_mi->bind_addr)
     strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr)-1);
-  if (lex_mi->user)
-    strmake(mi->user, lex_mi->user, sizeof(mi->user)-1);
-  if (lex_mi->password)
-    strmake(mi->password, lex_mi->password, sizeof(mi->password)-1);
   if (lex_mi->port)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
@@ -5865,15 +7281,15 @@ bool change_master(THD* thd, Master_info* mi)
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
   else
-    mi->heartbeat_period= (float) min(SLAVE_MAX_HEARTBEAT_PERIOD,
-                                      (slave_net_timeout/2.0));
+    mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
+                                     (slave_net_timeout/2.0));
   mi->received_heartbeats= LL(0); // counter lives until master is CHANGEd
   /*
     reset the last time server_id list if the current CHANGE MASTER 
     is mentioning IGNORE_SERVER_IDS= (...)
   */
   if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
-    reset_dynamic(&mi->ignore_server_ids->server_ids);
+    reset_dynamic(&(mi->ignore_server_ids->dynamic_ids));
   for (uint i= 0; i < lex_mi->repl_ignore_server_ids.elements; i++)
   {
     ulong s_id;
@@ -5887,14 +7303,14 @@ bool change_master(THD* thd, Master_info* mi)
     else
     {
       if (bsearch((const ulong *) &s_id,
-                  mi->ignore_server_ids->server_ids.buffer,
-                  mi->ignore_server_ids->server_ids.elements, sizeof(ulong),
+                  mi->ignore_server_ids->dynamic_ids.buffer,
+                  mi->ignore_server_ids->dynamic_ids.elements, sizeof(ulong),
                   (int (*) (const void*, const void*))
                   change_master_server_id_cmp) == NULL)
-        insert_dynamic(&mi->ignore_server_ids->server_ids, &s_id);
+        insert_dynamic(&(mi->ignore_server_ids->dynamic_ids), (uchar*) &s_id);
     }
   }
-  sort_dynamic(&mi->ignore_server_ids->server_ids, (qsort_cmp) change_master_server_id_cmp);
+  sort_dynamic(&(mi->ignore_server_ids->dynamic_ids), (qsort_cmp) change_master_server_id_cmp);
 
   if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);
@@ -5916,10 +7332,14 @@ bool change_master(THD* thd, Master_info* mi)
     strmake(mi->ssl_cipher, lex_mi->ssl_cipher, sizeof(mi->ssl_cipher)-1);
   if (lex_mi->ssl_key)
     strmake(mi->ssl_key, lex_mi->ssl_key, sizeof(mi->ssl_key)-1);
+  if (lex_mi->ssl_crl)
+    strmake(mi->ssl_crl, lex_mi->ssl_crl, sizeof(mi->ssl_crl)-1);
+  if (lex_mi->ssl_crlpath)
+    strmake(mi->ssl_crlpath, lex_mi->ssl_crlpath, sizeof(mi->ssl_crlpath)-1);
 #ifndef HAVE_OPENSSL
   if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
       lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key ||
-      lex_mi->ssl_verify_server_cert )
+      lex_mi->ssl_verify_server_cert || lex_mi->ssl_crl || lex_mi->ssl_crlpath)
     push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                  ER_SLAVE_IGNORED_SSL_PARAMS, ER(ER_SLAVE_IGNORED_SSL_PARAMS));
 #endif
@@ -5966,8 +7386,8 @@ bool change_master(THD* thd, Master_info* mi)
        of replication is not 100% clear, so we guard against problems using
        max().
       */
-     mi->set_master_log_pos(max(BIN_LOG_HEADER_SIZE,
-                           mi->rli->get_group_master_log_pos()));
+     mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
+                                           mi->rli->get_group_master_log_pos()));
      mi->set_master_log_name(mi->rli->get_group_master_log_name());
   }
   /*
@@ -5986,7 +7406,8 @@ bool change_master(THD* thd, Master_info* mi)
     THD_STAGE_INFO(thd, stage_purging_old_relay_logs);
     if (mi->rli->purge_relay_logs(thd,
                                   0 /* not only reset, but also reinit */,
-                                  &errmsg))
+                                  &errmsg) ||
+        remove_workers(mi->rli))
     {
       my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
       ret= TRUE;
@@ -6047,7 +7468,11 @@ bool change_master(THD* thd, Master_info* mi)
     before START SLAVE, then old will remain in relay-log.info, and will be the
     in-memory value at restart (thus causing errors, as the old relay log does
     not exist anymore).
+
+    Notice that the rli table is available exclusively as slave is not
+    running.
   */
+  DBUG_ASSERT(!mi->rli->slave_running);
   ret= mi->rli->flush_info(TRUE);
   mysql_cond_broadcast(&mi->data_cond);
   mysql_mutex_unlock(&mi->rli->data_lock);
@@ -6058,66 +7483,7 @@ err:
     my_ok(thd);
   DBUG_RETURN(ret);
 }
-
 /**
   @} (end of group Replication)
 */
 #endif /* HAVE_REPLICATION */
-
-Server_ids::Server_ids()
-{
-  my_init_dynamic_array(&server_ids, sizeof(::server_id), 16, 16);
-}
-
-Server_ids::~Server_ids()
-{
-  delete_dynamic(&server_ids);
-}
-
-bool Server_ids::unpack_server_ids(char *param_server_ids)
-{
-  char *token= NULL, *last= NULL;
-  uint num_items= 0;
- 
-  DBUG_ENTER("Server_ids::unpack_server_ids");
-
-  token= strtok_r((char *)const_cast<const char*>(param_server_ids),
-                  " ", &last);
-
-  if (token == NULL)
-    DBUG_RETURN(TRUE);
-
-  num_items= atoi(token);
-  for (uint i=0; i < num_items; i++)
-  {
-    token= strtok_r(NULL, " ", &last);
-    if (token == NULL)
-      DBUG_RETURN(TRUE);
-    else
-    {
-      ulong val= atol(token);
-      insert_dynamic(&server_ids, &val);
-    }
-  }
-  DBUG_RETURN(FALSE);
-}
-
-bool Server_ids::pack_server_ids(String *buffer)
-{
-  DBUG_ENTER("Server_ids::pack_server_ids");
-
-  if (buffer->set_int(server_ids.elements, FALSE, &my_charset_bin))
-    DBUG_RETURN(TRUE);
-
-  for (ulong i= 0;
-       i < server_ids.elements; i++)
-  {
-    ulong s_id;
-    get_dynamic(&server_ids, (uchar*) &s_id, i);
-    if (buffer->append(" ") ||
-        buffer->append_ulonglong(s_id))
-      DBUG_RETURN(TRUE);
-  }
-
-  DBUG_RETURN(FALSE);
-}

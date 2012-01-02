@@ -1,18 +1,3 @@
-# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
-
 # Tests for PERFORMANCE_SCHEMA
 
 show databases;
@@ -21,7 +6,8 @@ select count(*) from performance_schema.performance_timers;
 select count(*) from performance_schema.setup_consumers;
 # wait/io/table/sql/handler is a native instrument
 # wait/lock/table/sql/handler is a native instrument
-select count(*) > 2 from performance_schema.setup_instruments;
+# idle/io/socket is a native instrument
+select count(*) > 3 from performance_schema.setup_instruments;
 select count(*) from performance_schema.setup_timers;
 
 # Make sure we don't crash, no matter what the starting parameters are
@@ -58,6 +44,9 @@ select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
 select * from performance_schema.host_cache;
+select * from performance_schema.socket_instances;
+select * from performance_schema.socket_summary_by_instance;
+select * from performance_schema.socket_summary_by_event_name;
 select * from performance_schema.hosts;
 select * from performance_schema.mutex_instances;
 select * from performance_schema.objects_summary_global_by_type;

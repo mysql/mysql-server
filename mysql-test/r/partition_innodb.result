@@ -1,5 +1,16 @@
 drop table if exists t1, t2;
 #
+# Bug#13007154: Crash in keys_to_use_for_scanning with ORDER BY
+#               and PARTITIONING
+#
+CREATE TABLE t1 (a INT, KEY(a))
+ENGINE = InnoDB
+PARTITION BY KEY (a) PARTITIONS 1;
+SELECT 1 FROM t1 WHERE a > (SELECT LAST_INSERT_ID() FROM t1 LIMIT 0)
+ORDER BY a;
+1
+DROP TABLE t1;
+#
 # Bug#56287: crash when using Partition datetime in sub in query
 #
 CREATE TABLE t1
@@ -20,8 +31,8 @@ p200912	0
 p201103	1
 p201912	0
 SELECT count(*) FROM t1 p where c3 in
-(select c3 from t1 t where t.c3 < date '2011-04-26 19:19:44'
- and t.c3 > date '2011-04-26 19:18:44') ;
+(SELECT c3 FROM t1 t WHERE t.c3 < TIMESTAMP'2011-04-26 19:19:44'
+ AND t.c3 > TIMESTAMP'2011-04-26 19:18:44') ;
 count(*)
 0
 DROP TABLE t1;
@@ -29,7 +40,8 @@ DROP TABLE t1;
 # Bug#54747: Deadlock between REORGANIZE PARTITION and
 #            SELECT is not detected
 #
-SET @old_innodb_thread_concurrency:= @@innodb_thread_concurrency;
+SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
+SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
 SET GLOBAL innodb_thread_concurrency = 1;
 CREATE TABLE t1
 (user_num BIGINT,
@@ -60,6 +72,7 @@ COMMIT;
 # con1, reaping ALTER.
 # Disconnecting con1 and switching to default. Cleaning up.
 SET GLOBAL innodb_thread_concurrency = @old_innodb_thread_concurrency;
+SET GLOBAL innodb_thread_sleep_delay = @old_innodb_thread_sleep_delay;
 DROP TABLE t1;
 #
 # Bug#50418: DROP PARTITION does not interact with transactions
@@ -336,33 +349,33 @@ DROP TABLE t1;
 create table t1 (a int) engine=innodb partition by hash(a) ;
 show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	2	8192	16384	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	2	#	#	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int)
 engine = innodb
 partition by key (a);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	2	8192	16384	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	2	#	#	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 insert into t1 values (0), (1), (2), (3);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	4	4096	16384	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	4	#	#	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int auto_increment primary key)
 engine = innodb
 partition by key (a);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	2	8192	16384	0	0	#	1	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	2	#	#	0	0	#	1	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	4	4096	16384	0	0	#	5	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	4	#	#	0	0	#	5	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	8	2048	16384	0	0	#	9	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	8	#	#	0	0	#	9	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int)
 partition by key (a)
@@ -511,7 +524,7 @@ test.t1	optimize	note	Table does not support optimize, doing recreate + analyze 
 test.t1	optimize	error	Invalid default value for 'b'
 test.t1	optimize	status	Operation failed
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
 Error	1067	Invalid default value for 'b'
 SET SESSION sql_mode = @old_mode;
 DROP TABLE t1;

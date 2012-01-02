@@ -73,7 +73,7 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0102
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0103
 
 /*
   The allowable types of plugins
@@ -122,7 +122,7 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
                  builtin_ ## NAME ## _sizeof_struct_st_plugin, \
                  builtin_ ## NAME ## _plugin)
 
-#define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0}}
+#define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0,0}}
 
 /**
   declarations for SHOW STATUS support in plugins
@@ -146,6 +146,14 @@ struct st_mysql_show_var {
 
 #define SHOW_VAR_FUNC_BUFF_SIZE 1024
 typedef int (*mysql_show_var_func)(MYSQL_THD, struct st_mysql_show_var*, char *);
+
+
+/*
+  Constants for plugin flags.
+ */
+
+#define PLUGIN_OPT_NO_INSTALL   1UL   /* Not dynamically loadable */
+#define PLUGIN_OPT_NO_UNINSTALL 2UL   /* Not dynamically unloadable */
 
 
 /*
@@ -420,6 +428,7 @@ struct st_mysql_plugin
   struct st_mysql_show_var *status_vars;
   struct st_mysql_sys_var **system_vars;
   void * __reserved1;   /* reserved for dependency checking             */
+  unsigned long flags;  /* flags for plugin */
 };
 
 /*************************************************************************

@@ -231,6 +231,8 @@ select count(length(a) + length(filler))
 from t2 force index (k1)
 where a>='a-1000-a' and a <'a-1001-a';
 
+# The expected rows differs a bit with different page sizes
+--replace_result 98 ROWS 99 ROWS
 eval EXPLAIN $query;
 eval $query;
 
@@ -240,8 +242,8 @@ drop table t2;
 create table t2 (a char(100), b char(100), c char(100), d int, 
                  filler char(10), key(d), primary key (a,b,c));
 insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
-## -- [DISABLED Bug#54398]
-#explain select * from t2 force index (d) where d < 10;
+--replace_column 9 #
+explain select * from t2 force index (d) where d < 10;
 drop table t2;
 
 drop table t1;
@@ -392,9 +394,9 @@ DROP TABLE t1, t2;
 --echo # Bug#12321461: CRASH IN DSMRR_IMPL::DSMRR_INIT ON SELECT STRAIGHT_JOIN
 --echo #
 
-# This test should run with join cache level 0
-set @save_join_cache_level= @@optimizer_join_cache_level;
-set optimizer_join_cache_level=0;
+# This test should run without join buffering
+set @save_optimizer_switch = @@optimizer_switch;
+set optimizer_switch='block_nested_loop=off,batched_key_access=off';
 
 CREATE TABLE t1 (
   pk INTEGER,
@@ -418,5 +420,35 @@ eval $query;
 
 DROP TABLE t1,t2;
 
-# Restore join cache level to its original value
-set optimizer_join_cache_level= @save_join_cache_level;
+# Restore join buffer settings to their original values
+set optimizer_switch= @save_optimizer_switch;
+
+--echo #
+--echo # Bug#13249966 MRR: RANDOM ERROR DUE TO UNINITIALIZED RES WITH 
+--echo #              SMALL READ_RND_BUFFER_SIZE
+--echo #
+
+set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
+set read_rnd_buffer_size=1;
+select @@read_rnd_buffer_size;
+
+CREATE TABLE t1 (
+  i1 INTEGER NOT NULL,
+  i2 INTEGER NOT NULL,
+  KEY (i2)
+);
+
+INSERT INTO t1 VALUES (0,1),(1,2),(2,3);
+
+let query=
+SELECT i1
+FROM t1
+WHERE i2 > 2;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1;
+
+set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+select @@read_rnd_buffer_size;

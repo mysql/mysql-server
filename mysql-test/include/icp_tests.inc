@@ -967,16 +967,9 @@ DROP TABLE t1;
 
 --echo #
 --echo # BUG#12601961 "SEGFAULT IN HANDLER::COMPARE_KEY2"
+--echo # BUG#12724899 "SELECT STRAIGHT_JOIN QUERY GIVES 2 DATES VERSUS
+--echo #               2 WARNINGS WITH ICP ON"
 --echo #
-
-# Note: Until Bug#12724899 is fixed this test should only run
-# with InnoDB as storage engine since the query produces
-# wrong result when using MyISAM.
-
-let $se= `select @@default_storage_engine`;
-
-if ($se == 'InnoDB' )
-{
 
 CREATE TABLE t1 (
   pk INTEGER NOT NULL, 
@@ -998,5 +991,111 @@ eval $query;
 
 DROP TABLE t1;
 
-}
+--echo #
+--echo # BUG#12822678 - 2 MORE ROWS WHEN ICP=ON W/ STRAIGHT_JOIN
+--echo #
 
+CREATE TABLE t1 (
+  i1 INTEGER NOT NULL,
+  d1 DOUBLE,
+  KEY k1 (d1)
+);
+
+INSERT INTO t1 VALUES (10,1), (17,NULL), (22,NULL);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  i1 INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (4,1);
+
+let query=
+SELECT t1.d1, t2.pk, t2.i1
+FROM t1 STRAIGHT_JOIN t2 ON t2.i1
+WHERE t2.pk <> t1.d1 AND t2.pk = 4;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#12838420 "DUPLICATE VALUES FOR GROUP-BY COLUMN WHEN JOIN
+--echo # BUFFERING IS OFF"
+--echo #
+CREATE TABLE t1 (
+  col_int_key INT,
+  pk INT,
+  PRIMARY KEY (pk),
+  KEY (col_int_key)
+);
+INSERT INTO t1 VALUES (2,3),(3,2),(3,5),(4,6);
+
+CREATE TABLE t2 (
+  col_int_key INT,
+  pk INT,
+  PRIMARY KEY (pk),
+  KEY (col_int_key)
+);
+INSERT INTO t2 VALUES (0,9),(3,10),(4,6),(6,1),(100,3),(200,5);
+
+let $query=
+SELECT t2.col_int_key AS field1
+FROM t2 JOIN t1 ON t2.col_int_key
+WHERE t2.pk < 7 AND t2.col_int_key <> 7
+GROUP BY field1;
+
+set @old_opt_switch=@@optimizer_switch;
+# With BNL, a temp table is used for GROUP BY, we don't want this
+SET optimizer_switch="block_nested_loop=off";
+eval EXPLAIN $query;
+eval $query;
+
+SET @@optimizer_switch=@old_opt_switch;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#12976163 "CRASH IN INDEX CONDITION PUSHDOWN CODE AGAINST
+--echo #               A MYISAM TABLE"
+--echo #
+
+CREATE TABLE t1 (
+  i1 INTEGER NOT NULL,
+  i2 INTEGER NOT NULL
+);
+
+INSERT INTO t1 VALUES (14,1), (15,2), (16,3);
+
+CREATE TABLE t2 (
+  i1 INTEGER NOT NULL,
+  i2 INTEGER NOT NULL,
+  c1 TINYTEXT
+);
+
+INSERT INTO t2
+SELECT i1, 10 * i2, "MySQL" FROM t1;
+
+DELIMITER $$;
+
+CREATE PROCEDURE proc1(id INTEGER)
+BEGIN
+
+SELECT i2
+  FROM (
+       (SELECT i1, i2, NULL AS a1 FROM t1)
+       UNION
+       (SELECT i1, i2, c1 AS a1 FROM t2)
+       ) u1
+WHERE i1 = id;
+
+END$$
+
+DELIMITER ;$$
+
+CALL proc1(15); 
+
+DROP PROCEDURE proc1;
+
+DROP TABLE t1, t2;

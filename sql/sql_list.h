@@ -162,6 +162,21 @@ struct list_node :public Sql_alloc
 
 extern MYSQL_PLUGIN_IMPORT list_node end_of_list;
 
+/**
+  Comparison function for list sorting.
+
+  @param n1   Info of 1st node
+  @param n2   Info of 2nd node
+  @param arg  Additional info
+
+  @return
+    -1  n1 < n2
+     0  n1 == n2
+     1  n1 > n2
+*/
+
+typedef int (*Node_cmp_func)(void *n1, void *n2, void *arg);
+
 class base_list :public Sql_alloc
 {
 protected:
@@ -281,6 +296,38 @@ public:
     }
   }
   /**
+    @brief
+    Sort the list
+
+    @param cmp  node comparison function
+    @param arg  additional info to be passed to comparison function
+
+    @details
+    The function sorts list nodes by an exchange sort algorithm.
+    The order of list nodes isn't changed, values of info fields are
+    swapped instead. Due to this, list iterators that are initialized before
+    sort could be safely used after sort, i.e they wouldn't cause a crash.
+    As this isn't an effective algorithm the list to be sorted is supposed to
+    be short.
+  */
+  void sort(Node_cmp_func cmp, void *arg)
+  {
+    if (elements < 2)
+      return;
+    for (list_node *n1= first; n1 && n1 != &end_of_list; n1= n1->next)
+    {
+      for (list_node *n2= n1->next; n2 && n2 != &end_of_list; n2= n2->next)
+      {
+        if ((*cmp)(n1->info, n2->info, arg) > 0)
+        {
+          void *tmp= n1->info;
+          n1->info= n2->info;
+          n2->info= tmp;
+        }
+      }
+    }
+  }
+  /**
     Swap two lists.
   */
   inline void swap(base_list &rhs)
@@ -357,7 +404,6 @@ protected:
       last= &new_node->next;
   }
 };
-
 
 class base_list_iterator
 {
@@ -475,6 +521,17 @@ public:
     }
     empty();
   }
+  /**
+    @brief
+    Sort the list according to provided comparison function
+
+    @param cmp  node comparison function
+    @param arg  additional info to be passed to comparison function
+  * /
+  inline void sort(Node_cmp_func cmp, void *arg)
+  {
+    base_list::sort(cmp, arg);
+  }*/
 };
 
 
@@ -581,7 +638,7 @@ public:
   inline void empty() { first= &last; last.prev= &first; }
   base_ilist() { empty(); }
   inline bool is_empty() {  return first == &last; }
-  inline void append(ilink *a)
+  inline void push_front(ilink *a)
   {
     first->prev= &a->next;
     a->next=first; a->prev= &first; first=a;
@@ -658,7 +715,7 @@ public:
   I_List() :base_ilist()	{}
   inline void empty()		{ base_ilist::empty(); }
   inline bool is_empty()        { return base_ilist::is_empty(); } 
-  inline void append(T* a)	{ base_ilist::append(a); }
+  inline void push_front(T* a)	{ base_ilist::push_front(a); }
   inline void push_back(T* a)	{ base_ilist::push_back(a); }
   inline T* get()		{ return (T*) base_ilist::get(); }
   inline T* head()		{ return (T*) base_ilist::head(); }

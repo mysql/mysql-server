@@ -188,7 +188,7 @@ min(7)
 explain select min(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
 select min(7) from t2i join t1i;
 min(7)
 NULL
@@ -204,7 +204,7 @@ max(7)
 explain select max(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
 select max(7) from t2i join t1i;
 max(7)
 NULL
@@ -698,7 +698,7 @@ EXPLAIN
 SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c) 
 WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	idx_b,idx_c	idx_c,idx_b	8,4	NULL	#	Using sort_union(idx_c,idx_b); Using where
+1	SIMPLE	t1	index_merge	idx_b,idx_c	idx_c,idx_b	5,4	NULL	#	Using sort_union(idx_c,idx_b); Using where
 SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c)
 WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 COUNT(*)
@@ -1436,8 +1436,7 @@ explain
 select b from t1 where a not in (select b from t1,t2 group by a) group by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 DROP TABLE t1,t2;
 End of 5.0 tests
 CREATE TABLE `t2` (
@@ -1738,8 +1737,8 @@ EXPLAIN
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t1	ALL	c3,c2	c3	5	const	5	Using filesort
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t1	ref	c3,c2	c3	5	const	2	Using where; Using filesort
 DROP TABLE t1;
 CREATE TABLE t1 (c1 REAL, c2 REAL, c3 REAL, KEY (c3), KEY (c2, c3))
 ENGINE=InnoDB;
@@ -1752,8 +1751,8 @@ EXPLAIN
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t1	ALL	c3,c2	c3	9	const	5	Using filesort
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t1	ref	c3,c2	c3	9	const	2	Using where; Using filesort
 DROP TABLE t1;
 CREATE TABLE t1 (c1 DECIMAL(12,2), c2 DECIMAL(12,2), c3 DECIMAL(12,2), 
 KEY (c3), KEY (c2, c3))
@@ -1767,8 +1766,8 @@ EXPLAIN
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t1	ALL	c3,c2	c3	7	const	5	Using filesort
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t1	ref	c3,c2	c3	7	const	2	Using where; Using filesort
 DROP TABLE t1;
 End of 5.1 tests
 #
@@ -1830,15 +1829,21 @@ a
 # Connection default
 DROP TABLE t1;
 drop table if exists t1, t2, t3;
+#
+# BUG#35850: Performance regression in 5.1.23/5.1.24
+#
 create table t1(a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, pk int, key(a,b), primary key(pk)) engine=innodb;
 insert into t2 select @a:=A.a+10*(B.a + 10*C.a),@a, @a from t1 A, t1 B, t1 C;
-this must use key 'a', not PRIMARY:
+# this must use key 'a', not PRIMARY:
 explain select a from t2 where a=b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	a	10	NULL	#	Using where; Using index
 drop table t1, t2;
+#
+# Bug #40360: Binlog related errors with binlog off
+#
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 select @@session.sql_log_bin, @@session.binlog_format, @@session.tx_isolation;
@@ -1848,12 +1853,19 @@ select @@session.sql_log_bin, @@session.binlog_format, @@session.tx_isolation;
 CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;
+#
+# Bug#37284 Crash in Field_string::type()
+#
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a char(50)) ENGINE=InnoDB;
 CREATE INDEX i1 on t1 (a(3));
 SELECT * FROM t1 WHERE a = 'abcde';
 a
 DROP TABLE t1;
+#
+# Bug #37742: HA_EXTRA_KEYREAD flag is set when key contains only prefix of
+# requested column
+#
 CREATE TABLE foo (a int, b int, c char(10),
 PRIMARY KEY (c(3)),
 KEY b (b)
@@ -1938,6 +1950,9 @@ ref	NULL
 rows	6
 Extra	Using where; Using index
 DROP TABLE foo, bar, foo2;
+#
+# Bug#41348: INSERT INTO tbl SELECT * FROM temp_tbl overwrites locking type of temp table
+#
 DROP TABLE IF EXISTS t1,t3,t2;
 DROP FUNCTION IF EXISTS f1;
 CREATE FUNCTION f1() RETURNS VARCHAR(250)
@@ -1959,6 +1974,9 @@ DEALLOCATE PREPARE stmt1;
 DEALLOCATE PREPARE stmt3;
 DROP TABLE t1,t3,t2;
 DROP FUNCTION f1;
+#
+# Bug#37016: TRUNCATE TABLE removes some rows but not all
+#
 DROP TABLE IF EXISTS t1,t2;
 CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE t2 (id INT PRIMARY KEY,
@@ -2165,6 +2183,9 @@ DROP TABLE t4;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+#
+# Bug#43580: Issue with Innodb on multi-table update
+#
 CREATE TABLE t1 (a INT, b INT, KEY (a)) ENGINE = INNODB;
 CREATE TABLE t2 (a INT KEY, b INT, KEY (b)) ENGINE = INNODB;
 CREATE TABLE t3 (a INT, b INT KEY, KEY (a)) ENGINE = INNODB;
@@ -2278,7 +2299,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	i2	i2	8	const,const	1	Using where; Using filesort
 EXPLAIN SELECT * FROM t1 FORCE INDEX(PRIMARY) WHERE b=1 AND c=1 ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	128	Using where
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	{checked}	Using where
 DROP TABLE t1;
 #
 # Bug #47963: Wrong results when index is used
@@ -2348,7 +2369,7 @@ DROP TABLE t1,t2;
 # Bug #49324: more valgrind errors in test_if_skip_sort_order
 #
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb ;
-#should not cause valgrind warnings
+# should not cause valgrind warnings
 SELECT 1 FROM t1 JOIN t1 a USING(a) GROUP BY t1.a,t1.a;
 1
 DROP TABLE t1;
@@ -2431,7 +2452,7 @@ CREATE TABLE t1 (d INT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT, b INT, 
 c TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB;
-set up our data elements
+# set up our data elements
 INSERT INTO t1 (d) VALUES (1);
 INSERT INTO t2 (a,b) VALUES (1,1);
 SELECT SECOND(c) INTO @bug47453 FROM t2;
@@ -2446,7 +2467,7 @@ SELECT SLEEP(1);
 SLEEP(1)
 0
 UPDATE t1 JOIN t2 ON d=a SET b=1 WHERE a=1;
-#should be 0
+# should be 0
 SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
 SECOND(c)-@bug47453
 0
@@ -2638,7 +2659,6 @@ rows	3
 Extra	Using index
 DROP TABLE t1;
 #
-#
 # Bug#55826: create table .. select crashes with when KILL_BAD_DATA 
 #  is returned
 #
@@ -2651,56 +2671,14 @@ ERROR 22007: Incorrect datetime value: '' for column 'NOW()' at row 2
 DROP TABLE t1;
 SET SQL_MODE=DEFAULT;
 #
-# Bug#56862 Execution of a query that uses index merge returns a wrong result
+# Bug#56862 Moved to innodb_16k.test
 #
-CREATE TABLE t1 (
-pk int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-a int,
-b int,
-INDEX idx(a))
-ENGINE=INNODB;
-INSERT INTO t1(a,b) VALUES
-(11, 1100), (2, 200), (1, 100), (14, 1400), (5, 500),
-(3, 300), (17, 1700), (4, 400), (12, 1200), (8, 800),
-(6, 600), (18, 1800), (9, 900), (10, 1000), (7, 700),
-(13, 1300), (15, 1500), (19, 1900), (16, 1600), (20, 2000);
-INSERT INTO t1(a,b) SELECT a+20, b+2000 FROM t1;
-INSERT INTO t1(a,b) SELECT a+40, b+4000 FROM t1;
-INSERT INTO t1(a,b) SELECT a+80, b+8000 FROM t1;
-INSERT INTO t1(a,b) SELECT a,b FROM t1;
-INSERT INTO t1(a,b) SELECT a,b FROM t1;
-INSERT INTO t1(a,b) SELECT a,b FROM t1;
-INSERT INTO t1(a,b) SELECT a,b FROM t1;
-INSERT INTO t1(a,b) SELECT a,b FROM t1;
-INSERT INTO t1(a,b) SELECT a,b FROM t1;
-INSERT INTO t1(a,b) SELECT a,b FROM t1;
-INSERT INTO t1(a,b) SELECT a,b FROM t1;
-INSERT INTO t1 VALUES (1000000, 0, 0);
-SET SESSION sort_buffer_size = 1024*36;
-EXPLAIN
-SELECT COUNT(*) FROM
-(SELECT * FROM t1 FORCE INDEX (idx,PRIMARY)
-WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-2	DERIVED	t1	index_merge	PRIMARY,idx	idx,PRIMARY	5,4	NULL	1536	Using sort_union(idx,PRIMARY); Using where
-SELECT COUNT(*) FROM
-(SELECT * FROM t1 FORCE INDEX (idx,PRIMARY)
-WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
-COUNT(*)
-1537
-SET SESSION sort_buffer_size = DEFAULT;
-DROP TABLE t1;
 #
 # Test for bug #39932 "create table fails if column for FK is in different
 #                      case than in corr index".
 #
 drop tables if exists t1, t2;
 create table t1 (pk int primary key) engine=InnoDB;
-# Even although the below statement uses uppercased field names in
-# foreign key definition it still should be able to find explicitly
-# created supporting index. So it should succeed and should not
-# create any additional supporting indexes.
 create table t2 (fk int, key x (fk),
 constraint x foreign key (FK) references t1 (PK)) engine=InnoDB;
 show create table t2;
@@ -2727,7 +2705,7 @@ LOCK TABLES t1 READ;
 UPDATE t1 SET c = 5;
 UNLOCK TABLES;
 DROP TEMPORARY TABLE t1;
-End of 5.1 tests
+# End of 5.1 tests
 #
 # Bug#49604 "6.0 processing compound WHERE clause incorrectly 
 #            with Innodb - extra rows"
@@ -2786,27 +2764,25 @@ COMMIT;
 DROP TABLE t1;
 DROP FUNCTION f1;
 #
-# BUG#42744: Crash when using a join buffer to join a table with a blob
+# Bug#42744: Crash when using a join buffer to join a table with a blob
 # column and an additional column used for duplicate elimination.
 #
 CREATE TABLE t1 (a tinyblob) ENGINE=InnoDB;
 CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('1'), (NULL);
 INSERT INTO t2 VALUES (1, '1');
-set optimizer_join_cache_level=1;
 EXPLAIN
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t2	index	NULL	PRIMARY	4	NULL	1	Using where; Using index
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 b
 1
-set optimizer_join_cache_level=default;
 DROP TABLE t1,t2;
 #
-# BUG#48093: 6.0 Server not processing equivalent IN clauses properly 
+# Bug#48093: 6.0 Server not processing equivalent IN clauses properly 
 #            with Innodb tables
 #
 CREATE TABLE t1 (
@@ -2849,7 +2825,7 @@ CREATE INDEX c on t1 (c);
 DROP TABLE t1;
 #
 # Additional coverage for refactoring which is made as part
-# of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+# of fix for Bug#27480 "Extend CREATE TEMPORARY TABLES privilege
 # to allow temp table operations".
 #
 # Check that OPTIMIZE table works for temporary InnoDB tables.

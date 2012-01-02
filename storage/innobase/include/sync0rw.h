@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -117,8 +117,11 @@ extern	mysql_pfs_key_t	buf_block_lock_key;
 extern	mysql_pfs_key_t	buf_block_debug_latch_key;
 # endif /* UNIV_SYNC_DEBUG */
 extern	mysql_pfs_key_t	dict_operation_lock_key;
-extern	mysql_pfs_key_t	fil_space_latch_key;
 extern	mysql_pfs_key_t	checkpoint_lock_key;
+extern	mysql_pfs_key_t	fil_space_latch_key;
+extern	mysql_pfs_key_t	fts_cache_rw_lock_key;
+extern	mysql_pfs_key_t	fts_cache_init_rw_lock_key;
+extern	mysql_pfs_key_t	index_tree_rw_lock_key;
 extern	mysql_pfs_key_t	trx_i_s_cache_lock_key;
 extern	mysql_pfs_key_t	trx_purge_latch_key;
 extern	mysql_pfs_key_t	index_tree_rw_lock_key;
@@ -403,22 +406,6 @@ rw_lock_x_lock_move_ownership(
 	rw_lock_t*	lock);	/*!< in: lock which was x-locked in the
 				buffer read */
 /******************************************************************//**
-Releases a shared mode lock when we know there are no waiters and none
-else will access the lock during the time this function is executed. */
-UNIV_INLINE
-void
-rw_lock_s_unlock_direct(
-/*====================*/
-	rw_lock_t*	lock);	/*!< in/out: rw-lock */
-/******************************************************************//**
-Releases an exclusive mode lock when we know there are no waiters, and
-none else will access the lock durint the time this function is executed. */
-UNIV_INLINE
-void
-rw_lock_x_unlock_direct(
-/*====================*/
-	rw_lock_t*	lock);	/*!< in/out: rw-lock */
-/******************************************************************//**
 Returns the value of writer_count for the lock. Does not reserve the lock
 mutex, so the caller must be sure it is not changed during the call.
 @return	value of writer_count */
@@ -544,7 +531,7 @@ mutex. */
 UNIV_INTERN
 void
 rw_lock_debug_mutex_enter(void);
-/*==========================*/
+/*===========================*/
 /******************************************************************//**
 Releases the debug mutex. */
 UNIV_INTERN
@@ -591,7 +578,7 @@ struct rw_lock_struct {
 				/*!< Thread id of writer thread. Is only
 				guaranteed to have sane and non-stale
 				value iff recursive flag is set. */
-	os_event_t	event;	/*!< Used by sync0arr.c for thread queueing */
+	os_event_t	event;	/*!< Used by sync0arr.cc for thread queueing */
 	os_event_t	wait_ex_event;
 				/*!< Event for next-writer to wait on. A thread
 				must decrement lock_word before waiting. */
@@ -634,7 +621,8 @@ struct rw_lock_struct {
 };
 
 #ifdef UNIV_SYNC_DEBUG
-/** The structure for storing debug info of an rw-lock */
+/** The structure for storing debug info of an rw-lock.  All access to this
+structure must be protected by rw_lock_debug_mutex_enter(). */
 struct	rw_lock_debug_struct {
 
 	os_thread_id_t thread_id;  /*!< The thread id of the thread which
@@ -672,9 +660,6 @@ rw_lock_s_lock_gen()
 rw_lock_s_lock_nowait()
 rw_lock_s_unlock_gen()
 rw_lock_free()
-
-Two function APIs rw_lock_x_unlock_direct() and rw_lock_s_unlock_direct()
-do not have any caller/user, they are not instrumented.
 */
 
 #ifdef UNIV_PFS_RWLOCK

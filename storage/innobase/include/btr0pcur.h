@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -53,6 +53,16 @@ UNIV_INTERN
 btr_pcur_t*
 btr_pcur_create_for_mysql(void);
 /*============================*/
+
+/**************************************************************//**
+Resets a persistent cursor object, freeing ::old_rec_buf if it is
+allocated and resetting the other members to their initial values. */
+UNIV_INTERN
+void
+btr_pcur_reset(
+/*===========*/
+	btr_pcur_t*	cursor);/*!< in, out: persistent cursor */
+
 /**************************************************************//**
 Frees the memory for a persistent cursor object. */
 UNIV_INTERN
@@ -245,18 +255,6 @@ btr_pcur_restore_position_func(
 	mtr_t*		mtr);		/*!< in: mtr */
 #define btr_pcur_restore_position(l,cur,mtr)				\
 	btr_pcur_restore_position_func(l,cur,__FILE__,__LINE__,mtr)
-/**************************************************************//**
-If the latch mode of the cursor is BTR_LEAF_SEARCH or BTR_LEAF_MODIFY,
-releases the page latch and bufferfix reserved by the cursor.
-NOTE! In the case of BTR_LEAF_MODIFY, there should not exist changes
-made by the current mini-transaction to the data protected by the
-cursor latch, as then the latch must not be released until mtr_commit. */
-UNIV_INTERN
-void
-btr_pcur_release_leaf(
-/*==================*/
-	btr_pcur_t*	cursor, /*!< in: persistent cursor */
-	mtr_t*		mtr);	/*!< in: mtr */
 /*********************************************************//**
 Gets the rel_pos field for a cursor whose position has been stored.
 @return	BTR_PCUR_ON, ... */
@@ -267,24 +265,15 @@ btr_pcur_get_rel_pos(
 	const btr_pcur_t*	cursor);/*!< in: persistent cursor */
 /**************************************************************//**
 Commits the mtr and sets the pcur latch mode to BTR_NO_LATCHES,
-that is, the cursor becomes detached. If there have been modifications
-to the page where pcur is positioned, this can be used instead of
-btr_pcur_release_leaf. Function btr_pcur_store_position should be used
-before calling this, if restoration of cursor is wanted later. */
+that is, the cursor becomes detached.
+Function btr_pcur_store_position should be used before calling this,
+if restoration of cursor is wanted later. */
 UNIV_INLINE
 void
 btr_pcur_commit_specify_mtr(
 /*========================*/
 	btr_pcur_t*	pcur,	/*!< in: persistent cursor */
 	mtr_t*		mtr);	/*!< in: mtr to commit */
-/**************************************************************//**
-Tests if a cursor is detached: that is the latch mode is BTR_NO_LATCHES.
-@return	TRUE if detached */
-UNIV_INLINE
-ibool
-btr_pcur_is_detached(
-/*=================*/
-	btr_pcur_t*	pcur);	/*!< in: persistent cursor */
 /*********************************************************//**
 Moves the persistent cursor to the next record in the tree. If no records are
 left, the cursor stays 'after last in tree'.

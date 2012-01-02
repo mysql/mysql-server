@@ -46,7 +46,7 @@
      see if it is possible to get rid of malloc().
      this constant is sufficient to avoid malloc() on all inputs I have tried.
 */
-#define DTOA_BUFF_SIZE (420 * sizeof(void *))
+#define DTOA_BUFF_SIZE (460 * sizeof(void *))
 
 /* Magic value returned by dtoa() to indicate overflow */
 #define DTOA_OVERFLOW 9999
@@ -133,7 +133,7 @@ size_t my_fcvt(double x, int precision, char *to, my_bool *error)
     if (len <= decpt)
       *dst++= '.';
     
-    for (i= precision - max(0, (len - decpt)); i > 0; i--)
+    for (i= precision - MY_MAX(0, (len - decpt)); i > 0; i--)
       *dst++= '0';
   }
   
@@ -222,7 +222,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
   if (x < 0.)
     width--;
 
-  res= dtoa(x, 4, type == MY_GCVT_ARG_DOUBLE ? width : min(width, FLT_DIG),
+  res= dtoa(x, 4, type == MY_GCVT_ARG_DOUBLE ? width : MY_MIN(width, FLT_DIG),
             &decpt, &sign, &end, buf, sizeof(buf));
   if (decpt == DTOA_OVERFLOW)
   {
@@ -659,6 +659,7 @@ typedef struct Stack_alloc
 static Bigint *Balloc(int k, Stack_alloc *alloc)
 {
   Bigint *rv;
+  DBUG_ASSERT(k <= Kmax);
   if (k <= Kmax &&  alloc->freelist[k])
   {
     rv= alloc->freelist[k];
@@ -1005,9 +1006,10 @@ static Bigint p5_a[]=
 
 static Bigint *pow5mult(Bigint *b, int k, Stack_alloc *alloc)
 {
-  Bigint *b1, *p5, *p51;
+  Bigint *b1, *p5, *p51=NULL;
   int i;
   static int p05[3]= { 5, 25, 125 };
+  my_bool overflow= FALSE;
 
   if ((i= k & 3))
     b= multadd(b, p05[i-1], 0, alloc);
@@ -1026,17 +1028,22 @@ static Bigint *pow5mult(Bigint *b, int k, Stack_alloc *alloc)
     if (!(k>>= 1))
       break;
     /* Calculate next power of 5 */
-    if (p5 < p5_a + P5A_MAX)
-      ++p5;
-    else if (p5 == p5_a + P5A_MAX)
-      p5= mult(p5, p5, alloc);
-    else
+    if (overflow)
     {
       p51= mult(p5, p5, alloc);
       Bfree(p5, alloc);
       p5= p51;
     }
+    else if (p5 < p5_a + P5A_MAX)
+      ++p5;
+    else if (p5 == p5_a + P5A_MAX)
+    {
+      p5= mult(p5, p5, alloc);
+      overflow= TRUE;
+    }
   }
+  if (p51)
+    Bfree(p51, alloc);
   return b;
 }
 

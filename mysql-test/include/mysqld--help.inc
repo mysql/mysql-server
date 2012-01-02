@@ -26,7 +26,7 @@ perl;
 
   # And substitute the content some environment variables with their
   # names:
-  @env=qw/MYSQLTEST_VARDIR MYSQL_TEST_DIR MYSQL_LIBDIR MYSQL_CHARSETSDIR MYSQL_SHAREDIR/;
+  @env=qw/MYSQLTEST_VARDIR MYSQL_TEST_DIR MYSQL_CHARSETSDIR MYSQL_SHAREDIR/;
 
   $re1=join('|', @skipvars, @plugins);
   $re2=join('|', @plugins);

@@ -30,6 +30,8 @@
 #include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"                            /* Item */
 
+#include <algorithm>
+
 class JOIN;
 class Item_sum;
 
@@ -92,6 +94,7 @@ class QUICK_RANGE :public Sql_alloc {
   */
   void make_min_endpoint(key_range *kr, uint prefix_length, 
                          key_part_map keypart_map) {
+    using std::min;
     make_min_endpoint(kr);
     kr->length= min(kr->length, prefix_length);
     kr->keypart_map&= keypart_map;
@@ -130,6 +133,7 @@ class QUICK_RANGE :public Sql_alloc {
   */
   void make_max_endpoint(key_range *kr, uint prefix_length, 
                          key_part_map keypart_map) {
+    using std::min;
     make_max_endpoint(kr);
     kr->length= min(kr->length, prefix_length);
     kr->keypart_map&= keypart_map;
@@ -382,6 +386,7 @@ public:
     Returns a QUICK_SELECT with reverse order of to the index.
   */
   virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) { return NULL; }
+  virtual void set_handler(handler *file_arg) {}
 };
 
 
@@ -415,7 +420,7 @@ protected:
   handler *file;
   /* Members to deal with case when this quick select is a ROR-merged scan */
   bool in_ror_merged_scan;
-  MY_BITMAP column_bitmap, *save_read_set, *save_write_set;
+  MY_BITMAP column_bitmap;
 
   friend class TRP_ROR_INTERSECT;
   friend
@@ -491,6 +496,7 @@ public:
   void dbug_dump(int indent, bool verbose);
 #endif
   QUICK_SELECT_I *make_reverse(uint used_key_parts_arg);
+  void set_handler(handler *file_arg) { file= file_arg; }
 private:
   /* Default copy ctor used by QUICK_SELECT_DESC */
 };
@@ -810,7 +816,6 @@ private:
 class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I
 {
 private:
-  handler * const file;   /* The handler used to get data. */
   JOIN *join;            /* Descriptor of the current query */
   KEY  *index_info;      /* The index chosen for data access */
   uchar *record;          /* Buffer where the next record is returned. */

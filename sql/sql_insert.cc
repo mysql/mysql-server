@@ -78,6 +78,10 @@
 #include "sql_audit.h"
 #include "debug_sync.h"
 #include "opt_explain.h"
+#include "sql_tmp_table.h"    // tmp tables
+#include "sql_optimizer.h"    // JOIN
+
+#include "debug_sync.h"
 
 #ifndef EMBEDDED_LIBRARY
 static bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
@@ -282,16 +286,16 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), thd->dup_field->field_name);
       return -1;
     }
-    if (table->timestamp_field)	// Don't automaticly set timestamp if used
+    if (table->get_timestamp_field()) // Don't automaticly set timestamp if used
     {
       if (bitmap_is_set(table->write_set,
-                        table->timestamp_field->field_index))
+                        table->get_timestamp_field()->field_index))
         clear_timestamp_auto_bits(table->timestamp_field_type,
                                   TIMESTAMP_AUTO_SET_ON_INSERT);
       else
       {
         bitmap_set_bit(table->write_set,
-                       table->timestamp_field->field_index);
+                       table->get_timestamp_field()->field_index);
       }
     }
   }
@@ -338,14 +342,15 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
   TABLE *table= insert_table_list->table;
   my_bool timestamp_mark= 0;
 
-  if (table->timestamp_field)
+  if (table->get_timestamp_field())
   {
     /*
       Unmark the timestamp field so that we can check if this is modified
       by update_fields
     */
     timestamp_mark= bitmap_test_and_clear(table->write_set,
-                                          table->timestamp_field->field_index);
+                                          table->get_timestamp_field()->
+                                          field_index);
   }
 
   /* Check the fields we are going to modify */
@@ -358,16 +363,16 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
                                insert_table_list, map))
     return -1;
 
-  if (table->timestamp_field)
+  if (table->get_timestamp_field())
   {
     /* Don't set timestamp column if this is modified. */
     if (bitmap_is_set(table->write_set,
-                      table->timestamp_field->field_index))
+                      table->get_timestamp_field()->field_index))
       clear_timestamp_auto_bits(table->timestamp_field_type,
                                 TIMESTAMP_AUTO_SET_ON_UPDATE);
     if (timestamp_mark)
       bitmap_set_bit(table->write_set,
-                     table->timestamp_field->field_index);
+                     table->get_timestamp_field()->field_index);
   }
   return 0;
 }
@@ -1239,6 +1244,11 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "INSERT");
+    DBUG_RETURN(TRUE);
+  }
   /*
      first table in list is the one we'll INSERT into, requires INSERT_ACL.
      all others require SELECT_ACL only. the ACL requirement below is for
@@ -1559,6 +1569,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	error= HA_ERR_FOUND_DUPP_KEY;         /* Database can't find key */
 	goto err;
       }
+      DEBUG_SYNC(thd, "write_row_replace");
+
       /* Read all columns for the row we are going to replace */
       table->use_all_columns();
       /*
@@ -1747,6 +1759,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
   }
   else if ((error=table->file->ha_write_row(table->record[0])))
   {
+    DEBUG_SYNC(thd, "write_row_noreplace");
     if (!info->ignore ||
         table->file->is_fatal_error(error, HA_CHECK_DUP))
       goto err;
@@ -2178,7 +2191,7 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
         goto end_create;
       }
       mysql_mutex_lock(&LOCK_delayed_insert);
-      delayed_threads.append(di);
+      delayed_threads.push_front(di);
       mysql_mutex_unlock(&LOCK_delayed_insert);
     }
     mysql_mutex_unlock(&LOCK_delayed_create);
@@ -2311,13 +2324,14 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   *field=0;
 
   /* Adjust timestamp */
-  if (table->timestamp_field)
+  if (table->get_timestamp_field())
   {
     /* Restore offset as this may have been reset in handle_inserts */
-    copy->timestamp_field=
-      (Field_timestamp*) copy->field[share->timestamp_field_offset];
-    copy->timestamp_field->unireg_check= table->timestamp_field->unireg_check;
-    copy->timestamp_field_type= copy->timestamp_field->get_auto_set_type();
+    copy->set_timestamp_field(copy->field[share->timestamp_field_offset]);
+    copy->get_timestamp_field()->unireg_check= table->get_timestamp_field()->
+                                               unireg_check;
+    copy->timestamp_field_type= copy->get_timestamp_field()->
+                                      get_auto_set_type();
   }
 
   /* Adjust in_use for pointing to client thread */
@@ -2392,7 +2406,7 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   if (!(row->record= (char*) my_malloc(table->s->reclength, MYF(MY_WME))))
     goto err;
   memcpy(row->record, table->record[0], table->s->reclength);
-  row->start_time=		thd->start_time;
+  row->start_time=		thd->start_time.tv_sec;
   row->query_start_used=	thd->query_start_used;
   /*
     those are for the binlog: LAST_INSERT_ID() has been evaluated at this
@@ -2626,7 +2640,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thd->set_current_time();
-  threads.append(thd);
+  threads.push_front(thd);
   thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
   mysql_mutex_unlock(&LOCK_thread_count);
 
@@ -2919,7 +2933,8 @@ bool Delayed_insert::handle_inserts(void)
     mysql_mutex_unlock(&mutex);
     memcpy(table->record[0],row->record,table->s->reclength);
 
-    thd.start_time=row->start_time;
+    thd.start_time.tv_sec= row->start_time;
+    thd.start_time.tv_usec= 0;
     thd.query_start_used=row->query_start_used;
 
     /* 
@@ -3722,7 +3737,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   DBUG_ENTER("create_table_from_items");
 
   tmp_table.alias= 0;
-  tmp_table.timestamp_field= 0;
+  tmp_table.set_timestamp_field(0);
   tmp_table.s= &share;
   init_tmp_table_share(thd, &share, "", 0, "", "");
 
@@ -3756,7 +3771,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     alter_info->create_list.push_back(cr_field);
   }
 
-  DBUG_EXECUTE_IF("sleep_create_select_before_create", my_sleep(6000000););
+  DEBUG_SYNC(thd,"create_table_select_before_create");
 
   /*
     Create and lock table.
@@ -3780,7 +3795,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                     create_info, alter_info, 0,
                                     select_field_count, NULL))
     {
-      DBUG_EXECUTE_IF("sleep_create_select_before_open", my_sleep(6000000););
+      DEBUG_SYNC(thd,"create_table_select_before_open");
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
@@ -3819,7 +3834,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(0);
   }
 
-  DBUG_EXECUTE_IF("sleep_create_select_before_lock", my_sleep(6000000););
+  DEBUG_SYNC(thd,"create_table_select_before_lock");
 
   table->reginfo.lock_type=TL_WRITE;
   hooks->prelock(&table, 1);                    // Call prelock hooks
@@ -3914,7 +3929,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   unit= u;
   DBUG_ASSERT(create_table->table == NULL);
 
-  DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
+  DEBUG_SYNC(thd,"create_table_select_before_check_if_exists");
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values,

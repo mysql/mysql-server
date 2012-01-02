@@ -87,8 +87,7 @@ static char *init_syms(udf_func *tmp, char *nm)
   {
     if (!opt_allow_suspicious_udfs)
       return nm;
-    if (current_thd->variables.log_warnings)
-      sql_print_warning(ER(ER_CANT_FIND_DL_ENTRY), nm);
+    sql_print_warning(ER(ER_CANT_FIND_DL_ENTRY), nm);
   }
   return 0;
 }
@@ -171,7 +170,8 @@ void udf_init()
   }
 
   table= tables.table;
-  init_read_record(&read_record_info, new_thd, table, NULL,1,0,FALSE);
+  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, 1, FALSE))
+    goto end;
   table->use_all_columns();
   while (!(error= read_record_info.read_record(&read_record_info)))
   {
@@ -509,7 +509,9 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   if (error)
   {
-    my_error(ER_ERROR_ON_WRITE, MYF(0), "mysql.func", error);
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(ER_ERROR_ON_WRITE, MYF(0), "mysql.func", error,
+             my_strerror(errbuf, sizeof(errbuf), error));
     del_udf(u_d);
     goto err;
   }

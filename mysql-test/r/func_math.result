@@ -214,12 +214,16 @@ CAST(RAND(2) * 1000 AS UNSIGNED)	CAST(RAND(?) * 1000 AS UNSIGNED)
 122	122
 645	645
 DROP TABLE t1;
+SET timestamp=UNIX_TIMESTAMP('2001-01-01 00:00:00');
 create table t1 (a varchar(90), ts datetime not null, index (a)) engine=innodb default charset=utf8;
 insert into t1 values ('http://www.foo.com/', now());
 select a from t1 where a='http://www.foo.com/' order by abs(timediff(ts, 0));
 a
 http://www.foo.com/
+Warnings:
+Warning	1292	Truncated incorrect time value: '17540424:00:00'
 drop table t1;
+SET timestamp=DEFAULT;
 set sql_mode='traditional';
 select ln(-1);
 ln(-1)
@@ -699,6 +703,21 @@ select (1.175494351E-37 div 1.7976931348623157E+308);
 0
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
+#
+# Bug#12744991 - DECIMAL_ROUND(X,D) GIVES WRONG RESULTS WHEN D == N*(-9)
+#
+select round(999999999, -9);
+round(999999999, -9)
+1000000000
+select round(999999999.0, -9);
+round(999999999.0, -9)
+1000000000
+select round(999999999999999999, -18);
+round(999999999999999999, -18)
+1000000000000000000
+select round(999999999999999999.0, -18);
+round(999999999999999999.0, -18)
+1000000000000000000
 #
 # Bug#12537160 ASSERTION FAILED:
 # STOP0 <= &TO->BUF[TO->LEN] WITH LARGE NUMBER.
