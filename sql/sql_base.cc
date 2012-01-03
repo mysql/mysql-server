@@ -1511,8 +1511,17 @@ void close_thread_tables(THD *thd)
     DEBUG_SYNC(thd, "before_close_thread_tables");
 #endif
 
+  /*
+    If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
+    binlog_handler will be registered very early in the execution of
+    the statement.  Hence, allow stmt.is_empty() in these cases.
+    @todo Check if this causes any trouble. /Sven
+    @note Covered by case 1 in test binlog.binlog_trx_empty_assertions
+  */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt ||
-              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
+              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
+              thd->get_gtid_next_list() != NULL ||
+              thd->variables.gtid_next.type == GTID_GROUP);
 
   /* Detach MERGE children after every statement. Even under LOCK TABLES. */
   for (table= thd->open_tables; table; table= table->next)
@@ -3391,7 +3400,17 @@ Locked_tables_list::unlock_locked_tables(THD *thd)
     }
     thd->leave_locked_tables_mode();
 
-    DBUG_ASSERT(thd->transaction.stmt.is_empty());
+    /*
+      If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
+      binlog_handler will be registered very early in the execution of
+      the statement.  Hence, allow stmt.is_empty() in these cases.
+      @todo Check if this causes any trouble. /Sven
+      @todo Write test case that would fail if the checks for
+      gtid_next was removed. /Sven
+    */
+    DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
+                thd->get_gtid_next_list() != NULL ||
+                thd->variables.gtid_next.type == GTID_GROUP);
     close_thread_tables(thd);
     /*
       We rely on the caller to implicitly commit the
@@ -5724,9 +5743,18 @@ end:
     either not started or we're filling in an INFORMATION_SCHEMA
     table on the fly, and thus mustn't manipulate with the
     transaction of the enclosing statement.
+
+    If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
+    binlog_handler will be registered very early in the execution of
+    the statement.  Hence, allow stmt.is_empty() in these cases.
+    @todo Check if this causes any trouble. /Sven
+    @todo Write test case that would fail if the checks for
+    gtid_next was removed. /Sven
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
-              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
+              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
+              thd->get_gtid_next_list() != NULL ||
+              thd->variables.gtid_next.type == GTID_GROUP);
   close_thread_tables(thd);
   /* Don't keep locks for a failed statement. */
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
@@ -5997,9 +6025,16 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
     either not started or we're filling in an INFORMATION_SCHEMA
     table on the fly, and thus mustn't manipulate with the
     transaction of the enclosing statement.
+
+    If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
+    binlog_handler will be registered very early in the execution of
+    the statement.  Hence, allow stmt.is_empty() in these cases.
+    @todo Check if this causes any trouble /Sven.
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
-              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
+              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
+              thd->get_gtid_next_list() != NULL ||
+              thd->variables.gtid_next.type == GTID_GROUP);
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(start_of_statement_svp);
 }

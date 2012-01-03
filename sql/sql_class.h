@@ -1907,6 +1907,13 @@ public:
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
 
+  /*
+    The number of calls to mysql_execute_command on the stack. This
+    is incremented every time we enter mysql_execute_command and
+    decremented when we leave.
+  */
+  uint n_execute_command_calls;
+
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
@@ -2832,7 +2839,7 @@ public:
     BEGIN;
     select * from nontrans_t1; <-- in_active_multi_stmt_transaction() is true
   */
-  inline bool in_active_multi_stmt_transaction()
+  inline bool in_active_multi_stmt_transaction() const
   {
     return server_status & SERVER_STATUS_IN_TRANS;
   }

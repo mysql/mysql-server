@@ -28,10 +28,17 @@ static bool trans_check(THD *thd)
   /*
     Always commit statement transaction before manipulating with
     the normal one.
+
+    If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
+    binlog_handler will be registered very early in the execution of
+    the statement.  Hence, allow stmt.is_empty() in these cases.
+    @todo Check if this causes any trouble /Sven.
+    @todo Write test case that would fail if the checks for
+    gtid_next was removed. /Sven
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
               thd->get_gtid_next_list() != NULL ||
-              thd->variables.gtid_next.type == GTID_GROUP); // @todo: are the two extra clauses for gtids correct? /sven
+              thd->variables.gtid_next.type == GTID_GROUP);
 
   if (unlikely(thd->in_sub_stmt))
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));

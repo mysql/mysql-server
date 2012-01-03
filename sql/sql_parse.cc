@@ -233,9 +233,9 @@ static bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
   @param mask   Bitmask used for the SQL command match.
 
 */
-static bool stmt_causes_implicit_commit(THD *thd, uint mask)
+bool stmt_causes_implicit_commit(const THD *thd, uint mask)
 {
-  LEX *lex= thd->lex;
+  const LEX *lex= thd->lex;
   bool skip= FALSE;
   DBUG_ENTER("stmt_causes_implicit_commit");
 
@@ -1025,6 +1025,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   bool error= 0;
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
+
+  DBUG_ASSERT(thd->n_execute_command_calls == 0);
 
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
@@ -2129,11 +2131,27 @@ mysql_execute_command(THD *thd)
   DBUG_ENTER("mysql_execute_command");
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command));
 
+  thd->n_execute_command_calls++;
+  DBUG_PRINT("info", ("n_execute_command_calls=%d",
+                      thd->n_execute_command_calls));
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
 #endif
 
-  DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt);
+  /*
+    If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
+    binlog_handler will be registered later in this function so that
+    thd->transaction.stmt.is_empty() returns false.  When executing an
+    EXECUTE statement, this function will then be called again,
+    recursively, with thd->in_sub_stmt==false.  Hence, don't raise the
+    assertion in these cases.
+    @todo Check if this causes any trouble /Sven.
+  */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt ||
+              (thd->n_execute_command_calls > 1 &&
+               (thd->get_gtid_next_list() != NULL ||
+                thd->variables.gtid_next.type == GTID_GROUP)));
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
     check that it is first table in global list and relink it first in 
@@ -2192,6 +2210,7 @@ mysql_execute_command(THD *thd)
           according to slave filtering rules.
           Returning success without producing any errors in this case.
         */
+        thd->n_execute_command_calls--;
         DBUG_RETURN(0);
       }
       
@@ -2234,6 +2253,7 @@ mysql_execute_command(THD *thd)
         my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
         if (thd->one_shot_set)
           reset_one_shot_variables(thd);
+        thd->n_execute_command_calls--;
         DBUG_RETURN(0);
       }
       
@@ -2279,6 +2299,7 @@ mysql_execute_command(THD *thd)
         */
         reset_one_shot_variables(thd);
       }
+      thd->n_execute_command_calls--;
       DBUG_RETURN(0);
     }
   }
@@ -2292,6 +2313,7 @@ mysql_execute_command(THD *thd)
     if (deny_updates_if_read_only_option(thd, all_tables))
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      thd->n_execute_command_calls--;
       DBUG_RETURN(-1);
     }
 #ifdef HAVE_REPLICATION
@@ -2309,6 +2331,18 @@ mysql_execute_command(THD *thd)
 
   DBUG_ASSERT(thd->transaction.stmt.cannot_safely_rollback() == FALSE);
 
+#ifdef HAVE_GTID
+  /*
+    Check error conditions related to GTID_NEXT.
+    This must be done before the implicit commit.
+  */
+  if (gtid_check_session_variables_before_statement(thd) != 0)
+  {
+    thd->n_execute_command_calls--;
+    DBUG_RETURN(-1);
+  }
+#endif
+      
   /*
     End a active transaction so that this command will have it's
     own transaction and will also sync the binary log. If a DDL is
@@ -2345,7 +2379,7 @@ mysql_execute_command(THD *thd)
     Execute gtid_before_statement, so that we acquire ownership of
     groups as specified by gtid_next and gtid_next_list.
   */
-  if (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt)
+  if (opt_bin_log && lex->is_binloggable() && thd->n_execute_command_calls == 1)
   {
     /*
       Initialize the cache manager if this was not done yet.
@@ -2354,17 +2388,20 @@ mysql_execute_command(THD *thd)
       thd->get_group_cache won't crash.
     */
     thd->binlog_setup_trx_data();
-    enum_gtid_statement_status state=
-      gtid_before_statement(thd,
-                            thd->get_group_cache(false),
-                            thd->get_group_cache(true));
-    if (state == GTID_STATEMENT_CANCEL)
-      // error has already been printed; don't print anything more here
-      DBUG_RETURN(-1);
-    else if (state == GTID_STATEMENT_SKIP)
+    switch (gtid_before_statement(thd,
+                                  thd->get_group_cache(false),
+                                  thd->get_group_cache(true)))
     {
+    case GTID_STATEMENT_CANCEL:
+      // error has already been printed; don't print anything more here
+      thd->n_execute_command_calls--;
+      DBUG_RETURN(-1);
+    case GTID_STATEMENT_SKIP:
       my_ok(thd);
+      thd->n_execute_command_calls--;
       DBUG_RETURN(0);
+    case GTID_STATEMENT_EXECUTE:
+      break;
     }
   }
 #ifndef DBUG_OFF
@@ -4204,8 +4241,17 @@ end_with_restore_list:
               is written into binary log as a separate statement or make both
               creation of routine and implicit GRANT parts of one fully atomic
               statement.
+
+        If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
+        binlog_handler will be registered very early in the execution
+        of the statement.  Hence, allow stmt.is_empty() in these cases.
+        @todo Check if this causes any trouble /Sven.
+        @todo Write test case that would fail if the checks for
+        gtid_next was removed. /Sven
       */
-      DBUG_ASSERT(thd->transaction.stmt.is_empty());
+      DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
+                  thd->get_gtid_next_list() != NULL ||
+                  thd->variables.gtid_next.type == GTID_GROUP);
       close_thread_tables(thd);
       /*
         Check if the definer exists on slave, 
@@ -4479,8 +4525,17 @@ create_sp_error:
               is written into binary log as a separate statement or make both
               dropping of routine and implicit REVOKE parts of one fully atomic
               statement.
+
+        If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
+        binlog_handler will be registered very early in the execution of
+        the statement.  Hence, allow stmt.is_empty() in these cases.
+        @todo Check if this causes any trouble /Sven.
+        @todo Write test case that would fail if the checks for
+        gtid_next was removed. /Sven
       */
-      DBUG_ASSERT(thd->transaction.stmt.is_empty());
+      DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
+                  thd->get_gtid_next_list() != NULL ||
+                  thd->variables.gtid_next.type == GTID_GROUP);
       close_thread_tables(thd);
 
       if (sp_result != SP_KEY_NOT_FOUND &&
@@ -4839,6 +4894,7 @@ finish:
     thd->mdl_context.release_statement_locks();
   }
 
+  thd->n_execute_command_calls--;
   DBUG_RETURN(res || thd->is_error());
 }
 

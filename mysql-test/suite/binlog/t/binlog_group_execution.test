@@ -9,7 +9,7 @@
 --let $idf= ffffffff-ffff-ffff-ffff-ffffffffffff
 --let $tab= `SELECT '\t'`
 
---echo ==== Valid and invlaid values for gtid_next ====
+--echo ==== Valid and invalid values for gtid_next ====
 
 SELECT @@SESSION.GTID_NEXT;
 SELECT @@SESSION.GTID_NEXT_LIST;
@@ -71,6 +71,7 @@ SELECT @@SESSION.GTID_NEXT;
 
 --echo ==== Valid and invalid values for gtid_next_list ====
 
+if (0) {
 SELECT @@SESSION.GTID_NEXT_LIST;
 
 SET @@SESSION.GTID_NEXT_LIST= '';
@@ -124,6 +125,7 @@ SELECT @@SESSION.GTID_NEXT_LIST;
 
 eval SET @@SESSION.GTID_NEXT_LIST= '$idc:1,$idb:2,$ida:3';
 SELECT @@SESSION.GTID_NEXT_LIST;
+}
 
 --echo ==== Conditions when all variables are settable / readonly ====
 
@@ -137,12 +139,6 @@ SELECT @@GLOBAL.GTID_HAS_ONGOING_SUPER_GROUP;
 
 SET GTID_NEXT_LIST = NULL, GTID_NEXT = 'AUTOMATIC', GTID_END = 0, GTID_COMMIT = 0;
 
-CREATE TABLE variables (var VARCHAR(100), val VARCHAR(100), id INT PRIMARY KEY AUTO_INCREMENT);
-eval INSERT INTO variables(var, val) VALUES
-  ('gtid_next', '"$ida:1"'),
-  ('gtid_next_list', '"$ida:1"'),
-  ('gtid_end', '1'),
-  ('gtid_commit', '1');
 --eval CREATE FUNCTION f() RETURNS INT BEGIN RETURN 1; END
 CREATE TABLE t1 (a INT);
 CREATE USER nonsuper@localhost;
@@ -150,46 +146,59 @@ GRANT SELECT ON *.* TO nonsuper@localhost;
 --connect (nonsuper,localhost,nonsuper,,)
 --connection default
 
---let $id= 1
-while ($id <= 4)
-{
-  --let $var= `SELECT var FROM variables WHERE id = $id`
-  --let $val= `SELECT val FROM variables WHERE id = $id`
+# is session-only
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+eval SELECT @@GLOBAL.GTID_NEXT;
+--error ER_LOCAL_VARIABLE
+eval SET @@GLOBAL.GTID_NEXT= '$ida:1';
 
-  --echo ---- @@SESSION.$var ----
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+eval SELECT @@GLOBAL.GTID_NEXT_LIST;
+--error ER_LOCAL_VARIABLE
+eval SET @@GLOBAL.GTID_NEXT_LIST= '$ida:1';
 
-  # is session-only
-  --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-  eval SELECT @@GLOBAL.$var;
-  --error ER_LOCAL_VARIABLE
-  eval SET @@GLOBAL.$var= $val;
+# can't set value from stored function
+--eval CREATE FUNCTION set_var() RETURNS INT BEGIN SET @@SESSION.GTID_NEXT = '$ida:1'; RETURN 1; END
+--error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+SELECT set_var();
+DROP FUNCTION set_var;
 
-  # can't set value from stored function
-  --eval CREATE FUNCTION set_var() RETURNS INT BEGIN SET @@SESSION.$var = $val; RETURN 1; END
-  --error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
-  SELECT set_var();
-  DROP FUNCTION set_var;
+--eval CREATE FUNCTION set_var() RETURNS INT BEGIN SET @@SESSION.GTID_NEXT_LIST = '$ida:1'; RETURN 1; END
+--error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+SELECT set_var();
+DROP FUNCTION set_var;
 
-  # can't set value from trigger
-  eval CREATE TRIGGER t BEFORE INSERT ON t1 FOR EACH ROW SET @@SESSION.$var = $val;
-  --error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
-  INSERT INTO t1 VALUES (1);
-  DROP TRIGGER t;
+# can't set value from trigger
+eval CREATE TRIGGER t BEFORE INSERT ON t1 FOR EACH ROW SET @@SESSION.GTID_NEXT = '$ida:1';
+--error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+INSERT INTO t1 VALUES (1);
+DROP TRIGGER t;
 
-  # can't set value when invoking SF
-  --error ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
-  eval SET @@SESSION.$var = f()
+# can't set value from trigger
+eval CREATE TRIGGER t BEFORE INSERT ON t1 FOR EACH ROW SET @@SESSION.GTID_NEXT_LIST = '$ida:1';
+--error ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+INSERT INTO t1 VALUES (1);
+DROP TRIGGER t;
 
-  # must be SUPER
-  --connection nonsuper
-  --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-  eval SET @@SESSION.$var = $val
-  --connection default
+# can't set value when invoking SF
+--error ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
+SET @@SESSION.GTID_NEXT = f()
 
-  eval SELECT @@SESSION.$var;
+--error ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
+SET @@SESSION.GTID_NEXT_LIST = f()
 
-  --inc $id
-}
+# must be SUPER
+--connection nonsuper
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+eval SET @@SESSION.GTID_NEXT = '$ida:1';
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+eval SET @@SESSION.GTID_NEXT_LIST = '$ida:1';
+
+# can read even if non-SUPER
+SELECT @@SESSION.GTID_NEXT;
+SELECT @@SESSION.GTID_NEXT_LIST;
 
 DROP TABLE t1, variables;
 DROP FUNCTION f;
@@ -208,12 +217,8 @@ BEGIN
   SET @@SESSION.GTID_NEXT_LIST = '$ida:1-10';
   SET @@SESSION.GTID_NEXT = '$ida:50';
   SET @@SESSION.GTID_NEXT = '$ida:5';
-  SET @@SESSION.GTID_COMMIT = 1;
-  SET @@SESSION.GTID_END = 1;
   SET @@SESSION.GTID_NEXT_LIST = NULL;
   SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
-  SET @@SESSION.GTID_COMMIT = 0;
-  SET @@SESSION.GTID_END = 0;
 END|
 --delimiter ;
 CALL p();

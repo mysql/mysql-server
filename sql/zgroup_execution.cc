@@ -20,6 +20,7 @@
 #include "transaction.h"
 #include "rpl_slave.h"
 #include "rpl_mi.h"
+#include "sql_parse.h"
 
 
 #ifdef HAVE_GTID
@@ -216,18 +217,12 @@ static enum_gtid_statement_status gtid_acquire_ownerships(THD *thd,
 }
 
 
-/**
-  Check that the @@SESSION.GTID_* variables are consistent.
-
-  @param gtid_next_list The @@SESSION.GTID_NEXT_LIST variable (possibly NULL).
-  @param gtid_next The @@SESSION.GTID_NEXT variable.
-  @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-*/
-static enum_return_status
-gtid_before_statement_check_session_variables(
-  const Gtid_set *gtid_next_list, const Gtid_specification *gtid_next)
+int gtid_check_session_variables_before_statement(const THD *thd)
 {
   DBUG_ENTER("gtid_before_statement_check_session_variables");
+
+  const Gtid_set *gtid_next_list= thd->get_gtid_next_list_const();
+  const Gtid_specification *gtid_next= &thd->variables.gtid_next;
 
   if (gtid_next_list != NULL)
   {
@@ -241,7 +236,7 @@ gtid_before_statement_check_session_variables(
       gtid_next->to_string(&global_sid_map, buf);
       global_sid_lock.unlock();
       my_error(ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST, MYF(0), buf);
-      RETURN_REPORTED_ERROR;
+      DBUG_RETURN(1);
     }
 
     // GTID_NEXT cannot be "AUTOMATIC" when GTID_NEXT_LIST != NULL.
@@ -249,11 +244,19 @@ gtid_before_statement_check_session_variables(
     {
       my_error(ER_GTID_NEXT_CANT_BE_AUTOMATIC_IF_GTID_NEXT_LIST_IS_NON_NULL,
                MYF(0));
-      RETURN_REPORTED_ERROR;
+      DBUG_RETURN(1);
     }
   }
 
-  RETURN_OK;
+  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) &&
+      thd->in_active_multi_stmt_transaction() &&
+      gtid_next->type != AUTOMATIC_GROUP)
+  {
+    my_error(ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET, MYF(0));
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
 }
 
 
@@ -366,12 +369,6 @@ gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc)
 
   const Gtid_set *gtid_next_list= thd->get_gtid_next_list();
   const Gtid_specification *gtid_next= &thd->variables.gtid_next;
-
-  // Sanity check session variables.
-  if (gtid_before_statement_check_session_variables(gtid_next_list,
-                                                    gtid_next) !=
-      RETURN_STATUS_OK)
-    DBUG_RETURN(GTID_STATEMENT_CANCEL);
 
 #ifndef NO_DBUG
   global_sid_lock.wrlock();

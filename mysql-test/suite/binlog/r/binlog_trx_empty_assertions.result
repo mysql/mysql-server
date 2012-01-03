@@ -1,0 +1,12 @@
+==== Initialize ====
+CREATE TABLE t1 (a INT);
+==== Test ====
+---- Prepared statements ----
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+PREPARE prep FROM 'INSERT INTO t1 VALUES (1)';
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+EXECUTE prep;
+==== Clean up ====
+SET GTID_NEXT = 'AUTOMATIC';
+DEALLOCATE PREPARE prep;
+DROP TABLE t1;
