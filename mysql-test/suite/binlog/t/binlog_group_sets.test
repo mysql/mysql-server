@@ -162,16 +162,11 @@ CREATE table t (a INT) ENGINE = InnoDB;
 #    can be abbreviated as for 'next'.
 #    The value 0 means that the previous value is retained and no SET
 #    statement is generate for GTID_NEXT_LIST.
-#  flags
-#    String containing zero, one, or both of the letters 'C' and 'E'.
-#    If C is in the string, GTID_COMMIT is set to 1. If E is in the
-#    string, GTID_END is set to 1.
-#  [global|session]_[ended|partial]
-#    Specifies how @@[SESSION|GLOBAL].GTID_[ENDED|PARTIAL]_GROUPS is
-#    expected to change after the statement.  This has the form of a
-#    group_set containing the groups that were added by the statement.
-#    If the group_set begins with '~', the groups are expected to be
-#    removed instead.
+#  [global|session]_done
+#    Specifies how @@[SESSION|GLOBAL].GTID_DONE is expected to change
+#    after the statement.  This has the form of a group_set containing
+#    the groups that were added by the statement.  If the group_set
+#    begins with '~', the groups are expected to be removed instead.
 #  error
 #    Expected errno for the statement, or 0 if the statement is
 #    expected to succeed.
@@ -180,56 +175,49 @@ CREATE TABLE stmts (
   stmt_type TEXT(10) NOT NULL,
   next TEXT(100),
   next_list TEXT(10000),
-  flags TEXT(3) NOT NULL,
-  global_ended TEXT(10000) NOT NULL,
-  global_partial TEXT(10000) NOT NULL,
-  session_ended TEXT(10000) NOT NULL,
-  session_partial TEXT(10000) NOT NULL,
+  global_done TEXT(10000) NOT NULL,
+  session_done TEXT(10000) NOT NULL,
   error INT NOT NULL);
 
 eval INSERT INTO stmts VALUES
-#  id  STMT  NEXT  NEXT_LIST  FLAGS G_END     G_PART     S_END     S_PART   ERR
-  # simple groups
-  (10,'CRE','1:1', NULL,     'CE', '1:1',    '',        '',       '',       0)
- ,(11,'INS','1:3', NULL,     'CE', '1:3',    '',        '',       '',       0)
- ,(12,'CRE','1:2', NULL,     'CE', '1:2',    '',        '',       '',       0)
-  # split master-super-group over several, interleaved, one-stmt transactions
- ,(20,'INS','2:9', NULL,     'C',  '',       '2:9',     '',       '',       0)
- ,(21,'INS','2:8', NULL,     'C',  '',       '2:8',     '',       '',       0)
- ,(22,'INS','2:8', NULL,     'CE', '2:8',    '~2:8',    '',       '',       0)
- ,(23,'INS','2:9', NULL,     'CE', '2:9',    '~2:9',    '',       '',       0)
-  # split master-super-group over several, multi-stmt-transactions
- ,(30,'BEG','3:1', NULL,     '',   '',       '',        '',       '',       0)
- ,(31,'INS', 0,    0,        '',   '',       '',        '',       '3:1',    0)
- ,(32,'INS', 0,    0,        '',   '',       '',        '',       '',       0)
- ,(33,'INS', 0,    0,        'EC', '3:1',    '',        '',       '~3:1',   0)
- ,(34,'COM', 0,    0,        'C',  '',       '',        '',       '',       0)
-  # master-super-group containing several groups
- ,(40,'AC0','4:1','4:1-7',   '',   '',       '',        '',       '',       0)
- ,(41,'INS','4:2', 0,        '',   '',       '',        '',       '4:2',    0)
- ,(42,'INS','4:1', 0,        '',   '',       '',        '',       '4:1',    0)
- ,(43,'INS','4:3', 0,        'E',  '',       '',        '4:3',    '',       0)
- ,(44,'INS','4:1', 0,        'E',  '',       '',        '4:1',    '~4:1',   0)
- ,(45,'CRE','4:4', 0,        '',   '4:1:3',  '4:2:4',   '~4:1:3', '~4:2',   0)
- ,(46,'INS','4:5', 0,        '',   '',       '',        '',       '4:5',    0)
- ,(47,'INS','4:4', 0,        'E',  '',       '',        '4:4',    '',       0)
- ,(48,'COM','4:6', 0,        'EC', '4:4:6',  '4:5:7~4:4','~4:4',  '~4:5',   0)
-  # master-super-group with implicit pre-commit in the middle
- ,(50,'AC0','5:1','5:1-2',   '',   '',       '',        '',       '',       0)
- ,(51,'INS','5:1', 0,        '',   '',       '',        '',       '5:1',    0)
- ,(52,'CRE','5:2', 0,        'E',  '5:2',    '5:1',     '',       '~5:1',   0)
- ,(53,'INS','5:1', 0,        '',   '',       '',        '',       '5:1',    0)
- ,(54,'INS','5:1', 0,        'EC', '5:1',    '~5:1',    '',       '~5:1',   0)
-  # generate dummy subgroups
-# todo: COMMIT with empty transaction does not invoke handler, hence nothing written
-# ,(61,'INS','6:1','6:1-6',   '',   '',       '',        '',       '6:1',    0)
-# ,(62,'COM','6:1', 0,        '',   '',       '6:1',     '',       '~6:1',   0)
-# ,(63,'INS','6:2', 0,        '',   '',       '',        '',       '6:2',    0)
-# ,(64,'COM','6:2', 0,        'E',  '6:2',    '',        '',       '~6:2',   0)
-# ,(65,'COM','6:3', 0,        '',   '',       '',        '',       '',       0)
-# ,(66,'COM','6:4', 0,        'E',  '6:4',    '',        '',       '',       0)
-# ,(67,'COM','6:1', 0,        'E',  '6:1',    '~6:1',    '',       '',       0)
-# ,(68,'COM','6:1', 0,        'C',  '6:5-6',  '',        '',       '',       0)
+#  id  STMT  NEXT  NEXT_LIST  GLOBAL    SESSION     S_PART   ERR
+  # DML statements
+  (100,'AC1', 0,    0,        '',       '',       0)
+ ,(101,'INS','1:1', 0,        '1:1',    '',       0)
+ ,(102,'INS','1:3', 0,        '1:3',    '',       0)
+  # skipped DML statements
+ ,(110,'INS','1:1', 0,        '',       '',       0)
+ ,(111,'INS','1:3', 0,        '',       '',       0)
+  # DDL statements
+ ,(120,'CRE','3:4', 0,        '3:4',    '',       0)
+ ,(121,'CRE','3:1', 0,        '3:1',    '',       0)
+  # skipped DDL statements
+ ,(130,'CRE','3:4', 0,        '',       '',       0)
+ ,(131,'CRE','3:1', 0,        '',       '',       0)
+  # simple transaction
+ ,(140,'BEG','5:1', 0,        '',       '5:1',    0)
+ ,(141,'INS', 0,    0,        '',       '',       0)
+ ,(142,'INS', 0,    0,        '',       '',       0)
+ ,(143,'COM', 0,    0,        '5:1',    '~5:1',   0)
+  # skipped simple transaction
+ ,(150,'BEG','',    0,        '',       '',       0)
+ ,(151,'INS', 0,    0,        '',       '',       0)
+ ,(152,'INS', 0,    0,        '',       '',       0)
+ ,(153,'COM', 0,    0,        '',       '',       0)
+  # empty group
+ ,(160,'COM','7:1', 0,        '7:2',    '',       0)
+  # skipped empty group
+ ,(170,'COM','8:1', 0,        '',       '',       0)
+  # transaction with DDL
+ ,(180,'BEG','9:1', 0,        '',       '9:1',    0)
+ ,(181,'INS', 0,    0,        '',       '',       0)
+ ,(182,'CRE', 0,    0,        '9:1',    '',       0)
+ ,(183,'COM', 0,    0,        '9:1',    '',       0)
+  # skipped transaction with DDL
+ ,(190,'BEG','4:1', 0,        '1:2',    '',       0)
+ ,(191,'INS','4:1', 0,        '1:2',    '',       0)
+ ,(192,'CRE','4:1', 0,        '1:2',    '',       0)
+ ,(193,'COM','4:1', 0,        '1:2',    '',       0)
 ;
 
 --echo ######## Test ########
@@ -245,15 +233,12 @@ while ($id <= $max_id)
   --echo ======== row-id = $id ========
   --let $stmt_type= `SELECT stmt_type FROM stmts WHERE id = $id`
   let $set_stmt= `
-    SELECT CONCAT('SET ',
-                  IF(next = 0, '',
-                     CONCAT('GTID_NEXT=', QUOTE(NUMBER_TO_UUID(next)), ', ')),
-                  IF(next_list = 0, '',
-                     CONCAT('GTID_NEXT_LIST=', QUOTE(NUMBER_TO_UUID(next_list)),
-                            ', ')),
-                  'GTID_END=', IF(LOCATE('E', flags) != 0, 1, 0),
-                  ', GTID_COMMIT=', IF(LOCATE('C', flags) != 0, 1, 0))
-           FROM stmts WHERE id = $id`;
+    SELECT CONCAT_WS(', ',
+      IF(next = 0, NULL, CONCAT('GTID_NEXT=', QUOTE(NUMBER_TO_UUID(next)))),
+      IF(next_list = 0, NULL, CONCAT('GTID_NEXT_LIST=',
+                                     QUOTE(NUMBER_TO_UUID(next_list)))))
+      FROM stmts WHERE id = $id`;
+
   if ($stmt_type == 'INS')
   {
     --let $stmt= INSERT INTO t VALUES ($id)
@@ -293,61 +278,51 @@ while ($id <= $max_id)
 
   --connection server_1_1
 
-  let $before_all=
-    `SELECT CONCAT_WS('|', @@SESSION.GTID_PARTIAL_GROUPS,
-                           @@GLOBAL.GTID_PARTIAL_GROUPS,
-                           @@SESSION.GTID_ENDED_GROUPS,
-                           @@GLOBAL.GTID_ENDED_GROUPS)`;
+  --let $session_before= `SELECT @@SESSION.GTID_DONE`
+  --let $global_before= `SELECT @@GLOBAL.GTID_DONE`
+  --echo session='$session_before'
+  --echo global='$global_before'
 
-  eval $set_stmt;
-  #if ($error != 0)
-  #{
-  #  --error $error
-  #  eval $stmt;
-  #}
-  #if ($error == 0)
-  #{
-    eval $stmt;
-  #}
-
-  --connection default
-
-  #--echo before_all=$before_all;
-  --let $var_id= 1
-  while ($var_id <= 4)
+  --echo '$set_stmt'
+  if ($set_stmt != '')
   {
-    # $column = [session|global]_[partial|ended]
-    --let $column= `SELECT name FROM variables WHERE var_id = $var_id` 
-    # $variable = @@[SESSION|GLOBAL].GTID_[PARTIAL|ENDED]_GROUPS
-    --let $variable= `SELECT UCASE(CONCAT('@@', REPLACE('$column', '_', '.GTID_'), '_GROUPS'))`
-    # $before = the Nth '|'-separated substring of $before_all
-    --let $before= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX('$before_all', '|', $var_id), '|', -1)`
+    eval SET $set_stmt;
+  }
+  if ($error != 0)
+  {
+    --error $error
+    eval $stmt;
+  }
+  if ($error == 0)
+  {
+    eval $stmt;
+  }
+
+  --let $scope= session
+  --let $before= $session_before
+  --let $i= 0
+  while ($i < 2)
+  {
     # $after = the value of the $variable now
     --connection server_1_1
-    --let $after= `SELECT $variable`
-    --connection default
-    # $diff = expected difference according to the test specification in stmts
-    --let $diff= `SELECT NUMBER_TO_UUID($column) FROM stmts WHERE id = $id`
+    --let $after= `SELECT @@$scope.GTID_DONE`
 
-    #--echo var_id=$var_id;
-    #--echo column=$column;
-    #--echo variable=$variable;
-    #--echo before=$before;
-    #--echo after=$after;
-    #--echo diff=$diff;
-    #--echo CURRENT_CONNECTION=$CURRENT_CONNECTION;
-    #SELECT @@SESSION.GTID_NEXT, @@SESSION.GTID_NEXT_LIST, @@SESSION.GTID_END, @@SESSION.GTID_COMMIT;
-    #SELECT CHECK_GROUP_SET('', '', '');
+    --connection default
+    --let $_done= _done
+    --let $diff= `SELECT NUMBER_TO_UUID($scope$_done) FROM stmts WHERE id = $id`
 
     # Assert that before + diff = after
     let $assert_text= `
-      SELECT CONCAT("$variable = '",
+      SELECT CONCAT("@@$scope.GTID_DONE = '",
                     UUID_TO_NUMBER('$before'), "' + '",
                     UUID_TO_NUMBER('$diff'), "' = '",
                     UUID_TO_NUMBER('$after'), "'")`;
     --let $assert_cond= CHECK_GROUP_SET("$before", "$diff", "$after")
     --source include/assert.inc
-    --inc $var_id
+
+    --let $scope= global
+    --let $before= global_before
+    --inc $i
   }
 
   --inc $id

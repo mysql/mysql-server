@@ -3310,8 +3310,19 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   /* The order is important */
   lex->unit.cleanup();
 
-  /* No need to commit statement transaction, it's not started. */
-  DBUG_ASSERT(thd->transaction.stmt.is_empty());
+  /*
+    No need to commit statement transaction, it's not started.
+
+    If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
+    binlog_handler will be registered very early in the execution of
+    the statement.  Hence, allow stmt.is_empty() in these cases.
+    @todo Check if this causes any trouble. /Sven
+    @todo Write test case that would fail if the checks for
+    gtid_next was removed. /Sven
+  */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
+              thd->get_gtid_next_list() != NULL ||
+              thd->variables.gtid_next.type == GTID_GROUP);
 
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);

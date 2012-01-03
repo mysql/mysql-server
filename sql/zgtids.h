@@ -2338,6 +2338,16 @@ enum_gtid_statement_status
 gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc);
 
 /**
+  Check that the @@SESSION.GTID_* variables are consistent and that
+  the statement type is allowed to execute.
+
+  @param thd THD object for the session.
+  @retval 0 Success - continue execute the statement.
+  @retval 1 Error - cancel the statement.  This function reports the error.
+*/
+int gtid_check_session_variables_before_statement(const THD *thd);
+
+/**
   When a transaction is rolled back, this function releases ownership
   of any GTIDs that the transaction owns.
 */

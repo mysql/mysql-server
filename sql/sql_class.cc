@@ -775,7 +775,7 @@ THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
-   user_time(0), in_sub_stmt(0),
+   user_time(0), in_sub_stmt(0), n_execute_command_calls(0),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
