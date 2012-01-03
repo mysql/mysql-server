@@ -971,10 +971,9 @@ impossible position";
       }
       else if (event_type == GTID_LOG_EVENT && using_gtid_proto)
       {
-        /* TODO: Double check this code with Andrei */
         ulonglong checksum_size= ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
                                    p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-                                   BINLOG_CHECKSUM_LEN + BINLOG_CHECKSUM_ALG_DESC_LEN: ev_offset);
+                                   BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
         Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
                                                  packet->length() - checksum_size,
                                                  p_fdle);
@@ -1206,10 +1205,9 @@ impossible position";
         {
           if (event_type == GTID_LOG_EVENT && using_gtid_proto)
           {
-            /* TODO: Double check this code with Andrei. /Alfranio */
             ulonglong checksum_size= ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
                                        p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-                                       BINLOG_CHECKSUM_LEN + BINLOG_CHECKSUM_ALG_DESC_LEN: ev_offset);
+                                       BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
             Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
                                                      packet->length() - checksum_size,
                                                      p_fdle);
