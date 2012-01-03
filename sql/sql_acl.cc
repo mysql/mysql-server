@@ -520,23 +520,9 @@ static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + \
                         1 + USERNAME_LENGTH + 1)
 
-#if defined(HAVE_OPENSSL)
-/*
-  Without SSL the handshake consists of one packet. This packet
-  has both client capabilities and scrambled password.
-  With SSL the handshake might consist of two packets. If the first
-  packet (client capabilities) has CLIENT_SSL flag set, we have to
-  switch to SSL and read the second packet. The scrambled password
-  is in the second packet and client_capabilities field will be ignored.
-  Maybe it is better to accept flags other than CLIENT_SSL from the
-  second packet?
-*/
-#define SSL_HANDSHAKE_SIZE      2
-#define NORMAL_HANDSHAKE_SIZE   6
-#define MIN_HANDSHAKE_SIZE      2
-#else
-#define MIN_HANDSHAKE_SIZE      6
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+/** Size of the header fields of an authentication packet. */
+#define AUTH_PACKET_HEADER_SIZE_PROTO_41    32
+#define AUTH_PACKET_HEADER_SIZE_PROTO_40    5  
 
 static DYNAMIC_ARRAY acl_hosts, acl_users, acl_dbs, acl_proxy_users;
 static MEM_ROOT mem, memex;
@@ -8552,37 +8538,92 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
 #ifndef EMBEDDED_LIBRARY
   NET *net= mpvio->net;
   char *end;
-
+  bool packet_has_required_size= false;
   DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
-
-  if (pkt_len < MIN_HANDSHAKE_SIZE)
-    return packet_error;
 
   if (mpvio->connect_errors)
     reset_host_errors(mpvio->ip);
 
-  ulong client_capabilities= uint2korr(net->read_pos);
-  if (client_capabilities & CLIENT_PROTOCOL_41)
+  uint charset_code= 0;
+  end= (char *)net->read_pos;
+  /*
+    In order to safely scan a head for '\0' string terminators
+    we must keep track of how many bytes remain in the allocated
+    buffer or we might read past the end of the buffer.
+  */
+  size_t bytes_remaining_in_packet= pkt_len;
+  
+  /*
+    Peek ahead on the client capability packet and determine which version of
+    the protocol should be used.
+  */
+  if (bytes_remaining_in_packet < 2)
+    return packet_error;
+    
+  mpvio->client_capabilities= uint2korr(end);
+
+  /*
+    JConnector only sends server capabilities before starting SSL
+    negotiation.  The below code is patch for this.
+  */
+  if (bytes_remaining_in_packet == 4 &&
+      mpvio->client_capabilities & CLIENT_SSL)
   {
-    client_capabilities|= ((ulong) uint2korr(net->read_pos + 2)) << 16;
-    mpvio->max_client_packet_length= uint4korr(net->read_pos + 4);
-    DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
-    if (mpvio->charset_adapter->init_client_charset((uint) net->read_pos[8]))
+    mpvio->client_capabilities= uint4korr(end);
+    mpvio->max_client_packet_length= 0xfffff;
+    charset_code= default_charset_info->number;
+    if (mpvio->charset_adapter->init_client_charset(charset_code))
       return packet_error;
-    end= (char*) net->read_pos + 32;
+    goto skip_to_ssl;
+  }
+  
+  if (mpvio->client_capabilities & CLIENT_PROTOCOL_41)
+    packet_has_required_size= bytes_remaining_in_packet >= 
+      AUTH_PACKET_HEADER_SIZE_PROTO_41;
+  else
+    packet_has_required_size= bytes_remaining_in_packet >=
+      AUTH_PACKET_HEADER_SIZE_PROTO_40;
+  
+  if (!packet_has_required_size)
+    return packet_error;
+  
+  if (mpvio->client_capabilities & CLIENT_PROTOCOL_41)
+  {
+    mpvio->client_capabilities= uint4korr(end);
+    mpvio->max_client_packet_length= uint4korr(end + 4);
+    charset_code= (uint)(uchar)*(end + 8);
+    /*
+      Skip 23 remaining filler bytes which have no particular meaning.
+    */
+    end+= AUTH_PACKET_HEADER_SIZE_PROTO_41;
+    bytes_remaining_in_packet-= AUTH_PACKET_HEADER_SIZE_PROTO_41;
   }
   else
   {
-    mpvio->max_client_packet_length= uint3korr(net->read_pos + 2);
-    end= (char*) net->read_pos + 5;
+    mpvio->client_capabilities= uint2korr(end);
+    mpvio->max_client_packet_length= uint3korr(end + 2);
+    end+= AUTH_PACKET_HEADER_SIZE_PROTO_40;
+    bytes_remaining_in_packet-= AUTH_PACKET_HEADER_SIZE_PROTO_40;
+    /**
+      Old clients didn't have their own charset. Instead the assumption
+      was that they used what ever the server used.
+    */
+    charset_code= default_charset_info->number;
   }
 
-  /* Disable those bits which are not supported by the client. */
-  mpvio->client_capabilities&= client_capabilities;
+  DBUG_PRINT("info", ("client_character_set: %u", charset_code));
+  if (mpvio->charset_adapter->init_client_charset(charset_code))
+    return packet_error;
 
-
+skip_to_ssl:
 #if defined(HAVE_OPENSSL)
   DBUG_PRINT("info", ("client capabilities: %lu", mpvio->client_capabilities));
+  
+  /*
+    If client requested SSL then we must stop parsing, try to switch to SSL,
+    and wait for the client to send a new handshake packet.
+    The client isn't expected to send any more bytes until SSL is initialized.
+  */
   if (mpvio->client_capabilities & CLIENT_SSL)
   {
     unsigned long errptr;
@@ -8599,18 +8640,42 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     }
 
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
-    pkt_len= my_net_read(net);
-    if (pkt_len == packet_error || pkt_len < NORMAL_HANDSHAKE_SIZE)
+    if ((pkt_len= my_net_read(net)) == packet_error)
     {
       DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
 			   pkt_len));
       return packet_error;
     }
-  }
-#endif
+    /*
+      A new packet was read and the statistics reflecting the remaining bytes
+      in the packet must be updated.
+    */
+    bytes_remaining_in_packet= pkt_len;
 
-  if (end > (char *)net->read_pos + pkt_len)
-    return packet_error;
+    /*
+      After the SSL handshake is performed the client resends the handshake
+      packet but because of legacy reasons we chose not to parse the packet
+      fields a second time and instead only assert the length of the packet.
+    */
+    if (mpvio->client_capabilities & CLIENT_PROTOCOL_41)
+    {
+      packet_has_required_size= bytes_remaining_in_packet >= 
+        AUTH_PACKET_HEADER_SIZE_PROTO_41;
+      end= (char *)net->read_pos + AUTH_PACKET_HEADER_SIZE_PROTO_41;
+      bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_41;
+    }
+    else
+    {
+      packet_has_required_size= bytes_remaining_in_packet >= 
+        AUTH_PACKET_HEADER_SIZE_PROTO_40;
+      end= (char *)net->read_pos + AUTH_PACKET_HEADER_SIZE_PROTO_40;
+      bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_40;
+    }
+    
+    if (!packet_has_required_size)
+      return packet_error;
+  }
+#endif /* HAVE_OPENSSL */
 
   if ((mpvio->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
@@ -8634,7 +8699,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     we must keep track of how many bytes remain in the allocated
     buffer or we might read past the end of the buffer.
   */
-  size_t bytes_remaining_in_packet= pkt_len - (end - (char *)net->read_pos);
+  bytes_remaining_in_packet= pkt_len - (end - (char *)net->read_pos);
 
   size_t user_len;
   char *user= get_string(&end, &bytes_remaining_in_packet, &user_len);

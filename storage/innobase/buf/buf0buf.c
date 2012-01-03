@@ -989,11 +989,8 @@ buf_chunk_init(
 	for (i = chunk->size; i--; ) {
 
 		buf_block_init(buf_pool, block, frame);
+		UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 
-#ifdef HAVE_purify
-		/* Wipe contents of frame to eliminate a Purify warning */
-		memset(block->frame, '\0', UNIV_PAGE_SIZE);
-#endif
 		/* Add the block to the free list */
 		UT_LIST_ADD_LAST(list, buf_pool->free, (&block->page));
 
@@ -1219,6 +1216,26 @@ buf_pool_free_instance(
 {
 	buf_chunk_t*	chunk;
 	buf_chunk_t*	chunks;
+	buf_page_t*	bpage;
+
+	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	while (bpage != NULL) {
+		buf_page_t*	prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
+		enum buf_page_state	state = buf_page_get_state(bpage);
+
+		ut_ad(buf_page_in_file(bpage));
+		ut_ad(bpage->in_LRU_list);
+
+		if (state != BUF_BLOCK_FILE_PAGE) {
+			/* We must not have any dirty block except
+			when doing a fast shutdown. */
+			ut_ad(state == BUF_BLOCK_ZIP_PAGE
+			      || srv_fast_shutdown == 2);
+			buf_page_free_descriptor(bpage);
+		}
+
+		bpage = prev_bpage;
+	}
 
 	chunks = buf_pool->chunks;
 	chunk = chunks + buf_pool->n_chunks;
@@ -3868,6 +3885,9 @@ buf_pool_validate_instance(
 					ut_a(rw_lock_is_locked(&block->lock,
 							       RW_LOCK_EX));
 					break;
+
+				case BUF_IO_PIN:
+					break;
 				}
 
 				n_lru++;
@@ -3897,6 +3917,7 @@ buf_pool_validate_instance(
 		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
 		switch (buf_page_get_io_fix(b)) {
 		case BUF_IO_NONE:
+		case BUF_IO_PIN:
 			/* All clean blocks should be I/O-unfixed. */
 			break;
 		case BUF_IO_READ:
@@ -3936,6 +3957,7 @@ buf_pool_validate_instance(
 			switch (buf_page_get_io_fix(b)) {
 			case BUF_IO_NONE:
 			case BUF_IO_READ:
+			case BUF_IO_PIN:
 				break;
 			case BUF_IO_WRITE:
 				switch (buf_page_get_flush_type(b)) {

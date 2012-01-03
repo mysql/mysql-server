@@ -1863,12 +1863,9 @@ change:
             LEX *lex = Lex;
             lex->sql_command = SQLCOM_CHANGE_MASTER;
             bzero((char*) &lex->mi, sizeof(lex->mi));
-            /*
-              resetting flags that can left from the previous CHANGE MASTER
-            */
             lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
-            my_init_dynamic_array(&Lex->mi.repl_ignore_server_ids,
-                                  sizeof(::server_id), 16, 16);
+
+            DBUG_ASSERT(Lex->mi.repl_ignore_server_ids.elements == 0);
           }
           master_defs
           {}
@@ -1979,6 +1976,14 @@ ignore_server_id_list:
 ignore_server_id:
           ulong_num
           {
+            if (Lex->mi.repl_ignore_server_ids.elements == 0)
+            {
+              my_init_dynamic_array2(&Lex->mi.repl_ignore_server_ids,
+                                     sizeof(::server_id),
+                                     Lex->mi.server_ids_buffer,
+                                     array_elements(Lex->mi.server_ids_buffer),
+                                     16);
+            }
             insert_dynamic(&Lex->mi.repl_ignore_server_ids, (uchar*) &($1));
           }
 
@@ -9965,7 +9970,8 @@ limit_option:
           }
           splocal->limit_clause_param= TRUE;
           $$= splocal;
-        } | param_marker
+        }
+        | param_marker
         {
           ((Item_param *) $1)->limit_clause_param= TRUE;
         }
