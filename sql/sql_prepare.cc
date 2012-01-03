@@ -3317,8 +3317,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     binlog_handler will be registered very early in the execution of
     the statement.  Hence, allow stmt.is_empty() in these cases.
     @todo Check if this causes any trouble. /Sven
-    @todo Write test case that would fail if the checks for
-    gtid_next was removed. /Sven
+    @todo Add test case in binlog.binlog_trx_empty_assertions /Sven
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
               thd->get_gtid_next_list() != NULL ||

@@ -1516,7 +1516,7 @@ void close_thread_tables(THD *thd)
     binlog_handler will be registered very early in the execution of
     the statement.  Hence, allow stmt.is_empty() in these cases.
     @todo Check if this causes any trouble. /Sven
-    @note Covered by case 1 in test binlog.binlog_trx_empty_assertions
+    @note Covered by Case 1 in test binlog.binlog_trx_empty_assertions
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt ||
               (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
@@ -3405,8 +3405,7 @@ Locked_tables_list::unlock_locked_tables(THD *thd)
       binlog_handler will be registered very early in the execution of
       the statement.  Hence, allow stmt.is_empty() in these cases.
       @todo Check if this causes any trouble. /Sven
-      @todo Write test case that would fail if the checks for
-      gtid_next was removed. /Sven
+      @note Covered by Case 7 in test binlog.binlog_trx_empty_assertions
     */
     DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
                 thd->get_gtid_next_list() != NULL ||
@@ -5748,8 +5747,7 @@ end:
     binlog_handler will be registered very early in the execution of
     the statement.  Hence, allow stmt.is_empty() in these cases.
     @todo Check if this causes any trouble. /Sven
-    @todo Write test case that would fail if the checks for
-    gtid_next was removed. /Sven
+    @todo Add test case in binlog.binlog_trx_empty_assertions /Sven
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
               (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
@@ -6030,6 +6028,8 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
     binlog_handler will be registered very early in the execution of
     the statement.  Hence, allow stmt.is_empty() in these cases.
     @todo Check if this causes any trouble /Sven.
+    @todo Add test case in binlog.binlog_trx_empty_assertions
+    (seems this code is reached by rpl_semi_sync) /Sven
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
               (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||

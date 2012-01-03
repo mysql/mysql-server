@@ -1607,6 +1607,7 @@ public:
         p+= sprintf(p, ":%lld#%lu", node->gno, node->owner);
       }
     }
+    *p= 0;
     return p - out;
   }
 
