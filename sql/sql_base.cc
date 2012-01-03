@@ -9467,8 +9467,21 @@ close_system_tables(THD *thd, Open_tables_backup *backup)
 void
 close_mysql_tables(THD *thd)
 {
-  /* No need to commit/rollback statement transaction, it's not started. */
-  DBUG_ASSERT(thd->transaction.stmt.is_empty());
+  /*
+    No need to commit/rollback statement transaction, it's not started.
+
+    If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
+    binlog_handler will be registered very early in the execution of
+    the statement.  Hence, allow stmt.is_empty() in these cases.
+    @todo Check if this causes any trouble /Sven.
+    @todo Add test case in binlog.binlog_trx_empty_assertions
+    (seems this code is reached by rpl_semi_sync, rpl_row_USER,
+    rpl_row_sp012, rpl_do_grant, rpl_slave_status, rpl_ignore_table,
+    rpl_ignore_grant, auth_rpl) /Sven
+ */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
+              thd->get_gtid_next_list() != NULL ||
+              thd->variables.gtid_next.type == GTID_GROUP);
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();
 }
