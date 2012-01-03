@@ -10,6 +10,8 @@
 --source include/master-slave.inc
 --source include/have_debug.inc
 --source include/have_innodb.inc
+# no format specific tests so we run it only in MIXED mode
+--source include/have_binlog_format_mixed.inc
 
 --connection master
 CREATE DATABASE db_1;
@@ -46,4 +48,46 @@ DROP DATABASE db_2;
 --eval SET @@global.slave_parallel_workers= $save_slave_parallel_workers
 --eval SET @@global.debug= "$save_debug"
 --source include/start_slave.inc
+
+#
+# Bug#12964649 MTS memory not released
+#
+# Originally reported when opt_slave_checkpoint_group is set to be greater
+# than sizeof(BLOB) * 8 - 1 Workers initialization code fails.
+# VALID_RANGE() for opt_slave_checkpoint_group is fixed in bug12979420.
+# 
+# The current bug test simulates a failure to start by a Worker
+# thread, checks the error, and verifies that all memory is released
+# (valgrind proves, the user can watch top report).
+#
+
+connection slave;
+
+call mtr.add_suppression('Error reading slave worker configuration');
+call mtr.add_suppression('Failed during slave workers initialization');
+call mtr.add_suppression('Failed during slave worker thread create');
+
+source include/stop_slave.inc;
+set @save.slave_checkpoint_group= @@global.slave_checkpoint_group;
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+
+# The following assignment can work only with debug builds.
+# It sets opt_slave_checkpoint_group to one more to its VALID_RANGE() maximum.
+# set @@global.slave_checkpoint_group= 524287 + 1;
+
+set @save.debug= @@global.debug;
+SET @@global.debug= "d,mts_worker_thread_fails";
+set @@global.slave_parallel_workers= 2;
+
+start slave sql_thread;
+--let $slave_sql_errno= 1593
+source include/wait_for_slave_sql_error.inc;
+
+set @@global.slave_checkpoint_group= @save.slave_checkpoint_group;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.debug= @save.debug;
+
+source include/start_slave.inc;
+
+
 --source include/rpl_end.inc
