@@ -508,9 +508,9 @@ ON table3.col_varchar_key = table2.col_varchar_key)
 ON table3.col_int_nokey = table1.col_int_key
 WHERE table3.col_int_key != SOME ( SELECT c1 FROM t2 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	table3	ALL	col_varchar_key	NULL	NULL	NULL	19	Using where
+1	PRIMARY	table1	ALL	col_int_key	NULL	NULL	NULL	19	
+1	PRIMARY	table3	ALL	col_varchar_key	NULL	NULL	NULL	19	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	table2	ref	col_varchar_key	col_varchar_key	4	test.table3.col_varchar_key	2	Using index
-1	PRIMARY	table1	ref	col_int_key	col_int_key	5	test.table3.col_int_nokey	2	
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT table1.col_int_nokey
 FROM t1 AS table1 STRAIGHT_JOIN (
