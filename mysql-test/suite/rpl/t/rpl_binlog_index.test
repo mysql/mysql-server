@@ -1,0 +1,209 @@
+# ==== Purpose ====
+#
+# Test that server can work fine after moving binlog or relay log
+# files to another directory and setting binlog or relay log paths to
+# the new path.
+# 
+# ==== Method ====
+#
+# Start replication, and then shutdown the master, move the binary
+# logs and the log index file to a another directory and then restart
+# the server with option to set the new binlog directory. After master
+# restarted successfully, do the similar on slave to check the relay
+# log of slave.
+#
+# ==== Reference ====
+#
+# BUG#12133 master.index file keeps mysqld from starting if bin log has been moved
+# BUG#42576 Relay logs in relay-log.info&localhost-relay-bin.index not processed after move
+
+source include/master-slave.inc;
+# There is no need to run this test case on all binlog format
+source include/have_binlog_format_row.inc;
+
+# Since this test relies heavily on filesystem operations (like
+# moving files around, backslashes and so forth) we avoid messing
+# around with windows access violations for not cluttering the 
+# test case any further. It is prepared to support windows, but
+# it is not 100% compliant.
+--source include/not_windows.inc
+
+connection master;
+--let $master_datadir= `select @@datadir`
+connection slave;
+--let $slave_datadir= `select @@datadir`
+connection master;
+--let $dirname= `select uuid()`
+--let $tmpdir= $MYSQLTEST_VARDIR/tmp/$dirname
+--mkdir $tmpdir
+
+CREATE TABLE t1 (a INT);
+# flush to generate one more binlog file.
+FLUSH BINARY LOGS;
+INSERT INTO t1 VALUES (1);
+
+sync_slave_with_master;
+
+#
+# Test on master
+#
+connection master;
+--echo # Shutdown master
+--let $rpl_server_number=1
+source include/rpl_stop_server.inc;
+
+--echo # Move the master binlog files and the index file to a new place
+--move_file $master_datadir/master-bin.000001 $tmpdir/master-bin.000001
+--move_file $master_datadir/master-bin.000002 $tmpdir/master-bin.000002
+--move_file $master_datadir/master-bin.index  $tmpdir/master-bin.index
+
+--echo # Restart master with log-bin option set to the new path
+--let $rpl_server_parameters=--log-bin=$tmpdir/master-bin
+--let $keep_include_silent=1
+source include/rpl_start_server.inc;
+--let $keep_include_silent=0
+
+--echo # Master has restarted successfully
+
+#
+# Test master can handle old format with directory path in index file
+#
+--let $is_windows= `select convert(@@version_compile_os using latin1) in ('Win32', 'Win64', 'Windows')`
+
+# write_var_to_file.inc will call SELECT INTO DUMPFILE, which has to be
+# done before shutdown the server
+--echo # Create the master-bin.index file with the old format
+--let $write_to_file= $master_datadir/master-bin.index
+if ($is_windows)
+{
+  --let $write_var= .\\\\master-bin.000001\n.\\\\master-bin.000002\n.\\\\master-bin.000003\n
+}
+if (!$is_windows)
+{
+  --let $write_var= ./master-bin.000001\n./master-bin.000002\n./master-bin.000003\n
+}
+--disable_query_log
+source include/write_var_to_file.inc;
+--enable_query_log
+
+--echo # Shutdown master
+--let $rpl_server_number=1
+source include/rpl_stop_server.inc;
+
+--echo # Move back the master binlog files
+--move_file $tmpdir/master-bin.000001 $master_datadir/master-bin.000001
+--move_file $tmpdir/master-bin.000002 $master_datadir/master-bin.000002
+--move_file $tmpdir/master-bin.000003 $master_datadir/master-bin.000003
+
+--echo # Remove the unneeded master-bin.index file
+--remove_file $tmpdir/master-bin.index
+
+--echo # Restart master with log-bin option set to default
+--let $rpl_server_parameters=--log-bin=$master_datadir/master-bin
+--let $keep_include_silent=1
+source include/rpl_start_server.inc;
+--let $keep_include_silent=0
+
+--echo # Master has restarted successfully
+
+connection slave;
+--echo # stop slave
+--source include/stop_slave.inc
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+
+# switch to master because the slave has been shutdown
+# and relocate_binlogs requires a running server to do
+# SQL operations
+--connection master
+
+--let $relocate_disable_query_log= 1
+--let $relocate_is_windows= $is_windows
+--let $relocate_from=$slave_datadir
+--let $relocate_into=$tmpdir
+
+--echo # relocate  binlogs
+--let $relocate_index_file=$slave_datadir/slave-bin.index
+--source include/relocate_binlogs.inc
+
+--echo # relocate  relay logs
+--let $relocate_index_file=$slave_datadir/slave-relay-bin.index
+--source include/relocate_binlogs.inc
+
+--echo # Restart slave with options log-bin, relay-log set to the new paths
+--let $rpl_server_parameters=--log-bin=$tmpdir/slave-bin --relay-log=$tmpdir/slave-relay-bin
+--let $keep_include_silent=1
+--let $rpl_server_number= 2
+source include/rpl_start_server.inc;
+--let $keep_include_silent=0
+
+--connection slave
+
+--echo # Slave server has restarted successfully
+--source include/start_slave.inc
+--source include/stop_slave.inc
+
+connection master;
+FLUSH LOGS;
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (2);
+
+FLUSH LOGS;
+
+connection slave;
+FLUSH LOGS;
+--source include/start_slave.inc
+connection master;
+sync_slave_with_master;
+--let $diff_tables= master:t1,slave:t1
+source include/diff_tables.inc;
+
+connection master;
+DROP TABLE t1;
+--sync_slave_with_master
+--source include/stop_slave.inc
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+
+--connection master
+
+--let $relocate_from=$tmpdir
+--let $relocate_into=$slave_datadir
+--let $relocate_recreate_index= 1
+
+# binlogs
+--let $relocate_index_file=$tmpdir/slave-bin.index
+--source include/relocate_binlogs.inc
+
+# relay logs
+
+# since the complete fix for the relocation of logs is
+# done in BUG#13428851 it does not help here to try 
+# to start the slave as it would fail (relay-log.info is
+# tainted with the full path in the RELAY_LOG_FILE position).
+# Instead, we reset the slave and let the test clean up.
+--let $relocate_fix_relay_log_info= $slave_datadir/relay-log.info
+--let $relocate_index_file=$tmpdir/slave-relay-bin.index
+--source include/relocate_binlogs.inc
+
+--echo # remove tmpdir
+--remove_files_wildcard $tmpdir *
+--rmdir $tmpdir
+
+--echo # restarted with previous slave settings
+--let $rpl_server_parameters=--log-bin=$slave_datadir/slave-bin --relay-log=$slave_datadir/slave-relay-bin
+--let $keep_include_silent=1
+--let $rpl_server_number= 2
+--source include/rpl_start_server.inc
+--let $keep_include_silent=0
+
+--connection slave
+
+# The slave will restart if we have fixed the relay-log.info
+# correctly
+--source include/start_slave.inc
+
+--connection master
+--source include/rpl_end.inc

@@ -458,8 +458,6 @@ btr_cur_search_to_nth_level(
 	cursor->flag = BTR_CUR_BINARY;
 	cursor->index = index;
 
-	cursor->ibuf_cnt = ULINT_UNDEFINED;
-
 #ifndef BTR_CUR_ADAPT
 	guess = NULL;
 #else
@@ -747,20 +745,7 @@ retry_page_get:
 			/* We're doing a search on an ibuf tree and we're one
 			level above the leaf page. */
 
-			ulint	is_min_rec;
-
 			ut_ad(level == 0);
-
-			is_min_rec = rec_get_info_bits(node_ptr, 0)
-				& REC_INFO_MIN_REC_FLAG;
-
-			if (!is_min_rec) {
-				cursor->ibuf_cnt
-					= ibuf_rec_get_counter(node_ptr);
-
-				ut_a(cursor->ibuf_cnt <= 0xFFFF
-				     || cursor->ibuf_cnt == ULINT_UNDEFINED);
-			}
 
 			buf_mode = BUF_GET;
 			rw_latch = RW_NO_LATCH;

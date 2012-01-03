@@ -1615,7 +1615,7 @@ use db3;
 create table t1(c1 int) engine=myisam;
 use db1;
 insert into t1(c1) values (1);
-use mysql;
+use test;
 select * from db1.t1;
 c1
 1
@@ -1661,7 +1661,7 @@ c1
 2
 SHOW STATUS LIKE 'Qcache_hits';
 Variable_name	Value
-Qcache_hits	0
+Qcache_hits	1
 DROP TABLE t1;
 SET GLOBAL concurrent_insert= @save_concurrent_insert;
 SET GLOBAL query_cache_size= default;
@@ -1691,7 +1691,7 @@ a
 COMMIT;
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	2
 SHOW STATUS LIKE "Qcache_hits";
 Variable_name	Value
 Qcache_hits	0
@@ -1713,7 +1713,7 @@ a
 COMMIT;
 SHOW STATUS LIKE "Qcache_hits";
 Variable_name	Value
-Qcache_hits	0
+Qcache_hits	2
 DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
 End of 5.0 tests
