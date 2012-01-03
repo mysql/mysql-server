@@ -2147,6 +2147,7 @@ mysql_execute_command(THD *thd)
     recursively, with thd->in_sub_stmt==false.  Hence, don't raise the
     assertion in these cases.
     @todo Check if this causes any trouble /Sven.
+    @note Covered by Case 2 in test binlog.binlog_trx_empty_assertions
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt ||
               (thd->n_execute_command_calls > 1 &&
@@ -4246,8 +4247,7 @@ end_with_restore_list:
         binlog_handler will be registered very early in the execution
         of the statement.  Hence, allow stmt.is_empty() in these cases.
         @todo Check if this causes any trouble /Sven.
-        @todo Write test case that would fail if the checks for
-        gtid_next was removed. /Sven
+        @note Covered by Case 3 in test binlog.binlog_trx_empty_assertions
       */
       DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
                   thd->get_gtid_next_list() != NULL ||
@@ -4530,8 +4530,7 @@ create_sp_error:
         binlog_handler will be registered very early in the execution of
         the statement.  Hence, allow stmt.is_empty() in these cases.
         @todo Check if this causes any trouble /Sven.
-        @todo Write test case that would fail if the checks for
-        gtid_next was removed. /Sven
+        @note Covered by Case 5 in test binlog.binlog_trx_empty_assertions
       */
       DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
                   thd->get_gtid_next_list() != NULL ||

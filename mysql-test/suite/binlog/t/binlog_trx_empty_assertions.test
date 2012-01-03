@@ -38,6 +38,7 @@
 --source include/have_binlog_format_statement.inc
 
 --echo ==== Initialize ====
+
 --let $ida= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 CREATE TABLE t1 (a INT);
 
@@ -51,10 +52,43 @@ CREATE TABLE t1 (a INT);
 eval SET GTID_NEXT = '$ida:1';
 PREPARE prep FROM 'INSERT INTO t1 VALUES (1)';
 
+# Case 2.
+# Covers assertions in:
+#  - mysql_execute_command (beginning)
 eval SET GTID_NEXT = '$ida:2';
 EXECUTE prep;
 
+--echo ---- Stored procedures ----
+
+# Case 3.
+# Covers assertions in:
+#  - mysql_execute_command (case SQLCOM_CREATE_PROCEDURE)
+eval SET GTID_NEXT = '$ida:3';
+--eval CREATE PROCEDURE proc () BEGIN INSERT INTO t1 VALUES (1); END
+
+# Case 4.
+# Covers assertions in:
+eval SET GTID_NEXT = '$ida:4';
+CALL proc();
+
+# Case 5.
+# Covers assertions in:
+#  - mysql_execute_command (case SQLCOM_DROP_PROCEDURE)
+eval SET GTID_NEXT = '$ida:5';
+DROP PROCEDURE proc;
+
+# Case 6.
+eval SET GTID_NEXT = '$ida:6';
+LOCK TABLES t1 READ;
+
+# Case 7.
+# Covers assertions in:
+#  - Locked_tables_list::unlock_locked_tables(THD *)
+eval SET GTID_NEXT = '$ida:7';
+UNLOCK TABLES;
+
 --echo ==== Clean up ====
+
 SET GTID_NEXT = 'AUTOMATIC';
 DEALLOCATE PREPARE prep;
 DROP TABLE t1;
