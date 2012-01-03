@@ -167,8 +167,10 @@ else ifeq ($(GCCVERSION),4.4.0)
 else ifeq ($(GCCVERSION),4.6.2)
  CFLAGS += -Wno-error=deprecated-declarations
 endif
-LIBPORTABILITY_SO=$(TOKUROOT)lib/libtokuportability.$(SOEXT)
-LIBPORTABILITY_A=$(TOKUROOT)lib/libtokuportability.$(AEXT)
+LIBTOKUDB=tokudb
+LIBTOKUPORTABILITY=tokuportability
+LIBPORTABILITY_SO=$(TOKUROOT)lib/lib$(LIBTOKUPORTABILITY).$(SOEXT)
+LIBPORTABILITY_A=$(TOKUROOT)lib/lib$(LIBTOKUPORTABILITY).$(AEXT)
 
 PORTABILITY_HEADERS= $(TOKUROOT)$(SYSTEM)
 ALWAYS_LINK= -lz -lpthread -ldl

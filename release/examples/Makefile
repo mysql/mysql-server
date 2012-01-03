@@ -3,9 +3,10 @@ TARGETS = $(patsubst %.c,%,$(SRCS)) $(patsubst %.c,%-bdb,$(SRCS))
 CPPFLAGS = -I../include -D_GNU_SOURCE
 CFLAGS = -g -std=c99 -Wall
 LIBTOKUDB = tokudb
-LDFLAGS = -L../lib -l$(LIBTOKUDB) -ltokuportability -Wl,-rpath,../lib
+LIBTOKUPORTABILITY = tokuportability
+LDFLAGS = -L../lib -l$(LIBTOKUDB) -l$(LIBTOKUPORTABILITY) -Wl,-rpath,../lib
 
-default: $(TARGETS)
+default local: $(TARGETS)
 
 %-bdb: %.c
 	$(CC) -D_GNU_SOURCE -DBDB $(CFLAGS) $^ -o $@ -ldb

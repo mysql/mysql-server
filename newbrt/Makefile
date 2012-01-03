@@ -23,7 +23,7 @@ NEWBRT_SO        = $(TOKUROOT)lib/libnewbrt.$(SOEXT)
 SKIP_NEWBRTRULE=1
 include $(TOKUROOT)toku_include/Makefile.include
 LDFLAGS+=-L$(TOKUROOT)lib -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
-LDLIBS+=-lnewbrt -ltokuportability
+LDLIBS+=-lnewbrt -l$(LIBTOKUPORTABILITY)
 
 # When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
 

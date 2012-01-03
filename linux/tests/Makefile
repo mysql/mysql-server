@@ -16,7 +16,8 @@ ifneq ($(GCOV),)
 	CFLAGS += -fprofile-arcs -ftest-coverage -DGCOV
 endif
 LDFLAGS = -L../../lib -Wl,-rpath,../../lib
-LDLIBS = -ltokuportability -lpthread -ldl
+LIBTOKUPORTABILITY=tokuportability
+LDLIBS = -l$(LIBTOKUPORTABILITY) -lpthread -ldl
 SRCS=$(sort $(filter-out dir.%.c,$(wildcard *.c)))
 TARGETS = $(patsubst %.c,%,$(SRCS))
 RUNTARGETS = $(patsubst %,%.tdbrun,$(TARGETS))
