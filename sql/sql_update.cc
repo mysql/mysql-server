@@ -395,21 +395,61 @@ int mysql_update(THD *thd,
   table->covering_keys.clear_all();
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  bool no_parts_used;
-  if (prune_partitions(thd, table, conds, &no_parts_used))
-    DBUG_RETURN(1);
-  if (no_parts_used)
-  { // No matching records
-    if (thd->lex->describe)
+  if (table->part_info)
+  {
+    bool no_parts_used;
+    bool prune_locks= true;
+    MY_BITMAP lock_partitions;
+    if (table->file->get_lock_type() == F_UNLCK &&
+        table->triggers &&
+        table->triggers->has_triggers(TRG_EVENT_UPDATE, TRG_ACTION_BEFORE))
     {
-      error= explain_no_table(thd,
-                              "No matching rows after partition pruning");
-      goto exit_without_my_ok;
+      /*
+        If the table is not locked, prune_partitions will also prune partition
+        locks. But BEFORE UPDATE triggers may change the records partitioning
+        column, forcing it to another partition.
+        So it is not possible to prune locked partitions,
+        only read partitions.
+        Copy the current lock_partitions bitmap and restore it after
+        prune_partitions call.
+      */
+      uint32 *bitmap_buf;
+      uint bitmap_bytes;
+      uint num_partitions;
+      DBUG_ASSERT(table->part_info->bitmaps_are_initialized);
+      prune_locks= false;
+      num_partitions= table->part_info->lock_partitions.n_bits;
+      bitmap_bytes= bitmap_buffer_size(num_partitions);
+      if (!(bitmap_buf= (uint32*) thd->alloc(bitmap_bytes)))
+      {
+        mem_alloc_error(bitmap_bytes);
+        DBUG_RETURN(1);
+      }
+      /* Also clears all bits. */
+      if (bitmap_init(&lock_partitions, bitmap_buf, num_partitions, FALSE))
+      {
+        mem_alloc_error(bitmap_bytes);   /* Cannot happen, due to pre-alloc */
+        DBUG_RETURN(1);
+      }
+      bitmap_copy(&lock_partitions, &table->part_info->lock_partitions);
     }
 
-    free_underlaid_joins(thd, select_lex);
-    my_ok(thd);				// No matching records
-    DBUG_RETURN(0);
+    if (prune_partitions(thd, table, conds, &no_parts_used))
+      DBUG_RETURN(1);
+    if (no_parts_used)
+    { // No matching records
+      if (thd->lex->describe)
+      {
+        error= explain_no_table(thd,
+                                "No matching rows after partition pruning");
+        goto exit_without_my_ok;
+      }
+      free_underlaid_joins(thd, select_lex);
+      my_ok(thd);                            // No matching records
+      DBUG_RETURN(0);
+    }
+    if (!prune_locks)
+      bitmap_copy(&table->part_info->lock_partitions, &lock_partitions);
   }
 #endif
   if (lock_query_tables(thd))

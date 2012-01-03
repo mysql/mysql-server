@@ -750,9 +750,7 @@ call p_verify_status_increment(4, 4, 4, 4);
 --echo #
 --echo # Sic: no table is created.
 create table if not exists t2 (a int) select 6 union select 7;
---echo # Sic: first commits the statement, and then the transaction.
---echo # TODO: verify this before WL#4443 is complete!!!
-#call p_verify_status_increment(2, 0, 2, 0);
+--echo # No table are locked before existing t2 is found, so nothing to commit.
 call p_verify_status_increment(0, 0, 0, 0);
 create table t3 select a from t2;
 call p_verify_status_increment(2, 0, 4, 4);

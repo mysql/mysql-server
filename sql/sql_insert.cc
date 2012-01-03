@@ -863,6 +863,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (thd->locked_tables_mode == LTM_NONE)
       can_prune_partitions= PRUNE_YES;
     /*
+      Cannot prune if there are BEFORE INSERT triggers,
+      since they may change the row to be in another partition.
+    */
+    if (table->triggers &&
+        table->triggers->has_triggers(TRG_EVENT_INSERT, TRG_ACTION_BEFORE))
+      can_prune_partitions= PRUNE_NO;
+    /*
       Note: It makes no sense to prune on partition/subpartition level when
       only partition/subpartition fields are affected.
       For subpartitioned tables, there makes little sense to prune only on
@@ -904,6 +911,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     {
       /* TODO: add check for static update values, which can be pruned. */
       if (table->part_info->is_field_in_part_expr(update_fields))
+        can_prune_partitions= PRUNE_NO;
+
+      /*
+        Cannot prune if there are BEFORE UPDATE triggers,
+        since they may change the row to be in another partition.
+      */
+      if (table->triggers &&
+          table->triggers->has_triggers(TRG_EVENT_UPDATE,
+                                        TRG_ACTION_BEFORE))
         can_prune_partitions= PRUNE_NO;
     }
 
