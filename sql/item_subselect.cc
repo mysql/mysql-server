@@ -211,8 +211,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   bool res;
 
   DBUG_ASSERT(fixed == 0);
-  /* There is no reason to get a different THD. */
-  DBUG_ASSERT(thd == thd_param);
+  engine->set_thd((thd= thd_param));
   if (!done_first_fix_fields)
   {
     done_first_fix_fields= TRUE;
