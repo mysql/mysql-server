@@ -154,6 +154,7 @@ BDB_DONTRUN_TESTS = \
         loader-tpch-load \
 	lock-pressure \
         manyfiles \
+        maxsize-for-loader \
 	multiprocess \
 	mvcc-create-table \
         mvcc-many-committed \
@@ -1037,6 +1038,12 @@ keyrange-loader-get0.tdbrun: keyrange.tdb
 keyrange-loader-get1.tdbrun: keyrange.tdb
 	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 1 --loader 1 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
+maxsize-for-loader.tdbrun: maxsize-for-loader-A.tdbrun maxsize-for-loader-B.tdbrun 
+	@echo -n
+maxsize-for-loader-A.tdbrun: maxsize-for-loader.tdb
+	$(TDBVGRIND) ./$< -e $@  -f 2> /dev/null $(SUMMARIZE_CMD)
+maxsize-for-loader-B.tdbrun: maxsize-for-loader.tdb
+	./$< -e $@                  2> /dev/null $(SUMMARIZE_CMD)
 clean:
 	rm -f $(ALL_BINS)
 	rm -rf dir.* *.check.output *.check.valgrind
