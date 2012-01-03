@@ -156,9 +156,6 @@ SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
 HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
 ORDER BY f2;
---echo Maps should say that t2 and t3 depend on t1
---echo (because of straight_join), they don't, this is
---echo bug#11766858 and bug#11752239
 --replace_regex /("sort_buffer_size":) [0-9]+/\1 NNN/
 select TRACE from information_schema.OPTIMIZER_TRACE;
 

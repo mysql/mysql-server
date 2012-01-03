@@ -2475,6 +2475,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
       {
         tbl->embedding= table->embedding;
         tbl->join_list= table->join_list;
+        tbl->dep_tables|= table->dep_tables;
       }
       li.replace(nested_join->join_list);
     }
