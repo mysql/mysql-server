@@ -449,6 +449,7 @@ PREPARE s FROM
 'EXPLAIN EXTENDED
 SELECT SUBSTRING(1, (SELECT 1 FROM t1 a1 RIGHT OUTER JOIN t1 ON 0)) AS d
 FROM t1 WHERE 0 > ANY (SELECT @a FROM t1)';
+# After WL#4443 we don't evaluate subqueries during prepare, so no error.
 EXECUTE s;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
