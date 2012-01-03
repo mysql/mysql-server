@@ -41,6 +41,7 @@ SET (SQL_SOURCE
               ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc sha2.cc
+               signal_handler.cc
                handler.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
@@ -90,7 +91,14 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 
- 
+#
+# On Windows platform we compile in the clinet-side Windows Native Authentication
+# plugin which is used by the client connection code included in the server.
+#
+IF(WIN32)
+  ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
+  TARGET_LINK_LIBRARIES(sql auth_win_client)
+ENDIF() 
 
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)

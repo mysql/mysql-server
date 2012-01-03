@@ -1549,13 +1549,14 @@ my_bool _mi_memmap_file(MI_INFO *info)
 
 void _mi_unmap_file(MI_INFO *info)
 {
-  (void) my_munmap((char*) info->s->file_map,
-                   (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN);
+  DBUG_ASSERT(info->s->options & HA_OPTION_COMPRESS_RECORD);
+
+  (void) my_munmap((char*) info->s->file_map, (size_t) info->s->mmaped_length);
 
   if (myisam_mmap_size != SIZE_T_MAX)
   {
     mysql_mutex_lock(&THR_LOCK_myisam_mmap);
-    myisam_mmap_used-= info->s->mmaped_length + MEMMAP_EXTRA_MARGIN;
+    myisam_mmap_used-= info->s->mmaped_length;
     mysql_mutex_unlock(&THR_LOCK_myisam_mmap);
   }
 }
