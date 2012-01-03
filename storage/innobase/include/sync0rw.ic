@@ -519,31 +519,6 @@ rw_lock_s_unlock_func(
 }
 
 /******************************************************************//**
-Releases a shared mode lock when we know there are no waiters and none
-else will access the lock during the time this function is executed. */
-UNIV_INLINE
-void
-rw_lock_s_unlock_direct(
-/*====================*/
-	rw_lock_t*	lock)	/*!< in/out: rw-lock */
-{
-	ut_ad(lock->lock_word < X_LOCK_DECR);
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, 0, RW_LOCK_SHARED);
-#endif
-
-	/* Decrease reader count by incrementing lock_word */
-	lock->lock_word++;
-
-	ut_ad(!lock->waiters);
-	ut_ad(rw_lock_validate(lock));
-#ifdef UNIV_SYNC_PERF_STAT
-	rw_s_exit_count++;
-#endif
-}
-
-/******************************************************************//**
 Releases an exclusive mode lock. */
 UNIV_INLINE
 void
@@ -585,40 +560,6 @@ rw_lock_x_unlock_func(
 		}
 	}
 
-	ut_ad(rw_lock_validate(lock));
-
-#ifdef UNIV_SYNC_PERF_STAT
-	rw_x_exit_count++;
-#endif
-}
-
-/******************************************************************//**
-Releases an exclusive mode lock when we know there are no waiters, and
-none else will access the lock during the time this function is executed. */
-UNIV_INLINE
-void
-rw_lock_x_unlock_direct(
-/*====================*/
-	rw_lock_t*	lock)	/*!< in/out: rw-lock */
-{
-	/* Reset the exclusive lock if this thread no longer has an x-mode
-	lock */
-
-	ut_ad((lock->lock_word % X_LOCK_DECR) == 0);
-
-	if (lock->lock_word == 0) {
-		lock->recursive = FALSE;
-		UNIV_MEM_INVALID(&lock->writer_thread,
-				 sizeof lock->writer_thread);
-	}
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, 0, RW_LOCK_EX);
-#endif
-
-	lock->lock_word += X_LOCK_DECR;
-
-	ut_ad(!lock->waiters);
 	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
