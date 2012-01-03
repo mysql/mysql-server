@@ -2884,7 +2884,7 @@ toku_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
 
 static int 
 locked_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
-    toku_ydb_lock(); u_int32_t r = toku_txn_stat(txn, txn_stat); toku_ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_txn_stat(txn, txn_stat); toku_ydb_unlock(); return r;
 }
 
 static int
