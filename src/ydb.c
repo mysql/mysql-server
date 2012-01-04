@@ -1005,7 +1005,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         assert(r==0);
     }
     toku_ydb_unlock();
-    r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL);
+    r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, STARTUP_CHECKPOINT);
     assert(r==0);
     toku_ydb_lock();
     env_fs_poller(env);          // get the file system state at startup
@@ -1071,7 +1071,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
 	toku_ydb_unlock();  // ydb lock must not be held when shutting down minicron
 	toku_cachetable_minicron_shutdown(env->i->cachetable);
         if (env->i->logger) {
-            r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL);
+            r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
             if (r) {
 		err_msg = "Cannot close environment (error during checkpoint)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
@@ -1093,7 +1093,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
                 goto panic_and_quit_early;
             }
             //Do a second checkpoint now that the rollback cachefile is closed.
-            r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL);
+            r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
             if (r) {
 		err_msg = "Cannot close environment (error during checkpoint)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
@@ -1437,7 +1437,8 @@ static int
 toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)), u_int32_t min __attribute__((__unused__)), u_int32_t flags __attribute__((__unused__))) {
     int r = toku_checkpoint(env->i->cachetable, env->i->logger,
 			    checkpoint_callback_f,  checkpoint_callback_extra,
-			    checkpoint_callback2_f, checkpoint_callback2_extra);
+			    checkpoint_callback2_f, checkpoint_callback2_extra,
+			    CLIENT_CHECKPOINT);
     if (r) {
 	// Panicking the whole environment may be overkill, but I'm not sure what else to do.
 	env_panic(env, r, "checkpoint error\n");
@@ -1931,6 +1932,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->checkpoint_last_lsn   = cpstat.last_lsn;
 	    engstat->checkpoint_count      = cpstat.checkpoint_count;
 	    engstat->checkpoint_count_fail = cpstat.checkpoint_count_fail;
+	    engstat->checkpoint_waiters_now = cpstat.waiters_now;
 	}
         engstat->cleaner_period = toku_get_cleaner_period_unlocked(env->i->cachetable);
         engstat->cleaner_iterations = toku_get_cleaner_iterations_unlocked(env->i->cachetable);
@@ -2273,6 +2275,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_last_lsn              %"PRIu64"\n", engstat.checkpoint_last_lsn);
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_count                 %"PRIu64"\n", engstat.checkpoint_count);
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_count_fail            %"PRIu64"\n", engstat.checkpoint_count_fail);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_waiters_now           %"PRIu64"\n", engstat.checkpoint_waiters_now);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_period                   %"PRIu64"\n", engstat.cleaner_period);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_iterations               %"PRIu64"\n", engstat.cleaner_iterations);
 	n += snprintf(buff + n, bufsiz - n, "txn_begin                        %"PRIu64"\n", engstat.txn_begin);
@@ -2906,7 +2909,7 @@ locked_txn_commit_with_progress(DB_TXN *txn, u_int32_t flags,
     toku_ydb_unlock();
     assert(r==0);
     if (toku_txn_requires_checkpoint(ttxn)) {
-        toku_checkpoint(txn->mgrp->i->cachetable, txn->mgrp->i->logger, NULL, NULL, NULL, NULL);
+        toku_checkpoint(txn->mgrp->i->cachetable, txn->mgrp->i->logger, NULL, NULL, NULL, NULL, TXN_COMMIT_CHECKPOINT);
     }
     toku_multi_operation_client_lock(); //Cannot checkpoint during a commit.
     toku_ydb_lock();

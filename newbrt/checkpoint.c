@@ -196,56 +196,65 @@ toku_checkpoint_destroy(void) {
     return r;
 }
 
+#define SET_CHECKPOINT_FOOTPRINT(x) status.footprint = footprint_offset + x;
+
 
 // Take a checkpoint of all currently open dictionaries
 int 
 toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 		void (*callback_f)(void*),  void * extra,
-		void (*callback2_f)(void*), void * extra2) {
+		void (*callback2_f)(void*), void * extra2,
+		checkpoint_caller_t caller_id) {
     int r;
+    int footprint_offset = (int) caller_id * 1000;
 
-    status.footprint = 10;
     assert(initialized);
-    // for #4341, we changed the order these locks are taken.
-    // to keep the status footprints the same, we moved those
-    // as well. That is why 30 comes before 20.
+    (void) __sync_fetch_and_add(&status.waiters_now, 1);
     checkpoint_safe_checkpoint_lock();
-    status.footprint = 30;
+
+    (void) __sync_fetch_and_sub(&status.waiters_now, 1);
+    SET_CHECKPOINT_FOOTPRINT(10)
     multi_operation_checkpoint_lock();
-    status.footprint = 20;
+    SET_CHECKPOINT_FOOTPRINT(20)
     ydb_lock();
     
-    status.footprint = 40;
+    SET_CHECKPOINT_FOOTPRINT(30)
     status.time_last_checkpoint_begin = time(NULL);
     r = toku_cachetable_begin_checkpoint(ct, logger);
 
     multi_operation_checkpoint_unlock();
     ydb_unlock();
 
-    status.footprint = 50;
+    SET_CHECKPOINT_FOOTPRINT(40);
     if (r==0) {
 	if (callback_f) 
 	    callback_f(extra);      // callback is called with checkpoint_safe_lock still held
 	r = toku_cachetable_end_checkpoint(ct, logger, ydb_lock, ydb_unlock, callback2_f, extra2);
     }
+    SET_CHECKPOINT_FOOTPRINT(50);
     if (r==0 && logger) {
         last_completed_checkpoint_lsn = logger->last_completed_checkpoint_lsn;
         r = toku_logger_maybe_trim_log(logger, last_completed_checkpoint_lsn);
 	status.last_lsn                   = last_completed_checkpoint_lsn.lsn;
     }
 
-    status.footprint = 60;
+    SET_CHECKPOINT_FOOTPRINT(60);
     status.time_last_checkpoint_end = time(NULL);
     status.time_last_checkpoint_begin_complete = status.time_last_checkpoint_begin;
-    checkpoint_safe_checkpoint_unlock();
-    status.footprint = 0;
 
     if (r == 0)
 	status.checkpoint_count++;
     else
 	status.checkpoint_count_fail++;
+
+    status.footprint = 0;
+    checkpoint_safe_checkpoint_unlock();
     return r;
 }
+
+#undef SET_CHECKPOINT_FOOTPRINT
+
+// Can we get rid of this (placating drd), now that all status is updated when holding the checkpoint_safe lock?
 
 #include <valgrind/drd.h>
 void __attribute__((__constructor__)) toku_checkpoint_drd_ignore(void);

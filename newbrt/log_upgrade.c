@@ -147,7 +147,7 @@ upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn) { // the rea
         assert(r==0);
     }
     { //Checkpoint
-        r = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL); //fsyncs log dir
+        r = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL, UPGRADE_CHECKPOINT); //fsyncs log dir
         assert(r == 0);
     }
     { //Close cachetable and logger

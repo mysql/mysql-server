@@ -75,7 +75,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     error = toku_close_brt(brt, NULL);
     assert(error == 0);
 
-    error = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL);
+    error = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(error == 0);
     error = toku_logger_close_rollback(logger, FALSE);
     assert(error == 0);

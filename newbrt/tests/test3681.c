@@ -51,7 +51,7 @@ static void *startb (void *n) {
     assert(n==NULL);
     int count=0;
     while (!done) {
-	int r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL); assert(r==0);
+	int r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT); assert(r==0);
 	count++;
     }
     printf("count=%d\n", count);
