@@ -41,14 +41,20 @@ insert into t5 values (1, 2, 3), (4, 5, 6), (7, 8, 9);
 use performance_schema;
 select DIGEST, DIGEST_TEXT, COUNT_STAR from events_statements_summary_by_digest;
 DIGEST	DIGEST_TEXT	COUNT_STAR
-cf5ae1f41d7f6cc0	TRUNCATE TABLE ID . ID  	1
-89098056976d499b	SELECT # FROM ID  	2
-67d4fdbc91c296f6	SELECT #,# FROM ID  	4
-fcca45f32a578e33	INSERT INTO ID VALUES (#)  	2
-de4735d2ec38cc75	INSERT INTO ID VALUES (#,#)  	3
-aefa0a1987e628a2	INSERT INTO ID VALUES (#),(#)  	2
-078fc2c78d15c811	INSERT INTO ID VALUES (#,#),(#,#)  	2
-e465b463797ef48f	USE ID  	1
+560c2f53c356e1db	TRUNCATE TABLE performance_schema . events_statements_summa  	1
+c4cdaf6f814e367d	SELECT # FROM t1  	1
+58681943ba1f6965	SELECT #,# FROM t1  	2
+dd87e085c2c5a2b6	SELECT # FROM t2  	1
+fc7ca6a130fec1a4	SELECT #,# FROM t2  	2
+97cd1e37ec961f4a	INSERT INTO t1 VALUES (#)  	1
+89711defcba2e7b6	INSERT INTO t2 VALUES (#)  	1
+a41f173a4d5380ec	INSERT INTO t3 VALUES (#,#)  	1
+d5861d47f3ce1618	INSERT INTO t4 VALUES (#,#)  	1
+6cf22eb634d457a2	INSERT INTO t5 VALUES (#,#)  	1
+de7125e60b7c8491	INSERT INTO t1 VALUES (#),(#)  	2
+58fd317fdd62aa68	INSERT INTO t3 VALUES (#,#),(#,#)  	1
+c0a64b8f3c6a1118	INSERT INTO t5 VALUES (#,#),(#,#)  	1
+33c8d4d29d3c02f3	USE performance_schema  	1
 ####################################
 # CLEANUP
 ####################################

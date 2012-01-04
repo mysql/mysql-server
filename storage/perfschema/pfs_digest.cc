@@ -32,6 +32,61 @@
 #include "sql_yacc.h"
 #include "pfs_lex_token.h"
 
+/**
+  Token array : 
+  Token array is an array of bytes to store tokens recieved during parsing.
+  Following is the way token array is formed.
+     
+      ...<non-id-token><non-id-token><id-token><id_len><id_text>...
+
+  For Ex:
+  SELECT * FROM T1;
+  <SELECT_TOKEN><*><FROM_TOKEN><ID_TOKEN><2><T1>
+*/
+
+/** 
+  Macro to read a single token from token array.
+*/
+#define READ_TOKEN(_src, _index, _dest)                          \
+{                                                                \
+  short _sh;                                                     \
+  _sh= ((0x00ff & _src[_index+1])<<8) | (0x00ff & _src[_index]); \
+  _dest= (int)(_sh);                                             \
+  _index+= 2;                                                    \
+}
+
+/**
+  Macro to store a single token in token array.
+*/
+#define STORE_TOKEN(_dest, _index, _token)                       \
+{                                                                \
+  short _sh= (short)_token;                                      \
+  _dest[_index++]= (_sh) & 0xff;                                 \
+  _dest[_index++]= (_sh>>8) & 0xff;                              \
+}
+
+/**
+  Macro to read an identifier from token array.
+*/
+#define READ_IDENTIFIER(_src, _index, _dest)                     \
+{                                                                \
+  int _length;                                                   \
+  READ_TOKEN(_src, _index, _length);                             \
+  strncpy(_dest, _src+_index, _length);                          \
+  _index+= _length;                                              \
+  _dest+= _length;                                               \
+}
+
+/**
+  Macro to store an identifier in token array.
+*/
+#define STORE_IDENTIFIER(_dest, _index, _length, _id)            \
+{                                                                \
+  STORE_TOKEN(_dest, _index, _length);                           \
+  strncpy(_dest+_index, _id, _length);                           \
+  _index+= _length;                                              \
+}
+
 unsigned int statements_digest_size= 0;
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_statements_digest_stat *statements_digest_stat_array= NULL;
@@ -48,8 +103,9 @@ static bool digest_hash_inited= false;
 
 
 static void get_digest_text(char* digest_text,
-                            unsigned int* token_array,
-                            int token_count);
+                            char* token_array,
+                            int token_count,
+                            int byte_count);
 const char* symbol[MAX_TOKEN_COUNT];
 
 /**
@@ -164,8 +220,9 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
   }
 
   unsigned char* hash_key= digest_storage->m_digest_hash.m_md5;
-  unsigned int* token_array= digest_storage->m_token_array; 
+  char* token_array= digest_storage->m_token_array; 
   int token_count= digest_storage->m_token_count;
+  int byte_count= digest_storage->m_byte_count;
  
   PFS_statements_digest_stat **entry;
   PFS_statements_digest_stat *pfs= NULL;
@@ -198,7 +255,7 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
     pfs= &statements_digest_stat_array[digest_index];
     
     /* Calculate and set digest text. */
-    get_digest_text(pfs->m_digest_text,token_array,token_count);
+    get_digest_text(pfs->m_digest_text,token_array,token_count,byte_count);
     pfs->m_digest_text_length= strlen(pfs->m_digest_text);
 
     /* Set digest hash/LF Hash search key. */
@@ -250,53 +307,18 @@ void reset_esms_by_digest()
   This function, iterates token array and updates digest_text.
 */
 static void get_digest_text(char* digest_text,
-                            unsigned int* token_array,
-                            int token_count)
+                            char* token_array,
+                            int token_count,
+                            int byte_count)
 {
-#ifdef BEFORE
-  int i= 0;
-  while(i<token_count)
-  {
-    if(token_array[i] < 258) 
-    {
-      *digest_text= (char)token_array[i];
-      digest_text++;
-      i++;
-      continue;
-    }
-    else
-    {
-      /* 
-         For few tokens (like IDENT_QUOTED, which is token for all
-         variables/literals), there is no string defined, so making them
-         '?' as of now.
-         TODO : do it properly.
-      */
-      if(symbol[token_array[i]-START_TOKEN_NUMBER]!=NULL)
-      {
-        strncpy(digest_text, symbol[token_array[i]-START_TOKEN_NUMBER],
-                           strlen(symbol[token_array[i]-START_TOKEN_NUMBER]));
-      }
-      else
-      {
-        *digest_text= '?';
-      }
-      digest_text+= strlen(digest_text);
-      i++;
-    }
-    *(digest_text)= ' ';
-    digest_text++;
-  }
-  digest_text= '\0';
-#endif
-
   int i;
   int tok;
+  int current_byte;
   lex_token_string *tok_data;
 
-  for (i= 0; i<token_count; i++)
+  for (i= 0, current_byte= 0; i<token_count; i++)
   {
-    tok= token_array[i];
+    READ_TOKEN(token_array, current_byte, tok);
     tok_data= & lex_token_array[tok];
 
     switch (tok)
@@ -308,6 +330,7 @@ static void get_digest_text(char* digest_text,
     case HEX_NUM:
     case LEX_HOSTNAME:
     case LONG_NUM:
+    case NUM:
     case NCHAR_STRING:
     case TEXT_STRING:
     case ULONGLONG_NUM:
@@ -315,14 +338,10 @@ static void get_digest_text(char* digest_text,
       digest_text++;
       break;
 
-    /* All identifiers are printed with their name */
+    /* All identifiers are printed with their name. */
     case IDENT:
     case IDENT_QUOTED:
-      /* TODO, print the name, not ID. */
-      *digest_text= 'I';
-      digest_text++;
-      *digest_text= 'D';
-      digest_text++;
+      READ_IDENTIFIER(token_array, current_byte, digest_text);
       *digest_text= ' ';
       digest_text++;
       break;
@@ -380,6 +399,7 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
     Initialize token array and token count to 0.
   */
   digest_storage->m_token_count= PFS_MAX_TOKEN_COUNT;
+  digest_storage->m_byte_count= 0;
   while(digest_storage->m_token_count)
     digest_storage->m_token_array[--digest_storage->m_token_count]= 0;
 
@@ -417,8 +437,17 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
     return;
   }
 
-  /* Take very last token from collected till now. */
-  uint *current= & digest_storage->m_token_array[digest_storage->m_token_count];
+  /* 
+     Take last_token 3 tokens collected till now. These tokens will be used
+     for normalisation.
+  */
+  int index, last_token, last_token2, last_token3;
+  index= digest_storage->m_byte_count-2;
+  READ_TOKEN(digest_storage->m_token_array, index, last_token);
+  index= digest_storage->m_byte_count-4;
+  READ_TOKEN(digest_storage->m_token_array, index ,last_token2);
+  index= digest_storage->m_byte_count-6;
+  READ_TOKEN(digest_storage->m_token_array, index ,last_token3);
 
   switch (token)
   {
@@ -441,9 +470,9 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
 
       if (digest_storage->m_token_count >= 2)
       {
-        if ((current[-2] == TOK_PFS_GENERIC_VALUE ||
-             current[-2] == TOK_PFS_GENERIC_VALUE_LIST) &&
-            (current[-1] == ','))
+        if ((last_token2 == TOK_PFS_GENERIC_VALUE ||
+             last_token2 == TOK_PFS_GENERIC_VALUE_LIST) &&
+            (last_token == ','))
         {
           /*
             REDUCE:
@@ -455,21 +484,22 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
               TOK_PFS_GENERIC_VALUE_LIST ',' TOK_PFS_GENERIC_VALUE
           */
           digest_storage->m_token_count-= 2;
+          digest_storage->m_byte_count-= 4;
           token= TOK_PFS_GENERIC_VALUE_LIST;
         }
-
-        else if(current[-1] == '(')
+        else if(last_token == '(')
         {
           /*
             REDUCE:
               "(" , "#" => "(#" 
           */
           digest_storage->m_token_count-= 1;
+          digest_storage->m_byte_count-= 2;
           token= TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE;
         }
-        else if((current[-2] == TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE ||
-                 current[-2] == TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE) &&
-                (current[-1] == ','))
+        else if((last_token2 == TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE ||
+                 last_token2 == TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE) &&
+                (last_token == ','))
         {
           /*
             REDUCE:
@@ -478,6 +508,7 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
               "(#,#" , "#" => "(#,#"
           */
           digest_storage->m_token_count-= 2;
+          digest_storage->m_byte_count-= 4;
           token= TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE;
         }
       }
@@ -487,20 +518,21 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
     {
       if (digest_storage->m_token_count > 0)
       {
-        if(current[-1] == TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE) 
+        if(last_token == TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE) 
         { 
           /*
             REDUCE:
               "(#" , ")" => "(#)"
           */
           digest_storage->m_token_count-= 1;
+          digest_storage->m_byte_count-= 2;
           token= TOK_PFS_ROW_SINGLE_VALUE;
         
           if (digest_storage->m_token_count >= 2)
           {
-            if((current[-3] == TOK_PFS_ROW_SINGLE_VALUE ||
-                current[-3] == TOK_PFS_ROW_SINGLE_VALUE_LIST) &&
-               (current[-2] == ','))
+            if((last_token3 == TOK_PFS_ROW_SINGLE_VALUE ||
+                last_token3 == TOK_PFS_ROW_SINGLE_VALUE_LIST) &&
+               (last_token2 == ','))
             {
               /*
                 REDUCE:
@@ -509,25 +541,26 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
                   "(#),(#)" , "(#)" => "(#),(#)"
               */
               digest_storage->m_token_count-= 2;
+              digest_storage->m_byte_count-= 4;
               token= TOK_PFS_ROW_SINGLE_VALUE_LIST;
             }
           }
         }
-  
-        else if(current[-1] == TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE)
+        else if(last_token == TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE)
         {
           /*
             REDUCE:
               "(#,#" , ")" => "(#,#)"
           */
           digest_storage->m_token_count-= 1;
+          digest_storage->m_byte_count-= 2;
           token= TOK_PFS_ROW_MULTIPLE_VALUE;
   
           if (digest_storage->m_token_count >= 2)
           {
-            if((current[-3] == TOK_PFS_ROW_MULTIPLE_VALUE ||
-                current[-3] == TOK_PFS_ROW_MULTIPLE_VALUE_LIST) &&
-               (current[-2] == ','))
+            if((last_token3 == TOK_PFS_ROW_MULTIPLE_VALUE ||
+                last_token3 == TOK_PFS_ROW_MULTIPLE_VALUE_LIST) &&
+               (last_token2 == ','))
             {
               /*
                 REDUCE:
@@ -536,6 +569,7 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
                   "(#,#),(#,#)" , "(#,#)" ) => "(#,#),(#,#)"
               */
               digest_storage->m_token_count-= 2;
+              digest_storage->m_byte_count-= 4;
               token= TOK_PFS_ROW_MULTIPLE_VALUE_LIST;
             }
           }
@@ -548,7 +582,12 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
   /*
     Add this token or the resulting reduce to digest storage.
   */
-  digest_storage->m_token_array[digest_storage->m_token_count]= token;
+  STORE_TOKEN(digest_storage->m_token_array, digest_storage->m_byte_count, token);
+  if(token == IDENT || token == IDENT_QUOTED)
+  {
+    STORE_IDENTIFIER(digest_storage->m_token_array, digest_storage->m_byte_count, yylen, yytext);
+  }
+
   digest_storage->m_token_count++;
 }
 
