@@ -221,6 +221,7 @@ let $MYSQLD_DATADIR= `SELECT @@DATADIR`;
 connection slave;
 source include/stop_slave.inc;
 RESET SLAVE;
+RESET MASTER;
 connection master;
 # Force master to forget used GTIDs
 RESET MASTER;
