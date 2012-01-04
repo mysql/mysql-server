@@ -400,6 +400,7 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
   */
   digest_storage->m_token_count= PFS_MAX_TOKEN_COUNT;
   digest_storage->m_byte_count= 0;
+  digest_storage->m_last_id_index= 0;
   while(digest_storage->m_token_count)
     digest_storage->m_token_array[--digest_storage->m_token_count]= 0;
 
@@ -439,15 +440,34 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
 
   /* 
      Take last_token 3 tokens collected till now. These tokens will be used
-     for normalisation.
+     in reduce for normalisation. Make sure not to consider ID tokens in reduce.
   */
-  int index, last_token, last_token2, last_token3;
-  index= digest_storage->m_byte_count-2;
-  READ_TOKEN(digest_storage->m_token_array, index, last_token);
-  index= digest_storage->m_byte_count-4;
-  READ_TOKEN(digest_storage->m_token_array, index ,last_token2);
-  index= digest_storage->m_byte_count-6;
-  READ_TOKEN(digest_storage->m_token_array, index ,last_token3);
+  uint last_token_index; 
+  uint last_token = TOK_PFS_UNUSED;
+  uint last_token2= TOK_PFS_UNUSED;
+  uint last_token3= TOK_PFS_UNUSED;
+  
+  if((digest_storage->m_last_id_index <= digest_storage->m_byte_count-2) &&
+     (digest_storage->m_token_count >= 1))
+  {
+    /* Take last token. */
+    last_token_index= digest_storage->m_byte_count-2;
+    READ_TOKEN(digest_storage->m_token_array, last_token_index, last_token);
+  }
+  if((digest_storage->m_last_id_index <= digest_storage->m_byte_count-4) &&
+     (digest_storage->m_token_count >= 2))
+  {
+    /* Take 2nd token from last. */
+    last_token_index= digest_storage->m_byte_count-4;
+    READ_TOKEN(digest_storage->m_token_array, last_token_index ,last_token2);
+  }
+  if((digest_storage->m_last_id_index <= digest_storage->m_byte_count-6) &&
+     (digest_storage->m_token_count >= 3))
+  {
+    /* Take 3rd token from last. */
+    last_token_index= digest_storage->m_byte_count-6;
+    READ_TOKEN(digest_storage->m_token_array, last_token_index ,last_token3);
+  }
 
   switch (token)
   {
@@ -528,7 +548,7 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
           digest_storage->m_byte_count-= 2;
           token= TOK_PFS_ROW_SINGLE_VALUE;
         
-          if (digest_storage->m_token_count >= 2)
+          if (digest_storage->m_token_count >= 3)
           {
             if((last_token3 == TOK_PFS_ROW_SINGLE_VALUE ||
                 last_token3 == TOK_PFS_ROW_SINGLE_VALUE_LIST) &&
@@ -556,7 +576,7 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
           digest_storage->m_byte_count-= 2;
           token= TOK_PFS_ROW_MULTIPLE_VALUE;
   
-          if (digest_storage->m_token_count >= 2)
+          if (digest_storage->m_token_count >= 3)
           {
             if((last_token3 == TOK_PFS_ROW_MULTIPLE_VALUE ||
                 last_token3 == TOK_PFS_ROW_MULTIPLE_VALUE_LIST) &&
@@ -586,6 +606,7 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
   if(token == IDENT || token == IDENT_QUOTED)
   {
     STORE_IDENTIFIER(digest_storage->m_token_array, digest_storage->m_byte_count, yylen, yytext);
+    digest_storage->m_last_id_index= digest_storage->m_byte_count;
   }
 
   digest_storage->m_token_count++;

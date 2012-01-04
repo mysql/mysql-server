@@ -55,6 +55,7 @@ int tok_pfs_row_single_value_list= 0;
 int tok_pfs_row_possible_multiple_value= 0;
 int tok_pfs_row_multiple_value= 0;
 int tok_pfs_row_multiple_value_list= 0;
+int tok_pfs_unused= 0;
 
 void set_token(int tok, const char *str)
 {
@@ -207,6 +208,10 @@ void compute_tokens()
   max_token_seen++;
   tok_pfs_row_multiple_value_list= max_token_seen;
   set_token(tok_pfs_row_multiple_value_list, "(#,#),(#,#)");
+
+  max_token_seen++;
+  tok_pfs_unused= max_token_seen;
+  set_token(tok_pfs_unused, "UNUSED");
 }
 
 void print_tokens()
@@ -244,6 +249,7 @@ void print_tokens()
   printf("#define TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE %d\n", tok_pfs_row_possible_multiple_value);
   printf("#define TOK_PFS_ROW_MULTIPLE_VALUE %d\n", tok_pfs_row_multiple_value);
   printf("#define TOK_PFS_ROW_MULTIPLE_VALUE_LIST %d\n", tok_pfs_row_multiple_value_list);
+  printf("#define TOK_PFS_UNUSED %d\n", tok_pfs_unused);
 }
 
 int main(int argc,char **argv)

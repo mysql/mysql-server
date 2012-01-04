@@ -48,6 +48,7 @@ struct {
 struct {
          uint m_token_count;
          uint m_byte_count;
+         uint m_last_id_index;
          char m_token_array[PFS_MAX_TOKEN_COUNT];
          PFS_digest_hash m_digest_hash;
        } typedef PFS_digest_storage;
