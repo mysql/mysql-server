@@ -13761,8 +13761,8 @@ find_field_in_item_list (Field *field, void *data)
 
   while ((item= li++))
   {
-    if (item->type() == Item::FIELD_ITEM &&
-        ((Item_field*) item)->field->eq(field))
+    if (item->real_item()->type() == Item::FIELD_ITEM &&
+	((Item_field*) (item->real_item()))->field->eq(field))
     {
       part_found= 1;
       break;
@@ -14030,7 +14030,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
              uint used_pk_parts= 0;
              if (used_key_parts > used_index_parts)
                used_pk_parts= used_key_parts-used_index_parts;
-             rec_per_key= keyinfo->rec_per_key[used_key_parts-1];
+             rec_per_key= used_key_parts ?
+	                  keyinfo->rec_per_key[used_key_parts-1] : 1;
              /* Take into account the selectivity of the used pk prefix */
              if (used_pk_parts)
 	     {
