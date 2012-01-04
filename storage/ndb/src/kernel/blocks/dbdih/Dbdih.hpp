@@ -1127,7 +1127,9 @@ private:
   void allocStoredReplica(FragmentstorePtr regFragptr,
                           ReplicaRecordPtr& newReplicaPtr,
                           Uint32 nodeId);
-  Uint32 extractNodeInfo(const Fragmentstore * fragPtr, Uint32 nodes[]);
+  Uint32 extractNodeInfo(EmulatedJamBuffer *jambuf,
+                         const Fragmentstore * fragPtr,
+                         Uint32 nodes[]);
   bool findBestLogNode(CreateReplicaRecord* createReplica,
                        FragmentstorePtr regFragptr,
                        Uint32 startGci,
