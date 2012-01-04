@@ -19,10 +19,15 @@ MYSQL_LIB=$prefix/$libdir
 MEMCACHE_BASE=$memcachedir
 SOURCE_TREE=$sourcetree
 HOME_BASE=$sourcetree   # fallback to source tree 
-if test $HOME_BASE != `pwd`  
+
+if test `pwd` = $SOURCE_TREE
  then
-   # prefer installed tree unless we are currently in the source tree
+   # If we are in the source tree, use the memcached and engine there
+   memcached_binary=$MEMCACHE_BASE/memcached
+   NDB_ENGINE_SO=$SOURCE_TREE/ndb_engine.so
+ else
    test -d $installtree && HOME_BASE=$installtree
+   NDB_ENGINE_SO=$MYSQL_LIB/ndb_engine.so
 fi
 
 test_paths() {
@@ -158,7 +163,7 @@ load_metadata() {
 start_memcached() {
     $memcached_binary -d -v \
     -P $HOME_BASE/sandbox/memcached.pid \
-    -E $MYSQL_LIB/ndb_engine.so $1 $2
+    -E $NDB_ENGINE_SO $1 $2
 }
 
 stop_memcached() {

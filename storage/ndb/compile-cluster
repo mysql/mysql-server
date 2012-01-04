@@ -299,11 +299,11 @@ if (!$opt_build)
 {
   if ($cmake_version_id >= 20800)
   {
-    # Use the universal "cmake --build <srcdir>" way of building
+    # Use the universal "cmake --build <dir>" way of building
     # which is available from cmake 2.8 and works on all platforms
     my @args;
     push(@args, "--build");
-    push(@args, "$opt_srcdir");
+    push(@args, ".");
 
     if ($^O eq "cygwin" or $^O eq "MSWin32")
     {

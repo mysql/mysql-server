@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -131,7 +131,7 @@ rw_lock_get_writer(
 	} else if (((-lock_word) % X_LOCK_DECR) == 0) {
 		return(RW_LOCK_EX);
 	} else {
-                ut_ad(lock_word > -X_LOCK_DECR);
+		ut_ad(lock_word > -X_LOCK_DECR);
 		return(RW_LOCK_WAIT_EX);
 	}
 }
@@ -200,7 +200,7 @@ rw_lock_lock_word_decr(
 	ulint		amount)		/*!< in: amount to decrement */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-        lint local_lock_word = lock->lock_word;
+	lint local_lock_word = lock->lock_word;
 	while (local_lock_word > 0) {
 		if (os_compare_and_swap_lint(&lock->lock_word,
 					     local_lock_word,
@@ -244,7 +244,7 @@ rw_lock_lock_word_incr(
 
 	mutex_exit(&(lock->mutex));
 
-        return(local_lock_word);
+	return(local_lock_word);
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
@@ -308,7 +308,6 @@ rw_lock_s_lock_low(
 	const char*	file_name, /*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	/* TODO: study performance of UNIV_LIKELY branch prediction hints. */
 	if (!rw_lock_lock_word_decr(lock, 1)) {
 		/* Locking did not succeed */
 		return(FALSE);
@@ -318,7 +317,7 @@ rw_lock_s_lock_low(
 	rw_lock_add_debug_info(lock, pass, RW_LOCK_SHARED, file_name, line);
 #endif
 	/* These debugging values are not set safely: they may be incorrect
-        or even refer to a line that is invalid for the file name. */
+	or even refer to a line that is invalid for the file name. */
 	lock->last_s_file_name = file_name;
 	lock->last_s_line = line;
 
@@ -409,7 +408,6 @@ rw_lock_s_lock_func(
 	ut_ad(!rw_lock_own(lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	/* TODO: study performance of UNIV_LIKELY branch prediction hints. */
 	if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
 
 		return; /* Success */
@@ -462,7 +460,11 @@ rw_lock_x_lock_func_nowait(
 		there is an exclusive writer and this is the writer thread. */
 		lock->lock_word -= X_LOCK_DECR;
 
+		/* Recursive x-locks must be multiples of X_LOCK_DECR. */
 		ut_ad(((-lock->lock_word) % X_LOCK_DECR) == 0);
+
+		/* Watch for too many recursive locks */
+		ut_ad(lock->lock_word < 0);
 
 	} else {
 		/* Failure */
@@ -502,8 +504,8 @@ rw_lock_s_unlock_func(
 	if (rw_lock_lock_word_incr(lock, 1) == 0) {
 
 		/* wait_ex waiter exists. It may not be asleep, but we signal
-                anyway. We do not wake other waiters, because they can't
-                exist without wait_ex waiter and wait_ex waiter goes first.*/
+		anyway. We do not wake other waiters, because they can't
+		exist without wait_ex waiter and wait_ex waiter goes first.*/
 		os_event_set(lock->wait_ex_event);
 		sync_array_object_signalled();
 
@@ -511,31 +513,6 @@ rw_lock_s_unlock_func(
 
 	ut_ad(rw_lock_validate(lock));
 
-#ifdef UNIV_SYNC_PERF_STAT
-	rw_s_exit_count++;
-#endif
-}
-
-/******************************************************************//**
-Releases a shared mode lock when we know there are no waiters and none
-else will access the lock during the time this function is executed. */
-UNIV_INLINE
-void
-rw_lock_s_unlock_direct(
-/*====================*/
-	rw_lock_t*	lock)	/*!< in/out: rw-lock */
-{
-	ut_ad(lock->lock_word < X_LOCK_DECR);
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, 0, RW_LOCK_SHARED);
-#endif
-
-	/* Decrease reader count by incrementing lock_word */
-	lock->lock_word++;
-
-	ut_ad(!lock->waiters);
-	ut_ad(rw_lock_validate(lock));
 #ifdef UNIV_SYNC_PERF_STAT
 	rw_s_exit_count++;
 #endif
@@ -574,8 +551,8 @@ rw_lock_x_unlock_func(
 
 	if (rw_lock_lock_word_incr(lock, X_LOCK_DECR) == X_LOCK_DECR) {
 		/* Lock is now free. May have to signal read/write waiters.
-                We do not need to signal wait_ex waiters, since they cannot
-                exist when there is a writer. */
+		We do not need to signal wait_ex waiters, since they cannot
+		exist when there is a writer. */
 		if (lock->waiters) {
 			rw_lock_reset_waiter_flag(lock);
 			os_event_set(lock->event);
@@ -583,40 +560,6 @@ rw_lock_x_unlock_func(
 		}
 	}
 
-	ut_ad(rw_lock_validate(lock));
-
-#ifdef UNIV_SYNC_PERF_STAT
-	rw_x_exit_count++;
-#endif
-}
-
-/******************************************************************//**
-Releases an exclusive mode lock when we know there are no waiters, and
-none else will access the lock during the time this function is executed. */
-UNIV_INLINE
-void
-rw_lock_x_unlock_direct(
-/*====================*/
-	rw_lock_t*	lock)	/*!< in/out: rw-lock */
-{
-	/* Reset the exclusive lock if this thread no longer has an x-mode
-	lock */
-
-	ut_ad((lock->lock_word % X_LOCK_DECR) == 0);
-
-	if (lock->lock_word == 0) {
-		lock->recursive = FALSE;
-		UNIV_MEM_INVALID(&lock->writer_thread,
-				 sizeof lock->writer_thread);
-	}
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, 0, RW_LOCK_EX);
-#endif
-
-	lock->lock_word += X_LOCK_DECR;
-
-	ut_ad(!lock->waiters);
 	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
@@ -658,7 +601,7 @@ pfs_rw_lock_create_func(
 			    cmutex_name,
 # endif /* UNIV_DEBUG */
 			    cfile_name,
-		            cline);
+			    cline);
 }
 /******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_x_lock_func()
@@ -681,7 +624,7 @@ pfs_rw_lock_x_lock_func(
 	locker = PSI_CALL(get_thread_rwlock_locker)(
 		&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK);
 
-	if (UNIV_LIKELY(locker != NULL)) {
+	if (locker != NULL) {
 		PSI_CALL(start_rwlock_wrwait)(locker, file_name, line);
 		rw_lock_x_lock_func(lock, pass, file_name, line);
 		PSI_CALL(end_rwlock_wrwait)(locker, 0);
@@ -713,7 +656,7 @@ pfs_rw_lock_x_lock_func_nowait(
 	locker = PSI_CALL(get_thread_rwlock_locker)(
 		&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK);
 
-	if (UNIV_LIKELY(locker != NULL)) {
+	if (locker != NULL) {
 		PSI_CALL(start_rwlock_wrwait)(locker, file_name, line);
 		ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
 		PSI_CALL(end_rwlock_wrwait)(locker, 0);
@@ -760,7 +703,7 @@ pfs_rw_lock_s_lock_func(
 	/* Instrumented to inform we are aquiring a shared rwlock */
 	locker = PSI_CALL(get_thread_rwlock_locker)(
 		&state, lock->pfs_psi, PSI_RWLOCK_READLOCK);
-	if (UNIV_LIKELY(locker != NULL)) {
+	if (locker != NULL) {
 		PSI_CALL(start_rwlock_rdwait)(locker, file_name, line);
 		rw_lock_s_lock_func(lock, pass, file_name, line);
 		PSI_CALL(end_rwlock_rdwait)(locker, 0);
@@ -792,7 +735,7 @@ pfs_rw_lock_s_lock_low(
 	/* Instrumented to inform we are aquiring a shared rwlock */
 	locker = PSI_CALL(get_thread_rwlock_locker)(
 		&state, lock->pfs_psi, PSI_RWLOCK_READLOCK);
-	if (UNIV_LIKELY(locker != NULL)) {
+	if (locker != NULL) {
 		PSI_CALL(start_rwlock_rdwait)(locker, file_name, line);
 		ret = rw_lock_s_lock_low(lock, pass, file_name, line);
 		PSI_CALL(end_rwlock_rdwait)(locker, 0);

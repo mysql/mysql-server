@@ -87,6 +87,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_schema_object.cc
   ../../sql/ndb_schema_dist.cc
   ../../sql/ndb_component.cc
+  ../../sql/ndb_local_schema.cc
 )
 
 # Include directories used when building ha_ndbcluster
@@ -179,9 +180,9 @@ IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE MATCHES "Debug")
   SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DVM_TRACE -DNDB_DEBUG -DERROR_INSERT -DARRAY_GUARD -DACC_SAFE_QUEUE -DAPI_TRACE")
 ELSE()
   IF(WITH_ERROR_INSERT)
-    SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DERROR_INSERT")
+    ADD_DEFINITIONS(-DERROR_INSERT)
   ENDIF()
-  SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DNDEBUG")
+  ADD_DEFINITIONS(-DNDEBUG)
 ENDIF()
 
 SET(NDB_CCFLAGS "${NDB_CCFLAGS} $ENV{NDB_EXTRA_FLAGS}") 

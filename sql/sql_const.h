@@ -30,8 +30,8 @@
 #define MAX_FIELD_NAME 34			/* Max colum name length +2 */
 #define MAX_SYS_VAR_LENGTH 32
 #define MAX_KEY MAX_INDEXES                     /* Max used keys */
-#define MAX_REF_PARTS 16			/* Max parts used as ref */
-#define MAX_KEY_LENGTH 3072			/* max possible key */
+#define MAX_REF_PARTS 16U			/* Max parts used as ref */
+#define MAX_KEY_LENGTH 3072U			/* max possible key */
 #if SIZEOF_OFF_T > 4
 #define MAX_REFLENGTH 8				/* Max length for record ref */
 #else
@@ -51,7 +51,8 @@
 #define MAX_BIT_FIELD_LENGTH    64      /* Max length in bits for bit fields */
 
 #define MAX_DATE_WIDTH		10	/* YYYY-MM-DD */
-#define MAX_TIME_WIDTH		23	/* -DDDDDD HH:MM:SS.###### */
+#define MAX_TIME_WIDTH          10      /* -838:59:59 */
+#define MAX_TIME_FULL_WIDTH     23      /* -DDDDDD HH:MM:SS.###### */
 #define MAX_DATETIME_FULL_WIDTH 29	/* YYYY-MM-DD HH:MM:SS.###### AM */
 #define MAX_DATETIME_WIDTH	19	/* YYYY-MM-DD HH:MM:SS */
 #define MAX_DATETIME_COMPRESSED_WIDTH 14  /* YYYYMMDDHHMMSS */
@@ -67,8 +68,8 @@
 
 #define MAX_SELECT_NESTING (sizeof(nesting_map)*8-1)
 
-#define MAX_SORT_MEMORY 2048*1024
-#define MIN_SORT_MEMORY 32*1024
+#define DEFAULT_SORT_MEMORY (256U* 1024U)
+#define MIN_SORT_MEMORY     (32U * 1024U)
 
 /* Some portable defines */
 
@@ -190,11 +191,31 @@
 #define MATCHING_ROWS_IN_OTHER_TABLE 10
 
 /*
-  Subquery materialization-related constants
+  Constants related to the use of temporary tables in query execution.
+  Lookup and write operations are currently assumed to be equally costly
+  (concerns HEAP_TEMPTABLE_ROW_COST and DISK_TEMPTABLE_ROW_COST).
 */
-#define HEAP_TEMPTABLE_LOOKUP_COST 0.05
-#define DISK_TEMPTABLE_LOOKUP_COST 1.0
-#define RAID_BLOCK_SIZE 1024
+/*
+  Creating a Heap temporary table is by benchmark found to be as costly as
+  writing 10 rows into the table.
+*/
+#define HEAP_TEMPTABLE_CREATE_COST    2.0
+/*
+  Writing a row to or reading a row from a Heap temporary table is equivalent
+  to evaluating a row in the join engine.
+*/
+#define HEAP_TEMPTABLE_ROW_COST       0.2
+/*
+  Creating a MyISAM table is 20 times slower than creating a Heap table.
+*/
+#define DISK_TEMPTABLE_CREATE_COST   40.0
+/*
+  Generating MyIsam rows sequentially is 2 times slower than generating
+  Heap rows, when number of rows is greater than 1000. However, we do not have
+  benchmarks for very large tables, so setting this factor conservatively to
+  be 5 times slower (ie the cost is 1.0).
+*/
+#define DISK_TEMPTABLE_ROW_COST       1.0
 
 #define MY_CHARSET_BIN_MB_MAXLEN 1
 

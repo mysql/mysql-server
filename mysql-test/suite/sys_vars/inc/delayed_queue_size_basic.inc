@@ -90,9 +90,9 @@ SELECT @@delayed_queue_size;
 #       Test if accessing session delayed_queue_size gives error           #
 ############################################################################
 
---Error 1229
+--Error ER_GLOBAL_VARIABLE
 SET @@session.delayed_queue_size = 0;
---Error 1238
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@session.delayed_queue_size;
 
 --echo '#----------------------FN_DYNVARS_026_06------------------------#'
@@ -133,7 +133,7 @@ SELECT @@delayed_queue_size = @@global.delayed_queue_size;
 #   Check if delayed_queue_size can be accessed with and without @@ sign  #
 ###########################################################################
 
---Error 1229
+--Error ER_GLOBAL_VARIABLE
 SET delayed_queue_size = 1;
 SELECT @@delayed_queue_size;
 --Error ER_PARSE_ERROR

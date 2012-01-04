@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -29,7 +29,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "ut0byte.h"
 
 /** printf(3) format used for printing DB_TRX_ID and other system fields */
-#define TRX_ID_FMT		"%llX"
+#define TRX_ID_FMT		IB_ID_FMT
 
 /** maximum length that a formatted trx_t::id could take, not including
 the terminating NUL character. */
@@ -60,8 +60,6 @@ typedef struct trx_struct	trx_t;
 typedef struct trx_lock_struct	trx_lock_t;
 /** Transaction system */
 typedef struct trx_sys_struct	trx_sys_t;
-/** Doublewrite information */
-typedef struct trx_doublewrite_struct	trx_doublewrite_t;
 /** Signal */
 typedef struct trx_sig_struct	trx_sig_t;
 /** Rollback segment */

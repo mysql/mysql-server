@@ -253,6 +253,7 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
     break;
     
   case SystemError::CopySubscriptionRef:
+    CRASH_INSERTION(1003);
     BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "it could not copy a subscription during node restart. "

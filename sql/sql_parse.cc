@@ -98,6 +98,10 @@
 #include "opt_explain.h"
 #include "sql_rewrite.h"
 
+#include <algorithm>
+using std::max;
+using std::min;
+
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 /**
@@ -159,6 +163,14 @@ const LEX_STRING command_name[]={
 const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
 };
+
+
+Log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
+                              &LOCK_log_throttle_qni,
+                              Log_throttle::LOG_THROTTLE_WINDOW_SIZE,
+                              slow_log_print,
+                              "throttle: %10lu 'index "
+                              "not used' warning(s) suppressed.");
 
 
 #ifdef HAVE_REPLICATION
@@ -486,14 +498,11 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_TRUNCATE]|=        CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_LOAD]|=            CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_DROP_INDEX]|=      CF_PREOPEN_TMP_TABLES;
-  sql_command_flags[SQLCOM_CREATE_VIEW]|=     CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_UPDATE]|=          CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_UPDATE_MULTI]|=    CF_PREOPEN_TMP_TABLES;
-  sql_command_flags[SQLCOM_INSERT]|=          CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_INSERT_SELECT]|=   CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_DELETE]|=          CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_DELETE_MULTI]|=    CF_PREOPEN_TMP_TABLES;
-  sql_command_flags[SQLCOM_REPLACE]|=         CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_REPLACE_SELECT]|=  CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_SELECT]|=          CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_SET_OPTION]|=      CF_PREOPEN_TMP_TABLES;
@@ -654,6 +663,8 @@ static void handle_bootstrap_impl(THD *thd)
     query= (char *) thd->memdup_w_gap(buffer, length + 1,
                                       thd->db_length + 1 +
                                       QUERY_CACHE_FLAGS_SIZE);
+    size_t db_len= 0;
+    memcpy(query + length + 1, (char *) &db_len, sizeof(size_t));
     thd->set_query_and_id(query, length, thd->charset(), next_query_id());
     DBUG_PRINT("query",("%-.4096s",thd->query()));
 #if defined(ENABLED_PROFILING)
@@ -833,15 +844,20 @@ bool do_command(THD *thd)
   */
   DEBUG_SYNC(thd, "before_do_command_net_read");
 
-  #ifdef HAVE_PSI_INTERFACE
-  net->mysql_socket_idle= TRUE;
-  #endif
-
+  /*
+    Because of networking layer callbacks in place,
+    this call will maintain the following instrumentation:
+    - IDLE events
+    - SOCKET events
+    - STATEMENT events
+    - STAGE events
+    when reading a new network packet.
+    In particular, a new instrumented statement is started.
+    See init_net_server_extension()
+  */
+  thd->m_server_idle= true;
   packet_length= my_net_read(net);
-
-  #ifdef HAVE_PSI_INTERFACE
-  net->mysql_socket_idle= FALSE;
-  #endif
+  thd->m_server_idle= false;
 
   if (packet_length == packet_error)
   {
@@ -849,11 +865,19 @@ bool do_command(THD *thd)
 		       net->error,
 		       vio_description(net->vio)));
 
+    /* Instrument this broken statement as "statement/com/error" */
+    thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
+                                                 com_statement_info[COM_END].m_key);
+
     /* Check if we can continue without closing the connection */
 
     /* The error must be set. */
     DBUG_ASSERT(thd->is_error());
     thd->protocol->end_statement();
+
+    /* Mark the statement completed. */
+    MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+    thd->m_statement_psi= NULL;
 
     if (net->error != 3)
     {
@@ -901,6 +925,8 @@ bool do_command(THD *thd)
   return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));
 
 out:
+  /* The statement instrumentation must be closed in all cases. */
+  DBUG_ASSERT(thd->m_statement_psi == NULL);
   DBUG_RETURN(return_value);
 }
 #endif  /* EMBEDDED_LIBRARY */
@@ -997,10 +1023,6 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length)
 {
-#ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_statement_locker_state state;
-#endif
-
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
@@ -1017,10 +1039,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       (char *) thd->security_ctx->host_or_ip);
 
   /* Performance Schema Interface instrumentation, begin */
-  thd->m_statement_psi= MYSQL_START_STATEMENT(& state, com_statement_info[command].m_key,
-                                              thd->db, thd->db_length);
-  THD_STAGE_INFO(thd, stage_init);
-  
+  thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
+                                               com_statement_info[command].m_key);
+
   thd->set_command(command);
   /*
     Commands which always take a long time are logged into
@@ -1205,6 +1226,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 /* PSI end */
       MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+      thd->m_statement_psi= NULL;
 
 /* DTRACE end */
       if (MYSQL_QUERY_DONE_ENABLED())
@@ -1230,7 +1252,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         (char *) thd->security_ctx->host_or_ip);
 
 /* PSI begin */
-      thd->m_statement_psi= MYSQL_START_STATEMENT(& state,
+      thd->m_statement_psi= MYSQL_START_STATEMENT(& thd->m_statement_state,
                                                   com_statement_info[command].m_key,
                                                   thd->db, thd->db_length);
       THD_STAGE_INFO(thd, stage_init);
@@ -1390,6 +1412,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_REFRESH:
   {
     int not_used;
+
+    /*
+      Initialize thd->lex since it's used in many base functions, such as
+      open_tables(). Otherwise, it remains unitialized and may cause crash
+      during execution of COM_REFRESH.
+    */
+    lex_start(thd);
+    
     status_var_increment(thd->status_var.com_stat[SQLCOM_FLUSH]);
     ulong options= (ulong) (uchar) packet[0];
     if (trans_commit_implicit(thd))
@@ -1472,14 +1502,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     general_log_print(thd, command, NullS);
     status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS]);
     calc_sum_of_all_status(&current_global_status_var);
-    if (!(uptime= (ulong) (thd->start_time - server_start_time)))
+    if (!(uptime= (ulong) (thd->start_time.tv_sec - server_start_time)))
       queries_per_second1000= 0;
     else
       queries_per_second1000= thd->query_id * LL(1000) / uptime;
 
     length= my_snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
-                        "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
+                        "Slow queries: %llu  Opens: %llu  Flush tables: %lu  "
                         "Open tables: %u  Queries per second avg: %u.%03u",
                         uptime,
                         (int) thread_count, (ulong) thd->query_id,
@@ -1579,15 +1609,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   log_slow_statement(thd);
 
   THD_STAGE_INFO(thd, stage_cleaning_up);
+
   thd->reset_query();
   thd->set_command(COM_SLEEP);
-  dec_thread_running();
-  thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
-  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
+
+  dec_thread_running();
+  thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
+  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
   /* DTRACE instrumentation, end */
   if (MYSQL_QUERY_DONE_ENABLED() || MYSQL_COMMAND_DONE_ENABLED())
@@ -1628,25 +1660,29 @@ void log_slow_statement(THD *thd)
   */
   if (thd->enable_slow_log)
   {
-    ulonglong end_utime_of_query= thd->current_utime();
+    bool warn_no_index= ((thd->server_status &
+                          (SERVER_QUERY_NO_INDEX_USED |
+                           SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
+                         opt_log_queries_not_using_indexes &&
+                         !(sql_command_flags[thd->lex->sql_command] &
+                           CF_STATUS_COMMAND));
+    bool log_this_query=  ((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
+                           warn_no_index) &&
+                          (thd->get_examined_row_count() >=
+                           thd->variables.min_examined_row_limit);
+    bool suppress_logging= log_throttle_qni.log(thd, warn_no_index);
 
-    if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
-         ((thd->server_status &
-           (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-          opt_log_queries_not_using_indexes &&
-          !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
-        thd->get_examined_row_count() >= thd->variables.min_examined_row_limit)
+    if (!suppress_logging && log_this_query)
     {
       THD_STAGE_INFO(thd, stage_logging_slow_query);
       thd->status_var.long_query_count++;
+
       if (thd->rewritten_query.length())
         slow_log_print(thd,
                        thd->rewritten_query.c_ptr_safe(),
-                       thd->rewritten_query.length(), 
-                       end_utime_of_query);
+                       thd->rewritten_query.length());
       else
-        slow_log_print(thd, thd->query(), thd->query_length(), 
-                       end_utime_of_query);
+        slow_log_print(thd, thd->query(), thd->query_length());
     }
   }
   DBUG_VOID_RETURN;
@@ -1817,13 +1853,30 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
     pos--;
     packet_length--;
   }
-  /* We must allocate some extra memory for query cache */
+  /* We must allocate some extra memory for query cache 
+
+    The query buffer layout is:
+       buffer :==
+            <statement>   The input statement(s)
+            '\0'          Terminating null char  (1 byte)
+            <length>      Length of following current database name (size_t)
+            <db_name>     Name of current database
+            <flags>       Flags struct
+  */
   if (! (query= (char*) thd->memdup_w_gap(packet,
                                           packet_length,
-                                          1 + thd->db_length +
+                                          1 + sizeof(size_t) + thd->db_length +
                                           QUERY_CACHE_FLAGS_SIZE)))
       return TRUE;
   query[packet_length]= '\0';
+  /*
+    Space to hold the name of the current database is allocated.  We
+    also store this length, in case current database is changed during
+    execution.  We might need to reallocate the 'query' buffer
+  */
+  char *len_pos = (query + packet_length + 1);
+  memcpy(len_pos, (char *) &thd->db_length, sizeof(size_t));
+    
   thd->set_query(query, packet_length);
   thd->rewritten_query.free();                 // free here lest PS break
 
@@ -3099,6 +3152,18 @@ end_with_restore_list:
   case SQLCOM_INSERT:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
+
+    /*
+      Since INSERT DELAYED doesn't support temporary tables, we could
+      not pre-open temporary tables for SQLCOM_INSERT / SQLCOM_REPLACE.
+      Open them here instead.
+    */
+    if (first_table->lock_type != TL_WRITE_DELAYED)
+    {
+      if ((res= open_temporary_tables(thd, all_tables)))
+        break;
+    }
+
     if ((res= insert_precheck(thd, all_tables)))
       break;
 
@@ -5424,7 +5489,7 @@ bool check_stack_overrun(THD *thd, long margin,
       Do not use stack for the message buffer to ensure correct
       behaviour in cases we have close to no stack left.
     */
-    char* ebuff= new char[MYSQL_ERRMSG_SIZE];
+    char* ebuff= new (std::nothrow) char[MYSQL_ERRMSG_SIZE];
     if (ebuff) {
       my_snprintf(ebuff, MYSQL_ERRMSG_SIZE, ER(ER_STACK_OVERRUN_NEED_MORE),
                   stack_used, my_thread_stack_size, margin);
@@ -5511,7 +5576,7 @@ void THD::reset_for_next_command()
   thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
 
-  thd->query_start_used= 0;
+  thd->query_start_used= thd->query_start_usec_used= 0;
   thd->is_fatal_error= thd->time_zone_used= 0;
   /*
     Clear the status flag that are expected to be cleared at the
@@ -5925,6 +5990,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 {
   register Create_field *new_field;
   LEX  *lex= thd->lex;
+  uint8 datetime_precision= decimals ? atoi(decimals) : 0;
   DBUG_ENTER("add_field_to_list");
 
   if (check_string_char_length(field_name, "", NAME_CHAR_LEN,
@@ -5965,7 +6031,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     */
     if (default_value->type() == Item::FUNC_ITEM && 
         !(((Item_func*)default_value)->functype() == Item_func::NOW_FUNC &&
-         type == MYSQL_TYPE_TIMESTAMP))
+         real_type_with_now_as_default(type) &&
+         default_value->decimals == datetime_precision))
     {
       my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
       DBUG_RETURN(1);
@@ -5987,7 +6054,9 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     }
   }
 
-  if (on_update_value && type != MYSQL_TYPE_TIMESTAMP)
+  if (on_update_value &&
+      (!real_type_with_now_on_update(type) ||
+       on_update_value->decimals != datetime_precision))
   {
     my_error(ER_INVALID_ON_UPDATE, MYF(0), field_name->str);
     DBUG_RETURN(1);
@@ -6784,7 +6853,7 @@ bool check_simple_select()
     char command[80];
     Lex_input_stream *lip= & thd->m_parser_state->m_lip;
     strmake(command, lip->yylval->symbol.str,
-	    min(lip->yylval->symbol.length, sizeof(command)-1));
+	    min<size_t>(lip->yylval->symbol.length, sizeof(command)-1));
     my_error(ER_CANT_USE_OPTION_HERE, MYF(0), command);
     return 1;
   }

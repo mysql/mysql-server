@@ -49,6 +49,8 @@
 #include <my_bitmap.h>
 #include "rpl_utility.h"
 
+using std::min;
+using std::max;
 
 /**
   BINLOG_CHECKSUM variable.
@@ -357,7 +359,7 @@ int convert_handler_error(int error, THD* thd, TABLE *table)
     actual_error= (thd->is_error() ? thd->get_stmt_da()->sql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
         sql_print_warning("Unknown error detected %d in handler", error);
   }
 
@@ -444,11 +446,9 @@ static char *slave_load_file_stem(char *buf, uint file_id,
   fn_format(buf,PREFIX_SQL_LOAD,slave_load_tmpdir, "", MY_UNPACK_FILENAME);
   to_unix_path(buf);
 
-  buf = strend(buf);
-  buf = int10_to_str(::server_id, buf, 10);
-  *buf++ = '-';
-  buf = int10_to_str(event_server_id, buf, 10);
-  *buf++ = '-';
+  buf= strend(buf);
+  int appended_length= sprintf(buf, "%s-%d-", server_uuid, event_server_id);
+  buf+= appended_length;
   res= int10_to_str(file_id, buf, 10);
   strmov(res, ext);                             // Add extension last
   return res;                                   // Pointer to extension
@@ -467,7 +467,7 @@ static void cleanup_load_tmpdir()
   MY_DIR *dirp;
   FILEINFO *file;
   uint i;
-  char fname[FN_REFLEN], prefbuf[31], *p;
+  char fname[FN_REFLEN], prefbuf[TEMP_FILE_MAX_LEN], *p;
 
   if (!(dirp=my_dir(slave_load_tmpdir,MYF(0))))
     return;
@@ -481,9 +481,7 @@ static void cleanup_load_tmpdir()
      LOAD DATA.
   */
   p= strmake(prefbuf, STRING_WITH_LEN(PREFIX_SQL_LOAD));
-  p= int10_to_str(::server_id, p, 10);
-  *(p++)= '-';
-  *p= 0;
+  sprintf(p,"%s-",server_uuid);
 
   for (i=0 ; i < (uint)dirp->number_off_files; i++)
   {
@@ -699,7 +697,8 @@ Log_event::Log_event(enum_event_cache_type cache_type_arg,
     We can't call my_time() here as this would cause a call before
     my_init() is called
   */
-  when=		0;
+  when.tv_sec=  0;
+  when.tv_usec= 0;
   log_pos=	0;
 
 #ifndef MCP_BUG52305
@@ -723,7 +722,8 @@ Log_event::Log_event(const char* buf,
 #ifndef MYSQL_CLIENT
   thd = 0;
 #endif
-  when = uint4korr(buf);
+  when.tv_sec= uint4korr(buf);
+  when.tv_usec= 0;
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
 #ifndef MCP_BUG52305
   unmasked_server_id = server_id;
@@ -1266,8 +1266,8 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
     of 13 bytes, whereas LOG_EVENT_MINIMAL_HEADER_LEN is 19 bytes (it's
     "minimal" over the set {MySQL >=4.0}).
   */
-  uint header_size= min(description_event->common_header_len,
-                        LOG_EVENT_MINIMAL_HEADER_LEN);
+  uint header_size= min<uint>(description_event->common_header_len,
+                              LOG_EVENT_MINIMAL_HEADER_LEN);
 
   LOCK_MUTEX;
   DBUG_PRINT("info", ("my_b_tell: %lu", (ulong) my_b_tell(file)));
@@ -1292,8 +1292,10 @@ failed my_b_read"));
   uint max_allowed_packet= thd ? thd->variables.max_allowed_packet : ~(ulong)0;
 #endif
 
-  if (data_len > max(max_allowed_packet,
-                     opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER))
+  ulong const max_size=
+    max<ulong>(max_allowed_packet,
+               opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER);
+  if (data_len > max_size)
   {
     error = "Event too big";
     goto err;
@@ -1644,7 +1646,7 @@ void Log_event::print_header(IO_CACHE* file,
   DBUG_ENTER("Log_event::print_header");
 
   my_b_printf(file, "#");
-  print_timestamp(file);
+  print_timestamp(file, NULL);
   my_b_printf(file, " server id %lu  end_log_pos %s ", (ulong) server_id,
               llstr(log_pos,llbuff));
 
@@ -1670,7 +1672,7 @@ void Log_event::print_header(IO_CACHE* file,
     my_off_t i;
 
     /* Header len * 4 >= header len * (2 chars + space + extra space) */
-    char *h, hex_string[LOG_EVENT_MINIMAL_HEADER_LEN*4]= {0};
+    char *h, hex_string[49]= {0};
     char *c, char_string[16+1]= {0};
 
     /* Pretty-print event common header if header is exactly 19 bytes */
@@ -1699,7 +1701,7 @@ void Log_event::print_header(IO_CACHE* file,
 	 i < size;
 	 i++, ptr++)
     {
-      my_snprintf(h, 4, "%02x ", *ptr);
+      my_snprintf(h, 4, (i % 16 <= 7) ? "%02x " : " %02x", *ptr);
       h += 3;
 
       *c++= my_isalnum(&my_charset_bin, *ptr) ? *ptr : '.';
@@ -1725,13 +1727,15 @@ void Log_event::print_header(IO_CACHE* file,
 	c= char_string;
 	h= hex_string;
       }
-      else if (i % 8 == 7) *h++ = ' ';
     }
     *c= '\0';
-
+    DBUG_ASSERT(hex_string[48] == 0);
+    
     if (hex_string[0])
     {
       char emit_buf[256];
+      // Right-pad hex_string with spaces, up to 48 characters.
+      memset(h, ' ', (sizeof(hex_string) -1) - (h - hex_string));
       size_t const bytes_written=
         my_snprintf(emit_buf, sizeof(emit_buf),
                     "# %8.8lx %-48.48s |%s|\n",
@@ -1757,16 +1761,17 @@ void Log_event::print_header(IO_CACHE* file,
   @param[in] file              IO cache
   @param[in] prt               Pointer to string
   @param[in] length            String length
+  @param[in] esc_all        Whether to escape all characters
 */
 
 static void
-my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
+my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length, bool esc_all)
 {
   const uchar *s;
   my_b_printf(file, "'");
   for (s= ptr; length > 0 ; s++, length--)
   {
-    if (*s > 0x1F)
+    if (*s > 0x1F && !esc_all)
       my_b_write(file, s, 1);
     else
     {
@@ -1776,6 +1781,13 @@ my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
     }
   }
   my_b_printf(file, "'");
+}
+
+
+static void
+my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
+{
+  my_b_write_quoted(file, ptr, length, false);
 }
 
 
@@ -1999,6 +2011,17 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       return 4;
     }
 
+  case MYSQL_TYPE_TIMESTAMP2:
+    {
+      char buf[MAX_DATE_STRING_REP_LENGTH];
+      struct timeval tm;
+      my_timestamp_from_binary(&tm, ptr, meta);
+      int buflen= my_timeval_to_str(&tm, buf, meta);
+      my_b_write(file, buf, buflen);
+      my_snprintf(typestr, typestr_length, "TIMESTAMP(%d)", meta);
+      return my_timestamp_binary_length(meta);
+    }
+
   case MYSQL_TYPE_DATETIME:
     {
       size_t d, t;
@@ -2012,15 +2035,39 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       return 8;
     }
 
+  case MYSQL_TYPE_DATETIME2:
+    {
+      char buf[MAX_DATE_STRING_REP_LENGTH];
+      MYSQL_TIME ltime;
+      longlong packed= my_datetime_packed_from_binary(ptr, meta);
+      TIME_from_longlong_datetime_packed(&ltime, packed);
+      int buflen= my_datetime_to_str(&ltime, buf, meta);
+      my_b_write_quoted(file, (uchar *) buf, buflen);
+      my_snprintf(typestr, typestr_length, "DATETIME(%d)", meta);
+      return my_datetime_binary_length(meta);
+    }
+
   case MYSQL_TYPE_TIME:
     {
       uint32 i32= uint3korr(ptr);
       my_b_printf(file, "'%02d:%02d:%02d'",
                   i32 / 10000, (i32 % 10000) / 100, i32 % 100);
-      my_snprintf(typestr,  typestr_length, "TIME");
+      my_snprintf(typestr, typestr_length, "TIME");
       return 3;
     }
-    
+
+  case MYSQL_TYPE_TIME2:
+    {
+      char buf[MAX_DATE_STRING_REP_LENGTH];
+      MYSQL_TIME ltime;
+      longlong packed= my_time_packed_from_binary(ptr, meta);
+      TIME_from_longlong_time_packed(&ltime, packed);
+      int buflen= my_time_to_str(&ltime, buf, meta);
+      my_b_write_quoted(file, (uchar *) buf, buflen);
+      my_snprintf(typestr, typestr_length, "TIME(%d)", meta);
+      return my_time_binary_length(meta);
+    }
+
   case MYSQL_TYPE_NEWDATE:
     {
       uint32 tmp= uint3korr(ptr);
@@ -2047,16 +2094,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       my_snprintf(typestr, typestr_length, "DATE");
       return 3;
     }
-    
-  case MYSQL_TYPE_DATE:
-    {
-      uint i32= uint3korr(ptr);
-      my_b_printf(file , "'%04d:%02d:%02d'",
-                  (i32 / (16L * 32L)), (i32 / 32L % 16L), (i32 % 32L));
-      my_snprintf(typestr, typestr_length, "DATE");
-      return 3;
-    }
-  
+
   case MYSQL_TYPE_YEAR:
     {
       uint32 i32= *ptr;
@@ -2441,17 +2479,22 @@ void Log_event::print_base64(IO_CACHE* file,
   Log_event::print_timestamp()
 */
 
-void Log_event::print_timestamp(IO_CACHE* file, time_t* ts)
+void Log_event::print_timestamp(IO_CACHE* file, time_t *ts)
 {
   struct tm *res;
+  /*
+    In some Windows versions timeval.tv_sec is defined as "long",
+    not as "time_t" and can be of a different size.
+    Let's use a temporary time_t variable to execute localtime()
+    with a correct argument type.
+  */
+  time_t ts_tmp= ts ? *ts : when.tv_sec;
   DBUG_ENTER("Log_event::print_timestamp");
-  if (!ts)
-    ts = &when;
 #ifdef MYSQL_SERVER				// This is always false
   struct tm tm_tmp;
-  localtime_r(ts,(res= &tm_tmp));
+  localtime_r(&ts_tmp, (res= &tm_tmp));
 #else
-  res=localtime(ts);
+  res= localtime(&ts_tmp);
 #endif
 
   my_b_printf(file,"%02d%02d%02d %2d:%02d:%02d",
@@ -2476,12 +2519,48 @@ Log_event::continue_group(Relay_log_info *rli)
   return Log_event::do_shall_skip(rli);
 }
 
+/**
+   @param end_group_sets_max_dbs  when true the group terminal event 
+                          can carry partition info, see a note below.
+   @return true  in cases the current event
+                 carries partition data,
+           false otherwise
 
-bool Log_event::contains_partition_info()
+   @note Some events combination may force to adjust partition info.
+         In particular BEGIN, BEGIN_LOAD_QUERY_EVENT, COMMIT
+         where none of the events holds partitioning data
+         causes the sequential applying of the group through
+         assigning OVER_MAX_DBS_IN_EVENT_MTS to mts_accessed_dbs
+         of COMMIT query event.
+*/
+bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
 {
-  return (get_type_code() == TABLE_MAP_EVENT) ||
-    (get_type_code() == QUERY_EVENT && !ends_group() && !starts_group()) ||
-    (get_type_code() == EXECUTE_LOAD_QUERY_EVENT);
+  bool res;
+
+  switch (get_type_code()) {
+  case TABLE_MAP_EVENT:
+  case EXECUTE_LOAD_QUERY_EVENT:
+    res= true;
+
+    break;
+    
+  case QUERY_EVENT:
+    if (ends_group() && end_group_sets_max_dbs)
+    {
+      res= true;
+      static_cast<Query_log_event*>(this)->mts_accessed_dbs=
+        OVER_MAX_DBS_IN_EVENT_MTS;
+    }
+    else
+      res= (!ends_group() && !starts_group()) ? true : false;
+
+    break;
+
+  default:
+    res= false;
+  }
+
+  return res;
 }
 
 /**
@@ -2568,27 +2647,44 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     {
       Log_event *ptr_curr_ev= this;
       // B-event is appended to the Deferred Array associated with GCAP
-      insert_dynamic(&rli->curr_group_da,
-                     (uchar*) &ptr_curr_ev);
+      insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
 
       DBUG_ASSERT(rli->curr_group_da.elements == 1);
 
       // mark the current group as started with explicit B-event
       rli->curr_group_seen_begin= TRUE;
-
+      // pessimistic preparation of no db:s will be found in events
+      rli->mts_end_group_sets_max_dbs= true;
       return ret_worker;
     } 
   }
 
   // mini-group representative
 
-  if (contains_partition_info())
+  if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
   {
     int i= 0;
     num_dbs= mts_number_dbs();
     List_iterator<char> it(*get_mts_dbs(&rli->mts_coor_mem_root));
     it++;
 
+    /*
+      Bug 12982188 - MTS: SBR ABORTS WITH ERROR 1742 ON LOAD DATA
+      Logging on master can create a group with no events holding
+      the partition info.
+      The following assert proves there's the only reason
+      for such group.
+    */
+    DBUG_ASSERT(!ends_group() ||
+                (rli->mts_end_group_sets_max_dbs &&
+                 rli->curr_group_da.elements == 2 &&
+                 ((*(Log_event **)
+                   dynamic_array_ptr(&rli->curr_group_da,
+                                     rli->curr_group_da.elements - 1))-> 
+                  get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
+
+    // partioning info is found which drops the flag
+    rli->mts_end_group_sets_max_dbs= false;
     ret_worker= rli->last_assigned_worker;
     if (num_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
     {
@@ -2758,7 +2854,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       ret_worker->checkpoint_notified= TRUE;
     }
     ptr_group->checkpoint_seqno= rli->checkpoint_seqno;
-    ptr_group->ts= when + (time_t) exec_time;       // Seconds_behind_master related
+    ptr_group->ts= when.tv_sec + (time_t) exec_time; // Seconds_behind_master related
     rli->checkpoint_seqno++;
 
     // reclaiming resources allocated during the group scheduling
@@ -2891,7 +2987,16 @@ int Log_event::apply_event(Relay_log_info *rli)
 
   DBUG_ASSERT(actual_exec_mode == EVENT_EXEC_PARALLEL);
   DBUG_ASSERT(!(rli->curr_group_seen_begin && ends_group()) ||
-              rli->last_assigned_worker);
+              rli->last_assigned_worker ||
+              /*
+                Begin_load_query can be logged w/o db info and within
+                Begin/Commit. That's a pattern forcing sequential
+                applying of LOAD-DATA.
+              */
+              (*(Log_event **)
+               dynamic_array_ptr(&rli->curr_group_da,
+                                 rli->curr_group_da.elements - 1))-> 
+              get_type_code() == BEGIN_LOAD_QUERY_EVENT);
 
   worker= NULL;
   rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
@@ -3219,6 +3324,14 @@ bool Query_log_event::write(IO_CACHE* file)
     }
   }
 
+  if (thd && thd->query_start_usec_used)
+  {
+    *start++= Q_MICROSECONDS;
+    get_time();
+    int3store(start, when.tv_usec);
+    start+= 3;
+  }
+
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
@@ -3316,7 +3429,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   error_code= errcode;
 
   time(&end_time);
-  exec_time = (ulong) (end_time  - thd_arg->start_time);
+  exec_time = (ulong) (end_time  - thd_arg->start_time.tv_sec);
   /**
     @todo this means that if we have no catalog, then it is replicated
     as an existing catalog of length zero. is that safe? /sven
@@ -3592,6 +3705,7 @@ code_name(int code)
   case Q_TABLE_MAP_FOR_UPDATE_CODE: return "Q_TABLE_MAP_FOR_UPDATE_CODE";
   case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
   case Q_UPDATED_DB_NAMES: return "Q_UPDATED_DB_NAMES";
+  case Q_MICROSECONDS: return "Q_MICROSECONDS";
   }
   sprintf(buf, "CODE#%d", code);
   return buf;
@@ -3677,7 +3791,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       be even bigger, but this will suffice to catch most corruption
       errors that can lead to a crash.
     */
-    if (status_vars_len > min(data_len, MAX_SIZE_LOG_EVENT_STATUS))
+    if (status_vars_len > min<ulong>(data_len, MAX_SIZE_LOG_EVENT_STATUS))
     {
       DBUG_PRINT("info", ("status_vars_len (%u) > data_len (%lu); query= 0",
                           status_vars_len, data_len));
@@ -3796,6 +3910,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       data_written= master_data_written= uint4korr(pos);
       pos+= 4;
       break;
+    case Q_MICROSECONDS:
+    {
+      CHECK_SPACE(pos, end, 3);
+      when.tv_usec= uint3korr(pos);
+      pos+= 3;
+      break;
+    }
     case Q_INVOKER:
     {
       CHECK_SPACE(pos, end, 1);
@@ -3913,7 +4034,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 					 PRINT_EVENT_INFO* print_event_info)
 {
   // TODO: print the catalog ??
-  char buff[40],*end;				// Enough for SET TIMESTAMP
+  char buff[48], *end;  // Enough for "SET TIMESTAMP=1305535348.123456"
   bool different_db= 1;
   uint32 tmp;
 
@@ -3939,9 +4060,12 @@ void Query_log_event::print_query_header(IO_CACHE* file,
       my_b_printf(file, "use %s%s\n", db, print_event_info->delimiter);
   }
 
-  end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
+  end=int10_to_str((long) when.tv_sec, strmov(buff,"SET TIMESTAMP="),10);
+  if (when.tv_usec)
+    end+= sprintf(end, ".%06d", (int) when.tv_usec);
   end= strmov(end, print_event_info->delimiter);
   *end++='\n';
+  DBUG_ASSERT(end < buff + sizeof(buff));
   my_b_write(file, (uchar*) buff, (uint) (end-buff));
   if ((!print_event_info->thread_id_printed ||
        ((flags & LOG_EVENT_THREAD_SPECIFIC_F) &&
@@ -4096,10 +4220,10 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 */
 void Query_log_event::attach_temp_tables_worker(THD *thd)
 {
-  if (!is_mts_worker(thd) || !contains_partition_info())
+  if (!is_mts_worker(thd) || (ends_group() || starts_group()))
     return;
   
-  // in over max-db:s case just one special parttion is locked
+  // in over max-db:s case just one special partition is locked
   int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
               1 : mts_accessed_dbs);
 
@@ -4302,7 +4426,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   */
   if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
-    thd->set_time((time_t) when);
+    thd->set_time(&when);
     thd->set_query_and_id((char*)query_arg, q_len_arg,
                           thd->charset(), next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
@@ -4736,7 +4860,7 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
     print_header(head, print_event_info, FALSE);
     my_b_printf(head, "\tStart: binlog v %d, server v %s created ",
                 binlog_version, server_version);
-    print_timestamp(head);
+    print_timestamp(head, NULL);
     if (created)
       my_b_printf(head," at startup");
     my_b_printf(head, "\n");
@@ -4802,7 +4926,7 @@ bool Start_log_event_v3::write(IO_CACHE* file)
   int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
   memcpy(buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
   if (!dont_set_created)
-    created= when= get_time();
+    created= get_time();
   int4store(buff + ST_CREATED_OFFSET,created);
   return (write_header(file, sizeof(buff)) ||
           wrapper_my_b_safe_write(file, (uchar*) buff, sizeof(buff)) ||
@@ -5241,7 +5365,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
   int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
   memcpy((char*) buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
   if (!dont_set_created)
-    created= when= get_time();
+    created= get_time();
   int4store(buff + ST_CREATED_OFFSET,created);
   buff[ST_COMMON_HEADER_LEN_OFFSET]= LOG_EVENT_HEADER_LEN;
   memcpy((char*) buff+ST_COMMON_HEADER_LEN_OFFSET + 1, (uchar*) post_header_len,
@@ -5686,7 +5810,7 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 {
   time_t end_time;
   time(&end_time);
-  exec_time = (ulong) (end_time  - thd_arg->start_time);
+  exec_time = (ulong) (end_time  - thd_arg->start_time.tv_sec);
   /* db can never be a zero pointer in 4.0 */
   db_len = (uint32) strlen(db);
   table_name_len = (uint32) strlen(table_name);
@@ -6051,7 +6175,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   */
   if (rpl_filter->db_ok(thd->db))
   {
-    thd->set_time((time_t) when);
+    thd->set_time(&when);
     thd->set_query_id(next_query_id());
     thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
 
@@ -6466,7 +6590,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
     if (rli->is_parallel_exec())
-      rli->reset_notified_checkpoint(0, when + (time_t) exec_time);
+      rli->reset_notified_checkpoint(0, when.tv_sec + (time_t) exec_time);
 
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
@@ -7117,7 +7241,7 @@ bool User_var_log_event::write(IO_CACHE* file)
   char buf[UV_NAME_LEN_SIZE];
   char buf1[UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE + 
 	    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE];
-  uchar buf2[max(8, DECIMAL_MAX_FIELD_SIZE + 2)], *pos= buf2;
+  uchar buf2[MY_MAX(8, DECIMAL_MAX_FIELD_SIZE + 2)], *pos= buf2;
   uint unsigned_len= 0;
   uint buf1_length;
   ulong event_length;
@@ -7666,7 +7790,7 @@ void Create_file_log_event::pack_info(Protocol *protocol)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  char fname_buf[FN_REFLEN+10];
+  char fname_buf[FN_REFLEN+TEMP_FILE_MAX_LEN];
   char *ext;
   int fd = -1;
   IO_CACHE file;
@@ -7848,7 +7972,7 @@ int Append_block_log_event::get_create_or_append() const
 
 int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  char fname[FN_REFLEN+10];
+  char fname[FN_REFLEN+TEMP_FILE_MAX_LEN];
   int fd;
   int error = 1;
   DBUG_ENTER("Append_block_log_event::do_apply_event");
@@ -7998,7 +8122,7 @@ void Delete_file_log_event::pack_info(Protocol *protocol)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  char fname[FN_REFLEN+10];
+  char fname[FN_REFLEN+TEMP_FILE_MAX_LEN];
   char *ext= slave_load_file_stem(fname, file_id, server_id, ".data");
   mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   strmov(ext, ".info");
@@ -8098,7 +8222,7 @@ void Execute_load_log_event::pack_info(Protocol *protocol)
 
 int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  char fname[FN_REFLEN+10];
+  char fname[FN_REFLEN+TEMP_FILE_MAX_LEN];
   char *ext;
   int fd;
   int error= 1;
@@ -8371,7 +8495,7 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
   int error;
 
   buf= (char*) my_malloc(q_len + 1 - (fn_pos_end - fn_pos_start) +
-                         (FN_REFLEN + 10) + 10 + 8 + 5, MYF(MY_WME));
+                         (FN_REFLEN + TEMP_FILE_MAX_LEN) + 10 + 8 + 5, MYF(MY_WME));
 
   DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error", my_free(buf); buf= NULL;);
 
@@ -8911,7 +9035,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     trigger false warnings.
    */
 #ifndef HAVE_purify
-  DBUG_DUMP("row_data", row_data, min(length, 32));
+  DBUG_DUMP("row_data", row_data, min<size_t>(length, 32));
 #endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
@@ -9155,7 +9279,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    thd->set_time((time_t) when);
+    thd->set_time(&when);
 #ifndef MCP_WL5353
     if (m_extra_row_data)
         thd->binlog_row_event_extra_data = m_extra_row_data;
@@ -9217,6 +9341,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     // row processing loop
 
+    /* 
+      set the initial time of this ROWS statement if it was not done
+      before in some other ROWS event. 
+     */
+    const_cast<Relay_log_info*>(rli)->set_row_stmt_start_timestamp();
+
     const uchar *saved_m_curr_row= m_curr_row;
     while (error == 0)
     {
@@ -9243,7 +9373,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
         if (idempotent_error || ignored_error)
         {
-          if (global_system_variables.log_warnings)
+          if (log_warnings)
             slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
                                     get_type_str(),
                                     const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
@@ -9322,7 +9452,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         ignored_error_code(convert_handler_error(error, thd, table)))
     {
 
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
         slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
@@ -9754,7 +9884,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   {
     m_coltype= reinterpret_cast<uchar*>(m_memory);
     for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
-      m_coltype[i]= m_table->field[i]->type();
+      m_coltype[i]= m_table->field[i]->binlog_type();
   }
 
   /*
@@ -11033,6 +11163,50 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
   return res;
 }
 
+/* 
+  Check if we are already spending too much time on this statement.
+  if we are, warn user that it might be because table does not have
+  a PK, but only if the warning was not printed before for this STMT.
+
+  @param type          The event type code.
+  @param table_name    The name of the table that the slave is 
+                       operating.
+  @param is_index_scan States whether the slave is doing an index scan 
+                       or not.
+  @param rli           The relay metadata info.
+*/
+static inline 
+void issue_long_find_row_warning(Log_event_type type, 
+                                 const char *table_name,
+                                 bool is_index_scan,
+                                 const Relay_log_info *rli)
+{
+  if ((log_warnings > 1 && 
+      !const_cast<Relay_log_info*>(rli)->is_long_find_row_note_printed()))
+  {
+    time_t now= my_time(0);
+    time_t stmt_ts= const_cast<Relay_log_info*>(rli)->get_row_stmt_start_timestamp();
+    
+    DBUG_EXECUTE_IF("inject_long_find_row_note", 
+                    stmt_ts-=(LONG_FIND_ROW_THRESHOLD*2););
+
+    long delta= (long) (now - stmt_ts);
+
+    if (delta > LONG_FIND_ROW_THRESHOLD)
+    {
+      const_cast<Relay_log_info*>(rli)->set_long_find_row_note_printed();
+      const char* evt_type= type == DELETE_ROWS_EVENT ? " DELETE" : "n UPDATE";
+      const char* scan_type= is_index_scan ? "scanning an index" : "scanning the table";
+
+      sql_print_information("The slave is applying a ROW event on behalf of a%s statement "
+                            "on table %s and is currently taking a considerable amount "
+                            "of time (%ld seconds). This is due to the fact that it is %s "
+                            "while looking up records to be processed. Consider adding a "
+                            "primary key (or unique key) to the table to improve "
+                            "performance.", evt_type, table_name, delta, scan_type);
+    }
+  }
+}
 
 /**
   Locate the current row in event's table.
@@ -11072,6 +11246,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   int error= 0;
   KEY *keyinfo;
   uint key;
+  bool is_table_scan= false, is_index_scan= false;
 
   /*
     rpl_row_tabledefs.test specifies that
@@ -11281,6 +11456,8 @@ INDEX_SCAN:
       }
     }
 
+    is_index_scan=true;
+
     /*
       In case key is not unique, we still have to iterate over records found
       and find the one which is identical to the row given. A copy of the 
@@ -11341,6 +11518,8 @@ TABLE_SCAN:
       goto err;
     }
 
+    is_table_scan= true;
+
     /* Continue until we find the right record or have made a full loop */
     do
     {
@@ -11394,10 +11573,18 @@ TABLE_SCAN:
     goto err;
   }
 ok:
+  if (is_table_scan || is_index_scan)
+    issue_long_find_row_warning(get_type_code(), m_table->alias, 
+                                is_index_scan, rli);
+
   table->default_column_bitmaps();
   DBUG_RETURN(0);
 
 err:
+  if (is_table_scan || is_index_scan)
+    issue_long_find_row_warning(get_type_code(), m_table->alias, 
+                                is_index_scan, rli);
+
   table->default_column_bitmaps();
   DBUG_RETURN(error);
 }

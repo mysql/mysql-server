@@ -34,7 +34,10 @@ public:
     BoundEQ = 4,
     // stats scan parameter ids
     StatSaveSize = 11,
-    StatSaveScale = 12
+    StatSaveScale = 12,
+
+    // Invalid bound
+    InvalidBound = 0xFFFFFFFF
   };
   enum ErrorCode {
     InvalidAttrInfo = 4110,

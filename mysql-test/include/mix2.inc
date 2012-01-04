@@ -2099,7 +2099,7 @@ INSERT INTO t1 VALUES ('other', 'anyvalue');
 INSERT INTO t2 VALUES ('old');
 INSERT INTO t2 VALUES ('other');
 
---error ER_FOREIGN_DUPLICATE_KEY
+--error ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO
 UPDATE t1 SET field1 = 'other' WHERE field2 = 'somevalu';
 
 DROP TABLE t2;

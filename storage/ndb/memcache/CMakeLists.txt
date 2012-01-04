@@ -79,6 +79,8 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/Config_v1.cc
     src/ConnQueryPlanSet.cc
     src/DataTypeHandler.cc
+    src/ExpireTime.cc
+    src/ExternalValue.cc
     src/KeyPrefix.cc
     src/NdbInstance.cc
     src/Operation.cc
@@ -91,6 +93,8 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/hash_item_util.c
     src/ndb_configuration.cc
     src/ndb_engine_private.h
+    src/ndb_error_logger.cc
+    src/ndb_flush.cc
     src/ndb_pipeline.cc
     src/ndb_worker.cc
     src/schedulers
@@ -165,6 +169,10 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/sandbox.sh.in
 # Build the perl include file used by mtr
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl.in
                ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl)
+
+# Copy the SQL script into /scripts/ in the build directory.
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql
+               ${CMAKE_BINARY_DIR}/scripts/ndb_memcache_metadata.sql COPYONLY)
                
 ######### TARGETS ############
 # Build the convenience library
@@ -199,19 +207,23 @@ set_target_properties(ndb_engine PROPERTIES
                       LINK_FLAGS "${FINAL_LINK_FLAGS}")
 
 ############ INSTALLER RULES #########
-# Install the ndb_engine.so module
+### Install the ndb_engine.so module
+###
 install(TARGETS ndb_engine DESTINATION ${INSTALL_LIBDIR})
 
-# Install the metadata.sql script
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
-        DESTINATION ${INSTALL_MYSQLSHAREDIR})
 
 ### Install the memcache-api directory  ################
-install(DIRECTORY DESTINATION memcache-api)
-install(PROGRAMS sandbox.sh DESTINATION memcache-api)
-install(FILES README DESTINATION memcache-api)
+###
+SET(MEMCACHE_API_DIR "${INSTALL_MYSQLSHAREDIR}/memcache-api")
+install(DIRECTORY DESTINATION ${MEMCACHE_API_DIR} )
+install(PROGRAMS sandbox.sh DESTINATION  ${MEMCACHE_API_DIR})
+install(FILES README DESTINATION  ${MEMCACHE_API_DIR})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
-        DESTINATION memcache-api)
+        DESTINATION  ${MEMCACHE_API_DIR})
+# Upgrader scripts:
+install(DIRECTORY DESTINATION ${MEMCACHE_API_DIR}/upgrade)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/update_to_1.2.sql
+        DESTINATION ${MEMCACHE_API_DIR}/upgrade)
         
 # memcached_path.pl is also installed, for use by installed mtr
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl

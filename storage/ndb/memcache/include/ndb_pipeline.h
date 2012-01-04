@@ -42,7 +42,7 @@ class Scheduler;
    and largest slab classes (as powers of 2) and the size of a slab. 
 */
 #define ALLIGATOR_POWER_SMALLEST 4      
-#define ALLIGATOR_POWER_LARGEST 14
+#define ALLIGATOR_POWER_LARGEST 16
 #define ALLIGATOR_SLAB_SIZE (128 * 1024)
 #define ALLIGATOR_ARRAY_SIZE (ALLIGATOR_POWER_LARGEST+1)
 
@@ -100,7 +100,7 @@ DECLARE_FUNCTIONS_WITH_C_LINKAGE
 ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *);
 
 /** create a generic request pipeline */
-ndb_pipeline * get_request_pipeline();
+ndb_pipeline * get_request_pipeline(int thd_id);
 
 /** call into a pipeline for its own statistics */
 void pipeline_add_stats(ndb_pipeline *, const char *key, ADD_STAT, const void *);
@@ -123,8 +123,10 @@ void pipeline_io_completed(ndb_pipeline *, struct workitem *);
 /***** MEMORY MANAGEMENT APIS *****/
 
 /* High-level (pool) API. 
+   memory_pool_alloc() uses the pipeline slab allocator to allocate small
+   areas, and the system malloc() to allocate larger ones.
    A single call to memory_pool_free() will free all objects allocated 
-   from the pool
+   from the pool.  
 */
 /** create a pool of allocations, all with the same life cycle */
 memory_pool * pipeline_create_memory_pool(ndb_pipeline *);

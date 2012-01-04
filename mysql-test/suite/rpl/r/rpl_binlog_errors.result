@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 #######################################################################
 ####################### PART 1: MASTER TESTS ##########################
@@ -176,7 +179,7 @@ SHOW WARNINGS;
 Level	Code	Message
 SET GLOBAL debug="+d,fault_injection_registering_index";
 FLUSH LOGS;
-ERROR HY000: Can't open file: 'master-bin.000002' (errno: 1)
+ERROR HY000: Can't open file: 'master-bin.000002' (errno: 1 - Operation not permitted)
 SET GLOBAL debug="-d,fault_injection_registering_index";
 SHOW BINARY LOGS;
 ERROR HY000: You are not using binary logging
@@ -190,7 +193,7 @@ DROP TABLE t5;
 include/rpl_restart_server.inc [server_number=1]
 SET GLOBAL debug="+d,fault_injection_openning_index";
 FLUSH LOGS;
-ERROR HY000: Can't open file: 'master-bin.index' (errno: 1)
+ERROR HY000: Can't open file: 'master-bin.index' (errno: 1 - Operation not permitted)
 SET GLOBAL debug="-d,fault_injection_openning_index";
 RESET MASTER;
 ERROR HY000: Binlog closed, cannot RESET MASTER
@@ -204,7 +207,7 @@ include/rpl_restart_server.inc [server_number=1]
 ###################### TEST #12
 SET GLOBAL debug="+d,fault_injection_new_file_rotate_event";
 FLUSH LOGS;
-ERROR HY000: Can't open file: 'master-bin' (errno: 2)
+ERROR HY000: Can't open file: 'master-bin' (errno: 2 - No such file or directory)
 SET GLOBAL debug="-d,fault_injection_new_file_rotate_event";
 RESET MASTER;
 ERROR HY000: Binlog closed, cannot RESET MASTER

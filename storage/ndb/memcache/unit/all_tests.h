@@ -52,6 +52,7 @@ TESTCASE run_allocator_test;
 TESTCASE run_pool_test;
 TESTCASE run_tsv_test;
 TESTCASE run_queue_test;
+TESTCASE run_lookup_test;
 
 #ifdef HARNESS
 
@@ -63,6 +64,7 @@ struct test_item all_tests[] = {
   { 0, "pool",            run_pool_test,        REQ_NDB_CONNECTION },
   { 1, "tsv",             run_tsv_test,         REQ_NONE },
   { 1, "queue",           run_queue_test,       REQ_NONE },
+  { 1, "lookup table",    run_lookup_test,      REQ_NONE },
   { 0, NULL, NULL, 0 }
 };
 

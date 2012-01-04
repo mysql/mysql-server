@@ -17,6 +17,7 @@
 
 #include "sql_priv.h"
 #include "sql_select.h"
+#include "sql_optimizer.h"
 #include "abstract_query_plan.h"
 
 
@@ -414,7 +415,7 @@ namespace AQP
     case JT_REF:
     {
       DBUG_ASSERT(join_tab->ref.key >= 0);
-      DBUG_ASSERT(join_tab->ref.key < MAX_KEY);
+      DBUG_ASSERT((uint)join_tab->ref.key < MAX_KEY);
       m_index_no= join_tab->ref.key;
 
       /*

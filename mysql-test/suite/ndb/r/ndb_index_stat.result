@@ -2,16 +2,14 @@ DROP TABLE IF EXISTS t1, t2;
 set @is_enable_default = @@global.ndb_index_stat_enable;
 set @is_enable = 1;
 set @is_enable = NULL;
-# is_enable_on=1 is_enable_off=0
+# is_enable_on=0 is_enable_off=0
 # ndb_index_stat_enable - before
 show global variables like 'ndb_index_stat_enable';
 Variable_name	Value
-ndb_index_stat_enable	OFF
+ndb_index_stat_enable	ON
 show local variables like 'ndb_index_stat_enable';
 Variable_name	Value
-ndb_index_stat_enable	OFF
-set @@global.ndb_index_stat_enable = 1;
-set @@local.ndb_index_stat_enable = 1;
+ndb_index_stat_enable	ON
 # ndb_index_stat_enable - after
 show global variables like 'ndb_index_stat_enable';
 Variable_name	Value
@@ -567,7 +565,7 @@ test.t1	analyze	status	OK
 drop table t1;
 set @is_enable = @is_enable_default;
 set @is_enable = NULL;
-# is_enable_on=0 is_enable_off=1
+# is_enable_on=0 is_enable_off=0
 # ndb_index_stat_enable - before
 show global variables like 'ndb_index_stat_enable';
 Variable_name	Value
@@ -575,14 +573,10 @@ ndb_index_stat_enable	ON
 show local variables like 'ndb_index_stat_enable';
 Variable_name	Value
 ndb_index_stat_enable	ON
-set @@local.ndb_index_stat_enable = 0;
-set @@global.ndb_index_stat_enable = 0;
-drop table mysql.ndb_index_stat_sample;
-drop table mysql.ndb_index_stat_head;
 # ndb_index_stat_enable - after
 show global variables like 'ndb_index_stat_enable';
 Variable_name	Value
-ndb_index_stat_enable	OFF
+ndb_index_stat_enable	ON
 show local variables like 'ndb_index_stat_enable';
 Variable_name	Value
-ndb_index_stat_enable	OFF
+ndb_index_stat_enable	ON

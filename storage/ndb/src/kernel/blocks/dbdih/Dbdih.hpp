@@ -841,7 +841,7 @@ private:
   void sendINCL_NODEREQ(Signal *, Uint32 nodeId, Uint32);
   void sendMASTER_GCPREQ(Signal *, Uint32 nodeId, Uint32);
   void sendMASTER_LCPREQ(Signal *, Uint32 nodeId, Uint32);
-  void sendMASTER_LCPCONF(Signal * signal);
+  void sendMASTER_LCPCONF(Signal * signal, Uint32 fromLine);
   void sendSTART_RECREQ(Signal *, Uint32 nodeId, Uint32);
   void sendSTART_INFOREQ(Signal *, Uint32 nodeId, Uint32);
   void sendSTART_TOREQ(Signal *, Uint32 nodeId, Uint32);
@@ -1886,7 +1886,8 @@ private:
   } m_local_lcp_state;
 
   // MT LQH
-  Uint32 c_fragments_per_node;
+  Uint32 c_fragments_per_node_;
+  Uint32 getFragmentsPerNode();
   Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
     ndbrequire(!tFragPtr.isNull());
     Uint32 log_part_id = tFragPtr.p->m_log_part_id;

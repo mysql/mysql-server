@@ -31,6 +31,7 @@
 #include "NdbInstance.h"
 #include "thread_identifier.h"
 #include "Scheduler.h"
+#include "ExternalValue.h"
 
 /* A static global variable */
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
@@ -149,19 +150,19 @@ prefix_info_t get_prefix_info_for_key(int nkey, const char *key) {
 
 /* This function has C linkage */
 void disconnect_all() {
-  active_config->disconnectAll();
+  /* Run only at shutdown time.  Disabled to silence a warning about 
+     "Deleting Ndb_cluster_connection with Ndb-object not deleted" */
+  // active_config->disconnectAll();
 }
 
 
 /* This function has C linkage */
 void print_debug_startup_info() {
   int sz[4];
-  DEBUG_PRINT("  sizeof Ndb        : %lu", sz[0]=sizeof(Ndb));
-  DEBUG_PRINT("  sizeof NdbInstance: %lu", sz[1]=sizeof(NdbInstance));
-  DEBUG_PRINT("  sizeof QueryPlan  : %lu", sz[2]=sizeof(QueryPlan));
-  DEBUG_PRINT("  sizeof Record     : %lu (x3 per QueryPlan)", sz[3]=sizeof(Record));
-  DEBUG_PRINT("              TOTAL : %lu", sz[0]+sz[1]+sz[2]+(3*sz[3]));
-  DEBUG_PRINT("  sizeof workitem: %lu", sizeof(workitem));
+  DEBUG_PRINT("  sizeof Ndb           : %lu", sz[0]=sizeof(Ndb));
+  DEBUG_PRINT("  sizeof NdbInstance   : %lu", sz[1]=sizeof(NdbInstance));
+  DEBUG_PRINT("  sizeof workitem      : %lu", sizeof(workitem));
+  DEBUG_PRINT("  sizeof ExternalValue : %lu", sizeof(ExternalValue));
 }
 
 

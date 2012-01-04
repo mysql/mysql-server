@@ -67,3 +67,13 @@ SET_TARGET_PROPERTIES(mt_thr_config-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_MT_THR_CONFIG")
 TARGET_LINK_LIBRARIES(mt_thr_config-t ndbgeneral)
 
+ADD_EXECUTABLE(DynArr256-t DynArr256.cpp test_context.cpp)
+SET_TARGET_PROPERTIES(DynArr256-t
+                      PROPERTIES COMPILE_FLAGS "-DTAP_TEST")
+TARGET_LINK_LIBRARIES(DynArr256-t ndbkernel ndbsched ndberror
+                      ndbtransport
+		      ndbmgmcommon
+                      ndbmgmapi 
+                      ndbportlib
+		      ndbgeneral)
+

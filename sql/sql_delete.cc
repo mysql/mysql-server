@@ -25,20 +25,16 @@
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"                           // open_temprary_table
 #include "sql_table.h"                         // build_table_filename
-#include "lock.h"                              // unlock_table_name
 #include "sql_view.h"             // check_key_in_view, mysql_frm_type
-#include "sql_parse.h"            // mysql_init_select
 #include "sql_acl.h"              // *_ACL
 #include "filesort.h"             // filesort
-#include "sql_handler.h"          // mysql_ha_rm_tables
 #include "sql_select.h"
-#include "sp_head.h"
-#include "sql_trigger.h"
-#include "transaction.h"
 #include "opt_trace.h"                          // Opt_trace_object
 #include "opt_explain.h"
 #include "records.h"                            // init_read_record,
                                                 // end_read_record
+#include "sql_optimizer.h"                      // remove_eq_conds
+#include "sql_resolver.h"                       // setup_order, fix_inner_refs
 
 /**
   Implement DELETE SQL word.
@@ -314,10 +310,22 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(TRUE);
   }
+
   if (usable_index==MAX_KEY || (select && select->quick))
-    init_read_record(&info, thd, table, select, 1, 1, FALSE);
+    error= init_read_record(&info, thd, table, select, 1, 1, FALSE);
   else
-    init_read_record_idx(&info, thd, table, 1, usable_index, reverse);
+    error= init_read_record_idx(&info, thd, table, 1, usable_index, reverse);
+
+  if (error)
+  {
+    if (select)
+    {
+      delete select;
+      select= 0;
+    }
+    free_underlaid_joins(thd, select_lex);
+    DBUG_RETURN(TRUE);
+  }
 
   init_ftfuncs(thd, select_lex, 1);
   THD_STAGE_INFO(thd, stage_updating);
@@ -974,7 +982,8 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
   READ_RECORD info;
   ha_rows last_deleted= deleted;
   DBUG_ENTER("do_deletes_for_table");
-  init_read_record(&info, thd, table, NULL, 0, 1, FALSE);
+  if (init_read_record(&info, thd, table, NULL, 0, 1, FALSE))
+    DBUG_RETURN(1);
   /*
     Ignore any rows not found in reference tables as they may already have
     been deleted by foreign key handling

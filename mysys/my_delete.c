@@ -27,8 +27,11 @@ int my_delete(const char *name, myf MyFlags)
   {
     my_errno=errno;
     if (MyFlags & (MY_FAE+MY_WME))
-      my_error(EE_DELETE,MYF(ME_BELL+ME_WAITTANG+(MyFlags & ME_NOINPUT)),
-	       name,errno);
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(EE_DELETE, MYF(ME_BELL+ME_WAITTANG+(MyFlags & ME_NOINPUT)),
+               name, errno, my_strerror(errbuf, sizeof(errbuf), errno));
+    }
   }
   else if ((MyFlags & MY_SYNC_DIR) &&
            my_sync_dir_by_file(name, MyFlags))
@@ -118,8 +121,11 @@ int nt_share_delete(const char *name, myf MyFlags)
     my_errno= errno;
 
   if (MyFlags & (MY_FAE+MY_WME))
+  {
+    char errbuf[MYSYS_STRERROR_SIZE];
     my_error(EE_DELETE, MYF(ME_BELL + ME_WAITTANG + (MyFlags & ME_NOINPUT)),
-             name, my_errno);
+             name, my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+  }
   DBUG_RETURN(-1);
 }
 #endif

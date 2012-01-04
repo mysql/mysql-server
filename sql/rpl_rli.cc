@@ -31,6 +31,9 @@
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
 
+using std::min;
+using std::max;
+
 /*
   Please every time you add a new field to the relay log info, update
   what follows. For now, this is just used to get the number of
@@ -79,10 +82,11 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    rows_query_ev(NULL), last_event_start_time(0),
    slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
-   checkpoint_group(mts_checkpoint_group), mts_recovery_group_cnt(0),
+   checkpoint_group(opt_mts_checkpoint_group), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
-   sql_delay(0), sql_delay_end(0), m_flags(0)
+   sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
+   long_find_row_note_printed(false)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -572,7 +576,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   ulong log_name_extension;
   char log_name_tmp[FN_REFLEN]; //make a char[] from String
 
-  strmake(log_name_tmp, log_name->ptr(), min(log_name->length(), FN_REFLEN-1));
+  strmake(log_name_tmp, log_name->ptr(), min<uint32>(log_name->length(), FN_REFLEN-1));
 
   char *p= fn_ext(log_name_tmp);
   char *p_end;
@@ -582,7 +586,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     goto err;
   }
   // Convert 0-3 to 4
-  log_pos= max(log_pos, BIN_LOG_HEADER_SIZE);
+  log_pos= max<ulong>(log_pos, BIN_LOG_HEADER_SIZE);
   /* p points to '.' */
   log_name_extension= strtoul(++p, &p_end, 10);
   /*
@@ -1139,6 +1143,15 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   */
   thd->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
   thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+
+  /*
+    Reset state related to long_find_row notes in the error log:
+    - timestamp
+    - flag that decides whether the slave prints or not
+  */
+  reset_row_stmt_start_timestamp();
+  unset_long_find_row_note_printed();
+
   DBUG_VOID_RETURN;
 }
 

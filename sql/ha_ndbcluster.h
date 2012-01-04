@@ -291,13 +291,13 @@ class ha_ndbcluster: public handler
   ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                       void *seq_init_param, 
                                       uint n_ranges, uint *bufsz,
-                                      uint *flags, COST_VECT *cost);
+                                      uint *flags, Cost_estimate *cost);
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                uint *bufsz, uint *flags, COST_VECT *cost);
+                                uint *bufsz, uint *flags, Cost_estimate *cost);
 private:
   bool choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
                        uint *bufsz, uint *flags,
-                       COST_VECT *cost);
+                       Cost_estimate *cost);
 
 private:
   uint first_running_range;

@@ -1770,6 +1770,7 @@ private:
     Uint64 c_scan_count;
     Uint64 c_range_scan_count;
     Uint64 clocalReadCount;
+    Uint64 clocalWriteCount;
 
     // Resource usage counter(not monotonic)
     Uint32 cconcurrentOp;
@@ -1785,6 +1786,7 @@ private:
      c_scan_count(0),
      c_range_scan_count(0),
      clocalReadCount(0),
+     clocalWriteCount(0),
      cconcurrentOp(0) {}
 
     Uint32 build_event_rep(Signal* signal)
@@ -1803,6 +1805,7 @@ private:
       const Uint32 scan_count =       diff(signal, 15, c_scan_count);
       const Uint32 range_scan_count = diff(signal, 17, c_range_scan_count);
       const Uint32 localread_count = diff(signal, 19, clocalReadCount);
+      const Uint32 localwrite_count = diff(signal, 21, clocalWriteCount);
 
       signal->theData[0] = NDB_LE_TransReportCounters;
       signal->theData[1] = transCount;
@@ -1816,7 +1819,8 @@ private:
       signal->theData[9] = scan_count;
       signal->theData[10] = range_scan_count;
       signal->theData[11] = localread_count;
-      return 12;
+      signal->theData[12] = localwrite_count;
+      return 13;
     }
 
     Uint32 build_continueB(Signal* signal) const
@@ -1826,7 +1830,7 @@ private:
         &cattrinfoCount, &ctransCount, &ccommitCount,
         &creadCount, &csimpleReadCount, &cwriteCount,
         &cabortCount, &c_scan_count, &c_range_scan_count,
-        &clocalReadCount
+        &clocalReadCount, &clocalWriteCount
       };
       const size_t num = sizeof(vars)/sizeof(vars[0]);
 

@@ -145,25 +145,29 @@ bool Configuration::prefetchDictionary() {
 
 
 bool Configuration::readConfiguration() {  
-  config_v0 cfg0(this);
-  config_v1_0 cfg_v1_0(this);
-  config_v1_1 cfg_v1_1(this);
-
+  bool status = false;
+  
   if(config_version == CONFIG_VER_UNKNOWN)
     config_version = get_supported_version();
-
-  store_default_prefix();
   
-  switch(config_version) {
-    case CONFIG_VER_1_1:
-      return cfg_v1_1.read_configuration();
-    case CONFIG_VER_1_0:
-      return cfg_v1_0.read_configuration();
-    default:
-      return false;
-  }
-}
+  store_default_prefix();
 
+  if(config_version == CONFIG_VER_1_2) {
+    config_v1_2 cfg(this);
+    status = cfg.read_configuration();
+  }
+  else if(config_version == CONFIG_VER_1_1) {
+    config_v1_1 cfg(this);
+    status = cfg.read_configuration();
+  }
+  else if(config_version == CONFIG_VER_1_0) {
+    config_v1_0 cfg(this);
+    status = cfg.read_configuration();
+  }
+
+  return status;
+}
+  
 
 const KeyPrefix * Configuration::getPrefixByInfo(const prefix_info_t info) const {
   assert(info.prefix_id < nprefixes);
@@ -288,8 +292,16 @@ config_ver_enum Configuration::get_supported_version() {
   QueryPlan plan(& db, &ts_meta);
   // "initialized" is set only if the ndbmemcache.meta table exists:
   if(plan.initialized) {
+    if(fetch_meta_record(&plan, &db, "1.2")) {
+      DEBUG_PRINT("1.2");
+      return CONFIG_VER_1_2;
+    }
     if(fetch_meta_record(&plan, &db, "1.1")) {
       DEBUG_PRINT("1.1");
+      logger->log(LOG_WARNING, 0, "\n"
+                  "Configuration schema version 1.1 is installed. To upgrade\n"
+                  "to version 1.2, run the update_to_1.2.sql script "
+                  "and restart memcached.\n");
       return CONFIG_VER_1_1;
     }
     if(fetch_meta_record(&plan, &db, "1.0")) {

@@ -21,6 +21,8 @@
 
 /* Definitions for parameters to do with handler-routines */
 
+#include "my_pthread.h"
+#include <algorithm>
 #include "sql_const.h"
 #include "mysqld.h"                             /* server_id */
 #include "sql_plugin.h"        /* plugin_ref, st_plugin_int, plugin */
@@ -357,7 +359,7 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
 #define HA_LEX_CREATE_TABLE_LIKE 4
 #define HA_OPTION_NO_CHECKSUM	(1L << 17)
 #define HA_OPTION_NO_DELAY_KEY_WRITE (1L << 18)
-#define HA_MAX_REC_LENGTH	65535
+#define HA_MAX_REC_LENGTH	65535U
 
 /* Table caching type */
 #define HA_CACHE_TBL_NONTRANSACT 0
@@ -1189,73 +1191,96 @@ typedef struct st_range_seq_if
 uint16 &mrr_persistent_flag_storage(range_seq_t seq, uint idx);
 char* &mrr_get_ptr_by_idx(range_seq_t seq, uint idx);
 
-class COST_VECT
+/**
+  Used to store optimizer cost estimates.
+
+  The class consists of PODs only: default operator=, copy constructor
+  and destructor are used.
+ */
+class Cost_estimate
 { 
-public:
-  double io_count;     /* number of I/O                 */
-  double avg_io_cost;  /* cost of an average I/O oper.  */
-  double cpu_cost;     /* cost of operations in CPU     */
-  double mem_cost;     /* cost of used memory           */ 
-  double import_cost;  /* cost of remote operations     */
+private:
+  double io_cost;                               ///< cost of I/O operations
+  double cpu_cost;                              ///< cost of CPU operations
+  double import_cost;                           ///< cost of remote operations
+  double mem_cost;                              ///< memory used (bytes)
   
-  enum { IO_COEFF=1 };
-  enum { CPU_COEFF=1 };
-  enum { MEM_COEFF=1 };
-  enum { IMPORT_COEFF=1 };
+public:
 
-  COST_VECT() { zero(); }                              // keep gcc happy
+  /// The cost of one I/O operation
+  static double IO_BLOCK_READ_COST() { return  1.0; } 
 
-  double total_cost() 
-  {
-    return IO_COEFF*io_count*avg_io_cost + CPU_COEFF * cpu_cost +
-           MEM_COEFF*mem_cost + IMPORT_COEFF*import_cost;
+  Cost_estimate() :
+    io_cost(0),
+    cpu_cost(0),
+    import_cost(0),
+    mem_cost(0)
+  {}
+
+  /// Returns sum of time-consuming costs, i.e., not counting memory cost
+  double total_cost()      const { return io_cost + cpu_cost + import_cost; }
+  double get_io_cost()     const { return io_cost; }
+  double get_cpu_cost()    const { return cpu_cost; }
+  double get_import_cost() const { return import_cost; }
+  double get_mem_cost()    const { return mem_cost; }
+
+  /**
+    Whether or not all costs in the object are zero
+    
+    @return true if all costs are zero, false otherwise
+  */
+  bool is_zero() const
+  { 
+    return !(io_cost || cpu_cost || import_cost || mem_cost);
   }
 
-  void zero()
+  /// Reset all costs to zero
+  void reset()
   {
-    avg_io_cost= 1.0;
-    io_count= cpu_cost= mem_cost= import_cost= 0.0;
+    io_cost= cpu_cost= import_cost= mem_cost= 0;
   }
 
+  /// Multiply io, cpu and import costs by parameter
   void multiply(double m)
   {
-    io_count *= m;
+    io_cost *= m;
     cpu_cost *= m;
     import_cost *= m;
     /* Don't multiply mem_cost */
   }
 
-  void add(const COST_VECT* cost)
+  Cost_estimate& operator+= (const Cost_estimate &other)
   {
-    double io_count_sum= io_count + cost->io_count;
-    add_io(cost->io_count, cost->avg_io_cost);
-    io_count= io_count_sum;
-    cpu_cost += cost->cpu_cost;
-  }
-  void add_io(double add_io_cnt, double add_avg_cost)
-  {
-    double io_count_sum= io_count + add_io_cnt;
-    if (io_count_sum != 0.0)
-      avg_io_cost= (io_count * avg_io_cost + 
-                    add_io_cnt * add_avg_cost) / io_count_sum;
-    DBUG_ASSERT(!isnan(avg_io_cost));
-    io_count= io_count_sum;
+    io_cost+= other.io_cost;
+    cpu_cost+= other.cpu_cost;
+    import_cost+= other.import_cost;
+    mem_cost+= other.mem_cost;
+
+    return *this;
   }
 
-  /*
-    To be used when we go from old single value-based cost calculations to
-    the new COST_VECT-based.
-  */
-  void convert_from_cost(double cost)
+  Cost_estimate operator+ (const Cost_estimate &other)
   {
-    zero();
-    avg_io_cost= 1.0;
-    io_count= cost;
+    Cost_estimate result= *this;
+    result+= other;
+    return result;
   }
+
+  /// Add to IO cost
+  void add_io(double add_io_cost) { io_cost+= add_io_cost; }
+
+  /// Add to CPU cost
+  void add_cpu(double add_cpu_cost) { cpu_cost+= add_cpu_cost; }
+
+  /// Add to import cost
+  void add_import(double add_import_cost) { import_cost+= add_import_cost; }
+
+  /// Add to memory cost
+  void add_mem(double add_mem_cost) { mem_cost+= add_mem_cost; }
 };
 
 void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted, 
-                         COST_VECT *cost);
+                         Cost_estimate *cost);
 
 /*
   The below two are not used (and not handled) in this milestone of this WL
@@ -1370,10 +1395,12 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 
 /**
   Index creation context.
-  Created by handler::add_index() and freed by handler::final_add_index().
+  Created by handler::add_index() and destroyed by handler::final_add_index().
+  And finally freed at the end of the statement.
+  (Sql_alloc does not free in delete).
 */
 
-class handler_add_index
+class handler_add_index : public Sql_alloc
 {
 public:
   /* Table where the indexes are added */
@@ -1717,6 +1744,29 @@ public:
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
+  /**
+    Retrieves the names of the table and the key for which there was a
+    duplicate entry in the case of HA_ERR_FOREIGN_DUPLICATE_KEY.
+
+    If any of the table or key name is not available this method will return
+    false and will not change any of child_table_name or child_key_name.
+
+    @param child_table_name[out]    Table name
+    @param child_table_name_len[in] Table name buffer size
+    @param child_key_name[out]      Key name
+    @param child_key_name_len[in]   Key name buffer size
+
+    @retval  true                  table and key names were available
+                                   and were written into the corresponding
+                                   out parameters.
+    @retval  false                 table and key names were not available,
+                                   the out parameters were not touched.
+  */
+  virtual bool get_foreign_dup_key(char *child_table_name,
+                                   uint child_table_name_len,
+                                   char *child_key_name,
+                                   uint child_key_name_len)
+  { DBUG_ASSERT(false); return(false); }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
   {
     table= table_arg;
@@ -1746,9 +1796,11 @@ public:
   virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                               void *seq_init_param, 
                                               uint n_ranges, uint *bufsz,
-                                              uint *flags, COST_VECT *cost);
+                                              uint *flags, 
+                                              Cost_estimate *cost);
   virtual ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                        uint *bufsz, uint *flags, COST_VECT *cost);
+                                        uint *bufsz, uint *flags, 
+                                        Cost_estimate *cost);
   virtual int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                                     uint n_ranges, uint mode,
                                     HANDLER_BUFFER *buf);
@@ -2160,15 +2212,30 @@ public:
   { return (HA_ERR_WRONG_COMMAND); }
 
   uint max_record_length() const
-  { return min(HA_MAX_REC_LENGTH, max_supported_record_length()); }
+  {
+    using std::min;
+    return min(HA_MAX_REC_LENGTH, max_supported_record_length());
+  }
   uint max_keys() const
-  { return min(MAX_KEY, max_supported_keys()); }
+  {
+    using std::min;
+    return min(MAX_KEY, max_supported_keys());
+  }
   uint max_key_parts() const
-  { return min(MAX_REF_PARTS, max_supported_key_parts()); }
+  {
+    using std::min;
+    return min(MAX_REF_PARTS, max_supported_key_parts());
+  }
   uint max_key_length() const
-  { return min(MAX_KEY_LENGTH, max_supported_key_length()); }
+  {
+    using std::min;
+    return min(MAX_KEY_LENGTH, max_supported_key_length());
+  }
   uint max_key_part_length() const
-  { return min(MAX_KEY_LENGTH, max_supported_key_part_length()); }
+  {
+    using std::min;
+    return min(MAX_KEY_LENGTH, max_supported_key_part_length());
+  }
 
   virtual uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
   virtual uint max_supported_keys() const { return 0; }
@@ -2758,16 +2825,16 @@ public:
   int dsmrr_next(char **range_info);
 
   ha_rows dsmrr_info(uint keyno, uint n_ranges, uint keys, uint *bufsz,
-                     uint *flags, COST_VECT *cost);
+                     uint *flags, Cost_estimate *cost);
 
   ha_rows dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq, 
                             void *seq_init_param, uint n_ranges, uint *bufsz,
-                            uint *flags, COST_VECT *cost);
+                            uint *flags, Cost_estimate *cost);
 private:
   bool choose_mrr_impl(uint keyno, ha_rows rows, uint *flags, uint *bufsz, 
-                       COST_VECT *cost);
+                       Cost_estimate *cost);
   bool get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags, 
-                               uint *buffer_size, COST_VECT *cost);
+                               uint *buffer_size, Cost_estimate *cost);
 };
 	/* Some extern variables used with handlers */
 

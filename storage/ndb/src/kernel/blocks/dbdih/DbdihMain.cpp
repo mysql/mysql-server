@@ -1312,14 +1312,13 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   if (isNdbMtLqh())
   {
     jam();
-    c_fragments_per_node = getLqhWorkers();
+    c_fragments_per_node_ = 0;
     // try to get some LQH workers which initially handle no fragments
     if (ERROR_INSERTED(7215)) {
-      c_fragments_per_node = 1;
+      c_fragments_per_node_ = 1;
+      ndbout_c("Using %u fragments per node", c_fragments_per_node_);
     }
   }
-  ndbout_c("Using %u fragments per node", c_fragments_per_node);
-  
   ndb_mgm_get_int_parameter(p, CFG_DB_LCP_TRY_LOCK_TIMEOUT, 
                             &c_lcpState.m_lcp_trylock_timeout);
 
@@ -5618,6 +5617,11 @@ void
 Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
   jam();
 
+  if (ERROR_INSERTED(7230))
+  {
+    return;
+  }
+
   Uint32 oldNode = c_lcpMasterTakeOverState.failedNodeId;
 
   c_lcpMasterTakeOverState.minTableId = ~0;
@@ -5743,8 +5747,11 @@ void Dbdih::startRemoveFailedNode(Signal* signal, NodeRecordPtr failedNodePtr)
     signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
     signal->theData[1] = failedNodePtr.i;
     signal->theData[2] = 0; // Tab id
-    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
-  }    
+    if (!ERROR_INSERTED(7233))
+      sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    else
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 300, 3);
+  }
   else
   {
     if (ERROR_INSERTED(7194))
@@ -6327,6 +6334,11 @@ void Dbdih::removeNodeFromTables(Signal* signal,
     jam();
     if (tabPtr.i >= ctabFileSize){
       jam();
+      if (ERROR_INSERTED(7233))
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+      }
+
       removeNodeFromTablesComplete(signal, nodeId);
       return;
     }//if
@@ -6342,7 +6354,10 @@ void Dbdih::removeNodeFromTables(Signal* signal,
   signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
   signal->theData[1] = nodeId;
   signal->theData[2] = tabPtr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  if (!ERROR_INSERTED(7233))
+    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  else
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 300, 3);
 }
 
 void Dbdih::removeNodeFromTable(Signal* signal, 
@@ -6445,7 +6460,10 @@ void Dbdih::removeNodeFromTable(Signal* signal,
     signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
     signal->theData[1] = nodeId;
     signal->theData[2] = tabPtr.i;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    if (!ERROR_INSERTED(7233))
+      sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    else
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 300, 3);
     return;
   }
   
@@ -6691,8 +6709,11 @@ Dbdih::checkEmptyLcpComplete(Signal *signal){
     req->failedNodeId = c_lcpMasterTakeOverState.failedNodeId;
     sendLoopMacro(MASTER_LCPREQ, sendMASTER_LCPREQ, RNIL);
 
-  } else {
-    sendMASTER_LCPCONF(signal);
+  }
+  else
+  {
+    jam();
+    sendMASTER_LCPCONF(signal, __LINE__);
   }
 }
 
@@ -6725,7 +6746,15 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
     sendSignal(numberToRef(CMVMI, refToNode(newMasterBlockref)), 
                GSN_NDB_TAMPER, signal, 1, JBB);
   }
-  
+
+  if (ERROR_INSERTED(7231))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_MASTER_LCPREQ, signal,
+			1500, signal->getLength());
+    return;
+  }
+
   if (newMasterBlockref != cmasterdihref)
   {
     jam();
@@ -6749,43 +6778,73 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
     ndbrequire(0);
   }
 
+  if (c_lcpState.lcpStatus == LCP_INIT_TABLES)
+  {
+    jam();
+    c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
+  }
+
   if (ERROR_INSERTED(7209))
   {
     SET_ERROR_INSERT_VALUE(7210);
   }
-  
-  sendMASTER_LCPCONF(signal);
+
+  sendMASTER_LCPCONF(signal, __LINE__);
 }//Dbdih::execMASTER_LCPREQ()
 
 void
-Dbdih::sendMASTER_LCPCONF(Signal * signal){
-
-  if(!c_EMPTY_LCP_REQ_Counter.done()){
-    /**
-     * Have not received all EMPTY_LCP_REP 
-     * dare not answer MASTER_LCP_CONF yet
-     */
-    jam();
-    return;
-  }
-
-  if(!c_lcpState.m_MASTER_LCPREQ_Received){
+Dbdih::sendMASTER_LCPCONF(Signal * signal, Uint32 from)
+{
+  if (!c_lcpState.m_MASTER_LCPREQ_Received)
+  {
     jam();
     /**
      * Has not received MASTER_LCPREQ yet
      */
     return;
   }
-  
-  if(c_lcpState.lcpStatus == LCP_INIT_TABLES){
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  bool info = true;
+#else
+  bool info = false;
+#endif
+
+  if (ERROR_INSERTED(7230))
+  {
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 100, 1);
+    goto err7230;
+  }
+
+  if (!c_EMPTY_LCP_REQ_Counter.done())
+  {
+    /**
+     * Have not received all EMPTY_LCP_REP
+     * dare not answer MASTER_LCP_CONF yet
+     */
+    jam();
+    if (info)
+      infoEvent("from: %u : c_EMPTY_LCP_REQ_Counter.done() == false", from);
+    return;
+  }
+
+  if (c_lcpState.lcpStatus == LCP_INIT_TABLES)
+  {
     jam();
     /**
      * Still aborting old initLcpLab
      */
+    if (info)
+      infoEvent("from: %u : c_lcpState.lcpStatus == LCP_INIT_TABLES", from);
     return;
   }
 
-  if(c_lcpState.lcpStatus == LCP_COPY_GCI)
+err7230:
+  if (info)
+    infoEvent("from: %u : sendMASTER_LCPCONF", from);
+
+  if (c_lcpState.lcpStatus == LCP_COPY_GCI)
   {
     jam();
     /**
@@ -6880,6 +6939,13 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
   // that it's not sent again before another request comes in
   c_lcpState.m_MASTER_LCPREQ_Received = false;
 
+  CRASH_INSERTION(7232);
+
+  if (ERROR_INSERTED(7230))
+  {
+    return;
+  }
+
   if(c_lcpState.lcpStatus == LCP_TAB_SAVED){
 #ifdef VM_TRACE
     g_eventLogger->info("Sending extra GSN_LCP_COMPLETE_REP to new master");    
@@ -6887,11 +6953,12 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
     sendLCP_COMPLETE_REP(signal);
   }
 
-  if(!isMaster()){
+  if(!isMaster())
+  {
     c_lcpMasterTakeOverState.set(LMTOS_IDLE, __LINE__);
     checkLocalNodefailComplete(signal, failedNodeId, NF_LCP_TAKE_OVER);
   }
-  
+
   return;
 }
 
@@ -7034,6 +7101,16 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
   {
     ndbout_c("delaying MASTER_LCPCONF due to error 7194");
     sendSignalWithDelay(reference(), GSN_MASTER_LCPCONF, signal, 
+                        300, signal->getLength());
+    return;
+  }
+
+  if (ERROR_INSERTED(7230) &&
+      refToNode(signal->getSendersBlockRef()) != getOwnNodeId())
+  {
+    infoEvent("delaying MASTER_LCPCONF due to error 7230 (from %u)",
+              refToNode(signal->getSendersBlockRef()));
+    sendSignalWithDelay(reference(), GSN_MASTER_LCPCONF, signal,
                         300, signal->getLength());
     return;
   }
@@ -7467,6 +7544,42 @@ static Uint32 find_min_index(const Uint32* array, Uint32 cnt)
   return m;
 }
 
+Uint32
+Dbdih::getFragmentsPerNode()
+{
+  jam();
+  if (c_fragments_per_node_ != 0)
+  {
+    return c_fragments_per_node_;
+  }
+
+  c_fragments_per_node_ = getLqhWorkers();
+  if (c_fragments_per_node_ == 0)
+    c_fragments_per_node_ = 1; // ndbd
+
+  NodeRecordPtr nodePtr;
+  nodePtr.i = cfirstAliveNode;
+  do
+  {
+    jam();
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    Uint32 workers = getNodeInfo(nodePtr.i).m_lqh_workers;
+    if (workers == 0) // ndbd
+      workers = 1;
+
+    c_fragments_per_node_ = MIN(workers, c_fragments_per_node_);
+    nodePtr.i = nodePtr.p->nextNode;
+  } while (nodePtr.i != RNIL);
+
+  if (c_fragments_per_node_ == 0)
+  {
+    ndbassert(false);
+    c_fragments_per_node_ = 1;
+  }
+  ndbout_c("Using %u fragments per node", c_fragments_per_node_);
+  return c_fragments_per_node_;
+}
+
 void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 {
   Uint16 node_group_id[MAX_NDB_PARTITIONS];
@@ -7483,11 +7596,9 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   const Uint32 flags = req->requestInfo;
 
   Uint32 err = 0;
-  const Uint32 defaultFragments = 
-    c_fragments_per_node * cnoOfNodeGroups * cnoReplicas;
-  const Uint32 maxFragments =
-    MAX_FRAG_PER_LQH * (getLqhWorkers() ? getLqhWorkers() : 1) *
-    cnoOfNodeGroups * cnoReplicas;
+  const Uint32 defaultFragments =
+    getFragmentsPerNode() * cnoOfNodeGroups * cnoReplicas;
+  const Uint32 maxFragments = MAX_FRAG_PER_LQH * defaultFragments;
 
   do {
     NodeGroupRecordPtr NGPtr;
@@ -10887,7 +10998,14 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
   signal->theData[0] = DihContinueB::ZINIT_LCP;
   signal->theData[1] = c_lcpState.m_masterLcpDihRef;
   signal->theData[2] = 0;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  if (ERROR_INSERTED(7021))
+  {
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 3);
+  }
+  else
+  {
+    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  }
 }
 
 void
@@ -10947,27 +11065,13 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
 
-  if(c_lcpState.m_masterLcpDihRef != senderRef){
-    jam();
+  if (c_lcpState.m_masterLcpDihRef != senderRef ||
+      c_lcpState.m_masterLcpDihRef != cmasterdihref)
+  {
     /**
-     * This is LCP master takeover
+     * This is LCP master takeover...abort
      */
-#ifdef VM_TRACE
-    g_eventLogger->info("initLcpLab aborted due to LCP master takeover - 1");
-#endif
-    c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
-    sendMASTER_LCPCONF(signal);
-    return;
-  }
-
-  if(c_lcpState.m_masterLcpDihRef != cmasterdihref){
     jam();
-    /**
-     * Master take over but has not yet received MASTER_LCPREQ
-     */
-#ifdef VM_TRACE
-    g_eventLogger->info("initLcpLab aborted due to LCP master takeover - 2");
-#endif
     return;
   }
 
@@ -11034,6 +11138,11 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
 	  replicaCount++;
 	  replicaPtr.p->lcpOngoingFlag = true;
 	}
+        else if (replicaPtr.p->lcpOngoingFlag)
+        {
+          jam();
+          replicaPtr.p->lcpOngoingFlag = false;
+        }
       }
       
       fragPtr.p->noLcpReplicas = replicaCount;
@@ -11042,7 +11151,14 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
     signal->theData[0] = DihContinueB::ZINIT_LCP;
     signal->theData[1] = senderRef;
     signal->theData[2] = tabPtr.i + 1;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    if (ERROR_INSERTED(7021))
+    {
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 3);
+    }
+    else
+    {
+      sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    }
     return;
   }
 
@@ -11051,24 +11167,15 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
    */
   jam();
 
-  if (c_lcpState.m_masterLcpDihRef != reference()){
-    jam();
-    ndbrequire(!isMaster());
-    c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
-  } else {
-    jam();
-    ndbrequire(isMaster());
-  }
+  c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
 
   CRASH_INSERTION2(7023, isMaster());
   CRASH_INSERTION2(7024, !isMaster());
-  
-  jam();
+
   StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
-  sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal, 
-	     StartLcpConf::SignalLength, JBB);
-  return;
+  sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
+             StartLcpConf::SignalLength, JBB);
 }//Dbdih::initLcpLab()
 
 /* ------------------------------------------------------------------------- */
@@ -13903,8 +14010,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
      * LCP master take over
      */
     ndbrequire(isMaster());
-    ndbrequire(blockNo == DBDIH);
-    sendSignalWithDelay(reference(), GSN_LCP_COMPLETE_REP, signal, 100, 
+    sendSignalWithDelay(reference(), GSN_LCP_COMPLETE_REP, signal, 100,
 			signal->length());
     return;
   }
@@ -14190,7 +14296,10 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
     signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
     signal->theData[1] = tabPtr.p->tabRemoveNode;
     signal->theData[2] = tabPtr.i + 1;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    if (!ERROR_INSERTED(7233))
+      sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    else
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 300, 3);
     return;
     break;
   case TabRecord::US_INVALIDATE_NODE_LCP:
@@ -16114,8 +16223,8 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   case CheckNodeGroups::GetDefaultFragments:
     jam();
     ok = true;
-    sd->output = (cnoOfNodeGroups + sd->extraNodeGroups) 
-      * c_fragments_per_node * cnoReplicas;
+    sd->output = (cnoOfNodeGroups + sd->extraNodeGroups)
+      * getFragmentsPerNode() * cnoReplicas;
     break;
   }
   ndbrequire(ok);

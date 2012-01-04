@@ -38,8 +38,9 @@
 #include "Scheduler.h"
 #include "thread_identifier.h"
 #include "timing.h"
+#include "ndb_error_logger.h"
 
-/* A static global variable */
+/* Global variables */
 EXTENSION_LOGGER_DESCRIPTOR *logger;
 
 /* Static and local to this file */
@@ -205,6 +206,9 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   fetch_core_settings(ndb_eng, def_eng);
   nthreads = ndb_eng->server_options.nthreads;
 
+  /* Initialize the error handler */
+  ndb_error_logger_init(def_eng->server.core, ndb_eng->server_options.verbose);
+
   logger->log(LOG_WARNING, NULL, "Server started with %d threads.\n", nthreads);
   logger->log(LOG_WARNING, NULL, "Priming the pump ... ");
   timing_point(& pump_time);
@@ -224,7 +228,7 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   ndb_eng->pipelines  = malloc(nthreads * sizeof(void *));
   ndb_eng->schedulers = malloc(nthreads * sizeof(void *));
   for(i = 0 ; i < nthreads ; i++) {
-    ndb_eng->pipelines[i] = get_request_pipeline();
+    ndb_eng->pipelines[i] = get_request_pipeline(i);
     ndb_eng->schedulers[i] = 
       initialize_scheduler(ndb_eng->startup_options.scheduler, nthreads, i);
     if(ndb_eng->schedulers[i] == 0) {
@@ -661,7 +665,7 @@ static bool ndb_get_item_info(ENGINE_HANDLE *handle,
     item_info->cas = wqitem->cas ? *(wqitem->cas) : 0;
     item_info->exptime = 0;  
     item_info->nbytes = wqitem->value_size;
-    item_info->flags = 0;  /* FIXME: need to get flags from the workitem */
+    item_info->flags = wqitem->math_flags;
     item_info->clsid = slabs_clsid(default_handle(ndb_eng), wqitem->value_size);
     item_info->nkey = wqitem->base.nkey;
     item_info->nvalue = 1;  /* how many iovecs */
@@ -772,6 +776,8 @@ void read_cmdline_options(struct ndb_engine *ndb, struct default_engine *se,
       case 0: /* success */
         break;
   }
+  
+  global_max_item_size = se->config.item_size_max;
 }
 
 
@@ -787,6 +793,9 @@ int fetch_core_settings(struct ndb_engine *engine,
     { .key = "num_threads",
       .datatype = DT_SIZE,
       .value.dt_size = &engine->server_options.nthreads },
+    { .key = "verbosity",
+      .datatype = DT_SIZE,
+      .value.dt_size = &engine->server_options.verbose },
     { .key = NULL }
   };
   

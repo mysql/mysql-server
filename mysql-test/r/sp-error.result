@@ -2820,3 +2820,76 @@ H2
 
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
+#
+# Bug#13113222 RQG_SIGNAL_RESIGNAL FAILED WITH ASSERTION.
+#
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SELECT 'triggered p1';
+# This will trigger an error.
+SIGNAL SQLSTATE 'HY000';
+END|
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING SELECT 'triggered p2';
+# This will trigger a warning.
+SIGNAL SQLSTATE '01000';
+END|
+SET @old_max_error_count=  @@session.max_error_count;
+SET SESSION max_error_count= 0;
+CALL p1();
+triggered p1
+triggered p1
+CALL p2();
+SET SESSION max_error_count= @old_max_error_count;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+# Bug#12652873: 61392: Continue handler for NOT FOUND being triggered
+# from internal stored function.
+
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP TABLE IF EXISTS t1;
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+# f1() raises NOT_FOUND condition.
+# Raising NOT_FOUND can not be simulated by SIGNAL,
+# because SIGNAL would raise SQL-error in that case.
+
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+DECLARE v VARCHAR(5) DEFAULT -1;
+SELECT b FROM t1 WHERE a = 2 INTO v;
+RETURN v;
+END|
+
+# Here we check that the NOT_FOUND condition raised in f1()
+# is not visible in the outer function (f2), i.e. the continue
+# handler in f2() will not be called.
+
+CREATE FUNCTION f2() RETURNS INTEGER
+BEGIN
+DECLARE v INTEGER;
+DECLARE CONTINUE HANDLER FOR NOT FOUND
+SET @msg = 'Handler activated.';
+SELECT f1() INTO v;
+RETURN v;
+END|
+SET @msg = '';
+
+SELECT f2();
+f2()
+-1
+
+SELECT @msg;
+@msg
+
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP TABLE t1;

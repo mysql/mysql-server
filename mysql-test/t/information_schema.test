@@ -833,12 +833,12 @@ DROP FUNCTION func2;
 #
 # Bug#15307 GROUP_CONCAT() with ORDER BY returns empty set on information_schema
 #
-select column_type, group_concat(table_schema, '.', table_name), count(*) as num
-from information_schema.columns where
-table_schema='information_schema' and
-(column_type = 'varchar(7)' or column_type = 'varchar(20)'
- or column_type = 'varchar(27)')
-group by column_type order by num;
+SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name), COUNT(*) AS num
+FROM information_schema.columns WHERE
+table_schema='information_schema' AND
+(column_type = 'varchar(7)' OR column_type = 'varchar(20)'
+ OR column_type = 'varchar(30)')
+GROUP BY column_type ORDER BY num;
 
 #
 # Bug#19236 bad COLUMNS.CHARACTER_MAXIMUM_LENGHT and CHARACTER_OCTET_LENGTH
@@ -1815,6 +1815,24 @@ connection default;
 disconnect con12828477_1;
 disconnect con12828477_2;
 disconnect con12828477_3;
+
+--echo #
+--echo # Test case to test DATETIME_PRECISION of information_schema.columns table
+--echo # 
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+create database mysqltest;
+use mysqltest;
+create table mysqltest.t(a int, b date, c time, d datetime, e timestamp);
+create table mysqltest.t0(a int, b date, c time(0), d datetime(0), e timestamp(0));
+create table mysqltest.t1(a int, b date, c time(1), d datetime(1), e timestamp(1));
+create table mysqltest.t2(a int, b date, c time(2), d datetime(2), e timestamp(2));
+create table mysqltest.t3(a int, b date, c time(3), d datetime(3), e timestamp(3));
+create table mysqltest.t4(a int, b date, c time(4), d datetime(4), e timestamp(4));
+create table mysqltest.t5(a int, b date, c time(5), d datetime(5), e timestamp(5));
+create table mysqltest.t6(a int, b date, c time(6), d datetime(6), e timestamp(6));
+select TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATETIME_PRECISION from information_schema.columns where TABLE_SCHEMA='mysqltest';
 
 --echo #
 --echo # Clean-up.

@@ -52,7 +52,7 @@ struct allocation_reference {
   void * pointer;               /*! allocated region (or next array) */
   struct {
     unsigned  is_header   :  1;   /*! is this cell an array header? */ 
-    unsigned  _unused     :  1;   
+    unsigned  sys_malloc  :  1;   /*! set for malloc() allocations */
     unsigned  slab_class  :  6;   /*! slab class of the allocation */
     unsigned  cells_total : 10;   /*! total cells in this array */
     unsigned  cells_idx   : 10;   /*! index of next free cell */
@@ -73,7 +73,7 @@ void init_pool_header(allocation_reference *head, int slab_class);
 /* initialize a new pipeline for an NDB engine thread */
 ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *engine) {
   bool did_inc;
-  int id;
+  unsigned int id;
   thread_identifier * tid;
 
   /* Get my pipeline id */
@@ -85,15 +85,14 @@ ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *engine) {
   /* Fetch the partially initialized pipeline */
   ndb_pipeline * self = (ndb_pipeline *) engine->pipelines[id];
   
-  /* Set my id */
-  self->id = id;
-    
+  assert(self->id == id);
+  
   /* Set the pointer back to the engine */
   self->engine = engine;
   
   /* And the thread id */
   self->engine_thread_id = pthread_self(); 
-    
+
   /* Create and set a thread identity */
   tid = (thread_identifier *) memory_pool_alloc(self->pool, sizeof(thread_identifier));
   tid->pipeline = self;
@@ -109,13 +108,13 @@ ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *engine) {
 
 
 /* Allocate and initialize a generic request pipeline */
-ndb_pipeline * get_request_pipeline() { 
+ndb_pipeline * get_request_pipeline(int thd_id) { 
   /* Allocate the pipeline */
   ndb_pipeline *self = (ndb_pipeline *) malloc(sizeof(ndb_pipeline)); 
   
-  /* Initialize */
+  /* Initialize */  
   self->engine = 0;
-  self->id = 0;  
+  self->id = thd_id;
   self->nworkitems = 0;
 
   /* Say hi to the alligator */  
@@ -311,10 +310,19 @@ void * memory_pool_alloc(memory_pool *p, size_t sz) {
   }
   
   allocation_reference &r = p->head[p->head->d.cells_idx++];
-  
-  r.d.slab_class = pipeline_get_size_class_id(sz);
-  r.pointer = pipeline_alloc(p->pipeline, r.d.slab_class);
-  p->size += (1 << r.d.slab_class);
+
+  int slab_class = pipeline_get_size_class_id(sz);
+  if(slab_class == -1) {  // large areas use system malloc
+    r.d.sys_malloc = 1;
+    r.pointer = malloc(sz);
+    p->size += sz;
+  }
+  else {  // small areas use slab allocator
+    r.d.sys_malloc = 0;
+    r.d.slab_class = slab_class;
+    r.pointer = pipeline_alloc(p->pipeline, r.d.slab_class);
+    p->size += (1 << r.d.slab_class);
+  }
 
   return r.pointer;
 }
@@ -330,7 +338,10 @@ void memory_pool_free(memory_pool *pool) {
     next = (allocation_reference *) array->pointer;
     for(unsigned int i = 1; i < array->d.cells_idx ; i++) {  // free each block
       allocation_reference &r = array[i];
-      pipeline_free(pool->pipeline, r.pointer, r.d.slab_class);
+      if(r.d.sys_malloc) 
+        free(r.pointer);
+      else
+        pipeline_free(pool->pipeline, r.pointer, r.d.slab_class);
     }
     if(next) {  // if this isn't the last array, free it 
       pipeline_free(pool->pipeline, array, array->d.slab_class);

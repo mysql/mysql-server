@@ -13901,7 +13901,7 @@ CALL sp1();
 xx
 0000-00-00 00:00:00
 Warnings:
-Warning	1264	Out of range value for column 'xx' at row 1
+Warning	1265	Data truncated for column 'xx' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -16344,7 +16344,6 @@ fn7(99999999999)
 9999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn8;
 CREATE FUNCTION fn8( f1 decimal (0) unsigned zerofill) returns decimal (0) unsigned zerofill
 BEGIN
@@ -16354,8 +16353,6 @@ END//
 SELECT fn8(999999999);
 fn8(999999999)
 1000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn9;
 CREATE FUNCTION fn9( f1 decimal (0) zerofill) returns decimal (0) zerofill
 BEGIN
@@ -16366,7 +16363,6 @@ SELECT fn9(-1.00e+09);
 fn9(-1.00e+09)
 0000000010
 Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn10;
 CREATE FUNCTION fn10( f1 decimal (0, 0)) returns decimal (0, 0)
@@ -16388,7 +16384,6 @@ fn11(99999999999)
 9999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn12;
 CREATE FUNCTION fn12( f1 decimal (0, 0) unsigned zerofill) returns decimal (0, 0) unsigned zerofill
 BEGIN
@@ -16398,8 +16393,6 @@ END//
 SELECT fn12(999999999);
 fn12(999999999)
 1000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn13;
 CREATE FUNCTION fn13( f1 decimal (0, 0) zerofill) returns decimal (0, 0) zerofill
 BEGIN
@@ -16410,7 +16403,6 @@ SELECT fn13(-1.00e+09);
 fn13(-1.00e+09)
 0000000010
 Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn14;
 CREATE FUNCTION fn14( f1 decimal (63, 30)) returns decimal (63, 30)
@@ -16450,7 +16442,6 @@ fn17(-1.00e+21)
 000000000000000000000000000000010.000000000000000000000000000000
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn18_d;
 CREATE FUNCTION fn18_d( f1 decimal (64)) returns decimal (64)
 BEGIN
@@ -16487,8 +16478,6 @@ END//
 SELECT fn21_d_z(1.00e+00);
 fn21_d_z(1.00e+00)
 0000000000000000000000000000000000000000000000000000000000000010
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn22;
 CREATE FUNCTION fn22( f1 decimal unsigned) returns decimal unsigned
 BEGIN
@@ -16498,8 +16487,6 @@ END//
 SELECT fn22(1.00e+00);
 fn22(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn23;
 CREATE FUNCTION fn23( f1 decimal unsigned zerofill) returns decimal unsigned zerofill
 BEGIN
@@ -16509,8 +16496,6 @@ END//
 SELECT fn23(1.00e+00);
 fn23(1.00e+00)
 0000000010
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn24;
 CREATE FUNCTION fn24( f1 decimal zerofill) returns decimal zerofill
 BEGIN
@@ -16521,7 +16506,6 @@ SELECT fn24(-1.00e+09);
 fn24(-1.00e+09)
 0000000010
 Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn25;
 CREATE FUNCTION fn25( f1 double) returns double
@@ -16541,8 +16525,6 @@ END//
 SELECT fn26(1.00e+00);
 fn26(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn27;
 CREATE FUNCTION fn27( f1 double unsigned zerofill) returns double unsigned zerofill
 BEGIN
@@ -16552,8 +16534,6 @@ END//
 SELECT fn27(1.00e+00);
 fn27(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn28;
 CREATE FUNCTION fn28( f1 double zerofill) returns double zerofill
 BEGIN
@@ -16563,8 +16543,6 @@ END//
 SELECT fn28(1.00e+00);
 fn28(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn29;
 CREATE FUNCTION fn29( f1 float) returns float
 BEGIN
@@ -16583,8 +16561,6 @@ END//
 SELECT fn30(1.00e+00);
 fn30(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn31;
 CREATE FUNCTION fn31( f1 float unsigned zerofill) returns float unsigned zerofill
 BEGIN
@@ -16594,8 +16570,6 @@ END//
 SELECT fn31(1.00e+00);
 fn31(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn32;
 CREATE FUNCTION fn32( f1 float zerofill) returns float zerofill
 BEGIN
@@ -16605,8 +16579,6 @@ END//
 SELECT fn32(1.00e+00);
 fn32(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn33;
 CREATE FUNCTION fn33( f1 float(0)) returns float(0)
 BEGIN
@@ -16625,8 +16597,6 @@ END//
 SELECT fn34(1.00e+00);
 fn34(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn35;
 CREATE FUNCTION fn35( f1 float(0) unsigned zerofill) returns float(0) unsigned zerofill
 BEGIN
@@ -16636,8 +16606,6 @@ END//
 SELECT fn35(1.00e+00);
 fn35(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn36;
 CREATE FUNCTION fn36( f1 float(0) zerofill) returns float(0) zerofill
 BEGIN
@@ -16647,8 +16615,6 @@ END//
 SELECT fn36(1.00e+00);
 fn36(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn37;
 CREATE FUNCTION fn37( f1 float(23)) returns float(23)
 BEGIN
@@ -16667,8 +16633,6 @@ END//
 SELECT fn38(1.00e+00);
 fn38(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn39;
 CREATE FUNCTION fn39( f1 float(23) unsigned zerofill) returns float(23) unsigned zerofill
 BEGIN
@@ -16678,8 +16642,6 @@ END//
 SELECT fn39(1.00e+00);
 fn39(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn40;
 CREATE FUNCTION fn40( f1 float(23) zerofill) returns float(23) zerofill
 BEGIN
@@ -16689,8 +16651,6 @@ END//
 SELECT fn40(1.00e+00);
 fn40(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn41;
 CREATE FUNCTION fn41( f1 float(24)) returns float(24)
 BEGIN
@@ -16709,8 +16669,6 @@ END//
 SELECT fn42(1.00e+00);
 fn42(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn43;
 CREATE FUNCTION fn43( f1 float(24) unsigned zerofill) returns float(24) unsigned zerofill
 BEGIN
@@ -16720,8 +16678,6 @@ END//
 SELECT fn43(1.00e+00);
 fn43(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn44;
 CREATE FUNCTION fn44( f1 float(24) zerofill) returns float(24) zerofill
 BEGIN
@@ -16731,8 +16687,6 @@ END//
 SELECT fn44(1.00e+00);
 fn44(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn45;
 CREATE FUNCTION fn45( f1 float(53)) returns float(53)
 BEGIN
@@ -16751,8 +16705,6 @@ END//
 SELECT fn46(1.00e+00);
 fn46(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn47;
 CREATE FUNCTION fn47( f1 float(53) unsigned zerofill) returns float(53) unsigned zerofill
 BEGIN
@@ -16762,8 +16714,6 @@ END//
 SELECT fn47(1.00e+00);
 fn47(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn48;
 CREATE FUNCTION fn48( f1 float(53) zerofill) returns float(53) zerofill
 BEGIN
@@ -16773,8 +16723,6 @@ END//
 SELECT fn48(1.00e+00);
 fn48(1.00e+00)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn49;
 CREATE FUNCTION fn49( f1 int) returns int
 BEGIN
@@ -16785,7 +16733,6 @@ SELECT fn49(-2.15e+09);
 fn49(-2.15e+09)
 -2147483638
 Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn50;
 CREATE FUNCTION fn50( f1 int unsigned) returns int unsigned
@@ -16823,8 +16770,6 @@ END//
 SELECT fn53(-8388600);
 fn53(-8388600)
 -8388598
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn54;
 CREATE FUNCTION fn54( f1 mediumint unsigned) returns mediumint unsigned
 BEGIN
@@ -16860,8 +16805,6 @@ END//
 SELECT fn57(-999999999);
 fn57(-999999999)
 -1000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn58;
 CREATE FUNCTION fn58( f1 numeric (0)) returns numeric (0)
 BEGIN
@@ -16871,8 +16814,6 @@ END//
 SELECT fn58(-999999999);
 fn58(-999999999)
 -1000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn59;
 CREATE FUNCTION fn59( f1 numeric (0) unsigned) returns numeric (0) unsigned
 BEGIN
@@ -16882,8 +16823,6 @@ END//
 SELECT fn59(9999999999);
 fn59(9999999999)
 9999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn60;
 CREATE FUNCTION fn60( f1 numeric (0) unsigned zerofill) returns numeric (0) unsigned zerofill
 BEGIN
@@ -16893,8 +16832,6 @@ END//
 SELECT fn60(99999999);
 fn60(99999999)
 0100000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn61;
 CREATE FUNCTION fn61( f1 numeric (0) zerofill) returns numeric (0) zerofill
 BEGIN
@@ -16906,7 +16843,6 @@ fn61(-99999999)
 0000000010
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn62;
 CREATE FUNCTION fn62( f1 numeric (0, 0)) returns numeric (0, 0)
 BEGIN
@@ -16916,8 +16852,6 @@ END//
 SELECT fn62(-999999999);
 fn62(-999999999)
 -1000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn63;
 CREATE FUNCTION fn63( f1 numeric (0, 0) unsigned) returns numeric (0, 0) unsigned
 BEGIN
@@ -16927,8 +16861,6 @@ END//
 SELECT fn63(9999999999);
 fn63(9999999999)
 9999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn64;
 CREATE FUNCTION fn64( f1 numeric (0, 0) unsigned zerofill) returns numeric (0, 0) unsigned zerofill
 BEGIN
@@ -16938,8 +16870,6 @@ END//
 SELECT fn64(99999999);
 fn64(99999999)
 0100000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn65;
 CREATE FUNCTION fn65( f1 numeric (0, 0) zerofill) returns numeric (0, 0) zerofill
 BEGIN
@@ -16950,7 +16880,6 @@ SELECT fn65(-99999999);
 fn65(-99999999)
 0000000010
 Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn66;
 CREATE FUNCTION fn66( f1 numeric (63, 30)) returns numeric (63, 30)
@@ -16963,7 +16892,6 @@ fn66(-1e+36)
 -999999999999999999999999999999989.999999999999999999999999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn67;
 CREATE FUNCTION fn67( f1 numeric (63, 30) unsigned) returns numeric (63, 30) unsigned
 BEGIN
@@ -16974,7 +16902,6 @@ SELECT fn67(1e+36);
 fn67(1e+36)
 999999999999999999999999999999999.999999999999999999999999999999
 Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn68;
 CREATE FUNCTION fn68( f1 numeric (63, 30) unsigned zerofill) returns numeric (63, 30) unsigned zerofill
@@ -16987,7 +16914,6 @@ fn68(1e+36)
 999999999999999999999999999999999.999999999999999999999999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn69;
 CREATE FUNCTION fn69( f1 numeric (63, 30) zerofill) returns numeric (63, 30) zerofill
 BEGIN
@@ -16998,7 +16924,6 @@ SELECT fn69(-1e+36);
 fn69(-1e+36)
 000000000000000000000000000000010.000000000000000000000000000000
 Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn70_n;
 CREATE FUNCTION fn70_n( f1 numeric (64)) returns numeric (64)
@@ -17048,8 +16973,6 @@ END//
 SELECT fn74(999999999);
 fn74(999999999)
 1000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn75;
 CREATE FUNCTION fn75( f1 numeric unsigned zerofill) returns numeric unsigned zerofill
 BEGIN
@@ -17059,8 +16982,6 @@ END//
 SELECT fn75(999999999);
 fn75(999999999)
 1000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn76;
 CREATE FUNCTION fn76( f1 numeric zerofill) returns numeric zerofill
 BEGIN
@@ -17071,7 +16992,6 @@ SELECT fn76(-999999999);
 fn76(-999999999)
 0000000010
 Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn77;
 CREATE FUNCTION fn77( f1 real) returns real
@@ -17091,8 +17011,6 @@ END//
 SELECT fn78(1.1);
 fn78(1.1)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn79;
 CREATE FUNCTION fn79( f1 real unsigned zerofill) returns real unsigned zerofill
 BEGIN
@@ -17102,8 +17020,6 @@ END//
 SELECT fn79(1.1);
 fn79(1.1)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn80;
 CREATE FUNCTION fn80( f1 real zerofill) returns real zerofill
 BEGIN
@@ -17113,8 +17029,6 @@ END//
 SELECT fn80(1.1);
 fn80(1.1)
 10
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn81;
 CREATE FUNCTION fn81( f1 smallint) returns smallint
 BEGIN
@@ -17228,7 +17142,7 @@ return f1;
 END//
 SELECT fn92( '23:59:59.999999');
 fn92( '23:59:59.999999')
-25:59:59
+26:00:01
 DROP FUNCTION IF EXISTS fn93;
 CREATE FUNCTION fn93( f1 datetime) returns datetime
 BEGIN
@@ -17237,7 +17151,7 @@ return f1;
 END//
 SELECT fn93('1997-12-31 23:59:59.999999');
 fn93('1997-12-31 23:59:59.999999')
-1998-01-02 01:01:00
+1998-01-02 01:01:01
 DROP FUNCTION IF EXISTS fn94;
 CREATE FUNCTION fn94( f1 char) returns char
 BEGIN
@@ -17247,8 +17161,6 @@ END//
 SELECT fn94( 'h');
 fn94( 'h')
 a
-Warnings:
-Warning	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn95;
 CREATE FUNCTION fn95( f1 char ascii) returns char ascii
 BEGIN
@@ -17258,8 +17170,6 @@ END//
 SELECT fn95('h');
 fn95('h')
 a
-Warnings:
-Warning	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn96;
 CREATE FUNCTION fn96( f1 binary) returns binary(2)
 BEGIN
@@ -17269,8 +17179,6 @@ END//
 SELECT fn96( 'h');
 fn96( 'h')
 a 
-Warnings:
-Warning	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn97;
 CREATE FUNCTION fn97( f1 longtext) returns longtext
 BEGIN
@@ -18363,7 +18271,7 @@ SELECT f1;
 END//
 CALL sp92( '23:59:59.999999');
 f1
-25:59:59
+26:00:01
 DROP PROCEDURE IF EXISTS sp93;
 CREATE PROCEDURE sp93( f1 datetime)
 BEGIN
@@ -18372,7 +18280,7 @@ SELECT f1;
 END//
 CALL sp93('1997-12-31 23:59:59.999999');
 f1
-1998-01-02 01:01:00
+1998-01-02 01:01:01
 DROP PROCEDURE IF EXISTS sp94;
 CREATE PROCEDURE sp94( f1 char)
 BEGIN

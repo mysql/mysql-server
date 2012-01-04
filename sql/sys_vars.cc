@@ -57,12 +57,85 @@
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
+
 /*
   This forward declaration is needed because including sql_base.h
   causes further includes.  [TODO] Eliminate this forward declaration
   and include a file with the prototype instead.
 */
 extern void close_thread_tables(THD *thd);
+
+
+static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
+                               ptrdiff_t offset, ulonglong new_value)
+{
+  bool error= false;
+  DBUG_ASSERT(offset == offsetof(KEY_CACHE, param_buff_size));
+
+  if (new_value == 0)
+  {
+    if (key_cache == dflt_key_cache)
+    {
+      my_error(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE, MYF(0));
+      return true;
+    }
+
+    if (key_cache->key_cache_inited)            // If initied
+    {
+      /*
+        Move tables using this key cache to the default key cache
+        and clear the old key cache.
+      */
+      key_cache->in_init= 1;
+      mysql_mutex_unlock(&LOCK_global_system_variables);
+      key_cache->param_buff_size= 0;
+      ha_resize_key_cache(key_cache);
+      ha_change_key_cache(key_cache, dflt_key_cache);
+      /*
+        We don't delete the key cache as some running threads my still be in
+        the key cache code with a pointer to the deleted (empty) key cache
+      */
+      mysql_mutex_lock(&LOCK_global_system_variables);
+      key_cache->in_init= 0;
+    }
+    return error;
+  }
+
+  key_cache->param_buff_size= new_value;
+
+  /* If key cache didn't exist initialize it, else resize it */
+  key_cache->in_init= 1;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  if (!key_cache->key_cache_inited)
+    error= ha_init_key_cache(0, key_cache);
+  else
+    error= ha_resize_key_cache(key_cache);
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  key_cache->in_init= 0;
+
+  return error;
+}
+
+static bool update_keycache_param(THD *thd, KEY_CACHE *key_cache,
+                                  ptrdiff_t offset, ulonglong new_value)
+{
+  bool error= false;
+  DBUG_ASSERT(offset != offsetof(KEY_CACHE, param_buff_size));
+
+  keycache_var(key_cache, offset)= new_value;
+
+  key_cache->in_init= 1;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+  error= ha_resize_key_cache(key_cache);
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  key_cache->in_init= 0;
+
+  return error;
+}
 
 /*
   The rule for this file: everything should be 'static'. When a sys_var
@@ -83,6 +156,92 @@ static Sys_var_mybool Sys_pfs_enabled(
        "Enable the performance schema.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_charptr Sys_pfs_instrument(
+       "performance_schema_instrument",
+       "Default startup value for a performance schema instrument.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_pfs_instrument),
+       CMD_LINE(OPT_ARG, OPT_PFS_INSTRUMENT),
+       IN_FS_CHARSET,
+       DEFAULT(""),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_events_stages_current(
+       "performance_schema_consumer_events_stages_current",
+       "Default startup value for the events_stages_current consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_stages_current_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_events_stages_history(
+       "performance_schema_consumer_events_stages_history",
+       "Default startup value for the events_stages_history consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_stages_history_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_events_stages_history_long(
+       "performance_schema_consumer_events_stages_history_long",
+       "Default startup value for the events_stages_history_long consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_stages_history_long_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_events_statements_current(
+       "performance_schema_consumer_events_statements_current",
+       "Default startup value for the events_statements_current consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_statements_current_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_events_statements_history(
+       "performance_schema_consumer_events_statements_history",
+       "Default startup value for the events_statements_history consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_statements_history_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_events_statements_history_long(
+       "performance_schema_consumer_events_statements_history_long",
+       "Default startup value for the events_statements_history_long consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_statements_history_long_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_events_waits_current(
+       "performance_schema_consumer_events_waits_current",
+       "Default startup value for the events_waits_current consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_waits_current_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_events_waits_history(
+       "performance_schema_consumer_events_waits_history",
+       "Default startup value for the events_waits_history consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_waits_history_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_events_waits_history_long(
+       "performance_schema_consumer_events_waits_history_long",
+       "Default startup value for the events_waits_history_long consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_waits_history_long_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_global_instrumentation(
+       "performance_schema_consumer_global_instrumentation",
+       "Default startup value for the global_instrumentation consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_global_instrumentation_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_thread_instrumentation(
+       "performance_schema_consumer_thread_instrumentation",
+       "Default startup value for the thread_instrumentation consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_thread_instrumentation_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_events_waits_history_long_size(
@@ -289,6 +448,7 @@ static Sys_var_ulong Sys_pfs_events_stages_history_size(
   Variable performance_schema_max_statement_classes.
   The default number of statement classes is the sum of:
   - COM_END for all regular "statement/com/...",
+  - 1 for "statement/com/new_packet", for unknown enum_server_command
   - 1 for "statement/com/Error", for invalid enum_server_command
   - SQLCOM_END for all regular "statement/sql/...",
   - 1 for "statement/sql/error", for invalid enum_sql_command.
@@ -298,7 +458,7 @@ static Sys_var_ulong Sys_pfs_max_statement_classes(
        "Maximum number of statement instruments.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_statement_class_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
-       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 2),
+       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 3),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_events_statements_history_long_size(
@@ -1224,10 +1384,33 @@ static Sys_var_mybool Sys_log_queries_not_using_indexes(
        GLOBAL_VAR(opt_log_queries_not_using_indexes),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+static bool update_log_throttle_queries_not_using_indexes(sys_var *self,
+                                                          THD *thd,
+                                                          enum_var_type type)
+{
+  // Check if we should print a summary of any suppressed lines to the slow log
+  // now since opt_log_throttle_queries_not_using_indexes was changed.
+  log_throttle_qni.flush(thd);
+  return false;
+}
+
+static Sys_var_ulong Sys_log_throttle_queries_not_using_indexes(
+       "log_throttle_queries_not_using_indexes",
+       "Log at most this many 'not using index' warnings per minute to the "
+       "slow log. Any further warnings will be condensed into a single "
+       "summary line. A value of 0 disables throttling. "
+       "Option has no effect unless --log_queries_not_using_indexes is set.",
+       GLOBAL_VAR(opt_log_throttle_queries_not_using_indexes),
+       CMD_LINE(OPT_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(update_log_throttle_queries_not_using_indexes));
+
 static Sys_var_ulong Sys_log_warnings(
        "log_warnings",
        "Log some not critical warnings to the log file",
-       SESSION_VAR(log_warnings),
+       GLOBAL_VAR(log_warnings),
        CMD_LINE(OPT_ARG, 'W'),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
 
@@ -1431,6 +1614,12 @@ static Sys_var_ulonglong Sys_max_heap_table_size(
        SESSION_VAR(max_heap_table_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(16384, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1024));
+
+static Sys_var_ulong Sys_metadata_locks_cache_size(
+       "metadata_locks_cache_size", "Size of unused metadata locks cache",
+       READ_ONLY GLOBAL_VAR(mdl_locks_cache_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, 1024*1024), DEFAULT(MDL_LOCKS_CACHE_SIZE_DEFAULT),
+       BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pseudo_thread_id(
        "pseudo_thread_id",
@@ -2228,15 +2417,18 @@ static Sys_var_mybool Sys_slave_sql_verify_checksum(
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 {
+  bool check_purge= false;
+
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())
   {
-    uint flags= RP_FORCE_ROTATE | RP_LOCK_LOG_IS_ALREADY_LOCKED |
-      (binlog_checksum_options != (uint) var->save_result.ulonglong_value?
-       RP_BINLOG_CHECKSUM_ALG_CHANGE : 0);
-    if (flags & RP_BINLOG_CHECKSUM_ALG_CHANGE)
+    bool alg_changed=
+      (binlog_checksum_options != (uint) var->save_result.ulonglong_value);
+    if (alg_changed)
       mysql_bin_log.checksum_alg_reset= (uint8) var->save_result.ulonglong_value;
-    mysql_bin_log.rotate_and_purge(flags);
+    mysql_bin_log.rotate(true, &check_purge);
+    if (alg_changed)
+      mysql_bin_log.checksum_alg_reset= BINLOG_CHECKSUM_ALG_UNDEF; // done
   }
   else
   {
@@ -2245,6 +2437,10 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
   DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
   DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+  
+  if (check_purge)
+    mysql_bin_log.purge();
+
   return 0;
 }
 
@@ -2274,7 +2470,7 @@ static Sys_var_ulong Sys_sort_buffer(
        "sort_buffer_size",
        "Each thread that needs to do a sort allocates a buffer of this size",
        SESSION_VAR(sortbuff_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(MAX_SORT_MEMORY),
+       VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(DEFAULT_SORT_MEMORY),
        BLOCK_SIZE(1));
 
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
@@ -2828,40 +3024,51 @@ static Sys_var_harows Sys_select_limit(
 static bool update_timestamp(THD *thd, set_var *var)
 {
   if (var->value)
-    thd->set_time((time_t) var->save_result.ulonglong_value);
+  {
+    double fl= floor(var->save_result.double_value); // Truncate integer part
+    struct timeval tmp;
+    tmp.tv_sec= (ulonglong) fl;
+    /* Round nanoseconds to nearest microsecond */
+    tmp.tv_usec= (ulonglong) rint((var->save_result.double_value - fl) * 1000000);
+    thd->set_time(&tmp);
+  }
   else // SET timestamp=DEFAULT
-    thd->user_time= 0;
+  {
+    thd->user_time.tv_sec= 0;
+    thd->user_time.tv_usec= 0;
+  }
   return false;
 }
-static ulonglong read_timestamp(THD *thd)
+static double read_timestamp(THD *thd)
 {
-  return (ulonglong) thd->start_time;
+  return (double) thd->start_time.tv_sec +
+         (double) thd->start_time.tv_usec / 1000000;
 }
 
 
 static bool check_timestamp(sys_var *self, THD *thd, set_var *var)
 {
-  longlong val;
+  double val;
 
   if (!var->value)
     return FALSE;
 
-  val= (longlong) var->save_result.ulonglong_value;
+  val= var->save_result.double_value;
   if (val != 0 &&          // this is how you set the default value
       (val < TIMESTAMP_MIN_VALUE || val > TIMESTAMP_MAX_VALUE))
   {
-    char buf[64];
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", llstr(val, buf));
+    ErrConvString prm(val);
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", prm.ptr());
     return TRUE;
   }
   return FALSE;
 }
 
 
-static Sys_var_session_special Sys_timestamp(
+static Sys_var_session_special_double Sys_timestamp(
        "timestamp", "Set the time for this client",
        sys_var::ONLY_SESSION, NO_CMD_LINE,
-       VALID_RANGE(0, ~(time_t)0), BLOCK_SIZE(1),
+       VALID_RANGE(0, 0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_timestamp), 
        ON_UPDATE(update_timestamp), ON_READ(read_timestamp));
 
@@ -3454,7 +3661,7 @@ static Sys_var_uint Sys_checkpoint_mts_period(
        "slave_checkpoint_period", "Gather workers' activities to "
        "Update progress status of Multi-threaded slave and flush "
        "the relay log info to disk after every #th milli-seconds.",
-       GLOBAL_VAR(mts_checkpoint_period), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(opt_mts_checkpoint_period), CMD_LINE(REQUIRED_ARG),
 #ifndef DBUG_OFF
        VALID_RANGE(0, UINT_MAX), DEFAULT(300), BLOCK_SIZE(1));
 #else
@@ -3465,11 +3672,11 @@ static Sys_var_uint Sys_checkpoint_mts_group(
        "slave_checkpoint_group",
        "Maximum number of processed transactions by Multi-threaded slave "
        "before a checkpoint operation is called to update progress status.",
-       GLOBAL_VAR(mts_checkpoint_group), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(opt_mts_checkpoint_group), CMD_LINE(REQUIRED_ARG),
 #ifndef DBUG_OFF
-       VALID_RANGE(1, UINT_MAX), DEFAULT(512), BLOCK_SIZE(1));
+       VALID_RANGE(1, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
 #else
-       VALID_RANGE(512, UINT_MAX), DEFAULT(512), BLOCK_SIZE(8));
+       VALID_RANGE(512, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
 #endif /* DBUG_OFF */
 #endif /* HAVE_REPLICATION */
 

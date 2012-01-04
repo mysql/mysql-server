@@ -39,6 +39,11 @@
 #include "transaction.h"       // trans_commit_stmt
 #include "opt_trace.h"         // opt_trace_disable_etc
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 /*
   Sufficient max length of printed destinations and frame offsets (all uints).
 */
@@ -65,13 +70,13 @@ static void reset_start_time_for_sp(THD *thd)
     /*
       First investigate if there is a cached time stamp
     */
-    if (thd->user_time)
+    if (thd->user_time.tv_sec || thd->user_time.tv_usec)
     {
       thd->start_time= thd->user_time;
     }
     else
     {
-      my_micro_time_and_time(&thd->start_time);
+      my_micro_time_to_timeval(my_micro_time(), &thd->start_time);
     }
   }
 }
@@ -1003,6 +1008,8 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     if ((*splocal)->limit_clause_param)
     {
       res|= qbuf.append_ulonglong((*splocal)->val_uint());
+      if (res)
+        break;
       continue;
     }
 
@@ -1027,19 +1034,29 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 
     thd->query_name_consts++;
   }
-  res|= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
-  if (res)
+  if (res ||
+      qbuf.append(cur + prev_pos, query_str->length - prev_pos))
     DBUG_RETURN(TRUE);
 
   /*
     Allocate additional space at the end of the new query string for the
     query_cache_send_result_to_client function.
+
+    The query buffer layout is:
+       buffer :==
+            <statement>   The input statement(s)
+            '\0'          Terminating null char
+            <length>      Length of following current database name (size_t)
+            <db_name>     Name of current database
+            <flags>       Flags struct
   */
-  buf_len= qbuf.length() + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE + 1;
+  buf_len= qbuf.length() + 1 + sizeof(size_t) + thd->db_length + 
+           QUERY_CACHE_FLAGS_SIZE + 1;
   if ((pbuf= (char *) alloc_root(thd->mem_root, buf_len)))
   {
     memcpy(pbuf, qbuf.ptr(), qbuf.length());
     pbuf[qbuf.length()]= 0;
+    memcpy(pbuf+qbuf.length()+1, (char *) &thd->db_length, sizeof(size_t));
   }
   else
     DBUG_RETURN(TRUE);
@@ -1724,7 +1741,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   DBUG_PRINT("info", ("function %s", m_name.str));
 
   LINT_INIT(binlog_save_options);
-
+  // Resetting THD::where to its default value
+  thd->where= THD::DEFAULT_WHERE;
   /*
     Check that the function is called with all specified arguments.
 
@@ -2589,8 +2607,7 @@ sp_head::show_create_routine(THD *thd, int type)
     */
 
     Item_empty_string *stmt_fld=
-      new Item_empty_string(col3_caption,
-                            max(m_defstr.length, 1024));
+      new Item_empty_string(col3_caption, max<size_t>(m_defstr.length, 1024U));
 
     stmt_fld->maybe_null= TRUE;
 
@@ -2790,7 +2807,7 @@ sp_head::show_routine_code(THD *thd)
   field_list.push_back(new Item_uint("Pos", 9));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Instruction",
-                                             max(buffer.length(), 1024)));
+                                             max(buffer.length(), 1024U)));
   if (protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS |
                                          Protocol::SEND_EOF))
     DBUG_RETURN(1);
@@ -2916,11 +2933,16 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     /*
       Check whenever we have access to tables for this statement
       and open and lock them before executing instructions core function.
+      If we are not opening any tables, we don't need to check permissions
+      either.
     */
-    res= (open_temporary_tables(thd, m_lex->query_tables) ||
-          check_table_access(thd, SELECT_ACL, m_lex->query_tables, FALSE,
-                             UINT_MAX, FALSE) ||
-          open_and_lock_tables(thd, m_lex->query_tables, TRUE, 0));
+    if (m_lex->query_tables)
+      res= (open_temporary_tables(thd, m_lex->query_tables) ||
+            check_table_access(thd, SELECT_ACL, m_lex->query_tables, false,
+                               UINT_MAX, false));
+
+    if (!res)
+      res= open_and_lock_tables(thd, m_lex->query_tables, true, 0);
 
     if (!res)
     {
@@ -3392,6 +3414,14 @@ sp_instr_freturn::execute(THD *thd, uint *nextp)
 int
 sp_instr_freturn::exec_core(THD *thd, uint *nextp)
 {
+  /*
+    RETURN is a "procedure statement" (in terms of the SQL standard).
+    That means, Diagnostics Area should be clean before its execution.
+  */
+
+  Diagnostics_area *da= thd->get_stmt_da();
+  da->clear_warning_info(da->warning_info_id());
+
   /*
     Change <next instruction pointer>, so that this will be the last
     instruction in the stored function.

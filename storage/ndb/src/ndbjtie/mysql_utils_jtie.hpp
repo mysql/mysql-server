@@ -243,6 +243,86 @@ Java_com_mysql_ndbjtie_mysql_Utils_decimal_1bin2str(JNIEnv * env, jclass cls, jo
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
+/*
+ * Class:     com_mysql_ndbjtie_mysql_Utils
+ * Method:    dbugPush
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_mysql_Utils_dbugPush(JNIEnv * env, jclass cls, jstring p0)
+{
+    TRACE("void Java_com_mysql_ndbjtie_mysql_Utils_dbugPush(JNIEnv *, jclass, jstring)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_fv< ttrait_char_cp_jutf8null, &::dbugPush >(env, cls, p0);
+#else
+    gcall_fv< ttrait_char_cp_jutf8null, &MysqlUtilsWrapper::dbugPush >(env, cls, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_mysql_Utils
+ * Method:    dbugPop
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_mysql_Utils_dbugPop(JNIEnv * env, jclass cls)
+{
+    TRACE("void Java_com_mysql_ndbjtie_mysql_Utils_dbugPop(JNIEnv *, jclass)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_fv< &::dbugPop >(env, cls);
+#else
+    gcall_fv< &MysqlUtilsWrapper::dbugPop >(env, cls);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_mysql_Utils
+ * Method:    dbugSet
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_mysql_Utils_dbugSet(JNIEnv * env, jclass cls, jstring p0)
+{
+    TRACE("void Java_com_mysql_ndbjtie_mysql_Utils_dbugSet(JNIEnv *, jclass, jstring)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_fv< ttrait_char_cp_jutf8null, &::dbugSet >(env, cls, p0);
+#else
+    gcall_fv< ttrait_char_cp_jutf8null, &MysqlUtilsWrapper::dbugSet >(env, cls, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_mysql_Utils
+ * Method:    dbugExplain
+ * Signature: (Ljava/nio/ByteBuffer;I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL
+Java_com_mysql_ndbjtie_mysql_Utils_dbugExplain(JNIEnv * env, jclass cls, jobject p0, jint p1)
+{
+    TRACE("jstring Java_com_mysql_ndbjtie_mysql_Utils_dbugExplain(JNIEnv *, jclass, jobject, jint)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_char_cp_jutf8null, ttrait_char_0p_bb, ttrait_int, &::dbugExplain >(env, cls, p0, p1);
+#else
+    return gcall_fr< ttrait_char_cp_jutf8null, ttrait_char_0p_bb, ttrait_int, &MysqlUtilsWrapper::dbugExplain >(env, cls, p0, p1);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_mysql_Utils
+ * Method:    dbugPrint
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_mysql_Utils_dbugPrint(JNIEnv * env, jclass cls, jstring p0, jstring p1)
+{
+    TRACE("void Java_com_mysql_ndbjtie_mysql_Utils_dbugPrint(JNIEnv *, jclass, jstring, jstring)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_fv< ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, &::dbugPrint >(env, cls, p0, p1);
+#else
+    gcall_fv< ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, &MysqlUtilsWrapper::dbugPrint >(env, cls, p0, p1);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
 // ---------------------------------------------------------------------------
 
 } // extern "C"

@@ -258,9 +258,6 @@ out:
 	return NULL;
 }
 
-#ifdef WIDECHAR
-int wcwidth(wchar_t wc);                        // Signature.
-#endif
 
 protected int
 ct_visual_width(Char c)

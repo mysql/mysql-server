@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2009, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -33,7 +33,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "trx0types.h"
 
 enum dict_stats_upd_option {
-	DICT_STATS_RECALC_PERSISTENT,/* (re)calculate the
+	DICT_STATS_RECALC_PERSISTENT,/* (re) calculate the
 				statistics using a precise and slow
 				algo and save them to the persistent
 				storage, if the persistent storage is
@@ -42,7 +42,7 @@ enum dict_stats_upd_option {
 	DICT_STATS_RECALC_PERSISTENT_SILENT,/* same as
 				DICT_STATS_RECALC_PERSISTENT
 				but do not emit a warning */
-	DICT_STATS_RECALC_TRANSIENT,/* (re)calculate the statistics
+	DICT_STATS_RECALC_TRANSIENT,/* (re) calculate the statistics
 				using an imprecise quick algo
 				without saving the results
 				persistently */
@@ -66,7 +66,7 @@ dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
 	dict_stats_upd_option_t	stats_upd_option,
-					/*!< in: whether to (re)calc
+					/*!< in: whether to (re) calc
 					the stats or to fetch them from
 					the persistent storage */
 	ibool			caller_has_dict_sys_mutex);

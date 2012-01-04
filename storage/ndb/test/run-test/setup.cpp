@@ -217,6 +217,24 @@ find(const char * hostname, Vector<atrt_host*> & hosts){
   return host;
 } 
 
+static
+char *
+dirname(const char * path)
+{
+  char * s = strdup(path);
+  size_t len = strlen(s);
+  for (size_t i = 1; i<len; i++)
+  {
+    if (s[len - i] == '/')
+    {
+      s[len - i] = 0;
+      return s;
+    }
+  }
+  free(s);
+  return 0;
+}
+
 static 
 bool 
 load_process(atrt_config& config, atrt_cluster& cluster, 
@@ -254,6 +272,18 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_proc.m_env.appfmt(" MYSQL_HOME=%s", g_basedir);
   proc.m_proc.m_env.appfmt(" ATRT_PID=%u", (unsigned)proc_no);
   proc.m_proc.m_shutdown_options = "";
+
+  {
+    /**
+     * In 5.5...binaries aren't compiled with rpath
+     * So we need an explicit LD_LIBRARY_PATH
+     *
+     * Use path from libmysqlclient.so
+     */
+    char * dir = dirname(g_libmysqlclient_so_path);
+    proc.m_proc.m_env.appfmt(" LD_LIBRARY_PATH=%s", dir);
+    free(dir);
+  }
 
   int argc = 1;
   const char * argv[] = { "atrt", 0, 0 };

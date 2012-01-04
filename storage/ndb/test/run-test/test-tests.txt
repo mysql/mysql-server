@@ -1,4 +1,17 @@
 max-time: 600
 cmd: testBasic
 args: -n PkRead T1
+type: bench
+
+max-time: 60
+cmd: mysql
+args: -u root information_schema -e show\ tables
+cmd-type: mysql
+type: bench
+mysqld: --ndb-cluster-connection-pool=4
+
+max-time: 6000
+cmd: testBasic
+args: -n PkRead T1
+type: bench
 

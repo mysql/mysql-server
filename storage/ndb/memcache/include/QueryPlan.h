@@ -38,31 +38,38 @@
 
 enum PlanOpts { NoOptions, PKScan };
 
-class Operation;  // forward declaration
+/* Forward declarations: */
+class Operation;
+class ExternalValue;
 
 class QueryPlan {
   friend class Operation;
+  friend class ExternalValue;
 
   public: 
   QueryPlan() : initialized(0)  {};  
   QueryPlan(Ndb *, const TableSpec *, PlanOpts opts = NoOptions); 
   ~QueryPlan();
+  bool canHaveExternalValue() const;
+  bool shouldExternalizeValue(size_t length) const;
+  bool canUseSimpleRead() const;
+  Uint64 getAutoIncrement() const;
   void debug_dump() const;
+  bool hasDataOnDisk() const;
    
   /* public instance variables */
   bool initialized;
   bool dup_numbers;                /* dup_numbers mode for ascii incr/decr */
   bool pk_access;                  /* access by primary key */
   bool is_scan;
+  size_t max_value_len;
   const TableSpec *spec;
   NdbDictionary::Dictionary *dict;
   const NdbDictionary::Table *table;
+  QueryPlan * extern_store;         /* QueryPlan for external stored values */
   short cas_column_id;
   short math_column_id;
   unsigned int static_flags;
-  unsigned char math_mask_r[4];    /* column mask for INCR read operation */
-  unsigned char math_mask_u[4];    /* column mask for INCR interpreted update */
-  unsigned char math_mask_i[4];    /* column mask for INCR insert operation */
   
   
   protected:
@@ -78,7 +85,26 @@ class QueryPlan {
 
   /* Private instance variables */
   Ndb *db;
+  bool has_disk_storage;
 };
 
+
+inline bool QueryPlan::shouldExternalizeValue(size_t length) const {
+  if(extern_store && val_record->value_length) 
+    return (length > val_record->value_length);
+  return false;
+}
+
+inline bool QueryPlan::canHaveExternalValue() const {
+  return (extern_store);
+}
+
+inline bool QueryPlan::hasDataOnDisk() const {
+  return has_disk_storage;
+}
+
+inline bool QueryPlan::canUseSimpleRead() const {
+  return(pk_access && (! extern_store) && (! spec->exp_column));
+}
 
 #endif

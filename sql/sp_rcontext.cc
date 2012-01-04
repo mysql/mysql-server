@@ -20,7 +20,7 @@
 #include "sql_cursor.h"
 #include "sp_rcontext.h"
 #include "sp_pcontext.h"
-#include "sql_select.h"                     // create_virtual_tmp_table
+#include "sql_tmp_table.h"                     // create_virtual_tmp_table
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -230,6 +230,23 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
 
     if (found_handler)
       found_condition= da->get_error_condition();
+
+    /*
+      Found condition can be NULL if the diagnostics area was full
+      when the error was raised. It can also be NULL if
+      Diagnostics_area::set_error_status(uint sql_error) was used.
+      In these cases, make a temporary Sql_condition here so the
+      error can be handled.
+    */
+    if (!found_condition)
+    {
+      Sql_condition *condition=
+        new (callers_arena->mem_root) Sql_condition(callers_arena->mem_root);
+      condition->set(da->sql_errno(), da->get_sqlstate(),
+                     Sql_condition::WARN_LEVEL_ERROR,
+                     da->message());
+      found_condition= condition;
+    }
   }
   else if (da->current_statement_warn_count())
   {

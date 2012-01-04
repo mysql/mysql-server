@@ -57,6 +57,11 @@
 #include "ndb_schema_dist.h"
 #include "ndb_component.h"
 #include "ndb_util_thread.h"
+#include "ndb_local_connection.h"
+#include "ndb_local_schema.h"
+
+using std::min;
+using std::max;
 
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal();
@@ -1285,7 +1290,9 @@ void ha_ndbcluster::set_rec_per_key()
             /* no stats is not unexpected error */
             err != NdbIndexStat::NoIndexStats &&
             /* warning was printed at first error */
-            err != Ndb_index_stat_error_HAS_ERROR)
+            err != NdbIndexStat::MyHasError &&
+            /* stats thread aborted request */
+            err != NdbIndexStat::MyAbortReq)
         {
           push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_CANT_GET_STAT, /* pun? */
@@ -1835,7 +1842,7 @@ ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
 
       DBUG_PRINT("value", ("set blob ptr: 0x%lx  len: %u",
                            (long) blob_ptr, blob_len));
-      DBUG_DUMP("value", blob_ptr, min(blob_len, 26));
+      DBUG_DUMP("value", blob_ptr, MIN(blob_len, 26));
 
       /*
         NdbBlob requires the data pointer to remain valid until execute() time.
@@ -1937,7 +1944,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
       Field* field= table->field[f]; // Use Field struct from MySQLD table rep
       const NdbDictionary::Column* ndbCol= ndbtab->getColumn(field->field_index); 
       bool isTimeStampWithAutoValue = ((field->type() == MYSQL_TYPE_TIMESTAMP) &&
-                                       (field->table->timestamp_field == field));
+                                       (field->table->get_timestamp_field() == field));
 
       if ((! (field->flags & (PRI_KEY_FLAG |
                               NO_DEFAULT_VALUE_FLAG))) &&
@@ -5505,7 +5512,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 
   ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
 
   /*
      Setup OperationOptions
@@ -6245,8 +6252,8 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
   {
-    table->timestamp_field->set_time();
-    bitmap_set_bit(table->write_set, table->timestamp_field->field_index);
+    table->get_timestamp_field()->set_time();
+    bitmap_set_bit(table->write_set, table->get_timestamp_field()->field_index);
   }
 
   bool skip_partition_for_unique_index= FALSE;
@@ -9352,7 +9359,7 @@ static int create_ndb_column(THD *thd,
     {
       /* Ndb does not support auto-set Timestamp default values natively */
       bool isTimeStampWithAutoValue = ((mysql_type == MYSQL_TYPE_TIMESTAMP) &&
-                                       (field->table->timestamp_field == field));
+                                       (field->table->get_timestamp_field() == field));
 
       if ((!(field->flags & PRI_KEY_FLAG) ) &&
           type_supports_default_value(mysql_type) &&
@@ -9466,6 +9473,7 @@ static int create_ndb_column(THD *thd,
     break;
   // Date types
   case MYSQL_TYPE_DATETIME:    
+//case MYSQL_TYPE_DATETIME2:    
     col.setType(NDBCOL::Datetime);
     col.setLength(1);
     break;
@@ -9478,6 +9486,7 @@ static int create_ndb_column(THD *thd,
     col.setLength(1);
     break;
   case MYSQL_TYPE_TIME:        
+//case MYSQL_TYPE_TIME2:        
     col.setType(NDBCOL::Time);
     col.setLength(1);
     break;
@@ -9486,6 +9495,7 @@ static int create_ndb_column(THD *thd,
     col.setLength(1);
     break;
   case MYSQL_TYPE_TIMESTAMP:
+//case MYSQL_TYPE_TIMESTAMP2:
     col.setType(NDBCOL::Timestamp);
     col.setLength(1);
     break;
@@ -11206,8 +11216,7 @@ int ha_ndbcluster::delete_table(const char *name)
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
 
-  if ((thd == injector_thd) ||
-      (thd_ndb->options & TNO_NO_NDB_DROP_TABLE))
+  if (thd == injector_thd)
   {
     /*
       Table was dropped remotely is already
@@ -11348,7 +11357,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_cond(NULL),
   m_multi_cursor(NULL)
 {
-  int i;
+  uint i;
  
   DBUG_ENTER("ha_ndbcluster");
 
@@ -12299,44 +12308,45 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-#ifndef NDB_NO_MYSQL_RM_TABLE_PART2
-  /*
-    Delete old files
-
-    ndbcluster_find_files() may be called from I_S code and ndbcluster_binlog
-    thread in situations when some tables are already open. This means that
-    code below will try to obtain exclusive metadata lock on some table
-    while holding shared meta-data lock on other tables. This might lead to a
-    deadlock but such a deadlock should be detected by MDL deadlock detector.
-  */
-  List_iterator_fast<char> it3(delete_list);
-  while ((file_name_str= it3++))
+  if (thd == injector_thd)
   {
-    DBUG_PRINT("info", ("Removing table %s/%s", db, file_name_str));
-    // Delete the table and all related files
-    TABLE_LIST table_list;
-    table_list.init_one_table(db, strlen(db),
-                              file_name_str, strlen(file_name_str),
-                              file_name_str,
-                              TL_WRITE);
-    table_list.mdl_request.set_type(MDL_EXCLUSIVE);
     /*
-      set TNO_NO_NDB_DROP_TABLE flag to not drop ndb table.
-      it should not exist anyways
+      Don't delete anything when called from
+      the binlog thread. This is a kludge to avoid
+      that something is deleted when "Ndb schema dist"
+      uses find_files() to check for "local tables in db"
     */
-    thd_ndb->options|= TNO_NO_NDB_DROP_TABLE;
-    (void)mysql_rm_table_part2(thd, &table_list,
-                               false,   /* if_exists */
-                               false,   /* drop_temporary */
-                               false,   /* drop_view */
-                               true     /* dont_log_query*/);
-    thd_ndb->options&= ~TNO_NO_NDB_DROP_TABLE;
-    trans_commit_implicit(thd); /* Safety, should be unnecessary. */
-    thd->mdl_context.release_transactional_locks();
-    /* Clear error message that is returned when table is deleted */
-    thd->clear_error();
   }
-#endif
+  else
+  {
+    /*
+      Delete old files
+      (.frm files with corresponding .ndb + does not exists in NDB)
+    */
+    List_iterator_fast<char> it3(delete_list);
+    while ((file_name_str= it3++))
+    {
+      DBUG_PRINT("info", ("Deleting local files for table '%s.%s'",
+                          db, file_name_str));
+
+      // Delete the table and its related files from disk
+      Ndb_local_schema::Table local_table(thd, db, file_name_str);
+      local_table.remove_table();
+
+      // Flush the table out of ndbapi's dictionary cache
+      Ndb_table_guard ndbtab_g(ndb->getDictionary(), file_name_str);
+      ndbtab_g.invalidate();
+
+      // Flush the table from table def. cache.
+      TABLE_LIST table_list;
+      memset(&table_list, 0, sizeof(table_list));
+      table_list.db= (char*)db;
+      table_list.alias= table_list.table_name= file_name_str;
+      close_cached_tables(thd, &table_list, false, 0);
+
+      DBUG_ASSERT(!thd->is_error());
+    }
+  }
 
   // Create new files
   List_iterator_fast<char> it2(create_list);
@@ -12355,20 +12365,18 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
   my_hash_free(&ok_tables);
   my_hash_free(&ndb_tables);
 
-  // Delete schema file from files
+  /* Hide mysql.ndb_schema table */
   if (!strcmp(db, NDB_REP_DB))
   {
-    uint count = 0;
-    while (count++ < files->elements)
+    LEX_STRING* file_name;
+    List_iterator<LEX_STRING> it(*files);
+    while ((file_name= it++))
     {
-      file_name = (LEX_STRING *)files->pop();
       if (!strcmp(file_name->str, NDB_SCHEMA_TABLE))
       {
-        DBUG_PRINT("info", ("skip %s.%s table, it should be hidden to user",
-                   NDB_REP_DB, NDB_SCHEMA_TABLE));
-        continue;
+        DBUG_PRINT("info", ("Hiding table '%s.%s'", db, file_name->str));
+        it.remove();
       }
-      files->push_back(file_name); 
     }
   }
   } // extra bracket to avoid gcc 2.95.3 warning
@@ -12394,7 +12402,7 @@ static int connect_callback()
   while ((node_id= g_ndb_cluster_connection->get_next_node(node_iter)))
     g_node_id_map[node_id]= i++;
 
-  pthread_cond_signal(&ndb_util_thread.COND);
+  pthread_cond_broadcast(&ndb_util_thread.COND);
   pthread_mutex_unlock(&ndb_util_thread.LOCK);
   return 0;
 }
@@ -12404,6 +12412,8 @@ static int connect_callback()
  */
 Ndb_util_thread ndb_util_thread;
 Ndb_index_stat_thread ndb_index_stat_thread;
+
+extern THD * ndb_create_thd(char * stackptr);
 
 #ifndef NDB_NO_WAIT_SETUP
 static int ndb_wait_setup_func_impl(ulong max_wait)
@@ -12440,6 +12450,32 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
   }
 
   pthread_mutex_unlock(&ndbcluster_mutex);
+
+  do
+  {
+    /**
+     * Check if we (might) need a flush privileges
+     */
+    THD* thd= current_thd;
+    bool own_thd= thd == NULL;
+    if (own_thd)
+    {
+      thd= ndb_create_thd((char*)&thd);
+      if (thd == 0)
+        break;
+    }
+
+    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
+    {
+      Ndb_local_connection mysqld(thd);
+      mysqld.raw_run_query("FLUSH PRIVILEGES", sizeof("FLUSH PRIVILEGES"), 0);
+    }
+
+    if (own_thd)
+    {
+      delete thd;
+    }
+  } while (0);
 
   DBUG_RETURN((ndb_setup_complete == 1)? 0 : 1);
 }
@@ -12869,7 +12905,9 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
           /* no stats is not unexpected error */
           err != NdbIndexStat::NoIndexStats &&
           /* warning was printed at first error */
-          err != Ndb_index_stat_error_HAS_ERROR)
+          err != NdbIndexStat::MyHasError &&
+          /* stats thread aborted request */
+          err != NdbIndexStat::MyAbortReq)
       {
         push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_CANT_GET_STAT, /* pun? */
@@ -12966,7 +13004,7 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
     }
     else
     {
-      size_t bounds_len= min(min_key_length,max_key_length);
+      size_t bounds_len= MIN(min_key_length,max_key_length);
       uint eq_bound_len= 0;
       uint eq_bound_offs= 0;
 
@@ -13019,7 +13057,7 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
       rows= 2;
     else if (rows < 3)
       rows= 3;
-    DBUG_RETURN(min(rows,table_rows));
+    DBUG_RETURN(MIN(rows,table_rows));
   } while (0);
 
   DBUG_RETURN(10); /* Poor guess when you don't know anything */
@@ -13715,8 +13753,8 @@ NDB_SHARE::create(const char* key, size_t key_length,
   if (ndbcluster_binlog_init_share(current_thd, share, table))
   {
     DBUG_PRINT("error", ("get_share: %s could not init share", key));
-    free_root(&share->mem_root, MYF(0));
-    my_free(share, 0);
+    DBUG_ASSERT(share->event_data == NULL);
+    NDB_SHARE::destroy(share);
     *root_ptr= old_root;
     return NULL;
   }
@@ -13736,7 +13774,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
   DBUG_ENTER("ndbcluster_get_share");
   DBUG_PRINT("enter", ("key: '%s'", key));
 
-  safe_mutex_assert_owner(&ndbcluster_mutex);
+//safe_mutex_assert_owner(&ndbcluster_mutex);  ... Need to change ndbcluster_mutex to 'mysql_mutex_t'
 
   if (!(share= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
                                            (const uchar*) key,
@@ -14419,7 +14457,7 @@ ha_rows
 ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                            void *seq_init_param, 
                                            uint n_ranges, uint *bufsz,
-                                           uint *flags, COST_VECT *cost)
+                                           uint *flags, Cost_estimate *cost)
 {
   ha_rows rows;
   uint def_flags= *flags;
@@ -14469,7 +14507,8 @@ ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 
 ha_rows 
 ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
-                                     uint *bufsz, uint *flags, COST_VECT *cost)
+                                     uint *bufsz, uint *flags,
+                                     Cost_estimate *cost)
 {
   ha_rows res;
   uint def_flags= *flags;
@@ -14478,7 +14517,8 @@ ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
   DBUG_ENTER("ha_ndbcluster::multi_range_read_info");
 
   /* Get cost/flags/mem_usage of default MRR implementation */
-  res= handler::multi_range_read_info(keyno, n_ranges, n_rows, &def_bufsz, &def_flags,
+  res= handler::multi_range_read_info(keyno, n_ranges, n_rows,
+                                      &def_bufsz, &def_flags,
                                       cost);
   if (unlikely(res == HA_POS_ERROR))
   {
@@ -14531,7 +14571,7 @@ ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 */
 
 bool ha_ndbcluster::choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
-                                    uint *bufsz, uint *flags, COST_VECT *cost)
+                                    uint *bufsz, uint *flags, Cost_estimate *cost)
 {
   THD *thd= current_thd;
   NDB_INDEX_TYPE key_type= get_index_type(keyno);
@@ -14572,14 +14612,14 @@ bool ha_ndbcluster::choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
     {
       uint max_ranges= (n_ranges > 0) ? n_ranges : MRR_MAX_RANGES;
       *bufsz= min(save_bufsize,
-                  n_rows * entry_size + multi_range_fixed_size(max_ranges));
+                  (uint)(n_rows * entry_size + multi_range_fixed_size(max_ranges)));
     }
     DBUG_PRINT("info", ("MRR bufsize set to %u", *bufsz));
   }
 
   /**
    * Cost based MRR optimization is known to be incorrect.
-   * Disabled - always use NDB-MRR whenever possible
+   * Disabled -> always use NDB-MRR whenever possible
    */
 if (false)
 {
@@ -14588,14 +14628,14 @@ if (false)
    *        cost calculation. (Which also is incorrect!)
    * TODO:  We have to invent our own metrics for NDB-MRR.
    */
-  COST_VECT mrr_cost;
-  mrr_cost.zero();
-  mrr_cost.avg_io_cost= 1; /* assume random seeks */
+  Cost_estimate mrr_cost;
   if ((*flags & HA_MRR_INDEX_ONLY) && n_rows > 2)
-    mrr_cost.io_count= index_only_read_time(keyno, n_rows);
+    cost->add_io(index_only_read_time(keyno, n_rows) *
+                 Cost_estimate::IO_BLOCK_READ_COST());
   else
-    mrr_cost.io_count= read_time(keyno, n_ranges, n_rows);
-  mrr_cost.cpu_cost= n_rows * ROW_EVALUATE_COST + 0.01;
+    cost->add_io(read_time(keyno, n_ranges, n_rows) *
+                 Cost_estimate::IO_BLOCK_READ_COST());
+  cost->add_cpu(n_rows * ROW_EVALUATE_COST + 0.01);
 
   bool force_mrr;
   /* 

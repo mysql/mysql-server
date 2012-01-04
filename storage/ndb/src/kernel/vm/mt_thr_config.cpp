@@ -138,7 +138,8 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
     add(T_LDM);
     add(T_MAIN);
     add(T_IO);
-    return do_bindings();
+    const bool allow_too_few_cpus = true;
+    return do_bindings(allow_too_few_cpus);
   }
 
   Uint32 tcthreads = 0;
@@ -178,11 +179,15 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
     add(T_TC);
   }
 
-  return do_bindings() || do_validate();
+  // If we have set TC-threads...we say that this is "new" code
+  // and give error for having too few CPU's in mask compared to #threads
+  // started
+  const bool allow_too_few_cpus = (tcthreads == 0);
+  return do_bindings(allow_too_few_cpus) || do_validate();
 }
 
 int
-THRConfig::do_bindings()
+THRConfig::do_bindings(bool allow_too_few_cpus)
 {
   if (m_LockIoThreadsToCPU.count() == 1)
   {
@@ -291,9 +296,9 @@ THRConfig::do_bindings()
                         " but %u was needed, this may cause contention.\n",
                         cnt, num_threads);
 
-      if (count_unbound(m_threads[T_TC]))
+      if (!allow_too_few_cpus)
       {
-        m_err_msg.assfmt("Too CPU specifed with LockExecuteThreadToCPU. "
+        m_err_msg.assfmt("Too few CPU's specifed with LockExecuteThreadToCPU. "
                          "This is not supported when using multiple TC threads");
         return -1;
       }
@@ -881,7 +886,8 @@ THRConfig::do_parse(const char * ThreadConfig)
       add((T_Type)i);
   }
 
-  int res = do_bindings();
+  const bool allow_too_few_cpus = m_threads[T_TC].size() == 0;
+  int res = do_bindings(allow_too_few_cpus);
   if (res != 0)
   {
     return res;
@@ -1060,7 +1066,7 @@ TAPTEST(mt_thr_config)
         "main={ keso=88, count=23},ldm,ldm",
         "main={ cpuset=1-3 }, ldm={cpuset=3-4}",
         "main={ cpuset=1-3 }, ldm={cpubind=2}",
-        "tc,tc,tc",
+        "tc,tc,tc={count=5}",
         0
       };
 
@@ -1141,7 +1147,7 @@ TAPTEST(mt_thr_config)
       "1-8",
       "ldm={count=4,cpubind=1,4,5,6},tc,tc",
       "FAIL",
-      "Too CPU specifed with LockExecuteThreadToCPU. This is not supported when using multiple TC threads",
+      "Too few CPU's specifed with LockExecuteThreadToCPU. This is not supported when using multiple TC threads",
 
       // END
       0

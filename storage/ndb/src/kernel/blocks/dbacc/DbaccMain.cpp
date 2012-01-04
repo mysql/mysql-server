@@ -33,6 +33,7 @@
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
 #include <KeyDescriptor.hpp>
+#include <signaldata/NodeStateSignalData.hpp>
 
 #ifdef VM_TRACE
 #define DEBUG(x) ndbout << "DBACC: "<< x << endl;
@@ -1564,8 +1565,14 @@ void Dbacc::insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr)
 /* --------------------------------------------------------------------------------- */
 /* INSERTELEMENT                                                                     */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::insertelementLab(Signal* signal) 
+void Dbacc::insertelementLab(Signal* signal)
 {
+  if (unlikely(m_oom))
+  {
+    jam();
+    acckeyref1Lab(signal, ZPAGESIZE_ERROR);
+    return;
+  }
   if (unlikely(fragrecptr.p->dirRangeFull))
   {
     jam();
@@ -2338,6 +2345,17 @@ Dbacc::removerow(Uint32 opPtrI, const Local_key* key)
   /* Mark element disappeared */
   opbits |= Operationrec::OP_ELEMENT_DISAPPEARED;
   opbits &= ~Uint32(Operationrec::OP_COMMIT_DELETE_CHECK);
+
+  /**
+   * This function is (currently?) only used when refreshTuple()
+   *   inserts a record...and later wants to remove it
+   *
+   * Since this should not affect row-count...we change the optype to UPDATE
+   *   execACC_COMMITREQ will be called in same timeslice as this change...
+   */
+  opbits &= ~Uint32(Operationrec::OP_MASK);
+  opbits |= ZUPDATE;
+
   operationRecPtr.p->m_op_bits = opbits;
 
 #ifdef VM_TRACE
@@ -2376,6 +2394,11 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 	return;
       } else {
 	jam();
+#ifdef ERROR_INSERT
+        ndbrequire(fragrecptr.p->noOfElements > 0);
+#else
+        ndbassert(fragrecptr.p->noOfElements > 0);
+#endif
 	fragrecptr.p->noOfElements--;
 	fragrecptr.p->slack += fragrecptr.p->elementLength;
 	if (fragrecptr.p->slack > fragrecptr.p->slackCheck) { 
@@ -2395,16 +2418,6 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       }//if
     } else {
       jam();                                                /* EXPAND PROCESS HANDLING */
-      if (unlikely(opbits & Operationrec::OP_ELEMENT_DISAPPEARED))
-      {
-        jam();
-        /* Commit of refresh of non existing tuple.
-         *   ZREFRESH->ZWRITE->ZINSERT
-         * Do not affect element count
-         */
-        ndbrequire((opbits & Operationrec::OP_MASK) == ZINSERT);
-        return;
-      }
       fragrecptr.p->noOfElements++;
       fragrecptr.p->slack -= fragrecptr.p->elementLength;
       if (fragrecptr.p->slack >= (1u << 31)) { 
@@ -5334,7 +5347,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   ptrNull(newDirptr);
   texpDirRangeIndex = texpDirInd >> 8;
   ptrCheckGuard(expDirRangePtr, cdirrangesize, dirRange);
-  Uint32 max_dir_range_size = 256;
+  Uint32 max_dir_range_size = (256 * (100 - m_free_pct)) / 100;
   if (ERROR_INSERTED(3002)) {
       debug_lh_vars("EXP");
       max_dir_range_size = 2;
@@ -8068,6 +8081,8 @@ void Dbacc::releasePage(Signal* signal)
 
   g_acc_pages_used[instance()] = cnoOfAllocatedPages;
 
+  if (cnoOfAllocatedPages < m_maxAllocPages)
+    m_oom = false;
 }//Dbacc::releasePage()
 
 /* --------------------------------------------------------------------------------- */
@@ -8177,7 +8192,7 @@ void Dbacc::zpagesize_error(const char* where){
 void Dbacc::seizePage(Signal* signal) 
 {
   tresult = 0;
-  if (cfirstfreepage == RNIL)
+  if (cfirstfreepage == RNIL || m_oom)
   {
     jam();
     zpagesize_error("Dbacc::seizePage");
@@ -8191,11 +8206,13 @@ void Dbacc::seizePage(Signal* signal)
     cfirstfreepage = spPageptr.p->word32[0];
     cnoOfAllocatedPages++;
 
+    if (cnoOfAllocatedPages >= m_maxAllocPages)
+      m_oom = true;
+
     if (cnoOfAllocatedPages > cnoOfAllocatedPagesMax)
       cnoOfAllocatedPagesMax = cnoOfAllocatedPages;
 
     g_acc_pages_used[instance()] = cnoOfAllocatedPages;
-
   }
 
 }//Dbacc::seizePage()
@@ -8653,6 +8670,32 @@ Dbacc::execREAD_PSEUDO_REQ(Signal* signal){
   //  Uint32 * src = (Uint32*)&tmp;
   //  signal->theData[0] = src[0];
   //  signal->theData[1] = src[1];
+}
+
+void
+Dbacc::execNODE_STATE_REP(Signal* signal)
+{
+  jamEntry();
+  const NodeStateRep* rep = CAST_CONSTPTR(NodeStateRep,
+                                          signal->getDataPtr());
+
+  if (rep->nodeState.startLevel == NodeState::SL_STARTED)
+  {
+    jam();
+
+    const ndb_mgm_configuration_iterator * p =
+      m_ctx.m_config.getOwnConfigIterator();
+    ndbrequire(p != 0);
+
+    Uint32 free_pct = 5;
+    ndb_mgm_get_int_parameter(p, CFG_DB_FREE_PCT, &free_pct);
+
+    m_free_pct = free_pct;
+    m_maxAllocPages = (cpagesize * (100 - free_pct)) / 100;
+    if (cnoOfAllocatedPages >= m_maxAllocPages)
+      m_oom = true;
+  }
+  SimulatedBlock::execNODE_STATE_REP(signal);
 }
 
 #ifdef VM_TRACE

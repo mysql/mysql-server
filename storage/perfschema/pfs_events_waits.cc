@@ -32,15 +32,15 @@
 
 ulong events_waits_history_long_size= 0;
 /** Consumer flag for table EVENTS_WAITS_CURRENT. */
-bool flag_events_waits_current= true;
+bool flag_events_waits_current= false;
 /** Consumer flag for table EVENTS_WAITS_HISTORY. */
-bool flag_events_waits_history= true;
+bool flag_events_waits_history= false;
 /** Consumer flag for table EVENTS_WAITS_HISTORY_LONG. */
-bool flag_events_waits_history_long= true;
+bool flag_events_waits_history_long= false;
 /** Consumer flag for the global instrumentation. */
-bool flag_global_instrumentation= true;
+bool flag_global_instrumentation= false;
 /** Consumer flag for the per thread instrumentation. */
-bool flag_thread_instrumentation= true;
+bool flag_thread_instrumentation= false;
 
 /** True if EVENTS_WAITS_HISTORY_LONG circular buffer is full. */
 bool events_waits_history_long_full= false;

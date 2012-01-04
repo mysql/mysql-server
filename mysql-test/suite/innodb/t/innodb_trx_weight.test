@@ -74,7 +74,7 @@ INSERT INTO t3 SELECT * FROM t3;
 -- let $con1_should_be_rolledback = 1
 -- source include/innodb_trx_weight.inc
 
--- let $con1_extra_sql = INSERT INTO t4 VALUES (1), (1), (1), (1), (1), (1)
+-- let $con1_extra_sql = INSERT INTO t4 VALUES (1), (1), (1), (1), (1), (1), (1), (1), (1), (1), (1), (1), (1), (1), (1), (1), (1), (1)
 -- let $con1_extra_sql_present = 1
 -- let $con2_extra_sql = SELECT * FROM t3 FOR UPDATE
 -- let $con2_extra_sql_present = 1

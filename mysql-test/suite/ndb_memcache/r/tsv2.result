@@ -1,4 +1,4 @@
-SELECT * FROM ndbmemcache.demo_table_tabs ;
+SELECT mkey, val1, val2, val3 FROM ndbmemcache.demo_table_tabs;
 mkey	val1	val2	val3
 10	anglophilia	backtrack	10
 11	catarrh	dogmatic	11
@@ -13,4 +13,4 @@ mkey	val1	val2	val3
 20	um	van	20
 21	westphalian	xeroma	21
 22	yip	zoo	22
-DELETE   FROM ndbmemcache.demo_table_tabs;
+DELETE FROM ndbmemcache.demo_table_tabs;

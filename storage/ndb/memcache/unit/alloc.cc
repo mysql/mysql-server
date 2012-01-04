@@ -28,7 +28,7 @@
 #include "all_tests.h"
 
 int run_allocator_test(QueryPlan *, Ndb *, int v) {
-  struct request_pipeline *p = get_request_pipeline();
+  struct request_pipeline *p = get_request_pipeline(0);
   
   memory_pool *p1 = pipeline_create_memory_pool(p);
   int sz = 13;

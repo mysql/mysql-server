@@ -816,7 +816,7 @@ c2
 838:59:59
 UPDATE t4 SET c2='-838:59:60' WHERE c1='100:04:04';
 Warnings:
-Warning	1265	Data truncated for column 'c2' at row 12
+Warning	1264	Out of range value for column 'c2' at row 12
 SELECT c2 FROM t4;
 c2
 -838:59:55
@@ -863,7 +863,7 @@ NULL
 NULL
 UPDATE t4 SET c2='838:59:60' WHERE c1='100:04:04';
 Warnings:
-Warning	1265	Data truncated for column 'c2' at row 12
+Warning	1264	Out of range value for column 'c2' at row 12
 SELECT c2 FROM t4;
 c2
 -838:59:55
@@ -955,7 +955,7 @@ NULL
 NULL
 UPDATE t4 SET c2='11:11:60' WHERE c1='100:04:04';
 Warnings:
-Warning	1265	Data truncated for column 'c2' at row 12
+Warning	1264	Out of range value for column 'c2' at row 12
 SELECT c2 FROM t4;
 c2
 -838:59:55
@@ -1002,7 +1002,7 @@ NULL
 NULL
 UPDATE t4 SET c2='11:60:11' WHERE c1='100:04:04';
 Warnings:
-Warning	1265	Data truncated for column 'c2' at row 12
+Warning	1264	Out of range value for column 'c2' at row 12
 SELECT c2 FROM t4;
 c2
 -838:59:55
@@ -1215,7 +1215,7 @@ c1	c2
 838:59:59	838:59:59
 UPDATE t1 SET t1.c2='99999.99999' WHERE c1 BETWEEN 080000 AND 100000;
 Warnings:
-Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t1;
 c1	c2
 -12:12:12	12:12:12

@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -19,9 +19,9 @@ WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
 Public License for more details.
 
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ***********************************************************************/
 
@@ -46,9 +46,6 @@ Created 10/21/1995 Heikki Tuuri
 /** File node of a tablespace or the log data space */
 typedef	struct fil_node_struct	fil_node_t;
 
-#ifdef UNIV_DO_FLUSH
-extern ibool	os_do_not_call_flush_at_each_write;
-#endif /* UNIV_DO_FLUSH */
 extern ibool	os_has_said_disk_full;
 /** Flag: enable debug printout for asynchronous i/o */
 extern ibool	os_aio_print_debug;
@@ -467,8 +464,7 @@ os_file_create_simple_func(
 /*=======================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: create mode */
+	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
 	ibool*		success);/*!< out: TRUE if succeed, FALSE if error */
@@ -484,8 +480,7 @@ os_file_create_simple_no_error_handling_func(
 /*=========================================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: create mode */
+	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY,
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
@@ -515,8 +510,7 @@ os_file_create_func(
 /*================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: create mode */
+	ulint		create_mode,/*!< in: create mode */
 	ulint		purpose,/*!< in: OS_FILE_AIO, if asynchronous,
 				non-buffered i/o is desired,
 				OS_FILE_NORMAL, if any normal file;
@@ -586,8 +580,7 @@ pfs_os_file_create_simple_func(
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: create mode */
+	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
 	ibool*		success,/*!< out: TRUE if succeed, FALSE if error */
@@ -610,8 +603,7 @@ pfs_os_file_create_simple_no_error_handling_func(
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode, /*!< in: file create mode */
+	ulint		create_mode, /*!< in: file create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY,
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
@@ -635,8 +627,7 @@ pfs_os_file_create_func(
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: file create mode */
+	ulint		create_mode,/*!< in: file create mode */
 	ulint		purpose,/*!< in: OS_FILE_AIO, if asynchronous,
 				non-buffered i/o is desired,
 				OS_FILE_NORMAL, if any normal file;

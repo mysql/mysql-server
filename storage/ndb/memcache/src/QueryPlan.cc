@@ -25,11 +25,13 @@
 #include <memcached/extension_loggers.h>
 
 #include "ndbmemcache_global.h"
+#include "ndb_engine.h"
 #include "debug.h"
 #include "QueryPlan.h"
+#include "ExternalValue.h"
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
-unsigned char empty_mask[4] = { 0, 0, 0, 0 };
+size_t global_max_item_size;
 
 /* For each pair [TableSpec,NDB Object], we can cache some dictionary 
    lookups, acccess path information, NdbRecords, etc.
@@ -58,7 +60,6 @@ bool is_integer(const NdbDictionary::Table *table, int col_idx) {
 }
 
 
-
 inline const NdbDictionary::Column *get_ndb_col(const TableSpec *spec, 
                                                 const NdbDictionary::Table *table,
                                                 const char *col_name) 
@@ -75,15 +76,24 @@ inline const NdbDictionary::Column *get_ndb_col(const TableSpec *spec,
 QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  : 
   initialized(0), 
   dup_numbers(false),
-  db(my_ndb),
-  spec(my_spec), 
-  is_scan(false)
-{  
+  is_scan(false),
+  spec(my_spec),
+  static_flags(spec->static_flags),
+  db(my_ndb)
+{
   const NdbDictionary::Column *col;
   bool op_ok = false; 
   bool last_value_col_is_int = false;
   int  first_value_col_id = -1;
   
+  if(! (spec->isValid())) {
+    logger->log(LOG_WARNING, 0, "Container record (%s.%s) is not valid. %s\n",
+                spec->schema_name ? spec->schema_name : "??",
+                spec->table_name  ? spec->table_name  : "??",
+                spec->nkeycols ? "" : "[No key columns defined]");
+    return;
+  }
+
   /* Get the data dictionary */
   db->setDatabaseName(spec->schema_name);
   dict = db->getDictionary(); 
@@ -91,7 +101,7 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
     logger->log(LOG_WARNING, 0,  "Could not get NDB dictionary.\n");
     return;
   }    
-  /* Get the table */
+  /* Get the table */  
   table = dict->getTable(spec->table_name);
   if(! table) {
     logger->log(LOG_WARNING, 0, "Invalid table \"%s.%s\"\n", 
@@ -99,30 +109,37 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
     return;
   }
 
+  /* Externalized long values */
+  if(spec->external_table)
+    extern_store = new QueryPlan(db, spec->external_table);
+  else 
+    extern_store = 0;
+
+  /* Data on Disk? */
+  has_disk_storage = 
+    (table->getStorageType() == NdbDictionary::Column::StorageTypeDisk);
+  if(extern_store && extern_store->has_disk_storage) 
+    has_disk_storage = true;
+  
   /* Process the TableSpec */
   int ncols  = spec->nkeycols + spec->nvaluecols 
-             + ( spec->math_column  ? 1 : 0 )
-             + ( spec->flags_column ? 1 : 0 )
-             + ( spec->cas_column   ? 1 : 0 )
-             + ( spec->exp_column   ? 1 : 0 );
+             + ( spec->math_column    ? 1 : 0 )
+             + ( spec->flags_column   ? 1 : 0 )
+             + ( spec->cas_column     ? 1 : 0 )
+             + ( spec->exp_column     ? 1 : 0 )
+             + ( spec->external_table ? 2 : 0 );
   
   /* Instantiate the Records */
   key_record = new Record(spec->nkeycols);
   val_record = new Record(ncols - spec->nkeycols);
   row_record = new Record(ncols);
 
-  // Column masks used in incr/decr operations
-  bzero(& math_mask_r, 4);
-  bzero(& math_mask_i, 4);
-  bzero(& math_mask_u, 4);
-
   /* Key Columns */
   for(int i = 0; i < spec->nkeycols ; i++) {
     col = get_ndb_col(spec, table, spec->key_columns[i]);
-    int this_col_id = col->getColumnNo();
+    // int this_col_id = col->getColumnNo();
     key_record->addColumn(COL_STORE_KEY, col);
     row_record->addColumn(COL_STORE_KEY, col);
-    math_mask_i[this_col_id >> 3] |= (1 << (this_col_id & 7));
   }
 
   /* Primary Key access path? */
@@ -138,6 +155,10 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
       DEBUG_PRINT("Using Index: %s on Table: %s %s", plan_idx->getName(), 
                   spec->table_name, is_scan ? "[SCAN]" : "");
       op_ok = key_record->complete(dict, plan_idx);
+    }
+    else {
+      logger->log(LOG_WARNING, 0, "No usable keys found on %s.%s\n",
+                  spec->schema_name, spec->table_name);
     }
   }
   if(op_ok == false) return;
@@ -164,13 +185,6 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
     math_column_id = col->getColumnNo();
     row_record->addColumn(COL_STORE_MATH, col);
     val_record->addColumn(COL_STORE_MATH, col);
-    math_mask_r[math_column_id >> 3] |= (1 << (math_column_id & 7)); 
-    math_mask_i[math_column_id >> 3] |= (1 << (math_column_id & 7));
-    if(spec->cas_column) {
-      math_mask_r[cas_column_id  >> 3] |= (1 << (cas_column_id & 7)); 
-      math_mask_i[cas_column_id  >> 3] |= (1 << (cas_column_id & 7)); 
-      math_mask_u[cas_column_id  >> 3] |= (1 << (cas_column_id & 7)); 
-    }
   }
   if(spec->flags_column) {                                      // Flags
     col = get_ndb_col(spec, table, spec->flags_column);
@@ -181,6 +195,23 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
     col = get_ndb_col(spec, table, spec->exp_column);
     row_record->addColumn(COL_STORE_EXPIRES, col);
     val_record->addColumn(COL_STORE_EXPIRES, col);             
+  }
+  if(spec->external_table) {                                    // Ext id & len
+    col = get_ndb_col(spec, table, "ext_id");
+    if(col == 0) {
+      logger->log(LOG_WARNING,0, "Table must have column: `ext_id` INT UNSIGNED");
+      return;
+    }
+    row_record->addColumn(COL_STORE_EXT_ID, col);
+    val_record->addColumn(COL_STORE_EXT_ID, col);
+    
+    col = get_ndb_col(spec, table, "ext_size");
+    if(col == 0) {
+      logger->log(LOG_WARNING,0, "Table must have column: `ext_size` INT UNSIGNED");
+      return;
+    }
+    row_record->addColumn(COL_STORE_EXT_SIZE, col);
+    val_record->addColumn(COL_STORE_EXT_SIZE, col);    
   }
 
    /* Complete the records */
@@ -198,16 +229,29 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
       /* There is one varchar value column plus a math column. 
          Enable the special "duplicate math" behavior. */
       dup_numbers = true;
-      math_mask_i[first_value_col_id >> 3] |= (1 << (first_value_col_id & 7));
-      math_mask_u[first_value_col_id >> 3] |= (1 << (first_value_col_id & 7));
     }  
   }
   if(spec->cas_column && ! is_integer(table, cas_column_id)) {  // CAS
-      logger->log(LOG_WARNING, 0, "Non-numeric column \"%s\" cannot be used "
-                  "for CAS. \n", spec->cas_column);
-      return;
+    logger->log(LOG_WARNING, 0, "Non-numeric column \"%s\" cannot be used "
+                "for CAS. \n", spec->cas_column);
+    return;
   }
+  if(spec->external_table && spec->nvaluecols != 1) {
+    logger->log(LOG_WARNING, 0, "Long external values are allowed only with 1 "
+                "value column (%d on table %s).\n", 
+                spec->nvaluecols, spec->table_name);
+    return;
+  }
+  
+  /* Maximum allowed value */  
+  if(extern_store)
+    max_value_len = EXTERN_VAL_MAX_PARTS * extern_store->max_value_len;
+  else
+    max_value_len = row_record->value_length;
 
+  if(max_value_len > global_max_item_size)
+    max_value_len = global_max_item_size;
+  
   /* Success. */
   initialized = 1;
 };
@@ -217,6 +261,14 @@ QueryPlan::~QueryPlan() {
   if(row_record) delete row_record;
   if(key_record) delete key_record;
   if(val_record) delete val_record;
+  if(extern_store) delete extern_store;
+}
+
+
+Uint64 QueryPlan::getAutoIncrement() const {
+  Uint64 auto_inc;
+  db->getAutoIncrementValue(table, auto_inc, 10);
+  return auto_inc;
 }
 
 
@@ -232,6 +284,10 @@ void QueryPlan::debug_dump() const {
   if(val_record) {
     DEBUG_PRINT("val_record");
     val_record->debug_dump();
+  }
+  if(extern_store) {
+    DEBUG_PRINT("extern_store");
+    extern_store->debug_dump();
   }
 }
 

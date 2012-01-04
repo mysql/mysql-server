@@ -45,13 +45,6 @@ public class ClusterConnectionImpl
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(com.mysql.clusterj.core.store.ClusterConnection.class);
 
-    /** Load the ndbjtie system library */
-    static {
-        loadSystemLibrary("ndbclient");
-        // initialize the charset map
-        Utility.getCharsetMap();
-    }
-
     /** Ndb_cluster_connection is wrapped by ClusterConnection */
     protected Ndb_cluster_connection clusterConnection;
 
@@ -76,40 +69,6 @@ public class ClusterConnectionImpl
         handleError(clusterConnection, connectString, nodeId);
         logger.info(local.message("INFO_Create_Cluster_Connection", connectString, nodeId));
     }
-
-    static protected void loadSystemLibrary(String name) {
-        String message;
-        String path;
-        try {
-            System.loadLibrary(name);
-        } catch (UnsatisfiedLinkError e) {
-            path = getLoadLibraryPath();
-            message = local.message("ERR_Failed_Loading_Library",
-                    name, path, "UnsatisfiedLinkError", e.getLocalizedMessage());
-            logger.fatal(message);
-            throw e;
-        } catch (SecurityException e) {
-            path = getLoadLibraryPath();
-            message = local.message("ERR_Failed_Loading_Library",
-                    name, path, "SecurityException", e.getLocalizedMessage());
-            logger.fatal(message);
-            throw e;
-        }
-    }
-
-    /**
-     * @return the load library path or the Exception string
-     */
-    private static String getLoadLibraryPath() {
-        String path;
-        try {
-            path = System.getProperty("java.library.path");
-        } catch (Exception ex) {
-            path = "<Exception: " + ex.getMessage() + ">";
-        }
-        return path;
-    }
-
 
     public void connect(int connectRetries, int connectDelay, boolean verbose) {
         checkConnection();

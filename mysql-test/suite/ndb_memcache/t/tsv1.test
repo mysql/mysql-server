@@ -27,5 +27,5 @@ else {
 
 EOF
 
-SELECT * FROM ndbmemcache.demo_table_tabs where mkey = 1;
+SELECT mkey, val1, val2, val3 FROM ndbmemcache.demo_table_tabs where mkey = 1;
 DELETE   FROM ndbmemcache.demo_table_tabs;

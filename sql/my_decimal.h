@@ -98,12 +98,31 @@ inline int my_decimal_int_part(uint precision, uint decimals)
 
 class my_decimal :public decimal_t
 {
+  /*
+    Several of the routines in strings/decimal.c have had buffer
+    overrun/underrun problems. These are *not* caught by valgrind.
+    To catch them, we allocate dummy fields around the buffer,
+    and test that their values do not change.
+   */
+#if !defined(DBUG_OFF)
+  int foo1;
+#endif
+
   decimal_digit_t buffer[DECIMAL_BUFF_LENGTH];
+
+#if !defined(DBUG_OFF)
+  int foo2;
+  static const int test_value= 123;
+#endif
 
 public:
 
   my_decimal(const my_decimal &rhs) : decimal_t(rhs)
   {
+#if !defined(DBUG_OFF)
+    foo1= test_value;
+    foo2= test_value;
+#endif
     for (uint i= 0; i < DECIMAL_BUFF_LENGTH; i++)
       buffer[i]= rhs.buffer[i];
     fix_buffer_pointer();
@@ -111,6 +130,10 @@ public:
 
   my_decimal& operator=(const my_decimal &rhs)
   {
+#if !defined(DBUG_OFF)
+    foo1= test_value;
+    foo2= test_value;
+#endif
     if (this == &rhs)
       return *this;
     decimal_t::operator=(rhs);
@@ -122,6 +145,10 @@ public:
 
   void init()
   {
+#if !defined(DBUG_OFF)
+    foo1= test_value;
+    foo2= test_value;
+#endif
     len= DECIMAL_BUFF_LENGTH;
     buf= buffer;
   }
@@ -130,6 +157,17 @@ public:
   {
     init();
   }
+  ~my_decimal()
+  {
+    sanity_check();
+  }
+
+  void sanity_check()
+  {
+    DBUG_ASSERT(foo1 == test_value);
+    DBUG_ASSERT(foo2 == test_value);
+  }
+
   void fix_buffer_pointer() { buf= buffer; }
 
   bool sign() const { return decimal_t::sign; }
@@ -352,8 +390,14 @@ int my_decimal2double(uint, const my_decimal *d, double *result)
 }
 
 
-inline
-int str2my_decimal(uint mask, const char *str, my_decimal *d, char **end)
+inline int my_decimal2lldiv_t(uint mask, const my_decimal *d, lldiv_t *to)
+{
+  return check_result(mask, decimal2lldiv_t(d, to));
+}
+
+
+inline int str2my_decimal(uint mask, const char *str,
+                          my_decimal *d, char **end)
 {
   return check_result_and_overflow(mask, string2decimal(str, d, end), d);
 }
@@ -370,8 +414,9 @@ int string2my_decimal(uint mask, const String *str, my_decimal *d)
 }
 
 
-my_decimal *date2my_decimal(MYSQL_TIME *ltime, my_decimal *dec);
-
+my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
+my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
+my_decimal *timeval2my_decimal(const struct timeval *tm, my_decimal *dec);
 
 #endif /*defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY) */
 

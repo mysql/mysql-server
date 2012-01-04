@@ -125,7 +125,7 @@ void S::SchedulerGlobal::reconfigure(Configuration * new_cf) {
 
 void S::SchedulerGlobal::shutdown() {
   if(running) {
-    logger->log(LOG_WARNING, 0, "Shutting down scheduler.");
+    logger->log(LOG_INFO, 0, "Shutting down scheduler.");
 
     /* First shut down each WorkerConnection */
     for(int i = 0; i < nclusters ; i++) {
@@ -249,8 +249,6 @@ void S::SchedulerGlobal::add_stats(const char *stat_key,
 void S::SchedulerWorker::init(int my_thread, 
                               int nthreads, 
                               const char * config_string) {
-  
-  DEBUG_ENTER_METHOD("S::SchedulerWorker::init");
   /* On the first call in, initialize the SchedulerGlobal.
    * This will start the send & poll threads for each connection.
    */
@@ -298,6 +296,7 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
     pthread_rwlock_unlock(& reconf_lock);
   }
   else {
+    logger->log(LOG_INFO, 0, "S Scheduler could not acquire read lock");
     return ENGINE_TMPFAIL;
   }
   /* READ LOCK RELEASED */
@@ -316,6 +315,7 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
      all we can do is return an error. 
      (Or, alternately, the scheduler may be shutting down.)
      */
+    logger->log(LOG_INFO, 0, "No free NDB instances.");
     return ENGINE_TMPFAIL;
   }
   
@@ -426,9 +426,9 @@ void S::SchedulerWorker::add_stats(const char *stat_key,
 
 /* Cluster methods */
 S::Cluster::Cluster(SchedulerGlobal *global, int _id) : 
-  cluster_id(_id), 
-  nreferences(0),
-  threads_started(false)
+  threads_started(false),
+  cluster_id(_id),
+  nreferences(0)
 {
   DEBUG_PRINT("%d", cluster_id);
   
@@ -514,7 +514,6 @@ void S::Cluster::add_stats(const char *stat_key,
 
 S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
                                       int thd_id, int cluster_id) {
-  DEBUG_ENTER_METHOD("S::WorkerConnection::WorkerConnection");
   S::Cluster *cl = global->clusters[cluster_id];  
   Configuration *conf = global->conf;
 
@@ -830,7 +829,6 @@ void * S::Connection::run_ndb_send_thread() {
         stats.timeout_races += 1;
       }
 
-      DEBUG_PRINT("Waking up poll thread.");
       pollgroup->wakeup();
  
       timeout_msec = timeout_min;  /* we are now "busy" */
@@ -895,7 +893,6 @@ void * S::Connection::run_ndb_poll_thread() {
 
     /* Poll the ones that are ready */
     if(nwaiting > 0) {
-      DEBUG_PRINT("Waited for %d, got %d", min_ready, nwaiting);
       for(int i = 0; i < nwaiting ; i++) {
         in_flight--;
         assert(in_flight >= 0);

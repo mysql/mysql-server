@@ -42,6 +42,9 @@
 #include "ha_partition.h"
 #endif
 
+using std::min;
+using std::max;
+
 // This is a temporary backporting fix.
 #ifndef HAVE_LOG2
 /*
@@ -400,6 +403,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER_DEFAULT(ER_TOO_MANY_CONCURRENT_TRXS));
   SETMSG(HA_ERR_INDEX_COL_TOO_LONG,	ER_DEFAULT(ER_INDEX_COLUMN_TOO_LONG));
   SETMSG(HA_ERR_INDEX_CORRUPT,		ER_DEFAULT(ER_INDEX_CORRUPT));
+  SETMSG(HA_FTS_INVALID_DOCID,		"Invalid InnoDB FTS Doc ID");
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -2960,7 +2964,12 @@ void handler::print_error(int error, myf errflag)
     textno=ER_FILE_USED;
     break;
   case ENOENT:
-    textno=ER_FILE_NOT_FOUND;
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      textno=ER_FILE_NOT_FOUND;
+      my_error(textno, errflag, table_share->table_name.str,
+               error, my_strerror(errbuf, sizeof(errbuf), error));
+    }
     break;
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:
@@ -2984,28 +2993,31 @@ void handler::print_error(int error, myf errflag)
   }
   case HA_ERR_FOREIGN_DUPLICATE_KEY:
   {
-    uint key_nr= get_dup_key(error);
-    if ((int) key_nr >= 0)
+    DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+                m_lock_type != F_UNLCK);
+
+    char rec_buf[MAX_KEY_LENGTH];
+    String rec(rec_buf, sizeof(rec_buf), system_charset_info);
+    /* Table is opened and defined at this point */
+    key_unpack(&rec, table, 0 /* just print the subset of fields that are
+                              part of the first index, printing the whole
+                              row from there is not easy */);
+
+    char child_table_name[NAME_LEN + 1];
+    char child_key_name[NAME_LEN + 1];
+    if (get_foreign_dup_key(child_table_name, sizeof(child_table_name),
+                            child_key_name, sizeof(child_key_name)))
     {
-      uint max_length;
-      /* Write the key in the error message */
-      char key[MAX_KEY_LENGTH];
-      String str(key,sizeof(key),system_charset_info);
-      /* Table is opened and defined at this point */
-      key_unpack(&str,table,(uint) key_nr);
-      max_length= (MYSQL_ERRMSG_SIZE-
-                   (uint) strlen(ER(ER_FOREIGN_DUPLICATE_KEY)));
-      if (str.length() >= max_length)
-      {
-        str.length(max_length-4);
-        str.append(STRING_WITH_LEN("..."));
-      }
-      my_error(ER_FOREIGN_DUPLICATE_KEY, MYF(0), table_share->table_name.str,
-        str.c_ptr_safe(), key_nr+1);
-      DBUG_VOID_RETURN;
+      my_error(ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO, MYF(0),
+               table_share->table_name.str, rec.c_ptr_safe(),
+               child_table_name, child_key_name);
     }
-    textno= ER_DUP_KEY;
-    break;
+    else
+    {
+      my_error(ER_FOREIGN_DUPLICATE_KEY_WITHOUT_CHILD_INFO, MYF(0),
+               table_share->table_name.str, rec.c_ptr_safe());
+    }
+    DBUG_VOID_RETURN;
   }
   case HA_ERR_NULL_IN_SPATIAL:
     my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
@@ -3149,7 +3161,8 @@ void handler::print_error(int error, myf errflag)
       DBUG_VOID_RETURN;
     }
   }
-  my_error(textno, errflag, table_share->table_name.str, error);
+  if (textno != ER_FILE_NOT_FOUND)
+    my_error(textno, errflag, table_share->table_name.str, error);
   DBUG_VOID_RETURN;
 }
 
@@ -3326,7 +3339,7 @@ uint handler::get_dup_key(int error)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   table->file->errkey  = (uint) -1;
-  if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOREIGN_DUPLICATE_KEY ||
+  if (error == HA_ERR_FOUND_DUPP_KEY ||
       error == HA_ERR_FOUND_DUPP_UNIQUE || error == HA_ERR_NULL_IN_SPATIAL ||
       error == HA_ERR_DROP_INDEX_FK)
     table->file->info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
@@ -5253,7 +5266,8 @@ bool key_uses_partial_cols(TABLE *table, uint keyno)
 ha_rows 
 handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                      void *seq_init_param, uint n_ranges_arg,
-                                     uint *bufsz, uint *flags, COST_VECT *cost)
+                                     uint *bufsz, uint *flags, 
+                                     Cost_estimate *cost)
 {
   KEY_MULTI_RANGE range;
   range_seq_t seq_it;
@@ -5314,13 +5328,13 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 #ifndef MCP_BUG13330645
     *flags|= HA_MRR_SUPPORT_SORTED;
 #endif
-    cost->zero();
-    cost->avg_io_cost= 1; /* assume random seeks */
     if ((*flags & HA_MRR_INDEX_ONLY) && total_rows > 2)
-      cost->io_count= index_only_read_time(keyno, total_rows);
+      cost->add_io(index_only_read_time(keyno, total_rows) *
+                   Cost_estimate::IO_BLOCK_READ_COST());
     else
-      cost->io_count= read_time(keyno, n_ranges, total_rows);
-    cost->cpu_cost= total_rows * ROW_EVALUATE_COST + 0.01;
+      cost->add_io(read_time(keyno, n_ranges, total_rows) *
+                   Cost_estimate::IO_BLOCK_READ_COST());
+    cost->add_cpu(total_rows * ROW_EVALUATE_COST + 0.01);
   }
   return total_rows;
 }
@@ -5361,7 +5375,8 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 */
 
 ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
-                                       uint *bufsz, uint *flags, COST_VECT *cost)
+                                       uint *bufsz, uint *flags, 
+                                       Cost_estimate *cost)
 {
   *bufsz= 0; /* Default implementation doesn't need a buffer */
 
@@ -5370,14 +5385,15 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
   *flags|= HA_MRR_SUPPORT_SORTED;
 #endif
 
-  cost->zero();
-  cost->avg_io_cost= 1; /* assume random seeks */
+  DBUG_ASSERT(cost->is_zero());
 
   /* Produce the same cost as non-MRR code does */
   if (*flags & HA_MRR_INDEX_ONLY)
-    cost->io_count= index_only_read_time(keyno, n_rows);
+    cost->add_io(index_only_read_time(keyno, n_rows) * 
+                 Cost_estimate::IO_BLOCK_READ_COST());
   else
-    cost->io_count= read_time(keyno, n_ranges, n_rows);
+    cost->add_io(read_time(keyno, n_ranges, n_rows) *
+                 Cost_estimate::IO_BLOCK_READ_COST());
   return 0;
 }
 
@@ -5854,7 +5870,7 @@ end:
   DS-MRR implementation: multi_range_read_info() function
 */
 ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
-                               uint *bufsz, uint *flags, COST_VECT *cost)
+                               uint *bufsz, uint *flags, Cost_estimate *cost)
 {  
   ha_rows res;
   uint def_flags= *flags;
@@ -5893,7 +5909,7 @@ ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
 
 ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                  void *seq_init_param, uint n_ranges, 
-                                 uint *bufsz, uint *flags, COST_VECT *cost)
+                                 uint *bufsz, uint *flags, Cost_estimate *cost)
 {
   ha_rows rows;
   uint def_flags= *flags;
@@ -5954,9 +5970,8 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
 */
 
 bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
-                                 uint *bufsz, COST_VECT *cost)
+                                 uint *bufsz, Cost_estimate *cost)
 {
-  COST_VECT dsmrr_cost;
   bool res;
   THD *thd= current_thd;
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
@@ -5975,11 +5990,9 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
     return TRUE;
   }
   
-  uint add_len= table->key_info[keyno].key_length + h->ref_length; 
-  *bufsz -= add_len;
+  Cost_estimate dsmrr_cost;
   if (get_disk_sweep_mrr_cost(keyno, rows, *flags, bufsz, &dsmrr_cost))
     return TRUE;
-  *bufsz += add_len;
   
   bool force_dsmrr;
   /* 
@@ -5994,7 +6007,7 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
       dsmrr_cost.total_cost() > cost->total_cost())
     dsmrr_cost= *cost;
 
-  if (force_dsmrr || dsmrr_cost.total_cost() <= cost->total_cost())
+  if (force_dsmrr || (dsmrr_cost.total_cost() <= cost->total_cost()))
   {
     *flags &= ~HA_MRR_USE_DEFAULT_IMPL;  /* Use the DS-MRR implementation */
 #ifdef MCP_BUG13330645
@@ -6014,7 +6027,8 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
 }
 
 
-static void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, COST_VECT *cost);
+static void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, 
+                                    Cost_estimate *cost);
 
 
 /**
@@ -6032,7 +6046,8 @@ static void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, COST_VECT *cost
 */
 
 bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
-                                         uint *buffer_size, COST_VECT *cost)
+                                         uint *buffer_size, 
+                                         Cost_estimate *cost)
 {
   ulong max_buff_entries, elem_size;
   ha_rows rows_in_last_step;
@@ -6053,7 +6068,8 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
     non-full buffer
   */
   rows_in_last_step= rows % max_buff_entries;
-
+  
+  DBUG_ASSERT(cost->is_zero());
   /* Adjust buffer size if we expect to use only part of the buffer */
   if (n_full_steps)
   {
@@ -6062,24 +6078,35 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   }
   else
   {
-    cost->zero();
-    *buffer_size= max(*buffer_size, 
-                      (size_t)(1.2*rows_in_last_step) * elem_size + 
-                      h->ref_length + table->key_info[keynr].key_length);
+    *buffer_size= max<ulong>(*buffer_size,
+                             (size_t)(1.2*rows_in_last_step) * elem_size +
+                             h->ref_length + table->key_info[keynr].key_length);
   }
 
-  COST_VECT last_step_cost;
+  Cost_estimate last_step_cost;
   get_sort_and_sweep_cost(table, rows_in_last_step, &last_step_cost);
-  cost->add(&last_step_cost);
+  (*cost)+= last_step_cost;
 
+  /*
+    With the old COST_VECT, memory cost was part of total_cost() but
+    that's not the case with Cost_estimate. Introducing Cost_estimate
+    shall not change any costs, hence the memory cost is added as if
+    it was CPU cost below. To be reconsidered when DsMRR costs are
+    refactored.
+  */
   if (n_full_steps != 0)
-    cost->mem_cost= *buffer_size;
+  {
+    cost->add_mem(*buffer_size);
+    cost->add_cpu(*buffer_size);
+  }
   else
-    cost->mem_cost= rows_in_last_step * elem_size;
-  
+  {
+    cost->add_mem(rows_in_last_step * elem_size);
+    cost->add_cpu(rows_in_last_step * elem_size);
+  }  
   /* Total cost of all index accesses */
   index_read_cost= h->index_only_read_time(keynr, rows);
-  cost->add_io(index_read_cost, 1 /* Random seeks */);
+  cost->add_io(index_read_cost * Cost_estimate::IO_BLOCK_READ_COST());
   return FALSE;
 }
 
@@ -6100,8 +6127,9 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
 */
 
 static 
-void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, COST_VECT *cost)
+void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
 {
+  DBUG_ASSERT(cost->is_zero());
   if (nrows)
   {
     get_sweep_read_cost(table, nrows, FALSE, cost);
@@ -6109,10 +6137,8 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, COST_VECT *cost)
     double cmp_op= rows2double(nrows) * ROWID_COMPARE_COST;
     if (cmp_op < 3)
       cmp_op= 3;
-    cost->cpu_cost += cmp_op * log2(cmp_op);
+    cost->add_cpu(cmp_op * log2(cmp_op));
   }
-  else
-    cost->zero();
 }
 
 
@@ -6160,15 +6186,16 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, COST_VECT *cost)
 */
 
 void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted, 
-                         COST_VECT *cost)
+                         Cost_estimate *cost)
 {
   DBUG_ENTER("get_sweep_read_cost");
 
-  cost->zero();
+  DBUG_ASSERT(cost->is_zero());
   if (table->file->primary_key_is_clustered())
   {
-    cost->io_count= table->file->read_time(table->s->primary_key, (uint)nrows, 
-                                           nrows);
+    cost->add_io(table->file->read_time(table->s->primary_key,
+                                        (uint)nrows, nrows) *
+                 Cost_estimate::IO_BLOCK_READ_COST());
   }
   else
   {
@@ -6183,14 +6210,13 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 
     DBUG_PRINT("info",("sweep: nblocks=%g, busy_blocks=%g", n_blocks,
                        busy_blocks));
-    cost->io_count= busy_blocks;
-
-    if (!interrupted)
-    {
+    if (interrupted)
+      cost->add_io(busy_blocks * Cost_estimate::IO_BLOCK_READ_COST());
+    else
       /* Assume reading is done in one 'sweep' */
-      cost->avg_io_cost= (DISK_SEEK_BASE_COST +
-                          DISK_SEEK_PROP_COST*n_blocks/busy_blocks);
-    }
+      cost->add_io(busy_blocks * 
+                   (DISK_SEEK_BASE_COST +
+                    DISK_SEEK_PROP_COST * n_blocks / busy_blocks));
   }
   DBUG_PRINT("info",("returning cost=%g", cost->total_cost()));
   DBUG_VOID_RETURN;

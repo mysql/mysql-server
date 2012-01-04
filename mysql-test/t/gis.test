@@ -838,6 +838,17 @@ FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
 
 DROP TABLE g1;
 
+--echo #
+--echo # Bug#13013970 MORE CRASHES IN FIELD_BLOB::GET_KEY_IMAGE
+--echo #
+
+CREATE TABLE g1(a TEXT NOT NULL, KEY(a(255)));
+
+INSERT INTO g1 VALUES ('a'),('a');
+SELECT 1 FROM g1 WHERE a >= ANY
+(SELECT 1 FROM g1 WHERE a = geomfromtext('') OR a) ;
+
+DROP TABLE g1;
 
 --echo End of 5.5 tests
 
@@ -1367,3 +1378,9 @@ WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
 #WHERE lakes.name = 'Blue Lake'; 
 
 DROP DATABASE gis_ogs;
+
+--echo #
+--echo # Bug#13362660 ASSERTION `FIELD_POS < FIELD_COUNT' FAILED. IN PROTOCOL_TEXT::STORE
+--echo #
+
+SELECT ST_Union('', ''), md5(1);

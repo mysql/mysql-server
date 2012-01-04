@@ -45,10 +45,8 @@ import java.lang.reflect.Proxy;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /** This instance manages a persistence-capable type.
  * Currently, only interfaces can be persistence-capable. Persistent
@@ -226,12 +224,20 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
             fieldNames = fieldNameList.toArray(new String[fieldNameList.size()]);
             // done with methods; if anything in unmatched we have a problem
             if ((!unmatchedGetMethods.isEmpty()) || (!unmatchedSetMethods.isEmpty())) {
-                throw new ClusterJUserException(
+                setUnsupported(
                         local.message("ERR_Unmatched_Methods", 
                         unmatchedGetMethods, unmatchedSetMethods));
             }
 
         }
+
+        // Check that no errors were reported during field analysis
+        String reasons = getUnsupported();
+        if (reasons != null) {
+            throw new ClusterJUserException(
+                    local.message("ERR_Field_Construction", name, reasons.toString()));
+        }
+
         // Check that all index columnNames have corresponding fields
         // indexes without fields will be unusable for query
         for (IndexHandlerImpl indexHandler:indexHandlerImpls) {
