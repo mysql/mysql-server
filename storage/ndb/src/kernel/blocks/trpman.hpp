@@ -30,6 +30,7 @@ public:
   BLOCK_DEFINES(Trpman);
 
   void execCLOSE_COMREQ(Signal *signal);
+  void execCLOSE_COMCONF(Signal * signal);
   void execOPEN_COMREQ(Signal *signal);
   void execENABLE_COMREQ(Signal *signal);
   void execDISCONNECT_REP(Signal *signal);
