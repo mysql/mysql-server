@@ -1545,21 +1545,33 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     }
     else if (join->send_row_on_empty_set())
     {
+      table_map save_nullinfo= 0;
+      /*
+        If this is a subquery, we need to save and later restore
+        the const table NULL info before clearing the tables
+        because the following executions of the subquery do not
+        reevaluate constant fields. @see save_const_null_info
+        and restore_const_null_info
+      */
+      if (join->select_lex->master_unit()->item && join->const_tables)
+        save_const_null_info(join, &save_nullinfo);
+
+      // Mark tables as containing only NULL values
+      join->clear();
+
+      // Calculate aggregate functions for no rows
+      List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
+                                 fields);
+      List_iterator_fast<Item> it(*columns_list);
+      Item *item;
+      while ((item= it++))
+        item->no_rows_in_result();
+
       if (!join->having || join->having->val_int())
-      {
-        // Mark tables as containing only NULL values
-        join->clear();
-
-        // Calculate aggregate functions for no rows
-        List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
-                                   fields);
-        List_iterator_fast<Item> it(*columns_list);
-        Item *item;
-        while ((item= it++))
-          item->no_rows_in_result();
-
         rc= join->result->send_data(*columns_list);
-      }
+
+      if (save_nullinfo)
+        restore_const_null_info(join, save_nullinfo);
     }
     /*
       An error can happen when evaluating the conds 
