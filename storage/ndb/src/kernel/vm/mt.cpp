@@ -73,9 +73,17 @@ static const Uint32 MAX_SIGNALS_BEFORE_WAKEUP = 128;
 //#define NDB_MT_LOCK_TO_CPU
 
 #define NUM_MAIN_THREADS 2 // except receiver
+/*
+  MAX_BLOCK_THREADS need not include the send threads since it's
+  used to set size of arrays used by all threads that contains a
+  job buffer and executes signals. The send threads only sends
+  messages directed to other nodes and contains no blocks and
+  executes thus no signals.
+*/
 #define MAX_BLOCK_THREADS (NUM_MAIN_THREADS +       \
                            MAX_NDBMT_LQH_THREADS +  \
-                           MAX_NDBMT_TC_THREADS + 1)
+                           MAX_NDBMT_TC_THREADS +   \
+                           MAX_NDBMT_RECEIVE_THREADS)
 #define MAX_BLOCK_INSTANCES (MAX_BLOCK_THREADS+1)
 
 /* If this is too small it crashes before first signal. */
@@ -87,7 +95,7 @@ static Uint32 num_tc_threads = 0;
 static Uint32 num_threads = 0;
 static Uint32 receiver_thread_no = 0;
 
-#define NO_SEND_THREAD (MAX_BLOCK_THREADS + 1)
+#define NO_SEND_THREAD (MAX_BLOCK_THREADS + MAX_NDBMT_SEND_THREADS + 1)
 
 /* max signal is 32 words, 7 for signal header and 25 datawords */
 #define MIN_SIGNALS_PER_PAGE (thr_job_buffer::SIZE / 32)
@@ -951,14 +959,13 @@ extern struct thr_repository g_thr_repository;
 struct thr_repository
 {
   thr_repository()
-    : m_receive_lock("recvlock"),
-      m_section_lock("sectionlock"),
+    : m_section_lock("sectionlock"),
       m_mem_manager_lock("memmanagerlock"),
       m_jb_pool("jobbufferpool"),
       m_sb_pool("sendbufferpool")
     {}
 
-  struct thr_spin_lock<64> m_receive_lock;
+  struct thr_spin_lock<64> m_receive_lock[MAX_NDBMT_RECEIVE_THREADS];
   struct thr_spin_lock<64> m_section_lock;
   struct thr_spin_lock<64> m_mem_manager_lock;
   struct thr_safe_pool<thr_job_buffer> m_jb_pool;
@@ -1667,6 +1674,7 @@ trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
 void
 trp_callback::lock_transporter(NodeId node)
 {
+  Uint32 recv_thread_no = 0;
   struct thr_repository* rep = &g_thr_repository;
   /**
    * Note: take the send lock _first_, so that we will not hold the receive
@@ -1678,14 +1686,15 @@ trp_callback::lock_transporter(NodeId node)
    * non-waiting (so we will not block sending on other transporters).
    */
   lock(&rep->m_send_buffers[node].m_send_lock);
-  lock(&rep->m_receive_lock);
+  lock(&rep->m_receive_lock[recv_thread_no]);
 }
 
 void
 trp_callback::unlock_transporter(NodeId node)
 {
+  Uint32 recv_thread_no = 0;
   struct thr_repository* rep = &g_thr_repository;
-  unlock(&rep->m_receive_lock);
+  unlock(&rep->m_receive_lock[recv_thread_no]);
   unlock(&rep->m_send_buffers[node].m_send_lock);
 }
 
@@ -2837,6 +2846,7 @@ mt_receiver_thread_main(void *thr_arg)
   Uint32& watchDogCounter = selfptr->m_watchdog_counter;
   Uint32 thrSignalId = 0;
   bool has_received = false;
+  const unsigned recv_thread_no = 0;
 
   init_thread(selfptr);
   receiverThreadId = thr_no;
@@ -2876,9 +2886,9 @@ mt_receiver_thread_main(void *thr_arg)
       if (check_job_buffers(rep) == 0)
       {
 	watchDogCounter = 8;
-        lock(&rep->m_receive_lock);
+        lock(&rep->m_receive_lock[recv_thread_no]);
         globalTransporterRegistry.performReceive();
-        unlock(&rep->m_receive_lock);
+        unlock(&rep->m_receive_lock[recv_thread_no]);
         has_received = true;
       }
     }
@@ -3393,6 +3403,16 @@ thr_init2(struct thr_repository* rep, struct thr_data *selfptr,
 
 static
 void
+receive_lock_init(Uint32 recv_thread_id, thr_repository *rep)
+{
+  char buf[100];
+  BaseString::snprintf(buf, sizeof(buf), "receive lock thread id %d",
+                       recv_thread_id);
+  register_lock(&rep->m_receive_lock[recv_thread_id], buf);
+}
+
+static
+void
 send_buffer_init(Uint32 node, thr_repository::send_buffer * sb)
 {
   char buf[100];
@@ -3425,6 +3445,10 @@ rep_init(struct thr_repository* rep, unsigned int cnt, Ndbd_mem_manager *mm)
   NdbMutex_Init(&rep->stop_for_crash_mutex);
   NdbCondition_Init(&rep->stop_for_crash_cond);
 
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(rep->m_receive_lock); i++)
+  {
+    receive_lock_init(i, rep);
+  }
   for (int i = 0 ; i < MAX_NTRANSPORTERS; i++)
   {
     send_buffer_init(i, rep->m_send_buffers+i);
