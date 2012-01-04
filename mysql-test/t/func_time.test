@@ -265,6 +265,7 @@ select unix_timestamp('1969-12-01 19:00:01');
 # up to INT_MAX32 because of the same reason.
 #
 select from_unixtime(-1);
+SELECT FROM_UNIXTIME(-0.000001);
 # check for from_unixtime(2^31-1) and from_unixtime(2^31)
 select from_unixtime(2147483647);
 select from_unixtime(2147483648);
@@ -914,6 +915,14 @@ SELECT WEEK(DATE_ADD(FROM_DAYS(1),INTERVAL 1 MONTH), 1);
 --echo #
 
 DO WEEK((DATE_ADD((CAST(0 AS DATE)), INTERVAL 1 YEAR_MONTH)), 5);
+
+--echo #
+--echo # Bug #13098726 MY_TIME.C:786: CALC_DAYNR: ASSERTION `DELSUM+(INT)
+--echo # Y/4-TEMP > 0' FAILED
+--echo #
+
+SELECT SUBTIME('0000-01-00 00:00','00:00');
+SELECT LEAST(TIMESTAMP('0000-01-00','0'),'2011-10-24') > 0;
 
 --echo End of 5.1 tests
 

@@ -30,6 +30,8 @@
 #include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"                            /* Item */
 
+#include <algorithm>
+
 class JOIN;
 class Item_sum;
 
@@ -92,6 +94,7 @@ class QUICK_RANGE :public Sql_alloc {
   */
   void make_min_endpoint(key_range *kr, uint prefix_length, 
                          key_part_map keypart_map) {
+    using std::min;
     make_min_endpoint(kr);
     kr->length= min(kr->length, prefix_length);
     kr->keypart_map&= keypart_map;
@@ -130,6 +133,7 @@ class QUICK_RANGE :public Sql_alloc {
   */
   void make_max_endpoint(key_range *kr, uint prefix_length, 
                          key_part_map keypart_map) {
+    using std::min;
     make_max_endpoint(kr);
     kr->length= min(kr->length, prefix_length);
     kr->keypart_map&= keypart_map;
@@ -416,7 +420,7 @@ protected:
   handler *file;
   /* Members to deal with case when this quick select is a ROR-merged scan */
   bool in_ror_merged_scan;
-  MY_BITMAP column_bitmap, *save_read_set, *save_write_set;
+  MY_BITMAP column_bitmap;
 
   friend class TRP_ROR_INTERSECT;
   friend

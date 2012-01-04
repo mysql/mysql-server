@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -920,6 +920,7 @@ page_parse_create(
 	ulint		comp,	/*!< in: nonzero=compact page format */
 	buf_block_t*	block,	/*!< in: block or NULL */
 	mtr_t*		mtr);	/*!< in: mtr or NULL */
+#ifndef UNIV_HOTBACKUP
 /************************************************************//**
 Prints record contents including the data relevant only in
 the index page context. */
@@ -929,6 +930,7 @@ page_rec_print(
 /*===========*/
 	const rec_t*	rec,	/*!< in: physical record */
 	const ulint*	offsets);/*!< in: record descriptor */
+# ifdef UNIV_BTR_PRINT
 /***************************************************************//**
 This is used to print the contents of the directory for
 debugging purposes. */
@@ -968,6 +970,8 @@ page_print(
 				in directory */
 	ulint		rn);	/*!< in: print rn first and last records
 				in directory */
+# endif /* UNIV_BTR_PRINT */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************//**
 The following is used to validate a record on a page. This function
 differs from rec_validate as it can also check the n_owned field and

@@ -37,5 +37,5 @@ else {
 EOF
 
 --sorted_result
-SELECT * FROM ndbmemcache.demo_table_tabs ;
-DELETE   FROM ndbmemcache.demo_table_tabs;
+SELECT mkey, val1, val2, val3 FROM ndbmemcache.demo_table_tabs;
+DELETE FROM ndbmemcache.demo_table_tabs;

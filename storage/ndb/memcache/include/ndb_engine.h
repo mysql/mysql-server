@@ -64,6 +64,7 @@ struct ndb_engine {
   struct {
     size_t nthreads;
     bool cas_enabled;  
+    size_t verbose;
   } server_options;
   
   union {
@@ -82,5 +83,14 @@ struct ndb_engine {
   ndbmc_atomic32_t cas_lo;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern size_t global_max_item_size;
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif

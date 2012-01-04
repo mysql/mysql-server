@@ -1405,6 +1405,8 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
   HugoTransactions hugoTrans(*ctx->getTab());
   while(i<=loops && result != NDBT_FAILED)
   {
+    if (i > 0 && ctx->closeToTimeout(30))
+      break;
 
     if (lcploop)
     {
@@ -1508,6 +1510,8 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
   HugoTransactions hugoTrans(*ctx->getTab());
   while(i<=loops && result != NDBT_FAILED)
   {
+    if (i > 0 && ctx->closeToTimeout(30))
+      break;
 
     if (lcploop)
     {
@@ -1612,6 +1616,8 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
   HugoTransactions hugoTrans(*ctx->getTab());
   while(i<=loops && result != NDBT_FAILED)
   {
+    if (i > 0 && ctx->closeToTimeout(30))
+      break;
 
     if (lcploop)
     {
@@ -1853,6 +1859,9 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 i = 0;
   while(i<=loops && result != NDBT_FAILED)
   {
+    if (i > 0 && ctx->closeToTimeout(35))
+      break;
+
     CHECK(res.dumpStateAllNodes(val, 1) == 0);
 
     int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };

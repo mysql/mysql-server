@@ -8823,6 +8823,205 @@ runBug57057(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  NdbIndexStat is;
+  NdbRestarter res;
+
+  int elist[] = { 18026, 0 };
+  const NdbDictionary::Table *pTab = pDic->getTable(ctx->getTab()->getName());
+  const NdbDictionary::Index *pIdx = 0;
+  NdbDictionary::Dictionary::List indexes;
+  pDic->listIndexes(indexes, * pTab);
+  for (unsigned i = 0; i < indexes.count; i++)
+  {
+    if ((pIdx = pDic->getIndex(indexes.elements[i].name, pTab->getName())) != 0)
+      break;
+  }
+
+  if (pIdx == 0)
+  {
+    return NDBT_OK;
+  }
+
+  bool has_created_stat_tables = false;
+  bool has_created_stat_events = false;
+  pNdb->setDatabaseName("mysql");
+  if (is.create_systables(pNdb) == 0)
+  {
+    has_created_stat_tables = true;
+  }
+
+  if (is.create_sysevents(pNdb) == 0)
+  {
+    has_created_stat_events = true;
+  }
+
+  chk2(is.create_listener(pNdb) == 0, is.getNdbError());
+  chk2(is.execute_listener(pNdb) == 0, is.getNdbError());
+
+  is.set_index(* pIdx, * pTab);
+
+  {
+    ndbout_c("%u - update_stat", __LINE__);
+    chk2(is.update_stat(pNdb) == 0, is.getNdbError());
+    int ret;
+    ndbout_c("%u - poll_listener", __LINE__);
+    chk2((ret = is.poll_listener(pNdb, 10000)) != -1, is.getNdbError());
+    chk1(ret == 1);
+    // one event is expected
+    ndbout_c("%u - next_listener", __LINE__);
+    chk2((ret = is.next_listener(pNdb)) != -1, is.getNdbError());
+    chk1(ret == 1);
+    ndbout_c("%u - next_listener", __LINE__);
+    chk2((ret = is.next_listener(pNdb)) != -1, is.getNdbError());
+    chk1(ret == 0);
+  }
+
+  {
+    Vector<Vector<int> > partitions = res.splitNodes();
+    if (partitions.size() == 1)
+      goto cleanup;
+
+    for (unsigned i = 0; i < partitions.size(); i++)
+    {
+      printf("stopping: ");
+      for (unsigned j = 0; j < partitions[i].size(); j++)
+        printf("%d ", partitions[i][j]);
+      printf("\n");
+
+      res.restartNodes(partitions[i].getBase(),
+                       partitions[i].size(),
+                       NdbRestarter::NRRF_NOSTART | NdbRestarter::NRRF_ABORT);
+      res.waitNodesNoStart(partitions[i].getBase(),
+                           partitions[i].size());
+
+      {
+        ndbout_c("%u - update_stat", __LINE__);
+        chk2(is.update_stat(pNdb) == 0, is.getNdbError());
+        int ret;
+        ndbout_c("%u - poll_listener", __LINE__);
+        chk2((ret = is.poll_listener(pNdb, 10000)) != -1, is.getNdbError());
+        chk1(ret == 1);
+        // one event is expected
+        ndbout_c("%u - next_listener", __LINE__);
+        chk2((ret = is.next_listener(pNdb)) != -1, is.getNdbError());
+        chk1(ret == 1);
+        ndbout_c("%u - next_listener", __LINE__);
+        chk2((ret = is.next_listener(pNdb)) != -1, is.getNdbError());
+        chk1(ret == 0);
+      }
+
+      res.startNodes(partitions[i].getBase(),
+                     partitions[i].size());
+      res.waitClusterStarted();
+    }
+  }
+
+  for (int i = 0; elist[i] != 0; i++)
+  {
+    ndbout_c("testing errno: %u", elist[i]);
+    res.insertErrorInAllNodes(elist[i]);
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    res.dumpStateAllNodes(val2, 2);
+
+    {
+      ndbout_c("%u - update_stat", __LINE__);
+      int ret = is.update_stat(pNdb);
+      ndbout_c("%u - update_stat => %d", __LINE__, ret);
+      chk1(ret == -1);
+      ndbout << is.getNdbError() << endl;
+      ndbout_c("%u - poll_listener", __LINE__);
+      chk2((ret = is.poll_listener(pNdb, 10000)) != -1, is.getNdbError());
+      chk1(ret == 0);
+    }
+
+    /**
+     * Wait for one of the nodes to have died...
+     */
+    int count_started = 0;
+    int count_not_started = 0;
+    int count_nok = 0;
+    int down = 0;
+    do
+    {
+      NdbSleep_MilliSleep(100);
+      count_started = count_not_started = count_nok = 0;
+      for (int i = 0; i < res.getNumDbNodes(); i++)
+      {
+        int n = res.getDbNodeId(i);
+        if (res.getNodeStatus(n) == NDB_MGM_NODE_STATUS_NOT_STARTED)
+        {
+          count_not_started++;
+          down = n;
+        }
+        else if (res.getNodeStatus(n) == NDB_MGM_NODE_STATUS_STARTED)
+          count_started++;
+        else
+          count_nok ++;
+      }
+    } while (count_not_started != 1);
+
+    res.startNodes(&down, 1);
+    res.waitClusterStarted();
+    res.insertErrorInAllNodes(0);
+  }
+
+cleanup:
+  // cleanup
+  is.drop_listener(pNdb);
+  if (has_created_stat_events)
+  {
+    is.drop_sysevents(pNdb);
+  }
+  if (has_created_stat_tables)
+  {
+    is.drop_systables(pNdb);
+  }
+
+  return NDBT_OK;
+
+err:
+  return NDBT_FAILED;
+}
+
+int
+runIndexStatCreate(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbIndexStat is;
+
+  const int loops = ctx->getNumLoops();
+
+  pNdb->setDatabaseName("mysql");
+
+  Uint64 end = NdbTick_CurrentMillisecond() + 1000 * loops;
+  do
+  {
+    if (is.create_systables(pNdb) == 0)
+    {
+      /**
+       * OK
+       */
+    }
+    else if (! (is.getNdbError().code == 701  || // timeout
+                is.getNdbError().code == 721  || // already exists
+                is.getNdbError().code == 4244 || // already exists
+                is.getNdbError().code == 4009))  // no connection
+    {
+      ndbout << is.getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    is.drop_systables(pNdb);
+  } while (!ctx->isTestStopped() && NdbTick_CurrentMillisecond() < end);
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
@@ -9122,6 +9321,17 @@ TESTCASE("Bug57057",
   STEP(runBug57057);
   TC_PROPERTY("SubSteps", 1);
   STEP(runBug58277scan);
+}
+TESTCASE("Bug13416603", "")
+{
+  INITIALIZER(runCreateTheTable);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runBug13416603);
+  FINALIZER(runDropTheTable);
+}
+TESTCASE("IndexStatCreate", "")
+{
+  STEPS(runIndexStatCreate, 10);
 }
 NDBT_TESTSUITE_END(testDict);
 

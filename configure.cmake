@@ -67,12 +67,61 @@ IF(CMAKE_COMPILER_IS_GNUCC)
 ENDIF()
 ENDIF(MCP_BUG12713957)
 
+# The default C++ library for SunPro is really old, and not standards compliant.
+# http://developers.sun.com/solaris/articles/cmp_stlport_libCstd.html
+# Use stlport rather than Rogue Wave.
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+    SET(CMAKE_CXX_FLAGS
+      "${CMAKE_CXX_FLAGS} -library=stlport4")
+  ENDIF()
+ENDIF()
+
+MACRO(DIRNAME IN OUT)
+  GET_FILENAME_COMPONENT(${OUT} ${IN} PATH)
+ENDMACRO()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
+  DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
+  SET(STLPORT_SUFFIX "lib/stlport4")
+  IF(CMAKE_SIZEOF_VOID_P EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+    SET(STLPORT_SUFFIX "lib/stlport4/v9")
+  ENDIF()
+  IF(CMAKE_SIZEOF_VOID_P EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+    SET(STLPORT_SUFFIX "lib/stlport4/amd64")
+  ENDIF()
+
+  FIND_LIBRARY(STL_LIBRARY_NAME
+    NAMES "stlport"
+    PATHS ${CXX_PATH}/../${STLPORT_SUFFIX}
+  )
+  MESSAGE(STATUS "STL_LIBRARY_NAME ${STL_LIBRARY_NAME}")
+  IF(STL_LIBRARY_NAME)
+    DIRNAME(${STL_LIBRARY_NAME} STLPORT_PATH)
+    # We re-distribute libstlport.so which is a symlink to libstlport.so.1
+    # There is no 'readlink' on solaris, so we use perl to follow links:
+    SET(PERLSCRIPT
+      "my $link= $ARGV[0]; use Cwd qw(abs_path); my $file = abs_path($link); print $file;")
+    EXECUTE_PROCESS(
+      COMMAND perl -e "${PERLSCRIPT}" ${STL_LIBRARY_NAME}
+      RESULT_VARIABLE result
+      OUTPUT_VARIABLE real_library
+    )
+    MESSAGE(STATUS "INSTALL ${STL_LIBRARY_NAME} ${real_library}")
+    INSTALL(FILES ${STL_LIBRARY_NAME} ${real_library}
+            DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)
+    # Using the $ORIGIN token with the -R option to locate the libraries
+    # on a path relative to the executable:
+    # We need an extra backslash to pass $ORIGIN to the mysql_config script...
+    SET(QUOTED_CMAKE_CXX_LINK_FLAGS
+      "${CMAKE_CXX_LINK_FLAGS} -R'\\$ORIGIN/../lib' -R${STLPORT_PATH}")
+    SET(CMAKE_CXX_LINK_FLAGS
+      "${CMAKE_CXX_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${STLPORT_PATH}")
+    MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS}")
+  ENDIF()
+ENDIF()
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
-  # MySQL "canonical" GCC flags. At least -fno-rtti flag affects
-  # ABI and cannot be simply removed. 
-  SET(CMAKE_CXX_FLAGS 
-    "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
   IF (CMAKE_EXE_LINKER_FLAGS MATCHES " -static " 
      OR CMAKE_EXE_LINKER_FLAGS MATCHES " -static$")
      SET(HAVE_DLOPEN FALSE CACHE "Disable dlopen due to -static flag" FORCE)
@@ -771,7 +820,9 @@ IF(NOT HAVE_FCNTL_NONBLOCK)
 ENDIF()
 
 #
-# Test for how the C compiler does inline, if at all
+# Test for how the C compiler does inline.
+# If both of these tests fail, then there is probably something wrong
+# in the environment (flags and/or compiling and/or linking).
 #
 CHECK_C_SOURCE_COMPILES("
 static inline int foo(){return 0;}
@@ -788,6 +839,12 @@ IF(NOT C_HAS_inline)
   ELSE()
     SET(C_INLINE)
   ENDIF()
+ENDIF()
+
+IF(NOT C_HAS_inline AND NOT C_HAS___inline)
+  MESSAGE(FATAL_ERROR "It seems like ${CMAKE_C_COMPILER} does not support "
+    "inline or __inline. Please verify compiler and flags. "
+    "See CMakeFiles/CMakeError.log for why the test failed to compile/link.")
 ENDIF()
 
 IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
@@ -893,16 +950,6 @@ CHECK_C_SOURCE_COMPILES("
 
 
 CHECK_CXX_SOURCE_COMPILES("
-    #include <new>
-    int main()
-    {
-      char *c = new char;
-      return 0;
-    }"
-    HAVE_CXX_NEW
-)
-
-CHECK_CXX_SOURCE_COMPILES("
     #undef inline
     #if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
     #define _REENTRANT
@@ -968,10 +1015,12 @@ if available and 'smp' configuration otherwise.")
 MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK MY_ATOMIC_MODE_DUMMY)
 
 IF(WITH_VALGRIND)
-  CHECK_INCLUDE_FILES("valgrind/memcheck.h;valgrind/valgrind.h" 
-    HAVE_VALGRIND_HEADERS)
+  SET(VALGRIND_HEADERS "valgrind/memcheck.h;valgrind/valgrind.h")
+  CHECK_INCLUDE_FILES("${VALGRIND_HEADERS}" HAVE_VALGRIND_HEADERS)
   IF(HAVE_VALGRIND_HEADERS)
     SET(HAVE_VALGRIND 1)
+  ELSE()
+    MESSAGE(FATAL_ERROR "Unable to find Valgrind header files ${VALGRIND_HEADERS}. Make sure you have them in your include path.")
   ENDIF()
 ENDIF()
 

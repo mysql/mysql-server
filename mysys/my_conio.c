@@ -21,8 +21,19 @@
 
 /* Windows console handling */
 
+/*
+  TODO : Find a relationship between the following
+         two macros and get rid of one.
+*/
+
 /* Maximum line length on Windows console */
 #define MAX_CONSOLE_LINE_SIZE 65535
+
+/*
+  Maximum number of characters that can be entered
+  on single line in the console (including \r\n).
+*/
+#define MAX_NUM_OF_CHARS_TO_READ 26600
 
 /**
   Determine if a file is a windows console
@@ -62,34 +73,44 @@ char *
 my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize)
 {
   uint dummy_errors;
-  static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1], *pos;
-  size_t mblen;
+  static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1];
+  size_t mblen= 0;
+
   DWORD console_mode;
+  DWORD nchars;
+
   HANDLE console= GetStdHandle(STD_INPUT_HANDLE);
 
   DBUG_ASSERT(mbbufsize > 0); /* Need space for at least trailing '\0' */
   GetConsoleMode(console, &console_mode);
   SetConsoleMode(console, ENABLE_LINE_INPUT |
                           ENABLE_PROCESSED_INPUT | ENABLE_ECHO_INPUT);
-  for(pos= u16buf; pos < &u16buf[MAX_CONSOLE_LINE_SIZE] ; )
+
+  if (!ReadConsoleW(console, u16buf, MAX_NUM_OF_CHARS_TO_READ, &nchars, NULL))
   {
-    DWORD nchars;
-    if (!ReadConsoleW(console, pos, 1, &nchars, NULL) || nchars == 0)
-    {
-      SetConsoleMode(console, console_mode);
-      return NULL;
-    }
-    if (*pos == L'\r') /* We don't need '\r' in the result string, skip it */
-      continue;
-    if (*pos == L'\n')
-      break;
-    pos++;
+    SetConsoleMode(console, console_mode);
+    return NULL;
   }
+
+  /* Set length of string */
+  if (nchars >= 2 && u16buf[nchars - 2] == L'\r')
+    nchars-= 2;
+  else if ((nchars == MAX_NUM_OF_CHARS_TO_READ) &&
+           (u16buf[nchars - 1] == L'\r'))
+    /* Special case 1 - \r\n straddles the boundary */
+    nchars--;
+  else if ((nchars == 1) && (u16buf[0] == L'\n'))
+    /* Special case 2 - read a single '\n'*/
+    nchars--;
+
   SetConsoleMode(console, console_mode);
+
   /* Convert Unicode to session character set */
-  mblen= my_convert(mbbuf, mbbufsize - 1, cs,
-                    (const char *) u16buf, (pos - u16buf) * sizeof(wchar_t),
-                    &my_charset_utf16le_bin, &dummy_errors);
+  if (nchars != 0)
+    mblen= my_convert(mbbuf, mbbufsize - 1, cs,
+                      (const char *) u16buf, nchars * sizeof(wchar_t),
+                      &my_charset_utf16le_bin, &dummy_errors);
+
   DBUG_ASSERT(mblen < mbbufsize); /* Safety */
   mbbuf[mblen]= 0;
   return mbbuf;

@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -78,40 +78,19 @@ ut_mem_init(void);
 /*=============*/
 
 /**********************************************************************//**
-Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
-defined and set_to_zero is TRUE.
+Allocates memory.
 @return	own: allocated memory */
 UNIV_INTERN
 void*
 ut_malloc_low(
 /*==========*/
 	ulint	n,			/*!< in: number of bytes to allocate */
-	ibool	set_to_zero,		/*!< in: TRUE if allocated memory
-					should be set to zero if
-					UNIV_SET_MEM_TO_ZERO is defined */
-	ibool	assert_on_error);	/*!< in: if TRUE, we crash mysqld if
+	ibool	assert_on_error)	/*!< in: if TRUE, we crash mysqld if
 					the memory cannot be allocated */
+	__attribute__((malloc));
 /**********************************************************************//**
-Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
-defined.
-@return	own: allocated memory */
-UNIV_INTERN
-void*
-ut_malloc(
-/*======*/
-	ulint	n);	/*!< in: number of bytes to allocate */
-#ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
-out. It cannot be used if we want to return an error message. Prints to
-stderr a message if fails.
-@return	TRUE if succeeded */
-UNIV_INTERN
-ibool
-ut_test_malloc(
-/*===========*/
-	ulint	n);	/*!< in: try to allocate this many bytes */
-#endif /* !UNIV_HOTBACKUP */
+Allocates memory. */
+#define ut_malloc(n) ut_malloc_low(n, TRUE)
 /**********************************************************************//**
 Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
 a nop. */
@@ -122,7 +101,7 @@ ut_free(
 	void* ptr);  /*!< in, own: memory block, can be NULL */
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
-Implements realloc. This is needed by /pars/lexyy.c. Otherwise, you should not
+Implements realloc. This is needed by /pars/lexyy.cc. Otherwise, you should not
 use this function because the allocation functions in mem0mem.h are the
 recommended ones in InnoDB.
 
@@ -231,6 +210,18 @@ ut_strreplace(
 	const char*	str,	/*!< in: string to operate on */
 	const char*	s1,	/*!< in: string to replace */
 	const char*	s2);	/*!< in: string to replace s1 with */
+
+/********************************************************************
+Concatenate 3 strings.*/
+
+char*
+ut_str3cat(
+/*=======*/
+				/* out, own: concatenated string, must be
+				freed with mem_free() */
+	const char*	s1,	/* in: string 1 */
+	const char*	s2,	/* in: string 2 */
+	const char*	s3);	/* in: string 3 */
 
 /**********************************************************************//**
 Converts a raw binary data to a NUL-terminated hex string. The output is

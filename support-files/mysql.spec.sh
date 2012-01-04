@@ -404,11 +404,6 @@ touch optional-files-devel
 # name, finally a default.  RPM_OPT_FLAGS is assumed to be a part of the
 # default RPM build environment.
 #
-# We set CXX=gcc by default to support so-called 'generic' binaries, where we
-# do not have a dependancy on libgcc/libstdc++.  This only works while we do
-# not require C++ features such as exceptions, and may need to be removed at
-# a later date.
-#
 
 # This is a hack, $RPM_OPT_FLAGS on ia64 hosts contains flags which break
 # the compile in cmd-line-utils/readline - needs investigation, but for now
@@ -419,9 +414,9 @@ RPM_OPT_FLAGS=
 
 export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
-export CXX=${MYSQL_BUILD_CXX:-${CXX:-gcc}}
+export CXX=${MYSQL_BUILD_CXX:-${CXX:-g++}}
 export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
-export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
+export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-}
@@ -490,23 +485,6 @@ install -d $RBR%{_sbindir}
 (
   cd $MBD/release
   make DESTDIR=$RBR install
-)
-
-# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  Do
-# this in a sub-shell to ensure we don't pollute the install environment
-# with compiler bits.
-(
-  PATH=${MYSQL_BUILD_PATH:-$PATH}
-  CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
-  CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
-  if "${CC}" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1; then
-    libgcc=`${CC} ${CFLAGS} --print-libgcc-file`
-    if [ -f ${libgcc} ]; then
-      mkdir -p $RBR%{_libdir}/mysql
-      install -m 644 ${libgcc} $RBR%{_libdir}/mysql/libmygcc.a
-      echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
-    fi
-  fi
 )
 
 # FIXME: at some point we should stop doing this and just install everything
@@ -1165,6 +1143,12 @@ echo "====="                                     >> $STATUS_HISTORY
 * Thu Sep 08 2011 Daniel Fischer <daniel.fischer@oracle.com>
 
 - Add mysql_plugin man page.
+
+* Tue Aug 30 2011 Tor Didriksen <tor.didriksen@oracle.com>
+
+- Set CXX=g++ by default to add a dependency on libgcc/libstdc++.
+  Also, remove the use of the -fno-exceptions and -fno-rtti flags.
+  TODO: update distro_buildreq/distro_requires
 
 * Tue Aug 30 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 

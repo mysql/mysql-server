@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -609,6 +609,23 @@ btr_copy_externally_stored_field_prefix(
 				a lock or a page latch */
 	ulint		local_len);/*!< in: length of data, in bytes */
 /*******************************************************************//**
+Copies an externally stored field of a record to mem heap.  The
+clustered index record must be protected by a lock or a page latch.
+@return the whole field copied to heap */
+UNIV_INTERN
+byte*
+btr_copy_externally_stored_field(
+/*=============================*/
+	ulint*		len,	/*!< out: length of the whole field */
+	const byte*	data,	/*!< in: 'internally' stored part of the
+				field containing also the reference to
+				the external part; must be protected by
+				a lock or a page latch */
+	ulint		zip_size,/*!< in: nonzero=compressed BLOB page size,
+				zero for uncompressed BLOBs */
+	ulint		local_len,/*!< in: length of data */
+	mem_heap_t*	heap);	/*!< in: mem heap */
+/*******************************************************************//**
 Copies an externally stored field of a record to mem heap.
 @return	the field copied to heap, or NULL if the field is incomplete */
 UNIV_INTERN
@@ -757,24 +774,6 @@ struct btr_cur_struct {
 					NULL */
 	ulint		fold;		/*!< fold value used in the search if
 					flag is BTR_CUR_HASH */
-	/*----- Delete buffering -------*/
-	ulint		ibuf_cnt;	/* in searches done on insert buffer
-					trees, this contains the "counter"
-					value (the first two bytes of the
-					fourth field) extracted from the
-					page above the leaf page, from the
-					father node pointer that pointed to
-					the leaf page. in other words, it
-					contains the minimum counter value
-					for records to be inserted on the
-					chosen leaf page. If for some reason
-					this can't be read, or if the search
-					ended on the leftmost leaf page in
-					the tree (in which case the father
-					node pointer had the 'minimum
-					record' flag set), this is
-					ULINT_UNDEFINED. */
-	/*------------------------------*/
 	/* @} */
 	btr_path_t*	path_arr;	/*!< in estimating the number of
 					rows in range, we store in this array

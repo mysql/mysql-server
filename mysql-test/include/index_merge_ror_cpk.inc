@@ -68,6 +68,8 @@ set autocommit=1;
 
 # Verify that range scan on CPK is ROR
 # (use index_intersection because it is impossible to check that for index union)
+# Column 9, rows, can change depending on innodb-page-size.
+--replace_column 9 ROWS
 explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 # CPK scan + 1 ROR range scan is a special case
 --sorted_result
@@ -79,7 +81,10 @@ select pk1,pk2 from t1 where key1 = 10 and key2=10 and 2*pk1+1 < 2*96+1;
 
 # Verify that CPK is always used for index intersection scans
 # (this is because it is used as a filter, not for retrieval)
+# The expected number of rows can vary depending on page size
+--replace_column 9 ROWS
 explain select * from t1 where badkey=1 and key1=10;
+# The expected number of rows can vary depending on page size
 --replace_column 9 ROWS
 explain select * from t1 where pk1 < 7500 and key1 = 10;
 
@@ -89,12 +94,19 @@ explain select * from t1 where pktail2ok=1 and key1=10;
 
 # Note: The following is actually a deficiency, it uses sort_union currently.
 #       This comment refers to InnoDB and is probably not valid for other engines.
+# The expected number of rows can vary depending on page size
+--replace_column 9 ROWS
 explain select * from t1 where (pktail2ok=1 and pk1< 50000) or key1=10;
 
-# The expected rows differs a bit from platform to platform
---replace_result 98 ROWS 99 ROWS
+# The expected column used for KEY vary depending on page size
+# The expected number of rows can vary depending on page size and platform
+--replace_column 6 EITHER_KEY 9 ROWS
 explain select * from t1 where pktail3bad=1 and key1=10;
+# The expected column used for KEY vary depending on page size
+--replace_column 9 ROWS
 explain select * from t1 where pktail4bad=1 and key1=10;
+# The expected column used for KEY vary depending on page size
+--replace_column 9 ROWS
 explain select * from t1 where pktail5bad=1 and key1=10;
 
 # Test for problem with innodb key values prefetch buffer:

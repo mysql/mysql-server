@@ -20,11 +20,21 @@
 #ifndef NDBMEMCACHE_NDB_WORKER_H
 #define NDBMEMCACHE_NDB_WORKER_H
 
+/* There are two public entry points into ndb_worker: 
 
+   1: worker_prepare_operation(), for normal async ops.
+   2: ndb_flush_all(), for FLUSH commands, which are run synchronously.
+*/
 op_status_t worker_prepare_operation(workitem *);
-
-bool build_hash_item(workitem *, Operation &);
-
 ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *);
+
+/* Expiration */
+void delete_expired_item(workitem *, NdbTransaction *);
+
+/* An ndb_async_callback is used with NDB Async execution */
+typedef void ndb_async_callback(int, NdbTransaction *, void *);
+
+/* workitem.next_step is set to a function of type  worker_step */
+typedef void worker_step(NdbTransaction *, workitem *);
 
 #endif

@@ -50,6 +50,8 @@ extern my_bool log_bin_use_v1_row_events;
 
 bool ndb_log_empty_epochs(void);
 
+void ndb_index_stat_restart();
+
 /*
   defines for cluster replication table names
 */
@@ -470,10 +472,10 @@ static int ndbcluster_reset_logs(THD *thd)
   Setup THD object
   'Inspired' from ha_ndbcluster.cc : ndb_util_thread_func
 */
-static THD *
-setup_thd(char * stackptr)
+THD *
+ndb_create_thd(char * stackptr)
 {
-  DBUG_ENTER("setup_thd");
+  DBUG_ENTER("ndb_create_thd");
   THD * thd= new THD; /* note that contructor of THD uses DBUG_ */
   if (thd == 0)
   {
@@ -534,7 +536,7 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
    */
   if (thd == 0)
   {
-    if ((thd = setup_thd((char*)&save_thd)) == 0)
+    if ((thd = ndb_create_thd((char*)&save_thd)) == 0)
     {
       /**
        * TODO return proper error code here,
@@ -576,8 +578,8 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
 
 #ifndef NDB_WITHOUT_DIST_PRIV
 // Determine if privilege tables are distributed, ie. stored in NDB
-static bool
-priv_tables_are_in_ndb(THD *thd)
+bool
+Ndb_dist_priv_util::priv_tables_are_in_ndb(THD* thd)
 {
   bool distributed= false;
   Ndb_dist_priv_util dist_priv;
@@ -665,7 +667,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
 #ifndef NDB_WITHOUT_DIST_PRIV
   case LOGCOM_CREATE_USER:
     type= SOT_CREATE_USER;
-    if (priv_tables_are_in_ndb(thd))
+    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
       DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
       log= 1;
@@ -673,7 +675,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     break;
   case LOGCOM_DROP_USER:
     type= SOT_DROP_USER;
-    if (priv_tables_are_in_ndb(thd))
+    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
       DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
       log= 1;
@@ -681,7 +683,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     break;
   case LOGCOM_RENAME_USER:
     type= SOT_RENAME_USER;
-    if (priv_tables_are_in_ndb(thd))
+    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
       DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
       log= 1;
@@ -689,7 +691,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     break;
   case LOGCOM_GRANT:
     type= SOT_GRANT;
-    if (priv_tables_are_in_ndb(thd))
+    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
       DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
       log= 1;
@@ -697,7 +699,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     break;
   case LOGCOM_REVOKE:
     type= SOT_REVOKE;
-    if (priv_tables_are_in_ndb(thd))
+    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
       DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
       log= 1;
@@ -1383,9 +1385,15 @@ ndb_binlog_setup(THD *thd)
   if (ndb_binlog_tables_inited)
     return true; // Already setup -> OK
 
+  /*
+    Take the global schema lock to make sure that
+    the schema is not changed in the cluster while
+    running setup.
+  */
   Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
   if (global_schema_lock_guard.lock(false, false))
     return false;
+
   if (!ndb_schema_share &&
       ndbcluster_check_ndb_schema_share() == 0)
   {
@@ -1415,28 +1423,31 @@ ndb_binlog_setup(THD *thd)
     return false;
   }
 
-  if (!ndbcluster_find_all_files(thd))
+  if (ndbcluster_find_all_files(thd))
   {
-    ndb_binlog_tables_inited= TRUE;
-    if (ndb_binlog_tables_inited &&
-        ndb_binlog_running && ndb_binlog_is_ready)
-    {
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB Binlog: ndb tables writable");
-      close_cached_tables(NULL, NULL, TRUE, FALSE, FALSE);
-      
-      /* 
-         Signal any waiting thread that ndb table setup is
-         now complete
-      */
-      ndb_notify_tables_writable();
-    }
-    /* Signal injector thread that all is setup */
-    pthread_cond_signal(&injector_cond);
-
-    return true; // Setup completed -> OK
+    return false;
   }
-  return false;
+
+  ndb_binlog_tables_inited= TRUE;
+
+  if (ndb_binlog_running && ndb_binlog_is_ready)
+  {
+    if (opt_ndb_extra_logging)
+      sql_print_information("NDB Binlog: ndb tables writable");
+
+    close_cached_tables(NULL, NULL, TRUE, FALSE, FALSE);
+
+    /*
+       Signal any waiting thread that ndb table setup is
+       now complete
+    */
+    ndb_notify_tables_writable();
+  }
+
+  /* Signal injector thread that all is setup */
+  pthread_cond_signal(&injector_cond);
+
+  return true; // Setup completed -> OK
 }
 
 /*
@@ -2087,6 +2098,8 @@ private:
   pthread_mutex_t &m_mutex;
 };
 
+
+#include "ndb_local_schema.h"
 
 class Ndb_schema_event_handler {
 
@@ -2899,35 +2912,35 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    if (is_local_table(schema->db, schema->name))
+    Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
+    if (tab.is_local_table())
     {
-      /* Tables exists as a local table, print error and leave it */
-      sql_print_error("NDB Binlog: Skipping dropping locally "
+      /* Table is not a NDB table in this mysqld -> leave it */
+      sql_print_error("NDB Binlog: Skipping drop of locally "
                       "defined table '%s.%s' from binlog schema "
                       "event '%s' from node %d. ",
                       schema->db, schema->name, schema->query,
                       schema->node_id);
+
+      // There should be no NDB_SHARE for this table
+      assert(!get_share(schema));
+
       DBUG_VOID_RETURN;
     }
 
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-    const int no_print_error[2]=
-      {ER_BAD_TABLE_ERROR, 0}; /* ignore missing table */
-    run_query(m_thd, schema->query,
-              schema->query + schema->query_length,
-              no_print_error);
+    tab.remove_table();
 
-    NDB_SHARE *share= get_share(schema);
-    // invalidation already handled by binlog thread
+    NDB_SHARE *share= get_share(schema); // temporary ref.
     if (!share || !share->op)
     {
       ndbapi_invalidate_table(schema->db, schema->name);
       mysqld_close_cached_table(schema->db, schema->name);
     }
     if (share)
-      free_share(&share);
+    {
+      free_share(&share); // temporary ref.
+      free_share(&share); // server ref.
+    }
 
     ndbapi_invalidate_table(schema->db, schema->name);
     mysqld_close_cached_table(schema->db, schema->name);
@@ -2935,6 +2948,12 @@ class Ndb_schema_event_handler {
     DBUG_VOID_RETURN;
   }
 
+
+  /*
+    The RENAME is performed in two steps.
+    1) PREPARE_RENAME - sends the new table key to participants
+    2) RENAME - perform the actual rename
+  */
 
   void
   handle_rename_table_prepare(Ndb_schema_op* schema)
@@ -2946,12 +2965,26 @@ class Ndb_schema_event_handler {
     if (schema->node_id == own_nodeid())
       DBUG_VOID_RETURN;
 
-    NDB_SHARE *share= get_share(schema);
-    if (share)
-    {
-      ndbcluster_prepare_rename_share(share, schema->query);
-      free_share(&share);
+    const char* new_key_for_table= schema->query;
+    DBUG_PRINT("info", ("new_key_for_table: '%s'", new_key_for_table));
+
+    NDB_SHARE *share= get_share(schema); // temporary ref.
+    if (!share)
+     {
+      // The RENAME_PREPARE needs the share as a place to
+      // save the new key. Normally it should find the
+      // share, but just to be safe... but for example
+      // in ndb_share.test there are no share after restore
+      // of backup
+      // DBUG_ASSERT(share);
+      DBUG_VOID_RETURN;
     }
+
+    // Save the new key in the share and hope for the best(i.e
+    // that it can be found later when the RENAME arrives)
+    ndbcluster_prepare_rename_share(share, new_key_for_table);
+    free_share(&share); // temporary ref.
+
     DBUG_VOID_RETURN;
   }
 
@@ -2968,7 +3001,8 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    if (is_local_table(schema->db, schema->name))
+    Ndb_local_schema::Table from(m_thd, schema->db, schema->name);
+    if (from.is_local_table())
     {
       /* Tables exists as a local table, print error and leave it */
       sql_print_error("NDB Binlog: Skipping renaming locally "
@@ -2979,31 +3013,44 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-    const int no_print_error[2]=
-      {ER_BAD_TABLE_ERROR, 0}; /* ignore missing table */
-    run_query(m_thd, schema->query,
-              schema->query + schema->query_length,
-              no_print_error);
-
-    NDB_SHARE *share= get_share(schema);
-    // invalidation already handled by binlog thread
+    NDB_SHARE *share= get_share(schema); // temporary ref.
     if (!share || !share->op)
     {
       ndbapi_invalidate_table(schema->db, schema->name);
       mysqld_close_cached_table(schema->db, schema->name);
     }
     if (share)
-      free_share(&share);
+      free_share(&share);  // temporary ref.
 
-    share= get_share(schema);
-    if (share)
+    share= get_share(schema);  // temporary ref.
+    if (!share)
     {
-      ndbcluster_rename_share(m_thd, share);
-      free_share(&share);
+      // The RENAME need to find share, since that's where
+      // the RENAME_PREPARE has saved the new name
+      DBUG_ASSERT(share);
+      DBUG_VOID_RETURN;
     }
+
+    const char* new_key_for_table= share->new_key;
+    if (!new_key_for_table)
+    {
+      // The rename need the share to have new_key set
+      // by a previous RENAME_PREPARE
+      DBUG_ASSERT(new_key_for_table);
+      DBUG_VOID_RETURN;
+    }
+
+    // Split the new key into db and table name
+    char new_db[FN_REFLEN + 1], new_name[FN_REFLEN + 1];
+    ha_ndbcluster::set_dbname(new_key_for_table, new_db);
+    ha_ndbcluster::set_tabname(new_key_for_table, new_name);
+    from.rename_table(new_db, new_name);
+    ndbcluster_rename_share(m_thd, share);
+    free_share(&share);  // temporary ref.
+
+    ndbapi_invalidate_table(schema->db, schema->name);
+    mysqld_close_cached_table(schema->db, schema->name);
+
     DBUG_VOID_RETURN;
   }
 
@@ -6916,6 +6963,7 @@ restart_cluster_failure:
         ndb_latest_handled_binlog_epoch= 0;
         ndb_latest_applied_binlog_epoch= 0;
         ndb_latest_received_binlog_epoch= 0;
+        ndb_index_stat_restart();
       }
       else if (ndb_latest_applied_binlog_epoch > 0)
       {

@@ -139,7 +139,7 @@
    obj:/lib/ld-*.so
 }
 
-{  
+{
    strlen/_dl_init_paths/dl_main/_dl_sysdep_start(Cond)
    Memcheck:Cond
    fun:strlen
@@ -187,70 +187,6 @@
    fun:longest_match
    fun:deflate_slow
    fun:deflate
-   fun:do_flush
-}
-
-{
-   libz longest_match called from btr_store_big_rec_extern_fields
-   Memcheck:Cond
-   fun:longest_match
-   fun:deflate_slow
-   fun:deflate
-   fun:btr_store_big_rec_extern_fields
-}
-
-{
-   libz longest_match called from page_zip_compress
-   Memcheck:Cond
-   fun:longest_match
-   fun:deflate_slow
-   fun:deflate
-   fun:page_zip_compress
-}
-
-{
-   libz longest_match2
-   Memcheck:Cond
-   fun:longest_match
-   fun:deflate_slow
-   fun:deflate
-   fun:compress2
-}
-
-{
-   libz longest_match 3
-   Memcheck:Cond
-   fun:longest_match
-   fun:deflate_slow
-   fun:deflate
-   fun:gzclose
-}
-
-{
-   libz longest_match 4 
-   Memcheck:Cond
-   fun:longest_match
-   fun:deflate_slow
-   fun:deflate
-   fun:gzflush
-}
-
-{
-   libz longest_match3
-   Memcheck:Cond
-   fun:longest_match
-   fun:deflate_slow
-   fun:deflate
-   fun:azflush
-}
-
-{
-   libz longest_match3
-   Memcheck:Cond
-   fun:longest_match
-   fun:deflate_slow
-   fun:deflate
-   fun:azclose
 }
 
 {
@@ -476,7 +412,7 @@
    fun:malloc
    fun:_dl_map_object
    fun:openaux
-   fun:_dl_catch_error 
+   fun:_dl_catch_error
 }
 
 {
@@ -760,7 +696,7 @@
 #
 {
    pthread allocate_tls memory loss in 2.6.1.
-   Memcheck:Leak 
+   Memcheck:Leak
    fun:calloc
    obj:*/ld-*.so
    fun:_dl_allocate_tls
@@ -843,6 +779,50 @@
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_search
+}
+
+{
+   missing shutdown_performance_schema 8
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_Z22add_pfs_instr_to_arrayPKcS0_
+   fun:mysqld_get_one_option
+   fun:handle_options
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+{
+   missing shutdown_performance_schema 9
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:init_dynamic_array2
+   fun:_Z25init_pfs_instrument_arrayv
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+# Same as shutdown_performance_schema 9,
+# but the compiler/linker can sometime change the
+# calls from:
+# main()
+#   --> init_pfs_instrument_array()
+#     --> init_dynamic_array2()
+# to:
+# main()
+#   --> init_dynamic_array2()
+# when building with optimizations.
+
+{
+   missing shutdown_performance_schema 10
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:init_dynamic_array2
+   fun:_Z11mysqld_mainiPPc
+   fun:main
 }
 
 {
@@ -1126,7 +1106,7 @@
    fun:my_write
    ...
    fun:my_b_flush_io_cache
-   fun:_Z15merge_many_buffP13st_sort_paramPhP10st_buffpekPjP11st_io_cache
+   fun:_Z15merge_many_buffP10Sort_paramPhP10st_buffpekPjP11st_io_cache
    fun:_Z8filesortP3THDP5TABLEP13st_sort_fieldjP10SQL_SELECTybPyS7_
 }
 

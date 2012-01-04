@@ -93,7 +93,8 @@ TableSpec::TableSpec(const char *sqltable,
   math_column(0), flags_column(0), 
   cas_column(0), exp_column(0), static_flags(0),
   key_columns(new const char *[MAX_KEY_COLUMNS]) ,
-  value_columns(new const char *[MAX_VAL_COLUMNS]) 
+  value_columns(new const char *[MAX_VAL_COLUMNS]),
+  external_table(0)
 {
   initialize_flags();
   
@@ -126,7 +127,8 @@ TableSpec::TableSpec(const TableSpec &t) :
   table_name(strdup(t.table_name)) , 
   math_column(strdup(t.math_column)) ,
   key_columns(new const char *[t.nkeycols]) ,
-  value_columns(new const char *[t.nvaluecols])
+  value_columns(new const char *[t.nvaluecols]),
+  external_table(t.external_table)
 { 
    initialize_flags();
    

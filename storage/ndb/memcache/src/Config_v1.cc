@@ -29,7 +29,6 @@
 
 #include <memcached/extension_loggers.h>
 #include <memcached/util.h>
-#include <memcached/genhash.h>
 
 #include "ndbmemcache_global.h"
 #include "debug.h"
@@ -38,109 +37,12 @@
 #include "TableSpec.h"
 #include "QueryPlan.h"
 #include "Operation.h"
+#include "ExternalValue.h"
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
-bool kludge_to_help_with_linking() {
-  int i;
-  i = genhash_string_hash("abc", 4);
-  return (i < 6);
-}
-
-
-/* Functions used by genhash */
-extern "C" {
-  int str_eq(const void *, size_t, const void *, size_t);
-  void * str_key_dup(const void *, size_t);
-}
-
-struct hash_ops string_to_pointer_hash = {
-  genhash_string_hash,   /* hash function */
-  str_eq,                /* equality tester */
-  str_key_dup,           /* duplicate a key */
-  NULL,                  /* duplicate a value */
-  free,                  /* free a key */
-  NULL                   /* free a value */
-};
-
-int str_eq(const void *k1, size_t s1, const void *k2, size_t s2) {
-  return s1 == s2 && memcmp(k1, k2, s1) == 0;
-}
-
-void * str_key_dup(const void *key, size_t) {
-  return strdup((const char *) key);
-}
-
-
 
 /*********** VERSION 1 METADATA *******************/
-
-/********************* COMMON SCHEMA FOR VERSION 1.x ***************
- CREATE  TABLE IF NOT EXISTS `ndb_clusters` (
- `cluster_id` INT NOT NULL ,
- `ndb_connectstring` VARCHAR(128) NULL ,
- `microsec_rtt` INT UNSIGNED NOT NULL default 250, 
- PRIMARY KEY (`cluster_id`)
- ) ENGINE = ndbcluster; 
- 
- CREATE  TABLE IF NOT EXISTS `cache_policies` (
- `policy_name` VARCHAR(40) NOT NULL PRIMARY KEY,
- `get_policy` ENUM('cache_only','ndb_only','caching','disabled') NOT NULL ,
- `set_policy` ENUM('cache_only','ndb_only','caching','disabled') NOT NULL ,
- `delete_policy` ENUM('cache_only','ndb_only','caching','disabled') NOT NULL ,
- `flush_from_db` ENUM('false', 'true') NOT NULL DEFAULT 'false'
- ) ENGINE = ndbcluster;
- 
- CREATE  TABLE IF NOT EXISTS `containers` (
- `name` varchar(50) not null primary key,
- `db_schema` VARCHAR(250) NOT NULL,
- `db_table` VARCHAR(250) NOT NULL,
- `key_columns` VARCHAR(250) NOT NULL,
- `value_columns` VARCHAR(250),
- `flags` VARCHAR(250) NOT NULL DEFAULT "0",
- `increment_column` VARCHAR(250),
- `cas_column` VARCHAR(250),
- `expire_time_column` VARCHAR(250)
- ) ENGINE = ndbcluster;
- 
- CREATE  TABLE IF NOT EXISTS `key_prefixes` (
- `server_role_id` INT UNSIGNED NOT NULL DEFAULT 0,
- `key_prefix` VARCHAR(250) NOT NULL ,
- `cluster_id` INT UNSIGNED NOT NULL DEFAULT 0,
- `policy` VARCHAR(40) NOT NULL,
- `container` VARCHAR(50), 
- PRIMARY KEY (`server_role_id`, `key_prefix`)
- ) ENGINE = ndbcluster;
- 
- CREATE  TABLE IF NOT EXISTS `last_memcached_signon` (
- `ndb_node_id` INT UNSIGNED NOT NULL PRIMARY KEY,
- `hostname` VARCHAR(255) NOT NULL, 
- `server_role` VARCHAR(40) NOT NULL,
- `signon_time` timestamp NOT NULL 
- ) ENGINE = ndbcluster;
- 
- 
- ********************* SPECIFIC TO VERSION 1.0 ***************
- 
- CREATE  TABLE IF NOT EXISTS `memcache_server_roles` (
- `role_name` VARCHAR(40) NOT NULL ,
- `role_id` INT UNSIGNED NOT NULL ,
- `max_tps` INT UNSIGNED NOT NULL default 100000,
- PRIMARY KEY (`role_name`) )
- ENGINE = ndbcluster;
- 
- 
- ********************* SPECIFIC TO VERSION 1.1 ***************
- 
- CREATE  TABLE IF NOT EXISTS `memcache_server_roles` (
- `role_name` VARCHAR(40) NOT NULL ,
- `role_id` INT UNSIGNED NOT NULL ,
- `max_clients` INT UNSIGNED NOT NULL default 100, 
- `config_timestamp` timestamp 
- PRIMARY KEY (`role_name`) )
- ENGINE = ndbcluster;
- 
- ****************/
 
 
 config_v1::config_v1(Configuration * cf) :
@@ -154,10 +56,10 @@ config_v1::config_v1(Configuration * cf) :
 config_v1::~config_v1() {
   DEBUG_ENTER_METHOD("config_v1 destructor");
   if(containers_map) {
-    genhash_clear(containers_map);
+    delete containers_map;    
   }
   if(policies_map) {
-    genhash_clear(policies_map);
+    delete policies_map;
   }
 }
 
@@ -166,9 +68,9 @@ bool config_v1::read_configuration() {
  
   for(int i = 0 ; i < MAX_CLUSTERS ; i++) cluster_ids[i] = 0;
   
-  containers_map  = genhash_init(30, string_to_pointer_hash);
-  policies_map    = genhash_init(10, string_to_pointer_hash);
-  
+  containers_map  = new LookupTable<TableSpec>();
+  policies_map    = new LookupTable<prefix_info_t>();
+ 
   bool success = false;  
   server_role_id = get_server_role_id();
   if(! (server_role_id < 0)) success = get_policies();
@@ -264,7 +166,8 @@ bool config_v1::get_policies() {
     prefix_info_t * info = (prefix_info_t *) calloc(1, sizeof(prefix_info_t));
     
     char name[41];          //   `policy_name` VARCHAR(40) NOT NULL
-    op.copyValue(COL_STORE_KEY, name);
+    size_t name_len = op.copyValue(COL_STORE_KEY, name);
+    assert(name_len > 0);
     
     /*  ENUM('cache_only','ndb_only','caching','disabled') NOT NULL 
      is:      1            2          3         4                   */
@@ -292,14 +195,13 @@ bool config_v1::get_policies() {
     DEBUG_PRINT("%s:  get-%d set-%d del-%d flush-%d addr-%p",
                 name, get_policy, set_policy, del_policy, flush_policy, info);
     
-    genhash_store(policies_map, name, strlen(name), info, sizeof(void *));
+    policies_map->insert(name, info);
     
   }
   if(res == -1) {
     logger->log(LOG_WARNING, 0, scan->getNdbError().message);
     success = false;
   }
-  DEBUG_PRINT("map size: %d", genhash_size(policies_map));
   
   tx->close();
   
@@ -372,12 +274,11 @@ bool config_v1::get_connections() {
 
 
 TableSpec * config_v1::get_container(char *name) {
-  TableSpec *c;
-  
-  c = (TableSpec *) genhash_find(containers_map, name, strlen(name));
+  TableSpec *c = containers_map->find(name);
+
   if(c == NULL) {
     c = get_container_record(name);
-    genhash_store(containers_map, name, strlen(name), c, sizeof(void *));
+    containers_map->insert(name, c);
   }
   else {
     DEBUG_PRINT("\"%s\" found in local map (\"%s\").", name, c->table_name);
@@ -465,7 +366,7 @@ TableSpec * config_v1::get_container_record(char *name) {
   }
   else {
     container = 0;
-    DEBUG_PRINT("\"%s\" NOT FOUND in database.", name);
+    logger->log(LOG_WARNING, 0, "\"%s\" NOT FOUND in database.\n", name);
   }
   
   tx->close();
@@ -562,12 +463,10 @@ bool config_v1::store_prefix(const char * name,
                              TableSpec *table, 
                              int cluster_id, 
                              char *cache_policy) {
-  DEBUG_PRINT("%s", name);
   KeyPrefix prefix(name);
   prefix_info_t * info_ptr;
   
-  info_ptr = (prefix_info_t *) genhash_find(policies_map, 
-                                            cache_policy, strlen(cache_policy));
+  info_ptr = policies_map->find(cache_policy);
   if(info_ptr == 0) {  
     /* policy from key_prefixes doesn't exist in cache_policies */
     logger->log(LOG_WARNING, 0, "Invalid cache policy \"%s\" named in "
@@ -651,7 +550,6 @@ void config_v1::log_signon() {
   Operation op(&plan, OPERATION_SET);
   op.buffer     = (char *) malloc(op.requiredBuffer());
   op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
-  op.clearNullBits();
   op.setKeyPartInt(COL_STORE_KEY,   db.getNodeId());  // node ID (in key)
   op.setColumnInt(COL_STORE_KEY,    db.getNodeId());  // node ID (in row)
   op.setColumn(COL_STORE_VALUE+0,   my_hostname, strlen(my_hostname));           // hostname
@@ -804,3 +702,44 @@ int server_roles_reload_waiter(Ndb_cluster_connection *conn,
     }
   }
 }
+
+/***************** VERSION 1.2 ****************/
+void config_v1_2::minor_version_config() {
+  conf.onlineReloadFlag = 1;
+  conf.reload_waiter = server_roles_reload_waiter;
+}
+
+
+TableSpec * config_v1_2::get_container_record(char *name) {
+  TableSpec * cont = config_v1::get_container_record(name);
+  if(cont) {
+    Ndb db(conf.primary_conn);
+    db.init(1);
+    TableSpec spec("ndbmemcache.containers", "name", "large_values_table");
+    QueryPlan plan(&db, &spec);
+    Operation op(&plan, OP_READ);
+    
+    op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
+    op.buffer     = (char *) malloc(op.requiredBuffer());
+    NdbTransaction *tx = db.startTransaction();
+    
+    op.clearKeyNullBits();
+    op.setKeyPart(COL_STORE_KEY, name, strlen(name));
+    op.readTuple(tx);
+    tx->execute(NdbTransaction::Commit);
+    
+    if(tx->getNdbError().classification == NdbError::NoError) {
+      char val[256];
+      if(! op.isNull(COL_STORE_VALUE + 0)) {
+        op.copyValue(COL_STORE_VALUE + 0, val);
+        cont->external_table = ExternalValue::createContainerRecord(val);
+      }
+    }
+
+    tx->close();
+    free(op.key_buffer);
+    free(op.buffer);
+  }
+  return cont;
+}  
+

@@ -36,6 +36,7 @@
 #include "sql_acl.h"                            // EXECUTE_ACL
 #include "mysqld.h"                             // LOCK_uuid_generator
 #include "rpl_mi.h"
+#include "sql_time.h"
 #include <m_ctype.h>
 #include <hash.h>
 #include <time.h>
@@ -49,6 +50,9 @@
 #include "debug_sync.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
+
+using std::min;
+using std::max;
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define sp_restore_security_context(A,B) while (0) {}
@@ -112,11 +116,11 @@ Item_func::Item_func(List<Item> &list)
 
 Item_func::Item_func(THD *thd, Item_func *item)
   :Item_result_field(thd, item),
+   const_item_cache(0),
    allowed_arg_cols(item->allowed_arg_cols),
-   arg_count(item->arg_count),
    used_tables_cache(item->used_tables_cache),
    not_null_tables_cache(item->not_null_tables_cache),
-   const_item_cache(item->const_item_cache)
+   arg_count(item->arg_count)
 {
   if (arg_count)
   {
@@ -168,7 +172,7 @@ Item_func::Item_func(THD *thd, Item_func *item)
 bool
 Item_func::fix_fields(THD *thd, Item **ref)
 {
-  DBUG_ASSERT(fixed == 0);
+  DBUG_ASSERT(fixed == 0 || basic_const_item());
   Item **arg,**arg_end;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
   st_select_lex::Resolve_place save_resolve= st_select_lex::RESOLVE_NONE;
@@ -581,6 +585,49 @@ void Item_func_numhybrid::fix_num_length_and_dec()
 {}
 
 
+
+/**
+  Count max_length and decimals for temporal functions.
+
+  @param item    Argument array
+  @param nitems  Number of arguments in the array.
+
+  @retval        False on success, true on error.
+*/
+void Item_func::count_datetime_length(Item **item, uint nitems)
+{
+  decimals= 0;
+  if (field_type() != MYSQL_TYPE_DATE)
+  {
+    for (uint i= 0; i < nitems; i++)
+      set_if_bigger(decimals,
+                    field_type() == MYSQL_TYPE_TIME ?
+                    item[i]->time_precision() : item[i]->datetime_precision());
+  }
+  set_if_smaller(decimals, DATETIME_MAX_DECIMALS);
+  uint len= decimals ? (decimals + 1) : 0;
+  switch (field_type())
+  {
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      len+= MAX_DATETIME_WIDTH;
+      unsigned_flag= 1;
+      break;
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_NEWDATE:
+      len+= MAX_DATE_WIDTH;
+      unsigned_flag= 1;
+      break;
+    case MYSQL_TYPE_TIME:
+      len+= MAX_TIME_WIDTH;
+      unsigned_flag= 0;
+      break;
+    default:
+      DBUG_ASSERT(0);
+  }
+  fix_char_length(len);
+}
+
 /**
   Set max_length/decimals of function if function is fixed point and
   result length/precision depends on argument ones.
@@ -608,14 +655,14 @@ void Item_func::count_decimal_length()
   Set max_length of if it is maximum length of its arguments.
 */
 
-void Item_func::count_only_length()
+void Item_func::count_only_length(Item **item, uint nitems)
 {
   uint32 char_length= 0;
-  unsigned_flag= 0;
-  for (uint i=0 ; i < arg_count ; i++)
+  unsigned_flag= 1;
+  for (uint i= 0; i < nitems; i++)
   {
-    set_if_bigger(char_length, args[i]->max_char_length());
-    set_if_bigger(unsigned_flag, args[i]->unsigned_flag);
+    set_if_bigger(char_length, item[i]->max_char_length());
+    set_if_smaller(unsigned_flag, item[i]->unsigned_flag);
   }
   fix_char_length(char_length);
 }
@@ -651,6 +698,30 @@ void Item_func::count_real_length()
   }
 }
 
+
+/**
+  Calculate max_length and decimals for STRING_RESULT functions.
+
+  @param field_type  Field type.
+  @param items       Argument array.
+  @param nitems      Number of arguments.
+
+  @retval            False on success, true on error.
+*/
+bool Item_func::count_string_result_length(enum_field_types field_type,
+                                           Item **items, uint nitems)
+{
+  if (agg_arg_charsets_for_string_result(collation, items, nitems))
+    return true;
+  if (is_temporal_type(field_type))
+    count_datetime_length(items, nitems);
+  else
+  {
+    decimals= NOT_FIXED_DEC;
+    count_only_length(items, nitems);
+  }
+  return false;
+}
 
 
 void Item_func::signal_divide_by_null()
@@ -716,12 +787,18 @@ void Item_num_op::find_num_type(void)
   DBUG_ENTER("Item_num_op::find_num_type");
   DBUG_PRINT("info", ("name %s", func_name()));
   DBUG_ASSERT(arg_count == 2);
-  Item_result r0= args[0]->result_type();
-  Item_result r1= args[1]->result_type();
+  Item_result r0= args[0]->numeric_context_result_type();
+  Item_result r1= args[1]->numeric_context_result_type();
+  
+  DBUG_ASSERT(r0 != STRING_RESULT && r1 != STRING_RESULT);
 
-  if (r0 == REAL_RESULT || r1 == REAL_RESULT ||
-      r0 == STRING_RESULT || r1 ==STRING_RESULT)
+  if (r0 == REAL_RESULT || r1 == REAL_RESULT)
   {
+    /*
+      Since DATE/TIME/DATETIME data types return INT_RESULT/DECIMAL_RESULT
+      type codes, we should never get to here when both fields are temporal.
+    */
+    DBUG_ASSERT(!args[0]->is_temporal() || !args[1]->is_temporal());
     count_real_length();
     max_length= float_length(decimals);
     hybrid_type= REAL_RESULT;
@@ -825,6 +902,17 @@ String *Item_func_numhybrid::val_str(String *str)
     break;
   }
   case STRING_RESULT:
+    switch (field_type()) {
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      return val_string_from_datetime(str);
+    case MYSQL_TYPE_DATE:
+      return val_string_from_date(str);
+    case MYSQL_TYPE_TIME:
+      return val_string_from_time(str);
+    default:
+      break;
+    }
     return str_op(&str_value);
   default:
     DBUG_ASSERT(0);
@@ -855,6 +943,16 @@ double Item_func_numhybrid::val_real()
     return real_op();
   case STRING_RESULT:
   {
+    switch (field_type())
+    {
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      return val_real_from_decimal();
+    default:
+      break;
+    }
     char *end_not_used;
     int err_not_used;
     String *res= str_op(&str_value);
@@ -887,6 +985,18 @@ longlong Item_func_numhybrid::val_int()
     return (longlong) rint(real_op());
   case STRING_RESULT:
   {
+    switch (field_type())
+    {
+    case MYSQL_TYPE_DATE:
+      return val_int_from_date();
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      return val_int_from_datetime();
+    case MYSQL_TYPE_TIME:
+      return val_int_from_time();
+    default:
+      break;
+    }
     int err_not_used;
     String *res;
     if (!(res= str_op(&str_value)))
@@ -925,6 +1035,17 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
   }
   case STRING_RESULT:
   {
+    switch (field_type())
+    {
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      return val_decimal_from_date(decimal_value);
+    case MYSQL_TYPE_TIME:
+      return val_decimal_from_time(decimal_value);
+    default:
+      break;
+    }
     String *res;
     if (!(res= str_op(&str_value)))
       return NULL;
@@ -938,6 +1059,41 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
     DBUG_ASSERT(0);
   }
   return val;
+}
+
+
+bool Item_func_numhybrid::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  switch (field_type())
+  {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    return date_op(ltime, fuzzydate);
+  case MYSQL_TYPE_TIME:
+    return get_date_from_time(ltime);
+  default:
+    return Item::get_date_from_non_temporal(ltime, fuzzydate);
+  }
+}
+
+
+bool Item_func_numhybrid::get_time(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed == 1);
+  switch (field_type())
+  {
+  case MYSQL_TYPE_TIME:
+    return time_op(ltime);
+  case MYSQL_TYPE_DATE:
+    return get_time_from_date(ltime);
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    return get_time_from_datetime(ltime);
+  default:
+    return Item::get_time_from_non_temporal(ltime);
+  }
 }
 
 
@@ -994,7 +1150,7 @@ longlong Item_func_signed::val_int()
   int error;
 
   if (args[0]->cast_to_int_type() != STRING_RESULT ||
-      args[0]->result_as_longlong())
+      args[0]->is_temporal())
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
@@ -1036,7 +1192,7 @@ longlong Item_func_unsigned::val_int()
     return value;
   }
   else if (args[0]->cast_to_int_type() != STRING_RESULT ||
-           args[0]->result_as_longlong())
+           args[0]->is_temporal())
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
@@ -1491,7 +1647,7 @@ void Item_func_mul::result_precision()
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
   decimals= min(args[0]->decimals + args[1]->decimals, DECIMAL_MAX_SCALE);
   uint est_prec = args[0]->decimal_precision() + args[1]->decimal_precision();
-  uint precision= min(est_prec, DECIMAL_MAX_PRECISION);
+  uint precision= min<uint>(est_prec, DECIMAL_MAX_PRECISION);
   max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
                                                            unsigned_flag);
 }
@@ -1543,16 +1699,16 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
 
 void Item_func_div::result_precision()
 {
-  uint precision=min(args[0]->decimal_precision() + 
-                     args[1]->decimals + prec_increment,
-                     DECIMAL_MAX_PRECISION);
+  uint precision= min<uint>(args[0]->decimal_precision() +
+                            args[1]->decimals + prec_increment,
+                            DECIMAL_MAX_PRECISION);
 
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;
   else
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
-  decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
+  decimals= min<uint>(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
   max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
                                                            unsigned_flag);
 }
@@ -2349,25 +2505,31 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
   /*
     tmp2 is here to avoid return the value with 80 bit precision
     This will fix that the test round(0.1,1) = round(0.1,1) is true
+    Tagging with volatile is no guarantee, it may still be optimized away...
   */
   volatile double tmp2;
 
   tmp=(abs_dec < array_elements(log_10) ?
        log_10[abs_dec] : pow(10.0,(double) abs_dec));
 
+  // Pre-compute these, to avoid optimizing away e.g. 'floor(v/tmp) * tmp'.
+  volatile double value_div_tmp= value / tmp;
+  volatile double value_mul_tmp= value * tmp;
+
   if (dec_negative && my_isinf(tmp))
-    tmp2= 0;
-  else if (!dec_negative && my_isinf(value * tmp))
+    tmp2= 0.0;
+  else if (!dec_negative && my_isinf(value_mul_tmp))
     tmp2= value;
   else if (truncate)
   {
-    if (value >= 0)
-      tmp2= dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
+    if (value >= 0.0)
+      tmp2= dec < 0 ? floor(value_div_tmp) * tmp : floor(value_mul_tmp) / tmp;
     else
-      tmp2= dec < 0 ? ceil(value/tmp)*tmp : ceil(value*tmp)/tmp;
+      tmp2= dec < 0 ? ceil(value_div_tmp) * tmp : ceil(value_mul_tmp) / tmp;
   }
   else
-    tmp2=dec < 0 ? rint(value/tmp)*tmp : rint(value*tmp)/tmp;
+    tmp2=dec < 0 ? rint(value_div_tmp) * tmp : rint(value_mul_tmp) / tmp;
+
   return tmp2;
 }
 
@@ -2430,7 +2592,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   my_decimal val, *value= args[0]->val_decimal(&val);
   longlong dec= args[1]->val_int();
   if (dec >= 0 || args[1]->unsigned_flag)
-    dec= min((ulonglong) dec, decimals);
+    dec= min<ulonglong>(dec, decimals);
   else if (dec < INT_MIN)
     dec= INT_MIN;
     
@@ -2555,7 +2717,8 @@ void Item_func_min_max::fix_length_and_dec()
     if (args[i]->maybe_null)
       maybe_null=1;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
-    if (args[i]->result_type() != ROW_RESULT && args[i]->is_datetime())
+    if (args[i]->result_type() != ROW_RESULT &&
+        args[i]->is_temporal_with_date())
     {
       datetime_found= TRUE;
       if (!datetime_item || args[i]->field_type() == MYSQL_TYPE_DATETIME)
@@ -2570,6 +2733,13 @@ void Item_func_min_max::fix_length_and_dec()
     {
       thd= current_thd;
       compare_as_dates= TRUE;
+      /*
+        We should not do this:
+          cached_field_type= datetime_item->field_type();
+          count_datetime_length(args, arg_count);
+        because compare_as_dates can be TRUE but
+        result type can still be VARCHAR.
+      */
     }
   }
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
@@ -2604,7 +2774,7 @@ void Item_func_min_max::fix_length_and_dec()
    #	index of the least/greatest argument
 */
 
-uint Item_func_min_max::cmp_datetimes(ulonglong *value)
+uint Item_func_min_max::cmp_datetimes(longlong *value)
 {
   longlong UNINIT_VAR(min_max);
   uint min_max_idx= 0;
@@ -2631,11 +2801,28 @@ uint Item_func_min_max::cmp_datetimes(ulonglong *value)
     }
   }
   if (value)
-  {
     *value= min_max;
-    if (datetime_item->field_type() == MYSQL_TYPE_DATE)
-      *value/= 1000000L;
+  return min_max_idx;
+}
+
+
+uint Item_func_min_max::cmp_times(longlong *value)
+{
+  longlong UNINIT_VAR(min_max);
+  uint min_max_idx= 0;
+  for (uint i=0; i < arg_count ; i++)
+  {
+    longlong res= args[i]->val_time_temporal();
+    if ((null_value= args[i]->null_value))
+      return 0;
+    if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
+    {
+      min_max= res;
+      min_max_idx= i;
+    }
   }
+  if (value)
+    *value= min_max;
   return min_max_idx;
 }
 
@@ -2645,20 +2832,47 @@ String *Item_func_min_max::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (compare_as_dates)
   {
-    String *str_res;
-    uint min_max_idx= cmp_datetimes(NULL);
-    if (null_value)
-      return 0;
-    str_res= args[min_max_idx]->val_str(str);
-    if (args[min_max_idx]->null_value)
+    if (is_temporal())
     {
-      // check if the call to val_str() above returns a NULL value
-      null_value= 1;
-      return NULL;
+      /*
+        In case of temporal data types, we always return
+        string value according the format of the data type.
+        For example, in case of LEAST(time_column, datetime_column)
+        the result date type is DATETIME,
+        so we return a 'YYYY-MM-DD hh:mm:ss' string even if time_column wins
+        (conversion from TIME to DATETIME happens in this case).
+      */
+      longlong result;
+      cmp_datetimes(&result);
+      if (null_value)
+        return 0;
+      MYSQL_TIME ltime;
+      TIME_from_longlong_packed(&ltime, field_type(), result);
+      return (null_value= my_TIME_to_str(&ltime, str, decimals)) ?
+             (String *) 0 : str;
     }
-    str_res->set_charset(collation.collation);
-    return str_res;
+    else
+    {
+      /*
+        In case of VARCHAR result type we just return val_str()
+        value of the winning item AS IS, without conversion.
+      */
+      String *str_res;
+      uint min_max_idx= cmp_datetimes(NULL);
+      if (null_value)
+        return 0;
+      str_res= args[min_max_idx]->val_str(str);
+      if (args[min_max_idx]->null_value)
+      {
+        // check if the call to val_str() above returns a NULL value
+        null_value= 1;
+        return NULL;
+      }
+      str_res->set_charset(collation.collation);
+      return str_res;
+    }
   }
+
   switch (cmp_type) {
   case INT_RESULT:
   {
@@ -2718,15 +2932,80 @@ String *Item_func_min_max::val_str(String *str)
 }
 
 
+bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (compare_as_dates)
+  {
+    longlong result;
+    cmp_datetimes(&result);
+    if (null_value)
+      return true;
+    TIME_from_longlong_packed(ltime, datetime_item->field_type(), result);
+    int warnings;
+    return check_date(ltime, non_zero_date(ltime), fuzzydate, &warnings);
+  }
+
+  switch (field_type())
+  {
+  case MYSQL_TYPE_TIME:
+    return get_date_from_time(ltime);
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATE:
+    DBUG_ASSERT(0); // Should have been processed in "compare_as_dates" block.
+  default:
+    return get_date_from_non_temporal(ltime, fuzzydate);
+  }
+}
+
+
+bool Item_func_min_max::get_time(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (compare_as_dates)
+  {
+    longlong result;
+    cmp_datetimes(&result);
+    if (null_value)
+      return true;
+    TIME_from_longlong_packed(ltime, datetime_item->field_type(), result);
+    datetime_to_time(ltime);
+    return false;
+  }
+
+  switch (field_type())
+  {
+  case MYSQL_TYPE_TIME:
+    {
+      longlong result;
+      cmp_times(&result);
+      if (null_value)
+        return true;
+      TIME_from_longlong_time_packed(ltime, result);
+      return false;
+    }
+    break;
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+    DBUG_ASSERT(0); // Should have been processed in "compare_as_dates" block.
+  default:
+    return get_time_from_non_temporal(ltime);
+    break;
+  }
+}
+
+
 double Item_func_min_max::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value=0.0;
   if (compare_as_dates)
   {
-    ulonglong result= 0;
+    longlong result= 0;
     (void)cmp_datetimes(&result);
-    return (double)result;
+    return double_from_datetime_packed(datetime_item->field_type(), result);
   }
   for (uint i=0; i < arg_count ; i++)
   {
@@ -2751,10 +3030,27 @@ longlong Item_func_min_max::val_int()
   longlong value=0;
   if (compare_as_dates)
   {
-    ulonglong result= 0;
+    longlong result= 0;
     (void)cmp_datetimes(&result);
-    return (longlong)result;
+    return longlong_from_datetime_packed(datetime_item->field_type(), result);
   }
+  /*
+    TS-TODO: val_str decides which type to use using cmp_type.
+    val_int, val_decimal, val_real do not check cmp_type and
+    decide data type according to the method type.
+    This is probably not good:
+
+mysql> select least('11', '2'), least('11', '2')+0, concat(least(11,2));
++------------------+--------------------+---------------------+
+| least('11', '2') | least('11', '2')+0 | concat(least(11,2)) |
++------------------+--------------------+---------------------+
+| 11               |                  2 | 2                   |
++------------------+--------------------+---------------------+
+1 row in set (0.00 sec)
+
+    Should not the second column return 11?
+    I.e. compare as strings and return '11', then convert to number.
+  */
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2779,10 +3075,10 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 
   if (compare_as_dates)
   {
-    ulonglong value= 0;
+    longlong value= 0;
     (void)cmp_datetimes(&value);
-    ulonglong2decimal(value, dec);
-    return dec;
+    return my_decimal_from_datetime_packed(dec, datetime_item->field_type(),
+                                           value);
   }
   for (uint i=0; i < arg_count ; i++)
   {
@@ -3318,7 +3614,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       free_udf(u_d);
       DBUG_RETURN(TRUE);
     }
-    func->max_length=min(initid.max_length,MAX_BLOB_WIDTH);
+    func->max_length= min<size_t>(initid.max_length, MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
     const_item_cache=initid.const_item;
     /* 
@@ -3327,7 +3623,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     */  
     if (!const_item_cache && !used_tables_cache)
       used_tables_cache= RAND_TABLE_BIT;
-    func->decimals=min(initid.decimals,NOT_FIXED_DEC);
+    func->decimals= min<uint>(initid.decimals, NOT_FIXED_DEC);
   }
   initialized=1;
   if (error)
@@ -5514,7 +5810,7 @@ longlong Item_func_get_system_var::val_int()
     case SHOW_LEX_STRING:
       {
         String *str_val= val_str(NULL);
-
+        // Treat empty strings as NULL, like val_real() does.
         if (str_val && str_val->length())
           cached_llval= longlong_from_string_with_check (system_charset_info,
                                                           str_val->c_ptr(), 
@@ -5676,7 +5972,8 @@ double Item_func_get_system_var::val_real()
         char *cptr= var->show_type() == SHOW_CHAR ? 
           (char*) var->value_ptr(thd, var_type, &component) :
           *(char**) var->value_ptr(thd, var_type, &component);
-        if (cptr)
+        // Treat empty strings as NULL, like val_int() does.
+        if (cptr && *cptr)
           cached_dval= double_from_string_with_check (system_charset_info, 
                                                 cptr, cptr + strlen (cptr));
         else

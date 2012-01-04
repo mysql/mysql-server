@@ -29,6 +29,8 @@
 #include <m_string.h>
 #include <mysql_com.h>
 
+#include <algorithm>
+
 class THD;
 
 class MDL_context;
@@ -348,6 +350,7 @@ public:
       character set is utf-8, we can safely assume that no
       character starts with a zero byte.
     */
+    using std::min;
     return memcmp(m_ptr, rhs->m_ptr, min(m_length, rhs->m_length));
   }
 
@@ -926,5 +929,13 @@ void mdl_destroy();
 #ifndef DBUG_OFF
 extern mysql_mutex_t LOCK_open;
 #endif
+
+
+/*
+  Start-up parameter for the maximum size of the unused MDL_lock objects cache
+  and a constant for its default value.
+*/
+extern ulong mdl_locks_cache_size;
+static const ulong MDL_LOCKS_CACHE_SIZE_DEFAULT = 1024;
 
 #endif

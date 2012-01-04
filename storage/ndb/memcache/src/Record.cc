@@ -31,11 +31,17 @@
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
 Record::Record(int ncol) : ncolumns(ncol), rec_size(0), nkeys(0), nvalues(0),  
-                           index(0), n_nullable(0),
-                           start_of_nullmap(0), size_of_nullmap(0), 
+                           value_length(0),
+                           index(0),
+                           n_nullable(0),
+                           start_of_nullmap(0),
+                           size_of_nullmap(0),
                            handlers(new DataTypeHandler *[ncol]),
                            specs(new NdbDictionary::RecordSpecification[ncol])
-{};
+{
+  for(int i = 0 ; i < COL_MAX_COLUMNS; i++)
+    map[i] = tmap[i] = -1;
+};
 
 Record::~Record() {
   m_dict->releaseRecord(ndb_record);
@@ -48,37 +54,37 @@ Record::~Record() {
  * add a column to a Record
  */
 void Record::addColumn(short col_type, const NdbDictionary::Column *column) {
+  assert(col_type <= COL_STORE_VALUE);
   assert(index < ncolumns);
+  int col_identifier = col_type;
 
-  /* The "column map" is an array that maps a specifier like 
-     "COL_STORE_VALUE + 1" (the second value column) or 
-     "COL_STORE_CAS" (the cas column) 
-      to that column's index in the record. 
-  */
-  switch(col_type) {
-    case COL_STORE_KEY:
-      map[COL_STORE_KEY + nkeys++] = index;
-      assert(nkeys < (COL_STORE_VALUE - COL_STORE_KEY));  // max key columns
-      break;
-    case COL_STORE_VALUE:
-      map[COL_STORE_VALUE + nvalues++] = index;
-      assert(nvalues < (COL_MAX_COLUMNS - COL_STORE_VALUE));  // max value cols
-      break;
-    case COL_STORE_CAS:
-    case COL_STORE_MATH:
-    case COL_STORE_EXPIRES:
-    case COL_STORE_FLAGS:
-      map[col_type] = index;
-      break;
-    default:
-      assert("Bad column type" == 0);
-  }
+  if(col_type == COL_STORE_KEY)
+    col_identifier += nkeys++;
+  else if(col_type == COL_STORE_VALUE) 
+    col_identifier += nvalues++;
+    
+  assert(nkeys <= MAX_KEY_COLUMNS);
+  assert(nvalues <= MAX_VAL_COLUMNS);
   
+  /* The "record map" (map) is an array that maps a specifier like 
+     "COL_STORE_VALUE + 1" (the second value column) or 
+     "COL_STORE_CAS" (the cas column) to that column's index in the record.  */
+  map[col_identifier] = index;
+
   /* Link to the Dictionary Column */
   specs[index].column = column;
+    
+  /* The "table map" (tmap) maps the specifier directly to the column's number
+     column number in the underlying table. */
+  tmap[col_identifier] = column->getColumnNo();
 
-  /* Link to the correct DataTypeHandler */
+ /* Link to the correct DataTypeHandler */
   handlers[index] = getDataTypeHandlerForColumn(column);
+
+  /* Keep track of total possible text size. */
+  if(col_type == COL_STORE_VALUE && handlers[index]->contains_string) {
+    value_length += column->getLength();
+  }
     
   /* If the data type requires alignment, insert some padding.
      This call will alter rec_size if needed */
@@ -101,7 +107,6 @@ void Record::addColumn(short col_type, const NdbDictionary::Column *column) {
   /* Increment the counter and record size */
   index += 1;
 
-//  rec_size += getColumnRecordSize(column);
   rec_size += column->getSizeInBytes();
 };
 
@@ -211,6 +216,48 @@ size_t Record::decodeCopy(int id, char *dest, char *src) const {
 }
 
 
+inline void Record::nullmapSetNull(int idx, char *data) const {
+  *(data + specs[idx].nullbit_byte_offset) |= 
+    (1 << specs[idx].nullbit_bit_in_byte);
+}
+
+
+inline void Record::nullmapSetNotNull(int idx, char *data) const {
+  *(data +specs[idx].nullbit_byte_offset) &=
+    (0xFF ^ (1 << specs[idx].nullbit_bit_in_byte));
+}
+
+
+/* Here's a pattern in the setter methods: 
+     setIntValue(), setUint64Value(), encode(), setNull() and setNotNull(). 
+   First map the column identifier to its index in the record. 
+   If this is -1, then we're operating on some column (CAS or MATH or whatever)
+   that doesn't exist in this record, and we just return harmlessly. 
+   Otherwise:
+     maskActive() is inlined, and sets the column bit in the mask.
+     nullmapSet[Not]Null() is inlined, and operates on the nullmap.
+*/
+
+void Record::setNull(int id, char *data, Uint8 *mask) const {
+  int idx = map[id];
+  if(idx == -1) 
+    return;
+  maskActive(id, mask);
+  if(specs[idx].column->getNullable())
+    nullmapSetNull(idx, data);
+}
+
+
+void Record::setNotNull(int id, char *data, Uint8 *mask) const {
+  int idx = map[id];
+  if(idx == -1) 
+    return;
+  maskActive(id, mask);
+  if(specs[idx].column->getNullable())
+    nullmapSetNull(idx, data);
+}
+
+
 int Record::getIntValue(int id, char *data) const {
   int idx = map[id];
   NumericHandler * h = handlers[idx]->native_handler;
@@ -228,8 +275,14 @@ int Record::getIntValue(int id, char *data) const {
 }
 
 
-bool Record::setIntValue(int id, int value, char *data) const {
+bool Record::setIntValue(int id, int value, char *data, Uint8 *mask) const {
   int idx = map[id];
+  if(idx == -1) 
+    return true;
+  maskActive(id, mask);
+  if(specs[idx].column->getNullable())
+    nullmapSetNotNull(idx, data);
+
   NumericHandler * h = handlers[idx]->native_handler;
   char * buffer = data + specs[idx].offset;
   
@@ -259,8 +312,13 @@ Uint64 Record::getUint64Value(int id, char *data) const {
 }
 
 
-bool Record::setUint64Value(int id, Uint64 value, char *data) const {
+bool Record::setUint64Value(int id, Uint64 value, char *data, Uint8 *mask) const {
   int idx = map[id];
+  if(idx == -1) 
+    return true;
+  maskActive(id, mask);
+  if(specs[idx].column->getNullable())
+    nullmapSetNotNull(idx, data);
   char * buffer = data + specs[idx].offset;
 
   if(specs[idx].column->getType() != NdbDictionary::Column::Bigunsigned) {
@@ -275,9 +333,15 @@ bool Record::setUint64Value(int id, Uint64 value, char *data) const {
 
 
 int Record::encode(int id, const char *key, int nkey,
-                   char *buffer) const {
-  return handlers[map[id]]->writeToNdb(specs[map[id]].column, nkey, key, 
-                                       buffer + specs[map[id]].offset);
+                   char *buffer, Uint8 *mask) const {
+  int idx = map[id];
+  if(idx == -1) 
+    return 0;
+  maskActive(id, mask);
+  if(specs[idx].column->getNullable())
+    nullmapSetNotNull(idx, buffer);
+  return handlers[idx]->writeToNdb(specs[idx].column, nkey, key, 
+                                   buffer + specs[idx].offset);
 }
 
 
@@ -316,11 +380,16 @@ void Record::pad_offset_for_alignment() {
 
 
 void Record::debug_dump() {
+  DEBUG_PRINT("---------- Record ------------------");
+  DEBUG_PRINT("Record size: %d", rec_size);
+  DEBUG_PRINT("Nullmap start:   %d  Nullmap size:  %d", start_of_nullmap, 
+              size_of_nullmap);
   for(int i = 0 ; i < ncolumns ; i++) {
-    DEBUG_PRINT("Col %d column  : %s %d/%d", i, specs[i].column->getName()
+    DEBUG_PRINT(" Col %d column  : %s %d/%d", i, specs[i].column->getName()
                 , specs[i].column->getSize(), specs[i].column->getSizeInBytes());
-    DEBUG_PRINT("Col %d offset  : %d", i, specs[i].offset);
-    DEBUG_PRINT("Col %d null bit: %d.%d", i,
+    DEBUG_PRINT(" Col %d offset  : %d", i, specs[i].offset);
+    DEBUG_PRINT(" Col %d null bit: %d.%d", i,
                 specs[i].nullbit_byte_offset, specs[i].nullbit_bit_in_byte);
   }
+  DEBUG_PRINT("-------------------------------------");
 }

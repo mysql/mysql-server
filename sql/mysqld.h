@@ -100,6 +100,7 @@ extern my_bool opt_backup_progress_log;
 extern ulonglong log_output_options;
 extern ulong log_backup_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
+extern ulong opt_log_throttle_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
@@ -139,7 +140,7 @@ extern ulong expire_logs_days;
 extern my_bool relay_log_recovery;
 extern uint sync_binlog_period, sync_relaylog_period, 
             sync_relayloginfo_period, sync_masterinfo_period,
-            mts_checkpoint_period, mts_checkpoint_group;
+            opt_mts_checkpoint_period, opt_mts_checkpoint_group;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
@@ -147,7 +148,8 @@ extern my_bool relay_log_recovery;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern ulong delay_key_write_options;
-extern char *opt_logname, *opt_slow_logname;
+extern char *opt_logname, *opt_slow_logname, *opt_bin_logname, 
+            *opt_relay_logname;
 extern char *opt_backup_history_logname, *opt_backup_progress_logname,
             *opt_backup_settings_name;
 extern const char *log_output_str;
@@ -247,6 +249,7 @@ extern I_List<THD> threads;
 extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
+extern ulong log_warnings;
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
@@ -282,7 +285,8 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
-  key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc;
+  key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc,
+  key_LOCK_log_throttle_qni;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -358,6 +362,7 @@ extern PSI_stage_info stage_discard_or_import_tablespace;
 extern PSI_stage_info stage_end;
 extern PSI_stage_info stage_executing;
 extern PSI_stage_info stage_execution_of_init_command;
+extern PSI_stage_info stage_explaining;
 extern PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog;
 extern PSI_stage_info stage_flushing_relay_log_and_master_info_repository;
 extern PSI_stage_info stage_flushing_relay_log_info_file;
@@ -432,7 +437,7 @@ extern PSI_stage_info stage_slave_waiting_worker_to_free_events;
 extern PSI_stage_info stage_slave_waiting_worker_queue;
 extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
 extern PSI_stage_info stage_slave_waiting_workers_to_exit;
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).
   The last entry, at [SQLCOM_END], is for parsing errors.
@@ -447,7 +452,7 @@ extern PSI_statement_info com_statement_info[(uint) COM_END + 1];
 
 void init_sql_statement_info();
 void init_com_statement_info();
-#endif /* HAVE_PSI_INTERFACE */
+#endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
 #ifndef __WIN__
 extern pthread_t signal_thread;
@@ -493,7 +498,7 @@ extern mysql_mutex_t
        LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
-       LOCK_global_system_variables, LOCK_user_conn,
+       LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count;
 extern MYSQL_PLUGIN_IMPORT mysql_mutex_t LOCK_thread_count;
 #ifdef HAVE_OPENSSL
@@ -571,7 +576,8 @@ enum options_mysqld
   OPT_PLUGIN_LOAD,
   OPT_PLUGIN_LOAD_ADD,
   OPT_SSL_CRL,
-  OPT_SSL_CRLPATH
+  OPT_SSL_CRLPATH,
+  OPT_PFS_INSTRUMENT
 };
 
 

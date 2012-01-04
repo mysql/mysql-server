@@ -1,0 +1,2 @@
+SET SESSION foreign_key_checks=0;
+ERROR 23000: Upholding foreign key constraints for table 'bug12661768_1', entry '3-bbb', key 2 would lead to a duplicate entry

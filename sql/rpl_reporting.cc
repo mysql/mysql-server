@@ -145,11 +145,11 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
     report_function= sql_print_error;
     break;
   case WARNING_LEVEL:
-    report_function= global_system_variables.log_warnings?
+    report_function= log_warnings?
       sql_print_warning : NULL;
     break;
   case INFORMATION_LEVEL:
-    report_function= global_system_variables.log_warnings?
+    report_function= log_warnings?
       sql_print_information : NULL;
     break;
   default:

@@ -20,9 +20,10 @@
 #ifndef NDBMEMCACHE_CONFIG_V1_H
 #define NDBMEMCACHE_CONFIG_V1_H
 
-#include <memcached/genhash.h>
-
 #include "Configuration.h" 
+#include "LookupTable.h"
+#include "KeyPrefix.h"
+#include "TableSpec.h"
 
 class config_v1 {
 public:
@@ -40,7 +41,7 @@ protected:
   bool get_prefixes(int role_id);
   bool store_prefix(const char *, TableSpec *, int, char *);
   TableSpec * get_container(char *name);
-  TableSpec * get_container_record(char *name);
+  virtual TableSpec * get_container_record(char *name);
   void log_signon();
   void set_initial_cas();
   
@@ -50,8 +51,8 @@ protected:
   Uint64 signon_gci;  
   int nclusters;
   int cluster_ids[MAX_CLUSTERS];
-  genhash_t *policies_map;
-  genhash_t *containers_map;
+  LookupTable<prefix_info_t> * policies_map;
+  LookupTable<TableSpec> * containers_map;
 };
 
 
@@ -67,5 +68,14 @@ public:
   config_v1_1(Configuration * cf) : config_v1(cf) {};
   virtual void minor_version_config();  
 };
+
+
+class config_v1_2 : public config_v1 { 
+public:
+  config_v1_2(Configuration * cf) : config_v1(cf) {};
+  virtual TableSpec * get_container_record(char *name);
+  virtual void minor_version_config();
+};
+
 
 #endif

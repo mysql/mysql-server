@@ -26,12 +26,19 @@
 ###  $mc->{error}                       holds most recent error/status message
 ### 
 ###  $mc->set(key, value)               returns 1 on success, 0 on failure
-###  $mc->add(key), $mc->replace(key)   like set()
+###  $mc->add(key, value)               set if record does not exist
+###  $mc->replace(key, value)           set if record exists
+###  $mc->append(key, value)            append value to existing data
+###  $mc->prepend(key, value)           prepend value to existing data
 ###  $mc->get(key)                      returns value or undef
 ###  $mc->delete(key)                   returns 1 on success, 0 on failure
 ###  $mc->stats(stat_key)               get stats; returns a hash
 ###  $mc->incr(key, amount)             returns the new value or undef
 ###  $mc->decr(key, amount)             like incr
+###  $mc->flush()                       flush_all
+###
+###  $mc->set_expires(sec)              Set TTL for all store operations
+###  $mc->set_flags(int_flags)          Set numeric flags for store operations
 ###
 ###  $mc->note_config_version() 
 ###    Store the generation number of the running config in the filesystem,
@@ -56,7 +63,9 @@ package My::Memcache;
 
 sub new {
   my $pkg = shift;
-  bless { "created" => 1 , "error" => "" , "cf_gen" => 0 }, $pkg;
+  bless { "created" => 1 , "error" => "" , "cf_gen" => 0,
+          "exptime" => 0 , "flags" => 0
+        }, $pkg;
 }
 
 sub connect {
@@ -89,7 +98,6 @@ sub DESTROY {
   $self->{connection}->close();
 }
 
-
 sub note_config_version {
   my $self = shift;
 
@@ -104,6 +112,19 @@ sub note_config_version {
   $self->{cf_gen} = $ver;
 }
 
+sub set_expires {
+  my $self = shift;
+  my $delta = shift;
+  
+  $self->{exptime} = $delta;
+}
+
+sub set_flags {
+  my $self = shift;
+  my $flags = shift;
+  
+  $self->{flags} = $flags;
+}
 
 sub wait_for_reconf {
   my $self = shift;
@@ -178,7 +199,8 @@ sub _txt_store {
   my $value = shift;
   my $sock = $self->{connection};
   
-  $sock->printf("%s %s %d %d %d\r\n%s\r\n",$cmd, $key, 0, 0, length($value), $value);
+  $sock->printf("%s %s %d %d %d\r\n%s\r\n",$cmd, $key, 
+                $self->{flags}, $self->{exptime}, length($value), $value);
   return $sock->getline();
 }
 
@@ -195,6 +217,22 @@ sub add {
   my ($self, $key, $value) = @_;
   
   $self->{error} = $self->_txt_store("add", $key, $value);
+  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+}
+
+
+sub append {
+  my ($self, $key, $value) = @_;
+  
+  $self->{error} = $self->_txt_store("append", $key, $value);
+  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+}
+
+
+sub prepend {    
+  my ($self, $key, $value) = @_;
+  
+  $self->{error} = $self->_txt_store("prepend", $key, $value);
   return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
 }
 
@@ -224,7 +262,7 @@ sub get {
   else
   {
     $response =~ /^VALUE (.*) (\d+) (\d+)/;
-    my $flags = $2;
+    $self->{flags} = $2;
     my $len = $3;
     $sock->read($val, $len);
     $sock->getline();  # \r\n after value
@@ -292,6 +330,18 @@ sub stats {
   return %response;
 }
 
+sub flush {
+  my $self = shift;
+  my $key = shift;
+  my $sock = $self->{connection}; 
+  
+  $sock->print("flush_all\r\n") || Carp::confess "send error";
+  
+  $self->{error} = $sock->getline();
+  return $self->{error} =~ "^OK" ? 1 : $self->normalize_error();
+}
+
+
 # Try to provide consistent error messagees across ascii & binary protocols
 sub normalize_error {
   my $self = shift;
@@ -299,6 +349,7 @@ sub normalize_error {
   "STORED\r\n"                         => "OK",
   "EXISTS\r\n"                         => "KEY_EXISTS",
   "CLIENT_ERROR value too big\r\n"     => "VALUE_TOO_LARGE",
+  "SERVER_ERROR object too large for cache\r\n"     => "VALUE_TOO_LARGE",
   "CLIENT_ERROR invalid arguments\r\n" => "INVALID_ARGUMENTS",
   "SERVER_ERROR not my vbucket\r\n"    => "NOT_MY_VBUCKET",
   "SERVER_ERROR out of memory\r\n"     => "SERVER_OUT_OF_MEMORY",
@@ -329,7 +380,10 @@ use constant BIN_CMD_DELETE     => 0x04;
 use constant BIN_CMD_INCR       => 0x05;
 use constant BIN_CMD_DECR       => 0x06;
 use constant BIN_CMD_QUIT       => 0x07;
+use constant BIN_CMD_FLUSH      => 0x08;
 use constant BIN_CMD_NOOP       => 0x0A;
+use constant BIN_CMD_APPEND     => 0x0E;
+use constant BIN_CMD_PREPEND    => 0x0F;
 use constant BIN_CMD_STAT       => 0x10;
 
 my %error_message = (
@@ -427,7 +481,7 @@ sub bin_store {
   my $key = shift;
   my $value = shift;
   
-  my $extra_header = pack "NN", 0, 0;  # FLAGS and EXPIRE
+  my $extra_header = pack "NN", $self->{flags}, $self->{exptime};
   $self->send_binary_request($cmd, $key, $value, $extra_header);
   
   my ($status) = $self->get_binary_response();
@@ -460,6 +514,12 @@ sub stats {
   return %response;
 }
 
+sub flush {
+  my ($self, $key, $value) = @_;
+  $self->send_binary_request(BIN_CMD_FLUSH, $key, '', ''); 
+  my ($status, $value) = $self->get_binary_response();
+  return ($status == 0) ? 1 : 0;
+}
   
 sub set {
   my ($self, $key, $value) = @_;
@@ -474,6 +534,20 @@ sub add {
 sub replace {
   my ($self, $key, $value) = @_;
   return $self->bin_store(BIN_CMD_REPLACE, $key, $value);
+}
+
+sub append {
+  my ($self, $key, $value) = @_;
+  $self->send_binary_request(BIN_CMD_APPEND, $key, $value, '');
+  my ($status) = $self->get_binary_response();
+  return ($status == 0) ? 1 : 0;
+}
+
+sub prepend {
+  my ($self, $key, $value) = @_;
+  $self->send_binary_request(BIN_CMD_PREPEND, $key, $value, '');
+  my ($status) = $self->get_binary_response();
+  return ($status == 0) ? 1 : 0;
 }
 
 sub delete { 

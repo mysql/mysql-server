@@ -26,15 +26,17 @@
 #include <pthread.h>
 
 #include <memcached/extension_loggers.h>
-#include <memcached/genhash.h>
+
 
 #include "debug.h"
 #include "ClusterConnectionPool.h"
+#include "LookupTable.h"
+
 #include <portlib/NdbSleep.h>
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
-genhash_t * conn_pool_map = 0;
+LookupTable<ClusterConnectionPool> * conn_pool_map = 0;
 pthread_mutex_t conn_pool_map_lock = PTHREAD_MUTEX_INITIALIZER;
 
 extern struct hash_ops string_to_pointer_hash;  //  from config_v1.cc
@@ -45,7 +47,7 @@ ClusterConnectionPool *get_connection_pool_for_cluster(const char * name) {
   if(conn_pool_map != 0) {
     if(name == 0) name = "[default]";
     if(pthread_mutex_lock(& conn_pool_map_lock) == 0) {
-      p = (ClusterConnectionPool *) genhash_find(conn_pool_map, name, strlen(name));
+      p = conn_pool_map->find(name);
       pthread_mutex_unlock(& conn_pool_map_lock);
     }
   }
@@ -54,20 +56,18 @@ ClusterConnectionPool *get_connection_pool_for_cluster(const char * name) {
 
 
 void store_connection_pool_for_cluster(const char *name, 
-                                       const ClusterConnectionPool *p) {
+                                       ClusterConnectionPool *p) {
   DEBUG_ENTER();
   if(name == 0) name = "[default]";
-  int name_len = strlen(name);
+  // int name_len = strlen(name);
 
   if(pthread_mutex_lock(& conn_pool_map_lock) == 0) {
     if(conn_pool_map == 0) {
-      conn_pool_map = genhash_init(4, string_to_pointer_hash);
+      conn_pool_map = new LookupTable<ClusterConnectionPool>();
     }
 
-    void *v = genhash_find(conn_pool_map, name, name_len);
-    assert(v == 0);    
-    genhash_store(conn_pool_map, name, name_len, 
-                  (const void *) p, sizeof(const void *));
+    assert(conn_pool_map->find(name) == 0);
+    conn_pool_map->insert(name, p);
     pthread_mutex_unlock(& conn_pool_map_lock);
   }
 }                                       

@@ -26,6 +26,9 @@
 #include "sql_class.h"                          // THD
 #include <stdarg.h>
 
+using std::min;
+using std::max;
+
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
 /* Declared non-static only because of the embedded library. */
 bool net_send_error_packet(THD *, uint, const char *, const char *);
@@ -230,7 +233,7 @@ net_send_ok(THD *thd,
     pos+=2;
 
     /* We can only return up to 65535 warnings in two bytes */
-    uint tmp= min(statement_warn_count, 65535);
+    uint tmp= min(statement_warn_count, 65535U);
     int2store(pos, tmp);
     pos+= 2;
   }
@@ -326,7 +329,7 @@ static bool write_eof_packet(THD *thd, NET *net,
       Don't send warn count during SP execution, as the warn_list
       is cleared between substatements, and mysqltest gets confused
     */
-    uint tmp= min(statement_warn_count, 65535);
+    uint tmp= min(statement_warn_count, 65535U);
     buff[0]= 254;
     int2store(buff+1, tmp);
     /*
@@ -1123,22 +1126,15 @@ bool Protocol_text::store(Field *field)
     we support 0-6 decimals for time.
 */
 
-bool Protocol_text::store(MYSQL_TIME *tm)
+bool Protocol_text::store(MYSQL_TIME *tm, uint decimals)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_DATETIME ||
-	      field_types[field_pos] == MYSQL_TYPE_TIMESTAMP);
+              is_temporal_type_with_date_and_time(field_types[field_pos]));
   field_pos++;
 #endif
-  char buff[40];
-  uint length;
-  length= sprintf(buff, "%04d-%02d-%02d %02d:%02d:%02d",
-                  (int) tm->year, (int) tm->month,
-                  (int) tm->day, (int) tm->hour,
-                  (int) tm->minute, (int) tm->second);
-  if (tm->second_part)
-    length+= sprintf(buff+length, ".%06d", (int) tm->second_part);
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  uint length= my_datetime_to_str(tm, buff, decimals);
   return net_store_data((uchar*) buff, length);
 }
 
@@ -1156,29 +1152,18 @@ bool Protocol_text::store_date(MYSQL_TIME *tm)
 }
 
 
-/**
-  @todo 
-    Second_part format ("%06") needs to change when 
-    we support 0-6 decimals for time.
-*/
-
-bool Protocol_text::store_time(MYSQL_TIME *tm)
+bool Protocol_text::store_time(MYSQL_TIME *tm, uint decimals)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_TIME);
+              field_types[field_pos] == MYSQL_TYPE_TIME);
   field_pos++;
 #endif
-  char buff[40];
-  uint length;
-  uint day= (tm->year || tm->month) ? 0 : tm->day;
-  length= sprintf(buff, "%s%02ld:%02d:%02d", tm->neg ? "-" : "",
-                  (long) day*24L+(long) tm->hour, (int) tm->minute,
-                  (int) tm->second);
-  if (tm->second_part)
-    length+= sprintf(buff+length, ".%06d", (int) tm->second_part);
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  uint length= my_time_to_str(tm, buff, decimals);
   return net_store_data((uchar*) buff, length);
 }
+
 
 /**
   Assign OUT-parameters to user variables.
@@ -1380,7 +1365,7 @@ bool Protocol_binary::store(Field *field)
 }
 
 
-bool Protocol_binary::store(MYSQL_TIME *tm)
+bool Protocol_binary::store(MYSQL_TIME *tm, uint precision)
 {
   char buff[12],*pos;
   uint length;
@@ -1410,11 +1395,11 @@ bool Protocol_binary::store_date(MYSQL_TIME *tm)
 {
   tm->hour= tm->minute= tm->second=0;
   tm->second_part= 0;
-  return Protocol_binary::store(tm);
+  return Protocol_binary::store(tm, 0);
 }
 
 
-bool Protocol_binary::store_time(MYSQL_TIME *tm)
+bool Protocol_binary::store_time(MYSQL_TIME *tm, uint precision)
 {
   char buff[13], *pos;
   uint length;

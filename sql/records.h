@@ -28,13 +28,16 @@ class SQL_SELECT;
   index read, scan, etc, use of cache, etc.
 
   Use by:
+@code
   READ_RECORD read_record;
-  init_read_record(&read_record, ...);
+  if (init_read_record(&read_record, ...))
+    return TRUE;
   while (read_record.read_record())
   {
     ...
   }
   end_read_record();
+@endcode
 */
 
 class Copy_field;
@@ -70,13 +73,14 @@ public:
   READ_RECORD() {}
 };
 
-void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
+bool init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select, int use_record_cache,
                       bool print_errors, bool disable_rr_cache);
-void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
+bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
                           bool print_error, uint idx, bool reverse);
 void end_read_record(READ_RECORD *info);
 
 void rr_unlock_row(st_join_table *tab);
+int rr_sequential(READ_RECORD *info);
 
 #endif /* SQL_RECORDS_H */

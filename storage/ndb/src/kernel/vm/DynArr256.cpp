@@ -637,20 +637,6 @@ DynArr256Pool::release(Uint32 ptrI)
 
 #ifdef UNIT_TEST
 
-#include <NdbTick.h>
-#include "ndbd_malloc_impl.hpp"
-#include "SimulatedBlock.hpp"
-
-Ndbd_mem_manager mm;
-Configuration cfg;
-Block_context ctx(cfg, mm);
-struct BB : public SimulatedBlock
-{
-  BB(int no, Block_context& ctx) : SimulatedBlock(no, ctx) {}
-};
-
-BB block(DBACC, ctx);
-
 static
 void
 simple(DynArr256 & arr, int argc, char* argv[])
@@ -759,7 +745,7 @@ read(DynArr256& arr, int argc, char ** argv)
   Uint32 seed = time(0);
   Uint32 seq = 0, seqmask = 0;
 
-  for (Uint32 i = 2; i<argc; i++)
+  for (Uint32 i = 1; i<argc; i++)
   {
     if (strncmp(argv[i], "--mbytes=", sizeof("--mbytes=")-1) == 0)
     {
@@ -831,7 +817,7 @@ write(DynArr256& arr, int argc, char ** argv)
   Uint64 mbytes = 16*1024;
   Uint32 seed = time(0);
 
-  for (Uint32 i = 2; i<argc; i++)
+  for (Uint32 i = 1; i<argc; i++)
   {
     if (strncmp(argv[i], "--mbytes=", sizeof("--mbytes=")-1) == 0)
     {
@@ -888,32 +874,30 @@ write(DynArr256& arr, int argc, char ** argv)
   }
 }
 
+static
+void
+usage(FILE *f, int argc, char **argv)
+{
+  fprintf(stderr, "Usage:\n");
+  fprintf(stderr, "\t%s --simple <index1> <index2> ... <indexN>\n", argv[0]);
+  fprintf(stderr, "\t%s --basic\n", argv[0]);
+  fprintf(stderr, "\t%s { --read | --write } [ --mbytes=<megabytes> | --mbytes=<gigabytes>[gG] ] [ --cnt=<count> ] [ --seq ]\n", argv[0]);
+  fprintf(stderr, "defaults:\n");
+  fprintf(stderr, "\t--mbytes=16g\n");
+  fprintf(stderr, "\t--cnt=100000\n");
+}
+
+# include "test_context.hpp"
+
 int
 main(int argc, char** argv)
 {
-  if (0)
-  {
-    for (Uint32 i = 0; i<30; i++)
-    {
-      Uint32 b = (i + 1) >> 4;
-      Uint32 p = i - (b << 4) + b;
-      printf("[ %d %d %d ]\n", i, b, p);
-    }
-    return 0;
+  if (argc == 1) {
+    usage(stderr, argc, argv);
+    exit(2);
   }
 
-  Pool_context pc;
-  pc.m_block = &block;
-  
-  Resource_limit rl;
-  rl.m_min = 0;
-  rl.m_max = 10000;
-  rl.m_resource_id = 0;
-  mm.set_resource_limit(rl);
-  if(!mm.init())
-  {
-    abort();
-  }
+  Pool_context pc = test_context(10000 /* pages */);
 
   DynArr256Pool pool;
   pool.init(0x2001, pc);
@@ -922,13 +906,18 @@ main(int argc, char** argv)
   DynArr256 arr(pool, head);
 
   if (strcmp(argv[1], "--simple") == 0)
-    simple(arr, argc, argv);
+    simple(arr, argc - 1, argv + 1);
   else if (strcmp(argv[1], "--basic") == 0)
-    basic(arr, argc, argv);
+    basic(arr, argc - 1, argv + 1);
   else if (strcmp(argv[1], "--read") == 0)
-    read(arr, argc, argv);
+    read(arr, argc - 1, argv + 1);
   else if (strcmp(argv[1], "--write") == 0)
-    write(arr, argc, argv);
+    write(arr, argc - 1, argv + 1);
+  else
+  {
+    usage(stderr, argc, argv);
+    exit(2);
+  }
 
   DynArr256::ReleaseIterator iter;
   arr.init(iter);
@@ -943,75 +932,20 @@ main(int argc, char** argv)
 	   cnt);
   
   return 0;
-#if 0
-  printf("sizeof(DA256Page): %d\n", sizeof(DA256Page));
+}
 
-  DA256Page page;
-
-  for (Uint32 i = 0; i<10000; i++)
-  {
-    Uint32 arg = rand() & 255;
-    Uint32 base = 0;
-    Uint32 idx = arg & 256;
-    printf("%d\n", arg);
-
-    assert(base <= 30);
-    
-    if (idx == 255)
-    {
-      Uint32 b = (base + 1) >> 4;
-      Uint32 p = base - (b << 4) + b;
-      Uint32 magic = page.m_header[b].m_magic;
-      Uint32 retVal = page.m_header[b].m_data[p];
-      
-      require(magic & (1 << p));
-      return retVal;
-    }
-    else
-    {
-      // 4 bit extra offset per idx
-      Uint32 line = idx / 15;
-      Uint32 off = idx % 15;
-      
-      {
-	Uint32 pos = 1 + idx + line;
-	Uint32 magic = pos & ~15;
-	
-	Uint32 * ptr = (Uint32*)&page.m_nodes[base];
-	assert((ptr + pos) == &page.m_nodes[base].m_lines[line].m_data[off]);
-	assert((ptr + magic) == &page.m_nodes[base].m_lines[line].m_magic);
-      }
-    }
-  }
 #endif
-}
 
-Uint32 g_currentStartPhase;
-Uint32 g_start_type;
-NdbNodeBitmask g_nowait_nodes;
+#ifdef TAP_TEST
+#include <NdbTap.hpp>
+#include "test_context.hpp"
 
-void
-UpgradeStartup::sendCmAppChg(Ndbcntr& cntr, Signal* signal, Uint32 startLevel){
-}
-
-void
-UpgradeStartup::execCM_APPCHG(SimulatedBlock & block, Signal* signal){
-}
-
-void
-UpgradeStartup::sendCntrMasterReq(Ndbcntr& cntr, Signal* signal, Uint32 n){
-}
-
-void
-UpgradeStartup::execCNTR_MASTER_REPLY(SimulatedBlock & block, Signal* signal){
-}
-
-#include <SimBlockList.hpp>
-
-void
-SimBlockList::unload()
+TAPTEST(DynArr256)
 {
+  Pool_context pc = test_context(100);
 
+  OK(true);
+
+  return 1;
 }
-
 #endif

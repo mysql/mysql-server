@@ -3139,7 +3139,28 @@ Suma::execSUB_START_REQ(Signal* signal){
                     senderRef, senderData, subPtr.p->m_errorCode);
     return;
   }
-  
+
+  switch(getNodeInfo(refToNode(subscriberRef)).m_type){
+  case NodeInfo::DB:
+  case NodeInfo::API:
+  case NodeInfo::MGM:
+    if (!ERROR_INSERTED_CLEAR(13047))
+      break;
+  default:
+    /**
+     * This can happen if we start...with a new config
+     *   that has dropped a node...that has a subscription active
+     *   (or maybe internal error ??)
+     *
+     * If this is a node-restart, it means that we will refuse to start
+     * If not, this mean that substart will simply fail...
+     */
+    jam();
+    sendSubStartRef(signal, senderRef, senderData,
+                    SubStartRef::SubscriberNodeIdUndefined);
+    return;
+  }
+
   SubscriberPtr subbPtr;
   if(!c_subscriberPool.seize(subbPtr))
   {

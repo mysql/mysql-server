@@ -4617,11 +4617,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     nextPos += 2;
   }
 
+  regTcPtr->m_fire_trig_pass = 0;
   Uint32 Tdeferred = LqhKeyReq::getDeferredConstraints(Treqinfo);
   if (isLongReq && Tdeferred)
   {
     regTcPtr->m_flags |= TcConnectionrec::OP_DEFERRED_CONSTRAINTS;
-    regTcPtr->m_fire_trig_pass = 0;
   }
 
   UintR TitcKeyLen = 0;
@@ -10713,23 +10713,28 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
    * KeyInfo
    */
   Uint32 totalLen = tcPtrP->primKeyLen;
+  if (totalLen == 0)
+  {
+    return 0;
+  }
 
-  if (totalLen)
+  Uint32 * save = dst;
+  do
   {
     ndbassert( tcPtrP->keyInfoIVal != RNIL );
     SectionReader keyInfoReader(tcPtrP->keyInfoIVal,
                                 g_sectionSegmentPool);
-    
+
     if (tcPtrP->m_flags & TcConnectionrec::OP_SCANKEYINFOPOSSAVED)
     {
       /* Second or higher range in an MRR scan
-       * Restore SectionReader to the last position it was in 
+       * Restore SectionReader to the last position it was in
        */
       bool ok= keyInfoReader.setPos(tcPtrP->scanKeyInfoPos);
       ndbrequire(ok);
     }
 
-    /* Get first word of next range and extract range 
+    /* Get first word of next range and extract range
      * length, number from it.
      * For non MRR, these will be zero.
      */
@@ -10741,15 +10746,19 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
     tcPtrP->m_corrFactorLo &= 0x0000FFFF;
     tcPtrP->m_corrFactorLo |= (range_no << 16);
     firstWord &= 0xF; // Remove length+range num from first word
-    
+
     /* Write range info to dst */
     *(dst++)= firstWord;
     bool ok= keyInfoReader.getWords(dst, rangeLen - 1);
+    ndbassert(ok);
+    if (unlikely(!ok))
+      break;
 
-    ndbrequire(ok);
-    
+    if (ERROR_INSERTED(5074))
+      break;
+
     tcPtrP->primKeyLen-= rangeLen;
-    
+
     if (rangeLen == totalLen)
     {
       /* All range information has been copied, free the section */
@@ -10764,9 +10773,26 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
     }
 
     return rangeLen;
-  }
+  } while (0);
 
-  return totalLen;
+  /**
+   * We enter here if there was some error in the keyinfo
+   *   this has (once) been seen in customer lab,
+   *   never at in the wild, and never in internal lab.
+   *   root-cause unknown, maybe ndbapi application bug
+   *
+   * Crash in debug, or ERROR_INSERT (unless 5074)
+   * else
+   *   generate an incorrect bound...that will make TUX abort the scan
+   */
+#ifdef ERROR_INSERT
+  ndbrequire(ERROR_INSERTED_CLEAR(5074));
+#else
+  ndbassert(false);
+#endif
+
+  * save = TuxBoundInfo::InvalidBound;
+  return 1;
 }
 
 /* -------------------------------------------------------------------------
@@ -11884,6 +11910,12 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
 #endif
   const bool longable = true; // TODO is_api && !old_dest;
 
+  if (isNdbMtLqh())
+  {
+    jam();
+    nodeId = 0; // prevent execute direct
+  }
+
   Uint32 * dst = keyInfo->keyData;
   dst += nodeId == getOwnNodeId() ? 0 : KeyInfo20::DataLength;
 
@@ -11917,11 +11949,6 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   {
     jam();
     
-    if (isNdbMtLqh() && instance() != refToInstance(ref))
-    {
-      jam();
-      nodeId = 0; // prevent execute direct
-    }
     if (nodeId == getOwnNodeId())
     {
       EXECUTE_DIRECT(refToBlock(ref), GSN_KEYINFO20, signal,

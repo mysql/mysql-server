@@ -77,10 +77,8 @@ error:
   DBUG_RETURN(1);
 }
 
-int sys_var_add_options(DYNAMIC_ARRAY *long_options, int parse_flags)
+int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags)
 {
-  uint saved_elements= long_options->elements;
-
   DBUG_ENTER("sys_var_add_options");
 
   for (sys_var *var=all_sys_vars.first; var; var= var->next)
@@ -93,7 +91,6 @@ int sys_var_add_options(DYNAMIC_ARRAY *long_options, int parse_flags)
 
 error:
   fprintf(stderr, "failed to initialize System variables");
-  long_options->elements= saved_elements;
   DBUG_RETURN(1);
 }
 
@@ -489,6 +486,10 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type)
       if (type == OPT_GLOBAL && var->check_type(type))
         continue;
 
+      /* don't show non-visible variables */
+      if (var->not_visible())
+        continue;
+
       show->name= var->name.str;
       show->value= (char*) var;
       show->type= SHOW_SYS;
@@ -529,6 +530,11 @@ sys_var *intern_find_sys_var(const char *str, uint length)
   */
   var= (sys_var*) my_hash_search(&system_variable_hash,
                               (uchar*) str, length ? length : strlen(str));
+
+  /* Don't show non-visible variables. */
+  if (var && var->not_visible())
+    return NULL;
+
   return var;
 }
 

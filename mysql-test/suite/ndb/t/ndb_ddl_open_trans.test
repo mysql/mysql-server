@@ -1,5 +1,11 @@
+--source include/not_embedded.inc
 -- source include/have_multi_ndb.inc
 
+--disable_query_log
+# This test provokes failure to lock metadata on second mysqld  
+connection server2;
+call mtr.add_suppression("Failed to acquire metadata lock");
+--enable_query_log
 
 #
 # alter - rename

@@ -35,6 +35,11 @@
 #include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
 #include "sql_callback.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 /*
   Without SSL the handshake consists of one packet. This packet
@@ -483,8 +488,8 @@ static int check_connection(THD *thd)
       if (thd->main_security_ctx.host)
       {
         if (thd->main_security_ctx.host != my_localhost)
-          thd->main_security_ctx.host[min(strlen(thd->main_security_ctx.host),
-                                          HOSTNAME_LENGTH)]= 0;
+          thd->main_security_ctx.host[min<size_t>(strlen(thd->main_security_ctx.host),
+                                                  HOSTNAME_LENGTH)]= 0;
         thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
       }
       if (connect_errors > max_connect_errors)
@@ -624,7 +629,7 @@ void end_connection(THD *thd)
 
   if (net->error && net->vio != 0)
   {
-    if (!thd->killed && thd->variables.log_warnings > 1)
+    if (!thd->killed && log_warnings > 1)
     {
       Security_context *sctx= thd->security_ctx;
 
@@ -666,13 +671,38 @@ void prepare_new_connection_state(THD* thd)
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())
     {
-      thd->killed= THD::KILL_CONNECTION;
+      ulong packet_length;
+      NET *net= &thd->net;
+
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
-                        thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                        thd->thread_id,
+                        thd->db ? thd->db : "unconnected",
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip, "init_connect command failed");
       sql_print_warning("%s", thd->get_stmt_da()->message());
+
+      thd->lex->current_select= 0;
+      my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+      thd->clear_error();
+      net_new_transaction(net);
+      packet_length= my_net_read(net);
+      /*
+        If my_net_read() failed, my_error() has been already called,
+        and the main Diagnostics Area contains an error condition.
+      */
+      if (packet_length != packet_error)
+        my_error(ER_NEW_ABORTING_CONNECTION, MYF(0),
+                 thd->thread_id,
+                 thd->db ? thd->db : "unconnected",
+                 sctx->user ? sctx->user : "unauthenticated",
+                 sctx->host_or_ip, "init_connect command failed");
+
+      thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
+      thd->protocol->end_statement();
+      thd->killed = THD::KILL_CONNECTION;
+      return;
     }
+
     thd->proc_info=0;
     thd->set_time();
     thd->init_for_queries();

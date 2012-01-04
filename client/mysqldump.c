@@ -569,6 +569,8 @@ static void verbose_msg(const char *fmt, ...)
   vfprintf(stderr, fmt, args);
   va_end(args);
 
+  fflush(stderr);
+
   DBUG_VOID_RETURN;
 }
 
@@ -849,7 +851,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
                                     &err_ptr, &err_len);
       if (err_len)
       {
-        strmake(buff, err_ptr, min(sizeof(buff) - 1, err_len));
+        strmake(buff, err_ptr, MY_MIN(sizeof(buff) - 1, err_len));
         fprintf(stderr, "Invalid mode to --compatible: %s\n", buff);
         exit(1);
       }
@@ -4161,6 +4163,8 @@ static int dump_all_tables_in_db(char *database)
     if (mysql_refresh(mysql, REFRESH_LOG))
       DB_error(mysql, "when doing refresh");
            /* We shall continue here, if --force was given */
+    else
+      verbose_msg("-- dump_all_tables_in_db : logs flushed successfully!\n");
   }
   while ((table= getTableName(0)))
   {
@@ -4261,6 +4265,8 @@ static my_bool dump_all_views_in_db(char *database)
     if (mysql_refresh(mysql, REFRESH_LOG))
       DB_error(mysql, "when doing refresh");
            /* We shall continue here, if --force was given */
+    else
+      verbose_msg("-- dump_all_views_in_db : logs flushed successfully!\n");
   }
   while ((table= getTableName(0)))
   {
@@ -4399,6 +4405,8 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       DB_error(mysql, "when doing refresh");
     }
      /* We shall countinue here, if --force was given */
+    else
+      verbose_msg("-- dump_selected_tables : logs flushed successfully!\n");
   }
   if (opt_xml)
     print_xml_tag(md_result_file, "", "\n", "database", "name=", db, NullS);
@@ -4682,6 +4690,7 @@ static int purge_bin_logs_to(MYSQL *mysql_con, char* log_name)
 
 static int start_transaction(MYSQL *mysql_con)
 {
+  verbose_msg("-- Starting transaction...\n");
   /*
     We use BEGIN for old servers. --single-transaction --master-data will fail
     on old servers, but that's ok as it was already silently broken (it didn't
@@ -4735,7 +4744,7 @@ static ulong find_set(TYPELIB *lib, const char *x, uint length,
 
       for (; pos != end && *pos != ','; pos++) ;
       var_len= (uint) (pos - start);
-      strmake(buff, start, min(sizeof(buff) - 1, var_len));
+      strmake(buff, start, MY_MIN(sizeof(buff) - 1, var_len));
       find= find_type(buff, lib, FIND_TYPE_BASIC);
       if (!find)
       {
@@ -5281,24 +5290,39 @@ int main(int argc, char **argv)
   if (opt_slave_data && do_stop_slave_sql(mysql))
     goto err;
 
-  if ((opt_lock_all_tables || opt_master_data) &&
+  if ((opt_lock_all_tables || opt_master_data ||
+       (opt_single_transaction && flush_logs)) &&
       do_flush_tables_read_lock(mysql))
     goto err;
-  if (opt_single_transaction && start_transaction(mysql))
-      goto err;
-  if (opt_delete_master_logs)
+
+  /*
+    Flush logs before starting transaction since
+    this causes implicit commit starting mysql-5.5.
+  */
+  if (opt_lock_all_tables || opt_master_data ||
+      (opt_single_transaction && flush_logs) ||
+      opt_delete_master_logs)
   {
-    if (mysql_refresh(mysql, REFRESH_LOG) ||
-        get_bin_log_name(mysql, bin_log_name, sizeof(bin_log_name)))
-      goto err;
+    if (flush_logs || opt_delete_master_logs)
+    {
+      if (mysql_refresh(mysql, REFRESH_LOG))
+        goto err;
+      verbose_msg("-- main : logs flushed successfully!\n");
+    }
+
+    /* Not anymore! That would not be sensible. */
     flush_logs= 0;
   }
-  if (opt_lock_all_tables || opt_master_data)
+
+  if (opt_delete_master_logs)
   {
-    if (flush_logs && mysql_refresh(mysql, REFRESH_LOG))
+    if (get_bin_log_name(mysql, bin_log_name, sizeof(bin_log_name)))
       goto err;
-    flush_logs= 0; /* not anymore; that would not be sensible */
   }
+
+  if (opt_single_transaction && start_transaction(mysql))
+    goto err;
+
   /* Add 'STOP SLAVE to beginning of dump */
   if (opt_slave_apply && add_stop_slave())
     goto err;

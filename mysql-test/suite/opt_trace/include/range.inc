@@ -289,38 +289,22 @@ drop table t1;
 
 --echo #
 --echo # Tracing of when test_if_skip_sort_order() switches to another
---echo # index and we abandon ICP (from BUG#12838420)
+--echo # index and we abandon ICP,
 --echo # see "disabling_pushed_condition_on_old_index" in trace.
 --echo #
 
 CREATE TABLE t1 (
-  col_int_key INT,
-  pk INT,
-  PRIMARY KEY (pk),
-  KEY (col_int_key)
-) ENGINE=InnoDB;
-INSERT INTO t1 VALUES (2,3),(3,2),(3,5),(4,6);
+  c1 VARCHAR(2) NOT NULL,
+  i1 INTEGER NOT NULL,
+  c2 VARCHAR(2) NOT NULL,
+  KEY k1 (c1),
+  KEY k2 (c1, i1)
+);
 
-CREATE TABLE t2 (
-  col_int_key INT,
-  pk INT,
-  PRIMARY KEY (pk),
-  KEY (col_int_key)
-) ENGINE=InnoDB;
-INSERT INTO t2 VALUES (0,9),(3,10),(4,6),(6,1),(100,3),(200,5);
+INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1');
 
-let $query=
-SELECT t2.col_int_key AS field1
-FROM t2 JOIN t1 ON t2.col_int_key
-WHERE t2.pk < 7 AND t2.col_int_key <> 7
-GROUP BY field1;
-
-set @old_opt_switch=@@optimizer_switch;
-# With BNL, a temp table is used for GROUP BY, we don't want this
-SET optimizer_switch="block_nested_loop=off";
-
-eval EXPLAIN $query;
+EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1;
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
-SET @@optimizer_switch=@old_opt_switch;
-DROP TABLE t1,t2;
+
+DROP TABLE t1;

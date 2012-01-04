@@ -13,13 +13,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+
+# MCP_BUG13511612 CHANGE PATTERN var/ to PATTERN var/* 
 IF(INSTALL_MYSQLTESTDIR)
 INSTALL(
   DIRECTORY .
   DESTINATION ${INSTALL_MYSQLTESTDIR}
   USE_SOURCE_PERMISSIONS
   COMPONENT Test
-  USE_SOURCE_PERMISSIONS
   PATTERN "var/" EXCLUDE
   PATTERN "lib/My/SafeProcess" EXCLUDE
   PATTERN "lib/t*" EXCLUDE
@@ -59,54 +60,42 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
-IF(CMAKE_GENERATOR MATCHES "Visual Studio")
-  SET(SETCONFIG_COMMAND set MTR_VS_CONFIG=${CMAKE_CFG_INTDIR})
-ELSEIF(CMAKE_GENERATOR MATCHES "Xcode")
-  SET(SETCONFIG_COMMAND export MTR_VS_CONFIG=${CMAKE_CFG_INTDIR})
-ELSE()
-  SET(SETCONFIG_COMMAND echo Running tests)
-ENDIF()
-IF(CYGWIN)
-  # On cygwin, pretend to be "Unix" system
-  SET(SETOS_COMMAND export MTR_CYGWIN_IS_UNIX=1)
-ELSE()
-  SET(SETOS_COMMAND echo OS=${CMAKE_SYSTEM_NAME})
-ENDIF()
-
-
 
 SET(EXP --experimental=collections/default.experimental)
-IF(WIN32)
-  SET(SET_ENV set)
-ELSE()
-  SET(SET_ENV export)
+
+SET(DEBUG_SERVER "")
+SET(VS_CONFIG "")
+
+IF(DEBUG_EXTNAME)
+  SET(DEBUG_SERVER "--debug-server")
 ENDIF()
 
-SET(TEST_BT_START
-  COMMAND ${SETCONFIG_COMMAND}
-  COMMAND ${SETOS_COMMAND}
-  COMMAND ${SET_ENV} MTR_BUILD_THREAD=auto
-)
-
-ADD_CUSTOM_TARGET(test-force
-  ${TEST_BT_START}
-  COMMAND perl ./mysql-test-run.pl --force ${EXP}
-)
-
-FOREACH(collection)
-  IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/collections/${collection})
-    MESSAGE(FATAL_ERROR 
-      "${CMAKE_CURRENT_SOURCE_DIR}/collections/${collection} does not exist")
+IF(CMAKE_BUILD_TYPE)
+  IF(CMAKE_BUILD_TYPE MATCHES "Debug")
+    SET(DEBUG_SERVER "--debug-server")
+  ELSE()
+    SET(DEBUG_SERVER "")
+    IF(CMAKE_GENERATOR MATCHES "Visual Studio" OR
+       CMAKE_GENERATOR MATCHES "Xcode")
+      SET(VS_CONFIG "--vs-config=${CMAKE_CFG_INTDIR}")
+    ENDIF()
   ENDIF()
-  SET(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/collections/${collection})
-  CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/cmake/run_collection.cmake.in 
-    ${CMAKE_CURRENT_BINARY_DIR}/run_collection_${collection}.cmake @ONLY)
-  ADD_CUSTOM_TARGET(
-    ${collection}
-    COMMAND ${TEST_BT_START}
-    COMMAND ${CMAKE_COMMAND} -P run_collection_${collection}.cmake
-  )
-ENDFOREACH()
+ENDIF()
+
+# On windows do: 'devenv mysql.sln /build Debug /project test-mtr'
+# On unix do: 'make test-mtr'
+ADD_CUSTOM_TARGET(test-mtr
+  COMMAND perl ./mysql-test-run.pl --force --parallel=4 --suite=main
+          ${VS_CONFIG} ${DEBUG_SERVER} ${EXP}
+)
+
+## We could do something like this, but the 'test' target generated
+## by cmake is really for unit testing: all output is muted by default,
+## even in case of test failure.
+## ADD_EXECUTABLE(perl IMPORTED)
+## ADD_TEST(xxx perl ./mysql-test-run.pl --force
+##          ${VS_CONFIG} ${DEBUG_SERVER} ${EXP})
+
 
 # Process .in files with includes in collections/
 

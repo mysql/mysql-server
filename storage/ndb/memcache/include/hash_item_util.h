@@ -35,6 +35,8 @@ DECLARE_FUNCTIONS_WITH_C_LINKAGE
 
 #include "items.h"
 
+uint32_t hash_item_get_flags(const hash_item *item);
+rel_time_t hash_item_get_exptime(const hash_item *item);
 uint16_t hash_item_get_key_len(const hash_item *item);
 uint32_t hash_item_get_data_len(const hash_item *item);
 char * hash_item_get_key(const hash_item *item);

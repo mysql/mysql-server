@@ -64,9 +64,6 @@ void workitem__initialize(workitem *item, ndb_pipeline *pipeline, int verb,
   memset(item, 0, sizeof(workitem));      /* zero out the item */
   item->base.nkey = nkey;  
   item->base.verb = verb;
-  item->base.has_value = 0;
-  item->base.retries = 0;
-  item->base.complete = 0;
   item->prefix_info = prefix;
   item->pipeline = pipeline;
   item->cookie = cookie;   
@@ -161,7 +158,7 @@ workitem *new_workitem_for_arithmetic(ndb_pipeline *pipeline,
   item->base.verb = OP_ARITHMETIC;
   item->base.math_incr = increment;
   item->base.math_create = create;  
-  item->math_delta = delta;
+  item->math_flags = delta;
   item->math_value = initial;
   item->cas = cas;
   return item;
@@ -185,7 +182,7 @@ const char * workitem_get_operation(workitem *item) {
 }
 
 
-void workitem_set_NdbInstance(workitem *item, C_OR_CPP_NDBINSTANCE * _Ndb_instance)
+void workitem_set_NdbInstance(workitem *item, CPP_NDBINSTANCE * _Ndb_instance)
 {
   assert(item->ndb_instance == NULL);
   item->ndb_instance = _Ndb_instance;

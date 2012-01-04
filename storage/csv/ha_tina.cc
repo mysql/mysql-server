@@ -49,6 +49,10 @@ TODO:
 #include "ha_tina.h"
 #include "probes_mysql.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
 
 /*
   uchar + uchar + ulonglong + ulonglong + ulonglong + ulonglong + uchar
@@ -984,7 +988,7 @@ int ha_tina::write_row(uchar * buf)
   ha_statistic_increment(&SSV::ha_write_count);
 
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
 
   size= encode_quote(buf);
 
@@ -1049,7 +1053,7 @@ int ha_tina::update_row(const uchar * old_data, uchar * new_data)
   ha_statistic_increment(&SSV::ha_update_count);
 
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
 
   size= encode_quote(new_data);
 
@@ -1313,8 +1317,7 @@ bool ha_tina::get_write_pos(my_off_t *end_pos, tina_set *closest_hole)
   if (closest_hole == chain_ptr) /* no more chains */
     *end_pos= file_buff->end();
   else
-    *end_pos= min(file_buff->end(),
-                  closest_hole->begin);
+    *end_pos= min(file_buff->end(), closest_hole->begin);
   return (closest_hole != chain_ptr) && (*end_pos == closest_hole->begin);
 }
 

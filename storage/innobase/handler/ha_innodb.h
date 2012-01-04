@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2010, MySQL AB & Innobase Oy. All Rights Reserved.
+Copyright (c) 2000, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -76,13 +76,14 @@ class ha_innobase: public handler
 	INNOBASE_SHARE*	share;		/*!< information for MySQL
 					table locking */
 
-	uchar*		upd_buff;	/*!< buffer used in updates */
-	uchar*		key_val_buff;	/*!< buffer used in converting
+	uchar*		upd_buf;	/*!< buffer used in updates */
+	ulint		upd_buf_size;	/*!< the size of upd_buf in bytes */
+	uchar		srch_key_val1[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
+	uchar		srch_key_val2[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
+					/*!< buffers used in converting
 					search key values from MySQL format
-					to Innodb format */
-	ulong		upd_and_key_val_buff_len;
-					/* the length of each of the previous
-					two buffers */
+					to InnoDB format. "+ 2" for the two
+					bytes where the length is stored */
 	Table_flags	int_table_flags;
 	uint		primary_key;
 	ulong		start_of_scan;	/*!< this is set to 1 when we are
@@ -159,13 +160,18 @@ class ha_innobase: public handler
 	int rnd_next(uchar *buf);
 	int rnd_pos(uchar * buf, uchar *pos);
 
+	int ft_init();
+	void ft_end();
+	FT_INFO *ft_init_ext(uint flags, uint inx, String* key);
+	int ft_read(uchar* buf);
+
 	void position(const uchar *record);
 	int info(uint);
 	int analyze(THD* thd,HA_CHECK_OPT* check_opt);
 	int optimize(THD* thd,HA_CHECK_OPT* check_opt);
 	int discard_or_import_tablespace(my_bool discard);
 	int extra(enum ha_extra_function operation);
-        int reset();
+	int reset();
 	int external_lock(THD *thd, int lock_type);
 	int transactional_table_lock(THD *thd, int lock_type);
 	int start_stmt(THD *thd, thr_lock_type lock_type);
@@ -199,7 +205,7 @@ class ha_innobase: public handler
 	int reset_auto_increment(ulonglong value);
 
 	virtual bool get_error_message(int error, String *buf);
-
+	virtual bool get_foreign_dup_key(char*, uint, char*, uint);
 	uint8 table_cache_type();
 	/*
 	  ask handler about permission to cache table during query registration
@@ -265,7 +271,7 @@ public:
 	ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF* seq,
 					   void* seq_init_param,
 					   uint n_ranges, uint* bufsz,
-					   uint* flags, COST_VECT* cost);
+					   uint* flags, Cost_estimate* cost);
 	/** Initialize multi range read and get information.
 	* @see DsMrr_impl::dsmrr_info
 	* @param keyno
@@ -278,7 +284,7 @@ public:
 	*/
 	ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
 				      uint* bufsz, uint* flags,
-				      COST_VECT* cost);
+				      Cost_estimate* cost);
 
 	/** Attempt to push down an index condition.
 	* @param[in] keyno	MySQL key number
@@ -301,9 +307,11 @@ the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
 #error InnoDB needs MySQL to be built with #define INNODB_COMPATIBILITY_HOOKS
 #endif
 
+LEX_STRING* thd_query_string(MYSQL_THD thd);
+
 extern "C" {
+
 struct charset_info_st *thd_charset(MYSQL_THD thd);
-LEX_STRING *thd_query_string(MYSQL_THD thd);
 
 /** Get the file name of the MySQL binlog.
  * @return the name of the binlog file
@@ -359,16 +367,27 @@ bool thd_binlog_filter_ok(const MYSQL_THD thd);
   @return 1 the query may generate row changes, 0 otherwise.
 */
 bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
-}
+
+} /* extern "C" */
 
 typedef struct trx_struct trx_t;
+
+extern const struct _ft_vft ft_vft_result;
+
+/* Structure Returned by ha_innobase::ft_init_ext() */
+typedef struct new_ft_info
+{
+	struct _ft_vft		*please;
+	row_prebuilt_t*		ft_prebuilt;
+	fts_result_t*		ft_result;
+} NEW_FT_INFO;
+
 /********************************************************************//**
 @file handler/ha_innodb.h
 Converts an InnoDB error code to a MySQL error code and also tells to MySQL
 about a possible transaction rollback inside InnoDB caused by a lock wait
 timeout or a deadlock.
 @return	MySQL error code */
-extern "C"
 int
 convert_error_code_to_mysql(
 /*========================*/
@@ -379,12 +398,10 @@ convert_error_code_to_mysql(
 /*********************************************************************//**
 Allocates an InnoDB transaction for a MySQL handler object.
 @return	InnoDB transaction handle */
-extern "C"
 trx_t*
 innobase_trx_allocate(
 /*==================*/
 	MYSQL_THD	thd);	/*!< in: user thread handle */
-
 
 /*********************************************************************//**
 This function checks each index name for a table against reserved
@@ -392,7 +409,6 @@ system default primary index name 'GEN_CLUST_INDEX'. If a name
 matches, this function pushes an warning message to the client,
 and returns true.
 @return true if the index name matches the reserved name */
-extern "C"
 bool
 innobase_index_name_is_reserved(
 /*============================*/
@@ -400,4 +416,79 @@ innobase_index_name_is_reserved(
 	const KEY*	key_info,	/*!< in: Indexes to be created */
 	ulint		num_of_keys);	/*!< in: Number of indexes to
 					be created. */
+/*********************************************************************//**
+Retrieve the FTS Relevance Ranking result for doc with doc_id
+of prebuilt->fts_doc_id
+@return the relevance ranking value */
+UNIV_INTERN
+float
+innobase_fts_retrieve_ranking(
+/*==========================*/
+	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
 
+/*********************************************************************//**
+Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
+of prebuilt->fts_doc_id
+@return the relevance ranking value */
+UNIV_INTERN
+float
+innobase_fts_find_ranking(
+/*==========================*/
+	FT_INFO*	fts_hdl,	/*!< in: FTS handler */
+	uchar*		record,		/*!< in: Unused */
+	uint		len);		/*!< in: Unused */
+/*********************************************************************//**
+Free the memory for the FTS handler */
+UNIV_INTERN
+void
+innobase_fts_close_ranking(
+/*==========================*/
+	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+/*********************************************************************//**
+Free the memory for the FTS handler */
+void
+innobase_fts_close_ranking(
+/*==========================*/
+	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+/*****************************************************************//**
+Initialize the table FTS stopword list
+@return TRUE is succeed */
+UNIV_INTERN
+ibool
+innobase_fts_load_stopword(
+/*=======================*/
+	dict_table_t*	table,		/*!< in: Table has the FTS */
+	trx_t*		trx,		/*!< in: transaction */
+	THD*		thd);		/*!< in: current thread */
+
+/** Some defines for innobase_fts_check_doc_id_index() return value */
+enum fts_doc_id_index_enum {
+	FTS_INCORRECT_DOC_ID_INDEX,
+	FTS_EXIST_DOC_ID_INDEX,
+	FTS_NOT_EXIST_DOC_ID_INDEX
+};
+
+/*******************************************************************//**
+Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
+on the Doc ID column.
+@return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
+FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
+UNIV_INTERN
+enum fts_doc_id_index_enum
+innobase_fts_check_doc_id_index(
+/*============================*/
+	dict_table_t*	table,		/*!< in: table definition */
+	ulint*		fts_doc_col_no);/*!< out: The column number for
+					Doc ID */
+
+/*******************************************************************//**
+Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
+on the Doc ID column in MySQL create index definition.
+@return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
+FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
+UNIV_INTERN
+enum fts_doc_id_index_enum
+innobase_fts_check_doc_id_index_in_def(
+/*===================================*/
+	ulint		n_key,		/*!< in: Number of keys */
+	KEY*		key_info);	/*!< in: Key definition */

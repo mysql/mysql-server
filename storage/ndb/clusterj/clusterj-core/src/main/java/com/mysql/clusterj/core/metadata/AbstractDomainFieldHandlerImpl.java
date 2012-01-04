@@ -417,7 +417,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
 
     protected void reportErrors() {
         if (errorMessages != null) {
-            throw new ClusterJUserException(errorMessages.toString());
+            domainTypeHandler.setUnsupported(errorMessages.toString());
         }
     }
 

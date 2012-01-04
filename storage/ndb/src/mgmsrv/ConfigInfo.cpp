@@ -1922,7 +1922,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "4096",                  /* Default */
+    "8192",                  /* Default */
     "0",                     /* Min */
     "64k"                    /* Max : There is no flow control...so set limit*/
   },
@@ -2137,6 +2137,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 #endif
     "false",
     "true"},
+
+
+  {
+    CFG_DB_FREE_PCT,
+    "MinFreePct",
+    DB_TOKEN,
+    "Keep 5% of database free to ensure that we don't get out of memory during restart",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "5",
+    "0",
+    "100"
+  },
 
   /***************************************************************************
    * API

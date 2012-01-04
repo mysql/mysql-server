@@ -88,7 +88,7 @@ performance_schema_max_rwlock_instances	5000
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	1000
 performance_schema_max_stage_classes	150
-performance_schema_max_statement_classes	166
+performance_schema_max_statement_classes	167
 performance_schema_max_table_handles	1000
 performance_schema_max_table_instances	500
 performance_schema_max_thread_classes	50
@@ -121,3 +121,28 @@ Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
+select * from performance_schema.setup_consumers;
+NAME	ENABLED
+events_stages_current	NO
+events_stages_history	NO
+events_stages_history_long	NO
+events_statements_current	NO
+events_statements_history	NO
+events_statements_history_long	NO
+events_waits_current	NO
+events_waits_history	NO
+events_waits_history_long	NO
+global_instrumentation	NO
+thread_instrumentation	NO
+select * from performance_schema.setup_instruments;
+NAME	ENABLED	TIMED
+select * from performance_schema.setup_actors;
+HOST	USER	ROLE
+select * from performance_schema.setup_objects;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+select * from performance_schema.setup_timers;
+NAME	TIMER_NAME
+idle	MICROSECOND
+wait	CYCLE
+stage	NANOSECOND
+statement	NANOSECOND

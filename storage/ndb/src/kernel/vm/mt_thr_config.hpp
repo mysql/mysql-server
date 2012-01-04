@@ -57,7 +57,7 @@ public:
 
   int do_parse(const char * ThreadConfig);
   int do_parse(unsigned MaxNoOfExecutionThreads,
-               unsigned __ndbmt_lqh_workers,
+               unsigned __ndbmt_lqh_threads,
                unsigned __ndbmt_classic);
 
   const char * getConfigString();
@@ -93,7 +93,7 @@ protected:
   int find_next(char *&);
 
   unsigned createCpuSet(const SparseBitmask&);
-  int do_bindings();
+  int do_bindings(bool allow_too_few_cpus);
   int do_validate();
 
   unsigned count_unbound(const Vector<T_Thread>& vec) const;

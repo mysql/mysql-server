@@ -167,6 +167,19 @@ extern "C" {
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #endif
 
+/*
+  Dont allow use of min() or max() macros
+   - in order to enforce forward compatibilty
+*/
+
+#ifdef min
+#undef min
+#endif
+
+#ifdef max
+#undef max
+#endif
+
 #define NDB_O_DIRECT_WRITE_ALIGNMENT 512
 
 #ifndef STATIC_ASSERT

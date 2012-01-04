@@ -52,6 +52,15 @@ public:
   */
   virtual void   gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const = 0;
   /**
+    Comverts "struct timeval" to local time in
+    broken down MYSQL_TIME represendation.
+  */
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, struct timeval tv)
+  {
+    gmt_sec_to_TIME(tmp, (my_time_t) tv.tv_sec);
+    tmp->second_part= tv.tv_usec;
+  }
+  /**
     Because of constness of String returned by get_name() time zone name 
     have to be already zeroended to be able to use String::ptr() instead
     of c_ptr().

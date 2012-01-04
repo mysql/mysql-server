@@ -24,22 +24,6 @@ ELSE()
   SET(HAVE_CMAKE_2_8 1)
 ENDIF() 
 
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  # MySQL is often compiled/linked with gcc rather than g++
-  # (to avoid dependencies on libstdc++.so)
-  # This does not work for googletest binaries.
-  # If we are building with ccache, we need to change arg1.
-  IF(CMAKE_CXX_COMPILER_ARG1)
-    IF(${CMAKE_CXX_COMPILER_ARG1} MATCHES "gcc")
-      SET(CMAKE_CXX_COMPILER_ARG1 "g++")
-    ENDIF()
-  # If we are building with gcc, substitute gcc with g++
-  ELSEIF(${CMAKE_CXX_COMPILER} MATCHES ".*/gcc")
-    STRING(REGEX REPLACE "/gcc$" "/g++" PATH_TO_GCC ${CMAKE_CXX_COMPILER})
-    CMAKE_FORCE_CXX_COMPILER(${PATH_TO_GCC} "GNU g++")
-  ENDIF()
-ENDIF()
-
 IF(MSVC)
   # Restore exception handling flags to avoid tons of warnings when using STL.
   ADD_DEFINITIONS(/EHcs)
@@ -75,13 +59,13 @@ ENDIF()
 
 IF(NOT GTEST_DOWNLOADED)
   # Hint for find_library(): reverse list ".so;.a" to prefer static linking.
-  LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+  # LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
 
   # Now look for gtest.
   FIND_PACKAGE(GTest QUIET)
 
   # Revert suffix list back to what it was before.
-  LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+  # LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
 ENDIF()
 
 
@@ -191,7 +175,7 @@ IF(GTEST_DOWNLOADED)
     ${GTEST_SOURCE_DIR}/include
   )
   ADD_LIBRARY(gtest STATIC ${GTEST_SOURCE_DIR}/src/gtest-all.cc)
-  
+
   # Set CMake variables to make FindPackage(GTest) happy next time.
   SET(GTEST_FOUND 1 CACHE INTERNAL "")
   SET(GTEST_LIBRARY gtest CACHE INTERNAL "")
@@ -218,12 +202,25 @@ MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 # Add some defines.
 ADD_DEFINITIONS(-DMYSQL_SERVER)
-# We use -fno-rtti with gcc, so disable RTTI in gtest as well.
-ADD_DEFINITIONS(-DGTEST_HAS_RTTI=0)
-# /opt/studio12/SUNWspro/bin/CC complains about
-#   iterator_traits is not a member of std
-IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-  ADD_DEFINITIONS("-library=stlport4")
+
+# libgtest.dylib may have been moved after it was built.
+# We can use otool(1) and install_name_tool(1) to patch the executables.
+# If it moves after linking, use DYLD_LIBRARY_PATH env.var.
+IF(APPLE)
+  SET(GTEST_DYLIB_LOCATION)
+  STRING(REGEX MATCH ".*dylib$" GTEST_LIB_IS_SHARED ${GTEST_LIBRARIES})
+  IF(GTEST_LIB_IS_SHARED)
+    EXECUTE_PROCESS(
+      COMMAND otool -D ${GTEST_LIBRARIES}
+      RESULT_VARIABLE result
+      OUTPUT_VARIABLE output
+    )
+    IF(result EQUAL 0)
+      STRING(REPLACE "${GTEST_LIBRARIES}:" "" install_name ${output})
+      STRING(REGEX REPLACE "\n" "" install_name ${install_name})
+      SET(GTEST_DYLIB_LOCATION "${install_name}")
+    ENDIF()
+  ENDIF()
 ENDIF()
 
 # Add tests (link them with gunit library) 
@@ -233,6 +230,7 @@ SET(TESTS
   dbug
   decimal
   dynarray
+  filesort_buffer
   mdl
   mdl_mytap
   my_bitmap
@@ -240,22 +238,29 @@ SET(TESTS
   sql_list
   sql_plist
   thread_utils
+  stdcxx
+  cost_estimate
   )
 
 # Add tests (link them with gunit library and the server libraries) 
 SET(SERVER_TESTS
+  field
   item
   my_decimal
   opt_range
   opt_trace
   get_diagnostics
+  segfault
 )
 
 FOREACH(test ${TESTS})
   ADD_EXECUTABLE(${test}-t ${test}-t.cc)
   TARGET_LINK_LIBRARIES(${test}-t gunit sqlgunitlib strings dbug regex)
-  IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-    SET_TARGET_PROPERTIES(${test}-t  PROPERTIES LINK_FLAGS "-library=stlport4")
+  IF(APPLE AND GTEST_DYLIB_LOCATION)
+    ADD_CUSTOM_COMMAND(TARGET ${test}-t POST_BUILD
+      COMMAND install_name_tool -change
+        ${GTEST_DYLIB_LOCATION} ${GTEST_LIBRARIES} ${test}-t
+      VERBATIM)
   ENDIF()
   ADD_TEST(${test} ${test}-t)
 ENDFOREACH()
@@ -268,8 +273,11 @@ FOREACH(test ${SERVER_TESTS})
   ENDIF()
   TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
   TARGET_LINK_LIBRARIES(${test}-t gunit sqlgunitlib strings dbug regex mysys)
-  IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-    SET_TARGET_PROPERTIES(${test}-t  PROPERTIES LINK_FLAGS "-library=stlport4")
+  IF(APPLE AND GTEST_DYLIB_LOCATION)
+    ADD_CUSTOM_COMMAND(TARGET ${test}-t POST_BUILD
+      COMMAND install_name_tool -change
+        ${GTEST_DYLIB_LOCATION} ${GTEST_LIBRARIES} ${test}-t
+      VERBATIM)
   ENDIF()
   ADD_TEST(${test} ${test}-t)
 ENDFOREACH()

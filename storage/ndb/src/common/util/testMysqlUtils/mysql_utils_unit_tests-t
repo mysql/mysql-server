@@ -39,7 +39,7 @@ echo "running test from directory:" >> "$log" 2>&1
 echo "  $script_dir" >> "$log" 2>&1
 
 test_name="test_mysql_utils"
-script_name="$script_dir/$test_mysql_utils.sh"
+script_name="$script_dir/$test_name.sh"
 
 if [ ! -x "$script_name" ];
 then

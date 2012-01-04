@@ -27,7 +27,7 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool mysql_socket_idle;
+  my_bool unused1;
   my_bool unused2;
   my_bool compress;
   my_bool unused3;
@@ -49,6 +49,9 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
    MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
    MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
    MYSQL_TYPE_BIT,
+   MYSQL_TYPE_TIMESTAMP2,
+   MYSQL_TYPE_DATETIME2,
+   MYSQL_TYPE_TIME2,
                         MYSQL_TYPE_NEWDECIMAL=246,
                         MYSQL_TYPE_ENUM=247,
                         MYSQL_TYPE_SET=248,

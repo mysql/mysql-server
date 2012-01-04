@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -88,7 +88,7 @@ que_node_get_type(
 {
 	ut_ad(node);
 
-	return(((que_common_t*)node)->type);
+	return(((que_common_t*) node)->type);
 }
 
 /***********************************************************************//**
@@ -101,7 +101,7 @@ que_node_get_val(
 {
 	ut_ad(node);
 
-	return(&(((que_common_t*)node)->val));
+	return(&(((que_common_t*) node)->val));
 }
 
 /***********************************************************************//**
@@ -115,7 +115,7 @@ que_node_get_val_buf_size(
 {
 	ut_ad(node);
 
-	return(((que_common_t*)node)->val_buf_size);
+	return(((que_common_t*) node)->val_buf_size);
 }
 
 /***********************************************************************//**
@@ -129,7 +129,7 @@ que_node_set_val_buf_size(
 {
 	ut_ad(node);
 
-	((que_common_t*)node)->val_buf_size = size;
+	((que_common_t*) node)->val_buf_size = size;
 }
 
 /***********************************************************************//**
@@ -143,7 +143,7 @@ que_node_set_parent(
 {
 	ut_ad(node);
 
-	((que_common_t*)node)->parent = parent;
+	((que_common_t*) node)->parent = parent;
 }
 
 /***********************************************************************//**
@@ -192,6 +192,28 @@ que_node_list_add_last(
 	return(node_list);
 }
 
+/*************************************************************************
+Removes a query graph node from the list.*/
+UNIV_INLINE
+que_node_t*
+que_node_list_get_last(
+/*===================*/
+					/* out: last node in list.*/
+	que_node_t*	node_list)	/* in: node list */
+{
+	que_common_t*	node;
+
+	ut_a(node_list != NULL);
+
+	node = (que_common_t*) node_list;
+
+	/* We need the last element */
+	while (node->brother != NULL) {
+		node = (que_common_t*) node->brother;
+	}
+
+	return(node);
+}
 /*********************************************************************//**
 Gets the next list node in a list of query graph nodes.
 @return	next node in a list of nodes */
@@ -201,7 +223,7 @@ que_node_get_next(
 /*==============*/
 	que_node_t*	node)	/*!< in: node in a list */
 {
-	return(((que_common_t*)node)->brother);
+	return(((que_common_t*) node)->brother);
 }
 
 /*********************************************************************//**
@@ -236,7 +258,7 @@ que_node_get_parent(
 /*================*/
 	que_node_t*	node)	/*!< in: node */
 {
-	return(((que_common_t*)node)->parent);
+	return(((que_common_t*) node)->parent);
 }
 
 /**********************************************************************//**

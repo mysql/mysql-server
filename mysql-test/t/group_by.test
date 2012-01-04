@@ -1503,3 +1503,59 @@ SELECT vc FROM t1 GROUP BY vc;
 DROP TABLE t1; 
 
 --echo # End of Bug#12837714
+
+--echo #
+--echo # Bug#12578908: SELECT SQL_BUFFER_RESULT OUTPUTS TOO MANY 
+--echo #               ROWS WHEN GROUP IS OPTIMIZED AWAY
+--echo #
+
+CREATE TABLE t1 (col1 int, col2 int) ;
+INSERT INTO t1 VALUES (10,1),(11,7);
+
+CREATE TABLE t2 (col1 int, col2 int) ;
+INSERT INTO t2 VALUES (10,8);
+
+let $q_body=t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+
+--echo
+--eval EXPLAIN SELECT SQL_BUFFER_RESULT $q_body
+--eval SELECT SQL_BUFFER_RESULT $q_body
+--echo
+--eval EXPLAIN SELECT $q_body
+--eval SELECT $q_body
+
+--echo
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#11761078: 53534: INCORRECT 'SELECT SQL_BIG_RESULT...' 
+--echo #               WITH GROUP BY ON DUPLICATED FIELDS
+--echo #
+
+CREATE TABLE t1(
+ col1 int, 
+ UNIQUE INDEX idx (col1)
+);
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+
+let $query=SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
+           FROM t1 GROUP BY field1, field2;
+
+# Needs to be range to exercise bug
+--eval EXPLAIN $query;
+--eval $query;
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
+FROM v1 
+GROUP BY field1, field2; 
+
+SELECT SQL_BIG_RESULT tbl1.col1 AS field1, tbl2.col1 AS field2
+FROM t1 as tbl1, t1 as tbl2 
+GROUP BY field1, field2 
+LIMIT 3;
+
+DROP VIEW v1;
+DROP TABLE t1;

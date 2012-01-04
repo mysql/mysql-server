@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -362,6 +362,16 @@ dict_table_replace_index_in_foreign_list(
 	dict_table_t*	table,  /*!< in/out: table */
 	dict_index_t*	index,	/*!< in: index to be replaced */
 	const trx_t*	trx);	/*!< in: transaction handle */
+/**********************************************************************//**
+Determines whether a string starts with the specified keyword.
+@return TRUE if str starts with keyword */
+UNIV_INTERN
+ibool
+dict_str_starts_with_keyword(
+/*=========================*/
+	void*		mysql_thd,	/*!< in: MySQL thread handle */
+	const char*	str,		/*!< in: string to scan for keyword */
+	const char*	keyword);	/*!< in: keyword to look for */
 /*********************************************************************//**
 Checks if a index is defined for a foreign key constraint. Index is a part
 of a foreign key constraint if the index is referenced by foreign key
@@ -604,6 +614,16 @@ dict_index_is_sec_or_ibuf(
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((nonnull, pure, warn_unused_result));
 
+/************************************************************************
+Gets the all the FTS indexes for the table. NOTE: must not be called for
+tables which do not have an FTS-index. */
+
+ulint
+dict_table_get_all_fts_indexes(
+/*===========================*/
+				/* out: number of indexes collected */
+	dict_table_t*	table,	/* in: table */
+	ib_vector_t*	indexes);/* out: vector for collecting FTS indexes */
 /********************************************************************//**
 Gets the number of user-defined columns in a table in the dictionary
 cache.
@@ -694,21 +714,47 @@ dict_table_get_format(
 /*==================*/
 	const dict_table_t*	table);	/*!< in: table */
 /********************************************************************//**
-Set the file format of a table. */
+Determine the file format from a dict_table_t::flags.
+@return	file format version */
+UNIV_INLINE
+ulint
+dict_tf_get_format(
+/*===============*/
+	ulint		flags);		/*!< in: dict_table_t::flags */
+/********************************************************************//**
+Set the various values in a dict_table_t::flags pointer. */
 UNIV_INLINE
 void
-dict_table_set_format(
-/*==================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	ulint		format);/*!< in: file format version */
+dict_tf_set(
+/*========*/
+	ulint*		flags,		/*!< in/out: table */
+	rec_format_t	format,		/*!< in: file format */
+	ulint		zip_ssize);	/*!< in: zip shift size */
+/********************************************************************//**
+Convert a 32 bit integer table flags to the 32 bit integer that is
+written into the tablespace header at the offset FSP_SPACE_FLAGS and is
+also stored in the fil_space_t::flags field.  The following chart shows
+the translation of the low order bit.  Other bits are the same.
+========================= Low order bit ==========================
+                    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
+dict_table_t::flags |     0     |    1    |     1      |    1
+fil_space_t::flags  |     0     |    0    |     1      |    1
+==================================================================
+@return	tablespace flags (fil_space_t::flags) */
+UNIV_INLINE
+ulint
+dict_tf_to_fsp_flags(
+/*=================*/
+	ulint	flags)	/*!< in: dict_table_t::flags */
+	__attribute__((const));
 /********************************************************************//**
 Extract the compressed page size from table flags.
 @return	compressed page size, or 0 if not compressed */
 UNIV_INLINE
 ulint
-dict_table_flags_to_zip_size(
-/*=========================*/
-	ulint	flags)	/*!< in: flags */
+dict_tf_get_zip_size(
+/*=================*/
+	ulint	flags)			/*!< in: flags */
 	__attribute__((const));
 /********************************************************************//**
 Check whether the table uses the compressed compact page format.
@@ -746,6 +792,14 @@ dict_table_col_in_clustered_key(
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			n);	/*!< in: column number */
 /*******************************************************************//**
+Check if the table has an FTS index.
+@return TRUE if table has an FTS index */
+UNIV_INLINE
+ibool
+dict_table_has_fts_index(
+/*=====================*/
+	dict_table_t*   table);		/*!< in: table */
+/*******************************************************************//**
 Copies types of columns contained in table to tuple and sets all
 fields of the tuple to the SQL NULL value.  This function should
 be called right after dtuple_create(). */
@@ -755,6 +809,17 @@ dict_table_copy_types(
 /*==================*/
 	dtuple_t*		tuple,	/*!< in/out: data tuple */
 	const dict_table_t*	table);	/*!< in: table */
+/********************************************************************
+Wait until all the background threads of the given table have exited, i.e.,
+bg_threads == 0. Note: bg_threads_mutex must be reserved when
+calling this. */
+
+void
+dict_table_wait_for_bg_threads_to_exit(
+/*===================================*/
+	dict_table_t*	table,	/* in: table */
+	ulint		delay);	/* in: time in microseconds to wait between
+				checks of bg_threads. */
 /**********************************************************************//**
 Looks for an index with the given id. NOTE that we do not reserve
 the dictionary mutex: this function is for emergency purposes like
@@ -1179,6 +1244,16 @@ dict_table_get_index_on_name_and_min_id(
 /*====================================*/
 	dict_table_t*	table,	/*!< in: table */
 	const char*	name);	/*!< in: name of the index to find */
+/***************************************************************
+Check whether a column exists in an FTS index. */
+UNIV_INLINE
+ulint
+dict_table_is_fts_column(
+/*=====================*/
+				/* out: ULINT_UNDEFINED if no match else
+				the offset within the vector */
+	ib_vector_t*	indexes,/* in: vector containing only FTS indexes */
+	ulint		col_no);/* in: col number to search for */
 /**********************************************************************//**
 Move a table to the non LRU end of the LRU list. */
 UNIV_INTERN

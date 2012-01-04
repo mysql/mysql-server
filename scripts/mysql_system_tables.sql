@@ -112,7 +112,7 @@ SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
 CREATE TABLE IF NOT EXISTS innodb_table_stats (
 	database_name			VARCHAR(64) NOT NULL,
 	table_name			VARCHAR(64) NOT NULL,
-	stats_timestamp			TIMESTAMP NOT NULL,
+	last_update			TIMESTAMP NOT NULL,
 	n_rows				BIGINT UNSIGNED NOT NULL,
 	clustered_index_size		BIGINT UNSIGNED NOT NULL,
 	sum_of_other_index_sizes	BIGINT UNSIGNED NOT NULL,
@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS innodb_index_stats (
 	database_name			VARCHAR(64) NOT NULL,
 	table_name			VARCHAR(64) NOT NULL,
 	index_name			VARCHAR(64) NOT NULL,
-	stat_timestamp			TIMESTAMP NOT NULL,
+	last_update			TIMESTAMP NOT NULL,
 	/* there are at least:
 	stat_name='size'
 	stat_name='n_leaf_pages'
@@ -225,6 +225,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_waits_current("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -255,6 +256,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_waits_history("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -285,6 +287,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_waits_history_long("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -443,10 +446,28 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.file_summary_by_event_name("
   "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
   "COUNT_READ BIGINT unsigned not null,"
-  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ BIGINT unsigned not null,"
+  "MIN_TIMER_READ BIGINT unsigned not null,"
+  "AVG_TIMER_READ BIGINT unsigned not null,"
+  "MAX_TIMER_READ BIGINT unsigned not null,"
   "SUM_NUMBER_OF_BYTES_READ BIGINT not null,"
-  "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null"
+  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null,"
+  "COUNT_MISC BIGINT unsigned not null,"
+  "SUM_TIMER_MISC BIGINT unsigned not null,"
+  "MIN_TIMER_MISC BIGINT unsigned not null,"
+  "AVG_TIMER_MISC BIGINT unsigned not null,"
+  "MAX_TIMER_MISC BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -461,16 +482,36 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.file_summary_by_instance("
   "FILE_NAME VARCHAR(512) not null,"
   "EVENT_NAME VARCHAR(128) not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
   "COUNT_READ BIGINT unsigned not null,"
-  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ BIGINT unsigned not null,"
+  "MIN_TIMER_READ BIGINT unsigned not null,"
+  "AVG_TIMER_READ BIGINT unsigned not null,"
+  "MAX_TIMER_READ BIGINT unsigned not null,"
   "SUM_NUMBER_OF_BYTES_READ BIGINT not null,"
-  "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null"
+  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null,"
+  "COUNT_MISC BIGINT unsigned not null,"
+  "SUM_TIMER_MISC BIGINT unsigned not null,"
+  "MIN_TIMER_MISC BIGINT unsigned not null,"
+  "AVG_TIMER_MISC BIGINT unsigned not null,"
+  "MAX_TIMER_MISC BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
 
 --
 -- TABLE SOCKET_INSTANCES
@@ -923,6 +964,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_stages_current("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -944,6 +986,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_stages_history("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -965,6 +1008,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_stages_history_long("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -1081,6 +1125,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_statements_current("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -1130,6 +1175,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_statements_history("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -1179,6 +1225,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
   "SOURCE VARCHAR(64),"
   "TIMER_START BIGINT unsigned,"
@@ -1785,7 +1832,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'INSERT INTO `ndbinfo`.`config_params` VALUES (179, "MaxNoOfSubscriptions"), (180, "MaxNoOfSubscribers"), (181, "MaxNoOfConcurrentSubOperations"), (5, "HostName"), (3, "NodeId"), (101, "NoOfReplicas"), (103, "MaxNoOfAttributes"), (102, "MaxNoOfTables"), (149, "MaxNoOfOrderedIndexes"), (150, "MaxNoOfUniqueHashIndexes"), (110, "MaxNoOfConcurrentIndexOperations"), (105, "MaxNoOfTriggers"), (109, "MaxNoOfFiredTriggers"), (100, "MaxNoOfSavedMessages"), (177, "LockExecuteThreadToCPU"), (178, "LockMaintThreadsToCPU"), (176, "RealtimeScheduler"), (114, "LockPagesInMainMemory"), (123, "TimeBetweenWatchDogCheck"), (174, "SchedulerExecutionTimer"), (175, "SchedulerSpinTimer"), (141, "TimeBetweenWatchDogCheckInitial"), (124, "StopOnError"), (107, "MaxNoOfConcurrentOperations"), (627, "MaxDMLOperationsPerTransaction"), (151, "MaxNoOfLocalOperations"), (152, "MaxNoOfLocalScans"), (153, "BatchSizePerLocalScan"), (106, "MaxNoOfConcurrentTransactions"), (108, "MaxNoOfConcurrentScans"), (111, "TransactionBufferMemory"), (113, "IndexMemory"), (112, "DataMemory"), (154, "UndoIndexBuffer"), (155, "UndoDataBuffer"), (156, "RedoBuffer"), (157, "LongMessageBuffer"), (160, "DiskPageBufferMemory"), (198, "SharedGlobalMemory"), (115, "StartPartialTimeout"), (116, "StartPartitionedTimeout"), (117, "StartFailureTimeout"), (619, "StartNoNodegroupTimeout"), (118, "HeartbeatIntervalDbDb"), (618, "ConnectCheckIntervalDelay"), (119, "HeartbeatIntervalDbApi"), (120, "TimeBetweenLocalCheckpoints"), (121, "TimeBetweenGlobalCheckpoints"), (170, "TimeBetweenEpochs"), (171, "TimeBetweenEpochsTimeout"), (182, "MaxBufferedEpochs"), (126, "NoOfFragmentLogFiles"), (140, "FragmentLogFileSize"), (189, "InitFragmentLogFiles"), (190, "DiskIOThreadPool"), (159, "MaxNoOfOpenFiles"), (162, "InitialNoOfOpenFiles"), (129, "TimeBetweenInactiveTransactionAbortCheck"), (130, "TransactionInactiveTimeout"), (131, "TransactionDeadlockDetectionTimeout"), (148, "Diskless"), (122, "ArbitrationTimeout"), (142, "Arbitration"), (7, "DataDir"), (125, "FileSystemPath"), (250, "LogLevelStartup"), (251, "LogLevelShutdown"), (252, "LogLevelStatistic"), (253, "LogLevelCheckpoint"), (254, "LogLevelNodeRestart"), (255, "LogLevelConnection"), (259, "LogLevelCongestion"), (258, "LogLevelError"), (256, "LogLevelInfo"), (158, "BackupDataDir"), (163, "DiskSyncSize"), (164, "DiskCheckpointSpeed"), (165, "DiskCheckpointSpeedInRestart"), (133, "BackupMemory"), (134, "BackupDataBufferSize"), (135, "BackupLogBufferSize"), (136, "BackupWriteSize"), (139, "BackupMaxWriteSize"), (161, "StringMemory"), (169, "MaxAllocate"), (166, "MemReportFrequency"), (167, "BackupReportFrequency"), (184, "StartupStatusReportFrequency"), (168, "ODirect"), (172, "CompressedBackup"), (173, "CompressedLCP"), (9, "TotalSendBufferMemory"), (202, "ReservedSendBufferMemory"), (185, "Nodegroup"), (186, "MaxNoOfExecutionThreads"), (188, "__ndbmt_lqh_workers"), (187, "__ndbmt_lqh_threads"), (191, "__ndbmt_classic"), (628, "ThreadConfig"), (193, "FileSystemPathDD"), (194, "FileSystemPathDataFiles"), (195, "FileSystemPathUndoFiles"), (196, "InitialLogfileGroup"), (197, "InitialTablespace"), (605, "MaxLCPStartDelay"), (606, "BuildIndexThreads"), (607, "HeartbeatOrder"), (608, "DictTrace"), (609, "MaxStartFailRetries"), (610, "StartFailRetryDelay"), (613, "EventLogBufferSize"), (614, "Numa"), (611, "RedoOverCommitLimit"), (612, "RedoOverCommitCounter"), (615, "LateAlloc"), (616, "TwoPassInitialNodeRestartCopy"), (617, "MaxParallelScansPerFragment"), (620, "IndexStatAutoCreate"), (621, "IndexStatAutoUpdate"), (622, "IndexStatSaveSize"), (623, "IndexStatSaveScale"), (624, "IndexStatTriggerPct"), (625, "IndexStatTriggerScale"), (626, "IndexStatUpdateDelay"), (629, "CrashOnCorruptedTuple")','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'INSERT INTO `ndbinfo`.`config_params` VALUES (179, "MaxNoOfSubscriptions"), (180, "MaxNoOfSubscribers"), (181, "MaxNoOfConcurrentSubOperations"), (5, "HostName"), (3, "NodeId"), (101, "NoOfReplicas"), (103, "MaxNoOfAttributes"), (102, "MaxNoOfTables"), (149, "MaxNoOfOrderedIndexes"), (150, "MaxNoOfUniqueHashIndexes"), (110, "MaxNoOfConcurrentIndexOperations"), (105, "MaxNoOfTriggers"), (109, "MaxNoOfFiredTriggers"), (100, "MaxNoOfSavedMessages"), (177, "LockExecuteThreadToCPU"), (178, "LockMaintThreadsToCPU"), (176, "RealtimeScheduler"), (114, "LockPagesInMainMemory"), (123, "TimeBetweenWatchDogCheck"), (174, "SchedulerExecutionTimer"), (175, "SchedulerSpinTimer"), (141, "TimeBetweenWatchDogCheckInitial"), (124, "StopOnError"), (107, "MaxNoOfConcurrentOperations"), (627, "MaxDMLOperationsPerTransaction"), (151, "MaxNoOfLocalOperations"), (152, "MaxNoOfLocalScans"), (153, "BatchSizePerLocalScan"), (106, "MaxNoOfConcurrentTransactions"), (108, "MaxNoOfConcurrentScans"), (111, "TransactionBufferMemory"), (113, "IndexMemory"), (112, "DataMemory"), (154, "UndoIndexBuffer"), (155, "UndoDataBuffer"), (156, "RedoBuffer"), (157, "LongMessageBuffer"), (160, "DiskPageBufferMemory"), (198, "SharedGlobalMemory"), (115, "StartPartialTimeout"), (116, "StartPartitionedTimeout"), (117, "StartFailureTimeout"), (619, "StartNoNodegroupTimeout"), (118, "HeartbeatIntervalDbDb"), (618, "ConnectCheckIntervalDelay"), (119, "HeartbeatIntervalDbApi"), (120, "TimeBetweenLocalCheckpoints"), (121, "TimeBetweenGlobalCheckpoints"), (170, "TimeBetweenEpochs"), (171, "TimeBetweenEpochsTimeout"), (182, "MaxBufferedEpochs"), (126, "NoOfFragmentLogFiles"), (140, "FragmentLogFileSize"), (189, "InitFragmentLogFiles"), (190, "DiskIOThreadPool"), (159, "MaxNoOfOpenFiles"), (162, "InitialNoOfOpenFiles"), (129, "TimeBetweenInactiveTransactionAbortCheck"), (130, "TransactionInactiveTimeout"), (131, "TransactionDeadlockDetectionTimeout"), (148, "Diskless"), (122, "ArbitrationTimeout"), (142, "Arbitration"), (7, "DataDir"), (125, "FileSystemPath"), (250, "LogLevelStartup"), (251, "LogLevelShutdown"), (252, "LogLevelStatistic"), (253, "LogLevelCheckpoint"), (254, "LogLevelNodeRestart"), (255, "LogLevelConnection"), (259, "LogLevelCongestion"), (258, "LogLevelError"), (256, "LogLevelInfo"), (158, "BackupDataDir"), (163, "DiskSyncSize"), (164, "DiskCheckpointSpeed"), (165, "DiskCheckpointSpeedInRestart"), (133, "BackupMemory"), (134, "BackupDataBufferSize"), (135, "BackupLogBufferSize"), (136, "BackupWriteSize"), (139, "BackupMaxWriteSize"), (161, "StringMemory"), (169, "MaxAllocate"), (166, "MemReportFrequency"), (167, "BackupReportFrequency"), (184, "StartupStatusReportFrequency"), (168, "ODirect"), (172, "CompressedBackup"), (173, "CompressedLCP"), (9, "TotalSendBufferMemory"), (202, "ReservedSendBufferMemory"), (185, "Nodegroup"), (186, "MaxNoOfExecutionThreads"), (188, "__ndbmt_lqh_workers"), (187, "__ndbmt_lqh_threads"), (191, "__ndbmt_classic"), (628, "ThreadConfig"), (193, "FileSystemPathDD"), (194, "FileSystemPathDataFiles"), (195, "FileSystemPathUndoFiles"), (196, "InitialLogfileGroup"), (197, "InitialTablespace"), (605, "MaxLCPStartDelay"), (606, "BuildIndexThreads"), (607, "HeartbeatOrder"), (608, "DictTrace"), (609, "MaxStartFailRetries"), (610, "StartFailRetryDelay"), (613, "EventLogBufferSize"), (614, "Numa"), (611, "RedoOverCommitLimit"), (612, "RedoOverCommitCounter"), (615, "LateAlloc"), (616, "TwoPassInitialNodeRestartCopy"), (617, "MaxParallelScansPerFragment"), (620, "IndexStatAutoCreate"), (621, "IndexStatAutoUpdate"), (622, "IndexStatSaveSize"), (623, "IndexStatSaveScale"), (624, "IndexStatTriggerPct"), (625, "IndexStatTriggerScale"), (626, "IndexStatUpdateDelay"), (629, "CrashOnCorruptedTuple"), (630, "MinFreePct")','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1837,7 +1884,7 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 # ndbinfo.counters
-SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root@localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`counters` AS SELECT node_id, b.block_name, block_instance, counter_id, CASE counter_id  WHEN 1 THEN "ATTRINFO"  WHEN 2 THEN "TRANSACTIONS"  WHEN 3 THEN "COMMITS"  WHEN 4 THEN "READS"  WHEN 5 THEN "SIMPLE_READS"  WHEN 6 THEN "WRITES"  WHEN 7 THEN "ABORTS"  WHEN 8 THEN "TABLE_SCANS"  WHEN 9 THEN "RANGE_SCANS"  WHEN 10 THEN "OPERATIONS"  WHEN 11 THEN "READS_RECEIVED"  WHEN 12 THEN "LOCAL_READS_SENT"  WHEN 13 THEN "REMOTE_READS_SENT"  WHEN 14 THEN "READS_NOT_FOUND"  WHEN 15 THEN "TABLE_SCANS_RECEIVED"  WHEN 16 THEN "LOCAL_TABLE_SCANS_SENT"  WHEN 17 THEN "RANGE_SCANS_RECEIVED"  WHEN 18 THEN "LOCAL_RANGE_SCANS_SENT"  WHEN 19 THEN "REMOTE_RANGE_SCANS_SENT"  WHEN 20 THEN "SCAN_BATCHES_RETURNED"  WHEN 21 THEN "SCAN_ROWS_RETURNED"  WHEN 22 THEN "PRUNED_RANGE_SCANS_RECEIVED"  WHEN 23 THEN "CONST_PRUNED_RANGE_SCANS_RECEIVED"  WHEN 24 THEN "LOCAL_READS"  ELSE "<unknown>"  END AS counter_name, val FROM `ndbinfo`.`ndb$counters` c LEFT JOIN `ndbinfo`.blocks b ON c.block_number = b.block_number','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root@localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`counters` AS SELECT node_id, b.block_name, block_instance, counter_id, CASE counter_id  WHEN 1 THEN "ATTRINFO"  WHEN 2 THEN "TRANSACTIONS"  WHEN 3 THEN "COMMITS"  WHEN 4 THEN "READS"  WHEN 5 THEN "SIMPLE_READS"  WHEN 6 THEN "WRITES"  WHEN 7 THEN "ABORTS"  WHEN 8 THEN "TABLE_SCANS"  WHEN 9 THEN "RANGE_SCANS"  WHEN 10 THEN "OPERATIONS"  WHEN 11 THEN "READS_RECEIVED"  WHEN 12 THEN "LOCAL_READS_SENT"  WHEN 13 THEN "REMOTE_READS_SENT"  WHEN 14 THEN "READS_NOT_FOUND"  WHEN 15 THEN "TABLE_SCANS_RECEIVED"  WHEN 16 THEN "LOCAL_TABLE_SCANS_SENT"  WHEN 17 THEN "RANGE_SCANS_RECEIVED"  WHEN 18 THEN "LOCAL_RANGE_SCANS_SENT"  WHEN 19 THEN "REMOTE_RANGE_SCANS_SENT"  WHEN 20 THEN "SCAN_BATCHES_RETURNED"  WHEN 21 THEN "SCAN_ROWS_RETURNED"  WHEN 22 THEN "PRUNED_RANGE_SCANS_RECEIVED"  WHEN 23 THEN "CONST_PRUNED_RANGE_SCANS_RECEIVED"  WHEN 24 THEN "LOCAL_READS"  WHEN 25 THEN "LOCAL_WRITES"  ELSE "<unknown>"  END AS counter_name, val FROM `ndbinfo`.`ndb$counters` c LEFT JOIN `ndbinfo`.blocks b ON c.block_number = b.block_number','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;

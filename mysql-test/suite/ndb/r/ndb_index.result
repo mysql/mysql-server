@@ -306,7 +306,7 @@ explain
 select i,vc from t1
 where i>=1 or vc > '0';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	PRIMARY,i1,i2	i1,i2	5,18	NULL	6	Using sort_union(i1,i2); Using where with pushed condition
+1	SIMPLE	t1	ALL	PRIMARY,i1,i2	NULL	NULL	NULL	23	Using where with pushed condition
 select i,vc from t1
 where i>=1 or vc > '0';
 i	vc
@@ -350,7 +350,7 @@ explain
 select i,vc from t2
 where i>=1 or vc > '0';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index_merge	i1,i2	i1,i2	5,19	NULL	6	Using sort_union(i1,i2); Using where with pushed condition
+1	SIMPLE	t2	ALL	i1,i2	NULL	NULL	NULL	23	Using where with pushed condition
 select i,vc from t2
 where i>=1 or vc > '0';
 i	vc

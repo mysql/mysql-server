@@ -157,6 +157,7 @@ map); }
     DBUG_ASSERT(sizeof(buffer) >= 4);
     return (ulonglong) uint4korr(buffer);
   }
+  uint bits_set() const { return bitmap_bits_set(&map); }
 };
 
 template <> class Bitmap<64>

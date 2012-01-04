@@ -88,7 +88,7 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
      TODO? Start one tx on each data node.
   */
   QueryPlan *plan;
-  const KeyPrefix *default_prefix = conf.getDefaultPrefix();  // TODO: something
+//  const KeyPrefix *default_prefix = conf.getDefaultPrefix();  // TODO: something
   for(unsigned int c = 0 ; c < conf.nclusters ; c++) {
     const KeyPrefix *prefix = conf.getNextPrefixForCluster(c, NULL); 
     if(prefix) {

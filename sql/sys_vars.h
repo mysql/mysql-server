@@ -51,6 +51,7 @@
 #define ON_CHECK(X) X
 #define ON_UPDATE(X) X
 #define READ_ONLY sys_var::READONLY+
+#define NOT_VISIBLE sys_var::INVISIBLE+
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED+
 /*
@@ -72,7 +73,6 @@
 enum charset_enum {IN_SYSTEM_CHARSET, IN_FS_CHARSET};
 
 static const char *bool_values[3]= {"OFF", "ON", 0};
-TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
 /**
   A small wrapper class to pass getopt arguments as a pair
@@ -305,7 +305,7 @@ public:
 
 /**
   The class for ENUM variables - variables that take one value from a fixed
-  list of values. 
+  list of values.
 
   Class specific constructor arguments:
     char* values[]    - 0-terminated list of strings of valid values
@@ -561,8 +561,8 @@ protected:
 class Sys_var_external_user : public Sys_var_proxy_user
 {
 public:
-  Sys_var_external_user(const char *name_arg, const char *comment_arg, 
-          enum charset_enum is_os_charset_arg) 
+  Sys_var_external_user(const char *name_arg, const char *comment_arg,
+          enum charset_enum is_os_charset_arg)
     : Sys_var_proxy_user (name_arg, comment_arg, is_os_charset_arg)
   {}
 
@@ -773,76 +773,6 @@ public:
   }
 };
 
-static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
-                               ptrdiff_t offset, ulonglong new_value)
-{
-  bool error= false;
-  DBUG_ASSERT(offset == offsetof(KEY_CACHE, param_buff_size));
-
-  if (new_value == 0)
-  {
-    if (key_cache == dflt_key_cache)
-    {
-      my_error(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE, MYF(0));
-      return true;
-    }
-
-    if (key_cache->key_cache_inited)            // If initied
-    {
-      /*
-        Move tables using this key cache to the default key cache
-        and clear the old key cache.
-      */
-      key_cache->in_init= 1;
-      mysql_mutex_unlock(&LOCK_global_system_variables);
-      key_cache->param_buff_size= 0;
-      ha_resize_key_cache(key_cache);
-      ha_change_key_cache(key_cache, dflt_key_cache);
-      /*
-        We don't delete the key cache as some running threads my still be in
-        the key cache code with a pointer to the deleted (empty) key cache
-      */
-      mysql_mutex_lock(&LOCK_global_system_variables);
-      key_cache->in_init= 0;
-    }
-    return error;
-  }
-
-  key_cache->param_buff_size= new_value;
-
-  /* If key cache didn't exist initialize it, else resize it */
-  key_cache->in_init= 1;
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-
-  if (!key_cache->key_cache_inited)
-    error= ha_init_key_cache(0, key_cache);
-  else
-    error= ha_resize_key_cache(key_cache);
-
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  key_cache->in_init= 0;
-
-  return error;
-}
-
-static bool update_keycache_param(THD *thd, KEY_CACHE *key_cache,
-                                  ptrdiff_t offset, ulonglong new_value)
-{
-  bool error= false;
-  DBUG_ASSERT(offset != offsetof(KEY_CACHE, param_buff_size));
-
-  keycache_var(key_cache, offset)= new_value;
-
-  key_cache->in_init= 1;
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-  error= ha_resize_key_cache(key_cache);
-
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  key_cache->in_init= 0;
-
-  return error;
-}
-
 /**
   The class for floating point variables
 
@@ -871,7 +801,7 @@ public:
     option.min_value= (longlong) double2ulonglong(min_val);
     option.max_value= (longlong) double2ulonglong(max_val);
     global_var(double)= (double)option.def_value;
-    DBUG_ASSERT(min_val < max_val);
+    DBUG_ASSERT(min_val <= max_val);
     DBUG_ASSERT(min_val <= def_val);
     DBUG_ASSERT(max_val >= def_val);
     DBUG_ASSERT(size == sizeof(double));
@@ -1524,6 +1454,61 @@ public:
     return 0;
   }
 };
+
+
+/**
+  Similar to Sys_var_session_special, but with double storage.
+*/
+class Sys_var_session_special_double: public Sys_var_double
+{
+  typedef bool (*session_special_update_function)(THD *thd, set_var *var);
+  typedef double (*session_special_read_double_function)(THD *thd);
+
+  session_special_read_double_function read_func;
+  session_special_update_function update_func;
+public:
+  Sys_var_session_special_double(const char *name_arg,
+               const char *comment, int flag_args,
+               CMD_LINE getopt,
+               ulonglong min_val, ulonglong max_val, ulonglong block_size,
+               PolyLock *lock, enum binlog_status_enum binlog_status_arg,
+               on_check_function on_check_func,
+               session_special_update_function update_func_arg,
+               session_special_read_double_function read_func_arg,
+               const char *substitute=0)
+    : Sys_var_double(name_arg, comment, flag_args, 0,
+              sizeof(double), getopt,
+              min_val, max_val, 0,
+              lock, binlog_status_arg, on_check_func, 0,
+              substitute),
+      read_func(read_func_arg), update_func(update_func_arg)
+  {
+    DBUG_ASSERT(scope() == ONLY_SESSION);
+    DBUG_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
+  }
+  bool session_update(THD *thd, set_var *var)
+  { return update_func(thd, var); }
+  bool global_update(THD *thd, set_var *var)
+  {
+    DBUG_ASSERT(FALSE);
+    return true;
+  }
+  void session_save_default(THD *thd, set_var *var)
+  { var->value= 0; }
+  void global_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+  uchar *session_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    thd->sys_var_tmp.double_value= read_func(thd);
+    return (uchar *) &thd->sys_var_tmp.double_value;
+  }
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    DBUG_ASSERT(FALSE);
+    return 0;
+  }
+};
+
 
 /**
   The class for read-only variables that show whether a particular
