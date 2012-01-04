@@ -1,5 +1,6 @@
 include/master-slave.inc
 [connection master]
+SET GTID_NEXT=ANONYMOUS;
 create table t1 (n int);
 reset master;
 stop slave;
@@ -29,4 +30,5 @@ t1
 start slave sql_thread;
 drop table t1;
 drop table t2;
+SET GTID_NEXT=AUTOMATIC;
 include/rpl_end.inc

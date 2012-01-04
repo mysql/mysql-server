@@ -38,6 +38,7 @@ create temporary table t1 (a int);
 sync_slave_with_master;
 source include/stop_slave.inc;
 reset slave;
+reset master; # clear GTIDs metadata so that create temporary table is replayed
 source include/start_slave.inc;
 sync_with_master;
 show status like 'slave_open_temp_tables';
