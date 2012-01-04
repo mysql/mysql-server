@@ -1130,13 +1130,14 @@ typedef void (*release_table_share_v1_t)(struct PSI_table_share *share);
 
 /**
   Drop a table share.
+  @param temporary True for temporary tables
   @param schema_name the table schema name
   @param schema_name_length the table schema name length
   @param table_name the table name
   @param table_name_length the table name length
 */
 typedef void (*drop_table_share_v1_t)
-  (const char *schema_name, int schema_name_length,
+  (my_bool temporary, const char *schema_name, int schema_name_length,
    const char *table_name, int table_name_length);
 
 /**

@@ -1503,6 +1503,9 @@ static void destroy_cond_v1(PSI_cond* cond)
 static PSI_table_share*
 get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
 {
+  /* Ignore temporary tables. */
+  if (temporary)
+    return NULL;
   /* An instrumented thread is required, for LF_PINS. */
   PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (unlikely(pfs_thread == NULL))
@@ -1531,14 +1534,18 @@ static void release_table_share_v1(PSI_table_share* share)
   @sa PSI_v1::drop_table_share.
 */
 static void
-drop_table_share_v1(const char *schema_name, int schema_name_length,
+drop_table_share_v1(my_bool temporary,
+                    const char *schema_name, int schema_name_length,
                     const char *table_name, int table_name_length)
 {
+  /* Ignore temporary tables. */
+  if (temporary)
+    return;
   PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (unlikely(pfs_thread == NULL))
     return;
   /* TODO: temporary tables */
-  drop_table_share(pfs_thread, false, schema_name, schema_name_length,
+  drop_table_share(pfs_thread, temporary, schema_name, schema_name_length,
                    table_name, table_name_length);
 }
 
