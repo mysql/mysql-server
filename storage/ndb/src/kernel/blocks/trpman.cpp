@@ -51,6 +51,13 @@ static NodeBitmask c_error_9000_nodes_mask;
 extern Uint32 MAX_RECEIVED_SIGNALS;
 #endif
 
+static
+bool
+handles_this_node(Uint32 nodeId)
+{
+  return true;
+}
+
 void
 Trpman::execOPEN_COMREQ(Signal* signal)
 {
@@ -70,6 +77,12 @@ Trpman::execOPEN_COMREQ(Signal* signal)
 	   && c_error_9000_nodes_mask.get(tStartingNode)))
 #endif
     {
+      if (!handles_this_node(tStartingNode))
+      {
+        jam();
+        goto done;
+      }
+
       globalTransporterRegistry.do_connect(tStartingNode);
       globalTransporterRegistry.setIOState(tStartingNode, HaltIO);
 
@@ -87,7 +100,8 @@ Trpman::execOPEN_COMREQ(Signal* signal)
     for(unsigned int i = 1; i < MAX_NODES; i++ )
     {
       jam();
-      if (i != getOwnNodeId() && getNodeInfo(i).m_type == tData2)
+      if (i != getOwnNodeId() && getNodeInfo(i).m_type == tData2 &&
+          handles_this_node(i))
       {
 	jam();
 
@@ -106,12 +120,13 @@ Trpman::execOPEN_COMREQ(Signal* signal)
     }
   }
 
+done:
   if (userRef != 0)
   {
     jam();
     signal->theData[0] = tStartingNode;
     signal->theData[1] = tData2;
-    sendSignal(userRef, GSN_OPEN_COMCONF, signal, len - 1,JBA);
+    sendSignal(userRef, GSN_OPEN_COMCONF, signal, 2, JBA);
   }
 }
 
@@ -167,9 +182,10 @@ Trpman::execCLOSE_COMREQ(Signal* signal)
 //  Uint32 noOfNodes = closeCom->noOfNodes;
 
   jamEntry();
-  for (unsigned i = 0; i < MAX_NODES; i++)
+  for (unsigned i = 1; i < MAX_NODES; i++)
   {
-    if (NodeBitmask::get(closeCom->theNodes, i))
+    if (NodeBitmask::get(closeCom->theNodes, i) &&
+        handles_this_node(i))
     {
       jam();
 
@@ -204,6 +220,18 @@ Trpman::execCLOSE_COMREQ(Signal* signal)
   }
 }
 
+/*
+  We need to implement CLOSE_COMCONF signal for the non-multithreaded
+  case where message should go to QMGR, for multithreaded case it
+  needs to pass through TRPMAN proxy on its way back.
+*/
+void
+Trpman::execCLOSE_COMCONF(Signal *signal)
+{
+  jamEntry();
+  sendSignal(QMGR_REF, GSN_CLOSE_COMCONF, signal, 19, JBA);
+}
+
 void
 Trpman::execENABLE_COMREQ(Signal* signal)
 {
@@ -225,6 +253,8 @@ Trpman::execENABLE_COMREQ(Signal* signal)
       break;
     search_from = tStartingNode + 1;
 
+    if (!handles_this_node(tStartingNode))
+      continue;
     globalTransporterRegistry.setIOState(tStartingNode, NoHalt);
     setNodeInfo(tStartingNode).m_connected = true;
 
@@ -353,6 +383,12 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
 
     while (rnode < MAX_NODES)
     {
+      if (!handles_this_node(rnode))
+      {
+        rnode++;
+        continue;
+      }
+
       switch(getNodeInfo(rnode).m_type)
       {
       default:
@@ -429,14 +465,15 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
     if (signal->getLength() == 1 || signal->theData[1])
     {
-      for (Uint32 i = 0; i<MAX_NODES; i++)
+      for (Uint32 i = 1; i<MAX_NODES; i++)
       {
-	if (c_error_9000_nodes_mask.get(i))
-	{
-	  signal->theData[0] = 0;
-	  signal->theData[1] = i;
+        if (c_error_9000_nodes_mask.get(i) &&
+            handles_this_node(i))
+        {
+          signal->theData[0] = 0;
+          signal->theData[1] = i;
           execOPEN_COMREQ(signal);
-	}
+        }
       }
     }
     c_error_9000_nodes_mask.clear();
@@ -452,10 +489,13 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
   if (arg == 9005 && signal->getLength() == 2 && ERROR_INSERTED(9004))
   {
     Uint32 db = signal->theData[1];
-    Uint32 i = c_error_9000_nodes_mask.find(0);
-    signal->theData[0] = i;
-    sendSignal(calcQmgrBlockRef(db),GSN_API_FAILREQ, signal, 1, JBA);
-    ndbout_c("stopping %u using %u", i, db);
+    Uint32 i = c_error_9000_nodes_mask.find(1);
+    if (handles_this_node(i))
+    {
+      signal->theData[0] = i;
+      sendSignal(calcQmgrBlockRef(db),GSN_API_FAILREQ, signal, 1, JBA);
+      ndbout_c("stopping %u using %u", i, db);
+    }
     CLEAR_ERROR_INSERT_VALUE;
   }
 #endif
@@ -482,26 +522,28 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     for (Uint32 n = 1; n < signal->getLength(); n++)
     {
       Uint32 nodeId = signal->theData[n];
+      if (!handles_this_node(nodeId))
+        continue;
 
       if ((nodeId > 0) &&
           (nodeId < MAX_NODES))
       {
         if (block)
         {
-          ndbout_c("CMVMI : Blocking receive from node %u", nodeId);
+          ndbout_c("TRPMAN : Blocking receive from node %u", nodeId);
 
           globalTransporterRegistry.blockReceive(nodeId);
         }
         else
         {
-          ndbout_c("CMVMI : Unblocking receive from node %u", nodeId);
+          ndbout_c("TRPMAN : Unblocking receive from node %u", nodeId);
 
           globalTransporterRegistry.unblockReceive(nodeId);
         }
       }
       else
       {
-        ndbout_c("CMVMI : Ignoring dump %u for node %u",
+        ndbout_c("TRPMAN : Ignoring dump %u for node %u",
                  arg, nodeId);
       }
     }
@@ -512,12 +554,14 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     if (signal->getLength() > 1)
     {
       pattern = signal->theData[1];
-      ndbout_c("CMVMI : Blocking receive from all ndbds matching pattern -%s-",
+      ndbout_c("TRPMAN : Blocking receive from all ndbds matching pattern -%s-",
                ((pattern == 1)? "Other side":"Unknown"));
     }
 
     for (Uint32 node = 1; node < MAX_NDB_NODES; node++)
     {
+      if (!handles_this_node(node))
+        continue;
       if (globalTransporterRegistry.is_connected(node))
       {
         if (getNodeInfo(node).m_type == NodeInfo::DB)
@@ -542,7 +586,7 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
             default:
               break;
             }
-            ndbout_c("CMVMI : Blocking receive from node %u", node);
+            ndbout_c("TRPMAN : Blocking receive from node %u", node);
             globalTransporterRegistry.blockReceive(node);
           }
         }
@@ -551,8 +595,10 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
   }
   if (arg == 9991) /* Unblock recv from all blocked */
   {
-    for (Uint32 node = 0; node < MAX_NODES; node++)
+    for (Uint32 node = 1; node < MAX_NODES; node++)
     {
+      if (!handles_this_node(node))
+        continue;
       if (globalTransporterRegistry.isBlocked(node))
       {
         ndbout_c("CMVMI : Unblocking receive from node %u", node);
