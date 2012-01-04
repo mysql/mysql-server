@@ -534,7 +534,8 @@ inline void
 TransporterRegistry::set_status_overloaded(Uint32 nodeId, bool val)
 {
   assert(nodeId < MAX_NODES);
-  m_status_overloaded.set(nodeId, val);
+  if (val != m_status_overloaded.get(nodeId))
+    m_status_overloaded.set(nodeId, val);
 }
 
 inline const NodeBitmask&
