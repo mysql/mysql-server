@@ -73,10 +73,10 @@ static const Uint32 MAX_SIGNALS_BEFORE_WAKEUP = 128;
 //#define NDB_MT_LOCK_TO_CPU
 
 #define NUM_MAIN_THREADS 2 // except receiver
-#define MAX_THREADS (NUM_MAIN_THREADS +       \
-                     MAX_NDBMT_LQH_THREADS +  \
-                     MAX_NDBMT_TC_THREADS + 1)
-#define MAX_BLOCK_INSTANCES (MAX_THREADS+1)
+#define MAX_BLOCK_THREADS (NUM_MAIN_THREADS +       \
+                           MAX_NDBMT_LQH_THREADS +  \
+                           MAX_NDBMT_TC_THREADS + 1)
+#define MAX_BLOCK_INSTANCES (MAX_BLOCK_THREADS+1)
 
 /* If this is too small it crashes before first signal. */
 #define MAX_INSTANCES_PER_THREAD (16 + 8 * MAX_NDBMT_LQH_THREADS)
@@ -87,7 +87,7 @@ static Uint32 num_tc_threads = 0;
 static Uint32 num_threads = 0;
 static Uint32 receiver_thread_no = 0;
 
-#define NO_SEND_THREAD (MAX_THREADS + 1)
+#define NO_SEND_THREAD (MAX_BLOCK_THREADS + 1)
 
 /* max signal is 32 words, 7 for signal header and 25 datawords */
 #define MIN_SIGNALS_PER_PAGE (thr_job_buffer::SIZE / 32)
@@ -864,12 +864,12 @@ struct thr_data
    * These are the thread input queues, where other threads deliver signals
    * into.
    */
-  struct thr_job_queue_head m_in_queue_head[MAX_THREADS];
-  struct thr_job_queue m_in_queue[MAX_THREADS];
+  struct thr_job_queue_head m_in_queue_head[MAX_BLOCK_THREADS];
+  struct thr_job_queue m_in_queue[MAX_BLOCK_THREADS];
   /* These are the write states of m_in_queue[self] in each thread. */
-  struct thr_jb_write_state m_write_states[MAX_THREADS];
+  struct thr_jb_write_state m_write_states[MAX_BLOCK_THREADS];
   /* These are the read states of all of our own m_in_queue[]. */
-  struct thr_jb_read_state m_read_states[MAX_THREADS];
+  struct thr_jb_read_state m_read_states[MAX_BLOCK_THREADS];
 
   /* Jam buffers for making trace files at crashes. */
   EmulatedJamBuffer m_jam;
@@ -965,7 +965,7 @@ struct thr_repository
   struct thr_safe_pool<thr_send_page> m_sb_pool;
   Ndbd_mem_manager * m_mm;
   unsigned m_thread_count;
-  struct thr_data m_thread[MAX_THREADS];
+  struct thr_data m_thread[MAX_BLOCK_THREADS];
 
   /**
    * send buffer handling
@@ -1006,11 +1006,11 @@ struct thr_repository
     Uint32 m_bytes;
 
     /* read index(es) in thr_send_queue */
-    Uint32 m_read_index[MAX_THREADS];
+    Uint32 m_read_index[MAX_BLOCK_THREADS];
   } m_send_buffers[MAX_NTRANSPORTERS];
 
   /* The buffers published by threads */
-  thr_send_queue m_thread_send_buffers[MAX_NTRANSPORTERS][MAX_THREADS];
+  thr_send_queue m_thread_send_buffers[MAX_NTRANSPORTERS][MAX_BLOCK_THREADS];
 
   /*
    * These are used to synchronize during crash / trace dumps.
@@ -1742,8 +1742,8 @@ static
 Uint32
 link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 node)
 {
-  Uint32 ri[MAX_THREADS];
-  Uint32 wi[MAX_THREADS];
+  Uint32 ri[MAX_BLOCK_THREADS];
+  Uint32 wi[MAX_BLOCK_THREADS];
   thr_send_queue * src = g_thr_repository.m_thread_send_buffers[node];
   for (unsigned thr = 0; thr < num_threads; thr++)
   {
@@ -2803,7 +2803,7 @@ init_thread(thr_data *selfptr)
  * Align signal buffer for better cache performance.
  * Also skew it a litte for each thread to avoid cache pollution.
  */
-#define SIGBUF_SIZE (sizeof(Signal) + 63 + 256 * MAX_THREADS)
+#define SIGBUF_SIZE (sizeof(Signal) + 63 + 256 * MAX_BLOCK_THREADS)
 static Signal *
 aligned_signal(unsigned char signal_buf[SIGBUF_SIZE], unsigned thr_no)
 {
@@ -3496,7 +3496,7 @@ ThreadConfig::init()
   num_lqh_threads = globalData.ndbMtLqhThreads;
   num_tc_threads = globalData.ndbMtTcThreads;
   num_threads = NUM_MAIN_THREADS + num_tc_threads + num_lqh_threads + 1;
-  require(num_threads <= MAX_THREADS);
+  require(num_threads <= MAX_BLOCK_THREADS);
   receiver_thread_no = num_threads - 1;
 
   ndbout << "NDBMT: num_threads=" << num_threads << endl;
@@ -3785,14 +3785,14 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
    * the same order they were executed (order obtained from signal id).
    *
    * We may need to keep track of THR_FREE_BUF_MAX buffers for fully executed
-   * (and freed) buffers, plus MAX_THREADS buffers for currently active
+   * (and freed) buffers, plus MAX_BLOCK_THREADS buffers for currently active
    * prio B buffers, plus one active prio A buffer.
    */
   struct {
     const thr_job_buffer *m_jb;
     Uint32 m_pos;
     Uint32 m_max;
-  } jbs[THR_FREE_BUF_MAX + MAX_THREADS + 1];
+  } jbs[THR_FREE_BUF_MAX + MAX_BLOCK_THREADS + 1];
 
   Uint32 num_jbs = 0;
 
@@ -4032,7 +4032,7 @@ mt_get_thread_references_for_blocks(const Uint32 blocks[], Uint32 threadId,
                                     Uint32 dst[], Uint32 len)
 {
   Uint32 cnt = 0;
-  Bitmask<(MAX_THREADS+31)/32> mask;
+  Bitmask<(MAX_BLOCK_THREADS+31)/32> mask;
   mask.set(threadId);
   for (Uint32 i = 0; blocks[i] != 0; i++)
   {

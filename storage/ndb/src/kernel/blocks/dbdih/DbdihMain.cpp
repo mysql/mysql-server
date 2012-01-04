@@ -3846,7 +3846,7 @@ done:
       FragmentstorePtr fragPtr;
       getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
       Uint32 nodes[MAX_REPLICAS];
-      extractNodeInfo(fragPtr.p, nodes);
+      extractNodeInfo(jamBuffer(), fragPtr.p, nodes);
 
       req->lqhLogNode[0] = nodes[0]; // Source
       req->requestInfo = StartFragReq::SFR_COPY_FRAG;
@@ -4179,7 +4179,7 @@ void Dbdih::toCopyFragLab(Signal* signal,
   FragmentstorePtr fragPtr;
   getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
   Uint32 nodes[MAX_REPLICAS];
-  extractNodeInfo(fragPtr.p, nodes);
+  extractNodeInfo(jamBuffer(), fragPtr.p, nodes);
   takeOverPtr.p->toCopyNode = nodes[0];
   
   PrepareCopyFragReq* req= (PrepareCopyFragReq*)signal->getDataPtrSend();
@@ -4376,7 +4376,7 @@ Dbdih::toStartCopyFrag(Signal* signal, TakeOverRecordPtr takeOverPtr)
   copyFragReq->distributionKey = fragPtr.p->distributionKey;
   copyFragReq->gci = gci;
   Uint32 len = copyFragReq->nodeCount = 
-    extractNodeInfo(fragPtr.p, 
+    extractNodeInfo(jamBuffer(), fragPtr.p, 
                     copyFragReq->nodeList);
   copyFragReq->nodeList[len] = takeOverPtr.p->maxPage;
   copyFragReq->nodeList[len+1] = CopyFragReq::CFR_TRANSACTIONAL;
@@ -9227,7 +9227,7 @@ loop:
     return;
   }
   getFragstore(tabPtr.p, fragId, fragPtr);
-  Uint32 nodeCount = extractNodeInfo(fragPtr.p, conf->nodes);
+  Uint32 nodeCount = extractNodeInfo(jambuf, fragPtr.p, conf->nodes);
   Uint32 sig2 = (nodeCount - 1) + 
     (fragPtr.p->distributionKey << 16) + 
     (dihGetInstanceKey(fragPtr) << 24);
@@ -9240,7 +9240,9 @@ loop:
     thrjam(jambuf);
     conf->reqinfo |= DiGetNodesConf::REORG_MOVING;
     getFragstore(tabPtr.p, newFragId, fragPtr);
-    nodeCount = extractNodeInfo(fragPtr.p, conf->nodes + 2 + MAX_REPLICAS);
+    nodeCount = extractNodeInfo(jambuf,
+                               fragPtr.p,
+                               conf->nodes + 2 + MAX_REPLICAS);
     conf->nodes[MAX_REPLICAS] = newFragId;
     conf->nodes[MAX_REPLICAS + 1] = (nodeCount - 1) +
       (fragPtr.p->distributionKey << 16) +
@@ -9251,18 +9253,20 @@ loop:
     goto loop;
 }//Dbdih::execDIGETNODESREQ()
 
-Uint32 Dbdih::extractNodeInfo(const Fragmentstore * fragPtr, Uint32 nodes[]) 
+Uint32 Dbdih::extractNodeInfo(EmulatedJamBuffer *jambuf,
+                              const Fragmentstore * fragPtr,
+                              Uint32 nodes[]) 
 {
   Uint32 nodeCount = 0;
   nodes[0] = nodes[1] = nodes[2] = nodes[3] = 0;
   for (Uint32 i = 0; i < fragPtr->fragReplicas; i++) {
-    jam();
+    thrjam(jambuf);
     NodeRecordPtr nodePtr;
     ndbrequire(i < MAX_REPLICAS);
     nodePtr.i = fragPtr->activeNodes[i];
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
     if (nodePtr.p->useInTransactions) {
-      jam();
+      thrjam(jambuf);
       nodes[nodeCount] = nodePtr.i;
       nodeCount++;
     }//if
@@ -9543,7 +9547,7 @@ void Dbdih::execDIH_SCAN_GET_NODES_REQ(Signal* signal)
   
   Uint32 nodes[MAX_REPLICAS];
   getFragstore(tabPtr.p, fragId, fragPtr);
-  Uint32 count = extractNodeInfo(fragPtr.p, nodes);
+  Uint32 count = extractNodeInfo(jamBuffer(), fragPtr.p, nodes);
 
   DihScanGetNodesConf* conf = (DihScanGetNodesConf*)signal->getDataPtrSend();
   conf->senderData = senderData;
@@ -17519,7 +17523,9 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	getFragstore(tabPtr.p, j, fragPtr);
 	
 	Uint32 nodeOrder[MAX_REPLICAS];
-	const Uint32 noOfReplicas = extractNodeInfo(fragPtr.p, nodeOrder);
+	const Uint32 noOfReplicas = extractNodeInfo(jamBuffer(),
+                                                    fragPtr.p,
+                                                    nodeOrder);
 	char buf[100];
 	BaseString::snprintf(buf, sizeof(buf), " Table %d Fragment %d(%u) LP: %u - ", tabPtr.i, j, dihGetInstanceKey(fragPtr), fragPtr.p->m_log_part_id);
 	for(Uint32 k = 0; k < noOfReplicas; k++){
@@ -18296,7 +18302,9 @@ void Dbdih::execDIH_SWITCH_REPLICA_REQ(Signal* signal)
    * Do funky stuff
    */
   Uint32 oldOrder[MAX_REPLICAS];
-  const Uint32 noOfReplicas = extractNodeInfo(fragPtr.p, oldOrder);
+  const Uint32 noOfReplicas = extractNodeInfo(jamBuffer(),
+                                              fragPtr.p,
+                                              oldOrder);
   
   if (noOfReplicas < req->noOfReplicas) {
     jam();
@@ -18434,7 +18442,9 @@ Dbdih::switchReplica(Signal* signal,
     getFragstore(tabPtr.p, fragNo, fragPtr);
     
     Uint32 oldOrder[MAX_REPLICAS];
-    const Uint32 noOfReplicas = extractNodeInfo(fragPtr.p, oldOrder);
+    const Uint32 noOfReplicas = extractNodeInfo(jamBuffer(),
+                                                fragPtr.p,
+                                                oldOrder);
 
     if(oldOrder[0] != nodeId) {
       jam();
