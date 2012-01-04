@@ -969,12 +969,20 @@ check_blocking_tdb: $(BLOCKING_TDB_TESTS)
 
 check_blocking_bdb: $(BLOCKING_BDB_TESTS)
 
-# stress tests with drd
 STRESS_TEST_SRCS = $(wildcard test_stress*.c)
 STRESS_TESTS = $(patsubst %.c,%,$(STRESS_TEST_SRCS))
+
+stress_tests.tdbrun: $(patsubst %,%.stressrun,$(STRESS_TESTS))
+	true
+
+%.stressrun: %.tdb
+	./$< --only_create --envdir dir.$@ && \
+	$(VGRIND) ./$< $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@ \
+	$(MAYBEINVERTER) $(SUMMARIZE_CMD)	
+
+# stress tests with drd
 TINY_STRESS_TESTS = $(patsubst %,tiny_%.drdrun,$(STRESS_TESTS))
 MID_STRESS_TESTS = $(patsubst %,mid_%.drdrun,$(STRESS_TESTS))
-LARGE_STRESS_TESTS = $(patsubst %,mid_%.drdrun,$(STRESS_TESTS))
 LARGE_STRESS_TESTS = $(patsubst %,large_%.drdrun,$(STRESS_TESTS))
 
 stress_tests.drdrun: $(TINY_STRESS_TESTS) \
@@ -1009,6 +1017,8 @@ large_%.drdrun: %.tdb
 test_4015.drdrun: test_4015.tdb
 	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< --envdir dir.tdb.$@ \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+
 
 # upgrade tests
 UPGRADE_TEST_SRCS = $(wildcard upgrade-test-*.c)
