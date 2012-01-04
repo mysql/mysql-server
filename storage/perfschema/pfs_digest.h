@@ -47,7 +47,8 @@ struct {
 #define PFS_MAX_TOKEN_COUNT 1024
 struct {
          uint m_token_count;
-         uint m_token_array[PFS_MAX_TOKEN_COUNT];
+         uint m_byte_count;
+         char m_token_array[PFS_MAX_TOKEN_COUNT];
          PFS_digest_hash m_digest_hash;
        } typedef PFS_digest_storage;
 
@@ -79,13 +80,6 @@ int init_digest_hash(void);
 void cleanup_digest_hash(void);
 PFS_statements_digest_stat* find_or_create_digest(PFS_thread*,
                                                   PFS_digest_storage*);
-/*
-                                                  unsigned char*,
-                                                  unsigned int*,
-                                                  int,
-                                                  char*,
-                                                  unsigned int);
-*/
 
 void reset_esms_by_digest();
 
