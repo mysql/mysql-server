@@ -92,6 +92,8 @@ int test_main(int argc, char * const argv[]) {
     r = db->open(db, create_txn, db_filename, NULL, DB_BTREE, DB_CREATE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert_zero(r);
 
     insert(db, create_txn, 1, 8000000);
+    insert(db, create_txn, 1, 16000000);
+    insert(db, create_txn, 1, 32000000);
     insert(db, create_txn, 2, 1);
 
     if (do_txn) {
