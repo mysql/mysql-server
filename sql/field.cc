@@ -5925,7 +5925,8 @@ int
 Field_year::store_time(MYSQL_TIME *ltime,
                        uint8 dec_arg __attribute__((unused)))
 {
-  if (ltime->time_type != MYSQL_TIMESTAMP_DATETIME)
+  if (ltime->time_type != MYSQL_TIMESTAMP_DATETIME &&
+      ltime->time_type != MYSQL_TIMESTAMP_DATE)
   {
     /* Convert time to datetime, then store year of the result */
     THD *thd= table ? table->in_use : current_thd;
