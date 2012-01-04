@@ -110,7 +110,20 @@ TransporterRegistry globalTransporterRegistry(&myTransporterCallback);
 #endif
 
 #ifdef NDBD_MULTITHREADED
-static SectionSegmentPool::Cache cache(1024,1024);
+static struct ReceiverThreadCache
+{
+  SectionSegmentPool::Cache cache_instance;
+  char pad[64 - sizeof(SectionSegmentPool::Cache)];
+} g_receiver_thread_cache[MAX_NDBMT_RECEIVE_THREADS];
+
+void
+mt_init_receiver_cache()
+{
+  for (unsigned i = 0; i < NDB_ARRAY_SIZE(g_receiver_thread_cache); i++)
+  {
+    g_receiver_thread_cache[i].cache_instance.init_cache(1024,1024);
+  }
+}
 
 void
 mt_set_section_chunk_size()
@@ -119,6 +132,7 @@ mt_set_section_chunk_size()
 }
 
 #else
+void mt_init_receiver_cache(){}
 void mt_set_section_chunk_size(){}
 #endif
 
@@ -128,6 +142,9 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
                                           Uint32 * const theData,
                                           LinearSectionPtr ptr[3])
 {
+#ifdef NDBD_MULTITHREADED
+  SectionSegmentPool::Cache & cache = g_receiver_thread_cache[0].cache_instance;
+#endif
 
   const Uint32 secCount = header->m_noOfSections;
   const Uint32 length = header->theLength;

@@ -215,6 +215,9 @@
 #define MAX_NDBMT_TC_THREADS  4
 #endif
 
+#define MAX_NDBMT_SEND_THREADS    0
+#define MAX_NDBMT_RECEIVE_THREADS 1
+
 #define NDB_FILE_BUFFER_SIZE (256*1024)
 
 /**
