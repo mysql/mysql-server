@@ -156,6 +156,19 @@ HANDLER_WRITE	19
 # 2 read_first, read_key and read_next.
 # 1 commit
 #
+# Test TRUNCATE PARTITION
+#
+FLUSH STATUS;
+ALTER TABLE t2 TRUNCATE PARTITION p1;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	17
+# 4 locks (1 table, 1 partition lock/unlock)
+INSERT INTO t2 SELECT a, b FROM t1 WHERE a = 1;
+#
 # Test insert on duplicated key update
 #
 FLUSH STATUS;
@@ -1574,10 +1587,11 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	17
 # 4 locks (1 table + 1 partition lock/unlock)
+# This EXPLAIN DELETE have an unstable row estimation.
 FLUSH STATUS;
 EXPLAIN DELETE FROM t1 WHERE b = "No duplicate";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,b	b	131	NULL	15	Using where
+1	SIMPLE	t1	range	PRIMARY,b	b	131	NULL	#	Using where
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -1596,10 +1610,11 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	17
 # 4 locks (1 table + 1 partition lock/unlock)
+# This EXPLAIN DELETE have an unstable row estimation.
 FLUSH STATUS;
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE b = "No duplicate";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	range	PRIMARY,b	b	131	NULL	15	Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	range	PRIMARY,b	b	131	NULL	#	Using where
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE

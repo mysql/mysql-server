@@ -108,6 +108,14 @@ eval $get_handler_status_counts;
 --echo # 2 read_first, read_key and read_next.
 --echo # 1 commit
 
+--echo #
+--echo # Test TRUNCATE PARTITION
+--echo #
+FLUSH STATUS;
+ALTER TABLE t2 TRUNCATE PARTITION p1;
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+INSERT INTO t2 SELECT a, b FROM t1 WHERE a = 1;
 
 --echo #
 --echo # Test insert on duplicated key update
@@ -719,7 +727,9 @@ FLUSH STATUS;
 EXPLAIN DELETE FROM t1 WHERE a = 105;
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table + 1 partition lock/unlock)
+--echo # This EXPLAIN DELETE have an unstable row estimation.
 FLUSH STATUS;
+--replace_column 9 #
 EXPLAIN DELETE FROM t1 WHERE b = "No duplicate";
 eval $get_handler_status_counts;
 --echo # 28 locks (1 table + 13 partition lock/unlock)
@@ -727,7 +737,9 @@ FLUSH STATUS;
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = 105;
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table + 1 partition lock/unlock)
+--echo # This EXPLAIN DELETE have an unstable row estimation.
 FLUSH STATUS;
+--replace_column 10 #
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE b = "No duplicate";
 eval $get_handler_status_counts;
 --echo # 28 locks (1 table + 13 partition lock/unlock)
