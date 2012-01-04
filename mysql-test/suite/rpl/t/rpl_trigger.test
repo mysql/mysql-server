@@ -389,6 +389,7 @@ START SLAVE;
 # not replicable.
 #
 
+--source include/rpl_reset.inc
 --echo
 --echo ---> Test for BUG#20438
 
