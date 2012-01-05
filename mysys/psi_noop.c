@@ -158,8 +158,9 @@ static void release_table_share_noop(PSI_table_share* share NNN)
 }
 
 static void
-drop_table_share_noop(const char *schema_name NNN, int schema_name_length NNN,
-                      const char *table_name NNN, int table_name_length NNN)
+drop_table_share_noop(my_bool temporary NNN, const char *schema_name NNN,
+                      int schema_name_length NNN, const char *table_name NNN,
+                      int table_name_length NNN)
 {
   return;
 }
