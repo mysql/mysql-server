@@ -2147,4 +2147,14 @@ const char* _db_get_func_(void)
   return cs->func;
 }
 
+#else
+
+/*
+ * Dummy function, workaround for build failure on a platform where linking
+ * with an empty archive fails.
+ */
+int i_am_a_dummy_function() {
+  return 0;
+}
+
 #endif /* DBUG_OFF */
