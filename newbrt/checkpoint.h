@@ -94,7 +94,8 @@ typedef struct {
     uint64_t last_lsn;
     uint64_t checkpoint_count;
     uint64_t checkpoint_count_fail;
-    uint64_t waiters_now;    // how many threads are currently waiting for the checkpoint_safe lock
+    uint64_t waiters_now;    // how many threads are currently waiting for the checkpoint_safe lock to perform a checkpoint
+    uint64_t waiters_max;    // max threads ever simultaneously waiting for the checkpoint_safe lock to perform a checkpoint
 } CHECKPOINT_STATUS_S, *CHECKPOINT_STATUS;
 
 void toku_checkpoint_get_status(CHECKPOINT_STATUS stat);

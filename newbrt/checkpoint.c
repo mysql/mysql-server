@@ -213,6 +213,8 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     checkpoint_safe_checkpoint_lock();
 
     (void) __sync_fetch_and_sub(&status.waiters_now, 1);
+    if (status.waiters_now > status.waiters_max)
+	status.waiters_max = status.waiters_now;  // threadsafe, within checkpoint_safe lock
     SET_CHECKPOINT_FOOTPRINT(10)
     multi_operation_checkpoint_lock();
     SET_CHECKPOINT_FOOTPRINT(20)
