@@ -1453,7 +1453,7 @@ public:
   Item_master_gtid_set_wait(Item *a) :Item_int_func(a) {}
   Item_master_gtid_set_wait(Item *a, Item *b) :Item_int_func(a,b) {}
   longlong val_int();
-  const char *func_name() const { return "master_gtid_wait"; }
+  const char *func_name() const { return "sql_thread_wait_after_gtids"; }
   void fix_length_and_dec() { max_length=21; maybe_null=1; }
 };
 
