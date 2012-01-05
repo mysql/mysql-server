@@ -18,7 +18,7 @@ load data infile '../../std_data/rpl_loaddata.dat' into table t2 /* will be "kil
 ERROR 70100: Query execution was interrupted
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
