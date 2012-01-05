@@ -5748,6 +5748,7 @@ end:
     the statement.  Hence, allow stmt.is_empty() in these cases.
     @todo Check if this causes any trouble. /Sven
     @todo Add test case in binlog.binlog_trx_empty_assertions /Sven
+    [running on fimafeng10-1]
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
               (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
@@ -6029,7 +6030,7 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
     the statement.  Hence, allow stmt.is_empty() in these cases.
     @todo Check if this causes any trouble /Sven.
     @todo Add test case in binlog.binlog_trx_empty_assertions
-    (seems this code is reached by rpl_semi_sync) /Sven
+    [running on fimafeng11-1]
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
               (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
@@ -9474,10 +9475,7 @@ close_mysql_tables(THD *thd)
     binlog_handler will be registered very early in the execution of
     the statement.  Hence, allow stmt.is_empty() in these cases.
     @todo Check if this causes any trouble /Sven.
-    @todo Add test case in binlog.binlog_trx_empty_assertions
-    (seems this code is reached by rpl_semi_sync, rpl_row_USER,
-    rpl_row_sp012, rpl_do_grant, rpl_slave_status, rpl_ignore_table,
-    rpl_ignore_grant, auth_rpl) /Sven
+    @note Covered by Case 8 in test binlog.binlog_trx_empty_assertions
  */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
               thd->get_gtid_next_list() != NULL ||
