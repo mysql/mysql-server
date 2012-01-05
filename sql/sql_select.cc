@@ -3209,18 +3209,6 @@ ORDER *simple_remove_const(ORDER *order, Item *where)
 }
 
 
-/*
-  used only in JOIN::clear
-*/
-static void clear_tables(JOIN *join)
-{
-  /* 
-    must clear only the non-const tables, as const tables
-    are not re-calculated.
-  */
-  for (uint i=join->const_tables ; i < join->tables ; i++)
-    mark_as_null_row(join->all_tables[i]);		// All fields are NULL
-}
 
 
 /* 
@@ -4593,7 +4581,9 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 
 void JOIN::clear()
 {
-  clear_tables(this);
+  for (uint tableno= 0; tableno < this->tables; tableno++)
+    mark_as_null_row((join_tab+tableno)->table);
+
   copy_fields(&tmp_table_param);
 
   if (sum_funcs)
