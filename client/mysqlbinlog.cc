@@ -145,9 +145,12 @@ enum Exit_status {
 };
 
 #ifdef HAVE_GTID
-static char *opt_include_gtids_str, *opt_exclude_gtids_str;
-static char *opt_first_ltid_str= NULL, *opt_last_ltid_str= NULL;
+static char *opt_include_gtids_str= NULL,
+            *opt_exclude_gtids_str= NULL;
 static my_bool opt_skip_gtids= 0;
+static bool filter_based_on_gtids= false;
+static Gtid_set gtid_set_included(&global_sid_map);
+static Gtid_set gtid_set_excluded(&global_sid_map);
 #endif
 
 static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
@@ -655,6 +658,41 @@ static bool shall_skip_database(const char *log_dbname)
          strcmp(log_dbname, database);
 }
 
+#ifdef HAVE_GTID
+static bool shall_skip_gtids(Log_event* ev)
+{
+  bool filtered= false;
+
+  switch (ev->get_type_code())
+  {
+    case GTID_LOG_EVENT:
+    {
+       Gtid_log_event *gtid= (Gtid_log_event *) ev;
+       if (opt_include_gtids_str != NULL)
+       {
+         filtered= filtered ||
+           !gtid_set_included.contains_gtid(gtid->get_sidno(true),
+                                            gtid->get_gno());
+       }
+
+       if (opt_exclude_gtids_str != NULL)
+       {
+         filtered= filtered ||
+           gtid_set_excluded.contains_gtid(gtid->get_sidno(true),
+                                           gtid->get_gno());
+       }
+       filter_based_on_gtids= filtered;
+       filtered= filtered || opt_skip_gtids;
+    }
+    break;
+    default:
+      filtered= filter_based_on_gtids;
+    break;
+  }
+  
+  return filtered;
+}
+#endif
 
 /**
   Print the given event, and either delete it or delegate the deletion
@@ -734,6 +772,11 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     print_event_info->base64_output_mode= opt_base64_output_mode;
 
     DBUG_PRINT("debug", ("event_type: %s", ev->get_type_str()));
+
+#ifdef HAVE_GTID
+    if (shall_skip_gtids(ev))
+      goto end;
+#endif
 
     switch (ev_type) {
     case QUERY_EVENT:
@@ -1214,14 +1257,6 @@ static struct my_option my_long_options[] =
   {"exclude-gtids", OPT_MYSQLBINLOG_EXCLUDE_GTIDS,
    "Print all but the given Global Transaction Identifiers.",
    &opt_exclude_gtids_str, &opt_exclude_gtids_str, 0,
-   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"first-ltid", OPT_MYSQLBINLOG_FIRST_LTID,
-   "Ignore groups before the given Local Transaction Identifier.",
-   &opt_first_ltid_str, &opt_first_ltid_str, 0,
-   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"last-ltid", OPT_MYSQLBINLOG_LAST_LTID,
-   "Ignore groups after the given Local Transaction Identifier.",
-   &opt_last_ltid_str, &opt_last_ltid_str, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -2215,6 +2250,32 @@ static int args_post_process(void)
       DBUG_RETURN(ERROR_STOP);
     }
   }
+
+#ifdef HAVE_GTID
+  global_sid_lock.rdlock();
+
+  if (opt_include_gtids_str != NULL)
+  {
+    if (gtid_set_included.add(opt_include_gtids_str) != RETURN_STATUS_OK)
+    {
+      error("Could not configure --include-gtids '%s'", opt_include_gtids_str);
+      global_sid_lock.unlock();
+      DBUG_RETURN(ERROR_STOP);
+    }
+  }
+
+  if (opt_exclude_gtids_str != NULL)
+  {
+    if (gtid_set_excluded.add(opt_exclude_gtids_str) != RETURN_STATUS_OK)
+    {
+      error("Could not configure --exclude-gtids '%s'", opt_exclude_gtids_str);
+      global_sid_lock.unlock();
+      DBUG_RETURN(ERROR_STOP);
+    }
+  }
+
+  global_sid_lock.unlock();
+#endif
 
   DBUG_RETURN(OK_CONTINUE);
 }

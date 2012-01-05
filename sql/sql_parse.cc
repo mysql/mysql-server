@@ -1396,7 +1396,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       char name[FN_REFLEN + 1];
       uint32 name_size= 0;
       const uchar* ptr_buffer= (uchar *) packet;
-      Gtid_set gtid_set(&global_sid_map);;
+      Gtid_set gtid_set(&global_sid_map);
 
       status_var_increment(thd->status_var.com_other);
       thd->enable_slow_log= opt_log_slow_admin_statements;
