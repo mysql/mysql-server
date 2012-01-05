@@ -1880,26 +1880,20 @@ bool partition_info::is_field_in_part_expr(List<Item> &fields)
   List_iterator<Item> it(fields);
   Item *item;
   Item_field *field;
-  Field **part_field;
   DBUG_ASSERT(fields.elements);
   DBUG_ENTER("is_fields_in_part_expr");
   while ((item= it++))
   {
     if (!(field= item->filed_for_view_update()))
     {
-      DBUG_ASSERT(0); // Should already be checked?
+      DBUG_ASSERT(0); // Should already be checked
       DBUG_RETURN(true);
     }
     else
     {
-      DBUG_ASSERT(field->field->table == table); // TODO: Check if possible to insert into a view?
-      for (part_field= table->part_info->full_part_field_array;
-           *part_field;
-           part_field++)
-      {
-        if (field->field == *part_field)
-          DBUG_RETURN(true);
-      }
+      DBUG_ASSERT(field->field->table == table);
+      if (!bitmap_is_set(&full_part_field_set, field->field->field_index))
+        DBUG_RETURN(true);
     }
   }
   DBUG_RETURN(false);

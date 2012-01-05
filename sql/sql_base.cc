@@ -8896,26 +8896,24 @@ err_no_arena:
 /*
   Fill fields with given items.
 
-  SYNOPSIS
-    fill_record()
-    thd           thread handler
-    fields        Item_fields list to be filled
-    values        values to fill with
-    ignore_errors TRUE if we should ignore errors
+  @param thd           thread handler
+  @param fields        Item_fields list to be filled
+  @param values        values to fill with
+  @param ignore_errors TRUE if we should ignore errors
+  @param bitmap        Bitmap over fields to fill
 
-  NOTE
-    fill_record() may set table->auto_increment_field_not_null and a
-    caller should make sure that it is reset after their last call to this
-    function.
+  @note fill_record() may set table->auto_increment_field_not_null and a
+  caller should make sure that it is reset after their last call to this
+  function.
 
-  RETURN
-    FALSE   OK
-    TRUE    error occured
+  @return Operation status
+    @retval false   OK
+    @retval true    Error occured
 */
 
 bool
 fill_record(THD * thd, List<Item> &fields, List<Item> &values,
-            bool ignore_errors)
+            bool ignore_errors, MY_BITMAP *bitmap)
 {
   List_iterator_fast<Item> f(fields),v(values);
   Item *value, *fld;
@@ -8952,6 +8950,9 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     }
     value=v++;
     Field *rfield= field->field;
+    /* If bitmap over wanted fields are set, skip non marked fields. */
+    if (bitmap && !bitmap_is_set(bitmap, rfield->field_index))
+      continue;
     table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
@@ -8998,34 +8999,33 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      Table_triggers_list *triggers,
                                      enum trg_event_type event)
 {
-  return (fill_record(thd, fields, values, ignore_errors) ||
+  return (fill_record(thd, fields, values, ignore_errors, NULL) ||
           (triggers && triggers->process_triggers(thd, event,
                                                  TRG_ACTION_BEFORE, TRUE)));
 }
 
 
-/*
-  Fill field buffer with values from Field list
+/**
+  Fill field buffer with values from Field list.
 
-  SYNOPSIS
-    fill_record()
-    thd           thread handler
-    ptr           pointer on pointer to record
-    values        list of fields
-    ignore_errors TRUE if we should ignore errors
+  @param thd           thread handler
+  @param ptr           pointer on pointer to record
+  @param values        list of fields
+  @param ignore_errors TRUE if we should ignore errors
+  @param bitmap        Bitmap over fields to fill
 
-  NOTE
-    fill_record() may set table->auto_increment_field_not_null and a
-    caller should make sure that it is reset after their last call to this
-    function.
+  @note fill_record() may set table->auto_increment_field_not_null and a
+  caller should make sure that it is reset after their last call to this
+  function.
 
-  RETURN
-    FALSE   OK
-    TRUE    error occured
+  @return Operation status
+    @retval false   OK
+    @retval true    Error occured
 */
 
 bool
-fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
+fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
+            MY_BITMAP *bitmap)
 {
   List_iterator_fast<Item> v(values);
   Item *value;
@@ -9050,6 +9050,9 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
   {
     value=v++;
     table= field->table;
+    /* If bitmap over wanted fields are set, skip non marked fields. */
+    if (bitmap && !bitmap_is_set(bitmap, field->field_index))
+      continue;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if (value->save_in_field(field, 0) < 0)
@@ -9093,7 +9096,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      Table_triggers_list *triggers,
                                      enum trg_event_type event)
 {
-  return (fill_record(thd, ptr, values, ignore_errors) ||
+  return (fill_record(thd, ptr, values, ignore_errors, NULL) ||
           (triggers && triggers->process_triggers(thd, event,
                                                  TRG_ACTION_BEFORE, TRUE)));
 }

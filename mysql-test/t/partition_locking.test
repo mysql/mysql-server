@@ -1210,52 +1210,7 @@ DROP TABLE t1;
 --echo # which makes prune locks impossible.
 
 
-#from the WL:
-# TODO: test if it makes sense to have an upper limit of inserted rows before just
-# use/lock all partitions, since the overhead of iterate over all rows to be
-# inserted can be higher than the overhead of locking all partitions.
-# NOTE: If a AUTO_INCREMENT or TIMESTAMP will be generated and it is a part of the
-# partitioning fields then all partitions must be locked (Not yet part of this
-# worklog: Optimization may be possible for range partitioning).
-# 
-# INSERT ... VALUES ... ON DUPLICATE KEY will only be pruned for use/lock if no
-# partition field is given for update (for optimization, see single-table UPDATE)
-# 
-# INSERT SELECT, for the SELECT clause see SELECT above, for the INSERT table all
-# partitions needs to be locked. (One could optimize this if the SELECT will
-# return a known/constant set of values for the partitioning key, but that is not
-# a part of this worklog).
-# 
-# LOAD will not be pruned, since it is mainly used for inserting a large batch of
-# rows. It would need the input file to be read and parsed and each row to
-# evaluate its partitioning function to determine which partitions to use prior
-# locking. In case of large batches the gain (pruning of locks) seems smaller than
-# the cost (reading, parsing and calculate the partition id). (One could optimize
-# this if all partitioning fields are static, and only non partitioning fields are
-# read from the file. TODO: check if PARTITIONS (p1,...) is supported for LOAD? Not yet part of this worklog. Note: special care with
-# REPLACE, see INSERT).
-#
-
-# TODO: ...
-# 
 # NOTEs:
-# * INSERT DELAYED is not supported by partitioned tables (so it will not need to
-# be enhanced).
-# * LOCK TABLES cannot prune partition locks.
-# * CREATE VIEW will not support partition lock pruning. Too small gain for
-# considering to implement it (and is DDL too).
 # 
 # To investigate:
 # * effects on replication (statement and row)
-# * effects on stored procedures (open_and_lock_tables() are called from sp_head.cc).
-# * how to support lock pruning for EXCHANGE PARTITION - is really a DDL, but
-# might gain on partition lock pruning. Also true for other ALTER TABLE t ...
-# PARTITION, like TRUNCATE etc.
-# * should CALL be supported for partitioning lock pruning?
-# * should DO be supported for partitioning lock pruning?
-# * should SET be supported for partitioning lock pruning? NO - it is a DB Admin
-# statement.
-
-
-
-
