@@ -633,4 +633,24 @@ HAVING x < 2;
 x
 DROP TABLE it,ot;
 DROP FUNCTION f;
+#
+# Bug#11760517: MIN/MAX FAILS TO EVALUATE HAVING CONDITION, 
+#               RETURNS INCORRECT NULL RESULT
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, i4 INT);
+INSERT INTO t1 VALUES (2,7), (4,7), (6,2), (17,0);
+
+SELECT MIN(table1.i4), MIN(table2.pk) as min_pk
+FROM t1 as table1, t1 as table2
+WHERE table1.pk = 1;
+MIN(table1.i4)	min_pk
+NULL	NULL
+
+SELECT MIN(table1.i4), MIN(table2.pk) as min_pk
+FROM t1 as table1, t1 as table2
+WHERE table1.pk = 1
+HAVING min_pk <= 10;
+MIN(table1.i4)	min_pk
+
+DROP TABLE t1;
 End of 5.6 tests
