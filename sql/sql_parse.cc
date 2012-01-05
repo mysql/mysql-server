@@ -1509,7 +1509,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     length= my_snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
-                        "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
+                        "Slow queries: %llu  Opens: %llu  Flush tables: %lu  "
                         "Open tables: %u  Queries per second avg: %u.%03u",
                         uptime,
                         (int) thread_count, (ulong) thd->query_id,
