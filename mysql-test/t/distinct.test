@@ -652,3 +652,56 @@ ORDER BY col_time_key
 LIMIT 3;
 
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#13540692: WRONG NULL HANDLING WITH RIGHT JOIN + 
+--echo #               DISTINCT OR ORDER BY
+--echo #
+
+CREATE TABLE t1 (
+  a INT,
+  b INT NOT NULL
+);
+INSERT INTO t1 VALUES (1,2), (3,3);
+
+let $query=
+SELECT DISTINCT subselect.b
+FROM t1 LEFT JOIN 
+     (SELECT it_b.* FROM t1 as it_a LEFT JOIN t1 as it_b ON true) AS subselect 
+     ON t1.a = subselect.b
+;
+
+--echo
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#13538387: WRONG RESULT ON SELECT DISTINCT + LEFT JOIN + 
+--echo #               LIMIT + MIX OF MYISAM AND INNODB
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (2),(3);
+
+CREATE TABLE t2 (b INT);
+
+CREATE TABLE t3 (
+  a INT,
+  b INT,
+  PRIMARY KEY (b)
+);
+INSERT INTO t3 VALUES (2001,1), (2007,2);
+
+let $query=
+SELECT DISTINCT t3.a AS t3_date
+FROM t1
+     LEFT JOIN t2 ON false
+     LEFT JOIN t3 ON t2.b = t3.b
+LIMIT 1;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2,t3;
