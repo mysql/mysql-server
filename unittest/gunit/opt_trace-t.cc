@@ -18,6 +18,7 @@
    Unit test of the Optimizer trace API (WL#5257)
 */
 
+// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
 
@@ -80,10 +81,15 @@ void do_check_json_compliance(const char *str, size_t length)
 #endif
 }
 
+extern "C"
+void my_error_handler(uint error, const char *str, myf MyFlags);
+
+
 class TraceContentTest : public ::testing::Test
 {
 public:
   Opt_trace_context trace;
+  static bool oom; ///< whether we got an OOM error from opt trace
 protected:
   static void SetUpTestCase()
   {
@@ -96,18 +102,20 @@ protected:
     // Setting debug flags triggers enter/exit trace, so redirect to /dev/null
     DBUG_SET("o," IF_WIN("NUL", "/dev/null"));
   }
-  static bool oom; ///< whether we got an OOM error from opt trace
-  static void my_error_handler(uint error, const char *str, myf MyFlags)
-  {
-    const uint EE= static_cast<uint>(EE_OUTOFMEMORY);
-    EXPECT_EQ(EE, error);
-    if (error == EE)
-      oom= true;
-  }
+
 };
-
-
 bool TraceContentTest::oom;
+
+
+void my_error_handler(uint error, const char *str, myf MyFlags)
+{
+  const uint EE= static_cast<uint>(EE_OUTOFMEMORY);
+  EXPECT_EQ(EE, error);
+  if (error == EE)
+    TraceContentTest::oom= true;
+}
+
+
 
 TEST_F(TraceContentTest, ConstructAndDestruct)
 {
