@@ -674,6 +674,11 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     break;
   case Item_func::BETWEEN:
     between= 1;
+
+    // NOT BETWEEN is equivalent to OR and is therefore not a conjunction
+    if (((Item_func_between*)cond)->negated)
+      DBUG_RETURN(false);
+
     break;
   case Item_func::MULT_EQUAL_FUNC:
     eq_type= 1;

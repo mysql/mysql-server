@@ -1181,6 +1181,10 @@ public:
 	    uchar null_bit_arg, utype unireg_check_arg,
 	    const char *field_name_arg, const CHARSET_INFO *charset);
   Item_result result_type () const { return STRING_RESULT; }
+  Item_result numeric_context_result_type() const
+  { 
+    return REAL_RESULT; 
+  }
   uint decimals() const { return NOT_FIXED_DEC; }
   void make_field(Send_field *field);
   int  store(double nr);
@@ -1941,7 +1945,7 @@ public:
   virtual uint32 max_display_length() { return field_length; }
   virtual bool str_needs_quotes() { return TRUE; }
   virtual uint is_equal(Create_field *new_field);
-  virtual Item_result numeric_context_result_type() const
+  Item_result numeric_context_result_type() const
   {
     return dec ? DECIMAL_RESULT : INT_RESULT;
   }
@@ -2027,7 +2031,7 @@ public:
   longlong val_date_temporal();
   bool get_time(MYSQL_TIME *ltime)
   {
-    return get_date(ltime, 0);
+    return get_date(ltime, TIME_FUZZY_DATE);
   }
 };
 
