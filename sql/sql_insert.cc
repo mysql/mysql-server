@@ -713,12 +713,14 @@ static bool set_partition(THD *thd, TABLE *table, List<Item> &fields,
   if (fields.elements || !values.elements)
   {
     DBUG_ASSERT(thd->lex->used_tables);
-    if (fill_record(thd, fields, values, false))
+    if (fill_record(thd, fields, values, false,
+        &table->part_info->full_part_field_set))
       DBUG_RETURN(true);
   }
   else
   {
-    if (fill_record(thd, table->field, values, false))
+    if (fill_record(thd, table->field, values, false,
+        &table->part_info->full_part_field_set))
       DBUG_RETURN(true);
   }
   if (table->part_info->get_partition_id(table->part_info, &part_id,
