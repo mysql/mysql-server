@@ -300,13 +300,15 @@ public:
      notify_*_log_name_updated() methods. (They need to be called only if SQL
      thread is running).
    */
-  enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS, UNTIL_GTID} until_condition;
+  enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS,
+        UNTIL_SQL_BEFORE_GTIDS} until_condition;
   char until_log_name[FN_REFLEN];
   ulonglong until_log_pos;
   /* extension extracted from log_name and converted to int */
   ulong until_log_name_extension;
 #ifdef HAVE_GTID
-  char until_gtid[Gtid::MAX_TEXT_LENGTH + 1];
+  Gtid_set until_gtids_obj;
+  Gtid_set current_gtids_obj;
 #endif
   /* 
      Cached result of comparison of until_log_name and current log name

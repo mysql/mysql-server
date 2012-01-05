@@ -263,14 +263,14 @@ struct Parser
   Do not try to get a reference to the gtid's classes because
   this will cause unnecessary and erroneous dependencies.
 */
-const int GTID_SETS_SIZES= 256;
+const int GTID_SET_SIZE= 256;
 #endif 
 
 struct MasterPos
 {
   char file[FN_REFLEN];
 #ifdef HAVE_GTID
-  char gtid_sets[GTID_SETS_SIZES];
+  char gtid_set[GTID_SET_SIZE];
 #endif
   ulong pos;
 } master_pos;
@@ -402,7 +402,7 @@ const char *command_names[]=
   "sync_with_master",
   "sync_slave_with_master",
 #ifdef HAVE_GTID
-  "sync_slave_gtid_with_master",
+  "sync_slave_gtids_with_master",
 #endif
   "error",
   "send",
@@ -4300,16 +4300,16 @@ void do_sync_with_master(struct st_command *command)
 
 
 #ifdef HAVE_GTID
-void do_sync_gtid_with_master(struct st_command *command)
+void do_sync_gtids_with_master(struct st_command *command)
 {
   char query_buf[FN_REFLEN + 128];
   int timeout= 300; /* seconds */
 
-  if (!master_pos.gtid_sets[0])
-    die("Calling 'sync_gtid_with_master' without calling 'save_master_pos'");
+  if (!master_pos.gtid_set[0])
+    die("Calling 'sync_gtids_with_master' without calling 'save_master_pos'");
 
-  sprintf(query_buf, "select master_gtid_wait('%s', %d)",
-          master_pos.gtid_sets, timeout);
+  sprintf(query_buf, "select sql_thread_wait_after_gtids('%s', %d)",
+          master_pos.gtid_set, timeout);
 
   do_sync_exec(query_buf, command, timeout);
 }
@@ -4506,8 +4506,8 @@ int do_save_master_pos()
   master_pos.pos = strtoul(row[1], (char**) 0, 10);
 #ifdef HAVE_GTID
   ulong *lengths= mysql_fetch_lengths(res);
-  if (lengths[4] < (ulong) GTID_SETS_SIZES)
-    strnmov(master_pos.gtid_sets, row[4], sizeof(master_pos.gtid_sets) - 1);
+  if (lengths[4] < (ulong) GTID_SET_SIZE)
+    strnmov(master_pos.gtid_set, row[4], sizeof(master_pos.gtid_set) - 1);
   else
     die("show master status: result's length is too large %s", row[4]);
 #endif
@@ -8959,7 +8959,7 @@ int main(int argc, char **argv)
           select_connection(command);
         else
           select_connection_name("slave");
-        do_sync_gtid_with_master(command);
+        do_sync_gtids_with_master(command);
         break;
       }
 #endif

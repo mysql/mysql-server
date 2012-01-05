@@ -79,7 +79,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    log_space_total(0), ignore_log_space_limit(0),
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), until_condition(UNTIL_NONE),
-   until_log_pos(0), retried_trans(0),
+   until_log_pos(0), until_gtids_obj(&global_sid_map),
+   current_gtids_obj(&global_sid_map), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0),
    slave_parallel_workers(0),
@@ -100,8 +101,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
 
   group_relay_log_name[0]= event_relay_log_name[0]=
     group_master_log_name[0]= 0;
-  until_log_name[0]= ign_master_log_name_end[0]= 
-  until_gtid[0]= 0;
+  until_log_name[0]= ign_master_log_name_end[0]= 0;
   set_timespec_nsec(last_clock, 0);
   bitmap_init(&recovery_groups, NULL, checkpoint_group, FALSE);
   memset(&cache_buf, 0, sizeof(cache_buf));
@@ -294,7 +294,8 @@ void Relay_log_info::clear_until_condition()
   until_condition= Relay_log_info::UNTIL_NONE;
   until_log_name[0]= 0;
   until_log_pos= 0;
-  until_gtid[0]= 0;
+  current_gtids_obj.clear();
+  until_gtids_obj.clear();
   DBUG_VOID_RETURN;
 }
 
@@ -1181,42 +1182,45 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
   }
   else if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
   {
-    Gtid gtid_param;
-    Gtid gtid_event;
-
-#ifndef DBUG_OFF
-    global_sid_lock.wrlock();
-#else
     global_sid_lock.rdlock();
-#endif
 
-    if (gtid_param.parse(&global_sid_map, until_gtid) != RETURN_STATUS_OK)
+    if (current_gtids_obj._add(((Gtid_log_event *)(ev))->get_sidno(false),
+                               ((Gtid_log_event *)(ev))->get_gno()) != RETURN_STATUS_OK)
     {
-      sql_print_error("%s", error_msg);
       global_sid_lock.unlock();
       DBUG_RETURN(true);
     }
-    gtid_event.sidno= ((Gtid_log_event *)(ev))->get_sidno(false);
-    gtid_event.gno= ((Gtid_log_event *)(ev))->get_gno();
 
 #ifndef DBUG_OFF
-    char dbug_buffer[Gtid::MAX_TEXT_LENGTH + 1];
-    gtid_event.to_string(&global_sid_map, dbug_buffer);
-
-    DBUG_PRINT("info", ("Waiting for %s. We are at %s.", until_gtid, dbug_buffer));
-#endif
-
-    if (gtid_param.equals(&gtid_event))
+    char* buffer= NULL;
+    if (!(buffer= (char *) my_malloc(max(current_gtids_obj.get_string_length(),
+                                         until_gtids_obj.get_string_length()) + 1,
+                                         MYF(MY_WME))))
     {
       global_sid_lock.unlock();
       DBUG_RETURN(true);
     }
+    else
+    {
+      current_gtids_obj.to_string(buffer);
+      DBUG_PRINT("info", ("Processed so far %s (not included).", buffer));
+      until_gtids_obj.to_string(buffer);
+      DBUG_PRINT("info", ("Will process until %s.", buffer));
+      my_free(buffer);
+    }
+#endif
+
+    if (until_gtids_obj.is_subset(&current_gtids_obj))
+    {
+      global_sid_lock.unlock();
+      DBUG_RETURN(true);
+    }
+
     global_sid_lock.unlock();
   }
 
   DBUG_RETURN(false);
 }
-
 
 void Relay_log_info::cached_charset_invalidate()
 {
