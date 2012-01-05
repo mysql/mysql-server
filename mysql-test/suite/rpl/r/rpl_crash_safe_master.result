@@ -106,7 +106,6 @@ show binlog events in 'master-bin.000003' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000003	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB
-master-bin.000003	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 # Test the data will not be recovered successfully
 # after the master restart.
 SELECT COUNT(*) FROM t1;
@@ -125,7 +124,6 @@ show binlog events in 'master-bin.000004' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000004	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000004	#	Query	#	#	use `test`; CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM
-master-bin.000004	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 # Test the data will not be recovered successfully
 # after the master restart.
 SELECT COUNT(*) FROM t2;

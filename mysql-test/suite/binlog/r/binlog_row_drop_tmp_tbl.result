@@ -25,7 +25,7 @@ GET_LOCK("a",10)
 1
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	CREATE DATABASE `drop-temp+table-test`
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
@@ -59,7 +59,7 @@ SELECT @@session.binlog_format;
 ROW
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	GtidSet	#	#	GROUPS: GTID:(X,X)
+master-bin.000001	#	Previous_gtids	#	#	
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 ( i text )
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
