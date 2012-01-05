@@ -24,6 +24,7 @@ FLUSH LOGS;
 DROP TABLE `A
 B`;
 
+RESET MASTER;
 # '--exec mysql ...' without --binary-mode option
 # It creates the table with a wrong table name and generates an error.
 # (error output was suppressed to make the test case platform agnostic)
@@ -34,6 +35,7 @@ DROP TABLE `TABLE_NAME_MASKED`;
 
 # In binary_mode, table name '0x410D0A42' and string '0x410042' can be
 # handled correctly.
+RESET MASTER;
 SELECT HEX(c1) FROM `A
 B`;
 HEX(c1)
