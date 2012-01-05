@@ -448,7 +448,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
-  if (open_and_lock_tables(thd, lex->query_tables, TRUE, 0))
+  if (open_query_tables(thd))
   {
     view= lex->unlink_first_table(&link_to_local);
     res= TRUE;
@@ -573,6 +573,15 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     res= TRUE;
     goto err;
   }
+
+  lex->link_first_table_back(view, link_to_local);
+  if (lock_query_tables(thd))
+  {
+    view= lex->unlink_first_table(&link_to_local);
+    res= TRUE;
+    goto err;
+  }
+  view= lex->unlink_first_table(&link_to_local);
 
   /* view list (list of view fields names) */
   if (lex->view_list.elements)

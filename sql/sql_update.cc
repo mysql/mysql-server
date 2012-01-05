@@ -289,13 +289,6 @@ int mysql_update(THD *thd,
   if (open_query_tables(thd))
     DBUG_RETURN(1);
 
-  if (thd->fill_derived_tables() &&
-      mysql_handle_derived(thd->lex, &mysql_derived_create))
-  {
-    mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
-    DBUG_RETURN(1);
-  }
-
   if (table_list->multitable_view)
   {
     DBUG_ASSERT(table_list->view != 0);

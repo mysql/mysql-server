@@ -446,15 +446,33 @@ eval $get_handler_status_counts;
 
 --echo # Test multi-table DELETE
 --echo # Can be expressed in two different ways.
-FLUSH STATUS;
 CREATE TABLE t2 LIKE t1;
+FLUSH STATUS;
+INSERT INTO t2 PARTITION (`p10-99`, subp3, `p100-99999`) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 eval $get_handler_status_counts;
+--echo # 24 locks (2 table, 5 + 5 subpartitions lock/unlock)
+FLUSH STATUS;
+ALTER TABLE t2 TRUNCATE PARTITION `p10-99`, `p0-9`, `p100-99999`;
+eval $get_handler_status_counts;
+--echo # 14 locks (1 table, 6 subpartitions lock/unlock)
+FLUSH STATUS;
+--error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
+INSERT INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
+eval $get_handler_status_counts;
+--echo # 16 locks (2 tables, 1 + 5 subpartitions lock/unlock)
+FLUSH STATUS;
+INSERT IGNORE INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
+eval $get_handler_status_counts;
+--echo # 16 locks (2 tables, 1 + 5 subpartitions lock/unlock)
+TRUNCATE TABLE t2;
 FLUSH STATUS;
 INSERT INTO t2 SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 eval $get_handler_status_counts;
+--echo # 30 locks (2 table, 8 + 5 subpartitions lock/unlock)
 FLUSH STATUS;
 CREATE TABLE t3 SELECT * FROM t1 PARTITION (pNeg,subp3,`p100-99999`);
 eval $get_handler_status_counts;
+--echo # 14 locks (2 table, 5 subpartitions lock/unlock)
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 SHOW CREATE TABLE t2;
