@@ -43,10 +43,9 @@ using std::max;
 using std::min;
 
 static void disable_sorted_access(JOIN_TAB* join_tab);
-static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
-                            List<Item> &fields, bool send_row,
-                            ulonglong select_options, const char *info,
-                            Item *having);
+static void return_zero_rows(JOIN *join, List<Item> &fields);
+static void save_const_null_info(JOIN *join, table_map *save_nullinfo);
+static void restore_const_null_info(JOIN *join, table_map save_nullinfo);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 
@@ -197,12 +196,7 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
-    (void) return_zero_rows(this, result, select_lex->leaf_tables,
-                            *columns_list,
-			    send_row_on_empty_set(),
-			    select_options,
-			    zero_result_cause,
-			    having);
+    return_zero_rows(this, *columns_list);
     DBUG_VOID_RETURN;
   }
   
@@ -1354,42 +1348,51 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
   }
 }
 
+/**
+  For some reason (impossible WHERE clause etc), the tables cannot
+  possibly contain any rows that will be in the result. This function
+  is used to return with a result based on no matching rows (i.e., an
+  empty result or one row with aggregates calculated without using
+  rows in the case of implicit grouping) before the execution of
+  nested loop join.
 
-static int
-return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
-		 List<Item> &fields, bool send_row, ulonglong select_options,
-		 const char *info, Item *having)
+  @param join    The join that does not produce a row
+  @param fields  Fields in result
+*/
+static void
+return_zero_rows(JOIN *join, List<Item> &fields)
 {
   DBUG_ENTER("return_zero_rows");
 
   join->join_free();
 
-  if (send_row)
-  {
-    for (TABLE_LIST *table= tables; table; table= table->next_leaf)
-      mark_as_null_row(table->table);		// All fields are NULL
-    if (having && having->val_int() == 0)
-      send_row=0;
-  }
-  if (!(result->send_result_set_metadata(fields,
-                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)))
+  if (!(join->result->send_result_set_metadata(fields,
+                                               Protocol::SEND_NUM_ROWS | 
+                                               Protocol::SEND_EOF)))
   {
     bool send_error= FALSE;
-    if (send_row)
+    if (join->send_row_on_empty_set())
     {
+      // Mark tables as containing only NULL values
+      for (uint tableno= 0; tableno < join->tables; tableno++)
+        mark_as_null_row((join->join_tab+tableno)->table);
+
+      // Calculate aggregate functions for no rows
       List_iterator_fast<Item> it(fields);
       Item *item;
       while ((item= it++))
-	item->no_rows_in_result();
-      send_error= result->send_data(fields);
+        item->no_rows_in_result();
+
+      if (!join->having || join->having->val_int())
+        send_error= join->result->send_data(fields);
     }
     if (!send_error)
-      result->send_eof();				// Should be safe
+      join->result->send_eof();                 // Should be safe
   }
   /* Update results for FOUND_ROWS */
   join->thd->set_examined_row_count(0);
   join->thd->limit_found_rows= 0;
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1542,12 +1545,33 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     }
     else if (join->send_row_on_empty_set())
     {
+      table_map save_nullinfo= 0;
+      /*
+        If this is a subquery, we need to save and later restore
+        the const table NULL info before clearing the tables
+        because the following executions of the subquery do not
+        reevaluate constant fields. @see save_const_null_info
+        and restore_const_null_info
+      */
+      if (join->select_lex->master_unit()->item && join->const_tables)
+        save_const_null_info(join, &save_nullinfo);
+
+      // Mark tables as containing only NULL values
+      join->clear();
+
+      // Calculate aggregate functions for no rows
+      List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
+                                 fields);
+      List_iterator_fast<Item> it(*columns_list);
+      Item *item;
+      while ((item= it++))
+        item->no_rows_in_result();
+
       if (!join->having || join->having->val_int())
-      {
-        List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
-                                   fields);
         rc= join->result->send_data(*columns_list);
-      }
+
+      if (save_nullinfo)
+        restore_const_null_info(join, save_nullinfo);
     }
     /*
       An error can happen when evaluating the conds 
@@ -2640,8 +2664,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     do
     {
       embedded= embedding;
-      if (embedded->on_expr)
-         update_const_equal_items(embedded->on_expr, tab);
+      if (embedded->join_cond())
+        update_const_equal_items(embedded->join_cond(), tab);
       embedding= embedded->embedding;
     }
     while (embedding &&
@@ -3388,12 +3412,25 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	}
 	else
 	{
-	  if (!join->first_record)
-	  {
+          table_map save_nullinfo= 0;
+          if (!join->first_record)
+          {
+            /*
+              If this is a subquery, we need to save and later restore
+              the const table NULL info before clearing the tables
+              because the following executions of the subquery do not
+              reevaluate constant fields. @see save_const_null_info
+              and restore_const_null_info
+            */
+            if (join->select_lex->master_unit()->item && join->const_tables)
+              save_const_null_info(join, &save_nullinfo);
+
+            // Mark tables as containing only NULL values
+            join->clear();
+
+            // Calculate aggregate functions for no rows
             List_iterator_fast<Item> it(*join->fields);
             Item *item;
-	    /* No matching rows for group function */
-	    join->clear();
 
             while ((item= it++))
               item->no_rows_in_result();
@@ -3411,6 +3448,9 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	    if (join->rollup_send_data((uint) (idx+1)))
 	      error= 1;
 	  }
+          if (save_nullinfo)
+            restore_const_null_info(join, save_nullinfo);
+
 	}
 	if (error > 0)
           DBUG_RETURN(NESTED_LOOP_ERROR);        /* purecov: inspected */
@@ -3669,11 +3709,34 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       int send_group_parts= join->send_group_parts;
       if (idx < send_group_parts)
       {
-	if (!join->first_record)
-	{
-	  /* No matching rows for group function */
-	  join->clear();
-	}
+        table_map save_nullinfo= 0;
+        if (!join->first_record)
+        {
+          // Dead code or we need a test case for this branch
+          DBUG_ASSERT(false);
+          /*
+            If this is a subquery, we need to save and later restore
+            the const table NULL info before clearing the tables
+            because the following executions of the subquery do not
+            reevaluate constant fields. @see save_const_null_info
+            and restore_const_null_info
+          */
+          if (join->select_lex->master_unit()->item && join->const_tables)
+            save_const_null_info(join, &save_nullinfo);
+
+          // Mark tables as containing only NULL values
+          join->clear();
+
+          // Calculate aggregate functions for no rows
+          List<Item> *columns_list= (join->procedure ?
+                                     &join->procedure_fields_list :
+                                     join->fields);
+          List_iterator_fast<Item> it(*columns_list);
+          Item *item;
+          while ((item= it++))
+            item->no_rows_in_result();
+
+        }
         copy_sum_funcs(join->sum_funcs,
                        join->sum_funcs_end[send_group_parts]);
 	if (!join->having || join->having->val_int())
@@ -3691,6 +3754,9 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  if (join->rollup_write_data((uint) (idx+1), table))
 	    DBUG_RETURN(NESTED_LOOP_ERROR);
 	}
+        if (save_nullinfo)
+          restore_const_null_info(join, save_nullinfo);
+
 	if (end_of_records)
 	  DBUG_RETURN(NESTED_LOOP_OK);
       }
@@ -4701,6 +4767,79 @@ change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
   itr.sublist(res_selected_fields, elements);
 
   return thd->is_fatal_error;
+}
+
+
+/**
+  Save NULL-row info for constant tables. Used in conjunction with
+  restore_const_null_info() to restore constant table null_row and
+  status values after temporarily marking rows as NULL. This is only
+  done for const tables in subqueries because these values are not
+  recalculated on next execution of the subquery.
+
+  @param join               The join for which const tables are about to be
+                            marked as containing only NULL values
+  @param[out] save_nullinfo Const tables that have null_row=false and
+                            STATUS_NULL_ROW set are tagged in this
+                            table_map so that the value can be
+                            restored by restore_const_null_info()
+
+  @see mark_as_null_row
+  @see restore_const_null_info
+*/
+static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
+{
+  DBUG_ASSERT(join->const_tables);
+
+  for (uint tableno= 0; tableno < join->const_tables; tableno++)
+  {
+    TABLE *tbl= (join->join_tab+tableno)->table;
+    /*
+      tbl->status and tbl->null_row must be in sync: either both set
+      or none set. Otherwise, an additional table_map parameter is
+      needed to save/restore_const_null_info() these separately
+    */
+    DBUG_ASSERT(tbl->null_row ? (tbl->status & STATUS_NULL_ROW) :
+                               !(tbl->status & STATUS_NULL_ROW));
+
+    if (!tbl->null_row)
+      *save_nullinfo|= tbl->map;
+  }
+}
+
+/**
+  Restore NULL-row info for constant tables. Used in conjunction with
+  save_const_null_info() to restore constant table null_row and status
+  values after temporarily marking rows as NULL. This is only done for
+  const tables in subqueries because these values are not recalculated
+  on next execution of the subquery.
+
+  @param join            The join for which const tables have been
+                         marked as containing only NULL values
+  @param save_nullinfo   Const tables that had null_row=false and
+                         STATUS_NULL_ROW set when
+                         save_const_null_info() was called
+
+  @see mark_as_null_row
+  @see save_const_null_info
+*/
+static void restore_const_null_info(JOIN *join, table_map save_nullinfo)
+{
+  DBUG_ASSERT(join->const_tables && save_nullinfo);
+
+  for (uint tableno= 0; tableno < join->const_tables; tableno++)
+  {
+    TABLE *tbl= (join->join_tab+tableno)->table;
+    if ((save_nullinfo & tbl->map))
+    {
+      /*
+        The table had null_row=false and STATUS_NULL_ROW set when
+        save_const_null_info was called
+      */
+      tbl->null_row= false;
+      tbl->status&= ~STATUS_NULL_ROW;
+    }
+  }
 }
 
 
