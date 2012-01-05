@@ -1980,15 +1980,12 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->cachetable_size_limit    = ctstat.size_limit;
 	    engstat->cachetable_size_max      = ctstat.size_max;
 	    engstat->cachetable_size_writing  = ctstat.size_writing;
-	    engstat->get_and_pin_footprint    = ctstat.get_and_pin_footprint;
-	    engstat->local_checkpoint         = ctstat.local_checkpoint;
-	    engstat->local_checkpoint_files   = ctstat.local_checkpoint_files;
-	    engstat->local_checkpoint_during_checkpoint = ctstat.local_checkpoint_during_checkpoint;
+            engstat->cachetable_size_nonleaf  = ctstat.size_nonleaf;
+            engstat->cachetable_size_leaf     = ctstat.size_leaf;
+            engstat->cachetable_size_rollback = ctstat.size_rollback;
+            engstat->cachetable_size_cachepressure = ctstat.size_cachepressure;
             engstat->cachetable_evictions     = ctstat.evictions;
             engstat->cleaner_executions       = ctstat.cleaner_executions;
-            engstat->cachetable_size_leaf     = ctstat.size_leaf;
-            engstat->cachetable_size_nonleaf  = ctstat.size_nonleaf;
-            engstat->cachetable_size_rollback = ctstat.size_rollback;
 	}
 	{
 	    toku_ltm* ltm = env->i->ltm;
@@ -2297,8 +2294,6 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "cachetable_waittime              %"PRIu64"\n", engstat.cachetable_waittime);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_wait_reading          %"PRIu64"\n", engstat.cachetable_wait_reading);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_wait_writing          %"PRIu64"\n", engstat.cachetable_wait_writing);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_evictions             %"PRIu64"\n", engstat.cachetable_evictions);
-        n += snprintf(buff + n, bufsiz - n, "cleaner_executions               %"PRIu64"\n", engstat.cleaner_executions);
 	n += snprintf(buff + n, bufsiz - n, "puts                             %"PRIu64"\n", engstat.puts);
 	n += snprintf(buff + n, bufsiz - n, "prefetches                       %"PRIu64"\n", engstat.prefetches);
 	n += snprintf(buff + n, bufsiz - n, "maybe_get_and_pins               %"PRIu64"\n", engstat.maybe_get_and_pins);
@@ -2306,14 +2301,13 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "cachetable_size_current          %"PRId64"\n", engstat.cachetable_size_current);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_size_limit            %"PRId64"\n", engstat.cachetable_size_limit);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_size_max              %"PRId64"\n", engstat.cachetable_size_max);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_size_leaf             %"PRIu64"\n", engstat.cachetable_size_leaf);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_size_nonleaf          %"PRIu64"\n", engstat.cachetable_size_nonleaf);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_size_rollback         %"PRIu64"\n", engstat.cachetable_size_rollback);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_size_writing          %"PRId64"\n", engstat.cachetable_size_writing);
-	n += snprintf(buff + n, bufsiz - n, "get_and_pin_footprint            %"PRId64"\n", engstat.get_and_pin_footprint);
-	n += snprintf(buff + n, bufsiz - n, "local_checkpoint                 %"PRId64"\n", engstat.local_checkpoint);
-	n += snprintf(buff + n, bufsiz - n, "local_checkpoint_files           %"PRId64"\n", engstat.local_checkpoint_files);
-	n += snprintf(buff + n, bufsiz - n, "local_checkpoint_during_checkpoint  %"PRId64"\n", engstat.local_checkpoint_during_checkpoint);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_size_nonleaf          %"PRIu64"\n", engstat.cachetable_size_nonleaf);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_size_leaf             %"PRIu64"\n", engstat.cachetable_size_leaf);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_size_rollback         %"PRIu64"\n", engstat.cachetable_size_rollback);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_evictions             %"PRIu64"\n", engstat.cachetable_evictions);
+        n += snprintf(buff + n, bufsiz - n, "cleaner_executions               %"PRIu64"\n", engstat.cleaner_executions);
+
 	n += snprintf(buff + n, bufsiz - n, "range_locks_max                  %"PRIu64"\n", engstat.range_locks_max);
 	n += snprintf(buff + n, bufsiz - n, "range_locks_curr                 %"PRIu64"\n", engstat.range_locks_curr);
 	n += snprintf(buff + n, bufsiz - n, "range_locks_max_memory           %"PRIu64"\n", engstat.range_locks_max_memory);
