@@ -1786,7 +1786,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     if ((res= join_read_key2(join_tab, sjm->table, sjm->tab_ref)) == 1)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if (res || !sjm->in_equality->val_int())
-      DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+      DBUG_RETURN(NESTED_LOOP_OK);
     rc= (*last_tab->next_select)
       (join, join_tab + sjm->table_count, end_of_records);
   }
@@ -1878,6 +1878,8 @@ sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   /*
      TODO: Check whether we really need the call below and we can't do
            without it. If it's not the case remove it.
+     @note This branch is currently dead because setup_join_buffering()
+     disables join buffering if QS_DYNAMIC_RANGE is enabled.
   */
   rc= cache->join_records(TRUE);
   if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)

@@ -4627,3 +4627,44 @@ DROP TABLE t1, t2, t3;
 --echo # End of test for bug#13545215.
 
 --echo # End of 5.6 tests
+
+--echo #
+--echo # BUG#13553211 - MISSING ROWS ON SELECT WITH IN-SUBQUERY AND
+--echo # MATERIALIZATION + SEMIJOIN ON
+--echo #
+CREATE TABLE t1 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (4,'v','v');
+INSERT INTO t1 VALUES (62,'v','v');
+INSERT INTO t1 VALUES (7,'c','c');
+INSERT INTO t1 VALUES (1,NULL,NULL);
+
+let $query=
+SELECT
+  alias1.col_varchar_nokey AS a1_nokey,
+  alias1.col_varchar_key AS a1_key,
+  alias2.col_varchar_nokey AS a2_nokey
+FROM
+  t1 AS alias1, t1 AS alias2
+WHERE
+  (alias1.col_varchar_nokey,alias2.col_varchar_nokey)
+  IN
+  (
+    SELECT
+      SQ2_alias2.col_varchar_nokey, SQ2_alias1.col_varchar_key
+    FROM
+      t1 AS SQ2_alias1, t1 AS SQ2_alias2
+  )
+;
+
+eval EXPLAIN $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1;
