@@ -330,7 +330,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL GTID= "MASTER_UUID:1";
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:1";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 include/rpl_check_gtid.inc
@@ -343,7 +343,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL GTID= "MASTER_UUID:3";
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:3";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 include/rpl_check_gtid.inc
@@ -356,7 +356,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL GTID= "MASTER_UUID:5";
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:5";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 include/rpl_check_gtid.inc
@@ -369,7 +369,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL GTID= "MASTER_UUID:7";
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:7";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 include/rpl_check_gtid.inc
