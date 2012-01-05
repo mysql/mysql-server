@@ -448,6 +448,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
+  /* Not required to lock any tables. */
   if (open_query_tables(thd))
   {
     view= lex->unlink_first_table(&link_to_local);
@@ -574,6 +575,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
+#if 0
+  /* TODO: Is it really neccesary to lock the tables? */
   lex->link_first_table_back(view, link_to_local);
   if (lock_query_tables(thd))
   {
@@ -582,6 +585,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
   view= lex->unlink_first_table(&link_to_local);
+#endif
 
   /* view list (list of view fields names) */
   if (lex->view_list.elements)

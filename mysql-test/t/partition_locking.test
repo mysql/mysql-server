@@ -618,23 +618,23 @@ eval $get_handler_status_counts;
 FLUSH STATUS;
 CREATE VIEW v1_25 AS SELECT a, b FROM t1 PARTITION (p2, p5);
 eval $get_handler_status_counts;
---echo # 6 locks (1 table, 2 partitions lock/unlock)
+--echo # No locks!
 FLUSH STATUS;
 CREATE VIEW v1_25_check AS SELECT a, b FROM t1 PARTITION (p2, p5) t1_alias WITH CHECK OPTION;
 eval $get_handler_status_counts;
---echo # 6 locks (1 table, 2 partitions lock/unlock)
+--echo # No locks!
 FLUSH STATUS;
 CREATE VIEW v1_9 AS SELECT a, b FROM t1 WHERE a = 9;
 eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partitions lock/unlock)
+--echo # No locks!
 FLUSH STATUS;
 CREATE VIEW v1_9_check AS SELECT a, b FROM t1 WHERE a = 9 WITH CHECK OPTION;
 eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partitions lock/unlock)
+--echo # No locks!
 FLUSH STATUS;
 CREATE VIEW v1_all AS SELECT a, b FROM t1;
 eval $get_handler_status_counts;
---echo # 28 locks (1 table, 13 partitions lock/unlock)
+--echo # No locks!
 SELECT TABLE_NAME, CHECK_OPTION, IS_UPDATABLE, VIEW_DEFINITION
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'v1_%';
