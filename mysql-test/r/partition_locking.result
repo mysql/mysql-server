@@ -1258,6 +1258,30 @@ HANDLER_WRITE	18
 # 1 read_rnd
 # 1 delete (due to moved to another partition)
 # 1 write
+FLUSH STATUS;
+UPDATE t1 SET b = CONCAT(b, ", same as min(a) + 2 in t2") WHERE a = (SELECT MIN(a) + 2 FROM t2);
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	56
+HANDLER_READ_FIRST	13
+HANDLER_READ_KEY	14
+HANDLER_UPDATE	1
+HANDLER_WRITE	17
+# 56 locks (2 tables, 13 + 13 partitions lock/unlock)
+FLUSH STATUS;
+UPDATE t1 SET b = CONCAT(b, ", max(a) in t2: ", (SELECT MAX(a) FROM t2)) WHERE a = 5;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	32
+HANDLER_READ_KEY	14
+HANDLER_READ_LAST	13
+HANDLER_UPDATE	1
+HANDLER_WRITE	17
+# 32 locks (2 tables, 1 + 13 partitions lock/unlock)
 #
 # Test multi table update
 #
@@ -1266,9 +1290,9 @@ a	b
 0	First row, p0
 1	First row, p1
 2	First row, p2
-3	First row, p3
+3	First row, p3, same as min(a) + 2 in t2
 4	First row, p4
-5	REPLACE second
+5	REPLACE second, max(a) in t2: 4
 26	Third row, p0, updated 1
 39	Fourth row, p0, updated 1
 52	Fifth row, p0, updated 1
@@ -1336,6 +1360,266 @@ HANDLER_WRITE	18
 # 2 rean_rnd_next
 # 2 update
 #
+# Test of views
+#
+# Found bug#13559657 (partition selection does not work with views)
+FLUSH STATUS;
+CREATE VIEW v1_25 AS SELECT a, b FROM t1 PARTITION (p2, p5);
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	6
+HANDLER_WRITE	17
+# 6 locks (1 table, 2 partitions lock/unlock)
+FLUSH STATUS;
+CREATE VIEW v1_25_check AS SELECT a, b FROM t1 PARTITION (p2, p5) t1_alias WITH CHECK OPTION;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	6
+HANDLER_WRITE	17
+# 6 locks (1 table, 2 partitions lock/unlock)
+FLUSH STATUS;
+CREATE VIEW v1_9 AS SELECT a, b FROM t1 WHERE a = 9;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	17
+# 4 locks (1 table, 1 partitions lock/unlock)
+FLUSH STATUS;
+CREATE VIEW v1_9_check AS SELECT a, b FROM t1 WHERE a = 9 WITH CHECK OPTION;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	17
+# 4 locks (1 table, 1 partitions lock/unlock)
+FLUSH STATUS;
+CREATE VIEW v1_all AS SELECT a, b FROM t1;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	28
+HANDLER_WRITE	17
+# 28 locks (1 table, 13 partitions lock/unlock)
+SELECT TABLE_NAME, CHECK_OPTION, IS_UPDATABLE, VIEW_DEFINITION
+FROM INFORMATION_SCHEMA.VIEWS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'v1_%';
+TABLE_NAME	CHECK_OPTION	IS_UPDATABLE	VIEW_DEFINITION
+v1_25	NONE	YES	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` PARTITION (`p2`,`p5`)
+v1_25_check	CASCADED	YES	select `t1_alias`.`a` AS `a`,`t1_alias`.`b` AS `b` from `test`.`t1` PARTITION (`p2`,`p5`) `t1_alias`
+v1_9	NONE	YES	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 9)
+v1_9_check	CASCADED	YES	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 9)
+v1_all	NONE	YES	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`
+FLUSH STATUS;
+INSERT INTO v1_all VALUES (23, "Insert in v1_all");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	18
+# 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO v1_25 VALUES (18, "Insert in v1_25");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	18
+# 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO v1_25 VALUES (17, "Insert in v1_25 fail");
+ERROR HY000: Found a row not matching the given partition set
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_EXTERNAL_LOCK	2
+HANDLER_WRITE	17
+# 2 locks (1 table, 0 partition lock/unlock)
+FLUSH STATUS;
+INSERT IGNORE INTO v1_25 VALUES (17, "Insert ignore in v1_25");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_EXTERNAL_LOCK	2
+HANDLER_WRITE	17
+# 2 locks (1 table, 0 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO v1_25_check VALUES (31, "Insert in v1_25_check");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	18
+# 4 locks (1 table, 1 partition lock/unlock)
+# Bug#13559657, this should fail!
+FLUSH STATUS;
+INSERT INTO v1_25_check VALUES (30, "Insert in v1_25_check fail");
+ERROR HY000: Found a row not matching the given partition set
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_EXTERNAL_LOCK	2
+HANDLER_WRITE	17
+# 2 locks (1 table, 0 partition lock/unlock)
+FLUSH STATUS;
+INSERT IGNORE INTO v1_25_check VALUES (30, "Insert ignore in v1_25_check");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_EXTERNAL_LOCK	2
+HANDLER_WRITE	17
+# 2 locks (1 table, 0 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO v1_9 VALUES (9, "Insert in v1_9");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	18
+# 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO v1_9 VALUES (8, "Insert in v1_9 NO CHECK!");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	18
+# 4 locks (1 table, 1 partition lock/unlock)
+SELECT * FROM t1 WHERE a = 8;
+a	b
+8	Insert in v1_9 NO CHECK!
+# DELETE will not find row not in view
+FLUSH STATUS;
+DELETE FROM v1_9_check WHERE a = 8;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_WRITE	17
+# 0 locks, impossible where!
+# TODO: See if the reviewer in optimizer notices the difference :)
+# I.e. EXPLAIN DELETE for non partitioned tables does not optimize this
+# as SELECT would!
+EXPLAIN EXTENDED DELETE FROM v1_9_check WHERE a = 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+EXPLAIN EXTENDED SELECT * FROM v1_9_check WHERE a = 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where 0
+SELECT * FROM t1 WHERE a = 8;
+a	b
+8	Insert in v1_9 NO CHECK!
+FLUSH STATUS;
+INSERT INTO v1_9_check VALUES (10, "Insert in v1_9_check fail");
+ERROR HY000: CHECK OPTION failed 'test.v1_9_check'
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_ROLLBACK	1
+HANDLER_WRITE	17
+# 4 locks (1 table, 1 partition lock/unlock)
+SELECT * FROM t1 WHERE a = 9;
+a	b
+9	Insert in v1_9
+FLUSH STATUS;
+DELETE FROM v1_9_check WHERE a = 9;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_READ_KEY	1
+HANDLER_WRITE	17
+# 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO v1_9_check VALUES (9, "Insert in v1_9_check");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	18
+FLUSH STATUS;
+SELECT * FROM v1_9;
+a	b
+9	Insert in v1_9_check
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_READ_KEY	1
+HANDLER_WRITE	17
+# 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+SELECT * FROM v1_25;
+a	b
+18	Insert in v1_25
+2	First row, p2
+31	Insert in v1_25_check
+5	REPLACE second, max(a) in t2: 4
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	6
+HANDLER_READ_FIRST	2
+HANDLER_READ_KEY	2
+HANDLER_READ_NEXT	4
+HANDLER_WRITE	17
+# 6 locks (1 table, 2 partition lock/unlock)
+FLUSH STATUS;
+SELECT * FROM v1_all;
+a	b
+0	First row, p0
+1	First row, p1
+104	No duplicate 104
+105	No duplicate
+113	Second row, p0, updated 1, updated 2 -> p8, updated 3, updated 4 -> p9
+18	Insert in v1_25
+2	First row, p2
+23	Insert in v1_all
+26	Third row, p0, updated 1
+3	First row, p3, same as min(a) + 2 in t2
+31	Insert in v1_25_check
+39	Fourth row, p0, updated 1
+4	First row, p4, t2.b:First row, p4
+5	REPLACE second, max(a) in t2: 4
+52	Fifth row, p0, updated 1
+65	No duplicate, INSERT_DUP_KEY_UPDATE
+78	No duplicate
+8	Insert in v1_9 NO CHECK!
+9	Insert in v1_9_check
+91	No duplicate, INSERT_DUP_KEY_UPDATE
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	28
+HANDLER_READ_FIRST	13
+HANDLER_READ_KEY	13
+HANDLER_READ_NEXT	20
+HANDLER_WRITE	17
+# 28 locks (1 table, 13 partition lock/unlock)
+DROP VIEW v1_all;
+DROP VIEW v1_9, v1_9_check;
+DROP VIEW v1_25, v1_25_check;
+#
 # Test CREATE SELECT
 #
 FLUSH STATUS;
@@ -1347,7 +1631,7 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	10
 HANDLER_READ_FIRST	3
 HANDLER_READ_KEY	3
-HANDLER_READ_NEXT	11
+HANDLER_READ_NEXT	12
 HANDLER_WRITE	20
 # 10 locks (2 tables, 3 partitions lock/unlock)
 SELECT * FROM t3 ORDER BY a;
@@ -1372,7 +1656,7 @@ a	b
 0	First row, p0
 1	First row, p1
 2	First row, p2
-3	First row, p3
+3	First row, p3, same as min(a) + 2 in t2
 4	First row, p4, t2.b:First row, p4
 DROP TABLE t3;
 #
@@ -1453,16 +1737,21 @@ a	b
 105	No duplicate
 111	Test111
 113	Second row, p0, updated 1, updated 2 -> p8, updated 3, updated 4 -> p9
+18	Insert in v1_25
 2	First row, p2
+23	Insert in v1_all
 26	Third row, p0, updated 1
-3	First row, p3
+3	First row, p3, same as min(a) + 2 in t2
+31	Insert in v1_25_check
 313	Test313
 39	Fourth row, p0, updated 1
 4	First row, p4, t2.b:First row, p4
-5	REPLACE second
+5	REPLACE second, max(a) in t2: 4
 52	Fifth row, p0, updated 1
 65	No duplicate, INSERT_DUP_KEY_UPDATE
 78	No duplicate
+8	Insert in v1_9 NO CHECK!
+9	Insert in v1_9_check
 91	No duplicate, INSERT_DUP_KEY_UPDATE
 98	Test98
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -1472,7 +1761,7 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	30
 HANDLER_READ_FIRST	13
 HANDLER_READ_KEY	14
-HANDLER_READ_NEXT	18
+HANDLER_READ_NEXT	23
 HANDLER_WRITE	17
 # 30 locks (procs table, t1 + 13 partitions lock/unlock)
 FLUSH STATUS;
@@ -1505,6 +1794,7 @@ HANDLER_WRITE	17
 FLUSH STATUS;
 CALL sp_select_partition("p8");
 a	b
+8	Insert in v1_9 NO CHECK!
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -1512,6 +1802,7 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_READ_FIRST	1
 HANDLER_READ_KEY	1
+HANDLER_READ_NEXT	1
 HANDLER_WRITE	17
 # no proc locking since already in proc cache.
 # 4 locks (t1 + 1 partition lock/unlock)
@@ -1519,6 +1810,7 @@ FLUSH STATUS;
 CALL sp_select_partition("p7,p8");
 a	b
 111	Test111
+8	Insert in v1_9 NO CHECK!
 98	Test98
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
@@ -1527,7 +1819,7 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	6
 HANDLER_READ_FIRST	2
 HANDLER_READ_KEY	2
-HANDLER_READ_NEXT	2
+HANDLER_READ_NEXT	3
 HANDLER_WRITE	17
 # 6 locks (t1 + 2 partitions lock/unlock)
 FLUSH STATUS;
@@ -1535,9 +1827,9 @@ CALL sp_select_range(1,5);
 a	b
 1	First row, p1
 2	First row, p2
-3	First row, p3
+3	First row, p3, same as min(a) + 2 in t2
 4	First row, p4, t2.b:First row, p4
-5	REPLACE second
+5	REPLACE second, max(a) in t2: 4
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -1561,10 +1853,15 @@ a	b
 0	First row, p0
 1	First row, p1
 2	First row, p2
-3	First row, p3
+3	First row, p3, same as min(a) + 2 in t2
 4	First row, p4, t2.b:First row, p4
-5	REPLACE second
+5	REPLACE second, max(a) in t2: 4
+8	Insert in v1_9 NO CHECK!
+9	Insert in v1_9_check
+18	Insert in v1_25
+23	Insert in v1_all
 26	Third row, p0, updated 1
+31	Insert in v1_25_check
 39	Fourth row, p0, updated 1
 52	Fifth row, p0, updated 1
 65	No duplicate, INSERT_DUP_KEY_UPDATE
@@ -1661,10 +1958,15 @@ a	b
 0	First row, p0
 1	First row, p1
 2	First row, p2
-3	First row, p3
+3	First row, p3, same as min(a) + 2 in t2
 4	First row, p4, t2.b:First row, p4
-5	REPLACE second
+5	REPLACE second, max(a) in t2: 4
+8	Insert in v1_9 NO CHECK!
+9	Insert in v1_9_check
+18	Insert in v1_25
+23	Insert in v1_all
 26	Third row, p0, updated 1
+31	Insert in v1_25_check
 39	Fourth row, p0, updated 1
 52	Fifth row, p0, updated 1
 65	No duplicate, INSERT_DUP_KEY_UPDATE
@@ -1767,10 +2069,15 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 0	First row, p0
 2	First row, p2
-3	First row, p3
+3	First row, p3, same as min(a) + 2 in t2
 4	First row, p4, t2.b:First row, p4
-5	REPLACE second
+5	REPLACE second, max(a) in t2: 4
+8	Insert in v1_9 NO CHECK!
+9	Insert in v1_9_check
+18	Insert in v1_25
+23	Insert in v1_all
 26	Third row, p0, updated 1
+31	Insert in v1_25_check
 39	Fourth row, p0, updated 1
 52	Fifth row, p0, updated 1
 65	No duplicate, INSERT_DUP_KEY_UPDATE
@@ -1932,7 +2239,7 @@ HANDLER_WRITE	17
 # t1, before update, after update
 SELECT * FROM t1 WHERE a = 3;
 a	b
-3	First row, p3
+3	First row, p3, same as min(a) + 2 in t2
 FLUSH STATUS;
 UPDATE t1 SET b = CONCAT(b, ", UPDATED2") WHERE a = 3;
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -1948,7 +2255,7 @@ HANDLER_WRITE	19
 # t1, before update, after update
 SELECT * FROM t1 WHERE a = 3;
 a	b
-3	First row, p3, UPDATED2
+3	First row, p3, same as min(a) + 2 in t2, UPDATED2
 FLUSH STATUS;
 INSERT INTO t1 VALUES (12, "First row, p12");
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -1990,12 +2297,17 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 0	First row, p0 REPLACED4
 2	First row, p2, duplicate key 2, duplicate key 2
-3	First row, p3, UPDATED2
+3	First row, p3, same as min(a) + 2 in t2, UPDATED2
 4	First row, p4, t2.b:First row, p4
-5	REPLACE second
+5	REPLACE second, max(a) in t2: 4
+8	Insert in v1_9 NO CHECK!
+9	Insert in v1_9_check
 11	First row, p11
 12	First row, p12
+18	Insert in v1_25
+23	Insert in v1_all
 26	Third row, p0, updated 1
+31	Insert in v1_25_check
 39	Fourth row, p0, updated 1
 52	Fifth row, p0, updated 1
 65	No duplicate, INSERT_DUP_KEY_UPDATE
@@ -2078,12 +2390,17 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 0	First row, p0 REPLACED4
 2	First row, p2, duplicate key 2, duplicate key 2
-3	First row, p3, UPDATED2
+3	First row, p3, same as min(a) + 2 in t2, UPDATED2
 4	First row, p4, t2.b:First row, p4
-5	REPLACE second
+5	REPLACE second, max(a) in t2: 4
+8	Insert in v1_9 NO CHECK!
+9	Insert in v1_9_check
 11	First row, p11
 12	First row, p12
+18	Insert in v1_25
+23	Insert in v1_all
 26	Third row, p0, updated 1
+31	Insert in v1_25_check
 39	Fourth row, p0, updated 1
 52	Fifth row, p0, updated 1
 65	No duplicate, INSERT_DUP_KEY_UPDATE
@@ -2115,8 +2432,8 @@ old_a	new_a	old_b	new_b
 2	2	AU: First row, p2	AU: First row, p2, duplicate key 2
 2	2	AU: First row, p2, duplicate key 2	AU: First row, p2, duplicate key 2, duplicate key 2
 2	2	BU: First row, p2, duplicate key 2	BU: First row, p2, duplicate key 2, duplicate key 2
-3	3	AU: First row, p3	AU: First row, p3, UPDATED2
-3	3	BU: First row, p3	BU: First row, p3, UPDATED2
+3	3	AU: First row, p3, same as min(a) + 2 in t2	AU: First row, p3, same as min(a) + 2 in t2, UPDATED2
+3	3	BU: First row, p3, same as min(a) + 2 in t2	BU: First row, p3, same as min(a) + 2 in t2, UPDATED2
 98	NULL	AD: Test98	NULL
 98	NULL	BD: Test98	NULL
 DROP TABLE t1, t2, t3;
@@ -2282,5 +2599,7 @@ DROP TABLE t1;
 # TODO: Document that functions in WHERE clause can now be evaluated
 #       before any locks are taken (i.e. if optimization is possible
 #       before locking). Like GET_LOCK/RELEASE_LOCK ?
-# TODO: How to make a trigger prune?
-# TODO: can stored procedures be pruned?
+# TODO: How to make a stored function or trigger prune?
+# Stored procedures does not prelock, so it will prune locks.
+# Stored functions, triggers and events prelocks all used tables
+# which makes prune locks impossible.

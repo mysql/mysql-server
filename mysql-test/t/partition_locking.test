@@ -571,7 +571,14 @@ eval $get_handler_status_counts;
 --echo # 1 read_rnd
 --echo # 1 delete (due to moved to another partition)
 --echo # 1 write
-
+FLUSH STATUS;
+UPDATE t1 SET b = CONCAT(b, ", same as min(a) + 2 in t2") WHERE a = (SELECT MIN(a) + 2 FROM t2);
+eval $get_handler_status_counts;
+--echo # 56 locks (2 tables, 13 + 13 partitions lock/unlock)
+FLUSH STATUS;
+UPDATE t1 SET b = CONCAT(b, ", max(a) in t2: ", (SELECT MAX(a) FROM t2)) WHERE a = 5;
+eval $get_handler_status_counts;
+--echo # 32 locks (2 tables, 1 + 13 partitions lock/unlock)
 
 --echo #
 --echo # Test multi table update
@@ -603,6 +610,132 @@ eval $get_handler_status_counts;
 --echo # 1 read_next, read_rnd
 --echo # 2 rean_rnd_next
 --echo # 2 update
+
+--echo #
+--echo # Test of views
+--echo #
+--echo # Found bug#13559657 (partition selection does not work with views)
+FLUSH STATUS;
+CREATE VIEW v1_25 AS SELECT a, b FROM t1 PARTITION (p2, p5);
+eval $get_handler_status_counts;
+--echo # 6 locks (1 table, 2 partitions lock/unlock)
+FLUSH STATUS;
+CREATE VIEW v1_25_check AS SELECT a, b FROM t1 PARTITION (p2, p5) t1_alias WITH CHECK OPTION;
+eval $get_handler_status_counts;
+--echo # 6 locks (1 table, 2 partitions lock/unlock)
+FLUSH STATUS;
+CREATE VIEW v1_9 AS SELECT a, b FROM t1 WHERE a = 9;
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partitions lock/unlock)
+FLUSH STATUS;
+CREATE VIEW v1_9_check AS SELECT a, b FROM t1 WHERE a = 9 WITH CHECK OPTION;
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partitions lock/unlock)
+FLUSH STATUS;
+CREATE VIEW v1_all AS SELECT a, b FROM t1;
+eval $get_handler_status_counts;
+--echo # 28 locks (1 table, 13 partitions lock/unlock)
+SELECT TABLE_NAME, CHECK_OPTION, IS_UPDATABLE, VIEW_DEFINITION
+FROM INFORMATION_SCHEMA.VIEWS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'v1_%';
+
+FLUSH STATUS;
+INSERT INTO v1_all VALUES (23, "Insert in v1_all");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+
+FLUSH STATUS;
+INSERT INTO v1_25 VALUES (18, "Insert in v1_25");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+
+FLUSH STATUS;
+--error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
+INSERT INTO v1_25 VALUES (17, "Insert in v1_25 fail");
+eval $get_handler_status_counts;
+--echo # 2 locks (1 table, 0 partition lock/unlock)
+
+FLUSH STATUS;
+INSERT IGNORE INTO v1_25 VALUES (17, "Insert ignore in v1_25");
+eval $get_handler_status_counts;
+--echo # 2 locks (1 table, 0 partition lock/unlock)
+
+FLUSH STATUS;
+INSERT INTO v1_25_check VALUES (31, "Insert in v1_25_check");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+
+--echo # Bug#13559657, this should fail!
+FLUSH STATUS;
+--error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
+INSERT INTO v1_25_check VALUES (30, "Insert in v1_25_check fail");
+eval $get_handler_status_counts;
+--echo # 2 locks (1 table, 0 partition lock/unlock)
+
+FLUSH STATUS;
+INSERT IGNORE INTO v1_25_check VALUES (30, "Insert ignore in v1_25_check");
+eval $get_handler_status_counts;
+--echo # 2 locks (1 table, 0 partition lock/unlock)
+
+FLUSH STATUS;
+INSERT INTO v1_9 VALUES (9, "Insert in v1_9");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+
+FLUSH STATUS;
+INSERT INTO v1_9 VALUES (8, "Insert in v1_9 NO CHECK!");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+
+SELECT * FROM t1 WHERE a = 8;
+--echo # DELETE will not find row not in view
+FLUSH STATUS;
+DELETE FROM v1_9_check WHERE a = 8;
+eval $get_handler_status_counts;
+--echo # 0 locks, impossible where!
+--echo # TODO: See if the reviewer in optimizer notices the difference :)
+--echo # I.e. EXPLAIN DELETE for non partitioned tables does not optimize this
+--echo # as SELECT would!
+EXPLAIN EXTENDED DELETE FROM v1_9_check WHERE a = 8;
+EXPLAIN EXTENDED SELECT * FROM v1_9_check WHERE a = 8;
+SELECT * FROM t1 WHERE a = 8;
+
+FLUSH STATUS;
+--error ER_VIEW_CHECK_FAILED
+INSERT INTO v1_9_check VALUES (10, "Insert in v1_9_check fail");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+
+SELECT * FROM t1 WHERE a = 9;
+FLUSH STATUS;
+DELETE FROM v1_9_check WHERE a = 9;
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+
+FLUSH STATUS;
+INSERT INTO v1_9_check VALUES (9, "Insert in v1_9_check");
+eval $get_handler_status_counts;
+
+FLUSH STATUS;
+--sorted_result
+SELECT * FROM v1_9;
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+
+FLUSH STATUS;
+--sorted_result
+SELECT * FROM v1_25;
+eval $get_handler_status_counts;
+--echo # 6 locks (1 table, 2 partition lock/unlock)
+
+FLUSH STATUS;
+--sorted_result
+SELECT * FROM v1_all;
+eval $get_handler_status_counts;
+--echo # 28 locks (1 table, 13 partition lock/unlock)
+DROP VIEW v1_all;
+DROP VIEW v1_9, v1_9_check;
+DROP VIEW v1_25, v1_25_check;
 
 --echo #
 --echo # Test CREATE SELECT
@@ -1071,24 +1204,13 @@ DROP TABLE t1;
 --echo #       before any locks are taken (i.e. if optimization is possible
 --echo #       before locking). Like GET_LOCK/RELEASE_LOCK ?
 
-# TODO:
-# Triggers
---echo # TODO: How to make a trigger prune?
---echo # TODO: can stored procedures be pruned?
+--echo # TODO: How to make a stored function or trigger prune?
+--echo # Stored procedures does not prelock, so it will prune locks.
+--echo # Stored functions, triggers and events prelocks all used tables
+--echo # which makes prune locks impossible.
 
 
 #from the WL:
-# SELECT (including UNION and JOIN) should only lock the same partitions that
-# needs to read.
-# 
-# single table UPDATE will only be pruned for locking if no partitioning field is
-# given for update. (Not yet part of this worklog: One could optimize this if the
-# partitioning fields to be updated is constants only, then one could add those
-# matching partitions to be locked too).
-# 
-# multi table UPDATE will only prune locks for tables that does not update any
-# partitioning fields. (for enhancements see single table UPDATE). 
-# 
 # TODO: test if it makes sense to have an upper limit of inserted rows before just
 # use/lock all partitions, since the overhead of iterate over all rows to be
 # inserted can be higher than the overhead of locking all partitions.
