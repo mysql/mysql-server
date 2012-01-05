@@ -49,6 +49,7 @@ CREATE TABLE t1 (a INT);
 # Case 1.
 # Covers assertions in:
 #  - close_thread_tables
+#  - Prepared_statement::prepare(const char *, uint)
 eval SET GTID_NEXT = '$ida:1';
 PREPARE prep FROM 'INSERT INTO t1 VALUES (1)';
 
@@ -78,6 +79,8 @@ eval SET GTID_NEXT = '$ida:5';
 DROP PROCEDURE proc;
 
 # Case 6.
+# Covers assertions in:
+#  - trans_check(THD*)
 eval SET GTID_NEXT = '$ida:6';
 LOCK TABLES t1 READ;
 
@@ -86,6 +89,12 @@ LOCK TABLES t1 READ;
 #  - Locked_tables_list::unlock_locked_tables(THD *)
 eval SET GTID_NEXT = '$ida:7';
 UNLOCK TABLES;
+
+# Case 8.
+# Covers assertions in:
+#  - close_mysql_tables(THD *)
+eval SET GTID_NEXT = '$ida:10';
+FLUSH PRIVILEGES;
 
 --echo ==== Clean up ====
 

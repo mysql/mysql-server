@@ -345,6 +345,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
       the statement.  Hence, allow stmt.is_empty() in these cases.
       @todo Check if this causes any trouble /Sven.
       @todo Add test case in binlog.binlog_trx_empty_assertions /Sven
+      [running on tyr74-1]
     */
     DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
                 thd->get_gtid_next_list() != NULL ||

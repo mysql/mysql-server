@@ -3317,7 +3317,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     binlog_handler will be registered very early in the execution of
     the statement.  Hence, allow stmt.is_empty() in these cases.
     @todo Check if this causes any trouble. /Sven
-    @todo Add test case in binlog.binlog_trx_empty_assertions /Sven
+    @note Covered by Case 1 in test binlog.binlog_trx_empty_assertions
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
               thd->get_gtid_next_list() != NULL ||
