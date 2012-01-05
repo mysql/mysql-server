@@ -675,9 +675,6 @@ f
 f
 f
 f
-Maps should say that t2 and t3 depend on t1
-(because of straight_join), they don't, this is
-bug#11766858 and bug#11752239
 select TRACE from information_schema.OPTIMIZER_TRACE;
 TRACE
 {
@@ -797,6 +794,7 @@ TRACE
                 "row_may_be_null": false,
                 "map_bit": 1,
                 "depends_on_map_bits": [
+                  0
                 ] /* depends_on_map_bits */
               },
               {
@@ -805,6 +803,7 @@ TRACE
                 "row_may_be_null": false,
                 "map_bit": 2,
                 "depends_on_map_bits": [
+                  0
                 ] /* depends_on_map_bits */
               }
             ] /* table_dependencies */
@@ -834,9 +833,10 @@ TRACE
               {
                 "database": "test",
                 "table": "t3",
-                "rows": 1,
-                "cost": 1,
-                "table_type": "system"
+                "table_scan": {
+                  "rows": 1,
+                  "cost": 2
+                } /* table_scan */
               }
             ] /* rows_estimation */
           },
@@ -861,6 +861,45 @@ TRACE
                 "rest_of_plan": [
                   {
                     "database": "test",
+                    "table": "t3",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "rows": 1,
+                          "cost": 2.005,
+                          "chosen": true
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 4.8147,
+                    "rows_for_plan": 2,
+                    "rest_of_plan": [
+                      {
+                        "database": "test",
+                        "table": "t2",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "access_type": "scan",
+                              "using_join_cache": true,
+                              "rows": 2,
+                              "cost": 2.0099,
+                              "chosen": true
+                            }
+                          ] /* considered_access_paths */
+                        } /* best_access_path */,
+                        "cost_for_plan": 7.6247,
+                        "rows_for_plan": 4,
+                        "sort_cost": 4,
+                        "new_cost_for_plan": 11.625,
+                        "chosen": true
+                      }
+                    ] /* rest_of_plan */
+                  },
+                  {
+                    "database": "test",
                     "table": "t2",
                     "best_access_path": {
                       "considered_access_paths": [
@@ -875,34 +914,15 @@ TRACE
                     } /* best_access_path */,
                     "cost_for_plan": 5.2196,
                     "rows_for_plan": 4,
-                    "sort_cost": 4,
-                    "new_cost_for_plan": 9.2196,
-                    "chosen": true
+                    "pruned_by_heuristic": true
                   }
                 ] /* rest_of_plan */
-              },
-              {
-                "database": "test",
-                "table": "t2",
-                "best_access_path": {
-                  "considered_access_paths": [
-                    {
-                      "access_type": "scan",
-                      "rows": 2,
-                      "cost": 2.0098,
-                      "chosen": true
-                    }
-                  ] /* considered_access_paths */
-                } /* best_access_path */,
-                "cost_for_plan": 2.4098,
-                "rows_for_plan": 2,
-                "pruned_by_heuristic": true
               }
             ] /* considered_execution_plans */
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t2`.`f2` = 'f')",
+              "original_condition": "(`test`.`t2`.`f2` = `test`.`t3`.`f2`)",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -913,8 +933,13 @@ TRACE
                 },
                 {
                   "database": "test",
+                  "table": "t3",
+                  "attached": null
+                },
+                {
+                  "database": "test",
                   "table": "t2",
-                  "attached": "(`test`.`t2`.`f2` = 'f')"
+                  "attached": "(`test`.`t2`.`f2` = `test`.`t3`.`f2`)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -937,6 +962,11 @@ TRACE
               {
                 "database": "test",
                 "table": "t1",
+                "access_type": "table_scan"
+              },
+              {
+                "database": "test",
+                "table": "t3",
                 "access_type": "table_scan"
               },
               {
