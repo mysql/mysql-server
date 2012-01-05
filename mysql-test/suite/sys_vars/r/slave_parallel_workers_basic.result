@@ -17,7 +17,7 @@ set @@global.slave_parallel_workers= 0;
 set @@global.slave_parallel_workers= cast(-1 as unsigned int);
 Warnings:
 Warning	1292	Truncated incorrect slave_parallel_workers value: '18446744073709551615'
-select @@global.slave_parallel_workers;
-@@global.slave_parallel_workers
+select @@global.slave_parallel_workers as "truncated to the maximum";
+truncated to the maximum
 1024
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;

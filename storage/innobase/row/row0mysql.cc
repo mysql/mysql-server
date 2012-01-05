@@ -1345,7 +1345,7 @@ error_exit:
 			}
 		}
 
-		/* Pass NULL for the colums affected, since an INSERT affects
+		/* Pass NULL for the columns affected, since an INSERT affects
 		all FTS indexes. */
 		fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
 	}

@@ -73,14 +73,6 @@ UNIV_INTERN ulint	os_innodb_umask
 UNIV_INTERN ulint	os_innodb_umask		= 0;
 #endif
 
-#ifdef UNIV_DO_FLUSH
-/* If the following is set to TRUE, we do not call os_file_flush in every
-os_file_write. We can set this TRUE when the doublewrite buffer is used. */
-UNIV_INTERN ibool	os_do_not_call_flush_at_each_write	= FALSE;
-#else
-/* We do not call os_file_flush in every os_file_write. */
-#endif /* UNIV_DO_FLUSH */
-
 #ifndef UNIV_HOTBACKUP
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
@@ -2355,19 +2347,6 @@ os_file_pwrite(
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
 
-# ifdef UNIV_DO_FLUSH
-	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
-	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
-	    && !os_do_not_call_flush_at_each_write) {
-
-		/* Always do fsync to reduce the probability that when
-		the OS crashes, a database page is only partially
-		physically written to disk. */
-
-		ut_a(TRUE == os_file_flush(file));
-	}
-# endif /* UNIV_DO_FLUSH */
-
 	return(ret);
 #else
 	{
@@ -2397,19 +2376,6 @@ os_file_pwrite(
 		}
 
 		ret = write(file, buf, (ssize_t) n);
-
-# ifdef UNIV_DO_FLUSH
-		if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
-		    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
-		    && !os_do_not_call_flush_at_each_write) {
-
-			/* Always do fsync to reduce the probability that when
-			the OS crashes, a database page is only partially
-			physically written to disk. */
-
-			ut_a(TRUE == os_file_flush(file));
-		}
-# endif /* UNIV_DO_FLUSH */
 
 func_exit:
 # ifndef UNIV_HOTBACKUP
@@ -2772,15 +2738,6 @@ retry:
 	}
 
 	ret = WriteFile(file, buf, (DWORD) n, &len, NULL);
-
-	/* Always do fsync to reduce the probability that when the OS crashes,
-	a database page is only partially physically written to disk. */
-
-# ifdef UNIV_DO_FLUSH
-	if (!os_do_not_call_flush_at_each_write) {
-		ut_a(TRUE == os_file_flush(file));
-	}
-# endif /* UNIV_DO_FLUSH */
 
 #ifndef UNIV_HOTBACKUP
 	os_mutex_exit(os_file_seek_mutexes[i]);
@@ -4312,16 +4269,8 @@ os_aio_windows_handle(
 	*type = slot->type;
 
 	if (ret && len == slot->len) {
-		ret_val = TRUE;
 
-#ifdef UNIV_DO_FLUSH
-		if (slot->type == OS_FILE_WRITE
-		    && !os_do_not_call_flush_at_each_write) {
-			if (!os_file_flush(slot->file)) {
-				ut_error;
-			}
-		}
-#endif /* UNIV_DO_FLUSH */
+		ret_val = TRUE;
 	} else if (os_file_handle_error(slot->name, "Windows aio")) {
 
 		retry = TRUE;
@@ -4613,15 +4562,8 @@ found:
 	*type = slot->type;
 
 	if ((slot->ret == 0) && (slot->n_bytes == (long) slot->len)) {
-		ret = TRUE;
 
-#ifdef UNIV_DO_FLUSH
-		if (slot->type == OS_FILE_WRITE
-		    && !os_do_not_call_flush_at_each_write)
-		    && !os_file_flush(slot->file) {
-			ut_error;
-		}
-#endif /* UNIV_DO_FLUSH */
+		ret = TRUE;
 	} else {
 		errno = -slot->ret;
 
