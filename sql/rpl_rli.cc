@@ -80,7 +80,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), until_condition(UNTIL_NONE),
    until_log_pos(0), until_gtids_obj(&global_sid_map),
-   current_gtids_obj(&global_sid_map), retried_trans(0),
+   request_gtids_obj(&global_sid_map), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0),
    slave_parallel_workers(0),
@@ -294,7 +294,7 @@ void Relay_log_info::clear_until_condition()
   until_condition= Relay_log_info::UNTIL_NONE;
   until_log_name[0]= 0;
   until_log_pos= 0;
-  current_gtids_obj.clear();
+  request_gtids_obj.clear();
   until_gtids_obj.clear();
   DBUG_VOID_RETURN;
 }
@@ -1182,10 +1182,10 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
   }
   else if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
   {
-    global_sid_lock.rdlock();
-
-    if (current_gtids_obj._add(((Gtid_log_event *)(ev))->get_sidno(false),
-                               ((Gtid_log_event *)(ev))->get_gno()) != RETURN_STATUS_OK)
+    global_sid_lock.wrlock();
+    if (until_gtids_obj._remove(((Gtid_log_event *)(ev))->get_sidno(false),
+                                ((Gtid_log_event *)(ev))->get_gno())
+        != RETURN_STATUS_OK || until_gtids_obj.is_empty())
     {
       global_sid_lock.unlock();
       DBUG_RETURN(true);
@@ -1193,29 +1193,19 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
 
 #ifndef DBUG_OFF
     char* buffer= NULL;
-    if (!(buffer= (char *) my_malloc(max(current_gtids_obj.get_string_length(),
-                                         until_gtids_obj.get_string_length()) + 1,
-                                         MYF(MY_WME))))
+    if (!(buffer= (char *) my_malloc(until_gtids_obj.get_string_length() + 1,
+                                     MYF(MY_WME))))
     {
       global_sid_lock.unlock();
       DBUG_RETURN(true);
     }
     else
     {
-      current_gtids_obj.to_string(buffer);
-      DBUG_PRINT("info", ("Processed so far %s (not included).", buffer));
       until_gtids_obj.to_string(buffer);
-      DBUG_PRINT("info", ("Will process until %s.", buffer));
+      DBUG_PRINT("info", ("Waiting for %s to be processed.", buffer));
       my_free(buffer);
     }
 #endif
-
-    if (until_gtids_obj.is_subset(&current_gtids_obj))
-    {
-      global_sid_lock.unlock();
-      DBUG_RETURN(true);
-    }
-
     global_sid_lock.unlock();
   }
 

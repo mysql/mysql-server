@@ -841,6 +841,22 @@ public:
     return add(&ivit, gno, gno + 1);
   }
   /**
+    Removes the given GTID from this Gtid_set.
+
+    @param sidno SIDNO of the group to remove.
+    @param gno GNO of the group to remove.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status _remove(rpl_sidno sidno, rpl_gno gno)
+  {
+    if (sidno <= get_max_sidno())
+    {
+      Interval_iterator ivit(this, sidno);
+      return remove(&ivit, gno, gno + 1);
+    }
+    return RETURN_STATUS_OK;
+  }
+  /**
     Adds the given GTID to this Gtid_set.
 
     The SIDNO must exist in the Gtid_set before this function is called.

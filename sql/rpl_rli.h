@@ -308,7 +308,7 @@ public:
   ulong until_log_name_extension;
 #ifdef HAVE_GTID
   Gtid_set until_gtids_obj;
-  Gtid_set current_gtids_obj;
+  Gtid_set request_gtids_obj;
 #endif
   /* 
      Cached result of comparison of until_log_name and current log name
