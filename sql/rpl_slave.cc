@@ -2370,7 +2370,7 @@ bool show_master_info(THD* thd, Master_info* mi)
       mi->rli->until_condition == Relay_log_info::UNTIL_NONE ? "None" :
         (mi->rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ? "Master" :
          (mi->rli->until_condition == Relay_log_info::UNTIL_RELAY_POS ? "Relay" :
-          "Gtid_set")), &my_charset_bin);
+          "SQL_BEFORE_GTIDS")), &my_charset_bin);
     protocol->store(mi->rli->until_log_name, &my_charset_bin);
     protocol->store((ulonglong) mi->rli->until_log_pos);
 
@@ -3319,12 +3319,12 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       {
         char *buffer= NULL;
         global_sid_lock.rdlock();
-        if ((buffer= (char *) my_malloc(rli->until_gtids_obj.get_string_length() + 1,
+        if ((buffer= (char *) my_malloc(rli->request_gtids_obj.get_string_length() + 1,
                                         MYF(MY_WME))))
-          rli->until_gtids_obj.to_string(buffer);
+          rli->request_gtids_obj.to_string(buffer);
         global_sid_lock.unlock();
         sql_print_information("Slave SQL thread stopped because it reached its"
-                              " UNTIL GTID %s", buffer);
+                              " UNTIL SQL_BEFORE_GTIDS %s", buffer);
         my_free(buffer);
       }
 #endif
@@ -5014,12 +5014,12 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
     {
       char* buffer= NULL;
       global_sid_lock.rdlock();
-      if ((buffer= (char *) my_malloc(rli->until_gtids_obj.get_string_length() + 1,
+      if ((buffer= (char *) my_malloc(rli->request_gtids_obj.get_string_length() + 1,
                                       MYF(MY_WME))))
-        rli->until_gtids_obj.to_string(buffer);
+        rli->request_gtids_obj.to_string(buffer);
       global_sid_lock.unlock();
       sql_print_information("Slave SQL thread stopped because it reached its"
-                            " UNTIL GTID %s", buffer);
+                            " UNTIL SQL_BEFORE_GTIDS %s", buffer);
       my_free(buffer);
     }
 #endif
@@ -7032,11 +7032,15 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 #ifdef HAVE_GTID
         else if (thd->lex->mi.gtid)
         {
-          global_sid_lock.rdlock();
+          global_sid_lock.wrlock();
           mi->rli->clear_until_condition();
-          if (mi->rli->until_gtids_obj.add(thd->lex->mi.gtid) != RETURN_STATUS_OK)
+          if (mi->rli->until_gtids_obj.add(thd->lex->mi.gtid)
+              != RETURN_STATUS_OK ||
+              mi->rli->request_gtids_obj.add(thd->lex->mi.gtid)
+              != RETURN_STATUS_OK)
             slave_errno= ER_BAD_SLAVE_UNTIL_COND;
-          if (mi->rli->current_gtids_obj.add(gtid_state.get_logged_gtids()) != RETURN_STATUS_OK)
+          if (mi->rli->until_gtids_obj.remove(gtid_state.get_logged_gtids()) 
+              != RETURN_STATUS_OK)
             slave_errno= ER_BAD_SLAVE_UNTIL_COND;
           mi->rli->until_condition= Relay_log_info::UNTIL_SQL_BEFORE_GTIDS;
           global_sid_lock.unlock();
