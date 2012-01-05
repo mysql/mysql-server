@@ -266,7 +266,7 @@ JOIN::optimize()
       */
       if (!tbl->embedding)
       {
-        Item *prune_cond= tbl->on_expr? tbl->on_expr : conds;
+        Item *prune_cond= tbl->join_cond()? tbl->join_cond() : conds;
         tbl->table->no_partitions_used= prune_partitions(thd, tbl->table,
 	                                                 prune_cond);
       }
@@ -1660,17 +1660,18 @@ static Item *build_equal_items(THD *thd, Item *cond,
 
     while ((table= li++))
     {
-      if (table->on_expr)
+      if (table->join_cond())
       {
         List<TABLE_LIST> *nested_join_list= table->nested_join ?
           &table->nested_join->join_list : NULL;
         /*
-          We can modify table->on_expr because its old value will
+          We can modify table->join_cond() because its old value will
           be restored before re-execution of PS/SP.
         */
-        table->on_expr= build_equal_items(thd, table->on_expr, inherited,
-                                          nested_join_list,
-                                          &table->cond_equal);
+        table->set_join_cond(build_equal_items(thd, table->join_cond(),
+                                               inherited,
+                                               nested_join_list,
+                                               &table->cond_equal));
       }
     }
   }
@@ -2292,9 +2293,9 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
          If the element of join_list is a nested join apply
          the procedure to its nested join list first.
       */
-      if (table->on_expr)
+      if (table->join_cond())
       {
-        Item *expr= table->on_expr;
+        Item *expr= table->join_cond();
         /* 
            If an on expression E is attached to the table, 
            check all null rejected predicates in this expression.
@@ -2308,12 +2309,12 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
                            &expr, changelog))
           DBUG_RETURN(true);
 
-        if (!table->prep_on_expr || expr != table->on_expr)
+        if (!table->prep_join_cond || expr != table->join_cond())
         {
           DBUG_ASSERT(expr);
 
-          table->on_expr= expr;
-          if (!(table->prep_on_expr= expr->copy_andor_structure(join->thd)))
+          table->set_join_cond(expr);
+          if (!(table->prep_join_cond= expr->copy_andor_structure(join->thd)))
             DBUG_RETURN(true);
         }
       }
@@ -2327,8 +2328,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
     }
     else
     {
-      if (!table->prep_on_expr)
-        table->prep_on_expr= table->on_expr;
+      if (!table->prep_join_cond)
+        table->prep_join_cond= table->join_cond();
       used_tables= table->table->map;
       if (conds)
         not_null_tables= conds->not_null_tables();
@@ -2351,14 +2352,14 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
         *changelog|= OUTER_JOIN_TO_INNER;
         table->outer_join= 0;
       }
-      if (table->on_expr)
+      if (table->join_cond())
       {
         *changelog|= JOIN_COND_TO_WHERE;
         /* Add ON expression to the WHERE or upper-level ON condition. */
         if (conds)
         {
           Item_cond_and *new_cond=
-            static_cast<Item_cond_and*>(and_conds(conds, table->on_expr));
+            static_cast<Item_cond_and*>(and_conds(conds, table->join_cond()));
           if (!new_cond)
             DBUG_RETURN(true);
           conds= new_cond;
@@ -2377,18 +2378,19 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
               on_expr isn't necessarily the second argument anymore,
               since fix_fields may have merged it into an existing AND expr.
             */
-            if (arg == table->on_expr)
+            if (arg == table->join_cond())
               join->thd->
-                change_item_tree_place(&table->on_expr, lit.ref());
+                change_item_tree_place(table->join_cond_ref(), lit.ref());
           }
         }
         else
         {
-          conds= table->on_expr; 
+          conds= table->join_cond(); 
           /* In case on_expr has a pending rollback in THD::change_list */
-          join->thd->change_item_tree_place(&table->on_expr, &conds);
+          join->thd->change_item_tree_place(table->join_cond_ref(), &conds);
         }
-        table->prep_on_expr= table->on_expr= 0;
+        table->prep_join_cond= NULL;
+        table->set_join_cond(NULL);
       }
     }
     
@@ -2399,9 +2401,9 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
       Only inner tables of non-convertible outer joins
       remain with on_expr.
     */ 
-    if (table->on_expr)
+    if (table->join_cond())
     {
-      table->dep_tables|= table->on_expr->used_tables(); 
+      table->dep_tables|= table->join_cond()->used_tables(); 
       if (table->embedding)
       {
         table->dep_tables&= ~table->embedding->nested_join->used_tables;   
@@ -2409,7 +2411,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
            Embedding table depends on tables used
            in embedded on expressions. 
         */
-        table->embedding->on_expr_dep_tables|= table->on_expr->used_tables();
+        table->embedding->on_expr_dep_tables|=
+          table->join_cond()->used_tables();
       }
       else
         table->dep_tables&= ~table->table->map;
@@ -2420,7 +2423,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
       /* The order of tables is reverse: prev_table follows table */
       if (prev_table->straight || straight_join)
         prev_table->dep_tables|= used_tables;
-      if (prev_table->on_expr)
+      if (prev_table->join_cond())
       {
         prev_table->dep_tables|= table->on_expr_dep_tables;
         table_map prev_used_tables= prev_table->nested_join ?
@@ -2437,7 +2440,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
           For example it might happen if RAND() function
           is used in JOIN ON clause.
 	*/  
-        if (!((prev_table->on_expr->used_tables() & ~RAND_TABLE_BIT) &
+        if (!((prev_table->join_cond()->used_tables() & ~RAND_TABLE_BIT) &
               ~prev_used_tables))
           prev_table->dep_tables|= used_tables;
       }
@@ -2463,7 +2466,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
         DBUG_RETURN(true);
       *changelog|= SEMIJOIN;
     }
-    else if (nested_join && !table->on_expr)
+    else if (nested_join && !table->join_cond())
     {
       *changelog|= PAREN_REMOVAL;
       TABLE_LIST *tbl;
@@ -2472,6 +2475,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
       {
         tbl->embedding= table->embedding;
         tbl->join_list= table->join_list;
+        tbl->dep_tables|= table->dep_tables;
       }
       li.replace(nested_join->join_list);
     }
@@ -2550,7 +2554,7 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
       if (nested_join->join_list.elements != 1)
       {
         /* Don't assign bits to sj-nests */
-        if (table->on_expr)
+        if (table->join_cond())
           nested_join->nj_map= (nested_join_map) 1 << first_unused++;
         first_unused= build_bitmap_for_nested_joins(&nested_join->join_list,
                                                     first_unused);
@@ -2738,7 +2742,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       table->file->stats.records= 2;
     table->quick_condition_rows= table->file->stats.records;
 
-    s->on_expr_ref= &tables->on_expr;
+    s->on_expr_ref= tables->join_cond_ref();
 
     if (tables->in_outer_join_nest())
     {
@@ -5036,7 +5040,7 @@ static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
   {
     if (table->nested_join)
     {
-      if (!table->on_expr)
+      if (!table->join_cond())
       {
         /* It's a semi-join nest. Walk into it as if it wasn't a nest */
         have_another= TRUE;
@@ -5047,11 +5051,11 @@ static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
         add_key_fields_for_nj(join, table, end, and_level, sargables);
     }
     else
-      if (!table->on_expr)
+      if (!table->join_cond())
         tables |= table->table->map;
   }
-  if (nested_join_table->on_expr)
-    add_key_fields(join, end, and_level, nested_join_table->on_expr, tables,
+  if (nested_join_table->join_cond())
+    add_key_fields(join, end, and_level, nested_join_table->join_cond(), tables,
                    sargables);
 }
 
@@ -5251,7 +5255,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   @param       join_tab       Array in tablenr_order
   @param       tables         Number of tables in join
   @param       cond           WHERE condition (note that the function analyzes
-                              join_tab[i]->on_expr too)
+                              join_tab[i]->join_cond() too)
   @param       normal_tables  Tables not inner w.r.t some outer join (ones
                               for which we can make ref access based the WHERE
                               clause)
@@ -5528,7 +5532,7 @@ make_outerjoin_info(JOIN *join)
         is in the query above.)
       */
       tab->last_inner= tab->first_inner= tab;
-      tab->on_expr_ref= &tbl->on_expr;
+      tab->on_expr_ref= tbl->join_cond_ref();
       tab->cond_equal= tbl->cond_equal;
       if (embedding)
         tab->first_upper= embedding->nested_join->first_nested;
@@ -5536,7 +5540,7 @@ make_outerjoin_info(JOIN *join)
     for ( ; embedding ; embedding= embedding->embedding)
     {
       /* Ignore sj-nests: */
-      if (!embedding->on_expr)
+      if (!embedding->join_cond())
         continue;
       NESTED_JOIN *nested_join= embedding->nested_join;
       if (!nested_join->counter_)
@@ -5546,7 +5550,7 @@ make_outerjoin_info(JOIN *join)
           Save reference to it in the nested join structure.
         */ 
         nested_join->first_nested= tab;
-        tab->on_expr_ref= &embedding->on_expr;
+        tab->on_expr_ref= embedding->join_cond_ref();
         tab->cond_equal= tbl->cond_equal;
         if (embedding->embedding)
           tab->first_upper= embedding->embedding->nested_join->first_nested;
@@ -5918,9 +5922,9 @@ static void fix_list_after_tbl_changes(st_select_lex *parent_select,
   TABLE_LIST *table;
   while ((table= it++))
   {
-    if (table->on_expr)
-      table->on_expr->fix_after_pullout(parent_select, removed_select,
-                                        &table->on_expr);
+    if (table->join_cond())
+      table->join_cond()->fix_after_pullout(parent_select, removed_select,
+                                            table->join_cond_ref());
     if (table->nested_join)
       fix_list_after_tbl_changes(parent_select, removed_select,
                                  &table->nested_join->join_list);
@@ -6062,8 +6066,8 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
       wrap_nest->outer_join= outer_tbl->outer_join;
       outer_tbl->outer_join= 0;
 
-      wrap_nest->on_expr= outer_tbl->on_expr;
-      outer_tbl->on_expr= NULL;
+      wrap_nest->set_join_cond(outer_tbl->join_cond());
+      outer_tbl->set_join_cond(NULL);
 
       List_iterator<TABLE_LIST> li(*wrap_nest->join_list);
       TABLE_LIST *tbl;
@@ -6257,11 +6261,12 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
   if (emb_tbl_nest)
   {
     /* Inject sj_on_expr into the parent's ON condition */
-    emb_tbl_nest->on_expr= and_items(emb_tbl_nest->on_expr, 
-                                     sj_nest->sj_on_expr);
-    if (emb_tbl_nest->on_expr == NULL)
+    emb_tbl_nest->set_join_cond(and_items(emb_tbl_nest->join_cond(), 
+                                          sj_nest->sj_on_expr));
+    if (emb_tbl_nest->join_cond() == NULL)
       DBUG_RETURN(TRUE);
-    emb_tbl_nest->on_expr->fix_fields(parent_join->thd, &emb_tbl_nest->on_expr);
+    emb_tbl_nest->join_cond()->fix_fields(parent_join->thd,
+                                          emb_tbl_nest->join_cond_ref());
   }
   else
   {
@@ -6376,7 +6381,7 @@ bool JOIN::flatten_subqueries()
   // joins.
   for (TABLE_LIST *tbl= select_lex->leaf_tables; tbl; tbl=tbl->next_leaf)
   {
-    if (tbl->on_expr || tbl->in_outer_join_nest())
+    if (tbl->join_cond() || tbl->in_outer_join_nest())
     {
       subq= sj_subselects.begin();
       arena= thd->activate_stmt_arena_if_needed(&backup);
@@ -6405,7 +6410,7 @@ bool JOIN::flatten_subqueries()
        subq++)
   {
     Item **tree= ((*subq)->embedding_join_nest == NULL) ?
-                   &conds : &((*subq)->embedding_join_nest->on_expr);
+                   &conds : ((*subq)->embedding_join_nest->join_cond_ref());
     if (replace_subcondition(this, tree, *subq, new Item_int(1), FALSE))
       DBUG_RETURN(TRUE); /* purecov: inspected */
   }
@@ -6460,8 +6465,7 @@ skip_conversion:
     const bool subquery_in_join_clause= (*subq)->embedding_join_nest != NULL;
 
     Item **tree= subquery_in_join_clause ?
-                   &((*subq)->embedding_join_nest->on_expr) :
-                   &conds;
+      ((*subq)->embedding_join_nest->join_cond_ref()) : &conds;
     if (replace_subcondition(this, tree, *subq, substitute, do_fix_fields))
       DBUG_RETURN(TRUE);
     (*subq)->substitution= NULL;
@@ -6470,10 +6474,10 @@ skip_conversion:
     {
       if (subquery_in_join_clause)
       {
-        tree= &((*subq)->embedding_join_nest->prep_on_expr);
+        tree= &((*subq)->embedding_join_nest->prep_join_cond);
         /*
           Some precaution is needed when dealing with PS/SP:
-          fix_prepare_info_in_table_list() sets prep_on_expr, but only for
+          fix_prepare_info_in_table_list() sets prep_join_cond, but only for
           tables, not for join nest objects. This is instead populated in
           simplify_joins(), which is called after this function. The case
           where *tree is NULL is handled by this procedure.
@@ -7334,7 +7338,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 
 	    /*
               We can't call sel->cond->fix_fields,
-              as it will break tab->on_expr if it's AND condition
+              as it will break tab->join_cond() if it's AND condition
               (fix_fields currently removes extra AND/OR levels).
               Yet attributes of the just built condition are not needed.
               Thus we call sel->cond->quick_fix_field for safety.
