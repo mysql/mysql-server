@@ -108,23 +108,20 @@ typedef struct __toku_engine_status {
   u_int64_t        cachetable_wait_reading; /* how many times get_and_pin waits for a node to be read */ 
   u_int64_t        cachetable_wait_writing; /* how many times get_and_pin waits for a node to be written */ 
   u_int64_t        cachetable_wait_checkpoint; /* how many times get_and_pin waits for a node to be written for a checkpoint*/ 
-  u_int64_t        cachetable_evictions;    /* how many cache table blocks are evicted */ 
-  u_int64_t        cleaner_executions;      /* how many times the loop in cleaner_thread has executed */ 
   u_int64_t        puts;                    /* how many times has a newly created node been put into the cachetable */ 
   u_int64_t        prefetches;              /* how many times has a block been prefetched into the cachetable */ 
   u_int64_t        maybe_get_and_pins;      /* how many times has maybe_get_and_pin(_clean) been called */ 
   u_int64_t        maybe_get_and_pin_hits;  /* how many times has get_and_pin(_clean) returned with a node */ 
-  int64_t          cachetable_size_current; /* sum of the sizes of the nodes represented in the cachetable */ 
-  int64_t          cachetable_size_limit;   /* the limit to the sum of the node sizes */ 
-  int64_t          cachetable_size_max;     /* the max value (high water mark) of cachetable_size_current */ 
-  uint64_t         cachetable_size_leaf;    /* the number of bytes of leaf nodes */ 
+  uint64_t         cachetable_size_current; /* sum of the sizes of the nodes represented in the cachetable */ 
+  uint64_t         cachetable_size_limit;   /* the limit to the sum of the node sizes */ 
+  uint64_t         cachetable_size_max;     /* the max value (high water mark) of cachetable_size_current */ 
+  uint64_t         cachetable_size_writing; /* the sum of the sizes of the nodes being written */ 
   uint64_t         cachetable_size_nonleaf; /* the number of bytes of nonleaf nodes */ 
+  uint64_t         cachetable_size_leaf;    /* the number of bytes of leaf nodes */ 
   uint64_t         cachetable_size_rollback; /* the number of bytes of nonleaf nodes */ 
-  int64_t          cachetable_size_writing; /* the sum of the sizes of the nodes being written */ 
-  int64_t          get_and_pin_footprint;   /* state of get_and_pin procedure */ 
-  int64_t          local_checkpoint;        /* number of times a local checkpoint is taken for commit */ 
-  int64_t          local_checkpoint_files;  /* number of files subjec to local checkpoint is taken for commit */ 
-  int64_t          local_checkpoint_during_checkpoint;  /* number of times a local checkpoint happens during normal checkpoint */ 
+  uint64_t         cachetable_size_cachepressure; /* number of bytes causing cache pressure (sum of buffers and workdone counters)  */ 
+  u_int64_t        cachetable_evictions;    /* how many cache table blocks are evicted */ 
+  u_int64_t        cleaner_executions;      /* how many times the loop in cleaner_thread has executed */ 
   u_int64_t        range_locks_max;         /* max total number of range locks */ 
   u_int64_t        range_locks_curr;        /* total range locks currently in use */ 
   u_int64_t        range_locks_max_memory;   /* max total bytes of range locks */ 
