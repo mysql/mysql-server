@@ -763,7 +763,11 @@ call p_verify_status_increment(0, 0, 0, 0);
 truncate table t3;
 call p_verify_status_increment(2, 0, 2, 0);
 create view v1 as select * from t2;
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(0, 0, 0, 0);
+select * from v1;
+call p_verify_status_increment(1, 0, 1, 0);
+commit;
+call p_verify_status_increment(1, 0, 1, 0);
 check table t1;
 call p_verify_status_increment(2, 0, 2, 0);
 --echo # Sic: after this bug is fixed, CHECK leaves no pending transaction
