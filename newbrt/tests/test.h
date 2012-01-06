@@ -62,20 +62,22 @@ struct check_pair {
     int call_count;
 };
 static int
-lookup_checkf (ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *pair_v) {
-    struct check_pair *pair = (struct check_pair *) pair_v;
-    if (key!=NULL) {
-	if (pair->keylen!=len_ignore) {
-	    assert(pair->keylen == keylen);
-	    if (pair->key) 
-		assert(memcmp(pair->key, key, keylen)==0);
-	}
-	if (pair->vallen!=len_ignore) {
-	    assert(pair->vallen == vallen);
-	    if (pair->val)
-		assert(memcmp(pair->val, val, vallen)==0);
-	}
-	pair->call_count++; // this call_count is really how many calls were made with r==0
+lookup_checkf (ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *pair_v, bool lock_only) {
+    if (!lock_only) {
+        struct check_pair *pair = (struct check_pair *) pair_v;
+        if (key!=NULL) {
+            if (pair->keylen!=len_ignore) {
+                assert(pair->keylen == keylen);
+                if (pair->key) 
+                    assert(memcmp(pair->key, key, keylen)==0);
+            }
+            if (pair->vallen!=len_ignore) {
+                assert(pair->vallen == vallen);
+                if (pair->val)
+                    assert(memcmp(pair->val, val, vallen)==0);
+            }
+            pair->call_count++; // this call_count is really how many calls were made with r==0
+        }
     }
     return 0;
 }

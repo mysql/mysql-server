@@ -24,9 +24,11 @@ C_BEGIN
 // The cursor object will have been updated (so that if result==0 the current value is the value being passed)
 //  (If r!=0 then the cursor won't have been updated.)
 // If r!=0, it's up to the callback function to return that value of r.
-//A 'key' bytevec of NULL means that element is not found (effectively infinity or
-//-infinity depending on direction)
-typedef int(*BRT_GET_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, bytevec, void*);
+// A 'key' bytevec of NULL means that element is not found (effectively infinity or
+// -infinity depending on direction)
+// When lock_only is false, the callback does optional lock tree locking and then processes the key and val.
+// When lock_only is true, the callback only does optional lock tree locking.
+typedef int(*BRT_GET_CALLBACK_FUNCTION)(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only);
 
 int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, int basementnodesize, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*), DB*) __attribute__ ((warn_unused_result));
 int toku_brt_change_descriptor(BRT t, const DBT* old_descriptor, const DBT* new_descriptor, BOOL do_log, TOKUTXN txn);

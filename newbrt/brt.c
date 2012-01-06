@@ -4016,8 +4016,8 @@ brt_cursor_cleanup_dbts(BRT_CURSOR c) {
 // For the above to NOT be true:
 //  - id > context->snapshot_txnid64 OR id is in context's live root transaction list
 //
-static
-int does_txn_read_entry(TXNID id, TOKUTXN context) {
+static int 
+does_txn_read_entry(TXNID id, TOKUTXN context) {
     int rval;
     TXNID oldest_live_in_snapshot = toku_get_oldest_in_live_root_txn_list(context);
     if (id < oldest_live_in_snapshot || id == context->ancestor_txnid64) {
@@ -4032,13 +4032,13 @@ int does_txn_read_entry(TXNID id, TOKUTXN context) {
     return rval;
 }
 
-static inline void brt_cursor_extract_key_and_val(
-		   LEAFENTRY le,
-		   BRT_CURSOR cursor,
-		   u_int32_t *keylen,
-		   void	    **key,
-		   u_int32_t *vallen,
-		   void	    **val) {
+static inline void
+brt_cursor_extract_key_and_val(LEAFENTRY le,
+                               BRT_CURSOR cursor,
+                               u_int32_t *keylen,
+                               void	    **key,
+                               u_int32_t *vallen,
+                               void	    **val) {
     if (toku_brt_cursor_is_leaf_mode(cursor)) {
 	*key = le_key_and_len(le, keylen);
 	*val = le;
@@ -4596,7 +4596,6 @@ exit:
     VERIFY_NODE(t, node);
 }
 
-
 static int
 brt_cursor_shortcut (
     BRT_CURSOR cursor, 
@@ -4608,7 +4607,6 @@ brt_cursor_shortcut (
     u_int32_t *vallen,
     void **val
     );
-
 
 // This is a bottom layer of the search functions.
 static int
@@ -4650,10 +4648,12 @@ brt_search_basement_node(
             switch (search->direction) {
             case BRT_SEARCH_LEFT:
                 idx++;
-                if (idx>=toku_omt_size(bn->buffer)) return DB_NOTFOUND;
+                if (idx >= toku_omt_size(bn->buffer))
+                    return DB_NOTFOUND;
                 break;
             case BRT_SEARCH_RIGHT:
-                if (idx==0) return DB_NOTFOUND;
+                if (idx == 0) 
+                    return DB_NOTFOUND;
                 idx--;
                 break;
             default:
@@ -4680,7 +4680,7 @@ got_a_good_value:
                                        &val
                                        );
 
-        r = getf(keylen, key, vallen, val, getf_v);
+        r = getf(keylen, key, vallen, val, getf_v, false);
         if (r==0 || r == TOKUDB_CURSOR_CONTINUE) {
             brtcursor->leaf_info.to_be.omt   = bn->buffer;
             brtcursor->leaf_info.to_be.index = idx;
@@ -4905,16 +4905,12 @@ static void
 maybe_search_save_bound(
     BRTNODE node,
     int child_searched,
-    brt_search_t *search
-    )
+    brt_search_t *search)
 {
-    DBT pivotkey;
-    toku_init_dbt(&pivotkey);
-
     int p = (search->direction == BRT_SEARCH_LEFT) ? child_searched : child_searched - 1;
-    if (p >=0 && p < node->n_children-1) {
-        struct kv_pair *pivot = node->childkeys[p];
-        toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot));
+    if (p >= 0 && p < node->n_children-1) {
+        struct kv_pair const * pivot = node->childkeys[p];
+        DBT pivotkey = { .data = kv_pair_key((struct kv_pair *) pivot), .size = kv_pair_keylen(pivot) };
         search_save_bound(search, &pivotkey);
     }
 }
@@ -4989,18 +4985,27 @@ brt_search_node(
         }
         // we have a new pivotkey
         else {
+            if (node->height == 0) {
+                // when we run off the end of a basement, try to lock the range up to the pivot. solves #3529
+                struct kv_pair const * pivot = NULL;
+                if (search->direction == BRT_SEARCH_LEFT)
+                    pivot = next_bounds.upper_bound_inclusive; // left -> right
+                else
+                    pivot = next_bounds.lower_bound_exclusive; // right -> left
+                if (pivot) {
+                    int rr = getf(kv_pair_keylen(pivot), kv_pair_key_const(pivot), 0, NULL, getf_v, true);
+                    if (rr != 0)
+                        return rr; // lock was not granted
+                }
+            }
+
             // If we got a DB_NOTFOUND then we have to search the next record.        Possibly everything present is not visible.
             // This way of doing DB_NOTFOUND is a kludge, and ought to be simplified.  Something like this is needed for DB_NEXT, but
             //        for point queries, it's overkill.  If we got a DB_NOTFOUND on a point query then we should just stop looking.
             // When releasing locks on I/O we must not search the same subtree again, or we won't be guaranteed to make forward progress.
             // If we got a DB_NOTFOUND, then the pivot is too small if searching from left to right (too large if searching from right to left).
             // So save the pivot key in the search object.
-            // printf("%*ssave_bound %s\n", 9-node->height, "", (char*)pivotkey.data);
-            maybe_search_save_bound(
-                node,
-                child_to_search,
-                search
-                );
+            maybe_search_save_bound(node, child_to_search, search);
         }
         // not really necessary, just put this here so that reading the
         // code becomes simpler. The point is at this point in the code,
@@ -5124,7 +5129,7 @@ try_again:
 	//TODO: #1378 This is not the ultimate location of this call to the
 	//callback.  It is surely wrong for node-level locking, and probably
 	//wrong for the STRADDLE callback for heaviside function(two sets of key/vals)
-	int r2 = getf(0,NULL, 0,NULL, getf_v);
+	int r2 = getf(0,NULL, 0,NULL, getf_v, false);
 	if (r2!=0) r = r2;
     }
 
@@ -5184,20 +5189,20 @@ static int brt_cursor_compare_set(brt_search_t *search, DBT *x) {
 static int
 brt_cursor_current_getf(ITEMLEN keylen,		 bytevec key,
 			ITEMLEN vallen,		 bytevec val,
-			void *v) {
+			void *v, bool lock_only) {
     struct brt_cursor_search_struct *bcss = v;
     int r;
     if (key==NULL) {
-	r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v);
+	r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, lock_only);
     } else {
 	BRT_CURSOR cursor = bcss->cursor;
 	DBT newkey = {.size=keylen, .data=(void*)key}; // initializes other fields to zero
 	if (compare_k_x(cursor->brt, &cursor->key, &newkey) != 0) {
-	    r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v); // This was once DB_KEYEMPTY
+	    r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, lock_only); // This was once DB_KEYEMPTY
 	    if (r==0) r = TOKUDB_FOUND_BUT_REJECTED;
 	}
 	else
-	    r = bcss->getf(keylen, key, vallen, val, bcss->getf_v);
+	    r = bcss->getf(keylen, key, vallen, val, bcss->getf_v, lock_only);
     }
     return r;
 }
@@ -5214,13 +5219,13 @@ toku_brt_cursor_current(BRT_CURSOR cursor, int op, BRT_GET_CALLBACK_FUNCTION get
 	brt_search_finish(&search);
 	return r;
     }
-    return getf(cursor->key.size, cursor->key.data, cursor->val.size, cursor->val.data, getf_v); // brt_cursor_copyout(cursor, outkey, outval);
+    return getf(cursor->key.size, cursor->key.data, cursor->val.size, cursor->val.data, getf_v, false); // brt_cursor_copyout(cursor, outkey, outval);
 }
 
 static int
 brt_flatten_getf(ITEMLEN UU(keylen),	  bytevec UU(key),
 		 ITEMLEN UU(vallen),	  bytevec UU(val),
-		 void *UU(v)) {
+		 void *UU(v), bool UU(lock_only)) {
     return DB_NOTFOUND;
 }
 
@@ -5286,8 +5291,8 @@ brt_cursor_shortcut (
     u_int32_t limit = (direction > 0) ? (toku_omt_size(omt) - 1) : 0;
 
     //Starting with the prev, find the first real (non-provdel) leafentry.
+    OMTVALUE le = NULL;
     while (index != limit) {
-        OMTVALUE le = NULL;
         index += direction;
         r = toku_omt_fetch(omt, index, &le);
         assert_zero(r);
@@ -5303,12 +5308,12 @@ brt_cursor_shortcut (
                 val
                 );
             
-            r = getf(*keylen, *key, *vallen, *val, getf_v);
-            if (r==0 || r == TOKUDB_CURSOR_CONTINUE) {
+            r = getf(*keylen, *key, *vallen, *val, getf_v, false);
+            if (r == 0 || r == TOKUDB_CURSOR_CONTINUE) {
                 //Update cursor.
                 cursor->leaf_info.to_be.index = index;
             }
-            if (r== TOKUDB_CURSOR_CONTINUE) {
+            if (r == TOKUDB_CURSOR_CONTINUE) {
                 continue;
             }
             else {
@@ -5316,6 +5321,7 @@ brt_cursor_shortcut (
             }
         }
     }
+    
     return r;
 }
 
@@ -5332,18 +5338,18 @@ toku_brt_cursor_next(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *ge
 static int
 brt_cursor_search_eq_k_x_getf(ITEMLEN keylen,	       bytevec key,
 			      ITEMLEN vallen,	       bytevec val,
-			      void *v) {
+			      void *v, bool lock_only) {
     struct brt_cursor_search_struct *bcss = v;
     int r;
     if (key==NULL) {
-	r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v);
+	r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, false);
     } else {
 	BRT_CURSOR cursor = bcss->cursor;
 	DBT newkey = {.size=keylen, .data=(void*)key}; // initializes other fields to zero
 	if (compare_k_x(cursor->brt, bcss->search->k, &newkey) == 0) {
-	    r = bcss->getf(keylen, key, vallen, val, bcss->getf_v);
+	    r = bcss->getf(keylen, key, vallen, val, bcss->getf_v, lock_only);
 	} else {
-	    r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v);
+	    r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, lock_only);
 	    if (r==0) r = TOKUDB_FOUND_BUT_REJECTED;
 	}
     }
@@ -5507,7 +5513,7 @@ toku_brt_lookup (BRT brt, DBT *k, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 
 /* ********************************* delete **************************************/
 static int
-getf_nothing (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), bytevec UU(val), void *UU(pair_v)) {
+getf_nothing (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), bytevec UU(val), void *UU(pair_v), bool UU(lock_only)) {
     return 0;
 }
 

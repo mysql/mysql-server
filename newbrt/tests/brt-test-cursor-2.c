@@ -11,7 +11,8 @@ static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
 static int
-save_data (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, void *v) {
+save_data (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, void *v, bool lock_only) {
+    if (lock_only) return 0;
     assert(key!=NULL);
     void **vp = v;
     *vp = toku_memdup(val, vallen);
