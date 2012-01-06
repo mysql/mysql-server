@@ -567,6 +567,7 @@ public:
     int check_if_supported_alter(TABLE *altered_table,
          HA_CREATE_INFO *create_info,
          HA_ALTER_FLAGS *alter_flags,
+         HA_ALTER_INFO  *alter_info,
          uint table_changes
          );
     int alter_table_phase1(THD *thd,
