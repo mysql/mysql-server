@@ -7454,10 +7454,10 @@ bool change_master(THD* thd, Master_info* mi)
   mi->rli->clear_until_condition();
 
   sql_print_information("'CHANGE MASTER TO executed'. "
-    "Previous state master_host='%s', master_port='%u', master_log_file='%s', "
-    "master_log_pos='%ld', master_bind='%s'. "
-    "New state master_host='%s', master_port='%u', master_log_file='%s', "
-    "master_log_pos='%ld', master_bind='%s'.", 
+    "Previous state master_host='%s', master_port= %u, master_log_file='%s', "
+    "master_log_pos= %ld, master_bind='%s'. "
+    "New state master_host='%s', master_port= %u, master_log_file='%s', "
+    "master_log_pos= %ld, master_bind='%s'.", 
     saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
     saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
     (ulong) mi->get_master_log_pos(), mi->bind_addr);
