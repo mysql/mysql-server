@@ -163,8 +163,8 @@ void table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
   row->m_ip_length= strlen(entry->ip_key);
   strcpy(row->m_ip, entry->ip_key);
   row->m_hostname_length= entry->m_hostname_length;
-  strcpy(row->m_hostname, entry->m_hostname);
-  row->m_hostname_length= 11;
+  if (row->m_hostname_length > 0)
+    strncpy(row->m_hostname, entry->m_hostname, row->m_hostname_length);
   row->m_sum_blocking_errors= entry->m_errors.get_blocking_errors();
   row->m_count_nameinfo_errors= entry->m_errors.m_nameinfo_errors;
   row->m_count_format_errors= entry->m_errors.m_format_errors;

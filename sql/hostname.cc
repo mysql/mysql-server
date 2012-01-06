@@ -395,47 +395,35 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   err_code= vio_getnameinfo(ip, hostname_buffer, NI_MAXHOST, NULL, 0,
                             NI_NAMEREQD);
 
-  if (err_code == EAI_NONAME)
-  {
-    /*
-      There is no reverse address mapping for the IP address. A host name
-      can not be resolved.
-    */
-
-    DBUG_PRINT("error", ("IP address '%s' could not be resolved: "
-                         "no reverse address mapping.",
-                         (const char *) ip_key));
-
-    sql_print_warning("IP address '%s' could not be resolved: "
-                      "no reverse address mapping.",
-                      (const char *) ip_key);
-
-    (void) add_hostname(ip_key, NULL, true, &errors);
-
-    *hostname= NULL;
-    *connect_errors= 0; /* New IP added to the cache. */
-
-    /* This is a success, regardless of whether a record was added or not in the cache. */
-    DBUG_RETURN(FALSE);
-  }
-
   if (err_code)
   {
-    DBUG_PRINT("error", ("IP address '%s' could not be resolved: "
-                         "getnameinfo() returned %d.",
+    // NOTE: gai_strerror() returns a string ending by a dot.
+
+    DBUG_PRINT("error", ("IP address '%s' could not be resolved: %s",
                          (const char *) ip_key,
-                         (int) err_code));
+                         (const char *) gai_strerror(err_code)));
 
-    sql_print_warning("IP address '%s' could not be resolved: "
-                      "getnameinfo() returned error (code: %d).",
+    sql_print_warning("IP address '%s' could not be resolved: %s",
                       (const char *) ip_key,
-                      (int) err_code);
+                      (const char *) gai_strerror(err_code));
 
-    /* Count nameinfo errors for this IP */
-    errors.m_nameinfo_errors= 1;
-    (void) add_hostname(ip_key, NULL, false, &errors);
+    if (vio_is_no_name_error(err_code))
+    {
+      /*
+        The no-name error means that there is no reverse address mapping
+        for the IP address. A host name can not be resolved.
 
-    DBUG_RETURN(TRUE);
+        If it is not the no-name error, we should not cache the hostname
+        (or rather its absence), because the failure might be transient.
+      */
+
+      add_hostname(ip_key, NULL, false, &errors);
+
+      *hostname= NULL;
+      *connect_errors= 0; /* New IP added to the cache. */
+    }
+
+    DBUG_RETURN(FALSE);
   }
 
   DBUG_PRINT("info", ("IP '%s' resolved to '%s'.",
