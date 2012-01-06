@@ -165,7 +165,7 @@ Ndb_cluster_connection * ClusterConnectionPool::addPooledConnection() {
 
   conn = connect(connect_string);
   
-  if(conn->node_id()) {
+  if(conn && conn->node_id()) {
     pool_connections[pool_size++] = conn;
   }
   else {
