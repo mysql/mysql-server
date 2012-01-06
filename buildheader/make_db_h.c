@@ -591,6 +591,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  uint64_t         cleaner_min_buffer_workdone;   /* min workdone value of any message buffer flushed by cleaner thread */\n");
     printf("  uint64_t         cleaner_total_buffer_workdone; /* total workdone value of message buffers flushed by cleaner thread */\n");
     printf("  uint64_t         cleaner_num_leaf_merges_started;     /* number of times cleaner thread tries to merge a leaf */\n");
+    printf("  uint64_t         cleaner_num_leaf_merges_running;     /* number of cleaner thread leaf merges in progress */\n");
     printf("  uint64_t         cleaner_num_leaf_merges_completed;   /* number of times cleaner thread successfully merges a leaf */\n");
     printf("  uint64_t         cleaner_num_dirtied_for_leaf_merge;  /* nodes dirtied by the \"flush from root\" process to merge a leaf node */\n");
     printf("  uint64_t         flush_total;                 /* total number of flushes done by flusher threads or cleaner threads */\n");
