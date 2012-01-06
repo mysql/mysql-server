@@ -197,6 +197,8 @@ typedef struct __toku_engine_status {
   uint64_t         cleaner_max_buffer_workdone;   /* max workdone value of any message buffer flushed by cleaner thread */
   uint64_t         cleaner_min_buffer_workdone;   /* min workdone value of any message buffer flushed by cleaner thread */
   uint64_t         cleaner_total_buffer_workdone; /* total workdone value of message buffers flushed by cleaner thread */
+  uint64_t         cleaner_num_leaf_merges_started;     /* number of times cleaner thread tries to merge a leaf */
+  uint64_t         cleaner_num_leaf_merges_completed;   /* number of times cleaner thread successfully merges a leaf */
   uint64_t         cleaner_num_dirtied_for_leaf_merge;  /* nodes dirtied by the "flush from root" process to merge a leaf node */
   uint64_t         flush_total;                 /* total number of flushes done by flusher threads or cleaner threads */
   uint64_t         flush_in_memory;             /* number of in memory flushes */
