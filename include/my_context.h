@@ -1,17 +1,15 @@
 /*
-  Copyright 2011 Kristian Nielsen
+  Copyright 2011 Kristian Nielsen and Monty Program Ab
 
-  Experiments with non-blocking libmysql.
+  This file is free software; you can redistribute it and/or
+  modify it under the terms of the GNU Lesser General Public
+  License as published by the Free Software Foundation; either
+  version 2.1 of the License, or (at your option) any later version.
 
-  This is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This is distributed in the hope that it will be useful,
+  This library is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  Lesser General Public License for more details.
 
   You should have received a copy of the GNU General Public License
   along with this.  If not, see <http://www.gnu.org/licenses/>.
@@ -164,11 +162,14 @@ struct mysql_async_context {
   /*
     This is set to the value that should be returned from foo_start() or
     foo_cont() when a call is suspended.
+  */
+  unsigned int events_to_wait_for;
+  /*
     It is also set to the event(s) that triggered when a suspended call is
     resumed, eg. whether we woke up due to connection completed or timeout
     in mysql_real_connect_cont().
   */
-  unsigned int ret_status;
+  unsigned int events_occured;
   /*
     This is set to the result of the whole asynchronous operation when it
     completes. It uses a union, as different calls have different return

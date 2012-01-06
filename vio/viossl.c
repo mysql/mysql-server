@@ -22,6 +22,7 @@
 
 #include "vio_priv.h"
 #include "my_context.h"
+#include <mysql_async.h>
 
 #ifdef HAVE_OPENSSL
 
@@ -91,8 +92,6 @@ report_errors(SSL* ssl)
 size_t vio_ssl_read(Vio *vio, uchar* buf, size_t size)
 {
   size_t r;
-  extern int my_ssl_read_async(struct mysql_async_context *b, SSL *ssl,
-                               void *buf, int size);
   DBUG_ENTER("vio_ssl_read");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u  ssl: 0x%lx",
 		       vio->sd, (long) buf, (uint) size, (long) vio->ssl_arg));
@@ -113,8 +112,6 @@ size_t vio_ssl_read(Vio *vio, uchar* buf, size_t size)
 size_t vio_ssl_write(Vio *vio, const uchar* buf, size_t size)
 {
   size_t r;
-  extern int my_ssl_write_async(struct mysql_async_context *b, SSL *ssl,
-                                const void *buf, int size);
   DBUG_ENTER("vio_ssl_write");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd,
                        (long) buf, (uint) size));

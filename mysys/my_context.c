@@ -1,17 +1,15 @@
 /*
-  Copyright 2011 Kristian Nielsen
+  Copyright 2011 Kristian Nielsen and Monty Program Ab
 
-  Experiments with non-blocking libmysql.
+  This file is free software; you can redistribute it and/or
+  modify it under the terms of the GNU Lesser General Public
+  License as published by the Free Software Foundation; either
+  version 2.1 of the License, or (at your option) any later version.
 
-  This is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This is distributed in the hope that it will be useful,
+  This library is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  Lesser General Public License for more details.
 
   You should have received a copy of the GNU General Public License
   along with this.  If not, see <http://www.gnu.org/licenses/>.
@@ -22,10 +20,8 @@
   swapcontext().
 */
 
-#include <stdio.h>
-#include <errno.h>
-
 #include "mysys_priv.h"
+#include "m_string.h"
 #include "my_context.h"
 
 #ifdef HAVE_VALGRIND_VALGRIND_H
@@ -77,13 +73,9 @@ my_context_continue(struct my_context *c)
   if (!c->active)
     return 0;
 
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
   err= swapcontext(&c->base_context, &c->spawned_context);
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
   if (err)
   {
     fprintf(stderr, "Aieie, swapcontext() failed: %d (errno=%d)\n",
@@ -135,21 +127,16 @@ my_context_yield(struct my_context *c)
 int
 my_context_init(struct my_context *c, size_t stack_size)
 {
-  if (2*sizeof(int) < sizeof(void *))
-  {
-    fprintf(stderr,
-            "Error: Unable to store pointer in 2 ints on this architecture\n");
-    return -1;
-  }
+#if SIZEOF_CHARP > SIZEOF_INT*2
+#error Error: Unable to store pointer in 2 ints on this architecture
+#endif
+  bzero(c, sizeof(*c))
   if (!(c->stack= malloc(stack_size)))
     return -1;                                  /* Out of memory */
   c->stack_size= stack_size;
 #ifdef HAVE_VALGRIND_VALGRIND_H
   c->valgrind_stack_id=
     VALGRIND_STACK_REGISTER(c->stack, ((unsigned char *)(c->stack))+stack_size);
-#endif
-#ifndef DBUG_OFF
-  c->dbug_state= NULL;
 #endif
   return 0;
 }
@@ -164,9 +151,7 @@ my_context_destroy(struct my_context *c)
 #endif
     free(c->stack);
   }
-#ifndef DBUG_OFF
-  dbug_free_code_state(&c->dbug_state);
-#endif
+  DBUG_FREE_CODE_STATE(&c->dbug_state);
 }
 
 #endif  /* MY_CONTEXT_USE_UCONTEXT */
@@ -206,9 +191,7 @@ my_context_spawn(struct my_context *c, void (*f)(void *), void *d)
 {
   int ret;
 
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
 
   /*
     There are 6 callee-save registers we need to save and restore when
@@ -262,9 +245,7 @@ my_context_spawn(struct my_context *c, void (*f)(void *), void *d)
      : "rcx", "rdx", "r8", "r9", "r10", "r11", "memory", "cc"
   );
 
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
 
   return ret;
 }
@@ -274,9 +255,7 @@ my_context_continue(struct my_context *c)
 {
   int ret;
 
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
 
   __asm__ __volatile__
     (
@@ -335,9 +314,7 @@ my_context_continue(struct my_context *c)
      : "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11", "memory", "cc"
         );
 
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
 
   return ret;
 }
@@ -386,15 +363,13 @@ my_context_yield(struct my_context *c)
 int
 my_context_init(struct my_context *c, size_t stack_size)
 {
+  bzero(c, sizeof(*c));
   if (!(c->stack_bot= malloc(stack_size)))
     return -1;                                  /* Out of memory */
   c->stack_top= ((unsigned char *)(c->stack_bot)) + stack_size;
 #ifdef HAVE_VALGRIND_VALGRIND_H
   c->valgrind_stack_id=
     VALGRIND_STACK_REGISTER(c->stack_bot, c->stack_top);
-#endif
-#ifndef DBUG_OFF
-  c->dbug_state= NULL;
 #endif
   return 0;
 }
@@ -409,9 +384,7 @@ my_context_destroy(struct my_context *c)
     VALGRIND_STACK_DEREGISTER(c->valgrind_stack_id);
 #endif
   }
-#ifndef DBUG_OFF
-  dbug_free_code_state(&c->dbug_state);
-#endif
+  DBUG_FREE_CODE_STATE(&c->dbug_state);
 }
 
 #endif  /* MY_CONTEXT_USE_X86_64_GCC_ASM */
@@ -449,9 +422,7 @@ my_context_spawn(struct my_context *c, void (*f)(void *), void *d)
 {
   int ret;
 
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
 
   /*
     There are 4 callee-save registers we need to save and restore when
@@ -504,9 +475,7 @@ my_context_spawn(struct my_context *c, void (*f)(void *), void *d)
      : "ecx", "edx", "memory", "cc"
   );
 
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
 
   return ret;
 }
@@ -516,9 +485,7 @@ my_context_continue(struct my_context *c)
 {
   int ret;
 
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
 
   __asm__ __volatile__
     (
@@ -573,9 +540,7 @@ my_context_continue(struct my_context *c)
      : "ecx", "edx", "memory", "cc"
         );
 
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
 
   return ret;
 }
@@ -622,15 +587,13 @@ my_context_yield(struct my_context *c)
 int
 my_context_init(struct my_context *c, size_t stack_size)
 {
+  bzero(c, sizeof(*c));
   if (!(c->stack_bot= malloc(stack_size)))
     return -1;                                  /* Out of memory */
   c->stack_top= ((unsigned char *)(c->stack_bot)) + stack_size;
 #ifdef HAVE_VALGRIND_VALGRIND_H
   c->valgrind_stack_id=
     VALGRIND_STACK_REGISTER(c->stack_bot, c->stack_top);
-#endif
-#ifndef DBUG_OFF
-  c->dbug_state= NULL;
 #endif
   return 0;
 }
@@ -645,9 +608,7 @@ my_context_destroy(struct my_context *c)
     VALGRIND_STACK_DEREGISTER(c->valgrind_stack_id);
 #endif
   }
-#ifndef DBUG_OFF
-  dbug_free_code_state(&c->dbug_state);
-#endif
+  DBUG_FREE_CODE_STATE(&c->dbug_state);
 }
 
 #endif  /* MY_CONTEXT_USE_I386_GCC_ASM */
@@ -685,22 +646,17 @@ my_context_trampoline(void *p)
 int
 my_context_init(struct my_context *c, size_t stack_size)
 {
-#ifndef DBUG_OFF
-  c->dbug_state= NULL;
-#endif
+  bzero(c, sizeof(*c));
   c->lib_fiber= CreateFiber(stack_size, my_context_trampoline, c);
   if (c->lib_fiber)
     return 0;
-  else
-    return -1;
+  return -1;
 }
 
 void
 my_context_destroy(struct my_context *c)
 {
-#ifndef DBUG_OFF
-  dbug_free_code_state(&c->dbug_state);
-#endif
+  DBUG_FREE_CODE_STATE(&c->dbug_state);
   if (c->lib_fiber)
   {
     DeleteFiber(c->lib_fiber);
@@ -723,26 +679,18 @@ my_context_spawn(struct my_context *c, void (*f)(void *), void *d)
   if (current_fiber == NULL || current_fiber == (void *)0x1e00)
     current_fiber= ConvertThreadToFiber(c);
   c->app_fiber= current_fiber;
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
   SwitchToFiber(c->lib_fiber);
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
   return c->return_value;
 }
 
 int
 my_context_continue(struct my_context *c)
 {
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
   SwitchToFiber(c->lib_fiber);
-#ifndef DBUG_OFF
-  dbug_swap_code_state(&c->dbug_state);
-#endif
+  DBUG_SWAP_CODE_STATE(&c->dbug_state);
   return c->return_value;
 }
 

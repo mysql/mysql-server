@@ -108,7 +108,8 @@ my_bool	net_flush(NET *net);
 #include "client_settings.h"
 #include <sql_common.h>
 #include <mysql/client_plugin.h>
-#include "my_context.h"
+#include <my_context.h>
+#include <mysql_async.h>
 
 #define native_password_plugin_name "mysql_native_password"
 #define old_password_plugin_name    "mysql_old_password"
@@ -1051,23 +1052,17 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   return 0;
 }
 
-#define mysql_extension_get(MYSQL, X) \
-  ((MYSQL)->extension ? (MYSQL)->extension->X : NULL)
-#define mysql_extension_set(MYSQL, X, VAL)                       \
-    if (!(MYSQL)->extension)                                     \
-      (MYSQL)->extension= (struct st_mysql_extension *)          \
-        my_malloc(sizeof(struct st_mysql_extension),             \
+#define extension_set(OPTS, X, VAL)                              \
+    if (!(OPTS)->extension)                                      \
+      (OPTS)->extension= (struct st_mysql_options_extention *)   \
+        my_malloc(sizeof(struct st_mysql_options_extention),     \
                   MYF(MY_WME | MY_ZEROFILL));                    \
-    (MYSQL)->extension->X= VAL;
+    (OPTS)->extension->X= VAL;
 
 #define extension_set_string(OPTS, X, STR)                       \
     if ((OPTS)->extension)                                       \
       my_free((OPTS)->extension->X, MYF(MY_ALLOW_ZERO_PTR));     \
-    else                                                         \
-      (OPTS)->extension= (struct st_mysql_options_extention *)   \
-        my_malloc(sizeof(struct st_mysql_options_extention),     \
-                  MYF(MY_WME | MY_ZEROFILL));                    \
-    (OPTS)->extension->X= my_strdup((STR), MYF(MY_WME));
+    extension_set(OPTS, X, my_strdup((STR), MYF(MY_WME)));
 
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group)
@@ -1274,36 +1269,6 @@ void mysql_read_default_options(struct st_mysql_options *options,
   }
   free_defaults(argv);
   DBUG_VOID_RETURN;
-}
-
-/*
-  Fetch the context for asynchronous API calls, allocating a new one if
-  necessary.
-*/
-#define STACK_SIZE (4096*15)
-
-struct mysql_async_context *
-mysql_get_async_context(MYSQL *mysql)
-{
-  struct mysql_async_context *b;
-  if ((b= mysql_extension_get(mysql, async_context)))
-    return b;
-
-  if (!(b= (struct mysql_async_context *)
-        my_malloc(sizeof(*b), MYF(MY_ZEROFILL))))
-  {
-    set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    return NULL;
-  }
-  if (my_context_init(&b->async_context, STACK_SIZE))
-  {
-    my_free(b, MYF(0));
-    return NULL;
-  }
-  mysql_extension_set(mysql, async_context, b)
-  if (mysql->net.vio)
-    mysql->net.vio->async_context= b;
-  return b;
 }
 
 
@@ -2581,20 +2546,16 @@ static int
 connect_sync_or_async(MYSQL *mysql, NET *net, my_socket fd,
                       const struct sockaddr *name, uint namelen)
 {
-  extern int my_connect_async(struct mysql_async_context *b, my_socket fd,
-                              const struct sockaddr *name, uint namelen,
-                              uint timeout);
-  struct mysql_async_context *actxt= mysql_extension_get(mysql, async_context);
-  
-  if (actxt && actxt->active)
+  if (mysql->options.extension && mysql->options.extension->async_context &&
+      mysql->options.extension->async_context->active)
   {
     my_bool old_mode;
     vio_blocking(net->vio, FALSE, &old_mode);
-    return my_connect_async(actxt, fd, name, namelen,
-                            mysql->options.connect_timeout);
+    return my_connect_async(mysql->options.extension->async_context, fd,
+                            name, namelen, mysql->options.connect_timeout);
   }
-  else
-    return my_connect(fd, name, namelen, mysql->options.connect_timeout);
+
+  return my_connect(fd, name, namelen, mysql->options.connect_timeout);
 }
 
 MYSQL * STDCALL 
@@ -2612,7 +2573,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   struct	sockaddr_in sock_addr;
   ulong		pkt_length;
   NET		*net= &mysql->net;
-  struct mysql_async_context *actxt;
 #ifdef MYSQL_SERVER
   thr_alarm_t   alarmed;
   ALARM		alarm_buff;
@@ -2881,8 +2841,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     goto error;
   }
 
-  if ((actxt= mysql_extension_get(mysql, async_context)) && actxt->active)
-    net->vio->async_context= actxt;
+  if (mysql->options.extension && mysql->options.extension->async_context &&
+      mysql->options.extension->async_context->active)
+    net->vio->async_context= mysql->options.extension->async_context;
 
   if (my_net_init(net, net->vio))
   {
@@ -3114,8 +3075,6 @@ error:
     /* Free alloced memory */
     end_server(mysql);
     mysql_close_free(mysql);
-    if (!(client_flag & CLIENT_REMEMBER_OPTIONS))
-      mysql_close_free_options(mysql);
   }
   DBUG_RETURN(0);
 }
@@ -3184,7 +3143,6 @@ my_bool mysql_reconnect(MYSQL *mysql)
     DBUG_RETURN(1);
   }
   mysql_init(&tmp_mysql);
-  tmp_mysql.extension= mysql->extension;
   tmp_mysql.options= mysql->options;
   tmp_mysql.options.my_cnf_file= tmp_mysql.options.my_cnf_group= 0;
   tmp_mysql.rpl_pivot= mysql->rpl_pivot;
@@ -3199,7 +3157,9 @@ my_bool mysql_reconnect(MYSQL *mysql)
     (The vio will be put in the original MYSQL permanently once we successfully
     reconnect, or be discarded if we fail to reconnect.)
   */
-  if ((ctxt= mysql_extension_get(mysql, async_context)) && ctxt->active)
+  if (mysql->options.extension &&
+      (ctxt= mysql->options.extension->async_context) &&
+      mysql->options.extension->async_context->active)
   {
     hook_data.orig_mysql= mysql;
     hook_data.new_mysql= &tmp_mysql;
@@ -3208,7 +3168,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   }
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
-			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS))
+			  mysql->client_flag))
   {
     if (ctxt)
       my_context_install_suspend_resume_hook(ctxt, NULL, NULL);
@@ -3220,7 +3180,6 @@ my_bool mysql_reconnect(MYSQL *mysql)
   if (mysql_set_character_set(&tmp_mysql, mysql->charset->csname))
   {
     DBUG_PRINT("error", ("mysql_set_character_set() failed"));
-    tmp_mysql.extension= NULL;
     bzero((char*) &tmp_mysql.options,sizeof(tmp_mysql.options));
     mysql_close(&tmp_mysql);
     if (ctxt)
@@ -3241,11 +3200,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   tmp_mysql.stmts= mysql->stmts;
   mysql->stmts= 0;
 
-  /*
-    Don't free options as these are now used in tmp_mysql.
-    Same with extension.
-  */
-  mysql->extension= NULL;
+  /* Don't free options as these are now used in tmp_mysql */
   bzero((char*) &mysql->options,sizeof(mysql->options));
   mysql->free_me=0;
   mysql_close(mysql);
@@ -3315,29 +3270,20 @@ static void mysql_close_free_options(MYSQL *mysql)
 #endif /* HAVE_SMEM */
   if (mysql->options.extension)
   {
+    struct mysql_async_context *ctxt= mysql->options.extension->async_context;
     my_free(mysql->options.extension->plugin_dir,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.extension->default_auth,MYF(MY_ALLOW_ZERO_PTR));
+    if (ctxt)
+    {
+      my_context_destroy(&ctxt->async_context);
+      my_free(ctxt, MYF(0));
+    }
     my_free(mysql->options.extension,MYF(0));
   }
   bzero((char*) &mysql->options,sizeof(mysql->options));
   DBUG_VOID_RETURN;
 }
 
-
-static void
-mysql_close_free_extension(MYSQL *mysql)
-{
-  if (mysql->extension)
-  {
-    if (mysql->extension->async_context)
-    {
-      my_context_destroy(&mysql->extension->async_context->async_context);
-      my_free(mysql->extension->async_context, MYF(0));
-    }
-    my_free(mysql->extension, MYF(0));
-    mysql->extension= NULL;
-  }
-}
 
 static void mysql_close_free(MYSQL *mysql)
 {
@@ -3447,14 +3393,11 @@ void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)),
   used for non-blocking operation of blocking stuff, so that later part can
   _not_ be done non-blocking.
 
-  Therefore, mysql_pre_close() is used to run the parts of mysql_close() that
-  may block. It can be called before mysql_close(), and in that case
-  mysql_close() is guaranteed not to need to block.
-*/
-void mysql_pre_close(MYSQL *mysql)
+  Therefore, mysql_close_slow_part() is used to run the parts of mysql_close()
+  that may block. It can be called before mysql_close(), and in that case
+  mysql_close() is guaranteed not to need to block.  */
+void STDCALL mysql_close_slow_part(MYSQL *mysql)
 {
-  if (!mysql)
-    return;
   /* If connection is still up, send a QUIT message */
   if (mysql->net.vio != 0)
   {
@@ -3473,9 +3416,8 @@ void STDCALL mysql_close(MYSQL *mysql)
 
   if (mysql)					/* Some simple safety */
   {
-    mysql_pre_close(mysql);
+    mysql_close_slow_part(mysql);
     mysql_close_free_options(mysql);
-    mysql_close_free_extension(mysql);
     mysql_close_free(mysql);
     mysql_detach_stmt_list(&mysql->stmts, "mysql_close");
 #ifndef TO_BE_DELETED
@@ -3806,9 +3748,14 @@ mysql_fetch_lengths(MYSQL_RES *res)
 }
 
 
+#define ASYNC_CONTEXT_DEFAULT_STACK_SIZE (4096*15)
+
 int STDCALL
 mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 {
+  struct mysql_async_context *ctxt;
+  size_t stacksize;
+
   DBUG_ENTER("mysql_option");
   DBUG_PRINT("enter",("option: %d",(int) option));
   switch (option) {
@@ -3891,6 +3838,39 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     break;
   case MYSQL_DEFAULT_AUTH:
     extension_set_string(&mysql->options, default_auth, arg);
+    break;
+  case MYSQL_OPT_NONBLOCK:
+    if (mysql->options.extension &&
+        (ctxt = mysql->options.extension->async_context) != 0)
+    {
+      /*
+        We must not allow changing the stack size while a non-blocking call is
+        suspended (as the stack is then in use).
+      */
+      if (ctxt->suspended)
+        DBUG_RETURN(1);
+      my_context_destroy(&ctxt->async_context);
+      my_free(ctxt, MYF(0));
+    }
+    if (!(ctxt= (struct mysql_async_context *)
+          my_malloc(sizeof(*ctxt), MYF(MY_ZEROFILL))))
+    {
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+      DBUG_RETURN(1);
+    }
+    stacksize= 0;
+    if (arg)
+      stacksize= *(const size_t *)arg;
+    if (!stacksize)
+      stacksize= ASYNC_CONTEXT_DEFAULT_STACK_SIZE;
+    if (my_context_init(&ctxt->async_context, stacksize))
+    {
+      my_free(ctxt, MYF(0));
+      DBUG_RETURN(1);
+    }
+    extension_set(&(mysql->options), async_context, ctxt)
+    if (mysql->net.vio)
+      mysql->net.vio->async_context= ctxt;
     break;
   default:
     DBUG_RETURN(1);
@@ -4102,6 +4082,5 @@ mysql_get_socket(const MYSQL *mysql)
 {
   if (mysql->net.vio)
     return mysql->net.vio->sd;
-  else
-    return INVALID_SOCKET;
+  return INVALID_SOCKET;
 }

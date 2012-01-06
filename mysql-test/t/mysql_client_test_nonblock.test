@@ -1,6 +1,6 @@
 # This runs the mysql_client_test using the non-blocking API.
 
-# This test should work in embedded server after we fix mysqltest
+# The non-blocking API is not supported in the embedded server.
 -- source include/not_embedded.inc
 
 SET @old_general_log= @@global.general_log;

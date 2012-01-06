@@ -1,17 +1,15 @@
 /*
   Copyright 2011 Kristian Nielsen and Monty Program Ab.
 
-  Experiments with non-blocking libmysql.
+  This file is free software; you can redistribute it and/or
+  modify it under the terms of the GNU Lesser General Public
+  License as published by the Free Software Foundation; either
+  version 2.1 of the License, or (at your option) any later version.
 
-  This is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This is distributed in the hope that it will be useful,
+  This library is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  Lesser General Public License for more details.
 
   You should have received a copy of the GNU General Public License
   along with this.  If not, see <http://www.gnu.org/licenses/>.
@@ -93,7 +91,7 @@ static struct my_option options[] =
    &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"connections", 'n', "Number of simultaneous connections/queries.",
    &opt_connections, &opt_connections, 0, GET_UINT, REQUIRED_ARG,
-   0, 0, 0, 0, 0, 0},
+   5, 0, 0, 0, 0, 0},
   {"queryfile", 'q', "Name of file containing extra queries to run",
    &opt_query_file, &opt_query_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -219,8 +217,8 @@ again:
     break;
 
   case 20:
-    free(sd->query_element->query);
-    free(sd->query_element);
+    my_free(sd->query_element->query, MYF(0));
+    my_free(sd->query_element, MYF(0));
     if (sd->err)
     {
       printf("%d | Error: %s\n", sd->index, mysql_error(&sd->mysql));
@@ -315,8 +313,8 @@ add_query(const char *q)
   char *q2;
   size_t len;
 
-  e= malloc(sizeof(*e));
-  q2= strdup(q);
+  e= my_malloc(sizeof(*e), MYF(0));
+  q2= my_strdup(q, MYF(0));
   if (!e || !q2)
     fatal(NULL, "Out of memory");
 
@@ -395,7 +393,7 @@ main(int argc, char *argv[])
     add_query(*argv++);
   }
 
-  sds= malloc(opt_connections * sizeof(*sds));
+  sds= my_malloc(opt_connections * sizeof(*sds), MYF(0));
   if (!sds)
     fatal(NULL, "Out of memory");
 
@@ -412,6 +410,7 @@ main(int argc, char *argv[])
   for (i= 0; i < opt_connections; i++)
   {
     mysql_init(&sds[i].mysql);
+    mysql_options(&sds[i].mysql, MYSQL_OPT_NONBLOCK, 0);
     mysql_options(&sds[i].mysql, MYSQL_READ_DEFAULT_GROUP, "async_queries");
 
     /*

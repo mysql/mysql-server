@@ -169,7 +169,9 @@ enum mysql_option
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
   MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
-  MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH
+  MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
+  /* MariaDB options */
+  MYSQL_OPT_NONBLOCK=6000
 };
 
 /**
@@ -264,8 +266,6 @@ typedef struct character_set
 struct st_mysql_methods;
 struct st_mysql_stmt;
 
-struct st_mysql_extension;
-
 typedef struct st_mysql
 {
   NET		net;			/* Communication parameters */
@@ -320,7 +320,7 @@ typedef struct st_mysql
   my_bool *unbuffered_fetch_owner;
   /* needed for embedded server - no net buffer to store the 'info' */
   char *info_buffer;
-  struct st_mysql_extension *extension;
+  void *extension;
 } MYSQL;
 
 
@@ -382,14 +382,21 @@ typedef struct st_mysql_parameters
   Flag bits, the asynchronous methods return a combination of these ORed
   together to let the application know when to resume the suspended operation.
 */
-typedef enum {
-  MYSQL_WAIT_READ= 1,   /* Wait for data to be available on socket to read */
-                        /* mysql_get_socket_fd() will return socket descriptor*/
-  MYSQL_WAIT_WRITE= 2,  /* Wait for socket to be ready to write data */
-  MYSQL_WAIT_EXCEPT= 4, /* Wait for select() to mark exception on socket */
-  MYSQL_WAIT_TIMEOUT= 8 /* Wait until timeout occurs. Value of timeout can be */
-                        /* obtained from mysql_get_timeout_value() */
-} MYSQL_ASYNC_STATUS;
+
+/*
+  Wait for data to be available on socket to read.
+  mysql_get_socket_fd() will return socket descriptor.
+*/
+#define MYSQL_WAIT_READ 1
+/* Wait for socket to be ready to write data. */
+#define MYSQL_WAIT_WRITE  2
+/* Wait for select() to mark exception on socket. */
+#define MYSQL_WAIT_EXCEPT 4
+/*
+  Wait until timeout occurs. Value of timeout can be obtained from
+  mysql_get_timeout_value().
+*/
+#define MYSQL_WAIT_TIMEOUT 8
 
 #if !defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
 #define max_allowed_packet (*mysql_get_parameters()->p_max_allowed_packet)
@@ -943,6 +950,7 @@ my_bool STDCALL mysql_more_results(MYSQL *mysql);
 int STDCALL mysql_next_result(MYSQL *mysql);
 int STDCALL mysql_next_result_start(int *ret, MYSQL *mysql);
 int STDCALL mysql_next_result_cont(int *ret, MYSQL *mysql, int status);
+void STDCALL mysql_close_slow_part(MYSQL *mysql);
 void STDCALL mysql_close(MYSQL *sock);
 int STDCALL mysql_close_start(MYSQL *sock);
 int STDCALL mysql_close_cont(MYSQL *sock, int status);
@@ -958,20 +966,7 @@ unsigned int STDCALL mysql_get_timeout_value(const MYSQL *mysql);
 #ifdef USE_OLD_FUNCTIONS
 MYSQL *		STDCALL mysql_connect(MYSQL *mysql, const char *host,
 				      const char *user, const char *passwd);
-int             STDCALL mysql_connect_start(MYSQL **ret, MYSQL *mysql,
-                                            const char *host, const char *user,
-                                            const char *passwd);
-int             STDCALL mysql_connect_cont(MYSQL **ret, MYSQL *mysql,
-                                           int status);
 int		STDCALL mysql_create_db(MYSQL *mysql, const char *DB);
-int             STDCALL mysql_create_db_start(int *ret, MYSQL *mysql,
-                                              const char *DB);
-int             STDCALL mysql_create_db_cont(int *ret, MYSQL *mysql,
-                                             int status);
-int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
-int             STDCALL mysql_drop_db_start(int *ret, MYSQL *mysql,
-                                            const char *DB);
-int             STDCALL mysql_drop_db_cont(int *ret, MYSQL *mysql, int status);
 int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 #define	 mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 #endif

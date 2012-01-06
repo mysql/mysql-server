@@ -1,17 +1,15 @@
 /*
   Copyright 2011 Kristian Nielsen and Monty Program Ab.
 
-  Experiments with non-blocking libmysql.
+  This file is free software; you can redistribute it and/or
+  modify it under the terms of the GNU Lesser General Public
+  License as published by the Free Software Foundation; either
+  version 2.1 of the License, or (at your option) any later version.
 
-  This is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This is distributed in the hope that it will be useful,
+  This library is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  Lesser General Public License for more details.
 
   You should have received a copy of the GNU General Public License
   along with this.  If not, see <http://www.gnu.org/licenses/>.
@@ -133,6 +131,7 @@ doit(const char *host, const char *user, const char *password)
   int status;
 
   mysql_init(&mysql);
+  mysql_options(&mysql, MYSQL_OPT_NONBLOCK, 0);
   mysql_options(&mysql, MYSQL_READ_DEFAULT_GROUP, "myapp");
 
   /* Returns 0 when done, else flag for what to wait for when need to block. */
@@ -177,8 +176,18 @@ doit(const char *host, const char *user, const char *password)
     fatal(&mysql, "Got error while retrieving rows");
   mysql_free_result(res);
 
-  /* I suppose this must be non-blocking too. */
-  mysql_close(&mysql);
+  /*
+    mysql_close() sends a COM_QUIT packet, and so in principle could block
+    waiting for the socket to accept the data.
+    In practise, for many applications it will probably be fine to use the
+    blocking mysql_close().
+   */
+  status= mysql_close_start(&mysql);
+  while (status)
+  {
+    status= wait_for_mysql(&mysql, status);
+    status= mysql_close_cont(&mysql, status);
+  }
 }
 
 int

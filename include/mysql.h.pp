@@ -257,7 +257,8 @@ enum mysql_option
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
   MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
-  MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH
+  MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
+  MYSQL_OPT_NONBLOCK=6000
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -318,7 +319,6 @@ typedef struct character_set
 } MY_CHARSET_INFO;
 struct st_mysql_methods;
 struct st_mysql_stmt;
-struct st_mysql_extension;
 typedef struct st_mysql
 {
   NET net;
@@ -354,7 +354,7 @@ typedef struct st_mysql
   void *thd;
   my_bool *unbuffered_fetch_owner;
   char *info_buffer;
-  struct st_mysql_extension *extension;
+  void *extension;
 } MYSQL;
 typedef struct st_mysql_res {
   my_ulonglong row_count;
@@ -392,12 +392,6 @@ typedef struct st_mysql_parameters
   unsigned long *p_net_buffer_length;
   void *extension;
 } MYSQL_PARAMETERS;
-typedef enum {
-  MYSQL_WAIT_READ= 1,
-  MYSQL_WAIT_WRITE= 2,
-  MYSQL_WAIT_EXCEPT= 4,
-  MYSQL_WAIT_TIMEOUT= 8
-} MYSQL_ASYNC_STATUS;
 int mysql_server_init(int argc, char **argv, char **groups);
 void mysql_server_end(void);
 MYSQL_PARAMETERS * mysql_get_parameters(void);
@@ -776,6 +770,7 @@ my_bool mysql_more_results(MYSQL *mysql);
 int mysql_next_result(MYSQL *mysql);
 int mysql_next_result_start(int *ret, MYSQL *mysql);
 int mysql_next_result_cont(int *ret, MYSQL *mysql, int status);
+void mysql_close_slow_part(MYSQL *mysql);
 void mysql_close(MYSQL *sock);
 int mysql_close_start(MYSQL *sock);
 int mysql_close_cont(MYSQL *sock, int status);

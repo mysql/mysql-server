@@ -22,6 +22,7 @@
 
 #include "vio_priv.h"
 #include "my_context.h"
+#include <mysql_async.h>
 
 int vio_errno(Vio *vio __attribute__((unused)))
 {
@@ -32,8 +33,6 @@ int vio_errno(Vio *vio __attribute__((unused)))
 size_t vio_read(Vio * vio, uchar* buf, size_t size)
 {
   size_t r;
-  extern ssize_t my_recv_async(struct mysql_async_context *b, int fd,
-                               unsigned char *buf, size_t size, uint timeout);
   DBUG_ENTER("vio_read");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                        (uint) size));
@@ -119,9 +118,6 @@ size_t vio_read_buff(Vio *vio, uchar* buf, size_t size)
 size_t vio_write(Vio * vio, const uchar* buf, size_t size)
 {
   size_t r;
-  extern ssize_t my_send_async(struct mysql_async_context *b, int fd,
-                               const unsigned char *buf, size_t size,
-                               uint timeout);
   DBUG_ENTER("vio_write");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                        (uint) size));
@@ -394,8 +390,6 @@ void vio_in_addr(Vio *vio, struct in_addr *in)
 
 my_bool vio_poll_read(Vio *vio,uint timeout)
 {
-  extern my_bool my_poll_read_async(struct mysql_async_context *b,
-                                    uint timeout);
 #ifndef HAVE_POLL
 #if __WIN__
   int res;

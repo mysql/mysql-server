@@ -32,9 +32,6 @@ struct mysql_async_context;
 struct st_mysql_options_extention {
   char *plugin_dir;
   char *default_auth;
-};
-
-struct st_mysql_extension {
   struct mysql_async_context *async_context;
 };
 

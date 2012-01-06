@@ -21,7 +21,7 @@ AUTOMAKE_OPTIONS =	foreign
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 			README COPYING EXCEPTIONS-CLIENT \
-			CMakeLists.txt \
+			CMakeLists.txt COPYING.LESSER \
 			config/ac-macros/libevent_configure.m4
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \

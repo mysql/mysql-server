@@ -134,6 +134,8 @@ extern void dbug_free_code_state(void **code_state_store);
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
 #define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
 #define IF_DBUG(A) A
+#define DBUG_SWAP_CODE_STATE(arg) dbug_swap_code_state(arg)
+#define DBUG_FREE_CODE_STATE(arg) dbug_free_code_state(arg)
 #ifndef __WIN__
 #define DBUG_ABORT()                    (_db_flush_(), abort())
 #else
@@ -193,6 +195,8 @@ extern void _db_suicide_();
 #define DEBUGGER_OFF                    do { } while(0)
 #define DEBUGGER_ON                     do { } while(0)
 #define IF_DBUG(A)
+#define DBUG_SWAP_CODE_STATE(arg)       do { } while(0)
+#define DBUG_FREE_CODE_STATE(arg)       do { } while(0)
 #define DBUG_ABORT()                    do { } while(0)
 #define DBUG_SUICIDE()                  do { } while(0)
 

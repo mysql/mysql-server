@@ -5368,6 +5368,7 @@ void do_connect(struct st_command *command)
 #endif
   if (!(con_slot->mysql= mysql_init(0)))
     die("Failed on mysql_init()");
+  mysql_options(con_slot->mysql, MYSQL_OPT_NONBLOCK, 0);
   if (opt_compress || con_compress)
     mysql_options(con_slot->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(con_slot->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
@@ -7491,6 +7492,7 @@ int util_query(MYSQL* org_mysql, const char* query){
 
     /* enable local infile, in non-binary builds often disabled by default */
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+    mysql_options(mysql, MYSQL_OPT_NONBLOCK, 0);
     safe_connect(mysql, "util", org_mysql->host, org_mysql->user,
                  org_mysql->passwd, org_mysql->db, org_mysql->port,
                  org_mysql->unix_socket);
@@ -8226,6 +8228,7 @@ int main(int argc, char **argv)
 
   if (!(con->name = my_strdup("default", MYF(MY_WME))))
     die("Out of memory");
+  mysql_options(con->mysql, MYSQL_OPT_NONBLOCK, 0);
 
   safe_connect(con->mysql, con->name, opt_host, opt_user, opt_pass,
                opt_db, opt_port, unix_sock);

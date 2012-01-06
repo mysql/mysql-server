@@ -1,5 +1,9 @@
 # Test mixing the use of blocking and non-blocking API in a single connection.
 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
 --enable_non_blocking_api
 connect (con_nonblock,localhost,root,,test);
 --disable_non_blocking_api

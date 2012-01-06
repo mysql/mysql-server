@@ -260,6 +260,8 @@ static MYSQL *mysql_client_init(MYSQL* con)
   if (res && shared_memory_base_name)
     mysql_options(res, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
 #endif
+  if (res && non_blocking_api_enabled)
+    mysql_options(res, MYSQL_OPT_NONBLOCK, 0);
   return res;
 }
 
