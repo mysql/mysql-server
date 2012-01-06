@@ -28,8 +28,6 @@ y	y2
 drop table t1;
 create table t1 (y year);
 insert into t1 values (now());
-Warnings:
-Warning	1265	Data truncated for column 'y' at row 1
 select if(y = now(), 1, 0) from t1;
 if(y = now(), 1, 0)
 1
@@ -356,3 +354,18 @@ total_rows	min_value	MAX(c1)
 DROP TABLE t1;
 #
 End of 5.1 tests
+#
+# Start of 5.6 tests
+#
+SET timestamp=UNIX_TIMESTAMP('2011-12-31 15:44:00');
+CREATE TABLE t1 (a YEAR);
+INSERT INTO t1 VALUES (CURRENT_TIME);
+INSERT INTO t1 VALUES (TIME'15:44:00');
+INSERT INTO t1 VALUES (TIME'25:00:00');
+SELECT * FROM t1;
+a
+2011
+2011
+2012
+DROP TABLE t1;
+SET timestamp=DEFAULT;

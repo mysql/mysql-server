@@ -472,6 +472,7 @@ public:
   bool curr_group_seen_gtid;   // current group started with Gtid-event or not
   bool curr_group_seen_begin;   // current group started with B-event or not
   bool curr_group_isolated;     // current group requires execution in isolation
+  bool mts_end_group_sets_max_dbs; // flag indicates if partitioning info is discovered
   volatile ulong mts_wq_underrun_w_id;  // Id of a Worker whose queue is getting empty
   /* 
      Ongoing excessive overrun counter to correspond to number of events that
@@ -490,7 +491,7 @@ public:
   ulong slave_parallel_workers; // the one slave session time number of workers
   ulong recovery_parallel_workers; // number of workers while recovering
   uint checkpoint_seqno;  // counter of groups executed after the most recent CP
-  uint checkpoint_group;  // number of groups in one checkpoint interval (period).
+  uint checkpoint_group;  // cache for ::opt_mts_checkpoint_group 
   MY_BITMAP recovery_groups;  // bitmap used during recovery
   ulong mts_recovery_group_cnt; // number of groups to execute at recovery
   ulong mts_recovery_index;     // running index of recoverable groups
@@ -782,6 +783,40 @@ public:
     with several warning messages.
   */
   bool reported_unsafe_warning;
+
+  time_t get_row_stmt_start_timestamp()
+  {
+    return row_stmt_start_timestamp;
+  }
+
+  time_t set_row_stmt_start_timestamp()
+  {
+    if (row_stmt_start_timestamp == 0)
+      row_stmt_start_timestamp= my_time(0);
+
+    return row_stmt_start_timestamp;
+  }
+
+  void reset_row_stmt_start_timestamp()
+  {
+    row_stmt_start_timestamp= 0;
+  }
+
+  void set_long_find_row_note_printed()
+  {
+    long_find_row_note_printed= true;
+  }
+
+  void unset_long_find_row_note_printed()
+  {
+    long_find_row_note_printed= false;
+  }
+
+  bool is_long_find_row_note_printed()
+  {
+    return long_find_row_note_printed;
+  }
+
 private:
   /**
     Delay slave SQL thread by this amount, compared to master (in
@@ -823,6 +858,13 @@ private:
 
   Relay_log_info(const Relay_log_info& info);
   Relay_log_info& operator=(const Relay_log_info& info);
+
+  /*
+    Runtime state for printing a note when slave is taking
+    too long while processing a row event.
+   */
+  time_t row_stmt_start_timestamp;
+  bool long_find_row_note_printed;
 };
 
 bool mysql_show_relaylog_events(THD* thd);

@@ -289,6 +289,12 @@ The following options may be given as the first argument:
  transactions that affect more than one storage engine,
  when binary log is disabled).
  --log-tc-size=#     Size of transaction coordinator log.
+ --log-throttle-queries-not-using-indexes[=#] 
+ Log at most this many 'not using index' warnings per
+ minute to the slow log. Any further warnings will be
+ condensed into a single summary line. A value of 0
+ disables throttling. Option has no effect unless
+ --log_queries_not_using_indexes is set.
  -W, --log-warnings[=#] 
  Log some not critical warnings to the log file
  --long-query-time=# Log all queries that have taken more than long_query_time
@@ -366,6 +372,8 @@ The following options may be given as the first argument:
  After this many write locks, allow some read locks to run
  in between
  --memlock           Lock mysqld in memory.
+ --metadata-locks-cache-size=# 
+ Size of unused metadata locks cache
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
@@ -466,6 +474,42 @@ The following options may be given as the first argument:
  Enable the performance schema.
  --performance-schema-accounts-size=# 
  Maximum number of instrumented user@host accounts.
+ --performance-schema-consumer-events-stages-current 
+ Default startup value for the events_stages_current
+ consumer.
+ --performance-schema-consumer-events-stages-history 
+ Default startup value for the events_stages_history
+ consumer.
+ --performance-schema-consumer-events-stages-history-long 
+ Default startup value for the events_stages_history_long
+ consumer.
+ --performance-schema-consumer-events-statements-current 
+ Default startup value for the events_statements_current
+ consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-events-statements-current to disable.)
+ --performance-schema-consumer-events-statements-history 
+ Default startup value for the events_statements_history
+ consumer.
+ --performance-schema-consumer-events-statements-history-long 
+ Default startup value for the
+ events_statements_history_long consumer.
+ --performance-schema-consumer-events-waits-current 
+ Default startup value for the events_waits_current
+ consumer.
+ --performance-schema-consumer-events-waits-history 
+ Default startup value for the events_waits_history
+ consumer.
+ --performance-schema-consumer-events-waits-history-long 
+ Default startup value for the events_waits_history_long
+ consumer.
+ --performance-schema-consumer-global-instrumentation 
+ Default startup value for the global_instrumentation
+ consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-global-instrumentation to disable.)
+ --performance-schema-consumer-thread-instrumentation 
+ Default startup value for the thread_instrumentation
+ consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-thread-instrumentation to disable.)
  --performance-schema-events-stages-history-long-size=# 
  Number of rows in EVENTS_STAGES_HISTORY_LONG.
  --performance-schema-events-stages-history-size=# 
@@ -480,6 +524,9 @@ The following options may be given as the first argument:
  Number of rows per thread in EVENTS_WAITS_HISTORY.
  --performance-schema-hosts-size=# 
  Maximum number of instrumented hosts.
+ --performance-schema-instrument[=name] 
+ Default startup value for a performance schema
+ instrument.
  --performance-schema-max-cond-classes=# 
  Maximum number of condition instruments.
  --performance-schema-max-cond-instances=# 
@@ -915,6 +962,7 @@ log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
 log-tc tc.log
 log-tc-size 24576
+log-throttle-queries-not-using-indexes 0
 log-warnings 1
 long-query-time 10
 low-priority-updates FALSE
@@ -944,6 +992,7 @@ max-tmp-tables 32
 max-user-connections 0
 max-write-lock-count 18446744073709551615
 memlock FALSE
+metadata-locks-cache-size 1024
 min-examined-row-limit 0
 multi-range-count 256
 myisam-block-size 1024
@@ -974,6 +1023,17 @@ optimizer-trace-max-mem-size 16384
 optimizer-trace-offset -1
 performance-schema FALSE
 performance-schema-accounts-size 100
+performance-schema-consumer-events-stages-current FALSE
+performance-schema-consumer-events-stages-history FALSE
+performance-schema-consumer-events-stages-history-long FALSE
+performance-schema-consumer-events-statements-current TRUE
+performance-schema-consumer-events-statements-history FALSE
+performance-schema-consumer-events-statements-history-long FALSE
+performance-schema-consumer-events-waits-current FALSE
+performance-schema-consumer-events-waits-history FALSE
+performance-schema-consumer-events-waits-history-long FALSE
+performance-schema-consumer-global-instrumentation TRUE
+performance-schema-consumer-thread-instrumentation TRUE
 performance-schema-events-stages-history-long-size 10000
 performance-schema-events-stages-history-size 10
 performance-schema-events-statements-history-long-size 10000
@@ -981,6 +1041,7 @@ performance-schema-events-statements-history-size 10
 performance-schema-events-waits-history-long-size 10000
 performance-schema-events-waits-history-size 10
 performance-schema-hosts-size 100
+performance-schema-instrument 
 performance-schema-max-cond-classes 80
 performance-schema-max-cond-instances 1000
 performance-schema-max-file-classes 50

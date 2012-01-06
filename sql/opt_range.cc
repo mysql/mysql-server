@@ -114,6 +114,8 @@
 #include <m_ctype.h>
 #include "sql_select.h"
 #include "opt_trace.h"
+#include "filesort.h"         // filesort_free_buffers
+#include "sql_optimizer.h"    // is_indexed_agg_distinct
 
 using std::min;
 using std::max;
@@ -842,7 +844,7 @@ static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts);
 static ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                                   SEL_ARG *tree, bool update_tbl_stats, 
                                   uint *mrr_flags, uint *bufsize,
-                                  COST_VECT *cost);
+                                  Cost_estimate *cost);
 QUICK_RANGE_SELECT *get_quick_select(PARAM *param,uint index,
                                      SEL_ARG *key_tree, uint mrr_flags, 
                                      uint mrr_buf_size, MEM_ROOT *alloc);
@@ -1291,8 +1293,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
     memset(&alloc, 0, sizeof(alloc));
   file= head->file;
   record= head->record[0];
-  save_read_set= head->read_set;
-  save_write_set= head->write_set;
 
   /* Allocate a bitmap for used columns (Q: why not on MEM_ROOT?) */
   if (!(bitmap= (my_bitmap_map*) my_malloc(head->s->column_bitmap_size,
@@ -1356,7 +1356,6 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
     free_root(&alloc,MYF(0));
     my_free(column_bitmap.bitmap);
   }
-  head->column_bitmaps_set(save_read_set, save_write_set);
   my_free(mrr_buf_desc);
   DBUG_VOID_RETURN;
 }
@@ -1484,6 +1483,8 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
 {
   handler *save_file= file, *org_file;
   THD *thd;
+  MY_BITMAP * const save_read_set= head->read_set;
+  MY_BITMAP * const save_write_set= head->write_set;
   DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_merged_scan");
 
   in_ror_merged_scan= 1;
@@ -4283,7 +4284,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 
   /* Calculate cost(rowid_to_row_scan) */
   {
-    COST_VECT sweep_cost;
+    Cost_estimate sweep_cost;
     JOIN *join= param->thd->lex->select_lex.join;
     bool is_interrupted= test(join && join->tables != 1);
     get_sweep_read_cost(param->table, non_cpk_scan_records, is_interrupted,
@@ -4431,7 +4432,7 @@ skip_to_ror_scan:
   */
   double roru_total_cost;
   {
-    COST_VECT sweep_cost;
+    Cost_estimate sweep_cost;
     JOIN *join= param->thd->lex->select_lex.join;
     bool is_interrupted= test(join && join->tables != 1);
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
@@ -4895,7 +4896,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   DBUG_PRINT("info", ("info->total_cost: %g", info->total_cost));
   if (!info->is_covering)
   {
-    COST_VECT sweep_cost;
+    Cost_estimate sweep_cost;
     JOIN *join= info->param->thd->lex->select_lex.join;
     bool is_interrupted= test(join && join->tables == 1);
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
@@ -5422,7 +5423,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
     if (*key)
     {
       ha_rows found_records;
-      COST_VECT cost;
+      Cost_estimate cost;
       double found_read_time;
       uint mrr_flags, buf_size;
       uint keynr= param->real_keynr[idx];
@@ -6306,10 +6307,10 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
   */
   if (field->result_type() == STRING_RESULT &&
-      ((Field_str*) field)->match_collation_to_optimize_range() &&
+      field->match_collation_to_optimize_range() &&
       value->result_type() == STRING_RESULT &&
       key_part->image_type == Field::itRAW &&
-      ((Field_str*)field)->charset() != conf_func->compare_collation() &&
+      field->charset() != conf_func->compare_collation() &&
       !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC)))
   {
@@ -8661,7 +8662,7 @@ walk_up_n_right:
 static
 ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                            SEL_ARG *tree, bool update_tbl_stats, 
-                           uint *mrr_flags, uint *bufsize, COST_VECT *cost)
+                           uint *mrr_flags, uint *bufsize, Cost_estimate *cost)
 {
   SEL_ARG_RANGE_SEQ seq;
   RANGE_SEQ_IF seq_if = {sel_arg_range_seq_init, sel_arg_range_seq_next, 0, 0};
@@ -9157,7 +9158,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   QUICK_RANGE *range;
   uint part;
   bool create_err= FALSE;
-  COST_VECT cost;
+  Cost_estimate cost;
 
   old_root= thd->mem_root;
   /* The following call may change thd->mem_root */
@@ -9299,7 +9300,10 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
                        thd->variables.sortbuff_size);
   }
   else
+  {
     unique->reset();
+    filesort_free_buffers(head, true);
+  }
 
   DBUG_ASSERT(file->ref_length == unique->get_size());
   DBUG_ASSERT(thd->variables.sortbuff_size == unique->get_max_in_memory_size());
@@ -9759,7 +9763,10 @@ char* &mrr_get_ptr_by_idx(range_seq_t seq, uint idx)
 int QUICK_RANGE_SELECT::get_next()
 {
   char *dummy;
+  MY_BITMAP * const save_read_set= head->read_set;
+  MY_BITMAP * const save_write_set= head->write_set;
   DBUG_ENTER("QUICK_RANGE_SELECT::get_next");
+
   if (in_ror_merged_scan)
   {
     /*
@@ -10399,6 +10406,11 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
          except MIN and MAX. For queries with DISTINCT, aggregate functions
          are allowed.
     SA5. The select list in DISTINCT queries should not contain expressions.
+    SA6. Clustered index can not be used by GROUP_MIN_MAX quick select
+         for AGG_FUNC(DISTINCT ...) optimization because cursor position is
+         never stored after a unique key lookup in the clustered index and
+         furhter index_next/prev calls can not be used. So loose index scan
+         optimization can not be used in this case.
     GA1. If Q has a GROUP BY clause, then GA is a prefix of I. That is, if
          G_i = A_j => i = j.
     GA2. If Q has a DISTINCT clause, then there is a permutation of SA that
@@ -10903,7 +10915,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       cur_index_tree= get_index_range_tree(cur_index, tree, param,
                                            &cur_param_idx);
       /* Check if this range tree can be used for prefix retrieval. */
-      COST_VECT dummy_cost;
+      Cost_estimate dummy_cost;
       uint mrr_flags= HA_MRR_USE_DEFAULT_IMPL;
       uint mrr_bufsize=0;
       cur_quick_prefix_records= check_quick_select(param, cur_param_idx, 
@@ -10975,6 +10987,14 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       add_alnum("cause", "unsupported_predicate_on_agg_attribute");
     DBUG_RETURN(NULL);
   }
+
+  /*
+    Check (SA6) if clustered key is used
+  */
+  if (is_agg_distinct && index == table->s->primary_key &&
+      table->file->primary_key_is_clustered())
+    DBUG_RETURN(NULL);
+
   /* The query passes all tests, so construct a new TRP object. */
   read_plan= new (param->mem_root)
                  TRP_GROUP_MIN_MAX(have_min, have_max, is_agg_distinct,
@@ -11124,8 +11144,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
             */
             ((args[1]->result_type() == STRING_RESULT &&
               image_type == Field::itRAW &&
-              ((Field_str*) min_max_arg_item->field)->charset() !=
-              pred->compare_collation())
+              min_max_arg_item->field->charset() != pred->compare_collation())
              ||
              /*
                We can't always use indexes when comparing a string index to a

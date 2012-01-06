@@ -1683,6 +1683,16 @@ int ha_federated::close(void)
   mysql_close(mysql);
   mysql= NULL;
 
+  /*
+    mysql_close() might return an error if a remote server's gone
+    for some reason. If that happens while removing a table from
+    the table cache, the error will be propagated to a client even
+    if the original query was not issued against the FEDERATED table.
+    So, don't propagate errors from mysql_close().
+  */
+  if (table->in_use)
+    table->in_use->clear_error();
+
   DBUG_RETURN(free_share(share));
 }
 
@@ -1837,7 +1847,7 @@ int ha_federated::write_row(uchar *buf)
   insert_field_value_string.length(0);
   ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
 
   /*
     start both our field and field values strings

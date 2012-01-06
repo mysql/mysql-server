@@ -775,7 +775,7 @@ THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
-   user_time(0), in_sub_stmt(0), n_execute_command_calls(0),
+   in_sub_stmt(0), n_execute_command_calls(0),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
@@ -823,7 +823,7 @@ THD::THD(bool enable_plugins)
   security_ctx= &main_security_ctx;
   no_errors= 0;
   password= 0;
-  query_start_used= 0;
+  query_start_used= query_start_usec_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
@@ -837,7 +837,10 @@ THD::THD(bool enable_plugins)
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
-  start_time=(time_t) 0;
+  user_time.tv_sec= 0;
+  user_time.tv_usec= 0;
+  start_time.tv_sec= 0;
+  start_time.tv_usec= 0;
   start_utime= prior_thr_create_utime= 0L;
   utime_after_lock= 0L;
   current_linfo =  0;
@@ -1053,6 +1056,26 @@ void THD::raise_note_printf(uint sql_errno, ...)
                          ebuff);
   DBUG_VOID_RETURN;
 }
+
+
+struct timeval THD::query_start_timeval_trunc(uint decimals)
+{
+  struct timeval tv;
+  tv.tv_sec= start_time.tv_sec;
+  query_start_used= 1;
+  if (decimals)
+  {
+    tv.tv_usec= start_time.tv_usec;
+    my_timeval_trunc(&tv, decimals);
+    query_start_usec_used= 1;
+  }
+  else
+  {
+    tv.tv_usec= 0;
+  }
+  return tv;
+}
+
 
 Sql_condition* THD::raise_condition(uint sql_errno,
                                     const char* sqlstate,
@@ -2101,6 +2124,23 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
 }
 
 
+void THD::change_item_tree_place(Item **old_ref, Item **new_ref)
+{
+  I_List_iterator<Item_change_record> it(change_list);
+  Item_change_record *change;
+  while ((change= it++))
+  {
+    if (change->place == old_ref)
+    {
+      DBUG_PRINT("info", ("change_item_tree_place old_ref %p new_ref %p",
+                          old_ref, new_ref));
+      change->place= new_ref;
+      break;
+    }
+  }
+}
+
+
 void THD::rollback_item_tree_changes()
 {
   I_List_iterator<Item_change_record> it(change_list);
@@ -2108,7 +2148,13 @@ void THD::rollback_item_tree_changes()
   DBUG_ENTER("rollback_item_tree_changes");
 
   while ((change= it++))
+  {
+    DBUG_PRINT("info",
+               ("rollback_item_tree_changes "
+                "place %p curr_value %p old_value %p",
+                change->place, *change->place, change->old_value));
     *change->place= change->old_value;
+  }
   /* We can forget about changes memory: it's allocated in runtime memroot */
   change_list.empty();
   DBUG_VOID_RETURN;
@@ -2783,7 +2829,9 @@ bool select_dump::send_data(List<Item> &items)
     }
     else if (my_b_write(&cache,(uchar*) res->ptr(),res->length()))
     {
-      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno);
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno,
+               my_strerror(errbuf, sizeof(errbuf), my_errno));
       goto err;
     }
   }
@@ -3523,6 +3571,160 @@ bool Security_context::user_matches(Security_context *them)
 {
   return ((user != NULL) && (them->user != NULL) &&
           !strcmp(user, them->user));
+}
+
+
+void Log_throttle::new_window(ulonglong now)
+{
+  count= 0;
+  total_exec_time= 0;
+  total_lock_time= 0;
+  window_end= now + window_size;
+}
+
+
+Log_throttle::Log_throttle(ulong *threshold, mysql_mutex_t *lock,
+                           ulong window_usecs,
+                           bool (*logger)(THD *, const char *, uint),
+                           const char *msg)
+  :total_exec_time(0), total_lock_time(0), window_end(0),
+   rate(threshold),
+   window_size(window_usecs), count(0),
+   summary_template(msg), LOCK_log_throttle(lock), log_summary(logger)
+{
+  aggregate_sctx.init();
+}
+
+
+ulong Log_throttle::prepare_summary(THD *thd)
+{
+  ulong ret= 0;
+  /*
+    Previous throttling window is over or rate changed.
+    Return the number of lines we throttled.
+  */
+  if (count > *rate)
+  {
+    ret= count - *rate;
+    count= 0;                                 // prevent writing it again.
+  }
+  return ret;
+}
+
+
+void Log_throttle::print_summary(THD *thd, ulong suppressed,
+                                 ulonglong print_lock_time,
+                                 ulonglong print_exec_time)
+{
+  /*
+    We synthesize these values so the totals in the log will be
+    correct (just in case somebody analyses them), even if the
+    start/stop times won't be (as they're an aggregate which will
+    usually mostly lie within [ window_end - window_size ; window_end ]
+  */
+  ulonglong save_start_utime=      thd->start_utime;
+  ulonglong save_utime_after_lock= thd->utime_after_lock;
+  Security_context *save_sctx=     thd->security_ctx;
+
+  char buf[128];
+
+  snprintf(buf, sizeof(buf), summary_template, suppressed);
+
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  thd->start_utime=                thd->current_utime() - print_exec_time;
+  thd->utime_after_lock=           thd->start_utime + print_lock_time;
+  thd->security_ctx=               (Security_context *) &aggregate_sctx;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+  (*log_summary)(thd, buf, strlen(buf));
+
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  thd->security_ctx    = save_sctx;
+  thd->start_utime     = save_start_utime;
+  thd->utime_after_lock= save_utime_after_lock;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+}
+
+
+bool Log_throttle::flush(THD *thd)
+{
+  // Write summary if we throttled.
+  lock_exclusive();
+  ulonglong print_lock_time=  total_lock_time;
+  ulonglong print_exec_time=  total_exec_time;
+  ulong     suppressed_count= prepare_summary(thd);
+  unlock();
+  if (suppressed_count > 0)
+  {
+    print_summary(thd, suppressed_count, print_lock_time, print_exec_time);
+    return true;
+  }
+  return false;
+}
+
+
+bool Log_throttle::log(THD *thd, bool eligible)
+{
+  bool  suppress_current= false;
+
+  /*
+    If throttling is enabled, we might have to write a summary even if
+    the current query is not of the type we handle.
+  */
+  if (*rate > 0)
+  {
+    lock_exclusive();
+
+    ulong     suppressed_count=   0;
+    ulonglong print_lock_time=    total_lock_time;
+    ulonglong print_exec_time=    total_exec_time;
+    ulonglong end_utime_of_query= thd->current_utime();
+
+    /*
+      If the window has expired, we'll try to write a summary line.
+      The subroutine will know whether we actually need to.
+    */
+    if (!in_window(end_utime_of_query))
+    {
+      suppressed_count= prepare_summary(thd);
+      // start new window only if this is the statement type we handle
+      if (eligible)
+        new_window(end_utime_of_query);
+    }
+    if (eligible && (inc_queries() > *rate))
+    {
+      /*
+        Current query's logging should be suppressed.
+        Add its execution time and lock time to totals for the current window.
+      */
+      total_exec_time += (end_utime_of_query - thd->start_utime);
+      total_lock_time += (thd->utime_after_lock - thd->start_utime);
+      suppress_current= true;
+    }
+
+    unlock();
+
+    /*
+      print_summary() is deferred until after we release the locks to
+      avoid congestion. All variables we hand in are local to the caller,
+      so things would even be safe if print_summary() hadn't finished by the
+      time the next one comes around (60s later at the earliest for now).
+      The current design will produce correct data, but does not guarantee
+      order (there is a theoretical race condition here where the above
+      new_window()/unlock() may enable a different thread to print a warning
+      for the new window before the current thread gets to print_summary().
+      If the requirements ever change, add a print_lock to the object that
+      is held during print_summary(), AND that is briefly locked before
+      returning from this function if(eligible && !suppress_current).
+      This should ensure correct ordering of summaries with regard to any
+      follow-up summaries as well as to any (non-suppressed) warnings (of
+      the type we handle) from the next window.
+    */
+    if (suppressed_count > 0)
+      print_summary(thd, suppressed_count, print_lock_time, print_exec_time);
+  }
+
+  return suppress_current;
 }
 
 

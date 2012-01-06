@@ -38,6 +38,6 @@ INSERT INTO bug53592_1 VALUES (3, 4);
 INSERT INTO bug53592_2 VALUES (1);
 INSERT INTO bug53592_2 VALUES (3);
 UPDATE bug53592_1 SET col1 = 3 WHERE col2 = 2;
-ERROR 23000: Upholding foreign key constraints for table 'bug53592_1', entry '3-2', key 1 would lead to a duplicate entry
+ERROR 23000: Foreign key constraint for table 'bug53592_1', record '3-2' would lead to a duplicate entry in table 'bug53592_2', key 'PRIMARY'
 drop table bug53592_2;
 drop table bug53592_1;

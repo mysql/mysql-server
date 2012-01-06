@@ -775,7 +775,7 @@ int ha_myisam::write_row(uchar *buf)
 
   /* If we have a timestamp column, update it to the current time */
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
 
   /*
     If we have an auto_increment column and we are writing a changed row
@@ -1014,7 +1014,9 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   if (! thd->locked_tables_mode &&
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
-    mi_check_print_error(&param,ER(ER_CANT_LOCK),my_errno);
+    char errbuf[MYSYS_STRERROR_SIZE];
+    mi_check_print_error(&param, ER(ER_CANT_LOCK), my_errno,
+                         my_strerror(errbuf, sizeof(errbuf), my_errno));
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
 
@@ -1556,7 +1558,7 @@ int ha_myisam::update_row(const uchar *old_data, uchar *new_data)
 {
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   return mi_update(file,old_data,new_data);
 }
 
@@ -2152,7 +2154,7 @@ int ha_myisam::multi_range_read_next(char **range_info)
 ha_rows ha_myisam::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                                void *seq_init_param, 
                                                uint n_ranges, uint *bufsz,
-                                               uint *flags, COST_VECT *cost)
+                                               uint *flags, Cost_estimate *cost)
 {
   /*
     This call is here because there is no location where this->table would
@@ -2166,7 +2168,7 @@ ha_rows ha_myisam::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 
 ha_rows ha_myisam::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                          uint *bufsz, uint *flags,
-                                         COST_VECT *cost)
+                                         Cost_estimate *cost)
 {
   ds_mrr.init(this, table);
   return ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost);

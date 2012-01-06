@@ -45,6 +45,7 @@ struct TABLE_LIST;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Field;
+class Field_temporal_with_date_and_time;
 
 /*
   Used to identify NESTED_JOIN structures within a join (applicable only to
@@ -866,7 +867,7 @@ struct TABLE_SHARE
   }
   /**
     Return a table metadata version.
-     * for base tables, we return table_map_id.
+     * for base tables and views, we return table_map_id.
        It is assigned from a global counter incremented for each
        new table loaded into the table definition cache (TDC).
      * for temporary tables it's table_map_id again. But for
@@ -875,7 +876,7 @@ struct TABLE_SHARE
        counter incremented for every new SQL statement. Since
        temporary tables are thread-local, each temporary table
        gets a unique id.
-     * for everything else (views, information schema tables),
+     * for everything else (e.g. information schema tables),
        the version id is zero.
 
    This choice of version id is a large compromise
@@ -890,8 +891,8 @@ struct TABLE_SHARE
    version id of a temporary table is never compared with
    a version id of a view, and vice versa.
 
-   Secondly, for base tables, we know that each DDL flushes the
-   respective share from the TDC. This ensures that whenever
+   Secondly, for base tables and views, we know that each DDL flushes
+   the respective share from the TDC. This ensures that whenever
    a table is altered or dropped and recreated, it gets a new
    version id.
    Unfortunately, since elements of the TDC are also flushed on
@@ -912,26 +913,6 @@ struct TABLE_SHARE
    Metadata of information schema tables never changes.
    Thus we can safely assume 0 for a good enough version id.
 
-   Views are a special and tricky case. A view is always inlined
-   into the parse tree of a prepared statement at prepare.
-   Thus, when we execute a prepared statement, the parse tree
-   will not get modified even if the view is replaced with another
-   view.  Therefore, we can safely choose 0 for version id of
-   views and effectively never invalidate a prepared statement
-   when a view definition is altered. Note, that this leads to
-   wrong binary log in statement-based replication, since we log
-   prepared statement execution in form Query_log_events
-   containing conventional statements. But since there is no
-   metadata locking for views, the very same problem exists for
-   conventional statements alone, as reported in Bug#25144. The only
-   difference between prepared and conventional execution is,
-   effectively, that for prepared statements the race condition
-   window is much wider.
-   In 6.0 we plan to support view metadata locking (WL#3726) and
-   extend table definition cache to cache views (WL#4298).
-   When this is done, views will be handled in the same fashion
-   as the base tables.
-
    Finally, by taking into account table type, we always
    track that a change has taken place when a view is replaced
    with a base table, a base table is replaced with a temporary
@@ -941,7 +922,7 @@ struct TABLE_SHARE
   */
   ulong get_table_ref_version() const
   {
-    return (tmp_table == SYSTEM_TMP_TABLE || is_view) ? 0 : table_map_id;
+    return (tmp_table == SYSTEM_TMP_TABLE) ? 0 : table_map_id;
   }
 
   bool visit_subgraph(Wait_for_flush *waiting_ticket,
@@ -962,6 +943,9 @@ enum index_hint_type
   INDEX_HINT_FORCE
 };
 
+/* Bitmap of table's fields */
+typedef Bitmap<MAX_FIELDS> Field_map;
+
 struct TABLE
 {
   TABLE() {}                               /* Remove gcc warning */
@@ -979,6 +963,8 @@ private:
   TABLE *share_next, **share_prev;
 
   friend struct TABLE_share;
+
+  Field_temporal_with_date_and_time *timestamp_field;
 
 public:
 
@@ -1017,7 +1003,6 @@ public:
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
-  Field_timestamp *timestamp_field;
 
   /* Table's triggers, 0 if there are no of them */
   Table_triggers_list *triggers;
@@ -1208,7 +1193,7 @@ public:
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
   bool alloc_keys(uint key_count);
-  bool add_tmp_key(ulonglong key_parts, char *key_name);
+  bool add_tmp_key(Field_map *key_parts, char *key_name);
   void use_index(int key_to_save);
 
   inline void set_keyread(bool flag)
@@ -1225,6 +1210,9 @@ public:
       file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
+
+  void set_timestamp_field(Field *field_arg);
+  Field *get_timestamp_field();
 
   bool update_const_key_parts(Item *conds);
 };
@@ -1423,7 +1411,7 @@ enum enum_open_type
 class Derived_key: public Sql_alloc {
 public:
   table_map referenced_by;
-  key_map used_fields;
+  Field_map used_fields;
 };
 
 class Semijoin_mat_exec;
@@ -1506,7 +1494,24 @@ struct TABLE_LIST
   TABLE_LIST *next_global, **prev_global;
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
-  Item		*on_expr;		/* Used with outer join */
+
+private:
+  Item		*m_join_cond;           /* Used with outer join */
+public:
+  Item         **join_cond_ref() { return &m_join_cond; }
+  Item          *join_cond() { return m_join_cond; }
+  Item          *set_join_cond(Item *val)
+                 { return m_join_cond= val; }
+  /*
+    The structure of the join condition presented in the member above
+    can be changed during certain optimizations. This member
+    contains a snapshot of AND-OR structure of the join condition
+    made after permanent transformations of the parse tree, and is
+    used to restore the join condition before every reexecution of a prepared
+    statement or stored procedure.
+  */
+  Item          *prep_join_cond;
+
   Item          *sj_on_expr;            /* Synthesized semijoin condition */
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
@@ -1518,15 +1523,6 @@ struct TABLE_LIST
   Item_exists_subselect  *sj_subq_pred;
   Semijoin_mat_exec *sj_mat_exec;
 
-  /*
-    The structure of ON expression presented in the member above
-    can be changed during certain optimizations. This member
-    contains a snapshot of AND-OR structure of the ON expression
-    made after permanent transformations of the parse tree, and is
-    used to restore ON clause before every reexecution of a prepared
-    statement or stored procedure.
-  */
-  Item          *prep_on_expr;
   COND_EQUAL    *cond_equal;            /* Used with outer join */
   /*
     During parsing - left operand of NATURAL/USING join where 'this' is
@@ -2106,11 +2102,11 @@ struct Semijoin_mat_optimize
   /* Expected #rows in the materialized table */
   double expected_rowcount;
   /* Materialization cost - execute sub-join and write rows to temp.table */
-  COST_VECT materialization_cost;
+  Cost_estimate materialization_cost;
   /* Cost to make one lookup in the temptable */
-  COST_VECT lookup_cost;
+  Cost_estimate lookup_cost;
   /* Cost of scanning the materialized table */
-  COST_VECT scan_cost;
+  Cost_estimate scan_cost;
 };
 
 typedef struct st_nested_join
@@ -2319,7 +2315,6 @@ inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
   table->status|=STATUS_NULL_ROW;
-  memset(table->null_flags, 255, table->s->null_bytes);
 }
 
 bool is_simple_order(ORDER *order);

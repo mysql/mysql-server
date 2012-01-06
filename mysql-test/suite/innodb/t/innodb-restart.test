@@ -1,0 +1,76 @@
+#
+# These test make sure that tables are visible after rebooting
+#
+
+-- source include/have_innodb.inc
+-- source include/not_embedded.inc
+
+#
+-- echo # Bug#13357607 Compressed file-per-table tablespaces fail to open
+# This bug was introduced without a regression test failing since
+# there were no tests showing that tablespaces could e created and
+# then read after reboot.
+#
+
+-- disable_query_log
+let $innodb_file_per_table=`select @@innodb_file_per_table`;
+let $innodb_file_format=`select @@innodb_file_format`;
+-- enable_query_log
+
+set global innodb_file_per_table=on;
+set global innodb_file_format='Barracuda';
+
+CREATE TABLE t1(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+	ROW_FORMAT=REDUNDANT  ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
+INSERT INTO t1 (SELECT 0, c2, c3, c4, c5 FROM t1);
+INSERT INTO t1 (SELECT 0, c2, c3, c4, c5 FROM t1);
+INSERT INTO t1 (SELECT 0, c2, c3, c4, c5 FROM t1);
+INSERT INTO t1 (SELECT 0, c2, c3, c4, c5 FROM t1);
+
+CREATE TABLE t2(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+	ROW_FORMAT=COMPACT  ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
+INSERT INTO t2 (SELECT 0, c2, c3, c4, c5 FROM t2);
+INSERT INTO t2 (SELECT 0, c2, c3, c4, c5 FROM t2);
+INSERT INTO t2 (SELECT 0, c2, c3, c4, c5 FROM t2);
+INSERT INTO t2 (SELECT 0, c2, c3, c4, c5 FROM t2);
+
+
+CREATE TABLE t3(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+	ROW_FORMAT=COMPRESSED  KEY_BLOCK_SIZE=4  ENGINE=InnoDB;
+INSERT INTO t3 VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
+INSERT INTO t3 (SELECT 0, c2, c3, c4, c5 FROM t3);
+INSERT INTO t3 (SELECT 0, c2, c3, c4, c5 FROM t3);
+INSERT INTO t3 (SELECT 0, c2, c3, c4, c5 FROM t3);
+INSERT INTO t3 (SELECT 0, c2, c3, c4, c5 FROM t3);
+
+CREATE TABLE t4(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+	ROW_FORMAT=DYNAMIC  ENGINE=InnoDB;
+INSERT INTO t4 VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
+INSERT INTO t4 (SELECT 0, c2, c3, c4, c5 FROM t4);
+INSERT INTO t4 (SELECT 0, c2, c3, c4, c5 FROM t4);
+INSERT INTO t4 (SELECT 0, c2, c3, c4, c5 FROM t4);
+INSERT INTO t4 (SELECT 0, c2, c3, c4, c5 FROM t4);
+
+-- echo # Restart the server
+-- source include/restart_mysqld.inc
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t4;
+
+INSERT INTO t1 (SELECT 0, c2, c3, c4, c5 FROM t1);
+INSERT INTO t2 (SELECT 0, c2, c3, c4, c5 FROM t2);
+INSERT INTO t3 (SELECT 0, c2, c3, c4, c5 FROM t3);
+INSERT INTO t4 (SELECT 0, c2, c3, c4, c5 FROM t4);
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+
+-- disable_query_log
+eval set global innodb_file_format=$innodb_file_format;
+eval set global innodb_file_per_table=$innodb_file_per_table;
+

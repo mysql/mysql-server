@@ -53,6 +53,20 @@ typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
 
 /**
+   Maximum length of the name of a temporary file
+   PREFIX LENGTH - 9 
+   UUID          - UUID_LENGTH
+   SEPARATORS    - 2
+   SERVER ID     - 10 (range of server ID 1 to (2^32)-1 = 4,294,967,295)
+   FILE ID       - 10 (uint)
+   EXTENSION     - 7  (Assuming that the extension is always less than 7 
+                       characters)
+*/
+#define TEMP_FILE_MAX_LEN UUID_LENGTH+38 
+
+#define LONG_FIND_ROW_THRESHOLD 60 /* seconds */
+
+/**
    Either assert or return an error.
 
    In debug build, the condition will be checked, but in non-debug
@@ -287,6 +301,7 @@ struct sql_ex_info
                                    1U + 4          /* type, master_data_written */ + \
                                                    /* type, db_1, db_2, ... */  \
                                    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + \
+                                   3U +            /* type, microseconds */ + \
                                    1U + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
@@ -364,6 +379,8 @@ struct sql_ex_info
   to facilitate the parallel applying of the Query events.
 */
 #define Q_UPDATED_DB_NAMES 12
+
+#define Q_MICROSECONDS 13
 
 /* Intvar event post-header */
 
@@ -1046,7 +1063,7 @@ public:
     execution time, which guarantees good replication (otherwise, we
     could have a query and its event with different timestamps).
   */
-  time_t when;
+  struct timeval when;
   /* The number of seconds the query took to run on the master. */
   ulong exec_time;
   /* Number of bytes written by write() function */
@@ -1170,7 +1187,7 @@ public:
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
 protected:
-  void print_timestamp(IO_CACHE* file, time_t *ts = 0);
+  void print_timestamp(IO_CACHE* file, time_t* ts);
   void print_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
   void print_base64(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
@@ -1220,14 +1237,15 @@ public:
   { return 0; }
   inline time_t get_time()
   {
-    THD *tmp_thd;
-    if (when)
-      return when;
-    if (thd)
-      return thd->start_time;
-    if ((tmp_thd= current_thd))
-      return tmp_thd->start_time;
-    return my_time(0);
+    if (!when.tv_sec && !when.tv_usec) /* Not previously initialized */
+    {
+      THD *tmp_thd= thd ? thd : current_thd;
+      if (tmp_thd)
+        when= tmp_thd->start_time;
+      else
+        my_micro_time_to_timeval(my_micro_time(), &when);
+    }
+    return (time_t) when.tv_sec;
   }
 #endif
   virtual Log_event_type get_type_code() = 0;
@@ -1411,7 +1429,7 @@ public:
   /**
      @return TRUE  if events carries partitioning data (database names).
   */
-  bool contains_partition_info();
+  bool contains_partition_info(bool);
 
   /*
     @return  the number of updated by the event databases.

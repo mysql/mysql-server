@@ -2502,7 +2502,9 @@ void MYSQL_BIN_LOG::set_write_error(THD *thd, bool is_transactional)
   }
   else
   {
-    my_error(ER_ERROR_ON_WRITE, MYF(MY_WME), name, errno);
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(ER_ERROR_ON_WRITE, MYF(MY_WME), name,
+             errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
 
   DBUG_VOID_RETURN;
@@ -2534,10 +2536,11 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
 			    bool need_lock)
 {
   int error= 0;
-  char *fname= linfo->log_file_name;
-  uint log_name_len= log_name ? (uint) strlen(log_name) : 0;
+  char *full_fname= linfo->log_file_name;
+  char full_log_name[FN_REFLEN], fname[FN_REFLEN];
+  uint log_name_len= 0, fname_len= 0;
   DBUG_ENTER("find_log_pos");
-  DBUG_PRINT("enter",("log_name: %s", log_name ? log_name : "NULL"));
+  full_log_name[0]= full_fname[0]= 0;
 
   /*
     Mutex needed because we need to make sure the file pointer does not
@@ -2546,6 +2549,20 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   if (need_lock)
     mysql_mutex_lock(&LOCK_index);
   mysql_mutex_assert_owner(&LOCK_index);
+
+  // extend relative paths for log_name to be searched
+  if (log_name)
+  {
+    if(normalize_binlog_name(full_log_name, log_name, is_relay_log))
+    {
+      error= LOG_INFO_EOF;
+      goto end;
+    }
+  }
+
+  log_name_len= log_name ? (uint) strlen(full_log_name) : 0;
+  DBUG_PRINT("enter", ("log_name: %s, full_log_name: %s", 
+                       log_name ? log_name : "NULL", full_log_name));
 
   /* As the file is flushed, we can't get an error here */
   my_b_seek(&index_file, (my_off_t) 0);
@@ -2565,19 +2582,28 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
       break;
     }
 
+    // extend relative paths and match against full path
+    if (normalize_binlog_name(full_fname, fname, is_relay_log))
+    {
+      error= LOG_INFO_EOF;
+      break;
+    }
+    fname_len= (uint) strlen(full_fname);
+
     // if the log entry matches, null string matching anything
     if (!log_name ||
-	(log_name_len == length-1 && fname[log_name_len] == '\n' &&
-	 !memcmp(fname, log_name, log_name_len)))
+       (log_name_len == fname_len-1 && full_fname[log_name_len] == '\n' &&
+        !memcmp(full_fname, full_log_name, log_name_len)))
     {
-      DBUG_PRINT("info",("Found log file entry"));
-      fname[length-1]=0;			// remove last \n
+      DBUG_PRINT("info", ("Found log file entry"));
+      full_fname[fname_len-1]= 0;                      // remove last \n
       linfo->index_file_start_offset= offset;
       linfo->index_file_offset = my_b_tell(&index_file);
       break;
     }
   }
 
+end:  
   if (need_lock)
     mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
@@ -2612,7 +2638,8 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
 {
   int error= 0;
   uint length;
-  char *fname= linfo->log_file_name;
+  char fname[FN_REFLEN];
+  char *full_fname= linfo->log_file_name;
 
   if (need_lock)
     mysql_mutex_lock(&LOCK_index);
@@ -2627,8 +2654,19 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
     error = !index_file.error ? LOG_INFO_EOF : LOG_INFO_IO;
     goto err;
   }
-  fname[length-1]=0;				// kill \n
-  linfo->index_file_offset = my_b_tell(&index_file);
+
+  if (fname[0] != 0)
+  {
+    if(normalize_binlog_name(full_fname, fname, is_relay_log))
+    {
+      error= LOG_INFO_EOF;
+      goto err;
+    }
+    length= strlen(full_fname);
+  }
+
+  full_fname[length-1]= 0;                     // kill \n
+  linfo->index_file_offset= my_b_tell(&index_file);
 
 err:
   if (need_lock)
@@ -3703,9 +3741,12 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
       if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event", (error=close_on_error=TRUE), FALSE) ||
         (error= r.write(&log_file)))
       {
+        char errbuf[MYSYS_STRERROR_SIZE];
         DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
         close_on_error= TRUE;
-        my_printf_error(ER_ERROR_ON_WRITE, ER(ER_CANT_OPEN_FILE), MYF(ME_FATALERROR), name, errno);
+        my_printf_error(ER_ERROR_ON_WRITE, ER(ER_CANT_OPEN_FILE),
+                        MYF(ME_FATALERROR), name,
+                        errno, my_strerror(errbuf, sizeof(errbuf), errno));
         goto end;
       }
       bytes_written += r.data_written;
@@ -3755,8 +3796,10 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   /* handle reopening errors */
   if (error)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     my_printf_error(ER_CANT_OPEN_FILE, ER(ER_CANT_OPEN_FILE), 
-                    MYF(ME_FATALERROR), file_to_open, error);
+                    MYF(ME_FATALERROR), file_to_open,
+                    error, my_strerror(errbuf, sizeof(errbuf), error));
     close_on_error= TRUE;
   }
   my_free(old_name);
@@ -4649,7 +4692,9 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_mngr *cache_mngr,
         goto err;
       if (cache->error)				// Error on read
       {
-        sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name, errno);
+        char errbuf[MYSYS_STRERROR_SIZE];
+        sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name,
+                        errno, my_strerror(errbuf, sizeof(errbuf), errno));
         write_error=1;				// Don't give more errors
         goto err;
       }
@@ -4695,8 +4740,10 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_mngr *cache_mngr,
 err:
   if (!write_error)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     write_error= 1;
-    sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+    sql_print_error(ER(ER_ERROR_ON_WRITE), name,
+                    errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
   mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(1);
@@ -4836,8 +4883,10 @@ void MYSQL_BIN_LOG::close(uint exiting)
     end_io_cache(&index_file);
     if (mysql_file_close(index_file.file, MYF(0)) < 0 && ! write_error)
     {
+      char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE), index_file_name, errno);
+      sql_print_error(ER(ER_ERROR_ON_WRITE), index_file_name,
+                      errno, my_strerror(errbuf, sizeof(errbuf), errno));
     }
   }
   log_state= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
@@ -6425,7 +6474,7 @@ void THD::issue_unsafe_warnings()
                           ER_BINLOG_UNSAFE_STATEMENT,
                           ER(ER_BINLOG_UNSAFE_STATEMENT),
                           ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
       {
         char buf[MYSQL_ERRMSG_SIZE * 2];
         sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),

@@ -200,3 +200,24 @@ select * from t1;
 --disable_metadata
 
 drop table t1;
+
+
+--echo #
+--echo #  WL#946 TIME/DATETIME/TIMESTAMP with fractional precision
+--echo #
+CREATE TABLE t1 (
+  t6 TIME(6), t5 TIME(5), t4 TIME(4),
+  t3 TIME(3), t2 TIME(2), t1 TIME(1),
+  t0 TIME,
+  dt6 DATETIME(6), dt5 DATETIME(5), dt4 DATETIME(4),
+  dt3 DATETIME(3), dt2 DATETIME(2), dt1 DATETIME(1),
+  dt0 DATETIME,
+  ts6 TIMESTAMP(6), ts5 TIMESTAMP(5), ts4 TIMESTAMP(4),
+  ts3 TIMESTAMP(3), ts2 TIMESTAMP(2), ts1 TIMESTAMP(1),
+  ts0 TIMESTAMP
+);
+--enable_metadata
+SELECT * FROM t1;
+--disable_metadata
+DROP TABLE t1;
+

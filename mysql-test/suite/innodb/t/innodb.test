@@ -1046,6 +1046,24 @@ update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id 
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 drop table t3,t2,t1;
 
+# test ON UPDATE CASCADE
+CREATE TABLE t1 (
+        c1 VARCHAR(8), c2 VARCHAR(8),
+	PRIMARY KEY (c1, c2)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+        c0 INT PRIMARY KEY,
+        c1 VARCHAR(8) UNIQUE,
+        FOREIGN KEY (c1) REFERENCES t1 (c1) ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('old', 'somevalu'), ('other', 'anyvalue');
+INSERT INTO t2 VALUES (10, 'old'), (20, 'other');
+-- error ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO
+UPDATE t1 SET c1 = 'other' WHERE c1 = 'old';
+DROP TABLE t2,t1;
+
 #
 # test for recursion depth limit
 #
@@ -1236,10 +1254,10 @@ drop table t1;
 #                      engines does not fail
 #
 
-CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
---error 1214
-SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
-DROP TABLE t1;
+#CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
+#--error 1214
+#SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
+#DROP TABLE t1;
 
 #
 # check null values #1
@@ -1317,8 +1335,9 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
---replace_result 512 511
+--replace_result 511 {checked_valid} 512 {checked_valid} 1023 {checked_valid} 1024 {checked_valid} 2048 {checked_valid}
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+--replace_result 4096 {checked_valid} 8192 {checked_valid} 16384 {checked_valid}
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
@@ -1533,13 +1552,9 @@ create table t7 (col1 text, index(col1(767)))
 create table t8 (col1 blob, index(col1(767)))
  character set = latin1 engine = innodb;
 
-# multi-column indexes are allowed to be longer
-create table t9 (col1 varchar(512), col2 varchar(512), index(col1, col2))
- character set = latin1 engine = innodb;
+# multi-column tests can be found in innodb_16k, innodb_8k & innodb_4k
 
-show create table t9;
-
-drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
+drop table t1, t2, t3, t4, t5, t6, t7, t8;
 
 # these should have their index length trimmed
 create table t1 (col1 varchar(768), index(col1))
@@ -1556,16 +1571,16 @@ show create table t1;
 drop table t1, t2, t3, t4;
 
 # these should be refused
---error 1071
+--error ER_TOO_LONG_KEY
 create table t1 (col1 varchar(768) primary key)
  character set = latin1 engine = innodb;
---error 1071
+--error ER_TOO_LONG_KEY
 create table t2 (col1 varbinary(768) primary key)
  character set = latin1 engine = innodb;
---error 1071
+--error ER_TOO_LONG_KEY
 create table t3 (col1 text, primary key(col1(768)))
  character set = latin1 engine = innodb;
---error 1071
+--error ER_TOO_LONG_KEY
 create table t4 (col1 blob, primary key(col1(768)))
  character set = latin1 engine = innodb;
 
@@ -1740,24 +1755,11 @@ truncate t3;
 
 drop table t4,t3,t2,t1;
 
-
 #
 # Test that we can create a large (>1K) key
+# Moved to innodb_16k, innodb_8k, and innodb_4k
+# since each page size has its own maximum key length.
 #
-create table t1 (a varchar(255) character set utf8,
-                 b varchar(255) character set utf8,
-                 c varchar(255) character set utf8,
-                 d varchar(255) character set utf8,
-                 key (a,b,c,d)) engine=innodb;
-drop table t1;
---error ER_TOO_LONG_KEY
-create table t1 (a varchar(255) character set utf8,
-                 b varchar(255) character set utf8,
-                 c varchar(255) character set utf8,
-                 d varchar(255) character set utf8,
-                 e varchar(255) character set utf8,
-                 key (a,b,c,d,e)) engine=innodb;
-
 
 # test the padding of BINARY types and collations (Bug #14189)
 
@@ -1900,7 +1902,7 @@ DROP TABLE t2,t1;
 #insert into t5(a) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12);
 #
 #delimiter |;
-#create trigger t1t before insert on t1 for each row begin 
+#create trigger t1t before insert on t1 for each row begin
 #    INSERT INTO t2 SET a = NEW.a;
 #end |
 #
@@ -1908,7 +1910,7 @@ DROP TABLE t2,t1;
 #    DELETE FROM t3 WHERE a = NEW.a;
 #end |
 #
-#create trigger t3t before delete on t3 for each row begin  
+#create trigger t3t before delete on t3 for each row begin
 #    UPDATE t4 SET b = b + 1 WHERE a = OLD.a;
 #end |
 #
@@ -1963,7 +1965,7 @@ INSERT INTO t1 VALUES ('other', 'anyvalue');
 INSERT INTO t2 VALUES ('old');
 INSERT INTO t2 VALUES ('other');
 
---error ER_FOREIGN_DUPLICATE_KEY
+--error ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO
 UPDATE t1 SET field1 = 'other' WHERE field2 = 'somevalu';
 
 DROP TABLE t2;
@@ -2032,7 +2034,7 @@ create table t1(a int not null, b int, primary key(a)) engine=innodb;
 insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2),(7,3);
 commit;
 SET binlog_format='MIXED';
-set autocommit = 0; 
+set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 update t1 set b = 5 where b = 1;
 connection b;
@@ -2040,7 +2042,7 @@ SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 #
-# X-lock to record (7,3) should be released in a update 
+# X-lock to record (7,3) should be released in a update
 #
 select * from t1 where a = 7 and b = 3 for update;
 connection a;
@@ -2063,7 +2065,7 @@ connection a;
 create table t1(a int not null, b int, primary key(a)) engine=innodb;
 insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2);
 commit;
-set autocommit = 0; 
+set autocommit = 0;
 select * from t1 lock in share mode;
 update t1 set b = 5 where b = 1;
 connection b;
@@ -2120,7 +2122,7 @@ disconnect b;
 drop table t1, t2, t3;
 
 #
-# Consistent read should not be used if 
+# Consistent read should not be used if
 #
 # (a) isolation level is serializable OR
 # (b) select ... lock in share mode OR
@@ -2285,8 +2287,8 @@ CREATE TABLE t2 (
   b VARCHAR(128) NOT NULL,
   c TEXT NOT NULL,
   PRIMARY KEY  (a,b),
-  KEY idx_t2_b_c (b,c(200)),
-  CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a) 
+  KEY idx_t2_b_c (b,c(100)),
+  CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a)
    ON DELETE CASCADE
  ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
 
@@ -2385,8 +2387,9 @@ DROP TABLE t1,t2;
 #
 # Bug #21101 (Prints wrong error message if max row size is too large)
 #
-set innodb_strict_mode=on;
---error 1118
+SET innodb_strict_mode=ON;
+--replace_result 8126 {checked_valid} 4030 {checked_valid} 1982 {checked_valid}
+--error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1 (
 	c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
 	c05 CHAR(255), c06 CHAR(255), c07 CHAR(255), c08 CHAR(255),
@@ -2397,6 +2400,7 @@ CREATE TABLE t1 (
 	c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 	c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
 	) ENGINE = InnoDB;
+SET innodb_strict_mode=OFF;
 
 #
 # Bug #31860 InnoDB assumes AUTOINC values can only be positive.
@@ -2409,7 +2413,7 @@ INSERT INTO t1 VALUES(-10);
 SELECT * FROM t1;
 #
 # NOTE: The server really needs to be restarted at this point
-# for the test to be useful.  
+# for the test to be useful.
 #
 # Without the fix InnoDB would trip over an assertion here.
 INSERT INTO t1 VALUES(NULL);
@@ -2417,7 +2421,7 @@ INSERT INTO t1 VALUES(NULL);
 SELECT * FROM t1;
 DROP TABLE t1;
 
-# 
+#
 # Bug #21409 Incorrect result returned when in READ-COMMITTED with
 # query_cache ON
 #
@@ -2560,6 +2564,17 @@ SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 # Clean up after the Bug#55284/Bug#58912 test case.
 DROP TABLE bug58912;
+
+#
+# Test fix for bug 13117023. InnoDB increments HA_READ_KEY_COUNT (aka
+# HANDLER_READ_KEY) when it should not.
+#
+create table t1 (f1 integer primary key) engine=innodb;
+flush status;
+show status like "handler_read_key";
+select f1 from t1;
+show status like "handler_read_key";
+drop table t1;
 
 #######################################################################
 #                                                                     #

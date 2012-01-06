@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -112,6 +112,9 @@ enum db_err {
 					maximum limit */
 	DB_INDEX_CORRUPT,		/*!< we have corrupted index */
 	DB_UNDO_RECORD_TOO_BIG,		/*!< the undo log record is too big */
+	DB_READ_ONLY,			/*!< Update operation attempted in
+					a read-only transaction */
+	DB_FTS_INVALID_DOCID,		/* FTS Doc ID cannot be zero */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

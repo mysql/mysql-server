@@ -1,10 +1,14 @@
 include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 FLUSH LOGS;
 CREATE TABLE t1(c1 INT);
 FLUSH LOGS;
 call mtr.add_suppression('Got fatal error 1236 from master when reading data from binary log: .*could not find next log');
 include/wait_for_slave_io_error.inc [errno=1236]
+Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'could not find next log; the last event was read from 'master-bin.000002' at XXX, the last byte read was read from 'master-bin.000002' at XXX.''
 CREATE TABLE t2(c1 INT);
 FLUSH LOGS;
 CREATE TABLE t3(c1 INT);

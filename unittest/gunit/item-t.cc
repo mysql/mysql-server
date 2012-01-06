@@ -13,8 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines,
-// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
+// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
 
@@ -22,6 +21,7 @@
 
 #include "item.h"
 #include "sql_class.h"
+#include "tztime.h"
 
 namespace {
 
@@ -395,6 +395,135 @@ TEST_F(ItemTest, ItemFuncXor)
 
   EXPECT_EQ(0, item_xor_null->val_int());
   EXPECT_TRUE(item_xor_null->is_null());
+}
+
+
+/*
+  Testing MYSQL_TIME_cache.
+*/
+TEST_F(ItemTest, MYSQL_TIME_cache)
+{
+  String str_buff, *str;
+  MYSQL_TIME datetime6=
+  { 2011, 11, 7, 10, 20, 30, 123456, 0, MYSQL_TIMESTAMP_DATETIME };
+  MYSQL_TIME time6=
+  { 0, 0, 0, 10, 20, 30, 123456, 0, MYSQL_TIMESTAMP_TIME };
+  struct timeval tv6= {1320661230, 123456};
+  const MYSQL_TIME *ltime;
+  MYSQL_TIME_cache cache;
+
+  /*
+    Testing DATETIME(6).
+    Initializing from MYSQL_TIME.
+  */
+  cache.set_datetime(&datetime6, 6);
+  EXPECT_EQ(1840440237558456896LL, cache.val_packed());
+  EXPECT_EQ(6, cache.decimals());
+  // Call val_str() then cptr()
+  str= cache.val_str(&str_buff);
+  EXPECT_STREQ("2011-11-07 10:20:30.123456", str->c_ptr_safe());
+  EXPECT_STREQ("2011-11-07 10:20:30.123456", cache.cptr());
+  cache.set_datetime(&datetime6, 6);
+  // Now call the other way around: cptr() then val_str()
+  EXPECT_STREQ("2011-11-07 10:20:30.123456", cache.cptr());
+  EXPECT_STREQ("2011-11-07 10:20:30.123456", str->c_ptr_safe());
+  // Testing get_TIME_ptr()
+  ltime= cache.get_TIME_ptr();
+  EXPECT_EQ(ltime->year, datetime6.year);
+  EXPECT_EQ(ltime->month, datetime6.month);
+  EXPECT_EQ(ltime->day, datetime6.day);
+  EXPECT_EQ(ltime->hour, datetime6.hour);
+  EXPECT_EQ(ltime->minute, datetime6.minute);
+  EXPECT_EQ(ltime->second, datetime6.second);
+  EXPECT_EQ(ltime->second_part, datetime6.second_part);
+  EXPECT_EQ(ltime->neg, datetime6.neg);
+  EXPECT_EQ(ltime->time_type, datetime6.time_type);
+  // Testing eq()
+  {
+    MYSQL_TIME datetime6_2= datetime6;
+    MYSQL_TIME_cache cache2;
+    datetime6_2.second_part+= 1;
+    cache2.set_datetime(&datetime6_2, 6);
+    EXPECT_EQ(cache.eq(cache), true);
+    EXPECT_EQ(cache.eq(cache2), false);
+    EXPECT_EQ(cache2.eq(cache2), true);
+    EXPECT_EQ(cache2.eq(cache), false);
+  }
+
+  /*
+     Testing DATETIME(6).
+     Initializing from "struct timeval".
+  */
+  cache.set_datetime(tv6, 6, my_tz_UTC);
+  EXPECT_EQ(1840440237558456896LL, cache.val_packed());
+  EXPECT_EQ(6, cache.decimals());
+  str= cache.val_str(&str_buff);
+  EXPECT_STREQ("2011-11-07 10:20:30.123456", str->c_ptr_safe());
+  EXPECT_STREQ("2011-11-07 10:20:30.123456", cache.cptr());
+
+  /*
+    Testing TIME(6).
+    Initializing from MYSQL_TIME.
+  */
+  cache.set_time(&time6, 6);
+  EXPECT_EQ(709173043776LL, cache.val_packed());
+  EXPECT_EQ(6, cache.decimals());
+  // Call val_str() then cptr()
+  str= cache.val_str(&str_buff);
+  EXPECT_STREQ("10:20:30.123456", str->c_ptr_safe());
+  EXPECT_STREQ("10:20:30.123456", cache.cptr());
+
+  /*
+    Testing TIME(6).
+    Initializing from "struct timeval".
+  */
+  cache.set_time(tv6, 6, my_tz_UTC);
+  EXPECT_EQ(709173043776LL, cache.val_packed());
+  EXPECT_EQ(6, cache.decimals());
+  str= cache.val_str(&str_buff);
+  EXPECT_STREQ("10:20:30.123456", str->c_ptr_safe());
+  EXPECT_STREQ("10:20:30.123456", cache.cptr());
+
+  /*
+    Testing DATETIME(5)
+  */
+  MYSQL_TIME datetime5=
+  { 2011, 11, 7, 10, 20, 30, 123450, 0, MYSQL_TIMESTAMP_DATETIME };
+  cache.set_datetime(&datetime5, 5);
+  EXPECT_EQ(1840440237558456890LL, cache.val_packed());
+  EXPECT_EQ(5, cache.decimals());
+  /* Call val_str() then cptr() */
+  str= cache.val_str(&str_buff);
+  EXPECT_STREQ("2011-11-07 10:20:30.12345", str->c_ptr_safe());
+  EXPECT_STREQ("2011-11-07 10:20:30.12345", cache.cptr());
+  cache.set_datetime(&datetime5, 5);
+  /* Now call the other way around: cptr() then val_str() */
+  EXPECT_STREQ("2011-11-07 10:20:30.12345", cache.cptr());
+  EXPECT_STREQ("2011-11-07 10:20:30.12345", str->c_ptr_safe());
+
+  /*
+    Testing DATE.
+    Initializing from MYSQL_TIME.
+  */
+  MYSQL_TIME date=
+  { 2011, 11, 7, 0, 0, 0, 0, 0, MYSQL_TIMESTAMP_DATE };
+  cache.set_date(&date);
+  EXPECT_EQ(1840439528385413120LL, cache.val_packed());
+  EXPECT_EQ(0, cache.decimals());
+  str= cache.val_str(&str_buff);
+  EXPECT_STREQ("2011-11-07", str->c_ptr_safe());
+  EXPECT_STREQ("2011-11-07", cache.cptr());
+
+  /*
+    Testing DATE.
+    Initializing from "struct tm".
+  */
+  cache.set_date(tv6, my_tz_UTC);
+  EXPECT_EQ(1840439528385413120LL, cache.val_packed());
+  EXPECT_EQ(0, cache.decimals());
+  str= cache.val_str(&str_buff);
+  EXPECT_STREQ("2011-11-07", str->c_ptr_safe());
+  EXPECT_STREQ("2011-11-07", cache.cptr());
 }
 
 }

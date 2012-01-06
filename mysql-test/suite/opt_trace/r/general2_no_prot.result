@@ -675,9 +675,6 @@ f
 f
 f
 f
-Maps should say that t2 and t3 depend on t1
-(because of straight_join), they don't, this is
-bug#11766858 and bug#11752239
 select TRACE from information_schema.OPTIMIZER_TRACE;
 TRACE
 {
@@ -797,6 +794,7 @@ TRACE
                 "row_may_be_null": false,
                 "map_bit": 1,
                 "depends_on_map_bits": [
+                  0
                 ] /* depends_on_map_bits */
               },
               {
@@ -805,6 +803,7 @@ TRACE
                 "row_may_be_null": false,
                 "map_bit": 2,
                 "depends_on_map_bits": [
+                  0
                 ] /* depends_on_map_bits */
               }
             ] /* table_dependencies */
@@ -834,9 +833,10 @@ TRACE
               {
                 "database": "test",
                 "table": "t3",
-                "rows": 1,
-                "cost": 1,
-                "table_type": "system"
+                "table_scan": {
+                  "rows": 1,
+                  "cost": 2
+                } /* table_scan */
               }
             ] /* rows_estimation */
           },
@@ -861,6 +861,45 @@ TRACE
                 "rest_of_plan": [
                   {
                     "database": "test",
+                    "table": "t3",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "rows": 1,
+                          "cost": 2.005,
+                          "chosen": true
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 4.8147,
+                    "rows_for_plan": 2,
+                    "rest_of_plan": [
+                      {
+                        "database": "test",
+                        "table": "t2",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "access_type": "scan",
+                              "using_join_cache": true,
+                              "rows": 2,
+                              "cost": 2.0099,
+                              "chosen": true
+                            }
+                          ] /* considered_access_paths */
+                        } /* best_access_path */,
+                        "cost_for_plan": 7.6247,
+                        "rows_for_plan": 4,
+                        "sort_cost": 4,
+                        "new_cost_for_plan": 11.625,
+                        "chosen": true
+                      }
+                    ] /* rest_of_plan */
+                  },
+                  {
+                    "database": "test",
                     "table": "t2",
                     "best_access_path": {
                       "considered_access_paths": [
@@ -875,34 +914,15 @@ TRACE
                     } /* best_access_path */,
                     "cost_for_plan": 5.2196,
                     "rows_for_plan": 4,
-                    "sort_cost": 4,
-                    "new_cost_for_plan": 9.2196,
-                    "chosen": true
+                    "pruned_by_heuristic": true
                   }
                 ] /* rest_of_plan */
-              },
-              {
-                "database": "test",
-                "table": "t2",
-                "best_access_path": {
-                  "considered_access_paths": [
-                    {
-                      "access_type": "scan",
-                      "rows": 2,
-                      "cost": 2.0098,
-                      "chosen": true
-                    }
-                  ] /* considered_access_paths */
-                } /* best_access_path */,
-                "cost_for_plan": 2.4098,
-                "rows_for_plan": 2,
-                "pruned_by_heuristic": true
               }
             ] /* considered_execution_plans */
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t2`.`f2` = 'f')",
+              "original_condition": "(`test`.`t2`.`f2` = `test`.`t3`.`f2`)",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -913,8 +933,13 @@ TRACE
                 },
                 {
                   "database": "test",
+                  "table": "t3",
+                  "attached": null
+                },
+                {
+                  "database": "test",
                   "table": "t2",
-                  "attached": "(`test`.`t2`.`f2` = 'f')"
+                  "attached": "(`test`.`t2`.`f2` = `test`.`t3`.`f2`)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -941,6 +966,11 @@ TRACE
               },
               {
                 "database": "test",
+                "table": "t3",
+                "access_type": "table_scan"
+              },
+              {
+                "database": "test",
                 "table": "t2",
                 "access_type": "table_scan"
               }
@@ -954,11 +984,22 @@ TRACE
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 3,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 349525
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "f2"
               }
             ] /* filesort_information */,
@@ -1333,15 +1374,39 @@ TRACE
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "teeone",
+                "row_length": 16,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 65536
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "join_execution": {
               "select#": 2,
               "steps": [
                 {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "table": "intermediate_tmp_table",
+                      "row_length": 22,
+                      "key_length": 5,
+                      "unique_constraint": false,
+                      "location": "memory (heap)",
+                      "row_limit_estimate": 47662
+                    } /* tmp_table_info */
+                  } /* creating_tmp_table */
+                },
+                {
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "database": "",
-                      "table": "",
+                      "table": "intermediate_tmp_table",
                       "field": "b"
                     }
                   ] /* filesort_information */,
@@ -2716,7 +2781,7 @@ from t0 where a in
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
           {
@@ -3232,14 +3297,14 @@ from t0 where a in
             } /* join_optimization */
           },
           {
-            "join_execution": {
+            "join_explain": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* join_explain */
           }
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }	0	0
@@ -3647,6 +3712,19 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
       "join_execution": {
         "select#": 1,
         "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "tmp",
+                "row_length": 10,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 104857
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
           {
             "join_execution": {
               "select#": 2,
@@ -4844,11 +4922,22 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 18,
+                "key_length": 4,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 58254
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "col_int_key"
               }
             ] /* filesort_information */,
