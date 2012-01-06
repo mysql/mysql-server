@@ -57,7 +57,7 @@
 #include "logger.h"
 #include "checkpoint.h"
 
-static CHECKPOINT_STATUS_S status;
+static CHECKPOINT_STATUS_S cp_status;
 static LSN last_completed_checkpoint_lsn;
 
 static toku_pthread_rwlock_t checkpoint_safe_lock;
@@ -68,7 +68,8 @@ static void (*ydb_lock)(void)   = NULL;
 static void (*ydb_unlock)(void) = NULL;
 
 static BOOL initialized = FALSE;     // sanity check
-
+static BOOL locked_mo = FALSE;       // true when the multi_operation write lock is held (by checkpoint)
+static BOOL locked_cs = FALSE;       // true when the checkpoint_safe write lock is held (by checkpoint)
 
 
 // Note following static functions are called from checkpoint internal logic only,
@@ -83,6 +84,7 @@ multi_operation_lock_init(void) {
     int r = toku_pthread_rwlock_init(&multi_operation_lock, &attr); 
     pthread_rwlockattr_destroy(&attr);
     assert(r == 0);
+    locked_mo = FALSE;
     return r;
 }
 
@@ -97,12 +99,14 @@ static void
 multi_operation_checkpoint_lock(void) {
     int r = toku_pthread_rwlock_wrlock(&multi_operation_lock);   
     assert(r == 0);
+    locked_mo = TRUE;
 }
 
 static void 
 multi_operation_checkpoint_unlock(void) {
     int r = toku_pthread_rwlock_wrunlock(&multi_operation_lock); 
     assert(r == 0);
+    locked_mo = FALSE;
 }
 
 
@@ -110,6 +114,7 @@ static int
 checkpoint_safe_lock_init(void) {
     int r = toku_pthread_rwlock_init(&checkpoint_safe_lock, NULL); 
     assert(r == 0);
+    locked_cs = FALSE;
     return r;
 }
 
@@ -124,12 +129,14 @@ static void
 checkpoint_safe_checkpoint_lock(void) {
     int r = toku_pthread_rwlock_wrlock(&checkpoint_safe_lock);   
     assert(r == 0);
+    locked_cs = TRUE;
 }
 
 static void 
 checkpoint_safe_checkpoint_unlock(void) {
     int r = toku_pthread_rwlock_wrunlock(&checkpoint_safe_lock); 
     assert(r == 0);
+    locked_cs = FALSE;
 }
 
 
@@ -138,6 +145,8 @@ checkpoint_safe_checkpoint_unlock(void) {
 
 void 
 toku_multi_operation_client_lock(void) {
+    if (locked_mo)
+	(void) __sync_fetch_and_add(&cp_status.client_wait_on_mo, 1);
     int r = toku_pthread_rwlock_rdlock(&multi_operation_lock);   
     assert(r == 0);
 }
@@ -150,7 +159,9 @@ toku_multi_operation_client_unlock(void) {
 
 void 
 toku_checkpoint_safe_client_lock(void) {
-    int r = toku_pthread_rwlock_rdlock(&checkpoint_safe_lock);   
+    if (locked_cs)
+	(void) __sync_fetch_and_add(&cp_status.client_wait_on_cs, 1);
+    int r = toku_pthread_rwlock_rdlock(&checkpoint_safe_lock);  
     assert(r == 0);
     toku_multi_operation_client_lock();
 }
@@ -165,7 +176,7 @@ toku_checkpoint_safe_client_unlock(void) {
 
 void
 toku_checkpoint_get_status(CHECKPOINT_STATUS s) {
-    *s = status;
+    *s = cp_status;
 }
 
 
@@ -196,7 +207,7 @@ toku_checkpoint_destroy(void) {
     return r;
 }
 
-#define SET_CHECKPOINT_FOOTPRINT(x) status.footprint = footprint_offset + x;
+#define SET_CHECKPOINT_FOOTPRINT(x) cp_status.footprint = footprint_offset + x;
 
 
 // Take a checkpoint of all currently open dictionaries
@@ -209,19 +220,29 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     int footprint_offset = (int) caller_id * 1000;
 
     assert(initialized);
-    (void) __sync_fetch_and_add(&status.waiters_now, 1);
+    (void) __sync_fetch_and_add(&cp_status.waiters_now, 1);
+    if (locked_cs) {
+	if (caller_id == SCHEDULED_CHECKPOINT)
+	    (void) __sync_fetch_and_add(&cp_status.cp_wait_sched, 1);
+	else if (caller_id == CLIENT_CHECKPOINT)
+	    (void) __sync_fetch_and_add(&cp_status.cp_wait_client, 1);
+	else if (caller_id == TXN_COMMIT_CHECKPOINT)
+	    (void) __sync_fetch_and_add(&cp_status.cp_wait_txn, 1);
+	else 
+	    (void) __sync_fetch_and_add(&cp_status.cp_wait_other, 1);
+    }
     checkpoint_safe_checkpoint_lock();
 
-    (void) __sync_fetch_and_sub(&status.waiters_now, 1);
-    if (status.waiters_now > status.waiters_max)
-	status.waiters_max = status.waiters_now;  // threadsafe, within checkpoint_safe lock
+    (void) __sync_fetch_and_sub(&cp_status.waiters_now, 1);
+    if (cp_status.waiters_now > cp_status.waiters_max)
+	cp_status.waiters_max = cp_status.waiters_now;  // threadsafe, within checkpoint_safe lock
     SET_CHECKPOINT_FOOTPRINT(10)
     multi_operation_checkpoint_lock();
     SET_CHECKPOINT_FOOTPRINT(20)
     ydb_lock();
     
     SET_CHECKPOINT_FOOTPRINT(30)
-    status.time_last_checkpoint_begin = time(NULL);
+    cp_status.time_last_checkpoint_begin = time(NULL);
     r = toku_cachetable_begin_checkpoint(ct, logger);
 
     multi_operation_checkpoint_unlock();
@@ -237,30 +258,29 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     if (r==0 && logger) {
         last_completed_checkpoint_lsn = logger->last_completed_checkpoint_lsn;
         r = toku_logger_maybe_trim_log(logger, last_completed_checkpoint_lsn);
-	status.last_lsn                   = last_completed_checkpoint_lsn.lsn;
+	cp_status.last_lsn                   = last_completed_checkpoint_lsn.lsn;
     }
 
     SET_CHECKPOINT_FOOTPRINT(60);
-    status.time_last_checkpoint_end = time(NULL);
-    status.time_last_checkpoint_begin_complete = status.time_last_checkpoint_begin;
+    cp_status.time_last_checkpoint_end = time(NULL);
+    cp_status.time_last_checkpoint_begin_complete = cp_status.time_last_checkpoint_begin;
 
     if (r == 0)
-	status.checkpoint_count++;
+	cp_status.checkpoint_count++;
     else
-	status.checkpoint_count_fail++;
+	cp_status.checkpoint_count_fail++;
 
-    status.footprint = 0;
+    cp_status.footprint = 0;
     checkpoint_safe_checkpoint_unlock();
     return r;
 }
 
 #undef SET_CHECKPOINT_FOOTPRINT
 
-// Can we get rid of this (placating drd), now that all status is updated when holding the checkpoint_safe lock?
 
 #include <valgrind/drd.h>
 void __attribute__((__constructor__)) toku_checkpoint_drd_ignore(void);
 void
 toku_checkpoint_drd_ignore(void) {
-    DRD_IGNORE_VAR(status);
+    DRD_IGNORE_VAR(cp_status);
 }
