@@ -1293,7 +1293,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       SHOWVAL(cleaner_max_buffer_workdone);
       SHOWVAL(cleaner_min_buffer_workdone);
       SHOWVAL(cleaner_total_buffer_workdone);
-      SHOWVAL(cleaner_num_leaves_unmerged);
+      SHOWVAL(cleaner_num_dirtied_for_leaf_merge);
       SHOWVAL(flush_total);
       SHOWVAL(flush_in_memory);
       SHOWVAL(flush_needed_io);
@@ -1319,6 +1319,10 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       SHOWVAL(dirty_leaf);
       SHOWVAL(dirty_nonleaf);
       SHOWVAL(balance_leaf);
+      SHOWVAL(hot_num_started);
+      SHOWVAL(hot_num_completed);
+      SHOWVAL(hot_num_aborted);
+      SHOWVAL(hot_max_root_flush_count);
       SHOWVAL(msg_bytes_in);
       SHOWVAL(msg_bytes_out);
       SHOWVAL(msg_bytes_curr);
