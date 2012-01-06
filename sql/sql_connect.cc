@@ -465,9 +465,27 @@ static int check_connection(THD *thd)
 
   if (!thd->main_security_ctx.host)         // If TCP/IP connection
   {
+    my_bool peer_rc;
     char ip[NI_MAXHOST];
 
-    if (vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST))
+    peer_rc= vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST);
+
+    DBUG_EXECUTE_IF("vio_peer_addr_error",
+                    {
+                      peer_rc= 1;
+                    }
+                    );
+    DBUG_EXECUTE_IF("vio_peer_addr_fake_ipv4",
+                    {
+                      struct sockaddr *sa= (sockaddr *) &net->vio->remote;
+                      sa->sa_family= AF_INET;
+                      struct in_addr *ip4= &((struct sockaddr_in *) sa)->sin_addr;
+                      ip4->s_addr= htonl(0xC0000200); /* 192.0.2.0 */
+                      strcpy(ip, "santa.claus.ipv4.example.com");
+                    }
+                    );
+
+    if (peer_rc)
     {
       /*
         Since we can not even get the peer IP address,
