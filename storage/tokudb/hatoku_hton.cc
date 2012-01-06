@@ -1206,6 +1206,23 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("checkpoints taken  ", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_count_fail);
       STATPRINT("checkpoints failed", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_waiters_now);
+      STATPRINT("checkpoint waiters now", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_waiters_max);
+      STATPRINT("checkpoint waiters max", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_client_wait_on_mo);
+      STATPRINT("checkpoint client wait on mo lock", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_client_wait_on_cs);
+      STATPRINT("checkpoint client wait on cs lock", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_sched);
+      STATPRINT("checkpoint wait sched", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_client);
+      STATPRINT("checkpoint wait client", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_txn);
+      STATPRINT("checkpoint wait txn", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_other);
+      STATPRINT("checkpoint wait other", buf);
+
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_period);
       STATPRINT("cleaner period", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_iterations);
@@ -1401,7 +1418,6 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%.6f", tokutime_to_seconds(engstat.total_time_since_start));
       STATPRINT("total_time_since_start", buf);
 
-
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_lock_taken);  
       STATPRINT("cachetable lock taken", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_lock_released);  
@@ -1412,14 +1428,18 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("cachetable miss", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_misstime);  
       STATPRINT("cachetable misstime", buf);
+#if 0  
+      // restore display when this is fixed
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_waittime);  
       STATPRINT("cachetable waittime", buf);
+#endif
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_wait_reading);  
       STATPRINT("cachetable wait reading", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_wait_writing);  
       STATPRINT("cachetable wait writing", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_wait_checkpoint);  
       STATPRINT("cachetable wait checkpoint", buf);
+
       snprintf(buf, bufsiz, "%" PRIu64, engstat.puts);  
       STATPRINT("cachetable puts (new nodes)", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.prefetches);  
@@ -1428,30 +1448,25 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("cachetable maybe_get_and_pins", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.maybe_get_and_pin_hits);  
       STATPRINT("cachetable maybe_get_and_pin_hits", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_evictions);  
-      STATPRINT("cachetable evictions", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_current);  
       STATPRINT("cachetable size_current", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_limit);  
       STATPRINT("cachetable size_limit", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_max);  
       STATPRINT("cachetable size_max", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_leaf);  
-      STATPRINT("cachetable size_leaf", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_nonleaf);  
-      STATPRINT("cachetable size_nonleaf", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_rollback);  
-      STATPRINT("cachetable size_rollback", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_writing);  
       STATPRINT("cachetable size_writing", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.get_and_pin_footprint);  
-      STATPRINT("cachetable get_and_pin_footprint", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.local_checkpoint);  
-      STATPRINT("local checkpoint", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.local_checkpoint_files);  
-      STATPRINT("local checkpoint files", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.local_checkpoint_during_checkpoint);  
-      STATPRINT("local checkpoint during checkpoint", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_nonleaf);  
+      STATPRINT("cachetable size_nonleaf", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_leaf);  
+      STATPRINT("cachetable size_leaf", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_rollback);  
+      STATPRINT("cachetable size_rollback", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_cachepressure);  
+      STATPRINT("cachetable size_cachepressure", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_evictions);  
+      STATPRINT("cachetable evictions", buf);
+      // cleaner_executions displayed with other cleaner thread info
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.range_locks_max);
       STATPRINT("max range locks", buf);
@@ -1556,6 +1571,8 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_max);
       STATPRINT("indexer max", buf);
 
+#if 0
+      // Restore these when we support upgrade again
       snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_env_status);
       STATPRINT("upgrade env status", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_header);
@@ -1574,6 +1591,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%" PRIu64, engstat.last_lsn_v13);
       STATPRINT("last LSN of version 13", buf);      
       STATPRINT("time of upgrade to version 14", engstat.upgrade_v14_time);
+#endif
       
       snprintf(buf, bufsiz, "%" PRIu64, engstat.malloc_count);
       STATPRINT("malloc count", buf);
@@ -1593,6 +1611,8 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("mem freed", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.max_mem_in_use);
       STATPRINT("max mem in use", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.malloc_mmap_threshold);
+      STATPRINT("malloc mmap threshold", buf);
       snprintf(buf, bufsiz, "%s", engstat.mallocator_version);
       STATPRINT("mallocator version", buf);
     }
