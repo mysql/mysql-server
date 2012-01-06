@@ -104,9 +104,9 @@ multi_operation_checkpoint_lock(void) {
 
 static void 
 multi_operation_checkpoint_unlock(void) {
+    locked_mo = FALSE;
     int r = toku_pthread_rwlock_wrunlock(&multi_operation_lock); 
     assert(r == 0);
-    locked_mo = FALSE;
 }
 
 
@@ -134,9 +134,9 @@ checkpoint_safe_checkpoint_lock(void) {
 
 static void 
 checkpoint_safe_checkpoint_unlock(void) {
+    locked_cs = FALSE;
     int r = toku_pthread_rwlock_wrunlock(&checkpoint_safe_lock); 
     assert(r == 0);
-    locked_cs = FALSE;
 }
 
 
@@ -207,7 +207,7 @@ toku_checkpoint_destroy(void) {
     return r;
 }
 
-#define SET_CHECKPOINT_FOOTPRINT(x) cp_status.footprint = footprint_offset + x;
+#define SET_CHECKPOINT_FOOTPRINT(x) cp_status.footprint = footprint_offset + x
 
 
 // Take a checkpoint of all currently open dictionaries
@@ -220,28 +220,41 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     int footprint_offset = (int) caller_id * 1000;
 
     assert(initialized);
-    (void) __sync_fetch_and_add(&cp_status.waiters_now, 1);
+
     if (locked_cs) {
 	if (caller_id == SCHEDULED_CHECKPOINT)
-	    (void) __sync_fetch_and_add(&cp_status.cp_wait_sched, 1);
+	    (void) __sync_fetch_and_add(&cp_status.cp_wait_sched_cs, 1);
 	else if (caller_id == CLIENT_CHECKPOINT)
-	    (void) __sync_fetch_and_add(&cp_status.cp_wait_client, 1);
+	    (void) __sync_fetch_and_add(&cp_status.cp_wait_client_cs, 1);
 	else if (caller_id == TXN_COMMIT_CHECKPOINT)
-	    (void) __sync_fetch_and_add(&cp_status.cp_wait_txn, 1);
+	    (void) __sync_fetch_and_add(&cp_status.cp_wait_txn_cs, 1);
 	else 
-	    (void) __sync_fetch_and_add(&cp_status.cp_wait_other, 1);
+	    (void) __sync_fetch_and_add(&cp_status.cp_wait_other_cs, 1);
     }
-    checkpoint_safe_checkpoint_lock();
 
+    (void) __sync_fetch_and_add(&cp_status.waiters_now, 1);
+    checkpoint_safe_checkpoint_lock();
     (void) __sync_fetch_and_sub(&cp_status.waiters_now, 1);
+
     if (cp_status.waiters_now > cp_status.waiters_max)
 	cp_status.waiters_max = cp_status.waiters_now;  // threadsafe, within checkpoint_safe lock
-    SET_CHECKPOINT_FOOTPRINT(10)
+
+    SET_CHECKPOINT_FOOTPRINT(10);
+    if (locked_mo) {
+	if (caller_id == SCHEDULED_CHECKPOINT)
+	    cp_status.cp_wait_sched_mo++;           // threadsafe, within checkpoint_safe lock
+	else if (caller_id == CLIENT_CHECKPOINT)
+	    cp_status.cp_wait_client_mo++;
+	else if (caller_id == TXN_COMMIT_CHECKPOINT)
+	    cp_status.cp_wait_txn_mo++;
+	else 
+	    cp_status.cp_wait_other_mo++;
+    }
     multi_operation_checkpoint_lock();
-    SET_CHECKPOINT_FOOTPRINT(20)
+    SET_CHECKPOINT_FOOTPRINT(20);
     ydb_lock();
     
-    SET_CHECKPOINT_FOOTPRINT(30)
+    SET_CHECKPOINT_FOOTPRINT(30);
     cp_status.time_last_checkpoint_begin = time(NULL);
     r = toku_cachetable_begin_checkpoint(ct, logger);
 

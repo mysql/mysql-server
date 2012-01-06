@@ -98,10 +98,14 @@ typedef struct {
     uint64_t waiters_max;    // max threads ever simultaneously waiting for the checkpoint_safe lock to perform a checkpoint
     uint64_t client_wait_on_mo;   // how many times a client thread waited for the multi_operation lock
     uint64_t client_wait_on_cs;   // how many times a client thread waited for the checkpoint_safe lock
-    uint64_t cp_wait_sched;       // how many times a scheduled checkpoint waited for the checkpoint_safe lock
-    uint64_t cp_wait_client;      // how many times a client checkpoint waited for the checkpoint_safe lock
-    uint64_t cp_wait_txn;         // how many times a txn_commit checkpoint waited for the checkpoint_safe lock
-    uint64_t cp_wait_other;       // how many times a checkpoint for another purpose waited for the checkpoint_safe lock 
+    uint64_t cp_wait_sched_cs;      // how many times a scheduled checkpoint waited for the checkpoint_safe lock
+    uint64_t cp_wait_client_cs;   // how many times a client checkpoint waited for the checkpoint_safe lock
+    uint64_t cp_wait_txn_cs;      // how many times a txn_commit checkpoint waited for the checkpoint_safe lock
+    uint64_t cp_wait_other_cs;    // how many times a checkpoint for another purpose waited for the checkpoint_safe lock 
+    uint64_t cp_wait_sched_mo;    // how many times a scheduled checkpoint waited for the multi_operation lock
+    uint64_t cp_wait_client_mo;   // how many times a client checkpoint waited for the multi_operation lock
+    uint64_t cp_wait_txn_mo;      // how many times a txn_commit checkpoint waited for the multi_operation lock
+    uint64_t cp_wait_other_mo;    // how many times a checkpoint for another purpose waited for the multi_operation lock 
 } CHECKPOINT_STATUS_S, *CHECKPOINT_STATUS;
 
 void toku_checkpoint_get_status(CHECKPOINT_STATUS stat);
