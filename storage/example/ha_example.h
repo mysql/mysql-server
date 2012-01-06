@@ -37,15 +37,20 @@
 #include "my_base.h"                     /* ha_rows */
 
 /** @brief
-  EXAMPLE_SHARE is a structure that will be shared among all open handlers.
+  Example_share is a class that will be shared among all open handlers.
   This example implements the minimum of what you will probably need.
 */
-typedef struct st_example_share {
-  char *table_name;
-  uint table_name_length,use_count;
+class Example_share : public Handler_share {
+public:
   mysql_mutex_t mutex;
   THR_LOCK lock;
-} EXAMPLE_SHARE;
+  Example_share();
+  ~Example_share()
+  {
+    thr_lock_delete(&lock);
+    mysql_mutex_destroy(&mutex);
+  }
+};
 
 /** @brief
   Class definition for the storage engine
@@ -53,7 +58,8 @@ typedef struct st_example_share {
 class ha_example: public handler
 {
   THR_LOCK_DATA lock;      ///< MySQL lock
-  EXAMPLE_SHARE *share;    ///< Shared lock info
+  Example_share *share;    ///< Shared lock info
+  Example_share *get_share(); ///< Get the share
 
 public:
   ha_example(handlerton *hton, TABLE_SHARE *table_arg);
