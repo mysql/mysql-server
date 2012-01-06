@@ -58,12 +58,25 @@ using std::max;
 
 #define BIN_LOG_HEADER_SIZE	4U
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
+#define INTVAR_DYNAMIC_INIT	16
+#define INTVAR_DYNAMIC_INCR	1
 
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
 char server_version[SERVER_VERSION_LENGTH];
 ulong server_id = 0;
+/* 
+  One statement can result in a sequence of several events: Intvar_log_events,
+  User_var_log_events, and Rand_log_events, followed by one
+  Query_log_event. If statements are filtered out, the filter has to be
+  checked for the Query_log_event. So we have to buffer the Intvar,
+  User_var, and Rand events and their corresponding log postions until we see 
+  the Query_log_event. This dynamic array buff_ev is used to buffer a structure 
+  which stores such an event and the corresponding log position.
+*/
+
+DYNAMIC_ARRAY buff_ev;
 
 // needed by net_serv.c
 ulong bytes_sent = 0L, bytes_received = 0L;
@@ -159,6 +172,21 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                            const char* logname);
 static Exit_status dump_log_entries(const char* logname);
 static Exit_status safe_connect();
+
+/*
+  This strucure is used to store the event and the log postion of the events 
+  which is later used to print the event details from correct log postions.
+  The Log_event *event is used to store the pointer to the current event and 
+  the event_pos is used to store the current event log postion.
+*/
+
+struct buff_event_info
+  {
+    Log_event *event;
+    my_off_t event_pos;
+  };
+
+struct buff_event_info buff_event;
 
 class Load_log_processor
 {
@@ -729,7 +757,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     read them to be able to process the wanted events.
   */
   if (((rec_count >= offset) &&
-       ((my_time_t)(ev->when) >= start_datetime)) ||
+       ((my_time_t) (ev->when.tv_sec) >= start_datetime)) ||
       (ev_type == FORMAT_DESCRIPTION_EVENT))
   {
     if (ev_type != FORMAT_DESCRIPTION_EVENT)
@@ -753,7 +781,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           server_id && (server_id != ev->server_id))
         goto end;
     }
-    if (((my_time_t)(ev->when) >= stop_datetime)
+    if (((my_time_t) (ev->when.tv_sec) >= stop_datetime)
         || (pos >= stop_position_mot))
     {
       /* end the program */
@@ -780,11 +808,63 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
     switch (ev_type) {
     case QUERY_EVENT:
-      if (!((Query_log_event*)ev)->is_trans_keyword() &&
-          shall_skip_database(((Query_log_event*)ev)->db))
+    {
+      bool parent_query_skips=
+          !((Query_log_event*) ev)->is_trans_keyword() &&
+           shall_skip_database(((Query_log_event*) ev)->db);
+           
+      for (uint dynamic_array_index= 0; dynamic_array_index < buff_ev.elements; 
+           dynamic_array_index++)
+      {
+        buff_event_info pop_event_array= *dynamic_element(&buff_ev, dynamic_array_index, buff_event_info *);
+        Log_event *temp_event= pop_event_array.event;
+        my_off_t temp_log_pos= pop_event_array.event_pos;
+        (!opt_hexdump) ? print_event_info->hexdump_from= 0 : print_event_info->hexdump_from= temp_log_pos;
+
+        if (!parent_query_skips)
+          temp_event->print(result_file, print_event_info);
+        delete temp_event;
+      }
+      
+      (!opt_hexdump) ? print_event_info->hexdump_from= 0 : print_event_info->hexdump_from= pos;      
+
+      reset_dynamic(&buff_ev);
+
+      if (parent_query_skips)
         goto end;
       ev->print(result_file, print_event_info);
       break;
+      
+      destroy_evt= TRUE;
+    }
+          
+    case INTVAR_EVENT:
+    {
+      destroy_evt= FALSE;
+      buff_event.event= ev;
+      buff_event.event_pos= pos;
+      insert_dynamic(&buff_ev, (uchar*) &buff_event);
+      break;
+    }
+    	
+    case RAND_EVENT:
+    {
+      destroy_evt= FALSE;
+      buff_event.event= ev;
+      buff_event.event_pos= pos;      
+      insert_dynamic(&buff_ev, (uchar*) &buff_event);
+      break;
+    }
+    
+    case USER_VAR_EVENT:
+    {
+      destroy_evt= FALSE;
+      buff_event.event= ev;
+      buff_event.event_pos= pos;      
+      insert_dynamic(&buff_ev, (uchar*) &buff_event);
+      break; 
+    }
+
 
     case CREATE_FILE_EVENT:
     {
@@ -1335,7 +1415,6 @@ static void cleanup()
   my_free(host);
   my_free(user);
   my_free(dirname_for_local_load);
-
   delete glob_description_event;
   if (mysql)
     mysql_close(mysql);
@@ -1363,13 +1442,13 @@ the mysql command line client.\n\n");
 
 static my_time_t convert_str_to_timestamp(const char* str)
 {
-  int was_cut;
+  MYSQL_TIME_STATUS status;
   MYSQL_TIME l_time;
   long dummy_my_timezone;
   my_bool dummy_in_dst_time_gap;
   /* We require a total specification (date AND time) */
-  if (str_to_datetime(str, (uint) strlen(str), &l_time, 0, &was_cut) !=
-      MYSQL_TIMESTAMP_DATETIME || was_cut)
+  if (str_to_datetime(str, (uint) strlen(str), &l_time, 0, &status) ||
+      l_time.time_type != MYSQL_TIMESTAMP_DATETIME || status.warnings)
   {
     error("Incorrect date and time argument: %s", str);
     exit(1);
@@ -1547,7 +1626,16 @@ static Exit_status dump_log_entries(const char* logname)
   rc= (remote_opt ? dump_remote_log_entries(&print_event_info, logname) :
        dump_local_log_entries(&print_event_info, logname));
 
-  if (print_event_info.have_unflushed_events)
+  if (buff_ev.elements > 0)
+    warning("The range of printed events ends with an Intvar_event, "
+            "Rand_event or User_var_event with no matching Query_log_event. "
+            "This might be because the last statement was not fully written "
+            "to the log, or because you are using a --stop-position or "
+            "--stop-datetime that refers to an event in the middle of a "
+            "statement. The event(s) from the partial statement have not been "
+            "written to output. ");
+
+  else if (print_event_info.have_unflushed_events)
     warning("The range of printed events ends with a row event or "
             "a table map event that does not have the STMT_END_F "
             "flag set. This might be because the last statement "
@@ -1798,7 +1886,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           }
         }
 
-        if (rev->when == 0)
+        if (rev->when.tv_sec == 0)
         {
           if (!to_last_remote_log)
           {
@@ -2291,6 +2379,18 @@ int main(int argc, char** argv)
   DBUG_PROCESS(argv[0]);
 
   my_init_time(); // for time functions
+   /*
+    A pointer of type Log_event can point to
+     INTVAR
+     USER_VAR
+     RANDOM
+    events,  when we allocate a element of sizeof(Log_event*) 
+    for the DYNAMIC_ARRAY.
+  */
+
+  if((my_init_dynamic_array(&buff_ev, sizeof(buff_event_info), 
+                            INTVAR_DYNAMIC_INIT, INTVAR_DYNAMIC_INCR)))
+    exit(1);
 
   if (load_defaults("my", load_default_groups, &argc, &argv))
     exit(1);
@@ -2392,6 +2492,17 @@ int main(int argc, char** argv)
   if (result_file && (result_file != stdout))
     my_fclose(result_file, MYF(0));
   cleanup();
+
+  if(buff_ev.elements)
+  {
+    for (uint i= 0; i < buff_ev.elements; i++)
+      {
+        buff_event_info pop_event_array= *dynamic_element(&buff_ev, i, buff_event_info *);
+        delete (pop_event_array.event);
+      }
+    delete_dynamic(&buff_ev);
+  }
+
   if (defaults_argv)
     free_defaults(defaults_argv);
   my_free_open_file_info();

@@ -104,7 +104,7 @@ dict_col_type_assert_equal(
 
 	ut_ad(col->mtype == type->mtype);
 	ut_ad(col->prtype == type->prtype);
-	ut_ad(col->len == type->len);
+	//ut_ad(col->len == type->len);
 # ifndef UNIV_HOTBACKUP
 	ut_ad(col->mbminmaxlen == type->mbminmaxlen);
 # endif /* !UNIV_HOTBACKUP */
@@ -280,7 +280,7 @@ dict_index_is_ibuf(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY(index->type & DICT_IBUF));
+	return(index->type & DICT_IBUF);
 }
 
 /********************************************************************//**
@@ -295,7 +295,7 @@ dict_index_is_univ(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY(index->type & DICT_UNIVERSAL));
+	return(index->type & DICT_UNIVERSAL);
 }
 
 /********************************************************************//**
@@ -440,7 +440,21 @@ dict_table_is_comp(
 #error "DICT_TF_COMPACT must be 1"
 #endif
 
-	return(UNIV_LIKELY(table->flags & DICT_TF_COMPACT));
+	return(table->flags & DICT_TF_COMPACT);
+}
+
+/************************************************************************
+Check if the table has an FTS index. */
+UNIV_INLINE
+ibool
+dict_table_has_fts_index(
+/*=====================*/
+				/* out: TRUE if table has an FTS index */
+	dict_table_t*   table)  /* in: table */
+{
+	ut_ad(table);
+
+	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS));
 }
 
 /********************************************************************//**
@@ -550,7 +564,7 @@ dict_sys_tables_type_validate(
 		}
 
 		/* Validate that the number is within allowed range. */
-		if (zip_ssize <= PAGE_ZIP_SSIZE_MAX) {
+		if (zip_ssize > PAGE_ZIP_SSIZE_MAX) {
 			return(ULINT_UNDEFINED);
 		}
 	}
@@ -667,11 +681,11 @@ dict_tf_to_fsp_flags(
 /*=================*/
 	ulint	flags)	/*!< in: dict_table_t::flags */
 {
-	if (!DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
-		ut_a(flags == DICT_TF_REDUNDANT
-		     || flags == DICT_TF_COMPACT);
-		return(FSP_FLAGS_ANTELOPE);
-	}
+	/* Adjust bit zero. */
+	flags = (flags == DICT_TF_COMPACT) ? 0 : flags;
+
+	/* In addition, tablespace flags also contain the page size. */
+	flags = fsp_flags_set_page_size(flags, UNIV_PAGE_SIZE);
 
 	return(fsp_flags_validate(flags));
 }
@@ -1066,6 +1080,33 @@ dict_index_get_space_reserve(void)
 }
 
 /**********************************************************************//**
+Check whether a column exists in an FTS index.
+@return ULINT_UNDEFINED if no match else the offset within the vector */
+UNIV_INLINE
+ulint
+dict_table_is_fts_column(
+/*=====================*/
+	ib_vector_t*	indexes,/*!< in: vector containing only FTS indexes */
+	ulint		col_no)	/*!< in: col number to search for */
+
+{
+	ulint		i;
+
+	for (i = 0; i < ib_vector_size(indexes); ++i) {
+		dict_index_t*	index;
+
+		index = (dict_index_t*) ib_vector_getp(indexes, i);
+
+		if (dict_index_contains_col_or_prefix(index, col_no)) {
+
+			return(i);
+		}
+	}
+
+	return(ULINT_UNDEFINED);
+}
+
+/**********************************************************************//**
 Determine bytes of column prefix to be stored in the undo log. Please
 note if the table format is UNIV_FORMAT_A (< UNIV_FORMAT_B), no prefix
 needs to be stored in the undo log.
@@ -1102,7 +1143,7 @@ dict_table_is_corrupted(
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	return(UNIV_UNLIKELY(table->corrupted));
+	return(table->corrupted);
 }
 
 /********************************************************************//**
@@ -1117,8 +1158,8 @@ dict_index_is_corrupted(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY((index->type & DICT_CORRUPT)
-	       || (index->table && index->table->corrupted)));
+	return((index->type & DICT_CORRUPT)
+	       || (index->table && index->table->corrupted));
 }
 
 #endif /* !UNIV_HOTBACKUP */

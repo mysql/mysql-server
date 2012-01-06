@@ -2493,6 +2493,11 @@ void Item_func_format::print(String *str, enum_query_type query_type)
   args[0]->print(str, query_type);
   str->append(',');
   args[1]->print(str, query_type);
+  if(arg_count > 2)
+  {
+    str->append(',');
+    args[2]->print(str,query_type);
+  }
   str->append(')');
 }
 
@@ -3138,9 +3143,12 @@ String *Item_func_conv::val_str(String *str)
                                    from_base, &endptr, &err);
   }
 
-  ptr= longlong2str(dec, ans, to_base);
-  if (str->copy(ans, (uint32) (ptr-ans), default_charset()))
-    return make_empty_result();
+  if (!(ptr= longlong2str(dec, ans, to_base)) ||
+      str->copy(ans, (uint32) (ptr - ans), default_charset()))
+  {
+    null_value= 1;
+    return NULL;
+  }
   return str;
 }
 
@@ -3277,12 +3285,15 @@ void Item_func_weight_string::fix_length_and_dec()
   const CHARSET_INFO *cs= args[0]->collation.collation;
   collation.set(&my_charset_bin, args[0]->collation.derivation);
   flags= my_strxfrm_flag_normalize(flags, cs->levels_for_order);
+  field= args[0]->type() == FIELD_ITEM && args[0]->is_temporal() ?
+         ((Item_field *) (args[0]))->field : (Field *) NULL;
   /* 
     Use result_length if it was given explicitly in constructor,
     otherwise calculate max_length using argument's max_length
     and "nweights".
-  */
-  max_length= result_length ? result_length :
+  */  
+  max_length= field ? field->pack_length() :
+              result_length ? result_length :
               cs->mbmaxlen * max(args[0]->max_length, nweights);
   maybe_null= 1;
 }
@@ -3305,7 +3316,8 @@ String *Item_func_weight_string::val_str(String *str)
     explicitly, otherwise calculate result length
     from argument and "nweights".
   */
-  tmp_length= result_length ? result_length :
+  tmp_length= field ? field->pack_length() :
+              result_length ? result_length :
               cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
                                     max(res->length(), nweights));
 
@@ -3321,11 +3333,17 @@ String *Item_func_weight_string::val_str(String *str)
   if (tmp_value.alloc(tmp_length))
     goto nl;
 
-  frm_length= cs->coll->strnxfrm(cs,
-                                 (uchar*) tmp_value.ptr(), tmp_length,
-                                 nweights ? nweights : tmp_length,
-                                 (const uchar*) res->ptr(), res->length(),
-                                 flags);
+  if (field)
+  {
+    frm_length= field->pack_length();
+    field->sort_string((uchar *) tmp_value.ptr(), tmp_length);
+  }
+  else
+    frm_length= cs->coll->strnxfrm(cs,
+                                   (uchar *) tmp_value.ptr(), tmp_length,
+                                   nweights ? nweights : tmp_length,
+                                   (const uchar *) res->ptr(), res->length(),
+                                   flags);
   tmp_value.length(frm_length);
   null_value= 0;
   return &tmp_value;
@@ -3360,8 +3378,10 @@ String *Item_func_hex::val_str_ascii(String *str)
 
     if ((null_value= args[0]->null_value))
       return 0;
-    ptr= longlong2str(dec,ans,16);
-    if (str->copy(ans,(uint32) (ptr-ans), &my_charset_numeric))
+    
+    if (!(ptr= longlong2str(dec, ans, 16)) ||
+        str->copy(ans,(uint32) (ptr - ans),
+        &my_charset_numeric))
       return make_empty_result();		// End of memory
     return str;
   }

@@ -1120,14 +1120,6 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp);
 */
 int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond);
 
-/**
-   Create fields' descriptions of information_schema.OPTIMIZER_TRACE
-   @retval 0 ok
-   @retval 1 out of memory
-*/
-int make_optimizer_trace_table_for_show(THD *thd,
-                                        st_schema_table *schema_table);
-
 //@}
 
 #else /* defined (OPTIMIZER_TRACE) */

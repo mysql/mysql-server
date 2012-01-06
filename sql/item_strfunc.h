@@ -44,6 +44,14 @@ public:
   longlong val_int();
   double val_real();
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
+  }
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
   bool fix_fields(THD *thd, Item **ref);
@@ -904,10 +912,11 @@ class Item_func_weight_string :public Item_str_func
   uint flags;
   uint nweights;
   uint result_length;
+  Field *field;
 public:
   Item_func_weight_string(Item *a, uint result_length_arg,
                           uint nweights_arg, uint flags_arg)
-  :Item_str_func(a)
+  :Item_str_func(a), field(NULL)
   {
     nweights= nweights_arg;
     flags= flags_arg;

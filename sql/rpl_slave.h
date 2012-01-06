@@ -57,6 +57,7 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 #define MTS_WORKER_UNDEF ((ulong) -1)
 #define MTS_MAX_WORKERS  1024
+#define MTS_MAX_BITS_IN_GROUP ((1L << 19) - 1) /* 524287 */
 
 // Forward declarations
 class Relay_log_info;

@@ -1642,3 +1642,310 @@ vc
 seven
 DROP TABLE t1, t2, t3;
 #
+#
+# Bug#13107577: Derived table in a semi-join caused failed assertion. 
+#
+CREATE TABLE t1 (
+`col_int_key` int(11) NOT NULL,
+`col_varchar_nokey` varchar(1) NOT NULL
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (8,'m'), (4,'b'), (4,'x'), (7,'g'), (4,'p');
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT col_int_key
+FROM t1
+WHERE ( NOT EXISTS (
+SELECT col_varchar_nokey
+FROM t1 
+WHERE ( 7 ) IN (
+SELECT v1.col_int_key
+FROM ( v1 JOIN ( SELECT * FROM t1 ) AS d1
+ON ( d1.col_varchar_nokey = v1.col_varchar_nokey ) )
+)
+) )
+;
+col_int_key
+DROP VIEW v1;
+DROP TABLE t1;
+#
+#
+# Bug#13105833: Crash when using LooseScan sj-strategy for a view.
+#
+CREATE TABLE t1 (pk int(11)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (pk int(11)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1), (2), (3);
+CREATE VIEW v1 AS SELECT DISTINCT pk FROM t1;
+SELECT pk 
+FROM t2
+WHERE pk IN ( SELECT * FROM v1 ) ;
+pk
+1
+DROP TABLE t1,t2;
+DROP VIEW v1;
+#
+#
+# Bug#13261277: Unchecked key length caused missing records.
+#
+CREATE TABLE t1 (  
+col_varchar varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+stub1 varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+stub2 varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+stub3 varchar(1024) CHARACTER SET utf8 DEFAULT NULL
+);
+INSERT INTO t1 VALUES
+('d','d','l','ther'),
+(NULL,'s','NJBIQ','trzetuchv'),
+(-715390976,'coul','MYWFB','cfhtrzetu'),
+(1696792576,'f','i\'s','c'),
+  (1,'i','ltpemcfhtr','gsltpemcf'),
+  (-663027712,'mgsltpemcf','sa','amgsltpem'),
+  (-1686700032,'JPRVK','i','vamgsltpe'),
+  (NULL,'STUNB','UNVJV','u'),
+  (5,'oka','qyihvamgsl','AXSMD'),
+  (NULL,'tqwmqyihva','h','yntqwmqyi'),
+  (3,'EGMJN','e','e');
+CREATE TABLE t2 (
+col_varchar varchar(10) DEFAULT NULL,
+col_int INT DEFAULT NULL
+);
+INSERT INTO t2 VALUES ('d',9);
+SET @save_heap_size= @@max_heap_table_size;
+SET @@max_heap_table_size= 16384;
+SELECT t2.col_int
+FROM t2
+RIGHT JOIN ( SELECT * FROM t1 ) AS dt 
+ON t2.col_varchar = dt.col_varchar
+WHERE t2.col_int IS NOT NULL ;
+col_int
+9
+# Shouldn't use auto_key0 for derived table
+EXPLAIN 
+SELECT t2.col_int
+FROM t2
+RIGHT JOIN ( SELECT * FROM t1 ) AS dt
+ON t2.col_varchar = dt.col_varchar
+WHERE t2.col_int IS NOT NULL ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	Using where
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	
+SET @@max_heap_table_size= @save_heap_size;
+DROP TABLE t1,t2;
+#
+#
+# Bug#13383857: Another crash in memcpy from
+#               join_cache::write_record_data with semijoin
+#
+CREATE TABLE t1 (
+col_int_key INT DEFAULT NULL,
+col_time_nokey TIME DEFAULT NULL,
+col_varchar_key VARCHAR(1) DEFAULT NULL,
+col_varchar_nokey VARCHAR(1) DEFAULT NULL,
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t1 VALUES
+(8,'22:55:23','x','x'),
+(7,'10:19:31','d','d'),
+(1,'14:40:36','r','r'),
+(7,'04:37:47','f','f'),
+(9,'19:34:06','y','y'),
+(NULL,'20:35:33','u','u'),
+(1,NULL,'m','m'),
+(9,'14:43:37',NULL,NULL),
+(2,'02:23:09','o','o'),
+(9,'01:22:45','w','w'),
+(2,'00:00:00','m','m'),
+(4,'00:13:25','q','q'),
+(0,'03:47:16',NULL,NULL),
+(4,'01:41:48','d','d'),
+(8,'00:00:00','g','g'),
+(NULL,'22:32:04','x','x'),
+(NULL,'16:44:14','f','f'),
+(0,'17:38:37','p','p'),
+(NULL,'08:46:48','j','j'),
+(8,'14:11:27','c','c');
+CREATE TABLE t2 (
+col_int_key INT DEFAULT NULL,
+col_time_nokey TIME DEFAULT NULL,
+col_varchar_key VARCHAR(1) DEFAULT NULL,
+col_varchar_nokey VARCHAR(1) DEFAULT NULL,
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t2 VALUES
+(4,'22:34:09','v','v'),
+(62,'14:26:02','v','v'),
+(7,'14:03:03','c','c'),
+(1,'01:46:09',NULL,NULL),
+(0,'16:21:18','x','x'),
+(7,'18:56:33','i','i'),
+(7,NULL,'e','e'),
+(1,'09:29:08','p','p'),
+(7,'19:11:10','s','s'),
+(1,'11:57:26','j','j'),
+(5,'00:39:46','z','z'),
+(2,'03:28:15','c','c'),
+(0,'06:44:18','a','a'),
+(1,'14:36:39','q','q'),
+(8,'18:42:45','y','y'),
+(1,'02:57:29',NULL,NULL),
+(1,'16:46:13','r','r'),
+(9,'19:39:02','v','v'),
+(1,NULL,NULL,NULL),
+(5,'20:58:33','r','r');
+CREATE TABLE t3 (
+col_int_key INT DEFAULT NULL,
+col_time_nokey TIME DEFAULT NULL,
+col_varchar_key VARCHAR(1) DEFAULT NULL,
+col_varchar_nokey VARCHAR(1) DEFAULT NULL,
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t3 VALUES (8,'04:07:22','g','g');
+explain SELECT col_time_nokey AS x
+FROM (SELECT * FROM t2) AS outr
+WHERE col_varchar_nokey IN (
+SELECT innr.col_varchar_key
+FROM (SELECT * FROM t3) AS innr2
+LEFT JOIN (SELECT * FROM t1) AS innr
+ON innr2.col_varchar_key >= innr.col_varchar_key
+WHERE outr.col_varchar_nokey = 'e'
+  )
+AND outr.col_varchar_key <> 'r'
+;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	20	Using where
+3	DEPENDENT SUBQUERY	<derived4>	system	NULL	NULL	NULL	NULL	1	
+3	DEPENDENT SUBQUERY	<derived5>	ref	auto_key0	auto_key0	4	func	2	Using where
+5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	20	
+4	DERIVED	t3	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	20	
+SELECT col_time_nokey AS x
+FROM (SELECT * FROM t2) AS outr
+WHERE col_varchar_nokey IN (
+SELECT innr.col_varchar_key
+FROM (SELECT * FROM t3) AS innr2
+LEFT JOIN (SELECT * FROM t1) AS innr
+ON innr2.col_varchar_key >= innr.col_varchar_key
+WHERE outr.col_varchar_nokey = 'e'
+  )
+AND outr.col_varchar_key <> 'r'
+;
+x
+DROP TABLE t1, t2, t3;
+#
+# Bug#13354889: Crash on a derived table with more than 64 fields.
+#
+create table t1 (
+field00 int, field01 int, field02 int, field03 int,
+field04 int, field05 int, field06 int, field07 int,
+field10 int, field11 int, field12 int, field13 int,
+field14 int, field15 int, field16 int, field17 int,
+field20 int, field21 int, field22 int, field23 int,
+field24 int, field25 int, field26 int, field27 int,
+field30 int, field31 int, field32 int, field33 int,
+field34 int, field35 int, field36 int, field37 int,
+field40 int, field41 int, field42 int, field43 int,
+field44 int, field45 int, field46 int, field47 int,
+field50 int, field51 int, field52 int, field53 int,
+field54 int, field55 int, field56 int, field57 int,
+field60 int, field61 int, field62 int, field63 int,
+field64 int, field65 int, field66 int, field67 int,
+field70 int, field71 int, field72 int, field73 int,
+field74 int, field75 int, field76 int, field77 int,
+field100 int
+);
+insert into t1(field100) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(0);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
+limit 1;
+field100
+1
+Should use auto_key0 and ref access.
+explain 
+select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
+limit 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	80	Using where
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.field100	8	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	80	
+drop table t1;
+#
+#
+# Bug#13390138: crash in memcpy from join_cache::write_record_data
+#
+CREATE TABLE t1 (
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('r','r');
+CREATE TABLE t2 (
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t2 VALUES
+(NULL,NULL),
+('r','r');
+CREATE TABLE t3 (
+col_int_key int,
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key, col_int_key)
+);
+INSERT INTO t3 VALUES
+(9,'f','f'),
+(4,'y','y'),
+(3,'u','u'),
+(2,'m','m'),
+(NULL,NULL,NULL),
+(2,'o','o'),
+(NULL,'r','r'),
+(6,'m','m'),
+(7,'q','q'),
+(6,'c','c');
+explain SELECT grandparent.col_varchar_nokey AS g1
+FROM (SELECT * FROM t3) AS grandparent
+WHERE grandparent.col_varchar_nokey IN
+(SELECT parent.col_varchar_key AS p1
+FROM (SELECT * FROM t2) AS parent
+WHERE grandparent.col_varchar_key IN (
+SELECT child1.col_varchar_key AS c1
+FROM (SELECT * FROM t1) AS child1
+LEFT JOIN (SELECT * FROM t2) AS child2
+ON child1.col_varchar_nokey <> child2.col_varchar_key
+)
+AND grandparent.col_int_key IS UNKNOWN
+)
+ORDER BY grandparent.col_varchar_nokey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	10	Using where; Using filesort
+3	DEPENDENT SUBQUERY	<derived4>	index_subquery	auto_key0	auto_key0	4	func	2	Using where
+5	DEPENDENT SUBQUERY	<derived6>	system	NULL	NULL	NULL	NULL	1	
+5	DEPENDENT SUBQUERY	<derived7>	ALL	NULL	NULL	NULL	NULL	2	Using where
+7	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+6	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	
+4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t3	ALL	NULL	NULL	NULL	NULL	10	
+SELECT grandparent.col_varchar_nokey AS g1
+FROM (SELECT * FROM t3) AS grandparent
+WHERE grandparent.col_varchar_nokey IN
+(SELECT parent.col_varchar_key AS p1
+FROM (SELECT * FROM t2) AS parent
+WHERE grandparent.col_varchar_key IN (
+SELECT child1.col_varchar_key AS c1
+FROM (SELECT * FROM t1) AS child1
+LEFT JOIN (SELECT * FROM t2) AS child2
+ON child1.col_varchar_nokey <> child2.col_varchar_key
+)
+AND grandparent.col_int_key IS UNKNOWN
+)
+ORDER BY grandparent.col_varchar_nokey;
+g1
+r
+DROP TABLE t1, t2, t3;

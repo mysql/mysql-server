@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -168,7 +168,7 @@ mlog_write_initial_log_record_fast(
 	mtr_t*		mtr);	/*!< in: mtr */
 #else /* !UNIV_HOTBACKUP */
 # define mlog_write_initial_log_record(ptr,type,mtr) ((void) 0)
-# define mlog_write_initial_log_record_fast(ptr,type,log_ptr,mtr) ((byte *) 0)
+# define mlog_write_initial_log_record_fast(ptr,type,log_ptr,mtr) ((byte*) 0)
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************//**
 Parses an initial log record written by mlog_write_initial_log_record.

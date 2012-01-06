@@ -32,6 +32,7 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "item_inetfunc.h"
+#include "sql_time.h"
 
 /*
 =============================================================================
@@ -5776,11 +5777,20 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     res= new (thd->mem_root) Item_date_typecast(a);
     break;
   case ITEM_CAST_TIME:
-    res= new (thd->mem_root) Item_time_typecast(a);
-    break;
   case ITEM_CAST_DATETIME:
-    res= new (thd->mem_root) Item_datetime_typecast(a);
+  {
+    uint dec= c_dec ? strtoul(c_dec, NULL, 10) : 0;
+    if (dec > DATETIME_MAX_DECIMALS)
+    {
+      my_error(ER_TOO_BIG_PRECISION, MYF(0),
+               (int) dec, "CAST", DATETIME_MAX_DECIMALS);
+      return 0;
+    }
+    res= (cast_type == ITEM_CAST_TIME) ? 
+         (Item*) new (thd->mem_root) Item_time_typecast(a, dec) :
+         (Item*) new (thd->mem_root) Item_datetime_typecast(a, dec);
     break;
+  }
   case ITEM_CAST_DECIMAL:
   {
     ulong len= 0;
@@ -5862,4 +5872,63 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
   }
   }
   return res;
+}
+
+
+/**
+  Builder for datetime literals:
+    TIME'00:00:00', DATE'2001-01-01', TIMESTAMP'2001-01-01 00:00:00'.
+  @param thd          The current thread
+  @param str          Character literal
+  @param length       Length of str
+  @param type         Type of literal (TIME, DATE or DATETIME)
+  @param send_error   Whether to generate an error on failure
+*/
+
+Item *create_temporal_literal(THD *thd,
+                              const char *str, uint length,
+                              const CHARSET_INFO *cs,
+                              enum_field_types type, bool send_error)
+{
+  MYSQL_TIME_STATUS status;
+  MYSQL_TIME ltime;
+  Item *item= NULL;
+  ulonglong flags= TIME_FUZZY_DATE | thd->datetime_flags();
+
+  switch(type)
+  {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+    if (!str_to_datetime(cs, str, length, &ltime, flags, &status) &&
+        ltime.time_type == MYSQL_TIMESTAMP_DATE && !status.warnings)
+      item= new (thd->mem_root) Item_date_literal(&ltime);
+    break;
+  case MYSQL_TYPE_DATETIME:
+    if (!str_to_datetime(cs, str, length, &ltime, flags, &status) &&
+        ltime.time_type == MYSQL_TIMESTAMP_DATETIME && !status.warnings)
+      item= new (thd->mem_root) Item_datetime_literal(&ltime,
+                                                      status.fractional_digits);
+    break;
+  case MYSQL_TYPE_TIME:
+    if (!str_to_time(cs, str, length, &ltime, 0, &status) &&
+        ltime.time_type == MYSQL_TIMESTAMP_TIME && !status.warnings)
+      item= new (thd->mem_root) Item_time_literal(&ltime,
+                                                  status.fractional_digits);
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+
+  if (item)
+    return item;
+
+  if (send_error)
+  {
+    const char *typestr=
+      (type == MYSQL_TYPE_DATE) ? "DATE" :
+      (type == MYSQL_TYPE_TIME) ? "TIME" : "DATETIME";
+    ErrConvString err(str, length, thd->variables.character_set_client);
+    my_error(ER_WRONG_VALUE, MYF(0), typestr, err.ptr());
+  }
+  return NULL;
 }

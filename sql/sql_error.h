@@ -23,6 +23,7 @@
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 
 class THD;
+class my_decimal;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -525,34 +526,54 @@ private:
   friend class Diagnostics_area;
 };
 
-extern char *err_conv(char *buff, uint to_length, const char *from,
-                      uint from_length, const CHARSET_INFO *from_cs);
+uint err_conv(char *buff, uint to_length, const char *from,
+              uint from_length, const CHARSET_INFO *from_cs);
 
 class ErrConvString
 {
   char err_buffer[MYSQL_ERRMSG_SIZE];
-
+  uint buf_length;
 public:
   ErrConvString(String *str)
   {
-    (void) err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
-                    str->length(), str->charset());
+    buf_length= err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
+                         str->length(), str->charset());
   }
 
   ErrConvString(const char *str, const CHARSET_INFO* cs)
   {
-    (void) err_conv(err_buffer, sizeof(err_buffer),
-                    str, strlen(str), cs);
+    buf_length= err_conv(err_buffer, sizeof(err_buffer), str, strlen(str), cs);
+  }
+
+  ErrConvString(const char *str, uint length)
+  {
+    buf_length= err_conv(err_buffer, sizeof(err_buffer), str, length,
+                         &my_charset_latin1);
   }
 
   ErrConvString(const char *str, uint length, const CHARSET_INFO* cs)
   {
-    (void) err_conv(err_buffer, sizeof(err_buffer),
-                    str, length, cs);
+    buf_length= err_conv(err_buffer, sizeof(err_buffer), str, length, cs);
   }
 
+  ErrConvString(longlong nr)
+  {
+    buf_length= my_snprintf(err_buffer, sizeof(err_buffer), "%lld", nr);
+  }
+
+  ErrConvString(longlong nr, bool unsigned_flag)
+  {
+    buf_length= longlong10_to_str(nr, err_buffer, unsigned_flag ? 10 : -10) -
+                err_buffer;
+  }
+
+  ErrConvString(double nr);
+  ErrConvString(const my_decimal *nr);
+  ErrConvString(const struct st_mysql_time *ltime, uint dec);
+ 
   ~ErrConvString() { };
   char *ptr() { return err_buffer; }
+  uint length() const { return buf_length; }
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -437,8 +437,9 @@ typedef struct system_variables
   */ 
   ulong dynamic_variables_version;
   char* dynamic_variables_ptr;
-  uint dynamic_variables_head;  /* largest valid variable offset */
-  uint dynamic_variables_size;  /* how many bytes are in use */
+  uint dynamic_variables_head;    /* largest valid variable offset */
+  uint dynamic_variables_size;    /* how many bytes are in use */
+  LIST *dynamic_variables_allocs; /* memory hunks for PLUGIN_VAR_MEMALLOC */
   
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
@@ -491,7 +492,6 @@ typedef struct system_variables
   ulong query_prealloc_size;
   ulong trans_alloc_block_size;
   ulong trans_prealloc_size;
-  ulong log_warnings;
   ulong group_concat_max_len;
 
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
@@ -585,19 +585,6 @@ typedef struct system_status_var
   ulonglong ha_savepoint_count;
   ulonglong ha_savepoint_rollback_count;
   ulonglong ha_external_lock_count;
-
-#if 0
-  /* Tatiana thinks this may be dead now. */
-  /* KEY_CACHE parts. These are copies of the original */
-  ulonglong key_blocks_changed;
-  ulonglong key_blocks_used;
-  ulonglong key_cache_r_requests;
-  ulonglong key_cache_read;
-  ulonglong key_cache_w_requests;
-  ulonglong key_cache_write;
-  /* END OF KEY_CACHE parts */
-#endif
-
   ulonglong opened_tables;
   ulonglong opened_shares;
   ulonglong select_full_join_count;
@@ -1240,6 +1227,152 @@ public:
   bool user_matches(Security_context *);
 };
 
+/**
+  @class Log_throttle
+  @brief Used for rate-limiting a log (slow query log etc.)
+*/
+
+class Log_throttle
+{
+private:
+  /**
+    We're using our own (empty) security context during summary generation.
+    That way, the aggregate value of the suppressed queries isn't printed
+    with a specific user's name (i.e. the user who sent a query when or
+    after the time-window closes), as that would be misleading.
+  */
+  Security_context aggregate_sctx;
+  /**
+    Total of the execution times of queries in this time-window for which
+    we suppressed logging. For use in summary printing.
+  */
+  ulonglong total_exec_time;
+  /**
+    Total of the lock times of queries in this time-window for which
+    we suppressed logging. For use in summary printing.
+  */
+  ulonglong total_lock_time;
+
+  /**
+    When will/did current window end?
+  */
+  ulonglong window_end;
+  /**
+    A reference to the threshold ("no more than n log lines per ...").
+    References a (system-?) variable in the server.
+  */
+  ulong *rate;
+  /**
+    Log no more than rate lines of a given type per window_size
+    (e.g. per minute, usually LOG_THROTTLE_WINDOW_SIZE).
+  */
+  const ulong window_size;
+  /**
+   There have been this many lines of this type in this window,
+   including those that we suppressed. (We don't simply stop
+   counting once we reach the threshold as we'll write a summary
+   of the suppressed lines later.)
+  */
+  ulong count;
+  /**
+    Template for the summary line. Should contain %lu as the only
+    conversion specification.
+  */
+  const char *summary_template;
+  /**
+    Log_throttle is shared between THDs.
+  */
+  mysql_mutex_t *LOCK_log_throttle;
+  /**
+    The routine we call to actually log a line (i.e. our summary).
+    The signature miraculously coincides with slow_log_print().
+  */
+  bool (*log_summary)(THD *, const char *, uint);
+
+  /**
+    Lock this object as it's shared between THDs.
+  */
+  void lock_exclusive() { mysql_mutex_lock(LOCK_log_throttle); }
+  /**
+    Unlock this object.
+  */
+  void unlock() { mysql_mutex_unlock(LOCK_log_throttle); }
+  /**
+    Start a new window.
+  */
+  void new_window(ulonglong now);
+  /**
+    Increase count of queries of the type we're handling.
+    Returns the new value for the caller to compare against their limit.
+  */
+  ulong inc_queries() { return ++count; }
+  /**
+    Check whether we're still in the current window. (If not, the caller
+    will want to print a summary (if the logging of any lines was suppressed),
+    and start a new window.)
+  */
+  bool in_window(ulonglong now) const { return (now < window_end); };
+  /**
+    Prepare a summary of suppressed lines for logging.
+    (For now, to slow query log.)
+    This function returns the number of queries that were qualified for
+    inclusion in the log, but were not printed because of the rate-limiting.
+    The summary will contain this count as well as the respective totals for
+    lock and execution time.
+    This function assumes that the caller already holds the necessary locks.
+  */
+  ulong prepare_summary(THD *thd);
+  /**
+    Actually print the prepared summary to log.
+  */
+  void print_summary(THD *thd, ulong suppressed,
+                     ulonglong print_lock_time,
+                     ulonglong print_exec_time);
+
+public:
+  /**
+    We're rate-limiting messages per minute; 60,000,000 microsecs = 60s
+    Debugging is less tedious with a window in the region of 5000000
+  */
+  static const ulong LOG_THROTTLE_WINDOW_SIZE= 60000000;
+
+  /**
+    @param threshold     suppress after this many queries ...
+    @param window_usecs  ... in this many micro-seconds
+    @param logger        call this function to log a single line (our summary)
+    @param msg           use this template containing %lu as only non-literal
+  */
+  Log_throttle(ulong *threshold, mysql_mutex_t *lock, ulong window_usecs,
+               bool (*logger)(THD *, const char *, uint),
+               const char *msg);
+
+  /**
+    Prepare and print a summary of suppressed lines to log.
+    (For now, slow query log.)
+    The summary states the number of queries that were qualified for
+    inclusion in the log, but were not printed because of the rate-limiting,
+    and their respective totals for lock and execution time.
+    This wrapper for prepare_summary() and print_summary() handles the
+    locking/unlocking.
+
+    @param thd                 The THD that tries to log the statement.
+    @retval 0                  Logging was not supressed, no summary needed.
+    @retval false              Logging was supressed; a summary was printed.
+  */
+  bool flush(THD *thd);
+
+  /**
+    Top-level function.
+    @param thd                 The THD that tries to log the statement.
+    @param eligible            Is the statement of the type we might suppress?
+    @retval true               Logging should be supressed.
+    @retval false              Logging should not be supressed.
+  */
+  bool log(THD *thd, bool eligible);
+};
+
+extern Log_throttle log_throttle_qni;
+
 
 /**
   A registry for item tree transformations performed during
@@ -1723,6 +1856,19 @@ private:
 
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
+
+/*
+  Convert microseconds since epoch to timeval.
+  @param     micro_time  Microseconds.
+  @param OUT tm          A timeval variable to write to.
+*/
+static inline void
+my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
+{
+  tm->tv_sec=  (long) (micro_time / 1000000);
+  tm->tv_usec= (long) (micro_time % 1000000);
+}
+
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -1896,7 +2042,8 @@ public:
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
   uint16 peer_port;
-  time_t     start_time, user_time;
+  struct timeval start_time;
+  struct timeval user_time;
   // track down slow pthread_create
   ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
@@ -2376,16 +2523,16 @@ public:
 
   /** Current statement instrumentation. */
   PSI_statement_locker *m_statement_psi;
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   /** Current statement instrumentation state. */
   PSI_statement_locker_state m_statement_state;
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_PSI_STATEMENT_INTERFACE */
   /** Idle instrumentation. */
   PSI_idle_locker *m_idle_psi;
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_PSI_IDLE_INTERFACE
   /** Idle instrumentation state. */
   PSI_idle_locker_state m_idle_state;
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_PSI_IDLE_INTERFACE */
   /** True if the server code is IDLE for this connection. */
   bool m_server_idle;
 
@@ -2488,7 +2635,8 @@ public:
     Reset to FALSE when we leave the sub-statement mode.
   */
   bool       is_fatal_sub_stmt_error;
-  bool	     query_start_used, rand_used, time_zone_used;
+  bool	     query_start_used, query_start_usec_used;
+  bool       rand_used, time_zone_used;
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
   bool	     in_lock_tables;
@@ -2537,6 +2685,7 @@ public:
     long      long_value;
     ulong     ulong_value;
     ulonglong ulonglong_value;
+    double    double_value;
   } sys_var_tmp;
   
   struct {
@@ -2719,41 +2868,65 @@ public:
 
   // End implementation of MDL_context_owner interface.
 
-
-  inline time_t query_start() { query_start_used=1; return start_time; }
+  inline sql_mode_t datetime_flags() const
+  {
+    return variables.sql_mode &
+      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES);
+  }
+  inline Time_zone *time_zone()
+  {
+    time_zone_used= 1;
+    return variables.time_zone;
+  }
+  inline time_t query_start()
+  {
+    query_start_used= 1;
+    return start_time.tv_sec;
+  }
+  inline long query_start_usec()
+  {
+    query_start_usec_used= 1;
+    return start_time.tv_usec;
+  }
+  inline struct timeval *query_start_timeval()
+  {
+    query_start_used= query_start_usec_used= 1;
+    return &start_time;
+  }
+  struct timeval query_start_timeval_trunc(uint decimals);
   inline void set_time()
   {
-    if (user_time)
+    start_utime= utime_after_lock= my_micro_time();
+    if (user_time.tv_sec || user_time.tv_usec)
     {
       start_time= user_time;
-      start_utime= utime_after_lock= my_micro_time();
     }
     else
-      start_utime= utime_after_lock= my_micro_time_and_time(&start_time);
+      my_micro_time_to_timeval(start_utime, &start_time);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time);
+    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   inline void set_current_time()
   {
-    start_time= my_time(MY_WME);
+    my_micro_time_to_timeval(my_micro_time(), &start_time);
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time);
+    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
-  inline void set_time(time_t t)
+  inline void set_time(const struct timeval *t)
   {
-    start_time= user_time= t;
+    start_time= user_time= *t;
     start_utime= utime_after_lock= my_micro_time();
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time);
+    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 
   { 
-    return (IS_TIME_T_VALID_FOR_TIMESTAMP(start_time));
+    return (IS_TIME_T_VALID_FOR_TIMESTAMP(start_time.tv_sec));
   }
   void set_time_after_lock()
   {
@@ -2964,9 +3137,29 @@ public:
   {
     /* TODO: check for OOM condition here */
     if (!stmt_arena->is_conventional())
+    {
+      DBUG_PRINT("info",
+                 ("change_item_tree place %p old_value %p new_value %p",
+                  place, *place, new_value));
       nocheck_register_item_tree_change(place, *place, mem_root);
+    }
     *place= new_value;
   }
+
+/*
+  Find and update change record of an underlying item.
+
+  @param old_ref The old place of moved expression.
+  @param new_ref The new place of moved expression.
+  @details
+  During permanent transformations, e.g. join flattening in simplify_joins,
+  a condition could be moved from one place to another, e.g. from on_expr
+  to WHERE condition. If the moved condition has replaced some other with
+  change_item_tree() function, the change record will restore old value
+  to the wrong place during rollback_item_tree_changes. This function goes
+  through the list of change records, and replaces Item_change_record::place.
+*/
+  void change_item_tree_place(Item **old_ref, Item **new_ref);
   void nocheck_register_item_tree_change(Item **place, Item *old_value,
                                          MEM_ROOT *runtime_memroot);
   void rollback_item_tree_changes();

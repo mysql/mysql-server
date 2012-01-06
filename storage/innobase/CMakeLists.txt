@@ -1,14 +1,14 @@
 # Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
@@ -38,16 +38,20 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
+IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+# After: WL#5825 Using C++ Standard Library with MySQL code
+#       we no longer use -fno-exceptions
+#	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+ENDIF()
+
 # Enable InnoDB's UNIV_DEBUG and UNIV_SYNC_DEBUG in debug builds
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DUNIV_DEBUG -DUNIV_SYNC_DEBUG")
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG -DUNIV_SYNC_DEBUG")
 
 # Add -Wconversion if compiling with GCC
 ## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
 ## please fix them and enable the following code:
-#IF(CMAKE_C_COMPILER_ID MATCHES "GNU")
-#  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wconversion")
-#  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
+#IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
 #ENDIF()
 
 IF(NOT MSVC)
@@ -139,7 +143,7 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
      HAVE_ATOMIC_SWAP_UCHAR)
     SET(HAVE_IB_SOLARIS_ATOMICS 1)
   ENDIF()
-  
+
   IF(HAVE_IB_SOLARIS_ATOMICS)
     ADD_DEFINITIONS(-DHAVE_IB_SOLARIS_ATOMICS=1)
   ENDIF()
@@ -160,15 +164,15 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
         memset(&x3, 0x0, sizeof(x3));
 
         if (sizeof(pthread_t) == 4) {
-        
+
           atomic_cas_32(&x1, x2, x3);
-        
+
         } else if (sizeof(pthread_t) == 8) {
-        
+
           atomic_cas_64(&x1, x2, x3);
-        
+
         } else {
-        
+
           return(1);
         }
 
@@ -204,128 +208,139 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler)
 
 # Sun Studio bug with -xO2
-IF(CMAKE_C_COMPILER_ID MATCHES "SunPro" 
-	AND CMAKE_C_FLAGS_RELEASE MATCHES "O2" 
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro"
+	AND CMAKE_CXX_FLAGS_RELEASE MATCHES "O2"
 	AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
 	# Sun Studio 12 crashes with -xO2 flag, but not with higher optimization
 	# -xO3
-	SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_SOURCE_DIR}/rem/rem0rec.c 
+	SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_SOURCE_DIR}/rem/rem0rec.cc
     PROPERTIES COMPILE_FLAGS -xO3)
 ENDIF()
 
 # Removing compiler optimizations for innodb/mem/* files on 64-bit Windows
 # due to 64-bit compiler error, See MySQL Bug #19424, #36366, #34297
 IF (MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.c mem/mem0pool.c
+	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.cc mem/mem0pool.cc
 				    PROPERTIES COMPILE_FLAGS -Od)
 ENDIF()
 
 SET(INNOBASE_SOURCES
-	btr/btr0btr.c
-	btr/btr0cur.c
-	btr/btr0pcur.c
-	btr/btr0sea.c
-	buf/buf0buddy.c
-	buf/buf0buf.c
-	buf/buf0checksum.c
-	buf/buf0dump.c
-	buf/buf0flu.c
-	buf/buf0lru.c
-	buf/buf0rea.c
-	data/data0data.c
-	data/data0type.c
-	dict/dict0boot.c
-	dict/dict0crea.c
-	dict/dict0dict.c
-	dict/dict0load.c
-	dict/dict0mem.c
-	dict/dict0stats.c
-	dyn/dyn0dyn.c
-	eval/eval0eval.c
-	eval/eval0proc.c
-	fil/fil0fil.c
-	fsp/fsp0fsp.c
-	fut/fut0fut.c
-	fut/fut0lst.c
-	ha/ha0ha.c
-	ha/ha0storage.c
-	ha/hash0hash.c
+	btr/btr0btr.cc
+	btr/btr0cur.cc
+	btr/btr0pcur.cc
+	btr/btr0sea.cc
+	buf/buf0buddy.cc
+	buf/buf0buf.cc
+	buf/buf0dblwr.cc
+	buf/buf0checksum.cc
+	buf/buf0dump.cc
+	buf/buf0flu.cc
+	buf/buf0lru.cc
+	buf/buf0rea.cc
+	data/data0data.cc
+	data/data0type.cc
+	dict/dict0boot.cc
+	dict/dict0crea.cc
+	dict/dict0dict.cc
+	dict/dict0load.cc
+	dict/dict0mem.cc
+	dict/dict0stats.cc
+	dyn/dyn0dyn.cc
+	eval/eval0eval.cc
+	eval/eval0proc.cc
+	fil/fil0fil.cc
+	fsp/fsp0fsp.cc
+	fut/fut0fut.cc
+	fut/fut0lst.cc
+	ha/ha0ha.cc
+	ha/ha0storage.cc
+	ha/hash0hash.cc
+	fts/fts0fts.cc
+	fts/fts0ast.cc
+	fts/fts0blex.cc
+	fts/fts0config.cc
+	fts/fts0opt.cc
+	fts/fts0pars.cc
+	fts/fts0que.cc
+	fts/fts0sql.cc
+	fts/fts0tlex.cc
 	handler/ha_innodb.cc
 	handler/handler0alter.cc
 	handler/i_s.cc
-	ibuf/ibuf0ibuf.c
-	lock/lock0iter.c
-	lock/lock0lock.c
-	lock/lock0wait.c
-	log/log0log.c
-	log/log0recv.c
-	mach/mach0data.c
-	mem/mem0mem.c
-	mem/mem0pool.c
-	mtr/mtr0log.c
-	mtr/mtr0mtr.c
-	os/os0file.c
-	os/os0proc.c
-	os/os0sync.c
-	os/os0thread.c
-	page/page0cur.c
-	page/page0page.c
-	page/page0zip.c
-	pars/lexyy.c
-	pars/pars0grm.c
-	pars/pars0opt.c
-	pars/pars0pars.c
-	pars/pars0sym.c
-	que/que0que.c
-	read/read0read.c
-	rem/rem0cmp.c
-	rem/rem0rec.c
-	row/row0ext.c
-	row/row0ins.c
-	row/row0merge.c
-	row/row0mysql.c
-	row/row0purge.c
-	row/row0row.c
-	row/row0sel.c
-	row/row0uins.c
-	row/row0umod.c
-	row/row0undo.c
-	row/row0upd.c
-	row/row0vers.c
-	srv/srv0conc.c
-	srv/srv0mon.c
-	srv/srv0srv.c
-	srv/srv0start.c
-	sync/sync0arr.c
-	sync/sync0rw.c
-	sync/sync0sync.c
-	trx/trx0i_s.c
-	trx/trx0purge.c
-	trx/trx0rec.c
-	trx/trx0roll.c
-	trx/trx0rseg.c
-	trx/trx0sys.c
-	trx/trx0trx.c
-	trx/trx0undo.c
-	usr/usr0sess.c
-	ut/ut0bh.c
-	ut/ut0byte.c
-	ut/ut0crc32.c
-	ut/ut0dbg.c
-	ut/ut0list.c
-	ut/ut0mem.c
-	ut/ut0rbt.c
-	ut/ut0rnd.c
-	ut/ut0ut.c
-	ut/ut0vec.c
-	ut/ut0wqueue.c)
+	ibuf/ibuf0ibuf.cc
+	lock/lock0iter.cc
+	lock/lock0lock.cc
+	lock/lock0wait.cc
+	log/log0log.cc
+	log/log0recv.cc
+	mach/mach0data.cc
+	mem/mem0mem.cc
+	mem/mem0pool.cc
+	mtr/mtr0log.cc
+	mtr/mtr0mtr.cc
+	os/os0file.cc
+	os/os0proc.cc
+	os/os0sync.cc
+	os/os0thread.cc
+	page/page0cur.cc
+	page/page0page.cc
+	page/page0zip.cc
+	pars/lexyy.cc
+	pars/pars0grm.cc
+	pars/pars0opt.cc
+	pars/pars0pars.cc
+	pars/pars0sym.cc
+	que/que0que.cc
+	read/read0read.cc
+	rem/rem0cmp.cc
+	rem/rem0rec.cc
+	row/row0ext.cc
+	row/row0ftsort.cc
+	row/row0ins.cc
+	row/row0merge.cc
+	row/row0mysql.cc
+	row/row0purge.cc
+	row/row0row.cc
+	row/row0sel.cc
+	row/row0uins.cc
+	row/row0umod.cc
+	row/row0undo.cc
+	row/row0upd.cc
+	row/row0vers.cc
+	srv/srv0conc.cc
+	srv/srv0mon.cc
+	srv/srv0srv.cc
+	srv/srv0start.cc
+	sync/sync0arr.cc
+	sync/sync0rw.cc
+	sync/sync0sync.cc
+	trx/trx0i_s.cc
+	trx/trx0purge.cc
+	trx/trx0rec.cc
+	trx/trx0roll.cc
+	trx/trx0rseg.cc
+	trx/trx0sys.cc
+	trx/trx0trx.cc
+	trx/trx0undo.cc
+	usr/usr0sess.cc
+	ut/ut0bh.cc
+	ut/ut0byte.cc
+	ut/ut0crc32.cc
+	ut/ut0dbg.cc
+	ut/ut0list.cc
+	ut/ut0mem.cc
+	ut/ut0rbt.cc
+	ut/ut0rnd.cc
+	ut/ut0ut.cc
+	ut/ut0vec.cc
+	ut/ut0wqueue.cc)
 
 IF(WITH_INNODB)
   # Legacy option
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
-MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE 
+MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE
   DEFAULT
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES ${ZLIB_LIBRARY})

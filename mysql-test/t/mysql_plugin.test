@@ -21,6 +21,7 @@
 #
 
 --source include/not_embedded.inc
+--source include/have_innodb_16k.inc
 
 # Add the datadir, basedir, plugin_dir to the bootstrap command
 let $MYSQLD_DATADIR= `select @@datadir`;

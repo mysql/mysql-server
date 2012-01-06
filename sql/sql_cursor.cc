@@ -18,6 +18,7 @@
 #include "sql_cursor.h"
 #include "probes_mysql.h"
 #include "sql_parse.h"                        // mysql_execute_command
+#include "sql_tmp_table.h"                   // tmp tables
 
 /****************************************************************************
   Declarations.

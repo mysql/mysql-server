@@ -244,9 +244,9 @@ protected:
   virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
                      const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
-  virtual bool store(MYSQL_TIME *time);
+  virtual bool store(MYSQL_TIME *time, uint precision);
   virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time);
+  virtual bool store_time(MYSQL_TIME *time, uint precision);
   virtual bool store(float value, uint32 decimals, String *buffer);
   virtual bool store(double value, uint32 decimals, String *buffer);
   virtual bool store(Field *field);
@@ -584,7 +584,7 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
   else
     set_zero_time(&tm, MYSQL_TIMESTAMP_TIME);
   param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
-                  MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+                  MAX_TIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
 }
 
@@ -662,7 +662,7 @@ void set_param_time(Item_param *param, uchar **pos, ulong len)
     tm.second= 59;
   }
   param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
-                  MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+                  MAX_TIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 
 }
 
@@ -1248,6 +1248,17 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   List_item *values;
   DBUG_ENTER("mysql_test_insert");
 
+  /*
+    Since INSERT DELAYED doesn't support temporary tables, we could
+    not pre-open temporary tables for SQLCOM_INSERT / SQLCOM_REPLACE.
+    Open them here instead.
+  */
+  if (table_list->lock_type != TL_WRITE_DELAYED)
+  {
+    if (open_temporary_tables(thd, table_list))
+      goto error;
+  }
+
   if (insert_precheck(thd, table_list))
     goto error;
 
@@ -1784,6 +1795,13 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   TABLE_LIST *tables= lex->query_tables;
 
   if (create_view_precheck(thd, tables, view, lex->create_view_mode))
+    goto err;
+
+  /*
+    Since we can't pre-open temporary tables for SQLCOM_CREATE_VIEW,
+    (see mysql_create_view) we have to do it here instead.
+  */
+  if (open_temporary_tables(thd, tables))
     goto err;
 
   if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
@@ -4321,7 +4339,8 @@ bool Protocol_local::store(const char *str, size_t length,
 
 /* Store MYSQL_TIME (in binary format) */
 
-bool Protocol_local::store(MYSQL_TIME *time)
+bool Protocol_local::store(MYSQL_TIME *time,
+                           uint precision __attribute__((unused)))
 {
   return store_column(time, sizeof(MYSQL_TIME));
 }
@@ -4337,7 +4356,8 @@ bool Protocol_local::store_date(MYSQL_TIME *time)
 
 /** Store MYSQL_TIME (in binary format) */
 
-bool Protocol_local::store_time(MYSQL_TIME *time)
+bool Protocol_local::store_time(MYSQL_TIME *time,
+                                uint precision __attribute__((unused)))
 {
   return store_column(time, sizeof(MYSQL_TIME));
 }

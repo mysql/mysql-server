@@ -4604,7 +4604,7 @@ FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	20	Using where
 2	DEPENDENT SUBQUERY	it1	index	NULL	int_key	4	NULL	2	Using index
-2	DEPENDENT SUBQUERY	it2	ref	int_key	int_key	4	func	3	Using where
+2	DEPENDENT SUBQUERY	it2	ref	int_key	int_key	4	func	2	Using where
 DROP TABLE ot1, it1, it2;
 # End of BUG#38075
 # 
@@ -6960,5 +6960,327 @@ col_int_nokey	col_varchar_key
 2	q
 DROP TABLE t1, t2, t4;
 # End of test for bug#12664936.
+#
+# Bug#13340270: assertion table->sort.record_pointers == __null
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int_key int DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key, col_int_key)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+(10,8,'x','x'),
+(11,7,'d','d'),
+(12,1,'r','r'),
+(13,7,'f','f'),
+(14,9,'y','y'),
+(15,NULL,'u','u'),
+(16,1,'m','m'),
+(17,9,NULL,NULL),
+(18,2,'o','o'),
+(19,9,'w','w'),
+(20,2,'m','m'),
+(21,4,'q','q');
+CREATE TABLE t2
+SELECT alias1.col_varchar_nokey AS field1
+FROM t1 AS alias1 JOIN t1 AS alias2
+ON alias2.col_int_key = alias1.pk OR
+alias2.col_int_key = alias1.col_int_key
+WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
+
+;
+EXPLAIN SELECT *
+FROM t2
+WHERE (field1) IN (SELECT alias1.col_varchar_nokey AS field1
+FROM t1 AS alias1 JOIN t1 AS alias2
+ON alias2.col_int_key = alias1.pk OR
+alias2.col_int_key = alias1.col_int_key
+WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	alias1	index_merge	PRIMARY,col_int_key,col_varchar_key	col_varchar_key,PRIMARY	4,4	NULL	2	Using sort_union(col_varchar_key,PRIMARY); Using where
+2	DEPENDENT SUBQUERY	alias2	ALL	col_int_key	NULL	NULL	NULL	12	Range checked for each record (index map: 0x2)
+SELECT *
+FROM t2
+WHERE (field1) IN (SELECT alias1.col_varchar_nokey AS field1
+FROM t1 AS alias1 JOIN t1 AS alias2
+ON alias2.col_int_key = alias1.pk OR
+alias2.col_int_key = alias1.col_int_key
+WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
+);
+field1
+o
+o
+DROP TABLE t1, t2;
+# End of test for bug#13340270.
+#
+# Bug#13335319: Seg fault when analyzing FirstMatch semi-join strategy
+#
+CREATE TABLE ot1(a INTEGER);
+INSERT INTO ot1 VALUES(1), (2), (3);
+CREATE TABLE ot2(a INTEGER);
+INSERT INTO ot2 VALUES(1), (2), (4), (6), (8), (10);
+CREATE TABLE it1(a INTEGER);
+INSERT INTO it1 VALUES(1), (3), (5), (7);
+CREATE TABLE it2(a INTEGER);
+INSERT INTO it2 VALUES(1), (3), (5), (7), (9);
+explain SELECT ot1.a, ot2.a
+FROM ot1, ot2
+WHERE ot1.a IN (SELECT a FROM it1) AND
+ot2.a IN (SELECT a FROM it2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	ot2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
+3	DEPENDENT SUBQUERY	it2	ALL	NULL	NULL	NULL	NULL	5	Using where
+2	DEPENDENT SUBQUERY	it1	ALL	NULL	NULL	NULL	NULL	4	Using where
+SELECT ot1.a, ot2.a
+FROM ot1, ot2
+WHERE ot1.a IN (SELECT a FROM it1) AND
+ot2.a IN (SELECT a FROM it2);
+a	a
+1	1
+3	1
+DROP TABLE ot1, ot2, it1, it2;
+# End of test for bug#13335319.
+#
+# Bug#13334882: Assertion keypart_map failed in MyIsam function
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int_nokey INT NOT NULL,
+col_int_key INT NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+(1,4,0),
+(2,6,8),
+(3,3,1),
+(7,2,6),
+(8,9,1),
+(9,3,6),
+(10,8,2),
+(11,1,4),
+(12,8,8),
+(13,8,4),
+(14,5,4);
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_int_nokey int NOT NULL,
+col_int_key int NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+(10,8,7);
+CREATE TABLE t3
+SELECT grandparent1.col_int_nokey AS g1
+FROM t1 AS grandparent1
+WHERE (grandparent1.col_int_nokey, grandparent1.col_int_key) IN
+(SELECT parent1.col_int_key AS p1,
+parent1.col_int_key AS p2
+FROM t1 AS parent1
+LEFT JOIN t2 AS parent2
+ON parent1.col_int_nokey = parent2.col_int_key
+)
+AND grandparent1.col_int_key <> 3
+;
+explain SELECT * FROM t3
+WHERE g1 NOT IN
+(SELECT grandparent1.col_int_nokey AS g1
+FROM t1 AS grandparent1
+WHERE (grandparent1.col_int_nokey, grandparent1.col_int_key) IN
+(SELECT parent1.col_int_key AS p1,
+parent1.col_int_key AS p2
+FROM t1 AS parent1
+LEFT JOIN t2 AS parent2
+ON parent1.col_int_nokey = parent2.col_int_key
+)
+AND grandparent1.col_int_key <> 3
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	grandparent1	ALL	col_int_key	NULL	NULL	NULL	11	Using where
+3	DEPENDENT SUBQUERY	parent1	ref	col_int_key	col_int_key	4	func	2	Using where
+3	DEPENDENT SUBQUERY	parent2	index	col_int_key	col_int_key	4	NULL	1	Using where; Using index; Using join buffer (Block Nested Loop)
+SELECT * FROM t3
+WHERE g1 NOT IN
+(SELECT grandparent1.col_int_nokey AS g1
+FROM t1 AS grandparent1
+WHERE (grandparent1.col_int_nokey, grandparent1.col_int_key) IN
+(SELECT parent1.col_int_key AS p1,
+parent1.col_int_key AS p2
+FROM t1 AS parent1
+LEFT JOIN t2 AS parent2
+ON parent1.col_int_nokey = parent2.col_int_key
+)
+AND grandparent1.col_int_key <> 3
+);
+g1
+DROP TABLE t1, t2, t3;
+# End of test for bug#13334882.
+#
+# Bug#13339643: Assertion on JOIN::flatten_subqueries on second execution
+#
+CREATE TABLE t1 (
+col_int_nokey INT,
+col_varchar_nokey VARCHAR(1)
+);
+INSERT INTO t1 VALUES
+(1,'o'),
+(2,'t');
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES
+(1,'o'),
+(4,'f');
+CREATE VIEW v_t2 AS SELECT * FROM t2;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3 VALUES
+(1,'o'),
+(4,'f');
+explain SELECT alias1.col_varchar_nokey
+FROM t1 AS alias1
+INNER JOIN v_t2 AS alias2
+ON alias2.col_int_nokey = alias1.col_int_nokey AND
+'o' IN (SELECT col_varchar_nokey
+FROM t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT alias1.col_varchar_nokey
+FROM t1 AS alias1
+INNER JOIN v_t2 AS alias2
+ON alias2.col_int_nokey = alias1.col_int_nokey AND
+'o' IN (SELECT col_varchar_nokey
+FROM t3);
+col_varchar_nokey
+o
+PREPARE stmt FROM "SELECT alias1.col_varchar_nokey
+FROM t1 AS alias1
+INNER JOIN v_t2 AS alias2
+ON alias2.col_int_nokey = alias1.col_int_nokey AND
+'o' IN (SELECT col_varchar_nokey
+FROM t3)";
+EXECUTE stmt;
+col_varchar_nokey
+o
+DROP VIEW v_t2;
+DROP TABLE t1, t2, t3;
+# End of test for bug#13339643.
+#
+# Bug#13424134: Wrong result on JOIN + nested WHERE ... IN clauses
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int_nokey int NOT NULL,
+col_int_key int NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyIsam;
+INSERT INTO t1 VALUES
+(10,1,7), (13,7,3), (18,0,1), (23,8,1);
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_int_key int NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyIsam;
+INSERT INTO t2 VALUES (1,7);
+EXPLAIN SELECT t1a.*
+FROM t1 AS t1a
+JOIN t1 AS t1b USING ( col_int_nokey )
+WHERE t1a.col_int_key IN (
+SELECT pk
+FROM t2
+WHERE col_int_key IN (
+SELECT col_int_nokey
+FROM t1
+)
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1a	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	PRIMARY	t1b	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t2	system	PRIMARY	NULL	NULL	NULL	1	
+3	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+SELECT t1a.*
+FROM t1 AS t1a
+JOIN t1 AS t1b USING ( col_int_nokey )
+WHERE t1a.col_int_key IN (
+SELECT pk
+FROM t2
+WHERE col_int_key IN (
+SELECT col_int_nokey
+FROM t1
+)
+);
+pk	col_int_nokey	col_int_key
+18	0	1
+23	8	1
+ALTER TABLE t1 ENGINE=Innodb;
+ALTER TABLE t2 ENGINE=Innodb;
+SELECT t1a.*
+FROM t1 AS t1a
+JOIN t1 AS t1b USING ( col_int_nokey )
+WHERE t1a.col_int_key IN (
+SELECT pk
+FROM t2
+WHERE col_int_key IN (
+SELECT col_int_nokey
+FROM t1
+)
+);
+pk	col_int_nokey	col_int_key
+18	0	1
+23	8	1
+DROP TABLE t1, t2;
+# End of test for bug#13424134.
+#
+# Bug#13414014: Extra rows in result on semijoin query with where ...
+#
+CREATE TABLE t1 (
+c INT,
+d INT,
+a VARCHAR(1),
+b VARCHAR(1),
+KEY a (a)
+);
+INSERT INTO t1 VALUES
+(NULL,8,'x','x'), (7,4,'q','q'), (6,8,'c','c');
+CREATE TABLE t2 (
+a VARCHAR(1),
+KEY a (a)
+);
+INSERT INTO t2 VALUES
+('c'), (NULL), ('x'), ('q');
+explain SELECT *
+FROM t2 AS ot
+WHERE (a, a) IN
+(SELECT a, b
+FROM t1 AS it
+WHERE it.a = 'x' OR it.c > it.d
+)
+;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot	index	NULL	a	4	NULL	4	Using where; Using index
+2	DEPENDENT SUBQUERY	it	index_subquery	a	a	4	func	2	Using where
+SELECT *
+FROM t2 AS ot
+WHERE (a, a) IN
+(SELECT a, b
+FROM t1 AS it
+WHERE it.a = 'x' OR it.c > it.d
+)
+;
+a
+q
+x
+DROP TABLE t1, t2;
+# End of test for bug#13414014.
 # End of 5.6 tests
 set optimizer_switch=default;

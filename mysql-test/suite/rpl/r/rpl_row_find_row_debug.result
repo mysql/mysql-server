@@ -1,0 +1,18 @@
+include/master-slave.inc
+[connection master]
+include/stop_slave.inc
+SET GLOBAL log_warnings = 2;
+SET GLOBAL debug="d,inject_long_find_row_note";
+include/start_slave.inc
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1), (2);
+UPDATE t1 SET c1= 1000 WHERE c1=2;
+DELETE FROM t1;
+DROP TABLE t1;
+# Check if any note related to long DELETE_ROWS and UPDATE_ROWS appears in the error log
+Occurrences: update=1, delete=1
+include/stop_slave.inc
+SET GLOBAL debug = '';
+SET GLOBAL log_warnings = 1;
+include/start_slave.inc
+include/rpl_end.inc

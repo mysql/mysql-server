@@ -1,0 +1,193 @@
+CREATE TABLE fts_test (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT
+) ENGINE=InnoDB;
+INSERT INTO fts_test (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+SELECT * FROM fts_test WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+DROP INDEX idx ON fts_test;
+INSERT INTO fts_test (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+SELECT * FROM fts_test WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+7	MySQL Tutorial	DBMS stands for DataBase ...
+9	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM fts_test WHERE MATCH (title,body)
+AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
+id	title	body
+6	MySQL Security	When configured properly, MySQL ...
+12	MySQL Security	When configured properly, MySQL ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+7	MySQL Tutorial	DBMS stands for DataBase ...
+8	How To Use MySQL Well	After you went through a ...
+9	Optimizing MySQL	In this tutorial we will show ...
+10	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+TRUNCATE TABLE fts_test;
+DROP INDEX idx ON fts_test;
+INSERT INTO fts_test (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+SELECT * FROM fts_test WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+DROP TABLE fts_test;
+CREATE TABLE fts_test (
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT
+) ENGINE=InnoDB;
+create unique index FTS_DOC_ID_INDEX on fts_test(FTS_DOC_ID);
+INSERT INTO fts_test (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+SELECT * FROM fts_test WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+drop index idx on fts_test;
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+SELECT * FROM fts_test WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+drop index idx on fts_test;
+drop index FTS_DOC_ID_INDEX on fts_test;
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+SELECT * FROM fts_test WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+drop table fts_test;
+CREATE TABLE fts_test (
+FTS_DOC_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+title varchar(255) NOT NULL DEFAULT '',
+text mediumtext NOT NULL,
+PRIMARY KEY (FTS_DOC_ID),
+UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+FULLTEXT KEY idx (title,text)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+set @@auto_increment_increment=10;
+INSERT INTO fts_test (title, text) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+set @@auto_increment_increment=1;
+select *, match(title, text)  AGAINST ('database') as score
+from fts_test order by score desc;
+FTS_DOC_ID	title	text	score
+11	MySQL Tutorial	DBMS stands for DataBase ...	0.22764469683170319
+51	MySQL vs. YourSQL	In the following database comparison ...	0.22764469683170319
+21	How To Use MySQL Well	After you went through a ...	0
+31	Optimizing MySQL	In this tutorial we will show ...	0
+41	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...	0
+61	MySQL Security	When configured properly, MySQL ...	0
+drop index idx on fts_test;
+drop table fts_test;
+CREATE TABLE fts_test (
+FTS_DOC_ID int(20) unsigned NOT NULL AUTO_INCREMENT,
+title varchar(255) NOT NULL DEFAULT '',
+text mediumtext NOT NULL,
+PRIMARY KEY (FTS_DOC_ID),
+UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+FULLTEXT KEY idx (title,text)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+ERROR 42000: Incorrect column name 'FTS_DOC_ID'
+CREATE TABLE fts_test (
+FTS_DOC_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+title varchar(255) NOT NULL DEFAULT '',
+text mediumtext NOT NULL,
+PRIMARY KEY (FTS_DOC_ID),
+KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
+FULLTEXT KEY idx (title,text)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+ERROR 42000: Incorrect index name 'FTS_DOC_ID_INDEX'
+CREATE TABLE articles (
+FTS_DOC_ID BIGINT UNSIGNED NOT NULL ,
+title VARCHAR(200),
+body TEXT
+) ENGINE=InnoDB;
+INSERT INTO articles (FTS_DOC_ID, title, body) VALUES
+(9, 'MySQL Tutorial','DBMS stands for DataBase ...'),
+(10, 'How To Use MySQL Well','After you went through a ...'),
+(12, 'Optimizing MySQL','In this tutorial we will show ...'),
+(14,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+(19, 'MySQL vs. YourSQL','In the following database comparison ...'),
+(20, 'MySQL Security','When configured properly, MySQL ...');
+ALTER TABLE articles ADD FULLTEXT INDEX idx3 (title),
+ADD FULLTEXT INDEX idx5 (title);
+ERROR 42000: Table 'articles' uses an extension that doesn't exist in this MySQL version
+CREATE FULLTEXT INDEX idx on articles (title);
+ALTER TABLE articles ADD FULLTEXT INDEX idx3 (title);
+INSERT INTO articles (FTS_DOC_ID, title, body) VALUES
+(29, 'MySQL Tutorial','DBMS stands for DataBase ...'),
+(30, 'How To Use MySQL Well','After you went through a ...'),
+(32, 'Optimizing MySQL','In this tutorial we will show ...'),
+(34,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+(39, 'MySQL vs. YourSQL','In the following database comparison ...'),
+(40, 'MySQL Security','When configured properly, MySQL ...');
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID	title	body
+9	MySQL Tutorial	DBMS stands for DataBase ...
+29	MySQL Tutorial	DBMS stands for DataBase ...
+DROP INDEX idx ON articles;
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID	title	body
+9	MySQL Tutorial	DBMS stands for DataBase ...
+29	MySQL Tutorial	DBMS stands for DataBase ...
+CREATE FULLTEXT INDEX idx on articles (title, body);
+SELECT * FROM articles WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID	title	body
+9	MySQL Tutorial	DBMS stands for DataBase ...
+12	Optimizing MySQL	In this tutorial we will show ...
+29	MySQL Tutorial	DBMS stands for DataBase ...
+32	Optimizing MySQL	In this tutorial we will show ...
+DROP TABLE articles;
+create table articles(`FTS_DOC_ID` serial,
+`col32` timestamp not null,`col115` text) engine=innodb;
+create fulltext index `idx5` on articles(`col115`)  ;
+alter ignore table articles add primary key  (`col32`)  ;
+drop table articles;

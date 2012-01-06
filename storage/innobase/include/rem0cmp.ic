@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -43,6 +43,60 @@ cmp_data_data(
 	return(cmp_data_data_slow(mtype, prtype, data1, len1, data2, len2));
 }
 
+/*****************************************************************
+This function is used to compare two (CHAR) data fields for the LIKE
+operator. */
+UNIV_INLINE
+int
+cmp_data_data_like_prefix(
+/*======================*/
+				/* out: 1, 0, -1, if data1 is greater, equal,
+				less than data2, respectively */
+	byte*           data1,  /* in: data field (== a pointer to a memory
+				buffer) */
+	ulint           len1,   /* in: data field length or UNIV_SQL_NULL */
+	byte*           data2,  /* in: data field (== a pointer to a memory
+				buffer) */
+	ulint           len2)   /* in: data field length or UNIV_SQL_NULL */
+{
+	return(cmp_data_data_slow_like_prefix(data1, len1, data2, len2));
+}
+/*****************************************************************
+This function is used to compare two (CHAR) data fields for the LIKE
+operator. */
+UNIV_INLINE
+int
+cmp_data_data_like_suffix(
+/*======================*/
+				/* out: 1, 0, -1, if data1 is greater, equal,
+				less than data2, respectively */
+	byte*           data1,  /* in: data field (== a pointer to a memory
+				buffer) */
+	ulint           len1,   /* in: data field length or UNIV_SQL_NULL */
+	byte*           data2,  /* in: data field (== a pointer to a memory
+				buffer) */
+	ulint           len2)   /* in: data field length or UNIV_SQL_NULL */
+{
+	return(cmp_data_data_slow_like_suffix(data1, len1, data2, len2));
+}
+/*****************************************************************
+This function is used to compare two (CHAR) data fields for the LIKE
+operator. */
+UNIV_INLINE
+int
+cmp_data_data_like_substr(
+/*======================*/
+				/* out: 1, 0, -1, if data1 is greater, equal,
+				less than data2, respectively */
+	byte*           data1,  /* in: data field (== a pointer to a memory
+				buffer) */
+	ulint           len1,   /* in: data field length or UNIV_SQL_NULL */
+	byte*           data2,  /* in: data field (== a pointer to a memory
+				buffer) */
+	ulint           len2)   /* in: data field length or UNIV_SQL_NULL */
+{
+	return(cmp_data_data_slow_like_substr(data1, len1, data2, len2));
+}
 /*************************************************************//**
 This function is used to compare two dfields where at least the first
 has its data type field set.
@@ -68,6 +122,47 @@ cmp_dfield_dfield(
 			     dfield_get_len(dfield2)));
 }
 
+/*****************************************************************
+This function is used to compare two dfields where at least the first
+has its data type field set. */
+UNIV_INLINE
+int
+cmp_dfield_dfield_like_suffix(
+/*==========================*/
+				/* out: 1, 0, -1, if dfield1 is greater, equal,
+				less than dfield2, respectively */
+	dfield_t*       dfield1,/* in: data field; must have type field set */
+	dfield_t*       dfield2)/* in: data field */
+{
+	ut_ad(dfield_check_typed(dfield1));
+
+	return(cmp_data_data_like_suffix(
+		(byte*) dfield_get_data(dfield1),
+		dfield_get_len(dfield1),
+		(byte*) dfield_get_data(dfield2),
+		dfield_get_len(dfield2)));
+}
+
+/*****************************************************************
+This function is used to compare two dfields where at least the first
+has its data type field set. */
+UNIV_INLINE
+int
+cmp_dfield_dfield_like_substr(
+/*==========================*/
+				/* out: 1, 0, -1, if dfield1 is greater, equal,
+				less than dfield2, respectively */
+	dfield_t*       dfield1,/* in: data field; must have type field set */
+	dfield_t*       dfield2)/* in: data field */
+{
+	ut_ad(dfield_check_typed(dfield1));
+
+	return(cmp_data_data_like_substr(
+		(byte*) dfield_get_data(dfield1),
+		dfield_get_len(dfield1),
+		(byte*) dfield_get_data(dfield2),
+		dfield_get_len(dfield2)));
+}
 /*************************************************************//**
 This function is used to compare two physical records. Only the common
 first fields are compared.
