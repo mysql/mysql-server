@@ -6,6 +6,7 @@
 #include <brt-cachetable-wrappers.h>
 
 #include <brttypes.h>
+#include <brt-flusher.h>
 #include <brt-internal.h>
 #include <cachetable.h>
 

@@ -51,6 +51,7 @@ BRT_SOURCES = \
   brt \
   brt-cachetable-wrappers \
   brt-flusher \
+  brt-hot-flusher \
   brt_msg \
   brt-test-helpers \
   cachetable \

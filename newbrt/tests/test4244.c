@@ -35,7 +35,7 @@ doit (void) {
 
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls
 
-    r = toku_testsetup_leaf(t, &node_leaf);
+    r = toku_testsetup_leaf(t, &node_leaf, 1, NULL, NULL);
     assert(r==0);
 
     r = toku_testsetup_nonleaf(t, 1, &node_internal, 1, &node_leaf, 0, 0);

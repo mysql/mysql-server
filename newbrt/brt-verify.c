@@ -12,6 +12,7 @@
  */
 
 #include "includes.h"
+#include <brt-flusher.h>
 
 static int 
 compare_pairs (BRT brt, struct kv_pair *a, struct kv_pair *b) {
@@ -388,7 +389,7 @@ int
 toku_verify_brt_with_progress (BRT brt, int (*progress_callback)(void *extra, float progress), void *progress_extra, int verbose, int keep_on_going) {
     assert(brt->h);
     u_int32_t root_hash;
-    CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt, &root_hash);
+    CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &root_hash);
     int r = toku_verify_brtnode(brt, ZERO_MSN, ZERO_MSN, *rootp, -1, NULL, NULL, progress_callback, progress_extra, 1, verbose, keep_on_going);
     if (r == 0) {
         toku_brtheader_lock(brt->h);

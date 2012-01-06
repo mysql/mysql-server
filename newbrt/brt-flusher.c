@@ -3,9 +3,23 @@
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <brt-flusher.h>
-#include <brt-cachetable-wrappers.h>
 #include <brt-internal.h>
+#include <brt-flusher.h>
+#include <brt-flusher-internal.h>
+#include <brt-cachetable-wrappers.h>
+
+static BRT_FLUSHER_STATUS_S brt_flusher_status;
+
+void toku_brt_flusher_status_init(void)
+{
+    brt_flusher_status.cleaner_min_buffer_size = UINT64_MAX;
+    brt_flusher_status.cleaner_min_buffer_workdone = UINT64_MAX;
+}
+
+void toku_brt_flusher_get_status(BRT_FLUSHER_STATUS status)
+{
+    *status = brt_flusher_status;
+}
 
 #define ft_flush_before_applying_inbox 1
 #define ft_flush_before_child_pin 2
@@ -36,8 +50,8 @@ static void call_flusher_thread_callback(int ft_state) {
     }
 }
 
-static void
-find_heaviest_child(BRTNODE node, int *childnum)
+static int
+find_heaviest_child(BRTNODE node)
 {
     int max_child = 0;
     int max_weight = toku_bnc_nbytesinbuf(BNC(node, 0)) + BP_WORKDONE(node, 0);
@@ -56,30 +70,29 @@ find_heaviest_child(BRTNODE node, int *childnum)
             max_weight = this_weight;
         }
     }
-    *childnum = max_child;
     if (0) printf("\n");
+    return max_child;
 }
 
 static void
-update_flush_status(BRTNODE UU(parent), BRTNODE child, int cascades, BRT_STATUS brt_status)
+update_flush_status(BRTNODE child, int cascades)
 {
-    lazy_assert(brt_status);
-    brt_status->flush_total++;
+    brt_flusher_status.flush_total++;
     if (cascades > 0) {
-        brt_status->flush_cascades++;
+        brt_flusher_status.flush_cascades++;
         switch (cascades) {
         case 1:
-            brt_status->flush_cascades_1++; break;
+            brt_flusher_status.flush_cascades_1++; break;
         case 2:
-            brt_status->flush_cascades_2++; break;
+            brt_flusher_status.flush_cascades_2++; break;
         case 3:
-            brt_status->flush_cascades_3++; break;
+            brt_flusher_status.flush_cascades_3++; break;
         case 4:
-            brt_status->flush_cascades_4++; break;
+            brt_flusher_status.flush_cascades_4++; break;
         case 5:
-            brt_status->flush_cascades_5++; break;
+            brt_flusher_status.flush_cascades_5++; break;
         default:
-            brt_status->flush_cascades_gt_5++; break;
+            brt_flusher_status.flush_cascades_gt_5++; break;
         }
     }
     bool flush_needs_io = false;
@@ -89,9 +102,9 @@ update_flush_status(BRTNODE UU(parent), BRTNODE child, int cascades, BRT_STATUS 
         }
     }
     if (flush_needs_io) {
-        brt_status->flush_needed_io++;
+        brt_flusher_status.flush_needed_io++;
     } else {
-        brt_status->flush_in_memory++;
+        brt_flusher_status.flush_in_memory++;
     }
 }
 
@@ -113,6 +126,267 @@ maybe_destroy_child_blbs(BRTNODE node, BRTNODE child)
     }
 }
 
+static void
+brt_merge_child(
+    struct brt_header* h,
+    BRTNODE node,
+    int childnum_to_merge,
+    BOOL *did_react,
+    struct flusher_advice *fa);
+
+static int
+pick_heaviest_child(struct brt_header *UU(h),
+                    BRTNODE parent,
+                    void* UU(extra))
+{
+    int childnum = find_heaviest_child(parent);
+    assert(toku_bnc_n_entries(BNC(parent, childnum))>0);
+    return childnum;
+}
+
+bool
+dont_destroy_basement_nodes(void* UU(extra))
+{
+    return false;
+}
+
+static bool
+do_destroy_basement_nodes(void* UU(extra))
+{
+    return true;
+}
+
+bool
+always_recursively_flush(BRTNODE UU(child), void* UU(extra))
+{
+    return true;
+}
+
+static bool
+recurse_if_child_is_gorged(BRTNODE child, void* UU(extra))
+{
+    return toku_brt_nonleaf_is_gorged(child);
+}
+
+int
+default_pick_child_after_split(struct brt_header* UU(h),
+                               BRTNODE UU(parent),
+                               int UU(childnuma),
+                               int UU(childnumb),
+                               void* UU(extra))
+{
+    return -1;
+}
+
+void
+default_merge_child(struct flusher_advice *fa,
+                    struct brt_header *h,
+                    BRTNODE parent,
+                    int childnum,
+                    BRTNODE child,
+                    void* UU(extra))
+{
+    //
+    // There is probably a way to pass BRTNODE child
+    // into brt_merge_child, but for simplicity for now,
+    // we are just going to unpin child and
+    // let brt_merge_child pin it again
+    //
+    toku_unpin_brtnode_off_client_thread(h, child);
+    //
+    //
+    // it is responsibility of brt_merge_child to unlock parent
+    //
+    BOOL did_react;
+    brt_merge_child(h, parent, childnum, &did_react, fa);
+}
+
+void
+flusher_advice_init(
+    struct flusher_advice *fa,
+    FA_PICK_CHILD pick_child,
+    FA_SHOULD_DESTROY_BN should_destroy_basement_nodes,
+    FA_SHOULD_RECURSIVELY_FLUSH should_recursively_flush,
+    FA_MAYBE_MERGE_CHILD maybe_merge_child,
+    FA_UPDATE_STATUS update_status,
+    FA_PICK_CHILD_AFTER_SPLIT pick_child_after_split,
+    void* extra
+    )
+{
+    fa->pick_child = pick_child;
+    fa->should_destroy_basement_nodes = should_destroy_basement_nodes;
+    fa->should_recursively_flush = should_recursively_flush;
+    fa->maybe_merge_child = maybe_merge_child;
+    fa->update_status = update_status;
+    fa->pick_child_after_split = pick_child_after_split;
+    fa->extra = extra;
+}
+
+/**
+ * Flusher thread ("normal" flushing) implementation.
+ */
+struct flush_status_update_extra {
+    int cascades;
+};
+
+static void
+ft_update_status(BRTNODE child,
+                 int UU(dirtied),
+                 void* extra)
+{
+    struct flush_status_update_extra *fste = extra;
+    update_flush_status(child, fste->cascades);
+    // If `flush_some_child` decides to recurse after this, we'll need
+    // cascades to increase.  If not it doesn't matter.
+    fste->cascades++;
+}
+
+static void
+ft_flusher_advice_init(struct flusher_advice *fa, struct flush_status_update_extra *fste)
+{
+    fste->cascades = 0;
+    flusher_advice_init(fa,
+                        pick_heaviest_child,
+                        dont_destroy_basement_nodes,
+                        recurse_if_child_is_gorged,
+                        default_merge_child,
+                        ft_update_status,
+                        default_pick_child_after_split,
+                        fste);
+}
+
+struct ctm_extra {
+    BOOL is_last_child;
+    DBT target_key;
+};
+
+static int
+ctm_pick_child(struct brt_header *h,
+               BRTNODE parent,
+               void* extra)
+{
+    struct ctm_extra* ctme = extra;
+    int childnum;
+    if (parent->height == 1 && ctme->is_last_child) {
+        childnum = parent->n_children - 1;
+    }
+    else {
+        childnum = toku_brtnode_which_child(
+            parent,
+            &ctme->target_key,
+            &h->descriptor,
+            h->compare_fun);
+    }
+    return childnum;
+}
+
+static void
+ctm_update_status(
+    BRTNODE UU(child),
+    int dirtied,
+    void* UU(extra)
+    )
+{
+    brt_flusher_status.cleaner_num_dirtied_for_leaf_merge += dirtied;
+}
+
+static void
+ct_maybe_merge_child(struct flusher_advice *fa,
+                     struct brt_header *h,
+                     BRTNODE parent,
+                     int childnum,
+                     BRTNODE child,
+                     void* extra)
+{
+    if (child->height > 0) {
+        default_merge_child(fa, h, parent, childnum, child, extra);
+    }
+    else {
+        struct ctm_extra ctme;
+        assert(parent->n_children > 1);
+        int pivot_to_save;
+        //
+        // we have two cases, one where the childnum
+        // is the last child, and therefore the pivot we
+        // save is not of the pivot which we wish to descend
+        // and another where it is not the last child,
+        // so the pivot is sufficient for identifying the leaf
+        // to be merged
+        //
+        if (childnum == (parent->n_children - 1)) {
+            ctme.is_last_child = TRUE;
+            pivot_to_save = childnum - 1;
+        }
+        else {
+            ctme.is_last_child = FALSE;
+            pivot_to_save = childnum;
+        }
+        struct kv_pair *pivot = parent->childkeys[pivot_to_save];
+        size_t pivotlen = kv_pair_keylen(pivot);
+        char *buf = toku_xmemdup(kv_pair_key_const(pivot), pivotlen);
+        toku_fill_dbt(&ctme.target_key, buf, pivotlen);
+
+        // at this point, ctme is properly setup, now we can do the merge
+        struct flusher_advice new_fa;
+        flusher_advice_init(
+            &new_fa,
+            ctm_pick_child,
+            dont_destroy_basement_nodes,
+            always_recursively_flush,
+            default_merge_child,
+            ctm_update_status,
+            default_pick_child_after_split,
+            &ctme);
+
+        toku_unpin_brtnode_off_client_thread(h, parent);
+        toku_unpin_brtnode_off_client_thread(h, child);
+
+        // grab ydb lock, if it exists, if we are running a brt
+        // layer test, there may be no ydb lock and that is ok
+        toku_cachetable_call_ydb_lock(h->cf);
+        CACHEKEY *rootp;
+        u_int32_t fullhash;
+        rootp = toku_calculate_root_offset_pointer(h, &fullhash);
+        struct brtnode_fetch_extra bfe;
+        fill_bfe_for_full_read(&bfe, h);
+        BRTNODE root_node;
+        toku_pin_brtnode_off_client_thread(h, *rootp, fullhash, &bfe, 0,NULL, &root_node);
+        toku_assert_entire_node_in_memory(root_node);
+        // release ydb lock, if it exists, if we are running a brt
+        // layer test, there may be no ydb lock and that is ok
+        toku_cachetable_call_ydb_unlock(h->cf);
+
+        flush_some_child(h, root_node, &new_fa);
+
+        toku_free(buf);
+    }
+}
+
+static void
+ct_update_status(BRTNODE child,
+                 int dirtied,
+                 void* extra)
+{
+    struct flush_status_update_extra* fste = extra;
+    update_flush_status(child, fste->cascades);
+    brt_flusher_status.cleaner_nodes_dirtied += dirtied;
+    // Incrementing this in case `flush_some_child` decides to recurse.
+    fste->cascades++;
+}
+
+static void
+ct_flusher_advice_init(struct flusher_advice *fa, struct flush_status_update_extra* fste)
+{
+    fste->cascades = 0;
+    flusher_advice_init(fa,
+                        pick_heaviest_child,
+                        do_destroy_basement_nodes,
+                        recurse_if_child_is_gorged,
+                        ct_maybe_merge_child,
+                        ct_update_status,
+                        default_pick_child_after_split,
+                        fste);
+}
 
 //
 // This returns true if the node MAY be reactive,
@@ -379,8 +653,7 @@ brtleaf_split(
     DBT *splitk,
     BOOL create_new_node,
     u_int32_t num_dependent_nodes,
-    BRTNODE* dependent_nodes,
-    BRT_STATUS brt_status)
+    BRTNODE* dependent_nodes)
 // Effect: Split a leaf node.
 // Argument "node" is node to be split.
 // Upon return:
@@ -390,13 +663,13 @@ brtleaf_split(
 {
 
     invariant(node->height == 0);
-    brt_status->split_leaf++;
+    brt_flusher_status.split_leaf++;
     if (node->n_children) {
 	// First move all the accumulated stat64info deltas into the first basement.
 	// After the split, either both nodes or neither node will be included in the next checkpoint.
 	// The accumulated stats in the dictionary will be correct in either case.
 	// By moving all the deltas into one (arbitrary) basement, we avoid the need to maintain
-	// correct information for a basement that is divided between two leafnodes (i.e. when split is 
+	// correct information for a basement that is divided between two leafnodes (i.e. when split is
 	// not on a basement boundary).
 	STAT64INFO_S delta_for_leafnode = toku_get_and_clear_basement_stats(node);
 	BASEMENTNODE bn = BLB(node,0);
@@ -592,11 +865,10 @@ brt_nonleaf_split(
     BRTNODE *nodeb,
     DBT *splitk,
     u_int32_t num_dependent_nodes,
-    BRTNODE* dependent_nodes,
-    BRT_STATUS brt_status)
+    BRTNODE* dependent_nodes)
 {
     //VERIFY_NODE(t,node);
-    brt_status->split_nonleaf++;
+    brt_flusher_status.split_nonleaf++;
     toku_assert_entire_node_in_memory(node);
     int old_n_children = node->n_children;
     int n_children_in_a = old_n_children/2;
@@ -660,15 +932,6 @@ brt_nonleaf_split(
     *nodeb = B;
 }
 
-static void
-flush_some_child(
-    struct brt_header* h,
-    BRTNODE parent,
-    int *n_dirtied,
-    int cascades,
-    bool started_at_root,
-    BRT_STATUS brt_status);
-
 //
 // responsibility of brt_split_child is to take locked BRTNODEs node and child
 // and do the following:
@@ -683,8 +946,7 @@ brt_split_child(
     BRTNODE node,
     int childnum,
     BRTNODE child,
-    bool started_at_root,
-    BRT_STATUS brt_status)
+    struct flusher_advice *fa)
 {
     assert(node->height>0);
     assert(toku_bnc_nbytesinbuf(BNC(node, childnum))==0); // require that the buffer for this child is empty
@@ -700,9 +962,9 @@ brt_split_child(
     dep_nodes[0] = node;
     dep_nodes[1] = child;
     if (child->height==0) {
-        brtleaf_split(h, child, &nodea, &nodeb, &splitk, TRUE, 2, dep_nodes, brt_status);
+        brtleaf_split(h, child, &nodea, &nodeb, &splitk, TRUE, 2, dep_nodes);
     } else {
-        brt_nonleaf_split(h, child, &nodea, &nodeb, &splitk, 2, dep_nodes, brt_status);
+        brt_nonleaf_split(h, child, &nodea, &nodeb, &splitk, 2, dep_nodes);
     }
     // printf("%s:%d child did split\n", __FILE__, __LINE__);
     handle_split_of_child (node, childnum, nodea, nodeb, &splitk);
@@ -714,14 +976,17 @@ brt_split_child(
     // now we need to unlock node,
     // and possibly continue
     // flushing one of the children
+    int picked_child = fa->pick_child_after_split(h, node, childnum, childnum + 1, fa->extra);
     toku_unpin_brtnode_off_client_thread(h, node);
-    if (nodea->height > 0 && toku_brt_nonleaf_is_gorged(nodea)) {
+    if (picked_child == childnum ||
+        (picked_child < 0 && nodea->height > 0 && fa->should_recursively_flush(nodea, fa->extra))) {
         toku_unpin_brtnode_off_client_thread(h, nodeb);
-        flush_some_child(h, nodea, NULL, 0, started_at_root, brt_status);
+        flush_some_child(h, nodea, fa);
     }
-    else if (nodeb->height > 0 && toku_brt_nonleaf_is_gorged(nodeb)) {
+    else if (picked_child == childnum + 1 ||
+             (picked_child < 0 && nodeb->height > 0 && fa->should_recursively_flush(nodeb, fa->extra))) {
         toku_unpin_brtnode_off_client_thread(h, nodea);
-        flush_some_child(h, nodeb, NULL, 0, started_at_root, brt_status);
+        flush_some_child(h, nodeb, fa);
     }
     else {
         toku_unpin_brtnode_off_client_thread(h, nodea);
@@ -735,14 +1000,13 @@ flush_this_child(
     BRTNODE node,
     BRTNODE child,
     int childnum,
-    bool started_at_root,
-    BRT_STATUS brt_status)
+    struct flusher_advice *fa)
 // Effect: Push everything in the CHILDNUMth buffer of node down into the child.
 {
-    update_flush_status(node, child, 0, brt_status);
+    update_flush_status(child, 0);
     int r;
     toku_assert_entire_node_in_memory(node);
-    if (!started_at_root) {
+    if (fa->should_destroy_basement_nodes(fa)) {
         maybe_destroy_child_blbs(node, child);
     }
     bring_node_fully_into_memory(child, h);
@@ -764,9 +1028,9 @@ flush_this_child(
 }
 
 static void
-merge_leaf_nodes(BRTNODE a, BRTNODE b, BRT_STATUS brt_status)
+merge_leaf_nodes(BRTNODE a, BRTNODE b)
 {
-    brt_status->merge_leaf++;
+    brt_flusher_status.merge_leaf++;
     toku_assert_entire_node_in_memory(a);
     toku_assert_entire_node_in_memory(b);
     assert(a->height == 0);
@@ -841,19 +1105,18 @@ static int
 balance_leaf_nodes(
     BRTNODE a,
     BRTNODE b,
-    struct kv_pair **splitk,
-    BRT_STATUS brt_status)
+    struct kv_pair **splitk)
 // Effect:
 //  If b is bigger then move stuff from b to a until b is the smaller.
 //  If a is bigger then move stuff from a to b until a is the smaller.
 {
-    brt_status->balance_leaf++;
+    brt_flusher_status.balance_leaf++;
     DBT splitk_dbt;
     // first merge all the data into a
-    merge_leaf_nodes(a,b, brt_status);
+    merge_leaf_nodes(a,b);
     // now split them
     // because we are not creating a new node, we can pass in no dependent nodes
-    brtleaf_split(NULL, a, &a, &b, &splitk_dbt, FALSE, 0, NULL, brt_status);
+    brtleaf_split(NULL, a, &a, &b, &splitk_dbt, FALSE, 0, NULL);
     *splitk = splitk_dbt.data;
 
     return 0;
@@ -866,8 +1129,7 @@ maybe_merge_pinned_leaf_nodes(
     struct kv_pair *parent_splitk,
     BOOL *did_merge,
     BOOL *did_rebalance,
-    struct kv_pair **splitk,
-    BRT_STATUS brt_status)
+    struct kv_pair **splitk)
 // Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = TRUE.
 //	   (We do this if the resulting node is not fissible)
 //	   or distribute the leafentries evenly between a and b, and set *did_rebalance = TRUE.
@@ -887,7 +1149,7 @@ maybe_merge_pinned_leaf_nodes(
         // one is less than 1/4 of a node, and together they are more than 3/4 of a node.
         toku_free(parent_splitk); // We don't need the parent_splitk any more. If we need a splitk (if we don't merge) we'll malloc a new one.
         *did_rebalance = TRUE;
-        int r = balance_leaf_nodes(a, b, splitk, brt_status);
+        int r = balance_leaf_nodes(a, b, splitk);
         assert(r==0);
     } else {
         // we are merging them.
@@ -895,7 +1157,7 @@ maybe_merge_pinned_leaf_nodes(
         *did_rebalance = FALSE;
         *splitk = 0;
         toku_free(parent_splitk); // if we are merging, the splitk gets freed.
-        merge_leaf_nodes(a, b, brt_status);
+        merge_leaf_nodes(a, b);
     }
 }
 
@@ -906,8 +1168,7 @@ maybe_merge_pinned_nonleaf_nodes(
     BRTNODE b,
     BOOL *did_merge,
     BOOL *did_rebalance,
-    struct kv_pair **splitk,
-    BRT_STATUS brt_status)
+    struct kv_pair **splitk)
 {
     toku_assert_entire_node_in_memory(a);
     toku_assert_entire_node_in_memory(b);
@@ -937,8 +1198,8 @@ maybe_merge_pinned_nonleaf_nodes(
     *did_merge = TRUE;
     *did_rebalance = FALSE;
     *splitk = NULL;
-    
-    brt_status->merge_nonleaf++;
+
+    brt_flusher_status.merge_nonleaf++;
 }
 
 static void
@@ -949,8 +1210,7 @@ maybe_merge_pinned_nodes(
     BRTNODE b,
     BOOL *did_merge,
     BOOL *did_rebalance,
-    struct kv_pair **splitk,
-    BRT_STATUS brt_status)
+    struct kv_pair **splitk)
 // Effect: either merge a and b into one node (merge them into a) and set *did_merge = TRUE.
 //	   (We do this if the resulting node is not fissible)
 //	   or distribute a and b evenly and set *did_merge = FALSE and *did_rebalance = TRUE
@@ -974,7 +1234,7 @@ maybe_merge_pinned_nodes(
     toku_assert_entire_node_in_memory(parent);
     toku_assert_entire_node_in_memory(a);
     toku_assert_entire_node_in_memory(b);
-    toku_mark_node_dirty(parent);   // just to make sure 
+    toku_mark_node_dirty(parent);   // just to make sure
     {
         MSN msna = a->max_msn_applied_to_node_on_disk;
         MSN msnb = b->max_msn_applied_to_node_on_disk;
@@ -984,9 +1244,9 @@ maybe_merge_pinned_nodes(
         }
     }
     if (a->height == 0) {
-        maybe_merge_pinned_leaf_nodes(a, b, parent_splitk, did_merge, did_rebalance, splitk, brt_status);
+        maybe_merge_pinned_leaf_nodes(a, b, parent_splitk, did_merge, did_rebalance, splitk);
     } else {
-        maybe_merge_pinned_nonleaf_nodes(parent_splitk, a, b, did_merge, did_rebalance, splitk, brt_status);
+        maybe_merge_pinned_nonleaf_nodes(parent_splitk, a, b, did_merge, did_rebalance, splitk);
     }
     if (*did_merge || *did_rebalance) {
         // accurate for leaf nodes because all msgs above have been
@@ -998,13 +1258,12 @@ maybe_merge_pinned_nodes(
 }
 
 static void merge_remove_key_callback(
-    BLOCKNUM* bp, 
-    BOOL for_checkpoint, 
-    void* extra
-    )
+    BLOCKNUM *bp,
+    BOOL for_checkpoint,
+    void *extra)
 {
-    struct brt_header* h = extra;
-    toku_free_blocknum(h->blocktable, bp, h, for_checkpoint);    
+    struct brt_header *h = extra;
+    toku_free_blocknum(h->blocktable, bp, h, for_checkpoint);
 }
 
 //
@@ -1013,14 +1272,13 @@ static void merge_remove_key_callback(
 //
 static void
 brt_merge_child(
-    struct brt_header* h,
+    struct brt_header *h,
     BRTNODE node,
     int childnum_to_merge,
     BOOL *did_react,
-    bool started_at_root,
-    BRT_STATUS brt_status)
+    struct flusher_advice *fa)
 {
-    // this function should not be called 
+    // this function should not be called
     // if the child is not mergable
     assert(node->n_children > 1);
     toku_assert_entire_node_in_memory(node);
@@ -1038,7 +1296,6 @@ brt_merge_child(
     assert(childnumb < node->n_children);
 
     assert(node->height>0);
-
 
     // We suspect that at least one of the children is fusible, but they might not be.
     // for test
@@ -1062,10 +1319,10 @@ brt_merge_child(
     }
 
     if (toku_bnc_n_entries(BNC(node,childnuma))>0) {
-        flush_this_child(h, node, childa, childnuma, started_at_root, brt_status);
+        flush_this_child(h, node, childa, childnuma, fa);
     }
     if (toku_bnc_n_entries(BNC(node,childnumb))>0) {
-        flush_this_child(h, node, childb, childnumb, started_at_root, brt_status);
+        flush_this_child(h, node, childb, childnumb, fa);
     }
 
     // now we have both children pinned in main memory, and cachetable locked,
@@ -1076,7 +1333,7 @@ brt_merge_child(
         struct kv_pair *splitk_kvpair = 0;
         struct kv_pair *old_split_key = node->childkeys[childnuma];
         unsigned int deleted_size = toku_brt_pivot_key_len(old_split_key);
-        maybe_merge_pinned_nodes(node, node->childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk_kvpair, brt_status);
+        maybe_merge_pinned_nodes(node, node->childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk_kvpair);
         if (childa->height>0) { int i; for (i=0; i+1<childa->n_children; i++) assert(childa->childkeys[i]); }
         //toku_verify_estimates(t,childa);
         // the tree did react if a merge (did_merge) or rebalance (new spkit key) occurred
@@ -1098,14 +1355,14 @@ brt_merge_child(
                     (node->n_children-childnumb)*sizeof(node->childkeys[0]));
             REALLOC_N(node->n_children-1, node->childkeys);
             assert(BP_BLOCKNUM(node, childnuma).b == childa->thisnodename.b);
-	    toku_mark_node_dirty(childa);  // just to make sure
-	    toku_mark_node_dirty(childb);  // just to make sure
+            toku_mark_node_dirty(childa);  // just to make sure
+            toku_mark_node_dirty(childb);  // just to make sure
         } else {
             assert(splitk_kvpair);
             // If we didn't merge the nodes, then we need the correct pivot.
             node->childkeys[childnuma] = splitk_kvpair;
             node->totalchildkeylens += toku_brt_pivot_key_len(node->childkeys[childnuma]);
-	    toku_mark_node_dirty(node);
+            toku_mark_node_dirty(node);
         }
     }
     //
@@ -1115,9 +1372,9 @@ brt_merge_child(
         BLOCKNUM bn = childb->thisnodename;
         // merge_remove_key_callback will free the blocknum
         int rrb = toku_cachetable_unpin_and_remove(
-            h->cf, 
-            bn, 
-            merge_remove_key_callback, 
+            h->cf,
+            bn,
+            merge_remove_key_callback,
             h
             );
         assert(rrb==0);
@@ -1138,8 +1395,8 @@ brt_merge_child(
         toku_unpin_brtnode_off_client_thread(h, node);
         toku_unpin_brtnode_off_client_thread(h, childb);
     }
-    if (childa->height > 0 && toku_brt_nonleaf_is_gorged(childa)) {
-        flush_some_child(h, childa, NULL, 0, started_at_root, brt_status);
+    if (childa->height > 0 && fa->should_recursively_flush(childa, fa->extra)) {
+        flush_some_child(h, childa, fa);
     }
     else {
         toku_unpin_brtnode_off_client_thread(h, childa);
@@ -1172,14 +1429,11 @@ brt_merge_child(
 // will have started_at_root==false and anything started by the flusher
 // thread will have started_at_root==true, but future mechanisms need to
 // be mindful of this issue.
-static void
+void
 flush_some_child(
-    struct brt_header* h,
+    struct brt_header *h,
     BRTNODE parent,
-    int *n_dirtied,
-    int cascades,
-    bool started_at_root,
-    BRT_STATUS brt_status)
+    struct flusher_advice *fa)
 // Effect: This function does the following:
 //   - Pick a child of parent (the heaviest child),
 //   - flush from parent to child,
@@ -1189,17 +1443,13 @@ flush_some_child(
 //  Upon exit of this function, parent is unlocked and no new
 //  new nodes (such as a child) remain locked
 {
-    bool parent_unpinned = false;
+    int dirtied = 0;
+    NONLEAF_CHILDINFO bnc = NULL;
     assert(parent->height>0);
     toku_assert_entire_node_in_memory(parent);
-    if (n_dirtied && !parent->dirty) {
-        (*n_dirtied)++;
-    }
 
     // pick the child we want to flush to
-    int childnum;
-    find_heaviest_child(parent, &childnum);
-    assert(toku_bnc_n_entries(BNC(parent, childnum))>0);
+    int childnum = fa->pick_child(h, parent, fa->extra);
 
     // for test
     call_flusher_thread_callback(ft_flush_before_child_pin);
@@ -1216,15 +1466,10 @@ flush_some_child(
     fill_bfe_for_min_read(&bfe, h);
     toku_pin_brtnode_off_client_thread(h, targetchild, childfullhash, &bfe, 1, &parent, &child);
 
-    if (n_dirtied && !child->dirty) {
-        (*n_dirtied)++;
-    }
-    update_flush_status(parent, child, cascades, brt_status);
-
     // for test
     call_flusher_thread_callback(ft_flush_after_child_pin);
 
-    if (!started_at_root) {
+    if (fa->should_destroy_basement_nodes(fa)) {
         maybe_destroy_child_blbs(parent, child);
     }
 
@@ -1237,12 +1482,17 @@ flush_some_child(
     assert(child->thisnodename.b!=0);
     //VERIFY_NODE(brt, child);
 
-    toku_mark_node_dirty(parent);
-
-    // detach buffer
-    BP_WORKDONE(parent, childnum) = 0;  // this buffer is drained, no work has been done by its contents
-    NONLEAF_CHILDINFO bnc = BNC(parent, childnum);
-    set_BNC(parent, childnum, toku_create_empty_nl());
+    // only do the following work if there is a flush to perform
+    if (toku_bnc_n_entries(BNC(parent, childnum)) > 0) {
+        if (!parent->dirty) {
+            dirtied++;
+            toku_mark_node_dirty(parent);
+        }
+        // detach buffer
+        BP_WORKDONE(parent, childnum) = 0;  // this buffer is drained, no work has been done by its contents
+        bnc = BNC(parent, childnum);
+        set_BNC(parent, childnum, toku_create_empty_nl());
+    }
 
     //
     // at this point, the buffer has been detached from the parent
@@ -1252,7 +1502,7 @@ flush_some_child(
     //
     if (!may_child_be_reactive) {
         toku_unpin_brtnode_off_client_thread(h, parent);
-        parent_unpinned = true;
+        parent = NULL;
     }
 
     //
@@ -1260,7 +1510,6 @@ flush_some_child(
     // so that we can proceed and apply the flush
     //
     bring_node_fully_into_memory(child, h);
-    toku_mark_node_dirty(child);
 
     // It is possible after reading in the entire child,
     // that we now know that the child is not reactive
@@ -1269,50 +1518,57 @@ flush_some_child(
     // and we have already replaced the bnc
     // for the root with a fresh one
     enum reactivity child_re = get_node_reactivity(child);
-    if (!parent_unpinned && child_re == RE_STABLE) {
+    if (parent && child_re == RE_STABLE) {
         toku_unpin_brtnode_off_client_thread(h, parent);
-        parent_unpinned = true;
+        parent = NULL;
     }
 
-    // now we have a bnc to flush to the child
-    r = toku_bnc_flush_to_child(
-        h->compare_fun,
-        h->update_fun,
-        &h->descriptor,
-        h->cf,
-        bnc,
-        child
-        );
-    assert_zero(r);
-    destroy_nonleaf_childinfo(bnc);
+    // from above, we know at this point that either the bnc
+    // is detached from the parent (which may be unpinned),
+    // and we have to apply the flush, or there was no data
+    // in the buffer to flush, and as a result, flushing is not necessary
+    // and bnc is NULL
+    if (bnc != NULL) {
+        if (!child->dirty) {
+            dirtied++;
+            toku_mark_node_dirty(child);
+        }
+        // do the actual flush
+        r = toku_bnc_flush_to_child(
+            h->compare_fun,
+            h->update_fun,
+            &h->descriptor,
+            h->cf,
+            bnc,
+            child
+            );
+        assert_zero(r);
+        destroy_nonleaf_childinfo(bnc);
+    }
 
+    fa->update_status(child, dirtied, fa->extra);
     // let's get the reactivity of the child again,
     // it is possible that the flush got rid of some values
     // and now the parent is no longer reactive
     child_re = get_node_reactivity(child);
-    if (!started_at_root && child->height == 0 && child_re == RE_FUSIBLE) {
-        // prevent merging leaf nodes, sometimes (when the cleaner thread
-        // called us)
-        child_re = RE_STABLE;
-        brt_status->cleaner_num_leaves_unmerged++;
-    }
     // if the parent has been unpinned above, then
     // this is our only option, even if the child is not stable
     // if the child is not stable, we'll handle it the next
     // time we need to flush to the child
-    if (parent_unpinned || 
-        child_re == RE_STABLE || 
+    if (!parent ||
+        child_re == RE_STABLE ||
         (child_re == RE_FUSIBLE && parent->n_children == 1)
-        ) 
+        )
     {
-        if (!parent_unpinned) {
+        if (parent) {
             toku_unpin_brtnode_off_client_thread(h, parent);
+            parent = NULL;
         }
         //
-        // it is the responsibility of flush_some_child to unpin parent
+        // it is the responsibility of flush_some_child to unpin child
         //
-        if (child->height > 0 && toku_brt_nonleaf_is_gorged(child)) {
-            flush_some_child(h, child, n_dirtied, cascades+1, started_at_root, brt_status);
+        if (child->height > 0 && fa->should_recursively_flush(child, fa->extra)) {
+            flush_some_child(h, child, fa);
         }
         else {
             toku_unpin_brtnode_off_client_thread(h, child);
@@ -1320,75 +1576,66 @@ flush_some_child(
     }
     else if (child_re == RE_FISSIBLE) {
         //
-        // it is responsibility of brt_split_child to unlock nodes
-        // of parent and child as it sees fit
+        // it is responsibility of `brt_split_child` to unlock nodes of
+        // parent and child as it sees fit
         //
-        brt_split_child(h, parent, childnum, child, started_at_root, brt_status);
+        assert(parent); // just make sure we have not accidentally unpinned parent
+        brt_split_child(h, parent, childnum, child, fa);
     }
     else if (child_re == RE_FUSIBLE) {
-        BOOL did_react;
         //
-        // There is probably a way to pass BRTNODE child
-        // into brt_merge_child, but for simplicity for now,
-        // we are just going to unpin child and
-        // let brt_merge_child pin it again
+        // it is responsibility of `maybe_merge_child to unlock nodes of
+        // parent and child as it sees fit
         //
-        toku_unpin_brtnode_off_client_thread(h, child);
-        //
-        //
-        // it is responsibility of brt_merge_child to unlock parent
-        //
-        brt_merge_child(h, parent, childnum, &did_react, started_at_root, brt_status);
+        assert(parent); // just make sure we have not accidentally unpinned parent
+        fa->maybe_merge_child(fa, h, parent, childnum, child, fa->extra);
     }
     else {
         assert(FALSE);
     }
 }
 
-// TODO 3988 Leif set cleaner_nodes_dirtied
 static void
 update_cleaner_status(
     BRTNODE node,
-    int childnum,
-    BRT_STATUS brt_status)
+    int childnum)
 {
-    brt_status->cleaner_total_nodes++;
+    brt_flusher_status.cleaner_total_nodes++;
     if (node->height == 1) {
-        brt_status->cleaner_h1_nodes++;
+        brt_flusher_status.cleaner_h1_nodes++;
     } else {
-        brt_status->cleaner_hgt1_nodes++;
+        brt_flusher_status.cleaner_hgt1_nodes++;
     }
 
     unsigned int nbytesinbuf = toku_bnc_nbytesinbuf(BNC(node, childnum));
     if (nbytesinbuf == 0) {
-        brt_status->cleaner_empty_nodes++;
+        brt_flusher_status.cleaner_empty_nodes++;
     } else {
-        if (nbytesinbuf > brt_status->cleaner_max_buffer_size) {
-            brt_status->cleaner_max_buffer_size = nbytesinbuf;
+        if (nbytesinbuf > brt_flusher_status.cleaner_max_buffer_size) {
+            brt_flusher_status.cleaner_max_buffer_size = nbytesinbuf;
         }
-        if (nbytesinbuf < brt_status->cleaner_min_buffer_size) {
-            brt_status->cleaner_min_buffer_size = nbytesinbuf;
+        if (nbytesinbuf < brt_flusher_status.cleaner_min_buffer_size) {
+            brt_flusher_status.cleaner_min_buffer_size = nbytesinbuf;
         }
-        brt_status->cleaner_total_buffer_size += nbytesinbuf;
+        brt_flusher_status.cleaner_total_buffer_size += nbytesinbuf;
 
         uint64_t workdone = BP_WORKDONE(node, childnum);
-        if (workdone > brt_status->cleaner_max_buffer_workdone) {
-            brt_status->cleaner_max_buffer_workdone = workdone;
+        if (workdone > brt_flusher_status.cleaner_max_buffer_workdone) {
+            brt_flusher_status.cleaner_max_buffer_workdone = workdone;
         }
-        if (workdone < brt_status->cleaner_min_buffer_workdone) {
-            brt_status->cleaner_min_buffer_workdone = workdone;
+        if (workdone < brt_flusher_status.cleaner_min_buffer_workdone) {
+            brt_flusher_status.cleaner_min_buffer_workdone = workdone;
         }
-        brt_status->cleaner_total_buffer_workdone += workdone;
+        brt_flusher_status.cleaner_total_buffer_workdone += workdone;
     }
 }
 
 int
-toku_brtnode_cleaner_callback_internal(
+toku_brtnode_cleaner_callback(
     void *brtnode_pv,
     BLOCKNUM blocknum,
     u_int32_t fullhash,
-    void *extraargs,
-    BRT_STATUS brt_status)
+    void *extraargs)
 {
     BRTNODE node = brtnode_pv;
     invariant(node->thisnodename.b == blocknum.b);
@@ -1396,15 +1643,15 @@ toku_brtnode_cleaner_callback_internal(
     invariant(node->height > 0);   // we should never pick a leaf node (for now at least)
     struct brt_header *h = extraargs;
     bring_node_fully_into_memory(node, h);
-    int childnum;
-    find_heaviest_child(node, &childnum);
-    update_cleaner_status(node, childnum, brt_status);
+    int childnum = find_heaviest_child(node);
+    update_cleaner_status(node, childnum);
 
     // Either flush_some_child will unlock the node, or we do it here.
     if (toku_bnc_nbytesinbuf(BNC(node, childnum)) > 0) {
-        int n_dirtied = 0;
-        flush_some_child(h, node, &n_dirtied, 0, false, brt_status);
-        brt_status->cleaner_nodes_dirtied += n_dirtied;
+        struct flusher_advice fa;
+        struct flush_status_update_extra fste;
+        ct_flusher_advice_init(&fa, &fste);
+        flush_some_child(h, node, &fa);
     } else {
         toku_unpin_brtnode_off_client_thread(h, node);
     }
@@ -1415,7 +1662,6 @@ struct flusher_extra {
     struct brt_header* h;
     BRTNODE node;
     NONLEAF_CHILDINFO bnc;
-    BRT_STATUS brt_status;
 };
 
 //
@@ -1440,6 +1686,10 @@ static void flush_node_fun(void *fe_v)
     bring_node_fully_into_memory(fe->node,fe->h);
     toku_mark_node_dirty(fe->node);
 
+    struct flusher_advice fa;
+    struct flush_status_update_extra fste;
+    ft_flusher_advice_init(&fa, &fste);
+
     if (fe->bnc) {
         // In this case, we have a bnc to flush to a node
 
@@ -1462,7 +1712,7 @@ static void flush_node_fun(void *fe_v)
         // of flush_some_child to unlock the node
         // otherwise, we unlock the node here.
         if (fe->node->height > 0 && toku_brt_nonleaf_is_gorged(fe->node)) {
-            flush_some_child(fe->h, fe->node, NULL, 0, true, fe->brt_status);
+            flush_some_child(fe->h, fe->node, &fa);
         }
         else {
             toku_unpin_brtnode_off_client_thread(fe->h,fe->node);
@@ -1473,7 +1723,7 @@ static void flush_node_fun(void *fe_v)
         // bnc, which means we are tasked with flushing some
         // buffer in the node.
         // It is the responsibility of flush_some_child to unlock the node
-        flush_some_child(fe->h, fe->node, NULL, 0, true, fe->brt_status);
+        flush_some_child(fe->h, fe->node, &fa);
     }
     remove_background_job(fe->h->cf, false);
     toku_free(fe);
@@ -1483,9 +1733,7 @@ static void
 place_node_and_bnc_on_background_thread(
     BRT brt,
     BRTNODE node,
-    NONLEAF_CHILDINFO bnc,
-    BRT_STATUS brt_status
-    )
+    NONLEAF_CHILDINFO bnc)
 {
     struct flusher_extra* fe = NULL;
     fe = toku_xmalloc(sizeof(struct flusher_extra));
@@ -1493,7 +1741,6 @@ place_node_and_bnc_on_background_thread(
     fe->h = brt->h;
     fe->node = node;
     fe->bnc = bnc;
-    fe->brt_status = brt_status;
     cachefile_kibbutz_enq(brt->cf, flush_node_fun, fe);
 }
 
@@ -1511,14 +1758,13 @@ place_node_and_bnc_on_background_thread(
 //     The parent will be unlocked on the background thread
 //
 void
-flush_node_on_background_thread(BRT brt, BRTNODE parent, BRT_STATUS brt_status)
+flush_node_on_background_thread(BRT brt, BRTNODE parent)
 {
     //
     // first let's see if we can detach buffer on client thread
     // and pick the child we want to flush to
     //
-    int childnum;
-    find_heaviest_child(parent, &childnum);
+    int childnum = find_heaviest_child(parent);
     assert(toku_bnc_n_entries(BNC(parent, childnum))>0);
     //
     // see if we can pin the child
@@ -1536,7 +1782,7 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent, BRT_STATUS brt_status)
         // In this case, we could not lock the child, so just place the parent on the background thread
         // In the callback, we will use flush_some_child, which checks to
         // see if we should blow away the old basement nodes.
-        place_node_and_bnc_on_background_thread(brt, parent, NULL, brt_status);
+        place_node_and_bnc_on_background_thread(brt, parent, NULL);
     }
     else {
         //
@@ -1553,7 +1799,7 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent, BRT_STATUS brt_status)
             //
             // can detach buffer and unpin root here
             //
-	    toku_mark_node_dirty(parent);
+            toku_mark_node_dirty(parent);
             BP_WORKDONE(parent, childnum) = 0;  // this buffer is drained, no work has been done by its contents
             NONLEAF_CHILDINFO bnc = BNC(parent, childnum);
             set_BNC(parent, childnum, toku_create_empty_nl());
@@ -1564,7 +1810,7 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent, BRT_STATUS brt_status)
             // so, because we know for sure the child is not
             // reactive, we can unpin the parent
             //
-            place_node_and_bnc_on_background_thread(brt, child, bnc, brt_status);
+            place_node_and_bnc_on_background_thread(brt, child, bnc);
             toku_unpin_brtnode(brt, parent);
         }
         else {
@@ -1574,7 +1820,7 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent, BRT_STATUS brt_status)
             toku_unpin_brtnode(brt, child);
             // Again, we'll have the parent on the background thread, so
             // we don't need to destroy the basement nodes yet.
-            place_node_and_bnc_on_background_thread(brt, parent, NULL, brt_status);
+            place_node_and_bnc_on_background_thread(brt, parent, NULL);
         }
     }
 }

@@ -1815,6 +1815,11 @@ serialize_brt_header_min_size (u_int32_t version) {
 
 
     switch(version) {
+        case BRT_LAYOUT_VERSION_18:
+	    size += sizeof(uint64_t);  // time_of_last_optimize_begin
+	    size += sizeof(uint64_t);  // time_of_last_optimize_end
+	    size += sizeof(uint32_t);  // count_of_optimize_in_progress
+	    size += sizeof(MSN);       // msn_at_start_of_last_completed_optimize
         case BRT_LAYOUT_VERSION_17:
 	    size += 16;
 	    invariant(sizeof(STAT64INFO_S) == 16);
@@ -1891,6 +1896,10 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_ulonglong(wbuf, h->time_of_last_verification);
     wbuf_ulonglong(wbuf, h->checkpoint_staging_stats.numrows);
     wbuf_ulonglong(wbuf, h->checkpoint_staging_stats.numbytes);
+    wbuf_ulonglong(wbuf, h->time_of_last_optimize_begin);
+    wbuf_ulonglong(wbuf, h->time_of_last_optimize_end);
+    wbuf_int(wbuf, h->count_of_optimize_in_progress);
+    wbuf_MSN(wbuf, h->msn_at_start_of_last_completed_optimize);
     u_int32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     lazy_assert(wbuf->ndone == wbuf->size);
@@ -2143,7 +2152,6 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     }
 
     h->root = rbuf_blocknum(&rc);
-    h->root_hash.valid = FALSE;
     h->flags = rbuf_int(&rc);
     h->layout_version_original = rbuf_int(&rc);    
     h->build_id_original = rbuf_int(&rc);
@@ -2161,10 +2169,15 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
         h->basementnodesize = rbuf_int(&rc);
         h->time_of_last_verification = rbuf_ulonglong(&rc);
     }
-    if (h->layout_version >= BRT_LAYOUT_VERSION_17) {
+    if (h->layout_version >= BRT_LAYOUT_VERSION_18) {
 	h->on_disk_stats.numrows = rbuf_ulonglong(&rc);
 	h->on_disk_stats.numbytes = rbuf_ulonglong(&rc);
 	h->in_memory_stats = h->on_disk_stats;
+	h->time_of_last_optimize_begin = rbuf_ulonglong(&rc);
+	h->time_of_last_optimize_end   = rbuf_ulonglong(&rc);
+	h->count_of_optimize_in_progress = rbuf_int(&rc);
+	h->count_of_optimize_in_progress_read_from_disk = h->count_of_optimize_in_progress;
+	h->msn_at_start_of_last_completed_optimize = rbuf_msn(&rc);
     }
 
     (void)rbuf_int(&rc); //Read in checksum and ignore (already verified).
@@ -2219,7 +2232,8 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
             case BRT_LAYOUT_VERSION_14:
                 h->basementnodesize = 128*1024;  // basement nodes added in v15
                 //fall through on purpose
-            case BRT_LAYOUT_VERSION_17:
+            case BRT_LAYOUT_VERSION_18:
+            case BRT_LAYOUT_VERSION_17: // version 17 never released to customers
             case BRT_LAYOUT_VERSION_16: // version 16 never released to customers
             case BRT_LAYOUT_VERSION_15: // this will not properly support version 15, we'll fix that on upgrade.
                 invariant(h->layout_version == BRT_LAYOUT_VERSION);

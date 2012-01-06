@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
-#ident "$Id: test-merges-on-cleaner.c 38542 2012-01-06 14:06:23Z christianrober $"
+#ident "$Id$"
 /* The goal of this test.  Make sure that inserts stay behind deletes. */
 
 
@@ -9,6 +9,7 @@
 #include <brt-cachetable-wrappers.h>
 #include "brt-flusher.h"
 #include "checkpoint.h"
+
 
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
@@ -41,7 +42,7 @@ static int update_func(
 
 static void
 doit (void) {
-    BLOCKNUM node_leaf[2];
+    BLOCKNUM node_leaf;
     BLOCKNUM node_internal, node_root;
 
     int r;
@@ -62,16 +63,14 @@ doit (void) {
     
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls
 
-    r = toku_testsetup_leaf(brt, &node_leaf[0], 1, NULL, NULL);
-    assert(r==0);
-    r = toku_testsetup_leaf(brt, &node_leaf[1], 1, NULL, NULL);
-    assert(r==0);
-
     char* pivots[1];
     pivots[0] = toku_strdup("kkkkk");
     int pivot_len = 6;
 
-    r = toku_testsetup_nonleaf(brt, 1, &node_internal, 2, node_leaf, pivots, &pivot_len);
+    r = toku_testsetup_leaf(brt, &node_leaf, 2, pivots, &pivot_len);
+    assert(r==0);
+
+    r = toku_testsetup_nonleaf(brt, 1, &node_internal, 1, &node_leaf, 0, 0);
     assert(r==0);
 
     r = toku_testsetup_nonleaf(brt, 2, &node_root, 1, &node_internal, 0, 0);
@@ -88,7 +87,7 @@ doit (void) {
     // now we insert a row into each leaf node
     r = toku_testsetup_insert_to_leaf (
         brt, 
-        node_leaf[0], 
+        node_leaf, 
         "a", // key
         2, // keylen
         "aa", 
@@ -97,11 +96,33 @@ doit (void) {
     assert(r==0);
     r = toku_testsetup_insert_to_leaf (
         brt, 
-        node_leaf[1], 
+        node_leaf, 
         "z", // key
         2, // keylen
         "zz", 
         3
+        );
+    assert(r==0);
+    char filler[400];
+    memset(filler, 0, sizeof(filler));
+    // now we insert filler data so that the rebalance
+    // keeps it at two nodes
+    r = toku_testsetup_insert_to_leaf (
+        brt, 
+        node_leaf, 
+        "b", // key
+        2, // keylen
+        filler, 
+        sizeof(filler)
+        );
+    assert(r==0);
+    r = toku_testsetup_insert_to_leaf (
+        brt, 
+        node_leaf, 
+        "y", // key
+        2, // keylen
+        filler, 
+        sizeof(filler)
         );
     assert(r==0);
 
@@ -135,15 +156,25 @@ doit (void) {
         0
         );
     assert(r==0);
-    
-    //
-    // now let us induce a clean on the internal node
-    //    
-    BRTNODE node;
-    toku_pin_node_with_min_bfe(&node, node_leaf[1], brt);
-    // hack to get merge going
-    BLB_SEQINSERT(node, node->n_children-1) = FALSE;
-    toku_unpin_brtnode(brt, node);
+
+    // now lock and release the leaf node to make sure it is what we expect it to be.
+    BRTNODE node = NULL;
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_min_read(&bfe, brt->h);
+    toku_pin_brtnode_off_client_thread(
+        brt->h, 
+        node_leaf,
+        toku_cachetable_hash(brt->h->cf, node_leaf),
+        &bfe,
+        0,
+        NULL,
+        &node
+        );
+    assert(node->dirty);
+    assert(node->n_children == 2);
+    assert(BP_STATE(node,0) == PT_AVAIL);
+    assert(BP_STATE(node,1) == PT_AVAIL);
+    toku_unpin_brtnode_off_client_thread(brt->h, node);
 
     // now do a lookup on one of the keys, this should bring a leaf node up to date 
     DBT k;
@@ -151,7 +182,31 @@ doit (void) {
     r = toku_brt_lookup(brt, toku_fill_dbt(&k, "a", 2), lookup_checkf, &pair);
     assert(r==0);
 
-    struct brtnode_fetch_extra bfe;
+    //
+    // pin the leaf one more time
+    // and make sure that one basement
+    // node is in memory and another is
+    // on disk
+    //
+    fill_bfe_for_min_read(&bfe, brt->h);
+    toku_pin_brtnode_off_client_thread(
+        brt->h, 
+        node_leaf,
+        toku_cachetable_hash(brt->h->cf, node_leaf),
+        &bfe,
+        0,
+        NULL,
+        &node
+        );
+    assert(node->dirty);
+    assert(node->n_children == 2);
+    assert(BP_STATE(node,0) == PT_AVAIL);
+    assert(BP_STATE(node,1) == PT_AVAIL);
+    toku_unpin_brtnode_off_client_thread(brt->h, node);
+    
+    //
+    // now let us induce a clean on the internal node
+    //    
     fill_bfe_for_min_read(&bfe, brt->h);
     toku_pin_brtnode_off_client_thread(
         brt->h, 
@@ -162,7 +217,8 @@ doit (void) {
         NULL,
         &node
         );
-    assert(node->n_children == 2);
+    assert(node->dirty);
+
     // we expect that this flushes its buffer, that
     // a merge is not done, and that the lookup
     // of values "a" and "z" still works
@@ -184,12 +240,10 @@ doit (void) {
         NULL,
         &node
         );
-    // check that merge happened
-    assert(node->n_children == 1);
     // check that buffers are empty
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) == 0);
     toku_unpin_brtnode_off_client_thread(brt->h, node);
-
+    
     //
     // now run a checkpoint to get everything clean,
     // and to get the rebalancing to happen

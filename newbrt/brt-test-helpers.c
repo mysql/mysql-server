@@ -6,10 +6,11 @@
 #include "includes.h"
 #include "ule.h"
 #include <brt-cachetable-wrappers.h>
+#include <brt-flusher.h>
 
 
 // dummymsn needed to simulate msn because messages are injected at a lower level than toku_brt_root_put_cmd()
-#define MIN_DUMMYMSN ((MSN) {(uint64_t)1<<48})
+#define MIN_DUMMYMSN ((MSN) {(uint64_t)100000000000})
 static MSN dummymsn;      
 static int testsetup_initialized = 0;
 
@@ -31,13 +32,21 @@ next_dummymsn(void) {
 
 
 BOOL ignore_if_was_already_open;
-int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum) {
+int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum, int n_children, char **keys, int *keylens) {
     BRTNODE node;
     assert(testsetup_initialized);
     int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
-    toku_create_new_brtnode(brt, &node, 0, 1);
-    BP_STATE(node,0) = PT_AVAIL;
+    toku_create_new_brtnode(brt, &node, 0, n_children);
+    int i;
+    for (i=0; i<n_children; i++) {
+        BP_STATE(node,i) = PT_AVAIL;
+    }
+
+    for (i=0; i+1<n_children; i++) {
+        node->childkeys[i] = kv_pair_malloc(keys[i], keylens[i], 0, 0);
+        node->totalchildkeylens += keylens[i];
+    }
 
     *blocknum = node->thisnodename;
     toku_unpin_brtnode(brt, node);
@@ -71,7 +80,6 @@ int toku_testsetup_root(BRT brt, BLOCKNUM blocknum) {
     int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
     brt->h->root = blocknum;
-    brt->h->root_hash.valid = FALSE;
     return 0;
 }
 
@@ -131,55 +139,22 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     toku_verify_or_set_counts(node);
     assert(node->height==0);
 
-    size_t newlesize;
-    LEAFENTRY leafentry;
-    OMTVALUE storeddatav;
-    u_int32_t idx;
     DBT keydbt,valdbt;
     MSN msn = next_dummymsn();
     BRT_MSG_S cmd = {BRT_INSERT, msn, xids_get_root_xids(),
                      .u.id={toku_fill_dbt(&keydbt, key, keylen),
                             toku_fill_dbt(&valdbt, val, vallen)}};
-    //Generate a leafentry (committed insert key,val)
 
-    uint childnum = toku_brtnode_which_child(node,
-					     &keydbt,
-					     &brt->h->descriptor, brt->compare_fun);
-
-    BASEMENTNODE bn = BLB(node, childnum);
-    void * maybe_free = 0;
-    
-    {
-	int64_t ignoreme;
-	r = apply_msg_to_leafentry(&cmd, NULL, //No old leafentry
-				   &newlesize, &leafentry, 
-				   bn->buffer, &bn->buffer_mempool, &maybe_free,
-				   NULL, NULL, &ignoreme);
-	assert(r==0);
-    }
-
-
-    struct cmd_leafval_heaviside_extra be = {brt->compare_fun, &brt->h->descriptor, &keydbt};
-    r = toku_omt_find_zero(BLB_BUFFER(node, 0), toku_cmd_leafval_heaviside, &be, &storeddatav, &idx);
-
-
-    if (r==0) {
-	LEAFENTRY storeddata=storeddatav;
-	// It's already there.  So now we have to remove it and put the new one back in.
-	BLB_NBYTESINBUF(node, 0) -= leafentry_disksize(storeddata);
-	toku_free(storeddata);
-	// Now put the new kv in.
-	toku_omt_set_at(BLB_BUFFER(node, 0), leafentry, idx);
-    } else {
-	r = toku_omt_insert(BLB_BUFFER(node, 0), leafentry, toku_cmd_leafval_heaviside, &be, 0);
-	assert(r==0);
-    }
-    // hack to get tests passing. These tests should not be directly inserting into buffers
-    BLB(node, 0)->max_msn_applied = msn;
-
-    BLB_NBYTESINBUF(node, 0) += newlesize;
-
-    node->dirty=1;
+    brtnode_put_cmd (
+        brt->h->compare_fun,
+        brt->h->update_fun,
+        &brt->h->descriptor,
+        node,
+        &cmd,
+        true, 
+        NULL, 
+        NULL
+        );    
 
     toku_verify_or_set_counts(node);
 
@@ -192,6 +167,23 @@ testhelper_string_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
 {
     char *s = a->data, *t = b->data;
     return strcmp(s, t);
+}
+
+
+void
+toku_pin_node_with_min_bfe(BRTNODE* node, BLOCKNUM b, BRT t)
+{
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_min_read(&bfe, t->h);
+    toku_pin_brtnode_off_client_thread(
+        t->h, 
+        b,
+        toku_cachetable_hash(t->h->cf, b),
+        &bfe,
+        0,
+        NULL,
+        node
+        );
 }
 
 int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_type cmdtype, char *key, int keylen, char *val, int vallen) {

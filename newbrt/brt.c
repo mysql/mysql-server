@@ -173,15 +173,14 @@ get_leaf_num_entries(BRTNODE node) {
 static enum reactivity
 get_leaf_reactivity (BRTNODE node) {
     enum reactivity re = RE_STABLE;
+    toku_assert_entire_node_in_memory(node);
     assert(node->height==0);
-    if (node->dirty) {
-	unsigned int size = toku_serialize_brtnode_size(node);
-	if (size > node->nodesize && get_leaf_num_entries(node) > 1) {
-	    re = RE_FISSIBLE;
-	}
-	else if ((size*4) < node->nodesize && !BLB_SEQINSERT(node, node->n_children-1)) {
-	    re = RE_FUSIBLE;
-	}
+    unsigned int size = toku_serialize_brtnode_size(node);
+    if (size > node->nodesize && get_leaf_num_entries(node) > 1) {
+        re = RE_FISSIBLE;
+    }
+    else if ((size*4) < node->nodesize && !BLB_SEQINSERT(node, node->n_children-1)) {
+        re = RE_FUSIBLE;
     }
     return re;
 }
@@ -242,17 +241,6 @@ toku_brt_nonleaf_is_gorged (BRTNODE node) {
 static inline void add_to_brt_status(u_int64_t* val, u_int64_t data) {
     (*val) += data;
 }
-
-static void brtnode_put_cmd (
-    brt_compare_func compare_fun,
-    brt_update_func update_fun,
-    DESCRIPTOR desc,
-    BRTNODE node, 
-    BRT_MSG cmd, 
-    bool is_fresh, 
-    OMT snapshot_txnids, 
-    OMT live_list_reverse
-    );
 
 static void brt_verify_flags(BRT brt, BRTNODE node) {
     assert(brt->flags == node->flags);
@@ -764,16 +752,6 @@ int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATT
 exit:
     *new_attr = make_brtnode_pair_attr(node);
     return 0;
-}
-
-int
-toku_brtnode_cleaner_callback(
-    void *brtnode_pv,
-    BLOCKNUM blocknum,
-    u_int32_t fullhash,
-    void *extraargs)
-{
-    return toku_brtnode_cleaner_callback_internal(brtnode_pv, blocknum, fullhash, extraargs, &brt_status);
 }
 
 static inline void
@@ -1852,6 +1830,32 @@ unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
 #endif
 }
 
+// Used for HOT.
+unsigned int
+toku_brtnode_hot_next_child(BRTNODE node,
+                            const DBT *k,
+                            DESCRIPTOR desc,
+                            brt_compare_func cmp) {
+    int low = 0;
+    int hi = node->n_children - 1;
+    int mi;
+    while (low < hi) {
+        mi = (low + hi) / 2;
+        int r = brt_compare_pivot(desc, cmp, k, node->childkeys[mi]);
+        if (r > 0) {
+            low = mi + 1;
+        } else if (r < 0) {
+            hi = mi;
+        } else {
+            // if they were exactly equal, then we want the sub-tree under
+            // the next pivot.
+            return mi + 1;
+        }
+    }
+    invariant(low == hi);
+    return low;
+}
+
 // TODO Use this function to clean up other places where bits of messages are passed around
 //      such as toku_bnc_insert_msg() and the call stack above it.
 static size_t
@@ -1969,9 +1973,9 @@ brt_handle_maybe_reactive_root (BRT brt, CACHEKEY *rootp, BRTNODE *nodep) {
             // in just node. That would be correct.
             //
 	    if (node->height==0) {
-		brtleaf_split(brt->h, node, &nodea, &nodeb, &splitk, TRUE, 0, NULL, &brt_status);
+		brtleaf_split(brt->h, node, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 	    } else {
-		brt_nonleaf_split(brt->h, node, &nodea, &nodeb, &splitk, 0, NULL, &brt_status);
+		brt_nonleaf_split(brt->h, node, &nodea, &nodeb, &splitk, 0, NULL);
 	    }
 	    brt_init_new_root(brt, nodea, nodeb, splitk, rootp, nodep);
 	    return;
@@ -1993,6 +1997,7 @@ toku_bnc_flush_to_child(
     )
 {
     assert(toku_fifo_n_entries(bnc->buffer)>0);
+    assert(bnc);
     OMT snapshot_txnids, live_list_reverse;
     TOKULOGGER logger = toku_cachefile_logger(cf);
     if (child->height == 0 && logger) {
@@ -2050,7 +2055,7 @@ void bring_node_fully_into_memory(BRTNODE node, struct brt_header* h)
     }
 }
 
-static void
+void
 brtnode_put_cmd (
     brt_compare_func compare_fun,
     brt_update_func update_fun,
@@ -2229,35 +2234,9 @@ static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
     }
 }
 
-static void compute_and_fill_remembered_hash (BRT brt) {
-    struct remembered_hash *rh = &brt->h->root_hash;
-    assert(brt->cf); // if cf is null, we'll be hosed.
-    rh->valid = TRUE;
-    rh->fnum=toku_cachefile_filenum(brt->cf);
-    rh->root=brt->h->root;
-    rh->fullhash = toku_cachetable_hash(brt->cf, rh->root);
-}
-
-static u_int32_t get_roothash (BRT brt) {
-    struct remembered_hash *rh = &brt->h->root_hash;
-    BLOCKNUM root = brt->h->root;
-    // compare cf first, since cf is NULL for invalid entries.
-    assert(rh);
-    //printf("v=%d\n", rh->valid);
-    if (rh->valid) {
-	//printf("f=%d\n", rh->fnum.fileid); 
-	//printf("cf=%d\n", toku_cachefile_filenum(brt->cf).fileid);
-	if (rh->fnum.fileid == toku_cachefile_filenum(brt->cf).fileid)
-	    if (rh->root.b == root.b)
-		return rh->fullhash;
-    }
-    compute_and_fill_remembered_hash(brt);
-    return rh->fullhash;
-}
-
-CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *roothash) {
-    *roothash = get_roothash(brt);
-    return &brt->h->root;
+CACHEKEY* toku_calculate_root_offset_pointer (struct brt_header* h, u_int32_t *roothash) {
+    *roothash = toku_cachetable_hash(h->cf, h->root);
+    return &h->root;
 }
 
 int 
@@ -2272,7 +2251,7 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
     //assert(0==toku_cachetable_assert_all_unpinned(brt->cachetable));
     assert(brt->h);
     u_int32_t fullhash;
-    rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
+    rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
 
     // get the root node
     struct brtnode_fetch_extra bfe;
@@ -2300,7 +2279,7 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
     // if we call flush_some_child, then that function unpins the root
     // otherwise, we unpin ourselves
     if (node->height > 0 && toku_brt_nonleaf_is_gorged(node)) {
-        flush_node_on_background_thread(brt, node, &brt_status);
+        flush_node_on_background_thread(brt, node);
     }
     else {
         toku_unpin_brtnode(brt, node);  // unpin root
@@ -2405,7 +2384,6 @@ brt_optimize (BRT brt, BOOL upgrade) {
     xids_destroy(&message_xids);
     return r;
 }
-
 
 int
 toku_brt_load(BRT brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *load_lsn) {
@@ -2892,7 +2870,6 @@ brt_init_header_partial (BRT t, TOKUTXN txn) {
     t->h->in_memory_stats          = ZEROSTATS;
     t->h->on_disk_stats            = ZEROSTATS;
     t->h->checkpoint_staging_stats = ZEROSTATS;
-    compute_and_fill_remembered_hash(t);
 
     BLOCKNUM root = t->h->root;
     if ((r=setup_initial_brt_root_node(t, root))!=0) { return r; }
@@ -5055,7 +5032,7 @@ try_again:
     assert(brt->h);
 
     u_int32_t fullhash;
-    CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
+    CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
 
     BRTNODE node;
 
@@ -5670,7 +5647,7 @@ toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p, u_i
     {
 	u_int64_t less = 0, equal = 0, greater = 0;
 	u_int32_t fullhash;
-	CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
+	CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
 
 	struct brtnode_fetch_extra bfe;
 	fill_bfe_for_min_read(&bfe, brt->h);  // read pivot keys but not message buffers
@@ -5831,7 +5808,7 @@ int toku_dump_brt (FILE *f, BRT brt) {
     assert(brt->h);
     u_int32_t fullhash = 0;
     toku_dump_translation_table(f, brt->h->blocktable);
-    rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
+    rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
     return toku_dump_brtnode(f, brt, *rootp, 0, 0, 0);
 }
 
@@ -5891,8 +5868,7 @@ int toku_brt_init(void (*ydb_lock_callback)(void),
 	r = toku_brt_serialize_init();
     if (r==0)
 	callback_db_set_brt = db_set_brt;
-    brt_status.cleaner_min_buffer_size = UINT64_MAX;
-    brt_status.cleaner_min_buffer_workdone = UINT64_MAX;
+    toku_brt_flusher_status_init();
     return r;
 }
 
@@ -6106,7 +6082,7 @@ BOOL toku_brt_is_empty_fast (BRT brt)
 // messages and leafentries would all optimize away and that the tree is empty, but we'll say it is nonempty.
 {
     u_int32_t fullhash;
-    CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
+    CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
     BRTNODE node;
     //assert(fullhash == toku_cachetable_hash(brt->cf, *rootp));
     {
@@ -6172,6 +6148,51 @@ toku_reset_root_xid_that_created(BRT brt, TXNID new_root_xid_that_created) {
     h->dirty = 1;
     toku_brtheader_unlock (h);
 }
+
+// Purpose: set fields in brt_header to capture accountability info for start of HOT optimize.
+// Requires: ydb lock is held.
+// Note: HOT accountability variables in header are modified only while holding header lock.
+//       (Header lock is really needed for touching the dirty bit, but it's useful and 
+//       convenient here for keeping the HOT variables threadsafe.)
+void
+toku_brt_header_note_hot_begin(BRT brt) {
+    struct brt_header *h = brt->h;
+    time_t now = time(NULL);
+
+    // hold lock around setting and clearing of dirty bit
+    // (see cooperative use of dirty bit in toku_brtheader_begin_checkpoint())
+    toku_brtheader_lock(h);
+    h->time_of_last_optimize_begin = now;
+    h->count_of_optimize_in_progress++;
+    h->dirty = 1;
+    toku_brtheader_unlock(h);
+}
+
+
+// Purpose: set fields in brt_header to capture accountability info for end of HOT optimize.
+// Requires: ydb lock is held.
+// Note: See note for toku_brt_header_note_hot_begin().
+void
+toku_brt_header_note_hot_complete(BRT brt, BOOL success, MSN msn_at_start_of_hot) {
+    struct brt_header *h = brt->h;
+    time_t now = time(NULL);
+
+    toku_brtheader_lock(h);
+    h->count_of_optimize_in_progress--;
+    if (success) {
+        h->time_of_last_optimize_end = now;
+        h->msn_at_start_of_last_completed_optimize = msn_at_start_of_hot;
+	// If we just successfully completed an optimization and no other thread is performing
+	// an optimization, then the number of optimizations in progress is zero.
+	// If there was a crash during a HOT optimization, this is how count_of_optimize_in_progress
+	// would be reset to zero on the disk after recovery from that crash.  
+	if (h->count_of_optimize_in_progress == h->count_of_optimize_in_progress_read_from_disk)
+            h->count_of_optimize_in_progress = 0;
+    }
+    h->dirty = 1;
+    toku_brtheader_unlock(h);
+}
+
 
 void
 toku_brt_header_init(struct brt_header *h, 

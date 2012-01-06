@@ -136,6 +136,7 @@ BDB_DONTRUN_TESTS = \
 	hotindexer-simple-abort \
 	hotindexer-undo-do-test \
 	hotindexer-with-queries \
+        hot-optimize-table-tests \
 	insert-dup-prelock \
         isolation \
         isolation-read-committed \
@@ -278,6 +279,7 @@ BDB_DONTRUN_TESTS = \
 	test_stress4 \
 	test_stress5 \
 	test_stress6 \
+	test_stress7 \
 	test_stress_with_verify \
         test_transactional_descriptor \
         test_trans_desc_during_chkpt \
@@ -355,6 +357,7 @@ DEPENDS_ON_STRESS_HELPERS = \
  test_stress4 \
  test_stress5 \
  test_stress6 \
+ test_stress7 \
  #blank
 $(patsubst %,%.tdb,$(DEPENDS_ON_STRESS_HELPERS)): threaded_stress_test_helpers.h
 
@@ -682,6 +685,7 @@ test_update_broadcast_stress.tdbrun: VGRIND=
 test_update_stress.tdbrun: VGRIND=
 stress-test.tdbrun: VGRIND=
 stress-test.bdbrun: VGRIND=
+hot-optimize-table-tests.tdbrun: VGRIND=
 
 
 libs:

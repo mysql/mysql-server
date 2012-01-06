@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ifndef TOKU_DBUFIO_H
 #define TOKU_DBUFIO_H
-#ident "$Id: queue.c 20104 2010-05-12 17:22:40Z bkuszmaul $"
+#ident "$Id$"
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 
 #include <toku_portability.h>
