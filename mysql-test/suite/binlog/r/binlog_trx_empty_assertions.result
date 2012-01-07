@@ -17,6 +17,8 @@ SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:6';
 LOCK TABLES t1 READ;
 SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:7';
 UNLOCK TABLES;
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10';
+FLUSH PRIVILEGES;
 ==== Clean up ====
 SET GTID_NEXT = 'AUTOMATIC';
 DEALLOCATE PREPARE prep;
