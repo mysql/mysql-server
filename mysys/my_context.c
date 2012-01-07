@@ -130,7 +130,7 @@ my_context_init(struct my_context *c, size_t stack_size)
 #if SIZEOF_CHARP > SIZEOF_INT*2
 #error Error: Unable to store pointer in 2 ints on this architecture
 #endif
-  bzero(c, sizeof(*c))
+  bzero(c, sizeof(*c));
   if (!(c->stack= malloc(stack_size)))
     return -1;                                  /* Out of memory */
   c->stack_size= stack_size;
