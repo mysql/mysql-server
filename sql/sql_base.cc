@@ -8920,7 +8920,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   Item_field *field;
   TABLE *table= 0;
   DBUG_ENTER("fill_record");
-
+  DBUG_ASSERT(fields.elements == values.elements);
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
     only one row.
@@ -9058,6 +9058,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
     if (value->save_in_field(field, 0) < 0)
       goto err;
   }
+  DBUG_ASSERT(!v++);                         // No extra value!
   DBUG_RETURN(thd->is_error());
 
 err:

@@ -315,6 +315,7 @@ public:
                                    uint32 *part_id);
   void report_part_expr_error(bool use_subpart_expr);
   bool is_field_in_part_expr(List<Item> &fields);
+  bool is_full_part_expr_in_fields(List<Item> &fields);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,
