@@ -9058,7 +9058,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
     if (value->save_in_field(field, 0) < 0)
       goto err;
   }
-  DBUG_ASSERT(!v++);                         // No extra value!
+  DBUG_ASSERT(thd->is_error() || !v++);      // No extra value!
   DBUG_RETURN(thd->is_error());
 
 err:
