@@ -57,9 +57,9 @@ setup(void)
                 r = db->put(db, txn, &key, &val, 0);
                 CKERR(r);
             }
-            r = txn->commit(txn, 0);
-            CKERR(r);
         }
+        r = txn->commit(txn, 0);
+        CKERR(r);
     }
 }
 
@@ -90,19 +90,30 @@ progress_4356(void *extra, float progress)
     struct progress_extra_4356 *e = extra;
     if (!e->ran_operation && progress > 0.5) {
         if (e->op == REMOVE_4356) {
+            DB_TXN *txn;
+            r = env->txn_begin(env, 0, &txn, 0);
+            CKERR(r);
             if (verbose) { printf("Running remove.\n"); }
-            r = db->remove(db, __FILE__".db", 0, 0);
-            assert(r != 0);  // cannot remove a db with an open handle
+            r = env->dbremove(env, txn, __FILE__".db", NULL, 0);
+            CKERR2(r, DB_LOCK_NOTGRANTED);  // cannot remove a db with an open handle
             if (verbose) { printf("Completed remove.\n"); }
+            r = txn->commit(txn, 0);
+            CKERR(r);
         } else if (e->op == TRUNCATE_4356) {
+            DB_TXN *txn;
+            r = env->txn_begin(env, 0, &txn, 0);
+            CKERR(r);
             u_int32_t row_count = 0;
             if (verbose) { printf("Running truncate.\n"); }
-            r = db->truncate(db, 0, &row_count, 0);
-            CKERR(r);
+            r = db->truncate(db, txn, &row_count, 0);
+            CKERR2(r, DB_LOCK_NOTGRANTED);
             if (verbose) { printf("Completed truncate.\n"); }
+            r = txn->abort(txn);
+            CKERR(r);
         } else {
             assert(false);
         }
+        e->ran_operation = true;
     }
     return r;
 }
