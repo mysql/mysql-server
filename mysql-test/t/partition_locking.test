@@ -58,6 +58,13 @@ eval $get_handler_status_counts;
 --echo # 28 locks (table + 13 partition lock/unlock)
 --echo # 1 commit
 
+FLUSH STATUS;
+INSERT INTO t2 (b) VALUES ('Second auto-inc row');
+eval $get_handler_status_counts;
+--echo # Auto increment value not know until write.
+--echo # 28 locks (table + 13 partition lock/unlock)
+--echo # 1 commit
+
 --echo #
 --echo # Test of pruning with secondary column auto_inc
 --echo #
@@ -88,6 +95,293 @@ INSERT INTO t3 VALUES (1, 0);
 eval $get_handler_status_counts;
 --echo # 4 locks (table + partition lock/unlock)
 SELECT * FROM t3;
+DROP TABLE t3;
+
+--echo #
+--echo # More INSERT pruning tests
+--echo #
+CREATE TABLE t3 (a INT, b CHAR(10)) PARTITION BY HASH (a) PARTITIONS 2;
+FLUSH STATUS;
+INSERT INTO t3 VALUES (1, "Test 1");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 VALUES (2, "Test 2"), (3, "Test 3"), (4, "Test 4");
+eval $get_handler_status_counts;
+--echo # 6 locks (1 table, 2 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 VALUES (6, "Test 6"), (8, "Test 8"), (10, "Test 10");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 VALUES (5, "Test 5"), (7, "Test 7"), (9, "Test 9");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 VALUES (0, "Test 0");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a, b) VALUES (1, "Test 1");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a, b) VALUES (2, "Test 2"), (3, "Test 3"), (4, "Test 4");
+eval $get_handler_status_counts;
+--echo # 6 locks (1 table, 2 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a, b) VALUES (6, "Test 6"), (8, "Test 8"), (10, "Test 10");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a, b) VALUES (5, "Test 5"), (7, "Test 7"), (9, "Test 9");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a, b) VALUES (0, "Test 0");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES (1);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES (2), (3), (4);
+eval $get_handler_status_counts;
+--echo # 6 locks (1 table, 2 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES (6), (8), (10);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES (5), (7), (9);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (b) VALUES ("Only b 1");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (b) VALUES ("Only b 2"), ("Only b 3");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+SELECT * FROM t3 ORDER BY a, b;
+DROP TABLE t3;
+
+--echo #
+--echo # Test of insert pruning with subpartitions
+--echo #
+--echo # I've place the varchar column before the int column for better
+--echo # distribution by LINEAR KEY.
+CREATE TABLE t3
+(a int DEFAULT 10,
+ b varchar(64) DEFAULT "Default",
+ c varchar(64) DEFAULT "Default",
+ d int unsigned DEFAULT 9,
+ e varchar(255) DEFAULT "Default-filler.filler.filler.",
+ PRIMARY KEY (a,b,c,d))
+PARTITION BY RANGE COLUMNS (a, b)
+SUBPARTITION BY LINEAR KEY (d, c)
+SUBPARTITIONS 4
+(PARTITION pNeg VALUES LESS THAN (-1, MAXVALUE),
+ PARTITION `p0-9` VALUES LESS THAN (9, MAXVALUE),
+ PARTITION p10 VALUES LESS THAN (10, MAXVALUE),
+ PARTITION `p11-100` VALUES LESS THAN (99, MAXVALUE));
+FLUSH STATUS;
+INSERT INTO t3 () VALUES ();
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 subpartition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 VALUES (-1, "ZZZzzzz", "yyyYYY", -1, DEFAULT);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 subpartition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 () VALUES (0, "", "", 0, NULL);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 subpartition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES (1);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 subpartition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a, b) VALUES (1, "Part expr fulfilled"),
+                             (10, "Part expr fulfilled");
+eval $get_handler_status_counts;
+--echo # 6 locks (1 table, 2 subpartition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (d) VALUES (1), (2);
+eval $get_handler_status_counts;
+--echo # 6 locks (1 table, 2 subpartition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (c, d) VALUES ("Subpart expr fulfilled", 1);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 subpartition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a, b, d) VALUES (10, "Full part, half subpart", 1),
+                                (12, "Full part, half subpart", 1),
+                                (12, "Full part, half subpart", 2),
+                                (12, "Full part, half subpart", 3),
+                                (12, "Full part, half subpart", 4),
+                                (12, "Full part, half subpart", 0);
+eval $get_handler_status_counts;
+--echo # d = 0 and d = 4 goes to the same subpart!
+--echo # 12 locks (1 table, 5 subpartition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a, b, c) VALUES (1, "Full part", "Half subpart");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 subpartition lock/unlock)
+--echo # Adding 'Default' as padding to see if LINEAR KEY uses different parts.
+FLUSH STATUS;
+INSERT INTO t3 (a, c, d) VALUES (12, "Half part, full subpart", 1),
+                                (12, "Half part, full subpartDefault", 1),
+                                (12, "Half part, full subpart Default", 1);
+eval $get_handler_status_counts;
+--echo # First and last row goes to the same subpartition.
+--echo # 6 locks (1 table, 2 subpartition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (b, c, d) VALUES ("Half part", "Full subpart", 1);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 subpartition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a, b, c, d) VALUES (1, "Full part", "Full subpart", 1);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 subpartition lock/unlock)
+
+--sorted_result
+SELECT * FROM t3;
+--sorted_result
+SELECT d, c FROM t3 PARTITION(`p11-100sp0`);
+--sorted_result
+SELECT d, c FROM t3 PARTITION(`p11-100sp1`);
+--sorted_result
+SELECT d, c FROM t3 PARTITION(`p11-100sp2`);
+--sorted_result
+SELECT d, c FROM t3 PARTITION(`p11-100sp3`);
+
+DROP TABLE t3;
+
+--echo #
+--echo # Test insert with timestamp column
+--echo #
+CREATE TABLE t3
+(a timestamp DEFAULT 0,
+ b char(10),
+ PRIMARY KEY (a, b))
+PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES (NULL);
+SHOW CREATE TABLE t3;
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
+eval $get_handler_status_counts;
+--echo # 6 locks (1 table, 2 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
+ON DUPLICATE KEY UPDATE b = CONCAT(b, ", DUP_KEY");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+SELECT COUNT(*) FROM t3;
+DROP TABLE t3;
+CREATE TABLE t3
+(a timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ b char(10),
+ PRIMARY KEY (a, b))
+PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
+SHOW CREATE TABLE t3;
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES (NULL);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
+eval $get_handler_status_counts;
+--echo # 6 locks (1 table, 2 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
+ON DUPLICATE KEY UPDATE b = CONCAT(b, ", DUP_KEY");
+#eval $get_handler_status_counts;
+--echo # May change partition, so gives different UPDATE/DELETE/WRITE count
+SHOW STATUS LIKE 'Handler_external_lock';
+--echo # 8 locks (1 table, 3 partition lock/unlock)
+SELECT COUNT(*) FROM t3;
+DROP TABLE t3;
+CREATE TABLE t3
+(a timestamp DEFAULT 0 ON UPDATE CURRENT_TIMESTAMP,
+ b char(10),
+ PRIMARY KEY (a, b))
+PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
+SHOW CREATE TABLE t3;
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES (NULL);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
+eval $get_handler_status_counts;
+--echo # 6 locks (1 table, 2 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
+ON DUPLICATE KEY UPDATE b = CONCAT(b, ", DUP_KEY");
+#eval $get_handler_status_counts;
+--echo # May change partition, so gives different UPDATE/DELETE/WRITE count
+SHOW STATUS LIKE 'Handler_external_lock';
+--echo # 8 locks (1 table, 3 partition lock/unlock)
+SELECT COUNT(*) FROM t3;
+DROP TABLE t3;
+CREATE TABLE t3
+(a timestamp DEFAULT CURRENT_TIMESTAMP,
+ b char(10),
+ PRIMARY KEY (a, b))
+PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
+SHOW CREATE TABLE t3;
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES (NULL);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
+eval $get_handler_status_counts;
+--echo # 6 locks (1 table, 2 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
+ON DUPLICATE KEY UPDATE b = CONCAT(b, ", DUP_KEY");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+SELECT COUNT(*) FROM t3;
 DROP TABLE t3;
 
 --echo #

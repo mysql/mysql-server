@@ -1872,7 +1872,13 @@ void partition_info::report_part_expr_error(bool use_subpart_expr)
 
 
 /**
-  Check if fields are in the partitioning expression
+  Check if fields are in the partitioning expression.
+
+  @param fields  List of Items (fields)
+
+  @return True if any field in the fields list is used by a partitioning expr.
+    @retval true  At least one field in the field list is found.
+    @retval false No field is within any partitioning expression.
 */
 
 bool partition_info::is_field_in_part_expr(List<Item> &fields)
@@ -1880,7 +1886,6 @@ bool partition_info::is_field_in_part_expr(List<Item> &fields)
   List_iterator<Item> it(fields);
   Item *item;
   Item_field *field;
-  DBUG_ASSERT(fields.elements);
   DBUG_ENTER("is_fields_in_part_expr");
   while ((item= it++))
   {
@@ -1892,11 +1897,56 @@ bool partition_info::is_field_in_part_expr(List<Item> &fields)
     else
     {
       DBUG_ASSERT(field->field->table == table);
-      if (!bitmap_is_set(&full_part_field_set, field->field->field_index))
+      if (bitmap_is_set(&full_part_field_set, field->field->field_index))
         DBUG_RETURN(true);
     }
   }
   DBUG_RETURN(false);
+}
+ 
+
+/**
+  Check if all partitioning fields are included.
+*/
+
+bool partition_info::is_full_part_expr_in_fields(List<Item> &fields)
+{
+  Field *part_field= full_part_field_array[0];
+  DBUG_ASSERT(part_field);
+  DBUG_ENTER("is_full_part_expr_in_fields");
+  /*
+    It is very seldom many fields in full_part_field_array, so it is OK
+    to loop over all of them instead of creating a bitmap fields argument
+    to compare with.
+  */
+  do
+  {
+    List_iterator<Item> it(fields);
+    Item *item;
+    Item_field *field;
+    bool found= false;
+  
+    while ((item= it++))
+    {
+      if (!(field= item->filed_for_view_update()))
+      {
+        DBUG_ASSERT(0); // Should already be checked
+        DBUG_RETURN(false);
+      }
+      else
+      {
+        DBUG_ASSERT(field->field->table == table);
+        if (part_field == field->field)
+        {
+          found= true;
+          break;
+        }
+      }
+    }
+    if (!found)
+      DBUG_RETURN(false);
+  } while (++part_field);
+  DBUG_RETURN(true);
 }
  
 

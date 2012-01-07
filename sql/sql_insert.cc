@@ -663,9 +663,9 @@ create_insert_stmt_from_insert_delayed(THD *thd, String *buf)
   @param table  Table the record belongs to
 */
 
-static void default_record(table_map used_tables, TABLE *table)
+static void default_record(bool copy_default_values, TABLE *table)
 {
-  if (used_tables)                           // Column used in values()
+  if (copy_default_values)
     restore_record(table,s->default_values); // Get empty record
   else
   {
@@ -704,15 +704,17 @@ static void default_record(table_map used_tables, TABLE *table)
 */
 
 static bool set_partition(THD *thd, TABLE *table, List<Item> &fields,
-                          List<Item> &values, MY_BITMAP *used_partitions)
+                          List<Item> &values, bool copy_default_values,
+                          MY_BITMAP *used_partitions)
 {
   uint32 part_id;
   longlong func_value;
   DBUG_ENTER("set_partition");
-  default_record(thd->lex->used_tables, table);
+
+  default_record(copy_default_values, table);
+
   if (fields.elements || !values.elements)
   {
-    DBUG_ASSERT(thd->lex->used_tables);
     if (fill_record(thd, fields, values, false,
         &table->part_info->full_part_field_set))
       DBUG_RETURN(true);
@@ -723,11 +725,11 @@ static bool set_partition(THD *thd, TABLE *table, List<Item> &fields,
         &table->part_info->full_part_field_set))
       DBUG_RETURN(true);
   }
+
   if (table->part_info->get_partition_id(table->part_info, &part_id,
                                          &func_value))
-  {
     DBUG_RETURN(true);
-  }
+
   DBUG_PRINT("info", ("Insert into partition %u", part_id));
   bitmap_set_bit(used_partitions, part_id);
   DBUG_RETURN(false);
@@ -782,6 +784,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   enum enum_can_prune {PRUNE_NO= 0, PRUNE_DEFAULTS, PRUNE_YES};
   enum_can_prune can_prune_partitions= PRUNE_NO;
   MY_BITMAP used_partitions;
+  bool prune_needs_default_values= false;
 #endif /* WITH_PARITITION_STORAGE_ENGINE */
   DBUG_ENTER("mysql_insert");
 
@@ -861,6 +864,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (!is_locked && table->part_info)
   {
+    /* TODO: Move this to partition_info.h/cc ? */
     /* Only prune if the tables are not yet locked. */
     if (thd->locked_tables_mode == LTM_NONE)
       can_prune_partitions= PRUNE_YES;
@@ -879,38 +883,47 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       few cases (update/auto_inc fields only in part OR subpart fields).
       Cannot be INSERT SELECT.
     */
-#if 0
-    if (can_prune_partitions &&
-        table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    {
-      /* TODO: Test if this is a problem, it should use the timestamp which is set when the statement starts? */
-      can_prune_partitions= PRUNE_NO;
-    }
-#endif
-    /* all inserted rows must explicitly set auto increment column */
     if (can_prune_partitions && table->found_next_number_field)
     {
-      Field **field;
       /*
         If the field is used in the partitioning expression, we cannot prune.
-        TODO: Hmm, if all rows have not null values and
+        TODO: If all rows have not null values and
         is not 0 (with NO_AUTO_VALUE_ON_ZERO sql_mode), then pruning is possible!
       */
-      for (field= table->part_info->full_part_field_array; *field; field++)
-      {
-        if (*field == table->found_next_number_field)
-        {
-          can_prune_partitions= PRUNE_NO;
-          break;
-        }
-      }
+      if (bitmap_is_set(&table->part_info->full_part_field_set,
+          table->found_next_number_field->field_index))
+        can_prune_partitions= PRUNE_NO;
     }
     
     /*
       If a updating a field in the partitioning expression, we cannot prune.
+      
+      Note: TIMESTAMP_AUTO_SET_ON_INSERT is handled by converting Item_null
+      to the start time of the statement. Which will be the same as in
+      write_row(). So pruning of TIMESTAMP DEFAULT CURRENT_TIME will work.
+      But TIMESTAMP_AUTO_SET_ON_UPDATE cannot be pruned if the timestamp
+      column is a part of any part/subpart expression.
+      
+      TODO: Verify this again when WL#5874 completed.
     */
     if (can_prune_partitions && duplic == DUP_UPDATE)
     {
+      Field *timestamp_field= table->get_timestamp_field();
+      if (timestamp_field &&
+          bitmap_is_set(&table->part_info->full_part_field_set,
+                        timestamp_field->field_index))
+      {
+        /*
+          The timestamp field is part of a partitioning expression.
+          If it is set on update, it is not possible to
+          prune, unless verifying all rows is not set to NULL.
+        */
+        DBUG_PRINT("info", ("timestamp_field_type: %d",
+                            table->timestamp_field_type));
+        if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+          can_prune_partitions= PRUNE_NO;
+      }
+
       /* TODO: add check for static update values, which can be pruned. */
       if (table->part_info->is_field_in_part_expr(update_fields))
         can_prune_partitions= PRUNE_NO;
@@ -928,10 +941,30 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     /*
       If no partitioning field in set (e.g. defaults) check pruning only once.
     */
-    if (can_prune_partitions && fields.elements)
+    if (can_prune_partitions &&
+        fields.elements &&
+        !table->part_info->is_field_in_part_expr(fields))
+      can_prune_partitions= PRUNE_DEFAULTS;
+
+    /*
+      If not all partitioning fields are given,
+      we also must set all non given partitioning fields
+      to get correct defaults.
+      we do this by copy the full default record in default_record().
+      TODO: If any gain, we could enhance this by only copy the needed default
+      fields by
+        1) check which fields needs to be set.
+        2) only copy those fields from the default record.
+    */
+    if (can_prune_partitions)
     {
-      if (!table->part_info->is_field_in_part_expr(fields))
-        can_prune_partitions= PRUNE_DEFAULTS;
+      if (fields.elements)
+      {
+        if (!table->part_info->is_full_part_expr_in_fields(fields))
+          prune_needs_default_values= true;
+      }
+      else if (!values->elements)
+        prune_needs_default_values= true; // like 'INSERT INTO t () VALUES ()'
     }
 
     if (can_prune_partitions != PRUNE_NO)
@@ -963,7 +996,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         Do not fail here, since that would break MyISAM behavior of inserting
         all rows before failing row.
       */
-      if (set_partition(thd, table, fields, *values, &used_partitions))
+      if (set_partition(thd, table, fields, *values,
+                        prune_needs_default_values, &used_partitions))
         can_prune_partitions= PRUNE_NO;
     }
   }
@@ -985,11 +1019,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       TODO: Is it possible to store the calculated part_id and reuse in
       ha_partition::write_row()?
       Should it also be done if num rows >> num partitions? Yes to increase
-      concurrancy on partitioned MyISAM tables.
+      concurrancy on partitioned tables that use table locking, like MyISAM.
     */
     if (can_prune_partitions == PRUNE_YES)
     {
-      if (set_partition(thd, table, fields, *values, &used_partitions))
+      if (set_partition(thd, table, fields, *values,
+                        prune_needs_default_values, &used_partitions))
         can_prune_partitions= PRUNE_NO;
       if (!(counter % num_partitions))
       {
