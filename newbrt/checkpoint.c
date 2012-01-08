@@ -68,8 +68,8 @@ static void (*ydb_lock)(void)   = NULL;
 static void (*ydb_unlock)(void) = NULL;
 
 static BOOL initialized = FALSE;     // sanity check
-static BOOL locked_mo = FALSE;       // true when the multi_operation write lock is held (by checkpoint)
-static BOOL locked_cs = FALSE;       // true when the checkpoint_safe write lock is held (by checkpoint)
+static volatile BOOL locked_mo = FALSE;       // true when the multi_operation write lock is held (by checkpoint)
+static volatile BOOL locked_cs = FALSE;       // true when the checkpoint_safe write lock is held (by checkpoint)
 
 
 // Note following static functions are called from checkpoint internal logic only,
