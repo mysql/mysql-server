@@ -28,9 +28,11 @@ extern ssize_t my_send_async(struct mysql_async_context *b, int fd,
                              uint timeout);
 extern my_bool my_poll_read_async(struct mysql_async_context *b,
                                   uint timeout);
+#ifdef HAVE_OPENSSL
 extern int my_ssl_read_async(struct mysql_async_context *b, SSL *ssl,
                              void *buf, int size);
 extern int my_ssl_write_async(struct mysql_async_context *b, SSL *ssl,
                               const void *buf, int size);
+#endif
 
 #endif  /* MYSQL_ASYNC_H */
