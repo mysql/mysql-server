@@ -578,19 +578,6 @@ typedef struct system_status_var
   ulonglong ha_savepoint_count;
   ulonglong ha_savepoint_rollback_count;
   ulonglong ha_external_lock_count;
-
-#if 0
-  /* Tatiana thinks this may be dead now. */
-  /* KEY_CACHE parts. These are copies of the original */
-  ulonglong key_blocks_changed;
-  ulonglong key_blocks_used;
-  ulonglong key_cache_r_requests;
-  ulonglong key_cache_read;
-  ulonglong key_cache_w_requests;
-  ulonglong key_cache_write;
-  /* END OF KEY_CACHE parts */
-#endif
-
   ulonglong opened_tables;
   ulonglong opened_shares;
   ulonglong select_full_join_count;

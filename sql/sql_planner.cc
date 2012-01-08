@@ -3763,7 +3763,7 @@ void Optimize_table_order::backout_nj_sj_state(const table_map remaining_tables,
 
   for (;last_emb != NULL; last_emb= last_emb->embedding)
   {
-    if (last_emb->on_expr)
+    if (last_emb->join_cond())
     {
       NESTED_JOIN *nest= last_emb->nested_join;
       DBUG_ASSERT(nest->counter_ > 0);
