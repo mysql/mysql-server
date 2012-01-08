@@ -1249,7 +1249,7 @@ search:
     {
       set_keys(pfs, share);
       /* FIXME: aggregate to table_share sink ? */
-      pfs->m_table_stat.reset();
+      pfs->m_table_stat.fast_reset();
     }
     lf_hash_search_unpin(pins);
     return pfs;
@@ -1291,7 +1291,7 @@ search:
         pfs->m_enabled= enabled;
         pfs->m_timed= timed;
         pfs->init_refcount();
-        pfs->m_table_stat.reset();
+        pfs->m_table_stat.fast_reset();
         set_keys(pfs, share);
 
         int res;
@@ -1332,7 +1332,7 @@ void PFS_table_share::aggregate_io(void)
   uint index= global_table_io_class.m_event_name_index;
   PFS_single_stat *table_io_total= & global_instr_class_waits_array[index];
   m_table_stat.sum_io(table_io_total);
-  m_table_stat.reset_io();
+  m_table_stat.fast_reset_io();
 }
 
 void PFS_table_share::aggregate_lock(void)
@@ -1340,7 +1340,7 @@ void PFS_table_share::aggregate_lock(void)
   uint index= global_table_lock_class.m_event_name_index;
   PFS_single_stat *table_lock_total= & global_instr_class_waits_array[index];
   m_table_stat.sum_lock(table_lock_total);
-  m_table_stat.reset_lock();
+  m_table_stat.fast_reset_lock();
 }
 
 void release_table_share(PFS_table_share *pfs)
