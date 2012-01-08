@@ -5729,9 +5729,10 @@ static int
 toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_pair *lorange, struct kv_pair *hirange) {
     int result=0;
     BRTNODE node;
-    void *node_v;
+    void* node_v;
+    toku_get_node_for_verify(blocknum, brt, &node);
+    result=toku_verify_brtnode(brt, ZERO_MSN, ZERO_MSN, node, -1, lorange, hirange, NULL, NULL, 0, 1, 0);
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
-    result=toku_verify_brtnode(brt, ZERO_MSN, ZERO_MSN, blocknum, -1, lorange, hirange, NULL, NULL, 0, 1, 0);
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->h);
     int r = toku_cachetable_get_and_pin(
