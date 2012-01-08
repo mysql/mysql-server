@@ -3621,6 +3621,7 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
 //
 void ha_tokudb::set_main_dict_put_flags(
     THD* thd, 
+    bool opt_eligible,
     u_int32_t* put_flags
     ) 
 {
@@ -3654,7 +3655,7 @@ void ha_tokudb::set_main_dict_put_flags(
     {
         *put_flags = old_prelock_flags;
     }
-    else if (using_ignore_flag_opt && is_insert_ignore(thd) 
+    else if (opt_eligible && using_ignore_flag_opt && is_insert_ignore(thd) 
             && !in_hot_index)
     {
         *put_flags = DB_NOOVERWRITE_NO_ERROR | old_prelock_flags;
@@ -3673,7 +3674,7 @@ int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk
 
     assert(curr_num_DBs == 1);
     
-    set_main_dict_put_flags(thd, &put_flags);
+    set_main_dict_put_flags(thd, true, &put_flags);
 
     error = share->file->put(
         share->file, 
@@ -3695,7 +3696,7 @@ cleanup:
 int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd) {
     int error = 0;
     uint curr_num_DBs = share->num_DBs;
-    set_main_dict_put_flags(thd, &mult_put_flags[primary_key]);
+    set_main_dict_put_flags(thd, true, &mult_put_flags[primary_key]);
     uint32_t i, flags = mult_put_flags[primary_key];
 
     // the insert ignore optimization uses DB_NOOVERWRITE_NO_ERROR, 
@@ -4057,7 +4058,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     error = pack_old_row_for_update(&old_prim_row, old_row, primary_key);
     if (error) { goto cleanup; }
 
-    set_main_dict_put_flags(thd, &mult_put_flags[primary_key]);
+    set_main_dict_put_flags(thd, false, &mult_put_flags[primary_key]);
 
     error = db_env->update_multiple(
         db_env, 
