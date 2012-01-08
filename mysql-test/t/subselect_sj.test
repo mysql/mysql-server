@@ -1997,6 +1997,25 @@ set optimizer_switch= @os_091399;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # BUG#912510: Crash in do_copy_not_null with semijoin=ON, firstmatch=ON, aggregate ...
+--echo #
+CREATE TABLE t1 ( a VARCHAR(1) NOT NULL );
+INSERT INTO t1 VALUES ('k'),('l');
+
+CREATE TABLE t2 ( b VARCHAR(1) NOT NULL, KEY(b) );
+INSERT INTO t2 VALUES ('k'),('l');
+
+CREATE TABLE t3 ( c VARCHAR(1) NOT NULL, KEY(c) );
+INSERT INTO t3 VALUES ('m'),('n');
+
+SELECT a, COUNT(*) FROM t1
+  WHERE a IN (
+    SELECT b FROM t2 force index(b), t3 force index(c)
+    WHERE c = b AND b = a
+  );
+
+DROP TABLE t1, t2, t3;
 
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;

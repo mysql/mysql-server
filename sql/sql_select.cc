@@ -646,6 +646,9 @@ JOIN::prepare(Item ***rref_pointer_array,
       aggregate functions and non-aggregate fields, any non-aggregated field
       may produce a NULL value. Set all fields of each table as nullable before
       semantic analysis to take into account this change of nullability.
+
+      Note: this loop doesn't touch tables inside merged semi-joins, because
+      subquery-to-semijoin conversion has not been done yet. This is intended.
     */
     if (mixed_implicit_grouping)
       tbl->table->maybe_null= 1;
