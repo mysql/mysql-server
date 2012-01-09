@@ -2637,15 +2637,10 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       }
     }
   }
-  /* We will evaluate on-expressions here only if it is not considered
-     expensive.  This also prevents executing materialized subqueries
-     in optimization phase.  This is necessary since proper setup for
-     such execution has not been done at this stage.  
-     (See comment in internal_remove_eq_conds() tagged 
-     DontEvaluateMaterializedSubqueryTooEarly).
-  */
-  if (*tab->on_expr_ref && !table->null_row && 
-      !(*tab->on_expr_ref)->is_expensive())
+
+  // We cannot handle outer-joined tables with expensive join conditions here:
+  DBUG_ASSERT(!(*tab->on_expr_ref && (*tab->on_expr_ref)->is_expensive()));
+  if (*tab->on_expr_ref && !table->null_row)
   {
     if ((table->null_row= test((*tab->on_expr_ref)->val_int() == 0)))
       mark_as_null_row(table);  
