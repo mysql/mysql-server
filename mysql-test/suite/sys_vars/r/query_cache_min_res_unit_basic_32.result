@@ -120,11 +120,11 @@ SELECT @@query_cache_min_res_unit;
 @@query_cache_min_res_unit
 512
 SET local.query_cache_min_res_unit = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'query_cache_min_res_unit = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'query_cache_min_res_unit = 1' at line 1
 SELECT local.query_cache_min_res_unit;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.query_cache_min_res_unit = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'query_cache_min_res_unit = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'query_cache_min_res_unit = 1' at line 1
 SELECT global.query_cache_min_res_unit;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT query_cache_min_res_unit = @@session.query_cache_min_res_unit;

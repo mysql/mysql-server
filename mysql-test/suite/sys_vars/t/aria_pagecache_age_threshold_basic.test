@@ -42,6 +42,7 @@ select @@global.aria_pagecache_age_threshold;
 set global aria_pagecache_age_threshold=@@global.aria_pagecache_age_threshold + 100;
 select @@global.aria_pagecache_age_threshold;
 set global aria_pagecache_age_threshold=cast(-1 as unsigned int);
+--replace_result 4294967200 18446744073709551600
 select @@global.aria_pagecache_age_threshold;
 
 SET @@global.aria_pagecache_age_threshold = @start_global_value;

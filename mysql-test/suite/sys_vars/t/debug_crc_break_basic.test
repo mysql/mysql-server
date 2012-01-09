@@ -37,7 +37,10 @@ set global debug_crc_break="foo";
 #
 set global debug_crc_break=0;
 select @@global.debug_crc_break;
+--disable_warnings
 set global debug_crc_break=cast(-1 as unsigned int);
+--enable_warnings
+--replace_result 4294967295 18446744073709551615
 select @@global.debug_crc_break;
 
 SET @@global.debug_crc_break = @start_global_value;

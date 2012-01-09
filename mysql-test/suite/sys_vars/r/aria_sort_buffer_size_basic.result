@@ -38,9 +38,6 @@ select @@global.aria_sort_buffer_size;
 @@global.aria_sort_buffer_size
 4
 set session aria_sort_buffer_size=cast(-1 as unsigned int);
-Warnings:
-Note	1105	Cast to unsigned converted negative integer to it's positive complement
-Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select @@session.aria_sort_buffer_size;
 @@session.aria_sort_buffer_size
 18446744073709551615

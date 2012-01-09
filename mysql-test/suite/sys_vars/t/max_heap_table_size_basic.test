@@ -111,28 +111,38 @@ SET @@global.max_heap_table_size = 1024;
 SELECT @@global.max_heap_table_size;
 SET @@global.max_heap_table_size = 16383;
 SELECT @@global.max_heap_table_size;
+--disable_warnings
 SET @@global.max_heap_table_size = 4294967296;
+--enable_warnings
+--replace_result 4294966272 4294967296
 SELECT @@global.max_heap_table_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_heap_table_size = 65530.34;
+--replace_result 4294966272 4294967296
 SELECT @@global.max_heap_table_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_heap_table_size = test;
+--replace_result 4294966272 4294967296
 SELECT @@global.max_heap_table_size;
 
 SET @@session.max_heap_table_size = -1;
 SELECT @@session.max_heap_table_size;
 SET @@session.max_heap_table_size = 16383;
 SELECT @@session.max_heap_table_size;
+--disable_warnings
 SET @@session.max_heap_table_size = 4294967296;
+--enable_warnings
+--replace_result 4294966272 4294967296
 SELECT @@session.max_heap_table_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_heap_table_size = 65530.34;
 SET @@session.max_heap_table_size = 10737418241;
+--replace_result 4294966272 10737418240
 SELECT @@session.max_heap_table_size;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_heap_table_size = test;
+--replace_result 4294966272 10737418240
 SELECT @@session.max_heap_table_size;
 
 

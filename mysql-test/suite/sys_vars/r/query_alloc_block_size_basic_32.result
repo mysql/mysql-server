@@ -41,18 +41,6 @@ Warning	1292	Truncated incorrect query_alloc_block_size value: '1025'
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
 1024
-SET @@global.query_alloc_block_size = 4294967295;
-Warnings:
-Warning	1292	Truncated incorrect query_alloc_block_size value: '4294967295'
-SELECT @@global.query_alloc_block_size;
-@@global.query_alloc_block_size
-4294966272
-SET @@global.query_alloc_block_size = 4294967294;
-Warnings:
-Warning	1292	Truncated incorrect query_alloc_block_size value: '4294967294'
-SELECT @@global.query_alloc_block_size;
-@@global.query_alloc_block_size
-4294966272
 SET @@global.query_alloc_block_size = 65536;
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
@@ -68,18 +56,6 @@ Warning	1292	Truncated incorrect query_alloc_block_size value: '1025'
 SELECT @@session.query_alloc_block_size;
 @@session.query_alloc_block_size
 1024
-SET @@session.query_alloc_block_size = 4294967295;
-Warnings:
-Warning	1292	Truncated incorrect query_alloc_block_size value: '4294967295'
-SELECT @@session.query_alloc_block_size;
-@@session.query_alloc_block_size
-4294966272
-SET @@session.query_alloc_block_size = 4294967294;
-Warnings:
-Warning	1292	Truncated incorrect query_alloc_block_size value: '4294967294'
-SELECT @@session.query_alloc_block_size;
-@@session.query_alloc_block_size
-4294966272
 SET @@session.query_alloc_block_size = 655536;
 Warnings:
 Warning	1292	Truncated incorrect query_alloc_block_size value: '655536'
@@ -105,22 +81,16 @@ Warning	1292	Truncated incorrect query_alloc_block_size value: '1023'
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
 1024
-SET @@global.query_alloc_block_size = 4294967296;
-Warnings:
-Warning	1292	Truncated incorrect query_alloc_block_size value: '4294967296'
-SELECT @@global.query_alloc_block_size;
-@@global.query_alloc_block_size
-4294966272
 SET @@global.query_alloc_block_size = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'query_alloc_block_size'
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
-4294966272
+1024
 SET @@global.query_alloc_block_size = test;
 ERROR 42000: Incorrect argument type to variable 'query_alloc_block_size'
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
-4294966272
+1024
 SET @@session.query_alloc_block_size = 64;
 Warnings:
 Warning	1292	Truncated incorrect query_alloc_block_size value: '64'
