@@ -134,15 +134,15 @@ do_db_work(void) {
     }
 }
 
-static int write_count = 0;
+static volatile int write_count = 0;
 #define FAIL_NEVER 0x7FFFFFFF
 static int fail_at = FAIL_NEVER;
 
 static ssize_t
 pwrite_counting_and_failing (int fd, const void *buf, size_t size, toku_off_t off)
 {
-    write_count++;
-    if (write_count>fail_at) {
+    int this_count = __sync_add_and_fetch(&write_count, 1);
+    if (this_count>fail_at) {
         if (verbose>1) { printf("Failure imminent at %d:\n", fail_at); fflush(stdout); }
 	errno = ENOSPC;
 	return -1;
@@ -154,8 +154,8 @@ pwrite_counting_and_failing (int fd, const void *buf, size_t size, toku_off_t of
 static ssize_t
 write_counting_and_failing (int fd, const void *buf, size_t size)
 {
-    write_count++;
-    if (write_count>fail_at) {
+    int this_count = __sync_add_and_fetch(&write_count, 1);
+    if (this_count>fail_at) {
         if (verbose>1) { printf("Failure imminent at %d:\n", fail_at); fflush(stdout); }
 	errno = ENOSPC;
 	return -1;

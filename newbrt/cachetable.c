@@ -9,6 +9,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdarg.h>
+#include <valgrind/drd.h>
 
 #include "memory.h"
 #include "workqueue.h"
@@ -410,6 +411,12 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     CACHETABLE MALLOC(ct);
     if (ct == 0) return ENOMEM;
     memset(ct, 0, sizeof(*ct));
+    DRD_IGNORE_VAR(ct->size_nonleaf); // modified only when the cachetable lock is held, but read by engine status
+    DRD_IGNORE_VAR(ct->size_current);
+    DRD_IGNORE_VAR(ct->size_evicting);
+    DRD_IGNORE_VAR(ct->size_leaf);
+    DRD_IGNORE_VAR(ct->size_rollback);
+    DRD_IGNORE_VAR(ct->size_cachepressure);
     ct->table_size = 4;
     rwlock_init(&ct->pending_lock);
     XCALLOC_N(ct->table_size, ct->table);
@@ -4005,3 +4012,11 @@ toku_cleaner_thread (void *cachetable_v)
     return 0;
 }
 
+void __attribute__((__constructor__)) toku_cachetable_drd_ignore(void);
+void
+toku_cachetable_drd_ignore(void) {
+    // incremented only while lock is held, but read by engine status asynchronously.
+    DRD_IGNORE_VAR(cachetable_lock_taken);
+    DRD_IGNORE_VAR(cachetable_lock_released);
+    DRD_IGNORE_VAR(cachetable_evictions);
+}
