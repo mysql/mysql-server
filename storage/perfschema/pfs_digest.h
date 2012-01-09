@@ -25,8 +25,8 @@
 #include "lf.h"
 #include "pfs_stat.h"
 
-#define MAX_TOKEN_COUNT 1000
-#define START_TOKEN_NUMBER 258
+#define PFS_MAX_DIGEST_STORAGE_SIZE 1024
+#define PFS_SIZE_OF_A_TOKEN 2
 
 extern bool flag_statements_digest;
 extern unsigned int statements_digest_size;
@@ -44,12 +44,10 @@ struct {
   Structure to store token count/array for a statement
   on which digest is to be calculated.
 */
-#define PFS_MAX_TOKEN_COUNT 1024
 struct {
-         uint m_token_count;
-         uint m_byte_count;
-         uint m_last_id_index;
-         char m_token_array[PFS_MAX_TOKEN_COUNT];
+         int m_byte_count;
+         int m_last_id_index;
+         char m_token_array[PFS_MAX_DIGEST_STORAGE_SIZE];
          PFS_digest_hash m_digest_hash;
        } typedef PFS_digest_storage;
 
