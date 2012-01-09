@@ -395,6 +395,27 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   err_code= vio_getnameinfo(ip, hostname_buffer, NI_MAXHOST, NULL, 0,
                             NI_NAMEREQD);
 
+  DBUG_EXECUTE_IF("getnameinfo_error_noname",
+                  {
+                    strcpy(hostname_buffer, "<garbage>");
+                    err_code= EAI_NONAME;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getnameinfo_error_again",
+                  {
+                    strcpy(hostname_buffer, "<garbage>");
+                    err_code= EAI_AGAIN;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getnameinfo_fake_ipv4",
+                  {
+                    strcpy(hostname_buffer, "santa.claus.ipv4.example.com");
+                    err_code= 0;
+                  }
+                  );
+
   if (err_code)
   {
     // NOTE: gai_strerror() returns a string ending by a dot.
