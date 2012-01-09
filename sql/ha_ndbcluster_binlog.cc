@@ -5327,6 +5327,13 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     /*
       check if logging turned off for this table
     */
+    if ((share->flags & NSF_HIDDEN_PK) &&
+        (share->flags & NSF_BLOB_FLAG) &&
+        !(share->flags & NSF_NO_BINLOG))
+    {
+      DBUG_PRINT("NDB_SHARE", ("NSF_HIDDEN_PK && NSF_BLOB_FLAG -> NSF_NO_BINLOG"));
+      share->flags |= NSF_NO_BINLOG;
+    }
     if (get_binlog_nologging(share))
     {
       if (opt_ndb_extra_logging)
