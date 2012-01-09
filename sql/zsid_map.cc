@@ -59,9 +59,9 @@ enum_return_status Sid_map::clear()
   RETURN_OK;
 }
 
-rpl_sidno Sid_map::add(const rpl_sid *sid)
+rpl_sidno Sid_map::add_sid(const rpl_sid *sid)
 {
-  DBUG_ENTER("Sid_map::add");
+  DBUG_ENTER("Sid_map::add_sid(const rpl_sid *)");
 #ifndef DBUG_OFF
   char buf[Uuid::TEXT_LENGTH + 1];
   sid->to_string(buf);
@@ -87,6 +87,7 @@ rpl_sidno Sid_map::add(const rpl_sid *sid)
       sid_lock->wrlock();
     }
   }
+  DBUG_PRINT("info", ("is_wrlock=%d sid_lock=%p", is_wrlock, sid_lock));
   rpl_sidno sidno;
   node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
                                rpl_sid::BYTE_LENGTH);
@@ -95,7 +96,16 @@ rpl_sidno Sid_map::add(const rpl_sid *sid)
   else
   {
     sidno= get_max_sidno() + 1;
-    if (add_node(sidno, sid) != RETURN_STATUS_OK)
+    if (add_node(sidno, sid) != RETURN_STATUS_OK
+#ifdef MYSQL_SERVER
+        /*
+          If this is the global_sid_map, we take the opportunity to
+          resize all arrays in gtid_state while holding the wrlock.
+        */
+        || (this == &global_sid_map && 
+            gtid_state.ensure_sidno() != RETURN_STATUS_OK)
+#endif
+        )
       sidno= -1;
     /// @todo: remove node on write error /sven
   }

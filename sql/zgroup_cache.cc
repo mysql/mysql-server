@@ -168,7 +168,7 @@ enum_return_status Group_cache::get_gtids(Gtid_set *gs) const
   for (int i= 0; i < n_groups; i++)
   {
     Cached_group *group= get_unsafe_pointer(i);
-    PROPAGATE_REPORTED_ERROR(gs->_add(group->spec.gtid));
+    PROPAGATE_REPORTED_ERROR(gs->_add_gtid(group->spec.gtid));
   }
   RETURN_OK;
 }

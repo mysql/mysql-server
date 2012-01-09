@@ -4145,7 +4145,7 @@ String *Item_func_group_subtract::val_str_ascii(String *str)
       int length;
       // subtract, save result, return result
       if (status == RETURN_STATUS_OK &&
-          set1.remove(&set2) == 0 &&
+          set1.remove_gtid_set(&set2) == 0 &&
           !str->realloc((length= set1.get_string_length()) + 1))
       {
         set1.to_string((char *)str->ptr());

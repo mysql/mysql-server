@@ -2674,8 +2674,8 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     Gtid_set gtid_set(&global_sid_map);
     global_sid_lock.rdlock();
 
-    gtid_set.add(mi->rli->get_gtid_set());
-    gtid_set.add(gtid_state.get_logged_gtids());
+    gtid_set.add_gtid_set(mi->rli->get_gtid_set());
+    gtid_set.add_gtid_set(gtid_state.get_logged_gtids());
 
     // allocate buffer
     size_t unused_size= 0;
@@ -7034,9 +7034,9 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
         {
           global_sid_lock.rdlock();
           mi->rli->clear_until_condition();
-          if (mi->rli->until_gtids_obj.add(thd->lex->mi.gtid) != RETURN_STATUS_OK)
+          if (mi->rli->until_gtids_obj.add_gtid_text(thd->lex->mi.gtid) != RETURN_STATUS_OK)
             slave_errno= ER_BAD_SLAVE_UNTIL_COND;
-          if (mi->rli->current_gtids_obj.add(gtid_state.get_logged_gtids()) != RETURN_STATUS_OK)
+          if (mi->rli->current_gtids_obj.add_gtid_set(gtid_state.get_logged_gtids()) != RETURN_STATUS_OK)
             slave_errno= ER_BAD_SLAVE_UNTIL_COND;
           mi->rli->until_condition= Relay_log_info::UNTIL_SQL_BEFORE_GTIDS;
           global_sid_lock.unlock();

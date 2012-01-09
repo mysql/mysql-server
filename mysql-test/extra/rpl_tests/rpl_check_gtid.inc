@@ -89,6 +89,8 @@ if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`
     if (`SELECT "$info" <> ""`)
     {
       --echo $type $info -- Info should be empty.
+      --let $datadir= `select @@datadir`
+      --exec $MYSQL_BINLOG $datadir/$server_log
       --eval $command_show in "$server_log"
       --die
     }
@@ -98,6 +100,8 @@ if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`
     if (`SELECT NOT ("$info" REGEXP "$server_uuid:$gtid_set_ini-$gtid_set_end")`)
     {
       --echo $type $info -- Info should be $server_uuid:$gtid_set_ini-$gtid_set_end.
+      --let $datadir= `select @@datadir`
+      --exec $MYSQL_BINLOG $datadir/$server_log
       --eval $command_show in "$server_log"
       --die
     }
@@ -107,6 +111,8 @@ if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`
     if (`SELECT NOT ("$info" REGEXP "$server_uuid:$gtid_set_ini")`)
     {
       --echo $type $info -- Info should be $server_uuid:$gtid_set_ini.
+      --let $datadir= `select @@datadir`
+      --exec $MYSQL_BINLOG $datadir/$server_log
       --eval $command_show in "$server_log"
       --die
     }

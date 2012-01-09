@@ -1931,7 +1931,7 @@ public:
         gs->clear();
       // Add specified set of groups to Gtid_set.
       global_sid_lock.rdlock();
-      enum_return_status ret= gs->add(value);
+      enum_return_status ret= gs->add_gtid_text(value);
       global_sid_lock.unlock();
       if (ret != RETURN_STATUS_OK)
       {

@@ -24,15 +24,13 @@
 #include "rpl_handler.h"
 #include "rpl_info_factory.h"
 #include "debug_sync.h"
-#include <set>
+#include <stack>
 #include <string>
-#include <iterator>
 
 using std::max;
 using std::min;
-using std::set;
 using std::string;
-using std::iterator;
+using std::stack;
 
 #define MY_OFF_T_UNDEF (~(my_off_t)0UL)
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
@@ -1927,20 +1925,12 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
 }
 
 #ifdef HAVE_GTID
-typedef set<string> FileSet;
-bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
+bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_gtids,
                                    bool verify_checksum)
 {
-  LOG_INFO linfo;
-  Log_event *ev= NULL;
-  File file= -1;
-  IO_CACHE log;
-  bool found_prev_gtids_ev= false;
-  FileSet file_set;
-
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
-  DBUG_PRINT("info", ("lost_groups=%p; so we are recovering a %s log",
-                      lost_groups, lost_groups == NULL ? "relay" : "binary"));
+  DBUG_PRINT("info", ("lost_gtids=%p; so we are recovering a %s log",
+                      lost_gtids, lost_gtids == NULL ? "relay" : "binary"));
 
   /*
     Creates a format descriptor that is used to read events from
@@ -1961,94 +1951,137 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
   /*
     Gathers the set of files to be accessed.
   */
-  for (int error= find_log_pos(&linfo, NULL, false); !error;
+  stack<string> filename_stack;
+  LOG_INFO linfo;
+  int error;
+  for (error= find_log_pos(&linfo, NULL, false); !error;
        error= find_next_log(&linfo, false))
-    file_set.insert(string(linfo.log_file_name));
-
-  for (FileSet::reverse_iterator it= file_set.rbegin();
-       it != file_set.rend() && !found_prev_gtids_ev; ++it)
+    filename_stack.push(string(linfo.log_file_name));
+  if (error != LOG_INFO_EOF)
   {
-    DBUG_PRINT("info", ("Opening file %s", (*it).c_str()));
-    const char *errmsg= NULL;
-    if ((file= open_binlog_file(&log, (*it).c_str(), &errmsg)) < 0)
-    {
-      sql_print_error("%s", errmsg);
-      /*
-        We need to revisit the recovery procedure for relay log
-        files. Currently, it is called after this routine.
-        /Alfranio
-      */
-      continue;
-    }
+    DBUG_PRINT("error", ("Error reading binlog index"));
+    DBUG_RETURN(false);
+  }
 
-    /*
-      Seek for Previous_gtids_log_event and Gtid_log_event events to
-      gather information what has been processed so far.
-    */
-    my_b_seek(&log, BIN_LOG_HEADER_SIZE);
-    while ((ev= Log_event::read_log_event(&log, 0, fd_ev_p,
-                                          verify_checksum)) != NULL)
+  Log_event *ev= NULL;
+  File file= -1;
+  IO_CACHE log;
+
+  bool found_prev_gtids_ev= false;
+  for (/*nothing*/; !filename_stack.empty(); filename_stack.pop())
+  {
+    const char *filename= filename_stack.top().c_str();
+    bool is_first_file= filename_stack.empty();
+
+    DBUG_PRINT("info", ("file='%s' found_prev_gtids_ev=%d "
+                        "is_first_file=%d",
+                        filename, found_prev_gtids_ev,
+                        is_first_file));
+
+    if (!found_prev_gtids_ev || is_first_file)
     {
-      switch (ev->get_type_code())
+      DBUG_PRINT("info", ("Opening file %s", filename));
+      const char *errmsg= NULL;
+      if ((file= open_binlog_file(&log, filename, &errmsg)) < 0)
       {
-      case FORMAT_DESCRIPTION_EVENT:
-        fd_ev_p= (Format_description_log_event *)ev;
-        break;
-      case ROTATE_EVENT:
-        // do nothing; just accept this event and go to next
-        break;
-      case PREVIOUS_GTIDS_LOG_EVENT:
-      {
-        // add events to sets
-        Previous_gtids_log_event *prev_gtids_ev=
-          (Previous_gtids_log_event *)ev;
-        if (prev_gtids_ev->add_to_set(gtid_set) != 0)
-          goto err;
-        found_prev_gtids_ev= true;
-#ifndef DBUG_OFF
-        size_t prev_buffer_size= 0;
-        char* prev_buffer= prev_gtids_ev->get_str(&prev_buffer_size, NULL);
-        DBUG_PRINT("info", ("Retrieving from %s Gtid-set %s.",
-                   (*it).c_str(), prev_gtids_ev->get_str(&prev_buffer_size, NULL)));
-        my_free(prev_buffer);
-#endif
-        break;
+        sql_print_error("%s", errmsg);
+        /*
+          We need to revisit the recovery procedure for relay log
+          files. Currently, it is called after this routine.
+          /Alfranio
+        */
+        continue;
       }
-      case GTID_LOG_EVENT:
-        if (found_prev_gtids_ev)
+
+      /*
+        Seek for Previous_gtids_log_event and Gtid_log_event events to
+        gather information what has been processed so far.
+      */
+      my_b_seek(&log, BIN_LOG_HEADER_SIZE);
+      bool done= false;
+      MY_STAT stat;
+      my_stat(filename, &stat, MYF(MY_WME));
+      DBUG_PRINT("info", ("file='%s' size=%llu",
+                          filename, (ulonglong)stat.st_size));
+      while (!done &&
+             (ev= Log_event::read_log_event(&log, 0, fd_ev_p,
+                                            verify_checksum)) != NULL)
+      {
+        DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
+        switch (ev->get_type_code())
+        {
+        case FORMAT_DESCRIPTION_EVENT:
+          fd_ev_p= (Format_description_log_event *)ev;
+          break;
+        case ROTATE_EVENT:
+          // do nothing; just accept this event and go to next
+          break;
+        case PREVIOUS_GTIDS_LOG_EVENT:
+        {
+          // add events to sets
+          Previous_gtids_log_event *prev_gtids_ev=
+            (Previous_gtids_log_event *)ev;
+          if (prev_gtids_ev->add_to_set(gtid_set) != 0)
+            goto err;
+          if (lost_gtids != NULL && is_first_file &&
+              prev_gtids_ev->add_to_set(lost_gtids) != 0)
+            goto err;
+          // if we found a previous_gtids_log_event in a later binlog,
+          // then we don't need to scan the rest of this binlog
+          if (found_prev_gtids_ev)
+            done= true;
+          else
+            found_prev_gtids_ev= true;
+#ifndef DBUG_OFF
+          char* prev_buffer= prev_gtids_ev->get_str(NULL, NULL);
+          DBUG_PRINT("info", ("Got Previous_gtids from file '%s': Gtid_set='%s'.",
+                              filename, prev_buffer));
+          my_free(prev_buffer);
+#endif
+          break;
+        }
+        case GTID_LOG_EVENT:
         {
           Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
           rpl_sidno sidno= gtid_ev->get_sidno(false);
           if (sidno < 0)
             goto err;
           gtid_set->ensure_sidno(sidno);
-          if (gtid_set->_add(sidno, gtid_ev->get_gno()) != RETURN_STATUS_OK)
+          if (gtid_set->_add_gtid(sidno, gtid_ev->get_gno()) !=
+              RETURN_STATUS_OK)
             goto err;
-          DBUG_PRINT("info", ("Retrieving from %s Gtid(%d, %lld).",
-                     (*it).c_str(), sidno, gtid_ev->get_gno()));
+          DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
+                              filename, sidno, gtid_ev->get_gno()));
+          break;
         }
-        break;
-      default:
-        break;
+        default:
+          // if we found any other event type without finding a
+          // previous_gtids_log_event, then the rest of this binlog
+          // cannot contain gtids
+          if (!found_prev_gtids_ev)
+            done= true;
+          break;
+        }
+        if (ev != fd_ev_p)
+          delete ev;
+        DBUG_PRINT("info", ("done=%d", done));
       }
-      if (ev != fd_ev_p)
-        delete ev;
-    }
 
-    if (log.error < 0)
-      sql_print_error("Failed to read information on Previous GTids. Please, "
-                      "check the documentation and take the necessary actions "
-                      "to make the information on GTids consistent.");
+      if (log.error < 0)
+        sql_print_error("Failed to read information on Previous GTIDs. Please, "
+                        "check the documentation and take the necessary actions "
+                        "to make the information on GTIDs consistent.");
 
-    if (fd_ev_p != &fd_ev)
-    {
-      delete fd_ev_p;
-      fd_ev_p= &fd_ev;
+      if (fd_ev_p != &fd_ev)
+      {
+        delete fd_ev_p;
+        fd_ev_p= &fd_ev;
+      }
+      end_io_cache(&log);
+      mysql_file_close(file, MYF(MY_WME));
+      file= -1;
+      //ev= NULL;
     }
-    end_io_cache(&log);
-    mysql_file_close(file, MYF(MY_WME));
-    file= -1;
-    ev= NULL;
   }
 
   global_sid_lock.unlock();
@@ -2781,8 +2814,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   {
     gtid_state.clear();
     // don't clear global_sid_map because it's used by the relay log too
-    if (gtid_state.init() != 0 ||
-        gtid_state.ensure_sidno() != RETURN_STATUS_OK)
+    if (gtid_state.init() != 0)
       goto err;
   }
 #endif

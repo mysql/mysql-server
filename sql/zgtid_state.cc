@@ -44,11 +44,11 @@ enum_return_status Gtid_state::acquire_ownership(Gtid gtid, THD *thd)
   DBUG_ASSERT(!logged_gtids.contains_gtid(gtid));
   DBUG_PRINT("info", ("group=%d:%lld", gtid.sidno, gtid.gno));
   DBUG_ASSERT(thd->owned_gtid.sidno == 0);
-  if (owned_gtids.add(gtid, thd->thread_id) != RETURN_STATUS_OK)
+  if (owned_gtids.add_gtid_owner(gtid, thd->thread_id) != RETURN_STATUS_OK)
     goto err2;
   if (thd->get_gtid_next_list() != NULL)
   {
-    if (thd->owned_gtid_set._add(gtid) != RETURN_STATUS_OK)
+    if (thd->owned_gtid_set._add_gtid(gtid) != RETURN_STATUS_OK)
       goto err1;
     thd->owned_gtid.sidno= -1;
   }
@@ -56,14 +56,14 @@ enum_return_status Gtid_state::acquire_ownership(Gtid gtid, THD *thd)
     thd->owned_gtid= gtid;
   RETURN_OK;
 err1:
-  owned_gtids.remove(gtid);
+  owned_gtids.remove_gtid(gtid);
 err2:
   if (thd->get_gtid_next_list() != NULL)
   {
     Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
     Gtid g= git.get();
     while (g.sidno != 0)
-      owned_gtids.remove(g);
+      owned_gtids.remove_gtid(g);
   }
   thd->owned_gtid_set.clear();
   thd->owned_gtid.sidno= 0;
@@ -112,9 +112,9 @@ enum_return_status Gtid_state::update(THD *thd, bool commit)
     {
       if (g.sidno != prev_sidno)
         sid_locks.lock(g.sidno);
-      owned_gtids.remove(g);
+      owned_gtids.remove_gtid(g);
       if (commit && ret == RETURN_STATUS_OK)
-        ret= logged_gtids._add(g);
+        ret= logged_gtids._add_gtid(g);
       git.next();
       g= git.get();
     }
@@ -122,9 +122,9 @@ enum_return_status Gtid_state::update(THD *thd, bool commit)
   else if (thd->owned_gtid.sidno > 0)
   {
     lock_sidno(thd->owned_gtid.sidno);
-    owned_gtids.remove(thd->owned_gtid);
+    owned_gtids.remove_gtid(thd->owned_gtid);
     if (commit)
-      ret= logged_gtids._add(thd->owned_gtid);
+      ret= logged_gtids._add_gtid(thd->owned_gtid);
   }
 
   broadcast_owned_sidnos(thd);
@@ -213,23 +213,22 @@ void Gtid_state::broadcast_sidnos(const Gtid_set *gs)
 enum_return_status Gtid_state::ensure_sidno()
 {
   DBUG_ENTER("Gtid_state::ensure_sidno");
-  sid_lock->assert_some_lock();
+  sid_lock->assert_some_wrlock();
   rpl_sidno sidno= sid_map->get_max_sidno();
   if (sidno > 0)
   {
     // The lock may be temporarily released during one of the calls to
     // ensure_sidno or ensure_index.  Hence, we must re-check the
     // condition after the calls.
-    do
-    {
-      PROPAGATE_REPORTED_ERROR(logged_gtids.ensure_sidno(sidno));
-      PROPAGATE_REPORTED_ERROR(lost_gtids.ensure_sidno(sidno));
-      PROPAGATE_REPORTED_ERROR(owned_gtids.ensure_sidno(sidno));
-      PROPAGATE_REPORTED_ERROR(sid_locks.ensure_index(sidno));
-      sidno= sid_map->get_max_sidno();
-    } while (logged_gtids.get_max_sidno() < sidno ||
-             owned_gtids.get_max_sidno() < sidno ||
-             sid_locks.get_max_index() < sidno);
+    PROPAGATE_REPORTED_ERROR(logged_gtids.ensure_sidno(sidno));
+    PROPAGATE_REPORTED_ERROR(lost_gtids.ensure_sidno(sidno));
+    PROPAGATE_REPORTED_ERROR(owned_gtids.ensure_sidno(sidno));
+    PROPAGATE_REPORTED_ERROR(sid_locks.ensure_index(sidno));
+    sidno= sid_map->get_max_sidno();
+    DBUG_ASSERT(logged_gtids.get_max_sidno() >= sidno);
+    DBUG_ASSERT(lost_gtids.get_max_sidno() >= sidno);
+    DBUG_ASSERT(owned_gtids.get_max_sidno() >= sidno);
+    DBUG_ASSERT(sid_locks.get_max_index() >= sidno);
   }
   RETURN_OK;
 }
@@ -244,12 +243,10 @@ int Gtid_state::init()
   rpl_sid server_sid;
   if (server_sid.parse(server_uuid) != RETURN_STATUS_OK)
     DBUG_RETURN(1);
-  rpl_sidno sidno= sid_map->add(&server_sid);
+  rpl_sidno sidno= sid_map->add_sid(&server_sid);
   if (sidno <= 0)
     DBUG_RETURN(1);
   server_sidno= sidno;
-  if (ensure_sidno() != RETURN_STATUS_OK)
-    DBUG_RETURN(1);
 
   DBUG_RETURN(0);
 }

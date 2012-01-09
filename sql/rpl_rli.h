@@ -248,7 +248,7 @@ public:
     global_sid_lock.assert_some_lock();
     DBUG_ASSERT(sidno <= global_sid_map.get_max_sidno());
     gtid_set.ensure_sidno(sidno);
-    if (gtid_set._add(sidno, gno) != RETURN_STATUS_OK)
+    if (gtid_set._add_gtid(sidno, gno) != RETURN_STATUS_OK)
       ret= 1;
     return ret;
   }

@@ -33,7 +33,7 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
   // parse sid
   if (sid.parse(text) == RETURN_STATUS_OK)
   {
-    rpl_sidno sidno= sid_map->add(&sid);
+    rpl_sidno sidno= sid_map->add_sid(&sid);
     if (sidno <= 0)
       RETURN_REPORTED_ERROR;
     text += Uuid::TEXT_LENGTH;

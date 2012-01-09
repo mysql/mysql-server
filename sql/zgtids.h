@@ -465,7 +465,7 @@ public:
     not exist, an existing if it did exist).
     @retval negative Error. This function calls my_error.
   */
-  rpl_sidno add(const rpl_sid *sid);
+  rpl_sidno add_sid(const rpl_sid *sid);
   /**
     Get the SIDNO for a given SID
 
@@ -835,7 +835,7 @@ public:
     @param gno GNO of the group to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status _add(rpl_sidno sidno, rpl_gno gno)
+  enum_return_status _add_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     Interval_iterator ivit(this, sidno);
     return add(&ivit, gno, gno + 1);
@@ -848,7 +848,7 @@ public:
     @param gtid Gtid to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status _add(Gtid gtid) { return _add(gtid.sidno, gtid.gno); }
+  enum_return_status _add_gtid(Gtid gtid) { return _add_gtid(gtid.sidno, gtid.gno); }
   /**
     Adds all groups from the given Gtid_set to this Gtid_set.
 
@@ -861,14 +861,14 @@ public:
     @param other The Gtid_set to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add(const Gtid_set *other);
+  enum_return_status add_gtid_set(const Gtid_set *other);
   /**
     Removes all groups in the given Gtid_set from this Gtid_set.
 
     @param other The Gtid_set to remove.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status remove(const Gtid_set *other);
+  enum_return_status remove_gtid_set(const Gtid_set *other);
   /**
     Adds the set of GTIDs represented by the given string to this Gtid_set.
 
@@ -893,7 +893,7 @@ public:
     anonymous group was found; false otherwise.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add(const char *text, bool *anonymous= NULL);
+  enum_return_status add_gtid_text(const char *text, bool *anonymous= NULL);
   /**
     Decodes a Gtid_set from the given string.
 
@@ -901,7 +901,7 @@ public:
     @param length The number of bytes.
     @return GS_SUCCESS or GS_ERROR_PARSE or GS_ERROR_OUT_OF_MEMORY
   */
-  enum_return_status add(const uchar *encoded, size_t length);
+  enum_return_status add_gtid_encoding(const uchar *encoded, size_t length);
   /// Return true iff the given GTID exists in this set.
   bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const;
   /// Return true iff the given GTID exists in this set.
@@ -1539,7 +1539,7 @@ public:
     @param owner The my_thread_id of the group to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add(Gtid gtid, my_thread_id owner);
+  enum_return_status add_gtid_owner(Gtid gtid, my_thread_id owner);
   /**
     Returns the owner of the given GTID, or 0 if the GTID is not owned.
 
@@ -1556,7 +1556,7 @@ public:
 
     @param gtid The Gtid.
   */
-  void remove(Gtid gtid);
+  void remove_gtid(Gtid gtid);
   /**
     Ensures that this Owned_gtids object can accomodate SIDNOs up to
     the given SIDNO.
@@ -1878,10 +1878,13 @@ public:
   void unlock_owned_sidnos(const THD *thd);
   void broadcast_owned_sidnos(const THD *thd);
   /**
-    Ensure that owned_gtids, logged_gtids, @todo lost_gtids, and
-    sid_locks have room for at least as many SIDNOs as sid_map.
+    Ensure that owned_gtids, logged_gtids, lost_gtids, and sid_locks
+    have room for at least as many SIDNOs as sid_map.
 
-    Requires that the read lock on sid_locks is held.  If any object
+    This function must only be called in one place:
+    Sid_map::add_sid().
+
+    Requires that the write lock on sid_locks is held.  If any object
     needs to be resized, then the lock will be temporarily upgraded to
     a write lock and then degraded to a read lock again; there will be
     a short period when the lock is not held at all.
