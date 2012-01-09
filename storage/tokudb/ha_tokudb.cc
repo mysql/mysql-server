@@ -7077,6 +7077,10 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
     DBUG_VOID_RETURN;
 }
 
+bool ha_tokudb::is_optimize_blocking() {
+    return false;
+}
+
 bool ha_tokudb::is_auto_inc_singleton(){
     return false;
 }
