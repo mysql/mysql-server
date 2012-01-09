@@ -2605,7 +2605,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     */
     DBUG_ASSERT(!ends_group() ||
                 (rli->mts_end_group_sets_max_dbs &&
-                 rli->curr_group_da.elements == 2 &&
+                 rli->curr_group_da.elements == 3 &&
                  ((*(Log_event **)
                    dynamic_array_ptr(&rli->curr_group_da,
                                      rli->curr_group_da.elements - 1))-> 
