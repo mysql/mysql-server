@@ -860,7 +860,29 @@ binlog_truncate_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr, bool all)
     transaction cache to remove the statement.
   */
   else
+  {
     cache_mngr->trx_cache.restore_prev_position();
+#ifdef HAVE_GTID
+    if (cache_mngr->trx_cache.is_binlog_empty())
+    {
+      /*
+        After restoring the previous position, we need to check if
+        the cache is empty. In such case, the group cache needs to
+        be cleaned up too because the GTID is removed too from the
+        cache.
+
+        So if any change happens again, the GTID must be rewritten
+        and this will not happen if the group cache is not cleaned
+        up.
+
+        After integrating this with NDB, we need to check if the
+        current approach is enough or the group cache needs to
+        explicitly support rollback to savepoints.
+      */
+      cache_mngr->trx_cache.group_cache.clear();
+    }
+#endif
+  }
 
   DBUG_ASSERT(thd->binlog_get_pending_rows_event(TRUE) == NULL);
   DBUG_RETURN(error);
@@ -5359,17 +5381,7 @@ static int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
     further down and set savepoint and register callbacks.
   */ 
   if (start_event->is_using_immediate_logging())
-  {
-    /// @todo what's this? /sven
-/*
-#ifdef HAVE_GTID
-    Gtid_log_event uinfo(thd);
-    if (write_event_to_cache(thd, &uinfo, cache_data))
-      DBUG_RETURN(1);
-#endif
-*/
     DBUG_RETURN(0);
-  }
 
   register_binlog_handler(thd, thd->in_multi_stmt_transaction_mode());
 
