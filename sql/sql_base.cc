@@ -5660,7 +5660,7 @@ void open_and_lock_query_tables_cleanup(THD *thd)
 
 
 /**
-  Open tables and open derived tables and prepares them.
+  Open query tables, open derived tables and prepares them.
 
   @param         thd            Thread context.
 

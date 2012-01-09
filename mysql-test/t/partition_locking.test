@@ -258,6 +258,58 @@ SELECT d, c FROM t3 PARTITION(`p11-100sp2`);
 --sorted_result
 SELECT d, c FROM t3 PARTITION(`p11-100sp3`);
 
+--echo #
+--echo # Test with LOCK TABLES
+--echo #
+--error ER_PARSE_ERROR
+LOCK TABLES t3 PARTITION (`p11-100sp0`) WRITE;
+FLUSH STATUS;
+LOCK TABLES t3 WRITE;
+eval $get_handler_status_counts;
+--echo # 17 locks (1 table, 16 partitions lock)
+--echo # No further locks/unlocks until UNLOCK TABLES.
+FLUSH STATUS;
+DELETE FROM t3
+WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+INSERT INTO t3 (b, d, e) VALUES (DEFAULT, DEFAULT, "All default!");
+eval $get_handler_status_counts;
+FLUSH STATUS;
+UPDATE t3
+SET e = CONCAT(e, ", updated")
+WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+UPDATE t3
+SET a = DEFAULT, b = "Not DEFAULT!", e = CONCAT(e, ", updated2")
+WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+REPLACE INTO t3 (e) VALUES ("New default row");
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM t3
+WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM t3
+WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
+eval $get_handler_status_counts;
+FLUSH STATUS;
+REPLACE INTO t3 (e) VALUES ("Newest default row");
+eval $get_handler_status_counts;
+FLUSH STATUS;
+SELECT * FROM t3 PARTITION (p10);
+eval $get_handler_status_counts;
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM t3 PARTITION (p10);
+eval $get_handler_status_counts;
+
+FLUSH STATUS;
+UNLOCK TABLES;
+eval $get_handler_status_counts;
+--echo # 17 locks (1 table, 16 partitions unlock)
 DROP TABLE t3;
 
 --echo #
@@ -1186,6 +1238,14 @@ eval $get_handler_status_counts;
 --echo # 13 read_key
 --echo # 1 read_next (if more matches after the first match)
 --echo # 1 delete
+FLUSH STATUS;
+DELETE FROM t1 WHERE a = (SELECT a + 90 FROM t2 WHERE a = 1);
+eval $get_handler_status_counts;
+--echo # 32 locks (2 table + 13 + 1 partition lock/unlock)
+--echo # 2 read_key
+--echo # 2 read_next (if more matches after the first match)
+--echo # 1 delete
+EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = (SELECT a + 90 FROM t2 WHERE a = 1);
 
 --echo #
 --echo # Test multi table delete
@@ -1428,6 +1488,7 @@ SELECT @x;
 FLUSH STATUS;
 DO (SELECT @x:= b FROM t1 WHERE a = 5 or a = 1 ORDER BY b LIMIT 1);
 eval $get_handler_status_counts;
+--echo # 8 locks (1 table + 3 partitions lock/unlock)
 SELECT @x;
 
 DROP TABLE t1;
@@ -1493,18 +1554,3 @@ INSERT INTO t1 VALUES (1, "test 1");
 INSERT INTO t1 VALUES (SELECT * FROM t1);
 DROP TABLE t1;
 
---echo # TODO: Add variants for LOCK TABLES
---echo # TODO: Document that functions in WHERE clause can now be evaluated
---echo #       before any locks are taken (i.e. if optimization is possible
---echo #       before locking). Like GET_LOCK/RELEASE_LOCK ?
-
---echo # TODO: How to make a stored function or trigger prune?
---echo # Stored procedures does not prelock, so it will prune locks.
---echo # Stored functions, triggers and events prelocks all used tables
---echo # which makes prune locks impossible.
-
-
-# NOTEs:
-# 
-# To investigate:
-# * effects on replication (statement and row)

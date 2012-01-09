@@ -367,7 +367,7 @@ HANDLER_EXTERNAL_LOCK	2
 HANDLER_WRITE	17
 # 2 locks (1 ha_partition) x 2 (lock/unlock), Was 4 locks before WL4443
 # explicit pruning says part_id 0 and implicit pruning says part_id 1
-# so no partition will be locked! (TODO: should we fail before locking?)
+# so no partition will be locked!
 # 0 rollback (since no locked partition)
 # 17 writes (I_S internal)
 FLUSH STATUS;
@@ -450,11 +450,10 @@ HANDLER_EXTERNAL_LOCK	9
 HANDLER_READ_KEY	1
 HANDLER_READ_NEXT	1
 HANDLER_READ_RND_NEXT	38
-HANDLER_ROLLBACK	1
 HANDLER_WRITE	53
 # Failed before start_stmt/execution.
 # + 19 rnd next (internal I_S)
-# + 1 rollback (failed statement)
+#   0 rollback (No partition had called start_stmt, all parts pruned)
 # + 18 write (internal I_S)
 REPLACE INTO t1 PARTITION (pNeg) VALUES (-21, 'Insert by REPLACE');
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -466,7 +465,6 @@ HANDLER_EXTERNAL_LOCK	9
 HANDLER_READ_KEY	1
 HANDLER_READ_NEXT	1
 HANDLER_READ_RND_NEXT	57
-HANDLER_ROLLBACK	1
 HANDLER_WRITE	72
 # + 1 commit
 # + 19 rnd next (internal I_S)
@@ -481,7 +479,6 @@ HANDLER_EXTERNAL_LOCK	9
 HANDLER_READ_KEY	2
 HANDLER_READ_NEXT	1
 HANDLER_READ_RND_NEXT	76
-HANDLER_ROLLBACK	1
 HANDLER_UPDATE	1
 HANDLER_WRITE	91
 # + 1 commit
@@ -504,7 +501,6 @@ HANDLER_READ_FIRST	1
 HANDLER_READ_KEY	3
 HANDLER_READ_NEXT	4
 HANDLER_READ_RND_NEXT	95
-HANDLER_ROLLBACK	1
 HANDLER_UPDATE	1
 HANDLER_WRITE	109
 # + 1 commit
@@ -524,7 +520,6 @@ HANDLER_READ_FIRST	1
 HANDLER_READ_KEY	3
 HANDLER_READ_NEXT	4
 HANDLER_READ_RND_NEXT	114
-HANDLER_ROLLBACK	1
 HANDLER_UPDATE	1
 HANDLER_WRITE	127
 # + 9 locks

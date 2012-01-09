@@ -376,7 +376,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
         This will only prune constant conditions, which will be used for
         lock pruning.
       */
-     Item *prune_cond= tbl->on_expr? tbl->on_expr : conds;
+      Item *prune_cond= tbl->on_expr? tbl->on_expr : conds;
       if (prune_partitions(thd, tbl->table, prune_cond,
                            &tbl->table->no_partitions_used))
         goto err;
