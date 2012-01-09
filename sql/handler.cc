@@ -2119,7 +2119,11 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0))
-    PSI_CALL(drop_table_share)(db, strlen(db), alias, strlen(alias));
+  {
+    my_bool temp_table= (my_bool)is_prefix(alias, tmp_file_prefix);
+    PSI_CALL(drop_table_share)(temp_table, db, strlen(db),
+                               alias, strlen(alias));
+  }
 #endif
 
   DBUG_RETURN(error);
@@ -2173,25 +2177,24 @@ THD *handler::ha_thd(void) const
 
 void handler::unbind_psi()
 {
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   /*
     Notify the instrumentation that this table is not owned
     by this thread any more.
   */
-  if (likely(PSI_server != NULL))
-    PSI_server->unbind_table(m_psi);
+  PSI_CALL(unbind_table)(m_psi);
 #endif
 }
 
 void handler::rebind_psi()
 {
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   /*
     Notify the instrumentation that this table is now owned
     by this thread.
   */
-  if (likely(PSI_server != NULL))
-    PSI_server->rebind_table(m_psi);
+  PSI_table_share *share_psi= ha_table_share_psi(table_share);
+  m_psi= PSI_CALL(rebind_table)(share_psi, this, m_psi);
 #endif
 }
 
@@ -2280,12 +2283,9 @@ int handler::ha_rnd_next(uchar *buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
-  result= rnd_next(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
+    { result= rnd_next(buf); })
   return result;
 }
 
@@ -2294,12 +2294,9 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
-  result= rnd_pos(buf, pos);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
+    { result= rnd_pos(buf, pos); })
   return result;
 }
 
@@ -2310,12 +2307,9 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_read_map(buf, key, keypart_map, find_flag);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_read_map(buf, key, keypart_map, find_flag); })
   return result;
 }
 
@@ -2327,12 +2321,9 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(end_range == NULL);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, index, 0);
-  result= index_read_idx_map(buf, index, key, keypart_map, find_flag);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, index, 0,
+    { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
   return result;
 }
 
@@ -2341,12 +2332,9 @@ int handler::ha_index_next(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_next(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_next(buf); })
   return result;
 }
 
@@ -2355,12 +2343,9 @@ int handler::ha_index_prev(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_prev(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_prev(buf); })
   return result;
 }
 
@@ -2369,12 +2354,9 @@ int handler::ha_index_first(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_first(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_first(buf); })
   return result;
 }
 
@@ -2383,12 +2365,9 @@ int handler::ha_index_last(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_last(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_last(buf); })
   return result;
 }
 
@@ -2397,12 +2376,9 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_next_same(buf, key, keylen);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_next_same(buf, key, keylen); })
   return result;
 }
 
@@ -2412,12 +2388,9 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_read(buf, key, key_len, find_flag);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_read(buf, key, key_len, find_flag); })
   return result;
 }
 
@@ -2426,12 +2399,9 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_read_last(buf, key, key_len);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_read_last(buf, key, key_len); })
   return result;
 }
 
@@ -3961,7 +3931,7 @@ void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-		    bool update_create_info)
+                    bool update_create_info)
 {
   int error= 1;
   TABLE table;
@@ -3969,16 +3939,17 @@ int ha_create_table(THD *thd, const char *path,
   const char *name;
   TABLE_SHARE share;
   DBUG_ENTER("ha_create_table");
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  my_bool temp_table= (my_bool)is_prefix(table_name, tmp_file_prefix) ||
+               (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
+#endif
   
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
   if (open_table_def(thd, &share, 0))
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  {
-    my_bool temp= (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
-    share.m_psi= PSI_CALL(get_table_share)(temp, &share);
-  }
+  share.m_psi= PSI_CALL(get_table_share)(temp_table, &share);
 #endif
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
@@ -3996,6 +3967,10 @@ int ha_create_table(THD *thd, const char *path,
   {
     strxmov(name_buff, db, ".", table_name, NullS);
     my_error(ER_CANT_CREATE_TABLE, MYF(ME_BELL+ME_WAITTANG), name_buff, error);
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    PSI_CALL(drop_table_share)(temp_table, db, strlen(db), table_name,
+                               strlen(table_name));
+#endif
   }
 err:
   free_table_share(&share);
@@ -5943,8 +5918,7 @@ static int binlog_log_row(TABLE* table,
 
 int handler::ha_external_lock(THD *thd, int lock_type)
 {
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
-
+  int error;
   DBUG_ENTER("handler::ha_external_lock");
   /*
     Whether this is lock or unlock, this should be true, and is to verify that
@@ -5980,16 +5954,14 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   }
 
   ha_statistic_increment(&SSV::ha_external_lock_count);
-  MYSQL_START_TABLE_LOCK_WAIT(locker, &state, m_psi,
-                              PSI_TABLE_EXTERNAL_LOCK, lock_type);
+
+  MYSQL_TABLE_LOCK_WAIT(m_psi, PSI_TABLE_EXTERNAL_LOCK, lock_type,
+    { error= external_lock(thd, lock_type); })
 
   /*
     We cache the table flags if the locking succeeded. Otherwise, we
     keep them as they were when they were fetched in ha_open().
   */
-  int error= external_lock(thd, lock_type);
-
-  MYSQL_END_TABLE_LOCK_WAIT(locker);
 
   if (error == 0)
   {
@@ -6059,18 +6031,15 @@ int handler::ha_write_row(uchar *buf)
   Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   DBUG_ENTER("handler::ha_write_row");
 
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_WRITE_ROW, MAX_KEY, 0);
 
-  error= write_row(buf);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_WRITE_ROW, MAX_KEY, 0,
+    { error= write_row(buf); })
 
-  MYSQL_END_TABLE_IO_WAIT(locker);
   MYSQL_INSERT_ROW_DONE(error);
   if (unlikely(error))
     DBUG_RETURN(error);
@@ -6087,7 +6056,6 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
   Log_func *log_func= Update_rows_log_event::binlog_row_logging_function;
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   /*
     Some storage engines require that the new record is in record[0]
@@ -6098,12 +6066,9 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_UPDATE_ROW, active_index, 0);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_UPDATE_ROW, active_index, 0,
+    { error= update_row(old_data, new_data);})
 
-  error= update_row(old_data, new_data);
-
-  MYSQL_END_TABLE_IO_WAIT(locker);
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
     return error;
@@ -6118,17 +6083,13 @@ int handler::ha_delete_row(const uchar *buf)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
   Log_func *log_func= Delete_rows_log_event::binlog_row_logging_function;
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_DELETE_ROW, active_index, 0);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_DELETE_ROW, active_index, 0,
+    { error= delete_row(buf);})
 
-  error= delete_row(buf);
-
-  MYSQL_END_TABLE_IO_WAIT(locker);
   MYSQL_DELETE_ROW_DONE(error);
   if (unlikely(error))
     return error;

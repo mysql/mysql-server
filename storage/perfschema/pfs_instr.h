@@ -377,8 +377,8 @@ struct PFS_thread : PFS_connection_slice
 
   /** Thread instrumentation flag. */
   bool m_enabled;
-  /** Size of @c m_events_waits_stack. */
-  uint m_events_waits_count;
+  /** Current wait event in the event stack. */
+  PFS_events_waits *m_events_waits_current;
   /** Event ID counter */
   ulonglong m_event_id;
   /** Internal lock. */
