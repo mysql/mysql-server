@@ -644,9 +644,8 @@ struct thr_job_queue_head
 
 struct thr_job_queue
 {
-  static const unsigned SIZE = 31;
+  static const unsigned SIZE = 32;
 
-  struct thr_job_queue_head* m_head;
   struct thr_job_buffer* m_buffers[SIZE];
 };
 
@@ -2275,7 +2274,8 @@ mt_send_handle::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
  */
 static inline
 bool
-insert_signal(thr_job_queue *q, thr_jb_write_state *w, Uint32 prioa,
+insert_signal(thr_job_queue *q, thr_job_queue_head *h,
+              thr_jb_write_state *w, Uint32 prioa,
               const SignalHeader* sh, const Uint32 *data,
               const Uint32 secPtr[3], thr_job_buffer *new_buffer)
 {
@@ -2328,7 +2328,7 @@ insert_signal(thr_job_queue *q, thr_jb_write_state *w, Uint32 prioa,
      *
      * Or alternatively, ndbrequire() ?
      */
-    if (unlikely(write_index == q->m_head->m_read_index))
+    if (unlikely(write_index == h->m_read_index))
     {
       job_buffer_full(0);
     }
@@ -2351,19 +2351,22 @@ read_jbb_state(thr_data *selfptr, Uint32 count)
 
   thr_jb_read_state *r = selfptr->m_read_states;
   const thr_job_queue *q = selfptr->m_in_queue;
-  for (Uint32 i = 0; i < count; i++,r++,q++)
+  const thr_job_queue_head *h = selfptr->m_in_queue_head;
+  for (Uint32 i = 0; i < count; i++,r++)
   {
     Uint32 read_index = r->m_read_index;
 
     /**
      * Optimization: Only reload when possibly empty.
      * Avoid cache reload of shared thr_job_queue_head
+     * Read head directly to avoid unnecessary cache
+     * load of first cache line of m_in_queue entry.
      */
     if (r->m_write_index == read_index)
     {
-      r->m_write_index = q->m_head->m_write_index;
+      r->m_write_index = h[i].m_write_index;
       read_barrier_depends();
-      r->m_read_end = q->m_buffers[read_index]->m_len;
+      r->m_read_end = q[i].m_buffers[read_index]->m_len;
     }
   }
 }
@@ -2406,7 +2409,9 @@ check_queues_empty(thr_data *selfptr)
  */
 static
 Uint32
-execute_signals(thr_data *selfptr, thr_job_queue *q, thr_jb_read_state *r,
+execute_signals(thr_data *selfptr,
+                thr_job_queue *q, thr_job_queue_head *h,
+                thr_jb_read_state *r,
                 Signal *sig, Uint32 max_signals, Uint32 *signalIdCounter)
 {
   Uint32 num_signals;
@@ -2439,7 +2444,7 @@ execute_signals(thr_data *selfptr, thr_job_queue *q, thr_jb_read_state *r,
         read_pos = 0;
         read_end = read_buffer->m_len;
         /* Update thread-local read state. */
-        r->m_read_index = q->m_head->m_read_index = read_index;
+        r->m_read_index = h->m_read_index = read_index;
         r->m_read_buffer = read_buffer;
         r->m_read_pos = read_pos;
         r->m_read_end = read_end;
@@ -2524,22 +2529,25 @@ run_job_buffers(thr_data *selfptr, Signal *sig, Uint32 *signalIdCounter)
   rmb();
 
   thr_job_queue *queue = selfptr->m_in_queue;
+  thr_job_queue_head *head = selfptr->m_in_queue_head;
   thr_jb_read_state *read_state = selfptr->m_read_states;
   for (Uint32 send_thr_no = 0; send_thr_no < thr_count;
-       send_thr_no++,queue++,read_state++)
+       send_thr_no++,queue++,read_state++,head++)
   {
     /* Read the prio A state often, to avoid starvation of prio A. */
     bool jba_empty = read_jba_state(selfptr);
     if (!jba_empty)
     {
       static Uint32 max_prioA = thr_job_queue::SIZE * thr_job_buffer::SIZE;
-      signal_count += execute_signals(selfptr, &(selfptr->m_jba),
+      signal_count += execute_signals(selfptr,
+                                      &(selfptr->m_jba),
+                                      &(selfptr->m_jba_head),
                                       &(selfptr->m_jba_read_state), sig,
                                       max_prioA, signalIdCounter);
     }
 
     /* Now execute prio B signals from one thread. */
-    signal_count += execute_signals(selfptr, queue, read_state,
+    signal_count += execute_signals(selfptr, queue, head, read_state,
                                     sig, perjb, signalIdCounter);
   }
 
@@ -3165,13 +3173,14 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
   selfptr->m_stat.m_priob_size += siglen;
 
   thr_job_queue *q = dstptr->m_in_queue + self;
+  thr_job_queue_head *h = dstptr->m_in_queue_head + self;
   thr_jb_write_state *w = selfptr->m_write_states + dst;
-  if (insert_signal(q, w, false, s, data, secPtr, selfptr->m_next_buffer))
+  if (insert_signal(q, h, w, false, s, data, secPtr, selfptr->m_next_buffer))
   {
     selfptr->m_next_buffer = seize_buffer(rep, self, false);
   }
   if (w->m_pending_signals >= MAX_SIGNALS_BEFORE_FLUSH)
-    flush_write_state(selfptr, dstptr, q->m_head, w);
+    flush_write_state(selfptr, dstptr, h, w);
 }
 
 void
@@ -3193,20 +3202,21 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   selfptr->m_stat.m_prioa_size += siglen;
 
   thr_job_queue *q = &(dstptr->m_jba);
+  thr_job_queue_head *h = &(dstptr->m_jba_head);
   thr_jb_write_state w;
 
   lock(&dstptr->m_jba_write_lock);
 
-  Uint32 index = q->m_head->m_write_index;
+  Uint32 index = h->m_write_index;
   w.m_write_index = index;
   thr_job_buffer *buffer = q->m_buffers[index];
   w.m_write_buffer = buffer;
   w.m_write_pos = buffer->m_len;
   w.m_pending_signals = 0;
   w.m_pending_signals_wakeup = MAX_SIGNALS_BEFORE_WAKEUP;
-  bool buf_used = insert_signal(q, &w, true, s, data, secPtr,
+  bool buf_used = insert_signal(q, h, &w, true, s, data, secPtr,
                                 selfptr->m_next_buffer);
-  flush_write_state(selfptr, dstptr, q->m_head, &w);
+  flush_write_state(selfptr, dstptr, h, &w);
 
   unlock(&dstptr->m_jba_write_lock);
 
@@ -3291,20 +3301,21 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   stopForCrash->flags = 0;
 
   thr_job_queue *q = &(dstptr->m_jba);
+  thr_job_queue_head *h = &(dstptr->m_jba_head);
   thr_jb_write_state w;
 
   lock(&dstptr->m_jba_write_lock);
 
-  Uint32 index = q->m_head->m_write_index;
+  Uint32 index = h->m_write_index;
   w.m_write_index = index;
   thr_job_buffer *buffer = q->m_buffers[index];
   w.m_write_buffer = buffer;
   w.m_write_pos = buffer->m_len;
   w.m_pending_signals = 0;
   w.m_pending_signals_wakeup = MAX_SIGNALS_BEFORE_WAKEUP;
-  insert_signal(q, &w, true, &signalT.header, signalT.theData, NULL,
+  insert_signal(q, h, &w, true, &signalT.header, signalT.theData, NULL,
                 &dummy_buffer);
-  flush_write_state(selfptr, dstptr, q->m_head, &w);
+  flush_write_state(selfptr, dstptr, h, &w);
 
   unlock(&dstptr->m_jba_write_lock);
 }
@@ -3343,7 +3354,6 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   }
   selfptr->m_jba_head.m_read_index = 0;
   selfptr->m_jba_head.m_write_index = 0;
-  selfptr->m_jba.m_head = &selfptr->m_jba_head;
   thr_job_buffer *buffer = seize_buffer(rep, thr_no, true);
   selfptr->m_jba.m_buffers[0] = buffer;
   selfptr->m_jba_read_state.m_read_index = 0;
@@ -3358,7 +3368,6 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   {
     selfptr->m_in_queue_head[i].m_read_index = 0;
     selfptr->m_in_queue_head[i].m_write_index = 0;
-    selfptr->m_in_queue[i].m_head = &selfptr->m_in_queue_head[i];
     buffer = seize_buffer(rep, thr_no, false);
     selfptr->m_in_queue[i].m_buffers[0] = buffer;
     selfptr->m_read_states[i].m_read_index = 0;
