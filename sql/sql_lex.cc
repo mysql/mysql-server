@@ -2396,10 +2396,10 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
     else
       str->append(STRING_WITH_LEN(" join "));
     curr->print(thd, str, query_type);          // Print table
-    if (curr->on_expr)                          // Print join condition
+    if (curr->join_cond())                      // Print join condition
     {
       str->append(STRING_WITH_LEN(" on("));
-      curr->on_expr->print(str, query_type);
+      curr->join_cond()->print(str, query_type);
       str->append(')');
     }
   }
@@ -3560,10 +3560,10 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
 {
   for (; tbl; tbl= tbl->next_local)
   {
-    if (tbl->on_expr)
+    if (tbl->join_cond())
     {
-      tbl->prep_on_expr= tbl->on_expr;
-      tbl->on_expr= tbl->on_expr->copy_andor_structure(thd);
+      tbl->prep_join_cond= tbl->join_cond();
+      tbl->set_join_cond(tbl->join_cond()->copy_andor_structure(thd));
     }
     fix_prepare_info_in_table_list(thd, tbl->merge_underlying_list);
   }
