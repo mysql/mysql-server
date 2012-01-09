@@ -29,7 +29,10 @@
 /* TODO: During integration, make sure we first verify the NULL CONSISTENCY,
          (return EINVAL if necessary) before making lock tree calls. */
 
-#if DEBUG
+#if !defined(TOKU_LT_DEBUG)
+#define TOKU_LT_DEBUG 0
+#endif
+#if TOKU_LT_DEBUG
 static int toku_lt_debug = 0;
 #endif
 
@@ -2194,7 +2197,7 @@ toku_lt_unlock(toku_lock_tree* tree, TXNID txn) {
     if (!tree) { 
         r = EINVAL; goto cleanup;
     }
-#if DEBUG
+#if TOKU_LT_DEBUG
     if (toku_lt_debug) 
         printf("%s:%u %lu\n", __FUNCTION__, __LINE__, txn);
 #endif
@@ -2358,7 +2361,7 @@ static const struct timeval max_timeval = { ~0, 0 };
 
 int
 toku_lock_request_wait(toku_lock_request *lock_request, toku_lock_tree *tree, struct timeval *wait_time) {
-#if DEBUG
+#if TOKU_LT_DEBUG
     if (toku_lt_debug)
         printf("%s:%u %lu\n", __FUNCTION__, __LINE__, lock_request->txnid);
 #endif
@@ -2466,7 +2469,7 @@ copy_dbt(DBT *dest, const DBT *src) {
     }
 }
 
-#if DEBUG
+#if TOKU_LT_DEBUG
 #include <ctype.h>
 static void print_key(const char *sp, const DBT *k) {
     printf("%s", sp);
@@ -2475,7 +2478,7 @@ static void print_key(const char *sp, const DBT *k) {
     else if (k == toku_lt_infinity)
         printf("inf");
     else {
-        char *data = (char *) k->data;
+        unsigned char *data = (unsigned char *) k->data;
         for (unsigned i = 0; i < k->size; i++)
             printf("%2.2x", data[i]);
         printf(" ");
@@ -2498,7 +2501,7 @@ toku_lock_request_start_locked(toku_lock_request *lock_request, toku_lock_tree *
         r = toku_lt_acquire_range_write_lock(tree, lock_request->db, lock_request->txnid, lock_request->key_left, lock_request->key_right);
     } else
         assert(0);
-#if DEBUG
+#if TOKU_LT_DEBUG
     if (toku_lt_debug) {
         printf("%s:%u %lu db=%p %s %u\n", __FUNCTION__, __LINE__, lock_request->txnid, lock_request->db, lock_request->type == LOCK_REQUEST_READ ? "r" : "w", lock_request->state);
         print_key("left=", lock_request->key_left);
