@@ -105,10 +105,9 @@ error:
 }
 
 
-enum_return_status
-Owned_gtids::add(Gtid gtid, my_thread_id owner)
+enum_return_status Owned_gtids::add_gtid_owner(Gtid gtid, my_thread_id owner)
 {
-  DBUG_ENTER("Owned_gtids::add");
+  DBUG_ENTER("Owned_gtids::add_gtid_owner(Gtid, my_thread_id)");
   DBUG_ASSERT(!contains_gtid(gtid));
   DBUG_ASSERT(gtid.sidno <= get_max_sidno());
   Node *n= (Node *)malloc(sizeof(Node));
@@ -132,9 +131,9 @@ error:
 }
 
 
-void Owned_gtids::remove(Gtid gtid)
+void Owned_gtids::remove_gtid(Gtid gtid)
 {
-  DBUG_ENTER("Owned_gtids::remove");
+  DBUG_ENTER("Owned_gtids::remove_gtid(Gtid)");
   //printf("Owned_gtids::remove(sidno=%d gno=%lld)\n", sidno, gno);
   //DBUG_ASSERT(contains_gtid(sidno, gno)); // allow group not owned
   HASH *hash= get_hash(gtid.sidno);

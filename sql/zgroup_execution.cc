@@ -282,9 +282,6 @@ gtid_before_statement_begin_commit_sequence(
     DBUG_ASSERT(!gtid_state.get_owned_gtids()->
                 thread_owns_anything(thd->thread_id));
 
-    if (gtid_state.ensure_sidno() != 0)
-      DBUG_RETURN(GTID_STATEMENT_CANCEL);
-
     if (gtid_next_list != NULL)
     {
       // acquire group ownership for Gtid_set.

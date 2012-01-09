@@ -766,7 +766,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
   init_abort_pos_wait= abort_pos_wait;
   Gtid_set gtid_set(&global_sid_map);
   global_sid_lock.rdlock();
-  if (gtid_set.add(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
+  if (gtid_set.add_gtid_text(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
   { 
     global_sid_lock.unlock();
     goto err;
@@ -1184,8 +1184,9 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
   {
     global_sid_lock.rdlock();
 
-    if (current_gtids_obj._add(((Gtid_log_event *)(ev))->get_sidno(false),
-                               ((Gtid_log_event *)(ev))->get_gno()) != RETURN_STATUS_OK)
+    if (current_gtids_obj._add_gtid(((Gtid_log_event *)(ev))->get_sidno(false),
+                                    ((Gtid_log_event *)(ev))->get_gno()) !=
+        RETURN_STATUS_OK)
     {
       global_sid_lock.unlock();
       DBUG_RETURN(true);

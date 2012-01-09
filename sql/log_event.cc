@@ -1126,7 +1126,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   int result=0;
   char buf[LOG_EVENT_MINIMAL_HEADER_LEN];
   uchar ev_offset= packet->length();
-  DBUG_ENTER("Log_event::read_log_event");
+  DBUG_ENTER("Log_event::read_log_event(IO_CACHE *, String *, mysql_mutex_t, uint8)");
 
   if (log_lock)
     mysql_mutex_lock(log_lock);
@@ -1243,7 +1243,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
                                      my_bool crc_check)
 #endif
 {
-  DBUG_ENTER("Log_event::read_log_event");
+  DBUG_ENTER("Log_event::read_log_event(IO_CACHE *[, mysql_mutex_t *], Format_description_log_event *, my_bool)");
   DBUG_ASSERT(description_event != 0);
   char head[LOG_EVENT_MINIMAL_HEADER_LEN];
   /*
@@ -1260,8 +1260,10 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   DBUG_PRINT("info", ("my_b_tell: %lu", (ulong) my_b_tell(file)));
   if (my_b_read(file, (uchar *) head, header_size))
   {
-    DBUG_PRINT("info", ("Log_event::read_log_event(IO_CACHE*,Format_desc*) \
-failed my_b_read"));
+    DBUG_PRINT("info", ("Log_event::read_log_event(IO_CACHE*,Format_desc*) "
+                        "failed in my_b_read((IO_CACHE*)%p, (uchar*)%p, %u) "
+                        "file='%s'",
+                        file, head, header_size, file->file_name));
     UNLOCK_MUTEX;
     /*
       No error here; it could be that we are at the file's end. However
@@ -1347,7 +1349,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 {
   Log_event* ev;
   uint8 alg;
-  DBUG_ENTER("Log_event::read_log_event(char*,...)");
+  DBUG_ENTER("Log_event::read_log_event(char *, uint, char **, Format_description_log_event *, my_bool)");
   DBUG_ASSERT(description_event != 0);
   DBUG_PRINT("info", ("binlog_version: %d", description_event->binlog_version));
   DBUG_DUMP("data", (unsigned char*) buf, event_len);
@@ -11839,7 +11841,7 @@ int Previous_gtids_log_event::add_to_set(Gtid_set *target) const
   DBUG_PRINT("info", ("adding gtid_set: '%s'", str));
   my_free(str);
 #endif
-  PROPAGATE_REPORTED_ERROR_INT(target->add(buf, buf_size));
+  PROPAGATE_REPORTED_ERROR_INT(target->add_gtid_encoding(buf, buf_size));
   DBUG_RETURN(0);
 }
 
@@ -11850,7 +11852,7 @@ char *Previous_gtids_log_event::get_str(
   Sid_map sid_map(NULL);
   Gtid_set set(&sid_map, NULL);
   DBUG_PRINT("info", ("temp_buf=%p buf=%p", temp_buf, buf));
-  if (set.add(buf, buf_size) != RETURN_STATUS_OK)
+  if (set.add_gtid_encoding(buf, buf_size) != RETURN_STATUS_OK)
     DBUG_RETURN(NULL);
   set.dbug_print("set");
   size_t length= set.get_string_length(string_format);

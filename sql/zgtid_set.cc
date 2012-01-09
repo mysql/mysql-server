@@ -64,14 +64,14 @@ Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
 {
   DBUG_ASSERT(_sid_map != NULL);
   init(_sid_map, _sid_lock);
-  *status= add(text);
+  *status= add_gtid_text(text);
 }
 
 /*
 Gtid_set::Gtid_set(Gtid_set *other, enum_return_status *status)
 {
   init(other->sid_map, other->sid_lock);
-  *status= add(other);
+  *status= add_gtid_set(other);
 }
 */
 
@@ -403,10 +403,10 @@ int format_gno(char *s, rpl_gno gno)
 }
 
 
-enum_return_status Gtid_set::add(const char *text, bool *anonymous)
+enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
 {
 #define SKIP_WHITESPACE() while (isspace(*s)) s++
-  DBUG_ENTER("Gtid_set::add(const char*)");
+  DBUG_ENTER("Gtid_set::add_gtid_text(const char*)");
   DBUG_ASSERT(sid_map != NULL);
   const char *s= text;
 
@@ -460,7 +460,7 @@ enum_return_status Gtid_set::add(const char *text, bool *anonymous)
       if (sid.parse(s) != 0)
         goto parse_error;
       s += rpl_sid::TEXT_LENGTH;
-      rpl_sidno sidno= sid_map->add(&sid);
+      rpl_sidno sidno= sid_map->add_sid(&sid);
       if (sidno <= 0)
         RETURN_REPORTED_ERROR;
       PROPAGATE_REPORTED_ERROR(ensure_sidno(sidno));
@@ -600,9 +600,9 @@ enum_return_status Gtid_set::remove(rpl_sidno sidno,
 }
 
 
-enum_return_status Gtid_set::add(const Gtid_set *other)
+enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
 {
-  DBUG_ENTER("Gtid_set::add(Gtid_set *)");
+  DBUG_ENTER("Gtid_set::add_gtid_set(Gtid_set *)");
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
   rpl_sidno max_other_sidno= other->get_max_sidno();
@@ -623,7 +623,7 @@ enum_return_status Gtid_set::add(const Gtid_set *other)
       if (other_ivit.get() != NULL)
       {
         const rpl_sid *sid= other_sid_map->sidno_to_sid(other_sidno);
-        rpl_sidno this_sidno= sid_map->add(sid);
+        rpl_sidno this_sidno= sid_map->add_sid(sid);
         if (this_sidno <= 0)
           RETURN_REPORTED_ERROR;
         PROPAGATE_REPORTED_ERROR(ensure_sidno(this_sidno));
@@ -635,9 +635,9 @@ enum_return_status Gtid_set::add(const Gtid_set *other)
 }
 
 
-enum_return_status Gtid_set::remove(const Gtid_set *other)
+enum_return_status Gtid_set::remove_gtid_set(const Gtid_set *other)
 {
-  DBUG_ENTER("Gtid_set::add(Gtid_set *)");
+  DBUG_ENTER("Gtid_set::remove_gtid_set(Gtid_set *)");
   rpl_sidno max_other_sidno= other->get_max_sidno();
   if (other->sid_map == sid_map || other->sid_map == NULL || sid_map == NULL)
   {
@@ -1072,9 +1072,9 @@ void Gtid_set::encode(uchar *buf) const
 }
 
 
-enum_return_status Gtid_set::add(const uchar *encoded, size_t length)
+enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t length)
 {
-  DBUG_ENTER("Gtid_set::add(const uchar *, size_t)");
+  DBUG_ENTER("Gtid_set::add_gtid_encoding(const uchar *, size_t)");
   size_t pos= 0;
   uint n_sids;
   // read number of SIDs
@@ -1101,7 +1101,7 @@ enum_return_status Gtid_set::add(const uchar *encoded, size_t length)
     pos+= 16;
     uint n_intervals= uint8korr(encoded + pos);
     pos+= 8;
-    rpl_sidno sidno= sid_map->add(&sid);
+    rpl_sidno sidno= sid_map->add_sid(&sid);
     if (sidno < 0)
     {
       DBUG_PRINT("error", ("sidno=%d", sidno));

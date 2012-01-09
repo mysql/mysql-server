@@ -2256,7 +2256,8 @@ static int args_post_process(void)
 
   if (opt_include_gtids_str != NULL)
   {
-    if (gtid_set_included.add(opt_include_gtids_str) != RETURN_STATUS_OK)
+    if (gtid_set_included.add_gtid_text(opt_include_gtids_str) !=
+        RETURN_STATUS_OK)
     {
       error("Could not configure --include-gtids '%s'", opt_include_gtids_str);
       global_sid_lock.unlock();
@@ -2266,7 +2267,8 @@ static int args_post_process(void)
 
   if (opt_exclude_gtids_str != NULL)
   {
-    if (gtid_set_excluded.add(opt_exclude_gtids_str) != RETURN_STATUS_OK)
+    if (gtid_set_excluded.add_gtid_text(opt_exclude_gtids_str) !=
+        RETURN_STATUS_OK)
     {
       error("Could not configure --exclude-gtids '%s'", opt_exclude_gtids_str);
       global_sid_lock.unlock();

@@ -1423,7 +1423,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         if (mysql_bin_log.is_open())
         {
           global_sid_lock.rdlock();
-          if (gtid_set.add(ptr_buffer, data_size) != RETURN_STATUS_OK)
+          if (gtid_set.add_gtid_encoding(ptr_buffer, data_size) !=
+              RETURN_STATUS_OK)
           {
             global_sid_lock.unlock();
             break;

@@ -25,10 +25,10 @@
 # 3. Guarantee that RESET SLAVE/RESET MASTER cleans the appropriate states.
 #
 # Property 3.1 - RESET SLAVE cleans the GTids and previous GTids' state
-#                storead in the relay log.
+#                stored in the relay log.
 #
 # Property 3.2 - RESET MASTER cleans the GTids and previous GTids' state
-#                storead in the binary log.
+#                stored in the binary log.
 #
 # 4. With CHANGE MASTER TO MASTER_AUTO_POSITION coordinates are not used.
 #
@@ -87,14 +87,7 @@ CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
 #        by calling FLUSH LOGS.
 #
 
---connection slave
---source include/stop_slave.inc
-RESET MASTER;
-RESET SLAVE;
---connection master
-RESET MASTER;
---connection slave
---source include/start_slave.inc
+--source include/rpl_reset.inc
 
 --let $i=1
 while ($i != 5)
@@ -211,15 +204,9 @@ while ($i != 5)
 #  2.3 - Rotates the binary log on the master
 #        by calling FLUSH LOGS.
 #
---connection slave
---source include/stop_slave.inc
-RESET MASTER;
-RESET SLAVE;
---connection master
-RESET MASTER;
+--source include/rpl_reset.inc
 --connection slave
 SET GLOBAL debug="d,rotate_slave_debug_group";
---source include/start_slave.inc
 
 --let $i=1
 while ($i != 5)
@@ -265,14 +252,8 @@ while ($i != 5)
 #        by calling FLUSH LOGS.
 #
 --connection slave
---source include/stop_slave.inc
 SET GLOBAL debug="";
-RESET MASTER;
-RESET SLAVE;
---connection master
-RESET MASTER;
---connection slave
---source include/start_slave.inc
+--source include/rpl_reset.inc
 
 --let $i=1
 while ($i != 5)
@@ -355,14 +336,7 @@ while ($i != 5)
 #  4.4 - Rotates both the binary logs on the slave and master
 #        by calling FLUSH LOGS.
 #
---connection slave
---source include/stop_slave.inc
-RESET MASTER;
-RESET SLAVE;
---connection master
-RESET MASTER;
---connection slave
---source include/start_slave.inc
+--source include/rpl_reset.inc
 
 --let $i=1
 while ($i != 5)
@@ -747,14 +721,7 @@ while ($i != 5)
 #  9.4 - Rotates both the binary logs on the slave and master
 #        by calling FLUSH LOGS.
 #
---connection slave
---source include/stop_slave.inc
-RESET MASTER;
-RESET SLAVE;
---connection master
-RESET MASTER;
---connection slave
---source include/start_slave.inc
+--source include/rpl_reset.inc
 
 --let $i=1
 while ($i != 5)
@@ -829,14 +796,7 @@ while ($i != 5)
   inc $i;
 }
 
---connection slave
---source include/stop_slave.inc
-RESET MASTER;
-RESET SLAVE;
---connection master
-RESET MASTER;
---connection slave
---source include/start_slave.inc
+--source include/rpl_reset.inc
 
 --connection master
 DROP TABLE t1;
