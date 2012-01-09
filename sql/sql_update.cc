@@ -393,18 +393,18 @@ int mysql_update(THD *thd,
     bool no_parts_used;
     bool prune_locks= true;
     MY_BITMAP lock_partitions;
-    if (table->file->get_lock_type() == F_UNLCK &&
-        table->triggers &&
+    if (table->triggers &&
         table->triggers->has_triggers(TRG_EVENT_UPDATE, TRG_ACTION_BEFORE))
     {
       /*
-        If the table is not locked, prune_partitions will also prune partition
-        locks. But BEFORE UPDATE triggers may change the records partitioning
+        BEFORE UPDATE triggers may change the records partitioning
         column, forcing it to another partition.
-        So it is not possible to prune locked partitions,
-        only read partitions.
+        So it is not possible to prune external_lock/start_stmt for
+        partitions (lock_partitions bitmap), only for scanning
+        (read_partitions bitmap).
         Copy the current lock_partitions bitmap and restore it after
-        prune_partitions call.
+        prune_partitions call, to lock all non explicitly selected
+        partitions.
       */
       uint32 *bitmap_buf;
       uint bitmap_bytes;

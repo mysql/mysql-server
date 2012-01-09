@@ -83,7 +83,6 @@
 #include "sql_optimizer.h"    // JOIN
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "sql_partition.h"
-// TODO: make partition_info.h self sufficient!
 #include "partition_info.h"            // partition_info
 #endif
 
@@ -864,10 +863,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (!is_locked && table->part_info)
   {
-    /* TODO: Move this to partition_info.h/cc ? */
-    /* Only prune if the tables are not yet locked. */
-    if (thd->locked_tables_mode == LTM_NONE)
-      can_prune_partitions= PRUNE_YES;
+    /*
+      Start with enable pruning and disable if not possible.
+      If under LOCK TABLES it will skip start_stmt instead of external_lock
+      for unused partitions.
+    */
+    can_prune_partitions= PRUNE_YES;
     /*
       Cannot prune if there are BEFORE INSERT triggers,
       since they may change the row to be in another partition.
@@ -904,7 +905,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       But TIMESTAMP_AUTO_SET_ON_UPDATE cannot be pruned if the timestamp
       column is a part of any part/subpart expression.
       
-      TODO: Verify this again when WL#5874 completed.
+      TODO: Verify this again when merging with WL#5874.
     */
     if (can_prune_partitions && duplic == DUP_UPDATE)
     {
@@ -974,9 +975,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       DBUG_ASSERT(table->part_info->bitmaps_are_initialized);
 
       /*
-        Pruning probably possible, must mark none partitions for read/lock,
-        and add them on row by row basis (if any row does not set auto_inc
-        value explicitly, all partitions must be marked).
+        Pruning probably possible, must unmark all partitions for read/lock,
+        and add them on row by row basis.
       */
       num_partitions= table->part_info->lock_partitions.n_bits;
       bitmap_bytes= bitmap_buffer_size(num_partitions);
@@ -991,10 +991,10 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         mem_alloc_error(bitmap_bytes);   /* Cannot happen, due to pre-alloc */
         goto exit_without_my_ok;
       }
-      /* Check the first INSERT value. */
       /*
+        Check the first INSERT value.
         Do not fail here, since that would break MyISAM behavior of inserting
-        all rows before failing row.
+        all rows before the failing row.
       */
       if (set_partition(thd, table, fields, *values,
                         prune_needs_default_values, &used_partitions))
@@ -1016,10 +1016,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     /*
-      TODO: Is it possible to store the calculated part_id and reuse in
+      TODO: Cache the calculated part_id and reuse in
       ha_partition::write_row()?
-      Should it also be done if num rows >> num partitions? Yes to increase
-      concurrancy on partitioned tables that use table locking, like MyISAM.
+      Should we check pruning even if num rows >> num partitions?
+      Yes to increase concurrancy on partitioned tables that use
+      table locking, like MyISAM.
     */
     if (can_prune_partitions == PRUNE_YES)
     {
@@ -1840,15 +1841,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	goto err;
       if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
       {
-        if (table->file->ha_rnd_init(0))
-          goto err;
-        if (table->file->ha_rnd_pos(table->record[1],table->file->dup_ref))
-        {
-          (void) table->file->ha_rnd_end();
-          goto err;
-        }
-        if (table->file->ha_rnd_end())
-          goto err;
+	if (table->file->ha_rnd_pos(table->record[1],table->file->dup_ref))
+	  goto err;
       }
       else
       {

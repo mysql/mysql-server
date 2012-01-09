@@ -1546,7 +1546,6 @@ bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   {
     thd->lex->current_select= first;
     unit->set_limit(unit->global_parameters);
-    // TODO: Verify that this prune partition locks!
     res= mysql_select(thd,
                       first->table_list.first,
                       first->with_wild, first->item_list,

@@ -2393,7 +2393,8 @@ case SQLCOM_PREPARE:
   }
   case SQLCOM_DO:
     if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-        || open_and_lock_tables(thd, all_tables, TRUE, 0))
+        || open_query_tables(thd)
+        || lock_query_tables(thd))
       goto error;
 
     res= mysql_do(thd, *lex->insert_list);
@@ -3434,9 +3435,9 @@ end_with_restore_list:
   {
     List<set_var_base> *lex_var_list= &lex->var_list;
 
-    if ((check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-         // TODO: Verify for WL#4443
-         || open_and_lock_tables(thd, all_tables, TRUE, 0)))
+    if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
+        || open_query_tables(thd)
+        || lock_query_tables(thd))
       goto error;
     if (!(res= sql_set_variables(thd, lex_var_list)))
     {
@@ -4212,11 +4213,6 @@ create_sp_error:
       */
       if (check_table_access(thd, SELECT_ACL, all_tables, FALSE,
                              UINT_MAX, FALSE) ||
-          /*
-            TODO: Check if possible to delay locking here
-            to support sp's arguments pruning in WL#4443.
-          */
-          //open_and_lock_tables(thd, all_tables, TRUE, 0))
           open_query_tables(thd) ||
           lock_query_tables(thd))
        goto error;
@@ -4787,7 +4783,6 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  //if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
   if (!(res= open_query_tables(thd)))
   {
     if (lex->describe)

@@ -2432,7 +2432,7 @@ public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
 
   DsMrr_impl()
-    : h2(NULL), rowids_buf(NULL), rowids_buf_cur(NULL) {};
+    : h2(NULL) {};
   
   /*
     The "owner" handler object (the one that calls dsmrr_XXX functions.

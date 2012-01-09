@@ -3036,11 +3036,13 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
   @param      pprune_cond    Condition to use for partition pruning
   @param[out] no_parts_used  If no partitions can fulfil the condition
   
-  @note This function assumes that all partitions are marked as unused when it
+  @note This function assumes that lock_partitions are setup when it
   is invoked. The function analyzes the condition, finds partitions that
   need to be used to retrieve the records that match the condition, and 
   marks them as used by setting appropriate bit in part_info->read_partitions
-  In the worst case all partitions are marked as used.
+  In the worst case all partitions are marked as used. If the table is not
+  yet locked, it will also unset bits in part_info->lock_partitions that is
+  not set in read_partitions.
 
   This function returns promptly if called for non-partitioned table.
 

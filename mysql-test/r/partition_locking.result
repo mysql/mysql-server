@@ -501,6 +501,138 @@ d	c
 SELECT d, c FROM t3 PARTITION(`p11-100sp3`);
 d	c
 3	Default
+#
+# Test with LOCK TABLES
+#
+LOCK TABLES t3 PARTITION (`p11-100sp0`) WRITE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARTITION (`p11-100sp0`) WRITE' at line 1
+FLUSH STATUS;
+LOCK TABLES t3 WRITE;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	17
+HANDLER_WRITE	17
+# 17 locks (1 table, 16 partitions lock)
+# No further locks/unlocks until UNLOCK TABLES.
+FLUSH STATUS;
+DELETE FROM t3
+WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_DELETE	1
+HANDLER_READ_KEY	1
+HANDLER_READ_NEXT	1
+HANDLER_WRITE	17
+FLUSH STATUS;
+INSERT INTO t3 (b, d, e) VALUES (DEFAULT, DEFAULT, "All default!");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_WRITE	18
+FLUSH STATUS;
+UPDATE t3
+SET e = CONCAT(e, ", updated")
+WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_READ_KEY	1
+HANDLER_READ_NEXT	1
+HANDLER_UPDATE	1
+HANDLER_WRITE	17
+FLUSH STATUS;
+UPDATE t3
+SET a = DEFAULT, b = "Not DEFAULT!", e = CONCAT(e, ", updated2")
+WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_READ_KEY	2
+HANDLER_READ_NEXT	1
+HANDLER_READ_RND	1
+HANDLER_UPDATE	1
+HANDLER_WRITE	17
+FLUSH STATUS;
+REPLACE INTO t3 (e) VALUES ("New default row");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_WRITE	18
+FLUSH STATUS;
+SELECT * FROM t3
+WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
+a	b	c	d	e
+10	Default	Default	9	New default row
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_READ_KEY	1
+HANDLER_WRITE	17
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM t3
+WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	p10_p10sp1	const	PRIMARY	PRIMARY	140	const,const,const,const	1	
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_READ_KEY	1
+HANDLER_WRITE	17
+FLUSH STATUS;
+REPLACE INTO t3 (e) VALUES ("Newest default row");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_READ_KEY	1
+HANDLER_UPDATE	1
+HANDLER_WRITE	18
+FLUSH STATUS;
+SELECT * FROM t3 PARTITION (p10);
+a	b	c	d	e
+10	Half part	Full subpart	1	Default-filler.filler.filler.
+10	Default	Default	1	Default-filler.filler.filler.
+10	Default	Default	9	Newest default row
+10	Full part, half subpart	Default	1	Default-filler.filler.filler.
+10	Not DEFAULT!	Default	9	All default!, updated, updated2
+10	Part expr fulfilled	Default	9	Default-filler.filler.filler.
+10	Default	Default	2	Default-filler.filler.filler.
+10	Default	Subpart expr fulfilled	1	Default-filler.filler.filler.
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_READ_FIRST	4
+HANDLER_READ_KEY	4
+HANDLER_READ_RND_NEXT	12
+HANDLER_WRITE	17
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM t3 PARTITION (p10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	p10_p10sp0,p10_p10sp1,p10_p10sp2,p10_p10sp3	ALL	NULL	NULL	NULL	NULL	9	
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_WRITE	17
+FLUSH STATUS;
+UNLOCK TABLES;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_EXTERNAL_LOCK	17
+HANDLER_WRITE	17
+# 17 locks (1 table, 16 partitions unlock)
 DROP TABLE t3;
 #
 # Test insert with timestamp column
@@ -2576,6 +2708,24 @@ HANDLER_WRITE	17
 # 13 read_key
 # 1 read_next (if more matches after the first match)
 # 1 delete
+FLUSH STATUS;
+DELETE FROM t1 WHERE a = (SELECT a + 90 FROM t2 WHERE a = 1);
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	32
+HANDLER_READ_KEY	2
+HANDLER_WRITE	17
+# 32 locks (2 table + 13 + 1 partition lock/unlock)
+# 2 read_key
+# 2 read_next (if more matches after the first match)
+# 1 delete
+EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = (SELECT a + 90 FROM t2 WHERE a = 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	p0	range	PRIMARY,b	PRIMARY	4	NULL	1	Using where
+2	SUBQUERY	t2	p1	const	PRIMARY	PRIMARY	4	const	1	Using index
 #
 # Test multi table delete
 #
@@ -2596,7 +2746,6 @@ a	b
 39	Fourth row, p0, updated 1
 52	Fifth row, p0, updated 1
 65	No duplicate, INSERT_DUP_KEY_UPDATE
-91	No duplicate, INSERT_DUP_KEY_UPDATE
 98	Test98
 104	No duplicate 104
 111	Test111
@@ -2707,7 +2856,6 @@ a	b
 39	Fourth row, p0, updated 1
 52	Fifth row, p0, updated 1
 65	No duplicate, INSERT_DUP_KEY_UPDATE
-91	No duplicate, INSERT_DUP_KEY_UPDATE
 98	Test98
 104	No duplicate 104
 111	Test111
@@ -2937,7 +3085,6 @@ a	b
 39	Fourth row, p0, updated 1
 52	Fifth row, p0, updated 1
 65	No duplicate, INSERT_DUP_KEY_UPDATE
-91	No duplicate, INSERT_DUP_KEY_UPDATE
 98	Test98
 104	No duplicate 104
 111	Test111
@@ -3030,7 +3177,6 @@ a	b
 39	Fourth row, p0, updated 1
 52	Fifth row, p0, updated 1
 65	No duplicate, INSERT_DUP_KEY_UPDATE
-91	No duplicate, INSERT_DUP_KEY_UPDATE
 104	No duplicate 104
 111	Test111
 113	Second row, p0, updated 1, updated 2 -> p8, updated 3, updated 4 -> p9
@@ -3099,6 +3245,7 @@ HANDLER_READ_FIRST	2
 HANDLER_READ_KEY	2
 HANDLER_READ_RND_NEXT	6
 HANDLER_WRITE	17
+# 8 locks (1 table + 3 partitions lock/unlock)
 SELECT @x;
 @x
 Five
@@ -3221,11 +3368,3 @@ INSERT INTO t1 VALUES (1, "test 1");
 INSERT INTO t1 VALUES (SELECT * FROM t1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT * FROM t1)' at line 1
 DROP TABLE t1;
-# TODO: Add variants for LOCK TABLES
-# TODO: Document that functions in WHERE clause can now be evaluated
-#       before any locks are taken (i.e. if optimization is possible
-#       before locking). Like GET_LOCK/RELEASE_LOCK ?
-# TODO: How to make a stored function or trigger prune?
-# Stored procedures does not prelock, so it will prune locks.
-# Stored functions, triggers and events prelocks all used tables
-# which makes prune locks impossible.
