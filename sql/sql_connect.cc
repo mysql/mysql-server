@@ -480,8 +480,9 @@ static int check_connection(THD *thd)
                       struct sockaddr *sa= (sockaddr *) &net->vio->remote;
                       sa->sa_family= AF_INET;
                       struct in_addr *ip4= &((struct sockaddr_in *) sa)->sin_addr;
-                      ip4->s_addr= htonl(0xC0000200); /* 192.0.2.0 */
-                      strcpy(ip, "santa.claus.ipv4.example.com");
+                      ip4->s_addr= htonl(0xC0000204); /* ipv4 192.0.2.4 */
+                      strcpy(ip, "192.0.2.4");
+                      peer_rc= 0;
                     }
                     );
 
