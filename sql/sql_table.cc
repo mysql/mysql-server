@@ -53,6 +53,8 @@
 #include "sql_show.h"
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
+#include "sql_resolver.h"              // setup_order, fix_inner_refs
+#include <mysql/psi/mysql_table.h>
 
 #ifdef __WIN__
 #include <io.h>
@@ -2394,9 +2396,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         tbl_name.append('.');
         tbl_name.append(String(table->table_name,system_charset_info));
 
-	push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
-			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
-			    tbl_name.c_ptr());
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+                            ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
+                            tbl_name.c_ptr());
       }
       else
       {
@@ -2422,21 +2424,21 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
       /* No error if non existent table and 'IF EXIST' clause or view */
       if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
-	  (if_exists || table_type == NULL))
+          (if_exists || table_type == NULL))
       {
-	error= 0;
+        error= 0;
         thd->clear_error();
       }
       if (error == HA_ERR_ROW_IS_REFERENCED)
       {
-	/* the table is referenced by a foreign key constraint */
-	foreign_key_error= 1;
+        /* the table is referenced by a foreign key constraint */
+        foreign_key_error= 1;
       }
       if (!error || error == ENOENT || error == HA_ERR_NO_SUCH_TABLE)
       {
         int new_error;
-	/* Delete the table definition file */
-	strmov(end,reg_ext);
+        /* Delete the table definition file */
+        strmov(end,reg_ext);
         if (!(new_error= mysql_file_delete(key_file_frm, path, MYF(MY_WME))))
         {
           non_tmp_table_deleted= TRUE;
@@ -2450,7 +2452,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     if (error)
     {
       if (wrong_tables.length())
-	wrong_tables.append(',');
+        wrong_tables.append(',');
 
       wrong_tables.append(String(db,system_charset_info));
       wrong_tables.append('.');
@@ -2463,6 +2465,11 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                     my_printf_error(ER_BAD_TABLE_ERROR,
                                     ER(ER_BAD_TABLE_ERROR), MYF(0),
                                     table->table_name););
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    if (drop_temporary && likely(error == 0))
+      PSI_CALL(drop_table_share)(true, table->db, table->db_length,
+                                 table->table_name, table->table_name_length);
+#endif
   }
   DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
   thd->thread_specific_used|= (trans_tmp_table_deleted ||
@@ -2864,6 +2871,8 @@ int prepare_create_field(Create_field *sql_field,
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_TIME:
   case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIME2:
+  case MYSQL_TYPE_DATETIME2:
   case MYSQL_TYPE_NULL:
     sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
     break;
@@ -2882,6 +2891,7 @@ int prepare_create_field(Create_field *sql_field,
                           (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
     break;
   case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
     /* We should replace old TIMESTAMP fields with their newer analogs */
     if (sql_field->unireg_check == Field::TIMESTAMP_OLD_FIELD)
     {
@@ -3858,7 +3868,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
     if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
         !sql_field->def &&
-        sql_field->sql_type == MYSQL_TYPE_TIMESTAMP &&
+        real_type_with_now_as_default(sql_field->sql_type) &&
         (sql_field->flags & NOT_NULL_FLAG) &&
         (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
     {
@@ -4716,7 +4726,26 @@ mysql_rename_table(handlerton *base, const char *old_db,
   if (error == HA_ERR_WRONG_COMMAND)
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
   else if (error)
-    my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
+  {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(ER_ERROR_ON_RENAME, MYF(0), from, to,
+             error, my_strerror(errbuf, sizeof(errbuf), error));
+  }
+
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  /*
+    Remove the old table share from the pfs table share array. The new table
+    share will be created when the renamed table is first accessed.
+   */
+  if (likely(error == 0))
+  {
+    my_bool temp_table= (my_bool)is_prefix(old_name, tmp_file_prefix);
+    PSI_CALL(drop_table_share)(temp_table, old_db, strlen(old_db),
+                               old_name, strlen(old_name));
+  }
+#endif
+
+
   DBUG_RETURN(error != 0);
 }
 
@@ -4761,6 +4790,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   if (open_tables(thd, &thd->lex->query_tables, &not_used, 0))
     goto err;
   src_table->table->use_all_columns();
+
+  DEBUG_SYNC(thd, "create_table_like_after_open");
 
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
   memset(&local_create_info, 0, sizeof(local_create_info));
@@ -4810,6 +4841,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
                                              table->table_name,
                                              MDL_EXCLUSIVE));
+
+  DEBUG_SYNC(thd, "create_table_like_before_binlog");
+
   /*
     CREATE TEMPORARY TABLE doesn't terminate a transaction. Calling
     stmt.mark_created_temp_table() guarantees the transaction can be binlogged
@@ -5692,7 +5726,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     */
     if ((def->sql_type == MYSQL_TYPE_DATE ||
          def->sql_type == MYSQL_TYPE_NEWDATE ||
-         def->sql_type == MYSQL_TYPE_DATETIME) &&
+         def->sql_type == MYSQL_TYPE_DATETIME ||
+         def->sql_type == MYSQL_TYPE_DATETIME2) &&
          !alter_info->datetime_field &&
          !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
          thd->variables.sql_mode & MODE_NO_ZERO_DATE)
@@ -6263,6 +6298,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     case ENABLE:
       if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
         goto err;
+      DEBUG_SYNC(thd,"alter_table_enable_indexes");
       DBUG_EXECUTE_IF("sleep_alter_enable_indexes", my_sleep(6000000););
       error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       break;
@@ -6565,6 +6601,15 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           needed_inplace_with_read_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE;
           needed_inplace_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE;
         }
+      }
+      else if (key->flags & HA_FULLTEXT)
+      {
+        /*
+          Fulltext keys should be treated as primary keys as InnoDB might
+          need to rebuild the primary index.
+        */
+        needed_inplace_with_read_flags|= HA_INPLACE_ADD_PK_INDEX_NO_WRITE;
+        needed_inplace_flags|= HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE;
       }
       else
       {
@@ -7171,27 +7216,30 @@ err:
   if (alter_info->error_if_not_empty &&
       thd->get_stmt_da()->current_row_for_warning())
   {
-    const char *f_val= 0;
+    uint f_length;
     enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
     switch (alter_info->datetime_field->sql_type)
     {
       case MYSQL_TYPE_DATE:
       case MYSQL_TYPE_NEWDATE:
-        f_val= "0000-00-00";
+        f_length= MAX_DATE_WIDTH; // "0000-00-00";
         t_type= MYSQL_TIMESTAMP_DATE;
         break;
       case MYSQL_TYPE_DATETIME:
-        f_val= "0000-00-00 00:00:00";
+      case MYSQL_TYPE_DATETIME2:
+        f_length= MAX_DATETIME_WIDTH; // "0000-00-00 00:00:00";
         t_type= MYSQL_TIMESTAMP_DATETIME;
         break;
       default:
         /* Shouldn't get here. */
+        f_length= 0;
         DBUG_ASSERT(0);
     }
     bool save_abort_on_warning= thd->abort_on_warning;
     thd->abort_on_warning= TRUE;
     make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                                 f_val, strlength(f_val), t_type,
+                                 ErrConvString(my_zero_datetime6, f_length),
+                                 t_type,
                                  alter_info->datetime_field->field_name);
     thd->abort_on_warning= save_abort_on_warning;
   }

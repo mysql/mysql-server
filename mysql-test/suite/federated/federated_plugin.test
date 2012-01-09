@@ -1,3 +1,4 @@
+--source include/not_embedded.inc
 --source include/have_federated_plugin.inc
 
 # Uninstall will not uninstall if ps has been used

@@ -393,7 +393,7 @@ gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc)
   // generate warning if log_warnings is false, partially because that
   // would make unit tests fail (ER() is not safe to use in unit
   // tests).
-  if (ret == GTID_STATEMENT_SKIP && global_system_variables.log_warnings)
+  if (ret == GTID_STATEMENT_SKIP && log_warnings)
   {
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
     gtid_next->to_string(&global_sid_map, buf);

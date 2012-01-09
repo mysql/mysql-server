@@ -42,6 +42,7 @@ eval DROP TABLE `$table_name_right`;
 --echo
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file > $MYSQLTEST_VARDIR/tmp/my.sql
+RESET MASTER;
 
 --echo # '--exec mysql ...' without --binary-mode option
 --echo # It creates the table with a wrong table name and generates an error.
@@ -72,6 +73,7 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 --echo
 --echo # In binary_mode, table name '0x410D0A42' and string '0x410042' can be
 --echo # handled correctly.
+RESET MASTER;
 --exec $MYSQL --binary-mode test < $MYSQLTEST_VARDIR/tmp/my.sql
 eval SELECT HEX(c1) FROM `$table_name_right`;
 
@@ -114,7 +116,12 @@ FLUSH LOGS;
 #### Replay through regular mysql client non-interactive mode
 
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file  | $MYSQL
+--let $prefix=`SELECT UUID()`
+--let $binlog_uuid_filename= $MYSQLTEST_VARDIR/tmp/$prefix-bin.log
+--copy_file $MYSQLD_DATADIR/$binlog_file $binlog_uuid_filename
+RESET MASTER;
+
+--exec $MYSQL_BINLOG $binlog_uuid_filename  | $MYSQL
 
 --let $table_name=`SELECT table_name FROM information_schema.tables WHERE table_schema='test'`
 --let $tbl1= `SELECT hex(table_name) FROM information_schema.tables WHERE table_schema='test'`
@@ -125,8 +132,8 @@ FLUSH LOGS;
 #### case #3: mysql --binlog-mode=1
 #### Replay through regular mysql client non-interactive mode and with binary mode set
 
---let $MYSQLD_DATADIR= `SELECT @@datadir`
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file  | $MYSQL --binary-mode
+RESET MASTER;
+--exec $MYSQL_BINLOG $binlog_uuid_filename  | $MYSQL --binary-mode
 
 --let $table_name=`SELECT table_name FROM information_schema.tables WHERE table_schema='test'`
 --let $tbl2= `SELECT hex(table_name) FROM information_schema.tables WHERE table_schema='test'`
@@ -159,3 +166,4 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 --source include/assert.inc
 
 RESET MASTER;
+--remove_file $binlog_uuid_filename

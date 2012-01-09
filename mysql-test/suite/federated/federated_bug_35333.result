@@ -49,12 +49,12 @@ CREATE TABLE t1 (c1 int) ENGINE=MYISAM;
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, TABLE_ROWS, DATA_LENGTH, TABLE_COMMENT
 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_ROWS	DATA_LENGTH	TABLE_COMMENT
-realdb	t1	BASE TABLE	NULL	NULL	NULL	NULL	Can't find file: 't1' (errno: 2)
+realdb	t1	BASE TABLE	NULL	NULL	NULL	NULL	Can't find file: 't1' (errno: 2 - No such file or directory)
 Warnings:
-Warning	1017	Can't find file: 't1' (errno: 2)
+Warning	1017	Can't find file: 't1' (errno: 2 - No such file or directory)
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1017	Can't find file: 't1' (errno: 2)
+Warning	1017	Can't find file: 't1' (errno: 2 - No such file or directory)
 #
 # Cleanup
 #

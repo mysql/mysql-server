@@ -2019,8 +2019,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     outparam->found_next_number_field=
       outparam->field[(uint) (share->found_next_number_field - share->field)];
   if (share->timestamp_field)
-    outparam->timestamp_field= (Field_timestamp*) outparam->field[share->timestamp_field_offset];
-
+    outparam->set_timestamp_field(outparam->
+                                  field[share->timestamp_field_offset]);
 
   /* Fix key->name and key_part->field */
   if (share->key_parts)
@@ -2463,6 +2463,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
 {
   int err_no;
   char buff[FN_REFLEN];
+  char errbuf[MYSYS_STRERROR_SIZE];
   myf errortype= ME_ERROR+ME_WAITTANG;
   DBUG_ENTER("open_table_error");
 
@@ -2475,7 +2476,8 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
     {
       strxmov(buff, share->normalized_path.str, reg_ext, NullS);
       my_error((db_errno == EMFILE) ? ER_CANT_OPEN_FILE : ER_FILE_NOT_FOUND,
-               errortype, buff, db_errno);
+               errortype, buff,
+               db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
     }
     break;
   case 2:
@@ -2495,7 +2497,8 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
     err_no= (db_errno == ENOENT) ? ER_FILE_NOT_FOUND : (db_errno == EAGAIN) ?
       ER_FILE_USED : ER_CANT_OPEN_FILE;
     strxmov(buff, share->normalized_path.str, datext, NullS);
-    my_error(err_no,errortype, buff, db_errno);
+    my_error(err_no,errortype, buff,
+             db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
     delete file;
     break;
   }
@@ -2893,7 +2896,7 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
   }
   if (!(to= strmake_root(mem, str.ptr(), length)))
     length= 0;                                  // Safety fix
-  res->set(to, length, ((Field_str*)field)->charset());
+  res->set(to, length, field->charset());
   return 0;
 }
 
@@ -3738,8 +3741,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
             this expression will not be moved to WHERE condition (i.e. will
             be clean correctly for PS/SP)
           */
-          tbl->on_expr= and_conds(tbl->on_expr,
-                                  where->copy_andor_structure(thd));
+          tbl->set_join_cond(and_conds(tbl->join_cond(),
+                                       where->copy_andor_structure(thd)));
           break;
         }
       }
@@ -3781,8 +3784,8 @@ merge_on_conds(THD *thd, TABLE_LIST *table, bool is_cascaded)
 
   Item *cond= NULL;
   DBUG_PRINT("info", ("alias: %s", table->alias));
-  if (table->on_expr)
-    cond= table->on_expr->copy_andor_structure(thd);
+  if (table->join_cond())
+    cond= table->join_cond()->copy_andor_structure(thd);
   if (!table->nested_join)
     DBUG_RETURN(cond);
   List_iterator<TABLE_LIST> li(table->nested_join->join_list);
@@ -5272,29 +5275,46 @@ bool TABLE::alloc_keys(uint key_count)
         purposes
 
   @return TRUE OOM error.
-  @return FALSE the key was created or ignored (key over a BLOB field).
+  @return FALSE the key was created or ignored (too long key).
 */
 
-bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
+bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
 {
   DBUG_ASSERT(!created && s->keys < max_keys && key_parts);
 
   KEY* cur_key= key_info + s->keys;
   Field **reg_field;
-  uint i= 0;
+  uint i;
   bool key_start= TRUE;
   uint field_count= 0;
   uchar *key_buf;
   KEY_PART_INFO* key_part_info;
+  uint key_len= 0;
 
-  for (reg_field=field ; *reg_field; i++, reg_field++)
+  for (i= 0, reg_field=field ; *reg_field; i++, reg_field++)
   {
-    // Ensure that we're not creating a key over a blob field.
-    DBUG_ASSERT(!((key_parts & (1ULL << i)) &&
-                (*reg_field)->flags & BLOB_FLAG));
+    if (key_parts->is_set(i))
+    {
+      KEY_PART_INFO tkp;
+      // Ensure that we're not creating a key over a blob field.
+      DBUG_ASSERT(!((*reg_field)->flags & BLOB_FLAG));
+      /*
+        Check if possible key is too long, ignore it if so.
+        The reason to use MI_MAX_KEY_LENGTH (myisam's default) is that it is
+        smaller than MAX_KEY_LENGTH (heap's default) and it's unknown whether
+        myisam or heap will be used for tmp table.
+      */
+      tkp.init_from_field(*reg_field);
+      key_len+= tkp.store_length;
+      if (key_len > MI_MAX_KEY_LENGTH)
+      {
+        max_keys--;
+        return FALSE;
+      }
+    }
     field_count++;
   }
-  uint key_part_count= my_count_bits(key_parts);
+  const uint key_part_count= key_parts->bits_set();
 
   /* Allocate key parts in the tables' mem_root. */
   size_t key_buf_size= sizeof(KEY_PART_INFO) * key_part_count +
@@ -5307,7 +5327,7 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   cur_key->key_part= key_part_info= (KEY_PART_INFO*) key_buf;
   cur_key->usable_key_parts= cur_key->key_parts= key_part_count;
   s->key_parts+= key_part_count;
-  cur_key->key_length=0;
+  cur_key->key_length= key_len;
   cur_key->algorithm= HA_KEY_ALG_BTREE;
   cur_key->name= key_name;
   cur_key->flags= HA_GENERATED_KEY;
@@ -5320,7 +5340,7 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   keys_in_use_for_order_by.set_bit(s->keys);
   for (i= 0, reg_field=field ; *reg_field; i++, reg_field++)
   {
-    if (!(key_parts & (1ULL << i)))
+    if (!(key_parts->is_set(i)))
       continue;
 
     if (key_start)
@@ -5330,7 +5350,6 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
     (*reg_field)->part_of_sortkey.set_bit(s->keys);
     (*reg_field)->flags|= PART_KEY_FLAG;
     key_part_info->init_from_field(*reg_field);
-    cur_key->key_length+= key_part_info->store_length;
     key_part_info++;
   }
   set_if_bigger(s->max_key_length, cur_key->key_length);
@@ -5427,8 +5446,9 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   do
   {
     embedded= parent_embedding;
-    if (embedded->prep_on_expr)
-      embedded->on_expr= embedded->prep_on_expr->copy_andor_structure(thd);
+    if (embedded->prep_join_cond)
+      embedded->
+        set_join_cond(embedded->prep_join_cond->copy_andor_structure(thd));
     parent_embedding= embedded->embedding;
   }
   while (parent_embedding &&
@@ -5919,7 +5939,7 @@ bool TABLE_LIST::generate_keys()
   while ((entry= it++))
   {
     sprintf(buf, "auto_key%i", key++);
-    if (table->add_tmp_key(entry->used_fields.to_ulonglong(),
+    if (table->add_tmp_key(&entry->used_fields,
                            table->in_use->strdup(buf)))
       return TRUE;
   }
@@ -6019,6 +6039,20 @@ bool TABLE::update_const_key_parts(Item *conds)
   }
   return FALSE;
 }
+
+
+void TABLE::set_timestamp_field(Field *field_arg)
+{
+  DBUG_ASSERT(!field_arg || field_arg->is_temporal_with_date_and_time());
+  timestamp_field= (Field_temporal_with_date_and_time *) field_arg;
+}
+
+
+Field *TABLE::get_timestamp_field()
+{
+  return (Field *) timestamp_field;
+}
+
 
 /**
   Test if the order list consists of simple field expressions

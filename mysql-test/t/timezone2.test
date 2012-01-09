@@ -284,3 +284,25 @@ SELECT CONVERT_TZ(1, 1, a) FROM t1;
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+SET time_zone='Europe/Moscow';
+CREATE TABLE t1 (a TIMESTAMP, b VARCHAR(30));
+# Testing values around winter/summer time change
+# Expect non-zero UNIX_TIMESTAMP value for all of them
+INSERT INTO t1 VALUES
+('2003-03-30 01:59:59', 'Before the gap'),
+('2003-03-30 02:30:00', 'Inside the gap'),
+('2003-03-30 03:00:00',  'After the gap');
+SELECT a, UNIX_TIMESTAMP(a), b FROM t1;
+DROP TABLE t1;
+SELECT UNIX_TIMESTAMP('2003-03-30 01:59:59'), 'Before the gap' AS b;
+SELECT UNIX_TIMESTAMP('2003-03-30 02:30:00'), 'Inside the gap' AS b;
+SELECT UNIX_TIMESTAMP('2003-03-30 03:00:00'), 'After the gap' AS b;
+SET time_zone=DEFAULT;
+
+--echo #
+--echo # End of 5.6 tests
+--echo #

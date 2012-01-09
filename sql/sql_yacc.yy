@@ -31,6 +31,7 @@
 #define YYTHD ((THD *)yythd)
 #define YYLIP (& YYTHD->m_parser_state->m_lip)
 #define YYPS (& YYTHD->m_parser_state->m_yacc)
+#define YYCSCL  YYTHD->variables.character_set_client
 
 #define MYSQL_YACC
 #define YYINITDEPTH 100
@@ -793,6 +794,7 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
   return FALSE;
 }
 
+
 %}
 %union {
   int  num;
@@ -997,6 +999,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  DECIMAL_SYM                   /* SQL-2003-R */
 %token  DECLARE_SYM                   /* SQL-2003-R */
 %token  DEFAULT                       /* SQL-2003-R */
+%token  DEFAULT_AUTH_SYM              /* INTERNAL */
 %token  DEFINER_SYM
 %token  DELAYED_SYM
 %token  DELAY_KEY_WRITE_SYM
@@ -1262,8 +1265,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PARTITIONING_SYM
 %token  PASSWORD
 %token  PHASE_SYM
-%token  PLUGINS_SYM
+%token  PLUGIN_DIR_SYM                /* INTERNAL */
 %token  PLUGIN_SYM
+%token  PLUGINS_SYM
 %token  POINT_SYM
 %token  POLYGON
 %token  PORT_SYM
@@ -1550,7 +1554,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
-        ws_nweights
+        ws_nweights func_datetime_precision
         ws_level_flag_desc ws_level_flag_reverse ws_level_flags
         opt_ws_levels ws_level_list ws_level_list_item ws_level_number
         ws_level_range ws_level_list_or_range  
@@ -1562,14 +1566,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         replace_lock_option opt_low_priority insert_lock_option load_data_lock
 
 %type <item>
-        literal text_literal insert_ident order_ident
+        literal text_literal insert_ident order_ident temporal_literal
         simple_ident expr opt_expr opt_else sum_expr in_sum_expr
         variable variable_aux bool_pri
         predicate bit_expr
         table_wild simple_expr udf_expr
         expr_or_default set_expr_or_default
         param_marker geometry_function
-        signed_literal now_or_signed_literal opt_escape
+        signed_literal now now_or_signed_literal opt_escape
         sp_opt_default
         simple_ident_nospvar simple_ident_q
         field_or_var limit_option
@@ -1976,14 +1980,13 @@ change:
             LEX *lex = Lex;
             lex->sql_command = SQLCOM_CHANGE_MASTER;
             /*
-              Clear LEX_MASTER_INFO struct and allocate memory for
-              repl_ignore_server_ids. repl_ignore_server_ids is freed
-              in THD::cleanup_after_query.  So it is guaranteed to be
+              Clear LEX_MASTER_INFO struct. repl_ignore_server_ids is freed
+              in THD::cleanup_after_query. So it is guaranteed to be
               uninitialized before here.
+	      Its allocation is deferred till the option is parsed below.
             */
             lex->mi.set_unspecified();
-            my_init_dynamic_array(&Lex->mi.repl_ignore_server_ids,
-                                  sizeof(::server_id), 16, 16);
+            DBUG_ASSERT(Lex->mi.repl_ignore_server_ids.elements == 0);
           }
           master_defs
           {}
@@ -2128,6 +2131,14 @@ ignore_server_id_list:
 ignore_server_id:
           ulong_num
           {
+            if (Lex->mi.repl_ignore_server_ids.elements == 0)
+            {
+              my_init_dynamic_array2(&Lex->mi.repl_ignore_server_ids,
+                                     sizeof(::server_id),
+                                     Lex->mi.server_ids_buffer,
+                                     array_elements(Lex->mi.server_ids_buffer),
+                                     16);
+            }
             insert_dynamic(&Lex->mi.repl_ignore_server_ids, (uchar*) &($1));
           }
 
@@ -2401,7 +2412,7 @@ opt_ev_status:
 ev_starts:
           /* empty */
           {
-            Item *item= new (YYTHD->mem_root) Item_func_now_local();
+            Item *item= new (YYTHD->mem_root) Item_func_now_local(0);
             if (item == NULL)
               MYSQL_YYABORT;
             Lex->event_parse_data->item_starts= item;
@@ -5040,7 +5051,7 @@ part_values_in:
                 arrays with one entry in each array. This can happen
                 in the first partition of an ALTER TABLE statement where
                 we ADD or REORGANIZE partitions. Also can only happen
-                for LIST partitions.
+                for LIST [COLUMNS] partitions.
               */
               if (part_info->reorganize_into_single_field_col_val())
               {
@@ -5780,23 +5791,23 @@ type:
           { $$=MYSQL_TYPE_YEAR; }
         | DATE_SYM
           { $$=MYSQL_TYPE_DATE; }
-        | TIME_SYM
-          { $$=MYSQL_TYPE_TIME; }
-        | TIMESTAMP
+        | TIME_SYM type_datetime_precision
+          { $$= MYSQL_TYPE_TIME2; }
+        | TIMESTAMP type_datetime_precision
           {
             if (YYTHD->variables.sql_mode & MODE_MAXDB)
-              $$=MYSQL_TYPE_DATETIME;
+              $$=MYSQL_TYPE_DATETIME2;
             else
             {
               /* 
                 Unlike other types TIMESTAMP fields are NOT NULL by default.
               */
               Lex->type|= NOT_NULL_FLAG;
-              $$=MYSQL_TYPE_TIMESTAMP;
+              $$=MYSQL_TYPE_TIMESTAMP2;
             }
           }
-        | DATETIME
-          { $$=MYSQL_TYPE_DATETIME; }
+        | DATETIME type_datetime_precision
+          { $$= MYSQL_TYPE_DATETIME2; }
         | TINYBLOB
           {
             Lex->charset=&my_charset_bin;
@@ -5943,6 +5954,22 @@ precision:
           }
         ;
 
+
+type_datetime_precision:
+          /* empty */                { Lex->dec= (char *) 0; }
+        | '(' NUM ')'                { Lex->dec= $2.str; }
+        ;
+
+func_datetime_precision:
+          /* empty */                { $$= 0; }
+        | '(' ')'                    { $$= 0; }
+        | '(' NUM ')'
+           {
+             int error;
+             $$= (ulong) my_strtoll10($2.str, NULL, &error);
+           }
+        ;
+
 field_options:
           /* empty */ {}
         | field_opt_list {}
@@ -5989,13 +6016,7 @@ attribute:
           NULL_SYM { Lex->type&= ~ NOT_NULL_FLAG; }
         | not NULL_SYM { Lex->type|= NOT_NULL_FLAG; }
         | DEFAULT now_or_signed_literal { Lex->default_value=$2; }
-        | ON UPDATE_SYM NOW_SYM optional_braces
-          {
-            Item *item= new (YYTHD->mem_root) Item_func_now_local();
-            if (item == NULL)
-              MYSQL_YYABORT;
-            Lex->on_update_value= item;
-          }
+        | ON UPDATE_SYM now { Lex->on_update_value= $3; }
         | AUTO_INC { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
         | SERIAL_SYM DEFAULT VALUE_SYM
           { 
@@ -6059,13 +6080,16 @@ type_with_opt_collate:
         ;
 
 
-now_or_signed_literal:
-          NOW_SYM optional_braces
+now:
+          NOW_SYM func_datetime_precision
           {
-            $$= new (YYTHD->mem_root) Item_func_now_local();
+            $$= new (YYTHD->mem_root) Item_func_now_local($2);
             if ($$ == NULL)
               MYSQL_YYABORT;
-          }
+          };
+
+now_or_signed_literal:
+        now
         | signed_literal
           { $$=$1; }
         ;
@@ -6889,7 +6913,7 @@ alter_commands:
         ;
 
 remove_partitioning:
-          REMOVE_SYM PARTITIONING_SYM
+          REMOVE_SYM PARTITIONING_SYM have_partitioning
           {
             Lex->alter_info.flags|= ALTER_REMOVE_PARTITIONING;
           }
@@ -7210,6 +7234,23 @@ slave:
           }
           slave_until
           {}
+          slave_connection_opts
+          {
+            /*
+              It is not possible to set user's information when
+              one is trying to start the SQL Thread.
+            */
+            if ((Lex->slave_thd_opt & SLAVE_SQL) == SLAVE_SQL &&
+                (Lex->slave_thd_opt & SLAVE_IO) != SLAVE_IO &&
+                (Lex->slave_connection.user ||
+                 Lex->slave_connection.password ||
+                 Lex->slave_connection.plugin_auth ||
+                 Lex->slave_connection.plugin_dir))
+            {
+              my_error(ER_SQLTHREAD_WITH_SECURE_SLAVE, MYF(0));
+              MYSQL_YYABORT;
+            }
+          }
         | STOP_SYM SLAVE slave_thread_opts
           {
             LEX *lex=Lex;
@@ -7233,6 +7274,50 @@ start_transaction_opts:
         | WITH CONSISTENT_SYM SNAPSHOT_SYM
           {
             $$= MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT;
+          }
+        ;
+
+slave_connection_opts:
+          slave_user_name_opt slave_user_pass_opt
+          slave_plugin_auth_opt slave_plugin_dir_opt
+        ;
+
+slave_user_name_opt:
+          {
+            Lex->slave_connection.user= 0;
+          }
+        | USER EQ TEXT_STRING_sys
+          {
+            Lex->slave_connection.user= $3.str;
+          }
+        ;
+
+slave_user_pass_opt:
+          {
+            Lex->slave_connection.password= 0;
+          }
+        | PASSWORD EQ TEXT_STRING_sys
+          {
+            Lex->slave_connection.password= $3.str;
+          }
+
+slave_plugin_auth_opt:
+          {
+            Lex->slave_connection.plugin_auth= 0;
+          }
+        | DEFAULT_AUTH_SYM EQ TEXT_STRING_sys
+          {
+            Lex->slave_connection.plugin_auth= $3.str;
+          }
+        ;
+
+slave_plugin_dir_opt:
+          {
+            Lex->slave_connection.plugin_dir= 0;
+          }
+        | PLUGIN_DIR_SYM EQ TEXT_STRING_sys
+          {
+            Lex->slave_connection.plugin_dir= $3.str;
           }
         ;
 
@@ -8358,7 +8443,46 @@ simple_expr:
               MYSQL_YYABORT;
           }
         | '{' ident expr '}'
-          { $$= $3; }
+          {
+            Item_string *item;
+            $$= NULL;
+            /*
+              If "expr" is reasonably short pure ASCII string literal,
+              try to parse known ODBC style date, time or timestamp literals,
+              e.g:
+              SELECT {d'2001-01-01'};
+              SELECT {t'10:20:30'};
+              SELECT {ts'2001-01-01 10:20:30'};
+            */
+            if ($3->type() == Item::STRING_ITEM &&
+               (item= (Item_string *) $3) &&
+                item->collation.repertoire == MY_REPERTOIRE_ASCII &&
+                item->str_value.length() < MAX_DATE_STRING_REP_LENGTH * 4)
+            {
+              enum_field_types type= MYSQL_TYPE_STRING;
+              ErrConvString str(&item->str_value);
+              LEX_STRING *ls= &$2;
+              if (ls->length == 1)
+              {
+                if (ls->str[0] == 'd')  /* {d'2001-01-01'} */
+                  type= MYSQL_TYPE_DATE;
+                else if (ls->str[0] == 't') /* {t'10:20:30'} */
+                  type= MYSQL_TYPE_TIME;
+              }
+              else if (ls->length == 2) /* {ts'2001-01-01 10:20:30'} */
+              {
+                if (ls->str[0] == 't' && ls->str[1] == 's')
+                  type= MYSQL_TYPE_DATETIME;
+              }
+              if (type != MYSQL_TYPE_STRING)
+                $$= create_temporal_literal(YYTHD,
+                                            str.ptr(), str.length(),
+                                            system_charset_info,
+                                            type, false);
+            }
+            if ($$ == NULL)
+              $$= $3;
+          }
         | MATCH ident_list_arg AGAINST '(' bit_expr fulltext_options ')'
           {
             $2->push_front($5);
@@ -8655,16 +8779,9 @@ function_call_nonkeyword:
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
           }
-        | CURTIME optional_braces
+        | CURTIME func_datetime_precision
           {
-            $$= new (YYTHD->mem_root) Item_func_curtime_local();
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-            Lex->safe_to_cache_query=0;
-          }
-        | CURTIME '(' expr ')'
-          {
-            $$= new (YYTHD->mem_root) Item_func_curtime_local($3);
+            $$= new (YYTHD->mem_root) Item_func_curtime_local($2);
             if ($$ == NULL)
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
@@ -8695,19 +8812,10 @@ function_call_nonkeyword:
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
-        | NOW_SYM optional_braces
+        | now
           {
-            $$= new (YYTHD->mem_root) Item_func_now_local();
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-            Lex->safe_to_cache_query=0;
-          }
-        | NOW_SYM '(' expr ')'
-          {
-            $$= new (YYTHD->mem_root) Item_func_now_local($3);
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-            Lex->safe_to_cache_query=0;
+            $$= $1;
+            Lex->safe_to_cache_query= 0;
           }
         | POSITION_SYM '(' bit_expr IN_SYM expr ')'
           {
@@ -8752,7 +8860,7 @@ function_call_nonkeyword:
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
-        | SYSDATE optional_braces
+        | SYSDATE func_datetime_precision
           {
             /*
               Unlike other time-related functions, SYSDATE() is
@@ -8763,19 +8871,9 @@ function_call_nonkeyword:
             */
             Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
             if (global_system_variables.sysdate_is_now == 0)
-              $$= new (YYTHD->mem_root) Item_func_sysdate_local();
+              $$= new (YYTHD->mem_root) Item_func_sysdate_local($2);
             else
-              $$= new (YYTHD->mem_root) Item_func_now_local();
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-            Lex->safe_to_cache_query=0;
-          }
-        | SYSDATE '(' expr ')'
-          {
-            if (global_system_variables.sysdate_is_now == 0)
-              $$= new (YYTHD->mem_root) Item_func_sysdate_local($3);
-            else
-              $$= new (YYTHD->mem_root) Item_func_now_local($3);
+              $$= new (YYTHD->mem_root) Item_func_now_local($2);
             if ($$ == NULL)
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
@@ -8799,16 +8897,16 @@ function_call_nonkeyword:
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
           }
-        | UTC_TIME_SYM optional_braces
+        | UTC_TIME_SYM func_datetime_precision
           {
-            $$= new (YYTHD->mem_root) Item_func_curtime_utc();
+            $$= new (YYTHD->mem_root) Item_func_curtime_utc($2);
             if ($$ == NULL)
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
           }
-        | UTC_TIMESTAMP_SYM optional_braces
+        | UTC_TIMESTAMP_SYM func_datetime_precision
           {
-            $$= new (YYTHD->mem_root) Item_func_now_utc();
+            $$= new (YYTHD->mem_root) Item_func_now_utc($2);
             if ($$ == NULL)
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
@@ -9482,11 +9580,11 @@ cast_type:
         | UNSIGNED INT_SYM
           { $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
         | DATE_SYM
-          { $$=ITEM_CAST_DATE; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
-        | TIME_SYM
-          { $$=ITEM_CAST_TIME; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
-        | DATETIME
-          { $$=ITEM_CAST_DATETIME; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
+          { $$= ITEM_CAST_DATE; Lex->charset= NULL; Lex->dec= Lex->length= (char *) 0; }
+        | TIME_SYM type_datetime_precision
+          { $$= ITEM_CAST_TIME; Lex->charset= NULL; Lex->length= (char *) 0; }
+        | DATETIME type_datetime_precision
+          { $$= ITEM_CAST_DATETIME; Lex->charset= NULL; Lex->length= (char *) 0; }
         | DECIMAL_SYM float_options
           { $$=ITEM_CAST_DECIMAL; Lex->charset= NULL; }
         ;
@@ -10121,10 +10219,10 @@ interval_time_stamp:
         ;
 
 date_time_type:
-          DATE_SYM  {$$=MYSQL_TIMESTAMP_DATE;}
-        | TIME_SYM  {$$=MYSQL_TIMESTAMP_TIME;}
-        | DATETIME  {$$=MYSQL_TIMESTAMP_DATETIME;}
-        | TIMESTAMP {$$=MYSQL_TIMESTAMP_DATETIME;}
+          DATE_SYM  {$$= MYSQL_TIMESTAMP_DATE; }
+        | TIME_SYM  {$$= MYSQL_TIMESTAMP_TIME; }
+        | TIMESTAMP {$$= MYSQL_TIMESTAMP_DATETIME; }
+        | DATETIME  {$$= MYSQL_TIMESTAMP_DATETIME; }
         ;
 
 table_alias:
@@ -10401,7 +10499,8 @@ limit_option:
           }
           splocal->limit_clause_param= TRUE;
           $$= splocal;
-        } | param_marker
+        }
+        | param_marker
         {
           ((Item_param *) $1)->limit_clause_param= TRUE;
         }
@@ -12228,9 +12327,11 @@ signed_literal:
           }
         ;
 
+
 literal:
           text_literal { $$ = $1; }
         | NUM_literal { $$ = $1; }
+        | temporal_literal { $$= $1; }
         | NULL_SYM
           {
             $$ = new (YYTHD->mem_root) Item_null();
@@ -12319,9 +12420,6 @@ literal:
 
             $$= item_str;
           }
-        | DATE_SYM text_literal { $$ = $2; }
-        | TIME_SYM text_literal { $$ = $2; }
-        | TIMESTAMP text_literal { $$ = $2; }
         ;
 
 NUM_literal:
@@ -12369,6 +12467,31 @@ NUM_literal:
             }
           }
         ;
+
+
+temporal_literal:
+        DATE_SYM TEXT_STRING
+          {
+            if (!($$= create_temporal_literal(YYTHD, $2.str, $2.length, YYCSCL,
+                                              MYSQL_TYPE_DATE, true)))
+              MYSQL_YYABORT;
+          }
+        | TIME_SYM TEXT_STRING
+          {
+            if (!($$= create_temporal_literal(YYTHD, $2.str, $2.length, YYCSCL,
+                                              MYSQL_TYPE_TIME, true)))
+              MYSQL_YYABORT;
+          }
+        | TIMESTAMP TEXT_STRING
+          {
+            if (!($$= create_temporal_literal(YYTHD, $2.str, $2.length, YYCSCL,
+                                              MYSQL_TYPE_DATETIME, true)))
+              MYSQL_YYABORT;
+          }
+        ;
+
+
+
 
 /**********************************************************************
 ** Creating different items.
@@ -12968,6 +13091,7 @@ keyword_sp:
         | DATETIME                 {}
         | DATE_SYM                 {}
         | DAY_SYM                  {}
+        | DEFAULT_AUTH_SYM         {}
         | DEFINER_SYM              {}
         | DELAY_KEY_WRITE_SYM      {}
         | DES_KEY_FILE             {}
@@ -13097,6 +13221,7 @@ keyword_sp:
         | PARTITIONS_SYM           {}
         | PASSWORD                 {}
         | PHASE_SYM                {}
+        | PLUGIN_DIR_SYM           {}
         | PLUGIN_SYM               {}
         | PLUGINS_SYM              {}
         | POINT_SYM                {}

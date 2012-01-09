@@ -89,6 +89,7 @@ SET(SQL_SHARED_SOURCES
   scheduler.cc 
   set_var.cc 
   sha2.cc
+  signal_handler.cc
   sp.cc
   sp_cache.cc
   sp_head.cc
@@ -113,24 +114,28 @@ SET(SQL_SHARED_SOURCES
   sql_derived.cc
   sql_do.cc 
   sql_error.cc
+  sql_executor.cc
   sql_get_diagnostics.cc
   sql_handler.cc
   sql_help.cc
   sql_insert.cc
-  sql_join_cache.cc
+  sql_join_buffer.cc
   sql_lex.cc 
   sql_list.cc
   sql_load.cc
   sql_locale.cc
   sql_manager.cc
+  sql_optimizer.cc
   sql_parse.cc
   sql_partition.cc
   sql_partition_admin.cc
+  sql_planner.cc
   sql_plugin.cc
   sql_prepare.cc
   sql_profile.cc
   sql_reload.cc
-  sql_rename.cc 
+  sql_rename.cc
+  sql_resolver.cc
   sql_rewrite.cc
   sql_select.cc
   sql_servers.cc
@@ -142,6 +147,7 @@ SET(SQL_SHARED_SOURCES
   sql_tablespace.cc
   sql_test.cc
   sql_time.cc
+  sql_tmp_table.cc
   sql_trigger.cc
   sql_truncate.cc
   sql_udf.cc
@@ -190,6 +196,15 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysys dbug strings vio regex   
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
+
+#
+# On Windows platform we compile in the clinet-side Windows Native Authentication
+# plugin which is used by the client connection code included in the server.
+#
+IF(WIN32)
+  ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
+  TARGET_LINK_LIBRARIES(sql auth_win_client)
+ENDIF()
 
 SET (BINLOG_SOURCE zuuid.cc zgtid.cc zreturn.cc
                    zsid_map.cc zgtid_set.cc zgtid_specification.cc
@@ -404,7 +419,11 @@ INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test COMPONENT DataFiles)
 
 # Install initial database on windows
 IF(NOT CMAKE_CROSSCOMPILING)
-  GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION)
+  IF(DEBUG_EXTNAME)
+    GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION_DEBUG)
+  ELSE()
+    GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION)
+  ENDIF()
 ENDIF()
 IF(WIN32 AND MYSQLD_EXECUTABLE)
   CONFIGURE_FILE(

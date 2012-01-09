@@ -85,6 +85,31 @@ TEST_F(DecimalTest, CopyAndCompare)
 }
 
 
+TEST_F(DecimalTest, RoundOverflow)
+{
+  const char arg_str[]= "999999999";
+  String str(arg_str, &my_charset_bin);
+
+  EXPECT_EQ(E_DEC_OK,
+            string2my_decimal(E_DEC_FATAL_ERROR, &str, &d1));
+  d1.sanity_check();
+
+  for (int ix= 0; ix < DECIMAL_MAX_POSSIBLE_PRECISION; ++ix)
+  {
+    my_decimal d3;
+    const int expect=
+      (ix + str.length() <= DECIMAL_MAX_POSSIBLE_PRECISION) ?
+      E_DEC_OK : E_DEC_TRUNCATED;
+    const bool do_truncate= true;
+    EXPECT_EQ(expect,
+              my_decimal_round(E_DEC_FATAL_ERROR, &d1, ix, do_truncate, &d3))
+      << "ix:" << ix;
+    d3.sanity_check();
+    EXPECT_EQ(0, my_decimal_cmp(&d1, &d3));
+  }
+}
+
+
 TEST_F(DecimalTest, Swap)
 {
   ulonglong val1= 1;

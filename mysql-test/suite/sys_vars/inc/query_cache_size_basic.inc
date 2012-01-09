@@ -80,8 +80,13 @@ SELECT @@global.query_cache_size;
 
 SET @@global.query_cache_size = -1;
 SELECT @@global.query_cache_size;
-SET @@global.query_cache_size = 4294967296;
-SELECT @@global.query_cache_size;
+
+#
+# Bug 11748572 - 36747: ALLOCATING A LARGE QUERY CACHE IS NOT DETERMINISTIC
+#
+# SET @@global.query_cache_size = 4294967296;
+# SELECT @@global.query_cache_size;
+
 SET @@global.query_cache_size = 511;
 SELECT @@global.query_cache_size;
 --Error ER_WRONG_TYPE_FOR_VAR

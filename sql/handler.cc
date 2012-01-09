@@ -403,6 +403,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER_DEFAULT(ER_TOO_MANY_CONCURRENT_TRXS));
   SETMSG(HA_ERR_INDEX_COL_TOO_LONG,	ER_DEFAULT(ER_INDEX_COLUMN_TOO_LONG));
   SETMSG(HA_ERR_INDEX_CORRUPT,		ER_DEFAULT(ER_INDEX_CORRUPT));
+  SETMSG(HA_FTS_INVALID_DOCID,		"Invalid InnoDB FTS Doc ID");
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -2134,7 +2135,11 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0))
-    PSI_CALL(drop_table_share)(db, strlen(db), alias, strlen(alias));
+  {
+    my_bool temp_table= (my_bool)is_prefix(alias, tmp_file_prefix);
+    PSI_CALL(drop_table_share)(temp_table, db, strlen(db),
+                               alias, strlen(alias));
+  }
 #endif
 
   DBUG_RETURN(error);
@@ -2188,25 +2193,24 @@ THD *handler::ha_thd(void) const
 
 void handler::unbind_psi()
 {
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   /*
     Notify the instrumentation that this table is not owned
     by this thread any more.
   */
-  if (likely(PSI_server != NULL))
-    PSI_server->unbind_table(m_psi);
+  PSI_CALL(unbind_table)(m_psi);
 #endif
 }
 
 void handler::rebind_psi()
 {
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   /*
     Notify the instrumentation that this table is now owned
     by this thread.
   */
-  if (likely(PSI_server != NULL))
-    PSI_server->rebind_table(m_psi);
+  PSI_table_share *share_psi= ha_table_share_psi(table_share);
+  m_psi= PSI_CALL(rebind_table)(share_psi, this, m_psi);
 #endif
 }
 
@@ -2295,12 +2299,9 @@ int handler::ha_rnd_next(uchar *buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
-  result= rnd_next(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
+    { result= rnd_next(buf); })
   return result;
 }
 
@@ -2309,12 +2310,9 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
-  result= rnd_pos(buf, pos);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
+    { result= rnd_pos(buf, pos); })
   return result;
 }
 
@@ -2325,12 +2323,9 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_read_map(buf, key, keypart_map, find_flag);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_read_map(buf, key, keypart_map, find_flag); })
   return result;
 }
 
@@ -2342,12 +2337,9 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(end_range == NULL);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, index, 0);
-  result= index_read_idx_map(buf, index, key, keypart_map, find_flag);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, index, 0,
+    { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
   return result;
 }
 
@@ -2356,12 +2348,9 @@ int handler::ha_index_next(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_next(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_next(buf); })
   return result;
 }
 
@@ -2370,12 +2359,9 @@ int handler::ha_index_prev(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_prev(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_prev(buf); })
   return result;
 }
 
@@ -2384,12 +2370,9 @@ int handler::ha_index_first(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_first(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_first(buf); })
   return result;
 }
 
@@ -2398,12 +2381,9 @@ int handler::ha_index_last(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_last(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_last(buf); })
   return result;
 }
 
@@ -2412,12 +2392,9 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_next_same(buf, key, keylen);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_next_same(buf, key, keylen); })
   return result;
 }
 
@@ -2427,12 +2404,9 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_read(buf, key, key_len, find_flag);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_read(buf, key, key_len, find_flag); })
   return result;
 }
 
@@ -2441,12 +2415,9 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_read_last(buf, key, key_len);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_read_last(buf, key, key_len); })
   return result;
 }
 
@@ -2979,7 +2950,12 @@ void handler::print_error(int error, myf errflag)
     textno=ER_FILE_USED;
     break;
   case ENOENT:
-    textno=ER_FILE_NOT_FOUND;
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      textno=ER_FILE_NOT_FOUND;
+      my_error(textno, errflag, table_share->table_name.str,
+               error, my_strerror(errbuf, sizeof(errbuf), error));
+    }
     break;
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:
@@ -3003,28 +2979,31 @@ void handler::print_error(int error, myf errflag)
   }
   case HA_ERR_FOREIGN_DUPLICATE_KEY:
   {
-    uint key_nr= get_dup_key(error);
-    if ((int) key_nr >= 0)
+    DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+                m_lock_type != F_UNLCK);
+
+    char rec_buf[MAX_KEY_LENGTH];
+    String rec(rec_buf, sizeof(rec_buf), system_charset_info);
+    /* Table is opened and defined at this point */
+    key_unpack(&rec, table, 0 /* just print the subset of fields that are
+                              part of the first index, printing the whole
+                              row from there is not easy */);
+
+    char child_table_name[NAME_LEN + 1];
+    char child_key_name[NAME_LEN + 1];
+    if (get_foreign_dup_key(child_table_name, sizeof(child_table_name),
+                            child_key_name, sizeof(child_key_name)))
     {
-      uint max_length;
-      /* Write the key in the error message */
-      char key[MAX_KEY_LENGTH];
-      String str(key,sizeof(key),system_charset_info);
-      /* Table is opened and defined at this point */
-      key_unpack(&str,table,(uint) key_nr);
-      max_length= (MYSQL_ERRMSG_SIZE-
-                   (uint) strlen(ER(ER_FOREIGN_DUPLICATE_KEY)));
-      if (str.length() >= max_length)
-      {
-        str.length(max_length-4);
-        str.append(STRING_WITH_LEN("..."));
-      }
-      my_error(ER_FOREIGN_DUPLICATE_KEY, MYF(0), table_share->table_name.str,
-        str.c_ptr_safe(), key_nr+1);
-      DBUG_VOID_RETURN;
+      my_error(ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO, MYF(0),
+               table_share->table_name.str, rec.c_ptr_safe(),
+               child_table_name, child_key_name);
     }
-    textno= ER_DUP_KEY;
-    break;
+    else
+    {
+      my_error(ER_FOREIGN_DUPLICATE_KEY_WITHOUT_CHILD_INFO, MYF(0),
+               table_share->table_name.str, rec.c_ptr_safe());
+    }
+    DBUG_VOID_RETURN;
   }
   case HA_ERR_NULL_IN_SPATIAL:
     my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
@@ -3168,7 +3147,8 @@ void handler::print_error(int error, myf errflag)
       DBUG_VOID_RETURN;
     }
   }
-  my_error(textno, errflag, table_share->table_name.str, error);
+  if (textno != ER_FILE_NOT_FOUND)
+    my_error(textno, errflag, table_share->table_name.str, error);
   DBUG_VOID_RETURN;
 }
 
@@ -3345,7 +3325,7 @@ uint handler::get_dup_key(int error)
               m_lock_type != F_UNLCK);
   DBUG_ENTER("handler::get_dup_key");
   table->file->errkey  = (uint) -1;
-  if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOREIGN_DUPLICATE_KEY ||
+  if (error == HA_ERR_FOUND_DUPP_KEY ||
       error == HA_ERR_FOUND_DUPP_UNIQUE || error == HA_ERR_NULL_IN_SPATIAL ||
       error == HA_ERR_DROP_INDEX_FK)
     table->file->info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
@@ -3967,7 +3947,7 @@ void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-		    bool update_create_info)
+                    bool update_create_info)
 {
   int error= 1;
   TABLE table;
@@ -3975,16 +3955,17 @@ int ha_create_table(THD *thd, const char *path,
   const char *name;
   TABLE_SHARE share;
   DBUG_ENTER("ha_create_table");
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  my_bool temp_table= (my_bool)is_prefix(table_name, tmp_file_prefix) ||
+               (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
+#endif
   
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
   if (open_table_def(thd, &share, 0))
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  {
-    my_bool temp= (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
-    share.m_psi= PSI_CALL(get_table_share)(temp, &share);
-  }
+  share.m_psi= PSI_CALL(get_table_share)(temp_table, &share);
 #endif
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
@@ -4002,6 +3983,10 @@ int ha_create_table(THD *thd, const char *path,
   {
     strxmov(name_buff, db, ".", table_name, NullS);
     my_error(ER_CANT_CREATE_TABLE, MYF(ME_BELL+ME_WAITTANG), name_buff, error);
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    PSI_CALL(drop_table_share)(temp_table, db, strlen(db), table_name,
+                               strlen(table_name));
+#endif
   }
 err:
   free_table_share(&share);
@@ -4582,7 +4567,8 @@ bool key_uses_partial_cols(TABLE *table, uint keyno)
 ha_rows 
 handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                      void *seq_init_param, uint n_ranges_arg,
-                                     uint *bufsz, uint *flags, COST_VECT *cost)
+                                     uint *bufsz, uint *flags, 
+                                     Cost_estimate *cost)
 {
   KEY_MULTI_RANGE range;
   range_seq_t seq_it;
@@ -4632,13 +4618,14 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   {
     /* The following calculation is the same as in multi_range_read_info(): */
     *flags |= HA_MRR_USE_DEFAULT_IMPL;
-    cost->zero();
-    cost->avg_io_cost= 1; /* assume random seeks */
+    DBUG_ASSERT(cost->is_zero());
     if ((*flags & HA_MRR_INDEX_ONLY) && total_rows > 2)
-      cost->io_count= index_only_read_time(keyno, total_rows);
+      cost->add_io(index_only_read_time(keyno, total_rows) *
+                   Cost_estimate::IO_BLOCK_READ_COST());
     else
-      cost->io_count= read_time(keyno, n_ranges, total_rows);
-    cost->cpu_cost= total_rows * ROW_EVALUATE_COST + 0.01;
+      cost->add_io(read_time(keyno, n_ranges, total_rows) *
+                   Cost_estimate::IO_BLOCK_READ_COST());
+    cost->add_cpu(total_rows * ROW_EVALUATE_COST + 0.01);
   }
   return total_rows;
 }
@@ -4679,20 +4666,22 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 */
 
 ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
-                                       uint *bufsz, uint *flags, COST_VECT *cost)
+                                       uint *bufsz, uint *flags, 
+                                       Cost_estimate *cost)
 {
   *bufsz= 0; /* Default implementation doesn't need a buffer */
 
   *flags |= HA_MRR_USE_DEFAULT_IMPL;
 
-  cost->zero();
-  cost->avg_io_cost= 1; /* assume random seeks */
+  DBUG_ASSERT(cost->is_zero());
 
   /* Produce the same cost as non-MRR code does */
   if (*flags & HA_MRR_INDEX_ONLY)
-    cost->io_count= index_only_read_time(keyno, n_rows);
+    cost->add_io(index_only_read_time(keyno, n_rows) * 
+                 Cost_estimate::IO_BLOCK_READ_COST());
   else
-    cost->io_count= read_time(keyno, n_ranges, n_rows);
+    cost->add_io(read_time(keyno, n_ranges, n_rows) *
+                 Cost_estimate::IO_BLOCK_READ_COST());
   return 0;
 }
 
@@ -5164,7 +5153,7 @@ end:
   DS-MRR implementation: multi_range_read_info() function
 */
 ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
-                               uint *bufsz, uint *flags, COST_VECT *cost)
+                               uint *bufsz, uint *flags, Cost_estimate *cost)
 {  
   ha_rows res;
   uint def_flags= *flags;
@@ -5176,7 +5165,7 @@ ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
   DBUG_ASSERT(!res);
 
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) || 
-      choose_mrr_impl(keyno, rows, &def_flags, &def_bufsz, cost))
+      choose_mrr_impl(keyno, rows, flags, bufsz, cost))
   {
     /* Default implementation is choosen */
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
@@ -5198,7 +5187,7 @@ ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
 
 ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                  void *seq_init_param, uint n_ranges, 
-                                 uint *bufsz, uint *flags, COST_VECT *cost)
+                                 uint *bufsz, uint *flags, Cost_estimate *cost)
 {
   ha_rows rows;
   uint def_flags= *flags;
@@ -5259,9 +5248,8 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
 */
 
 bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
-                                 uint *bufsz, COST_VECT *cost)
+                                 uint *bufsz, Cost_estimate *cost)
 {
-  COST_VECT dsmrr_cost;
   bool res;
   THD *thd= current_thd;
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
@@ -5274,11 +5262,9 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
     return TRUE;
   }
   
-  uint add_len= table->key_info[keyno].key_length + h->ref_length; 
-  *bufsz -= add_len;
+  Cost_estimate dsmrr_cost;
   if (get_disk_sweep_mrr_cost(keyno, rows, *flags, bufsz, &dsmrr_cost))
     return TRUE;
-  *bufsz += add_len;
   
   bool force_dsmrr;
   /* 
@@ -5293,7 +5279,7 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
       dsmrr_cost.total_cost() > cost->total_cost())
     dsmrr_cost= *cost;
 
-  if (force_dsmrr || dsmrr_cost.total_cost() <= cost->total_cost())
+  if (force_dsmrr || (dsmrr_cost.total_cost() <= cost->total_cost()))
   {
     *flags &= ~HA_MRR_USE_DEFAULT_IMPL;  /* Use the DS-MRR implementation */
     *flags &= ~HA_MRR_SORTED;          /* We will return unordered output */
@@ -5309,7 +5295,8 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
 }
 
 
-static void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, COST_VECT *cost);
+static void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, 
+                                    Cost_estimate *cost);
 
 
 /**
@@ -5327,7 +5314,8 @@ static void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, COST_VECT *cost
 */
 
 bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
-                                         uint *buffer_size, COST_VECT *cost)
+                                         uint *buffer_size, 
+                                         Cost_estimate *cost)
 {
   ulong max_buff_entries, elem_size;
   ha_rows rows_in_last_step;
@@ -5348,7 +5336,8 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
     non-full buffer
   */
   rows_in_last_step= rows % max_buff_entries;
-
+  
+  DBUG_ASSERT(cost->is_zero());
   /* Adjust buffer size if we expect to use only part of the buffer */
   if (n_full_steps)
   {
@@ -5357,24 +5346,35 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   }
   else
   {
-    cost->zero();
     *buffer_size= max<ulong>(*buffer_size,
                              (size_t)(1.2*rows_in_last_step) * elem_size +
                              h->ref_length + table->key_info[keynr].key_length);
   }
 
-  COST_VECT last_step_cost;
+  Cost_estimate last_step_cost;
   get_sort_and_sweep_cost(table, rows_in_last_step, &last_step_cost);
-  cost->add(&last_step_cost);
+  (*cost)+= last_step_cost;
 
+  /*
+    With the old COST_VECT, memory cost was part of total_cost() but
+    that's not the case with Cost_estimate. Introducing Cost_estimate
+    shall not change any costs, hence the memory cost is added as if
+    it was CPU cost below. To be reconsidered when DsMRR costs are
+    refactored.
+  */
   if (n_full_steps != 0)
-    cost->mem_cost= *buffer_size;
+  {
+    cost->add_mem(*buffer_size);
+    cost->add_cpu(*buffer_size);
+  }
   else
-    cost->mem_cost= rows_in_last_step * elem_size;
-  
+  {
+    cost->add_mem(rows_in_last_step * elem_size);
+    cost->add_cpu(rows_in_last_step * elem_size);
+  }  
   /* Total cost of all index accesses */
   index_read_cost= h->index_only_read_time(keynr, rows);
-  cost->add_io(index_read_cost, 1 /* Random seeks */);
+  cost->add_io(index_read_cost * Cost_estimate::IO_BLOCK_READ_COST());
   return FALSE;
 }
 
@@ -5395,8 +5395,9 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
 */
 
 static 
-void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, COST_VECT *cost)
+void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
 {
+  DBUG_ASSERT(cost->is_zero());
   if (nrows)
   {
     get_sweep_read_cost(table, nrows, FALSE, cost);
@@ -5404,10 +5405,8 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, COST_VECT *cost)
     double cmp_op= rows2double(nrows) * ROWID_COMPARE_COST;
     if (cmp_op < 3)
       cmp_op= 3;
-    cost->cpu_cost += cmp_op * log2(cmp_op);
+    cost->add_cpu(cmp_op * log2(cmp_op));
   }
-  else
-    cost->zero();
 }
 
 
@@ -5455,15 +5454,16 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, COST_VECT *cost)
 */
 
 void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted, 
-                         COST_VECT *cost)
+                         Cost_estimate *cost)
 {
   DBUG_ENTER("get_sweep_read_cost");
 
-  cost->zero();
+  DBUG_ASSERT(cost->is_zero());
   if (table->file->primary_key_is_clustered())
   {
-    cost->io_count= table->file->read_time(table->s->primary_key, (uint)nrows, 
-                                           nrows);
+    cost->add_io(table->file->read_time(table->s->primary_key,
+                                        (uint)nrows, nrows) *
+                 Cost_estimate::IO_BLOCK_READ_COST());
   }
   else
   {
@@ -5478,14 +5478,13 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 
     DBUG_PRINT("info",("sweep: nblocks=%g, busy_blocks=%g", n_blocks,
                        busy_blocks));
-    cost->io_count= busy_blocks;
-
-    if (!interrupted)
-    {
+    if (interrupted)
+      cost->add_io(busy_blocks * Cost_estimate::IO_BLOCK_READ_COST());
+    else
       /* Assume reading is done in one 'sweep' */
-      cost->avg_io_cost= (DISK_SEEK_BASE_COST +
-                          DISK_SEEK_PROP_COST*n_blocks/busy_blocks);
-    }
+      cost->add_io(busy_blocks * 
+                   (DISK_SEEK_BASE_COST +
+                    DISK_SEEK_PROP_COST * n_blocks / busy_blocks));
   }
   DBUG_PRINT("info",("returning cost=%g", cost->total_cost()));
   DBUG_VOID_RETURN;
@@ -5935,8 +5934,7 @@ static int binlog_log_row(TABLE* table,
 
 int handler::ha_external_lock(THD *thd, int lock_type)
 {
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
-
+  int error;
   DBUG_ENTER("handler::ha_external_lock");
   /*
     Whether this is lock or unlock, this should be true, and is to verify that
@@ -5972,16 +5970,14 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   }
 
   ha_statistic_increment(&SSV::ha_external_lock_count);
-  MYSQL_START_TABLE_LOCK_WAIT(locker, &state, m_psi,
-                              PSI_TABLE_EXTERNAL_LOCK, lock_type);
+
+  MYSQL_TABLE_LOCK_WAIT(m_psi, PSI_TABLE_EXTERNAL_LOCK, lock_type,
+    { error= external_lock(thd, lock_type); })
 
   /*
     We cache the table flags if the locking succeeded. Otherwise, we
     keep them as they were when they were fetched in ha_open().
   */
-  int error= external_lock(thd, lock_type);
-
-  MYSQL_END_TABLE_LOCK_WAIT(locker);
 
   if (error == 0)
   {
@@ -6051,18 +6047,15 @@ int handler::ha_write_row(uchar *buf)
   Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   DBUG_ENTER("handler::ha_write_row");
 
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_WRITE_ROW, MAX_KEY, 0);
 
-  error= write_row(buf);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_WRITE_ROW, MAX_KEY, 0,
+    { error= write_row(buf); })
 
-  MYSQL_END_TABLE_IO_WAIT(locker);
   MYSQL_INSERT_ROW_DONE(error);
   if (unlikely(error))
     DBUG_RETURN(error);
@@ -6079,7 +6072,6 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
   Log_func *log_func= Update_rows_log_event::binlog_row_logging_function;
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   /*
     Some storage engines require that the new record is in record[0]
@@ -6090,12 +6082,9 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_UPDATE_ROW, active_index, 0);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_UPDATE_ROW, active_index, 0,
+    { error= update_row(old_data, new_data);})
 
-  error= update_row(old_data, new_data);
-
-  MYSQL_END_TABLE_IO_WAIT(locker);
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
     return error;
@@ -6110,17 +6099,13 @@ int handler::ha_delete_row(const uchar *buf)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
   Log_func *log_func= Delete_rows_log_event::binlog_row_logging_function;
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_DELETE_ROW, active_index, 0);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_DELETE_ROW, active_index, 0,
+    { error= delete_row(buf);})
 
-  error= delete_row(buf);
-
-  MYSQL_END_TABLE_IO_WAIT(locker);
   MYSQL_DELETE_ROW_DONE(error);
   if (unlikely(error))
     return error;

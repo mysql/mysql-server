@@ -153,3 +153,4 @@ ERROR HY000: Table storage engine for 'cond_instances' doesn't have this option
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=1;
 HANDLER performance_schema.accounts OPEN;
 ERROR HY000: Table storage engine for 'accounts' doesn't have this option
+DROP TEMPORARY TABLE table_list;

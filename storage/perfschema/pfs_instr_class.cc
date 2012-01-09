@@ -46,6 +46,9 @@
 */
 my_bool pfs_enabled= TRUE;
 
+DYNAMIC_ARRAY pfs_instr_init_array;
+static void configure_instr_class(PFS_instr_class *entry);
+
 /**
   Current number of elements in mutex_class_array.
   This global variable is written to during:
@@ -181,6 +184,8 @@ void init_event_name_sizing(const PFS_global_param *param)
   global_table_io_class.m_enabled= true;
   global_table_io_class.m_timed= true;
   global_table_io_class.m_event_name_index= table_class_start;
+  /* Set user-defined defaults. */
+  configure_instr_class(&global_table_io_class);
 
   memcpy(global_table_lock_class.m_name, "wait/lock/table/sql/handler", 27);
   global_table_lock_class.m_name_length= 27;
@@ -188,6 +193,8 @@ void init_event_name_sizing(const PFS_global_param *param)
   global_table_lock_class.m_enabled= true;
   global_table_lock_class.m_timed= true;
   global_table_lock_class.m_event_name_index= table_class_start + 1;
+  /* Set user-defined defaults. */
+  configure_instr_class(&global_table_lock_class);
 
   memcpy(global_idle_class.m_name, "idle", 4);
   global_idle_class.m_name_length= 4;
@@ -195,6 +202,8 @@ void init_event_name_sizing(const PFS_global_param *param)
   global_idle_class.m_enabled= true;
   global_idle_class.m_timed= true;
   global_idle_class.m_event_name_index= table_class_start + 2;
+  /* Set user-defined defaults. */
+  configure_instr_class(&global_idle_class);
 }
 
 /**
@@ -585,6 +594,41 @@ static void init_instr_class(PFS_instr_class *klass,
   klass->m_type= class_type;
 }
 
+/**
+  Set user-defined configuration values for an instrument.
+*/
+static void configure_instr_class(PFS_instr_class *entry)
+{
+  uint match_length= 0; /* length of matching pattern */
+
+  for (uint i= 0; i < pfs_instr_init_array.elements; i++)
+  {
+    PFS_instr_init* e;
+    get_dynamic(&pfs_instr_init_array, (uchar*)&e, i);
+
+    /**
+      Compare class name to all configuration entries. In case of multiple
+      matches, the longer specification wins. For example, the pattern
+      'ABC/DEF/GHI=ON' has precedence over 'ABC/DEF/%=OFF' regardless of
+      position within the configuration file or command line.
+
+      Consecutive wildcards affect the count.
+    */
+    if (!my_wildcmp(&my_charset_latin1,
+                    entry->m_name, entry->m_name+entry->m_name_length,
+                    e->m_name, e->m_name+e->m_name_length,
+                    '\\', '?','%'))
+    {
+        if (e->m_name_length >= match_length)
+        {
+           entry->m_enabled= e->m_enabled;
+           entry->m_timed= e->m_timed;
+           match_length= MY_MAX(e->m_name_length, match_length);
+        }
+    }
+  }
+}
+
 #define REGISTER_CLASS_BODY_PART(INDEX, ARRAY, MAX, NAME, NAME_LENGTH) \
   for (INDEX= 0; INDEX < MAX; INDEX++)                                 \
   {                                                                    \
@@ -650,6 +694,12 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
     entry->m_lock_stat.reset();
     entry->m_event_name_index= mutex_class_start + index;
     entry->m_singleton= NULL;
+    entry->m_enabled= false; /* disabled by default */
+    entry->m_timed= false;
+
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
+
     /*
       Now that this entry is populated, advertise it
 
@@ -711,6 +761,10 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
     entry->m_write_lock_stat.reset();
     entry->m_event_name_index= rwlock_class_start + index;
     entry->m_singleton= NULL;
+    entry->m_enabled= false; /* disabled by default */
+    entry->m_timed= false;
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
     PFS_atomic::add_u32(&rwlock_class_allocated_count, 1);
     return (index + 1);
   }
@@ -744,6 +798,10 @@ PFS_sync_key register_cond_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_COND);
     entry->m_event_name_index= cond_class_start + index;
     entry->m_singleton= NULL;
+    entry->m_enabled= false; /* disabled by default */
+    entry->m_timed= false;
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
     PFS_atomic::add_u32(&cond_class_allocated_count, 1);
     return (index + 1);
   }
@@ -882,6 +940,10 @@ PFS_file_key register_file_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_FILE);
     entry->m_event_name_index= file_class_start + index;
     entry->m_singleton= NULL;
+    entry->m_enabled= true; /* enabled by default */
+    entry->m_timed= true;
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
     PFS_atomic::add_u32(&file_class_allocated_count, 1);
     return (index + 1);
   }
@@ -914,6 +976,10 @@ PFS_stage_key register_stage_class(const char *name, uint name_length,
     entry= &stage_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_STAGE);
     entry->m_event_name_index= index;
+    entry->m_enabled= false; /* disabled by default */
+    entry->m_timed= false;
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
     PFS_atomic::add_u32(&stage_class_allocated_count, 1);
 
     return (index + 1);
@@ -947,6 +1013,10 @@ PFS_statement_key register_statement_class(const char *name, uint name_length,
     entry= &statement_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_STATEMENT);
     entry->m_event_name_index= index;
+    entry->m_enabled= true; /* enabled by default */
+    entry->m_timed= true;
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
     PFS_atomic::add_u32(&statement_class_allocated_count, 1);
 
     return (index + 1);
@@ -1026,6 +1096,10 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_SOCKET);
     entry->m_event_name_index= socket_class_start + index;
     entry->m_singleton= NULL;
+    entry->m_enabled= false; /* disabled by default */
+    entry->m_timed= false;
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
     PFS_atomic::add_u32(&socket_class_allocated_count, 1);
     return (index + 1);
   }
@@ -1175,7 +1249,7 @@ search:
     {
       set_keys(pfs, share);
       /* FIXME: aggregate to table_share sink ? */
-      pfs->m_table_stat.reset();
+      pfs->m_table_stat.fast_reset();
     }
     lf_hash_search_unpin(pins);
     return pfs;
@@ -1217,7 +1291,7 @@ search:
         pfs->m_enabled= enabled;
         pfs->m_timed= timed;
         pfs->init_refcount();
-        pfs->m_table_stat.reset();
+        pfs->m_table_stat.fast_reset();
         set_keys(pfs, share);
 
         int res;
@@ -1258,7 +1332,7 @@ void PFS_table_share::aggregate_io(void)
   uint index= global_table_io_class.m_event_name_index;
   PFS_single_stat *table_io_total= & global_instr_class_waits_array[index];
   m_table_stat.sum_io(table_io_total);
-  m_table_stat.reset_io();
+  m_table_stat.fast_reset_io();
 }
 
 void PFS_table_share::aggregate_lock(void)
@@ -1266,7 +1340,7 @@ void PFS_table_share::aggregate_lock(void)
   uint index= global_table_lock_class.m_event_name_index;
   PFS_single_stat *table_lock_total= & global_instr_class_waits_array[index];
   m_table_stat.sum_lock(table_lock_total);
-  m_table_stat.reset_lock();
+  m_table_stat.fast_reset_lock();
 }
 
 void release_table_share(PFS_table_share *pfs)

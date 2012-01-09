@@ -1651,7 +1651,7 @@ bool field_is_partition_charset(Field *field)
       !(field->type() == MYSQL_TYPE_VARCHAR))
     return FALSE;
   {
-    const CHARSET_INFO *cs= ((Field_str*)field)->charset();
+    const CHARSET_INFO *cs= field->charset();
     if (!(field->type() == MYSQL_TYPE_STRING) ||
         !(cs->state & MY_CS_BINSORT))
       return TRUE;
@@ -1694,7 +1694,7 @@ bool check_part_func_fields(Field **ptr, bool ok_with_charsets)
     */
     if (field_is_partition_charset(field))
     {
-      const CHARSET_INFO *cs= ((Field_str*)field)->charset();
+      const CHARSET_INFO *cs= field->charset();
       if (!ok_with_charsets ||
           cs->mbmaxlen > 1 ||
           cs->strxfrm_multiply > 1)
@@ -2176,6 +2176,8 @@ static int check_part_field(enum_field_types sql_type,
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIME2:
+    case MYSQL_TYPE_DATETIME2:
       *result_type= STRING_RESULT;
       *need_cs_check= TRUE;
       return FALSE;
@@ -2188,6 +2190,7 @@ static int check_part_field(enum_field_types sql_type,
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_NULL:
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
@@ -2904,7 +2907,7 @@ static void copy_to_part_field_buffers(Field **ptr,
     restore_ptr++;
     if (!field->maybe_null() || !field->is_null())
     {
-      const CHARSET_INFO *cs= ((Field_str*)field)->charset();
+      const CHARSET_INFO *cs= field->charset();
       uint max_len= field->pack_length();
       uint data_len= field->data_length();
       uchar *field_buf= *field_bufs;
@@ -4547,11 +4550,20 @@ error:
 }
 
 
-/*
-  Sets which partitions to be used in the command
+/**
+  Sets which partitions to be used in the command.
+
+  @param alter_info     Alter_info pointer holding partition names and flags.
+  @param tab_part_info  partition_info holding all partitions.
+  @param part_state     Which state to set for the named partitions.
+
+  @return Operation status
+    @retval false  Success
+    @retval true   Failure
 */
-uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
-               enum partition_state part_state)
+
+bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
+                    enum partition_state part_state)
 {
   uint part_count= 0;
   uint num_parts_found= 0;
@@ -4577,7 +4589,21 @@ uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
     else
       part_elem->part_state= PART_NORMAL;
   } while (++part_count < tab_part_info->num_parts);
-  return num_parts_found;
+
+  if (num_parts_found != alter_info->partition_names.elements &&
+      !(alter_info->flags & ALTER_ALL_PARTITION))
+  {
+    /* Not all given partitions found, revert and return failure */
+    part_it.rewind();
+    part_count= 0;
+    do
+    {
+      partition_element *part_elem= part_it++;
+      part_elem->part_state= PART_NORMAL;
+    } while (++part_count < tab_part_info->num_parts);
+    return true;
+  }
+  return false;
 }
 
 
@@ -4667,6 +4693,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
   if (table->part_info && (alter_info->flags & ALTER_FOREIGN_KEY))
   {
     my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  /* Remove partitioning on a not partitioned table is not possible */
+  if (!table->part_info && (alter_info->flags & ALTER_REMOVE_PARTITIONING))
+  {
+    my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -5140,11 +5172,7 @@ that are reorganised.
     }
     else if (alter_info->flags & ALTER_REBUILD_PARTITION)
     {
-      uint num_parts_found;
-      uint num_parts_opt= alter_info->partition_names.elements;
-      num_parts_found= set_part_state(alter_info, tab_part_info, PART_CHANGED);
-      if (num_parts_found != num_parts_opt &&
-          (!(alter_info->flags & ALTER_ALL_PARTITION)))
+      if (set_part_state(alter_info, tab_part_info, PART_CHANGED))
       {
         my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "REBUILD");
         goto err;
@@ -5307,6 +5335,8 @@ state of p1.
       alt_part_info->subpart_type= tab_part_info->subpart_type;
       alt_part_info->num_subparts= tab_part_info->num_subparts;
       DBUG_ASSERT(!alt_part_info->use_default_partitions);
+      /* We specified partitions explicitly so don't use defaults anymore. */
+      tab_part_info->use_default_partitions= FALSE;
       if (alt_part_info->set_up_defaults_for_partitioning(new_table->file,
                                                           ULL(0), 
                                                           0))
@@ -6456,8 +6486,24 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   lpt->table= 0;
   lpt->old_table= 0;
   lpt->table_list->table= 0;
-  if (thd->locked_tables_list.reopen_tables(thd))
-    sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
+  if (thd->locked_tables_mode)
+  {
+    Diagnostics_area *stmt_da= NULL;
+    Diagnostics_area tmp_stmt_da;
+
+    if (thd->is_error())
+    {
+      /* reopen might fail if we have a previous error, use a temporary da. */
+      stmt_da= thd->get_stmt_da();
+      thd->set_stmt_da(&tmp_stmt_da);
+    }
+
+    if (thd->locked_tables_list.reopen_tables(thd))
+      sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
+
+    if (stmt_da)
+      thd->set_stmt_da(stmt_da);
+  }
 }
 
 
@@ -8003,8 +8049,7 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
   while (part_iter->field_vals.cur != part_iter->field_vals.end)
   {
     longlong dummy;
-    field->store(part_iter->field_vals.cur++,
-                 ((Field_num*)field)->unsigned_flag);
+    field->store(part_iter->field_vals.cur++, field->flags & UNSIGNED_FLAG);
     if ((part_iter->part_info->is_sub_partitioned() &&
         !part_iter->part_info->get_part_partition_id(part_iter->part_info,
                                                      &part_id, &dummy)) ||
@@ -8028,12 +8073,11 @@ static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR *part_iter)
     part_iter->field_vals.cur= part_iter->field_vals.start;
     return NOT_A_PARTITION_ID;
   }
-  field->store(part_iter->field_vals.cur++, FALSE);
+  field->store(part_iter->field_vals.cur++, field->flags & UNSIGNED_FLAG);
   if (part_iter->part_info->get_subpartition_id(part_iter->part_info,
                                                 &res))
     return NOT_A_PARTITION_ID;
   return res;
-
 }
 
 

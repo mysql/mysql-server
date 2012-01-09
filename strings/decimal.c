@@ -1102,6 +1102,76 @@ int decimal2longlong(decimal_t *from, longlong *to)
   return E_DEC_OK;
 }
 
+
+#define LLDIV_MIN -1000000000000000000LL
+#define LLDIV_MAX  1000000000000000000LL
+
+/**
+  Convert decimal value to lldiv_t value.
+  @param      from  The decimal value to convert from.
+  @param OUT  to    The lldiv_t variable to convert to.
+  @return           0 on success, error code on error.
+*/
+int decimal2lldiv_t(const decimal_t *from, lldiv_t *to)
+{
+  int int_part= ROUND_UP(from->intg);
+  int frac_part= ROUND_UP(from->frac);
+  if (int_part > 2)
+  {
+    to->rem= 0;
+    to->quot= from->sign ? LLDIV_MIN : LLDIV_MAX;
+    return E_DEC_OVERFLOW;
+  }
+  if (int_part == 2)
+    to->quot= ((longlong) from->buf[0]) * DIG_BASE + from->buf[1];
+  else if (int_part == 1)
+    to->quot= from->buf[0];
+  else
+    to->quot= 0;
+  to->rem= frac_part ? from->buf[int_part] : 0;
+  if (from->sign)
+  {
+    to->quot= -to->quot;
+    to->rem= -to->rem;
+  }
+  return 0;
+}
+
+
+/**
+  Convert double value to lldiv_t valie.
+  @param     from The double value to convert from.
+  @param OUT to   The lldit_t variable to convert to.
+  @return         0 on success, error code on error.
+
+  Integer part goes into lld.quot.
+  Fractional part multiplied to 1000000000 (10^9) goes to lld.rem.
+  Typically used in datetime calculations to split seconds
+  and nanoseconds.
+*/
+int double2lldiv_t(double nr, lldiv_t *lld)
+{
+  if (nr > LLDIV_MAX)
+  {
+    lld->quot= LLDIV_MAX;
+    lld->rem= 0;
+    return E_DEC_OVERFLOW;
+  }
+  else if (nr < LLDIV_MIN)
+  {
+    lld->quot= LLDIV_MIN;
+    lld->rem= 0;
+    return E_DEC_OVERFLOW;
+  }
+  /* Truncate fractional part toward zero and store into "quot" */
+  lld->quot= (longlong) (nr > 0 ? floor(nr) : ceil(nr));
+  /* Multiply reminder to 10^9 and store into "rem" */
+  lld->rem= (longlong) rint((nr - (double) lld->quot) * 1000000000);
+  return E_DEC_OK;
+}
+
+
+
 /*
   Convert decimal to its binary fixed-length representation
   two representations of the same length can be compared with memcmp
@@ -1483,9 +1553,8 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
 {
   int frac0=scale>0 ? ROUND_UP(scale) : (scale + 1)/DIG_PER_DEC1,
     frac1=ROUND_UP(from->frac), UNINIT_VAR(round_digit),
-      intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len,
-      intg1=ROUND_UP(from->intg +
-                     (((intg0 + frac0)>0) && (from->buf[0] == DIG_MAX)));
+    intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len;
+
   dec1 *buf0=from->buf, *buf1=to->buf, x, y, carry=0;
   int first_dig;
 
@@ -1500,6 +1569,12 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
   default: DBUG_ASSERT(0);
   }
 
+  /*
+    For my_decimal we always use len == DECIMAL_BUFF_LENGTH == 9
+    For internal testing here (ifdef MAIN) we always use len == 100/4
+   */
+  DBUG_ASSERT(from->len == to->len);
+
   if (unlikely(frac0+intg0 > len))
   {
     frac0=len-intg0;
@@ -1513,17 +1588,17 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
     return E_DEC_OK;
   }
 
-  if (to != from || intg1>intg0)
+  if (to != from)
   {
     dec1 *p0= buf0 + intg0 + MY_MAX(frac1, frac0);
-    dec1 *p1= buf1 + intg1 + MY_MAX(frac1, frac0);
+    dec1 *p1= buf1 + intg0 + MY_MAX(frac1, frac0);
+
+    DBUG_ASSERT(p0 - buf0 <= len);
+    DBUG_ASSERT(p1 - buf1 <= len);
 
     while (buf0 < p0)
       *(--p1) = *(--p0);
-    if (unlikely(intg1 > intg0))
-      to->buf[0]= 0;
 
-    intg0= intg1;
     buf0=to->buf;
     buf1=to->buf;
     to->sign=from->sign;

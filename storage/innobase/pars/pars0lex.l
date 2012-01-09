@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -64,7 +64,9 @@ Created 12/14/1997 Heikki Tuuri
 #define realloc(P, A)	ut_realloc(P, A)
 #define exit(A) 	ut_error
 
-#define YY_INPUT(buf, result, max_size) pars_get_lex_chars(buf, &result, max_size)
+/* Note: We cast &result to int* from yysize_t* */
+#define YY_INPUT(buf, result, max_size) \
+	pars_get_lex_chars(buf, (int*) &result, max_size)
 
 /* String buffer for removing quotes */
 static ulint	stringbuf_len_alloc = 0; /* Allocated length */
@@ -79,7 +81,7 @@ string_append(
 	ulint		len)	/*!< in: length of the string */
 {
 	if (stringbuf == NULL) {
-		stringbuf = malloc(1);
+		stringbuf = static_cast<char*>(malloc(1));
 		stringbuf_len_alloc = 1;
 	}
 
@@ -87,7 +89,9 @@ string_append(
 		while (stringbuf_len + len > stringbuf_len_alloc) {
 			stringbuf_len_alloc <<= 1;
 		}
-		stringbuf = realloc(stringbuf, stringbuf_len_alloc);
+
+		stringbuf = static_cast<char*>(
+			realloc(stringbuf, stringbuf_len_alloc));
 	}
 
 	memcpy(stringbuf + stringbuf_len, str, len);
@@ -96,8 +100,9 @@ string_append(
 
 %}
 
-DIGIT	[0-9]
-ID	[a-z_A-Z][a-z_A-Z0-9]*
+DIGIT		[0-9]
+ID		[a-z_A-Z][a-z_A-Z0-9]*
+TABLE_NAME	[a-z_A-Z][a-z_A-Z0-9]*\/(#sql-|[a-z_A-Z])[a-z_A-Z0-9]*
 BOUND_LIT	\:[a-z_A-Z0-9]+
 BOUND_ID	\$[a-z_A-Z0-9]+
 
@@ -249,27 +254,27 @@ In the state 'id', only two actions are possible (defined below). */
 }
 
 "BINARY"	{
-	 		return(PARS_BINARY_TOKEN);
+			return(PARS_BINARY_TOKEN);
 }
 
 "BLOB"		{
-	 		return(PARS_BLOB_TOKEN);
+			return(PARS_BLOB_TOKEN);
 }
 
 "INT"		{
-	 		return(PARS_INT_TOKEN);
+			return(PARS_INT_TOKEN);
 }
 
 "INTEGER"	{
-	 		return(PARS_INT_TOKEN);
+			return(PARS_INT_TOKEN);
 }
 
 "FLOAT"		{
-	 		return(PARS_FLOAT_TOKEN);
+			return(PARS_FLOAT_TOKEN);
 }
 
 "CHAR"		{
-	 		return(PARS_CHAR_TOKEN);
+			return(PARS_CHAR_TOKEN);
 }
 
 "IS"		{
@@ -400,16 +405,24 @@ In the state 'id', only two actions are possible (defined below). */
 			return(PARS_TABLE_TOKEN);
 }
 
+"COMPACT"	{
+			return(PARS_COMPACT_TOKEN);
+}
+
+"BLOCK_SIZE"	{
+			return(PARS_BLOCK_SIZE_TOKEN);
+}
+
 "INDEX"		{
-	 		return(PARS_INDEX_TOKEN);
+			return(PARS_INDEX_TOKEN);
 }
 
 "UNIQUE"	{
-	 		return(PARS_UNIQUE_TOKEN);
+			return(PARS_UNIQUE_TOKEN);
 }
 
 "CLUSTERED"	{
-	 		return(PARS_CLUSTERED_TOKEN);
+			return(PARS_CLUSTERED_TOKEN);
 }
 
 "DOES_NOT_FIT_IN_MEMORY"	{
@@ -417,7 +430,7 @@ In the state 'id', only two actions are possible (defined below). */
 }
 
 "ON"		{
-	 		return(PARS_ON_TOKEN);
+			return(PARS_ON_TOKEN);
 }
 
 "DECLARE"	{
@@ -540,11 +553,26 @@ In the state 'id', only two actions are possible (defined below). */
 			return(PARS_MODE_TOKEN);
 }
 
+"LIKE"  {
+                        return(PARS_LIKE_TOKEN);
+}
+
+"BIGINT"	{
+			return(PARS_BIGINT_TOKEN);
+}
+
 {ID}		{
 			yylval = sym_tab_add_id(pars_sym_tab_global,
-							(byte*)yytext,
+							(byte*) yytext,
 							ut_strlen(yytext));
 			return(PARS_ID_TOKEN);
+}
+
+{TABLE_NAME}	{
+			yylval = sym_tab_add_id(pars_sym_tab_global,
+							(byte*) yytext,
+							ut_strlen(yytext));
+			return(PARS_TABLE_NAME_TOKEN);
 }
 
 ".."		{
