@@ -15,7 +15,7 @@ ERROR 42S01: Table 't1' already exists
 RENAME TABLE t3 TO t1;
 ERROR 42S01: Table 't1' already exists
 RENAME TABLE t3 TO doesnotexist.t1;
-ERROR HY000: Can't find file: './test/t3.frm' (errno: 2)
+ERROR HY000: Can't find file: './test/t3.frm' (errno: 2 - No such file or directory)
 SHOW TABLES;
 Tables_in_test
 t1

@@ -39,6 +39,26 @@ SELECT object_schema, object_name FROM performance_schema.objects_summary_global
   WHERE object_schema='test';
 
 #
+# Verify table views are ignored by the table io instrumentation.
+#
+
+CREATE TABLE test.t1(a INT);
+INSERT INTO test.t1 VALUES (1);
+CREATE VIEW test.v1 AS SELECT * FROM test.t1;
+SELECT COUNT(*) FROM test.v1;
+
+# Verify that a PFS table share was not created for the view.
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+  WHERE object_schema='test';
+
+DROP VIEW test.v1;
+DROP TABLE test.t1;
+
+SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
+  WHERE object_schema='test';
+
+
+#
 # Bug#45496 Performance schema: assertion fails in
 # ha_perfschema::rnd_init:223
 #

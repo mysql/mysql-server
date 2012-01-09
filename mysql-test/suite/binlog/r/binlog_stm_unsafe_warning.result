@@ -54,13 +54,13 @@ USE test;
 #
 SET @old_log_warnings = @@log_warnings;
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (a VARCHAR(36), b VARCHAR(10));
+CREATE TABLE t1 (a VARCHAR(36), b VARCHAR(15));
 SET GLOBAL LOG_WARNINGS = 0;
-INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
+INSERT INTO t1 VALUES(UUID(), 'timestamp');
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 SET GLOBAL LOG_WARNINGS = 1;
-INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
+INSERT INTO t1 VALUES(UUID(), 'timestamp');
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 DROP TABLE t1;
