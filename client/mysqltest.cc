@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009-2011 Monty Program Ab.
+   Copyright (c) 2009-2012 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -732,7 +732,8 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
                                int len);
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
 void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val);
-void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING* ds_input);
+void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING* ds_input,
+                          bool keep_header);
 
 static int match_expected_error(struct st_command *command,
                                 unsigned int err_errno,
@@ -2790,6 +2791,7 @@ void do_exec(struct st_command *command)
   FILE *res_file;
   char *cmd= command->first_argument;
   DYNAMIC_STRING ds_cmd;
+  DYNAMIC_STRING ds_sorted, *ds_result;
   DBUG_ENTER("do_exec");
   DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
@@ -2835,6 +2837,13 @@ void do_exec(struct st_command *command)
     die("popen(\"%s\", \"r\") failed", command->first_argument);
   }
 
+  ds_result= &ds_res;
+  if (display_result_sorted)
+  {
+    init_dynamic_string(&ds_sorted, "", 1024, 1024);
+    ds_result= &ds_sorted;
+  }
+
   while (fgets(buf, sizeof(buf), res_file))
   {
     if (disable_result_log)
@@ -2844,10 +2853,17 @@ void do_exec(struct st_command *command)
     }
     else
     {
-      replace_dynstr_append(&ds_res, buf);
+      replace_dynstr_append(ds_result, buf);
     }
   }
   error= pclose(res_file);
+
+  if (display_result_sorted)
+  {
+    dynstr_append_sorted(&ds_res, &ds_sorted, 0);
+    dynstr_free(&ds_sorted);
+  }
+
   if (error > 0)
   {
     uint status= WEXITSTATUS(error);
@@ -7743,7 +7759,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   if (display_result_sorted)
   {
     /* Sort the result set and append it to result */
-    dynstr_append_sorted(save_ds, &ds_sorted);
+    dynstr_append_sorted(save_ds, &ds_sorted, 1);
     ds= save_ds;
     dynstr_free(&ds_sorted);
   }
@@ -10125,17 +10141,16 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val)
 }
 
 
-
 /*
   Build a list of pointer to each line in ds_input, sort
   the list and use the sorted list to append the strings
   sorted to the output ds
 
   SYNOPSIS
-  dynstr_append_sorted
-  ds - string where the sorted output will be appended
-  ds_input - string to be sorted
-
+  dynstr_append_sorted()
+  ds           string where the sorted output will be appended
+  ds_input     string to be sorted
+  keep_header  If header should not be sorted
 */
 
 static int comp_lines(const char **a, const char **b)
@@ -10143,7 +10158,8 @@ static int comp_lines(const char **a, const char **b)
   return (strcmp(*a,*b));
 }
 
-void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
+void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input,
+                          bool keep_header)
 {
   unsigned i;
   char *start= ds_input->str;
@@ -10155,11 +10171,14 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
 
   my_init_dynamic_array(&lines, sizeof(const char*), 32, 32);
 
-  /* First line is result header, skip past it */
-  while (*start && *start != '\n')
-    start++;
-  start++; /* Skip past \n */
-  dynstr_append_mem(ds, ds_input->str, start - ds_input->str);
+  if (keep_header)
+  {
+    /* First line is result header, skip past it */
+    while (*start && *start != '\n')
+      start++;
+    start++; /* Skip past \n */
+    dynstr_append_mem(ds, ds_input->str, start - ds_input->str);
+  }
 
   /* Insert line(s) in array */
   while (*start)
@@ -10237,4 +10256,3 @@ char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
 
   return buf;
 }
-
