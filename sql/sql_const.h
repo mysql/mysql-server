@@ -51,7 +51,8 @@
 #define MAX_BIT_FIELD_LENGTH    64      /* Max length in bits for bit fields */
 
 #define MAX_DATE_WIDTH		10	/* YYYY-MM-DD */
-#define MAX_TIME_WIDTH		23	/* -DDDDDD HH:MM:SS.###### */
+#define MAX_TIME_WIDTH          10      /* -838:59:59 */
+#define MAX_TIME_FULL_WIDTH     23      /* -DDDDDD HH:MM:SS.###### */
 #define MAX_DATETIME_FULL_WIDTH 29	/* YYYY-MM-DD HH:MM:SS.###### AM */
 #define MAX_DATETIME_WIDTH	19	/* YYYY-MM-DD HH:MM:SS */
 #define MAX_DATETIME_COMPRESSED_WIDTH 14  /* YYYYMMDDHHMMSS */
@@ -194,12 +195,6 @@
   Lookup and write operations are currently assumed to be equally costly
   (concerns HEAP_TEMPTABLE_ROW_COST and DISK_TEMPTABLE_ROW_COST).
 */
-
-#define HEAP_TEMPTABLE_CREATE_COST    0.0
-#define HEAP_TEMPTABLE_ROW_COST       0.05
-#define DISK_TEMPTABLE_CREATE_COST    0.0
-#define DISK_TEMPTABLE_ROW_COST       1.0
-#if defined(FUTURE)
 /*
   Creating a Heap temporary table is by benchmark found to be as costly as
   writing 10 rows into the table.
@@ -221,7 +216,6 @@
   be 5 times slower (ie the cost is 1.0).
 */
 #define DISK_TEMPTABLE_ROW_COST       1.0
-#endif
 
 #define MY_CHARSET_BIN_MB_MAXLEN 1
 

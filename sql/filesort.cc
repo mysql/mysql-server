@@ -122,8 +122,10 @@ static void trace_filesort_information(Opt_trace_context *trace,
 
     if (sortorder->field)
     {
-      if (sortorder->field->table_name)
+      if (strlen(sortorder->field->table->alias) != 0)
         oto.add_utf8_table(sortorder->field->table);
+      else
+        oto.add_alnum("table", "intermediate_tmp_table");
       oto.add_alnum("field", sortorder->field->field_name ?
                     sortorder->field->field_name : "tmp_table_column");
     }
@@ -425,7 +427,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
                     ER(kill_errno) :
                     thd->get_stmt_da()->message());
 
-    if (global_system_variables.log_warnings > 1)
+    if (log_warnings > 1)
     {
       sql_print_warning("%s, host: %s, user: %s, thread: %lu, query: %-.4096s",
                         ER_THD(thd, ER_FILSORT_ABORT),
@@ -961,7 +963,11 @@ static void make_sortkey(register Sort_param *param,
       }
       case INT_RESULT:
 	{
-          longlong value= item->val_int_result();
+          longlong value= item->field_type() == MYSQL_TYPE_TIME ?
+                          item->val_time_temporal_result() :
+                          item->is_temporal_with_date() ?
+                          item->val_date_temporal_result() :
+                          item->val_int_result();
           if (maybe_null)
           {
 	    *to++=1;				/* purecov: inspected */
@@ -1738,7 +1744,7 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
     else
     {
       sortorder->result_type= sortorder->item->result_type();
-      if (sortorder->item->result_as_longlong())
+      if (sortorder->item->is_temporal())
         sortorder->result_type= INT_RESULT;
       switch (sortorder->result_type) {
       case STRING_RESULT:

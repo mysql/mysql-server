@@ -263,10 +263,10 @@ void Gtid_set::clear()
 }
 
 
-enum_return_status Gtid_set::add(Interval_iterator *ivitp,
-                                 rpl_gno start, rpl_gno end)
+enum_return_status Gtid_set::add_gno_interval(Interval_iterator *ivitp,
+                                              rpl_gno start, rpl_gno end)
 {
-  DBUG_ENTER("Gtid_set::add(Interval_iterator*, rpl_gno, rpl_gno)");
+  DBUG_ENTER("Gtid_set::add_gno_interval(Interval_iterator*, rpl_gno, rpl_gno)");
   DBUG_ASSERT(start < end);
   Interval *iv;
   Interval_iterator ivit= *ivitp;
@@ -315,10 +315,10 @@ enum_return_status Gtid_set::add(Interval_iterator *ivitp,
 }
 
 
-enum_return_status Gtid_set::remove(Interval_iterator *ivitp,
-                                    rpl_gno start, rpl_gno end)
+enum_return_status Gtid_set::remove_gno_interval(Interval_iterator *ivitp,
+                                                 rpl_gno start, rpl_gno end)
 {
-  DBUG_ENTER("Gtid_set::remove(Interval_iterator *ivitp, rpl_gno start, rpl_gno end)");
+  DBUG_ENTER("Gtid_set::remove_gno_interval(Interval_iterator *ivitp, rpl_gno start, rpl_gno end)");
   DBUG_ASSERT(start < end);
   Interval_iterator ivit= *ivitp;
   Interval *iv;
@@ -499,7 +499,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
         Interval *current= ivit.get();
         if (current == NULL || start < current->start)
           ivit.init(this, sidno);
-        PROPAGATE_REPORTED_ERROR(add(&ivit, start, end));
+        PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, start, end));
       }
     }
 
@@ -568,32 +568,34 @@ bool Gtid_set::is_valid(const char *text)
 }
 
 
-enum_return_status Gtid_set::add(rpl_sidno sidno,
-                                 Const_interval_iterator other_ivit)
+enum_return_status
+Gtid_set::add_gno_intervals(rpl_sidno sidno,
+                            Const_interval_iterator other_ivit)
 {
-  DBUG_ENTER("Gtid_set::add(rpl_sidno, Interval_iterator)");
+  DBUG_ENTER("Gtid_set::add_gno_intervals(rpl_sidno, Interval_iterator)");
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
   Interval *iv;
   Interval_iterator ivit(this, sidno);
   while ((iv= other_ivit.get()) != NULL)
   {
-    PROPAGATE_REPORTED_ERROR(add(&ivit, iv->start, iv->end));
+    PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, iv->start, iv->end));
     other_ivit.next();
   }
   RETURN_OK;
 }
 
 
-enum_return_status Gtid_set::remove(rpl_sidno sidno,
-                                    Const_interval_iterator other_ivit)
+enum_return_status
+Gtid_set::remove_gno_intervals(rpl_sidno sidno,
+                               Const_interval_iterator other_ivit)
 {
-  DBUG_ENTER("Gtid_set::remove(rpl_sidno, Interval_iterator)");
+  DBUG_ENTER("Gtid_set::remove_gno_intervals(rpl_sidno, Interval_iterator)");
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
   Interval *iv;
   Interval_iterator ivit(this, sidno);
   while ((iv= other_ivit.get()) != NULL)
   {
-    PROPAGATE_REPORTED_ERROR(remove(&ivit, iv->start, iv->end));
+    PROPAGATE_REPORTED_ERROR(remove_gno_interval(&ivit, iv->start, iv->end));
     other_ivit.next();
   }
   RETURN_OK;
@@ -610,8 +612,8 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
   {
     PROPAGATE_REPORTED_ERROR(ensure_sidno(max_other_sidno));
     for (rpl_sidno sidno= 1; sidno <= max_other_sidno; sidno++)
-      PROPAGATE_REPORTED_ERROR(add(sidno,
-                                   Const_interval_iterator(other, sidno)));
+      PROPAGATE_REPORTED_ERROR(
+        add_gno_intervals(sidno, Const_interval_iterator(other, sidno)));
   }
   else
   {
@@ -627,7 +629,7 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
         if (this_sidno <= 0)
           RETURN_REPORTED_ERROR;
         PROPAGATE_REPORTED_ERROR(ensure_sidno(this_sidno));
-        PROPAGATE_REPORTED_ERROR(add(this_sidno, other_ivit));
+        PROPAGATE_REPORTED_ERROR(add_gno_intervals(this_sidno, other_ivit));
       }
     }
   }
@@ -643,8 +645,8 @@ enum_return_status Gtid_set::remove_gtid_set(const Gtid_set *other)
   {
     rpl_sidno max_sidno= min(max_other_sidno, get_max_sidno());
     for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
-      PROPAGATE_REPORTED_ERROR(remove(sidno,
-                                      Const_interval_iterator(other, sidno)));
+      PROPAGATE_REPORTED_ERROR(
+        remove_gno_intervals(sidno, Const_interval_iterator(other, sidno)));
   }
   else
   {
@@ -658,7 +660,8 @@ enum_return_status Gtid_set::remove_gtid_set(const Gtid_set *other)
         const rpl_sid *sid= other_sid_map->sidno_to_sid(other_sidno);
         rpl_sidno this_sidno= sid_map->sid_to_sidno(sid);
         if (this_sidno != 0)
-          PROPAGATE_REPORTED_ERROR(remove(this_sidno, other_ivit));
+          PROPAGATE_REPORTED_ERROR(
+            remove_gno_intervals(this_sidno, other_ivit));
       }
     }
   }
@@ -767,7 +770,8 @@ int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
   memcpy(s, sf->end, sf->end_length);
   s += sf->end_length;
   *s= '\0';
-  DBUG_PRINT("info", ("ret='%s' strlen(s)=%ld s-buf=%ld get_string_length=%d", buf, strlen(buf), s - buf, get_string_length(sf)));
+  DBUG_PRINT("info", ("ret='%s' strlen(s)=%lu s-buf=%lu get_string_length=%d", buf,
+             (ulong) strlen(buf), (ulong) (s - buf), get_string_length(sf)));
   DBUG_ASSERT(s - buf == get_string_length(sf));
   DBUG_RETURN(s - buf);
 }
@@ -1138,7 +1142,7 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t leng
       if (current == NULL || start < current->start)
         ivit.init(this, sidno);
       DBUG_PRINT("info", ("adding %d:%lld-%lld", sidno, start, end - 1));
-      PROPAGATE_REPORTED_ERROR(add(&ivit, start, end));
+      PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, start, end));
     }
   }
   if (pos != length)

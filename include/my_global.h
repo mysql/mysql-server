@@ -1482,11 +1482,6 @@ enum loglevel {
 
 
 /*
-  In the current version, enable GTID only in debug builds.  We will
-  enable it fully when it is more complete.
-*/
-//#ifndef DBUG_OFF
-/*
   The group log can only be correctly truncated if my_chsize actually
   truncates the file. So disable GTIDs on platforms that don't support
   truncate.
@@ -1494,7 +1489,19 @@ enum loglevel {
 #if defined(_WIN32) || defined(HAVE_FTRUNCATE) || defined(HAVE_CHSIZE)
 #define HAVE_GTID
 #endif
-//#endif
+
+
+/*
+  Visual Studio before the version 2010 did not have lldiv_t.
+  In Visual Studio 2010, _MSC_VER is defined as 1600.
+*/
+#if defined(_MSC_VER) && (_MSC_VER < 1600)
+typedef struct
+{
+  long long int quot;   /* Quotient.  */
+  long long int rem;    /* Remainder.  */
+} lldiv_t;
+#endif
 
 
 #endif  // MY_GLOBAL_INCLUDED

@@ -789,7 +789,7 @@ public:
   */
   Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock= NULL);
   /**
-    Constructs a new Gtid_set that contains the groups in the given string, in the same format as add(char *).
+    Constructs a new Gtid_set that contains the groups in the given string, in the same format as add_gtid_text(char *).
 
     @param sid_map The Sid_map to use for SIDs.
     @param text The text to parse.
@@ -838,7 +838,23 @@ public:
   enum_return_status _add_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     Interval_iterator ivit(this, sidno);
-    return add(&ivit, gno, gno + 1);
+    return add_gno_interval(&ivit, gno, gno + 1);
+  }
+  /**
+    Removes the given GTID from this Gtid_set.
+
+    @param sidno SIDNO of the group to remove.
+    @param gno GNO of the group to remove.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status _remove_gtid(rpl_sidno sidno, rpl_gno gno)
+  {
+    if (sidno <= get_max_sidno())
+    {
+      Interval_iterator ivit(this, sidno);
+      return remove_gno_interval(&ivit, gno, gno + 1);
+    }
+    return RETURN_STATUS_OK;
   }
   /**
     Adds the given GTID to this Gtid_set.
@@ -1055,7 +1071,7 @@ public:
 
   int to_string(char **buf, int *size, const String_format *string_format= NULL) const;
 
-  /// The default String_format: the format understood by add(const char *).
+  /// The default String_format: the format understood by add_gtid_text(const char *).
   static const String_format default_string_format;
   /**
     String_format useful to generate an SQL string: the string is
@@ -1296,7 +1312,8 @@ public:
     @param end The first GNO after the interval.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add(Interval_iterator *ivitp, rpl_gno start, rpl_gno end);
+  enum_return_status add_gno_interval(Interval_iterator *ivitp,
+                                      rpl_gno start, rpl_gno end);
 
   /**
     Encodes this Gtid_set as a binary string.
@@ -1367,9 +1384,10 @@ private:
     an iterator over some other Gtid_set.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add(rpl_sidno sidno, Const_interval_iterator ivit);
+  enum_return_status add_gno_intervals(rpl_sidno sidno,
+                                       Const_interval_iterator ivit);
   /**
-    Removes a list of intervals to the given SIDNO.
+    Removes a list of intervals from the given SIDNO.
 
     It is not required that the intervals exist in this Gtid_set.
 
@@ -1378,7 +1396,8 @@ private:
     an iterator over some other Gtid_set.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status remove(rpl_sidno sidno, Const_interval_iterator ivit);
+  enum_return_status remove_gno_intervals(rpl_sidno sidno,
+                                          Const_interval_iterator ivit);
   /**
     Removes the interval (start, end) from the given
     Interval_iterator. This is the lowest-level function that removes
@@ -1395,8 +1414,8 @@ private:
     @param end The first GNO after the interval.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status remove(Interval_iterator *ivitp,
-                            rpl_gno start, rpl_gno end);
+  enum_return_status remove_gno_interval(Interval_iterator *ivitp,
+                                         rpl_gno start, rpl_gno end);
   /**
     Allocates a new chunk of Intervals and adds them to the list of
     unused intervals.
@@ -1732,8 +1751,8 @@ private:
    - before accessing any global data, hold at least the rdlock.
 
    - before accessing a specific SIDNO in a Gtid_set or Owned_gtids
-     (e.g., calling Gtid_set::_add(Gtid)), hold either the rdlock and
-     the SIDNO's mutex lock; or the wrlock.  If you need to hold
+     (e.g., calling Gtid_set::_add_gtid(Gtid)), hold either the rdlock
+     and the SIDNO's mutex lock; or the wrlock.  If you need to hold
      multiple mutexes, they must be acquired in order of increasing
      SIDNO.
 

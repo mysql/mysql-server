@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .*");
@@ -308,6 +311,7 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Retry_count` bigint(20) unsigned NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.',
   `Ssl_crl` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
   `Ssl_crlpath` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
+  `Enabled_auto_position` tinyint(1) NOT NULL COMMENT 'Indicates whether GTids will be used to retrieve events from the master.',
   PRIMARY KEY (`Master_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;
@@ -370,6 +374,7 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Retry_count` bigint(20) unsigned NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.',
   `Ssl_crl` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
   `Ssl_crlpath` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
+  `Enabled_auto_position` tinyint(1) NOT NULL COMMENT 'Indicates whether GTids will be used to retrieve events from the master.',
   PRIMARY KEY (`Master_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;

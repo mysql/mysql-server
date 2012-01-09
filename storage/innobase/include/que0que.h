@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -138,7 +138,7 @@ que_thr_stop_for_mysql_no_error(
 /**********************************************************************//**
 A patch for MySQL used to 'stop' a dummy query thread used in MySQL. The
 query thread is stopped and made inactive, except in the case where
-it was put to the lock wait state in lock0lock.c, but the lock has already
+it was put to the lock wait state in lock0lock.cc, but the lock has already
 been granted or the transaction chosen as a victim in deadlock resolution. */
 UNIV_INTERN
 void
@@ -264,6 +264,14 @@ que_node_list_add_last(
 /*===================*/
 	que_node_t*	node_list,	/*!< in: node list, or NULL */
 	que_node_t*	node);		/*!< in: node */
+/*************************************************************************
+Get the last node from the list.*/
+UNIV_INLINE
+que_node_t*
+que_node_list_get_last(
+/*===================*/
+					/* out: node last node from list.*/
+	que_node_t*	node_list);	/* in: node list, or NULL */
 /*********************************************************************//**
 Gets a query graph node list length.
 @return	length, for NULL list 0 */
@@ -302,7 +310,7 @@ que_node_print_info(
 Evaluate the given SQL
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+enum db_err
 que_eval_sql(
 /*=========*/
 	pars_info_t*	info,	/*!< in: info struct, or NULL */
@@ -338,7 +346,7 @@ void
 que_close(void);
 /*===========*/
 
-/* Query graph query thread node: the fields are protected by the 
+/* Query graph query thread node: the fields are protected by the
 trx_t::mutex with the exceptions named below */
 
 struct que_thr_struct{

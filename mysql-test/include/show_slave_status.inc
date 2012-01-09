@@ -55,6 +55,11 @@
 #     comma-separated list. Example:
 #
 #       --let $status_items= Master_Log_File, Relay_Master_Log_File
+#
+#   $slave_io_error_replace
+#     If set, one or more regex patterns for replacing variable
+#     text in the error message. Syntax as --replace-regex
+#
 
 
 --let $_show_slave_status_items= $status_items
@@ -70,6 +75,7 @@ while ($_show_slave_status_items)
   --let $_show_slave_status_items= `SELECT LTRIM(SUBSTRING('$_show_slave_status_items', LENGTH('$_show_slave_status_name') + 2))`
 
   --let $_show_slave_status_value= query_get_value(SHOW SLAVE STATUS, $_show_slave_status_name, 1)
+  --replace_regex $slave_io_error_replace
   --let $_show_slave_status_value= `SELECT REPLACE("$_show_slave_status_value", '$MYSQL_TEST_DIR', 'MYSQL_TEST_DIR')`
   --echo $_show_slave_status_name = '$_show_slave_status_value'
 }

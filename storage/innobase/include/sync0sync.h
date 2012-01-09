@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -42,7 +42,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0arr.h"
 
 #if  defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
-extern my_bool	timed_mutexes;
+extern "C" my_bool	timed_mutexes;
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
 #ifdef HAVE_WINDOWS_ATOMICS
@@ -75,6 +75,10 @@ extern mysql_pfs_key_t	dict_sys_mutex_key;
 extern mysql_pfs_key_t	file_format_max_mutex_key;
 extern mysql_pfs_key_t	fil_system_mutex_key;
 extern mysql_pfs_key_t	flush_list_mutex_key;
+extern mysql_pfs_key_t	fts_bg_threads_mutex_key;
+extern mysql_pfs_key_t	fts_delete_mutex_key;
+extern mysql_pfs_key_t	fts_optimize_mutex_key;
+extern mysql_pfs_key_t	fts_doc_id_mutex_key;
 extern mysql_pfs_key_t	hash_table_mutex_key;
 extern mysql_pfs_key_t	ibuf_bitmap_mutex_key;
 extern mysql_pfs_key_t	ibuf_mutex_key;
@@ -105,7 +109,7 @@ extern mysql_pfs_key_t	srv_monitor_file_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
 extern mysql_pfs_key_t	sync_thread_mutex_key;
 # endif /* UNIV_SYNC_DEBUG */
-extern mysql_pfs_key_t	trx_doublewrite_mutex_key;
+extern mysql_pfs_key_t	buf_dblwr_mutex_key;
 extern mysql_pfs_key_t	trx_undo_mutex_key;
 extern mysql_pfs_key_t	trx_mutex_key;
 extern mysql_pfs_key_t	lock_sys_mutex_key;
@@ -630,7 +634,8 @@ Any other latch
 V
 Memory pool mutex */
 
-/* Latching order levels */
+/* Latching order levels. If you modify these, you have to also update
+sync_thread_add_level(). */
 
 /* User transaction locks are higher than any of the latch levels below:
 no latches are allowed when a thread goes to wait for a normal table
@@ -650,10 +655,11 @@ or row lock! */
 					trx_i_s_cache_t::last_read_mutex */
 #define SYNC_FILE_FORMAT_TAG	1200	/* Used to serialize access to the
 					file format tag */
-#define	SYNC_DICT_OPERATION	1001	/* table create, drop, etc. reserve
+#define	SYNC_DICT_OPERATION	1010	/* table create, drop, etc. reserve
 					this in X-mode; implicit or backround
 					operations purge, rollback, foreign
 					key checks reserve this in S-mode */
+#define SYNC_FTS_CACHE		1005	/* FTS cache rwlock */
 #define SYNC_DICT		1000
 #define SYNC_DICT_AUTOINC_MUTEX	999
 #define SYNC_DICT_HEADER	995
@@ -695,6 +701,9 @@ or row lock! */
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147
 #define SYNC_RECV		168
+#define SYNC_FTS_CACHE_INIT	166	/* Used for FTS cache initialization */
+#define SYNC_FTS_BG_THREADS	165
+#define SYNC_FTS_OPTIMIZE       164     // FIXME: is this correct number, test
 #define	SYNC_WORK_QUEUE		162
 #define	SYNC_SEARCH_SYS		160	/* NOTE that if we have a memory
 					heap that can be extended to the
@@ -725,7 +734,7 @@ implementation of a mutual exclusion semaphore. */
 
 /** InnoDB mutex */
 struct mutex_struct {
-	os_event_t	event;	/*!< Used by sync0arr.c for the wait queue */
+	os_event_t	event;	/*!< Used by sync0arr.cc for the wait queue */
 	volatile lock_word_t	lock_word;	/*!< lock_word is the target
 				of the atomic test-and-set instruction when
 				atomic operations are enabled. */

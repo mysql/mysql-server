@@ -39,6 +39,7 @@
 #define PFS_MAX_FULL_PREFIX_NAME_LENGTH 32
 
 #include <my_global.h>
+#include <my_sys.h>
 #include <mysql/psi/psi.h>
 #include "pfs_lock.h"
 #include "pfs_stat.h"
@@ -77,6 +78,21 @@ enum PFS_class_type
   PFS_CLASS_STATEMENT= 7,
   PFS_CLASS_SOCKET= 8
 };
+
+/** User-defined instrument configuration. */
+struct PFS_instr_init
+{
+  /* Instrument name. */
+  char *m_name;
+  /* Name length. */
+  uint m_name_length;
+  /** Enabled flag. */
+  bool m_enabled;
+  /** Timed flag. */
+  bool m_timed;
+};
+
+extern DYNAMIC_ARRAY pfs_instr_init_array;
 
 struct PFS_thread;
 

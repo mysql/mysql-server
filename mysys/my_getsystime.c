@@ -83,6 +83,8 @@ time_t my_time(myf flags)
 }
 
 
+#define OFFSET_TO_EPOCH 116444736000000000ULL
+
 /**
   Return time in microseconds.
 
@@ -99,6 +101,7 @@ ulonglong my_micro_time()
 #ifdef _WIN32
   ulonglong newtime;
   GetSystemTimeAsFileTime((FILETIME*)&newtime);
+  newtime-= OFFSET_TO_EPOCH;
   return (newtime/10);
 #else
   ulonglong newtime;
@@ -132,7 +135,6 @@ ulonglong my_micro_time()
 */
 
 /* Difference between GetSystemTimeAsFileTime() and now() */
-#define OFFSET_TO_EPOCH 116444736000000000ULL
 
 ulonglong my_micro_time_and_time(time_t *time_arg)
 {

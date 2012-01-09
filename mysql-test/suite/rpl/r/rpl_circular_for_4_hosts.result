@@ -1,5 +1,17 @@
 *** Set up circular replication on four servers *** 
 include/rpl_init.inc [topology=1->2->3->4->1]
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 
 *** Preparing data ***
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=MyISAM;
@@ -8,6 +20,7 @@ include/rpl_sync.inc
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Slave SQL: Coordinator thread of multi-threaded slave is exiting seeing a failed Worker to apply an event");
+call mtr.add_suppression("Slave worker thread has failed to apply an event");
 
 *** Testing schema A->B->C->D->A ***
 
@@ -77,6 +90,9 @@ Master D	8	D
 include/stop_slave_io.inc
 include/stop_slave.inc
 include/rpl_change_topology.inc [new topology=1->2->4->1,2->3]
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 
 * Check data inserted before failure *
@@ -131,6 +147,9 @@ include/start_slave.inc
 RESET MASTER;
 RESET SLAVE;
 include/rpl_change_topology.inc [new topology=1->2->3->4->1]
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 include/rpl_sync.inc
 

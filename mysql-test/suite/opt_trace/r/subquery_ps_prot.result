@@ -1061,12 +1061,12 @@ field4,field5,field6	{
                           {
                             "access_type": "scan",
                             "rows": 3,
-                            "cost": 2.0371,
+                            "cost": 2.0342,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
-                      "cost_for_plan": 2.6371,
+                      "cost_for_plan": 2.6342,
                       "rows_for_plan": 3,
                       "chosen": true
                     }
@@ -1216,7 +1216,7 @@ field4,field5,field6	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 3,
-                    "cost": 4.7371
+                    "cost": 4.7342
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -1289,12 +1289,12 @@ field4,field5,field6	{
                     {
                       "access_type": "scan",
                       "rows": 3,
-                      "cost": 2.0371,
+                      "cost": 2.0342,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 2.6371,
+                "cost_for_plan": 2.6342,
                 "rows_for_plan": 3,
                 "rest_of_plan": [
                   {
@@ -1325,7 +1325,7 @@ field4,field5,field6	{
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "cost_for_plan": 3.7171,
+                    "cost_for_plan": 3.7142,
                     "rows_for_plan": 0.9,
                     "chosen": true
                   }
@@ -1371,12 +1371,12 @@ field4,field5,field6	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 3,
-                          "cost": 2.0373,
+                          "cost": 2.0344,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "cost_for_plan": 2.5773,
+                    "cost_for_plan": 2.5744,
                     "rows_for_plan": 0.9,
                     "chosen": true
                   }
@@ -1543,12 +1543,12 @@ field4,field5,field6	{
                                           {
                                             "access_type": "scan",
                                             "rows": 3,
-                                            "cost": 2.0371,
+                                            "cost": 2.0342,
                                             "chosen": true
                                           }
                                         ] /* considered_access_paths */
                                       } /* best_access_path */,
-                                      "cost_for_plan": 2.6371,
+                                      "cost_for_plan": 2.6342,
                                       "rows_for_plan": 3,
                                       "rest_of_plan": [
                                         {
@@ -1560,12 +1560,12 @@ field4,field5,field6	{
                                                 "access_type": "scan",
                                                 "using_join_cache": true,
                                                 "rows": 3,
-                                                "cost": 2.0374,
+                                                "cost": 2.0345,
                                                 "chosen": true
                                               }
                                             ] /* considered_access_paths */
                                           } /* best_access_path */,
-                                          "cost_for_plan": 6.4745,
+                                          "cost_for_plan": 6.4686,
                                           "rows_for_plan": 9,
                                           "chosen": true
                                         }
@@ -1579,12 +1579,12 @@ field4,field5,field6	{
                                           {
                                             "access_type": "scan",
                                             "rows": 3,
-                                            "cost": 2.0371,
+                                            "cost": 2.0342,
                                             "chosen": true
                                           }
                                         ] /* considered_access_paths */
                                       } /* best_access_path */,
-                                      "cost_for_plan": 2.6371,
+                                      "cost_for_plan": 2.6342,
                                       "rows_for_plan": 3,
                                       "rest_of_plan": [
                                         {
@@ -1603,12 +1603,12 @@ field4,field5,field6	{
                                                 "access_type": "scan",
                                                 "using_join_cache": true,
                                                 "rows": 3,
-                                                "cost": 2.0373,
+                                                "cost": 2.0344,
                                                 "chosen": true
                                               }
                                             ] /* considered_access_paths */
                                           } /* best_access_path */,
-                                          "cost_for_plan": 6.4745,
+                                          "cost_for_plan": 6.4686,
                                           "rows_for_plan": 9,
                                           "pruned_by_cost": true
                                         }
@@ -1669,11 +1669,12 @@ field4,field5,field6	{
                   "item": "`alias2`.`col_varchar_nokey`"
                 },
                 {
-                  "item": "`alias2`.`col_varchar_nokey`"
+                  "item": "`alias2`.`col_varchar_nokey`",
+                  "duplicate_item": true
                 }
               ] /* items */,
               "resulting_clause_is_simple": false,
-              "resulting_clause": "`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_date_key`,`alias2`.`col_varchar_nokey`,`alias2`.`col_varchar_nokey`"
+              "resulting_clause": "`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_date_key`,`alias2`.`col_varchar_nokey`"
             } /* clause_processing */
           },
           {
@@ -1697,6 +1698,31 @@ field4,field5,field6	{
         "select#": 1,
         "steps": [
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "database": "",
+                "table": "alias2",
+                "row_length": 40,
+                "key_length": 8,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 26214
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 13,
+                "key_length": 12,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 80659
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "join_execution": {
               "select#": 5,
               "steps": [
@@ -1707,26 +1733,17 @@ field4,field5,field6	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "col_varchar_key"
               },
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "col_date_key"
               },
               {
                 "direction": "asc",
-                "database": "",
-                "table": "",
-                "field": "col_varchar_nokey"
-              },
-              {
-                "direction": "asc",
-                "database": "",
-                "table": "",
+                "table": "intermediate_tmp_table",
                 "field": "col_varchar_nokey"
               }
             ] /* filesort_information */,
@@ -1910,7 +1927,7 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2,
-                    "cost": 4.5244
+                    "cost": 4.5225
                   } /* table_scan */,
                   "potential_range_indices": [
                     {
@@ -2018,7 +2035,7 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 2,
-                          "cost": 2.0247,
+                          "cost": 2.0227,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
@@ -2100,12 +2117,12 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                                           {
                                             "access_type": "scan",
                                             "rows": 2,
-                                            "cost": 2.0244,
+                                            "cost": 2.0225,
                                             "chosen": true
                                           }
                                         ] /* considered_access_paths */
                                       } /* best_access_path */,
-                                      "cost_for_plan": 2.4244,
+                                      "cost_for_plan": 2.4225,
                                       "rows_for_plan": 2,
                                       "chosen": true
                                     }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -231,6 +231,26 @@ dtuple_set_n_fields_cmp(
 	dtuple_t*	tuple,		/*!< in: tuple */
 	ulint		n_fields_cmp);	/*!< in: number of fields used in
 					comparisons in rem0cmp.* */
+
+/* Estimate the number of bytes that are going to be allocated when
+creating a new dtuple_t object */
+#define DTUPLE_EST_ALLOC(n_fields)	\
+	(sizeof(dtuple_t) + (n_fields) * sizeof(dfield_t))
+
+/**********************************************************//**
+Creates a data tuple from an already allocated chunk of memory.
+The size of the chunk must be at least DTUPLE_EST_ALLOC(n_fields).
+The default value for number of fields used in record comparisons
+for this tuple is n_fields.
+@return	created tuple (inside buf) */
+UNIV_INLINE
+dtuple_t*
+dtuple_create_from_mem(
+/*===================*/
+	void*	buf,		/*!< in, out: buffer to use */
+	ulint	buf_size,	/*!< in: buffer size */
+	ulint	n_fields);	/*!< in: number of fields */
+
 /**********************************************************//**
 Creates a data tuple to a memory heap. The default value for number
 of fields used in record comparisons for this tuple is n_fields.
@@ -240,7 +260,8 @@ dtuple_t*
 dtuple_create(
 /*==========*/
 	mem_heap_t*	heap,	/*!< in: memory heap where the tuple
-				is created */
+				is created, DTUPLE_EST_ALLOC(n_fields)
+				bytes will be allocated from this heap */
 	ulint		n_fields); /*!< in: number of fields */
 
 /**********************************************************//**

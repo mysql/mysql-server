@@ -253,30 +253,125 @@ to_ascii(const CHARSET_INFO *cs,
 
 /* Character set-aware version of str_to_time() */
 bool str_to_time(const CHARSET_INFO *cs, const char *str,uint length,
-                 MYSQL_TIME *l_time, int *warning)
+                 MYSQL_TIME *l_time, uint flags, MYSQL_TIME_STATUS *status)
 {
-  char cnv[32];
+  char cnv[MAX_TIME_FULL_WIDTH + 3]; // +3 for nanoseconds (for rounding)
   if ((cs->state & MY_CS_NONASCII) != 0)
   {
     length= to_ascii(cs, str, length, cnv, sizeof(cnv));
     str= cnv;
   }
-  return str_to_time(str, length, l_time, warning);
+  return str_to_time(str, length, l_time, status) ||
+         (!(flags & TIME_NO_NSEC_ROUNDING) &&
+          time_add_nanoseconds_with_round(l_time, status->nanoseconds,
+                                          &status->warnings));
 }
 
 
 /* Character set-aware version of str_to_datetime() */
-timestamp_type str_to_datetime(const CHARSET_INFO *cs,
-                               const char *str, uint length,
-                               MYSQL_TIME *l_time, uint flags, int *was_cut)
+bool str_to_datetime(const CHARSET_INFO *cs,
+                     const char *str, uint length,
+                     MYSQL_TIME *l_time, uint flags,
+                     MYSQL_TIME_STATUS *status)
 {
-  char cnv[32];
+  char cnv[MAX_DATETIME_FULL_WIDTH + 3]; // +3 for nanoseconds (for rounding)
   if ((cs->state & MY_CS_NONASCII) != 0)
   {
     length= to_ascii(cs, str, length, cnv, sizeof(cnv));
     str= cnv;
   }
-  return str_to_datetime(str, length, l_time, flags, was_cut);
+  return str_to_datetime(str, length, l_time, flags, status) ||
+         (!(flags & TIME_NO_NSEC_ROUNDING) &&
+          datetime_add_nanoseconds_with_round(l_time,
+                                              status->nanoseconds,
+                                              &status->warnings));
+}
+
+
+/**
+  Add nanoseconds to a time value with rounding.
+
+  @param IN/OUT ltime       MYSQL_TIME variable to add to.
+  @param        nanosecons  Nanosecons value.
+  @param IN/OUT warnings    Warning flag vector.
+  @retval                   False on success, true on error.
+*/
+bool time_add_nanoseconds_with_round(MYSQL_TIME *ltime,
+                                     uint nanoseconds, int *warnings)
+{
+  /* We expect correct input data */
+  DBUG_ASSERT(nanoseconds < 1000000000);
+  DBUG_ASSERT(!check_time_mmssff_range(ltime));
+
+  if (nanoseconds < 500)
+    return false;
+
+  ltime->second_part+= (nanoseconds + 500) / 1000;
+  if (ltime->second_part < 1000000)
+    goto ret;
+
+  ltime->second_part%= 1000000;
+  if (ltime->second < 59)
+  {
+    ltime->second++;
+    goto ret;
+  }
+
+  ltime->second= 0;
+  if (ltime->minute < 59)
+  {
+    ltime->minute++;
+    goto ret;
+  }
+  ltime->minute= 0;
+  ltime->hour++;
+
+ret:
+  /*
+    We can get '838:59:59.000001' at this point, which
+    is bigger than the maximum possible value '838:59:59.000000'.
+    Checking only "hour > 838" is not enough.
+    Do full adjust_time_range().
+  */
+  adjust_time_range(ltime, warnings);
+  return false;
+}
+
+
+/**
+  Add nanoseconds to a datetime value with rounding.
+
+  @param IN/OUT ltime       MYSQL_TIME variable to add to.
+  @param        nanosecons  Nanosecons value.
+  @param IN/OUT warnings    Warning flag vector.
+  @retval                   False on success, true on error.
+*/
+bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
+                                         uint nanoseconds, int *warnings)
+{
+  DBUG_ASSERT(nanoseconds < 1000000000);
+  if (nanoseconds < 500)
+    return false;
+
+  ltime->second_part+= (nanoseconds + 500) / 1000;
+  if (ltime->second_part < 1000000)
+    return false;
+
+  ltime->second_part%= 1000000;
+  INTERVAL interval;
+  memset(&interval, 0, sizeof(interval));
+  interval.second= 1;
+  /* date_add_interval cannot handle bad dates */
+  if (check_date(ltime, non_zero_date(ltime),
+                 (TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE), warnings))
+    return true;
+
+  if (date_add_interval(ltime, INTERVAL_SECOND, interval))
+  {
+    *warnings|= MYSQL_TIME_WARN_OUT_OF_RANGE;
+    return true;
+  }
+  return false;
 }
 
 
@@ -287,53 +382,251 @@ timestamp_type str_to_datetime(const CHARSET_INFO *cs,
   NOTE
     See description of str_to_datetime() for more information.
 */
-
-timestamp_type
-str_to_datetime_with_warn(const CHARSET_INFO *cs,
-                          const char *str, uint length, MYSQL_TIME *l_time,
-                          uint flags)
+bool
+str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time, uint flags)
 {
-  int was_cut;
+  MYSQL_TIME_STATUS status;
   THD *thd= current_thd;
-  timestamp_type ts_type;
-  
-  ts_type= str_to_datetime(cs, str, length, l_time,
-                           (flags | (thd->variables.sql_mode &
-                                     (MODE_INVALID_DATES |
-                                      MODE_NO_ZERO_DATE))),
-                           &was_cut);
-  if (was_cut || ts_type <= MYSQL_TIMESTAMP_ERROR)
-    make_truncated_value_warning(current_thd, Sql_condition::WARN_LEVEL_WARN,
-                                 str, length, ts_type,  NullS);
-  return ts_type;
+  bool ret_val= str_to_datetime(str, l_time,
+                                (flags | (thd->variables.sql_mode &
+                                 (MODE_INVALID_DATES | MODE_NO_ZERO_DATE))),
+                                &status);
+  if (ret_val || status.warnings)
+    make_truncated_value_warning(ErrConvString(str), l_time->time_type);
+  return ret_val;
 }
 
 
 /*
-  Convert a datetime from broken-down MYSQL_TIME representation to corresponding 
-  TIMESTAMP value.
+  Convert lldiv_t to datetime.
 
-  SYNOPSIS
-    TIME_to_timestamp()
-      thd             - current thread
-      t               - datetime in broken-down representation, 
-      in_dst_time_gap - pointer to bool which is set to true if t represents
-                        value which doesn't exists (falls into the spring 
-                        time-gap) or to false otherwise.
-   
-  RETURN
-     Number seconds in UTC since start of Unix Epoch corresponding to t.
-     0 - t contains datetime value which is out of TIMESTAMP range.
-     
+  @param        lld      The value to convert from.
+  @param OUT    ltime    The variable to convert to.
+  @param        flags    Conversion flags.
+  @param IN/OUT warnings Warning flags.
+  @return                False on success, true on error.
+*/
+static bool
+lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime, uint flags, int *warnings)
+{
+  bool rc= number_to_datetime(lld.quot, ltime, flags, warnings) == LL(-1);
+  if (rc)
+  {
+    /* number_to_datetime does not clear ltime in case of ZERO DATE */
+    set_zero_time(ltime, MYSQL_TIMESTAMP_ERROR);
+    if (!*warnings) /* Neither sets warnings in case of ZERO DATE */
+      *warnings|= MYSQL_TIME_WARN_TRUNCATED;
+  }
+  else if (ltime->time_type == MYSQL_TIMESTAMP_DATE)
+  {
+    /*
+      Generate a warning in case of DATE with fractional part:
+        20011231.1234 -> '2001-12-31'
+      unless the caller does not want the warning: for example, CAST does.
+    */
+    if (lld.rem && !(flags & TIME_NO_DATE_FRAC_WARN))
+      *warnings|= MYSQL_TIME_WARN_TRUNCATED;
+  }
+  else if (!(flags & TIME_NO_NSEC_ROUNDING))
+  {
+    ltime->second_part= lld.rem / 1000;
+    rc= datetime_add_nanoseconds_with_round(ltime, lld.rem % 1000, warnings);
+  }
+  return rc;
+}
+
+
+/**
+  Convert decimal value to datetime value with a warning.
+  @param       decimal The value to convert from.
+  @param OUT   ltime   The variable to convert to.
+  @param       flags   Conversion flags.
+  @return              False on success, true on error.
+*/
+bool
+my_decimal_to_datetime_with_warn(const my_decimal *decimal,
+                                 MYSQL_TIME *ltime, uint flags)
+{
+  lldiv_t lld;
+  int warnings= 0;
+  bool rc;
+
+  if ((rc= my_decimal2lldiv_t(0, decimal, &lld)))
+  {
+    warnings|= MYSQL_TIME_WARN_TRUNCATED;
+    set_zero_time(ltime, MYSQL_TIMESTAMP_NONE);
+  }
+  else
+    rc= lldiv_t_to_datetime(lld, ltime, flags, &warnings);
+
+  if (warnings)
+    make_truncated_value_warning(ErrConvString(decimal), ltime->time_type);
+  return rc;
+}
+
+
+/**
+  Convert double value to datetime value with a warning.
+  @param       nr      The value to convert from.
+  @param OUT   ltime   The variable to convert to.
+  @param       flags   Conversion flags.
+  @return              False on success, true on error.
+*/
+bool
+my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime, uint flags)
+{
+  lldiv_t lld;
+  int warnings= 0;
+  bool rc;
+
+  if ((rc= (double2lldiv_t(nr, &lld) != E_DEC_OK)))
+  {
+    warnings|= MYSQL_TIME_WARN_TRUNCATED;
+    set_zero_time(ltime, MYSQL_TIMESTAMP_NONE);
+  }
+  else
+    rc= lldiv_t_to_datetime(lld, ltime, flags, &warnings);
+
+  if (warnings)
+    make_truncated_value_warning(ErrConvString(nr), ltime->time_type);  
+  return rc;
+}
+
+
+/**
+  Convert longlong value to datetime value with a warning.
+  @param       nr      The value to convert from.
+  @param OUT   ltime   The variable to convert to.
+  @return              False on success, true on error.
+*/
+bool
+my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime, uint flags)
+{
+  int warnings= 0;
+  bool rc= number_to_datetime(nr, ltime, flags, &warnings) == LL(-1);
+  if (warnings)
+    make_truncated_value_warning(ErrConvString(nr),  MYSQL_TIMESTAMP_NONE);
+  return rc;
+}
+
+
+/*
+  Convert lldiv_t value to time with nanosecond rounding.
+
+  @param        lld      The value to convert from.
+  @param OUT    ltime    The variable to convert to,
+  @param        flags    Conversion flags.
+  @param IN/OUT warnings Warning flags.
+  @return                False on success, true on error.
+*/
+static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings)
+{
+  if (number_to_time(lld.quot, ltime, warnings))
+    return true;
+  /*
+    Both lld.quot and lld.rem can give negative result value,
+    thus combine them using "|=".
+  */
+  if (ltime->neg|= (lld.rem < 0))
+    lld.rem= -lld.rem;
+  ltime->second_part= lld.rem / 1000;
+  return time_add_nanoseconds_with_round(ltime, lld.rem % 1000, warnings);
+}
+
+
+/*
+  Convert decimal number to TIME
+  @param     decimal_value  The number to convert from.
+  @param OUT ltime          The variable to convert to.
+  @param     flags          Conversion flags.
+  @return    False on success, true on error.
+*/
+bool my_decimal_to_time_with_warn(const my_decimal *decimal, MYSQL_TIME *ltime)
+{
+  lldiv_t lld;
+  int warnings= 0;
+  bool rc;
+
+  if ((rc= my_decimal2lldiv_t(0, decimal, &lld)))
+  {
+    warnings|= MYSQL_TIME_WARN_TRUNCATED;
+    set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
+  }
+  else 
+    rc= lldiv_t_to_time(lld, ltime, &warnings);
+
+  if (warnings)
+    make_truncated_value_warning(ErrConvString(decimal), MYSQL_TIMESTAMP_TIME);
+  return rc;
+}
+
+
+/*
+  Convert double number to TIME
+
+  @param     nr      The number to convert from.
+  @param OUT ltime   The variable to convert to.
+  @param     flags   Conversion flags.
+  @return    False on success, true on error.
+*/
+bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime)
+{
+  lldiv_t lld;
+  int warnings= 0;
+  bool rc;
+
+  if ((rc= (double2lldiv_t(nr, &lld) != E_DEC_OK)))
+  {
+    warnings|= MYSQL_TIME_WARN_TRUNCATED;
+    set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
+  }
+  else
+    rc= lldiv_t_to_time(lld, ltime, &warnings);
+
+  if (warnings)
+    make_truncated_value_warning(ErrConvString(nr), MYSQL_TIMESTAMP_TIME);
+  return rc;
+}
+
+
+
+/*
+  Convert longlong number to TIME
+  @param     nr     The number to convert from.
+  @param OUT ltime  The variable to convert to.
+  @param     flags  Conversion flags.
+  @return    False on success, true on error.
+*/
+bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime)
+{
+  int warnings= 0;
+  bool rc= number_to_time(nr, ltime, &warnings);
+  if (warnings)
+    make_truncated_value_warning(ErrConvString(nr), MYSQL_TIMESTAMP_TIME);
+  return rc;
+}
+
+
+/**
+  Convert a datetime from broken-down MYSQL_TIME representation
+  to corresponding TIMESTAMP value.
+
+  @param  thd             - current thread
+  @param  t               - datetime in broken-down representation, 
+  @param  in_dst_time_gap - pointer to bool which is set to true if t represents
+                            value which doesn't exists (falls into the spring 
+                            time-gap) or to false otherwise.
+  @return
+  @retval  Number seconds in UTC since start of Unix Epoch corresponding to t.
+  @retval  0 - t contains datetime value which is out of TIMESTAMP range.     
 */
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_gap)
 {
   my_time_t timestamp;
 
   *in_dst_time_gap= 0;
-  thd->time_zone_used= 1;
 
-  timestamp= thd->variables.time_zone->TIME_to_gmt_sec(t, in_dst_time_gap);
+  timestamp= thd->time_zone()->TIME_to_gmt_sec(t, in_dst_time_gap);
   if (timestamp)
   {
     return timestamp;
@@ -341,6 +634,116 @@ my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_
 
   /* If we are here we have range error. */
   return(0);
+}
+
+
+/**
+  Convert a datetime MYSQL_TIME representation
+  to corresponding "struct timeval" value.
+
+  ltime must previously be checked for TIME_NO_ZERO_IN_DATE.
+  Things like '0000-01-01', '2000-00-01', '2000-01-00' are not allowed
+  and asserted.
+
+  Things like '0000-00-00 10:30:30' or '0000-00-00 00:00:00.123456'
+  (i.e. empty date with non-empty time) return error.
+
+  Zero datetime '0000-00-00 00:00:00.000000'
+  is allowed and is mapper to {tv_sec=0, tv_usec=0}.
+
+  Note: In case of error, tm value is not initialized.
+
+  Note: "warnings" is not initialized to zero,
+  so new warnings are added to the old ones.
+  Caller must make sure to initialize "warnings".
+
+  @param IN  thd       current thd
+  @param IN  ltime     datetime value
+  @param OUT tm        timeval value
+  @param OUT warnings  pointer to warnings vector
+  @return
+  @retval      false on success
+  @retval      true on error
+*/
+bool datetime_with_no_zero_in_date_to_timeval(THD *thd,
+                                              const MYSQL_TIME *ltime,
+                                              struct timeval *tm,
+                                              int *warnings)
+{
+  if (!ltime->month) /* Zero date */
+  {
+    DBUG_ASSERT(!ltime->year && !ltime->day);
+    if (non_zero_time(ltime))
+    {
+      /*
+        Return error for zero date with non-zero time, e.g.:
+        '0000-00-00 10:20:30' or '0000-00-00 00:00:00.123456'
+      */
+      *warnings|= MYSQL_TIME_WARN_TRUNCATED;
+      return true;
+    }
+    tm->tv_sec= tm->tv_usec= 0; // '0000-00-00 00:00:00.000000'
+    return false;
+  }
+
+  my_bool in_dst_time_gap;
+  if (!(tm->tv_sec= TIME_to_timestamp(current_thd, ltime, &in_dst_time_gap)))
+  {
+    /*
+      Date was outside of the supported timestamp range.
+      For example: '3001-01-01 00:00:00' or '1000-01-01 00:00:00'
+    */
+    *warnings|= MYSQL_TIME_WARN_OUT_OF_RANGE;
+    return true;
+  }
+  else if (in_dst_time_gap)
+  {
+    /*
+      Set MYSQL_TIME_WARN_INVALID_TIMESTAMP warning to indicate
+      that date was fine but pointed to winter/summer time switch gap.
+      In this case tm is set to the fist second after gap.
+      For example: '2003-03-30 02:30:00 MSK' -> '2003-03-30 03:00:00 MSK'
+    */
+    *warnings|= MYSQL_TIME_WARN_INVALID_TIMESTAMP;
+  }
+  tm->tv_usec= ltime->second_part;
+  return false;
+}
+
+
+/**
+  Convert a datetime MYSQL_TIME representation
+  to corresponding "struct timeval" value.
+
+  Things like '0000-01-01', '2000-00-01', '2000-01-00'
+  (i.e. incomplete date) return error.
+
+  Things like '0000-00-00 10:30:30' or '0000-00-00 00:00:00.123456'
+  (i.e. empty date with non-empty time) return error.
+
+  Zero datetime '0000-00-00 00:00:00.000000'
+  is allowed and is mapper to {tv_sec=0, tv_usec=0}.
+
+  Note: In case of error, tm value is not initialized.
+
+  Note: "warnings" is not initialized to zero,
+  so new warnings are added to the old ones.
+  Caller must make sure to initialize "warnings".
+
+  @param IN  thd       current thd
+  @param IN  ltime     datetime value
+  @param OUT tm        timeval value
+  @param OUT warnings  pointer to warnings vector
+  @return
+  @retval      false on success
+  @retval      true on error
+*/
+bool datetime_to_timeval(THD *thd, const MYSQL_TIME *ltime,
+                         struct timeval *tm, int *warnings)
+{
+  return
+    check_date(ltime, non_zero_date(ltime), TIME_NO_ZERO_IN_DATE, warnings) ||
+    datetime_with_no_zero_in_date_to_timeval(current_thd, ltime, tm, warnings);
 }
 
 
@@ -352,15 +755,29 @@ my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_
     See str_to_time() for more info.
 */
 bool
-str_to_time_with_warn(const CHARSET_INFO *cs,
-                      const char *str, uint length, MYSQL_TIME *l_time)
+str_to_time_with_warn(String *str, MYSQL_TIME *l_time)
 {
-  int warning;
-  bool ret_val= str_to_time(str, length, l_time, &warning);
-  if (ret_val || warning)
-    make_truncated_value_warning(current_thd, Sql_condition::WARN_LEVEL_WARN,
-                                 str, length, MYSQL_TIMESTAMP_TIME, NullS);
+  MYSQL_TIME_STATUS status;
+  bool ret_val= str_to_time(str, l_time, 0, &status);
+  if (ret_val || status.warnings)
+    make_truncated_value_warning(ErrConvString(str), MYSQL_TIMESTAMP_TIME);
   return ret_val;
+}
+
+
+/**
+  Convert time to datetime.
+
+  The time value is added to the current datetime value.
+  @param  IN  ltime    Time value to convert from.
+  @param  OUT ltime2   Datetime value to convert to.
+*/
+void time_to_datetime(THD *thd, const MYSQL_TIME *ltime, MYSQL_TIME *ltime2)
+{
+  thd->variables.time_zone->gmt_sec_to_TIME(ltime2, thd->query_start());
+  ltime2->hour= ltime2->minute= ltime2->second= ltime2->second_part= 0;
+  ltime2->time_type= MYSQL_TIMESTAMP_DATE;
+  mix_date_and_time(ltime2, ltime);
 }
 
 
@@ -380,7 +797,7 @@ void localtime_to_TIME(MYSQL_TIME *to, struct tm *from)
   to->second=   (int) from->tm_sec;
 }
 
-void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds)
+void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds)
 {
   long t_seconds;
   // to->neg is not cleared, it may already be set to a useful value
@@ -388,8 +805,9 @@ void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds)
   to->year= 0;
   to->month= 0;
   to->day= 0;
-  to->hour= seconds/3600L;
-  t_seconds= seconds%3600L;
+  DBUG_ASSERT(seconds < (0xFFFFFFFFLL * 3600LL));
+  to->hour=  (long) (seconds / 3600L);
+  t_seconds= (long) (seconds % 3600L);
   to->minute= t_seconds/60L;
   to->second= t_seconds%60L;
   to->second_part= microseconds;
@@ -761,15 +1179,28 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
     to hours already.
 ****************************************************************************/
 
+/**
+  Convert TIME value to String.
+  @param format   Format (unused, see comments above)
+  @param l_time   TIME value
+  @param OUT str  String to conver to
+  @param dec      Number of fractional digits.
+*/
 void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
-               const MYSQL_TIME *l_time, String *str)
+               const MYSQL_TIME *l_time, String *str, uint dec)
 {
-  uint length= (uint) my_time_to_str(l_time, (char*) str->ptr());
+  uint length= (uint) my_time_to_str(l_time, (char*) str->ptr(), dec);
   str->length(length);
   str->set_charset(&my_charset_numeric);
 }
 
 
+/**
+  Convert DATE value to String.
+  @param format   Format (unused, see comments above)
+  @param l_time   DATE value
+  @param OUT str  String to conver to
+*/
 void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
                const MYSQL_TIME *l_time, String *str)
 {
@@ -779,27 +1210,46 @@ void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
 }
 
 
+/**
+  Convert DATETIME value to String.
+  @param format   Format (unused, see comments above)
+  @param l_time   DATE value
+  @param OUT str  String to conver to
+  @param dec      Number of fractional digits.
+*/
 void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
-                   const MYSQL_TIME *l_time, String *str)
+                   const MYSQL_TIME *l_time, String *str, uint dec)
 {
-  uint length= (uint) my_datetime_to_str(l_time, (char*) str->ptr());
+  uint length= (uint) my_datetime_to_str(l_time, (char*) str->ptr(), dec);
   str->length(length);
   str->set_charset(&my_charset_numeric);
 }
 
 
-void make_truncated_value_warning(THD *thd, Sql_condition::enum_warning_level level,
-                                  const char *str_val,
-				  uint str_length, timestamp_type time_type,
+/**
+  Convert TIME/DATE/DATETIME value to String.
+  @param l_time   DATE value
+  @param OUT str  String to conver to
+  @param dec      Number of fractional digits.
+*/
+bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec)
+{
+  if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
+    return true;
+  str->set_charset(&my_charset_numeric);
+  str->length(my_TIME_to_str(ltime, const_cast<char*>(str->ptr()), dec));
+  return false;
+}
+
+
+void make_truncated_value_warning(THD *thd,
+                                  Sql_condition::enum_warning_level level,
+                                  ErrConvString val, timestamp_type time_type,
                                   const char *field_name)
 {
   char warn_buff[MYSQL_ERRMSG_SIZE];
   const char *type_str;
-  CHARSET_INFO *cs= &my_charset_latin1;
-  char buff[128];
-  String str(buff,(uint32) sizeof(buff), system_charset_info);
-  str.copy(str_val, str_length, system_charset_info);
-  str[str_length]= 0;               // Ensure we have end 0 for snprintf
+  CHARSET_INFO *cs= system_charset_info;
 
   switch (time_type) {
     case MYSQL_TIMESTAMP_DATE: 
@@ -816,21 +1266,21 @@ void make_truncated_value_warning(THD *thd, Sql_condition::enum_warning_level le
   if (field_name)
     cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-                       type_str, str.c_ptr(), field_name,
+                       type_str, val.ptr(), field_name,
                        (ulong) thd->get_stmt_da()->current_row_for_warning());
   else
   {
     if (time_type > MYSQL_TIMESTAMP_ERROR)
       cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
                          ER(ER_TRUNCATED_WRONG_VALUE),
-                         type_str, str.c_ptr());
+                         type_str, val.ptr());
     else
       cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
-                         ER(ER_WRONG_VALUE), type_str, str.c_ptr());
+                         ER(ER_WRONG_VALUE), type_str, val.ptr());
   }
-  push_warning(thd, level,
-               ER_TRUNCATED_WRONG_VALUE, warn_buff);
+  push_warning(thd, level, ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }
+
 
 /* Daynumber from year 0 to 9999-12-31 */
 #define MAX_DAY_NUMBER 3652424L
@@ -971,8 +1421,8 @@ null_date:
 */
 
 bool
-calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign, longlong *seconds_out,
-               long *microseconds_out)
+calc_time_diff(const MYSQL_TIME *l_time1, const MYSQL_TIME *l_time2,
+               int l_sign, longlong *seconds_out, long *microseconds_out)
 {
   long days;
   bool neg;
@@ -998,7 +1448,7 @@ calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign, longlong *s
 			       (uint) l_time2->day);
   }
 
-  microseconds= ((longlong)days*LL(86400) +
+  microseconds= ((longlong)days * SECONDS_IN_24H +
                  (longlong)(l_time1->hour*3600L +
                             l_time1->minute*60L +
                             l_time1->second) -
@@ -1052,6 +1502,274 @@ int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b)
     return 1;
 
   return 0;
+}
+
+
+/* Rounding functions */
+static uint msec_round_add[7]=
+{
+  500000000,
+  50000000,
+  5000000,
+  500000,
+  50000,
+  5000,
+  0
+};
+
+
+/**
+  Round time value to the given precision.
+
+  @param IN/OUT  ltime    The value to round.
+  @param         dec      Precision.
+  @return        False on success, true on error.
+*/
+bool my_time_round(MYSQL_TIME *ltime, uint dec)
+{
+  int warnings= 0;
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  /* Add half away from zero */
+  bool rc= time_add_nanoseconds_with_round(ltime,
+                                           msec_round_add[dec], &warnings);
+  /* Truncate non-significant digits */
+  my_time_trunc(ltime, dec);
+  return rc;
+}
+
+
+/**
+  Round datetime value to the given precision.
+
+  @param IN/OUT  ltime    The value to round.
+  @param         dec      Precision.
+  @return        False on success, true on error.
+*/
+bool my_datetime_round(MYSQL_TIME *ltime, uint dec, int *warnings)
+{
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  /* Add half away from zero */
+  bool rc= datetime_add_nanoseconds_with_round(ltime,
+                                               msec_round_add[dec], warnings);
+  /* Truncate non-significant digits */
+  my_time_trunc(ltime, dec);
+  return rc;
+}
+
+
+/**
+  Round timeval value to the given precision.
+
+  @param IN/OUT  ts       The value to round.
+  @param         dec      Precision.
+  @return        False on success, true on error.
+*/
+bool my_timeval_round(struct timeval *tv, uint decimals)
+{
+  DBUG_ASSERT(decimals <= DATETIME_MAX_DECIMALS);
+  uint nanoseconds= msec_round_add[decimals];
+  tv->tv_usec+= (nanoseconds + 500) / 1000;
+  if (tv->tv_usec < 1000000)
+    goto ret;
+
+  tv->tv_usec= 0;
+  tv->tv_sec++;
+  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(tv->tv_sec))
+  {
+    tv->tv_sec= TIMESTAMP_MAX_VALUE;
+    return true;
+  }
+
+ret:
+  my_timeval_trunc(tv, decimals);
+  return false;
+}
+
+
+/**
+  Mix a date value and a time value.
+
+  @param  IN/OUT  ldate  Date value.
+  @param          ltime  Time value.
+*/
+void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(ldate->time_type == MYSQL_TIMESTAMP_DATE ||
+              ldate->time_type == MYSQL_TIMESTAMP_DATETIME);
+
+  if (!ltime->neg && ltime->hour < 24)
+  {
+    /*
+      Simple case: TIME is within normal 24 hours internal.
+      Mix DATE part of ltime2 and TIME part of ltime together.
+    */
+    ldate->hour= ltime->hour;
+    ldate->minute= ltime->minute;
+    ldate->second= ltime->second;
+    ldate->second_part= ltime->second_part;
+  }
+  else
+  {
+    /* Complex case: TIME is negative or outside of 24 hours internal. */
+    longlong seconds;
+    long days, useconds;
+    int sign= ltime->neg ? 1 : -1;
+    ldate->neg= calc_time_diff(ldate, ltime, sign, &seconds, &useconds);
+    DBUG_ASSERT(!ldate->neg);
+
+    /*
+      We pass current date to mix_date_and_time. If we want to use
+      this function with arbitrary dates, this code will need
+      to cover cases when ltime is negative and "ldate < -ltime".
+    */
+    DBUG_ASSERT(ldate->year > 0);
+
+    days= (long) (seconds / SECONDS_IN_24H);
+    calc_time_from_sec(ldate, seconds % SECONDS_IN_24H, useconds);
+    get_date_from_daynr(days, &ldate->year, &ldate->month, &ldate->day);
+  }
+  ldate->time_type= MYSQL_TIMESTAMP_DATETIME;
+}
+
+
+/**
+  Convert MYSQL_TIME value to its packed numeric representation,
+  using field type.
+  @param ltime  The value to convert.
+  @param type   MySQL field type.
+  @retval       Packed numeric representation.
+*/
+longlong TIME_to_longlong_packed(const MYSQL_TIME *ltime,
+                                 enum enum_field_types type)
+{
+  switch (type)
+  {
+  case MYSQL_TYPE_TIME:
+    return TIME_to_longlong_time_packed(ltime);
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    return TIME_to_longlong_datetime_packed(ltime);
+  case MYSQL_TYPE_DATE:
+    return TIME_to_longlong_date_packed(ltime);
+  default:
+    return TIME_to_longlong_packed(ltime);
+  }
+}
+
+
+/**
+  Convert packed numeric temporal representation to time, date or datetime,
+  using field type.
+  @param OUT  ltime        The variable to write to.
+  @param      type         MySQL field type.
+  @param      packed_value Numeric datetype representation.
+*/
+void TIME_from_longlong_packed(MYSQL_TIME *ltime,
+                               enum enum_field_types type,
+                               longlong packed_value)
+{
+  switch (type)
+  {
+  case MYSQL_TYPE_TIME:
+    TIME_from_longlong_time_packed(ltime, packed_value);
+    break;
+  case MYSQL_TYPE_DATE:
+    TIME_from_longlong_date_packed(ltime, packed_value);
+    break;
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    TIME_from_longlong_datetime_packed(ltime, packed_value);
+    break;
+  default:
+    DBUG_ASSERT(0);
+    set_zero_time(ltime, MYSQL_TIMESTAMP_ERROR);
+    break;
+  }
+}
+
+
+/**
+  Unpack packed numeric temporal value to date/time value
+  and then convert to decimal representation.
+
+  @param  OUT dec          The variable to write to.
+  @param      type         MySQL field type.
+  @param      packed_value Packed numeric temporal representation.
+  @return     A decimal value in on of the following formats, depending
+              on type: YYYYMMDD, hhmmss.ffffff or YYMMDDhhmmss.ffffff.
+*/
+my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
+                                            enum enum_field_types type,
+                                            longlong packed_value)
+{
+  MYSQL_TIME ltime;
+  switch (type)
+  {
+    case MYSQL_TYPE_TIME:
+      TIME_from_longlong_time_packed(&ltime, packed_value);
+      return time2my_decimal(&ltime, dec);
+    case MYSQL_TYPE_DATE:
+      TIME_from_longlong_date_packed(&ltime, packed_value);
+      ulonglong2decimal(TIME_to_ulonglong_date(&ltime), dec);
+      return dec;
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      TIME_from_longlong_datetime_packed(&ltime, packed_value);
+      return date2my_decimal(&ltime, dec);
+    default:
+      DBUG_ASSERT(0);
+      ulonglong2decimal(0, dec);
+      return dec;
+  }
+}
+
+
+/**
+  Convert packed numeric representation to
+  unpacked numeric representation.
+  @param type           MySQL field type.
+  @param paacked_value  Packed numeric temporal value.
+  @return               Number in one of the following formats,
+                        depending on type: YYMMDD, YYMMDDhhmmss, hhmmss.
+*/
+longlong longlong_from_datetime_packed(enum enum_field_types type,
+                                       longlong packed_value)
+{
+  MYSQL_TIME ltime;
+  switch (type)
+  {
+    case MYSQL_TYPE_TIME:
+      TIME_from_longlong_time_packed(&ltime, packed_value);
+      return TIME_to_ulonglong_time(&ltime);
+    case MYSQL_TYPE_DATE:
+      TIME_from_longlong_date_packed(&ltime, packed_value);
+      return TIME_to_ulonglong_date(&ltime);
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      TIME_from_longlong_datetime_packed(&ltime, packed_value);
+      return TIME_to_ulonglong_datetime(&ltime);
+    default:
+      DBUG_ASSERT(0);
+      return 0;
+  }
+}
+
+
+/**
+  Convert packed numeric temporal representation to unpacked numeric
+  representation.
+  @param type           MySQL field type.
+  @param packed_value   Numeric packed temporal representation.
+  @return               A double value in on of the following formats,
+                        depending  on type:
+                        YYYYMMDD, hhmmss.ffffff or YYMMDDhhmmss.ffffff.                        
+*/
+double double_from_datetime_packed(enum enum_field_types type,
+                                   longlong packed_value)
+{
+  longlong result= longlong_from_datetime_packed(type, packed_value);
+  return result +
+        ((double) MY_PACKED_TIME_GET_FRAC_PART(packed_value)) / 1000000;
 }
 
 #endif

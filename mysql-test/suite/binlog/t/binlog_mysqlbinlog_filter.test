@@ -1,0 +1,61 @@
+#   ==== Purpose ====
+#
+#   Test that the auxiliary events INTVAR_EVENT, RAND_EVENT and USER_VAR_EVENT are
+#   filtered out from the output from mysqlbinlog if the corresponding 
+#   query_log_event is filtered out.
+#
+#   ==== Test method ====
+#
+#   1. Generate a binlog that contains INTVAR, RAND, and USER_VAR events
+#   2. Run mysqlbinlog and filter out the statement
+#   3. Check that the output does not contain INTVAR, RAND, and USER_VAR
+#   events
+#
+#   ==== Bugs ====
+#
+#   BUG#11746146 - Before this bug, INTVAR, RAND, and USER_VAR events were printed 
+#                  even if the corresponding query_log_event was filtered out.
+
+--source include/have_innodb.inc
+--source include/have_binlog_format_statement.inc
+
+RESET MASTER;
+
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");	
+CREATE TABLE foo (i int, j int, bar int auto_increment, unique key (bar))
+engine= innodb;
+SET autocommit= 0;
+--disable_warnings
+INSERT INTO foo (i, j) VALUES (Rand(), @2);
+--enable_warnings
+COMMIT;
+DROP TABLE foo;
+
+--source include/show_binlog_events.inc
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $prefix= `select uuid()`
+--let $out_file= $MYSQLTEST_VARDIR/tmp/$prefix.out
+--exec $MYSQL_BINLOG --force-if-open --database=bar $MYSQLD_DATADIR/$binlog_file > $out_file
+
+--let OUTF= $out_file
+
+--echo # Search for occurrences of SET INSERT_ID in the output from mysqlbinlog
+--echo # Search for occurrences of RAND in the output from mysqlbinlog
+--echo # Search for occurrences of USER_VAR in the output from mysqlbinlog
+
+perl;
+  use strict;
+  my $outf= $ENV{'OUTF'} or die "OUTF not set";
+  open(FILE, "$outf") or die("Unable to open $outf: $!\n");
+  my $count_intvar = () = grep(/SET INSERT_ID/gi,<FILE>);
+  my $count_rand = () = grep(/RAND/gi,<FILE>);
+  my $count_user_var = () = grep(/User_var/gi,<FILE>);
+  print "- Occurrences: $count_intvar\n";
+  print "- Occurrences: $count_rand\n";
+  print "- Occurrences: $count_user_var\n";
+  close(FILE);
+EOF
+
+--remove_file $out_file
