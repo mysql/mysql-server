@@ -7709,6 +7709,7 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
         struct hot_optimize_context hc;
         memset(&hc, 0, sizeof hc);
         hc.thd = thd;
+        hc.write_status_msg = this->write_status_msg;
         hc.ha = this;
         hc.current_table = i;
         hc.num_tables = curr_num_DBs;
