@@ -3559,6 +3559,23 @@ sp_instr_hpush_jump::opt_mark(sp_head *sp, List<sp_instr> *leads)
     m_optdest= sp->get_instr(m_dest);
   }
   sp->add_mark_lead(m_dest, leads);
+
+  /*
+    For continue handlers, all instructions in the scope of the handler
+    are possible leads. For example, the instruction after freturn might
+    be executed if the freturn triggers the condition handled by the
+    continue handler.
+
+    m_dest marks the start of the handler scope. It's added as a lead
+    above, so we start on m_dest+1 here.
+    m_opt_hpop is the hpop marking the end of the handler scope.
+  */
+  if (m_type == SP_HANDLER_CONTINUE)
+  {
+    for (uint scope_ip= m_dest+1; scope_ip <= m_opt_hpop; scope_ip++)
+      sp->add_mark_lead(scope_ip, leads);
+  }
+
   return m_ip+1;
 }
 
