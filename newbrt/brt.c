@@ -4561,13 +4561,15 @@ maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors
 //   Bring a leaf node up-to-date according to all the messages in the ancestors.   
 //   If the leaf node is already up-to-date then do nothing.
 //   If the leaf node is not already up-to-date, then record the work done for that leaf in each ancestor.
-//   If workdone for any nonleaf nodes exceeds threshold then flush them, but don't do any merges or splits.
 {
     VERIFY_NODE(t, node);
     if (node->height > 0) { goto exit; }
     // know we are a leaf node
-    // need to apply messages to each basement node
-    // TODO: (Zardosht) cilkify this
+    // An important invariant:
+    // We MUST bring every available basement node up to date.
+    // flushing on the cleaner thread depends on this. This invariant
+    // allows the cleaner thread to just pick an internal node and flush it
+    // as opposed to being forced to start from the root.
     for (int i = 0; i < node->n_children; i++) {
         int height = 0;
         if (BP_STATE(node, i) != PT_AVAIL) { continue; }
