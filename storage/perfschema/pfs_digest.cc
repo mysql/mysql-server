@@ -47,44 +47,96 @@
 /** 
   Macro to read a single token from token array.
 */
-#define READ_TOKEN(_src, _index, _dest)                          \
-{                                                                \
-  short _sh;                                                     \
-  _sh= ((0x00ff & _src[_index+1])<<8) | (0x00ff & _src[_index]); \
-  _dest= (int)(_sh);                                             \
-  _index+= 2;                                                    \
+#define READ_TOKEN(_dest, _index, _src)                                \
+{                                                                      \
+  short _sh;                                                           \
+  _sh= ((0x00ff & _src[_index+1])<<8) | (0x00ff & _src[_index]);       \
+  _dest= (int)(_sh);                                                   \
+  _index+= PFS_SIZE_OF_A_TOKEN;                                        \
 }
 
 /**
   Macro to store a single token in token array.
 */
-#define STORE_TOKEN(_dest, _index, _token)                       \
-{                                                                \
-  short _sh= (short)_token;                                      \
-  _dest[_index++]= (_sh) & 0xff;                                 \
-  _dest[_index++]= (_sh>>8) & 0xff;                              \
+#define STORE_TOKEN(_dest, _index, _token)                             \
+{                                                                      \
+  short _sh= (short)_token;                                            \
+  _dest[_index++]= (_sh) & 0xff;                                       \
+  _dest[_index++]= (_sh>>8) & 0xff;                                    \
 }
 
 /**
   Macro to read an identifier from token array.
 */
-#define READ_IDENTIFIER(_src, _index, _dest)                     \
-{                                                                \
-  int _length;                                                   \
-  READ_TOKEN(_src, _index, _length);                             \
-  strncpy(_dest, _src+_index, _length);                          \
-  _index+= _length;                                              \
-  _dest+= _length;                                               \
+#define READ_IDENTIFIER(_dest, _index, _src)                           \
+{                                                                      \
+  int _length;                                                         \
+  int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE-_index;             \
+  DBUG_ASSERT(remaining_bytes >= 0);                                   \
+  /*                                                                   \
+    Read ID's length.                                                  \
+    Make sure that space, to read ID's length, is available.           \
+  */                                                                   \
+  if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)                           \
+  {                                                                    \
+    READ_TOKEN(_length, _index, _src);                                 \
+    /*                                                                 \
+      While storing ID length, it has already been stored              \
+      in a way that ID doesn't go beyond the storage size,             \
+      so no need to check length here.                                 \
+    */                                                                 \
+    strncpy(_dest, _src+_index, _length);                              \
+    _index+= _length;                                                  \
+    _dest+= _length;                                                   \
+  }                                                                    \
 }
 
 /**
   Macro to store an identifier in token array.
 */
-#define STORE_IDENTIFIER(_dest, _index, _length, _id)            \
-{                                                                \
-  STORE_TOKEN(_dest, _index, _length);                           \
-  strncpy(_dest+_index, _id, _length);                           \
-  _index+= _length;                                              \
+#define STORE_IDENTIFIER(_dest, _index, _length, _id)                  \
+{                                                                      \
+  int remaining_bytes= PFS_MAX_DIGEST_STORAGE_SIZE-_index;             \
+  DBUG_ASSERT(remaining_bytes >= 0);                                   \
+  /*                                                                   \
+    Store ID's length.                                                 \
+    Make sure that space, to store ID's length, is available.          \
+  */                                                                   \
+  if(remaining_bytes >= PFS_SIZE_OF_A_TOKEN)                           \
+  {                                                                    \
+    /*                                                                 \
+       Make sure to store ID length/ID as per the space                \
+       available.                                                      \
+    */                                                                 \
+    remaining_bytes-= PFS_SIZE_OF_A_TOKEN;                             \
+    _length= _length>remaining_bytes?remaining_bytes:_length;          \
+    STORE_TOKEN(_dest, _index, _length);                               \
+    strncpy(_dest+_index, _id, _length);                               \
+    _index+= _length;                                                  \
+  }                                                                    \
+}
+
+/**
+  Macro to read last two tokens from token array. If an identifier
+  is found, do not look for token after that.
+*/
+#define READ_LAST_TWO_TOKENS(_t1, _t2, _id_index, _byte_count)         \
+{                                                                      \
+  int _last_token_index;                                               \
+  if(_id_index <= _byte_count - PFS_SIZE_OF_A_TOKEN)                   \
+  {                                                                    \
+    /* Take last token. */                                             \
+    _last_token_index= _byte_count - PFS_SIZE_OF_A_TOKEN;              \
+    DBUG_ASSERT(_last_token_index >= 0);                               \
+    READ_TOKEN(_t1, _last_token_index, digest_storage->m_token_array); \
+  }                                                                    \
+  if(_id_index <= _byte_count - 2*PFS_SIZE_OF_A_TOKEN)                 \
+  {                                                                    \
+    /* Take 2nd token from last. */                                    \
+    _last_token_index= _byte_count - 2*PFS_SIZE_OF_A_TOKEN;            \
+    DBUG_ASSERT(_last_token_index >= 0);                               \
+    READ_TOKEN(_t2, _last_token_index, digest_storage->m_token_array); \
+  }                                                                    \
 }
 
 unsigned int statements_digest_size= 0;
@@ -104,9 +156,7 @@ static bool digest_hash_inited= false;
 
 static void get_digest_text(char* digest_text,
                             char* token_array,
-                            int token_count,
                             int byte_count);
-const char* symbol[MAX_TOKEN_COUNT];
 
 /**
   Initialize table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST.
@@ -203,26 +253,17 @@ static LF_PINS* get_digest_hash_pins(PFS_thread *thread)
 
 PFS_statements_digest_stat* 
 find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
-/*
-                               unsigned char* hash_key,
-                               unsigned int* token_array,
-                               int token_count,
-                               char* digest_text,
-                               unsigned int digest_text_length)
-*/
 {
   /* get digest pin. */
   LF_PINS *pins= get_digest_hash_pins(thread);
   /* There shoulod be at least one token. */
-  if(unlikely(pins == NULL) || !(digest_storage->m_token_count > 0))
+  if(unlikely(pins == NULL) || 
+     !(digest_storage->m_byte_count >= PFS_SIZE_OF_A_TOKEN))
   {
     return NULL;
   }
 
   unsigned char* hash_key= digest_storage->m_digest_hash.m_md5;
-  char* token_array= digest_storage->m_token_array; 
-  int token_count= digest_storage->m_token_count;
-  int byte_count= digest_storage->m_byte_count;
  
   PFS_statements_digest_stat **entry;
   PFS_statements_digest_stat *pfs= NULL;
@@ -255,7 +296,9 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
     pfs= &statements_digest_stat_array[digest_index];
     
     /* Calculate and set digest text. */
-    get_digest_text(pfs->m_digest_text,token_array,token_count,byte_count);
+    get_digest_text(pfs->m_digest_text,
+                    digest_storage->m_token_array,
+                    digest_storage->m_byte_count);
     pfs->m_digest_text_length= strlen(pfs->m_digest_text);
 
     /* Set digest hash/LF Hash search key. */
@@ -308,17 +351,17 @@ void reset_esms_by_digest()
 */
 static void get_digest_text(char* digest_text,
                             char* token_array,
-                            int token_count,
                             int byte_count)
 {
-  int i;
   int tok;
-  int current_byte;
+  int current_byte= 0;
   lex_token_string *tok_data;
 
-  for (i= 0, current_byte= 0; i<token_count; i++)
+  DBUG_ASSERT(byte_count <= PFS_MAX_DIGEST_STORAGE_SIZE);
+
+  while(current_byte<byte_count)
   {
-    READ_TOKEN(token_array, current_byte, tok);
+    READ_TOKEN(tok, current_byte, token_array);
     tok_data= & lex_token_array[tok];
 
     switch (tok)
@@ -341,7 +384,7 @@ static void get_digest_text(char* digest_text,
     /* All identifiers are printed with their name. */
     case IDENT:
     case IDENT_QUOTED:
-      READ_IDENTIFIER(token_array, current_byte, digest_text);
+      READ_IDENTIFIER(digest_text, current_byte, token_array);
       *digest_text= ' ';
       digest_text++;
       break;
@@ -398,11 +441,10 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
   /*
     Initialize token array and token count to 0.
   */
-  digest_storage->m_token_count= PFS_MAX_TOKEN_COUNT;
-  digest_storage->m_byte_count= 0;
+  digest_storage->m_byte_count= PFS_MAX_DIGEST_STORAGE_SIZE;
   digest_storage->m_last_id_index= 0;
-  while(digest_storage->m_token_count)
-    digest_storage->m_token_array[--digest_storage->m_token_count]= 0;
+  while(digest_storage->m_byte_count)
+    digest_storage->m_token_array[--digest_storage->m_byte_count]= 0;
 
   /*
     Set digest_locker_state's statement info pointer.
@@ -430,7 +472,8 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
   pfs= reinterpret_cast<PFS_events_statements *>(state->m_statement);
   digest_storage= &pfs->m_digest_storage;
 
-  if( digest_storage->m_token_count >= PFS_MAX_TOKEN_COUNT )
+  if( PFS_MAX_DIGEST_STORAGE_SIZE - digest_storage->m_byte_count <
+      PFS_SIZE_OF_A_TOKEN)
   {
     /*
       If digest storage record is full, do nothing.
@@ -442,32 +485,12 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
      Take last_token 3 tokens collected till now. These tokens will be used
      in reduce for normalisation. Make sure not to consider ID tokens in reduce.
   */
-  uint last_token_index; 
   uint last_token = TOK_PFS_UNUSED;
   uint last_token2= TOK_PFS_UNUSED;
-  uint last_token3= TOK_PFS_UNUSED;
   
-  if((digest_storage->m_last_id_index <= digest_storage->m_byte_count-2) &&
-     (digest_storage->m_token_count >= 1))
-  {
-    /* Take last token. */
-    last_token_index= digest_storage->m_byte_count-2;
-    READ_TOKEN(digest_storage->m_token_array, last_token_index, last_token);
-  }
-  if((digest_storage->m_last_id_index <= digest_storage->m_byte_count-4) &&
-     (digest_storage->m_token_count >= 2))
-  {
-    /* Take 2nd token from last. */
-    last_token_index= digest_storage->m_byte_count-4;
-    READ_TOKEN(digest_storage->m_token_array, last_token_index ,last_token2);
-  }
-  if((digest_storage->m_last_id_index <= digest_storage->m_byte_count-6) &&
-     (digest_storage->m_token_count >= 3))
-  {
-    /* Take 3rd token from last. */
-    last_token_index= digest_storage->m_byte_count-6;
-    READ_TOKEN(digest_storage->m_token_array, last_token_index ,last_token3);
-  }
+  READ_LAST_TWO_TOKENS(last_token, last_token2,
+                       digest_storage->m_last_id_index,
+                       digest_storage->m_byte_count);
 
   switch (token)
   {
@@ -488,128 +511,120 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
       */
       token= TOK_PFS_GENERIC_VALUE;
 
-      if (digest_storage->m_token_count >= 2)
+      if ((last_token2 == TOK_PFS_GENERIC_VALUE ||
+           last_token2 == TOK_PFS_GENERIC_VALUE_LIST) &&
+          (last_token == ','))
       {
-        if ((last_token2 == TOK_PFS_GENERIC_VALUE ||
-             last_token2 == TOK_PFS_GENERIC_VALUE_LIST) &&
-            (last_token == ','))
-        {
-          /*
-            REDUCE:
-            TOK_PFS_GENERIC_VALUE_LIST :=
-              TOK_PFS_GENERIC_VALUE ',' TOK_PFS_GENERIC_VALUE
-            
-            REDUCE:
-            TOK_PFS_GENERIC_VALUE_LIST :=
-              TOK_PFS_GENERIC_VALUE_LIST ',' TOK_PFS_GENERIC_VALUE
-          */
-          digest_storage->m_token_count-= 2;
-          digest_storage->m_byte_count-= 4;
-          token= TOK_PFS_GENERIC_VALUE_LIST;
-        }
-        else if(last_token == '(')
-        {
-          /*
-            REDUCE:
-              "(" , "#" => "(#" 
-          */
-          digest_storage->m_token_count-= 1;
-          digest_storage->m_byte_count-= 2;
-          token= TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE;
-        }
-        else if((last_token2 == TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE ||
-                 last_token2 == TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE) &&
-                (last_token == ','))
-        {
-          /*
-            REDUCE:
-              "(#" , "#" => "(#,#" 
-            REDUCE:
-              "(#,#" , "#" => "(#,#"
-          */
-          digest_storage->m_token_count-= 2;
-          digest_storage->m_byte_count-= 4;
-          token= TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE;
-        }
+        /*
+          REDUCE:
+          TOK_PFS_GENERIC_VALUE_LIST :=
+            TOK_PFS_GENERIC_VALUE ',' TOK_PFS_GENERIC_VALUE
+          
+          REDUCE:
+          TOK_PFS_GENERIC_VALUE_LIST :=
+            TOK_PFS_GENERIC_VALUE_LIST ',' TOK_PFS_GENERIC_VALUE
+        */
+        digest_storage->m_byte_count-= 2*PFS_SIZE_OF_A_TOKEN;
+        token= TOK_PFS_GENERIC_VALUE_LIST;
       }
+      /*
+        Add this token or the resulting reduce to digest storage.
+      */
+      STORE_TOKEN(digest_storage->m_token_array, digest_storage->m_byte_count, token);
       break;
     }
     case ')':
     {
-      if (digest_storage->m_token_count > 0)
-      {
-        if(last_token == TOK_PFS_ROW_POSSIBLE_SINGLE_VALUE) 
-        { 
-          /*
-            REDUCE:
-              "(#" , ")" => "(#)"
-          */
-          digest_storage->m_token_count-= 1;
-          digest_storage->m_byte_count-= 2;
-          token= TOK_PFS_ROW_SINGLE_VALUE;
-        
-          if (digest_storage->m_token_count >= 3)
-          {
-            if((last_token3 == TOK_PFS_ROW_SINGLE_VALUE ||
-                last_token3 == TOK_PFS_ROW_SINGLE_VALUE_LIST) &&
-               (last_token2 == ','))
-            {
-              /*
-                REDUCE:
-                  "(#)" , "(#)" => "(#),(#)"
-                REDUCE:
-                  "(#),(#)" , "(#)" => "(#),(#)"
-              */
-              digest_storage->m_token_count-= 2;
-              digest_storage->m_byte_count-= 4;
-              token= TOK_PFS_ROW_SINGLE_VALUE_LIST;
-            }
-          }
-        }
-        else if(last_token == TOK_PFS_ROW_POSSIBLE_MULTIPLE_VALUE)
+      if(last_token == TOK_PFS_GENERIC_VALUE &&
+         last_token2 == '(') 
+      { 
+        /*
+          REDUCE:
+            "(" "#" +  ")" => "(#)"
+        */
+        digest_storage->m_byte_count-= 2*PFS_SIZE_OF_A_TOKEN;
+        token= TOK_PFS_ROW_SINGLE_VALUE;
+      
+        /* Read last two tokens again */
+        READ_LAST_TWO_TOKENS(last_token, last_token2,
+                             digest_storage->m_last_id_index,
+                             digest_storage->m_byte_count);
+
+        if((last_token2 == TOK_PFS_ROW_SINGLE_VALUE ||
+            last_token2 == TOK_PFS_ROW_SINGLE_VALUE_LIST) &&
+           (last_token == ','))
         {
           /*
             REDUCE:
-              "(#,#" , ")" => "(#,#)"
+              "(#)" "," + "(#)" => "(#),(#)"
+            REDUCE:
+              "(#),(#)" "," + "(#)" => "(#),(#)"
           */
-          digest_storage->m_token_count-= 1;
-          digest_storage->m_byte_count-= 2;
-          token= TOK_PFS_ROW_MULTIPLE_VALUE;
-  
-          if (digest_storage->m_token_count >= 3)
-          {
-            if((last_token3 == TOK_PFS_ROW_MULTIPLE_VALUE ||
-                last_token3 == TOK_PFS_ROW_MULTIPLE_VALUE_LIST) &&
-               (last_token2 == ','))
-            {
-              /*
-                REDUCE:
-                  "(#,#)" , "(#,#)" ) => "(#,#),(#,#)"
-                REDUCE:
-                  "(#,#),(#,#)" , "(#,#)" ) => "(#,#),(#,#)"
-              */
-              digest_storage->m_token_count-= 2;
-              digest_storage->m_byte_count-= 4;
-              token= TOK_PFS_ROW_MULTIPLE_VALUE_LIST;
-            }
-          }
+          digest_storage->m_byte_count-= 2*PFS_SIZE_OF_A_TOKEN;
+          token= TOK_PFS_ROW_SINGLE_VALUE_LIST;
         }
       }
+      else if(last_token == TOK_PFS_GENERIC_VALUE_LIST &&
+              last_token2 == '(') 
+      {
+        /*
+          REDUCE:
+            "(" "#,#" + ")" => "(#,#)"
+        */
+        digest_storage->m_byte_count-= 2*PFS_SIZE_OF_A_TOKEN;
+        token= TOK_PFS_ROW_MULTIPLE_VALUE;
+
+        /* Read last two tokens again */
+        READ_LAST_TWO_TOKENS(last_token, last_token2,
+                             digest_storage->m_last_id_index,
+                             digest_storage->m_byte_count);
+
+        if((last_token2 == TOK_PFS_ROW_MULTIPLE_VALUE ||
+            last_token2 == TOK_PFS_ROW_MULTIPLE_VALUE_LIST) &&
+           (last_token == ','))
+        {
+          /*
+            REDUCE:
+              "(#,#)" "," + "(#,#)" ) => "(#,#),(#,#)"
+            REDUCE:
+              "(#,#),(#,#)" "," + "(#,#)" ) => "(#,#),(#,#)"
+          */
+          digest_storage->m_byte_count-= 2*PFS_SIZE_OF_A_TOKEN;
+          token= TOK_PFS_ROW_MULTIPLE_VALUE_LIST;
+        }
+      }
+      /*
+        Add this token or the resulting reduce to digest storage.
+      */
+      STORE_TOKEN(digest_storage->m_token_array, digest_storage->m_byte_count, token);
+      break;
+    }
+    case IDENT:
+    case IDENT_QUOTED:
+    {
+      /*
+        Add this token to digest storage.
+      */
+      STORE_TOKEN(digest_storage->m_token_array, digest_storage->m_byte_count, token);
+      /*
+        Add this identifier's lenght and string to digest storage.
+      */
+      STORE_IDENTIFIER(digest_storage->m_token_array, digest_storage->m_byte_count, yylen, yytext);
+      /* 
+        Update the index of last identifier found.
+      */
+      digest_storage->m_last_id_index= digest_storage->m_byte_count;
+      break;
+    }
+    default:
+    {
+      /*
+        Add this token to digest storage.
+      */
+      STORE_TOKEN(digest_storage->m_token_array, digest_storage->m_byte_count, token);
       break;
     }
   }
-
-  /*
-    Add this token or the resulting reduce to digest storage.
-  */
-  STORE_TOKEN(digest_storage->m_token_array, digest_storage->m_byte_count, token);
-  if(token == IDENT || token == IDENT_QUOTED)
-  {
-    STORE_IDENTIFIER(digest_storage->m_token_array, digest_storage->m_byte_count, yylen, yytext);
-    digest_storage->m_last_id_index= digest_storage->m_byte_count;
-  }
-
-  digest_storage->m_token_count++;
 }
 
 void pfs_digest_end_v1(PSI_digest_locker *locker)
@@ -633,10 +648,4 @@ void pfs_digest_end_v1(PSI_digest_locker *locker)
   MY_MD5_HASH(digest_storage->m_digest_hash.m_md5,
               (unsigned char *)digest_storage->m_token_array,
               (uint) sizeof(digest_storage->m_token_array));
-
-  /*
-     Not resetting digest_storage->m_token_count to 0 here as it will be done in
-     digest_start.
-  */
 }
-
