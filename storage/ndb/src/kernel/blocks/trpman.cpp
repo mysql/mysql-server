@@ -29,6 +29,7 @@ Trpman::Trpman(Block_context & ctx, Uint32 instanceno) :
   BLOCK_CONSTRUCTOR(Trpman);
 
   addRecSignal(GSN_CLOSE_COMREQ, &Trpman::execCLOSE_COMREQ);
+  addRecSignal(GSN_CLOSE_COMCONF, &Trpman::execCLOSE_COMCONF);
   addRecSignal(GSN_OPEN_COMORD, &Trpman::execOPEN_COMORD);
   addRecSignal(GSN_ENABLE_COMREQ, &Trpman::execENABLE_COMREQ);
   addRecSignal(GSN_DISCONNECT_REP, &Trpman::execDISCONNECT_REP);
@@ -51,11 +52,17 @@ static NodeBitmask c_error_9000_nodes_mask;
 extern Uint32 MAX_RECEIVED_SIGNALS;
 #endif
 
-static
 bool
-handles_this_node(Uint32 nodeId)
+Trpman::handles_this_node(Uint32 nodeId)
 {
+#if MAX_NDBMT_RECEIVE_THREADS == 1
   return true;
+#else
+  if (globalData.ndbMtReceiveThreads <= (Uint32)1)
+    return true;
+  return (instance()==
+          (globalTransporterRegistry.getReceiveThreadId(nodeId) + 1));
+#endif
 }
 
 void
@@ -213,7 +220,7 @@ Trpman::execCLOSE_COMREQ(Signal* signal)
      * bitmap is not trampled above
      * signals received from the remote node.
      */
-    sendSignal(QMGR_REF, GSN_CLOSE_COMCONF, signal, 19, JBA);
+    sendSignal(TRPMAN_REF, GSN_CLOSE_COMCONF, signal, 19, JBA);
   }
 }
 
@@ -236,13 +243,13 @@ Trpman::execENABLE_COMREQ(Signal* signal)
   const EnableComReq *enableComReq = (const EnableComReq *)signal->getDataPtr();
 
   /* Need to copy out signal data to not clobber it with sendSignal(). */
-  Uint32 senderRef = enableComReq->m_senderRef;
+  BlockReference senderRef = enableComReq->m_senderRef;
   Uint32 senderData = enableComReq->m_senderData;
   Uint32 nodes[NodeBitmask::Size];
   MEMCOPY_NO_WORDS(nodes, enableComReq->m_nodeIds, NodeBitmask::Size);
 
   /* Enable communication with all our NDB blocks to these nodes. */
-  Uint32 search_from = 0;
+  Uint32 search_from = 1;
   for (;;)
   {
     Uint32 tStartingNode = NodeBitmask::find(nodes, search_from);
@@ -610,9 +617,11 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
 TrpmanProxy::TrpmanProxy(Block_context & ctx) :
   LocalProxy(TRPMAN, ctx)
 {
-  addRecSignal(GSN_CLOSE_COMREQ, &TrpmanProxy::execCLOSE_COMREQ);
   addRecSignal(GSN_OPEN_COMORD, &TrpmanProxy::execOPEN_COMORD);
   addRecSignal(GSN_ENABLE_COMREQ, &TrpmanProxy::execENABLE_COMREQ);
+  addRecSignal(GSN_ENABLE_COMCONF, &TrpmanProxy::execENABLE_COMCONF);
+  addRecSignal(GSN_CLOSE_COMREQ, &TrpmanProxy::execCLOSE_COMREQ);
+  addRecSignal(GSN_CLOSE_COMCONF, &TrpmanProxy::execCLOSE_COMCONF);
   addRecSignal(GSN_ROUTE_ORD, &TrpmanProxy::execROUTE_ORD);
 }
 
@@ -628,43 +637,147 @@ TrpmanProxy::newWorker(Uint32 instanceNo)
 
 BLOCK_FUNCTIONS(TrpmanProxy);
 
-/**
- * TODO TrpmanProxy need to have operation records
- *      to support splicing a request onto several Trpman-instances
- *      according to how receive-threads are assigned to instances
- */
+// GSN_OPEN_COMORD
+
 void
 TrpmanProxy::execOPEN_COMORD(Signal* signal)
 {
   jamEntry();
-  SectionHandle handle(this, signal);
-  sendSignal(workerRef(0), GSN_OPEN_COMORD, signal,
-             signal->getLength(), JBB, &handle);
+
+  for (Uint32 i = 0; i<c_workers; i++)
+  {
+    jam();
+    sendSignal(workerRef(i), GSN_OPEN_COMORD, signal,
+               signal->getLength(), JBB);
+  }
 }
+
+// GSN_CLOSE_COMREQ
 
 void
 TrpmanProxy::execCLOSE_COMREQ(Signal* signal)
 {
   jamEntry();
-  SectionHandle handle(this, signal);
-  sendSignal(workerRef(0), GSN_CLOSE_COMREQ, signal,
-             signal->getLength(), JBB, &handle);
+  Ss_CLOSE_COMREQ& ss = ssSeize<Ss_CLOSE_COMREQ>();
+  const CloseComReqConf* req = (const CloseComReqConf*)signal->getDataPtr();
+  ss.m_req = *req;
+  sendREQ(signal, ss);
 }
+
+void
+TrpmanProxy::sendCLOSE_COMREQ(Signal *signal, Uint32 ssId, SectionHandle*)
+{
+  jam();
+  Ss_CLOSE_COMREQ& ss = ssFind<Ss_CLOSE_COMREQ>(ssId);
+  CloseComReqConf* req = (CloseComReqConf*)signal->getDataPtrSend();
+
+  *req = ss.m_req;
+  req->xxxBlockRef = reference();
+  req->failNo = ssId;
+  sendSignal(workerRef(ss.m_worker), GSN_CLOSE_COMREQ, signal,
+             CloseComReqConf::SignalLength, JBB);
+}
+
+void
+TrpmanProxy::execCLOSE_COMCONF(Signal* signal)
+{
+  const CloseComReqConf* conf = (const CloseComReqConf*)signal->getDataPtr();
+  Uint32 ssId = conf->failNo;
+  jamEntry();
+  Ss_CLOSE_COMREQ& ss = ssFind<Ss_CLOSE_COMREQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+TrpmanProxy::sendCLOSE_COMCONF(Signal *signal, Uint32 ssId)
+{
+  jam();
+  Ss_CLOSE_COMREQ& ss = ssFind<Ss_CLOSE_COMREQ>(ssId);
+
+  if (!lastReply(ss))
+  {
+    jam();
+    return;
+  }
+
+  CloseComReqConf* conf = (CloseComReqConf*)signal->getDataPtrSend();
+  *conf = ss.m_req;
+  sendSignal(conf->xxxBlockRef, GSN_CLOSE_COMCONF, signal,
+             CloseComReqConf::SignalLength, JBB);
+  ssRelease<Ss_CLOSE_COMREQ>(ssId);
+}
+
+// GSN_ENABLE_COMREQ
 
 void
 TrpmanProxy::execENABLE_COMREQ(Signal* signal)
 {
   jamEntry();
-  SectionHandle handle(this, signal);
-  sendSignal(workerRef(0), GSN_ENABLE_COMREQ, signal,
-             signal->getLength(), JBB, &handle);
+  Ss_ENABLE_COMREQ& ss = ssSeize<Ss_ENABLE_COMREQ>();
+  const EnableComReq* req = (const EnableComReq*)signal->getDataPtr();
+  ss.m_req = *req;
+  sendREQ(signal, ss);
 }
+
+void
+TrpmanProxy::sendENABLE_COMREQ(Signal *signal, Uint32 ssId, SectionHandle*)
+{
+  jam();
+  Ss_ENABLE_COMREQ& ss = ssFind<Ss_ENABLE_COMREQ>(ssId);
+  EnableComReq* req = (EnableComReq*)signal->getDataPtrSend();
+
+  *req = ss.m_req;
+  req->m_senderRef = reference();
+  req->m_senderData = ssId;
+  sendSignal(workerRef(ss.m_worker), GSN_ENABLE_COMREQ, signal,
+             EnableComReq::SignalLength, JBB);
+}
+
+void
+TrpmanProxy::execENABLE_COMCONF(Signal* signal)
+{
+  const EnableComConf* conf = (const EnableComConf*)signal->getDataPtr();
+  Uint32 ssId = conf->m_senderData;
+  jamEntry();
+  Ss_ENABLE_COMREQ& ss = ssFind<Ss_ENABLE_COMREQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+TrpmanProxy::sendENABLE_COMCONF(Signal *signal, Uint32 ssId)
+{
+  jam();
+  Ss_ENABLE_COMREQ& ss = ssFind<Ss_ENABLE_COMREQ>(ssId);
+
+  if (!lastReply(ss))
+  {
+    jam();
+    return;
+  }
+
+  EnableComReq* conf = (EnableComReq*)signal->getDataPtr();
+  *conf = ss.m_req;
+  sendSignal(conf->m_senderRef, GSN_ENABLE_COMCONF, signal,
+             EnableComReq::SignalLength, JBB);
+  ssRelease<Ss_ENABLE_COMREQ>(ssId);
+}
+
+// GSN_ROUTE_ORD
 
 void
 TrpmanProxy::execROUTE_ORD(Signal* signal)
 {
+  RouteOrd* ord = (RouteOrd*)signal->getDataPtr();
+  Uint32 nodeId = ord->from;
   jamEntry();
+
+  ndbassert(nodeId != 0);
+#if MAX_NDBMT_RECEIVE_THREADS == 1
+  Uint32 workerId = 0;
+#else
+  Uint32 workerId = globalTransporterRegistry.getReceiveThreadId(nodeId);
+#endif
   SectionHandle handle(this, signal);
-  sendSignal(workerRef(0), GSN_ROUTE_ORD, signal,
+  sendSignal(workerRef(workerId), GSN_ROUTE_ORD, signal,
              signal->getLength(), JBB, &handle);
 }
