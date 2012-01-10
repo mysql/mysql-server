@@ -1903,7 +1903,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   TABLE new_table;
   TABLE_SHARE share;
   const char *save_proc_info;
-  int write_err;
+  int write_err= 0;
   DBUG_ENTER("create_myisam_from_heap");
 
   if (table->s->db_type() != heap_hton || 
@@ -2034,8 +2034,11 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   DBUG_RETURN(0);
 
  err:
-  DBUG_PRINT("error",("Got error: %d",write_err));
-  table->file->print_error(write_err, MYF(0));
+  if (write_err)
+  {
+    DBUG_PRINT("error",("Got error: %d",write_err));
+    new_table.file->print_error(write_err, MYF(0));
+  }
   if (table->file->inited == handler::RND)
     (void) table->file->ha_rnd_end();
   (void) new_table.file->ha_close();
