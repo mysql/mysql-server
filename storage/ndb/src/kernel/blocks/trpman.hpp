@@ -31,7 +31,7 @@ public:
 
   void execCLOSE_COMREQ(Signal *signal);
   void execCLOSE_COMCONF(Signal * signal);
-  void execOPEN_COMREQ(Signal *signal);
+  void execOPEN_COMORD(Signal *signal);
   void execENABLE_COMREQ(Signal *signal);
   void execDISCONNECT_REP(Signal *signal);
   void execCONNECT_REP(Signal *signal);
@@ -53,7 +53,7 @@ public:
   BLOCK_DEFINES(TrpmanProxy);
 
   void execCLOSE_COMREQ(Signal *signal);
-  void execOPEN_COMREQ(Signal *signal);
+  void execOPEN_COMORD(Signal *signal);
   void execENABLE_COMREQ(Signal *signal);
   void execROUTE_ORD(Signal* signal);
 

@@ -1326,6 +1326,7 @@ private:
     Uint32 clastVerifyQueue;
     Uint32 m_empty_done;
     Uint32 m_ref;
+    char pad[NDB_CL - (sizeof(void*) + 4 * sizeof(Uint32))];
   };
 
   bool isEmpty(const DIVERIFY_queue&);
@@ -1334,7 +1335,7 @@ private:
   void emptyverificbuffer(Signal *, Uint32 q, bool aContintueB);
   void emptyverificbuffer_check(Signal*, Uint32, Uint32);
 
-  DIVERIFY_queue c_diverify_queue[MAX_NDBMT_LQH_THREADS];
+  DIVERIFY_queue c_diverify_queue[MAX_NDBMT_TC_THREADS];
   Uint32 c_diverify_queue_cnt;
 
   /*------------------------------------------------------------------------*/
