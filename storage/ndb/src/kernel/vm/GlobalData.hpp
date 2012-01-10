@@ -41,10 +41,10 @@ enum  restartStates {initial_state,
                      perform_stop};
 
 struct GlobalData {
+  NodeInfo   m_nodeInfo[MAX_NODES];   // At top to ensure cache alignment
+  Signal     VMSignals[1];            // Owned by FastScheduler::
   Uint32     m_restart_seq;           // 
   NodeVersionInfo m_versionInfo;
-  NodeInfo   m_nodeInfo[MAX_NODES];
-  Signal     VMSignals[1];            // Owned by FastScheduler::
   
   Uint64     internalMillisecCounter; // Owned by ThreadConfig::
   Uint32     highestAvailablePrio;    // Owned by FastScheduler::
@@ -75,6 +75,8 @@ struct GlobalData {
   Uint32     ndbMtLqhWorkers;
   Uint32     ndbMtLqhThreads;
   Uint32     ndbMtTcThreads;
+  Uint32     ndbMtSendThreads;
+  Uint32     ndbMtReceiveThreads;
   Uint32     ndbLogParts;
   
   GlobalData(){ 
@@ -86,6 +88,8 @@ struct GlobalData {
     ndbMtLqhWorkers = 0;
     ndbMtLqhThreads = 0;
     ndbMtTcThreads = 0;
+    ndbMtSendThreads = 0;
+    ndbMtReceiveThreads = 0;
     ndbLogParts = 0;
 #ifdef GCP_TIMER_HACK
     gcp_timer_limit = 0;
