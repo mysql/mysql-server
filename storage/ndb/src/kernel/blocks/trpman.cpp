@@ -29,7 +29,7 @@ Trpman::Trpman(Block_context & ctx, Uint32 instanceno) :
   BLOCK_CONSTRUCTOR(Trpman);
 
   addRecSignal(GSN_CLOSE_COMREQ, &Trpman::execCLOSE_COMREQ);
-  addRecSignal(GSN_OPEN_COMREQ, &Trpman::execOPEN_COMREQ);
+  addRecSignal(GSN_OPEN_COMORD, &Trpman::execOPEN_COMORD);
   addRecSignal(GSN_ENABLE_COMREQ, &Trpman::execENABLE_COMREQ);
   addRecSignal(GSN_DISCONNECT_REP, &Trpman::execDISCONNECT_REP);
   addRecSignal(GSN_CONNECT_REP, &Trpman::execCONNECT_REP);
@@ -59,7 +59,7 @@ handles_this_node(Uint32 nodeId)
 }
 
 void
-Trpman::execOPEN_COMREQ(Signal* signal)
+Trpman::execOPEN_COMORD(Signal* signal)
 {
   // Connect to the specifed NDB node, only QMGR allowed communication
   // so far with the node
@@ -121,13 +121,10 @@ Trpman::execOPEN_COMREQ(Signal* signal)
   }
 
 done:
-  if (userRef != 0)
-  {
-    jam();
-    signal->theData[0] = tStartingNode;
-    signal->theData[1] = tData2;
-    sendSignal(userRef, GSN_OPEN_COMCONF, signal, 2, JBA);
-  }
+  /**
+   * NO REPLY for now
+   */
+  (void)userRef;
 }
 
 void
@@ -465,6 +462,7 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
     if (signal->getLength() == 1 || signal->theData[1])
     {
+      signal->header.theLength = 2;
       for (Uint32 i = 1; i<MAX_NODES; i++)
       {
         if (c_error_9000_nodes_mask.get(i) &&
@@ -472,7 +470,7 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
         {
           signal->theData[0] = 0;
           signal->theData[1] = i;
-          execOPEN_COMREQ(signal);
+          execOPEN_COMORD(signal);
         }
       }
     }
@@ -613,7 +611,7 @@ TrpmanProxy::TrpmanProxy(Block_context & ctx) :
   LocalProxy(TRPMAN, ctx)
 {
   addRecSignal(GSN_CLOSE_COMREQ, &TrpmanProxy::execCLOSE_COMREQ);
-  addRecSignal(GSN_OPEN_COMREQ, &TrpmanProxy::execOPEN_COMREQ);
+  addRecSignal(GSN_OPEN_COMORD, &TrpmanProxy::execOPEN_COMORD);
   addRecSignal(GSN_ENABLE_COMREQ, &TrpmanProxy::execENABLE_COMREQ);
   addRecSignal(GSN_ROUTE_ORD, &TrpmanProxy::execROUTE_ORD);
 }
@@ -636,11 +634,11 @@ BLOCK_FUNCTIONS(TrpmanProxy);
  *      according to how receive-threads are assigned to instances
  */
 void
-TrpmanProxy::execOPEN_COMREQ(Signal* signal)
+TrpmanProxy::execOPEN_COMORD(Signal* signal)
 {
   jamEntry();
   SectionHandle handle(this, signal);
-  sendSignal(workerRef(0), GSN_OPEN_COMREQ, signal,
+  sendSignal(workerRef(0), GSN_OPEN_COMORD, signal,
              signal->getLength(), JBB, &handle);
 }
 

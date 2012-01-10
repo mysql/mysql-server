@@ -259,9 +259,9 @@ const GsnName SignalNames [] = {
   ,{ GSN_NEXT_SCANREF,           "NEXT_SCANREF" }
   ,{ GSN_NEXT_SCANREQ,           "NEXT_SCANREQ" }
   ,{ GSN_NF_COMPLETEREP,         "NF_COMPLETEREP" }
-  ,{ GSN_OPEN_COMCONF,           "OPEN_COMCONF" }
-  ,{ GSN_OPEN_COMREF,            "OPEN_COMREF" }
-  ,{ GSN_OPEN_COMREQ,            "OPEN_COMREQ" }
+//  ,{ GSN_OPEN_COMCONF,           "OPEN_COMCONF" }
+//  ,{ GSN_OPEN_COMREF,            "OPEN_COMREF" }
+  ,{ GSN_OPEN_COMORD,            "OPEN_COMORD" }
   ,{ GSN_PACKED_SIGNAL,          "PACKED_SIGNAL" }
   ,{ GSN_PREP_FAILCONF,          "PREP_FAILCONF" }
   ,{ GSN_PREP_FAILREF,           "PREP_FAILREF" }
