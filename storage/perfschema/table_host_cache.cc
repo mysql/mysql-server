@@ -232,7 +232,10 @@ int table_host_cache::read_row_values(TABLE *table,
         set_field_varchar_utf8(f, m_row->m_ip, m_row->m_ip_length);
         break;
       case 1: /* HOST */
-        set_field_varchar_utf8(f, m_row->m_hostname, m_row->m_hostname_length);
+        if (m_row->m_hostname_length > 0)
+          set_field_varchar_utf8(f, m_row->m_hostname, m_row->m_hostname_length);
+        else
+          f->set_null();
         break;
       case 2: /* SUM_BLOCKING_ERRORS */
         set_field_ulonglong(f, m_row->m_sum_blocking_errors);

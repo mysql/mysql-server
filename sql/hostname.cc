@@ -148,7 +148,7 @@ static bool add_hostname_impl(const char *ip_key, const char *hostname,
                               bool validated, Host_errors *errors)
 {
   Host_entry *entry;
-  bool duplicate;
+  bool need_add= false;
 
   entry= hostname_cache_search(ip_key);
 
@@ -156,45 +156,44 @@ static bool add_hostname_impl(const char *ip_key, const char *hostname,
   {
     entry= (Host_entry *) malloc(sizeof (Host_entry));
     if (entry == NULL)
-      return TRUE;
+      return true;
 
-    duplicate= false;
+    need_add= true;
     memcpy(&entry->ip_key, ip_key, HOST_ENTRY_KEY_SIZE);
     entry->m_errors.reset();
-  }
-  else
-  {
-    duplicate= true;
-  }
-
-  if (hostname != NULL)
-  {
-    uint len= strlen(hostname);
-    if (len > sizeof(entry->m_hostname) - 1)
-      len= sizeof(entry->m_hostname) - 1;
-    memcpy(entry->m_hostname, hostname, len);
-    entry->m_hostname[len]= '\0';
-    entry->m_hostname_length= len;
-
-    DBUG_PRINT("info", ("Adding/Updating '%s' -> '%s' to the hostname cache...'",
-                        (const char *) ip_key,
-                        (const char *) entry->m_hostname));
-  }
-  else
-  {
     entry->m_hostname_length= 0;
-
-    DBUG_PRINT("info", ("Adding '%s' -> empty to the hostname cache...'",
-                        (const char *) ip_key));
   }
 
-  entry->m_host_validated= validated;
+  if (validated)
+  {
+    if (hostname != NULL)
+    {
+      uint len= strlen(hostname);
+      if (len > sizeof(entry->m_hostname) - 1)
+        len= sizeof(entry->m_hostname) - 1;
+      memcpy(entry->m_hostname, hostname, len);
+      entry->m_hostname[len]= '\0';
+      entry->m_hostname_length= len;
+
+      DBUG_PRINT("info", ("Adding/Updating '%s' -> '%s' to the hostname cache...'",
+                          (const char *) ip_key,
+                          (const char *) entry->m_hostname));
+    }
+    else
+    {
+      entry->m_hostname_length= 0;
+
+      DBUG_PRINT("info", ("Adding/Updating '%s' -> empty to the hostname cache...'",
+                          (const char *) ip_key));
+    }
+  }
+
   entry->m_errors.aggregate(errors);
 
-  if (! duplicate)
+  if (need_add)
     hostname_cache->add(entry);
 
-  return FALSE;
+  return false;
 }
 
 static bool add_hostname(const char *ip_key, const char *hostname,
@@ -363,21 +362,18 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
       *connect_errors= entry->m_errors.get_blocking_errors();
       *hostname= NULL;
 
-      if (entry->m_host_validated)
-      {
-        if (entry->m_hostname_length)
-          *hostname= my_strdup(entry->m_hostname, MYF(0));
+      if (entry->m_hostname_length)
+        *hostname= my_strdup(entry->m_hostname, MYF(0));
 
-        DBUG_PRINT("info",("IP (%s) has been found in the cache. "
-                           "Hostname: '%s'; connect_errors: %d",
-                           (const char *) ip_key,
-                           (const char *) (*hostname? *hostname : "null"),
-                           (int) *connect_errors));
+      DBUG_PRINT("info",("IP (%s) has been found in the cache. "
+                         "Hostname: '%s'; connect_errors: %d",
+                         (const char *) ip_key,
+                         (const char *) (*hostname? *hostname : "null"),
+                         (int) *connect_errors));
 
-        mysql_mutex_unlock(&hostname_cache->lock);
+      mysql_mutex_unlock(&hostname_cache->lock);
 
-        DBUG_RETURN(FALSE);
-      }
+      DBUG_RETURN(FALSE);
     }
 
     mysql_mutex_unlock(&hostname_cache->lock);
@@ -412,6 +408,13 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   DBUG_EXECUTE_IF("getnameinfo_fake_ipv4",
                   {
                     strcpy(hostname_buffer, "santa.claus.ipv4.example.com");
+                    err_code= 0;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getnameinfo_format_ipv4",
+                  {
+                    strcpy(hostname_buffer, "12.12.12.12");
                     err_code= 0;
                   }
                   );
@@ -481,7 +484,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) hostname_buffer);
 
     errors.m_format_errors= 1;
-    err_status= add_hostname(ip_key, NULL, false, &errors);
+    err_status= add_hostname(ip_key, hostname_buffer, false, &errors);
 
     *hostname= NULL;
     *connect_errors= 0; /* New IP added to the cache. */
@@ -503,6 +506,95 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) hostname_buffer));
 
   err_code= getaddrinfo(hostname_buffer, NULL, &hints, &addr_info_list);
+
+  /*
+  ===========================================================================
+
+  ===========================================================================
+  */
+  DBUG_EXECUTE_IF("getaddrinfo_error_noname",
+                  {
+                    if (err_code == 0)
+                      freeaddrinfo(addr_info_list);
+
+                    addr_info_list= NULL;
+                    err_code= EAI_NONAME;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getaddrinfo_error_again",
+                  {
+                    if (err_code == 0)
+                      freeaddrinfo(addr_info_list);
+
+                    addr_info_list= NULL;
+                    err_code= EAI_AGAIN;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getaddrinfo_fake_bad_ipv4",
+                  {
+                    if (err_code == 0)
+                      freeaddrinfo(addr_info_list);
+
+                    struct sockaddr_in *debug_addr;
+                    struct in_addr *debug_ipv4;
+                    static struct sockaddr_storage debug_sock_addr[2];
+                    static struct addrinfo debug_addr_info[2];
+                    debug_addr= (struct sockaddr_in*) & debug_sock_addr[0];
+                    debug_addr->sin_family= AF_INET;
+                    debug_ipv4= & debug_addr->sin_addr;
+                    debug_ipv4->s_addr= htonl(0xC0000305); /* ipv4 192.0.3.5 */
+
+                    debug_addr= (struct sockaddr_in*) & debug_sock_addr[1];
+                    debug_addr->sin_family= AF_INET;
+                    debug_ipv4= & debug_addr->sin_addr;
+                    debug_ipv4->s_addr= htonl(0xC0000304); /* ipv4 192.0.3.4 */
+
+                    debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
+                    debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in);
+                    debug_addr_info[0].ai_next= & debug_addr_info[1];
+
+                    debug_addr_info[1].ai_addr= (struct sockaddr*) & debug_sock_addr[1];
+                    debug_addr_info[1].ai_addrlen= sizeof (struct sockaddr_in);
+                    debug_addr_info[1].ai_next= NULL;
+
+                    addr_info_list= & debug_addr_info[0];
+                    err_code= 0;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getaddrinfo_fake_good_ipv4",
+                  {
+                    if (err_code == 0)
+                      freeaddrinfo(addr_info_list);
+
+                    struct sockaddr_in *debug_addr;
+                    struct in_addr *debug_ipv4;
+                    static struct sockaddr_storage debug_sock_addr[2];
+                    static struct addrinfo debug_addr_info[2];
+                    debug_addr= (struct sockaddr_in*) & debug_sock_addr[0];
+                    debug_addr->sin_family= AF_INET;
+                    debug_ipv4= & debug_addr->sin_addr;
+                    debug_ipv4->s_addr= htonl(0xC0000205); /* ipv4 192.0.2.5 */
+
+                    debug_addr= (struct sockaddr_in*) & debug_sock_addr[1];
+                    debug_addr->sin_family= AF_INET;
+                    debug_ipv4= & debug_addr->sin_addr;
+                    debug_ipv4->s_addr= htonl(0xC0000204); /* ipv4 192.0.2.4 */
+
+                    debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
+                    debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in);
+                    debug_addr_info[0].ai_next= & debug_addr_info[1];
+
+                    debug_addr_info[1].ai_addr= (struct sockaddr*) & debug_sock_addr[1];
+                    debug_addr_info[1].ai_addrlen= sizeof (struct sockaddr_in);
+                    debug_addr_info[1].ai_next= NULL;
+
+                    addr_info_list= & debug_addr_info[0];
+                    err_code= 0;
+                  }
+                  );
 
   if (err_code == EAI_NONAME)
   {
@@ -556,6 +648,18 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
       {
         DBUG_PRINT("error", ("Out of memory."));
 
+        DBUG_EXECUTE_IF("getaddrinfo_fake_bad_ipv4",
+                        {
+                          addr_info_list= NULL;
+                        }
+                        );
+
+        DBUG_EXECUTE_IF("getaddrinfo_fake_good_ipv4",
+                        {
+                          addr_info_list= NULL;
+                        }
+                        );
+
         freeaddrinfo(addr_info_list);
         DBUG_RETURN(TRUE);
       }
@@ -589,6 +693,18 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   }
 
   /* Free the result of getaddrinfo(). */
+
+  DBUG_EXECUTE_IF("getaddrinfo_fake_bad_ipv4",
+                  {
+                    addr_info_list= NULL;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getaddrinfo_fake_good_ipv4",
+                  {
+                    addr_info_list= NULL;
+                  }
+                  );
 
   freeaddrinfo(addr_info_list);
 

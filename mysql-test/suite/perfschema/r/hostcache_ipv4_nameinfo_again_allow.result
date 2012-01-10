@@ -1,0 +1,42 @@
+call mtr.add_suppression("192.0.2.4");
+flush status;
+flush hosts;
+select @@global.debug;
+@@global.debug
+
+show global status like "%peer%";
+Variable_name	Value
+Peer_address_errors	0
+grant select on test.* to 'root'@'192.0.2.4';
+select "Con1 is alive";
+Con1 is alive
+Con1 is alive
+select current_user();
+current_user()
+root@localhost
+set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_error_again";
+select "Con2 is alive";
+Con2 is alive
+Con2 is alive
+select current_user();
+current_user()
+root@192.0.2.4
+show global status like "%peer%";
+Variable_name	Value
+Peer_address_errors	0
+select * from performance_schema.host_cache;
+IP	HOST	SUM_BLOCKING_ERRORS	COUNT_NAMEINFO_ERRORS	COUNT_FORMAT_ERRORS	COUNT_ADDRINFO_ERRORS	COUNT_FCRDNS_ERRORS	COUNT_HOST_ACL_ERRORS	COUNT_USER_ACL_ERRORS
+select "Con3 is alive";
+Con3 is alive
+Con3 is alive
+select current_user();
+current_user()
+root@192.0.2.4
+show global status like "%peer%";
+Variable_name	Value
+Peer_address_errors	0
+select * from performance_schema.host_cache;
+IP	HOST	SUM_BLOCKING_ERRORS	COUNT_NAMEINFO_ERRORS	COUNT_FORMAT_ERRORS	COUNT_ADDRINFO_ERRORS	COUNT_FCRDNS_ERRORS	COUNT_HOST_ACL_ERRORS	COUNT_USER_ACL_ERRORS
+revoke select on test.* from 'root'@'192.0.2.4';
+drop user 'root'@'192.0.2.4';
+set global debug= default;

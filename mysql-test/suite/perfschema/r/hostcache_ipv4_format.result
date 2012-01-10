@@ -1,0 +1,31 @@
+call mtr.add_suppression("192.0.2.4");
+flush status;
+flush hosts;
+select @@global.debug;
+@@global.debug
+
+show global status like "%peer%";
+Variable_name	Value
+Peer_address_errors	0
+select "Con1 is alive";
+Con1 is alive
+Con1 is alive
+select current_user();
+current_user()
+root@localhost
+set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_format_ipv4";
+ERROR HY000: Host '192.0.2.4' is not allowed to connect to this MySQL server
+show global status like "%peer%";
+Variable_name	Value
+Peer_address_errors	0
+select * from performance_schema.host_cache;
+IP	HOST	SUM_BLOCKING_ERRORS	COUNT_NAMEINFO_ERRORS	COUNT_FORMAT_ERRORS	COUNT_ADDRINFO_ERRORS	COUNT_FCRDNS_ERRORS	COUNT_HOST_ACL_ERRORS	COUNT_USER_ACL_ERRORS
+192.0.2.4	NULL	0	0	1	0	0	12	12
+ERROR HY000: Host '192.0.2.4' is not allowed to connect to this MySQL server
+show global status like "%peer%";
+Variable_name	Value
+Peer_address_errors	0
+select * from performance_schema.host_cache;
+IP	HOST	SUM_BLOCKING_ERRORS	COUNT_NAMEINFO_ERRORS	COUNT_FORMAT_ERRORS	COUNT_ADDRINFO_ERRORS	COUNT_FCRDNS_ERRORS	COUNT_HOST_ACL_ERRORS	COUNT_USER_ACL_ERRORS
+192.0.2.4	NULL	0	0	1	0	0	12	12
+set global debug= default;
