@@ -60,6 +60,7 @@
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_insert.h"
 #include "sql_update.h"                         // compare_record
+#include "sql_derived.h"                        // mysql_derived_*
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_cache.h"                          // query_cache_*
 #include "key.h"                                // key_copy
@@ -80,6 +81,10 @@
 #include "opt_explain.h"
 #include "sql_tmp_table.h"    // tmp tables
 #include "sql_optimizer.h"    // JOIN
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "sql_partition.h"
+#include "partition_info.h"            // partition_info
+#endif
 
 #include "debug_sync.h"
 
@@ -651,6 +656,87 @@ create_insert_stmt_from_insert_delayed(THD *thd, String *buf)
 
 
 /**
+  Set default values of record.
+
+  @param lex     LEX to ...
+  @param table  Table the record belongs to
+*/
+
+static void default_record(bool copy_default_values, TABLE *table)
+{
+  if (copy_default_values)
+    restore_record(table,s->default_values); // Get empty record
+  else
+  {
+    TABLE_SHARE *share= table->s;
+
+    /*
+      Fix delete marker. No need to restore rest of record since it will
+      be overwritten by fill_record() anyway (and fill_record() does not
+      use default values in this case).
+    */
+    table->record[0][0]= share->default_values[0];
+
+    /* Fix undefined null_bits. */
+    if (share->null_bytes > 1 && share->last_null_bit_pos)
+    {
+      table->record[0][share->null_bytes - 1]= 
+        share->default_values[share->null_bytes - 1];
+    }
+  }
+}
+
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+/**
+  Mark the partition, the record belongs to, as used.
+
+  @param thd              Thread context
+  @param table            Table to use
+  @param fields           Fields to set
+  @param values           Values to use
+  @param used_partitions  Bitmap to set
+
+  @returns Operational status
+    @retval false  Success
+    @retval true   Failure
+*/
+
+static bool set_partition(THD *thd, TABLE *table, List<Item> &fields,
+                          List<Item> &values, bool copy_default_values,
+                          MY_BITMAP *used_partitions)
+{
+  uint32 part_id;
+  longlong func_value;
+  DBUG_ENTER("set_partition");
+
+  default_record(copy_default_values, table);
+
+  if (fields.elements || !values.elements)
+  {
+    if (fill_record(thd, fields, values, false,
+        &table->part_info->full_part_field_set))
+      DBUG_RETURN(true);
+  }
+  else
+  {
+    if (fill_record(thd, table->field, values, false,
+        &table->part_info->full_part_field_set))
+      DBUG_RETURN(true);
+  }
+
+  if (table->part_info->get_partition_id(table->part_info, &part_id,
+                                         &func_value))
+    DBUG_RETURN(true);
+
+  DBUG_PRINT("info", ("Insert into partition %u", part_id));
+  bitmap_set_bit(used_partitions, part_id);
+  DBUG_RETURN(false);
+}
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
+
+/**
   INSERT statement implementation
 
   @note Like implementations of other DDL/DML in MySQL, this function
@@ -671,6 +757,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   bool was_insert_delayed= (table_list->lock_type ==  TL_WRITE_DELAYED);
+  bool is_locked= false;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -691,6 +778,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 #endif
   thr_lock_type lock_type;
   Item *unused_conds= 0;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  uint num_partitions= 0;
+  enum enum_can_prune {PRUNE_NO= 0, PRUNE_DEFAULTS, PRUNE_YES};
+  enum_can_prune can_prune_partitions= PRUNE_NO;
+  MY_BITMAP used_partitions;
+  bool prune_needs_default_values= false;
+#endif /* WITH_PARITITION_STORAGE_ENGINE */
   DBUG_ENTER("mysql_insert");
 
   /*
@@ -719,11 +813,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   {
     if (open_and_lock_for_insert_delayed(thd, table_list))
       DBUG_RETURN(TRUE);
+    is_locked= true;
   }
   else
   {
-    if (open_and_lock_tables(thd, table_list, TRUE, 0))
-      DBUG_RETURN(TRUE);
+    if (open_query_tables(thd))
+      DBUG_RETURN(true);
   }
   lock_type= table_list->lock_type;
 
@@ -765,6 +860,149 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   table_list->next_local= 0;
   context->resolve_in_table_list_only(table_list);
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (!is_locked && table->part_info)
+  {
+    /*
+      Start with enable pruning and disable if not possible.
+      If under LOCK TABLES it will skip start_stmt instead of external_lock
+      for unused partitions.
+    */
+    can_prune_partitions= PRUNE_YES;
+    /*
+      Cannot prune if there are BEFORE INSERT triggers,
+      since they may change the row to be in another partition.
+    */
+    if (table->triggers &&
+        table->triggers->has_triggers(TRG_EVENT_INSERT, TRG_ACTION_BEFORE))
+      can_prune_partitions= PRUNE_NO;
+    /*
+      Note: It makes no sense to prune on partition/subpartition level when
+      only partition/subpartition fields are affected.
+      For subpartitioned tables, there makes little sense to prune only on
+      partition level or subpartition level. Since it is only possible in
+      few cases (update/auto_inc fields only in part OR subpart fields).
+      Cannot be INSERT SELECT.
+    */
+    if (can_prune_partitions && table->found_next_number_field)
+    {
+      /*
+        If the field is used in the partitioning expression, we cannot prune.
+        TODO: If all rows have not null values and
+        is not 0 (with NO_AUTO_VALUE_ON_ZERO sql_mode), then pruning is possible!
+      */
+      if (bitmap_is_set(&table->part_info->full_part_field_set,
+          table->found_next_number_field->field_index))
+        can_prune_partitions= PRUNE_NO;
+    }
+    
+    /*
+      If a updating a field in the partitioning expression, we cannot prune.
+      
+      Note: TIMESTAMP_AUTO_SET_ON_INSERT is handled by converting Item_null
+      to the start time of the statement. Which will be the same as in
+      write_row(). So pruning of TIMESTAMP DEFAULT CURRENT_TIME will work.
+      But TIMESTAMP_AUTO_SET_ON_UPDATE cannot be pruned if the timestamp
+      column is a part of any part/subpart expression.
+      
+      TODO: Verify this again when merging with WL#5874.
+    */
+    if (can_prune_partitions && duplic == DUP_UPDATE)
+    {
+      Field *timestamp_field= table->get_timestamp_field();
+      if (timestamp_field &&
+          bitmap_is_set(&table->part_info->full_part_field_set,
+                        timestamp_field->field_index))
+      {
+        /*
+          The timestamp field is part of a partitioning expression.
+          If it is set on update, it is not possible to
+          prune, unless verifying all rows is not set to NULL.
+        */
+        DBUG_PRINT("info", ("timestamp_field_type: %d",
+                            table->timestamp_field_type));
+        if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+          can_prune_partitions= PRUNE_NO;
+      }
+
+      /* TODO: add check for static update values, which can be pruned. */
+      if (table->part_info->is_field_in_part_expr(update_fields))
+        can_prune_partitions= PRUNE_NO;
+
+      /*
+        Cannot prune if there are BEFORE UPDATE triggers,
+        since they may change the row to be in another partition.
+      */
+      if (table->triggers &&
+          table->triggers->has_triggers(TRG_EVENT_UPDATE,
+                                        TRG_ACTION_BEFORE))
+        can_prune_partitions= PRUNE_NO;
+    }
+
+    /*
+      If no partitioning field in set (e.g. defaults) check pruning only once.
+    */
+    if (can_prune_partitions &&
+        fields.elements &&
+        !table->part_info->is_field_in_part_expr(fields))
+      can_prune_partitions= PRUNE_DEFAULTS;
+
+    /*
+      If not all partitioning fields are given,
+      we also must set all non given partitioning fields
+      to get correct defaults.
+      we do this by copy the full default record in default_record().
+      TODO: If any gain, we could enhance this by only copy the needed default
+      fields by
+        1) check which fields needs to be set.
+        2) only copy those fields from the default record.
+    */
+    if (can_prune_partitions)
+    {
+      if (fields.elements)
+      {
+        if (!table->part_info->is_full_part_expr_in_fields(fields))
+          prune_needs_default_values= true;
+      }
+      else if (!values->elements)
+        prune_needs_default_values= true; // like 'INSERT INTO t () VALUES ()'
+    }
+
+    if (can_prune_partitions != PRUNE_NO)
+    {
+      uint32 *bitmap_buf;
+      uint bitmap_bytes;
+      DBUG_ASSERT(table->part_info->bitmaps_are_initialized);
+
+      /*
+        Pruning probably possible, must unmark all partitions for read/lock,
+        and add them on row by row basis.
+      */
+      num_partitions= table->part_info->lock_partitions.n_bits;
+      bitmap_bytes= bitmap_buffer_size(num_partitions);
+      if (!(bitmap_buf= (uint32*) thd->alloc(bitmap_bytes)))
+      {
+        mem_alloc_error(bitmap_bytes);
+        goto exit_without_my_ok;
+      }
+      /* Also clears all bits. */
+      if (bitmap_init(&used_partitions, bitmap_buf, num_partitions, FALSE))
+      {
+        mem_alloc_error(bitmap_bytes);   /* Cannot happen, due to pre-alloc */
+        goto exit_without_my_ok;
+      }
+      /*
+        Check the first INSERT value.
+        Do not fail here, since that would break MyISAM behavior of inserting
+        all rows before the failing row.
+      */
+      if (set_partition(thd, table, fields, *values,
+                        prune_needs_default_values, &used_partitions))
+        can_prune_partitions= PRUNE_NO;
+    }
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
   while ((values= its++))
   {
     counter++;
@@ -775,6 +1013,27 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_READ, 0, 0))
       goto exit_without_my_ok;
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    /*
+      TODO: Cache the calculated part_id and reuse in
+      ha_partition::write_row()?
+      Should we check pruning even if num rows >> num partitions?
+      Yes to increase concurrancy on partitioned tables that use
+      table locking, like MyISAM.
+    */
+    if (can_prune_partitions == PRUNE_YES)
+    {
+      if (set_partition(thd, table, fields, *values,
+                        prune_needs_default_values, &used_partitions))
+        can_prune_partitions= PRUNE_NO;
+      if (!(counter % num_partitions))
+      {
+        if (bitmap_is_set_all(&used_partitions))
+          can_prune_partitions= PRUNE_NO;
+      }
+    }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   }
   its.rewind ();
  
@@ -792,6 +1051,22 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     goto exit_without_my_ok;
   }
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (can_prune_partitions != PRUNE_NO)
+  {
+    /* Set read/lock partitions to used_partitions. */
+    bitmap_intersect(&(table->part_info->read_partitions),
+                     &used_partitions);
+    bitmap_intersect(&(table->part_info->lock_partitions),
+                     &used_partitions);
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
+  /* Lock the tables now if not delayed/already locked. */
+  if (!is_locked &&
+      lock_query_tables(thd))
+    DBUG_RETURN(true);
+ 
   /*
     Fill in the given fields and dump it to the table file
   */
@@ -894,26 +1169,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     else
     {
-      if (thd->lex->used_tables)		      // Column used in values()
-	restore_record(table,s->default_values);	// Get empty record
-      else
-      {
-        TABLE_SHARE *share= table->s;
-
-        /*
-          Fix delete marker. No need to restore rest of record since it will
-          be overwritten by fill_record() anyway (and fill_record() does not
-          use default values in this case).
-        */
-        table->record[0][0]= share->default_values[0];
-
-        /* Fix undefined null_bits. */
-        if (share->null_bytes > 1 && share->last_null_bit_pos)
-        {
-          table->record[0][share->null_bytes - 1]= 
-            share->default_values[share->null_bytes - 1];
-        }
-      }
+      default_record(thd->lex->used_tables, table);
       if (fill_record_n_invoke_before_triggers(thd, table->field, *values, 0,
                                                table->triggers,
                                                TRG_EVENT_INSERT))
@@ -3352,21 +3608,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     lex->current_select->options|= OPTION_BUFFER_RESULT;
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
-  else if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-           thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-           !thd->lex->describe)
-  {
-    /*
-      We must not yet prepare the result table if it is the same as one of the 
-      source tables (INSERT SELECT). The preparation may disable 
-      indexes on the result table, which may be used during the select, if it
-      is the same table (Bug #6034). Do the preparation after the select phase
-      in select_insert::prepare2().
-      We won't start bulk inserts at all if this statement uses functions or
-      should invoke triggers since they may access to the same table too.
-    */
-    table->file->ha_start_bulk_insert((ha_rows) 0);
-  }
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
 
@@ -3419,10 +3660,12 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
-  if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
-      thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+  if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
       !thd->lex->describe)
+  {
+    // TODO: Is there no better estimation than 0 == Unknown number of rows?
     table->file->ha_start_bulk_insert((ha_rows) 0);
+  }
   DBUG_RETURN(0);
 }
 
@@ -3635,7 +3878,8 @@ void select_insert::abort_result_set() {
       If we are not in prelocked mode, we end the bulk insert started
       before.
     */
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+        thd->lex->is_query_tables_locked())
       table->file->ha_end_bulk_insert();
 
     /*

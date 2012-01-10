@@ -2279,6 +2279,7 @@ int handler::ha_close(void)
   PSI_CALL(close_table)(m_psi);
   m_psi= NULL; /* instrumentation handle, invalid after close_table() */
 #endif
+  // TODO: set table= NULL to mark the handler as closed?
   DBUG_ASSERT(m_psi == NULL);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   DBUG_RETURN(close());
@@ -6305,13 +6306,12 @@ int handler::ha_external_lock(THD *thd, int lock_type)
 
   if (error == 0)
   {
-    cached_table_flags= table_flags();
-
     /*
       The lock type is needed by MRR when creating a clone of this handler
       object.
     */
     m_lock_type= lock_type;
+    cached_table_flags= table_flags();
   }
 
   if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() ||
