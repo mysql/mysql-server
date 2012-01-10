@@ -223,6 +223,12 @@ trx_id_t
 trx_sys_get_new_trx_id(void);
 /*========================*/
 #endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+/* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
+extern uint			trx_rseg_n_slots_debug;
+#endif
+
 /*****************************************************************//**
 Writes a trx id to an index page. In case that the id size changes in
 some future version, this function should be used instead of
