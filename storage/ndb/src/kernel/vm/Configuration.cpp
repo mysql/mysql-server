@@ -470,6 +470,11 @@ Configuration::setupConfiguration(){
       break;
 
     globalData.ndbMtTcThreads = m_thr_config.getThreadCount(THRConfig::T_TC);
+    globalData.ndbMtSendThreads =
+      m_thr_config.getThreadCount(THRConfig::T_SEND);
+    globalData.ndbMtReceiveThreads =
+      m_thr_config.getThreadCount(THRConfig::T_RECV);
+
     globalData.isNdbMtLqh = true;
     {
       if (m_thr_config.getMtClassic())
