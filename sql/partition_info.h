@@ -263,6 +263,7 @@ public:
   ~partition_info() {}
 
   partition_info *get_clone();
+  bool set_named_partition_bitmap(const char *part_name, uint length);
   bool set_partition_bitmaps(TABLE_LIST *table_list);
   /* Answers the question if subpartitioning is used for a certain table */
   bool is_sub_partitioned()
@@ -313,6 +314,8 @@ public:
                                    char *file_name,
                                    uint32 *part_id);
   void report_part_expr_error(bool use_subpart_expr);
+  bool is_field_in_part_expr(List<Item> &fields);
+  bool is_full_part_expr_in_fields(List<Item> &fields);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,
@@ -323,6 +326,7 @@ private:
   char *create_default_subpartition_name(uint subpart_no,
                                          const char *part_name);
   bool prune_partition_bitmaps(TABLE_LIST *table_list);
+  bool add_named_partition(const char *part_name, uint length);
 };
 
 uint32 get_next_partition_id_range(struct st_partition_iter* part_iter);

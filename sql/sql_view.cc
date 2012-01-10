@@ -448,7 +448,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
-  if (open_and_lock_tables(thd, lex->query_tables, TRUE, 0))
+  /* Not required to lock any tables. */
+  if (open_query_tables(thd))
   {
     view= lex->unlink_first_table(&link_to_local);
     res= TRUE;

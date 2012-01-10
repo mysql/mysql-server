@@ -1539,7 +1539,8 @@ void Item_func_substr::fix_length_and_dec()
 
   agg_arg_charsets_for_string_result(collation, args, 1);
   DBUG_ASSERT(collation.collation != NULL);
-  if (args[1]->const_item())
+  /* Don't evaluate subqueries during prepare. */
+  if (args[1]->const_item() && !args[1]->has_subquery())
   {
     int32 start= (int32) args[1]->val_int();
     if (args[1]->null_value)
@@ -1549,7 +1550,7 @@ void Item_func_substr::fix_length_and_dec()
     else
       max_length-= min((uint)(start - 1), max_length);
   }
-  if (arg_count == 3 && args[2]->const_item())
+  if (arg_count == 3 && args[2]->const_item() && !args[2]->has_subquery())
   {
     int32 length= (int32) args[2]->val_int();
     if (args[2]->null_value)
