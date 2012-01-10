@@ -2,6 +2,7 @@
 #
 # Tests for the performance_schema host_cache.
 #
+# FIXME
 # Test scenario:
 # - a client connects on a TCP/IPv4 socket
 # - the client IPv4 can be obtained
@@ -12,6 +13,10 @@
 # - peer_addr_errors is unchanged
 # - the host_cache records the failing IP with no hostname
 #
+
+--source include/not_embedded.inc
+--source include/have_debug.inc
+--source include/have_perfschema.inc
 
 # [Warning] IP address '192.0.2.4' could not be resolved:
 # no reverse address mapping.
@@ -36,8 +41,7 @@ connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
-show global status like "%peer%";
-select * from performance_schema.host_cache;
+--source ../include/hostcache_dump.inc
 
 --disable_query_log
 --error ER_HOST_NOT_PRIVILEGED
@@ -45,8 +49,7 @@ connect (con3,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
-show global status like "%peer%";
-select * from performance_schema.host_cache;
+--source ../include/hostcache_dump.inc
 
 set global debug= default;
 

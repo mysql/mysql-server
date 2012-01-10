@@ -38,12 +38,22 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
+    { C_STRING_WITH_LEN("HOST_VALIDATED") },
+    { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("SUM_BLOCKING_ERRORS") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("COUNT_NAMEINFO_ERRORS") },
+    { C_STRING_WITH_LEN("COUNT_NAMEINFO_TRANSIENT_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_NAMEINFO_PERMANENT_ERRORS") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
@@ -53,7 +63,12 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("COUNT_ADDRINFO_ERRORS") },
+    { C_STRING_WITH_LEN("COUNT_ADDRINFO_TRANSIENT_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_ADDRINFO_PERMANENT_ERRORS") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
@@ -68,7 +83,37 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
+    { C_STRING_WITH_LEN("COUNT_FCRDNS_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_HOST_ACL_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_HANDSHAKE_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_AUTHENTICATION_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("COUNT_USER_ACL_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_LOCAL_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_UNKNOWN_ERRORS") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   }
@@ -76,7 +121,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_host_cache::m_field_def=
-{ 9, field_types };
+{ 16, field_types };
 
 PFS_engine_table_share
 table_host_cache::m_share=
@@ -165,13 +210,20 @@ void table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
   row->m_hostname_length= entry->m_hostname_length;
   if (row->m_hostname_length > 0)
     strncpy(row->m_hostname, entry->m_hostname, row->m_hostname_length);
+  row->m_host_validated= entry->m_host_validated;
   row->m_sum_blocking_errors= entry->m_errors.get_blocking_errors();
-  row->m_count_nameinfo_errors= entry->m_errors.m_nameinfo_errors;
+  row->m_count_nameinfo_transient_errors= entry->m_errors.m_nameinfo_transient_errors;
+  row->m_count_nameinfo_permanent_errors= entry->m_errors.m_nameinfo_permanent_errors;
   row->m_count_format_errors= entry->m_errors.m_format_errors;
-  row->m_count_addrinfo_errors= entry->m_errors.m_addrinfo_errors;
+  row->m_count_addrinfo_transient_errors= entry->m_errors.m_addrinfo_transient_errors;
+  row->m_count_addrinfo_permanent_errors= entry->m_errors.m_addrinfo_permanent_errors;
   row->m_count_fcrdns_errors= entry->m_errors.m_FCrDNS_errors;
-  row->m_count_host_acl_errors= 12; // FIXME
-  row->m_count_user_acl_errors= 12; // FIXME
+  row->m_count_host_acl_errors= entry->m_errors.m_host_acl_errors;
+  row->m_count_handshake_errors= entry->m_errors.m_handshake_errors;
+  row->m_count_authentication_errors= entry->m_errors.m_authentication_errors;
+  row->m_count_user_acl_errors= entry->m_errors.m_user_acl_errors;
+  row->m_count_local_errors= entry->m_errors.m_local_errors;
+  row->m_count_unknown_errors= entry->m_errors.m_unknown_errors;
 }
 
 void table_host_cache::reset_position(void)
@@ -237,26 +289,47 @@ int table_host_cache::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 2: /* SUM_BLOCKING_ERRORS */
+      case 2: /* HOST_VALIDATED */
+        set_field_enum(f, m_row->m_host_validated ? ENUM_YES : ENUM_NO);
+        break;
+      case 3: /* SUM_BLOCKING_ERRORS */
         set_field_ulonglong(f, m_row->m_sum_blocking_errors);
         break;
-      case 3: /* COUNT_NAMEINFO_ERRORS */
-        set_field_ulonglong(f, m_row->m_count_nameinfo_errors);
+      case 4: /* COUNT_NAMEINFO_TRANSIENT_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_nameinfo_transient_errors);
         break;
-      case 4: /* COUNT_FORMAT_ERRORS */
+      case 5: /* COUNT_NAMEINFO_PERSISTENT_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_nameinfo_permanent_errors);
+        break;
+      case 6: /* COUNT_FORMAT_ERRORS */
         set_field_ulonglong(f, m_row->m_count_format_errors);
         break;
-      case 5: /* COUNT_ADDRINFO_ERRORS */
-        set_field_ulonglong(f, m_row->m_count_addrinfo_errors);
+      case 7: /* COUNT_ADDRINFO_TRANSIENT_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_addrinfo_transient_errors);
         break;
-      case 6: /* COUNT_FCRDNS_ERRORS */
+      case 8: /* COUNT_ADDRINFO_PERSISTENT_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_addrinfo_permanent_errors);
+        break;
+      case 9: /* COUNT_FCRDNS_ERRORS */
         set_field_ulonglong(f, m_row->m_count_fcrdns_errors);
         break;
-      case 7: /* COUNT_HOST_ACL_ERRORS */
+      case 10: /* COUNT_HOST_ACL_ERRORS */
         set_field_ulonglong(f, m_row->m_count_host_acl_errors);
         break;
-      case 8: /* COUNT_USER_ACL_ERRORS */
+      case 11: /* COUNT_HANDSHAKE_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_handshake_errors);
+        break;
+      case 12: /* COUNT_AUTHENTICATION_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_authentication_errors);
+        break;
+      case 13: /* COUNT_USER_ACL_ERRORS */
         set_field_ulonglong(f, m_row->m_count_user_acl_errors);
+        break;
+      case 14: /* COUNT_LOCAL_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_local_errors);
+        break;
+      case 15: /* COUNT_UNKNOWN_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_unknown_errors);
         break;
       default:
         DBUG_ASSERT(false);

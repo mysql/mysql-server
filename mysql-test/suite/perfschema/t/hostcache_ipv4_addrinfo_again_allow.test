@@ -2,6 +2,7 @@
 #
 # Tests for the performance_schema host_cache.
 #
+# FIXME
 # Test scenario:
 # - a client connects on a TCP/IPv4 socket
 # - the client IPv4 can be obtained
@@ -13,6 +14,10 @@
 # - peer_addr_error is unchanged
 # - the host_cache records the failing IP and hostname
 #
+
+--source include/not_embedded.inc
+--source include/have_debug.inc
+--source include/have_perfschema.inc
 
 # [Warning] IP address '192.0.2.4' could not be resolved:
 # no reverse address mapping.
@@ -34,22 +39,20 @@ disconnect con1;
 set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_error_again";
 
 --disable_query_log
---error ER_BAD_HOST_ERROR
+--error ER_HOST_NOT_PRIVILEGED
 connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
-show global status like "%peer%";
-select * from performance_schema.host_cache;
+--source ../include/hostcache_dump.inc
 
 --disable_query_log
---error ER_BAD_HOST_ERROR
+--error ER_HOST_NOT_PRIVILEGED
 connect (con3,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
-show global status like "%peer%";
-select * from performance_schema.host_cache;
+--source ../include/hostcache_dump.inc
 
 revoke select on test.* from 'root'@'santa.claus.ipv4.example.com';
 drop user 'root'@'santa.claus.ipv4.example.com';

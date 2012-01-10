@@ -17,10 +17,12 @@ ERROR HY000: Can't get hostname for your address
 show global status like "%peer%";
 Variable_name	Value
 Peer_address_errors	1
+select * from performance_schema.host_cache;
 ERROR HY000: Can't get hostname for your address
 show global status like "%peer%";
 Variable_name	Value
 Peer_address_errors	2
+select * from performance_schema.host_cache;
 set global debug= default;
 flush status;
 show global status like "%peer%";
