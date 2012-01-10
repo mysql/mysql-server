@@ -1,0 +1,28 @@
+flush status;
+flush hosts;
+select @@global.debug;
+@@global.debug
+
+show global status like "%peer%";
+Variable_name	Value
+Peer_address_errors	0
+select "Con1 is alive";
+Con1 is alive
+Con1 is alive
+select current_user();
+current_user()
+root@localhost
+set global debug= "+d,vio_peer_addr_error";
+ERROR HY000: Can't get hostname for your address
+show global status like "%peer%";
+Variable_name	Value
+Peer_address_errors	1
+ERROR HY000: Can't get hostname for your address
+show global status like "%peer%";
+Variable_name	Value
+Peer_address_errors	2
+set global debug= default;
+flush status;
+show global status like "%peer%";
+Variable_name	Value
+Peer_address_errors	0

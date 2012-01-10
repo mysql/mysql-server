@@ -84,8 +84,6 @@ public:
   char m_hostname[HOSTNAME_LENGTH + 1];
   /** Length in bytes of @c m_hostname. */
   uint m_hostname_length;
-  /* Flag that indicate if the hostname was validated. */
-  bool m_host_validated;
   /** Error statistics. */
   Host_errors m_errors;
 };
