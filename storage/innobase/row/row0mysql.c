@@ -1948,6 +1948,18 @@ row_create_table_for_mysql(
 							 FALSE);
 			}
 
+		} else if (err == DB_TOO_MANY_CONCURRENT_TRXS) {
+			/* We already have .ibd file here. it should be deleted. */
+			if (table->space
+			    && !fil_delete_tablespace(table->space)) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					"  InnoDB: Error: not able to"
+					" delete tablespace %lu of table ",
+					(ulong) table->space);
+				ut_print_name(stderr, trx, TRUE, table->name);
+				fputs("!\n", stderr);
+			}
 		} else if (err == DB_DUPLICATE_KEY) {
 			ut_print_timestamp(stderr);
 

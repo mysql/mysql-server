@@ -54,6 +54,10 @@ InnoDB. */
 char		trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 ib_longlong	trx_sys_mysql_bin_log_pos	= -1;
 
+#ifdef UNIV_DEBUG
+/* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
+uint		trx_rseg_n_slots_debug = 0;
+#endif
 
 /********************************************************************
 Determines if a page number is located inside the doublewrite buffer. */
