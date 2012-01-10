@@ -8033,14 +8033,33 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           DBUG_RETURN(1);	 // Impossible const condition
         }
 
-        COND *outer_ref_cond= make_cond_for_table(thd, cond, 
-                                                  OUTER_REF_TABLE_BIT,
-                                                  OUTER_REF_TABLE_BIT,
-                                                  -1, FALSE, FALSE);
-        if (outer_ref_cond)
-	{
-          add_cond_and_fix(thd, &outer_ref_cond, join->outer_ref_cond);
-          join->outer_ref_cond= outer_ref_cond;
+        if (join->table_count != join->const_tables)
+        {
+          COND *outer_ref_cond= make_cond_for_table(thd, cond,
+                                                    join->const_table_map |
+                                                    OUTER_REF_TABLE_BIT,
+                                                    OUTER_REF_TABLE_BIT,
+                                                    -1, FALSE, FALSE);
+          if (outer_ref_cond)
+          {
+            add_cond_and_fix(thd, &outer_ref_cond, join->outer_ref_cond);
+            join->outer_ref_cond= outer_ref_cond;
+          }
+        }
+        else
+        {
+          COND *pseudo_bits_cond=
+            make_cond_for_table(thd, cond,
+                                join->const_table_map |
+                                PSEUDO_TABLE_BITS,
+                                PSEUDO_TABLE_BITS,
+                                -1, FALSE, FALSE);
+          if (pseudo_bits_cond)
+          {
+            add_cond_and_fix(thd, &pseudo_bits_cond,
+                             join->pseudo_bits_cond);
+            join->pseudo_bits_cond= pseudo_bits_cond;
+          }
         }
       }
     }
@@ -14927,14 +14946,15 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     /*
       HAVING will be checked after processing aggregate functions,
       But WHERE should checked here (we alredy have read tables).
-      Notice that make_join_select() splits all conditions into three groups -
-      exec_const_cond, outer_ref_cond, and conditions attached to non-constant
-      tables. Within this IF the latter do not exist. At the same time
+      Notice that make_join_select() splits all conditions in this case
+      into two groups exec_const_cond and outer_ref_cond.
+      Within this other conditions are not exists. At the same time
       exec_const_cond is already checked either by make_join_select or in the
       beginning of JOIN::exec. Therefore here it is sufficient to check only
-      outer_ref_cond.
+      pseudo_bits_cond.
     */
-    if (!join->outer_ref_cond || join->outer_ref_cond->val_int())
+    DBUG_ASSERT(join->outer_ref_cond == NULL);
+    if (!join->pseudo_bits_cond || join->pseudo_bits_cond->val_int())
     {
       error= (*end_select)(join, 0, 0);
       if (error == NESTED_LOOP_OK || error == NESTED_LOOP_QUERY_LIMIT)

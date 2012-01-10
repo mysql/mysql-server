@@ -1111,6 +1111,7 @@ public:
   COND *conds;                            // ---"---
   Item *conds_history;                    // store WHERE for explain
   COND *outer_ref_cond;       ///<part of conds containing only outer references
+  COND *pseudo_bits_cond;     // part of conds containing special bita
   TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
   COND_EQUAL *cond_equal;
@@ -1237,7 +1238,7 @@ public:
     rollup.state= ROLLUP::STATE_NONE;
 
     no_const_tables= FALSE;
-    outer_ref_cond= 0;
+    outer_ref_cond= pseudo_bits_cond= NULL;
     in_to_exists_where= NULL;
     in_to_exists_having= NULL;
   }

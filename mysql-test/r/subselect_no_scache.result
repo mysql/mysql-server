@@ -5914,6 +5914,30 @@ a
 2009-02-02
 set @@optimizer_switch=@old_optimizer_switch;
 drop table t1;
+#
+# LP BUG#908269 incorrect condition in case of subqueries depending
+# on constant tables
+#
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1),(5);
+CREATE TABLE t2 ( b INT ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1);
+CREATE TABLE t3 ( c INT );
+INSERT INTO t3 VALUES (4),(5);
+SET optimizer_switch='subquery_cache=off';
+SELECT ( SELECT b FROM t2 WHERE b = a OR EXISTS ( SELECT c FROM t3 WHERE c = b ) ) FROM t1;
+( SELECT b FROM t2 WHERE b = a OR EXISTS ( SELECT c FROM t3 WHERE c = b ) )
+1
+NULL
+SELECT ( SELECT b FROM t2 WHERE b = a OR b * 0) FROM t1;
+( SELECT b FROM t2 WHERE b = a OR b * 0)
+1
+NULL
+SELECT ( SELECT b FROM t2 WHERE b = a OR rand() * 0) FROM t1;
+( SELECT b FROM t2 WHERE b = a OR rand() * 0)
+1
+NULL
+drop table t1,t2,t3;
 # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;
 set optimizer_switch=default;

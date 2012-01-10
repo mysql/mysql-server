@@ -4990,5 +4990,33 @@ SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
 set @@optimizer_switch=@old_optimizer_switch;
 drop table t1;
 
+--echo #
+--echo # LP BUG#908269 incorrect condition in case of subqueries depending
+--echo # on constant tables
+--echo #
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1),(5);
+
+# t2 must be MyISAM or Aria and contain 1 row
+CREATE TABLE t2 ( b INT ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1);
+
+CREATE TABLE t3 ( c INT );
+INSERT INTO t3 VALUES (4),(5);
+
+SET optimizer_switch='subquery_cache=off';
+
+SELECT ( SELECT b FROM t2 WHERE b = a OR EXISTS ( SELECT c FROM t3 WHERE c = b ) ) FROM t1;
+
+# This query just for example, it should return the same as above (1 and NULL)
+SELECT ( SELECT b FROM t2 WHERE b = a OR b * 0) FROM t1;
+
+# example with "random"
+SELECT ( SELECT b FROM t2 WHERE b = a OR rand() * 0) FROM t1;
+
+
+drop table t1,t2,t3;
+
+
 --echo # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;
