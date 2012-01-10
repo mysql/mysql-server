@@ -261,7 +261,7 @@ protected:
    * Protect here means to have them on separate CPU cache lines to
    * avoid false CPU cache line sharing.
    */
-  char protect_read_var[64 - (sizeof(Uint32) + sizeof(void*))];
+  char protect_read_var[NDB_CL - (sizeof(Uint32) + sizeof(void*))];
   Uint32 firstFree;
   Uint32 noOfFree;
   Uint32 noOfFreeMin;

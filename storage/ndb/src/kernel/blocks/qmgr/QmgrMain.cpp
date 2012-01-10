@@ -576,7 +576,7 @@ void Qmgr::execCM_INFOCONF(Signal* signal)
   signal->theData[0] = 0; // no answer
   signal->theData[1] = 0; // no id
   signal->theData[2] = NodeInfo::DB;
-  sendSignal(TRPMAN_REF, GSN_OPEN_COMREQ, signal, 3, JBB);
+  sendSignal(TRPMAN_REF, GSN_OPEN_COMORD, signal, 3, JBB);
 
   cpresident = ZNIL;
   cpresidentAlive = ZFALSE;
@@ -1956,7 +1956,7 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
     nodePtr.p->failState = NORMAL;
     signal->theData[0] = 0;
     signal->theData[1] = nodePtr.i;
-    sendSignal(TRPMAN_REF, GSN_OPEN_COMREQ, signal, 2, JBB);
+    sendSignal(TRPMAN_REF, GSN_OPEN_COMORD, signal, 2, JBB);
 #endif
     return;
   case ZSTARTING:
@@ -2893,7 +2893,7 @@ void Qmgr::checkStartInterface(Signal* signal, Uint64 now)
         setNodeInfo(nodePtr.i).m_heartbeat_cnt= 0;
         signal->theData[0] = 0;
         signal->theData[1] = nodePtr.i;
-        sendSignal(TRPMAN_REF, GSN_OPEN_COMREQ, signal, 2, JBB);
+        sendSignal(TRPMAN_REF, GSN_OPEN_COMORD, signal, 2, JBB);
       }
       else
       {
