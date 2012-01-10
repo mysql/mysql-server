@@ -49,9 +49,6 @@ GlobalData::mt_getBlock(BlockNumber blockNo, Uint32 instanceNo)
 #define memcpy __builtin_memcpy
 #endif
 
-/* size of a cacheline */
-#define NDB_CL 64
-
 /* Constants found by benchmarks to be reasonable values. */
 
 /* Maximum number of signals to execute before sending to remote nodes. */
