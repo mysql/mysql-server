@@ -3910,9 +3910,6 @@ WHERE (grandparent1.col_varchar_key) IN
 eval EXPLAIN $query;
 eval $query;
 
---echo -- Notice that Materialize-scan algorithm reports wrong result for this query.
---echo -- This problem will be filed as a separate bug and dealt with in WL#5561.
-
 DROP TABLE t1, t2;
 
 --echo # End of test for bug#12603183.
@@ -4574,5 +4571,59 @@ eval $query;
 DROP TABLE t1, t2;
 
 --echo # End of test for bug#13414014.
+
+--echo #
+--echo # Bug#13545215: Missing rows on nested in-subquery with materialization
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key int,
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ;
+
+INSERT INTO t1 VALUES
+ (8,'x','x'), (0,'p','p'), (8,'c','c');
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t2 VALUES
+ (1,'v','v'), (2,'v','v'), (3,'c','c'), (4,NULL,NULL),
+ (5,'x','x'), (6,'i','i'), (7,'e','e'), (8,'p','p');
+
+CREATE TABLE t3 (
+ col_int_nokey int
+);
+
+INSERT INTO t3 VALUES (7);
+
+let $query=
+SELECT grandparent1.col_varchar_nokey
+FROM t1 AS grandparent1 JOIN t1 AS grandparent2 USING (col_int_key)
+WHERE grandparent1.col_varchar_key IN (
+    SELECT col_varchar_nokey
+    FROM t2 AS parent1
+    WHERE col_varchar_key IN (
+        SELECT child1.col_varchar_nokey
+        FROM t2 AS child1 LEFT JOIN t3 AS child2
+             ON child1.pk < child2.col_int_nokey
+        )
+    );
+
+eval explain $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # End of test for bug#13545215.
 
 --echo # End of 5.6 tests

@@ -1751,6 +1751,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     // Save contents of join tab for possible repeated materializations:
     const READ_RECORD saved_access= last_tab->read_record;
     const READ_RECORD::Setup_func saved_rfr= last_tab->read_first_record;
+    st_join_table *const saved_last_inner= last_tab->last_inner;
 
     // Initialize full scan
     if (init_read_record(&last_tab->read_record, join->thd,
@@ -1777,6 +1778,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     last_tab->set_condition(save_cond, __LINE__);
     last_tab->read_record= saved_access;
     last_tab->read_first_record= saved_rfr;
+    last_tab->last_inner= saved_last_inner;
   }
   else
   {
