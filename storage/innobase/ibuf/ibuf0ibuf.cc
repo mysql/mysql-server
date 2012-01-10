@@ -2081,7 +2081,7 @@ ibuf_add_free_page(void)
 		header_page + IBUF_HEADER + IBUF_TREE_SEG_HEADER, 0, FSP_UP,
 		&mtr);
 
-	if (UNIV_UNLIKELY(page_no == FIL_NULL)) {
+	if (page_no == FIL_NULL) {
 		mtr_commit(&mtr);
 
 		return(FALSE);
@@ -2372,7 +2372,7 @@ ibuf_get_merge_page_nos_func(
 	'merge area', or the page start or the limit of storeable pages is
 	reached */
 
-	while (!page_rec_is_infimum(rec) && UNIV_LIKELY(n_pages < limit)) {
+	while (!page_rec_is_infimum(rec) && n_pages < limit) {
 
 		rec_page_no = ibuf_rec_get_page_no(mtr, rec);
 		rec_space_id = ibuf_rec_get_space(mtr, rec);
@@ -3553,7 +3553,7 @@ ibuf_insert_low(
 			mutex_enter(&ibuf_pessimistic_insert_mutex);
 			mutex_enter(&ibuf_mutex);
 
-			if (UNIV_LIKELY(ibuf_data_enough_free_for_insert())) {
+			if (ibuf_data_enough_free_for_insert()) {
 
 				break;
 			}
@@ -3561,7 +3561,7 @@ ibuf_insert_low(
 			mutex_exit(&ibuf_mutex);
 			mutex_exit(&ibuf_pessimistic_insert_mutex);
 
-			if (UNIV_UNLIKELY(!ibuf_add_free_page())) {
+			if (!ibuf_add_free_page()) {
 
 				mem_heap_free(heap);
 				return(DB_STRONG_FAIL);
@@ -3707,8 +3707,8 @@ fail_exit:
 		ut_ad(buf_block_get_space(block) == IBUF_SPACE_ID);
 
 		/* If this is the root page, update ibuf->empty. */
-		if (UNIV_UNLIKELY(buf_block_get_page_no(block)
-				  == FSP_IBUF_TREE_ROOT_PAGE_NO)) {
+		if (buf_block_get_page_no(block)
+				  == FSP_IBUF_TREE_ROOT_PAGE_NO) {
 			const page_t*	root = buf_block_get_frame(block);
 
 			ut_ad(page_get_space_id(root) == IBUF_SPACE_ID);
@@ -3881,7 +3881,7 @@ check_watch:
 		buf_pool_t*	buf_pool = buf_pool_get(space, page_no);
 		bpage = buf_page_hash_get(buf_pool, space, page_no);
 
-		if (UNIV_LIKELY_NULL(bpage)) {
+		if (bpage) {
 			/* A buffer pool watch has been set or the
 			page has been read into the buffer pool.
 			Do not buffer the request.  If a purge operation
@@ -3947,8 +3947,7 @@ ibuf_insert_to_index_page_low(
 	const page_t*	bitmap_page;
 	ulint		old_bits;
 
-	if (UNIV_LIKELY
-	    (page_cur_tuple_insert(page_cur, entry, index, 0, mtr) != NULL)) {
+	if (page_cur_tuple_insert(page_cur, entry, index, 0, mtr) != NULL) {
 		return;
 	}
 
@@ -3959,8 +3958,7 @@ ibuf_insert_to_index_page_low(
 
 	/* This time the record must fit */
 
-	if (UNIV_LIKELY
-	    (page_cur_tuple_insert(page_cur, entry, index, 0, mtr) != NULL)) {
+	if (page_cur_tuple_insert(page_cur, entry, index, 0, mtr) != NULL) {
 		return;
 	}
 
@@ -4018,8 +4016,7 @@ ibuf_insert_to_index_page(
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(!buf_block_align(page)->index);
 
-	if (UNIV_UNLIKELY(dict_table_is_comp(index->table)
-			  != (ibool)!!page_is_comp(page))) {
+	if (dict_table_is_comp(index->table) != (ibool)!!page_is_comp(page)) {
 		fputs("InnoDB: Trying to insert a record from"
 		      " the insert buffer to an index page\n"
 		      "InnoDB: but the 'compact' flag does not match!\n",
@@ -4037,8 +4034,7 @@ ibuf_insert_to_index_page(
 		goto dump;
 	}
 
-	if (UNIV_UNLIKELY(rec_get_n_fields(rec, index)
-			  != dtuple_get_n_fields(entry))) {
+	if (rec_get_n_fields(rec, index) != dtuple_get_n_fields(entry)) {
 		fputs("InnoDB: Trying to insert a record from"
 		      " the insert buffer to an index page\n"
 		      "InnoDB: but the number of fields does not match!\n",
@@ -4062,7 +4058,7 @@ dump:
 	low_match = page_cur_search(block, index, entry,
 				    PAGE_CUR_LE, &page_cur);
 
-	if (UNIV_UNLIKELY(low_match == dtuple_get_n_fields(entry))) {
+	if (low_match == dtuple_get_n_fields(entry)) {
 		mem_heap_t*	heap;
 		upd_t*		update;
 		ulint*		offsets;
@@ -4180,9 +4176,8 @@ ibuf_set_del_mark(
 		row_ins_index_entry() in a previous invocation of
 		row_upd_sec_index_entry(). */
 
-		if (UNIV_LIKELY
-		    (!rec_get_deleted_flag(
-			    rec, dict_table_is_comp(index->table)))) {
+		if (!rec_get_deleted_flag(
+			    rec, dict_table_is_comp(index->table))) {
 			btr_cur_set_deleted_flag_for_ibuf(rec, page_zip,
 							  TRUE, mtr);
 		}
@@ -4270,7 +4265,7 @@ ibuf_delete(
 			ibuf_update_free_bits_low(block, max_ins_size, mtr);
 		}
 
-		if (UNIV_LIKELY_NULL(heap)) {
+		if (heap) {
 			mem_heap_free(heap);
 		}
 	} else {
@@ -4368,7 +4363,7 @@ ibuf_delete_rec(
 	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur), mtr);
 
 	if (success) {
-		if (UNIV_UNLIKELY(!page_get_n_recs(btr_pcur_get_page(pcur)))) {
+		if (!page_get_n_recs(btr_pcur_get_page(pcur))) {
 			/* If a B-tree page is empty, it must be the root page
 			and the whole B-tree must be empty. InnoDB does not
 			allow empty B-tree pages other than the root. */
@@ -4502,7 +4497,7 @@ ibuf_merge_or_delete_for_page(
 		return;
 	}
 
-	if (UNIV_LIKELY(update_ibuf_bitmap)) {
+	if (update_ibuf_bitmap) {
 		ut_a(ut_is_2pow(zip_size));
 
 		if (ibuf_fixed_addr_page(space, zip_size, page_no)
@@ -4517,7 +4512,7 @@ ibuf_merge_or_delete_for_page(
 
 		tablespace_being_deleted = fil_inc_pending_ibuf_merges(space);
 
-		if (UNIV_UNLIKELY(tablespace_being_deleted)) {
+		if (tablespace_being_deleted) {
 			/* Do not try to read the bitmap page from space;
 			just delete the ibuf records for the page */
 
@@ -4567,9 +4562,8 @@ ibuf_merge_or_delete_for_page(
 		rw_lock_x_lock_move_ownership(&(block->lock));
 		page_zip = buf_block_get_page_zip(block);
 
-		if (UNIV_UNLIKELY(fil_page_get_type(block->frame)
-				  != FIL_PAGE_INDEX)
-		    || UNIV_UNLIKELY(!page_is_leaf(block->frame))) {
+		if (fil_page_get_type(block->frame) != FIL_PAGE_INDEX
+		    || !page_is_leaf(block->frame)) {
 
 			page_t*	bitmap_page;
 
@@ -4667,7 +4661,7 @@ loop:
 			goto reset_bit;
 		}
 
-		if (UNIV_UNLIKELY(corruption_noticed)) {
+		if (corruption_noticed) {
 			fputs("InnoDB: Discarding record\n ", stderr);
 			rec_print_old(stderr, rec);
 			fputs("\nInnoDB: from the insert buffer!\n\n", stderr);
@@ -4784,7 +4778,7 @@ loop:
 	}
 
 reset_bit:
-	if (UNIV_LIKELY(update_ibuf_bitmap)) {
+	if (update_ibuf_bitmap) {
 		page_t*	bitmap_page;
 
 		bitmap_page = ibuf_bitmap_get_map_page(
@@ -5042,7 +5036,7 @@ ibuf_check_bitmap_on_import(
 		page_t*	bitmap_page;
 		ulint	i;
 
-		if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
+		if (trx_is_interrupted(trx)) {
 			mutex_exit(&ibuf_mutex);
 			return(DB_ERROR);
 		}
@@ -5056,10 +5050,9 @@ ibuf_check_bitmap_on_import(
 		for (i = FSP_IBUF_BITMAP_OFFSET + 1; i < page_size; i++) {
 			const ulint	offset = page_no + i;
 
-			if (UNIV_UNLIKELY
-			    (ibuf_bitmap_page_get_bits(
+			if (ibuf_bitmap_page_get_bits(
 				    bitmap_page, offset, zip_size,
-				    IBUF_BITMAP_IBUF, &mtr))) {
+				    IBUF_BITMAP_IBUF, &mtr)) {
 
 				mutex_exit(&ibuf_mutex);
 				ibuf_exit(&mtr);
@@ -5076,10 +5069,9 @@ ibuf_check_bitmap_on_import(
 				return(DB_CORRUPTION);
 			}
 
-			if (UNIV_UNLIKELY
-			    (ibuf_bitmap_page_get_bits(
+			if (ibuf_bitmap_page_get_bits(
 				    bitmap_page, offset, zip_size,
-				    IBUF_BITMAP_BUFFERED, &mtr))) {
+				    IBUF_BITMAP_BUFFERED, &mtr)) {
 
 				/* TODO: push_warning_printf() */
 				ut_print_timestamp(stderr);
