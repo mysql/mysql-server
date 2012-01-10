@@ -1326,6 +1326,7 @@ private:
     Uint32 clastVerifyQueue;
     Uint32 m_empty_done;
     Uint32 m_ref;
+    char pad[NDB_CL - (sizeof(void*) + 4 * sizeof(Uint32))];
   };
 
   bool isEmpty(const DIVERIFY_queue&);
