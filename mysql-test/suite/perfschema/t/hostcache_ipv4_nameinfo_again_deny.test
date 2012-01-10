@@ -2,6 +2,7 @@
 #
 # Tests for the performance_schema host_cache.
 #
+# FIXME
 # Test scenario: (con2)
 # - a client connects on a TCP/IPv4 socket
 # - the client IPv4 can be obtained
@@ -46,6 +47,10 @@
 # - the host_cache is unchanged
 #
 
+--source include/not_embedded.inc
+--source include/have_debug.inc
+--source include/have_perfschema.inc
+
 # [Warning] IP address '192.0.2.4' could not be resolved:
 # Temporary failure in name resolution
 call mtr.add_suppression("192.0.2.4");
@@ -69,8 +74,7 @@ connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
-show global status like "%peer%";
-select * from performance_schema.host_cache;
+--source ../include/hostcache_dump.inc
 
 --disable_query_log
 --error ER_HOST_NOT_PRIVILEGED
@@ -78,8 +82,7 @@ connect (con3,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
-show global status like "%peer%";
-select * from performance_schema.host_cache;
+--source ../include/hostcache_dump.inc
 
 set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
 
@@ -89,8 +92,7 @@ connect (con4,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
-show global status like "%peer%";
-select * from performance_schema.host_cache;
+--source ../include/hostcache_dump.inc
 
 --disable_query_log
 --error ER_HOST_NOT_PRIVILEGED
@@ -98,9 +100,7 @@ connect (con5,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
-show global status like "%peer%";
-select * from performance_schema.host_cache;
-
+--source ../include/hostcache_dump.inc
 
 set global debug= default;
 

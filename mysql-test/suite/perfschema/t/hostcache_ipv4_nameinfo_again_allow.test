@@ -2,16 +2,58 @@
 #
 # Tests for the performance_schema host_cache.
 #
-# Test scenario:
+# FIXME
+# Test scenario: (con2)
 # - a client connects on a TCP/IPv4 socket
 # - the client IPv4 can be obtained (temp failure)
+# - the client IPv4 is not in the cache
 # - the client hostname can not be obtained
 # - there are grants for the client IP
 # Test results:
 # - connection is accepted
+# - user is authorized by IP
 # - peer_addr_error is unchanged
 # - the host_cache records the failing IP with no hostname
 #
+# Test scenario: (con3)
+# - a client connects on a TCP/IPv4 socket
+# - the client IPv4 can be obtained (temp failure)
+# - the client IPv4 is in the cache with no hostname
+# - the client hostname can not be obtained
+# - there are grants for the client IP
+# Test results:
+# - connection is accepted
+# - user is authorized by IP
+# - peer_addr_error is unchanged
+# - the host_cache records the failing IP with no hostname
+#
+# Test scenario: (con4)
+# - a client connects on a TCP/IPv4 socket
+# - the client IPv4 can be obtained
+# - the client IPv4 is in the cache with no hostname
+# - the client hostname can be obtained, finally
+# - there are grants for the client host
+# Test results:
+# - connection is accepted
+# - user is authorized by hostname
+# - peer_addr_errors is unchanged
+# - the host_cache is updated with the resolved hostname
+#
+# Test scenario: (con5)
+# - a client connects on a TCP/IPv4 socket
+# - the client IPv4 can be obtained
+# - the client IPv4 is in the cache with resolved hostname
+# - there are grants for the client host
+# Test results:
+# - connection is accepted
+# - user is authorized by hostname
+# - peer_addr_errors is unchanged
+# - the host_cache is unchanged
+#
+
+--source include/not_embedded.inc
+--source include/have_debug.inc
+--source include/have_perfschema.inc
 
 # [Warning] IP address '192.0.2.4' could not be resolved:
 # Temporary failure in name resolution
@@ -23,6 +65,7 @@ select @@global.debug;
 show global status like "%peer%";
 
 grant select on test.* to 'root'@'192.0.2.4';
+grant select on test.* to 'root'@'santa.claus.ipv4.example.com';
 
 connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 select "Con1 is alive";
@@ -38,8 +81,7 @@ select current_user();
 disconnect con2;
 
 --connection default
-show global status like "%peer%";
-select * from performance_schema.host_cache;
+--source ../include/hostcache_dump.inc
 
 connect (con3,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 select "Con3 is alive";
@@ -47,11 +89,30 @@ select current_user();
 disconnect con3;
 
 --connection default
-show global status like "%peer%";
-select * from performance_schema.host_cache;
+--source ../include/hostcache_dump.inc
+
+set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+
+connect (con4,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+select "Con4 is alive";
+select current_user();
+disconnect con4;
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+connect (con5,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+select "Con5 is alive";
+select current_user();
+disconnect con5;
+
+--connection default
+--source ../include/hostcache_dump.inc
 
 revoke select on test.* from 'root'@'192.0.2.4';
+revoke select on test.* from 'root'@'santa.claus.ipv4.example.com';
 drop user 'root'@'192.0.2.4';
+drop user 'root'@'santa.claus.ipv4.example.com';
 
 set global debug= default;
 

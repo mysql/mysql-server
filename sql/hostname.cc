@@ -47,8 +47,18 @@ extern "C" {					// Because of SCO 3.2V4.2
 #endif
 
 Host_errors::Host_errors()
-: m_nameinfo_errors(0), m_format_errors(0),
-  m_addrinfo_errors(0), m_FCrDNS_errors(0)
+: m_nameinfo_transient_errors(0),
+  m_nameinfo_permanent_errors(0),
+  m_format_errors(0),
+  m_addrinfo_transient_errors(0),
+  m_addrinfo_permanent_errors(0),
+  m_FCrDNS_errors(0),
+  m_host_acl_errors(0),
+  m_handshake_errors(0),
+  m_authentication_errors(0),
+  m_user_acl_errors(0),
+  m_local_errors(0),
+  m_unknown_errors(0)
 {}
     
 Host_errors::~Host_errors()
@@ -56,24 +66,43 @@ Host_errors::~Host_errors()
 
 void Host_errors::reset()
 {
-  m_nameinfo_errors= 0;
+  m_nameinfo_transient_errors= 0;
+  m_nameinfo_permanent_errors= 0;
   m_format_errors= 0;
-  m_addrinfo_errors= 0;
+  m_addrinfo_transient_errors= 0;
+  m_addrinfo_permanent_errors= 0;
   m_FCrDNS_errors= 0;
+  m_host_acl_errors= 0;
+  m_handshake_errors= 0;
+  m_authentication_errors= 0;
+  m_user_acl_errors= 0;
+  m_local_errors= 0;
+  m_unknown_errors= 0;
 }
 
 uint Host_errors::get_blocking_errors()
 {
-  // FIXME
-  return m_nameinfo_errors;
+  uint blocking= 0;
+  blocking+= m_host_acl_errors;
+  blocking+= m_authentication_errors;
+  blocking+= m_user_acl_errors;
+  return blocking;
 }
 
 void Host_errors::aggregate(const Host_errors *errors)
 {
-  m_nameinfo_errors+= errors->m_nameinfo_errors;
+  m_nameinfo_transient_errors+= errors->m_nameinfo_transient_errors;
+  m_nameinfo_permanent_errors+= errors->m_nameinfo_permanent_errors;
   m_format_errors+= errors->m_format_errors;
-  m_addrinfo_errors+= errors->m_addrinfo_errors;
+  m_addrinfo_transient_errors+= errors->m_addrinfo_transient_errors;
+  m_addrinfo_permanent_errors+= errors->m_addrinfo_permanent_errors;
   m_FCrDNS_errors+= errors->m_FCrDNS_errors;
+  m_host_acl_errors+= errors->m_host_acl_errors;
+  m_handshake_errors+= errors->m_handshake_errors;
+  m_authentication_errors+= errors->m_authentication_errors;
+  m_user_acl_errors+= errors->m_user_acl_errors;
+  m_local_errors+= errors->m_local_errors;
+  m_unknown_errors+= errors->m_unknown_errors;
 }
 
 static hash_filo *hostname_cache;
@@ -162,6 +191,7 @@ static bool add_hostname_impl(const char *ip_key, const char *hostname,
     memcpy(&entry->ip_key, ip_key, HOST_ENTRY_KEY_SIZE);
     entry->m_errors.reset();
     entry->m_hostname_length= 0;
+    entry->m_host_validated= false;
   }
 
   if (validated)
@@ -175,17 +205,29 @@ static bool add_hostname_impl(const char *ip_key, const char *hostname,
       entry->m_hostname[len]= '\0';
       entry->m_hostname_length= len;
 
-      DBUG_PRINT("info", ("Adding/Updating '%s' -> '%s' to the hostname cache...'",
-                          (const char *) ip_key,
-                          (const char *) entry->m_hostname));
+      DBUG_PRINT("info",
+                 ("Adding/Updating '%s' -> '%s' (validated) to the hostname cache...'",
+                 (const char *) ip_key,
+                 (const char *) entry->m_hostname));
     }
     else
     {
       entry->m_hostname_length= 0;
-
-      DBUG_PRINT("info", ("Adding/Updating '%s' -> empty to the hostname cache...'",
-                          (const char *) ip_key));
+      DBUG_PRINT("info",
+                 ("Adding/Updating '%s' -> NULL (validated) to the hostname cache...'",
+                 (const char *) ip_key));
     }
+    entry->m_host_validated= true;
+  }
+  else
+  {
+    entry->m_hostname_length= 0;
+    /* There are currently no use cases that invalidate an entry. */
+    DBUG_ASSERT(! entry->m_host_validated);
+    entry->m_host_validated= false;
+    DBUG_PRINT("info",
+               ("Adding/Updating '%s' -> NULL (not validated) to the hostname cache...'",
+               (const char *) ip_key));
   }
 
   entry->m_errors.aggregate(errors);
@@ -359,21 +401,29 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
     if (entry)
     {
-      *connect_errors= entry->m_errors.get_blocking_errors();
-      *hostname= NULL;
+      /*
+        If there is an IP -> HOSTNAME association in the cache,
+        but for a hostname that was not validated,
+        do not return that hostname: perform the network validation again.
+      */
+      if (entry->m_host_validated)
+      {
+        *connect_errors= entry->m_errors.get_blocking_errors();
+        *hostname= NULL;
 
-      if (entry->m_hostname_length)
-        *hostname= my_strdup(entry->m_hostname, MYF(0));
+        if (entry->m_hostname_length)
+          *hostname= my_strdup(entry->m_hostname, MYF(0));
 
-      DBUG_PRINT("info",("IP (%s) has been found in the cache. "
-                         "Hostname: '%s'; connect_errors: %d",
-                         (const char *) ip_key,
-                         (const char *) (*hostname? *hostname : "null"),
-                         (int) *connect_errors));
+        DBUG_PRINT("info",("IP (%s) has been found in the cache. "
+                           "Hostname: '%s'; connect_errors: %d",
+                           (const char *) ip_key,
+                           (const char *) (*hostname? *hostname : "null"),
+                           (int) *connect_errors));
 
-      mysql_mutex_unlock(&hostname_cache->lock);
+        mysql_mutex_unlock(&hostname_cache->lock);
 
-      DBUG_RETURN(FALSE);
+        DBUG_RETURN(FALSE);
+      }
     }
 
     mysql_mutex_unlock(&hostname_cache->lock);
@@ -598,6 +648,17 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   if (err_code == EAI_NONAME)
   {
+    errors.m_addrinfo_permanent_errors= 1;
+    err_status= add_hostname(ip_key, NULL, true, &errors);
+
+    *hostname= NULL;
+    *connect_errors= 0; /* New IP added to the cache. */
+
+    DBUG_RETURN(FALSE);
+  }
+
+  if (err_code)
+  {
     /*
       Don't cache responses when the DNS server is down, as otherwise
       transient DNS failure may leave any number of clients (those
@@ -605,18 +666,13 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
       indefinitely.
     */
 
-    errors.m_addrinfo_errors= 1;
+    errors.m_addrinfo_transient_errors= 1;
     err_status= add_hostname(ip_key, NULL, false, &errors);
 
     *hostname= NULL;
     *connect_errors= 0; /* New IP added to the cache. */
 
-    DBUG_RETURN(err_status);
-  }
-  else if (err_code)
-  {
-    DBUG_PRINT("error", ("getaddrinfo() failed with error code %d.", err_code));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(FALSE);
   }
 
   /* Check that getaddrinfo() returned the used IP (FCrDNS technique). */

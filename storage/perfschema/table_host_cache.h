@@ -34,18 +34,40 @@ class Host_entry;
 /** A row of PERFORMANCE_SCHEMA.HOST_CACHE. */
 struct row_host_cache
 {
+  /** Column IP. */
   char m_ip[64];
   uint m_ip_length;
   /** Column HOST. */
   char m_hostname[255];
   uint m_hostname_length;
+  /** Column HOST_VALIDATED. */
+  bool m_host_validated;
+  /** Column SUM_BLOCKING_ERRORS. */
   ulonglong m_sum_blocking_errors;
-  ulonglong m_count_nameinfo_errors;
+  /** Column COUNT_NAMEINFO_TRANSIENT_ERRORS. */
+  ulonglong m_count_nameinfo_transient_errors;
+  /** Column COUNT_NAMEINFO_PERMANENT_ERRORS. */
+  ulonglong m_count_nameinfo_permanent_errors;
+  /** Column COUNT_FORMAT_ERRORS. */
   ulonglong m_count_format_errors;
-  ulonglong m_count_addrinfo_errors;
+  /** Column COUNT_ADDRINFO_TRANSIENT_ERRORS. */
+  ulonglong m_count_addrinfo_transient_errors;
+  /** Column COUNT_ADDRINFO_PERMANENT_ERRORS. */
+  ulonglong m_count_addrinfo_permanent_errors;
+  /** Column COUNT_FCRDNS_ERRORS. */
   ulonglong m_count_fcrdns_errors;
+  /** Column COUNT_HOST_ACL_ERRORS. */
   ulonglong m_count_host_acl_errors;
+  /** Column COUNT_HANDSHAKE_ERRORS. */
+  ulonglong m_count_handshake_errors;
+  /** Column COUNT_AUTHENTICATION_ERRORS. */
+  ulonglong m_count_authentication_errors;
+  /** Column COUNT_USER_ACL_ERRORS. */
   ulonglong m_count_user_acl_errors;
+  /** Column COUNT_LOCAL_ERRORS. */
+  ulonglong m_count_local_errors;
+  /** Column COUNT_UNKNOWN_ERRORS. */
+  ulonglong m_count_unknown_errors;
 };
 
 /** Table PERFORMANCE_SCHEMA.HOST_CACHE. */

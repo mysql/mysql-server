@@ -35,18 +35,30 @@ public:
   /** Number of blocking errors. */
   uint get_blocking_errors();
 
-  /** Number of errors from getnameinfo(). */
-  uint m_nameinfo_errors;
+  /** Number of transient errors from getnameinfo(). */
+  uint m_nameinfo_transient_errors;
+  /** Number of permanent errors from getnameinfo(). */
+  uint m_nameinfo_permanent_errors;
   /** Number of errors from is_hostname_valid(). */
   uint m_format_errors;
-  /** Number of errors from getaddrinfo(). */
-  uint m_addrinfo_errors;
-  /** Number of errors from Forward-confirmed reverse DNS checks. */
+  /** Number of transient errors from getaddrinfo(). */
+  uint m_addrinfo_transient_errors;
+  /** Number of permanent errors from getaddrinfo(). */
+  uint m_addrinfo_permanent_errors;
+  /** Number of errors from Forward-Confirmed reverse DNS checks. */
   uint m_FCrDNS_errors;
-  /** Number of errors from authentication. */
-  uint m_handshake_errors;
   /** Number of errors from host grants. */
   uint m_host_acl_errors;
+  /** Number of errors from authentication plugins. */
+  uint m_handshake_errors;
+  /** Number of errors from authentication. */
+  uint m_authentication_errors;
+  /** Number of errors from user grants. */
+  uint m_user_acl_errors;
+  /** Number of errors from the server itself. */
+  uint m_local_errors;
+  /** Number of unknown errors. */
+  uint m_unknown_errors;
 };
 
 /** Size of IP address string in the hash cache. */
@@ -84,6 +96,8 @@ public:
   char m_hostname[HOSTNAME_LENGTH + 1];
   /** Length in bytes of @c m_hostname. */
   uint m_hostname_length;
+  /** The hostname is validated and used for authorization. */
+  bool m_host_validated;
   /** Error statistics. */
   Host_errors m_errors;
 };
