@@ -257,22 +257,22 @@ show variables like 'server_id';
 Variable_name	Value
 server_id	1
 MySQLD error output for server 1.1 matching pattern %NDB Slave%
-right(txt, length(txt) - locate('[',txt) + 1)
-[Note] NDB Slave: Table test.t2diffex using conflict_fn NDB$OLD on attribute X.
-[Note] NDB Slave: Table test.t2diffex logging exceptions to test.t2diffex$EX
-[Note] NDB Slave: Table test.t1allsame using conflict_fn NDB$MAX on attribute X.
-[Note] NDB Slave: Table test.t2_max using conflict_fn NDB$MAX on attribute X.
+relevant
+[note] ndb slave: table test.t2diffex using conflict_fn ndb$old on attribute x.
+[note] ndb slave: table test.t2diffex logging exceptions to test.t2diffex$ex
+[note] ndb slave: table test.t1allsame using conflict_fn ndb$max on attribute x.
+[note] ndb slave: table test.t2_max using conflict_fn ndb$max on attribute x.
 show variables like 'server_id';
 Variable_name	Value
 server_id	3
 MySQLD error output for server 2.1 matching pattern %NDB Slave%
-right(txt, length(txt) - locate('[',txt) + 1)
-[Warning] NDB Slave: Table test.t3oneex : No extra row author bits in table.
-[Note] NDB Slave: Table test.t3oneex : CFT_NDB_EPOCH[_TRANS], low epoch resolution
-[Note] NDB Slave: Table test.t2diffex using conflict_fn NDB$MAX on attribute X.
-[Note] NDB Slave: Table test.t2diffex logging exceptions to test.t2diffex$EX
-[Note] NDB Slave: Table test.t1allsame using conflict_fn NDB$MAX on attribute X.
-[Note] NDB Slave: Table test.t2_max using conflict_fn NDB$MAX on attribute X.
+relevant
+[warning] ndb slave: table test.t3oneex : no extra row author bits in table.
+[note] ndb slave: table test.t3oneex : cft_ndb_epoch[_trans], low epoch resolution
+[note] ndb slave: table test.t2diffex using conflict_fn ndb$max on attribute x.
+[note] ndb slave: table test.t2diffex logging exceptions to test.t2diffex$ex
+[note] ndb slave: table test.t1allsame using conflict_fn ndb$max on attribute x.
+[note] ndb slave: table test.t2_max using conflict_fn ndb$max on attribute x.
 drop table t3oneex, t2diffex, t1allsame, t3oneex$EX, t2diffex$EX;
 "Cleanup"
 drop table mysql.ndb_replication;

@@ -702,7 +702,7 @@ TrpmanProxy::sendCLOSE_COMCONF(Signal *signal, Uint32 ssId)
 
   CloseComReqConf* conf = (CloseComReqConf*)signal->getDataPtrSend();
   *conf = ss.m_req;
-  sendSignal(conf->xxxBlockRef, GSN_CLOSE_COMCONF, signal,
+  sendSignal(QMGR_REF, GSN_CLOSE_COMCONF, signal,
              CloseComReqConf::SignalLength, JBB);
   ssRelease<Ss_CLOSE_COMREQ>(ssId);
 }
