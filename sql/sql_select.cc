@@ -14948,10 +14948,8 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       But WHERE should checked here (we alredy have read tables).
       Notice that make_join_select() splits all conditions in this case
       into two groups exec_const_cond and outer_ref_cond.
-      Within this other conditions are not exists. At the same time
-      exec_const_cond is already checked either by make_join_select or in the
-      beginning of JOIN::exec. Therefore here it is sufficient to check only
-      pseudo_bits_cond.
+      If join->table_count == join->const_tables then it is
+      sufficient to check only the condition pseudo_bits_cond.
     */
     DBUG_ASSERT(join->outer_ref_cond == NULL);
     if (!join->pseudo_bits_cond || join->pseudo_bits_cond->val_int())
