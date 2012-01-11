@@ -15,7 +15,7 @@ delete from mysql.ndb_replication;
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
 create table t1 (a int key, X int) engine ndb;
 Warnings:
-Error	1627	Error in parsing conflict function. Message: column 'X' has wrong datatype
+Error	1627	Error in parsing conflict function. Message: Column 'X' has wrong datatype
 drop table t1;
 delete from mysql.ndb_replication;
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX()");
