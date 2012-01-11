@@ -1,5 +1,5 @@
 # Created by Horst Hunger     2008-04-15
-# see also have_64bit.inc
+# see also have_64bit_ulong.inc
 
 --disable_query_log
 --disable_warnings
@@ -11,6 +11,6 @@ eval SET @@pseudo_thread_id = $save;
 --enable_query_log
 if (!$mach32)
 {
-  skip Need a 32 bit machine/binary;
+  skip Need a 32 bit unsigned long;
 }
 
