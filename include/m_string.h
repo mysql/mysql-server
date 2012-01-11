@@ -216,6 +216,15 @@ extern int is_prefix(const char *, const char *);
 double my_strtod(const char *str, char **end, int *error);
 double my_atof(const char *nptr);
 
+#ifndef NOT_FIXED_DEC
+#define NOT_FIXED_DEC			31
+#endif
+
+/*
+  Max length of a floating point number.
+ */
+#define FLOATING_POINT_BUFFER (311 + NOT_FIXED_DEC)
+
 extern char *llstr(longlong value,char *buff);
 extern char *ullstr(longlong value,char *buff);
 #ifndef HAVE_STRTOUL
