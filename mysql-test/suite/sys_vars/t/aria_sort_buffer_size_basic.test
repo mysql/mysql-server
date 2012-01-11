@@ -36,7 +36,10 @@ set global aria_sort_buffer_size="foo";
 #
 set global aria_sort_buffer_size=0;
 select @@global.aria_sort_buffer_size;
+--disable_warnings
 set session aria_sort_buffer_size=cast(-1 as unsigned int);
+--enable_warnings
+--replace_result 4294967295 18446744073709551615
 select @@session.aria_sort_buffer_size;
 
 SET @@global.aria_sort_buffer_size = @start_global_value;

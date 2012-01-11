@@ -1,4 +1,4 @@
-set global aria_log_file_size=4294967295;
+set global aria_log_file_size=4294959104;
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
@@ -60,7 +60,7 @@ select a,length(b) from t1;
 a	length(b)
 1	8
 2	5
-SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global aria_checkpoint_interval=1;
 ERROR HY000: Lost connection to MySQL server during query

@@ -1055,9 +1055,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
            ! thd->is_error())
     {
       /*
-        Multiple queries exits, execute them individually
+        Multiple queries exist, execute them individually
       */
       char *beginning_of_next_stmt= (char*) parser_state.m_lip.found_semicolon;
+
+#ifdef WITH_ARIA_STORAGE_ENGINE
+    ha_maria::implicit_commit(thd, FALSE);
+#endif
 
       /* Finalize server status flags after executing a statement. */
       thd->update_server_status();
@@ -4476,6 +4480,9 @@ finish:
       trans_commit_stmt(thd);
       thd->stmt_da->can_overwrite_status= FALSE;
     }
+#ifdef WITH_ARIA_STORAGE_ENGINE
+    ha_maria::implicit_commit(thd, FALSE);
+#endif
   }
 
   lex->unit.cleanup();

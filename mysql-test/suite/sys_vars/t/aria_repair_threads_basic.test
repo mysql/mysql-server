@@ -36,7 +36,10 @@ set global aria_repair_threads="foo";
 #
 set global aria_repair_threads=0;
 select @@global.aria_repair_threads;
+--disable_warnings
 set session aria_repair_threads=cast(-1 as unsigned int);
+--enable_warnings
+--replace_result 4294967295 18446744073709551615
 select @@session.aria_repair_threads;
 
 SET @@global.aria_repair_threads = @start_global_value;

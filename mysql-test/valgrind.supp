@@ -1153,6 +1153,15 @@
    fun:pthread_create*
 }
 
+{
+   memory "leak" in backtrace() of glibc 2.9 (not present in 2.13)
+   Memcheck:Leak
+   fun:malloc
+   ...
+   fun:pthread_once
+   fun:backtrace
+}
+
 #
 # Bug in Glibc 2.9: http://sourceware.org/bugzilla/show_bug.cgi?id=10391
 # Fixed in latest Glibc, but suppressed here for running tests on hosts

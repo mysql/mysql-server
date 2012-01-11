@@ -280,8 +280,8 @@ static int bad_ptr(const char *where, void *ptr)
       magicend[2] != MAGICEND2 ||
       magicend[3] != MAGICEND3)
   {
-    warn("Error: %s overrun buffer", where);
-    fprintf(stderr, ", allocated at ");
+    warn("Error: %s overrun buffer ", where);
+    fprintf(stderr, "Allocated at ");
     print_stack(irem->frame);
     return 1;
   }

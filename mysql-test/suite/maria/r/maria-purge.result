@@ -1,7 +1,7 @@
 * shut down mysqld, removed logs, restarted it
 set global storage_engine=aria;
 set session storage_engine=aria;
-set global aria_log_file_size=4294967295;
+set global aria_log_file_size=4294959104;
 drop table if exists t1,t2;
 SET SQL_WARNINGS=1;
 CREATE TABLE t1 (

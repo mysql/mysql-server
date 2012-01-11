@@ -1147,6 +1147,11 @@ static Sys_var_ulonglong Sys_max_heap_table_size(
        VALID_RANGE(16384, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1024));
 
+/*
+  "pseudo_thread_id" variable used in the test suite to detect 32/64bit
+  systems.  If you change it to something else then ulong then fix the tests
+  in mysql-test/include/have_32bit.inc and have_64bit.inc.
+*/
 static Sys_var_ulong Sys_pseudo_thread_id(
        "pseudo_thread_id",
        "This variable is for internal server use",

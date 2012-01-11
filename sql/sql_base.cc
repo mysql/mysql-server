@@ -1454,11 +1454,6 @@ void close_thread_tables(THD *thd)
   TABLE *table;
   DBUG_ENTER("close_thread_tables");
 
-#ifdef WITH_ARIA_STORAGE_ENGINE
-  if (!thd->in_sub_stmt)
-    ha_maria::implicit_commit(thd, FALSE);
-#endif
-
 #ifdef EXTRA_DEBUG
   DBUG_PRINT("tcache", ("open tables:"));
   for (table= thd->open_tables; table; table= table->next)

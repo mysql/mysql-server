@@ -5621,6 +5621,7 @@ void TABLE::create_key_part_by_field(KEY *keyinfo,
     keyinfo->key_length+= HA_KEY_NULL_LENGTH;
   }
   if (field->type() == MYSQL_TYPE_BLOB || 
+      field->type() == MYSQL_TYPE_GEOMETRY ||
       field->real_type() == MYSQL_TYPE_VARCHAR)
   {
     key_part_info->store_length+= HA_KEY_BLOB_LENGTH;

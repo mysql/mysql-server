@@ -21,7 +21,7 @@ set session storage_engine=aria;
 let $def_logsize=`select @@global.aria_log_file_size`;
 let $def_checkinterval=`select @@global.aria_checkpoint_interval`;
 
-set global aria_log_file_size=4294967295;
+set global aria_log_file_size=4294959104;
 # Initialise
 --disable_warnings
 drop table if exists t1,t2;
