@@ -682,6 +682,12 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     lqhInstances = globalData.ndbMtLqhWorkers;
   }
 
+  Uint32 tcInstances = 1;
+  if (globalData.ndbMtTcThreads > 1)
+  {
+    tcInstances = globalData.ndbMtTcThreads;
+  }
+
   Uint64 indexMem = 0, dataMem = 0;
   ndb_mgm_get_int64_parameter(&db, CFG_DB_DATA_MEM, &dataMem);
   ndb_mgm_get_int64_parameter(&db, CFG_DB_INDEX_MEM, &indexMem);
@@ -808,7 +814,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 
 #else
-    noOfLocalScanRecords = 4 * (noOfDBNodes * noOfScanRecords) +
+    noOfLocalScanRecords = tcInstances * lqhInstances *
+      (noOfDBNodes * noOfScanRecords) +
 #endif
       1 /* NR */ + 
       1 /* LCP */; 

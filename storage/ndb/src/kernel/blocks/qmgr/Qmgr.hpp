@@ -575,6 +575,14 @@ private:
 #ifdef ERROR_INSERT
   Uint32 nodeFailCount;
 #endif
+
+  Uint32 get_hb_count(Uint32 nodeId) const {
+    return globalData.get_hb_count(nodeId);
+  }
+
+  Uint32& set_hb_count(Uint32 nodeId) {
+    return globalData.set_hb_count(nodeId);
+  }
 };
 
 #endif
