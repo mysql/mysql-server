@@ -2699,7 +2699,7 @@ ibuf_contract_ext(
 	/* Position the cursor on the first matching record. */
 
 	btr_pcur_open(
-		ibuf->index, tuple, PAGE_CUR_LE, BTR_SEARCH_LEAF, &pcur,
+		ibuf->index, tuple, PAGE_CUR_GE, BTR_SEARCH_LEAF, &pcur,
 		&mtr);
 
 	mem_heap_free(heap);
