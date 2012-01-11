@@ -5,6 +5,7 @@
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 --source include/have_innodb.inc
+--source include/not_gtid_enabled.inc
 
 --disable_query_log
 SET SESSION binlog_direct_non_transactional_updates = OFF;

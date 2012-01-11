@@ -6664,3 +6664,6 @@ ER_BAD_SLAVE_AUTO_POSITION
 ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
   eng "Cannot execute statements with implicit commit inside a transaction when GTID_NEXT != AUTOMATIC or GTID_NEXT_LIST != NULL"
 
+ER_STM_IS_NOT_COMPATIBLE_WITH_GTID
+  eng "Cannot execute statement '%s' when GTID is enabled."
+

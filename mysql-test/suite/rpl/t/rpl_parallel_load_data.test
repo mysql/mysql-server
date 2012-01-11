@@ -4,6 +4,7 @@
 
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
+--source include/not_gtid_enabled.inc
 
 let $max_workers= 4;
 

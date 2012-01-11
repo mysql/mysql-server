@@ -5962,6 +5962,9 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       }
     }
 
+    if (!is_stmt_gtid_compatible())
+      my_error((error= ER_STM_IS_NOT_COMPATIBLE_WITH_GTID), MYF(0), query());
+
     if (error) {
       DBUG_PRINT("info", ("decision: no logging since an error was generated"));
       DBUG_RETURN(-1);
@@ -6003,6 +6006,64 @@ int THD::decide_logging_format(TABLE_LIST *tables)
   DBUG_RETURN(0);
 }
 
+/**
+  This function checks if the statement that is about to be processed
+  will safely get a GTID. Currently, the following cases may lead to
+  errors (e.g. duplicated GTIDs) and as such are forbidden:
+
+    . Mixed statements;
+
+    . CREATE...SELECT statement;
+
+    . Within a transaction:
+      . Changes to non-transactional tables that come
+        after changes to transactional tables;
+      . CREATE TEMPORARY TABLE statement.
+
+  We need to revisit this after pushing the first version of the code
+  to trunk because in some cases we can relax the rules.
+
+  Finally, it is worth mentioning that to be completely safe we should
+  annotate events in the binary log with the type of the engine found
+  on the master and check if it remains the same on the slave. If the
+  same table is created on the master and slave with different types
+  of engines (e.g. Innodb and MyIsam), this may cause issues.
+  In particular Innodb on Master and MyIsam on Slave will generate
+  duplicated GTIDs.
+
+  However, we do not introduce this complexity into the code with the
+  hope that in the future support to MyIsam tables will be deprecated.
+
+  @retval true if the statement is compatible;
+  @retval false if the statement is not compatible.
+*/
+bool THD::is_stmt_gtid_compatible()
+{
+  if (sqlcom_can_generate_row_events(this))
+  {
+    if (in_multi_stmt_transaction_mode())
+    { 
+      if (trans_has_updated_trans_table(this) &&
+          (lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE) ||
+          lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE)))
+        return false;
+      if (lex->sql_command == SQLCOM_CREATE_TABLE &&
+          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+        return false;
+    }
+ 
+    if ((lex->stmt_accessed_table(LEX::STMT_WRITES_TRANS_TABLE) ||
+         lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_TRANS_TABLE)) &&
+        (lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE) ||
+         lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE)))
+      return false;
+
+    if (lex->sql_command == SQLCOM_CREATE_TABLE &&
+        lex->select_lex.item_list.elements)
+      return false;
+  }
+  return true;
+}
 
 /*
   Implementation of interface to write rows to the binary log through the
