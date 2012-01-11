@@ -39,7 +39,7 @@ Owned_gtids::Owned_gtids(Checkable_rwlock *_sid_lock)
 Owned_gtids::~Owned_gtids()
 {
   // destructor should only be called when no other thread may access object
-  sid_lock->assert_no_lock();
+  //sid_lock->assert_no_lock();
   // need to hold lock before calling get_max_sidno
   sid_lock->rdlock();
   rpl_sidno max_sidno= get_max_sidno();
@@ -51,7 +51,7 @@ Owned_gtids::~Owned_gtids()
   }
   delete_dynamic(&sidno_to_hash);
   sid_lock->unlock();
-  sid_lock->assert_no_lock();
+  //sid_lock->assert_no_lock();
 }
 
 
