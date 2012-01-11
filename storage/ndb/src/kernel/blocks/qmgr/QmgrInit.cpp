@@ -122,7 +122,7 @@ void Qmgr::initData()
       nodePtr.p->phase = ZAPI_INACTIVE;
     }
 
-    setNodeInfo(nodePtr.i).m_heartbeat_cnt = cnt;
+    set_hb_count(nodePtr.i) = cnt;
     nodePtr.p->sendPrepFailReqStatus = Q_NOT_ACTIVE;
     nodePtr.p->sendCommitFailReqStatus = Q_NOT_ACTIVE;
     nodePtr.p->sendPresToStatus = Q_NOT_ACTIVE;
