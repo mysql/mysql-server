@@ -1463,6 +1463,7 @@ buf_do_flush_list_batch(
 	buf_page_t*	bpage = 0;
 	ulint		count = 0;
 	ulint		scanned = 0;
+	ibool		restart = true;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
@@ -1488,18 +1489,20 @@ buf_do_flush_list_batch(
 		if (space == ULINT_UNDEFINED) {
 			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 		} else {
-			if (!bpage) {
+			if (restart) {
 				bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 			}
 
 			while (bpage != 0
 			       && space != buf_page_get_space(bpage)) {
 
-			       bpage = UT_LIST_GET_PREV(list, bpage);
+				ut_ad(bpage->in_flush_list);
+				bpage = UT_LIST_GET_PREV(list, bpage);
 			}
 		}
 
 		if (bpage) {
+			ut_ad(bpage->in_flush_list);
 			ut_a(bpage->oldest_modification > 0);
 		}
 
@@ -1509,7 +1512,6 @@ buf_do_flush_list_batch(
 			buf_flush_list_mutex_exit(buf_pool);
 			break;
 		}
-
 #if 1
 		fprintf(stderr, "space: %lu pg: %lu\n",
 			space, buf_page_get_page_no(bpage));
@@ -1520,6 +1522,8 @@ buf_do_flush_list_batch(
 		ut_ad(bpage->in_flush_list);
 
 		buf_flush_list_mutex_exit(buf_pool);
+
+		restart = false;
 
 		/* The list may change during the flushing and we cannot
 		safely preserve within this function a pointer to a
@@ -1546,6 +1550,7 @@ buf_do_flush_list_batch(
 			we start all over again. */
 			if (bpage->oldest_modification == 0) {
 				buf_flush_list_mutex_exit(buf_pool);
+				restart = true;
 				break;
 			}
 
