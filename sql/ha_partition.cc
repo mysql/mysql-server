@@ -2471,7 +2471,7 @@ bool ha_partition::read_par_file(const char *name)
     DBUG_RETURN(TRUE);
   if (mysql_file_read(file, (uchar *) &buff[0], PAR_WORD_SIZE, MYF(MY_NABP)))
     goto err1;
-  len_words= uint4korr(buff);
+  ulongget(len_words, buff);
   len_bytes= PAR_WORD_SIZE * len_words;
   if (mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR)
     goto err1;
