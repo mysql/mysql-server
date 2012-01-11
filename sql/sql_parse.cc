@@ -1389,80 +1389,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
 #ifndef EMBEDDED_LIBRARY
   case COM_BINLOG_DUMP_GTID:
-    {
-      /*
-        Before going GA, we need to make this protocol extensible without
-        breaking compatitibilty. /Alfranio.
-
-        Moreover, move it from sql_parse.cc to rpl_master.cc /Sven
-      */
-      String slave_uuid;
-      ushort flags= 0;
-      uint32 data_size= 0;
-      uint64 pos= 0;
-      char name[FN_REFLEN + 1];
-      uint32 name_size= 0;
-      const uchar* ptr_buffer= (uchar *) packet;
-      Gtid_set gtid_set(&global_sid_map);
-
-      status_var_increment(thd->status_var.com_other);
-      thd->enable_slow_log= opt_log_slow_admin_statements;
-      if (check_global_access(thd, REPL_SLAVE_ACL))
-	break;
-
-      flags = uint2korr(ptr_buffer);
-      ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
-      thd->server_id= uint4korr(ptr_buffer);
-      ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-      name_size= uint4korr(ptr_buffer);
-      ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
-      strncpy(name, (const char *) ptr_buffer, name_size);
-      ptr_buffer+= name_size;
-      name[name_size]= 0;
-      pos= uint8korr(ptr_buffer);
-      ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
-
-      if (is_master_slave_proto(flags, BINLOG_THROUGH_GTID))
-      {
-        data_size= uint4korr(ptr_buffer);
-        ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
-
-        if (mysql_bin_log.is_open())
-        {
-          global_sid_lock.rdlock();
-          if (gtid_set.add_gtid_encoding(ptr_buffer, data_size) !=
-              RETURN_STATUS_OK)
-          {
-            global_sid_lock.unlock();
-            break;
-          }
-#ifndef DBUG_OFF
-          char* buffer= gtid_set.to_string();
-          DBUG_PRINT("info",
-            ("Slave already knows about the following tids: %s.", buffer));
-          my_free(buffer);
-#endif
-          global_sid_lock.unlock();
-          
-          /*
-            Resetting the name of the file in order to force to start
-            reading from the oldest binary log available.
-          */
-          DBUG_ASSERT(name[0] == 0 && pos == BIN_LOG_HEADER_SIZE);
-        }
-      }
-      DBUG_PRINT("info", ("Slave %d requested to read %s at position %d.",
-                 thd->server_id, name, name_size));
-
-      get_slave_uuid(thd, &slave_uuid);
-      kill_zombie_dump_threads(&slave_uuid);
-      mysql_binlog_send(thd, name, (my_off_t) pos, flags, &gtid_set);
-      
-      unregister_slave(thd, 1, 1);
-      /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
-      error= true;
-      break;
-    }
+    error= com_binlog_dump_gtid(thd, packet) ? true : false;
+    break;
   case COM_BINLOG_DUMP:
     {
       ulong pos;

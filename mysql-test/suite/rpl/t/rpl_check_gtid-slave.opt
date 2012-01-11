@@ -1,1 +1,2 @@
 --relay-log-recovery=1
+--gtid-mode=on --binlog-disable-transaction-unsafe-statements

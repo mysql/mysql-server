@@ -116,7 +116,7 @@ Master_info::Master_info(
    clock_diff_with_master(0), heartbeat_period(0),
    received_heartbeats(0), last_heartbeat(0), master_id(0),
    checksum_alg_before_fd(BINLOG_CHECKSUM_ALG_UNDEF),
-   retry_count(master_retry_count), master_support_gtid(false),
+   retry_count(master_retry_count), master_gtid_mode(0),
    auto_position(false)
 {
   host[0] = 0; user[0] = 0; bind_addr[0] = 0;
@@ -360,7 +360,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   if (from->prepare_info_for_read(nidx) || 
       from->get_info(master_log_name, (size_t) sizeof(master_log_name),
                      (char *) ""))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   lines= strtoul(master_log_name, &first_non_digit, 10);
 
@@ -370,7 +370,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
     /* Seems to be new format => read master log name */
     if (from->get_info(master_log_name, (size_t) sizeof(master_log_name),
                        (char *) ""))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
   else 
     lines= 7;
@@ -383,7 +383,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
       from->get_info((int *) &port, (int) MYSQL_PORT) ||
       from->get_info((int *) &connect_retry,
                         (int) DEFAULT_CONNECT_RETRY))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
   /*
     If file has ssl part use it even if we have server without
@@ -399,7 +399,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
         from->get_info(ssl_cert, (size_t) sizeof(ssl_cert), (char *) 0) ||
         from->get_info(ssl_cipher, (size_t) sizeof(ssl_cipher), (char *) 0) ||
         from->get_info(ssl_key, (size_t) sizeof(ssl_key), (char *) 0))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   /*
@@ -409,7 +409,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   if (lines >= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT)
   { 
     if (from->get_info(&temp_ssl_verify_server_cert, (int) 0))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   /*
@@ -419,7 +419,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   if (lines >= LINE_FOR_MASTER_HEARTBEAT_PERIOD)
   {
     if (from->get_info(&heartbeat_period, (float) 0.0))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   /*
@@ -428,7 +428,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   if (lines >= LINE_FOR_MASTER_BIND)
   {
     if (from->get_info(bind_addr, (size_t) sizeof(bind_addr), (char *) ""))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   /*
@@ -438,7 +438,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   if (lines >= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS)
   {
      if (from->get_info(ignore_server_ids, (Dynamic_ids *) NULL))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   /* Starting from 5.5 the master_uuid may be in the repository. */
@@ -446,7 +446,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   {
     if (from->get_info(master_uuid, (size_t) sizeof(master_uuid),
                        (char *) 0))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   /* Starting from 5.5 the master_retry_count may be in the repository. */
@@ -454,26 +454,33 @@ bool Master_info::read_info(Rpl_info_handler *from)
   if (lines >= LINE_FOR_MASTER_RETRY_COUNT)
   {
     if (from->get_info(&retry_count, master_retry_count))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   if (lines >= LINE_FOR_SSL_CRLPATH)
   {
     if (from->get_info(ssl_crl, sizeof(ssl_crl), (char *) 0) ||
         from->get_info(ssl_crlpath, sizeof(ssl_crlpath), (char *) 0))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   if (lines >= LINE_FOR_AUTO_POSITION)
   {
     if (from->get_info(&temp_auto_position, (int) 0))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   ssl= (my_bool) test(temp_ssl);
   ssl_verify_server_cert= (my_bool) test(temp_ssl_verify_server_cert);
   master_log_pos= (my_off_t) temp_master_log_pos;
   auto_position= temp_auto_position;
+
+  if (auto_position != 0 && gtid_mode != 3)
+  {
+    sql_print_error("%s", ER(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON));
+    DBUG_RETURN(true);
+  }
+
 #ifndef HAVE_OPENSSL
   if (ssl)
     sql_print_warning("SSL information in the master info file "
@@ -481,7 +488,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
                       "compiled without SSL support.");
 #endif /* HAVE_OPENSSL */
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 bool Master_info::write_info(Rpl_info_handler *to)

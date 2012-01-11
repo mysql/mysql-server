@@ -551,16 +551,19 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
 {
   DBUG_ENTER("write_event_to_cache");
   IO_CACHE *cache= &cache_data->cache_log;
-  Group_cache* group_cache= &cache_data->group_cache;
-  Group_cache::enum_add_group_status status= 
-    group_cache->add_logged_group(thd, cache_data->get_byte_position());
-  if (status == Group_cache::ERROR)
-    DBUG_RETURN(1);
-  else if (status == Group_cache::APPEND_NEW_GROUP)
+  if (gtid_mode > 0)
   {
-    Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache());
-    if (gtid_ev.write(cache) != 0)
+    Group_cache* group_cache= &cache_data->group_cache;
+    Group_cache::enum_add_group_status status= 
+      group_cache->add_logged_group(thd, cache_data->get_byte_position());
+    if (status == Group_cache::ERROR)
       DBUG_RETURN(1);
+    else if (status == Group_cache::APPEND_NEW_GROUP)
+    {
+      Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache());
+      if (gtid_ev.write(cache) != 0)
+        DBUG_RETURN(1);
+    }
   }
   if (ev != NULL)
     if (ev->write(cache) != 0)
@@ -628,7 +631,10 @@ static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
 int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 {
   DBUG_ENTER("gtid_before_write_cache");
-  
+
+  if (gtid_mode == 0)
+    DBUG_RETURN(0);
+
   Group_cache* group_cache= &cache_data->group_cache;
 
   // in dbug mode, take wrlock so that we can call gtid_state.dbug_print
@@ -2040,6 +2046,11 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_gtids,
           break;
         case PREVIOUS_GTIDS_LOG_EVENT:
         {
+          if (gtid_mode == 0)
+          {
+            my_error(ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF, MYF(0));
+            goto err;
+          }
           // add events to sets
           Previous_gtids_log_event *prev_gtids_ev=
             (Previous_gtids_log_event *)ev;
@@ -2266,7 +2277,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
         goto err;
       bytes_written+= s.data_written;
 #ifdef HAVE_GTID
-      if (current_thd)
+      if (current_thd && gtid_mode > 0)
       {
         if (need_sid_lock)
           global_sid_lock.wrlock();

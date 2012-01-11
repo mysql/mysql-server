@@ -3803,7 +3803,7 @@ static Sys_var_charptr Sys_ignore_db_dirs(
 static bool check_binlog_disable_transaction_unsafe_statements(
   sys_var *self, THD *thd, set_var *var)
 {
-  DBUG_ENTER("check_binlog_disable_transactional_unsafe_statements");
+  DBUG_ENTER("check_binlog_disable_transaction_unsafe_statements");
 
   my_error(ER_NOT_SUPPORTED_YET, MYF(0),
            "BINLOG_DISABLE_TRANSACTION_UNSAFE_STATEMENTS");
@@ -3813,9 +3813,9 @@ static bool check_binlog_disable_transaction_unsafe_statements(
       check_outside_transaction(self, thd, var))
     DBUG_RETURN(true);
 #ifdef HAVE_GTID
-  if (gtid_mode >= 2)
+  if (gtid_mode >= 2 && var->value->val_int() == 0)
   {
-    //my_error(ER_GTID_MODE_2_OR_3_REQUIRES_BINLOG_DISABLE_TRANSACTION_UNSAFE_STATEMENTS_OFF), MYF(0));
+    my_error(ER_GTID_MODE_2_OR_3_REQUIRES_BINLOG_DISABLE_TRANSACTION_UNSAFE_STATEMENTS_ON, MYF(0));
     DBUG_RETURN(true);
   }
 #endif
@@ -3823,7 +3823,7 @@ static bool check_binlog_disable_transaction_unsafe_statements(
 }
 
 static Sys_var_mybool Sys_binlog_disable_transaction_unsafe_statements(
-       "binlog_disable_transactional_unsafe_statements",
+       "binlog_disable_transaction_unsafe_statements",
        "Prevents execution of statements that would be impossible to log "
        "in a transactionally safe manner. This currently includes updates to "
        "non-transactional tables, and CREATE ... SELECT.",
@@ -3845,6 +3845,9 @@ static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
   if (check_top_level_stmt_and_super(self, thd, var) ||
       check_outside_transaction(self, thd, var))
     DBUG_RETURN(true);
+  if (gtid_mode == 0 && var->save_result.string_value.str != NULL)
+    my_error(ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF,
+             MYF(0));
   DBUG_RETURN(false);
 }
 
@@ -3867,6 +3870,13 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
     my_error(ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL, MYF(0));
     DBUG_RETURN(true);
   }
+
+  enum_group_type type=
+    Gtid_specification::get_type(var->save_result.string_value.str);
+  if (gtid_mode == 0 && type == GTID_GROUP)
+    my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
+  if (gtid_mode == 3 && type == ANONYMOUS_GROUP)
+    my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
   DBUG_RETURN(false);
 }
 
@@ -3906,7 +3916,7 @@ static Sys_var_gtid_owned Sys_gtid_owned(
 
 static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
 {
-  DBUG_ENTER("check_binlog_disable_transactional_unsafe_statements");
+  DBUG_ENTER("check_gtid_mode");
 
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_MODE");
   DBUG_RETURN(true);
@@ -3919,6 +3929,14 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
   {
     //my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0))
     DBUG_RETURN(true);
+  }
+  if (new_gtid_mode >= 1)
+  {
+    if (!opt_bin_log || !opt_log_slave_updates)
+    {
+      my_error(ER_GTID_MODE_REQUIRES_BINLOG, MYF(0));
+      DBUG_RETURN(false);
+    }
   }
   if (new_gtid_mode >= 2)
   {
@@ -3962,7 +3980,7 @@ static Sys_var_enum Sys_gtid_mode(
        "set all servers to UPGRADE_STEP_1, then set all servers to "
        "UPGRADE_STEP_2, then wait for all anonymous transactions to "
        "be re-executed on all servers, and finally set all servers to ON.",
-       GLOBAL_VAR(gtid_mode), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY GLOBAL_VAR(gtid_mode), CMD_LINE(REQUIRED_ARG),
        gtid_mode_names, DEFAULT(GTID_MODE_OFF),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_gtid_mode));
 

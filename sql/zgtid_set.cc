@@ -524,8 +524,6 @@ bool Gtid_set::is_valid(const char *text)
   const char *s= text;
 
   SKIP_WHITESPACE();
-  if (*s == 0)
-    DBUG_RETURN(true);
   do
   {
     // Skip commas (we allow empty SID:GNO specifications).
@@ -534,6 +532,8 @@ bool Gtid_set::is_valid(const char *text)
       s++;
       SKIP_WHITESPACE();
     }
+    if (*s == 0)
+      DBUG_RETURN(true);
 
     // Parse SID.
     if (!rpl_sid::is_valid(s))

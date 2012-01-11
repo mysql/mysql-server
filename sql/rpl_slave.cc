@@ -1298,6 +1298,90 @@ bool is_network_error(uint errorno)
   return FALSE;   
 }
 
+
+/**
+  Execute an initialization query for the IO thread.
+
+  If there is an error, then this function calls mysql_free_result;
+  otherwise the MYSQL object holds the result after this call.  If
+  there is an error other than allowed_error, then this function
+  prints a message and returns -1.
+
+  @param mysql MYSQL object.
+  @param query Query string.
+  @param allowed_error Allowed error code, or 0 if no errors are allowed.
+  @param[out] master_res If this is not NULL and there is no error, then
+  mysql_store_result() will be called and the result stored in this pointer.
+  @param[out] master_row If this is not NULL and there is no error, then
+  mysql_fetch_row() will be called and the result stored in this pointer.
+
+  @retval COMMAND_STATUS_OK No error.
+  @retval COMMAND_STATUS_ALLOWED_ERROR There was an error and the
+  error code was 'allowed_error'.
+  @retval COMMAND_STATUS_ERROR There was an error and the error code
+  was not 'allowed_error'.
+*/
+enum enum_command_status
+{ COMMAND_STATUS_OK, COMMAND_STATUS_ERROR, COMMAND_STATUS_ALLOWED_ERROR };
+static enum_command_status
+io_thread_init_command(Master_info *mi, const char *query, int allowed_error,
+                       MYSQL_RES **master_res= NULL,
+                       MYSQL_ROW *master_row= NULL)
+{
+  DBUG_ENTER("io_thread_init_command");
+  DBUG_PRINT("info", ("IO thread initialization command: '%s'", query));
+  MYSQL *mysql= mi->mysql;
+  int ret= mysql_real_query(mysql, query, strlen(query));
+  if (io_slave_killed(mi->info_thd, mi))
+  {
+    sql_print_information("The slave IO thread was killed while executing "
+                          "initialization query '%s'", query);
+    mysql_free_result(mysql_store_result(mysql));
+    DBUG_RETURN(COMMAND_STATUS_ERROR);
+  }
+  if (ret != 0)
+  {
+    int err= mysql_errno(mysql);
+    mysql_free_result(mysql_store_result(mysql));
+    if (!err || err != allowed_error)
+    {
+      mi->report(is_network_error(err) ? WARNING_LEVEL : ERROR_LEVEL, err,
+                 "The slave IO thread stops because the initialization query "
+                 "'%s' failed with error '%s'.",
+                 query, mysql_error(mysql));
+      DBUG_RETURN(COMMAND_STATUS_ERROR);
+    }
+    DBUG_RETURN(COMMAND_STATUS_ALLOWED_ERROR);
+  }
+  if (master_res != NULL)
+  {
+    if ((*master_res= mysql_store_result(mysql)) == NULL)
+    {
+      mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                 "The slave IO thread stops because the initialization query "
+                 "'%s' did not return any result.",
+                 query);
+      DBUG_RETURN(COMMAND_STATUS_ERROR);
+    }
+    if (master_row != NULL)
+    {
+      if ((*master_row= mysql_fetch_row(*master_res)) == NULL)
+      {
+        mysql_free_result(*master_res);
+        mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                   "The slave IO thread stops because the initialization query "
+                   "'%s' did not return any row.",
+                   query);
+        DBUG_RETURN(COMMAND_STATUS_ERROR);
+      }
+    }
+  }
+  else
+    DBUG_ASSERT(master_row == NULL);
+  DBUG_RETURN(COMMAND_STATUS_OK);
+}
+
+
 /**
   Set user variables after connecting to the master.
 
@@ -1852,9 +1936,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
     is stored in the dump thread's uservar area as well as cached locally
     to become known in consensus by master and slave.
   */
-  DBUG_EXECUTE_IF("simulate_slave_unaware_checksum",
-                  mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
-                  goto past_checksum;);
+  if (DBUG_EVALUATE_IF("simulate_slave_unaware_checksum", 0, 1))
   {
     int rc;
     const char query[]= "SET @master_binlog_checksum= @@global.binlog_checksum";
@@ -1939,58 +2021,53 @@ when it try to get the value of TIME_ZONE global variable from master.";
       master_res= NULL;
     }
   }
+  else
+    mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
 
-  DBUG_EXECUTE_IF("simulate_slave_unaware_gtid",
-                  mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
-                  goto past_checksum;);
+  if (DBUG_EVALUATE_IF("simulate_slave_unaware_gtid", 0, 1))
   {
-    int rc= 0;
-    const char query[]= "SELECT @@SESSION.GTID_NEXT";
-
-    rc= mysql_real_query(mysql, query, strlen(query));
-    if (rc != 0)
+    switch (io_thread_init_command(mi, "SELECT @@GLOBAL.GTID_MODE",
+                                   ER_UNKNOWN_SYSTEM_VARIABLE,
+                                   &master_res, &master_row))
     {
-      if (check_io_slave_killed(mi->info_thd, mi, NULL))
-        goto slave_killed_err;
-
-      if (mysql_errno(mysql) == ER_UNKNOWN_SYSTEM_VARIABLE)
-      {
-        // this is tolerable as OM -> NS is supported
-        mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                   "Notifying master by %s failed with "
-                   "error: %s", query, mysql_error(mysql));
-      }
-      else
-      {
-        if (is_network_error(mysql_errno(mysql)))
-        {
-          mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                     "Notifying master by %s failed with "
-                     "error: %s", query, mysql_error(mysql));
-          mysql_free_result(mysql_store_result(mysql));
-          goto network_err;
-        }
-        else
-        {
-          errmsg= "The slave I/O thread stops because a fatal error is encountered "
-            "when it tried to SELECT @@SESSION.GTID_NEXT on master.";
-          err_code= ER_SLAVE_FATAL_ERROR;
-          sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
-          mysql_free_result(mysql_store_result(mysql));
-          goto err;
-        }
-      }
+    case COMMAND_STATUS_ERROR:
+      DBUG_RETURN(2);
+    case COMMAND_STATUS_ALLOWED_ERROR:
+      // master is old and does not have @@GLOBAL.GTID_MODE
+      mi->master_gtid_mode= 0;
+      break;
+    case COMMAND_STATUS_OK:
+      mi->master_gtid_mode=
+        find_type(master_row[0], &gtid_mode_typelib, 1) - 1;
+      mysql_free_result(master_res);
+      break;
     }
-    else
+    if (mi->master_gtid_mode < 0)
     {
-      mysql_free_result(mysql_store_result(mysql));
-      mi->master_support_gtid= true;
+      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                 "The slave IO thread stops because the master has an unknown "
+                 "GTID_MODE.");
+      DBUG_RETURN(1);
+    }
+    if (abs(mi->master_gtid_mode - gtid_mode) > 1)
+    {
+      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                 "The slave IO thread stops because the master has GTID_MODE "
+                 "%s and this server has GTID_MODE %s",
+                 gtid_mode_names[mi->master_gtid_mode],
+                 gtid_mode_names[gtid_mode]);
+      DBUG_RETURN(1);
+    }
+    if (mi->is_auto_position() && mi->master_gtid_mode != 3)
+    {
+      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                 "The slave IO thread stops because the master has GTID_MODE "
+                 "%s and we are trying to connect using MASTER_AUTO_POSITION.",
+                 gtid_mode_names[mi->master_gtid_mode]);
+      DBUG_RETURN(1);
     }
   }
 
-#ifndef DBUG_OFF
-past_checksum:
-#endif
 err:
   if (errmsg)
   {
@@ -2658,7 +2735,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
   const int BINLOG_NAME_INFO_SIZE= strlen(mi->get_master_log_name());
   int error= 0;
   size_t command_size= 0;
-  enum_server_command command= mi->master_support_gtid ?
+  enum_server_command command= mi->is_auto_position() ?
     COM_BINLOG_DUMP_GTID : COM_BINLOG_DUMP;
   uchar* command_buffer= NULL;
   ushort binlog_flags= 0;
@@ -3693,7 +3770,7 @@ connected:
   if (!ret)
     ret= get_master_uuid(mysql, mi);
   if (!ret)
-    io_thread_init_commands(mysql, mi);
+    ret= io_thread_init_commands(mysql, mi);
 
   if (ret == 1)
     /* Fatal error */
@@ -5898,11 +5975,21 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
 #ifdef HAVE_GTID
   case PREVIOUS_GTIDS_LOG_EVENT:
+    if (gtid_mode == 0)
+    {
+      error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
+      goto err;
+    }
     inc_pos= event_len;
   break;
 
   case GTID_LOG_EVENT:
   {
+    if (gtid_mode == 0)
+    {
+      error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
+      goto err;
+    }
     global_sid_lock.rdlock();
     Gtid_log_event gtid_ev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
@@ -7480,6 +7567,15 @@ bool change_master(THD* thd, Master_info* mi)
       ret= true;
       goto err;
     }
+  }
+
+  // CHANGE MASTER TO MASTER_AUTO_POSITION = 1 requires GTID_MODE = ON
+  if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE && gtid_mode != 3)
+  {
+    my_message(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON,
+               ER(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON), MYF(0));
+    ret= true;
+    goto err;
   }
 
   /*

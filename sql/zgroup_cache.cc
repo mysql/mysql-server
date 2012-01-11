@@ -132,25 +132,25 @@ enum_return_status Group_cache::generate_automatic_gno(THD *thd)
     {
       if (automatic_type == INVALID_GROUP)
       {
-        /*
-        if (global_variables.gtid_mode == OFF || global_variables.gtid_mode == UPGRADE_STEP_1)
+        if (gtid_mode <= 1)
         {
           automatic_type= ANONYMOUS_GROUP;
         }
         else
         {
-        */
-        automatic_type= GTID_GROUP;
-        automatic_gtid.sidno= gtid_state.get_server_sidno();
-        gtid_state.lock_sidno(automatic_gtid.sidno);
-        automatic_gtid.gno= gtid_state.get_automatic_gno(automatic_gtid.sidno);
-        if (automatic_gtid.gno == -1)
-        {
+          automatic_type= GTID_GROUP;
+          automatic_gtid.sidno= gtid_state.get_server_sidno();
+          gtid_state.lock_sidno(automatic_gtid.sidno);
+          automatic_gtid.gno=
+            gtid_state.get_automatic_gno(automatic_gtid.sidno);
+          if (automatic_gtid.gno == -1)
+          {
+            gtid_state.unlock_sidno(automatic_gtid.sidno);
+            RETURN_REPORTED_ERROR;
+          }
+          gtid_state.acquire_ownership(automatic_gtid, thd);
           gtid_state.unlock_sidno(automatic_gtid.sidno);
-          RETURN_REPORTED_ERROR;
         }
-        gtid_state.acquire_ownership(automatic_gtid, thd);
-        gtid_state.unlock_sidno(automatic_gtid.sidno);
       }
       group->spec.type= automatic_type;
       group->spec.gtid= automatic_gtid;
