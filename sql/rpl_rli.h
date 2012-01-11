@@ -238,6 +238,7 @@ protected:
   ulonglong future_group_master_log_pos;
 #endif
 
+#ifdef HAVE_GTID
 private:
   Gtid_set gtid_set;
 
@@ -253,6 +254,8 @@ public:
     return ret;
   }
   const Gtid_set *get_gtid_set() const { return &gtid_set; }
+#endif
+
   int init_relay_log_pos(const char* log,
                          ulonglong pos, bool need_data_lock,
                          const char** errmsg,
@@ -469,7 +472,9 @@ public:
   */
   DYNAMIC_ARRAY curr_group_assigned_parts;
   DYNAMIC_ARRAY curr_group_da;  // deferred array to hold partition-info-free events
+#ifdef HAVE_GTID
   bool curr_group_seen_gtid;   // current group started with Gtid-event or not
+#endif
   bool curr_group_seen_begin;   // current group started with B-event or not
   bool curr_group_isolated;     // current group requires execution in isolation
   bool mts_end_group_sets_max_dbs; // flag indicates if partitioning info is discovered
@@ -879,4 +884,5 @@ inline bool is_mts_worker(const THD *thd)
 {
   return thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER;
 }
+
 #endif /* RPL_RLI_H */

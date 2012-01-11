@@ -16,6 +16,8 @@
 #ifndef RPL_INFO_FACTORY_H
 #define RPL_INFO_FACTORY_H
 
+#ifdef HAVE_REPLICATION
+
 #include "table.h"
 #include "rpl_info.h"
 #include "rpl_mi.h"
@@ -71,4 +73,7 @@ private:
                                        Rpl_info_handler **handler_dest,
                                        const char **msg);
 };
+
+#endif
+
 #endif

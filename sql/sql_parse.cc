@@ -2118,10 +2118,14 @@ mysql_execute_command(THD *thd)
     @todo Check if this causes any trouble /Sven.
     @note Covered by Case 2 in test binlog.binlog_trx_empty_assertions
   */
+#ifdef HAVE_GTID
   DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt ||
               (thd->n_execute_command_calls > 1 &&
                (thd->get_gtid_next_list() != NULL ||
                 thd->variables.gtid_next.type == GTID_GROUP)));
+#else
+  DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt);
+#endif
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
     check that it is first table in global list and relink it first in 

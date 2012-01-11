@@ -16,6 +16,10 @@
 
 
 #define RPL_MASTER_H_INCLUDED
+
+
+#ifdef HAVE_REPLICATION
+
 extern bool server_id_supplied;
 extern int max_binlog_dump_events;
 extern my_bool opt_sporadic_binlog_dump_fail;
@@ -40,10 +44,13 @@ bool show_slave_hosts(THD* thd);
 int com_binlog_dump_gtid(THD *thd, char *packet);
 
 String *get_slave_uuid(THD *thd, String *value);
-bool mysql_show_binlog_events(THD* thd);
+bool show_binlog_info(THD* thd);
 bool show_binlogs(THD* thd);
 void kill_zombie_dump_threads(String *slave_uuid);
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                        ushort flags, const Gtid_set* grp_set= NULL);
 int reset_master(THD* thd);
+
+#endif /* HAVE_REPLICATION */
+
 #endif /* RPL_MASTER_H_INCLUDED */
