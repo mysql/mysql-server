@@ -9178,12 +9178,7 @@ ha_innobase::delete_table(
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
-	bool	new_trx = false;
-
-	if (thd_to_trx(thd) == 0) {
-		fprintf(stderr, "NEW TRX\n");
-		new_trx = true;
-	}
+	thd_to_trx(thd);
 
 	parent_trx = check_trx_exists(thd);
 
@@ -9256,9 +9251,7 @@ ha_innobase::delete_table(
 
 	trx_free_for_mysql(trx);
 
-	//if (new_trx) {
-		innobase_commit_low(parent_trx);
-	//}	
+	innobase_commit_low(parent_trx);
 
 	error = convert_error_code_to_mysql(error, 0, NULL);
 
@@ -11179,7 +11172,8 @@ ha_innobase::external_lock(
 
 			fprintf(stderr, "pages flushed: %lu\n", n_pages);
 
-			// FIXME: Ignore races for now.
+			// FIXME: Ignore races for now. Though I can't see why
+			// there should be a race for the interim states.
 			prebuilt->table->quiesce = QUIESCE_START;
 		/* Check for UNLOCK TABLES; */
 		} else if (thd_sql_command(thd) == SQLCOM_UNLOCK_TABLES
@@ -11191,7 +11185,8 @@ ha_innobase::external_lock(
 			// FIXME: Wait for operations to complete or
 			// abort.
 
-			// FIXME: Ignore races for now
+			// FIXME: Ignore races for now. Though I can't see why
+			// there should be a race for the interim states.
 			prebuilt->table->quiesce = QUIESCE_NONE;
 		}
 	}
@@ -11888,8 +11883,18 @@ ha_innobase::store_lock(
 
 	/* Check for LOCK TABLE t1,...,tn WITH SHARED LOCKS */
 	if (sql_command == SQLCOM_FLUSH && lock_type == TL_READ_NO_INSERT) {
-		// FIXME: Ignore races for now
+		dict_index_t*	index;
+
+		/* TODO: Use the cluster index rw_lock to control queisce
+		state changes for now. */
+		index = dict_table_get_first_index(prebuilt->table);
+
+		rw_lock_x_lock(&index->lock);
+
 		prebuilt->table->quiesce = QUIESCE_INIT;
+
+		rw_lock_x_unlock(&index->lock);
+
 	} else if (sql_command == SQLCOM_DROP_TABLE) {
 
 		/* MySQL calls this function in DROP TABLE though this table
