@@ -1775,8 +1775,9 @@ public:
     @param _sid_map Sid_map used by this group log.
   */
   Gtid_state(Checkable_rwlock *_sid_lock, Sid_map *_sid_map)
-    : sid_lock(_sid_lock), sid_locks(sid_lock),
+    : sid_lock(_sid_lock),
     sid_map(_sid_map),
+    sid_locks(sid_lock),
     logged_gtids(sid_map, sid_lock),
     lost_gtids(sid_map, sid_lock),
     owned_gtids(sid_lock) {}
@@ -1969,10 +1970,10 @@ public:
 private:
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
-  /// Contains one mutex/cond pair for every SIDNO.
-  Mutex_cond_array sid_locks;
   /// The Sid_map used by this Gtid_state.
   mutable Sid_map *sid_map;
+  /// Contains one mutex/cond pair for every SIDNO.
+  Mutex_cond_array sid_locks;
   /// The set of GTIDs that have been executed and logged (and possibly purged).
   Gtid_set logged_gtids;
   /**

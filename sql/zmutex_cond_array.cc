@@ -34,7 +34,7 @@ Mutex_cond_array::~Mutex_cond_array()
 {
   DBUG_ENTER("Mutex_cond_array::~Mutex_cond_array");
   // destructor should only be called when no other thread may access object
-  global_lock->assert_no_lock();
+  //global_lock->assert_no_lock();
   // need to hold lock before calling get_max_sidno
   global_lock->rdlock();
   int max_index= get_max_index();

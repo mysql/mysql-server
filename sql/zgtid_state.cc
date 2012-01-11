@@ -24,9 +24,6 @@
 #ifdef HAVE_GTID
 
 
-Gtid_state gtid_state(&global_sid_lock, &global_sid_map);
-
-
 void Gtid_state::clear()
 {
   DBUG_ENTER("Gtid_state::clear()");
