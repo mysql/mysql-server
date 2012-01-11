@@ -1,6 +1,7 @@
 --source include/have_binlog_format_row.inc
 
 --source include/master-slave.inc
+--source include/not_gtid_enabled.inc
 
 ######## Generate some data on master ########
 

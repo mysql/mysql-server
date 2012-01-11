@@ -3550,6 +3550,7 @@ public:
   }
   void leave_locked_tables_mode();
   int decide_logging_format(TABLE_LIST *tables);
+  bool is_stmt_gtid_compatible();
   void binlog_invoker() { m_binlog_invoker= TRUE; }
   bool need_binlog_invoker() { return m_binlog_invoker; }
   void get_definer(LEX_USER *definer);

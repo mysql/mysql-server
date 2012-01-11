@@ -3,6 +3,7 @@ source include/have_innodb.inc;
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
 source include/have_binlog_format_mixed_or_statement.inc;
+source include/not_gtid_enabled.inc;
 
 --echo
 --echo # BUG#56118 STOP SLAVE does not wait till trx with CREATE TMP TABLE ends

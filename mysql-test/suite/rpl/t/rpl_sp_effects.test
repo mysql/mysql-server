@@ -9,6 +9,7 @@
 # Test of replication of stored procedures (WL#2146 for MySQL 5.0)
 -- source include/master-slave.inc
 --source include/have_innodb.inc
+--source include/not_gtid_enabled.inc
 
 # ****************************************************************
 connection master;

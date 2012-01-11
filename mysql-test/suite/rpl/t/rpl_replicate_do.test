@@ -1,6 +1,8 @@
 # This test assumes we are ignoring updates on table t2, but doing
 # updates on t1
 source include/master-slave.inc;
+source include/not_gtid_enabled.inc;
+
 --disable_warnings
 drop table if exists t11;
 connection slave;
