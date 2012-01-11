@@ -469,6 +469,8 @@ SignalLoggerManager::printSegmentedSection(FILE * output,
 void
 TransporterCallbackKernel::transporter_recv_from(NodeId nodeId)
 {
-  globalData.m_nodeInfo[nodeId].m_heartbeat_cnt= 0;
-  return;
+  if (globalData.get_hb_count(nodeId) != 0)
+  {
+    globalData.set_hb_count(nodeId) = 0;
+  }
 }
