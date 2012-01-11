@@ -3474,7 +3474,8 @@ rep_init(struct thr_repository* rep, unsigned int cnt, Ndbd_mem_manager *mm)
 Uint32
 compute_jb_pages(struct EmulatorData * ed)
 {
-  Uint32 cnt = NUM_MAIN_THREADS + globalData.ndbMtLqhThreads + 1;
+  Uint32 cnt = NUM_MAIN_THREADS +
+    globalData.ndbMtReceiveThreads + globalData.ndbMtTcThreads + globalData.ndbMtLqhThreads + 1;
 
   Uint32 perthread = 0;
 

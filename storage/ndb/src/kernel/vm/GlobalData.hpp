@@ -107,7 +107,10 @@ struct GlobalData {
   
   void           incrementWatchDogCounter(Uint32 place);
   Uint32 * getWatchDogPtr();
-  
+
+  Uint32 getBlockThreads() const {
+    return ndbMtLqhThreads + ndbMtTcThreads + ndbMtReceiveThreads;
+  }
 private:
   Uint32     watchDog;
   SimulatedBlock* blockTable[NO_OF_BLOCKS]; // Owned by Dispatcher::
