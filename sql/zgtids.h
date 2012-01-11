@@ -998,7 +998,8 @@ public:
     return ivit.get() != NULL;
   }
   /**
-    Returns true if the given string is a valid specification of a Gtid_set, false otherwise.
+    Returns true if the given string is a valid specification of a
+    Gtid_set, false otherwise.
   */
   static bool is_valid(const char *text);
 #ifndef DBUG_OFF

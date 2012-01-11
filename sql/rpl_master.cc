@@ -611,6 +611,83 @@ static int send_heartbeat_event(NET* net, String* packet,
   DBUG_RETURN(0);
 }
 
+
+/**
+ */
+int com_binlog_dump_gtid(THD *thd, char *packet)
+{
+  DBUG_ENTER("com_binlog_dump_gtid");
+  /*
+    Before going GA, we need to make this protocol extensible without
+    breaking compatitibilty. /Alfranio.
+  */
+  String slave_uuid;
+  ushort flags= 0;
+  uint32 data_size= 0;
+  uint64 pos= 0;
+  char name[FN_REFLEN + 1];
+  uint32 name_size= 0;
+  const uchar* ptr_buffer= (uchar *) packet;
+  Gtid_set gtid_set(&global_sid_map);
+
+  status_var_increment(thd->status_var.com_other);
+  thd->enable_slow_log= opt_log_slow_admin_statements;
+  if (check_global_access(thd, REPL_SLAVE_ACL))
+    DBUG_RETURN(0);
+
+  flags = uint2korr(ptr_buffer);
+  ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
+  thd->server_id= uint4korr(ptr_buffer);
+  ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
+  name_size= uint4korr(ptr_buffer);
+  ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
+  strncpy(name, (const char *) ptr_buffer, name_size);
+  ptr_buffer+= name_size;
+  name[name_size]= 0;
+  pos= uint8korr(ptr_buffer);
+  ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
+
+  if (is_master_slave_proto(flags, BINLOG_THROUGH_GTID))
+  {
+    data_size= uint4korr(ptr_buffer);
+    ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
+
+    if (mysql_bin_log.is_open())
+    {
+      global_sid_lock.rdlock();
+      if (gtid_set.add_gtid_encoding(ptr_buffer, data_size) !=
+          RETURN_STATUS_OK)
+      {
+        global_sid_lock.unlock();
+        DBUG_RETURN(0);
+      }
+#ifndef DBUG_OFF
+      char* buffer= gtid_set.to_string();
+      DBUG_PRINT("info",
+                 ("Slave already knows about the following tids: %s.", buffer));
+      my_free(buffer);
+#endif
+      global_sid_lock.unlock();
+          
+      /*
+        Resetting the name of the file in order to force to start
+        reading from the oldest binary log available.
+      */
+      DBUG_ASSERT(name[0] == 0 && pos == BIN_LOG_HEADER_SIZE);
+    }
+  }
+  DBUG_PRINT("info", ("Slave %d requested to read %s at position %d.",
+                      thd->server_id, name, name_size));
+
+  get_slave_uuid(thd, &slave_uuid);
+  kill_zombie_dump_threads(&slave_uuid);
+  mysql_binlog_send(thd, name, (my_off_t) pos, flags, &gtid_set);
+
+  unregister_slave(thd, 1, 1);
+  /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
+  DBUG_RETURN(1);
+}
+
 /*
   TODO: Clean up loop to only have one call to send_file()
 */
@@ -938,8 +1015,9 @@ impossible position";
                         }
                       });
 
-      if (event_type == FORMAT_DESCRIPTION_EVENT)
+      switch (event_type)
       {
+      case FORMAT_DESCRIPTION_EVENT:
         skip_group= false;
         current_checksum_alg= get_checksum_alg(packet->ptr() + ev_offset,
                                                packet->length() - ev_offset);
@@ -968,35 +1046,53 @@ impossible position";
           already processed.
         */
         p_fdle->checksum_alg= current_checksum_alg;
-      }
-      else if (event_type == GTID_LOG_EVENT && using_gtid_proto)
-      {
-        ulonglong checksum_size= ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
-                                   p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-                                   BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
-        Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
-                                                 packet->length() - checksum_size,
-                                                 p_fdle);
-        skip_group= grp_set->contains_gtid(gtid->get_sidno(true),
-                                                gtid->get_gno());
-        searching_first_gtid= skip_group;
+        break;
+
+      case GTID_LOG_EVENT:
+        if (gtid_mode == 0)
+        {
+          error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
+          goto err;
+        }
+        if (using_gtid_proto)
+        {
+          ulonglong checksum_size= ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+                                     p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
+                                    BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
+          Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
+                                                   packet->length() - checksum_size,
+                                                   p_fdle);
+          skip_group= grp_set->contains_gtid(gtid->get_sidno(true),
+                                             gtid->get_gno());
+          searching_first_gtid= skip_group;
 #ifndef DBUG_OFF
-        DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
-                   "searching gtid(%d).", gtid->get_sidno(true), gtid->get_gno(),
-                   skip_group, searching_first_gtid));
+          DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
+                              "searching gtid(%d).", gtid->get_sidno(true), gtid->get_gno(),
+                              skip_group, searching_first_gtid));
 #endif
-        delete gtid;
-      }
-      else if (event_type == STOP_EVENT)
-      {
+          delete gtid;
+        }
+        break;
+
+      case STOP_EVENT:
         skip_group= searching_first_gtid;
         binlog_can_be_corrupted= false;
-      }
-      else if (event_type == PREVIOUS_GTIDS_LOG_EVENT ||
-               event_type == INCIDENT_EVENT ||
-               event_type == ROTATE_EVENT)
-      {
+        break;
+
+      case PREVIOUS_GTIDS_LOG_EVENT:
+        if (gtid_mode == 0)
+        {
+          error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
+          goto err;
+        }
+        /* FALLTHROUGH */
+      case INCIDENT_EVENT:
+      case ROTATE_EVENT:
         skip_group= searching_first_gtid;
+        break;
+      default:
+        /* do nothing */
+        break;
       }
 
       DBUG_PRINT("info", ("EVENT_TYPE %d SEARCHING %d SKIP_GROUP %d file %s pos %lld\n",
@@ -1211,34 +1307,53 @@ impossible position";
 
 	if (read_packet)
         {
-          if (event_type == GTID_LOG_EVENT && using_gtid_proto)
+          switch (event_type)
           {
-            ulonglong checksum_size= ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
-                                       p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-                                       BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
-            Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
-                                                     packet->length() - checksum_size,
-                                                     p_fdle);
-            skip_group= grp_set->contains_gtid(gtid->get_sidno(true),
-                                               gtid->get_gno());
-            searching_first_gtid= skip_group;
+          case GTID_LOG_EVENT:
+            if (gtid_mode == 0)
+            {
+              error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
+              goto err;
+            }
+            if (using_gtid_proto)
+            {
+              ulonglong checksum_size= ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+                                         p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
+                                        BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
+              Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
+                                                       packet->length() - checksum_size,
+                                                       p_fdle);
+              skip_group= grp_set->contains_gtid(gtid->get_sidno(true),
+                                                 gtid->get_gno());
+              searching_first_gtid= skip_group;
 #ifndef DBUG_OFF
-            DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
-                       "searching gtid(%d).", gtid->get_sidno(true), gtid->get_gno(),
-                       skip_group, searching_first_gtid));
+              DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
+                                  "searching gtid(%d).", gtid->get_sidno(true), gtid->get_gno(),
+                                  skip_group, searching_first_gtid));
 #endif
-            delete gtid;
-          }
-          else if (event_type == STOP_EVENT)
-          {
+              delete gtid;
+            }
+            break;
+
+          case STOP_EVENT:
             skip_group= searching_first_gtid;
             binlog_can_be_corrupted= false;
-          }
-          else if (event_type == PREVIOUS_GTIDS_LOG_EVENT ||
-                   event_type == INCIDENT_EVENT ||
-                   event_type == ROTATE_EVENT)
-          {
+            break;
+
+          case PREVIOUS_GTIDS_LOG_EVENT:
+            if (gtid_mode == 0)
+            {
+              error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
+              goto err;
+            }
+            /* FALLTHROUGH */
+          case INCIDENT_EVENT:
+          case ROTATE_EVENT:
             skip_group= searching_first_gtid;
+            break;
+          default:
+            /* do nothing */
+            break;
           }
 
           if (!skip_group)

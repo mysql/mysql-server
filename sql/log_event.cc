@@ -11919,6 +11919,9 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Gtid_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
 
+  // Gtid_log_events should be filtered out at earlier stages if gtid_mode == 0
+  DBUG_ASSERT(gtid_mode > 0);
+
   rpl_sidno sidno= get_sidno(true);
   if (sidno < 0)
     DBUG_RETURN(1); // out of memory

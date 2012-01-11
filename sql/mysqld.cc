@@ -466,6 +466,9 @@ my_bool binlog_disable_transaction_unsafe_statements;
 ulong gtid_mode;
 const char *gtid_mode_names[]=
 {"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
+TYPELIB gtid_mode_typelib=
+{ array_elements(gtid_mode_names) - 1, "", gtid_mode_names, NULL };
+
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
 #endif
@@ -4407,6 +4410,22 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     */
     mysql_bin_log.set_previous_gtid_set(
       const_cast<Gtid_set*>(gtid_state.get_logged_gtids()));
+  }
+
+  if (gtid_mode >= 1 && !(opt_bin_log && opt_log_slave_updates))
+  {
+    sql_print_error("--gtid-mode=on or upgrade_step_1 or upgrade_step_2 requires --log-bin and --log-slave-updates");
+    unireg_abort(1);
+  }
+  if (gtid_mode >= 2 && !binlog_disable_transaction_unsafe_statements)
+  {
+    sql_print_error("--gtid-mode=on or upgrade_step_1 requires --binlog-disable-transaction-unsafe-statements");
+    unireg_abort(1);
+  }
+  if (gtid_mode == 1 || gtid_mode == 2)
+  {
+    sql_print_error("--gtid-mode=upgrade_step_1 or --gtid-mode=upgrade_step_2 are not yet supported");
+    unireg_abort(1);
   }
 #endif
 

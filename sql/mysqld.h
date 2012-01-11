@@ -215,6 +215,7 @@ enum enum_gtid_mode
 };
 extern ulong gtid_mode;
 extern const char *gtid_mode_names[];
+extern TYPELIB gtid_mode_typelib;
 #endif
 extern ulong thread_cache_size;
 extern ulong back_log;
