@@ -4626,8 +4626,6 @@ DROP TABLE t1, t2, t3;
 
 --echo # End of test for bug#13545215.
 
---echo # End of 5.6 tests
-
 --echo #
 --echo # BUG#13553211 - MISSING ROWS ON SELECT WITH IN-SUBQUERY AND
 --echo # MATERIALIZATION + SEMIJOIN ON
@@ -4668,3 +4666,54 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#13541406: Wrong result with loosescan on select .. where .. in
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT NOT NULL,
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+  KEY col_int_key (col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+ (7,'v'), (0,'s'), (9,'l'), (3,'y'), (4,'c'), (2,'i'), (5,'h'), (3,'q'),
+ (1,'a'), (3,'v'), (6,'u'), (7,'s'), (5,'y'), (1,'z'), (204,'h'), (224,'p'),
+ (9,'e'), (5,'i'), (0,'y'), (3,'w');
+
+CREATE TABLE t2 (
+  pk INT NOT NULL,
+  col_int_key INT NOT NULL,
+  col_varchar_key VARCHAR(1) NOT NULL,
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES
+ (1,0,'j','j'), (2,8,'v','v'), (3,1,'c','c'), (4,8,'m','m'),
+ (5,9,'d','d'), (6,24,'d','d'), (7,6,'y','y'), (8,1,'t','t'),
+ (9,6,'d','d'), (10,2,'s','s'), (11,4,'r','r'), (12,8,'m','m'),
+ (13,4,'b','b'), (14,4,'x','x'), (15,7,'g','g'), (16,4,'p','p'),
+ (17,1,'q','q'), (18,9,'w','w'), (19,4,'d','d'), (20,8,'e','e');
+
+let $query=
+SELECT ot1.col_int_key AS field1
+FROM t2 AS ot1, t2 AS ot2
+WHERE (ot1.col_varchar_key, ot2.col_varchar_nokey) IN (
+    SELECT it2.col_varchar_nokey, it1.col_varchar_key
+    FROM t2 AS it1 JOIN t1 AS it2 ON it2.col_int_key = it1.pk);
+
+--echo # This query should never use a LooseScan strategy
+
+eval explain $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13541406.
+
+--echo # End of 5.6 tests
