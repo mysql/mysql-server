@@ -569,7 +569,6 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-#ifdef HAVE_GTID
 static bool check_top_level_stmt(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_sub_stmt)
@@ -595,7 +594,6 @@ static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
-#endif
 
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {

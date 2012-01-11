@@ -55,6 +55,7 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <my_bit.h>
+#include "zgtids.h"
 #include "rpl_slave.h"
 #include "rpl_master.h"
 #include "rpl_mi.h"
@@ -70,7 +71,6 @@
 #include "debug_sync.h"
 #include "sql_callback.h"
 #include "opt_trace_context.h"
-#include "zgtids.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"

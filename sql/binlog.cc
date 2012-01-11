@@ -23,6 +23,7 @@
 #include "sql_plugin.h"
 #include "rpl_handler.h"
 #include "rpl_info_factory.h"
+#include "rpl_utility.h"
 #include "debug_sync.h"
 #include <stack>
 #include <string>
@@ -551,6 +552,7 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
 {
   DBUG_ENTER("write_event_to_cache");
   IO_CACHE *cache= &cache_data->cache_log;
+#ifdef HAVE_GTID
   if (gtid_mode > 0)
   {
     Group_cache* group_cache= &cache_data->group_cache;
@@ -565,12 +567,15 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
         DBUG_RETURN(1);
     }
   }
+#endif
   if (ev != NULL)
     if (ev->write(cache) != 0)
       DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
 
+
+#ifdef HAVE_GTID
 /**
   Checks if the given GTID exists in the Group_cache. If not, add it
   as an empty group.
@@ -627,7 +632,7 @@ static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
   DBUG_RETURN(0);
 }
 
-#ifdef HAVE_GTID
+
 int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 {
   DBUG_ENTER("gtid_before_write_cache");
@@ -940,8 +945,13 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
     of the transaction.
   */
   if (!cache_mngr->stmt_cache.is_binlog_empty())
-    error= write_empty_groups_to_cache(thd, &cache_mngr->stmt_cache) ||
+    error=
+#ifdef HAVE_GTID
+      write_empty_groups_to_cache(thd, &cache_mngr->stmt_cache) ||
+#endif
       binlog_commit_flush_stmt_cache(thd, cache_mngr);
+
+#ifdef HAVE_GTID
   /*
     todo: what is the exact condition to check here?
 
@@ -954,6 +964,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   */
   else if (all || !thd->in_multi_stmt_transaction_mode())
     error= write_empty_groups_to_cache(thd, &cache_mngr->trx_cache) != 0;
+#endif
 
   if (cache_mngr->trx_cache.is_binlog_empty())
   {

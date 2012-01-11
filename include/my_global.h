@@ -1487,7 +1487,9 @@ enum loglevel {
   truncate.
 */
 #if defined(_WIN32) || defined(HAVE_FTRUNCATE) || defined(HAVE_CHSIZE)
+#if defined(HAVE_REPLICATION)
 #define HAVE_GTID
+#endif
 #endif
 
 

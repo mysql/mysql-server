@@ -21,6 +21,7 @@
 
 #else
 
+#include "binlog.h"
 #include "sql_priv.h"
 #include "unireg.h"
 #include "my_global.h" // REQUIRED by log_event.h > m_string.h > my_bitmap.h
@@ -75,8 +76,10 @@ TYPELIB binlog_checksum_typelib=
 };
 
 
+#ifdef HAVE_GTID
 Checkable_rwlock global_sid_lock;
 Sid_map global_sid_map(&global_sid_lock);
+#endif
 
 
 #define log_cs	&my_charset_latin1
@@ -1537,12 +1540,14 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     case ROWS_QUERY_LOG_EVENT:
       ev= new Rows_query_log_event(buf, event_len, description_event);
       break;
+#ifdef HAVE_GTID
     case GTID_LOG_EVENT:
       ev= new Gtid_log_event(buf, event_len, description_event);
       break;
     case PREVIOUS_GTIDS_LOG_EVENT:
       ev= new Previous_gtids_log_event(buf, event_len, description_event);
       break;
+#endif
     default:
       /*
         Create an object of Ignorable_log_event for unrecognized sub-class.
@@ -5006,10 +5011,12 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
       post_header_len[IGNORABLE_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
       post_header_len[ROWS_QUERY_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
+#ifdef HAVE_GTID
       post_header_len[GTID_LOG_EVENT-1]=
         post_header_len[ANONYMOUS_GTID_LOG_EVENT-1]=
         Gtid_log_event::POST_HEADER_LENGTH;
       post_header_len[PREVIOUS_GTIDS_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
+#endif
 
       // Sanity-check that all post header lengths are initialized.
       int i;
@@ -11759,9 +11766,12 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
 }
 #endif
 
-const char *Gtid_log_event::SET_STRING_PREFIX= "SET @@SESSION.GTID_NEXT= '";
 
 #ifdef HAVE_GTID
+
+const char *Gtid_log_event::SET_STRING_PREFIX= "SET @@SESSION.GTID_NEXT= '";
+
+
 Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
                                const Format_description_log_event *descr_event)
   : Log_event(buffer, descr_event)
