@@ -4522,7 +4522,7 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
     /* Now try to find the column in the table */
     int colNum = -1;
     const char* resolveColName = args[0].resolveColNameBuff;
-    int resolveColNameLen = strlen(resolveColName);
+    int resolveColNameLen = (int)strlen(resolveColName);
 
     for (int j=0; j< ndbtab->getNoOfColumns(); j++)
     {
