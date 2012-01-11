@@ -1277,7 +1277,7 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record)
   if (read == 0 || read != ARCHIVE_ROW_HEADER_SIZE)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
-  row_len=  uint4korr(size_buffer);
+  ulongget(row_len, size_buffer);
   DBUG_PRINT("ha_archive",("Unpack row length %u -> %u", row_len, 
                            (unsigned int)table->s->reclength));
 

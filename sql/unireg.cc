@@ -297,7 +297,9 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 
   if (!(filepos= make_new_entry(file, fileinfo, NULL, "")))
     goto err;
-  maxlength=(uint) next_io_size((ulong) (uint2korr(forminfo)+1000));
+  ushort io_sz;
+  ushortget(io_sz, forminfo);
+  maxlength=(uint) next_io_size((ulong) (io_sz + 1000));
   int2store(forminfo+2,maxlength);
   int4store(fileinfo+10,(ulong) (filepos+maxlength));
   fileinfo[26]= (uchar) test((create_info->max_rows == 1) &&

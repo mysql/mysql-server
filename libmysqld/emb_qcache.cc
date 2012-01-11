@@ -196,7 +196,7 @@ uint Querycache_stream::load_int()
   use_next_block(FALSE);
   memcpy(buf+rest_len, cur_data, 4-rest_len);
   cur_data+= 4-rest_len;
-  result= uint4korr(buf);
+  ulongget(result, buf);
   return result;
 }
 

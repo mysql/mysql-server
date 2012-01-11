@@ -225,8 +225,10 @@ ENDIF()
 
 # Add tests (link them with gunit library) 
 SET(TESTS
+  alignment
   bounded_queue
   bounds_checked_array
+  byteorder
   dbug
   decimal
   dynarray
