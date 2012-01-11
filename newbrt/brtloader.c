@@ -2463,7 +2463,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
     {
 	invariant(sts.n_subtrees==1);
-	out.h->root = make_blocknum(sts.subtrees[0].block);
+	out.h->root_blocknum = make_blocknum(sts.subtrees[0].block);
 	toku_free(sts.subtrees); sts.subtrees = NULL;
 
 	// write the descriptor

@@ -7,6 +7,7 @@
 #include <brt-flusher-internal.h>
 #include <brt-cachetable-wrappers.h>
 #include <brt-internal.h>
+#include <valgrind/drd.h>
 
 // Member Descirption:
 // 1. highest_pivot_key - this is the key that corresponds to the 
@@ -29,7 +30,13 @@ struct hot_flusher_extra {
 
 static BRT_HOT_STATUS_S hot_status;
 
-void 
+void
+toku_brt_hot_status_init(void)
+{
+    DRD_IGNORE_VAR(hot_status.max_root_flush_count);
+}
+
+void
 toku_brt_hot_get_status(BRT_HOT_STATUS s) {
     *s = hot_status;
 }
@@ -224,48 +231,51 @@ toku_brt_hot_optimize(BRT brt,
                                          // start of HOT operation
     (void) __sync_fetch_and_add(&hot_status.num_started, 1);
 
-    // Higher level logic prevents a dictionary from being deleted or truncated 
-    // during a hot optimize operation.  Doing so would violate the hot optimize contract.
+    {
+        toku_cachetable_call_ydb_lock(brt->h->cf);
+        toku_brt_header_note_hot_begin(brt);
+        toku_cachetable_call_ydb_unlock(brt->h->cf);
+    }
+
+    // Higher level logic prevents a dictionary from being deleted or
+    // truncated during a hot optimize operation.  Doing so would violate
+    // the hot optimize contract.
     do {
         BRTNODE root;
         CACHEKEY *rootp;
         u_int32_t fullhash;
 
-        // Grab YDB Lock.
-        toku_cachetable_call_ydb_lock(brt->h->cf);
+        {
+            toku_brtheader_grab_treelock(brt->h);
 
-        // Get root node (the first parent of each successive HOT
-        // call.)
-        rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
-        struct brtnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, brt->h);
-        toku_pin_brtnode_off_client_thread(brt->h,
-                                           (BLOCKNUM) *rootp,
-                                           fullhash,
-                                           &bfe,
-                                           0,
-                                           NULL,
-                                           &root);
+            // Get root node (the first parent of each successive HOT
+            // call.)
+            rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
+            struct brtnode_fetch_extra bfe;
+            fill_bfe_for_full_read(&bfe, brt->h);
+            toku_pin_brtnode_off_client_thread(brt->h,
+                                               (BLOCKNUM) *rootp,
+                                               fullhash,
+                                               &bfe,
+                                               0,
+                                               NULL,
+                                               &root);
+            toku_assert_entire_node_in_memory(root);
 
-        toku_assert_entire_node_in_memory(root);
+            toku_brtheader_release_treelock(brt->h);
+        }
 
         // Prepare HOT diagnostics.
         if (loop_count == 0) {
-            // The first time through, capture msn from root and set
-            // info in header while holding ydb lock.
+            // The first time through, capture msn from root
             msn_at_start_of_hot = root->max_msn_applied_to_node_on_disk;
-            toku_brt_header_note_hot_begin(brt);
         }
 
         loop_count++;
 
         if (loop_count > hot_status.max_root_flush_count) {
-            // This is threadsafe, since we're holding the ydb lock.
             hot_status.max_root_flush_count = loop_count;
         }
-
-        // Release YDB Lock.
-        toku_cachetable_call_ydb_unlock(brt->h->cf);
 
         // Initialize the maximum current key.  We need to do this for
         // every traversal.
@@ -319,14 +329,19 @@ toku_brt_hot_optimize(BRT brt,
     // More diagnostics.
     {
         BOOL success = false;
-        if (r == 0) success = true;
-        toku_cachetable_call_ydb_lock(brt->h->cf);
-        toku_brt_header_note_hot_complete(brt, success, msn_at_start_of_hot);
-        toku_cachetable_call_ydb_unlock(brt->h->cf);
-        if (success)
+        if (r == 0) { success = true; }
+
+        {
+            toku_cachetable_call_ydb_lock(brt->h->cf);
+            toku_brt_header_note_hot_complete(brt, success, msn_at_start_of_hot);
+            toku_cachetable_call_ydb_unlock(brt->h->cf);
+        }
+
+        if (success) {
             (void) __sync_fetch_and_add(&hot_status.num_completed, 1);
-        else
+        } else {
             (void) __sync_fetch_and_add(&hot_status.num_aborted, 1);
+        }
     }
     return r;
 }

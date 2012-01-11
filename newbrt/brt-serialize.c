@@ -1883,7 +1883,7 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     //printf("%s:%d bta=%lu size=%lu\n", __FILE__, __LINE__, h->block_translation_address_on_disk, 4 + 16*h->translated_blocknum_limit);
     wbuf_DISKOFF(wbuf, translation_location_on_disk);
     wbuf_DISKOFF(wbuf, translation_size_on_disk);
-    wbuf_BLOCKNUM(wbuf, h->root);
+    wbuf_BLOCKNUM(wbuf, h->root_blocknum);
     wbuf_int(wbuf, h->flags);
     wbuf_int(wbuf, h->layout_version_original);
     wbuf_int(wbuf, h->build_id_original);
@@ -2132,6 +2132,8 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     lazy_assert(translation_address_on_disk>0);
     lazy_assert(translation_size_on_disk>0);
 
+    // initialize the tree lock
+    toku_brtheader_init_treelock(h);
     // printf("%s:%d translated_blocknum_limit=%ld, block_translation_address_on_disk=%ld\n", __FILE__, __LINE__, h->translated_blocknum_limit, h->block_translation_address_on_disk);
     //Load translation table
     {
@@ -2151,7 +2153,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
         toku_free(tbuf);
     }
 
-    h->root = rbuf_blocknum(&rc);
+    h->root_blocknum = rbuf_blocknum(&rc);
     h->flags = rbuf_int(&rc);
     h->layout_version_original = rbuf_int(&rc);    
     h->build_id_original = rbuf_int(&rc);

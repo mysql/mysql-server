@@ -326,6 +326,7 @@ test_prefetching(void) {
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
+    toku_brtheader_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
@@ -360,6 +361,7 @@ test_prefetching(void) {
     toku_free(sn.childkeys);
 
     toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_brtheader_destroy_treelock(brt_h);
     toku_blocktable_destroy(&brt_h->blocktable);
     toku_free(brt_h);
     toku_free(brt);

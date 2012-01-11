@@ -79,7 +79,7 @@ int toku_testsetup_root(BRT brt, BLOCKNUM blocknum) {
     assert(testsetup_initialized);
     int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
-    brt->h->root = blocknum;
+    brt->h->root_blocknum = blocknum;
     return 0;
 }
 
