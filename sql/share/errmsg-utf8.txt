@@ -6685,3 +6685,6 @@ ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF
 ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF
   eng "Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF.
 
+ER_STM_IS_NOT_COMPATIBLE_WITH_GTID
+  eng "Cannot execute statement '%s' when GTID is enabled."
+

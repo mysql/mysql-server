@@ -2,6 +2,7 @@
 # replicated properly in statement-based replication.
 # Currently statement based due to bug 12345
 --source include/have_binlog_format_mixed_or_statement.inc
+--source include/not_gtid_enabled.inc
 
 source include/master-slave.inc;
 
