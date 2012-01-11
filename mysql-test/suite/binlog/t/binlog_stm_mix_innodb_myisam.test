@@ -2,6 +2,7 @@
 # For both statement and row based bin logs 9/19/2005 [jbm]
 
 -- source include/have_binlog_format_statement.inc
+-- source include/not_gtid_enabled.inc
 
 CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
 

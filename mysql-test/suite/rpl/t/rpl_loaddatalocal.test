@@ -7,6 +7,7 @@
 # - the loaded file's first line was not written entirely to the
 # master's binlog (1st char was absent)
 source include/master-slave.inc;
+source include/not_gtid_enabled.inc;
 
 create table t1(a int);
 let $1=10000;

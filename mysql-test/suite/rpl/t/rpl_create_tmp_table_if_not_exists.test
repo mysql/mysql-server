@@ -26,6 +26,8 @@ source include/master-slave.inc;
 #CREATE TEMPORARY TABLE statements are not binlogged in row mode,
 #So it must be test by itself.
 source include/have_binlog_format_mixed_or_statement.inc;
+source include/not_gtid_enabled.inc;
+
 disable_warnings;
 
 DROP DATABASE IF EXISTS mysqltest;
