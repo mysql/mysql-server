@@ -161,15 +161,20 @@ SimulatedBlock::initCommon()
   this->getParam("FragmentInfoHash", &count);
   c_fragmentInfoHash.setSize(count);
 
-  count = 5;
+  Uint32 def = 5;
+#ifdef NDBD_MULTITHREADED
+  def += globalData.getBlockThreads();
+#endif
+
+  count = def;
   this->getParam("ActiveMutexes", &count);
   c_mutexMgr.setSize(count);
-  
-  count = 5;
+
+  count = def;
   this->getParam("ActiveCounters", &count);
   c_counterMgr.setSize(count);
 
-  count = 5;
+  count = def;
   this->getParam("ActiveThreadSync", &count);
   c_syncThreadPool.setSize(count);
 }
