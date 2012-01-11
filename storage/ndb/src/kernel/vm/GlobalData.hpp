@@ -41,9 +41,10 @@ enum  restartStates {initial_state,
                      perform_stop};
 
 struct GlobalData {
+  Uint32     m_hb_count[MAX_NODES];   // hb counters
   NodeInfo   m_nodeInfo[MAX_NODES];   // At top to ensure cache alignment
   Signal     VMSignals[1];            // Owned by FastScheduler::
-  Uint32     m_restart_seq;           // 
+  Uint32     m_restart_seq;           //
   NodeVersionInfo m_versionInfo;
   
   Uint64     internalMillisecCounter; // Owned by ThreadConfig::
@@ -91,6 +92,7 @@ struct GlobalData {
     ndbMtSendThreads = 0;
     ndbMtReceiveThreads = 0;
     ndbLogParts = 0;
+    bzero(m_hb_count, sizeof(m_hb_count));
 #ifdef GCP_TIMER_HACK
     gcp_timer_limit = 0;
 #endif
@@ -110,6 +112,14 @@ struct GlobalData {
 
   Uint32 getBlockThreads() const {
     return ndbMtLqhThreads + ndbMtTcThreads + ndbMtReceiveThreads;
+  }
+
+  Uint32 get_hb_count(Uint32 nodeId) const {
+    return m_hb_count[nodeId];
+  }
+
+  Uint32& set_hb_count(Uint32 nodeId) {
+    return m_hb_count[nodeId];
   }
 private:
   Uint32     watchDog;
