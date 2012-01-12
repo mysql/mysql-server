@@ -3916,7 +3916,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   if (table->s->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
   filesort_retval= filesort(thd, table, join->sortorder, length,
-                            select, filesort_limit, 0,
+                            select, filesort_limit, tab->keep_current_rowid,
                             &examined_rows, &found_rows);
   table->sort.found_records= filesort_retval;
   tab->records= found_rows;                     // For SQL_CALC_ROWS
