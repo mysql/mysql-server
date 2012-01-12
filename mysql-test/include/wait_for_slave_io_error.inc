@@ -33,6 +33,10 @@
 #     (e.g., temporary connection error) and does not cause the slave
 #     IO thread to stop.
 # 
+#   $slave_io_error_replace
+#     If set, one or more regex patterns for replacing variable
+#     text in the error message. Syntax as --replace-regex
+#
 #   $slave_timeout
 #     See include/wait_for_slave_param.inc
 # 
