@@ -1076,3 +1076,4 @@ clean:
 	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
 	rm -f *.bdb *.tdb
 	rm -f *.fastlog
+	rm -rf rundir.* recover-test_stress*.dir
