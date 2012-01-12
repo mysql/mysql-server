@@ -104,7 +104,7 @@ run_test() {
     t1=""
     t2=""
     envdir="./${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-$$.dir"
-    if ./$exec -v --test --num_seconds 180 --envdir "$envdir" \
+    if ! ./$exec -v --test --num_seconds 180 --envdir "$envdir" \
         --num_elements $table_size \
         --cachetable_size $cachetable_size \
         --num_ptquery_threads $num_ptquery \
