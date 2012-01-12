@@ -4716,4 +4716,60 @@ DROP TABLE t1, t2;
 
 --echo # End of test for bug#13541406.
 
+--echo #
+--echo # Bug#13576391: Missing rows on select with in-subquery and
+--echo # batched-key-access=on and semijoin
+--echo #
+
+CREATE TABLE t1 (
+ col_int_nokey int NOT NULL,
+ col_varchar_key varchar(1) NOT NULL,
+ KEY col_varchar_key (col_varchar_key)
+) engine=InnoDB;
+
+INSERT INTO t1 VALUES
+ (1,'v'), (7,'s'), (4,'l'), (7,'y'), (0,'c'), (2,'i'), (9,'h'), (4,'q'),
+ (0,'a'), (9,'v'), (1,'u'), (3,'s'), (8,'y'), (8,'z'), (18,'h'), (84,'p'),
+ (6,'e'), (3,'i'), (6,'y'), (6,'w');
+
+CREATE TABLE t2 (
+ col_int_nokey int NOT NULL,
+ col_varchar_nokey varchar(1) NOT NULL
+) engine=InnoDB;
+
+INSERT INTO t2 VALUES
+ (4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
+ (3,'d'), (8,'s'), (1,'r'), (8,'m'), (8,'b'), (5,'x'), (7,'g'), (5,'p'),
+ (1,'q'), (6,'w'), (2,'d'), (9,'e');
+
+let $query=
+SELECT col_varchar_nokey
+FROM t2 AS ot
+WHERE col_varchar_nokey IN (
+  SELECT col_varchar_key
+  FROM t1 AS it
+  WHERE it.col_int_nokey <= it.col_int_nokey
+    AND NOT ot.col_int_nokey < 2
+)
+ORDER BY col_varchar_nokey;
+
+eval explain $query;
+eval $query;
+
+ALTER TABLE t1 ENGINE=MyISAM;
+ALTER TABLE t2 ENGINE=MyISAM;
+
+eval explain $query;
+eval $query;
+
+ALTER TABLE t1 ENGINE=Memory;
+ALTER TABLE t2 ENGINE=Memory;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13576391.
+
 --echo # End of 5.6 tests
