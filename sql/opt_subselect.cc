@@ -597,7 +597,7 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
       break;
     case TIME_RESULT:
       if (mysql_type_to_time_type(outer->field_type()) !=
-          mysql_type_to_time_type(outer->field_type()))
+          mysql_type_to_time_type(inner->field_type()))
         DBUG_RETURN(FALSE);
     default:
       /* suitable for materialization */
