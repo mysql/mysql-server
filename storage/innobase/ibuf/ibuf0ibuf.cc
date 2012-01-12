@@ -2675,7 +2675,7 @@ ibuf_contract_ext(
 
 		sum_sizes = ibuf_get_merge_page_nos_func(
 			&pcur, space, IBUF_MAX_N_PAGES_MERGED,
-			&spaces[0], &pages[0], &versions[0], n_pages,
+			&pages[0], &spaces[0], &versions[0], n_pages,
 			&mtr);
 
 		++sum_sizes;
