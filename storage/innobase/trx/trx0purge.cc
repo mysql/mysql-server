@@ -125,6 +125,9 @@ trx_purge_sys_create(
 {
 	purge_sys = static_cast<trx_purge_t*>(mem_zalloc(sizeof(*purge_sys)));
 
+	purge_sys->state = PURGE_STATE_RUN;
+	purge_sys->event = os_event_create("purge");
+
 	/* Take ownership of ib_bh, we are responsible for freeing it. */
 	purge_sys->ib_bh = ib_bh;
 
@@ -188,6 +191,10 @@ trx_purge_sys_close(void)
 	mem_heap_free(purge_sys->heap);
 
 	ib_bh_free(purge_sys->ib_bh);
+
+	os_event_free(purge_sys->event);
+
+	purge_sys->event = NULL;
 
 	mem_free(purge_sys);
 
@@ -1275,4 +1282,53 @@ run_synchronously:
 	}
 
 	return(n_pages_handled);
+}
+
+/*******************************************************************//**
+Stop purge and wait for it to stop. */
+UNIV_INTERN
+void
+trx_purge_stop(void)
+/*================*/
+{
+	ib_int64_t	sig_count = os_event_reset(purge_sys->event);
+
+	fprintf(stderr, "Stopping purge\n");
+
+	rw_lock_x_lock(&purge_sys->latch);
+
+	// FIXME: Only one FTWRL allowed for now. The fix will be to use a
+	// ref counter.
+	ut_a(purge_sys->state == PURGE_STATE_RUN);
+
+	purge_sys->state = PURGE_STATE_STOP;
+
+	rw_lock_x_unlock(&purge_sys->latch);
+
+	/* Wait for purge coordinator to signal that it is suspended. */
+	os_event_wait_low(purge_sys->event, sig_count);
+
+	fprintf(stderr, "Purge stopped\n");
+}
+
+/*******************************************************************//**
+Start purge. */
+UNIV_INTERN
+void
+trx_purge_run(void)
+/*===============*/
+{
+	fprintf(stderr, "Resuming purge\n");
+
+	rw_lock_x_lock(&purge_sys->latch);
+
+	ut_a(purge_sys->state == PURGE_STATE_STOP);
+
+	purge_sys->state = PURGE_STATE_RUN;
+
+	rw_lock_x_unlock(&purge_sys->latch);
+
+	srv_wake_purge_thread_if_not_active();
+
+	fprintf(stderr, "Purge resumed\n");
 }

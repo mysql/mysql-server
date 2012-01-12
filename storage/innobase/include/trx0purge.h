@@ -89,6 +89,26 @@ trx_purge(
 					submit to task queue. */
 	ulint	limit);			/*!< in: the maximum number of
 					records to purge in one batch */
+/*******************************************************************//**
+Stop purge and wait for it to stop. */
+UNIV_INTERN
+void
+trx_purge_stop(void);
+/*================*/
+/*******************************************************************//**
+Restart purge. */
+UNIV_INTERN
+void
+trx_purge_run(void);
+/*================*/
+
+/** Purge states */
+enum purge_state_t {
+	PURGE_STATE_INIT,		/*!< Purge instance created */
+	PURGE_STATE_RUN,		/*!< Purge should be running */
+	PURGE_STATE_STOP		/*!< Purge should be stopped */
+};
+
 /** This is the purge pointer/iterator. We need both the undo no and the
 transaction no up to which purge has parsed and applied the records. */
 typedef struct purge_iter_struct {
@@ -103,6 +123,11 @@ typedef struct purge_iter_struct {
 struct trx_purge_struct{
 	sess_t*		sess;		/*!< System session running the purge
 					query */
+
+	purge_state_t	state;		/*!< Purge coordinator thread states */
+	os_event_t	event;		/*!< State signal event */
+	bool		running;	/*!< true, if purge is active */
+
 	trx_t*		trx;		/*!< System transaction running the
 					purge query: this trx is not in the
 					trx list of the trx system and it

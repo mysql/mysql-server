@@ -766,9 +766,10 @@ srv_table_reserve_slot(
 }
 
 /*********************************************************************//**
-Suspends the calling thread to wait for the event in its thread slot. */
+Suspends the calling thread to wait for the event in its thread slot.
+@return the current signal count of the event. */
 static
-void
+ib_int64_t
 srv_suspend_thread(
 /*===============*/
 	srv_slot_t*	slot)	/*!< in/out: thread slot */
@@ -797,9 +798,11 @@ srv_suspend_thread(
 
 	srv_sys->n_threads_active[type]--;
 
-	os_event_reset(slot->event);
+	ib_int64_t	sig_count = os_event_reset(slot->event);
 
 	srv_sys_mutex_exit();
+
+	return(sig_count);
 }
 
 /*********************************************************************//**
@@ -827,7 +830,8 @@ srv_release_threads(
 
 		slot = srv_table_get_nth_slot(i);
 
-		if (slot->in_use && slot->suspended
+		if (slot->in_use
+		    && slot->suspended
 		    && srv_slot_get_type(slot) == type) {
 
 			slot->suspended = FALSE;
@@ -1782,7 +1786,8 @@ srv_wake_purge_thread_if_not_active(void)
 {
 	ut_ad(!srv_sys_mutex_own());
 
-	if (srv_n_purge_threads > 0
+	if (purge_sys->state == PURGE_STATE_RUN
+	    && srv_n_purge_threads > 0
 	    && srv_sys->n_threads_active[SRV_PURGE] == 0) {
 
 		srv_release_threads(SRV_PURGE, 1);
@@ -2514,6 +2519,78 @@ srv_do_purge(
 }
 
 /*********************************************************************//**
+Suspend the purge coordinator thread. */
+static
+void
+srv_suspend_purge_coordinator(
+/*==========================*/
+	srv_slot_t*	slot)		/*!< in/out: Purge coordinator
+					thread slot */
+{
+	fprintf(stderr, "purge suspend\n");
+
+	rw_lock_x_lock(&purge_sys->latch);
+
+	purge_sys->running = false;
+
+	rw_lock_x_unlock(&purge_sys->latch);
+
+	bool		stop = false;
+	static ulint	timeout = 100000;
+
+	do {
+		ulint		ret;
+		ib_int64_t	sig_count;
+
+		sig_count = srv_suspend_thread(slot);
+
+		/* We don't wait right away on the the non-timed wait because
+		we want to signal the thread that wants to suspend purge. */
+
+		if (stop) {
+			os_event_wait(slot->event);
+			ret = 0;
+		} else {
+			ret = os_event_wait_time_low(
+				slot->event, timeout, sig_count);
+		}
+
+		rw_lock_x_lock(&purge_sys->latch);
+
+		stop = (purge_sys->state == PURGE_STATE_STOP);
+
+		if (!stop) {
+			purge_sys->running = true;
+		} else {
+			/* Signal that we are suspended. */
+			os_event_set(purge_sys->event);
+		}
+
+		rw_lock_x_unlock(&purge_sys->latch);
+
+		if (ret == OS_SYNC_TIME_EXCEEDED) {
+
+			ut_a(slot->suspended);
+
+			slot->suspended = FALSE;
+			++srv_sys->n_threads_active[SRV_PURGE];
+
+			if (trx_sys->rseg_history_len > 1000) {
+				if (timeout > 1000) {
+					timeout -= 100;
+				}
+			} else if (timeout < 1000000) {
+				timeout += 1000;
+			}
+		}
+
+	} while (stop);
+
+
+	fprintf(stderr, "purge resuming\n");
+}
+
+/*********************************************************************//**
 Purge coordinator thread that schedules the purge tasks.
 @return	a dummy parameter */
 extern "C" UNIV_INTERN
@@ -2557,13 +2634,11 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		because in the worst case we will end up waiting for
 		the next purge event. */
 
-		if (trx_sys->rseg_history_len == 0
+		if (purge_sys->state == PURGE_STATE_STOP
+		    || trx_sys->rseg_history_len == 0
 		    || (n_total_purged == 0 && retries >= TRX_SYS_N_RSEGS)) {
 
-			srv_suspend_thread(slot);
-
-			os_event_wait(slot->event);
-
+			srv_suspend_purge_coordinator(slot);
 			retries = 0;
 		}
 
