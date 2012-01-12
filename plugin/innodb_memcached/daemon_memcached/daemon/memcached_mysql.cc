@@ -60,8 +60,8 @@ static MYSQL_SYSVAR_UINT(r_batch_size, mci_r_batch_size,
 
 static MYSQL_SYSVAR_UINT(w_batch_size, mci_w_batch_size,
 			 PLUGIN_VAR_READONLY,
-			 "write batch commit size", 0, 0, 1,
-			 32, 1048576, 0);
+			 "write batch commit size", 0, 0, 32,
+			 1, 1048576, 0);
 
 static MYSQL_SYSVAR_BOOL(enable_binlog, mci_enable_binlog,
 			 PLUGIN_VAR_READONLY,
@@ -106,7 +106,7 @@ static int daemon_memcached_plugin_init(void *p)
 	pthread_attr_t			attr;
 	struct st_plugin_int*		plugin = (struct st_plugin_int *)p;
 
-	con = (mysql_memcached_context*) malloc(sizeof(*con));
+	con = (mysql_memcached_context*) my_malloc(sizeof(*con), MYF(0));
 
 	if (mci_engine_library) {
 		char*	lib_path = (mci_eng_lib_path)
@@ -115,7 +115,8 @@ static int daemon_memcached_plugin_init(void *p)
 				  + strlen(mci_engine_library)
 				  + strlen(FN_DIRSEP) + 1;
 
-		con->memcached_conf.m_engine_library = (char*) malloc(lib_len);
+		con->memcached_conf.m_engine_library = (char*) my_malloc(
+			lib_len, MYF(0));
 
 		strxmov(con->memcached_conf.m_engine_library, lib_path,
 			FN_DIRSEP, mci_engine_library, NullS);

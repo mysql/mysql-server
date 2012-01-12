@@ -147,6 +147,7 @@ typedef struct mci_column {
 	bool		m_is_str;
 	bool		m_enabled;
 	bool		m_is_null;
+	bool		m_allocated;
 } mci_column_t;
 
 /** We would need to fetch 5 values from each key value rows if they

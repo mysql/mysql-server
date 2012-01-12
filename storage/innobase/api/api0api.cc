@@ -117,6 +117,8 @@ typedef struct ib_cursor_struct {
 	ib_match_mode_t	match_mode;	/*!< ib_cursor_moveto match mode */
 
 	row_prebuilt_t*	prebuilt;	/*!< For reading rows */
+
+	bool		valid_trx;	/*!< Valid transaction attached */
 } ib_cursor_t;
 
 /** InnoDB table columns used during table and index schema creation. */
@@ -128,6 +130,7 @@ typedef struct ib_col_struct {
 	ulint		len;		/*!< Length of the column */
 
 	ib_col_attr_t	ib_col_attr;	/*!< Column attributes */
+
 } ib_col_t;
 
 /** InnoDB index columns used during index and index schema creation. */
@@ -967,7 +970,7 @@ ib_create_cursor(
 /*=============*/
 	ib_crsr_t*	ib_crsr,	/*!< out: InnoDB cursor */
 	dict_table_t*	table,		/*!< in: table instance */
-	ib_idd_t		index_id,	/*!< in: index id or 0 */
+	ib_idd_t	index_id,	/*!< in: index id or 0 */
 	trx_t*		trx)		/*!< in: transaction */
 {
 	mem_heap_t*	heap;
@@ -998,6 +1001,9 @@ ib_create_cursor(
 		prebuilt = cursor->prebuilt;
 
 		prebuilt->trx = trx;
+
+		cursor->valid_trx = TRUE;
+
 		prebuilt->table = table;
 		prebuilt->select_lock_type = LOCK_NONE;
 		prebuilt->innodb_api = TRUE;
@@ -1038,7 +1044,7 @@ UNIV_INTERN
 ib_err_t
 ib_cursor_open_table_using_id(
 /*==========================*/
-	ib_idd_t		table_id,	/*!< in: table id of table to open */
+	ib_idd_t	table_id,	/*!< in: table id of table to open */
 	ib_trx_t	ib_trx,		/*!< in: Current transaction handle
 					can be NULL */
 	ib_crsr_t*	ib_crsr)	/*!< out,own: InnoDB cursor */
@@ -1069,7 +1075,7 @@ UNIV_INTERN
 ib_err_t
 ib_cursor_open_index_using_id(
 /*==========================*/
-	ib_idd_t		index_id,	/*!< in: index id of index to open */
+	ib_idd_t	index_id,	/*!< in: index id of index to open */
 	ib_trx_t	ib_trx,		/*!< in: Current transaction handle
 					can be NULL */
 	ib_crsr_t*	ib_crsr)	/*!< out: InnoDB cursor */
@@ -1285,12 +1291,34 @@ ib_cursor_new_trx(
 
 	row_update_prebuilt_trx(prebuilt, trx);
 
+	cursor->valid_trx = TRUE;
+
 	trx_assign_read_view(prebuilt->trx);
 
         ib_qry_proc_free(&cursor->q_proc);
 
         mem_heap_empty(cursor->query_heap);
 
+	return(err);
+}
+
+/*****************************************************************//**
+Commit the transaction in a cursor
+@return	DB_SUCCESS or err code */
+ib_err_t
+ib_cursor_commit_trx(
+/*=================*/
+	ib_crsr_t	ib_crsr,	/*!< in/out: InnoDB cursor */
+	ib_trx_t	ib_trx)		/*!< in: transaction */
+{
+	ib_err_t        err = DB_SUCCESS;
+	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
+	trx_t*          trx = (trx_t*) ib_trx;
+	row_prebuilt_t*	prebuilt = cursor->prebuilt;
+
+	ut_ad(prebuilt->trx == trx);
+	err = ib_trx_commit(ib_trx);
+	cursor->valid_trx = FALSE;
 	return(err);
 }
 
@@ -1310,7 +1338,8 @@ ib_cursor_close(
 	ib_qry_proc_free(&cursor->q_proc);
 
 	/* The transaction could have been detached from the cursor. */
-	if (trx != NULL && trx->n_mysql_tables_in_use > 0) {
+	if (cursor->valid_trx && trx != NULL
+	    && trx->n_mysql_tables_in_use > 0) {
 		--trx->n_mysql_tables_in_use;
 	}
 
@@ -3209,7 +3238,7 @@ ib_cursor_unlock(
 /*=============*/
 	ib_crsr_t	ib_crsr)	/*!< in/out: InnoDB cursor */
 {
-	ib_err_t	err;
+	ib_err_t	err = DB_SUCCESS;
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
 
@@ -3219,7 +3248,7 @@ ib_cursor_unlock(
 		err = DB_ERROR;
 	}
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /*****************************************************************//**

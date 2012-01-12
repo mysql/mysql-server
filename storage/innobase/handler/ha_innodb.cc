@@ -443,7 +443,8 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_open_index_using_name,
 	(ib_cb_t) ib_close_thd,
 	(ib_cb_t) ib_is_binlog_enabled,
-	(ib_cb_t) ib_cursor_set_cluster_access
+	(ib_cb_t) ib_cursor_set_cluster_access,
+	(ib_cb_t) ib_cursor_commit_trx
 };
 	
 /*************************************************************//**

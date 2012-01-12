@@ -824,12 +824,22 @@ ib_cursor_close_table(
 	ib_crsr_t	ib_crsr);	/*!< in,own: InnoDB cursor */
 
 /*****************************************************************//**
-Create an internal cursor instance.
+update the cursor with new transactions and also reset the cursor
 @return DB_SUCCESS or err code */
 
 ib_err_t
 ib_cursor_new_trx(
 /*==============*/
+	ib_crsr_t	ib_crsr,	/*!< out: InnoDB cursor */
+	ib_trx_t	ib_trx);		/*!< in: transaction */
+
+/*****************************************************************//**
+Commit the transaction in a cursor
+@return DB_SUCCESS or err code */
+
+ib_err_t
+ib_cursor_commit_trx(
+/*=================*/
 	ib_crsr_t	ib_crsr,	/*!< out: InnoDB cursor */
 	ib_trx_t	ib_trx);		/*!< in: transaction */
 

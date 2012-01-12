@@ -320,6 +320,13 @@ void
 /*===========================*/
 	ib_crsr_t	ib_crsr);
 
+typedef
+ib_err_t
+(*CB_CURSOR_COMMIT_TRX)(
+/*====================*/
+	ib_crsr_t	ib_crsr,
+	ib_trx_t	ib_trx);
+
 CB_OPEN_TABLE			ib_cb_open_table;
 CB_READ_ROW			ib_cb_read_row;
 CB_INSERT_ROW			ib_cb_insert_row;
@@ -362,5 +369,6 @@ CB_CURSOR_OPEN_INDEX_USING_NAME	ib_cb_cursor_open_index_using_name;
 CB_CLOSE_THD			ib_cb_close_thd;
 CB_BINLOG_ENABLED		ib_cb_binlog_enabled;
 CB_CURSOR_SET_CLUSTER_ACCESS	ib_cb_cursor_set_cluster_access;
+CB_CURSOR_COMMIT_TRX		ib_cb_cursor_commit_trx;
 
 #endif
