@@ -49,6 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0dump.h"
 #include "buf0lru.h"
 #include "buf0flu.h"
+#include "buf0dblwr.h"
 #include "btr0sea.h"
 #include "os0file.h"
 #include "os0thread.h"
@@ -324,7 +325,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  ifdef UNIV_SYNC_DEBUG
 	{&sync_thread_mutex_key, "sync_thread_mutex", 0},
 #  endif /* UNIV_SYNC_DEBUG */
-	{&trx_doublewrite_mutex_key, "trx_doublewrite_mutex", 0},
+	{&buf_dblwr_mutex_key, "buf_dblwr_mutex", 0},
 	{&trx_undo_mutex_key, "trx_undo_mutex", 0},
 	{&srv_sys_mutex_key, "srv_sys_mutex", 0},
 	{&lock_sys_mutex_key, "lock_mutex", 0},
@@ -568,6 +569,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_num_open_files,		  SHOW_LONG},
   {"truncated_status_writes",
   (char*) &export_vars.innodb_truncated_status_writes,	  SHOW_LONG},
+  {"available_undo_logs",
+  (char*) &export_vars.innodb_available_undo_logs,        SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -13314,6 +13317,39 @@ innodb_change_buffer_max_size_update(
 	ibuf_max_size_update(innobase_change_buffer_max_size);
 }
 
+/********************************************************************
+Check if innodb_undo_logs is valid. This function is registered as
+a callback with MySQL.
+@return	0 for valid innodb_undo_logs
+@see mysql_var_check_func */
+static
+int
+innodb_undo_logs_validate(
+/*======================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: ptr to sys var */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+        long long rsegs;
+
+	DBUG_ENTER("innodb_undo_logs_validate");
+
+	DBUG_ASSERT(save != NULL);
+	DBUG_ASSERT(value != NULL);
+	DBUG_ASSERT(srv_available_undo_logs <= TRX_SYS_N_RSEGS);
+
+	value->val_int(value, &rsegs);
+
+        if (rsegs > (long long) srv_available_undo_logs) {
+		rsegs = srv_available_undo_logs;
+	}
+	*reinterpret_cast<ulint*>(save) = static_cast<ulint>(rsegs);
+
+	DBUG_RETURN(0);
+}
+
 /*************************************************************//**
 Find the corresponding ibuf_use_t value that indexes into
 innobase_change_buffering_values[] array for the input
@@ -14663,7 +14699,7 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
 static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
   PLUGIN_VAR_OPCMDARG,
   "Number of undo logs to use.",
-  NULL, NULL,
+  innodb_undo_logs_validate, NULL,
   TRX_SYS_N_RSEGS,	/* Default setting */
   1,			/* Minimum value */
   TRX_SYS_N_RSEGS, 0);	/* Maximum value */
@@ -14773,6 +14809,13 @@ static MYSQL_SYSVAR_BOOL(print_all_deadlocks, srv_print_all_deadlocks,
   PLUGIN_VAR_OPCMDARG,
   "Print all deadlocks to MySQL error log (off by default)",
   NULL, NULL, FALSE);
+
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Debug flags for InnoDB to limit TRX_RSEG_N_SLOTS for trx_rsegf_undo_find_free()",
+  NULL, NULL, 0, 0, 1024, 0);
+#endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
@@ -14886,6 +14929,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(undo_directory),
   MYSQL_SYSVAR(undo_tablespaces),
   MYSQL_SYSVAR(sync_array_size),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(trx_rseg_n_slots_debug),
+#endif /* UNIV_DEBUG */
   NULL
 };
 
@@ -15180,3 +15226,5 @@ ha_innobase::idx_cond_push(
 	/* We will evaluate the condition entirely */
 	DBUG_RETURN(NULL);
 }
+
+

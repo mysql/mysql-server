@@ -3741,8 +3741,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
             this expression will not be moved to WHERE condition (i.e. will
             be clean correctly for PS/SP)
           */
-          tbl->on_expr= and_conds(tbl->on_expr,
-                                  where->copy_andor_structure(thd));
+          tbl->set_join_cond(and_conds(tbl->join_cond(),
+                                       where->copy_andor_structure(thd)));
           break;
         }
       }
@@ -3784,8 +3784,8 @@ merge_on_conds(THD *thd, TABLE_LIST *table, bool is_cascaded)
 
   Item *cond= NULL;
   DBUG_PRINT("info", ("alias: %s", table->alias));
-  if (table->on_expr)
-    cond= table->on_expr->copy_andor_structure(thd);
+  if (table->join_cond())
+    cond= table->join_cond()->copy_andor_structure(thd);
   if (!table->nested_join)
     DBUG_RETURN(cond);
   List_iterator<TABLE_LIST> li(table->nested_join->join_list);
@@ -5446,8 +5446,9 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   do
   {
     embedded= parent_embedding;
-    if (embedded->prep_on_expr)
-      embedded->on_expr= embedded->prep_on_expr->copy_andor_structure(thd);
+    if (embedded->prep_join_cond)
+      embedded->
+        set_join_cond(embedded->prep_join_cond->copy_andor_structure(thd));
     parent_embedding= embedded->embedding;
   }
   while (parent_embedding &&

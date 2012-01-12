@@ -643,6 +643,10 @@ public:
   */
   virtual enum Item_result numeric_context_result_type() const
   {
+    if (is_temporal())
+      return decimals ? DECIMAL_RESULT : INT_RESULT;
+    if (result_type() == STRING_RESULT)
+      return REAL_RESULT; 
     return result_type();
   }
   virtual Item_result cast_to_int_type() const { return result_type(); }
