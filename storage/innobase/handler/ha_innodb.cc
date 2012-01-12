@@ -58,6 +58,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0roll.h"
 #include "trx0trx.h"
 #include "trx0purge.h"
+
 #include "trx0sys.h"
 #include "mtr0mtr.h"
 #include "row0ins.h"
@@ -11157,15 +11158,18 @@ ha_innobase::external_lock(
 		if (thd_sql_command(thd) == SQLCOM_FLUSH
 		    && lock_type == F_RDLCK) {
 
-			fprintf(stderr, "Begin: FTWRL: %lu\n",
-				prebuilt->table->n_ref_count);
+			fprintf(stderr, "Begin: FTWRL: %s\n",
+				prebuilt->table->name);
 
-			rw_lock_s_lock(&purge_sys->latch);
+			prebuilt->table->quiesce = QUIESCE_START;
 
-			ulint	n_bytes_merged = ibuf_contract_in_background(
-				prebuilt->table->id, TRUE);
+			trx_purge_stop();
 
-			fprintf(stderr, "bytes merged: %lu\n", n_bytes_merged);
+			prebuilt->table->quiesce = QUIESCE_MERGING;
+
+			ibuf_contract_in_background(prebuilt->table->id, TRUE);
+
+			prebuilt->table->quiesce = QUIESCE_FLUSHING;
 
 			ulint	n_pages = buf_flush_list(
 				prebuilt->table->space,
@@ -11173,27 +11177,29 @@ ha_innobase::external_lock(
 
 			buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
-			fprintf(stderr, "pages flushed: %lu\n", n_pages);
+			fprintf(stderr, "Pages flushed: %lu\n", n_pages);
 
 			// FIXME: Ignore races for now. Though I can't see why
 			// there should be a race for the interim states.
-			prebuilt->table->quiesce = QUIESCE_START;
+			prebuilt->table->quiesce = QUIESCE_COMPLETE;
+		}
+
+	} else if (prebuilt->table->quiesce == QUIESCE_COMPLETE) {
 		/* Check for UNLOCK TABLES; */
-		} else if (thd_sql_command(thd) == SQLCOM_UNLOCK_TABLES
-			   && lock_type == F_UNLCK) {
+		if (thd_sql_command(thd) == SQLCOM_UNLOCK_TABLES
+		    && lock_type == F_UNLCK) {
 
-			fprintf(stderr, "End: FTWRL: %lu\n",
-				prebuilt->table->n_ref_count);
+			fprintf(stderr, "End: FTWRL: %s\n",
+				prebuilt->table->name);
 
-			// FIXME: Wait for operations to complete or
-			// abort.
+			trx_purge_run();
 
 			// FIXME: Ignore races for now. Though I can't see why
 			// there should be a race for the interim states.
 			prebuilt->table->quiesce = QUIESCE_NONE;
-
-			rw_lock_s_unlock(&purge_sys->latch);
 		}
+	} else {
+		ut_a(prebuilt->table->quiesce == QUIESCE_NONE);
 	}
 
 	if (lock_type == F_WRLCK) {
