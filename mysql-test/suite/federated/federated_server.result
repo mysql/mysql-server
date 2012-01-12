@@ -54,7 +54,7 @@ PASSWORD '',
 PORT SLAVE_PORT,
 SOCKET '',
 OWNER 'root');
-select * from mysql.servers;
+select * from mysql.servers order by Server_name;
 Server_name	Host	Db	Username	Password	Port	Socket	Wrapper	Owner
 server_one	127.0.0.1	first_db	root		SLAVE_PORT		mysql	root
 server_two	127.0.0.1	second_db	root		SLAVE_PORT		mysql	root
@@ -154,7 +154,7 @@ id	name
 drop table federated.t1;
 drop server 'server_one';
 drop server 'server_two';
-select * from mysql.servers;
+select * from mysql.servers order by Server_name;
 Server_name	Host	Db	Username	Password	Port	Socket	Wrapper	Owner
 drop table first_db.t1;
 drop table second_db.t1;
