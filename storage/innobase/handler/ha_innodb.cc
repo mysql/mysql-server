@@ -57,6 +57,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 #include "trx0roll.h"
 #include "trx0trx.h"
+#include "trx0purge.h"
 #include "trx0sys.h"
 #include "mtr0mtr.h"
 #include "row0ins.h"
@@ -11159,6 +11160,8 @@ ha_innobase::external_lock(
 			fprintf(stderr, "Begin: FTWRL: %lu\n",
 				prebuilt->table->n_ref_count);
 
+			rw_lock_s_lock(&purge_sys->latch);
+
 			ulint	n_bytes_merged = ibuf_contract_in_background(
 				prebuilt->table->id, TRUE);
 
@@ -11188,6 +11191,8 @@ ha_innobase::external_lock(
 			// FIXME: Ignore races for now. Though I can't see why
 			// there should be a race for the interim states.
 			prebuilt->table->quiesce = QUIESCE_NONE;
+
+			rw_lock_s_unlock(&purge_sys->latch);
 		}
 	}
 
