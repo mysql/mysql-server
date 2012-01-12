@@ -86,11 +86,8 @@ static const Uint32 MAX_SIGNALS_BEFORE_WAKEUP = 128;
 /* If this is too small it crashes before first signal. */
 #define MAX_INSTANCES_PER_THREAD (16 + 8 * MAX_NDBMT_LQH_THREADS)
 
-static Uint32 num_lqh_workers = 0;
-static Uint32 num_lqh_threads = 0;
-static Uint32 num_tc_threads = 0;
-static Uint32 num_threads = 0;
 static Uint32 receiver_thread_no = 0;
+static Uint32 num_threads = 0;
 
 #define NO_SEND_THREAD (MAX_BLOCK_THREADS + MAX_NDBMT_SEND_THREADS + 1)
 
@@ -1739,7 +1736,7 @@ trp_callback::checkJobBuffer()
  * Link all send-buffer-pages into *one*
  *   single linked list of buffers
  *
- * TODO: This is not completly fair,
+ * TODO: This is not completely fair,
  *       it would be better to get one entry from each thr_send_queue
  *       per thread instead (until empty)
  */
@@ -1785,7 +1782,7 @@ link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 node)
           bytes += p->m_bytes;
         }
         tmp.m_last_page = p;
-        assert(tmp.m_last_page != 0);
+        assert(tmp.m_last_page != 0); /* Impossible */
         r = (r + 1) % thr_send_queue::SIZE;
       }
       sb->m_read_index[thr] = r;
@@ -1947,7 +1944,6 @@ trp_callback::has_data_to_send(NodeId node)
     return true;
 
   thr_send_queue * dst = g_thr_repository.m_thread_send_buffers[node]+thr_no;
-
   return sb->m_read_index[thr_no] != dst->m_write_index;
 }
 
@@ -2345,7 +2341,6 @@ static
 void
 read_jbb_state(thr_data *selfptr, Uint32 count)
 {
-
   thr_jb_read_state *r = selfptr->m_read_states;
   const thr_job_queue *q = selfptr->m_in_queue;
   const thr_job_queue_head *h = selfptr->m_in_queue_head;
@@ -2617,7 +2612,6 @@ mt_init_thr_map()
   /* Keep mt-classic assignments in MT LQH. */
   const Uint32 thr_GLOBAL = 0;
   const Uint32 thr_LOCAL = 1;
-  //const Uint32 thr_RECEIVER = receiver_thread_no;
 
   add_thr_map(BACKUP, 0, thr_LOCAL);
   add_thr_map(DBTC, 0, thr_GLOBAL);
@@ -2664,7 +2658,7 @@ mt_get_instance_count(Uint32 block)
     return globalData.ndbMtTcThreads;
     break;
   case TRPMAN:
-    return 1;
+    return globalData.ndbMtReceiveThreads;
   case THRMAN:
     return num_threads;
   default:
@@ -2676,6 +2670,9 @@ mt_get_instance_count(Uint32 block)
 void
 mt_add_thr_map(Uint32 block, Uint32 instance)
 {
+  Uint32 num_lqh_threads = globalData.ndbMtLqhThreads;
+  Uint32 num_tc_threads = globalData.ndbMtTcThreads;
+
   require(instance != 0);
   Uint32 thr_no = NUM_MAIN_THREADS;
   switch(block){
@@ -2706,7 +2703,7 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
     thr_no = instance - 1;
     break;
   case TRPMAN:
-    thr_no = receiver_thread_no;
+    thr_no += num_lqh_threads + num_tc_threads + (instance - 1);
     break;
   default:
     require(false);
@@ -2830,7 +2827,7 @@ aligned_signal(unsigned char signal_buf[SIGBUF_SIZE], unsigned thr_no)
 Uint32 receiverThreadId;
 
 /*
- * We only do receive in thread 2, no other threads do receive.
+ * We only do receive in receiver thread(s), no other threads do receive.
  *
  * As part of the receive loop, we also periodically call update_connections()
  * (this way we are similar to single-threaded ndbd).
@@ -3523,14 +3520,15 @@ ThreadConfig::~ThreadConfig()
 void
 ThreadConfig::init()
 {
-  num_lqh_workers = globalData.ndbMtLqhWorkers;
-  num_lqh_threads = globalData.ndbMtLqhThreads;
-  num_tc_threads = globalData.ndbMtTcThreads;
-  num_threads = NUM_MAIN_THREADS + num_tc_threads + num_lqh_threads + 1;
-  require(num_threads <= MAX_BLOCK_THREADS);
-  receiver_thread_no = num_threads - 1;
+  Uint32 num_lqh_threads = globalData.ndbMtLqhThreads;
+  Uint32 num_tc_threads = globalData.ndbMtTcThreads;
+  Uint32 num_recv_threads = globalData.ndbMtReceiveThreads;
 
-  ndbout << "NDBMT: num_threads=" << num_threads << endl;
+  receiver_thread_no = NUM_MAIN_THREADS + num_tc_threads + num_lqh_threads;
+  num_threads = receiver_thread_no + num_recv_threads;
+  require(num_threads <= MAX_BLOCK_THREADS);
+
+  ndbout << "NDBMT: number of block threads=" << num_threads << endl;
 
   ::rep_init(&g_thr_repository, num_threads,
              globalEmulatorData.m_mem_manager);
@@ -3933,7 +3931,7 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
       siglen = 25;              // Sanity check
     memcpy(&signal.header, s, 4*siglen);
     // instance number in trace file is confusing if not MT LQH
-    if (num_lqh_workers == 0)
+    if (globalData.ndbMtLqhWorkers == 0)
       signal.header.theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
 
     const Uint32 *posptr = reinterpret_cast<const Uint32 *>(s);

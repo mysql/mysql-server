@@ -3188,15 +3188,12 @@ loop:
   int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
   res.dumpStateOneNode(master, val2, 2);
   res.dumpStateOneNode(victim, val2, 2);
-  
-  for (int i = 0; i<res.getNumDbNodes(); i++)
-  {
-    int nodeId = res.getDbNodeId(i);
-    res.insertErrorInNode(nodeId, 5050);
-  }
-  
+
+  int err5050[] = { 5050 };
+  res.dumpStateAllNodes(err5050, 1);
+
   res.insertErrorInNode(victim, 9999);
-  
+
   int nodes[2];
   nodes[0] = master;
   nodes[1] = victim;

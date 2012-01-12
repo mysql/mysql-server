@@ -325,6 +325,8 @@ get_multithreaded_config(EmulatorData& ed)
   ndbout << "NDBMT: workers=" << globalData.ndbMtLqhWorkers
          << " threads=" << globalData.ndbMtLqhThreads
          << " tc=" << globalData.ndbMtTcThreads
+         << " send=" << globalData.ndbMtSendThreads
+         << " receive=" << globalData.ndbMtReceiveThreads
          << endl;
 
   return 0;
