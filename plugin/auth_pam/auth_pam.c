@@ -131,7 +131,7 @@ end:
   return status == PAM_SUCCESS ? CR_OK : CR_ERROR;
 }
 
-static struct st_mysql_auth pam_info =
+static struct st_mysql_auth info =
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   "dialog",
@@ -141,7 +141,7 @@ static struct st_mysql_auth pam_info =
 maria_declare_plugin(pam)
 {
   MYSQL_AUTHENTICATION_PLUGIN,
-  &pam_info,
+  &info,
   "pam",
   "Sergei Golubchik",
   "PAM based authentication",
