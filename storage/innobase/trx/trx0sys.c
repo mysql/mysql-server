@@ -134,6 +134,11 @@ UNIV_INTERN mysql_pfs_key_t	trx_doublewrite_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
+#ifdef UNIV_DEBUG
+/* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
+uint		trx_rseg_n_slots_debug = 0;
+#endif
+
 #ifndef UNIV_HOTBACKUP
 /** This is used to track the maximum file format id known to InnoDB. It's
 updated via SET GLOBAL innodb_file_format_max = 'x' or when we open

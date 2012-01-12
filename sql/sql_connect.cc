@@ -668,13 +668,38 @@ void prepare_new_connection_state(THD* thd)
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())
     {
-      thd->killed= THD::KILL_CONNECTION;
+      ulong packet_length;
+      NET *net= &thd->net;
+
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
-                        thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                        thd->thread_id,
+                        thd->db ? thd->db : "unconnected",
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip, "init_connect command failed");
       sql_print_warning("%s", thd->stmt_da->message());
+
+      thd->lex->current_select= 0;
+      my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+      thd->clear_error();
+      net_new_transaction(net);
+      packet_length= my_net_read(net);
+      /*
+        If my_net_read() failed, my_error() has been already called,
+        and the main Diagnostics Area contains an error condition.
+      */
+      if (packet_length != packet_error)
+        my_error(ER_NEW_ABORTING_CONNECTION, MYF(0),
+                 thd->thread_id,
+                 thd->db ? thd->db : "unconnected",
+                 sctx->user ? sctx->user : "unauthenticated",
+                 sctx->host_or_ip, "init_connect command failed");
+
+      thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
+      thd->protocol->end_statement();
+      thd->killed = THD::KILL_CONNECTION;
+      return;
     }
+
     thd->proc_info=0;
     thd->set_time();
     thd->init_for_queries();
