@@ -99,13 +99,17 @@ run_test() {
     mylog="$1"; shift
     mysavedir="$1"; shift
 
+    rundir=$(mktemp -d ./rundir.XXXXXXXX)
     tmplog=$(mktemp)
+
     ulimit -c unlimited
     t0="$(date)"
     t1=""
     t2=""
-    envdir="./${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-$$.dir"
-    if ! ./$exec -v --test --num_seconds 180 --envdir "$envdir" \
+    envdir="../${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-$$.dir"
+    cd $rundir
+    if ! LD_LIBRARY_PATH=../../../lib:$LD_LIBRARY_PATH \
+        ../$exec -v --test --num_seconds 180 --envdir "$envdir" \
         --num_elements $table_size \
         --cachetable_size $cachetable_size \
         --num_ptquery_threads $num_ptquery \
@@ -113,7 +117,8 @@ run_test() {
     then
         rm -f $tmplog
         t1="$(date)"
-        if ./$exec -v --recover --envdir "$envdir" \
+        if LD_LIBRARY_PATH=../../../lib:$LD_LIBRARY_PATH \
+            ../$exec -v --recover --envdir "$envdir" \
             --num_elements $table_size \
             --cachetable_size $cachetable_size > $tmplog
         then
@@ -128,6 +133,8 @@ run_test() {
         save_failure "$mysavedir" $tmplog $envdir $exec $table_size $cachetable_size $num_ptquery $num_update test
         echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" > "$mylog"
     fi
+    cd ..
+    rm -rf $rundir
 }
 
 loop_test() {
