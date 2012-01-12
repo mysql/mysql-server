@@ -1120,11 +1120,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "4",
     "4",
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "4"
-#else
-    "16"
-#endif
   },
 
   {
