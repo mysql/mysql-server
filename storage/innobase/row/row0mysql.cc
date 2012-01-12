@@ -2199,7 +2199,9 @@ err_exit:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* We already have .ibd file here. it should be deleted. */
 
-		if (table->space && !fil_delete_tablespace(table->space)) {
+		if (table->space
+		    && !fil_delete_tablespace(table->space, FALSE)) {
+
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				"  InnoDB: Error: not able to"

@@ -2628,56 +2628,6 @@ ibuf_get_table(
 }
 
 /*********************************************************************//**
-Build the search tuple for positioning the cursor on the first record
-for a particular space id.
-@return the search tuple */
-static
-dtuple_t*
-ibuf_create_search_tuple(
-/*=====================*/
-	ulint		space,	/*!< in: tablespace id to search */
-	mem_heap_t*	heap)	/*!< in/out: heap to use for tuple */
-{
-	/* Build a tuple like so: <space id, 0, 0>. */
-
-	dtuple_t*	tuple = dtuple_create(heap, 3);
-
-	/* 1) Space Id */
-
-	dfield_t*	field;
-
-	field = dtuple_get_nth_field(tuple, IBUF_REC_FIELD_SPACE);
-
-	byte*		ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
-
-	mach_write_to_4(ptr, space);
-
-	dfield_set_data(field, ptr, 4);
-
-	/* 2) Marker byte, set to 0 */
-
-	field = dtuple_get_nth_field(tuple, IBUF_REC_FIELD_MARKER);
-
-	ptr = static_cast<byte*>(mem_heap_alloc(heap, 1));
-
-	mach_write_to_1(ptr, 0);
-
-	dfield_set_data(field, ptr, 1);
-
-	/* 3) Page number, set to 0 */
-
-	field = dtuple_get_nth_field(tuple, IBUF_REC_FIELD_PAGE);
-
-	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
-
-	mach_write_to_4(ptr, 0);
-
-	dfield_set_data(field, ptr, 4);
-
-	return(tuple);
-}
-
-/*********************************************************************//**
 Contracts insert buffer trees by reading pages to the buffer pool.
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
@@ -2692,7 +2642,7 @@ ibuf_contract_ext(
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
 	mem_heap_t*	heap = mem_heap_create(512);
-	dtuple_t*	tuple = ibuf_create_search_tuple(space, heap);
+	dtuple_t*	tuple = ibuf_search_tuple_build(space, 0, heap);
 
 	ibuf_mtr_start(&mtr);
 
