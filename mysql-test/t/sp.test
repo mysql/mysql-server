@@ -3336,28 +3336,20 @@ drop table t3|
 --disable_warnings
 drop procedure if exists bug6857|
 --enable_warnings
-create procedure bug6857(counter int)
+create procedure bug6857()
 begin
   declare t0, t1 int;
   declare plus bool default 0;
-
-  set t0 = current_time();
-  while counter > 0 do
-    set counter = counter - 1;
-  end while;
-  set t1 = current_time();
+  set t0 = unix_timestamp();
+  select sleep(1.1);
+  set t1 = unix_timestamp();
   if t1 > t0 then
     set plus = 1;
   end if;
   select plus;
 end|
 
-# QQ: This is currently disabled. Not only does it slow down a normal test
-#     run, it makes running with valgrind (or similar tools) extremely
-#     painful.
-# Make sure this takes at least one second on all machines in all builds.
-# 30000 makes it about 3 seconds on an old 1.1GHz linux.
-#call bug6857(300000)|
+call bug6857()|
 
 drop procedure bug6857|
 
