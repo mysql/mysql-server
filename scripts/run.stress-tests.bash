@@ -113,14 +113,14 @@ run_test() {
         --num_elements $table_size \
         --cachetable_size $cachetable_size \
         --num_ptquery_threads $num_ptquery \
-        --num_update_threads $num_update > $tmplog
+        --num_update_threads $num_update &> $tmplog
     then
         rm -f $tmplog
         t1="$(date)"
         if LD_LIBRARY_PATH=../../../lib:$LD_LIBRARY_PATH \
             ../$exec -v --recover --envdir "$envdir" \
             --num_elements $table_size \
-            --cachetable_size $cachetable_size > $tmplog
+            --cachetable_size $cachetable_size &> $tmplog
         then
             rm -f $tmplog
             t2="$(date)"
@@ -190,6 +190,10 @@ killchildren() {
     for pid in ${pids[@]}
     do
         kill $pid
+    done
+    for exec in ${testnames[@]}
+    do
+        pkill -f $exec
     done
 }
 
