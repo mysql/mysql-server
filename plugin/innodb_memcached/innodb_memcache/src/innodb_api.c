@@ -84,7 +84,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cursor_open_index_using_name,
 	(ib_cb_t*) &ib_cb_close_thd,
 	(ib_cb_t*) &ib_cb_binlog_enabled,
-	(ib_cb_t*) &ib_cb_cursor_set_cluster_access
+	(ib_cb_t*) &ib_cb_cursor_set_cluster_access,
+	(ib_cb_t*) &ib_cb_cursor_commit_trx
 };
 
 /*************************************************************//**
@@ -315,6 +316,42 @@ innodb_api_fill_mci(
 
 	mci_item->m_is_str = TRUE;
 	mci_item->m_enabled = TRUE;
+	mci_item->m_allocated = FALSE;
+
+	return(TRUE);
+}
+
+/*************************************************************//**
+copy data from a read tuple and instantiate a "mci_item"
+@return TRUE if successful */
+static
+bool
+innodb_api_copy_mci(
+/*================*/
+	ib_tpl_t	read_tpl,	/*!< in: Read tuple */
+	int		col_id,		/*!< in: Column ID for the column to
+					read */
+	mci_column_t*	mci_item)	/*!< out: item to fill */
+{
+	ib_ulint_t      data_len;
+	ib_col_meta_t   col_meta;
+
+	data_len = ib_cb_col_get_meta(read_tpl, col_id, &col_meta);
+
+	if (data_len == IB_SQL_NULL) {
+		mci_item->m_str = NULL;
+		mci_item->m_len = 0;
+		mci_item->m_allocated = FALSE;
+	} else {
+		mci_item->m_str = malloc(data_len);
+		mci_item->m_allocated = TRUE;
+		memcpy(mci_item->m_str, ib_cb_col_get_value(read_tpl, col_id),
+		       data_len);
+		mci_item->m_len = data_len;
+	}
+
+	mci_item->m_is_str = TRUE;
+	mci_item->m_enabled = TRUE;
 
 	return(TRUE);
 }
@@ -329,7 +366,8 @@ innodb_api_fill_value(
 	meta_info_t*	meta_info, 	/*!< in: Metadata */
 	mci_item_t*	item,		/*!< out: result */
 	ib_tpl_t	read_tpl,	/*!< in: read tuple */
-	int		col_id)		/*!< in: column Id */
+	int		col_id,		/*!< in: column Id */
+	bool		alloc_mem)	/*!< in: allocate memory */		
 {
 	ib_err_t	err = DB_NOT_FOUND;
 
@@ -340,16 +378,31 @@ innodb_api_fill_value(
 
 		if (col_id == col_info[META_VALUE].m_field_id) {
 
-			innodb_api_fill_mci(read_tpl, col_id,
-					    &item->mci_item[MCI_COL_VALUE]);
+			if (alloc_mem) {
+				innodb_api_copy_mci(
+					read_tpl, col_id,
+					&item->mci_item[MCI_COL_VALUE]);
+			} else {
+				innodb_api_fill_mci(
+					read_tpl, col_id,
+					&item->mci_item[MCI_COL_VALUE]);
+			}
 			err = DB_SUCCESS;
 		}
 	} else {
 		int	i;
 		for (i = 0; i < meta_info->m_num_add; i++) {
 			if (col_id == meta_info->m_add_item[i].m_field_id) {
-				innodb_api_fill_mci(read_tpl, col_id,
-						    &item->mci_add_value[i]);
+				if (alloc_mem) {
+					innodb_api_copy_mci(
+						read_tpl, col_id,
+						&item->mci_add_value[i]);
+				} else {
+					innodb_api_fill_mci(
+						read_tpl, col_id,
+						&item->mci_add_value[i]);
+				}
+
 				err = DB_SUCCESS;
 				break;
 			}
@@ -515,7 +568,8 @@ innodb_api_search(
 				item->mci_item[MCI_COL_EXP].m_enabled = TRUE;
 			} else {
 				innodb_api_fill_value(meta_info, item,
-						      read_tpl, i);
+						      read_tpl, i,
+						      sel_only);
 			}
 		}
 
@@ -1365,9 +1419,11 @@ innodb_api_cursor_reset(
 		}
 
 		if (conn_data->c_trx) {
-			err = ib_cb_trx_commit(conn_data->c_trx);
+			err = ib_cb_cursor_commit_trx(
+				conn_data->c_crsr, conn_data->c_trx);
 			conn_data->c_trx = NULL;
 		}
+
 		conn_data->c_w_count_commit = 0;
 	}
 
@@ -1380,7 +1436,9 @@ innodb_api_cursor_reset(
 		}
 
 		if (conn_data->c_r_trx) {
-			err = ib_cb_trx_commit(conn_data->c_r_trx);
+			err = ib_cb_cursor_commit_trx(
+				conn_data->c_r_crsr,
+				conn_data->c_r_trx);
 			conn_data->c_r_trx = NULL;
 		}
 		conn_data->c_r_count_commit = 0;

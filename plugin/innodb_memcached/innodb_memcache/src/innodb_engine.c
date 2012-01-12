@@ -114,7 +114,7 @@ create_instance(
 
 	/* Now call create_instace() for the default engine */
 	e = create_my_default_instance(interface, get_server_api, 
-				 & (innodb_eng->m_default_engine));
+				 &(innodb_eng->m_default_engine));
 	if(e != ENGINE_SUCCESS) return e;
 
 	innodb_eng->initialized = true;
@@ -151,7 +151,7 @@ innodb_initialize(
 	ENGINE_HANDLE*	handle,
 	const char*	config_str) 
 {   
-	ENGINE_ERROR_CODE	return_status;
+	ENGINE_ERROR_CODE	return_status = ENGINE_SUCCESS;
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
 	eng_config_info_t*	my_eng_config;
@@ -192,14 +192,18 @@ innodb_initialize(
 		return(ENGINE_FAILED);
 	}
 
-	return_status = def_eng->engine.initialize(
-		innodb_eng->m_default_engine, my_eng_config->option_string);
+	if (innodb_eng->m_default_engine) {
+		return_status = def_eng->engine.initialize(
+			innodb_eng->m_default_engine,
+			my_eng_config->option_string);
+	}
 
 	return(return_status);
 }
 
 extern void handler_close_thd(void*);
 
+/*** Cleanup a connection***/
 static
 int
 innodb_conn_clean(
@@ -307,7 +311,13 @@ innodb_destroy(
 
 	pthread_mutex_destroy(&innodb_eng->conn_mutex);
 
-	def_eng->engine.destroy(innodb_eng->m_default_engine, force);
+	if (innodb_eng->m_default_engine) {
+		def_eng->engine.destroy(innodb_eng->m_default_engine, force);
+	}
+
+	innodb_config_free(&innodb_eng->meta_info);
+
+	free(innodb_eng);
 }
 
 
@@ -649,6 +659,10 @@ innodb_get(
 	} else {
 		memcpy(hash_item_get_data(it),
 		       result.mci_item[MCI_COL_VALUE].m_str, it->nbytes);
+
+		if (result.mci_item[MCI_COL_VALUE].m_allocated) {
+			free(result.mci_item[MCI_COL_VALUE].m_str);
+		}
 	}
 
 func_exit:
