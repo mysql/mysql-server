@@ -82,9 +82,9 @@ void get_tty_password_buff(const char *opt_message, char *to, size_t length)
   _cputs(opt_message ? opt_message : "Enter password: ");
   for (;;)
   {
-    char tmp;
+    int tmp;
     tmp=_getch();
-    if (tmp == '\b' || (int) tmp == 127)
+    if (tmp == '\b' || tmp == 127)
     {
       if (pos != to)
       {
@@ -93,15 +93,13 @@ void get_tty_password_buff(const char *opt_message, char *to, size_t length)
 	continue;
       }
     }
-    if (tmp == '\n' || tmp == '\r' || tmp == 3)
+    if (tmp == -1 || tmp == '\n' || tmp == '\r' || tmp == 3)
       break;
     if (iscntrl(tmp) || pos == end)
       continue;
     _cputs("*");
-    *(pos++) = tmp;
+    *(pos++) = (char)tmp;
   }
-  while (pos != to && isspace(pos[-1]) == ' ')
-    pos--;					/* Allow dummy space at end */
   *pos=0;
   _cputs("\n");
 }
@@ -148,8 +146,6 @@ static void get_password(char *to,uint length,int fd, my_bool echo)
     }
     *(pos++) = tmp;
   }
-  while (pos != to && isspace(pos[-1]) == ' ')
-    pos--;					/* Allow dummy space at end */
   *pos=0;
   return;
 }
