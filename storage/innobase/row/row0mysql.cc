@@ -2734,7 +2734,7 @@ row_discard_tablespace_for_mysql(
 
 			/* No-op */
 		}
-	
+
 		if (foreign) {
 
 			FILE*	ef	= dict_foreign_err_file;
@@ -2814,8 +2814,8 @@ as needed.
 @return DB_SUCCESS or error code */
 static
 ulint
-row_scan_index_on_import(
-/*=====================*/
+row_import_tablespace_scan_index(
+/*=============================*/
 	dict_index_t*	index,	/*!< in: index to be processed */
 	trx_t*		trx,	/*!< in/out: transaction */
 	ulint		space_id,/*!< in: tablespace identifier */
@@ -3024,21 +3024,205 @@ func_exit:
 }
 
 /*****************************************************************//**
+Cleanup after import tablespace. */
+static
+db_err
+row_import_tablespace_cleanup(
+/*==========================*/
+	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt from handler */
+	trx_t*		trx,		/*!< in/out: transaction for import */
+	dict_index_t*	index,		/*!< in: index being processed */
+	db_err		err)		/*!< in: error code */
+{
+	if (err != DB_SUCCESS) {
+		prebuilt->trx->error_info = index;
+
+		/* TODO: drop the broken *.ibd file, because
+		trx would be committed and crash recovery
+		would not drop the table. */
+	}
+
+	trx_commit_for_mysql(trx);
+	trx_free_for_mysql(trx);
+	prebuilt->trx->op_info = "";
+
+	return(err);
+}
+
+/*****************************************************************//**
+Report error during tablespace import. */
+static
+db_err
+row_import_tablespace_error(
+/*========================*/
+	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt from handler */
+	trx_t*		trx,		/*!< in/out: transaction for import */
+	dict_index_t*	index,		/*!< in: index where error detected */
+	db_err		err)		/*!< in: error code */
+{
+	if (!trx_is_interrupted(trx)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: ALTER TABLE ");
+		dict_index_name_print(stderr, trx, index);
+		fprintf(stderr, " IMPORT TABLESPACE failed\n");
+	}
+
+	return(row_import_tablespace_cleanup(prebuilt, trx, index, err));
+}
+
+/*****************************************************************//**
+Adjust the root on the table's indexes.
+@return error code */
+static
+db_err
+row_import_tablespace_adjust_root_pages(
+/*====================================*/
+	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt from
+						handler */
+	dict_table_t*		table,		/*!< in: table the indexes
+						belong to */
+	dict_index_t**		in_index,	/*!< out: cluster index */
+	ulint			n_rows_in_table)/*!< in: number of rows
+						left in index */
+{
+	db_err			err;
+	trx_t*			trx = prebuilt->trx;
+	dict_index_t*		index = dict_table_get_first_index(table);
+
+	*in_index = NULL;
+
+	while ((index = dict_table_get_next_index(index)) != NULL) {
+		ulint	n_rows;
+
+		err = (db_err) btr_root_adjust_on_import(index);
+
+		if (err != DB_SUCCESS) {
+			*in_index = index;
+			return(err);
+		} else if (!btr_validate_index(index, trx, TRUE)) {
+			*in_index = index;
+			return(err);
+		}
+
+		err = (db_err) row_import_tablespace_scan_index(
+			index, trx, table->space, &n_rows);
+
+		if (err != DB_SUCCESS) {
+			*in_index = index;
+			return(err);
+
+		} else if (n_rows != n_rows_in_table) {
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: ");
+			dict_index_name_print(stderr, prebuilt->trx, index);
+			fprintf(stderr,
+				" contains %lu entries, should be %lu\n",
+				(ulong) n_rows,
+				(ulong) n_rows_in_table);
+
+			/* Do not bail out, so that the data
+			can be recovered. */
+			/* TODO: issue the warning to the client */
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
+/*****************************************************************//**
+Ensure that dict_sys->row_id exceeds SELECT MAX(DB_ROW_ID).
+@return error code */
+static
+db_err
+row_import_tablespace_set_sys_max_row_id(
+/*=====================================*/
+	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt from
+						handler */
+	const dict_table_t*	table)		/*!< in: table to import */
+{
+	db_err			err;
+	const rec_t*		rec;
+	mtr_t			mtr;
+	btr_pcur_t		pcur;
+	row_id_t		row_id	= 0;
+	dict_index_t*		index = dict_table_get_first_index(table);
+
+	mtr_start(&mtr);
+
+	btr_pcur_open_at_index_side(
+		FALSE,		// High end
+		index,
+		BTR_SEARCH_LEAF,
+		&pcur,
+		TRUE,		// Init cursor
+		&mtr);
+
+	btr_pcur_move_to_prev_on_page(&pcur);
+	rec = btr_pcur_get_rec(&pcur);
+
+	/* Check for empty table. */
+	if (!page_rec_is_infimum(rec)) {
+		ulint		len;
+		const byte*	field;
+		mem_heap_t*	heap = NULL;
+		ulint		offsets_[1 + REC_OFFS_HEADER_SIZE];
+		ulint*		offsets;
+
+		rec_offs_init(offsets_);
+
+		offsets = rec_get_offsets(rec, index, offsets_, 1, &heap);
+
+		field = rec_get_nth_field(rec, offsets, 0, &len);
+
+		if (len == DATA_ROW_ID_LEN) {
+			row_id = mach_read_from_6(field);
+			err = DB_SUCCESS;
+		} else {
+			err = DB_CORRUPTION;
+		}
+
+		if (heap != NULL) {
+			mem_heap_free(heap);
+		}
+	} else {
+		err = DB_SUCCESS;
+	}
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
+
+	if (err != DB_SUCCESS) {
+		return(err);
+	} else if (row_id) {
+		mutex_enter(&dict_sys->mutex);
+
+		if (row_id >= dict_sys->row_id) {
+			dict_sys->row_id = row_id;
+			dict_hdr_flush_row_id();
+		}
+
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/*****************************************************************//**
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+db_err
 row_import_tablespace_for_mysql(
 /*============================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
 {
-	lsn_t		current_lsn;
-	ulint		err		= DB_SUCCESS;
 	trx_t*		trx;
+	lsn_t		current_lsn;
+	db_err		err		= DB_SUCCESS;
 	ulint		n_rows_in_table;
-	dict_index_t*	index;
 
 	ut_a(table->space);
 	ut_ad(prebuilt->trx);
@@ -3052,22 +3236,29 @@ row_import_tablespace_for_mysql(
 
 	trx_start_if_not_started(trx);
 
-	/* Ensure that the table will be dropped by
-	trx_rollback_active() in case of a crash. */
+	/* Ensure that the table will be dropped by trx_rollback_active()
+	in case of a crash. */
+
 	trx->table_id = table->id;
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	/* Assign an undo segment for the transaction, so that the
 	transaction will be recovered after a crash. */
+
 	mutex_enter(&trx->undo_mutex);
-	err = trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
+
+	err = (db_err) trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
+
 	mutex_exit(&trx->undo_mutex);
 
 	if (err != DB_SUCCESS) {
-		goto func_exit;
+
+		return(row_import_tablespace_cleanup(prebuilt, trx, NULL, err));
+
 	} else if (trx->update_undo == NULL) {
-		err = DB_TOO_MANY_CONCURRENT_TRXS;
-		goto func_exit;
+
+		return(row_import_tablespace_cleanup(
+			prebuilt, trx, NULL, DB_TOO_MANY_CONCURRENT_TRXS));
 	}
 
 	prebuilt->trx->op_info = "importing tablespace";
@@ -3077,6 +3268,7 @@ row_import_tablespace_for_mysql(
 	/* Ensure that trx_lists_init_at_db_start() will find the
 	transaction, so that trx_rollback_active() will be able to
 	drop the half-imported table. */
+
 	log_make_checkpoint_at(current_lsn, TRUE);
 
 	mutex_enter(&dict_sys->mutex);
@@ -3085,13 +3277,14 @@ row_import_tablespace_for_mysql(
 	of the imported table.  The undo logs may contain entries that
 	are referring to the tablespace that was discarded before the
 	import was initiated. */
-	err = row_mysql_table_id_reassign(table, trx);
+
+	err = (db_err) row_mysql_table_id_reassign(table, trx);
 
 	mutex_exit(&dict_sys->mutex);
 
 	if (err != DB_SUCCESS) {
-
-		goto func_exit;
+		return(row_import_tablespace_cleanup(
+			prebuilt, trx, NULL, err));
 	}
 
 	/* It is possible that the lsn's in the tablespace to be
@@ -3113,8 +3306,8 @@ row_import_tablespace_for_mysql(
 		ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
 		fprintf(stderr, " IMPORT TABLESPACE\n");
 
-		err = DB_ERROR;
-		goto func_exit;
+		return(row_import_tablespace_cleanup(
+			prebuilt, trx, NULL, DB_ERROR));
 	}
 
 	/* Play it safe and remove all insert buffer entries for this
@@ -3143,198 +3336,79 @@ row_import_tablespace_for_mysql(
 			fprintf(stderr, " IMPORT TABLESPACE\n");
 		}
 
-		err = DB_ERROR;
-		goto func_exit;
+		return(row_import_tablespace_cleanup(
+			prebuilt, trx, NULL, DB_ERROR));
 	}
 
-	/* Adjust the references in the tablespace. */
-
-	index = dict_table_get_first_index(table);
-
-	err = ibuf_check_bitmap_on_import(trx, table->space);
+	err = (db_err) ibuf_check_bitmap_on_import(trx, table->space);
 
 	if (err != DB_SUCCESS) {
-		goto err_exit;
+		return(row_import_tablespace_cleanup(prebuilt, trx, NULL, err));
 	}
 
-	/* Scan the indexes.
-	In the clustered index, initialize DB_TRX_ID and DB_ROLL_PTR.  If
-	there is a DB_ROW_ID, ensure that the next available DB_ROW_ID is
-	not smaller than any DB_ROW_ID stored in the table.
+	/* Scan the indexes. In the clustered index, initialize DB_TRX_ID
+	and DB_ROLL_PTR.  If there is a DB_ROW_ID, ensure that the next
+	available DB_ROW_ID is not smaller than any DB_ROW_ID stored in
+	the table. Purge any delete-marked records from every index. */
 
-	Purge any delete-marked records from every index. */
-
-	if (!dict_index_is_clust(index)) {
-		goto err_corruption_exit;
+	if (!dict_index_is_clust(dict_table_get_first_index(table))) {
+		return(row_import_tablespace_error(
+			prebuilt, trx, NULL, DB_CORRUPTION));
 	}
 
-	/* // TODO: Update index->page and SYS_INDEXES.PAGE_NO to
-	match the B-tree root page numbers in the tablespace.  The
-	page numbers are currently not stored in the *.ibd file.  One
-	possibility could be to write the relevant records of the SYS_
-	tables somewhere in the *.ibd file during EXPORT TABLESPACE.
-	Then, IMPORT TABLESPACE could also check that the index
-	definitions in the importing instance are close enough. */
+	/* TODO: Update index->page and SYS_INDEXES.PAGE_NO to match the
+	B-tree root page numbers in the tablespace.  The page numbers are
+	currently not stored in the *.ibd file.  One possibility could be
+	to write the relevant records of the SYS_tables somewhere in the
+	*.ibd file during EXPORT TABLESPACE. Then, IMPORT TABLESPACE could
+	also check that the index definitions in the importing instance
+	are close enough. */
 
-	err = btr_root_adjust_on_import(index);
+	dict_index_t*	index = dict_table_get_first_index(table);
+
+	err = (db_err) btr_root_adjust_on_import(index);
 
 	if (err != DB_SUCCESS) {
 
-		goto err_exit;
+		return(row_import_tablespace_error(prebuilt, trx, index, err));
+
+	} else if (!btr_validate_index(index, trx, TRUE)) {
+
+		return(row_import_tablespace_error(
+			prebuilt, trx, index, DB_CORRUPTION));
 	}
 
-	if (!btr_validate_index(index, trx, TRUE)) {
-err_corruption_exit:
-		err = DB_CORRUPTION;
-err_exit:
-		ut_ad(err != DB_SUCCESS);
-		prebuilt->trx->error_info = index;
-
-		if (trx_is_interrupted(prebuilt->trx)) {
-
-			goto func_exit;
-		}
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: ALTER TABLE ");
-		dict_index_name_print(stderr, prebuilt->trx, index);
-		fprintf(stderr, " IMPORT TABLESPACE failed\n");
-
-		goto func_exit;
-	}
-
-	err = row_scan_index_on_import(
+	err = (db_err) row_import_tablespace_scan_index(
 		index, trx, table->space, &n_rows_in_table);
 
 	if (err != DB_SUCCESS) {
 
-		goto err_exit;
+		return(row_import_tablespace_error(prebuilt, trx, index, err));
 	}
 
-	while ((index = dict_table_get_next_index(index)) != NULL) {
-		ulint	n_rows;
+	err = row_import_tablespace_adjust_root_pages(
+		prebuilt, table, &index, n_rows_in_table);
 
-		err = btr_root_adjust_on_import(index);
-
-		if (err != DB_SUCCESS) {
-
-			goto err_exit;
-
-		} else if (!btr_validate_index(index, trx, TRUE)) {
-
-			goto err_corruption_exit;
-		}
-
-		err = row_scan_index_on_import(
-			index, trx, table->space, &n_rows);
-
-		if (err != DB_SUCCESS) {
-
-			goto err_exit;
-
-		} else if (n_rows != n_rows_in_table) {
-
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "InnoDB: ");
-			dict_index_name_print(stderr, prebuilt->trx, index);
-			fprintf(stderr,
-				" contains %lu entries, should be %lu\n",
-				(ulong) n_rows,
-				(ulong) n_rows_in_table);
-
-			/* Do not bail out, so that the data
-			can be recovered. */
-			/* TODO: issue the warning to the client */
-		}
+	if (err != DB_SUCCESS) {
+		return(row_import_tablespace_error(prebuilt, trx, index, err));
 	}
 
-	/* // TO DO: Copy table->flags to SYS_TABLES.TYPE and N_COLS */
+	/* TODO: Copy table->flags to SYS_TABLES.TYPE and N_COLS */
 
 	table->ibd_file_missing = FALSE;
 	table->tablespace_discarded = FALSE;
 
-	if (row_table_got_default_clust_index(table)) {
-		/* Ensure that dict_sys->row_id exceeds
-		SELECT MAX(DB_ROW_ID). */
-		const rec_t*	rec;
-		mtr_t		mtr;
-		btr_pcur_t	pcur;
-		row_id_t	row_id	= 0;
+	err = row_import_tablespace_set_sys_max_row_id(prebuilt, table);
 
-		mtr_start(&mtr);
-
-		index = dict_table_get_first_index(table);
-
-		btr_pcur_open_at_index_side(
-			FALSE,		// High end
-			index,
-			BTR_SEARCH_LEAF,
-			&pcur,
-			TRUE,		// Init cursor
-			&mtr);
-
-		btr_pcur_move_to_prev_on_page(&pcur);
-		rec = btr_pcur_get_rec(&pcur);
-
-		if (!page_rec_is_infimum(rec)) {
-			ulint		len;
-			const byte*	field;
-			mem_heap_t*	heap = NULL;
-			ulint		offsets_[1 + REC_OFFS_HEADER_SIZE];
-			ulint*		offsets;
-
-			rec_offs_init(offsets_);
-
-			offsets = rec_get_offsets(
-				rec, index, offsets_, 1, &heap);
-
-			field = rec_get_nth_field(rec, offsets, 0, &len);
-
-			if (len == DATA_ROW_ID_LEN) {
-				row_id = mach_read_from_6(field);
-			} else {
-				err = DB_CORRUPTION;
-			}
-
-			if (heap != NULL) {
-				mem_heap_free(heap);
-			}
-		}
-
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-
-		if (err != DB_SUCCESS) {
-			goto err_exit;
-		}
-
-		if (row_id) {
-			mutex_enter(&dict_sys->mutex);
-
-			if (row_id >= dict_sys->row_id) {
-				dict_sys->row_id = row_id;
-				dict_hdr_flush_row_id();
-			}
-
-			mutex_exit(&dict_sys->mutex);
-		}
+	if (err != DB_SUCCESS) {
+		return(row_import_tablespace_error(prebuilt, trx, index, err));
 	}
 
 	/* Flush dirty blocks to the file. */
 	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
 
-func_exit:
-	if (err != DB_SUCCESS) {
-		/* // TODO: drop the broken *.ibd file, because
-		trx would be committed and crash recovery
-		would not drop the table. */
-	}
-
-	trx_commit_for_mysql(trx);
-	trx_free_for_mysql(trx);
-	prebuilt->trx->op_info = "";
-
-	return(err);
+	ut_a(err == DB_SUCCESS);
+	return(row_import_tablespace_cleanup(prebuilt, trx, NULL, err));
 }
 
 /*********************************************************************//**
@@ -5246,7 +5320,7 @@ row_mysql_init(void)
 {
 	mutex_create(
 		row_drop_list_mutex_key,
-	       	&row_drop_list_mutex, SYNC_NO_ORDER_CHECK);
+		&row_drop_list_mutex, SYNC_NO_ORDER_CHECK);
 
 	UT_LIST_INIT(row_mysql_drop_list);
 
@@ -5266,3 +5340,65 @@ row_mysql_close(void)
 
 	row_mysql_drop_list_inited = FALSE;
 }
+
+/*********************************************************************//**
+Quiesce the tablespace that the table resides in. */
+UNIV_INTERN
+void
+row_mysql_quiesce_table_begin(
+/*==========================*/
+	dict_table_t*	table)		/*!< in: quiesce this table */
+{
+	fprintf(stderr, "Begin: Quiesce: %s\n", table->name);
+
+	table->quiesce = QUIESCE_START;
+
+	trx_purge_stop();
+
+	table->quiesce = QUIESCE_MERGING;
+
+	ibuf_contract_in_background(table->id, TRUE);
+
+	table->quiesce = QUIESCE_FLUSHING;
+
+	ulint	n_pages = buf_flush_list(
+		table->space, ULINT_MAX, ULINT_UNDEFINED);
+
+	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+
+	fprintf(stderr, "Pages flushed: %lu\n", n_pages);
+
+	for (const dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+	     index != 0;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		fprintf(stderr, "index: %s: %lu:%lu\n",
+			index->name,
+			(ulint) index->space, (ulint) index->page);
+	}
+
+	// FIXME: Ignore races for now. Though I can't see why
+	// there should be a race for the interim states.
+	table->quiesce = QUIESCE_COMPLETE;
+}
+
+/*********************************************************************//**
+Cleanup after table quiesce. */
+UNIV_INTERN
+void
+row_mysql_quiesce_table_complete(
+/*=============================*/
+	dict_table_t*	table)		/*!< in: quiesce this table */
+{
+
+	fprintf(stderr, "End: Quiesce: %s\n", table->name);
+
+	ut_a(table->quiesce = QUIESCE_COMPLETE);
+
+	trx_purge_run();
+
+	// FIXME: Ignore races for now. Though I can't see why
+	// there should be a race for the interim states.
+	table->quiesce = QUIESCE_NONE;
+}
+

@@ -488,7 +488,7 @@ Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+enum db_err
 row_import_tablespace_for_mysql(
 /*============================*/
 	dict_table_t*	table,		/*!< in/out: table */
@@ -554,6 +554,22 @@ UNIV_INTERN
 void
 row_mysql_close(void);
 /*=================*/
+
+/*********************************************************************//**
+Quiesce the tablespace that the table resides in. */
+UNIV_INTERN
+void
+row_mysql_quiesce_table_begin(
+/*==========================*/
+	dict_table_t*	table);		/*!< in: quiesce this table */
+
+/*********************************************************************//**
+Cleanup after table quiesce. */
+UNIV_INTERN
+void
+row_mysql_quiesce_table_complete(
+/*=============================*/
+	dict_table_t*	table);		/*!< in: quiesce this table */
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
