@@ -1225,11 +1225,14 @@ int main(int argc,char *argv[])
   my_win_translate_command_line_args(&my_charset_utf8mb4_bin, &argc, &argv);
 #endif
 
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my",load_default_groups,&argc,&argv))
   {
     my_end(0);
     exit(1);
   }
+  my_getopt_use_args_separator= FALSE;
+
   defaults_argv=argv;
   if (get_options(argc, (char **) argv))
   {
@@ -1596,7 +1599,7 @@ static struct my_option my_long_options[] =
 #endif
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},

@@ -560,9 +560,11 @@ public:
   bool fix_fields(THD *thd, Item **ref)
   {
     DBUG_ASSERT(fixed == 0);
-    return ((!item->fixed && item->fix_fields(thd, &item)) ||
-	    item->check_cols(1) ||
-	    Item_func::fix_fields(thd, ref));
+    bool res= ((!item->fixed && item->fix_fields(thd, &item)) ||
+               item->check_cols(1) ||
+               Item_func::fix_fields(thd, ref));
+    maybe_null|= item->maybe_null;
+    return res;
   }
   void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                       List<Item> &fields);
