@@ -215,6 +215,8 @@ a1	a2	a1	a2
 10	bbb	BBB	20
 20	zzz	AAA	10
 20	zzz	BBB	20
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
 max(t1.a1)	max(t2.a1)
 NULL	NULL
@@ -245,6 +247,7 @@ NULL
 select max(t1.a2),max(t2.a1) from t1 left outer join t2 on t1.a1=10;
 max(t1.a2)	max(t2.a1)
 zzz	BBB
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1,t2;
 CREATE TABLE t1 (a int, b int);
 select count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1;
@@ -1865,7 +1868,7 @@ SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'j'
 
@@ -1891,7 +1894,7 @@ SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
 
 #
 # 3) Test that subquery materialization is setup for query with
@@ -1915,7 +1918,7 @@ SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
 
 #
 # 4) Test that subquery materialization is setup for query with
@@ -1930,6 +1933,8 @@ FROM t2);
 MIN(a)
 NULL
 
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 EXPLAIN 
 SELECT MIN(a)
 FROM (SELECT a FROM empty1) tt
@@ -1938,8 +1943,9 @@ SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
-3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+3	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+set optimizer_switch=@tmp_optimizer_switch;
 
 #
 # 5) Test that subquery materialization is setup for query with
@@ -1964,8 +1970,8 @@ SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
-3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+3	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 set @@optimizer_switch=@save_optimizer_switch;
 #
 # Cleanup for BUG#46680

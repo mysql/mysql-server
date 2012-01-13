@@ -210,7 +210,8 @@ fseg_alloc_free_page_general(
 				with fsp_reserve_free_extents, then there
 				is no need to do the check for this individual
 				page */
-	mtr_t*		mtr);	/*!< in: mtr handle */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((warn_unused_result, nonnull(1,5)));
 /**********************************************************************//**
 Reserves free pages from a tablespace. All mini-transactions which may
 use several pages from the tablespace should call this function beforehand

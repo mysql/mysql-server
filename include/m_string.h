@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,14 +58,16 @@
 /* Unixware 7 */
 #if !defined(HAVE_BFILL)
 # define bfill(A,B,C)           memset((A),(C),(B))
-# define bmove_align(A,B,C)    memcpy((A),(B),(C))
 #endif
 
-#if !defined(HAVE_BCMP)
-# define bcopy(s, d, n)		memcpy((d), (s), (n))
-# define bcmp(A,B,C)		memcmp((A),(B),(C))
-# define bzero(A,B)		memset((A),0,(B))
 # define bmove_align(A,B,C)     memcpy((A),(B),(C))
+
+#if !defined(HAVE_BCMP)
+# define bcmp(A,B,C)		memcmp((A),(B),(C))
+#endif
+
+#if !defined(bzero) && (!defined(HAVE_BZERO) || !defined(HAVE_DECL_BZERO))
+# define bzero(A,B)             memset((A),0,(B))
 #endif
 
 #if defined(__cplusplus)

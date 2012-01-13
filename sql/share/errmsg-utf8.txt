@@ -6558,3 +6558,4 @@ ER_CONNECTION_KILLED 70100
         eng "Connection was killed"
 ER_INTERNAL_ERROR
         eng "Internal error: '%-.192s'"
+

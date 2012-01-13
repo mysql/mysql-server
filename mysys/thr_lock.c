@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,8 +95,8 @@ ulong locks_immediate = 0L, locks_waited = 0L;
 enum thr_lock_type thr_upgraded_concurrent_insert_lock = TL_WRITE;
 
 /* The following constants are only for debug output */
-#define MAX_THREADS 100
-#define MAX_LOCKS   100
+#define MAX_THREADS 1000
+#define MAX_LOCKS   1000
 
 
 LIST *thr_lock_thread_list;			/* List of threads in use */

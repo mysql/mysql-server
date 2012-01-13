@@ -336,6 +336,8 @@ extern void maria_enable_logging(MARIA_HA *info);
 #define HA_RECOVER_FORCE        4       /* Recover even if we loose rows */
 #define HA_RECOVER_QUICK        8       /* Don't check rows in data file */
 
+#define HA_RECOVER_ANY (HA_RECOVER_DEFAULT | HA_RECOVER_BACKUP | HA_RECOVER_FORCE | HA_RECOVER_QUICK)
+
 /* this is used to pass to mysql_mariachk_table */
 
 #define MARIA_CHK_REPAIR 1              /* equivalent to mariachk -r */

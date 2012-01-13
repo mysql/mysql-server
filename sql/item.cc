@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4227,7 +4227,7 @@ String* Item_ref_null_helper::val_str(String* s)
 
 bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
 {  
-  return (owner->was_null|= null_value= (*ref)->get_date(ltime, fuzzydate));
+  return (owner->was_null|= null_value= (*ref)->get_date_result(ltime, fuzzydate));
 }
 
 
@@ -8654,6 +8654,20 @@ void Item_cache::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
+/**
+  Assign to this cache NULL value if it is possible
+*/
+
+void Item_cache::set_null()
+{
+  if (maybe_null)
+  {
+    null_value= TRUE;
+    value_cached= TRUE;
+  }
+}
+
+
 bool  Item_cache_int::cache_value()
 {
   if (!example)
@@ -9088,6 +9102,20 @@ void Item_cache_row::bring_value()
   for (uint i= 0; i < item_count; i++)
     values[i]->bring_value();
 }
+
+
+/**
+  Assign to this cache NULL value if it is possible
+*/
+
+void Item_cache_row::set_null()
+{
+  Item_cache::set_null();
+  if (!values)
+    return;
+  for (uint i= 0; i < item_count; i++)
+    values[i]->set_null();
+};
 
 
 Item_type_holder::Item_type_holder(THD *thd, Item *item)

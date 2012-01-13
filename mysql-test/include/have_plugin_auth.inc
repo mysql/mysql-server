@@ -1,5 +1,4 @@
-disable_query_log;
---require r/true.require
-select (PLUGIN_LIBRARY LIKE 'auth_test_plugin%') as `TRUE` FROM INFORMATION_SCHEMA.PLUGINS 
-  WHERE PLUGIN_NAME='test_plugin_server';
-enable_query_log;
+if (`select count(*) = 0 from information_schema.plugins where plugin_name = 'test_plugin_server' and plugin_status='active'`)
+{
+  --skip Needs auth_test_plugin
+}

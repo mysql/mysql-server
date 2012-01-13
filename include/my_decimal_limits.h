@@ -38,7 +38,7 @@
 
 /**
   maximum length of string representation (number of maximum decimal
-  digits + 1 position for sign + 1 position for decimal point)
+  digits + 1 position for sign + 1 position for decimal point, no terminator)
 */
 #define DECIMAL_MAX_STR_LENGTH (DECIMAL_MAX_POSSIBLE_PRECISION + 2)
 

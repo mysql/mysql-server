@@ -41,7 +41,8 @@ set session aria_repair_threads=cast(-1 as unsigned int);
 Warnings:
 Note	1105	Cast to unsigned converted negative integer to it's positive complement
 Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect aria_repair_threads value: '18446744073709551615'
 select @@session.aria_repair_threads;
 @@session.aria_repair_threads
-18446744073709551615
+128
 SET @@global.aria_repair_threads = @start_global_value;

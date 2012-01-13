@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1796,7 +1797,7 @@ void st_select_lex_node::init_query()
   options= 0;
   sql_cache= SQL_CACHE_UNSPECIFIED;
   linkage= UNSPECIFIED_TYPE;
-  no_error= no_table_names_allowed= 0;
+  no_table_names_allowed= 0;
   uncacheable= 0;
 }
 
@@ -1865,10 +1866,10 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
-  m_non_agg_field_used= false;
-  m_agg_func_used= false;
   is_prep_leaf_list_saved= FALSE;
   bzero((char*) expr_cache_may_be_used, sizeof(expr_cache_may_be_used));
+  m_non_agg_field_used= false;
+  m_agg_func_used= false;
 }
 
 void st_select_lex::init_select()
@@ -1901,10 +1902,10 @@ void st_select_lex::init_select()
   non_agg_fields.empty();
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
-  m_non_agg_field_used= false;
-  m_agg_func_used= false;
   insert_tables= 0;
   merged_into= 0;
+  m_non_agg_field_used= false;
+  m_agg_func_used= false;
 }
 
 /*
@@ -3762,20 +3763,58 @@ void st_select_lex::set_explain_type()
   SELECT_LEX *first= master_unit()->first_select();
   /* drop UNCACHEABLE_EXPLAIN, because it is for internal usage only */
   uint8 is_uncacheable= (uncacheable & ~UNCACHEABLE_EXPLAIN);
+  
+  bool using_materialization= FALSE;
+  Item_subselect *parent_item;
+  if ((parent_item= master_unit()->item) &&
+      parent_item->substype() == Item_subselect::IN_SUBS)
+  {
+    Item_in_subselect *in_subs= (Item_in_subselect*)parent_item;
+    /*
+      Surprisingly, in_subs->is_set_strategy() can return FALSE here,
+      even for the last invocation of this function for the select.
+    */
+    if (in_subs->test_strategy(SUBS_MATERIALIZATION))
+      using_materialization= TRUE;
+  }
 
-  type= ((&master_unit()->thd->lex->select_lex == this) ?
-         (is_primary ? "PRIMARY" : "SIMPLE"):    
-         ((this == first) ?
-          ((linkage == DERIVED_TABLE_TYPE) ?
-           "DERIVED" :
-           ((is_uncacheable & UNCACHEABLE_DEPENDENT) ?
-            "DEPENDENT SUBQUERY" :
-            (is_uncacheable ? "UNCACHEABLE SUBQUERY" :
-             "SUBQUERY"))) :
-          ((is_uncacheable & UNCACHEABLE_DEPENDENT) ?
-           "DEPENDENT UNION":
-           is_uncacheable ? "UNCACHEABLE UNION":
-           "UNION")));
+  if (&master_unit()->thd->lex->select_lex == this)
+  {
+     type= is_primary ? "PRIMARY" : "SIMPLE";
+  }
+  else
+  {
+    if (this == first)
+    {
+      /* If we're a direct child of a UNION, we're the first sibling there */
+      if (linkage == DERIVED_TABLE_TYPE)
+        type= "DERIVED";
+      else if (using_materialization)
+        type= "MATERIALIZED";
+      else
+      {
+         if (is_uncacheable & UNCACHEABLE_DEPENDENT)
+           type= "DEPENDENT SUBQUERY";
+         else
+         {
+           type= is_uncacheable? "UNCACHEABLE SUBQUERY" :
+                                 "SUBQUERY";
+         }
+      }
+    }
+    else
+    {
+      /* This a non-first sibling in UNION */
+      if (is_uncacheable & UNCACHEABLE_DEPENDENT)
+        type= "DEPENDENT UNION";
+      else if (using_materialization)
+        type= "MATERIALIZED UNION";
+      else
+      {
+        type= is_uncacheable ? "UNCACHEABLE UNION": "UNION";
+      }
+    }
+  }
   options|= SELECT_DESCRIBE;
 }
 
@@ -3841,12 +3880,12 @@ bool st_select_lex::save_leaf_tables(THD *thd)
   {
     if (leaf_tables_exec.push_back(table))
       return 1;
-    table->tablenr_exec= table->table->tablenr;
-    table->map_exec= table->table->map;
+    table->tablenr_exec= table->get_tablenr();
+    table->map_exec= table->get_map();
     if (join && (join->select_options & SELECT_DESCRIBE))
       table->maybe_null_exec= 0;
     else
-      table->maybe_null_exec= table->table->maybe_null;
+      table->maybe_null_exec= table->table?  table->table->maybe_null: 0;
   }
   if (arena)
     thd->restore_active_arena(arena, &backup);

@@ -1,4 +1,2 @@
 --master-retry-count=1
-$PLUGIN_AUTH_OPT
-$PLUGIN_AUTH_LOAD
-
+--plugin-load=$AUTH_TEST_PLUGIN_SO

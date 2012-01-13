@@ -332,7 +332,7 @@ fseg_alloc_free_page_low(
 				inserted there in order, into which
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
-	mtr_t*		mtr);	/*!< in: mtr handle */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
@@ -1547,7 +1547,7 @@ fsp_alloc_free_page(
 	ulint	zip_size,/*!< in: compressed page size in bytes
 			or 0 for uncompressed pages */
 	ulint	hint,	/*!< in: hint of which page would be desirable */
-	mtr_t*	mtr)	/*!< in: mtr handle */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
 	fsp_header_t*	header;
 	fil_addr_t	first;
@@ -2576,7 +2576,7 @@ fseg_alloc_free_page_low(
 				inserted there in order, into which
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
-	mtr_t*		mtr)	/*!< in: mtr handle */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	fsp_header_t*	space_header;
 	ulint		space_size;
@@ -2824,7 +2824,7 @@ fseg_alloc_free_page_general(
 				with fsp_reserve_free_extents, then there
 				is no need to do the check for this individual
 				page */
-	mtr_t*		mtr)	/*!< in: mtr handle */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	fseg_inode_t*	inode;
 	ulint		space;

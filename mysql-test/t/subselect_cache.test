@@ -3,6 +3,10 @@ drop table if exists t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
 drop view if exists v1;
 --enable_warnings
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+SET optimizer_switch='semijoin_with_cache=off';
+
 set optimizer_switch='subquery_cache=on';
 
 create table t1 (a int, b int);
@@ -1558,6 +1562,7 @@ INSERT INTO `t2` VALUES (20,4,2,'d','d');
 
 # Here we just need plenty of different parameters to overflow
 # temporary heap table of expression cache
+--disable_warnings
 SELECT table1 .`col_varchar_nokey`
 FROM t2 table1 RIGHT JOIN t1 LEFT JOIN (
 SELECT SUBQUERY1_t2 .*
@@ -1567,6 +1572,7 @@ FROM t1 ) table4 JOIN ( t1 table5 JOIN t2 table6 ON table5 .`pk` ) ON table5 .`c
 WHERE table3 .`col_varchar_key` IN (
 SELECT `col_varchar_key`
 FROM t2 ) AND table1 .`col_varchar_key` OR table1 .`pk` ;
+--enable_warnings
 
 drop table t1,t2;
 set @@optimizer_switch= default;
@@ -1695,6 +1701,8 @@ SELECT * FROM t4 WHERE b NOT IN ( SELECT * FROM v1 );
 
 drop view v1;
 drop table t1,t2,t3,t4;
+
+SET optimizer_switch=@save_optimizer_switch;
 
 --echo # restore default
 set @@optimizer_switch= default;

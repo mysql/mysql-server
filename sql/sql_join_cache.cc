@@ -2368,7 +2368,7 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
     int res= 0;
 
     if (!join_tab->check_weed_out_table || 
-        !(res= do_sj_dups_weedout(join->thd, join_tab->check_weed_out_table)))
+        !(res= join_tab->check_weed_out_table->sj_weedout_check_row(join->thd)))
     {
       set_curr_rec_link(rec_ptr);
       rc= (join_tab->next_select)(join, join_tab+1, 0);

@@ -3339,7 +3339,7 @@ static Sys_var_ulong Sys_join_cache_level(
        "numbers are used for plain join buffers while even numbers are used "
        "for linked buffers",
        SESSION_VAR(join_cache_level), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, 8), DEFAULT(1), BLOCK_SIZE(1));
+       VALID_RANGE(0, 8), DEFAULT(2), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_mrr_buffer_size(
        "mrr_buffer_size",

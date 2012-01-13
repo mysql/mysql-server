@@ -394,6 +394,7 @@ SET @@GLOBAL.max_allowed_packet=2048;
 
 SELECT CONVERT('a', BINARY(2049));  
 SELECT CONVERT('a', CHAR(2049));  
+SELECT length(CONVERT(repeat('a',2048), CHAR(2049)));
 
 connection default;
 disconnect newconn;

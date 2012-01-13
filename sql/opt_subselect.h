@@ -10,6 +10,8 @@ int check_and_do_in_subquery_rewrites(JOIN *join);
 bool convert_join_subqueries_to_semijoins(JOIN *join);
 int pull_out_semijoin_tables(JOIN *join);
 bool optimize_semijoin_nests(JOIN *join, table_map all_table_map);
+bool setup_jtbm_semi_joins(JOIN *join, List<TABLE_LIST> *join_list,  
+                           Item **join_where);
 
 // used by Loose_scan_opt
 ulonglong get_bound_sj_equalities(TABLE_LIST *sj_nest, 
@@ -40,7 +42,6 @@ ulonglong get_bound_sj_equalities(TABLE_LIST *sj_nest,
 
 class Loose_scan_opt
 {
-public:
   /* All methods must check this before doing anything else */
   bool try_loosescan;
 
@@ -71,6 +72,7 @@ public:
 
   uint best_max_loose_keypart;
 
+public:
   Loose_scan_opt():
     try_loosescan(FALSE),
     bound_sj_equalities(0),
@@ -263,8 +265,8 @@ public:
     {
       pos->records_read=    best_loose_scan_records;
       pos->key=             best_loose_scan_start_key;
-      pos->loosescan_key=   best_loose_scan_key;
-      pos->loosescan_parts= best_max_loose_keypart + 1;
+      pos->loosescan_picker.loosescan_key=   best_loose_scan_key;
+      pos->loosescan_picker.loosescan_parts= best_max_loose_keypart + 1;
       pos->use_join_buffer= FALSE;
       pos->table=           tab;
       // todo need ref_depend_map ?
@@ -277,8 +279,7 @@ public:
 };
 
 
-void advance_sj_state(JOIN *join, const table_map remaining_tables, 
-                      const JOIN_TAB *new_join_tab, uint idx, 
+void advance_sj_state(JOIN *join, const table_map remaining_tables, uint idx, 
                       double *current_record_count, double *current_read_time,
                       POSITION *loose_scan_pos);
 void restore_prev_sj_state(const table_map remaining_tables, 
@@ -289,10 +290,6 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join);
 bool setup_sj_materialization_part1(JOIN_TAB *sjm_tab);
 bool setup_sj_materialization_part2(JOIN_TAB *sjm_tab);
 
-TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
-                                          SJ_TMP_TABLE *sjtbl);
-int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
-int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 
 /*
   Temporary table used by semi-join DuplicateElimination strategy
@@ -359,8 +356,11 @@ public:
   ENGINE_COLUMNDEF *start_recinfo;
   ENGINE_COLUMNDEF *recinfo;
 
-  /* Pointer to next table (next->start_idx > this->end_idx) */
-  SJ_TMP_TABLE *next; 
+  SJ_TMP_TABLE *next_flush_table; 
+
+  int sj_weedout_delete_rows();
+  int sj_weedout_check_row(THD *thd);
+  bool create_sj_weedout_tmp_table(THD *thd);
 };
 
 int setup_semijoin_dups_elimination(JOIN *join, ulonglong options, 

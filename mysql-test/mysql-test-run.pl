@@ -176,6 +176,7 @@ my $DEFAULT_SUITES= join(',', qw(
     pbxt
     percona
     perfschema
+    plugins
     rpl
     sphinx
     sys_vars
@@ -2845,7 +2846,7 @@ sub check_debug_support ($) {
 #
 # Helper function to find the correct value for the opt_vs_config
 # if it was not set explicitly.
-# 
+#
 # the configuration with the most recent build dir in sql/ is selected.
 #
 # note: looking for all BuildLog.htm files everywhere in the tree with the
@@ -2871,6 +2872,33 @@ sub fix_vs_config_dir () {
 
   mtr_report("VS config: $opt_vs_config");
   $opt_vs_config="/$opt_vs_config" if $opt_vs_config;
+}
+
+
+#
+# Helper function to handle configuration-based subdirectories which Visual
+# Studio uses for storing binaries.  If opt_vs_config is set, this returns
+# a path based on that setting; if not, it returns paths for the default
+# /release/ and /debug/ subdirectories.
+#
+# $exe can be undefined, if the directory itself will be used
+#
+sub vs_config_dirs ($$) {
+  my ($path_part, $exe) = @_;
+
+  $exe = "" if not defined $exe;
+
+  # Don't look in these dirs when not on windows
+  return () unless IS_WINDOWS;
+
+  if ($opt_vs_config)
+  {
+    return ("$basedir/$path_part/$opt_vs_config/$exe");
+  }
+
+  return ("$basedir/$path_part/release/$exe",
+          "$basedir/$path_part/relwithdebinfo/$exe",
+          "$basedir/$path_part/debug/$exe");
 }
 
 
@@ -4134,7 +4162,7 @@ sub run_testcase ($$) {
   # Allow only alpanumerics pluss _ - + . in combination names,
   # or anything beginning with -- (the latter comes from --combination)
   my $combination= $tinfo->{combination};
-  if ($combination && $combination !~ /^\w[-\w\.\+]+$/
+  if ($combination && $combination !~ /^\w[-\w\.\+]*$/
                    && $combination !~ /^--/)
   {
     mtr_error("Combination '$combination' contains illegal characters");
@@ -5301,6 +5329,9 @@ sub mysqld_arguments ($$$) {
   }
 
   my $found_skip_core= 0;
+  my @plugins;
+  my %seen;
+  my $plugin;
   foreach my $arg ( @$extra_opts )
   {
     # Skip --defaults-file option since it's handled above.
@@ -5320,10 +5351,10 @@ sub mysqld_arguments ($$$) {
     {
       ; # Dont add --skip-log-bin when mysqld have --log-slave-updates in config
     }
-    elsif ($arg eq "")
+    elsif ($plugin = mtr_match_prefix($arg,  "--plugin-load="))
     {
-      # We can get an empty argument when  we set environment variables to ""
-      # (e.g plugin not found). Just skip it.
+      push @plugins, $plugin unless $seen{$plugin};
+      $seen{$plugin} = 1;
     }
     else
     {
@@ -5340,6 +5371,11 @@ sub mysqld_arguments ($$$) {
   # Facility stays disabled if timeout value is zero.
   mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
               $opt_debug_sync_timeout) unless $opt_user_args;
+
+  if (@plugins) {
+    my $sep = (IS_WINDOWS) ? ';' : ':';
+    mtr_add_arg($args, "--plugin-load=%s" .  join($sep, @plugins));
+  }
 
   return $args;
 }
@@ -5441,8 +5477,8 @@ sub mysqld_start ($$) {
     # Write a message about this to the normal log file
     my $trace_name= "$opt_vardir/log/".$mysqld->name().".trace";
     mtr_tofile($output,
-	       "NOTE: When running with --valgrind --debug the output from",
-	       "mysqld(where the valgrind messages shows up) is stored ",
+               "NOTE: When running with --valgrind --debug the output from ",
+	       "mysqld (where the valgrind messages shows up) is stored ",
 	       "together with the trace file to make it ",
 	       "easier to find the exact position of valgrind errors.",
 	       "See trace file $trace_name.\n");

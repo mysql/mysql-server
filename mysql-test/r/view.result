@@ -2,6 +2,8 @@ drop table if exists t1,t2,t3,t4,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop database if exists mysqltest;
 use test;
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 create view v1 (c,d) as select a,b from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 create temporary table t1 (a int, b int);
@@ -4567,3 +4569,4 @@ NULL	NULL	1	0
 NULL	NULL	1	0
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
+SET optimizer_switch=@save_optimizer_switch;

@@ -830,6 +830,11 @@ sub GetData()
 
         %OLD_STATUS = %STATUS;
 
+	# Set some status that may not exist in all versions
+	$STATUS{Handler_tmp_write}= 0;
+	$STATUS{Handler_tmp_update}= 0;
+	$STATUS{Rows_tmp_read}= 0;
+
         foreach my $ref (@recs)
         {
             my $key = $ref->{Variable_name};
@@ -926,7 +931,7 @@ sub GetData()
         $lines_left--;
 
 
-        printf " Queries: %-6s  qps: %4.0f Slow: %7s         Se/In/Up/De(%%):    %02.0f/%02.0f/%02.0f/%02.0f \n",
+        printf " Queries: %-6s  qps: %4.0f Slow: %7s         Se/In/Up/De(%%):    %02.0f/%02.0f/%02.0f/%02.0f\n",
                make_short( $STATUS{Questions} ),  # q total
                $STATUS{Questions} / $STATUS{Uptime},  # qps, average
                make_short( $STATUS{Slow_queries} ),    # slow
@@ -944,7 +949,7 @@ sub GetData()
           my $q_diff = ( $STATUS{Questions} - $OLD_STATUS{Questions} );
 #          print("q_diff: $STATUS{Questions} - $OLD_STATUS{Questions}  / $t_delta = $q_diff\n");
 
-          printf(" Sorts: %5.0f qps now: %4.0f Slow qps: %3.1f  Threads: %4.0f (%4.0f/%4.0f) %02.0f/%02.0f/%02.0f/%02.0f \n",
+          printf(" Sorts: %5.0f qps now: %4.0f Slow qps: %3.1f  Threads: %4.0f (%4.0f/%4.0f) %02.0f/%02.0f/%02.0f/%02.0f\n",
 		 ( $STATUS{Sort_rows} - $OLD_STATUS{Sort_rows} ) / $t_delta, 
                  ( $STATUS{Questions} - $OLD_STATUS{Questions} ) / $t_delta,
                  ( # slow now (qps)
@@ -1014,6 +1019,35 @@ sub GetData()
         }
         $lines_left--;
 
+        if ($t_delta)
+	{
+	  printf(" Handler: (R/W/U/D) %5d/%5d/%5d/%5d        Tmp: R/W/U: %5d/%5d/%5d\n",
+		 ($STATUS{Handler_read_first}+$STATUS{Handler_read_key}+
+		 $STATUS{Handler_read_next}+$STATUS{Handler_read_prev}+
+		 $STATUS{Handler_read_rnd}+$STATUS{Handler_read_rnd_next} -
+		 $OLD_STATUS{Handler_read_first}-$OLD_STATUS{Handler_read_key}-
+		 $OLD_STATUS{Handler_read_next}-$OLD_STATUS{Handler_read_prev}-
+		 $OLD_STATUS{Handler_read_rnd}-
+		 $OLD_STATUS{Handler_read_rnd_next})/$t_delta,
+		 ($STATUS{Handler_write} - $OLD_STATUS{Handler_write}) /
+		 $t_delta,
+		 ($STATUS{Handler_update} - $OLD_STATUS{Handler_update}) /
+		 $t_delta,
+		 ($STATUS{Handler_delete} - $OLD_STATUS{Handler_delete}) / 
+		 $t_delta,
+		 ($STATUS{Rows_tmp_read} - $OLD_STATUS{Rows_tmp_read}) /
+		 $t_delta,
+		 ($STATUS{Handler_tmp_write} 
+		  -$OLD_STATUS{Handler_tmp_write})/$t_delta,
+		 ($STATUS{Handler_tmp_update} -
+		  $OLD_STATUS{Handler_tmp_update})/$t_delta);
+	}
+	else
+        {
+            print "\n";
+        }
+
+	$lines_left--;
 
         printf(" MyISAM Key Efficiency: %2.1f%%  Bps in/out: %5s/%5s   ",
                $cache_hits_percent,

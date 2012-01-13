@@ -428,6 +428,8 @@ select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2 where t1.b > 'a' and t2.c > 'b1' )
 group by a1,a2,b;
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 explain select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2
                where t2.c in (select c from t3 where t3.c > t1.b) and
@@ -439,6 +441,7 @@ where exists ( select * from t2
                where t2.c in (select c from t3 where t3.c > t1.b) and
                t2.c > 'b1' )
 group by a1,a2,b;
+SET optimizer_switch=@save_optimizer_switch;
 
 # correlated subselect that references the min/max argument
 explain select a1,a2,b,c,min(c), max(c) from t1
@@ -449,6 +452,8 @@ select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2 where t1.c > 'a' and t2.c > 'b1' )
 group by a1,a2,b;
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 explain select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2
                where t2.c in (select c from t3 where t3.c > t1.c) and
@@ -460,6 +465,7 @@ where exists ( select * from t2
                where t2.c in (select c from t3 where t3.c > t1.c) and
                t2.c > 'b1' )
 group by a1,a2,b;
+SET optimizer_switch=@save_optimizer_switch;
 
 
 # A,B,C) Predicates referencing mixed classes of attributes
@@ -1149,6 +1155,43 @@ ORDER BY min_a;
 
 DROP TABLE t1;
 
+--echo #
+--echo # LP BUG#888456 Wrong result with DISTINCT , ANY , subquery_cache=off , NOT NULL
+--echo #
+
+CREATE TABLE t1 ( a int NOT NULL) ;
+INSERT INTO t1 VALUES (28),(29),(9);
+
+CREATE TABLE t2 ( a int, KEY (a)) ;
+INSERT INTO t2 VALUES (1),(1),(1),(4),(4),(5),(5),(8),(8),(9);
+
+explain select (select t2.a from t2 where t2.a >= t1.a group by t2.a) from t1;
+select (select t2.a from t2 where t2.a >= t1.a group by t2.a) from t1;
+
+drop table t1, t2;
+
+--echo #
+--echo # LP BUG#900375 Wrong result with derived_merge=ON, DISTINCT or GROUP BY, EXISTS
+--echo #
+
+CREATE TABLE t1 ( a INT, b INT, KEY (b) );
+INSERT INTO t1 VALUES
+(100,10),(101,11),(102,12),(103,13),(104,14),
+(105,15),(106,16),(107,17),(108,18),(109,19);
+
+EXPLAIN
+SELECT alias1.* FROM t1, (SELECT * FROM t1) AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+SELECT alias1.* FROM t1, (SELECT * FROM t1) AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+
+EXPLAIN
+SELECT alias1.* FROM t1, t1 AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+SELECT alias1.* FROM t1, t1 AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+
+drop table t1;
 
 --echo End of 5.1 tests
 

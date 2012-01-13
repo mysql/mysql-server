@@ -918,6 +918,7 @@ void intern_close_table(TABLE *table)
   delete table->triggers;
   if (table->file)                              // Not true if placeholder
     (void) closefrm(table, 1);			// close file
+  table->alias.free();
   DBUG_VOID_RETURN;
 }
 
@@ -8160,7 +8161,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       Item *item= table_list->jtbm_subselect->optimizer;
       if (table_list->jtbm_subselect->optimizer->fix_fields(thd, &item))
       {
-        my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES); /* psergey-todo: WHY ER_TOO_MANY_TABLES ???*/
+        my_error(ER_TOO_MANY_TABLES,MYF(0), static_cast<int>(MAX_TABLES)); /* psergey-todo: WHY ER_TOO_MANY_TABLES ???*/
         DBUG_RETURN(1);
       }
       DBUG_ASSERT(item == table_list->jtbm_subselect->optimizer);
@@ -8704,9 +8705,11 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   Item *value, *fld;
   Item_field *field;
   TABLE *table= 0, *vcol_table= 0;
-  bool abort_on_warning_saved= thd->abort_on_warning;
+  bool save_abort_on_warning= thd->abort_on_warning;
+  bool save_no_errors= thd->no_errors;
   DBUG_ENTER("fill_record");
 
+  thd->no_errors= ignore_errors;
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
     only one row.
@@ -8769,10 +8772,12 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
         goto err;
     }
   }
-  thd->abort_on_warning= abort_on_warning_saved;
+  thd->abort_on_warning= save_abort_on_warning;
+  thd->no_errors=        save_no_errors;
   DBUG_RETURN(thd->is_error());
 err:
-  thd->abort_on_warning= abort_on_warning_saved;
+  thd->abort_on_warning= save_abort_on_warning;
+  thd->no_errors=        save_no_errors;
   if (table)
     table->auto_increment_field_not_null= FALSE;
   DBUG_RETURN(TRUE);

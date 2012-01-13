@@ -197,15 +197,19 @@
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
                                     OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
+                                    OPTIMIZER_SWITCH_DERIVED_MERGE | \
+                                    OPTIMIZER_SWITCH_DERIVED_WITH_KEYS | \
                                     OPTIMIZER_SWITCH_TABLE_ELIMINATION | \
                                     OPTIMIZER_SWITCH_IN_TO_EXISTS | \
                                     OPTIMIZER_SWITCH_MATERIALIZATION | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
+                                    OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE | \
+                                    OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_BKA | \
-                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE |\
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE | \
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_FIRSTMATCH | \
                                     OPTIMIZER_SWITCH_LOOSE_SCAN )

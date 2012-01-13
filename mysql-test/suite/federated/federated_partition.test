@@ -1,6 +1,7 @@
 #
 # Tests for partitioned FEDERATED
 #
+source have_federatedx.inc;
 source include/have_partition.inc;
 source include/have_innodb.inc;
 source federated.inc;

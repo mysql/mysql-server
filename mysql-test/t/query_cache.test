@@ -771,7 +771,19 @@ show status like "Qcache_hits";
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
+
+set query_cache_strip_comments=1;
+(select a from t1) union (select a from t1);
+(select a from t1) /* */union (select a from t1);
+set query_cache_strip_comments=0;
+(select a from t1) union (select a from t1);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
 drop table t1;
+
+#
 # SP cursors and selects with query cache (BUG#9715)
 #
 create table t1 (a int);

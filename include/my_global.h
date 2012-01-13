@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,6 +45,8 @@
 #undef __WIN__
 #undef __WIN32__
 #define HAVE_ERRNO_AS_DEFINE
+#define _POSIX_MONOTONIC_CLOCK
+#define _POSIX_THREAD_CPUTIME
 #endif /* __CYGWIN__ */
 
 /* to make command line shorter we'll define USE_PRAGMA_INTERFACE here */
@@ -1386,21 +1388,10 @@ do { doubleget_union _tmp; \
 #define NO_EMBEDDED_ACCESS_CHECKS
 #endif
 
-#if defined(_WIN32)
+#ifdef _WIN32
 #define dlsym(lib, name) (void*)GetProcAddress((HMODULE)lib, name)
 #define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
 #define dlclose(lib) FreeLibrary((HMODULE)lib)
-#ifndef HAVE_DLOPEN
-#define HAVE_DLOPEN
-#endif
-#endif
-
-#if defined(HAVE_DLFCN_H)
-#include <dlfcn.h>
-#endif
-
-#ifndef HAVE_DLERROR
-#ifdef _WIN32
 static inline char *dlerror(void)
 {
   static char win_errormsg[2048];
@@ -1409,9 +1400,23 @@ static inline char *dlerror(void)
     return win_errormsg;
   return "";
 }
+#define HAVE_DLOPEN 1
+#define HAVE_DLERROR 1
+#endif
+
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif
+
+#ifdef HAVE_DLOPEN
+#ifndef HAVE_DLERROR
+#define dlerror() ""
+#endif
 #else
 #define dlerror() "No support for dynamic loading (static build?)"
-#endif
+#define dlopen(A,B) 0
+#define dlsym(A,B) 0
+#define dlclose(A) 0
 #endif
 
 /*

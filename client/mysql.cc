@@ -1,5 +1,5 @@
 /* Copyright (C) 2000-2009 MySQL AB
-   Copyright 2000, 2010, Oracle and/or its affiliates.
+   Copyright 2000, 2010-2011, Oracle and/or its affiliates.
    Copyright 2000-2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -13,8 +13,11 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+#define COPYRIGHT_NOTICE "\
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
+and you are welcome to modify and redistribute it under the GPL v2 license\n"
 
 /* mysql command tool
  * Commands compatible with mSQL by David J. Hughes
@@ -108,7 +111,6 @@ extern "C" {
 #endif
 
 #include "completion_hash.h"
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
@@ -1190,7 +1192,7 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
-  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"), INFO_INFO);
+  put_info(COPYRIGHT_NOTICE, INFO_INFO);
 
 #ifdef HAVE_READLINE
   initialize_readline((char*) my_progname);
@@ -1621,7 +1623,7 @@ static void usage(int version)
 
   if (version)
     return;
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  printf("%s", COPYRIGHT_NOTICE);
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
@@ -2732,6 +2734,8 @@ static int reconnect(void)
   }
   if (!connected)
     return put_info("Can't connect to the server\n",INFO_ERROR);
+  my_free(server_version);
+  server_version= 0;
   /* purecov: end */
   return 0;
 }
@@ -4343,9 +4347,10 @@ char *get_arg(char *line, my_bool get_next_arg)
                         string, and the "dialog" plugin will free() it.
 */
 
-extern "C" char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
-                                                 const char *prompt,
-                                                 char *buf, int buf_len)
+MYSQL_PLUGIN_EXPORT
+char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
+                                      const char *prompt,
+                                      char *buf, int buf_len)
 {
   char *s=buf;
 

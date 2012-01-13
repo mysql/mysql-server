@@ -3464,7 +3464,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   DBUG_ENTER("reset_logs");
 
   ha_reset_logs(thd);
-
   /*
     We need to get both locks to be sure that no one is trying to
     write to the index log file.

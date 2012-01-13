@@ -25,10 +25,11 @@ insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-select * from t1 ignore key (key1) where text1='teststring' or text1 like 'teststring_%';
+select * from t1 ignore key (key1) where text1='teststring' or 
+text1 like 'teststring_%' ORDER BY text1;
 text1
-teststring
 teststring	
+teststring
 select * from t1 where text1='teststring' or text1 like 'teststring_%';
 text1
 teststring	
@@ -48,10 +49,11 @@ alter table t1 modify text1 char(32) binary not null;
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-select * from t1 ignore key (key1) where text1='teststring' or text1 like 'teststring_%';
+select * from t1 ignore key (key1) where text1='teststring' or 
+text1 like 'teststring_%' ORDER BY text1;
 text1
-teststring
 teststring	
+teststring
 select concat('|', text1, '|') from t1 where text1='teststring' or text1 like 'teststring_%';
 concat('|', text1, '|')
 |teststring	|
@@ -132,10 +134,11 @@ concat('|', text1, '|')
 drop table t1;
 create table t1 (text1 varchar(32) not NULL, KEY key1 using BTREE (text1)) engine=heap;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
-select * from t1 ignore key (key1) where text1='teststring' or text1 like 'teststring_%';
+select * from t1 ignore key (key1) where text1='teststring' or 
+text1 like 'teststring_%' ORDER BY text1;
 text1
-teststring
 teststring	
+teststring
 select * from t1 where text1='teststring' or text1 like 'teststring_%';
 text1
 teststring	

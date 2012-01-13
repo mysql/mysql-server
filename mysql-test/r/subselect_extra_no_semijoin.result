@@ -311,7 +311,7 @@ EXPLAIN SELECT 1 FROM t1 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	144	Using where; Using index
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	144	
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	144	
 CREATE TABLE t2 (a INT, b INT, KEY(a));
 INSERT INTO t2 VALUES (1, 1), (2, 2), (3,3), (4,4);
 EXPLAIN SELECT a, SUM(b) FROM t2 GROUP BY a LIMIT 2;
@@ -324,7 +324,7 @@ EXPLAIN SELECT 1 FROM t2 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	144	
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	144	
 DROP TABLE t1, t2;
 # 
 # From derived_view.test
@@ -349,7 +349,7 @@ WHERE t.a IN (SELECT b FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-3	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+3	MATERIALIZED	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a`,0 AS `a`,0 AS `b` from `test`.`t2` where <expr_cache><0>(<in_optimizer>(0,0 in ( <materialize> (select 0 from dual ), <primary_index_lookup>(0 in <temporary table> on distinct_key where ((0 = `<subquery3>`.`b`))))))
 SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
@@ -362,7 +362,7 @@ WHERE t.a IN (SELECT b FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+2	MATERIALIZED	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a`,0 AS `a`,0 AS `b` from `test`.`t2` where <expr_cache><0>(<in_optimizer>(0,0 in ( <materialize> (select 0 from dual ), <primary_index_lookup>(0 in <temporary table> on distinct_key where ((0 = `<subquery2>`.`b`))))))
 DROP VIEW v1;

@@ -153,7 +153,6 @@ bool read_texts(const char *file_name, const char *language,
   char lang_path[FN_REFLEN];
   uchar *buff;
   uchar head[32],*pos;
-  const char *errmsg;
   DBUG_ENTER("read_texts");
 
   *point= 0;
@@ -231,20 +230,10 @@ Error message file '%s' had only %d error messages, but it should contain at lea
   DBUG_RETURN(i);
 
 err:
-  switch (funktpos) {
-  case 3:
-    errmsg= "Not enough memory for messagefile '%s'";
-    break;
-  case 2:
-    errmsg= "Incompatible header in messagefile '%s'. Probably from another version of MariaDB";
-  case 1:
-    errmsg= "Can't read from messagefile '%s'";
-    break;
-  default:
-    errmsg= "Can't find messagefile '%s'";
-    break;
-  }
-  sql_print_error(errmsg, name);
+  sql_print_error((funktpos == 3) ? "Not enough memory for messagefile '%s'" :
+                  (funktpos == 2) ? "Incompatible header in messagefile '%s'. Probably from another version of MariaDB" :
+                  ((funktpos == 1) ? "Can't read from messagefile '%s'" :
+                   "Can't find messagefile '%s'"), name);
   if (file != FERR)
     (void) mysql_file_close(file, MYF(MY_WME));
   DBUG_RETURN(1);

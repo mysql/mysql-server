@@ -545,6 +545,7 @@ struct Query_cache_query_flags
   MY_LOCALE *lc_time_names;
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
+#define QUERY_CACHE_DB_LENGTH_SIZE 2
 #include "sql_cache.h"
 #define query_cache_abort(A) query_cache.abort(A)
 #define query_cache_end_of_result(A) query_cache.end_of_result(A)

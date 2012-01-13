@@ -1,5 +1,5 @@
 /* Copyright (c) 2001 Jan Pazdziora.
-   Copyright (c) 2002, 2010, Oracle and/or its affiliates.
+   Copyright (c) 2002-2007 MySQL AB
    Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify

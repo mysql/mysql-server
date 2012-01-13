@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2011, Monty Program Ab
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11708,6 +11708,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
     DBUG_RETURN(NULL);
   if (table->s->keys == 0)        /* There are no indexes to use. */
     DBUG_RETURN(NULL);
+  if (join->conds && join->conds->used_tables() & OUTER_REF_TABLE_BIT)
+    DBUG_RETURN(NULL); /* Cannot execute with correlated conditions. */
 
   /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/
   if (join->make_sum_func_list(join->all_fields, join->fields_list, 1))
@@ -13053,6 +13055,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   int result;
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
+  seen_first_key= FALSE;
   if (!head->key_read)
   {
     doing_key_read= 1;

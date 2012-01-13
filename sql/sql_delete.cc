@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,8 +131,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
                ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
     DBUG_RETURN(TRUE);
   }
-
-  select_lex->no_error= thd->lex->ignore;
 
   const_cond_result= const_cond && (!conds || conds->val_int());
   if (thd->is_error())
@@ -359,16 +358,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       }
       else
       {
-	table->file->print_error(error,MYF(0));
-	/*
-	  In < 4.0.14 we set the error number to 0 here, but that
-	  was not sensible, because then MySQL would not roll back the
-	  failed DELETE, and also wrote it to the binlog. For MyISAM
-	  tables a DELETE probably never should fail (?), but for
-	  InnoDB it can fail in a FOREIGN KEY error or an
-	  out-of-tablespace error.
-	*/
-        if (!select_lex->no_error)
+	table->file->print_error(error,
+                                 MYF(thd->lex->ignore ? ME_JUST_WARNING : 0));
+        if (thd->is_error())
         {
           error= 1;
           break;
@@ -673,7 +665,7 @@ multi_delete::initialize_tables(JOIN *join)
 
   for (JOIN_TAB *tab= first_linear_tab(join, WITH_CONST_TABLES); 
        tab; 
-       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     if (tab->table->map & tables_to_delete_from)
     {
@@ -758,7 +750,7 @@ int multi_delete::send_data(List<Item> &values)
   TABLE_LIST *del_table;
   DBUG_ENTER("multi_delete::send_data");
 
-  bool ignore= thd->lex->current_select->no_error;
+  bool ignore= thd->lex->ignore;
 
   for (del_table= delete_tables;
        del_table;
@@ -909,11 +901,11 @@ int multi_delete::do_deletes()
        table_being_deleted= table_being_deleted->next_local, counter++)
   { 
     TABLE *table = table_being_deleted->table;
+    int local_error; 
     if (tempfiles[counter]->get(table))
       DBUG_RETURN(1);
 
-    int local_error= 
-      do_table_deletes(table, thd->lex->current_select->no_error);
+    local_error= do_table_deletes(table, thd->lex->ignore);
 
     if (thd->killed && !local_error)
       DBUG_RETURN(1);

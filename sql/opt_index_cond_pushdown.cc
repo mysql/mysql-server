@@ -29,6 +29,11 @@
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
                             bool other_tbls_ok)
 {
+  if (item->walk(&Item::limit_index_condition_pushdown_processor, FALSE, NULL))
+  {
+    return FALSE;
+  }
+
   if (item->const_item())
     return TRUE;
 

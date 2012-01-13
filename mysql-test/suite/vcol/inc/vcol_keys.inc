@@ -98,7 +98,7 @@ if (!$skip_spatial_index_check)
   --error ER_SPATIAL_CANT_HAVE_NULL
   create table t1 (a int, b geometry as (a+1) persistent, spatial index (b));
   create table t1 (a int, b int as (a+1) persistent);
-  --error ER_SPATIAL_MUST_HAVE_GEOM_COL
+  --error ER_WRONG_ARGUMENTS
   alter table t1 add spatial index (b);
   drop table t1;
 }

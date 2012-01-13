@@ -55,8 +55,7 @@ let $totalTablesBig = query_get_value(SHOW STATUS LIKE 'Created_tmp_tables', Val
 eval SET @diskTableCount = $diskTablesBig;
 eval SET @tempTableCount = $totalTablesBig;
 
-SELECT * FROM (SELECT ta.a as a, tb.b as b 
-FROM t1 as ta INNER JOIN t1 as tb ON ta.a = tb.a) sub;
+select count(a), b from t1 group by b;
 
 let $newDiskTablesBig = query_get_value(SHOW STATUS LIKE 'Created_tmp_disk_tables', Value, 1);
 let $newTotalTablesBig = query_get_value(SHOW STATUS LIKE 'Created_tmp_tables', Value, 1);

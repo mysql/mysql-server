@@ -3673,7 +3673,7 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
   MARIA_PINNED_PAGE page_link;
   uint rownr, org_empty_size, head_length;
   uint block_size= info->s->block_size;
-  uint errpos= 0;
+  uint errpos __attribute__((unused)) = 0;
   uchar *dir;
   pgcache_page_no_t page;
   struct st_row_pos_info row_pos;

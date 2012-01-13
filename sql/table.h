@@ -1598,6 +1598,26 @@ struct TABLE_LIST
   select_union  *derived_result;
   /* Stub used for materialized derived tables. */
   table_map	map;                    /* ID bit of table (1,2,4,8,16...) */
+  table_map get_map()
+  {
+    return jtbm_subselect? table_map(1) << jtbm_table_no : table->map;
+  }
+  uint get_tablenr()
+  {
+    return jtbm_subselect? jtbm_table_no : table->tablenr;
+  }
+  void set_tablenr(uint new_tablenr)
+  {
+    if (jtbm_subselect)
+    {
+      jtbm_table_no= new_tablenr;
+    }
+    if (table)
+    {
+      table->tablenr= new_tablenr;
+      table->map= table_map(1) << new_tablenr;
+    }
+  }
   /*
     Reference from aux_tables to local list entry of main select of
     multi-delete statement:

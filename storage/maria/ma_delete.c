@@ -243,6 +243,7 @@ my_bool _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEY *key,
 
       if (page.size <= page.node + share->keypage_header + 1)
       {
+        DBUG_ASSERT(page.size == page.node + share->keypage_header);
 	if (page.node)
 	  *root= _ma_kpos(page.node, root_buff +share->keypage_header +
                           page.node);
@@ -1476,8 +1477,9 @@ my_bool _ma_log_delete(MARIA_PAGE *ma_page, const uchar *key_pos,
   MARIA_SHARE *share= info->s;
   my_off_t page= ma_page->pos / share->block_size;
   DBUG_ENTER("_ma_log_delete");
-  DBUG_PRINT("enter", ("page: %lu  changed_length: %u  move_length: %d",
-                       (ulong) page, changed_length, move_length));
+  DBUG_PRINT("enter", ("page: %lu  offset: %u  changed_length: %u  move_length: %u  append_length: %u  page_size: %u",
+                       (ulong) page, offset, changed_length, move_length,
+                       append_length, ma_page->size));
   DBUG_ASSERT(share->now_transactional && move_length);
   DBUG_ASSERT(offset + changed_length <= ma_page->size);
   DBUG_ASSERT(ma_page->org_size - move_length + append_length == ma_page->size);

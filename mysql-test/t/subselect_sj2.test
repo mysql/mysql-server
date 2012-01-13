@@ -6,8 +6,19 @@
 set @subselect_sj2_tmp= @@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+SET optimizer_switch=ifnull(@optimizer_switch_for_subselect_sj2_test,'outer_join_with_cache=off');
+SET optimizer_switch=ifnull(@optimizer_switch_for_subselect_sj2_test,'semijoin_with_cache=off');
+if (`select @join_cache_level_for_subselect_sj2_test is null`)
+{
+  set join_cache_level=1;
+}
+if (`select @join_cache_level_for_subselect_sj2_test is not null`)
+{
+  set join_cache_level=@join_cache_level_for_subselect_sj2_test;
+}
+
 --disable_warnings
-drop table if exists t0, t1, t2, t3;
+drop table if exists t0, t1, t2, t3, t4, t5;
 drop view if exists v1;
 --enable_warnings
 
@@ -46,7 +57,6 @@ create table t3 (
 insert into t3 select a,a, a,a,a from t0;
 insert into t3 select a,a, a+100,a+100,a+100 from t0;
 
-
 explain select * from t3 where b in (select a from t1);
 select * from t3 where b in (select a from t1);
 
@@ -74,7 +84,7 @@ from t0 A, t0 B where B.a <5;
 # because it does not hold when this file is included
 # into subselect_sj2_jcl6.test)
 #
---replace_regex /Using join buffer//
+#--replace_regex /Using join buffer//
 explain select * from t3 where b in (select a from t0);
 select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
 

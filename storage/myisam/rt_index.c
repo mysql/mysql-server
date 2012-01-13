@@ -1028,7 +1028,7 @@ ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key,
   ha_rows res = 0;
 
   if (flag & MBR_DISJOINT)
-    return info->state->records;
+    return HA_POS_ERROR;
 
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
     return HA_POS_ERROR;

@@ -334,6 +334,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     DBUG_PRINT("admin", ("table: '%s'.'%s'", table->db, table->table_name));
     strxmov(table_name, db, ".", table->table_name, NullS);
+    thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
     /*
       To make code safe for re-execution we need to reset type of MDL
@@ -369,8 +370,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           lex->sql_command == SQLCOM_ANALYZE ||
           lex->sql_command == SQLCOM_OPTIMIZE)
 	thd->prepare_derived_at_open= TRUE;
-
-      thd->open_options|= extra_open_options;
       if (!thd->locked_tables_mode && repair_table_use_frm)
       {
         /*
@@ -403,11 +402,11 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
         open_error= open_and_lock_tables(thd, table, TRUE, 0);
       }
-      thd->open_options&= ~extra_open_options;
       thd->prepare_derived_at_open= FALSE;
 
       table->next_global= save_next_global;
       table->next_local= save_next_local;
+      thd->open_options&= ~extra_open_options;
 
       /*
         If open_and_lock_tables() failed, close_thread_tables() will close
@@ -620,8 +619,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (check_old_types == HA_ADMIN_NEEDS_ALTER ||
           check_for_upgrade == HA_ADMIN_NEEDS_ALTER)
       {
+        /* We use extra_open_options to be able to open crashed tables */
+        thd->open_options|= extra_open_options;
         result_code= admin_recreate_table(thd, table);
+        thd->open_options&= ~extra_open_options;
         goto send_result;
+      }
+      if (check_old_types || check_for_upgrade)
+      {
+        /* If repair is not implemented for the engine, run ALTER TABLE */
+        need_repair_or_alter= 1;
       }
     }
 

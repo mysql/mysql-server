@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -529,7 +530,6 @@ public:
   uint8 uncacheable;
   enum sub_select_type linkage;
   bool no_table_names_allowed; /* used for global order by */
-  bool no_error; /* suppress error message (convert it to warnings) */
 
   static void *operator new(size_t size) throw ()
   {

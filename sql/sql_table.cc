@@ -3431,7 +3431,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
           }
           if (!f_is_geom(sql_field->pack_flag))
           {
-            my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
+            my_error(ER_WRONG_ARGUMENTS, MYF(0), "SPATIAL INDEX");
             DBUG_RETURN(TRUE);
           }
         }
@@ -5873,7 +5873,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   TABLE *table_for_fast_alter_partition= NULL;
   bool partition_changed= FALSE;
 #endif
-  bool need_lock_for_indexes= TRUE;
+  bool need_lock_for_indexes __attribute__((unused)) = TRUE;
   KEY  *key_info_buffer;
   uint index_drop_count= 0;
   uint *index_drop_buffer= NULL;
@@ -6287,7 +6287,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     need_copy_table= ALTER_TABLE_DATA_CHANGED;
   else
   {
-    enum_alter_table_change_level need_copy_table_res;
+    enum_alter_table_change_level need_copy_table_res=ALTER_TABLE_METADATA_ONLY;
     /* Check how much the tables differ. */
     if (mysql_compare_tables(table, alter_info,
                              create_info, order_num,

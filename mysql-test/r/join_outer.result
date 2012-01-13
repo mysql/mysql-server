@@ -1,4 +1,7 @@
 drop table if exists t0,t1,t2,t3,t4,t5;
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch=ifnull(@optimizer_switch_for_join_outer_test,'outer_join_with_cache=off');
+set join_cache_level=1;
 CREATE TABLE t1 (
 grp int(11) default NULL,
 a bigint(20) unsigned default NULL,
@@ -1899,3 +1902,4 @@ b	b	a	b
 DEALLOCATE PREPARE stmt;
 SET SESSION join_cache_level=default;
 DROP TABLE t1,t2,t3;
+SET optimizer_switch=@save_optimizer_switch;

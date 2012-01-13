@@ -1424,6 +1424,8 @@ c	a	b	h312	e312	h312
 c	b	b	p322	m322	p322
 d	a	b	h412	e412	h412
 d	b	b	p422	m422	p422
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 explain select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2
 where t2.c in (select c from t3 where t3.c > t1.b) and
@@ -1455,6 +1457,7 @@ d	a	a	d411	a411	d411
 d	a	b	h412	e412	h412
 d	b	a	l421	i421	l421
 d	b	b	p422	m422	p422
+SET optimizer_switch=@save_optimizer_switch;
 explain select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2 where t1.c > 'a' and t2.c > 'b1' )
 group by a1,a2,b;
@@ -1481,6 +1484,8 @@ d	a	a	a411	a411	d411
 d	a	b	e412	e412	h412
 d	b	a	i421	i421	l421
 d	b	b	m422	m422	p422
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 explain select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2
 where t2.c in (select c from t3 where t3.c > t1.c) and
@@ -1512,6 +1517,7 @@ d	a	a	a411	a411	d411
 d	a	b	e412	e412	h412
 d	b	a	i421	i421	l421
 d	b	b	m422	m422	o422
+SET optimizer_switch=@save_optimizer_switch;
 explain select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	147	NULL	17	Using where; Using index for group-by
@@ -2403,7 +2409,7 @@ a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	8	Using where
 1	PRIMARY	t1_outer	ref	a	a	5	<subquery2>.max(b)	2	Using index
-2	SUBQUERY	t1	range	NULL	a	5	NULL	8	Using index for group-by
+2	MATERIALIZED	t1	range	NULL	a	5	NULL	8	Using index for group-by
 EXPLAIN SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING 
 a > (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2927,6 +2933,251 @@ ORDER BY min_a;
 min_a
 NULL
 DROP TABLE t1;
+#
+# LP BUG#888456 Wrong result with DISTINCT , ANY , subquery_cache=off , NOT NULL
+#
+CREATE TABLE t1 ( a int NOT NULL) ;
+INSERT INTO t1 VALUES (28),(29),(9);
+CREATE TABLE t2 ( a int, KEY (a)) ;
+INSERT INTO t2 VALUES (1),(1),(1),(4),(4),(5),(5),(8),(8),(9);
+explain select (select t2.a from t2 where t2.a >= t1.a group by t2.a) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+2	DEPENDENT SUBQUERY	t2	index	a	a	5	NULL	10	Using where; Using index
+select (select t2.a from t2 where t2.a >= t1.a group by t2.a) from t1;
+(select t2.a from t2 where t2.a >= t1.a group by t2.a)
+NULL
+NULL
+9
+drop table t1, t2;
+#
+# LP BUG#900375 Wrong result with derived_merge=ON, DISTINCT or GROUP BY, EXISTS
+#
+CREATE TABLE t1 ( a INT, b INT, KEY (b) );
+INSERT INTO t1 VALUES
+(100,10),(101,11),(102,12),(103,13),(104,14),
+(105,15),(106,16),(107,17),(108,18),(109,19);
+EXPLAIN
+SELECT alias1.* FROM t1, (SELECT * FROM t1) AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	b	5	NULL	10	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (flat, BNL join)
+3	DEPENDENT SUBQUERY	t1	index	b	b	5	NULL	10	Using where; Using index
+SELECT alias1.* FROM t1, (SELECT * FROM t1) AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+a	b
+100	10
+100	10
+100	10
+100	10
+100	10
+100	10
+100	10
+100	10
+100	10
+100	10
+101	11
+101	11
+101	11
+101	11
+101	11
+101	11
+101	11
+101	11
+101	11
+101	11
+102	12
+102	12
+102	12
+102	12
+102	12
+102	12
+102	12
+102	12
+102	12
+102	12
+103	13
+103	13
+103	13
+103	13
+103	13
+103	13
+103	13
+103	13
+103	13
+103	13
+104	14
+104	14
+104	14
+104	14
+104	14
+104	14
+104	14
+104	14
+104	14
+104	14
+105	15
+105	15
+105	15
+105	15
+105	15
+105	15
+105	15
+105	15
+105	15
+105	15
+106	16
+106	16
+106	16
+106	16
+106	16
+106	16
+106	16
+106	16
+106	16
+106	16
+107	17
+107	17
+107	17
+107	17
+107	17
+107	17
+107	17
+107	17
+107	17
+107	17
+108	18
+108	18
+108	18
+108	18
+108	18
+108	18
+108	18
+108	18
+108	18
+108	18
+109	19
+109	19
+109	19
+109	19
+109	19
+109	19
+109	19
+109	19
+109	19
+109	19
+EXPLAIN
+SELECT alias1.* FROM t1, t1 AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	b	5	NULL	10	Using index
+1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	t1	index	b	b	5	NULL	10	Using where; Using index
+SELECT alias1.* FROM t1, t1 AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+a	b
+100	10
+100	10
+100	10
+100	10
+100	10
+100	10
+100	10
+100	10
+100	10
+100	10
+101	11
+101	11
+101	11
+101	11
+101	11
+101	11
+101	11
+101	11
+101	11
+101	11
+102	12
+102	12
+102	12
+102	12
+102	12
+102	12
+102	12
+102	12
+102	12
+102	12
+103	13
+103	13
+103	13
+103	13
+103	13
+103	13
+103	13
+103	13
+103	13
+103	13
+104	14
+104	14
+104	14
+104	14
+104	14
+104	14
+104	14
+104	14
+104	14
+104	14
+105	15
+105	15
+105	15
+105	15
+105	15
+105	15
+105	15
+105	15
+105	15
+105	15
+106	16
+106	16
+106	16
+106	16
+106	16
+106	16
+106	16
+106	16
+106	16
+106	16
+107	17
+107	17
+107	17
+107	17
+107	17
+107	17
+107	17
+107	17
+107	17
+107	17
+108	18
+108	18
+108	18
+108	18
+108	18
+108	18
+108	18
+108	18
+108	18
+108	18
+109	19
+109	19
+109	19
+109	19
+109	19
+109	19
+109	19
+109	19
+109	19
+109	19
+drop table t1;
 End of 5.1 tests
 #
 # WL#3220 (Loose index scan for COUNT DISTINCT)

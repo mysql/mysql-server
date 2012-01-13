@@ -2,7 +2,7 @@
 #define SQL_SELECT_INCLUDED
 
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2011, Monty Program Ab
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,6 +84,8 @@ typedef struct keyuse_t {
   bool is_for_hash_join() { return is_hash_join_key_no(key); }
 } KEYUSE;
 
+#define NO_KEYPART ((uint)(-1))
+
 class store_key;
 
 const int NO_REF_PART= uint(-1);
@@ -164,6 +166,17 @@ enum enum_nested_loop_state
   NESTED_LOOP_QUERY_LIMIT= 3, NESTED_LOOP_CURSOR_LIMIT= 4
 };
 
+
+/* Possible sj_strategy values */
+enum sj_strategy_enum
+{
+  SJ_OPT_NONE=0,
+  SJ_OPT_DUPS_WEEDOUT=1,
+  SJ_OPT_LOOSE_SCAN  =2,
+  SJ_OPT_FIRST_MATCH =3,
+  SJ_OPT_MATERIALIZE =4,
+  SJ_OPT_MATERIALIZE_SCAN=5
+};
 
 /* Values for JOIN_TAB::packed_info */
 #define TAB_INFO_HAVE_VALUE 1
@@ -278,7 +291,16 @@ typedef struct st_join_table {
   double        partial_join_cardinality;
 
   table_map	dependent,key_dependent;
-  uint		use_quick,index;
+  /*
+     1 - use quick select
+     2 - use "Range checked for each record"
+  */
+  uint		use_quick;
+  /*
+    Index to use. Note: this is valid only for 'index' access, but not range or
+    ref access.
+  */
+  uint          index;
   uint		status;				///< Save status for cache
   uint		used_fields;
   ulong         used_fieldlength;
@@ -326,6 +348,8 @@ typedef struct st_join_table {
   /* Variables for semi-join duplicate elimination */
   SJ_TMP_TABLE  *flush_weedout_table;
   SJ_TMP_TABLE  *check_weed_out_table;
+  /* for EXPLAIN only: */
+  SJ_TMP_TABLE  *first_weedout_table;
   
   /*
     If set, means we should stop join enumeration after we've got the first
@@ -370,7 +394,7 @@ typedef struct st_join_table {
     POSITION::sj_strategy field. This field is set up by the
     fix_semijoin_strategies_for_picked_join_order.
   */
-  uint sj_strategy;
+  enum sj_strategy_enum sj_strategy;
 
   uint n_sj_tables;
 
@@ -502,65 +526,123 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 		bool end_of_records);
 
 
-/**
-  Information about a position of table within a join order. Used in join
-  optimization.
-*/
-typedef struct st_position
+struct st_position;
+
+class Semi_join_strategy_picker
 {
-  /*
-    The "fanout": number of output rows that will be produced (after
-    pushed down selection condition is applied) per each row combination of
-    previous tables.
-  */
-  double records_read;
+public:
+  /* Called when starting to build a new join prefix */
+  virtual void set_empty() = 0;
 
   /* 
-    Cost accessing the table in course of the entire complete join execution,
-    i.e. cost of one access method use (e.g. 'range' or 'ref' scan ) times 
-    number the access method will be invoked.
+    Update internal state after another table has been added to the join
+    prefix
   */
-  double read_time;
-  JOIN_TAB *table;
-
-  /*
-    NULL  -  'index' or 'range' or 'index_merge' or 'ALL' access is used.
-    Other - [eq_]ref[_or_null] access is used. Pointer to {t.keypart1 = expr}
-  */
-  KEYUSE *key;
-
-  /* If ref-based access is used: bitmap of tables this table depends on  */
-  table_map ref_depend_map;
-
-  bool use_join_buffer; 
+  virtual void set_from_prev(struct st_position *prev) = 0;
   
+  virtual bool check_qep(JOIN *join,
+                         uint idx,
+                         table_map remaining_tables, 
+                         const JOIN_TAB *new_join_tab,
+                         double *record_count,
+                         double *read_time,
+                         table_map *handled_fanout,
+                         sj_strategy_enum *strategy,
+                         struct st_position *loose_scan_pos) = 0;
+
+  virtual void mark_used() = 0;
+
+  virtual ~Semi_join_strategy_picker() {} 
+};
+
+
+/*
+  Duplicate Weedout strategy optimization state
+*/
+
+class Duplicate_weedout_picker : public Semi_join_strategy_picker
+{
+  /* The first table that the strategy will need to handle */
+  uint  first_dupsweedout_table;
+
+  /*
+    Tables that we will need to have in the prefix to do the weedout step
+    (all inner and all outer that the involved semi-joins are correlated with)
+  */
+  table_map dupsweedout_tables;
   
-  /* These form a stack of partial join order costs and output sizes */
-  COST_VECT prefix_cost;
-  double    prefix_record_count;
+  bool is_used;
+public:
+  void set_empty()
+  {
+    dupsweedout_tables= 0;
+    first_dupsweedout_table= MAX_TABLES;
+    is_used= FALSE;
+  }
+  void set_from_prev(struct st_position *prev);
+  
+  bool check_qep(JOIN *join,
+                 uint idx,
+                 table_map remaining_tables, 
+                 const JOIN_TAB *new_join_tab,
+                 double *record_count,
+                 double *read_time,
+                 table_map *handled_fanout,
+                 sj_strategy_enum *stratey,
+                 struct st_position *loose_scan_pos);
 
+  void mark_used() { is_used= TRUE; }
+  friend void fix_semijoin_strategies_for_picked_join_order(JOIN *join);
+};
+
+
+class Firstmatch_picker : public Semi_join_strategy_picker
+{
   /*
-    Current optimization state: Semi-join strategy to be used for this
-    and preceding join tables.
-    
-    Join optimizer sets this for the *last* join_tab in the
-    duplicate-generating range. That is, in order to interpret this field, 
-    one needs to traverse join->[best_]positions array from right to left.
-    When you see a join table with sj_strategy!= SJ_OPT_NONE, some other
-    field (depending on the strategy) tells how many preceding positions 
-    this applies to. The values of covered_preceding_positions->sj_strategy
-    must be ignored.
+    Index of the first inner table that we intend to handle with this
+    strategy
   */
-  uint sj_strategy;
+  uint first_firstmatch_table;
   /*
-    Valid only after fix_semijoin_strategies_for_picked_join_order() call:
-    if sj_strategy!=SJ_OPT_NONE, this is the number of subsequent tables that
-    are covered by the specified semi-join strategy
+    Tables that were not in the join prefix when we've started considering 
+    FirstMatch strategy.
   */
-  uint n_sj_tables;
+  table_map first_firstmatch_rtbl;
+  /* 
+    Tables that need to be in the prefix before we can calculate the cost
+    of using FirstMatch strategy.
+   */
+  table_map firstmatch_need_tables;
 
-/* LooseScan strategy members */
+  bool is_used;
 
+  bool in_firstmatch_prefix() { return (first_firstmatch_table != MAX_TABLES); }
+  void invalidate_firstmatch_prefix() { first_firstmatch_table= MAX_TABLES; }
+public:
+  void set_empty()
+  {
+    invalidate_firstmatch_prefix();
+    is_used= FALSE;
+  }
+
+  void set_from_prev(struct st_position *prev);
+  bool check_qep(JOIN *join,
+                 uint idx,
+                 table_map remaining_tables, 
+                 const JOIN_TAB *new_join_tab,
+                 double *record_count,
+                 double *read_time,
+                 table_map *handled_fanout,
+                 sj_strategy_enum *strategy,
+                 struct st_position *loose_scan_pos);
+
+  void mark_used() { is_used= TRUE; }
+  friend void fix_semijoin_strategies_for_picked_join_order(JOIN *join);
+};
+
+
+class LooseScan_picker : public Semi_join_strategy_picker
+{
   /* The first (i.e. driving) table we're doing loose scan for */
   uint        first_loosescan_table;
   /* 
@@ -578,36 +660,46 @@ typedef struct st_position
   uint loosescan_key;  // final (one for strategy instance )
   uint loosescan_parts; /* Number of keyparts to be kept distinct */
   
-/* FirstMatch strategy */
-  /*
-    Index of the first inner table that we intend to handle with this
-    strategy
-  */
-  uint first_firstmatch_table;
-  /*
-    Tables that were not in the join prefix when we've started considering 
-    FirstMatch strategy.
-  */
-  table_map first_firstmatch_rtbl;
-  /* 
-    Tables that need to be in the prefix before we can calculate the cost
-    of using FirstMatch strategy.
-   */
-  table_map firstmatch_need_tables;
+  bool is_used;
+public:
+  void set_empty()
+  {
+    first_loosescan_table= MAX_TABLES; 
+    is_used= FALSE;
+  }
 
-  bool in_firstmatch_prefix() { return (first_firstmatch_table != MAX_TABLES); }
-  void invalidate_firstmatch_prefix() { first_firstmatch_table= MAX_TABLES; }
+  void set_from_prev(struct st_position *prev);
+  bool check_qep(JOIN *join,
+                 uint idx,
+                 table_map remaining_tables, 
+                 const JOIN_TAB *new_join_tab,
+                 double *record_count,
+                 double *read_time,
+                 table_map *handled_fanout,
+                 sj_strategy_enum *strategy,
+                 struct st_position *loose_scan_pos);
+  void mark_used() { is_used= TRUE; }
 
-/* Duplicate Weedout strategy */
-  /* The first table that the strategy will need to handle */
-  uint  first_dupsweedout_table;
-  /*
-    Tables that we will need to have in the prefix to do the weedout step
-    (all inner and all outer that the involved semi-joins are correlated with)
-  */
-  table_map dupsweedout_tables;
+  friend class Loose_scan_opt;
+  friend void best_access_path(JOIN      *join,
+                               JOIN_TAB  *s,
+                               table_map remaining_tables,
+                               uint      idx,
+                               bool      disable_jbuf,
+                               double    record_count,
+                               struct st_position *pos,
+                               struct st_position *loose_scan_pos);
+  friend bool get_best_combination(JOIN *join);
+  friend int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
+                                             uint no_jbuf_after);
+  friend void fix_semijoin_strategies_for_picked_join_order(JOIN *join);
+};
 
-/* SJ-Materialization-Scan strategy */
+
+class Sj_materialization_picker : public Semi_join_strategy_picker
+{
+  bool is_used;
+
   /* The last inner table (valid once we're after it) */
   uint      sjm_scan_last_inner;
   /*
@@ -617,9 +709,101 @@ typedef struct st_position
   */
   table_map sjm_scan_need_tables;
 
-  table_map prefix_dups_producing_tables;
-} POSITION;
+public:
+  void set_empty()
+  {
+    sjm_scan_need_tables= 0;
+    LINT_INIT(sjm_scan_last_inner);
+    is_used= FALSE;
+  }
+  void set_from_prev(struct st_position *prev);
+  bool check_qep(JOIN *join,
+                 uint idx,
+                 table_map remaining_tables, 
+                 const JOIN_TAB *new_join_tab,
+                 double *record_count,
+                 double *read_time,
+                 table_map *handled_fanout,
+                 sj_strategy_enum *strategy,
+                 struct st_position *loose_scan_pos);
+  void mark_used() { is_used= TRUE; }
 
+  friend void fix_semijoin_strategies_for_picked_join_order(JOIN *join);
+};
+
+
+/**
+  Information about a position of table within a join order. Used in join
+  optimization.
+*/
+typedef struct st_position
+{
+  /* The table that's put into join order */
+  JOIN_TAB *table;
+
+  /*
+    The "fanout": number of output rows that will be produced (after
+    pushed down selection condition is applied) per each row combination of
+    previous tables.
+  */
+  double records_read;
+
+  /* 
+    Cost accessing the table in course of the entire complete join execution,
+    i.e. cost of one access method use (e.g. 'range' or 'ref' scan ) times 
+    number the access method will be invoked.
+  */
+  double read_time;
+
+  /* Cumulative cost and record count for the join prefix */
+  COST_VECT prefix_cost;
+  double    prefix_record_count;
+
+  /*
+    NULL  -  'index' or 'range' or 'index_merge' or 'ALL' access is used.
+    Other - [eq_]ref[_or_null] access is used. Pointer to {t.keypart1 = expr}
+  */
+  KEYUSE *key;
+
+  /* If ref-based access is used: bitmap of tables this table depends on  */
+  table_map ref_depend_map;
+ 
+  /*
+    TRUE <=> join buffering will be used. At the moment this is based on 
+    *very* imprecise guesses made in best_access_path(). 
+  */
+  bool use_join_buffer;
+ 
+  /*
+    Current optimization state: Semi-join strategy to be used for this
+    and preceding join tables.
+    
+    Join optimizer sets this for the *last* join_tab in the
+    duplicate-generating range. That is, in order to interpret this field, 
+    one needs to traverse join->[best_]positions array from right to left.
+    When you see a join table with sj_strategy!= SJ_OPT_NONE, some other
+    field (depending on the strategy) tells how many preceding positions 
+    this applies to. The values of covered_preceding_positions->sj_strategy
+    must be ignored.
+  */
+  enum sj_strategy_enum sj_strategy;
+  
+  /*
+    Valid only after fix_semijoin_strategies_for_picked_join_order() call:
+    if sj_strategy!=SJ_OPT_NONE, this is the number of subsequent tables that
+    are covered by the specified semi-join strategy
+  */
+  uint n_sj_tables;
+
+  table_map prefix_dups_producing_tables;
+
+  table_map inner_tables_handled_with_other_sjs;
+   
+  Duplicate_weedout_picker  dups_weedout_picker;
+  Firstmatch_picker         firstmatch_picker;
+  LooseScan_picker          loosescan_picker;
+  Sj_materialization_picker sjmat_picker;
+} POSITION;
 
 typedef struct st_rollup
 {
@@ -630,18 +814,6 @@ typedef struct st_rollup
   List<Item> *fields;
 } ROLLUP;
 
-
-#define SJ_OPT_NONE 0
-#define SJ_OPT_DUPS_WEEDOUT 1
-#define SJ_OPT_LOOSE_SCAN   2
-#define SJ_OPT_FIRST_MATCH  3
-#define SJ_OPT_MATERIALIZE  4
-#define SJ_OPT_MATERIALIZE_SCAN  5
-
-inline bool sj_is_materialize_strategy(uint strategy)
-{
-  return strategy >= SJ_OPT_MATERIALIZE;
-}
 
 class JOIN_TAB_RANGE: public Sql_alloc
 {
@@ -750,6 +922,7 @@ public:
   */
   bool     sort_and_group; 
   bool     first_record,full_join, no_field_update;
+  bool     hash_join;
   bool	   do_send_rows;
   table_map const_table_map;
   /*
@@ -810,7 +983,7 @@ public:
     they produce.
   */
   table_map cur_dups_producing_tables;
-
+  
   /* We also maintain a stack of join optimization states in * join->positions[] */
 /******* Join optimization state members end *******/
   /*
@@ -935,6 +1108,7 @@ public:
   COND *conds;                            // ---"---
   Item *conds_history;                    // store WHERE for explain
   COND *outer_ref_cond;       ///<part of conds containing only outer references
+  COND *pseudo_bits_cond;     // part of conds containing special bita
   TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
   COND_EQUAL *cond_equal;
@@ -1061,7 +1235,7 @@ public:
     rollup.state= ROLLUP::STATE_NONE;
 
     no_const_tables= FALSE;
-    outer_ref_cond= 0;
+    outer_ref_cond= pseudo_bits_cond= NULL;
     in_to_exists_where= NULL;
     in_to_exists_having= NULL;
   }
@@ -1150,6 +1324,25 @@ public:
   { 
     return test(allowed_join_cache_types & JOIN_CACHE_HASHED_BIT) &&
            max_allowed_join_cache_level > JOIN_CACHE_HASHED_BIT;
+  }
+  /*
+    Check if we need to create a temporary table.
+    This has to be done if all tables are not already read (const tables)
+    and one of the following conditions holds:
+    - We are using DISTINCT (simple distinct's are already optimized away)
+    - We are using an ORDER BY or GROUP BY on fields not in the first table
+    - We are using different ORDER BY and GROUP BY orders
+    - The user wants us to buffer the result.
+    When the WITH ROLLUP modifier is present, we cannot skip temporary table
+    creation for the DISTINCT clause just because there are only const tables.
+  */
+  bool test_if_need_tmp_table()
+  {
+    return ((const_tables != table_count &&
+	    ((select_distinct || !simple_order || !simple_group) ||
+	     (group_list && order) ||
+	     test(select_options & OPTION_BUFFER_RESULT))) ||
+            (rollup.state != ROLLUP::STATE_NONE && select_distinct));
   }
   bool choose_subquery_plan(table_map join_tables);
   void get_partial_cost_and_fanout(int end_tab_idx,

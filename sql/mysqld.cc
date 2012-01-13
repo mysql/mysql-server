@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2009-2011 Monty Program Ab
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -274,8 +274,6 @@ extern "C" sig_handler handle_segfault(int sig);
 #endif
 
 /* Constants */
-
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 
@@ -7220,8 +7218,14 @@ static void usage(void)
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
-  puts("Starts the MySQL database server.\n");
+  puts("\
+Copyright (C) 2000-2008 MySQL AB, by Monty and others.\n\
+Copyright (C) 2000, 2011 Oracle.\n\
+Copyright (C) 2009-2011 Monty Program Ab.\n\
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
+and you are welcome to modify and redistribute it under the GPL license\n\n\
+Starts the MariaDB database server.\n");
+
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)
     puts("\nFor more help options (several pages), use mysqld --verbose --help.");

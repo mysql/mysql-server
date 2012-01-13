@@ -8387,14 +8387,22 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   if (pkt_len < MIN_HANDSHAKE_SIZE)
     return packet_error;
 
+  /*
+    Protocol buffer is guaranteed to always end with \0. (see my_net_read())
+    As the code below depends on this, lets check that.
+  */
+  DBUG_ASSERT(net->read_pos[pkt_len] == 0);
+
   if (mpvio->connect_errors)
     reset_host_errors(thd->main_security_ctx.ip);
 
   ulong client_capabilities= uint2korr(net->read_pos);
   if (client_capabilities & CLIENT_PROTOCOL_41)
   {
-    client_capabilities|= ((ulonglong) uint2korr(net->read_pos + 2)) << 16;
-    thd->max_client_packet_length= uint4korr(net->read_pos + 4);
+    if (pkt_len < 32)
+      return packet_error;
+    client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
+    thd->max_client_packet_length= uint4korr(net->read_pos+4);
     DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
     if (thd_init_client_charset(thd, (uint) net->read_pos[8]))
       return packet_error;
@@ -8403,8 +8411,10 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   }
   else
   {
-    thd->max_client_packet_length= uint3korr(net->read_pos + 2);
-    end= (char*) net->read_pos + 5;
+    if (pkt_len < 5)
+      return packet_error;
+    thd->max_client_packet_length= uint3korr(net->read_pos+2);
+    end= (char*) net->read_pos+5;
   }
 
   /* Disable those bits which are not supported by the client. */

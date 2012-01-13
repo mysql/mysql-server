@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -870,7 +871,6 @@ bool init_new_connection_handler_thread()
   return 0;
 }
 
-#ifndef EMBEDDED_LIBRARY
 /*
   Perform handshake, authorize client and update thd ACL variables.
 
@@ -883,6 +883,7 @@ bool init_new_connection_handler_thread()
      1  error
 */
 
+#ifndef EMBEDDED_LIBRARY
 static int check_connection(THD *thd)
 {
   uint connect_errors= 0;

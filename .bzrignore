@@ -1133,3 +1133,5 @@ plugin/handler_socket/perl-Net-HandlerSocket/pm_to_blib
 plugin/handler_socket/perl-Net-HandlerSocket/HandlerSocket.bs
 plugin/handler_socket/perl-Net-HandlerSocket/Makefile.PL
 libmysqld/libmysqld_exports_file.cc
+libmysqld/gcalc_slicescan.cc
+libmysqld/gcalc_tools.cc

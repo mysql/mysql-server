@@ -138,6 +138,8 @@ insert into t2 values('AAA', 10, 0.5);
 insert into t2 values('BBB', 20, 1.0);
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1,t2;
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
 select max(t2.a1), max(t1.a1) from t1, t2 where t2.a2=9;
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1 left outer join t2 on t1.a1=10;
@@ -146,6 +148,7 @@ select max(t2.a1) from t2 left outer join t1 on t2.a2=10 where t2.a2=20;
 select max(t2.a1) from t2 left outer join t1 on t2.a2=10 where t2.a2=10;
 select max(t2.a1) from t1 left outer join t2 on t1.a2=t2.a1 and 1=0 where t2.a1='AAA';
 select max(t1.a2),max(t2.a1) from t1 left outer join t2 on t1.a1=10;
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1,t2;
 
 #
@@ -1250,12 +1253,15 @@ SELECT v
 FROM t2);
 
 --echo
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 EXPLAIN 
 SELECT MIN(a)
 FROM (SELECT a FROM empty1) tt
 HAVING ('m') IN ( 
 SELECT v
 FROM t2);
+set optimizer_switch=@tmp_optimizer_switch;
 
 --echo 
 --echo #

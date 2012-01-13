@@ -1,4 +1,5 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2004, 2010, Oracle and/or its affiliates
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -991,7 +992,6 @@ bool ha_example::check_if_incompatible_data(HA_CREATE_INFO *info,
                                             uint table_changes)
 {
   ha_table_option_struct *param_old, *param_new;
-  uint i;
   DBUG_ENTER("ha_example::check_if_incompatible_data");
   /*
     This example shows how custom engine specific table and field
@@ -1021,7 +1021,8 @@ bool ha_example::check_if_incompatible_data(HA_CREATE_INFO *info,
       param_new->boolparam != param_old->boolparam)
     DBUG_RETURN(COMPATIBLE_DATA_NO);
 
-  for (i= 0; i < table->s->fields; i++)
+#ifndef DBUG_OFF
+  for (uint i= 0; i < table->s->fields; i++)
   {
     ha_field_option_struct *f_old, *f_new;
     f_old= table->s->field[i]->option_struct;
@@ -1041,6 +1042,7 @@ bool ha_example::check_if_incompatible_data(HA_CREATE_INFO *info,
     else
       DBUG_PRINT("info", ("old field %i did not changed", i));
   }
+#endif
 
   DBUG_RETURN(COMPATIBLE_DATA_YES);
 }

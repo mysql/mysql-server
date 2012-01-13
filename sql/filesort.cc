@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -879,7 +880,7 @@ static void make_sortkey(register SORTPARAM *param,
         if (sort_field->need_strxnfrm)
         {
           char *from=(char*) res->ptr();
-          uint tmp_length;
+          uint tmp_length __attribute__((unused));
           if ((uchar*) from == to)
           {
             set_if_smaller(length,sort_field->length);
@@ -1006,10 +1007,21 @@ static void make_sortkey(register SORTPARAM *param,
       if (addonf->null_bit && field->is_null())
       {
         nulls[addonf->null_offset]|= addonf->null_bit;
+#ifdef HAVE_valgrind
+	bzero(to, addonf->length);
+#endif
       }
       else
       {
+#ifdef HAVE_valgrind
+        uchar *end= field->pack(to, field->ptr);
+	uint length= (uint) ((to + addonf->length) - end);
+	DBUG_ASSERT((int) length >= 0);
+	if (length)
+	  bzero(end, length);
+#else
         (void) field->pack(to, field->ptr);
+#endif
       }
       to+= addonf->length;
     }

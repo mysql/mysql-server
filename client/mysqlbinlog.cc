@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,6 @@
 #include "sql_priv.h"
 #include "log_event.h"
 #include "sql_common.h"
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "sql_string.h"   // needed for Rpl_filter
 #include "sql_list.h"     // needed for Rpl_filter
@@ -1446,7 +1445,10 @@ static void print_version()
 static void usage()
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts("By Monty and Sasha, for your professional use\n\
+This software comes with NO WARRANTY:  This is free software,\n\
+and you are welcome to modify and redistribute it under the GPL license.\n");
+
   printf("\
 Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client.\n\n");

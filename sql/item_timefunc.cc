@@ -2288,8 +2288,7 @@ String *Item_char_typecast::val_str(String *str)
 			cast_cs == &my_charset_bin ?
                         "cast_as_binary" : func_name(),
                         current_thd->variables.max_allowed_packet);
-    null_value= 1;
-    return 0;
+    cast_length= current_thd->variables.max_allowed_packet;
   }
 
   if (!charset_conversion)
@@ -2360,6 +2359,18 @@ String *Item_char_typecast::val_str(String *str)
     }
   }
   null_value= 0;
+
+  if (res->length() > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			cast_cs == &my_charset_bin ?
+                        "cast_as_binary" : func_name(),
+                        current_thd->variables.max_allowed_packet);
+    null_value= 1;
+    return 0;
+  }
   return res;
 }
 

@@ -37,7 +37,7 @@ C_MODE_END
 
 extern ulong maria_sort_buffer_size;
 extern TYPELIB maria_recover_typelib;
-extern ulong maria_recover_options;
+extern ulonglong maria_recover_options;
 
 class ha_maria :public handler
 {
@@ -152,7 +152,8 @@ public:
   bool check_and_repair(THD * thd);
   bool is_crashed() const;
   bool is_changed() const;
-  bool auto_repair() const { return maria_recover_options != HA_RECOVER_NONE; }
+  bool auto_repair() const
+  { return test(maria_recover_options & HA_RECOVER_ANY); }
   int optimize(THD * thd, HA_CHECK_OPT * check_opt);
   int restore(THD * thd, HA_CHECK_OPT * check_opt);
   int backup(THD * thd, HA_CHECK_OPT * check_opt);

@@ -9,6 +9,9 @@ use test;
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 #
 # some basic test of views and its functionality
 #
@@ -4489,3 +4492,5 @@ SELECT * FROM t1 RIGHT JOIN v2 ON ( v2.a = t1.a ) WHERE v2.b IN ( SELECT b FROM 
 
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
+
+SET optimizer_switch=@save_optimizer_switch;

@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 /* Copyright (c) 2000, 2011 Oracle and/or its affiliates.
-   Copyright (c) 2010, 2011 Monty Program Ab
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

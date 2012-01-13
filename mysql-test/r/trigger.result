@@ -2218,3 +2218,47 @@ aaa
 DROP TABLE t1;
 
 End of 5.5 tests.
+#
+# BUG #910083: materialized subquery in a trigger
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on';
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+CREATE TRIGGER tr AFTER UPDATE ON t1 FOR EACH ROW
+UPDATE t2 SET b = (SELECT COUNT(a) FROM t1);
+INSERT INTO t1
+VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9);
+INSERT INTO t2
+VALUES (0),(0),(0),(0),(0),(0),(0),(0),(0);
+UPDATE t1 SET a = 3;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+9
+SELECT * FROM t2;
+b
+9
+9
+9
+9
+9
+9
+9
+9
+9
+UPDATE t1 SET a = 2;
+SELECT * FROM t2;
+b
+9
+9
+9
+9
+9
+9
+9
+9
+9
+SET optimizer_switch=@save_optimizer_switch;
+DROP TRIGGER tr;
+DROP TABLE t1, t2;
+End of 5.3 tests.

@@ -1,6 +1,6 @@
 /*
    Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009-2011, Monty Program Ab
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6327,6 +6327,8 @@ bool TABLE_LIST::init_derived(THD *thd, bool init_view)
 int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
+  if (jtbm_subselect)
+    return 0;
   if (is_materialized_derived() && !fill_me)
 
   {

@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009-2011 Monty Program Ab.
+   Copyright (c) 2009-2012 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,14 @@
   http://dev.mysql.com/doc/mysqltest/en/index.html
 
   Please keep the test framework tools identical in all versions!
+
+  Written by:
+  Sasha Pachev <sasha@mysql.com>
+  Matt Wagner  <matt@mysql.com>
+  Monty
+  Jani
+  Holyfoot
+  And many others
 */
 
 #define MTEST_VERSION "3.3"
@@ -45,8 +53,6 @@
 #endif
 #include <signal.h>
 #include <my_stacktrace.h>
-
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #ifdef __WIN__
 #include <crtdbg.h>
@@ -304,7 +310,6 @@ struct st_connection
   pthread_mutex_t result_mutex;
   pthread_cond_t result_cond;
   int query_done;
-  my_bool has_thread;
 #endif /*EMBEDDED_LIBRARY*/
 };
 
@@ -762,7 +767,8 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
                                int len);
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
 void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val);
-void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING* ds_input);
+void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING* ds_input,
+                          bool keep_header);
 
 static int match_expected_error(struct st_command *command,
                                 unsigned int err_errno,
@@ -3014,6 +3020,7 @@ void do_exec(struct st_command *command)
   FILE *res_file;
   char *cmd= command->first_argument;
   DYNAMIC_STRING ds_cmd;
+  DYNAMIC_STRING ds_sorted, *ds_result;
   DBUG_ENTER("do_exec");
   DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
@@ -3059,6 +3066,13 @@ void do_exec(struct st_command *command)
     die("popen(\"%s\", \"r\") failed", command->first_argument);
   }
 
+  ds_result= &ds_res;
+  if (display_result_sorted)
+  {
+    init_dynamic_string(&ds_sorted, "", 1024, 1024);
+    ds_result= &ds_sorted;
+  }
+
   while (fgets(buf, sizeof(buf), res_file))
   {
     if (disable_result_log)
@@ -3068,10 +3082,17 @@ void do_exec(struct st_command *command)
     }
     else
     {
-      replace_dynstr_append(&ds_res, buf);
+      replace_dynstr_append(ds_result, buf);
     }
   }
   error= pclose(res_file);
+
+  if (display_result_sorted)
+  {
+    dynstr_append_sorted(&ds_res, &ds_sorted, 0);
+    dynstr_free(&ds_sorted);
+  }
+
   if (error > 0)
   {
     uint status= WEXITSTATUS(error);
@@ -3304,7 +3325,7 @@ void do_remove_file(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("removing file: %s", ds_filename.str));
-  error= my_delete(ds_filename.str, MYF(disable_warnings ? 0 : MY_WME)) != 0;
+  error= my_delete_allow_opened(ds_filename.str, MYF(disable_warnings ? 0 : MY_WME)) != 0;
   handle_command_error(command, error, my_errno);
   dynstr_free(&ds_filename);
   DBUG_VOID_RETURN;
@@ -6625,7 +6646,8 @@ void print_version(void)
 void usage()
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  printf("MySQL AB, by Sasha, Matt, Monty & Jani and others\n");
+  printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
   my_print_help(my_long_options);
@@ -8098,7 +8120,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   if (display_result_sorted)
   {
     /* Sort the result set and append it to result */
-    dynstr_append_sorted(save_ds, &ds_sorted);
+    dynstr_append_sorted(save_ds, &ds_sorted, 1);
     ds= save_ds;
     dynstr_free(&ds_sorted);
   }
@@ -8601,6 +8623,9 @@ int main(int argc, char **argv)
 
   if (opt_protocol)
     mysql_options(con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(con->mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
@@ -10495,17 +10520,16 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val)
 }
 
 
-
 /*
   Build a list of pointer to each line in ds_input, sort
   the list and use the sorted list to append the strings
   sorted to the output ds
 
   SYNOPSIS
-  dynstr_append_sorted
-  ds - string where the sorted output will be appended
-  ds_input - string to be sorted
-
+  dynstr_append_sorted()
+  ds           string where the sorted output will be appended
+  ds_input     string to be sorted
+  keep_header  If header should not be sorted
 */
 
 static int comp_lines(const char **a, const char **b)
@@ -10513,7 +10537,8 @@ static int comp_lines(const char **a, const char **b)
   return (strcmp(*a,*b));
 }
 
-void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
+void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input,
+                          bool keep_header)
 {
   unsigned i;
   char *start= ds_input->str;
@@ -10525,11 +10550,14 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
 
   my_init_dynamic_array(&lines, sizeof(const char*), 32, 32);
 
-  /* First line is result header, skip past it */
-  while (*start && *start != '\n')
-    start++;
-  start++; /* Skip past \n */
-  dynstr_append_mem(ds, ds_input->str, start - ds_input->str);
+  if (keep_header)
+  {
+    /* First line is result header, skip past it */
+    while (*start && *start != '\n')
+      start++;
+    start++; /* Skip past \n */
+    dynstr_append_mem(ds, ds_input->str, start - ds_input->str);
+  }
 
   /* Insert line(s) in array */
   while (*start)
@@ -10578,3 +10606,32 @@ static int setenv(const char *name, const char *value, int overwrite)
   return 0;
 }
 #endif
+
+/*
+  for the purpose of testing (see dialog.test)
+  we replace default mysql_authentication_dialog_ask function with the one,
+  that always reads from stdin with explicit echo.
+
+*/
+MYSQL_PLUGIN_EXPORT
+char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
+                                      const char *prompt,
+                                      char *buf, int buf_len)
+{
+  char *s=buf;
+
+  fputs(prompt, stdout);
+  fputs(" ", stdout);
+
+  if (!fgets(buf, buf_len-1, stdin))
+    buf[0]= 0;
+  else if (buf[0] && (s= strend(buf))[-1] == '\n')
+    s[-1]= 0;
+
+  for (s= buf; *s; s++)
+    fputc(type == 2 ? '*' : *s, stdout);
+
+  fputc('\n', stdout);
+
+  return buf;
+}

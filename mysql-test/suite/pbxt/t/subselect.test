@@ -80,8 +80,11 @@ explain extended (select * from t2 where t2.b=(select a from t3 order by 1 desc 
 select (select a from t3 where a<t2.a*4 order by 1 desc limit 1), a from t2;
 select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from 
 (select * from t2 where a>1) as tt;
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain extended select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from 
 (select * from t2 where a>1) as tt;
+set optimizer_switch=@tmp_optimizer_switch;
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3 where t3.a > t1.a) order by 1 desc limit 1);
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3 where t3.a < t1.a) order by 1 desc limit 1);
@@ -829,6 +832,8 @@ commit;
 enable_query_log;
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 select * from t2 where t2.a in (select a from t1);
 explain extended select * from t2 where t2.a in (select a from t1);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
@@ -839,6 +844,7 @@ insert into t1 values (3,31);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30 and t1.b <> 31);
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1, t2, t3;
 
 #
@@ -1792,6 +1798,7 @@ drop table t1;
 
 set @save_optimizer_switch=@@optimizer_switch;
 set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+SET optimizer_switch='semijoin_with_cache=off';
 
 CREATE TABLE t1 (one int, two int, flag char(1));
 CREATE TABLE t2 (one int, two int, flag char(1));
@@ -3088,6 +3095,10 @@ DROP TABLE t1, t2, t3;
 # Bug #30788: Inconsistent retrieval of char/varchar
 #
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
+SET optimizer_switch='materialization=off';
+
 CREATE TABLE t1 (a CHAR(1), b VARCHAR(10));
 INSERT INTO t1 VALUES ('a', 'aa');
 INSERT INTO t1 VALUES ('a', 'aaa');
@@ -3109,6 +3120,7 @@ SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 
 DROP TABLE t1,t2;
 
+SET optimizer_switch= @save_optimizer_switch;
 
 #
 # Bug #32400: Complex SELECT query returns correct result only on some
@@ -3222,6 +3234,7 @@ CREATE TABLE t1 (s1 char(1));
 INSERT INTO t1 VALUES ('a');
 SELECT * FROM t1 WHERE _utf8'a' = ANY (SELECT s1 FROM t1);
 DROP TABLE t1;
+
 
 --disable_query_log
 drop database pbxt;

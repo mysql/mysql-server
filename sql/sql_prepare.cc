@@ -1,5 +1,5 @@
 /* Copyright (c) 2002, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009-2011, Monty Program Ab
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2515,9 +2515,6 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       for (order= sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
       sl->handle_derived(lex, DT_REINIT);
-
-      /* clear the no_error flag for INSERT/UPDATE IGNORE */
-      sl->no_error= FALSE;
     }
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();

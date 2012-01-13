@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2001, 2003, 2006-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
    Use is subject to license terms.
    Copyright (c) 2009-2011, Monty Program Ab
 

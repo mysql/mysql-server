@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2010, Oracle and/or its affiliates
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -29,7 +29,8 @@ BEGIN
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
     WHERE variable_name NOT IN ('timestamp', 'innodb_file_format_max')
      AND variable_name not like "Last_IO_Err*"
-      ORDER BY VARIABLE_NAME;
+     AND variable_name != 'INNODB_IBUF_MAX_SIZE'
+   ORDER BY variable_name;
 
   -- Dump all databases, there should be none
   -- except those that was created during bootstrap

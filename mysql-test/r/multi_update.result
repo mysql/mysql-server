@@ -665,8 +665,8 @@ UPDATE IGNORE
 ( SELECT ( SELECT COUNT(*) FROM t1 GROUP BY a, @v ) a FROM t2 ) x, t3
 SET t3.a = 0;
 Warnings:
-Error	1242	Subquery returns more than 1 row
-Error	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
 DROP TABLE t1, t2, t3;
 SET SESSION sql_safe_updates = DEFAULT;
 #

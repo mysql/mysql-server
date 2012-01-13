@@ -4,9 +4,11 @@ drop view if exists v1,v2,v3,v4;
 --enable_warnings
 
 set @exit_optimizer_switch=@@optimizer_switch;
+set @exit_join_cache_level=@@join_cache_level;
 set optimizer_switch='derived_merge=on,derived_with_keys=on';
 # The 'default' value within the scope of this test:
 set @save_optimizer_switch=@@optimizer_switch;
+set join_cache_level=1;
 
 create table t1(f1 int, f11 int);
 create table t2(f2 int, f22 int);
@@ -925,6 +927,8 @@ INSERT INTO t2 VALUES (4,3,'r');
 
 CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 SET SESSION optimizer_switch='derived_with_keys=off';
 EXPLAIN
 SELECT * FROM t3 
@@ -942,6 +946,7 @@ SELECT * FROM t3
 SELECT * FROM t3 
   WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
                    WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+SET optimizer_switch=@save_optimizer_switch;
 
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
@@ -1031,6 +1036,7 @@ CREATE TABLE t3 (
   b int NOT NULL, e varchar(1) NOT NULL, d varchar(1) NOT NULL, KEY (e,b)
 );
 INSERT INTO t3 VALUES (4,'x','x'),(9,'w','w'),(4,'d','d'),(8,'e','e');
+INSERT INTO t3 VALUES (14,'a','a'),(19,'b','b'),(14,'c','c'),(18,'d','d');
 
 CREATE TABLE t4 (i int NOT NULL, m varchar(1) NOT NULL) ;
 INSERT INTO t4 VALUES (8,'m'),(9,'d'),(2,'s'),(4,'r'),(8,'m');
@@ -1071,6 +1077,9 @@ INSERT INTO t2 VALUES (29,8,'c'), (39,7,'b');
 
 CREATE TABLE t3 (b int);
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 EXPLAIN EXTENDED
 SELECT t.b, t.c, t1.a
 FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
@@ -1105,6 +1114,8 @@ SELECT t.b, t.c, t1.a
 FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
   WHERE t.b <> 0 AND t.c = t1.a;
 
+SET optimizer_switch=@save_optimizer_switch;
+
 DROP TABLE t1,t2,t3;
 
 --echo #
@@ -1118,6 +1129,9 @@ CREATE TABLE t2 (a int);
 INSERT INTO t2 VALUES (6);
 
 CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 
 SET SESSION optimizer_switch = 'derived_with_keys=on';
 SET SESSION join_cache_level = 4;
@@ -1136,6 +1150,8 @@ SELECT * FROM t3
   WHERE t3.b <> ANY (SELECT t1.b  FROM t1 LEFT JOIN v2 ON v2.a = t1.a);
 
 SET SESSION join_cache_level = default;
+
+SET optimizer_switch=@save_optimizer_switch;
 
 DROP VIEW v2;
 DROP TABLE t1,t2,t3;
@@ -1263,3 +1279,4 @@ drop table t1,t2,t3;
 
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
+set join_cache_level=@exit_join_cache_level;

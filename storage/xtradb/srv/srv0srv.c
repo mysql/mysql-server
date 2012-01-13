@@ -104,7 +104,7 @@ UNIV_INTERN ulint	srv_activity_count	= 0;
 UNIV_INTERN ulint	srv_fatal_semaphore_wait_threshold = 600;
 
 /**/
-UNIV_INTERN ulong	srv_kill_idle_transaction = 0;
+UNIV_INTERN long long	srv_kill_idle_transaction = 0;
 
 /* How much data manipulation language (DML) statements need to be delayed,
 in microseconds, in order to reduce the lagging of the purge thread. */

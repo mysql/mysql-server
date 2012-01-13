@@ -26,6 +26,11 @@ static ulonglong query_performance_frequency;
 #include <linux/unistd.h>
 #endif
 
+/* For CYGWIN */
+#if !defined(CLOCK_THREAD_CPUTIME_ID) && defined(CLOCK_THREAD_CPUTIME)
+#define CLOCK_THREAD_CPUTIME_ID CLOCK_THREAD_CPUTIME
+#endif
+
 /*
   return number of nanoseconds since unspecified (but always the same)
   point in the past
