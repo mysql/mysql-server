@@ -715,7 +715,7 @@ multi_delete::initialize_tables(JOIN *join)
 
   for (JOIN_TAB *tab= first_linear_tab(join, WITH_CONST_TABLES); 
        tab; 
-       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     if (tab->table->map & tables_to_delete_from)
     {
