@@ -546,6 +546,11 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   struct addrinfo hints;
   struct addrinfo *addr_info_list;
+  /*
+    Makes fault injection with DBUG_EXECUTE_IF easier.
+    Invoking free_addr_info(NULL) crashes on some platforms.
+  */
+  bool free_addr_info_list= false;
 
   memset(&hints, 0, sizeof (struct addrinfo));
   hints.ai_flags= AI_PASSIVE;
@@ -556,39 +561,48 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) hostname_buffer));
 
   err_code= getaddrinfo(hostname_buffer, NULL, &hints, &addr_info_list);
+  if (err_code == 0)
+    free_addr_info_list= true;
 
   /*
   ===========================================================================
-
+                             DBUG CODE (begin)
   ===========================================================================
   */
   DBUG_EXECUTE_IF("getaddrinfo_error_noname",
                   {
-                    if (err_code == 0)
+                    if (free_addr_info_list)
                       freeaddrinfo(addr_info_list);
 
                     addr_info_list= NULL;
                     err_code= EAI_NONAME;
+                    free_addr_info_list= false;
                   }
                   );
 
   DBUG_EXECUTE_IF("getaddrinfo_error_again",
                   {
-                    if (err_code == 0)
+                    if (free_addr_info_list)
                       freeaddrinfo(addr_info_list);
 
                     addr_info_list= NULL;
                     err_code= EAI_AGAIN;
+                    free_addr_info_list= false;
                   }
                   );
 
   DBUG_EXECUTE_IF("getaddrinfo_fake_bad_ipv4",
                   {
-                    if (err_code == 0)
+                    if (free_addr_info_list)
                       freeaddrinfo(addr_info_list);
 
                     struct sockaddr_in *debug_addr;
                     struct in_addr *debug_ipv4;
+                    /*
+                      Not thread safe, which is ok.
+                      Only one connection at a time is tested with
+                      fault injection.
+                    */
                     static struct sockaddr_storage debug_sock_addr[2];
                     static struct addrinfo debug_addr_info[2];
                     debug_addr= (struct sockaddr_in*) & debug_sock_addr[0];
@@ -611,12 +625,13 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
                     addr_info_list= & debug_addr_info[0];
                     err_code= 0;
+                    free_addr_info_list= false;
                   }
                   );
 
   DBUG_EXECUTE_IF("getaddrinfo_fake_good_ipv4",
                   {
-                    if (err_code == 0)
+                    if (free_addr_info_list)
                       freeaddrinfo(addr_info_list);
 
                     struct sockaddr_in *debug_addr;
@@ -643,8 +658,15 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
                     addr_info_list= & debug_addr_info[0];
                     err_code= 0;
+                    free_addr_info_list= false;
                   }
                   );
+
+  /*
+  ===========================================================================
+                             DBUG CODE (end)
+  ===========================================================================
+  */
 
   if (err_code == EAI_NONAME)
   {
@@ -704,19 +726,8 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
       {
         DBUG_PRINT("error", ("Out of memory."));
 
-        DBUG_EXECUTE_IF("getaddrinfo_fake_bad_ipv4",
-                        {
-                          addr_info_list= NULL;
-                        }
-                        );
-
-        DBUG_EXECUTE_IF("getaddrinfo_fake_good_ipv4",
-                        {
-                          addr_info_list= NULL;
-                        }
-                        );
-
-        freeaddrinfo(addr_info_list);
+        if (free_addr_info_list)
+          freeaddrinfo(addr_info_list);
         DBUG_RETURN(TRUE);
       }
 
@@ -750,19 +761,8 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   /* Free the result of getaddrinfo(). */
 
-  DBUG_EXECUTE_IF("getaddrinfo_fake_bad_ipv4",
-                  {
-                    addr_info_list= NULL;
-                  }
-                  );
-
-  DBUG_EXECUTE_IF("getaddrinfo_fake_good_ipv4",
-                  {
-                    addr_info_list= NULL;
-                  }
-                  );
-
-  freeaddrinfo(addr_info_list);
+  if (free_addr_info_list)
+    freeaddrinfo(addr_info_list);
 
   /* Add an entry for the IP to the cache. */
 
