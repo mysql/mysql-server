@@ -199,9 +199,9 @@ do
         make CC=icc DEBUG=0 HAVE_CILK=0 clean fastbuild; \
         make CC=icc DEBUG=0 HAVE_CILK=0 -C src/tests ${testnames[@]})
 
-    rev=$(svn info | awk '/Revision/ { print $2 }')
-
     cd $src_tests
+
+    rev=$(svn info ../.. | awk '/Revision/ { print $2 }')
 
     running=yes
 
