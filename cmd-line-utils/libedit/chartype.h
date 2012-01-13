@@ -45,11 +45,11 @@
  * seems to actually advertise this properly, despite Unicode 3.1 having
  * been around since 2001... */
 
-/* XXXMYSQL : Added FreeBSD to bypass this check.
-  TODO : Verify if FreeBSD stores ISO 10646 in wchar_t. */
+/* XXXMYSQL : Added FreeBSD & AIX to bypass this check.
+  TODO : Verify if FreeBSD & AIX stores ISO 10646 in wchar_t. */
 #if !defined(__NetBSD__) && !defined(__sun) \
   && !(defined(__APPLE__) && defined(__MACH__)) \
-  && !defined(__FreeBSD__)
+  && !defined(__FreeBSD__) && !defined(_AIX)
 #ifndef __STDC_ISO_10646__
 /* In many places it is assumed that the first 127 code points are ASCII
  * compatible, so ensure wchar_t indeed does ISO 10646 and not some other

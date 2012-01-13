@@ -1147,7 +1147,7 @@ static struct my_option my_long_options[] =
   {"offset", 'o', "Skip the first N entries.", &offset, &offset,
    0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p', "Password to connect to remote server.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
     &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -2295,8 +2295,10 @@ int main(int argc, char** argv)
                             INTVAR_DYNAMIC_INIT, INTVAR_DYNAMIC_INCR)))
     exit(1);
 
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my", load_default_groups, &argc, &argv))
     exit(1);
+  my_getopt_use_args_separator= FALSE;
   defaults_argv= argv;
 
   parse_args(&argc, &argv);
