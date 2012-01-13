@@ -17,6 +17,8 @@
 #define PFS_STAT_H
 
 #include "sql_const.h"
+/* memcpy */
+#include "string.h"
 
 /**
   @file storage/perfschema/pfs_stat.h
@@ -449,6 +451,21 @@ struct PFS_table_stat
     reset_lock();
   }
 
+  inline void fast_reset_io(void)
+  {
+    memcpy(& m_index_stat, & g_reset_template.m_index_stat, sizeof(m_index_stat));
+  }
+
+  inline void fast_reset_lock(void)
+  {
+    memcpy(& m_lock_stat, & g_reset_template.m_lock_stat, sizeof(m_lock_stat));
+  }
+
+  inline void fast_reset(void)
+  {
+    memcpy(this, & g_reset_template, sizeof(*this));
+  }
+
   inline void aggregate_io(const PFS_table_stat *stat)
   {
     PFS_table_io_stat *to_stat= & m_index_stat[0];
@@ -487,6 +504,8 @@ struct PFS_table_stat
     sum_io(result);
     sum_lock(result);
   }
+
+  static struct PFS_table_stat g_reset_template;
 };
 
 /** Statistics for SOCKET IO. Used for both waits and byte counts. */

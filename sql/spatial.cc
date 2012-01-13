@@ -238,12 +238,12 @@ static uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo)
     return uint4korr(ptr);
   /* else */
   {
-    char inv_array[4];
+    char inv_array[4], *inv_array_p= inv_array;
     inv_array[0]= ptr[3];
     inv_array[1]= ptr[2];
     inv_array[2]= ptr[1];
     inv_array[3]= ptr[0];
-    return uint4korr(inv_array);
+    return uint4korr(inv_array_p);
   }
 }
 
