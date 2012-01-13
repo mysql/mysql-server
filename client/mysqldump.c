@@ -425,7 +425,7 @@ static struct my_option my_long_options[] =
    &opt_order_by_primary, &opt_order_by_primary, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's solicited on the tty.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -908,8 +908,11 @@ static int get_options(int *argc, char ***argv)
   opt_net_buffer_length= *mysql_params->p_net_buffer_length;
 
   md_result_file= stdout;
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my",load_default_groups,argc,argv))
     return 1;
+  my_getopt_use_args_separator= FALSE;
+
   defaults_argv= *argv;
 
   if (my_hash_init(&ignore_table, charset_info, 16, 0, 0,

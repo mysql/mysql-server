@@ -13,6 +13,7 @@ SELECT * FROM t1;
 a
 1
 # Start a asynchronous reload
+Warning: Using a password on the command line interface can be insecure.
 # Wait for tables to be closed
 # Ensure that the server didn't crash
 SELECT * FROM t1;

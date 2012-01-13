@@ -8,6 +8,8 @@ use performance_schema;
 show tables like "user_table";
 Tables_in_performance_schema (user_table)
 user_table
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 100: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 125: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 150: Table 'events_waits_history' already exists
@@ -69,6 +71,8 @@ use performance_schema;
 show tables like "user_view";
 Tables_in_performance_schema (user_view)
 user_view
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 100: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 125: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 150: Table 'events_waits_history' already exists
@@ -128,6 +132,8 @@ drop view test.user_view;
 create procedure test.user_proc()
 select "Not supposed to be here";
 update mysql.proc set db='performance_schema' where name='user_proc';
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 100: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 125: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 150: Table 'events_waits_history' already exists
@@ -187,6 +193,8 @@ drop procedure test.user_proc;
 create function test.user_func() returns integer
 return 0;
 update mysql.proc set db='performance_schema' where name='user_func';
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 100: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 125: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 150: Table 'events_waits_history' already exists
@@ -246,6 +254,8 @@ drop function test.user_func;
 create event test.user_event on schedule every 1 day do
 select "not supposed to be here";
 update mysql.event set db='performance_schema' where name='user_event';
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 100: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 125: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 150: Table 'events_waits_history' already exists

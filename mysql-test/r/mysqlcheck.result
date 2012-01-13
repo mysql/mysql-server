@@ -234,6 +234,7 @@ DROP TABLE `@`;
 CREATE TABLE `я` (a INT) engine=myisam;
 SET NAMES DEFAULT;
 mysqlcheck --default-character-set="latin1" --databases test
+call mtr.add_suppression("Can't find file: '..test.@003f.frm'");
 test.?
 Error    : Table doesn't exist
 status   : Operation failed
@@ -352,3 +353,12 @@ CHECK TABLE bug47205 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
 test.bug47205	check	status	OK
 DROP TABLE bug47205;
+#
+# Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+#
+DROP DATABASE IF EXISTS b12688860_db;
+CREATE DATABASE b12688860_db;
+Warning: Using a password on the command line interface can be insecure.
+DROP DATABASE b12688860_db;
+
+End of tests

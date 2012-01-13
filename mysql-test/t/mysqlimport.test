@@ -1,0 +1,28 @@
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
+
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+
+CREATE DATABASE b12688860_db;
+CREATE TABLE b12688860_db.b12688860_tab (c1 INT);
+
+--echo # Creating a temp sql file to be loaded.
+--write_file $MYSQLTEST_VARDIR/tmp/b12688860_tab.sql
+1
+2
+3
+EOF
+
+--exec $MYSQL_IMPORT -uroot --password="" b12688860_db $MYSQLTEST_VARDIR/tmp/b12688860_tab.sql 2>&1
+
+SELECT * FROM b12688860_db.b12688860_tab;
+DROP TABLE b12688860_db.b12688860_tab;
+DROP DATABASE b12688860_db;
+
+--echo # Dropping the temp file
+--remove_file $MYSQLTEST_VARDIR/tmp/b12688860_tab.sql
+
+--echo
+--echo End of tests

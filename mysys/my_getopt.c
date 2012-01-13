@@ -38,6 +38,7 @@ static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
 static int setval(const struct my_option *, void *, char *, my_bool);
 static char *check_struct_option(char *cur_arg, char *key_name);
+static void print_cmdline_password_warning();
 
 /*
   The following three variables belong to same group and the number and
@@ -431,6 +432,9 @@ int handle_options(int *argc, char ***argv,
 	}
 	else
 	  argument= optend;
+
+        if (optp->var_type == GET_PASSWORD && is_cmdline_arg && argument)
+          print_cmdline_password_warning();
       }
       else  /* must be short option */
       {
@@ -468,6 +472,8 @@ int handle_options(int *argc, char ***argv,
 		  argument= optend + 1;
 		  /* This is in effect a jump out of the outer loop */
 		  optend= (char*) " ";
+                  if (optp->var_type == GET_PASSWORD && is_cmdline_arg)
+                    print_cmdline_password_warning();
 		}
 		else
 		{
@@ -557,6 +563,25 @@ int handle_options(int *argc, char ***argv,
   */
   (*argv)[argvpos]= 0;
   return 0;
+}
+
+
+/**
+ * This function should be called to print a warning message
+ * if password string is specified on the command line.
+ */
+
+static void print_cmdline_password_warning()
+{
+  static my_bool password_warning_announced= FALSE;
+
+  if (!password_warning_announced)
+  {
+    fprintf(stderr, "Warning: Using a password on the command line "
+            "interface can be insecure.\n");
+    (void) fflush(stderr);
+    password_warning_announced= TRUE;
+  }
 }
 
 
@@ -680,6 +705,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       *((double*) value)= getopt_double(argument, opts, &err);
       break;
     case GET_STR:
+    case GET_PASSWORD:
       if (argument == enabled_my_option)
         break; /* string options don't use this default of "1" */
       *((char**) value)= argument;
@@ -1134,6 +1160,7 @@ static void init_one_value(const struct my_option *option, void *variable,
     *((double*) variable)= ulonglong2double(value);
     break;
   case GET_STR:
+  case GET_PASSWORD:
     /*
       Do not clear variable value if it has no default value.
       The default value may already be set.
@@ -1275,6 +1302,7 @@ void my_print_help(const struct my_option *options)
 	col++;
       }
       else if ((optp->var_type & GET_TYPE_MASK) == GET_STR       ||
+               (optp->var_type & GET_TYPE_MASK) == GET_PASSWORD  ||
                (optp->var_type & GET_TYPE_MASK) == GET_STR_ALLOC ||
                (optp->var_type & GET_TYPE_MASK) == GET_ENUM      ||
                (optp->var_type & GET_TYPE_MASK) == GET_SET       ||
@@ -1388,6 +1416,7 @@ void my_print_variables(const struct my_option *options)
         printf("%s\n", get_type(optp->typelib, *(ulong*) value));
 	break;
       case GET_STR:
+      case GET_PASSWORD:
       case GET_STR_ALLOC:                    /* fall through */
 	printf("%s\n", *((char**) value) ? *((char**) value) :
 	       "(No default value)");
