@@ -10,6 +10,17 @@
 
 C_BEGIN
 
+#define ft_flush_before_applying_inbox 1
+#define ft_flush_before_child_pin 2
+#define ft_flush_after_child_pin 3
+#define ft_flush_before_split 4
+#define ft_flush_during_split 5
+#define ft_flush_before_merge 6
+#define ft_flush_after_merge 7
+#define ft_flush_after_rebalance 8
+#define ft_flush_before_unpin_remove 9
+#define ft_flush_before_pin_second_node_for_merge 10
+
 typedef struct flusher_advice FLUSHER_ADVICE;
 
 /**
