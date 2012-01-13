@@ -154,7 +154,8 @@ static void trace_filesort_information(Opt_trace_context *trace,
   @param      select         Condition to apply to the rows
   @param      max_rows       Return only this many rows
   @param      sort_positions Set to TRUE if we want to force sorting by position
-                             (Needed by UPDATE/INSERT or ALTER TABLE)
+                             (Needed by UPDATE/INSERT or ALTER TABLE or
+                              when rowids are required by executor)
   @param[out] examined_rows  Store number of examined rows here
   @param[out] found_rows     Store the number of found rows here.
 

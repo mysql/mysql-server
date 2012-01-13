@@ -2253,7 +2253,7 @@ void st_select_lex::print_order(String *str,
       str->append(buffer, (uint) length);
     }
     else
-      (*order->item)->print(str, query_type);
+      (*order->item)->print_for_order(str, query_type, order->used_alias);
     if (order->direction == ORDER::ORDER_DESC)
       str->append(STRING_WITH_LEN(" desc"));
     if (order->next)
