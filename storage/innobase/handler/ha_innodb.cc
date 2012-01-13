@@ -2481,7 +2481,7 @@ UNIV_INTERN
 ibool
 trx_is_interrupted(
 /*===============*/
-	trx_t*	trx)	/*!< in: transaction */
+	const trx_t*	trx)	/*!< in: transaction */
 {
 	return(trx && trx->mysql_thd && thd_killed((THD*) trx->mysql_thd));
 }
@@ -11158,30 +11158,7 @@ ha_innobase::external_lock(
 		if (thd_sql_command(thd) == SQLCOM_FLUSH
 		    && lock_type == F_RDLCK) {
 
-			fprintf(stderr, "Begin: FTWRL: %s\n",
-				prebuilt->table->name);
-
-			prebuilt->table->quiesce = QUIESCE_START;
-
-			trx_purge_stop();
-
-			prebuilt->table->quiesce = QUIESCE_MERGING;
-
-			ibuf_contract_in_background(prebuilt->table->id, TRUE);
-
-			prebuilt->table->quiesce = QUIESCE_FLUSHING;
-
-			ulint	n_pages = buf_flush_list(
-				prebuilt->table->space,
-				ULINT_MAX, ULINT_UNDEFINED);
-
-			buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-
-			fprintf(stderr, "Pages flushed: %lu\n", n_pages);
-
-			// FIXME: Ignore races for now. Though I can't see why
-			// there should be a race for the interim states.
-			prebuilt->table->quiesce = QUIESCE_COMPLETE;
+			row_mysql_quiesce_table_begin(prebuilt->table);
 		}
 
 	} else if (prebuilt->table->quiesce == QUIESCE_COMPLETE) {
@@ -11189,14 +11166,7 @@ ha_innobase::external_lock(
 		if (thd_sql_command(thd) == SQLCOM_UNLOCK_TABLES
 		    && lock_type == F_UNLCK) {
 
-			fprintf(stderr, "End: FTWRL: %s\n",
-				prebuilt->table->name);
-
-			trx_purge_run();
-
-			// FIXME: Ignore races for now. Though I can't see why
-			// there should be a race for the interim states.
-			prebuilt->table->quiesce = QUIESCE_NONE;
+			row_mysql_quiesce_table_complete(prebuilt->table);
 		}
 	} else {
 		ut_a(prebuilt->table->quiesce == QUIESCE_NONE);

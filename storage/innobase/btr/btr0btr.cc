@@ -4350,9 +4350,11 @@ btr_validate_level(
 	fil_space_get_latch(space, &space_flags);
 
 	if (zip_size != dict_tf_get_zip_size(space_flags)) {
-		fprintf(stderr, "InnoDB: Flags mismatch: "
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Flags mismatch: "
 			"table=%lu, tablespace=%lu\n",
 			(ulong) index->table->flags, (ulong) space_flags);
+
 		mtr_commit(&mtr);
 		return(FALSE);
 	}
@@ -4365,7 +4367,9 @@ btr_validate_level(
 
 			btr_validate_report1(index, level, block);
 
-			fputs("InnoDB: page is free\n", stderr);
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: page is free\n");
+
 			ret = FALSE;
 		}
 
@@ -4417,7 +4421,8 @@ loop:
 
 		btr_validate_report1(index, level, block);
 
-		fputs("InnoDB: page is free\n", stderr);
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: page is free\n");
 		ret = FALSE;
 	}
 
@@ -4455,15 +4460,21 @@ loop:
 
 	if (right_page_no != FIL_NULL) {
 		const rec_t*	right_rec;
-		right_block = btr_block_get(space, zip_size, right_page_no,
-					    RW_X_LATCH, index, &mtr);
+
+		right_block = btr_block_get(
+			space, zip_size, right_page_no, RW_X_LATCH,
+			index, &mtr);
+
 		right_page = buf_block_get_frame(right_block);
+
 		if (btr_page_get_prev(right_page, &mtr)
 		    != page_get_page_no(page)) {
 
 			btr_validate_report2(index, level, block, right_block);
-			fputs("InnoDB: broken FIL_PAGE_NEXT"
-			      " or FIL_PAGE_PREV links\n", stderr);
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: broken FIL_PAGE_NEXT or "
+				"FIL_PAGE_PREV links\n");
 			buf_page_print(page, 0);
 			buf_page_print(right_page, 0);
 
@@ -4472,7 +4483,11 @@ loop:
 
 		if (page_is_comp(right_page) != page_is_comp(page)) {
 			btr_validate_report2(index, level, block, right_block);
-			fputs("InnoDB: 'compact' flag mismatch\n", stderr);
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: 'compact' flag mismatch\n");
+
 			buf_page_print(page, 0);
 			buf_page_print(right_page, 0);
 
@@ -4482,32 +4497,41 @@ loop:
 		}
 
 		rec = page_rec_get_prev(page_get_supremum_rec(page));
-		right_rec = page_rec_get_next(page_get_infimum_rec(
-						      right_page));
-		offsets = rec_get_offsets(rec, index,
-					  offsets, ULINT_UNDEFINED, &heap);
-		offsets2 = rec_get_offsets(right_rec, index,
-					   offsets2, ULINT_UNDEFINED, &heap);
+
+		right_rec = page_rec_get_next(
+			page_get_infimum_rec(right_page));
+
+		offsets = rec_get_offsets(
+			rec, index, offsets, ULINT_UNDEFINED, &heap);
+
+		offsets2 = rec_get_offsets(
+			right_rec, index, offsets2, ULINT_UNDEFINED, &heap);
+
 		if (cmp_rec_rec(rec, right_rec, offsets, offsets2,
 			        index) >= 0) {
 
 			btr_validate_report2(index, level, block, right_block);
 
-			fputs("InnoDB: records in wrong order"
-			      " on adjacent pages\n", stderr);
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: records in wrong order"
+				" on adjacent pages\n");
 
 			buf_page_print(page, 0);
 			buf_page_print(right_page, 0);
 
-			fputs("InnoDB: record ", stderr);
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: record ");
 			rec = page_rec_get_prev(page_get_supremum_rec(page));
 			rec_print(stderr, rec, index);
-			putc('\n', stderr);
-			fputs("InnoDB: record ", stderr);
+			fprintf(stderr, "\n");
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: record ");
 			rec = page_rec_get_next(
 				page_get_infimum_rec(right_page));
 			rec_print(stderr, rec, index);
-			putc('\n', stderr);
+			fprintf( stderr, "\n");
 
 			ret = FALSE;
 		}
@@ -4542,24 +4566,29 @@ loop:
 
 			btr_validate_report1(index, level, block);
 
-			fputs("InnoDB: node pointer to the page is wrong\n",
-			      stderr);
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: node pointer to the page is wrong\n");
 
 			buf_page_print(father_page, 0);
 			buf_page_print(page, 0);
 
-			fputs("InnoDB: node ptr ", stderr);
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: node ptr ");
 			rec_print(stderr, node_ptr, index);
 
 			rec = btr_cur_get_rec(&node_cur);
+
+			ut_print_timestamp(stderr);
 			fprintf(stderr, "\n"
-				"InnoDB: node ptr child page n:o %lu\n",
+				" InnoDB: node ptr child page n:o %lu\n",
 				(ulong) btr_node_ptr_get_child_page_no(
 					rec, offsets));
 
-			fputs("InnoDB: record on page ", stderr);
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: record on page ");
 			rec_print_new(stderr, rec, offsets);
-			putc('\n', stderr);
+			fprintf(stderr, "\n");
 			ret = FALSE;
 
 			goto node_ptr_fails;
@@ -4581,13 +4610,17 @@ loop:
 				buf_page_print(father_page, 0);
 				buf_page_print(page, 0);
 
-				fputs("InnoDB: Error: node ptrs differ"
-				      " on levels > 0\n"
-				      "InnoDB: node ptr ", stderr);
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					"InnoDB: Error: node ptrs differ"
+					" on levels > 0\n"
+					"InnoDB: node ptr ");
 				rec_print_new(stderr, node_ptr, offsets);
-				fputs("InnoDB: first rec ", stderr);
+
+				ut_print_timestamp(stderr);
+				fprintf(stderr, " InnoDB: first rec ");
 				rec_print(stderr, first_rec, index);
-				putc('\n', stderr);
+				fprintf(stderr, "\n");
 				ret = FALSE;
 
 				goto node_ptr_fails;
@@ -4617,9 +4650,11 @@ loop:
 				if (btr_cur_get_rec(&right_node_cur)
 				    != right_node_ptr) {
 					ret = FALSE;
-					fputs("InnoDB: node pointer to"
-					      " the right page is wrong\n",
-					      stderr);
+
+					ut_print_timestamp(stderr);
+					fprintf(stderr,
+						" InnoDB: node pointer to"
+						" the right page is wrong\n");
 
 					btr_validate_report1(index, level,
 							     block);
@@ -4637,9 +4672,11 @@ loop:
 					    page_get_infimum_rec(
 						    right_father_page))) {
 					ret = FALSE;
-					fputs("InnoDB: node pointer 2 to"
-					      " the right page is wrong\n",
-					      stderr);
+
+					ut_print_timestamp(stderr);
+					fprintf(stderr,
+						" InnoDB: node pointer 2 to"
+						" the right page is wrong\n");
 
 					btr_validate_report1(index, level,
 							     block);
@@ -4654,9 +4691,11 @@ loop:
 				    != btr_page_get_next(father_page, &mtr)) {
 
 					ret = FALSE;
-					fputs("InnoDB: node pointer 3 to"
-					      " the right page is wrong\n",
-					      stderr);
+
+					ut_print_timestamp(stderr);
+					fprintf(stderr,
+						" InnoDB: node pointer 3 to"
+						" the right page is wrong\n");
 
 					btr_validate_report1(index, level,
 							     block);

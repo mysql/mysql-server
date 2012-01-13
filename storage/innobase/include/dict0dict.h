@@ -539,7 +539,7 @@ void
 dict_index_name_print(
 /*==================*/
 	FILE*			file,	/*!< in: output stream */
-	trx_t*			trx,	/*!< in: transaction */
+	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index);	/*!< in: index to print */
 #ifdef UNIV_DEBUG
 /********************************************************************//**

@@ -515,7 +515,7 @@ void
 ut_print_name(
 /*==========*/
 	FILE*		f,	/*!< in: output stream */
-	trx_t*		trx,	/*!< in: transaction */
+	const trx_t*	trx,	/*!< in: transaction */
 	ibool		table_id,/*!< in: TRUE=print a table name,
 				FALSE=print other identifier */
 	const char*	name)	/*!< in: name to print */
@@ -533,7 +533,7 @@ void
 ut_print_namel(
 /*===========*/
 	FILE*		f,	/*!< in: output stream */
-	trx_t*		trx,	/*!< in: transaction (NULL=no quotes) */
+	const trx_t*	trx,	/*!< in: transaction (NULL=no quotes) */
 	ibool		table_id,/*!< in: TRUE=print a table name,
 				FALSE=print other identifier */
 	const char*	name,	/*!< in: name to print */
