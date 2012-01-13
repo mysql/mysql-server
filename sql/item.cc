@@ -7524,7 +7524,9 @@ bool Item_direct_ref::is_null()
 
 bool Item_direct_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
-  return (null_value=(*ref)->get_date(ltime,fuzzydate));
+  bool tmp= (*ref)->get_date(ltime, fuzzydate);
+  null_value= (*ref)->null_value;
+  return tmp;
 }
 
 
