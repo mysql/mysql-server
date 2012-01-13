@@ -72,8 +72,11 @@ while [ $# -gt 0 ] ; do
 done
 
 src_tests="${toku_toplevel}/src/tests"
-testnames=(recover-test_stress1.tdb \
-           recover-test_stress2.tdb)
+testnames=(test_stress1.tdb \
+           test_stress5.tdb \
+           test_stress6.tdb)
+recover_testnames=(recover-test_stress1.tdb \
+                   recover-test_stress2.tdb)
 
 save_failure() {
     dir="$1"; shift
@@ -93,7 +96,85 @@ save_failure() {
     mv $envdir "${dest}/"
 }
 
+running=no
+
 run_test() {
+    rev=$1; shift
+    exec="$1"; shift
+    table_size="$1"; shift
+    cachetable_size="$1"; shift
+    num_ptquery="$1"; shift
+    num_update="$1"; shift
+    mylog="$1"; shift
+    mysavedir="$1"; shift
+
+    rundir=$(mktemp -d ./rundir.XXXXXXXX)
+    tmplog=$(mktemp)
+
+    ulimit -c unlimited
+    t0="$(date)"
+    t1=""
+    t2=""
+    envdir="../${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-$$.dir"
+    cd $rundir
+    if ! LD_LIBRARY_PATH=../../../lib:$LD_LIBRARY_PATH \
+        ../$exec -v --only_create --num_seconds 600 --envdir "$envdir" \
+        --num_elements $table_size \
+        --cachetable_size $cachetable_size &> $tmplog
+    then
+        rm -f $tmplog
+        t1="$(date)"
+        if LD_LIBRARY_PATH=../../../lib:$LD_LIBRARY_PATH \
+            ../$exec -v --only_stress --num_seconds 600 --envdir "$envdir" \
+            --num_elements $table_size \
+            --cachetable_size $cachetable_size \
+            --num_ptquery_threads $num_ptquery \
+            --num_update_threads $num_update &> $tmplog
+        then
+            rm -f $tmplog
+            t2="$(date)"
+            echo "\"$exec\",$rev,$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,PASS" | tee -a "$mylog"
+        else
+            save_failure "$mysavedir" $tmplog $envdir $rev $exec $table_size $cachetable_size $num_ptquery $num_update stress
+            echo "\"$exec\",$rev,$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" | tee -a "$mylog"
+        fi
+    else
+        save_failure "$mysavedir" $tmplog $envdir $rev $exec $table_size $cachetable_size $num_ptquery $num_update create
+        echo "\"$exec\",$rev,$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" | tee -a "$mylog"
+    fi
+    cd ..
+    rm -rf $rundir "$envdir"
+}
+
+loop_test() {
+    rev=$1; shift
+    exec="$1"; shift
+    table_size="$1"; shift
+    cachetable_size="$1"; shift
+    mylog="$1"; shift
+    mysavedir="$1"; shift
+
+    ptquery_rand=0
+    update_rand=0
+    while [[ $running = "yes" ]]
+    do
+        num_ptquery=1
+        num_update=1
+        if [[ $ptquery_rand -gt 1 ]]
+        then
+            (( num_ptquery = $RANDOM % 16 ))
+        fi
+        if [[ $update_rand -gt 0 ]]
+        then
+            (( num_update = $RANDOM % 16 ))
+        fi
+        (( ptquery_rand = (ptquery_rand + 1) % 4 ))
+        (( update_rand = (update_rand + 1) % 2 ))
+        run_test $rev $exec $table_size $cachetable_size $num_ptquery $num_update $mylog $mysavedir
+    done
+}
+
+run_recover_test() {
     rev=$1; shift
     exec="$1"; shift
     table_size="$1"; shift
@@ -128,22 +209,20 @@ run_test() {
         then
             rm -f $tmplog
             t2="$(date)"
-            echo "\"$exec\",$rev,$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,PASS" >> "$mylog"
+            echo "\"$exec\",$rev,$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,PASS" | tee -a "$mylog"
         else
             save_failure "$mysavedir" $tmplog $envdir $rev $exec $table_size $cachetable_size $num_ptquery $num_update recover
-            echo "\"$exec\",$rev,$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" >> "$mylog"
+            echo "\"$exec\",$rev,$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" | tee -a "$mylog"
         fi
     else
         save_failure "$mysavedir" $tmplog $envdir $rev $exec $table_size $cachetable_size $num_ptquery $num_update test
-        echo "\"$exec\",$rev,$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" >> "$mylog"
+        echo "\"$exec\",$rev,$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" | tee -a "$mylog"
     fi
     cd ..
     rm -rf $rundir "$envdir"
 }
 
-running=no
-
-loop_test() {
+loop_recover_test() {
     rev=$1; shift
     exec="$1"; shift
     table_size="$1"; shift
@@ -167,7 +246,7 @@ loop_test() {
         fi
         (( ptquery_rand = (ptquery_rand + 1) % 4 ))
         (( update_rand = (update_rand + 1) % 2 ))
-        run_test $rev $exec $table_size $cachetable_size $num_ptquery $num_update $mylog $mysavedir
+        run_recover_test $rev $exec $table_size $cachetable_size $num_ptquery $num_update $mylog $mysavedir
     done
 }
 
@@ -181,7 +260,7 @@ savepid() {
 
 killchildren() {
     kill ${pids[@]} || true
-    for exec in ${testnames[@]}
+    for exec in ${testnames[@]} ${recover_testnames[@]}
     do
         pkill -f $exec || true
     done
@@ -197,7 +276,7 @@ do
     (cd $toku_toplevel; \
         svn update; \
         make CC=icc DEBUG=0 HAVE_CILK=0 clean fastbuild; \
-        make CC=icc DEBUG=0 HAVE_CILK=0 -C src/tests ${testnames[@]})
+        make CC=icc DEBUG=0 HAVE_CILK=0 -C src/tests ${testnames[@]} ${recover_testnames[@]})
 
     cd $src_tests
 
@@ -213,11 +292,25 @@ do
             suffix="${exec}-${table_size}-${small_cachetable}-$$"
             touch "${log}/${suffix}"
             loop_test $rev $exec $table_size $small_cachetable "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
-            tail -f "${log}/${suffix}" & savepid $!
+
             suffix="${exec}-${table_size}-1000000000-$$"
             touch "${log}/${suffix}"
             loop_test $rev $exec $table_size 1000000000 "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
-            tail -f "${log}/${suffix}" & savepid $!
+        done
+    done
+
+    for exec in ${recover_testnames[@]}
+    do
+        for table_size in 2000 200000 50000000
+        do
+            (( small_cachetable = table_size * 50 ))
+            suffix="${exec}-${table_size}-${small_cachetable}-$$"
+            touch "${log}/${suffix}"
+            loop_recover_test $rev $exec $table_size $small_cachetable "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
+
+            suffix="${exec}-${table_size}-1000000000-$$"
+            touch "${log}/${suffix}"
+            loop_recover_test $rev $exec $table_size 1000000000 "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
         done
     done
 
