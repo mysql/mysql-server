@@ -571,6 +571,7 @@ typedef struct system_status_var
   ulong ha_read_prev_count;
   ulong ha_read_rnd_count;
   ulong ha_read_rnd_next_count;
+  ulong ha_read_rnd_deleted_count;
   /*
     This number doesn't include calls to the default implementation and
     calls made by range access. The intent is to count only calls made by
@@ -3747,10 +3748,17 @@ inline int handler::ha_ft_read(uchar *buf)
 
 inline int handler::ha_rnd_next(uchar *buf)
 {
-  increment_statistics(&SSV::ha_read_rnd_next_count);
   int error= rnd_next(buf);
   if (!error)
+  {
     update_rows_read();
+    increment_statistics(&SSV::ha_read_rnd_next_count);
+  }
+  else if (error == HA_ERR_RECORD_DELETED)
+    increment_statistics(&SSV::ha_read_rnd_deleted_count);
+  else
+    increment_statistics(&SSV::ha_read_rnd_next_count);
+
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
