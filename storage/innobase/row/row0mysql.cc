@@ -3034,6 +3034,8 @@ row_import_tablespace_cleanup(
 	dict_index_t*	index,		/*!< in: index being processed */
 	db_err		err)		/*!< in: error code */
 {
+	ut_a(prebuilt->trx != trx);
+
 	if (err != DB_SUCCESS) {
 		prebuilt->trx->error_info = index;
 
@@ -3079,6 +3081,8 @@ row_import_tablespace_adjust_root_pages(
 /*====================================*/
 	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt from
 						handler */
+	trx_t*			trx,		/*!< in: transaction used for
+						the import */
 	dict_table_t*		table,		/*!< in: table the indexes
 						belong to */
 	dict_index_t**		in_index,	/*!< out: cluster index */
@@ -3086,7 +3090,6 @@ row_import_tablespace_adjust_root_pages(
 						left in index */
 {
 	db_err			err;
-	trx_t*			trx = prebuilt->trx;
 	dict_index_t*		index = dict_table_get_first_index(table);
 
 	*in_index = NULL;
@@ -3387,7 +3390,7 @@ row_import_tablespace_for_mysql(
 	}
 
 	err = row_import_tablespace_adjust_root_pages(
-		prebuilt, table, &index, n_rows_in_table);
+		prebuilt, trx, table, &index, n_rows_in_table);
 
 	if (err != DB_SUCCESS) {
 		return(row_import_tablespace_error(prebuilt, trx, index, err));
