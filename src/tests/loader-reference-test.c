@@ -7,6 +7,8 @@
 #include <db.h>
 #include <sys/stat.h>
 
+static char *envdir = ENVDIR;
+
 DB_ENV *env;
 int USE_PUTS=0;
 enum {MAX_NAME=128};
@@ -104,9 +106,13 @@ static void test_loader(DB **dbs)
 static void run_test(void) 
 {
     int r;
-    r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
-    r = toku_os_mkdir(ENVDIR "/log", S_IRWXU+S_IRWXG+S_IRWXO);
+    char rmcmd[32 + strlen(envdir)];
+    snprintf(rmcmd, sizeof rmcmd, "rm -rf %s", envdir);
+    r = system(rmcmd);                                                                             CKERR(r);
+    r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
+    char logdir[8 + strlen(envdir)];
+    snprintf(logdir, sizeof logdir, "%s/log", envdir);
+    r = toku_os_mkdir(logdir, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
@@ -117,7 +123,7 @@ static void run_test(void)
     CKERR(r);
 //    int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | DB_INIT_LOG;
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | DB_INIT_LOG;
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
+    r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
     //Disable auto-checkpointing
     r = env->checkpointing_set_period(env, 0);                                                                CKERR(r);
@@ -182,6 +188,10 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "--block_size") == 0) {
             argc--; argv++;
             block_size = atoi(argv[0]);
+        } else if (strcmp(argv[0], "-e") == 0) {
+            argc--; argv++;
+            if (argc > 0)
+                envdir = argv[0];
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;

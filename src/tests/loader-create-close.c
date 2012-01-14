@@ -9,6 +9,7 @@
 #include <db.h>
 
 static int loader_flags = 0;
+static char *envdir = ENVDIR;
 
 static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT *UU(dest_key), DBT *UU(dest_val), const DBT *UU(src_key), const DBT *UU(src_val)) {
     return ENOMEM;
@@ -17,15 +18,17 @@ static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT *UU(dest_k
 static void loader_open_abort(int ndb) {
     int r;
 
-    r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
+    char rmcmd[32 + strlen(envdir)];
+    snprintf(rmcmd, sizeof rmcmd, "rm -rf %s", envdir);
+    r = system(rmcmd);                                                                             CKERR(r);
+    r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                                               CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r); 
+    r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r); 
     env->set_errfile(env, stderr);
 
     DB *dbs[ndb];
@@ -74,6 +77,10 @@ static void do_args(int argc, char * const argv[]) {
 	    if (verbose<0) verbose=0;
         } else if (strcmp(argv[0], "-p") == 0) {
             loader_flags = LOADER_USE_PUTS;
+        } else if (strcmp(argv[0], "-e") == 0) {
+            argc--; argv++;
+            if (argc > 0)
+                envdir = argv[0];
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;

@@ -11,9 +11,10 @@ DB_ENV *env;
 enum {MAX_NAME=128};
 enum {MAX_DBS=16};
 enum {MAX_ROW_LEN=1024};
-int NUM_DBS=10;
-int USE_PUTS=0;
-int USE_REGION=0;
+static int NUM_DBS=10;
+static int USE_PUTS=0;
+static int USE_REGION=0;
+static char *envdir = ENVDIR;
 
 static int generate_rows_for_region(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) __attribute__((unused)); 
 static int generate_rows_for_lineitem(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) __attribute__((unused));
@@ -361,8 +362,10 @@ static int test_loader(DB **dbs)
 static int run_test(void) 
 {
     int r;
-    r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
+    char rmcmd[32 + strlen(envdir)];
+    snprintf(rmcmd, sizeof rmcmd, "rm -rf %s", envdir);
+    r = system(rmcmd);                                                                             CKERR(r);
+    r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
     db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
@@ -378,7 +381,7 @@ static int run_test(void)
     }
 
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
+    r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
     //Disable auto-checkpointing
     r = env->checkpointing_set_period(env, 0);                                                                CKERR(r);
@@ -443,6 +446,10 @@ static void do_args(int argc, char * const argv[]) {
             USE_PUTS = 1;
         } else if (strcmp(argv[0], "-g")==0) {
             USE_REGION = 1;
+        } else if (strcmp(argv[0], "-e") == 0) {
+            argc--; argv++;
+            if (argc > 0)
+                envdir = argv[0];
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;

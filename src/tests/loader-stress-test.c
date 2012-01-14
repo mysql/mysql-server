@@ -443,9 +443,7 @@ static void test_loader(DB **dbs)
     }
 }
 
-
-char *free_me = NULL;
-char *env_dir = ENVDIR; // the default env_dir.
+static char *envdir = ENVDIR;
 char *tmp_subdir = "tmp.subdir";
 
 #define OLDDATADIR "../../../../tokudb.data/"
@@ -459,7 +457,7 @@ static void setup(void) {
 
     src_db_dir = db_v4_dir;
 
-    r = snprintf(syscmd, len, "cp -r %s %s", src_db_dir, env_dir);
+    r = snprintf(syscmd, len, "cp -r %s %s", src_db_dir, envdir);
     assert(r<len);
     r = system(syscmd);                                                                                 
     CKERR(r);
@@ -469,16 +467,16 @@ static void run_test(void)
 {
     int r;
     
-    int cmdlen = strlen(env_dir) + strlen(tmp_subdir) + 10;
+    int cmdlen = strlen(envdir) + strlen(tmp_subdir) + 10;
     char tmpdir[cmdlen];
-    r = snprintf(tmpdir, cmdlen, "%s/%s", env_dir, tmp_subdir);
+    r = snprintf(tmpdir, cmdlen, "%s/%s", envdir, tmp_subdir);
     assert(r<cmdlen);
     
     // first delete anything left from previous run of this test
     {
-	int len = strlen(env_dir) + 20;
+	int len = strlen(envdir) + 20;
 	char syscmd[len];
-	r = snprintf(syscmd, len, "rm -rf %s", env_dir);
+	r = snprintf(syscmd, len, "rm -rf %s", envdir);
 	assert(r<len);
 	r = system(syscmd);                                                                                   CKERR(r);
     }
@@ -486,7 +484,7 @@ static void run_test(void)
 	setup();
     }
     else {
-	r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                      CKERR(r);
+	r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                      CKERR(r);
 	r = toku_os_mkdir(tmpdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                   CKERR(r);
     }
 
@@ -503,7 +501,7 @@ static void run_test(void)
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
-    r = env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
+    r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
     r = env->checkpointing_set_period(env, 60);                                                                CKERR(r);
 
@@ -549,7 +547,6 @@ int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
 
     run_test();
-    if (free_me) toku_free(free_me);
 
     if (progress_infos) {
 	if (verbose>=2) {
@@ -615,12 +612,7 @@ static void do_args(int argc, char * const argv[]) {
             }
 	} else if (strcmp(argv[0], "-e")==0) {
             argc--; argv++;
-	    if (free_me) toku_free(free_me);
-	    int len = strlen(ENVDIR) + strlen(argv[0]) + 2;
-	    char full_env_dir[len];
-	    int r = snprintf(full_env_dir, len, "%s.%s", ENVDIR, argv[0]);
-	    assert(r<len);
-	    free_me = env_dir = toku_strdup(full_env_dir);
+            envdir = argv[0];
         } else if (strcmp(argv[0], "-v")==0) {
 	    verbose++;
 	} else if (strcmp(argv[0],"-q")==0) {
