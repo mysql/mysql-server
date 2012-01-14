@@ -63,6 +63,19 @@ if [ $revision -eq 0 ] ; then
     exit 1
 fi
 
+# build 
+if [ $ftcc = icc ] ; then
+    d=/opt/intel/bin
+    if [ -d $d ] ; then
+	export PATH=$d:$PATH
+	. $d/compilervars.sh intel64
+    fi
+    d=/opt/intel/cilkutil/bin
+    if [ -d $d ] ; then
+	export PATH=$d:$PATH
+    fi
+fi
+
 # setup the branchrevision string
 if [ $branch = "." ] ; then
     branchrevision=$revision
@@ -110,19 +123,6 @@ if [ $exitcode != 0 ] ; then
     testresult="FAIL"
 fi
 
-# build 
-if [ $ftcc = icc ] ; then
-    d=/opt/intel/bin
-    if [ -d $d ] ; then
-	export PATH=$d:$PATH
-	. $d/compilervars.sh intel64
-    fi
-    d=/opt/intel/cilkutil/bin
-    if [ -d $d ] ; then
-	export PATH=$d:$PATH
-    fi
-fi
-
 if [ $testresult = "PASS" ] ; then
     pushd loader-stress-$branchrevision/$tokudb
         echo `date` make release -s CC=$ftcc HAVE_CILK=$have_cilk BRTLOADER=$brtloader >>$runfile
@@ -155,7 +155,7 @@ fi
 
 if [ $commit != 0 ] ; then
     svn add $runfile
-    retry svn commit -m \"$testresult loader stress $rows $dictionaries $tokudb $branchrevision $system $arch $myhost\" $runfile
+    retry svn commit -m \"$testresult loader stress $rows $dictionaries $tokudb $branchrevision $ftcc $ftccversion $system $arch $myhost\" $runfile
 fi
 
 popd
