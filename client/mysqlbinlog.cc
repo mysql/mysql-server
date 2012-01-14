@@ -158,6 +158,9 @@ enum Exit_status {
 };
 
 #ifdef HAVE_GTID
+/*
+  Options that will be used to filter out events.
+*/
 static char *opt_include_gtids_str= NULL,
             *opt_exclude_gtids_str= NULL;
 static my_bool opt_skip_gtids= 0;
@@ -686,7 +689,18 @@ static bool shall_skip_database(const char *log_dbname)
          strcmp(log_dbname, database);
 }
 
+
 #ifdef HAVE_GTID
+/**
+  Checks whether the given event should be filtered out,
+  according to the include-gtids, exclude-gtids and
+  skip-gtids options.
+
+  @param ev Pointer to the event to be checked.
+
+  @return true if the event should be filtered out,
+          false, otherwise.
+*/
 static bool shall_skip_gtids(Log_event* ev)
 {
   bool filtered= false;

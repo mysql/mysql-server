@@ -393,12 +393,6 @@ void register_binlog_handler(THD *thd, bool trx);
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
-#ifdef HAVE_GTID
-extern const char *group_log_files_filename;
-extern const char *group_log_filename;
-extern const char *group_log_init_state_filename;
-extern const char *sid_map_filename;
-#endif
 
 /**
   Turns a relative log binary log path into a full path, based on the

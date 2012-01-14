@@ -611,10 +611,60 @@ static int send_heartbeat_event(NET* net, String* packet,
   DBUG_RETURN(0);
 }
 
+/**
+  Processes the command COM_BINLOG_DUMP.
+
+  @param thd    is a pointer to the thread descriptor.
+  @param packet is the stream of bytes that has encoded the
+                the data requested by a slave.
+
+  @return true if the thread needs to terminate, false
+          otherwise.
+*/
+bool com_binlog_dump(THD *thd, char *packet)
+{
+  DBUG_ENTER("com_binlog_dump");
+  ulong pos;
+  ushort flags;
+  String slave_uuid;
+
+  status_var_increment(thd->status_var.com_other);
+  thd->enable_slow_log= opt_log_slow_admin_statements;
+  if (check_global_access(thd, REPL_SLAVE_ACL))
+    DBUG_RETURN(false);
+
+  /* This should be changed to an 8 byte integer. However, this would break
+     compatibility and due to this reason will not be changed. However, the
+     fix is done in the new protocol. @see com_binlog_dump_gtid().
+  */
+  pos = uint4korr(packet);
+  flags = uint2korr(packet + 4);
+  thd->server_id= uint4korr(packet + 6);
+
+  get_slave_uuid(thd, &slave_uuid);
+  kill_zombie_dump_threads(&slave_uuid);
+
+  general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
+                    packet + 10, (long) pos);
+  mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos,
+                    flags);
+
+  unregister_slave(thd, 1, 1);
+  /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
+  DBUG_RETURN(true);
+}
 
 /**
- */
-int com_binlog_dump_gtid(THD *thd, char *packet)
+  Processes the command COM_BINLOG_DUMP_GTID.
+
+  @param thd    is a pointer to the thread descriptor.
+  @param packet is the stream of bytes that has encoded the
+                the data requested by a slave.
+
+  @return true if the thread needs to terminate, false
+          otherwise.
+*/
+bool com_binlog_dump_gtid(THD *thd, char *packet)
 {
   DBUG_ENTER("com_binlog_dump_gtid");
   /*
@@ -627,13 +677,14 @@ int com_binlog_dump_gtid(THD *thd, char *packet)
   uint64 pos= 0;
   char name[FN_REFLEN + 1];
   uint32 name_size= 0;
+  char* gtid_buffer= NULL;
   const uchar* ptr_buffer= (uchar *) packet;
   Gtid_set gtid_set(&global_sid_map);
 
   status_var_increment(thd->status_var.com_other);
   thd->enable_slow_log= opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL))
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
 
   flags = uint2korr(ptr_buffer);
   ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
@@ -659,14 +710,9 @@ int com_binlog_dump_gtid(THD *thd, char *packet)
           RETURN_STATUS_OK)
       {
         global_sid_lock.unlock();
-        DBUG_RETURN(0);
+        DBUG_RETURN(false);
       }
-#ifndef DBUG_OFF
-      char* buffer= gtid_set.to_string();
-      DBUG_PRINT("info",
-                 ("Slave already knows about the following tids: %s.", buffer));
-      my_free(buffer);
-#endif
+      gtid_buffer= gtid_set.to_string();
       global_sid_lock.unlock();
           
       /*
@@ -676,16 +722,19 @@ int com_binlog_dump_gtid(THD *thd, char *packet)
       DBUG_ASSERT(name[0] == 0 && pos == BIN_LOG_HEADER_SIZE);
     }
   }
-  DBUG_PRINT("info", ("Slave %d requested to read %s at position %d.",
-                      thd->server_id, name, name_size));
+  DBUG_PRINT("info", ("Slave %d requested to read %s at position %llu gtid set "
+                      "%s.", thd->server_id, name, pos, gtid_buffer));
 
   get_slave_uuid(thd, &slave_uuid);
   kill_zombie_dump_threads(&slave_uuid);
+  general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %llu GTid Set: %s",
+                    name, pos, gtid_buffer);
+  my_free(gtid_buffer);
   mysql_binlog_send(thd, name, (my_off_t) pos, flags, &gtid_set);
 
   unregister_slave(thd, 1, 1);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
-  DBUG_RETURN(1);
+  DBUG_RETURN(true);
 }
 
 /*
@@ -1056,6 +1105,14 @@ impossible position";
         }
         if (using_gtid_proto)
         {
+          /*
+            The current implementation checks if the GTid was not processed
+            by the slave. This means that everytime a GTID is read, one needs
+            to check if it was already processed by the slave. If this is the
+            case, the group is not sent. Otherwise, it must be sent.
+
+            I think we can do better than that. /Alfranio.
+          */
           ulonglong checksum_size= ((p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
                                      p_fdle->checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
                                     BINLOG_CHECKSUM_LEN + ev_offset : ev_offset);
