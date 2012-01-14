@@ -4022,4 +4022,25 @@ EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
 
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
+--echo # (duplicate of LP bug #888456)
+
+CREATE TABLE t1 (f1 varchar(1));
+INSERT INTO t1 VALUES ('v'),('s');
+
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
+('d'),('y'),('t'),('d'),('s');
+
+EXPLAIN
+SELECT table1.f1, table2.f1_key FROM t1 AS table1, t2 AS table2
+  WHERE EXISTS (SELECT DISTINCT f1_key FROM t2 
+                  WHERE f1_key != table2.f1_key AND f1_key >= table1.f1);
+SELECT table1.f1, table2.f1_key FROM t1 AS table1, t2 AS table2
+  WHERE EXISTS (SELECT DISTINCT f1_key FROM t2 
+                  WHERE f1_key != table2.f1_key AND f1_key >= table1.f1);
+
+DROP TABLE t1,t2;
+
 --echo End of 5.2 tests
