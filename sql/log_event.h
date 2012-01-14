@@ -1163,7 +1163,9 @@ public:
   int net_send(Protocol *protocol, const char* log_name, my_off_t pos);
 
   /**
-    Stores a string representation of this event in the Protocol. This is used by SHOW BINLOG EVENTS.
+    Stores a string representation of this event in the Protocol.
+    This is used by SHOW BINLOG EVENTS.
+
     @retval 0 success
     @retval nonzero error
   */
@@ -1186,13 +1188,11 @@ public:
                                    *description_event, my_bool crc_check);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
-protected:
   void print_timestamp(IO_CACHE* file, time_t* ts);
   void print_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
   void print_base64(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
-public:
 #endif // ifdef MYSQL_SERVER ... else
   /* 
      The value is set by caller of FD constructor and

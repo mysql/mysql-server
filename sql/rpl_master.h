@@ -41,7 +41,8 @@ void end_slave_list();
 int register_slave(THD* thd, uchar* packet, uint packet_length);
 void unregister_slave(THD* thd, bool only_mine, bool need_mutex);
 bool show_slave_hosts(THD* thd);
-int com_binlog_dump_gtid(THD *thd, char *packet);
+bool com_binlog_dump_gtid(THD *thd, char *packet);
+bool com_binlog_dump(THD *thd, char *packet);
 
 String *get_slave_uuid(THD *thd, String *value);
 bool show_binlog_info(THD* thd);

@@ -675,8 +675,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg),
   event_cache_type(cache_type_arg),
   event_logging_type(logging_type_arg),
-  crc(0), thd(thd_arg),
-  checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  crc(0), thd(thd_arg), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id= thd->server_id;
   when= thd->start_time;
@@ -716,8 +715,7 @@ Log_event::Log_event(const char* buf,
   :temp_buf(0), exec_time(0),
   event_cache_type(EVENT_INVALID_CACHE),
   event_logging_type(EVENT_INVALID_LOGGING),
-  crc(0),
-  checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  crc(0), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
@@ -2700,7 +2698,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
             get_type_code() == USER_VAR_EVENT ||
             get_type_code() == ROWS_QUERY_LOG_EVENT ||
             get_type_code() == BEGIN_LOAD_QUERY_EVENT ||
-            get_type_code() == APPEND_BLOCK_EVENT)) 
+            get_type_code() == APPEND_BLOCK_EVENT))
       {
         DBUG_ASSERT(!ret_worker);
         
