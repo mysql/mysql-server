@@ -363,9 +363,9 @@ INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
 EXPLAIN EXTENDED SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
-4	SUBQUERY	t8	const	PRIMARY	PRIMARY	37		1	100.00	Using index
+4	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
 2	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	
-3	SUBQUERY	t8	const	PRIMARY	PRIMARY	37		1	100.00	Using index
+3	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
 Warnings:
 Note	1003	select 'joce' AS `pseudo`,(select 'test' from `test`.`t8` where 1) AS `(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce'))` from `test`.`t8` where 1
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
@@ -4780,7 +4780,6 @@ EXPLAIN EXTENDED SELECT DISTINCT 1 FROM t1,
 WHERE t1.a = d1.a;
 ERROR 42S22: Unknown column 'd1.a' in 'where clause'
 DROP TABLE t1;
-End of 5.1 tests.
 Set up test tables.
 CREATE TABLE t1 (
 t1_id INT UNSIGNED,
@@ -5141,4 +5140,19 @@ pk
 SET SESSION sql_mode=@old_sql_mode;
 drop table t2, t1;
 drop view v1;
+#
+# BUG#50257: Missing info in REF column of the EXPLAIN 
+#            lines for subselects
+#
+CREATE TABLE t1 (a INT, b INT, INDEX (a));
+INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t1	ref	a	a	5	const	1	Using where
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	SUBQUERY	t1	ref	a	a	5	const	1	Using where; Using index
+DROP TABLE t1;
 End of 5.2 tests
