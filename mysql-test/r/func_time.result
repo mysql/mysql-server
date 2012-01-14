@@ -1505,3 +1505,31 @@ select 1 from t1 where 1 < some (select cast(a as datetime) from t1);
 1
 1
 drop table t1;
+#
+# End of 5.5 tests
+#
+#
+# Start of 5.6 tests
+#
+#
+# BUG#13354387 - CRASH IN IN MY_DECIMAL::OPERATOR FOR VIEW AND FUNCTION UNIX_TIMESTAMP 
+# Part2 (5.6)
+CREATE TABLE t1 (a VARCHAR(32) NOT NULL);
+INSERT INTO t1 VALUES ('a');
+SELECT 1 FROM t1 GROUP BY @a:=UNIX_TIMESTAMP(a);
+1
+1
+Warnings:
+Warning	1292	Incorrect datetime value: 'a'
+SELECT a, UNIX_TIMESTAMP(a), UNIX_TIMESTAMP('a') FROM t1;
+a	UNIX_TIMESTAMP(a)	UNIX_TIMESTAMP('a')
+a	0.000000	0.000000
+Warnings:
+Warning	1292	Incorrect datetime value: 'a'
+Warning	1292	Incorrect datetime value: 'a'
+DELETE FROM t1;
+INSERT INTO t1 VALUES ('5000-01-01 00:00:00');
+SELECT a, UNIX_TIMESTAMP(a), UNIX_TIMESTAMP('5000-01-01 00:00:00') FROM t1;
+a	UNIX_TIMESTAMP(a)	UNIX_TIMESTAMP('5000-01-01 00:00:00')
+5000-01-01 00:00:00	0.000000	0
+DROP TABLE t1;
