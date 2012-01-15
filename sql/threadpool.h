@@ -9,30 +9,28 @@ extern uint threadpool_stall_limit;  /* time interval in 10 ms units for stall c
 extern uint threadpool_max_threads;  /* Maximum threads in pool */
 extern uint threadpool_oversubscribe;  /* Maximum active threads in group */
 
+
+/*
+  Functions used by scheduler. 
+  OS-specific implementations are in
+  threadpool_unix.cc or threadpool_win.cc
+*/
+extern bool tp_init();
+extern void tp_add_connection(THD*);
+extern void tp_wait_begin(THD *, int);
+extern void tp_wait_end(THD*);
+extern void tp_post_kill_notification(THD *thd);
+extern void tp_end(void);
+
 /*
   Threadpool statistics
 */
 struct TP_STATISTICS
 {
   /* Current number of worker thread. */
-  volatile int num_worker_threads;
+  volatile int32 num_worker_threads;
   /* Current number of idle threads. */
-  volatile int num_waiting_threads;
-  /* Number of login requests are queued but not yet processed. */
-  volatile int pending_login_requests;
-  /* Number of threads that are starting. */
-  volatile int pending_thread_starts;
-  /* Number of threads that are being shut down */
-  volatile int pending_thread_shutdowns;
-  /* Time (in milliseconds) since pool is blocked (num_waiting_threads is 0) */
-  ulonglong pool_block_duration;
-  /* Maximum duration of the pending login, im milliseconds. */
-  ulonglong pending_login_duration; 
-  /* Time since last thread was created */
-  ulonglong time_since_last_thread_creation;
-  /* Number of requests processed since pool monitor run last time. */
-  volatile int requests_dequeued;
-  volatile int requests_completed;
+  volatile int32 num_waiting_threads;
 };
 
 extern TP_STATISTICS tp_stats;

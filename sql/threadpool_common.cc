@@ -7,14 +7,8 @@
 #include <sql_connect.h>
 #include <sql_audit.h>
 #include <debug_sync.h>
+#include <threadpool.h>
 
-
-extern bool login_connection(THD *thd);
-extern bool do_command(THD *thd);
-extern void prepare_new_connection_state(THD* thd);
-extern void end_connection(THD *thd);
-extern void thd_cleanup(THD *thd);
-extern void delete_thd(THD *thd);
 
 /* Threadpool parameters */
 
@@ -27,14 +21,15 @@ uint threadpool_oversubscribe;
 
 
 extern "C" pthread_key(struct st_my_thread_var*, THR_KEY_mysys);
+extern bool do_command(THD*);
 
 /*
   Worker threads contexts, and THD contexts.
-  =====================================
+  =========================================
   
   Both worker threads and connections have their sets of thread local variables 
-  At the moment it is mysys_var (which has e.g dbug my_error and similar 
-  goodies inside), and PSI per-client structure.
+  At the moment it is mysys_var (this has specific data for dbug, my_error and 
+  similar goodies), and PSI per-client structure.
 
   Whenever query is executed following needs to be done:
 
@@ -77,7 +72,7 @@ struct Worker_thread_context
 /*
   Attach/associate the connection with the OS thread,
 */
-static inline bool thread_attach(THD* thd)
+static bool thread_attach(THD* thd)
 {
   pthread_setspecific(THR_KEY_mysys,thd->mysys_var);
   thd->thread_stack=(char*)&thd;
@@ -95,11 +90,10 @@ int threadpool_add_connection(THD *thd)
   worker_context.save();
 
   /*
-    Create a new connection context: mysys_thread_var and PSI thread 
-    Store them in thd->mysys_var and thd->scheduler.m_psi.
+    Create a new connection context: mysys_thread_var and PSI thread
+    Store them in THD.
   */
 
-  /* Use my_thread_init() to create new mysys_thread_var. */
   pthread_setspecific(THR_KEY_mysys, 0);
   my_thread_init();
   thd->mysys_var= (st_my_thread_var *)pthread_getspecific(THR_KEY_mysys);
@@ -125,20 +119,28 @@ int threadpool_add_connection(THD *thd)
   thd->start_utime= now;
   thd->thr_create_utime= now;
 
-  if (setup_connection_thread_globals(thd) == 0)
+  if (!setup_connection_thread_globals(thd))
   {
-    if (login_connection(thd) == 0)
+    if (!login_connection(thd))
     {
-       prepare_new_connection_state(thd);
-       retval = thd_is_connection_alive(thd)?0:-1;
-       thd->net.reading_or_writing= 1;
+      prepare_new_connection_state(thd);
+      
+      /* 
+        Check if THD is ok, as prepare_new_connection_state()
+        can fail, for example if init command failed.
+      */
+      if (thd_is_connection_alive(thd))
+      {
+        retval= 0;
+        thd->net.reading_or_writing= 1;
+        thd->skip_wait_timeout= true;      
+      }
     }
   }
-  thd->skip_wait_timeout= true;
-
   worker_context.restore();
   return retval;
 }
+
 
 void threadpool_remove_connection(THD *thd)
 {
@@ -147,9 +149,7 @@ void threadpool_remove_connection(THD *thd)
   worker_context.save();
 
   thread_attach(thd);
-
   thd->killed= KILL_CONNECTION;
-
   thd->net.reading_or_writing= 0;
 
   end_connection(thd);
@@ -163,11 +163,13 @@ void threadpool_remove_connection(THD *thd)
   mysql_mutex_unlock(&LOCK_thread_count);
   mysql_cond_broadcast(&COND_thread_count);
 
-  /* Free resources (thread_var and PSI connection specific struct)*/
+  /*
+    Free resources associated with this connection: 
+    mysys thread_var and PSI thread.
+  */
   my_thread_end();
 
   worker_context.restore();
-
 }
 
 int threadpool_process_request(THD *thd)
@@ -181,8 +183,8 @@ int threadpool_process_request(THD *thd)
   if (thd->killed >= KILL_CONNECTION)
   {
     /* 
-      kill flag can be set have been killed by 
-      timeout handler or by a KILL command
+      killed flag was set by timeout handler 
+      or KILL command. Return error.
     */
     worker_context.restore();
     return 1;
@@ -206,32 +208,17 @@ int threadpool_process_request(THD *thd)
     vio= thd->net.vio;
     if (!vio->has_data(vio))
     { 
-      /*
-        More info on this debug sync is in sql_parse.cc
-      */
+      /* More info on this debug sync is in sql_parse.cc*/
       DEBUG_SYNC(thd, "before_do_command_net_read");
+      thd->net.reading_or_writing= 1;
       break;
     }
-  }
-  if (!retval)
-    thd->net.reading_or_writing= 1;
+  } 
 
   worker_context.restore();
   return retval;
 }
 
-
-/*
-  Scheduler struct, individual functions are implemented
-  in threadpool_unix.cc or threadpool_win.cc
-*/
-
-extern bool tp_init();
-extern void tp_add_connection(THD*);
-extern void tp_wait_begin(THD *, int);
-extern void tp_wait_end(THD*);
-extern void tp_post_kill_notification(THD *thd);
-extern void tp_end(void);
 
 static scheduler_functions tp_scheduler_functions=
 {
@@ -255,7 +242,7 @@ void pool_of_threads_scheduler(struct scheduler_functions *func,
     uint *arg_connection_count)
 {
   *func = tp_scheduler_functions;
-  func->max_threads= *arg_max_connections + 1;
+  func->max_threads= threadpool_max_threads;
   func->max_connections= arg_max_connections;
   func->connection_count= arg_connection_count;
   scheduler_init();
