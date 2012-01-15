@@ -753,3 +753,13 @@ void tp_wait_end(THD *thd)
   /* Do we need to do anything ? */
 }
 
+
+/**
+ Number of idle threads in pool.
+ This info is not available in Windows implementation,
+ thus function always returns 0.
+*/
+int tp_get_idle_thread_count()
+{
+  return 0;
+}

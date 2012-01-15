@@ -7008,6 +7008,15 @@ static int show_default_keycache(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+#ifdef HAVE_POOL_OF_THREADS
+int show_threadpool_idle_threads(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_INT;
+  var->value= buff;
+  *(int *)buff= tp_get_idle_thread_count(); 
+  return 0;
+}
+#endif
 
 /*
   Variables shown by SHOW STATUS in alphabetical order
@@ -7144,8 +7153,8 @@ SHOW_VAR status_vars[]= {
   {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG},
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
 #endif
-#ifndef EMBEDDED_LIBRARY
-  {"Threadpool_idle_threads",  (char *) &tp_stats.num_waiting_threads, SHOW_INT},
+#ifdef HAVE_POOL_OF_THREADS
+  {"Threadpool_idle_threads",  (char *) &show_threadpool_idle_threads, SHOW_FUNC},
   {"Threadpool_threads",       (char *) &tp_stats.num_worker_threads, SHOW_INT},
 #endif
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_NOFLUSH},

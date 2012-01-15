@@ -22,6 +22,9 @@ extern void tp_wait_end(THD*);
 extern void tp_post_kill_notification(THD *thd);
 extern void tp_end(void);
 
+/* Used in SHOW for threadpool_idle_thread_count */
+extern int  tp_get_idle_thread_count();
+
 /*
   Threadpool statistics
 */
@@ -29,8 +32,6 @@ struct TP_STATISTICS
 {
   /* Current number of worker thread. */
   volatile int32 num_worker_threads;
-  /* Current number of idle threads. */
-  volatile int32 num_waiting_threads;
 };
 
 extern TP_STATISTICS tp_stats;
@@ -44,4 +45,6 @@ extern void tp_set_threadpool_stall_limit(uint val);
 
 /* Activate threadpool scheduler */
 extern void tp_scheduler(void);
+
+extern int show_threadpool_idle_threads(THD *thd, SHOW_VAR *var, char *buff);
 

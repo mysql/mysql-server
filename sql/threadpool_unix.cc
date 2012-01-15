@@ -384,18 +384,6 @@ static connection_t *queue_get(thread_group_t *thread_group)
 }
 
 
-static void increment_active_threads(thread_group_t *thread_group)
-{
-  my_atomic_add32(&tp_stats.num_waiting_threads,-1);
-  thread_group->active_thread_count++;
-}
-
-static void decrement_active_threads(thread_group_t *thread_group)
-{
-  my_atomic_add32(&tp_stats.num_waiting_threads,1);
-  thread_group->active_thread_count--;
-}
-
 
 /* 
   Handle wait timeout : 
@@ -585,7 +573,7 @@ static connection_t * listener(worker_thread_t *current_thread,
   
   connection_t *retval= NULL;
   
-  decrement_active_threads(thread_group);
+  
   for(;;)
   {
     native_event ev[MAX_EVENTS];
@@ -593,8 +581,10 @@ static connection_t * listener(worker_thread_t *current_thread,
     
     if (thread_group->shutdown)
       break;
-    
+  
+    thread_group->active_thread_count--;
     cnt = io_poll_wait(thread_group->pollfd, ev, MAX_EVENTS, -1);
+    thread_group->active_thread_count++;
     
     if (cnt <=0)
     {
@@ -705,7 +695,7 @@ static connection_t * listener(worker_thread_t *current_thread,
     }
   }
   
-  increment_active_threads(thread_group);
+  
   DBUG_RETURN(retval);
 }
 
@@ -1037,12 +1027,12 @@ connection_t *get_event(worker_thread_t *current_thread,
     */
     thread_group->waiting_threads.push_front(current_thread);
     
-    decrement_active_threads(thread_group);
+    thread_group->active_thread_count--;
     if(abstime)
       err = mysql_cond_timedwait(&current_thread->cond, &thread_group->mutex, abstime);
     else
       err = mysql_cond_wait(&current_thread->cond, &thread_group->mutex);
-    increment_active_threads(thread_group);
+    thread_group->active_thread_count++;
     
     if (!current_thread->woken)
     {
@@ -1076,7 +1066,8 @@ void wait_begin(thread_group_t *thread_group)
 {
   DBUG_ENTER("wait_begin");
   mysql_mutex_lock(&thread_group->mutex);
-  decrement_active_threads(thread_group);
+  thread_group->active_thread_count--;
+  
   DBUG_ASSERT(thread_group->active_thread_count >=0);
   DBUG_ASSERT(thread_group->connection_count > 0);
  
@@ -1102,7 +1093,7 @@ void wait_end(thread_group_t *thread_group)
 {
   DBUG_ENTER("wait_end");
   mysql_mutex_lock(&thread_group->mutex);
-  increment_active_threads(thread_group);
+  thread_group->active_thread_count++;
   mysql_mutex_unlock(&thread_group->mutex);
   DBUG_VOID_RETURN;
 }
@@ -1524,4 +1515,21 @@ void tp_set_threadpool_stall_limit(uint limit)
   pool_timer.tick_interval= limit;
   mysql_cond_signal(&(pool_timer.cond));
   mysql_mutex_unlock(&(pool_timer.mutex));
+}
+
+
+/**
+ Calculate number of idle/waiting threads in the pool.
+ 
+ Sum idle threads over all groups. 
+ Don't do any locking, it is not required for stats.
+*/
+int tp_get_idle_thread_count()
+{
+  int sum=0;
+  for(uint i= 0; i< array_elements(all_groups) && (all_groups[i].pollfd >= 0); i++)
+  {
+    sum+= (all_groups[i].thread_count - all_groups[i].active_thread_count);
+  }
+  return sum;
 }
