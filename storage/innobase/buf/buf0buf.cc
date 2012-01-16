@@ -3075,9 +3075,18 @@ buf_page_get_known_nowait(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	mutex_enter(&block->mutex);
-	ut_a(!block->page.file_page_was_freed);
-	mutex_exit(&block->mutex);
+	if (mode != BUF_KEEP_OLD) {
+		/* If mode == BUF_KEEP_OLD, we are executing an I/O
+		completion routine.  Avoid a bogus assertion failure
+		when ibuf_merge_or_delete_for_page() is processing a
+		page that was just freed due to DROP INDEX, or
+		deleting a record from SYS_INDEXES. This check will be
+		skipped in recv_recover_page() as well. */
+
+		mutex_enter(&block->mutex);
+		ut_a(!block->page.file_page_was_freed);
+		mutex_exit(&block->mutex);
+	}
 #endif
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
