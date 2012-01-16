@@ -677,12 +677,12 @@ INSERT INTO t2 VALUES (5);
 CREATE TABLE t3 (k INTEGER);
 
 EXPLAIN
-SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
-SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
 
 EXPLAIN
-SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
-SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
 
 DROP TABLE t1, t2, t3;
 
@@ -929,3 +929,35 @@ SELECT * FROM t3;
 # prove that subquery materialization was used:
 SHOW STATUS LIKE "CREATED_TMP_TABLES";
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug#13552968: Extra row with materialization on join + subquery in
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_nokey varchar(1) NOT NULL
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES ('b');
+
+CREATE TABLE t2 (
+  col_varchar_nokey varchar(1) NOT NULL
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES ('k');
+
+CREATE TABLE t3 (
+  col_varchar_nokey varchar(1) NOT NULL
+) ENGINE=MyISAM;
+
+let $query=
+SELECT STRAIGHT_JOIN *
+FROM t1 LEFT JOIN t2 ON t1.col_varchar_nokey IN (SELECT col_varchar_nokey
+                                                 FROM t3);
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # End of test for bug#13552968

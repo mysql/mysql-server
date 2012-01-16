@@ -101,7 +101,7 @@ public:
   */
   bool *cond_guard;
   /**
-     0..64    <=> This was created from semi-join IN-equality # sj_pred_no.
+     0..63    <=> This was created from semi-join IN-equality # sj_pred_no.
      UINT_MAX  Otherwise
 
      Not used if the index is fulltext (such index cannot be used for

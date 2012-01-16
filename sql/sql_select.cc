@@ -328,10 +328,15 @@ static bool might_do_join_buffering(uint join_buffer_alg,
             that the correlation is not just through the IN-equality).
       
       (2) - Inner table for which the LooseScan scan is performed.
+            Notice that special requirements for existence of certain indexes
+            apply to this table, @see class Loose_scan_opt.
 
       (3) - The remainder of the duplicate-generating range. It is served by 
-            application of FirstMatch strategy, with the exception that
-            outer IN-correlated tables are considered to be non-correlated.
+            application of FirstMatch strategy. Outer IN-correlated tables
+            must be correlated to the LooseScan table but not to the inner
+            tables in this range. (Currently, there can be no outer tables
+            in this range because of implementation restrictions,
+            @see Optimize_table_order::advance_sj_state()).
 
       (4) - The suffix of outer correlated and non-correlated tables.
 
