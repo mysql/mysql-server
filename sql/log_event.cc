@@ -953,12 +953,6 @@ my_bool Log_event::need_checksum()
                   which IO thread instantiates via queue_binlog_ver_3_event.
                */
                get_type_code() == ROTATE_EVENT ||
-               /*
-                 This is written directly to the binary and relay logs
-                 and are checksummed acording to the current
-                 configuration.
-               */
-               get_type_code() == PREVIOUS_GTIDS_LOG_EVENT ||
                /* FD is always checksummed */
                get_type_code() == FORMAT_DESCRIPTION_EVENT) && 
                checksum_alg != BINLOG_CHECKSUM_ALG_OFF));
@@ -2579,8 +2573,11 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         DBUG_ASSERT(rli->curr_group_da.elements == 1);
 
         if (starts_group())
+        {
           // mark the current group as started with explicit B-event
+          rli->mts_end_group_sets_max_dbs= true;
           rli->curr_group_seen_begin= true;
+        }
      
         if (get_type_code() == GTID_LOG_EVENT)
           // mark the current group as started with explicit Gtid-event
@@ -2618,7 +2615,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     */
     DBUG_ASSERT(!ends_group() ||
                 (rli->mts_end_group_sets_max_dbs &&
-                 rli->curr_group_da.elements == 3 &&
+                 ((rli->curr_group_da.elements == 3 && rli->curr_group_seen_gtid) ||
+                 (rli->curr_group_da.elements == 2 && !rli->curr_group_seen_gtid)) &&
                  ((*(Log_event **)
                    dynamic_array_ptr(&rli->curr_group_da,
                                      rli->curr_group_da.elements - 1))-> 
@@ -11950,6 +11948,11 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
 
 int Gtid_log_event::do_update_pos(Relay_log_info *rli)
 {
+  /*
+    This event does not increment group positions. This means
+    that if there is a failure after it has been processed,
+    it will be automatically re-executed.
+  */
   rli->inc_event_relay_log_pos();
   DBUG_EXECUTE_IF("crash_after_update_pos_gtid",
                   sql_print_information("Crashing crash_after_update_pos_gtid.");
