@@ -88,6 +88,8 @@
 #include <signaldata/TransIdAI.hpp>
 #include <signaldata/CreateTab.hpp>
 
+#include <TransporterRegistry.hpp> // error 8035
+
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
 #ifdef VM_TRACE

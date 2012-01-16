@@ -17,6 +17,7 @@
 
 #include <ndb_global.h>
 
+#include <TransporterRegistry.hpp>
 #include "Configuration.hpp"
 #include <ErrorHandlingMacros.hpp>
 #include "GlobalData.hpp"

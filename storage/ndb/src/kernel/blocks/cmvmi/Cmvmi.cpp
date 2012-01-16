@@ -23,6 +23,7 @@
 #include <NdbMem.h>
 #include <NdbTick.h>
 
+#include <TransporterRegistry.hpp>
 #include <SignalLoggerManager.hpp>
 #include <FastScheduler.hpp>
 

@@ -13,12 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <kernel_types.h>
-#include <TransporterDefinitions.hpp>
-
 #ifndef ndb_mt_hpp
 #define ndb_mt_hpp
 
+#include <kernel_types.h>
+#include <TransporterDefinitions.hpp>
 
 /*
   For now, we use locks to only have one thread at the time running in the

@@ -28,8 +28,10 @@
 
 #include <kernel_types.h>
 #include <BlockNumbers.h>
-#include <TransporterDefinitions.hpp>
 #include <RefConvert.hpp>
+#include <NdbMutex.h>
+
+struct SignalHeader;
 
 class SignalLoggerManager
 {
