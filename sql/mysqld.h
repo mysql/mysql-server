@@ -48,7 +48,6 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #define TEST_READCHECK		64	/**< Force use of readcheck */
 #define TEST_NO_EXTRA		128
 #define TEST_CORE_ON_SIGNAL	256	/**< Give core if signal */
-#define TEST_NO_STACKTRACE	512
 #define TEST_SIGINT		1024	/**< Allow sigint on threads */
 #define TEST_SYNCHRONIZATION    2048    /**< get server to do sleep in
                                            some places */
