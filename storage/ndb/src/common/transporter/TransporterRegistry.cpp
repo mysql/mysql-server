@@ -988,8 +988,9 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
 #if defined(HAVE_EPOLL_CREATE)
   if (likely(m_epoll_fd != -1))
   {
+    int tcpReadSelectReply = 0;
     Uint32 num_trps = nTCPTransporters + (m_has_extra_wakeup_socket ? 1 : 0);
-    
+
     if (num_trps)
     {
       tcpReadSelectReply = epoll_wait(m_epoll_fd, m_epoll_events,
@@ -1026,8 +1027,6 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
     {
       retVal |= poll_TCP(timeOutMillis, mask);
     }
-    else
-      tcpReadSelectReply = 0;
   }
 #endif
 #ifdef NDB_SCI_TRANSPORTER
@@ -1134,7 +1133,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis, NodeBitmask& mask)
     }
   }
 
-  tcpReadSelectReply = m_socket_poller.poll_unsafe(timeOutMillis);
+  int tcpReadSelectReply = m_socket_poller.poll_unsafe(timeOutMillis);
 
   if (tcpReadSelectReply > 0)
   {
