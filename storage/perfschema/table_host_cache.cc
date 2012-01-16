@@ -198,7 +198,7 @@ void table_host_cache::materialize(THD *thd)
 
   m_all_rows= rows;
   m_row_count= index;
-  
+
 end:
   hostname_cache_unlock();
 }
