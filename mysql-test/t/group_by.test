@@ -1609,3 +1609,102 @@ eval $query;
 
 DROP TABLE t1,t2;
 
+--echo # Bug 11923239 - ERROR WITH CORRELATED SUBQUERY IN VIEW WITH
+--echo # ONLY_FULL_GROUP_BY SQL MODE
+CREATE TABLE t1 (
+  pk INT,
+  col_int_key INT,
+  col_int_nokey INT,
+  col_varchar_key VARCHAR(10),
+  col_varchar_nokey VARCHAR(10),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t1 VALUES (), ();
+
+let $query_with_alias_in_group_by=
+SELECT alias1.col_int_nokey AS field1,
+  (SELECT alias2.col_int_key
+   FROM t1 AS alias2
+   WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+  ) AS field2
+FROM t1 AS alias1
+GROUP BY field1, field2;
+
+let $query_with_no_alias_in_group_by=
+SELECT alias1.col_int_nokey AS field1,
+  (SELECT alias2.col_int_key
+   FROM t1 AS alias2
+   WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+  ) AS field2
+FROM t1 AS alias1
+GROUP BY field1,
+  (SELECT alias2.col_int_key
+   FROM t1 AS alias2
+   WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+  );
+
+--echo # In GROUP BY, aliases are printed as aliases.
+
+eval EXPLAIN EXTENDED $query_with_alias_in_group_by;
+
+--echo # In GROUP BY, expressions are printed as expressions.
+
+eval EXPLAIN EXTENDED $query_with_no_alias_in_group_by;
+
+--echo # Aliased expression in GROUP BY in a view.
+
+eval CREATE VIEW v1 AS $query_with_alias_in_group_by;
+
+--echo # In GROUP BY, aliases are printed as aliases.
+
+SHOW CREATE VIEW v1;
+
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
+
+eval $query_with_alias_in_group_by;
+
+--echo # The SELECT above has been accepted, and v1 was created
+--echo # using the same SELECT as above, so SELECTing from v1
+--echo # should be accepted.
+SELECT * FROM v1;
+
+--echo # Here is why in GROUP BY we print aliases of subqueries as
+--echo # aliases: below, "GROUP BY (subquery)" confuses
+--echo # ONLY_FULL_GROUP_BY, it causes an error though the subquery of
+--echo # GROUP BY and of SELECT list are the same. Fixing this would
+--echo # require implementing Item_subselect::eq(). It's not worth
+--echo # the effort because:
+--echo # a) GROUP BY (subquery) is non-SQL-standard so is likely of
+--echo # very little interest to users of ONLY_FULL_GROUP_BY
+--echo # b) as the user uses ONLY_FULL_GROUP_BY, he wants to have the
+--echo # same subquery in GROUP BY and SELECT list, so can give the
+--echo # subquery an alias in the SELECT list and use this alias in
+--echo # GROUP BY, thus avoiding the problem.
+
+--error ER_WRONG_FIELD_WITH_GROUP
+eval $query_with_no_alias_in_group_by;
+
+DROP VIEW v1;
+SET @@sql_mode = @old_sql_mode;
+
+--echo # Verify that if an alias is used in GROUP BY/ORDER BY it
+--echo # is printed as an alias, not as the expression.
+
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES(3),(4);
+
+EXPLAIN EXTENDED SELECT
+pk AS foo, col_int_key AS bar, (SELECT a FROM t2 WHERE a=t1.pk) AS baz
+FROM t1
+GROUP BY foo, col_int_key, baz ORDER BY pk, bar, (SELECT a FROM t2 WHERE a=t1.pk);
+
+# Printing the alias in GROUP/ORDER BY would introduce an ambiguity.
+EXPLAIN EXTENDED SELECT
+pk AS foo, col_int_key AS foo, (SELECT a FROM t2 WHERE a=t1.pk) AS foo
+FROM t1
+GROUP BY pk, col_int_key, (SELECT a FROM t2 WHERE a=t1.pk)
+ORDER BY pk, col_int_key, (SELECT a FROM t2 WHERE a=t1.pk);
+
+DROP TABLE t1,t2;

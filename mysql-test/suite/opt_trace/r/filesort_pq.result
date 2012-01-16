@@ -1318,7 +1318,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select concat('hello ',`test`.`t1`.`f2`) AS `foo` from `test`.`t1` order by concat('hello ',`test`.`t1`.`f2`) limit 2"
+            "expanded_query": "/* select#1 */ select concat('hello ',`test`.`t1`.`f2`) AS `foo` from `test`.`t1` order by `foo` limit 2"
           }
         ]
       }
@@ -1389,14 +1389,14 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "concat('hello ',`test`.`t1`.`f2`)",
+              "original_clause": "`foo`",
               "items": [
                 {
                   "item": "concat('hello ',`test`.`t1`.`f2`)"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "concat('hello ',`test`.`t1`.`f2`)"
+              "resulting_clause": "`foo`"
             }
           },
           {

@@ -1751,6 +1751,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     // Save contents of join tab for possible repeated materializations:
     const READ_RECORD saved_access= last_tab->read_record;
     const READ_RECORD::Setup_func saved_rfr= last_tab->read_first_record;
+    st_join_table *const saved_last_inner= last_tab->last_inner;
 
     // Initialize full scan
     if (init_read_record(&last_tab->read_record, join->thd,
@@ -1777,6 +1778,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     last_tab->set_condition(save_cond, __LINE__);
     last_tab->read_record= saved_access;
     last_tab->read_first_record= saved_rfr;
+    last_tab->last_inner= saved_last_inner;
   }
   else
   {
@@ -1784,7 +1786,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     if ((res= join_read_key2(join_tab, sjm->table, sjm->tab_ref)) == 1)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if (res || !sjm->in_equality->val_int())
-      DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+      DBUG_RETURN(NESTED_LOOP_OK);
     rc= (*last_tab->next_select)
       (join, join_tab + sjm->table_count, end_of_records);
   }
@@ -1876,6 +1878,8 @@ sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   /*
      TODO: Check whether we really need the call below and we can't do
            without it. If it's not the case remove it.
+     @note This branch is currently dead because setup_join_buffering()
+     disables join buffering if QS_DYNAMIC_RANGE is enabled.
   */
   rc= cache->join_records(TRUE);
   if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)
@@ -2637,15 +2641,10 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       }
     }
   }
-  /* We will evaluate on-expressions here only if it is not considered
-     expensive.  This also prevents executing materialized subqueries
-     in optimization phase.  This is necessary since proper setup for
-     such execution has not been done at this stage.  
-     (See comment in internal_remove_eq_conds() tagged 
-     DontEvaluateMaterializedSubqueryTooEarly).
-  */
-  if (*tab->on_expr_ref && !table->null_row && 
-      !(*tab->on_expr_ref)->is_expensive())
+
+  // We cannot handle outer-joined tables with expensive join conditions here:
+  DBUG_ASSERT(!(*tab->on_expr_ref && (*tab->on_expr_ref)->is_expensive()));
+  if (*tab->on_expr_ref && !table->null_row)
   {
     if ((table->null_row= test((*tab->on_expr_ref)->val_int() == 0)))
       mark_as_null_row(table);  
@@ -3917,7 +3916,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   if (table->s->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
   filesort_retval= filesort(thd, table, join->sortorder, length,
-                            select, filesort_limit, 0,
+                            select, filesort_limit, tab->keep_current_rowid,
                             &examined_rows, &found_rows);
   table->sort.found_records= filesort_retval;
   tab->records= found_rows;                     // For SQL_CALC_ROWS

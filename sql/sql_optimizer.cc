@@ -3012,9 +3012,20 @@ const_table_extraction_done:
 	// All dep. must be constants
         if (s->dependent & ~(join->const_table_map))
 	  continue;
-	if (table->file->stats.records <= 1L &&
-	    (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
-            !tl->in_outer_join_nest())
+        /*
+          Mark a dependent table as constant if
+           1. it has exactly zero or one rows (it is a system table), and
+           2. it is not within a nested outer join, and
+           3. it does not have an expensive join condition.
+              This is because we have to determine whether an outer-joined table
+              has a real row or a null-extended row in the optimizer phase.
+              We have no possibility to evaluate its join condition at
+              execution time, when it is marked as a system table.
+        */
+	if (table->file->stats.records <= 1L &&                            // 1
+            (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) && // 1
+            !tl->in_outer_join_nest() &&                                   // 2
+            !(*s->on_expr_ref && (*s->on_expr_ref)->is_expensive()))       // 3
 	{					// system table
 	  int tmp= 0;
 	  s->type=JT_SYSTEM;
