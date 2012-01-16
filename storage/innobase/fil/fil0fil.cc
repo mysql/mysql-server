@@ -2270,7 +2270,7 @@ fil_make_ibt_name(
 
 /*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
-memory cache.
+memory cache. If rename == TRUE we "free" all pages used by the tablespace.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
@@ -2400,7 +2400,7 @@ try_again:
 	completely and permanently. The flag is_being_deleted also prevents
 	fil_flush() from being applied to this tablespace. */
 
-	buf_LRU_invalidate_tablespace(id);
+	buf_LRU_invalidate_tablespace(id, rename);
 #endif
 	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
 
@@ -2498,6 +2498,7 @@ memory cache. Discarding is like deleting a tablespace, but
  3. when the user does IMPORT TABLESPACE, the tablespace will have the
     same id as it originally had.
 
+ 4. Free all the pages in use by the tablespace if rename=TRUE.
 @return	TRUE if success */
 UNIV_INTERN
 ibool

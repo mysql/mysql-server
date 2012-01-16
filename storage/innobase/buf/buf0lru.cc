@@ -348,8 +348,8 @@ tablespace. The pages still remain a part of LRU and are evicted from
 the list as they age towards the tail of the LRU. */
 static
 void
-buf_LRU_remove_dirty_pages_for_tablespace(
-/*======================================*/
+buf_flush_remove_dirty_pages_for_tablespace(
+/*=========================================*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		id)		/*!< in: space id */
 {
@@ -364,7 +364,8 @@ scan_again:
 	all_freed = TRUE;
 
 	for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list), i = 0;
-	     bpage != NULL; ++i) {
+	     bpage != NULL;
+	     ++i) {
 
 		buf_page_t*	prev_bpage;
 		mutex_t*	block_mutex = NULL;
@@ -474,15 +475,188 @@ next_page:
 }
 
 /******************************************************************//**
+Remove all pages belonging to a given tablespace inside a specific
+buffer pool instance when we are deleting the data file(s) of that
+tablespace. */
+static
+void
+buf_LRU_remove_all_pages_for_tablespace(
+/*====================================*/
+	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
+	ulint		id)		/*!< in: space id */
+{
+	buf_page_t*	bpage;
+	ibool		all_freed;
+
+scan_again:
+	buf_pool_mutex_enter(buf_pool);
+
+	all_freed = TRUE;
+
+	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	     bpage != NULL;
+	     /* No op */) {
+
+		ulint		fold;
+		rw_lock_t*	hash_lock;
+		buf_page_t*	prev_bpage;
+		mutex_t*	block_mutex = NULL;
+
+		ut_a(buf_page_in_file(bpage));
+
+		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
+
+		/* bpage->space and bpage->io_fix are protected by
+		buf_pool_mutex and block_mutex.  It is safe to check
+		them while holding buf_pool_mutex only. */
+
+		if (buf_page_get_space(bpage) != id) {
+			/* Skip this block, as it does not belong to
+			the space that is being invalidated. */
+			goto next_page;
+		} else if (buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+			/* We cannot remove this page during this scan
+			yet; maybe the system is currently reading it
+			in, or flushing the modifications to the file */
+
+			all_freed = FALSE;
+			goto next_page;
+		} else {
+			fold = buf_page_address_fold(
+				bpage->space, bpage->offset);
+
+			hash_lock = buf_page_hash_lock_get(
+				buf_pool, fold);
+
+			rw_lock_x_lock(hash_lock);
+
+			block_mutex = buf_page_get_mutex(bpage);
+			mutex_enter(block_mutex);
+
+			if (bpage->buf_fix_count > 0) {
+
+				mutex_exit(block_mutex);
+
+				rw_lock_x_unlock(hash_lock);
+
+				/* We cannot remove this page during
+				this scan yet; maybe the system is
+				currently reading it in, or flushing
+				the modifications to the file */
+
+				all_freed = FALSE;
+
+				goto next_page;
+			}
+		}
+
+		ut_ad(mutex_own(block_mutex));
+
+#ifdef UNIV_DEBUG
+		if (buf_debug_prints) {
+			fprintf(stderr,
+				"Dropping space %lu page %lu\n",
+				(ulong) buf_page_get_space(bpage),
+				(ulong) buf_page_get_page_no(bpage));
+		}
+#endif
+		if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
+			/* This is a compressed-only block
+			descriptor. Do nothing. */
+		} else if (((buf_block_t*) bpage)->index) {
+			ulint	page_no;
+			ulint	zip_size;
+
+			buf_pool_mutex_exit(buf_pool);
+
+			zip_size = buf_page_get_zip_size(bpage);
+			page_no = buf_page_get_page_no(bpage);
+
+			mutex_exit(block_mutex);
+			rw_lock_x_unlock(hash_lock);
+
+			/* Note that the following call will acquire
+			and release an X-latch on the page. */
+
+			btr_search_drop_page_hash_when_freed(
+				id, zip_size, page_no);
+
+			goto scan_again;
+		}
+
+		if (bpage->oldest_modification != 0) {
+
+			buf_flush_remove(bpage);
+		}
+
+		/* Remove from the LRU list. */
+
+		if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
+		    != BUF_BLOCK_ZIP_FREE) {
+
+			buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
+
+		} else {
+			/* The block_mutex should have been released
+			by buf_LRU_block_remove_hashed_page() when it
+			returns BUF_BLOCK_ZIP_FREE. */
+			ut_ad(block_mutex == &buf_pool->zip_mutex);
+		}
+
+		ut_ad(!mutex_own(block_mutex));
+
+#ifdef UNIV_SYNC_DEBUG
+		/* buf_LRU_block_remove_hashed_page() releases the hash_lock */
+		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
+		      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+
+next_page:
+		bpage = prev_bpage;
+	}
+
+	buf_pool_mutex_exit(buf_pool);
+
+	if (!all_freed) {
+		os_thread_sleep(20000);
+
+		goto scan_again;
+	}
+}
+
+/******************************************************************//**
+Remove all dirty pages belonging to a given tablespace inside a specific
+buffer pool instance when we are deleting the data file(s) of that
+tablespace. The pages still remain a part of LRU and are evicted from
+the list as they age towards the tail of the LRU. */
+static
+void
+buf_LRU_remove_dirty_pages_for_tablespace(
+/*======================================*/
+	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
+	ulint		id,		/*!< in: space id */
+	ibool		all)		/*!< in: all==TRUE, remove all
+					the pages used by the tablespace */
+{
+	if (all) {
+		buf_LRU_remove_all_pages_for_tablespace(buf_pool, id);
+	} else {
+		buf_flush_remove_dirty_pages_for_tablespace(buf_pool, id);
+	}
+}
+
+/******************************************************************//**
 Invalidates all pages belonging to a given tablespace when we are deleting
 the data file(s) of that tablespace. */
 UNIV_INTERN
 void
 buf_LRU_invalidate_tablespace(
 /*==========================*/
-	ulint	id)	/*!< in: space id */
+	ulint		id,		/*!< in: space id */
+	ibool		all)		/*!< in: all=TRUE, remove all
+					the pages used by the tablespace */
 {
-	ulint	i;
+	ulint		i;
 
 	/* Before we attempt to drop pages one by one we first
 	attempt to drop page hash index entries in batches to make
@@ -495,7 +669,7 @@ buf_LRU_invalidate_tablespace(
 
 		buf_pool = buf_pool_from_array(i);
 		buf_LRU_drop_page_hash_for_tablespace(buf_pool, id);
-		buf_LRU_remove_dirty_pages_for_tablespace(buf_pool, id);
+		buf_LRU_remove_dirty_pages_for_tablespace(buf_pool, id, all);
 	}
 }
 
