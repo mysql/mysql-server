@@ -79,13 +79,10 @@ const char *lookupConnectionError(Uint32 err)
 #ifndef NDBD_MULTITHREADED
 extern TransporterRegistry globalTransporterRegistry; // Forward declaration
 
-class TransporterCallbackKernelNonMT : public TransporterCallbackKernel
+class TransporterCallbackKernelNonMT :
+  public TransporterCallback,
+  public TransporterReceiveHandleKernel
 {
-  /**
-   * Check to see if jobbbuffers are starting to get full
-   * and if so call doJob
-   */
-  int checkJobBuffer() { return globalScheduler.checkDoJob(); }
   void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
   Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max)
   {
@@ -137,13 +134,14 @@ void mt_set_section_chunk_size(){}
 #endif
 
 void
-TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
-                                          Uint8 prio,
-                                          Uint32 * const theData,
-                                          LinearSectionPtr ptr[3])
+TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
+                                               Uint8 prio,
+                                               Uint32 * const theData,
+                                               LinearSectionPtr ptr[3])
 {
 #ifdef NDBD_MULTITHREADED
-  SectionSegmentPool::Cache & cache = g_receiver_thread_cache[0].cache_instance;
+  SectionSegmentPool::Cache & cache =
+    g_receiver_thread_cache[m_receiver_thread_idx].cache_instance;
 #endif
 
   const Uint32 secCount = header->m_noOfSections;
@@ -193,10 +191,10 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
     globalScheduler.execute(header, prio, theData, secPtrI);  
 #else
     if (prio == JBB)
-      sendlocal(receiverThreadId,
+      sendlocal(m_thr_no /* self */,
                 header, theData, secPtrI);
     else
-      sendprioa(receiverThreadId,
+      sendprioa(m_thr_no /* self */,
                 header, theData, secPtrI);
 
 #endif
@@ -230,12 +228,11 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
   globalScheduler.execute(header, prio, theData, secPtrI);    
 #else
   if (prio == JBB)
-    sendlocal(receiverThreadId,
+    sendlocal(m_thr_no /* self */,
               header, theData, NULL);
   else
-    sendprioa(receiverThreadId,
+    sendprioa(m_thr_no /* self */,
               header, theData, NULL);
-    
 #endif
 }
 
@@ -246,9 +243,9 @@ operator<<(NdbOut& out, const SectionSegment & ss){
 }
 
 void
-TransporterCallbackKernel::reportError(NodeId nodeId,
-                                       TransporterError errorCode,
-                                       const char *info)
+TransporterReceiveHandleKernel::reportError(NodeId nodeId,
+                                            TransporterError errorCode,
+                                            const char *info)
 {
 #ifdef DEBUG_TRANSPORTER
   ndbout_c("reportError (%d, 0x%x) %s", nodeId, errorCode, info ? info : "");
@@ -314,7 +311,7 @@ TransporterCallbackKernel::reportError(NodeId nodeId,
   Uint32 secPtr[3];
   globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 #else
-  sendprioa(receiverThreadId,
+  sendprioa(m_thr_no /* self */,
             &signal.header, signal.theData, NULL);
 #endif
 
@@ -352,7 +349,7 @@ TransporterCallbackKernelNonMT::reportSendLen(NodeId nodeId, Uint32 count,
  * Report average receive length in bytes (4096 last receives)
  */
 void
-TransporterCallbackKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
+TransporterReceiveHandleKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
                                             Uint64 bytes)
 {
 
@@ -372,7 +369,7 @@ TransporterCallbackKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
   Uint32 secPtr[3];
   globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 #else
-  sendprioa(receiverThreadId,
+  sendprioa(m_thr_no /* self */,
             &signal.header, signal.theData, NULL);
 #endif
 }
@@ -382,13 +379,17 @@ TransporterCallbackKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
  */
 
 void
-TransporterCallbackKernel::reportConnect(NodeId nodeId)
+TransporterReceiveHandleKernel::reportConnect(NodeId nodeId)
 {
 
   SignalT<1> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
+#ifndef NDBD_MULTITHREADED
   Uint32 trpman_instance = 1;
+#else
+  Uint32 trpman_instance = 1 /* proxy */ + m_receiver_thread_idx;
+#endif
   signal.header.theLength = 1;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
@@ -396,12 +397,12 @@ TransporterCallbackKernel::reportConnect(NodeId nodeId)
   signal.header.theVerId_signalNumber = GSN_CONNECT_REP;
 
   signal.theData[0] = nodeId;
-  
+
 #ifndef NDBD_MULTITHREADED
   Uint32 secPtr[3];
   globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 #else
-  sendprioa(receiverThreadId,
+  sendprioa(m_thr_no /* self */,
             &signal.header, signal.theData, NULL);
 #endif
 }
@@ -410,7 +411,7 @@ TransporterCallbackKernel::reportConnect(NodeId nodeId)
  * Report connection broken
  */
 void
-TransporterCallbackKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
+TransporterReceiveHandleKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
 {
 
   DBUG_ENTER("reportDisconnect");
@@ -418,7 +419,11 @@ TransporterCallbackKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
   SignalT<sizeof(DisconnectRep)/4> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
+#ifndef NDBD_MULTITHREADED
   Uint32 trpman_instance = 1;
+#else
+  Uint32 trpman_instance = 1 /* proxy */ + m_receiver_thread_idx;
+#endif
   signal.header.theLength = DisconnectRep::SignalLength;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
@@ -434,7 +439,7 @@ TransporterCallbackKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
   Uint32 secPtr[3];
   globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 #else
-  sendprioa(receiverThreadId,
+  sendprioa(m_thr_no /* self */,
             &signal.header, signal.theData, NULL);
 #endif
 
@@ -466,11 +471,34 @@ SignalLoggerManager::printSegmentedSection(FILE * output,
     putc('\n', output);
 }
 
+/**
+ * Check to see if jobbbuffers are starting to get full
+ * and if so call doJob
+ */
+int
+TransporterReceiveHandleKernel::checkJobBuffer()
+{
+#ifndef NDBD_MULTITHREADED
+  return globalScheduler.checkDoJob();
+#else
+  return mt_checkDoJob();
+#endif
+}
+
 void
-TransporterCallbackKernel::transporter_recv_from(NodeId nodeId)
+TransporterReceiveHandleKernel::transporter_recv_from(NodeId nodeId)
 {
   if (globalData.get_hb_count(nodeId) != 0)
   {
     globalData.set_hb_count(nodeId) = 0;
   }
 }
+
+#ifndef NDBD_MULTITHREADED
+class TransporterReceiveHandle *
+mt_get_trp_receive_handle(unsigned instance)
+{
+  assert(instance == 0);
+  return &myTransporterCallback;
+}
+#endif
