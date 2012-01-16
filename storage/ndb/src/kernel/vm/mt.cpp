@@ -24,6 +24,7 @@
 #include <GlobalData.hpp>
 #include <WatchDog.hpp>
 #include <TransporterDefinitions.hpp>
+#include <TransporterRegistry.hpp>
 #include "FastScheduler.hpp"
 #include "mt.hpp"
 #include <DebuggerNames.hpp>

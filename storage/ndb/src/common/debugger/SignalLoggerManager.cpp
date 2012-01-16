@@ -18,7 +18,7 @@
 #include <ndb_global.h>
 
 #include "SignalLoggerManager.hpp"
-#include <LongSignal.hpp>
+#include "TransporterDefinitions.hpp"
 #include <GlobalSignalNumbers.h>
 #include <DebuggerNames.hpp>
 #include <NdbTick.h>
