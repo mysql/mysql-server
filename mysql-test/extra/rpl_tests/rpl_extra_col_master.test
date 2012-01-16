@@ -59,6 +59,8 @@
 #VARCHAR(M)    
 #
 
+--let $_saved_conn= $CURRENT_CONNECTION
+
 let $binformat = `SHOW VARIABLES LIKE '%binlog_format%'`;
 --echo
 --echo ***********************************************************
@@ -1056,3 +1058,5 @@ SELECT * FROM t1;
 -- connection master
 DROP TABLE t1; 
 -- sync_slave_with_master
+
+--connection $_saved_conn
