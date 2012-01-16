@@ -11,22 +11,36 @@ insert into t1 values (1,10,100,1000),(2,20,200,2000),(3,30,300,3000),(4,40,400,
 
 
 #normal queries
+
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from t1 where a > 5;
 select * from t1 where a > 5;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from t1 where b > 30;
 select * from t1 where b > 30;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from t1 where c > 750;
 select * from t1 where c > 750;
 
 #covering indexes
+
+# ignore rows column
+--replace_column 9 NULL;
 explain select a from t1 where a > 8;
 select a from t1 where a > 8;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select a,b from t1 where b > 30;
 select a,b from t1 where b > 30;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select a,b from t1 where c > 750;
 select a,c from t1 where c > 750;
 
@@ -36,19 +50,30 @@ insert into t1 values (10,10,10,10);
 alter table t1 drop index bdca;
 
 alter table t1 drop primary key;
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from t1 where a > 5;
 select * from t1 where a > 5;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from t1 where b > 30;
 select * from t1 where b > 30;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from t1 where c > 750;
 select * from t1 where c > 750;
 
 #covering indexes
+
+# ignore rows column
+--replace_column 9 NULL;
 explain select b from t1 where b > 30;
 select b from t1 where b > 30;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select b from t1 where c > 750;
 select c from t1 where c > 750;
 
@@ -56,40 +81,63 @@ alter table t1 add e varchar(20);
 
 alter table t1 add primary key (a);
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from t1 where a > 5;
 select * from t1 where a > 5;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from t1 where b > 30;
 select * from t1 where b > 30;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from t1 where c > 750;
 select * from t1 where c > 750;
 
 #covering indexes
+
+# ignore rows column
+--replace_column 9 NULL;
 explain select a from t1 where a > 8;
 select a from t1 where a > 8;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select a,b from t1 where b > 30;
 select a,b from t1 where b > 30;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select a,b from t1 where c > 750;
 select a,c from t1 where c > 750;
 
 
 alter table t1 drop primary key;
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from t1 where a > 5;
 select * from t1 where a > 5;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from t1 where b > 30;
 select * from t1 where b > 30;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from t1 where c > 750;
 select * from t1 where c > 750;
 
 #covering indexes
+# ignore rows column
+--replace_column 9 NULL;
 explain select b from t1 where b > 30;
 select b from t1 where b > 30;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain select b from t1 where c > 750;
 select c from t1 where c > 750;
 

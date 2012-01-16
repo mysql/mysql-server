@@ -26,7 +26,7 @@ a	b	c	d
 8	80	800	8000
 explain select * From t1 where b > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	8	Using where
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
 select * From t1 where b > 0;
 a	b	c	d
 1	10	100	1000
@@ -49,7 +49,7 @@ a	b	c	d
 7	70	700	7000
 explain select * From t1 where b > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	7	Using where
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
 select * From t1 where b > 0;
 a	b	c	d
 1	10	100	1000
@@ -67,7 +67,7 @@ a	b	c	d
 3	30	300	3000
 explain select * From t1 where b > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	3	Using where
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
 select * From t1 where b > 0;
 a	b	c	d
 1	10	100	1000
@@ -100,7 +100,7 @@ a	b	c	d
 3	30	300	3000
 explain select * From t1 where b > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	8	Using where
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
 select * From t1 where b > 0;
 a	b	c	d
 1	10	100	1000
@@ -119,7 +119,7 @@ a	b	c	d
 3	30	300	3000
 explain select * From t1 where b > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	3	Using where
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
 select * From t1 where b > 0;
 a	b	c	d
 1	10	100	1000
