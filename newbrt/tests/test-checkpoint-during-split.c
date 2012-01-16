@@ -95,12 +95,12 @@ doit (BOOL after_split) {
     toku_flusher_thread_set_callback(flusher_callback, &after_split);
     
     r = toku_brt_create_cachetable(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER); assert(r==0);
-    unlink("foo.brt");
-    unlink("bar.brt");
+    unlink("foo4.brt");
+    unlink("bar4.brt");
     // note the basement node size is 5 times the node size
     // this is done to avoid rebalancing when writing a leaf
     // node to disk
-    r = toku_open_brt("foo.brt", 1, &t, NODESIZE, 5*NODESIZE, ct, null_txn, toku_builtin_compare_fun, null_db);
+    r = toku_open_brt("foo4.brt", 1, &t, NODESIZE, 5*NODESIZE, ct, null_txn, toku_builtin_compare_fun, null_db);
     assert(r==0);
 
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls
@@ -195,14 +195,14 @@ doit (BOOL after_split) {
     // checkpointed is what we expect
     //
 
-    r = system("cp foo.brt bar.brt ");
+    r = system("cp foo4.brt bar4.brt ");
     assert_zero(r);
 
     BRT c_brt;
     // note the basement node size is 5 times the node size
     // this is done to avoid rebalancing when writing a leaf
     // node to disk
-    r = toku_open_brt("bar.brt", 0, &c_brt, NODESIZE, 5*NODESIZE, ct, null_txn, toku_builtin_compare_fun, null_db);
+    r = toku_open_brt("bar4.brt", 0, &c_brt, NODESIZE, 5*NODESIZE, ct, null_txn, toku_builtin_compare_fun, null_db);
     assert(r==0);
 
     //
