@@ -25,6 +25,7 @@
 #include "rpl_info_factory.h"
 #include "rpl_utility.h"
 #include "debug_sync.h"
+#include "sql_parse.h"
 #include <stack>
 #include <string>
 
@@ -1993,20 +1994,22 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_gtids,
   stack<string> filename_stack;
   LOG_INFO linfo;
   int error;
-  for (error= find_log_pos(&linfo, NULL, false); !error;
-       error= find_next_log(&linfo, false))
-    filename_stack.push(string(linfo.log_file_name));
-  if (error != LOG_INFO_EOF)
-  {
-    DBUG_PRINT("error", ("Error reading binlog index"));
-    DBUG_RETURN(false);
-  }
 
   Log_event *ev= NULL;
   File file= -1;
   IO_CACHE log;
 
   bool found_prev_gtids_ev= false;
+
+  for (error= find_log_pos(&linfo, NULL, false); !error;
+       error= find_next_log(&linfo, false))
+    filename_stack.push(string(linfo.log_file_name));
+  if (error != LOG_INFO_EOF)
+  {
+    DBUG_PRINT("error", ("Error reading binlog index"));
+    goto err;
+  }
+
   for (/*nothing*/; !filename_stack.empty(); filename_stack.pop())
   {
     const char *filename= filename_stack.top().c_str();
@@ -2141,6 +2144,7 @@ err:
     end_io_cache(&log);
     mysql_file_close(file, MYF(MY_WME));
   }
+  global_sid_lock.unlock();
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(true);
@@ -5781,7 +5785,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
        A pointer to a previous table that was accessed.
     */
     TABLE* prev_access_table= NULL;
-
+    // true if at least one table is non-transactional.
+    bool some_non_transactional_table= false;
 #ifndef DBUG_OFF
     {
       static const char *prelocked_mode_name[] = {
@@ -5811,13 +5816,15 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
                           table->table_name, flags));
+
+      my_bool trans= table->table->file->has_transactions();
+      some_non_transactional_table= some_non_transactional_table || !trans;
+
       if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
         if (prev_write_table && prev_write_table->file->ht !=
             table->table->file->ht)
           multi_write_engine= TRUE;
-
-        my_bool trans= table->table->file->has_transactions();
 
         if (table->table->s->tmp_table)
           lex->set_stmt_accessed_table(trans ? LEX::STMT_WRITES_TEMP_TRANS_TABLE :
@@ -5838,8 +5845,6 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           (lex->sql_command == SQLCOM_CREATE_TABLE &&
           (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)))
       {
-        my_bool trans= table->table->file->has_transactions();
-
         if (table->table->s->tmp_table)
           lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TEMP_TRANS_TABLE :
                                                LEX::STMT_READS_TEMP_NON_TRANS_TABLE);
@@ -5984,8 +5989,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       }
     }
 
-    if (!is_stmt_gtid_compatible())
-      my_error((error= ER_STM_IS_NOT_COMPATIBLE_WITH_GTID), MYF(0), query());
+    if (!error && disable_gtid_unsafe_statements)
+      error= is_dml_gtid_compatible(some_non_transactional_table) ? 0 : 1;
 
     if (error) {
       DBUG_PRINT("info", ("decision: no logging since an error was generated"));
@@ -6028,62 +6033,83 @@ int THD::decide_logging_format(TABLE_LIST *tables)
   DBUG_RETURN(0);
 }
 
-/**
-  This function checks if the statement that is about to be processed
-  will safely get a GTID. Currently, the following cases may lead to
-  errors (e.g. duplicated GTIDs) and as such are forbidden:
 
-    . Mixed statements;
-
-    . CREATE...SELECT statement;
-
-    . Within a transaction:
-      . Changes to non-transactional tables that come
-        after changes to transactional tables;
-      . CREATE TEMPORARY TABLE statement.
-
-  We need to revisit this after pushing the first version of the code
-  to trunk because in some cases we can relax the rules.
-
-  Finally, it is worth mentioning that to be completely safe we should
-  annotate events in the binary log with the type of the engine found
-  on the master and check if it remains the same on the slave. If the
-  same table is created on the master and slave with different types
-  of engines (e.g. Innodb and MyIsam), this may cause issues.
-  In particular Innodb on Master and MyIsam on Slave will generate
-  duplicated GTIDs.
-
-  However, we do not introduce this complexity into the code with the
-  hope that in the future support to MyIsam tables will be deprecated.
-
-  @retval true if the statement is compatible;
-  @retval false if the statement is not compatible.
-*/
-bool THD::is_stmt_gtid_compatible()
+bool THD::is_ddl_gtid_compatible() const
 {
+  DBUG_ENTER("THD::is_ddl_gtid_compatible");
+  if (lex->sql_command == SQLCOM_CREATE_TABLE &&
+      !(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+      lex->select_lex.item_list.elements)
+  {
+    /*
+      CREATE ... SELECT (without TEMPORARY) is unsafe because if
+      binlog_format=row it will be logged as a CREATE TABLE followed
+      by row events, re-executed non-atomically as two transactions,
+      and then written to the slave's binary log as two separate
+      transactions with the same GTID.
+    */
+    my_error(ER_GTID_UNSAFE_CREATE_SELECT, MYF(0));
+    DBUG_RETURN(false);
+  }
+  if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
+       (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
+      (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary))
+  {
+    /*
+      [CREATE|DROP] TEMPORARY TABLE is unsafe to execute
+      inside a transaction because the table will stay and the
+      transaction will be written to the slave's binary log with the
+      GTID even if the transaction is rolled back.
+    */
+    if (in_multi_stmt_transaction_mode())
+    {
+      my_error(ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
+               MYF(0));
+      DBUG_RETURN(false);
+    }
+  }
+  DBUG_RETURN(true);
+}
+
+
+bool THD::is_dml_gtid_compatible(bool non_transactional_table) const
+{
+  /*
+    Only statements that generate row events can be unsafe: otherwise,
+    the statement either has an implicit pre-commit or is not
+    binlogged at all.
+  */
+  DBUG_PRINT("info", ("query='%s' can_generate_row_events=%d non_trx=%d "
+                      "sqlcom=%d CRE=%d ALT=%d DRP=%d "
+                      "create-tmp=%d drop-tmp=%d "
+                      "in_trx=%d"
+                      ,
+                      query(),
+                      sqlcom_can_generate_row_events(this),
+                      non_transactional_table,
+                      lex->sql_command,
+                      SQLCOM_CREATE_TABLE,
+                      SQLCOM_ALTER_TABLE,
+                      SQLCOM_DROP_TABLE,
+                      lex->create_info.options & HA_LEX_CREATE_TMP_TABLE,
+                      lex->drop_temporary,
+                      in_multi_stmt_transaction_mode()
+                      ));
   if (sqlcom_can_generate_row_events(this))
   {
-    if (in_multi_stmt_transaction_mode())
-    { 
-      if (trans_has_updated_trans_table(this) &&
-          (lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE) ||
-          lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE)))
-        return false;
-      if (lex->sql_command == SQLCOM_CREATE_TABLE &&
-          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
-        return false;
+    /*
+      Non-transactional updates are unsafe: they will be logged as a
+      transaction of their own.  If they are re-executed on the slave
+      inside a transaction, then the non-transactional statement's
+      GTID will be the same as the surrounding transaction's GTID.
+    */
+    if (non_transactional_table)
+    {
+      my_error(ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE, MYF(0));
+      return false;
     }
- 
-    if ((lex->stmt_accessed_table(LEX::STMT_WRITES_TRANS_TABLE) ||
-         lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_TRANS_TABLE)) &&
-        (lex->stmt_accessed_table(LEX::STMT_WRITES_NON_TRANS_TABLE) ||
-         lex->stmt_accessed_table(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE)))
-      return false;
-
-    if (lex->sql_command == SQLCOM_CREATE_TABLE &&
-        lex->select_lex.item_list.elements)
-      return false;
   }
+
   return true;
 }
 

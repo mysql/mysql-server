@@ -7819,7 +7819,7 @@ bool change_master(THD* thd, Master_info* mi)
 
   /*
     Sets if the slave should connect to the master and look for
-    GTids.
+    GTIDs.
   */
   if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->set_auto_position(

@@ -51,8 +51,7 @@
 # --source extra/rpl_tests/rpl_check_gtid.inc
 ################################################################################
 
---let $include_filename= rpl_check_gtid.inc
---source include/begin_include_file.inc
+--echo extra/rpl_tests/rpl_check_gtid.inc
 
 if (`SELECT "$binlog" = "binlog"`)
 {
@@ -146,6 +145,3 @@ if (`SELECT "$binlog" <> "" and "$gtid_end" <> "" and "$gtid_ini" <> ""`)
     --die
   }
 }
-
---let $include_filename= rpl_check_gtid.inc
---source include/end_include_file.inc

@@ -4558,7 +4558,6 @@ private:
 
 int append_query_string(const CHARSET_INFO *csinfo,
                         String const *from, String *to);
-bool sqlcom_can_generate_row_events(const THD *thd);
 bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
 uint8 get_checksum_alg(const char* buf, ulong len);
 extern TYPELIB binlog_checksum_typelib;

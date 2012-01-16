@@ -375,6 +375,11 @@ void init_update_queries(void)
                                             CF_CAN_BE_EXPLAINED |
                                             CF_ONLY_BINLOGGABLE_WITH_SF;
   // (1) so that subquery is traced when doing "SET @var = (subquery)"
+  /*
+    @todo SQLCOM_SET_OPTION should have CF_CAN_GENERATE_ROW_EVENTS
+    set, because it may invoke a stored function that generates row
+    events. /Sven
+  */
   sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE |
                                             CF_AUTO_COMMIT_TRANS |
                                             CF_OPTIMIZER_TRACE | // (1)
@@ -424,6 +429,11 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROFILES]=    CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROFILE]=     CF_STATUS_COMMAND;
+  /*
+    @todo SQLCOM_BINLOG_BASE64_EVENT should have
+    CF_CAN_GENERATE_ROW_EVENTS set, because this surely generates row
+    events. /Sven
+  */
   sql_command_flags[SQLCOM_BINLOG_BASE64_EVENT]= CF_STATUS_COMMAND;
 
    sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
@@ -440,6 +450,12 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
+  /*
+    @todo SQLCOM_CREATE_FUNCTION should have CF_AUTO_COMMIT_TRANS
+    set. this currently is binlogged *before* the transaction if
+    executed inside a transaction because it does not have an implicit
+    pre-commit and is written to the statement cache. /Sven
+  */
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -2304,6 +2320,12 @@ mysql_execute_command(THD *thd)
   Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
 
   DBUG_ASSERT(thd->transaction.stmt.cannot_safely_rollback() == FALSE);
+
+  if (disable_gtid_unsafe_statements && !thd->is_ddl_gtid_compatible())
+  {
+    thd->n_execute_command_calls--;
+    DBUG_RETURN(-1);
+  }
 
 #ifdef HAVE_GTID
   /*

@@ -6667,8 +6667,8 @@ ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
 ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
   eng "Cannot execute statements with implicit commit inside a transaction when GTID_NEXT != AUTOMATIC or GTID_NEXT_LIST != NULL."
 
-ER_GTID_MODE_2_OR_3_REQUIRES_BINLOG_DISABLE_TRANSACTION_UNSAFE_STATEMENTS_ON
-  eng "GTID_MODE = ON or GTID_MODE = UPGRADE_STEP_2 requires BINLOG_DISABLE_TRANSACTION_UNSAFE_STATEMENTS = 1."
+ER_GTID_MODE_2_OR_3_REQUIRES_DISABLE_GTID_UNSAFE_STATEMENTS_ON
+  eng "GTID_MODE = ON or GTID_MODE = UPGRADE_STEP_2 requires DISABLE_GTID_UNSAFE_STATEMENTS = 1."
 
 ER_GTID_MODE_REQUIRES_BINLOG
   eng "GTID_MODE = ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates."
@@ -6683,8 +6683,16 @@ ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF
   eng "GTID_NEXT_LIST cannot be set to a non-NULL value when GTID_MODE = OFF."
 
 ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF
-  eng "Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF.
+  eng "Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF."
 
-ER_STM_IS_NOT_COMPATIBLE_WITH_GTID
-  eng "Cannot execute statement '%s' when GTID is enabled."
+ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
+  eng "When DISABLE_GTID_UNSAFE_STATEMENTS = 1, updates to non-transactional tables are completely fobidden."
 
+ER_GTID_UNSAFE_CREATE_SELECT
+  eng "When DISABLE_GTID_UNSAFE_STATEMENTS = 1, CREATE TABLE ... SELECT is completely forbidden."
+
+ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
+  eng "When DISABLE_GTID_UNSAFE_STATEMENTS = 1, CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context, with AUTOCOMMIT = 1."
+
+ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
+  eng "The value of GTID_MODE can only change one step at a time: OFF <-> UPGRADE_STEP_1 <-> UPGRADE_STEP_2 <-> ON. Also note that all servers must be stepped simultaneously: please see the manual for full instructions on how to upgrade."

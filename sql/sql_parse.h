@@ -207,5 +207,7 @@ inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
   return (cs->mbminlen == 1);
 }
 
+extern "C" bool sqlcom_can_generate_row_events(const THD *thd);
+
 
 #endif /* SQL_PARSE_INCLUDED */

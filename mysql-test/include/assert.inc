@@ -19,6 +19,10 @@
 #
 #     Nested sub-statements on this form are not allowed.
 #
+#   [SQL_STATEMENT]
+#     Shortcut to the above form, usable when the result has only one
+#     row and one column.
+#
 #   <1>
 #     This is a shorthand for the result of the first executed square
 #     bracket. <2> is a shorthand for the second executed square
@@ -100,7 +104,7 @@ while ($_assert_lbracket)
   # Interpolate escapes before using condition outside string context.
   --let $_assert_substmt_interp= `SELECT $_assert_substmt`
 
-  # Execute and get result from sub-statement
+  # Change connection
   if ($_assert_connection)
   {
     if ($rpl_debug)
@@ -109,9 +113,6 @@ while ($_assert_lbracket)
     }
     --let $rpl_connection_name= $_assert_connection
     --source include/rpl_connection.inc
-    --let $_assert_substmt_result= query_get_value($_assert_substmt_interp)
-    --let $rpl_connection_name= $_assert_old_connection
-    --source include/rpl_connection.inc
   }
   if (!$_assert_connection)
   {
@@ -119,8 +120,29 @@ while ($_assert_lbracket)
     {
       --echo # debug: old connection, sub-statement=$_assert_substmt
     }
+  }
+
+  # Execute and get result from sub-statement.
+  # Can't use dollar to denote end of string because mtr will try to
+  # interpolate it.
+  --let $selected_row_col= `SELECT CONCAT($_assert_substmt, 'ZZENDZZ') REGEXP '[a-zA-Z_][a-zA-Z0-9_]* *, *[0-9][0-9]* *ZZENDZZ'`
+
+  if ($selected_row_col)
+  {
     --let $_assert_substmt_result= query_get_value($_assert_substmt_interp)
   }
+  if (!$selected_row_col)
+  {
+    --let $_assert_substmt_result= `$_assert_substmt_interp`
+  }
+
+  # Change back connection
+  if ($_assert_connection)
+  {
+    --let $rpl_connection_name= $_assert_old_connection
+    --source include/rpl_connection.inc
+  }
+
   if ($rpl_debug)
   {
     --echo # debug: result of sub-statement='$_assert_substmt_result'
