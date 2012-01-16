@@ -424,6 +424,12 @@ JOIN::optimize()
   if (conds)
   {
     conds= substitute_for_best_equal_field(conds, cond_equal, map2table);
+    if (thd->is_error())
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from substitute_for_best_equal"));
+      DBUG_RETURN(1);
+    }
     conds->update_used_tables();
     DBUG_EXECUTE("where",
                  print_where(conds,
@@ -442,6 +448,12 @@ JOIN::optimize()
       *tab->on_expr_ref= substitute_for_best_equal_field(*tab->on_expr_ref,
                                                          tab->cond_equal,
                                                          map2table);
+      if (thd->is_error())
+      {
+        error= 1;
+        DBUG_PRINT("error",("Error from substitute_for_best_equal"));
+        DBUG_RETURN(1);
+      }
       (*tab->on_expr_ref)->update_used_tables();
     }
   }
@@ -1183,9 +1195,9 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
         if (!item)
         {
           Item_func_eq *eq_item;
-          if ((eq_item= new Item_func_eq(left_item, right_item)))
+          if (!(eq_item= new Item_func_eq(left_item, right_item)) ||
+              eq_item->set_cmp_func())
             return FALSE;
-          eq_item->set_cmp_func();
           eq_item->quick_fix_field();
           item= eq_item;
         }  
@@ -1276,9 +1288,9 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
     if (!is_converted)
     {
       Item_func_eq *eq_item;
-      if (!(eq_item= new Item_func_eq(left_item, right_item)))
+      if (!(eq_item= new Item_func_eq(left_item, right_item)) ||
+          eq_item->set_cmp_func())
         return FALSE;
-      eq_item->set_cmp_func();
       eq_item->quick_fix_field();
       eq_list->push_back(eq_item);
     }
@@ -1852,10 +1864,8 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
         head= item_equal->get_first();
 
       eq_item= new Item_func_eq(item_field, head);
-      if (!eq_item)
+      if (!eq_item || eq_item->set_cmp_func())
         return NULL;
-
-      eq_item->set_cmp_func();
       eq_item->quick_fix_field();
     }
   }
@@ -1911,7 +1921,7 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
     the order in them to comply with the order of upper levels.
 
   @return
-    The transformed condition
+    The transformed condition, or NULL in case of error
 */
 
 static Item* substitute_for_best_equal_field(Item *cond,
@@ -1958,6 +1968,8 @@ static Item* substitute_for_best_equal_field(Item *cond,
       while ((item_equal= it++))
       {
         cond= eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
+        if (cond == NULL)
+          return NULL;
         // This occurs when eliminate_item_equal() founds that cond is
         // always false and substitutes it with Item_int 0.
         // Due to this, value of item_equal will be 0, so just return it.
