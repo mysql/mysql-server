@@ -278,8 +278,6 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
     /* 
       If statement digest entry doesn't exist.
     */
-    //printf("\n Doesn't Exist. Adding new entry. \n");
-
     if(digest_index==0)
     {
       /*
@@ -332,7 +330,6 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
     /* 
       If stmt digest already exists, update stat and return 
     */
-    //printf("\n Already Exists \n");
     pfs= *entry;
     lf_hash_search_unpin(pins);
     return pfs;
@@ -353,13 +350,15 @@ static void get_digest_text(char* digest_text,
                             char* token_array,
                             int byte_count)
 {
-  int tok;
+  int tok= 0;
   int current_byte= 0;
+  char *digest_text_start= digest_text;
   lex_token_string *tok_data;
 
   DBUG_ASSERT(byte_count <= PFS_MAX_DIGEST_STORAGE_SIZE);
 
-  while(current_byte<byte_count)
+  while(current_byte<byte_count &&
+        (digest_text-digest_text_start)<COL_DIGEST_TEXT_SIZE-3)
   {
     READ_TOKEN(tok, current_byte, token_array);
     tok_data= & lex_token_array[tok];
@@ -399,7 +398,18 @@ static void get_digest_text(char* digest_text,
       digest_text++;
     }
   }
-  *digest_text= '\0';
+
+  /* 
+    Truncate digest text in case of long queries.
+  */
+  if(digest_text-digest_text_start == COL_DIGEST_TEXT_SIZE-3)
+  {
+    strcpy(digest_text,"...");
+  }
+  else
+  {
+    *digest_text= '\0';
+  }
 }
 
 struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
@@ -414,7 +424,8 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
     or if statement_digest consumer is not enabled.
   */
   if(!locker || !(flag_thread_instrumentation && flag_events_statements_current)
-             || (!flag_statements_digest))
+             || (!flag_statements_digest)
+             || (!statements_digest_size))
   {
     return NULL;
   }
