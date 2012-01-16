@@ -435,7 +435,6 @@ private:
   /**
    * Used in polling if exists TCP_Transporter
    */
-  int tcpReadSelectReply;
   ndb_socket_poller m_socket_poller;
 
   Uint32 poll_TCP(Uint32 timeOutMillis, NodeBitmask&);
