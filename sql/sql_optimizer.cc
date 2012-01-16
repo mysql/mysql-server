@@ -3958,7 +3958,7 @@ static bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
           keyuse++;
         } while (keyuse->key == key && keyuse->table == table);
 
-        if (bound_parts == PREV_BITS(uint, keyinfo->key_parts))
+        if (bound_parts == LOWER_BITS(uint, keyinfo->key_parts))
           return TRUE;
         if (keyuse->table != table)
           return FALSE;

@@ -4772,4 +4772,51 @@ DROP TABLE t1, t2;
 
 --echo # End of test for bug#13576391.
 
+--echo #
+--echo # Bug #13589848 "MISSING ROW ON SELECT WITH NESTED IN CLAUSES WHEN LOOSESCAN=ON"
+--echo #
+CREATE TABLE t1 (
+  id INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  KEY (col_varchar_key)
+);
+
+INSERT INTO t1 VALUES (100,'m','m'),
+(200,'b','b'), (300,'x','x');
+
+CREATE TABLE t2 (
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  KEY (col_varchar_key)
+);
+
+INSERT INTO t2 VALUES ('b','b');
+
+CREATE TABLE t3 (
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  KEY (col_varchar_key)
+);
+
+INSERT INTO t3 VALUES ('k','k');
+
+let $query=SELECT GP1.id
+FROM t1 AS GP1 JOIN t3 AS GP2
+     ON GP2.col_varchar_key <> GP1.col_varchar_nokey
+WHERE (GP1.col_varchar_nokey, GP1.col_varchar_nokey)
+      IN (
+           SELECT col_varchar_nokey, col_varchar_nokey
+           FROM t1
+           WHERE col_varchar_nokey
+           IN ( SELECT col_varchar_key
+                FROM t2 LEFT JOIN t3 USING (col_varchar_key) )
+         )
+;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2,t3;
+
 --echo # End of 5.6 tests

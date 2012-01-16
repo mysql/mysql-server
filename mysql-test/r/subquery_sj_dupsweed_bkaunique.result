@@ -7571,6 +7571,62 @@ w
 y
 DROP TABLE t1, t2;
 # End of test for bug#13576391.
+#
+# Bug #13589848 "MISSING ROW ON SELECT WITH NESTED IN CLAUSES WHEN LOOSESCAN=ON"
+#
+CREATE TABLE t1 (
+id INT,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+KEY (col_varchar_key)
+);
+INSERT INTO t1 VALUES (100,'m','m'),
+(200,'b','b'), (300,'x','x');
+CREATE TABLE t2 (
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+KEY (col_varchar_key)
+);
+INSERT INTO t2 VALUES ('b','b');
+CREATE TABLE t3 (
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+KEY (col_varchar_key)
+);
+INSERT INTO t3 VALUES ('k','k');
+EXPLAIN SELECT GP1.id
+FROM t1 AS GP1 JOIN t3 AS GP2
+ON GP2.col_varchar_key <> GP1.col_varchar_nokey
+WHERE (GP1.col_varchar_nokey, GP1.col_varchar_nokey)
+IN (
+SELECT col_varchar_nokey, col_varchar_nokey
+FROM t1
+WHERE col_varchar_nokey
+IN ( SELECT col_varchar_key
+FROM t2 LEFT JOIN t3 USING (col_varchar_key) )
+)
+;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	GP2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	GP1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index	col_varchar_key	col_varchar_key	4	NULL	1	Using index; Start temporary
+2	DEPENDENT SUBQUERY	t3	ref	col_varchar_key	col_varchar_key	4	test.t2.col_varchar_key	2	Using index
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; End temporary; Using join buffer (Block Nested Loop)
+SELECT GP1.id
+FROM t1 AS GP1 JOIN t3 AS GP2
+ON GP2.col_varchar_key <> GP1.col_varchar_nokey
+WHERE (GP1.col_varchar_nokey, GP1.col_varchar_nokey)
+IN (
+SELECT col_varchar_nokey, col_varchar_nokey
+FROM t1
+WHERE col_varchar_nokey
+IN ( SELECT col_varchar_key
+FROM t2 LEFT JOIN t3 USING (col_varchar_key) )
+)
+;
+id
+200
+DROP TABLE t1,t2,t3;
 # End of 5.6 tests
 set optimizer_switch=default;
 set optimizer_switch=default;
