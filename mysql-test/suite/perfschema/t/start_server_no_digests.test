@@ -1,0 +1,10 @@
+# ----------------------------------------------------
+# Tests for the performance schema statement Digests.
+# ----------------------------------------------------
+
+# Test case to show behavior of statements digest when
+# statement-digest-size is 0
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source suite/perfschema/t/statements_digest.test

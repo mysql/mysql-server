@@ -1,6 +1,6 @@
-# ----------------------------------------------------
+# -----------------------------------------------------------------------
 # Tests for the performance schema statement Digests.
-# ----------------------------------------------------
+# -----------------------------------------------------------------------
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
@@ -31,7 +31,9 @@ update performance_schema.setup_consumers
   set enabled='YES' where name='statements_digest';
 
 truncate table performance_schema.events_statements_summary_by_digest;
-# SQL Queries to test normalizations
+# -----------------------------------
+# SQL Queries to test normalizations.
+# -----------------------------------
 select 1 from t1;
 select 1,2 from t1;
 select 1, 2, 3, 4 from t1;
@@ -58,6 +60,53 @@ insert into t1 values (1), (2), (3), (4);
 insert into t3 values (1, 2), (3, 4), (5, 6);
 # (NUM,NUM,NUM),(NUM,NUM,NUM),(NUM,NUM,NUM) => (#,#),(#,#)
 insert into t5 values (1, 2, 3), (4, 5, 6), (7, 8, 9);
+
+# -----------------------------------------------------------------------
+# Test case for handling spaces in statement.
+# -----------------------------------------------------------------------
+
+SELECT                                          1           +        1;
+
+# -----------------------------------------------------------------------
+# Test case for handling comments.
+# -----------------------------------------------------------------------
+
+# comment starting with "--"
+# TODO : SELECT 1; -- This comment continues to the end of line
+# comment starting from "#"
+SELECT 1; # This comment continues to the end of line
+
+# Inline comment
+SELECT 1 /* This is an inline comment */ + 1;
+
+# Multiple line comments
+ SELECT 1+
+ /*
+ this is a
+ multiple-line comment
+ */
+ 1;
+
+
+# -----------------------------------------------------------------------
+# Tests to show how the digest behaves with tokens that can have multiple
+# names (such as DATABASE = "DATABASE" or "SCHEMA", SUBSTRING, STD_SYM,
+# VARIANCE_SYM ... ) 
+# -----------------------------------------------------------------------
+
+--disable_warnings
+create schema statements_digest_temp;
+drop schema statements_digest_temp;
+create database statements_digest_temp;
+drop database statements_digest_temp;
+# TODO : add more
+--enable_warnings
+
+# -----------------------------------------------------------------------
+# Tests to show how the digest tables behaves when it is full (special NULL
+# entry) 
+# -----------------------------------------------------------------------
+# TODO:
 
 --echo ####################################
 --echo # QUERYING PS STATEMENT DIGEST
