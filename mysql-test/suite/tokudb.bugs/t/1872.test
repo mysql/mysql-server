@@ -24,21 +24,29 @@ insert into foo select * from foo;
 select count(*) from foo;
 
 alter table foo add index (a), add index (b);
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a=2 and b=2;
 
 alter table foo drop index a;
 alter table foo add clustering index (a);
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a=2 and b=2;
 
 alter table foo drop index a;
 alter table foo drop index b;
 alter table foo add index (a);
 alter table foo add clustering index(b);
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a=2 and b=2;
 
 alter table foo drop index a;
 alter table foo drop index b;
 alter table foo add clustering index (a), add clustering index (b);
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a=2 and b=2;
 
 # Final cleanup.
