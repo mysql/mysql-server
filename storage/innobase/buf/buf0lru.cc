@@ -625,14 +625,14 @@ next_page:
 }
 
 /******************************************************************//**
-Remove all dirty pages belonging to a given tablespace inside a specific
+Remove pages belonging to a given tablespace inside a specific
 buffer pool instance when we are deleting the data file(s) of that
 tablespace. The pages still remain a part of LRU and are evicted from
-the list as they age towards the tail of the LRU. */
+the list as they age towards the tail of the LRU only if all=FALSE. */
 static
 void
-buf_LRU_remove_dirty_pages_for_tablespace(
-/*======================================*/
+buf_LRU_remove_pages_for_tablespace(
+/*================================*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		id,		/*!< in: space id */
 	ibool		all)		/*!< in: all==TRUE, remove all
@@ -669,7 +669,7 @@ buf_LRU_invalidate_tablespace(
 
 		buf_pool = buf_pool_from_array(i);
 		buf_LRU_drop_page_hash_for_tablespace(buf_pool, id);
-		buf_LRU_remove_dirty_pages_for_tablespace(buf_pool, id, all);
+		buf_LRU_remove_pages_for_tablespace(buf_pool, id, all);
 	}
 }
 
