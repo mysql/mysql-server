@@ -54,6 +54,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "srv0start.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -5351,6 +5352,60 @@ row_mysql_close(void)
 }
 
 /*********************************************************************//**
+Write the table meta data after quiesce. */
+static
+void
+row_mysql_quiesce_write_meta_data(
+/*==============================*/
+	const dict_table_t*	table)	/*!< in: write the meta data for
+					this table */
+{
+	char	filename[OS_FILE_MAX_PATH];
+	static const ulint	suffix_len = strlen(".cfg");
+
+	ulint	len = srv_path_copy(
+		filename, sizeof(filename) - suffix_len,
+		srv_data_home, table->name);
+
+	ut_a(len != ULINT_UNDEFINED);
+
+	ut_snprintf(
+		filename + len, sizeof(filename) - (len + suffix_len), ".cfg");
+
+	srv_normalize_path_for_win(filename);
+
+	FILE*	file = fopen(filename, "w+");
+
+	if (file == NULL) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error creating: %s\n", filename);
+	} else {
+		const dict_index_t* index;
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Writing table metadata to '%s'\n",
+			filename);
+
+		fprintf(file, "(version %lu)\n", IB_EXPORT_CFG_VERSION);
+
+		for (index = UT_LIST_GET_FIRST(table->indexes);
+		    index != 0;
+		    index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			/* FIXME: We assume here that the index->name
+			doesn't contain "()" */
+
+			fprintf(file, "(index \"%s\" (root %lu %lu))\n",
+				index->name,
+				(ulint) index->space, (ulint) index->page);
+		}
+
+		fclose(file);
+	}
+}
+
+/*********************************************************************//**
 Quiesce the tablespace that the table resides in. */
 UNIV_INTERN
 void
@@ -5358,7 +5413,8 @@ row_mysql_quiesce_table_begin(
 /*==========================*/
 	dict_table_t*	table)		/*!< in: quiesce this table */
 {
-	fprintf(stderr, "Begin: Quiesce: %s\n", table->name);
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnODB: Quiesce: %s\n", table->name);
 
 	table->quiesce = QUIESCE_START;
 
@@ -5375,16 +5431,10 @@ row_mysql_quiesce_table_begin(
 
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
-	fprintf(stderr, "Pages flushed: %lu\n", n_pages);
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: Quiesce pages flushed: %lu\n", n_pages);
 
-	for (const dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
-	     index != 0;
-	     index = UT_LIST_GET_NEXT(indexes, index)) {
-
-		fprintf(stderr, "index: %s: %lu:%lu\n",
-			index->name,
-			(ulint) index->space, (ulint) index->page);
-	}
+	row_mysql_quiesce_write_meta_data(table);
 
 	// FIXME: Ignore races for now. Though I can't see why
 	// there should be a race for the interim states.
