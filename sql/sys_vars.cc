@@ -1819,6 +1819,17 @@ static Sys_var_enum Sys_thread_handling(
        thread_handling_names, DEFAULT(0));
 
 #ifdef HAVE_QUERY_CACHE
+static bool check_query_cache_size(sys_var *self, THD *thd, set_var *var)
+{
+  if (global_system_variables.query_cache_type == 0 &&
+      var->value && var->value->val_int() != 0)
+  {
+    my_error(ER_QUERY_CACHE_DISABLED, MYF(0));
+    return true;
+  }
+
+  return false;
+}
 static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
   ulong new_cache_size= query_cache.resize(query_cache_size);
@@ -1839,7 +1850,7 @@ static Sys_var_ulonglong Sys_query_cache_size(
        "The memory allocated to store results from old queries",
        GLOBAL_VAR(query_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONGLONG_MAX), DEFAULT(0), BLOCK_SIZE(1024),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_query_cache_size),
        ON_UPDATE(fix_query_cache_size));
 
 static Sys_var_ulong Sys_query_cache_limit(
@@ -1867,7 +1878,7 @@ static bool check_query_cache_type(sys_var *self, THD *thd, set_var *var)
 {
   if (query_cache.is_disable_in_progress())
   {
-    my_error(ER_QUERY_CACHE_DISABLED, MYF(0));
+    my_error(ER_QUERY_CACHE_IS_DISABLED, MYF(0));
     return true;
   }
   if (var->type != OPT_GLOBAL &&

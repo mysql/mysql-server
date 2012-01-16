@@ -1292,6 +1292,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
 
   if (global_system_variables.query_cache_type == 0)
   {
+    DBUG_ASSERT(query_cache_size_arg == 0);
     if (query_cache_size_arg != 0)
       my_error(ER_QUERY_CACHE_IS_DISABLED, MYF(0));
     DBUG_RETURN(0);
