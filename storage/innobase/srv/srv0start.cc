@@ -2708,3 +2708,56 @@ srv_shutdown_table_bg_threads(void)
 		table = next;
 	}
 }
+
+/*************************************************************//**
+Copy the file path component of the physical file to parameter.
+@return number of bytes copied or ULINT_UNDEFINED if destination buffer
+	is smaller than the path to be copied. */
+UNIV_INTERN
+ulint
+srv_path_copy(
+/*==========*/
+	char*		dest,		/*!< out: destination buffer */
+	ulint		dest_len,	/*!< in: max bytes to copy */
+	const char*	basedir,	/*!< in: base directory */
+	const char*	table_name)	/*!< in: source table name */
+{
+	ulint		written;
+
+	written = ut_snprintf(
+		dest, dest_len, "%s%c", basedir, SRV_PATH_SEPARATOR);
+	ut_a(written < dest_len);
+
+	char*		last;
+	char*		name = dest;
+	char		copy[strlen(table_name) + 1];
+
+	strcpy(copy, table_name);
+
+	/* Find "database" name from table name. */
+	for (char* ptr = strtok_r(copy, "/", &last);
+	     ptr != 0;
+	     ptr = strtok_r(0, "/", &last)) {
+
+		ulint	len;
+
+		ut_a(last > ptr);
+		ut_a(dest_len > written);
+
+		len = ut_snprintf(
+			name + written, dest_len - written, "%.*s",
+			(int) (last - ptr),
+			ptr);
+
+		ut_a(written + len + 1 < dest_len);
+
+		written += len;
+
+		if (*last != 0) {
+			name[written++] = SRV_PATH_SEPARATOR;
+		}
+	}
+
+	return(written);
+}
+
