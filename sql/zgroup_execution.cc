@@ -219,7 +219,7 @@ static enum_gtid_statement_status gtid_acquire_ownerships(THD *thd,
 
 int gtid_check_session_variables_before_statement(const THD *thd)
 {
-  DBUG_ENTER("gtid_before_statement_check_session_variables");
+  DBUG_ENTER("gtid_check_session_variables_before_statement");
 
   const Gtid_set *gtid_next_list= thd->get_gtid_next_list_const();
   const Gtid_specification *gtid_next= &thd->variables.gtid_next;

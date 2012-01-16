@@ -3798,13 +3798,13 @@ static Sys_var_charptr Sys_ignore_db_dirs(
        IN_FS_CHARSET, DEFAULT(0));
 
 
-static bool check_binlog_disable_transaction_unsafe_statements(
+static bool check_disable_gtid_unsafe_statements(
   sys_var *self, THD *thd, set_var *var)
 {
-  DBUG_ENTER("check_binlog_disable_transaction_unsafe_statements");
+  DBUG_ENTER("check_disable_gtid_unsafe_statements");
 
   my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-           "BINLOG_DISABLE_TRANSACTION_UNSAFE_STATEMENTS");
+           "DISABLE_GTID_UNSAFE_STATEMENTS");
   DBUG_RETURN(true);
 
   if (check_top_level_stmt_and_super(self, thd, var) ||
@@ -3813,22 +3813,23 @@ static bool check_binlog_disable_transaction_unsafe_statements(
 #ifdef HAVE_GTID
   if (gtid_mode >= 2 && var->value->val_int() == 0)
   {
-    my_error(ER_GTID_MODE_2_OR_3_REQUIRES_BINLOG_DISABLE_TRANSACTION_UNSAFE_STATEMENTS_ON, MYF(0));
+    my_error(ER_GTID_MODE_2_OR_3_REQUIRES_DISABLE_GTID_UNSAFE_STATEMENTS_ON, MYF(0));
     DBUG_RETURN(true);
   }
 #endif
   DBUG_RETURN(false);
 }
 
-static Sys_var_mybool Sys_binlog_disable_transaction_unsafe_statements(
-       "binlog_disable_transaction_unsafe_statements",
+static Sys_var_mybool Sys_disable_gtid_unsafe_statements(
+       "disable_gtid_unsafe_statements",
        "Prevents execution of statements that would be impossible to log "
-       "in a transactionally safe manner. This currently includes updates to "
-       "non-transactional tables, and CREATE ... SELECT.",
-       GLOBAL_VAR(binlog_disable_transaction_unsafe_statements),
+       "in a transactionally safe manner. Currently, the disallowed "
+       "statements include CREATE TEMPORARY TABLE inside transactions, "
+       "all updates to non-transactional tables, and CREATE TABLE ... SELECT.",
+       READ_ONLY GLOBAL_VAR(disable_gtid_unsafe_statements),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_binlog_disable_transaction_unsafe_statements));
+       ON_CHECK(check_disable_gtid_unsafe_statements));
 
 #ifdef HAVE_GTID
 
@@ -3925,7 +3926,7 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
   uint new_gtid_mode= var->value->val_int();
   if (abs((long)(new_gtid_mode - gtid_mode)) > 1)
   {
-    //my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0))
+    my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0));
     DBUG_RETURN(true);
   }
   if (new_gtid_mode >= 1)
@@ -3943,14 +3944,14 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
         (there are un-processed anonymous transactions in relay log ||
          there is a client executing an anonymous transaction))
     {
-      my_error(ER_CANT_SET_GTID_MODE_3_WITH_ANONYMOUS_GROUPS_IN_RELAY_LOG,
+      my_error(ER_CANT_SET_GTID_MODE_3_WITH_UNPROCESSED_ANONYMOUS_GROUPS,
                MYF(0));
       DBUG_RETURN(true);
     }
     */
-    if (binlog_disable_transaction_unsafe_statements)
+    if (!disable_gtid_unsafe_statements)
     {
-      //my_error(ER_GTID_MODE_2_OR_3_REQUIRES_BINLOG_DISABLE_TRANSACTION_UNSAFE_STATEMENTS_OFF), MYF(0));
+      //my_error(ER_GTID_MODE_2_OR_3_REQUIRES_DISABLE_GTID_UNSAFE_STATEMENTS), MYF(0));
       DBUG_RETURN(true);
     }
   }
@@ -3961,7 +3962,7 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
         (there are un-processed GTIDs in relay log ||
          there is a client executing a GTID transaction))
     {
-      my_error(ER_CANT_SET_GTID_MODE_0_WITH_GTID_GROUPS_IN_RELAY_LOG, MYF(0));
+      my_error(ER_CANT_SET_GTID_MODE_0_WITH_UNPROCESSED_GTID_GROUPS, MYF(0));
       DBUG_RETURN(true);
     }
     */

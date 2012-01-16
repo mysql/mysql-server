@@ -5,63 +5,64 @@ Note	1757	Storing MySQL user name or password information in the master.info rep
 [connection master]
 call mtr.add_suppression("Recovery from master pos .*");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
-call mtr.add_suppression("Failed to read information on Previous GTids.");
+call mtr.add_suppression("Failed to read information on Previous GTIDs.");
+include/rpl_set_gtid_mode.inc
 CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
 include/rpl_reset.inc
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
 include/rpl_reset.inc
@@ -70,25 +71,25 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 SET GLOBAL debug="";
 include/rpl_reset.inc
@@ -96,10 +97,10 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2]
+include/rpl_restart_server.inc [server_number=2 gtids=on]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -107,10 +108,10 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2]
+include/rpl_restart_server.inc [server_number=2 gtids=on]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -118,10 +119,10 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2]
+include/rpl_restart_server.inc [server_number=2 gtids=on]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -129,10 +130,10 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2]
+include/rpl_restart_server.inc [server_number=2 gtids=on]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -141,11 +142,11 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1]
+include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -153,11 +154,11 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1]
+include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -165,11 +166,11 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1]
+include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -177,27 +178,12 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1]
+include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/start_slave.inc
-FLUSH LOGS;
-FLUSH LOGS;
-include/stop_slave.inc
-RESET SLAVE;
-RESET MASTER;
-include/start_slave.inc
-BEGIN;
-INSERT INTO t1 VALUES(1);
-INSERT INTO t1 VALUES(2);
-COMMIT;
-BEGIN;
-INSERT INTO t1 VALUES(1);
-INSERT INTO t1 VALUES(2);
-COMMIT;
-include/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
 include/stop_slave.inc
@@ -212,7 +198,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
 include/stop_slave.inc
@@ -227,7 +213,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
 include/stop_slave.inc
@@ -242,7 +228,22 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
 include/stop_slave.inc
@@ -260,7 +261,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
 include/start_slave.inc
@@ -273,7 +274,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
 include/start_slave.inc
@@ -286,7 +287,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
 include/start_slave.inc
@@ -299,7 +300,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_HOST= 'SLAVE_MASTER_HOST', MASTER_AUTO_POSITION= 1;
 include/start_slave.inc
@@ -320,7 +321,7 @@ COMMIT;
 START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:1";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 BEGIN;
 INSERT INTO t1 VALUES(1);
@@ -333,7 +334,7 @@ COMMIT;
 START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:3";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 BEGIN;
 INSERT INTO t1 VALUES(1);
@@ -346,7 +347,7 @@ COMMIT;
 START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:5";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 BEGIN;
 INSERT INTO t1 VALUES(1);
@@ -359,7 +360,7 @@ COMMIT;
 START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:7";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 include/stop_slave.inc
 Warnings:
@@ -373,11 +374,11 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,debug_skip_create_gtid_set]
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,debug_skip_create_gtid_set]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -385,11 +386,11 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,debug_skip_create_gtid_set]
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,debug_skip_create_gtid_set]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -397,11 +398,11 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,debug_skip_create_gtid_set]
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,debug_skip_create_gtid_set]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -409,11 +410,11 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,debug_skip_create_gtid_set]
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,debug_skip_create_gtid_set]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -422,11 +423,11 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,debug_error_create_gtid_set]
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,debug_error_create_gtid_set]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -434,11 +435,11 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,debug_error_create_gtid_set]
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,debug_error_create_gtid_set]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -446,11 +447,11 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,debug_error_create_gtid_set]
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,debug_error_create_gtid_set]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -458,11 +459,11 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-include/rpl_check_gtid.inc
-include/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
+extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,debug_error_create_gtid_set]
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,debug_error_create_gtid_set]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;

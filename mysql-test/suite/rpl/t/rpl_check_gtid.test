@@ -1,33 +1,33 @@
 ################################################################################
-# This test case checks if a set of properites related to the GTids hold
+# This test case checks if a set of properites related to the GTIDs hold
 # after rotating the binary/relay logs and after crashes. The properties
 # are as follows:
 #
 # 1. Guarantee that an event generated on the master appears everywhere.
 #
-# Property 1.1 The set of GTids generated on the master are unique and
+# Property 1.1 The set of GTIDs generated on the master are unique and
 #              monotonically created.
 #
-# Property 1.2 The set of GTids generated on the master are preserved
+# Property 1.2 The set of GTIDs generated on the master are preserved
 #              in the relay log after being fetched.
 #
-# Property 1.2 The set of GTids generated on the master are preserved
+# Property 1.2 The set of GTIDs generated on the master are preserved
 #              in the slave's binary log after execution.
 #
-# 2. Guarantee that the Previous GTids events are correctly stored everywhere.
+# 2. Guarantee that the Previous GTIDs events are correctly stored everywhere.
 #
-# Property 2.1 - The Previous GTids stored in a binary log must represent the
+# Property 2.1 - The Previous GTIDs stored in a binary log must represent the
 #                set of transactions stored in the previous binary logs.
 #
-# Property 2.2 - The Previous GTids stored in a relay log must represent the
+# Property 2.2 - The Previous GTIDs stored in a relay log must represent the
 #                set of transactions stored in the previous relay logs.
 #
 # 3. Guarantee that RESET SLAVE/RESET MASTER cleans the appropriate states.
 #
-# Property 3.1 - RESET SLAVE cleans the GTids and previous GTids' state
+# Property 3.1 - RESET SLAVE cleans the GTIDs and previous GTIDs' state
 #                stored in the relay log.
 #
-# Property 3.2 - RESET MASTER cleans the GTids and previous GTids' state
+# Property 3.2 - RESET MASTER cleans the GTIDs and previous GTIDs' state
 #                stored in the binary log.
 #
 # 4. With CHANGE MASTER TO MASTER_AUTO_POSITION coordinates are not used.
@@ -56,26 +56,30 @@
 #
 # We also check if the aforementioned properties hold after crashes:
 #
-# 8. Binary logs without Previous GTids are generated simulating a crash
+# 8. Binary logs without Previous GTIDs are generated simulating a crash
 #    right after the file is created.
 #
-# 9. Binary logs with corrupted GTids are generated simulating a crash
+# 9. Binary logs with corrupted GTIDs are generated simulating a crash
 #    while writing such information into the binary log.
 ################################################################################
 --source include/master-slave.inc
 --source include/not_embedded.inc
 --source include/not_windows.inc
 --source include/have_debug.inc
---source include/have_gtid.inc
+#--source include/have_gtid.inc
 
 call mtr.add_suppression("Recovery from master pos .*");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
-call mtr.add_suppression("Failed to read information on Previous GTids.");
+call mtr.add_suppression("Failed to read information on Previous GTIDs.");
+
+--source include/rpl_set_gtid_mode.inc
+
 CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
 
 --let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --connection slave
 --let $slave_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
 
 #
 # 1. This part of the test case:
@@ -709,6 +713,7 @@ while ($i != 5)
   inc $i;
 }
 
+
 #
 # 9. This part of the test case:
 #
@@ -780,7 +785,7 @@ while ($i != 5)
   --source include/stop_slave.inc
 
   --let $rpl_server_number= 2
-   --let $rpl_server_parameters= --relay-log-recovery=1 --debug=d,debug_error_create_gtid_set
+  --let $rpl_server_parameters= --relay-log-recovery=1 --debug=d,debug_error_create_gtid_set
   --source include/rpl_restart_server.inc
 
   --let $rpl_server_number= 2
