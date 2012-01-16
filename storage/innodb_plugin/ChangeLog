@@ -1,7 +1,12 @@
 2012-01-16	The InnoDB Team
 
+	* ibuf/ibuf0ibuf.c:
+	Fix Bug#13496818 ASSERTION: REC_PAGE_NO > 4 IN IBUF CONTRACTION
+
+2012-01-16	The InnoDB Team
+
 	* handler/ha_innodb.cc:
-	Fix Bug#11765438: 58406: ISSUES WITH COPYING PARTITIONED INNODB 
+	Fix Bug#11765438: 58406: ISSUES WITH COPYING PARTITIONED INNODB
 	TABLES FROM LINUX TO WINDOWS
 
 2012-01-04	The InnoDB Team
@@ -17,8 +22,8 @@
 2011-12-13	The InnoDB Team
 
 	* handler/ha_innodb.cc, innodb.test, innodb.result:
-	Fix Bug#13117023: InnoDB was incrementing the handler_read_key, 
-	also the SSV::ha_read_key_count, at the wrong place.   
+	Fix Bug#13117023: InnoDB was incrementing the handler_read_key,
+	also the SSV::ha_read_key_count, at the wrong place.
 
 2011-12-10	The InnoDB Team
 
@@ -279,7 +284,7 @@
 
 2011-01-06	The InnoDB Team
 	* dict/dict0dict.c, handler/ha_innodb.cc, handler/i_s.cc,
-	include/univ.i: 
+	include/univ.i:
 	Fix Bug#58643 InnoDB: too long table name
 
 2011-01-06	The InnoDB Team
@@ -545,7 +550,7 @@
 
 	* handler/ha_innodb.cc, include/row0mysql.h, row/row0mysql.c:
 	Fix Bug#53592: crash replacing duplicates into table after fast
-	alter table added unique key 
+	alter table added unique key
 
 2010-05-24	The InnoDB Team
 
