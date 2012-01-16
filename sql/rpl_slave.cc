@@ -2733,7 +2733,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
   DBUG_ENTER("request_dump");
 
   const int BINLOG_NAME_INFO_SIZE= strlen(mi->get_master_log_name());
-  int error= 0;
+  int error= 1;
   size_t command_size= 0;
   enum_server_command command= mi->is_auto_position() ?
     COM_BINLOG_DUMP_GTID : COM_BINLOG_DUMP;
@@ -2743,7 +2743,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
   if (RUN_HOOK(binlog_relay_io,
                before_request_transmit,
                (thd, mi, binlog_flags)))
-    DBUG_RETURN(1);
+    goto err;
 
   *suppress_warnings= false;
   if (command == COM_BINLOG_DUMP_GTID)
@@ -2764,7 +2764,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       ::BINLOG_POS_INFO_SIZE + ::BINLOG_DATA_SIZE_INFO_SIZE +
       encoded_data_size + 1;
     if (!(command_buffer= (uchar *) my_malloc(allocation_size, MYF(MY_WME))))
-      DBUG_RETURN(1);
+      goto err;
     uchar* ptr_buffer= command_buffer;
 
     /*
@@ -2813,7 +2813,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       BINLOG_NAME_INFO_SIZE + ::BINLOG_FLAGS_INFO_SIZE +
       ::BINLOG_SERVER_ID_INFO_SIZE + 1;
     if (!(command_buffer= (uchar *) my_malloc(allocation_size, MYF(MY_WME))))
-      DBUG_RETURN(1);
+      goto err;
     uchar* ptr_buffer= command_buffer;
   
     int4store(ptr_buffer, mi->get_master_log_pos());
@@ -2843,9 +2843,9 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
                       command_name[command].str,
                       mysql_errno(mysql), mysql_error(mysql),
                       mi->connect_retry);
-    error= 1;
     goto err;
   }
+  error= 0;
 
 err:
   my_free(command_buffer);
@@ -3199,10 +3199,6 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
       will not be processed and then positions need to be updated here.
 
       See sql/rpl_rli.h for further details.
-    */
-    /*
-      This needs to be improved because the GTID needs to be handled as
-      group and group positions are incremented at the end.
     */
     int error= 0;
     if (*ptr_ev &&

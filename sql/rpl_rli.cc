@@ -702,7 +702,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
         Doing this to generate a stack trace and make debugging
         easier. 
       */
-      if (DBUG_EVALUATE_IF("debug_crash_slave_time_out",1,0))
+      if (DBUG_EVALUATE_IF("debug_crash_slave_time_out", 1, 0))
         DBUG_ASSERT(0);
 #endif
       error= -1;
@@ -732,7 +732,11 @@ improper_arguments: %d  timed_out: %d",
 
 #ifdef HAVE_GTID
 /*
-  TODO: This is a duplicated code that needs to be simplified. Alfranio.
+  TODO: This is a duplicated code that needs to be simplified.
+  This will be done while developing all possible sync options.
+  See WL#3584's specification.
+
+  /Alfranio
 */
 int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
                                       longlong timeout)

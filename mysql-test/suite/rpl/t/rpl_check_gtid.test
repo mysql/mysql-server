@@ -528,8 +528,9 @@ while ($i != 5)
   INSERT INTO t1 VALUES(2);
   COMMIT;
 
-  # 6.2 - Makes the slave to retrieve and apply these transactions.
-  --sync_slave_gtids_with_master
+  --let $wait_gtids= query_get_value(SHOW MASTER STATUS, Executed_Gtid_Set, 1)
+  --connection slave
+  --eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$wait_gtids', 300)
 
   # Check property 4.1
   --let $binlog= relaylog
