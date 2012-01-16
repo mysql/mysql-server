@@ -2148,7 +2148,7 @@ buf_page_get_known_nowait(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	ut_a(block->page.file_page_was_freed == FALSE);
+	ut_a(mode == BUF_KEEP_OLD || !block->page.file_page_was_freed);
 #endif
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
