@@ -1,3 +1,9 @@
+2012-01-16	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#11765438: 58406: ISSUES WITH COPYING PARTITIONED INNODB 
+	TABLES FROM LINUX TO WINDOWS
+
 2012-01-04	The InnoDB Team
 
 	* row/row0mysql.c:
