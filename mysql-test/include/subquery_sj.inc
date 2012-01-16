@@ -3910,9 +3910,6 @@ WHERE (grandparent1.col_varchar_key) IN
 eval EXPLAIN $query;
 eval $query;
 
---echo -- Notice that Materialize-scan algorithm reports wrong result for this query.
---echo -- This problem will be filed as a separate bug and dealt with in WL#5561.
-
 DROP TABLE t1, t2;
 
 --echo # End of test for bug#12603183.
@@ -4574,5 +4571,205 @@ eval $query;
 DROP TABLE t1, t2;
 
 --echo # End of test for bug#13414014.
+
+--echo #
+--echo # Bug#13545215: Missing rows on nested in-subquery with materialization
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key int,
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ;
+
+INSERT INTO t1 VALUES
+ (8,'x','x'), (0,'p','p'), (8,'c','c');
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t2 VALUES
+ (1,'v','v'), (2,'v','v'), (3,'c','c'), (4,NULL,NULL),
+ (5,'x','x'), (6,'i','i'), (7,'e','e'), (8,'p','p');
+
+CREATE TABLE t3 (
+ col_int_nokey int
+);
+
+INSERT INTO t3 VALUES (7);
+
+let $query=
+SELECT grandparent1.col_varchar_nokey
+FROM t1 AS grandparent1 JOIN t1 AS grandparent2 USING (col_int_key)
+WHERE grandparent1.col_varchar_key IN (
+    SELECT col_varchar_nokey
+    FROM t2 AS parent1
+    WHERE col_varchar_key IN (
+        SELECT child1.col_varchar_nokey
+        FROM t2 AS child1 LEFT JOIN t3 AS child2
+             ON child1.pk < child2.col_int_nokey
+        )
+    );
+
+eval explain $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # End of test for bug#13545215.
+
+--echo #
+--echo # BUG#13553211 - MISSING ROWS ON SELECT WITH IN-SUBQUERY AND
+--echo # MATERIALIZATION + SEMIJOIN ON
+--echo #
+CREATE TABLE t1 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (4,'v','v');
+INSERT INTO t1 VALUES (62,'v','v');
+INSERT INTO t1 VALUES (7,'c','c');
+INSERT INTO t1 VALUES (1,NULL,NULL);
+
+let $query=
+SELECT
+  alias1.col_varchar_nokey AS a1_nokey,
+  alias1.col_varchar_key AS a1_key,
+  alias2.col_varchar_nokey AS a2_nokey
+FROM
+  t1 AS alias1, t1 AS alias2
+WHERE
+  (alias1.col_varchar_nokey,alias2.col_varchar_nokey)
+  IN
+  (
+    SELECT
+      SQ2_alias2.col_varchar_nokey, SQ2_alias1.col_varchar_key
+    FROM
+      t1 AS SQ2_alias1, t1 AS SQ2_alias2
+  )
+;
+
+eval EXPLAIN $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#13541406: Wrong result with loosescan on select .. where .. in
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT NOT NULL,
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+  KEY col_int_key (col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+ (7,'v'), (0,'s'), (9,'l'), (3,'y'), (4,'c'), (2,'i'), (5,'h'), (3,'q'),
+ (1,'a'), (3,'v'), (6,'u'), (7,'s'), (5,'y'), (1,'z'), (204,'h'), (224,'p'),
+ (9,'e'), (5,'i'), (0,'y'), (3,'w');
+
+CREATE TABLE t2 (
+  pk INT NOT NULL,
+  col_int_key INT NOT NULL,
+  col_varchar_key VARCHAR(1) NOT NULL,
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES
+ (1,0,'j','j'), (2,8,'v','v'), (3,1,'c','c'), (4,8,'m','m'),
+ (5,9,'d','d'), (6,24,'d','d'), (7,6,'y','y'), (8,1,'t','t'),
+ (9,6,'d','d'), (10,2,'s','s'), (11,4,'r','r'), (12,8,'m','m'),
+ (13,4,'b','b'), (14,4,'x','x'), (15,7,'g','g'), (16,4,'p','p'),
+ (17,1,'q','q'), (18,9,'w','w'), (19,4,'d','d'), (20,8,'e','e');
+
+let $query=
+SELECT ot1.col_int_key AS field1
+FROM t2 AS ot1, t2 AS ot2
+WHERE (ot1.col_varchar_key, ot2.col_varchar_nokey) IN (
+    SELECT it2.col_varchar_nokey, it1.col_varchar_key
+    FROM t2 AS it1 JOIN t1 AS it2 ON it2.col_int_key = it1.pk);
+
+--echo # This query should never use a LooseScan strategy
+
+eval explain $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13541406.
+
+--echo #
+--echo # Bug#13576391: Missing rows on select with in-subquery and
+--echo # batched-key-access=on and semijoin
+--echo #
+
+CREATE TABLE t1 (
+ col_int_nokey int NOT NULL,
+ col_varchar_key varchar(1) NOT NULL,
+ KEY col_varchar_key (col_varchar_key)
+) engine=InnoDB;
+
+INSERT INTO t1 VALUES
+ (1,'v'), (7,'s'), (4,'l'), (7,'y'), (0,'c'), (2,'i'), (9,'h'), (4,'q'),
+ (0,'a'), (9,'v'), (1,'u'), (3,'s'), (8,'y'), (8,'z'), (18,'h'), (84,'p'),
+ (6,'e'), (3,'i'), (6,'y'), (6,'w');
+
+CREATE TABLE t2 (
+ col_int_nokey int NOT NULL,
+ col_varchar_nokey varchar(1) NOT NULL
+) engine=InnoDB;
+
+INSERT INTO t2 VALUES
+ (4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
+ (3,'d'), (8,'s'), (1,'r'), (8,'m'), (8,'b'), (5,'x'), (7,'g'), (5,'p'),
+ (1,'q'), (6,'w'), (2,'d'), (9,'e');
+
+let $query=
+SELECT col_varchar_nokey
+FROM t2 AS ot
+WHERE col_varchar_nokey IN (
+  SELECT col_varchar_key
+  FROM t1 AS it
+  WHERE it.col_int_nokey <= it.col_int_nokey
+    AND NOT ot.col_int_nokey < 2
+)
+ORDER BY col_varchar_nokey;
+
+eval explain $query;
+eval $query;
+
+ALTER TABLE t1 ENGINE=MyISAM;
+ALTER TABLE t2 ENGINE=MyISAM;
+
+eval explain $query;
+eval $query;
+
+ALTER TABLE t1 ENGINE=Memory;
+ALTER TABLE t2 ENGINE=Memory;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13576391.
 
 --echo # End of 5.6 tests
