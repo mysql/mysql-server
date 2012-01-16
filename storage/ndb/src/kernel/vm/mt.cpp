@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4154,4 +4154,5 @@ struct thr_repository g_thr_repository;
 
 struct trp_callback g_trp_callback;
 
-TransporterRegistry globalTransporterRegistry(&g_trp_callback, false);
+TransporterRegistry globalTransporterRegistry(&g_trp_callback, &g_trp_callback,
+                                              false);

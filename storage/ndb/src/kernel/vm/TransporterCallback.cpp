@@ -106,7 +106,8 @@ class TransporterCallbackKernelNonMT : public TransporterCallbackKernel
   }
 };
 static TransporterCallbackKernelNonMT myTransporterCallback;
-TransporterRegistry globalTransporterRegistry(&myTransporterCallback);
+TransporterRegistry globalTransporterRegistry(&myTransporterCallback,
+                                              &myTransporterCallback);
 #endif
 
 #ifdef NDBD_MULTITHREADED
