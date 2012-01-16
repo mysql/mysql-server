@@ -494,13 +494,6 @@ cachefile_refup (CACHEFILE cf) {
     cf->refcount++;
 }
 
-BOOL 
-toku_cachefile_is_closing (CACHEFILE cf) {
-    BOOL rval = cf->is_closing;
-    return rval;
-}
-
-
 // What cachefile goes with particular iname (iname relative to env)?
 // The transaction that is adding the reference might not have a reference
 // to the brt, therefore the cachefile might be closing.
@@ -792,7 +785,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     return r;
 }
 
-static int cachetable_flush_cachefile (CACHETABLE, CACHEFILE cf);
+static void cachetable_flush_cachefile (CACHETABLE, CACHEFILE cf);
 static void assert_cachefile_is_flushed_and_removed (CACHETABLE ct, CACHEFILE cf);
 
 //TEST_ONLY_FUNCTION
@@ -933,7 +926,8 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
 	// allowing another thread to get into either/both of
         //  - toku_cachetable_openfd()
         //  - toku_cachefile_of_iname_and_add_reference()
-	if ((r = cachetable_flush_cachefile(ct, cf))) {
+	cachetable_flush_cachefile(ct, cf);
+        if (0) {
 	error:
 	    remove_cf_from_cachefiles_list(cf);
 	    if (cf->refcount > 0) {
@@ -1050,9 +1044,9 @@ int toku_cachefile_flush (CACHEFILE cf) {
     cachetable_unlock(ct);
     wait_on_background_jobs_to_finish(cf);
     cachetable_lock(ct);
-    int r = cachetable_flush_cachefile(ct, cf);
+    cachetable_flush_cachefile(ct, cf);
     cachetable_unlock(ct);
-    return r;
+    return 0;
 }
 
 // This hash function comes from Jenkins:  http://burtleburtle.net/bob/c/lookup3.c
@@ -2850,7 +2844,7 @@ static void assert_cachefile_is_flushed_and_removed (CACHETABLE ct, CACHEFILE cf
 // trying to access the cachefile while this function is executing.
 // This implies no client thread will be trying to lock any nodes
 // belonging to the cachefile.
-static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
+static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     unsigned nfound = 0;
     //
     // Because work on a kibbutz is always done by the client thread,
@@ -2995,8 +2989,6 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     if ((4 * ct->n_in_table < ct->table_size) && (ct->table_size>4)) {
         cachetable_rehash(ct, ct->table_size/2);
     }
-
-    return 0;
 }
 
 /* Requires that no locks be held that are used by the checkpoint logic (ydb, etc.) */
@@ -3022,19 +3014,15 @@ toku_cachetable_close (CACHETABLE *ctp) {
         int  r = toku_minicron_shutdown(&ct->cleaner);
         assert(r==0);
     }
-    int r;
     cachetable_lock(ct);
-    if ((r=cachetable_flush_cachefile(ct, NULL))) {
-        cachetable_unlock(ct);
-        return r;
-    }
+    cachetable_flush_cachefile(ct, NULL);
     u_int32_t i;
     for (i=0; i<ct->table_size; i++) {
 	if (ct->table[i]) return -1;
     }
     assert(ct->size_evicting == 0);
     rwlock_destroy(&ct->pending_lock);
-    r = toku_pthread_mutex_destroy(&ct->openfd_mutex); resource_assert_zero(r);
+    int r = toku_pthread_mutex_destroy(&ct->openfd_mutex); resource_assert_zero(r);
     cachetable_unlock(ct);
     toku_destroy_workers(&ct->wq, &ct->threadpool);
     toku_kibbutz_destroy(ct->kibbutz);
