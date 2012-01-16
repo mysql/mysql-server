@@ -8696,8 +8696,9 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
     pack_flag= FIELDFLAG_INTERVAL;
     break;
 
-  case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
+    DBUG_ASSERT(decimals_arg <= DECIMAL_MAX_SCALE);
+  case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_FLOAT:
   case MYSQL_TYPE_DOUBLE:
     pack_flag= FIELDFLAG_NUMBER |

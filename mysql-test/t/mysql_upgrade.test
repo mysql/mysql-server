@@ -105,3 +105,22 @@ DROP USER 'user3'@'%';
 --replace_result $MYSQLTEST_VARDIR var
 --exec $MYSQL_UPGRADE --force --upgrade-system-tables
 
+--echo #
+--echo # Bug#11827359 60223: MYSQL_UPGRADE PROBLEM WITH OPTION
+--echo #                     SKIP-WRITE-BINLOG
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+--echo # Droping the previously created mysql_upgrade_info file..
+--remove_file $MYSQLD_DATADIR/mysql_upgrade_info
+
+--echo # Running mysql_upgrade with --skip-write-binlog..
+--replace_result $MYSQLTEST_VARDIR var
+--exec $MYSQL_UPGRADE --skip-write-binlog
+
+# mysql_upgrade must have created mysql_upgrade_info file,
+# so the following command should never fail.
+--remove_file $MYSQLD_DATADIR/mysql_upgrade_info
+
+--echo End of tests

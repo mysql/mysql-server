@@ -830,6 +830,7 @@ uint32 ha_archive::max_row_length(const uchar *buf)
        ptr != end ;
        ptr++)
   {
+    if (!table->field[*ptr]->is_null())
       length += 2 + ((Field_blob*)table->field[*ptr])->get_length();
   }
 
@@ -1186,6 +1187,17 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record)
 
   /* Copy null bits */
   const uchar *ptr= record_buffer->buffer;
+  /*
+    Field::unpack() is not called when field is NULL. For VARCHAR
+    Field::unpack() only unpacks as much bytes as occupied by field
+    value. In these cases respective memory area on record buffer is
+    not initialized.
+
+    These uninitialized areas may be accessed by CHECKSUM TABLE or
+    by optimizer using temporary table (BUG#12997905). We may remove
+    this memset() when they're fixed.
+  */
+  memset(record, 0, table->s->reclength);
   memcpy(record, ptr, table->s->null_bytes);
   ptr+= table->s->null_bytes;
   for (Field **field=table->field ; *field ; field++)
@@ -1691,13 +1703,15 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
   int rc= 0;
   const char *old_proc_info;
-  ha_rows count= share->rows_recorded;
+  ha_rows count;
   DBUG_ENTER("ha_archive::check");
 
   old_proc_info= thd_proc_info(thd, "Checking table");
-  /* Flush any waiting data */
   mysql_mutex_lock(&share->mutex);
-  azflush(&(share->archive_write), Z_SYNC_FLUSH);
+  count= share->rows_recorded;
+  /* Flush any waiting data */
+  if (share->archive_write_open)
+    azflush(&(share->archive_write), Z_SYNC_FLUSH);
   mysql_mutex_unlock(&share->mutex);
 
   if (init_archive_reader())
@@ -1707,18 +1721,34 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
     start of the file.
   */
   read_data_header(&archive);
+  for (ha_rows cur_count= count; cur_count; cur_count--)
+  {
+    if ((rc= get_row(&archive, table->record[0])))
+      goto error;
+  }
+  /*
+    Now read records that may have been inserted concurrently.
+    Acquire share->mutex so tail of the table is not modified by
+    concurrent writers.
+  */
+  mysql_mutex_lock(&share->mutex);
+  count= share->rows_recorded - count;
+  if (share->archive_write_open)
+    azflush(&(share->archive_write), Z_SYNC_FLUSH);
   while (!(rc= get_row(&archive, table->record[0])))
     count--;
-
-  thd_proc_info(thd, old_proc_info);
+  mysql_mutex_unlock(&share->mutex);
 
   if ((rc && rc != HA_ERR_END_OF_FILE) || count)  
-  {
-    share->crashed= FALSE;
-    DBUG_RETURN(HA_ADMIN_CORRUPT);
-  }
+    goto error;
 
+  thd_proc_info(thd, old_proc_info);
   DBUG_RETURN(HA_ADMIN_OK);
+
+error:
+  thd_proc_info(thd, old_proc_info);
+  share->crashed= FALSE;
+  DBUG_RETURN(HA_ADMIN_CORRUPT);
 }
 
 /*

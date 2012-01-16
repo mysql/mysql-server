@@ -3790,22 +3790,9 @@ ha_innobase::open(
 		DBUG_RETURN(1);
 	}
 
-	/* Create buffers for packing the fields of a record. Why
-	table->reclength did not work here? Obviously, because char
-	fields when packed actually became 1 byte longer, when we also
-	stored the string length as the first byte. */
-
-	upd_and_key_val_buff_len =
-				table->s->reclength + table->s->max_key_length
-							+ MAX_REF_PARTS * 3;
-	if (!(uchar*) my_multi_malloc(MYF(MY_WME),
-			&upd_buff, upd_and_key_val_buff_len,
-			&key_val_buff, upd_and_key_val_buff_len,
-			NullS)) {
-		free_share(share);
-
-		DBUG_RETURN(1);
-	}
+	/* Will be allocated if it is needed in ::update_row() */
+	upd_buf = NULL;
+	upd_buf_size = 0;
 
 	/* We look for pattern #P# to see if the table is partitioned
 	MySQL table. The retry logic for partitioned tables is a
@@ -3846,7 +3833,6 @@ retry:
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
-		my_free(upd_buff);
 		my_errno = ENOENT;
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -3862,16 +3848,14 @@ retry:
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
-		my_free(upd_buff);
 		my_errno = ENOENT;
 
 		dict_table_decrement_handle_count(ib_table, FALSE);
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
-	prebuilt = row_create_prebuilt(ib_table);
+	prebuilt = row_create_prebuilt(ib_table, table->s->reclength);
 
-	prebuilt->mysql_row_len = table->s->reclength;
 	prebuilt->default_rec = table->s->default_values;
 	ut_ad(prebuilt->default_rec);
 
@@ -4060,7 +4044,13 @@ ha_innobase::close(void)
 
 	row_prebuilt_free(prebuilt, FALSE);
 
-	my_free(upd_buff);
+	if (upd_buf != NULL) {
+		ut_ad(upd_buf_size != 0);
+		my_free(upd_buf);
+		upd_buf = NULL;
+		upd_buf_size = 0;
+	}
+
 	free_share(share);
 
 	/* Tell InnoDB server that there might be work for
@@ -5327,6 +5317,23 @@ ha_innobase::update_row(
 
 	ut_a(prebuilt->trx == trx);
 
+	if (upd_buf == NULL) {
+		ut_ad(upd_buf_size == 0);
+
+		/* Create a buffer for packing the fields of a record. Why
+		table->reclength did not work here? Obviously, because char
+		fields when packed actually became 1 byte longer, when we also
+		stored the string length as the first byte. */
+
+		upd_buf_size = table->s->reclength + table->s->max_key_length
+			+ MAX_REF_PARTS * 3;
+		upd_buf = (uchar*) my_malloc(upd_buf_size, MYF(MY_WME));
+		if (upd_buf == NULL) {
+			upd_buf_size = 0;
+			DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+		}
+	}
+
 	ha_statistic_increment(&SSV::ha_update_count);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
@@ -5339,11 +5346,10 @@ ha_innobase::update_row(
 	}
 
 	/* Build an update vector from the modified fields in the rows
-	(uses upd_buff of the handle) */
+	(uses upd_buf of the handle) */
 
 	calc_row_difference(uvect, (uchar*) old_row, new_row, table,
-			upd_buff, (ulint)upd_and_key_val_buff_len,
-			prebuilt, user_thd);
+			    upd_buf, upd_buf_size, prebuilt, user_thd);
 
 	/* This is not a delete */
 	prebuilt->upd_node->is_delete = FALSE;
@@ -5720,8 +5726,7 @@ ha_innobase::index_read(
 
 		row_sel_convert_mysql_key_to_innobase(
 			prebuilt->search_tuple,
-			(byte*) key_val_buff,
-			(ulint)upd_and_key_val_buff_len,
+			srch_key_val1, sizeof(srch_key_val1),
 			index,
 			(byte*) key_ptr,
 			(ulint) key_len,
@@ -5819,7 +5824,6 @@ ha_innobase::innobase_get_index(
 	dict_index_t*	index = 0;
 
 	DBUG_ENTER("innobase_get_index");
-	ha_statistic_increment(&SSV::ha_read_key_count);
 
 	if (keynr != MAX_KEY && table->s->keys > 0) {
 		key = table->key_info + keynr;
@@ -5833,13 +5837,13 @@ ha_innobase::innobase_get_index(
 			table. Only print message if the index translation
 			table exists */
 			if (share->idx_trans_tbl.index_mapping) {
-				sql_print_error("InnoDB could not find "
-						"index %s key no %u for "
-						"table %s through its "
-						"index translation table",
-						key ? key->name : "NULL",
-						keynr,
-						prebuilt->table->name);
+				sql_print_warning("InnoDB could not find "
+						  "index %s key no %u for "
+						  "table %s through its "
+						  "index translation table",
+						  key ? key->name : "NULL",
+						  keynr,
+						  prebuilt->table->name);
 			}
 
 			index = dict_table_get_index_on_name(prebuilt->table,
@@ -7541,12 +7545,6 @@ ha_innobase::records_in_range(
 {
 	KEY*		key;
 	dict_index_t*	index;
-	uchar*		key_val_buff2	= (uchar*) my_malloc(
-						  table->s->reclength
-					+ table->s->max_key_length + 100,
-								MYF(MY_FAE));
-	ulint		buff2_len = table->s->reclength
-					+ table->s->max_key_length + 100;
 	dtuple_t*	range_start;
 	dtuple_t*	range_end;
 	ib_int64_t	n_rows;
@@ -7598,8 +7596,8 @@ ha_innobase::records_in_range(
 	dict_index_copy_types(range_end, index, key->key_parts);
 
 	row_sel_convert_mysql_key_to_innobase(
-				range_start, (byte*) key_val_buff,
-				(ulint)upd_and_key_val_buff_len,
+				range_start,
+				srch_key_val1, sizeof(srch_key_val1),
 				index,
 				(byte*) (min_key ? min_key->key :
 					 (const uchar*) 0),
@@ -7610,8 +7608,9 @@ ha_innobase::records_in_range(
 		    : range_start->n_fields == 0);
 
 	row_sel_convert_mysql_key_to_innobase(
-				range_end, (byte*) key_val_buff2,
-				buff2_len, index,
+				range_end,
+				srch_key_val2, sizeof(srch_key_val2),
+				index,
 				(byte*) (max_key ? max_key->key :
 					 (const uchar*) 0),
 				(ulint) (max_key ? max_key->length : 0),
@@ -7638,7 +7637,6 @@ ha_innobase::records_in_range(
 	mem_heap_free(heap);
 
 func_exit:
-	my_free(key_val_buff2);
 
 	prebuilt->trx->op_info = (char*)"";
 
@@ -8322,7 +8320,10 @@ ha_innobase::check(
 		putc('\n', stderr);
 #endif
 
-		if (!btr_validate_index(index, prebuilt->trx)) {
+		/* If this is an index being created, break */
+		if (*index->name == TEMP_INDEX_PREFIX) {
+			break;
+		}  else if (!btr_validate_index(index, prebuilt->trx)) {
 			is_ok = FALSE;
 
 			innobase_format_name(

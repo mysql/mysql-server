@@ -3785,7 +3785,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     alter_info->create_list.push_back(cr_field);
   }
 
-  DBUG_EXECUTE_IF("sleep_create_select_before_create", my_sleep(6000000););
+  DEBUG_SYNC(thd,"create_table_select_before_create");
 
   /*
     Create and lock table.
@@ -3809,7 +3809,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                     create_info, alter_info, 0,
                                     select_field_count, NULL))
     {
-      DBUG_EXECUTE_IF("sleep_create_select_before_open", my_sleep(6000000););
+      DEBUG_SYNC(thd,"create_table_select_before_open");
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
@@ -3851,7 +3851,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     }
   }
 
-  DBUG_EXECUTE_IF("sleep_create_select_before_lock", my_sleep(6000000););
+  DEBUG_SYNC(thd,"create_table_select_before_lock");
 
   table->reginfo.lock_type=TL_WRITE;
   hooks->prelock(&table, 1);                    // Call prelock hooks
@@ -3966,7 +3966,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   DBUG_ASSERT(create_table->table == NULL);
 
-  DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
+  DEBUG_SYNC(thd,"create_table_select_before_check_if_exists");
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values,

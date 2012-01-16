@@ -3200,6 +3200,31 @@ void Item_func_group_concat::cleanup()
 }
 
 
+Field *Item_func_group_concat::make_string_field(TABLE *table)
+{
+  Field *field;
+  DBUG_ASSERT(collation.collation);
+  /*
+    max_characters is maximum number of characters
+    what can fit into max_length size. It's necessary
+    to use field size what allows to store group_concat
+    result without truncation. For this purpose we use
+    max_characters * CS->mbmaxlen.
+  */
+  const uint32 max_characters= max_length / collation.collation->mbminlen;
+  if (max_characters > CONVERT_IF_BIGGER_TO_BLOB)
+    field= new Field_blob(max_characters * collation.collation->mbmaxlen,
+                          maybe_null, name, collation.collation, TRUE);
+  else
+    field= new Field_varstring(max_characters * collation.collation->mbmaxlen,
+                               maybe_null, name, table->s, collation.collation);
+
+  if (field)
+    field->init(table);
+  return field;
+}
+
+
 Item *Item_func_group_concat::copy_or_same(THD* thd)
 {
   return new (thd->mem_root) Item_func_group_concat(thd, this);

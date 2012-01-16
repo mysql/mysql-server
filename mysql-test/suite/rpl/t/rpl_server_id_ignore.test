@@ -18,6 +18,7 @@
 #       executing events this time
 
 source include/master-slave.inc;
+source include/have_binlog_format_mixed.inc;
 
 connection slave;
 

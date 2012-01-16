@@ -1168,5 +1168,19 @@ CASE s1 WHEN 'a' THEN 'b' ELSE 'c' END
 b
 DROP TABLE t1;
 #
+# Bug#11750518 41090: ORDER BY TRUNCATES GROUP_CONCAT RESULT
+#
+SET NAMES utf8, @@character_set_connection=utf32;
+SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
+FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
+UNION ALL
+SELECT 'a' AS id, REPEAT('bla bla', 100) AS body) t1
+GROUP BY id
+ORDER BY l DESC;
+id	l
+a	256
+Warnings:
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+#
 # End of 5.5 tests
 #

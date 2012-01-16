@@ -1107,7 +1107,33 @@ void prepare_new_connection_state(THD* thd)
       thd->killed= KILL_CONNECTION;
       thd->print_aborted_warning(0, "init_connect command failed");
       sql_print_warning("%s", thd->stmt_da->message());
+
+      /*
+        now let client to send its first command,
+        to be able to send the error back
+      */
+      NET *net= &thd->net;
+      thd->lex->current_select= 0;
+      my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+      thd->clear_error();
+      net_new_transaction(net);
+      ulong packet_length= my_net_read(net);
+      /*
+        If my_net_read() failed, my_error() has been already called,
+        and the main Diagnostics Area contains an error condition.
+      */
+      if (packet_length != packet_error)
+        my_error(ER_NEW_ABORTING_CONNECTION, MYF(0),
+                 thd->thread_id,
+                 thd->db ? thd->db : "unconnected",
+                 sctx->user ? sctx->user : "unauthenticated",
+                 sctx->host_or_ip, "init_connect command failed");
+      thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
+      thd->protocol->end_statement();
+      thd->killed = KILL_CONNECTION;
+      return;
     }
+
     thd->proc_info=0;
     thd->set_time();
     thd->init_for_queries();

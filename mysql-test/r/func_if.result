@@ -203,3 +203,17 @@ c
 NULL
 0
 DROP TABLE t1;
+#
+# Bug#12532830 
+# SIGFPE OR ASSERTION (PRECISION <= ((9 * 9) - 8*2)) && (DEC <= 30)
+#
+select
+sum(distinct(if('a',
+(select adddate(elt(convert(9999999999999999999999999999999999999,decimal(64,0)),count(*)),
+interval 1 day))
+, .1))) as foo;
+foo
+0.1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'a'

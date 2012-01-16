@@ -1806,6 +1806,7 @@ void THD::cleanup_after_query()
   /* reset table map for multi-table update */
   table_map_for_update= 0;
   m_binlog_invoker= FALSE;
+
   DBUG_VOID_RETURN;
 }
 

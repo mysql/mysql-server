@@ -1,0 +1,25 @@
+#
+# Basic test coverage for --metadata-locks-cache-size startup
+# parameter and corresponding read-only global @@metadata_locks_cache_size
+# variable.
+#
+
+--echo #
+--echo # Check that the paremeter is correctly set by start-up
+--echo # option (.opt file sets it to 256 while default is 1024).
+select @@global.metadata_locks_cache_size = 256;
+
+--echo #
+--echo # Check that variable is read only
+--echo #
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@global.metadata_locks_cache_size= 1024;
+select @@global.metadata_locks_cache_size = 256;
+
+--echo #
+--echo # And only GLOBAL
+--echo #
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.metadata_locks_cache_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@session.metadata_locks_cache_size= 1024;

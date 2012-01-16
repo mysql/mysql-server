@@ -2786,7 +2786,47 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
   ulonglong val;
 
   DBUG_ASSERT(! thd->stmt_arena->is_stmt_prepare());
-  val= sl->select_limit ? sl->select_limit->val_uint() : HA_POS_ERROR;
+  if (sl->select_limit)
+  {
+    Item *item = sl->select_limit;
+    /*
+      fix_fields() has not been called for sl->select_limit. That's due to the
+      historical reasons -- this item could be only of type Item_int, and
+      Item_int does not require fix_fields(). Thus, fix_fields() was never
+      called for sl->select_limit.
+
+      Some time ago, Item_splocal was also allowed for LIMIT / OFFSET clauses.
+      However, the fix_fields() behavior was not updated, which led to a crash
+      in some cases.
+
+      There is no single place where to call fix_fields() for LIMIT / OFFSET
+      items during the fix-fields-phase. Thus, for the sake of readability,
+      it was decided to do it here, on the evaluation phase (which is a
+      violation of design, but we chose the lesser of two evils).
+
+      We can call fix_fields() here, because sl->select_limit can be of two
+      types only: Item_int and Item_splocal. Item_int::fix_fields() is trivial,
+      and Item_splocal::fix_fields() (or rather Item_sp_variable::fix_fields())
+      has the following specific:
+        1) it does not affect other items;
+        2) it does not fail.
+
+      Nevertheless DBUG_ASSERT was added to catch future changes in
+      fix_fields() implementation. Also added runtime check against a result
+      of fix_fields() in order to handle error condition in non-debug build.
+    */
+    bool fix_fields_successful= true;
+    if (!item->fixed)
+    {
+      fix_fields_successful= !item->fix_fields(thd, NULL);
+
+      DBUG_ASSERT(fix_fields_successful);
+    }
+    val= fix_fields_successful ? item->val_uint() : HA_POS_ERROR;
+  }
+  else
+    val= HA_POS_ERROR;
+
   select_limit_val= (ha_rows)val;
 #ifndef BIG_TABLES
   /*
@@ -2796,7 +2836,22 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
   if (val != (ulonglong)select_limit_val)
     select_limit_val= HA_POS_ERROR;
 #endif
-  val= sl->offset_limit ? sl->offset_limit->val_uint() : ULL(0);
+  if (sl->offset_limit)
+  {
+    Item *item = sl->offset_limit;
+    // see comment for sl->select_limit branch.
+    bool fix_fields_successful= true;
+    if (!item->fixed)
+    {
+      fix_fields_successful= !item->fix_fields(thd, NULL);
+
+      DBUG_ASSERT(fix_fields_successful);
+    }
+    val= fix_fields_successful ? item->val_uint() : HA_POS_ERROR;
+  }
+  else
+    val= ULL(0);
+
   offset_limit_cnt= (ha_rows)val;
 #ifndef BIG_TABLES
   /* Check for truncation. */

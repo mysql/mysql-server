@@ -1314,9 +1314,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
       DBUG_ASSERT(view_tables == NULL || view_tables->security_ctx == NULL);
 
-      if (check_table_access(thd, SELECT_ACL, view_tables, FALSE,
-                             UINT_MAX, TRUE) &&
-          check_table_access(thd, SHOW_VIEW_ACL, table, FALSE, UINT_MAX, TRUE))
+      if (check_table_access(thd, SELECT_ACL, view_tables,
+                             FALSE, UINT_MAX, TRUE) ||
+          check_table_access(thd, SHOW_VIEW_ACL, &view_no_suid,
+                             FALSE, UINT_MAX, TRUE))
       {
         my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
         goto err;

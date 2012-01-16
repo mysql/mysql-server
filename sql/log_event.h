@@ -54,6 +54,7 @@
 class String;
 
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
+#define LONG_FIND_ROW_THRESHOLD 60 /* seconds */
 
 /**
    Either assert or return an error.

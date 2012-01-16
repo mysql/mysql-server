@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -33,6 +33,90 @@ Created 12/18/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "page0types.h"
 #include "fsp0types.h"
+
+/* @defgroup fsp_flags InnoDB Tablespace Flag Constants @{ */
+
+/** Number of flag bits used to indicate the tablespace page size */
+#define FSP_FLAGS_WIDTH_PAGE_SSIZE	4
+/** Zero relative shift position of the PAGE_SSIZE field */
+#define FSP_FLAGS_POS_PAGE_SSIZE	6
+/** Bit mask of the PAGE_SSIZE field */
+#define FSP_FLAGS_MASK_PAGE_SSIZE				\
+		((~(~0 << FSP_FLAGS_WIDTH_PAGE_SSIZE))		\
+		<< FSP_FLAGS_POS_PAGE_SSIZE)
+/** Return the value of the PAGE_SSIZE field */
+#define FSP_FLAGS_GET_PAGE_SSIZE(flags)				\
+		((flags & FSP_FLAGS_MASK_PAGE_SSIZE)		\
+		>> FSP_FLAGS_POS_PAGE_SSIZE)
+
+/* @} */
+
+/* @defgroup Tablespace Header Constants (moved from fsp0fsp.c) @{ */
+
+/** Offset of the space header within a file page */
+#define FSP_HEADER_OFFSET	FIL_PAGE_DATA
+
+/* The data structures in files are defined just as byte strings in C */
+typedef	byte	fsp_header_t;
+typedef	byte	xdes_t;
+
+/*			SPACE HEADER
+			============
+
+File space header data structure: this data structure is contained in the
+first page of a space. The space for this header is reserved in every extent
+descriptor page, but used only in the first. */
+
+/*-------------------------------------*/
+#define FSP_SPACE_ID		0	/* space id */
+#define FSP_NOT_USED		4	/* this field contained a value up to
+					which we know that the modifications
+					in the database have been flushed to
+					the file space; not used now */
+#define	FSP_SIZE		8	/* Current size of the space in
+					pages */
+#define	FSP_FREE_LIMIT		12	/* Minimum page number for which the
+					free list has not been initialized:
+					the pages >= this limit are, by
+					definition, free; note that in a
+					single-table tablespace where size
+					< 64 pages, this number is 64, i.e.,
+					we have initialized the space
+					about the first extent, but have not
+					physically allocted those pages to the
+					file */
+#define	FSP_SPACE_FLAGS		16	/* fsp_space_t.flags, similar to
+					dict_table_t::flags */
+#define	FSP_FRAG_N_USED		20	/* number of used pages in the
+					FSP_FREE_FRAG list */
+#define	FSP_FREE		24	/* list of free extents */
+#define	FSP_FREE_FRAG		(24 + FLST_BASE_NODE_SIZE)
+					/* list of partially free extents not
+					belonging to any segment */
+#define	FSP_FULL_FRAG		(24 + 2 * FLST_BASE_NODE_SIZE)
+					/* list of full extents not belonging
+					to any segment */
+#define FSP_SEG_ID		(24 + 3 * FLST_BASE_NODE_SIZE)
+					/* 8 bytes which give the first unused
+					segment id */
+#define FSP_SEG_INODES_FULL	(32 + 3 * FLST_BASE_NODE_SIZE)
+					/* list of pages containing segment
+					headers, where all the segment inode
+					slots are reserved */
+#define FSP_SEG_INODES_FREE	(32 + 4 * FLST_BASE_NODE_SIZE)
+					/* list of pages containing segment
+					headers, where not all the segment
+					header slots are reserved */
+/*-------------------------------------*/
+/* File space header size */
+#define	FSP_HEADER_SIZE		(32 + 5 * FLST_BASE_NODE_SIZE)
+
+#define	FSP_FREE_ADD		4	/* this many free extents are added
+					to the free list from above
+					FSP_FREE_LIMIT at a time */
+/* @} */
+
+/* @} */
 
 /**********************************************************************//**
 Initializes the file space system. */
@@ -352,6 +436,18 @@ fseg_print(
 	fseg_header_t*	header, /*!< in: segment header */
 	mtr_t*		mtr);	/*!< in: mtr */
 #endif /* UNIV_BTR_PRINT */
+
+/********************************************************************//**
+Extract the page size from tablespace flags.
+This feature, storing the page_ssize into the tablespace flags, is added
+to InnoDB 5.6.4.  This is here only to protect against a crash if a newer
+database is opened with this code branch.
+@return	page size of the tablespace in bytes */
+UNIV_INLINE
+ulint
+fsp_flags_get_page_size(
+/*====================*/
+	ulint	flags);	/*!< in: tablespace flags */
 
 #ifndef UNIV_NONINL
 #include "fsp0fsp.ic"

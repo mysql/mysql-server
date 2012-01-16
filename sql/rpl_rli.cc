@@ -53,7 +53,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   last_event_start_time(0), m_flags(0),
+   last_event_start_time(0), m_flags(0), row_stmt_start_timestamp(0),
+   long_find_row_note_printed(false),
    m_annotate_event(0)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
@@ -1250,6 +1251,15 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   */
   thd->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
   thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+
+  /*
+    Reset state related to long_find_row notes in the error log:
+    - timestamp
+    - flag that decides whether the slave prints or not
+  */
+  reset_row_stmt_start_timestamp();
+  unset_long_find_row_note_printed();
+
   DBUG_VOID_RETURN;
 }
 

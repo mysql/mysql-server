@@ -5234,6 +5234,7 @@ avg(distinct(t1.a))
 0
 DROP TABLE t1;
 # End of test BUG#57203
+#
 # lp:822760 Wrong result with view + invalid dates
 #
 CREATE TABLE t1 (f1 date);
@@ -5270,4 +5271,22 @@ Warning	1292	Incorrect datetime value: 'zz'
 Warning	1292	Incorrect datetime value: 'aa'
 DROP TABLE t1;
 DROP VIEW v1;
+#
+# Bug#63020: Function "format"'s 'locale' argument is not considered
+#	     when creating a "view'
+#
+CREATE TABLE t1 (f1 DECIMAL(10,2));
+INSERT INTO t1 VALUES (11.67),(17865.3),(12345678.92);
+CREATE VIEW view_t1 AS SELECT FORMAT(f1,1,'sk_SK') AS f1 FROM t1;
+SHOW CREATE VIEW view_t1;
+View	Create View	character_set_client	collation_connection
+view_t1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_t1` AS select format(`t1`.`f1`,1,'sk_SK') AS `f1` from `t1`	latin1	latin1_swedish_ci
+SELECT * FROM view_t1;
+f1
+11,7
+17 865,3
+12 345 678,9
+DROP TABLE t1;
+DROP VIEW view_t1;
+# End of test  BUG#63020
 SET optimizer_switch=@save_optimizer_switch;

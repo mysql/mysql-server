@@ -530,24 +530,6 @@ COMMIT;
 --error ER_UNDO_RECORD_TOO_BIG
 UPDATE bug12547647 SET c = REPEAT('b',16928);
 DROP TABLE bug12547647;
-# Bug#12637786
-SET @r=REPEAT('a',500);
-CREATE TABLE t1(a INT,
- v1 VARCHAR(500), v2 VARCHAR(500), v3 VARCHAR(500),
- v4 VARCHAR(500), v5 VARCHAR(500), v6 VARCHAR(500),
- v7 VARCHAR(500), v8 VARCHAR(500), v9 VARCHAR(500),
- v10 VARCHAR(500), v11 VARCHAR(500), v12 VARCHAR(500),
- v13 VARCHAR(500), v14 VARCHAR(500), v15 VARCHAR(500),
- v16 VARCHAR(500), v17 VARCHAR(500), v18 VARCHAR(500)
-) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
-
-CREATE INDEX idx1 ON t1(a,v1);
-INSERT INTO t1 VALUES(9,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
-UPDATE t1 SET a=1000;
-DELETE FROM t1;
-# Let the purge thread clean up this file.
--- sleep 10
-DROP TABLE t1;
 
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;

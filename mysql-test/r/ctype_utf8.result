@@ -2792,7 +2792,7 @@ create table t1 as select group_concat(1,2,3) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(342) CHARACTER SET utf8 DEFAULT NULL
+  `c1` text CHARACTER SET utf8
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select 1 as c1 union select 'a';
@@ -5013,6 +5013,20 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select 'abcdÁÂÃÄÅ' AS `abcdÁÂÃÄÅ`,_latin1'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `abcdÃÃ‚ÃƒÃ„Ã…`,_utf8'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `abcdÁÂÃÄÅ`
+#
+# Bug#11750518 41090: ORDER BY TRUNCATES GROUP_CONCAT RESULT
+#
+SET NAMES utf8;
+SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
+FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
+UNION ALL
+SELECT 'a' AS id, REPEAT('bla bla', 100) AS body) t1
+GROUP BY id
+ORDER BY l DESC;
+id	l
+a	1024
+Warnings:
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
 #
 # End of 5.5 tests
 #

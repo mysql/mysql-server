@@ -40,6 +40,7 @@ SET (SQL_SOURCE
               ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc sha2.cc
+               signal_handler.cc
                handler.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
@@ -96,8 +97,6 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysys dbug strings vio regex
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
-
- 
 
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)

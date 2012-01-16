@@ -468,6 +468,9 @@ export MYSQL_HOME
 if test -x "$MY_BASEDIR_VERSION/bin/my_print_defaults"
 then
   print_defaults="$MY_BASEDIR_VERSION/bin/my_print_defaults"
+elif test -x `dirname $0`/my_print_defaults
+then
+  print_defaults="`dirname $0`/my_print_defaults"
 elif test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"

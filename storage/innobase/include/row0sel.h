@@ -128,7 +128,12 @@ row_sel_convert_mysql_key_to_innobase(
 					in the tuple is already according
 					to index! */
 	byte*		buf,		/*!< in: buffer to use in field
-					conversions */
+					conversions; NOTE that dtuple->data
+					may end up pointing inside buf so
+					do not discard that buffer while
+					the tuple is being used. See
+					row_mysql_store_col_in_innobase_format()
+					in the case of DATA_INT */
 	ulint		buf_len,	/*!< in: buffer length */
 	dict_index_t*	index,		/*!< in: index of the key value */
 	const byte*	key_ptr,	/*!< in: MySQL key value */

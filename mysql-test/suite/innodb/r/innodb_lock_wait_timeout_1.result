@@ -97,8 +97,6 @@ insert into t1 values (1,1), (2,null), (3,1), (4,1),
 # Demonstrate that for the SELECT statement
 # used later in the test JT_EQ_REF access method is used.
 #
-set @tmp_optimizer_switch=@@optimizer_switch;
-set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain
 select 1 from t1 natural join (select 2 as a, 1 as b union all
 select 2 as a, 2 as b) as t2 for update;
@@ -106,7 +104,7 @@ id	1
 select_type	PRIMARY
 table	<derived2>
 type	ALL
-possible_keys	NULL
+possible_keys	key0
 key	NULL
 key_len	NULL
 ref	NULL
@@ -121,7 +119,7 @@ key	PRIMARY
 key_len	4
 ref	t2.a
 rows	1
-Extra	Using index condition; Using where
+Extra	Using where
 id	2
 select_type	DERIVED
 table	NULL
@@ -152,7 +150,6 @@ key_len	NULL
 ref	NULL
 rows	NULL
 Extra	
-set optimizer_switch=@tmp_optimizer_switch;
 #
 # Demonstrate that the reported SELECT statement
 # no longer produces warnings.
@@ -304,8 +301,6 @@ begin;
 # is retreived and processed first.
 #
 # Verify that JT_EQ_REF is used.
-set @tmp_optimizer_switch=@@optimizer_switch;
-set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain
 select 1 from t1 natural join (select 3 as a, 2 as b union all
 select 3 as a, 1 as b) as t2 for update;
@@ -313,7 +308,7 @@ id	1
 select_type	PRIMARY
 table	<derived2>
 type	ALL
-possible_keys	NULL
+possible_keys	key0
 key	NULL
 key_len	NULL
 ref	NULL
@@ -328,7 +323,7 @@ key	PRIMARY
 key_len	4
 ref	t2.a
 rows	1
-Extra	Using index condition; Using where
+Extra	Using where
 id	2
 select_type	DERIVED
 table	NULL
@@ -359,7 +354,6 @@ key_len	NULL
 ref	NULL
 rows	NULL
 Extra	
-set optimizer_switch=@tmp_optimizer_switch;
 # Lock the record.
 select 1 from t1 natural join (select 3 as a, 2 as b union all
 select 3 as a, 1 as b) as t2 for update;

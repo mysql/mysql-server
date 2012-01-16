@@ -181,3 +181,15 @@ INSERT INTO t1 VALUES (NULL, 0), (NULL, 1);
 SELECT IF(b, (SELECT a FROM t1 LIMIT 1), b) c FROM t1 GROUP BY c;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#12532830 
+--echo # SIGFPE OR ASSERTION (PRECISION <= ((9 * 9) - 8*2)) && (DEC <= 30)
+--echo #
+
+let $nines= 9999999999999999999999999999999999999;
+eval select
+sum(distinct(if('a',
+                (select adddate(elt(convert($nines,decimal(64,0)),count(*)),
+                                interval 1 day))
+                , .1))) as foo;

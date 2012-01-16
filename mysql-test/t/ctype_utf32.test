@@ -843,5 +843,18 @@ SELECT CASE s1 WHEN 'a' THEN 'b' ELSE 'c' END FROM t1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#11750518 41090: ORDER BY TRUNCATES GROUP_CONCAT RESULT
+--echo #
+
+SET NAMES utf8, @@character_set_connection=utf32;
+SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
+FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
+UNION ALL
+SELECT 'a' AS id, REPEAT('bla bla', 100) AS body) t1
+GROUP BY id
+ORDER BY l DESC;
+
+
+--echo #
 --echo # End of 5.5 tests
 --echo #

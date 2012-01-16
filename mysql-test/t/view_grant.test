@@ -165,6 +165,12 @@ explain select c from mysqltest.v4;
 show create view mysqltest.v4;
 --error ER_TABLEACCESS_DENIED_ERROR
 explain select c from mysqltest.v5;
+# new in 5.5: SHOW CREATE VIEW needs SELECT now (MySQL Bug#27145)
+--error ER_TABLEACCESS_DENIED_ERROR
+show create view mysqltest.v5;
+connection root;
+grant select on mysqltest.v5 to mysqltest_1@localhost;
+connection user1;
 show create view mysqltest.v5;
 
 # missing SELECT on underlying t1, no SHOW VIEW on v1 either.
@@ -177,6 +183,7 @@ show create view mysqltest.v1;
 connection root;
 grant show view on mysqltest.v1 to mysqltest_1@localhost;
 grant select on mysqltest.t1 to mysqltest_1@localhost;
+revoke select on mysqltest.v5 from mysqltest_1@localhost;
 connection user1;
 # EXPLAIN works
 explain select c from mysqltest.v1;
@@ -198,8 +205,6 @@ show create view mysqltest.v4;
 # we have SHOW VIEW on v5, and  SELECT on t1 -- not enough
 --error ER_TABLEACCESS_DENIED_ERROR
 explain select c from mysqltest.v5;
-# we can SHOW CREATE VIEW though
-show create view mysqltest.v5;
 
 # allow to see any view in mysqltest database
 connection root;

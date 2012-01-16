@@ -7,11 +7,13 @@
 #
 # This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
-# We are using some debug-only features in this test
---source include/have_debug.inc
+# We need the Debug Sync Facility.
+--source include/have_debug_sync.inc
 # Some of tests below also use binlog to check that statements are
 # executed and logged in correct order
 --source include/have_binlog_format_mixed_or_statement.inc
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
 
 # Create auxilliary connections
 connect (addconroot1, localhost, root,,);
@@ -22,7 +24,7 @@ connection default;
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5;
 --enable_warnings
-
+set debug_sync='RESET';
 
 #
 # Tests for concurrency problems in CREATE TABLE ... SELECT
@@ -34,244 +36,378 @@ drop table if exists t1,t2,t3,t4,t5;
 # What happens in situation when other statement messes with
 # table to be created before it is created ?
 # Concurrent CREATE TABLE
-set session debug_dbug="+d,sleep_create_select_before_create";
+set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
---error ER_TABLE_EXISTS_ERROR
-create table t1 (j char(5));
+set debug_sync='now WAIT_FOR parked';
+--send create table t1 (j char(5));
+connection addconroot2;
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "create table t1 (j char(5))";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--error ER_TABLE_EXISTS_ERROR
+--reap
+connection default;
 show create table t1;
 drop table t1;
+
 # Concurrent CREATE TABLE ... SELECT
+set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
---error ER_TABLE_EXISTS_ERROR
-create table t1 select "Test" as j;
+set debug_sync='now WAIT_FOR parked';
+--send create table t1 select 'Test' as j;
+connection addconroot2;
+# Wait until the above CREATE TABLE t1 is blocked due to CREATE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "create table t1 select 'Test' as j";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--error ER_TABLE_EXISTS_ERROR
+--reap
+connection default;
 show create table t1;
 drop table t1;
+
 # Concurrent CREATE TABLE LIKE
 create table t3 (j char(5));
+set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
---error ER_TABLE_EXISTS_ERROR
-create table t1 like t3;
+set debug_sync='now WAIT_FOR parked';
+--send create table t1 like t3;
+connection addconroot2;
+# Wait until the above CREATE TABLE t1 is blocked due to CREATE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "create table t1 like t3";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--error ER_TABLE_EXISTS_ERROR
+--reap
+connection default;
 show create table t1;
 drop table t1;
+
 # Concurrent RENAME TABLE
+set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
---error ER_TABLE_EXISTS_ERROR
-rename table t3 to t1;
+set debug_sync='now WAIT_FOR parked';
+--send rename table t3 to t1;
+connection addconroot2;
+# Wait until the above RENAME TABLE is blocked due to CREATE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "rename table t3 to t1";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--error ER_TABLE_EXISTS_ERROR
+--reap
+connection default;
 show create table t1;
 drop table t1;
+
 # Concurrent ALTER TABLE RENAME
+set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
+set debug_sync='now WAIT_FOR parked';
 --error ER_TABLE_EXISTS_ERROR
 alter table t3 rename to t1;
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection default;
 show create table t1;
 drop table t1;
+
 # Concurrent ALTER TABLE RENAME which also adds column
+set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
+set debug_sync='now WAIT_FOR parked';
 --error ER_TABLE_EXISTS_ERROR
 alter table t3 rename to t1, add k int;
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
 show create table t1;
-drop table t1, t3;
+drop table t1,t3;
+
 # What happens if other statement sneaks in after the table
 # creation but before its opening ?
-set session debug_dbug="-d,sleep_create_select_before_create:+d,sleep_create_select_before_open";
+set debug_sync='create_table_select_before_open SIGNAL parked WAIT_FOR go';
+connection default;
+
 # Concurrent DROP TABLE
+set debug_sync='create_table_select_before_open SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
-drop table t1;
+set debug_sync='now WAIT_FOR parked';
+--send drop table t1;
+connection addconroot2;
+# Wait until the above DROP TABLE is blocked due to CREATE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "drop table t1";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--reap
+connection default;
+
 # Concurrent RENAME TABLE
+set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
-rename table t1 to t2;
+set debug_sync='now WAIT_FOR parked';
+--send rename table t1 to t2;
+connection addconroot2;
+# Wait until the above RENAME TABLE is blocked due to CREATE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "rename table t1 to t2";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--reap
+connection default;
 drop table t2;
+
 # Concurrent SELECT
+set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
-select * from t1;
+set debug_sync='now WAIT_FOR parked';
+--send select * from t1;
+connection addconroot2;
+# Wait until the above SELECT is blocked due to CREATE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "select * from t1";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--reap
+connection default;
 drop table t1;
+
 # Concurrent INSERT
+set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
-insert into t1 values (2);
+set debug_sync='now WAIT_FOR parked';
+--send insert into t1 values (2);
+connection addconroot2;
+# Wait until the above INSERT is blocked due to CREATE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "insert into t1 values (2)";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--reap
+connection default;
 select * from t1;
 drop table t1;
+
 # Concurrent CREATE TRIGGER 
 set @a:=0;
+set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
-create trigger t1_bi before insert on t1 for each row set @a:=1;
+set debug_sync='now WAIT_FOR parked';
+--send create trigger t1_bi before insert on t1 for each row set @a:=1;
+connection addconroot2;
+# Wait until the above CREATE TRIGGER is blocked due to CREATE TABLE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "create trigger t1_bi before insert on t1 for each row set @a:=1";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--reap
+connection default;
 select @a;
 drop table t1;
+
 # Okay, now the same tests for the potential gap between open and lock
-set session debug_dbug="-d,sleep_create_select_before_open:+d,sleep_create_select_before_lock";
+set debug_sync='create_table_select_before_lock SIGNAL parked WAIT_FOR go';
+
 # Concurrent DROP TABLE
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
-drop table t1;
+set debug_sync='now WAIT_FOR parked';
+--send drop table t1;
+connection addconroot2;
+# Wait until the above DROP TABLE is blocked due to CREATE TABLE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "drop table t1";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--reap
+connection default;
+
 # Concurrent RENAME TABLE
+set debug_sync='create_table_select_before_lock SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
-rename table t1 to t2;
+set debug_sync='now WAIT_FOR parked';
+--send rename table t1 to t2;
+connection addconroot2;
+# Wait until the above RENAME TABLE is blocked due to CREATE TABLE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "rename table t1 to t2";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--reap
+connection default;
 drop table t2;
+
 # Concurrent SELECT
+set debug_sync='create_table_select_before_lock SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
-select * from t1;
+set debug_sync='now WAIT_FOR parked';
+--send select * from t1;
+connection addconroot2;
+# Wait until the above SELECT is blocked due to CREATE TABLE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "select * from t1";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--reap
+connection default;
 drop table t1;
+
 # Concurrent INSERT
+set debug_sync='create_table_select_before_lock SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
-insert into t1 values (2);
+set debug_sync='now WAIT_FOR parked';
+--send insert into t1 values (2);
+connection addconroot2;
+# Wait until the above INSERT INTO t1 is blocked due to CREATE TABLE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "insert into t1 values (2)";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--reap
+connection default;
 select * from t1;
 drop table t1;
+
 # Concurrent CREATE TRIGGER 
 set @a:=0;
+set debug_sync='create_table_select_before_lock SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
---sleep 2
-create trigger t1_bi before insert on t1 for each row set @a:=1;
+set debug_sync='now WAIT_FOR parked';
+--send create trigger t1_bi before insert on t1 for each row set @a:=1;
+connection addconroot2;
+# Wait until the above CREATE TRIGGER is blocked due to CREATE TABLE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "create trigger t1_bi before insert on t1 for each row set @a:=1";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--reap
+connection default;
 select @a;
 drop table t1;
-# Some tests for case with existing table
-set session debug_dbug="-d,sleep_create_select_before_lock:+d,sleep_create_select_before_check_if_exists";
-create table t1 (i int);
+
 # Concurrent DROP TABLE
+set debug_sync='create_table_select_before_check_if_exists SIGNAL parked WAIT_FOR go';
 --send create table if not exists t1 select 1 as i;
 connection addconroot1;
---sleep 2
-drop table t1;
+set debug_sync='now WAIT_FOR parked';
+--send drop table t1;
+connection addconroot2;
+# Wait until the above DROP TABLE is blocked due to CREATE TABLE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "drop table t1";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
-# Concurrent CREATE TRIGGER 
+connection addconroot1;
+--reap
+connection default;
+
+# Concurrent CREATE TRIGGER
 create table t1 (i int);
 set @a:=0;
+set debug_sync='create_table_select_before_check_if_exists SIGNAL parked WAIT_FOR go';
 --send create table if not exists t1 select 1 as i;
 connection addconroot1;
---sleep 2
 create trigger t1_bi before insert on t1 for each row set @a:=1;
 connection default;
 --reap
+connection default;
 select @a;
 select * from t1;
 drop table t1;
-set session debug_dbug="-d,sleep_create_select_before_check_if_exists";
-
-
-# Test for some details of CREATE TABLE ... SELECT implementation.
-#
-# We check that create placeholder is handled properly if we have
-# to reopen tables in open_tables().
-# This test heavily relies on current implementation of name-locking/
-# table cache so it may stop working if it changes. OTOH it such problem
-# will serve as warning that such changes should not be done lightly.
-create table t2 (a int);
-create table t4 (b int);
-connection addconroot2;
-lock table t4 write;
-select 1;
-connection addconroot1;
-# Create placeholder/name-lock for t3
---send create table t3 as select * from t4;
---sleep 2
-connection default;
-# This statement creates placeholder for t1, then opens t2,
-# then meets name-lock for t3 and then reopens all tables
---send create table t1 select * from t2, t3;
---sleep 2
-connection addconroot2;
-unlock tables;
-connection addconroot1;
---reap
-connection default;
---reap
-select * from t1;
-show create table t1;
-drop table t1, t3;
-# Now similar test which proves that we really temporarily
-# remove placeholder when we reopen tables.
-connection addconroot2;
-lock table t4 read;
-select 1;
-connection addconroot1;
-# Create name-lock for t3 
---send rename table t4 to t3;
---sleep 2
-connection default;
-# This statement creates placeholder for t1, then opens t2,
-# then meets name-lock for t3 and then reopens all tables
---send create table if not exists t1 select 1 as i from t2, t3;
---sleep 2
-connection addconroot3;
-# We should be able to take name-lock on table t1 as we should not have
-# open placeholder for it at this point (otherwise it is possible to
-# come-up with situation which will lead to deadlock, e.g. think of
-# concurrent CREATE TABLE t1 SELECT * FROM t2 and RENAME TABLE t2 TO t1)
-create table t5 (j int);
-# This statement takes name-lock on t1 and therefore proves 
-# that there is no active open placeholder for it.
-rename table t5 to t1;
-connection addconroot2;
-unlock tables;
-connection addconroot1;
---reap
-connection default;
---reap
-select * from t1;
-show create table t1;
-drop table t1, t2, t3;
-
 
 # Tests for possible concurrency issues with CREATE TABLE ... LIKE
 #
@@ -286,103 +422,101 @@ drop table t1, t2, t3;
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
+set debug_sync='RESET';
 
 # What happens if some statements sneak in right after we have
-# opened source table ?
+# acquired locks and opened source table ?
 create table t1 (i int);
-set session debug_dbug="+d,sleep_create_like_before_check_if_exists";
+set debug_sync='create_table_like_after_open SIGNAL parked WAIT_FOR go';
 # Reset binlog to have clear start
 reset master;
 --send create table t2 like t1;
 connection addconroot1;
---sleep 2
+set debug_sync='now WAIT_FOR parked';
 # DML on source table should be allowed to run concurrently
 insert into t1 values (1);
 # And DDL should wait
-drop table t1;
+--send drop table t1;
+connection addconroot2;
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "drop table t1";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--reap
+connection default;
 show create table t2;
 drop table t2;
 # Let us check that statements were executed/binlogged in correct order
 source include/show_binlog_events.inc;
 
-# Now let us check the gap between check for target table
-# existance and copying of .frm file. 
+# Now check the gap between table creation and binlogging
 create table t1 (i int);
-set session debug_dbug="-d,sleep_create_like_before_check_if_exists:+d,sleep_create_like_before_copy";
-# It should be impossible to create target table concurrently
---send create table t2 like t1;
-connection addconroot1;
---sleep 2
-create table if not exists t2 (j int);
-connection default;
---reap
-show create table t2;
-drop table t2;
-# And concurrent DDL on the source table should be still disallowed 
+set debug_sync='create_table_like_before_binlog SIGNAL parked WAIT_FOR go';
 reset master;
 --send create table t2 like t1;
 connection addconroot1;
---sleep 2
-drop table t1;
+set debug_sync='now WAIT_FOR parked';
+--send insert into t2 values (1);
+connection addconroot2;
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "insert into t2 values (1)";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
-drop table t2;
-source include/show_binlog_events.inc;
 
-# And now he gap between copying of .frm file and ha_create_table() call. 
-create table t1 (i int);
-set session debug_dbug="-d,sleep_create_like_before_copy:+d,sleep_create_like_before_ha_create";
-# Both DML and DDL on target table should wait till operation completes
-reset master;
+connection addconroot1;
+--reap
+connection default;
+drop table t2;
+set debug_sync='create_table_like_before_binlog SIGNAL parked WAIT_FOR go';
 --send create table t2 like t1;
 connection addconroot1;
---sleep 2
-insert into t2 values (1);
+set debug_sync='now WAIT_FOR parked';
+--send drop table t2;
+connection addconroot2;
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "drop table t2";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
-drop table t2;
+connection addconroot1;
+--reap
+connection default;
+set debug_sync='create_table_like_before_binlog SIGNAL parked WAIT_FOR go';
 --send create table t2 like t1;
 connection addconroot1;
---sleep 2
-drop table t2;
+set debug_sync='now WAIT_FOR parked';
+--send drop table t1;
+connection addconroot2;
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "drop table t1";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
-# Concurrent DDL on the source table still waits 
---send create table t2 like t1;
 connection addconroot1;
---sleep 2
-drop table t1;
-connection default;
 --reap
+connection default;
 drop table t2;
-source include/show_binlog_events.inc;
+disconnect addconroot1;
+disconnect addconroot2;
+disconnect addconroot3;
 
-# Finally we check the gap between ha_create_table() and binlogging
-create table t1 (i int);
-set session debug_dbug="-d,sleep_create_like_before_ha_create:+d,sleep_create_like_before_binlogging";
-reset master;
---send create table t2 like t1;
-connection addconroot1;
---sleep 2
-insert into t2 values (1);
-connection default;
---reap
-drop table t2;
---send create table t2 like t1;
-connection addconroot1;
---sleep 2
-drop table t2;
-connection default;
---reap
---send create table t2 like t1;
-connection addconroot1;
---sleep 2
-drop table t1;
-connection default;
---reap
-drop table t2;
+set debug_sync='RESET';
 source include/show_binlog_events.inc;
-
-set session debug_dbug="-d,sleep_create_like_before_binlogging";
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

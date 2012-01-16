@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -49,67 +49,6 @@ Created 11/29/1995 Heikki Tuuri
 #endif /* UNIV_HOTBACKUP */
 #include "dict0mem.h"
 
-
-#define FSP_HEADER_OFFSET	FIL_PAGE_DATA	/* Offset of the space header
-						within a file page */
-
-/* The data structures in files are defined just as byte strings in C */
-typedef	byte	fsp_header_t;
-typedef	byte	xdes_t;
-
-/*			SPACE HEADER
-			============
-
-File space header data structure: this data structure is contained in the
-first page of a space. The space for this header is reserved in every extent
-descriptor page, but used only in the first. */
-
-/*-------------------------------------*/
-#define FSP_SPACE_ID		0	/* space id */
-#define FSP_NOT_USED		4	/* this field contained a value up to
-					which we know that the modifications
-					in the database have been flushed to
-					the file space; not used now */
-#define	FSP_SIZE		8	/* Current size of the space in
-					pages */
-#define	FSP_FREE_LIMIT		12	/* Minimum page number for which the
-					free list has not been initialized:
-					the pages >= this limit are, by
-					definition, free; note that in a
-					single-table tablespace where size
-					< 64 pages, this number is 64, i.e.,
-					we have initialized the space
-					about the first extent, but have not
-					physically allocted those pages to the
-					file */
-#define	FSP_SPACE_FLAGS		16	/* table->flags & ~DICT_TF_COMPACT */
-#define	FSP_FRAG_N_USED		20	/* number of used pages in the
-					FSP_FREE_FRAG list */
-#define	FSP_FREE		24	/* list of free extents */
-#define	FSP_FREE_FRAG		(24 + FLST_BASE_NODE_SIZE)
-					/* list of partially free extents not
-					belonging to any segment */
-#define	FSP_FULL_FRAG		(24 + 2 * FLST_BASE_NODE_SIZE)
-					/* list of full extents not belonging
-					to any segment */
-#define FSP_SEG_ID		(24 + 3 * FLST_BASE_NODE_SIZE)
-					/* 8 bytes which give the first unused
-					segment id */
-#define FSP_SEG_INODES_FULL	(32 + 3 * FLST_BASE_NODE_SIZE)
-					/* list of pages containing segment
-					headers, where all the segment inode
-					slots are reserved */
-#define FSP_SEG_INODES_FREE	(32 + 4 * FLST_BASE_NODE_SIZE)
-					/* list of pages containing segment
-					headers, where not all the segment
-					header slots are reserved */
-/*-------------------------------------*/
-/* File space header size */
-#define	FSP_HEADER_SIZE		(32 + 5 * FLST_BASE_NODE_SIZE)
-
-#define	FSP_FREE_ADD		4	/* this many free extents are added
-					to the free list from above
-					FSP_FREE_LIMIT at a time */
 
 /*			FILE SEGMENT INODE
 			==================
@@ -332,7 +271,7 @@ fseg_alloc_free_page_low(
 				inserted there in order, into which
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
-	mtr_t*		mtr);	/*!< in/out: mini-transaction */
+	mtr_t*		mtr);	/*!< in: mtr handle */
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
@@ -1547,7 +1486,7 @@ fsp_alloc_free_page(
 	ulint	zip_size,/*!< in: compressed page size in bytes
 			or 0 for uncompressed pages */
 	ulint	hint,	/*!< in: hint of which page would be desirable */
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	mtr_t*	mtr)	/*!< in: mtr handle */
 {
 	fsp_header_t*	header;
 	fil_addr_t	first;
@@ -2576,7 +2515,7 @@ fseg_alloc_free_page_low(
 				inserted there in order, into which
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	mtr_t*		mtr)	/*!< in: mtr handle */
 {
 	fsp_header_t*	space_header;
 	ulint		space_size;
@@ -2824,7 +2763,7 @@ fseg_alloc_free_page_general(
 				with fsp_reserve_free_extents, then there
 				is no need to do the check for this individual
 				page */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	mtr_t*		mtr)	/*!< in: mtr handle */
 {
 	fseg_inode_t*	inode;
 	ulint		space;

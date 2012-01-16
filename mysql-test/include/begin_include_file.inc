@@ -48,6 +48,11 @@
 #     must be provided both for begin_include_file.inc and
 #     end_include_file.inc.
 #
+#   $keep_include_silent
+#     This specifies whether it should be echoed to the result file
+#     the following string: include/$include_filename
+#     If not set, the string will be echoed.
+#
 #   $rpl_debug
 #     If set, this script will print the following text:
 #      ==== BEGIN include/$include_filename.inc ====
@@ -59,7 +64,10 @@
 # recursively.
 if (!$_include_file_depth)
 {
-  --echo include/$include_filename
+  if (!$keep_include_silent)
+  {
+    --echo include/$include_filename
+  }
   --let $_include_file_depth= 0
 }
 --inc $_include_file_depth

@@ -10378,7 +10378,8 @@ limit_option:
           }
           splocal->limit_clause_param= TRUE;
           $$= splocal;
-        } | param_marker
+        }
+        | param_marker
         {
           ((Item_param *) $1)->limit_clause_param= TRUE;
         }

@@ -551,6 +551,8 @@ static void handle_bootstrap_impl(THD *thd)
                                       thd->db_length + 1 +
                                       QUERY_CACHE_DB_LENGTH_SIZE +
                                       QUERY_CACHE_FLAGS_SIZE);
+    size_t db_len= 0;
+    memcpy(query + length + 1, (char *) &db_len, sizeof(size_t));
     thd->set_query_and_id(query, length, thd->charset(), next_query_id());
     int2store(query + length + 1, 0);           // No db in bootstrap
     DBUG_PRINT("query",("%-.4096s",thd->query()));
@@ -2893,7 +2895,7 @@ end_with_restore_list:
       {
         Incident_log_event ev(thd, incident);
         (void) mysql_bin_log.write(&ev);        /* error is ignored */
-        if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+        if (mysql_bin_log.rotate_and_purge(true))
         {
           res= 1;
           break;

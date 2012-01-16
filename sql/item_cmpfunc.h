@@ -788,6 +788,8 @@ public:
   const char *func_name() const { return "if"; }
   bool eval_not_null_tables(uchar *opt_arg);
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
+private:
+  void cache_type_info(Item *source);
 };
 
 

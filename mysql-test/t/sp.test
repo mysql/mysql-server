@@ -3336,28 +3336,20 @@ drop table t3|
 --disable_warnings
 drop procedure if exists bug6857|
 --enable_warnings
-create procedure bug6857(counter int)
+create procedure bug6857()
 begin
   declare t0, t1 int;
   declare plus bool default 0;
-
-  set t0 = current_time();
-  while counter > 0 do
-    set counter = counter - 1;
-  end while;
-  set t1 = current_time();
+  set t0 = unix_timestamp();
+  select sleep(1.1);
+  set t1 = unix_timestamp();
   if t1 > t0 then
     set plus = 1;
   end if;
   select plus;
 end|
 
-# QQ: This is currently disabled. Not only does it slow down a normal test
-#     run, it makes running with valgrind (or similar tools) extremely
-#     painful.
-# Make sure this takes at least one second on all machines in all builds.
-# 30000 makes it about 3 seconds on an old 1.1GHz linux.
-#call bug6857(300000)|
+call bug6857()|
 
 drop procedure bug6857|
 
@@ -8764,11 +8756,117 @@ call p1(1, 0);
 call p1(1, 5);
 call p1(3, 2);
 
+delimiter |;
+--echo # Try to create a function that
+--echo # refers to non-existing variables.
+--error ER_SP_UNDECLARED_VAR
+create function f1(p1 integer, p2 integer)
+  returns int
+begin
+  declare a int;
+  set a = (select count(*) from t1 limit a, b);
+  return a;
+end|
+
+create function f1()
+  returns int
+begin
+  declare a, b, c int;
+  set a = (select count(*) from t1 limit b, c);
+  return a;
+end|
+
+delimiter ;|
+--echo # How do we handle NULL limit values?
+select f1();
+
+drop function f1;
+
+delimiter |;
+--echo #
+--echo # Try to use data types not allowed in LIMIT 
+--echo #
+--error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+create function f1(p1 date, p2 date)
+  returns int
+begin
+  declare a int;
+  set a = (select count(*) from t1 limit p1, p2);
+  return a;
+end|
+
+--error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+create function f1(p1 integer, p2 float)
+  returns int
+begin
+  declare a int;
+  set a = (select count(*) from t1 limit p1, p2);
+  return a;
+end|
+
+--error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+create function f1(p1 integer, p2 char(1))
+  returns int
+begin
+  declare a int;
+  set a = (select count(*) from t1 limit p1, p2);
+  return a;
+end|
+
+--error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+create function f1(p1 varchar(5), p2 char(1))
+  returns int
+begin
+  declare a int;
+  set a = (select count(*) from t1 limit p1, p2);
+  return a;
+end|
+
+--error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+create function f1(p1 decimal, p2 decimal)
+  returns int
+begin
+  declare a int;
+  set a = (select count(*) from t1 limit p1, p2);
+  return a;
+end|
+
+--error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+create function f1(p1 double, p2 double)
+  returns int
+begin
+  declare a int;
+  set a = (select count(*) from t1 limit p1, p2);
+  return a;
+end|
+
+--echo #
+--echo # Finally, test the valid case.
+--echo #
+
+create function f1(p1 integer, p2 integer)
+returns int
+begin
+  declare count int;
+  set count= (select count(*) from (select * from t1 limit p1, p2) t_1);
+  return count;
+end|
+
+delimiter ;|
+
+select f1(0, 0);
+select f1(0, -1);
+select f1(-1, 0);
+select f1(-1, -1);
+select f1(0, 1);
+select f1(1, 0);
+select f1(1, 5);
+select f1(3, 2);
 
 --echo # Cleanup
 drop table t1;
 drop procedure p1;
-
+drop function f1;
 
 --echo # 
 --echo # BUG#11766234: 59299: ASSERT (TABLE_REF->TABLE || TABLE_REF->VIEW) 
@@ -8889,5 +8987,53 @@ CALL p1('2011-04-03 05:14:13', 2);
 DROP TABLE t1;
 DROP PROCEDURE p1;
 --echo
+
+--echo #
+--echo # Bug#12621017 - Crash if a sp variable is used in the
+--echo #                limit clause of a set statement
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1; 
+DROP PROCEDURE IF EXISTS p2;
+--enable_warnings
+
+CREATE TABLE t1 (c1 INT); 
+INSERT INTO t1 VALUES (1);
+
+delimiter |;
+
+CREATE PROCEDURE p1() 
+BEGIN 
+  DECLARE foo, cnt INT UNSIGNED DEFAULT 1; 
+  SET foo = (SELECT MIN(c1) FROM t1 LIMIT cnt); 
+END| 
+
+CREATE PROCEDURE p2()
+BEGIN
+
+DECLARE iLimit INT;
+DECLARE iVal INT;
+
+DECLARE cur1 CURSOR FOR
+  SELECT c1 FROM t1
+  LIMIT iLimit;
+
+SET iLimit=1;
+
+OPEN cur1;
+FETCH cur1 INTO iVal;
+
+END|
+
+delimiter ;|
+
+CALL p1();
+CALL p2();
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
 
 --echo # End of 5.5 test

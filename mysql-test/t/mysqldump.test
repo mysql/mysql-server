@@ -2226,5 +2226,43 @@ CREATE TABLE t1 (a INT);
 --exec $MYSQL_DUMP --compatible=no_t,no_f --skip-comments test
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#12809202 61854: MYSQLDUMP --SINGLE-TRANSACTION --FLUSH-LOG BREAKS
+--echo #                     CONSISTENCY
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS b12809202_db;
+--enable_warnings
+
+CREATE DATABASE b12809202_db;
+CREATE TABLE b12809202_db.t1 (c1 INT);
+CREATE TABLE b12809202_db.t2 (c1 INT);
+
+INSERT INTO b12809202_db.t1 VALUES (1), (2), (3);
+INSERT INTO b12809202_db.t2 VALUES (1), (2), (3);
+
+--echo # Starting mysqldump with --single-transaction & --flush-log options..
+--echo # Note : In the following dump the transaction
+--echo #        should start only after the logs are
+--echo #        flushed, as 'flush logs' causes implicit
+--echo #        commit starting 5.5.
+--echo
+--echo #### Dump starts here ####
+--replace_regex /-- Server version.*// /-- MySQL dump .*// /-- Dump completed on .*/-- Dump completed/
+--exec $MYSQL_DUMP --verbose --single-transaction --flush-log b12809202_db 2>&1
+--echo
+--echo #### Dump ends here ####
+
+# Cleanup
+DROP TABLE b12809202_db.t1;
+DROP TABLE b12809202_db.t2;
+DROP DATABASE b12809202_db;
+
+--echo #
+--echo # Delete all existing binary logs.
+--echo #
+RESET MASTER;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

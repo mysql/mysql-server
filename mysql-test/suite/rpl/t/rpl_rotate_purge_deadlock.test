@@ -1,0 +1,92 @@
+#
+# Bug#11763573 - 56299: MUTEX DEADLOCK WITH COM_BINLOG_DUMP, BINLOG PURGE, AND PROCESSLIST/KILL
+#
+source include/master-slave.inc;
+source include/have_debug_sync.inc;
+source include/have_binlog_format_row.inc;
+source include/have_innodb.inc;
+
+#
+# Testing that execution of two concurrent INSERTing connections both
+# triggering the binlog rotation is correct even though their execution
+# is interleaved.
+# The test makes the first connection to complete the rotation part
+# and yields control to the second connection that rotates as well and 
+# gets first on purging. And the fact of interleaving does not create
+# any issue.
+# 
+
+connection master;
+source include/show_binary_logs.inc;
+create table t1 (f text) engine=innodb;
+SET DEBUG_SYNC = 'at_purge_logs_before_date WAIT_FOR rotated';
+send insert into t1 set f=repeat('a', 4096);
+
+connection master1;
+
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE STATE like "debug sync point: at_purge_logs_before_date%";
+--source include/wait_condition.inc
+
+--echo *** there must be two logs in the list ***
+source include/show_binary_logs.inc;
+
+insert into t1 set f=repeat('b', 4096);
+
+--echo *** there must be three logs in the list ***
+source include/show_binary_logs.inc;
+
+SET DEBUG_SYNC = 'now SIGNAL rotated';
+SET DEBUG_SYNC = 'RESET';
+
+# the first connection finally completes its INSERT
+connection master;
+reap;
+SET DEBUG_SYNC = 'RESET';
+
+sync_slave_with_master;
+
+
+#
+# Testing the reported deadlock involving DUMP, KILL and INSERT threads
+#
+
+connection master;
+SET DEBUG_SYNC = 'at_purge_logs_before_date WAIT_FOR rotated';
+send insert into t1 set f=repeat('b', 4096);
+
+connection master1;
+
+# make sure INSERT reaches waiting point
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE STATE like "debug sync point: at_purge_logs_before_date%";
+--source include/wait_condition.inc
+
+# find and kill DUMP thread
+let $_tid= `select id from information_schema.processlist where command = 'Binlog Dump' limit 1`;
+--disable_query_log
+eval kill query $_tid;
+--enable_query_log
+
+#
+# Now the proof is that the new DUMP thread has executed
+# a critical section of the deadlock without any regression and is UP
+#
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE command = 'Binlog Dump' and STATE like "Master has sent all binlog to slave%";
+--source include/wait_condition.inc
+
+SET DEBUG_SYNC = 'now SIGNAL rotated';
+SET DEBUG_SYNC = 'RESET';
+
+connection master;
+reap;
+SET DEBUG_SYNC = 'RESET';
+drop table t1;
+
+sync_slave_with_master;
+
+--source include/rpl_end.inc

@@ -579,7 +579,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   mysql_mutex_t *log_lock;
   mysql_cond_t *log_cond;
 
-  bool binlog_can_be_corrupted= FALSE;
   uint8 current_checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
   int old_max_allowed_packet= thd->variables.max_allowed_packet;
 #ifndef DBUG_OFF
@@ -766,8 +765,6 @@ impossible position";
                              "slaves that cannot process them");
            goto err;
          }
-         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
-                                       LOG_EVENT_BINLOG_IN_USE_F);
          (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
          /*
            mark that this event with "log_pos=0", so the slave
@@ -888,12 +885,8 @@ impossible position";
           goto err;
         }
 
-        binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
-                                      LOG_EVENT_BINLOG_IN_USE_F);
         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
       }
-      else if (event_type == STOP_EVENT)
-        binlog_can_be_corrupted= FALSE;
 
       if (event_type != ANNOTATE_ROWS_EVENT ||
           (flags & BINLOG_SEND_ANNOTATE_ROWS_EVENT))
@@ -1200,12 +1193,9 @@ err:
        detailing the fatal error message with coordinates 
        of the last position read.
     */
-    char b_start[FN_REFLEN], b_end[FN_REFLEN];
-    fn_format(b_start, coord->file_name, "", "", MY_REPLACE_DIR);
-    fn_format(b_end,   log_file_name,    "", "", MY_REPLACE_DIR);
     my_snprintf(error_text, sizeof(error_text), fmt, errmsg,
-                b_start, (llstr(coord->pos, llbuff1), llbuff1),
-                b_end, (llstr(my_b_tell(&log), llbuff2), llbuff2));
+                coord->file_name, (llstr(coord->pos, llbuff1), llbuff1),
+                log_file_name, (llstr(my_b_tell(&log), llbuff2), llbuff2));
   }
   else
     strcpy(error_text, errmsg);

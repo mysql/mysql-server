@@ -117,3 +117,23 @@ drop view v1;
 drop table t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#12540545 61101: ASSERTION FAILURE IN THREAD 1256741184 IN
+--echo # FILE /BUILDDIR/BUILD/BUILD/MYSQ
+--echo #
+
+CREATE TABLE t1 (a CHAR(1), b CHAR(1), PRIMARY KEY (a,b)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('a', 'b'), ('c', 'd');
+EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
+SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
+DROP TABLE t1;
+
+CREATE TABLE t1 (a CHAR(1) NOT NULL, b CHAR(1) NOT NULL, UNIQUE KEY (a,b))
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('a', 'b'), ('c', 'd');
+EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
+SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
+DROP TABLE t1;
+
+--echo End of 5.5 tests

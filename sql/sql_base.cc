@@ -4840,10 +4840,11 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   }
 
   /*
-    temporary mem_root for new .frm parsing.
-    TODO: variables for size
+    Initialize temporary MEM_ROOT for new .FRM parsing. Do not allocate
+    anything yet, to avoid penalty for statements which don't use views
+    and thus new .FRM format.
   */
-  init_sql_alloc(&new_frm_mem, 8024, 8024);
+  init_sql_alloc(&new_frm_mem, 8024, 0);
 
   thd->current_tablenr= 0;
 restart:

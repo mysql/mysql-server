@@ -764,6 +764,20 @@ DROP TABLE t1;
 
 SELECT space(date_add(101, INTERVAL CHAR('1' USING utf16) hour_second)); 
 
+
+--echo #
+--echo # Bug#11750518 41090: ORDER BY TRUNCATES GROUP_CONCAT RESULT
+--echo #
+
+SET NAMES utf8, @@character_set_connection=utf16;
+SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
+FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
+UNION ALL
+SELECT 'a' AS id, REPEAT('bla bla', 100) AS body) t1
+GROUP BY id
+ORDER BY l DESC;
+
+
 #
 ## TODO: add tests for all engines
 #

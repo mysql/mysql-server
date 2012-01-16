@@ -2772,20 +2772,23 @@ userid
 drop procedure bug8116|
 drop table t3|
 drop procedure if exists bug6857|
-create procedure bug6857(counter int)
+create procedure bug6857()
 begin
 declare t0, t1 int;
 declare plus bool default 0;
-set t0 = current_time();
-while counter > 0 do
-set counter = counter - 1;
-end while;
-set t1 = current_time();
+set t0 = unix_timestamp();
+select sleep(1.1);
+set t1 = unix_timestamp();
 if t1 > t0 then
 set plus = 1;
 end if;
 select plus;
 end|
+call bug6857()|
+sleep(1.1)
+0
+plus
+1
 drop procedure bug6857|
 drop procedure if exists bug8757|
 create procedure bug8757()
@@ -7435,17 +7438,17 @@ ERROR 42000: Undeclared variable: a
 # Try to use data types not allowed in LIMIT 
 #
 create procedure p1(p1 date, p2 date) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer type in LIMIT clause
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
 create procedure p1(p1 integer, p2 float) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer type in LIMIT clause
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
 create procedure p1(p1 integer, p2 char(1)) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer type in LIMIT clause
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
 create procedure p1(p1 varchar(5), p2 char(1)) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer type in LIMIT clause
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
 create procedure p1(p1 decimal, p2 decimal) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer type in LIMIT clause
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
 create procedure p1(p1 double, p2 double) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer type in LIMIT clause
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
 #
 # Finally, test the valid case.
 #
@@ -7481,9 +7484,117 @@ call p1(3, 2);
 c1
 4
 5
+# Try to create a function that
+# refers to non-existing variables.
+create function f1(p1 integer, p2 integer)
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit a, b);
+return a;
+end|
+ERROR 42000: Undeclared variable: b
+create function f1()
+returns int
+begin
+declare a, b, c int;
+set a = (select count(*) from t1 limit b, c);
+return a;
+end|
+# How do we handle NULL limit values?
+select f1();
+f1()
+NULL
+drop function f1;
+#
+# Try to use data types not allowed in LIMIT 
+#
+create function f1(p1 date, p2 date)
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit p1, p2);
+return a;
+end|
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
+create function f1(p1 integer, p2 float)
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit p1, p2);
+return a;
+end|
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
+create function f1(p1 integer, p2 char(1))
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit p1, p2);
+return a;
+end|
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
+create function f1(p1 varchar(5), p2 char(1))
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit p1, p2);
+return a;
+end|
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
+create function f1(p1 decimal, p2 decimal)
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit p1, p2);
+return a;
+end|
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
+create function f1(p1 double, p2 double)
+returns int
+begin
+declare a int;
+set a = (select count(*) from t1 limit p1, p2);
+return a;
+end|
+ERROR HY000: A variable of a non-integer based type in LIMIT clause
+#
+# Finally, test the valid case.
+#
+create function f1(p1 integer, p2 integer)
+returns int
+begin
+declare count int;
+set count= (select count(*) from (select * from t1 limit p1, p2) t_1);
+return count;
+end|
+select f1(0, 0);
+f1(0, 0)
+0
+select f1(0, -1);
+f1(0, -1)
+5
+select f1(-1, 0);
+f1(-1, 0)
+0
+select f1(-1, -1);
+f1(-1, -1)
+0
+select f1(0, 1);
+f1(0, 1)
+1
+select f1(1, 0);
+f1(1, 0)
+0
+select f1(1, 5);
+f1(1, 5)
+4
+select f1(3, 2);
+f1(3, 2)
+2
 # Cleanup
 drop table t1;
 drop procedure p1;
+drop function f1;
 # 
 # BUG#11766234: 59299: ASSERT (TABLE_REF->TABLE || TABLE_REF->VIEW) 
 #               FAILS IN SET_FIELD_ITERATOR
@@ -7604,4 +7715,34 @@ b
 DROP TABLE t1;
 DROP PROCEDURE p1;
 
+#
+# Bug#12621017 - Crash if a sp variable is used in the
+#                limit clause of a set statement
+#
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+CREATE PROCEDURE p1() 
+BEGIN 
+DECLARE foo, cnt INT UNSIGNED DEFAULT 1; 
+SET foo = (SELECT MIN(c1) FROM t1 LIMIT cnt); 
+END|
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE iLimit INT;
+DECLARE iVal INT;
+DECLARE cur1 CURSOR FOR
+SELECT c1 FROM t1
+LIMIT iLimit;
+SET iLimit=1;
+OPEN cur1;
+FETCH cur1 INTO iVal;
+END|
+CALL p1();
+CALL p2();
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
 # End of 5.5 test

@@ -3885,6 +3885,9 @@ buf_pool_validate_instance(
 					ut_a(rw_lock_is_locked(&block->lock,
 							       RW_LOCK_EX));
 					break;
+
+				case BUF_IO_PIN:
+					break;
 				}
 
 				n_lru++;
@@ -3914,6 +3917,7 @@ buf_pool_validate_instance(
 		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
 		switch (buf_page_get_io_fix(b)) {
 		case BUF_IO_NONE:
+		case BUF_IO_PIN:
 			/* All clean blocks should be I/O-unfixed. */
 			break;
 		case BUF_IO_READ:
@@ -3953,6 +3957,7 @@ buf_pool_validate_instance(
 			switch (buf_page_get_io_fix(b)) {
 			case BUF_IO_NONE:
 			case BUF_IO_READ:
+			case BUF_IO_PIN:
 				break;
 			case BUF_IO_WRITE:
 				switch (buf_page_get_flush_type(b)) {

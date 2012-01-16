@@ -400,6 +400,8 @@ The following options may be given as the first argument:
  After this many write locks, allow some read locks to run
  in between
  --memlock           Lock mysqld in memory.
+ --metadata-locks-cache-size=# 
+ Size of unused metadata locks cache
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
@@ -956,6 +958,7 @@ max-tmp-tables 32
 max-user-connections 0
 max-write-lock-count 18446744073709551615
 memlock FALSE
+metadata-locks-cache-size 1024
 min-examined-row-limit 0
 mrr-buffer-size 262144
 multi-range-count 256

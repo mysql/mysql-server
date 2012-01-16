@@ -4,8 +4,6 @@
 #
 
 
-# should work with embedded server after mysqltest is fixed
---source include/not_embedded.inc
 --source federated.inc
 --source have_federatedx.inc
 

@@ -129,7 +129,8 @@ extern my_bool relay_log_recovery;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern ulong delay_key_write_options;
-extern char *opt_logname, *opt_slow_logname;
+extern char *opt_logname, *opt_slow_logname, *opt_bin_logname, 
+            *opt_relay_logname;
 extern char *opt_backup_history_logname, *opt_backup_progress_logname,
             *opt_backup_settings_name;
 extern const char *log_output_str;
@@ -533,6 +534,7 @@ extern ulong thread_created;
 extern scheduler_functions *thread_scheduler, *extra_thread_scheduler;
 extern char *opt_log_basename;
 extern my_bool opt_master_verify_checksum;
+extern my_bool opt_stack_trace;
 extern my_bool opt_slave_sql_verify_checksum;
 extern ulong binlog_checksum_options;
 extern bool max_user_connections_checking;

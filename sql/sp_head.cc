@@ -996,6 +996,8 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     if ((*splocal)->limit_clause_param)
     {
       res|= qbuf.append_ulonglong((*splocal)->val_uint());
+      if (res)
+        break;
       continue;
     }
 
@@ -1020,8 +1022,8 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 
     thd->query_name_consts++;
   }
-  res|= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
-  if (res)
+  if (res ||
+      qbuf.append(cur + prev_pos, query_str->length - prev_pos))
     DBUG_RETURN(TRUE);
 
   /*

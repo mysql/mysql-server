@@ -2388,6 +2388,11 @@ void Item_func_format::print(String *str, enum_query_type query_type)
   args[0]->print(str, query_type);
   str->append(',');
   args[1]->print(str, query_type);
+  if(arg_count > 2)
+  {
+    str->append(',');
+    args[2]->print(str,query_type);
+  }
   str->append(')');
 }
 
@@ -2956,9 +2961,12 @@ String *Item_func_conv::val_str(String *str)
                                    from_base, &endptr, &err);
   }
 
-  ptr= longlong2str(dec, ans, to_base);
-  if (str->copy(ans, (uint32) (ptr-ans), default_charset()))
-    return make_empty_result();
+  if (!(ptr= longlong2str(dec, ans, to_base)) ||
+      str->copy(ans, (uint32) (ptr - ans), default_charset()))
+  {
+    null_value= 1;
+    return NULL;
+  }
   return str;
 }
 
@@ -3117,8 +3125,10 @@ String *Item_func_hex::val_str_ascii(String *str)
 
     if ((null_value= args[0]->null_value))
       return 0;
-    ptr= longlong2str(dec,ans,16);
-    if (str->copy(ans,(uint32) (ptr-ans), &my_charset_numeric))
+    
+    if (!(ptr= longlong2str(dec, ans, 16)) ||
+        str->copy(ans,(uint32) (ptr - ans),
+        &my_charset_numeric))
       return make_empty_result();		// End of memory
     return str;
   }

@@ -1,0 +1,21 @@
+#
+# Check that the paremeter is correctly set by start-up
+# option (.opt file sets it to 256 while default is 1024).
+select @@global.metadata_locks_cache_size = 256;
+@@global.metadata_locks_cache_size = 256
+1
+#
+# Check that variable is read only
+#
+set @@global.metadata_locks_cache_size= 1024;
+ERROR HY000: Variable 'metadata_locks_cache_size' is a read only variable
+select @@global.metadata_locks_cache_size = 256;
+@@global.metadata_locks_cache_size = 256
+1
+#
+# And only GLOBAL
+#
+select @@session.metadata_locks_cache_size;
+ERROR HY000: Variable 'metadata_locks_cache_size' is a GLOBAL variable
+set @@session.metadata_locks_cache_size= 1024;
+ERROR HY000: Variable 'metadata_locks_cache_size' is a read only variable
