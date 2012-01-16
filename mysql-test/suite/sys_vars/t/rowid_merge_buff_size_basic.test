@@ -36,6 +36,7 @@ set global rowid_merge_buff_size="foo";
 set global rowid_merge_buff_size=0;
 select @@global.rowid_merge_buff_size;
 set session rowid_merge_buff_size=cast(-1 as unsigned int);
+--replace_result 2147483647 9223372036854775807 4294967295 9223372036854775807
 select @@session.rowid_merge_buff_size;
 
 SET @@global.rowid_merge_buff_size = @start_global_value;

@@ -4,6 +4,6 @@
 # Wrapper for 32 bit machines                                                  #
 ################################################################################
 
---source include/have_32bit.inc
+--source include/have_32bit_ulong.inc
 --source suite/sys_vars/inc/binlog_cache_size_basic.inc
 

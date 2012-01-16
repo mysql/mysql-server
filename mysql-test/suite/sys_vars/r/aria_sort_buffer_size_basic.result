@@ -38,11 +38,7 @@ select @@global.aria_sort_buffer_size;
 @@global.aria_sort_buffer_size
 4
 set session aria_sort_buffer_size=cast(-1 as unsigned int);
-Warnings:
-Note	1105	Cast to unsigned converted negative integer to it's positive complement
-Note	1105	Cast to unsigned converted negative integer to it's positive complement
-Warning	1292	Truncated incorrect aria_sort_buffer_size value: '18446744073709551615'
 select @@session.aria_sort_buffer_size;
 @@session.aria_sort_buffer_size
-4294967295
+18446744073709551615
 SET @@global.aria_sort_buffer_size = @start_global_value;

@@ -111,8 +111,27 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET(ARG_DEPENDENCIES)
   ENDIF()
   SET(BUILD_PLUGIN 1)
+  
+  IF(NOT ARG_MODULE_OUTPUT_NAME)
+    IF(ARG_STORAGE_ENGINE)
+      SET(ARG_MODULE_OUTPUT_NAME "ha_${target}")
+    ELSE()
+      SET(ARG_MODULE_OUTPUT_NAME "${target}")
+    ENDIF()
+  ENDIF()
+
   # Build either static library or module
   IF (WITH_${plugin} AND NOT ARG_MODULE_ONLY)
+
+    IF(CMAKE_GENERATOR MATCHES "Makefiles")
+      # If there is a shared library from previous shared build,
+      # remove it. This is done just for mysql-test-run.pl 
+      # so it does not try to use stale shared lib as plugin 
+      # in test.
+      FILE(REMOVE 
+        ${CMAKE_CURRENT_BINARY_DIR}/${ARG_MODULE_OUTPUT_NAME}${CMAKE_SHARED_MODULE_SUFFIX})
+    ENDIF()
+
     ADD_LIBRARY(${target} STATIC ${SOURCES})
     SET_TARGET_PROPERTIES(${target} PROPERTIES COMPILE_DEFINITONS "MYSQL_SERVER")
     DTRACE_INSTRUMENT(${target})
@@ -159,14 +178,7 @@ MACRO(MYSQL_ADD_PLUGIN)
       PARENT_SCOPE)
     ENDIF()
   ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT WITHOUT_DYNAMIC_PLUGINS)
-    IF(NOT ARG_MODULE_OUTPUT_NAME)
-      IF(ARG_STORAGE_ENGINE)
-        SET(ARG_MODULE_OUTPUT_NAME "ha_${target}")
-      ELSE()
-        SET(ARG_MODULE_OUTPUT_NAME "${target}")
-      ENDIF()
-    ENDIF()
-
+  
     ADD_VERSION_INFO(${target} MODULE SOURCES)
     ADD_LIBRARY(${target} MODULE ${SOURCES}) 
     DTRACE_INSTRUMENT(${target})

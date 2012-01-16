@@ -114,11 +114,11 @@ SELECT @@query_cache_limit;
 @@query_cache_limit
 1
 SET local.query_cache_limit = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'query_cache_limit = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'query_cache_limit = 1' at line 1
 SELECT local.query_cache_limit;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.query_cache_limit = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'query_cache_limit = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'query_cache_limit = 1' at line 1
 SELECT global.query_cache_limit;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT query_cache_limit = @@session.query_cache_limit;

@@ -1152,6 +1152,11 @@ static Sys_var_ulong Sys_metadata_locks_cache_size(
        VALID_RANGE(1, 1024*1024), DEFAULT(MDL_LOCKS_CACHE_SIZE_DEFAULT),
        BLOCK_SIZE(1));
 
+/*
+  "pseudo_thread_id" variable used in the test suite to detect 32/64bit
+  systems.  If you change it to something else then ulong then fix the tests
+  in mysql-test/include/have_32bit.inc and have_64bit.inc.
+*/
 static Sys_var_ulong Sys_pseudo_thread_id(
        "pseudo_thread_id",
        "This variable is for internal server use",

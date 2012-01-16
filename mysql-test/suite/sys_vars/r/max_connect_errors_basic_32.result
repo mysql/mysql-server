@@ -119,11 +119,11 @@ SELECT @@max_connect_errors;
 @@max_connect_errors
 5000
 SET local.max_connect_errors = 7000;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'max_connect_errors = 7000' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'max_connect_errors = 7000' at line 1
 SELECT local.max_connect_errors;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.max_connect_errors = 8000;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'max_connect_errors = 8000' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'max_connect_errors = 8000' at line 1
 SELECT global.max_connect_errors;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT max_connect_errors = @@session.max_connect_errors;

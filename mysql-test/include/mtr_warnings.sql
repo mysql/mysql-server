@@ -159,7 +159,7 @@ INSERT INTO global_suppressions VALUES
  /* innodb foreign key tests that fail in ALTER or RENAME produce this */
  ("InnoDB: Error: in ALTER TABLE `test`.`t[123]`"),
  ("InnoDB: Error: in RENAME TABLE table `test`.`t1`"),
- ("InnoDB: Error: table `test`.`t[123]` does not exist in the InnoDB internal"),
+ ("InnoDB: Error: table `test`.`t[123]` .*does not exist in the InnoDB internal"),
 
  /*
    BUG#32080 - Excessive warnings on Solaris: setrlimit could not

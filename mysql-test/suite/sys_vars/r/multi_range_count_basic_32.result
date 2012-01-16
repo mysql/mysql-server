@@ -8,87 +8,123 @@ SELECT @start_session_value;
 256
 '#--------------------FN_DYNVARS_090_01-------------------------#'
 SET @@global.multi_range_count = 100;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SET @@global.multi_range_count = DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 256
 SET @@session.multi_range_count = 200;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SET @@session.multi_range_count = DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 256
 '#--------------------FN_DYNVARS_090_02-------------------------#'
 SET @@global.multi_range_count = DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@global.multi_range_count = 256;
 @@global.multi_range_count = 256
 1
 SET @@session.multi_range_count = DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@session.multi_range_count = 256;
 @@session.multi_range_count = 256
 1
 '#--------------------FN_DYNVARS_090_03-------------------------#'
 SET @@global.multi_range_count = 1;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
 SET @@global.multi_range_count = 60020;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 60020
 SET @@global.multi_range_count = 65535;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 65535
 SET @@global.multi_range_count = 4294967295;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 4294967295
 SET @@global.multi_range_count = 4294967294;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 4294967294
 '#--------------------FN_DYNVARS_090_04-------------------------#'
 SET @@session.multi_range_count = 1;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 1
 SET @@session.multi_range_count = 50050;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 50050
 SET @@session.multi_range_count = 65535;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 65535
 SET @@session.multi_range_count = 4294967295;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 4294967295
 SET @@session.multi_range_count = 4294967294;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 4294967294
 '#------------------FN_DYNVARS_090_05-----------------------#'
 SET @@global.multi_range_count = 0;
 Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 Warning	1292	Truncated incorrect multi_range_count value: '0'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
 SET @@global.multi_range_count = 4294967296;
 Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 Warning	1292	Truncated incorrect multi_range_count value: '4294967296'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 4294967295
 SET @@global.multi_range_count = -1024;
 Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 Warning	1292	Truncated incorrect multi_range_count value: '-1024'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
 SET @@global.multi_range_count = 429496729500;
 Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 Warning	1292	Truncated incorrect multi_range_count value: '429496729500'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
@@ -105,26 +141,30 @@ SELECT @@global.multi_range_count;
 4294967295
 SET @@session.multi_range_count = 0;
 Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 Warning	1292	Truncated incorrect multi_range_count value: '0'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 1
 SET @@session.multi_range_count = 4294967296;
 Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 Warning	1292	Truncated incorrect multi_range_count value: '4294967296'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 4294967295
 SET @@session.multi_range_count = -1;
 Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 Warning	1292	Truncated incorrect multi_range_count value: '-1'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 1
 SET @@session.multi_range_count = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '.' at line 1
 SET @@session.multi_range_count = 4294967295021;
 Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 Warning	1292	Truncated incorrect multi_range_count value: '4294967295021'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
@@ -149,22 +189,29 @@ WHERE VARIABLE_NAME='multi_range_count';
 1
 '#------------------FN_DYNVARS_090_08-----------------------#'
 SET @@global.multi_range_count = TRUE;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
 SET @@global.multi_range_count = FALSE;
 Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 Warning	1292	Truncated incorrect multi_range_count value: '0'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
 '#---------------------FN_DYNVARS_090_09----------------------#'
 SET @@global.multi_range_count = 10;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@multi_range_count = @@global.multi_range_count;
 @@multi_range_count = @@global.multi_range_count
 0
 '#---------------------FN_DYNVARS_090_10----------------------#'
 SET @@multi_range_count = 100;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@multi_range_count = @@local.multi_range_count;
 @@multi_range_count = @@local.multi_range_count
 1
@@ -173,6 +220,8 @@ SELECT @@local.multi_range_count = @@session.multi_range_count;
 1
 '#---------------------FN_DYNVARS_090_11----------------------#'
 SET multi_range_count = 1;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@multi_range_count;
 @@multi_range_count
 1
@@ -183,10 +232,14 @@ ERROR 42S02: Unknown table 'session' in field list
 SELECT multi_range_count = @@session.multi_range_count;
 ERROR 42S22: Unknown column 'multi_range_count' in 'field list'
 SET @@global.multi_range_count = @start_global_value;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 256
 SET @@session.multi_range_count = @start_session_value;
+Warnings:
+Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 256

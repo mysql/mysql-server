@@ -69,6 +69,7 @@ Warning	1292	Truncated incorrect query_cache_size value: '-1024'
 SELECT @@global.query_cache_size;
 @@global.query_cache_size
 0
+<<<<<<< TREE
 SET @@global.query_cache_size = 42949672950;
 Warnings:
 Warning	1292	Truncated incorrect query_cache_size value: '42949672950'
@@ -76,6 +77,8 @@ Warning	1282	Query cache failed to set size 4294966272; new query cache size is 
 SELECT @@global.query_cache_size;
 @@global.query_cache_size
 0
+=======
+>>>>>>> MERGE-SOURCE
 SET @@global.query_cache_size = ON;
 ERROR 42000: Incorrect argument type to variable 'query_cache_size'
 SELECT @@global.query_cache_size;
@@ -128,11 +131,11 @@ SELECT @@query_cache_size;
 @@query_cache_size
 0
 SET local.query_cache_size = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'query_cache_size = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'query_cache_size = 1' at line 1
 SELECT local.query_cache_size;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.query_cache_size = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'query_cache_size = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'query_cache_size = 1' at line 1
 SELECT global.query_cache_size;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT query_cache_size = @@session.query_cache_size;
