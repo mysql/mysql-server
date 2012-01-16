@@ -17,7 +17,6 @@
 
 #include <ndb_global.h>
 
-#include <TransporterCallback.hpp>
 #include <TransporterRegistry.hpp>
 #include <FastScheduler.hpp>
 #include <Emulator.hpp>

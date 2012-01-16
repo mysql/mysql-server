@@ -390,6 +390,12 @@ TransporterRegistry::init(NodeId nodeId) {
 }
 
 bool
+TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
+{
+  return recvhandle.init(maxTransporters);
+}
+
+bool
 TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
                                     BaseString & msg) const
 {
@@ -1305,14 +1311,14 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
     {
       if (t->isConnected())
       {
-        t->doReceive();
+        t->doReceive(recvdata);
         if (hasReceived)
-          callbackObj->checkJobBuffer();
+          recvdata.checkJobBuffer();
         hasReceived = true;
         Uint32 * ptr;
         Uint32 sz = t->getReceiveData(&ptr);
-        callbackObj->transporter_recv_from(id);
-        Uint32 szUsed = unpack(ptr, sz, id, ioStates[id]);
+        recvdata.transporter_recv_from(id);
+        Uint32 szUsed = unpack(recvdata, ptr, sz, id, ioStates[id]);
         t->updateReceiveDataPtr(szUsed);
         hasdata = t->hasReceiveData();
       }
@@ -1354,12 +1360,13 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
       if(t->isConnected() && t->checkConnected())
       {
         if (hasReceived)
-          callbackObj->checkJobBuffer();
+          recvdata.checkJobBuffer();
         hasReceived = true;
         Uint32 * readPtr, * eodPtr;
         t->getReceivePtr(&readPtr, &eodPtr);
-        callbackObj->transporter_recv_from(nodeId);
-        Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
+        recvdata.transporter_recv_from(nodeId);
+        Uint32 *newPtr = unpack(recvdata,
+                                readPtr, eodPtr, nodeId, ioStates[nodeId]);
         t->updateReceivePtr(newPtr);
       }
     } 
@@ -1651,7 +1658,7 @@ TransporterRegistry::report_connect(TransporterReceiveHandle& recvdata,
   if (recvdata.epoll_add((TCP_Transporter*)theTransporters[node_id]))
   {
     performStates[node_id] = CONNECTED;
-    callbackObj->reportConnect(node_id);
+    recvdata.reportConnect(node_id);
     DBUG_VOID_RETURN;
   }
 
@@ -1686,7 +1693,7 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
 
   performStates[node_id] = DISCONNECTED;
   recvdata.m_has_data_transporters.clear(node_id);
-  callbackObj->reportDisconnect(node_id, errnum);
+  recvdata.reportDisconnect(node_id, errnum);
   DBUG_VOID_RETURN;
 }
 
@@ -1731,7 +1738,7 @@ TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata)
     const char *info = m_error_states[nodeId].m_info;
     if (code != TE_NO_ERROR && info != (const char *)~(UintPtr)0)
     {
-      callbackObj->reportError(nodeId, code, info);
+      recvdata.reportError(nodeId, code, info);
       m_error_states[nodeId].m_code = TE_NO_ERROR;
       m_error_states[nodeId].m_info = (const char *)~(UintPtr)0;
     }

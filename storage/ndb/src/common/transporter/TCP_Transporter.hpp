@@ -70,7 +70,7 @@ private:
    * It reads the external TCP/IP interface once 
    * and puts the data in the receiveBuffer
    */
-  int doReceive(); 
+  int doReceive(TransporterReceiveHandle&);
 
   /**
    * Returns socket (used for select)
