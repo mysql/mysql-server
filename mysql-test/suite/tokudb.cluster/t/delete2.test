@@ -13,18 +13,24 @@ select * from t1;
 #delete on non-index column
 delete from t1 where d > 8000;
 select * from t1;
+# ignore rows column
+--replace_column 9 NULL;
 explain select * From t1 where b > 0;
 select * From t1 where b > 0;
 
 #delete on prim_key
 delete from t1 where a > 7;
 select * from t1;
+# ignore rows column
+--replace_column 9 NULL;
 explain select * From t1 where b > 0;
 select * From t1 where b > 0;
 
 #delete on clustering key
 delete from t1 where b > 30;
 select * from t1;
+# ignore rows column
+--replace_column 9 NULL;
 explain select * From t1 where b > 0;
 select * From t1 where b > 0;
 
@@ -39,12 +45,16 @@ select * from t1;
 #delete on non-index column
 delete from t1 where d > 8000;
 select * from t1;
+# ignore rows column
+--replace_column 9 NULL;
 explain select * From t1 where b > 0;
 select * From t1 where b > 0;
 
 #delete on clustering key
 delete from t1 where b > 30;
 select * from t1;
+# ignore rows column
+--replace_column 9 NULL;
 explain select * From t1 where b > 0;
 select * From t1 where b > 0;
 
