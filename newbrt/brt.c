@@ -4548,19 +4548,22 @@ find_bounds_within_message_tree(
     }
 }
 
+/**
+ * For each message in the ancestor's buffer (determined by childnum) that
+ * is key-wise between lower_bound_exclusive and upper_bound_inclusive,
+ * apply the message to the basement node.  We treat the bounds as minus
+ * or plus infinity respectively if they are NULL.  Do not mark the node
+ * as dirty (preserve previous state of 'dirty' bit).
+ */
 static int
 bnc_apply_messages_to_basement_node(
-    BRT t,
-    BRTNODE leafnode,
-    BASEMENTNODE bn,
-    BRTNODE ancestor,
-    int childnum,
-    struct pivot_bounds const * const bounds
+    BRT t,             // used for comparison function
+    BRTNODE leafnode,  // used to update header stats for keyrange
+    BASEMENTNODE bn,   // where to apply messages
+    BRTNODE ancestor,  // the ancestor node where we can find messages to apply
+    int childnum,      // which child buffer of ancestor contains messages we want
+    struct pivot_bounds const * const bounds  // contains pivot key bounds of this basement node
     )
-// Effect: For each messages in ANCESTOR that is between lower_bound_exclusive (exclusive) and upper_bound_inclusive (inclusive), apply the message to the node.
-//  In ANCESTOR, the relevant messages are all in the buffer for child number CHILDNUM.
-//  Treat the bounds as minus or plus infinity respectively if they are NULL.
-//   Do not mark the node as dirty (preserve previous state of 'dirty' bit).
 {
     int r;
     NONLEAF_CHILDINFO bnc = BNC(ancestor, childnum);
