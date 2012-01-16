@@ -149,14 +149,16 @@ SegmentedSectionPtrPOD::assign(struct SegmentedSectionPtr& src)
 /* Abstract interface for iterating over
  * words in a section
  */
+#ifdef __cplusplus
 struct GenericSectionIterator
 {
-#ifdef __cplusplus
   virtual ~GenericSectionIterator() {};
   virtual void reset()=0;
   virtual const Uint32* getNextWords(Uint32& sz)=0;
-#endif
 };
+#else
+struct GenericSectionIterator;
+#endif
 
 struct GenericSectionPtr
 {
