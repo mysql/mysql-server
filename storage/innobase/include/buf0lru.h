@@ -57,7 +57,10 @@ UNIV_INTERN
 void
 buf_LRU_invalidate_tablespace(
 /*==========================*/
-	ulint	id);	/*!< in: space id */
+	ulint	id,		/*!< in: space id */
+	ibool	all);		/*!< in: all=TRUE, remove all
+				the pages used by the tablespace */
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
