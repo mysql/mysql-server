@@ -18,6 +18,8 @@ insert into foo values (4,"four");
 
 alter table foo add clustering key a(a);
 
+#ignore rows column
+--replace_column 9 NULL;
 explain select * From foo where a > 0;
 select * From foo where a > 0;
  

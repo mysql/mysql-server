@@ -14,28 +14,40 @@ insert into foo values (1,100,100),(2,200,200),(3,300,300),(4,400,400),(5,500,50
 select * from foo;
 
 #HA_READ_KEY_EXACT
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a=4;
 select * from foo where a=4;
 
 #HA_READ_AFTER_KEY
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a>4;
 select * from foo where a>4;
 
 #HA_READ_BEFORE_KEY
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a<3 order by a desc;
 select * from foo where a<3 order by a desc;
 
 #HA_READ_KEY_OR_NEXT
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a>=4;
 select * from foo where a>=4;
 
 #HA_READ_KEY_OR_PREV not used anymore
 
 #HA_READ_PREFIX_LAST_OR_PREV
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a<=2 order by a desc;
 select * from foo where a<=2 order by a desc;
 
 #HA_READ_PREFIX_LAST
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a=4 order by b desc;
 select * from foo where a=4 order by b desc;
 
@@ -44,28 +56,40 @@ alter table foo drop primary key;
 alter table foo add clustering index clst_a(a,b);
 
 #HA_READ_KEY_EXACT
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a=4;
 select * from foo where a=4;
 
 #HA_READ_AFTER_KEY
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a>4;
 select * from foo where a>4;
 
 #HA_READ_BEFORE_KEY
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a<3 order by a desc;
 select * from foo where a<3 order by a desc;
 
 #HA_READ_KEY_OR_NEXT
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a>=4;
 select * from foo where a>=4;
 
 #HA_READ_KEY_OR_PREV not used anymore
 
 #HA_READ_PREFIX_LAST_OR_PREV
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a<=2 order by a desc;
 select * from foo where a<=2 order by a desc;
 
 #HA_READ_PREFIX_LAST
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a=4 order by b desc;
 select * from foo where a=4 order by b desc;
 
@@ -73,28 +97,40 @@ alter table foo drop index clst_a;
 alter table foo add index (a,b);
 
 #HA_READ_KEY_EXACT
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a=4;
 select * from foo where a=4;
 
 #HA_READ_AFTER_KEY
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a>4;
 select * from foo where a>4;
 
 #HA_READ_BEFORE_KEY
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a<3 order by a desc;
 select * from foo where a<3 order by a desc;
 
 #HA_READ_KEY_OR_NEXT
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a>=4;
 select * from foo where a>=4;
 
 #HA_READ_KEY_OR_PREV not used anymore
 
 #HA_READ_PREFIX_LAST_OR_PREV
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a<=2 order by a desc;
 select * from foo where a<=2 order by a desc;
 
 #HA_READ_PREFIX_LAST
+# ignore rows column
+--replace_column 9 NULL;
 explain select * from foo where a=4 order by b desc;
 select * from foo where a=4 order by b desc;
 

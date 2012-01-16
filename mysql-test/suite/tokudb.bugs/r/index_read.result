@@ -19,14 +19,14 @@ a	b	c
 6	600	600
 explain select * from foo where a=4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	PRIMARY	PRIMARY	4	const	2	
+1	SIMPLE	foo	ref	PRIMARY	PRIMARY	4	const	NULL;	
 select * from foo where a=4;
 a	b	c
 4	40	400
 4	400	400
 explain select * from foo where a>4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	NULL;	Using where
 select * from foo where a>4;
 a	b	c
 5	50	500
@@ -35,7 +35,7 @@ a	b	c
 6	600	600
 explain select * from foo where a<3 order by a desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	NULL;	Using where
 select * from foo where a<3 order by a desc;
 a	b	c
 2	200	200
@@ -44,7 +44,7 @@ a	b	c
 1	10	100
 explain select * from foo where a>=4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	6	Using where
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	NULL;	Using where
 select * from foo where a>=4;
 a	b	c
 4	40	400
@@ -55,7 +55,7 @@ a	b	c
 6	600	600
 explain select * from foo where a<=2 order by a desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+1	SIMPLE	foo	range	PRIMARY	PRIMARY	4	NULL	NULL;	Using where
 select * from foo where a<=2 order by a desc;
 a	b	c
 2	200	200
@@ -64,7 +64,7 @@ a	b	c
 1	10	100
 explain select * from foo where a=4 order by b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	PRIMARY	PRIMARY	4	const	2	Using where
+1	SIMPLE	foo	ref	PRIMARY	PRIMARY	4	const	NULL;	Using where
 select * from foo where a=4 order by b desc;
 a	b	c
 4	400	400
@@ -73,14 +73,14 @@ alter table foo drop primary key;
 alter table foo add clustering index clst_a(a,b);
 explain select * from foo where a=4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	clst_a	clst_a	4	const	2	
+1	SIMPLE	foo	ref	clst_a	clst_a	4	const	NULL;	
 select * from foo where a=4;
 a	b	c
 4	40	400
 4	400	400
 explain select * from foo where a>4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	clst_a	clst_a	4	NULL	4	Using where
+1	SIMPLE	foo	range	clst_a	clst_a	4	NULL	NULL;	Using where
 select * from foo where a>4;
 a	b	c
 5	50	500
@@ -89,7 +89,7 @@ a	b	c
 6	600	600
 explain select * from foo where a<3 order by a desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	clst_a	clst_a	4	NULL	4	Using where
+1	SIMPLE	foo	range	clst_a	clst_a	4	NULL	NULL;	Using where
 select * from foo where a<3 order by a desc;
 a	b	c
 2	200	200
@@ -98,7 +98,7 @@ a	b	c
 1	10	100
 explain select * from foo where a>=4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	clst_a	clst_a	4	NULL	6	Using where
+1	SIMPLE	foo	range	clst_a	clst_a	4	NULL	NULL;	Using where
 select * from foo where a>=4;
 a	b	c
 4	40	400
@@ -109,7 +109,7 @@ a	b	c
 6	600	600
 explain select * from foo where a<=2 order by a desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	clst_a	clst_a	4	NULL	4	Using where
+1	SIMPLE	foo	range	clst_a	clst_a	4	NULL	NULL;	Using where
 select * from foo where a<=2 order by a desc;
 a	b	c
 2	200	200
@@ -118,7 +118,7 @@ a	b	c
 1	10	100
 explain select * from foo where a=4 order by b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	clst_a	clst_a	4	const	2	Using where
+1	SIMPLE	foo	ref	clst_a	clst_a	4	const	NULL;	Using where
 select * from foo where a=4 order by b desc;
 a	b	c
 4	400	400
@@ -127,14 +127,14 @@ alter table foo drop index clst_a;
 alter table foo add index (a,b);
 explain select * from foo where a=4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	a	a	4	const	2	
+1	SIMPLE	foo	ref	a	a	4	const	NULL;	
 select * from foo where a=4;
 a	b	c
 4	40	400
 4	400	400
 explain select * from foo where a>4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	a	a	4	NULL	4	Using where
+1	SIMPLE	foo	range	a	a	4	NULL	NULL;	Using where
 select * from foo where a>4;
 a	b	c
 5	50	500
@@ -143,7 +143,7 @@ a	b	c
 6	600	600
 explain select * from foo where a<3 order by a desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	a	a	4	NULL	4	Using where
+1	SIMPLE	foo	range	a	a	4	NULL	NULL;	Using where
 select * from foo where a<3 order by a desc;
 a	b	c
 2	200	200
@@ -152,7 +152,7 @@ a	b	c
 1	10	100
 explain select * from foo where a>=4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	a	a	4	NULL	6	Using where
+1	SIMPLE	foo	range	a	a	4	NULL	NULL;	Using where
 select * from foo where a>=4;
 a	b	c
 4	40	400
@@ -163,7 +163,7 @@ a	b	c
 6	600	600
 explain select * from foo where a<=2 order by a desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	a	a	4	NULL	4	Using where
+1	SIMPLE	foo	range	a	a	4	NULL	NULL;	Using where
 select * from foo where a<=2 order by a desc;
 a	b	c
 2	200	200
@@ -172,7 +172,7 @@ a	b	c
 1	10	100
 explain select * from foo where a=4 order by b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	a	a	4	const	2	Using where
+1	SIMPLE	foo	ref	a	a	4	const	NULL;	Using where
 select * from foo where a=4 order by b desc;
 a	b	c
 4	400	400
