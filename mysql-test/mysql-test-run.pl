@@ -1191,7 +1191,7 @@ sub command_line_setup {
 	     'boot-dbx'                 => \$opt_boot_dbx,
 	     'client-debugger=s'        => \$opt_client_debugger,
              'strace'			=> \$opt_strace,
-             'strace-client:s'          => \$opt_strace_client,
+             'strace-client'            => \$opt_strace_client,
              'strace-option=s'          => \@strace_args,
              'max-save-core=i'          => \$opt_max_save_core,
              'max-save-datadir=i'       => \$opt_max_save_datadir,
