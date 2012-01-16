@@ -577,16 +577,6 @@ public:
   bool isBlocked(NodeId nodeId);
   void blockReceive(TransporterReceiveHandle&, NodeId nodeId);
   void unblockReceive(TransporterReceiveHandle&, NodeId nodeId);
-
-  inline void blockReceive(NodeId nodeId) {
-    assert(receiveHandle != 0);
-    blockReceive(* receiveHandle, nodeId);
-  }
-
-  inline void unblockReceive(NodeId nodeId) {
-    assert(receiveHandle != 0);
-    unblockReceive(* receiveHandle, nodeId);
-  }
 #endif
 };
 

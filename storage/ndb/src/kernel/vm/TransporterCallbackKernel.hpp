@@ -16,11 +16,28 @@
 #ifndef TRANSPORTER_CALLBACK_KERNEL_HPP
 #define TRANSPORTER_CALLBACK_KERNEL_HPP
 
-class TransporterCallbackKernel
-  : public TransporterCallback,
-    public TransporterReceiveHandle
+#include <TransporterCallback.hpp>
+
+class TransporterReceiveHandleKernel
+  : public TransporterReceiveHandle
 {
 public:
+#ifdef NDBD_MULTITHREADED
+  TransporterReceiveHandleKernel(Uint32 thr_no, Uint32 recv_thr_no) :
+    m_thr_no(thr_no), m_receiver_thread_idx(recv_thr_no) {}
+
+  /**
+   * m_thr_no == index in m_thr_data[]
+   */
+  Uint32 m_thr_no;
+
+  /**
+   * m_receiver_thread_idx == m_thr_no - firstReceiverThread ==
+   *   instance() - 1(proxy)
+   */
+  Uint32 m_receiver_thread_idx;
+#endif
+
   /* TransporterCallback interface. */
   void deliver_signal(SignalHeader * const header,
                       Uint8 prio,
@@ -32,7 +49,8 @@ public:
   void reportError(NodeId nodeId, TransporterError errorCode,
                    const char *info = 0);
   void transporter_recv_from(NodeId node);
-  virtual ~TransporterCallbackKernel() { }
+  int checkJobBuffer();
+  virtual ~TransporterReceiveHandleKernel() { }
 };
 
 #endif
