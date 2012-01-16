@@ -31,14 +31,15 @@
  
 #include <kernel_types.h> 
 #include "TransporterDefinitions.hpp" 
- 
+#include "TransporterRegistry.hpp"
  
 /**
- * The TransporterCallback class encapsulates those aspects of the transporter
- * code that is specific to particular upper layer (NDB API, single-threaded
- * kernel, or multi-threaded kernel).
+ * The TransporterReceiveCallback class encapsulates
+ * the receive aspects of the transporter code that is
+ * specific to particular
+ * upper layer (NDB API, single-threaded kernel, or multi-threaded kernel).
  */
-class TransporterCallback {
+class TransporterReceiveHandle : public TransporterReceiveData {
 public:
   /**
    * This method is called to deliver a signal to the upper layer.
@@ -64,15 +65,6 @@ public:
    * The method should return non-zero if signals were execute, zero if not.
    */
   virtual int checkJobBuffer() = 0;
-
-  /**
-   * The transporter periodically calls this method, indicating the number
-   * of sends done to one NodeId, as well as total bytes sent.
-   *
-   * For multithreaded cases, this is only called while the send lock for the
-   * given node is held.
-   */
-  virtual void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes) = 0;
 
   /**
    * Same as reportSendLen(), but for received data.
@@ -116,6 +108,27 @@ public:
    */
   virtual void transporter_recv_from(NodeId node) = 0;
 
+  /**
+   *
+   */
+  virtual ~TransporterReceiveHandle() { };
+};
+
+/**
+ * The TransporterCallback class encapsulates those aspects of the transporter
+ * code that is specific to particular upper layer (NDB API, single-threaded
+ * kernel, or multi-threaded kernel).
+ */
+class TransporterCallback {
+public:
+  /**
+   * The transporter periodically calls this method, indicating the number
+   * of sends done to one NodeId, as well as total bytes sent.
+   *
+   * For multithreaded cases, this is only called while the send lock for the
+   * given node is held.
+   */
+  virtual void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes) = 0;
 
   /**
    * Locking (no-op in single-threaded VM).

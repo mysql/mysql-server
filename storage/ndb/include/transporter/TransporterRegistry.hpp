@@ -33,7 +33,6 @@
 #include <sys/epoll.h>
 #endif
 #include "TransporterDefinitions.hpp"
-#include "TransporterCallback.hpp"
 #include <SocketServer.hpp>
 #include <SocketClient.hpp>
 
@@ -120,9 +119,7 @@ struct TransporterReceiveData
   ndb_socket_poller m_socket_poller;
 };
 
-struct TransporterReceiveHandle : public TransporterReceiveData
-{
-};
+#include "TransporterCallback.hpp"
 
 /**
  * @class TransporterRegistry
@@ -151,6 +148,12 @@ public:
   NdbMgmHandle get_mgm_handle(void) { return m_mgm_handle; };
 
   bool init(NodeId localNodeId);
+
+  /**
+   * Iff using non-default TransporterReceiveHandle's
+   *   they need to get initalized
+   */
+  bool init(TransporterReceiveHandle&);
 
   /**
      Handle the handshaking with a new client connection
@@ -425,21 +428,23 @@ private:
    * Overloaded bits, for fast check.
    */
   NodeBitmask m_status_overloaded;
- 
+
   /**
    * Unpack signal data.
    *
    * Defined in Packer.cpp.
    */
-  Uint32 unpack(Uint32 * readPtr,
-		Uint32 bufferSize,
-		NodeId remoteNodeId, 
-		IOState state);
-  
-  Uint32 * unpack(Uint32 * readPtr,
-		  Uint32 * eodPtr,
-		  NodeId remoteNodeId,
-		  IOState state);
+  Uint32 unpack(TransporterReceiveHandle&,
+                Uint32 * readPtr,
+                Uint32 bufferSize,
+                NodeId remoteNodeId,
+                IOState state);
+
+  Uint32 * unpack(TransporterReceiveHandle&,
+                  Uint32 * readPtr,
+                  Uint32 * eodPtr,
+                  NodeId remoteNodeId,
+                  IOState state);
 
   static Uint32 unpack_length_words(const Uint32 *readPtr, Uint32 maxWords);
   /** 
