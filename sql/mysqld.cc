@@ -7608,8 +7608,10 @@ static int fix_paths(void)
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name, pidfile_name_ptr, mysql_real_data_home);
-  (void) my_load_path(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr :
-                                      get_relative_path(PLUGINDIR), mysql_home);
+
+  convert_dirname(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr : 
+                                  get_relative_path(PLUGINDIR), NullS);
+  (void) my_load_path(opt_plugin_dir, opt_plugin_dir, mysql_home);
   opt_plugin_dir_ptr= opt_plugin_dir;
 
   my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
