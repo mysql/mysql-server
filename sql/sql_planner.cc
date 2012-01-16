@@ -176,6 +176,10 @@ private:
   /* Accumulated properties of ref access we're now considering: */
   ulonglong handled_sj_equalities;
   key_part_map loose_scan_keyparts;
+  /**
+     Biggest index (starting at 0) of keyparts used for the "handled", not
+     "bound", equalities.
+  */
   uint max_loose_keypart;
   bool part1_conds_met;
 
@@ -305,9 +309,9 @@ public:
     */
     if (try_loosescan &&                                                // (1)
         (handled_sj_equalities | bound_sj_equalities) ==                // (2)
-        PREV_BITS(ulonglong,
-                s->emb_sj_nest->nested_join->sj_inner_exprs.elements)&& // (2)
-        (PREV_BITS(key_part_map, max_loose_keypart+1) &                 // (3)
+        LOWER_BITS(ulonglong,
+                   s->emb_sj_nest->nested_join->sj_inner_exprs.elements)&& // (2)
+        (LOWER_BITS(key_part_map, max_loose_keypart+1) &                 // (3)
          (found_part | loose_scan_keyparts)) ==                         // (3)
          (found_part | loose_scan_keyparts) &&                          // (3)
         !key_uses_partial_cols(s->table, key))
@@ -631,7 +635,7 @@ void Optimize_table_order::best_access_path(
         loose_scan_opt.check_ref_access_part1(s, key, start_key, found_part);
 
         /* Check if we found full key */
-        if (found_part == PREV_BITS(uint,keyinfo->key_parts) &&
+        if (found_part == LOWER_BITS(uint,keyinfo->key_parts) &&
             !ref_or_null_part)
         {                                         /* use eq key */
           max_key_part= (uint) ~0;
@@ -721,7 +725,7 @@ void Optimize_table_order::best_access_path(
           */
           if ((found_part & 1) &&
               (!(table->file->index_flags(key, 0, 0) & HA_ONLY_WHOLE_INDEX) ||
-               found_part == PREV_BITS(uint,keyinfo->key_parts)))
+               found_part == LOWER_BITS(uint,keyinfo->key_parts)))
           {
             max_key_part= max_part_bit(found_part);
             /*
