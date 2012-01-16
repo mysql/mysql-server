@@ -2652,10 +2652,10 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     }
   }
 
-  // We cannot handle outer-joined tables with expensive join conditions here:
-  DBUG_ASSERT(!(*tab->on_expr_ref && (*tab->on_expr_ref)->is_expensive()));
   if (*tab->on_expr_ref && !table->null_row)
   {
+    // We cannot handle outer-joined tables with expensive join conditions here:
+    DBUG_ASSERT(!(*tab->on_expr_ref)->is_expensive());
     if ((table->null_row= test((*tab->on_expr_ref)->val_int() == 0)))
       mark_as_null_row(table);  
   }
