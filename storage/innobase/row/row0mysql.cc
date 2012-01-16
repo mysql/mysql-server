@@ -3085,52 +3085,56 @@ row_import_tablespace_adjust_root_pages(
 						the import */
 	dict_table_t*		table,		/*!< in: table the indexes
 						belong to */
-	dict_index_t**		in_index,	/*!< out: cluster index */
+	dict_index_t**		index,		/*!< out: index where error
+						detected */
 	ulint			n_rows_in_table)/*!< in: number of rows
 						left in index */
 {
-	db_err			err;
-	dict_index_t*		index = dict_table_get_first_index(table);
+	db_err			err = DB_SUCCESS;
 
-	*in_index = NULL;
+	*index = dict_table_get_first_index(table);
 
-	while ((index = dict_table_get_next_index(index)) != NULL) {
-		ulint	n_rows;
+	while ((*index = dict_table_get_next_index(*index)) != NULL) {
+		ulint		n_rows;
 
-		err = (db_err) btr_root_adjust_on_import(index);
+		err = (db_err) btr_root_adjust_on_import(*index);
 
 		if (err != DB_SUCCESS) {
-			*in_index = index;
-			return(err);
-		} else if (!btr_validate_index(index, trx, TRUE)) {
-			*in_index = index;
-			return(err);
+			break;
+		} else if (!btr_validate_index(*index, trx, TRUE)) {
+			break;
 		}
 
 		err = (db_err) row_import_tablespace_scan_index(
-			index, trx, table->space, &n_rows);
+			*index, trx, table->space, &n_rows);
 
 		if (err != DB_SUCCESS) {
-			*in_index = index;
-			return(err);
-
+			break;
 		} else if (n_rows != n_rows_in_table) {
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr, " InnoDB: ");
-			dict_index_name_print(stderr, prebuilt->trx, index);
+			dict_index_name_print(stderr, trx, *index);
 			fprintf(stderr,
 				" contains %lu entries, should be %lu\n",
 				(ulong) n_rows,
 				(ulong) n_rows_in_table);
 
+
 			/* Do not bail out, so that the data
 			can be recovered. */
+
+			/* Q&D hack */
+			err = DB_SUCCESS;
+
+			/* TODO: We are not preserving the error
+			code on iteration. */
+
 			/* TODO: issue the warning to the client */
 		}
 	}
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /*****************************************************************//**
@@ -3142,20 +3146,22 @@ row_import_tablespace_set_sys_max_row_id(
 /*=====================================*/
 	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt from
 						handler */
-	const dict_table_t*	table)		/*!< in: table to import */
+	const dict_table_t*	table,		/*!< in: table to import */
+	dict_index_t**		index)		/*!< out: current index */
 {
 	db_err			err;
 	const rec_t*		rec;
 	mtr_t			mtr;
 	btr_pcur_t		pcur;
 	row_id_t		row_id	= 0;
-	dict_index_t*		index = dict_table_get_first_index(table);
+
+	*index = dict_table_get_first_index(table);
 
 	mtr_start(&mtr);
 
 	btr_pcur_open_at_index_side(
 		FALSE,		// High end
-		index,
+		*index,
 		BTR_SEARCH_LEAF,
 		&pcur,
 		TRUE,		// Init cursor
@@ -3174,7 +3180,7 @@ row_import_tablespace_set_sys_max_row_id(
 
 		rec_offs_init(offsets_);
 
-		offsets = rec_get_offsets(rec, index, offsets_, 1, &heap);
+		offsets = rec_get_offsets(rec, *index, offsets_, 1, &heap);
 
 		field = rec_get_nth_field(rec, offsets, 0, &len);
 
@@ -3401,7 +3407,7 @@ row_import_tablespace_for_mysql(
 	table->ibd_file_missing = FALSE;
 	table->tablespace_discarded = FALSE;
 
-	err = row_import_tablespace_set_sys_max_row_id(prebuilt, table);
+	err = row_import_tablespace_set_sys_max_row_id(prebuilt, table, &index);
 
 	if (err != DB_SUCCESS) {
 		return(row_import_tablespace_error(prebuilt, trx, index, err));
