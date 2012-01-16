@@ -121,7 +121,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   ulong key_buff_length;
   File file;
   ulong filepos, data_offset;
-  uchar fileinfo[64],forminfo[288],*keybuff;
+  uchar fileinfo[64],forminfo[288],*keybuff, *forminfo_p= forminfo;
   uchar *screen_buff;
   char buff[128];
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -297,7 +297,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 
   if (!(filepos= make_new_entry(file, fileinfo, NULL, "")))
     goto err;
-  maxlength=(uint) next_io_size((ulong) (uint2korr(forminfo)+1000));
+  maxlength=(uint) next_io_size((ulong) (uint2korr(forminfo_p)+1000));
   int2store(forminfo+2,maxlength);
   int4store(fileinfo+10,(ulong) (filepos+maxlength));
   fileinfo[26]= (uchar) test((create_info->max_rows == 1) &&

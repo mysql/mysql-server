@@ -55,6 +55,11 @@ SET(HEADERS
   my_attribute.h 
   my_compiler.h
   mysql_com_server.h
+  my_byteorder.h
+  byteorder/byte_order_generic_x86.h
+  byteorder/little_endian.h
+  byteorder/byte_order_generic.h
+  byteorder/big_endian.h
   ${HEADERS_GEN_CONFIGURE}
 )
 

@@ -3393,7 +3393,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by max(`test`.`t3`.`DATA`) desc"
+            "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by `DATA` desc"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3403,7 +3403,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select 497 AS `497`,`tmp`.`ID` AS `ID`,NULL AS `NULL` from (/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by max(`test`.`t3`.`DATA`) desc) `tmp`"
+            "expanded_query": "/* select#1 */ select 497 AS `497`,`tmp`.`ID` AS `ID`,NULL AS `NULL` from (/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by `DATA` desc) `tmp`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3422,7 +3422,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "JOIN_condition_to_WHERE",
                       "parenthesis_removal"
                     ] /* transformations */,
-                    "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`) and (`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`)) group by `test`.`t2`.`PARID` order by max(`test`.`t3`.`DATA`) desc"
+                    "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`) and (`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`)) group by `test`.`t2`.`PARID` order by `DATA` desc"
                   } /* transformations_to_nested_joins */
                 },
                 {
@@ -4738,7 +4738,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from (`test`.`t1` `alias1` straight_join `test`.`t2` `alias2` on((`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`))) where `test`.`alias1`.`pk` group by `test`.`alias2`.`pk` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
+            "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from (`test`.`t1` `alias1` straight_join `test`.`t2` `alias2` on((`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`))) where `test`.`alias1`.`pk` group by `field2` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -4753,7 +4753,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from `test`.`t1` `alias1` straight_join `test`.`t2` `alias2` where (`test`.`alias1`.`pk` and (`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`)) group by `test`.`alias2`.`pk` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
+              "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from `test`.`t1` `alias1` straight_join `test`.`t2` `alias2` where (`test`.`alias1`.`pk` and (`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`)) group by `field2` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
             } /* transformations_to_nested_joins */
           },
           {
@@ -4944,14 +4944,14 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
           {
             "clause_processing": {
               "clause": "GROUP BY",
-              "original_clause": "`test`.`alias2`.`pk`",
+              "original_clause": "`field2`",
               "items": [
                 {
                   "item": "`test`.`alias2`.`pk`"
                 }
               ] /* items */,
               "resulting_clause_is_simple": false,
-              "resulting_clause": "`test`.`alias2`.`pk`"
+              "resulting_clause": "`field2`"
             } /* clause_processing */
           },
           {
