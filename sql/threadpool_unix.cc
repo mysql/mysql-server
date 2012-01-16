@@ -275,7 +275,7 @@ int io_poll_start_read(int pollfd, int fd, void *data)
 
 int io_poll_associate_fd(int pollfd, int fd, void *data)
 {
-  return io_poll_start_read(poolfd,fd, data); 
+  return io_poll_start_read(pollfd,fd, data); 
 }
 
 
@@ -338,7 +338,7 @@ static int io_poll_associate_fd(int pollfd, int fd, void *data)
 
 int io_poll_disassociate_fd(int pollfd, int fd)
 {
-  return 0;
+  return port_dissociate(pollfd, PORT_SOURCE_FD, fd);
 }
 
 int io_poll_wait(int pollfd, native_event *events, int maxevents, int timeout_ms)
