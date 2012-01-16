@@ -41,7 +41,9 @@ extern "C" {
   void* runReceiveResponse_C(void*);
 }
 
-class TransporterFacade : public TransporterCallback
+class TransporterFacade :
+  public TransporterCallback,
+  public TransporterReceiveHandle
 {
 public:
   /**

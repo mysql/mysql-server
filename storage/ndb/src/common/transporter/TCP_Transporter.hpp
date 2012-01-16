@@ -43,6 +43,7 @@ struct ReceiveBuffer {
 };
 
 class TCP_Transporter : public Transporter {
+  friend struct TransporterReceiveData;
   friend class TransporterRegistry;
   friend class Loopback_Transporter;
 private:
