@@ -561,6 +561,29 @@ Handler_read_next	3
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
-set optimizer_switch=@save_ext_key_optimizer_switch;
 DROP DATABASE dbt3_s001;
+use test;
+#
+# LP Bug #914560: query containing IN subquery
+#                 + extended_keys = on
+#
+set @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on,semijoin=on';
+SET optimizer_switch='extended_keys=on';
+CREATE TABLE t1 (a int, b int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1), (2,2);
+SELECT * FROM t1 WHERE 2 IN (SELECT MAX(s1.a) FROM t1 AS s1, t1 AS s2);
+a	b
+1	1
+2	2
+EXPLAIN
+SELECT * FROM t1 WHERE 2 IN (SELECT MAX(s1.a) FROM t1 AS s1, t1 AS s2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	5	const	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+2	MATERIALIZED	s1	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	s2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+DROP TABLE t1;
+set optimizer_switch=@save_optimizer_switch;
+set optimizer_switch=@save_ext_key_optimizer_switch;
 SET SESSION STORAGE_ENGINE=DEFAULT;

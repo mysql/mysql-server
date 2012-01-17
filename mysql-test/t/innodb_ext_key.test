@@ -287,8 +287,30 @@ select o_orderkey, p_partkey
         and o_orderkey=l_orderkey and p_partkey=l_partkey;
 show status like 'handler_read%';
 
-set optimizer_switch=@save_ext_key_optimizer_switch;
-
 DROP DATABASE dbt3_s001;
 
+use test;
+
+--echo #
+--echo # LP Bug #914560: query containing IN subquery
+--echo #                 + extended_keys = on
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+SET optimizer_switch='materialization=on,semijoin=on';
+SET optimizer_switch='extended_keys=on';
+
+CREATE TABLE t1 (a int, b int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1), (2,2);
+
+SELECT * FROM t1 WHERE 2 IN (SELECT MAX(s1.a) FROM t1 AS s1, t1 AS s2);
+EXPLAIN
+SELECT * FROM t1 WHERE 2 IN (SELECT MAX(s1.a) FROM t1 AS s1, t1 AS s2);
+
+DROP TABLE t1;
+
+set optimizer_switch=@save_optimizer_switch;
+
+set optimizer_switch=@save_ext_key_optimizer_switch;
 SET SESSION STORAGE_ENGINE=DEFAULT;

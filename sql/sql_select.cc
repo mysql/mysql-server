@@ -13914,7 +13914,9 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
     share->keys_in_use.set_bit(0);
     keyinfo->key_part=key_part_info;
     keyinfo->flags=HA_NOSAME | HA_BINARY_PACK_KEY | HA_PACK_KEY;
+    keyinfo->ext_key_flags= keyinfo->flags;
     keyinfo->usable_key_parts=keyinfo->key_parts= param->group_parts;
+    keyinfo->ext_key_parts= keyinfo->key_parts;
     keyinfo->key_length=0;
     keyinfo->rec_per_key=0;
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
@@ -14013,6 +14015,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
     null_pack_length-=hidden_null_pack_length;
     keyinfo->key_parts= ((field_count-param->hidden_field_count)+
 			 (share->uniques ? test(null_pack_length) : 0));
+    keyinfo->ext_key_parts= keyinfo->key_parts;
     table->distinct= 1;
     share->keys= 1;
     if (!(key_part_info= (KEY_PART_INFO*)
@@ -14025,6 +14028,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
     table->key_info= table->s->key_info= keyinfo;
     keyinfo->key_part=key_part_info;
     keyinfo->flags=HA_NOSAME | HA_NULL_ARE_EQUAL | HA_BINARY_PACK_KEY | HA_PACK_KEY;
+    keyinfo->ext_key_flags= keyinfo->flags;
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     keyinfo->name= (char*) "distinct_key";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;

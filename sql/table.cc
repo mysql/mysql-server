@@ -5478,9 +5478,11 @@ bool TABLE::add_tmp_key(uint key, uint key_parts,
   keyinfo= key_info + key;
   keyinfo->key_part= key_part_info;
   keyinfo->usable_key_parts= keyinfo->key_parts = key_parts;
+  keyinfo->ext_key_parts= keyinfo->key_parts;
   keyinfo->key_length=0;
   keyinfo->algorithm= HA_KEY_ALG_UNDEF;
   keyinfo->flags= HA_GENERATED_KEY;
+  keyinfo->ext_key_flags= keyinfo->flags;
   if (unique)
     keyinfo->flags|= HA_NOSAME;
   sprintf(buf, "key%i", key);
