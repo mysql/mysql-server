@@ -406,7 +406,7 @@ Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+db_err
 fil_delete_tablespace(
 /*==================*/
 	ulint	id,	/*!< in: space id */
@@ -420,9 +420,9 @@ memory cache. Discarding is like deleting a tablespace, but
 TABLE they are only removed gradually in the background;
 3) when the user does IMPORT TABLESPACE, the tablespace will have the same id
 as it originally had.
-@return	TRUE if success */
+@return	DB_SUCCESS or error*/
 UNIV_INTERN
-ibool
+db_err
 fil_discard_tablespace(
 /*===================*/
 	ulint	id,	/*!< in: space id */

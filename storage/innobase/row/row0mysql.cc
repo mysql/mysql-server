@@ -2201,7 +2201,8 @@ err_exit:
 		/* We already have .ibd file here. it should be deleted. */
 
 		if (table->space
-		    && !fil_delete_tablespace(table->space, FALSE)) {
+		    && fil_delete_tablespace(table->space, FALSE)
+		       != DB_SUCCESS) {
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
@@ -2777,19 +2778,37 @@ row_discard_tablespace_for_mysql(
 		trx->error_state = DB_SUCCESS;
 	} else {
 
-		if (!fil_discard_tablespace(table->space, TRUE)) {
+		err = fil_discard_tablespace(table->space, TRUE);
+
+		if (err != DB_SUCCESS) {
 			trx->error_state = DB_SUCCESS;
 
 			trx_rollback_to_savepoint(trx, NULL);
 
 			trx->error_state = DB_SUCCESS;
-
-			err = DB_ERROR;
 		}
 
-		// FIXME: Why are we doing this even if the above call fails?
+		/* Even if the function returns the following errors, we
+		know that the tablespace is no longer valid. */
+
+		ut_a(err == DB_SUCCESS
+		     || err == DB_TABLESPACE_NOT_FOUND
+		     || err == DB_IO_ERROR);
+
+		/* Reset the root page numbers. */
+
+		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+		     index != 0;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			index->page = 0;
+			index->space = 0;
+		}
+
 		table->ibd_file_missing = TRUE;
 		table->tablespace_discarded = TRUE;
+
+		err = DB_SUCCESS;
 	}
 
 func_exit:
@@ -3662,7 +3681,7 @@ row_truncate_table_for_mysql(
 	/* Ensure that the table will be dropped by
 	trx_rollback_active() in case of a crash. */
 
- 	trx->table_id = table->id;
+	trx->table_id = table->id;
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	/* Assign an undo segment for the transaction, so that the
@@ -4420,7 +4439,8 @@ check_next_foreign:
 					"InnoDB: of table ");
 				ut_print_name(stderr, trx, TRUE, name);
 				fprintf(stderr, ".\n");
-			} else if (!fil_delete_tablespace(space_id, FALSE)) {
+			} else if (fil_delete_tablespace(space_id, FALSE)
+				   != DB_SUCCESS) {
 				fprintf(stderr,
 					"InnoDB: We removed now the InnoDB"
 					" internal data dictionary entry\n"
