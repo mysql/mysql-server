@@ -1512,10 +1512,6 @@ buf_do_flush_list_batch(
 			buf_flush_list_mutex_exit(buf_pool);
 			break;
 		}
-#if 1
-		fprintf(stderr, "space: %lu pg: %lu\n",
-			space, buf_page_get_page_no(bpage));
-#endif
 
 		ut_a(bpage->oldest_modification > 0);
 
