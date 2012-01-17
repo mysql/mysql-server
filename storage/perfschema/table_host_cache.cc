@@ -83,16 +83,6 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("COUNT_FCRDNS_ERRORS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_HOST_ACL_ERRORS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
     { C_STRING_WITH_LEN("COUNT_HANDSHAKE_ERRORS") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}

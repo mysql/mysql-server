@@ -462,9 +462,23 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                   }
                   );
 
+  DBUG_EXECUTE_IF("getnameinfo_fake_ipv6",
+                  {
+                    strcpy(hostname_buffer, "santa.claus.ipv6.example.com");
+                    err_code= 0;
+                  }
+                  );
+
   DBUG_EXECUTE_IF("getnameinfo_format_ipv4",
                   {
                     strcpy(hostname_buffer, "12.12.12.12");
+                    err_code= 0;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getnameinfo_format_ipv6",
+                  {
+                    strcpy(hostname_buffer, "12:DEAD:BEEF:0");
                     err_code= 0;
                   }
                   );
@@ -597,23 +611,22 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       freeaddrinfo(addr_info_list);
 
                     struct sockaddr_in *debug_addr;
-                    struct in_addr *debug_ipv4;
                     /*
                       Not thread safe, which is ok.
                       Only one connection at a time is tested with
                       fault injection.
                     */
-                    static struct sockaddr_storage debug_sock_addr[2];
+                    static struct sockaddr_in debug_sock_addr[2];
                     static struct addrinfo debug_addr_info[2];
-                    debug_addr= (struct sockaddr_in*) & debug_sock_addr[0];
+                    /* Simulating ipv4 192.0.2.126 */
+                    debug_addr= & debug_sock_addr[0];
                     debug_addr->sin_family= AF_INET;
-                    debug_ipv4= & debug_addr->sin_addr;
-                    debug_ipv4->s_addr= htonl(0xC0000305); /* ipv4 192.0.3.5 */
+                    inet_pton(AF_INET, "192.0.2.126", & debug_addr->sin_addr);
 
-                    debug_addr= (struct sockaddr_in*) & debug_sock_addr[1];
+                    /* Simulating ipv4 192.0.2.127 */
+                    debug_addr= & debug_sock_addr[1];
                     debug_addr->sin_family= AF_INET;
-                    debug_ipv4= & debug_addr->sin_addr;
-                    debug_ipv4->s_addr= htonl(0xC0000304); /* ipv4 192.0.3.4 */
+                    inet_pton(AF_INET, "192.0.2.127", & debug_addr->sin_addr);
 
                     debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
                     debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in);
@@ -635,18 +648,17 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       freeaddrinfo(addr_info_list);
 
                     struct sockaddr_in *debug_addr;
-                    struct in_addr *debug_ipv4;
-                    static struct sockaddr_storage debug_sock_addr[2];
+                    static struct sockaddr_in debug_sock_addr[2];
                     static struct addrinfo debug_addr_info[2];
-                    debug_addr= (struct sockaddr_in*) & debug_sock_addr[0];
+                    /* Simulating ipv4 192.0.2.5 */
+                    debug_addr= & debug_sock_addr[0];
                     debug_addr->sin_family= AF_INET;
-                    debug_ipv4= & debug_addr->sin_addr;
-                    debug_ipv4->s_addr= htonl(0xC0000205); /* ipv4 192.0.2.5 */
+                    inet_pton(AF_INET, "192.0.2.5", & debug_addr->sin_addr);
 
-                    debug_addr= (struct sockaddr_in*) & debug_sock_addr[1];
+                    /* Simulating ipv4 192.0.2.4 */
+                    debug_addr= & debug_sock_addr[1];
                     debug_addr->sin_family= AF_INET;
-                    debug_ipv4= & debug_addr->sin_addr;
-                    debug_ipv4->s_addr= htonl(0xC0000204); /* ipv4 192.0.2.4 */
+                    inet_pton(AF_INET, "192.0.2.4", & debug_addr->sin_addr);
 
                     debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
                     debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in);
@@ -654,6 +666,80 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
                     debug_addr_info[1].ai_addr= (struct sockaddr*) & debug_sock_addr[1];
                     debug_addr_info[1].ai_addrlen= sizeof (struct sockaddr_in);
+                    debug_addr_info[1].ai_next= NULL;
+
+                    addr_info_list= & debug_addr_info[0];
+                    err_code= 0;
+                    free_addr_info_list= false;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getaddrinfo_fake_bad_ipv6",
+                  {
+                    if (free_addr_info_list)
+                      freeaddrinfo(addr_info_list);
+
+                    struct sockaddr_in6 *debug_addr;
+                    /*
+                      Not thread safe, which is ok.
+                      Only one connection at a time is tested with
+                      fault injection.
+                    */
+                    static struct sockaddr_in6 debug_sock_addr[2];
+                    static struct addrinfo debug_addr_info[2];
+                    /* Simulating ipv6 2001:DB8::6:7E */
+                    debug_addr= & debug_sock_addr[0];
+                    debug_addr->sin6_family= AF_INET6;
+                    inet_pton(AF_INET6, "2001:DB8::6:7E", & debug_addr->sin6_addr);
+
+                    /* Simulating ipv6 2001:DB8::6:7F */
+                    debug_addr= & debug_sock_addr[1];
+                    debug_addr->sin6_family= AF_INET6;
+                    inet_pton(AF_INET6, "2001:DB8::6:7F", & debug_addr->sin6_addr);
+
+                    debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
+                    debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in6);
+                    debug_addr_info[0].ai_next= & debug_addr_info[1];
+
+                    debug_addr_info[1].ai_addr= (struct sockaddr*) & debug_sock_addr[1];
+                    debug_addr_info[1].ai_addrlen= sizeof (struct sockaddr_in6);
+                    debug_addr_info[1].ai_next= NULL;
+
+                    addr_info_list= & debug_addr_info[0];
+                    err_code= 0;
+                    free_addr_info_list= false;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF("getaddrinfo_fake_good_ipv6",
+                  {
+                    if (free_addr_info_list)
+                      freeaddrinfo(addr_info_list);
+
+                    struct sockaddr_in6 *debug_addr;
+                    /*
+                      Not thread safe, which is ok.
+                      Only one connection at a time is tested with
+                      fault injection.
+                    */
+                    static struct sockaddr_in6 debug_sock_addr[2];
+                    static struct addrinfo debug_addr_info[2];
+                    /* Simulating ipv6 2001:DB8::6:7 */
+                    debug_addr= & debug_sock_addr[0];
+                    debug_addr->sin6_family= AF_INET6;
+                    inet_pton(AF_INET6, "2001:DB8::6:7", & debug_addr->sin6_addr);
+
+                    /* Simulating ipv6 2001:DB8::6:6 */
+                    debug_addr= & debug_sock_addr[1];
+                    debug_addr->sin6_family= AF_INET6;
+                    inet_pton(AF_INET6, "2001:DB8::6:6", & debug_addr->sin6_addr);
+
+                    debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
+                    debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in6);
+                    debug_addr_info[0].ai_next= & debug_addr_info[1];
+
+                    debug_addr_info[1].ai_addr= (struct sockaddr*) & debug_sock_addr[1];
+                    debug_addr_info[1].ai_addrlen= sizeof (struct sockaddr_in6);
                     debug_addr_info[1].ai_next= NULL;
 
                     addr_info_list= & debug_addr_info[0];
@@ -681,6 +767,16 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   if (err_code)
   {
+    // NOTE: gai_strerror() returns a string ending by a dot.
+
+    DBUG_PRINT("error", ("Host name '%s' could not be resolved: %s",
+                         hostname_buffer,
+                         (const char *) gai_strerror(err_code)));
+
+    sql_print_warning("Host name '%s' could not be resolved: %s",
+                      hostname_buffer,
+                      (const char *) gai_strerror(err_code));
+
     /*
       Don't cache responses when the DNS server is down, as otherwise
       transient DNS failure may leave any number of clients (those
@@ -716,7 +812,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
     DBUG_PRINT("info", ("  - '%s'", (const char *) ip_buffer));
 
-    if (strcmp(ip_key, ip_buffer) == 0)
+    if (strcasecmp(ip_key, ip_buffer) == 0)
     {
       /* Copy host name string to be stored in the cache. */
 
@@ -739,9 +835,9 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   if (!*hostname)
   {
-    sql_print_information("Hostname '%s' does not resolve to '%s'.",
-                          (const char *) hostname_buffer,
-                          (const char *) ip_key);
+    sql_print_warning("Hostname '%s' does not resolve to '%s'.",
+                      (const char *) hostname_buffer,
+                      (const char *) ip_key);
     sql_print_information("Hostname '%s' has the following IP addresses:",
                           (const char *) hostname_buffer);
 
@@ -755,7 +851,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                                      ip_buffer, sizeof (ip_buffer));
       DBUG_ASSERT(!err_status);
 
-      sql_print_information(" - %s\n", (const char *) ip_buffer);
+      sql_print_information(" - %s", (const char *) ip_buffer);
     }
   }
 

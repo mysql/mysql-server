@@ -6,41 +6,38 @@
 # Test scenario:
 # - a client connects on a TCP/IPv4 socket
 # - the client IPv4 can be obtained
-# - the client hostname can be obtained
-# - IP for that hostname can not be obtained
+# - the client hostname can not be obtained (NONAME)
 # - there are no grants for the client IP
 # Test results:
 # - connection is refused
-# - peer_addr_error is unchanged
-# - the host_cache records the failing IP and hostname
+# - peer_addr_errors is unchanged
+# - the host_cache records the failing IP with no hostname
 #
 
 --source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_perfschema.inc
 
-# [Warning] Host name 'santa.claus.ipv4.example.com' could not be resolved:
-# Temporary failure in name resolution
-call mtr.add_suppression("santa.claus.ipv4.example.com");
+# [Warning] IP address '2001:db8::6:6' could not be resolved:
+# Name or service not known
+call mtr.add_suppression("2001:db8::6:6");
 
 flush status;
 flush hosts;
 select @@global.debug;
 show global status like "%peer%";
 
-grant select on test.* to 'root'@'santa.claus.ipv4.example.com';
-
-connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+connect (con1,"::1",root,,test,$MASTER_MYPORT,);
 select "Con1 is alive";
 select current_user();
 disconnect con1;
 
 --connection default
-set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_error_again";
+set global debug= "+d,vio_peer_addr_fake_ipv6,getnameinfo_error_noname";
 
 --disable_query_log
 --error ER_HOST_NOT_PRIVILEGED
-connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+connect (con2,"::1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
@@ -48,14 +45,11 @@ connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 
 --disable_query_log
 --error ER_HOST_NOT_PRIVILEGED
-connect (con3,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+connect (con3,"::1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
 --source ../include/hostcache_dump.inc
-
-revoke select on test.* from 'root'@'santa.claus.ipv4.example.com';
-drop user 'root'@'santa.claus.ipv4.example.com';
 
 set global debug= default;
 
