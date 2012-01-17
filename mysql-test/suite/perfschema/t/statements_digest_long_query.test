@@ -5,6 +5,9 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+use performance_schema;
+truncate table events_statements_summary_by_digest;
+
 # -----------------------------------------------------------------------
 # Test to show how the digest behaves with long queries, when the token
 # stream is truncated (digest text should end with "...") 
@@ -16,5 +19,4 @@ SELECT 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1
 --echo ####################################
 --echo # QUERYING PS STATEMENT DIGEST
 --echo ####################################
-use performance_schema;
 select DIGEST, DIGEST_TEXT, COUNT_STAR from events_statements_summary_by_digest;

@@ -67,6 +67,7 @@ drop database statements_digest_temp;
 use performance_schema;
 select DIGEST, DIGEST_TEXT, COUNT_STAR from events_statements_summary_by_digest;
 DIGEST	DIGEST_TEXT	COUNT_STAR
+NULL	NULL	0
 560c2f53c356e1db	TRUNCATE TABLE performance_schema . events_statements_summa  	1
 c4cdaf6f814e367d	SELECT # FROM t1  	1
 58681943ba1f6965	SELECT #,# FROM t1  	2
