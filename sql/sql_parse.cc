@@ -1405,35 +1405,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
 #ifndef EMBEDDED_LIBRARY
   case COM_BINLOG_DUMP_GTID:
-    error= com_binlog_dump_gtid(thd, packet) ? true : false;
+    error= com_binlog_dump_gtid(thd, packet);
     break;
   case COM_BINLOG_DUMP:
-    {
-      ulong pos;
-      ushort flags;
-      String slave_uuid;
-
-      status_var_increment(thd->status_var.com_other);
-      thd->enable_slow_log= opt_log_slow_admin_statements;
-      if (check_global_access(thd, REPL_SLAVE_ACL))
-	break;
-
-      /* TODO: The following has to be changed to an 8 byte integer */
-      pos = uint4korr(packet);
-      flags = uint2korr(packet + 4);
-      thd->server_id= uint4korr(packet+6);
-
-      get_slave_uuid(thd, &slave_uuid);
-      kill_zombie_dump_threads(&slave_uuid);
-
-      general_log_print(thd, command, "Log: '%s'  Pos: %ld", packet+10,
-                      (long) pos);
-      mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, flags);
-      unregister_slave(thd,1,1);
-      /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
-      error = TRUE;
-      break;
-    }
+    error= com_binlog_dump(thd, packet);
+    break;
 #endif
   case COM_REFRESH:
   {

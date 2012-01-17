@@ -4401,17 +4401,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
 #ifdef HAVE_GTID
-  if (opt_bin_log)
-  {
-    /*
-      Configures what object is used by the current log to store processed
-      gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
-      corretly compute the set of previous gtids.
-    */
-    mysql_bin_log.set_previous_gtid_set(
-      const_cast<Gtid_set*>(gtid_state.get_logged_gtids()));
-  }
-
   if (gtid_mode >= 1 && !(opt_bin_log && opt_log_slave_updates))
   {
     sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates");
@@ -4429,11 +4418,22 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 #endif
 
-  if (opt_bin_log &&
-      mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
-                                WRITE_CACHE, 0, max_binlog_size, 0,
-                                true/*need mutex*/, true/*need sid_lock*/))
-    unireg_abort(1);
+  if (opt_bin_log)
+  {
+#ifdef HAVE_GTID
+    /*
+      Configures what object is used by the current log to store processed
+      gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
+      corretly compute the set of previous gtids.
+    */
+    mysql_bin_log.set_previous_gtid_set(
+      const_cast<Gtid_set*>(gtid_state.get_logged_gtids()));
+#endif
+    if (mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
+                                  WRITE_CACHE, 0, max_binlog_size, 0,
+                                  true/*need mutex*/, true/*need sid_lock*/))
+      unireg_abort(1);
+  }
 
 #ifdef HAVE_REPLICATION
   if (opt_bin_log && expire_logs_days)

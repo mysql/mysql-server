@@ -1505,5 +1505,4 @@ typedef struct
 } lldiv_t;
 #endif
 
-
 #endif  // MY_GLOBAL_INCLUDED

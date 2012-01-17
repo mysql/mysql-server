@@ -33,6 +33,11 @@ enum Incident {
   INCIDENT_COUNT
 };
 
+/*
+  Constants used to parse the stream of bytes sent by a slave
+  when commands COM_BINLOG_DUMP or COM_BINLOG_DUMP_GTID are
+  sent.
+*/
 const int BINLOG_POS_INFO_SIZE= 8;
 const int BINLOG_DATA_SIZE_INFO_SIZE= 4;
 const int BINLOG_POS_OLD_INFO_SIZE= 4;
