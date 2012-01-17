@@ -687,7 +687,10 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
     IO_CACHE *cache_log= &cache_data->cache_log;
     my_b_seek(cache_log, 0);
     if (gtid_ev.write(cache_log) != 0)
+    {
+      my_b_seek(cache_log, saved_position);
       DBUG_RETURN(1);
+    }
     my_b_seek(cache_log, saved_position);
   }
 
@@ -2292,6 +2295,11 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
         goto err;
       bytes_written+= s.data_written;
 #ifdef HAVE_GTID
+      /*
+        We need to revisit this code and improve it.
+        See further comments in the mysqld.
+        /Alfranio
+      */
       if (current_thd && gtid_mode > 0)
       {
         if (need_sid_lock)
@@ -2757,14 +2765,13 @@ err:
 
 
 /**
-  Remove files, as part of a RESET MASTER or RESET SLAVE statement.
-
-  Delete all logs refered to in the index file.
-  Start writing to a new log file.
+  Removes files, as part of a RESET MASTER or RESET SLAVE statement,
+  by deleting all logs refered to in the index file. Then, it starts
+  writing to a new log file.
 
   The new index file will only contain this file.
 
-  @param thd		Thread
+  @param thd Thread
 
   @note
     If not called from slave thread, write start event to new log
@@ -5234,10 +5241,6 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
   while ((ev= Log_event::read_log_event(log, 0, fdle, TRUE))
          && ev->is_valid())
   {
-    /*
-      Recorded valid position for the crashed binlog file
-      which contains incorrect events.
-    */
     if (ev->get_type_code() == QUERY_EVENT &&
         !strcmp(((Query_log_event*)ev)->query, "BEGIN"))
       in_transaction= TRUE;
@@ -5261,7 +5264,38 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
 
     /*
       Recorded valid position for the crashed binlog file
-      which did not contain incorrect events.
+      which did not contain incorrect events. The following
+      positions increase the variable valid_pos:
+
+      1 -
+        ...
+        <---> HERE IS VALID <--->
+        GTID 
+        BEGIN
+        ...
+        COMMIT
+        ...
+         
+      2 -
+        ...
+        <---> HERE IS VALID <--->
+        GTID 
+        DDL/UTILITY
+        ...
+
+      In other words, the following positions do not increase
+      the variable valid_pos:
+
+      1 -
+        GTID 
+        <---> HERE IS VALID <--->
+        ...
+
+      2 -
+        GTID 
+        BEGIN
+        <---> HERE IS VALID <--->
+        ...
     */
     if (!log->error && !in_transaction &&
         ev->get_type_code() != GTID_LOG_EVENT)

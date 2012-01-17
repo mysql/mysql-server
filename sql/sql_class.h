@@ -3290,7 +3290,7 @@ public:
   /**
     Return the statement or transaction group cache for this thread.
     @param is_transactional if true, return the transaction group cache.
-    If false, return the transaction group cache.
+    If false, return the statement group cache.
   */
   Group_cache *get_group_cache(bool is_transactional);
 
