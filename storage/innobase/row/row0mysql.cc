@@ -2826,6 +2826,28 @@ func_exit:
 	return((int) err);
 }
 
+#ifdef UNIV_DEBUG
+static void
+check_db_row_id(dict_index_t* index, const byte* rec)
+{
+	ulint		len;
+	mem_heap_t*	heap = NULL;
+	ulint		offsets_[1 + REC_OFFS_HEADER_SIZE];
+	ulint*		offsets;
+
+	ut_a(dict_index_is_clust(index));
+
+	rec_offs_init(offsets_);
+
+	offsets = rec_get_offsets(rec, index, offsets_, 1, &heap);
+
+	rec_get_nth_field(
+		rec, offsets, dict_index_get_sys_col_pos(index, DATA_ROW_ID),
+		&len);
+
+	ut_a(len == DATA_ROW_ID_LEN);
+}
+#endif /* UNIV_DEBUG */
 
 /********************************************************************//**
 Scans an index in the database, purging all delete-marked records.
@@ -2908,6 +2930,7 @@ row_import_tablespace_scan_index(
 		}
 
 		rec = btr_pcur_get_rec(&pcur);
+
 		deleted = rec_get_deleted_flag(rec, comp);
 
 		if (!deleted && !is_clust) {
@@ -2924,6 +2947,12 @@ row_import_tablespace_scan_index(
 
 			page_zip = buf_block_get_page_zip(
 				btr_pcur_get_block(&pcur));
+
+#ifdef UNIV_DEBUG
+			if (!dict_index_is_unique(index)) {
+				check_db_row_id(index, rec);
+			}
+#endif /* UNIV_DEBUG */
 
 			if (!rec_offs_any_extern(offsets)) {
 
@@ -3086,7 +3115,8 @@ row_import_tablespace_error(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: ALTER TABLE ");
 		dict_index_name_print(stderr, trx, index);
-		fprintf(stderr, " IMPORT TABLESPACE failed\n");
+		fprintf(stderr, " IMPORT TABLESPACE failed: %lu\n",
+			(ulint) err);
 	}
 
 	return(row_import_tablespace_cleanup(prebuilt, trx, index, err));
@@ -3176,6 +3206,7 @@ row_import_tablespace_set_sys_max_row_id(
 	row_id_t		row_id	= 0;
 
 	*index = dict_table_get_first_index(table);
+	ut_a(dict_index_is_clust(*index));
 
 	mtr_start(&mtr);
 
@@ -3200,9 +3231,13 @@ row_import_tablespace_set_sys_max_row_id(
 
 		rec_offs_init(offsets_);
 
-		offsets = rec_get_offsets(rec, *index, offsets_, 1, &heap);
+		offsets = rec_get_offsets(
+			rec, *index, offsets_, ULINT_UNDEFINED, &heap);
 
-		field = rec_get_nth_field(rec, offsets, 0, &len);
+		field = rec_get_nth_field(
+			rec, offsets,
+			dict_index_get_sys_col_pos(*index, DATA_ROW_ID),
+			&len);
 
 		if (len == DATA_ROW_ID_LEN) {
 			row_id = mach_read_from_6(field);
@@ -3235,6 +3270,391 @@ row_import_tablespace_set_sys_max_row_id(
 	}
 
 	return(DB_SUCCESS);
+}
+
+/** Parsed index info. */
+struct index_root_t {
+	char*		name;		/*!< index name */
+	ulint		space;		/*!< index space id */
+	ulint		pageno;		/*!< index page number */
+};
+
+/** Config file tokens. */
+enum cfg_token_t {
+	CFG_TOKEN_NONE,			/*!< Unknown */
+	CFG_TOKEN_VERSION,		/*!< "version" */
+	CFG_TOKEN_INDEX,		/*!< "index" */
+	CFG_TOKEN_ROOT,			/*!< "root" */
+	CFG_TOKEN_NUMBER,		/*!< Number */
+	CFG_TOKEN_STRING		/*!< String */
+};
+
+/** Maximum length of token in configuration file. */
+#define MAX_CFG_TOKEN_LEN	512
+
+/*****************************************************************//**
+Skip whitespace.
+@return last char read or EOF. */
+static
+int
+cfg_parse_skip_ws(
+/*==============*/
+	FILE*		file)	/*!< in: file to read from */
+{
+	int		ch;
+
+	while (isspace(ch = fgetc(file))) {
+		// Skip whitespace
+	}
+
+	if (ch != EOF) {
+		ungetc(ch, file);
+	}
+
+	return(ch);
+}
+
+static
+cfg_token_t
+cfg_parse_token(
+/*============*/
+	const char*	token)	/*!< in: token to lookup */
+{
+	if (strcmp(token, "index") == 0) {
+		return(CFG_TOKEN_INDEX);
+	} else if (strcmp(token, "version") == 0) {
+		return(CFG_TOKEN_VERSION);
+	} else if (strcmp(token, "root") == 0) {
+		return(CFG_TOKEN_ROOT);
+	}
+
+	return(CFG_TOKEN_NONE);
+}
+
+/*****************************************************************//**
+Check for compatible version, read to end of line.
+@return true if version number matches. */
+static
+bool
+cfg_version(
+/*========*/
+	FILE*		file)		/*!< in/out: File to read from */
+{
+	int	ch;
+	int	version = 0;
+
+	while ((ch = fgetc(file)) != EOF) {
+
+		if (isspace(ch) && cfg_parse_skip_ws(file) == EOF) {
+			break;
+		}
+
+		switch (ch) {
+		case ')':
+			ungetc(ch, file);
+			return(version == 1);
+
+		case ' ': case '\t':
+			break;
+
+		case '1':
+			if (version == 0) {
+				version = 1;
+				break;
+			}
+		default:
+			return(false);
+		}
+	}
+
+	return(false);
+}
+
+/*****************************************************************//**
+Get the root <space, pageno>.
+@return true if parse is OK. */
+static
+bool
+cfg_root(
+/*=====*/
+	FILE*		file,		/*!< in/out: File to read from */
+	index_root_t*	entry)		/*1< in/out: root space and page */
+{
+	int	ch;
+	ulint	n = 0;
+	bool	space = true;
+
+	entry->space = entry->pageno = 0;
+
+	while ((ch = fgetc(file)) != EOF) {
+
+		if (isspace(ch) && cfg_parse_skip_ws(file) == EOF) {
+			break;
+		}
+
+		switch (ch) {
+		case ')':
+			if (space) {
+				return(false);
+			} else if (n == 0) {
+				return(false);
+			}
+			ungetc(ch, file);
+			entry->pageno = n;
+			return(entry->space > 0 && entry->pageno > 0);
+
+		case ' ': case '\t':
+			if (space) {
+				entry->space = n;
+
+				n = 0;
+				space = false;
+			} else {
+				return(false);
+			}
+			break;
+
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			n *= 10;
+			n += ch - '0';
+			break;
+
+		default:
+			return(false);
+		}
+	}
+
+	return(false);
+}
+
+/*****************************************************************//**
+Get the index root <space, pageno> from the meta-data.
+@return vector of root page values, or NULL on error. Caller is responsibe
+	for freeing the vector. */
+static
+ib_vector_t*
+row_import_tablespace_get_index_root(
+/*=================================*/
+	const dict_table_t*	table,	/*!< in: table */
+	mem_heap_t*		heap)	/*!< in: heap to create the vector */
+{
+	ib_vector_t*		vec;
+	ib_alloc_t*		heap_alloc;
+
+	heap_alloc = ib_heap_allocator_create(heap);
+	vec = ib_vector_create(heap_alloc, sizeof(index_root_t), 8);
+
+	char			filename[OS_FILE_MAX_PATH];
+	static const ulint	suffix_len = strlen(".cfg");
+
+	ulint	len = srv_path_copy(
+		filename, sizeof(filename) - suffix_len,
+		srv_data_home, table->name);
+
+	ut_a(len != ULINT_UNDEFINED);
+
+	ut_snprintf(
+		filename + len, sizeof(filename) - (len + suffix_len), ".cfg");
+
+	srv_normalize_path_for_win(filename);
+
+	FILE*	file = fopen(filename, "r");
+
+	if (file == 0) {
+		return(0);
+	}
+
+	int		ch;
+	index_root_t*	entry = 0;
+	ulint		depth = 0;
+	bool		error = false;
+	bool		in_string = false;
+	cfg_token_t	curtok = CFG_TOKEN_NONE;
+	char		token[MAX_CFG_TOKEN_LEN];
+
+	/* We assume that '(' and ')' don't occur in the index name. */
+
+	while (!error && (ch = fgetc(file)) != EOF) {
+
+		// Skip whitespace that is not quoted.
+		if (isspace(ch)
+		    && !in_string
+		    && cfg_parse_skip_ws(file) == EOF) {
+
+			break;
+		}
+
+		// FIXME: Ignore quotes etc. in index name.
+
+		switch (ch) {
+		case ' ':
+		case '\t':
+			if (in_string) {
+				token[len++] = ch;
+			} else if (len == 0) {
+				break;
+			} else if (depth == 1) {
+				token[len] = 0;
+				switch (curtok = cfg_parse_token(token)) {
+				case CFG_TOKEN_VERSION:
+					if (!cfg_version(file)) {
+						error = true;
+					}
+					break;
+				case CFG_TOKEN_INDEX:
+					entry = static_cast<index_root_t*>(
+						mem_heap_alloc(
+							heap, sizeof(*entry)));
+					break;
+				default:
+					error = true;
+					break;
+				}
+				len = 0;
+			} else if (depth == 2) {
+				token[len] = 0;
+				switch (cfg_parse_token(token)) {
+				case CFG_TOKEN_ROOT:
+					if (!cfg_root(file, entry)) {
+						error = true;
+					}
+					break;
+				default:
+					error = true;
+					break;
+				}
+				len = 0;
+			} else {
+				ut_error;
+			}
+			break;
+
+		case '(':
+			if (depth++ > 2) {
+				error = true;
+				break;
+			}
+
+			len = 0;
+			break;
+
+		case ')':
+			if (depth == 0) {
+				error = true;
+			} else if (--depth == 0 && curtok == CFG_TOKEN_INDEX) {
+				ib_vector_push(vec, entry);
+			}
+			break;
+
+		case '"':
+			if (curtok != CFG_TOKEN_INDEX) {
+				error = true;
+			} else if (in_string) {
+				token[len] = 0;
+
+				entry->name = mem_heap_strdup(heap, token);
+
+				len = 0;
+				in_string = false;
+			} else {
+				in_string = true;
+			}
+			break;
+
+		case '\n':
+			if (depth > 0 || in_string) {
+				error = true;
+			}
+			curtok = CFG_TOKEN_NONE;
+			entry = 0;
+			break;
+
+		default:
+			if (isalpha(ch)) {
+				ch = in_string ? ch : tolower(ch);
+			}
+
+			if (len < MAX_CFG_TOKEN_LEN) {
+				token[len++] = ch;
+			}
+			break;
+		}
+	}
+
+	fclose(file);
+
+	return(vec);
+}
+
+/*****************************************************************//**
+Set the index root <space, pageno> and update SYS_INDEX.PAGENO.
+@return updated matching index if found. */
+static
+dict_index_t*
+row_import_tablespace_set_index_root(
+/*=================================*/
+	dict_table_t*		table,		/*!< in/out: table */
+	const index_root_t*	entry)		/*!< in: index values */
+{
+	dict_index_t*		index;
+
+	for (index = dict_table_get_first_index(table);
+	     index != 0;
+	     index = dict_table_get_next_index(index)) {
+
+		if (strcmp(index->name, entry->name) == 0) {
+
+			index->space = table->space;
+			index->page = entry->pageno;
+
+			return(index);
+		}
+	}
+
+	return(NULL);
+}
+
+/*****************************************************************//**
+Set the index root <space, pageno> and update SYS_INDEX.PAGENO.
+@return DB_SUCCESS or error */
+static
+db_err
+row_import_tablespace_set_index_root(
+/*=================================*/
+	dict_table_t*	table)		/*!< in/out: table */
+{
+	ib_vector_t*	vec;
+	db_err		err = DB_SUCCESS;
+	mem_heap_t*	heap = mem_heap_create(256);
+
+	vec = row_import_tablespace_get_index_root(table, heap);
+
+	// TODO: If the table schema is the same we should allow the
+	// import, the indexes can always be rebuilt
+
+	/* Index count mismatch. */
+	if (ib_vector_size(vec) != UT_LIST_GET_LEN(table->indexes)) {
+		return(DB_ERROR);
+	}
+
+	for (ulint i = 0; i < ib_vector_size(vec); ++i) {
+		dict_index_t*	index;
+		index_root_t*	entry;
+
+		entry = static_cast<index_root_t*>(ib_vector_get(vec, i));
+
+		index = row_import_tablespace_set_index_root(table, entry);
+
+		// TODO: Print suitable error message
+		if (index == NULL) {
+			break;
+		}
+	}
+
+	mem_heap_free(heap);
+
+	return(err);
 }
 
 /*****************************************************************//**
@@ -3312,8 +3732,7 @@ row_import_tablespace_for_mysql(
 	mutex_exit(&dict_sys->mutex);
 
 	if (err != DB_SUCCESS) {
-		return(row_import_tablespace_cleanup(
-			prebuilt, trx, NULL, err));
+		return(row_import_tablespace_cleanup(prebuilt, trx, NULL, err));
 	}
 
 	/* It is possible that the lsn's in the tablespace to be
@@ -3375,25 +3794,34 @@ row_import_tablespace_for_mysql(
 		return(row_import_tablespace_cleanup(prebuilt, trx, NULL, err));
 	}
 
-	/* Scan the indexes. In the clustered index, initialize DB_TRX_ID
-	and DB_ROLL_PTR.  If there is a DB_ROW_ID, ensure that the next
-	available DB_ROW_ID is not smaller than any DB_ROW_ID stored in
-	the table. Purge any delete-marked records from every index. */
+	/* Update index->page and SYS_INDEXES.PAGE_NO to match the
+	B-tree root page numbers in the tablespace. */
 
-	if (!dict_index_is_clust(dict_table_get_first_index(table))) {
+	/* TODO: The page numbers are currently not stored in the *.ibd file
+	but in a separate text file.
+
+	One possibility could be to write the relevant records of the
+	SYS_tables somewhere in the *.ibd file during EXPORT TABLESPACE.
+	Then, IMPORT TABLESPACE could also check that the index definitions
+	in the importing instance are close enough. */
+
+	err = row_import_tablespace_set_index_root(table);
+
+	if (err != DB_SUCCESS) {
+		return(row_import_tablespace_error(prebuilt, trx, NULL, err));
+	}
+
+	dict_index_t*	index = dict_table_get_first_index(table);
+
+	/* Scan the indexes. In the clustered index, initialize DB_TRX_ID
+	and DB_ROLL_PTR.  Ensure that the next available DB_ROW_ID is not
+	smaller than any DB_ROW_ID stored in the table. Purge any
+	delete-marked records from every index. */
+
+	if (!dict_index_is_clust(index)) {
 		return(row_import_tablespace_error(
 			prebuilt, trx, NULL, DB_CORRUPTION));
 	}
-
-	/* TODO: Update index->page and SYS_INDEXES.PAGE_NO to match the
-	B-tree root page numbers in the tablespace.  The page numbers are
-	currently not stored in the *.ibd file.  One possibility could be
-	to write the relevant records of the SYS_tables somewhere in the
-	*.ibd file during EXPORT TABLESPACE. Then, IMPORT TABLESPACE could
-	also check that the index definitions in the importing instance
-	are close enough. */
-
-	dict_index_t*	index = dict_table_get_first_index(table);
 
 	err = (db_err) btr_root_adjust_on_import(index);
 
@@ -3427,10 +3855,16 @@ row_import_tablespace_for_mysql(
 	table->ibd_file_missing = FALSE;
 	table->tablespace_discarded = FALSE;
 
-	err = row_import_tablespace_set_sys_max_row_id(prebuilt, table, &index);
+	index = dict_table_get_first_index(table);
 
-	if (err != DB_SUCCESS) {
-		return(row_import_tablespace_error(prebuilt, trx, index, err));
+	if (!dict_index_is_unique(index)) {
+		err = row_import_tablespace_set_sys_max_row_id(
+			prebuilt, table, &index);
+
+		if (err != DB_SUCCESS) {
+			return(row_import_tablespace_error(
+				prebuilt, trx, index, err));
+		}
 	}
 
 	/* Flush dirty blocks to the file. */

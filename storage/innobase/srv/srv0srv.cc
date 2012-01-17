@@ -2527,8 +2527,6 @@ srv_suspend_purge_coordinator(
 	srv_slot_t*	slot)		/*!< in/out: Purge coordinator
 					thread slot */
 {
-	fprintf(stderr, "purge suspend\n");
-
 	rw_lock_x_lock(&purge_sys->latch);
 
 	purge_sys->running = false;
@@ -2585,9 +2583,6 @@ srv_suspend_purge_coordinator(
 		}
 
 	} while (stop);
-
-
-	fprintf(stderr, "purge resuming\n");
 }
 
 /*********************************************************************//**
