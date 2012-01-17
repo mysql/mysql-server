@@ -2280,11 +2280,11 @@ fil_delete_tablespace(
 	ulint	id,	/*!< in: space id */
 	ibool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
 {
-	db_err		err;
 	fil_space_t*	space;
 	fil_node_t*	node;
 	ulint		count		= 0;
 	char*		path;
+	db_err		err = DB_SUCCESS;
 
 	ut_a(id != 0);
 stop_ibuf_merges:
