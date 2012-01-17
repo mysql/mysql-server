@@ -2049,7 +2049,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
                  "GTID_MODE.");
       DBUG_RETURN(1);
     }
-    if (abs(mi->master_gtid_mode - gtid_mode) > 1)
+    if (abs(static_cast<int>(mi->master_gtid_mode - gtid_mode)) > 1)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                  "The slave IO thread stops because the master has GTID_MODE "
