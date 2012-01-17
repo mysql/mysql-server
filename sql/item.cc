@@ -1404,12 +1404,27 @@ bool Item::get_time_from_non_temporal(MYSQL_TIME *ltime)
 }
 
 
+/*
+- Return NULL if argument is NULL.
+- Return zero if argument is not NULL, but we could not convert it to DATETIME.
+- Return zero if argument is not NULL and represents a valid DATETIME value,
+  but the value is out of the supported Unix timestamp range.
+*/
 bool Item::get_timeval(struct timeval *tm, int *warnings)
 {
   MYSQL_TIME ltime;
-  return (null_value=
-          (get_date(&ltime, TIME_FUZZY_DATE) ||
-           datetime_to_timeval(current_thd, &ltime, tm, warnings)));
+  if (get_date(&ltime, TIME_FUZZY_DATE))
+  {
+    if (null_value)
+      return true; /* Value is NULL */
+    goto zero; /* Could not extract date from the value */
+  }
+  if (datetime_to_timeval(current_thd, &ltime, tm, warnings))
+    goto zero; /* Value is out of the supported range */
+  return false; /* Value is a good Unix timestamp */
+zero:
+  tm->tv_sec= tm->tv_usec= 0;
+  return false;
 }
 
 
@@ -2696,8 +2711,11 @@ bool Item_field::get_time(MYSQL_TIME *ltime)
 
 bool Item_field::get_timeval(struct timeval *tm, int *warnings)
 {
-  return (null_value= (field->is_null() ||
-                       field->get_timestamp(tm, warnings)));
+  if ((null_value= field->is_null()))
+    return true;
+  if (field->get_timestamp(tm, warnings))
+    tm->tv_sec= tm->tv_usec= 0;
+  return false;
 }
 
 double Item_field::val_result()
@@ -7550,7 +7568,9 @@ bool Item_direct_ref::is_null()
 
 bool Item_direct_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
-  return (null_value=(*ref)->get_date(ltime,fuzzydate));
+  bool tmp= (*ref)->get_date(ltime, fuzzydate);
+  null_value= (*ref)->null_value;
+  return tmp;
 }
 
 
