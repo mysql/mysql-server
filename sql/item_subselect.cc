@@ -1672,10 +1672,6 @@ bool Item_allany_subselect::transform_into_max_min(JOIN *join)
 
     DBUG_EXECUTE("where",
                  print_where(item, "rewrite with MIN/MAX", QT_ORDINARY););
-    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-    {
-      select_lex->set_non_agg_field_used(false);
-    }
 
     save_allow_sum_func= thd->lex->allow_sum_func;
     thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
