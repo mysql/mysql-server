@@ -2199,7 +2199,7 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
 
 #ifdef HAVE_NDB_BINLOG
   ndbcluster_read_binlog_replication(thd, ndb, m_share, m_table,
-                                     ::server_id, table, FALSE);
+                                     ::server_id, FALSE);
 #endif
 
   DBUG_RETURN(0);
@@ -4805,6 +4805,7 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
   {
     res = conflict_fn->prep_func(m_share->m_cfn_share,
                                  op_type,
+                                 m_ndb_record,
                                  old_data,
                                  new_data,
                                  table->write_set,
@@ -5655,7 +5656,10 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
         for (k= 0; k < nkey; k++)
         {
           DBUG_ASSERT(pk_row != NULL);
-          const uchar* data= pk_row + cfn_share->m_offset[k];
+          const uchar* data=
+            (const uchar*) NdbDictionary::getValuePtr(key_rec,
+                                                      (const char*) pk_row,
+                                                      cfn_share->m_key_attrids[k]);
           if (ex_op->setValue((Uint32)(fixed_cols + k), (const char*)data) == -1)
           {
             err= ex_op->getNdbError();
@@ -9599,7 +9603,6 @@ int ha_ndbcluster::create(const char *name,
                                                           m_dbname,
                                                           m_tabname,
                                                           ::server_id,
-                                                          form,
                                                           &binlog_flags,
                                                           &conflict_fn,
                                                           args,
@@ -10078,7 +10081,6 @@ cleanup_failed:
         ndbcluster_apply_binlog_replication_info(thd,
                                                  share,
                                                  m_table,
-                                                 form,
                                                  conflict_fn,
                                                  args,
                                                  num_args,
@@ -10518,7 +10520,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 #ifdef HAVE_NDB_BINLOG
     if (share)
       ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
-                                         ::server_id, NULL, TRUE);
+                                         ::server_id, TRUE);
 #endif
     /* always create an event for the table */
     String event_name(INJECTOR_EVENT_LEN);

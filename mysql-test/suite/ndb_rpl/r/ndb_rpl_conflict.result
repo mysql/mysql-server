@@ -229,7 +229,51 @@ select server_id, master_server_id, count, a from t2_max$EX order by count;
 server_id	master_server_id	count	a
 2	1	1	3
 drop table t2_max, t2_max$EX;
+drop table t1_old, `t1_old$EX`, t1_max, `t1_max$EX`, t1_max_delete_win, `t1_max_delete_win$EX`;
+delete from mysql.ndb_replication;
+Test that online table distribution sets up conflict functions and exceptions tables
+insert into mysql.ndb_replication values ("test", "t1allsame", 0, 7, "NDB$MAX(X)");
+insert into mysql.ndb_replication values ("test", "t2diffex", 1, 7, "NDB$OLD(X)");
+insert into mysql.ndb_replication values ("test", "t2diffex", 3, 7, "NDB$MAX(X)");
+insert into mysql.ndb_replication values ("test", "t3oneex", 3, 7, "NDB$EPOCH()");
+create table t2diffex$EX (
+server_id int unsigned,
+master_server_id int unsigned,
+master_epoch bigint unsigned,
+count int unsigned,
+a int not null,
+primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+create table t3oneex$EX (
+server_id int unsigned,
+master_server_id int unsigned,
+master_epoch bigint unsigned,
+count int unsigned,
+a int not null,
+primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+create table t1allsame(a int primary key, b varchar(200), X int unsigned) engine=ndb;
+create table t2diffex(a int primary key, b varchar(200), X int unsigned) engine=ndb;
+create table t3oneex(a int primary key, b varchar(200)) engine=ndb;
+show variables like 'server_id';
+Variable_name	Value
+server_id	1
+MySQLD error output for server 1.1 matching pattern %NDB Slave%
+relevant
+[note] ndb slave: table test.t2diffex using conflict_fn ndb$old on attribute x.
+[note] ndb slave: table test.t2diffex logging exceptions to test.t2diffex$ex
+[note] ndb slave: table test.t1allsame using conflict_fn ndb$max on attribute x.
+[note] ndb slave: table test.t2_max using conflict_fn ndb$max on attribute x.
+show variables like 'server_id';
+Variable_name	Value
+server_id	3
+MySQLD error output for server 2.1 matching pattern %NDB Slave%
+relevant
+[warning] ndb slave: table test.t3oneex : no extra row author bits in table.
+[note] ndb slave: table test.t3oneex : cft_ndb_epoch[_trans], low epoch resolution
+[note] ndb slave: table test.t2diffex using conflict_fn ndb$max on attribute x.
+[note] ndb slave: table test.t2diffex logging exceptions to test.t2diffex$ex
+[note] ndb slave: table test.t1allsame using conflict_fn ndb$max on attribute x.
+[note] ndb slave: table test.t2_max using conflict_fn ndb$max on attribute x.
+drop table t3oneex, t2diffex, t1allsame, t3oneex$EX, t2diffex$EX;
 "Cleanup"
 drop table mysql.ndb_replication;
-drop table t1_old, `t1_old$EX`, t1_max, `t1_max$EX`, t1_max_delete_win, `t1_max_delete_win$EX`;
 include/rpl_end.inc

@@ -144,11 +144,9 @@ enum enum_conflict_fn_arg_type
 struct st_conflict_fn_arg
 {
   enum_conflict_fn_arg_type type;
-  const char *ptr;
-  uint32 len;
   union
   {
-    uint32 fieldno;      // CFAT_COLUMN_NAME
+    char resolveColNameBuff[ NAME_CHAR_LEN + 1 ]; // CFAT_COLUMN_NAME
     uint32 extraGciBits; // CFAT_EXTRA_GCI_BITS
   };
 };
@@ -176,6 +174,7 @@ enum enum_conflicting_op_type
 */
 typedef int (* prepare_detect_func) (struct st_ndbcluster_conflict_fn_share* cfn_share,
                                      enum_conflicting_op_type op_type,
+                                     const NdbRecord* data_record,
                                      const uchar* old_data,
                                      const uchar* new_data,
                                      const MY_BITMAP* write_set,
@@ -219,16 +218,21 @@ enum enum_conflict_fn_table_flags
   CFF_REFRESH_ROWS = 1
 };
 
+/*
+   Maximum supported key parts (16)
+   (Ndb supports 32, but MySQL has a lower limit)
+*/
+static const int NDB_MAX_KEY_PARTS = MAX_REF_PARTS;
+
 typedef struct st_ndbcluster_conflict_fn_share {
   const st_conflict_fn_def* m_conflict_fn;
 
   /* info about original table */
   uint8 m_pk_cols;
-  uint8 m_resolve_column;
+  uint16 m_resolve_column;
   uint8 m_resolve_size;
   uint8 m_flags;
-  uint16 m_offset[16];
-  uint16 m_resolve_offset;
+  uint16 m_key_attrids[ NDB_MAX_KEY_PARTS ];
 
   const NdbDictionary::Table *m_ex_tab;
   uint32 m_count;
