@@ -6757,6 +6757,71 @@ void updateInjectorStats(Ndb* schemaNdb, Ndb* dataNdb)
     dataNdb->getClientStat(Ndb::EventBytesRecvdCount);
 }
 
+/**
+   injectApplyStatusWriteRow
+
+   Inject a WRITE_ROW event on the ndb_apply_status table into
+   the Binlog.
+   This contains our server_id and the supplied epoch number.
+   When applied on the Slave it gives a transactional position
+   marker
+*/
+static
+bool
+injectApplyStatusWriteRow(injector::transaction& trans,
+                          ulonglong gci)
+{
+  DBUG_ENTER("injectApplyStatusWriteRow");
+  if (ndb_apply_status_share == NULL)
+  {
+    sql_print_error("NDB: Could not get apply status share");
+    DBUG_ASSERT(ndb_apply_status_share != NULL);
+    DBUG_RETURN(false);
+  }
+
+  /* Build row buffer for generated ndb_apply_status
+     WRITE_ROW event
+     First get the relevant table structure.
+  */
+  DBUG_ASSERT(!ndb_apply_status_share->event_data);
+  DBUG_ASSERT(ndb_apply_status_share->op);
+  Ndb_event_data* event_data=
+    (Ndb_event_data *) ndb_apply_status_share->op->getCustomData();
+  DBUG_ASSERT(event_data);
+  DBUG_ASSERT(event_data->table);
+  TABLE* apply_status_table= event_data->table;
+
+  /*
+    Intialize apply_status_table->record[0]
+  */
+  empty_record(apply_status_table);
+
+  apply_status_table->field[0]->store((longlong)::server_id, true);
+  apply_status_table->field[1]->store((longlong)gci, true);
+  apply_status_table->field[2]->store("", 0, &my_charset_bin);
+  apply_status_table->field[3]->store((longlong)0, true);
+  apply_status_table->field[4]->store((longlong)0, true);
+#ifndef DBUG_OFF
+  const LEX_STRING& name= apply_status_table->s->table_name;
+  DBUG_PRINT("info", ("use_table: %.*s",
+                      (int) name.length, name.str));
+#endif
+  injector::transaction::table tbl(apply_status_table, true);
+  int ret = trans.use_table(::server_id, tbl);
+  assert(ret == 0); NDB_IGNORE_VALUE(ret);
+
+  ret= trans.write_row(::server_id,
+                       injector::transaction::table(apply_status_table,
+                                                    true),
+                       &apply_status_table->s->all_set,
+                       apply_status_table->s->fields,
+                       apply_status_table->record[0]);
+
+  assert(ret == 0);
+
+  DBUG_RETURN(true);
+}
+
 enum Binlog_thread_state
 {
   BCCC_running= 0,
@@ -7240,44 +7305,6 @@ restart_cluster_failure:
     {
       DBUG_PRINT("info", ("pollEvents res: %d", res));
       thd->proc_info= "Processing events";
-      uchar apply_status_buf[512];
-      TABLE *apply_status_table= NULL;
-      if (ndb_apply_status_share)
-      {
-        /*
-          We construct the buffer to write the apply status binlog
-          event here, as the table->record[0] buffer is referenced
-          by the apply status event operation, and will be filled
-          with data at the nextEvent call if the first event should
-          happen to be from the apply status table
-        */
-        Ndb_event_data *event_data= ndb_apply_status_share->event_data;
-        if (!event_data)
-        {
-          DBUG_ASSERT(ndb_apply_status_share->op);
-          event_data= 
-            (Ndb_event_data *) ndb_apply_status_share->op->getCustomData();
-          DBUG_ASSERT(event_data);
-        }
-        apply_status_table= event_data->table;
-
-        /* 
-           Intialize apply_status_table->record[0] 
-        */
-        empty_record(apply_status_table);
-
-        apply_status_table->field[0]->store((longlong)::server_id, true);
-        /*
-          gci is added later, just before writing to binlog as gci
-          is unknown here
-        */
-        apply_status_table->field[2]->store("", 0, &my_charset_bin);
-        apply_status_table->field[3]->store((longlong)0, true);
-        apply_status_table->field[4]->store((longlong)0, true);
-        DBUG_ASSERT(sizeof(apply_status_buf) >= apply_status_table->s->reclength);
-        memcpy(apply_status_buf, apply_status_table->record[0],
-               apply_status_table->s->reclength);
-      }
       NdbEventOperation *pOp= i_ndb->nextEvent();
       ndb_binlog_index_row _row;
       ndb_binlog_index_row *rows= &_row;
@@ -7405,35 +7432,11 @@ restart_cluster_failure:
         }
         if (trans.good())
         {
-          if (apply_status_table)
+          /* Inject ndb_apply_status WRITE_ROW event */
+          if (!injectApplyStatusWriteRow(trans,
+                                         gci))
           {
-#ifndef DBUG_OFF
-            const LEX_STRING& name= apply_status_table->s->table_name;
-            DBUG_PRINT("info", ("use_table: %.*s",
-                                (int) name.length, name.str));
-#endif
-            injector::transaction::table tbl(apply_status_table, true);
-            int ret = trans.use_table(::server_id, tbl);
-            assert(ret == 0); NDB_IGNORE_VALUE(ret);
-
-            /* add the gci to the record */
-            Field *field= apply_status_table->field[1];
-            my_ptrdiff_t row_offset=
-              (my_ptrdiff_t) (apply_status_buf - apply_status_table->record[0]);
-            field->move_field_offset(row_offset);
-            field->store((longlong)gci, true);
-            field->move_field_offset(-row_offset);
-
-            trans.write_row(::server_id,
-                            injector::transaction::table(apply_status_table,
-                                                         true),
-                            &apply_status_table->s->all_set,
-                            apply_status_table->s->fields,
-                            apply_status_buf);
-          }
-          else
-          {
-            sql_print_error("NDB: Could not get apply status share");
+            sql_print_error("NDB Binlog: Failed to inject apply status write row");
           }
         }
 #ifdef RUN_NDB_BINLOG_TIMER
