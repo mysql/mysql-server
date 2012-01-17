@@ -1,3 +1,4 @@
+call mtr.add_suppression("santa.claus.ipv4.example.com");
 flush status;
 flush hosts;
 select @@global.debug;

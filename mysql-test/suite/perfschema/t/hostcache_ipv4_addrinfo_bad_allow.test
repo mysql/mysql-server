@@ -32,9 +32,11 @@
 --source include/have_debug.inc
 --source include/have_perfschema.inc
 
-# [Warning] IP address '192.0.2.4' could not be resolved:
-# no reverse address mapping.
-# call mtr.add_suppression("192.0.2.4");
+# [Warning] Hostname 'santa.claus.ipv4.example.com' does not resolve to '192.0.2.4'.
+# [Note] Hostname 'santa.claus.ipv4.example.com' has the following IP addresses:
+# [Note]  - 192.0.2.126
+# [Note]  - 192.0.2.127
+call mtr.add_suppression("santa.claus.ipv4.example.com");
 
 flush status;
 flush hosts;

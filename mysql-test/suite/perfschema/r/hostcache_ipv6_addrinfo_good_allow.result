@@ -1,4 +1,4 @@
-call mtr.add_suppression("santa.claus.ipv4.example.com");
+call mtr.add_suppression("192.0.2.4");
 flush status;
 flush hosts;
 select @@global.debug;
@@ -7,53 +7,66 @@ select @@global.debug;
 show global status like "%peer%";
 Variable_name	Value
 Peer_address_errors	0
+grant select on test.* to 'root'@'santa.claus.ipv6.example.com';
 select "Con1 is alive";
 Con1 is alive
 Con1 is alive
 select current_user();
 current_user()
 root@localhost
-set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_error_again";
-ERROR HY000: Host '192.0.2.4' is not allowed to connect to this MySQL server
+set global debug= "+d,vio_peer_addr_fake_ipv6,getnameinfo_fake_ipv6,getaddrinfo_fake_good_ipv6";
+select "Con2 is alive";
+Con2 is alive
+Con2 is alive
+select current_user();
+current_user()
+root@santa.claus.ipv6.example.com
 show global status like "%peer%";
 Variable_name	Value
 Peer_address_errors	0
 select * from performance_schema.host_cache;
-IP	192.0.2.4
-HOST	NULL
-HOST_VALIDATED	NO
-SUM_BLOCKING_ERRORS	1
+IP	2001:db8::6:6
+HOST	santa.claus.ipv6.example.com
+HOST_VALIDATED	YES
+SUM_BLOCKING_ERRORS	0
 COUNT_NAMEINFO_TRANSIENT_ERRORS	0
 COUNT_NAMEINFO_PERMANENT_ERRORS	0
 COUNT_FORMAT_ERRORS	0
-COUNT_ADDRINFO_TRANSIENT_ERRORS	1
+COUNT_ADDRINFO_TRANSIENT_ERRORS	0
 COUNT_ADDRINFO_PERMANENT_ERRORS	0
 COUNT_FCRDNS_ERRORS	0
-COUNT_HOST_ACL_ERRORS	1
+COUNT_HOST_ACL_ERRORS	0
 COUNT_HANDSHAKE_ERRORS	0
 COUNT_AUTHENTICATION_ERRORS	0
 COUNT_USER_ACL_ERRORS	0
 COUNT_LOCAL_ERRORS	0
 COUNT_UNKNOWN_ERRORS	0
-ERROR HY000: Host '192.0.2.4' is not allowed to connect to this MySQL server
+select "Con3 is alive";
+Con3 is alive
+Con3 is alive
+select current_user();
+current_user()
+root@santa.claus.ipv6.example.com
 show global status like "%peer%";
 Variable_name	Value
 Peer_address_errors	0
 select * from performance_schema.host_cache;
-IP	192.0.2.4
-HOST	NULL
-HOST_VALIDATED	NO
-SUM_BLOCKING_ERRORS	2
+IP	2001:db8::6:6
+HOST	santa.claus.ipv6.example.com
+HOST_VALIDATED	YES
+SUM_BLOCKING_ERRORS	0
 COUNT_NAMEINFO_TRANSIENT_ERRORS	0
 COUNT_NAMEINFO_PERMANENT_ERRORS	0
 COUNT_FORMAT_ERRORS	0
-COUNT_ADDRINFO_TRANSIENT_ERRORS	2
+COUNT_ADDRINFO_TRANSIENT_ERRORS	0
 COUNT_ADDRINFO_PERMANENT_ERRORS	0
 COUNT_FCRDNS_ERRORS	0
-COUNT_HOST_ACL_ERRORS	2
+COUNT_HOST_ACL_ERRORS	0
 COUNT_HANDSHAKE_ERRORS	0
 COUNT_AUTHENTICATION_ERRORS	0
 COUNT_USER_ACL_ERRORS	0
 COUNT_LOCAL_ERRORS	0
 COUNT_UNKNOWN_ERRORS	0
+revoke select on test.* from 'root'@'santa.claus.ipv6.example.com';
+drop user 'root'@'santa.claus.ipv6.example.com';
 set global debug= default;

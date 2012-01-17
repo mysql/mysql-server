@@ -480,11 +480,28 @@ static int check_connection(THD *thd)
                       struct sockaddr *sa= (sockaddr *) &net->vio->remote;
                       sa->sa_family= AF_INET;
                       struct in_addr *ip4= &((struct sockaddr_in *) sa)->sin_addr;
-                      ip4->s_addr= htonl(0xC0000204); /* ipv4 192.0.2.4 */
-                      strcpy(ip, "192.0.2.4");
+                      /* See RFC 5737, 192.0.2.0/24 is reserved. */
+                      const char* fake= "192.0.2.4";
+                      inet_pton(AF_INET, fake, ip4);
+                      strcpy(ip, fake);
                       peer_rc= 0;
                     }
                     );
+
+#ifdef HAVE_IPV6
+    DBUG_EXECUTE_IF("vio_peer_addr_fake_ipv6",
+                    {
+                      struct sockaddr_in6 *sa= (sockaddr_in6 *) &net->vio->remote;
+                      sa->sin6_family= AF_INET6;
+                      struct in6_addr *ip6= & sa->sin6_addr;
+                      /* See RFC 3849, ipv6 2001:DB8::/32 is reserved. */
+                      const char* fake= "2001:db8::6:6";
+                      inet_pton(AF_INET6, fake, ip6);
+                      strcpy(ip, fake);
+                      peer_rc= 0;
+                    }
+                    );
+#endif /* HAVE_IPV6 */
 
     if (peer_rc)
     {

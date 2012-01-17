@@ -19,28 +19,26 @@
 --source include/have_debug.inc
 --source include/have_perfschema.inc
 
-# [Warning] Host name 'santa.claus.ipv4.example.com' could not be resolved:
+# [Warning] Host name 'santa.claus.ipv6.example.com' could not be resolved:
 # Temporary failure in name resolution
-call mtr.add_suppression("santa.claus.ipv4.example.com");
+call mtr.add_suppression("santa.claus.ipv6.example.com");
 
 flush status;
 flush hosts;
 select @@global.debug;
 show global status like "%peer%";
 
-grant select on test.* to 'root'@'santa.claus.ipv4.example.com';
-
-connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+connect (con1,"::1",root,,test,$MASTER_MYPORT,);
 select "Con1 is alive";
 select current_user();
 disconnect con1;
 
 --connection default
-set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_error_again";
+set global debug= "+d,vio_peer_addr_fake_ipv6,getnameinfo_fake_ipv6,getaddrinfo_error_again";
 
 --disable_query_log
 --error ER_HOST_NOT_PRIVILEGED
-connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+connect (con2,"::1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
@@ -48,14 +46,11 @@ connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 
 --disable_query_log
 --error ER_HOST_NOT_PRIVILEGED
-connect (con3,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+connect (con3,"::1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
 --source ../include/hostcache_dump.inc
-
-revoke select on test.* from 'root'@'santa.claus.ipv4.example.com';
-drop user 'root'@'santa.claus.ipv4.example.com';
 
 set global debug= default;
 
