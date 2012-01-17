@@ -71,8 +71,11 @@ enum db_err {
 	DB_TABLESPACE_ALREADY_EXISTS,	/*!< we cannot create a new single-table
 					tablespace because a file of the same
 					name already exists */
-	DB_TABLESPACE_DELETED,		/*!< tablespace does not exist or is
+	DB_TABLESPACE_DELETED,		/*!< tablespace was deleted or is
 					being dropped right now */
+	DB_TABLESPACE_NOT_FOUND,	/*<! Attempt to delete a tablespace
+					instance that was not found in the
+					tablespace hash table */
 	DB_LOCK_TABLE_FULL,		/*!< lock structs have exhausted the
 					buffer pool (for big transactions,
 					InnoDB stores the lock structs in the
@@ -115,6 +118,8 @@ enum db_err {
 	DB_READ_ONLY,			/*!< Update operation attempted in
 					a read-only transaction */
 	DB_FTS_INVALID_DOCID,		/* FTS Doc ID cannot be zero */
+
+	DB_IO_ERROR,			/*!< Generic IO error */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

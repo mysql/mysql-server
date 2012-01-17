@@ -706,7 +706,9 @@ ut_strerr(
 	case DB_TABLESPACE_ALREADY_EXISTS:
 		return("Tablespace already exists");
 	case DB_TABLESPACE_DELETED:
-		return("No such tablespace");
+		return("Tablespace deleted or being deleted");
+	case DB_TABLESPACE_NOT_FOUND:
+		return("Tablespace not found");
 	case DB_LOCK_TABLE_FULL:
 		return("Lock structs have exhausted the buffer pool");
 	case DB_FOREIGN_DUPLICATE_KEY:
@@ -745,6 +747,8 @@ ut_strerr(
 		return("Undo record too big");
 	case DB_END_OF_INDEX:
 		return("End of index");
+	case DB_IO_ERROR:
+		return("IO error");
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
 	}

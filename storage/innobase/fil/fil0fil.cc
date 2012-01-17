@@ -2184,7 +2184,8 @@ fil_op_log_parse_or_replay(
 	switch (type) {
 	case MLOG_FILE_DELETE:
 		if (fil_tablespace_exists_in_mem(space_id)) {
-			ut_a(fil_delete_tablespace(space_id, FALSE));
+			ut_a(fil_delete_tablespace(space_id, FALSE)
+			     == DB_SUCCESS);
 		}
 
 		break;
@@ -2271,15 +2272,15 @@ fil_make_ibt_name(
 /*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache. If rename == TRUE we "free" all pages used by the tablespace.
-@return	TRUE if success */
+@return	DB_SUCCESS or error */
 UNIV_INTERN
-ibool
+db_err
 fil_delete_tablespace(
 /*==================*/
 	ulint	id,	/*!< in: space id */
 	ibool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
 {
-	ibool		success;
+	db_err		err;
 	fil_space_t*	space;
 	fil_node_t*	node;
 	ulint		count		= 0;
@@ -2341,7 +2342,7 @@ try_again:
 
 		mutex_exit(&fil_system->mutex);
 
-		return(FALSE);
+		return(DB_TABLESPACE_NOT_FOUND);
 	}
 
 	ut_a(space);
@@ -2406,36 +2407,40 @@ try_again:
 
 	mutex_enter(&fil_system->mutex);
 
-	success = fil_space_free(id, TRUE);
+	if (!fil_space_free(id, TRUE)) {
+		err = DB_TABLESPACE_NOT_FOUND;
+	}
 
 	mutex_exit(&fil_system->mutex);
 
-	if (success) {
-		if (rename) {
-			char*	newpath = fil_make_ibt_name(path);
-
-			success = os_file_rename(innodb_file_data_key,
-						 path, newpath);
-
-			if (!success) {
-				os_file_delete_if_exists(newpath);
-				success = os_file_rename(innodb_file_data_key,
-							 path, newpath);
-			}
-
-			mem_free(newpath);
-		} else {
-			success = os_file_delete(path);
-
-			if (!success) {
-				success = os_file_delete_if_exists(path);
-			}
-		}
-	} else {
+	if (err != DB_SUCCESS) {
 		rw_lock_x_unlock(&space->latch);
+	} else if (rename) {
+		char*	newpath = fil_make_ibt_name(path);
+
+		if (!os_file_rename(
+			innodb_file_data_key, path, newpath)
+		    && !os_file_delete_if_exists(newpath)
+		    && !os_file_rename(
+			innodb_file_data_key, path, newpath)) {
+
+			/* Note: This is because we have removed the
+			tablespace instance from the cache. */
+
+			err = DB_IO_ERROR;
+		}
+
+		mem_free(newpath);
+
+	} else if (!os_file_delete(path) && !os_file_delete_if_exists(path)) {
+
+		/* Note: This is because we have removed the
+		tablespace instance from the cache. */
+
+		err = DB_IO_ERROR;
 	}
 
-	if (success) {
+	if (err == DB_SUCCESS) {
 #ifndef UNIV_HOTBACKUP
 		/* Write a log record about the deletion of the .ibd
 		file, so that ibbackup can replay it in the
@@ -2452,12 +2457,12 @@ try_again:
 #endif
 		mem_free(path);
 
-		return(TRUE);
+		return(DB_SUCCESS);
 	}
 
 	mem_free(path);
 
-	return(FALSE);
+	return(err);
 }
 
 /*******************************************************************//**
@@ -2499,35 +2504,46 @@ memory cache. Discarding is like deleting a tablespace, but
     same id as it originally had.
 
  4. Free all the pages in use by the tablespace if rename=TRUE.
-@return	TRUE if success */
+@return	DB_SUCCESS or error */
 UNIV_INTERN
-ibool
+db_err
 fil_discard_tablespace(
 /*===================*/
 	ulint	id,	/*!< in: space id */
 	ibool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
 {
-	ibool	success;
+	db_err	err;
 
-	success = fil_delete_tablespace(id, rename);
+	switch (err = fil_delete_tablespace(id, rename)) {
+	case DB_SUCCESS:
+		break;
 
-	if (!success) {
+	case DB_IO_ERROR:
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Warning: cannot delete tablespace %lu"
-			" in DISCARD TABLESPACE.\n", (ulong) id);
+			" InnoDB: Warning: While deleting tablespace "
+			"%lu in DISCARD TABLESPACE. File rename/delete"
+			" failed, IO Error.\n",
+			(ulong) id);
+		break;
 
+	case DB_TABLESPACE_NOT_FOUND:
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Remove the insert buffer entries for "
-			"this tablespace.\n");
+			" InnoDB: Warning: cannot delete tablespace "
+			"%lu in DISCARD TABLESPACE. Not found",
+			(ulong) id);
+		break;
+
+	default:
+		ut_error;
 	}
 
 	/* Remove all insert buffer entries for the tablespace */
 
 	ibuf_delete_for_discarded_space(id);
 
-	return(success);
+	return(err);
 }
 #endif /* !UNIV_HOTBACKUP */
 
