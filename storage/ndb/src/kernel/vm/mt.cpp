@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 #include <ndb_global.h>
 
+#define NDBD_MULTITHREADED
+
 #include <VMSignal.hpp>
 #include <kernel_types.h>
 #include <Prio.hpp>
@@ -24,6 +26,7 @@
 #include <GlobalData.hpp>
 #include <WatchDog.hpp>
 #include <TransporterDefinitions.hpp>
+#include <TransporterRegistry.hpp>
 #include "FastScheduler.hpp"
 #include "mt.hpp"
 #include <DebuggerNames.hpp>
@@ -928,12 +931,11 @@ struct mt_send_handle  : public TransporterSendBufferHandle
   virtual bool forceSend(NodeId node);
 };
 
-struct trp_callback : public TransporterCallbackKernel
+struct trp_callback : public TransporterCallback
 {
   trp_callback() {}
 
   /* Callback interface. */
-  int checkJobBuffer();
   void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
   void lock_transporter(NodeId node);
   void unlock_transporter(NodeId node);
@@ -1692,7 +1694,7 @@ trp_callback::unlock_transporter(NodeId node)
 }
 
 int
-trp_callback::checkJobBuffer()
+mt_checkDoJob()
 {
   struct thr_repository* rep = &g_thr_repository;
   if (unlikely(check_job_buffers(rep)))
@@ -2824,8 +2826,6 @@ aligned_signal(unsigned char signal_buf[SIGBUF_SIZE], unsigned thr_no)
   return (Signal *)sigtmp;
 }
 
-Uint32 receiverThreadId;
-
 /*
  * We only do receive in receiver thread(s), no other threads do receive.
  *
@@ -2836,6 +2836,14 @@ Uint32 receiverThreadId;
  * receive loop; this way we avoid races between update_connections() and
  * TRPMAN calls into the transporters.
  */
+
+/**
+ * Array of pointers to TransporterReceiveHandleKernel
+ *   these are not used "in traffic"
+ */
+TransporterReceiveHandleKernel *
+  g_trp_receive_handle_ptr[MAX_NDBMT_RECEIVE_THREADS];
+
 extern "C"
 void *
 mt_receiver_thread_main(void *thr_arg)
@@ -2848,20 +2856,30 @@ mt_receiver_thread_main(void *thr_arg)
   Uint32& watchDogCounter = selfptr->m_watchdog_counter;
   Uint32 thrSignalId = 0;
   bool has_received = false;
-  const unsigned recv_thread_no = 0;
+  const unsigned recv_thread_idx = 0;
 
   init_thread(selfptr);
-  receiverThreadId = thr_no;
   signal = aligned_signal(signal_buf, thr_no);
 
+  /**
+   * Object that keeps track of our pollReceive-state
+   */
+  TransporterReceiveHandleKernel recvdata(thr_no, recv_thread_idx);
+  globalTransporterRegistry.init(recvdata);
+
+  /**
+   * Save pointer to this for management/error-insert
+   */
+  g_trp_receive_handle_ptr[recv_thread_idx] = &recvdata;
+
   while (globalData.theRestartFlag != perform_stop)
-  { 
+  {
     static int cnt = 0;
 
     if (cnt == 0)
     {
       watchDogCounter = 5;
-      globalTransporterRegistry.update_connections();
+      globalTransporterRegistry.update_connections(recvdata);
     }
     cnt = (cnt + 1) & 15;
 
@@ -2883,14 +2901,14 @@ mt_receiver_thread_main(void *thr_arg)
     watchDogCounter = 7;
 
     has_received = false;
-    if (globalTransporterRegistry.pollReceive(1))
+    if (globalTransporterRegistry.pollReceive(1, recvdata))
     {
       if (check_job_buffers(rep) == 0)
       {
 	watchDogCounter = 8;
-        lock(&rep->m_receive_lock[recv_thread_no]);
-        globalTransporterRegistry.performReceive();
-        unlock(&rep->m_receive_lock[recv_thread_no]);
+        lock(&rep->m_receive_lock[recv_thread_idx]);
+        globalTransporterRegistry.performReceive(recvdata);
+        unlock(&rep->m_receive_lock[recv_thread_idx]);
         has_received = true;
       }
     }
@@ -4145,6 +4163,16 @@ mt_get_thr_stat(class SimulatedBlock * block, ndb_thr_stat* dst)
   dst->local_sent_priob = selfptr->m_stat.m_priob_count;
 }
 
+TransporterReceiveHandle *
+mt_get_trp_receive_handle(unsigned instance)
+{
+  assert(instance > 0 && instance <= MAX_NDBMT_RECEIVE_THREADS);
+  if (instance > 0 && instance <= MAX_NDBMT_RECEIVE_THREADS)
+  {
+    return g_trp_receive_handle_ptr[instance - 1 /* proxy */];
+  }
+  return 0;
+}
 
 /**
  * Global data
@@ -4153,4 +4181,5 @@ struct thr_repository g_thr_repository;
 
 struct trp_callback g_trp_callback;
 
-TransporterRegistry globalTransporterRegistry(&g_trp_callback, false);
+TransporterRegistry globalTransporterRegistry(&g_trp_callback, NULL,
+                                              false);
