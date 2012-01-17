@@ -2050,6 +2050,15 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     /* Set first_unmatched for the last inner table of this group */
     join_tab->last_inner->first_unmatched= join_tab;
   }
+  if (join_tab->loosescan_match_tab)
+  {
+    /*
+      join_tab is the first table of a LooseScan range. Reset the LooseScan
+      matching for this round of execution.
+    */
+    join_tab->loosescan_match_tab->found_match= false;
+  }
+
   join->thd->get_stmt_da()->reset_current_row_for_warning();
 
   /* Materialize table prior reading it */
@@ -2234,8 +2243,9 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
   DBUG_ENTER("evaluate_join_record");
 
   DBUG_PRINT("enter",
-             ("evaluate_join_record join: %p join_tab: %p"
-              " cond: %p error: %d", join, join_tab, condition, error));
+             ("join: %p join_tab index: %d table: %s cond: %p error: %d",
+              join, static_cast<int>(join_tab - join_tab->join->join_tab),
+              join_tab->table->alias, condition, error));
   if (error > 0 || (join->thd->is_error()))     // Fatal error
     DBUG_RETURN(NESTED_LOOP_ERROR);
   if (error < 0)
@@ -2642,10 +2652,10 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     }
   }
 
-  // We cannot handle outer-joined tables with expensive join conditions here:
-  DBUG_ASSERT(!(*tab->on_expr_ref && (*tab->on_expr_ref)->is_expensive()));
   if (*tab->on_expr_ref && !table->null_row)
   {
+    // We cannot handle outer-joined tables with expensive join conditions here:
+    DBUG_ASSERT(!(*tab->on_expr_ref)->is_expensive());
     if ((table->null_row= test((*tab->on_expr_ref)->val_int() == 0)))
       mark_as_null_row(table);  
   }
