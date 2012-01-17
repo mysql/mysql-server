@@ -51,6 +51,7 @@ start slave;
 --let $slave_param_value=1236
 --source include/wait_for_slave_param.inc
 
+--let $slave_io_error_replace= / at [0-9]*/ at XXX/ /\.\/*master-bin/master-bin/
 --let $status_items= Last_IO_Errno, Last_IO_Error
 --source include/show_slave_status.inc
 

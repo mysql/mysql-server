@@ -447,8 +447,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   String* packet = &thd->packet;
   int error;
   const char *errmsg = "Unknown error";
-  const char *fmt= "%s; the last event was read from '%s' at %s, the last byte read was read from '%s' at %s.";
-  char llbuff1[22], llbuff2[22];
+  char llbuff0[22], llbuff1[22], llbuff2[22];
   char error_text[MAX_SLAVE_ERRMSG]; // to be send to slave via my_message()
   NET* net = &thd->net;
   mysql_mutex_t *log_lock;
@@ -468,16 +467,15 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   */
   ulonglong heartbeat_period= get_heartbeat_period(thd);
   struct timespec heartbeat_buf;
-  struct event_coordinates coord_buf;
   struct timespec *heartbeat_ts= NULL;
-  struct event_coordinates *coord= NULL;
+  const LOG_POS_COORD start_coord= { log_ident, pos },
+    *p_start_coord= &start_coord;
+  LOG_POS_COORD coord_buf= { log_file_name, BIN_LOG_HEADER_SIZE },
+    *p_coord= &coord_buf;
   if (heartbeat_period != LL(0))
   {
     heartbeat_ts= &heartbeat_buf;
     set_timespec_nsec(*heartbeat_ts, 0);
-    coord= &coord_buf;
-    coord->file_name= log_file_name; // initialization basing on what slave remembers
-    coord->pos= pos;
   }
   sql_print_information("Start binlog_dump to slave_server(%d), pos(%s, %lu)",
                         thd->server_id, log_ident, (ulong)pos);
@@ -597,6 +595,7 @@ impossible position";
     mysql_bin_log, and it's already inited, and it will be destroyed
     only at shutdown).
   */
+  p_coord->pos= pos; // the first hb matches the slave's last seen value
   log_lock= mysql_bin_log.get_log_lock();
   log_cond= mysql_bin_log.get_log_cond();
   if (pos > BIN_LOG_HEADER_SIZE)
@@ -694,8 +693,7 @@ impossible position";
       /*
         log's filename does not change while it's active
       */
-      if (coord)
-        coord->pos= uint4korr(packet->ptr() + ev_offset + LOG_POS_OFFSET);
+      p_coord->pos= uint4korr(packet->ptr() + ev_offset + LOG_POS_OFFSET);
 
       event_type= (Log_event_type)((*packet)[LOG_EVENT_OFFSET+ev_offset]);
       DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
@@ -851,8 +849,7 @@ impossible position";
 	  /* we read successfully, so we'll need to send it to the slave */
           mysql_mutex_unlock(log_lock);
 	  read_packet = 1;
-          if (coord)
-            coord->pos= uint4korr(packet->ptr() + ev_offset + LOG_POS_OFFSET);
+          p_coord->pos= uint4korr(packet->ptr() + ev_offset + LOG_POS_OFFSET);
           event_type= (Log_event_type)((*packet)[LOG_EVENT_OFFSET+ev_offset]);
 	  break;
 
@@ -874,16 +871,16 @@ impossible position";
           signal_cnt= mysql_bin_log.signal_cnt;
           do 
           {
-            if (coord)
+            if (heartbeat_period != 0)
             {
-              DBUG_ASSERT(heartbeat_ts && heartbeat_period != 0);
+              DBUG_ASSERT(heartbeat_ts);
               set_timespec_nsec(*heartbeat_ts, heartbeat_period);
             }
             thd->enter_cond(log_cond, log_lock,
                             "Master has sent all binlog to slave; "
                             "waiting for binlog to be updated");
             ret= mysql_bin_log.wait_for_update_bin_log(thd, heartbeat_ts);
-            DBUG_ASSERT(ret == 0 || (heartbeat_period != 0 && coord != NULL));
+            DBUG_ASSERT(ret == 0 || (heartbeat_period != 0));
             if (ret == ETIMEDOUT || ret == ETIME)
             {
 #ifndef DBUG_OFF
@@ -901,7 +898,7 @@ impossible position";
                 thd->exit_cond(old_msg);
                 goto err;
               }
-              if (send_heartbeat_event(net, packet, coord))
+              if (send_heartbeat_event(net, packet, p_coord))
               {
                 errmsg = "Failed on my_net_write()";
                 my_errno= ER_UNKNOWN_ERROR;
@@ -1012,8 +1009,7 @@ impossible position";
 	goto err;
       }
 
-      if (coord)
-        coord->file_name= log_file_name; // reset to the next
+      p_coord->file_name= log_file_name; // reset to the next
     }
   }
 
@@ -1038,9 +1034,12 @@ err:
        detailing the fatal error message with coordinates 
        of the last position read.
     */
+    const char *fmt= "%s; the start event position from '%s' at %s, the last event was read from '%s' at %s, the last byte read was read from '%s' at %s.";
     my_snprintf(error_text, sizeof(error_text), fmt, errmsg,
-                coord->file_name, (llstr(coord->pos, llbuff1), llbuff1),
-                log_file_name, (llstr(my_b_tell(&log), llbuff2), llbuff2));
+                p_start_coord->file_name,
+                (llstr(p_start_coord->pos, llbuff0), llbuff0),
+                p_coord->file_name, (llstr(p_coord->pos, llbuff1), llbuff1),
+                log_file_name,    (llstr(my_b_tell(&log), llbuff2), llbuff2));
   }
   else
     strcpy(error_text, errmsg);
