@@ -33,8 +33,7 @@ public:
   void aggregate(const Host_errors *errors);
 
   /** Number of blocking errors. */
-  uint get_blocking_errors();
-
+  uint m_blocking_errors;
   /** Number of transient errors from getnameinfo(). */
   uint m_nameinfo_transient_errors;
   /** Number of permanent errors from getnameinfo(). */

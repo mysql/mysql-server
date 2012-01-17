@@ -1,3 +1,4 @@
+call mtr.add_suppression("santa.claus.ipv6.example.com");
 flush status;
 flush hosts;
 select @@global.debug;
@@ -21,7 +22,7 @@ select * from performance_schema.host_cache;
 IP	2001:db8::6:6
 HOST	NULL
 HOST_VALIDATED	YES
-SUM_BLOCKING_ERRORS	1
+SUM_BLOCKING_ERRORS	0
 COUNT_NAMEINFO_TRANSIENT_ERRORS	0
 COUNT_NAMEINFO_PERMANENT_ERRORS	0
 COUNT_FORMAT_ERRORS	0
@@ -42,7 +43,7 @@ select * from performance_schema.host_cache;
 IP	2001:db8::6:6
 HOST	NULL
 HOST_VALIDATED	YES
-SUM_BLOCKING_ERRORS	2
+SUM_BLOCKING_ERRORS	0
 COUNT_NAMEINFO_TRANSIENT_ERRORS	0
 COUNT_NAMEINFO_PERMANENT_ERRORS	0
 COUNT_FORMAT_ERRORS	0

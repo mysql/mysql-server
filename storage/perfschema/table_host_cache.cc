@@ -201,7 +201,7 @@ void table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
   if (row->m_hostname_length > 0)
     strncpy(row->m_hostname, entry->m_hostname, row->m_hostname_length);
   row->m_host_validated= entry->m_host_validated;
-  row->m_sum_blocking_errors= entry->m_errors.get_blocking_errors();
+  row->m_sum_blocking_errors= entry->m_errors.m_blocking_errors;
   row->m_count_nameinfo_transient_errors= entry->m_errors.m_nameinfo_transient_errors;
   row->m_count_nameinfo_permanent_errors= entry->m_errors.m_nameinfo_permanent_errors;
   row->m_count_format_errors= entry->m_errors.m_format_errors;

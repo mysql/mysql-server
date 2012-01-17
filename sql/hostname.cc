@@ -47,7 +47,8 @@ extern "C" {					// Because of SCO 3.2V4.2
 #endif
 
 Host_errors::Host_errors()
-: m_nameinfo_transient_errors(0),
+: m_blocking_errors(0),
+  m_nameinfo_transient_errors(0),
   m_nameinfo_permanent_errors(0),
   m_format_errors(0),
   m_addrinfo_transient_errors(0),
@@ -60,12 +61,13 @@ Host_errors::Host_errors()
   m_local_errors(0),
   m_unknown_errors(0)
 {}
-    
+
 Host_errors::~Host_errors()
 {}
 
 void Host_errors::reset()
 {
+  m_blocking_errors= 0;
   m_nameinfo_transient_errors= 0;
   m_nameinfo_permanent_errors= 0;
   m_format_errors= 0;
@@ -80,17 +82,9 @@ void Host_errors::reset()
   m_unknown_errors= 0;
 }
 
-uint Host_errors::get_blocking_errors()
-{
-  uint blocking= 0;
-  blocking+= m_host_acl_errors;
-  blocking+= m_authentication_errors;
-  blocking+= m_user_acl_errors;
-  return blocking;
-}
-
 void Host_errors::aggregate(const Host_errors *errors)
 {
+  m_blocking_errors+= errors->m_blocking_errors;
   m_nameinfo_transient_errors+= errors->m_nameinfo_transient_errors;
   m_nameinfo_permanent_errors+= errors->m_nameinfo_permanent_errors;
   m_format_errors+= errors->m_format_errors;
@@ -173,7 +167,7 @@ static inline Host_entry *hostname_cache_search(const char *ip_key)
   return (Host_entry *) hostname_cache->search((uchar *) ip_key, 0);
 }
 
-static bool add_hostname_impl(const char *ip_key, const char *hostname,
+static void add_hostname_impl(const char *ip_key, const char *hostname,
                               bool validated, Host_errors *errors)
 {
   Host_entry *entry;
@@ -185,7 +179,7 @@ static bool add_hostname_impl(const char *ip_key, const char *hostname,
   {
     entry= (Host_entry *) malloc(sizeof (Host_entry));
     if (entry == NULL)
-      return true;
+      return;
 
     need_add= true;
     memcpy(&entry->ip_key, ip_key, HOST_ENTRY_KEY_SIZE);
@@ -218,13 +212,21 @@ static bool add_hostname_impl(const char *ip_key, const char *hostname,
                  (const char *) ip_key));
     }
     entry->m_host_validated= true;
+    /*
+      Errors considered 'blocking',
+      that will eventually cause the IP to be black listed and blocked.
+    */
+    errors->m_blocking_errors
+      = errors->m_host_acl_errors
+      + errors->m_authentication_errors
+      + errors->m_user_acl_errors;
   }
   else
   {
     entry->m_hostname_length= 0;
-    /* There are currently no use cases that invalidate an entry. */
-    DBUG_ASSERT(! entry->m_host_validated);
     entry->m_host_validated= false;
+    /* Do not count blocking errors during DNS failures. */
+    errors->m_blocking_errors= 0;
     DBUG_PRINT("info",
                ("Adding/Updating '%s' -> NULL (not validated) to the hostname cache...'",
                (const char *) ip_key));
@@ -235,22 +237,22 @@ static bool add_hostname_impl(const char *ip_key, const char *hostname,
   if (need_add)
     hostname_cache->add(entry);
 
-  return false;
+  return;
 }
 
-static bool add_hostname(const char *ip_key, const char *hostname,
+static void add_hostname(const char *ip_key, const char *hostname,
                          bool validated, Host_errors *errors)
 {
   if (specialflag & SPECIAL_NO_HOST_CACHE)
-    return FALSE;
+    return;
 
   mysql_mutex_lock(&hostname_cache->lock);
 
-  bool err_status= add_hostname_impl(ip_key, hostname, validated, errors);
+  add_hostname_impl(ip_key, hostname, validated, errors);
 
   mysql_mutex_unlock(&hostname_cache->lock);
 
-  return err_status;
+  return;
 }
 
 void inc_host_errors(const char *ip_string, const Host_errors *errors)
@@ -374,16 +376,20 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) ip_string,
                       (int) ip->sa_family));
 
+  /* Default output values, for most cases. */
+  *hostname= NULL;
+  *connect_errors= 0;
+
   /* Check if we have loopback address (127.0.0.1 or ::1). */
 
   if (is_ip_loopback(ip))
   {
     DBUG_PRINT("info", ("Loopback address detected."));
 
-    *connect_errors= 0; /* Do not count connect errors from localhost. */
+    /* Do not count connect errors from localhost. */
     *hostname= (char *) my_localhost;
 
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
   /* Prepare host name cache key. */
@@ -408,8 +414,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
       */
       if (entry->m_host_validated)
       {
-        *connect_errors= entry->m_errors.get_blocking_errors();
-        *hostname= NULL;
+        *connect_errors= entry->m_errors.m_blocking_errors;
 
         if (entry->m_hostname_length)
           *hostname= my_strdup(entry->m_hostname, MYF(0));
@@ -422,7 +427,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
         mysql_mutex_unlock(&hostname_cache->lock);
 
-        DBUG_RETURN(FALSE);
+        DBUG_RETURN(false);
       }
     }
 
@@ -495,23 +500,29 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) ip_key,
                       (const char *) gai_strerror(err_code));
 
+    bool validated;
     if (vio_is_no_name_error(err_code))
     {
       /*
         The no-name error means that there is no reverse address mapping
         for the IP address. A host name can not be resolved.
-
+      */
+      errors.m_nameinfo_permanent_errors= 1;
+      validated= true;
+    }
+    else
+    {
+      /*
         If it is not the no-name error, we should not cache the hostname
         (or rather its absence), because the failure might be transient.
+        Only the ip error statistics are cached.
       */
-
-      add_hostname(ip_key, NULL, false, &errors);
-
-      *hostname= NULL;
-      *connect_errors= 0; /* New IP added to the cache. */
+      errors.m_nameinfo_transient_errors= 1;
+      validated= false;
     }
+    add_hostname(ip_key, NULL, validated, &errors);
 
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
   DBUG_PRINT("info", ("IP '%s' resolved to '%s'.",
@@ -548,12 +559,9 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) hostname_buffer);
 
     errors.m_format_errors= 1;
-    err_status= add_hostname(ip_key, hostname_buffer, false, &errors);
+    add_hostname(ip_key, hostname_buffer, false, &errors);
 
-    *hostname= NULL;
-    *connect_errors= 0; /* New IP added to the cache. */
-
-    DBUG_RETURN(err_status);
+    DBUG_RETURN(false);
   }
 
   /* Get IP-addresses for the resolved host name (FCrDNS technique). */
@@ -674,6 +682,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                   }
                   );
 
+#ifdef HAVE_IPV6
   DBUG_EXECUTE_IF("getaddrinfo_fake_bad_ipv6",
                   {
                     if (free_addr_info_list)
@@ -747,6 +756,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                     free_addr_info_list= false;
                   }
                   );
+#endif /* HAVE_IPV6 */
 
   /*
   ===========================================================================
@@ -754,43 +764,34 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   ===========================================================================
   */
 
-  if (err_code == EAI_NONAME)
+  if (err_code != 0)
   {
-    errors.m_addrinfo_permanent_errors= 1;
-    err_status= add_hostname(ip_key, NULL, true, &errors);
-
-    *hostname= NULL;
-    *connect_errors= 0; /* New IP added to the cache. */
-
-    DBUG_RETURN(FALSE);
-  }
-
-  if (err_code)
-  {
-    // NOTE: gai_strerror() returns a string ending by a dot.
-
-    DBUG_PRINT("error", ("Host name '%s' could not be resolved: %s",
-                         hostname_buffer,
-                         (const char *) gai_strerror(err_code)));
-
     sql_print_warning("Host name '%s' could not be resolved: %s",
-                      hostname_buffer,
+                      (const char *) hostname_buffer,
                       (const char *) gai_strerror(err_code));
 
-    /*
-      Don't cache responses when the DNS server is down, as otherwise
-      transient DNS failure may leave any number of clients (those
-      that attempted to connect during the outage) unable to connect
-      indefinitely.
-    */
+    bool validated;
 
-    errors.m_addrinfo_transient_errors= 1;
-    err_status= add_hostname(ip_key, NULL, false, &errors);
+    if (err_code == EAI_NONAME)
+    {
+      errors.m_addrinfo_permanent_errors= 1;
+      validated= true;
+    }
+    else
+    {
+      /*
+        Don't cache responses when the DNS server is down, as otherwise
+        transient DNS failure may leave any number of clients (those
+        that attempted to connect during the outage) unable to connect
+        indefinitely.
+        Only cache error statistics.
+      */
+      errors.m_addrinfo_transient_errors= 1;
+      validated= false;
+    }
+    add_hostname(ip_key, NULL, validated, &errors);
 
-    *hostname= NULL;
-    *connect_errors= 0; /* New IP added to the cache. */
-
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
   /* Check that getaddrinfo() returned the used IP (FCrDNS technique). */
@@ -824,7 +825,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
         if (free_addr_info_list)
           freeaddrinfo(addr_info_list);
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
 
       break;
@@ -835,6 +836,8 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   if (!*hostname)
   {
+    errors.m_FCrDNS_errors= 1;
+
     sql_print_warning("Hostname '%s' does not resolve to '%s'.",
                       (const char *) hostname_buffer,
                       (const char *) ip_key);
@@ -855,27 +858,12 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
     }
   }
 
-  /* Free the result of getaddrinfo(). */
+  /* Add an entry for the IP to the cache. */
+  add_hostname(ip_key, *hostname, true, &errors);
 
+  /* Free the result of getaddrinfo(). */
   if (free_addr_info_list)
     freeaddrinfo(addr_info_list);
 
-  /* Add an entry for the IP to the cache. */
-
-  if (*hostname)
-  {
-    err_status= add_hostname(ip_key, *hostname, true, &errors);
-    *connect_errors= 0;
-  }
-  else
-  {
-    DBUG_PRINT("error",("Couldn't verify hostname with getaddrinfo()."));
-
-    errors.m_FCrDNS_errors= 1;
-    err_status= add_hostname(ip_key, NULL, false, &errors);
-    *hostname= NULL;
-    *connect_errors= 0;
-  }
-
-  DBUG_RETURN(err_status);
+  DBUG_RETURN(false);
 }
