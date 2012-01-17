@@ -1476,6 +1476,21 @@ NULL	1	NULL
 SET storage_engine=NULL;
 ERROR 42000: Variable 'storage_engine' can't be set to the value of 'NULL'
 #
+# BUG#13354387 - CRASH IN IN MY_DECIMAL::OPERATOR FOR VIEW AND FUNCTION UNIX_TIMESTAMP 
+# Part1 (5.5)
+SET time_zone='+03:00';
+CREATE TABLE t1 (a DATETIME NOT NULL);
+INSERT INTO t1 VALUES ('2009-09-20 07:32:39.06');
+INSERT INTO t1 VALUES ('0000-00-00 00:00:00.00');
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT CAST(UNIX_TIMESTAMP(a) AS DECIMAL(25,3)) AS c1 FROM v1 ORDER BY 1;
+c1
+0.000
+1253421159.000
+DROP VIEW v1;
+DROP TABLE t1;
+SET time_zone=DEFAULT;
+#
 # Bug #59686 crash in String::copy() with time data type
 #
 SELECT min(timestampadd(month, 1>'', from_days('%Z')));
@@ -1490,3 +1505,31 @@ select 1 from t1 where 1 < some (select cast(a as datetime) from t1);
 1
 1
 drop table t1;
+#
+# End of 5.5 tests
+#
+#
+# Start of 5.6 tests
+#
+#
+# BUG#13354387 - CRASH IN IN MY_DECIMAL::OPERATOR FOR VIEW AND FUNCTION UNIX_TIMESTAMP 
+# Part2 (5.6)
+CREATE TABLE t1 (a VARCHAR(32) NOT NULL);
+INSERT INTO t1 VALUES ('a');
+SELECT 1 FROM t1 GROUP BY @a:=UNIX_TIMESTAMP(a);
+1
+1
+Warnings:
+Warning	1292	Incorrect datetime value: 'a'
+SELECT a, UNIX_TIMESTAMP(a), UNIX_TIMESTAMP('a') FROM t1;
+a	UNIX_TIMESTAMP(a)	UNIX_TIMESTAMP('a')
+a	0.000000	0.000000
+Warnings:
+Warning	1292	Incorrect datetime value: 'a'
+Warning	1292	Incorrect datetime value: 'a'
+DELETE FROM t1;
+INSERT INTO t1 VALUES ('5000-01-01 00:00:00');
+SELECT a, UNIX_TIMESTAMP(a), UNIX_TIMESTAMP('5000-01-01 00:00:00') FROM t1;
+a	UNIX_TIMESTAMP(a)	UNIX_TIMESTAMP('5000-01-01 00:00:00')
+5000-01-01 00:00:00	0.000000	0
+DROP TABLE t1;

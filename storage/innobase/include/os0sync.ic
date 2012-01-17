@@ -85,7 +85,8 @@ pfs_os_fast_mutex_free(
 	os_fast_mutex_t*	fast_mutex)  /*!< in/out: mutex */
 {
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-	PSI_CALL(destroy_mutex)(fast_mutex->pfs_psi);
+	if (fast_mutex->pfs_psi != NULL)
+		PSI_CALL(destroy_mutex)(fast_mutex->pfs_psi);
 #endif
 	fast_mutex->pfs_psi = NULL;
 
@@ -106,20 +107,26 @@ pfs_os_fast_mutex_lock(
 	ulint			line)		/*!< in: line where locked */
 {
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-	struct PSI_mutex_locker*        locker;
-	PSI_mutex_locker_state          state;
+	if (fast_mutex->pfs_psi != NULL)
+	{
+		PSI_mutex_locker* 	locker;
+		PSI_mutex_locker_state	state;
 
-	locker = PSI_CALL(get_thread_mutex_locker)(
-		&state, fast_mutex->pfs_psi, PSI_MUTEX_LOCK);
-	if (locker != NULL) {
-		PSI_CALL(start_mutex_wait)(locker, file_name, line);
+		locker = PSI_CALL(start_mutex_wait)(&state, fast_mutex->pfs_psi,
+			PSI_MUTEX_LOCK, file_name, line);
+
 		os_fast_mutex_lock_func(&fast_mutex->mutex);
-		PSI_CALL(end_mutex_wait)(locker, 0);
-		return;
-	}
-#endif
 
-	os_fast_mutex_lock_func(&fast_mutex->mutex);
+		if (locker != NULL)
+			PSI_CALL(end_mutex_wait)(locker, 0);
+	}
+	else
+#endif
+	{
+		os_fast_mutex_lock_func(&fast_mutex->mutex);
+	}
+
+	return;
 }
 /**********************************************************//**
 NOTE! Please use the corresponding macro os_fast_mutex_unlock, not directly
@@ -133,7 +140,8 @@ pfs_os_fast_mutex_unlock(
 	os_fast_mutex_t*	fast_mutex)	/*!< in/out: mutex to release */
 {
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-	PSI_CALL(unlock_mutex)(fast_mutex->pfs_psi);
+	if (fast_mutex->pfs_psi != NULL)
+		PSI_CALL(unlock_mutex)(fast_mutex->pfs_psi);
 #endif
 
 	os_fast_mutex_unlock_func(&fast_mutex->mutex);

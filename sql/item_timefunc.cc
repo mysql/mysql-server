@@ -1456,20 +1456,7 @@ bool Item_func_unix_timestamp::val_timeval(struct timeval *tm)
     return false; // no args: null_value is set in constructor and is always 0.
   }
   int warnings= 0;
-  if (args[0]->get_timeval(tm, &warnings)) // Don't set null_value here
-  {
-    /*
-      We set null_value only if args[0]->get_date() invoked
-      inside args[0]->get_timeval() returned null,
-      which is indicated by "warnings == 0".
-      In case of wrong non-null datetime parameter we return 0.
-      "warnings" will not be equal to 0 in this case.
-    */
-    if (warnings == 0)
-      return (null_value= true);
-    tm->tv_sec= tm->tv_usec= 0;
-  }
-  return (null_value= false);
+  return (null_value= args[0]->get_timeval(tm, &warnings));
 }
 
 

@@ -2195,6 +2195,20 @@ err_exit:
 		}
 		break;
 
+	case DB_TOO_MANY_CONCURRENT_TRXS:
+		/* We already have .ibd file here. it should be deleted. */
+
+		if (table->space && !fil_delete_tablespace(table->space)) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Error: not able to"
+				" delete tablespace %lu of table ",
+				(ulong) table->space);
+			ut_print_name(stderr, trx, TRUE, table->name);
+			fputs("!\n", stderr);
+		}
+		/* fall through */
+
 	case DB_DUPLICATE_KEY:
 	default:
 		/* We may also get err == DB_ERROR if the .ibd file for the
