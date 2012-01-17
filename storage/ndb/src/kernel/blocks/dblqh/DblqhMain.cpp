@@ -80,6 +80,12 @@
 #include "../suma/Suma.hpp"
 #include "DblqhCommon.hpp"
 
+/**
+ * overload handling...
+ * TODO: cleanup...from all sorts of perspective
+ */
+#include <TransporterRegistry.hpp>
+
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 

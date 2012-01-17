@@ -29,6 +29,8 @@
 
 #include "ndbd.hpp"
 
+#include <TransporterRegistry.hpp>
+
 #include <ConfigRetriever.hpp>
 #include <LogLevel.hpp>
 

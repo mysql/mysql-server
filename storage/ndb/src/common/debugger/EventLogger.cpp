@@ -18,7 +18,7 @@
 #include <ndb_global.h>
 
 #include <EventLogger.hpp>
-#include <TransporterCallback.hpp>
+#include <TransporterDefinitions.hpp>
 
 #include <NdbConfig.h>
 #include <kernel/BlockNumbers.h>

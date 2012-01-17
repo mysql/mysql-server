@@ -42,6 +42,8 @@
 #include <signaldata/DihRestart.hpp>
 #include <ndb_version.h>
 
+#include <TransporterRegistry.hpp> // Get connect address
+
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
