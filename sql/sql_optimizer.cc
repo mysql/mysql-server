@@ -3033,6 +3033,7 @@ const_table_extraction_done:
               has a real row or a null-extended row in the optimizer phase.
               We have no possibility to evaluate its join condition at
               execution time, when it is marked as a system table.
+              DontEvaluateMaterializedSubqueryTooEarly
         */
 	if (table->file->stats.records <= 1L &&                            // 1
             (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) && // 1
@@ -3970,7 +3971,7 @@ static bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
           keyuse++;
         } while (keyuse->key == key && keyuse->table == table);
 
-        if (bound_parts == PREV_BITS(uint, keyinfo->key_parts))
+        if (bound_parts == LOWER_BITS(uint, keyinfo->key_parts))
           return TRUE;
         if (keyuse->table != table)
           return FALSE;

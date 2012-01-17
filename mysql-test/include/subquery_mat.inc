@@ -961,3 +961,23 @@ eval $query;
 DROP TABLE t1, t2, t3;
 
 --echo # End of test for bug#13552968
+
+--echo #
+--echo # Bug#13591383: Assertion !(*tab->on_expr_ref && .. && is_expensive())
+--echo # in join_read_const_table()
+--echo #
+
+CREATE TABLE t1 (v INTEGER) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(1);
+
+CREATE TABLE t2 (v INTEGER) ENGINE=MyISAM;
+
+SELECT *
+FROM t1 LEFT JOIN t2
+     ON t2.v IN(SELECT v FROM t1);
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13591383.
+
+--echo # End of 5.6 tests
