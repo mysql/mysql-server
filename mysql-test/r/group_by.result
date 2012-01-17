@@ -2448,3 +2448,15 @@ Warnings:
 Note	1003	/* select#1 */ select NULL AS `field1` from `test`.`t1` join `test`.`t3` `alias2` where 0 group by `field1`
 DROP TABLE t1,t2,t3;
 DROP VIEW view1;
+CREATE TABLE t1 (col_varchar_nokey varchar(1) DEFAULT NULL);
+INSERT INTO t1 VALUES ('v'),('c');
+EXPLAIN EXTENDED SELECT (SELECT 150) AS field5
+FROM (SELECT * FROM t1) AS alias1
+GROUP BY field5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	100.00	
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select 150 AS `field5` from (/* select#3 */ select `test`.`t1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1`) `alias1` group by `field5`
+DROP TABLE t1;
