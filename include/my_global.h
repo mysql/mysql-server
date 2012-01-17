@@ -1364,11 +1364,31 @@ do { doubleget_union _tmp; \
 
 #ifndef HAVE_DLERROR
 #ifdef _WIN32
+#define DLERROR_GENERATE(errmsg, error_number) \
+  char win_errormsg[2048]; \
+  if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, \
+                   0, error_number, 0, win_errormsg, 2048, NULL)) \
+  { \
+    char *ptr; \
+    for (ptr= &win_errormsg[0] + strlen(win_errormsg) - 1; \
+         ptr >= &win_errormsg[0] && strchr("\r\n\t\0x20", *ptr); \
+         ptr--) \
+      *ptr= 0; \
+    errmsg= win_errormsg; \
+  } \
+  else \
+    errmsg= ""
 #define dlerror() ""
-#else
+#define dlopen_errno GetLastError()
+#else /* _WIN32 */
 #define dlerror() "No support for dynamic loading (static build?)"
-#endif
-#endif
+#define DLERROR_GENERATE(errmsg, error_number) errmsg= dlerror()
+#define dlopen_errno errno
+#endif /* _WIN32 */
+#else /* HAVE_DLERROR */
+#define DLERROR_GENERATE(errmsg, error_number) errmsg= dlerror()
+#define dlopen_errno errno
+#endif /* HAVE_DLERROR */
 
 
 /*
