@@ -4379,29 +4379,26 @@ fifo_offset_msn_cmp(void *extrap, const void *va, const void *vb)
  * basement node.
  */
 static void
-do_brt_leaf_put_cmd(BRT t, BRTNODE leafnode, BASEMENTNODE bn, BRTNODE ancestor, int childnum, OMT snapshot_txnids, OMT live_list_reverse, MSN *max_msn_applied, const struct fifo_entry *entry)
+do_brt_leaf_put_cmd(BRT t, BRTNODE leafnode, BASEMENTNODE bn, BRTNODE ancestor, int childnum, OMT snapshot_txnids, OMT live_list_reverse, const struct fifo_entry *entry)
 {
-    ITEMLEN keylen = entry->keylen;
-    ITEMLEN vallen = entry->vallen;
-    enum brt_msg_type type = (enum brt_msg_type)entry->type;
-    MSN msn = entry->msn;
-    const XIDS xids = (XIDS) &entry->xids_s;
-    bytevec key = xids_get_end_of_array(xids);
-    bytevec val = (u_int8_t*)key + entry->keylen;
-
-    DBT hk;
-    toku_fill_dbt(&hk, key, keylen);
-    DBT hv;
-    BRT_MSG_S brtcmd = { type, msn, xids, .u.id = { &hk, toku_fill_dbt(&hv, val, vallen) } };
-    bool made_change;
     // The messages are being iterated over in (key,msn) order or just in
     // msn order, so all the messages for one key, from one buffer, are in
     // ascending msn order.  So it's ok that we don't update the basement
     // node's msn until the end.
-    if (brtcmd.msn.msn > bn->max_msn_applied.msn) {
-        if (brtcmd.msn.msn > max_msn_applied->msn) {
-            *max_msn_applied = brtcmd.msn;
-        }
+    if (entry->msn.msn > bn->max_msn_applied.msn) {
+        ITEMLEN keylen = entry->keylen;
+        ITEMLEN vallen = entry->vallen;
+        enum brt_msg_type type = (enum brt_msg_type)entry->type;
+        MSN msn = entry->msn;
+        const XIDS xids = (XIDS) &entry->xids_s;
+        bytevec key = xids_get_end_of_array(xids);
+        bytevec val = (u_int8_t*)key + entry->keylen;
+
+        DBT hk;
+        toku_fill_dbt(&hk, key, keylen);
+        DBT hv;
+        BRT_MSG_S brtcmd = { type, msn, xids, .u.id = { &hk, toku_fill_dbt(&hv, val, vallen) } };
+        bool made_change;
         brt_leaf_put_cmd(t->compare_fun, t->update_fun, &t->h->descriptor, leafnode, bn, &brtcmd, &made_change, &BP_WORKDONE(ancestor, childnum), snapshot_txnids, live_list_reverse);
     } else {
         brt_status.msn_discards++;
@@ -4416,7 +4413,6 @@ struct iterate_do_brt_leaf_put_cmd_extra {
     int childnum;
     OMT snapshot_txnids;
     OMT live_list_reverse;
-    MSN *max_msn_applied;
 };
 
 static int
@@ -4426,7 +4422,7 @@ iterate_do_brt_leaf_put_cmd(OMTVALUE v, u_int32_t UU(idx), void *extrap)
     const long offset = (long) v;
     NONLEAF_CHILDINFO bnc = BNC(e->ancestor, e->childnum);
     const struct fifo_entry *entry = toku_fifo_get_entry(bnc->buffer, offset);
-    do_brt_leaf_put_cmd(e->t, e->leafnode, e->bn, e->ancestor, e->childnum, e->snapshot_txnids, e->live_list_reverse, e->max_msn_applied, entry);
+    do_brt_leaf_put_cmd(e->t, e->leafnode, e->bn, e->ancestor, e->childnum, e->snapshot_txnids, e->live_list_reverse, entry);
     return 0;
 }
 
@@ -4584,12 +4580,14 @@ bnc_apply_messages_to_basement_node(
     OMT snapshot_txnids = logger ? logger->snapshot_txnids : NULL;
     OMT live_list_reverse = logger ? logger->live_list_reverse : NULL;
 
-    // The following process will keep track of the max msn of any message
-    // we apply so that we can update it in the basement node at the end.
-    MSN max_msn_applied = MIN_MSN;
     // We now know where all the messages we must apply are, so one of the
     // following 4 cases will do the application, depending on which of
-    // the lists contains relevant messages.
+    // the lists contains relevant messages:
+    //
+    // 1. broadcast messages and anything else
+    // 2. only fresh messages
+    // 3. only stale messages
+    // 4. fresh and stale messages but no broadcasts
     if (toku_omt_size(bnc->broadcast_list) > 0) {
         // We have some broadcasts, which don't have keys, so we grab all
         // the relevant messages' offsets and sort them by MSN, then apply
@@ -4598,11 +4596,9 @@ bnc_apply_messages_to_basement_node(
         long *XMALLOC_N(buffer_size, offsets);
         struct store_fifo_offset_extra sfo_extra = { .offsets = offsets, .i = 0 };
 
-        if (!bn->stale_ancestor_messages_applied) {
-            // If we must apply stale messages, store their offsets.
-            r = toku_omt_iterate_on_range(bnc->stale_message_tree, stale_lbi, stale_ube, store_fifo_offset, &sfo_extra);
-            assert_zero(r);
-        }
+        // Populate offsets array with offsets to stale messages
+        r = toku_omt_iterate_on_range(bnc->stale_message_tree, stale_lbi, stale_ube, store_fifo_offset, &sfo_extra);
+        assert_zero(r);
 
         // Then store fresh offsets, and move the messages we store to
         // the stale tree.
@@ -4622,7 +4618,7 @@ bnc_apply_messages_to_basement_node(
         // Apply the messages in MSN order.
         for (int i = 0; i < buffer_size; ++i) {
             const struct fifo_entry *entry = toku_fifo_get_entry(bnc->buffer, offsets[i]);
-            do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, snapshot_txnids, live_list_reverse, &max_msn_applied, entry);
+            do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, snapshot_txnids, live_list_reverse, entry);
         }
 
         toku_free(offsets);
@@ -4630,7 +4626,7 @@ bnc_apply_messages_to_basement_node(
         // No stale messages to apply, we just apply fresh messages.  We
         // also move those messages to the stale tree.
 
-        struct iterate_do_brt_leaf_put_cmd_extra iter_extra = { .t = t, .leafnode = leafnode, .bn = bn, .ancestor = ancestor, .childnum = childnum, .snapshot_txnids = snapshot_txnids, .live_list_reverse = live_list_reverse, .max_msn_applied = &max_msn_applied };
+        struct iterate_do_brt_leaf_put_cmd_extra iter_extra = { .t = t, .leafnode = leafnode, .bn = bn, .ancestor = ancestor, .childnum = childnum, .snapshot_txnids = snapshot_txnids, .live_list_reverse = live_list_reverse };
         struct iterate_do_brt_leaf_put_cmd_and_move_to_stale_extra iter_amts_extra = { .brt = t, .iter_extra = &iter_extra, .bnc = bnc };
 
         r = toku_omt_iterate_on_range(bnc->fresh_message_tree, fresh_lbi, fresh_ube, iterate_do_brt_leaf_put_cmd_and_move_to_stale, &iter_amts_extra);
@@ -4638,7 +4634,7 @@ bnc_apply_messages_to_basement_node(
     } else if (fresh_lbi == fresh_ube) {
         // No fresh messages to apply, we just apply stale messages.
 
-        struct iterate_do_brt_leaf_put_cmd_extra iter_extra = { .t = t, .leafnode = leafnode, .bn = bn, .ancestor = ancestor, .childnum = childnum, .snapshot_txnids = snapshot_txnids, .live_list_reverse = live_list_reverse, .max_msn_applied = &max_msn_applied };
+        struct iterate_do_brt_leaf_put_cmd_extra iter_extra = { .t = t, .leafnode = leafnode, .bn = bn, .ancestor = ancestor, .childnum = childnum, .snapshot_txnids = snapshot_txnids, .live_list_reverse = live_list_reverse };
 
         r = toku_omt_iterate_on_range(bnc->stale_message_tree, stale_lbi, stale_ube, iterate_do_brt_leaf_put_cmd, &iter_extra);
         assert_zero(r);
@@ -4671,7 +4667,7 @@ bnc_apply_messages_to_basement_node(
                 // apply it, then get the next stale message into stale_i
                 // and stale_v.
                 const struct fifo_entry *stale_entry = toku_fifo_get_entry(bnc->buffer, stale_offset);
-                do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, snapshot_txnids, live_list_reverse, &max_msn_applied, stale_entry);
+                do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, snapshot_txnids, live_list_reverse, stale_entry);
                 stale_i++;
                 if (stale_i != stale_ube) {
                     r = toku_omt_fetch(bnc->stale_message_tree, stale_i, &stale_v);
@@ -4684,7 +4680,7 @@ bnc_apply_messages_to_basement_node(
                 // fresh_i and fresh_v.
                 fresh_offsets_to_move[fresh_i - fresh_lbi] = fresh_offset;
                 const struct fifo_entry *fresh_entry = toku_fifo_get_entry(bnc->buffer, fresh_offset);
-                do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, snapshot_txnids, live_list_reverse, &max_msn_applied, fresh_entry);
+                do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, snapshot_txnids, live_list_reverse, fresh_entry);
                 fresh_i++;
                 if (fresh_i != fresh_ube) {
                     r = toku_omt_fetch(bnc->fresh_message_tree, fresh_i, &fresh_v);
@@ -4700,7 +4696,7 @@ bnc_apply_messages_to_basement_node(
         while (stale_i < stale_ube) {
             const long stale_offset = (long) stale_v;
             const struct fifo_entry *stale_entry = toku_fifo_get_entry(bnc->buffer, stale_offset);
-            do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, snapshot_txnids, live_list_reverse, &max_msn_applied, stale_entry);
+            do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, snapshot_txnids, live_list_reverse, stale_entry);
             stale_i++;
             if (stale_i != stale_ube) {
                 r = toku_omt_fetch(bnc->stale_message_tree, stale_i, &stale_v);
@@ -4714,7 +4710,7 @@ bnc_apply_messages_to_basement_node(
             const long fresh_offset = (long) fresh_v;
             fresh_offsets_to_move[fresh_i - fresh_lbi] = fresh_offset;
             const struct fifo_entry *fresh_entry = toku_fifo_get_entry(bnc->buffer, fresh_offset);
-            do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, snapshot_txnids, live_list_reverse, &max_msn_applied, fresh_entry);
+            do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, snapshot_txnids, live_list_reverse, fresh_entry);
             fresh_i++;
             if (fresh_i != fresh_ube) {
                 r = toku_omt_fetch(bnc->fresh_message_tree, fresh_i, &fresh_v);
