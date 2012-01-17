@@ -1,0 +1,24 @@
+select @@global.innodb_doublewrite_batch_size between 1 and 127;
+@@global.innodb_doublewrite_batch_size between 1 and 127
+1
+select @@global.innodb_doublewrite_batch_size;
+@@global.innodb_doublewrite_batch_size
+120
+select @@session.innodb_doublewrite_batch_size;
+ERROR HY000: Variable 'innodb_doublewrite_batch_size' is a GLOBAL variable
+show global variables like 'innodb_doublewrite_batch_size';
+Variable_name	Value
+innodb_doublewrite_batch_size	120
+show session variables like 'innodb_doublewrite_batch_size';
+Variable_name	Value
+innodb_doublewrite_batch_size	120
+select * from information_schema.global_variables where variable_name='innodb_doublewrite_batch_size';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_DOUBLEWRITE_BATCH_SIZE	120
+select * from information_schema.session_variables where variable_name='innodb_doublewrite_batch_size';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_DOUBLEWRITE_BATCH_SIZE	120
+set global innodb_doublewrite_batch_size=1;
+ERROR HY000: Variable 'innodb_doublewrite_batch_size' is a read only variable
+set @@session.innodb_doublewrite_batch_size='some';
+ERROR HY000: Variable 'innodb_doublewrite_batch_size' is a read only variable

@@ -77,6 +77,7 @@ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table* create();
+  static int delete_all_rows();
 
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
