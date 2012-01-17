@@ -50,6 +50,9 @@ BLOCK_FUNCTIONS(Trpman)
 #ifdef ERROR_INSERT
 static NodeBitmask c_error_9000_nodes_mask;
 extern Uint32 MAX_RECEIVED_SIGNALS;
+
+class TransporterReceiveHandle *
+mt_get_trp_receive_handle(unsigned instance);
 #endif
 
 bool
@@ -524,6 +527,8 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
      (arg == 9992))    /* Block recv from nodeid */
   {
     bool block = (arg == 9992);
+    TransporterReceiveHandle * recvdata = mt_get_trp_receive_handle(instance());
+    assert(recvdata != 0);
     for (Uint32 n = 1; n < signal->getLength(); n++)
     {
       Uint32 nodeId = signal->theData[n];
@@ -536,14 +541,13 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
         if (block)
         {
           ndbout_c("TRPMAN : Blocking receive from node %u", nodeId);
-
-          globalTransporterRegistry.blockReceive(nodeId);
+          globalTransporterRegistry.blockReceive(*recvdata, nodeId);
         }
         else
         {
           ndbout_c("TRPMAN : Unblocking receive from node %u", nodeId);
 
-          globalTransporterRegistry.unblockReceive(nodeId);
+          globalTransporterRegistry.unblockReceive(*recvdata, nodeId);
         }
       }
       else
@@ -563,6 +567,8 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
                ((pattern == 1)? "Other side":"Unknown"));
     }
 
+    TransporterReceiveHandle * recvdata = mt_get_trp_receive_handle(instance());
+    assert(recvdata != 0);
     for (Uint32 node = 1; node < MAX_NDB_NODES; node++)
     {
       if (!handles_this_node(node))
@@ -592,7 +598,7 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
               break;
             }
             ndbout_c("TRPMAN : Blocking receive from node %u", node);
-            globalTransporterRegistry.blockReceive(node);
+            globalTransporterRegistry.blockReceive(*recvdata, node);
           }
         }
       }
@@ -600,6 +606,8 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
   }
   if (arg == 9991) /* Unblock recv from all blocked */
   {
+    TransporterReceiveHandle * recvdata = mt_get_trp_receive_handle(instance());
+    assert(recvdata != 0);
     for (Uint32 node = 1; node < MAX_NODES; node++)
     {
       if (!handles_this_node(node))
@@ -607,7 +615,7 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       if (globalTransporterRegistry.isBlocked(node))
       {
         ndbout_c("CMVMI : Unblocking receive from node %u", node);
-        globalTransporterRegistry.unblockReceive(node);
+        globalTransporterRegistry.unblockReceive(*recvdata, node);
       }
     }
   }
