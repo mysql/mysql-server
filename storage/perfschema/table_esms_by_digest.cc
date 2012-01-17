@@ -196,39 +196,19 @@ table_esms_by_digest::create(void)
 int
 table_esms_by_digest::delete_all_rows(void)
 {
-  uint index;
-
-  /*
-    Reset statements_digest_stat_array.
-  */
-  for (index= 0; index < statements_digest_size; index++)
-  {
-    statements_digest_stat_array[index].m_digest[0]= '\0';
-    statements_digest_stat_array[index].m_digest_length= 0;
-    statements_digest_stat_array[index].m_digest_text[0]= '\0';;
-    statements_digest_stat_array[index].m_digest_text_length= 0;
-    statements_digest_stat_array[index].m_md5_hash.m_md5[0]= '\0';
-    statements_digest_stat_array[index].m_stat.reset();
-  }
-
-  /* 
-     Reset index which indicates where the next calculated digest informationi
-     to be inserted in statements_digest_stat_array.
-  */
-  digest_index= 1;
-
+  reset_esms_by_digest();
   return 0;
 }
 
 table_esms_by_digest::table_esms_by_digest()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(1), m_next_pos(1)
+    m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 
 void table_esms_by_digest::reset_position(void)
 {
-  m_pos= 1;
-  m_next_pos= 1;
+  m_pos= 0;
+  m_next_pos= 0;
 }
 
 int table_esms_by_digest::rnd_next(void)
@@ -242,10 +222,12 @@ int table_esms_by_digest::rnd_next(void)
   digest_stat= &statements_digest_stat_array[m_pos.m_index];
 
   /* 
-    If digest information exist for this record,
+    If digest information exist for this record or
+    If it is a record at index 0 of statements_digest_stat_array,
     make a new row.
   */
-  if(digest_stat->m_digest_text[0] != '\0')
+  if(digest_stat->m_digest_text[0] != '\0' ||
+     m_pos.m_index == 0)
   {
     make_row(digest_stat);
     m_next_pos.set_after(&m_pos);
@@ -264,10 +246,12 @@ table_esms_by_digest::rnd_pos(const void *pos)
   digest_stat= &statements_digest_stat_array[m_pos.m_index];
 
   /* 
-    If digest information exist for this record,
+    If digest information exist for this record or
+    If it is a record at index 0 of statements_digest_stat_array,
     make a new row.
   */
-  if(digest_stat->m_digest_text[0] != '\0')
+  if(digest_stat->m_digest_text[0] != '\0' ||
+     m_pos.m_index == 0)
   {
     make_row(digest_stat);
     return 0;

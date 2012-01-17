@@ -182,7 +182,6 @@ int init_digest(unsigned int statements_digest_sizing)
   for (index= 0; index < statements_digest_size; index++)
   statements_digest_stat_array[index].m_stat.reset();
 
-
   return (statements_digest_stat_array ? 0 : 1);
 }
 
@@ -284,7 +283,6 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
         digest_stat array is full. Add stat at index 0 and return.
       */
       pfs= &statements_digest_stat_array[0];
-      //TODO
       return pfs;
     }
 
@@ -340,7 +338,29 @@ find_or_create_digest(PFS_thread* thread, PFS_digest_storage* digest_storage)
  
 void reset_esms_by_digest()
 {
-  /*TBD*/ 
+  uint index;
+
+  if(statements_digest_stat_array == NULL)
+    return;
+
+  /*
+    Reset statements_digest_stat_array.
+  */
+  for (index= 0; index < statements_digest_size; index++)
+  {
+    statements_digest_stat_array[index].m_digest[0]= '\0';
+    statements_digest_stat_array[index].m_digest_length= 0;
+    statements_digest_stat_array[index].m_digest_text[0]= '\0';;
+    statements_digest_stat_array[index].m_digest_text_length= 0;
+    statements_digest_stat_array[index].m_md5_hash.m_md5[0]= '\0';
+    statements_digest_stat_array[index].m_stat.reset();
+  }
+
+  /* 
+    Reset index which indicates where the next calculated digest informationi
+    to be inserted in statements_digest_stat_array.
+  */
+  digest_index= 1;
 }
 
 /*
@@ -425,7 +445,7 @@ struct PSI_digest_locker* pfs_digest_start_v1(PSI_statement_locker *locker)
   */
   if(!locker || !(flag_thread_instrumentation && flag_events_statements_current)
              || (!flag_statements_digest)
-             || (!statements_digest_size))
+             || (!statements_digest_stat_array))
   {
     return NULL;
   }
@@ -493,8 +513,8 @@ void pfs_digest_add_token_v1(PSI_digest_locker *locker,
   }
 
   /* 
-     Take last_token 3 tokens collected till now. These tokens will be used
-     in reduce for normalisation. Make sure not to consider ID tokens in reduce.
+    Take last_token 2 tokens collected till now. These tokens will be used
+    in reduce for normalisation. Make sure not to consider ID tokens in reduce.
   */
   uint last_token = TOK_PFS_UNUSED;
   uint last_token2= TOK_PFS_UNUSED;

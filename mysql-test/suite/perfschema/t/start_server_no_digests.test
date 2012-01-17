@@ -7,4 +7,8 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
---source suite/perfschema/t/statements_digest.test
+--source ./suite/perfschema/t/statements_digest.test
+
+# Expect no digest
+show variables like "performance_schema_digests_size";
+select count(*) from performance_schema.events_statements_summary_by_digest;
