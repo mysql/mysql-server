@@ -117,10 +117,10 @@ PFS_engine_table_share
 table_host_cache::m_share=
 {
   { C_STRING_WITH_LEN("host_cache") },
-  &pfs_readonly_acl,
+  &pfs_truncatable_acl,
   &table_host_cache::create,
   NULL, /* write_row */
-  NULL, /* delete_all_rows */
+  table_host_cache::delete_all_rows,
   NULL, /* get_row_count */
   1000, /* records */
   sizeof(PFS_simple_index), /* ref length */
@@ -139,6 +139,18 @@ PFS_engine_table* table_host_cache::create(void)
     t->materialize(thd);
   }
   return t;
+}
+
+int
+table_host_cache::delete_all_rows(void)
+{
+  /*
+    TRUNCATE TABLE performance_schema.host_cache
+    is an alternate syntax for
+    FLUSH HOSTS
+  */
+  hostname_cache_refresh();
+  return 0;
 }
 
 table_host_cache::table_host_cache()
