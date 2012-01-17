@@ -157,7 +157,7 @@ void get_tty_password_buff(const char *opt_message, char *buff, size_t buflen)
   passbuff = getpass(opt_message ? opt_message : "Enter password: ");
 
   /* copy the password to buff and clear original (static) buffer */
-  strnmov(buff, passbuff, buflen - 1);
+  strncpy(buff, passbuff, buflen - 1);
 #ifdef _PASSWORD_LEN
   memset(passbuff, 0, _PASSWORD_LEN);
 #endif

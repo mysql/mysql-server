@@ -1722,7 +1722,7 @@ bool add_table_for_trigger(THD *thd,
   LEX *lex= thd->lex;
   char trn_path_buff[FN_REFLEN];
   LEX_STRING trn_path= { trn_path_buff, 0 };
-  LEX_STRING tbl_name;
+  LEX_STRING tbl_name= null_lex_str;
 
   DBUG_ENTER("add_table_for_trigger");
 

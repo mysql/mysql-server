@@ -7348,7 +7348,7 @@ int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
                                             PARTITION_ITERATOR *part_iter)
 {
   uint32 nparts;
-  get_col_endpoint_func  get_col_endpoint;
+  get_col_endpoint_func  UNINIT_VAR(get_col_endpoint);
   DBUG_ENTER("get_part_iter_for_interval_cols_via_map");
 
   if (part_info->part_type == RANGE_PARTITION)
