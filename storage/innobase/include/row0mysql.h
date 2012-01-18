@@ -861,7 +861,7 @@ struct row_prebuilt_struct {
 #define ROW_READ_DID_SEMI_CONSISTENT	2
 
 /** The version number of the export meta-data text file. */
-#define IB_EXPORT_CFG_VERSION		0x1UL
+#define IB_EXPORT_CFG_VERSION_V1	0x1UL
 
 #ifndef UNIV_NONINL
 #include "row0mysql.ic"
