@@ -3581,6 +3581,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
       for (i= 0; i < join->table_count ; i++)
         records*= join->best_positions[i].records_read ?
                   (ha_rows)join->best_positions[i].records_read : 1;
+      set_if_smaller(records, unit->select_limit_cnt);
       join->select_lex->increase_derived_records(records);
     }
   }
