@@ -1,0 +1,37 @@
+# verify that trickle loads or bulk loads can not insert values > 32MB
+
+set storage_engine='tokudb';
+
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+
+create table t (id int not null primary key, v longblob not null);
+
+# find a value that works
+--error 1030
+insert into t values (1,repeat('a',32*1024*1024));
+--error 1030
+insert into t values (1,repeat('a',32*1024*1024-1));
+--error 1030
+insert into t values (1,repeat('a',32*1024*1024-2));
+--error 1030
+insert into t values (1,repeat('a',32*1024*1024-3));
+
+insert into t values (1,repeat('a',32*1024*1024-4));
+select id,length(v) from t;
+
+# the bulk loader should detect the large row and fail
+truncate table t;
+--error 1030
+insert into t values (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,repeat('e',32*1024*1024-1));
+select id,length(v) from t;
+
+# the trickle loader should detect the large row and fail
+truncate table t;
+insert into t values (1,'a'),(2,'b'),(3,'c'),(4,'d');
+--error 1030
+insert into t values (5,repeat('e',32*1024*1024-1));
+select id,length(v) from t;
+
+drop table t;
