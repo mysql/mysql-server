@@ -39,6 +39,8 @@ ADD_CONVENIENCE_LIBRARY(ndbkernel
     NdbinfoTables.cpp
     ArenaPool.cpp
     mt_thr_config.cpp
+    PackPool.cpp
+    PagePool.cpp
 )
 
 ADD_CONVENIENCE_LIBRARY(ndbsched
@@ -62,18 +64,21 @@ IF(NDB_BUILD_NDBMTD)
     dummy_mt.cpp)
 ENDIF()
 
+ADD_CONVENIENCE_LIBRARY(ndbtest
+    test_context.cpp
+    ../blocks/dbtup/tuppage.cpp
+    PackPool.cpp
+    PagePool.cpp
+)
+
 ADD_EXECUTABLE(mt_thr_config-t mt_thr_config.cpp)
 SET_TARGET_PROPERTIES(mt_thr_config-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_MT_THR_CONFIG")
 TARGET_LINK_LIBRARIES(mt_thr_config-t ndbgeneral)
 
-ADD_EXECUTABLE(DynArr256-t DynArr256.cpp test_context.cpp)
-SET_TARGET_PROPERTIES(DynArr256-t
-                      PROPERTIES COMPILE_FLAGS "-DTAP_TEST")
-TARGET_LINK_LIBRARIES(DynArr256-t ndbkernel ndbsched ndberror
-                      ndbtransport
-		      ndbmgmcommon
-                      ndbmgmapi 
-                      ndbportlib
-		      ndbgeneral)
-
+FOREACH(testprog IN ITEMS CountingPool DynArr256 PackPool PagePool)
+  ADD_EXECUTABLE(${testprog}-t ${testprog}.cpp)
+  SET_TARGET_PROPERTIES(${testprog}-t PROPERTIES COMPILE_FLAGS "-DTAP_TEST")
+  TARGET_LINK_LIBRARIES(${testprog}-t ndbtest ndbkernel ndbsched ndberror
+                ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
+ENDFOREACH(testprog)
