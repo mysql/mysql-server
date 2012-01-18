@@ -2451,6 +2451,14 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
     if (error)
     {
+      if (error == HA_ERR_TOO_MANY_CONCURRENT_TRXS)
+      {
+        my_error(HA_ERR_TOO_MANY_CONCURRENT_TRXS, MYF(0));
+        wrong_tables.free();
+        error= 1;
+        goto err;
+      }
+
       if (wrong_tables.length())
         wrong_tables.append(',');
 
