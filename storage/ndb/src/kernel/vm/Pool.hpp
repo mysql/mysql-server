@@ -72,7 +72,7 @@ struct Pool_context
   /**
    * Get mem root
    */
-  void* get_memroot() const;
+  void* get_memroot();
   
   /**
    * Alloc consekutive pages
@@ -118,13 +118,12 @@ struct Pool_context
   /**
    * Abort
    */
-  void handleAbort(int code, const char* msg) const ATTRIBUTE_NORETURN;
+  void handleAbort(int code, const char* msg) ATTRIBUTE_NORETURN;
 };
 
 template <typename T>
 struct Ptr 
 {
-  typedef Uint32 I;
   T * p;
   Uint32 i;
   inline bool isNull() const { return i == RNIL; }
