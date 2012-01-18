@@ -1303,8 +1303,9 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
 #endif
 
 #ifdef NDB_TCP_TRANSPORTER
-  Uint32 id = 0;
-  while ((id = recvdata.m_has_data_transporters.find(id + 1)) != BitmaskImpl::NotFound)
+  for(Uint32 id = recvdata.m_has_data_transporters.find_first();
+      id != BitmaskImpl::NotFound;
+      id = recvdata.m_has_data_transporters.find_next(id + 1))
   {
     bool hasdata = false;
     TCP_Transporter * t = (TCP_Transporter*)theTransporters[id];
