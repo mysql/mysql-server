@@ -591,9 +591,7 @@ static connection_t * listener(worker_thread_t *current_thread,
     if (thread_group->shutdown)
       break;
   
-    thread_group->active_thread_count--;
     cnt = io_poll_wait(thread_group->pollfd, ev, MAX_EVENTS, -1);
-    thread_group->active_thread_count++;
     
     if (cnt <=0)
     {
@@ -1015,11 +1013,13 @@ connection_t *get_event(worker_thread_t *current_thread,
     if(!thread_group->listener)
     {
       thread_group->listener= current_thread;
+      thread_group->active_thread_count--;
       mysql_mutex_unlock(&thread_group->mutex);
 
       connection = listener(current_thread, thread_group);
 
       mysql_mutex_lock(&thread_group->mutex);
+      thread_group->active_thread_count++;
       /* There is no listener anymore, it just returned. */
       thread_group->listener= NULL;
       break;
