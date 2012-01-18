@@ -36,6 +36,7 @@ Handler_read_key	7
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	31
 set optimizer_switch='subquery_cache=off';
 flush status;
@@ -62,6 +63,7 @@ Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	61
 set optimizer_switch='subquery_cache=on';
 #single value subquery test (where)
@@ -87,6 +89,7 @@ Handler_read_key	7
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	31
 set optimizer_switch='subquery_cache=off';
 flush status;
@@ -111,6 +114,7 @@ Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	61
 set optimizer_switch='subquery_cache=on';
 #single value subquery test (having)
@@ -136,6 +140,7 @@ Handler_read_key	7
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	31
 set optimizer_switch='subquery_cache=off';
 flush status;
@@ -160,6 +165,7 @@ Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	61
 set optimizer_switch='subquery_cache=on';
 #single value subquery test (OUTER JOIN ON)
@@ -257,6 +263,7 @@ Handler_read_key	7
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	442
 set optimizer_switch='subquery_cache=off';
 flush status;
@@ -353,6 +360,7 @@ Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	472
 set optimizer_switch='subquery_cache=on';
 #single value subquery test (GROUP BY)
@@ -374,6 +382,7 @@ Handler_read_key	17
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	4
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	36
 set optimizer_switch='subquery_cache=off';
 flush status;
@@ -394,6 +403,7 @@ Handler_read_key	10
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	4
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	86
 set optimizer_switch='subquery_cache=on';
 #single value subquery test (distinct GROUP BY)
@@ -415,6 +425,7 @@ Handler_read_key	17
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	4
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	41
 set optimizer_switch='subquery_cache=off';
 flush status;
@@ -435,6 +446,7 @@ Handler_read_key	10
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	4
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	91
 set optimizer_switch='subquery_cache=on';
 #single value subquery test (ORDER BY)
@@ -462,6 +474,7 @@ Handler_read_key	7
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	10
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	42
 set optimizer_switch='subquery_cache=off';
 flush status;
@@ -488,6 +501,7 @@ Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	10
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	72
 set optimizer_switch='subquery_cache=on';
 #single value subquery test (distinct ORDER BY)
@@ -509,7 +523,8 @@ Handler_read_key	7
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	4
-Handler_read_rnd_next	37
+Handler_read_rnd_deleted	1
+Handler_read_rnd_next	36
 set optimizer_switch='subquery_cache=off';
 flush status;
 select distinct a from t1 ORDER BY (select d from t2 where b=c);
@@ -529,7 +544,8 @@ Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	4
-Handler_read_rnd_next	67
+Handler_read_rnd_deleted	1
+Handler_read_rnd_next	66
 set optimizer_switch='subquery_cache=on';
 #single value subquery test (LEFT JOIN ON)
 flush status;
@@ -626,6 +642,7 @@ Handler_read_key	70
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	141
 set optimizer_switch='subquery_cache=off';
 flush status;
@@ -722,6 +739,7 @@ Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	671
 set optimizer_switch='subquery_cache=on';
 #single value subquery test (PS)
@@ -1345,6 +1363,7 @@ Handler_read_key	11
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	145
 set optimizer_switch='subquery_cache=on';
 flush status;
@@ -1373,6 +1392,7 @@ Handler_read_key	32
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	84
 #several subqueries (several levels)
 set optimizer_switch='subquery_cache=off';
@@ -1404,6 +1424,7 @@ Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	127
 set optimizer_switch='subquery_cache=on';
 flush status;
@@ -1432,6 +1453,7 @@ Handler_read_key	13
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	69
 #clean up
 drop table t1,t2;
@@ -1621,6 +1643,7 @@ Handler_read_key	15
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	8
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	57
 set optimizer_switch='subquery_cache=on';
 flush status;
@@ -1645,6 +1668,7 @@ Handler_read_key	21
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	8
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	37
 argument of aggregate function as parameter of subquery (illegal use)
 set optimizer_switch='subquery_cache=off';
@@ -1670,6 +1694,7 @@ Handler_read_key	15
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	8
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	57
 set optimizer_switch='subquery_cache=on';
 flush status;
@@ -1694,6 +1719,7 @@ Handler_read_key	22
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	8
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	41
 drop table t1,t2;
 #test of flattening subquery optimisations and cache
@@ -1734,6 +1760,7 @@ Handler_read_key	15
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	16
 alter table t2 drop primary key;
 set optimizer_switch='default,semijoin=off,materialization=off,subquery_cache=off';
@@ -1770,6 +1797,7 @@ Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	151
 set optimizer_switch='default,semijoin=off,materialization=off,subquery_cache=on';
 explain select * from t1 where a in (select pk from t2);
@@ -1805,6 +1833,7 @@ Handler_read_key	15
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	43
 set optimizer_switch='default,semijoin=off,materialization=on,subquery_cache=on';
 explain select * from t1 where a in (select pk from t2);
@@ -1840,6 +1869,7 @@ Handler_read_key	18
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	27
 drop table t0,t1,t2;
 set optimizer_switch='default';

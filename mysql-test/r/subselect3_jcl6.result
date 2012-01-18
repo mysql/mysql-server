@@ -134,6 +134,7 @@ Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	50
 select 'No key lookups, seq reads: 29= 5 reads from t2 + 4 * 6 reads from t1.' Z;
 Z

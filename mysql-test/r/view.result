@@ -3959,6 +3959,7 @@ Handler_read_key	1
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	17
 CREATE VIEW v AS SELECT * FROM t2;
 EXPLAIN EXTENDED
@@ -3980,6 +3981,7 @@ Handler_read_key	1
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	17
 DROP VIEW v;
 DROP TABLE t1, t2;

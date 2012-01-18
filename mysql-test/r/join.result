@@ -860,6 +860,7 @@ Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	5
 drop table t1, t2, t3;
 create table t1 (a int);
@@ -1269,6 +1270,7 @@ Handler_read_key	1
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	1
 DROP TABLE t1, t2;
 End of 5.1 tests
