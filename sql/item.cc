@@ -8507,12 +8507,18 @@ bool Item_cache_datetime::get_date(MYSQL_TIME *ltime, uint fuzzydate)
       return false;
     }
   case MYSQL_TYPE_DATE:
-    TIME_from_longlong_date_packed(ltime, int_value);
-    return false;
+    {
+      int warnings= 0;
+      TIME_from_longlong_date_packed(ltime, int_value);
+      return check_date(ltime, non_zero_date(ltime), fuzzydate, &warnings);
+    }
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
-    TIME_from_longlong_datetime_packed(ltime, int_value);
-    return false;
+    {
+      int warnings= 0;
+      TIME_from_longlong_datetime_packed(ltime, int_value);
+      return check_date(ltime, non_zero_date(ltime), fuzzydate, &warnings);
+    }
   default:
     DBUG_ASSERT(0);
   }
