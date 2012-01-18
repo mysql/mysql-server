@@ -3080,13 +3080,12 @@ row_import_tablespace_cleanup(
 /*==========================*/
 	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt from handler */
 	trx_t*		trx,		/*!< in/out: transaction for import */
-	dict_index_t*	index,		/*!< in: index being processed */
 	db_err		err)		/*!< in: error code */
 {
 	ut_a(prebuilt->trx != trx);
 
 	if (err != DB_SUCCESS) {
-		prebuilt->trx->error_info = index;
+		prebuilt->trx->error_info = NULL;
 
 		/* TODO: drop the broken *.ibd file, because
 		trx would be committed and crash recovery
@@ -3108,18 +3107,17 @@ row_import_tablespace_error(
 /*========================*/
 	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt from handler */
 	trx_t*		trx,		/*!< in/out: transaction for import */
-	dict_index_t*	index,		/*!< in: index where error detected */
 	db_err		err)		/*!< in: error code */
 {
 	if (!trx_is_interrupted(trx)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: ALTER TABLE ");
-		dict_index_name_print(stderr, trx, index);
+		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
 		fprintf(stderr, " IMPORT TABLESPACE failed: %lu\n",
 			(ulint) err);
 	}
 
-	return(row_import_tablespace_cleanup(prebuilt, trx, index, err));
+	return(row_import_tablespace_cleanup(prebuilt, trx, err));
 }
 
 /*****************************************************************//**
@@ -3272,160 +3270,41 @@ row_import_tablespace_set_sys_max_row_id(
 	return(DB_SUCCESS);
 }
 
-/** Parsed index info. */
-struct index_root_t {
-	char*		name;		/*!< index name */
-	ulint		space;		/*!< index space id */
-	ulint		pageno;		/*!< index page number */
-};
-
-/** Config file tokens. */
-enum cfg_token_t {
-	CFG_TOKEN_NONE,			/*!< Unknown */
-	CFG_TOKEN_VERSION,		/*!< "version" */
-	CFG_TOKEN_INDEX,		/*!< "index" */
-	CFG_TOKEN_ROOT,			/*!< "root" */
-	CFG_TOKEN_NUMBER,		/*!< Number */
-	CFG_TOKEN_STRING		/*!< String */
-};
-
-/** Maximum length of token in configuration file. */
-#define MAX_CFG_TOKEN_LEN	512
-
 /*****************************************************************//**
-Skip whitespace.
-@return last char read or EOF. */
+Read the tablename from the meta data file.
+@return DB_SUCCESS or error code. */
 static
-int
-cfg_parse_skip_ws(
-/*==============*/
-	FILE*		file)	/*!< in: file to read from */
+db_err
+row_import_tablespace_cfg_read_index_name(
+/*======================================*/
+	FILE*		file,		/*!< in/out: File to read from */
+	char*		name,		/*!< out: index name */
+	ulint		max_len)	/*!< in: max size of name buffer, this
+					is also the expected length */
 {
-	int		ch;
+	ulint		len = 0;
 
-	while (isspace(ch = fgetc(file))) {
-		// Skip whitespace
-	}
+	while (!feof(file)) {
+		int	ch = fgetc(file);
 
-	if (ch != EOF) {
-		ungetc(ch, file);
-	}
-
-	return(ch);
-}
-
-static
-cfg_token_t
-cfg_parse_token(
-/*============*/
-	const char*	token)	/*!< in: token to lookup */
-{
-	if (strcmp(token, "index") == 0) {
-		return(CFG_TOKEN_INDEX);
-	} else if (strcmp(token, "version") == 0) {
-		return(CFG_TOKEN_VERSION);
-	} else if (strcmp(token, "root") == 0) {
-		return(CFG_TOKEN_ROOT);
-	}
-
-	return(CFG_TOKEN_NONE);
-}
-
-/*****************************************************************//**
-Check for compatible version, read to end of line.
-@return true if version number matches. */
-static
-bool
-cfg_version(
-/*========*/
-	FILE*		file)		/*!< in/out: File to read from */
-{
-	int	ch;
-	int	version = 0;
-
-	while ((ch = fgetc(file)) != EOF) {
-
-		if (isspace(ch) && cfg_parse_skip_ws(file) == EOF) {
+		if (ch == EOF) {
 			break;
-		}
-
-		switch (ch) {
-		case ')':
-			ungetc(ch, file);
-			return(version == 1);
-
-		case ' ': case '\t':
-			break;
-
-		case '1':
-			if (version == 0) {
-				version = 1;
+		} else if (ch != 0) {
+			if (len < max_len) {
+				name[len++] = ch;
+			} else {
 				break;
 			}
-		default:
-			return(false);
+		/* max_len includes the NUL byte */
+		} else if (len != max_len - 1) {
+			return(DB_IO_ERROR);
+		} else {
+			name[len] = 0;
+			return(DB_SUCCESS);
 		}
 	}
 
-	return(false);
-}
-
-/*****************************************************************//**
-Get the root <space, pageno>.
-@return true if parse is OK. */
-static
-bool
-cfg_root(
-/*=====*/
-	FILE*		file,		/*!< in/out: File to read from */
-	index_root_t*	entry)		/*1< in/out: root space and page */
-{
-	int	ch;
-	ulint	n = 0;
-	bool	space = true;
-
-	entry->space = entry->pageno = 0;
-
-	while ((ch = fgetc(file)) != EOF) {
-
-		if (isspace(ch) && cfg_parse_skip_ws(file) == EOF) {
-			break;
-		}
-
-		switch (ch) {
-		case ')':
-			if (space) {
-				return(false);
-			} else if (n == 0) {
-				return(false);
-			}
-			ungetc(ch, file);
-			entry->pageno = n;
-			return(entry->space > 0 && entry->pageno > 0);
-
-		case ' ': case '\t':
-			if (space) {
-				entry->space = n;
-
-				n = 0;
-				space = false;
-			} else {
-				return(false);
-			}
-			break;
-
-		case '0': case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
-			n *= 10;
-			n += ch - '0';
-			break;
-
-		default:
-			return(false);
-		}
-	}
-
-	return(false);
+	return(DB_IO_ERROR);
 }
 
 /*****************************************************************//**
@@ -3433,18 +3312,11 @@ Get the index root <space, pageno> from the meta-data.
 @return vector of root page values, or NULL on error. Caller is responsibe
 	for freeing the vector. */
 static
-ib_vector_t*
-row_import_tablespace_get_index_root(
+db_err
+row_import_tablespace_set_index_root(
 /*=================================*/
-	const dict_table_t*	table,	/*!< in: table */
-	mem_heap_t*		heap)	/*!< in: heap to create the vector */
+	dict_table_t*		table)	/*!< in: table */
 {
-	ib_vector_t*		vec;
-	ib_alloc_t*		heap_alloc;
-
-	heap_alloc = ib_heap_allocator_create(heap);
-	vec = ib_vector_create(heap_alloc, sizeof(index_root_t), 8);
-
 	char			filename[OS_FILE_MAX_PATH];
 	static const ulint	suffix_len = strlen(".cfg");
 
@@ -3461,200 +3333,114 @@ row_import_tablespace_get_index_root(
 
 	FILE*	file = fopen(filename, "r");
 
-	if (file == 0) {
-		return(0);
-	}
+	if (file == NULL) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error opening: %s\n", filename);
+		return(DB_IO_ERROR);
+	} else {
+		ib_uint32_t		value;
 
-	int		ch;
-	index_root_t*	entry = 0;
-	ulint		depth = 0;
-	bool		error = false;
-	bool		in_string = false;
-	cfg_token_t	curtok = CFG_TOKEN_NONE;
-	char		token[MAX_CFG_TOKEN_LEN];
+		if (fread(&value, sizeof(value), 1, file) != 1) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: IO error (%lu), reading version\n",
+				(ulint) errno);
 
-	/* We assume that '(' and ')' don't occur in the index name. */
-
-	while (!error && (ch = fgetc(file)) != EOF) {
-
-		// Skip whitespace that is not quoted.
-		if (isspace(ch)
-		    && !in_string
-		    && cfg_parse_skip_ws(file) == EOF) {
-
-			break;
+			fclose(file);
+			return(DB_IO_ERROR);
 		}
 
-		// FIXME: Ignore quotes etc. in index name.
+		value = mach_read_from_4(reinterpret_cast<const byte*>(&value));
 
-		switch (ch) {
-		case ' ':
-		case '\t':
-			if (in_string) {
-				token[len++] = ch;
-			} else if (len == 0) {
-				break;
-			} else if (depth == 1) {
-				token[len] = 0;
-				switch (curtok = cfg_parse_token(token)) {
-				case CFG_TOKEN_VERSION:
-					if (!cfg_version(file)) {
-						error = true;
-					}
-					break;
-				case CFG_TOKEN_INDEX:
-					entry = static_cast<index_root_t*>(
-						mem_heap_alloc(
-							heap, sizeof(*entry)));
-					break;
-				default:
-					error = true;
+		/* Check the version number. */
+		if (value != IB_EXPORT_CFG_VERSION) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: Unsupported meta-data version "
+				"number (%lu). File ignored.\n",
+				(ulint) value);
+
+			fclose(file);
+			return(DB_IO_ERROR);
+
+		}
+
+		/* It is a supported version, read the index names and
+		root page numbers of the indexes and set the values. */
+
+		while (!feof(file)) {
+			db_err		err;
+			dict_index_t*	index;
+			ib_uint32_t	pageno;
+
+			/* Read the root page number of the index. */
+			if (fread(&value, sizeof(value), 1, file) != 1) {
+				if (feof(file)) {
 					break;
 				}
-				len = 0;
-			} else if (depth == 2) {
-				token[len] = 0;
-				switch (cfg_parse_token(token)) {
-				case CFG_TOKEN_ROOT:
-					if (!cfg_root(file, entry)) {
-						error = true;
-					}
-					break;
-				default:
-					error = true;
-					break;
-				}
-				len = 0;
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					" InnoDB: IO error (%lu), reading "
+					"root page number.\n",
+					(ulint) errno);
+
+				fclose(file);
+				return(DB_IO_ERROR);
+			}
+
+			pageno = mach_read_from_4(
+				reinterpret_cast<const byte*>(&value));
+
+			/* Read the index name length. */
+			if (fread(&value, sizeof(value), 1, file) != 1) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					" InnoDB: IO error (%lu), reading "
+					"name length.\n",
+					(ulint) errno);
+
+				fclose(file);
+				return(DB_IO_ERROR);
+			}
+
+			/* The NUL byte is included in the name length. */
+			ulint	len = mach_read_from_4(
+				reinterpret_cast<const byte*>(&value));
+
+			char	name[len];
+
+			err = row_import_tablespace_cfg_read_index_name(
+				file, name, len);
+
+			if (err != DB_SUCCESS) {
+				fclose(file);
+				return(err);
+			}
+
+			index = dict_table_get_index_on_name(table, name);
+
+			if (index != 0) {
+				index->page = pageno;
+				index->space = table->space;
 			} else {
-				ut_error;
+				ut_print_timestamp(stderr);
+				fprintf(stderr, " InnoDB: Index ");
+				ut_print_name(stderr, NULL, TRUE, name);
+				fprintf(stderr, " not in table ");
+				ut_print_name(stderr, NULL, TRUE, table->name);
+				fclose(file);
+
+				/* TODO: If the table schema matches, it would
+				be better to just ignore this error. */
+
+				return(DB_ERROR);
 			}
-			break;
-
-		case '(':
-			if (depth++ > 2) {
-				error = true;
-				break;
-			}
-
-			len = 0;
-			break;
-
-		case ')':
-			if (depth == 0) {
-				error = true;
-			} else if (--depth == 0 && curtok == CFG_TOKEN_INDEX) {
-				ib_vector_push(vec, entry);
-			}
-			break;
-
-		case '"':
-			if (curtok != CFG_TOKEN_INDEX) {
-				error = true;
-			} else if (in_string) {
-				token[len] = 0;
-
-				entry->name = mem_heap_strdup(heap, token);
-
-				len = 0;
-				in_string = false;
-			} else {
-				in_string = true;
-			}
-			break;
-
-		case '\n':
-			if (depth > 0 || in_string) {
-				error = true;
-			}
-			curtok = CFG_TOKEN_NONE;
-			entry = 0;
-			break;
-
-		default:
-			if (isalpha(ch)) {
-				ch = in_string ? ch : tolower(ch);
-			}
-
-			if (len < MAX_CFG_TOKEN_LEN) {
-				token[len++] = ch;
-			}
-			break;
 		}
+
+		fclose(file);
 	}
 
-	fclose(file);
-
-	return(vec);
-}
-
-/*****************************************************************//**
-Set the index root <space, pageno> and update SYS_INDEX.PAGENO.
-@return updated matching index if found. */
-static
-dict_index_t*
-row_import_tablespace_set_index_root(
-/*=================================*/
-	dict_table_t*		table,		/*!< in/out: table */
-	const index_root_t*	entry)		/*!< in: index values */
-{
-	dict_index_t*		index;
-
-	for (index = dict_table_get_first_index(table);
-	     index != 0;
-	     index = dict_table_get_next_index(index)) {
-
-		if (strcmp(index->name, entry->name) == 0) {
-
-			index->space = table->space;
-			index->page = entry->pageno;
-
-			return(index);
-		}
-	}
-
-	return(NULL);
-}
-
-/*****************************************************************//**
-Set the index root <space, pageno> and update SYS_INDEX.PAGENO.
-@return DB_SUCCESS or error */
-static
-db_err
-row_import_tablespace_set_index_root(
-/*=================================*/
-	dict_table_t*	table)		/*!< in/out: table */
-{
-	ib_vector_t*	vec;
-	db_err		err = DB_SUCCESS;
-	mem_heap_t*	heap = mem_heap_create(256);
-
-	vec = row_import_tablespace_get_index_root(table, heap);
-
-	// TODO: If the table schema is the same we should allow the
-	// import, the indexes can always be rebuilt
-
-	/* Index count mismatch. */
-	if (ib_vector_size(vec) != UT_LIST_GET_LEN(table->indexes)) {
-		return(DB_ERROR);
-	}
-
-	for (ulint i = 0; i < ib_vector_size(vec); ++i) {
-		dict_index_t*	index;
-		index_root_t*	entry;
-
-		entry = static_cast<index_root_t*>(ib_vector_get(vec, i));
-
-		index = row_import_tablespace_set_index_root(table, entry);
-
-		// TODO: Print suitable error message
-		if (index == NULL) {
-			break;
-		}
-	}
-
-	mem_heap_free(heap);
-
-	return(err);
+	return(DB_SUCCESS);
 }
 
 /*****************************************************************//**
@@ -3702,12 +3488,12 @@ row_import_tablespace_for_mysql(
 
 	if (err != DB_SUCCESS) {
 
-		return(row_import_tablespace_cleanup(prebuilt, trx, NULL, err));
+		return(row_import_tablespace_cleanup(prebuilt, trx, err));
 
 	} else if (trx->update_undo == NULL) {
 
 		return(row_import_tablespace_cleanup(
-			prebuilt, trx, NULL, DB_TOO_MANY_CONCURRENT_TRXS));
+			prebuilt, trx, DB_TOO_MANY_CONCURRENT_TRXS));
 	}
 
 	prebuilt->trx->op_info = "importing tablespace";
@@ -3732,7 +3518,7 @@ row_import_tablespace_for_mysql(
 	mutex_exit(&dict_sys->mutex);
 
 	if (err != DB_SUCCESS) {
-		return(row_import_tablespace_cleanup(prebuilt, trx, NULL, err));
+		return(row_import_tablespace_cleanup(prebuilt, trx, err));
 	}
 
 	/* It is possible that the lsn's in the tablespace to be
@@ -3754,8 +3540,7 @@ row_import_tablespace_for_mysql(
 		ut_print_name(stderr, prebuilt->trx, TRUE, table->name);
 		fprintf(stderr, " IMPORT TABLESPACE\n");
 
-		return(row_import_tablespace_cleanup(
-			prebuilt, trx, NULL, DB_ERROR));
+		return(row_import_tablespace_cleanup(prebuilt, trx, DB_ERROR));
 	}
 
 	/* Play it safe and remove all insert buffer entries for this
@@ -3784,14 +3569,13 @@ row_import_tablespace_for_mysql(
 			fprintf(stderr, " IMPORT TABLESPACE\n");
 		}
 
-		return(row_import_tablespace_cleanup(
-			prebuilt, trx, NULL, DB_ERROR));
+		return(row_import_tablespace_cleanup(prebuilt, trx, DB_ERROR));
 	}
 
 	err = (db_err) ibuf_check_bitmap_on_import(trx, table->space);
 
 	if (err != DB_SUCCESS) {
-		return(row_import_tablespace_cleanup(prebuilt, trx, NULL, err));
+		return(row_import_tablespace_cleanup(prebuilt, trx, err));
 	}
 
 	/* Update index->page and SYS_INDEXES.PAGE_NO to match the
@@ -3808,7 +3592,7 @@ row_import_tablespace_for_mysql(
 	err = row_import_tablespace_set_index_root(table);
 
 	if (err != DB_SUCCESS) {
-		return(row_import_tablespace_error(prebuilt, trx, NULL, err));
+		return(row_import_tablespace_error(prebuilt, trx, err));
 	}
 
 	dict_index_t*	index = dict_table_get_first_index(table);
@@ -3820,19 +3604,19 @@ row_import_tablespace_for_mysql(
 
 	if (!dict_index_is_clust(index)) {
 		return(row_import_tablespace_error(
-			prebuilt, trx, NULL, DB_CORRUPTION));
+			prebuilt, trx, DB_CORRUPTION));
 	}
 
 	err = (db_err) btr_root_adjust_on_import(index);
 
 	if (err != DB_SUCCESS) {
 
-		return(row_import_tablespace_error(prebuilt, trx, index, err));
+		return(row_import_tablespace_error(prebuilt, trx, err));
 
 	} else if (!btr_validate_index(index, trx, TRUE)) {
 
 		return(row_import_tablespace_error(
-			prebuilt, trx, index, DB_CORRUPTION));
+			prebuilt, trx, DB_CORRUPTION));
 	}
 
 	err = (db_err) row_import_tablespace_scan_index(
@@ -3840,14 +3624,14 @@ row_import_tablespace_for_mysql(
 
 	if (err != DB_SUCCESS) {
 
-		return(row_import_tablespace_error(prebuilt, trx, index, err));
+		return(row_import_tablespace_error(prebuilt, trx, err));
 	}
 
 	err = row_import_tablespace_adjust_root_pages(
 		prebuilt, trx, table, &index, n_rows_in_table);
 
 	if (err != DB_SUCCESS) {
-		return(row_import_tablespace_error(prebuilt, trx, index, err));
+		return(row_import_tablespace_error(prebuilt, trx, err));
 	}
 
 	/* TODO: Copy table->flags to SYS_TABLES.TYPE and N_COLS */
@@ -3862,8 +3646,7 @@ row_import_tablespace_for_mysql(
 			prebuilt, table, &index);
 
 		if (err != DB_SUCCESS) {
-			return(row_import_tablespace_error(
-				prebuilt, trx, index, err));
+			return(row_import_tablespace_error(prebuilt, trx, err));
 		}
 	}
 
@@ -3871,7 +3654,7 @@ row_import_tablespace_for_mysql(
 	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
 
 	ut_a(err == DB_SUCCESS);
-	return(row_import_tablespace_cleanup(prebuilt, trx, NULL, err));
+	return(row_import_tablespace_cleanup(prebuilt, trx, err));
 }
 
 /*********************************************************************//**
@@ -5808,12 +5591,13 @@ row_mysql_close(void)
 /*********************************************************************//**
 Write the table meta data after quiesce. */
 static
-void
+db_err
 row_mysql_quiesce_write_meta_data(
 /*==============================*/
 	const dict_table_t*	table)	/*!< in: write the meta data for
 					this table */
 {
+	db_err	err = DB_SUCCESS;
 	char	filename[OS_FILE_MAX_PATH];
 	static const ulint	suffix_len = strlen(".cfg");
 
@@ -5833,30 +5617,85 @@ row_mysql_quiesce_write_meta_data(
 	if (file == NULL) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: Error creating: %s\n", filename);
+		err = DB_IO_ERROR;
 	} else {
-		const dict_index_t* index;
+		const dict_index_t*	index;
+		ib_uint32_t		value;
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			" InnoDB: Writing table metadata to '%s'\n",
 			filename);
 
-		fprintf(file, "(version %lu)\n", IB_EXPORT_CFG_VERSION);
+		mach_write_to_4(
+			reinterpret_cast<byte*>(&value),
+			IB_EXPORT_CFG_VERSION);
+
+		if (fwrite(&value, sizeof(value), 1, file) != 1) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: IO error (%lu), writing version\n",
+				(ulint) errno);
+
+			err = DB_IO_ERROR;
+		}
 
 		for (index = UT_LIST_GET_FIRST(table->indexes);
-		    index != 0;
-		    index = UT_LIST_GET_NEXT(indexes, index)) {
+		     index != 0 && err == DB_SUCCESS;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-			/* FIXME: We assume here that the index->name
-			doesn't contain "()" */
+			fprintf(stderr, "Write: %s -> %lu\n",
+				index->name, (ulint) index->page);
 
-			fprintf(file, "(index \"%s\" (root %lu %lu))\n",
-				index->name,
-				(ulint) index->space, (ulint) index->page);
+			mach_write_to_4(
+				reinterpret_cast<byte*>(&value),
+				index->page);
+
+			if (fwrite(&value, sizeof(value), 1, file) != 1) {
+
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					" InnoDB: IO error (%lu), writing "
+					"index root page\n",
+					(ulint) errno);
+
+				err = DB_IO_ERROR;
+			}
+
+			ulint	len = ut_strlen(index->name);
+
+			/* NUL byte is included in the length. */
+			mach_write_to_4(
+				reinterpret_cast<byte*>(&value),
+				len + 1);
+
+			if (fwrite(&value, sizeof(value), 1, file) != 1) {
+
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					" InnoDB: IO error (%lu), writing "
+					"name lengtyh\n",
+					(ulint) errno);
+
+				err = DB_IO_ERROR;
+			}
+
+			/* Write out the NUL byte too. */
+			if (fwrite(index->name, len + 1, 1, file) != 1) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					" InnoDB: IO error (%lu), writing "
+					"index name\n",
+					(ulint) errno);
+
+				err = DB_IO_ERROR;
+			}
 		}
 
 		fclose(file);
 	}
+
+	return(err);
 }
 
 /*********************************************************************//**
@@ -5888,7 +5727,11 @@ row_mysql_quiesce_table_begin(
 	ut_print_timestamp(stderr);
 	fprintf(stderr, " InnoDB: Quiesce pages flushed: %lu\n", n_pages);
 
-	row_mysql_quiesce_write_meta_data(table);
+	if (row_mysql_quiesce_write_meta_data(table) != DB_SUCCESS) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: There was an error writing to the "
+			"meta data file.\n");
+	}
 
 	// FIXME: Ignore races for now. Though I can't see why
 	// there should be a race for the interim states.
