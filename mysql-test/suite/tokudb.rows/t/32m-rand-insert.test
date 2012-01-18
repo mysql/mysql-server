@@ -1,0 +1,34 @@
+# do a lot of longblob insertions up to 32MB-4 in size with a random key
+
+set storage_engine='tokudb';
+
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+
+create table t (id int not null primary key, v longblob not null);
+
+select @@max_allowed_packet into @my_max_allowed_packet;
+set global max_allowed_packet=100000000;
+
+connect(conn1,localhost,root,,);
+
+let $nrows=1000;
+let $maxid=$nrows;
+let $maxblob=32*1024*1024;
+while ($nrows) {
+      eval insert ignore into t (id,v) values (floor(rand()*$maxid),repeat('a',($maxblob-4)*rand()));
+      dec $nrows;
+}
+
+connection default;
+disconnect conn1;
+set global max_allowed_packet=@my_max_allowed_packet;
+
+check table t;
+
+optimize table t;
+
+check table t;
+
+drop table t;

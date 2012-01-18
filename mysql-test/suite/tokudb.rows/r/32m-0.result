@@ -1,6 +1,8 @@
 set storage_engine='tokudb';
 drop table if exists t;
 create table t (id int not null primary key, v longblob not null);
+select @@max_allowed_packet into @my_max_allowed_packet;
+set global max_allowed_packet=100000000;
 insert into t values (1,repeat('a',32*1024*1024));
 ERROR HY000: Got error 22 from storage engine
 insert into t values (1,repeat('a',32*1024*1024-1));
@@ -28,4 +30,5 @@ id	length(v)
 2	1
 3	1
 4	1
+set global max_allowed_packet=@my_max_allowed_packet;
 drop table t;

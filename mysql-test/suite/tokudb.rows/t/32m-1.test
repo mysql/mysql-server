@@ -8,6 +8,11 @@ drop table if exists t;
 
 create table t (id int not null primary key, v0 longblob not null,v1 longblob not null);
 
+select @@max_allowed_packet into @my_max_allowed_packet;
+set global max_allowed_packet=100000000;
+
+connect(conn1,localhost,root,,);
+
 # find a value that works
 --error 1030
 insert into t values (1,repeat('a',16*1024*1024),repeat('b',16*1024*1024));
@@ -41,5 +46,9 @@ insert into t values (1,'a','a'),(2,'b','b'),(3,'c','c'),(4,'d','d');
 --error 1030
 insert into t values (5,repeat('e',16*1024*1024),repeat('f',16*1024*1024));
 select id,length(v0),length(v1) from t;
+
+connection default;
+disconnect conn1;
+set global max_allowed_packet=@my_max_allowed_packet;
 
 drop table t;
