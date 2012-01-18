@@ -95,7 +95,7 @@ public:
 private:
   void grow(Uint32 start, Uint32 cnt);
 
-#define XX_RL_COUNT 11
+#define XX_RL_COUNT 10
   /**
    * Return pointer to free page data on page
    */

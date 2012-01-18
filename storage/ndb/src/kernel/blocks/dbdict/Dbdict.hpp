@@ -25,7 +25,6 @@
 #include <trigger_definitions.h>
 #include <pc.hpp>
 #include <ArenaPool.hpp>
-#include <CountingPool.hpp>
 #include <DataBuffer2.hpp>
 #include <DLHashTable.hpp>
 #include <DLFifoList.hpp>
@@ -33,8 +32,6 @@
 #include <KeyTable.hpp>
 #include <KeyTable2.hpp>
 #include <KeyTable2Ref.hpp>
-#include <PackPool.hpp>
-#include <PagePool.hpp>
 #include <SimulatedBlock.hpp>
 #include <SimpleProperties.hpp>
 #include <SignalCounter.hpp>
@@ -77,6 +74,7 @@
 #include <Rope.hpp>
 #include <signaldata/CreateFilegroupImpl.hpp>
 #include <signaldata/DropFilegroupImpl.hpp>
+#include <SLList.hpp>
 #include <signaldata/DictSignal.hpp>
 #include <signaldata/SchemaTransImpl.hpp>
 #include <LockQueue.hpp>
@@ -100,7 +98,6 @@
 
 #define ZCOMMIT_WAIT_GCI   6
 #define ZINDEX_STAT_BG_PROCESS 7
-#define ZMEMORY_REORG 8
 
 /*--------------------------------------------------------------*/
 // Other constants in alphabetical order
@@ -232,8 +229,7 @@ public:
     }
   };
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
-//  typedef ArrayPool<AttributeRecord> AttributeRecord_pool;
-  typedef CountingPool<AttributeRecord, PackPool<AttributeRecord> > AttributeRecord_pool;
+  typedef ArrayPool<AttributeRecord> AttributeRecord_pool;
   typedef DLMHashTable<AttributeRecord_pool, AttributeRecord> AttributeRecord_hash;
   typedef DLFifoList<AttributeRecord,AttributeRecord,AttributeRecord_pool> AttributeRecord_list;
   typedef LocalDLFifoList<AttributeRecord,AttributeRecord,AttributeRecord_pool> LocalAttributeRecord_list;
@@ -248,8 +244,7 @@ public:
    */
   struct TableRecord;
   typedef Ptr<TableRecord> TableRecordPtr;
-//  typedef ArrayPool<TableRecord> TableRecord_pool;
-  typedef CountingPool<TableRecord, PackPool<TableRecord> > TableRecord_pool;
+  typedef ArrayPool<TableRecord> TableRecord_pool;
   typedef DLFifoList<TableRecord,TableRecord,TableRecord_pool> TableRecord_list;
   typedef LocalDLFifoList<TableRecord,TableRecord,TableRecord_pool> LocalTableRecord_list;
 
@@ -508,8 +503,7 @@ public:
   };
 
   typedef Ptr<TriggerRecord> TriggerRecordPtr;
-//  typedef ArrayPool<TriggerRecord> TriggerRecord_pool;
-typedef CountingPool<TriggerRecord, PackPool<TriggerRecord> > TriggerRecord_pool;
+  typedef ArrayPool<TriggerRecord> TriggerRecord_pool;
 
   Uint32 c_maxNoOfTriggers;
   TriggerRecord_pool c_triggerRecordPool_;
@@ -553,8 +547,7 @@ typedef CountingPool<TriggerRecord, PackPool<TriggerRecord> > TriggerRecord_pool
   };
 
   typedef Ptr<FsConnectRecord> FsConnectRecordPtr;
-//  typedef ArrayPool<FsConnectRecord> FsConnectRecord_pool;
-  typedef CountingPool<FsConnectRecord, PackPool<FsConnectRecord> > FsConnectRecord_pool;
+  typedef ArrayPool<FsConnectRecord> FsConnectRecord_pool;
   FsConnectRecord_pool c_fsConnectRecordPool;
 
   /**
@@ -748,10 +741,10 @@ typedef CountingPool<TriggerRecord, PackPool<TriggerRecord> > TriggerRecord_pool
   };
 
   typedef Ptr<DictObject> DictObjectPtr;
-//  typedef ArrayPool<DictObject> DictObject_pool;
-  typedef CountingPool<DictObject, PackPool<DictObject> > DictObject_pool;
+  typedef ArrayPool<DictObject> DictObject_pool;
   typedef DLMHashTable<DictObject_pool, DictObject, HashedByName<DictObject> > DictObjectName_hash;
   typedef DLMHashTable<DictObject_pool, DictObject, HashedById<DictObject> > DictObjectId_hash;
+  typedef SLList<DictObject> DictObject_list;
 
   DictObjectName_hash c_obj_name_hash; // Name (not temporary TableRecords)
   DictObjectId_hash c_obj_id_hash; // Schema file id / Trigger id
@@ -2344,8 +2337,7 @@ private:
 #endif
   };
 
-//  typedef ArrayPool<TxHandle> TxHandle_pool;
-  typedef CountingPool<TxHandle, PackPool<TxHandle> > TxHandle_pool;
+  typedef ArrayPool<TxHandle> TxHandle_pool;
   typedef DLMHashTable<TxHandle_pool, TxHandle> TxHandle_hash;
 
   TxHandle_pool c_txHandlePool;
@@ -2538,7 +2530,8 @@ private:
     MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
 
     // current and new temporary work table
-    TableRecordPtr::I m_newTablePtrI;
+    TableRecordPtr m_tablePtr;
+    TableRecordPtr m_newTablePtr;
     Uint32 m_newTable_realObjectId;
 
     // before image
@@ -2567,7 +2560,8 @@ private:
     AlterTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
-      m_newTablePtrI = RNIL;
+      m_tablePtr.setNull();
+      m_newTablePtr.setNull();
       m_dihAddFragPtr = RNIL;
       m_lqhFragPtr = RNIL;
       m_blockNo[0] = DBLQH;
@@ -3023,9 +3017,6 @@ private:
   void indexStatBg_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void indexStatBg_sendContinueB(Signal*);
 
-  // Memory reorg
-  void memoryReorg();
-
   // MODULE: CreateHashMap
 
   struct HashMapRecord {
@@ -3049,8 +3040,7 @@ private:
     Uint32 nextPool;
   };
   typedef Ptr<HashMapRecord> HashMapRecordPtr;
-//  typedef ArrayPool<HashMapRecord> HashMapRecord_pool;
-  typedef CountingPool<HashMapRecord, PackPool<HashMapRecord> > HashMapRecord_pool;
+  typedef ArrayPool<HashMapRecord> HashMapRecord_pool;
 
   HashMapRecord_pool c_hash_map_pool;
   RSS_AP_SNAPSHOT(c_hash_map_pool);
@@ -4132,7 +4122,6 @@ protected:
   virtual bool getParam(const char * param, Uint32 * retVal);
 private:
   ArenaAllocator c_arenaAllocator;
-  CountingPool<PackablePage, PackablePagePool> c_schemaMemoryPool;
   Uint32 c_noOfMetaTables;
 };
 
