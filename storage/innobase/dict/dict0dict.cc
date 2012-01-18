@@ -5435,7 +5435,7 @@ dict_set_corrupted(
 		ulint	len;
 		byte*	field	= rec_get_nth_field_old(
 			btr_cur_get_rec(&cursor),
-			DICT_SYS_INDEXES_TYPE_FIELD, &len);
+			DICT_FLD__SYS_INDEXES__TYPE, &len);
 		if (len != 4) {
 			goto fail;
 		}

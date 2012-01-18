@@ -2149,7 +2149,7 @@ err_exit:
 		ut_a(mem_validate());
 		fputs("Memory validated\n", stderr);
 #endif /* UNIV_MEM_DEBUG */
-        }
+	}
 
 
 	heap = mem_heap_create(512);
@@ -4041,7 +4041,8 @@ row_truncate_table_for_mysql(
 
 		rec = btr_pcur_get_rec(&pcur);
 
-		field = rec_get_nth_field_old(rec, 0, &len);
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
 		ut_ad(len == 8);
 
 		if (memcmp(buf, field, len) != 0) {
@@ -4063,7 +4064,7 @@ row_truncate_table_for_mysql(
 
 		if (root_page_no != FIL_NULL) {
 			page_rec_write_field(
-				rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
+				rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
 				root_page_no, &mtr);
 			/* We will need to commit and restart the
 			mini-transaction in order to avoid deadlocks.
@@ -4246,7 +4247,7 @@ row_drop_table_for_mysql(
 	ulint		namelen;
 	ibool		locked_dictionary	= FALSE;
 	ibool		fts_bg_thread_exited	= FALSE;
-	pars_info_t*    info			= NULL;
+	pars_info_t*	info			= NULL;
 
 	ut_a(name != NULL);
 
@@ -4799,7 +4800,8 @@ row_mysql_drop_temp_tables(void)
 		/* The high order bit of N_COLS is set unless
 		ROW_FORMAT=REDUNDANT. */
 		rec = btr_pcur_get_rec(&pcur);
-		field = rec_get_nth_field_old(rec, 4/*N_COLS*/, &len);
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_TABLES__N_COLS, &len);
 		if (len != 4
 		    || !(mach_read_from_4(field) & DICT_N_COLS_COMPACT)) {
 			continue;
@@ -4809,14 +4811,16 @@ row_mysql_drop_temp_tables(void)
 		in ROW_FORMAT=REDUNDANT could write garbage to
 		SYS_TABLES.MIX_LEN, where we now store the is_temp flag.
 		Above, we assumed is_temp=0 if ROW_FORMAT=REDUNDANT. */
-		field = rec_get_nth_field_old(rec, 7/*MIX_LEN*/, &len);
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_TABLES__MIX_LEN, &len);
 		if (len != 4
 		    || !(mach_read_from_4(field) & DICT_TF2_TEMPORARY)) {
 			continue;
 		}
 
 		/* This is a temporary table. */
-		field = rec_get_nth_field_old(rec, 0/*NAME*/, &len);
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_TABLES__NAME, &len);
 		if (len == UNIV_SQL_NULL || len == 0) {
 			/* Corrupted SYS_TABLES.NAME */
 			continue;

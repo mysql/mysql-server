@@ -6189,7 +6189,7 @@ innodb_sys_indexes_init(
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("innodb_sys_index_init");
+	DBUG_ENTER("innodb_sys_indexes_init");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 

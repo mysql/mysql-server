@@ -35,12 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 			// EXPLAIN_FILENAME_MAX_EXTRA_LENGTH
 
 #include <sql_acl.h>	// PROCESS_ACL
-#include <m_ctype.h>
 #include <mysys_err.h>
-#include <mysql/plugin.h>
 #include <mysql/innodb_priv.h>
-#include <mysql/psi/psi.h>
-#include <my_sys.h>
 
 /** @file ha_innodb.cc */
 

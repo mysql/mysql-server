@@ -113,12 +113,12 @@ dict_mem_table_create(
 	if (dict_table_has_fts_index(table)
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
-                table->fts = fts_create(table);
+		table->fts = fts_create(table);
 		table->fts->cache = fts_cache_create(table);
 		fts_optimize_add_table(table);
-        } else {
-                table->fts = NULL;
-        }
+	} else {
+		table->fts = NULL;
+	}
 #endif /* !UNIV_HOTBACKUP */
 
 	return(table);
