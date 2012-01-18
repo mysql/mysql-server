@@ -4283,9 +4283,10 @@ void Dblqh::seizeTcrec()
   locTcConnectptr.p->connectState = TcConnectionrec::CONNECTED;
 }//Dblqh::seizeTcrec()
 
-bool Dblqh::checkTransporterOverloaded(Signal* signal,
-                                       const NodeBitmask& all,
-                                       const LqhKeyReq* req)
+bool
+Dblqh::checkTransporterOverloaded(Signal* signal,
+                                  const NodeBitmask& all,
+                                  const LqhKeyReq* req)
 {
   // nodes likely to be affected by this op
   NodeBitmask mask;
@@ -4402,14 +4403,27 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   {
     const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
-    if (unlikely((!all.isclear() &&
-                  checkTransporterOverloaded(signal, all, lqhKeyReq))) ||
-        ERROR_INSERTED_CLEAR(5047)) {
-      jam();
-      releaseSections(handle);
-      noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
-      return;
+    if (unlikely(!all.isclear()))
+    {
+      if (checkTransporterOverloaded(signal, all, lqhKeyReq))
+      {
+        /**
+         * TODO: We should have counters for this...
+         */
+        jam();
+        releaseSections(handle);
+        noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+        return;
+      }
     }
+  }
+
+  if (ERROR_INSERTED_CLEAR(5047))
+  {
+    jam();
+    releaseSections(handle);
+    noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+    return;
   }
 
   sig0 = lqhKeyReq->clientConnectPtr;
@@ -11269,6 +11283,21 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
   scanptr.p->m_curr_batch_size_bytes+= tdata4 * sizeof(Uint32);
   scanptr.p->m_curr_batch_size_rows = rows + 1;
   scanptr.p->m_last_row = tdata5;
+
+  const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
+  if (unlikely(!all.isclear()))
+  {
+    if (all.get(refToNode(scanptr.p->scanApiBlockref)))
+    {
+      /**
+       * End scan batch if transporter-buffer are overloaded
+       *
+       * TODO: We should have counters for this...
+       */
+      tdata5 = 1;
+    }
+  }
+
   if (scanptr.p->check_scan_batch_completed() | tdata5){
     if (scanptr.p->scanLockHold == ZTRUE) {
       jam();

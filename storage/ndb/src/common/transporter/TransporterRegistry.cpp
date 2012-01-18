@@ -754,7 +754,8 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	  return SEND_OK;
 	}
 
-	int sleepTime = 2;	
+        set_status_overloaded(nodeId, true);
+        int sleepTime = 2;
 
 	/**
 	 * @note: on linux/i386 the granularity is 10ms
@@ -837,12 +838,12 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	  return SEND_OK;
 	}
 	
-	
 	/**
 	 * @note: on linux/i386 the granularity is 10ms
 	 *        so sleepTime = 2 generates a 10 ms sleep.
 	 */
-	int sleepTime = 2;
+        set_status_overloaded(nodeId, true);
+        int sleepTime = 2;
 	for(int i = 0; i<50; i++){
 	  if((nSHMTransporters+nSCITransporters) == 0)
 	    NdbSleep_MilliSleep(sleepTime); 
@@ -920,12 +921,12 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
           return SEND_OK;
 	}
 
-
 	/**
 	 * @note: on linux/i386 the granularity is 10ms
 	 *        so sleepTime = 2 generates a 10 ms sleep.
 	 */
-        int sleepTime = 2;	
+        set_status_overloaded(nodeId, true);
+        int sleepTime = 2;
 	for(int i = 0; i<50; i++){
 	  if((nSHMTransporters+nSCITransporters) == 0)
 	    NdbSleep_MilliSleep(sleepTime); 
