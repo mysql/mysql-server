@@ -3308,15 +3308,147 @@ row_import_tablespace_cfg_read_index_name(
 }
 
 /*****************************************************************//**
+Set the index root page number for v1 format.
+@return DB_SUCCESS or error code. */
+static
+db_err
+row_import_tablespace_set_index_root_v1(
+/*====================================*/
+	dict_table_t*	table,		/*!< in: table */
+	FILE*		file)		/*!< in: File to read from */
+{
+	ib_uint32_t	value;
+	ulint		n_indexes;
+
+	if (fread(&value, sizeof(value), 1, file) != 1) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: IO error (%lu), reading "
+			"numer of indexes.\n",
+			(ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	n_indexes = mach_read_from_4(reinterpret_cast<const byte*>(&value));
+
+	/* It is a supported version, read the index names and
+	root page numbers of the indexes and set the values. */
+
+	for (ulint i = 0; i < n_indexes; ++i) {
+		db_err		err;
+		dict_index_t*	index;
+		ib_uint32_t	pageno;
+
+		/* Read the root page number of the index. */
+		if (fread(&value, sizeof(value), 1, file) != 1) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: IO error (%lu), reading "
+				"root page number.\n",
+				(ulint) errno);
+
+			return(DB_IO_ERROR);
+		}
+
+		pageno = mach_read_from_4(
+			reinterpret_cast<const byte*>(&value));
+
+		/* Read the index name length. */
+		if (fread(&value, sizeof(value), 1, file) != 1) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: IO error (%lu), reading "
+				"name length.\n",
+				(ulint) errno);
+
+			return(DB_IO_ERROR);
+		}
+
+		/* The NUL byte is included in the name length. */
+		ulint	len = mach_read_from_4(
+			reinterpret_cast<const byte*>(&value));
+
+		char	name[len];
+
+		err = row_import_tablespace_cfg_read_index_name(
+			file, name, len);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+
+		index = dict_table_get_index_on_name(table, name);
+
+		if (index != 0) {
+			index->page = pageno;
+			index->space = table->space;
+		} else {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: Index ");
+			ut_print_name(stderr, NULL, TRUE, name);
+			fprintf(stderr, " not in table ");
+			ut_print_name(stderr, NULL, TRUE, table->name);
+
+			/* TODO: If the table schema matches, it would
+			be better to just ignore this error. */
+
+			return(DB_ERROR);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
+/*****************************************************************//**
+Set the index root <space, pageno> from the meta-data.
+@return DB_SUCCESS or error code. */
+static
+db_err
+row_import_tablespace_set_index_root(
+/*=================================*/
+	dict_table_t*	table,		/*!< in: table */
+	FILE*		file)		/*!< in: File to read from */
+{
+	ib_uint32_t	value;
+
+	if (fread(&value, sizeof(value), 1, file) != 1) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: IO error (%lu), reading version\n",
+			(ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	value = mach_read_from_4(reinterpret_cast<const byte*>(&value));
+
+	/* Check the version number. */
+	switch (value) {
+	case IB_EXPORT_CFG_VERSION_V1:
+		return(row_import_tablespace_set_index_root_v1(table, file));
+	default:
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Unsupported meta-data version number (%lu). "
+			"File ignored.\n", (ulint) value);
+
+		return(DB_IO_ERROR);
+	}
+
+	return(DB_ERROR);
+}
+
+/*****************************************************************//**
 Get the index root <space, pageno> from the meta-data.
-@return vector of root page values, or NULL on error. Caller is responsibe
-	for freeing the vector. */
+@return DB_SUCCESS or error code. */
 static
 db_err
 row_import_tablespace_set_index_root(
 /*=================================*/
 	dict_table_t*		table)	/*!< in: table */
 {
+	db_err			err = DB_SUCCESS;
 	char			filename[OS_FILE_MAX_PATH];
 	static const ulint	suffix_len = strlen(".cfg");
 
@@ -3336,111 +3468,13 @@ row_import_tablespace_set_index_root(
 	if (file == NULL) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: Error opening: %s\n", filename);
-		return(DB_IO_ERROR);
+		err = DB_IO_ERROR;
 	} else {
-		ib_uint32_t		value;
-
-		if (fread(&value, sizeof(value), 1, file) != 1) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: IO error (%lu), reading version\n",
-				(ulint) errno);
-
-			fclose(file);
-			return(DB_IO_ERROR);
-		}
-
-		value = mach_read_from_4(reinterpret_cast<const byte*>(&value));
-
-		/* Check the version number. */
-		if (value != IB_EXPORT_CFG_VERSION) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Unsupported meta-data version "
-				"number (%lu). File ignored.\n",
-				(ulint) value);
-
-			fclose(file);
-			return(DB_IO_ERROR);
-
-		}
-
-		/* It is a supported version, read the index names and
-		root page numbers of the indexes and set the values. */
-
-		while (!feof(file)) {
-			db_err		err;
-			dict_index_t*	index;
-			ib_uint32_t	pageno;
-
-			/* Read the root page number of the index. */
-			if (fread(&value, sizeof(value), 1, file) != 1) {
-				if (feof(file)) {
-					break;
-				}
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: IO error (%lu), reading "
-					"root page number.\n",
-					(ulint) errno);
-
-				fclose(file);
-				return(DB_IO_ERROR);
-			}
-
-			pageno = mach_read_from_4(
-				reinterpret_cast<const byte*>(&value));
-
-			/* Read the index name length. */
-			if (fread(&value, sizeof(value), 1, file) != 1) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: IO error (%lu), reading "
-					"name length.\n",
-					(ulint) errno);
-
-				fclose(file);
-				return(DB_IO_ERROR);
-			}
-
-			/* The NUL byte is included in the name length. */
-			ulint	len = mach_read_from_4(
-				reinterpret_cast<const byte*>(&value));
-
-			char	name[len];
-
-			err = row_import_tablespace_cfg_read_index_name(
-				file, name, len);
-
-			if (err != DB_SUCCESS) {
-				fclose(file);
-				return(err);
-			}
-
-			index = dict_table_get_index_on_name(table, name);
-
-			if (index != 0) {
-				index->page = pageno;
-				index->space = table->space;
-			} else {
-				ut_print_timestamp(stderr);
-				fprintf(stderr, " InnoDB: Index ");
-				ut_print_name(stderr, NULL, TRUE, name);
-				fprintf(stderr, " not in table ");
-				ut_print_name(stderr, NULL, TRUE, table->name);
-				fclose(file);
-
-				/* TODO: If the table schema matches, it would
-				be better to just ignore this error. */
-
-				return(DB_ERROR);
-			}
-		}
-
+		err = row_import_tablespace_set_index_root(table, file);
 		fclose(file);
 	}
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /*****************************************************************//**
@@ -5629,13 +5663,26 @@ row_mysql_quiesce_write_meta_data(
 
 		mach_write_to_4(
 			reinterpret_cast<byte*>(&value),
-			IB_EXPORT_CFG_VERSION);
+			IB_EXPORT_CFG_VERSION_V1);
 
 		if (fwrite(&value, sizeof(value), 1, file) != 1) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				" InnoDB: IO error (%lu), writing version\n",
 				(ulint) errno);
+
+			err = DB_IO_ERROR;
+		}
+
+		mach_write_to_4(
+			reinterpret_cast<byte*>(&value),
+			UT_LIST_GET_LEN(table->indexes));
+
+		if (fwrite(&value, sizeof(value), 1, file) != 1) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: IO error (%lu), writing number of "
+				"indexes.\n", (ulint) errno);
 
 			err = DB_IO_ERROR;
 		}
