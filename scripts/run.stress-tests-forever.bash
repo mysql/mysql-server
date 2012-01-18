@@ -7,9 +7,9 @@ scriptname=$(basename "$0")
 toku_toplevel=$(dirname $(dirname $(readlink -f "$PWD/$0")))
 
 src_tests="${toku_toplevel}/src/tests"
-testnames=(test_stress1.tdb) # \
-#           test_stress5.tdb \
-#           test_stress6.tdb)
+testnames=(test_stress1.tdb \
+           test_stress5.tdb \
+           test_stress6.tdb)
 
 declare -a pids=(0)
 i=0
