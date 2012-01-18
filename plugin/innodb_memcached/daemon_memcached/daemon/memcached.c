@@ -7799,9 +7799,10 @@ int main (int argc, char **argv) {
         settings.extensions.logger->log(EXTENSION_LOG_INFO, NULL,
                                         "Initiating shutdown\n");
     }
-    threads_shutdown();
 
     settings.engine.v1->destroy(settings.engine.v0, false);
+
+    threads_shutdown();
 
     /* remove the PID file if we're a daemon */
     if (do_daemonize)

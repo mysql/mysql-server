@@ -34,6 +34,16 @@ Created 03/15/2011      Jimmy Yang
 #define HDL_READ	0x1
 #define HDL_WRITE	0x2
 
+#define LOCK_CONN_IF_NOT_LOCKED(has_lock, engine)	\
+	if (!(has_lock)) {				\       
+		pthread_mutex_lock(&engine->conn_mutex);\       
+	}               
+
+#define UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine)	\
+	if (!(has_lock)) {				\
+		pthread_mutex_unlock(&engine->conn_mutex);\     
+	}               
+
 /**********************************************************************//**
 Creates a THD object.
 @return a pointer to the THD object, NULL if failed */
@@ -290,10 +300,12 @@ uint64_t
 mci_get_time(void);
 /*==============*/
 
+/** types of operation performed */
 typedef enum conn_op_type {
-        CONN_OP_READ,
-        CONN_OP_WRITE,
-        CONN_OP_DELETE
+	CONN_OP_READ,
+	CONN_OP_WRITE,
+	CONN_OP_DELETE,
+	CONN_OP_FLUSH
 } op_type_t;
 
 /*************************************************************//**
