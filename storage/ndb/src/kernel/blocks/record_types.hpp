@@ -70,12 +70,13 @@
  * Schema transaction memory
  */
 #define RG_SCHEMA_TRANS_MEMORY  9
+#define RG_SCHEMA_MEMORY        10
 
 /**
  * 
  */
 #define RG_RESERVED             0
-#define RG_COUNT                10
+#define RG_COUNT                11
 
 /**
  * Record types

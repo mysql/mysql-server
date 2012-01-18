@@ -1,0 +1,55 @@
+--- storage/ndb/src/kernel/vm/CMakeLists.txt	2012-01-18 13:30:38.574182805 +0100
++++ storage/ndb/src/kernel/vm/CMakeLists.txt	2012-01-18 15:14:04.601614151 +0100
+@@ -17,7 +17,7 @@
+ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
+ INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
+ 
+-ADD_LIBRARY(ndbkernel STATIC
++ADD_CONVENIENCE_LIBRARY(ndbkernel
+     VMSignal.cpp
+     Emulator.cpp
+     Configuration.cpp
+@@ -39,9 +39,11 @@
+     NdbinfoTables.cpp
+     ArenaPool.cpp
+     mt_thr_config.cpp
++    PackPool.cpp
++    PagePool.cpp
+ )
+ 
+-ADD_LIBRARY(ndbsched STATIC
++ADD_CONVENIENCE_LIBRARY(ndbsched
+     TimeQueue.cpp
+     ThreadConfig.cpp
+     FastScheduler.cpp
+@@ -53,7 +55,7 @@
+ )
+ 
+ IF(NDB_BUILD_NDBMTD)
+-  ADD_LIBRARY(ndbsched_mt STATIC
++  ADD_CONVENIENCE_LIBRARY(ndbsched_mt
+     SimulatedBlock_mt.cpp
+     TransporterCallback_mt.cpp
+     LongSignal_mt.cpp
+@@ -62,3 +64,21 @@
+     dummy_mt.cpp)
+ ENDIF()
+ 
++ADD_CONVENIENCE_LIBRARY(ndbtest
++    test_context.cpp
++    ../blocks/dbtup/tuppage.cpp
++    PackPool.cpp
++    PagePool.cpp
++)
++
++ADD_EXECUTABLE(mt_thr_config-t mt_thr_config.cpp)
++SET_TARGET_PROPERTIES(mt_thr_config-t
++                      PROPERTIES COMPILE_FLAGS "-DTEST_MT_THR_CONFIG")
++TARGET_LINK_LIBRARIES(mt_thr_config-t ndbgeneral)
++
++FOREACH(testprog IN ITEMS CountingPool DynArr256 PackPool PagePool)
++  ADD_EXECUTABLE(${testprog}-t ${testprog}.cpp)
++  SET_TARGET_PROPERTIES(${testprog}-t PROPERTIES COMPILE_FLAGS "-DTAP_TEST")
++  TARGET_LINK_LIBRARIES(${testprog}-t ndbtest ndbkernel ndbsched ndberror
++                ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
++ENDFOREACH(testprog)
