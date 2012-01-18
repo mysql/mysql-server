@@ -3235,21 +3235,33 @@ renamed:
 	if (table->space != fil_space_id) {
 		fprintf(stderr,
 			"  InnoDB: Tablespace file %lu is"
-			" to be imported to space %lu.\n"
-			"InnoDB: Current system lsn is " LSN_PF ", flush lsn"
-			" in the file is " LSN_PF ".\n"
-			"InnoDB: We reset the space id and lsn in the file ",
-			(ulong) fil_space_id, (ulong) table->space,
+			" to be imported to space %lu.\n",
+			(ulong) fil_space_id, (ulong) table->space);
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Current system lsn is " LSN_PF ", flush lsn"
+			" in the file is " LSN_PF ".\n",
 			current_lsn, flush_lsn);
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: We reset the space id and lsn in the file ");
 	} else {
 		fprintf(stderr,
-			"  InnoDB: Flush lsn in the tablespace file %lu"
-			" to be imported\n"
-			"InnoDB: is " LSN_PF ", which exceeds current"
-			" system lsn " LSN_PF ".\n"
-			"InnoDB: We reset the lsn's in the file ",
-			(ulong) fil_space_id,
+			" InnoDB: Flush lsn in the tablespace file %lu"
+			" to be imported\n",
+			(ulong) fil_space_id);
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: is " LSN_PF ", which exceeds current"
+			" system lsn " LSN_PF ".\n",
 			flush_lsn, current_lsn);
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"InnoDB: We reset the lsn's in the file ");
 	}
 	ut_print_filename(stderr, tmpfilepath);
 	fputs(".\n", stderr);
