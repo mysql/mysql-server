@@ -1291,24 +1291,31 @@ void
 trx_purge_stop(void)
 /*================*/
 {
+	purge_state_t	state;
+
 	ib_int64_t	sig_count = os_event_reset(purge_sys->event);
 
 	fprintf(stderr, "Stopping purge\n");
 
 	rw_lock_x_lock(&purge_sys->latch);
 
-	// FIXME: Only one FTWRL allowed for now. The fix will be to use a
-	// ref counter.
-	ut_a(purge_sys->state == PURGE_STATE_RUN);
+	// FIXME: Only one FTWRL allowed for now. The fix will be
+	// to use a ref counter.
+
+	state = purge_sys->state;
 
 	purge_sys->state = PURGE_STATE_STOP;
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
-	/* Wait for purge coordinator to signal that it is suspended. */
-	os_event_wait_low(purge_sys->event, sig_count);
-
-	fprintf(stderr, "Purge stopped\n");
+	if (state != PURGE_STATE_STOP) {
+		/* Wait for purge coordinator to signal that it
+		is suspended. */
+		os_event_wait_low(purge_sys->event, sig_count);
+		fprintf(stderr, "Purge stopped\n");
+	} else {
+		fprintf(stderr, "Purge already stopped\n");
+	}
 }
 
 /*******************************************************************//**
@@ -1318,17 +1325,16 @@ void
 trx_purge_run(void)
 /*===============*/
 {
-	fprintf(stderr, "Resuming purge\n");
-
 	rw_lock_x_lock(&purge_sys->latch);
 
-	ut_a(purge_sys->state == PURGE_STATE_STOP);
-
-	purge_sys->state = PURGE_STATE_RUN;
+	if (purge_sys->state == PURGE_STATE_STOP) {
+		fprintf(stderr, "Resuming purge\n");
+		purge_sys->state = PURGE_STATE_RUN;
+	} else {
+		fprintf(stderr, "Purge already running\n");
+	}
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
 	srv_wake_purge_thread_if_not_active();
-
-	fprintf(stderr, "Purge resumed\n");
 }
