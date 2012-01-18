@@ -1277,6 +1277,20 @@ ORDER BY CONCAT(alias2.col_varchar_nokey);
 set max_heap_table_size= @tmp_882994;
 drop table t1,t2,t3;
 
+--echo #
+--echo # LP bug #917990: Bad estimate of #rows for derived table with LIMIT
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES
+  (8), (3), (4), (7), (9), (5), (1), (2);
+
+SELECT * FROM (SELECT * FROM t1 LIMIT 3) t;
+EXPLAIN
+SELECT * FROM (SELECT * FROM t1 LIMIT 3) t;
+
+DROP TABLE t1;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
 set join_cache_level=@exit_join_cache_level;

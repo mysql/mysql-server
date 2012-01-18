@@ -1879,5 +1879,22 @@ ORDER BY CONCAT(alias2.col_varchar_nokey);
 col_varchar_key	pk	col_varchar_key	col_varchar_nokey
 set max_heap_table_size= @tmp_882994;
 drop table t1,t2,t3;
+#
+# LP bug #917990: Bad estimate of #rows for derived table with LIMIT
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES
+(8), (3), (4), (7), (9), (5), (1), (2);
+SELECT * FROM (SELECT * FROM t1 LIMIT 3) t;
+a
+8
+3
+4
+EXPLAIN
+SELECT * FROM (SELECT * FROM t1 LIMIT 3) t;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	8	
+DROP TABLE t1;
 set optimizer_switch=@exit_optimizer_switch;
 set join_cache_level=@exit_join_cache_level;
