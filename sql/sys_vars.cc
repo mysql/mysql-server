@@ -3772,7 +3772,7 @@ static Sys_var_ulong Sys_host_cache_size(
        "host_cache_size",
        "How many host names should be cached to avoid resolving.",
        GLOBAL_VAR(host_cache_size),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 2048),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 65536),
        DEFAULT(HOST_CACHE_SIZE),
        BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
