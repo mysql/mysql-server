@@ -16,10 +16,10 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
+#include <utility>
 
 #include "filesort_utils.h"
 #include "table.h"
-
 
 namespace {
 
@@ -38,7 +38,15 @@ protected:
 TEST_F(FileSortBufferTest, FileSortBuffer)
 {
   const char letters[10]= "abcdefghi";
+  std::pair<uint, uint> buffer_properties= fs_info.sort_buffer_properties();
+  EXPECT_EQ(0U, buffer_properties.first);
+  EXPECT_EQ(0U, buffer_properties.second);
+
   uchar **sort_keys= fs_info.alloc_sort_buffer(10, sizeof(char));
+  buffer_properties= fs_info.sort_buffer_properties();
+  EXPECT_EQ(10U, buffer_properties.first);
+  EXPECT_EQ(sizeof(char), buffer_properties.second);
+
   uchar **null_sort_keys= NULL;
   EXPECT_NE(null_sort_keys, sort_keys);
   for (uint ix= 0; ix < 10; ++ix)
