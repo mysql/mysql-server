@@ -141,7 +141,13 @@ innodb_api_begin(
 			return(err);
 		}
 
-		ib_cb_cursor_lock(*crsr, lock_mode);
+		err = ib_cb_cursor_lock(*crsr, lock_mode);
+
+		if (err != DB_SUCCESS) {
+			fprintf(stderr, "  InnoDB_Memcached: Fail to lock"
+					" table '%s'\n", table_name);
+			return(err);
+		}
 
 		if (engine) {
 			meta_info_t*	meta_info = &engine->meta_info;
@@ -168,7 +174,13 @@ innodb_api_begin(
 		}
 	} else {
 		ib_cb_cursor_new_trx(*crsr, ib_trx);
-		ib_cb_cursor_lock(*crsr, lock_mode);
+		err = ib_cb_cursor_lock(*crsr, lock_mode);
+
+		if (err != DB_SUCCESS) {
+			fprintf(stderr, "  InnoDB_Memcached: Fail to lock"
+					" table '%s'\n", name);
+			return(err);
+		}
 
 		if (engine) {
 			meta_info_t*	meta_info = &engine->meta_info;
@@ -1397,6 +1409,7 @@ innodb_api_cursor_reset(
 	op_type_t		op_type)	/*!< in: type of DML performed */
 {
 	ib_err_t        err = DB_SUCCESS;
+	bool		commit_trx = FALSE;
 
 	switch (op_type) {
 	case CONN_OP_READ:
@@ -1408,10 +1421,13 @@ innodb_api_cursor_reset(
 		conn_data->c_w_count++;
 		conn_data->c_w_count_commit++;
 		break;
+	case CONN_OP_FLUSH:
+		break;
 	}
 
 	if (conn_data->c_crsr
-	    && conn_data->c_w_count_commit >= engine->w_batch_size) {
+	    && (conn_data->c_w_count_commit >= engine->w_batch_size
+	        || (op_type == CONN_OP_FLUSH))) {
 		ib_cb_cursor_reset(conn_data->c_crsr);
 
 		if (conn_data->c_idx_crsr) {
@@ -1419,16 +1435,24 @@ innodb_api_cursor_reset(
 		}
 
 		if (conn_data->c_trx) {
+			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
+						engine);
 			err = ib_cb_cursor_commit_trx(
 				conn_data->c_crsr, conn_data->c_trx);
 			conn_data->c_trx = NULL;
+			commit_trx = TRUE;
+			conn_data->c_in_use = FALSE;
+				
+			UNLOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
+						  engine);
 		}
 
 		conn_data->c_w_count_commit = 0;
 	}
 
 	if (conn_data->c_r_crsr
-	    && conn_data->c_r_count_commit > engine->r_batch_size) {
+	    && (conn_data->c_r_count_commit > engine->r_batch_size
+	        || (op_type == CONN_OP_FLUSH))) {
 		ib_cb_cursor_reset(conn_data->c_r_crsr);
 
 		if (conn_data->c_r_idx_crsr) {
@@ -1436,18 +1460,26 @@ innodb_api_cursor_reset(
 		}
 
 		if (conn_data->c_r_trx) {
+			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
+						engine);
 			err = ib_cb_cursor_commit_trx(
 				conn_data->c_r_crsr,
 				conn_data->c_r_trx);
 			conn_data->c_r_trx = NULL;
+			commit_trx = TRUE;
+			conn_data->c_in_use = FALSE;
+			UNLOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
+						  engine);
 		}
 		conn_data->c_r_count_commit = 0;
 	}
 
-	pthread_mutex_lock(&engine->conn_mutex);
-	assert(conn_data->c_in_use);
-	conn_data->c_in_use = FALSE;
-	pthread_mutex_unlock(&engine->conn_mutex);
+	if (!commit_trx) {
+		pthread_mutex_lock(&engine->conn_mutex);
+		assert(conn_data->c_in_use);
+		conn_data->c_in_use = FALSE;
+		pthread_mutex_unlock(&engine->conn_mutex);
+	}
 
 	return;
 }

@@ -633,8 +633,13 @@ ib_trx_commit(
 /*==========*/
 	ib_trx_t	ib_trx)		/*!< in: trx handle */
 {
-	ib_err_t	err;
+	ib_err_t	err = DB_SUCCESS;
 	trx_t*		trx = (trx_t*) ib_trx;
+
+	if (trx->state == TRX_STATE_NOT_STARTED) {
+		err = ib_trx_release(ib_trx);
+		return(err);
+	}
 
 	trx_commit(trx);
 
@@ -1344,6 +1349,7 @@ ib_cursor_close(
 	}
 
 	row_prebuilt_free(prebuilt, FALSE);
+	cursor->prebuilt = NULL;
 
 	mem_heap_free(cursor->query_heap);
 	mem_heap_free(cursor->heap);
