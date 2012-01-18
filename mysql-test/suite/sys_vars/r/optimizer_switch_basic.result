@@ -52,6 +52,10 @@ set session optimizer_switch="default";
 select @@session.optimizer_switch;
 @@session.optimizer_switch
 index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_merge_sort_intersection=off,engine_condition_pushdown=off,index_condition_pushdown=off,derived_merge=off,derived_with_keys=off,firstmatch=off,loosescan=off,materialization=off,in_to_exists=off,semijoin=off,partial_match_rowid_merge=off,partial_match_table_scan=off,subquery_cache=off,mrr=off,mrr_cost_based=off,mrr_sort_keys=off,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=off,join_cache_hashed=off,join_cache_bka=off,optimize_join_buffer_size=off,table_elimination=off
+set optimizer_switch = replace(@@optimizer_switch, '=off', '=on');
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_merge_sort_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,derived_merge=on,derived_with_keys=on,firstmatch=on,loosescan=on,materialization=on,in_to_exists=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr=on,mrr_cost_based=on,mrr_sort_keys=on,outer_join_with_cache=on,semijoin_with_cache=on,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on,optimize_join_buffer_size=on,table_elimination=on
 set global optimizer_switch=1.1;
 ERROR 42000: Incorrect argument type to variable 'optimizer_switch'
 set global optimizer_switch=1e1;
