@@ -482,7 +482,7 @@ static int check_connection(THD *thd)
                       struct in_addr *ip4= &((struct sockaddr_in *) sa)->sin_addr;
                       /* See RFC 5737, 192.0.2.0/24 is reserved. */
                       const char* fake= "192.0.2.4";
-                      inet_pton(AF_INET, fake, ip4);
+                      ip4->s_addr= inet_addr(fake);
                       strcpy(ip, fake);
                       peer_rc= 0;
                     }
@@ -496,7 +496,11 @@ static int check_connection(THD *thd)
                       struct in6_addr *ip6= & sa->sin6_addr;
                       /* See RFC 3849, ipv6 2001:DB8::/32 is reserved. */
                       const char* fake= "2001:db8::6:6";
-                      inet_pton(AF_INET6, fake, ip6);
+                      /* inet_pton(AF_INET6, fake, ip6); not available on Windows XP. */
+                      ip6->s6_addr32[0] = htonl(0x20010db8);
+                      ip6->s6_addr32[1] = htonl(0x00000000);
+                      ip6->s6_addr32[2] = htonl(0x00000000);
+                      ip6->s6_addr32[3] = htonl(0x00060006);
                       strcpy(ip, fake);
                       peer_rc= 0;
                     }
