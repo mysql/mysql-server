@@ -390,8 +390,8 @@ rpl_gno parse_gno(const char **s)
 {
   char *endp;
   rpl_gno ret= strtoll(*s, &endp, 0);
-  if (ret <= 0 || ret == LLONG_MAX)
-    return 0;
+  if (ret < 0 || ret == LLONG_MAX)
+    return -1;
   *s= endp;
   return ret;
 }
@@ -475,7 +475,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
 
         // Read start of interval.
         rpl_gno start= parse_gno(&s);
-        if (start == 0)
+        if (start <= 0)
           goto parse_error;
         SKIP_WHITESPACE();
 
@@ -485,7 +485,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
         {
           s++;
           end= parse_gno(&s);
-          if (end == 0)
+          if (end < 0)
             goto parse_error;
           end++;
           SKIP_WHITESPACE();
@@ -493,13 +493,16 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
         else
           end= start + 1;
 
-        // Add interval.  Use the existing iterator position if the
-        // current interval does not begin before it.  Otherwise iterate
-        // from the beginning.
-        Interval *current= ivit.get();
-        if (current == NULL || start < current->start)
-          ivit.init(this, sidno);
-        PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, start, end));
+        if (end > start)
+        {
+          // Add interval.  Use the existing iterator position if the
+          // current interval does not begin before it.  Otherwise iterate
+          // from the beginning.
+          Interval *current= ivit.get();
+          if (current == NULL || start < current->start)
+            ivit.init(this, sidno);
+          PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, start, end));
+        }
       }
     }
 
@@ -548,7 +551,7 @@ bool Gtid_set::is_valid(const char *text)
       s++;
 
       // Read start of interval.
-      if (parse_gno(&s) == 0)
+      if (parse_gno(&s) <= 0)
         DBUG_RETURN(false);
       SKIP_WHITESPACE();
 
@@ -556,7 +559,7 @@ bool Gtid_set::is_valid(const char *text)
       if (*s == '-')
       {
         s++;
-        if (parse_gno(&s) == 0)
+        if (parse_gno(&s) < 0)
           DBUG_RETURN(false);
         SKIP_WHITESPACE();
       }

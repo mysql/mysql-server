@@ -1155,29 +1155,29 @@ protected:
 
 
 #ifdef HAVE_GTID
-class Create_func_group_subtract : public Create_func_arg2
+class Create_func_gtid_subtract : public Create_func_arg2
 {
 public:
   virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
-  static Create_func_group_subtract s_singleton;
+  static Create_func_gtid_subtract s_singleton;
 
 protected:
-  Create_func_group_subtract() {}
-  virtual ~Create_func_group_subtract() {}
+  Create_func_gtid_subtract() {}
+  virtual ~Create_func_gtid_subtract() {}
 };
 
 
-class Create_func_group_subset : public Create_func_arg2
+class Create_func_gtid_subset : public Create_func_arg2
 {
 public:
   virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
-  static Create_func_group_subset s_singleton;
+  static Create_func_gtid_subset s_singleton;
 
 protected:
-  Create_func_group_subset() {}
-  virtual ~Create_func_group_subset() {}
+  Create_func_gtid_subset() {}
+  virtual ~Create_func_gtid_subset() {}
 };
 #endif
 
@@ -3984,21 +3984,21 @@ Create_func_greatest::create_native(THD *thd, LEX_STRING name,
 
 
 #ifdef HAVE_GTID
-Create_func_group_subtract Create_func_group_subtract::s_singleton;
+Create_func_gtid_subtract Create_func_gtid_subtract::s_singleton;
 
 Item*
-Create_func_group_subtract::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_gtid_subtract::create(THD *thd, Item *arg1, Item *arg2)
 {
-  return new (thd->mem_root) Item_func_group_subtract(arg1, arg2);
+  return new (thd->mem_root) Item_func_gtid_subtract(arg1, arg2);
 }
 
 
-Create_func_group_subset Create_func_group_subset::s_singleton;
+Create_func_gtid_subset Create_func_gtid_subset::s_singleton;
 
 Item*
-Create_func_group_subset::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_gtid_subset::create(THD *thd, Item *arg1, Item *arg2)
 {
-  return new (thd->mem_root) Item_func_group_subset(arg1, arg2);
+  return new (thd->mem_root) Item_func_gtid_subset(arg1, arg2);
 }
 #endif
 
@@ -5465,8 +5465,8 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("GLENGTH") }, GEOM_BUILDER(Create_func_glength)},
   { { C_STRING_WITH_LEN("GREATEST") }, BUILDER(Create_func_greatest)},
 #ifdef HAVE_GTID
-  { { C_STRING_WITH_LEN("GROUP_SUBTRACT") }, BUILDER(Create_func_group_subtract) },
-  { { C_STRING_WITH_LEN("GROUP_SUBSET") }, BUILDER(Create_func_group_subset) },
+  { { C_STRING_WITH_LEN("GTID_SUBTRACT") }, BUILDER(Create_func_gtid_subtract) },
+  { { C_STRING_WITH_LEN("GTID_SUBSET") }, BUILDER(Create_func_gtid_subset) },
 #endif
   { { C_STRING_WITH_LEN("HEX") }, BUILDER(Create_func_hex)},
   { { C_STRING_WITH_LEN("IFNULL") }, BUILDER(Create_func_ifnull)},

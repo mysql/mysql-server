@@ -87,7 +87,7 @@ bool Gtid::is_valid(const char *text)
   if (*text != ':')
     DBUG_RETURN(false);
   text++;
-  if (parse_gno(&text) == 0)
+  if (parse_gno(&text) <= 0)
     DBUG_RETURN(false);
   if (*text != 0)
     DBUG_RETURN(false);

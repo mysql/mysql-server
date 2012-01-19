@@ -187,7 +187,7 @@ if (!$_assert_result)
   --echo Assertion condition: '$assert_cond'
   --echo Assertion condition, interpolated: '$_assert_cond_interp'
   --echo Assertion result: '$_assert_result'
-  --die Test assertion failed in assertion.inc
+  --die Test assertion failed in assert.inc
 }
 
 --let $include_filename= assert.inc [$assert_text]

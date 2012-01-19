@@ -71,6 +71,7 @@
 call mtr.add_suppression("Recovery from master pos .*");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Failed to read information on Previous GTIDs.");
+call mtr.add_suppression("Error reading GTIDs from binary log");
 
 --source include/rpl_set_gtid_mode.inc
 
@@ -92,11 +93,15 @@ CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
 #        by calling FLUSH LOGS.
 #
 
+--echo ==== Part 1 ====
+
 --source include/rpl_reset.inc
 
 --let $i=1
 while ($i != 5)
 {
+  --echo ---- i=$i ----
+
   #  1.1 - Generates a set of transactions on the master.
   --connection master
   BEGIN;
@@ -189,7 +194,7 @@ while ($i != 5)
   }
   --source extra/rpl_tests/rpl_check_gtid.inc
 
-#  1.3 - Rotates both the binary logs on the slave and master.
+  #  1.3 - Rotates both the binary logs on the slave and master.
   FLUSH LOGS;
   --connection master
   FLUSH LOGS;
@@ -209,6 +214,9 @@ while ($i != 5)
 #  2.3 - Rotates the binary log on the master
 #        by calling FLUSH LOGS.
 #
+
+--echo ==== Part 2 ====
+
 --source include/rpl_reset.inc
 --connection slave
 SET GLOBAL debug="d,rotate_slave_debug_group";
@@ -216,6 +224,8 @@ SET GLOBAL debug="d,rotate_slave_debug_group";
 --let $i=1
 while ($i != 5)
 {
+  --echo ---- i=$i ----
+
   #  2.1 - Generates a set of transactions on the master.
   --connection master
   BEGIN;
@@ -256,6 +266,9 @@ while ($i != 5)
 #  3.4 - Rotates both the binary logs on the slave and master
 #        by calling FLUSH LOGS.
 #
+
+--echo ==== Part 3 ====
+
 --connection slave
 SET GLOBAL debug="";
 --source include/rpl_reset.inc
@@ -263,6 +276,8 @@ SET GLOBAL debug="";
 --let $i=1
 while ($i != 5)
 {
+  --echo ---- i=$i ----
+
   #  3.1 - Generates a set of transactions on the master.
   --connection master
   BEGIN;
@@ -341,11 +356,16 @@ while ($i != 5)
 #  4.4 - Rotates both the binary logs on the slave and master
 #        by calling FLUSH LOGS.
 #
+
+--echo ==== Part 4 ====
+
 --source include/rpl_reset.inc
 
 --let $i=1
 while ($i != 5)
 {
+  --echo ---- i=$i ----
+
   #  4.1 - Generates a set of transactions on the master.
   --connection master
   BEGIN;
@@ -446,9 +466,12 @@ while ($i != 5)
 #        by calling FLUSH LOGS.
 #
 
+--echo ==== Part 5 ====
+
 --let $i=1
 while ($i != 5)
 {
+  --echo ---- i=$i ----
 
   #  5.1 - Resets the IO Thread's state but not SQL Thread's state.
   --connection slave
@@ -505,6 +528,8 @@ while ($i != 5)
 #  6.4 - Rotates the binary log on master by calling FLUSH LOGS.
 #
 
+--echo ==== Part 6 ====
+
 --connection slave
 --source include/stop_slave.inc
 RESET SLAVE;
@@ -524,6 +549,8 @@ CHANGE MASTER TO MASTER_AUTO_POSITION= 1, MASTER_LOG_FILE= 'master-bin.000001', 
 --let $i=1
 while ($i != 5)
 {
+  --echo ---- i=$i ----
+
   # 6.1 - Generates a set of transactions on the master.
   --connection master
   BEGIN;
@@ -539,7 +566,9 @@ while ($i != 5)
   --let $wait_gtids= query_get_value(SHOW MASTER STATUS, Executed_Gtid_Set, 1)
   --connection slave
   --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
+  --disable_result_log
   --eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$wait_gtids', 300)
+  --enable_result_log
 
   # Check property 4.1
   --let $binlog= relaylog
@@ -574,6 +603,8 @@ while ($i != 5)
 #  7.3 - Rotates the binary log on master by calling FLUSH LOGS.
 #
 
+--echo ==== Part 7 ====
+
 --connection slave
 --source include/stop_slave.inc
 RESET SLAVE;
@@ -588,6 +619,8 @@ RESET MASTER;
 --let $i=1
 while ($i != 5)
 {
+  --echo ---- i=$i ----
+
   # 7.1 - Generates a set of transactions on the master.
   --connection master
   BEGIN;
@@ -637,6 +670,9 @@ while ($i != 5)
 #  8.4 - Rotates both the binary logs on the slave and master
 #        by calling FLUSH LOGS.
 #
+
+--echo ==== Part 8 ====
+
 --connection slave
 --source include/stop_slave.inc
 RESET MASTER;
@@ -650,6 +686,8 @@ RESET MASTER;
 --let $i=1
 while ($i != 5)
 {
+  --echo ---- i=$i ----
+
   #  8.1 - Generates a set of transactions on the master.
   --connection master
   BEGIN;
@@ -703,7 +741,7 @@ while ($i != 5)
   --source include/stop_slave.inc
 
   --let $rpl_server_number= 2
-   --let $rpl_server_parameters= --relay-log-recovery=1 --debug=d,debug_skip_create_gtid_set
+  --let $rpl_server_parameters= --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event
   --source include/rpl_restart_server.inc
   --let $rpl_server_number= 2
    --let $rpl_server_parameters= --relay-log-recovery=1
@@ -719,7 +757,6 @@ while ($i != 5)
   inc $i;
 }
 
-
 #
 # 9. This part of the test case:
 #
@@ -733,11 +770,16 @@ while ($i != 5)
 #  9.4 - Rotates both the binary logs on the slave and master
 #        by calling FLUSH LOGS.
 #
+
+--echo ==== Part 9 ====
+
 --source include/rpl_reset.inc
 
 --let $i=1
 while ($i != 5)
 {
+  --echo ---- i=$i ----
+
   #  9.1 - Generates a set of transactions on the master.
   --connection master
   BEGIN;
@@ -791,11 +833,11 @@ while ($i != 5)
   --source include/stop_slave.inc
 
   --let $rpl_server_number= 2
-  --let $rpl_server_parameters= --relay-log-recovery=1 --debug=d,debug_error_create_gtid_set
+  --let $rpl_server_parameters= --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event
   --source include/rpl_restart_server.inc
 
   --let $rpl_server_number= 2
-   --let $rpl_server_parameters= --relay-log-recovery=1
+  --let $rpl_server_parameters= --relay-log-recovery=1
   --source include/rpl_restart_server.inc
 
   --connection slave

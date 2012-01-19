@@ -196,8 +196,8 @@ const int MAX_THREAD_ID_TEXT_LENGTH= 19;
 
   @param s Pointer to the string. *s will advance to the end of the
   parsed GNO, if a correct GNO is found.
-  @retval GNO if a correct GNO was found.
-  @retval 0 otherwise.
+  @retval GNO if a correct GNO (i.e., 0 or positive number) was found.
+  @retval -1 otherwise.
 */
 rpl_gno parse_gno(const char **s);
 /**
@@ -896,6 +896,10 @@ public:
 
        Each X is a hexadecimal digit (upper- or lowercase).
        NUMBER is a decimal, 0xhex, or 0oct number.
+
+       The start of an interval must be greater than 0. The end of an
+       interval may be 0, but any interval that has an endpoint that
+       is smaller than the start is discarded.
 
     If sid_lock != NULL, then the read lock on sid_lock must be held
     before calling this function. If a new sidno is added so that the

@@ -742,7 +742,7 @@ binlog_flush_cache(THD *thd, binlog_cache_mngr *cache_mngr,
       inside a stored function.
     */
     bool prepared= (end_evt->get_type_code() == XID_EVENT);
-    error= mysql_bin_log.write_cache(thd, cache_mngr, cache_data, prepared);
+    error= mysql_bin_log.write_cache(thd, cache_data, prepared);
   }
   cache_data->reset();
 
@@ -1177,7 +1177,6 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
     or "RELEASE S" without the preceding "SAVEPOINT S" in the binary
     log.
   */
-  // @todo must go through cache (does not work with group cache otherwise) /sven
   if (!(error= mysql_bin_log.write_event(&qinfo)))
     binlog_trans_log_savepos(thd, (my_off_t*) sv);
 
@@ -1204,8 +1203,6 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
                           TRUE, FALSE, TRUE, errcode);
-    // @todo must go through cache (does not work with group cache otherwise) /sven
-
     DBUG_RETURN(mysql_bin_log.write_event(&qinfo));
   }
   binlog_trans_log_truncate(thd, *(my_off_t*)sv);
@@ -1820,7 +1817,6 @@ bool mysql_show_binlog_events(THD* thd)
 
 MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
-   need_start_event(TRUE),
    sync_period_ptr(sync_period),
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
@@ -1967,21 +1963,162 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   return FALSE;
 }
 
+
 #ifdef HAVE_GTID
-bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_gtids,
+/**
+  Reads GTIDs from the given binlog file.
+
+  @param filename File to read from.
+  @param all_gtids If not NULL, then the GTIDs from the
+  Previous_gtids_log_event and from all Gtid_log_events are stored in
+  this object.
+  @param prev_gtids If not NULL, then the GTIDs from the
+  Previous_gtids_log_events are stored in this object.
+  @param verify_checksum Set to true to verify event checksums.
+
+  @retval GOT_GTIDS The file was successfully read and it contains
+  GTID events.
+  @retval NO_GTIDS The file was successfully read and it does not
+  contain GTID events.
+  @retval FATAL_ERROR Out of memory, or the file contains GTID events
+  when GTID_MODE = OFF.
+  @retval READ_ERROR_GOT_GTIDS Successfully read the initial
+  Previous_gtids_log_event, but there was a read error later.
+  @retval READ_ERROR_NO_GTIDS Read error before reading the first
+  Previous_gtids_log_event.
+*/
+enum enum_read_gtids_from_binlog_status
+{ GOT_GTIDS, NO_GTIDS, FATAL_ERROR, READ_ERROR_GOT_GTIDS, READ_ERROR_NO_GTIDS };
+enum_read_gtids_from_binlog_status
+read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
+                       Gtid_set *prev_gtids, bool verify_checksum)
+{
+  DBUG_ENTER("read_gtids_from_binlog");
+  DBUG_PRINT("info", ("Opening file %s", filename));
+
+  /*
+    Create a Format_description_log_event that is used to read the
+    first event of the log.
+  */
+  Format_description_log_event fd_ev(BINLOG_VERSION), *fd_ev_p= &fd_ev;
+  if (!fd_ev.is_valid())
+    DBUG_RETURN(FATAL_ERROR);
+
+  File file;
+  IO_CACHE log;
+
+  const char *errmsg= NULL;
+  if ((file= open_binlog_file(&log, filename, &errmsg)) < 0)
+  {
+    sql_print_error("%s", errmsg);
+    /*
+      We need to revisit the recovery procedure for relay log
+      files. Currently, it is called after this routine.
+      /Alfranio
+    */
+    DBUG_RETURN(READ_ERROR_NO_GTIDS);
+  }
+
+  /*
+    Seek for Previous_gtids_log_event and Gtid_log_event events to
+    gather information what has been processed so far.
+  */
+  my_b_seek(&log, BIN_LOG_HEADER_SIZE);
+  Log_event *ev= NULL;
+  enum_read_gtids_from_binlog_status ret= NO_GTIDS;
+  bool done= false;
+  while (!done &&
+         (ev= Log_event::read_log_event(&log, 0, fd_ev_p, verify_checksum)) !=
+         NULL)
+  {
+    DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
+    switch (ev->get_type_code())
+    {
+    case FORMAT_DESCRIPTION_EVENT:
+      fd_ev_p= (Format_description_log_event *)ev;
+      break;
+    case ROTATE_EVENT:
+      // do nothing; just accept this event and go to next
+      break;
+    case PREVIOUS_GTIDS_LOG_EVENT:
+    {
+      if (gtid_mode == 0)
+      {
+        my_error(ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF, MYF(0));
+        ret= FATAL_ERROR;
+      }
+      ret= GOT_GTIDS;
+      // add events to sets
+      Previous_gtids_log_event *prev_gtids_ev=
+        (Previous_gtids_log_event *)ev;
+      if (all_gtids != NULL && prev_gtids_ev->add_to_set(all_gtids) != 0)
+        ret= FATAL_ERROR, done= true;
+      else if (prev_gtids != NULL && prev_gtids_ev->add_to_set(prev_gtids) != 0)
+        ret= FATAL_ERROR, done= true;
+      else if (all_gtids == NULL)
+        done= true;
+#ifndef DBUG_OFF
+      char* prev_buffer= prev_gtids_ev->get_str(NULL, NULL);
+      DBUG_PRINT("info", ("Got Previous_gtids from file '%s': Gtid_set='%s'.",
+                          filename, prev_buffer));
+      my_free(prev_buffer);
+#endif
+      break;
+    }
+    case GTID_LOG_EVENT:
+    {
+      Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
+      rpl_sidno sidno= gtid_ev->get_sidno(false);
+      if (sidno < 0)
+        ret= FATAL_ERROR, done= true;
+      else if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
+        ret= FATAL_ERROR, done= true;
+      else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
+               RETURN_STATUS_OK)
+        ret= FATAL_ERROR, done= true;
+      DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
+                          filename, sidno, gtid_ev->get_gno()));
+      break;
+    }
+    default:
+      // if we found any other event type without finding a
+      // previous_gtids_log_event, then the rest of this binlog
+      // cannot contain gtids
+      if (ret != GOT_GTIDS)
+        done= true;
+      break;
+    }
+    if (ev != fd_ev_p)
+      delete ev;
+    DBUG_PRINT("info", ("done=%d", done));
+  }
+
+  if (log.error < 0)
+  {
+    // do not set ret= ERROR here; if binlog is trucated, the caller
+    // should proceed to next log
+    sql_print_error("Error reading GTIDs from binary log: %d", log.error);
+    ret= (ret == GOT_GTIDS ? READ_ERROR_GOT_GTIDS : READ_ERROR_NO_GTIDS);
+  }
+
+  if (fd_ev_p != &fd_ev)
+  {
+    delete fd_ev_p;
+    fd_ev_p= &fd_ev;
+  }
+  end_io_cache(&log);
+  mysql_file_close(file, MYF(MY_WME));
+
+  DBUG_RETURN(ret);
+}
+
+
+bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
                                    bool verify_checksum)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
   DBUG_PRINT("info", ("lost_gtids=%p; so we are recovering a %s log",
                       lost_gtids, lost_gtids == NULL ? "relay" : "binary"));
-
-  /*
-    Creates a format descriptor that is used to read events from
-    either the binary or relay log.
-  */
-  Format_description_log_event fd_ev(BINLOG_VERSION), *fd_ev_p= &fd_ev;
-  if (!fd_ev.is_valid())
-    DBUG_RETURN(true);
 
   /*
     Acquires the necessary locks to ensure that logs are not either
@@ -1991,18 +2128,11 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_gtids,
   mysql_mutex_lock(&LOCK_index);
   global_sid_lock.wrlock();
 
-  /*
-    Gathers the set of files to be accessed.
-  */
+  // Gather the set of files to be accessed.
   stack<string> filename_stack;
   LOG_INFO linfo;
   int error;
-
-  Log_event *ev= NULL;
-  File file= -1;
-  IO_CACHE log;
-
-  bool found_prev_gtids_ev= false;
+  bool found_gtids= false;
 
   for (error= find_log_pos(&linfo, NULL, false); !error;
        error= find_next_log(&linfo, false))
@@ -2010,147 +2140,51 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_gtids,
   if (error != LOG_INFO_EOF)
   {
     DBUG_PRINT("error", ("Error reading binlog index"));
-    goto err;
+    goto end;
   }
 
-  for (/*nothing*/; !filename_stack.empty(); filename_stack.pop())
+  // Iterate over all files in reverse order.
+  while (!filename_stack.empty())
   {
     const char *filename= filename_stack.top().c_str();
+    filename_stack.pop();
     bool is_first_file= filename_stack.empty();
 
-    DBUG_PRINT("info", ("file='%s' found_prev_gtids_ev=%d "
-                        "is_first_file=%d",
-                        filename, found_prev_gtids_ev,
-                        is_first_file));
+    DBUG_PRINT("info", ("filename='%s' found_gtids=%d is_first_file=%d",
+                        filename, found_gtids, is_first_file));
 
-    if (!found_prev_gtids_ev || is_first_file)
+    if (!found_gtids || (is_first_file && lost_gtids != NULL))
     {
-      DBUG_PRINT("info", ("Opening file %s", filename));
-      const char *errmsg= NULL;
-      if ((file= open_binlog_file(&log, filename, &errmsg)) < 0)
+      switch (read_gtids_from_binlog(filename,
+                                     found_gtids ? NULL : all_gtids,
+                                     is_first_file ? lost_gtids : NULL,
+                                     verify_checksum))
       {
-        sql_print_error("%s", errmsg);
-        /*
-          We need to revisit the recovery procedure for relay log
-          files. Currently, it is called after this routine.
-          /Alfranio
-        */
-        continue;
-      }
+      case FATAL_ERROR:
+        goto end;
 
-      /*
-        Seek for Previous_gtids_log_event and Gtid_log_event events to
-        gather information what has been processed so far.
-      */
-      my_b_seek(&log, BIN_LOG_HEADER_SIZE);
-      bool done= false;
-      MY_STAT stat;
-      my_stat(filename, &stat, MYF(MY_WME));
-      DBUG_PRINT("info", ("file='%s' size=%llu",
-                          filename, (ulonglong)stat.st_size));
-      while (!done &&
-             (ev= Log_event::read_log_event(&log, 0, fd_ev_p,
-                                            verify_checksum)) != NULL)
-      {
-        DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
-        switch (ev->get_type_code())
-        {
-        case FORMAT_DESCRIPTION_EVENT:
-          fd_ev_p= (Format_description_log_event *)ev;
-          break;
-        case ROTATE_EVENT:
-          // do nothing; just accept this event and go to next
-          break;
-        case PREVIOUS_GTIDS_LOG_EVENT:
-        {
-          if (gtid_mode == 0)
-          {
-            my_error(ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF, MYF(0));
-            goto err;
-          }
-          // add events to sets
-          Previous_gtids_log_event *prev_gtids_ev=
-            (Previous_gtids_log_event *)ev;
-          if (prev_gtids_ev->add_to_set(gtid_set) != 0)
-            goto err;
-          if (lost_gtids != NULL && is_first_file &&
-              prev_gtids_ev->add_to_set(lost_gtids) != 0)
-            goto err;
-          // if we found a previous_gtids_log_event in a later binlog,
-          // then we don't need to scan the rest of this binlog
-          if (found_prev_gtids_ev)
-            done= true;
-          else
-            found_prev_gtids_ev= true;
-#ifndef DBUG_OFF
-          char* prev_buffer= prev_gtids_ev->get_str(NULL, NULL);
-          DBUG_PRINT("info", ("Got Previous_gtids from file '%s': Gtid_set='%s'.",
-                              filename, prev_buffer));
-          my_free(prev_buffer);
-#endif
-          break;
-        }
-        case GTID_LOG_EVENT:
-        {
-          Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
-          rpl_sidno sidno= gtid_ev->get_sidno(false);
-          if (sidno < 0)
-            goto err;
-          gtid_set->ensure_sidno(sidno);
-          if (gtid_set->_add_gtid(sidno, gtid_ev->get_gno()) !=
-              RETURN_STATUS_OK)
-            goto err;
-          DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
-                              filename, sidno, gtid_ev->get_gno()));
-          break;
-        }
-        default:
-          // if we found any other event type without finding a
-          // previous_gtids_log_event, then the rest of this binlog
-          // cannot contain gtids
-          if (!found_prev_gtids_ev)
-            done= true;
-          break;
-        }
-        if (ev != fd_ev_p)
-          delete ev;
-        DBUG_PRINT("info", ("done=%d", done));
-      }
+      case GOT_GTIDS:
+      case READ_ERROR_GOT_GTIDS:
+        if (lost_gtids == NULL)
+          goto end;
+        found_gtids= true;
+        break;
 
-      if (log.error < 0)
-        sql_print_error("Failed to read information on Previous GTIDs. Please, "
-                        "check the documentation and take the necessary actions "
-                        "to make the information on GTIDs consistent.");
-
-      if (fd_ev_p != &fd_ev)
-      {
-        delete fd_ev_p;
-        fd_ev_p= &fd_ev;
+      case NO_GTIDS:
+      case READ_ERROR_NO_GTIDS:
+        break;
       }
-      end_io_cache(&log);
-      mysql_file_close(file, MYF(MY_WME));
-      file= -1;
-      //ev= NULL;
     }
   }
-
+end:
+  if (all_gtids)
+    all_gtids->dbug_print("all_gtids");
+  if (lost_gtids)
+    lost_gtids->dbug_print("lost_gtids");
   global_sid_lock.unlock();
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(false);
-
-err:
-  if (ev != NULL)
-    delete ev;
-  if (file != -1)
-  {
-    end_io_cache(&log);
-    mysql_file_close(file, MYF(MY_WME));
-  }
-  global_sid_lock.unlock();
-  mysql_mutex_unlock(&LOCK_index);
-  mysql_mutex_unlock(&LOCK_log);
-  DBUG_RETURN(true);
 }
 #endif
 
@@ -2240,140 +2274,133 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
   open_count++;
 
-  DBUG_ASSERT(log_type == LOG_BIN);
+  bool write_file_name_to_index_file=0;
 
+  if (!my_b_filelength(&log_file))
   {
-    bool write_file_name_to_index_file=0;
+    /*
+      The binary log file was empty (probably newly created)
+      This is the normal case and happens when the user doesn't specify
+      an extension for the binary log files.
+      In this case we write a standard header to it.
+    */
+    if (my_b_safe_write(&log_file, (uchar*) BINLOG_MAGIC,
+                        BIN_LOG_HEADER_SIZE))
+      goto err;
+    bytes_written+= BIN_LOG_HEADER_SIZE;
+    write_file_name_to_index_file= 1;
+  }
 
-    if (!my_b_filelength(&log_file))
-    {
-      /*
-	The binary log file was empty (probably newly created)
-	This is the normal case and happens when the user doesn't specify
-	an extension for the binary log files.
-	In this case we write a standard header to it.
-      */
-      if (my_b_safe_write(&log_file, (uchar*) BINLOG_MAGIC,
-			  BIN_LOG_HEADER_SIZE))
-        goto err;
-      bytes_written+= BIN_LOG_HEADER_SIZE;
-      write_file_name_to_index_file= 1;
-    }
-
-    if (need_start_event && !no_auto_events)
-    {
-      /*
-        In 4.x we set need_start_event=0 here, but in 5.0 we want a Start event
-        even if this is not the very first binlog.
-      */
-      Format_description_log_event s(BINLOG_VERSION);
-      /*
-        don't set LOG_EVENT_BINLOG_IN_USE_F for SEQ_READ_APPEND io_cache
-        as we won't be able to reset it later
-      */
-      if (io_cache_type == WRITE_CACHE)
-        s.flags |= LOG_EVENT_BINLOG_IN_USE_F;
-      s.checksum_alg= is_relay_log ?
-        /* relay-log */
-        /* inherit master's A descriptor if one has been received */
-        (relay_log_checksum_alg= 
-         (relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-         relay_log_checksum_alg :
-         /* otherwise use slave's local preference of RL events verification */
-         (opt_slave_sql_verify_checksum == 0) ?
-         (uint8) BINLOG_CHECKSUM_ALG_OFF : binlog_checksum_options):
-        /* binlog */
-        binlog_checksum_options;
-      DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
-      if (!s.is_valid())
-        goto err;
-      s.dont_set_created= null_created_arg;
-      /* Set LOG_EVENT_RELAY_LOG_F flag for relay log's FD */
-      if (is_relay_log)
-        s.set_relay_log_event();
-      if (s.write(&log_file))
-        goto err;
-      bytes_written+= s.data_written;
+  if (!no_auto_events)
+  {
+    Format_description_log_event s(BINLOG_VERSION);
+    /*
+      don't set LOG_EVENT_BINLOG_IN_USE_F for SEQ_READ_APPEND io_cache
+      as we won't be able to reset it later
+    */
+    if (io_cache_type == WRITE_CACHE)
+      s.flags |= LOG_EVENT_BINLOG_IN_USE_F;
+    s.checksum_alg= is_relay_log ?
+      /* relay-log */
+      /* inherit master's A descriptor if one has been received */
+      (relay_log_checksum_alg= 
+       (relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
+       relay_log_checksum_alg :
+       /* otherwise use slave's local preference of RL events verification */
+       (opt_slave_sql_verify_checksum == 0) ?
+       (uint8) BINLOG_CHECKSUM_ALG_OFF : binlog_checksum_options):
+      /* binlog */
+      binlog_checksum_options;
+    DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
+    if (!s.is_valid())
+      goto err;
+    s.dont_set_created= null_created_arg;
+    /* Set LOG_EVENT_RELAY_LOG_F flag for relay log's FD */
+    if (is_relay_log)
+      s.set_relay_log_event();
+    if (s.write(&log_file))
+      goto err;
+    bytes_written+= s.data_written;
 #ifdef HAVE_GTID
-      /*
-        We need to revisit this code and improve it.
-        See further comments in the mysqld.
-        /Alfranio
-      */
-      if (current_thd && gtid_mode > 0)
-      {
-        if (need_sid_lock)
-          global_sid_lock.wrlock();
-        else
-          global_sid_lock.assert_some_wrlock();
-        Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
-        if (need_sid_lock)
-          global_sid_lock.unlock();
-        prev_gtids_ev.checksum_alg= s.checksum_alg;
-        if (prev_gtids_ev.write(&log_file))
-          goto err;
-        bytes_written+= prev_gtids_ev.data_written;
-      }
-#endif
-    }
-    if (description_event_for_queue &&
-        description_event_for_queue->binlog_version>=4)
+    /*
+      We need to revisit this code and improve it.
+      See further comments in the mysqld.
+      /Alfranio
+    */
+    if (current_thd && gtid_mode > 0)
     {
-      /*
-        This is a relay log written to by the I/O slave thread.
-        Write the event so that others can later know the format of this relay
-        log.
-        Note that this event is very close to the original event from the
-        master (it has binlog version of the master, event types of the
-        master), so this is suitable to parse the next relay log's event. It
-        has been produced by
-        Format_description_log_event::Format_description_log_event(char* buf,).
-        Why don't we want to write the description_event_for_queue if this
-        event is for format<4 (3.23 or 4.x): this is because in that case, the
-        description_event_for_queue describes the data received from the
-        master, but not the data written to the relay log (*conversion*),
-        which is in format 4 (slave's).
-      */
-      /*
-        Set 'created' to 0, so that in next relay logs this event does not
-        trigger cleaning actions on the slave in
-        Format_description_log_event::apply_event_impl().
-      */
-      description_event_for_queue->created= 0;
-      /* Don't set log_pos in event header */
-      description_event_for_queue->set_artificial_event();
-
-      if (description_event_for_queue->write(&log_file))
+      if (need_sid_lock)
+        global_sid_lock.wrlock();
+      else
+        global_sid_lock.assert_some_wrlock();
+      Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
+      if (need_sid_lock)
+        global_sid_lock.unlock();
+      prev_gtids_ev.checksum_alg= s.checksum_alg;
+      if (prev_gtids_ev.write(&log_file))
         goto err;
-      bytes_written+= description_event_for_queue->data_written;
+      bytes_written+= prev_gtids_ev.data_written;
     }
-    if (flush_io_cache(&log_file) ||
-        mysql_file_sync(log_file.file, MYF(MY_WME)))
+#endif
+  }
+  if (description_event_for_queue &&
+      description_event_for_queue->binlog_version>=4)
+  {
+    /*
+      This is a relay log written to by the I/O slave thread.
+      Write the event so that others can later know the format of this relay
+      log.
+      Note that this event is very close to the original event from the
+      master (it has binlog version of the master, event types of the
+      master), so this is suitable to parse the next relay log's event. It
+      has been produced by
+      Format_description_log_event::Format_description_log_event(char* buf,).
+      Why don't we want to write the description_event_for_queue if this
+      event is for format<4 (3.23 or 4.x): this is because in that case, the
+      description_event_for_queue describes the data received from the
+      master, but not the data written to the relay log (*conversion*),
+      which is in format 4 (slave's).
+    */
+    /*
+      Set 'created' to 0, so that in next relay logs this event does not
+      trigger cleaning actions on the slave in
+      Format_description_log_event::apply_event_impl().
+    */
+    description_event_for_queue->created= 0;
+    /* Don't set log_pos in event header */
+    description_event_for_queue->set_artificial_event();
+
+    if (description_event_for_queue->write(&log_file))
+      goto err;
+    bytes_written+= description_event_for_queue->data_written;
+  }
+  if (flush_io_cache(&log_file) ||
+      mysql_file_sync(log_file.file, MYF(MY_WME)))
+    goto err;
+  
+  if (write_file_name_to_index_file)
+  {
+#ifdef HAVE_REPLICATION
+    DBUG_EXECUTE_IF("crash_create_critical_before_update_index", DBUG_SUICIDE(););
+#endif
+
+    DBUG_ASSERT(my_b_inited(&index_file) != 0);
+
+    /*
+      The new log file name is appended into crash safe index file after
+      all the content of index file is copyed into the crash safe index
+      file. Then move the crash safe index file to index file.
+    */
+    if (DBUG_EVALUATE_IF("fault_injection_updating_index", 1, 0) ||
+        add_log_to_index((uchar*) log_file_name, strlen(log_file_name),
+                         need_mutex))
       goto err;
 
-    if (write_file_name_to_index_file)
-    {
 #ifdef HAVE_REPLICATION
-      DBUG_EXECUTE_IF("crash_create_critical_before_update_index", DBUG_SUICIDE(););
+    DBUG_EXECUTE_IF("crash_create_after_update_index", DBUG_SUICIDE(););
 #endif
-
-      DBUG_ASSERT(my_b_inited(&index_file) != 0);
-
-      /*
-        The new log file name is appended into crash safe index file after
-        all the content of index file is copyed into the crash safe index
-        file. Then move the crash safe index file to index file.
-      */
-      if (DBUG_EVALUATE_IF("fault_injection_updating_index", 1, 0) ||
-          add_log_to_index((uchar*) log_file_name, strlen(log_file_name),
-                           need_mutex))
-        goto err;
-
-#ifdef HAVE_REPLICATION
-      DBUG_EXECUTE_IF("crash_create_after_update_index", DBUG_SUICIDE(););
-#endif
-    }
   }
+
   log_state= LOG_OPENED;
 
 #ifdef HAVE_REPLICATION
@@ -2892,8 +2919,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
       goto err;
     }
   }
-  if (!thd->slave_thread)
-    need_start_event=1;
 
 #ifdef HAVE_GTID
 #ifdef HAVE_REPLICATION
@@ -3807,49 +3832,46 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
     goto end;
   new_name_ptr=new_name;
 
-  DBUG_ASSERT(log_type == LOG_BIN); // i'm 99% sure this always holds - when this is confirmed, remove 'if' statement below /sven
-  if (log_type == LOG_BIN)
+  if (!no_auto_events)
   {
-    if (!no_auto_events)
-    {
-      /*
-        We log the whole file name for log file as the user may decide
-        to change base names at some point.
-      */
-      Rotate_log_event r(new_name+dirname_length(new_name), 0, LOG_EVENT_OFFSET,
-                         is_relay_log ? Rotate_log_event::RELAY_LOG : 0);
-      /* 
-         The current relay-log's closing Rotate event must have checksum
-         value computed with an algorithm of the last relay-logged FD event.
-      */
-      if (is_relay_log)
-        r.checksum_alg= relay_log_checksum_alg;
-      DBUG_ASSERT(!is_relay_log || relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
-      if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event", (error=close_on_error=TRUE), FALSE) ||
-        (error= r.write(&log_file)))
-      {
-        char errbuf[MYSYS_STRERROR_SIZE];
-        DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
-        close_on_error= TRUE;
-        my_printf_error(ER_ERROR_ON_WRITE, ER(ER_CANT_OPEN_FILE),
-                        MYF(ME_FATALERROR), name,
-                        errno, my_strerror(errbuf, sizeof(errbuf), errno));
-        goto end;
-      }
-      bytes_written += r.data_written;
-    }
     /*
-      Update needs to be signalled even if there is no rotate event
-      log rotation should give the waiting thread a signal to
-      discover EOF and move on to the next log.
+      We log the whole file name for log file as the user may decide
+      to change base names at some point.
     */
-    signal_update();
+    Rotate_log_event r(new_name+dirname_length(new_name), 0, LOG_EVENT_OFFSET,
+                       is_relay_log ? Rotate_log_event::RELAY_LOG : 0);
+    /* 
+      The current relay-log's closing Rotate event must have checksum
+      value computed with an algorithm of the last relay-logged FD event.
+    */
+    if (is_relay_log)
+      r.checksum_alg= relay_log_checksum_alg;
+    DBUG_ASSERT(!is_relay_log || relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
+    if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event", (error=close_on_error=TRUE), FALSE) ||
+       (error= r.write(&log_file)))
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
+      close_on_error= TRUE;
+      my_printf_error(ER_ERROR_ON_WRITE, ER(ER_CANT_OPEN_FILE),
+                      MYF(ME_FATALERROR), name,
+                      errno, my_strerror(errbuf, sizeof(errbuf), errno));
+      goto end;
+    }
+    bytes_written += r.data_written;
   }
+  /*
+    Update needs to be signalled even if there is no rotate event
+    log rotation should give the waiting thread a signal to
+    discover EOF and move on to the next log.
+  */
+  signal_update();
+
   old_name=name;
   name=0;				// Don't free name
   close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX);
-  DBUG_ASSERT(log_type == LOG_BIN); // i'm 99% sure this always holds - when this is confirmed, remove clause in 'if' statement below /sven
-  if (log_type == LOG_BIN && checksum_alg_reset != BINLOG_CHECKSUM_ALG_UNDEF)
+
+  if (checksum_alg_reset != BINLOG_CHECKSUM_ALG_UNDEF)
   {
     DBUG_ASSERT(!is_relay_log);
     DBUG_ASSERT(binlog_checksum_options != checksum_alg_reset);
@@ -4259,7 +4281,7 @@ err:
 #ifdef HAVE_GTID
       error |= gtid_before_write_cache(thd, cache_data);
 #endif
-      error |= mysql_bin_log.write_cache(thd, cache_mngr, cache_data, FALSE);
+      error |= mysql_bin_log.write_cache(thd, cache_data, false);
       cache_data->reset();
     }
 
@@ -4738,10 +4760,10 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
     'cache' needs to be reinitialized after this functions returns.
 */
 
-bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_mngr *cache_mngr,
-                                binlog_cache_data *cache_data, bool prepared)
+bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
+                                bool prepared)
 {
-  DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
+  DBUG_ENTER("MYSQL_BIN_LOG::write_cache(THD *, binlog_cache_data *, bool)");
 
   IO_CACHE *cache= &cache_data->cache_log;
   bool incident= cache_data->has_incident();
@@ -4923,9 +4945,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
   if (log_state == LOG_OPENED)
   {
 #ifdef HAVE_REPLICATION
-    DBUG_ASSERT(log_type == LOG_BIN); // i'm 99% sure this always holds - when this is confirmed, remove clause in 'if' statement below /sven
-    if (log_type == LOG_BIN && !no_auto_events &&
-	(exiting & LOG_CLOSE_STOP_EVENT))
+    if (!no_auto_events && (exiting & LOG_CLOSE_STOP_EVENT))
     {
       Stop_log_event s;
       // the checksumming rule for relay-log case is similar to Rotate
@@ -4940,8 +4960,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
 #endif /* HAVE_REPLICATION */
 
     /* don't pwrite in a file opened with O_APPEND - it doesn't work */
-    DBUG_ASSERT(log_type == LOG_BIN); // i'm 99% sure this always holds - when this is confirmed, remove 'if' statement below /sven
-    if (log_file.type == WRITE_CACHE && log_type == LOG_BIN)
+    if (log_file.type == WRITE_CACHE)
     {
       my_off_t offset= BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
       my_off_t org_position= mysql_file_tell(log_file.file, MYF(0));

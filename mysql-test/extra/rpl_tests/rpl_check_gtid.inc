@@ -80,6 +80,7 @@ if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`
   if ($type != Previous_gtids)
   {
     --echo $type $info --- Type should be Previous_gtids.
+    --echo log='$server_log'
     --eval $command_show in "$server_log"
     --die
   }
@@ -89,6 +90,7 @@ if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`
     {
       --echo $type $info -- Info should be empty.
       --let $datadir= `select @@datadir`
+      --echo log='$server_log'
       --exec $MYSQL_BINLOG $datadir/$server_log
       --eval $command_show in "$server_log"
       --die
@@ -100,6 +102,7 @@ if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`
     {
       --echo $type $info -- Info should be $server_uuid:$gtid_set_ini-$gtid_set_end.
       --let $datadir= `select @@datadir`
+      --echo log='$server_log'
       --exec $MYSQL_BINLOG $datadir/$server_log
       --eval $command_show in "$server_log"
       --die
@@ -111,6 +114,7 @@ if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`
     {
       --echo $type $info -- Info should be $server_uuid:$gtid_set_ini.
       --let $datadir= `select @@datadir`
+      --echo log='$server_log'
       --exec $MYSQL_BINLOG $datadir/$server_log
       --eval $command_show in "$server_log"
       --die
@@ -141,6 +145,7 @@ if (`SELECT "$binlog" <> "" and "$gtid_end" <> "" and "$gtid_ini" <> ""`)
   if ($trans <=  $gtid_end)
   {
     --echo $type $info -- We should retrieve from $gtid_ini to $gtid_end.
+    --echo log='$server_log'
     --eval $command_show in "$server_log"
     --die
   }
