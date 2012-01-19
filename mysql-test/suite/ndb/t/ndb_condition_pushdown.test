@@ -2414,6 +2414,16 @@ select b from mytab where a like -1 having `b` like 1;
 
 drop table mytab;
 
+# Bug #13579318 LIKE SEARCH DOESN'T MATCH ANY ROWS ON A MULTI BYTE CHARSET COLUMN
+create table t(a bigint unsigned not null primary key auto_increment, b varchar(100)) character set utf8 engine ndb;
+
+insert into t (b) values('abc'),('aaa'),('bbb'),('ccc');
+--sorted_result
+select * from t where b like 'a%';
+--sorted_result
+select * from t where b not like 'a%';
+drop table t;
+
 set @@session.optimizer_switch = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
 

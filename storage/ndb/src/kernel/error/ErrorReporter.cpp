@@ -213,9 +213,6 @@ ErrorReporter::handleAssert(const char* message, const char* file, int line, int
 #ifdef NO_EMULATED_JAM
   BaseString::snprintf(refMessage, 100, "file: %s lineNo: %d",
 	   file, line);
-  jam = NULL;
-  jamIndex = 0;
-  jamBlockNumber = 0;
 #else
   const EmulatedJamBuffer *jamBuffer =
     (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
