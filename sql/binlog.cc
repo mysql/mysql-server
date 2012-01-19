@@ -2509,8 +2509,8 @@ err:
   @retval
     -1   error
 */
-int MYSQL_BIN_LOG::add_log_to_index(uchar* log_file_name,
-                                    int name_len, bool need_mutex)
+int MYSQL_BIN_LOG::add_log_to_index(uchar* log_name,
+                                    int log_name_len, bool need_mutex)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::add_log_to_index");
 
@@ -2528,14 +2528,14 @@ int MYSQL_BIN_LOG::add_log_to_index(uchar* log_file_name,
     goto err;
   }
 
-  if (my_b_write(&crash_safe_index_file, log_file_name, name_len) ||
+  if (my_b_write(&crash_safe_index_file, log_name, log_name_len) ||
       my_b_write(&crash_safe_index_file, (uchar*) "\n", 1) ||
       flush_io_cache(&crash_safe_index_file) ||
       mysql_file_sync(crash_safe_index_file.file, MYF(MY_WME)))
   {
     sql_print_error("MYSQL_BIN_LOG::add_log_to_index failed to "
                     "append log file name: %s, to crash "
-                    "safe index file.", log_file_name);
+                    "safe index file.", log_name);
     goto err;
   }
 
@@ -5635,7 +5635,7 @@ THD::binlog_set_pending_rows_event(Rows_log_event* ev, bool is_transactional)
                 in @c THD::cleanup_after_query().
 */
 void
-THD::add_to_binlog_accessed_dbs(const char *db)
+THD::add_to_binlog_accessed_dbs(const char *db_param)
 {
   char *after_db;
   MEM_ROOT *db_mem_root= &main_mem_root;
@@ -5652,7 +5652,7 @@ THD::add_to_binlog_accessed_dbs(const char *db)
     return;
   }
 
-  after_db= strdup_root(db_mem_root, db);
+  after_db= strdup_root(db_mem_root, db_param);
 
   /* 
      sorted insertion is implemented with first rearranging data
