@@ -21,9 +21,6 @@
 #include "sql_class.h"
 
 
-#ifdef HAVE_GTID
-
-
 void Gtid_state::clear()
 {
   DBUG_ENTER("Gtid_state::clear()");
@@ -247,6 +244,3 @@ int Gtid_state::init()
 
   DBUG_RETURN(0);
 }
-
-
-#endif /* HAVE_GTID */

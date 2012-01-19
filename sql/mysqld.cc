@@ -639,7 +639,6 @@ SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_profiling;
-SHOW_COMP_OPTION have_gtid;
 
 /* Thread specific variables */
 
@@ -3994,13 +3993,11 @@ static int init_server_auto_options()
   DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid)
   {
-#ifdef HAVE_GTID
     if (!Uuid::is_valid(uuid))
     {
       sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
       goto err;
     }
-#endif
     strcpy(server_uuid, uuid);
   }
   else
@@ -4400,7 +4397,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-#ifdef HAVE_GTID
   if (gtid_mode >= 1 && !(opt_bin_log && opt_log_slave_updates))
   {
     sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates");
@@ -4416,11 +4412,9 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     sql_print_error("--gtid-mode=UPGRADE_STEP_1 or --gtid-mode=UPGRADE_STEP_2 are not yet supported");
     unireg_abort(1);
   }
-#endif
 
   if (opt_bin_log)
   {
-#ifdef HAVE_GTID
     /*
       Configures what object is used by the current log to store processed
       gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
@@ -4428,7 +4422,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     */
     mysql_bin_log.set_previous_gtid_set(
       const_cast<Gtid_set*>(gtid_state.get_logged_gtids()));
-#endif
     if (mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
                                   WRITE_CACHE, 0, max_binlog_size, 0,
                                   true/*need mutex*/, true/*need sid_lock*/))
@@ -4891,7 +4884,6 @@ int mysqld_main(int argc, char **argv)
       unireg_abort(1);
     }
 
-#ifdef HAVE_GTID
     if (opt_bin_log)
     {
       /*
@@ -4935,7 +4927,6 @@ int mysqld_main(int argc, char **argv)
         mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
         unireg_abort(1);
     }
-#endif
   }
 
   init_ssl();
@@ -7493,11 +7484,6 @@ static int mysql_init_variables(void)
 #endif /* HAVE_OPENSSL */
 #ifdef HAVE_SMEM
   shared_memory_base_name= default_shared_memory_base_name;
-#endif
-#ifdef HAVE_GTID
-  have_gtid=SHOW_OPTION_YES;
-#else
-  have_gtid=SHOW_OPTION_NO;
 #endif
 
 #if defined(__WIN__)

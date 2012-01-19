@@ -544,10 +544,8 @@ typedef struct system_variables
 
   double long_query_time_double;
 
-#ifdef HAVE_GTID
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
-#endif
 
 } SV;
 
@@ -3273,7 +3271,6 @@ public:
     DBUG_VOID_RETURN;
   }
 
-#ifdef HAVE_GTID
   /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
   Gtid_set *get_gtid_next_list()
   {
@@ -3314,7 +3311,6 @@ public:
       owned_gtid_set.clear();
     owned_gtid.sidno= 0;
   }
-#endif
 
   /**
     Set the current database; use deep copy of C-string.

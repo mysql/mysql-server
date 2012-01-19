@@ -3337,13 +3337,9 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     @todo Check if this causes any trouble. /Sven
     @note Covered by Case 1 in test binlog.binlog_trx_empty_assertions
   */
-#ifdef HAVE_GTID
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
               thd->get_gtid_next_list() != NULL ||
               thd->variables.gtid_next.type == GTID_GROUP);
-#else
-  DBUG_ASSERT(thd->transaction.stmt.is_empty());
-#endif
 
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);

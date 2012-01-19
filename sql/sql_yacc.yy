@@ -450,7 +450,7 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
   if (lex->spcont && tmp->var == Sys_autocommit_ptr)
     lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
 
-#ifdef HAVE_GTID
+#ifdef HAVE_REPLICATION
   if (lex->uses_stored_routines() &&
       (tmp->var == Sys_gtid_next_ptr || tmp->var == Sys_gtid_next_list_ptr))
   {

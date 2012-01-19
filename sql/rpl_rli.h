@@ -238,7 +238,6 @@ protected:
   ulonglong future_group_master_log_pos;
 #endif
 
-#ifdef HAVE_GTID
 private:
   Gtid_set gtid_set;
 
@@ -254,7 +253,6 @@ public:
     return ret;
   }
   const Gtid_set *get_gtid_set() const { return &gtid_set; }
-#endif
 
   int init_relay_log_pos(const char* log,
                          ulonglong pos, bool need_data_lock,
@@ -309,7 +307,6 @@ public:
   ulonglong until_log_pos;
   /* extension extracted from log_name and converted to int */
   ulong until_log_name_extension;
-#ifdef HAVE_GTID
   /**
     The START SLAVE UNTIL SQL_BEFORE_GTIDS initializes both
     the until_gtids_obj and request_gtids_obj. Each time a
@@ -328,7 +325,6 @@ public:
     is issued.
   */
   Gtid_set request_gtids_obj;
-#endif
   /* 
      Cached result of comparison of until_log_name and current log name
      -2 means unitialised, -1,0,1 are comarison results 
@@ -404,9 +400,7 @@ public:
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
-#ifdef HAVE_GTID
   int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
-#endif
   void close_temporary_tables();
 
   /* Check if UNTIL condition is satisfied. See slave.cc for more. */
@@ -488,9 +482,7 @@ public:
   */
   DYNAMIC_ARRAY curr_group_assigned_parts;
   DYNAMIC_ARRAY curr_group_da;  // deferred array to hold partition-info-free events
-#ifdef HAVE_GTID
   bool curr_group_seen_gtid;   // current group started with Gtid-event or not
-#endif
   bool curr_group_seen_begin;   // current group started with B-event or not
   bool curr_group_isolated;     // current group requires execution in isolation
   bool mts_end_group_sets_max_dbs; // flag indicates if partitioning info is discovered

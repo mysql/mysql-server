@@ -23,9 +23,6 @@
 #include "sql_parse.h"
 
 
-#ifdef HAVE_GTID
-
-
 /**
   Acquire group ownership for a single group.  This is used to start a
   commit-sequence when @@SESSION.GTID_NEXT_LIST = NULL and
@@ -426,6 +423,3 @@ int gtid_rollback(THD *thd)
 
   DBUG_RETURN(0);
 }
-
-
-#endif

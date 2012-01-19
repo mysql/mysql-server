@@ -17,9 +17,6 @@
 #include "zgtids.h"
 
 
-#ifdef HAVE_GTID
-
-
 #include "mysqld_error.h"
 #include "hash.h"
 
@@ -159,6 +156,3 @@ my_thread_id Owned_gtids::get_owner(Gtid gtid) const
     return n->owner;
   return 0;
 }
-
-
-#endif /* HAVE_GTID */

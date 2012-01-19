@@ -1555,7 +1555,7 @@ public:
   void fix_length_and_dec() { max_length= 21; maybe_null= 1; }
 };
 
-#ifdef HAVE_GTID
+#ifdef HAVE_REPLICATION
 class Item_func_gtid_subset : public Item_int_func
 {
   String buf1;
@@ -1566,7 +1566,7 @@ public:
   const char *func_name() const { return "gtid_subset"; }
   void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
 };
-#endif
+#endif // if HAVE_REPLICATION
 
 
 /**

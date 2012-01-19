@@ -1154,7 +1154,7 @@ protected:
 };
 
 
-#ifdef HAVE_GTID
+#ifdef HAVE_REPLICATION
 class Create_func_gtid_subtract : public Create_func_arg2
 {
 public:
@@ -3983,7 +3983,7 @@ Create_func_greatest::create_native(THD *thd, LEX_STRING name,
 }
 
 
-#ifdef HAVE_GTID
+#ifdef HAVE_REPLICATION
 Create_func_gtid_subtract Create_func_gtid_subtract::s_singleton;
 
 Item*
@@ -5464,7 +5464,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("GET_LOCK") }, BUILDER(Create_func_get_lock)},
   { { C_STRING_WITH_LEN("GLENGTH") }, GEOM_BUILDER(Create_func_glength)},
   { { C_STRING_WITH_LEN("GREATEST") }, BUILDER(Create_func_greatest)},
-#ifdef HAVE_GTID
+#ifdef HAVE_REPLICATION
   { { C_STRING_WITH_LEN("GTID_SUBTRACT") }, BUILDER(Create_func_gtid_subtract) },
   { { C_STRING_WITH_LEN("GTID_SUBSET") }, BUILDER(Create_func_gtid_subset) },
 #endif

@@ -1482,18 +1482,6 @@ enum loglevel {
 
 
 /*
-  The group log can only be correctly truncated if my_chsize actually
-  truncates the file. So disable GTIDs on platforms that don't support
-  truncate.
-*/
-#if defined(_WIN32) || defined(HAVE_FTRUNCATE) || defined(HAVE_CHSIZE)
-#if defined(HAVE_REPLICATION)
-#define HAVE_GTID
-#endif
-#endif
-
-
-/*
   Visual Studio before the version 2010 did not have lldiv_t.
   In Visual Studio 2010, _MSC_VER is defined as 1600.
 */

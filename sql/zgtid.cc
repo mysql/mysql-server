@@ -16,9 +16,6 @@
 #include "zgtids.h"
 
 
-#ifdef HAVE_GTID
-
-
 #include "mysqld_error.h"
 
 
@@ -90,6 +87,3 @@ bool Gtid::is_valid(const char *text)
     DBUG_RETURN(false);
   DBUG_RETURN(true);
 }
-
-
-#endif

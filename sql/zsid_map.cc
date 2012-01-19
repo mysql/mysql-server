@@ -17,9 +17,6 @@
 #include "zgtids.h"
 
 
-#ifdef HAVE_GTID
-
-
 #include "hash.h"
 #include "mysqld_error.h"
 
@@ -167,5 +164,3 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
   BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
   RETURN_REPORTED_ERROR;
 }
-
-#endif /* HAVE_GTID */

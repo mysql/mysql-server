@@ -1776,9 +1776,6 @@ public:
 };
 
 
-#ifdef HAVE_GTID
-
-
 /**
   Class for variables that store values of type Gtid_specification.
 */
@@ -2189,6 +2186,3 @@ public:
     DBUG_RETURN((uchar *)buf);
   }
 };
-
-
-#endif /* HAVE_GTID */

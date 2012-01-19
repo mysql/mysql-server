@@ -18,9 +18,6 @@
 #include "binlog.h"
 
 
-#ifdef HAVE_GTID
-
-
 Group_cache::Group_cache()
 {
   DBUG_ENTER("Group_cache::Group_cache");
@@ -172,6 +169,3 @@ enum_return_status Group_cache::get_gtids(Gtid_set *gs) const
   }
   RETURN_OK;
 }
-
-
-#endif

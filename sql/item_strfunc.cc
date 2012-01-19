@@ -4125,7 +4125,7 @@ String *Item_func_uuid::val_str(String *str)
 }
 
 
-#ifdef HAVE_GTID
+#ifdef HAVE_REPLICATION
 void Item_func_gtid_subtract::fix_length_and_dec()
 {
   maybe_null= args[0]->maybe_null || args[1]->maybe_null;
@@ -4179,5 +4179,4 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
   null_value= true;
   DBUG_RETURN(NULL);
 }
-#endif
-
+#endif // HAVE_REPLICATION
