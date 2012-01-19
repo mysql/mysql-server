@@ -3455,6 +3455,7 @@ row_search_idx_cond_check(
 	}
 
 	ut_error;
+	return(ICP_ABORTED_BY_USER); /* Keep compiler happy */
 }
 
 /********************************************************************//**
