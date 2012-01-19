@@ -11813,29 +11813,8 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 }
 
 #ifndef MYSQL_CLIENT
-Gtid_log_event::Gtid_log_event(THD *thd_arg, bool using_trans,
+Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
                                const Gtid_specification *spec_arg)
-: Log_event(thd_arg, spec_arg->type == ANONYMOUS_GROUP ?
-            LOG_EVENT_IGNORABLE_F : 0,
-            using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
-            Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING),
-  commit_flag(true)
-{
-  DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *, const Gtid_specification *)");
-  DBUG_ASSERT(spec_arg->type != AUTOMATIC_GROUP);
-  spec= *spec_arg;
-  global_sid_lock.rdlock();
-  sid= *global_sid_map.sidno_to_sid(spec.gtid.sidno);
-  global_sid_lock.unlock();
-#ifndef NO_DBUG
-  char buf[MAX_SET_STRING_LENGTH + 1];
-  to_string(buf);
-  DBUG_PRINT("info", ("%s", buf));
-#endif
-  DBUG_VOID_RETURN;
-}
-
-Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans)
 : Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
@@ -11843,7 +11822,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans)
   commit_flag(true)
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(THD *)");
-  spec= thd_arg->variables.gtid_next;
+  spec= spec_arg ? *spec_arg : thd_arg->variables.gtid_next;
   if (spec.type == GTID_GROUP)
   {
     global_sid_lock.rdlock();

@@ -4075,30 +4075,32 @@ longlong Item_master_gtid_set_wait::val_int()
   of the second.  Generate an error if any of the arguments is not a
   Gtid_set.
 */
-longlong Item_func_group_subset::val_int()
+longlong Item_func_gtid_subset::val_int()
 {
-  DBUG_ENTER("Item_func_group_subset::val_int()");
+  DBUG_ENTER("Item_func_gtid_subset::val_int()");
   if (args[0]->null_value || args[1]->null_value)
   {
     null_value= true;
     DBUG_RETURN(0);
   }
-  String *string;
-  const char *ptr;
-  int ret= 0;
+  String *string1, *string2;
+  const char *charp1, *charp2;
+  int ret= 1;
   enum_return_status status;
-  if ((string= args[0]->val_str(&buf)) != NULL &&
-      (ptr= string->c_ptr_safe()) != NULL)
+  // get strings without lock
+  if ((string1= args[0]->val_str(&buf1)) != NULL &&
+      (charp1= string1->c_ptr_safe()) != NULL &&
+      (string2= args[1]->val_str(&buf2)) != NULL &&
+      (charp2= string2->c_ptr_safe()) != NULL)
   {
     global_sid_lock.rdlock();
-    const Gtid_set sub_set(&global_sid_map, ptr, &status);
-    PROPAGATE_REPORTED_ERROR_INT(status);
-    if ((string= args[1]->val_str(&buf)) != NULL &&
-        (ptr= string->c_ptr_safe()) != NULL)
+    // compute sets while holding locks
+    const Gtid_set sub_set(&global_sid_map, charp1, &status);
+    if (status == RETURN_STATUS_OK)
     {
-      const Gtid_set super_set(&global_sid_map, ptr, &status);
-      PROPAGATE_REPORTED_ERROR_INT(status);
-      ret= sub_set.is_subset(&super_set) ? 1 : 0;
+      const Gtid_set super_set(&global_sid_map, charp2, &status);
+      if (status == RETURN_STATUS_OK)
+        ret= sub_set.is_subset(&super_set) ? 1 : 0;
     }
     global_sid_lock.unlock();
   }

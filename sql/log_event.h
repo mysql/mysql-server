@@ -4567,11 +4567,12 @@ class Gtid_log_event : public Log_event
 {
 public:
 #ifndef MYSQL_CLIENT
-  /// Create a new event using the GTID from @@SESSION.GTID_NEXT
-  Gtid_log_event(THD *thd_arg, bool using_trans);
-  /// Create a new event using the given Gtid_specification
+  /**
+    Create a new event using the GTID from the given Gtid_specification,
+    or from @@SESSION.GTID_NEXT if spec==NULL.
+  */
   Gtid_log_event(THD *thd_arg, bool using_trans,
-                 const Gtid_specification *spec);
+                 const Gtid_specification *spec= NULL);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -4717,12 +4718,18 @@ public:
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file)
   {
-    if (DBUG_EVALUATE_IF("debug_skip_create_gtid_set", 1, 0))
+    if (DBUG_EVALUATE_IF("skip_writing_previous_gtids_log_event", 1, 0))
+    {
+      DBUG_PRINT("info", ("skip writing Previous_gtids_log_event because of debug option"));
       return false;
+    }
 
-    if (DBUG_EVALUATE_IF("debug_error_create_gtid_set", 1, 0))
+    if (DBUG_EVALUATE_IF("write_partial_previous_gtids_log_event", 1, 0))
+    {
+      DBUG_PRINT("info", ("writing truncated Previous_gtids_log_event because of debug option"));
       return(Log_event::write_header(file, get_data_size()) ||
              Log_event::write_data_header(file));
+    }
   
     return(Log_event::write_header(file, get_data_size()) ||
            Log_event::write_data_header(file) ||

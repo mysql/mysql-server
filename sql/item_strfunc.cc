@@ -4126,13 +4126,13 @@ String *Item_func_uuid::val_str(String *str)
 
 
 #ifdef HAVE_GTID
-void Item_func_group_subtract::fix_length_and_dec()
+void Item_func_gtid_subtract::fix_length_and_dec()
 {
   maybe_null= args[0]->maybe_null || args[1]->maybe_null;
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   /*
     In the worst case, the string grows after subtraction. This
-    happens when a group in args[0] is split by a group in args[1],
+    happens when a GTID in args[0] is split by a GTID in args[1],
     e.g., UUID:1-6 minus UUID:3-4 becomes UUID:1-2,5-6.  The worst
     case is UUID:1-100 minus UUID:9, where the two characters ":9" in
     args[1] yield the five characters "-8,10" in the result.
@@ -4143,23 +4143,23 @@ void Item_func_group_subtract::fix_length_and_dec()
 }
 
 
-String *Item_func_group_subtract::val_str_ascii(String *str)
+String *Item_func_gtid_subtract::val_str_ascii(String *str)
 {
-  DBUG_ENTER("Item_func_group_subtract::val_str_ascii");
+  DBUG_ENTER("Item_func_gtid_subtract::val_str_ascii");
   String *str1, *str2;
   const char *charp1, *charp2;
   enum_return_status status;
-  // get first set
+  // get strings without lock
   if (!args[0]->null_value && !args[1]->null_value &&
-      (str1= args[0]->val_str_ascii(str)) != NULL &&
-      (charp1= str1->c_ptr_safe()) != NULL)
+      (str1= args[0]->val_str_ascii(&buf1)) != NULL &&
+      (charp1= str1->c_ptr_safe()) != NULL &&
+      (str2= args[1]->val_str_ascii(&buf2)) != NULL &&
+      (charp2= str2->c_ptr_safe()) != NULL)
   {
     global_sid_lock.rdlock();
+    // compute sets while holding locks
     Gtid_set set1(&global_sid_map, charp1, &status);
-    // get second set
-    if (status == RETURN_STATUS_OK &&
-        (str2= args[1]->val_str_ascii(str)) != NULL &&
-        (charp2= str2->c_ptr_safe()) != NULL)
+    if (status == RETURN_STATUS_OK)
     {
       Gtid_set set2(&global_sid_map, charp2, &status);
       int length;

@@ -1556,13 +1556,14 @@ public:
 };
 
 #ifdef HAVE_GTID
-class Item_func_group_subset : public Item_int_func
+class Item_func_gtid_subset : public Item_int_func
 {
-  String buf;
+  String buf1;
+  String buf2;
 public:
-  Item_func_group_subset(Item *a, Item *b) : Item_int_func(a, b) {}
+  Item_func_gtid_subset(Item *a, Item *b) : Item_int_func(a, b) {}
   longlong val_int();
-  const char *func_name() const { return "group_subset"; }
+  const char *func_name() const { return "gtid_subset"; }
   void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
 };
 #endif

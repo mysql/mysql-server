@@ -75,9 +75,6 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   uint file_id;
   uint open_count;				// For replication
   int readers_count;
-  /// need_start_event is always 1, it's completely redundant and
-  /// should be removed
-  bool need_start_event;
   /*
     no_auto_events means we don't want any of these automatic events :
     Start/Rotate/Stop. That is, in 4.x when we rotate a relay log, we don't
@@ -244,7 +241,6 @@ public:
   void signal_update();
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
   int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
-  void set_need_start_event() { need_start_event = 1; }
   int init(bool no_auto_events_arg, ulong max_size);
   void init_pthread_objects();
   void cleanup();
@@ -282,8 +278,7 @@ public:
   int new_file();
 
   bool write_event(Log_event* event_info);
-  bool write_cache(THD *thd, class binlog_cache_mngr *cache_mngr,
-                   class binlog_cache_data *binlog_cache_data,
+  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
                    bool prepared);
   int  do_write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
 
