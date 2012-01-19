@@ -107,6 +107,14 @@ public:
    */
   struct ScanOptions
   {
+    /*
+      Size of the ScanOptions structure.
+    */
+    static inline Uint32 size()
+    {
+        return sizeof(ScanOptions);
+    }
+
     /* Which options are present - see below for possibilities */
     Uint64 optionsPresent;
 

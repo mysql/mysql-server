@@ -1029,6 +1029,14 @@ public:
   struct OperationOptions
   {
     /*
+      Size of the OperationOptions structure.
+    */
+    static inline Uint32 size()
+    {
+        return sizeof(OperationOptions);
+    }
+
+    /*
      * Which options are present.  See below for option details
      */
     Uint64 optionsPresent;
