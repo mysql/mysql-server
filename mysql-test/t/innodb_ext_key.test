@@ -312,5 +312,35 @@ DROP TABLE t1;
 
 set optimizer_switch=@save_optimizer_switch;
 
+--echo #
+--echo # LP Bug #915291: query using a materialized view
+--echo #                 + extended_keys = on
+--echo # (valgrinf complains fixed by the patch for bug #914560)
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+SET optimizer_switch = 'derived_with_keys=on';
+SET optimizer_switch = 'extended_keys=on';
+
+CREATE TABLE t1 (a varchar(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('j'), ('v');
+
+CREATE TABLE t2 (b varchar(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('j'), ('v');
+
+CREATE TABLE t3 (c varchar(1));
+INSERT INTO t2 VALUES ('m'), ('n');
+
+CREATE VIEW v
+  AS SELECT DISTINCT * FROM t2 STRAIGHT_JOIN t3;
+
+SELECT * FROM t1, v WHERE a = b;
+
+DROP VIEW v;
+DROP TABLE t1,t2,t3;
+
+set optimizer_switch=@save_optimizer_switch;
+
 set optimizer_switch=@save_ext_key_optimizer_switch;
 SET SESSION STORAGE_ENGINE=DEFAULT;
