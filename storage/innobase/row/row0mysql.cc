@@ -3319,7 +3319,32 @@ row_import_tablespace_set_index_root_v1(
 {
 	ib_uint32_t	value;
 	ulint		n_indexes;
+	ulint		page_size;
 
+	/* Read the tablespace page size. */
+	if (fread(&value, sizeof(value), 1, file) != 1) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: IO error (%lu), reading "
+			"page size.\n",
+			(ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	page_size = mach_read_from_4(reinterpret_cast<const byte*>(&value));
+
+	if (page_size != UNIV_PAGE_SIZE) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Tablespace to be imported has different "
+			"page size than this server. Server page size "
+			"is: %lu, whereas tablespace page size is %lu.\n",
+			UNIV_PAGE_SIZE, page_size);
+		return(DB_ERROR);
+	}
+
+	/* Read the number of indexes on the table. */
 	if (fread(&value, sizeof(value), 1, file) != 1) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -3332,8 +3357,8 @@ row_import_tablespace_set_index_root_v1(
 
 	n_indexes = mach_read_from_4(reinterpret_cast<const byte*>(&value));
 
-	/* It is a supported version, read the index names and
-	root page numbers of the indexes and set the values. */
+	/* Read the index names and root page numbers of the indexes
+	and set the values. */
 
 	for (ulint i = 0; i < n_indexes; ++i) {
 		db_err		err;
@@ -3440,34 +3465,46 @@ row_import_tablespace_set_index_root(
 }
 
 /*****************************************************************//**
+Get the meta-data filename from the table name. */
+static
+void
+row_import_tablespace_get_meta_data_filename(
+/*=========================================*/
+	const dict_table_t*	table,		/*!< in: table */
+	char*			filename,	/*!< out: filename */
+	ulint			max_len)	/* in: filename max length */
+{
+	static const ulint	suffix_len = strlen(".cfg");
+
+	ulint	len = srv_path_copy(
+		filename, max_len - suffix_len, srv_data_home, table->name);
+
+	ut_a(len != ULINT_UNDEFINED);
+
+	ut_snprintf(filename + len, max_len - (len + suffix_len), ".cfg");
+
+	srv_normalize_path_for_win(filename);
+}
+
+/*****************************************************************//**
 Get the index root <space, pageno> from the meta-data.
 @return DB_SUCCESS or error code. */
 static
 db_err
 row_import_tablespace_set_index_root(
 /*=================================*/
-	dict_table_t*		table)	/*!< in: table */
+	dict_table_t*	table)	/*!< in: table */
 {
-	db_err			err = DB_SUCCESS;
-	char			filename[OS_FILE_MAX_PATH];
-	static const ulint	suffix_len = strlen(".cfg");
+	db_err		err;
+	char		name[OS_FILE_MAX_PATH];
 
-	ulint	len = srv_path_copy(
-		filename, sizeof(filename) - suffix_len,
-		srv_data_home, table->name);
+	row_import_tablespace_get_meta_data_filename(table, name, sizeof(name));
 
-	ut_a(len != ULINT_UNDEFINED);
-
-	ut_snprintf(
-		filename + len, sizeof(filename) - (len + suffix_len), ".cfg");
-
-	srv_normalize_path_for_win(filename);
-
-	FILE*	file = fopen(filename, "r");
+	FILE*	file = fopen(name, "r");
 
 	if (file == NULL) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error opening: %s\n", filename);
+		fprintf(stderr, " InnoDB: Error opening: %s\n", name);
 		err = DB_IO_ERROR;
 	} else {
 		err = row_import_tablespace_set_index_root(table, file);
@@ -3488,9 +3525,9 @@ row_import_tablespace_for_mysql(
 	dict_table_t*	table,		/*!< in/out: table */
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
 {
+	db_err		err;
 	trx_t*		trx;
 	lsn_t		current_lsn;
-	db_err		err		= DB_SUCCESS;
 	ulint		n_rows_in_table;
 
 	ut_a(table->space);
@@ -3528,6 +3565,18 @@ row_import_tablespace_for_mysql(
 
 		return(row_import_tablespace_cleanup(
 			prebuilt, trx, DB_TOO_MANY_CONCURRENT_TRXS));
+	}
+
+	prebuilt->trx->op_info = "read meta-data file";
+
+	/* Update index->page and SYS_INDEXES.PAGE_NO to match the
+	B-tree root page numbers in the tablespace. Also, check if
+	the tablespace page size is the same as UNIV_PAGE_SIZE. */
+
+	err = row_import_tablespace_set_index_root(table);
+
+	if (err != DB_SUCCESS) {
+		return(row_import_tablespace_error(prebuilt, trx, err));
 	}
 
 	prebuilt->trx->op_info = "importing tablespace";
@@ -3610,23 +3659,6 @@ row_import_tablespace_for_mysql(
 
 	if (err != DB_SUCCESS) {
 		return(row_import_tablespace_cleanup(prebuilt, trx, err));
-	}
-
-	/* Update index->page and SYS_INDEXES.PAGE_NO to match the
-	B-tree root page numbers in the tablespace. */
-
-	/* TODO: The page numbers are currently not stored in the *.ibd file
-	but in a separate text file.
-
-	One possibility could be to write the relevant records of the
-	SYS_tables somewhere in the *.ibd file during EXPORT TABLESPACE.
-	Then, IMPORT TABLESPACE could also check that the index definitions
-	in the importing instance are close enough. */
-
-	err = row_import_tablespace_set_index_root(table);
-
-	if (err != DB_SUCCESS) {
-		return(row_import_tablespace_error(prebuilt, trx, err));
 	}
 
 	dict_index_t*	index = dict_table_get_first_index(table);
@@ -5627,6 +5659,121 @@ row_mysql_close(void)
 }
 
 /*********************************************************************//**
+Write the meta data config file header. */
+static
+db_err
+row_mysql_quiesce_write_meta_data_header(
+/*=====================================*/
+	const dict_table_t*	table,	/*!< in: write the meta data for
+					this table */
+	FILE*			file)	/*!< in: file to write to */
+{
+	ib_uint32_t		value;
+
+	/* Write the meta-data version number. */
+	mach_write_to_4(
+		reinterpret_cast<byte*>(&value), IB_EXPORT_CFG_VERSION_V1);
+
+	if (fwrite(&value, sizeof(value), 1, file) != 1) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: IO error (%lu), writing version\n",
+			(ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	/* Write the system page size. */
+	mach_write_to_4(reinterpret_cast<byte*>(&value), UNIV_PAGE_SIZE);
+
+	if (fwrite(&value, sizeof(value), 1, file) != 1) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: IO error (%lu), writing page size\n",
+			(ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	/* Write the number of indexes in the table. */
+	mach_write_to_4(
+		reinterpret_cast<byte*>(&value),
+		UT_LIST_GET_LEN(table->indexes));
+
+	if (fwrite(&value, sizeof(value), 1, file) != 1) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: IO error (%lu), writing number of "
+			"indexes.\n", (ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/*********************************************************************//**
+Write the meta data config file index information. */
+static
+db_err
+row_mysql_quiesce_write_meta_data_indexes(
+/*======================================*/
+	const dict_table_t*	table,	/*!< in: write the meta data for
+					this table */
+	FILE*			file)	/*!< in: file to write to */
+{
+	const dict_index_t*	index;
+
+	/* Write the root page numbers and corresponding index names. */
+	for (index = UT_LIST_GET_FIRST(table->indexes);
+	     index != 0;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		ib_uint32_t	value;
+
+		/* Write the root page number. */
+		mach_write_to_4(reinterpret_cast<byte*>(&value), index->page);
+
+		if (fwrite(&value, sizeof(value), 1, file) != 1) {
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: IO error (%lu), writing index root "
+				"page\n", (ulint) errno);
+
+			return(DB_IO_ERROR);
+		}
+
+		/* Write the length of the index name. */
+		ulint	len = ut_strlen(index->name);
+
+		/* NUL byte is included in the length. */
+		mach_write_to_4(reinterpret_cast<byte*>(&value), len + 1);
+
+		if (fwrite(&value, sizeof(value), 1, file) != 1) {
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: IO error (%lu), writing name "
+				"length\n", (ulint) errno);
+
+			return(DB_IO_ERROR);
+		}
+
+		/* Write out the NUL byte too. */
+		if (fwrite(index->name, len + 1, 1, file) != 1) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: IO error (%lu), writing index "
+				"name\n", (ulint) errno);
+
+			return(DB_IO_ERROR);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
+/*********************************************************************//**
 Write the table meta data after quiesce. */
 static
 db_err
@@ -5635,112 +5782,28 @@ row_mysql_quiesce_write_meta_data(
 	const dict_table_t*	table)	/*!< in: write the meta data for
 					this table */
 {
-	db_err	err = DB_SUCCESS;
-	char	filename[OS_FILE_MAX_PATH];
-	static const ulint	suffix_len = strlen(".cfg");
+	db_err		err;
+	char		name[OS_FILE_MAX_PATH];
 
-	ulint	len = srv_path_copy(
-		filename, sizeof(filename) - suffix_len,
-		srv_data_home, table->name);
+	row_import_tablespace_get_meta_data_filename(table, name, sizeof(name));
 
-	ut_a(len != ULINT_UNDEFINED);
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: Writing table metadata to '%s'\n", name);
 
-	ut_snprintf(
-		filename + len, sizeof(filename) - (len + suffix_len), ".cfg");
-
-	srv_normalize_path_for_win(filename);
-
-	FILE*	file = fopen(filename, "w+");
+	FILE*	file = fopen(name, "w+");
 
 	if (file == NULL) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error creating: %s\n", filename);
+		fprintf(stderr, " InnoDB: Error (%lu) creating: %s\n",
+			(ulint) errno, name);
+
 		err = DB_IO_ERROR;
 	} else {
-		const dict_index_t*	index;
-		ib_uint32_t		value;
+		err = row_mysql_quiesce_write_meta_data_header(table, file);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Writing table metadata to '%s'\n",
-			filename);
-
-		mach_write_to_4(
-			reinterpret_cast<byte*>(&value),
-			IB_EXPORT_CFG_VERSION_V1);
-
-		if (fwrite(&value, sizeof(value), 1, file) != 1) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: IO error (%lu), writing version\n",
-				(ulint) errno);
-
-			err = DB_IO_ERROR;
-		}
-
-		mach_write_to_4(
-			reinterpret_cast<byte*>(&value),
-			UT_LIST_GET_LEN(table->indexes));
-
-		if (fwrite(&value, sizeof(value), 1, file) != 1) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: IO error (%lu), writing number of "
-				"indexes.\n", (ulint) errno);
-
-			err = DB_IO_ERROR;
-		}
-
-		for (index = UT_LIST_GET_FIRST(table->indexes);
-		     index != 0 && err == DB_SUCCESS;
-		     index = UT_LIST_GET_NEXT(indexes, index)) {
-
-			fprintf(stderr, "Write: %s -> %lu\n",
-				index->name, (ulint) index->page);
-
-			mach_write_to_4(
-				reinterpret_cast<byte*>(&value),
-				index->page);
-
-			if (fwrite(&value, sizeof(value), 1, file) != 1) {
-
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: IO error (%lu), writing "
-					"index root page\n",
-					(ulint) errno);
-
-				err = DB_IO_ERROR;
-			}
-
-			ulint	len = ut_strlen(index->name);
-
-			/* NUL byte is included in the length. */
-			mach_write_to_4(
-				reinterpret_cast<byte*>(&value),
-				len + 1);
-
-			if (fwrite(&value, sizeof(value), 1, file) != 1) {
-
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: IO error (%lu), writing "
-					"name lengtyh\n",
-					(ulint) errno);
-
-				err = DB_IO_ERROR;
-			}
-
-			/* Write out the NUL byte too. */
-			if (fwrite(index->name, len + 1, 1, file) != 1) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: IO error (%lu), writing "
-					"index name\n",
-					(ulint) errno);
-
-				err = DB_IO_ERROR;
-			}
+		if (err != DB_SUCCESS) {
+			err = row_mysql_quiesce_write_meta_data_indexes(
+				table, file);
 		}
 
 		fclose(file);
