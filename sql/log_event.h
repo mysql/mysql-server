@@ -4562,7 +4562,6 @@ bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
 uint8 get_checksum_alg(const char* buf, ulong len);
 extern TYPELIB binlog_checksum_typelib;
 
-#ifdef HAVE_GTID
 class Gtid_log_event : public Log_event
 {
 public:
@@ -4761,7 +4760,6 @@ private:
   int buf_size;
   const uchar *buf;
 };
-#endif
 
 /**
   @} (end of group Replication)

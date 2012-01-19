@@ -1519,15 +1519,10 @@ void close_thread_tables(THD *thd)
     @todo Check if this causes any trouble. /Sven
     @note Covered by Case 1 in test binlog.binlog_trx_empty_assertions
   */
-#ifdef HAVE_GTID
   DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt ||
               (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
               thd->get_gtid_next_list() != NULL ||
               thd->variables.gtid_next.type == GTID_GROUP);
-#else
-  DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt ||
-              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
-#endif
 
   /* Detach MERGE children after every statement. Even under LOCK TABLES. */
   for (table= thd->open_tables; table; table= table->next)
@@ -3418,13 +3413,9 @@ Locked_tables_list::unlock_locked_tables(THD *thd)
       @todo Check if this causes any trouble. /Sven
       @note Covered by Case 7 in test binlog.binlog_trx_empty_assertions
     */
-#ifdef HAVE_GTID
     DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
                 thd->get_gtid_next_list() != NULL ||
                 thd->variables.gtid_next.type == GTID_GROUP);
-#else
-    DBUG_ASSERT(thd->transaction.stmt.is_empty());
-#endif
     close_thread_tables(thd);
     /*
       We rely on the caller to implicitly commit the
@@ -5783,15 +5774,10 @@ end:
     @todo Add test case in binlog.binlog_trx_empty_assertions /Sven
     [running on fimafeng10-1]
   */
-#ifdef HAVE_GTID
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
               (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
               thd->get_gtid_next_list() != NULL ||
               thd->variables.gtid_next.type == GTID_GROUP);
-#else
-  DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
-              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
-#endif
   close_thread_tables(thd);
   /* Don't keep locks for a failed statement. */
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
@@ -6070,15 +6056,10 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
     @todo Add test case in binlog.binlog_trx_empty_assertions
     [running on fimafeng11-1]
   */
-#ifdef HAVE_GTID
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
               (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
               thd->get_gtid_next_list() != NULL ||
               thd->variables.gtid_next.type == GTID_GROUP);
-#else
-  DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
-              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
-#endif
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(start_of_statement_svp);
 }
@@ -9520,13 +9501,9 @@ close_mysql_tables(THD *thd)
     @todo Check if this causes any trouble /Sven.
     @note Covered by Case 8 in test binlog.binlog_trx_empty_assertions
  */
-#ifdef HAVE_GTID
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
               thd->get_gtid_next_list() != NULL ||
               thd->variables.gtid_next.type == GTID_GROUP);
-#else
-  DBUG_ASSERT(thd->transaction.stmt.is_empty());
-#endif
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();
 }

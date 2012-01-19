@@ -177,7 +177,6 @@ public:
     m_key_file_log_index= key_file_log_index;
   }
 #endif
-#ifdef HAVE_GTID
   /**
     Reads the set of all GTIDs in the binary log, and the set of all
     lost GTIDs in the binary log, and stores each set in respective
@@ -198,9 +197,7 @@ public:
   }
 private:
   Gtid_set* previous_gtid_set;
-#endif
 
-private:
   int open(const char *opt_name) { return open_binlog(opt_name); }
 public:
   int open_binlog(const char *opt_name);

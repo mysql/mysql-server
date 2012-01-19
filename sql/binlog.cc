@@ -120,12 +120,10 @@ public:
     return pending() == NULL && my_b_tell(&cache_log) == 0;
   }
 
-#ifdef HAVE_GTID
   bool is_group_cache_empty() const
   {
     return group_cache.is_empty();
   }
-#endif
 
   Rows_log_event *pending() const
   {
@@ -170,9 +168,7 @@ public:
       variable after truncating the cache.
     */
     cache_log.disk_writes= 0;
-#ifdef HAVE_GTID
     group_cache.clear();
-#endif
     DBUG_ASSERT(is_binlog_empty());
   }
 
@@ -181,12 +177,10 @@ public:
   */
   IO_CACHE cache_log;
 
-#ifdef HAVE_GTID
   /**
     The group cache for this cache.
   */
   Group_cache group_cache;
-#endif
 
 protected:
   /*
@@ -538,10 +532,8 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
   DBUG_ASSERT(cache_mngr->trx_cache.is_binlog_empty() &&
               cache_mngr->stmt_cache.is_binlog_empty());
-#ifdef HAVE_GTID
   DBUG_ASSERT(cache_mngr->trx_cache.is_group_cache_empty() &&
               cache_mngr->stmt_cache.is_group_cache_empty());
-#endif  
   thd_set_ha_data(thd, binlog_hton, NULL);
   cache_mngr->~binlog_cache_mngr();
   my_free(cache_mngr);
@@ -553,7 +545,7 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
 {
   DBUG_ENTER("write_event_to_cache");
   IO_CACHE *cache= &cache_data->cache_log;
-#ifdef HAVE_GTID
+
   if (gtid_mode > 0)
   {
     Group_cache* group_cache= &cache_data->group_cache;
@@ -568,7 +560,7 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
         DBUG_RETURN(1);
     }
   }
-#endif
+
   if (ev != NULL)
     if (ev->write(cache) != 0)
       DBUG_RETURN(1);
@@ -576,7 +568,6 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
 }
 
 
-#ifdef HAVE_GTID
 /**
   Checks if the given GTID exists in the Group_cache. If not, add it
   as an empty group.
@@ -696,7 +687,6 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 
   DBUG_RETURN(0);
 }
-#endif
 
 /**
   This function flushes a cache upon commit/rollback.
@@ -726,10 +716,8 @@ binlog_flush_cache(THD *thd, binlog_cache_mngr *cache_mngr,
     if (write_event_to_cache(thd, end_evt, cache_data))
       DBUG_RETURN(1);
 
-#ifdef HAVE_GTID
     if (gtid_before_write_cache(thd, cache_data))
       DBUG_RETURN(1);
-#endif
 
     /*
       Doing a commit or a rollback including non-transactional tables,
@@ -875,7 +863,6 @@ binlog_truncate_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr, bool all)
   else
   {
     cache_mngr->trx_cache.restore_prev_position();
-#ifdef HAVE_GTID
     if (cache_mngr->trx_cache.is_binlog_empty())
     {
       /*
@@ -894,7 +881,6 @@ binlog_truncate_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr, bool all)
       */
       cache_mngr->trx_cache.group_cache.clear();
     }
-#endif
   }
 
   DBUG_ASSERT(thd->binlog_get_pending_rows_event(TRUE) == NULL);
@@ -950,12 +936,9 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   */
   if (!cache_mngr->stmt_cache.is_binlog_empty())
     error=
-#ifdef HAVE_GTID
       write_empty_groups_to_cache(thd, &cache_mngr->stmt_cache) ||
-#endif
       binlog_commit_flush_stmt_cache(thd, cache_mngr);
 
-#ifdef HAVE_GTID
   /*
     todo: what is the exact condition to check here?
 
@@ -968,7 +951,6 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   */
   else if (all || !thd->in_multi_stmt_transaction_mode())
     error= write_empty_groups_to_cache(thd, &cache_mngr->trx_cache) != 0;
-#endif
 
   if (cache_mngr->trx_cache.is_binlog_empty())
   {
@@ -1821,10 +1803,8 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
-   description_event_for_exec(0), description_event_for_queue(0)
-#ifdef HAVE_GTID
-   ,previous_gtid_set(0)
-#endif
+   description_event_for_exec(0), description_event_for_queue(0),
+   previous_gtid_set(0)
 {
   /*
     We don't want to initialize locks here as such initialization depends on
@@ -1964,7 +1944,6 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
 }
 
 
-#ifdef HAVE_GTID
 /**
   Reads GTIDs from the given binlog file.
 
@@ -2186,7 +2165,7 @@ end:
   mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(false);
 }
-#endif
+
 
 /**
   Open a (new) binlog file.
@@ -2321,7 +2300,6 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     if (s.write(&log_file))
       goto err;
     bytes_written+= s.data_written;
-#ifdef HAVE_GTID
     /*
       We need to revisit this code and improve it.
       See further comments in the mysqld.
@@ -2341,7 +2319,6 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
         goto err;
       bytes_written+= prev_gtids_ev.data_written;
     }
-#endif
   }
   if (description_event_for_queue &&
       description_event_for_queue->binlog_version>=4)
@@ -2833,9 +2810,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   mysql_mutex_lock(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
 
-#ifdef HAVE_GTID
   global_sid_lock.wrlock();
-#endif
 
   /* Save variables so that we can reopen the log */
   save_name=name;
@@ -2920,7 +2895,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     }
   }
 
-#ifdef HAVE_GTID
 #ifdef HAVE_REPLICATION
   if (is_relay_log)
   {
@@ -2936,7 +2910,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
       goto err;
   }
 #endif
-#endif
 
   if (!open_index_file(index_file_name, 0, FALSE))
     if ((error= open_binlog(save_name, log_type, 0, io_cache_type,
@@ -2948,9 +2921,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 err:
   if (error == 1)
     name= const_cast<char*>(save_name);
-#ifdef HAVE_GTID
   global_sid_lock.unlock();
-#endif
   mysql_mutex_unlock(&LOCK_thread_count);
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
@@ -4278,9 +4249,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
 err:
     if (event_info->is_using_immediate_logging())
     {
-#ifdef HAVE_GTID
       error |= gtid_before_write_cache(thd, cache_data);
-#endif
       error |= mysql_bin_log.write_cache(thd, cache_data, false);
       cache_data->reset();
     }
@@ -5341,7 +5310,6 @@ err1:
   return 1;
 }
 
-#ifdef HAVE_GTID
 Group_cache *THD::get_group_cache(bool is_transactional)
 {
   DBUG_ENTER("THD::get_group_cache(bool)");
@@ -5361,7 +5329,6 @@ Group_cache *THD::get_group_cache(bool is_transactional)
 
   DBUG_RETURN(&cache_data->group_cache);
 }
-#endif
 
 /*
   These functions are placed in this file since they need access to

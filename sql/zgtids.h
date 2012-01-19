@@ -41,8 +41,6 @@
 #endif
 
 
-#ifdef HAVE_GTID
-
 //#include "mysqld.h"
 //#include "sql_string.h"
 #include "hash.h"
@@ -2350,7 +2348,5 @@ int gtid_check_session_variables_before_statement(const THD *thd);
 int gtid_rollback(THD *thd);
 
 #endif // ifndef MYSQL_CLIENT
-
-#endif /* HAVE_GTID */
 
 #endif /* RPL_GTIDS_H_INCLUDED */

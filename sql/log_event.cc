@@ -81,13 +81,11 @@ TYPELIB binlog_checksum_typelib=
   Other GTID-related global variables should be here too, to ensure
   deterministic initialization and destruction order.
 */
-#ifdef HAVE_GTID
 Checkable_rwlock global_sid_lock;
 Sid_map global_sid_map(&global_sid_lock);
 #ifdef MYSQL_SERVER
 Gtid_state gtid_state(&global_sid_lock, &global_sid_map);
 #endif
-#endif // HAVE_GTID
 
 
 #define log_cs	&my_charset_latin1
@@ -1540,14 +1538,12 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     case ROWS_QUERY_LOG_EVENT:
       ev= new Rows_query_log_event(buf, event_len, description_event);
       break;
-#ifdef HAVE_GTID
     case GTID_LOG_EVENT:
       ev= new Gtid_log_event(buf, event_len, description_event);
       break;
     case PREVIOUS_GTIDS_LOG_EVENT:
       ev= new Previous_gtids_log_event(buf, event_len, description_event);
       break;
-#endif
     default:
       /*
         Create an object of Ignorable_log_event for unrecognized sub-class.
@@ -5015,12 +5011,10 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
       post_header_len[IGNORABLE_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
       post_header_len[ROWS_QUERY_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
-#ifdef HAVE_GTID
       post_header_len[GTID_LOG_EVENT-1]=
         post_header_len[ANONYMOUS_GTID_LOG_EVENT-1]=
         Gtid_log_event::POST_HEADER_LENGTH;
       post_header_len[PREVIOUS_GTIDS_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
-#endif
 
       // Sanity-check that all post header lengths are initialized.
       int i;
@@ -8809,7 +8803,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Rows_log_event::do_apply_event(Relay_log_info*)");
   int error= 0;
 
-#ifdef HAVE_GTID
   if (opt_bin_log)
   {
     /*
@@ -8829,7 +8822,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     else if (state == GTID_STATEMENT_SKIP)
       DBUG_RETURN(0);
   }
-#endif
 
   /*
     If m_table_id == ~0UL, then we have a dummy event that does not
@@ -11771,8 +11763,6 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
 #endif
 
 
-#ifdef HAVE_GTID
-
 const char *Gtid_log_event::SET_STRING_PREFIX= "SET @@SESSION.GTID_NEXT= '";
 
 
@@ -12068,8 +12058,6 @@ int Previous_gtids_log_event::do_update_pos(Relay_log_info *rli)
   return(Log_event::do_update_pos(rli));
 }
 #endif
-
-#endif // HAVE_GTID
 
 
 #ifdef MYSQL_CLIENT

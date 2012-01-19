@@ -17,9 +17,6 @@
 #include "zgtids.h"
 
 
-#ifdef HAVE_GTID
-
-
 #include <ctype.h>
 #include <algorithm>
 #include "my_dbug.h"
@@ -1173,6 +1170,3 @@ size_t Gtid_set::get_encoded_length() const
       ret+= 16 + 8 + 2 * 8 * get_n_intervals(sidno);
   return ret;
 }
-
-
-#endif /* HAVE_GTID */

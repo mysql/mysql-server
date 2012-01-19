@@ -1683,7 +1683,6 @@ bool show_binlog_info(THD* thd)
 
   DBUG_ENTER("show_binlog_info");
 
-#ifdef HAVE_GTID
   global_sid_lock.wrlock();
   const Gtid_set* gtid_set= gtid_state.get_logged_gtids();
   if (gtid_set->to_string(&gtid_set_buffer, &gtid_set_size))
@@ -1694,17 +1693,14 @@ bool show_binlog_info(THD* thd)
     DBUG_RETURN(true);
   }
   global_sid_lock.unlock();
-#endif
 
   field_list.push_back(new Item_empty_string("File", FN_REFLEN));
   field_list.push_back(new Item_return_int("Position",20,
 					   MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Binlog_Do_DB",255));
   field_list.push_back(new Item_empty_string("Binlog_Ignore_DB",255));
-#ifdef HAVE_GTID
   field_list.push_back(new Item_empty_string("Executed_Gtid_Set",
                                              gtid_set_size));
-#endif
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -1723,9 +1719,7 @@ bool show_binlog_info(THD* thd)
     protocol->store((ulonglong) li.pos);
     protocol->store(binlog_filter->get_do_db());
     protocol->store(binlog_filter->get_ignore_db());
-#ifdef HAVE_GTID
     protocol->store(gtid_set_buffer, &my_charset_bin);
-#endif
     if (protocol->write())
     {
       my_free(gtid_set_buffer);

@@ -1178,15 +1178,10 @@ int ha_commit_trans(THD *thd, bool all)
     flags will not get propagated to its normal transaction's
     counterpart.
   */
-#ifdef HAVE_GTID
   DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
               trans == &thd->transaction.stmt ||
               thd->get_gtid_next_list() != NULL ||
               thd->variables.gtid_next.type == GTID_GROUP); // @todo: are the two extra clauses for gtids correct? /sven
-#else
-  DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
-              trans == &thd->transaction.stmt);
-#endif
 
   if (thd->in_sub_stmt)
   {
@@ -1411,15 +1406,10 @@ int ha_rollback_trans(THD *thd, bool all)
     We must not rollback the normal transaction if a statement
     transaction is pending.
   */
-#ifdef HAVE_GTID
   DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
               trans == &thd->transaction.stmt ||
               thd->get_gtid_next_list() != NULL ||
               thd->variables.gtid_next.type == GTID_GROUP); // @todo: are the two extra clauses for gtids correct? /sven
-#else
-  DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
-              trans == &thd->transaction.stmt);
-#endif
 
   if (thd->in_sub_stmt)
   {
@@ -1466,9 +1456,7 @@ int ha_rollback_trans(THD *thd, bool all)
   if (all)
     thd->transaction_rollback_request= FALSE;
 
-#ifdef HAVE_GTID
   gtid_rollback(thd);
-#endif
 
   /*
     If the transaction cannot be rolled back safely, warn; don't warn if this
@@ -1526,9 +1514,7 @@ int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
   plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &xaop);
 
-#ifdef HAVE_GTID
   gtid_rollback(thd);
-#endif
 
   return xaop.result;
 }

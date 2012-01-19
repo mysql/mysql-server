@@ -3810,13 +3810,11 @@ static bool check_disable_gtid_unsafe_statements(
   if (check_top_level_stmt_and_super(self, thd, var) ||
       check_outside_transaction(self, thd, var))
     DBUG_RETURN(true);
-#ifdef HAVE_GTID
   if (gtid_mode >= 2 && var->value->val_int() == 0)
   {
     my_error(ER_GTID_MODE_2_OR_3_REQUIRES_DISABLE_GTID_UNSAFE_STATEMENTS_ON, MYF(0));
     DBUG_RETURN(true);
   }
-#endif
   DBUG_RETURN(false);
 }
 
@@ -3831,11 +3829,8 @@ static Sys_var_mybool Sys_disable_gtid_unsafe_statements(
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_disable_gtid_unsafe_statements));
 
-#ifdef HAVE_GTID
 
-static Sys_var_have Sys_have_gtid(
-       "have_gtid", "have_gtid",
-       READ_ONLY GLOBAL_VAR(have_gtid), NO_CMD_LINE);
+#ifdef HAVE_REPLICATION
 
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
@@ -3983,4 +3978,4 @@ static Sys_var_enum Sys_gtid_mode(
        gtid_mode_names, DEFAULT(GTID_MODE_OFF),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_gtid_mode));
 
-#endif // HAVE_GTID
+#endif // HAVE_REPLICATION

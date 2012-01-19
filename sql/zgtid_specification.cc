@@ -17,9 +17,6 @@
 #include "zgtids.h"
 
 
-#ifdef HAVE_GTID
-
-
 #ifndef MYSQL_CLIENT
 #include "mysqld.h"
 #endif
@@ -96,6 +93,3 @@ int Gtid_specification::to_string(const Sid_map *sid_map, char *buf) const
                    sid_map->sidno_to_sid(gtid.sidno) : NULL,
                    buf);
 }
-
-
-#endif /* HAVE_GTID */

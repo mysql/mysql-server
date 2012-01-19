@@ -804,9 +804,7 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
-#ifdef HAVE_GTID
    owned_gtid_set(&global_sid_map),
-#endif
    main_da(0, false),
    m_stmt_da(&main_da)
 {
@@ -1263,10 +1261,8 @@ void THD::init(void)
   debug_sync_init_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-#ifdef HAVE_GTID
   owned_gtid.sidno= 0;
   owned_gtid.gno= 0;
-#endif
 }
 
 
@@ -1428,14 +1424,12 @@ THD::~THD()
     rli_fake= NULL;
   }
 
-#ifdef HAVE_GTID
   if (variables.gtid_next_list.gtid_set != NULL)
   {
     delete variables.gtid_next_list.gtid_set;
     variables.gtid_next_list.gtid_set= NULL;
     variables.gtid_next_list.is_non_null= false;
   }
-#endif
   
   mysql_audit_free_thd(this);
 #endif

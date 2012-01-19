@@ -2110,14 +2110,10 @@ mysql_execute_command(THD *thd)
     @todo Check if this causes any trouble /Sven.
     @note Covered by Case 2 in test binlog.binlog_trx_empty_assertions
   */
-#ifdef HAVE_GTID
   DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt ||
               (thd->n_execute_command_calls > 1 &&
                (thd->get_gtid_next_list() != NULL ||
                 thd->variables.gtid_next.type == GTID_GROUP)));
-#else
-  DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt);
-#endif
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
     check that it is first table in global list and relink it first in 
@@ -2303,7 +2299,6 @@ mysql_execute_command(THD *thd)
     DBUG_RETURN(-1);
   }
 
-#ifdef HAVE_GTID
   /*
     Check error conditions related to GTID_NEXT.
     This must be done before the implicit commit.
@@ -2313,7 +2308,6 @@ mysql_execute_command(THD *thd)
     thd->n_execute_command_calls--;
     DBUG_RETURN(-1);
   }
-#endif
       
   /*
     End a active transaction so that this command will have it's
@@ -2337,7 +2331,6 @@ mysql_execute_command(THD *thd)
     thd->mdl_context.release_transactional_locks();
   }
 
-#ifdef HAVE_GTID
 #ifndef DBUG_OFF
   {
     char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
@@ -2384,7 +2377,6 @@ mysql_execute_command(THD *thd)
     global_sid_lock.unlock();
     DBUG_PRINT("info", ("after gtid_before_statment: gtid_next=%s sqlcom=%d query='%s'", buf, lex->sql_command, thd->query()));
   }
-#endif
 #endif
 
 #ifndef DBUG_OFF

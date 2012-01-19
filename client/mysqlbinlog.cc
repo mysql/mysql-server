@@ -157,7 +157,6 @@ enum Exit_status {
   OK_STOP
 };
 
-#ifdef HAVE_GTID
 /*
   Options that will be used to filter out events.
 */
@@ -167,7 +166,6 @@ static my_bool opt_skip_gtids= 0;
 static bool filter_based_on_gtids= false;
 static Gtid_set gtid_set_included(&global_sid_map);
 static Gtid_set gtid_set_excluded(&global_sid_map);
-#endif
 
 static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           const char* logname);
@@ -690,7 +688,6 @@ static bool shall_skip_database(const char *log_dbname)
 }
 
 
-#ifdef HAVE_GTID
 /**
   Checks whether the given event should be filtered out,
   according to the include-gtids, exclude-gtids and
@@ -734,7 +731,6 @@ static bool shall_skip_gtids(Log_event* ev)
   
   return filtered;
 }
-#endif
 
 /**
   Print the given event, and either delete it or delegate the deletion
@@ -815,10 +811,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
     DBUG_PRINT("debug", ("event_type: %s", ev->get_type_str()));
 
-#ifdef HAVE_GTID
     if (shall_skip_gtids(ev))
       goto end;
-#endif
 
     switch (ev_type) {
     case QUERY_EVENT:
@@ -1338,7 +1332,6 @@ static struct my_option my_long_options[] =
    /* def_value 4GB */ UINT_MAX, /* min_value */ 256,
    /* max_value */ ULONG_MAX, /* sub_size */ 0,
    /* block_size */ 256, /* app_type */ 0},
-#ifdef HAVE_GTID
   {"skip-gtids", OPT_MYSQLBINLOG_SKIP_GTIDS,
    "Do not print Global Transaction Identifier information "
    "(SET GTID_NEXT=... etc).",
@@ -1352,7 +1345,6 @@ static struct my_option my_long_options[] =
    "Print all but the given Global Transaction Identifiers.",
    &opt_exclude_gtids_str, &opt_exclude_gtids_str, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -2353,7 +2345,6 @@ static int args_post_process(void)
     }
   }
 
-#ifdef HAVE_GTID
   global_sid_lock.rdlock();
 
   if (opt_include_gtids_str != NULL)
@@ -2379,7 +2370,6 @@ static int args_post_process(void)
   }
 
   global_sid_lock.unlock();
-#endif
 
   DBUG_RETURN(OK_CONTINUE);
 }

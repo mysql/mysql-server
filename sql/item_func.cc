@@ -4057,7 +4057,7 @@ longlong Item_master_gtid_set_wait::val_int()
     return event_count;
   }
 
-#if defined(HAVE_REPLICATION) && defined(HAVE_GTID)
+#if defined(HAVE_REPLICATION)
   longlong timeout = (arg_count== 2) ? args[1]->val_int() : 0;
   if ((event_count = active_mi->rli->wait_for_gtid_set(thd, gtid, timeout)) == -2)
   {
@@ -4069,7 +4069,7 @@ longlong Item_master_gtid_set_wait::val_int()
   return event_count;
 }
 
-#ifdef HAVE_GTID
+#ifdef HAVE_REPLICATION
 /**
   Return 1 if both arguments are Gtid_sets and the first is a subset
   of the second.  Generate an error if any of the arguments is not a

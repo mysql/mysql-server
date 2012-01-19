@@ -2268,7 +2268,6 @@ bool show_master_info(THD* thd, Master_info* mi)
   int sql_gtid_set_size= 0, io_gtid_set_size= 0;
   DBUG_ENTER("show_master_info");
 
-#ifdef HAVE_GTID
   /*
     Why rwlock is necessary here? Sven?
     Temporarly disabled because this was causing deadlock
@@ -2289,7 +2288,6 @@ bool show_master_info(THD* thd, Master_info* mi)
     DBUG_RETURN(true);
   }
   global_sid_lock.unlock();
-#endif
 
   field_list.push_back(new Item_empty_string("Slave_IO_State",
                                                      14));
@@ -2371,12 +2369,10 @@ bool show_master_info(THD* thd, Master_info* mi)
                                              sizeof(mi->ssl_crl)));
   field_list.push_back(new Item_empty_string("Master_SSL_Crlpath",
                                              sizeof(mi->ssl_crlpath)));
-#ifdef HAVE_GTID
   field_list.push_back(new Item_empty_string("Retrieved_Gtid_Set",
                                              io_gtid_set_size));
   field_list.push_back(new Item_empty_string("Executed_Gtid_Set",
                                              sql_gtid_set_size));
-#endif
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2562,10 +2558,8 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(mi->ssl_ca, &my_charset_bin);
     // Master_Ssl_Crlpath
     protocol->store(mi->ssl_capath, &my_charset_bin);
-#ifdef HAVE_GTID
     protocol->store(io_gtid_set_buffer, &my_charset_bin);
     protocol->store(sql_gtid_set_buffer, &my_charset_bin);
-#endif
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -3388,7 +3382,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
           rli->until_condition == Relay_log_info::UNTIL_RELAY_POS)
         sql_print_information("Slave SQL thread stopped because it reached its"
                               " UNTIL position %s", llstr(rli->until_pos(), buf));
-#ifdef HAVE_GTID
       else
       {
         char *buffer= NULL;
@@ -3401,7 +3394,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                               " UNTIL SQL_BEFORE_GTIDS %s", buffer);
         my_free(buffer);
       }
-#endif
       /*
         Setting abort_slave flag because we do not want additional message about
         error in query execution to be printed.
@@ -5111,7 +5103,6 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
         rli->until_condition == Relay_log_info::UNTIL_RELAY_POS)
       sql_print_information("Slave SQL thread stopped because it reached its"
                             " UNTIL position %s", llstr(rli->until_pos(), buf));
-#ifdef HAVE_GTID
     else
     {
       char* buffer= NULL;
@@ -5124,7 +5115,6 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
                             " UNTIL SQL_BEFORE_GTIDS %s", buffer);
       my_free(buffer);
     }
-#endif
     mysql_mutex_unlock(&rli->data_lock);
     goto err;
   }
@@ -5969,7 +5959,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
   break;
 
-#ifdef HAVE_GTID
   case PREVIOUS_GTIDS_LOG_EVENT:
     if (gtid_mode == 0)
     {
@@ -5998,7 +5987,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     inc_pos= event_len;
   }
   break;
-#endif
 
   default:
     inc_pos= event_len;
@@ -7251,7 +7239,6 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
           strmake(mi->rli->until_log_name, thd->lex->mi.relay_log_name,
                   sizeof(mi->rli->until_log_name)-1);
         }
-#ifdef HAVE_GTID
         else if (thd->lex->mi.gtid)
         {
           global_sid_lock.wrlock();
@@ -7267,7 +7254,6 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
           mi->rli->until_condition= Relay_log_info::UNTIL_SQL_BEFORE_GTIDS;
           global_sid_lock.unlock();
         }
-#endif
         else
           mi->rli->clear_until_condition();
 

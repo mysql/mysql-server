@@ -16,9 +16,6 @@
 #include "zgtids.h"
 
 
-#ifdef HAVE_GTID
-
-
 /*
 const size_t Uuid::TEXT_LENGTH;
 const size_t Uuid::BYTE_LENGTH;
@@ -134,4 +131,3 @@ size_t Uuid::to_string(char *buf) const
 {
   return(to_string(bytes, buf));
 }
-#endif /* HAVE_GTID */

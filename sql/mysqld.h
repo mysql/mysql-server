@@ -201,7 +201,6 @@ extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool disable_gtid_unsafe_statements;
-#ifdef HAVE_GTID
 enum enum_gtid_mode
 {
   /// Support only anonymous groups, not GTIDs.
@@ -216,7 +215,7 @@ enum enum_gtid_mode
 extern ulong gtid_mode;
 extern const char *gtid_mode_names[];
 extern TYPELIB gtid_mode_typelib;
-#endif
+
 extern ulong thread_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];

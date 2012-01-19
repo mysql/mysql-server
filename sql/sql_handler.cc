@@ -347,13 +347,9 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
       @todo Add test case in binlog.binlog_trx_empty_assertions /Sven
       [running on tyr74-1]
     */
-#ifdef HAVE_GTID
     DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
                 thd->get_gtid_next_list() != NULL ||
                 thd->variables.gtid_next.type == GTID_GROUP);
-#else
-    DBUG_ASSERT(thd->transaction.stmt.is_empty());
-#endif
     close_thread_tables(thd);
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
     thd->set_open_tables(backup_open_tables);

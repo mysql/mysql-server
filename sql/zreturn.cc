@@ -17,7 +17,7 @@
 #include "zgtids.h"
 
 
-#if defined(HAVE_GTID) && !defined(DBUG_OFF)
+#ifndef DBUG_OFF
 
 
 #ifndef MYSQL_CLIENT
@@ -44,4 +44,4 @@ void check_return_status(enum_return_status status, const char *action,
 }
 
 
-#endif // HAVE_GTID && ! DBUG_OFF
+#endif // ! DBUG_OFF
