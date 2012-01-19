@@ -103,6 +103,11 @@ struct TransporterReceiveData
   bool epoll_add(TCP_Transporter*);
 
   /**
+   * Bitmask of transporters currently handled by this instance
+   */
+  NodeBitmask m_transporters;
+
+  /**
    * Bitmask of transporters that has data "carried over" since
    *   last performReceive
    */
