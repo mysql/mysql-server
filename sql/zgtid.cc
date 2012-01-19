@@ -22,9 +22,6 @@
 #include "mysqld_error.h"
 
 
-//int const Gtid::MAX_TEXT_LENGTH;
-
-
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
 {
   DBUG_ENTER("Gtid::parse");
@@ -33,8 +30,8 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
   // parse sid
   if (sid.parse(text) == RETURN_STATUS_OK)
   {
-    rpl_sidno sidno= sid_map->add_sid(&sid);
-    if (sidno <= 0)
+    rpl_sidno sidno_var= sid_map->add_sid(&sid);
+    if (sidno_var <= 0)
       RETURN_REPORTED_ERROR;
     text += Uuid::TEXT_LENGTH;
 
@@ -44,11 +41,11 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
       text++;
 
       // parse gno
-      rpl_gno gno= parse_gno(&text);
-      if (gno > 0 && *text == 0)
+      rpl_gno gno_var= parse_gno(&text);
+      if (gno_var > 0 && *text == 0)
       {
-        this->sidno= sidno;
-        this->gno= gno;
+        sidno= sidno_var;
+        gno= gno_var;
         RETURN_OK;
       }
     }

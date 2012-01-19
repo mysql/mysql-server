@@ -60,12 +60,8 @@ class THD;
 typedef int32 rpl_sidno;
 /// Type for GNO (group number, second component of GTID)
 typedef int64 rpl_gno;
-/// Type of binlog_no (binlog number)
-typedef int64 rpl_binlog_no;
 /// Type of binlog_pos (positions in binary log)
 typedef int64 rpl_binlog_pos;
-/// Type of LGIC (local group identifier)
-typedef int64 rpl_lgid;
 
 
 /**
@@ -2030,7 +2026,7 @@ struct Gtid_specification
   Gtid gtid;
   void set(rpl_sidno sidno, rpl_gno gno)
   { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
-  void set(const Gtid *gtid) { set(gtid->sidno, gtid->gno); }
+  void set(const Gtid *gtid_param) { set(gtid_param->sidno, gtid_param->gno); }
   void clear() { set(0, 0); }
   bool equals(const Gtid_specification *other) const
   {
@@ -2161,18 +2157,6 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status write_to_gtid_state() const;
-  /**
-    Writes all groups in the cache to the index.
-
-    @todo The group log is not yet implemented. /Sven
-
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  /*
-  enum_return_status
-    write_to_index(const THD *thd, Group_index *group_index,
-                   rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos);
-  */
   /**
     Generates GNO for all groups that are committed for the first time
     in this Group_cache.
@@ -2315,23 +2299,6 @@ private:
   friend FRIEND_OF_GROUP_CACHE;
 #endif
 };
-
-
-/**
-  Represents a bidirectional map between binlog file names and
-  binlog_no.
-*/
-class Binlog_map
-{
-public:
-  rpl_binlog_no filename_to_binlog_no(const char *filename) const;
-  void binlog_no_to_filename(rpl_sid sid, char *buf) const;
-private:
-  rpl_binlog_no number_offset;
-  DYNAMIC_ARRAY binlog_no_to_filename_map;
-  HASH filename_to_binlog_no_map;
-};
-
 
 /**
   Indicates if a statement should be skipped or not. Used as return

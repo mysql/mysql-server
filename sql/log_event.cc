@@ -11968,13 +11968,13 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event(THD *, const Gtid_set *)");
   global_sid_lock.assert_some_lock();
   buf_size= set->get_encoded_length();
-  uchar *buf= (uchar *)my_malloc(buf_size, MYF(MY_WME));
-  if (buf != NULL)
+  uchar *buffer= (uchar *) my_malloc(buf_size, MYF(MY_WME));
+  if (buffer != NULL)
   {
-    set->encode(buf);
-    register_temp_buf((char *)buf);
+    set->encode(buffer);
+    register_temp_buf((char *)buffer);
   }
-  this->buf= buf;
+  this->buf= buffer;
   // if buf == NULL, is_valid will return false
   DBUG_VOID_RETURN;
 }
