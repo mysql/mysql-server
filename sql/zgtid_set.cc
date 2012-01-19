@@ -189,13 +189,11 @@ enum_return_status Gtid_set::create_new_chunk(int size)
   // allocate the new chunk. one element is already pre-allocated, so
   // we only add size-1 elements to the size of the struct.
   Interval_chunk *new_chunk=
-    (Interval_chunk *)malloc(sizeof(Interval_chunk) +
-                             sizeof(Interval) * (size - 1));
+    (Interval_chunk *)my_malloc(sizeof(Interval_chunk) +
+                                sizeof(Interval) * (size - 1),
+                                MYF(MY_WME));
   if (new_chunk == NULL)
-  {
-    BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
     RETURN_REPORTED_ERROR;
-  }
   // store the chunk in the list of chunks
   new_chunk->next= chunks;
   chunks= new_chunk;
@@ -696,9 +694,8 @@ int Gtid_set::to_string(char **buf_arg, int *size_arg, const Gtid_set::String_fo
   *buf_arg= NULL;
   *size_arg= get_string_length(sf_arg);
   *buf_arg= (char *)my_malloc(*size_arg + 1, MYF(MY_WME));
-  if (!buf_arg)
+  if (!*buf_arg)
   {
-    my_free(*buf_arg);
     *buf_arg= NULL;
     *size_arg= 0;
     DBUG_RETURN(true);

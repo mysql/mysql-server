@@ -1003,7 +1003,7 @@ public:
 #ifndef DBUG_OFF
   char *to_string() const
   {
-    char *str= (char *)malloc(get_string_length() + 1);
+    char *str= (char *)my_malloc(get_string_length() + 1, MYF(MY_WME));
     DBUG_ASSERT(str != NULL);
     to_string(str);
     return str;
@@ -1013,7 +1013,7 @@ public:
   {
     char *str= to_string();
     printf("%s\n", str);
-    free(str);
+    my_free(str);
   }
 #endif
   void dbug_print(const char *text= "") const
@@ -1021,7 +1021,7 @@ public:
 #ifndef DBUG_OFF
     char *str= to_string();
     DBUG_PRINT("info", ("%s%s'%s'", text, *text ? ": " : "", str));
-    free(str);
+    my_free(str);
 #endif
   }
 
@@ -1672,7 +1672,7 @@ public:
 #ifndef DBUG_OFF
   char *to_string() const
   {
-    char *str= (char *)malloc(get_max_string_length());
+    char *str= (char *)my_malloc(get_max_string_length(), MYF(MY_WME));
     DBUG_ASSERT(str != NULL);
     to_string(str);
     return str;
@@ -1681,7 +1681,7 @@ public:
   {
     char *str= to_string();
     printf("%s\n", str);
-    free(str);
+    my_free(str);
   }
 #endif
   void dbug_print(const char *text= "") const
@@ -1689,7 +1689,7 @@ public:
 #ifndef DBUG_OFF
     char *str= to_string();
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
-    free(str);
+    my_free(str);
 #endif
   }
 private:
@@ -1944,7 +1944,7 @@ public:
   }
   char *to_string() const
   {
-    char *str= (char *)malloc(get_max_string_length());
+    char *str= (char *)my_malloc(get_max_string_length(), MYF(MY_WME));
     DBUG_ASSERT(str != NULL);
     to_string(str);
     return str;
@@ -1953,7 +1953,7 @@ public:
   {
     char *str= to_string();
     printf("%s", str);
-    free(str);
+    my_free(str);
   }
 #endif
   void dbug_print(const char *text= "") const
@@ -1962,7 +1962,7 @@ public:
     sid_lock->assert_some_wrlock();
     char *str= to_string();
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
-    free(str);
+    my_free(str);
 #endif
   }
 private:
@@ -2214,7 +2214,7 @@ public:
   }
   char *to_string(const Sid_map *sm) const
   {
-    char *str= (char *)malloc(get_max_string_length());
+    char *str= (char *)my_malloc(get_max_string_length(), MYF(MY_WME));
     to_string(sm, str);
     return str;
   }
@@ -2222,7 +2222,7 @@ public:
   {
     char *str= to_string(sm);
     printf("%s\n", str);
-    free(str);
+    my_free(str);
   }
 #endif
   void dbug_print(const Sid_map *sid_map, const char *text= "") const
@@ -2230,7 +2230,7 @@ public:
 #ifndef DBUG_OFF
     char *str= to_string(sid_map);
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
-    free(str);
+    my_free(str);
 #endif
   }
 
