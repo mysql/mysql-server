@@ -76,6 +76,7 @@ if ($show_slave_io_error)
 {
   --let $_wait_for_slave_io_error_old_status_items= $status_items
   --let $status_items= Last_IO_Error
+  --let $slave_field_result_replace= $slave_io_error_replace
   --source include/show_slave_status.inc
   --let $status_items= $_wait_for_slave_io_error_old_status_items
 }
