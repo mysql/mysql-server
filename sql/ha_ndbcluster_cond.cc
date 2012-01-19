@@ -1211,13 +1211,14 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       if (!value || !field) break;
       bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
       // Save value in right format for the field type
-      uint32 len= value->save_in_field(field);
+      uint32 val_len= value->save_in_field(field);
       char buff[MAX_FIELD_WIDTH];
       String str(buff,sizeof(buff),field->get_field_charset());
-      if (len > field->get_field()->field_length)
-        str.set(value->get_val(), len, field->get_field_charset());
+      if (val_len > field->get_field()->field_length)
+        str.set(value->get_val(), val_len, field->get_field_charset());
       else
         field->get_field_val_str(&str);
+      uint32 len= str.length();
       const char *val=
         (value->is_const_func() && is_string)?
         str.ptr()
@@ -1239,13 +1240,14 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       if (!value || !field) break;
       bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
       // Save value in right format for the field type
-      uint32 len= value->save_in_field(field);
+      uint32 val_len= value->save_in_field(field);
       char buff[MAX_FIELD_WIDTH];
       String str(buff,sizeof(buff),field->get_field_charset());
-      if (len > field->get_field()->field_length)
-        str.set(value->get_val(), len, field->get_field_charset());
+      if (val_len > field->get_field()->field_length)
+        str.set(value->get_val(), val_len, field->get_field_charset());
       else
         field->get_field_val_str(&str);
+      uint32 len= str.length();
       const char *val=
         (value->is_const_func() && is_string)?
         str.ptr()
