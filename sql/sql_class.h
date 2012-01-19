@@ -35,7 +35,7 @@
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
                                      THR_LOCK_INFO */
 #include "opt_trace_context.h"    /* Opt_trace_context */
-#include "zgtids.h"
+#include "rpl_gtid.h"
 
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>

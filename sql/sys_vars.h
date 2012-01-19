@@ -28,7 +28,7 @@
 #include "keycaches.h"
 #include "strfunc.h"
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
-#include "zgtids.h"
+#include "rpl_gtid.h"
 #include <ctype.h>
 
 /*
