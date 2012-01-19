@@ -1799,6 +1799,8 @@ public:
   /**
     Acquires ownership of the given GTID, on behalf of the given thread.
 
+    The caller must lock the SIDNO before invoking this function.
+
     @param gtid The Gtid to acquire ownership of.
     @param thd The thread that will own the GTID.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
@@ -1835,6 +1837,9 @@ public:
   void unlock_sidno(rpl_sidno sidno) { sid_locks.unlock(sidno); }
   /// Broadcasts updates for the given SIDNO.
   void broadcast_sidno(rpl_sidno sidno) { sid_locks.broadcast(sidno); }
+  /// Assert that we own the given SIDNO.
+  void assert_sidno_lock_owner(rpl_sidno sidno)
+  { sid_locks.assert_owner(sidno); }
 #ifndef MYSQL_CLIENT
   /**
     Waits until the given GTID is not owned by any other thread.

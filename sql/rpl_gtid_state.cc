@@ -35,6 +35,9 @@ void Gtid_state::clear()
 enum_return_status Gtid_state::acquire_ownership(Gtid gtid, THD *thd)
 {
   DBUG_ENTER("Gtid_state::acquire_ownership");
+  // caller must take lock on the SIDNO.
+  global_sid_lock.assert_some_lock();
+  gtid_state.assert_sidno_lock_owner(gtid.sidno);
   DBUG_ASSERT(!logged_gtids.contains_gtid(gtid));
   DBUG_PRINT("info", ("group=%d:%lld", gtid.sidno, gtid.gno));
   DBUG_ASSERT(thd->owned_gtid.sidno == 0);
