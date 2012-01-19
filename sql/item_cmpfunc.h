@@ -1712,7 +1712,7 @@ public:
   /** Add a non-constant item to the multiple equality */
   void add(Item *f) { equal_items.push_back(f); }
   bool contains(Field *field);
-  Item* get_first(Item *field);
+  Item* get_first(struct st_join_table *context, Item *field);
   /** Get number of field items / references to field items in this object */   
   uint n_field_items() { return equal_items.elements-test(with_const); }
   void merge(Item_equal *item);

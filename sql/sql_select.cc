@@ -110,7 +110,8 @@ static COND *build_equal_items(THD *thd, COND *cond,
                                COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
                                COND_EQUAL **cond_equal_ref);
-static COND* substitute_for_best_equal_field(COND *cond,
+static COND* substitute_for_best_equal_field(JOIN_TAB *context_tab,
+                                             COND *cond,
                                              COND_EQUAL *cond_equal,
                                              void *table_join_idx);
 static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
@@ -1225,7 +1226,8 @@ JOIN::optimize()
   */
   if (conds)
   {
-    conds= substitute_for_best_equal_field(conds, cond_equal, map2table);
+    conds= substitute_for_best_equal_field(NO_PARTICULAR_TAB, conds, 
+                                           cond_equal, map2table);
     conds->update_used_tables();
     DBUG_EXECUTE("where",
                  print_where(conds,
@@ -1242,7 +1244,8 @@ JOIN::optimize()
   {
     if (*tab->on_expr_ref)
     {
-      *tab->on_expr_ref= substitute_for_best_equal_field(*tab->on_expr_ref,
+      *tab->on_expr_ref= substitute_for_best_equal_field(NO_PARTICULAR_TAB,
+                                                         *tab->on_expr_ref,
                                                          tab->cond_equal,
                                                          map2table);
       (*tab->on_expr_ref)->update_used_tables();
@@ -1265,7 +1268,7 @@ JOIN::optimize()
         continue;
       COND_EQUAL *equals= tab->first_inner ? tab->first_inner->cond_equal : 
                                              cond_equal;
-      ref_item= substitute_for_best_equal_field(ref_item, equals, map2table);
+      ref_item= substitute_for_best_equal_field(tab, ref_item, equals, map2table);
       ref_item->update_used_tables();
       if (*ref_item_ptr != ref_item)
       {
@@ -11446,7 +11449,7 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   else
   {
     TABLE_LIST *emb_nest;
-    head= item_equal->get_first(NULL);
+    head= item_equal->get_first(NO_PARTICULAR_TAB, NULL);
     it++;
     if ((emb_nest= embedding_sjm(head)))
     {
@@ -11555,6 +11558,7 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   return cond;
 }
 
+
 /**
   Substitute every field reference in a condition by the best equal field
   and eliminate all multiple equality predicates.
@@ -11569,6 +11573,9 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
     After this the function retrieves all other conjuncted
     predicates substitute every field reference by the field reference
     to the first equal field or equal constant if there are any.
+
+  @param context_tab     Join tab that 'cond' will be attached to, or 
+                         NO_PARTICULAR_TAB. See notes above.
   @param cond            condition to process
   @param cond_equal      multiple equalities to take into consideration
   @param table_join_idx  index to tables determining field preference
@@ -11579,11 +11586,37 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
     new fields in multiple equality item of lower levels. We want
     the order in them to comply with the order of upper levels.
 
+    context_tab may be used to specify which join tab `cond` will be
+    attached to. There are two possible cases:
+
+    1. context_tab != NO_PARTICULAR_TAB
+       We're doing substitution for an Item which will be evaluated in the 
+       context of a particular item. For example, if the optimizer does a 
+       ref access on "tbl1.key= expr" then
+        = equality substitution will be perfomed on 'expr'
+        = it is known in advance that 'expr' will be evaluated when 
+          table t1 is accessed.
+       Note that in this kind of substution we never have to replace Item_equal
+       objects. For example, for
+
+        t.key= func(col1=col2 AND col2=const)
+       
+       we will not build Item_equal or do equality substution (if we decide to,
+       this function will need to be fixed to handle it)
+
+    2. context_tab == NO_PARTICULAR_TAB
+       We're doing substitution in WHERE/ON condition, which is not yet 
+       attached to any particular join_tab. We will use information about the
+       chosen join order to make "optimal" substitions, i.e. those that allow
+       to apply filtering as soon as possible. See eliminate_item_equal() and 
+       Item_equal::get_first() for details.
+
   @return
     The transformed condition
 */
 
-static COND* substitute_for_best_equal_field(COND *cond,
+static COND* substitute_for_best_equal_field(JOIN_TAB *context_tab,
+                                             COND *cond,
                                              COND_EQUAL *cond_equal,
                                              void *table_join_idx)
 {
@@ -11612,7 +11645,8 @@ static COND* substitute_for_best_equal_field(COND *cond,
     Item *item;
     while ((item= li++))
     {
-      Item *new_item= substitute_for_best_equal_field(item, cond_equal,
+      Item *new_item= substitute_for_best_equal_field(context_tab,
+                                                      item, cond_equal,
                                                       table_join_idx);
       /*
         This works OK with PS/SP re-execution as changes are made to
@@ -11659,7 +11693,8 @@ static COND* substitute_for_best_equal_field(COND *cond,
       List_iterator_fast<Item_equal> it(cond_equal->current_level);
       while((item_equal= it++))
       {
-        cond= cond->transform(&Item::replace_equal_field, (uchar *) item_equal);
+        REPLACE_EQUAL_FIELD_ARG arg= {item_equal, context_tab};
+        cond= cond->transform(&Item::replace_equal_field, (uchar *) &arg);
       }
       cond_equal= cond_equal->upper_levels;
     }

@@ -5716,7 +5716,7 @@ longlong Item_equal::val_int()
 
 void Item_equal::fix_length_and_dec()
 {
-  Item *item= get_first(NULL);
+  Item *item= get_first(NO_PARTICULAR_TAB, NULL);
   eval_item= cmp_item::get_comparator(item->cmp_type(), item,
                                       item->collation.collation);
 }
@@ -5816,7 +5816,7 @@ CHARSET_INFO *Item_equal::compare_collation()
   @retval 0 if no field found.
 */
 
-Item* Item_equal::get_first(Item *field_item)
+Item* Item_equal::get_first(JOIN_TAB *context, Item *field_item)
 {
   Item_equal_fields_iterator it(*this);
   Item *item;
@@ -5844,7 +5844,11 @@ Item* Item_equal::get_first(Item *field_item)
     in presense of SJM nests.
   */
 
-  TABLE_LIST *emb_nest= field->table->pos_in_table_list->embedding;
+  TABLE_LIST *emb_nest;
+  if (context != NO_PARTICULAR_TAB)
+    emb_nest= context->emb_sj_nest;
+  else
+    emb_nest= field->table->pos_in_table_list->embedding;
 
   if (emb_nest && emb_nest->sj_mat_info && emb_nest->sj_mat_info->is_used)
   {

@@ -5023,7 +5023,8 @@ bool Item_field::set_no_const_sub(uchar *arg)
 
 Item *Item_field::replace_equal_field(uchar *arg)
 {
-  if (item_equal && item_equal == (Item_equal *) arg)
+  REPLACE_EQUAL_FIELD_ARG* param= (REPLACE_EQUAL_FIELD_ARG*)arg;
+  if (item_equal && item_equal == param->item_equal)
   {
     Item *const_item= item_equal->get_const();
     if (const_item)
@@ -5033,7 +5034,8 @@ Item *Item_field::replace_equal_field(uchar *arg)
         return this;
       return const_item;
     }
-    Item_field *subst= (Item_field *)(item_equal->get_first(this));
+    Item_field *subst= 
+      (Item_field *)(item_equal->get_first(param->context_tab, this));
     if (subst)
       subst= (Item_field *) (subst->real_item());
     if (subst && !field->eq(subst->field))

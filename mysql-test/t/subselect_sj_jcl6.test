@@ -88,6 +88,32 @@ set join_cache_level=default;
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # BUG#912513: Wrong result (missing rows) with join_cache_hashed+materialization+semijoin=on
+--echo #
+set @os_912513= @@optimizer_switch;
+set @jcl_912513= @@join_cache_level;
+SET optimizer_switch = 'semijoin=on,materialization=on,join_cache_hashed=on';
+SET join_cache_level = 3;
+
+CREATE TABLE t1 ( a INT, b INT, KEY(a) );
+INSERT INTO t1 VALUES
+  (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7);
+
+CREATE TABLE t2 ( c INT );
+INSERT INTO t2 VALUES (1),(2),(3),(4),(5),(6),(7);
+
+SELECT alias1.* FROM
+    t1 AS alias1 INNER JOIN t1 AS alias2
+      ON alias2.a = alias1.b
+WHERE alias1.b IN (
+        SELECT a FROM t1, t2
+    );
+
+DROP table t1, t2;
+set @@optimizer_switch= @os_912513;
+set @@join_cache_level= @jcl_912513;
+
 --echo # End
 
 set join_cache_level=default;
