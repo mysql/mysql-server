@@ -14,6 +14,7 @@ NdbDictionary.java:        // MMM! support <in:String[]>: public final native vo
 
 Ndb.java:        // MMM! support <out:BB> or check if needed: ByteBuffer/*_const void *_*/ ptr();
 Ndb.java:        // MMM! support <out:BB> or check if needed: public final native ByteBuffer/*_const void *_*/ ptr();
+// MMM! support mapping <union> or check if needed
 
 NdbDictionary.java:    // MMM! support <out:BB> or check if needed: static public final native char * getValuePtr(NdbRecordConst/*_const NdbRecord *_*/ record, char * row, int/*_Uint32_*/ attrId);
 
