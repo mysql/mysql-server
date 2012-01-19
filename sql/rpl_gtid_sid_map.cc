@@ -14,7 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "zgtids.h"
+#include "rpl_gtid.h"
 
 
 #include "hash.h"
@@ -93,18 +93,8 @@ rpl_sidno Sid_map::add_sid(const rpl_sid *sid)
   else
   {
     sidno= get_max_sidno() + 1;
-    if (add_node(sidno, sid) != RETURN_STATUS_OK
-#ifdef MYSQL_SERVER
-        /*
-          If this is the global_sid_map, we take the opportunity to
-          resize all arrays in gtid_state while holding the wrlock.
-        */
-        || (this == &global_sid_map && 
-            gtid_state.ensure_sidno() != RETURN_STATUS_OK)
-#endif
-        )
+    if (add_node(sidno, sid) != RETURN_STATUS_OK)
       sidno= -1;
-    /// @todo: remove node on write error /sven
   }
 
   if (sid_lock)
@@ -135,26 +125,36 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
     {
       if (my_hash_insert(&_sid_to_sidno, (uchar *)node) == 0)
       {
-        // We have added one element to the end of _sorted.  Now we
-        // bubble it down to the sorted position.
-        int sorted_i= sidno - 1;
-        rpl_sidno *prev_sorted_p= dynamic_element(&_sorted, sorted_i,
-                                                  rpl_sidno *);
-        sorted_i--;
-        while (sorted_i >= 0)
+#ifdef MYSQL_SERVER
+        /*
+          If this is the global_sid_map, we take the opportunity to
+          resize all arrays in gtid_state while holding the wrlock.
+        */
+        if (this != &global_sid_map ||
+            gtid_state.ensure_sidno() == RETURN_STATUS_OK)
+#endif
         {
-          rpl_sidno *sorted_p= dynamic_element(&_sorted, sorted_i,
-                                               rpl_sidno *);
-          const rpl_sid *other_sid= sidno_to_sid(*sorted_p);
-          if (memcmp(sid->bytes, other_sid->bytes,
-                     rpl_sid::BYTE_LENGTH) >= 0)
-            break;
-          memcpy(prev_sorted_p, sorted_p, sizeof(rpl_sidno));
+          // We have added one element to the end of _sorted.  Now we
+          // bubble it down to the sorted position.
+          int sorted_i= sidno - 1;
+          rpl_sidno *prev_sorted_p= dynamic_element(&_sorted, sorted_i,
+                                                    rpl_sidno *);
           sorted_i--;
-          prev_sorted_p= sorted_p;
+          while (sorted_i >= 0)
+          {
+            rpl_sidno *sorted_p= dynamic_element(&_sorted, sorted_i,
+                                                 rpl_sidno *);
+            const rpl_sid *other_sid= sidno_to_sid(*sorted_p);
+            if (memcmp(sid->bytes, other_sid->bytes,
+                       rpl_sid::BYTE_LENGTH) >= 0)
+              break;
+            memcpy(prev_sorted_p, sorted_p, sizeof(rpl_sidno));
+            sorted_i--;
+            prev_sorted_p= sorted_p;
+          }
+          memcpy(prev_sorted_p, &sidno, sizeof(rpl_sidno));
+          RETURN_OK;
         }
-        memcpy(prev_sorted_p, &sidno, sizeof(rpl_sidno));
-        RETURN_OK;
       }
       pop_dynamic(&_sorted);
     }

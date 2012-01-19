@@ -65,17 +65,16 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_record.cc
   ../sql/rpl_reporting.cc
   ../sql/rpl_utility.cc
-  ../sql/zuuid.cc
-  ../sql/zgtid.cc
-  ../sql/zreturn.cc
-  ../sql/zsid_map.cc
-  ../sql/zgtid_set.cc
-  ../sql/zgtid_specification.cc
-  ../sql/zgtid_state.cc
-  ../sql/zowned_gtids.cc
-  ../sql/zgroup_cache.cc
-  ../sql/zgroup_execution.cc
-  ../sql/zmutex_cond_array.cc
+  ../sql/uuid.cc
+  ../sql/rpl_gtid_misc.cc
+  ../sql/rpl_gtid_sid_map.cc
+  ../sql/rpl_gtid_set.cc
+  ../sql/rpl_gtid_specification.cc
+  ../sql/rpl_gtid_state.cc
+  ../sql/rpl_gtid_owned.cc
+  ../sql/rpl_gtid_cache.cc
+  ../sql/rpl_gtid_execution.cc
+  ../sql/rpl_gtid_mutex_cond_array.cc
   ${IMPORTED_SOURCES}
 )
 

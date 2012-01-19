@@ -50,7 +50,7 @@
 #include "debug_sync.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
-#include "zgtids.h"
+#include "rpl_gtid.h"
 
 using std::min;
 using std::max;

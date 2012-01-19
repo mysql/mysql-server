@@ -15,7 +15,7 @@
 
 
 #include "my_global.h"
-#include "zgtids.h"
+#include "rpl_gtid.h"
 #include "rpl_mi.h"
 #include "rpl_slave.h"
 #include "sql_class.h"
@@ -179,24 +179,27 @@ void Gtid_state::wait_for_gtid(THD *thd, Gtid gtid)
 
 void Gtid_state::lock_sidnos(const Gtid_set *gs)
 {
-  rpl_sidno max_sidno= gs ? gs->get_max_sidno() : sid_map->get_max_sidno();
+  DBUG_ASSERT(gs);
+  rpl_sidno max_sidno= gs->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
-    if (!gs || gs->contains_sidno(sidno))
+    if (gs->contains_sidno(sidno))
       lock_sidno(sidno);
 }
 
 
 void Gtid_state::unlock_sidnos(const Gtid_set *gs)
 {
-  rpl_sidno max_sidno= gs ? gs->get_max_sidno() : sid_map->get_max_sidno();
+  DBUG_ASSERT(gs);
+  rpl_sidno max_sidno= gs->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
-    if (!gs || gs->contains_sidno(sidno))
+    if (gs->contains_sidno(sidno))
       unlock_sidno(sidno);
 }
 
 
 void Gtid_state::broadcast_sidnos(const Gtid_set *gs)
 {
+  DBUG_ASSERT(gs);
   rpl_sidno max_sidno= gs->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
     if (gs->contains_sidno(sidno))

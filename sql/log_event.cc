@@ -76,18 +76,6 @@ TYPELIB binlog_checksum_typelib=
 };
 
 
-/*
-  global_sid_map must be here so that mysqlbinlog.cc will include it.
-  Other GTID-related global variables should be here too, to ensure
-  deterministic initialization and destruction order.
-*/
-Checkable_rwlock global_sid_lock;
-Sid_map global_sid_map(&global_sid_lock);
-#ifdef MYSQL_SERVER
-Gtid_state gtid_state(&global_sid_lock, &global_sid_map);
-#endif
-
-
 #define log_cs	&my_charset_latin1
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")

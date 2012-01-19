@@ -14,12 +14,11 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#ifndef RPL_GTIDS_H_INCLUDED
-#define RPL_GTIDS_H_INCLUDED
+#ifndef RPL_GTID_H_INCLUDED
+#define RPL_GTID_H_INCLUDED
 
 
 #include <m_string.h>
-//#include <my_base.h>
 #include <mysqld_error.h>
 
 
@@ -41,8 +40,6 @@
 #endif
 
 
-//#include "mysqld.h"
-//#include "sql_string.h"
 #include "hash.h"
 #include "lf.h"
 #include "my_atomic.h"
@@ -800,15 +797,6 @@ public:
   */
   Gtid_set(Sid_map *sid_map, const char *text, enum_return_status *status,
            Checkable_rwlock *sid_lock= NULL);
-  /**
-    Constructs a new Gtid_set that shares the same sid_map and
-    sid_lock objects and contains a copy of all groups.
-
-    @param other The Gtid_set to copy.
-    @param status Will be set to GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
-  */
-  //Gtid_set(Gtid_set *other, enum_return_status *status);
-  //Gtid_set(Sid_map *sid_map, Gtid_set *relative_to, Sid_map *sid_map_enc, const uchar *encoded, int length, enum_return_status *status);
   /// Worker for the constructor.
   void init(Sid_map *_sid_map, Checkable_rwlock *_sid_lock);
   /// Destroy this Gtid_set.
@@ -954,28 +942,12 @@ public:
     Computes the intersection of this set and the other set and stores
     in this set.
   */
-  //Gtid_set in_place_intersection(Gtid_set other);
+  //Gtid_set in_place_intersection(Gtid_set *other);
   /// Returns true if this Gtid_set is empty.
   bool is_empty() const
   {
     Gtid_iterator git(this);
     return git.get().sidno == 0;
-  }
-  /**
-    Returns 0 if this Gtid_set is empty, 1 if it contains exactly one
-    group, and 2 if it contains more than one group.
-
-    This can be useful to check if the group is a singleton set or not.
-  */
-  int zero_one_or_many() const
-  {
-    Gtid_iterator git(this);
-    if (git.get().sidno == 0)
-      return 0;
-    git.next();
-    if (git.get().sidno == 0)
-      return 1;
-    return 2;
   }
   /**
     Returns true if this Gtid_set contains at least one group with
@@ -1879,15 +1851,14 @@ public:
 #endif // ifndef MYSQL_CLIENT
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
-    least one group. If the Gtid_set is not given, locks all
-    mutexes.  Locks are acquired in order of increasing SIDNO.
+    least one group.  Locks are acquired in order of increasing SIDNO.
   */
-  void lock_sidnos(const Gtid_set *set= NULL);
+  void lock_sidnos(const Gtid_set *set);
   /**
     Unlocks the mutex for each SIDNO where the given Gtid_set has at
-    least one group.  If the Gtid_set is not given, unlocks all mutexes.
+    least one group.
   */
-  void unlock_sidnos(const Gtid_set *set= NULL);
+  void unlock_sidnos(const Gtid_set *set);
   /**
     Waits for the condition variable for each SIDNO where the given
     Gtid_set has at least one group.
@@ -1917,12 +1888,8 @@ public:
   const Gtid_set *get_lost_gtids() const { return &lost_gtids; }
   /// Return a pointer to the Owned_gtids that contains the owned groups.
   const Owned_gtids *get_owned_gtids() const { return &owned_gtids; }
-  // Return Sid_map used by this Gtid_state.
-  //Sid_map *get_sid_map() const { return &sid_map; }
   /// Return the server's SID's SIDNO
   rpl_sidno get_server_sidno() const { return server_sidno; }
-  // Return the server's SID's SIDNO
-  //Checkable_rwlock *get_sid_lock() const { return &sid_lock; }
 #ifndef DBUG_OFF
   size_t get_max_string_length() const
   {
@@ -2349,4 +2316,4 @@ int gtid_rollback(THD *thd);
 
 #endif // ifndef MYSQL_CLIENT
 
-#endif /* RPL_GTIDS_H_INCLUDED */
+#endif /* RPL_GTID_H_INCLUDED */

@@ -13,10 +13,25 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "zgtids.h"
+#include "rpl_gtid.h"
 
 
 #include "mysqld_error.h"
+#ifndef MYSQL_CLIENT
+#include "sql_class.h"
+#endif // ifndef MYSQL_CLIENT
+
+
+/*
+  global_sid_map must be here so that mysqlbinlog.cc will include it.
+  Other GTID-related global variables should be here too, to ensure
+  deterministic initialization and destruction order.
+*/
+Checkable_rwlock global_sid_lock;
+Sid_map global_sid_map(&global_sid_lock);
+#ifdef MYSQL_SERVER
+Gtid_state gtid_state(&global_sid_lock, &global_sid_map);
+#endif
 
 
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
@@ -87,3 +102,24 @@ bool Gtid::is_valid(const char *text)
     DBUG_RETURN(false);
   DBUG_RETURN(true);
 }
+
+
+#ifndef DBUG_OFF
+void check_return_status(enum_return_status status, const char *action,
+                         const char *status_name, int allow_unreported)
+{
+  if (status != RETURN_STATUS_OK)
+  {
+    DBUG_ASSERT(allow_unreported || status == RETURN_STATUS_REPORTED_ERROR);
+    if (status == RETURN_STATUS_REPORTED_ERROR)
+    {
+#if !defined(MYSQL_CLIENT) && !defined(DBUG_OFF)
+      THD *thd= current_thd;
+      DBUG_ASSERT(thd == NULL ||
+                  thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR);
+#endif
+    }
+    DBUG_PRINT("info", ("%s error %d (%s)", action, status, status_name));
+  }
+}
+#endif // ! DBUG_OFF

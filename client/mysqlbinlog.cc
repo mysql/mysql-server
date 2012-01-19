@@ -39,12 +39,12 @@
 
 /*
   error() is used in macro BINLOG_ERROR which is invoked in
-  zgtids.h, hence the early forward declaration.
+  rpl_gtid.h, hence the early forward declaration.
 */
 static void error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
-#include "zgtids.h"
+#include "rpl_gtid.h"
 #include "log_event.h"
 #include "log_event_old.h"
 #include "sql_common.h"
@@ -2532,9 +2532,8 @@ int main(int argc, char** argv)
 #include "log_event.cc"
 #include "log_event_old.cc"
 #include "rpl_utility.cc"
-#include "zsid_map.cc"
-#include "zreturn.cc"
-#include "zuuid.cc"
-#include "zgtid_set.cc"
-#include "zgtid_specification.cc"
-#include "zgtid.cc"
+#include "rpl_gtid_sid_map.cc"
+#include "rpl_gtid_misc.cc"
+#include "uuid.cc"
+#include "rpl_gtid_set.cc"
+#include "rpl_gtid_specification.cc"
