@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -121,6 +121,8 @@ JTIE_DEFINE_PEER_CLASS_MAPPING(Ndb::Key_part_ptr,
                                c_m_n_n_Ndb_Key_part_ptr)
 JTIE_DEFINE_PEER_CLASS_MAPPING(Ndb::Key_part_ptr,
                                c_m_n_n_Ndb_Key_part_ptrArray)
+JTIE_DEFINE_PEER_CLASS_MAPPING(Ndb::PartitionSpec,
+                               c_m_n_n_Ndb_PartitionSpec)
 JTIE_DEFINE_PEER_CLASS_MAPPING(Ndb_cluster_connection,
                                c_m_n_n_Ndb_cluster_connection)
 
@@ -4050,6 +4052,22 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024OptimizeTableHandle_close(JNIEn
 // ---------------------------------------------------------------------------
 
 //#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecification.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecification
+ * Method:    size
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecification_size(JNIEnv * env, jclass cls)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecification_size(JNIEnv *, jclass)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_Uint32, &NdbDictionary::RecordSpecification::size >(env, cls);
+#else
+    return gcall_fr< ttrait_Uint32, &NdbApiWrapper::NdbDictionary__RecordSpecification__size >(env, cls);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecification
@@ -7984,6 +8002,22 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024GetValueSpecArray_at(JNIEnv * en
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptions
+ * Method:    size
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptions_size(JNIEnv * env, jclass cls)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptions_size(JNIEnv *, jclass)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_Uint32, &NdbOperation::OperationOptions::size >(env, cls);
+#else
+    return gcall_fr< ttrait_Uint32, &NdbApiWrapper::NdbOperation__OperationOptions__size >(env, cls);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptions
  * Method:    optionsPresent
  * Signature: ()J
  */
@@ -9244,6 +9278,22 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__Lcom_mysql_nd
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptions
+ * Method:    size
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptions_size(JNIEnv * env, jclass cls)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptions_size(JNIEnv *, jclass)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_Uint32, &NdbScanOperation::ScanOptions::size >(env, cls);
+#else
+    return gcall_fr< ttrait_Uint32, &NdbApiWrapper::NdbScanOperation__ScanOptions__size >(env, cls);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptions
  * Method:    optionsPresent
  * Signature: ()J
  */
@@ -9952,6 +10002,38 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrArray_at(JNIEnv * env, jobj
 
 // ---------------------------------------------------------------------------
 
+//#include "com_mysql_ndbjtie_ndbapi_Ndb_PartitionSpec.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_PartitionSpec
+ * Method:    size
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_00024PartitionSpec_size(JNIEnv * env, jclass cls)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_Ndb_00024PartitionSpec_size(JNIEnv *, jclass)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_Uint32, &Ndb::PartitionSpec::size >(env, cls);
+#else
+    return gcall_fr< ttrait_Uint32, &NdbApiWrapper::Ndb__PartitionSpec__size >(env, cls);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_PartitionSpec
+ * Method:    type
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_00024PartitionSpec_type(JNIEnv * env, jobject obj)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_Ndb_00024PartitionSpec_type(JNIEnv *, jobject)");
+    return gget< ttrait_c_m_n_n_Ndb_PartitionSpec_t, ttrait_Uint32, &Ndb::PartitionSpec::type >(env, obj);
+}
+
+// ---------------------------------------------------------------------------
+
 //#include "com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection.h"
 
 /*
@@ -10002,8 +10084,8 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_create__Ljava_lang_String
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
  * Method:    create
  * Signature: (Ljava/lang/String;I)Lcom/mysql/ndbjtie/ndbapi/Ndb_cluster_connection;
- */ 
-JNIEXPORT jobject JNICALL 
+ */
+JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_create__Ljava_lang_String_2I
   (JNIEnv * env, jclass cls, jstring p0, jint p1)
 {
