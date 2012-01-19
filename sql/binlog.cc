@@ -652,14 +652,6 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
   }
   if (write_empty_groups_to_cache(thd, cache_data) != 0)
     DBUG_RETURN(1);
-  /// @todo: this is too early, we should update state only once we know the binlog was updated correctly /sven
-  if (gtid_state.update(thd, true) != RETURN_STATUS_OK)
-  {
-    global_sid_lock.unlock();
-    DBUG_RETURN(1); 
-  }
-
-  gtid_state.dbug_print();
 
   global_sid_lock.unlock();
 
@@ -4776,6 +4768,20 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
         write_error=1;				// Don't give more errors
         goto err;
       }
+
+      // in dbug mode, take wrlock so that we can call gtid_state.dbug_print
+#ifdef NO_DBUG  
+      global_sid_lock.rdlock();
+#else
+      global_sid_lock.wrlock();
+#endif
+      if (gtid_state.update(thd, true) != RETURN_STATUS_OK)
+      {
+        global_sid_lock.unlock();
+        goto err;
+      }
+      gtid_state.dbug_print();
+      global_sid_lock.unlock();
 
       if (RUN_HOOK(binlog_storage, after_flush,
                    (thd, log_file_name, log_file.pos_in_file, synced)))
