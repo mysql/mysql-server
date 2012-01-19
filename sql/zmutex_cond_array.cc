@@ -80,7 +80,7 @@ enum_return_status Mutex_cond_array::ensure_index(int n)
         goto error;
       for (int i= max_index + 1; i <= n; i++)
       {
-        Mutex_cond *mutex_cond= (Mutex_cond *)malloc(sizeof(Mutex_cond));
+        Mutex_cond *mutex_cond= (Mutex_cond *)my_malloc(sizeof(Mutex_cond), MYF(MY_WME));
         if (mutex_cond == NULL)
           goto error;
         mysql_mutex_init(0, &mutex_cond->mutex, NULL);

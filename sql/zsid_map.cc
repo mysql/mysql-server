@@ -123,44 +123,45 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
   DBUG_ENTER("Sid_map::add_node(rpl_sidno, const rpl_sid *)");
   if (sid_lock)
     sid_lock->assert_some_wrlock();
-  Node *node= (Node *)malloc(sizeof(Node));
-  if (node != NULL)
+  Node *node= (Node *)my_malloc(sizeof(Node), MYF(MY_WME));
+  if (node == NULL)
+    RETURN_REPORTED_ERROR;
+
+  node->sidno= sidno;
+  node->sid= *sid;
+  if (insert_dynamic(&_sidno_to_sid, &node) == 0)
   {
-    node->sidno= sidno;
-    node->sid= *sid;
-    if (insert_dynamic(&_sidno_to_sid, &node) == 0)
+    if (insert_dynamic(&_sorted, &sidno) == 0)
     {
-      if (insert_dynamic(&_sorted, &sidno) == 0)
+      if (my_hash_insert(&_sid_to_sidno, (uchar *)node) == 0)
       {
-        if (my_hash_insert(&_sid_to_sidno, (uchar *)node) == 0)
+        // We have added one element to the end of _sorted.  Now we
+        // bubble it down to the sorted position.
+        int sorted_i= sidno - 1;
+        rpl_sidno *prev_sorted_p= dynamic_element(&_sorted, sorted_i,
+                                                  rpl_sidno *);
+        sorted_i--;
+        while (sorted_i >= 0)
         {
-          // We have added one element to the end of _sorted.  Now we
-          // bubble it down to the sorted position.
-          int sorted_i= sidno - 1;
-          rpl_sidno *prev_sorted_p= dynamic_element(&_sorted, sorted_i,
-                                                    rpl_sidno *);
+          rpl_sidno *sorted_p= dynamic_element(&_sorted, sorted_i,
+                                               rpl_sidno *);
+          const rpl_sid *other_sid= sidno_to_sid(*sorted_p);
+          if (memcmp(sid->bytes, other_sid->bytes,
+                     rpl_sid::BYTE_LENGTH) >= 0)
+            break;
+          memcpy(prev_sorted_p, sorted_p, sizeof(rpl_sidno));
           sorted_i--;
-          while (sorted_i >= 0)
-          {
-            rpl_sidno *sorted_p= dynamic_element(&_sorted, sorted_i,
-                                                 rpl_sidno *);
-            const rpl_sid *other_sid= sidno_to_sid(*sorted_p);
-            if (memcmp(sid->bytes, other_sid->bytes,
-                       rpl_sid::BYTE_LENGTH) >= 0)
-              break;
-            memcpy(prev_sorted_p, sorted_p, sizeof(rpl_sidno));
-            sorted_i--;
-            prev_sorted_p= sorted_p;
-          }
-          memcpy(prev_sorted_p, &sidno, sizeof(rpl_sidno));
-          RETURN_OK;
+          prev_sorted_p= sorted_p;
         }
-        pop_dynamic(&_sorted);
+        memcpy(prev_sorted_p, &sidno, sizeof(rpl_sidno));
+        RETURN_OK;
       }
-      pop_dynamic(&_sidno_to_sid);
+      pop_dynamic(&_sorted);
     }
-    free(node);
+    pop_dynamic(&_sidno_to_sid);
   }
+  my_free(node);
+
   BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
   RETURN_REPORTED_ERROR;
 }

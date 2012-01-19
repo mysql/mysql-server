@@ -44,7 +44,7 @@ Owned_gtids::~Owned_gtids()
   {
     HASH *hash= get_hash(sidno);
     my_hash_free(hash);
-    free(hash);
+    my_free(hash);
   }
   delete_dynamic(&sidno_to_hash);
   sid_lock->unlock();
@@ -76,7 +76,7 @@ enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno)
       goto error;
     for (int i= max_sidno; i < sidno; i++)
     {
-      HASH *hash= (HASH *)malloc(sizeof(HASH));
+      HASH *hash= (HASH *)my_malloc(sizeof(HASH), MYF(MY_WME));
       if (hash == NULL)
         goto error;
       my_hash_init(hash, &my_charset_bin, 20,
@@ -107,9 +107,9 @@ enum_return_status Owned_gtids::add_gtid_owner(Gtid gtid, my_thread_id owner)
   DBUG_ENTER("Owned_gtids::add_gtid_owner(Gtid, my_thread_id)");
   DBUG_ASSERT(!contains_gtid(gtid));
   DBUG_ASSERT(gtid.sidno <= get_max_sidno());
-  Node *n= (Node *)malloc(sizeof(Node));
+  Node *n= (Node *)my_malloc(sizeof(Node), MYF(MY_WME));
   if (n == NULL)
-    goto error;
+    RETURN_REPORTED_ERROR;
   n->gno= gtid.gno;
   n->owner= owner;
   /*
@@ -118,13 +118,11 @@ enum_return_status Owned_gtids::add_gtid_owner(Gtid gtid, my_thread_id owner)
   */
   if (my_hash_insert(get_hash(gtid.sidno), (const uchar *)n) != 0)
   {
-    free(n);
-    goto error;
+    my_free(n);
+    BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
+    RETURN_REPORTED_ERROR;
   }
   RETURN_OK;
-error:
-  BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
-  RETURN_REPORTED_ERROR;
 }
 
 
