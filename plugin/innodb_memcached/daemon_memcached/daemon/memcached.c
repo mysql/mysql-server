@@ -7760,8 +7760,8 @@ int main (int argc, char **argv) {
 
         if (settings.port && server_sockets(settings.port, tcp_transport,
                                             portnumber_file)) {
-            vperror("failed to listen on TCP port %d", settings.port);
-            exit(EX_OSERR);
+		vperror("failed to listen on TCP port %d", settings.port);
+		exit(EX_OSERR);
         }
 
         /*
@@ -7798,6 +7798,12 @@ int main (int argc, char **argv) {
     if (settings.verbose) {
         settings.extensions.logger->log(EXTENSION_LOG_INFO, NULL,
                                         "Initiating shutdown\n");
+    }
+
+    /* Clean up connections */
+    while (listen_conn) {
+	conn_closing(listen_conn);
+	listen_conn = listen_conn->next;
     }
 
     settings.engine.v1->destroy(settings.engine.v0, false);
