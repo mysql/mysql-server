@@ -4156,12 +4156,12 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
       (str2= args[1]->val_str_ascii(&buf2)) != NULL &&
       (charp2= str2->c_ptr_safe()) != NULL)
   {
-    global_sid_lock.rdlock();
+    Sid_map sid_map(NULL/*no rwlock*/);
     // compute sets while holding locks
-    Gtid_set set1(&global_sid_map, charp1, &status);
+    Gtid_set set1(&sid_map, charp1, &status);
     if (status == RETURN_STATUS_OK)
     {
-      Gtid_set set2(&global_sid_map, charp2, &status);
+      Gtid_set set2(&sid_map, charp2, &status);
       int length;
       // subtract, save result, return result
       if (status == RETURN_STATUS_OK &&
@@ -4169,12 +4169,10 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
           !str->realloc((length= set1.get_string_length()) + 1))
       {
         set1.to_string((char *)str->ptr());
-        global_sid_lock.unlock();
         str->length(length);
         DBUG_RETURN(str);
       }
     }
-    global_sid_lock.unlock();
   }
   null_value= true;
   DBUG_RETURN(NULL);

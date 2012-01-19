@@ -4093,16 +4093,15 @@ longlong Item_func_gtid_subset::val_int()
       (string2= args[1]->val_str(&buf2)) != NULL &&
       (charp2= string2->c_ptr_safe()) != NULL)
   {
-    global_sid_lock.rdlock();
+    Sid_map sid_map(NULL/*no rwlock*/);
     // compute sets while holding locks
-    const Gtid_set sub_set(&global_sid_map, charp1, &status);
+    const Gtid_set sub_set(&sid_map, charp1, &status);
     if (status == RETURN_STATUS_OK)
     {
-      const Gtid_set super_set(&global_sid_map, charp2, &status);
+      const Gtid_set super_set(&sid_map, charp2, &status);
       if (status == RETURN_STATUS_OK)
         ret= sub_set.is_subset(&super_set) ? 1 : 0;
     }
-    global_sid_lock.unlock();
   }
   DBUG_RETURN(ret);
 }
