@@ -16531,8 +16531,11 @@ void Dbdict::createEvent_sendReply(Signal* signal,
       evntRecPtr.p->m_errorLine = __LINE__;
       evntRecPtr.p->m_errorNode = reference();
       jam();
-    } else
+    }
+    else
+    {
       jam();
+    }
   }
 
   // reference to API if master DICT
