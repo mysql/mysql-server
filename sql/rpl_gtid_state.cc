@@ -60,7 +60,10 @@ err2:
     Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
     Gtid g= git.get();
     while (g.sidno != 0)
+    {
       owned_gtids.remove_gtid(g);
+      g= git.get();
+    }
   }
   thd->owned_gtid_set.clear();
   thd->owned_gtid.sidno= 0;
