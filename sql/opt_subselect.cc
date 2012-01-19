@@ -4162,16 +4162,39 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       }
       case SJ_OPT_FIRST_MATCH:
       {
-        JOIN_TAB *j, *jump_to= tab-1;
+        JOIN_TAB *j;
+        JOIN_TAB *jump_to= tab-1;
         for (j= tab; j != tab + pos->n_sj_tables; j++)
         {
-          /*
-            NOTE: this loop probably doesn't do the right thing for the case 
-            where FirstMatch's duplicate-generating range is interleaved with
-            "unrelated" tables (as specified in WL#3750, section 2.2).
-          */
           if (!j->emb_sj_nest)
-            jump_to= tab;
+          {
+            /* 
+              Got a table that's not within any semi-join nest. This is a case
+              like this:
+
+              SELECT * FROM ot1, nt1 WHERE ot1.col IN (SELECT expr FROM it1, it2)
+
+              with a join order of 
+                   
+
+              ot1 it1 nt1 nt2
+                   |   ^
+                   |   +-------- 'j' point here
+                   +------------- SJ_OPT_FIRST_MATCH was set for this table as
+                                  it's the first one that produces duplicates
+              
+            */
+            DBUG_ASSERT(j != tab);  /* table ntX must have an itX before it */
+
+            /* 
+              If the table right before us is an inner table (like it1 in the
+              picture), it should be set to jump back to previous outer-table
+            */
+            if (j[-1].emb_sj_nest)
+              j[-1].do_firstmatch= jump_to;
+
+            jump_to= j; /* Jump back to us */
+          }
           else
           {
             j->first_sj_inner_tab= tab;
