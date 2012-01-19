@@ -1657,6 +1657,14 @@ public:
   };
   struct RecordSpecification {
     /*
+      Size of the RecordSpecification structure.
+    */
+    static inline Uint32 size()
+    {
+        return sizeof(RecordSpecification);
+    }
+
+    /*
       Column described by this entry (the column maximum size defines field
       size in row).
       Note that even when creating an NdbRecord for an index, the column
