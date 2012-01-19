@@ -2393,5 +2393,16 @@ select b from mytab where a like -1 having `b` like 1;
 b
 1
 drop table mytab;
+create table t(a bigint unsigned not null primary key auto_increment, b varchar(100)) character set utf8 engine ndb;
+insert into t (b) values('abc'),('aaa'),('bbb'),('ccc');
+select * from t where b like 'a%';
+a	b
+1	abc
+2	aaa
+select * from t where b not like 'a%';
+a	b
+3	bbb
+4	ccc
+drop table t;
 set @@session.optimizer_switch = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;

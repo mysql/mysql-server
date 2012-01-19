@@ -1380,6 +1380,14 @@ public:
 
   struct PartitionSpec
   {
+    /*
+      Size of the PartitionSpec structure.
+    */
+    static inline Uint32 size()
+    {
+        return sizeof(PartitionSpec);
+    }
+
     enum SpecType
     {
       PS_NONE                = 0,
