@@ -2699,4 +2699,38 @@ col1
 a
 DROP TABLE t1,t2;
 # End of Bug#12997905
+#
+# Bug 13596330 - EXTRA ROW ON SELECT WITH NESTED IN CLAUSE + IS
+# NULL WHEN SEMIJOIN + BNL IS ON
+#
+CREATE TABLE t1 (  
+col_int_nokey int
+) ENGINE=InnoDB;
+CREATE TABLE t2 (
+col_int_nokey int,
+col_datetime_nokey datetime NOT NULL,
+col_varchar_key varchar(1),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (9, '2002-08-25 20:35:06', 'e');
+EXPLAIN SELECT PARENT1.col_varchar_key
+FROM t2 AS PARENT1 LEFT JOIN t1 USING (col_int_nokey)
+WHERE PARENT1.col_varchar_key IN
+( SELECT col_varchar_key FROM t2 AS CHILD1
+WHERE PARENT1.col_datetime_nokey IS NULL
+AND t1.col_int_nokey IS NULL )
+;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	PARENT1	ALL	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	Using where
+2	DEPENDENT SUBQUERY	CHILD1	index_subquery	col_varchar_key	col_varchar_key	4	func	1	Using index; Using where
+SELECT PARENT1.col_varchar_key
+FROM t2 AS PARENT1 LEFT JOIN t1 USING (col_int_nokey)
+WHERE PARENT1.col_varchar_key IN
+( SELECT col_varchar_key FROM t2 AS CHILD1
+WHERE PARENT1.col_datetime_nokey IS NULL
+AND t1.col_int_nokey IS NULL )
+;
+col_varchar_key
+DROP TABLE t1,t2;
 set optimizer_switch = default;

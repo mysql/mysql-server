@@ -446,27 +446,20 @@ void JOIN_CACHE::set_constants()
 }
 
 
-/* 
-  Allocate memory for a join buffer      
+/**
+  Allocate memory for a join buffer.
 
-  SYNOPSIS
-    alloc_buffer()
+  The function allocates a lump of memory for the cache join buffer. The
+  size of the allocated memory is 'buff_size' bytes.
 
-  DESCRIPTION
-    The function allocates a lump of memory for the cache join buffer. The
-    size of the allocated memory is 'buff_size' bytes. 
-  
-  RETURN
-    0 - if the memory has been successfully allocated
-    1 - otherwise
+  @returns false if success
 */
-
-int JOIN_CACHE::alloc_buffer()
+bool JOIN_CACHE::alloc_buffer()
 {
   buff= (uchar*) my_malloc(buff_size, MYF(0));
   return buff == NULL;
-}    	
-  
+}
+
 
 /* 
   Initialize a BNL cache       
@@ -1645,8 +1638,35 @@ void JOIN_CACHE::restore_last_record()
 enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
 {
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  bool outer_join_first_inner= join_tab->is_first_inner_for_outer_join();
   DBUG_ENTER("JOIN_CACHE::join_records");
+
+  table_map saved_status_bits[3]= {0, 0, 0};
+  for (int cnt= 1; cnt <= static_cast<int>(tables); cnt++)
+  {
+    /*
+      We may have hit EOF on previous tables; this has set
+      STATUS_NOT_FOUND in their status. However, now we are going to load
+      table->record[0] from the join buffer so have to declare that there is a
+      record. @See convert_constant_item().
+      We first need to save bits of table->status; STATUS_DELETED and
+      STATUS_UPDATED cannot be on as multi-table DELETE/UPDATE never use join
+      buffering. So we only have three bits to save.
+    */
+    TABLE * const table= join_tab[- cnt].table;
+    const uint8 status= table->status;
+    const table_map map= table->map;
+    DBUG_ASSERT((status & (STATUS_DELETED | STATUS_UPDATED)) == 0);
+    if (status & STATUS_GARBAGE)
+      saved_status_bits[0]|= map;
+    if (status & STATUS_NOT_FOUND)
+      saved_status_bits[1]|= map;
+    if (status & STATUS_NULL_ROW)
+      saved_status_bits[2]|= map;
+    table->status= 0;                           // Record exists.
+  }
+
+  const bool outer_join_first_inner=
+    join_tab->is_first_inner_for_outer_join();
   if (outer_join_first_inner && !join_tab->first_unmatched)
     join_tab->not_null_compl= TRUE;   
 
@@ -1726,6 +1746,23 @@ finish:
     for (JOIN_TAB *tab= join_tab->first_inner;
          tab <= join_tab->last_inner; tab++)
       tab->first_unmatched= NULL;
+  }
+  for (int cnt= 1; cnt <= static_cast<int>(tables); cnt++)
+  {
+    /*
+      We must restore the status of outer tables as it was before entering
+      this function.
+    */
+    TABLE * const table= join_tab[- cnt].table;
+    const table_map map= table->map;
+    uint8 status= 0;
+    if (saved_status_bits[0] & map)
+      status|= STATUS_GARBAGE;
+    if (saved_status_bits[1] & map)
+      status|= STATUS_NOT_FOUND;
+    if (saved_status_bits[2] & map)
+      status|= STATUS_NULL_ROW;
+    table->status= status;
   }
   restore_last_record();
   reset(true);
