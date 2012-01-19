@@ -3260,7 +3260,7 @@ renamed:
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: We reset the lsn's in the file ");
+			" InnoDB: We reset the lsn's in the file ");
 	}
 	ut_print_filename(stderr, tmpfilepath);
 	fputs(".\n", stderr);
