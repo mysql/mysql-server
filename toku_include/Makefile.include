@@ -46,7 +46,7 @@ ifeq ($(DEBUG),)
 endif
 
 ifeq ($(HAVE_CILK),)
-    HAVE_CILK = 1
+    HAVE_CILK = 0
 endif
 
 ifeq ($(VTUNE),1)
