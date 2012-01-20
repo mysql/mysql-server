@@ -3028,7 +3028,7 @@ const_table_extraction_done:
           Mark a dependent table as constant if
            1. it has exactly zero or one rows (it is a system table), and
            2. it is not within a nested outer join, and
-           3. it does not have an expensive join condition.
+           3. it does not have an expensive outer join condition.
               This is because we have to determine whether an outer-joined table
               has a real row or a null-extended row in the optimizer phase.
               We have no possibility to evaluate its join condition at
@@ -3084,12 +3084,15 @@ const_table_extraction_done:
             Exclude tables that
              1. are full-text searched, or
              2. are part of nested outer join, or
-             3. are part of semi-join
+             3. are part of semi-join, or
+             4. have an expensive outer join condition.
+                DontEvaluateMaterializedSubqueryTooEarly
           */
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
               !table->fulltext_searched &&                           // 1
               !tl->in_outer_join_nest() &&                           // 2
-              !(tl->embedding && tl->embedding->sj_on_expr))         // 3
+              !(tl->embedding && tl->embedding->sj_on_expr) &&       // 3
+              !(*s->on_expr_ref && (*s->on_expr_ref)->is_expensive())) // 4
 	  {
             if (table->key_info[key].flags & HA_NOSAME)
             {
