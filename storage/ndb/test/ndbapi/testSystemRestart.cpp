@@ -2440,7 +2440,6 @@ TESTCASE("SR1",
 	 "12. Restart cluster with error insert 5020 and verify records\n"){ 
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart1);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR2", 
 	 "Basic system restart test. Focus on testing restart from LCP\n"
@@ -2458,7 +2457,6 @@ TESTCASE("SR2",
 	 "10. Restart cluster and verify records\n"){
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart2);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_UNDO", 
 	 "System restart test. Focus on testing of undologging\n"
@@ -2470,13 +2468,11 @@ TESTCASE("SR_UNDO",
 	 "Restart the system\n"){
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestartTestUndoLog);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_FULLDB", 
 	 "System restart test. Test to restart when DB is full.\n"){
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestartTestFullDb);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR3", 
 	 "System restart test. Focus on testing restart from with\n"
@@ -2493,7 +2489,6 @@ TESTCASE("SR3",
 	 "* 10. Restart cluster and verify records\n"){
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart3);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR4", 
 	 "System restart test. Focus on testing restart from with\n"
@@ -2511,7 +2506,6 @@ TESTCASE("SR4",
 	 "* 10. Restart cluster and verify records\n"){
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart4);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR5", 
 	 "As SR4 but making restart aborts\n"
@@ -2527,7 +2521,6 @@ TESTCASE("SR5",
 	 "* 10. Restart cluster and verify records\n"){
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart5);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR6", 
 	 "Perform system restart with some nodes having FS others wo/\n"
@@ -2538,7 +2531,6 @@ TESTCASE("SR6",
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runSystemRestart6);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR7", 
 	 "Perform partition win system restart\n"
@@ -2551,7 +2543,6 @@ TESTCASE("SR7",
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runSystemRestart7);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR8", 
 	 "Perform partition win system restart with other nodes delayed\n"
@@ -2564,7 +2555,6 @@ TESTCASE("SR8",
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runSystemRestart8);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR9", 
 	 "Perform partition win system restart with other nodes delayed\n"
@@ -2577,21 +2567,18 @@ TESTCASE("SR9",
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runSystemRestart9);
-  FINALIZER(runClearTable);
 }
 TESTCASE("Bug18385", 
 	 "Perform partition system restart with other nodes with higher GCI"){
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runBug18385);
-  FINALIZER(runClearTable);
 }
 TESTCASE("Bug21536", 
 	 "Perform partition system restart with other nodes with higher GCI"){
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runBug21536);
-  FINALIZER(runClearTable);
 }
 TESTCASE("Bug24664",
 	 "Check handling of LCP skip/keep")
@@ -2599,7 +2586,6 @@ TESTCASE("Bug24664",
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runBug24664);
-  FINALIZER(runClearTable);
 }
 TESTCASE("Bug27434",
 	 "")
@@ -2614,14 +2600,12 @@ TESTCASE("SR_DD_1", "")
   INITIALIZER(clearOldBackups);
   STEP(runStopper);
   STEP(runSR_DD_1);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_1b", "")
 {
   INITIALIZER(runWaitStarted);
   INITIALIZER(clearOldBackups);
   STEP(runSR_DD_1);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_1_LCP", "")
 {
@@ -2631,7 +2615,6 @@ TESTCASE("SR_DD_1_LCP", "")
   INITIALIZER(clearOldBackups);
   STEP(runStopper);
   STEP(runSR_DD_1);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_1b_LCP", "")
 {
@@ -2639,7 +2622,6 @@ TESTCASE("SR_DD_1b_LCP", "")
   INITIALIZER(runWaitStarted);
   INITIALIZER(clearOldBackups);
   STEP(runSR_DD_1);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_2", "")
 {
@@ -2648,14 +2630,12 @@ TESTCASE("SR_DD_2", "")
   INITIALIZER(clearOldBackups);
   STEP(runStopper);
   STEP(runSR_DD_2);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_2b", "")
 {
   INITIALIZER(runWaitStarted);
   INITIALIZER(clearOldBackups);
   STEP(runSR_DD_2);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_2_LCP", "")
 {
@@ -2665,7 +2645,6 @@ TESTCASE("SR_DD_2_LCP", "")
   INITIALIZER(clearOldBackups);
   STEP(runStopper);
   STEP(runSR_DD_2);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_2b_LCP", "")
 {
@@ -2673,7 +2652,6 @@ TESTCASE("SR_DD_2b_LCP", "")
   INITIALIZER(runWaitStarted);
   INITIALIZER(clearOldBackups);
   STEP(runSR_DD_2);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_3", "")
 {
@@ -2682,14 +2660,12 @@ TESTCASE("SR_DD_3", "")
   INITIALIZER(clearOldBackups);
   STEP(runStopper);
   STEP(runSR_DD_3);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_3b", "")
 {
   INITIALIZER(runWaitStarted);
   INITIALIZER(clearOldBackups);
   STEP(runSR_DD_3);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_3_LCP", "")
 {
@@ -2699,7 +2675,6 @@ TESTCASE("SR_DD_3_LCP", "")
   INITIALIZER(clearOldBackups);
   STEP(runStopper);
   STEP(runSR_DD_3);
-  FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_3b_LCP", "")
 {
@@ -2707,7 +2682,6 @@ TESTCASE("SR_DD_3b_LCP", "")
   INITIALIZER(runWaitStarted);
   INITIALIZER(clearOldBackups);
   STEP(runSR_DD_3);
-  FINALIZER(runClearTable);
 }
 TESTCASE("Bug29167", "")
 {
@@ -2725,21 +2699,18 @@ TESTCASE("Bug28770",
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runBug28770);
-  FINALIZER(runClearTable);
 }
 TESTCASE("Bug22696", "")
 {
   INITIALIZER(runWaitStarted);
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug22696);
-  FINALIZER(runClearTable);
 }
 TESTCASE("to", "Take-over during SR")
 {
   INITIALIZER(runWaitStarted);
   INITIALIZER(runLoadTable);
   INITIALIZER(runTO);
-  FINALIZER(runClearTable);
 }
 TESTCASE("basic", "")
 {
@@ -2756,7 +2727,6 @@ TESTCASE("Bug41915", "")
   INITIALIZER(runWaitStarted);
   STEP(runStopper);
   STEP(runSR_DD_2);
-  FINALIZER(runClearTable);
 }
 TESTCASE("Bug45154", "")
 {
