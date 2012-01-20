@@ -465,6 +465,7 @@ void my_write_core(int sig)
 
 #include <dbghelp.h>
 #include <tlhelp32.h>
+#include <my_sys.h>
 #if _MSC_VER
 #pragma comment(lib, "dbghelp")
 #endif
@@ -652,14 +653,10 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
       &(package.sym));
     have_source= SymGetLineFromAddr64(hProcess, addr, &line_offset, &line);
 
-    my_safe_printf_stderr("%p    ", addr);
+    my_safe_printf_stderr("%p    ", (uintptr_t)addr);
     if(have_module)
     {
-      char *base_image_name= strrchr(module.ImageName, '\\');
-      if(base_image_name)
-        base_image_name++;
-      else
-        base_image_name= module.ImageName;
+      const char *base_image_name= my_basename(module.ImageName);
       my_safe_printf_stderr("%s!", base_image_name);
     }
     if(have_symbol)
@@ -670,11 +667,7 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
 
     if(have_source)
     {
-      char *base_file_name= strrchr(line.FileName, '\\');
-      if(base_file_name)
-        base_file_name++;
-      else
-        base_file_name= line.FileName;
+      const char *base_file_name= my_basename(line.FileName);
       my_safe_printf_stderr("[%s:%u]",
                             base_file_name, line.LineNumber);
     }

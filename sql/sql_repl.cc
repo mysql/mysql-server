@@ -554,6 +554,7 @@ static int send_heartbeat_event(NET* net, String* packet,
   DBUG_RETURN(0);
 }
 
+
 /*
   TODO: Clean up loop to only have one call to send_file()
 */
@@ -1194,8 +1195,8 @@ err:
        of the last position read.
     */
     my_snprintf(error_text, sizeof(error_text), fmt, errmsg,
-                coord->file_name, (llstr(coord->pos, llbuff1), llbuff1),
-                log_file_name, (llstr(my_b_tell(&log), llbuff2), llbuff2));
+       my_basename(coord->file_name), (llstr(coord->pos, llbuff1), llbuff1),
+       my_basename(log_file_name), (llstr(my_b_tell(&log), llbuff2), llbuff2));
   }
   else
     strcpy(error_text, errmsg);
