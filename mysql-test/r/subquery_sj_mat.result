@@ -5333,7 +5333,7 @@ t2.Population > 100000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	range	Population,Country	Population	4	NULL	1	Using where; Materialize; Scan
 1	PRIMARY	t2	eq_ref	PRIMARY,Population	PRIMARY	3	test.t1.Country	1	Using where
-1	PRIMARY	t3	eq_ref	PRIMARY,Percentage	PRIMARY	33	test.t2.Code,const	1	Using where
+1	PRIMARY	t3	eq_ref	PRIMARY,Percentage	PRIMARY	33	test.t1.Country,const	1	Using where
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
 Code char(3) NOT NULL DEFAULT '',
@@ -5876,7 +5876,7 @@ and t2.uid=t1.fid;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ref	uid	uid	5	const	4	Using where; Start temporary
 1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	Using index
-1	PRIMARY	t1	ref	uid	uid	5	test.t4.uid	2	Using where; End temporary
+1	PRIMARY	t1	ref	uid	uid	5	test.t3.fid	2	End temporary
 1	PRIMARY	t2	ALL	PRIMARY	NULL	NULL	NULL	9	Using where; Using join buffer (Block Nested Loop)
 select name from t2, t1 
 where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
@@ -7626,5 +7626,43 @@ FROM t2 LEFT JOIN t3 USING (col_varchar_key) )
 id
 200
 DROP TABLE t1,t2,t3;
+#
+# Bug #13596176: Missing row on select with nested in clause when
+#                matr=on and bnl=off + MyISAM
+#
+CREATE TABLE t1 (
+int_key int DEFAULT NULL,
+vc_key varchar(1) DEFAULT NULL,
+vc_nokey varchar(1) DEFAULT NULL,
+KEY int_key (int_key),
+KEY vc_key (vc_key, int_key)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+(8,'x','x'), (7,'d','d'), (1,'r','r'), (7,'f','f'),
+(9,'y','y'), (NULL,'u','u'), (1,'m','m'), (9,NULL,NULL),
+(2,'o','o'), (9,'w','w'), (2,'m','m'), (4,'q','q'),
+(0,NULL,NULL), (4,'d','d'), (8,'g','g'), (NULL,'x','x'),
+(NULL,'f','f'), (0,'p','p'), (NULL,'j','j'), (8,'c','c');
+CREATE TABLE t2 (
+int_key int DEFAULT NULL,
+vc_key varchar(1) DEFAULT NULL,
+KEY int_key (int_key),
+KEY vc_key (vc_key, int_key)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (8,'g');
+SELECT vc_key
+FROM t1 as outr
+WHERE (vc_nokey, vc_key ) IN
+(SELECT vc_nokey, vc_nokey
+FROM t1 middle
+WHERE vc_nokey IN
+(SELECT child1.vc_key
+FROM t2 AS child1 JOIN t1 AS child2 USING (int_key)
+)
+);
+vc_key
+g
+DROP TABLE t1, t2;
+# End of test for bug#13596176.
 # End of 5.6 tests
 set optimizer_switch=default;
