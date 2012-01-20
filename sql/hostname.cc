@@ -168,7 +168,8 @@ static inline Host_entry *hostname_cache_search(const char *ip_key)
 }
 
 static void add_hostname_impl(const char *ip_key, const char *hostname,
-                              bool validated, Host_errors *errors)
+                              bool validated, Host_errors *errors,
+                              ulonglong now)
 {
   Host_entry *entry;
   bool need_add= false;
@@ -186,6 +187,14 @@ static void add_hostname_impl(const char *ip_key, const char *hostname,
     entry->m_errors.reset();
     entry->m_hostname_length= 0;
     entry->m_host_validated= false;
+    entry->m_first_seen= now;
+    entry->m_last_seen= now;
+    entry->m_first_error_seen= 0;
+    entry->m_last_error_seen= 0;
+  }
+  else
+  {
+    entry->m_last_seen= now;
   }
 
   if (validated)
@@ -232,6 +241,9 @@ static void add_hostname_impl(const char *ip_key, const char *hostname,
                (const char *) ip_key));
   }
 
+  if (errors->has_error())
+    entry->set_error_timestamps(now);
+
   entry->m_errors.aggregate(errors);
 
   if (need_add)
@@ -246,9 +258,11 @@ static void add_hostname(const char *ip_key, const char *hostname,
   if (specialflag & SPECIAL_NO_HOST_CACHE)
     return;
 
+  ulonglong now= my_micro_time();
+
   mysql_mutex_lock(&hostname_cache->lock);
 
-  add_hostname_impl(ip_key, hostname, validated, errors);
+  add_hostname_impl(ip_key, hostname, validated, errors, now);
 
   mysql_mutex_unlock(&hostname_cache->lock);
 
@@ -260,6 +274,7 @@ void inc_host_errors(const char *ip_string, const Host_errors *errors)
   if (!ip_string)
     return;
 
+  ulonglong now= my_micro_time();
   char ip_key[HOST_ENTRY_KEY_SIZE];
   prepare_hostname_cache_key(ip_string, ip_key);
 
@@ -268,7 +283,10 @@ void inc_host_errors(const char *ip_string, const Host_errors *errors)
   Host_entry *entry= hostname_cache_search(ip_key);
 
   if (entry)
+  {
     entry->m_errors.aggregate(errors);
+    entry->set_error_timestamps(now);
+  }
 
   mysql_mutex_unlock(&hostname_cache->lock);
 }

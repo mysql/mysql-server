@@ -68,6 +68,14 @@ struct row_host_cache
   ulonglong m_count_local_errors;
   /** Column COUNT_UNKNOWN_ERRORS. */
   ulonglong m_count_unknown_errors;
+  /** Column FIRST_SEEN. */
+  ulonglong m_first_seen;
+  /** Column LAST_SEEN. */
+  ulonglong m_last_seen;
+  /** Column FIRST_ERROR_SEEN. */
+  ulonglong m_first_error_seen;
+  /** Column LAST_ERROR_SEEN. */
+  ulonglong m_last_error_seen;
 };
 
 /** Table PERFORMANCE_SCHEMA.HOST_CACHE. */

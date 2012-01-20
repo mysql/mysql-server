@@ -58,6 +58,22 @@ public:
   uint m_local_errors;
   /** Number of unknown errors. */
   uint m_unknown_errors;
+
+  bool has_error() const
+  {
+    return ((m_nameinfo_transient_errors != 0)
+      || (m_nameinfo_permanent_errors != 0)
+      || (m_format_errors != 0)
+      || (m_addrinfo_transient_errors != 0)
+      || (m_addrinfo_permanent_errors != 0)
+      || (m_FCrDNS_errors != 0)
+      || (m_host_acl_errors != 0)
+      || (m_handshake_errors != 0)
+      || (m_authentication_errors != 0)
+      || (m_user_acl_errors != 0)
+      || (m_local_errors != 0)
+      || (m_unknown_errors != 0));
+  }
 };
 
 /** Size of IP address string in the hash cache. */
@@ -97,8 +113,19 @@ public:
   uint m_hostname_length;
   /** The hostname is validated and used for authorization. */
   bool m_host_validated;
+  ulonglong m_first_seen;
+  ulonglong m_last_seen;
+  ulonglong m_first_error_seen;
+  ulonglong m_last_error_seen;
   /** Error statistics. */
   Host_errors m_errors;
+
+  void set_error_timestamps(ulonglong now)
+  {
+    if (m_first_error_seen == 0)
+      m_first_error_seen= now;
+    m_last_error_seen= now;
+  }
 };
 
 /** The size of the host_cache. */
