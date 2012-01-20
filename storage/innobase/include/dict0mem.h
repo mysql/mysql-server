@@ -173,7 +173,7 @@ created with old versions of InnoDB that only implemented
 ROW_FORMAT=REDUNDANT. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			4
+#define DICT_TF2_BITS			5
 #define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
 
 #define DICT_TF2_TEMPORARY		1	/*!< TRUE for tables from
@@ -185,6 +185,8 @@ ROW_FORMAT=REDUNDANT. */
 						for FTS index build.
 						This is a transient bit
 						for index build */
+#define DICT_TF2_DISCARDED		16	/*!< Set when we discard/detach
+						 the tablespace */
 /* @} */
 
 #define DICT_TF2_FLAG_SET(table, flag)				\
@@ -613,11 +615,6 @@ struct dict_table_struct{
 				tablespace and the .ibd file is missing; then
 				we must return in ha_innodb.cc an error if the
 				user tries to query such an orphaned table */
-	unsigned	tablespace_discarded:1;
-				/*!< this flag is set TRUE when the user
-				calls DISCARD TABLESPACE on this
-				table, and reset to FALSE in IMPORT
-				TABLESPACE */
 	unsigned	cached:1;/*!< TRUE if the table object has been added
 				to the dictionary cache */
 	unsigned	n_def:10;/*!< number of columns defined so far */

@@ -1396,7 +1396,7 @@ cache.
 @return DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary
 table or DB_UNSUPPORTED if table has unknown index type */
 static
-ulint
+db_err
 dict_load_indexes(
 /*==============*/
 	dict_table_t*	table,	/*!< in/out: table */
@@ -1413,7 +1413,7 @@ dict_load_indexes(
 	const rec_t*	rec;
 	byte*		buf;
 	mtr_t		mtr;
-	ulint		error = DB_SUCCESS;
+	db_err		error = DB_SUCCESS;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -1520,6 +1520,7 @@ dict_load_indexes(
 			dict_mem_index_free(index);
 			goto func_exit;
 		} else if (index->page == FIL_NULL
+			   && !table->ibd_file_missing
 			   && (!(index->type & DICT_FTS))) {
 
 			fprintf(stderr,
@@ -1571,8 +1572,10 @@ corrupted:
 			dict_mem_index_free(index);
 		} else {
 			dict_load_fields(index, heap);
-			error = dict_index_add_to_cache(table, index,
-							index->page, FALSE);
+
+			error = (db_err) dict_index_add_to_cache(
+				table, index, index->page, FALSE);
+
 			/* The data dictionary tables should never contain
 			invalid index definitions.  If we ignored this error
 			and simply did not load this index definition, the
@@ -1781,7 +1784,6 @@ dict_load_table(
 	const rec_t*	rec;
 	const byte*	field;
 	ulint		len;
-	ulint		err;
 	const char*	err_msg;
 	mtr_t		mtr;
 
@@ -1846,10 +1848,22 @@ err_exit:
 
 	if (table->space == 0) {
 		/* The system tablespace is always available. */
+	} else if (table->flags2 & DICT_TF2_DISCARDED) {
+
+		/* FIXME: Currently this is not persistent */
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Tablespace for table ");
+		ut_print_name(stderr, NULL, TRUE, table->name);
+		fprintf(stderr, " discarded.\n");
+
+		table->ibd_file_missing = TRUE;
+
 	} else if (!fil_space_for_table_exists_in_mem(
-			   table->space, name,
-			   table->flags2 & DICT_TF2_TEMPORARY,
-			   FALSE, FALSE)) {
+			table->space, name,
+			table->flags2 & DICT_TF2_TEMPORARY,
+			FALSE, FALSE)) {
 
 		if (table->flags2 & DICT_TF2_TEMPORARY) {
 			/* Do not bother to retry opening temporary tables. */
@@ -1857,12 +1871,16 @@ err_exit:
 		} else {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB: error: space object of table ");
+				" InnoDB: Error: Failed to find tablesspace "
+				"for table ");
 			ut_print_filename(stderr, name);
-			fprintf(stderr, ",\n"
-				"InnoDB: space id %lu did not exist in memory."
-				" Retrying an open.\n",
-				(ulong) table->space);
+			fprintf(stderr, " in memory.\n");
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: Attempting to load the tablespace "
+				"with id %lu.\n", (ulong) table->space);
+
 			/* Try to open the tablespace */
 			if (!fil_open_single_table_tablespace(
 				table, table->space,
@@ -1888,7 +1906,17 @@ err_exit:
 
 	mem_heap_empty(heap);
 
-	err = dict_load_indexes(table, heap, ignore_err);
+	db_err	err;
+
+	/* If there is no tablespace for the table then we only need to
+	load the index definitions. So that we can IMPORT the tablespace
+	later. */
+	if (table->ibd_file_missing) {
+		err = dict_load_indexes(
+			table, heap, DICT_ERR_IGNORE_ALL);
+	} else {
+		err = dict_load_indexes(table, heap, ignore_err);
+	}
 
 	if (err == DB_INDEX_CORRUPT) {
 		/* Refuse to load the table if the table has a corrupted
@@ -1922,9 +1950,10 @@ err_exit:
 	of the error condition, since the user may want to dump data from the
 	clustered index. However we load the foreign key information only if
 	all indexes were loaded. */
-	if (!cached) {
+	if (!cached || table->ibd_file_missing) {
+		/* Don't attempt to load the indexes from disk. */
 	} else if (err == DB_SUCCESS) {
-		err = dict_load_foreigns(table->name, TRUE, TRUE);
+		err = (db_err) dict_load_foreigns(table->name, TRUE, TRUE);
 
 		if (err != DB_SUCCESS) {
 			dict_table_remove_from_cache(table);
@@ -1939,46 +1968,31 @@ err_exit:
 		Otherwise refuse to load the table */
 		index = dict_table_get_first_index(table);
 
-		if (!srv_force_recovery || !index
+		if (!srv_force_recovery
+		    || !index
 		    || !dict_index_is_clust(index)) {
+
 			dict_table_remove_from_cache(table);
 			table = NULL;
+
 		} else if (dict_index_is_corrupted(index)) {
 
-			/* It is possible we force to load a corrupted
-			clustered index if srv_load_corrupted is set.
-			Mark the table as corrupted in this case */
-			table->corrupted = TRUE;
+			if (!table->ibd_file_missing) {
+
+				/* It is possible we force to load a corrupted
+				clustered index if srv_load_corrupted is set.
+				Mark the table as corrupted in this case */
+				table->corrupted = TRUE;
+			}
 		}
 	}
-#if 0
-	if (err != DB_SUCCESS && table != NULL) {
 
-		mutex_enter(&dict_foreign_err_mutex);
-
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  InnoDB: Error: could not make a foreign key"
-			" definition to match\n"
-			"InnoDB: the foreign key table"
-			" or the referenced table!\n"
-			"InnoDB: The data dictionary of InnoDB is corrupt."
-			" You may need to drop\n"
-			"InnoDB: and recreate the foreign key table"
-			" or the referenced table.\n"
-			"InnoDB: Submit a detailed bug report"
-			" to http://bugs.mysql.com\n"
-			"InnoDB: Latest foreign key error printout:\n%s\n",
-			dict_foreign_err_buf);
-
-		mutex_exit(&dict_foreign_err_mutex);
-	}
-#endif /* 0 */
 func_exit:
 	mem_heap_free(heap);
 
-	ut_ad(!table || ignore_err != DICT_ERR_IGNORE_NONE
+	ut_ad(!table
+	      || ignore_err != DICT_ERR_IGNORE_NONE
+	      || table->ibd_file_missing
 	      || !table->corrupted);
 
 	return(table);

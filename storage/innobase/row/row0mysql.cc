@@ -2616,6 +2616,77 @@ row_add_table_to_background_drop_list(
 	return(TRUE);
 }
 
+/** Callback for row_mysql_sys_index_iterate() */
+struct SysIndexCallback {
+	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) = 0;
+};
+
+/*********************************************************************//**
+Iterate over the table's indexes in SYS_INDEXES.
+@param table_id - to search for matching records.
+@param callback - function to call for each matching record  */
+static
+void
+row_mysql_sys_index_iterate(
+/*========================*/
+	ib_id_t			table_id,	/*!< in: table id to match */
+	SysIndexCallback*	callback)	/*!< in: callback */
+{
+	mtr_t		mtr;
+	byte*		buf;
+	btr_pcur_t	pcur;
+	mem_heap_t*	heap;
+	dtuple_t*	tuple;
+	dfield_t*	dfield;
+	dict_index_t*	sys_index;
+
+	heap = mem_heap_create(800);
+
+	/* Build the search key using the table id. */
+	tuple = dtuple_create(heap, 1);
+	dfield = dtuple_get_nth_field(tuple, 0);
+
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
+	mach_write_to_8(buf, table_id);
+
+	dfield_set_data(dfield, buf, 8);
+	sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
+	dict_index_copy_types(tuple, sys_index, 1);
+
+	mtr_start(&mtr);
+
+	/* Iterate over indexes that match the space id of the table. */
+	for (btr_pcur_open_on_user_rec(
+		sys_index, tuple, PAGE_CUR_GE, BTR_MODIFY_LEAF, &pcur, &mtr);
+	     btr_pcur_is_on_user_rec(&pcur);
+	     btr_pcur_move_to_next_user_rec(&pcur, &mtr)) {
+
+		rec_t*		rec = btr_pcur_get_rec(&pcur);
+
+		if (!rec_get_deleted_flag(rec, FALSE)) {
+			ulint		len;
+			const byte*	field;
+
+			field = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
+
+			ut_ad(len == 8);
+
+			if (memcmp(buf, field, len) != 0) {
+				/* No more indexes on this table. */
+				break;
+			}
+
+			(*callback)(&mtr, &pcur);
+		}
+	}
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
+
+	mem_heap_free(heap);
+}
+
 /*********************************************************************//**
 Reassigns the table identifier of a table.
 @return	error code or DB_SUCCESS */
@@ -2631,6 +2702,7 @@ row_mysql_table_id_reassign(
 	pars_info_t*	info	= pars_info_create();
 
 	dict_hdr_get_new_id(&new_id, NULL, NULL);
+
 	/* Remove all locks except the table-level S and X locks. */
 	lock_remove_all_on_table(table, FALSE);
 
@@ -2658,6 +2730,53 @@ row_mysql_table_id_reassign(
 
 	return(err);
 }
+
+/** Functor used by IMPORT TABLE to set the index space and root fields. */
+struct SetIndexRoot : public SysIndexCallback {
+
+	SetIndexRoot(dict_table_t* table)
+		:
+		m_table(table)
+	{
+		m_heap = mem_heap_create(256);
+	}
+
+	virtual ~SetIndexRoot()
+	{
+		mem_heap_free(m_heap);
+	}
+
+	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur)
+	{
+		ulint		len;
+		const char*	name;
+		const byte*	field;
+		rec_t*		rec = btr_pcur_get_rec(pcur);
+
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_INDEXES__NAME, &len);
+
+		ut_a(len != UNIV_SQL_NULL);
+
+		name = mem_heap_strdupl(m_heap, (const char*) field, len);
+
+		dict_index_t*	index;
+
+		index = dict_table_get_index_on_name(m_table, name);
+		ut_a(index != NULL);
+
+		page_rec_write_field(
+			rec, DICT_FLD__SYS_INDEXES__SPACE,
+			index->space, mtr);
+
+		page_rec_write_field(
+			rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
+			index->page, mtr);
+	}
+
+	mem_heap_t*	m_heap;
+	dict_table_t*	m_table;
+};
 
 /*********************************************************************//**
 Discards the tablespace of a table which stored in an .ibd file. Discarding
@@ -2801,12 +2920,19 @@ row_discard_tablespace_for_mysql(
 		     index != 0;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-			index->page = 0;
-			index->space = 0;
+			index->page = FIL_NULL;
+			index->space = FIL_NULL;
 		}
 
 		table->ibd_file_missing = TRUE;
-		table->tablespace_discarded = TRUE;
+
+		/* Scan SYS_INDEXES for all indexes of the table and
+		reset root <space, pageno>. */
+		{
+			SetIndexRoot	callback(table);
+
+			row_mysql_sys_index_iterate(table->id, &callback);
+		}
 
 		err = DB_SUCCESS;
 	}
@@ -3172,7 +3298,7 @@ row_import_tablespace_adjust_root_pages(
 			/* Do not bail out, so that the data
 			can be recovered. */
 
-			/* Q&D hack */
+			/* FIXME: Q&D hack */
 			err = DB_SUCCESS;
 
 			/* TODO: We are not preserving the error
@@ -3468,8 +3594,8 @@ row_import_tablespace_set_index_root(
 Get the meta-data filename from the table name. */
 static
 void
-row_import_tablespace_get_meta_data_filename(
-/*=========================================*/
+row_tablespace_get_meta_data_filename(
+/*==================================*/
 	const dict_table_t*	table,		/*!< in: table */
 	char*			filename,	/*!< out: filename */
 	ulint			max_len)	/* in: filename max length */
@@ -3498,7 +3624,7 @@ row_import_tablespace_set_index_root(
 	db_err		err;
 	char		name[OS_FILE_MAX_PATH];
 
-	row_import_tablespace_get_meta_data_filename(table, name, sizeof(name));
+	row_tablespace_get_meta_data_filename(table, name, sizeof(name));
 
 	FILE*	file = fopen(name, "r");
 
@@ -3532,7 +3658,7 @@ row_import_tablespace_for_mysql(
 
 	ut_a(table->space);
 	ut_ad(prebuilt->trx);
-	ut_a(table->tablespace_discarded);
+	ut_a(table->ibd_file_missing);
 
 	trx_start_if_not_started(prebuilt->trx);
 
@@ -3703,17 +3829,24 @@ row_import_tablespace_for_mysql(
 	/* TODO: Copy table->flags to SYS_TABLES.TYPE and N_COLS */
 
 	table->ibd_file_missing = FALSE;
-	table->tablespace_discarded = FALSE;
 
 	index = dict_table_get_first_index(table);
 
 	if (!dict_index_is_unique(index)) {
+
 		err = row_import_tablespace_set_sys_max_row_id(
 			prebuilt, table, &index);
 
 		if (err != DB_SUCCESS) {
 			return(row_import_tablespace_error(prebuilt, trx, err));
 		}
+	}
+
+	/* Scan SYS_INDEXES for all indexes of the table and set root page. */
+	{
+		SetIndexRoot	callback(table);
+
+		row_mysql_sys_index_iterate(table->id, &callback);
 	}
 
 	/* Flush dirty blocks to the file. */
@@ -3806,6 +3939,51 @@ run_again:
 	return(err);
 }
 
+/** Functor used by TRUNCATE TABLE to reset the indexes. */
+struct TruncateIndex : public SysIndexCallback {
+
+	TruncateIndex(dict_table_t* table, ulint space)
+		:
+		m_space(space),
+		m_table(table)
+	{
+	}
+
+	virtual ~TruncateIndex() { }
+
+	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur)
+	{
+		ulint	page_no;
+
+		/* This call may commit and restart mtr
+		and reposition pcur. */
+		page_no = dict_truncate_index_tree(m_table, m_space, pcur, mtr);
+
+
+		if (page_no != FIL_NULL) {
+			rec_t*	rec = btr_pcur_get_rec(pcur);
+
+			page_rec_write_field(
+				rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
+				page_no, mtr);
+
+			/* We will need to commit and restart the
+			mini-transaction in order to avoid deadlocks.
+			The dict_truncate_index_tree() call has
+			allocated a page in this mini-transaction,
+			and the rest of this loop could latch another
+			index page. */
+			mtr_commit(mtr);
+			mtr_start(mtr);
+
+			btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
+		}
+	}
+
+	ulint		m_space;
+	dict_table_t*	m_table;
+};
+
 /*********************************************************************//**
 Truncates a table for MySQL.
 @return	error code or DB_SUCCESS */
@@ -3818,18 +3996,12 @@ row_truncate_table_for_mysql(
 				obtaining a table lock */
 	trx_t*		trx)	/*!< in: transaction handle */
 {
-	dict_foreign_t*	foreign;
 	ulint		err;
-	mem_heap_t*	heap;
-	byte*		buf;
-	dtuple_t*	tuple;
-	dfield_t*	dfield;
-	dict_index_t*	sys_index;
-	btr_pcur_t	pcur;
 	mtr_t		mtr;
 	table_id_t	new_id;
-	ulint		recreate_space = 0;
+	dict_foreign_t*	foreign;
 	pars_info_t*	info = NULL;
+	ulint		recreate_space = 0;
 	ibool		has_internal_doc_id;
 
 	/* How do we prevent crashes caused by ongoing operations on
@@ -4044,79 +4216,12 @@ row_truncate_table_for_mysql(
 		dict_table_x_lock_indexes(table);
 	}
 
-	/* scan SYS_INDEXES for all indexes of the table */
-	heap = mem_heap_create(800);
+	/* Scan SYS_INDEXES for all indexes of the table and reset root page. */
+	{
+		TruncateIndex	callback(table, recreate_space);
 
-	tuple = dtuple_create(heap, 1);
-	dfield = dtuple_get_nth_field(tuple, 0);
-
-	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
-	mach_write_to_8(buf, table->id);
-
-	dfield_set_data(dfield, buf, 8);
-	sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
-	dict_index_copy_types(tuple, sys_index, 1);
-
-	mtr_start(&mtr);
-	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
-				  BTR_MODIFY_LEAF, &pcur, &mtr);
-	for (;;) {
-		rec_t*		rec;
-		const byte*	field;
-		ulint		len;
-		ulint		root_page_no;
-
-		if (!btr_pcur_is_on_user_rec(&pcur)) {
-			/* The end of SYS_INDEXES has been reached. */
-			break;
-		}
-
-		rec = btr_pcur_get_rec(&pcur);
-
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
-		ut_ad(len == 8);
-
-		if (memcmp(buf, field, len) != 0) {
-			/* End of indexes for the table (TABLE_ID mismatch). */
-			break;
-		}
-
-		if (rec_get_deleted_flag(rec, FALSE)) {
-			/* The index has been dropped. */
-			goto next_rec;
-		}
-
-		/* This call may commit and restart mtr
-		and reposition pcur. */
-		root_page_no = dict_truncate_index_tree(table, recreate_space,
-							&pcur, &mtr);
-
-		rec = btr_pcur_get_rec(&pcur);
-
-		if (root_page_no != FIL_NULL) {
-			page_rec_write_field(
-				rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
-				root_page_no, &mtr);
-			/* We will need to commit and restart the
-			mini-transaction in order to avoid deadlocks.
-			The dict_truncate_index_tree() call has allocated
-			a page in this mini-transaction, and the rest of
-			this loop could latch another index page. */
-			mtr_commit(&mtr);
-			mtr_start(&mtr);
-			btr_pcur_restore_position(BTR_MODIFY_LEAF,
-						  &pcur, &mtr);
-		}
-
-next_rec:
-		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+		row_mysql_sys_index_iterate(table->id, &callback);
 	}
-
-	btr_pcur_close(&pcur);
-	mtr_commit(&mtr);
-
-	mem_heap_free(heap);
 
 	/* Done with index truncation, release index tree locks,
 	subsequent work relates to table level metadata change */
@@ -5785,7 +5890,7 @@ row_mysql_quiesce_write_meta_data(
 	db_err		err;
 	char		name[OS_FILE_MAX_PATH];
 
-	row_import_tablespace_get_meta_data_filename(table, name, sizeof(name));
+	row_tablespace_get_meta_data_filename(table, name, sizeof(name));
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr, " InnoDB: Writing table metadata to '%s'\n", name);
@@ -5801,7 +5906,7 @@ row_mysql_quiesce_write_meta_data(
 	} else {
 		err = row_mysql_quiesce_write_meta_data_header(table, file);
 
-		if (err != DB_SUCCESS) {
+		if (err == DB_SUCCESS) {
 			err = row_mysql_quiesce_write_meta_data_indexes(
 				table, file);
 		}

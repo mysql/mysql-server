@@ -9046,11 +9046,11 @@ ha_innobase::discard_or_import_tablespace(
 	if (error != DB_SUCCESS) {
 		/* unable to lock the table: do nothing */
 	} else if (discard) {
-		if (dict_table->tablespace_discarded) {
+		if (dict_table->ibd_file_missing) {
 			err = HA_ERR_RECORD_DELETED;
 			push_warning_printf(
 				user_thd, Sql_condition::WARN_LEVEL_WARN, err,
-				"InnoDB: Table %s has already been DISCARDed.",
+				"InnoDB: Tablespace for %s doesn't exist.",
 				dict_table->name);
 			goto func_exit;
 		}
@@ -9059,19 +9059,12 @@ ha_innobase::discard_or_import_tablespace(
 			dict_table->name, prebuilt->trx);
 
 	} else {
-		if (!dict_table->tablespace_discarded) {
-			/* FIXME: Because InnoDB only keeps the
-			dict_table->tablespace_discarded flag in
-			memory, ALTER TABLE ... DISCARD TABLESPACE
-			will have to be re-issued after a server
-			restart.
-
-			TO DO: Issue a better error message. */
-			err = HA_ERR_RECORD_FILE_FULL;
+		if (!dict_table->ibd_file_missing) {
+			err = HA_ERR_TABLE_EXIST;
 			push_warning_printf(
 				user_thd, Sql_condition::WARN_LEVEL_WARN, err,
-				"InnoDB: Table %s has not been"
-				" DISCARDed since the server was started.",
+				"InnoDB: Tablespace for table %s exists. "
+				"Please DISCARD the tablespace before IMPORT.",
 				dict_table->name);
 			goto func_exit;
 		}
