@@ -741,8 +741,6 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
   int error=0;
   struct timespec abstime; // for timeout checking
   PSI_stage_info old_stage;
-  char *gtid_set_buffer= NULL;
-  int gtid_set_size= 0;
   DBUG_ENTER("Relay_log_info::wait_for_gtid");
 
   if (!inited)
@@ -790,26 +788,14 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
 
     //wait for master update, with optional timeout.
 
-#ifndef DBUG_OFF
     global_sid_lock.wrlock();
-#else
-    global_sid_lock.rdlock();
-#endif
+    const Gtid_set* logged_gtids= gtid_state.get_logged_gtids();
 
-    const Gtid_set* gtid_ptr_state= gtid_state.get_logged_gtids();
+    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d",
+      gtid->c_ptr_safe(), gtid_set.is_subset(logged_gtids)));
+    logged_gtids->dbug_print("gtid_done:");
 
-#ifndef DBUG_OFF
-    if (gtid_ptr_state->to_string(&gtid_set_buffer, &gtid_set_size))
-    {
-      my_free(gtid_set_buffer);
-      global_sid_lock.unlock();
-      goto err;
-    }
-    DBUG_PRINT("info", ("Waiting for %s. We are at %s and subset %d",
-      gtid->c_ptr_safe(), gtid_set_buffer, gtid_set.is_subset(gtid_ptr_state)));
-#endif
-
-    if (gtid_set.is_subset(gtid_ptr_state))
+    if (gtid_set.is_subset(logged_gtids))
     {
       global_sid_lock.unlock();
       break;

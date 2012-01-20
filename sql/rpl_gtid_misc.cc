@@ -75,7 +75,7 @@ int Gtid::to_string(const rpl_sid *sid, char *buf) const
   *s= ':';
   s++;
   s+= format_gno(s, gno);
-  DBUG_RETURN(s - buf);
+  DBUG_RETURN((int)(s - buf));
 }
 
 

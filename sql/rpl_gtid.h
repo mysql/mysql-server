@@ -1598,7 +1598,7 @@ public:
       }
     }
     *p= 0;
-    return p - out;
+    return (int)(p - out);
   }
 
   /**
@@ -1912,7 +1912,7 @@ public:
     p+= owned_gtids.to_string(p);
     p+= sprintf(p, "\nLost GTIDs:\n");
     p+= lost_gtids.to_string(p);
-    return p - buf;
+    return (int)(p - buf);
   }
   char *to_string() const
   {
