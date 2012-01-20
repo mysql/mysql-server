@@ -770,47 +770,49 @@ fil_node_open_file(
 
 		os_file_close(node->handle);
 
-		if (UNIV_UNLIKELY(space_id != space->id)) {
+		if (space_id != space->id) {
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"InnoDB: Error: tablespace id is %lu"
-				" in the data dictionary\n"
-				"InnoDB: but in file %s it is %lu!\n",
-				space->id, node->name, space_id);
-
-			ut_error;
+				" InnoDB: Error: tablespace id is %lu"
+				" in the data dictionary\n",
+				space->id);
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: but in file %s it is %lu!\n",
+				node->name, space_id);
 		}
 
-		if (UNIV_UNLIKELY(space_id == ULINT_UNDEFINED
-				  || space_id == 0)) {
+		if (space_id == ULINT_UNDEFINED || space_id == 0) {
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"InnoDB: Error: tablespace id %lu"
+				" InnoDB: Error: tablespace id %lu"
 				" in file %s is not sensible\n",
 				(ulong) space_id, node->name);
-
-			ut_error;
 		}
 
-		if (UNIV_UNLIKELY(fsp_flags_get_page_size(space->flags)
-				  != page_size)) {
+		if (fsp_flags_get_page_size(space->flags) != page_size) {
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"InnoDB: Error: tablespace file %s"
-				" has page size %lx\n"
-				"InnoDB: but the data dictionary"
+				" InnoDB: Error: tablespace file %s"
+				" has page size %lx\n",
+				node->name, flags);
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: but the data dictionary"
 				" expects page size %lx!\n",
-				node->name, flags,
 				fsp_flags_get_page_size(space->flags));
-
-			ut_error;
 		}
 
-		if (UNIV_UNLIKELY(space->flags != flags)) {
+		if (space->flags != flags) {
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"InnoDB: Error: table flags are %lx"
-				" in the data dictionary\n"
-				"InnoDB: but the flags in file %s are %lx!\n",
-				space->flags, node->name, flags);
-
-			ut_error;
+				" InnoDB: Error: table flags are %lx"
+				" in the data dictionary\n",
+				space->flags);
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: but the flags in file %s are %lx!\n",
+				node->name, flags);
 		}
 
 		if (size_bytes >= 1024 * 1024) {
