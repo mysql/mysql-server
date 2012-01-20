@@ -2826,8 +2826,9 @@ sub check_ipv6_support {
 
 sub check_debug_support ($) {
   my $mysqld_variables= shift;
-
-  if ( ! $mysqld_variables->{'debug'} )
+  my $debug_var= $mysqld_variables->{'debug'};
+  
+  if ( !$debug_var || $debug_var eq "disabled")
   {
     #mtr_report(" - binaries are not debug compiled");
     $debug_compiled_binaries= 0;
