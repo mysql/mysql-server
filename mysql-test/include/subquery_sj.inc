@@ -4819,4 +4819,48 @@ eval $query;
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # Bug #13596176: Missing row on select with nested in clause when
+--echo #                matr=on and bnl=off + MyISAM
+--echo #
+
+CREATE TABLE t1 (
+  int_key int DEFAULT NULL,
+  vc_key varchar(1) DEFAULT NULL,
+  vc_nokey varchar(1) DEFAULT NULL,
+  KEY int_key (int_key),
+  KEY vc_key (vc_key, int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES
+ (8,'x','x'), (7,'d','d'), (1,'r','r'), (7,'f','f'),
+ (9,'y','y'), (NULL,'u','u'), (1,'m','m'), (9,NULL,NULL),
+ (2,'o','o'), (9,'w','w'), (2,'m','m'), (4,'q','q'),
+ (0,NULL,NULL), (4,'d','d'), (8,'g','g'), (NULL,'x','x'),
+ (NULL,'f','f'), (0,'p','p'), (NULL,'j','j'), (8,'c','c');
+
+CREATE TABLE t2 (
+  int_key int DEFAULT NULL,
+  vc_key varchar(1) DEFAULT NULL,
+  KEY int_key (int_key),
+  KEY vc_key (vc_key, int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (8,'g');
+
+SELECT vc_key
+FROM t1 as outr
+WHERE (vc_nokey, vc_key ) IN
+ (SELECT vc_nokey, vc_nokey
+  FROM t1 middle
+  WHERE vc_nokey IN
+   (SELECT child1.vc_key
+    FROM t2 AS child1 JOIN t1 AS child2 USING (int_key)
+   )
+ );
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13596176.
+
 --echo # End of 5.6 tests

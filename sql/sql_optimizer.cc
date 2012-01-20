@@ -362,8 +362,6 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
 
-  drop_unused_derived_keys();
-
   if (rollup.state != ROLLUP::STATE_NONE)
   {
     if (rollup_process_const_fields())
@@ -378,12 +376,6 @@ JOIN::optimize()
     select_distinct= select_distinct && (const_tables != tables);
   }
 
-  THD_STAGE_INFO(thd, stage_preparing);
-  if (result->initialize_tables(this))
-  {
-    DBUG_PRINT("error",("Error: initialize_tables() failed"));
-    DBUG_RETURN(1);				// error == -1
-  }
   if (const_table_map != found_const_table_map &&
       !(select_options & SELECT_DESCRIBE) &&
       (!conds ||
@@ -438,8 +430,7 @@ JOIN::optimize()
   }
 
   /*
-    Permorm the the optimization on fields evaluation mentioned above
-    for all on expressions.
+    Perform the same optimization on field evaluation for all join conditions.
   */ 
   for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables ; tab++)
   {
@@ -462,6 +453,26 @@ JOIN::optimize()
       (select_options & SELECT_DESCRIBE))
   {
     conds=new Item_int((longlong) 0,1);	// Always false
+  }
+
+  if (set_access_methods())
+  {
+    error= 1;
+    DBUG_PRINT("error",("Error from set_access_methods"));
+    DBUG_RETURN(1);
+  }
+
+  // We need all derived keys until access methods have been set.
+  drop_unused_derived_keys();
+
+  // Update table dependencies after assigning ref access fields
+  update_depend_map(this);
+
+  THD_STAGE_INFO(thd, stage_preparing);
+  if (result->initialize_tables(this))
+  {
+    DBUG_PRINT("error",("Error: initialize_tables() failed"));
+    DBUG_RETURN(1);				// error == -1
   }
 
   if (make_join_select(this, conds))
@@ -984,7 +995,33 @@ finish:
   return item;
 }
 
-  
+
+/**
+  Get the best field substitution for a given field.
+
+  If the field is member of a multiple equality, look up that equality
+  and return the most appropriate field. Usually this is the equivalenced
+  field belonging to the outer-most table in the join order, but
+  @see Item_field::get_subst_item() for details.
+  Otherwise, return the same field.
+
+  @param item_field The field that we are seeking a substitution for.
+  @param cond_equal multiple equalities to search in
+
+  @return The substituted field.
+*/
+
+Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal)
+{
+  bool dummy;
+  Item_equal *item_eq= find_item_equal(cond_equal, item_field->field, &dummy);
+  if (!item_eq)
+    return item_field;
+
+  return item_eq->get_subst_item(item_field);
+}
+
+
 /**
   Check whether an equality can be used to build multiple equalities.
 
@@ -2593,8 +2630,8 @@ void update_depend_map(JOIN *join)
     uint i;
     for (i=0 ; i < ref->key_parts ; i++,item++)
       depend_map|=(*item)->used_tables();
-    ref->depend_map=depend_map & ~OUTER_REF_TABLE_BIT;
-    depend_map&= ~OUTER_REF_TABLE_BIT;
+    depend_map&= ~PSEUDO_TABLE_BITS;
+    ref->depend_map= depend_map;
     for (JOIN_TAB **tab=join->map2table;
 	 depend_map ;
 	 tab++,depend_map>>=1 )
