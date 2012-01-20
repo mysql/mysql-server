@@ -2,6 +2,22 @@
 
 show global status like "%peer%";
 --vertical_results
-select * from performance_schema.host_cache;
+select 
+  IP, HOST, HOST_VALIDATED, SUM_BLOCKING_ERRORS,
+  COUNT_NAMEINFO_TRANSIENT_ERRORS,
+  COUNT_NAMEINFO_PERMANENT_ERRORS,
+  COUNT_FORMAT_ERRORS,
+  COUNT_ADDRINFO_TRANSIENT_ERRORS,
+  COUNT_ADDRINFO_PERMANENT_ERRORS,
+  COUNT_FCRDNS_ERRORS,
+  COUNT_HOST_ACL_ERRORS,
+  COUNT_HANDSHAKE_ERRORS,
+  COUNT_AUTHENTICATION_ERRORS,
+  COUNT_USER_ACL_ERRORS,
+  COUNT_LOCAL_ERRORS,
+  COUNT_UNKNOWN_ERRORS,
+  if (FIRST_ERROR_SEEN is not null, "set", "null") as FIRST_ERROR_SEEN,
+  if (LAST_ERROR_SEEN is not null, "set", "null") as LAST_ERROR_SEEN
+  from performance_schema.host_cache;
 --horizontal_results
 

@@ -106,12 +106,32 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("COUNT_UNKNOWN_ERRORS") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("FIRST_SEEN") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("LAST_SEEN") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("FIRST_ERROR_SEEN") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("LAST_ERROR_SEEN") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_host_cache::m_field_def=
-{ 16, field_types };
+{ 20, field_types };
 
 PFS_engine_table_share
 table_host_cache::m_share=
@@ -226,6 +246,10 @@ void table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
   row->m_count_user_acl_errors= entry->m_errors.m_user_acl_errors;
   row->m_count_local_errors= entry->m_errors.m_local_errors;
   row->m_count_unknown_errors= entry->m_errors.m_unknown_errors;
+  row->m_first_seen= entry->m_first_seen;
+  row->m_last_seen= entry->m_last_seen;
+  row->m_first_error_seen= entry->m_first_error_seen;
+  row->m_last_error_seen= entry->m_last_error_seen;
 }
 
 void table_host_cache::reset_position(void)
@@ -332,6 +356,24 @@ int table_host_cache::read_row_values(TABLE *table,
         break;
       case 15: /* COUNT_UNKNOWN_ERRORS */
         set_field_ulonglong(f, m_row->m_count_unknown_errors);
+        break;
+      case 16: /* FIRST_SEEN */
+        set_field_timestamp(f, m_row->m_first_seen);
+        break;
+      case 17: /* LAST_SEEN */
+        set_field_timestamp(f, m_row->m_last_seen);
+        break;
+      case 18: /* FIRST_ERROR_SEEN */
+        if (m_row->m_first_error_seen != 0)
+          set_field_timestamp(f, m_row->m_first_error_seen);
+        else
+          f->set_null();
+        break;
+      case 19: /* LAST_ERROR_SEEN */
+        if (m_row->m_last_error_seen != 0)
+          set_field_timestamp(f, m_row->m_last_error_seen);
+        else
+          f->set_null();
         break;
       default:
         DBUG_ASSERT(false);
