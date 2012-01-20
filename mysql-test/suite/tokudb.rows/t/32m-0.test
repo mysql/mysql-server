@@ -2,6 +2,9 @@
 
 set storage_engine='tokudb';
 
+call mtr.add_suppression("TokuDB.*");
+call mtr.add_suppression(".*returned handler error 22");
+
 --disable_warnings
 drop table if exists t;
 --enable_warnings
