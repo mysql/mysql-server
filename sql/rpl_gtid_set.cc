@@ -394,7 +394,7 @@ rpl_gno parse_gno(const char **s)
 
 int format_gno(char *s, rpl_gno gno)
 {
-  return ll2str(gno, s, 10, 1) - s;
+  return (int)(ll2str(gno, s, 10, 1) - s);
 }
 
 
@@ -770,7 +770,7 @@ int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
   DBUG_PRINT("info", ("ret='%s' strlen(s)=%lu s-buf=%lu get_string_length=%d", buf,
              (ulong) strlen(buf), (ulong) (s - buf), get_string_length(sf)));
   DBUG_ASSERT(s - buf == get_string_length(sf));
-  DBUG_RETURN(s - buf);
+  DBUG_RETURN((int)(s - buf));
 }
 
 
@@ -1077,7 +1077,7 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t leng
 {
   DBUG_ENTER("Gtid_set::add_gtid_encoding(const uchar *, size_t)");
   size_t pos= 0;
-  uint n_sids;
+  uint64 n_sids;
   // read number of SIDs
   if (length < 8)
   {
@@ -1093,14 +1093,14 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t leng
     if (length - pos < 16 + 8)
     {
       DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < 16 + 8. "
-                           "[n_sids=%u i=%u]",
+                           "[n_sids=%llu i=%u]",
                            (ulong) length, (ulong) pos, n_sids, i));
       goto report_error;
     }
     rpl_sid sid;
     sid.copy_from(encoded + pos);
     pos+= 16;
-    uint n_intervals= uint8korr(encoded + pos);
+    uint64 n_intervals= uint8korr(encoded + pos);
     pos+= 8;
     rpl_sidno sidno= sid_map->add_sid(&sid);
     if (sidno < 0)
@@ -1112,7 +1112,7 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t leng
     // iterate over intervals
     if (length - pos < 2 * 8 * n_intervals)
     {
-      DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < 2 * 8 * (n_intervals=%u)",
+      DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < 2 * 8 * (n_intervals=%llu)",
                            (ulong) length, (ulong) pos, n_intervals));
       goto report_error;
     }
