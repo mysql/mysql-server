@@ -43,7 +43,6 @@ gtid_acquire_ownership(THD *thd, const Gtid gtid)
 {
   DBUG_ENTER("gtid_acquire_ownership");
   enum_gtid_statement_status ret= GTID_STATEMENT_EXECUTE;
-  my_thread_id thd_id= thd->id;
   global_sid_lock.assert_some_rdlock();
   while (true)
   {
@@ -73,7 +72,7 @@ gtid_acquire_ownership(THD *thd, const Gtid gtid)
     // GTID owned by someone (other thread)
     else
     {
-      DBUG_ASSERT(owner != thd_id);
+      DBUG_ASSERT(owner != thd->id);
       // The call below releases the read lock on global_sid_lock and
       // the mutex lock on SIDNO.
       gtid_state.wait_for_gtid(thd, gtid);
@@ -109,7 +108,6 @@ gtid_acquire_ownership(THD *thd, const Gtid gtid)
 static enum_gtid_statement_status gtid_acquire_ownerships(THD *thd,
                                                           const Gtid_set *gs)
 {
-  my_thread_id thd_id= thd->thread_id;
   rpl_sidno greatest_sidno= 0;
   DBUG_ENTER("gtid_acquire_ownerships");
   global_sid_lock.assert_some_rdlock();
@@ -131,7 +129,7 @@ static enum_gtid_statement_status gtid_acquire_ownerships(THD *thd,
         // break the do-loop and wait for the sid to be updated
         if (owner != 0)
         {
-          DBUG_ASSERT(owner != thd_id);
+          DBUG_ASSERT(owner != thd->id);
           break;
         }
       }
