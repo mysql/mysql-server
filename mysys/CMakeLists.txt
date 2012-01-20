@@ -34,6 +34,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c
 				rijndael.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c my_getpagesize.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
+                safemalloc.c my_new.cc
 				my_atomic.c my_getncpus.c my_safehash.c my_chmod.c my_rnd.c
                                 my_uuid.c wqueue.c waiting_threads.c ma_dyncol.c
 				my_rdtsc.c)
@@ -44,15 +45,6 @@ ENDIF()
 
 IF(UNIX)
  SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_addr_resolve.c)
-ENDIF()
-
-IF(NOT HAVE_CXX_NEW)
- ADD_DEFINITIONS( -DUSE_MYSYS_NEW)
- SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_new.cc)
-ENDIF()
-
-IF(WITH_SAFEMALLOC)
- SET (MYSYS_SOURCES ${MYSYS_SOURCES} safemalloc.c)
 ENDIF()
 
 IF(HAVE_ALARM)
