@@ -2951,29 +2951,6 @@ func_exit:
 	return((int) err);
 }
 
-#ifdef UNIV_DEBUG
-static void
-check_db_row_id(dict_index_t* index, const byte* rec)
-{
-	ulint		len;
-	mem_heap_t*	heap = NULL;
-	ulint		offsets_[1 + REC_OFFS_HEADER_SIZE];
-	ulint*		offsets;
-
-	ut_a(dict_index_is_clust(index));
-
-	rec_offs_init(offsets_);
-
-	offsets = rec_get_offsets(rec, index, offsets_, 1, &heap);
-
-	rec_get_nth_field(
-		rec, offsets, dict_index_get_sys_col_pos(index, DATA_ROW_ID),
-		&len);
-
-	ut_a(len == DATA_ROW_ID_LEN);
-}
-#endif /* UNIV_DEBUG */
-
 /********************************************************************//**
 Scans an index in the database, purging all delete-marked records.
 In the clustered index, adjusts DB_TRX_ID, DB_ROLL_PTR and BLOB pointers
@@ -3072,12 +3049,6 @@ row_import_tablespace_scan_index(
 
 			page_zip = buf_block_get_page_zip(
 				btr_pcur_get_block(&pcur));
-
-#ifdef UNIV_DEBUG
-			if (!dict_index_is_unique(index)) {
-				check_db_row_id(index, rec);
-			}
-#endif /* UNIV_DEBUG */
 
 			if (!rec_offs_any_extern(offsets)) {
 
