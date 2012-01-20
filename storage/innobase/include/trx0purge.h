@@ -124,6 +124,7 @@ struct trx_purge_struct{
 	sess_t*		sess;		/*!< System session running the purge
 					query */
 
+	ulint		n_stop;		/*!< Counter to track number stops */
 	purge_state_t	state;		/*!< Purge coordinator thread states */
 	os_event_t	event;		/*!< State signal event */
 	bool		running;	/*!< true, if purge is active */

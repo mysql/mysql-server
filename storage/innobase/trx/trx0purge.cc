@@ -1299,8 +1299,7 @@ trx_purge_stop(void)
 
 	rw_lock_x_lock(&purge_sys->latch);
 
-	// FIXME: Only one FTWRL allowed for now. The fix will be
-	// to use a ref counter.
+	++purge_sys->n_stop;
 
 	state = purge_sys->state;
 
@@ -1327,11 +1326,17 @@ trx_purge_run(void)
 {
 	rw_lock_x_lock(&purge_sys->latch);
 
-	if (purge_sys->state == PURGE_STATE_STOP) {
-		fprintf(stderr, "Resuming purge\n");
-		purge_sys->state = PURGE_STATE_RUN;
-	} else {
-		fprintf(stderr, "Purge already running\n");
+	ut_a(purge_sys->n_stop > 0);
+
+	--purge_sys->n_stop;
+
+	if (purge_sys->n_stop == 0) {
+		if (purge_sys->state == PURGE_STATE_STOP) {
+			fprintf(stderr, "Resuming purge\n");
+			purge_sys->state = PURGE_STATE_RUN;
+		} else {
+			fprintf(stderr, "Purge already running\n");
+		}
 	}
 
 	rw_lock_x_unlock(&purge_sys->latch);

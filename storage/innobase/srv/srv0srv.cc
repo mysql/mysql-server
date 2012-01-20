@@ -2558,8 +2558,11 @@ srv_suspend_purge_coordinator(
 		stop = (purge_sys->state == PURGE_STATE_STOP);
 
 		if (!stop) {
+			ut_a(purge_sys->n_stop == 0);
 			purge_sys->running = true;
 		} else {
+			ut_a(purge_sys->n_stop > 0);
+
 			/* Signal that we are suspended. */
 			os_event_set(purge_sys->event);
 		}
