@@ -3200,6 +3200,87 @@ retry:
 		" setting innodb_native_aio = off in my.cnf\n");
 	return(FALSE);
 }
+
+/******************************************************************//**
+Checks if the system supports native linux aio. On some kernel
+versions where native aio is supported it won't work on tmpfs. In such
+cases we can't use native aio as it is not possible to mix simulated
+and native aio.
+@return: TRUE if supported, FALSE otherwise. */
+static
+ibool
+os_aio_native_aio_supported(void)
+/*=============================*/
+{
+	int			fd;
+	byte*			buf;
+	byte*			ptr;
+	struct io_event		io_event;
+	io_context_t		io_ctx;
+	struct iocb		iocb;
+	struct iocb*		p_iocb;
+	int			err;
+
+	if (!os_aio_linux_create_io_ctx(1, &io_ctx)) {
+		/* The platform does not support native aio. */
+		return(FALSE);
+	}
+
+	/* Now check if tmpdir supports native aio ops. */
+	fd = innobase_mysql_tmpfile();
+
+	if (fd < 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error: unable to create "
+			"temp file to check native AIO support.\n");
+
+		return(FALSE);
+	}
+
+	memset(&io_event, 0x0, sizeof(io_event));
+
+	buf = static_cast<byte*>(ut_malloc(UNIV_PAGE_SIZE * 2));
+	ptr = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
+
+	memset(&iocb, 0x0, sizeof(iocb));
+	p_iocb = &iocb;
+	io_prep_pwrite(p_iocb, fd, ptr, UNIV_PAGE_SIZE, 0);
+
+	err = io_submit(io_ctx, 1, &p_iocb);
+	if (err >= 1) {
+		/* Now collect the submitted IO request. */
+		err = io_getevents(io_ctx, 1, 1, &io_event, NULL);
+	}
+
+	ut_free(buf);
+	close(fd);
+
+	switch (err) {
+	case 1:
+		return(TRUE);
+
+	case -EINVAL:
+	case -ENOSYS:
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Error: Linux Native AIO is not"
+			" supported on tmpdir.\n"
+			"InnoDB: You can either move tmpdir to a"
+			" file system that supports native AIO\n"
+			"InnoDB: or you can set"
+			" innodb_use_native_aio to FALSE to avoid"
+			" this message.\n");
+
+		/* fall through. */
+	default:
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Error: Linux Native AIO check"
+			" on tmpdir returned error[%d]\n", -err);
+	}
+
+	return(FALSE);
+}
 #endif /* LINUX_NATIVE_AIO */
 
 /******************************************************************//**
@@ -3368,6 +3449,19 @@ os_aio_init(
 	ut_ad(n_segments >= 4);
 
 	os_io_init_simple();
+
+#if defined(LINUX_NATIVE_AIO)
+	/* Check if native aio is supported on this system and tmpfs */
+	if (srv_use_native_aio
+	    && !os_aio_native_aio_supported()) {
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Warning: Linux Native AIO"
+			" disabled.\n");
+		srv_use_native_aio = FALSE;
+	}
+#endif /* LINUX_NATIVE_AIO */
 
 	for (i = 0; i < n_segments; i++) {
 		srv_set_io_thread_op_info(i, "not started yet");
