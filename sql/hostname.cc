@@ -446,6 +446,13 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   err_code= vio_getnameinfo(ip, hostname_buffer, NI_MAXHOST, NULL, 0,
                             NI_NAMEREQD);
 
+  /*
+  ===========================================================================
+  DEBUG code only (begin)
+  Simulate various output from vio_getnameinfo().
+  ===========================================================================
+  */
+
   DBUG_EXECUTE_IF("getnameinfo_error_noname",
                   {
                     strcpy(hostname_buffer, "<garbage>");
@@ -487,6 +494,12 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                     err_code= 0;
                   }
                   );
+
+  /*
+  ===========================================================================
+  DEBUG code only (end)
+  ===========================================================================
+  */
 
   if (err_code)
   {
@@ -588,7 +601,8 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   /*
   ===========================================================================
-                             DBUG CODE (begin)
+  DEBUG code only (begin)
+  Simulate various output from getaddrinfo().
   ===========================================================================
   */
   DBUG_EXECUTE_IF("getaddrinfo_error_noname",
@@ -702,19 +716,43 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                     debug_addr->sin6_family= AF_INET6;
                     ip6= & debug_addr->sin6_addr;
                     /* inet_pton not available on Windows XP. */
-                    ip6->s6_addr32[0] = htonl(0x20010db8);
-                    ip6->s6_addr32[1] = htonl(0x00000000);
-                    ip6->s6_addr32[2] = htonl(0x00000000);
-                    ip6->s6_addr32[3] = htonl(0x0006007e);
+                    ip6->s6_addr[ 0] = 0x20;
+                    ip6->s6_addr[ 1] = 0x01;
+                    ip6->s6_addr[ 2] = 0x0d;
+                    ip6->s6_addr[ 3] = 0xb8;
+                    ip6->s6_addr[ 4] = 0x00;
+                    ip6->s6_addr[ 5] = 0x00;
+                    ip6->s6_addr[ 6] = 0x00;
+                    ip6->s6_addr[ 7] = 0x00;
+                    ip6->s6_addr[ 8] = 0x00;
+                    ip6->s6_addr[ 9] = 0x00;
+                    ip6->s6_addr[10] = 0x00;
+                    ip6->s6_addr[11] = 0x00;
+                    ip6->s6_addr[12] = 0x00;
+                    ip6->s6_addr[13] = 0x06;
+                    ip6->s6_addr[14] = 0x00;
+                    ip6->s6_addr[15] = 0x7e;
 
                     /* Simulating ipv6 2001:DB8::6:7F */
                     debug_addr= & debug_sock_addr[1];
                     debug_addr->sin6_family= AF_INET6;
                     ip6= & debug_addr->sin6_addr;
-                    ip6->s6_addr32[0] = htonl(0x20010db8);
-                    ip6->s6_addr32[1] = htonl(0x00000000);
-                    ip6->s6_addr32[2] = htonl(0x00000000);
-                    ip6->s6_addr32[3] = htonl(0x0006007f);
+                    ip6->s6_addr[ 0] = 0x20;
+                    ip6->s6_addr[ 1] = 0x01;
+                    ip6->s6_addr[ 2] = 0x0d;
+                    ip6->s6_addr[ 3] = 0xb8;
+                    ip6->s6_addr[ 4] = 0x00;
+                    ip6->s6_addr[ 5] = 0x00;
+                    ip6->s6_addr[ 6] = 0x00;
+                    ip6->s6_addr[ 7] = 0x00;
+                    ip6->s6_addr[ 8] = 0x00;
+                    ip6->s6_addr[ 9] = 0x00;
+                    ip6->s6_addr[10] = 0x00;
+                    ip6->s6_addr[11] = 0x00;
+                    ip6->s6_addr[12] = 0x00;
+                    ip6->s6_addr[13] = 0x06;
+                    ip6->s6_addr[14] = 0x00;
+                    ip6->s6_addr[15] = 0x7f;
 
                     debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
                     debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in6);
@@ -748,19 +786,43 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                     debug_addr= & debug_sock_addr[0];
                     debug_addr->sin6_family= AF_INET6;
                     ip6= & debug_addr->sin6_addr;
-                    ip6->s6_addr32[0] = htonl(0x20010db8);
-                    ip6->s6_addr32[1] = htonl(0x00000000);
-                    ip6->s6_addr32[2] = htonl(0x00000000);
-                    ip6->s6_addr32[3] = htonl(0x00060007);
+                    ip6->s6_addr[ 0] = 0x20;
+                    ip6->s6_addr[ 1] = 0x01;
+                    ip6->s6_addr[ 2] = 0x0d;
+                    ip6->s6_addr[ 3] = 0xb8;
+                    ip6->s6_addr[ 4] = 0x00;
+                    ip6->s6_addr[ 5] = 0x00;
+                    ip6->s6_addr[ 6] = 0x00;
+                    ip6->s6_addr[ 7] = 0x00;
+                    ip6->s6_addr[ 8] = 0x00;
+                    ip6->s6_addr[ 9] = 0x00;
+                    ip6->s6_addr[10] = 0x00;
+                    ip6->s6_addr[11] = 0x00;
+                    ip6->s6_addr[12] = 0x00;
+                    ip6->s6_addr[13] = 0x06;
+                    ip6->s6_addr[14] = 0x00;
+                    ip6->s6_addr[15] = 0x07;
 
                     /* Simulating ipv6 2001:DB8::6:6 */
                     debug_addr= & debug_sock_addr[1];
                     debug_addr->sin6_family= AF_INET6;
                     ip6= & debug_addr->sin6_addr;
-                    ip6->s6_addr32[0] = htonl(0x20010db8);
-                    ip6->s6_addr32[1] = htonl(0x00000000);
-                    ip6->s6_addr32[2] = htonl(0x00000000);
-                    ip6->s6_addr32[3] = htonl(0x00060006);
+                    ip6->s6_addr[ 0] = 0x20;
+                    ip6->s6_addr[ 1] = 0x01;
+                    ip6->s6_addr[ 2] = 0x0d;
+                    ip6->s6_addr[ 3] = 0xb8;
+                    ip6->s6_addr[ 4] = 0x00;
+                    ip6->s6_addr[ 5] = 0x00;
+                    ip6->s6_addr[ 6] = 0x00;
+                    ip6->s6_addr[ 7] = 0x00;
+                    ip6->s6_addr[ 8] = 0x00;
+                    ip6->s6_addr[ 9] = 0x00;
+                    ip6->s6_addr[10] = 0x00;
+                    ip6->s6_addr[11] = 0x00;
+                    ip6->s6_addr[12] = 0x00;
+                    ip6->s6_addr[13] = 0x06;
+                    ip6->s6_addr[14] = 0x00;
+                    ip6->s6_addr[15] = 0x06;
 
                     debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
                     debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in6);
@@ -779,7 +841,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   /*
   ===========================================================================
-                             DBUG CODE (end)
+  DEBUG code only (end)
   ===========================================================================
   */
 

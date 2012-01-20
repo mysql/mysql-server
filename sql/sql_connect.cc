@@ -470,6 +470,13 @@ static int check_connection(THD *thd)
 
     peer_rc= vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST);
 
+    /*
+    ===========================================================================
+    DEBUG code only (begin)
+    Simulate various output from vio_peer_addr().
+    ===========================================================================
+    */
+
     DBUG_EXECUTE_IF("vio_peer_addr_error",
                     {
                       peer_rc= 1;
@@ -497,15 +504,33 @@ static int check_connection(THD *thd)
                       /* See RFC 3849, ipv6 2001:DB8::/32 is reserved. */
                       const char* fake= "2001:db8::6:6";
                       /* inet_pton(AF_INET6, fake, ip6); not available on Windows XP. */
-                      ip6->s6_addr32[0] = htonl(0x20010db8);
-                      ip6->s6_addr32[1] = htonl(0x00000000);
-                      ip6->s6_addr32[2] = htonl(0x00000000);
-                      ip6->s6_addr32[3] = htonl(0x00060006);
+                      ip6->s6_addr[ 0] = 0x20;
+                      ip6->s6_addr[ 1] = 0x01;
+                      ip6->s6_addr[ 2] = 0x0d;
+                      ip6->s6_addr[ 3] = 0xb8;
+                      ip6->s6_addr[ 4] = 0x00;
+                      ip6->s6_addr[ 5] = 0x00;
+                      ip6->s6_addr[ 6] = 0x00;
+                      ip6->s6_addr[ 7] = 0x00;
+                      ip6->s6_addr[ 8] = 0x00;
+                      ip6->s6_addr[ 9] = 0x00;
+                      ip6->s6_addr[10] = 0x00;
+                      ip6->s6_addr[11] = 0x00;
+                      ip6->s6_addr[12] = 0x00;
+                      ip6->s6_addr[13] = 0x06;
+                      ip6->s6_addr[14] = 0x00;
+                      ip6->s6_addr[15] = 0x06;
                       strcpy(ip, fake);
                       peer_rc= 0;
                     }
                     );
 #endif /* HAVE_IPV6 */
+
+    /*
+    ===========================================================================
+    DEBUG code only (end)
+    ===========================================================================
+    */
 
     if (peer_rc)
     {
