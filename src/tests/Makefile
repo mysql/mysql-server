@@ -958,13 +958,13 @@ $(CHECK_HOTINDEXER_UNDO_TESTS): %.run: %.test hotindexer-undo-do-test.tdb$(BINSU
 	./run-hotindexer-undo-do-tests.bash $< $(SUMMARIZE_CMD)
 
 # blocking lock tree tests
-BLOCKING_SRCS = $(wildcard blocking-*.c)
+BLOCKING_SRCS = $(wildcard blocking-*.c db-put-*.c)
 BLOCKING_TDB_TESTS = $(patsubst %.c,%.tdbrun,$(BLOCKING_SRCS))
 BLOCKING_BDB_TESTS = $(patsubst %.c,%.bdbrun,$(BLOCKING_SRCS))
 
-check_blocking_tdb: $(BLOCKING_TDB_TESTS)
+check_blocking.tdbrun: $(BLOCKING_TDB_TESTS)
 
-check_blocking_bdb: $(BLOCKING_BDB_TESTS)
+check_blocking.bdbrun: $(BLOCKING_BDB_TESTS)
 
 STRESS_TEST_SRCS = $(wildcard test_stress*.c)
 STRESS_TESTS = $(patsubst %.c,%,$(STRESS_TEST_SRCS))
