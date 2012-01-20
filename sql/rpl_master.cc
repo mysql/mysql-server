@@ -1685,7 +1685,7 @@ bool show_binlog_info(THD* thd)
 
   global_sid_lock.wrlock();
   const Gtid_set* gtid_set= gtid_state.get_logged_gtids();
-  if (gtid_set->to_string(&gtid_set_buffer, &gtid_set_size))
+  if ((gtid_set_size= gtid_set->to_string(&gtid_set_buffer)) < 0)
   {
     my_eof(thd);
     my_free(gtid_set_buffer);

@@ -236,6 +236,7 @@ struct Uuid
   /// Convert the given binary buffer to a UUID
   static size_t to_string(const uchar* bytes_arg, char *buf);
 #ifndef DBUG_OFF
+  /// Debugging only: Print this Uuid to stdout.
   void print() const
   {
     char buf[TEXT_LENGTH + 1];
@@ -243,6 +244,7 @@ struct Uuid
     printf("%s\n", buf);
   }
 #endif
+  /// Print this Uuid to the trace file if debug is enabled; no-op otherwise.
   void dbug_print(const char *text= "") const
   {
 #ifndef DBUG_OFF
@@ -251,11 +253,19 @@ struct Uuid
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
 #endif
   }
+  /**
+    Return true if parse() would return succeed, but don't actually
+    store the result anywhere.
+  */
   static bool is_valid(const char *string);
-  uchar bytes[16];
+  /// The number of bytes in the textual representation of a Uuid.
   static const size_t TEXT_LENGTH= 36;
+  /// The number of bytes in the data of a Uuid.
   static const size_t BYTE_LENGTH= 16;
+  /// The number of bits in the data of a Uuid.
   static const size_t BIT_LENGTH= 128;
+  /// The data for this Uuid.
+  uchar bytes[BYTE_LENGTH];
 private:
   static const int NUMBER_OF_SECTIONS= 5;
   static const int bytes_per_section[NUMBER_OF_SECTIONS];
@@ -407,6 +417,7 @@ private:
 };
 
 
+/// Protects Gtid_state.  See comment above gtid_state for details.
 extern Checkable_rwlock global_sid_lock;
 
 
@@ -708,14 +719,40 @@ private:
 */
 struct Gtid
 {
+  /// SIDNO of this Gtid.
   rpl_sidno sidno;
+  /// GNO of this Gtid.
   rpl_gno gno;
 
+  /// Set both components to 0.
   void clear() { sidno= 0; gno= 0; }
+  /**
+    The maximal length of the textual representation of a SID, not
+    including the terminating '\0'.
+  */
   static const int MAX_TEXT_LENGTH= Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
+  /**
+    Return true if parse() would succeed, but don't store the
+    result anywhere.
+  */
   static bool is_valid(const char *text);
+  /**
+    Convert a Gtid to a string.
+    @param sid the sid to use. This overrides the sidno of this Gtid.
+    @param[out] buf Buffer to store the Gtid in (normally
+    MAX_TEXT_LENGTH+1 bytes long).
+    @return Length of the string, not counting '\0'.
+  */
   int to_string(const rpl_sid *sid, char *buf) const;
+  /**
+    Convert this Gtid to a string.
+    @param sid_map sid_map to use when converting sidno to a SID.
+    @param[out] buf Buffer to store the Gtid in (normally
+    MAX_TEXT_LENGTH+1 bytes long).
+    @return Length of the string, not counting '\0'.
+  */
   int to_string(const Sid_map *sid_map, char *buf) const;
+  /// Returns true if this Gtid has the same sid and gno as 'other'.
   bool equals(const Gtid *other) const
   { return sidno == other->sidno && gno == other->gno; }
   /**
@@ -727,6 +764,7 @@ struct Gtid
   enum_return_status parse(Sid_map *sid_map, const char *text);
 
 #ifndef DBUG_OFF
+  /// Debug only: print this Gtid to stdout.
   void print(const Sid_map *sid_map) const
   {
     char buf[MAX_TEXT_LENGTH + 1];
@@ -734,6 +772,7 @@ struct Gtid
     printf("%s\n", buf);
   }
 #endif
+  /// Print this Gtid to the trace file if debug is enabled; no-op otherwise.
   void dbug_print(const Sid_map *sid_map, const char *text= "") const
   {
 #ifndef DBUG_OFF
@@ -972,6 +1011,10 @@ public:
     Gtid_set, false otherwise.
   */
   static bool is_valid(const char *text);
+  /**
+    Return a newly allocated string containing this Gtid_set, or NULL
+    on out of memory.
+  */
   char *to_string() const
   {
     char *str= (char *)my_malloc(get_string_length() + 1, MYF(MY_WME));
@@ -980,7 +1023,7 @@ public:
     return str;
   }
 #ifndef DBUG_OFF
-  /// Print this Gtid_set to stdout.
+  /// Debug only: Print this Gtid_set to stdout.
   void print() const
   {
     char *str= to_string();
@@ -988,6 +1031,10 @@ public:
     my_free(str);
   }
 #endif
+  /**
+    Print this Gtid_set to the trace file if debug is enabled; no-op
+    otherwise.
+  */
   void dbug_print(const char *text= "") const
   {
 #ifndef DBUG_OFF
@@ -1003,13 +1050,21 @@ public:
   */
   struct String_format
   {
+    /// The generated string begins with this.
     const char *begin;
+    /// The generated string begins with this.
     const char *end;
+    /// In 'SID:GNO', this is the ':'
     const char *sid_gno_separator;
+    /// In 'SID:GNO-GNO', this is the '-'
     const char *gno_start_end_separator;
+    /// In 'SID:GNO:GNO', this is the second ':'
     const char *gno_gno_separator;
+    /// In 'SID:GNO,SID:GNO', this is the ','
     const char *gno_sid_separator;
+    /// If the set is empty and this is not NULL, then this string is generated.
     const char *empty_set_string;
+    /// The following fields are the lengths of each field above.
     const int begin_length;
     const int end_length;
     const int sid_gno_separator_length;
@@ -1030,9 +1085,9 @@ public:
   */
   int get_string_length(const String_format *string_format= NULL) const;
   /**
-    Formats this Gtid_set as a string.
+    Formats this Gtid_set as a string and saves in a given buffer.
 
-    @param buf[out] Pointer to the buffer where the string should be
+    @param[out] buf Pointer to the buffer where the string should be
     stored. This should have size at least get_string_length()+1.
     @param string_format String_format object that specifies
     separators in the resulting text.
@@ -1040,9 +1095,19 @@ public:
   */
   int to_string(char *buf, const String_format *string_format= NULL) const;
 
-  int to_string(char **buf, int *size, const String_format *string_format= NULL) const;
+  /**
+    Formats a Gtid_set as a string and saves in a newly allocated buffer.
+    @param[out] buf Pointer to pointer to string. The function will
+    set it to point to the newly allocated buffer, or NULL on out of memory.
+    @param string_format Specifies how to format the string.
+    @retval Length of the generated string, or -1 on out of memory.
+  */
+  int to_string(char **buf, const String_format *string_format= NULL) const;
 
-  /// The default String_format: the format understood by add_gtid_text(const char *).
+  /**
+    The default String_format: the format understood by
+    add_gtid_text(const char *).
+  */
   static const String_format default_string_format;
   /**
     String_format useful to generate an SQL string: the string is
@@ -1642,6 +1707,10 @@ public:
   }
 
 #ifndef DBUG_OFF
+  /**
+    Debug only: return a newly allocated string representation of
+    this Owned_gtids.
+  */
   char *to_string() const
   {
     char *str= (char *)my_malloc(get_max_string_length(), MYF(MY_WME));
@@ -1649,6 +1718,7 @@ public:
     to_string(str);
     return str;
   }
+  /// Debug only: print this Owned_gtids to stdout.
   void print() const
   {
     char *str= to_string();
@@ -1656,6 +1726,10 @@ public:
     my_free(str);
   }
 #endif
+  /**
+    Print this Owned_gtids to the trace file if debug is enabled; no-op
+    otherwise.
+  */
   void dbug_print(const char *text= "") const
   {
 #ifndef DBUG_OFF
@@ -1856,22 +1930,19 @@ public:
 #endif // ifndef MYSQL_CLIENT
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
-    least one group.  Locks are acquired in order of increasing SIDNO.
+    least one GTID.  Locks are acquired in order of increasing SIDNO.
   */
   void lock_sidnos(const Gtid_set *set);
   /**
     Unlocks the mutex for each SIDNO where the given Gtid_set has at
-    least one group.
+    least one GTID.
   */
   void unlock_sidnos(const Gtid_set *set);
   /**
-    Waits for the condition variable for each SIDNO where the given
-    Gtid_set has at least one group.
+    Broadcasts the condition variable for each SIDNO where the given
+    Gtid_set has at least one GTID.
   */
   void broadcast_sidnos(const Gtid_set *set);
-  void lock_owned_sidnos(const THD *thd);
-  void unlock_owned_sidnos(const THD *thd);
-  void broadcast_owned_sidnos(const THD *thd);
   /**
     Ensure that owned_gtids, logged_gtids, lost_gtids, and sid_locks
     have room for at least as many SIDNOs as sid_map.
@@ -1896,6 +1967,11 @@ public:
   /// Return the server's SID's SIDNO
   rpl_sidno get_server_sidno() const { return server_sidno; }
 #ifndef DBUG_OFF
+  /**
+    Debug only: Returns an upper bound on the length of the string
+    generated by to_string(), not counting '\0'.  The actual length
+    may be shorter.
+  */
   size_t get_max_string_length() const
   {
     return owned_gtids.get_max_string_length() +
@@ -1903,6 +1979,7 @@ public:
       lost_gtids.get_string_length() +
       100;
   }
+  /// Debug only: Generate a string in the given buffer and return the length.
   int to_string(char *buf) const
   {
     char *p= buf;
@@ -1914,13 +1991,14 @@ public:
     p+= lost_gtids.to_string(p);
     return (int)(p - buf);
   }
+  /// Debug only: return a newly allocated string, or NULL on out-of-memory.
   char *to_string() const
   {
     char *str= (char *)my_malloc(get_max_string_length(), MYF(MY_WME));
-    DBUG_ASSERT(str != NULL);
     to_string(str);
     return str;
   }
+  /// Debug only: print this Gtid_state to stdout.
   void print() const
   {
     char *str= to_string();
@@ -1928,6 +2006,10 @@ public:
     my_free(str);
   }
 #endif
+  /**
+    Print this Gtid_state to the trace file if debug is enabled; no-op
+    otherwise.
+  */
   void dbug_print(const char *text= "") const
   {
 #ifndef DBUG_OFF
@@ -1938,6 +2020,13 @@ public:
 #endif
   }
 private:
+  /// Lock all SIDNOs owned by the given THD.
+  void lock_owned_sidnos(const THD *thd);
+  /// Unlock all SIDNOs owned by the given THD.
+  void unlock_owned_sidnos(const THD *thd);
+  /// Broadcast the condition for all SIDNOs owned by the given THD.
+  void broadcast_owned_sidnos(const THD *thd);
+
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
   /// The Sid_map used by this Gtid_state.
@@ -1963,6 +2052,7 @@ private:
 };
 
 
+/// Global state of GTIDs.
 extern Gtid_state gtid_state;
 
 
@@ -1987,6 +2077,7 @@ enum enum_group_type
 */
 struct Gtid_specification
 {
+  /// The type of this GTID
   enum_group_type type;
   /**
     The GTID:
@@ -1994,15 +2085,23 @@ struct Gtid_specification
     { 0, 0 } if type == AUTOMATIC or ANONYMOUS.
   */
   Gtid gtid;
+  /// Set the type to GTID_GROUP and SID, GNO to the given values.
   void set(rpl_sidno sidno, rpl_gno gno)
   { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
+  /// Set the type to GTID_GROUP and SID, GNO to the given Gtid.
   void set(const Gtid *gtid_param) { set(gtid_param->sidno, gtid_param->gno); }
+  /// Set the type to GTID_GROUP and SID, GNO to 0, 0.
   void clear() { set(0, 0); }
+  /// Return true if this Gtid_specification is equal to 'other'.
   bool equals(const Gtid_specification *other) const
   {
     return (type == other->type &&
             (type != GTID_GROUP || gtid.equals(&other->gtid)));
   }
+  /**
+    Return true if this Gtid_specification is a GTID_GROUP with the
+    same SID, GNO as 'other_gtid'.
+  */
   bool equals(Gtid other_gtid) const
   { return type == GTID_GROUP && gtid.equals(&other_gtid); }
 #ifndef MYSQL_CLIENT
@@ -2042,6 +2141,7 @@ struct Gtid_specification
   */
   int to_string(const rpl_sid *sid, char *buf) const;
 #ifndef DBUG_OFF
+  /// Debug only: print this Gtid_specification to stdout.
   void print() const
   {
     char buf[MAX_TEXT_LENGTH + 1];
@@ -2049,6 +2149,10 @@ struct Gtid_specification
     printf("%s\n", buf);
   }
 #endif
+  /**
+    Print this Gtid_specificatoin to the trace file if debug is
+    enabled; no-op otherwise.
+  */
   void dbug_print(const char *text= "") const
   {
 #ifndef DBUG_OFF
@@ -2070,7 +2174,12 @@ struct Gtid_specification
 */
 struct Cached_group
 {
+  /// The gtid for this group.
   Gtid_specification spec;
+  /**
+    The position of this GTID in the cache, i.e., the total size of
+    all previous groups.
+  */
   rpl_binlog_pos binlog_offset;
 };
 
@@ -2157,6 +2266,10 @@ public:
   enum_return_status get_gtids(Gtid_set *gs) const;
 
 #ifndef DBUG_OFF
+  /**
+    Debug only: store a textual representation of this Group_cache in
+    the given buffer and return the length.
+  */
   size_t to_string(const Sid_map *sm, char *buf) const
   {
     int n_groups= get_n_groups();
@@ -2179,17 +2292,28 @@ public:
     sprintf(s, "}\n");
     return s - buf;
   }
+  /**
+    Debug only: return an upper bound on the length of the string
+    generated by to_string(). The actual length may be shorter.
+  */
   size_t get_max_string_length() const
   {
     return (2 + Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 4 + 2 +
             40 + 10 + 21 + 1 + 100/*margin*/) * get_n_groups() + 100/*margin*/;
   }
+  /**
+    Debug only: generate a textual representation of this Group_cache
+    and store in a newly allocated string. Return the string, or NULL
+    on out of memory.
+  */
   char *to_string(const Sid_map *sm) const
   {
     char *str= (char *)my_malloc(get_max_string_length(), MYF(MY_WME));
-    to_string(sm, str);
+    if (str)
+      to_string(sm, str);
     return str;
   }
+  /// Debug only: print this Group_cache to stdout.
   void print(const Sid_map *sm) const
   {
     char *str= to_string(sm);
@@ -2197,6 +2321,10 @@ public:
     my_free(str);
   }
 #endif
+  /**
+    Print this Gtid_cache to the trace file if debug is enabled; no-op
+    otherwise.
+  */
   void dbug_print(const Sid_map *sid_map, const char *text= "") const
   {
 #ifndef DBUG_OFF
@@ -2223,7 +2351,8 @@ private:
   DYNAMIC_ARRAY groups;
 
   /**
-    Return a pointer to the last group, or NULL if this Group_cache is empty.
+    Return a pointer to the last group, or NULL if this Group_cache is
+    empty.
   */
   Cached_group *get_last_group()
   {
