@@ -677,7 +677,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
   uint64 pos= 0;
   char name[FN_REFLEN + 1];
   uint32 name_size= 0;
-  char* gtid_buffer= NULL;
+  char* gtid_string= NULL;
   const uchar* ptr_buffer= (uchar *) packet;
   Gtid_set gtid_set(&global_sid_map);
 
@@ -712,7 +712,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
         global_sid_lock.unlock();
         DBUG_RETURN(false);
       }
-      gtid_buffer= gtid_set.to_string();
+      gtid_string= gtid_set.to_string();
       global_sid_lock.unlock();
           
       /*
@@ -723,13 +723,13 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
     }
   }
   DBUG_PRINT("info", ("Slave %d requested to read %s at position %llu gtid set "
-                      "%s.", thd->server_id, name, pos, gtid_buffer));
+                      "%s.", thd->server_id, name, pos, gtid_string));
 
   get_slave_uuid(thd, &slave_uuid);
   kill_zombie_dump_threads(&slave_uuid);
-  general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %llu GTid Set: %s",
-                    name, pos, gtid_buffer);
-  my_free(gtid_buffer);
+  general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %llu GTIDs: %s",
+                    name, pos, gtid_string);
+  my_free(gtid_string);
   mysql_binlog_send(thd, name, (my_off_t) pos, flags, &gtid_set);
 
   unregister_slave(thd, 1, 1);

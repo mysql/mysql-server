@@ -972,14 +972,14 @@ public:
     Gtid_set, false otherwise.
   */
   static bool is_valid(const char *text);
-#ifndef DBUG_OFF
   char *to_string() const
   {
     char *str= (char *)my_malloc(get_string_length() + 1, MYF(MY_WME));
-    DBUG_ASSERT(str != NULL);
-    to_string(str);
+    if (str != NULL)
+      to_string(str);
     return str;
   }
+#ifndef DBUG_OFF
   /// Print this Gtid_set to stdout.
   void print() const
   {
