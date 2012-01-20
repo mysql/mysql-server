@@ -11,10 +11,5 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Previous_gtids	#	#	
-slave-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
-slave-bin.000001	#	Query	#	#	COMMIT
-slave-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
-slave-bin.000001	#	Query	#	#	COMMIT
 drop table test.t1;
 include/rpl_end.inc

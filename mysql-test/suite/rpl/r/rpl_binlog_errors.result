@@ -101,7 +101,7 @@ count(*)
 1
 ### check that the incident event is written to the current log
 SET GLOBAL debug="-d,error_unique_log_filename";
-show binlog events from <binlog_start> limit 6,1;
+show binlog events from <binlog_start> limit 4,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Incident	#	#	#1 (LOST_EVENTS)
 DELETE FROM t4;

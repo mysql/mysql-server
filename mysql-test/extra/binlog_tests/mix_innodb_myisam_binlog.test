@@ -320,8 +320,8 @@ connection con4;
 select get_lock("a",10); # wait for rollback to finish
 if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
- --let $binlog_rollback= query_get_value(SHOW BINLOG EVENTS, Pos, 11)
- --let $binlog_query= query_get_value(SHOW BINLOG EVENTS, Info, 11)
+ --let $binlog_rollback= query_get_value(SHOW BINLOG EVENTS, Pos, 7)
+ --let $binlog_query= query_get_value(SHOW BINLOG EVENTS, Info, 7)
  if ($binlog_query != ROLLBACK) {
   --echo Wrong query from SHOW BINLOG EVENTS. Expected ROLLBACK, got '$binlog_query'
   --source include/show_rpl_debug_info.inc

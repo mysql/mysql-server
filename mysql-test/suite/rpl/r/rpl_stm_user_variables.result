@@ -242,15 +242,11 @@ a	b
 # Show events and cleanup
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Previous_gtids	#	#	
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b INT)
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`var1`=0
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (@var1, 0), (@var1, 0)
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE count INT;
@@ -258,11 +254,9 @@ UPDATE t1 SET b = 2 WHERE a = 0;
 GET DIAGNOSTICS count = ROW_COUNT;
 INSERT INTO t1 VALUES (1, count);
 END
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t1 SET b = 2 WHERE a = 0
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,  NAME_CONST('count',2))
 master-bin.000001	#	Query	#	#	COMMIT

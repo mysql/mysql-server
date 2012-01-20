@@ -88,7 +88,7 @@ SET @commands= 'configure';
 --echo #                         EXECUTE CASES CRASHING THE XID
 --echo ###################################################################################
 connection master;
-SET @failures= 'd,crash_after_apply d,crash_before_update_pos d,crash_after_update_pos_before_apply d,crash_after_update_pos_gtid';
+SET @failures= 'd,crash_after_apply d,crash_before_update_pos d,crash_after_update_pos_before_apply';
 #
 # Executes a set of tests while there are crash points in @failures.
 #
