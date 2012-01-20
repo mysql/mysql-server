@@ -2037,19 +2037,20 @@ when it try to get the value of TIME_ZONE global variable from master.";
       mi->master_gtid_mode= 0;
       break;
     case COMMAND_STATUS_OK:
-      mi->master_gtid_mode=
-        find_type(master_row[0], &gtid_mode_typelib, 1) - 1;
+      int typelib_index= find_type(master_row[0], &gtid_mode_typelib, 1);
       mysql_free_result(master_res);
+      if (typelib_index == 0)
+      {
+        mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                   "The slave IO thread stops because the master has "
+                   "an unknown GTID_MODE.");
+        DBUG_RETURN(1);
+      }
+      mi->master_gtid_mode= typelib_index - 1;
       break;
     }
-    if (mi->master_gtid_mode < 0)
-    {
-      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 "The slave IO thread stops because the master has an unknown "
-                 "GTID_MODE.");
-      DBUG_RETURN(1);
-    }
-    if (abs(static_cast<int>(mi->master_gtid_mode - gtid_mode)) > 1)
+    if (mi->master_gtid_mode > gtid_mode + 1 ||
+        gtid_mode > mi->master_gtid_mode + 1)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                  "The slave IO thread stops because the master has GTID_MODE "
