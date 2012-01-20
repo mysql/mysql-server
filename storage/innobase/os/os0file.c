@@ -3256,6 +3256,9 @@ os_aio_native_aio_supported(void)
 	buf = (byte*) ut_malloc(UNIV_PAGE_SIZE * 2);
 	ptr = (byte*) ut_align(buf, UNIV_PAGE_SIZE);
 
+	/* Suppress valgrind warning. */
+	memset(buf, 0x00, UNIV_PAGE_SIZE * 2);
+
 	memset(&iocb, 0x0, sizeof(iocb));
 	p_iocb = &iocb;
 	io_prep_pwrite(p_iocb, fd, ptr, UNIV_PAGE_SIZE, 0);
