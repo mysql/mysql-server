@@ -11761,14 +11761,15 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *, uint, const Format_description_log_event *");
   uint8 const common_header_len=
     descr_event->common_header_len;
+
+#ifndef NO_DBUG
   uint8 const post_header_len=
     descr_event->post_header_len[GTID_LOG_EVENT - 1];
-
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
+#endif
 
   char const *ptr_buffer= buffer + common_header_len;
-  char const *str_end= buffer + event_len;
 
   spec.type= buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ? 
     ANONYMOUS_GROUP : GTID_GROUP;
@@ -11784,8 +11785,6 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 
   spec.gtid.gno= uint8korr(ptr_buffer);
   ptr_buffer+= ENCODED_GNO_LENGTH;
-
-  DBUG_ASSERT(str_end == (char *) ptr_buffer);
 
   DBUG_VOID_RETURN;
 }
