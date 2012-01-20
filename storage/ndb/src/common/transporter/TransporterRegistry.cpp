@@ -1238,7 +1238,8 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
 
   recvdata.m_socket_poller.clear();
 
-  if (m_has_extra_wakeup_socket && recvdata.m_transporters.get(0))
+  bool extra_socket = m_has_extra_wakeup_socket;
+  if (extra_socket && recvdata.m_transporters.get(0))
   {
     const NDB_SOCKET_TYPE socket = m_extra_wakeup_sockets[0];
 
@@ -1270,10 +1271,13 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
 
   if (tcpReadSelectReply > 0)
   {
-    if (m_extra_wakeup_sockets)
+    if (extra_socket)
     {
       if (recvdata.m_socket_poller.has_read(0))
+      {
+        assert(recvdata.m_transporters.get(0));
         recvdata.m_has_data_transporters.set((Uint32)0);
+      }
     }
 
     for (int i = 0; i < nTCPTransporters; i++)
