@@ -688,20 +688,15 @@ bool Gtid_set::contains_gtid(rpl_sidno sidno, rpl_gno gno) const
   DBUG_RETURN(false);
 }
 
-int Gtid_set::to_string(char **buf_arg, int *size_arg, const Gtid_set::String_format *sf_arg) const
+int Gtid_set::to_string(char **buf_arg, const Gtid_set::String_format *sf_arg) const
 {
   DBUG_ENTER("Gtid_set::to_string");
-  *buf_arg= NULL;
-  *size_arg= get_string_length(sf_arg);
-  *buf_arg= (char *)my_malloc(*size_arg + 1, MYF(MY_WME));
-  if (!*buf_arg)
-  {
-    *buf_arg= NULL;
-    *size_arg= 0;
-    DBUG_RETURN(true);
-  }
+  int len= get_string_length(sf_arg);
+  *buf_arg= (char *)my_malloc(len + 1, MYF(MY_WME));
+  if (*buf_arg == NULL)
+    DBUG_RETURN(-1);
   to_string(*buf_arg, sf_arg);
-  DBUG_RETURN(false);
+  DBUG_RETURN(len);
 }
 
 int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const

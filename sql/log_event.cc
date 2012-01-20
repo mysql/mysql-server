@@ -12019,14 +12019,14 @@ char *Previous_gtids_log_event::get_str(
   set.dbug_print("set");
   size_t length= set.get_string_length(string_format);
   DBUG_PRINT("info", ("string length= %lu", (ulong) length));
-  char* buf= (char *)my_malloc(length + 1, MYF(MY_WME));
-  if (buf != NULL)
+  char* str= (char *)my_malloc(length + 1, MYF(MY_WME));
+  if (str != NULL)
   {
-    set.to_string(buf, string_format);
+    set.to_string(str, string_format);
     if (length_p != NULL)
       *length_p= length;
   }
-  DBUG_RETURN(buf);
+  DBUG_RETURN(str);
 }
 
 #ifndef MYSQL_CLIENT

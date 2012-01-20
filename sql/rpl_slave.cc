@@ -2279,8 +2279,8 @@ bool show_master_info(THD* thd, Master_info* mi)
   global_sid_lock.wrlock();
   const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
   const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
-  if (sql_gtid_set->to_string(&sql_gtid_set_buffer, &sql_gtid_set_size) ||
-      io_gtid_set->to_string(&io_gtid_set_buffer, &io_gtid_set_size))
+  if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
+      (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
   {
     my_eof(thd);
     my_free(sql_gtid_set_buffer);
