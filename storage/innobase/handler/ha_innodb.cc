@@ -9191,8 +9191,7 @@ ha_innobase::delete_table(
 	/* Drop the table in InnoDB */
 
 	error = row_drop_table_for_mysql(
-		norm_name, parent_trx, trx,
-		thd_sql_command(thd) == SQLCOM_DROP_DB);
+		norm_name, trx, thd_sql_command(thd) == SQLCOM_DROP_DB);
 
 
 	if (error == DB_TABLE_NOT_FOUND
@@ -9222,7 +9221,7 @@ ha_innobase::delete_table(
 			normalize_table_name_low(par_case_name, name, FALSE);
 #endif
 			error = row_drop_table_for_mysql(
-				par_case_name, trx, NULL,
+				par_case_name, trx,
 				thd_sql_command(thd) == SQLCOM_DROP_DB);
 		}
 	}
@@ -9303,7 +9302,7 @@ innobase_drop_database(
 	innobase_casedn_str(namebuf);
 #endif
 	trx = innobase_trx_allocate(thd);
-	row_drop_database_for_mysql(namebuf, parent_trx, trx);
+	row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf);
 
 	/* Flush the log to reduce probability that the .frm files and

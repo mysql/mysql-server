@@ -2191,8 +2191,7 @@ err_exit:
 
 			dict_table_close(table, FALSE);
 
-			row_drop_table_for_mysql(table->name,
-						 NULL, trx, FALSE);
+			row_drop_table_for_mysql(table->name, trx, FALSE);
 			trx_commit_for_mysql(trx);
 		}
 		break;
@@ -2341,7 +2340,7 @@ error_handling:
 
 		trx_rollback_to_savepoint(trx, NULL);
 
-		row_drop_table_for_mysql(table_name, NULL, trx, FALSE);
+		row_drop_table_for_mysql(table_name, trx, FALSE);
 
 		trx_commit_for_mysql(trx);
 
@@ -2411,7 +2410,7 @@ row_table_add_foreign_constraints(
 
 		trx_rollback_to_savepoint(trx, NULL);
 
-		row_drop_table_for_mysql(name, NULL, trx, FALSE);
+		row_drop_table_for_mysql(name, trx, FALSE);
 
 		trx_commit_for_mysql(trx);
 
@@ -2452,7 +2451,7 @@ row_drop_table_for_mysql_in_background(
 
 	/* Try to drop the table in InnoDB */
 
-	error = row_drop_table_for_mysql(name, NULL, trx, FALSE);
+	error = row_drop_table_for_mysql(name, trx, FALSE);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -4371,8 +4370,6 @@ int
 row_drop_table_for_mysql(
 /*=====================*/
 	const char*	name,	/*!< in: table name */
-	trx_t*		user_trx,/*!< in: user transaction handle for
-				obtaining a table lock, or NULL */
 	trx_t*		trx,	/*!< in: transaction handle */
 	ibool		drop_db)/*!< in: TRUE=dropping whole database */
 {
@@ -4513,20 +4510,6 @@ retry:
 		} else {
 			fts_optimize_remove_table(table);
 			row_mysql_lock_data_dictionary(trx);
-		}
-	}
-
-	if (user_trx) {
-		err = row_mysql_lock_table(user_trx, table, LOCK_X,
-					   "setting table lock for DROP TABLE");
-		switch (err) {
-		case DB_SUCCESS:
-			break;
-		case DB_LOCK_WAIT_TIMEOUT:
-			err = DB_TABLE_IS_BEING_USED;
-			/* fall through */
-		default:
-			goto funct_exit;
 		}
 	}
 
@@ -4971,7 +4954,7 @@ row_mysql_drop_temp_tables(void)
 		table = dict_load_table(table_name, TRUE, DICT_ERR_IGNORE_NONE);
 
 		if (table) {
-			row_drop_table_for_mysql(table_name, NULL, trx, FALSE);
+			row_drop_table_for_mysql(table_name, trx, FALSE);
 			trx_commit_for_mysql(trx);
 		}
 
@@ -5055,8 +5038,6 @@ int
 row_drop_database_for_mysql(
 /*========================*/
 	const char*	name,	/*!< in: database name which ends to '/' */
-	trx_t*		user_trx,/*!< in: user transaction handle for
-				obtaining table locks */
 	trx_t*		trx)	/*!< in: transaction handle */
 {
 	dict_table_t* table;
@@ -5105,8 +5086,7 @@ loop:
 			goto loop;
 		}
 
-		err = row_drop_table_for_mysql(table_name,
-					       user_trx, trx, TRUE);
+		err = row_drop_table_for_mysql(table_name, trx, TRUE);
 		trx_commit_for_mysql(trx);
 
 		if (err != DB_SUCCESS) {

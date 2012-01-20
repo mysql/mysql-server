@@ -30,6 +30,7 @@ Created 13/06/2005 Jan Lindstrom
 #include "data0data.h"
 #include "dict0types.h"
 #include "trx0types.h"
+#include "que0types.h"
 #include "mtr0mtr.h"
 #include "rem0types.h"
 #include "rem0rec.h"
@@ -124,6 +125,16 @@ struct row_merge_dup_struct {
 typedef struct row_merge_dup_struct row_merge_dup_t;
 
 /*********************************************************************//**
+Sets an exclusive lock on a table, for the duration of creating indexes.
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+ulint
+row_merge_lock_table(
+/*=================*/
+	trx_t*		trx,		/*!< in/out: transaction */
+	dict_table_t*	table,		/*!< in: table to lock */
+	enum lock_mode	mode);		/*!< in: LOCK_X or LOCK_S */
+/*********************************************************************//**
 Drop an index from the InnoDB system tables.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
 will not be committed. */
@@ -214,6 +225,16 @@ row_merge_is_index_usable(
 /*======================*/
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index);	/*!< in: index to check */
+/*********************************************************************//**
+If there are views that refer to the old table name then we "attach" to
+the new instance of the table else we drop it immediately.
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+ulint
+row_merge_drop_table(
+/*=================*/
+	trx_t*		trx,		/*!< in: transaction */
+	dict_table_t*	table);		/*!< in: table instance to drop */
 /*********************************************************************//**
 Build indexes on a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting
