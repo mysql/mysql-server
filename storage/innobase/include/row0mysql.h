@@ -461,8 +461,6 @@ int
 row_drop_table_for_mysql(
 /*=====================*/
 	const char*	name,	/*!< in: table name */
-	trx_t*		user_trx,/*!< in: user transaction handle for
-				obtaining a table lock, or NULL */
 	trx_t*		trx,	/*!< in: dictionary transaction handle */
 	ibool		drop_db);/*!< in: TRUE=dropping whole database */
 /*********************************************************************//**
@@ -501,8 +499,6 @@ int
 row_drop_database_for_mysql(
 /*========================*/
 	const char*	name,	/*!< in: database name which ends to '/' */
-	trx_t*		user_trx,/*!< in: user transaction handle for
-				obtaining table locks */
 	trx_t*		trx);	/*!< in: transaction handle */
 /*********************************************************************//**
 Renames a table for MySQL.
