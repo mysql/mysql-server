@@ -280,7 +280,7 @@ public:
   char master_uuid[UUID_LENGTH+1];
   char bind_addr[HOSTNAME_LENGTH+1];
 
-  int master_gtid_mode;
+  ulong master_gtid_mode;
 
   int init_info();
   void end_info();
