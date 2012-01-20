@@ -2,7 +2,6 @@
 #
 # show the global and session values;
 #
---eval select '$MYSQL_CHARSETSDIR'
 --replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
 select @@global.character_sets_dir;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
