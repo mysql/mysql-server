@@ -113,9 +113,9 @@ if (`SELECT HEX(@commands) != HEX('')`)
   {
     --echo Slave is out of sync.
     --echo MASTER_BEFORE $master_before MASTER_AFTER $master_after SLAVE_BEFORE $slave_before SLAVE_AFTER $slave_after
-  #  connection slave;
-  #  --source include/show_rpl_debug_info.inc
-  #  --die
+    connection slave;
+    --source include/show_rpl_debug_info.inc
+    --die
   }
 }
 

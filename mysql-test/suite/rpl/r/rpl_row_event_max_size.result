@@ -22,12 +22,10 @@ set @@global.max_allowed_packet= 1048576;
 INSERT INTO t1 (data1, data2) VALUES (repeat('a',1048576), repeat('a',1048576));
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	1	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
-master-bin.000001	#	Gtid	1	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F

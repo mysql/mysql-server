@@ -56,13 +56,11 @@ select * from t1;
 a
 1
 On slave
-show binlog events in 'slave-bin.000002' from <binlog_start> limit 3,8;
+show binlog events in 'slave-bin.000002' from <binlog_start> limit 1,6;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 slave-bin.000002	#	Query	#	#	BEGIN
 slave-bin.000002	#	Query	#	#	use `test`; INSERT  IGNORE INTO t1 VALUES(1)
 slave-bin.000002	#	Query	#	#	COMMIT
-slave-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 slave-bin.000002	#	Query	#	#	BEGIN
 slave-bin.000002	#	Query	#	#	use `test`; INSERT  IGNORE INTO t1 VALUES(1)
 slave-bin.000002	#	Query	#	#	COMMIT

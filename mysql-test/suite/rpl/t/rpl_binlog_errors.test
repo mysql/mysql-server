@@ -186,7 +186,7 @@ SELECT count(*) FROM t4;
 
 -- echo ### check that the incident event is written to the current log
 SET GLOBAL debug="-d,error_unique_log_filename";
--- let $binlog_limit= 6,1
+-- let $binlog_limit= 4,1
 -- source include/show_binlog_events.inc
 
 # clean up and move to next test

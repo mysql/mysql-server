@@ -20,7 +20,7 @@ connection server_2;
 create table t1 (n int);
 let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1);
 let $master_log_pos_1= query_get_value(SHOW MASTER STATUS, Position, 1);
-let $master_log_pos_1= `SELECT $master_log_pos_1 + 100`;
+let $master_log_pos_1= `SELECT $master_log_pos_1 + 3`;
 
 --sync_slave_with_master server_1
 
@@ -38,16 +38,17 @@ show tables;
 
 create table t3 (n int) engine=innodb;
 let $master_log_pos_2= query_get_value(SHOW MASTER STATUS, Position, 1);
-let $master_log_pos_2= `SELECT $master_log_pos_2 + 100`;
+let $master_log_pos_2= `SELECT $master_log_pos_2 + 5`;
 set @a=1;
 insert into t3 values(@a);
 let $master_log_pos_3= query_get_value(SHOW MASTER STATUS, Position, 1);
-let $master_log_pos_3= `SELECT $master_log_pos_3 + 100`;
+let $master_log_pos_3= `SELECT $master_log_pos_3 + 5`;
 begin;
 insert into t3 values(2);
 insert into t3 values(3);
 commit;
 insert into t3 values(4);
+
 
 connection server_1;
 
