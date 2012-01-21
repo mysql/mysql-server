@@ -110,6 +110,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/SaveTest.java \
   $(clusterj_test_src)/testsuite/clusterj/SchemaChangeTest.java \
   $(clusterj_test_src)/testsuite/clusterj/SerialTransactionsTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/StressTest.java \
   $(clusterj_test_src)/testsuite/clusterj/TimeAsSqlTimeTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/TimeAsUtilDateTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/TimestampAsSqlTimestampTypesTest.java \
