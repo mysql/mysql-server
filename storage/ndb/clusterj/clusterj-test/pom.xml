@@ -20,13 +20,13 @@
   <parent>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-aggregate</artifactId>
-    <version>7.1.19-SNAPSHOT</version>
+    <version>7.1.20-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-test</artifactId>
   <packaging>jar</packaging>
-  <version>7.1.19-SNAPSHOT</version>
+  <version>7.1.20-SNAPSHOT</version>
   <name>ClusterJ Test Suite</name>
   <build>
     <plugins>
