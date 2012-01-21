@@ -278,6 +278,7 @@ BDB_DONTRUN_TESTS = \
 	test_query \
 	test_rand_insert_mult_db \
 	test_redirect_func \
+	test_row_size_supported \
 	test_stress1 \
 	test_stress2 \
 	test_stress3 \
