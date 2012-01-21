@@ -4025,6 +4025,7 @@ DROP TABLE t1;
 --echo #
 --echo # BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
 --echo # (duplicate of LP bug #888456)
+--echo #
 
 CREATE TABLE t1 (f1 varchar(1));
 INSERT INTO t1 VALUES ('v'),('s');
@@ -4042,5 +4043,50 @@ SELECT table1.f1, table2.f1_key FROM t1 AS table1, t2 AS table2
                   WHERE f1_key != table2.f1_key AND f1_key >= table1.f1);
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # LP bug 919427: EXPLAIN for a query over a single-row table 
+--echo #                with IN subquery in WHERE condition
+--echo # 
+
+CREATE TABLE ot (
+  col_int_nokey int(11), 
+  col_varchar_nokey varchar(1)
+) ;
+INSERT INTO ot VALUES (1,'x');
+
+CREATE TABLE it1(
+  col_int_key int(11), 
+  col_varchar_key varchar(1), 
+  KEY idx_cvk_cik (col_varchar_key,col_int_key)
+);
+INSERT INTO it1 VALUES (NULL,'x'), (NULL,'f');
+
+CREATE TABLE it2 (
+   col_int_key int(11),
+   col_varchar_key varchar(1),
+   col_varchar_key2 varchar(1),
+   KEY idx_cvk_cvk2_cik (col_varchar_key, col_varchar_key2, col_int_key),
+   KEY idx_cvk_cik (col_varchar_key, col_int_key)
+);
+INSERT INTO it2 VALUES (NULL,'x','x'), (NULL,'f','f');
+
+EXPLAIN
+SELECT col_int_nokey FROM ot 
+  WHERE col_varchar_nokey IN 
+        (SELECT col_varchar_key FROM it1 WHERE col_int_key IS NULL);
+SELECT col_int_nokey FROM ot 
+  WHERE col_varchar_nokey IN 
+        (SELECT col_varchar_key FROM it1 WHERE col_int_key IS NULL);
+
+EXPLAIN
+SELECT col_int_nokey FROM ot
+  WHERE (col_varchar_nokey, 'x') IN
+        (SELECT col_varchar_key, col_varchar_key2 FROM it2);
+SELECT col_int_nokey FROM ot
+  WHERE (col_varchar_nokey, 'x') IN
+        (SELECT col_varchar_key, col_varchar_key2 FROM it2);
+
+DROP TABLE ot,it1,it2;
 
 --echo End of 5.2 tests

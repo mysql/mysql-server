@@ -670,6 +670,7 @@ public:
   }
   virtual ~store_key() {}			/** Not actually needed */
   virtual const char *name() const=0;
+  virtual bool store_key_is_const() { return false; }
 
   /**
     @brief sets ignore truncation warnings mode and calls the real copy method
@@ -784,6 +785,7 @@ public:
   {
   }
   const char *name() const { return "const"; }
+  bool store_key_is_const() { return true; }
 
 protected:  
   enum store_key_result copy_inner()

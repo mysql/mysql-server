@@ -5158,6 +5158,7 @@ DROP TABLE t1;
 #
 # BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
 # (duplicate of LP bug #888456)
+#
 CREATE TABLE t1 (f1 varchar(1));
 INSERT INTO t1 VALUES ('v'),('s');
 CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
@@ -5196,4 +5197,52 @@ s	d
 v	s
 s	s
 DROP TABLE t1,t2;
+#
+# LP bug 919427: EXPLAIN for a query over a single-row table 
+#                with IN subquery in WHERE condition
+# 
+CREATE TABLE ot (
+col_int_nokey int(11), 
+col_varchar_nokey varchar(1)
+) ;
+INSERT INTO ot VALUES (1,'x');
+CREATE TABLE it1(
+col_int_key int(11), 
+col_varchar_key varchar(1), 
+KEY idx_cvk_cik (col_varchar_key,col_int_key)
+);
+INSERT INTO it1 VALUES (NULL,'x'), (NULL,'f');
+CREATE TABLE it2 (
+col_int_key int(11),
+col_varchar_key varchar(1),
+col_varchar_key2 varchar(1),
+KEY idx_cvk_cvk2_cik (col_varchar_key, col_varchar_key2, col_int_key),
+KEY idx_cvk_cik (col_varchar_key, col_int_key)
+);
+INSERT INTO it2 VALUES (NULL,'x','x'), (NULL,'f','f');
+EXPLAIN
+SELECT col_int_nokey FROM ot 
+WHERE col_varchar_nokey IN 
+(SELECT col_varchar_key FROM it1 WHERE col_int_key IS NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	it1	index_subquery	idx_cvk_cik	idx_cvk_cik	9	func,const	2	Using index; Using where
+SELECT col_int_nokey FROM ot 
+WHERE col_varchar_nokey IN 
+(SELECT col_varchar_key FROM it1 WHERE col_int_key IS NULL);
+col_int_nokey
+1
+EXPLAIN
+SELECT col_int_nokey FROM ot
+WHERE (col_varchar_nokey, 'x') IN
+(SELECT col_varchar_key, col_varchar_key2 FROM it2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	it2	index_subquery	idx_cvk_cvk2_cik,idx_cvk_cik	idx_cvk_cvk2_cik	8	func,const	1	Using index; Using where
+SELECT col_int_nokey FROM ot
+WHERE (col_varchar_nokey, 'x') IN
+(SELECT col_varchar_key, col_varchar_key2 FROM it2);
+col_int_nokey
+1
+DROP TABLE ot,it1,it2;
 End of 5.2 tests

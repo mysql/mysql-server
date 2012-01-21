@@ -2171,6 +2171,8 @@ bool subselect_uniquesubquery_engine::copy_ref_key()
 
   for (store_key **copy= tab->ref.key_copy ; *copy ; copy++)
   {
+    if ((*copy)->store_key_is_const())
+      continue;
     tab->ref.key_err= (*copy)->copy();
 
     /*
