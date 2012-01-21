@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -311,8 +311,6 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
     public DomainFieldHandlerImpl(
             DomainTypeHandlerImpl<?> domainTypeHandler, Table table, int i,
             com.mysql.clusterj.core.store.Column storeColumn) {
-        if (logger.isDebugEnabled()) logger.debug("new dynamic DomainFieldHandlerImpl: " +
-                "fieldNumber: " + fieldNumber + "; name:" + name);
         this.domainTypeHandler = domainTypeHandler;
         this.fieldNumber = i;
         this.storeColumn = storeColumn;
@@ -325,7 +323,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                 case Int:
                 case Unsigned:
                     this.objectOperationHandlerDelegate = objectOperationHandlerKeyInt;
-                    this.type = Integer.class;
+                    this.type = int.class;
                     break;
                 case Char:
                 case Varchar:
@@ -335,7 +333,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                 case Bigint:
                 case Bigunsigned:
                     this.objectOperationHandlerDelegate = objectOperationHandlerKeyLong;
-                    this.type = Long.class;
+                    this.type = long.class;
                     break;
                 case Binary:
                 case Varbinary:
@@ -350,16 +348,26 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
             switch (this.storeColumnType) {
                 case Bigint:
                 case Bigunsigned:
-                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectLong;
-                    this.type = Long.class;
+                    if (storeColumn.getNullable()) {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerObjectLong;
+                        this.type = Long.class;
+                    } else {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerLong;
+                        this.type = long.class;
+                    }
                     break;
                 case Binary:
                     this.objectOperationHandlerDelegate = objectOperationHandlerBytes;
                     this.type = byte[].class;
                     break;
                 case Bit:
-                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectLong;
-                    this.type = Long.class;
+                    if (storeColumn.getNullable()) {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerObjectLong;
+                        this.type = Long.class;
+                    } else {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerLong;
+                        this.type = long.class;
+                    }
                     break;
                 case Blob:
                     this.objectOperationHandlerDelegate = objectOperationHandlerBytesLob;
@@ -383,16 +391,31 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     this.type = BigDecimal.class;
                     break;
                 case Double:
-                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectDouble;
-                    this.type = Double.class;
+                    if (storeColumn.getNullable()) {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerObjectDouble;
+                        this.type = Double.class;
+                    } else {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerDouble;
+                        this.type = double.class;
+                    }
                     break;
                 case Float:
-                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectFloat;
-                    this.type = Float.class;
+                    if (storeColumn.getNullable()) {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerObjectFloat;
+                        this.type = Float.class;
+                    } else {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerFloat;
+                        this.type = float.class;
+                    }
                     break;
                 case Int:
-                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectInteger;
-                    this.type = Integer.class;
+                    if (storeColumn.getNullable()) {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerObjectInteger;
+                        this.type = Integer.class;
+                    } else {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerInt;
+                        this.type = int.class;
+                    }
                     break;
                 case Longvarbinary:
                     this.objectOperationHandlerDelegate = objectOperationHandlerBytes;
@@ -404,8 +427,13 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     break;
                 case Mediumint:
                 case Mediumunsigned:
-                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectInteger;
-                    this.type = Integer.class;
+                    if (storeColumn.getNullable()) {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerObjectInteger;
+                        this.type = Integer.class;
+                    } else {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerInt;
+                        this.type = int.class;
+                    }
                     break;
                 case Olddecimal:
                     error(local.message("ERR_Unsupported_Field_Type", "Olddecimal", name));
@@ -417,8 +445,13 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     break;
                 case Smallint:
                 case Smallunsigned:
-                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectShort;
-                    this.type = Short.class;
+                    if (storeColumn.getNullable()) {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerObjectShort;
+                        this.type = Short.class;
+                    } else {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerShort;
+                        this.type = short.class;
+                    }
                     break;
                 case Text:
                     this.objectOperationHandlerDelegate = objectOperationHandlerStringLob;
@@ -434,17 +467,26 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     break;
                 case Tinyint:
                 case Tinyunsigned:
-                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectByte;
-                    this.type = Byte.class;
+                    if (storeColumn.getNullable()) {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerObjectByte;
+                        this.type = Byte.class;
+                    } else {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerByte;
+                        this.type = byte.class;
+                    }
                     break;
                 case Undefined:
                     error(local.message("ERR_Unsupported_Field_Type", "Undefined", name));
                     objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
                     break;
                 case Unsigned:
-                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectInteger;
-                    this.type = Integer.class;
-                    break;
+                    if (storeColumn.getNullable()) {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerObjectInteger;
+                        this.type = Integer.class;
+                    } else {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerInt;
+                        this.type = int.class;
+                    }
                 case Varbinary:
                     this.objectOperationHandlerDelegate = objectOperationHandlerBytes;
                     this.type = byte[].class;
@@ -454,14 +496,21 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     this.type = String.class;
                     break;
                 case Year:
-                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectShortYear;
-                    this.type = Short.class;
+                    if (storeColumn.getNullable()) {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerObjectShort;
+                        this.type = Short.class;
+                    } else {
+                        this.objectOperationHandlerDelegate = objectOperationHandlerShort;
+                        this.type = short.class;
+                    }
                     break;
                 default:
                     error(local.message("ERR_Unsupported_Field_Type", this.storeColumnType, name));
                     objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
             }
         }
+        if (logger.isDebugEnabled()) logger.debug("new dynamic DomainFieldHandlerImpl: " +
+                "fieldNumber: " + fieldNumber + "; name: " + name + "; type: " + type);
         nullValueDelegate = nullValueNONE;
         registerIndices(domainTypeHandler);
         reportErrors();
