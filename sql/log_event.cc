@@ -2566,6 +2566,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         if (get_type_code() == GTID_LOG_EVENT)
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
+
+        return ret_worker;
       }
     }
     else
@@ -2577,8 +2579,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       rli->mts_end_group_sets_max_dbs= true;
       DBUG_ASSERT(rli->curr_group_da.elements == 2);
       DBUG_ASSERT(starts_group());
+      return ret_worker;
     }
-    return ret_worker;
   }
 
   // mini-group representative
