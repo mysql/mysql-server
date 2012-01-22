@@ -1188,6 +1188,172 @@ DROP TABLE t1,t2;
 DROP VIEW v1;
 
 --echo #
+--echo # Bug#54437 Extra rows with LEFT JOIN + semijoin 
+--echo #
+
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (a int);
+insert into t1 values(1),(1);
+insert into t2 values(1),(1),(1),(1);
+insert into t3 values(2),(2);
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+set optimizer_switch='materialization=off';
+
+set optimizer_switch='semijoin=off';
+explain
+select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+
+set optimizer_switch='semijoin=on';
+explain
+select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+
+set optimizer_switch=@save_optimizer_switch;
+
+drop table t1,t2,t3;
+
+--echo #
+--echo # Bug#55955: crash in MEMORY engine with IN(LEFT JOIN (JOIN))
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT);
+INSERT INTO t1 VALUES(1),(1);
+INSERT INTO t2 VALUES(1),(1);
+INSERT INTO t3 VALUES(2),(2);
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+set optimizer_switch='semijoin=off,materialization=off';
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+               FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+               FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+
+set optimizer_switch='semijoin=off,materialization=on';
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+               FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+               FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+
+set optimizer_switch='semijoin=on,materialization=off';
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+               FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+               FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+
+set optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # BUG#52329 - Wrong result: subquery materialization, IN, 
+--echo #             non-null field followed by nullable
+--echo #
+
+CREATE TABLE t1 (a1 CHAR(8) NOT NULL, a2 char(8) NOT NULL);
+
+CREATE TABLE t2a (b1 char(8), b2 char(8));
+CREATE TABLE t2b (b1 CHAR(8), b2 char(8) NOT NULL);
+CREATE TABLE t2c (b1 CHAR(8) NOT NULL, b2 char(8));
+
+INSERT INTO t1 VALUES ('1 - 12', '2 - 22');
+
+INSERT INTO t2a VALUES ('1 - 11', '2 - 21'),
+                       ('1 - 11', '2 - 21'),
+                       ('1 - 12', '2 - 22'),
+                       ('1 - 12', '2 - 22'),
+                       ('1 - 13', '2 - 23');
+
+INSERT INTO t2b SELECT * FROM t2a;
+INSERT INTO t2c SELECT * FROM t2a;
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+set optimizer_switch='semijoin=off,materialization=on';
+
+SELECT * FROM t1
+WHERE (a1, a2) IN (
+      SELECT b1, b2 FROM t2c WHERE b1 > '0' GROUP BY b1, b2);
+
+SELECT * FROM t1
+WHERE (a1, a2) IN (
+      SELECT b1, b2 FROM t2a WHERE b1 > '0');
+
+
+SELECT * FROM t1
+WHERE (a1, a2) IN (
+      SELECT b1, b2 FROM t2b WHERE b1 > '0');
+
+
+SELECT * FROM t1
+WHERE (a1, a2) IN (
+      SELECT b1, b2 FROM t2c WHERE b1 > '0');
+
+set optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1,t2a,t2b,t2c;
+
+--echo #
+--echo # Bug#57623: subquery within before insert trigger causes crash (sj=on)
+--echo #
+
+CREATE TABLE ot1(a INT);
+CREATE TABLE ot2(a INT);
+CREATE TABLE ot3(a INT);
+CREATE TABLE it1(a INT);
+
+INSERT INTO ot1 VALUES(0),(1),(2),(3),(4),(5),(6),(7);
+INSERT INTO ot2 VALUES(0),(2),(4),(6);
+INSERT INTO ot3 VALUES(0),(3),(6);
+INSERT INTO it1 VALUES(0),(1),(2),(3),(4),(5),(6),(7);
+
+let $query=
+SELECT *
+FROM   ot1
+     LEFT JOIN
+       (ot2 JOIN ot3 on ot2.a=ot3.a)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1);
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+set optimizer_switch='semijoin=on';
+
+set optimizer_switch='materialization=off';
+eval explain $query;
+eval $query;
+eval prepare s from '$query';
+execute s;
+execute s;
+deallocate prepare s;
+
+set optimizer_switch='materialization=on';
+eval explain $query;
+eval $query;
+eval prepare s from '$query';
+execute s;
+execute s;
+deallocate prepare s;
+
+set optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE ot1, ot2, ot3, it1;
+
+--echo #
 --echo # BUG#784723: Wrong result with semijoin + nested subqueries in maria-5.3  
 --echo #
 CREATE TABLE t1 ( t1field integer, primary key (t1field));
