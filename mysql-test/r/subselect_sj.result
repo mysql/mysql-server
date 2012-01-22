@@ -1231,6 +1231,60 @@ IN (SELECT t3.pk, t3.pk FROM t2 LEFT JOIN t3 ON t3.varchar_key)
 AND pk = 9;
 datetime_key
 DROP TABLE t1, t2, t3;
+# 
+# BUG#53060: LooseScan semijoin strategy does not return all rows
+# 
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin=on,materialization=off';
+set optimizer_switch='firstmatch=off,loosescan=on';
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t2 (i INTEGER, j INTEGER, KEY k(i, j));
+INSERT INTO t2 VALUES (1, 0), (1, 1), (2, 0), (2, 1);
+EXPLAIN
+SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	k	k	10	NULL	4	Using where; Using index; LooseScan
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer (flat, BNL join)
+SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
+i
+1
+2
+DROP TABLE t1, t2;
+set optimizer_switch=@save_optimizer_switch;
+#
+# BUG#49453: re-execution of prepared statement with view 
+#            and semijoin crashes
+#
+CREATE TABLE t1 (city VARCHAR(50), country_id INT);
+CREATE TABLE t2 (country_id INT, country VARCHAR(50));
+INSERT INTO t1 VALUES 
+('Batna',2),('Bchar',2),('Skikda',2),('Tafuna',3),('Algeria',2) ;
+INSERT INTO t2 VALUES (2,'Algeria'),(2,'AlgeriaDup'),(3,'XAmerican Samoa');
+CREATE VIEW v1 AS 
+SELECT country_id as vf_country_id
+FROM t2
+WHERE LEFT(country,1) = "A";
+PREPARE stmt FROM "
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (SELECT vf_country_id FROM v1);
+";
+
+EXECUTE stmt;
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+EXECUTE stmt;
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+DROP TABLE t1,t2;
+DROP VIEW v1;
 #
 # BUG#784723: Wrong result with semijoin + nested subqueries in maria-5.3  
 #

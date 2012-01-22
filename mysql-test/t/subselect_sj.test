@@ -1136,6 +1136,57 @@ WHERE (int_nokey, pk)
 
 DROP TABLE t1, t2, t3;
 
+--echo # 
+--echo # BUG#53060: LooseScan semijoin strategy does not return all rows
+--echo # 
+
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin=on,materialization=off';
+set optimizer_switch='firstmatch=off,loosescan=on';
+
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t2 (i INTEGER, j INTEGER, KEY k(i, j));
+INSERT INTO t2 VALUES (1, 0), (1, 1), (2, 0), (2, 1);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
+SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
+
+DROP TABLE t1, t2;
+
+set optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # BUG#49453: re-execution of prepared statement with view 
+--echo #            and semijoin crashes
+--echo #
+
+CREATE TABLE t1 (city VARCHAR(50), country_id INT);
+CREATE TABLE t2 (country_id INT, country VARCHAR(50));
+
+INSERT INTO t1 VALUES 
+  ('Batna',2),('Bchar',2),('Skikda',2),('Tafuna',3),('Algeria',2) ;
+INSERT INTO t2 VALUES (2,'Algeria'),(2,'AlgeriaDup'),(3,'XAmerican Samoa');
+
+CREATE VIEW v1 AS 
+  SELECT country_id as vf_country_id
+  FROM t2
+  WHERE LEFT(country,1) = "A"; 
+
+PREPARE stmt FROM "
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (SELECT vf_country_id FROM v1);
+";
+
+--echo
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1,t2;
+DROP VIEW v1;
+
 --echo #
 --echo # BUG#784723: Wrong result with semijoin + nested subqueries in maria-5.3  
 --echo #
