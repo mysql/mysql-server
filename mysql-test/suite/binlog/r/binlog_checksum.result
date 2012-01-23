@@ -13,8 +13,6 @@ drop table t1;
 RESET MASTER;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Previous_gtids	#	#	
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
 show tables;
 Tables_in_test

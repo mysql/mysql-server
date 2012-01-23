@@ -3198,8 +3198,7 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
     int error= 0;
     if (*ptr_ev &&
         (ev->get_type_code() != XID_EVENT ||
-         skip_event || (rli->is_mts_recovery() &&
-         ev->get_type_code() != GTID_LOG_EVENT &&
+         skip_event || (rli->is_mts_recovery() && !is_gtid_event(ev) &&
          (ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
           bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index))))
     {
@@ -3257,7 +3256,7 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
         rli->mts_recovery_group_seen_begin= true;
       }
       else if ((ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
-               (ev->get_type_code() != GTID_LOG_EVENT))
+               !is_gtid_event(ev))
       {
         rli->mts_recovery_index++;
         if (--rli->mts_recovery_group_cnt == 0)
@@ -4402,7 +4401,7 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
           flag_group_seen_begin= true;
         }
         else if ((ev->ends_group() || !flag_group_seen_begin) &&
-                 (ev->get_type_code() != GTID_LOG_EVENT))
+                 !is_gtid_event(ev))
         {
           int ret= 0;
           LOG_POS_COORD ev_coord= { (char *) rli->get_group_master_log_name(),
@@ -5988,6 +5987,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     inc_pos= event_len;
   }
   break;
+
+  case ANONYMOUS_GTID_LOG_EVENT:
 
   default:
     inc_pos= event_len;

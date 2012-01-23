@@ -496,7 +496,7 @@ connection master;
 echo [ on master ];
 
 # Kill the dump thread on master for previous slave connection and wait for it to exit
-let $_tid= `select id from information_schema.processlist where command = 'Binlog Dump GTID' limit 1`;
+let $_tid= `select id from information_schema.processlist where command = 'Binlog Dump' limit 1`;
 if ($_tid)
 {
   disable_query_log;

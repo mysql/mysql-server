@@ -58,8 +58,8 @@ reap;
 let $rows= `select count(*) from t2  /* must be 2 or 0 */`;
 let $MYSQLD_DATADIR= `select @@datadir`;
 
---let $binlog_killed_pos=query_get_value(SHOW BINLOG EVENTS, Pos, 6)
---let $binlog_killed_end_log_pos=query_get_value(SHOW BINLOG EVENTS, End_log_pos, 6)
+--let $binlog_killed_pos=query_get_value(SHOW BINLOG EVENTS, Pos, 4)
+--let $binlog_killed_end_log_pos=query_get_value(SHOW BINLOG EVENTS, End_log_pos, 4)
 --exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_killed_pos --stop-position=$binlog_killed_end_log_pos $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --disable_result_log
@@ -277,8 +277,8 @@ select * from t4 order by b /* must be (1,1), (1,2) */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 --echo must have the update query event on the 4th line
 source include/show_binlog_events.inc;
---let $binlog_killed_pos= query_get_value(SHOW BINLOG EVENTS, Pos, 6)
---let $binlog_killed_end_log_pos= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 6)
+--let $binlog_killed_pos= query_get_value(SHOW BINLOG EVENTS, Pos, 4)
+--let $binlog_killed_end_log_pos= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 4)
 
 --echo *** a proof the query is binlogged with an error ***
 
@@ -325,8 +325,8 @@ select count(*) from t4 /* must be 1 */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 --echo must have the delete query event on the 4th line
 source include/show_binlog_events.inc;
---let $binlog_killed_pos= query_get_value(SHOW BINLOG EVENTS, Pos, 6)
---let $binlog_killed_end_log_pos= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 6)
+--let $binlog_killed_pos= query_get_value(SHOW BINLOG EVENTS, Pos, 4)
+--let $binlog_killed_end_log_pos= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 4)
 
 # a proof the query is binlogged with an error
 

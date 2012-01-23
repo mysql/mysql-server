@@ -112,18 +112,18 @@ if  (`SELECT @@global.binlog_format = 'STATEMENT'`)
   --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 
   # The first INSERT DELAYED
-  --let $stmt= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' FROM $_start, Info, 3)
+  --let $stmt= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' FROM $_start, Info, 2)
   --echo $stmt
 
 # The second INSERT DELAYED statement is the 3 item if two INSERT DELAYED are
 # handled together
-  --let $stmt= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' FROM $_start, Info, 4)
+  --let $stmt= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' FROM $_start, Info, 3)
 
 # The second INSERT DELAYED statement is the 5 item if two INSERT DELAYED are
 # handled separately
   if ($stmt == COMMIT)
   {
-    --let $stmt= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' FROM $_start, Info, 7)
+    --let $stmt= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' FROM $_start, Info, 5)
   }
   --echo $stmt
 }
@@ -135,7 +135,7 @@ if  (`SELECT @@global.binlog_format = 'STATEMENT'`)
 {
   #must show two INSERT DELAYED
   --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
-  --let $binlog_limit= 3,8
+  --let $binlog_limit= 1,6
   --source include/show_binlog_events.inc
 }
 select * from t1;

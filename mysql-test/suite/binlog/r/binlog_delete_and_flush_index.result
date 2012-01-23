@@ -13,8 +13,6 @@ master-bin.000001	#
 ### assertion: binlog contents from regular entries
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Previous_gtids	#	#	
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a int)
 FLUSH LOGS;
 ### assertion: index file contains renamed binlog and the new one
@@ -28,8 +26,6 @@ master-bin.000002
 ###            renamed and changed the index file 
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin-b34582.000001	#	Previous_gtids	#	#	
-master-bin-b34582.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin-b34582.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a int)
 ### assertion: user changed binlog index shows correct entries
 show binary logs;

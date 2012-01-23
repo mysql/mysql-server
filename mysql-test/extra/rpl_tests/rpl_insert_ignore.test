@@ -66,9 +66,10 @@ if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 }
 if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 {
-  --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 3, 1\', Info, 1]\' LIKE \'%$statement_file\'
+  --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 2, 1\', Info, 1]\' LIKE \'%$statement_file\'
   --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
 }
+
 --source include/assert.inc
 
 # An insert duplicate that does not update anything must be written to the binary
@@ -108,10 +109,11 @@ if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 }
 if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 {
-  --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 2, 1\', Info, 1]\' LIKE \'%$statement_file\'
+  --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 1, 1\', Info, 1]\' LIKE \'%$statement_file\'
   --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
 }
 --source include/assert.inc
+
 
 # Clean up
 --connection master

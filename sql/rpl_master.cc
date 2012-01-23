@@ -805,8 +805,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     coord->file_name= log_file_name; // initialization basing on what slave remembers
     coord->pos= pos;
   }
-  sql_print_information("Start binlog_dump to slave_server(%d), pos(%s, %lu)",
-                        thd->server_id, log_ident, (ulong)pos);
+  sql_print_information("Start binlog_dump to master_thread_id(%lu) slave_server(%d), pos(%s, %lu)",
+                        thd->thread_id, thd->server_id, log_ident, (ulong)pos);
   if (RUN_HOOK(binlog_transmit, transmit_start, (thd, flags, log_ident, pos)))
   {
     errmsg= "Failed to run hook 'transmit_start'";
@@ -1163,6 +1163,7 @@ impossible position";
       case ROTATE_EVENT:
         skip_group= searching_first_gtid;
         break;
+      case ANONYMOUS_GTID_LOG_EVENT:
       default:
         /* do nothing */
         break;
@@ -1424,6 +1425,7 @@ impossible position";
           case ROTATE_EVENT:
             skip_group= searching_first_gtid;
             break;
+          case ANONYMOUS_GTID_LOG_EVENT:
           default:
             /* do nothing */
             break;

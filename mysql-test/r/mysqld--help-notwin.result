@@ -49,11 +49,6 @@ The following options may be given as the first argument:
  tables such as in the statement INSERT INTO t_myisam
  SELECT * FROM t_innodb; otherwise, slaves may diverge
  from the master.
- --binlog-disable-transactional-unsafe-statements 
- Prevents execution of statements that would be impossible
- to log in a transactionally safe manner. This currently
- includes updates to non-transactional tables, and CREATE
- ... SELECT.
  --binlog-do-db=name Tells the master it should log updates for the specified
  database, and exclude all others not explicitly
  mentioned.
@@ -150,6 +145,12 @@ The following options may be given as the first argument:
  handling INSERT DELAYED. If the queue becomes full, any
  client that does INSERT DELAYED will wait until there is
  room in the queue again
+ --disable-gtid-unsafe-statements 
+ Prevents execution of statements that would be impossible
+ to log in a transactionally safe manner. Currently, the
+ disallowed statements include CREATE TEMPORARY TABLE
+ inside transactions, all updates to non-transactional
+ tables, and CREATE TABLE ... SELECT.
  --disconnect-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
  replication.
@@ -886,7 +887,6 @@ bind-address (No default value)
 binlog-cache-size 32768
 binlog-checksum NONE
 binlog-direct-non-transactional-updates FALSE
-binlog-disable-transactional-unsafe-statements FALSE
 binlog-format STATEMENT
 binlog-row-event-max-size 1024
 binlog-row-image FULL
@@ -913,6 +913,7 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
+disable-gtid-unsafe-statements FALSE
 disconnect-slave-event-count 0
 div-precision-increment 4
 event-scheduler OFF

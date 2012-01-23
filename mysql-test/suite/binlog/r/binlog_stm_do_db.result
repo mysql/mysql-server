@@ -35,11 +35,8 @@ COMMIT;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Previous_gtids	#	#	
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	CREATE DATABASE b42829
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `b42829`; CREATE TABLE t1 (x int, y int) engine=InnoDB
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `b42829`; CREATE TABLE t2 (x int, y int) engine=InnoDB
 DROP DATABASE b42829;
 DROP DATABASE b42829_filtered;

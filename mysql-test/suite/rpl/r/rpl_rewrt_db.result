@@ -199,17 +199,11 @@ Variable_name	Value
 Slave_open_temp_tables	0
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `database_master_temp_01`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_01_01_temp`
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `database_master_temp_02`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_02_02_temp`,`t_02_01_temp`
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `database_master_temp_01`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_01_01_temp`
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `database_master_temp_03`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_03_03_temp`,`t_03_02_temp`,`t_03_01_temp`
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `database_master_temp_02`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_02_02_temp`,`t_02_01_temp`
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `database_master_temp_01`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_01_01_temp`
 ****
 **** Cleaning up the test case
