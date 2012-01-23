@@ -3410,6 +3410,41 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     &my_collation_ucs2_general_ci_handler
 };
 
+
+CHARSET_INFO my_charset_ucs2_general_mysql500_ci=
+{
+  159, 0, 0,                                       /* number           */
+  MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII, /* state */
+  "ucs2",                                          /* cs name          */
+  "ucs2_general_mysql500_ci",                      /* name             */
+  "",                                              /* comment          */
+  NULL,                                            /* tailoring        */
+  ctype_ucs2,                                      /* ctype            */
+  to_lower_ucs2,                                   /* to_lower         */
+  to_upper_ucs2,                                   /* to_upper         */
+  to_upper_ucs2,                                   /* sort_order       */
+  NULL,                                            /* uca              */
+  NULL,                                            /* tab_to_uni       */
+  NULL,                                            /* tab_from_uni     */
+  &my_unicase_mysql500,                            /* caseinfo         */
+  NULL,                                            /* state_map        */
+  NULL,                                            /* ident_map        */
+  1,                                               /* strxfrm_multiply */
+  1,                                               /* caseup_multiply  */
+  1,                                               /* casedn_multiply  */
+  2,                                               /* mbminlen         */
+  2,                                               /* mbmaxlen         */
+  0,                                               /* min_sort_char    */
+  0xFFFF,                                          /* max_sort_char    */
+  ' ',                                             /* pad char         */
+  0,                          /* escape_with_backslash_is_dangerous    */
+  1,                                               /* levels_for_compare */
+  1,                                               /* levels_for_order   */
+  &my_charset_ucs2_handler,
+  &my_collation_ucs2_general_ci_handler
+};
+
+
 CHARSET_INFO my_charset_ucs2_bin=
 {
     90,0,0,		/* number       */
