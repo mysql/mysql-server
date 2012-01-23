@@ -4285,6 +4285,8 @@ int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
 
     range_lock_grabbed = true;
     doing_bulk_fetch = (thd_sql_command(thd) == SQLCOM_SELECT);
+    bulk_fetch_iteration = 0;
+    rows_fetched_using_bulk_fetch = 0;
     error = 0;
 cleanup:
     if (error) {
@@ -4306,7 +4308,6 @@ void ha_tokudb::invalidate_bulk_fetch() {
     bytes_used_in_range_query_buff= 0;
     curr_range_query_buff_offset = 0;
 }
-
 
 //
 // Initializes local cursor on DB with index keynr
@@ -4982,7 +4983,22 @@ int ha_tokudb::fill_range_query_buf(
     // we want to stop under these conditions:
     //  - we overran the prelocked range
     //  - we are close to the end of the buffer
-    //
+    //  - we have fetched an exponential amount of rows with
+    //  respect to the bulk fetch iteration, which is initialized 
+    //  to 0 in index_init() and prelock_range().
+
+    rows_fetched_using_bulk_fetch++;
+    // if the iteration is less than the number of possible shifts on
+    // a 64 bit integer, check that we haven't exceeded this iterations
+    // row fetch upper bound.
+    if (bulk_fetch_iteration < HA_TOKU_BULK_FETCH_ITERATION_MAX) {
+        uint64_t row_fetch_upper_bound = 1LLU << bulk_fetch_iteration;
+        assert(row_fetch_upper_bound > 0);
+        if (rows_fetched_using_bulk_fetch >= row_fetch_upper_bound) { 
+            error = 0;
+            goto cleanup;
+        }
+    }
 
     if (bytes_used_in_range_query_buff + table_share->rec_buff_length > user_defined_size) {
         error = 0;
@@ -5059,6 +5075,7 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
             //
             // call c_getf_next with purpose of filling in range_query_buff
             //
+            rows_fetched_using_bulk_fetch = 0;
             if (direction > 0) {
                 error = cursor->c_getf_next(cursor, flags,
                         smart_dbt_bf_callback, &bf_info);
@@ -5066,6 +5083,9 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
             else {
                 error = cursor->c_getf_prev(cursor, flags,
                         smart_dbt_bf_callback, &bf_info);
+            }
+            if (bulk_fetch_iteration < HA_TOKU_BULK_FETCH_ITERATION_MAX) {
+                bulk_fetch_iteration++;
             }
 
             error = handle_cursor_error(error, HA_ERR_END_OF_FILE,active_index);
@@ -5455,6 +5475,8 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
     // as of now, only do it if we are doing a select
     //
     doing_bulk_fetch = (thd_sql_command(thd) == SQLCOM_SELECT);
+    bulk_fetch_iteration = 0;
+    rows_fetched_using_bulk_fetch = 0;
 
 cleanup:
     TOKUDB_DBUG_RETURN(error);
@@ -7310,6 +7332,11 @@ int ha_tokudb::tokudb_add_index(
             );
         if (error) { goto cleanup; }
 
+        // set the bulk fetch iteration to its max so that adding an
+        // index fills the bulk fetch buffer every time. we do not
+        // want it to grow exponentially fast.
+        rows_fetched_using_bulk_fetch = 0;
+        bulk_fetch_iteration = HA_TOKU_BULK_FETCH_ITERATION_MAX;
         cursor_ret_val = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED,smart_dbt_bf_callback, &bf_info);
 
         while (cursor_ret_val != DB_NOTFOUND || ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) > 0)) {

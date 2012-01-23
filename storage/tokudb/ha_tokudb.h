@@ -15,7 +15,6 @@
 
 class ha_tokudb;
 
-
 typedef struct loader_context {
     THD* thd;
     char write_status_msg[200];
@@ -99,7 +98,6 @@ typedef struct st_tokudb_share {
 //
 #define HA_TOKU_CAP 0
 
-
 //
 // These are keys that will be used for retrieving metadata in status.tokudb
 // To get the version, one looks up the value associated with key hatoku_version
@@ -150,6 +148,10 @@ int tokudb_update_fun(
     void *set_extra
     );
 
+// the number of rows bulk fetched in one callback grows exponentially
+// with the bulk fetch iteration, so the max iteration is the max number
+// of shifts we can perform on a 64 bit integer.
+#define HA_TOKU_BULK_FETCH_ITERATION_MAX 63
 
 class ha_tokudb : public handler {
 private:
@@ -185,6 +187,8 @@ private:
     u_int32_t size_range_query_buff; // size of the allocated range query buffer
     u_int32_t bytes_used_in_range_query_buff; // number of bytes used in the range query buffer
     u_int32_t curr_range_query_buff_offset; // current offset into the range query buffer for queries to read
+    uint64_t bulk_fetch_iteration;
+    uint64_t rows_fetched_using_bulk_fetch;
     bool doing_bulk_fetch;
 
     //
