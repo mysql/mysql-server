@@ -485,6 +485,10 @@ def	performance_schema	host_cache	COUNT_AUTHENTICATION_ERRORS	13	NULL	NO	bigint	
 def	performance_schema	host_cache	COUNT_USER_ACL_ERRORS	14	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	host_cache	COUNT_LOCAL_ERRORS	15	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	host_cache	COUNT_UNKNOWN_ERRORS	16	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	FIRST_SEEN	17	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references	
+def	performance_schema	host_cache	LAST_SEEN	18	0000-00-00 00:00:00.000000	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references	
+def	performance_schema	host_cache	FIRST_ERROR_SEEN	19	0000-00-00 00:00:00.000000	YES	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references	
+def	performance_schema	host_cache	LAST_ERROR_SEEN	20	0000-00-00 00:00:00.000000	YES	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references	
 def	performance_schema	mutex_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
 def	performance_schema	mutex_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	mutex_instances	LOCKED_BY_THREAD_ID	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
