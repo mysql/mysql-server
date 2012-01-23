@@ -1,5 +1,6 @@
 #ifdef TAP_TEST
 
+#include <ndb_global.h>
 #include <NdbTap.hpp>
 #include "CountingPool.hpp"
 #include "Pool.hpp"
