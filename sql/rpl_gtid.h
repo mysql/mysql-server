@@ -973,11 +973,6 @@ public:
   /// Returns true if this Gtid_set is a subset of the other Gtid_set.
   bool is_subset(const Gtid_set *super) const;
   /**
-    Returns true if this set and the other set have at least one GTID
-    in common.
-  */
-  //bool is_intersection_nonempty(Gtid_set *other);
-  /**
     Computes the intersection of this set and the other set and stores
     in this set.
   */

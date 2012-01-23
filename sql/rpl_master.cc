@@ -742,7 +742,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
 */
 
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
-		       ushort flags, const Gtid_set* grp_set)
+		       ushort flags, const Gtid_set* gtid_set)
 {
   LOG_INFO linfo;
   char *log_file_name = linfo.log_file_name;
@@ -835,6 +835,22 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     goto err;
   }
+
+/*
+  /// @todo: enable and test this code /sven
+  if (gtid_set != NULL)
+  {
+    global_sid_lock.wrlock();
+    if (!gtid_state.get_lost_gtids()->is_subset(gtid_set))
+    {
+      global_sid_lock.unlock();
+      errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+      my_errno= ER_MASTER_HAS_PURGED_REQUIRED_GTIDS;
+      goto err;
+    }
+    global_sid_lock.unlock();
+  }
+*/
 
   name=search_file_name;
   if (log_ident[0])
@@ -1119,8 +1135,8 @@ impossible position";
           Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
                                                    packet->length() - checksum_size,
                                                    p_fdle);
-          skip_group= grp_set->contains_gtid(gtid->get_sidno(true),
-                                             gtid->get_gno());
+          skip_group= gtid_set->contains_gtid(gtid->get_sidno(true),
+                                              gtid->get_gno());
           searching_first_gtid= skip_group;
 #ifndef DBUG_OFF
           DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
@@ -1380,8 +1396,8 @@ impossible position";
               Gtid_log_event* gtid= new Gtid_log_event(packet->ptr() + ev_offset,
                                                        packet->length() - checksum_size,
                                                        p_fdle);
-              skip_group= grp_set->contains_gtid(gtid->get_sidno(true),
-                                                 gtid->get_gno());
+              skip_group= gtid_set->contains_gtid(gtid->get_sidno(true),
+                                                  gtid->get_gno());
               searching_first_gtid= skip_group;
 #ifndef DBUG_OFF
               DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "

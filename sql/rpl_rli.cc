@@ -1569,9 +1569,10 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
 #endif
     if (!current_thd &&
         relay_log.init_gtid_sets(&gtid_set, NULL,
-                                 opt_slave_sql_verify_checksum))
+                                 opt_slave_sql_verify_checksum,
+                                 true/*true=need lock*/))
     {
-      sql_print_error("Failed in init_gtid_set() called from Relay_log_info::init_info().");
+      sql_print_error("Failed in init_gtid_sets() called from Relay_log_info::init_info().");
       DBUG_RETURN(1);
     }
 #ifndef NO_DBUG

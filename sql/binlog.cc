@@ -26,13 +26,13 @@
 #include "rpl_utility.h"
 #include "debug_sync.h"
 #include "sql_parse.h"
-#include <stack>
+#include <list>
 #include <string>
 
 using std::max;
 using std::min;
 using std::string;
-using std::stack;
+using std::list;
 
 #define MY_OFF_T_UNDEF (~(my_off_t)0UL)
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
@@ -1951,16 +1951,14 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   GTID events.
   @retval NO_GTIDS The file was successfully read and it does not
   contain GTID events.
-  @retval FATAL_ERROR Out of memory, or the file contains GTID events
+  @retval ERROR Out of memory, or the file contains GTID events
   when GTID_MODE = OFF.
-  @retval READ_ERROR_GOT_GTIDS Successfully read the initial
-  Previous_gtids_log_event, but there was a read error later.
-  @retval READ_ERROR_NO_GTIDS Read error before reading the first
-  Previous_gtids_log_event.
+  @retval TRUNCATED The file was truncated before the end of the
+  first Previous_gtids_log_event.
 */
 enum enum_read_gtids_from_binlog_status
-{ GOT_GTIDS, NO_GTIDS, FATAL_ERROR, READ_ERROR_GOT_GTIDS, READ_ERROR_NO_GTIDS };
-enum_read_gtids_from_binlog_status
+{ GOT_GTIDS, NO_GTIDS, ERROR, TRUNCATED };
+static enum_read_gtids_from_binlog_status
 read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
                        Gtid_set *prev_gtids, bool verify_checksum)
 {
@@ -1973,7 +1971,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
   */
   Format_description_log_event fd_ev(BINLOG_VERSION), *fd_ev_p= &fd_ev;
   if (!fd_ev.is_valid())
-    DBUG_RETURN(FATAL_ERROR);
+    DBUG_RETURN(ERROR);
 
   File file;
   IO_CACHE log;
@@ -1987,7 +1985,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
       files. Currently, it is called after this routine.
       /Alfranio
     */
-    DBUG_RETURN(READ_ERROR_NO_GTIDS);
+    DBUG_RETURN(TRUNCATED);
   }
 
   /*
@@ -2016,16 +2014,16 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
       if (gtid_mode == 0)
       {
         my_error(ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF, MYF(0));
-        ret= FATAL_ERROR;
+        ret= ERROR;
       }
       ret= GOT_GTIDS;
       // add events to sets
       Previous_gtids_log_event *prev_gtids_ev=
         (Previous_gtids_log_event *)ev;
       if (all_gtids != NULL && prev_gtids_ev->add_to_set(all_gtids) != 0)
-        ret= FATAL_ERROR, done= true;
+        ret= ERROR, done= true;
       else if (prev_gtids != NULL && prev_gtids_ev->add_to_set(prev_gtids) != 0)
-        ret= FATAL_ERROR, done= true;
+        ret= ERROR, done= true;
       else if (all_gtids == NULL)
         done= true;
 #ifndef DBUG_OFF
@@ -2039,14 +2037,14 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     case GTID_LOG_EVENT:
     {
       Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
-      rpl_sidno sidno= gtid_ev->get_sidno(false);
+      rpl_sidno sidno= gtid_ev->get_sidno(false/*false=don't need lock*/);
       if (sidno < 0)
-        ret= FATAL_ERROR, done= true;
+        ret= ERROR, done= true;
       else if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
-        ret= FATAL_ERROR, done= true;
+        ret= ERROR, done= true;
       else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
                RETURN_STATUS_OK)
-        ret= FATAL_ERROR, done= true;
+        ret= ERROR, done= true;
       DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
                           filename, sidno, gtid_ev->get_gno()));
       break;
@@ -2066,10 +2064,10 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
 
   if (log.error < 0)
   {
-    // do not set ret= ERROR here; if binlog is trucated, the caller
-    // should proceed to next log
-    sql_print_error("Error reading GTIDs from binary log: %d", log.error);
-    ret= (ret == GOT_GTIDS ? READ_ERROR_GOT_GTIDS : READ_ERROR_NO_GTIDS);
+    // This is not a fatal error; the log may just be truncated.
+
+    // @todo but what other errors could happen? IO error?
+    sql_print_warning("Error reading GTIDs from binary log: %d", log.error);
   }
 
   if (fd_ev_p != &fd_ev)
@@ -2080,12 +2078,13 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
   end_io_cache(&log);
   mysql_file_close(file, MYF(MY_WME));
 
+  DBUG_PRINT("info", ("returning %d", ret));
   DBUG_RETURN(ret);
 }
 
 
 bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
-                                   bool verify_checksum)
+                                   bool verify_checksum, bool need_lock)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
   DBUG_PRINT("info", ("lost_gtids=%p; so we are recovering a %s log",
@@ -2095,54 +2094,95 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     Acquires the necessary locks to ensure that logs are not either
     removed or updated when we are reading from it.
   */
-  mysql_mutex_lock(&LOCK_log);
-  mysql_mutex_lock(&LOCK_index);
-  global_sid_lock.wrlock();
+  if (need_lock)
+  {
+    // We don't need LOCK_log if we are only going to read the initial
+    // Prevoius_gtids_log_event and ignore the Gtid_log_events.
+    if (all_gtids != NULL)
+      mysql_mutex_lock(&LOCK_log);
+    mysql_mutex_lock(&LOCK_index);
+    global_sid_lock.wrlock();
+  }
+  else
+  {
+    if (all_gtids != NULL)
+      mysql_mutex_assert_owner(&LOCK_log);
+    mysql_mutex_assert_owner(&LOCK_index);
+    global_sid_lock.assert_some_wrlock();
+  }
 
   // Gather the set of files to be accessed.
-  stack<string> filename_stack;
+  list<string> filename_list;
   LOG_INFO linfo;
   int error;
-  bool found_gtids= false;
+
+  list<string>::iterator it;
+  list<string>::reverse_iterator rit;
+  bool reached_first_file= false;
 
   for (error= find_log_pos(&linfo, NULL, false); !error;
        error= find_next_log(&linfo, false))
-    filename_stack.push(string(linfo.log_file_name));
+  {
+    DBUG_PRINT("info", ("read log filename '%s'", linfo.log_file_name));
+    filename_list.push_back(string(linfo.log_file_name));
+  }
   if (error != LOG_INFO_EOF)
   {
     DBUG_PRINT("error", ("Error reading binlog index"));
     goto end;
   }
+  error= 0;
 
-  // Iterate over all files in reverse order.
-  while (!filename_stack.empty())
+  if (all_gtids != NULL)
   {
-    const char *filename= filename_stack.top().c_str();
-    filename_stack.pop();
-    bool is_first_file= filename_stack.empty();
-
-    DBUG_PRINT("info", ("filename='%s' found_gtids=%d is_first_file=%d",
-                        filename, found_gtids, is_first_file));
-
-    if (!found_gtids || (is_first_file && lost_gtids != NULL))
+    DBUG_PRINT("info", ("Iterating backwards through binary logs, looking for the last binary log that contains a Previous_gtids_log_event."));
+    // Iterate over all files in reverse order until we find one that
+    // contains a Previous_gtids_log_event.
+    rit= filename_list.rbegin();
+    bool got_gtids= false;
+    reached_first_file= (rit == filename_list.rend());
+    DBUG_PRINT("info", ("filename='%s' reached_first_file=%d",
+                        rit->c_str(), reached_first_file));
+    while (!got_gtids && !reached_first_file)
     {
-      switch (read_gtids_from_binlog(filename,
-                                     found_gtids ? NULL : all_gtids,
-                                     is_first_file ? lost_gtids : NULL,
+      const char *filename= rit->c_str();
+      rit++;
+      reached_first_file= (rit == filename_list.rend());
+      DBUG_PRINT("info", ("filename='%s' got_gtids=%d reached_first_file=%d",
+                          filename, got_gtids, reached_first_file));
+      switch (read_gtids_from_binlog(filename, all_gtids,
+                                     reached_first_file ? lost_gtids : NULL,
                                      verify_checksum))
       {
-      case FATAL_ERROR:
+      case ERROR:
+        error= 1;
         goto end;
-
       case GOT_GTIDS:
-      case READ_ERROR_GOT_GTIDS:
-        if (lost_gtids == NULL)
-          goto end;
-        found_gtids= true;
-        break;
-
+        got_gtids= true;
+        /*FALLTHROUGH*/
       case NO_GTIDS:
-      case READ_ERROR_NO_GTIDS:
+      case TRUNCATED:
+        break;
+      }
+    }
+  }
+  if (lost_gtids != NULL && !reached_first_file)
+  {
+    DBUG_PRINT("info", ("Iterating forwards through binary logs, looking for the first binary log that contains a Previous_gtids_log_event."));
+    for (it= filename_list.begin(); it != filename_list.end(); it++)
+    {
+      const char *filename= it->c_str();
+      DBUG_PRINT("info", ("filename='%s'", filename));
+      switch (read_gtids_from_binlog(filename, NULL, lost_gtids,
+                                     verify_checksum))
+      {
+      case ERROR:
+        error= 1;
+        /*FALLTHROUGH*/
+      case GOT_GTIDS:
+        goto end;
+      case NO_GTIDS:
+      case TRUNCATED:
         break;
       }
     }
@@ -2152,10 +2192,16 @@ end:
     all_gtids->dbug_print("all_gtids");
   if (lost_gtids)
     lost_gtids->dbug_print("lost_gtids");
-  global_sid_lock.unlock();
-  mysql_mutex_unlock(&LOCK_index);
-  mysql_mutex_unlock(&LOCK_log);
-  DBUG_RETURN(false);
+  if (need_lock)
+  {
+    global_sid_lock.unlock();
+    mysql_mutex_unlock(&LOCK_index);
+    if (all_gtids != NULL)
+      mysql_mutex_unlock(&LOCK_log);
+  }
+  filename_list.clear();
+  DBUG_PRINT("info", ("returning %d", error));
+  DBUG_RETURN(error != 0 ? true : false);
 }
 
 
@@ -2203,13 +2249,13 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       DBUG_EVALUATE_IF("fault_injection_registering_index", 1, 0))
   {
     /**
-            TODO: although this was introduced to appease valgrind
-                  when injecting emulated faults using fault_injection_registering_index
-                  it may be good to consider what actually happens when
-                  open_purge_index_file succeeds but register or sync fails.
-    
-                 Perhaps we might need the code below in MYSQL_LOG_BIN::cleanup
-                 for "real life" purposes as well? 
+      @todo: although this was introduced to appease valgrind
+      when injecting emulated faults using fault_injection_registering_index
+      it may be good to consider what actually happens when
+      open_purge_index_file succeeds but register or sync fails.
+
+      Perhaps we might need the code below in MYSQL_LOG_BIN::cleanup
+      for "real life" purposes as well? 
     */
     DBUG_EXECUTE_IF("fault_injection_registering_index", {
       if (my_b_inited(&purge_index_file))
@@ -3230,10 +3276,10 @@ err:
 */
 
 int MYSQL_BIN_LOG::purge_logs(const char *to_log, 
-                          bool included,
-                          bool need_mutex, 
-                          bool need_update_threads, 
-                          ulonglong *decrease_log_space)
+                              bool included,
+                              bool need_mutex, 
+                              bool need_update_threads, 
+                              ulonglong *decrease_log_space)
 {
   int error= 0;
   bool exit_loop= 0;
@@ -3291,6 +3337,18 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   {
     sql_print_error("MSYQL_BIN_LOG::purge_logs failed to update the index file");
     goto err;
+  }
+
+  // Update gtid_state->lost_gtids
+  if (gtid_mode > 0 && !is_relay_log)
+  {
+    global_sid_lock.wrlock();
+    if (init_gtid_sets(NULL,
+                       const_cast<Gtid_set *>(gtid_state.get_lost_gtids()),
+                       opt_master_verify_checksum,
+                       false/*false=don't need lock*/))
+      goto err;
+    global_sid_lock.unlock();
   }
 
   DBUG_EXECUTE_IF("crash_purge_critical_after_update_index", DBUG_SUICIDE(););
