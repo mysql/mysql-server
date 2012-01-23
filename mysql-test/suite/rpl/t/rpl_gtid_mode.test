@@ -41,6 +41,10 @@
 #      GTID_MODE = OFF.
 #    - START SLAVE fails if master has GTID_MODE = OFF and slave has
 #      GTID_MODE = ON.
+#
+# ==== References ====
+#
+# Added in WL#3584 - Global Transaction Identifiers
 
 
 --source include/master-slave.inc

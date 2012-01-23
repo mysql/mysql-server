@@ -79,6 +79,7 @@ if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`
   --let $info= query_get_value($command_show in "$server_log", Info, 2)
   if ($type != Previous_gtids)
   {
+    --source include/show_rpl_debug_info.inc
     --echo $type $info --- Type should be Previous_gtids.
     --echo log='$server_log'
     --eval $command_show in "$server_log"
@@ -88,6 +89,7 @@ if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`
   {
     if (`SELECT "$info" <> ""`)
     {
+      --source include/show_rpl_debug_info.inc
       --echo $type $info -- Info should be empty.
       --let $datadir= `select @@datadir`
       --echo log='$server_log'
@@ -100,6 +102,7 @@ if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`
   {
     if (`SELECT NOT ("$info" REGEXP "$server_uuid:$gtid_set_ini-$gtid_set_end")`)
     {
+      --source include/show_rpl_debug_info.inc
       --echo $type $info -- Info should be $server_uuid:$gtid_set_ini-$gtid_set_end.
       --let $datadir= `select @@datadir`
       --echo log='$server_log'
@@ -112,6 +115,7 @@ if (`SELECT "$binlog" <> "" and "$gtid_set_end" <> "" and "$gtid_set_ini" <> ""`
   {
     if (`SELECT NOT ("$info" REGEXP "$server_uuid:$gtid_set_ini")`)
     {
+      --source include/show_rpl_debug_info.inc
       --echo $type $info -- Info should be $server_uuid:$gtid_set_ini.
       --let $datadir= `select @@datadir`
       --echo log='$server_log'
@@ -144,6 +148,7 @@ if (`SELECT "$binlog" <> "" and "$gtid_end" <> "" and "$gtid_ini" <> ""`)
   }
   if ($trans <=  $gtid_end)
   {
+    --source include/show_rpl_debug_info.inc
     --echo $type $info -- We should retrieve from $gtid_ini to $gtid_end.
     --echo log='$server_log'
     --eval $command_show in "$server_log"

@@ -66,7 +66,7 @@ if ($rpl_debug)
 # Sanity-check input
 if (!$assert_text)
 {
-  --die ERROR IN TEST: the mysqltest variable rpl_test must be set
+  --die ERROR IN TEST: the mysqltest variable assert_text must be set
 }
 
 --let $_assert_old_connection= $CURRENT_CONNECTION

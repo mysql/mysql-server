@@ -4903,7 +4903,8 @@ int mysqld_main(int argc, char **argv)
       if (mysql_bin_log.init_gtid_sets(
             const_cast<Gtid_set *>(gtid_state.get_logged_gtids()),
             const_cast<Gtid_set *>(gtid_state.get_lost_gtids()),
-            opt_master_verify_checksum))
+            opt_master_verify_checksum,
+            true/*true=need lock*/))
         unireg_abort(1);
 
       /*

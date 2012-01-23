@@ -187,9 +187,13 @@ public:
     Previous_gtids_log_event of the first binary log that has a
     Previous_gtids_log_event.
     @param verify_checksum If true, checksums will be checked.
+    @param need_lock If true, LOCK_log, LOCK_index, and
+    global_sid_lock.wrlock are acquired; otherwise they are asserted
+    to be taken already.
+    @return false on success, true on error.
   */
   bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
-                      bool verify_checksum);
+                      bool verify_checksum, bool need_lock);
 
   void set_previous_gtid_set(Gtid_set *previous_gtid_set_param)
   {

@@ -1248,9 +1248,8 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   if (my_b_read(file, (uchar *) head, header_size))
   {
     DBUG_PRINT("info", ("Log_event::read_log_event(IO_CACHE*,Format_desc*) "
-                        "failed in my_b_read((IO_CACHE*)%p, (uchar*)%p, %u) "
-                        "file='%s'",
-                        file, head, header_size, file->file_name));
+                        "failed in my_b_read((IO_CACHE*)%p, (uchar*)%p, %u)",
+                        file, head, header_size));
     UNLOCK_MUTEX;
     /*
       No error here; it could be that we are at the file's end. However
