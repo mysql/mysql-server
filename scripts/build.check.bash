@@ -19,10 +19,10 @@ function retry() {
     cmd=$*
     let retries=0
     while [ $retries -le 10 ] ; do
-	echo `date` $cmd
+	echo $(date) $cmd
 	bash -c "$cmd"
 	exitcode=$?
-	echo `date` $cmd $exitcode $retries
+	echo $(date) $cmd $exitcode $retries
 	let retries=retries+1
 	if [ $exitcode -eq 0 ] ; then break; fi
 	sleep 10
@@ -46,7 +46,7 @@ function get_ncpus() {
 function get_latest_svn_revision() {
     local revision=0
     local svntarget=$svnserver/$*
-    local latest=`retry svn info $svntarget`
+    local latest=$(retry svn info $svntarget)
     if [[ $latest =~ "Last Changed Rev: ([0-9]+)" ]] ; then
         revision=${BASH_REMATCH[1]}
     fi
@@ -59,7 +59,7 @@ function make_tokudb_name() {
     if [ $tokudb_dir = "toku" ] ; then
 	echo $tokudb
     else
-	echo `echo $tokudb_dir-$tokudb | tr / -`
+	echo $(echo $tokudb_dir-$tokudb | tr / -)
     fi
 }
 
@@ -69,7 +69,7 @@ function runcmd() {
     local makedir=$1; shift
     local cmd=$*
 
-    echo `mydate` $makedir $cmd
+    echo $(mydate) $makedir $cmd
     pushd $makedir
     if [ $? = 0 ] ; then
 	$cmd
@@ -80,17 +80,17 @@ function runcmd() {
 	fi
 	if [ $fail -eq 0 ] ; then
 	    if [ $exitcode -eq 0 ] ; then
-		result="PASS `mydate` $dir $cmd"
+		result="PASS $(mydate) $dir $cmd"
 		let npass=npass+1
 	    else
-		result="FAIL `mydate` $dir $cmd"
+		result="FAIL $(mydate) $dir $cmd"
 		let nfail=nfail+1
 	    fi
 	else
 	    if [ $exitcode -eq 0 ] ; then
-		result="XPASS `mydate` $dir $cmd"
+		result="XPASS $(mydate) $dir $cmd"
 	    else
-		result="XFAIL `mydate` $dir $cmd"
+		result="XFAIL $(mydate) $dir $cmd"
 	    fi
 	fi
     fi
@@ -118,14 +118,14 @@ function build() {
     export BDBDIR=/usr/local/BerkeleyDB.$BDB
     if [ ! -d $BDBDIR ] ; then return 2; fi
 
-    tokudb_name=`make_tokudb_name $branch $tokudb`
+    tokudb_name=$(make_tokudb_name $branch $tokudb)
     export TOKUDB_NAME=$tokudb_name
     export TOKUDB_REVISION=$revision
 
     productname=$tokudb_name-$revision
     checkout=$branch/$tokudb
 
-    latestrev=`get_latest_svn_revision $checkout`
+    latestrev=$(get_latest_svn_revision $checkout)
     if [ $latestrev -eq 0 ] ; then return 3; fi
 
     commit_msg=$(my_mktemp ft)
@@ -149,7 +149,7 @@ function build() {
     done
     popd
 
-    tracefile=$builddir/ft+$productname+$ftcc-$GCCVERSION+bdb-$BDB+$nodename+$system+$release+$arch
+    tracefile=$builddir/$productname+$ftcc-$GCCVERSION+bdb-$BDB+$nodename+$system+$release+$arch
     if [ $debugtests != 0 ] ; then tracefile=$tracefile+debug; fi
     if [ $releasetests != 0 ] ; then tracefile=$tracefile+release; fi
 
@@ -188,9 +188,9 @@ function build() {
 
 	let n=makejobs; if [ $parallel != 0 ] ; then let n=n/2; fi
 	range_trace=$(my_mktemp range)
-	eval runcmd 0 $productbuilddir/src/range_tree/tests make check -k -j$n -s SUMMARIZE=1 CC=$ftcc DEBUG=1 HAVE_CILK=$have_cilk VGRIND= >>$range_trace 2>&1 $BG
+	eval runcmd 0 $productbuilddir/src/range_tree/tests make check -k -j$n -s SUMMARIZE=1 CC=$ftcc DEBUG=1 HAVE_CILK=$have_cilk >>$range_trace 2>&1 $BG
 	lock_trace=$(my_mktemp lock)
-	eval runcmd 0 $productbuilddir/src/lock_tree/tests  make check -k -j$n -s SUMMARIZE=1 CC=$ftcc DEBUG=1 HAVE_CILK=$have_cilk VGRIND= >>$lock_trace 2>&1 $BG
+	eval runcmd 0 $productbuilddir/src/lock_tree/tests  make check -k -j$n -s SUMMARIZE=1 CC=$ftcc DEBUG=1 HAVE_CILK=$have_cilk >>$lock_trace 2>&1 $BG
 	wait
 	cat $range_trace >>$tracefile; rm $range_trace
 	cat $lock_trace >>$tracefile; rm $lock_trace
@@ -246,6 +246,11 @@ function build() {
 	eval runcmd 0 $productbuilddir/newbrt/tests make check -j$makejobs -k -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
 	eval runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
 	eval runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$makejobs -k -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
+	if [ $bdbtests != 0 ] ; then
+	    bdb_trace=$(my_mktemp bdb)
+	    eval runcmd 0 $productbuilddir/src/tests make check.bdb -j$makejobs -k -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$bdb_trace 2>&1
+	    cat $bdb_trace >>$tracefile; rm $bdb_trace
+	fi
     fi
 
     # cilk tests
@@ -263,8 +268,7 @@ function build() {
     runcmd $dowindows $productbuilddir/db-benchmark-test-cxx make -k -s >>$tracefile 2>&1
     runcmd $dowindows $productbuilddir/db-benchmark-test-cxx make -k -s check >>$tracefile 2>&1
     fi
-    
-    # Makefile for release/examples is NOT ported to windows.  Expect it to fail.
+
     if [ 0 = 1 ] ; then 
     runcmd $dowindows $productbuilddir/release make -k setup >>$tracefile 2>&1
     runcmd $dowindows $productbuilddir/release/examples make -k check >>$tracefile 2>&1
@@ -302,7 +306,7 @@ function build() {
 	fi
 
 	local cf=$(my_mktemp ftresult)
-	echo "$testresult tokudb-build $productname $CC $GCCVERSION $system $release $arch $nodename" >$cf
+	echo "$testresult $productname $CC $GCCVERSION $ftcc $GCCVERSION $system $release $arch $nodename" >$cf
 	echo >>$cf; echo >>$cf
 	cat $commit_msg >>$cf
 	if [ $nfail != 0 ] ; then egrep " FAIL" $tracefile >>$cf; fi
@@ -321,15 +325,15 @@ function build() {
 # set defaults
 exitcode=0
 svnserver=https://svn.tokutek.com/tokudb
-nodename=`uname -n`
-system=`uname -s | tr '[:upper:]' '[:lower:]' | sanitize`
-release=`uname -r | sanitize`
-arch=`uname -m | sanitize`
-date=`date +%Y%m%d`
-branch="."
-tokudb="tokudb"
-bdb="4.6"
-makejobs=`get_ncpus`
+nodename=$(uname -n)
+system=$(uname -s | tr '[:upper:]' '[:lower:]' | sanitize)
+release=$(uname -r | sanitize)
+arch=$(uname -m | sanitize)
+date=$(date +%Y%m%d)
+branch=.
+tokudb=tokudb
+bdb=4.6
+makejobs=$(get_ncpus)
 revision=0
 VALGRIND=tokugrind
 commit=1
@@ -345,6 +349,7 @@ drdtests=1
 cilktests=0
 cxxtests=0
 parallel=0
+bdbtests=1
 
 while [ $# -gt 0 ] ; do
     arg=$1; shift
@@ -369,11 +374,11 @@ if [ $ftcc = icc ] ; then
 fi
 
 if [ $branch = "." ] ; then branch="toku"; fi
-if [ $revision -eq 0 ] ; then revision=`get_latest_svn_revision`; fi
+if [ $revision -eq 0 ] ; then revision=$(get_latest_svn_revision); fi
 if [ $parallel -ne 0 ] ; then BG="&"; fi
 
 # setup GCCVERSION
-export GCCVERSION=`$ftcc --version|head -1|cut -f3 -d" "`
+export GCCVERSION=$($ftcc --version|head -1|cut -f3 -d" ")
 export VALGRIND=$VALGRIND
 
 # limit execution time to 3 hours
