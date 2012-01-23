@@ -50,6 +50,8 @@ typedef struct unicase_info_st
 
 extern MY_UNICASE_INFO *my_unicase_default[256];
 extern MY_UNICASE_INFO *my_unicase_turkish[256];
+extern MY_UNICASE_INFO *my_unicase_mysql500[256];
+
 
 typedef struct uni_ctype_st
 {
@@ -311,11 +313,13 @@ extern CHARSET_INFO my_charset_tis620_bin;
 extern CHARSET_INFO my_charset_ucs2_general_ci;
 extern CHARSET_INFO my_charset_ucs2_bin;
 extern CHARSET_INFO my_charset_ucs2_unicode_ci;
+extern CHARSET_INFO my_charset_ucs2_general_mysql500_ci;
 extern CHARSET_INFO my_charset_ujis_japanese_ci;
 extern CHARSET_INFO my_charset_ujis_bin;
 extern CHARSET_INFO my_charset_utf8_general_ci;
 extern CHARSET_INFO my_charset_utf8_unicode_ci;
 extern CHARSET_INFO my_charset_utf8_bin;
+extern CHARSET_INFO my_charset_utf8_general_mysql500_ci;
 extern CHARSET_INFO my_charset_cp1250_czech_ci;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
 
