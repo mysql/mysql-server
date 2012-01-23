@@ -72,7 +72,7 @@ SET_TARGET_PROPERTIES(mt_thr_config-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_MT_THR_CONFIG")
 TARGET_LINK_LIBRARIES(mt_thr_config-t ndbgeneral)
 
-FOREACH(testprog IN ITEMS CountingPool DynArr256)
+FOREACH(testprog CountingPool DynArr256)
   ADD_EXECUTABLE(${testprog}-t ${testprog}.cpp)
   SET_TARGET_PROPERTIES(${testprog}-t PROPERTIES COMPILE_FLAGS "-DTAP_TEST")
   TARGET_LINK_LIBRARIES(${testprog}-t ndbtest ndbkernel ndbsched ndberror
