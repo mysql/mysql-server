@@ -32,7 +32,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "config.h"
 #ifdef HAVE_ALLOCA_H
 #include "alloca.h"
-#else
+#elif defined(HAVE_MALLOC_H) 
 #include "malloc.h"
 #endif
 

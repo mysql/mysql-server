@@ -372,9 +372,6 @@ C_MODE_END
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
-#ifdef HAVE_SYS_TIMEB_H
-#include <sys/timeb.h>				/* Avoid warnings on SCO */
-#endif
 #if TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
@@ -858,7 +855,7 @@ static inline double my_isinf(double x)
   This will be slightly slower and perhaps a tiny bit less accurate than
   doing it the IEEE754 way but log2() should be available on C99 systems.
 */
-inline double log2(double x)
+static inline double log2(double x)
 {
   return (log(x) / M_LN2);
 }
