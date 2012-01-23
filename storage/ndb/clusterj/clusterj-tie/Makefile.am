@@ -33,6 +33,7 @@ clusterj_tie_java= \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/ClusterTransactionImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/ColumnImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/DbImpl.java \
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/DbImplForNdbRecord.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/DbugImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/DictionaryImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/IndexImpl.java \
