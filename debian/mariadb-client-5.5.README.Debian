@@ -1,0 +1,4 @@
+FAQ:
+
+Q: My <tab> completition is gone, why?
+A: You have "no-auto-rehash" in the "[mysql]" section of /etc/mysql/my.cnf!

@@ -1,0 +1,15 @@
+# This file is intensionally empty to disable apparmor by default for newer
+# versions of MariaDB, while providing seamless upgrade from older versions
+# and from mysql, where apparmor is used.
+#
+# By default, we do not want to have any apparmor profile for the MariaDB
+# server. It does not provide much useful functionality/security, and causes
+# several problems for users who often are not even aware that apparmor
+# exists and runs on their system.
+#
+# Users can modify and maintain their own profile, and in this case it will
+# be used.
+#
+# When upgrading from previous version, users who modified the profile
+# will be promptet to keep or discard it, while for default installs
+# we will automatically disable the profile.

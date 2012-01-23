@@ -1,0 +1,11 @@
+# 01_MAKEFILES__Docs_Images_Makefile.in.dpatch
+# 01_MAKEFILES__Docs_Makefile.in.dpatch
+# 02_no_builtin_ndbcluster_plugin.dpatch
+# 21_init__openquery_configtest.dpatch
+33_scripts__mysql_create_system_tables__no_test.dpatch
+38_scripts__mysqld_safe.sh__signals.dpatch
+41_scripts__mysql_install_db.sh__no_test.dpatch
+44_scripts__mysql_config__libs.dpatch
+50_mysql-test__db_test.dpatch
+# 60_zlib_innodb_workaround.dpatch
+61_replace_dash_with_bash_mbug675185.dpatch

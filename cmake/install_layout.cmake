@@ -166,26 +166,26 @@ SET(INSTALL_PLUGINTESTDIR_RPM           ${plugin_tests})
 # DEB layout
 #
 SET(INSTALL_BINDIR_DEB                  "bin")
-SET(INSTALL_SBINDIR_DEB                 "bin")
-SET(INSTALL_SCRIPTDIR_DEB               "scripts")
+SET(INSTALL_SBINDIR_DEB                 "sbin")
+SET(INSTALL_SCRIPTDIR_DEB               "bin")
 #
 SET(INSTALL_LIBDIR_DEB                  "lib")
-SET(INSTALL_PLUGINDIR_DEB               "lib/plugin")
+SET(INSTALL_PLUGINDIR_DEB               "lib/mysql/plugin")
 #
-SET(INSTALL_INCLUDEDIR_DEB              "include")
+SET(INSTALL_INCLUDEDIR_DEB              "include/mysql")
 #
 SET(INSTALL_DOCDIR_DEB                  "docs")
 SET(INSTALL_DOCREADMEDIR_DEB            ".")
-SET(INSTALL_MANDIR_DEB                  "man")
-SET(INSTALL_INFODIR_DEB                 "docs")
+SET(INSTALL_MANDIR_DEB                  "share/man")
+SET(INSTALL_INFODIR_DEB                 "share/info")
 #
 SET(INSTALL_SHAREDIR_DEB                "share")
-SET(INSTALL_MYSQLSHAREDIR_DEB           "share")
+SET(INSTALL_MYSQLSHAREDIR_DEB           "share/mysql")
 SET(INSTALL_MYSQLTESTDIR_DEB            "mysql-test")
 SET(INSTALL_SQLBENCHDIR_DEB             ".")
 SET(INSTALL_SUPPORTFILESDIR_DEB         "support-files")
 #
-SET(INSTALL_MYSQLDATADIR_DEB            "data")
+SET(INSTALL_MYSQLDATADIR_DEB            "/var/lib/mysql")
 SET(INSTALL_PLUGINTESTDIR_DEB           ${plugin_tests})
 
 #
