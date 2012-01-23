@@ -17,9 +17,9 @@
 #include "trace_mem.h"
 #endif
 
-DB_ENV *env;
-DB *db;
-DB_TXN *tid=0;
+static DB_ENV *env = NULL;
+static DB *db = NULL;
+static DB_TXN *tid= NULL;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
@@ -28,7 +28,8 @@ static int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|
 // static int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 static char *dbfilename = "bench.db";
 static u_int64_t cachesize = 127*1024*1024;
-static int verbose UU() = 0;
+static int nqueries = 1000000;
+static int nthreads = 1;
 static const char *log_dir = NULL;
 
 static long long set_count = 0;
@@ -84,11 +85,11 @@ static int do_nothing (DBT const* UU(key), DBT const* UU(data), void* UU(extrav)
   return TOKUDB_CURSOR_CONTINUE;
 }
 
-static void test_begin_commit(int nqueries) {
+static void test_begin_commit(int _nqueries) {
     int r;
     unsigned long long k;
     unsigned char kv[keylen];
-    for (int i = 0; i < nqueries; i++) {
+    for (int i = 0; i < _nqueries; i++) {
         DB_TXN *txn = NULL;
         r = env->txn_begin(env, NULL, &txn, DB_TXN_SNAPSHOT); assert_zero(r);
         DBC *c = NULL;
@@ -154,12 +155,13 @@ static void *test_thread(void *arg) {
     return arg;
 }
 
+static void usage(void) {
+    fprintf(stderr, "--nqueries %d\n", nqueries);
+    fprintf(stderr, "--nthreads %d\n", nthreads);
+    fprintf(stderr, "--cachesize %" PRId64 "\n", cachesize);
+}
 
 int test_main(int argc, char * const argv[]) {
-    int nqueries = 1000000;
-    int nthreads = 1;
-
-    // parse_args(argc, argv);
     for (int i = 1; i < argc; i++) {
         char * const arg = argv[i];
         if (strcmp(arg, "--nqueries") == 0 && i+1 < argc) {
@@ -174,6 +176,7 @@ int test_main(int argc, char * const argv[]) {
             cachesize = atoll(argv[++i]);
             continue;
         }
+        usage();
         return 1;
     }
 
