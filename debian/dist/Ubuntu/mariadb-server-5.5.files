@@ -56,7 +56,7 @@ usr/share/man/man1/innochecksum.1
 usr/share/man/man1/mysql_tzinfo_to_sql.1
 usr/share/mysql/debian-start.inc.sh
 usr/share/mysql/echo_stderr
-usr/share/mysql/errmsg.txt
+usr/share/mysql/errmsg-utf8.txt
 usr/share/mysql/fill_help_tables.sql
 usr/share/mysql/mysql_system_tables_data.sql
 usr/share/mysql/mysql_system_tables.sql
