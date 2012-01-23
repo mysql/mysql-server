@@ -1259,7 +1259,8 @@ void Item_exists_subselect::fix_length_and_dec()
     We need only 1 row to determine existence (i.e. any EXISTS that is not
     an IN always requires LIMIT 1)
   */
-  unit->global_parameters->select_limit= new Item_int((int32) 1);
+  thd->change_item_tree(&unit->global_parameters->select_limit,
+                        new Item_int((int32) 1));
   DBUG_PRINT("info", ("Set limit to 1"));
   DBUG_VOID_RETURN;
 }
