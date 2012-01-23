@@ -58,7 +58,8 @@ libsched_mt_a_SOURCES = SimulatedBlock_mt.cpp \
                         mt.cpp \
                         dummy_mt.cpp
 
-libtest_a_SOURCES = test_context.cpp
+libtest_a_SOURCES = test_context.cpp \
+                    ../blocks/dbtup/tuppage.cpp
 
 EXTRA_DIST=SimulatedBlock.cpp TransporterCallback.cpp CMakeLists.txt LongSignal.cpp SimplePropertiesSection.cpp
 
@@ -90,33 +91,32 @@ bench_pool_LDADD = libkernel.a ../error/liberror.a \
   $(top_builddir)/dbug/libdbuglt.la \
   $(top_builddir)/strings/libmystringslt.la
 
-testDynArr256_CXXFLAGS = -DUNIT_TEST
-testDynArr256_SOURCES = DynArr256.cpp
-testDynArr256_LDFLAGS = @ndb_bin_am_ldflags@
-testDynArr256_LDADD = libtest.a \
+test_ldadd = libtest.a \
   libkernel.a libsched.a ../error/liberror.a \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
   $(top_builddir)/mysys/libmysyslt.la \
   $(top_builddir)/dbug/libdbuglt.la \
   $(top_builddir)/strings/libmystringslt.la
+
+testDynArr256_CXXFLAGS = -DUNIT_TEST
+testDynArr256_SOURCES = DynArr256.cpp
+testDynArr256_LDFLAGS = @ndb_bin_am_ldflags@
+testDynArr256_LDADD = $(test_ldadd)
+
+CountingPool_t_CXXFLAGS = -DTAP_TEST
+CountingPool_t_SOURCES = CountingPool.cpp
+CountingPool_t_LDFLAGS = @ndb_bin_am_ldflags@
+CountingPool_t_LDADD = $(test_ldadd)
 
 DynArr256_t_CXXFLAGS = -DTAP_TEST
 DynArr256_t_SOURCES = DynArr256.cpp
 DynArr256_t_LDFLAGS = @ndb_bin_am_ldflags@
-DynArr256_t_LDADD = libtest.a \
-  libkernel.a libsched.a ../error/liberror.a \
-  $(top_builddir)/storage/ndb/src/libndbclient.la \
-  $(top_builddir)/mysys/libmysyslt.la \
-  $(top_builddir)/dbug/libdbuglt.la \
-  $(top_builddir)/strings/libmystringslt.la
+DynArr256_t_LDADD = $(test_ldadd)
 
 testSectionReader_CXXFLAGS = -DUNIT_TEST
 testSectionReader_SOURCES = SectionReader.cpp
 testSectionReader_LDFLAGS = @ndb_bin_am_ldflags@
-testSectionReader_LDADD = $(top_builddir)/storage/ndb/src/libndbclient.la \
-  $(top_builddir)/mysys/libmysyslt.la \
-  $(top_builddir)/dbug/libdbuglt.la \
-  $(top_builddir)/strings/libmystringslt.la
+testSectionReader_LDADD = $(test_ldadd)
 
 testLongSignals_CXXFLAGS = -DUNIT_TEST
 testLongSignals_SOURCES = testLongSig/testLongSig.cpp
@@ -143,4 +143,4 @@ mt_thr_config_t_LDADD = \
 	$(top_builddir)/storage/ndb/src/common/util/libgeneral.la \
 	$(top_builddir)/mysys/libmysyslt.la
 
-noinst_PROGRAMS = mt_thr_config-t DynArr256-t
+noinst_PROGRAMS = mt_thr_config-t CountingPool-t DynArr256-t
