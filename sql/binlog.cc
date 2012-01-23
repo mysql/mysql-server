@@ -5871,7 +5871,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     TABLE* prev_access_table= NULL;
     // true if at least one table is non-transactional.
-    bool some_non_transactional_table= false;
+    bool write_to_some_non_transactional_table= false;
 #ifndef DBUG_OFF
     {
       static const char *prelocked_mode_name[] = {
@@ -5903,10 +5903,12 @@ int THD::decide_logging_format(TABLE_LIST *tables)
                           table->table_name, flags));
 
       my_bool trans= table->table->file->has_transactions();
-      some_non_transactional_table= some_non_transactional_table || !trans;
 
       if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
+        write_to_some_non_transactional_table=
+          write_to_some_non_transactional_table || !trans;
+
         if (prev_write_table && prev_write_table->file->ht !=
             table->table->file->ht)
           multi_write_engine= TRUE;
@@ -6074,8 +6076,9 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       }
     }
 
-    if (!error && disable_gtid_unsafe_statements)
-      error= is_dml_gtid_compatible(some_non_transactional_table) ? 0 : 1;
+    if (!error && disable_gtid_unsafe_statements &&
+        !is_dml_gtid_compatible(write_to_some_non_transactional_table))
+      error= 1;
 
     if (error) {
       DBUG_PRINT("info", ("decision: no logging since an error was generated"));
@@ -6160,46 +6163,27 @@ bool THD::is_ddl_gtid_compatible() const
 bool THD::is_dml_gtid_compatible(bool non_transactional_table) const
 {
   /*
+    Non-transactional updates are unsafe: they will be logged as a
+    transaction of their own.  If they are re-executed on the slave
+    inside a transaction, then the non-transactional statement's
+    GTID will be the same as the surrounding transaction's GTID.
+
     Only statements that generate row events can be unsafe: otherwise,
     the statement either has an implicit pre-commit or is not
     binlogged at all.
+
+    The debug symbol "allow_gtid_unsafe_non_transactional_updates"
+    disables the error.  This is useful because it allows us to run
+    old tests that were not written with the restrictions of GTIDs in
+    mind.
   */
-  DBUG_PRINT("info", ("query='%s' can_generate_row_events=%d non_trx=%d "
-                      "sqlcom=%d CRE=%d ALT=%d DRP=%d "
-                      "create-tmp=%d drop-tmp=%d "
-                      "in_trx=%d"
-                      ,
-                      query(),
-                      sqlcom_can_generate_row_events(this),
-                      non_transactional_table,
-                      lex->sql_command,
-                      SQLCOM_CREATE_TABLE,
-                      SQLCOM_ALTER_TABLE,
-                      SQLCOM_DROP_TABLE,
-                      lex->create_info.options & HA_LEX_CREATE_TMP_TABLE,
-                      lex->drop_temporary,
-                      in_multi_stmt_transaction_mode()
-                      ));
-  /*
-    @todo enable this check once we taught mtr to use innodb for
-    internal tables /sven
-  */
-#ifdef TEMPORARILY_DISABLE_CHECK_FOR_MYISAM_SO_THAT_TESTS_WORK___PLEASE_FIX_MTR_AND_REENABLE_ASAP
-  if (sqlcom_can_generate_row_events(this))
+  if (sqlcom_can_generate_row_events(this) &&
+      non_transactional_table &&
+      !DBUG_EVALUATE_IF("allow_gtid_unsafe_non_transactional_updates", 1, 0))
   {
-    /*
-      Non-transactional updates are unsafe: they will be logged as a
-      transaction of their own.  If they are re-executed on the slave
-      inside a transaction, then the non-transactional statement's
-      GTID will be the same as the surrounding transaction's GTID.
-    */
-    if (non_transactional_table)
-    {
-      my_error(ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE, MYF(0));
-      return false;
-    }
+    my_error(ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE, MYF(0));
+    return false;
   }
-#endif
 
   return true;
 }
