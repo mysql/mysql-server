@@ -60,7 +60,7 @@ public class ClusterConnectionImpl
     final int nodeId;
 
     /** All dbs given out by this cluster connection */
-    private Map<DbImpl, Object> dbs = new IdentityHashMap<DbImpl, Object>();
+    private Map<Db, Object> dbs = new IdentityHashMap<Db, Object>();
 
     /** The map of table name to NdbRecordImpl */
     private ConcurrentMap<String, NdbRecordImpl> ndbRecordImplMap = new ConcurrentHashMap<String, NdbRecordImpl>();
@@ -98,7 +98,7 @@ public class ClusterConnectionImpl
                 // create a dictionary for NdbRecord
                 Ndb ndbForNdbRecord = Ndb.create(clusterConnection, database, "def");
                 handleError(ndbForNdbRecord, clusterConnection, connectString, nodeId);
-                DbImpl dbForNdbRecord = new DbImpl(this, ndbForNdbRecord, maxTransactions);
+                DbImplForNdbRecord dbForNdbRecord = new DbImplForNdbRecord(this, ndbForNdbRecord);
                 dbs.put(dbForNdbRecord, null);
                 dictionaryForNdbRecord = dbForNdbRecord.getNdbDictionary();
             }
@@ -167,7 +167,7 @@ public class ClusterConnectionImpl
             }
             ndbRecordImplMap.clear();
             if (dbs.size() != 0) {
-                Map<DbImpl, Object> dbsToClose = new IdentityHashMap<DbImpl, Object>(dbs);
+                Map<Db, Object> dbsToClose = new IdentityHashMap<Db, Object>(dbs);
                 for (Db db: dbsToClose.keySet()) {
                     db.close();
                 }
