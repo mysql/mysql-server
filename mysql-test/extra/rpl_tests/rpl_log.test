@@ -33,10 +33,10 @@ eval load data infile '$LOAD_FILE' into table t1 ignore 1 lines;
 select count(*) from t1;
 source include/show_binlog_events.inc;
 
-let $binlog_limit= 0,3;
+let $binlog_limit= 1;
 source include/show_binlog_events.inc;
 
-let $binlog_limit= 3,5;
+let $binlog_limit= 1,4;
 source include/show_binlog_events.inc;
 let $binlog_limit=;
 flush logs;

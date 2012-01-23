@@ -39,8 +39,6 @@ INSERT INTO t1 VALUES (@positive,
 ## account the unsigned_flag
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Previous_gtids	#	#	
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (`tinyint` TINYINT,
 `smallint` SMALLINT,
 `mediumint` MEDIUMINT,
@@ -55,13 +53,10 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (`tinyint` TINYINT,
 `float` FLOAT,
 `real` REAL(30,2),
 `decimal` DECIMAL(30,2)) ENGINE = MyISAM
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615,18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615)
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`positive`=18446744073709551615
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (@positive,
@@ -103,8 +98,6 @@ INSERT INTO t1 VALUES (@negative,
 ## account the unsigned_flag
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Previous_gtids	#	#	
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (`tinyint` TINYINT,
 `smallint` SMALLINT,
 `mediumint` MEDIUMINT,
@@ -119,13 +112,10 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (`tinyint` TINYINT,
 `float` FLOAT,
 `real` REAL(30,2),
 `decimal` DECIMAL(30,2)) ENGINE = MyISAM
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615,18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615)
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`positive`=18446744073709551615
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (@positive,
@@ -143,13 +133,10 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (@positive,
 @positive,
 @positive)
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (-9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808,-9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808)
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`negative`=-9223372036854775808
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (@negative,

@@ -325,7 +325,7 @@ if ($CRC_RET_stmt_sidef) {
     SHOW BINLOG EVENTS;
     --die Wrong number of warnings.
   }
-  --let $binlog_event= query_get_value(SHOW BINLOG EVENTS, Event_type, 3)
+  --let $binlog_event= query_get_value(SHOW BINLOG EVENTS, Event_type, 2)
   if ($binlog_event != No such row) {
     --enable_query_log
     --echo ******** Failure! Something was written to the binlog despite SQL_LOG_BIN=0 ********
@@ -345,23 +345,23 @@ if ($CRC_RET_stmt_sidef) {
     SHOW BINLOG EVENTS;
     --die Warnings printed
   }
-  --let $event_type= query_get_value(SHOW BINLOG EVENTS, Event_type, 5)
-  # The first event is format_description, the second is Gtid_event,
-  # the third Query_event('BEGIN'), and the fourth should be our Query
+  --let $event_type= query_get_value(SHOW BINLOG EVENTS, Event_type, 3)
+  # The first event is format_description, the second is
+  # Query_event('BEGIN'), and the third should be our Query
   # for 'INSERT DELAYED' unsafe_type 3, which is safe after
   # the fix of bug#54579.
   if (`SELECT $unsafe_type = 3 AND '$event_type' != 'Query'`) {
     --enable_query_log
-    --echo ******** Failure! Event number 4 was a '$event_type', not a 'Query'. ********
+    --echo ******** Failure! Event number 3 was a '$event_type', not a 'Query'. ********
     SHOW BINLOG EVENTS;
     --die Wrong events in binlog.
   }
-  # The first event is format_description, the second is Gtid_event,
-  # the third is Query_event('BEGIN'), and the fourth should be our Table_map
+  # The first event is format_description, the second is
+  # Query_event('BEGIN'), and the third should be our Table_map
   # for unsafe statement.
   if (`SELECT $unsafe_type != 3 AND '$event_type' != 'Table_map'`) {
     --enable_query_log
-    --echo ******** Failure! Event number 4 was a '$event_type', not a 'Table_map'. ********
+    --echo ******** Failure! Event number 3 was a '$event_type', not a 'Table_map'. ********
     SHOW WARNINGS;
     SHOW BINLOG EVENTS;
     --die Wrong events in binlog.

@@ -242,8 +242,6 @@ revoke all privileges, grant option from "foo";
 ERROR HY000: Can't revoke all privileges for one or more of the requested users
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Previous_gtids	#	#	
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'GTID';
 master-bin.000001	#	Query	#	#	use `test`; GRANT ALL PRIVILEGES ON *.* TO 'foo'@'1.2.3.4'
 include/check_slave_no_error.inc
 DROP USER foo@"1.2.3.4";
