@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 package com.mysql.clusterj.tie;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,11 +43,14 @@ import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
 import com.mysql.ndbjtie.ndbapi.NdbIndexOperation;
 import com.mysql.ndbjtie.ndbapi.NdbIndexScanOperation;
 import com.mysql.ndbjtie.ndbapi.NdbOperation;
+import com.mysql.ndbjtie.ndbapi.NdbOperationConst;
+import com.mysql.ndbjtie.ndbapi.NdbRecordConst;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
 import com.mysql.ndbjtie.ndbapi.NdbTransaction;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
+import com.mysql.ndbjtie.ndbapi.NdbOperation.OperationOptionsConst;
 import com.mysql.ndbjtie.ndbapi.NdbOperationConst.AbortOption;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanFlag;
 
@@ -63,8 +67,14 @@ class ClusterTransactionImpl implements ClusterTransaction {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(ClusterTransactionImpl.class);
 
+    protected final static String USE_NDBRECORD_NAME = "com.mysql.clusterj.UseNdbRecord";
+    private static boolean USE_NDBRECORD = getUseNdbRecord();
+
     protected NdbTransaction ndbTransaction;
     private List<Runnable> postExecuteCallbacks = new ArrayList<Runnable>();
+
+    /** The cluster connection for this transaction */
+    protected ClusterConnectionImpl clusterConnectionImpl;
 
     /** The DbImpl associated with this NdbTransaction */
     protected DbImpl db;
@@ -104,8 +114,10 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     private BufferManager bufferManager;
 
-    public ClusterTransactionImpl(DbImpl db, Dictionary ndbDictionary, String joinTransactionId) {
+    public ClusterTransactionImpl(ClusterConnectionImpl clusterConnectionImpl,
+            DbImpl db, Dictionary ndbDictionary, String joinTransactionId) {
         this.db = db;
+        this.clusterConnectionImpl = clusterConnectionImpl;
         this.ndbDictionary = ndbDictionary;
         this.joinTransactionId = joinTransactionId;
         this.bufferManager = db.getBufferManager();
@@ -209,13 +221,16 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public Operation getInsertOperation(Table storeTable) {
         enlist();
+        if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName());
+        if (USE_NDBRECORD) {
+            return new NdbRecordOperationImpl(this, storeTable);
+        }
         TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
         handleError(ndbTable, ndbDictionary);
         NdbOperation ndbOperation = ndbTransaction.getNdbOperation(ndbTable);
         handleError(ndbOperation, ndbTransaction);
         int returnCode = ndbOperation.insertTuple();
         handleError(returnCode, ndbTransaction);
-        if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName());
         return new OperationImpl(ndbOperation, this);
     }
 
@@ -373,6 +388,22 @@ class ClusterTransactionImpl implements ClusterTransaction {
         return new OperationImpl(storeTable, ndbOperation, this);
     }
 
+    /** Create an NdbOperation for insert using NdbRecord.
+     * 
+     * @param ndbRecord the NdbRecord
+     * @param buffer the buffer with data for the operation
+     * @param mask the mask of column values already set in the buffer
+     * @param options the OperationOptions for this operation
+     * @param i 
+     * @return
+     */
+    public NdbOperationConst insertTuple(NdbRecordConst ndbRecord,
+            ByteBuffer buffer, byte[] mask, OperationOptionsConst options) {
+        NdbOperationConst operation = ndbTransaction.insertTuple(ndbRecord, buffer, mask, options, 0);
+        handleError(operation, ndbTransaction);
+        return operation;
+    }
+
     public void postExecuteCallback(Runnable callback) {
         postExecuteCallbacks.add(callback);
     }
@@ -518,6 +549,23 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public BufferManager getBufferManager() {
         return bufferManager;
+    }
+
+    protected NdbRecordImpl getCachedNdbRecordImpl(Table storeTable) {
+        return clusterConnectionImpl.getCachedNdbRecordImpl(storeTable);
+    }
+
+    /** Get the UseNdbRecord property from either the environment or system properties.
+     * 
+     * @return the system property if it is set via -D or the system environment
+     */
+    protected static boolean getUseNdbRecord() {
+        String useNdbRecordENV = System.getenv(USE_NDBRECORD_NAME);
+        // system property overrides environment variable
+        boolean result = System.getProperty(USE_NDBRECORD_NAME, useNdbRecordENV==null?"true":useNdbRecordENV)
+                .equals("true")?true:false;
+        logger.info("useNdbRecordENV: " + useNdbRecordENV + " UseNdbRecord: " + result);
+        return result;
     }
 
 }
