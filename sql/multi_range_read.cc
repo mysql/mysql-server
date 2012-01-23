@@ -466,6 +466,10 @@ void Mrr_ordered_index_reader::resume_read()
 
 /**
   Fill the buffer with (lookup_tuple, range_id) pairs and sort
+
+  @return 
+    0                   OK, the buffer is non-empty and sorted
+    HA_ERR_END_OF_FILE  Source exhausted, the buffer is empty.
 */
 
 int Mrr_ordered_index_reader::refill_buffer(bool initial)
@@ -501,6 +505,13 @@ int Mrr_ordered_index_reader::refill_buffer(bool initial)
 
   if (source_exhausted && key_buffer->is_empty())
     DBUG_RETURN(HA_ERR_END_OF_FILE);
+
+  if (!initial)
+  {
+    /* This is a non-initial buffer fill and we've got a non-empty buffer */
+    THD *thd= current_thd;
+    status_var_increment(thd->status_var.ha_mrr_extra_key_sorts);
+  }
 
   key_buffer->sort((key_buffer->type() == Lifo_buffer::FORWARD)? 
                      (qsort2_cmp)Mrr_ordered_index_reader::compare_keys_reverse : 
@@ -576,6 +587,7 @@ int Mrr_ordered_rndpos_reader::init(handler *h_arg,
 int Mrr_ordered_rndpos_reader::refill_buffer(bool initial)
 {
   int res;
+  bool first_call= initial;
   DBUG_ENTER("Mrr_ordered_rndpos_reader::refill_buffer");
 
   if (index_reader_exhausted)
@@ -593,6 +605,14 @@ int Mrr_ordered_rndpos_reader::refill_buffer(bool initial)
     initial= FALSE;
     index_reader_needs_refill= FALSE;
   }
+
+  if (!first_call && !index_reader_exhausted)
+  {
+    /* Ok, this was a successful buffer refill operation */
+    THD *thd= current_thd;
+    status_var_increment(thd->status_var.ha_mrr_extra_rowid_sorts);
+  }
+
   DBUG_RETURN(res);
 }
 
@@ -825,8 +845,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     strategy= disk_strategy= &reader_factory.ordered_rndpos_reader;
   }
 
-  if (is_mrr_assoc)
-    status_var_increment(thd->status_var.ha_multi_range_read_init_count);
+  status_var_increment(thd->status_var.ha_multi_range_read_init_count);
 
   full_buf= buf->buffer;
   full_buf_end= buf->buffer_end;

@@ -578,6 +578,8 @@ typedef struct system_status_var
     BatchedKeyAccess.
   */
   ulong ha_multi_range_read_init_count;
+  ulong ha_mrr_extra_key_sorts;
+  ulong ha_mrr_extra_rowid_sorts;
 
   ulong ha_rollback_count;
   ulong ha_update_count;

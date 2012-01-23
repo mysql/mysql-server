@@ -268,5 +268,57 @@ set @@join_cache_level= @tmp_730133_jcl;
 set @@optimizer_switch= @tmp_730133_os;
 drop table t1;
 
+--echo #
+--echo # Test of MRR handler counters
+--echo #
+flush status;
+show status like 'Handler_mrr%';
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, filler char(200), key(a));
+insert into t1 
+select A.a+10*B.a+100*C.a+1000*D.a, 123,'filler' from t0 A, t0 B, t0 C, t0 D;
+
+explain select sum(b) from t1 where a < 10;
+--echo # This should show one MRR scan and no re-fills:
+flush status;
+select sum(b) from t1 where a < 10;
+show status like 'handler_mrr%';
+
+set @mrr_buffer_size_save= @@mrr_buffer_size;
+--disable_warnings
+set mrr_buffer_size=128;
+--enable_warnings
+
+explain select sum(b) from t1 where a < 1600;
+--echo # This should show one MRR scan and one extra rowid sort:
+flush status;
+select sum(b) from t1 where a < 1600;
+show status like 'handler_mrr%';
+set @@mrr_buffer_size= @mrr_buffer_size_save;
+
+--echo #Now, let's check BKA: 
+set @join_cache_level_save= @@join_cache_level;
+set @join_buffer_size_save= @@join_buffer_size;
+set join_cache_level=6;
+
+explain select sum(t1.b) from t0,t1 where t0.a=t1.a;
+flush status;
+select sum(t1.b) from t0,t1 where t0.a=t1.a;
+show status like 'handler_mrr%';
+
+--disable_warnings
+set join_buffer_size=10;
+--enable_warnings
+explain select sum(t1.b) from t0,t1 where t0.a=t1.a;
+flush status;
+select sum(t1.b) from t0,t1 where t0.a=t1.a;
+show status like 'handler_mrr%';
+
+set join_cache_level= @join_cache_level_save;
+set join_buffer_size= @join_buffer_size_save;
+
+drop table t0, t1;
+
 ## This must be last line in the file:
 set optimizer_switch= @myisam_mrr_tmp;
