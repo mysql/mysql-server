@@ -23,6 +23,8 @@
 #include <signaldata/RouteOrd.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 
+#include <mt.hpp>
+
 Trpman::Trpman(Block_context & ctx, Uint32 instanceno) :
   SimulatedBlock(TRPMAN, ctx, instanceno)
 {
@@ -50,21 +52,17 @@ BLOCK_FUNCTIONS(Trpman)
 #ifdef ERROR_INSERT
 static NodeBitmask c_error_9000_nodes_mask;
 extern Uint32 MAX_RECEIVED_SIGNALS;
-
-class TransporterReceiveHandle *
-mt_get_trp_receive_handle(unsigned instance);
 #endif
 
 bool
 Trpman::handles_this_node(Uint32 nodeId)
 {
-#if MAX_NDBMT_RECEIVE_THREADS == 1
+#ifndef NDBD_MULTITHREADED
   return true;
 #else
   if (globalData.ndbMtReceiveThreads <= (Uint32)1)
     return true;
-  return (instance()==
-          (globalTransporterRegistry.getReceiveThreadId(nodeId) + 1));
+  return (instance()== (mt_get_recv_thread_idx(nodeId) + /* proxy */ 1));
 #endif
 }
 
@@ -780,10 +778,10 @@ TrpmanProxy::execROUTE_ORD(Signal* signal)
   jamEntry();
 
   ndbassert(nodeId != 0);
-#if MAX_NDBMT_RECEIVE_THREADS == 1
+#ifndef NDBD_MULTITHREADED
   Uint32 workerId = 0;
 #else
-  Uint32 workerId = globalTransporterRegistry.getReceiveThreadId(nodeId);
+  Uint32 workerId = mt_get_recv_thread_idx(nodeId);
 #endif
   SectionHandle handle(this, signal);
   sendSignal(workerRef(workerId), GSN_ROUTE_ORD, signal,

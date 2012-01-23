@@ -402,6 +402,10 @@ TransporterReceiveHandleKernel::reportConnect(NodeId nodeId)
   Uint32 secPtr[3];
   globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 #else
+  /**
+   * The first argument to sendprioa is from which thread number this
+   * signal is sent, it is always sent from a receive thread
+   */
   sendprioa(m_thr_no /* self */,
             &signal.header, signal.theData, NULL);
 #endif
@@ -413,7 +417,6 @@ TransporterReceiveHandleKernel::reportConnect(NodeId nodeId)
 void
 TransporterReceiveHandleKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
 {
-
   DBUG_ENTER("reportDisconnect");
 
   SignalT<sizeof(DisconnectRep)/4> signal;
@@ -481,9 +484,23 @@ TransporterReceiveHandleKernel::checkJobBuffer()
 #ifndef NDBD_MULTITHREADED
   return globalScheduler.checkDoJob();
 #else
-  return mt_checkDoJob();
+  return mt_checkDoJob(m_receiver_thread_idx);
 #endif
 }
+
+#ifdef NDBD_MULTITHREADED
+void
+TransporterReceiveHandleKernel::assign_nodes(NodeId *recv_thread_idx_array)
+{
+  m_transporters.clear(); /* Clear all first */
+  for (Uint32 nodeId = 1; nodeId < MAX_NODES; nodeId++)
+  {
+    if (recv_thread_idx_array[nodeId] == m_receiver_thread_idx)
+      m_transporters.set(nodeId); /* Belongs to our receive thread */
+  }
+  return;
+}
+#endif
 
 void
 TransporterReceiveHandleKernel::transporter_recv_from(NodeId nodeId)
