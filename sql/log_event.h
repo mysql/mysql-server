@@ -4761,6 +4761,12 @@ private:
   const uchar *buf;
 };
 
+inline bool is_gtid_event(Log_event* evt)
+{
+  return (evt->get_type_code() == GTID_LOG_EVENT ||
+          evt->get_type_code() == ANONYMOUS_GTID_LOG_EVENT);
+}
+
 /**
   @} (end of group Replication)
 */

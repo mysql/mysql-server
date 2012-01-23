@@ -2051,6 +2051,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
                           filename, sidno, gtid_ev->get_gno()));
       break;
     }
+    case ANONYMOUS_GTID_LOG_EVENT:
     default:
       // if we found any other event type without finding a
       // previous_gtids_log_event, then the rest of this binlog
@@ -5292,7 +5293,7 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
         ...
     */
     if (!log->error && !in_transaction &&
-        ev->get_type_code() != GTID_LOG_EVENT)
+        !is_gtid_event(ev))
       *valid_pos= my_b_tell(log);
 
     delete ev;
