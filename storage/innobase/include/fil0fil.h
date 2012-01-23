@@ -225,8 +225,8 @@ fil_space_truncate_start(
 				some initial files in the space */
 #endif /* UNIV_LOG_ARCHIVE */
 /*******************************************************************//**
-Creates a space memory object and puts it to the 'fil system' hash table. If
-there is an error, prints an error message to the .err log.
+Creates a space memory object and puts it to the 'fil system' hash table.
+If there is an error, prints an error message to the .err log.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
@@ -526,7 +526,7 @@ fil_load_single_table_tablespaces(void);
 /*******************************************************************//**
 Returns TRUE if a single-table tablespace does not exist in the memory cache,
 or is being deleted there.
-@return	TRUE if does not exist or is being\ deleted */
+@return	TRUE if does not exist or is being deleted */
 UNIV_INTERN
 ibool
 fil_tablespace_deleted_or_being_deleted_in_mem(

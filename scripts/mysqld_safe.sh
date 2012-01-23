@@ -741,15 +741,53 @@ cmd="$cmd $args"
 test -n "$NOHUP_NICENESS" && cmd="$cmd < /dev/null"
 
 log_notice "Starting $MYSQLD daemon with databases from $DATADIR"
+
+# variable to track the current number of "fast" (a.k.a. subsecond) restarts
+fast_restart=0
+# maximum number of restarts before trottling kicks in
+max_fast_restarts=5
+# flag whether a usable sleep command exists
+have_sleep=1
+
 while true
 do
   rm -f $safe_mysql_unix_port "$pid_file"	# Some extra safety
 
+  start_time=`date +%M%S`
+
   eval_log_error "$cmd"
+
+  end_time=`date +%M%S`
 
   if test ! -f "$pid_file"		# This is removed if normal shutdown
   then
     break
+  fi
+
+
+  # sanity check if time reading is sane and there's sleep
+  if test $end_time -gt 0 -a $have_sleep -gt 0
+  then
+    # throttle down the fast restarts
+    if test $end_time -eq $start_time
+    then
+      fast_restart=`expr $fast_restart + 1`
+      if test $fast_restart -ge $max_fast_restarts
+      then
+        log_notice "The server is respawning too fast. Sleeping for 1 second."
+        sleep 1
+        sleep_state=$?
+        if test $sleep_state -gt 0
+        then
+          log_notice "The server is respawning too fast and no working sleep command. Turning off trottling."
+          have_sleep=0
+        fi
+
+        fast_restart=0
+      fi
+    else
+      fast_restart=0
+    fi
   fi
 
   if @TARGET_LINUX@ && test $KILL_MYSQLD -eq 1

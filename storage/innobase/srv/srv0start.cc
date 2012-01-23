@@ -2194,8 +2194,8 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_is_being_started = FALSE;
 
+	/* Create the SYS_FOREIGN and SYS_FOREIGN_COLS system tables */
 	err = dict_create_or_check_foreign_constraint_tables();
-
 	if (err != DB_SUCCESS) {
 		return((int)DB_ERROR);
 	}

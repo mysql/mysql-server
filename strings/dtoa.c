@@ -1397,7 +1397,7 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
     else if (nd < 16)
       z= 10*z + c - '0';
   nd0= nd;
-  if (s < end - 1 && c == '.')
+  if (s < end && c == '.')
   {
     c= *++s;
     if (!nd)

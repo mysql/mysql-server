@@ -5987,7 +5987,8 @@ void Item_equal::compare_const(Item *c)
   else
   {
     Item_func_eq *func= new Item_func_eq(c, const_item);
-    func->set_cmp_func();
+    if(func->set_cmp_func())
+      return;
     func->quick_fix_field();
     cond_false= !func->val_int();
   }
