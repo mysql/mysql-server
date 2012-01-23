@@ -93,7 +93,6 @@ static void make_db (int n_locks) {
 
     r=env->txn_begin(env, 0, &tid, 0);    CKERR(r);
     r=env->txn_begin(env, 0, &tid2, 0);   CKERR(r);
-#if 1
 
     for (i=0; i<effective_n_locks*2; i++) {
 	int j;
@@ -115,15 +114,19 @@ static void make_db (int n_locks) {
 		CKERR(r);
 	    } else CKERR2(r, TOKUDB_OUT_OF_LOCKS);
 #else
+#if DB_VERSION_MAJOR >= 5
+	    if (i*2+j+1<effective_n_locks) {
+#else
 	    if (i*2+j+2<effective_n_locks) {
+#endif
 		if (r!=0) printf("r=%d on i=%d j=%d eff=%d\n", r, i, j, effective_n_locks);
 		CKERR(r);
-	    }
-	    else CKERR2(r, ENOMEM);
+	    } else {
+                CKERR2(r, ENOMEM);
+            }
 #endif
 	}
     }
-#endif
     r=tid->commit(tid2, 0);   assert(r==0);
     r=tid->commit(tid, 0);    assert(r==0);
     r=db->close(db, 0);       assert(r==0);
