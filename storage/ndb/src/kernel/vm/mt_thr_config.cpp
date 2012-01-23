@@ -462,15 +462,16 @@ THRConfig::do_validate()
   }
 
   /**
-   * LDM can be 1 2 4 8 16
+   * LDM can be 1 2 4 8 12 16
    */
   if (m_threads[T_LDM].size() != 1 &&
       m_threads[T_LDM].size() != 2 &&
       m_threads[T_LDM].size() != 4 &&
       m_threads[T_LDM].size() != 8 &&
+      m_threads[T_LDM].size() != 12 &&
       m_threads[T_LDM].size() != 16)
   {
-    m_err_msg.assfmt("No of LDM-instances can be 1,2,4,8,16. Specified: %u",
+    m_err_msg.assfmt("No of LDM-instances can be 1,2,4,8,12,16. Specified: %u",
                      m_threads[T_LDM].size());
     return -1;
   }
