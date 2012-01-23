@@ -99,11 +99,7 @@ static bool innodb_inited = 0;
 
 #define INSIDE_HA_INNOBASE_CC
 
-/* In the Windows plugin, the return value of current_thd is
-undefined.  Map it to NULL. */
-
 #define EQ_CURRENT_THD(thd) ((thd) == current_thd)
-
 
 static struct handlerton* innodb_hton_ptr;
 
