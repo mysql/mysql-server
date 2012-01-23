@@ -124,6 +124,7 @@ struct Pool_context
 template <typename T>
 struct Ptr 
 {
+  typedef Uint32 I;
   T * p;
   Uint32 i;
   inline bool isNull() const { return i == RNIL; }
