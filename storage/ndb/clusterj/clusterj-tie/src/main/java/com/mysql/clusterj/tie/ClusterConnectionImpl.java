@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,13 +20,18 @@ package com.mysql.clusterj.tie;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
 import com.mysql.ndbjtie.ndbapi.Ndb;
 import com.mysql.ndbjtie.ndbapi.Ndb_cluster_connection;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 
 import com.mysql.clusterj.core.store.Db;
+import com.mysql.clusterj.core.store.Table;
 
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -57,6 +62,12 @@ public class ClusterConnectionImpl
     /** All dbs given out by this cluster connection */
     private Map<DbImpl, Object> dbs = new IdentityHashMap<DbImpl, Object>();
 
+    /** The map of table name to NdbRecordImpl */
+    private ConcurrentMap<String, NdbRecordImpl> ndbRecordImplMap = new ConcurrentHashMap<String, NdbRecordImpl>();
+
+    /** The dictionary used to create NdbRecords */
+    Dictionary dictionaryForNdbRecord = null;
+
     /** Connect to the MySQL Cluster
      * 
      * @param connectString the connect string
@@ -83,6 +94,14 @@ public class ClusterConnectionImpl
         synchronized(this) {
             ndb = Ndb.create(clusterConnection, database, "def");
             handleError(ndb, clusterConnection, connectString, nodeId);
+            if (dictionaryForNdbRecord == null) {
+                // create a dictionary for NdbRecord
+                Ndb ndbForNdbRecord = Ndb.create(clusterConnection, database, "def");
+                handleError(ndbForNdbRecord, clusterConnection, connectString, nodeId);
+                DbImpl dbForNdbRecord = new DbImpl(this, ndbForNdbRecord, maxTransactions);
+                dbs.put(dbForNdbRecord, null);
+                dictionaryForNdbRecord = dbForNdbRecord.getNdbDictionary();
+            }
         }
         DbImpl result = new DbImpl(this, ndb, maxTransactions);
         dbs.put(result, null);
@@ -143,6 +162,16 @@ public class ClusterConnectionImpl
     public void close() {
         if (clusterConnection != null) {
             logger.info(local.message("INFO_Close_Cluster_Connection", connectString, nodeId));
+            for (NdbRecordImpl ndbRecord: ndbRecordImplMap.values()) {
+                ndbRecord.releaseNdbRecord();
+            }
+            ndbRecordImplMap.clear();
+            if (dbs.size() != 0) {
+                Map<DbImpl, Object> dbsToClose = new IdentityHashMap<DbImpl, Object>(dbs);
+                for (Db db: dbsToClose.keySet()) {
+                    db.close();
+                }
+            }
             Ndb_cluster_connection.delete(clusterConnection);
             clusterConnection = null;
         }
@@ -153,7 +182,43 @@ public class ClusterConnectionImpl
     }
 
     public int dbCount() {
-        return dbs.size();
+        // one of the dbs is for the NdbRecord dictionary if it is not null
+        int dbForNdbRecord = (dictionaryForNdbRecord == null)?0:1;
+        return dbs.size() - dbForNdbRecord;
+    }
+
+    /** 
+     * Get the cached NdbRecord implementation for this cluster connection.
+     * There are three possibilities:
+     * <ul><li>Case 1: return the already-cached NdbRecord
+     * </li><li>Case 2: return a new instance created by this method
+     * </li><li>Case 3: return the winner of a race with another thread
+     * </li></ul>
+     * @param storeTable the store table
+     * @param ndbDictionary the ndb dictionary
+     * @return the NdbRecordImpl
+     */
+    protected NdbRecordImpl getCachedNdbRecordImpl(Table storeTable) {
+        String tableName = storeTable.getName();
+        // find the NdbRecordImpl in the global cache
+        NdbRecordImpl result = ndbRecordImplMap.get(tableName);
+        if (result != null) {
+            // case 1
+            return result;
+        } else {
+            NdbRecordImpl newNdbRecordImpl = new NdbRecordImpl(storeTable, dictionaryForNdbRecord);
+            NdbRecordImpl winner = ndbRecordImplMap.putIfAbsent(tableName, newNdbRecordImpl);
+            if (winner == null) {
+                // case 2: the previous value was null, so return the new (winning) value
+                if (logger.isDebugEnabled())logger.debug("NdbRecordImpl created for " + tableName);
+                return newNdbRecordImpl;
+            } else {
+                // case 3: another thread beat us, so return the winner and garbage collect ours
+                if (logger.isDebugEnabled())logger.debug("NdbRecordImpl lost race for " + tableName);
+                newNdbRecordImpl.releaseNdbRecord();
+                return winner;
+            }
+        }
     }
 
 }
