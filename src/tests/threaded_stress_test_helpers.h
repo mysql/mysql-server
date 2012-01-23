@@ -656,7 +656,7 @@ static int run_workers(struct arg *thread_args, int num_threads, u_int32_t num_s
 
 static int create_table(DB_ENV **env_res, DB **db_res,
                         int (*bt_compare)(DB *, const DBT *, const DBT *),
-                        u_int32_t cachesize,
+                        u_int64_t cachesize,
                         u_int32_t checkpointing_period,
                         u_int32_t cleaner_period,
                         u_int32_t cleaner_iterations,
@@ -674,7 +674,7 @@ static int create_table(DB_ENV **env_res, DB **db_res,
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_redzone(env, 0); CKERR(r);
     r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
-    r = env->set_cachesize(env, 0, cachesize, 1); CKERR(r);
+    r = env->set_cachesize(env, cachesize / (1 << 30), cachesize % (1 << 30), 1); CKERR(r);
     r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
     r = env->open(env, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = env->checkpointing_set_period(env, checkpointing_period); CKERR(r);
