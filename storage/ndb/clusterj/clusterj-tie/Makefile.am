@@ -1,4 +1,4 @@
-#   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -38,6 +38,9 @@ clusterj_tie_java= \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/IndexImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/IndexOperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/IndexScanOperationImpl.java \
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordBlobImpl.java \
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordImpl.java \
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordOperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/OperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/ResultDataImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/ScanFilterImpl.java \

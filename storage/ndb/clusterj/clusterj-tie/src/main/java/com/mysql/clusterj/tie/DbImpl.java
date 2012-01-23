@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,7 +32,6 @@ import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
-import com.mysql.clusterj.core.store.ClusterConnection;
 import com.mysql.clusterj.core.store.ClusterTransaction;
 
 import com.mysql.clusterj.core.util.I18NHelper;
@@ -82,9 +81,9 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     private DictionaryImpl dictionary;
 
     /** The ClusterConnection */
-    private ClusterConnection clusterConnection;
+    private ClusterConnectionImpl clusterConnection;
 
-    public DbImpl(ClusterConnection clusterConnection, Ndb ndb, int maxTransactions) {
+    public DbImpl(ClusterConnectionImpl clusterConnection, Ndb ndb, int maxTransactions) {
         this.clusterConnection = clusterConnection;
         this.ndb = ndb;
         int returnCode = ndb.init(maxTransactions);
@@ -103,8 +102,12 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         return dictionary;
     }
 
+    public Dictionary getNdbDictionary() {
+        return ndbDictionary;
+    }
+
     public ClusterTransaction startTransaction(String joinTransactionId) {
-        return new ClusterTransactionImpl(this, ndbDictionary, joinTransactionId);
+        return new ClusterTransactionImpl(clusterConnection, this, ndbDictionary, joinTransactionId);
     }
 
     protected void handleError(int returnCode, Ndb ndb) {

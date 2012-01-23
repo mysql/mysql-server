@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -209,7 +209,7 @@ class ColumnImpl implements Column {
                 break;
             case ColumnConst.Type.Timestamp:
                 this.prefixLength = 0;
-                this.columnSpace = 4;
+                this.columnSpace = 0;
                 break;
             default: throw new ClusterJFatalInternalException(
                     local.message("ERR_Unknown_Column_Type",

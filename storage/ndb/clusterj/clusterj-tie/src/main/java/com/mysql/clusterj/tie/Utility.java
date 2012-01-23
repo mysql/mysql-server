@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -792,9 +792,22 @@ public class Utility {
      * @return the ByteBuffer
      */
     public static ByteBuffer convertValue(Column storeColumn, byte[] value) {
+        int requiredLength = storeColumn.getColumnSpace();
+        ByteBuffer result = ByteBuffer.allocateDirect(requiredLength);
+        convertValue(result, storeColumn, value);
+        result.flip();
+        return result;
+    }
+
+    /** Convert the parameter value and store it in a given ByteBuffer that can be passed to ndbjtie.
+     * 
+     * @param buffer the buffer, positioned at the location to store the value
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     */
+    public static void convertValue(ByteBuffer buffer, Column storeColumn, byte[] value) {
         int dataLength = value.length;
         int prefixLength = storeColumn.getPrefixLength();
-        ByteBuffer result;
         switch (prefixLength) {
             case 0:
                 int requiredLength = storeColumn.getColumnSpace();
@@ -803,12 +816,10 @@ public class Utility {
                             local.message("ERR_Data_Too_Long",
                             storeColumn.getName(), requiredLength, dataLength));
                 } else {
-                    result = ByteBuffer.allocateDirect(requiredLength);
-                    result.order(ByteOrder.nativeOrder());
-                    result.put(value);
+                    buffer.put(value);
                     if (dataLength < requiredLength) {
                         // pad with 0x00 on right
-                        result.put(ZERO_PAD, 0, requiredLength - dataLength);
+                        buffer.put(ZERO_PAD, 0, requiredLength - dataLength);
                     }
                 }
                 break;
@@ -818,10 +829,8 @@ public class Utility {
                             local.message("ERR_Data_Too_Long",
                             storeColumn.getName(), "255", dataLength));
                 }
-                result = ByteBuffer.allocateDirect(prefixLength + dataLength);
-                result.order(ByteOrder.nativeOrder());
-                result.put((byte)dataLength);
-                result.put(value);
+                buffer.put((byte)dataLength);
+                buffer.put(value);
                 break;
             case 2:
                 if (dataLength > 8000) {
@@ -829,19 +838,15 @@ public class Utility {
                             local.message("ERR_Data_Too_Long",
                             storeColumn.getName(), "8000", dataLength));
                 }
-                result = ByteBuffer.allocateDirect(prefixLength + dataLength);
-                result.order(ByteOrder.nativeOrder());
-                result.put((byte)(dataLength%256));
-                result.put((byte)(dataLength/256));
-                result.put(value);
+                buffer.put((byte)(dataLength%256));
+                buffer.put((byte)(dataLength/256));
+                buffer.put(value);
                 break;
             default: 
                     throw new ClusterJFatalInternalException(
                             local.message("ERR_Unknown_Prefix_Length",
                             prefixLength, storeColumn.getName()));
         }
-        result.flip();
-        return result;
     }
 
     /** Convert a BigDecimal value to the binary decimal form used by MySQL.
