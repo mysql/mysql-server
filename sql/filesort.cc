@@ -38,6 +38,7 @@
 #include "opt_trace.h"
 
 #include <algorithm>
+#include <utility>
 using std::max;
 using std::min;
 
@@ -284,6 +285,19 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     {
       ha_rows keys= memory_available / (param.rec_length + sizeof(char*));
       param.max_keys_per_buffer= (uint) min(num_rows, keys);
+      if (table_sort.get_sort_keys())
+      {
+        // If we have already allocated a buffer, it better have same size!
+        if (std::make_pair(param.max_keys_per_buffer, param.rec_length) !=
+            table_sort.sort_buffer_properties())
+        {
+          /*
+           table->sort will still have a pointer to the same buffer,
+           but that will be overwritten by the assignment below.
+          */
+          table_sort.free_sort_buffer();
+        }
+      }
       table_sort.alloc_sort_buffer(param.max_keys_per_buffer, param.rec_length);
       if (table_sort.get_sort_keys())
         break;
@@ -444,7 +458,10 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */
 #endif
+
+  // Assign the copy back!
   table->sort= table_sort;
+
   DBUG_PRINT("exit",
              ("num_rows: %ld examined_rows: %ld found_rows: %ld",
               (long) num_rows, (long) *examined_rows, (long) *found_rows));
