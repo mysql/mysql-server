@@ -705,6 +705,7 @@ static bool shall_skip_gtids(Log_event* ev)
   switch (ev->get_type_code())
   {
     case GTID_LOG_EVENT:
+    case ANONYMOUS_GTID_LOG_EVENT:
     {
        Gtid_log_event *gtid= (Gtid_log_event *) ev;
        if (opt_include_gtids_str != NULL)

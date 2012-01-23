@@ -1694,7 +1694,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
     worker->curr_group_seen_begin= true; // The current group is started with B-event
     worker->end_group_sets_max_dbs= true;
   } 
-  else if (ev->get_type_code() != GTID_LOG_EVENT)
+  else if (!is_gtid_event(ev))
   {
     if ((part_event=
          ev->contains_partition_info(worker->end_group_sets_max_dbs)))
@@ -1738,7 +1738,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
                               legends of Log_event::get_slave_worker)
                               obviously can't commit.
                            */
-                           part_event && ev->get_type_code() != GTID_LOG_EVENT))
+                           part_event && !is_gtid_event(ev)))
   {
     DBUG_PRINT("slave_worker_exec_job:",
                (" commits GAQ index %lu, last committed  %lu",

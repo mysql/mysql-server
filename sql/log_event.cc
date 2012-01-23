@@ -639,6 +639,7 @@ const char* Log_event::get_type_str(Log_event_type type)
   case IGNORABLE_LOG_EVENT: return "Ignorable";
   case ROWS_QUERY_LOG_EVENT: return "Rows_query";
   case GTID_LOG_EVENT: return "Gtid";
+  case ANONYMOUS_GTID_LOG_EVENT: return "Anonymous_Gtid";
   case PREVIOUS_GTIDS_LOG_EVENT: return "Previous_gtids";
   default: return "Unknown";				/* impossible */
   }
@@ -1527,6 +1528,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev= new Rows_query_log_event(buf, event_len, description_event);
       break;
     case GTID_LOG_EVENT:
+    case ANONYMOUS_GTID_LOG_EVENT:
       ev= new Gtid_log_event(buf, event_len, description_event);
       break;
     case PREVIOUS_GTIDS_LOG_EVENT:
@@ -2517,7 +2519,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   /* checking partioning properties and perform corresponding actions */
 
   // Beginning of a group designated explicitly with BEGIN or GTID
-  if ((is_s_event= starts_group()) || get_type_code() == GTID_LOG_EVENT ||
+  if ((is_s_event= starts_group()) || is_gtid_event(this) ||
       // or DDL:s or autocommit queries possibly associated with own p-events
       (!rli->curr_group_seen_begin && !rli->curr_group_seen_gtid &&
        /*
@@ -2547,7 +2549,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
       DBUG_ASSERT(rli->last_assigned_worker == NULL);
 
-      if (is_s_event || get_type_code() == GTID_LOG_EVENT)
+      if (is_s_event || is_gtid_event(this))
       {
         Log_event *ptr_curr_ev= this;
         // B-event is appended to the Deferred Array associated with GCAP
@@ -2563,7 +2565,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
           rli->curr_group_seen_begin= true;
         }
      
-        if (get_type_code() == GTID_LOG_EVENT)
+        if (is_gtid_event(this))
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
 
@@ -11766,6 +11768,8 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 
 #ifndef NO_DBUG
   uint8 const post_header_len=
+    buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ?
+    descr_event->post_header_len[ANONYMOUS_GTID_LOG_EVENT - 1] :
     descr_event->post_header_len[GTID_LOG_EVENT - 1];
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
