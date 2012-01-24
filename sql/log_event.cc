@@ -12004,7 +12004,6 @@ int Previous_gtids_log_event::add_to_set(Gtid_set *target) const
   DBUG_ENTER("Previous_gtids_log_event::add_to_set(Gtid_set *)");
 #ifndef NO_DBUG
   char *str= get_str(NULL, &Gtid_set::default_string_format);
-  DBUG_ASSERT(str != NULL);
   DBUG_PRINT("info", ("adding gtid_set: '%s'", str));
   my_free(str);
 #endif

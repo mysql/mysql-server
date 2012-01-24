@@ -42,6 +42,7 @@
 --source include/master-slave.inc
 --source include/rpl_set_gtid_mode.inc
 --source include/gtid_utils.inc
+--source include/have_debug.inc
 
 --echo ######## Initialize ########
 
@@ -49,27 +50,27 @@
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 --sync_slave_with_master
 
---let $corruption_mode_count= 3
+--let $corruption_mode_count= 2
 --let $restart_count= 2
 --let $flush_count= 2
 --let $corruption_mode_flag_0=
---let $corruption_mode_flag_1= --debug=d,write_partial_previous_gtids_log_event
---let $corruption_mode_flag_2= --debug=d,skip_writing_previous_gtids_log_event
+--let $corruption_mode_flag_1= --debug=d,skip_writing_previous_gtids_log_event
+# Does not work: --let $corruption_mode_flag_2= --debug=d,write_partial_previous_gtids_log_event
 
---let $corruption_mode= 0
-while ($corruption_mode < $corruption_mode_count)
+--let $corruption_mode= 1
+while ($corruption_mode <= $corruption_mode_count)
 {
-  --echo ######## corruption_mode = $corruption_mode ########
+  --echo ######## corruption_mode = $corruption_mode of $corruption_mode_count ########
   --echo Phase one: Generating logs
 
   --source include/rpl_reset.inc
 
   # Restart the server three times
-  --let $restart_i= 0
+  --let $restart_i= 1
   --let $gno= 0
-  while ($restart_i < $restart_count)
+  while ($restart_i <= $restart_count)
   {
-    --echo ======== restart_i = $restart_i ========
+    --echo ======== restart_i = $restart_i of $restart_count ========
 
     --connection slave
     --source include/stop_slave.inc
@@ -86,16 +87,14 @@ while ($corruption_mode < $corruption_mode_count)
     --connection master
 
     # For each restart, flush the log three times
-    --let $flush_i= 0
-    while ($flush_i < $flush_count)
+    --let $flush_i= 1
+    while ($flush_i <= $flush_count)
     {
-      --echo -------- flush_i = $flush_i --------
+      --echo -------- flush_i = $flush_i of $flush_count --------
       FLUSH LOGS;
       --let $transaction_count= $flush_i
-      --inc $transaction_count
-      --inc $transaction_count
-      --let $transaction_i= 0
-      while ($transaction_i < $transaction_count)
+      --let $transaction_i= 1
+      while ($transaction_i <= $transaction_count)
       {
         --inc $gno
         eval INSERT INTO t1 VALUES ($gno);
@@ -140,10 +139,10 @@ while ($corruption_mode < $corruption_mode_count)
   --let $gno= 0
 
   # Purge one log at a time, in the same sequence that we created logs above.
-  --let $restart_i= 0
-  while ($restart_i < $restart_count)
+  --let $restart_i= 1
+  while ($restart_i <= $restart_count)
   {
-    --echo ======== restart_i = $restart_i ========
+    --echo ======== restart_i = $restart_i of $restart_count ========
 
     --source include/purge_first_log.inc
     --let $assert_text= lost gtids from 1 to $gno on master
@@ -155,11 +154,11 @@ while ($corruption_mode < $corruption_mode_count)
     --let $assert_cond= GTID_IS_EQUAL(@@GTID_LOST, "$master_uuid:1-$gno")
     --source include/assert.inc
 
-    --let $flush_i= 0
-    while ($flush_i < $flush_count)
+    --let $flush_i= 1
+    while ($flush_i <= $flush_count)
     {
       # Purge one log for each FLUSH LOGS above.
-      --echo -------- flush_i = $flush_i --------
+      --echo -------- flush_i = $flush_i of $flush_count --------
       --source include/purge_first_log.inc
       --let $assert_text= lost gtids from 1 to $gno on master
       --let $assert_cond= GTID_IS_EQUAL(@@GTID_LOST, "$master_uuid:1-$gno")
@@ -167,10 +166,8 @@ while ($corruption_mode < $corruption_mode_count)
 
       # Increase $gno in the same manner as above.
       --let $transaction_count= $flush_i
-      --inc $transaction_count
-      --inc $transaction_count
-      --let $transaction_i= 0
-      while ($transaction_i < $transaction_count)
+      --let $transaction_i= 1
+      while ($transaction_i <= $transaction_count)
       {
         --inc $gno
         --inc $transaction_i

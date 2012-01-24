@@ -7,282 +7,182 @@ include/rpl_set_gtid_mode.inc
 include/gtid_utils.inc
 ######## Initialize ########
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
-######## corruption_mode = 0 ########
+######## corruption_mode = 1 of 2 ########
 Phase one: Generating logs
 include/rpl_reset.inc
-======== restart_i = 0 ========
-include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/start_slave.inc
--------- flush_i = 0 --------
-FLUSH LOGS;
-INSERT INTO t1 VALUES (1);
-INSERT INTO t1 VALUES (2);
-FLUSH LOGS;
-[on slave]
-include/assert.inc [no gtids lost yet on slave]
-include/assert.inc [committed gno 2 on slave]
-[on master]
-include/assert.inc [no gtids lost yet on master]
-include/assert.inc [committed gno 2 on master]
--------- flush_i = 1 --------
-FLUSH LOGS;
-INSERT INTO t1 VALUES (3);
-INSERT INTO t1 VALUES (4);
-INSERT INTO t1 VALUES (5);
-FLUSH LOGS;
-[on slave]
-include/assert.inc [no gtids lost yet on slave]
-include/assert.inc [committed gno 5 on slave]
-[on master]
-include/assert.inc [no gtids lost yet on master]
-include/assert.inc [committed gno 5 on master]
-======== restart_i = 1 ========
-include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/start_slave.inc
--------- flush_i = 0 --------
-FLUSH LOGS;
-INSERT INTO t1 VALUES (6);
-INSERT INTO t1 VALUES (7);
-FLUSH LOGS;
-[on slave]
-include/assert.inc [no gtids lost yet on slave]
-include/assert.inc [committed gno 7 on slave]
-[on master]
-include/assert.inc [no gtids lost yet on master]
-include/assert.inc [committed gno 7 on master]
--------- flush_i = 1 --------
-FLUSH LOGS;
-INSERT INTO t1 VALUES (8);
-INSERT INTO t1 VALUES (9);
-INSERT INTO t1 VALUES (10);
-FLUSH LOGS;
-[on slave]
-include/assert.inc [no gtids lost yet on slave]
-include/assert.inc [committed gno 10 on slave]
-[on master]
-include/assert.inc [no gtids lost yet on master]
-include/assert.inc [committed gno 10 on master]
-FLUSH LOGS;
-######## corruption_mode = 0 ########
-Phase two: Purging logs
-======== restart_i = 0 ========
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 0 on master]
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 0 on master]
--------- flush_i = 0 --------
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 0 on master]
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 2 on master]
--------- flush_i = 1 --------
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 2 on master]
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 5 on master]
-======== restart_i = 1 ========
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 5 on master]
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 5 on master]
--------- flush_i = 0 --------
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 5 on master]
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 7 on master]
--------- flush_i = 1 --------
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 7 on master]
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 10 on master]
-######## corruption_mode = 1 ########
-Phase one: Generating logs
-include/rpl_reset.inc
-======== restart_i = 0 ========
-include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1 gtids=on parameters: --debug=d,write_partial_previous_gtids_log_event]
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/start_slave.inc
--------- flush_i = 0 --------
-FLUSH LOGS;
-INSERT INTO t1 VALUES (1);
-INSERT INTO t1 VALUES (2);
-FLUSH LOGS;
-[on slave]
-include/assert.inc [no gtids lost yet on slave]
-include/assert.inc [committed gno 2 on slave]
-[on master]
-include/assert.inc [no gtids lost yet on master]
-include/assert.inc [committed gno 2 on master]
--------- flush_i = 1 --------
-FLUSH LOGS;
-INSERT INTO t1 VALUES (3);
-INSERT INTO t1 VALUES (4);
-INSERT INTO t1 VALUES (5);
-FLUSH LOGS;
-[on slave]
-include/assert.inc [no gtids lost yet on slave]
-include/assert.inc [committed gno 5 on slave]
-[on master]
-include/assert.inc [no gtids lost yet on master]
-include/assert.inc [committed gno 5 on master]
-======== restart_i = 1 ========
-include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1 gtids=on parameters: --debug=d,write_partial_previous_gtids_log_event]
-include/rpl_restart_server.inc [server_number=1 gtids=on]
-include/start_slave.inc
--------- flush_i = 0 --------
-FLUSH LOGS;
-INSERT INTO t1 VALUES (6);
-INSERT INTO t1 VALUES (7);
-FLUSH LOGS;
-[on slave]
-include/assert.inc [no gtids lost yet on slave]
-include/assert.inc [committed gno 7 on slave]
-[on master]
-include/assert.inc [no gtids lost yet on master]
-include/assert.inc [committed gno 7 on master]
--------- flush_i = 1 --------
-FLUSH LOGS;
-INSERT INTO t1 VALUES (8);
-INSERT INTO t1 VALUES (9);
-INSERT INTO t1 VALUES (10);
-FLUSH LOGS;
-[on slave]
-include/assert.inc [no gtids lost yet on slave]
-include/assert.inc [committed gno 10 on slave]
-[on master]
-include/assert.inc [no gtids lost yet on master]
-include/assert.inc [committed gno 10 on master]
-FLUSH LOGS;
-######## corruption_mode = 1 ########
-Phase two: Purging logs
-======== restart_i = 0 ========
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 0 on master]
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 0 on master]
--------- flush_i = 0 --------
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 0 on master]
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 2 on master]
--------- flush_i = 1 --------
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 2 on master]
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 5 on master]
-======== restart_i = 1 ========
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 5 on master]
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 5 on master]
--------- flush_i = 0 --------
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 5 on master]
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 7 on master]
--------- flush_i = 1 --------
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 7 on master]
-include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 10 on master]
-######## corruption_mode = 2 ########
-Phase one: Generating logs
-include/rpl_reset.inc
-======== restart_i = 0 ========
+======== restart_i = 1 of 2 ========
 include/stop_slave.inc
 include/rpl_restart_server.inc [server_number=1 gtids=on parameters: --debug=d,skip_writing_previous_gtids_log_event]
 include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/start_slave.inc
--------- flush_i = 0 --------
+-------- flush_i = 1 of 2 --------
 FLUSH LOGS;
 INSERT INTO t1 VALUES (1);
+FLUSH LOGS;
+[on slave]
+include/assert.inc [no gtids lost yet on slave]
+include/assert.inc [committed gno 1 on slave]
+[on master]
+include/assert.inc [no gtids lost yet on master]
+include/assert.inc [committed gno 1 on master]
+-------- flush_i = 2 of 2 --------
+FLUSH LOGS;
 INSERT INTO t1 VALUES (2);
-FLUSH LOGS;
-[on slave]
-include/assert.inc [no gtids lost yet on slave]
-include/assert.inc [committed gno 2 on slave]
-[on master]
-include/assert.inc [no gtids lost yet on master]
-include/assert.inc [committed gno 2 on master]
--------- flush_i = 1 --------
-FLUSH LOGS;
 INSERT INTO t1 VALUES (3);
-INSERT INTO t1 VALUES (4);
-INSERT INTO t1 VALUES (5);
 FLUSH LOGS;
 [on slave]
 include/assert.inc [no gtids lost yet on slave]
-include/assert.inc [committed gno 5 on slave]
+include/assert.inc [committed gno 3 on slave]
 [on master]
 include/assert.inc [no gtids lost yet on master]
-include/assert.inc [committed gno 5 on master]
-======== restart_i = 1 ========
+include/assert.inc [committed gno 3 on master]
+======== restart_i = 2 of 2 ========
 include/stop_slave.inc
 include/rpl_restart_server.inc [server_number=1 gtids=on parameters: --debug=d,skip_writing_previous_gtids_log_event]
 include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/start_slave.inc
--------- flush_i = 0 --------
+-------- flush_i = 1 of 2 --------
 FLUSH LOGS;
+INSERT INTO t1 VALUES (4);
+FLUSH LOGS;
+[on slave]
+include/assert.inc [no gtids lost yet on slave]
+include/assert.inc [committed gno 4 on slave]
+[on master]
+include/assert.inc [no gtids lost yet on master]
+include/assert.inc [committed gno 4 on master]
+-------- flush_i = 2 of 2 --------
+FLUSH LOGS;
+INSERT INTO t1 VALUES (5);
 INSERT INTO t1 VALUES (6);
-INSERT INTO t1 VALUES (7);
 FLUSH LOGS;
 [on slave]
 include/assert.inc [no gtids lost yet on slave]
-include/assert.inc [committed gno 7 on slave]
+include/assert.inc [committed gno 6 on slave]
 [on master]
 include/assert.inc [no gtids lost yet on master]
-include/assert.inc [committed gno 7 on master]
--------- flush_i = 1 --------
+include/assert.inc [committed gno 6 on master]
 FLUSH LOGS;
-INSERT INTO t1 VALUES (8);
-INSERT INTO t1 VALUES (9);
-INSERT INTO t1 VALUES (10);
+######## corruption_mode = 1 ########
+Phase two: Purging logs
+======== restart_i = 1 of 2 ========
+include/purge_first_log.inc
+include/assert.inc [lost gtids from 1 to 0 on master]
+include/purge_first_log.inc
+include/assert.inc [lost gtids from 1 to 0 on master]
+-------- flush_i = 1 of 2 --------
+include/purge_first_log.inc
+include/assert.inc [lost gtids from 1 to 0 on master]
+include/purge_first_log.inc
+include/assert.inc [lost gtids from 1 to 1 on master]
+-------- flush_i = 2 of 2 --------
+include/purge_first_log.inc
+include/assert.inc [lost gtids from 1 to 1 on master]
+include/purge_first_log.inc
+include/assert.inc [lost gtids from 1 to 3 on master]
+======== restart_i = 2 of 2 ========
+include/purge_first_log.inc
+include/assert.inc [lost gtids from 1 to 3 on master]
+include/purge_first_log.inc
+include/assert.inc [lost gtids from 1 to 3 on master]
+-------- flush_i = 1 of 2 --------
+include/purge_first_log.inc
+include/assert.inc [lost gtids from 1 to 3 on master]
+include/purge_first_log.inc
+include/assert.inc [lost gtids from 1 to 4 on master]
+-------- flush_i = 2 of 2 --------
+include/purge_first_log.inc
+include/assert.inc [lost gtids from 1 to 4 on master]
+include/purge_first_log.inc
+include/assert.inc [lost gtids from 1 to 6 on master]
+######## corruption_mode = 2 of 2 ########
+Phase one: Generating logs
+include/rpl_reset.inc
+======== restart_i = 1 of 2 ========
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1 gtids=on]
+include/rpl_restart_server.inc [server_number=1 gtids=on]
+include/start_slave.inc
+-------- flush_i = 1 of 2 --------
+FLUSH LOGS;
+INSERT INTO t1 VALUES (1);
 FLUSH LOGS;
 [on slave]
 include/assert.inc [no gtids lost yet on slave]
-include/assert.inc [committed gno 10 on slave]
+include/assert.inc [committed gno 1 on slave]
 [on master]
 include/assert.inc [no gtids lost yet on master]
-include/assert.inc [committed gno 10 on master]
+include/assert.inc [committed gno 1 on master]
+-------- flush_i = 2 of 2 --------
+FLUSH LOGS;
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+FLUSH LOGS;
+[on slave]
+include/assert.inc [no gtids lost yet on slave]
+include/assert.inc [committed gno 3 on slave]
+[on master]
+include/assert.inc [no gtids lost yet on master]
+include/assert.inc [committed gno 3 on master]
+======== restart_i = 2 of 2 ========
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1 gtids=on]
+include/rpl_restart_server.inc [server_number=1 gtids=on]
+include/start_slave.inc
+-------- flush_i = 1 of 2 --------
+FLUSH LOGS;
+INSERT INTO t1 VALUES (4);
+FLUSH LOGS;
+[on slave]
+include/assert.inc [no gtids lost yet on slave]
+include/assert.inc [committed gno 4 on slave]
+[on master]
+include/assert.inc [no gtids lost yet on master]
+include/assert.inc [committed gno 4 on master]
+-------- flush_i = 2 of 2 --------
+FLUSH LOGS;
+INSERT INTO t1 VALUES (5);
+INSERT INTO t1 VALUES (6);
+FLUSH LOGS;
+[on slave]
+include/assert.inc [no gtids lost yet on slave]
+include/assert.inc [committed gno 6 on slave]
+[on master]
+include/assert.inc [no gtids lost yet on master]
+include/assert.inc [committed gno 6 on master]
 FLUSH LOGS;
 ######## corruption_mode = 2 ########
 Phase two: Purging logs
-======== restart_i = 0 ========
+======== restart_i = 1 of 2 ========
 include/purge_first_log.inc
 include/assert.inc [lost gtids from 1 to 0 on master]
 include/purge_first_log.inc
 include/assert.inc [lost gtids from 1 to 0 on master]
--------- flush_i = 0 --------
+-------- flush_i = 1 of 2 --------
 include/purge_first_log.inc
 include/assert.inc [lost gtids from 1 to 0 on master]
 include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 2 on master]
--------- flush_i = 1 --------
+include/assert.inc [lost gtids from 1 to 1 on master]
+-------- flush_i = 2 of 2 --------
 include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 2 on master]
+include/assert.inc [lost gtids from 1 to 1 on master]
 include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 5 on master]
-======== restart_i = 1 ========
+include/assert.inc [lost gtids from 1 to 3 on master]
+======== restart_i = 2 of 2 ========
 include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 5 on master]
+include/assert.inc [lost gtids from 1 to 3 on master]
 include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 5 on master]
--------- flush_i = 0 --------
+include/assert.inc [lost gtids from 1 to 3 on master]
+-------- flush_i = 1 of 2 --------
 include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 5 on master]
+include/assert.inc [lost gtids from 1 to 3 on master]
 include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 7 on master]
--------- flush_i = 1 --------
+include/assert.inc [lost gtids from 1 to 4 on master]
+-------- flush_i = 2 of 2 --------
 include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 7 on master]
+include/assert.inc [lost gtids from 1 to 4 on master]
 include/purge_first_log.inc
-include/assert.inc [lost gtids from 1 to 10 on master]
+include/assert.inc [lost gtids from 1 to 6 on master]
 ######## Clean up ########
 DROP TABLE t1;
 include/gtid_utils_end.inc
