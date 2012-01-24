@@ -1242,6 +1242,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
   if (extra_socket && recvdata.m_transporters.get(0))
   {
     const NDB_SOCKET_TYPE socket = m_extra_wakeup_sockets[0];
+    assert(&recvdata == receiveHandle); // not used by ndbmtd...
 
     // Poll the wakup-socket for read
     recvdata.m_socket_poller.add(socket, true, false, false);
@@ -1317,6 +1318,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
   if (recvdata.m_has_data_transporters.get(0))
   {
     assert(recvdata.m_transporters.get(0));
+    assert(&recvdata == receiveHandle); // not used by ndbmtd
     recvdata.m_has_data_transporters.clear(Uint32(0));
     consume_extra_sockets();
   }
@@ -1619,7 +1621,7 @@ run_start_clients_C(void * me)
 }
 
 /**
- * This method is used to initiate connection, called from the CMVMI blockx.
+ * This method is used to initiate connection, called from the TRPMAN block.
  *
  * This works asynchronously, no actions are taken directly in the calling
  * thread.
@@ -1652,7 +1654,7 @@ TransporterRegistry::do_connect(NodeId node_id)
 }
 
 /**
- * This method is used to initiate disconnect from CMVMI. It is also called
+ * This method is used to initiate disconnect from TRPMAN. It is also called
  * from the TCP transporter in case of an I/O error on the socket.
  *
  * This works asynchronously, similar to do_connect().

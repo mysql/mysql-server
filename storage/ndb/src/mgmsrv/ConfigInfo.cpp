@@ -4828,6 +4828,7 @@ check_2n_number_less_16(Uint32 num)
     case 2:
     case 4:
     case 8:
+    case 12:
     case 16:
       return true;
     default:
@@ -4861,13 +4862,13 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
 
   if (!check_2n_number_less_16(lqhThreads))
   {
-    ctx.reportError("NumLqhThreads must be 0, 1,2,4,8 or 16");
+    ctx.reportError("NumLqhThreads must be 0, 1,2,4,8,12 or 16");
     return false;
   }
   if (!check_2n_number_less_16(ndbLogParts) ||
       ndbLogParts < 4)
   {
-    ctx.reportError("NoOfLogParts must be 4,8 or 16");
+    ctx.reportError("NoOfLogParts must be 4,8,12 or 16");
     return false;
   }
   if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
