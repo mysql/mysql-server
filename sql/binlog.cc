@@ -2004,6 +2004,8 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     switch (ev->get_type_code())
     {
     case FORMAT_DESCRIPTION_EVENT:
+      if (fd_ev_p != &fd_ev)
+        delete fd_ev_p;
       fd_ev_p= (Format_description_log_event *)ev;
       break;
     case ROTATE_EVENT:
@@ -2076,8 +2078,9 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     delete fd_ev_p;
     fd_ev_p= &fd_ev;
   }
-  end_io_cache(&log);
+
   mysql_file_close(file, MYF(MY_WME));
+  end_io_cache(&log);
 
   DBUG_PRINT("info", ("returning %d", ret));
   DBUG_RETURN(ret);
