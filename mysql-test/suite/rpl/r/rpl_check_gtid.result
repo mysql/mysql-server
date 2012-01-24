@@ -73,7 +73,9 @@ FLUSH LOGS;
 FLUSH LOGS;
 ==== Part 2 ====
 include/rpl_reset.inc
+include/stop_slave.inc
 SET GLOBAL debug="d,rotate_slave_debug_group";
+include/start_slave.inc
 ---- i=1 ----
 BEGIN;
 INSERT INTO t1 VALUES(1);
@@ -103,8 +105,10 @@ COMMIT;
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 ==== Part 3 ====
-SET GLOBAL debug="";
 include/rpl_reset.inc
+include/stop_slave.inc
+SET GLOBAL debug="";
+include/start_slave.inc
 ---- i=1 ----
 BEGIN;
 INSERT INTO t1 VALUES(1);
