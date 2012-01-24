@@ -89,8 +89,8 @@ static const Uint32 MAX_SIGNALS_BEFORE_WAKEUP = 128;
 /* If this is too small it crashes before first signal. */
 #define MAX_INSTANCES_PER_THREAD (16 + 8 * MAX_NDBMT_LQH_THREADS)
 
-static Uint32 receiver_thread_no = 0;
 static Uint32 num_threads = 0;
+static Uint32 first_receiver_thread_no = 0;
 
 #define NO_SEND_THREAD (MAX_BLOCK_THREADS + MAX_NDBMT_SEND_THREADS + 1)
 
@@ -1526,10 +1526,10 @@ flush_jbb_write_state(thr_data *selfptr)
  * else 1
  */
 static int
-check_job_buffers(struct thr_repository* rep)
+check_job_buffers(struct thr_repository* rep, Uint32 recv_thread_id)
 {
   const Uint32 minfree = (1024 + MIN_SIGNALS_PER_PAGE - 1)/MIN_SIGNALS_PER_PAGE;
-  unsigned thr_no = receiver_thread_no;
+  unsigned thr_no = first_receiver_thread_no + recv_thread_id;
   const thr_data *thrptr = rep->m_thread;
   for (unsigned i = 0; i<num_threads; i++, thrptr++)
   {
@@ -1549,7 +1549,6 @@ check_job_buffers(struct thr_repository* rep)
       return 1;
     }
   }
-
   return 0;
 }
 
@@ -1669,7 +1668,7 @@ trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
 void
 trp_callback::lock_transporter(NodeId node)
 {
-  Uint32 recv_thread_no = 0;
+  Uint32 recv_thread_idx = mt_get_recv_thread_idx(node);
   struct thr_repository* rep = &g_thr_repository;
   /**
    * Note: take the send lock _first_, so that we will not hold the receive
@@ -1681,31 +1680,31 @@ trp_callback::lock_transporter(NodeId node)
    * non-waiting (so we will not block sending on other transporters).
    */
   lock(&rep->m_send_buffers[node].m_send_lock);
-  lock(&rep->m_receive_lock[recv_thread_no]);
+  lock(&rep->m_receive_lock[recv_thread_idx]);
 }
 
 void
 trp_callback::unlock_transporter(NodeId node)
 {
-  Uint32 recv_thread_no = 0;
+  Uint32 recv_thread_idx = mt_get_recv_thread_idx(node);
   struct thr_repository* rep = &g_thr_repository;
-  unlock(&rep->m_receive_lock[recv_thread_no]);
+  unlock(&rep->m_receive_lock[recv_thread_idx]);
   unlock(&rep->m_send_buffers[node].m_send_lock);
 }
 
 int
-mt_checkDoJob()
+mt_checkDoJob(Uint32 recv_thread_idx)
 {
   struct thr_repository* rep = &g_thr_repository;
-  if (unlikely(check_job_buffers(rep)))
+  if (unlikely(check_job_buffers(rep, recv_thread_idx)))
   {
     do 
     {
       /**
        * theoretically (or when we do single threaded by using ndbmtd with
        * all in same thread) we should execute signals here...to 
-       * prevent dead-lock, but...with current ndbmtd only CMVMI runs in
-       * this thread, and other thread is waiting for CMVMI
+       * prevent dead-lock, but...with current ndbmtd only TRPMAN runs in
+       * this thread, and other thread is waiting for TRPMAN 
        * except for QMGR open/close connection, but that is not
        * (i think) sufficient to create a deadlock
        */
@@ -1728,7 +1727,7 @@ mt_checkDoJob()
       NdbSleep_MilliSleep(0);
 #endif
 
-    } while (check_job_buffers(rep));
+    } while (check_job_buffers(rep, recv_thread_idx));
   }
 
   return 0;
@@ -2844,6 +2843,11 @@ aligned_signal(unsigned char signal_buf[SIGBUF_SIZE], unsigned thr_no)
 TransporterReceiveHandleKernel *
   g_trp_receive_handle_ptr[MAX_NDBMT_RECEIVE_THREADS];
 
+/**
+ * Array for mapping nodes to receiver threads and function to access it.
+ */
+static NodeId g_node_to_recv_thr_map[MAX_NODES];
+
 extern "C"
 void *
 mt_receiver_thread_main(void *thr_arg)
@@ -2855,8 +2859,9 @@ mt_receiver_thread_main(void *thr_arg)
   unsigned thr_no = selfptr->m_thr_no;
   Uint32& watchDogCounter = selfptr->m_watchdog_counter;
   Uint32 thrSignalId = 0;
+  const Uint32 recv_thread_idx = thr_no - first_receiver_thread_no;
   bool has_received = false;
-  const unsigned recv_thread_idx = 0;
+  int cnt = 0;
 
   init_thread(selfptr);
   signal = aligned_signal(signal_buf, thr_no);
@@ -2865,6 +2870,7 @@ mt_receiver_thread_main(void *thr_arg)
    * Object that keeps track of our pollReceive-state
    */
   TransporterReceiveHandleKernel recvdata(thr_no, recv_thread_idx);
+  recvdata.assign_nodes(g_node_to_recv_thr_map);
   globalTransporterRegistry.init(recvdata);
 
   /**
@@ -2874,8 +2880,6 @@ mt_receiver_thread_main(void *thr_arg)
 
   while (globalData.theRestartFlag != perform_stop)
   {
-    static int cnt = 0;
-
     if (cnt == 0)
     {
       watchDogCounter = 5;
@@ -2903,7 +2907,7 @@ mt_receiver_thread_main(void *thr_arg)
     has_received = false;
     if (globalTransporterRegistry.pollReceive(1, recvdata))
     {
-      if (check_job_buffers(rep) == 0)
+      if (check_job_buffers(rep, recv_thread_idx) == 0)
       {
 	watchDogCounter = 8;
         lock(&rep->m_receive_lock[recv_thread_idx]);
@@ -2970,7 +2974,7 @@ check_job_buffer_full(thr_data *selfptr)
  *   In order to prevent "job-buffer-full", i.e
  *     that one thread(T1) produces so much signals to another thread(T2)
  *     so that the ring-buffer from T1 to T2 gets full
- *     the mainlop have 2 "config" variables
+ *     the main loop have 2 "config" variables
  *   - m_max_exec_signals
  *     This is the *total* no of signals T1 can execute before calling
  *     this method again
@@ -3170,7 +3174,7 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
    * to the other thread.
    * This parameter found to be reasonable by benchmarking.
    */
-  Uint32 MAX_SIGNALS_BEFORE_FLUSH = (self == receiver_thread_no) ? 
+  Uint32 MAX_SIGNALS_BEFORE_FLUSH = (self >= first_receiver_thread_no) ? 
     MAX_SIGNALS_BEFORE_FLUSH_RECEIVER : 
     MAX_SIGNALS_BEFORE_FLUSH_OTHER;
 
@@ -3541,9 +3545,9 @@ ThreadConfig::init()
   Uint32 num_lqh_threads = globalData.ndbMtLqhThreads;
   Uint32 num_tc_threads = globalData.ndbMtTcThreads;
   Uint32 num_recv_threads = globalData.ndbMtReceiveThreads;
-
-  receiver_thread_no = NUM_MAIN_THREADS + num_tc_threads + num_lqh_threads;
-  num_threads = receiver_thread_no + num_recv_threads;
+  first_receiver_thread_no =
+    NUM_MAIN_THREADS + num_tc_threads + num_lqh_threads;
+  num_threads = first_receiver_thread_no + num_recv_threads;
   require(num_threads <= MAX_BLOCK_THREADS);
 
   ndbout << "NDBMT: number of block threads=" << num_threads << endl;
@@ -3565,6 +3569,45 @@ setcpuaffinity(struct thr_repository* rep)
   }
 }
 
+/**
+ * return receiver thread handling a particular node
+ *   returned number is indexed from 0 and upwards to #receiver threads
+ *   (or MAX_NODES is none)
+ */
+Uint32
+mt_get_recv_thread_idx(NodeId nodeId)
+{
+  assert(nodeId < NDB_ARRAY_SIZE(g_node_to_recv_thr_map));
+  return g_node_to_recv_thr_map[nodeId];
+}
+
+static
+void
+assign_receiver_threads(void)
+{
+  Uint32 num_recv_threads = globalData.ndbMtReceiveThreads;
+  Uint32 recv_thread_idx = 0;
+  for (Uint32 nodeId = 1; nodeId < MAX_NODES; nodeId++)
+  {
+    Transporter *node_trp =
+      globalTransporterRegistry.get_transporter(nodeId);
+
+    if (node_trp)
+    {
+      g_node_to_recv_thr_map[nodeId] = recv_thread_idx;
+      recv_thread_idx++;
+      if (recv_thread_idx == num_recv_threads)
+        recv_thread_idx = 0;
+    }
+    else
+    {
+      /* Flag for no transporter */
+      g_node_to_recv_thr_map[nodeId] = MAX_NODES;
+    }
+  }
+  return;
+}
+
 void
 ThreadConfig::ipControlLoop(NdbThread* pThis, Uint32 thread_index)
 {
@@ -3576,38 +3619,59 @@ ThreadConfig::ipControlLoop(NdbThread* pThis, Uint32 thread_index)
    */
   setcpuaffinity(rep);
 
+  /**
+   * assign nodes to receiver threads
+   */
+  assign_receiver_threads();
+
   /*
    * Start threads for all execution threads, except for the receiver
    * thread, which runs in the main thread.
    */
+
   for (thr_no = 0; thr_no < num_threads; thr_no++)
   {
     rep->m_thread[thr_no].m_time = NdbTick_CurrentMillisecond();
 
-    if (thr_no == receiver_thread_no)
+    if (thr_no == first_receiver_thread_no)
       continue;                 // Will run in the main thread.
 
     /*
      * The NdbThread_Create() takes void **, but that is cast to void * when
      * passed to the thread function. Which is kind of strange ...
      */
-    rep->m_thread[thr_no].m_thread =
-      NdbThread_Create(mt_job_thread_main,
-                       (void **)(rep->m_thread + thr_no),
-                       1024*1024,
-                       "execute thread", //ToDo add number
-                       NDB_THREAD_PRIO_MEAN);
-    require(rep->m_thread[thr_no].m_thread != NULL);
+    if (thr_no < first_receiver_thread_no)
+    {
+      /* Start block threads */
+      rep->m_thread[thr_no].m_thread =
+        NdbThread_Create(mt_job_thread_main,
+                         (void **)(rep->m_thread + thr_no),
+                         1024*1024,
+                         "execute thread", //ToDo add number
+                         NDB_THREAD_PRIO_MEAN);
+      require(rep->m_thread[thr_no].m_thread != NULL);
+    }
+    else
+    {
+      /* Start a receiver thread, also block thread for TRPMAN */
+      rep->m_thread[thr_no].m_thread =
+        NdbThread_Create(mt_receiver_thread_main,
+                         (void **)(rep->m_thread + thr_no),
+                         1024*1024,
+                         "receive thread", //ToDo add number
+                         NDB_THREAD_PRIO_MEAN);
+      require(rep->m_thread[thr_no].m_thread != NULL);
+    }
   }
 
-  /* Now run the main loop for thread 0 directly. */
-  rep->m_thread[receiver_thread_no].m_thread = pThis;
-  mt_receiver_thread_main(&(rep->m_thread[receiver_thread_no]));
+  /* Now run the main loop for first receiver thread directly. */
+  rep->m_thread[first_receiver_thread_no].m_thread = pThis;
+  mt_receiver_thread_main(&(rep->m_thread[first_receiver_thread_no]));
 
   /* Wait for all threads to shutdown. */
   for (thr_no = 0; thr_no < num_threads; thr_no++)
   {
-    if (thr_no == receiver_thread_no)
+    if (thr_no == first_receiver_thread_no)
       continue;
     void *dummy_return_status;
     NdbThread_WaitFor(rep->m_thread[thr_no].m_thread, &dummy_return_status);
