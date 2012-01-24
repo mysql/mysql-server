@@ -3495,9 +3495,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--loose-skip-aria");
   mtr_add_arg($args, "--disable-sync-frm");
-  mtr_add_arg($args, "--tmpdir=.");
-  mtr_add_arg($args, "--max_allowed_packet=8M");
-  mtr_add_arg($args, "--net_buffer_length=16K");
+  mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--core-file");
 
   if ( $opt_debug )
