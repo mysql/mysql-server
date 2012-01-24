@@ -65,7 +65,7 @@ KILL CONNECTION @id;
 connection con1;
 --echo # Try to reap FLUSH TABLES WITH READ LOCK, 
 --echo # it fail due to killed statement and connection.
---error 1317,2013,1927
+--error 1317,2013
 reap;
 
 --echo # Switching to 'con2'.

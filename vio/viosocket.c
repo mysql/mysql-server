@@ -144,7 +144,7 @@ static void CALLBACK cancel_io_apc(ULONG_PTR data)
   IO. On Vista+, simpler cancelation is done with CancelIoEx. 
 */
 
-static int cancel_io(HANDLE handle, DWORD thread_id)
+int cancel_io(HANDLE handle, DWORD thread_id)
 {
   static BOOL (WINAPI  *fp_CancelIoEx) (HANDLE, OVERLAPPED *);
   static volatile int first_time= 1;
@@ -177,11 +177,12 @@ static int cancel_io(HANDLE handle, DWORD thread_id)
 
 int vio_socket_shutdown(Vio *vio, int how)
 {
-#ifdef _WIN32
-  return cancel_io((HANDLE)vio->sd, vio->thread_id);
-#else
-  return shutdown(vio->sd, how);
+  int ret= shutdown(vio->sd, how);
+#ifdef  _WIN32
+  /* Cancel possible IO in progress (shutdown does not do that on Windows). */
+  (void) cancel_io((HANDLE)vio->sd, vio->thread_id);
 #endif
+  return ret;
 }
 
 

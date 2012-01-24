@@ -1701,11 +1701,7 @@ bool THD::store_globals()
   real_id= pthread_self();                      // For debugging
   mysys_var->stack_ends_here= thread_stack +    // for consistency, see libevent_thread_proc
                               STACK_DIRECTION * (long)my_thread_stack_size;
-
-#ifdef _WIN32
-  if (net.vio)
-    net.vio->thread_id= real_id; /* Required to support IO cancelation on XP */
-#endif
+  vio_set_thread_id(net.vio, real_id);
   /*
     We have to call thr_lock_info_init() again here as THD may have been
     created in another thread

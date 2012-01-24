@@ -39,6 +39,7 @@ size_t vio_read_pipe(Vio *vio, uchar * buf, size_t size);
 size_t vio_write_pipe(Vio *vio, const uchar * buf, size_t size);
 my_bool vio_is_connected_pipe(Vio *vio);
 int vio_close_pipe(Vio * vio);
+int cancel_io(HANDLE handle, DWORD thread_id);
 int vio_shutdown_pipe(Vio *vio,int how);
 #endif
 

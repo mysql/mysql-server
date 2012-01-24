@@ -175,6 +175,17 @@ void vio_end(void);
 #define vio_is_connected(vio)                   (vio)->is_connected(vio)
 #endif /* !defined(DONT_MAP_VIO) */
 
+#ifdef _WIN32
+/*
+  Set thread id for io cancellation (required on Windows XP only,
+  and should to be removed if XP is no more supported)
+*/
+
+#define vio_set_thread_id(vio, tid) if(vio) vio->thread_id= tid
+#else
+#define vio_set_thread_id(vio, tid)
+#endif
+
 /* This enumerator is used in parser - should be always visible */
 enum SSL_type
 {
@@ -237,7 +248,7 @@ struct st_vio
   char    *shared_memory_pos;
 #endif /* HAVE_SMEM */
 #ifdef _WIN32
-  DWORD thread_id; /* Used to XP only in vio_shutdown */
+  DWORD thread_id; /* Used on XP only by vio_shutdown() */
   OVERLAPPED pipe_overlapped;
   DWORD read_timeout_ms;
   DWORD write_timeout_ms;

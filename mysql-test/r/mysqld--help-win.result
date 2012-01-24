@@ -941,7 +941,7 @@ lower-case-table-names 1
 master-info-file master.info
 master-retry-count 86400
 master-verify-checksum FALSE
-max-allowed-packet 8388608
+max-allowed-packet 1048576
 max-binlog-cache-size 18446744073709547520
 max-binlog-size 1073741824
 max-binlog-stmt-cache-size 18446744073709547520
@@ -952,7 +952,7 @@ max-error-count 64
 max-heap-table-size 16777216
 max-join-size 18446744073709551615
 max-length-for-sort-data 1024
-max-long-data-size 8388608
+max-long-data-size 1048576
 max-prepared-stmt-count 16382
 max-relay-log-size 0
 max-seeks-for-key 18446744073709551615

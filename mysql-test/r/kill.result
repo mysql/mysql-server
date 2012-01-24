@@ -60,6 +60,9 @@ SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
 KILL @id;
 SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
 Got one of the listed errors
+SELECT 1;
+1
+1
 SET DEBUG_SYNC = 'RESET';
 DROP TABLE t1, t2;
 SET DEBUG_SYNC= 'before_acos_function SIGNAL in_sync WAIT_FOR kill';
