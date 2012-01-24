@@ -32,47 +32,73 @@ public:
   void reset();
   void aggregate(const Host_errors *errors);
 
-  /** Number of blocking errors. */
-  uint m_blocking_errors;
+  /** Number of connect errors. */
+  ulong m_connect;
+
+  /** Number of host blocked errors. */
+  ulong m_host_blocked;
   /** Number of transient errors from getnameinfo(). */
-  uint m_nameinfo_transient_errors;
+  ulong m_nameinfo_transient;
   /** Number of permanent errors from getnameinfo(). */
-  uint m_nameinfo_permanent_errors;
+  ulong m_nameinfo_permanent;
   /** Number of errors from is_hostname_valid(). */
-  uint m_format_errors;
+  ulong m_format;
   /** Number of transient errors from getaddrinfo(). */
-  uint m_addrinfo_transient_errors;
+  ulong m_addrinfo_transient;
   /** Number of permanent errors from getaddrinfo(). */
-  uint m_addrinfo_permanent_errors;
+  ulong m_addrinfo_permanent;
   /** Number of errors from Forward-Confirmed reverse DNS checks. */
-  uint m_FCrDNS_errors;
+  ulong m_FCrDNS;
   /** Number of errors from host grants. */
-  uint m_host_acl_errors;
+  ulong m_host_acl;
+  /** Number of errors from missing auth plugin. */
+  ulong m_no_auth_plugin;
+  /** Number of errors from auth plugin. */
+  ulong m_auth_plugin;
   /** Number of errors from authentication plugins. */
-  uint m_handshake_errors;
+  ulong m_handshake;
+  /** Number of errors from proxy user. */
+  ulong m_proxy_user;
+  /** Number of errors from proxy user acl. */
+  ulong m_proxy_user_acl;
   /** Number of errors from authentication. */
-  uint m_authentication_errors;
+  ulong m_authentication;
   /** Number of errors from user grants. */
-  uint m_user_acl_errors;
+  ulong m_user_acl;
   /** Number of errors from the server itself. */
-  uint m_local_errors;
+  ulong m_local;
   /** Number of unknown errors. */
-  uint m_unknown_errors;
+  ulong m_unknown;
 
   bool has_error() const
   {
-    return ((m_nameinfo_transient_errors != 0)
-      || (m_nameinfo_permanent_errors != 0)
-      || (m_format_errors != 0)
-      || (m_addrinfo_transient_errors != 0)
-      || (m_addrinfo_permanent_errors != 0)
-      || (m_FCrDNS_errors != 0)
-      || (m_host_acl_errors != 0)
-      || (m_handshake_errors != 0)
-      || (m_authentication_errors != 0)
-      || (m_user_acl_errors != 0)
-      || (m_local_errors != 0)
-      || (m_unknown_errors != 0));
+    return ((m_host_blocked != 0)
+      || (m_nameinfo_transient != 0)
+      || (m_nameinfo_permanent != 0)
+      || (m_format != 0)
+      || (m_addrinfo_transient != 0)
+      || (m_addrinfo_permanent != 0)
+      || (m_FCrDNS != 0)
+      || (m_host_acl != 0)
+      || (m_no_auth_plugin != 0)
+      || (m_auth_plugin != 0)
+      || (m_handshake != 0)
+      || (m_proxy_user != 0)
+      || (m_proxy_user_acl != 0)
+      || (m_authentication != 0)
+      || (m_user_acl != 0)
+      || (m_local != 0)
+      || (m_unknown != 0));
+  }
+
+  void sum_connect_errors()
+  {
+    m_connect= m_host_acl + m_authentication + m_user_acl;
+  }
+
+  void clear_connect_errors()
+  {
+    m_connect= 0;
   }
 };
 
@@ -131,9 +157,13 @@ public:
 /** The size of the host_cache. */
 extern ulong host_cache_size;
 
-bool ip_to_hostname(struct sockaddr_storage *ip_storage,
-                    const char *ip_string,
-                    char **hostname, uint *connect_errors);
+#define RC_OK 0
+#define RC_NO_HOST 1
+#define RC_BLOCKED_HOST 2
+int ip_to_hostname(struct sockaddr_storage *ip_storage,
+                   const char *ip_string,
+                   char **hostname);
+
 void inc_host_errors(const char *ip_string, const Host_errors *errors);
 void reset_host_errors(const char *ip_string);
 bool hostname_cache_init();

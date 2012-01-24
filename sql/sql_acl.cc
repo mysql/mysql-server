@@ -1752,7 +1752,7 @@ bool acl_check_host(const char *host, const char *ip)
   {
     /* Increment HOST_CACHE.COUNT_HOST_ACL_ERRORS. */
     Host_errors errors;
-    errors.m_host_acl_errors= 1;
+    errors.m_host_acl= 1;
     inc_host_errors(ip, &errors);
   }
   return 1;					// Host is not allowed
@@ -9169,7 +9169,7 @@ err:
   if (mpvio->status == MPVIO_EXT::FAILURE)
   {
     Host_errors errors;
-    errors.m_handshake_errors= 1;
+    errors.m_handshake= 1;
     inc_host_errors(mpvio->ip, &errors);
     my_error(ER_HANDSHAKE_ERROR, MYF(0));
   }
@@ -9329,6 +9329,9 @@ static int do_auth_once(THD *thd, const LEX_STRING *auth_plugin_name,
   else
   {
     /* Server cannot load the required plugin. */
+    Host_errors errors;
+    errors.m_no_auth_plugin= 1;
+    inc_host_errors(mpvio->ip, &errors);
     my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), auth_plugin_name->str);
     res= CR_ERROR;
   }
@@ -9471,6 +9474,7 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
                 my_strcasecmp(system_charset_info, auth_plugin_name->str,
                               mpvio.acl_user->plugin.str));
     auth_plugin_name= &mpvio.acl_user->plugin;
+
     res= do_auth_once(thd, auth_plugin_name, &mpvio);
   }
 
@@ -9531,6 +9535,9 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
       /* we need to find the proxy user, but there was none */
       if (!proxy_user)
       {
+        Host_errors errors;
+        errors.m_proxy_user= 1;
+        inc_host_errors(mpvio.ip, &errors);
         if (!thd->is_error())
           login_failed_error(&mpvio, mpvio.auth_info.password_used);
         DBUG_RETURN(1);
@@ -9547,6 +9554,9 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
                                     mpvio.auth_info.authenticated_as, TRUE);
       if (!acl_proxy_user)
       {
+        Host_errors errors;
+        errors.m_proxy_user_acl= 1;
+        inc_host_errors(mpvio.ip, &errors);
         if (!thd->is_error())
           login_failed_error(&mpvio, mpvio.auth_info.password_used);
         mysql_mutex_unlock(&acl_cache->lock);
@@ -9754,7 +9764,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   }
 
   Host_errors errors;
-  errors.m_handshake_errors= 1;
+  errors.m_handshake= 1;
   inc_host_errors(mpvio->ip, &errors);
   my_error(ER_HANDSHAKE_ERROR, MYF(0));
   DBUG_RETURN(CR_ERROR);
@@ -9810,7 +9820,7 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   }
 
   Host_errors errors;
-  errors.m_handshake_errors= 1;
+  errors.m_handshake= 1;
   inc_host_errors(mpvio->ip, &errors);
   my_error(ER_HANDSHAKE_ERROR, MYF(0));
   return CR_ERROR;

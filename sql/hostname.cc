@@ -47,19 +47,24 @@ extern "C" {					// Because of SCO 3.2V4.2
 #endif
 
 Host_errors::Host_errors()
-: m_blocking_errors(0),
-  m_nameinfo_transient_errors(0),
-  m_nameinfo_permanent_errors(0),
-  m_format_errors(0),
-  m_addrinfo_transient_errors(0),
-  m_addrinfo_permanent_errors(0),
-  m_FCrDNS_errors(0),
-  m_host_acl_errors(0),
-  m_handshake_errors(0),
-  m_authentication_errors(0),
-  m_user_acl_errors(0),
-  m_local_errors(0),
-  m_unknown_errors(0)
+: m_connect(0),
+  m_host_blocked(0),
+  m_nameinfo_transient(0),
+  m_nameinfo_permanent(0),
+  m_format(0),
+  m_addrinfo_transient(0),
+  m_addrinfo_permanent(0),
+  m_FCrDNS(0),
+  m_host_acl(0),
+  m_no_auth_plugin(0),
+  m_auth_plugin(0),
+  m_handshake(0),
+  m_proxy_user(0),
+  m_proxy_user_acl(0),
+  m_authentication(0),
+  m_user_acl(0),
+  m_local(0),
+  m_unknown(0)
 {}
 
 Host_errors::~Host_errors()
@@ -67,36 +72,46 @@ Host_errors::~Host_errors()
 
 void Host_errors::reset()
 {
-  m_blocking_errors= 0;
-  m_nameinfo_transient_errors= 0;
-  m_nameinfo_permanent_errors= 0;
-  m_format_errors= 0;
-  m_addrinfo_transient_errors= 0;
-  m_addrinfo_permanent_errors= 0;
-  m_FCrDNS_errors= 0;
-  m_host_acl_errors= 0;
-  m_handshake_errors= 0;
-  m_authentication_errors= 0;
-  m_user_acl_errors= 0;
-  m_local_errors= 0;
-  m_unknown_errors= 0;
+  m_connect= 0;
+  m_host_blocked= 0;
+  m_nameinfo_transient= 0;
+  m_nameinfo_permanent= 0;
+  m_format= 0;
+  m_addrinfo_transient= 0;
+  m_addrinfo_permanent= 0;
+  m_FCrDNS= 0;
+  m_host_acl= 0;
+  m_no_auth_plugin= 0;
+  m_auth_plugin= 0;
+  m_handshake= 0;
+  m_proxy_user= 0;
+  m_proxy_user_acl= 0;
+  m_authentication= 0;
+  m_user_acl= 0;
+  m_local= 0;
+  m_unknown= 0;
 }
 
 void Host_errors::aggregate(const Host_errors *errors)
 {
-  m_blocking_errors+= errors->m_blocking_errors;
-  m_nameinfo_transient_errors+= errors->m_nameinfo_transient_errors;
-  m_nameinfo_permanent_errors+= errors->m_nameinfo_permanent_errors;
-  m_format_errors+= errors->m_format_errors;
-  m_addrinfo_transient_errors+= errors->m_addrinfo_transient_errors;
-  m_addrinfo_permanent_errors+= errors->m_addrinfo_permanent_errors;
-  m_FCrDNS_errors+= errors->m_FCrDNS_errors;
-  m_host_acl_errors+= errors->m_host_acl_errors;
-  m_handshake_errors+= errors->m_handshake_errors;
-  m_authentication_errors+= errors->m_authentication_errors;
-  m_user_acl_errors+= errors->m_user_acl_errors;
-  m_local_errors+= errors->m_local_errors;
-  m_unknown_errors+= errors->m_unknown_errors;
+  m_connect+= errors->m_connect;
+  m_host_blocked+= errors->m_host_blocked;
+  m_nameinfo_transient+= errors->m_nameinfo_transient;
+  m_nameinfo_permanent+= errors->m_nameinfo_permanent;
+  m_format+= errors->m_format;
+  m_addrinfo_transient+= errors->m_addrinfo_transient;
+  m_addrinfo_permanent+= errors->m_addrinfo_permanent;
+  m_FCrDNS+= errors->m_FCrDNS;
+  m_host_acl+= errors->m_host_acl;
+  m_no_auth_plugin+= errors->m_no_auth_plugin;
+  m_auth_plugin+= errors->m_auth_plugin;
+  m_handshake+= errors->m_handshake;
+  m_proxy_user+= errors->m_proxy_user;
+  m_proxy_user_acl+= errors->m_proxy_user_acl;
+  m_authentication+= errors->m_authentication;
+  m_user_acl+= errors->m_user_acl;
+  m_local+= errors->m_local;
+  m_unknown+= errors->m_unknown;
 }
 
 static hash_filo *hostname_cache;
@@ -222,20 +237,17 @@ static void add_hostname_impl(const char *ip_key, const char *hostname,
     }
     entry->m_host_validated= true;
     /*
-      Errors considered 'blocking',
+      New errors that are considered 'blocking',
       that will eventually cause the IP to be black listed and blocked.
     */
-    errors->m_blocking_errors
-      = errors->m_host_acl_errors
-      + errors->m_authentication_errors
-      + errors->m_user_acl_errors;
+    errors->sum_connect_errors();
   }
   else
   {
     entry->m_hostname_length= 0;
     entry->m_host_validated= false;
-    /* Do not count blocking errors during DNS failures. */
-    errors->m_blocking_errors= 0;
+    /* Do not count new blocking errors during DNS failures. */
+    errors->clear_connect_errors();
     DBUG_PRINT("info",
                ("Adding/Updating '%s' -> NULL (not validated) to the hostname cache...'",
                (const char *) ip_key));
@@ -360,8 +372,7 @@ static inline bool is_hostname_valid(const char *hostname)
     - resolves IP-address;
     - employs Forward Confirmed Reverse DNS technique to validate IP-address;
     - returns host name if IP-address is validated;
-    - set value to out-variable connect_errors -- this variable represents the
-      number of connection errors from the specified IP-address.
+    - update the host_cache statistics
 
   NOTE: connect_errors are counted (are supported) only for the clients
   where IP-address can be resolved and FCrDNS check is passed.
@@ -369,20 +380,19 @@ static inline bool is_hostname_valid(const char *hostname)
   @param [in]  ip_storage IP address (sockaddr). Must be set.
   @param [in]  ip_string  IP address (string). Must be set.
   @param [out] hostname
-  @param [out] connect_errors
 
   @return Error status
-  @retval FALSE Success
-  @retval TRUE Error
+  @retval 0 Success
+  @retval RC_BLOCKED_HOST The host is blocked.
 
   The function does not set/report MySQL server error in case of failure.
   It's caller's responsibility to handle failures of this function
   properly.
 */
 
-bool ip_to_hostname(struct sockaddr_storage *ip_storage,
-                    const char *ip_string,
-                    char **hostname, uint *connect_errors)
+int ip_to_hostname(struct sockaddr_storage *ip_storage,
+                   const char *ip_string,
+                   char **hostname)
 {
   const struct sockaddr *ip= (const sockaddr *) ip_storage;
   int err_code;
@@ -396,7 +406,6 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   /* Default output values, for most cases. */
   *hostname= NULL;
-  *connect_errors= 0;
 
   /* Check if we have loopback address (127.0.0.1 or ::1). */
 
@@ -407,7 +416,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
     /* Do not count connect errors from localhost. */
     *hostname= (char *) my_localhost;
 
-    DBUG_RETURN(false);
+    DBUG_RETURN(0);
   }
 
   /* Prepare host name cache key. */
@@ -419,12 +428,24 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   if (!(specialflag & SPECIAL_NO_HOST_CACHE))
   {
+    ulonglong now= my_micro_time();
+
     mysql_mutex_lock(&hostname_cache->lock);
 
     Host_entry *entry= hostname_cache_search(ip_key);
 
     if (entry)
     {
+      entry->m_last_seen= now;
+
+      if (entry->m_errors.m_connect > max_connect_errors)
+      {
+        entry->m_errors.m_host_blocked++;
+        entry->set_error_timestamps(now);
+        mysql_mutex_unlock(&hostname_cache->lock);
+        DBUG_RETURN(RC_BLOCKED_HOST);
+      }
+
       /*
         If there is an IP -> HOSTNAME association in the cache,
         but for a hostname that was not validated,
@@ -432,20 +453,18 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
       */
       if (entry->m_host_validated)
       {
-        *connect_errors= entry->m_errors.m_blocking_errors;
-
         if (entry->m_hostname_length)
           *hostname= my_strdup(entry->m_hostname, MYF(0));
 
         DBUG_PRINT("info",("IP (%s) has been found in the cache. "
-                           "Hostname: '%s'; connect_errors: %d",
+                           "Hostname: '%s'",
                            (const char *) ip_key,
-                           (const char *) (*hostname? *hostname : "null"),
-                           (int) *connect_errors));
+                           (const char *) (*hostname? *hostname : "null")
+                          ));
 
         mysql_mutex_unlock(&hostname_cache->lock);
 
-        DBUG_RETURN(false);
+        DBUG_RETURN(0);
       }
     }
 
@@ -538,7 +557,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
         The no-name error means that there is no reverse address mapping
         for the IP address. A host name can not be resolved.
       */
-      errors.m_nameinfo_permanent_errors= 1;
+      errors.m_nameinfo_permanent= 1;
       validated= true;
     }
     else
@@ -548,12 +567,12 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
         (or rather its absence), because the failure might be transient.
         Only the ip error statistics are cached.
       */
-      errors.m_nameinfo_transient_errors= 1;
+      errors.m_nameinfo_transient= 1;
       validated= false;
     }
     add_hostname(ip_key, NULL, validated, &errors);
 
-    DBUG_RETURN(false);
+    DBUG_RETURN(0);
   }
 
   DBUG_PRINT("info", ("IP '%s' resolved to '%s'.",
@@ -589,7 +608,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) ip_key,
                       (const char *) hostname_buffer);
 
-    errors.m_format_errors= 1;
+    errors.m_format= 1;
     add_hostname(ip_key, hostname_buffer, false, &errors);
 
     DBUG_RETURN(false);
@@ -873,7 +892,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
     if (err_code == EAI_NONAME)
     {
-      errors.m_addrinfo_permanent_errors= 1;
+      errors.m_addrinfo_permanent= 1;
       validated= true;
     }
     else
@@ -885,7 +904,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
         indefinitely.
         Only cache error statistics.
       */
-      errors.m_addrinfo_transient_errors= 1;
+      errors.m_addrinfo_transient= 1;
       validated= false;
     }
     add_hostname(ip_key, NULL, validated, &errors);
@@ -935,7 +954,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   if (!*hostname)
   {
-    errors.m_FCrDNS_errors= 1;
+    errors.m_FCrDNS= 1;
 
     sql_print_warning("Hostname '%s' does not resolve to '%s'.",
                       (const char *) hostname_buffer,

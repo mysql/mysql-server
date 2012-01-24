@@ -43,7 +43,12 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("SUM_BLOCKING_ERRORS") },
+    { C_STRING_WITH_LEN("SUM_CONNECT_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_HOST_BLOCKED_ERRORS") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
@@ -83,7 +88,27 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
+    { C_STRING_WITH_LEN("COUNT_NO_AUTH_PLUGIN_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_AUTH_PLUGIN_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("COUNT_HANDSHAKE_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_PROXY_USER_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_PROXY_USER_ACL_ERRORS") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
@@ -131,7 +156,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_host_cache::m_field_def=
-{ 20, field_types };
+{ 25, field_types };
 
 PFS_engine_table_share
 table_host_cache::m_share=
@@ -233,19 +258,24 @@ void table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
   if (row->m_hostname_length > 0)
     strncpy(row->m_hostname, entry->m_hostname, row->m_hostname_length);
   row->m_host_validated= entry->m_host_validated;
-  row->m_sum_blocking_errors= entry->m_errors.m_blocking_errors;
-  row->m_count_nameinfo_transient_errors= entry->m_errors.m_nameinfo_transient_errors;
-  row->m_count_nameinfo_permanent_errors= entry->m_errors.m_nameinfo_permanent_errors;
-  row->m_count_format_errors= entry->m_errors.m_format_errors;
-  row->m_count_addrinfo_transient_errors= entry->m_errors.m_addrinfo_transient_errors;
-  row->m_count_addrinfo_permanent_errors= entry->m_errors.m_addrinfo_permanent_errors;
-  row->m_count_fcrdns_errors= entry->m_errors.m_FCrDNS_errors;
-  row->m_count_host_acl_errors= entry->m_errors.m_host_acl_errors;
-  row->m_count_handshake_errors= entry->m_errors.m_handshake_errors;
-  row->m_count_authentication_errors= entry->m_errors.m_authentication_errors;
-  row->m_count_user_acl_errors= entry->m_errors.m_user_acl_errors;
-  row->m_count_local_errors= entry->m_errors.m_local_errors;
-  row->m_count_unknown_errors= entry->m_errors.m_unknown_errors;
+  row->m_sum_connect_errors= entry->m_errors.m_connect;
+  row->m_count_host_blocked_errors= entry->m_errors.m_host_blocked;
+  row->m_count_nameinfo_transient_errors= entry->m_errors.m_nameinfo_transient;
+  row->m_count_nameinfo_permanent_errors= entry->m_errors.m_nameinfo_permanent;
+  row->m_count_format_errors= entry->m_errors.m_format;
+  row->m_count_addrinfo_transient_errors= entry->m_errors.m_addrinfo_transient;
+  row->m_count_addrinfo_permanent_errors= entry->m_errors.m_addrinfo_permanent;
+  row->m_count_fcrdns_errors= entry->m_errors.m_FCrDNS;
+  row->m_count_host_acl_errors= entry->m_errors.m_host_acl;
+  row->m_count_no_auth_plugin_errors= entry->m_errors.m_no_auth_plugin;
+  row->m_count_auth_plugin_errors= entry->m_errors.m_auth_plugin;
+  row->m_count_handshake_errors= entry->m_errors.m_handshake;
+  row->m_count_proxy_user_errors= entry->m_errors.m_proxy_user;
+  row->m_count_proxy_user_acl_errors= entry->m_errors.m_proxy_user_acl;
+  row->m_count_authentication_errors= entry->m_errors.m_authentication;
+  row->m_count_user_acl_errors= entry->m_errors.m_user_acl;
+  row->m_count_local_errors= entry->m_errors.m_local;
+  row->m_count_unknown_errors= entry->m_errors.m_unknown;
   row->m_first_seen= entry->m_first_seen;
   row->m_last_seen= entry->m_last_seen;
   row->m_first_error_seen= entry->m_first_error_seen;
@@ -318,58 +348,73 @@ int table_host_cache::read_row_values(TABLE *table,
       case 2: /* HOST_VALIDATED */
         set_field_enum(f, m_row->m_host_validated ? ENUM_YES : ENUM_NO);
         break;
-      case 3: /* SUM_BLOCKING_ERRORS */
-        set_field_ulonglong(f, m_row->m_sum_blocking_errors);
+      case 3: /* SUM_CONNECT_ERRORS */
+        set_field_ulonglong(f, m_row->m_sum_connect_errors);
         break;
-      case 4: /* COUNT_NAMEINFO_TRANSIENT_ERRORS */
+      case 4: /* COUNT_HOST_BLOCKED_ERRORS. */
+        set_field_ulonglong(f, m_row->m_count_host_blocked_errors);
+        break;
+      case 5: /* COUNT_NAMEINFO_TRANSIENT_ERRORS */
         set_field_ulonglong(f, m_row->m_count_nameinfo_transient_errors);
         break;
-      case 5: /* COUNT_NAMEINFO_PERSISTENT_ERRORS */
+      case 6: /* COUNT_NAMEINFO_PERSISTENT_ERRORS */
         set_field_ulonglong(f, m_row->m_count_nameinfo_permanent_errors);
         break;
-      case 6: /* COUNT_FORMAT_ERRORS */
+      case 7: /* COUNT_FORMAT_ERRORS */
         set_field_ulonglong(f, m_row->m_count_format_errors);
         break;
-      case 7: /* COUNT_ADDRINFO_TRANSIENT_ERRORS */
+      case 8: /* COUNT_ADDRINFO_TRANSIENT_ERRORS */
         set_field_ulonglong(f, m_row->m_count_addrinfo_transient_errors);
         break;
-      case 8: /* COUNT_ADDRINFO_PERSISTENT_ERRORS */
+      case 9: /* COUNT_ADDRINFO_PERSISTENT_ERRORS */
         set_field_ulonglong(f, m_row->m_count_addrinfo_permanent_errors);
         break;
-      case 9: /* COUNT_FCRDNS_ERRORS */
+      case 10: /* COUNT_FCRDNS_ERRORS */
         set_field_ulonglong(f, m_row->m_count_fcrdns_errors);
         break;
-      case 10: /* COUNT_HOST_ACL_ERRORS */
+      case 11: /* COUNT_HOST_ACL_ERRORS */
         set_field_ulonglong(f, m_row->m_count_host_acl_errors);
         break;
-      case 11: /* COUNT_HANDSHAKE_ERRORS */
+      case 12: /* COUNT_NO_AUTH_PLUGIN_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_no_auth_plugin_errors);
+        break;
+      case 13: /* COUNT_AUTH_PLUGIN_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_auth_plugin_errors);
+        break;
+      case 14: /* COUNT_HANDSHAKE_ERRORS */
         set_field_ulonglong(f, m_row->m_count_handshake_errors);
         break;
-      case 12: /* COUNT_AUTHENTICATION_ERRORS */
+      case 15: /* COUNT_PROXY_USER_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_proxy_user_errors);
+        break;
+      case 16: /* COUNT_PROXY_USER_ACL_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_proxy_user_acl_errors);
+        break;
+      case 17: /* COUNT_AUTHENTICATION_ERRORS */
         set_field_ulonglong(f, m_row->m_count_authentication_errors);
         break;
-      case 13: /* COUNT_USER_ACL_ERRORS */
+      case 18: /* COUNT_USER_ACL_ERRORS */
         set_field_ulonglong(f, m_row->m_count_user_acl_errors);
         break;
-      case 14: /* COUNT_LOCAL_ERRORS */
+      case 19: /* COUNT_LOCAL_ERRORS */
         set_field_ulonglong(f, m_row->m_count_local_errors);
         break;
-      case 15: /* COUNT_UNKNOWN_ERRORS */
+      case 20: /* COUNT_UNKNOWN_ERRORS */
         set_field_ulonglong(f, m_row->m_count_unknown_errors);
         break;
-      case 16: /* FIRST_SEEN */
+      case 21: /* FIRST_SEEN */
         set_field_timestamp(f, m_row->m_first_seen);
         break;
-      case 17: /* LAST_SEEN */
+      case 22: /* LAST_SEEN */
         set_field_timestamp(f, m_row->m_last_seen);
         break;
-      case 18: /* FIRST_ERROR_SEEN */
+      case 23: /* FIRST_ERROR_SEEN */
         if (m_row->m_first_error_seen != 0)
           set_field_timestamp(f, m_row->m_first_error_seen);
         else
           f->set_null();
         break;
-      case 19: /* LAST_ERROR_SEEN */
+      case 24: /* LAST_ERROR_SEEN */
         if (m_row->m_last_error_seen != 0)
           set_field_timestamp(f, m_row->m_last_error_seen);
         else
