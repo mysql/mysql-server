@@ -2116,21 +2116,17 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
 
 /*
   Builds a Rotate from the ignored events' info and writes it to relay log.
+  
+  @param thd pointer to I/O Thread's Thd.
+  @param mi  point to I/O Thread metadata class.
 
-  SYNOPSIS
-  write_ignored_events_info_to_relay_log()
-    thd             pointer to I/O thread's thd
-    mi
-
-  DESCRIPTION
-    Slave I/O thread, going to die, must leave a durable trace of the
-    ignored events' end position for the use of the slave SQL thread, by
-    calling this function. Only that thread can call it (see assertion).
- */
-static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
+  @return 0 if everything went fine, 1 otherwise.
+*/
+static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
 {
   Relay_log_info *rli= mi->rli;
   mysql_mutex_t *log_lock= rli->relay_log.get_log_lock();
+  int error= 0;
   DBUG_ENTER("write_ignored_events_info_to_relay_log");
 
   DBUG_ASSERT(thd == mi->info_thd);
@@ -2158,18 +2154,25 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                    " inaccurate");
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
       if (flush_master_info(mi, TRUE))
+      {
+        error= 1;
         sql_print_error("Failed to flush master info file.");
+      }
       delete ev;
     }
     else
+    {
+      error= 1;
       mi->report(ERROR_LEVEL, ER_SLAVE_CREATE_EVENT_FAILURE,
                  ER(ER_SLAVE_CREATE_EVENT_FAILURE),
                  "Rotate_event (out of memory?),"
                  " SHOW SLAVE STATUS may be inaccurate");
+    }
   }
   else
     mysql_mutex_unlock(log_lock);
-  DBUG_VOID_RETURN;
+
+  DBUG_RETURN(error);
 }
 
 
@@ -5960,12 +5963,30 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   break;
 
   case PREVIOUS_GTIDS_LOG_EVENT:
+  {
     if (gtid_mode == 0)
     {
       error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
       goto err;
     }
+    /*
+      This event does not have any meaning for the slave and
+      was just sent to show the slave the master is making
+      progress and avoid possible deadlocks.
+      So at this point, the event is replaced by a rotate
+      event what will make the slave to update what it knows
+      about the master's coordinates.
+    */
     inc_pos= event_len;
+    mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
+    memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(), FN_REFLEN);
+    rli->ign_master_log_pos_end= mi->get_master_log_pos();
+
+    if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
+      goto err;
+
+    goto skip_relay_logging;
+  }
   break;
 
   case GTID_LOG_EVENT:
@@ -6010,8 +6031,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   mysql_mutex_lock(log_lock);
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
-  if (event_type == PREVIOUS_GTIDS_LOG_EVENT ||
-      (s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
+  if ((s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
       /*
         the following conjunction deals with IGNORE_SERVER_IDS, if set
         If the master is on the ignore list, execution of
@@ -6042,8 +6062,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       IGNORE_SERVER_IDS it increments mi->get_master_log_pos()
       as well as rli->group_relay_log_pos.
     */
-    if (event_type == PREVIOUS_GTIDS_LOG_EVENT ||
-        !(s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
+    if (!(s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
         (event_type != FORMAT_DESCRIPTION_EVENT &&
          event_type != ROTATE_EVENT &&
          event_type != STOP_EVENT))
