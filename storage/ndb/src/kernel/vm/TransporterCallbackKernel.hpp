@@ -36,6 +36,11 @@ public:
    *   instance() - 1(proxy)
    */
   Uint32 m_receiver_thread_idx;
+
+  /**
+   * Assign nodes to this TransporterReceiveHandle
+   */
+  void assign_nodes(NodeId *recv_thread_idx_array);
 #endif
 
   /* TransporterCallback interface. */

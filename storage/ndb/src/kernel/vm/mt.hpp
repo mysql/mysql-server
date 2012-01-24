@@ -47,7 +47,7 @@ SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
 void mt_section_lock();
 void mt_section_unlock();
 
-int mt_checkDoJob();
+int mt_checkDoJob(Uint32 receiver_thread_idx);
 
 /**
  * Are we (not) multi threaded
@@ -108,5 +108,13 @@ mt_get_thr_stat(class SimulatedBlock *, ndb_thr_stat* dst);
  */
 class TransporterReceiveHandle *
 mt_get_trp_receive_handle(unsigned instance);
+
+/**
+ * return receiver thread handling a particular node
+ *   returned number is indexed from 0 and upwards to #receiver threads
+ *   (or MAX_NODES is none)
+ */
+Uint32
+mt_get_recv_thread_idx(NodeId nodeId);
 
 #endif
