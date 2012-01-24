@@ -78,7 +78,7 @@ endif
 			-DINSTALL_MANDIR=share/man \
 		\
 		-DMYSQL_SERVER_SUFFIX="-$(DEBVERSION)" \
-		-DWITH_COMMENT="(MariaDB - http://mariadb.com/)" \
+		-DCOMPILATION_COMMENT="mariadb.org binary distribution" \
 		-DSYSTEM_TYPE="debian-linux-gnu" \
 		-DINSTALL_LAYOUT=DEB \
 		\
@@ -86,7 +86,6 @@ endif
 		-DWITH_FAST_MUTEXES=1 \
 		\
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
-		-DMYSQL_USER=mysql \
 		\
 		-DEXTRA_CHARSETS=all \
 		-DWITH_LIBWRAP=1 \
