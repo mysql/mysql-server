@@ -95,25 +95,7 @@ public:
   */
   PSI_thread *m_psi;
   void *data;                  /* scheduler-specific data structure */
-#ifndef DBUG_OFF
-  bool  set_explain;
-  char  dbug_explain[512];
-#endif
 };
-
-void *thd_get_scheduler_data(THD *thd);
-void thd_set_scheduler_data(THD *thd, void *data);
-PSI_thread* thd_get_psi(THD *thd);
-void thd_set_psi(THD *thd, PSI_thread *psi);
-
-/* Common thread pool routines, suitable for different implementations */
-extern void threadpool_remove_connection(THD *thd);
-extern int  threadpool_process_request(THD *thd);
-extern int  threadpool_add_connection(THD *thd);
-
-
-extern scheduler_functions *thread_scheduler;
-#endif /* SCHEDULER_INCLUDED */
 
 #if !defined(EMBEDDED_LIBRARY)
 #define HAVE_POOL_OF_THREADS 1
@@ -124,3 +106,5 @@ void pool_of_threads_scheduler(scheduler_functions* func,
 #define pool_of_threads_scheduler(A,B,C) \
   one_thread_per_connection_scheduler(A, B, C)
 #endif
+
+#endif /* SCHEDULER_INCLUDED */

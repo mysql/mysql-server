@@ -683,7 +683,6 @@ void cleanup_items(Item *item)
   @retval
     1  request of thread shutdown (see dispatch_command() description)
 */
-int skip_net_wait_timeout = 0;
 
 bool do_command(THD *thd)
 {

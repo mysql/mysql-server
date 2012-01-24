@@ -17,9 +17,6 @@
 #include <windows.h>
 
 
-
-TP_STATISTICS tp_stats;
-
 #define WEAK_SYMBOL(return_type, function, ...) \
   typedef return_type (WINAPI *pFN_##function)(__VA_ARGS__); \
   static pFN_##function my_##function = (pFN_##function) \
@@ -136,7 +133,6 @@ static void tp_log_warning(const char *msg, const char *fct)
 
 PTP_POOL pool;
 DWORD fls;
-extern int skip_net_wait_timeout;
 
 static bool skip_completion_port_on_success = false;
 
@@ -544,7 +540,7 @@ void tp_end(void)
 
        This would not be necessary if CloseThreadpool() would synchronously
        release all threads and wait until they disappear and call all their FLS
-       destrructors . However, threads in the pool are released asynchronously
+       destructors . However, threads in the pool are released asynchronously
        and might spend some time in the CRT shutdown code. Thus zero 
        num_worker_threads, to avoid thread destructor's my_thread_end()s after 
        this point.
@@ -560,7 +556,6 @@ void tp_end(void)
       mysql_mutex_unlock(&THR_LOCK_threads);
     }
   }
-  skip_net_wait_timeout= 0;
 }
 
 /*

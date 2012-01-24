@@ -19,6 +19,9 @@ uint threadpool_stall_limit;
 uint threadpool_max_threads;
 uint threadpool_oversubscribe;
 
+/* Stats */
+TP_STATISTICS tp_stats;
+
 
 extern "C" pthread_key(struct st_my_thread_var*, THR_KEY_mysys);
 extern bool do_command(THD*);

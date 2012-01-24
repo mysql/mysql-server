@@ -60,8 +60,6 @@ static PSI_thread_info	thread_list[] =
 #define PSI_register(X) \
   if(PSI_server) PSI_server->register_ ## X("threadpool", X ## _list, array_elements(X ## _list))
 
-    
-TP_STATISTICS tp_stats;
 
 struct thread_group_t;
 

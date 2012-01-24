@@ -10,6 +10,12 @@ extern uint threadpool_max_threads;  /* Maximum threads in pool */
 extern uint threadpool_oversubscribe;  /* Maximum active threads in group */
 
 
+
+/* Common thread pool routines, suitable for different implementations */
+extern void threadpool_remove_connection(THD *thd);
+extern int  threadpool_process_request(THD *thd);
+extern int  threadpool_add_connection(THD *thd);
+
 /*
   Functions used by scheduler. 
   OS-specific implementations are in
