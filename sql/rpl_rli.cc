@@ -864,7 +864,6 @@ improper_arguments: %d  timed_out: %d",
 }
 
 int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
-                                            bool changed_name,
                                             bool skip_lock)
 {
   int error= 0;
@@ -905,11 +904,8 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
   DBUG_PRINT("info", ("log_pos: %lu  group_master_log_pos: %lu",
                       (long) log_pos, (long) group_master_log_pos));
 
-  if (changed_name)
+  if (log_pos > 0)  // 3.23 binlogs don't have log_posx
     group_master_log_pos= log_pos;
-  else
-    group_master_log_pos= ((log_pos > group_master_log_pos) ?
-                           log_pos : group_master_log_pos);
 
   /*
     In MTS mode FD or Rotate event commit their solitary group to
@@ -1287,7 +1283,7 @@ int Relay_log_info::stmt_done(my_off_t event_master_log_pos)
       error= mts_checkpoint_routine(this, 0, FALSE, FALSE);
     }
     if (!error)
-      error= inc_group_relay_log_pos(event_master_log_pos, false, false);
+      error= inc_group_relay_log_pos(event_master_log_pos, false);
   }
 
   return error;

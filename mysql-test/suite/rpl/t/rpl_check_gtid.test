@@ -219,7 +219,9 @@ while ($i != 5)
 
 --source include/rpl_reset.inc
 --connection slave
+--source include/stop_slave.inc
 SET GLOBAL debug="d,rotate_slave_debug_group";
+--source include/start_slave.inc
 
 --let $i=1
 while ($i != 5)
@@ -270,8 +272,11 @@ while ($i != 5)
 --echo ==== Part 3 ====
 
 --connection slave
-SET GLOBAL debug="";
 --source include/rpl_reset.inc
+
+--source include/stop_slave.inc
+SET GLOBAL debug="";
+--source include/start_slave.inc
 
 --let $i=1
 while ($i != 5)

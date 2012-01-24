@@ -6449,11 +6449,10 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         rli->get_group_master_log_name(),
                         (ulong) rli->get_group_master_log_pos()));
 
-    bool change= strncmp(rli->get_group_master_log_name(), new_log_ident, ident_len + 1);
     memcpy((void *)rli->get_group_master_log_name(),
            new_log_ident, ident_len + 1);
     rli->notify_group_master_log_name_update();
-    if ((error=  rli->inc_group_relay_log_pos(pos, change, true)))
+    if ((error=  rli->inc_group_relay_log_pos(pos, true)))
     {
       mysql_mutex_unlock(&rli->data_lock);
       goto err;
@@ -7458,7 +7457,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
     rli->inc_event_relay_log_pos();
   else
   {
-    error_inc= rli->inc_group_relay_log_pos(0, false, false);
+    error_inc= rli->inc_group_relay_log_pos(0, false);
     error_flush= rli->flush_info(TRUE);
   }
   return (error_inc || error_flush);
@@ -12046,7 +12045,9 @@ bool Previous_gtids_log_event::write_data_body(IO_CACHE *file)
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 int Previous_gtids_log_event::do_update_pos(Relay_log_info *rli)
 {
-  return(Log_event::do_update_pos(rli));
+  rli->inc_event_relay_log_pos();
+  rli->set_group_relay_log_pos(rli->get_event_relay_log_pos());
+  return 0;
 }
 #endif
 
