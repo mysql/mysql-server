@@ -3620,6 +3620,9 @@ public:
   */
   Plan_change_watchdog(const JOIN_TAB *tab_arg, bool no_changes_arg)
   {
+    // Only to keep gcc 4.1.2-44 silent about uninitialized variables
+    quick= NULL;
+    quick_index= 0;
     if (no_changes_arg)
     {
       tab= tab_arg;
@@ -3633,7 +3636,14 @@ public:
       index= tab->index;
     }
     else
+    {
       tab= NULL;
+      // Only to keep gcc 4.1.2-44 silent about uninitialized variables
+      type= JT_UNKNOWN;
+      select= NULL;
+      ref_key= ref_key_parts= index= 0;
+      use_quick= QS_NONE;
+    }
   }
   ~Plan_change_watchdog()
   {
