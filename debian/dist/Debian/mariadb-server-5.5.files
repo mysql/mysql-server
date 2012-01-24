@@ -15,6 +15,7 @@ usr/bin/aria_chk
 usr/bin/aria_dump_log
 usr/bin/mysql_convert_table_format
 usr/bin/mysql_install_db
+usr/bin/mysql_plugin
 usr/bin/mysql_secure_installation
 usr/bin/mysql_setpermission
 usr/bin/mysql_tzinfo_to_sql

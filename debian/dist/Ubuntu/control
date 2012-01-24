@@ -172,8 +172,7 @@ Depends: mariadb-client-5.5 (>= ${source:Version}), libdbi-perl, perl (>= 5.6), 
 Provides: mariadb-server, mysql-server, virtual-mysql-server
 Conflicts: mariadb-server (<< ${source:Version}), mysql-server (<< ${source:Version}),
     mysql-server-4.1, mysql-server-5.0, mysql-server-5.1,
-    mariadb-server-5.1, mariadb-server-5.2, mariadb-server-5.3,
-    libmariadbclient16 (<< 5.3.4)
+    mariadb-server-5.1, mariadb-server-5.2, mariadb-server-5.3
 Replaces: mariadb-server (<< ${source:Version}), mysql-server (<< ${source:Version}),
     mysql-server-4.1, mysql-server-5.0, mysql-server-5.1,
     mariadb-server-5.1, mariadb-server-5.2, mariadb-server-5.3,
