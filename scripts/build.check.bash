@@ -108,14 +108,14 @@ function my_mktemp() {
 function build() {
 
     # setup build environment
-    export BDB=$1
-    if [[ $BDB =~ "(.*)\.(.*)" ]] ;then
+    export BDBVERSION=$1
+    if [[ $BDBVERSION =~ "(.*)\.(.*)" ]] ;then
         export BDBMAJOR=${BASH_REMATCH[1]}
         export BDBMINOR=${BASH_REMATCH[2]}
     else
         return 1
     fi
-    export BDBDIR=/usr/local/BerkeleyDB.$BDB
+    export BDBDIR=/usr/local/BerkeleyDB.$BDBVERSION
     if [ ! -d $BDBDIR ] ; then return 2; fi
 
     tokudb_name=$(make_tokudb_name $branch $tokudb)
@@ -149,7 +149,7 @@ function build() {
     done
     popd
 
-    tracefile=$builddir/$productname+$ftcc-$GCCVERSION+bdb-$BDB+$nodename+$system+$release+$arch
+    tracefile=$builddir/$productname+$ftcc-$GCCVERSION+bdb-$BDBVERSION+$nodename+$system+$release+$arch
     if [ $debugtests != 0 ] ; then tracefile=$tracefile+debug; fi
     if [ $releasetests != 0 ] ; then tracefile=$tracefile+release; fi
 
@@ -286,7 +286,7 @@ function build() {
         runcmd 0 $productbuilddir make check-coverage >>$tracefile 2>&1
 
         # summarize the coverage data
-        coveragefile=$builddir/coverage+$productname-$BDB+$nodename+$system+$release+$arch
+        coveragefile=$builddir/coverage+$productname-$BDBVERSION+$nodename+$system+$release+$arch
         rawcoverage=$(my_mktemp ftcover)
         for d in newbrt src src/range_tree src/lock_tree; do
             (cd $productbuilddir/$d; python ~/bin/gcovsumdir.py -b *.gcno >>$rawcoverage)
@@ -306,7 +306,7 @@ function build() {
 	fi
 
 	local cf=$(my_mktemp ftresult)
-	echo "$testresult $productname $CC $GCCVERSION $ftcc $GCCVERSION $system $release $arch $nodename" >$cf
+	echo "$testresult $productname $ftcc-$GCCVERSION bdb-$BDBVERSION $system $release $arch $nodename" >$cf
 	echo >>$cf; echo >>$cf
 	cat $commit_msg >>$cf
 	if [ $nfail != 0 ] ; then egrep " FAIL" $tracefile >>$cf; fi
@@ -332,7 +332,7 @@ arch=$(uname -m | sanitize)
 date=$(date +%Y%m%d)
 branch=.
 tokudb=tokudb
-bdb=4.6
+bdb=5.3
 makejobs=$(get_ncpus)
 revision=0
 VALGRIND=tokugrind
