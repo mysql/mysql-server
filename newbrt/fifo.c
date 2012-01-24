@@ -70,7 +70,7 @@ void toku_fifo_size_hint(FIFO fifo, size_t size) {
     }
 }
 
-int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, int type, MSN msn, XIDS xids, bool is_fresh, long *dest) {
+int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, long *dest) {
     int need_space_here = sizeof(struct fifo_entry)
                           + keylen + datalen
                           + xids_get_size(xids)
@@ -103,7 +103,7 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
         }
     }
     struct fifo_entry *entry = (struct fifo_entry *)(fifo->memory + fifo->memory_start + fifo->memory_used);
-    entry->type = (unsigned char)type;
+    fifo_entry_set_msg_type(entry, type);
     entry->msn = msn;
     xids_cpy(&entry->xids_s, xids);
     entry->is_fresh = is_fresh;
@@ -126,7 +126,7 @@ int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd, bool is_fresh, long *
 }
 
 /* peek at the head (the oldest entry) of the fifo */
-int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data, unsigned int *datalen, u_int32_t *type, MSN *msn, XIDS *xids, bool *is_fresh) {
+int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data, unsigned int *datalen, enum brt_msg_type *type, MSN *msn, XIDS *xids, bool *is_fresh) {
     struct fifo_entry *entry = fifo_peek(fifo);
     if (entry == 0) return -1;
     unsigned char *e_key = xids_get_end_of_array(&entry->xids_s);
@@ -134,7 +134,7 @@ int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data,
     *keylen = entry->keylen;
     *data = e_key + entry->keylen;
     *datalen = entry->vallen;
-    *type = entry->type;
+    *type = fifo_entry_get_msg_type(entry);
     *msn  = entry->msn;
     *xids  = &entry->xids_s;
     *is_fresh = entry->is_fresh;
@@ -186,7 +186,7 @@ struct fifo_entry * toku_fifo_iterate_internal_get_entry(FIFO fifo, int off) {
     return (struct fifo_entry *)(fifo->memory + off);
 }
 
-void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, MSN msn, XIDS xids, bool is_fresh, void*), void *arg) {
+void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, void*), void *arg) {
     FIFO_ITERATE(fifo,
                  key, keylen, data, datalen, type, msn, xids, is_fresh,
                  f(key,keylen,data,datalen,type,msn,xids,is_fresh, arg));
