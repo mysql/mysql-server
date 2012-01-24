@@ -2054,13 +2054,6 @@ public:
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
 
-  /*
-    The number of calls to mysql_execute_command on the stack. This
-    is incremented every time we enter mysql_execute_command and
-    decremented when we leave.
-  */
-  uint n_execute_command_calls;
-
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
@@ -4438,13 +4431,6 @@ public:
 
 /** Identifies statements which may generate an optimizer trace */
 #define CF_OPTIMIZER_TRACE        (1U << 14)
-
-/**
-  Identifies statements that normally do not write anything to the
-  binary log, but could write something in case they invoke a stored
-  function (e.g. SELECT, DO, SET).
-*/
-#define CF_ONLY_BINLOGGABLE_WITH_SF    (1U << 15)
 
 /* Bits in server_command_flags */
 

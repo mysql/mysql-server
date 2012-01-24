@@ -2492,15 +2492,6 @@ struct LEX: public Query_tables_list
     }
     return FALSE;
   }
-
-  /**
-    Return true if it is possible that this statement is written to
-    the binary log.  This function is a rough approximation: SET,
-    SELECT, and DO are considered binloggable if they invoke a stored
-    function.  Other statements are binloggable or not based on their
-    SQLCOM_ type.
-  */
-  bool is_binloggable() const;
 };
 
 

@@ -372,18 +372,15 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE |
                                             CF_CAN_GENERATE_ROW_EVENTS |
                                             CF_OPTIMIZER_TRACE |
-                                            CF_CAN_BE_EXPLAINED |
-                                            CF_ONLY_BINLOGGABLE_WITH_SF;
+                                            CF_CAN_BE_EXPLAINED;
   // (1) so that subquery is traced when doing "SET @var = (subquery)"
   sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE |
                                             CF_AUTO_COMMIT_TRANS |
-                                            CF_OPTIMIZER_TRACE | // (1)
-                                            CF_ONLY_BINLOGGABLE_WITH_SF;
+                                            CF_OPTIMIZER_TRACE; // (1)
   // (1) so that subquery is traced when doing "DO @var := (subquery)"
   sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE |
                                             CF_CAN_GENERATE_ROW_EVENTS |
-                                            CF_OPTIMIZER_TRACE | // (1)
-                                            CF_ONLY_BINLOGGABLE_WITH_SF;
+                                            CF_OPTIMIZER_TRACE; // (1)
 
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
@@ -1032,8 +1029,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   bool error= 0;
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
-
-  DBUG_ASSERT(thd->n_execute_command_calls == 0);
 
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
@@ -2100,32 +2095,11 @@ mysql_execute_command(THD *thd)
   DBUG_ENTER("mysql_execute_command");
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command));
 
-  thd->n_execute_command_calls++;
-  DBUG_PRINT("info", ("n_execute_command_calls=%d",
-                      thd->n_execute_command_calls));
-
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
 #endif
 
-  /*
-    If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
-    binlog_handler will be registered later in this function so that
-    thd->transaction.stmt.is_empty() returns false.  When executing an
-    EXECUTE statement, this function will then be called again,
-    recursively, with thd->in_sub_stmt==false.  Hence, don't raise the
-    assertion in these cases.
-    @todo Check if this causes any trouble /Sven.
-    @note Covered by Case 2 in test binlog.binlog_trx_empty_assertions
-  */
-#ifdef HAVE_GTID
-  DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt ||
-              (thd->n_execute_command_calls > 1 &&
-               (thd->get_gtid_next_list() != NULL ||
-                thd->variables.gtid_next.type == GTID_GROUP)));
-#else
   DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt);
-#endif
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
     check that it is first table in global list and relink it first in 
@@ -2184,7 +2158,6 @@ mysql_execute_command(THD *thd)
           according to slave filtering rules.
           Returning success without producing any errors in this case.
         */
-        thd->n_execute_command_calls--;
         DBUG_RETURN(0);
       }
       
@@ -2227,7 +2200,6 @@ mysql_execute_command(THD *thd)
         my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
         if (thd->one_shot_set)
           reset_one_shot_variables(thd);
-        thd->n_execute_command_calls--;
         DBUG_RETURN(0);
       }
       
@@ -2273,7 +2245,6 @@ mysql_execute_command(THD *thd)
         */
         reset_one_shot_variables(thd);
       }
-      thd->n_execute_command_calls--;
       DBUG_RETURN(0);
     }
   }
@@ -2287,7 +2258,6 @@ mysql_execute_command(THD *thd)
     if (deny_updates_if_read_only_option(thd, all_tables))
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
-      thd->n_execute_command_calls--;
       DBUG_RETURN(-1);
     }
 #ifdef HAVE_REPLICATION
@@ -2312,7 +2282,6 @@ mysql_execute_command(THD *thd)
   */
   if (gtid_check_session_variables_before_statement(thd) != 0)
   {
-    thd->n_execute_command_calls--;
     DBUG_RETURN(-1);
   }
 #endif
@@ -2338,56 +2307,6 @@ mysql_execute_command(THD *thd)
     /* Release metadata locks acquired in this transaction. */
     thd->mdl_context.release_transactional_locks();
   }
-
-#ifdef HAVE_GTID
-#ifndef DBUG_OFF
-  {
-    char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
-    global_sid_lock.rdlock();
-    thd->variables.gtid_next.to_string(&global_sid_map, buf);
-    global_sid_lock.unlock();
-    DBUG_PRINT("info", ("before gtid_before_statment: gtid_next=%s sqlcom=%d query='%s'", buf, lex->sql_command, thd->query()));
-  }
-#endif
-  /*
-    Execute gtid_before_statement, so that we acquire ownership of
-    groups as specified by gtid_next and gtid_next_list.
-  */
-  if (opt_bin_log && lex->is_binloggable() && thd->n_execute_command_calls == 1)
-  {
-    /*
-      Initialize the cache manager if this was not done yet.
-      binlog_setup_trx_data is idempotent and if it's not called here
-      it's called elsewhere.  It is needed here just so that
-      thd->get_group_cache won't crash.
-    */
-    thd->binlog_setup_trx_data();
-    switch (gtid_before_statement(thd,
-                                  thd->get_group_cache(false),
-                                  thd->get_group_cache(true)))
-    {
-    case GTID_STATEMENT_CANCEL:
-      // error has already been printed; don't print anything more here
-      thd->n_execute_command_calls--;
-      DBUG_RETURN(-1);
-    case GTID_STATEMENT_SKIP:
-      my_ok(thd);
-      thd->n_execute_command_calls--;
-      DBUG_RETURN(0);
-    case GTID_STATEMENT_EXECUTE:
-      break;
-    }
-  }
-#ifndef DBUG_OFF
-  {
-    char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
-    global_sid_lock.rdlock();
-    thd->variables.gtid_next.to_string(&global_sid_map, buf);
-    global_sid_lock.unlock();
-    DBUG_PRINT("info", ("after gtid_before_statment: gtid_next=%s sqlcom=%d query='%s'", buf, lex->sql_command, thd->query()));
-  }
-#endif
-#endif
 
 #ifndef DBUG_OFF
   if (lex->sql_command != SQLCOM_SET_OPTION)
@@ -4227,16 +4146,8 @@ end_with_restore_list:
               is written into binary log as a separate statement or make both
               creation of routine and implicit GRANT parts of one fully atomic
               statement.
-
-        If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
-        binlog_handler will be registered very early in the execution
-        of the statement.  Hence, allow stmt.is_empty() in these cases.
-        @todo Check if this causes any trouble /Sven.
-        @note Covered by Case 3 in test binlog.binlog_trx_empty_assertions
       */
-      DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
-                  thd->get_gtid_next_list() != NULL ||
-                  thd->variables.gtid_next.type == GTID_GROUP);
+      DBUG_ASSERT(thd->transaction.stmt.is_empty());
       close_thread_tables(thd);
       /*
         Check if the definer exists on slave, 
@@ -4510,16 +4421,8 @@ create_sp_error:
               is written into binary log as a separate statement or make both
               dropping of routine and implicit REVOKE parts of one fully atomic
               statement.
-
-        If gtid_next_list!=NULL or gtid_next=='sid:gno', then a
-        binlog_handler will be registered very early in the execution of
-        the statement.  Hence, allow stmt.is_empty() in these cases.
-        @todo Check if this causes any trouble /Sven.
-        @note Covered by Case 5 in test binlog.binlog_trx_empty_assertions
       */
-      DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
-                  thd->get_gtid_next_list() != NULL ||
-                  thd->variables.gtid_next.type == GTID_GROUP);
+      DBUG_ASSERT(thd->transaction.stmt.is_empty());
       close_thread_tables(thd);
 
       if (sp_result != SP_KEY_NOT_FOUND &&
@@ -4878,7 +4781,6 @@ finish:
     thd->mdl_context.release_statement_locks();
   }
 
-  thd->n_execute_command_calls--;
   DBUG_RETURN(res || thd->is_error());
 }
 
@@ -6002,6 +5904,16 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                  0);
 
           error= mysql_execute_command(thd);
+#ifdef HAVE_GTID
+          if (thd->variables.gtid_next.type == GTID_GROUP &&
+              thd->owned_gtid.sidno != 0 &&
+              (thd->lex->sql_command == SQLCOM_COMMIT ||
+               stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END)))
+          {
+            // GTID logging and cleanup incl DDL
+            error |= gtid_empty_group_log_and_cleanup(thd);
+          }
+#endif
           MYSQL_QUERY_EXEC_DONE(error);
 	}
       }

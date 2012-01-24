@@ -3836,6 +3836,66 @@ static Sys_var_have Sys_have_gtid(
        "have_gtid", "have_gtid",
        READ_ONLY GLOBAL_VAR(have_gtid), NO_CMD_LINE);
 
+bool Sys_var_gtid_specification::session_update(THD *thd, set_var *var)
+{
+  DBUG_ENTER("Sys_var_gtid::session_update");
+  global_sid_lock.rdlock();
+  bool ret= (((Gtid_specification *)session_var_ptr(thd))->
+             parse(&global_sid_map,
+                   var->save_result.string_value.str) != 0);
+  global_sid_lock.unlock();
+  
+  if (gtid_acquire_ownwership(thd))
+  {
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(ret);
+}
+
+bool Sys_var_gtid_set::session_update(THD *thd, set_var *var)
+{
+  DBUG_ENTER("Sys_var_gtid_set::session_update");
+  Gtid_set_or_null *gsn=
+    (Gtid_set_or_null *)session_var_ptr(thd);
+  char *value= var->save_result.string_value.str;
+  if (value == NULL)
+      gsn->set_null();
+  else
+  {
+    Gtid_set *gs= gsn->set_non_null(&global_sid_map);
+    if (gs == NULL)
+    {
+      my_error(ER_OUT_OF_RESOURCES, MYF(0)); // allocation failed
+      DBUG_RETURN(true);
+    }
+    /*
+      If string begins with '+', add to the existing set, otherwise
+      replace existing set.
+    */
+    while (isspace(*value))
+      value++;
+    if (*value == '+')
+      value++;
+    else
+      gs->clear();
+    // Add specified set of groups to Gtid_set.
+    global_sid_lock.rdlock();
+    enum_return_status ret= gs->add_gtid_text(value);
+    global_sid_lock.unlock();
+    if (ret != RETURN_STATUS_OK)
+    {
+      gsn->set_null();
+      DBUG_RETURN(true);
+    }
+  }
+  if (gtid_acquire_ownwership(thd))
+  {
+    DBUG_RETURN(true);
+  }
+  DBUG_RETURN(false);
+}
+
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_next_list");

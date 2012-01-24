@@ -290,12 +290,6 @@ gtid_before_statement_begin_commit_sequence(
         if (gtid_acquire_ownerships(thd, gtid_next_list) !=
             GTID_STATEMENT_EXECUTE)
           DBUG_RETURN(GTID_STATEMENT_CANCEL);
-        /// @todo: is this ok? might be controversial to register a handler before the statement executes /sven
-        if (!thd->owned_gtid_set.is_empty())
-          register_binlog_handler(thd, thd->lex->sql_command == SQLCOM_BEGIN ||
-                                  thd->lex->sql_command == SQLCOM_COMMIT ||
-                                  (thd->variables.option_bits &
-                                   OPTION_NOT_AUTOCOMMIT) != 0);
       }
     }
     else if (gtid_next->type == GTID_GROUP)
@@ -303,12 +297,6 @@ gtid_before_statement_begin_commit_sequence(
       // acquire group ownership for single group.
       enum_gtid_statement_status ret=
         gtid_acquire_ownership(thd, gtid_next->gtid);
-      /// @todo: is this ok? might be controversial to register a handler before the statement executes /sven
-      if (thd->owned_gtid.sidno != 0)
-        register_binlog_handler(thd, thd->lex->sql_command == SQLCOM_BEGIN ||
-                                thd->lex->sql_command == SQLCOM_COMMIT ||
-                                (thd->variables.option_bits &
-                                 OPTION_NOT_AUTOCOMMIT));
       DBUG_RETURN(ret);
     }
   }
@@ -427,5 +415,35 @@ int gtid_rollback(THD *thd)
   DBUG_RETURN(0);
 }
 
+int gtid_acquire_ownwership(THD *thd)
+{
+  DBUG_ENTER("gtid_acquire_ownwership");
+  /*
+    Execute gtid_before_statement, so that we acquire ownership of
+    groups as specified by gtid_next and gtid_next_list.
+  */
+  if (opt_bin_log)
+  {
+    /*
+      Initialize the cache manager if this was not done yet.
+      binlog_setup_trx_data is idempotent and if it's not called here
+      it's called elsewhere.  It is needed here just so that
+      thd->get_group_cache won't crash.
+    */
+    thd->binlog_setup_trx_data();
+    switch (gtid_before_statement(thd,
+                                  thd->get_group_cache(false),
+                                  thd->get_group_cache(true)))
+    {
+    case GTID_STATEMENT_CANCEL:
+      // error has already been printed; don't print anything more here
+      DBUG_RETURN(-1);
+    case GTID_STATEMENT_SKIP:
+    case GTID_STATEMENT_EXECUTE:
+      break;
+    }
+  }
+  DBUG_RETURN(0);
+}
 
 #endif

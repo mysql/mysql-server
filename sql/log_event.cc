@@ -6848,6 +6848,35 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 /**
+   The methods combines few commit actions to make it useable
+   as in the single- so multi- threaded case.
+
+   @param  thd    a pointer to THD handle
+   @return false  as success and
+           true   as an error 
+*/
+
+bool Xid_log_event::do_commit(THD *thd)
+{
+  bool error= trans_commit(thd); /* Automatically rolls back on error. */
+  DBUG_EXECUTE_IF("crash_after_apply", 
+                  sql_print_information("Crashing crash_after_apply.");
+                  DBUG_SUICIDE(););
+  thd->mdl_context.release_transactional_locks();
+
+#ifdef HAVE_GTID
+  if (thd->variables.gtid_next.type == GTID_GROUP &&
+      thd->owned_gtid.sidno != 0)
+  {
+    // GTID logging and cleanup runs regardless of the current res
+    error |= gtid_empty_group_log_and_cleanup(thd);
+  }
+#endif
+
+  return error;
+}
+
+/**
    Worker commits Xid transaction and in case of its transactional
    info table marks the current group as done in the Coordnator's 
    Group Assigned Queue.
@@ -6893,12 +6922,7 @@ int Xid_log_event::do_apply_event_worker(Slave_worker *w)
                   sql_print_information("Crashing crash_after_update_pos_before_apply.");
                   DBUG_SUICIDE(););
 
-  error= trans_commit(thd); /* Automatically rolls back on error. */
-  DBUG_EXECUTE_IF("crash_after_apply", 
-                  sql_print_information("Crashing crash_after_apply.");
-                  DBUG_SUICIDE(););
-  thd->mdl_context.release_transactional_locks();
-
+  error= do_commit(thd);
 err:
   return error;
 }
@@ -6953,11 +6977,7 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
                   sql_print_information("Crashing crash_after_update_pos_before_apply.");
                   DBUG_SUICIDE(););
 
-  error= trans_commit(thd); /* Automatically rolls back on error. */
-  DBUG_EXECUTE_IF("crash_after_apply", 
-                  sql_print_information("Crashing crash_after_apply.");
-                  DBUG_SUICIDE(););
-  thd->mdl_context.release_transactional_locks();
+  error= do_commit(thd);
 
 err:
   mysql_cond_broadcast(&rli_ptr->data_cond);
@@ -11946,6 +11966,11 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   thd->variables.gtid_next.set(sidno, spec.gtid.gno);
   DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
                       sidno, spec.gtid.gno));
+
+  if (gtid_acquire_ownwership(thd))
+  {
+    DBUG_RETURN(1); // todo: check SSS diagnostic area
+  }
 
   DBUG_RETURN(0);
 }
