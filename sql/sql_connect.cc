@@ -551,9 +551,15 @@ static int check_connection(THD *thd)
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
     if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
-      if (ip_to_hostname(&net->vio->remote, thd->main_security_ctx.ip,
-                         &thd->main_security_ctx.host, &connect_errors))
+      int rc;
+
+      rc= ip_to_hostname(&net->vio->remote,
+                         thd->main_security_ctx.ip,
+                         &thd->main_security_ctx.host);
+
+      if (rc == RC_NO_HOST)
       {
+        /* HOST_CACHE stats updated by ip_to_hostname(). */
         my_error(ER_BAD_HOST_ERROR, MYF(0));
         return 1;
       }
@@ -566,8 +572,10 @@ static int check_connection(THD *thd)
                                                   HOSTNAME_LENGTH)]= 0;
         thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
       }
-      if (connect_errors > max_connect_errors)
+
+      if (rc == RC_BLOCKED_HOST)
       {
+        /* HOST_CACHE stats updated by ip_to_hostname(). */
         my_error(ER_HOST_IS_BLOCKED, MYF(0), thd->main_security_ctx.host_or_ip);
         return 1;
       }
@@ -579,6 +587,7 @@ static int check_connection(THD *thd)
                         thd->main_security_ctx.ip : "unknown ip")));
     if (acl_check_host(thd->main_security_ctx.host, thd->main_security_ctx.ip))
     {
+      /* HOST_CACHE stats updated by acl_check_host(). */
       my_error(ER_HOST_NOT_PRIVILEGED, MYF(0),
                thd->main_security_ctx.host_or_ip);
       return 1;

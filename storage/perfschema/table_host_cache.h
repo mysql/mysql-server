@@ -42,8 +42,10 @@ struct row_host_cache
   uint m_hostname_length;
   /** Column HOST_VALIDATED. */
   bool m_host_validated;
-  /** Column SUM_BLOCKING_ERRORS. */
-  ulonglong m_sum_blocking_errors;
+  /** Column SUM_CONNECT_ERRORS. */
+  ulonglong m_sum_connect_errors;
+  /** Column COUNT_HOST_BLOCKED_ERRORS. */
+  ulonglong m_count_host_blocked_errors;
   /** Column COUNT_NAMEINFO_TRANSIENT_ERRORS. */
   ulonglong m_count_nameinfo_transient_errors;
   /** Column COUNT_NAMEINFO_PERMANENT_ERRORS. */
@@ -58,8 +60,16 @@ struct row_host_cache
   ulonglong m_count_fcrdns_errors;
   /** Column COUNT_HOST_ACL_ERRORS. */
   ulonglong m_count_host_acl_errors;
+  /** Column COUNT_NO_AUTH_PLUGIN_ERRORS. */
+  ulonglong m_count_no_auth_plugin_errors;
+  /** Column COUNT_AUTH_PLUGIN_ERRORS. */
+  ulonglong m_count_auth_plugin_errors;
   /** Column COUNT_HANDSHAKE_ERRORS. */
   ulonglong m_count_handshake_errors;
+  /** Column COUNT_PROXY_USER_ERRORS. */
+  ulonglong m_count_proxy_user_errors;
+  /** Column COUNT_PROXY_USER_ACL_ERRORS. */
+  ulonglong m_count_proxy_user_acl_errors;
   /** Column COUNT_AUTHENTICATION_ERRORS. */
   ulonglong m_count_authentication_errors;
   /** Column COUNT_USER_ACL_ERRORS. */
