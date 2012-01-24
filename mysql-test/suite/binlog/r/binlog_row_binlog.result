@@ -20,8 +20,7 @@ master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 DROP TABLE t1;
 SET binlog_row_image= @saved_binlog_row_image;
-drop table if exists t1, t2;
-reset master;
+RESET MASTER;
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=innodb;
 begin;
