@@ -497,7 +497,14 @@ ndb_serialize_cond(const Item *item, void *arg)
           {
             Ndb_expect_stack* expect_next= new Ndb_expect_stack();
             DBUG_PRINT("info", ("LIKE_FUNC"));      
-            curr_cond->ndb_item= new Ndb_item(func_item->functype(),
+
+            if (((Item_func_like *)func_item)->escape_was_used_in_parsing())
+            {
+              DBUG_PRINT("info", ("LIKE expressions with ESCAPE not supported"));
+              context->supported= FALSE;
+            }
+            
+             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
                                               func_item);      
 
             /*

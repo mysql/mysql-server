@@ -1435,6 +1435,7 @@ public:
   const char *func_name() const { return "like"; }
   bool fix_fields(THD *thd, Item **ref);
   void cleanup();
+  bool escape_was_used_in_parsing() { return escape_used_in_parsing; }
 };
 
 
