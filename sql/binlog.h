@@ -390,6 +390,7 @@ bool mysql_show_binlog_events(THD* thd);
 void check_binlog_cache_size(THD *thd);
 void check_binlog_stmt_cache_size(THD *thd);
 void register_binlog_handler(THD *thd, bool trx);
+int gtid_empty_group_log_and_cleanup(THD *thd);
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;

@@ -692,6 +692,53 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 
   DBUG_RETURN(0);
 }
+
+/**
+   The function logs an empty group with GTID and performs cleanup.
+   Its logic wrt GTID is equivalent to one of binlog_commit(). 
+   It's called at the end of statement execution in case binlog_commit()
+   was skipped.
+   Such cases are due ineffective binlogging incl an empty group
+   re-execution.
+
+   @param thd   The thread handle
+
+   @return
+    nonzero if an error pops up.
+*/
+int gtid_empty_group_log_and_cleanup(THD *thd)
+{
+  int ret= 0;
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
+  binlog_cache_data* cache_data= &cache_mngr->trx_cache;
+
+  DBUG_ENTER("gtid_empty_group_log_and_cleanup");
+
+  // assert binlog hton is not registered
+  // assert cache_data->is_binlog_empty()
+
+  Query_log_event end_evt(thd, STRING_WITH_LEN("COMMIT"),
+                          cache_data->is_trx_cache(), FALSE, TRUE, 0, TRUE);
+
+  DBUG_ASSERT(!end_evt.is_using_immediate_logging());
+
+  if (binlog_start_trans_and_stmt(thd, &end_evt) ||
+      write_event_to_cache(thd, &end_evt, cache_data) ||
+      gtid_before_write_cache(thd, cache_data)   ||
+      mysql_bin_log.write_cache(thd, cache_mngr, cache_data, 0))
+    ret= 1;
+  cache_data->reset();
+
+  THD_TRANS *trans= &thd->transaction.stmt;
+  Ha_trx_info *ha_info= trans->ha_list;
+    
+  DBUG_ASSERT(thd->transaction.all.ha_list == 0);
+  ha_info->reset(); /* keep it conveniently zero-filled */
+  trans->ha_list= 0;
+  trans->no_2pc=0;
+
+  DBUG_RETURN(ret);
+}
 #endif
 
 /**
