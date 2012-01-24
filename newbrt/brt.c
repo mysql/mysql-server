@@ -1761,6 +1761,8 @@ toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, cons
 // Effect: Enqueue the message represented by the parameters into the
 //   bnc's buffer, and put it in either the fresh or stale message tree,
 //   or the broadcast list.
+//
+// This is only exported for tests.
 {
     int diff = keylen + datalen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
     long offset;
@@ -4634,29 +4636,35 @@ bnc_apply_messages_to_basement_node(
             const long fresh_offset = (long) fresh_v;
             int c = toku_fifo_entry_key_msn_cmp(&extra, &stale_offset, &fresh_offset);
             if (c < 0) {
-                // The stale message we're pointing to is smaller.  We'll
-                // apply it, then get the next stale message into stale_i
-                // and stale_v.
+                // The stale message we're pointing to either has a
+                // smaller key than the fresh message, or has the same key
+                // but a smaller MSN.  We'll apply it, then get the next
+                // stale message into stale_i and stale_v.
                 const struct fifo_entry *stale_entry = toku_fifo_get_entry(bnc->buffer, stale_offset);
                 do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, snapshot_txnids, live_list_reverse, stale_entry);
                 stale_i++;
                 if (stale_i != stale_ube) {
+                    invariant(stale_i < stale_ube);
                     r = toku_omt_fetch(bnc->stale_message_tree, stale_i, &stale_v);
                     assert_zero(r);
                 }
             } else if (c > 0) {
-                // The fresh message we're pointing to is smaller.  We'll
-                // apply it, then get the next fresh message into fresh_i
-                // and fresh_v.
+                // The fresh message we're pointing to either has a
+                // smaller key than the stale message, or has the same key
+                // but a smaller MSN.  We'll apply it, then get the next
+                // fresh message into fresh_i and fresh_v.
                 const struct fifo_entry *fresh_entry = toku_fifo_get_entry(bnc->buffer, fresh_offset);
                 do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, snapshot_txnids, live_list_reverse, fresh_entry);
                 fresh_i++;
                 if (fresh_i != fresh_ube) {
+                    invariant(fresh_i < fresh_ube);
                     r = toku_omt_fetch(bnc->fresh_message_tree, fresh_i, &fresh_v);
                     assert_zero(r);
                 }
             } else {
-                // There is a message in both trees.  This should not happen.
+                // We have found the same MSN in both trees.  This means a
+                // single message showing up in both trees.  This should
+                // not happen.
                 assert(false);
             }
         }
