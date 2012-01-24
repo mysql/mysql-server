@@ -1,9 +1,6 @@
-//#include <stdbool.h>
-//#include "test.h"
-//#include "toku_pthread.h"
-
 #include <toku_portability.h>
 #include "tokudb_common_funcs.h"
+#include <toku_pthread.h>
 #include <toku_assert.h>
 #include <db.h>
 #include <errno.h>
@@ -11,20 +8,14 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
-#ifdef TOKUDB
-#include "key.h"
-#include "cachetable.h"
-#include "trace_mem.h"
-#endif
 
 static DB_ENV *env = NULL;
 static DB *db = NULL;
-static DB_TXN *tid= NULL;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
 static const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
-static int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK|DB_RECOVER;
+static int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK|DB_RECOVER|DB_THREAD;
 // static int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 static char *dbfilename = "bench.db";
 static u_int64_t cachesize = 127*1024*1024;
@@ -43,7 +34,7 @@ static void pt_query_setup (void) {
     }
     r = env->open(env, dbdir, env_open_flags_yesx, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);       assert(r==0);
     r = db_create(&db, env, 0);                                                            assert(r==0);
-    r = db->open(db, tid, dbfilename, NULL, DB_BTREE, 0, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); assert(r==0);
+    r = db->open(db, NULL, dbfilename, NULL, DB_BTREE, DB_THREAD|DB_AUTO_COMMIT, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); assert(r==0);
 }
 
 static void pt_query_shutdown (void) {
@@ -66,24 +57,23 @@ static double gettime (void) {
 
 /* From db-benchmark-test.c */
 static void long_long_to_array (unsigned char *a, int array_size, unsigned long long l) {
-    int i;
-    for (i=0; i<8 && i<array_size; i++)
+    for (int i=0; i<8 && i<array_size; i++)
 	a[i] = (l>>(56-8*i))&0xff;
 }
 
 static void array_to_long_long (unsigned long long *l, unsigned char *a, int array_size) {
-    int i;
     *l = 0;
-    unsigned long long tmp;
-    for(i=0; i<8 && i<array_size; i++) {
-        tmp =  a[i] & 0xff;
+    for(int i=0; i<8 && i<array_size; i++) {
+        unsigned long long tmp =  a[i] & 0xff;
         *l += tmp << (56-8*i);
     }
 }
 
+#if TOKUDB
 static int do_nothing (DBT const* UU(key), DBT const* UU(data), void* UU(extrav)) {
-  return TOKUDB_CURSOR_CONTINUE;
+    return TOKUDB_CURSOR_CONTINUE;
 }
+#endif
 
 static void test_begin_commit(int _nqueries) {
     int r;
@@ -99,10 +89,13 @@ static void test_begin_commit(int _nqueries) {
         k = ( k / SERIAL_SPACING ) * SERIAL_SPACING;
         long_long_to_array(kv, keylen, k);
         
-        DBT key, val;
-        memset(&key, 0, sizeof key); key.data=kv; key.size=8;
-        memset(&val, 0, sizeof val);
-        r = c->c_getf_set(c, 0, &key, do_nothing, NULL);
+        DBT key = { .data = kv, .size = 8 };
+        DBT val = { .data = NULL, .size = 0 };
+#if TOKUDB
+        r = c->c_getf_set(c, 0, &key, do_nothing, &val);
+#else
+        r = c->c_get(c, &key, &val, DB_SET);
+#endif
         assert_zero(r);
         (void) __sync_fetch_and_add(&set_count, 1);
         r = c->c_close(c); assert_zero(r);
@@ -117,17 +110,19 @@ static void warmup(void) {
     int r;
     DB_TXN *txn=NULL;
     DBC *c = NULL;
-    DBT key, val;
-
+    DBT key = { .data = NULL };
+    DBT val = { .data = NULL };
     double tstart = gettime();
-    memset(&key, 0, sizeof key);
-    memset(&val, 0, sizeof val);
     r = env->txn_begin(env, NULL, &txn, 0); assert_zero(r);
     r = db->cursor(db, txn, &c, 0); assert_zero(r);
     r = c->c_get(c, &key, &val, DB_FIRST); assert_zero(r);
     assert(key.size == 8);
     while ( r != DB_NOTFOUND ) {
+#if TOKUDB
         r = c->c_getf_next(c, DB_PRELOCKED, do_nothing, NULL);
+#else
+        r = c->c_get(c, &key, &val, DB_NEXT);
+#endif
         if ( r != 0 && r != DB_NOTFOUND) assert_zero(r);
     }
     memset(&key, 0, sizeof key);

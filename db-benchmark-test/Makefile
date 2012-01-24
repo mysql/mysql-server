@@ -74,7 +74,7 @@ else
 build: build.tdb build.bdb;
 endif
 
-build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB) $(WINDOWS_BDB_LIB_NAME) $(TXNCOMMIT_BDB)
+build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB) $(WINDOWS_BDB_LIB_NAME) $(PTQUERY_BDB) $(TXNCOMMIT_BDB)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB) $(MULTIBENCH_TDB) $(PTQUERY_TDB) $(TXNCOMMIT_TDB)
 
 check: check-default check-default-small check-rowsize check-xfast check-x check-x-small check-no-rollback check-4G child.benchmark.dir
@@ -191,6 +191,8 @@ $(TARGET_BDB): db-benchmark-test.c
 $(SCANSCAN_BDB): scanscan.c
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 $(TXNCOMMIT_BDB): txncommit.c
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
+$(PTQUERY_BDB): ptquery.c
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 PARGS =
 
