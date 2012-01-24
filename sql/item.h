@@ -650,7 +650,7 @@ public:
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void cleanup();
   virtual void make_field(Send_field *field);
-  Field *make_string_field(TABLE *table);
+  virtual Field *make_string_field(TABLE *table);
   virtual bool fix_fields(THD *, Item **);
   /*
     Fix after some tables has been pulled out. Basically re-calculate all
@@ -1150,6 +1150,10 @@ public:
   virtual bool eval_not_null_tables(uchar *opt_arg) { return 0; }
   virtual bool clear_sum_processor(uchar *opt_arg) { return 0; }
   virtual bool is_subquery_processor (uchar *opt_arg) { return 0; }
+  virtual bool limit_index_condition_pushdown_processor(uchar *opt_arg)
+  { 
+    return FALSE;
+  }
 
   /* To call bool function for all arguments */
   struct bool_func_call_args
@@ -1621,7 +1625,7 @@ class Item_splocal :public Item_sp_variable,
   enum_field_types m_field_type;
 public:
   /*
-    Is this variable a parameter in LIMIT clause. 
+    If this variable is a parameter in LIMIT clause.
     Used only during NAME_CONST substitution, to not append
     NAME_CONST to the resulting query and thus not break
     the slave.
@@ -3885,6 +3889,7 @@ public:
       return false;
     return example->is_expensive_processor(arg);
   }
+  virtual void set_null();
 };
 
 
@@ -4055,6 +4060,7 @@ public:
     DBUG_VOID_RETURN;
   }
   bool cache_value();
+  virtual void set_null();
 };
 
 

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -467,6 +468,7 @@ static void make_base_query(String *new_query,
   DBUG_ASSERT(query[query_length] == 0);
   DBUG_ASSERT(!is_white_space(query[0]));
 
+  new_query->length(0);           // Don't copy anything from old buffer
   if (new_query->realloc(query_length + additional_length))
   {
     /*
@@ -545,8 +547,11 @@ insert_space:
   }
   if (buffer == last_space)
     buffer--;                                   // Remove the last space
-  *buffer= 0;
+  *buffer= 0;                                   // End zero after query
   new_query->length((size_t) (buffer - new_query->ptr()));
+
+  /* Copy db_length */
+  memcpy(buffer+1, query_end+1, QUERY_CACHE_DB_LENGTH_SIZE);
 }
 
 
@@ -1287,6 +1292,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
 
   if (global_system_variables.query_cache_type == 0)
   {
+    DBUG_ASSERT(query_cache_size_arg == 0);
     if (query_cache_size_arg != 0)
       my_error(ER_QUERY_CACHE_IS_DISABLED, MYF(0));
     DBUG_RETURN(0);
@@ -1482,7 +1488,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     /* Key is query + database + flag */
     if (thd->db_length)
     {
-      memcpy((char*) (query + query_length + 1), thd->db, thd->db_length);
+      memcpy((char*) (query + query_length + 1 + QUERY_CACHE_DB_LENGTH_SIZE),
+             thd->db, thd->db_length);
       DBUG_PRINT("qcache", ("database: %s  length: %u",
 			    thd->db, (unsigned) thd->db_length)); 
     }
@@ -1490,8 +1497,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     {
       DBUG_PRINT("qcache", ("No active database"));
     }
-    tot_length= query_length + thd->db_length + 1 +
-      QUERY_CACHE_FLAGS_SIZE;
+    tot_length= (query_length + thd->db_length + 1 + 
+                 QUERY_CACHE_DB_LENGTH_SIZE + QUERY_CACHE_FLAGS_SIZE);
     /*
       We should only copy structure (don't use it location directly)
       because of alignment issue
@@ -1654,7 +1661,7 @@ Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
   Query_cache_block_table *block_table, *block_table_end;
   ulong tot_length;
   Query_cache_query_flags flags;
-  const char *sql, *sql_end;
+  const char *sql, *sql_end, *found_brace= 0;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
   /*
@@ -1728,9 +1735,16 @@ Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
       case '\n':
       case '\t':
       case ' ':
-      case '(':    // To handle (select a from t1) union (select a from t1);
         sql++;
         continue;
+      case '(':    // To handle (select a from t1) union (select a from t1);
+        if (!found_brace)
+        {
+          found_brace= sql;
+          sql++;
+          continue;
+        }
+        /* fall trough */
       default:
         break;
       }
@@ -1755,7 +1769,28 @@ Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
     DBUG_PRINT("qcache", ("The statement has a SQL_NO_CACHE directive"));
     goto err;
   }
+  {
+    /*
+      We have allocated buffer space (in alloc_query) to hold the
+      SQL statement(s) + the current database name + a flags struct.
+      If the database name has changed during execution, which might
+      happen if there are multiple statements, we need to make
+      sure the new current database has a name with the same length
+      as the previous one.
+    */
+    size_t db_len= uint2korr(sql_end+1);
+    if (thd->db_length != db_len)
+    {
+      /*
+        We should probably reallocate the buffer in this case,
+        but for now we just leave it uncached
+      */
 
+      DBUG_PRINT("qcache", 
+                 ("Current database has changed since start of query"));
+      goto err;
+    }
+  }
   /*
     Try to obtain an exclusive lock on the query cache. If the cache is
     disabled or if a full cache flush is in progress, the attempt to
@@ -1772,8 +1807,11 @@ Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
   Query_cache_block *query_block;
   if (thd->variables.query_cache_strip_comments)
   {
+    if (found_brace)
+      sql= found_brace;
     make_base_query(&thd->base_query, sql, (size_t) (sql_end - sql),
-                    thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
+                    thd->db_length + 1 + QUERY_CACHE_DB_LENGTH_SIZE +
+                    QUERY_CACHE_FLAGS_SIZE);
     sql=          thd->base_query.ptr();
     query_length= thd->base_query.length();
   }
@@ -1783,12 +1821,15 @@ Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
     thd->base_query.set(sql, query_length, system_charset_info);
   }
 
-  tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
+  tot_length= (query_length + 1 + QUERY_CACHE_DB_LENGTH_SIZE +
+               thd->db_length + QUERY_CACHE_FLAGS_SIZE);
+
   if (thd->db_length)
   {
-    memcpy((char*) (sql+query_length+1), thd->db, thd->db_length);
+    memcpy((uchar*) sql + query_length + 1 + QUERY_CACHE_DB_LENGTH_SIZE,
+           thd->db, thd->db_length);
     DBUG_PRINT("qcache", ("database: '%s'  length: %u",
-			  thd->db, (unsigned)thd->db_length));
+			  thd->db, (uint) thd->db_length));
   }
   else
   {
@@ -1910,7 +1951,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       {
         DBUG_PRINT("qcache",
                    ("Temporary table detected: '%s.%s'",
-                    table_list.db, table_list.alias));
+                    tmptable->s->db.str, tmptable->alias.c_ptr()));
         unlock();
         /*
           We should not store result of this query because it contain

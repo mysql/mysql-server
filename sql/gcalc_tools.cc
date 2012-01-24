@@ -650,15 +650,6 @@ Gcalc_operation_reducer(Gcalc_function *fn, modes mode, size_t blk_size) :
 }
 
 
-#ifdef TMP_BLOCK
-void Gcalc_operation_reducer::res_point::set(const Gcalc_scan_iterator *si)
-{
-  if ((intersection_point= si->intersection_step()))
-    ii= si->get_cur_ii();
-  else
-    pi= si->get_cur_pi();
-}
-#endif /*TMP_BLOCK*/
 void Gcalc_operation_reducer::res_point::set(const Gcalc_scan_iterator *si)
 {
   intersection_point= si->intersection_step();
@@ -1362,6 +1353,10 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
   GCALC_DBUG_ENTER("Gcalc_operation_reducer::get_result");
   *m_res_hook= NULL;
 
+  /* This is to workaround an old gcc's bug */
+  if (m_res_hook == (Gcalc_dyn_list::Item **) &m_result)
+    goto done;
+
   while (m_result)
   {
     Gcalc_function::shape_type shape= m_result->type;
@@ -1412,6 +1407,7 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
     }
   }
   
+done:
   m_res_hook= (Gcalc_dyn_list::Item **)&m_result;
   storage->done();
   GCALC_DBUG_RETURN(0);

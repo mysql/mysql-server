@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011 Oracle and/or its affiliates.
-   Copyright (c) 2010, 2011 Monty Program Ab
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -301,7 +301,8 @@ int opt_sum_query(THD *thd,
       is_exact_count= FALSE;
       count= 1;                                 // ensure count != 0
     }
-    else if (tl->is_materialized_derived())
+    else if (tl->is_materialized_derived() || 
+             tl->jtbm_subselect)
     {
       /*
         Can't remove a derived table as it's number of rows is just an

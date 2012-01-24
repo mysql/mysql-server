@@ -639,6 +639,7 @@ extern int my_fclose(FILE *fd,myf MyFlags);
 extern File my_fileno(FILE *fd);
 extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
 extern int my_chmod(const char *name, mode_t mode, myf my_flags);
+extern const char *my_basename(const char *filename);
 extern void thr_set_sync_wait_callback(void (*before_sync)(void),
                                        void (*after_sync)(void));
 extern int my_sync(File fd, myf my_flags);

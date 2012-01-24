@@ -29,8 +29,8 @@ id
 6
 delete ignore from t1;
 Warnings:
-Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`id`) REFERENCES `t1` (`id`))
-Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`id`) REFERENCES `t1` (`id`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`id`) REFERENCES `t1` (`id`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`id`) REFERENCES `t1` (`id`))
 select row_count();
 row_count()
 -1

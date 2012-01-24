@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,11 +29,12 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c
 				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c my_pthread.c
 				my_quick.c my_read.c my_redel.c my_rename.c my_seek.c my_sleep.c
 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c 
+				my_basename.c
 				my_write.c ptr_cmp.c queues.c stacktrace.c
 				rijndael.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c my_getpagesize.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
-                                my_addr_resolve.c safemalloc.c my_new.cc
+                safemalloc.c my_new.cc
 				my_atomic.c my_getncpus.c my_safehash.c my_chmod.c my_rnd.c
                                 my_uuid.c wqueue.c waiting_threads.c ma_dyncol.c
 				my_rdtsc.c)
@@ -42,8 +43,8 @@ IF (WIN32)
  SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_winthread.c my_wincond.c my_winerr.c my_winfile.c my_windac.c my_conio.c)
 ENDIF()
 
-IF(NOT HAVE_CXX_NEW)
- ADD_DEFINITIONS( -DUSE_MYSYS_NEW)
+IF(UNIX)
+ SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_addr_resolve.c)
 ENDIF()
 
 IF(HAVE_ALARM)

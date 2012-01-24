@@ -1,4 +1,6 @@
 drop table if exists t0,t1,t2,t3,t4,t5;
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 CREATE TABLE t1 (
 grp int(11) default NULL,
 a bigint(20) unsigned default NULL,
@@ -1198,3 +1200,4 @@ a	b
 3	3
 4	NULL
 DROP TABLE t1,t2;
+SET optimizer_switch=@save_optimizer_switch;

@@ -193,24 +193,27 @@ create table t2 (dt datetime not null);
 insert into t1 values ('2001-01-01 1:1:1', '1:1:1'),
 ('2001-01-01 1:1:1', '1:1:1');
 insert into t2 values ('2001-01-01 1:1:1'), ('2001-01-01 1:1:1');
+SET @save_join_cache_level=@@join_cache_level;
+SET join_cache_level=0;
 flush tables;
 EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	OUTR	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	INNR	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary
+1	PRIMARY	OUTR	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	INNR	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(OUTR)
 flush tables;
 SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
 dt
 flush tables;
 EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	OUTR	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	INNR	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary
+1	PRIMARY	OUTR	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	INNR	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(OUTR)
 flush tables;
 SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
 dt
 2001-01-01 01:01:01
 2001-01-01 01:01:01
+SET join_cache_level=@save_join_cache_level;
 drop tables t1, t2;
 #
 # Bug#47669: Query showed by EXPLAIN EXTENDED gives different result from original query
@@ -279,7 +282,7 @@ CREATE TABLE t1(f1 VARCHAR(6) NOT NULL,
 FULLTEXT KEY(f1),UNIQUE(f1));
 INSERT INTO t1 VALUES ('test');
 EXPLAIN SELECT 1 FROM t1
-WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
+WHERE 1 > ALL((SELECT t1.f1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
 WHERE t1.f1 GROUP BY t1.f1));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
@@ -287,7 +290,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	SUBQUERY	t1	fulltext	f1_2,f1	f1	0		1	Using where
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
- WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a
+ WHERE 1 > ALL((SELECT t1.f1 FROM t1 RIGHT OUTER JOIN t1 a
  ON (MATCH(t1.f1) AGAINST (""))
  WHERE t1.f1 GROUP BY t1.f1))';
 EXECUTE stmt;
@@ -303,7 +306,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DEALLOCATE PREPARE stmt;
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
- WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a
+ WHERE 1 > ALL((SELECT t1.f1 FROM t1 JOIN t1 a
  ON (MATCH(t1.f1) AGAINST (""))
  WHERE t1.f1 GROUP BY t1.f1))';
 EXECUTE stmt;
@@ -339,6 +342,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (a int) ;
 CREATE TABLE t2 (a int) ;
 INSERT INTO t2 VALUES (8);
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 EXPLAIN EXTENDED
 SELECT * FROM ( SELECT t1.a FROM t1,t2 WHERE t2.a = t1.a ) AS t;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -346,4 +351,5 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	select NULL AS `a` from (select NULL AS `a` from `test`.`t1` where 0) `t`
+set optimizer_switch=@tmp_optimizer_switch;
 DROP TABLE t1,t2;

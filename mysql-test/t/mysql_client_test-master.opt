@@ -1,3 +1,2 @@
 --log=$MYSQLTEST_VARDIR/log/master.log 
 --log-output=FILE,TABLE
---plugin-load=$AUTH_TEST_PLUGIN_SO

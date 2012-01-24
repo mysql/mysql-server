@@ -17,7 +17,7 @@ const char *func3()
 
 void func2()
 {
-  const char *s;
+  const char *s __attribute__((unused));
   DBUG_ENTER("func2");
   s=func3();
   DBUG_PRINT("info", ("s=%s", s));

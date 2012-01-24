@@ -3,6 +3,9 @@
 drop table if exists t1,t2,t3;
 --enable_warnings
 
+set @save_derived_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+
 select * from (select 2 from DUAL) b;
 -- error 1054
 SELECT 1 as a FROM (SELECT 1 UNION SELECT a) b;
@@ -107,6 +110,7 @@ create table t1 select 1 as a;
 analyze table t1; # PBXT: Required to get a consitent result
 connect (con1,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection con1;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 --error 1046
 select 2 as a from (select * from t1) b;
 use test;
@@ -286,3 +290,5 @@ drop user mysqltest_1;
 drop database pbxt;
 --enable_query_log
 # End of 4.1 tests
+
+set optimizer_switch=@save_derived_optimizer_switch;

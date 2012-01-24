@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates & Anjuta Widenius
+   Copyright (c) 2008-2011 Monty Program Ab 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

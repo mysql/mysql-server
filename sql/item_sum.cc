@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2011, Monty Program Ab
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3197,6 +3197,31 @@ void Item_func_group_concat::cleanup()
     DBUG_ASSERT(tree == 0);
   }
   DBUG_VOID_RETURN;
+}
+
+
+Field *Item_func_group_concat::make_string_field(TABLE *table)
+{
+  Field *field;
+  DBUG_ASSERT(collation.collation);
+  /*
+    max_characters is maximum number of characters
+    what can fit into max_length size. It's necessary
+    to use field size what allows to store group_concat
+    result without truncation. For this purpose we use
+    max_characters * CS->mbmaxlen.
+  */
+  const uint32 max_characters= max_length / collation.collation->mbminlen;
+  if (max_characters > CONVERT_IF_BIGGER_TO_BLOB)
+    field= new Field_blob(max_characters * collation.collation->mbmaxlen,
+                          maybe_null, name, collation.collation, TRUE);
+  else
+    field= new Field_varstring(max_characters * collation.collation->mbmaxlen,
+                               maybe_null, name, table->s, collation.collation);
+
+  if (field)
+    field->init(table);
+  return field;
 }
 
 

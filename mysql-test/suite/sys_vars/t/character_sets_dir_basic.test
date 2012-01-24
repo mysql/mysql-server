@@ -1,3 +1,4 @@
+--source include/not_windows.inc
 #
 # show the global and session values;
 #

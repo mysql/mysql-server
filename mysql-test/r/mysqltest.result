@@ -557,6 +557,7 @@ mysqltest: At line 1: Wrong column number to replace_column in 'replace_column 1
 select "LONG_STRING" as x;
 x
 LONG_STRING
+dog
 mysqltest: At line 1: Invalid integer argument "10!"
 mysqltest: At line 1: Invalid integer argument "a"
 mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
@@ -674,6 +675,22 @@ a	D
 1	1
 1	4
 drop table t1;
+y
+txt
+b is b and more is more
+txt
+a is a and less is more
+create table t2 ( a char(10));
+garbage;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
+garbage;
+Got one of the listed errors
+garbage;
+Got one of the listed errors
+insert into t1 values ("Abcd");
+Got one of the listed errors
+garbage;
+drop table t2;
 create table t1 ( f1 char(10));
 insert into t1 values ("Abcd");
 select * from t1;

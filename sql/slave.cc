@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009-2011, Monty Program Ab
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -637,7 +637,7 @@ terminate_slave_thread(THD *thd,
 
   while (*slave_running)                        // Should always be true
   {
-    int error;
+    int error __attribute__((unused));
     DBUG_PRINT("loop", ("killing slave thread"));
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
@@ -1137,7 +1137,7 @@ int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f)
     memcpy(buf_act, buf, read_size);
     snd_size= my_b_gets(f, buf_act + read_size, max_size - read_size);
     if (snd_size == 0 ||
-        ((snd_size + 1 == max_size - read_size) &&  buf[max_size - 2] != '\n'))
+        ((snd_size + 1 == max_size - read_size) &&  buf_act[max_size - 2] != '\n'))
     {
       /*
         failure to make the 2nd read or short read again
@@ -4547,6 +4547,16 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   if (opt_plugin_dir_ptr && *opt_plugin_dir_ptr)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir_ptr);
 
+  /* we disallow empty users */
+  if (mi->user == NULL || mi->user[0] == 0)
+  {
+    mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+               ER(ER_SLAVE_FATAL_ERROR),
+               "Invalid (empty) username when attempting to "
+               "connect to the master server. Connection attempt "
+               "terminated.");
+    DBUG_RETURN(1);
+  }
   while (!(slave_was_killed = io_slave_killed(thd,mi)) &&
          (reconnect ? mysql_reconnect(mysql) != 0 :
           mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
@@ -4676,7 +4686,9 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
 
-  if (io_slave_killed(thd, mi)
+  if (mi->user == NULL
+      || mi->user[0] == 0
+      || io_slave_killed(thd, mi)
       || !mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
                              mi->port, 0, 0))
   {

@@ -6,6 +6,9 @@ drop table if exists t0, t1, t2, t3, t4, t5, t6;
 drop view if exists v1, v2;
 --enable_warnings
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3);
 create table t0 as select * from t1;
@@ -518,3 +521,4 @@ EXPLAIN SELECT alias1.* FROM t3 LEFT JOIN v1 as alias1 ON ( t3.a = alias1.b );
 drop view v1;
 DROP TABLE t1,t2,t3;
 
+SET optimizer_switch=@save_optimizer_switch;

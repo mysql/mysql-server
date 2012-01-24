@@ -4,6 +4,14 @@ drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
 
 set @subselect3_tmp= @@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on';
+if (`select @join_cache_level_for_subselect3_test is null`)
+{
+  set join_cache_level=1;
+}
+if (`select @join_cache_level_for_subselect3_test is not null`)
+{
+  set join_cache_level=@join_cache_level_for_subselect3_test;
+}
 
 #
 # 1. Subquery with GROUP/HAVING
@@ -925,8 +933,11 @@ set @@optimizer_switch='materialization=off';
 # 
 # FirstMatch referring to a derived table
 #
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain select * from (select a from t0) X where a in (select a from t1);
 drop table t0, t1;
+set optimizer_switch=@tmp_optimizer_switch;
 
 #
 # LooseScan: Check if we can pick it together with range access

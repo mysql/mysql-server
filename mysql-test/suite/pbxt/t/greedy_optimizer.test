@@ -10,6 +10,9 @@
 drop table if exists t1,t2,t3,t4,t5,t6,t7;
 --enable_warnings
 
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=1;
+
 create table t1 (
   c11 integer,c12 integer,c13 integer,c14 integer,c15 integer,c16 integer,
   primary key (c11)
@@ -311,6 +314,8 @@ explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and 
 show status like 'Last_query_cost';
 
 drop table t1,t2,t3,t4,t5,t6,t7;
+
+set join_cache_level=@save_join_cache_level;
 
 --disable_query_log
 drop database pbxt;

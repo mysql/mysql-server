@@ -11,9 +11,14 @@ set @@optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 set join_cache_level=6;
 show variables like 'join_cache_level';
 
+set @optimizer_switch_for_select_test=@@optimizer_switch;
+set @join_cache_level_for_select_test=@@join_cache_level;
+
 --source t/select.test
 
 set join_cache_level=default;
 show variables like 'join_cache_level';
 
 set @@optimizer_switch=@save_optimizer_switch_jcl6;
+set @optimizer_switch_for_select_test=NULL;
+set @join_cache_level_for_select_test=NULL;

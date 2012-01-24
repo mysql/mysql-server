@@ -1,0 +1,17 @@
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+select @@version_comment limit 1 ;
+@@version_comment
+Source distribution
+SELECT COUNT(*) FROM `information_schema`.`INNODB_SYS_INDEXES` ;
+CREATE TABLE test.t1 (  `a` SERIAL NOT NULL ,  `b` VARCHAR( 255 ) NOT NULL ,  INDEX ( `b` )  ) ENGINE = InnoDB ;
+SHOW TABLE STATUS FROM `information_schema` LIKE 'INNODB\_SYS\_INDEXES%' ;
+drop table test.t1;
+SHOW TABLE STATUS FROM `information_schema` LIKE 'INNODB\_SYS\_INDEXES%' ;
+SELECT COUNT(*) FROM `information_schema`.`INNODB_SYS_INDEXES` ;
+CREATE TABLE test.t1 ( `a` SERIAL NOT NULL , `b` VARCHAR( 255 ) NOT NULL , INDEX ( `b` ) ) ENGINE = InnoDB ;
+SHOW TABLE STATUS FROM `information_schema` LIKE 'INNODB\_SYS\_INDEXES%' ;
+SELECT COUNT(*) FROM `information_schema`.`INNODB_SYS_INDEXES` ;
+drop table test.t1;
+SHOW TABLE STATUS FROM `information_schema` LIKE 'INNODB\_SYS\_INDEXES%' ;

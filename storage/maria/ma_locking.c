@@ -398,7 +398,7 @@ int _ma_mark_file_changed(register MARIA_SHARE *share)
     /*
       For transactional tables, the table is marked changed when the first page
       is written. Here we just mark the state to be updated so that caller
-      can do 'anaylze table' and find that is has changed before any pages
+      can do 'analyze table' and find that is has changed before any pages
       are written.
     */
     if (! test_all_bits(share->state.changed,

@@ -78,6 +78,7 @@ select astext(ST_symdifference(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), ge
 select astext(ST_UNION(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
 
 # Buffer() tests
+--replace_result 0012045437948276 00120454379482759
 select astext(ST_buffer(geometryfromtext('point(1 1)'), 1));
 create table t1(geom geometrycollection);
 insert into t1 values (geomfromtext('POLYGON((0 0, 10 10, 0 8, 0 0))'));
@@ -87,6 +88,7 @@ select astext(ST_buffer(geom,2)) from t1;
 
 set @geom=geomfromtext('LINESTRING(2 1, 4 2, 2 3, 2 5)');
 set @buff=ST_buffer(@geom,1);
+--replace_result 40278744502097 40278744502096
 select astext(@buff);
 
 # cleanup
@@ -133,6 +135,7 @@ SELECT ASTEXT(ST_INTERSECTION(
 
 #bug 804324 Assertion 0 in Gcalc_scan_iterator::pop_suitable_intersection
 
+--replace_result 61538461538462 61538461538461
 SELECT ASTEXT(ST_UNION(
         MULTILINESTRINGFROMTEXT('MULTILINESTRING((6 2,4 0,3 5,3 6,4 3,6 4,3 9,0 7,3 7,8 4,2 9,5 0),
                                                  (8 2,1 3,9 0,4 4))'),

@@ -28,7 +28,6 @@ Created 12/27/1996 Heikki Tuuri
 # include "trx0trx.h"
 # include "trx0undo.h"
 # include "row0row.h"
-# include "btr0sea.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "page0zip.h"
 

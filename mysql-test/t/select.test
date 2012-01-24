@@ -13,6 +13,17 @@ drop table if exists t1_1,t1_2,t9_1,t9_2,t1aa,t2aa;
 drop view if exists v1;
 --enable_warnings
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch=ifnull(@optimizer_switch_for_select_test,'outer_join_with_cache=off');
+if (`select @join_cache_level_for_select_test is null`)
+{
+  set join_cache_level=1;
+}
+if (`select @join_cache_level_for_select_test is not null`)
+{
+  set join_cache_level=@join_cache_level_for_select_test;
+}
+
 CREATE TABLE t1 (
   Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
   Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
@@ -4262,6 +4273,22 @@ SELECT t2.f23 FROM
     WHERE t7.f71>0;
 
 DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+#
+# Bug #780425: "sql_buffer_result=1 gives wrong result for GROUP BY with a
+# constant expression"
+#
+
+CREATE TABLE t1(f1 int UNSIGNED) engine=myisam;
+INSERT INTO t1 VALUES (3),(2),(1);
+set sql_buffer_result=0;
+SELECT f1 FROM t1 GROUP BY 1;
+SELECT f1 FROM t1 GROUP BY '123' = 'abc';
+SELECT 1 FROM t1 GROUP BY 1;
+set sql_buffer_result=1;
+SELECT f1 FROM t1 GROUP BY 1;
+SELECT f1 FROM t1 GROUP BY '123' = 'abc';
+SELECT 1 FROM t1 GROUP BY 1;
+drop table t1;
 
 
 --echo #
@@ -4389,4 +4416,34 @@ GROUP BY t2.a ORDER BY t1.a;
 DROP TABLE t1;
 
 --echo # End of test BUG#57203
+
+--echo #
+--echo # lp:822760 Wrong result with view + invalid dates
+--echo #
+CREATE TABLE t1 (f1 date);
+INSERT IGNORE INTO t1 VALUES ('0000-00-00');
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM t1 HAVING f1 = 'zz';
+SELECT * FROM t1 HAVING f1 <= 'aa' ;
+SELECT * FROM t1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+SELECT * FROM t1 WHERE f1 = 'zz' AND f1 <= 'aa' ;
+SELECT * FROM v1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+DROP TABLE t1;
+DROP VIEW v1;
+
+--echo #
+--echo # Bug#63020: Function "format"'s 'locale' argument is not considered
+--echo #	     when creating a "view'
+--echo #
+
+CREATE TABLE t1 (f1 DECIMAL(10,2));
+INSERT INTO t1 VALUES (11.67),(17865.3),(12345678.92);
+CREATE VIEW view_t1 AS SELECT FORMAT(f1,1,'sk_SK') AS f1 FROM t1;
+SHOW CREATE VIEW view_t1;
+SELECT * FROM view_t1;
+DROP TABLE t1;
+DROP VIEW view_t1;
+--echo # End of test  BUG#63020
+
+SET optimizer_switch=@save_optimizer_switch;
 

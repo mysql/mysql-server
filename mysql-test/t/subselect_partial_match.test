@@ -622,8 +622,11 @@ INSERT INTO t2 VALUES (NULL,0);
 
 set @@optimizer_switch='materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on';
 
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 EXPLAIN EXTENDED
 SELECT * FROM (SELECT * FROM t1 WHERE a1 NOT IN (SELECT b2 FROM t2)) table1;
+set optimizer_switch=@tmp_optimizer_switch;
 
 DROP TABLE t1, t2;
 
@@ -774,5 +777,27 @@ SELECT outer_sq.*, (f1, f2) IN (select * from inner_sq) from outer_sq;
 SELECT * from outer_sq where (f1, f2) NOT IN (select * from inner_sq);
 
 drop table outer_sq, inner_sq;
+
+--echo #
+--echo # LP BUG#893486 Wrong result with partial_match_rowid_merge , NOT IN , NULLs
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,NULL),(2,NULL);
+
+CREATE TABLE t2 (c int, d int);
+INSERT INTO t2 VALUES (2,3),(4,5),(6, NULL);
+
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,in_to_exists=off';
+
+EXPLAIN SELECT * FROM t1 WHERE (a, b) NOT IN (SELECT c, d FROM t2);
+SELECT * FROM t1 WHERE (a, b) NOT IN (SELECT c, d FROM t2);
+SELECT a, b, (a, b) NOT IN (SELECT c, d FROM t2) subq_res FROM t1;
+
+EXPLAIN SELECT * FROM t1 WHERE (a, b) NOT IN (SELECT c, d FROM t2 WHERE d is not NULL);
+SELECT * FROM t1 WHERE (a, b) NOT IN (SELECT c, d FROM t2 WHERE d is not NULL);
+SELECT a, b, (a, b) NOT IN (SELECT c, d FROM t2 WHERE d is not NULL) subq_res FROM t1;
+
+drop table t1,t2;
 
 set @@optimizer_switch=@save_optimizer_switch;

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -250,6 +251,25 @@ static void do_outer_field_null(Copy_field *copy)
   }
 }
 
+/*
+  Copy: (not-NULL field in table that can be NULL-complemented) -> (not-NULL
+  field)
+*/
+static void do_copy_nullable_row_to_notnull(Copy_field *copy)
+{
+  if (*copy->null_row ||
+      (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
+  {
+    copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                                WARN_DATA_TRUNCATED, 1);
+    copy->to_field->reset();
+  }
+  else
+  {
+    (copy->do_copy2)(copy);
+  }
+
+}
 
 /* Copy: (NULL-able field) -> (not NULL-able field) */
 static void do_copy_not_null(Copy_field *copy)
@@ -640,7 +660,15 @@ void Copy_field::set(Field *to,Field *from,bool save)
       else if (to_field == to_field->table->next_number_field)
         do_copy= do_copy_next_number;
       else
-        do_copy= do_copy_not_null;
+      {
+        if (!from_null_ptr)
+        {
+          null_row= &from->table->null_row;
+          do_copy= do_copy_nullable_row_to_notnull;
+        }
+        else
+          do_copy= do_copy_not_null;
+      }
     }
   }
   else if (to_field->real_maybe_null())
@@ -731,15 +759,11 @@ Copy_field::get_copy_func(Field *to,Field *from)
         if (((Field_varstring*) to)->length_bytes !=
             ((Field_varstring*) from)->length_bytes)
           return do_field_string;
-        if (to_length != from_length)
-          return (((Field_varstring*) to)->length_bytes == 1 ?
-                  (from->charset()->mbmaxlen == 1 ? do_varstring1 :
-                                                    do_varstring1_mb) :
-                  (from->charset()->mbmaxlen == 1 ? do_varstring2 :
-                                                    do_varstring2_mb));
-        else 
-          return  (((Field_varstring*) from)->length_bytes == 1 ?
-                    do_varstring1 : do_varstring2);
+        return (((Field_varstring*) to)->length_bytes == 1 ?
+                (from->charset()->mbmaxlen == 1 ? do_varstring1 :
+                 do_varstring1_mb) :
+                (from->charset()->mbmaxlen == 1 ? do_varstring2 :
+                 do_varstring2_mb));
       }
       else if (to_length < from_length)
 	return (from->charset()->mbmaxlen == 1 ?

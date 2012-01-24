@@ -34,6 +34,9 @@ select * from information_schema.session_variables where variable_name='optimize
 set session optimizer_switch="default";
 select @@session.optimizer_switch;
 
+set optimizer_switch = replace(@@optimizer_switch, '=off', '=on');
+select @@optimizer_switch;
+
 #
 # incorrect assignments
 #

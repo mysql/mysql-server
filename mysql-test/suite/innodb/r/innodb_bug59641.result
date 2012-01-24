@@ -1,5 +1,5 @@
 call mtr.add_suppression("Found 3 prepared XA transactions");
-FLUSH TABLES;
+flush tables;
 CREATE TABLE t(a INT PRIMARY KEY, b INT)ENGINE=InnoDB;
 INSERT INTO t VALUES(2,2),(4,4),(8,8),(16,16),(32,32);
 COMMIT;

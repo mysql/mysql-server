@@ -408,7 +408,7 @@ static int de_weak_check(long double a, long double b, long double ex)
 
 static int de_check(long double a, long double b)
 {
-  return de_weak_check(a, b, (long double) 1e-10);
+  return de_weak_check(a, b, (long double) 1e-9);
 }
 #endif /*GCALC_CHECK_WITH_FLOAT*/
 
@@ -434,7 +434,7 @@ void gcalc_mul_coord(Gcalc_internal_coord *result, int result_len,
       gcalc_coord2 cur_b= n_b ? b[n_b] : FIRST_DIGIT(b[0]);
       gcalc_coord2 mul= cur_a * cur_b + carry + result[n_a + n_b + 1];
       result[n_a + n_b + 1]= mul % GCALC_DIG_BASE;
-      carry= (gcalc_digit_t) (mul / GCALC_DIG_BASE);
+      carry= (gcalc_digit_t) (mul / (gcalc_coord2) GCALC_DIG_BASE);
     } while (n_b--);
     if (carry)
     {
@@ -794,10 +794,51 @@ static int cmp_intersections(const Gcalc_heap::Info *i1,
 /* Internal coordinates implementation end */
 
 
+#define GCALC_SCALE_1 1e18
+
+static double find_scale(double extent)
+{
+  double scale= 1e-2;
+  while (scale < extent)
+    scale*= (double ) 10;
+  return GCALC_SCALE_1 / scale / 10;
+}
+
+
+void Gcalc_heap::set_extent(double xmin, double xmax, double ymin, double ymax)
+{
+  xmin= fabs(xmin);
+  xmax= fabs(xmax);
+  ymin= fabs(ymin);
+  ymax= fabs(ymax);
+
+  if (xmax < xmin)
+    xmax= xmin;
+  if (ymax < ymin)
+    ymax= ymin;
+
+  coord_extent= xmax > ymax ? xmax : ymax;
+  coord_extent= find_scale(coord_extent);
+#ifdef GCALC_CHECK_WITH_FLOAT
+  gcalc_coord_extent= &coord_extent;
+#endif /*GCALC_CHECK_WITH_FLOAT*/
+}
+
+
+void Gcalc_heap::free_point_info(Gcalc_heap::Info *i,
+                                 Gcalc_dyn_list::Item **i_hook)
+{
+  if (m_hook == &i->next)
+    m_hook= i_hook;
+  *i_hook= i->next;
+  free_item(i);
+  m_n_points--;
+}
+
+
 Gcalc_heap::Info *Gcalc_heap::new_point_info(double x, double y,
                                              gcalc_shape_info shape)
 {
-  double abs= fabs(x);
   Info *result= (Info *)new_item();
   if (!result)
     return NULL;
@@ -808,17 +849,8 @@ Gcalc_heap::Info *Gcalc_heap::new_point_info(double x, double y,
   result->shape= shape;
   result->top_node= 1;
   result->type= nt_shape_node;
-  if (m_n_points)
-  {
-    if (abs > coord_extent)
-      coord_extent= abs;
-  }
-  else
-    coord_extent= abs;
-
-  abs= fabs(y);
-  if (abs > coord_extent)
-    coord_extent= abs;
+  gcalc_set_double(result->ix, x, coord_extent);
+  gcalc_set_double(result->iy, y, coord_extent);
 
   m_n_points++;
   return result;
@@ -929,32 +961,12 @@ static int compare_point_info(const void *e0, const void *e1)
 }
 
 
-#define GCALC_SCALE_1 1e18
-
-static double find_scale(double extent)
-{
-  double scale= 1e-2;
-  while (scale < extent)
-    scale*= (double ) 10;
-  return GCALC_SCALE_1 / scale / 10;
-}
-
-
 void Gcalc_heap::prepare_operation()
 {
   Info *cur;
   GCALC_DBUG_ASSERT(m_hook);
-  coord_extent= find_scale(coord_extent);
-#ifdef GCALC_CHECK_WITH_FLOAT
-  gcalc_coord_extent= &coord_extent;
-#endif /*GCALC_CHECK_WITH_FLOAT*/
   *m_hook= NULL;
   m_hook= NULL; /* just to check it's not called twice */
-  for (cur= get_first(); cur; cur= cur->get_next())
-  {
-    gcalc_set_double(cur->ix, cur->x, coord_extent);
-    gcalc_set_double(cur->iy, cur->y, coord_extent);
-  }
   m_first= sort_list(compare_point_info, m_first, m_n_points);
 
   /* TODO - move this to the 'normal_scan' loop */
@@ -992,18 +1004,28 @@ int Gcalc_shape_transporter::int_add_point(gcalc_shape_info Info,
                                            double x, double y)
 {
   Gcalc_heap::Info *point;
-  GCALC_DBUG_ASSERT(!m_prev || m_prev->x != x || m_prev->y != y);
+  Gcalc_dyn_list::Item **hook;
+
+  hook= m_heap->get_cur_hook();
 
   if (!(point= m_heap->new_point_info(x, y, Info)))
     return 1;
   if (m_first)
   {
+    if (cmp_point_info(m_prev, point) == 0)
+    {
+      /* Coinciding points, do nothing */
+      m_heap->free_point_info(point, hook);
+      return 0;
+    }
+    GCALC_DBUG_ASSERT(!m_prev || m_prev->x != x || m_prev->y != y);
     m_prev->left= point;
     point->right= m_prev;
   }
   else
     m_first= point;
   m_prev= point;
+  m_prev_hook= hook;
   return 0;
 }
 
@@ -1031,10 +1053,20 @@ void Gcalc_shape_transporter::int_complete()
     return;
   }
 
-  GCALC_DBUG_ASSERT(m_prev->x != m_first->x || m_prev->y != m_first->y);
   /* polygon */
-  m_first->right= m_prev;
-  m_prev->left= m_first;
+  if (cmp_point_info(m_first, m_prev) == 0)
+  {
+    /* Coinciding points, remove the last one from the list */
+    m_prev->right->left= m_first;
+    m_first->right= m_prev->right;
+    m_heap->free_point_info(m_prev, m_prev_hook);
+  }
+  else
+  {
+    GCALC_DBUG_ASSERT(m_prev->x != m_first->x || m_prev->y != m_first->y);
+    m_first->right= m_prev;
+    m_prev->left= m_first;
+  }
 }
 
 

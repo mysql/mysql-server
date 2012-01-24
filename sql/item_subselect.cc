@@ -188,7 +188,7 @@ void Item_allany_subselect::cleanup()
   */
   for (SELECT_LEX *sl= unit->first_select();
        sl; sl= sl->next_select())
-    if (test_strategy(SUBS_MAXMIN_INJECTED))
+    if (test_set_strategy(SUBS_MAXMIN_INJECTED))
       sl->with_sum_func= false;
   Item_in_subselect::cleanup();
 }
@@ -221,8 +221,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   bool res;
 
   DBUG_ASSERT(fixed == 0);
-  /* There is no reason to get a different THD. */
-  DBUG_ASSERT(thd == thd_param);
+  engine->set_thd((thd= thd_param));
   if (!done_first_fix_fields)
   {
     done_first_fix_fields= TRUE;
@@ -905,7 +904,10 @@ void Item_singlerow_subselect::reset()
 {
   Item_subselect::reset();
   if (value)
-    value->null_value= TRUE;
+  {
+    for(uint i= 0; i < engine->cols(); i++)
+      row[i]->set_null();
+  }
 }
 
 
@@ -1016,6 +1018,11 @@ void Item_singlerow_subselect::fix_length_and_dec()
   */
   if (engine->no_tables())
     maybe_null= engine->may_be_null();
+  else
+  {
+    for (uint i= 0; i < max_columns; i++)
+      row[i]->maybe_null= TRUE;
+  }
 }
 
 
@@ -1201,7 +1208,8 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
   Item_exists_subselect(), 
   left_expr_cache(0), first_execution(TRUE), in_strategy(SUBS_NOT_TRANSFORMED),
   optimizer(0), pushed_cond_guards(NULL), emb_on_expr_nest(NULL),
-  is_jtbm_merged(FALSE), is_flattenable_semijoin(FALSE),
+  is_jtbm_merged(FALSE), is_jtbm_const_tab(FALSE), 
+  is_flattenable_semijoin(FALSE),
   is_registered_semijoin(FALSE), 
   upper_item(0)
 {
@@ -1672,6 +1680,13 @@ bool Item_allany_subselect::transform_into_max_min(JOIN *join)
       List_iterator<Item> it(select_lex->item_list);
       it++;
       thd->change_item_tree(it.ref(), item);
+    }
+
+    DBUG_EXECUTE("where",
+                 print_where(item, "rewrite with MIN/MAX", QT_ORDINARY););
+    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+    {
+      select_lex->set_non_agg_field_used(false);
     }
 
     save_allow_sum_func= thd->lex->allow_sum_func;
@@ -2906,6 +2921,7 @@ int subselect_single_select_engine::exec()
   char const *save_where= thd->where;
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;
+
   if (!join->optimized)
   {
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
@@ -2914,7 +2930,7 @@ int subselect_single_select_engine::exec()
     if (join->optimize())
     {
       thd->where= save_where;
-      optimize_error= 1;
+      executed= optimize_error= 1;
       thd->lex->current_select= save_select;
       DBUG_RETURN(join->error ? join->error : 1);
     }
@@ -4043,6 +4059,7 @@ ulonglong subselect_hash_sj_engine::rowid_merge_buff_size(
   uint rowid_length= tmp_table->file->ref_length;
   select_materialize_with_stats *result_sink=
     (select_materialize_with_stats *) result;
+  ha_rows max_null_row;
 
   /* Size of the subselect_rowid_merge_engine::row_num_to_rowid buffer. */
   buff_size= row_count * rowid_length * sizeof(uchar);
@@ -4065,7 +4082,18 @@ ulonglong subselect_hash_sj_engine::rowid_merge_buff_size(
       buff_size+= (row_count - result_sink->get_null_count_of_col(i)) *
                          sizeof(rownum_t);
       /* Add the size of Ordered_key::null_key */
-      buff_size+= bitmap_buffer_size(result_sink->get_max_null_of_col(i));
+      max_null_row= result_sink->get_max_null_of_col(i);
+      if (max_null_row >= UINT_MAX)
+      {
+        /*
+          There can be at most UINT_MAX bits in a MY_BITMAP that is used to
+          store NULLs in an Ordered_key. Return a number of bytes bigger than
+          the maximum allowed memory buffer for partial matching to disable
+          the rowid merge strategy.
+        */
+        return ULONGLONG_MAX;
+      }
+      buff_size+= bitmap_buffer_size(max_null_row);
     }
   }
 
@@ -4181,6 +4209,8 @@ bool subselect_hash_sj_engine::init(List<Item> *tmp_columns, uint subquery_id)
   */
   if (tmp_table->s->keys == 0)
   {
+    //fprintf(stderr, "Q: %s\n", current_thd->query());
+    DBUG_ASSERT(0);
     DBUG_ASSERT(
       tmp_table->s->uniques ||
       tmp_table->key_info->key_length >= tmp_table->file->max_key_length() ||
@@ -5564,6 +5594,8 @@ bool subselect_rowid_merge_engine::test_null_row(rownum_t row_num)
 
 /**
   Test if a subset of NULL-able columns contains a row of NULLs.
+  @retval TRUE  if such a row exists
+  @retval FALSE no complementing null row
 */
 
 bool subselect_rowid_merge_engine::
@@ -5571,34 +5603,34 @@ exists_complementing_null_row(MY_BITMAP *keys_to_complement)
 {
   rownum_t highest_min_row= 0;
   rownum_t lowest_max_row= UINT_MAX;
-  uint count_null_keys, i, j;
+  uint count_null_keys, i;
   Ordered_key *cur_key;
 
-  count_null_keys= keys_to_complement->n_bits -
-                   bitmap_bits_set(keys_to_complement);
-  if (count_null_keys == 1)
+  if (!count_columns_with_nulls)
   {
     /*
-      The caller guarantees that the complement to keys_to_complement
-      contains only columns with NULLs. Therefore if there is only one column,
-      it is guaranteed to contain NULLs.
+      If there are both NULLs and non-NUll values in the outer reference, and
+      the subquery contains no NULLs, a complementing NULL row cannot exist.
     */
-    return TRUE;
+    return FALSE;
   }
 
-  for (i= (non_null_key ? 1 : 0), j= 0; i < merge_keys_count; i++)
+  for (i= (non_null_key ? 1 : 0), count_null_keys= 0; i < merge_keys_count; i++)
   {
     cur_key= merge_keys[i];
     if (bitmap_is_set(keys_to_complement, cur_key->get_keyid()))
       continue;
-    DBUG_ASSERT(cur_key->get_null_count());
+    if (!cur_key->get_null_count())
+    {
+      /* If there is column without NULLs, there cannot be a partial match. */
+      return FALSE;
+    }
     if (cur_key->get_min_null_row() > highest_min_row)
       highest_min_row= cur_key->get_min_null_row();
     if (cur_key->get_max_null_row() < lowest_max_row)
       lowest_max_row= cur_key->get_max_null_row();
-    null_bitmaps[j++]= cur_key->get_null_key();
+    null_bitmaps[count_null_keys++]= cur_key->get_null_key();
   }
-  DBUG_ASSERT(count_null_keys == j);
 
   if (lowest_max_row < highest_min_row)
   {
@@ -5608,7 +5640,7 @@ exists_complementing_null_row(MY_BITMAP *keys_to_complement)
 
   return bitmap_exists_intersection((const MY_BITMAP**) null_bitmaps,
                                     count_null_keys,
-                                    highest_min_row, lowest_max_row);
+                                    (uint)highest_min_row, (uint)lowest_max_row);
 }
 
 

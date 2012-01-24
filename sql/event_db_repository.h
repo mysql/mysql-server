@@ -1,8 +1,6 @@
 #ifndef _EVENT_DB_REPOSITORY_H_
 #define _EVENT_DB_REPOSITORY_H_
-
-/*
-   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,7 +76,6 @@ public:
   bool
   create_event(THD *thd, Event_parse_data *parse_data, bool create_if_not,
                bool *event_already_exists);
-
   bool
   update_event(THD *thd, Event_parse_data *parse_data, LEX_STRING *new_dbname,
                LEX_STRING *new_name);

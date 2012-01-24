@@ -55,6 +55,11 @@ int __cxa_pure_virtual()
 }
 
 C_MODE_END
-
+#else
+/* 
+  Define a dummy symbol, just to avoid compiler/linker warnings
+  about compiling an essentially empty file.
+*/
+int my_new_cc_symbol;
 #endif /* USE_MYSYS_NEW */
 

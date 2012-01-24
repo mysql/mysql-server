@@ -686,6 +686,8 @@ INSERT INTO t1(a,b) SELECT a,b FROM t1;
 INSERT INTO t1(a,b) SELECT a,b FROM t1;
 INSERT INTO t1 VALUES (1000000, 0, 0);
 SET SESSION sort_buffer_size = 1024*36;
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 EXPLAIN
 SELECT COUNT(*) FROM 
 (SELECT * FROM t1 FORCE INDEX(primary,idx)
@@ -711,6 +713,7 @@ WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 COUNT(*)
 6145
 DROP TABLE t1;
+set optimizer_switch=@tmp_optimizer_switch;
 #
 # Testcase Backport: BUG#48093: 6.0 Server not processing equivalent IN clauses properly
 #            with Innodb tables

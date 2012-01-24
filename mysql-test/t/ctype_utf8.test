@@ -1571,5 +1571,17 @@ SET NAMES utf8;
 EXPLAIN EXTENDED SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ';
 
 --echo #
+--echo # Bug#11750518 41090: ORDER BY TRUNCATES GROUP_CONCAT RESULT
+--echo #
+
+SET NAMES utf8;
+SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
+FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
+UNION ALL
+SELECT 'a' AS id, REPEAT('bla bla', 100) AS body) t1
+GROUP BY id
+ORDER BY l DESC;
+
+--echo #
 --echo # End of 5.5 tests
 --echo #

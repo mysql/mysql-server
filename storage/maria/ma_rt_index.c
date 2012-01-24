@@ -1258,7 +1258,7 @@ ha_rows maria_rtree_estimate(MARIA_HA *info, MARIA_KEY *key, uint32 flag)
   MARIA_PAGE page;
 
   if (flag & MBR_DISJOINT)
-    return info->state->records;
+    return HA_POS_ERROR;
 
   if ((root= share->state.key_root[key->keyinfo->key_nr]) == HA_OFFSET_ERROR)
     return HA_POS_ERROR;

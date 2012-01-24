@@ -1,4 +1,4 @@
-# enum global
+# set global
 --source include/have_maria.inc
 
 SET @start_global_value = @@global.aria_recover;
@@ -23,7 +23,7 @@ select @@global.aria_recover;
 set session aria_recover=1;
 
 #
-# all valid values
+# valid values
 #
 set global aria_recover=normal;
 select @@global.aria_recover;
@@ -31,9 +31,11 @@ set global aria_recover=backup;
 select @@global.aria_recover;
 set global aria_recover='force';
 select @@global.aria_recover;
-set global aria_recover='quick';
-select @@global.aria_recover;
 set global aria_recover=off;
+select @@global.aria_recover;
+set global aria_recover='quick,force';
+select @@global.aria_recover;
+set global aria_recover=16;
 select @@global.aria_recover;
 
 #
@@ -46,6 +48,6 @@ set global aria_recover=1e1;
 --error ER_WRONG_VALUE_FOR_VAR
 set global aria_recover="foo";
 --error ER_WRONG_VALUE_FOR_VAR
-set global aria_recover=5;
+set global aria_recover=32;
 
 SET @@global.aria_recover = @start_global_value;

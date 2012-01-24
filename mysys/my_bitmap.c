@@ -1,6 +1,6 @@
 /*
    Copyright (c) 2001, 2011, Oracle and/or its affiliates.
-   Copyright (C) 2009, 2011, Monty Program Ab
+   Copyright (C) 2009- 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

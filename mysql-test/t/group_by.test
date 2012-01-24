@@ -339,8 +339,11 @@ drop table t1,t2;
 CREATE TABLE t1 (ID1 int, ID2 int, ID int NOT NULL AUTO_INCREMENT,PRIMARY KEY(ID
 ));
 insert into t1 values (1,244,NULL),(2,243,NULL),(134,223,NULL),(185,186,NULL);
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 select S.ID as xID, S.ID1 as xID1 from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2;
 select S.ID as xID, S.ID1 as xID1, repeat('*',count(distinct yS.ID)) as Level from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2 group by xID order by xID1;
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1;
 
 #
@@ -1032,16 +1035,22 @@ EXPLAIN SELECT a FROM t1
   USE INDEX FOR JOIN (i2) 
   USE INDEX FOR JOIN (i2,i2);
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 EXPLAIN SELECT 1 FROM t1 WHERE a IN
   (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
+SET optimizer_switch=@save_optimizer_switch;
 
 CREATE TABLE t2 (a INT, b INT, KEY(a));
 INSERT INTO t2 VALUES (1, 1), (2, 2), (3,3), (4,4);
 EXPLAIN SELECT a, SUM(b) FROM t2 GROUP BY a LIMIT 2; 
 EXPLAIN SELECT a, SUM(b) FROM t2 IGNORE INDEX (a) GROUP BY a LIMIT 2;
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 EXPLAIN SELECT 1 FROM t2 WHERE a IN
   (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
+SET optimizer_switch=@save_optimizer_switch;
 
 DROP TABLE t1, t2;
 

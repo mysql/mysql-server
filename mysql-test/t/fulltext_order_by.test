@@ -28,8 +28,8 @@ SELECT a, FORMAT(MATCH (message) AGAINST ('steve'),6) FROM t1 WHERE a=7 and MATC
 SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) FROM t1 WHERE a=7 and MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) ORDER BY 1;
 
 # ORDER BY MATCH
-SELECT a, FORMAT(MATCH (message) AGAINST ('steve'),6) as rel FROM t1 ORDER BY rel;
-SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) as rel FROM t1 ORDER BY rel;
+SELECT IF(a=7,'steve-is-cool',IF(a=4,'cool', 'other')), FORMAT(MATCH (message) AGAINST ('steve'),6) as rel FROM t1 ORDER BY rel;
+SELECT IF(a=7,'match',IF(a=4,'match', 'no-match')), MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) as rel FROM t1 ORDER BY rel;
 
 #
 # BUG#6635 - test_if_skip_sort_order() thought it can skip filesort

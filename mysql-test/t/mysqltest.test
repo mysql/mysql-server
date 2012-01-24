@@ -1753,6 +1753,12 @@ let $long_rep= $long_rep,$long_rep;
 --replace_result $long_rep LONG_STRING
 eval select "$long_rep" as x;
 
+# Test replace within ``
+
+--replace_result cat dog
+--let $animal= `select "cat" as pet`
+--echo $animal
+
 # ----------------------------------------------------------------------------
 # Test sync_with_master
 # ----------------------------------------------------------------------------
@@ -2074,6 +2080,48 @@ insert into t1 values (2,4);
 --replace_regex /A/C/ /B/D/i /3/2/ /2/1/
 select * from t1;
 drop table t1;
+
+# Test usage with ``
+
+--replace_regex /x/y/
+--let $result= `select "x" as col`
+--echo $result
+
+# Test usage with a variable as pattern list
+
+--disable_query_log
+--let $patt= /a /b / /less/more/
+--replace_regex $patt
+select "a is a and less is more" as txt;
+--let $patt=
+--replace_regex $patt
+select "a is a and less is more" as txt;
+--enable_query_log
+
+#-------------------------------------------------------------------------
+# BUG #11754855 : Passing variable to --error  
+#-------------------------------------------------------------------------
+create table t2 ( a char(10));
+let $errno1=0;
+let $errno2=ER_PARSE_ERROR;
+let $errno3=ER_NO_SUCH_TABLE;
+--error $errno2 
+garbage;
+
+--error $errno2,$errno3
+garbage;
+
+--error $errno2,ER_NO_SUCH_TABLE
+garbage;
+
+--error ER_NO_SUCH_TABLE,$errno2
+insert into t1 values ("Abcd");
+
+--error $errno1,ER_PARSE_ERROR
+garbage;
+
+drop table t2;
+
 
 # ----------------------------------------------------------------------------
 # Tests of send

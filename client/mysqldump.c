@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,8 +52,6 @@
 #include "mysql.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
@@ -566,6 +564,8 @@ static void verbose_msg(const char *fmt, ...)
   vfprintf(stderr, fmt, args);
   va_end(args);
 
+  fflush(stderr);
+
   DBUG_VOID_RETURN;
 }
 
@@ -602,7 +602,8 @@ static void short_usage_sub(void)
 static void usage(void)
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts("By Igor Romanenko, Monty, Jani & Sinisa and others.");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license.\n");
   puts("Dumping structure and contents of MySQL databases and tables.");
   short_usage_sub();
   print_defaults("my",load_default_groups);
@@ -4132,6 +4133,8 @@ static int dump_all_tables_in_db(char *database)
     if (mysql_refresh(mysql, REFRESH_LOG))
       DB_error(mysql, "when doing refresh");
            /* We shall continue here, if --force was given */
+    else
+      verbose_msg("-- dump_all_tables_in_db : logs flushed successfully!\n");
   }
   while ((table= getTableName(0)))
   {
@@ -4232,6 +4235,8 @@ static my_bool dump_all_views_in_db(char *database)
     if (mysql_refresh(mysql, REFRESH_LOG))
       DB_error(mysql, "when doing refresh");
            /* We shall continue here, if --force was given */
+    else
+      verbose_msg("-- dump_all_views_in_db : logs flushed successfully!\n");
   }
   while ((table= getTableName(0)))
   {
@@ -4370,6 +4375,8 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       DB_error(mysql, "when doing refresh");
     }
      /* We shall countinue here, if --force was given */
+    else
+      verbose_msg("-- dump_selected_tables : logs flushed successfully!\n");
   }
   if (opt_xml)
     print_xml_tag(md_result_file, "", "\n", "database", "name=", db, NullS);
@@ -4676,6 +4683,7 @@ static int purge_bin_logs_to(MYSQL *mysql_con, char* log_name)
 
 static int start_transaction(MYSQL *mysql_con)
 {
+  verbose_msg("-- Starting transaction...\n");
   /*
     We use BEGIN for old servers. --single-transaction --master-data will fail
     on old servers, but that's ok as it was already silently broken (it didn't
@@ -5285,24 +5293,38 @@ int main(int argc, char **argv)
     consistent_binlog_pos= check_consistent_binlog_pos(NULL, NULL);
   }
 
-  if ((opt_lock_all_tables || (opt_master_data && !consistent_binlog_pos)) &&
+  if ((opt_lock_all_tables || (opt_master_data && !consistent_binlog_pos) ||
+       (opt_single_transaction && flush_logs)) &&
       do_flush_tables_read_lock(mysql))
     goto err;
-  if (opt_single_transaction && start_transaction(mysql))
-      goto err;
-  if (opt_delete_master_logs)
+
+  /*
+    Flush logs before starting transaction since
+    this causes implicit commit starting mysql-5.5.
+  */
+  if (opt_lock_all_tables || opt_master_data ||
+      (opt_single_transaction && flush_logs) ||
+      opt_delete_master_logs)
   {
-    if (mysql_refresh(mysql, REFRESH_LOG) ||
-        get_bin_log_name(mysql, bin_log_name, sizeof(bin_log_name)))
-      goto err;
+    if (flush_logs || opt_delete_master_logs)
+    {
+      if (mysql_refresh(mysql, REFRESH_LOG))
+        goto err;
+      verbose_msg("-- main : logs flushed successfully!\n");
+    }
+
+    /* Not anymore! That would not be sensible. */
     flush_logs= 0;
   }
-  if (opt_lock_all_tables || opt_master_data)
+
+  if (opt_delete_master_logs)
   {
-    if (flush_logs && mysql_refresh(mysql, REFRESH_LOG))
+    if (get_bin_log_name(mysql, bin_log_name, sizeof(bin_log_name)))
       goto err;
-    flush_logs= 0; /* not anymore; that would not be sensible */
   }
+
+  if (opt_single_transaction && start_transaction(mysql))
+    goto err;
 
   /* Add 'STOP SLAVE to beginning of dump */
   if (opt_slave_apply && add_stop_slave())

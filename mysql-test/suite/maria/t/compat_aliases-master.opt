@@ -1,0 +1,1 @@
+--maria-max-sort-file-size=100M --aria-repair-threads=100

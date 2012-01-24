@@ -1,0 +1,54 @@
+#
+# test for the client "dialog" plugin
+#
+
+--source include/not_embedded.inc
+
+if (!$DIALOG_SO) {
+  skip No dialog auth plugin;
+}
+if (!$DIALOG_EXAMPLES_SO) {
+  skip No dialog auth plugin;
+}
+
+--replace_result .dll .so
+eval install plugin three_attempts soname '$DIALOG_EXAMPLES_SO';
+create user test_dialog identified via three_attempts using 'SECRET';
+
+let $plugindir=`SELECT @@global.plugin_dir`;
+
+--write_file $MYSQLTEST_VARDIR/tmp/dialog_good.txt
+foo
+1234
+SECRET
+select user(), current_user();
+EOF
+
+--write_file $MYSQLTEST_VARDIR/tmp/dialog_bad.txt
+foo
+1234
+wrong
+SECRET
+EOF
+
+--echo #
+--echo # -pSECRET is picked up, no questions asked.
+--echo #
+--exec echo "select user(), current_user();"|$MYSQL_TEST -u test_dialog -pSECRET --plugin-dir=$plugindir
+
+--echo #
+--echo # without -p. up to three questions are asked on the stdin.
+--echo # athentication is successful, the correct pasword is on the third line
+--echo #
+--exec $MYSQL_TEST -u test_dialog --plugin-dir=$plugindir < $MYSQLTEST_VARDIR/tmp/dialog_good.txt
+
+--echo #
+--echo # athentication is unsuccessful, first three lines are all wrong
+--echo #
+--error 1
+--exec $MYSQL_TEST -u test_dialog --plugin-dir=$plugindir < $MYSQLTEST_VARDIR/tmp/dialog_bad.txt
+
+--remove_file $MYSQLTEST_VARDIR/tmp/dialog_good.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/dialog_bad.txt
+drop user test_dialog;
+uninstall plugin three_attempts;

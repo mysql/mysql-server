@@ -215,12 +215,6 @@ page_set_max_trx_id(
 {
 	page_t*		page		= buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP
-	const ibool	is_hashed	= block->is_hashed;
-
-	if (is_hashed) {
-		rw_lock_x_lock(&btr_search_latch);
-	}
-
 	ut_ad(!mtr || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #endif /* !UNIV_HOTBACKUP */
 
@@ -241,12 +235,6 @@ page_set_max_trx_id(
 	} else {
 		mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), trx_id);
 	}
-
-#ifndef UNIV_HOTBACKUP
-	if (is_hashed) {
-		rw_lock_x_unlock(&btr_search_latch);
-	}
-#endif /* !UNIV_HOTBACKUP */
 }
 
 /************************************************************//**
@@ -1603,13 +1591,14 @@ page_rec_print(
 			" n_owned: %lu; heap_no: %lu; next rec: %lu\n",
 			(ulong) rec_get_n_owned_old(rec),
 			(ulong) rec_get_heap_no_old(rec),
-			(ulong) rec_get_next_offs(rec, TRUE));
+			(ulong) rec_get_next_offs(rec, FALSE));
 	}
 
 	page_rec_check(rec);
 	rec_validate(rec, offsets);
 }
 
+# ifdef UNIV_BTR_PRINT
 /***************************************************************//**
 This is used to print the contents of the directory for
 debugging purposes. */
@@ -1770,6 +1759,7 @@ page_print(
 	page_dir_print(page, dn);
 	page_print_list(block, index, rn);
 }
+# endif /* UNIV_BTR_PRINT */
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**

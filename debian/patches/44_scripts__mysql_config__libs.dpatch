@@ -1,0 +1,24 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 99-unnamed.dpatch by  <ch@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Removes unnecessary library dependencies. See #390692
+
+@DPATCH@
+diff -Nur mysql-dfsg-5.1-5.1.31.orig/scripts/mysql_config.sh mysql-dfsg-5.1-5.1.31/scripts/mysql_config.sh
+--- mysql-dfsg-5.1-5.1.31.orig/scripts/mysql_config.sh  2009-01-19 17:30:55.000000000 +0100
++++ mysql-dfsg-5.1-5.1.31/scripts/mysql_config.sh       2009-02-08 17:17:48.000000000 +0100
+@@ -110,10 +110,10 @@
+ 
+ # Create options 
+ # We intentionally add a space to the beginning and end of lib strings, simplifies replace later
+-libs=" $ldflags -L$pkglibdir -lmysqlclient @ZLIB_DEPS@ @NON_THREADED_LIBS@"
++libs=" $ldflags -L$pkglibdir -lmysqlclient"
+ libs="$libs @openssl_libs@ @STATIC_NSS_FLAGS@ "
+-libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @CLIENT_LIBS@ @openssl_libs@ "
+-embedded_libs=" $ldflags -L$pkglibdir -lmysqld @LIBDL@ @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
++libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @CLIENT_LIBS@ @openssl_libs@ "
++embedded_libs=" $ldflags -L$pkglibdir -lmysqld @LIBDL@ @WRAPLIBS@ @openssl_libs@ "
+ 
+ if [ -r "$pkglibdir/libmygcc.a" ]; then
+   # When linking against the static library with a different version of GCC

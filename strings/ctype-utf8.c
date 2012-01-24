@@ -1,5 +1,6 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+/* Copyright (c) 2002-2008 MySQL AB, 2009 Sun Microsystems, Inc.
    Copyright (c) 2009-2011, Monty Program Ab
+   Use is subject to license terms.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public

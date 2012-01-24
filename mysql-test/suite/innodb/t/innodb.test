@@ -1041,13 +1041,31 @@ create table `t2` (`id` int( 11 ) not null default '0',unique key `id` ( `id` ) 
 insert into `t2`values ( 1 ) ;
 create table `t3` (`id` int( 11 ) not null default '0',key `id` ( `id` ) ,constraint `t2_id_fk` foreign key ( `id` ) references `t2` (`id` )) engine = innodb;
 insert into `t3`values ( 1 ) ;
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
---error 1054
+--error ER_BAD_FIELD_ERROR
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 drop table t3,t2,t1;
+
+# test ON UPDATE CASCADE
+CREATE TABLE t1 (
+        c1 VARCHAR(8), c2 VARCHAR(8),
+	PRIMARY KEY (c1, c2)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+        c0 INT PRIMARY KEY,
+        c1 VARCHAR(8) UNIQUE,
+        FOREIGN KEY (c1) REFERENCES t1 (c1) ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('old', 'somevalu'), ('other', 'anyvalue');
+INSERT INTO t2 VALUES (10, 'old'), (20, 'other');
+-- error ER_FOREIGN_DUPLICATE_KEY
+UPDATE t1 SET c1 = 'other' WHERE c1 = 'old';
+DROP TABLE t2,t1;
 
 #
 # test for recursion depth limit
@@ -1228,11 +1246,11 @@ drop table t1;
 #
 # Bug #4082: integer truncation
 #
-# disable because the bug has resurfaced
-#create table t1(a int(1) , b int(1)) engine=innodb;
-#insert into t1 values ('1111', '3333');
-#select distinct concat(a, b) from t1;
-#drop table t1;
+
+create table t1(a int(1) , b int(1)) engine=innodb;
+insert into t1 values ('1111', '3333');
+select distinct concat(a, b) from t1;
+drop table t1;
 
 #
 # BUG#7709 test case - Boolean fulltext query against unsupported 
@@ -1334,43 +1352,6 @@ SELECT variable_value - @innodb_row_lock_time_orig FROM information_schema.globa
 SELECT variable_value - @innodb_row_lock_time_max_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_max';
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 
-# Test for innodb_sync_spin_loops variable
-SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;
-show variables like "innodb_sync_spin_loops";
-set global innodb_sync_spin_loops=1000;
-show variables like "innodb_sync_spin_loops";
-set global innodb_sync_spin_loops=0;
-show variables like "innodb_sync_spin_loops";
-set global innodb_sync_spin_loops=20;
-show variables like "innodb_sync_spin_loops";
-set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
-
-# Test for innodb_thread_concurrency variable
-show variables like "innodb_thread_concurrency";
-set global innodb_thread_concurrency=1001;
-show variables like "innodb_thread_concurrency";
-set global innodb_thread_concurrency=0;
-show variables like "innodb_thread_concurrency";
-set global innodb_thread_concurrency=16;
-show variables like "innodb_thread_concurrency";
-
-# Test for innodb_concurrency_tickets variable
-show variables like "innodb_concurrency_tickets";
-set global innodb_concurrency_tickets=1000;
-show variables like "innodb_concurrency_tickets";
-set global innodb_concurrency_tickets=0;
-show variables like "innodb_concurrency_tickets";
-set global innodb_concurrency_tickets=500;
-show variables like "innodb_concurrency_tickets";
-
-# Test for innodb_thread_sleep_delay variable
-show variables like "innodb_thread_sleep_delay";
-set global innodb_thread_sleep_delay=100000;
-show variables like "innodb_thread_sleep_delay";
-set global innodb_thread_sleep_delay=0;
-show variables like "innodb_thread_sleep_delay";
-set global innodb_thread_sleep_delay=10000;
-show variables like "innodb_thread_sleep_delay";
 
 #
 # Test varchar
@@ -1378,10 +1359,7 @@ show variables like "innodb_thread_sleep_delay";
 
 let $default=`select @@storage_engine`;
 set storage_engine=INNODB;
-# this should be fixed by MySQL (see Bug #51451)
-set session old_alter_table=1;
 source include/varchar.inc;
-set session old_alter_table=0;
 
 #
 # Some errors/warnings on create
@@ -2562,6 +2540,17 @@ SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 # Clean up after the Bug#55284/Bug#58912 test case.
 DROP TABLE bug58912;
+
+#
+# Test fix for bug 13117023. InnoDB increments HA_READ_KEY_COUNT (aka
+# HANDLER_READ_KEY) when it should not.
+#
+create table t1 (f1 integer primary key) engine=innodb;
+flush status;
+show status like "handler_read_key";
+select f1 from t1;
+show status like "handler_read_key";
+drop table t1;
 
 #######################################################################
 #                                                                     #

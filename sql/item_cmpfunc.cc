@@ -2554,37 +2554,43 @@ void Item_func_if::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 }
 
 
+void Item_func_if::cache_type_info(Item *source)
+{
+  collation.set(source->collation);
+  cached_field_type=  source->field_type();
+  cached_result_type= source->result_type();
+  decimals=           source->decimals;
+  max_length=         source->max_length;
+  maybe_null=         source->maybe_null;
+  unsigned_flag=      source->unsigned_flag;
+}
+
+
 void
 Item_func_if::fix_length_and_dec()
 {
-  maybe_null=args[1]->maybe_null || args[2]->maybe_null;
-  decimals= max(args[1]->decimals, args[2]->decimals);
-  unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
-
-  enum Item_result arg1_type=args[1]->result_type();
-  enum Item_result arg2_type=args[2]->result_type();
-  bool null1=args[1]->const_item() && args[1]->null_value;
-  bool null2=args[2]->const_item() && args[2]->null_value;
-
-  if (null1)
+  // Let IF(cond, expr, NULL) and IF(cond, NULL, expr) inherit type from expr.
+  if (args[1]->type() == NULL_ITEM)
   {
-    cached_result_type= arg2_type;
-    collation.set(args[2]->collation);
-    cached_field_type= args[2]->field_type();
-    max_length= args[2]->max_length;
+    cache_type_info(args[2]);
+    maybe_null= true;
+    // If both arguments are NULL, make resulting type BINARY(0).
+    if (args[2]->type() == NULL_ITEM)
+      cached_field_type= MYSQL_TYPE_STRING;
     return;
   }
-
-  if (null2)
+  if (args[2]->type() == NULL_ITEM)
   {
-    cached_result_type= arg1_type;
-    collation.set(args[1]->collation);
-    cached_field_type= args[1]->field_type();
-    max_length= args[1]->max_length;
+    cache_type_info(args[1]);
+    maybe_null= true;
     return;
   }
 
   agg_result_type(&cached_result_type, args + 1, 2);
+  maybe_null= args[1]->maybe_null || args[2]->maybe_null;
+  decimals= max(args[1]->decimals, args[2]->decimals);
+  unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
+
   if (cached_result_type == STRING_RESULT)
   {
     if (agg_arg_charsets_for_string_result(collation, args + 1, 2))

@@ -245,6 +245,9 @@ CREATE TABLE t4 ( b int, c varchar(1), KEY (b));
 INSERT INTO t4 VALUES (7,'c');
 INSERT INTO t4 VALUES (7,'c');
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 --echo # Must be t1,t2,t3,t4, with t4 having Full-scan-on-NULL but not Using index condition
 explain 
 SELECT * FROM t1 LEFT JOIN t2 ON t1.c=t2.b
@@ -254,6 +257,8 @@ WHERE
 SELECT * FROM t1 LEFT JOIN t2 ON t1.c=t2.b
 WHERE 
   t2.b NOT IN (SELECT t4.b FROM t3 STRAIGHT_JOIN t4 WHERE t4.b <= 2 AND t4.c = t3.c);
+
+SET optimizer_switch=@save_optimizer_switch;
 
 DROP TABLE t1,t2,t3,t4;
 

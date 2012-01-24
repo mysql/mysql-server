@@ -43,7 +43,7 @@
   To support all this variety, the dialog plugin has a callback function
   "authentication_dialog_ask". If the client has a function of this name
   dialog plugin will use it for communication with the user. Otherwise
-  a default fgets() based implementation will be used.
+  a default implementation will be used.
 */
 static mysql_authentication_dialog_ask_t ask;
 
@@ -52,13 +52,25 @@ static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
                          const char *prompt,
                          char *buf, int buf_len)
 {
-  char *ptr;
   fputs(prompt, stdout);
   fputc(' ', stdout);
-  if (fgets(buf, buf_len, stdin) == NULL)
-    return NULL;
-  if ((ptr= strchr(buf, '\n')))
-    *ptr= 0;
+
+  if (type == 2) /* password */
+  {
+    get_tty_password_buff("", buf, buf_len);
+    buf[buf_len-1]= 0;
+  }
+  else
+  {
+    if (!fgets(buf, buf_len-1, stdin))
+      buf[0]= 0;
+    else
+    {
+      int len= strlen(buf);
+      if (len && buf[len-1] == '\n')
+        buf[len-1]= 0;
+    }
+  }
 
   return buf;
 }
@@ -84,6 +96,7 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   unsigned char *pkt, cmd= 0;
   int pkt_len, res;
   char reply_buf[1024], *reply;
+  int first = 1;
 
   do
   {
@@ -92,13 +105,13 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     if (pkt_len < 0)
       return CR_ERROR;
 
-    if (pkt == 0)
+    if (pkt == 0 && first)
     {
       /*
         in mysql_change_user() the client sends the first packet, so
         the first vio->read_packet() does nothing (pkt == 0).
 
-        We send the "password", assuming the client knows what it's doing.
+        We send the "password", assuming the client knows what its doing.
         (in other words, the dialog plugin should be only set as a default
         authentication plugin on the client if the first question
         asks for a password - which will be sent in clear text, by the way)
@@ -114,10 +127,10 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         return CR_OK_HANDSHAKE_COMPLETE; /* yes. we're done */
 
       /*
-        asking for a password with an empty prompt means mysql->password
+        asking for a password in the first packet mean mysql->password, if it's set
         otherwise we ask the user and read the reply
       */
-      if ((cmd >> 1) == 2 && *pkt == 0)
+      if ((cmd >> 1) == 2 && first && mysql->passwd[0])
         reply= mysql->passwd;
       else
         reply= ask(mysql, cmd >> 1, (const char *) pkt, 

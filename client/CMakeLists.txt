@@ -31,7 +31,7 @@ MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc
 TARGET_LINK_LIBRARIES(mysql mysqlclient)
 IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql ${MY_READLINE_LIBRARY})
-  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -rdynamic")
+  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
 ENDIF(UNIX)
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)

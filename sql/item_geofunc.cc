@@ -1,5 +1,6 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates.
-   Copyright (C) 2011 Monty Program Ab.
+/*
+   Copyright (c) 2003-2007 MySQL AB, 2009, 2010 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -659,140 +660,6 @@ static double distance_points(const Gcalc_heap::Info *a,
 }
 
 
-/*
-  Calculates the distance between objects.
-*/
-
-#ifdef TMP_BLOCK
-static int calc_distance(double *result, Gcalc_heap *collector, uint obj2_si,
-                         Gcalc_function *func, Gcalc_scan_iterator *scan_it)
-{
-  bool above_cur_point, cur_point_edge;
-  const Gcalc_scan_iterator::point *evpos;
-  const Gcalc_heap::Info *cur_point= NULL;
-  const Gcalc_heap::Info *dist_point;
-  const Gcalc_scan_iterator::point *ev;
-  double t, distance, cur_distance;
-  double ex, ey, vx, vy, e_sqrlen;
-  int o1, o2;
-
-  DBUG_ENTER("calc_distance");
-
-  above_cur_point= false;
-  distance= DBL_MAX;
-
-  while (scan_it->more_points())
-  {
-    if (scan_it->step())
-      goto mem_error;
-    evpos= scan_it->get_event_position();
-    ev= scan_it->get_events();
-    cur_point= NULL;
-
-    if (ev->simple_event())
-    {
-      cur_point= ev->pi;
-      goto calculate_distance;
-    }
-
-    /*
-       handling intersection we only need to check if it's the intersecion
-       of objects 1 and 2. In this case distance is 0
-    */
-    o1= 0;
-    o2= 0;
-    for (; ev; ev= ev->get_next())
-    {
-      if (ev->event != scev_intersection)
-        cur_point= ev->pi;
-      if (ev->pi->shape >= obj2_si)
-        o2= 1;
-      else
-        o1= 1;
-      if (o1 && o2)
-      {
-        distance= 0;
-        goto exit;
-      }
-    }
-    if (!cur_point)
-      continue;
-
-#ifdef TO_REMOVE
-    goto calculate_distance;
-    /*
-       having these events we need to check for possible intersection
-       of objects
-       scev_thread | scev_two_threads | scev_single_point
-    */
-    DBUG_ASSERT(ev & (scev_thread | scev_two_threads | scev_single_point));
-
-    func->clear_state();
-    for (Gcalc_point_iterator pit(scan_it); pit.point() != evpos; ++pit)
-    {
-      gcalc_shape_info si= pit.point()->get_shape();
-      if ((func->get_shape_kind(si) == Gcalc_function::shape_polygon))
-        func->invert_state(si);
-    }
-    func->invert_state(evpos->get_shape());
-    if (func->count())
-    {
-      /* Point of one object is inside the other - intersection found */
-      distance= 0;
-      goto exit;
-    }
-#endif /*TO_REMOVE*/
-
-calculate_distance:
-    if (cur_point->shape >= obj2_si)
-      continue;
-    cur_point_edge= !cur_point->is_bottom();
-
-    for (dist_point= collector->get_first(); dist_point; dist_point= dist_point->get_next())
-    {
-      /* We only check vertices of object 2 */
-      if (dist_point->shape < obj2_si)
-        continue;
-
-      /* if we have an edge to check */
-      if (dist_point->left)
-      {
-        t= count_edge_t(dist_point, dist_point->left, cur_point,
-                        ex, ey, vx, vy, e_sqrlen);
-        if ((t > 0.0) && (t < 1.0))
-        {
-          cur_distance= distance_to_line(ex, ey, vx, vy, e_sqrlen);
-          if (distance > cur_distance)
-            distance= cur_distance;
-        }
-      }
-      if (cur_point_edge)
-      {
-        t= count_edge_t(cur_point, cur_point->left, dist_point,
-                        ex, ey, vx, vy, e_sqrlen);
-        if ((t > 0.0) && (t < 1.0))
-        {
-          cur_distance= distance_to_line(ex, ey, vx, vy, e_sqrlen);
-          if (distance > cur_distance)
-            distance= cur_distance;
-        }
-      }
-      cur_distance= distance_points(cur_point, dist_point);
-      if (distance > cur_distance)
-        distance= cur_distance;
-    }
-  }
-
-exit:
-  *result= distance;
-  DBUG_RETURN(0);
-
-mem_error:
-  DBUG_RETURN(1);
-}
-#endif /*TMP_BLOCK*/
-
-
 #define GIS_ZERO 0.00000000001
 
 longlong Item_func_spatial_rel::val_int()
@@ -806,6 +673,8 @@ longlong Item_func_spatial_rel::val_int()
   int result= 0;
   int mask= 0;
   uint shape_a, shape_b;
+  MBR umbr, mbr1, mbr2;
+  const char *c_end;
 
   res1= args[0]->val_str(&tmp_value1);
   res2= args[1]->val_str(&tmp_value2);
@@ -820,19 +689,35 @@ longlong Item_func_spatial_rel::val_int()
 	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())))))
     goto exit;
 
+  g1->get_mbr(&mbr1, &c_end);
+  g2->get_mbr(&mbr2, &c_end);
+
+  umbr= mbr1;
+  umbr.add_mbr(&mbr2);
+  collector.set_extent(umbr.xmin, umbr.xmax, umbr.ymin, umbr.ymax);
+
+  mbr1.buffer(1e-5);
+
   switch (spatial_rel) {
     case SP_CONTAINS_FUNC:
+      if (!mbr1.contains(&mbr2))
+        goto exit;
       mask= 1;
       func.add_operation(Gcalc_function::op_difference, 2);
       /* Mind the g2 goes first. */
       null_value= g2->store_shapes(&trn) || g1->store_shapes(&trn);
       break;
     case SP_WITHIN_FUNC:
+      mbr2.buffer(2e-5);
+      if (!mbr1.within(&mbr2))
+        goto exit;
       mask= 1;
       func.add_operation(Gcalc_function::op_difference, 2);
       null_value= g1->store_shapes(&trn) || g2->store_shapes(&trn);
       break;
     case SP_EQUALS_FUNC:
+      if (!mbr1.contains(&mbr2))
+        goto exit;
       mask= 1;
       func.add_operation(Gcalc_function::op_symdifference, 2);
       null_value= g1->store_shapes(&trn) || g2->store_shapes(&trn);
@@ -843,6 +728,8 @@ longlong Item_func_spatial_rel::val_int()
       null_value= g1->store_shapes(&trn) || g2->store_shapes(&trn);
       break;
     case SP_INTERSECTS_FUNC:
+      if (!mbr1.intersects(&mbr2))
+        goto exit;
       func.add_operation(Gcalc_function::op_intersection, 2);
       null_value= g1->store_shapes(&trn) || g2->store_shapes(&trn);
       break;
@@ -900,15 +787,6 @@ longlong Item_func_spatial_rel::val_int()
   scan_it.init(&collector);
   scan_it.killed= (int *) &(current_thd->killed);
 
-#ifdef TMP_BLOCK
-  if (spatial_rel == SP_EQUALS_FUNC)
-  {
-    result= (g1->get_class_info()->m_type_id == g1->get_class_info()->m_type_id) &&
-            func_equals();
-    goto exit;
-  }
-#endif /*TMP_BLOCK*/
-
   if (func.alloc_states())
     goto exit;
 
@@ -937,6 +815,8 @@ String *Item_func_spatial_operation::val_str(String *str_value)
   Geometry *g1, *g2;
   uint32 srid= 0;
   Gcalc_operation_transporter trn(&func, &collector);
+  MBR mbr1, mbr2;
+  const char *c_end;
 
   if (func.reserve_op_buffer(1))
     DBUG_RETURN(0);
@@ -945,14 +825,23 @@ String *Item_func_spatial_operation::val_str(String *str_value)
   if ((null_value=
        (args[0]->null_value || args[1]->null_value ||
 	!(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
-	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
-	g1->store_shapes(&trn) || g2->store_shapes(&trn))))
+	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())))))
   {
     str_value= 0;
     goto exit;
   }
 
+  g1->get_mbr(&mbr1, &c_end);
+  g2->get_mbr(&mbr2, &c_end);
+  mbr1.add_mbr(&mbr2);
+  collector.set_extent(mbr1.xmin, mbr1.xmax, mbr1.ymin, mbr1.ymax);
   
+  if ((null_value= g1->store_shapes(&trn) || g2->store_shapes(&trn)))
+  {
+    str_value= 0;
+    goto exit;
+  }
+
   collector.prepare_operation();
   if (func.alloc_states())
     goto exit;
@@ -1376,12 +1265,18 @@ String *Item_func_buffer::val_str(String *str_value)
   uint32 srid= 0;
   String *str_result= NULL;
   Transporter trn(&func, &collector, dist);
+  MBR mbr;
+  const char *c_end;
 
   null_value= 1;
   if (args[0]->null_value || args[1]->null_value ||
-      !(g= Geometry::construct(&buffer, obj->ptr(), obj->length())))
+      !(g= Geometry::construct(&buffer, obj->ptr(), obj->length())) ||
+      g->get_mbr(&mbr, &c_end))
     goto mem_error;
 
+  if (dist > 0.0)
+    mbr.buffer(dist);
+  collector.set_extent(mbr.xmin, mbr.xmax, mbr.ymin, mbr.ymax);
   /*
     If the distance given is 0, the Buffer function is in fact NOOP,
     so it's natural just to return the argument1.
@@ -1448,6 +1343,8 @@ longlong Item_func_issimple::val_int()
   Geometry *g;
   int result= 1;
   const Gcalc_scan_iterator::event_point *ev;
+  MBR mbr;
+  const char *c_end;
 
   DBUG_ENTER("Item_func_issimple::val_int");
   DBUG_ASSERT(fixed == 1);
@@ -1456,6 +1353,8 @@ longlong Item_func_issimple::val_int()
       !(g= Geometry::construct(&buffer, swkb->ptr(), swkb->length())))
     DBUG_RETURN(0);
 
+  g->get_mbr(&mbr, &c_end);
+  collector.set_extent(mbr.xmin, mbr.xmax, mbr.ymin, mbr.ymax);
 
   if (g->get_class_info()->m_type_id == Geometry::wkb_point)
     DBUG_RETURN(1);
@@ -1684,12 +1583,19 @@ double Item_func_distance::val_real()
   String *res2= args[1]->val_str(&tmp_value2);
   Geometry_buffer buffer1, buffer2;
   Geometry *g1, *g2;
+  MBR mbr1, mbr2;
+  const char *c_end;
 
 
   if ((null_value= (args[0]->null_value || args[1]->null_value ||
           !(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
           !(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())))))
     goto mem_error;
+
+  g1->get_mbr(&mbr1, &c_end);
+  g2->get_mbr(&mbr2, &c_end);
+  mbr1.add_mbr(&mbr2);
+  collector.set_extent(mbr1.xmin, mbr1.xmax, mbr1.ymin, mbr1.ymax);
 
   if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
       (g2->get_class_info()->m_type_id == Geometry::wkb_point))

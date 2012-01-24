@@ -3940,7 +3940,8 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
           _ma_check_print_error(param,
                                 "Rows lost (Found %lu of %lu); Aborting "
                                 "because safe repair was requested",
-                                (ulong) share->state.state.records,
+                                (ulong) sort_info.new_info->s->
+                                state.state.records,
                                 (ulong) start_records);
           share->state.state.records=start_records;
 	  goto err;
@@ -5579,7 +5580,7 @@ static int sort_maria_ft_key_write(MARIA_SORT_PARAM *sort_param,
   SORT_KEY_BLOCKS *key_block= sort_info->key_block;
   MARIA_SHARE *share= sort_info->info->s;
 
-  val_len=HA_FT_WLEN+share->base.rec_reflength;
+  val_len=HA_FT_WLEN+share->rec_reflength;
   get_key_full_length_rdonly(a_len, a);
 
   if (!ft_buf)
@@ -5589,7 +5590,7 @@ static int sort_maria_ft_key_write(MARIA_SORT_PARAM *sort_param,
       and row format is NOT static - for _ma_dpointer not to garble offsets
      */
     if ((share->base.key_reflength <=
-         share->base.rec_reflength) &&
+         share->rec_reflength) &&
         (share->options &
           (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)))
       ft_buf= (SORT_FT_BUF *)my_malloc(sort_param->keyinfo->block_length +
@@ -5728,8 +5729,8 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
 
   tmp_key.keyinfo= keyinfo;
   tmp_key.data= (uchar*) key;
-  tmp_key.data_length= _ma_keylength(keyinfo, key) - share->base.rec_reflength;
-  tmp_key.ref_length=  share->base.rec_reflength;
+  tmp_key.data_length= _ma_keylength(keyinfo, key) - share->rec_reflength;
+  tmp_key.ref_length=  share->rec_reflength;
 
   t_length= (*keyinfo->pack_key)(&tmp_key, nod_flag,
                                  (uchar*) 0, lastkey, lastkey, &s_temp);

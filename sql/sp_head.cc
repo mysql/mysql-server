@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -996,6 +996,8 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     if ((*splocal)->limit_clause_param)
     {
       res|= qbuf.append_ulonglong((*splocal)->val_uint());
+      if (res)
+        break;
       continue;
     }
 
@@ -1020,19 +1022,30 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 
     thd->query_name_consts++;
   }
-  res|= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
-  if (res)
+  if (res ||
+      qbuf.append(cur + prev_pos, query_str->length - prev_pos))
     DBUG_RETURN(TRUE);
 
   /*
     Allocate additional space at the end of the new query string for the
     query_cache_send_result_to_client function.
+
+    The query buffer layout is:
+       buffer :==
+            <statement>   The input statement(s)
+            '\0'          Terminating null char
+            <length>      Length of following current database name 2
+            <db_name>     Name of current database
+            <flags>       Flags struct
   */
-  buf_len= qbuf.length() + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE + 1;
+  buf_len= (qbuf.length() + 1 + QUERY_CACHE_DB_LENGTH_SIZE + thd->db_length +
+            QUERY_CACHE_FLAGS_SIZE + 1);
   if ((pbuf= (char *) alloc_root(thd->mem_root, buf_len)))
   {
+    char *ptr= pbuf + qbuf.length();
     memcpy(pbuf, qbuf.ptr(), qbuf.length());
-    pbuf[qbuf.length()]= 0;
+    *ptr= 0;
+    int2store(ptr+1, thd->db_length);
   }
   else
     DBUG_RETURN(TRUE);

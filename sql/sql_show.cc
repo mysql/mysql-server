@@ -688,6 +688,21 @@ public:
 };
 
 
+/*
+  Return CREATE command for table or view
+
+  @param thd	     Thread handler
+  @param table_list  Table / view
+
+  @return
+  @retval 0      OK
+  @retval 1      Error
+
+  @notes
+  table_list->db and table_list->table_name are kept unchanged to
+  not cause problems with SP.
+*/
+
 bool
 mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 {
@@ -3442,8 +3457,8 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
   LEX_STRING db_name, table_name;
   TABLE_LIST *table_list;
   bool result= true;
-
   DBUG_ENTER("fill_schema_table_by_open");
+
   /*
     When a view is opened its structures are allocated on a permanent
     statement arena and linked into the LEX tree for the current statement
@@ -4216,7 +4231,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             }
 
             DEBUG_SYNC(thd, "before_open_in_get_all_tables");
-
             if (fill_schema_table_by_open(thd, FALSE,
                                           table, schema_table,
                                           db_name, table_name,

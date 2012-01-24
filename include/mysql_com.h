@@ -560,6 +560,7 @@ char *octet2hex(char *to, const char *str, unsigned int len);
 /* end of password.c */
 
 char *get_tty_password(const char *opt_message);
+void get_tty_password_buff(const char *opt_message, char *to, size_t length);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */

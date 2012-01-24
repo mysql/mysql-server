@@ -158,6 +158,10 @@ create table t3 (
 insert into t1 values (1,'yes'), (2,'no');
 insert into t2 values (1,1);
 insert into t3 values (1,1);
+
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=1;
+
 EXPLAIN
 SELECT DISTINCT
     t1.id
@@ -194,6 +198,8 @@ WHERE
     ((t1.id=j_lj_t2.id AND t2_lj.id IS NULL) OR (t1.id=t2.id AND t2.idx=2))
     AND ((t1.id=j_lj_t3.id AND t3_lj.id IS NULL) OR (t1.id=t3.id AND t3.idx=2));
 drop table t1,t2,t3;
+
+set join_cache_level=@save_join_cache_level;
 
 #
 # Test using DISTINCT on a function that contains a group function

@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
-   Copyright (c) 2011 Monty Program Ab
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2476,25 +2476,31 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
   /*
     tmp2 is here to avoid return the value with 80 bit precision
     This will fix that the test round(0.1,1) = round(0.1,1) is true
+    Tagging with volatile is no guarantee, it may still be optimized away...
   */
   volatile double tmp2;
 
   tmp=(abs_dec < array_elements(log_10) ?
        log_10[abs_dec] : pow(10.0,(double) abs_dec));
 
+  // Pre-compute these, to avoid optimizing away e.g. 'floor(v/tmp) * tmp'.
+  volatile double value_div_tmp= value / tmp;
+  volatile double value_mul_tmp= value * tmp;
+
   if (dec_negative && my_isinf(tmp))
-    tmp2= 0;
-  else if (!dec_negative && my_isinf(value * tmp))
+    tmp2= 0.0;
+  else if (!dec_negative && my_isinf(value_mul_tmp))
     tmp2= value;
   else if (truncate)
   {
-    if (value >= 0)
-      tmp2= dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
+    if (value >= 0.0)
+      tmp2= dec < 0 ? floor(value_div_tmp) * tmp : floor(value_mul_tmp) / tmp;
     else
-      tmp2= dec < 0 ? ceil(value/tmp)*tmp : ceil(value*tmp)/tmp;
+      tmp2= dec < 0 ? ceil(value_div_tmp) * tmp : ceil(value_mul_tmp) / tmp;
   }
   else
-    tmp2=dec < 0 ? rint(value/tmp)*tmp : rint(value*tmp)/tmp;
+    tmp2=dec < 0 ? rint(value_div_tmp) * tmp : rint(value_mul_tmp) / tmp;
+
   return tmp2;
 }
 

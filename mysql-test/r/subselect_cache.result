@@ -1,5 +1,8 @@
 drop table if exists t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
 drop view if exists v1;
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+SET optimizer_switch='semijoin_with_cache=off';
 set optimizer_switch='subquery_cache=on';
 create table t1 (a int, b int);
 insert into t1 values (1,2),(3,4),(1,2),(3,4),(3,4),(4,5),(4,5),(5,6),(5,6),(4,5);
@@ -1836,7 +1839,7 @@ set optimizer_switch='default,semijoin=off,materialization=on,subquery_cache=on'
 explain select * from t1 where a in (select pk from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	15	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	10	
 flush status;
 select * from t1 where a in (select pk from t2);
 a	b
@@ -3398,71 +3401,6 @@ WHERE table3 .`col_varchar_key` IN (
 SELECT `col_varchar_key`
 FROM t2 ) AND table1 .`col_varchar_key` OR table1 .`pk` ;
 col_varchar_nokey
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'w'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
-Warning	1292	Truncated incorrect DOUBLE value: 'k'
-Warning	1292	Truncated incorrect DOUBLE value: 'r'
-Warning	1292	Truncated incorrect DOUBLE value: 't'
-Warning	1292	Truncated incorrect DOUBLE value: 'j'
-Warning	1292	Truncated incorrect DOUBLE value: 'u'
-Warning	1292	Truncated incorrect DOUBLE value: 'h'
-Warning	1292	Truncated incorrect DOUBLE value: 'o'
-Warning	1292	Truncated incorrect DOUBLE value: 'k'
-Warning	1292	Truncated incorrect DOUBLE value: 'e'
-Warning	1292	Truncated incorrect DOUBLE value: 'n'
-Warning	1292	Truncated incorrect DOUBLE value: 't'
-Warning	1292	Truncated incorrect DOUBLE value: 'c'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
-Warning	1292	Truncated incorrect DOUBLE value: 'y'
-Warning	1292	Truncated incorrect DOUBLE value: 'f'
-Warning	1292	Truncated incorrect DOUBLE value: 'd'
-Warning	1292	Truncated incorrect DOUBLE value: 'v'
-Warning	1292	Truncated incorrect DOUBLE value: 'r'
-Warning	1292	Truncated incorrect DOUBLE value: 'a'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
-Warning	1292	Truncated incorrect DOUBLE value: 'y'
-Warning	1292	Truncated incorrect DOUBLE value: 'j'
-Warning	1292	Truncated incorrect DOUBLE value: 'd'
-Warning	1292	Truncated incorrect DOUBLE value: 'z'
-Warning	1292	Truncated incorrect DOUBLE value: 'e'
-Warning	1292	Truncated incorrect DOUBLE value: 'h'
-Warning	1292	Truncated incorrect DOUBLE value: 'b'
-Warning	1292	Truncated incorrect DOUBLE value: 's'
-Warning	1292	Truncated incorrect DOUBLE value: 'e'
-Warning	1292	Truncated incorrect DOUBLE value: 'j'
-Warning	1292	Truncated incorrect DOUBLE value: 'e'
-Warning	1292	Truncated incorrect DOUBLE value: 'f'
-Warning	1292	Truncated incorrect DOUBLE value: 'v'
-Warning	1292	Truncated incorrect DOUBLE value: 'x'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
-Warning	1292	Truncated incorrect DOUBLE value: 'c'
-Warning	1292	Truncated incorrect DOUBLE value: 'w'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
-Warning	1292	Truncated incorrect DOUBLE value: 'k'
-Warning	1292	Truncated incorrect DOUBLE value: 'r'
-Warning	1292	Truncated incorrect DOUBLE value: 't'
-Warning	1292	Truncated incorrect DOUBLE value: 'j'
-Warning	1292	Truncated incorrect DOUBLE value: 'u'
-Warning	1292	Truncated incorrect DOUBLE value: 'h'
-Warning	1292	Truncated incorrect DOUBLE value: 'o'
-Warning	1292	Truncated incorrect DOUBLE value: 'k'
-Warning	1292	Truncated incorrect DOUBLE value: 'e'
-Warning	1292	Truncated incorrect DOUBLE value: 'n'
-Warning	1292	Truncated incorrect DOUBLE value: 't'
-Warning	1292	Truncated incorrect DOUBLE value: 'c'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
-Warning	1292	Truncated incorrect DOUBLE value: 'y'
-Warning	1292	Truncated incorrect DOUBLE value: 'f'
-Warning	1292	Truncated incorrect DOUBLE value: 'd'
-Warning	1292	Truncated incorrect DOUBLE value: 'w'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
-Warning	1292	Truncated incorrect DOUBLE value: 'k'
-Warning	1292	Truncated incorrect DOUBLE value: 'r'
-Warning	1292	Truncated incorrect DOUBLE value: 't'
 drop table t1,t2;
 set @@optimizer_switch= default;
 set optimizer_switch='subquery_cache=on';
@@ -3573,5 +3511,6 @@ pk	b
 29	3
 drop view v1;
 drop table t1,t2,t3,t4;
+SET optimizer_switch=@save_optimizer_switch;
 # restore default
 set @@optimizer_switch= default;

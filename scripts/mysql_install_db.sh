@@ -1,6 +1,6 @@
 #!/bin/sh
 # Copyright (c) 2000-2008 MySQL AB, 2009, 2010 Sun Microsystems, Inc.
-# Copyright (C) 2002-2003 MySQL AB & Monty Program Ab
+# Copyright (c) 2009-2011 Monty Program Ab
 # Use is subject to license terms.
 # 
 # This program is free software; you can redistribute it and/or modify

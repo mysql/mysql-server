@@ -1302,6 +1302,20 @@ ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fail
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 ERROR 42S22: Unknown column 't1.id' in 'where clause'
 drop table t3,t2,t1;
+CREATE TABLE t1 (
+c1 VARCHAR(8), c2 VARCHAR(8),
+PRIMARY KEY (c1, c2)
+) ENGINE=InnoDB;
+CREATE TABLE t2 (
+c0 INT PRIMARY KEY,
+c1 VARCHAR(8) UNIQUE,
+FOREIGN KEY (c1) REFERENCES t1 (c1) ON UPDATE CASCADE
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('old', 'somevalu'), ('other', 'anyvalue');
+INSERT INTO t2 VALUES (10, 'old'), (20, 'other');
+UPDATE t1 SET c1 = 'other' WHERE c1 = 'old';
+ERROR 23000: Upholding foreign key constraints for table 't1', entry 'other-somevalu', key 2 would lead to a duplicate entry
+DROP TABLE t2,t1;
 create table t1(
 id int primary key,
 pid int,
@@ -1576,6 +1590,12 @@ ERROR 42S21: Duplicate column name 'c1'
 alter table t1 add key (c1,c1,c2);
 ERROR 42S21: Duplicate column name 'c1'
 drop table t1;
+create table t1(a int(1) , b int(1)) engine=innodb;
+insert into t1 values ('1111', '3333');
+select distinct concat(a, b) from t1;
+concat(a, b)
+11113333
+drop table t1;
 CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
 SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
 ERROR HY000: The used table type doesn't support FULLTEXT indexes
@@ -1674,7 +1694,7 @@ variable_value - @innodb_rows_deleted_orig
 71
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
-1066
+1071
 SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
 866
@@ -1693,74 +1713,7 @@ variable_value - @innodb_row_lock_time_max_orig
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 variable_value - @innodb_row_lock_time_avg_orig
 0
-SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;
-show variables like "innodb_sync_spin_loops";
-Variable_name	Value
-innodb_sync_spin_loops	30
-set global innodb_sync_spin_loops=1000;
-show variables like "innodb_sync_spin_loops";
-Variable_name	Value
-innodb_sync_spin_loops	1000
-set global innodb_sync_spin_loops=0;
-show variables like "innodb_sync_spin_loops";
-Variable_name	Value
-innodb_sync_spin_loops	0
-set global innodb_sync_spin_loops=20;
-show variables like "innodb_sync_spin_loops";
-Variable_name	Value
-innodb_sync_spin_loops	20
-set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
-show variables like "innodb_thread_concurrency";
-Variable_name	Value
-innodb_thread_concurrency	0
-set global innodb_thread_concurrency=1001;
-Warnings:
-Warning	1292	Truncated incorrect innodb_thread_concurrency value: '1001'
-show variables like "innodb_thread_concurrency";
-Variable_name	Value
-innodb_thread_concurrency	1000
-set global innodb_thread_concurrency=0;
-show variables like "innodb_thread_concurrency";
-Variable_name	Value
-innodb_thread_concurrency	0
-set global innodb_thread_concurrency=16;
-show variables like "innodb_thread_concurrency";
-Variable_name	Value
-innodb_thread_concurrency	16
-show variables like "innodb_concurrency_tickets";
-Variable_name	Value
-innodb_concurrency_tickets	500
-set global innodb_concurrency_tickets=1000;
-show variables like "innodb_concurrency_tickets";
-Variable_name	Value
-innodb_concurrency_tickets	1000
-set global innodb_concurrency_tickets=0;
-Warnings:
-Warning	1292	Truncated incorrect innodb_concurrency_tickets value: '0'
-show variables like "innodb_concurrency_tickets";
-Variable_name	Value
-innodb_concurrency_tickets	1
-set global innodb_concurrency_tickets=500;
-show variables like "innodb_concurrency_tickets";
-Variable_name	Value
-innodb_concurrency_tickets	500
-show variables like "innodb_thread_sleep_delay";
-Variable_name	Value
-innodb_thread_sleep_delay	10000
-set global innodb_thread_sleep_delay=100000;
-show variables like "innodb_thread_sleep_delay";
-Variable_name	Value
-innodb_thread_sleep_delay	100000
-set global innodb_thread_sleep_delay=0;
-show variables like "innodb_thread_sleep_delay";
-Variable_name	Value
-innodb_thread_sleep_delay	0
-set global innodb_thread_sleep_delay=10000;
-show variables like "innodb_thread_sleep_delay";
-Variable_name	Value
-innodb_thread_sleep_delay	10000
 set storage_engine=INNODB;
-set session old_alter_table=1;
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
 --- Testing varchar ---
@@ -2334,7 +2287,6 @@ select * from t1 where a=20 and b is null;
 a	b
 20	NULL
 drop table t1;
-set session old_alter_table=0;
 create table t1 (v varchar(65530), key(v));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
@@ -3178,3 +3130,14 @@ Handler_update	1
 Variable_name	Value
 Handler_delete	1
 DROP TABLE bug58912;
+create table t1 (f1 integer primary key) engine=innodb;
+flush status;
+show status like "handler_read_key";
+Variable_name	Value
+Handler_read_key	0
+select f1 from t1;
+f1
+show status like "handler_read_key";
+Variable_name	Value
+Handler_read_key	0
+drop table t1;

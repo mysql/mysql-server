@@ -179,6 +179,8 @@ INSERT INTO t2 VALUES (1,50);
 INSERT INTO t2 VALUES (2,25);
 INSERT INTO t3 VALUES (1,'123 Park Place');
 INSERT INTO t3 VALUES (2,'453 Boardwalk');
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
 FROM      t1
 LEFT JOIN t2 USING(c)
@@ -217,6 +219,7 @@ a	b	if(b = 1,i,if(b = 2,v,''))
 2	1	25
 3	2	123 Park Place
 4	2	453 Boardwalk
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1,t2,t3;
 create table t1 (ID int not null primary key, TransactionID int not null);
 insert into t1 (ID, TransactionID) values  (1,  87), (2,  89), (3,  92), (4,  94), (5,  486), (6,  490), (7,  753), (9,  828), (10, 832), (11, 834), (12, 840);

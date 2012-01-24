@@ -756,6 +756,11 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                   HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED_ON_USAGE);
         goto err;
       }
+      else
+      {
+        /* create_rename_lsn != LSN_NEEDS_NEW_STATE_LSNS */
+        share->state.changed|= STATE_NOT_MOVABLE;
+      }
     }
     else
       share->page_type= PAGECACHE_PLAIN_PAGE;

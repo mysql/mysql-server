@@ -852,4 +852,12 @@ extern "C" void thd_exit_cond(MYSQL_THD thd, const char *old_msg);
 extern mysql_mutex_t LOCK_open;
 #endif
 
+
+/*
+  Start-up parameter for the maximum size of the unused MDL_lock objects cache
+  and a constant for its default value.
+*/
+extern ulong mdl_locks_cache_size;
+static const ulong MDL_LOCKS_CACHE_SIZE_DEFAULT = 1024;
+
 #endif

@@ -7,10 +7,15 @@ set join_cache_level=6;
 show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	6
+set @optimizer_switch_for_subselect_sj2_test=@@optimizer_switch;
+set @join_cache_level_for_subselect_sj2_test=@@join_cache_level;
 set @subselect_sj2_tmp= @@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
-drop table if exists t0, t1, t2, t3;
+SET optimizer_switch=ifnull(@optimizer_switch_for_subselect_sj2_test,'outer_join_with_cache=off');
+SET optimizer_switch=ifnull(@optimizer_switch_for_subselect_sj2_test,'semijoin_with_cache=off');
+set join_cache_level=@join_cache_level_for_subselect_sj2_test;
+drop table if exists t0, t1, t2, t3, t4, t5;
 drop view if exists v1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -57,7 +62,7 @@ explain select * from t2 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	3	
 1	PRIMARY	t2	ref	b	b	5	test.t1.a	2	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 select * from t2 where b in (select a from t1);
 a	b
 1	1
@@ -75,9 +80,9 @@ insert into t3 select a,a, a,a,a from t0;
 insert into t3 select a,a, a+100,a+100,a+100 from t0;
 explain select * from t3 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	b	NULL	NULL	NULL	20	
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	3	
+1	PRIMARY	t3	ref	b	b	5	test.t1.a	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 select * from t3 where b in (select a from t1);
 a	b	pk1	pk2	pk3
 1	1	1	1	1
@@ -102,8 +107,8 @@ from t0 A, t0 B where B.a <5;
 explain select * from t3 where b in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	10	
-1	PRIMARY	t3	ref	b	b	5	test.t0.a	1	 (flat, BKA join); Key-ordered Rowid-ordered scan
-2	SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	PRIMARY	t3	ref	b	b	5	test.t0.a	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+2	MATERIALIZED	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
 select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
 a	b	pk1	pk2
 0	0	0	0
@@ -124,8 +129,9 @@ set join_buffer_size= @save_join_buffer_size;
 set max_heap_table_size= @save_max_heap_table_size;
 explain select * from t1 where a in (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	PRIMARY	t2	ref	b	b	5	test.t1.a	2	Using index; FirstMatch(t1)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
+2	MATERIALIZED	t2	index	b	b	5	NULL	20	Using index
 select * from t1;
 a	b
 1	1
@@ -154,7 +160,7 @@ from t1 ot where a in (select a from t2 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	22	
 1	PRIMARY	ot	hash_ALL	NULL	#hash#$hj	5	test.it.a	32	Using where; Using join buffer (flat, BNLH join)
-2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	22	Using where
+2	MATERIALIZED	it	ALL	NULL	NULL	NULL	NULL	22	Using where
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
 from t1 ot where a in (select a from t2 it);
@@ -187,7 +193,7 @@ from t2 ot where a in (select a from t1 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	22	
 1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
-2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	32	
+2	MATERIALIZED	it	ALL	NULL	NULL	NULL	NULL	32	
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) 
 from t2 ot where a in (select a from t1 it);
@@ -222,7 +228,7 @@ from t1 ot where a in (select a from t2 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	22	
 1	PRIMARY	ot	hash_ALL	NULL	#hash#$hj	5	test.it.a	52	Using where; Using join buffer (flat, BNLH join)
-2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	22	Using where
+2	MATERIALIZED	it	ALL	NULL	NULL	NULL	NULL	22	Using where
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
 from t1 ot where a in (select a from t2 it);
@@ -255,7 +261,7 @@ from t2 ot where a in (select a from t1 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	22	
 1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
-2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	52	
+2	MATERIALIZED	it	ALL	NULL	NULL	NULL	NULL	52	
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) 
 from t2 ot where a in (select a from t1 it);
@@ -296,9 +302,9 @@ from t0 where a in
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	
 1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	9	func	1	Using where
-2	SUBQUERY	t1	index	a	a	5	NULL	10	Using where; Using index
-2	SUBQUERY	t2	ref	a	a	5	test.t1.a	1	Using index
-2	SUBQUERY	t3	ref	a	a	5	test.t1.a	1	Using index
+2	MATERIALIZED	t1	index	a	a	5	NULL	10	Using where; Using index
+2	MATERIALIZED	t2	ref	a	a	5	test.t1.a	1	Using index
+2	MATERIALIZED	t3	ref	a	a	5	test.t1.a	1	Using index
 drop table t0, t1,t2,t3;
 CREATE TABLE t1 (
 ID int(11) NOT NULL auto_increment,
@@ -337,8 +343,8 @@ WHERE Language='English' AND Percentage > 10 AND
 t2.Population > 100000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	range	Population,Country	Population	4	NULL	1	Using index condition; Rowid-ordered scan; Start temporary
-1	PRIMARY	t2	eq_ref	PRIMARY,Population	PRIMARY	3	test.t1.Country	1	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
-1	PRIMARY	t3	eq_ref	PRIMARY,Percentage	PRIMARY	33	test.t1.Country,const	1	Using index condition; Using where; End temporary; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
+1	PRIMARY	t2	eq_ref	PRIMARY,Population	PRIMARY	3	test.t1.Country	1	Using where; End temporary; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	PRIMARY	t3	eq_ref	PRIMARY,Percentage	PRIMARY	33	test.t1.Country,const	1	Using index condition; Using where; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 set optimizer_switch=@bug35674_save_optimizer_switch;
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
@@ -376,7 +382,7 @@ SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	31	
 1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
-2	SUBQUERY	t2	ALL	CountryCode	NULL	NULL	NULL	545	Using where
+2	MATERIALIZED	t2	ALL	CountryCode	NULL	NULL	NULL	545	Using where
 SELECT Name FROM t1 
 WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
@@ -613,7 +619,7 @@ select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t3));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
 1	PRIMARY	t2	hash_ALL	NULL	#hash#$hj	5	test.t1.a	3	Using where; Using join buffer (flat, BNLH join)
-2	SUBQUERY	t3	index	PRIMARY	PRIMARY	4	NULL	10	Using index
+2	MATERIALIZED	t3	index	PRIMARY	PRIMARY	4	NULL	10	Using index
 drop table t0, t1, t2, t3;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -727,7 +733,7 @@ explain select count(a) from t2 where a in ( SELECT  a FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	a	a	5	NULL	1000	Using index
 1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
-2	SUBQUERY	t3	index	a	a	5	NULL	30000	Using index
+2	MATERIALIZED	t3	index	a	a	5	NULL	30000	Using index
 select count(a) from t2 where a in ( SELECT  a FROM t3);
 count(a)
 1000
@@ -883,10 +889,10 @@ SELECT * FROM t3 LEFT JOIN (v1,t2) ON t3.a = t2.a
 WHERE t3.b IN (SELECT b FROM t4);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
 1	PRIMARY	t2	hash_ALL	NULL	#hash#$hj	5	test.t3.a	1	Using where; Using join buffer (flat, BNLH join)
 1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (incremental, BNL join)
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
-2	SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	t4	ALL	NULL	NULL	NULL	NULL	2	
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	1	
 SELECT * FROM t3 LEFT JOIN (v1,t2) ON t3.a = t2.a
 WHERE t3.b IN (SELECT b FROM t4);
@@ -896,8 +902,97 @@ DROP VIEW v1;
 DROP TABLE t1,t2,t3,t4;
 # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;
+#
+# Bug #898073: potential incremental join cache for semijoin
+#
+CREATE TABLE t1 (a int, b varchar(1), KEY (b,a));
+INSERT INTO t1 VALUES (0,'x'), (5,'r');
+CREATE TABLE t2 (a int) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (8);
+CREATE TABLE t3 (b varchar(1), c varchar(1)) ENGINE=InnoDB;
+INSERT INTO t3 VALUES ('x','x');
+CREATE TABLE t4 (a int NOT NULL, b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t4 VALUES (20,'r'), (10,'x');
+set @tmp_optimizer_switch=@@optimizer_switch;
+SET SESSION optimizer_switch='semijoin_with_cache=on';
+SET SESSION join_cache_level=2;
+EXPLAIN
+SELECT t3.* FROM t1 JOIN t3 ON t3.b = t1.b
+WHERE c IN (SELECT t4.b FROM t4 JOIN t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ref	b	b	4	test.t3.b	1	Using index
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
+SELECT t3.* FROM t1 JOIN t3 ON t3.b = t1.b
+WHERE c IN (SELECT t4.b FROM t4 JOIN t2);
+b	c
+x	x
+set optimizer_switch=@tmp_optimizer_switch;
+set join_cache_level=default;
+DROP TABLE t1,t2,t3,t4;
+#
+# Bug #899696: potential incremental join cache for semijoin
+#
+CREATE TABLE t1 (pk int PRIMARY KEY, a int);
+INSERT INTO t1 VALUES (1, 6), (2, 8);
+CREATE TABLE t2 (b int) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (8);
+CREATE TABLE t3 (pk int PRIMARY KEY, a int);
+INSERT INTO t3 VALUES (1, 6), (2, 8);
+CREATE TABLE t4 (b int) ENGINE=InnoDB;
+INSERT INTO t4 VALUES (2);
+set @tmp_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch = 'semijoin_with_cache=on';
+SET join_cache_level = 2;
+EXPLAIN
+SELECT * FROM t1, t2 WHERE b IN (SELECT a FROM t3, t4 WHERE b = pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t4.b	1	Using where; FirstMatch(t4)
+SELECT * FROM t1, t2 WHERE b IN (SELECT a FROM t3, t4 WHERE b = pk);
+pk	a	b
+1	6	8
+set optimizer_switch=@tmp_optimizer_switch;
+set join_cache_level=default;
+DROP TABLE t1,t2,t3,t4;
+#
+# Bug #899962: materialized subquery with join_cache_level=3 
+#
+CREATE TABLE t1 (a varchar(1), b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('v','v');
+CREATE TABLE t2 (a varchar(1), b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES ('v','v');
+set @tmp_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch = 'semijoin_with_cache=on';
+SET join_cache_level = 3;
+EXPLAIN
+SELECT * FROM t1 WHERE b IN (SELECT a FROM t2 GROUP BY a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	1	
+SELECT * FROM t1 WHERE b IN (SELECT a FROM t2 GROUP BY a);
+a	b
+v	v
+EXPLAIN
+SELECT * FROM t1 WHERE b IN (SELECT max(a) FROM t2 GROUP BY a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	PRIMARY	<subquery2>	hash_ALL	distinct_key	#hash#distinct_key	5	test.t1.b	1	Using join buffer (flat, BNLH join)
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	1	Using temporary
+SELECT * FROM t1 WHERE b IN (SELECT max(a) FROM t2 GROUP BY a);
+a	b
+v	v
+set optimizer_switch=@tmp_optimizer_switch;
+set join_cache_level=default;
+DROP TABLE t1,t2;
 set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value
-join_cache_level	1
+join_cache_level	2
 set @@optimizer_switch=@save_optimizer_switch_jcl6;
+set @optimizer_switch_for_subselect_sj2_test=NULL;
+set @join_cache_level_subselect_sj2_test=NULL;

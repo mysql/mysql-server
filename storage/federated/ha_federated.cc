@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1547,7 +1547,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
                  tmp_share.table_name_length, ident_quote_char);
 
     if (!(share= (FEDERATED_SHARE *) memdup_root(&mem_root, (char*)&tmp_share, sizeof(*share))) ||
-        !(share->select_query= (char*) strmake_root(&mem_root, query.ptr(), query.length() + 1)))
+        !(share->select_query= (char*) strmake_root(&mem_root, query.ptr(), query.length())))
       goto error;
 
     share->use_count= 0;
@@ -1685,6 +1685,16 @@ int ha_federated::close(void)
   /* Disconnect from mysql */
   mysql_close(mysql);
   mysql= NULL;
+
+  /*
+    mysql_close() might return an error if a remote server's gone
+    for some reason. If that happens while removing a table from
+    the table cache, the error will be propagated to a client even
+    if the original query was not issued against the FEDERATED table.
+    So, don't propagate errors from mysql_close().
+  */
+  if (table->in_use)
+    table->in_use->clear_error();
 
   DBUG_RETURN(free_share(share));
 }

@@ -125,9 +125,9 @@ DOCID	DOCNAME	DOCTYPEID	FOLDERID	AUTHOR	CREATED	TITLE	SUBTITLE	DOCABSTRACT	PUBLI
 c373e9f5ad07993f3859444553544200	Last Discussion	c373e9f5ad079174ff17444553544200	c373e9f5ad0796c0eca4444553544200	Goldilocks	2003-06-09 11:21:06	Title: Last Discussion	NULL	Setting new abstract and keeping doc checked out	2003-06-09 10:51:26	2003-06-09 10:51:26	NULL	NULL	NULL	03eea05112b845949f3fd03278b5fe43	2003-06-09 11:21:06	admin	0	NULL	Discussion	NULL	NULL
 EXPLAIN SELECT t2.*, t4.DOCTYPENAME, t1.CONTENTSIZE,t1.MIMETYPE FROM t2 INNER JOIN t4 ON t2.DOCTYPEID = t4.DOCTYPEID LEFT OUTER JOIN t1 ON t2.DOCID = t1.DOCID WHERE t2.FOLDERID IN(SELECT t3.FOLDERID FROM t3 WHERE t3.PARENTID IN(SELECT t3.FOLDERID FROM t3 WHERE t3.PARENTID IN(SELECT t3.FOLDERID FROM t3 WHERE t3.PARENTID IN(SELECT t3.FOLDERID FROM t3 WHERE t3.PARENTID IN(SELECT t3.FOLDERID FROM t3 WHERE t3.PARENTID='2f6161e879db43c1a5b82c21ddc49089' AND t3.FOLDERNAME = 'Level1') AND t3.FOLDERNAME = 'Level2') AND t3.FOLDERNAME = 'Level3') AND t3.FOLDERNAME = 'CopiedFolder') AND t3.FOLDERNAME = 'Movie Reviews') AND t2.DOCNAME = 'Last Discussion';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t4	ALL	PRIMARY	NULL	NULL	NULL	10	
-1	PRIMARY	t2	ALL	DDOCTYPEID_IDX,DFOLDERID_IDX	NULL	NULL	NULL	9	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ALL	DDOCTYPEID_IDX,DFOLDERID_IDX	NULL	NULL	NULL	9	Using where
 1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	34	test.t2.DOCID	1	
+1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	34	test.t2.DOCTYPEID	1	
 1	PRIMARY	t3	eq_ref	PRIMARY,FFOLDERID_IDX,CMFLDRPARNT_IDX	PRIMARY	34	test.t2.FOLDERID	1	Using where
 1	PRIMARY	t3	eq_ref	PRIMARY,FFOLDERID_IDX,CMFLDRPARNT_IDX	PRIMARY	34	test.t3.PARENTID	1	Using where
 1	PRIMARY	t3	eq_ref	PRIMARY,FFOLDERID_IDX,CMFLDRPARNT_IDX	PRIMARY	34	test.t3.PARENTID	1	Using where
@@ -145,5 +145,38 @@ SELECT t1.* FROM t1 WHERE (SELECT COUNT(*) FROM t3,t2 WHERE t3.c=t2.a
 and t2.a='1' AND t1.a=t3.b) > 0;
 a
 2
+DROP TABLE t1,t2,t3;
+#
+# Bug #902356: DISTINCT in materialized subquery 
+#
+CREATE TABLE t1 (pk int PRIMARY KEY, a int, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, 4), (8, 6);
+CREATE TABLE t2 (pk int PRIMARY KEY, a int, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (0, 4), (8, 6);
+CREATE TABLE t3 (b INT, KEY(b));
+INSERT INTO t3 VALUES (7), (0), (4), (2);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SET @tmp_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on,in_to_exists=on';
+EXPLAIN
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM t1) OR a = b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	a	a	5	NULL	2	Using index
+1	PRIMARY	t3	index	b	b	5	NULL	4	Using where; Using index; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t1	index	PRIMARY,a	a	5	NULL	2	Using index
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM t1) OR a = b;
+pk	a	b
+0	4	4
+EXPLAIN
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM v1) OR a = b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	a	a	5	NULL	2	Using index
+1	PRIMARY	t3	index	b	b	5	NULL	4	Using where; Using index; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t1	index	PRIMARY,a	a	5	NULL	2	Using index
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM v1) OR a = b;
+pk	a	b
+0	4	4
+SET optimizer_switch=@tmp_optimizer_switch;
+DROP VIEW v1;
 DROP TABLE t1,t2,t3;
 set optimizer_switch=@subselect2_test_tmp;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,6 +77,8 @@
 #include "transaction.h"
 #include "sql_audit.h"
 #include "sql_derived.h"                        // mysql_handle_derived
+
+#include "debug_sync.h"
 
 #ifndef EMBEDDED_LIBRARY
 static bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
@@ -1595,6 +1597,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	error= HA_ERR_FOUND_DUPP_KEY;         /* Database can't find key */
 	goto err;
       }
+      DEBUG_SYNC(thd, "write_row_replace");
+
       /* Read all columns for the row we are going to replace */
       table->use_all_columns();
       /*
@@ -1685,11 +1689,12 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           else
             error= 0;
           /*
-            If ON DUP KEY UPDATE updates a row instead of inserting one, it's
-            like a regular UPDATE statement: it should not affect the value of a
-            next SELECT LAST_INSERT_ID() or mysql_insert_id().
-            Except if LAST_INSERT_ID(#) was in the INSERT query, which is
-            handled separately by THD::arg_of_last_insert_id_function.
+            If ON DUP KEY UPDATE updates a row instead of inserting
+            one, it's like a regular UPDATE statement: it should not
+            affect the value of a next SELECT LAST_INSERT_ID() or
+            mysql_insert_id().  Except if LAST_INSERT_ID(#) was in the
+            INSERT query, which is handled separately by
+            THD::arg_of_last_insert_id_function.
           */
           insert_id_for_cur_row= table->file->insert_id_for_cur_row= 0;
           trg_error= (table->triggers &&
@@ -1764,11 +1769,12 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
     }
     
     /*
-        If more than one iteration of the above while loop is done, from the second 
-        one the row being inserted will have an explicit value in the autoinc field, 
-        which was set at the first call of handler::update_auto_increment(). This 
-        value is saved to avoid thd->insert_id_for_cur_row becoming 0. Use this saved
-        autoinc value.
+      If more than one iteration of the above while loop is done, from
+      the second one the row being inserted will have an explicit
+      value in the autoinc field, which was set at the first call of
+      handler::update_auto_increment(). This value is saved to avoid
+      thd->insert_id_for_cur_row becoming 0. Use this saved autoinc
+      value.
      */
     if (table->file->insert_id_for_cur_row == 0)
       table->file->insert_id_for_cur_row= insert_id_for_cur_row;
@@ -1784,6 +1790,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
   }
   else if ((error=table->file->ha_write_row(table->record[0])))
   {
+    DEBUG_SYNC(thd, "write_row_noreplace");
     if (!info->ignore ||
         table->file->is_fatal_error(error, HA_CHECK_DUP))
       goto err;
@@ -1807,9 +1814,6 @@ ok_or_after_trg_err:
 
 err:
   info->last_errno= error;
-  /* current_select is NULL if this is a delayed insert */
-  if (thd->lex->current_select)
-    thd->lex->current_select->no_error= 0;        // Give error
   table->file->print_error(error,MYF(0));
   
 before_trg_err:
@@ -3268,8 +3272,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   */
   lex->current_select= &lex->select_lex;
 
-  /* Errors during check_insert_fields() should not be ignored. */
-  lex->current_select->no_error= FALSE;
   res= (setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0) ||
         check_insert_fields(thd, table_list, *fields, values,
                             !insert_into_view, 1, &map));
@@ -3783,7 +3785,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     alter_info->create_list.push_back(cr_field);
   }
 
-  DBUG_EXECUTE_IF("sleep_create_select_before_create", my_sleep(6000000););
+  DEBUG_SYNC(thd,"create_table_select_before_create");
 
   /*
     Create and lock table.
@@ -3807,7 +3809,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                     create_info, alter_info, 0,
                                     select_field_count, NULL))
     {
-      DBUG_EXECUTE_IF("sleep_create_select_before_open", my_sleep(6000000););
+      DEBUG_SYNC(thd,"create_table_select_before_open");
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
@@ -3849,7 +3851,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     }
   }
 
-  DBUG_EXECUTE_IF("sleep_create_select_before_lock", my_sleep(6000000););
+  DEBUG_SYNC(thd,"create_table_select_before_lock");
 
   table->reginfo.lock_type=TL_WRITE;
   hooks->prelock(&table, 1);                    // Call prelock hooks
@@ -3964,7 +3966,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   DBUG_ASSERT(create_table->table == NULL);
 
-  DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
+  DEBUG_SYNC(thd,"create_table_select_before_check_if_exists");
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values,

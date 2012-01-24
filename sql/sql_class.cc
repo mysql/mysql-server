@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1083,27 +1084,10 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   {
     is_slave_error=  1; // needed to catch query errors during replication
 
-    /*
-      thd->lex->current_select == 0 if lex structure is not inited
-      (not query command (COM_QUERY))
-    */
-    if (lex->current_select &&
-        lex->current_select->no_error && !is_fatal_error)
+    if (! stmt_da->is_error())
     {
-      DBUG_PRINT("error",
-                 ("Error converted to warning: current_select: no_error %d  "
-                  "fatal_error: %d",
-                  (lex->current_select ?
-                   lex->current_select->no_error : 0),
-                  (int) is_fatal_error));
-    }
-    else
-    {
-      if (! stmt_da->is_error())
-      {
-        set_row_count_func(-1);
-        stmt_da->set_error_status(this, sql_errno, msg, sqlstate);
-      }
+      set_row_count_func(-1);
+      stmt_da->set_error_status(this, sql_errno, msg, sqlstate);
     }
   }
 
@@ -1804,6 +1788,7 @@ void THD::cleanup_after_query()
   /* reset table map for multi-table update */
   table_map_for_update= 0;
   m_binlog_invoker= FALSE;
+
   DBUG_VOID_RETURN;
 }
 
@@ -2852,7 +2837,8 @@ int select_singlerow_subselect::send_data(List<Item> &items)
   Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
   if (it->assigned())
   {
-    my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
+    my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW),
+               MYF(current_thd->lex->ignore ? ME_JUST_WARNING : 0));
     DBUG_RETURN(1);
   }
   if (unit->offset_limit_cnt)
@@ -4224,16 +4210,6 @@ void mark_transaction_to_rollback(THD *thd, bool all)
   {
     thd->is_fatal_sub_stmt_error= TRUE;
     thd->transaction_rollback_request= all;
-    /*
-      Aborted transactions can not be IGNOREd.
-      Switch off the IGNORE flag for the current
-      SELECT_LEX. This should allow my_error()
-      to report the error and abort the execution
-      flow, even in presence
-      of IGNORE clause.
-    */
-    if (thd->lex->current_select)
-      thd->lex->current_select->no_error= FALSE;
   }
 }
 /***************************************************************************

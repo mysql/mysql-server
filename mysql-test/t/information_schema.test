@@ -965,6 +965,8 @@ DROP FUNCTION get_value;
 #
 # Bug#22413 EXPLAIN SELECT FROM view with ORDER BY yield server crash
 #
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 create view v1 as
 select table_schema as object_schema,
        table_name   as object_name,
@@ -973,6 +975,7 @@ from information_schema.tables
 order by object_schema;
 explain select * from v1;
 explain select * from (select table_name from information_schema.tables) as a;
+set optimizer_switch=@tmp_optimizer_switch;
 drop view v1;
 
 #

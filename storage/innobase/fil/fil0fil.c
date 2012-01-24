@@ -1803,36 +1803,44 @@ fil_write_flushed_lsn_to_data_files(
 }
 
 /*******************************************************************//**
-Reads the flushed lsn and arch no fields from a data file at database
-startup. */
+Reads the flushed lsn, arch no, and tablespace flag fields from a data
+file at database startup. */
 UNIV_INTERN
 void
-fil_read_flushed_lsn_and_arch_log_no(
-/*=================================*/
+fil_read_first_page(
+/*================*/
 	os_file_t	data_file,		/*!< in: open data file */
 	ibool		one_read_already,	/*!< in: TRUE if min and max
 						parameters below already
 						contain sensible data */
+	ulint*		flags,			/*!< out: tablespace flags */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,	/*!< in/out: */
-	ulint*		max_arch_log_no,	/*!< in/out: */
+	ulint*		min_arch_log_no,	/*!< out: min of archived
+						log numbers in data files */
+	ulint*		max_arch_log_no,	/*!< out: max of archived
+						log numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
-	ib_uint64_t*	min_flushed_lsn,	/*!< in/out: */
-	ib_uint64_t*	max_flushed_lsn)	/*!< in/out: */
+	ib_uint64_t*	min_flushed_lsn,	/*!< out: min of flushed
+						lsn values in data files */
+	ib_uint64_t*	max_flushed_lsn)	/*!< out: max of flushed
+						lsn values in data files */
 {
 	byte*		buf;
-	byte*		buf2;
+	page_t*		page;
 	ib_uint64_t	flushed_lsn;
 
-	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	buf = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for a possible read from a raw device */
-	buf = ut_align(buf2, UNIV_PAGE_SIZE);
+	page = ut_align(buf, UNIV_PAGE_SIZE);
 
-	os_file_read(data_file, buf, 0, 0, UNIV_PAGE_SIZE);
+	os_file_read(data_file, page, 0, 0, UNIV_PAGE_SIZE);
 
-	flushed_lsn = mach_read_from_8(buf + FIL_PAGE_FILE_FLUSH_LSN);
+	*flags = mach_read_from_4(page +
+		FSP_HEADER_OFFSET + FSP_SPACE_FLAGS);
 
-	ut_free(buf2);
+	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
+
+	ut_free(buf);
 
 	if (!one_read_already) {
 		*min_flushed_lsn = flushed_lsn;

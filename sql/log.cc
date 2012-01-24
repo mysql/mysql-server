@@ -3334,10 +3334,11 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
 			    bool need_lock)
 {
   int error= 0;
-  char *fname= linfo->log_file_name;
-  uint log_name_len= log_name ? (uint) strlen(log_name) : 0;
+  char *full_fname= linfo->log_file_name;
+  char full_log_name[FN_REFLEN], fname[FN_REFLEN];
+  uint log_name_len= 0, fname_len= 0;
   DBUG_ENTER("find_log_pos");
-  DBUG_PRINT("enter",("log_name: %s", log_name ? log_name : "NULL"));
+  full_log_name[0]= full_fname[0]= 0;
 
   /*
     Mutex needed because we need to make sure the file pointer does not
@@ -3346,6 +3347,20 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   if (need_lock)
     mysql_mutex_lock(&LOCK_index);
   mysql_mutex_assert_owner(&LOCK_index);
+
+  // extend relative paths for log_name to be searched
+  if (log_name)
+  {
+    if(normalize_binlog_name(full_log_name, log_name, is_relay_log))
+    {
+      error= LOG_INFO_EOF;
+      goto end;
+    }
+  }
+
+  log_name_len= log_name ? (uint) strlen(full_log_name) : 0;
+  DBUG_PRINT("enter", ("log_name: %s, full_log_name: %s", 
+                       log_name ? log_name : "NULL", full_log_name));
 
   /* As the file is flushed, we can't get an error here */
   (void) reinit_io_cache(&index_file, READ_CACHE, (my_off_t) 0, 0, 0);
@@ -3365,19 +3380,28 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
       break;
     }
 
+    // extend relative paths and match against full path
+    if (normalize_binlog_name(full_fname, fname, is_relay_log))
+    {
+      error= LOG_INFO_EOF;
+      break;
+    }
+    fname_len= (uint) strlen(full_fname);
+
     // if the log entry matches, null string matching anything
     if (!log_name ||
-	(log_name_len == length-1 && fname[log_name_len] == '\n' &&
-	 !memcmp(fname, log_name, log_name_len)))
+	(log_name_len == fname_len-1 && full_fname[log_name_len] == '\n' &&
+	 !memcmp(full_fname, full_log_name, log_name_len)))
     {
-      DBUG_PRINT("info",("Found log file entry"));
-      fname[length-1]=0;			// remove last \n
+      DBUG_PRINT("info", ("Found log file entry"));
+      full_fname[fname_len-1]= 0;			// remove last \n
       linfo->index_file_start_offset= offset;
       linfo->index_file_offset = my_b_tell(&index_file);
       break;
     }
   }
 
+end:
   if (need_lock)
     mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
@@ -3412,7 +3436,8 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
 {
   int error= 0;
   uint length;
-  char *fname= linfo->log_file_name;
+  char fname[FN_REFLEN];
+  char *full_fname= linfo->log_file_name;
 
   if (need_lock)
     mysql_mutex_lock(&LOCK_index);
@@ -3428,8 +3453,19 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
     error = !index_file.error ? LOG_INFO_EOF : LOG_INFO_IO;
     goto err;
   }
-  fname[length-1]=0;				// kill \n
-  linfo->index_file_offset = my_b_tell(&index_file);
+
+  if (fname[0] != 0)
+  {
+    if(normalize_binlog_name(full_fname, fname, is_relay_log))
+    {
+      error= LOG_INFO_EOF;
+      goto err;
+    }
+    length= strlen(full_fname);
+  }
+
+  full_fname[length-1]= 0;			// kill \n
+  linfo->index_file_offset= my_b_tell(&index_file);
 
 err:
   if (need_lock)
@@ -3464,7 +3500,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   DBUG_ENTER("reset_logs");
 
   ha_reset_logs(thd);
-
   /*
     We need to get both locks to be sure that no one is trying to
     write to the index log file.
@@ -5156,28 +5191,31 @@ err:
     if (direct)
     {
       my_off_t offset= my_b_tell(file);
+      bool check_purge= false;
 
       if (!error)
       {
         bool synced;
 
         if ((error= flush_and_sync(&synced)))
-          goto unlock;
-
-        status_var_add(thd->status_var.binlog_bytes_written,
-                       offset - my_org_b_tell);
-
-        if ((error= RUN_HOOK(binlog_storage, after_flush,
+        {
+        }
+        else if ((error= RUN_HOOK(binlog_storage, after_flush,
                  (thd, log_file_name, file->pos_in_file, synced))))
         {
           sql_print_error("Failed to run 'after_flush' hooks");
-          goto unlock;
+        } 
+        else
+        {
+          signal_update();
+          if ((error= rotate(false, &check_purge)))
+            check_purge= false;
         }
-        signal_update();
-        rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
       }
 
-unlock:
+      status_var_add(thd->status_var.binlog_bytes_written,
+                     offset - my_org_b_tell);
+
       /*
         Take mutex to protect against a reader seeing partial writes of 64-bit
         offset on 32-bit CPUs.
@@ -5186,6 +5224,9 @@ unlock:
       last_commit_pos_offset= offset;
       mysql_mutex_unlock(&LOCK_commit_ordered);
       mysql_mutex_unlock(&LOCK_log);
+
+      if (check_purge)
+        purge();
     }
 
     if (error)
@@ -5271,25 +5312,29 @@ bool general_log_write(THD *thd, enum enum_server_command command,
 }
 
 /**
+  The method executes rotation when LOCK_log is already acquired
+  by the caller.
+
+  @param force_rotate  caller can request the log rotation
+  @param check_purge   is set to true if rotation took place
+
   @note
     If rotation fails, for instance the server was unable 
     to create a new log file, we still try to write an 
     incident event to the current log.
 
   @retval
-    nonzero - error 
+    nonzero - error in rotating routine.
 */
-int MYSQL_BIN_LOG::rotate_and_purge(uint flags)
+int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
 {
   int error= 0;
-  DBUG_ENTER("MYSQL_BIN_LOG::rotate_and_purge");
-#ifdef HAVE_REPLICATION
-  bool check_purge= false;
-#endif
-  if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
-    mysql_mutex_lock(&LOCK_log);
-  if ((flags & RP_FORCE_ROTATE) ||
-      (my_b_tell(&log_file) >= (my_off_t) max_size))
+  DBUG_ENTER("MYSQL_BIN_LOG::rotate");
+
+  //todo: fix the macro def and restore safe_mutex_assert_owner(&LOCK_log);
+  *check_purge= false;
+
+  if (force_rotate || (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
     if ((error= new_file_without_locking()))
       /** 
@@ -5304,26 +5349,61 @@ int MYSQL_BIN_LOG::rotate_and_purge(uint flags)
       if (!write_incident_already_locked(current_thd))
         flush_and_sync(0);
 
-#ifdef HAVE_REPLICATION
-    check_purge= true;
-#endif
-    if (flags & RP_BINLOG_CHECKSUM_ALG_CHANGE)
-      checksum_alg_reset= BINLOG_CHECKSUM_ALG_UNDEF; // done
+    *check_purge= true;
   }
-  if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
-    mysql_mutex_unlock(&LOCK_log);
+  DBUG_RETURN(error);
+}
+
+/**
+  The method executes logs purging routine.
+
+  @retval
+    nonzero - error in rotating routine.
+*/
+void MYSQL_BIN_LOG::purge()
+{
+  mysql_mutex_assert_not_owner(&LOCK_log);
 #ifdef HAVE_REPLICATION
-  /*
-    NOTE: Run purge_logs wo/ holding LOCK_log
-          as it otherwise will deadlock in ndbcluster_binlog_index_purge_file
-  */
-  if (!error && check_purge && expire_logs_days)
+  if (expire_logs_days)
   {
+    DEBUG_SYNC(current_thd, "at_purge_logs_before_date");
     time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
     if (purge_time >= 0)
+    {
       purge_logs_before_date(purge_time);
+    }
   }
 #endif
+}
+
+/**
+  The method is a shortcut of @c rotate() and @c purge().
+  LOCK_log is acquired prior to rotate and is released after it.
+
+  @param force_rotate  caller can request the log rotation
+
+  @retval
+    nonzero - error in rotating routine.
+*/
+int MYSQL_BIN_LOG::rotate_and_purge(bool force_rotate)
+{
+  int error= 0;
+  DBUG_ENTER("MYSQL_BIN_LOG::rotate_and_purge");
+  bool check_purge= false;
+
+  //todo: fix the macro def and restore safe_mutex_assert_not_owner(&LOCK_log);
+  mysql_mutex_lock(&LOCK_log);
+  if ((error= rotate(force_rotate, &check_purge)))
+    check_purge= false;
+  /*
+    NOTE: Run purge_logs wo/ holding LOCK_log because it does not need
+          the mutex. Otherwise causes various deadlocks.
+  */
+  mysql_mutex_unlock(&LOCK_log);
+
+  if (check_purge)
+    purge();
+
   DBUG_RETURN(error);
 }
 
@@ -5652,6 +5732,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd)
 {
   uint error= 0;
   my_off_t offset;
+  bool check_purge= false;
   DBUG_ENTER("MYSQL_BIN_LOG::write_incident");
 
   mysql_mutex_lock(&LOCK_log);
@@ -5661,8 +5742,10 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd)
         !(error= flush_and_sync(0)))
     {
       signal_update();
-      error= rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
+      if ((error= rotate(false, &check_purge)))
+        check_purge= false;
     }
+
     offset= my_b_tell(&log_file);
     /*
       Take mutex to protect against a reader seeing partial writes of 64-bit
@@ -5671,8 +5754,11 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd)
     mysql_mutex_lock(&LOCK_commit_ordered);
     last_commit_pos_offset= offset;
     mysql_mutex_unlock(&LOCK_commit_ordered);
+    mysql_mutex_unlock(&LOCK_log);
+
+    if (check_purge)
+      purge();
   }
-  mysql_mutex_unlock(&LOCK_log);
 
   DBUG_RETURN(error);
 }
@@ -5855,40 +5941,41 @@ void
 MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
 {
   uint xid_count= 0;
-  my_off_t commit_offset;
+  my_off_t UNINIT_VAR(commit_offset);
   group_commit_entry *current;
   group_commit_entry *last_in_queue;
-  DBUG_ENTER("MYSQL_BIN_LOG::trx_group_commit_leader");
-  LINT_INIT(commit_offset);
-
-  /*
-    Lock the LOCK_log(), and once we get it, collect any additional writes
-    that queued up while we were waiting.
-  */
-  mysql_mutex_lock(&LOCK_log);
-  DEBUG_SYNC(leader->thd, "commit_after_get_LOCK_log");
-
-  mysql_mutex_lock(&LOCK_prepare_ordered);
-  current= group_commit_queue;
-  group_commit_queue= NULL;
-  mysql_mutex_unlock(&LOCK_prepare_ordered);
-
-  /* As the queue is in reverse order of entering, reverse it. */
   group_commit_entry *queue= NULL;
-  last_in_queue= current;
-  while (current)
-  {
-    group_commit_entry *next= current->next;
-    current->next= queue;
-    queue= current;
-    current= next;
-  }
-  DBUG_ASSERT(leader == queue /* the leader should be first in queue */);
+  bool check_purge= false;
+  DBUG_ENTER("MYSQL_BIN_LOG::trx_group_commit_leader");
 
-  /* Now we have in queue the list of transactions to be committed in order. */
   DBUG_ASSERT(is_open());
   if (likely(is_open()))                       // Should always be true
   {
+    /*
+      Lock the LOCK_log(), and once we get it, collect any additional writes
+      that queued up while we were waiting.
+    */
+    mysql_mutex_lock(&LOCK_log);
+    DEBUG_SYNC(leader->thd, "commit_after_get_LOCK_log");
+
+    mysql_mutex_lock(&LOCK_prepare_ordered);
+    current= group_commit_queue;
+    group_commit_queue= NULL;
+    mysql_mutex_unlock(&LOCK_prepare_ordered);
+
+    /* As the queue is in reverse order of entering, reverse it. */
+    last_in_queue= current;
+    while (current)
+    {
+      group_commit_entry *next= current->next;
+      current->next= queue;
+      queue= current;
+      current= next;
+    }
+    DBUG_ASSERT(leader == queue /* the leader should be first in queue */);
+
+    /* Now we have in queue the list of transactions to be committed in order. */
+    
     /*
       Commit every transaction in the queue.
 
@@ -5972,7 +6059,7 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
     }
     else
     {
-      if (rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED))
+      if (rotate(false, &check_purge))
       {
         /*
           If we fail to rotate, which thread should get the error?
@@ -5981,6 +6068,7 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
         */
         last_in_queue->error= ER_ERROR_ON_WRITE;
         last_in_queue->commit_errno= errno;
+        check_purge= false;
       }
     }
   }
@@ -5995,6 +6083,10 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
     LOCK_commit_ordered is obtained, we can let the next group commit start.
   */
   mysql_mutex_unlock(&LOCK_log);
+
+  if (check_purge) 
+    purge();
+
   DEBUG_SYNC(leader->thd, "commit_after_release_LOCK_log");
   ++num_group_commits;
 
@@ -7504,24 +7596,25 @@ binlog_checksum_update(MYSQL_THD thd, struct st_mysql_sys_var *var,
                        void *var_ptr, const void *save)
 {
   ulong value=  *((ulong *)save);
+  bool check_purge= false;
 
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())
   {
-    uint flags= RP_FORCE_ROTATE | RP_LOCK_LOG_IS_ALREADY_LOCKED |
-      (binlog_checksum_options != (uint) value?
-       RP_BINLOG_CHECKSUM_ALG_CHANGE : 0);
-    if (flags & RP_BINLOG_CHECKSUM_ALG_CHANGE)
+    if (binlog_checksum_options != value)
       mysql_bin_log.checksum_alg_reset= (uint8) value;
-    mysql_bin_log.rotate_and_purge(flags);
+    if (mysql_bin_log.rotate(true, &check_purge))
+      check_purge= false;
   }
   else
   {
     binlog_checksum_options= value;
   }
-  DBUG_ASSERT((ulong) binlog_checksum_options == value);
-  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
+  DBUG_ASSERT(binlog_checksum_options == value);
+  mysql_bin_log.checksum_alg_reset= BINLOG_CHECKSUM_ALG_UNDEF;
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+  if (check_purge)
+    mysql_bin_log.purge();
 }
 
 

@@ -26,6 +26,15 @@
    SUCH DAMAGE.
 */
 
+/*  File   : strcend.c
+    Author : Michael Widenius:	ifdef MC68000
+    Updated: 20 April 1984
+    Defines: strcend()
+
+    strcend(s, c) returns a pointer to the  first  place  in  s where  c
+    occurs,  or a pointer to the end-null of s if c does not occur in s.
+*/
+
 #include "strings_def.h"
 
 char *strcend(register const char *s, register pchar c)

@@ -33,6 +33,8 @@ SELECT COUNT(*) FROM CountryLanguage;
 
 show variables like 'join_buffer_size';
 
+set join_cache_level=1;
+
 show variables like 'join_cache_level';
 
 EXPLAIN
@@ -196,7 +198,7 @@ SELECT Country.Name, Country.Population, City.Name, City.Population
 DROP INDEX City_Population ON City;
 DROP INDEX City_Name ON City;
 
-set join_cache_level=default;
+set join_cache_level=1;
 
 set join_buffer_size=256;
 show variables like 'join_buffer_size';
@@ -2191,6 +2193,8 @@ insert into t2 values (1,1),(2,2);
 create table t3 (a int, b int);
 insert into t3 values (1,1),(2,2);
 
+set join_cache_level=1;
+
 explain select t1.* from t1,t2,t3;
 select t1.* from t1,t2,t3; 
 
@@ -2577,11 +2581,6 @@ INSERT INTO t2 VALUES
   (1, 12, 102), (8, 81, 801), (7, 70, 700), (12, 120, 1200),
   (8, 82, 802), (1, 13, 103), (1, 14, 104), (3, 31, 301),
   (1, 15, 105), (8, 83, 803), (7, 71, 701);
-INSERT INTO t2 VALUES
-  (108, 80, 800), (101, 10, 100), (101, 11, 101), (103, 30, 300),
-  (101, 12, 102), (108, 81, 801), (107, 70, 700), (1012, 120, 1200),
-  (108, 82, 802), (101, 13, 103), (101, 14, 104), (103, 31, 301),
-  (101, 15, 105), (108, 83, 803), (107, 71, 701);
 
 SET SESSION join_cache_level = 4;
 SET SESSION join_buffer_size = 256;
@@ -3253,6 +3252,176 @@ SET SESSION join_cache_level = DEFAULT;
 SET optimizer_switch=@tmp887479_optimizer_switch;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #899777: join_cache_level=4 + semijoin=on 
+--echo #
+
+CREATE TABLE t1 (a int, b int, c int, UNIQUE INDEX idx (a));
+INSERT INTO t1 VALUES (1,8,6), (2,2,8);
+CREATE TABLE t2 (a int, b int, c int, UNIQUE INDEX idx (a));
+INSERT INTO t2 VALUES (1,8,6), (2,2,8);
+CREATE TABLE t3 (a int, b int, c int, UNIQUE INDEX idx (a));
+INSERT INTO t3 VALUES (1,8,6), (2,2,8);
+CREATE TABLE t4 (a int, b int, c int, UNIQUE INDEX idx (a));
+INSERT INTO t4 VALUES (1,8,6), (2,2,8);
+
+SET @tmp_optimizer_switch=@@optimizer_switch;
+SET SESSION optimizer_switch='semijoin=on';
+SET SESSION optimizer_switch='semijoin_with_cache=on';
+
+SET SESSION join_cache_level=1;
+EXPLAIN 
+SELECT t1.* FROM t1,t2
+  WHERE (t1.b,t2.b) IN (SELECT t3.b,t4.b FROM t3,t4 WHERE t4.c=t3.b)
+        AND t1.a = 1;
+SELECT t1.* FROM t1,t2
+  WHERE (t1.b,t2.b) IN (SELECT t3.b,t4.b FROM t3,t4 WHERE t4.c=t3.b)
+        AND t1.a = 1;
+
+SET SESSION join_cache_level=4;
+EXPLAIN 
+SELECT t1.* FROM t1,t2
+  WHERE (t1.b,t2.b) IN (SELECT t3.b,t4.b FROM t3,t4 WHERE t4.c=t3.b)
+        AND t1.a = 1;
+SELECT t1.* FROM t1,t2
+  WHERE (t1.b,t2.b) IN (SELECT t3.b,t4.b FROM t3,t4 WHERE t4.c=t3.b)
+        AND t1.a = 1;
+
+SET SESSION join_cache_level = DEFAULT;
+SET optimizer_switch=@tmp_optimizer_switch;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug #899509: an attempt to use hash join with join_cache_level=0 
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (8), (7);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (8), (7);
+CREATE TABLE t3 (a int);
+INSERT INTO t3 VALUES (8), (7);
+
+SET @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch=default;
+set @@optimizer_switch='semijoin_with_cache=off';
+set @@optimizer_switch='outer_join_with_cache=off';
+SET optimizer_switch='derived_merge=off,derived_with_keys=off';
+SET join_cache_level=0;
+
+EXPLAIN
+SELECT * FROM (SELECT t1.* FROM t1, t2) t WHERE t.a IN (SELECT * FROM t3);
+SELECT * FROM (SELECT t1.* FROM t1, t2) t WHERE t.a IN (SELECT * FROM t3);
+
+SELECT * FROM ( SELECT ta.* FROM t1 AS ta, t1 ) tb WHERE a IN ( SELECT * FROM t1 );
+
+SET SESSION join_cache_level = DEFAULT;
+SET optimizer_switch=@tmp_optimizer_switch;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #900469: semijoin + BNLH + ORDER BY 
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (8,10);
+
+CREATE TABLE t2 (c int, d int);
+INSERT INTO t2 VALUES (8,10);
+INSERT INTO t2 VALUES (9,11);
+
+CREATE TABLE t3 (c int, d int);
+INSERT INTO t3 VALUES (8,10);
+INSERT INTO t3 VALUES (9,11);
+
+SET @tmp_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='semijoin_with_cache=on';
+
+SET join_cache_level=1;
+EXPLAIN
+SELECT * FROM t1,t2 WHERE b IN (SELECT d FROM t3 WHERE c <= t2.c) ORDER BY a,d;
+SELECT * FROM t1,t2 WHERE b IN (SELECT d FROM t3 WHERE c <= t2.c) ORDER BY a,d;
+
+SET join_cache_level=3;
+EXPLAIN
+SELECT * FROM t1,t2 WHERE b IN (SELECT d FROM t3 WHERE c <= t2.c);
+SELECT * FROM t1,t2 WHERE b IN (SELECT d FROM t3 WHERE c <= t2.c);
+
+SET join_cache_level=3;
+EXPLAIN
+SELECT * FROM t1,t2 WHERE b IN (SELECT d FROM t3 WHERE c <= t2.c) ORDER BY a,d;
+SELECT * FROM t1,t2 WHERE b IN (SELECT d FROM t3 WHERE c <= t2.c) ORDER BY a,d;
+
+SET SESSION join_cache_level = DEFAULT;
+SET optimizer_switch=@tmp_optimizer_switch;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #901478: semijoin + ORDER BY + join_cache_level=4|6 
+--echo #
+
+CREATE TABLE t1 (a char(1));
+INSERT INTO t1 VALUES ('x');
+CREATE TABLE t2 (a int, b int, c int, KEY(a), KEY(b), KEY(c));
+INSERT INTO t2 VALUES
+  (9,1,0), (7,2,8), (2,3,5), (4,2,9), (8,3,8), (3,4,1), (5,5,4);
+CREATE TABLE t3 (a CHAR(1));
+INSERT INTO t3 VALUES ('x');
+CREATE TABLE t4 (a int, b int, c int, KEY(b), KEY(c));
+INSERT INTO t4 VALUES
+  (9,1,0), (7,2,8), (2,3,5), (4,2,9), (8,3,8), (3,4,1), (5,5,4);
+INSERT INTO t4 VALUES
+  (19,11,10), (17,12,18), (12,13,15), (14,12,19),
+  (18,13,18), (13,14,11), (15,15,14);
+
+SET @tmp_optimizer_switch=@@optimizer_switch;
+SET @@optimizer_switch='semijoin=on';
+SET @@optimizer_switch='firstmatch=off';
+SET @@optimizer_switch='mrr=off';
+SET @@optimizer_switch='semijoin_with_cache=off';
+
+set join_cache_level=1;
+EXPLAIN
+SELECT * FROM t1,t2
+  WHERE t2.c IN (SELECT c FROM t3,t4 WHERE t4.a < 10) AND
+        t2.a BETWEEN 4 and 5
+  ORDER BY t2.b;
+SELECT * FROM t1,t2
+  WHERE t2.c IN (SELECT c FROM t3,t4 WHERE t4.a < 10) AND
+        t2.a BETWEEN 4 and 5
+  ORDER BY t2.b;
+
+set join_cache_level=4;
+EXPLAIN
+SELECT * FROM t1,t2
+  WHERE t2.c IN (SELECT c FROM t3,t4 WHERE t4.a < 10) AND
+        t2.a BETWEEN 4 and 5
+  ORDER BY t2.b;
+SELECT * FROM t1,t2
+  WHERE t2.c IN (SELECT c FROM t3,t4 WHERE t4.a < 10) AND
+        t2.a BETWEEN 4 and 5
+  ORDER BY t2.b;
+
+SET @@optimizer_switch='semijoin_with_cache=on';
+set join_cache_level=6;
+EXPLAIN
+SELECT * FROM t1,t2
+  WHERE t2.c IN (SELECT c FROM t3,t4 WHERE t4.a < 10) AND
+        t2.a BETWEEN 4 and 5
+  ORDER BY t2.b;
+SELECT * FROM t1,t2
+  WHERE t2.c IN (SELECT c FROM t3,t4 WHERE t4.a < 10) AND
+        t2.a BETWEEN 4 and 5
+  ORDER BY t2.b;
+
+SET join_cache_level = DEFAULT;
+SET optimizer_switch=@tmp_optimizer_switch;
+
+DROP TABLE t1,t2,t3,t4;
 
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

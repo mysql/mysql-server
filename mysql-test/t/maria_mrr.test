@@ -78,6 +78,9 @@ INSERT INTO t3 VALUES
   (88, 442, 'y'), (99, 445, 'w'), (87, 442, 'z'), (98, 445, 'v'), (86, 442, 'x'),
   (97, 445, 't'), (85, 442, 'b'), (96, 445, 'l'), (84, 442, 'a'), (95, 445, 'k');
 
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=1;
+
 SELECT COUNT(t1.v) FROM t1, t2 IGNORE INDEX (idx), t3 IGNORE INDEX (idx)
   WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
 EXPLAIN 
@@ -89,6 +92,8 @@ SELECT COUNT(t1.v) FROM t1, t2, t3
 EXPLAIN 
   SELECT COUNT(t1.v) FROM t1, t2, t3
   WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
+
+set join_cache_level=@save_join_cache_level;
 
 DROP TABLE t1,t2,t3;
 

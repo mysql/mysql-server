@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,10 +21,6 @@
   program on start, or on help screen.
 */
 #define ORACLE_WELCOME_COPYRIGHT_NOTICE(years) \
-  "Copyright (c) " years ", Oracle and/or its affiliates.\n" \
-  "2009-2011 Monty Program Ab\n" \
-  "\n" \
-  "This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n" \
-  "and you are welcome to modify and redistribute it under the GPL license\n"
+  "Copyright (c) " years ", Oracle, Monty Program Ab and others.\n"
 
 #endif /* _welcome_copyright_notice_h_ */

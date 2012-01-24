@@ -66,7 +66,7 @@ ulonglong pagecache_buffer_size;
    good. It would happen only after Recovery, if the table is still
    corrupted.
 */
-ulong maria_recover_options= HA_RECOVER_NONE;
+ulonglong maria_recover_options= HA_RECOVER_NONE;
 handlerton *maria_hton;
 
 /* bits in maria_recover_options */
@@ -76,10 +76,9 @@ const char *maria_recover_names[]=
     Compared to MyISAM, "default" was renamed to "normal" as it collided with
     SET var=default which sets to the var's default i.e. what happens when the
     var is not set i.e. HA_RECOVER_NONE.
-    Another change is that OFF is used to disable, not ""; this is to have OFF
-    display in SHOW VARIABLES which is better than "".
+    OFF flag is ignored.
   */
-  "OFF", "NORMAL", "BACKUP", "FORCE", "QUICK", NullS
+  "NORMAL", "BACKUP", "FORCE", "QUICK", "OFF", NullS
 };
 TYPELIB maria_recover_typelib=
 {
@@ -240,28 +239,28 @@ static MYSQL_SYSVAR_ULONGLONG(pagecache_buffer_size, pagecache_buffer_size,
        "The size of the buffer used for index blocks for Aria tables. "
        "Increase this to get better index handling (for all reads and "
        "multiple writes) to as much as you can afford.", 0, 0,
-       KEY_CACHE_SIZE, 8192*16L, ~(ulong) 0, 1);
+       KEY_CACHE_SIZE, 8192*16L, ~(ulonglong) 0, 1);
 
 static MYSQL_SYSVAR_ULONG(pagecache_division_limit, pagecache_division_limit,
        PLUGIN_VAR_RQCMDARG,
        "The minimum percentage of warm blocks in key cache", 0, 0,
        100,  1, 100, 1);
 
-static MYSQL_SYSVAR_ENUM(recover, maria_recover_options, PLUGIN_VAR_OPCMDARG,
+static MYSQL_SYSVAR_SET(recover, maria_recover_options, PLUGIN_VAR_OPCMDARG,
        "Specifies how corrupted tables should be automatically repaired."
-       " Possible values are \"NORMAL\" (the default), \"BACKUP\", \"FORCE\","
-       " \"QUICK\", or \"OFF\" which is like not using the option.",
+       " Possible values are one or more of \"NORMAL\" (the default), "
+       "\"BACKUP\", \"FORCE\", or \"QUICK\".",
        NULL, NULL, HA_RECOVER_DEFAULT, &maria_recover_typelib);
 
 static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
        "Number of threads to use when repairing Aria tables. The value of 1 "
        "disables parallel repair.",
-       0, 0, 1, 1, ~0L, 1);
+       0, 0, 1, 1, 128, 1);
 
 static MYSQL_THDVAR_ULONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
        "The buffer that is allocated when sorting the index when doing a "
        "REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE.",
-       0, 0, 128L*1024L*1024L, 4, ~0L, 1);
+       0, 0, 128L*1024L*1024L, 4, UINT_MAX32, 1);
 
 static MYSQL_THDVAR_ENUM(stats_method, PLUGIN_VAR_RQCMDARG,
        "Specifies how Aria index statistics collection code should treat "
@@ -1143,7 +1142,7 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
     test_if_locked|= HA_OPEN_MMAP;
 #endif
 
-  if (unlikely(maria_recover_options != HA_RECOVER_NONE))
+  if (maria_recover_options & HA_RECOVER_ANY)
   {
     /* user asked to trigger a repair if table was not properly closed */
     test_if_locked|= HA_OPEN_ABORT_IF_CRASHED;
@@ -1460,8 +1459,12 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
 
   if (!error)
   {
+    TrID create_trid= trnman_get_min_safe_trid();
     mysql_mutex_lock(&share->intern_lock);
+    share->state.changed|= STATE_NOT_MOVABLE;
     maria_update_state_info(&param, file, UPDATE_TIME | UPDATE_OPEN_COUNT);
+    _ma_update_state_lsns_sub(share, LSN_IMPOSSIBLE, create_trid,
+                              TRUE, TRUE);
     mysql_mutex_unlock(&share->intern_lock);
   }
   return error;
@@ -1650,9 +1653,6 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
       _ma_check_print_warning(param, "Number of rows changed from %s to %s",
                               llstr(rows, llbuff),
                               llstr(file->state->records, llbuff2));
-      /* Abort if warning was converted to error */
-      if (table->in_use->is_error())
-        error= 1;
     }
   }
   else
@@ -2517,9 +2517,17 @@ int ha_maria::extra_opt(enum ha_extra_function operation, ulong cache_size)
 
 int ha_maria::delete_all_rows()
 {
+#ifdef EXTRA_DEBUG
   THD *thd= table->in_use;
-  (void) translog_log_debug_info(file->trn, LOGREC_DEBUG_INFO_QUERY,
-                                 (uchar*) thd->query(), thd->query_length());
+  TRN *trn= file->trn;
+  if (trn && ! (trnman_get_flags(trn) & TRN_STATE_INFO_LOGGED))
+  {
+    trnman_set_flags(trn, trnman_get_flags(trn) | TRN_STATE_INFO_LOGGED |
+                     TRN_STATE_TABLES_CAN_CHANGE);
+    (void) translog_log_debug_info(trn, LOGREC_DEBUG_INFO_QUERY,
+                                   (uchar*) thd->query(), thd->query_length());
+  }
+#endif
   if (file->s->now_transactional &&
       ((table->in_use->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
        table->in_use->locked_tables_mode))
@@ -3344,7 +3352,7 @@ static int mark_recovery_start(const char* log_dir)
 {
   int res;
   DBUG_ENTER("mark_recovery_start");
-  if (unlikely(maria_recover_options == HA_RECOVER_NONE))
+  if (!(maria_recover_options & HA_RECOVER_ANY))
     ma_message_no_user(ME_JUST_WARNING, "Please consider using option"
                        " --aria-recover[=...] to automatically check and"
                        " repair tables when logs are removed by option"

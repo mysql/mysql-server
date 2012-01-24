@@ -7,9 +7,14 @@ set join_cache_level=6;
 show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	6
+set @optimizer_switch_for_select_test=@@optimizer_switch;
+set @join_cache_level_for_select_test=@@join_cache_level;
 drop table if exists t1,t2,t3,t4,t11;
 drop table if exists t1_1,t1_2,t9_1,t9_2,t1aa,t2aa;
 drop view if exists v1;
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch=ifnull(@optimizer_switch_for_select_test,'outer_join_with_cache=off');
+set join_cache_level=@join_cache_level_for_select_test;
 CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
@@ -2205,10 +2210,10 @@ a	a
 select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
 a	a
 1	2
-2	2
-3	2
 1	3
+2	2
 2	3
+3	2
 3	3
 select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 a	a
@@ -5097,6 +5102,33 @@ ON t3.f31 = t6.f61
 WHERE t7.f71>0;
 f23
 DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+CREATE TABLE t1(f1 int UNSIGNED) engine=myisam;
+INSERT INTO t1 VALUES (3),(2),(1);
+set sql_buffer_result=0;
+SELECT f1 FROM t1 GROUP BY 1;
+f1
+1
+2
+3
+SELECT f1 FROM t1 GROUP BY '123' = 'abc';
+f1
+3
+SELECT 1 FROM t1 GROUP BY 1;
+1
+1
+set sql_buffer_result=1;
+SELECT f1 FROM t1 GROUP BY 1;
+f1
+1
+2
+3
+SELECT f1 FROM t1 GROUP BY '123' = 'abc';
+f1
+3
+SELECT 1 FROM t1 GROUP BY 1;
+1
+1
+drop table t1;
 #
 # Bug #58422: Incorrect result when OUTER JOIN'ing 
 # with an empty table
@@ -5213,8 +5245,66 @@ avg(distinct(t1.a))
 0
 DROP TABLE t1;
 # End of test BUG#57203
+#
+# lp:822760 Wrong result with view + invalid dates
+#
+CREATE TABLE t1 (f1 date);
+INSERT IGNORE INTO t1 VALUES ('0000-00-00');
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM t1 HAVING f1 = 'zz';
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'zz'
+SELECT * FROM t1 HAVING f1 <= 'aa' ;
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'aa'
+SELECT * FROM t1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'zz'
+Warning	1292	Incorrect datetime value: 'aa'
+SELECT * FROM t1 WHERE f1 = 'zz' AND f1 <= 'aa' ;
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'zz'
+Warning	1292	Incorrect datetime value: 'aa'
+Warning	1292	Incorrect datetime value: 'zz'
+SELECT * FROM v1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'zz'
+Warning	1292	Incorrect datetime value: 'aa'
+DROP TABLE t1;
+DROP VIEW v1;
+#
+# Bug#63020: Function "format"'s 'locale' argument is not considered
+#	     when creating a "view'
+#
+CREATE TABLE t1 (f1 DECIMAL(10,2));
+INSERT INTO t1 VALUES (11.67),(17865.3),(12345678.92);
+CREATE VIEW view_t1 AS SELECT FORMAT(f1,1,'sk_SK') AS f1 FROM t1;
+SHOW CREATE VIEW view_t1;
+View	Create View	character_set_client	collation_connection
+view_t1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_t1` AS select format(`t1`.`f1`,1,'sk_SK') AS `f1` from `t1`	latin1	latin1_swedish_ci
+SELECT * FROM view_t1;
+f1
+11,7
+17 865,3
+12 345 678,9
+DROP TABLE t1;
+DROP VIEW view_t1;
+# End of test  BUG#63020
+SET optimizer_switch=@save_optimizer_switch;
 set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value
-join_cache_level	1
+join_cache_level	2
 set @@optimizer_switch=@save_optimizer_switch_jcl6;
+set @optimizer_switch_for_select_test=NULL;
+set @join_cache_level_for_select_test=NULL;

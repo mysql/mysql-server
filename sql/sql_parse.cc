@@ -1,5 +1,6 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2011 Monty Program Ab
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -548,8 +549,12 @@ static void handle_bootstrap_impl(THD *thd)
 
     query= (char *) thd->memdup_w_gap(buff, length + 1,
                                       thd->db_length + 1 +
+                                      QUERY_CACHE_DB_LENGTH_SIZE +
                                       QUERY_CACHE_FLAGS_SIZE);
+    size_t db_len= 0;
+    memcpy(query + length + 1, (char *) &db_len, sizeof(size_t));
     thd->set_query_and_id(query, length, thd->charset(), next_query_id());
+    int2store(query + length + 1, 0);           // No db in bootstrap
     DBUG_PRINT("query",("%-.4096s",thd->query()));
 #if defined(ENABLED_PROFILING)
     thd->profiling.start_new_query();
@@ -1243,6 +1248,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_REFRESH:
   {
     int not_used;
+
+    /*
+      Initialize thd->lex since it's used in many base functions, such as
+      open_tables(). Otherwise, it remains unitialized and may cause crash
+      during execution of COM_REFRESH.
+    */
+    lex_start(thd);
+    
     status_var_increment(thd->status_var.com_stat[SQLCOM_FLUSH]);
     ulong options= (ulong) (uchar) packet[0];
     if (trans_commit_implicit(thd))
@@ -1677,13 +1690,30 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
     pos--;
     packet_length--;
   }
-  /* We must allocate some extra memory for query cache */
+  /* We must allocate some extra memory for query cache 
+
+    The query buffer layout is:
+       buffer :==
+            <statement>   The input statement(s)
+            '\0'          Terminating null char  (1 byte)
+            <length>      Length of following current database name (size_t)
+            <db_name>     Name of current database
+            <flags>       Flags struct
+  */
   if (! (query= (char*) thd->memdup_w_gap(packet,
                                           packet_length,
                                           1 + thd->db_length +
+                                          QUERY_CACHE_DB_LENGTH_SIZE +
                                           QUERY_CACHE_FLAGS_SIZE)))
       return TRUE;
   query[packet_length]= '\0';
+  /*
+    Space to hold the name of the current database is allocated.  We
+    also store this length, in case current database is changed during
+    execution.  We might need to reallocate the 'query' buffer
+  */
+  int2store(query + packet_length + 1, thd->db_length);
+    
   thd->set_query(query, packet_length);
 
   /* Reclaim some memory */
@@ -2868,7 +2898,7 @@ end_with_restore_list:
       {
         Incident_log_event ev(thd, incident);
         (void) mysql_bin_log.write(&ev);        /* error is ignored */
-        if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+        if (mysql_bin_log.rotate_and_purge(true))
         {
           res= 1;
           break;
@@ -7565,8 +7595,8 @@ bool parse_sql(THD *thd,
   */
 
   DBUG_ASSERT(!mysql_parse_status ||
-              (mysql_parse_status && thd->is_error()) ||
-              (mysql_parse_status && thd->get_internal_handler()));
+              thd->is_error() ||
+              thd->get_internal_handler());
 
   /* Reset parser state. */
 

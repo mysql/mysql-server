@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1722,7 +1722,7 @@ bool add_table_for_trigger(THD *thd,
   LEX *lex= thd->lex;
   char trn_path_buff[FN_REFLEN];
   LEX_STRING trn_path= { trn_path_buff, 0 };
-  LEX_STRING tbl_name;
+  LEX_STRING tbl_name= null_lex_str;
 
   DBUG_ENTER("add_table_for_trigger");
 
@@ -2258,7 +2258,8 @@ void Table_triggers_list::mark_fields_used(trg_event_type event)
 void Table_triggers_list::set_parse_error_message(char *error_message)
 {
   m_has_unparseable_trigger= true;
-  strcpy(m_parse_error_message, error_message);
+  strnmov(m_parse_error_message, error_message,
+          sizeof(m_parse_error_message)-1);
 }
 
 

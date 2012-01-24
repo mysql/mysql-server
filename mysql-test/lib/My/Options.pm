@@ -150,7 +150,7 @@ sub is_set {
     foreach my $set_opt (@$set_opts){
       my ($opt_name2, $value2)= _split_option($set_opt);
 
-      if ($opt_name1 eq $opt_name2){
+      if ($opt_name1 eq $opt_name2 and $value1 eq $value2){
 	# Option already set
 	return 1;
       }

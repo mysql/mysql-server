@@ -1,0 +1,22 @@
+install plugin pam soname 'auth_pam.so';
+create user test_pam identified via pam using 'mariadb_mtr';
+#
+# athentication is successful, challenge/pin are ok
+# note that current_user() differts from user()
+#
+Challenge input first.
+Enter: not very secret challenge
+Now, the magic number!
+PIN: ****
+select user(), current_user(), database();
+user()	current_user()	database()
+test_pam@localhost	pam_test@%	test
+#
+# athentication is unsuccessful
+#
+Challenge input first.
+Enter: not very secret challenge
+Now, the magic number!
+PIN: ****
+drop user test_pam;
+uninstall plugin pam;

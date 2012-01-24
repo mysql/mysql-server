@@ -929,19 +929,19 @@ static int check_access()
             opt_datadir);
     goto exit;
   }
-  if ((error= my_access(opt_plugin_ini, F_OK)))
+  if (opt_plugin_ini && (error= my_access(opt_plugin_ini, F_OK)))
   {
     fprintf(stderr, "ERROR: Cannot access plugin config file at '%s'.\n",
             opt_plugin_ini);
     goto exit;
   }
-  if ((error= my_access(opt_mysqld, F_OK)))
+  if (opt_mysqld && (error= my_access(opt_mysqld, F_OK)))
   {
     fprintf(stderr, "ERROR: Cannot access mysqld path '%s'.\n",
             opt_mysqld);
     goto exit;
   }
-  if ((error= my_access(opt_my_print_defaults, F_OK)))
+  if (opt_my_print_defaults && (error= my_access(opt_my_print_defaults, F_OK)))
   {
     fprintf(stderr, "ERROR: Cannot access my-print-defaults path '%s'.\n",
             opt_my_print_defaults);
@@ -967,7 +967,7 @@ static int find_tool(const char *tool_name, char *tool_path)
   int i= 0;
 
   const char *paths[]= {
-    opt_basedir, opt_mysqld, opt_my_print_defaults, "/usr",
+    opt_mysqld, opt_basedir, opt_my_print_defaults, "/usr",
     "/usr/local/mysql", "/usr/sbin", "/usr/share", "/extra", "/extra/debug",
     "/extra/release", "/bin", "/usr/bin", "/mysql/bin"
   };
@@ -1081,7 +1081,7 @@ static int build_bootstrap_file(char *operation, char *bootstrap)
   else
   {
     fprintf(file,
-            "DELETE FROM mysql.plugin WHERE name = '%s';", plugin_data.name);
+            "DELETE FROM mysql.plugin WHERE dl = '%s';", plugin_data.so_name);
     if (opt_verbose)
     {
       printf("# Disabling %s...\n", plugin_data.name);
@@ -1124,7 +1124,7 @@ static int dump_bootstrap_file(char *bootstrap_file)
     error= 1;
     goto exit;
   }
-  printf("# Query: %s", query_str);
+  printf("# Query: %s\n", query_str);
 
 exit:
   if (file)
@@ -1160,7 +1160,6 @@ static int bootstrap_server(char *server_path, char *bootstrap_file)
 {
   char bootstrap_cmd[FN_REFLEN];
   int error= 0;
-  int ret= 0;
 
 #ifdef __WIN__
   char *format_str= 0;
@@ -1196,7 +1195,7 @@ static int bootstrap_server(char *server_path, char *bootstrap_file)
   if (error)
     fprintf(stderr,
             "ERROR: Unexpected result from bootstrap. Error code: %d.\n",
-            ret);
+            error);
   
   return error;
 }

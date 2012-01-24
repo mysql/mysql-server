@@ -119,7 +119,14 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 
   if (options & REFRESH_ERROR_LOG)
     if (flush_error_log())
+    {
+      /*
+        When flush_error_log() failed, my_error() has not been called.
+        So, we have to do it here to keep the protocol.
+      */
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
       result= 1;
+    }
 
   if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
     logger.flush_slow_log();
@@ -142,7 +149,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     tmp_write_to_binlog= 0;
     if (mysql_bin_log.is_open())
     {
-      if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+      if (mysql_bin_log.rotate_and_purge(true))
         *write_to_binlog= -1;
     }
   }
@@ -201,7 +208,13 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       if (close_cached_tables(thd, tables,
                               ((options & REFRESH_FAST) ?  FALSE : TRUE),
                               thd->variables.lock_wait_timeout))
+      {
+        /*
+          NOTE: my_error() has been already called by reopen_tables() within
+          close_cached_tables().
+        */
         result= 1;
+      }
 
       if (thd->global_read_lock.make_global_read_lock_block_commit(thd)) // Killed
       {
@@ -259,7 +272,13 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
                               ((options & REFRESH_FAST) ?  FALSE : TRUE),
                               (thd ? thd->variables.lock_wait_timeout :
                                LONG_TIMEOUT)))
+      {
+        /*
+          NOTE: my_error() has been already called by reopen_tables() within
+          close_cached_tables().
+        */
         result= 1;
+      }
     }
     my_dbopt_cleanup();
   }
@@ -276,7 +295,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     tmp_write_to_binlog= 0;
     if (reset_master(thd))
     {
-      result=1;
+      /* NOTE: my_error() has been already called by reset_master(). */
+      result= 1;
     }
   }
 #endif
@@ -284,7 +304,10 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
    if (options & REFRESH_DES_KEY_FILE)
    {
      if (des_key_file && load_des_key_file(des_key_file))
-         result= 1;
+     {
+       /* NOTE: my_error() has been already called by load_des_key_file(). */
+       result= 1;
+     }
    }
 #endif
 #ifdef HAVE_REPLICATION
@@ -293,7 +316,10 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
    tmp_write_to_binlog= 0;
    mysql_mutex_lock(&LOCK_active_mi);
    if (reset_slave(thd, active_mi))
-     result=1;
+   {
+     /* NOTE: my_error() has been already called by reset_slave(). */
+     result= 1;
+   }
    mysql_mutex_unlock(&LOCK_active_mi);
  }
 #endif

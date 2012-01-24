@@ -40,5 +40,5 @@ select @@global.aria_repair_threads;
 set session aria_repair_threads=cast(-1 as unsigned int);
 select @@session.aria_repair_threads;
 @@session.aria_repair_threads
-18446744073709551615
+128
 SET @@global.aria_repair_threads = @start_global_value;

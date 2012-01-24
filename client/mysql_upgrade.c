@@ -1,5 +1,7 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
-   Copyright (C) 2010 Monty Program Ab
+/*
+   Copyright (C) 2000 MySQL AB
+   Copyright (c) 2006, 2011, Oracle and/or its affiliates.
+   Copyright (C) 2010-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -248,7 +250,6 @@ get_one_option(int optid, const struct my_option *opt,
   switch (optid) {
 
   case '?':
-    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
     printf("%s  Ver %s Distrib %s, for %s (%s)\n",
            my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
     puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
@@ -302,10 +303,9 @@ get_one_option(int optid, const struct my_option *opt,
     opt_verbose= 0;
     add_option= 0;
     break;
-  case 's':
-    add_option= 0;
-    break;
   case 'f': /* --force     */
+  case 's':                                     /* --upgrade-system-tables */
+  case OPT_WRITE_BINLOG:                        /* --write-binlog */
     add_option= FALSE;
     break;
 

@@ -3431,7 +3431,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
           }
           if (!f_is_geom(sql_field->pack_flag))
           {
-            my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
+            my_error(ER_WRONG_ARGUMENTS, MYF(0), "SPATIAL INDEX");
             DBUG_RETURN(TRUE);
           }
         }
@@ -4674,6 +4674,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     goto err;
   src_table->table->use_all_columns();
 
+  DEBUG_SYNC(thd, "create_table_like_after_open");
+
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
   bzero((char*) &local_create_info, sizeof(local_create_info));
   local_create_info.db_type= src_table->table->s->db_type();
@@ -4722,6 +4724,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
                                              table->table_name,
                                              MDL_EXCLUSIVE));
+
+  DEBUG_SYNC(thd, "create_table_like_before_binlog");
+
   /*
     We have to write the query before we unlock the tables.
   */
@@ -5873,7 +5878,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   TABLE *table_for_fast_alter_partition= NULL;
   bool partition_changed= FALSE;
 #endif
-  bool need_lock_for_indexes= TRUE;
+  bool need_lock_for_indexes __attribute__((unused)) = TRUE;
   KEY  *key_info_buffer;
   uint index_drop_count= 0;
   uint *index_drop_buffer= NULL;
@@ -6140,7 +6145,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     case ENABLE:
       if (wait_while_table_is_used(thd, table, extra_func))
         goto err;
-      DBUG_EXECUTE_IF("sleep_alter_enable_indexes", my_sleep(6000000););
+      DEBUG_SYNC(thd,"alter_table_enable_indexes");
       error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       break;
     case DISABLE:

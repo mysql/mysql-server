@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -749,6 +750,7 @@ bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *derived)
     if (!derived->is_merged_derived())
     {
       JOIN *join= first_select->join;
+      unit->set_limit(first_select);
       unit->optimized= TRUE;
       if ((res= join->optimize()))
         goto err;

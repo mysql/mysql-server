@@ -2,11 +2,13 @@
 # and run a number of tests
 
 -- source include/have_pool_of_threads.inc
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 # Slow test, don't run during staging part
 -- source include/not_staging.inc
 -- source include/long_test.inc
 -- source include/common-tests.inc
-
+SET optimizer_switch=@save_optimizer_switch;
 
 # Test that we cannot have more simultaneous connections than
 # --thread-pool-size on the standard port, but _can_ have additional

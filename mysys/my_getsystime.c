@@ -26,6 +26,11 @@ static ulonglong query_performance_frequency;
 #include <linux/unistd.h>
 #endif
 
+/* For CYGWIN */
+#if !defined(CLOCK_THREAD_CPUTIME_ID) && defined(CLOCK_THREAD_CPUTIME)
+#define CLOCK_THREAD_CPUTIME_ID CLOCK_THREAD_CPUTIME
+#endif
+
 /*
   return number of nanoseconds since unspecified (but always the same)
   point in the past
@@ -113,6 +118,7 @@ void my_time_init()
 
 ulonglong my_getcputime()
 {
+#ifdef CLOCK_THREAD_CPUTIME_ID
 #ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;
   if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp))
@@ -123,7 +129,8 @@ ulonglong my_getcputime()
   if (syscall(__NR_clock_gettime, CLOCK_THREAD_CPUTIME_ID, &tp))
     return 0;
   return (ulonglong)tp.tv_sec*10000000+(ulonglong)tp.tv_nsec/100;
-#else
-  return 0;
 #endif /* HAVE_CLOCK_GETTIME */
+#else /* HAVE_THREAD_CPUTIME_ID */
+  return 0;
+#endif 
 }

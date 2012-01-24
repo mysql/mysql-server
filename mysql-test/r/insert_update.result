@@ -379,7 +379,6 @@ INSERT IGNORE INTO t1 (id,c1) SELECT 1,NULL
 ON DUPLICATE KEY UPDATE c1=NULL, cnt=cnt+1;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
-Error	1048	Column 'c1' cannot be null
 SELECT * FROM t1;
 id	c1	cnt
 1	0	2
@@ -387,7 +386,6 @@ INSERT IGNORE INTO t1 (id,c1) SELECT * FROM t2
 ON DUPLICATE KEY UPDATE c1=NULL, cnt=cnt+1;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
-Error	1048	Column 'c1' cannot be null
 SELECT * FROM t1;
 id	c1	cnt
 1	0	3

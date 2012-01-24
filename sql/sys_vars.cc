@@ -1147,6 +1147,12 @@ static Sys_var_ulonglong Sys_max_heap_table_size(
        VALID_RANGE(16384, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1024));
 
+static Sys_var_ulong Sys_metadata_locks_cache_size(
+       "metadata_locks_cache_size", "Size of unused metadata locks cache",
+       READ_ONLY GLOBAL_VAR(mdl_locks_cache_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, 1024*1024), DEFAULT(MDL_LOCKS_CACHE_SIZE_DEFAULT),
+       BLOCK_SIZE(1));
+
 /*
   "pseudo_thread_id" variable used in the test suite to detect 32/64bit
   systems.  If you change it to something else then ulong then fix the tests
@@ -1825,6 +1831,17 @@ static Sys_var_enum Sys_thread_handling(
  );
 
 #ifdef HAVE_QUERY_CACHE
+static bool check_query_cache_size(sys_var *self, THD *thd, set_var *var)
+{
+  if (global_system_variables.query_cache_type == 0 &&
+      var->value && var->value->val_int() != 0)
+  {
+    my_error(ER_QUERY_CACHE_DISABLED, MYF(0));
+    return true;
+  }
+
+  return false;
+}
 static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
   ulong new_cache_size= query_cache.resize(query_cache_size);
@@ -1845,7 +1862,7 @@ static Sys_var_ulonglong Sys_query_cache_size(
        "The memory allocated to store results from old queries",
        GLOBAL_VAR(query_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONGLONG_MAX), DEFAULT(0), BLOCK_SIZE(1024),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_query_cache_size),
        ON_UPDATE(fix_query_cache_size));
 
 static Sys_var_ulong Sys_query_cache_limit(
@@ -1873,7 +1890,7 @@ static bool check_query_cache_type(sys_var *self, THD *thd, set_var *var)
 {
   if (query_cache.is_disable_in_progress())
   {
-    my_error(ER_QUERY_CACHE_DISABLED, MYF(0));
+    my_error(ER_QUERY_CACHE_IS_DISABLED, MYF(0));
     return true;
   }
   if (var->type != OPT_GLOBAL &&
@@ -3430,7 +3447,7 @@ static Sys_var_ulong Sys_join_cache_level(
        "numbers are used for plain join buffers while even numbers are used "
        "for linked buffers",
        SESSION_VAR(join_cache_level), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, 8), DEFAULT(1), BLOCK_SIZE(1));
+       VALID_RANGE(0, 8), DEFAULT(2), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_mrr_buffer_size(
        "mrr_buffer_size",

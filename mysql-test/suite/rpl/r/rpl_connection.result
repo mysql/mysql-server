@@ -1,0 +1,11 @@
+include/master-slave.inc
+[connection master]
+call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= '', MASTER_PASSWORD= '';
+START SLAVE;
+include/wait_for_slave_io_error.inc [errno=1045, 1593]
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD= '';
+START SLAVE;
+include/rpl_end.inc

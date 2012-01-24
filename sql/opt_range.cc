@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2011, Monty Program Ab
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11592,6 +11592,11 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
          except MIN and MAX. For queries with DISTINCT, aggregate functions
          are allowed.
     SA5. The select list in DISTINCT queries should not contain expressions.
+    SA6. Clustered index can not be used by GROUP_MIN_MAX quick select
+         for AGG_FUNC(DISTINCT ...) optimization because cursor position is
+         never stored after a unique key lookup in the clustered index and
+         furhter index_next/prev calls can not be used. So loose index scan
+         optimization can not be used in this case.
     GA1. If Q has a GROUP BY clause, then GA is a prefix of I. That is, if
          G_i = A_j => i = j.
     GA2. If Q has a DISTINCT clause, then there is a permutation of SA that
@@ -11708,6 +11713,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
     DBUG_RETURN(NULL);
   if (table->s->keys == 0)        /* There are no indexes to use. */
     DBUG_RETURN(NULL);
+  if (join->conds && join->conds->used_tables() & OUTER_REF_TABLE_BIT)
+    DBUG_RETURN(NULL); /* Cannot execute with correlated conditions. */
 
   /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/
   if (join->make_sum_func_list(join->all_fields, join->fields_list, 1))
@@ -12082,6 +12089,13 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       !check_group_min_max_predicates(join->conds, min_max_arg_item,
                                       (index_info->flags & HA_SPATIAL) ?
                                       Field::itMBR : Field::itRAW))
+    DBUG_RETURN(NULL);
+
+  /*
+    Check (SA6) if clustered key is used
+  */
+  if (is_agg_distinct && index == table->s->primary_key &&
+      table->file->primary_key_is_clustered())
     DBUG_RETURN(NULL);
 
   /* The query passes all tests, so construct a new TRP object. */
@@ -13053,6 +13067,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   int result;
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
+  seen_first_key= FALSE;
   if (!head->key_read)
   {
     doing_key_read= 1;

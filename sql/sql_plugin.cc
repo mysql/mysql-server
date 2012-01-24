@@ -3112,8 +3112,9 @@ bool sys_var_pluginvar::session_update(THD *thd, set_var *var)
   const void *src= var->value ? (void*)&var->save_result
                               : (void*)real_value_ptr(thd, OPT_GLOBAL);
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  plugin_var->update(thd, plugin_var, tgt, src);
 
+  plugin_var->update(thd, plugin_var, tgt, src);
+ 
   return false;
 }
 
@@ -3176,7 +3177,6 @@ bool sys_var_pluginvar::global_update(THD *thd, set_var *var)
   }
 
   plugin_var->update(thd, plugin_var, tgt, src);
-
   return false;
 }
 

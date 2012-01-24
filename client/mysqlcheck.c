@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+/* Copyright (C) 2000 MySQL AB & Jani Tolonen
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates.
    Copyright (C) 2010-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -24,7 +25,6 @@
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sslopt-vars.h>
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 /* Exit codes */
 
@@ -229,7 +229,9 @@ static void usage(void)
 {
   DBUG_ENTER("usage");
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts("By Jani Tolonen, 2001-04-20, MySQL Development Team.\n");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
+  puts("and you are welcome to modify and redistribute it under the GPL license.\n");
   printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
   printf("OR     %s [OPTIONS] --databases DB1 [DB2 DB3...]\n",
 	 my_progname);

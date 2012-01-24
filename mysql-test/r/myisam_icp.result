@@ -410,6 +410,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY,k1	k1	5	NULL	4	Using where
 DROP TABLE t1;
 #
+#
 # Bug#59259 "Incorrect rows returned for a correlated subquery
 #            when ICP is on"
 #
@@ -434,8 +435,8 @@ SELECT * FROM t1
 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON it.i=it.i WHERE it.pk-t1.i<10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	t2	index	NULL	PRIMARY	4	NULL	3	Using index
 2	DEPENDENT SUBQUERY	it	eq_ref	PRIMARY	PRIMARY	4	func	1	Using index condition
+2	DEPENDENT SUBQUERY	t2	index	NULL	PRIMARY	4	NULL	3	Using where; Using index; Using join buffer (flat, BNL join)
 SELECT * FROM t1
 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON it.i=it.i WHERE it.pk-t1.i<10);
 pk	i
@@ -705,6 +706,112 @@ SET SESSION optimizer_switch='index_condition_pushdown=on';
 SELECT a FROM t1 WHERE c IS NULL AND d IS NOT NULL GROUP BY 1;
 a
 DROP TABLE t1;
+#
+# Bug#904832: an attempt to perform an index condition pushdown  
+#             of a condition containing a subquery
+#
+CREATE TABLE t1 ( 
+a INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+b INT, c INT, d DATE NOT NULL, e VARCHAR(1),
+KEY (c), KEY (d), KEY k2(b), KEY k3(b), KEY k4(b)
+);
+INSERT INTO t1 (b,c,d,e) VALUES
+(6,5,'2006-05-25','y'),(1,5,'2008-01-23','t'),
+(6,5,'2007-06-18','d'),(4,5,'1900-01-01','r'),
+(8,5,'1900-01-01','m'),(4,5,'2006-03-09','b'),
+(4,5,'2001-06-05','x'),(1,5,'2008-01-23','t'),
+(6,5,'2007-06-18','d'),(4,5,'1900-01-01','r'),
+(8,5,'1900-01-01','m'),(4,5,'2006-03-09','b'),
+(4,5,'2001-06-05','x'),(1,5,'2008-01-23','t'),
+(4,5,'1900-01-01','r'),(8,5,'1900-01-01','m'),
+(4,5,'2006-03-09','b'),(4,5,'2001-06-05','x'),
+(1,5,'2008-01-23','t'),(6,5,'2007-06-18','d'),
+(4,5,'1900-01-01','r'),(8,5,'1900-01-01','m'),
+(4,5,'2006-03-09','b'),(4,5,'2001-06-05','f'),
+(4,5,'2001-06-05','x'),(8,5,'1900-01-01','m'),
+(4,5,'2006-03-09','b'),(4,5,'2001-06-05','x'),
+(1,5,'2008-01-23','t'),(6,5,'2007-06-18','d'),
+(4,5,'1900-01-01','r'),(8,5,'1900-01-01','m'),
+(4,5,'2006-03-09','b'),(6,5,'2007-06-18','d'),
+(6,5,'2007-06-18','d'),(4,5,'1900-01-01','r'),
+(8,5,'1900-01-01','m'),(4,5,'2006-03-09','b'),
+(6,5,'2007-06-18','d'),(4,5,'1900-01-01','r'),
+(8,5,'1900-01-01','m'),(4,5,'2006-03-09','b'),
+(4,5,'2006-03-09','b'),(4,5,'2001-06-05','x'),
+(1,5,'2008-01-23','t'),(6,5,'2007-06-18','d'),
+(4,5,'1900-01-01','r'),(8,5,'1900-01-01','m'),
+(4,5,'2006-03-09','b'),(4,5,'2001-06-05','x'),
+(4,5,'2001-06-05','x'),(1,5,'2008-01-23','t'),
+(6,5,'2007-06-18','d'),(4,5,'1900-01-01','r'),
+(8,5,'1900-01-01','m'),(4,5,'2006-03-09','b'),
+(4,5,'2001-06-05','x'),(1,5,'2008-01-23','t'),
+(6,5,'2007-06-18','d'),(4,1,'1900-01-01','r'),
+(8,8,'1900-01-01','m'),(4,1,'2006-03-09','b'),
+(4,1,'2001-06-05','x'),(7,1,'2006-05-28','g');
+CREATE TABLE t2 (
+f INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+g INT,
+h VARCHAR(1),
+KEY (g)
+);
+INSERT INTO t2 (g,h) VALUES
+(3,'e'),(1,'u'),(4,'v'),(9,'u'),(6,'i'),(1,'x'),
+(5,'l'),(8,'y'),(0,'p'),(0,'f'),(0,'p'),(7,'d'),
+(7,'f'),(5,'j'),(3,'e'),(1,'u'),(4,'v'),(9,'u'),
+(6,'i'),(1,'x'),(5,'l'),(8,'y'),(0,'p'),(0,'f'),
+(0,'p'),(0,'f'),(0,'p'),(7,'d'),(7,'f'),(5,'j'),
+(3,'e'),(1,'u'),(4,'v'),(9,'u'),(6,'i'),(1,'x'),
+(7,'d'),(7,'f'),(5,'j'),(3,'e'),(1,'u'),(4,'v'),
+(9,'u'),(6,'i'),(1,'x'),(5,'l'),(8,'y'),(0,'p'),
+(0,'f'),(0,'p'),(7,'d'),(7,'f'),(5,'j'),(3,'e'),
+(1,'u'),(4,'v'),(9,'u'),(6,'i'),(1,'x'),(5,'l'),
+(6,'q'),(2,'n'),(4,'r'),(4,'b'),(8,'y'),(0,'p'),
+(0,'f'),(0,'p'),(7,'d'),(7,'f'),(5,'j'),(3,'e'),
+(1,'u'),(4,'v'),(9,'u'),(6,'i'),(1,'x'),(5,'l'),
+(8,'y'),(0,'p'),(0,'f'),(0,'p'),(7,'d'),(7,'f'),
+(5,'j'),(3,'e'),(1,'u'),(4,'v'),(9,'u'),(6,'i'),
+(1,'x'),(5,'l'),(8,'y'),(0,'p'),(0,'f'),(0,'p'),
+(0,'f'),(0,'p'),(7,'d'),(7,'f'),(5,'j'),(3,'e'),
+(1,'u'),(4,'v'),(9,'u'),(6,'i'),(1,'x'),(7,'d'),
+(7,'f'),(5,'j'),(3,'e'),(1,'u'),(0,'f'),(0,'p'),
+(7,'d'),(7,'f'),(5,'j'),(3,'e'),(1,'u'),(4,'v'),
+(9,'u'),(6,'i'),(1,'x'),(5,'l'),(8,'y'),(0,'p'),
+(0,'f'),(0,'p'),(0,'f'),(0,'p'),(7,'d'),(7,'f'),
+(5,'j'),(3,'e'),(1,'u'),(4,'v'),(9,'u'),(6,'i'),
+(1,'x'),(7,'d'),(7,'f'),(5,'j'),(3,'e'),(1,'u'),
+(4,'v'),(9,'u'),(6,'i'),(1,'x'),(5,'l'),(8,'y'),
+(0,'p'),(0,'f'),(0,'p'),(7,'d'),(7,'f'),(5,'j'),
+(3,'e'),(1,'u'),(4,'v'),(9,'u'),(6,'i'),(1,'x'),
+(5,'l'),(6,'q'),(2,'n'),(4,'r'),(4,'b'),(8,'y'),
+(0,'p'),(0,'f'),(0,'p'),(7,'d'),(7,'f'),(5,'j'),
+(3,'e'),(1,'u'),(4,'v'),(9,'u'),(6,'i'),(1,'x'),
+(7,'f'),(5,'j'),(3,'e'),(1,'u'),(4,'v'),(9,'u');
+SET @save_optimize_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on';
+EXPLAIN
+SELECT COUNT(*) FROM t1 AS t, t2
+WHERE c = g
+AND (EXISTS (SELECT * FROM t1, t2 WHERE a = f  AND h <= t.e AND a > t.b)
+OR a = 0 AND h < 'z' );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t	ALL	PRIMARY,c	NULL	NULL	NULL	64	Using where
+1	PRIMARY	t2	ref	g	g	5	test.t.c	19	Using where
+2	DEPENDENT SUBQUERY	t1	index	PRIMARY	PRIMARY	4	NULL	64	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using index condition; Using where
+SELECT COUNT(*) FROM t1 AS t, t2
+WHERE c = g
+AND (EXISTS (SELECT * FROM t1, t2 WHERE a = f  AND h <= t.e AND a > t.b)
+OR a = 0 AND h < 'z' );
+COUNT(*)
+1478
+SELECT COUNT(*) FROM t1 AS t, t2
+WHERE c = g
+AND (EXISTS (SELECT * FROM t1, t2 WHERE a = f  AND h <= t.e AND a > t.b)
+OR a = 0 AND h < 'z' );
+COUNT(*)
+1478
+SET optimizer_switch=@save_optimizer_switch;
+DROP TABLE t1,t2;
 drop table if exists t0, t1, t1i, t1m;
 #
 # BUG#826935 Assertion `!table || (!table->read_set || bitmap_is_set(table->read_set, field_index))' failed
@@ -755,6 +862,8 @@ INSERT INTO t3 VALUES ('c');
 CREATE TABLE t4 ( b int, c varchar(1), KEY (b));
 INSERT INTO t4 VALUES (7,'c');
 INSERT INTO t4 VALUES (7,'c');
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 # Must be t1,t2,t3,t4, with t4 having Full-scan-on-NULL but not Using index condition
 explain 
 SELECT * FROM t1 LEFT JOIN t2 ON t1.c=t2.b
@@ -763,8 +872,8 @@ t2.b NOT IN (SELECT t4.b FROM t3 STRAIGHT_JOIN t4 WHERE t4.b <= 2 AND t4.c = t3.
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
-2	SUBQUERY	t4	range	b	b	5	NULL	1	Using index condition; Using where; Rowid-ordered scan; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	t4	range	b	b	5	NULL	1	Using index condition; Using where; Rowid-ordered scan; Using join buffer (flat, BNL join)
 SELECT * FROM t1 LEFT JOIN t2 ON t1.c=t2.b
 WHERE 
 t2.b NOT IN (SELECT t4.b FROM t3 STRAIGHT_JOIN t4 WHERE t4.b <= 2 AND t4.c = t3.c);
@@ -776,5 +885,6 @@ Warning	1292	Truncated incorrect DOUBLE value: 'c'
 Warning	1292	Truncated incorrect DOUBLE value: 'c'
 Warning	1292	Truncated incorrect DOUBLE value: 'c'
 Warning	1292	Truncated incorrect DOUBLE value: 'c'
+SET optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1,t2,t3,t4;
 set optimizer_switch=@myisam_icp_tmp;

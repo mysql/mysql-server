@@ -6270,8 +6270,7 @@ ER_SLAVE_IGNORE_SERVER_IDS
   eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
   ger "Die angeforderte Server-ID %d steht im Konflikt mit der Startoption --replicate-same-server-id für den Slave"
 ER_QUERY_CACHE_DISABLED
-  eng "Query cache is disabled; restart the server with query_cache_type=1 to enable it"
-  ger "Abfragen-Cache ist deaktiviert. Starten Sie den Server neu mit query_cache_type=1, um ihn zu aktivieren"
+  eng "Query cache is disabled; set query_cache_type to ON or DEMAND to enable it"
 ER_SAME_NAME_PARTITION_FIELD
   eng "Duplicate partition field name '%-.192s'"
   ger "Partitionsfeld '%-.192s' ist ein Duplikat"
@@ -6371,7 +6370,7 @@ ER_DATA_OUT_OF_RANGE 22003
   eng "%s value is out of range in '%s'"
 
 ER_WRONG_SPVAR_TYPE_IN_LIMIT
-  eng "A variable of a non-integer type in LIMIT clause"
+  eng "A variable of a non-integer based type in LIMIT clause"
 
 ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
   eng "Mixing self-logging and non-self-logging engines in a statement is unsafe."
@@ -6558,3 +6557,4 @@ ER_CONNECTION_KILLED 70100
         eng "Connection was killed"
 ER_INTERNAL_ERROR
         eng "Internal error: '%-.192s'"
+

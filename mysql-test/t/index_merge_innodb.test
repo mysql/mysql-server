@@ -67,6 +67,8 @@ INSERT INTO t1(a,b) SELECT a,b FROM t1;
 INSERT INTO t1 VALUES (1000000, 0, 0);
 
 SET SESSION sort_buffer_size = 1024*36;
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 
 # We have to use FORCE INDEX here as Innodb gives inconsistent estimates
 # which causes different query plans.
@@ -88,6 +90,7 @@ SELECT COUNT(*) FROM
      WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 
 DROP TABLE t1;
+set optimizer_switch=@tmp_optimizer_switch;
 
 --echo #
 --echo # Testcase Backport: BUG#48093: 6.0 Server not processing equivalent IN clauses properly

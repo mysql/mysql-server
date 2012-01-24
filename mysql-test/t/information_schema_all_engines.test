@@ -8,6 +8,8 @@
 --source include/not_staging.inc
 
 use INFORMATION_SCHEMA;
+--replace_result Tables_in_INFORMATION_SCHEMA Tables_in_information_schema
+--sorted_result
 show tables;
 
 #
@@ -27,7 +29,7 @@ SELECT t.table_name, c1.column_name
             WHERE c2.table_schema = t.table_schema AND
                   c2.table_name = t.table_name AND
                   c2.column_name LIKE '%SCHEMA%'
-        );
+        ) order by t.table_name;
 SELECT t.table_name, c1.column_name
   FROM information_schema.tables t
        INNER JOIN
@@ -41,7 +43,7 @@ SELECT t.table_name, c1.column_name
             WHERE c2.table_schema = 'information_schema' AND
                   c2.table_name = t.table_name AND
                   c2.column_name LIKE '%SCHEMA%'
-        );
+        ) order by t.table_name;
 
 #
 # Bug#24630  Subselect query crashes mysqld
@@ -69,8 +71,11 @@ group by t.table_name order by num1, t.table_name;
 #
 # Bug #19147: mysqlshow INFORMATION_SCHEMA does not work
 #
+--sorted_result
 --exec $MYSQL_SHOW information_schema
+--sorted_result
 --exec $MYSQL_SHOW INFORMATION_SCHEMA
+--sorted_result
 --exec $MYSQL_SHOW inf_rmation_schema
 
 #

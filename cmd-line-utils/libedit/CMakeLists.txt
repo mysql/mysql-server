@@ -100,6 +100,11 @@ IF(NOT HAVE_FGETLN)
   SET(LIBEDIT_EXTRA_SOURCES ${LIBEDIT_EXTRA_SOURCES} np/fgetln.c)
 ENDIF()
 
+CHECK_FUNCTION_EXISTS(fgetln HAVE_WCSDUP)
+IF(NOT HAVE_WCSDUP)
+  SET(LIBEDIT_EXTRA_SOURCES ${LIBEDIT_EXTRA_SOURCES} np/wcsdup.c)
+ENDIF()
+
 # Generate headers
 FOREACH(SRCBASENAME  vi emacs common)
   SET(SRC ${CMAKE_CURRENT_SOURCE_DIR}/${SRCBASENAME}.c)
@@ -151,23 +156,27 @@ ${CURSES_INCLUDE_PATH}
 
 SET(LIBEDIT_SOURCES
   chared.c 
+  chartype.c
   el.c 
+  eln.c 
   history.c
+  historyn.c
   map.c
   prompt.c
   readline.c 
   search.c
   tokenizer.c
+  tokenizern.c
   vi.c
   common.c
   emacs.c 
   hist.c
-  key.c
+  keymacro.c
   parse.c
   read.c
   refresh.c
   sig.c
-  term.c
+  terminal.c
   tty.c
   filecomplete.c
   ${CMAKE_CURRENT_BINARY_DIR}/help.c

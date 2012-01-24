@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009-2011 Monty Program Ab.
+   Copyright (c) 2009-2012 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,14 @@
   http://dev.mysql.com/doc/mysqltest/en/index.html
 
   Please keep the test framework tools identical in all versions!
+
+  Written by:
+  Sasha Pachev <sasha@mysql.com>
+  Matt Wagner  <matt@mysql.com>
+  Monty
+  Jani
+  Holyfoot
+  And many others
 */
 
 #define MTEST_VERSION "3.3"
@@ -45,8 +53,6 @@
 #endif
 #include <signal.h>
 #include <my_stacktrace.h>
-
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #ifdef __WIN__
 #include <crtdbg.h>
@@ -520,6 +526,31 @@ struct st_command *curr_command= 0;
 
 char builtin_echo[FN_REFLEN];
 
+struct st_replace_regex
+{
+DYNAMIC_ARRAY regex_arr; /* stores a list of st_regex subsitutions */
+
+/*
+Temporary storage areas for substitutions. To reduce unnessary copying
+and memory freeing/allocation, we pre-allocate two buffers, and alternate
+their use, one for input/one for output, the roles changing on the next
+st_regex substition. At the end of substitutions  buf points to the
+one containing the final result.
+*/
+char* buf;
+char* even_buf;
+char* odd_buf;
+int even_buf_len;
+int odd_buf_len;
+};
+
+struct st_replace_regex *glob_replace_regex= 0;
+
+struct st_replace;
+struct st_replace *glob_replace= 0;
+void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
+const char *from, int len);
+
 static void cleanup_and_exit(int exit_code) __attribute__((noreturn));
 
 void die(const char *fmt, ...)
@@ -549,6 +580,7 @@ void str_to_file2(const char *fname, char *str, int size, my_bool append);
 
 void fix_win_paths(const char *val, int len);
 const char *get_errname_from_code (uint error_code);
+int multi_reg_replace(struct st_replace_regex* r,char* val);
 
 #ifdef __WIN__
 void free_tmp_sh_file();
@@ -762,7 +794,8 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
                                int len);
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
 void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val);
-void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING* ds_input);
+void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING* ds_input,
+                          bool keep_header);
 
 static int match_expected_error(struct st_command *command,
                                 unsigned int err_errno,
@@ -2508,7 +2541,23 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
       if (row[i])
       {
         /* Add column to tab separated string */
-	dynstr_append_mem(&result, row[i], lengths[i]);
+	char *val= row[i];
+	int len= lengths[i];
+	
+	if (glob_replace_regex)
+	{
+	  /* Regex replace */
+	  if (!multi_reg_replace(glob_replace_regex, (char*)val))
+	  {
+	    val= glob_replace_regex->buf;
+	    len= strlen(val);
+	  }
+	}
+	
+	if (glob_replace)
+	  replace_strings_append(glob_replace, &result, val, len);
+	else
+	  dynstr_append_mem(&result, val, len);
       }
       dynstr_append_mem(&result, "\t", 1);
     }
@@ -3014,6 +3063,7 @@ void do_exec(struct st_command *command)
   FILE *res_file;
   char *cmd= command->first_argument;
   DYNAMIC_STRING ds_cmd;
+  DYNAMIC_STRING ds_sorted, *ds_result;
   DBUG_ENTER("do_exec");
   DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
@@ -3059,6 +3109,13 @@ void do_exec(struct st_command *command)
     die("popen(\"%s\", \"r\") failed", command->first_argument);
   }
 
+  ds_result= &ds_res;
+  if (display_result_sorted)
+  {
+    init_dynamic_string(&ds_sorted, "", 1024, 1024);
+    ds_result= &ds_sorted;
+  }
+
   while (fgets(buf, sizeof(buf), res_file))
   {
     if (disable_result_log)
@@ -3068,10 +3125,17 @@ void do_exec(struct st_command *command)
     }
     else
     {
-      replace_dynstr_append(&ds_res, buf);
+      replace_dynstr_append(ds_result, buf);
     }
   }
   error= pclose(res_file);
+
+  if (display_result_sorted)
+  {
+    dynstr_append_sorted(&ds_res, &ds_sorted, 0);
+    dynstr_free(&ds_sorted);
+  }
+
   if (error > 0)
   {
     uint status= WEXITSTATUS(error);
@@ -3304,7 +3368,7 @@ void do_remove_file(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("removing file: %s", ds_filename.str));
-  error= my_delete(ds_filename.str, MYF(disable_warnings ? 0 : MY_WME)) != 0;
+  error= my_delete_allow_opened(ds_filename.str, MYF(disable_warnings ? 0 : MY_WME)) != 0;
   handle_command_error(command, error, my_errno);
   dynstr_free(&ds_filename);
   DBUG_VOID_RETURN;
@@ -3422,8 +3486,9 @@ void do_copy_file(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("Copy %s to %s", ds_from_file.str, ds_to_file.str));
+  /* MY_HOLD_ORIGINAL_MODES prevents attempts to chown the file */
   error= (my_copy(ds_from_file.str, ds_to_file.str,
-                  MYF(MY_DONT_OVERWRITE_FILE | MY_WME)) != 0);
+                  MYF(MY_DONT_OVERWRITE_FILE | MY_WME | MY_HOLD_ORIGINAL_MODES)) != 0);
   handle_command_error(command, error, my_errno);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
@@ -4919,6 +4984,7 @@ void do_get_errcodes(struct st_command *command)
   struct st_match_err *to= saved_expected_errors.err;
   char *p= command->first_argument;
   uint count= 0;
+  char *next;
 
   DBUG_ENTER("do_get_errcodes");
 
@@ -4937,6 +5003,17 @@ void do_get_errcodes(struct st_command *command)
     end= p;
     while (*end && *end != ',' && *end != ' ')
       end++;
+
+    next=end;
+
+    /* code to handle variables passed to mysqltest */
+     if( *p == '$')
+     {
+        const char* fin;
+        VAR *var = var_get(p,&fin,0,0);
+        p=var->str_val;
+        end=p+var->str_val_len;
+     }
 
     if (*p == 'S')
     {
@@ -5012,7 +5089,7 @@ void do_get_errcodes(struct st_command *command)
       die("Too many errorcodes specified");
 
     /* Set pointer to the end of the last error code */
-    p= end;
+    p= next;
 
     /* Find next ',' */
     while (*p && *p != ',')
@@ -6625,7 +6702,8 @@ void print_version(void)
 void usage()
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  printf("MySQL AB, by Sasha, Matt, Monty & Jani and others\n");
+  printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
   my_print_help(my_long_options);
@@ -8098,7 +8176,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   if (display_result_sorted)
   {
     /* Sort the result set and append it to result */
-    dynstr_append_sorted(save_ds, &ds_sorted);
+    dynstr_append_sorted(save_ds, &ds_sorted, 1);
     ds= save_ds;
     dynstr_free(&ds_sorted);
   }
@@ -8601,6 +8679,9 @@ int main(int argc, char **argv)
 
   if (opt_protocol)
     mysql_options(con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(con->mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
@@ -9248,15 +9329,10 @@ typedef struct st_pointer_array {		/* when using array-strings */
   uint	array_allocs,max_count,length,max_length;
 } POINTER_ARRAY;
 
-struct st_replace;
 struct st_replace *init_replace(char * *from, char * *to, uint count,
 				char * word_end_chars);
 int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name);
-void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
-                            const char *from, int len);
 void free_pointer_array(POINTER_ARRAY *pa);
-
-struct st_replace *glob_replace;
 
 /*
   Get arguments for replace. The syntax is:
@@ -9400,26 +9476,6 @@ struct st_regex
   char* replace; /* String or expression to replace the pattern with */
   int icase; /* true if the match is case insensitive */
 };
-
-struct st_replace_regex
-{
-  DYNAMIC_ARRAY regex_arr; /* stores a list of st_regex subsitutions */
-
-  /*
-    Temporary storage areas for substitutions. To reduce unnessary copying
-    and memory freeing/allocation, we pre-allocate two buffers, and alternate
-    their use, one for input/one for output, the roles changing on the next
-    st_regex substition. At the end of substitutions  buf points to the
-    one containing the final result.
-  */
-  char* buf;
-  char* even_buf;
-  char* odd_buf;
-  int even_buf_len;
-  int odd_buf_len;
-};
-
-struct st_replace_regex *glob_replace_regex= 0;
 
 int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replace,
                 char *string, int icase);
@@ -9619,7 +9675,13 @@ void do_get_replace_regex(struct st_command *command)
 {
   char *expr= command->first_argument;
   free_replace_regex();
-  if (!(glob_replace_regex=init_replace_regex(expr)))
+  /* Allow variable for the *entire* list of replacements */
+  if (*expr == '$') 
+  {
+    VAR *val= var_get(expr, NULL, 0, 1);
+    expr= val ? val->str_val : NULL;
+  }
+  if (expr && *expr && !(glob_replace_regex=init_replace_regex(expr)))
     die("Could not init replace_regex");
   command->last_argument= command->end;
 }
@@ -10495,17 +10557,16 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val)
 }
 
 
-
 /*
   Build a list of pointer to each line in ds_input, sort
   the list and use the sorted list to append the strings
   sorted to the output ds
 
   SYNOPSIS
-  dynstr_append_sorted
-  ds - string where the sorted output will be appended
-  ds_input - string to be sorted
-
+  dynstr_append_sorted()
+  ds           string where the sorted output will be appended
+  ds_input     string to be sorted
+  keep_header  If header should not be sorted
 */
 
 static int comp_lines(const char **a, const char **b)
@@ -10513,7 +10574,8 @@ static int comp_lines(const char **a, const char **b)
   return (strcmp(*a,*b));
 }
 
-void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
+void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input,
+                          bool keep_header)
 {
   unsigned i;
   char *start= ds_input->str;
@@ -10525,11 +10587,14 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
 
   my_init_dynamic_array(&lines, sizeof(const char*), 32, 32);
 
-  /* First line is result header, skip past it */
-  while (*start && *start != '\n')
-    start++;
-  start++; /* Skip past \n */
-  dynstr_append_mem(ds, ds_input->str, start - ds_input->str);
+  if (keep_header)
+  {
+    /* First line is result header, skip past it */
+    while (*start && *start != '\n')
+      start++;
+    start++; /* Skip past \n */
+    dynstr_append_mem(ds, ds_input->str, start - ds_input->str);
+  }
 
   /* Insert line(s) in array */
   while (*start)
@@ -10578,3 +10643,32 @@ static int setenv(const char *name, const char *value, int overwrite)
   return 0;
 }
 #endif
+
+/*
+  for the purpose of testing (see dialog.test)
+  we replace default mysql_authentication_dialog_ask function with the one,
+  that always reads from stdin with explicit echo.
+
+*/
+MYSQL_PLUGIN_EXPORT
+char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
+                                      const char *prompt,
+                                      char *buf, int buf_len)
+{
+  char *s=buf;
+
+  fputs(prompt, stdout);
+  fputs(" ", stdout);
+
+  if (!fgets(buf, buf_len-1, stdin))
+    buf[0]= 0;
+  else if (buf[0] && (s= strend(buf))[-1] == '\n')
+    s[-1]= 0;
+
+  for (s= buf; *s; s++)
+    fputc(type == 2 ? '*' : *s, stdout);
+
+  fputc('\n', stdout);
+
+  return buf;
+}

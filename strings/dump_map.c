@@ -1,4 +1,5 @@
 /* Copyright (c) 2003, 2004, 2006 MySQL AB
+   Copyright (c) 2009-2011, Monty Program Ab
    Use is subject to license terms.
    Copyright (c) 2009-2011, Monty Program Ab
 

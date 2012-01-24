@@ -1,0 +1,9 @@
+usr/bin/mysql_client_test
+usr/bin/mysql_client_test_embedded
+usr/bin/mysqltest_embedded
+usr/share/man/man1/mysql_client_test.1
+usr/share/man/man1/mysql_client_test_embedded.1
+usr/bin/mysqltest
+usr/share/man/man1/mysqltest.1
+usr/share/man/man1/mysqltest_embedded.1
+usr/share/mysql/mysql-test

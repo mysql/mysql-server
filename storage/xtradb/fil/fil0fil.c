@@ -3486,7 +3486,7 @@ skip_info:
 				}
 
 				if (page_is_corrupt) {
-					fprintf(stderr, " [errp:%lld]", offset / (zip_size ? zip_size : UNIV_PAGE_SIZE));
+					fprintf(stderr, " [errp:%ld]", (long)(offset / (zip_size ? zip_size : UNIV_PAGE_SIZE)));
 
 					/* cannot treat corrupt page */
 					goto skip_write;
@@ -3499,8 +3499,8 @@ skip_info:
 						if (offset / (zip_size ? zip_size : UNIV_PAGE_SIZE) == root_page[i]) {
 							if (fil_page_get_type(page) != FIL_PAGE_INDEX) {
 								file_is_corrupt = TRUE;
-								fprintf(stderr, " [etyp:%lld]",
-									offset / (zip_size ? zip_size : UNIV_PAGE_SIZE));
+								fprintf(stderr, " [etyp:%ld]",
+									(long)(offset / (zip_size ? zip_size : UNIV_PAGE_SIZE)));
 								goto skip_write;
 							}
 							/* this is index root page */
@@ -3729,7 +3729,6 @@ func_exit:
 		ulint		page_no;
 		ulint		zip_size;
 		ulint		height;
-		ulint		root_height = 0;
 		rec_t*		node_ptr;
 		dict_table_t*	table;
 		dict_index_t*	index;
@@ -3768,7 +3767,6 @@ func_exit:
 
 			if (height == ULINT_UNDEFINED) {
 				height = btr_page_get_level(page, &mtr);
-				root_height = height;
 			}
 
 			if (height == 0) {
@@ -4159,7 +4157,7 @@ fil_load_single_table_tablespace(
 
 	size = (((ib_uint64_t)size_high) << 32) + (ib_uint64_t)size_low;
 #ifndef UNIV_HOTBACKUP
-	if (size < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
+	if (size < (ib_uint64_t)FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 		fprintf(stderr,
 			"InnoDB: Error: the size of single-table tablespace"
 			" file %s\n"

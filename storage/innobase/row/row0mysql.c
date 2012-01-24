@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2000, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -289,21 +289,21 @@ row_mysql_pad_col(
 		/* space=0x0020 */
 		pad_end = pad + len;
 		ut_a(!(len % 2));
-		do {
+		while (pad < pad_end) {
 			*pad++ = 0x00;
 			*pad++ = 0x20;
-		} while (pad < pad_end);
+		};
 		break;
 	case 4:
 		/* space=0x00000020 */
 		pad_end = pad + len;
 		ut_a(!(len % 4));
-		do {
+		while (pad < pad_end) {
 			*pad++ = 0x00;
 			*pad++ = 0x00;
 			*pad++ = 0x00;
 			*pad++ = 0x20;
-		} while (pad < pad_end);
+		}
 		break;
 	}
 }
@@ -667,17 +667,60 @@ UNIV_INTERN
 row_prebuilt_t*
 row_create_prebuilt(
 /*================*/
-	dict_table_t*	table)	/*!< in: Innobase table handle */
+	dict_table_t*	table,		/*!< in: Innobase table handle */
+	ulint		mysql_row_len)	/*!< in: length in bytes of a row in
+					the MySQL format */
 {
 	row_prebuilt_t*	prebuilt;
 	mem_heap_t*	heap;
 	dict_index_t*	clust_index;
 	dtuple_t*	ref;
 	ulint		ref_len;
+	ulint		search_tuple_n_fields;
 
-	heap = mem_heap_create(sizeof *prebuilt + 128);
+	search_tuple_n_fields = 2 * dict_table_get_n_cols(table);
 
-	prebuilt = mem_heap_zalloc(heap, sizeof *prebuilt);
+	clust_index = dict_table_get_first_index(table);
+
+	/* Make sure that search_tuple is long enough for clustered index */
+	ut_a(2 * dict_table_get_n_cols(table) >= clust_index->n_fields);
+
+	ref_len = dict_index_get_n_unique(clust_index);
+
+#define PREBUILT_HEAP_INITIAL_SIZE	\
+	( \
+	sizeof(*prebuilt) \
+	/* allocd in this function */ \
+	+ DTUPLE_EST_ALLOC(search_tuple_n_fields) \
+	+ DTUPLE_EST_ALLOC(ref_len) \
+	/* allocd in row_prebuild_sel_graph() */ \
+	+ sizeof(sel_node_t) \
+	+ sizeof(que_fork_t) \
+	+ sizeof(que_thr_t) \
+	/* allocd in row_get_prebuilt_update_vector() */ \
+	+ sizeof(upd_node_t) \
+	+ sizeof(upd_t) \
+	+ sizeof(upd_field_t) \
+	  * dict_table_get_n_cols(table) \
+	+ sizeof(que_fork_t) \
+	+ sizeof(que_thr_t) \
+	/* allocd in row_get_prebuilt_insert_row() */ \
+	+ sizeof(ins_node_t) \
+	/* mysql_row_len could be huge and we are not \
+	sure if this prebuilt instance is going to be \
+	used in inserts */ \
+	+ (mysql_row_len < 256 ? mysql_row_len : 0) \
+	+ DTUPLE_EST_ALLOC(dict_table_get_n_cols(table)) \
+	+ sizeof(que_fork_t) \
+	+ sizeof(que_thr_t) \
+	)
+
+	/* We allocate enough space for the objects that are likely to
+	be created later in order to minimize the number of malloc()
+	calls */
+	heap = mem_heap_create(PREBUILT_HEAP_INITIAL_SIZE);
+
+	prebuilt = mem_heap_zalloc(heap, sizeof(*prebuilt));
 
 	prebuilt->magic_n = ROW_PREBUILT_ALLOCATED;
 	prebuilt->magic_n2 = ROW_PREBUILT_ALLOCATED;
@@ -687,23 +730,15 @@ row_create_prebuilt(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->heap = heap;
 
-	prebuilt->pcur = btr_pcur_create_for_mysql();
-	prebuilt->clust_pcur = btr_pcur_create_for_mysql();
+	btr_pcur_reset(&prebuilt->pcur);
+	btr_pcur_reset(&prebuilt->clust_pcur);
 
 	prebuilt->select_lock_type = LOCK_NONE;
 	prebuilt->stored_select_lock_type = 99999999;
 	UNIV_MEM_INVALID(&prebuilt->stored_select_lock_type,
 			 sizeof prebuilt->stored_select_lock_type);
 
-	prebuilt->search_tuple = dtuple_create(
-		heap, 2 * dict_table_get_n_cols(table));
-
-	clust_index = dict_table_get_first_index(table);
-
-	/* Make sure that search_tuple is long enough for clustered index */
-	ut_a(2 * dict_table_get_n_cols(table) >= clust_index->n_fields);
-
-	ref_len = dict_index_get_n_unique(clust_index);
+	prebuilt->search_tuple = dtuple_create(heap, search_tuple_n_fields);
 
 	ref = dtuple_create(heap, ref_len);
 
@@ -719,6 +754,8 @@ row_create_prebuilt(
 	prebuilt->autoinc_increment = 1;
 
 	prebuilt->autoinc_last_value = 0;
+
+	prebuilt->mysql_row_len = mysql_row_len;
 
 	return(prebuilt);
 }
@@ -755,8 +792,8 @@ row_prebuilt_free(
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
 	prebuilt->magic_n2 = ROW_PREBUILT_FREED;
 
-	btr_pcur_free_for_mysql(prebuilt->pcur);
-	btr_pcur_free_for_mysql(prebuilt->clust_pcur);
+	btr_pcur_reset(&prebuilt->pcur);
+	btr_pcur_reset(&prebuilt->clust_pcur);
 
 	if (prebuilt->mysql_template) {
 		mem_free(prebuilt->mysql_template);
@@ -1416,11 +1453,11 @@ row_update_for_mysql(
 
 	clust_index = dict_table_get_first_index(table);
 
-	if (prebuilt->pcur->btr_cur.index == clust_index) {
-		btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
+	if (prebuilt->pcur.btr_cur.index == clust_index) {
+		btr_pcur_copy_stored_position(node->pcur, &prebuilt->pcur);
 	} else {
 		btr_pcur_copy_stored_position(node->pcur,
-					      prebuilt->clust_pcur);
+					      &prebuilt->clust_pcur);
 	}
 
 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
@@ -1524,8 +1561,8 @@ row_unlock_for_mysql(
 					clust_pcur, and we do not need
 					to reposition the cursors. */
 {
-	btr_pcur_t*	pcur		= prebuilt->pcur;
-	btr_pcur_t*	clust_pcur	= prebuilt->clust_pcur;
+	btr_pcur_t*	pcur		= &prebuilt->pcur;
+	btr_pcur_t*	clust_pcur	= &prebuilt->clust_pcur;
 	trx_t*		trx		= prebuilt->trx;
 
 	ut_ad(prebuilt && trx);
@@ -3995,6 +4032,7 @@ end:
 			trx->error_state = DB_SUCCESS;
 			trx_general_rollback_for_mysql(trx, NULL);
 			trx->error_state = DB_SUCCESS;
+			err = DB_ERROR;
 			goto funct_exit;
 		}
 

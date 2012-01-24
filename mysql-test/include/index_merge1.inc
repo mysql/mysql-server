@@ -264,7 +264,10 @@ explain select * from t1 where key1=3 or key2=4
   union select * from t1 where key1<4 or key3=5;
 
 #  index merge in subselect
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain select * from (select * from t1 where key1 = 3 or key2 =3) as Z where key8 >5;
+set optimizer_switch=@tmp_optimizer_switch;
 
 # 12. check for long index_merges.
 create table t3 like t0;

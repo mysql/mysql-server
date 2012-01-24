@@ -2550,6 +2550,8 @@ End of 5.0 tests
 drop table if exists t1;
 create table t1(f1 tinyint default null)engine=myisam;
 insert into t1 values (-1),(null);
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain select 1 as a from t1,(select decode(f1,f1) as b from t1) a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
@@ -2560,6 +2562,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+set optimizer_switch=@tmp_optimizer_switch;
 drop table t1;
 #
 # Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0
@@ -2784,6 +2787,12 @@ SELECT * FROM t1;
 format(123,2,'no_NO')
 123,00
 DROP TABLE t1;
+#
+# Bug#11764310 conv function crashes, negative argument to memcpy
+#
+SELECT CONV(1,-2147483648,-2147483648);
+CONV(1,-2147483648,-2147483648)
+NULL
 #
 # Bug#12985030 SIMPLE QUERY WITH DECIMAL NUMBERS LEAKS MEMORY
 #

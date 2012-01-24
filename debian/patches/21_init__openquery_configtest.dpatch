@@ -1,0 +1,33 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 35_init__openquery_configtest.dpatch by  <me@cafuego.net>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: init__openquery_configtest.dpatch
+
+@DPATCH@
+
+--- old/debian/mysql-server-5.0.mysql.init.orig	2008-12-19 12:03:30.379898336 +1100
++++ new/debian/mysql-server-5.0.mysql.init	2008-12-19 12:04:46.660451093 +1100
+@@ -182,8 +182,21 @@
+ 	fi
+   	;;
+ 
++  'configtest')
++	log_daemon_msg "Testing MySQL configuration" "syntax"
++	set +e
++	help_out=`/usr/sbin/mysqld --help 2>&1`; r=$?
++	set -e
++	if [ "$r" -ne 0 ]; then
++	  log_failure_msg "$help_out"
++	  log_failure_msg "There are syntax errors in the server configuration. Please fix them!"
++	fi
++	log_end_msg $r
++	exit $r
++    ;;
++
+   *)
+-	echo "Usage: $SELF start|stop|restart|reload|force-reload|status"
++	echo "Usage: $SELF start|stop|restart|reload|force-reload|status|configtest"
+ 	exit 1
+ 	;;
+ esac

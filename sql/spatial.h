@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2002, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,6 +100,13 @@ struct MBR
       ymin= mbr->ymin;
     if (mbr->ymax > ymax)
       ymax= mbr->ymax;
+  }
+  void buffer(double d)
+  {
+    xmin-= d;
+    ymin-= d;
+    xmax+= d;
+    ymax+= d;
   }
 
   int equals(const MBR *mbr)

@@ -1314,9 +1314,13 @@ DROP TABLE t1, t2;
 drop table if exists t1;
 --enable_warnings
 create table t1(f1 tinyint default null)engine=myisam;
-insert into t1 values (-1),(null);
+insert into t1 values (-1),(null); 
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain select 1 as a from t1,(select decode(f1,f1) as b from t1) a;
 explain select 1 as a from t1,(select encode(f1,f1) as b from t1) a;
+set optimizer_switch=@tmp_optimizer_switch;
 drop table t1;
 
 
@@ -1435,6 +1439,11 @@ CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#11764310 conv function crashes, negative argument to memcpy
+--echo #
+SELECT CONV(1,-2147483648,-2147483648);
 
 --echo #
 --echo # Bug#12985030 SIMPLE QUERY WITH DECIMAL NUMBERS LEAKS MEMORY

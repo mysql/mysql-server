@@ -75,10 +75,11 @@ Database: test
 2 rows in set.
 
 DROP TABLE t1, t2;
++---------------------------------------+
++---------------------------------------+
++---------------------------------------+
 Database: information_schema
-+---------------------------------------+
 |                Tables                 |
-+---------------------------------------+
 | CHARACTER_SETS                        |
 | CLIENT_STATISTICS                     |
 | COLLATIONS                            |
@@ -91,10 +92,32 @@ Database: information_schema
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
 | INDEX_STATISTICS                      |
+| INNODB_BUFFER_POOL_PAGES              |
+| INNODB_BUFFER_POOL_PAGES_BLOB         |
+| INNODB_BUFFER_POOL_PAGES_INDEX        |
+| INNODB_CMP                            |
+| INNODB_CMPMEM                         |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_CMP_RESET                      |
+| INNODB_INDEX_STATS                    |
+| INNODB_LOCKS                          |
+| INNODB_LOCK_WAITS                     |
+| INNODB_RSEG                           |
+| INNODB_SYS_COLUMNS                    |
+| INNODB_SYS_FIELDS                     |
+| INNODB_SYS_FOREIGN                    |
+| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_SYS_INDEXES                    |
+| INNODB_SYS_STATS                      |
+| INNODB_SYS_TABLES                     |
+| INNODB_SYS_TABLESTATS                 |
+| INNODB_TABLE_STATS                    |
+| INNODB_TRX                            |
 | KEY_CACHES                            |
 | KEY_COLUMN_USAGE                      |
 | PARAMETERS                            |
 | PARTITIONS                            |
+| PBXT_STATISTICS                       |
 | PLUGINS                               |
 | PROCESSLIST                           |
 | PROFILING                             |
@@ -114,34 +137,12 @@ Database: information_schema
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
 | VIEWS                                 |
-| INNODB_CMPMEM_RESET                   |
-| PBXT_STATISTICS                       |
-| INNODB_CMPMEM                         |
-| INNODB_RSEG                           |
-| INNODB_SYS_TABLESTATS                 |
-| INNODB_LOCK_WAITS                     |
-| INNODB_INDEX_STATS                    |
-| INNODB_CMP                            |
-| INNODB_SYS_FOREIGN_COLS               |
-| INNODB_CMP_RESET                      |
-| INNODB_BUFFER_POOL_PAGES              |
-| INNODB_TRX                            |
-| INNODB_BUFFER_POOL_PAGES_INDEX        |
-| INNODB_LOCKS                          |
-| INNODB_BUFFER_POOL_PAGES_BLOB         |
-| INNODB_SYS_TABLES                     |
-| INNODB_SYS_FIELDS                     |
-| INNODB_SYS_COLUMNS                    |
-| INNODB_SYS_STATS                      |
-| INNODB_SYS_FOREIGN                    |
-| INNODB_SYS_INDEXES                    |
 | XTRADB_ADMIN_COMMAND                  |
-| INNODB_TABLE_STATS                    |
++---------------------------------------+
++---------------------------------------+
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
-+---------------------------------------+
 |                Tables                 |
-+---------------------------------------+
 | CHARACTER_SETS                        |
 | CLIENT_STATISTICS                     |
 | COLLATIONS                            |
@@ -154,10 +155,32 @@ Database: INFORMATION_SCHEMA
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
 | INDEX_STATISTICS                      |
+| INNODB_BUFFER_POOL_PAGES              |
+| INNODB_BUFFER_POOL_PAGES_BLOB         |
+| INNODB_BUFFER_POOL_PAGES_INDEX        |
+| INNODB_CMP                            |
+| INNODB_CMPMEM                         |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_CMP_RESET                      |
+| INNODB_INDEX_STATS                    |
+| INNODB_LOCKS                          |
+| INNODB_LOCK_WAITS                     |
+| INNODB_RSEG                           |
+| INNODB_SYS_COLUMNS                    |
+| INNODB_SYS_FIELDS                     |
+| INNODB_SYS_FOREIGN                    |
+| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_SYS_INDEXES                    |
+| INNODB_SYS_STATS                      |
+| INNODB_SYS_TABLES                     |
+| INNODB_SYS_TABLESTATS                 |
+| INNODB_TABLE_STATS                    |
+| INNODB_TRX                            |
 | KEY_CACHES                            |
 | KEY_COLUMN_USAGE                      |
 | PARAMETERS                            |
 | PARTITIONS                            |
+| PBXT_STATISTICS                       |
 | PLUGINS                               |
 | PROCESSLIST                           |
 | PROFILING                             |
@@ -177,30 +200,7 @@ Database: INFORMATION_SCHEMA
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
 | VIEWS                                 |
-| INNODB_CMPMEM_RESET                   |
-| PBXT_STATISTICS                       |
-| INNODB_CMPMEM                         |
-| INNODB_RSEG                           |
-| INNODB_SYS_TABLESTATS                 |
-| INNODB_LOCK_WAITS                     |
-| INNODB_INDEX_STATS                    |
-| INNODB_CMP                            |
-| INNODB_SYS_FOREIGN_COLS               |
-| INNODB_CMP_RESET                      |
-| INNODB_BUFFER_POOL_PAGES              |
-| INNODB_TRX                            |
-| INNODB_BUFFER_POOL_PAGES_INDEX        |
-| INNODB_LOCKS                          |
-| INNODB_BUFFER_POOL_PAGES_BLOB         |
-| INNODB_SYS_TABLES                     |
-| INNODB_SYS_FIELDS                     |
-| INNODB_SYS_COLUMNS                    |
-| INNODB_SYS_STATS                      |
-| INNODB_SYS_FOREIGN                    |
-| INNODB_SYS_INDEXES                    |
 | XTRADB_ADMIN_COMMAND                  |
-| INNODB_TABLE_STATS                    |
-+---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+
 |     Databases      |

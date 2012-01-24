@@ -1,24 +1,34 @@
 #
 # Ensure the plugin isn't loaded.
 #
-SELECT * FROM mysql.plugin WHERE name = 'daemon_example' ORDER BY name;
+SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
 name	dl
 #
 # Enable the plugin...
 #
 #
+# Simulate loading a plugin libary with multiple entry points.
+# This will test the DISABLE to ensure all rows are removed.
+#
+INSERT INTO mysql.plugin VALUES ('wicky', 'libdaemon_example.so');
+INSERT INTO mysql.plugin VALUES ('wacky', 'libdaemon_example.so');
+INSERT INTO mysql.plugin VALUES ('wonky', 'libdaemon_example.so');
+#
 # Ensure the plugin is now loaded.
 #
-SELECT * FROM mysql.plugin WHERE name = 'daemon_example' ORDER BY name;
+SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
 name	dl
 daemon_example	libdaemon_example.so
+wacky	libdaemon_example.so
+wicky	libdaemon_example.so
+wonky	libdaemon_example.so
 #
 # Disable the plugin...
 #
 #
 # Ensure the plugin isn't loaded.
 #
-SELECT * FROM mysql.plugin WHERE name = 'daemon_example' ORDER BY name;
+SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
 name	dl
 #
 # Attempt to load non-existant plugin

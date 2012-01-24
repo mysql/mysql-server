@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -360,8 +360,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
                                                      parse_data->name,
                                                      new_element)))
       {
-        if (!db_repository->drop_event(thd, parse_data->dbname, parse_data->name,
-                                       TRUE))
+        if (!db_repository->drop_event(thd, parse_data->dbname,
+                                       parse_data->name, TRUE))
           dropped= 1;
         delete new_element;
       }
@@ -383,16 +383,19 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       String log_query;
       if (create_query_string(thd, &log_query))
       {
-        sql_print_error("Event Error: An error occurred while creating query string, "
-                        "before writing it into binary log.");
+        sql_print_error("Event Error: An error occurred while creating query "
+                        "string, before writing it into binary log.");
         ret= true;
       }
       else
+      {
         /*
-          If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER
-          will be written into the binary log as the definer for the SQL thread.
+          If the definer is not set or set to CURRENT_USER, the value
+          of CURRENT_USER will be written into the binary log as the
+          definer for the SQL thread.
         */
         ret= write_bin_log(thd, TRUE, log_query.ptr(), log_query.length());
+      }
     }
   }
   /* Restore the state of binlog format */

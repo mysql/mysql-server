@@ -1,0 +1,32 @@
+source feedback_plugin_load.test;
+
+if (!$MTR_FEEDBACK_PLUGIN) {
+  skip MTR_FEEDBACK_PLUGIN is not set;
+}
+
+#
+# Yep. The plugin waits 5 minutes before sending anything,
+# and there's no way to force it to send anything sooner.
+# Let's wait, and hope that mtr is started with --parallel and
+# is doing some work in other workers.
+#
+sleep 310;
+source include/restart_mysqld.inc;
+
+replace_result https http;
+perl;
+  $log_error= $ENV{'MYSQLTEST_VARDIR'} . '/log/mysqld.1.err';
+  open(LOG, '<', $log_error) or die "open(< $log_error): $!";
+
+  # Get the first few rows (as there may be different number rows in the log)
+  $i= 0;
+  while ($_=<LOG>)
+  {
+    if (/feedback plugin:.*/)
+    {
+      print "$&\n";
+      break if ($i++ >= 3);
+    }
+  }
+  close LOG;
+EOF

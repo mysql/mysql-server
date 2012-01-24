@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 /* Copyright (c) 2000, 2011 Oracle and/or its affiliates.
-   Copyright (c) 2009-2011 Monty Program Ab
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2277,6 +2277,23 @@ public:
   uchar *from_null_ptr,*to_null_ptr;
   bool *null_row;
   uint	from_bit,to_bit;
+  /**
+    Number of bytes in the fields pointed to by 'from_ptr' and
+    'to_ptr'. Usually this is the number of bytes that are copied from
+    'from_ptr' to 'to_ptr'.
+
+    For variable-length fields (VARCHAR), the first byte(s) describe
+    the actual length of the text. For VARCHARs with length 
+       < 256 there is 1 length byte 
+       >= 256 there is 2 length bytes
+    Thus, if from_field is VARCHAR(10), from_length (and in most cases
+    to_length) is 11. For VARCHAR(1024), the length is 1026. @see
+    Field_varstring::length_bytes
+
+    Note that for VARCHARs, do_copy() will be do_varstring*() which
+    only copies the length-bytes (1 or 2) + the actual length of the
+    text instead of from/to_length bytes. @see get_copy_func()
+  */
   uint from_length,to_length;
   Field *from_field,*to_field;
   String tmp;					// For items

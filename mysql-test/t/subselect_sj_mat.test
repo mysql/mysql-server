@@ -7,6 +7,8 @@ set @subselect_sj_mat_tmp= @@optimizer_switch;
 set optimizer_switch=ifnull(@subselect_mat_test_optimizer_switch_value, 'semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on');
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 set @optimizer_switch_local_default= @@optimizer_switch;
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=1;
 
 --disable_warnings
 drop table if exists t1, t2, t3, t4, t5, t1i, t2i, t3i;
@@ -86,8 +88,8 @@ select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 
 --replace_column 6 # 8 # 11 #
 explain extended
-select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
-select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
+select * from t1i where a1 in (select max(b1) from t2i where b1 > '0' group by b1);
+select * from t1i where a1 in (select max(b1) from t2i where b1 > '0' group by b1);
 
 --replace_column 7 #
 --replace_regex /it1.*/_it1_idx/  /test.t2i.*/_ref_/  /Using index$// /Using where$//
@@ -97,8 +99,8 @@ select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
 
 --replace_column 6 # 7 # 8 # 11 #
 explain extended
-select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
-select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
+select * from t1i where (a1, a2) in (select b1, max(b2) from t2i where b1 > '0' group by b1);
+select * from t1i where (a1, a2) in (select b1, max(b2) from t2i where b1 > '0' group by b1);
 
 --replace_column 6 # 7 # 8 # 11 #
 explain extended
@@ -833,14 +835,14 @@ create table t2 (b1 int);
 insert into t1 values (5);
 
 # Query with group by, executed via materialization
-explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
-select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
+explain select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
+select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 # Query with group by, executed via IN=>EXISTS
 set @save_optimizer_switch=@@optimizer_switch;
 set @@optimizer_switch=@optimizer_switch_local_default;
 set @@optimizer_switch='materialization=off,in_to_exists=on';
-explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
-select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
+explain select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
+select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 
 # Executed with materialization
 set @@optimizer_switch=@optimizer_switch_local_default;
@@ -898,7 +900,7 @@ WHERE (t1i)  IN (
    SELECT t2i
    FROM t2  
    WHERE (t2i)  IN (  
-     SELECT t3i
+     SELECT max(t3i)
      FROM t3  
      GROUP BY t3i
      )  
@@ -1022,12 +1024,15 @@ CREATE TABLE t1 (a INTEGER);
 CREATE TABLE t2 (b INTEGER);
 INSERT INTO t2 VALUES (1);
 
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 let $query =
 SELECT a FROM (
   SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
 ) table1;
 eval explain $query;
 eval $query;
+set optimizer_switch=@tmp_optimizer_switch;
 
 DROP TABLE t1, t2;
 
@@ -1424,8 +1429,88 @@ ON ( t2.f5 ) IN (
 );
 
 DROP TABLE t1, t2, t3, t4, t5;
+--echo #
+--echo # BUG#868908: Crash in check_simple_equality() with semijoin + materialization + prepared statement
+--echo #
 
+CREATE TABLE t1 ( a int );
+CREATE TABLE t3 ( b int, c int) ;
+CREATE TABLE t2 ( a int ) ;
+CREATE TABLE t4 ( a int , c int) ;
+
+PREPARE st1 FROM "
+SELECT STRAIGHT_JOIN *
+FROM t1
+WHERE ( 3 ) IN (
+        SELECT t3.b
+        FROM t3
+        LEFT JOIN (
+                t2 STRAIGHT_JOIN t4 ON ( t4.c = t2.a )
+        ) ON ( t4.a = t3.c )
+);
+";
+EXECUTE st1;
+EXECUTE st1;
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # BUG#901032: Wrong result for MIN/MAX on an indexed column with materialization and semijoin
+--echo #
+CREATE TABLE t1 ( a INT, KEY(a) );
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 ( b INT );
+INSERT INTO t2 VALUES (2);
+CREATE TABLE t3 ( c INT );
+INSERT INTO t3 VALUES (2);
+
+SELECT MIN(a) FROM t1, t2 WHERE b IN (SELECT c FROM t3 GROUP BY c);
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo #
+--echo # BUG#902632: Crash or invalid read at st_join_table::cleanup, st_table::disable_keyread
+--echo #
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 ( b INT );
+INSERT INTO t2 VALUES (3), (4);
+CREATE TABLE t3 ( c INT );
+INSERT INTO t3 VALUES (5), (6);
+
+SELECT * FROM t1 WHERE EXISTS (
+   SELECT DISTINCT b FROM t2
+      WHERE b <= a
+        AND b IN ( SELECT c FROM t3 GROUP BY c )
+   );
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # BUG#901506: Crash in TABLE_LIST::print on EXPLAIN EXTENDED
+--echo #
+CREATE TABLE t1 ( a INT, KEY(a) );
+INSERT INTO t1 VALUES (8);
+
+EXPLAIN EXTENDED
+  SELECT * FROM t1
+   WHERE a IN ( SELECT MIN(a) FROM t1 );
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#904432: Wrong result with LEFT JOIN, constant table, semijoin=ON,materialization=ON
+--echo #
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4);
+CREATE TABLE t2 ( b INT NOT NULL, c INT );
+INSERT INTO t2 VALUES (4,2),(4,2),(4,4),(1,1);
+
+SELECT * FROM t1 LEFT JOIN t2 ON ( a = b )
+  WHERE a IN ( SELECT c FROM t2 );
+
+DROP TABLE t1,t2;
 
 --echo # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
+set join_cache_level=@save_join_cache_level;
 

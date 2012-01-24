@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1796,7 +1797,7 @@ void st_select_lex_node::init_query()
   options= 0;
   sql_cache= SQL_CACHE_UNSPECIFIED;
   linkage= UNSPECIFIED_TYPE;
-  no_error= no_table_names_allowed= 0;
+  no_table_names_allowed= 0;
   uncacheable= 0;
 }
 
@@ -1865,10 +1866,10 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
-  m_non_agg_field_used= false;
-  m_agg_func_used= false;
   is_prep_leaf_list_saved= FALSE;
   bzero((char*) expr_cache_may_be_used, sizeof(expr_cache_may_be_used));
+  m_non_agg_field_used= false;
+  m_agg_func_used= false;
 }
 
 void st_select_lex::init_select()
@@ -1901,10 +1902,10 @@ void st_select_lex::init_select()
   non_agg_fields.empty();
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
-  m_non_agg_field_used= false;
-  m_agg_func_used= false;
   insert_tables= 0;
   merged_into= 0;
+  m_non_agg_field_used= false;
+  m_agg_func_used= false;
 }
 
 /*
@@ -2785,7 +2786,47 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
   ulonglong val;
 
   DBUG_ASSERT(! thd->stmt_arena->is_stmt_prepare());
-  val= sl->select_limit ? sl->select_limit->val_uint() : HA_POS_ERROR;
+  if (sl->select_limit)
+  {
+    Item *item = sl->select_limit;
+    /*
+      fix_fields() has not been called for sl->select_limit. That's due to the
+      historical reasons -- this item could be only of type Item_int, and
+      Item_int does not require fix_fields(). Thus, fix_fields() was never
+      called for sl->select_limit.
+
+      Some time ago, Item_splocal was also allowed for LIMIT / OFFSET clauses.
+      However, the fix_fields() behavior was not updated, which led to a crash
+      in some cases.
+
+      There is no single place where to call fix_fields() for LIMIT / OFFSET
+      items during the fix-fields-phase. Thus, for the sake of readability,
+      it was decided to do it here, on the evaluation phase (which is a
+      violation of design, but we chose the lesser of two evils).
+
+      We can call fix_fields() here, because sl->select_limit can be of two
+      types only: Item_int and Item_splocal. Item_int::fix_fields() is trivial,
+      and Item_splocal::fix_fields() (or rather Item_sp_variable::fix_fields())
+      has the following specific:
+        1) it does not affect other items;
+        2) it does not fail.
+
+      Nevertheless DBUG_ASSERT was added to catch future changes in
+      fix_fields() implementation. Also added runtime check against a result
+      of fix_fields() in order to handle error condition in non-debug build.
+    */
+    bool fix_fields_successful= true;
+    if (!item->fixed)
+    {
+      fix_fields_successful= !item->fix_fields(thd, NULL);
+
+      DBUG_ASSERT(fix_fields_successful);
+    }
+    val= fix_fields_successful ? item->val_uint() : HA_POS_ERROR;
+  }
+  else
+    val= HA_POS_ERROR;
+
   select_limit_val= (ha_rows)val;
 #ifndef BIG_TABLES
   /*
@@ -2795,7 +2836,22 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
   if (val != (ulonglong)select_limit_val)
     select_limit_val= HA_POS_ERROR;
 #endif
-  val= sl->offset_limit ? sl->offset_limit->val_uint() : ULL(0);
+  if (sl->offset_limit)
+  {
+    Item *item = sl->offset_limit;
+    // see comment for sl->select_limit branch.
+    bool fix_fields_successful= true;
+    if (!item->fixed)
+    {
+      fix_fields_successful= !item->fix_fields(thd, NULL);
+
+      DBUG_ASSERT(fix_fields_successful);
+    }
+    val= fix_fields_successful ? item->val_uint() : HA_POS_ERROR;
+  }
+  else
+    val= ULL(0);
+
   offset_limit_cnt= (ha_rows)val;
 #ifndef BIG_TABLES
   /* Check for truncation. */
@@ -3762,20 +3818,58 @@ void st_select_lex::set_explain_type()
   SELECT_LEX *first= master_unit()->first_select();
   /* drop UNCACHEABLE_EXPLAIN, because it is for internal usage only */
   uint8 is_uncacheable= (uncacheable & ~UNCACHEABLE_EXPLAIN);
+  
+  bool using_materialization= FALSE;
+  Item_subselect *parent_item;
+  if ((parent_item= master_unit()->item) &&
+      parent_item->substype() == Item_subselect::IN_SUBS)
+  {
+    Item_in_subselect *in_subs= (Item_in_subselect*)parent_item;
+    /*
+      Surprisingly, in_subs->is_set_strategy() can return FALSE here,
+      even for the last invocation of this function for the select.
+    */
+    if (in_subs->test_strategy(SUBS_MATERIALIZATION))
+      using_materialization= TRUE;
+  }
 
-  type= ((&master_unit()->thd->lex->select_lex == this) ?
-         (is_primary ? "PRIMARY" : "SIMPLE"):    
-         ((this == first) ?
-          ((linkage == DERIVED_TABLE_TYPE) ?
-           "DERIVED" :
-           ((is_uncacheable & UNCACHEABLE_DEPENDENT) ?
-            "DEPENDENT SUBQUERY" :
-            (is_uncacheable ? "UNCACHEABLE SUBQUERY" :
-             "SUBQUERY"))) :
-          ((is_uncacheable & UNCACHEABLE_DEPENDENT) ?
-           "DEPENDENT UNION":
-           is_uncacheable ? "UNCACHEABLE UNION":
-           "UNION")));
+  if (&master_unit()->thd->lex->select_lex == this)
+  {
+     type= is_primary ? "PRIMARY" : "SIMPLE";
+  }
+  else
+  {
+    if (this == first)
+    {
+      /* If we're a direct child of a UNION, we're the first sibling there */
+      if (linkage == DERIVED_TABLE_TYPE)
+        type= "DERIVED";
+      else if (using_materialization)
+        type= "MATERIALIZED";
+      else
+      {
+         if (is_uncacheable & UNCACHEABLE_DEPENDENT)
+           type= "DEPENDENT SUBQUERY";
+         else
+         {
+           type= is_uncacheable? "UNCACHEABLE SUBQUERY" :
+                                 "SUBQUERY";
+         }
+      }
+    }
+    else
+    {
+      /* This a non-first sibling in UNION */
+      if (is_uncacheable & UNCACHEABLE_DEPENDENT)
+        type= "DEPENDENT UNION";
+      else if (using_materialization)
+        type= "MATERIALIZED UNION";
+      else
+      {
+        type= is_uncacheable ? "UNCACHEABLE UNION": "UNION";
+      }
+    }
+  }
   options|= SELECT_DESCRIBE;
 }
 
@@ -3841,12 +3935,12 @@ bool st_select_lex::save_leaf_tables(THD *thd)
   {
     if (leaf_tables_exec.push_back(table))
       return 1;
-    table->tablenr_exec= table->table->tablenr;
-    table->map_exec= table->table->map;
+    table->tablenr_exec= table->get_tablenr();
+    table->map_exec= table->get_map();
     if (join && (join->select_options & SELECT_DESCRIBE))
       table->maybe_null_exec= 0;
     else
-      table->maybe_null_exec= table->table->maybe_null;
+      table->maybe_null_exec= table->table?  table->table->maybe_null: 0;
   }
   if (arena)
     thd->restore_active_arena(arena, &backup);

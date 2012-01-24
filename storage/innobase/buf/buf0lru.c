@@ -68,8 +68,12 @@ allowed to point to either end of the LRU list. */
 
 /** When dropping the search hash index entries before deleting an ibd
 file, we build a local array of pages belonging to that tablespace
-in the buffer pool. Following is the size of that array. */
-#define BUF_LRU_DROP_SEARCH_HASH_SIZE	1024
+in the buffer pool. Following is the size of that array.
+We also release buf_pool->mutex after scanning this many pages of the
+flush_list when dropping a table. This is to ensure that other threads
+are not blocked for extended period of time when using very large
+buffer pools. */
+#define BUF_LRU_DROP_SEARCH_SIZE	1024
 
 /** If we switch on the InnoDB monitor because there are too few available
 frames in the buffer pool, we set this to TRUE */
@@ -210,7 +214,7 @@ buf_LRU_drop_page_hash_batch(
 	ulint	i;
 
 	ut_ad(arr != NULL);
-	ut_ad(count <= BUF_LRU_DROP_SEARCH_HASH_SIZE);
+	ut_ad(count <= BUF_LRU_DROP_SEARCH_SIZE);
 
 	for (i = 0; i < count; ++i) {
 		btr_search_drop_page_hash_when_freed(space_id, zip_size,
@@ -244,7 +248,7 @@ buf_LRU_drop_page_hash_for_tablespace(
 	}
 
 	page_arr = ut_malloc(
-		sizeof(ulint) * BUF_LRU_DROP_SEARCH_HASH_SIZE);
+		sizeof(ulint) * BUF_LRU_DROP_SEARCH_SIZE);
 
 	buf_pool_mutex_enter(buf_pool);
 	num_entries = 0;
@@ -273,7 +277,7 @@ next_page:
 
 		mutex_enter(&((buf_block_t*) bpage)->mutex);
 		is_fixed = bpage->buf_fix_count > 0
-			|| !((buf_block_t*) bpage)->is_hashed;
+			|| !((buf_block_t*) bpage)->index;
 		mutex_exit(&((buf_block_t*) bpage)->mutex);
 
 		if (is_fixed) {
@@ -283,10 +287,10 @@ next_page:
 		/* Store the page number so that we can drop the hash
 		index in a batch later. */
 		page_arr[num_entries] = bpage->offset;
-		ut_a(num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE);
+		ut_a(num_entries < BUF_LRU_DROP_SEARCH_SIZE);
 		++num_entries;
 
-		if (num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE) {
+		if (num_entries < BUF_LRU_DROP_SEARCH_SIZE) {
 			goto next_page;
 		}
 
@@ -331,37 +335,40 @@ next_page:
 }
 
 /******************************************************************//**
-Invalidates all pages belonging to a given tablespace inside a specific
+Remove all dirty pages belonging to a given tablespace inside a specific
 buffer pool instance when we are deleting the data file(s) of that
-tablespace. */
+tablespace. The pages still remain a part of LRU and are evicted from
+the list as they age towards the tail of the LRU. */
 static
 void
-buf_LRU_invalidate_tablespace_buf_pool_instance(
-/*============================================*/
+buf_LRU_remove_dirty_pages_for_tablespace(
+/*======================================*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		id)		/*!< in: space id */
 {
 	buf_page_t*	bpage;
 	ibool		all_freed;
+	ulint		i;
 
 scan_again:
 	buf_pool_mutex_enter(buf_pool);
+	buf_flush_list_mutex_enter(buf_pool);
 
 	all_freed = TRUE;
 
-	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list), i = 0;
+	     bpage != NULL; ++i) {
 
-	while (bpage != NULL) {
 		buf_page_t*	prev_bpage;
 		mutex_t*	block_mutex = NULL;
 
 		ut_a(buf_page_in_file(bpage));
 
-		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
+		prev_bpage = UT_LIST_GET_PREV(list, bpage);
 
 		/* bpage->space and bpage->io_fix are protected by
-		buf_pool_mutex and block_mutex.  It is safe to check
-		them while holding buf_pool_mutex only. */
+		buf_pool->mutex and block_mutex. It is safe to check
+		them while holding buf_pool->mutex only. */
 
 		if (buf_page_get_space(bpage) != id) {
 			/* Skip this block, as it does not belong to
@@ -374,79 +381,83 @@ scan_again:
 
 			all_freed = FALSE;
 			goto next_page;
-		} else {
-			block_mutex = buf_page_get_mutex(bpage);
-			mutex_enter(block_mutex);
-
-			if (bpage->buf_fix_count > 0) {
-
-				mutex_exit(block_mutex);
-				/* We cannot remove this page during
-				this scan yet; maybe the system is
-				currently reading it in, or flushing
-				the modifications to the file */
-
-				all_freed = FALSE;
-
-				goto next_page;
-			}
 		}
 
-		ut_ad(mutex_own(block_mutex));
+		/* We have to release the flush_list_mutex to obey the
+		latching order. We are however guaranteed that the page
+		will stay in the flush_list because buf_flush_remove()
+		needs buf_pool->mutex as well. */
+		buf_flush_list_mutex_exit(buf_pool);
+		block_mutex = buf_page_get_mutex(bpage);
+		mutex_enter(block_mutex);
 
-#ifdef UNIV_DEBUG
-		if (buf_debug_prints) {
-			fprintf(stderr,
-				"Dropping space %lu page %lu\n",
-				(ulong) buf_page_get_space(bpage),
-				(ulong) buf_page_get_page_no(bpage));
-		}
-#endif
-		if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
-			/* This is a compressed-only block
-			descriptor. Do nothing. */
-		} else if (((buf_block_t*) bpage)->is_hashed) {
-			ulint	page_no;
-			ulint	zip_size;
-
-			buf_pool_mutex_exit(buf_pool);
-
-			zip_size = buf_page_get_zip_size(bpage);
-			page_no = buf_page_get_page_no(bpage);
-
+		if (bpage->buf_fix_count > 0) {
 			mutex_exit(block_mutex);
+			buf_flush_list_mutex_enter(buf_pool);
 
-			/* Note that the following call will acquire
-			an S-latch on the page */
+			/* We cannot remove this page during
+			this scan yet; maybe the system is
+			currently reading it in, or flushing
+			the modifications to the file */
 
-			btr_search_drop_page_hash_when_freed(
-				id, zip_size, page_no);
-			goto scan_again;
+			all_freed = FALSE;
+			goto next_page;
 		}
 
-		if (bpage->oldest_modification != 0) {
+		ut_ad(bpage->oldest_modification != 0);
 
-			buf_flush_remove(bpage);
-		}
+		buf_flush_remove(bpage);
 
-		/* Remove from the LRU list. */
-
-		if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
-		    != BUF_BLOCK_ZIP_FREE) {
-			buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
-			mutex_exit(block_mutex);
-		} else {
-			/* The block_mutex should have been released
-			by buf_LRU_block_remove_hashed_page() when it
-			returns BUF_BLOCK_ZIP_FREE. */
-			ut_ad(block_mutex == &buf_pool->zip_mutex);
-			ut_ad(!mutex_own(block_mutex));
-		}
+		mutex_exit(block_mutex);
+		buf_flush_list_mutex_enter(buf_pool);
 next_page:
 		bpage = prev_bpage;
+
+		if (!bpage) {
+			break;
+		}
+
+		/* Every BUF_LRU_DROP_SEARCH_SIZE iterations in the
+		loop we release buf_pool->mutex to let other threads
+		do their job. */
+		if (i < BUF_LRU_DROP_SEARCH_SIZE) {
+			continue;
+		}
+
+		/* We IO-fix the block to make sure that the block
+		stays in its position in the flush_list. */
+		if (buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+			/* Block is already IO-fixed. We don't
+			want to change the value. Lets leave
+			this block alone. */
+			continue;
+		}
+
+		buf_flush_list_mutex_exit(buf_pool);
+		block_mutex = buf_page_get_mutex(bpage);
+		mutex_enter(block_mutex);
+		buf_page_set_sticky(bpage);
+		mutex_exit(block_mutex);
+
+		/* Now it is safe to release the buf_pool->mutex. */
+		buf_pool_mutex_exit(buf_pool);
+		os_thread_yield();
+		buf_pool_mutex_enter(buf_pool);
+
+		mutex_enter(block_mutex);
+		buf_page_unset_sticky(bpage);
+		mutex_exit(block_mutex);
+
+		buf_flush_list_mutex_enter(buf_pool);
+		ut_ad(bpage->in_flush_list);
+
+		i = 0;
 	}
 
 	buf_pool_mutex_exit(buf_pool);
+	buf_flush_list_mutex_exit(buf_pool);
+
+	ut_ad(buf_flush_validate(buf_pool));
 
 	if (!all_freed) {
 		os_thread_sleep(20000);
@@ -477,7 +488,7 @@ buf_LRU_invalidate_tablespace(
 
 		buf_pool = buf_pool_from_array(i);
 		buf_LRU_drop_page_hash_for_tablespace(buf_pool, id);
-		buf_LRU_invalidate_tablespace_buf_pool_instance(buf_pool, id);
+		buf_LRU_remove_dirty_pages_for_tablespace(buf_pool, id);
 	}
 }
 
@@ -1532,8 +1543,9 @@ alloc:
 			/* Prevent buf_page_get_gen() from
 			decompressing the block while we release
 			buf_pool->mutex and block_mutex. */
-			b->buf_fix_count++;
-			b->io_fix = BUF_IO_READ;
+			mutex_enter(&buf_pool->zip_mutex);
+			buf_page_set_sticky(b);
+			mutex_exit(&buf_pool->zip_mutex);
 		}
 
 		buf_pool_mutex_exit(buf_pool);
@@ -1573,8 +1585,7 @@ alloc:
 
 		if (b) {
 			mutex_enter(&buf_pool->zip_mutex);
-			b->buf_fix_count--;
-			buf_page_set_io_fix(b, BUF_IO_NONE);
+			buf_page_unset_sticky(b);
 			mutex_exit(&buf_pool->zip_mutex);
 		}
 

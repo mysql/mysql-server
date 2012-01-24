@@ -2624,7 +2624,9 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
        i < buffer->size;
        i+= TRANSLOG_PAGE_SIZE, pg++)
   {
-    TRANSLOG_ADDRESS addr __attribute__((unused))= (buffer->offset + i);
+#ifndef DBUG_OFF
+    TRANSLOG_ADDRESS addr= (buffer->offset + i);
+#endif
     DBUG_PRINT("info", ("send log form %lu till %lu  address: (%lu,0x%lx)  "
                         "page #: %lu  buffer size: %lu  buffer: 0x%lx",
                         (ulong) i, (ulong) (i + TRANSLOG_PAGE_SIZE),
@@ -3327,7 +3329,7 @@ static uint16 translog_get_chunk_header_length(uchar *chunk)
   case TRANSLOG_CHUNK_LSN:
   {
     /* 0 chunk referred as LSN (head or tail) */
-    translog_size_t rec_len;
+    translog_size_t rec_len __attribute__((unused));
     uchar *start= chunk;
     uchar *ptr= start + 1 + 2;
     uint16 chunk_len, header_len;

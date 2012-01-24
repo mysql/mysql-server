@@ -1653,10 +1653,12 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 
 /**
   Index creation context.
-  Created by handler::add_index() and freed by handler::final_add_index().
+  Created by handler::add_index() and destroyed by handler::final_add_index().
+  And finally freed at the end of the statement.
+  (Sql_alloc does not free in delete).
 */
 
-class handler_add_index
+class handler_add_index : public Sql_alloc
 {
 public:
   /* Table where the indexes are added */

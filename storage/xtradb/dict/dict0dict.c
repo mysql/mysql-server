@@ -3140,10 +3140,15 @@ dict_scan_table_name(
 		memcpy(ref, database_name, database_name_len);
 		ref[database_name_len] = '/';
 		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+
 	} else {
+#ifndef __WIN__
 		if (innobase_get_lower_case_table_names() == 1) {
 			innobase_casedn_str(ref);
 		}
+#else
+		innobase_casedn_str(ref);
+#endif /* !__WIN__ */
 		*table = dict_table_get_low(ref);
 	}
 

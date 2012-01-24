@@ -1,5 +1,5 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates.
-   Copyright (c) 2011 Monty Program Ab
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19803,6 +19803,86 @@ static void test_bug11754979()
 
 
 /*
+  Bug#13001491: MYSQL_REFRESH CRASHES WHEN STORED ROUTINES ARE RUN CONCURRENTLY.
+*/
+static void test_bug13001491()
+{
+  int rc;
+  char query[MAX_TEST_QUERY_LENGTH];
+  MYSQL *c;
+
+  myheader("test_bug13001491");
+
+  my_snprintf(query, MAX_TEST_QUERY_LENGTH,
+           "GRANT ALL PRIVILEGES ON *.* TO mysqltest_u1@%s",
+           opt_host ? opt_host : "'localhost'");
+           
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  my_snprintf(query, MAX_TEST_QUERY_LENGTH,
+           "GRANT RELOAD ON *.* TO mysqltest_u1@%s",
+           opt_host ? opt_host : "'localhost'");
+           
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  c= mysql_client_init(NULL);
+
+  DIE_UNLESS(mysql_real_connect(c, opt_host, "mysqltest_u1", NULL,
+                                current_db, opt_port, opt_unix_socket,
+                                CLIENT_MULTI_STATEMENTS |
+                                CLIENT_MULTI_RESULTS));
+
+  rc= mysql_query(c, "DROP PROCEDURE IF EXISTS p1");
+  myquery(rc);
+
+  rc= mysql_query(c,
+    "CREATE PROCEDURE p1() "
+    "BEGIN "
+    " DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END; "
+    " SELECT COUNT(*) "
+    " FROM INFORMATION_SCHEMA.PROCESSLIST "
+    " GROUP BY user "
+    " ORDER BY NULL "
+    " INTO @a; "
+    "END");
+  myquery(rc);
+
+  rc= mysql_query(c, "CALL p1()");
+  myquery(rc);
+
+  mysql_free_result(mysql_store_result(c));
+
+  /* Check that mysql_refresh() succeeds without REFRESH_LOG. */
+  rc= mysql_refresh(c, REFRESH_GRANT |
+                       REFRESH_TABLES | REFRESH_HOSTS |
+                       REFRESH_STATUS | REFRESH_THREADS);
+  myquery(rc);
+
+  /*
+    Check that mysql_refresh(REFRESH_LOG) does not crash the server even if it
+    fails. mysql_refresh(REFRESH_LOG) fails when error log points to unavailable
+    location.
+  */
+  mysql_refresh(c, REFRESH_LOG);
+
+  rc= mysql_query(c, "DROP PROCEDURE p1");
+  myquery(rc);
+
+  mysql_close(c);
+  c= NULL;
+
+  my_snprintf(query, MAX_TEST_QUERY_LENGTH,
+           "DROP USER mysqltest_u1@%s",
+           opt_host ? opt_host : "'localhost'");
+           
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -20148,6 +20228,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug12337762", test_bug12337762 },
   { "test_progress_reporting", test_progress_reporting },
   { "test_bug11754979", test_bug11754979 },
+  { "test_bug13001491", test_bug13001491 },
   { 0, 0 }
 };
 

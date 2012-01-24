@@ -15,9 +15,9 @@ if ($dir_bin eq '/usr/') {
   # RPM package
   $dir_docs = $dir_bin;
   $dir_docs =~ s|/lib|/share/doc|;
-  if(-d "$dir_docs/packages/MySQL-server") {
-    # SuSE
-    $dir_docs = "$dir_docs/packages/MySQL-server";
+  if(-d "$dir_docs/packages") {
+    # SuSE: "packages/" in the documentation path
+    $dir_docs = glob "$dir_docs/packages/MySQL-server*";
   } else {
     # RedHat: version number in directory name
     $dir_docs = glob "$dir_docs/MySQL-server*";
@@ -25,9 +25,9 @@ if ($dir_bin eq '/usr/') {
 } elsif ($dir_bin eq '/usr') {
   # RPM build during development
   $dir_docs = "$dir_bin/share/doc";
-  if(-d "$dir_docs/packages/MySQL-server") {
-    # SuSE
-    $dir_docs = "$dir_docs/packages/MySQL-server";
+  if(-d "$dir_docs/packages") {
+    # SuSE: "packages/" in the documentation path
+    $dir_docs = glob "$dir_docs/packages/MySQL-server*";
   } else {
     # RedHat: version number in directory name
     $dir_docs = glob "$dir_docs/MySQL-server*";

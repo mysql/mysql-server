@@ -1,0 +1,23 @@
+mariadb-5.5 (5.5.1) unstable; urgency=low
+
+  * Initial release.
+
+ -- Kristian Nielsen <knielsen@askmonty.org>  Fri, 6 Jan 2012 15:17:23 -0100
+
+mariadb-5.3 (5.3.0) unstable; urgency=low
+
+  * Initial release.
+
+ -- Sergei Golubchik <serg@askmonty.org>  Mon, 1 Nov 2010 09:16:01 -0100
+
+mariadb-5.2 (5.2.0) unstable; urgency=low
+
+  * Initial release.
+
+ -- Kristian Nielsen <knielsen@askmonty.org>  Wed, 17 Mar 2010 12:54:51 -0100
+
+mariadb-5.1 (5.1.0) unstable; urgency=low
+
+  * Initial release.
+
+ -- Peter Lieverdink <peter@openquery.com>  Tue, 29 Sep 2009 17:05:03 +1000

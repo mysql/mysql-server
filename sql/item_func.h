@@ -1763,6 +1763,7 @@ public:
     table= 0;           // required by Item_func_match::eq()
     DBUG_VOID_RETURN;
   }
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
   enum Functype functype() const { return FT_FUNC; }
   const char *func_name() const { return "match"; }
   void update_used_tables() {}
@@ -1956,6 +1957,10 @@ public:
   bool check_vcol_func_processor(uchar *int_arg) 
   {
     return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
+  bool limit_index_condition_pushdown_processor(uchar *opt_arg)
+  {
+    return TRUE;
   }
 };
 

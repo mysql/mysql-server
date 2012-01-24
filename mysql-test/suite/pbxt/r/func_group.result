@@ -215,6 +215,8 @@ a1	a2	a1	a2
 10	bbb	BBB	20
 20	zzz	AAA	10
 20	zzz	BBB	20
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
 max(t1.a1)	max(t2.a1)
 NULL	NULL
@@ -245,6 +247,7 @@ NULL
 select max(t1.a2),max(t2.a1) from t1 left outer join t2 on t1.a1=10;
 max(t1.a2)	max(t2.a1)
 zzz	BBB
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1,t2;
 CREATE TABLE t1 (a int, b int);
 select count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1;

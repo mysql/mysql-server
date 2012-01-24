@@ -229,7 +229,9 @@ public:
     Gcalc_dyn_list(blk_size, sizeof(Info)),
     m_hook(&m_first), m_n_points(0)
   {}
+  void set_extent(double xmin, double xmax, double ymin, double ymax);
   Info *new_point_info(double x, double y, gcalc_shape_info shape);
+  void free_point_info(Info *i, Gcalc_dyn_list::Item **i_hook);
   Info *new_intersection(const Info *p1, const Info *p2,
                          const Info *p3, const Info *p4);
   void prepare_operation();
@@ -242,6 +244,8 @@ public:
   long double get_double(const Gcalc_internal_coord *c) const;
 #endif /*GCALC_CHECK_WITH_FLOAT*/
   double coord_extent;
+  Gcalc_dyn_list::Item **get_cur_hook() { return m_hook; }
+
 private:
   Gcalc_dyn_list::Item *m_first;
   Gcalc_dyn_list::Item **m_hook;
@@ -269,6 +273,7 @@ class Gcalc_shape_transporter
 private:
   Gcalc_heap::Info *m_first;
   Gcalc_heap::Info *m_prev;
+  Gcalc_dyn_list::Item **m_prev_hook;
   int m_shape_started;
   void int_complete();
 protected:

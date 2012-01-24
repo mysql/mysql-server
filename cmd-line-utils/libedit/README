@@ -2,7 +2,7 @@ An approximate method to merge from upstream is:
 
 	# Fetch latest from upstream (we also include some compat stuff)
 	$ CVS_RSH=ssh; export CVS_RSH
-	$ CVSROOT="anoncvs@stripped:/cvsroot"
+	$ CVSROOT="anoncvs@anoncvs.netbsd.org:/cvsroot"
 	$ cvs co -d libedit -P src/lib/libedit
 	$ mkdir libedit/np
 	$ for f in src/common/lib/libc/string/strlcat.c \
@@ -24,13 +24,13 @@ An approximate method to merge from upstream is:
 
 	# Rename files to match our naming
 	$ mv makelist makelist.sh
-	$ mv term.h el_term.h
+	$ mv terminal.h el_terminal.h
 
 	# Remove NetBSD-specific bits
 	$ for file in $(find . -type f)
 	> do
 	>   cp ${file} ${file}.orig
-	>   sed -e 's/#include "term.h"/#include "el_term.h"/g' \
+	>   sed -e 's/#include "terminal.h"/#include "el_terminal.h"/g' \
 	>       -e 's/sig_handler/el_sig_handler/g' \
 	>       -e 's/isprint/el_isprint/g' \
 	>       -e '/^__RCSID/d' \
@@ -42,9 +42,9 @@ then merge remaining bits by hand.  All MySQL-specific changes should be
 marked with XXXMYSQL to make them easier to identify and merge.  To generate
 a 'clean' diff against upstream you can use the above commands but use
 
-	cvs co -D "2009/02/06 20:09:00" [..]
+	cvs co -D "2011/10/23 17:37:55" [..]
 
 to fetch the baseline of most recent merge.
 
-Please feed any fixes to Jonathan Perkin <jperkin@stripped> who will endeavour
-to merge them upstream and keep diffs minimal.
+Please feed any fixes to Jonathan Perkin <jonathan.perkin@oracle.com> who will
+endeavour to merge them upstream and keep diffs minimal.

@@ -470,20 +470,32 @@ sub collect_one_suite
       #print_testcases(@cases);
 
       my @new_cases;
-      foreach my $comb (@combinations)
+      TEST: foreach my $test (@cases)
       {
-	foreach my $test (@cases)
-	{
+        if ( $test->{'skip'} )
+        {
+          push(@new_cases, $test);
+          next;
+        }
 
-	  next if ( $test->{'skip'} );
-
-	  # Skip this combination if the values it provides
-	  # already are set in master_opt or slave_opt
+        foreach my $comb (@combinations)
+        {
+	  # Skip all other combinations if the values they change
+	  # are already fixed in master_opt or slave_opt
 	  if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) &&
 	      My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ){
-	    next;
-	  }
 
+            # Add combination name short name
+            $test->{combination}= $comb->{name};
+
+            # Add the test to new test cases list
+            push(@new_cases, $test);
+            next TEST;
+	  }
+        }
+
+        foreach my $comb (@combinations)
+        {
 	  # Copy test options
 	  my $new_test= My::Test->new();
 	  while (my ($key, $value) = each(%$test)) {
@@ -505,17 +517,6 @@ sub collect_one_suite
 	  push(@new_cases, $new_test);
 	}
       }
-
-      # Add the plain test if it was not already added
-      # as part of a combination
-      my %added;
-      foreach my $new_test (@new_cases){
-	$added{$new_test->{name}}= 1;
-      }
-      foreach my $test (@cases){
-	push(@new_cases, $test) unless $added{$test->{name}};
-      }
-
 
       #print_testcases(@new_cases);
       @cases= @new_cases;
@@ -643,9 +644,6 @@ sub process_opts {
   my @opts= @{$tinfo->{$opt_name}};
   $tinfo->{$opt_name} = [];
 
-  my @plugins;
-  my %seen;
-
   foreach my $opt (@opts)
   {
     my $value;
@@ -658,14 +656,6 @@ sub process_opts {
     if ( defined $value )
     {
       $tinfo->{'timezone'}= $value;
-      next;
-    }
-
-    $value= mtr_match_prefix($opt, "--plugin-load=");
-    if (defined $value)
-    {
-      push @plugins, $value unless $seen{$value};
-      $seen{$value}=1;
       next;
     }
 
@@ -714,11 +704,6 @@ sub process_opts {
 
     # Ok, this was a real option, add it
     push(@{$tinfo->{$opt_name}}, $opt);
-  }
-
-  if (@plugins) {
-    my $sep = (IS_WINDOWS) ? ';' : ':';
-    push @{$tinfo->{$opt_name}}, "--plugin-load=" .  join($sep, @plugins);
   }
 }
 

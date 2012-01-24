@@ -84,9 +84,15 @@ eval $s;
 eval explain $s;
 
 --echo # select_type=DERIVED, type=system
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+
 let $s = select * from (select a,b,c from t1) as t11;
 eval $s;
 eval explain $s;
+
+set optimizer_switch=@tmp_optimizer_switch;
 
 --echo ###
 --echo ### Using aggregate functions with/without DISTINCT

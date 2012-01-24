@@ -3127,7 +3127,7 @@ innobase_commit_low(
 #ifdef MYSQL_SERVER
 		THD *thd=current_thd;
 
-		if (thd && thd->slave_thread) {
+		if (thd && thd_is_replication_slave_thread(thd)) {
 		/* Update the replication position info inside InnoDB.
 		   In embedded server, does nothing. */
 			const char *log_file_name, *group_relay_log_name;
@@ -6023,14 +6023,15 @@ calc_row_difference(
 			/* The field has changed */
 
 			ufield = uvect->fields + n_changed;
+			UNIV_MEM_INVALID(ufield, sizeof *ufield);
 
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
-			dict_col_copy_type(prebuilt->table->cols + innodb_idx,
-					   dfield_get_type(&dfield));
-
 			if (n_len != UNIV_SQL_NULL) {
+				dict_col_copy_type(prebuilt->table->cols + innodb_idx,
+						   dfield_get_type(&dfield));
+
 				buf = row_mysql_store_col_in_innobase_format(
 					&dfield,
 					(byte*)buf,
@@ -6038,7 +6039,7 @@ calc_row_difference(
 					new_mysql_row_col,
 					col_pack_len,
 					dict_table_is_comp(prebuilt->table));
-				dfield_copy_data(&ufield->new_val, &dfield);
+				dfield_copy(&ufield->new_val, &dfield);
 			} else {
 				dfield_set_null(&ufield->new_val);
 			}
@@ -6709,7 +6710,7 @@ ha_innobase::change_active_index(
 				"InnoDB: Index %s for table %s is"
 				" marked as corrupted",
 				index_name, table_name);
-			DBUG_RETURN(1);
+			DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
 		} else {
 			push_warning_printf(
 				user_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -11561,7 +11562,7 @@ ha_innobase::check_if_incompatible_data(
 	if (info_row_type == ROW_TYPE_DEFAULT)
 		info_row_type = ROW_TYPE_COMPACT;
 	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT) &&
-	    get_row_type() != ((info->row_type == ROW_TYPE_DEFAULT)
+	    row_type != ((info->row_type == ROW_TYPE_DEFAULT)
 				? ROW_TYPE_COMPACT : info->row_type)) {
 
 		DBUG_PRINT("info", ("get_row_type()=%d != info->row_type=%d -> "
@@ -12370,15 +12371,12 @@ static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   NULL, NULL, 500L, 1L, ~0L, 0);
 
 #ifdef EXTENDED_FOR_KILLIDLE
-#define TMP_STR "If non-zero value, the idle session with transaction which is idle over the value in seconds is killed by InnoDB."
+#define kill_idle_help_text "If non-zero value, the idle session with transaction which is idle over the value in seconds is killed by InnoDB."
 #else
-#define TMP_STR "No effect for this build."
+#define kill_idle_help_text "No effect for this build."
 #endif
-static MYSQL_SYSVAR_ULONG(kill_idle_transaction, srv_kill_idle_transaction,
-  PLUGIN_VAR_RQCMDARG,
-  TMP_STR,
-  NULL, NULL, 0, 0, LONG_MAX, 0);
-#undef TMP_STR
+static MYSQL_SYSVAR_LONGLONG(kill_idle_transaction, srv_kill_idle_transaction,
+  PLUGIN_VAR_RQCMDARG, kill_idle_help_text, NULL, NULL, 0, 0, LONG_MAX, 0);
 
 static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,

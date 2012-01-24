@@ -53,6 +53,16 @@ UNIV_INTERN
 btr_pcur_t*
 btr_pcur_create_for_mysql(void);
 /*============================*/
+
+/**************************************************************//**
+Resets a persistent cursor object, freeing ::old_rec_buf if it is
+allocated and resetting the other members to their initial values. */
+UNIV_INTERN
+void
+btr_pcur_reset(
+/*===========*/
+	btr_pcur_t*	cursor);/*!< in, out: persistent cursor */
+
 /**************************************************************//**
 Frees the memory for a persistent cursor object. */
 UNIV_INTERN
@@ -263,14 +273,6 @@ btr_pcur_commit_specify_mtr(
 /*========================*/
 	btr_pcur_t*	pcur,	/*!< in: persistent cursor */
 	mtr_t*		mtr);	/*!< in: mtr to commit */
-/**************************************************************//**
-Tests if a cursor is detached: that is the latch mode is BTR_NO_LATCHES.
-@return	TRUE if detached */
-UNIV_INLINE
-ibool
-btr_pcur_is_detached(
-/*=================*/
-	btr_pcur_t*	pcur);	/*!< in: persistent cursor */
 /*********************************************************//**
 Moves the persistent cursor to the next record in the tree. If no records are
 left, the cursor stays 'after last in tree'.

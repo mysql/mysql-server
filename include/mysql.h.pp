@@ -140,6 +140,7 @@ void get_salt_from_password(unsigned char *res, const char *password);
 void make_password_from_salt(char *to, const unsigned char *hash_stage2);
 char *octet2hex(char *to, const char *str, unsigned int len);
 char *get_tty_password(const char *opt_message);
+void get_tty_password_buff(const char *opt_message, char *to, size_t length);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 my_bool my_thread_init(void);
 void my_thread_end(void);
