@@ -4719,21 +4719,21 @@ public:
   {
     if (DBUG_EVALUATE_IF("skip_writing_previous_gtids_log_event", 1, 0))
     {
-      DBUG_PRINT("info", ("skip writing Previous_gtids_log_event because of debug option"));
+      DBUG_PRINT("info", ("skip writing Previous_gtids_log_event because of debug option 'skip_writing_previous_gtids_log_event'"));
       return false;
     }
 
     if (DBUG_EVALUATE_IF("write_partial_previous_gtids_log_event", 1, 0))
     {
-      DBUG_PRINT("info", ("writing truncated Previous_gtids_log_event because of debug option"));
-      return(Log_event::write_header(file, get_data_size()) ||
-             Log_event::write_data_header(file));
+      DBUG_PRINT("info", ("writing partial Previous_gtids_log_event because of debug option 'write_partial_previous_gtids_log_event'"));
+      return (Log_event::write_header(file, get_data_size()) ||
+              Log_event::write_data_header(file));
     }
   
-    return(Log_event::write_header(file, get_data_size()) ||
-           Log_event::write_data_header(file) ||
-           write_data_body(file) ||
-           Log_event::write_footer(file));
+    return (Log_event::write_header(file, get_data_size()) ||
+            Log_event::write_data_header(file) ||
+            write_data_body(file) ||
+            Log_event::write_footer(file));
   }
   bool write_data_body(IO_CACHE *file);
 #endif
