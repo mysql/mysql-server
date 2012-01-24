@@ -1,0 +1,10 @@
+--source include/master-slave.inc
+--source include/have_perfschema.inc
+--source include/have_binlog_format_mixed.inc
+
+UPDATE performance_schema.setup_instruments SET ENABLED="NO";
+
+--sync_slave_with_master
+--source include/rpl_end.inc
+
+# End of test case
