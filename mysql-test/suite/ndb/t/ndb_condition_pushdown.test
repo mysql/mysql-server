@@ -2423,5 +2423,15 @@ select * from t where b like 'a%';
 select * from t where b not like 'a%';
 drop table t;
 
+# Bug #13604447 61064: SELECT QUERIES USING ESCAPE SYNTAX FAIL
+create table escapetest ( emailaddress varchar(255) default null, id int not
+null default '0') engine=ndbcluster;
+insert into escapetest values('test_data@test.org', 1);
+explain select * from escapetest where emailaddress like "test_%";
+select * from escapetest where emailaddress like "test_%";
+explain select * from escapetest where emailaddress like "test|_%" escape '|';
+select * from escapetest where emailaddress like "test|_%" escape '|';
+drop table escapetest;
+
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
