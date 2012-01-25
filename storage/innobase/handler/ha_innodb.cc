@@ -4537,7 +4537,7 @@ table_opened:
 	}
 
 	/* Index block size in InnoDB: used by MySQL in query optimization */
-	stats.block_size = 16 * 1024;
+	stats.block_size = UNIV_PAGE_SIZE;
 
 	/* Init table lock structure */
 	thr_lock_data_init(&share->lock,&lock,(void*) 0);
