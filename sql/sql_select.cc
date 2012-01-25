@@ -9153,6 +9153,9 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 
   if (tab->use_quick == 2)
     goto no_join_cache;
+
+  if (tab->table->map & join->complex_firstmatch_tables)
+    goto no_join_cache;
   
   /*
     Don't use join cache if we're inside a join tab range covered by LooseScan
@@ -9363,7 +9366,7 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
   {
     tab->used_join_cache_level= join->max_allowed_join_cache_level;  
   }
-  
+
   uint idx= join->const_tables;
   for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
        tab; 
@@ -9447,6 +9450,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   bool sorted= 1;
+
+  join->complex_firstmatch_tables= table_map(0);
 
   if (!join->select_lex->sj_nests.is_empty() &&
       setup_semijoin_dups_elimination(join, options, no_jbuf_after))

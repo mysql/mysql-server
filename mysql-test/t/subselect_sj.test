@@ -2252,6 +2252,23 @@ WHERE ( b, d ) IN
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # BUG#920713: Wrong result (missing rows) with firstmatch+BNL, IN subquery, ...
+--echo #
+# t1 should be MyISAM or InnoDB
+CREATE TABLE t1 ( a VARCHAR(1) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('e'),('w'),('a'),('h'),('x'),('k'),('g');
+CREATE TABLE t2 ( b INT, c VARCHAR(1) );
+INSERT INTO t2 VALUES (0,'j'),(8,'v');
+
+#SET debug_optimizer_prefer_join_prefix= 'alias2,alias4,alias1,alias3';
+
+SELECT * FROM t1 alias1, t2 alias2
+WHERE alias2.c IN (
+  SELECT alias4.c FROM t1 alias3, t2 alias4
+);
+
+DROP TABLE t1, t2;
 
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;

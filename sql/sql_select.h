@@ -995,6 +995,13 @@ public:
   
   /* We also maintain a stack of join optimization states in * join->positions[] */
 /******* Join optimization state members end *******/
+
+  /*
+    Tables within complex firstmatch ranges (i.e. those where inner tables are
+    interleaved with outer tables). Join buffering cannot be used for these.
+  */
+  table_map complex_firstmatch_tables;
+
   /*
     The cost of best complete join plan found so far during optimization,
     after optimization phase - cost of picked join order (not taking into
