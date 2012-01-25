@@ -856,6 +856,9 @@ parse_options()
     --static-linking)
       static_linking_flag="yes"
       ;;
+    --no-static-linking)
+      static_linking_flag="no"
+      ;;
     --strip)
       strip_flag="yes"
       ;;
@@ -1763,8 +1766,10 @@ set_static_link_configs()
     loc_static_link="--with-mysqld-ldflags=\"-all-static\""
     loc_static_link="$loc_static_link --with-client-ldflags=\"-all-static\""
   else
-    loc_static_link="--with-mysqld-ldflags=\"-static\""
-    loc_static_link="$loc_static_link --with-client-ldflags=\"-static\""
+    if test "x$static_linking_flag" != "xno" ; then
+      loc_static_link="--with-mysqld-ldflags=\"-static\""
+      loc_static_link="$loc_static_link --with-client-ldflags=\"-static\""
+    fi
   fi
   base_configs="$base_configs $loc_static_link"
 }
