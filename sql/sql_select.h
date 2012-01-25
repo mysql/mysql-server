@@ -379,6 +379,12 @@ typedef struct st_join_table {
   /* Buffer to save index tuple to be able to skip duplicates */
   uchar *loosescan_buf;
   
+  /* 
+    Index used by LooseScan (we store it here separately because ref access
+    stores it in tab->ref.key, while range scan stores it in tab->index, etc)
+  */
+  uint loosescan_key;
+
   /* Length of key tuple (depends on #keyparts used) to store in the above */
   uint loosescan_key_len;
 

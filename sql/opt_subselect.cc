@@ -4107,6 +4107,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         for (uint kp=0; kp < pos->loosescan_picker.loosescan_parts; kp++)
           keylen += tab->table->key_info[keyno].key_part[kp].store_length;
 
+        tab->loosescan_key= keyno;
         tab->loosescan_key_len= keylen;
         if (pos->n_sj_tables > 1) 
           tab[pos->n_sj_tables - 1].do_firstmatch= tab;
