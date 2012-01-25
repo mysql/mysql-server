@@ -15372,7 +15372,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     if (join_tab->loosescan_match_tab && 
         join_tab->loosescan_match_tab->found_match)
     {
-      KEY *key= join_tab->table->key_info + join_tab->index;
+      KEY *key= join_tab->table->key_info + join_tab->loosescan_key;
       key_copy(join_tab->loosescan_buf, join_tab->table->record[0], key, 
                join_tab->loosescan_key_len);
       skip_over= TRUE;
@@ -15382,7 +15382,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
     if (skip_over && !error) 
     {
-      if(!key_cmp(join_tab->table->key_info[join_tab->index].key_part,
+      if(!key_cmp(join_tab->table->key_info[join_tab->loosescan_key].key_part,
                   join_tab->loosescan_buf, join_tab->loosescan_key_len))
       {
         /* 
