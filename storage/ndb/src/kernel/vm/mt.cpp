@@ -2392,6 +2392,50 @@ release_list(thread_local_pool<thr_send_page>* pool,
   pool->release_local(tail);
 }
 
+/**
+ * pack thr_send_pages for a particular send-buffer <em>db</em>
+ *   release pages (local) to <em>pool<em>
+ *
+ * can only be called with sb->m_lock held
+ */
+static
+void
+pack_sb_pages(thread_local_pool<thr_send_page>* pool,
+              thr_repository::send_buffer* sb)
+{
+  assert(sb->m_buffer.m_first_page != 0);
+  assert(sb->m_buffer.m_last_page != 0);
+  assert(sb->m_buffer.m_last_page->m_next == 0);
+
+  thr_send_page* curr = sb->m_buffer.m_first_page;
+  Uint32 curr_free = curr->max_bytes() - (curr->m_bytes + curr->m_start);
+  while (curr->m_next != 0)
+  {
+    thr_send_page* next = curr->m_next;
+    assert(next->m_start == 0); // only first page should have half sent bytes
+    if (next->m_bytes <= curr_free)
+    {
+      thr_send_page * save = next;
+      memcpy(curr->m_data + (curr->m_bytes + curr->m_start),
+             next->m_data,
+             next->m_bytes);
+
+      curr_free -= next->m_bytes;
+
+      curr->m_bytes += next->m_bytes;
+      curr->m_next = next->m_next;
+
+      pool->release_local(save);
+    }
+    else
+    {
+      curr = next;
+      curr_free = curr->max_bytes() - (curr->m_bytes + curr->m_start);
+    }
+  }
+
+  sb->m_buffer.m_last_page = curr;
+}
 
 static
 Uint32
@@ -2455,6 +2499,14 @@ bytes_sent(thread_local_pool<thr_send_page>* pool,
   sb->m_buffer.m_first_page = curr;
   assert(sb->m_bytes > bytes);
   sb->m_bytes -= bytes;
+
+  /**
+   * Since not all bytes were sent...
+   *   spend the time to try to pack the pages
+   *   possibly releasing send-buffer
+   */
+  pack_sb_pages(pool, sb);
+
   return sb->m_bytes;
 }
 
