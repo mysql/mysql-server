@@ -66,6 +66,7 @@ initialize_performance_schema(const PFS_global_param *param)
   init_timers();
   PFS_atomic::init();
   init_event_name_sizing(param);
+  register_global_classes();
 
   if (pthread_key_create(&THR_PFS, destroy_pfs_thread))
     return NULL;

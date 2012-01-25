@@ -166,8 +166,7 @@ void table_events_stages_common::make_row(PFS_events_stages *stage)
   m_row.m_nesting_event_id= stage->m_nesting_event_id;
   m_row.m_nesting_event_type= stage->m_nesting_event_type;
 
-  time_normalizer *normalizer= time_normalizer::get(stage_timer);
-  normalizer->to_pico(stage->m_timer_start, stage->m_timer_end,
+  m_normalizer->to_pico(stage->m_timer_start, stage->m_timer_end,
                       & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
 
   m_row.m_name= klass->m_name;
@@ -279,6 +278,12 @@ void table_events_stages_current::reset_position(void)
   m_next_pos.m_index= 0;
 }
 
+int table_events_stages_current::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(stage_timer);
+  return 0;
+}
+
 int table_events_stages_current::rnd_next(void)
 {
   PFS_thread *pfs_thread;
@@ -343,6 +348,12 @@ void table_events_stages_history::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
+}
+
+int table_events_stages_history::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(stage_timer);
+  return 0;
 }
 
 int table_events_stages_history::rnd_next(void)
@@ -440,6 +451,12 @@ void table_events_stages_history_long::reset_position(void)
 {
   m_pos.m_index= 0;
   m_next_pos.m_index= 0;
+}
+
+int table_events_stages_history_long::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(stage_timer);
+  return 0;
 }
 
 int table_events_stages_history_long::rnd_next(void)
