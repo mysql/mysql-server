@@ -2840,7 +2840,7 @@ Partition_share *ha_partition::get_share()
   Partition_share *tmp_part_share;
   DBUG_ENTER("ha_partition::get_share");
   DBUG_ASSERT(table_share);
-  
+
   if (!(tmp_ha_share= get_ha_share_ptr()))
   {
     tmp_part_share= new Partition_share;
@@ -2856,7 +2856,7 @@ Partition_share *ha_partition::get_share()
     set_ha_share_ptr(static_cast<Handler_share*>(tmp_part_share));
     DBUG_RETURN(tmp_part_share);
   }
-  
+
   DBUG_RETURN(static_cast<Partition_share*>(tmp_ha_share));
 err:
   /*

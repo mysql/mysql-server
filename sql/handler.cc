@@ -2131,7 +2131,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, ht);
-  
+
   if (!new_handler)
     return NULL;
   if (new_handler->set_ha_share_storage(ha_share))
@@ -3739,6 +3739,7 @@ handler::ha_rename_table(const char *from, const char *to)
 int
 handler::ha_delete_table(const char *name)
 {
+  DBUG_ASSERT(m_lock_type == F_UNLCK);
   mark_trx_read_write();
 
   return delete_table(name);
@@ -6167,7 +6168,7 @@ void handler::use_hidden_primary_key()
                     table_share->LOCK_ha_data is taken.
     @retval != NULL previous initialized ha_share.
 
-  @note 
+  @note
   Helper function to avoid code duplication. If there is no ha_data_share
   found and it is not a temporary table LOCK_ha_data is not release and
   must be unlocked by the caller.
@@ -6178,7 +6179,7 @@ Handler_share *handler::get_ha_share_ptr()
   Handler_share *found_share;
   DBUG_ENTER("handler::get_ha_share_ptr");
   DBUG_ASSERT(ha_share && table_share);
-   
+
   lock_shared_ha_data();
 
   if (!(found_share= *ha_share))
@@ -6213,7 +6214,7 @@ void handler::set_ha_share_ptr(Handler_share *arg_ha_share)
   if (table_share->tmp_table == NO_TMP_TABLE)
     mysql_mutex_assert_owner(&table_share->LOCK_ha_data);
 #endif
-  
+
   *ha_share= arg_ha_share;
   unlock_shared_ha_data();
   DBUG_VOID_RETURN;

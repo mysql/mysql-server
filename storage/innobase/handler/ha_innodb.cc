@@ -11585,22 +11585,24 @@ ha_innobase::get_share(void)
 /*========================*/
 {
 	Innobase_share *tmp_share;
-	Handler_share *tmp_ha_share;
 
-	if ((tmp_ha_share= get_ha_share_ptr()))
-		tmp_share= static_cast<Innobase_share*>(tmp_ha_share);
-	else
+	tmp_share= static_cast<Innobase_share*>(get_ha_share_ptr());
+
+	if (!tmp_share)
 	{
 		tmp_share= new Innobase_share;
 		if (!tmp_share)
-			goto err;
+		{
+			/* LOCK_ha_data is taken in get_ha_share_ptr and
+			not released if not found */
+			unlock_shared_ha_data();
+			return(NULL);
+		}
 
 		set_ha_share_ptr(static_cast<Handler_share*>(tmp_share));
 	}
+	ut_ad(tmp_share);
 	return(tmp_share);
-err:
-	unlock_shared_ha_data();
-	return NULL;
 }
 
 /*****************************************************************//**

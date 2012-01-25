@@ -154,7 +154,7 @@ Example_share *ha_example::get_share()
 {
   Handler_share *tmp_ha_share;
   Example_share *tmp_share;
-  
+
   DBUG_ENTER("ha_example::get_share()");
 
   if ((tmp_ha_share= get_ha_share_ptr()))
@@ -164,11 +164,11 @@ Example_share *ha_example::get_share()
     tmp_share= new Example_share;
     if (!tmp_share)
       goto err;
-    
+
     set_ha_share_ptr(static_cast<Handler_share*>(tmp_share));
   }
   DBUG_RETURN(tmp_share);
-  
+
 err:
   unlock_shared_ha_data();
   DBUG_RETURN(NULL);

@@ -823,7 +823,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   {
     delete table->file;
     goto err;
-  }  
+  }
 
   if (!using_unique_constraint)
     reclength+= group_null_items;	// null flag is stored separately
@@ -1334,7 +1334,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   }
 
   null_count=1;
-  
+
   null_pack_length= 1;
   reclength += null_pack_length;
 
