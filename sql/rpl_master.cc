@@ -823,7 +823,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 #ifndef DBUG_OFF
   if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))
   {
-    errmsg = "Master failed COM_BINLOG_DUMP to test if slave can recover";
+    errmsg = "Master fails in COM_BINLOG_DUMP because of --opt-sporadic-binlog-dump-fail";
     my_errno= ER_UNKNOWN_ERROR;
     GOTO_ERR;
   }
@@ -837,13 +837,11 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   }
   if (!server_id_supplied)
   {
-    errmsg = "Misconfigured master - server id was not set";
+    errmsg = "Misconfigured master - server_id was not set";
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     GOTO_ERR;
   }
 
-/*
-  /// @todo: enable and test this code /sven
   if (gtid_set != NULL)
   {
     global_sid_lock.wrlock();
@@ -851,12 +849,11 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     {
       global_sid_lock.unlock();
       errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
-      my_errno= ER_MASTER_HAS_PURGED_REQUIRED_GTIDS;
+      my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
       GOTO_ERR;
     }
     global_sid_lock.unlock();
   }
-*/
 
   name=search_file_name;
   if (log_ident[0])

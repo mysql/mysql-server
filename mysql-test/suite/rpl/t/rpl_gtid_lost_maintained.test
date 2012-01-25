@@ -1,6 +1,7 @@
 # ==== Purpose ====
 #
-# Test that @@GLOBAL.GTID_LOST is maintained correctly.
+# Test that @@GLOBAL.GTID_LOST is maintained correctly when the server
+# restarts and when logs are purged.
 #
 # @@GLOBAL.GTID_LOST contains the GTIDs that were in binary logs that
 # have been purged.  It is initialized at server start and updated
