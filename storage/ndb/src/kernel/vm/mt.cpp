@@ -424,8 +424,8 @@ struct thr_safe_pool
     }
     else
     {
-      Uint32 dummy;
       unlock(&m_lock);
+      Uint32 dummy;
       ret = reinterpret_cast<T*>
         (mm->alloc_page(rg, &dummy,
                         Ndbd_mem_manager::NDB_ZONE_ANY));
@@ -434,6 +434,49 @@ struct thr_safe_pool
       // trace.
     }
     return ret;
+  }
+
+  T* seize_list(Ndbd_mem_manager *mm, Uint32 rg,
+                Uint32 requested, Uint32 * received) {
+    lock(&m_lock);
+    if (m_cnt == 0)
+    {
+      unlock(&m_lock);
+      Uint32 dummy;
+      T* ret = reinterpret_cast<T*>
+        (mm->alloc_page(rg, &dummy,
+                        Ndbd_mem_manager::NDB_ZONE_ANY));
+
+      if (ret == 0)
+      {
+        * received = 0;
+        return 0;
+      }
+      else
+      {
+        ret->m_next = 0;
+        * received = 1;
+        return ret;
+      }
+    }
+    else
+    {
+      if (m_cnt < requested )
+        requested = m_cnt;
+
+      T* first = m_free_list;
+      T* last = first;
+      for (Uint32 i = 1; i < requested; i++)
+      {
+        last = last->m_next;
+      }
+      m_cnt -= requested;
+      m_free_list = last->m_next;
+      unlock(&m_lock);
+      last->m_next = 0;
+      * received = requested;
+      return first;
+    }
   }
 
   void release(Ndbd_mem_manager *mm, Uint32 rg, T* t) {
@@ -461,8 +504,10 @@ template<typename T>
 class thread_local_pool
 {
 public:
-  thread_local_pool(thr_safe_pool<T> *global_pool, unsigned max_free) :
+  thread_local_pool(thr_safe_pool<T> *global_pool,
+                    unsigned max_free, unsigned alloc_size = 1) :
     m_max_free(max_free),
+    m_alloc_size(alloc_size),
     m_free(0),
     m_freelist(0),
     m_global_pool(global_pool)
@@ -471,14 +516,16 @@ public:
 
   T *seize(Ndbd_mem_manager *mm, Uint32 rg) {
     T *tmp = m_freelist;
+    if (tmp == 0)
+    {
+      tmp = m_global_pool->seize_list(mm, rg, m_alloc_size, &m_free);
+    }
     if (tmp)
     {
       m_freelist = tmp->m_next;
       assert(m_free > 0);
       m_free--;
     }
-    else
-      tmp = m_global_pool->seize(mm, rg);
 
     validate();
     return tmp;
@@ -589,6 +636,7 @@ public:
 
 private:
   unsigned m_max_free;
+  unsigned m_alloc_size;
   unsigned m_free;
   T *m_freelist;
   thr_safe_pool<T> *m_global_pool;
