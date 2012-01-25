@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -451,35 +451,54 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       orig_field_val= field->val_int();
     if (!(*item)->is_null() && !(*item)->save_in_field(field, 1)) // TS-TODO
     {
-      Item *tmp= field->type() == MYSQL_TYPE_TIME ?
+      int field_cmp= 0;
+      /*
+        If item is a decimal value, we must reject it if it was truncated.
+        TODO: consider doing the same for MYSQL_TYPE_YEAR,.
+        However: we have tests which assume that things '1999' and
+        '1991-01-01 01:01:01' can be converted to year.
+        Testing for MYSQL_TYPE_YEAR here, would treat such literals
+        as 'incorrect DOUBLE value'.
+        See Bug#13580652 YEAR COLUMN CAN BE EQUAL TO 1999.1
+      */
+      if (field->type() == MYSQL_TYPE_LONGLONG)
+      {
+        field_cmp= stored_field_cmp_to_item(thd, field, *item);
+        DBUG_PRINT("info", ("convert_constant_item %d", field_cmp));
+      }
+
+      if (0 == field_cmp)
+      {
+        Item *tmp= field->type() == MYSQL_TYPE_TIME ?
 #define OLD_CMP
 #ifdef OLD_CMP
-                   new Item_time_with_ref(field->decimals(),
-                                          field->val_time_temporal(), *item) :
+          new Item_time_with_ref(field->decimals(),
+                                 field->val_time_temporal(), *item) :
 #else
-                   new Item_time_with_ref(max((*item)->time_precision(),
-                                              field->decimals()),
-                                          (*item)->val_time_temporal(),
-                                          *item) :
+          new Item_time_with_ref(max((*item)->time_precision(),
+                                     field->decimals()),
+                                 (*item)->val_time_temporal(),
+                                 *item) :
 #endif
-                 field->is_temporal_with_date() ?
+          field->is_temporal_with_date() ?
 #ifdef OLD_CMP
-                   new Item_datetime_with_ref(field->type(),
-                                               field->decimals(),
-                                               field->val_date_temporal(),
-                                               *item) :
+          new Item_datetime_with_ref(field->type(),
+                                     field->decimals(),
+                                     field->val_date_temporal(),
+                                     *item) :
 #else
-                   new Item_datetime_with_ref(field->type(),
-                                              max((*item)->datetime_precision(),
-                                                  field->decimals()),
-                                              (*item)->val_date_temporal(),
-                                              *item) :
+          new Item_datetime_with_ref(field->type(),
+                                     max((*item)->datetime_precision(),
+                                         field->decimals()),
+                                     (*item)->val_date_temporal(),
+                                     *item) :
 #endif
-                   new Item_int_with_ref(field->val_int(), *item,
-                                         test(field->flags & UNSIGNED_FLAG));
-      if (tmp)
-        thd->change_item_tree(item, tmp);
-      result= 1;					// Item was replaced
+          new Item_int_with_ref(field->val_int(), *item,
+                                test(field->flags & UNSIGNED_FLAG));
+        if (tmp)
+          thd->change_item_tree(item, tmp);
+        result= 1;                              // Item was replaced
+      }
     }
     /* Restore the original field value. */
     if (save_field_value)
@@ -509,6 +528,8 @@ void Item_bool_func2::fix_length_and_dec()
   if (!args[0] || !args[1])
     return;
 
+  DBUG_ENTER("Item_bool_func2::fix_length_and_dec");
+
   /* 
     We allow to convert to Unicode character sets in some cases.
     The conditions when conversion is possible are:
@@ -526,7 +547,7 @@ void Item_bool_func2::fix_length_and_dec()
   if (args[0]->result_type() == STRING_RESULT &&
       args[1]->result_type() == STRING_RESULT &&
       agg_arg_charsets_for_comparison(coll, args, 2))
-    return;
+    DBUG_VOID_RETURN;
     
   args[0]->cmp_context= args[1]->cmp_context=
     item_cmp_type(args[0]->result_type(), args[1]->result_type());
@@ -535,7 +556,7 @@ void Item_bool_func2::fix_length_and_dec()
   if (functype() == LIKE_FUNC)  // Disable conversion in case of LIKE function.
   {
     set_cmp_func();
-    return;
+    DBUG_VOID_RETURN;
   }
 
   thd= current_thd;
@@ -553,7 +574,7 @@ void Item_bool_func2::fix_length_and_dec()
           cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
                            INT_RESULT);		// Works for all types.
           args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
-          return;
+          DBUG_VOID_RETURN;
         }
       }
     }
@@ -569,12 +590,13 @@ void Item_bool_func2::fix_length_and_dec()
           cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
                            INT_RESULT); // Works for all types.
           args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
-          return;
+          DBUG_VOID_RETURN;
         }
       }
     }
   }
   set_cmp_func();
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2546,10 +2568,19 @@ void Item_func_between::fix_length_and_dec()
         The following can't be recoded with || as convert_constant_item
         changes the argument
       */
-      if (convert_constant_item(thd, field_item, &args[1]))
-        cmp_type=INT_RESULT;			// Works for all types.
-      if (convert_constant_item(thd, field_item, &args[2]))
-        cmp_type=INT_RESULT;			// Works for all types.
+      const bool cvt_arg1= convert_constant_item(thd, field_item, &args[1]);
+      const bool cvt_arg2= convert_constant_item(thd, field_item, &args[2]);
+      if (args[0]->is_temporal())
+      { // special handling of date/time etc.
+        if (cvt_arg1 || cvt_arg2)
+          cmp_type=INT_RESULT;
+      }
+      else
+      {
+        if (cvt_arg1 && cvt_arg2)
+          cmp_type=INT_RESULT;
+      }
+
       if (args[0]->is_temporal() &&
           args[1]->is_temporal() &&
           args[2]->is_temporal())
