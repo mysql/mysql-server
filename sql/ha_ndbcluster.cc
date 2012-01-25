@@ -48,6 +48,7 @@
 #include "ndb_conflict_trans.h"
 #include "ndb_component.h"
 #include "ndb_util_thread.h"
+#include "ndb_table_guard.h"
 
 #ifdef ndb_dynamite
 #undef assert
