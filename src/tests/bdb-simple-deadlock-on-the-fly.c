@@ -4,10 +4,9 @@
 //
 // A write locks L
 // B write locks M
-// A tries to write lock M, gets blocked
-// B tries to write lock L, gets DEADLOCK error
-// B releases its lock on M
-// A resumes
+// A tries to write lock M && B tries to write lock L
+// One of A or B should get the DEADLOCK error, the other waits
+// A and B release their locks
 
 #include "test.h"
 #include "toku_pthread.h"
@@ -51,6 +50,7 @@ static void test_seq_next_state(struct test_seq *seq) {
 struct locker_args {
     DB_ENV *db_env;
     struct test_seq *test_seq;
+    int *deadlock_count;
 };
 
 static void *run_locker_a(void *arg) {
@@ -72,11 +72,20 @@ static void *run_locker_a(void *arg) {
 
     test_seq_sleep(test_seq, 2);
     DB_LOCK lock_a_m;
-    r = db_env->lock_get(db_env, locker_a, 0, &object_m, DB_LOCK_WRITE, &lock_a_m); assert(r == 0);
+    bool m_locked = false;
+    r = db_env->lock_get(db_env, locker_a, 0, &object_m, DB_LOCK_WRITE, &lock_a_m); 
+    assert(r == 0 || r == DB_LOCK_DEADLOCK);
+    if (r == 0)
+        m_locked = true;
 
     r = db_env->lock_put(db_env, &lock_a_l); assert(r == 0);
 
-    r = db_env->lock_put(db_env, &lock_a_m); assert(r == 0);
+    if (m_locked) {
+        r = db_env->lock_put(db_env, &lock_a_m); assert(r == 0);
+    } else {
+        (void) __sync_fetch_and_add(locker_args->deadlock_count, 1);
+        if (verbose) printf("%s:%u m deadlock\n", __FUNCTION__, __LINE__);
+    }
 
     r = db_env->lock_id_free(db_env, locker_a); assert(r == 0);
 
@@ -102,9 +111,20 @@ static void *run_locker_b(void *arg) {
 
     test_seq_sleep(test_seq, 2);
     DB_LOCK lock_b_l;
-    r = db_env->lock_get(db_env, locker_b, 0, &object_l, DB_LOCK_WRITE, &lock_b_l); assert(r == DB_LOCK_DEADLOCK);
+    bool l_locked = false;
+    r = db_env->lock_get(db_env, locker_b, 0, &object_l, DB_LOCK_WRITE, &lock_b_l); 
+    assert(r == 0 || r == DB_LOCK_DEADLOCK);
+    if (r == 0) 
+        l_locked = true;
 
     r = db_env->lock_put(db_env, &lock_b_m); assert(r == 0);
+
+    if (l_locked) {
+        r = db_env->lock_put(db_env, &lock_b_l); assert(r == 0);
+    } else {
+        (void) __sync_fetch_and_add(locker_args->deadlock_count, 1);
+        if (verbose) printf("%s:%u l deadlock\n", __FUNCTION__, __LINE__);
+    }
 
     r = db_env->lock_id_free(db_env, locker_b); assert(r == 0);
 
@@ -113,20 +133,23 @@ static void *run_locker_b(void *arg) {
 
 static void simple_deadlock(DB_ENV *db_env) {
     int r;
+    int deadlock_count = 0;
 
     struct test_seq test_seq; test_seq_init(&test_seq);
 
     toku_pthread_t tid_a;
-    struct locker_args args_a = { db_env, &test_seq };
+    struct locker_args args_a = { db_env, &test_seq, &deadlock_count };
     r = toku_pthread_create(&tid_a, NULL, run_locker_a, &args_a); assert(r == 0);
 
     toku_pthread_t tid_b;
-    struct locker_args args_b = { db_env, &test_seq };
+    struct locker_args args_b = { db_env, &test_seq, &deadlock_count };
     r = toku_pthread_create(&tid_b, NULL, run_locker_b, &args_b); assert(r == 0);
 
     void *ret = NULL;
     r = toku_pthread_join(tid_a, &ret); assert(r == 0);
     r = toku_pthread_join(tid_b, &ret); assert(r == 0);
+
+    assert(deadlock_count == 1);
 
     test_seq_destroy(&test_seq);
 }
