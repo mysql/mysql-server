@@ -356,6 +356,7 @@ static const char *optimizer_switch_names[]=
   "join_cache_bka",
   "optimize_join_buffer_size",
   "table_elimination",
+  "extended_keys",
   "default", NullS
 };
 
@@ -388,6 +389,7 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("join_cache_bka") - 1,
   sizeof("optimize_join_buffer_size") - 1,
   sizeof("table_elimination") - 1,
+  sizeof("extended_keys") - 1,
   sizeof("default") - 1
 };
 TYPELIB optimizer_switch_typelib= { array_elements(optimizer_switch_names)-1,"",
@@ -506,8 +508,8 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "join_cache_hashed=on,"
                                         "join_cache_bka=on,"
                                         "optimize_join_buffer_size=off,"
-                                        "table_elimination=on";
-                                        ;
+                                        "table_elimination=on,"
+                                        "extended_keys=off";
 #ifdef SAFEMALLOC
 my_bool sf_malloc_trough_check= 0;
 #endif
@@ -7590,7 +7592,7 @@ each time the SQL thread starts.",
    "outer_join_with_cache, semijoin_with_cache, "
    "join_cache_incremental, join_cache_hashed, join_cache_bka, "
    "optimize_join_buffer_size"
-   ", table_elimination"
+   ", table_elimination, extended_keys"
    "} and val={on, off, default}.",
    &optimizer_switch_str, &optimizer_switch_str, 0, GET_STR, REQUIRED_ARG, 
    /*OPTIMIZER_SWITCH_DEFAULT*/0, 0, 0, 0, 0, 0},

@@ -418,6 +418,7 @@ typedef struct st_table_share
   uint stored_fields;                   
   uint rec_buff_length;                 /* Size of table->record[] buffer */
   uint keys, key_parts;
+  uint ext_key_parts;       /* Total number of key parts in extended keys */
   uint max_key_length, max_unique_length, total_key_length;
   uint uniques;                         /* Number of UNIQUE index */
   uint null_fields;			/* number of null fields */
@@ -438,6 +439,7 @@ typedef struct st_table_share
   uint column_bitmap_size;
   uchar frm_version;
   uint vfields;                         /* Number of computed (virtual) fields */
+  bool use_ext_keys;                    /* Extended keys can be used */
   bool null_field_first;
   bool system;                          /* Set if system table (one record) */
   bool crypted;                         /* If .frm file is crypted */
@@ -651,6 +653,13 @@ typedef struct st_table_share
   {
     return (tmp_table == SYSTEM_TMP_TABLE || is_view) ? 0 : table_map_id;
   }
+
+  void set_use_ext_keys_flag(bool fl) 
+  {
+    use_ext_keys= fl;
+  }
+  
+  uint actual_n_key_parts(THD *thd);
 
 } TABLE_SHARE;
 
@@ -991,6 +1000,8 @@ struct st_table {
     }
     DBUG_VOID_RETURN;
   }
+  uint actual_n_key_parts(KEY *keyinfo);
+  ulong actual_key_flags(KEY *keyinfo);
 };
 
 enum enum_schema_table_state

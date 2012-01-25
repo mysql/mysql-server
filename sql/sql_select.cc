@@ -3386,11 +3386,13 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
             The effect of this is that we don't do const substitution for
             such tables.
           */
-	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
+          KEY *keyinfo= table->key_info+key;
+          uint  key_parts= table->actual_n_key_parts(keyinfo);
+          if (eq_part.is_prefix(key_parts) &&
               !table->fulltext_searched && 
               (!embedding || (embedding->sj_on_expr && !embedding->embedding)))
 	  {
-            if (table->key_info[key].flags & HA_NOSAME)
+            if (table->actual_key_flags(keyinfo) & HA_NOSAME)
             {
 	      if (const_ref == eq_part &&
                   !has_expensive_keyparts &&
@@ -4417,7 +4419,8 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array, KEY_FIELD *key_field)
       if (form->key_info[key].flags & (HA_FULLTEXT | HA_SPATIAL))
 	continue;    // ToDo: ft-keys in non-ft queries.   SerG
 
-      uint key_parts= (uint) form->key_info[key].key_parts;
+      KEY *keyinfo= form->key_info+key;
+      uint key_parts= form->actual_n_key_parts(keyinfo);
       for (uint part=0 ; part <  key_parts ; part++)
       {
 	if (field->eq(form->key_info[key].key_part[part].field))
@@ -4720,7 +4723,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   /* fill keyuse with found key parts */
   for ( ; field != end ; field++)
   {
-    if (add_key_part(keyuse,field))
+    if (add_key_part(keyuse, field))
       return TRUE;
   }
 
@@ -5049,6 +5052,8 @@ best_access_path(JOIN      *join,
     for (keyuse=s->keyuse ; keyuse->table == table ;)
     {
       KEY *keyinfo;
+      ulong key_flags;
+      uint key_parts;
       key_part_map found_part= 0;
       table_map found_ref= 0;
       uint key= keyuse->key;
@@ -5075,6 +5080,8 @@ best_access_path(JOIN      *join,
       }
 
       keyinfo= table->key_info+key;
+      key_parts= table->actual_n_key_parts(keyinfo);
+      key_flags= table->actual_key_flags(keyinfo);
 
       /* Calculate how many key segments of the current key we can use */
       start_key= keyuse;
@@ -5153,11 +5160,11 @@ best_access_path(JOIN      *join,
         loose_scan_opt.check_ref_access_part1(s, key, start_key, found_part);
 
         /* Check if we found full key */
-        if (found_part == PREV_BITS(uint,keyinfo->key_parts) &&
+        if (found_part == PREV_BITS(uint, key_parts) &&
             !ref_or_null_part)
         {                                         /* use eq key */
           max_key_part= (uint) ~0;
-          if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
+          if ((key_flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
           {
             tmp = prev_record_reads(join->positions, idx, found_ref);
             records=1.0;
@@ -5193,7 +5200,8 @@ best_access_path(JOIN      *join,
             }
             else
             {
-              if (!(records=keyinfo->rec_per_key[keyinfo->key_parts-1]))
+              uint key_parts= table->actual_n_key_parts(keyinfo);
+              if (!(records=keyinfo->rec_per_key[key_parts-1]))
               {                                   /* Prefer longer keys */
                 records=
                   ((double) s->records / (double) rec *
@@ -7269,6 +7277,7 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
                                                      key_parts)))
     DBUG_RETURN(TRUE);
   keyinfo->usable_key_parts= keyinfo->key_parts = key_parts;
+  keyinfo->ext_key_parts= keyinfo->key_parts;
   keyinfo->key_part= key_part_info;
   keyinfo->key_length=0;
   keyinfo->algorithm= HA_KEY_ALG_UNDEF;
@@ -7502,8 +7511,11 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
     DBUG_RETURN(0);
   if (j->type == JT_CONST)
     j->table->const_table= 1;
-  else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME) ||
-	   keyparts != keyinfo->key_parts || null_ref_key)
+  else if (((j->table->actual_key_flags(keyinfo) &
+            (HA_NOSAME | HA_NULL_PART_KEY))
+           != HA_NOSAME) ||
+	   keyparts != j->table->actual_n_key_parts(keyinfo) ||
+           null_ref_key)
   {
     /* Must read with repeat */
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
@@ -13960,7 +13972,9 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
     share->keys_in_use.set_bit(0);
     keyinfo->key_part=key_part_info;
     keyinfo->flags=HA_NOSAME | HA_BINARY_PACK_KEY | HA_PACK_KEY;
+    keyinfo->ext_key_flags= keyinfo->flags;
     keyinfo->usable_key_parts=keyinfo->key_parts= param->group_parts;
+    keyinfo->ext_key_parts= keyinfo->key_parts;
     keyinfo->key_length=0;
     keyinfo->rec_per_key=0;
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
@@ -14059,6 +14073,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
     null_pack_length-=hidden_null_pack_length;
     keyinfo->key_parts= ((field_count-param->hidden_field_count)+
 			 (share->uniques ? test(null_pack_length) : 0));
+    keyinfo->ext_key_parts= keyinfo->key_parts;
     table->distinct= 1;
     share->keys= 1;
     if (!(key_part_info= (KEY_PART_INFO*)
@@ -14071,6 +14086,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
     table->key_info= table->s->key_info= keyinfo;
     keyinfo->key_part=key_part_info;
     keyinfo->flags=HA_NOSAME | HA_NULL_ARE_EQUAL | HA_BINARY_PACK_KEY | HA_PACK_KEY;
+    keyinfo->ext_key_flags= keyinfo->flags;
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     keyinfo->name= (char*) "distinct_key";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;

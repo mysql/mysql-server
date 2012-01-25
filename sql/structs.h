@@ -80,6 +80,9 @@ typedef struct st_key {
   ulong flags;                          /* dupp key and pack flags */
   uint	key_parts;			/* How many key_parts */
   uint	usable_key_parts;		/* Should normally be = key_parts */
+  uint ext_key_parts;              /* Number of key parts in extended key */
+  ulong ext_key_flags;             /* Flags for extended key              */
+  key_part_map ext_key_part_map;   /* Bitmap of pk key parts in extension */ 
   uint  block_size;
   uint  name_length;
   enum  ha_key_alg algorithm;

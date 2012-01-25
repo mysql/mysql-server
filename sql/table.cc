@@ -697,16 +697,25 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos, *options;
   uchar *buff= 0;
-  ulong pos, record_offset, *rec_per_key, rec_buff_length;
+  ulong pos, record_offset;
+  ulong *rec_per_key= NULL;
+  ulong rec_buff_length;
   handler *handler_file= 0;
   KEY	*keyinfo;
-  KEY_PART_INFO *key_part;
+  KEY_PART_INFO *key_part= NULL;
   SQL_CRYPT *crypted=0;
   Field  **field_ptr, *reg_field;
   const char **interval_array;
   enum legacy_db_type legacy_db_type;
   my_bitmap_map *bitmaps;
   bool null_bits_are_used;
+  KEY first_keyinfo;
+  uint len;
+  KEY_PART_INFO *first_key_part= NULL;
+  uint ext_key_parts= 0;
+  uint first_key_parts= 0;
+  keyinfo= &first_keyinfo;
+  share->ext_key_parts= 0;
   DBUG_ENTER("open_binary_frm");
 
   LINT_INIT(options);
@@ -800,18 +809,28 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->keys_for_keyread.init(0);
   share->keys_in_use.init(keys);
 
-  n_length=keys*sizeof(KEY)+key_parts*sizeof(KEY_PART_INFO);
-  if (!(keyinfo = (KEY*) alloc_root(&share->mem_root,
-				    n_length + uint2korr(disk_buff+4))))
-    goto err;                                   /* purecov: inspected */
-  bzero((char*) keyinfo,n_length);
-  share->key_info= keyinfo;
-  key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
-  strpos=disk_buff+6;
+  /* Currently only InnoDB can use extended keys */
+  share->set_use_ext_keys_flag(legacy_db_type == DB_TYPE_INNODB);
 
-  if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
-                                         sizeof(ulong)*key_parts)))
-    goto err;
+  len= (uint) uint2korr(disk_buff+4);
+  if (!keys)
+  {  
+    if (!(keyinfo = (KEY*) alloc_root(&share->mem_root, len)))
+      goto err;
+    bzero((char*) keyinfo, len);
+    key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
+  }
+  strpos= disk_buff+6;
+
+  /*
+    If share->use_ext_keys is set to TRUE we assume that any key
+    can be extended by the components of the primary key whose
+    definition is read first from the frm file.
+    For each key only those fields of the assumed primary key are
+    added that are not included in the proper key definition. 
+    If after all it turns out that there is no primary key the
+    added components are removed from each key.
+  */   
 
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
@@ -831,6 +850,32 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       keyinfo->key_parts=  (uint) strpos[3];
       keyinfo->algorithm= HA_KEY_ALG_UNDEF;
       strpos+=4;
+    }
+
+    if (i == 0)
+    {
+      ext_key_parts= key_parts +
+	             (share->use_ext_keys ? first_keyinfo.key_parts*(keys-1) : 0); 
+    
+      n_length=keys*sizeof(KEY)+ext_key_parts*sizeof(KEY_PART_INFO);
+      if (!(keyinfo= (KEY*) alloc_root(&share->mem_root,
+				       n_length + len)))
+        goto err;                                   /* purecov: inspected */
+      bzero((char*) keyinfo,n_length);
+      share->key_info= keyinfo;
+      key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
+
+      if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
+                                             sizeof(ulong)*ext_key_parts)))
+        goto err;
+      first_key_part= key_part;
+      first_key_parts= first_keyinfo.key_parts;
+      keyinfo->flags= first_keyinfo.flags;
+      keyinfo->key_length= first_keyinfo.key_length;
+      keyinfo->key_parts= first_keyinfo.key_parts;
+      keyinfo->algorithm= first_keyinfo.algorithm;
+      if (new_frm_ver >= 3)
+        keyinfo->block_size= first_keyinfo.block_size;
     }
 
     keyinfo->key_part=	 key_part;
@@ -861,6 +906,31 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
       key_part->store_length=key_part->length;
     }
+    keyinfo->ext_key_parts= keyinfo->key_parts;
+    if (share->use_ext_keys && i)
+    {
+      keyinfo->ext_key_flags= keyinfo->flags | HA_NOSAME;
+      keyinfo->ext_key_part_map= 0;
+      for (j= 0; j<first_key_parts && keyinfo->ext_key_parts<MAX_REF_PARTS; j++)
+      {
+        uint key_parts= keyinfo->key_parts;
+        KEY_PART_INFO* curr_key_part= keyinfo->key_part;
+        KEY_PART_INFO* curr_key_part_end= curr_key_part+key_parts;
+        for ( ; curr_key_part < curr_key_part_end; curr_key_part++)
+        {
+          if (curr_key_part->fieldnr == first_key_part[j].fieldnr)
+            break;
+        }
+        if (curr_key_part == curr_key_part_end)
+        {
+          *key_part++= first_key_part[j];
+          *rec_per_key++= 0;
+          keyinfo->ext_key_parts++;
+          keyinfo->ext_key_part_map|= 1 << j;
+        }
+      } 
+    }
+    share->ext_key_parts+= keyinfo->ext_key_parts;  
   }
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
@@ -1423,11 +1493,38 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   /* Fix key->name and key_part->field */
   if (key_parts)
   {
+    uint add_first_key_parts= 0;
     uint primary_key=(uint) (find_type((char*) primary_key_name,
 				       &share->keynames, 3) - 1);
     longlong ha_option= handler_file->ha_table_flags();
     keyinfo= share->key_info;
-    key_part= keyinfo->key_part;
+
+    if (share->use_ext_keys)
+    { 
+      if (primary_key >= MAX_KEY)
+      {
+        add_first_key_parts= 0;
+        share->set_use_ext_keys_flag(FALSE);
+      }
+      else
+      {
+        add_first_key_parts= first_key_parts;
+        /* 
+          Do not add components of the primary key starting from
+          the major component defined over the beginning of a field.
+	*/
+	for (i= 0; i < first_key_parts; i++)
+	{
+          uint fieldnr= keyinfo[0].key_part[i].fieldnr;
+          if (share->field[fieldnr-1]->key_length() !=
+              keyinfo[0].key_part[i].length)
+	  {
+            add_first_key_parts= i;
+            break;
+          }
+        }
+      }   
+    }
 
     for (uint key=0 ; key < share->keys ; key++,keyinfo++)
     {
@@ -1446,6 +1543,51 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                keyinfo->name_length+1);
       }
 
+      if (ext_key_parts > share->key_parts && key)
+      {
+	KEY_PART_INFO *new_key_part= (keyinfo-1)->key_part+
+                                     (keyinfo-1)->ext_key_parts;
+
+        /* 
+          Do not extend the key that contains a component
+          defined over the beginning of a field.
+	*/ 
+        for (i= 0; i < keyinfo->key_parts; i++)
+	{
+          uint fieldnr= keyinfo->key_part[i].fieldnr;
+          if (share->field[fieldnr-1]->key_length() !=
+              keyinfo->key_part[i].length)
+	  {
+            add_first_key_parts= 0;
+            break;
+          }
+        }
+
+        if (add_first_key_parts < keyinfo->ext_key_parts-keyinfo->key_parts)
+	{
+          share->ext_key_parts-= keyinfo->ext_key_parts;
+          key_part_map ext_key_part_map= keyinfo->ext_key_part_map;
+          keyinfo->ext_key_parts= keyinfo->key_parts;
+          keyinfo->ext_key_flags= keyinfo->flags;
+	  keyinfo->ext_key_part_map= 0; 
+          for (i= 0; i < add_first_key_parts; i++)
+	  {
+            if (ext_key_part_map & 1<<i)
+	    {
+              keyinfo->ext_key_part_map|= 1<<i;
+	      keyinfo->ext_key_parts++;
+            }
+          }
+          share->ext_key_parts+= keyinfo->ext_key_parts;
+        }
+        if (new_key_part != keyinfo->key_part)
+	{
+          memmove(new_key_part, keyinfo->key_part,
+                  sizeof(KEY_PART_INFO) * keyinfo->ext_key_parts);
+          keyinfo->key_part= new_key_part;
+        }
+      }
+    
       /* Fix fulltext keys for old .frm files */
       if (share->key_info[key].flags & HA_FULLTEXT)
 	share->key_info[key].algorithm= HA_KEY_ALG_FULLTEXT;
@@ -1457,6 +1599,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	  declare this as a primary key.
 	*/
 	primary_key=key;
+        key_part= keyinfo->key_part;
 	for (i=0 ; i < keyinfo->key_parts ;i++)
 	{
 	  uint fieldnr= key_part[i].fieldnr;
@@ -1471,7 +1614,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	}
       }
 
-      for (i=0 ; i < keyinfo->key_parts ; key_part++,i++)
+      key_part= keyinfo->key_part;
+      uint key_parts= share->use_ext_keys ? keyinfo->ext_key_parts :
+	                                    keyinfo->key_parts;
+      for (i=0; i < key_parts; key_part++, i++)
       {
         Field *field;
 	if (new_field_pack_flag <= 1)
@@ -1523,7 +1669,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           {
             share->keys_for_keyread.set_bit(key);
             field->part_of_key.set_bit(key);
-            field->part_of_key_not_clustered.set_bit(key);
+            if (i < keyinfo->key_parts)
+              field->part_of_key_not_clustered.set_bit(key);
           }
           if (handler_file->index_flags(key, i, 1) & HA_READ_ORDER)
             field->part_of_sortkey.set_bit(key);
@@ -2198,15 +2345,15 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     KEY	*key_info, *key_info_end;
     KEY_PART_INFO *key_part;
     uint n_length;
-    n_length= share->keys*sizeof(KEY) + share->key_parts*sizeof(KEY_PART_INFO);
+    n_length= share->keys*sizeof(KEY) + share->ext_key_parts*sizeof(KEY_PART_INFO);
     if (!(key_info= (KEY*) alloc_root(&outparam->mem_root, n_length)))
       goto err;
     outparam->key_info= key_info;
     key_part= (my_reinterpret_cast(KEY_PART_INFO*) (key_info+share->keys));
-    
+
     memcpy(key_info, share->key_info, sizeof(*key_info)*share->keys);
     memcpy(key_part, share->key_info[0].key_part, (sizeof(*key_part) *
-                                                   share->key_parts));
+                                                   share->ext_key_parts));
 
     for (key_info_end= key_info + share->keys ;
          key_info < key_info_end ;
@@ -2217,9 +2364,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       key_info->table= outparam;
       key_info->key_part= key_part;
 
-      for (key_part_end= key_part+ key_info->key_parts ;
-           key_part < key_part_end ;
-           key_part++)
+      key_part_end= key_part + (share->use_ext_keys ? key_info->ext_key_parts :
+			                              key_info->key_parts) ;      
+      for ( ; key_part < key_part_end; key_part++)
       {
         Field *field= key_part->field= outparam->field[key_part->fieldnr-1];
 
@@ -2235,6 +2382,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
           field->field_length= key_part->length;
         }
       }
+      if (!share->use_ext_keys)
+	key_part+= key_info->ext_key_parts-key_info->key_parts;
     }
   }
 
@@ -3140,7 +3289,7 @@ uint calculate_key_len(TABLE *table, uint key, const uchar *buf,
 
   KEY *key_info= table->s->key_info+key;
   KEY_PART_INFO *key_part= key_info->key_part;
-  KEY_PART_INFO *end_key_part= key_part + key_info->key_parts;
+  KEY_PART_INFO *end_key_part= key_part + table->actual_n_key_parts(key_info);
   uint length= 0;
 
   while (key_part < end_key_part && keypart_map)
@@ -5329,9 +5478,11 @@ bool TABLE::add_tmp_key(uint key, uint key_parts,
   keyinfo= key_info + key;
   keyinfo->key_part= key_part_info;
   keyinfo->usable_key_parts= keyinfo->key_parts = key_parts;
+  keyinfo->ext_key_parts= keyinfo->key_parts;
   keyinfo->key_length=0;
   keyinfo->algorithm= HA_KEY_ALG_UNDEF;
   keyinfo->flags= HA_GENERATED_KEY;
+  keyinfo->ext_key_flags= keyinfo->flags;
   if (unique)
     keyinfo->flags|= HA_NOSAME;
   sprintf(buf, "key%i", key);
@@ -5417,6 +5568,47 @@ bool st_table::is_filled_at_execution()
   return test(pos_in_table_list->jtbm_subselect || 
               pos_in_table_list->is_active_sjm());
 }
+
+
+/**
+  @brief
+  Get actual number of key components
+
+  @param keyinfo
+
+  @details
+  The function calculates actual number of key components, possibly including
+  components of extended keys, taken into consideration by the optimizer for the
+  key described by the parameter keyinfo.
+
+  @return number of considered key components
+*/ 
+
+uint st_table::actual_n_key_parts(KEY *keyinfo)
+{
+  return optimizer_flag(in_use, OPTIMIZER_SWITCH_EXTENDED_KEYS) ?
+           keyinfo->ext_key_parts : keyinfo->key_parts;
+}
+
+ 
+/**
+  @brief
+  Get actual key flags for a table key 
+
+  @param keyinfo
+
+  @details
+  The function finds out actual key flags taken into consideration by the
+  optimizer for the key described by the parameter keyinfo.
+
+  @return actual key flags
+*/ 
+
+ulong st_table::actual_key_flags(KEY *keyinfo)
+{
+  return optimizer_flag(in_use, OPTIMIZER_SWITCH_EXTENDED_KEYS) ?
+           keyinfo->ext_key_flags : keyinfo->flags;
+} 
 
 
 /*
@@ -6012,6 +6204,14 @@ bool TABLE_LIST::change_refs_to_fields()
 
   return FALSE;
 }
+
+
+uint TABLE_SHARE::actual_n_key_parts(THD *thd)
+{
+  return use_ext_keys &&
+         optimizer_flag(thd, OPTIMIZER_SWITCH_EXTENDED_KEYS) ?
+           ext_key_parts : key_parts;
+}  
 
 
 /*****************************************************************************
