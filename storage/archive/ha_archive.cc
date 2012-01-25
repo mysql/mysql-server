@@ -319,7 +319,7 @@ int Archive_share::write_v1_metafile()
   int8store(buf + META_V1_OFFSET_ROWS_RECORDED, rows_recorded);
   int8store(buf + META_V1_OFFSET_CHECK_POINT, (ulonglong) 0);
   buf[META_V1_OFFSET_CRASHED]= crashed;
-  
+
   fn_format(file_name, data_file_name, "", ARM, MY_REPLACE_EXT);
   if ((fd= my_open(file_name, O_WRONLY, MYF(0))) == -1)
     DBUG_RETURN(-1);
@@ -414,7 +414,7 @@ int ha_archive::read_data_header(azio_stream *file_to_read)
 /*
   We create the shared memory space that we will use for the open table. 
   No matter what we try to get or create a share. This is so that a repair
-  table operation can occur. 
+  table operation can occur.
 
   See ha_example.cc for a longer description.
 */
@@ -444,10 +444,9 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc)
     fn_format(tmp_share->data_file_name, table_name, "",
               ARZ, MY_REPLACE_EXT | MY_UNPACK_FILENAME);
     strmov(tmp_share->table_name, table_name);
-    DBUG_PRINT("ha_archive", ("Data File %s", 
+    DBUG_PRINT("ha_archive", ("Data File %s",
                         tmp_share->data_file_name));
 
-    
     /*
       We read the meta file, but do not mark it dirty. Since we are not
       doing a write we won't mark it dirty (and we won't open it for
@@ -472,7 +471,7 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc)
   }
   mysql_mutex_lock(&tmp_share->mutex);
   tmp_share->use_count++;
-  DBUG_PRINT("ha_archive", ("archive table %s has %d open handles now", 
+  DBUG_PRINT("ha_archive", ("archive table %s has %d open handles now",
                       tmp_share->table_name,
                       tmp_share->use_count));
   if (tmp_share->crashed)
@@ -493,12 +492,12 @@ err:
 int Archive_share::init_archive_writer()
 {
   DBUG_ENTER("Archive_share::init_archive_writer");
-  /* 
+  /*
     It is expensive to open and close the data files and since you can't have
     a gzip file that can be both read and written we keep a writer open
     that is shared amoung all open tables.
   */
-  if (!(azopen(&archive_write, data_file_name, 
+  if (!(azopen(&archive_write, data_file_name,
                O_RDWR|O_BINARY)))
   {
     DBUG_PRINT("ha_archive", ("Could not open archive write file"));
@@ -525,13 +524,13 @@ void Archive_share::close_archive_writer()
 }
 
 
-/* 
+/*
   No locks are required because it is associated with just one handler instance
 */
 int ha_archive::init_archive_reader()
 {
   DBUG_ENTER("ha_archive::init_archive_reader");
-  /* 
+  /*
     It is expensive to open and close the data files and since you can't have
     a gzip file that can be both read and written we keep a writer open
     that is shared amoung all open tables, but have one reader open for
@@ -577,7 +576,7 @@ int ha_archive::open(const char *name, int mode, uint open_options)
   int rc= 0;
   DBUG_ENTER("ha_archive::open");
 
-  DBUG_PRINT("ha_archive", ("archive table was opened for crash: %s", 
+  DBUG_PRINT("ha_archive", ("archive table was opened for crash: %s",
                       (open_options & HA_OPEN_FOR_REPAIR) ? "yes" : "no"));
   share= get_share(name, &rc);
   if (!share)
@@ -1874,7 +1873,7 @@ archive_record_buffer *ha_archive::create_record_buffer(unsigned int length)
   DBUG_RETURN(r);
 }
 
-void ha_archive::destroy_record_buffer() 
+void ha_archive::destroy_record_buffer()
 {
   DBUG_ENTER("ha_archive::destroy_record_buffer");
   if (record_buffer)

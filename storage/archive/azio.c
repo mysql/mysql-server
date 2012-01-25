@@ -65,7 +65,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   DBUG_ASSERT(s->dirty == AZ_STATE_CLEAN);
 
   /*
-    We do our own version of append by nature. 
+    We do our own version of append by nature.
     We must always have write access to take card of the header.
   */
   DBUG_ASSERT(Flags | O_APPEND);
@@ -122,7 +122,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     return Z_NULL;
   }
 
-  if (Flags & O_CREAT || Flags & O_TRUNC) 
+  if (Flags & O_CREAT || Flags & O_TRUNC)
   {
     s->dirty= 1; /* We create the file dirty */
     s->start = AZHEADER_SIZE + AZMETA_BUFFER_SIZE;

@@ -4911,7 +4911,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       alt_part_info->part_type= tab_part_info->part_type;
       alt_part_info->subpart_type= tab_part_info->subpart_type;
       if (alt_part_info->set_up_defaults_for_partitioning(table->file,
-                                                    ULL(0), 
+                                                    ULL(0),
                                                     tab_part_info->num_parts))
       {
         goto err;
@@ -5329,7 +5329,7 @@ state of p1.
       /* We specified partitions explicitly so don't use defaults anymore. */
       tab_part_info->use_default_partitions= FALSE;
       if (alt_part_info->set_up_defaults_for_partitioning(table->file,
-                                                          ULL(0), 
+                                                          ULL(0),
                                                           0))
       {
         goto err;
@@ -7027,10 +7027,10 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       use a lower lock level. This can be handled inside store_lock in the
       respective handler.
 
-      0) Write an entry that removes the shadow frm file if crash occurs 
-      1) Write the shadow frm file of new partitioning
+      0) Write an entry that removes the shadow frm file if crash occurs.
+      1) Write the shadow frm file of new partitioning.
       2) Log such that temporary partitions added in change phase are
-         removed in a crash situation
+         removed in a crash situation.
       3) Add the new partitions.
          Copy from the reorganised partitions to the new partitions.
       4) Get an exclusive metadata lock on the table (waits for all active
@@ -7040,14 +7040,14 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          will be hanging on this exclusive lock.
       5) Close the table.
       6) Log that operation is completed and log all complete actions
-         needed to complete operation from here
-      7) Write bin log
-      8) Prepare handlers for rename and delete of partitions
+         needed to complete operation from here.
+      7) Write bin log.
+      8) Prepare handlers for rename and delete of partitions.
       9) Rename and drop the reorged partitions such that they are no
          longer used and rename those added to their real new names.
-      10) Install the shadow frm file
-      11) Reopen the table if under lock tables
-      12) Complete query
+      10) Install the shadow frm file.
+      11) Reopen the table if under lock tables.
+      12) Complete query.
     */
     if (write_log_drop_shadow_frm(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_1") ||

@@ -75,7 +75,7 @@ class ha_archive: public handler
 {
   THR_LOCK_DATA lock;        /* MySQL lock */
   Archive_share *share;      /* Shared lock info */
-  
+
   azio_stream archive;            /* Archive file we are working with */
   my_off_t current_position;  /* The position of the row we just read */
   uchar byte_buffer[IO_SIZE]; /* Initial buffer for our string */
