@@ -11294,7 +11294,7 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
        *
        * TODO: We should have counters for this...
        */
-      tdata5 = 1;
+      scanptr.p->m_stop_batch = 1;
     }
   }
 
@@ -11604,6 +11604,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanptr.p->scanTcrec = tcConnectptr.i;
   scanptr.p->scanSchemaVersion = scanFragReq->schemaVersion;
 
+  scanptr.p->m_stop_batch = 0;
   scanptr.p->m_curr_batch_size_rows = 0;
   scanptr.p->m_curr_batch_size_bytes= 0;
   scanptr.p->m_max_batch_size_rows = max_rows;
@@ -12091,6 +12092,8 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
     scanptr.p->m_curr_batch_size_rows = 0;
     scanptr.p->m_curr_batch_size_bytes= 0;
   }
+
+  scanptr.p->m_stop_batch = 0;
 }//Dblqh::sendScanFragConf()
 
 /* ######################################################################### */
