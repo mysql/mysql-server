@@ -10127,7 +10127,11 @@ void issue_long_find_row_warning(Log_event_type type,
 
   @note If the engine allows random access of the records, a combination of
   @c position() and @c rnd_pos() will be used. 
- */
+
+  Note that one MUST call ha_index_or_rnd_end() after this function if
+  it returns 0 as we must leave the row position in the handler intact
+  for any following update/delete command.
+*/
 
 int Rows_log_event::find_row(const Relay_log_info *rli)
 {
@@ -10216,7 +10220,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     {
       DBUG_PRINT("info",("ha_index_init returns error %d",error));
       table->file->print_error(error, MYF(0));
-      goto err;
+      goto end;
     }
 
     /* Fill key data for the row */
@@ -10251,7 +10255,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
         error= HA_ERR_KEY_NOT_FOUND;
       table->file->print_error(error, MYF(0));
       table->file->ha_index_end();
-      goto err;
+      goto end;
     }
 
   /*
@@ -10281,15 +10285,15 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       /* Unique does not have non nullable part */
       if (!(table->key_info->flags & (HA_NULL_PART_KEY)))
       {
-        table->file->ha_index_end();
-        goto ok;
+        error= 0;
+        goto end;
       }
       else
       {
         KEY *keyinfo= table->key_info;
         /*
-          Unique has nullable part. We need to check if there is any field in the
-          BI image that is null and part of UNNI.
+          Unique has nullable part. We need to check if there is any
+          field in the BI image that is null and part of UNNI.
         */
         bool null_found= FALSE;
         for (uint i=0; i < keyinfo->key_parts && !null_found; i++)
@@ -10301,8 +10305,8 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
 
         if (!null_found)
         {
-          table->file->ha_index_end();
-          goto ok;
+          error= 0;
+          goto end;
         }
 
         /* else fall through to index scan */
@@ -10345,14 +10349,9 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
         DBUG_PRINT("info",("no record matching the given row found"));
         table->file->print_error(error, MYF(0));
         table->file->ha_index_end();
-        goto err;
+        goto end;
       }
     }
-
-    /*
-      Have to restart the scan to be able to fetch the next row.
-    */
-    table->file->ha_index_end();
   }
   else
   {
@@ -10360,14 +10359,12 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     /* We use this to test that the correct key is used in test cases. */
     DBUG_EXECUTE_IF("slave_crash_if_table_scan", abort(););
 
-    int restart_count= 0; // Number of times scanning has restarted from top
-
     /* We don't have a key: search the table using rnd_next() */
     if ((error= table->file->ha_rnd_init_with_error(1)))
     {
       DBUG_PRINT("info",("error initializing table scan"
                          " (ha_rnd_init returns %d)",error));
-      goto err;
+      goto end;
     }
 
     is_table_scan= true;
@@ -10383,7 +10380,13 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       switch (error) {
 
       case 0:
+        DBUG_DUMP("record found", table->record[0], table->s->reclength);
         break;
+
+      case HA_ERR_END_OF_FILE:
+        DBUG_PRINT("info", ("Record not found"));
+        table->file->ha_rnd_end();
+        goto end;
 
       /*
         If the record was deleted, we pick the next one without doing
@@ -10392,58 +10395,28 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       case HA_ERR_RECORD_DELETED:
         goto restart_rnd_next;
 
-      case HA_ERR_END_OF_FILE:
-        if (++restart_count < 2)
-        {
-          int error2;
-          if ((error2= table->file->ha_rnd_init_with_error(1)))
-          {
-            error= error2;
-            goto err;
-          }
-        }
-        break;
-
       default:
         DBUG_PRINT("info", ("Failed to get next record"
                             " (rnd_next returns %d)",error));
         table->file->print_error(error, MYF(0));
         table->file->ha_rnd_end();
-        goto err;
+        goto end;
       }
     }
-    while (restart_count < 2 && record_compare(table));
+    while (record_compare(table));
     
     /* 
       Note: above record_compare will take into accout all record fields 
       which might be incorrect in case a partial row was given in the event
      */
 
-    /*
-      Have to restart the scan to be able to fetch the next row.
-    */
-    if (restart_count == 2)
-      DBUG_PRINT("info", ("Record not found"));
-    else
-      DBUG_DUMP("record found", table->record[0], table->s->reclength);
-    table->file->ha_rnd_end();
-
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
-    goto err;
   }
-ok:
+
+end:
   if (is_table_scan || is_index_scan)
     issue_long_find_row_warning(get_type_code(), m_table->alias.c_ptr(), 
                                 is_index_scan, rli);
-
-  table->default_column_bitmaps();
-  DBUG_RETURN(0);
-
-err:
-  if (is_table_scan || is_index_scan)
-    issue_long_find_row_warning(get_type_code(), m_table->alias.c_ptr(), 
-                                is_index_scan, rli);
-
   table->default_column_bitmaps();
   DBUG_RETURN(error);
 }
@@ -10516,6 +10489,7 @@ int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli)
       Delete the record found, located in record[0]
     */
     error= m_table->file->ha_delete_row(m_table->record[0]);
+    m_table->file->ha_index_or_rnd_end();
   }
   return error;
 }
@@ -10658,7 +10632,7 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
   m_curr_row= m_curr_row_end;
   /* this also updates m_curr_row_end */
   if ((error= unpack_current_row(rli)))
-    return error;
+    goto err;
 
   /*
     Now we have the right row to update.  The old row (the one we're
@@ -10678,6 +10652,8 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
   if (error == HA_ERR_RECORD_IS_THE_SAME)
     error= 0;
 
+err:
+  m_table->file->ha_index_or_rnd_end();
   return error;
 }
 

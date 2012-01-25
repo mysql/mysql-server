@@ -70,9 +70,13 @@ public:
       Without HA_FAST_KEY_READ, the optimizer reads all columns and never
       calls ::rnd_pos(), so it is guaranteed to return only thread <n>
       records.
+      We use HA_HAS_OWN_BINLOGGING to stop changes to this table to
+      be logged to slaves (as enabled performance tracking on all slaves
+      is probably not what anyone wants)
     */
-    return HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_NO_AUTO_INCREMENT |
-      HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE | HA_NO_BLOBS;
+    return (HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_NO_AUTO_INCREMENT |
+            HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
+            HA_HAS_OWN_BINLOGGING | HA_NO_BLOBS);
   }
 
   /**
