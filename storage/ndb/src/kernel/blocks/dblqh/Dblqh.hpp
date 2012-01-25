@@ -574,7 +574,8 @@ public:
     Uint8 m_last_row;
     Uint8 m_reserved;
     Uint8 statScan;
-    Uint8 dummy[3]; // align?
+    Uint8 m_stop_batch;
+    Uint8 dummy[2]; // align?
   }; // Size 272 bytes
   typedef Ptr<ScanRecord> ScanRecordPtr;
 
@@ -3300,7 +3301,8 @@ Dblqh::ScanRecord::check_scan_batch_completed() const
   Uint32 max_rows = m_max_batch_size_rows;
   Uint32 max_bytes = m_max_batch_size_bytes;
 
-  return (max_rows > 0 && (m_curr_batch_size_rows >= max_rows))  ||
+  return m_stop_batch ||
+    (max_rows > 0 && (m_curr_batch_size_rows >= max_rows))  ||
     (max_bytes > 0 && (m_curr_batch_size_bytes >= max_bytes));
 }
 
