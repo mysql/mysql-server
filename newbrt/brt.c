@@ -10,16 +10,17 @@ Managing the tree shape:  How insertion, deletion, and querying work
 
 When we insert a message into the BRT, here's what happens.
 
-Insert_a_message_at_root (msg)
-   root = find the root
-   insert_the_message_into_the_buffers_of(msg, root)
-   If the root is way too full then process the root ourself.  "Way too full" means something like twice as much messages as it's supposed to have.
-   else If the root needs to be split, then split it 
-   else if the root's buffers are too full then (it must be a nonleaf)
-      create a work item to process the root.	The workitem specifies a height and a key (the height is the height of the root, and the key can be any key)
-   endif
-   If the brt file is fragmented, and the file isn't being shrunk, then set file->being_shrunk and schedule a work item to shrink the file.
+insert_a_message_at_root(msg):
+   root = find the root node
+   if root needs to be split (has fissible reactivity):
+        split the root
+        root = find the new root node
+   insert_msg_into_node_buffer(root, msg)
+   if root has too many messages in its buffer and is a nonleaf node:
+        flush the buffer on a background thread
 
+flush_nonleaf_node(node, height, key):
+        
 To process a nonleaf node (height, key)
    Note: Height is always > 0.
    Note: This process occurs asynchrnously, but we get the YDB lock at the beginning.
@@ -89,7 +90,6 @@ Split_or_merge (node, childnum) {
     Don't worry about the resulting children having too many messages or otherwise being too big or too small.	Fix it on the next pass.
   }
 }
-
 
 Lookup:
  As of #3312, we don't do any tree shaping on lookup.
@@ -238,6 +238,7 @@ toku_brt_nonleaf_is_gorged (BRTNODE node) {
             (!buffers_are_empty));
 }
 
+// FIXME this is not used
 static inline void add_to_brt_status(u_int64_t* val, u_int64_t data) {
     (*val) += data;
 }
@@ -507,7 +508,6 @@ update_header_stats(STAT64INFO headerstats, STAT64INFO delta) {
     (void) __sync_fetch_and_add(&(headerstats->numbytes), delta->numbytes);
 }
 
-
 // This is the ONLY place where a node is marked as dirty, other than toku_initialize_empty_brtnode().
 void
 toku_mark_node_dirty(BRTNODE node) {
@@ -527,8 +527,6 @@ toku_mark_node_dirty(BRTNODE node) {
     }
     node->dirty = 1;
 }
-
-
 
 //fd is protected (must be holding fdlock)
 void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, PAIR_ATTR size __attribute__((unused)), PAIR_ATTR* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint) {
@@ -616,7 +614,6 @@ int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM noden
     return r;
 }
 
-
 void toku_brtnode_pe_est_callback(
     void* brtnode_pv, 
     long* bytes_freed_estimate, 
@@ -662,7 +659,6 @@ void toku_brtnode_pe_est_callback(
 exit:
     return;
 }
-
 
 static void
 compress_internal_node_partition(BRTNODE node, int i)
@@ -2224,7 +2220,6 @@ void toku_apply_cmd_to_leaf(
     }
     VERIFY_NODE(t, node);
 }
-
 
 static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
 // Effect:  Put CMD into brt's root node, and update 

@@ -1291,6 +1291,7 @@ static void cachetable_fetch_pair(
     void *toku_value = 0;
     PAIR_ATTR attr;
     
+    // FIXME this should be enum cachetable_dirty, right?
     int dirty = 0;
 
     WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));    
