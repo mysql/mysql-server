@@ -3732,6 +3732,14 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
   Plan_change_watchdog watchdog(tab, no_changes);
 
+  /* Sorting a single row can always be skipped */
+  if (tab->type == JT_EQ_REF ||
+      tab->type == JT_CONST  ||
+      tab->type == JT_SYSTEM)
+  {
+    DBUG_RETURN(1);
+  }
+
   /*
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
     been taken into account.
