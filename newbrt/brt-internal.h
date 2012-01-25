@@ -434,6 +434,7 @@ struct brt {
     struct toku_list zombie_brt_link;
 };
 
+// FIXME needs toku prefix
 long brtnode_memory_size (BRTNODE node);
 PAIR_ATTR make_brtnode_pair_attr(BRTNODE node);
 
@@ -474,11 +475,14 @@ void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTO
 BASEMENTNODE toku_create_empty_bn(void);
 BASEMENTNODE toku_create_empty_bn_no_buffer(void); // create a basement node with a null buffer.
 NONLEAF_CHILDINFO toku_create_empty_nl(void);
+// FIXME needs toku prefix
 void destroy_basement_node (BASEMENTNODE bn);
+// FIXME needs toku prefix
 void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl);
 void toku_destroy_brtnode_internals(BRTNODE node);
 void toku_brtnode_free (BRTNODE *node);
 void toku_assert_entire_node_in_memory(BRTNODE node);
+// FIXME needs toku prefix
 void bring_node_fully_into_memory(BRTNODE node, struct brt_header* h);
 
 // append a child node to a parent node
@@ -686,6 +690,7 @@ struct pivot_bounds {
     struct kv_pair const * const upper_bound_inclusive; // NULL to indicate negative or positive infinity (which are in practice exclusive since there are now transfinite keys in messages).
 };
 
+// FIXME needs toku prefix
 void maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds);
 
 int
@@ -793,7 +798,6 @@ int toku_db_badformat(void) __attribute__((__warn_unused_result__));
 int toku_brt_remove_on_commit(TOKUTXN child, DBT* iname_dbt_p) __attribute__((__warn_unused_result__));
 int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p) __attribute__((__warn_unused_result__));
 
-
 typedef struct brt_upgrade_status {
     u_int64_t header_13;    // how many headers were upgraded from version 13
     u_int64_t nonleaf_13;
@@ -869,6 +873,7 @@ struct brt_status {
 
 void toku_brt_get_status(BRT_STATUS);
 
+// FIXME needs toku prefix
 void
 brt_leaf_apply_cmd_once (
     BRTNODE leafnode,
@@ -881,6 +886,7 @@ brt_leaf_apply_cmd_once (
     uint64_t *workdonep
     );
 
+// FIXME needs toku prefix
 void
 brt_leaf_put_cmd (
     brt_compare_func compare_fun,
@@ -907,6 +913,7 @@ void toku_apply_cmd_to_leaf(
     OMT live_list_reverse
     );
 
+// FIXME needs toku prefix
 void brtnode_put_cmd (
     brt_compare_func compare_fun,
     brt_update_func update_fun,
@@ -918,17 +925,13 @@ void brtnode_put_cmd (
     OMT live_list_reverse
     );
 
-
 void toku_reset_root_xid_that_created(BRT brt, TXNID new_root_xid_that_created);
 // Reset the root_xid_that_created field to the given value.  
 // This redefines which xid created the dictionary.
-
-
 void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);
 
 void toku_brt_header_note_hot_begin(BRT brt);
 void toku_brt_header_note_hot_complete(BRT brt, BOOL success, MSN msn_at_start_of_hot);
-
 
 C_END
 
