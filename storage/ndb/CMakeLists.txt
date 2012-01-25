@@ -150,7 +150,8 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ha_ndbinfo.cc
   ../../sql/ndb_mi.cc
   ../../sql/ndb_conflict_trans.cc
-  ../../sql/ndb_component.cc)
+  ../../sql/ndb_component.cc
+  ../../sql/ndb_repl_tab.cc)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 IF(EXISTS ${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)

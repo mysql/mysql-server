@@ -33,6 +33,18 @@
 #include <ndbapi/ndb_cluster_connection.hpp>
 #include <util/NdbAutoPtr.hpp>
 #include <portlib/NdbTick.h>
+#include "ndb_table_guard.h"
+
+/*
+  defines for cluster replication table names
+*/
+#include "ha_ndbcluster_tables.h"
+#define NDB_APPLY_TABLE_FILE "./" NDB_REP_DB "/" NDB_APPLY_TABLE
+#define NDB_SCHEMA_TABLE_FILE "./" NDB_REP_DB "/" NDB_SCHEMA_TABLE
+static char repdb[]= NDB_REP_DB;
+static char reptable[]= NDB_REP_TABLE;
+
+#include "ndb_repl_tab.h"
 
 #ifdef ndb_dynamite
 #undef assert
@@ -53,15 +65,6 @@ extern my_bool log_bin_use_v1_row_events;
 bool ndb_log_empty_epochs(void);
 
 void ndb_index_stat_restart();
-
-/*
-  defines for cluster replication table names
-*/
-#include "ha_ndbcluster_tables.h"
-#define NDB_APPLY_TABLE_FILE "./" NDB_REP_DB "/" NDB_APPLY_TABLE
-#define NDB_SCHEMA_TABLE_FILE "./" NDB_REP_DB "/" NDB_SCHEMA_TABLE
-static char repdb[]= NDB_REP_DB;
-static char reptable[]= NDB_REP_TABLE;
 
 /*
   Timeout for syncing schema events between
@@ -4641,288 +4644,6 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
   DBUG_RETURN(0);
 }
 
-static const char *ndb_rep_db= NDB_REP_DB;
-static const char *ndb_replication_table= NDB_REPLICATION_TABLE;
-static const char *nrt_db= "db";
-static const char *nrt_table_name= "table_name";
-static const char *nrt_server_id= "server_id";
-static const char *nrt_binlog_type= "binlog_type";
-static const char *nrt_conflict_fn= "conflict_fn";
-
-/*
-   ndbcluster_read_replication_table
-
-   This function reads the information for the supplied table from
-   the mysql.ndb_replication table.
-   Where there is no information (or no table), defaults are
-   returned.
-*/
-int
-ndbcluster_read_replication_table(THD *thd, Ndb *ndb,
-                                  const char* db,
-                                  const char* table_name,
-                                  uint server_id,
-                                  Uint32* binlog_flags,
-                                  char** conflict_fn_spec,
-                                  char* conflict_fn_buffer,
-                                  Uint32 conflict_fn_buffer_len)
-{
-  DBUG_ENTER("ndbcluster_read_replication_table");
-  NdbError ndberror;
-  int error= 0;
-  const char *error_str= "<none>";
-
-  ndb->setDatabaseName(ndb_rep_db);
-  NDBDICT *dict= ndb->getDictionary();
-  Ndb_table_guard ndbtab_g(dict, ndb_replication_table);
-  const NDBTAB *reptab= ndbtab_g.get_table();
-  if (reptab == NULL &&
-      (dict->getNdbError().classification == NdbError::SchemaError ||
-       dict->getNdbError().code == 4009))
-  {
-    DBUG_PRINT("info", ("No %s.%s table", ndb_rep_db, ndb_replication_table));
-    *binlog_flags= NBT_DEFAULT;
-    *conflict_fn_spec= NULL;
-    DBUG_RETURN(0);
-  }
-  const NDBCOL
-    *col_db, *col_table_name, *col_server_id, *col_binlog_type, *col_conflict_fn;
-  char tmp_buf[FN_REFLEN];
-  uint retries= 100;
-  int retry_sleep= 30; /* 30 milliseconds, transaction */
-  if (reptab == NULL)
-  {
-    ndberror= dict->getNdbError();
-    goto err;
-  }
-  if (reptab->getNoOfPrimaryKeys() != 3)
-  {
-    error= -2;
-    error_str= "Wrong number of primary key parts, expected 3";
-    goto err;
-  }
-  error= -1;
-  col_db= reptab->getColumn(error_str= nrt_db);
-  if (col_db == NULL ||
-      !col_db->getPrimaryKey() ||
-      col_db->getType() != NDBCOL::Varbinary)
-    goto err;
-  col_table_name= reptab->getColumn(error_str= nrt_table_name);
-  if (col_table_name == NULL ||
-      !col_table_name->getPrimaryKey() ||
-      col_table_name->getType() != NDBCOL::Varbinary)
-    goto err;
-  col_server_id= reptab->getColumn(error_str= nrt_server_id);
-  if (col_server_id == NULL ||
-      !col_server_id->getPrimaryKey() ||
-      col_server_id->getType() != NDBCOL::Unsigned)
-    goto err;
-  col_binlog_type= reptab->getColumn(error_str= nrt_binlog_type);
-  if (col_binlog_type == NULL ||
-      col_binlog_type->getPrimaryKey() ||
-      col_binlog_type->getType() != NDBCOL::Unsigned)
-    goto err;
-  col_conflict_fn= reptab->getColumn(error_str= nrt_conflict_fn);
-  if (col_conflict_fn == NULL)
-  {
-    col_conflict_fn= NULL;
-  }
-  else if (col_conflict_fn->getPrimaryKey() ||
-           col_conflict_fn->getType() != NDBCOL::Varbinary)
-    goto err;
-
-  error= 0;
-  for (;;)
-  {
-    NdbTransaction *trans= ndb->startTransaction();
-    if (trans == NULL)
-    {
-      ndberror= ndb->getNdbError();
-      break;
-    }
-    NdbRecAttr *col_binlog_type_rec_attr[2];
-    NdbRecAttr *col_conflict_fn_rec_attr[2]= {NULL, NULL};
-    uint32 ndb_binlog_type[2];
-    const uint sz= 256;
-    char ndb_conflict_fn_buf[2*sz];
-    char *ndb_conflict_fn[2]= {ndb_conflict_fn_buf, ndb_conflict_fn_buf+sz};
-    NdbOperation *op[2];
-    uint32 i, id= 0;
-    /* Read generic row (server_id==0) and specific row (server_id == our id)
-     * from ndb_replication.
-     * Specific overrides generic, if present
-     */
-    for (i= 0; i < 2; i++)
-    {
-      NdbOperation *_op;
-      DBUG_PRINT("info", ("reading[%u]: %s,%s,%u", i, db, table_name, id));
-      if ((_op= trans->getNdbOperation(reptab)) == NULL) abort();
-      if (_op->readTuple(NdbOperation::LM_CommittedRead)) abort();
-      ndb_pack_varchar(col_db, tmp_buf, db, (int)strlen(db));
-      if (_op->equal(col_db->getColumnNo(), tmp_buf)) abort();
-      ndb_pack_varchar(col_table_name, tmp_buf, table_name, (int)strlen(table_name));
-      if (_op->equal(col_table_name->getColumnNo(), tmp_buf)) abort();
-      if (_op->equal(col_server_id->getColumnNo(), id)) abort();
-      if ((col_binlog_type_rec_attr[i]=
-           _op->getValue(col_binlog_type, (char *)&(ndb_binlog_type[i]))) == 0) abort();
-      /* optional columns */
-      if (col_conflict_fn)
-      {
-        if ((col_conflict_fn_rec_attr[i]=
-             _op->getValue(col_conflict_fn, ndb_conflict_fn[i])) == 0) abort();
-      }
-      id= server_id;
-      op[i]= _op;
-    }
-
-    if (trans->execute(NdbTransaction::Commit,
-                       NdbOperation::AO_IgnoreError))
-    {
-      if (ndb->getNdbError().status == NdbError::TemporaryError)
-      {
-        if (retries--)
-        {
-          if (trans)
-            ndb->closeTransaction(trans);
-          do_retry_sleep(retry_sleep);
-          continue;
-        }
-      }
-      ndberror= trans->getNdbError();
-      ndb->closeTransaction(trans);
-      break;
-    }
-    for (i= 0; i < 2; i++)
-    {
-      if (op[i]->getNdbError().code)
-      {
-        if (op[i]->getNdbError().classification == NdbError::NoDataFound)
-        {
-          col_binlog_type_rec_attr[i]= NULL;
-          col_conflict_fn_rec_attr[i]= NULL;
-          DBUG_PRINT("info", ("not found row[%u]", i));
-          continue;
-        }
-        ndberror= op[i]->getNdbError();
-        break;
-      }
-      DBUG_PRINT("info", ("found row[%u]", i));
-    }
-    if (col_binlog_type_rec_attr[1] == NULL ||
-        col_binlog_type_rec_attr[1]->isNULL())
-    {
-      /* No specific value, use generic */
-      col_binlog_type_rec_attr[1]= col_binlog_type_rec_attr[0];
-      ndb_binlog_type[1]= ndb_binlog_type[0];
-    }
-    if (col_conflict_fn_rec_attr[1] == NULL ||
-        col_conflict_fn_rec_attr[1]->isNULL())
-    {
-      /* No specific value, use generic */
-      col_conflict_fn_rec_attr[1]= col_conflict_fn_rec_attr[0];
-      ndb_conflict_fn[1]= ndb_conflict_fn[0];
-    }
-
-    if (col_binlog_type_rec_attr[1] == NULL ||
-        col_binlog_type_rec_attr[1]->isNULL())
-    {
-      DBUG_PRINT("info", ("No binlog flag value, using default"));
-      /* No value */
-      *binlog_flags= NBT_DEFAULT;
-    }
-    else
-    {
-      DBUG_PRINT("info", ("Taking binlog flag value from the table"));
-      *binlog_flags= (enum Ndb_binlog_type) ndb_binlog_type[1];
-    }
-
-    if (col_conflict_fn_rec_attr[1] == NULL ||
-        col_conflict_fn_rec_attr[1]->isNULL())
-    {
-      /* No conflict function */
-      *conflict_fn_spec = NULL;
-    }
-    else
-    {
-      const char* conflict_fn = ndb_conflict_fn[1];
-      uint len= 0;
-      switch (col_conflict_fn->getArrayType())
-      {
-      case NDBCOL::ArrayTypeShortVar:
-        len= *(uchar*)conflict_fn;
-        conflict_fn++;
-        break;
-      case NDBCOL::ArrayTypeMediumVar:
-        len= uint2korr(conflict_fn);
-        conflict_fn+= 2;
-        break;
-      default:
-        abort();
-      }
-      if ((len + 1) > conflict_fn_buffer_len)
-      {
-        ndb->closeTransaction(trans);
-        error= -2;
-        error_str= "Conflict function specification too long.";
-        goto err;
-      }
-      memcpy(conflict_fn_buffer, conflict_fn, len);
-      conflict_fn_buffer[len] = '\0';
-      *conflict_fn_spec = conflict_fn_buffer;
-    }
-
-    DBUG_PRINT("info", ("Retrieved Binlog flags : %u and function spec : %s",
-                        *binlog_flags, (*conflict_fn_spec != NULL ?*conflict_fn_spec:
-                                       "NULL")));
-
-    ndb->closeTransaction(trans);
-
-    DBUG_RETURN(0);
-  }
-
-err:
-  DBUG_PRINT("info", ("error %d, error_str %s, ndberror.code %u",
-                      error, error_str, ndberror.code));
-  if (error < 0)
-  {
-    char msg[FN_REFLEN];
-    switch (error)
-    {
-      case -1:
-        my_snprintf(msg, sizeof(msg),
-                 "Missing or wrong type for column '%s'", error_str);
-        break;
-      case -2:
-        my_snprintf(msg, sizeof(msg), "%s", error_str);
-        break;
-      default:
-        abort();
-    }
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                        ER_NDB_REPLICATION_SCHEMA_ERROR,
-                        ER(ER_NDB_REPLICATION_SCHEMA_ERROR),
-                        msg);
-  }
-  else
-  {
-    char msg[FN_REFLEN];
-    my_snprintf(tmp_buf, sizeof(tmp_buf), "ndberror %u", ndberror.code);
-    my_snprintf(msg, sizeof(msg), "Unable to retrieve %s.%s, logging and "
-             "conflict resolution may not function as intended (%s)",
-             ndb_rep_db, ndb_replication_table, tmp_buf);
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                        ER_ILLEGAL_HA_CREATE_OPTION,
-                        ER(ER_ILLEGAL_HA_CREATE_OPTION),
-                        ndbcluster_hton_name, msg);  
-  }
-  *binlog_flags= NBT_DEFAULT;
-  *conflict_fn_spec= NULL;
-
-  if (ndberror.code && opt_ndb_extra_logging)
-    print_warning_list("NDB", thd_warn_list(thd));
-  DBUG_RETURN(ndberror.code);
-}
-
 /*
   ndbcluster_get_binlog_replication_info
 
@@ -4967,48 +4688,54 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
     }
   }
 
-  const Uint32 MAX_CONFLICT_FN_SPEC_LEN = 256;
-  char conflict_fn_buffer[MAX_CONFLICT_FN_SPEC_LEN];
-  char* conflict_fn_spec;
+  Ndb_rep_tab_reader rep_tab_reader;
 
-  if (ndbcluster_read_replication_table(thd,
-                                        ndb,
-                                        db,
-                                        table_name,
-                                        server_id,
-                                        binlog_flags,
-                                        &conflict_fn_spec,
-                                        conflict_fn_buffer,
-                                        MAX_CONFLICT_FN_SPEC_LEN) != 0)
+  int rc = rep_tab_reader.lookup(ndb,
+                                 db,
+                                 table_name,
+                                 server_id);
+
+  const char* msg = rep_tab_reader.get_warning_message();
+  if (msg != NULL)
   {
-    DBUG_RETURN(ER_NDB_REPLICATION_SCHEMA_ERROR);
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_NDB_REPLICATION_SCHEMA_ERROR,
+                        ER(ER_NDB_REPLICATION_SCHEMA_ERROR),
+                        msg);
+    sql_print_warning("NDB Binlog: %s",
+                      msg);
   }
+
+  if (rc != 0)
+    DBUG_RETURN(ER_NDB_REPLICATION_SCHEMA_ERROR);
+
+  *binlog_flags= rep_tab_reader.get_binlog_flags();
+  const char* conflict_fn_spec= rep_tab_reader.get_conflict_fn_spec();
 
   if (conflict_fn_spec != NULL)
   {
-    char tmp_buf[FN_REFLEN];
-
+    char msgbuf[ FN_REFLEN ];
     if (parse_conflict_fn_spec(conflict_fn_spec,
                                conflict_fn,
                                args,
                                num_args,
-                               tmp_buf,
-                               sizeof(tmp_buf)) != 0)
+                               msgbuf,
+                               sizeof(msgbuf)) != 0)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                           ER_CONFLICT_FN_PARSE_ERROR,
                           ER(ER_CONFLICT_FN_PARSE_ERROR),
-                          tmp_buf);
+                          msgbuf);
 
       /*
-         Log as well, useful for contexts where the thd's stack of
-         warnings are ignored
-       */
+        Log as well, useful for contexts where the thd's stack of
+        warnings are ignored
+      */
       if (opt_ndb_extra_logging)
       {
         sql_print_warning("NDB Slave: Table %s.%s : Parse error on conflict fn : %s",
                           db, table_name,
-                          tmp_buf);
+                          msgbuf);
       }
 
       DBUG_RETURN(ER_CONFLICT_FN_PARSE_ERROR);
