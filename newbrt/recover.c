@@ -186,15 +186,18 @@ struct recover_env {
 };
 typedef struct recover_env *RECOVER_ENV;
 
-static int recover_env_init (RECOVER_ENV renv, brt_compare_func bt_compare,
+static int recover_env_init (RECOVER_ENV renv,
+			     const char *env_dir,
+			     brt_compare_func bt_compare,
                              brt_update_func update_function,
                              generate_row_for_put_func generate_row_for_put,
                              generate_row_for_del_func generate_row_for_del,
                              size_t cachetable_size) {
     int r;
 
-    r = toku_create_cachetable(&renv->ct, cachetable_size ? cachetable_size : 1<<25, (LSN){0}, 0);
+    r = toku_brt_create_cachetable(&renv->ct, cachetable_size ? cachetable_size : 1<<25, (LSN){0}, 0);
     assert(r == 0);
+    toku_cachetable_set_env_dir(renv->ct, env_dir);
     r = toku_logger_create(&renv->logger);
     assert(r == 0);
     toku_logger_write_log_files(renv->logger, FALSE);
@@ -642,13 +645,15 @@ static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
 
     //unlink if it exists (recreate from scratch).
     char *iname = fixup_fname(&l->iname);
-    r = unlink(iname);
+    char *iname_in_cwd = toku_cachetable_get_fname_in_cwd(renv->ct, iname);
+    r = unlink(iname_in_cwd);
     if (r != 0 && errno != ENOENT) {
         fprintf(stderr, "Tokudb recovery %s:%d unlink %s %d\n", __FUNCTION__, __LINE__, iname, errno);
         toku_free(iname);
         return r;
     }
     assert(strcmp(iname, ROLLBACK_CACHEFILE_NAME)); //Creation of rollback cachefile never gets logged.
+    toku_free(iname_in_cwd);
     toku_free(iname);
 
     BOOL must_create = TRUE;
@@ -1179,7 +1184,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     struct log_entry *le = NULL;
     
     time_t tnow = time(NULL);
-    fprintf(stderr, "%.24s Tokudb recovery starting\n", ctime(&tnow));
+    fprintf(stderr, "%.24s Tokudb recovery starting in env %s\n", ctime(&tnow), env_dir);
 
     char org_wd[1000];
     {
@@ -1211,10 +1216,11 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     r = toku_logcursor_create(&logcursor, log_dir);
     assert(r == 0);
 
-    r = chdir(env_dir); 
-    if (r != 0) {
-        // no data directory error
-        rr = errno; goto errorexit;
+    {
+	toku_struct_stat buf;
+	if (toku_stat(env_dir, &buf)!=0) {
+	    rr = errno; goto errorexit;
+	}
     }
 
     // scan backwards
@@ -1352,9 +1358,6 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     tnow = time(NULL);
     fprintf(stderr, "%.24s Tokudb recovery done\n", ctime(&tnow));
 
-    r = chdir(org_wd); 
-    assert(r == 0);
-
     return 0;
 
  errorexit:
@@ -1365,9 +1368,6 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
         r = toku_logcursor_destroy(&logcursor);
         assert(r == 0);
     }
-
-    r = chdir(org_wd); 
-    assert(r == 0);
 
     return rr;
 }
@@ -1416,7 +1416,9 @@ int tokudb_recover(const char *env_dir, const char *log_dir,
     int rr = 0;
     if (tokudb_needs_recovery(log_dir, FALSE)) {
         struct recover_env renv;
-        r = recover_env_init(&renv, bt_compare,
+        r = recover_env_init(&renv,
+			     env_dir,
+			     bt_compare,
                              update_function,
                              generate_row_for_put,
                              generate_row_for_del,
