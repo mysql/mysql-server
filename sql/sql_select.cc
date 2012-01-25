@@ -3565,6 +3565,38 @@ is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
 }
 
 /**
+  Test if REF_OR_NULL optimization will be used if the specified
+  ref_key is used for REF-access to 'tab'
+
+  @retval
+    true	JT_REF_OR_NULL will be used
+  @retval
+    false	no JT_REF_OR_NULL access
+*/
+bool
+is_ref_or_null_optimized(const JOIN_TAB *tab, uint ref_key)
+{
+  if (tab->keyuse)
+  {
+    const Key_use *keyuse= tab->keyuse;
+    while (keyuse->key != ref_key && keyuse->table == tab->table)
+      keyuse++;
+
+    const table_map const_tables= tab->join->const_table_map;
+    do
+    {
+      if (!(keyuse->used_tables & ~const_tables))
+      {
+        if (keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL)
+          return true;
+      }
+      keyuse++;
+    } while (keyuse->key == ref_key && keyuse->table == tab->table);
+  }
+  return false;
+}
+
+/**
   Test if we can use one of the 'usable_keys' instead of 'ref' key
   for sorting.
 
@@ -3577,12 +3609,13 @@ is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
 */
 
 static uint
-test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
+test_if_subkey(ORDER *order, JOIN_TAB *tab, uint ref, uint ref_key_parts,
 	       const key_map *usable_keys)
 {
   uint nr;
   uint min_length= (uint) ~0;
   uint best= MAX_KEY;
+  TABLE *table= tab->table;
   KEY_PART_INFO *ref_key_part= table->key_info[ref].key_part;
   KEY_PART_INFO *ref_key_part_end= ref_key_part + ref_key_parts;
 
@@ -3593,6 +3626,7 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
 	table->key_info[nr].key_parts >= ref_key_parts &&
 	is_subkey(table->key_info[nr].key_part, ref_key_part,
 		  ref_key_part_end) &&
+        !is_ref_or_null_optimized(tab, nr) &&
 	test_if_order_by_key(order, table, nr))
     {
       min_length= table->key_info[nr].key_length;
@@ -3821,7 +3855,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       if (table->covering_keys.is_set(ref_key))
 	usable_keys.intersect(table->covering_keys);
 
-      if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
+      if ((new_ref_key= test_if_subkey(order, tab, ref_key, ref_key_parts,
 				       &usable_keys)) < MAX_KEY)
       {
 	/* Found key that can be used to retrieve data in sorted order */
@@ -3843,6 +3877,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                                  tab->join->const_table_map))
             goto use_filesort;
 
+          DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
           pick_table_access_method(tab);
 	}
 	else
