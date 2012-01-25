@@ -65,7 +65,7 @@ explain
 select count(*) from lineitem
 where l_orderkey=130 and l_linenumber=2 and l_shipdate='1992-07-01';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	lineitem	const	PRIMARY,i_l_shipdate,i_l_orderkey,i_l_orderkey_quantity	i_l_shipdate	12	const,const,const	1	Using index
+1	SIMPLE	lineitem	const	PRIMARY,i_l_shipdate,i_l_orderkey,i_l_orderkey_quantity	PRIMARY	8	const,const	1	
 flush status;
 select count(*) from lineitem 
 where l_orderkey=130 and l_linenumber=2 and l_shipdate='1992-07-01';
@@ -632,5 +632,50 @@ a	b	c
 DROP VIEW v;
 DROP TABLE t1,t2,t3;
 set optimizer_switch=@save_optimizer_switch;
+#
+# LP Bug #921167: query containing IN subquery
+#                 + extended_keys = on 
+#
+CREATE TABLE t1 (
+a int NOT NULL, b varchar(1) NOT NULL, KEY(a), KEY(b,a)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+(0,'j'), (8,'v'), (1,'c'), (8,'m'), (9,'d'), 
+(24,'d'), (6,'y'), (1,'t'), (6,'d'), (2,'s');
+CREATE TABLE t2 (
+c int NOT NULL PRIMARY KEY
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+(10), (11), (12), (13), (14), 
+(15), (16), (17), (18), (19), (24);
+set @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch = 'extended_keys=off';
+EXPLAIN
+SELECT a FROM t1 AS t, t2 
+WHERE c = a AND b IN (SELECT b FROM t1, t2 WHERE b = t.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t	index	a,b	b	7	NULL	10	Using index
+1	PRIMARY	t1	ref	b	b	3	test.t.b	2	Using index; FirstMatch(t)
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t.a	1	Using index
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	11	Using index; FirstMatch(t2)
+SELECT a FROM t1 AS t, t2 
+WHERE c = a AND b IN (SELECT b FROM t1, t2 WHERE b = t.b);
+a
+24
+SET optimizer_switch = 'extended_keys=on';
+EXPLAIN
+SELECT a FROM t1 AS t, t2 
+WHERE c = a AND b IN (SELECT b FROM t1, t2 WHERE b = t.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t	index	a,b	b	7	NULL	10	Using index
+1	PRIMARY	t1	ref	b	b	3	test.t.b	2	Using index; FirstMatch(t)
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t.a	1	Using index
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	11	Using index; FirstMatch(t2)
+SELECT a FROM t1 AS t, t2 
+WHERE c = a AND b IN (SELECT b FROM t1, t2 WHERE b = t.b);
+a
+24
+set optimizer_switch=@save_optimizer_switch;
+DROP TABLE t1,t2;
 set optimizer_switch=@save_ext_key_optimizer_switch;
 SET SESSION STORAGE_ENGINE=DEFAULT;

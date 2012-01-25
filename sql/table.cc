@@ -907,6 +907,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       key_part->store_length=key_part->length;
     }
     keyinfo->ext_key_parts= keyinfo->key_parts;
+    keyinfo->ext_key_flags= keyinfo->flags;
+    keyinfo->ext_key_part_map= 0;
     if (share->use_ext_keys && i)
     {
       keyinfo->ext_key_flags= keyinfo->flags | HA_NOSAME;
