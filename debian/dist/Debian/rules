@@ -73,7 +73,7 @@ endif
 		-DCMAKE_INSTALL_PREFIX=/usr \
 			-DINSTALL_SBINDIR=sbin  \
 			-DMYSQL_DATADIR=/var/lib/mysql \
-			-DINSTALL_INCLUDEDIR=include \
+			-DINSTALL_INCLUDEDIR=include/mysql \
 			-DINSTALL_INFODIR=share/info \
 			-DINSTALL_MANDIR=share/man \
 		\
@@ -169,6 +169,8 @@ install: build
 	# libmysqlclient-dev: forgotten header file since 3.23.25?
 	cp $(BUILDDIR)/include/my_config.h $(TMP)/usr/include/mysql/
 	cp include/my_dir.h $(TMP)/usr/include/mysql/
+	mv $(TMP)/usr/include/mysql/mysql/*.h $(TMP)/usr/include/mysql/
+	mv $(TMP)/usr/include/mysql/mysql/psi $(TMP)/usr/include/mysql/
 
 	# mysql-common: We now provide our own config file.
 	# can't be mariadb-common, other packages insist
