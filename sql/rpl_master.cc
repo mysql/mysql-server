@@ -420,6 +420,7 @@ static int reset_transmit_packet(THD *thd, ushort flags,
     ret= 1;
   }
   *ev_offset= packet->length();
+  DBUG_PRINT("info", ("rpl_master.cc:reset_transmit_packet returns %d", ret));
   return ret;
 }
 
@@ -744,6 +745,12 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 		       ushort flags, const Gtid_set* gtid_set)
 {
+#define GOTO_ERR                                                        \
+  do {                                                                  \
+    DBUG_PRINT("info", ("mysql_binlog_send fails; goto err from line %d", \
+                        __LINE__));                                     \
+    goto err;                                                           \
+  } while (0)
   LOG_INFO linfo;
   char *log_file_name = linfo.log_file_name;
   char search_file_name[FN_REFLEN], *name;
@@ -759,7 +766,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   int error;
   const char *errmsg = "Unknown error";
   const char *fmt= "%s; the last event was read from '%s' at %s, the last byte read was read from '%s' at %s.";
-  char llbuff1[22], llbuff2[22];
   char error_text[MAX_SLAVE_ERRMSG]; // to be send to slave via my_message()
   NET* net = &thd->net;
   mysql_mutex_t *log_lock;
@@ -811,7 +817,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   {
     errmsg= "Failed to run hook 'transmit_start'";
     my_errno= ER_UNKNOWN_ERROR;
-    goto err;
+    GOTO_ERR;
   }
 
 #ifndef DBUG_OFF
@@ -819,7 +825,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   {
     errmsg = "Master failed COM_BINLOG_DUMP to test if slave can recover";
     my_errno= ER_UNKNOWN_ERROR;
-    goto err;
+    GOTO_ERR;
   }
 #endif
 
@@ -827,13 +833,13 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   {
     errmsg = "Binary log is not open";
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-    goto err;
+    GOTO_ERR;
   }
   if (!server_id_supplied)
   {
     errmsg = "Misconfigured master - server id was not set";
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-    goto err;
+    GOTO_ERR;
   }
 
 /*
@@ -846,7 +852,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
       global_sid_lock.unlock();
       errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
       my_errno= ER_MASTER_HAS_PURGED_REQUIRED_GTIDS;
-      goto err;
+      GOTO_ERR;
     }
     global_sid_lock.unlock();
   }
@@ -864,7 +870,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   {
     errmsg = "Could not find first log file name in binary log index file";
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-    goto err;
+    GOTO_ERR;
   }
 
   mysql_mutex_lock(&LOCK_thread_count);
@@ -874,19 +880,19 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   if ((file=open_binlog_file(&log, log_file_name, &errmsg)) < 0)
   {
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-    goto err;
+    GOTO_ERR;
   }
   if (pos < BIN_LOG_HEADER_SIZE || pos > my_b_filelength(&log))
   {
     errmsg= "Client requested master to start replication from \
 impossible position";
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-    goto err;
+    GOTO_ERR;
   }
 
   /* reset transmit packet for the fake rotate event below */
   if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
-    goto err;
+    GOTO_ERR;
 
   /*
     Tell the client about the log name with a fake Rotate event;
@@ -926,7 +932,7 @@ impossible position";
        error in my_net_write(), fortunately it will say so in errmsg.
     */
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-    goto err;
+    GOTO_ERR;
   }
 
   /*
@@ -948,7 +954,7 @@ impossible position";
     /* reset transmit packet for the event read from binary log
        file */
     if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
-      goto err;
+      GOTO_ERR;
 
      /*
        Try to find a Format_description_log_event at the beginning of
@@ -956,79 +962,80 @@ impossible position";
      */
     if (!(error = Log_event::read_log_event(&log, packet, log_lock, 0)))
     { 
-       /*
-         The packet has offsets equal to the normal offsets in a
-         binlog event + ev_offset (the first ev_offset characters are
-         the header (default \0)).
-       */
-       DBUG_PRINT("info",
-                  ("Looked for a Format_description_log_event, found event type %d",
-                   (*packet)[EVENT_TYPE_OFFSET + ev_offset]));
-       if ((*packet)[EVENT_TYPE_OFFSET + ev_offset] == FORMAT_DESCRIPTION_EVENT)
-       {
-         current_checksum_alg= get_checksum_alg(packet->ptr() + ev_offset,
-                                                packet->length() - ev_offset);
-         DBUG_ASSERT(current_checksum_alg == BINLOG_CHECKSUM_ALG_OFF ||
-                     current_checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF ||
-                     current_checksum_alg == BINLOG_CHECKSUM_ALG_CRC32);
-         if (!is_slave_checksum_aware(thd) &&
-             current_checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
-             current_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF)
-         {
-           my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-           errmsg= "Slave can not handle replication events with the checksum "
-             "that master is configured to log";
-           sql_print_warning("Master is configured to log replication events "
-                             "with checksum, but will not send such events to "
-                             "slaves that cannot process them");
-           goto err;
-         }
-         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
-                                       LOG_EVENT_BINLOG_IN_USE_F);
-         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
-         /*
-           mark that this event with "log_pos=0", so the slave
-           should not increment master's binlog position
-           (rli->group_master_log_pos)
-         */
-         int4store((char*) packet->ptr()+LOG_POS_OFFSET+ev_offset, 0);
-         /*
-           if reconnect master sends FD event with `created' as 0
-           to avoid destroying temp tables.
-          */
-         int4store((char*) packet->ptr()+LOG_EVENT_MINIMAL_HEADER_LEN+
-                   ST_CREATED_OFFSET+ev_offset, (ulong) 0);
+      DBUG_PRINT("info", ("read_log_event returned 0 on line %d", __LINE__));
+      /*
+        The packet has offsets equal to the normal offsets in a
+        binlog event + ev_offset (the first ev_offset characters are
+        the header (default \0)).
+      */
+      DBUG_PRINT("info",
+                 ("Looked for a Format_description_log_event, found event type %s",
+                  Log_event::get_type_str((Log_event_type)(*packet)[EVENT_TYPE_OFFSET + ev_offset])));
+      if ((*packet)[EVENT_TYPE_OFFSET + ev_offset] == FORMAT_DESCRIPTION_EVENT)
+      {
+        current_checksum_alg= get_checksum_alg(packet->ptr() + ev_offset,
+                                               packet->length() - ev_offset);
+        DBUG_ASSERT(current_checksum_alg == BINLOG_CHECKSUM_ALG_OFF ||
+                    current_checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF ||
+                    current_checksum_alg == BINLOG_CHECKSUM_ALG_CRC32);
+        if (!is_slave_checksum_aware(thd) &&
+            current_checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+            current_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF)
+        {
+          my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+          errmsg= "Slave can not handle replication events with the checksum "
+            "that master is configured to log";
+          sql_print_warning("Master is configured to log replication events "
+                            "with checksum, but will not send such events to "
+                            "slaves that cannot process them");
+          GOTO_ERR;
+        }
+        binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
+                                      LOG_EVENT_BINLOG_IN_USE_F);
+        (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
+        /*
+          mark that this event with "log_pos=0", so the slave
+          should not increment master's binlog position
+          (rli->group_master_log_pos)
+        */
+        int4store((char*) packet->ptr()+LOG_POS_OFFSET+ev_offset, 0);
+        /*
+          if reconnect master sends FD event with `created' as 0
+          to avoid destroying temp tables.
+        */
+        int4store((char*) packet->ptr()+LOG_EVENT_MINIMAL_HEADER_LEN+
+                  ST_CREATED_OFFSET+ev_offset, (ulong) 0);
 
-	 /* fix the checksum due to latest changes in header */
-	 if (current_checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
-             current_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF)
-           fix_checksum(packet, ev_offset);
+        /* fix the checksum due to latest changes in header */
+        if (current_checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+            current_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF)
+          fix_checksum(packet, ev_offset);
 
-         /* send it */
-         if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
-         {
-           errmsg = "Failed on my_net_write()";
-           my_errno= ER_UNKNOWN_ERROR;
-           goto err;
-         }
+        /* send it */
+        if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
+        {
+          errmsg = "Failed on my_net_write()";
+          my_errno= ER_UNKNOWN_ERROR;
+          GOTO_ERR;
+        }
 
-         /*
-           No need to save this event. We are only doing simple reads
-           (no real parsing of the events) so we don't need it. And so
-           we don't need the artificial Format_description_log_event of
-           3.23&4.x.
-         */
-       }
-     }
-     else
-     {
-       if (test_for_non_eof_log_read_errors(error, &errmsg))
-         goto err;
-       /*
-         It's EOF, nothing to do, go on reading next events, the
-         Format_description_log_event will be found naturally if it is written.
-       */
-     }
+        /*
+          No need to save this event. We are only doing simple reads
+          (no real parsing of the events) so we don't need it. And so
+          we don't need the artificial Format_description_log_event of
+          3.23&4.x.
+        */
+      }
+    }
+    else
+    {
+      if (test_for_non_eof_log_read_errors(error, &errmsg))
+        GOTO_ERR;
+      /*
+        It's EOF, nothing to do, go on reading next events, the
+        Format_description_log_event will be found naturally if it is written.
+      */
+    }
   } /* end of if (pos > BIN_LOG_HEADER_SIZE); */
   else
   {
@@ -1045,18 +1052,19 @@ impossible position";
     /* reset the transmit packet for the event read from binary log
        file */
     if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
-      goto err;
+      GOTO_ERR;
 
     while (!(error= Log_event::read_log_event(&log, packet, log_lock,
                                               current_checksum_alg)))
     {
+      DBUG_PRINT("info", ("read_log_event returned 0 on line %d", __LINE__));
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
       {
-	net_flush(net);
-	errmsg = "Debugging binlog dump abort";
-	my_errno= ER_UNKNOWN_ERROR;
-	goto err;
+        net_flush(net);
+        errmsg = "Debugging binlog dump abort";
+        my_errno= ER_UNKNOWN_ERROR;
+        GOTO_ERR;
       }
 #endif
       /*
@@ -1099,7 +1107,7 @@ impossible position";
           sql_print_warning("Master is configured to log replication events "
                             "with checksum, but will not send such events to "
                             "slaves that cannot process them");
-          goto err;
+          GOTO_ERR;
         }
         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
                                       LOG_EVENT_BINLOG_IN_USE_F);
@@ -1116,8 +1124,9 @@ impossible position";
       case GTID_LOG_EVENT:
         if (gtid_mode == 0)
         {
-          error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
-          goto err;
+          my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+          errmsg= ER(ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF);
+          GOTO_ERR;
         }
         if (using_gtid_proto)
         {
@@ -1155,8 +1164,9 @@ impossible position";
       case PREVIOUS_GTIDS_LOG_EVENT:
         if (gtid_mode == 0)
         {
-          error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
-          goto err;
+          my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+          errmsg= ER(ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF);
+          GOTO_ERR;
         }
         /* FALLTHROUGH */
       case INCIDENT_EVENT:
@@ -1200,14 +1210,14 @@ impossible position";
       {
         my_errno= ER_UNKNOWN_ERROR;
         errmsg= "run 'before_send_event' hook failed";
-        goto err;
+        GOTO_ERR;
       }
 
       if (skip_group == false && my_net_write(net, (uchar*) packet->ptr(), packet->length()))
       {
-	errmsg = "Failed on my_net_write()";
-	my_errno= ER_UNKNOWN_ERROR;
-	goto err;
+        errmsg = "Failed on my_net_write()";
+        my_errno= ER_UNKNOWN_ERROR;
+        GOTO_ERR;
       }
 
       DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
@@ -1223,9 +1233,9 @@ impossible position";
       {
 	if (send_file(thd))
 	{
-	  errmsg = "failed in send_file()";
-	  my_errno= ER_UNKNOWN_ERROR;
-	  goto err;
+          errmsg = "failed in send_file()";
+          my_errno= ER_UNKNOWN_ERROR;
+          GOTO_ERR;
 	}
       }
 
@@ -1233,12 +1243,12 @@ impossible position";
       {
         errmsg= "Failed to run hook 'after_send_event'";
         my_errno= ER_UNKNOWN_ERROR;
-        goto err;
+        GOTO_ERR;
       }
 
       /* reset transmit packet for next loop */
       if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
-        goto err;
+        GOTO_ERR;
     }
 
     /*
@@ -1249,19 +1259,19 @@ impossible position";
       be the offset in the-master-of-this-master's binlog.
     */
     if (test_for_non_eof_log_read_errors(error, &errmsg))
-      goto err;
+      GOTO_ERR;
 
     if (!(is_master_slave_proto(flags, BINLOG_DUMP_NON_BLOCK)) &&
         mysql_bin_log.is_active(log_file_name))
     {
       /*
-	Block until there is more data in the log
+        Block until there is more data in the log
       */
       if (net_flush(net))
       {
-	errmsg = "failed on net_flush()";
-	my_errno= ER_UNKNOWN_ERROR;
-	goto err;
+        errmsg = "failed on net_flush()";
+        my_errno= ER_UNKNOWN_ERROR;
+        GOTO_ERR;
       }
 
       /*
@@ -1275,18 +1285,18 @@ impossible position";
 	bool read_packet = 0;
 
 #ifndef DBUG_OFF
-	if (max_binlog_dump_events && !left_events--)
-	{
-	  errmsg = "Debugging binlog dump abort";
-	  my_errno= ER_UNKNOWN_ERROR;
-	  goto err;
-	}
+        if (max_binlog_dump_events && !left_events--)
+        {
+          errmsg = "Debugging binlog dump abort";
+          my_errno= ER_UNKNOWN_ERROR;
+          GOTO_ERR;
+        }
 #endif
 
         /* reset the transmit packet for the event read from binary log
            file */
         if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
-          goto err;
+          GOTO_ERR;
         
 	/*
 	  No one will update the log while we are reading
@@ -1302,6 +1312,8 @@ impossible position";
         switch (error= Log_event::read_log_event(&log, packet, (mysql_mutex_t*) 0,
                                                  current_checksum_alg)) {
 	case 0:
+          DBUG_PRINT("info", ("read_log_event returned 0 on line %d",
+                              __LINE__));
 	  /* we read successfully, so we'll need to send it to the slave */
           mysql_mutex_unlock(log_lock);
 	  read_packet = 1;
@@ -1354,14 +1366,14 @@ impossible position";
               if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
               {
                 thd->EXIT_COND(&old_stage);
-                goto err;
+                GOTO_ERR;
               }
               if (send_heartbeat_event(net, packet, coord, current_checksum_alg))
               {
                 errmsg = "Failed on my_net_write()";
                 my_errno= ER_UNKNOWN_ERROR;
                 thd->EXIT_COND(&old_stage);
-                goto err;
+                GOTO_ERR;
               }
             }
             else
@@ -1376,18 +1388,19 @@ impossible position";
         default:
           mysql_mutex_unlock(log_lock);
           test_for_non_eof_log_read_errors(error, &errmsg);
-          goto err;
-	}
+          GOTO_ERR;
+        }
 
-	if (read_packet)
+        if (read_packet)
         {
           switch (event_type)
           {
           case GTID_LOG_EVENT:
             if (gtid_mode == 0)
             {
-              error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
-              goto err;
+              my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+              errmsg= ER(ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF);
+              GOTO_ERR;
             }
             if (using_gtid_proto)
             {
@@ -1417,8 +1430,9 @@ impossible position";
           case PREVIOUS_GTIDS_LOG_EVENT:
             if (gtid_mode == 0)
             {
-              error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
-              goto err;
+              my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+              errmsg= ER(ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF);
+              GOTO_ERR;
             }
             /* FALLTHROUGH */
           case INCIDENT_EVENT:
@@ -1440,36 +1454,36 @@ impossible position";
             {
               my_errno= ER_UNKNOWN_ERROR;
               errmsg= "run 'before_send_event' hook failed";
-              goto err;
+              GOTO_ERR;
             }
-	  
-	    if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) )
-	    {
-	      errmsg = "Failed on my_net_write()";
-	      my_errno= ER_UNKNOWN_ERROR;
-	      goto err;
-	    }
 
-	    if (event_type == LOAD_EVENT)
-	    {
-	      if (send_file(thd))
-	      {
-	        errmsg = "failed in send_file()";
-	        my_errno= ER_UNKNOWN_ERROR;
-	        goto err;
-	      }
-	    }
+            if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) )
+            {
+             errmsg = "Failed on my_net_write()";
+             my_errno= ER_UNKNOWN_ERROR;
+             GOTO_ERR;
+            }
+
+            if (event_type == LOAD_EVENT)
+            {
+              if (send_file(thd))
+              {
+                errmsg = "failed in send_file()";
+                my_errno= ER_UNKNOWN_ERROR;
+                GOTO_ERR;
+              }
+            }
 
             if (RUN_HOOK(binlog_transmit, after_send_event, (thd, flags, packet)))
             {
               my_errno= ER_UNKNOWN_ERROR;
               errmsg= "Failed to run hook 'after_send_event'";
-              goto err;
+              GOTO_ERR;
             }
-	  }
+          }
         }
 
-	log.error=0;
+        log.error=0;
       }
     }
     else
@@ -1480,7 +1494,7 @@ impossible position";
       THD_STAGE_INFO(thd, stage_finished_reading_one_binlog_switching_to_next_binlog);
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case 0:
-	break;
+        break;
       case LOG_INFO_EOF:
         if (mysql_bin_log.is_active(log_file_name))
         {
@@ -1488,9 +1502,9 @@ impossible position";
           break;
         }
       default:
-	errmsg = "could not find next log";
-	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-	goto err;
+        errmsg = "could not find next log";
+        my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+        GOTO_ERR;
       }
 
       if (loop_breaker)
@@ -1501,7 +1515,7 @@ impossible position";
 
       /* reset transmit packet for the possible fake rotate event */
       if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
-        goto err;
+        GOTO_ERR;
       
       /*
         Call fake_rotate_event() in case the previous log (the one which
@@ -1513,11 +1527,11 @@ impossible position";
         read and send is Format_description_log_event.
       */
       if ((file=open_binlog_file(&log, log_file_name, &errmsg)) < 0 ||
-	  fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE,
+          fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE,
                             &errmsg, current_checksum_alg))
       {
-	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-	goto err;
+        my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+        GOTO_ERR;
       }
 
       if (coord)
@@ -1547,12 +1561,16 @@ err:
        detailing the fatal error message with coordinates 
        of the last position read.
     */
+    char llbuff1[22], llbuff2[22];
     my_snprintf(error_text, sizeof(error_text), fmt, errmsg,
-                coord->file_name, (llstr(coord->pos, llbuff1), llbuff1),
-                log_file_name, (llstr(my_b_tell(&log), llbuff2), llbuff2));
+                coord->file_name, llstr(coord->pos, llbuff1),
+                log_file_name, llstr(my_b_tell(&log), llbuff2));
   }
   else
-    strcpy(error_text, errmsg);
+  {
+    strncpy(error_text, errmsg, sizeof(error_text));
+    error_text[sizeof(error_text) - 1]= '\0';
+  }
   end_io_cache(&log);
   (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   /*
@@ -1822,7 +1840,10 @@ bool show_binlogs(THD* thd)
     }
     protocol->store(file_length);
     if (protocol->write())
+    {
+      DBUG_PRINT("info", ("stopping dump thread because protocol->write failed at line %d", __LINE__));
       goto err;
+    }
   }
   mysql_bin_log.unlock_index();
   my_eof(thd);

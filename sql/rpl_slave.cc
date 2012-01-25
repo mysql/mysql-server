@@ -3898,6 +3898,7 @@ Stopping slave I/O thread due to out-of-memory error from master");
       retry_count=0;                    // ok event, reset retry counter
       THD_STAGE_INFO(thd, stage_queueing_master_event_to_the_relay_log);
       event_buf= (const char*)mysql->net.read_pos + 1;
+      DBUG_PRINT("info", ("IO thread received event of type %s", Log_event::get_type_str((Log_event_type)event_buf[EVENT_TYPE_OFFSET])));
       if (RUN_HOOK(binlog_relay_io, after_read_event,
                    (thd, mi,(const char*)mysql->net.read_pos + 1,
                     event_len, &event_buf, &event_len)))
@@ -5440,7 +5441,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
   memcpy(const_cast<char *>(mi->get_master_log_name()),
          rev->new_log_ident, rev->ident_len + 1);
   mi->set_master_log_pos(rev->pos);
-  DBUG_PRINT("info", ("master_log_pos: '%s' %lu",
+  DBUG_PRINT("info", ("new (master_log_name, master_log_pos): ('%s', %lu)",
                       mi->get_master_log_name(), (ulong) mi->get_master_log_pos()));
 #ifndef DBUG_OFF
   /*
