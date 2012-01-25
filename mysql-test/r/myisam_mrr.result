@@ -628,9 +628,9 @@ sum(t1.b)
 1230
 show status like 'handler_mrr%';
 Variable_name	Value
-Handler_mrr_extra_key_sorts	1
-Handler_mrr_extra_rowid_sorts	1
-Handler_mrr_init	2
+Handler_mrr_extra_key_sorts	1or2
+Handler_mrr_extra_rowid_sorts	1or2
+Handler_mrr_init	1or2
 set join_cache_level= @join_cache_level_save;
 set join_buffer_size= @join_buffer_size_save;
 drop table t0, t1;

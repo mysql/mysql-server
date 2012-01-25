@@ -100,6 +100,9 @@ Variable_name	Value
 Handler_commit	19
 Handler_delete	1
 Handler_discover	0
+Handler_mrr_extra_key_sorts	0
+Handler_mrr_extra_rowid_sorts	0
+Handler_mrr_init	0
 Handler_prepare	18
 Handler_read_first	0
 Handler_read_key	3
