@@ -8260,10 +8260,15 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
     field_val= field->val_decimal(&field_buf);
     return my_decimal_cmp(item_val, field_val);
   }
-  double result= item->val_real();
+  /*
+    The patch for Bug#13463415 started using this function for comparing
+    BIGINTs. That uncovered a bug in Visual Studio 32bit optimized mode.
+    Prefixing the auto variables with volatile fixes the problem....
+  */
+  volatile double result= item->val_real();
   if (item->null_value)
     return 0;
-  double field_result= field->val_real();
+  volatile double field_result= field->val_real();
   if (field_result < result)
     return -1;
   else if (field_result > result)
