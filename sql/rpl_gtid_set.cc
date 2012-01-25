@@ -262,6 +262,7 @@ enum_return_status Gtid_set::add_gno_interval(Interval_iterator *ivitp,
                                               rpl_gno start, rpl_gno end)
 {
   DBUG_ENTER("Gtid_set::add_gno_interval(Interval_iterator*, rpl_gno, rpl_gno)");
+  DBUG_ASSERT(start > 0);
   DBUG_ASSERT(start < end);
   Interval *iv;
   Interval_iterator ivit= *ivitp;

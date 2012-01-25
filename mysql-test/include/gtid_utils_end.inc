@@ -9,6 +9,8 @@
 --let $include_filename= gtid_utils_end.inc
 --source include/begin_include_file.inc
 
+--disable_query_log
+
 DROP FUNCTION GTID_IS_EQUAL;
 DROP FUNCTION GTID_IS_DISJOINT;
 DROP FUNCTION GTID_IS_DISJOINT_UNION;
