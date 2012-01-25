@@ -2014,7 +2014,8 @@ sub executable_setup () {
   $exe_mysql_plugin=   mtr_exe_exists("$path_client_bindir/mysql_plugin");
 
   $exe_mysql_embedded=
-    mtr_exe_maybe_exists("$bindir/libmysqld/examples/mysql_embedded",
+    mtr_exe_maybe_exists(vs_config_dirs('libmysqld/examples','mysql_embedded'),
+                         "$bindir/libmysqld/examples/mysql_embedded",
                          "$bindir/bin/mysql_embedded");
 
   if ( ! $opt_skip_ndbcluster )
