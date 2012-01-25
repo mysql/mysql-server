@@ -118,6 +118,12 @@ void table_esgs_by_account_by_event_name::reset_position(void)
   m_next_pos.reset();
 }
 
+int table_esgs_by_account_by_event_name::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(stage_timer);
+  return 0;
+}
+
 int table_esgs_by_account_by_event_name::rnd_next(void)
 {
   PFS_account *account;
@@ -186,9 +192,7 @@ void table_esgs_by_account_by_event_name
     return;
 
   m_row_exists= true;
-
-  time_normalizer *normalizer= time_normalizer::get(stage_timer);
-  m_row.m_stat.set(normalizer, & visitor.m_stat);
+  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
 }
 
 int table_esgs_by_account_by_event_name
