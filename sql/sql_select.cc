@@ -3976,11 +3976,16 @@ check_reverse_order:
         (select && select->quick && select->quick!=save_quick);
 
       /* 
-         If ref_key used index tree reading only ('Using index' in EXPLAIN),
-         and best_key doesn't, then revert the decision.
+         If 'best_key' has changed from  prev. 'ref_key':
+         Update strategy for using index tree reading only
+         ('Using index' in EXPLAIN)
       */
-      if (!table->covering_keys.is_set(best_key))
-        table->set_keyread(FALSE);
+      if (best_key != ref_key)
+      {
+        const bool using_index= 
+          (table->covering_keys.is_set(best_key) && !table->no_keyread);
+        table->set_keyread(using_index);
+      }
       if (!quick_created)
       {
         if (select)                  // Throw any existing quick select
@@ -3991,8 +3996,6 @@ check_reverse_order:
                                 join_read_first:join_read_last;
         tab->type=JT_INDEX_SCAN;       // Read with index_first(), index_next()
 
-        if (table->covering_keys.is_set(best_key))
-          table->set_keyread(TRUE);
         table->file->ha_index_or_rnd_end();
         if (tab->join->select_options & SELECT_DESCRIBE)
         {
@@ -4010,6 +4013,7 @@ check_reverse_order:
           method is actually used.
         */
         DBUG_ASSERT(tab->select->quick);
+        DBUG_ASSERT(tab->select->quick->index==(uint)best_key);
         tab->type=JT_ALL;
         tab->use_quick=QS_RANGE;
         tab->ref.key= -1;
