@@ -8186,9 +8186,13 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
           or less than the original Item. A 0 may also be returned if 
           out of memory.          
 
-  @note We only use this on the range optimizer/partition pruning,
+  @note We use this in the range optimizer/partition pruning,
         because in some cases we can't store the value in the field
         without some precision/character loss.
+
+        We similarly use it to verify that expressions like
+        BIGINT_FIELD <cmp> <literal value>
+        is done correctly (as int/decimal/float according to literal type).
 */
 
 int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
