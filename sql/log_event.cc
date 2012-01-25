@@ -1125,7 +1125,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
       will know it can go into cond_wait to be woken up on the next
       update to the log.
     */
-    DBUG_PRINT("error",("file->error: %d", file->error));
+    DBUG_PRINT("error",("my_b_read failed. file->error: %d", file->error));
     if (!file->error)
       result= LOG_READ_EOF;
     else
@@ -1137,7 +1137,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
       data_len > max(current_thd->variables.max_allowed_packet,
                      opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER))
   {
-    DBUG_PRINT("error",("data_len: %lu", data_len));
+    DBUG_PRINT("error",("data_len is out of bounds. data_len: %lu", data_len));
     result= ((data_len < LOG_EVENT_MINIMAL_HEADER_LEN) ? LOG_READ_BOGUS :
 	     LOG_READ_TOO_LARGE);
     goto end;
@@ -1146,6 +1146,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   /* Append the log event header to packet */
   if (packet->append(buf, sizeof(buf)))
   {
+    DBUG_PRINT("info", ("first packet->append failed (out of memory)"));
     /* Failed to allocate packet */
     result= LOG_READ_MEM;
     goto end;
@@ -1168,9 +1169,10 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
            memory allocation occurs before the call to read it might
            be uninitialized)
       */
+      DBUG_PRINT("info", ("second packet->append failed (out of memory)"));
       result= (my_errno == ENOMEM ? LOG_READ_MEM :
                (file->error >= 0 ? LOG_READ_TRUNC: LOG_READ_IO));
-      /* Implicit goto end; */
+      goto end;
     }
     else
     {
@@ -1193,6 +1195,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
                               data_len + sizeof(buf),
                               checksum_alg_arg))
       {
+        DBUG_PRINT("info", ("checksum test failed"));
         result= LOG_READ_CHECKSUM_FAILURE;
         goto end;
       }
@@ -1202,6 +1205,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 end:
   if (log_lock)
     mysql_mutex_unlock(log_lock);
+  DBUG_PRINT("info", ("read_log_event returns %d", result));
   DBUG_RETURN(result);
 }
 #endif /* !MYSQL_CLIENT */
