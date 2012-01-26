@@ -607,6 +607,8 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     goto err;
   }
 
+  //sql_print_information("while arg is %lu, %lu, %lu, %lu, %lu", (ulong) (!thd->killed && init_abort_pos_wait == abort_pos_wait && slave_running), (ulong) thd->killed, init_abort_pos_wait, abort_pos_wait, (ulong) slave_running);
+
   /* The "compare and wait" main loop */
   while (!thd->killed &&
          init_abort_pos_wait == abort_pos_wait &&
