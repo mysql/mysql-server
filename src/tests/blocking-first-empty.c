@@ -74,8 +74,8 @@ static void *blocking_first_thread(void *arg) {
 static void run_test(DB_ENV *db_env, DB *db, int nthreads, uint64_t nrows, long sleeptime) {
     int r;
     toku_pthread_t tids[nthreads];
+    struct blocking_first_args a = { db_env, db, nrows, sleeptime };
     for (int i = 0; i < nthreads-1; i++) {
-        struct blocking_first_args a = { db_env, db, nrows, sleeptime };
         r = toku_pthread_create(&tids[i], NULL, blocking_first_thread, &a); assert(r == 0);
     }
     blocking_first(db_env, db, nrows, sleeptime);
