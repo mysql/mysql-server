@@ -332,6 +332,70 @@ SELECT * FROM t1;
 DROP TABLE t1;
 SET timestamp=DEFAULT;
 
+--echo #
+--echo # Testing cast from DECIMAL to DATE
+--echo #
+CREATE TABLE t1 (a DECIMAL(23,4));
+INSERT INTO t1 VALUES (NULL),(101010.9999),(-101010.9999);
+SELECT a, CAST(a AS DATE) FROM t1;
+DROP TABLE t1;
 
+--echo #
+--echo # Testing CASE with DATE type without a found item
+--echo #
+SELECT CAST(CASE WHEN 0 THEN '2001-01-01' END AS DATE);
+SELECT CAST(CASE WHEN 0 THEN DATE'2001-01-01' END AS DATE);
+
+--echo #
+--echo # Testing DATE field with NULL value with NOT IN
+--echo #
+CREATE TABLE t1 (a DATE);
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1 WHERE a NOT IN (DATE'2001-01-01',DATE'2002-02-02');
+DROP TABLE t1;
+
+--echo #
+--echo # Testing COALESCE with DATE type without a found item
+--echo #
+SELECT COALESCE(DATE(NULL));
+
+--echo #
+--echo # Testing Item_func_min_max::val_str when DATE type and NULL
+--echo #
+SELECT CAST(LEAST(DATE(NULL), DATE(NULL)) AS CHAR);
+
+--echo #
+--echo # Testing Item_func_min_max::get_date with non-temporal arguments
+--echo #
+SELECT CAST(LEAST(20010101,20020202) AS DATE);
+
+--echo #
+--echo #  Item::get_date_from_numeric
+--echo #
+SELECT CAST(SUM(0) AS DATETIME);
+SELECT CAST(SUM(0 + 0e0) AS DATETIME);
+SET timestamp=1322115004;
+SELECT CAST(UNIX_TIMESTAMP() AS DATE);
+SET timestamp=DEFAULT;
+
+--echo #
+--echo # Item::get_date_from_non_temporal
+--echo #
+SELECT DATE(20110512154559.6 + 0e0);
+
+--echo #
+--echo # Item_name_const::get_date
+--echo #
+SELECT DATE(NAME_CONST('a', 0));
+
+--echo #
+--echo # Item_cache_datetime::get_date
+--echo #
+SET timestamp=UNIX_TIMESTAMP('2011-11-24');
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES (0);
+SELECT DATE(MIN(a)) FROM t1;
+DROP TABLE t1;
+SET timestamp=DEFAULT;
 
 --echo End of 5.6 tests

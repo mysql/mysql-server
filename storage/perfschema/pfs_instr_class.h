@@ -53,6 +53,7 @@ struct PFS_global_param;
 */
 
 extern my_bool pfs_enabled;
+extern enum_timer_name *class_timers[];
 
 /** Key, naming a synch instrument (mutex, rwlock, cond). */
 typedef unsigned int PFS_sync_key;
@@ -69,14 +70,20 @@ typedef unsigned int PFS_socket_key;
 
 enum PFS_class_type
 {
-  PFS_CLASS_MUTEX=  1,
-  PFS_CLASS_RWLOCK= 2,
-  PFS_CLASS_COND=   3,
-  PFS_CLASS_FILE=   4,
-  PFS_CLASS_TABLE=  5,
-  PFS_CLASS_STAGE=  6,
-  PFS_CLASS_STATEMENT= 7,
-  PFS_CLASS_SOCKET= 8
+  PFS_CLASS_NONE=        0,
+  PFS_CLASS_MUTEX=       1,
+  PFS_CLASS_RWLOCK=      2,
+  PFS_CLASS_COND=        3,
+  PFS_CLASS_FILE=        4,
+  PFS_CLASS_TABLE=       5,
+  PFS_CLASS_STAGE=       6,
+  PFS_CLASS_STATEMENT=   7,
+  PFS_CLASS_SOCKET=      8,
+  PFS_CLASS_TABLE_IO=    9,
+  PFS_CLASS_TABLE_LOCK= 10,
+  PFS_CLASS_IDLE=       11,
+  PFS_CLASS_LAST=       PFS_CLASS_IDLE,
+  PFS_CLASS_MAX=        PFS_CLASS_LAST + 1
 };
 
 /** User-defined instrument configuration. */
@@ -127,6 +134,8 @@ struct PFS_instr_class
   char m_name[PFS_MAX_INFO_NAME_LENGTH];
   /** Length in bytes of @c m_name. */
   uint m_name_length;
+  /** Timer associated with this class. */
+  enum_timer_name *m_timer;
 
   bool is_singleton() const
   {
@@ -361,6 +370,8 @@ struct PFS_socket_class : public PFS_instr_class
 };
 
 void init_event_name_sizing(const PFS_global_param *param);
+
+void register_global_classes();
 
 int init_sync_class(uint mutex_class_sizing,
                     uint rwlock_class_sizing,

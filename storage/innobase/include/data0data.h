@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -153,6 +153,7 @@ dfield_dup(
 /*=======*/
 	dfield_t*	field,	/*!< in/out: data field */
 	mem_heap_t*	heap);	/*!< in: memory heap where allocated */
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Tests if two data fields are equal.
 If len==0, tests the data length and content for equality.
@@ -170,13 +171,15 @@ dfield_datas_are_binary_equal(
 /*********************************************************************//**
 Tests if dfield data length and content is equal to the given.
 @return	TRUE if equal */
-UNIV_INTERN
+UNIV_INLINE
 ibool
 dfield_data_is_binary_equal(
 /*========================*/
 	const dfield_t*	field,	/*!< in: field */
 	ulint		len,	/*!< in: data length or UNIV_SQL_NULL */
-	const byte*	data);	/*!< in: data */
+	const byte*	data)	/*!< in: data */
+	__attribute__((nonnull, warn_unused_result));
+#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Gets number of fields in a data tuple.
 @return	number of fields */

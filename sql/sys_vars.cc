@@ -3784,3 +3784,10 @@ static Sys_var_charptr Sys_ignore_db_dirs(
        READ_ONLY GLOBAL_VAR(opt_ignore_db_dirs), 
        NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
+
+static Sys_var_ulong Sys_sp_cache_size(
+       "stored_program_cache",
+       "The soft upper limit for number of cached stored routines for "
+       "one connection.",
+       GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(256, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));

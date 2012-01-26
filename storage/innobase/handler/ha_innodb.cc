@@ -691,6 +691,16 @@ void
 innobase_commit_concurrency_init_default();
 /*=======================================*/
 
+/** @brief Initialize the default and max value of innodb_undo_logs.
+
+Once InnoDB is running, the default value and the max value of
+innodb_undo_logs must be equal to the available undo logs,
+given by srv_available_undo_logs. */
+static
+void
+innobase_undo_logs_init_default_max();
+/*==================================*/
+
 /************************************************************//**
 Validate the file format name and return its corresponding id.
 @return	valid file format id */
@@ -2999,6 +3009,9 @@ innobase_change_buffering_inited_ok:
 		goto mem_free_and_error;
 	}
 
+	/* Adjust the innodb_undo_logs config object */
+	innobase_undo_logs_init_default_max();
+
 	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
 		innobase_old_blocks_pct, TRUE);
 
@@ -4524,7 +4537,7 @@ table_opened:
 	}
 
 	/* Index block size in InnoDB: used by MySQL in query optimization */
-	stats.block_size = 16 * 1024;
+	stats.block_size = UNIV_PAGE_SIZE;
 
 	/* Init table lock structure */
 	thr_lock_data_init(&share->lock,&lock,(void*) 0);
@@ -13309,38 +13322,6 @@ innodb_change_buffer_max_size_update(
 	ibuf_max_size_update(innobase_change_buffer_max_size);
 }
 
-/********************************************************************
-Check if innodb_undo_logs is valid. This function is registered as
-a callback with MySQL.
-@return	0 for valid innodb_undo_logs
-@see mysql_var_check_func */
-static
-int
-innodb_undo_logs_validate(
-/*======================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: ptr to sys var */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value)	/*!< in: incoming string */
-{
-        long long rsegs;
-
-	DBUG_ENTER("innodb_undo_logs_validate");
-
-	DBUG_ASSERT(save != NULL);
-	DBUG_ASSERT(value != NULL);
-	DBUG_ASSERT(srv_available_undo_logs <= TRX_SYS_N_RSEGS);
-
-	value->val_int(value, &rsegs);
-
-        if (rsegs > (long long) srv_available_undo_logs) {
-		rsegs = srv_available_undo_logs;
-	}
-	*reinterpret_cast<ulint*>(save) = static_cast<ulint>(rsegs);
-
-	DBUG_RETURN(0);
-}
 
 /*************************************************************//**
 Find the corresponding ibuf_use_t value that indexes into
@@ -14691,7 +14672,7 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
 static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
   PLUGIN_VAR_OPCMDARG,
   "Number of undo logs to use.",
-  innodb_undo_logs_validate, NULL,
+  NULL, NULL,
   TRX_SYS_N_RSEGS,	/* Default setting */
   1,			/* Minimum value */
   TRX_SYS_N_RSEGS, 0);	/* Maximum value */
@@ -14989,6 +14970,21 @@ innobase_commit_concurrency_init_default()
 		= innobase_commit_concurrency;
 }
 
+/** @brief Initialize the default and max value of innodb_undo_logs.
+
+Once InnoDB is running, the default value and the max value of
+innodb_undo_logs must be equal to the available undo logs,
+given by srv_available_undo_logs. */
+static
+void
+innobase_undo_logs_init_default_max()
+/*=================================*/
+{
+	MYSQL_SYSVAR_NAME(undo_logs).max_val
+		= MYSQL_SYSVAR_NAME(undo_logs).def_val
+		= srv_available_undo_logs;
+}
+
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
 typedef struct innobase_convert_name_test_struct {
@@ -15218,5 +15214,4 @@ ha_innobase::idx_cond_push(
 	/* We will evaluate the condition entirely */
 	DBUG_RETURN(NULL);
 }
-
 

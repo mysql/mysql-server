@@ -442,8 +442,8 @@ void table_events_waits_common::make_row(bool thread_own_wait,
   m_row.m_nesting_event_id= wait->m_nesting_event_id;
   m_row.m_nesting_event_type= wait->m_nesting_event_type;
 
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  normalizer->to_pico(wait->m_timer_start, wait->m_timer_end,
+  get_normalizer(safe_class);
+  m_normalizer->to_pico(wait->m_timer_start, wait->m_timer_end,
                       & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
 
   m_row.m_name= safe_class->m_name;
