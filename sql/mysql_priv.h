@@ -1068,6 +1068,7 @@ struct Query_cache_query_flags
   (((L)->sql_command == SQLCOM_SELECT) && (L)->safe_to_cache_query)
 #else
 #define QUERY_CACHE_FLAGS_SIZE 0
+#define QUERY_CACHE_DB_LENGTH_SIZE 0
 #define query_cache_store_query(A, B)     do { } while(0)
 #define query_cache_destroy()             do { } while(0)
 #define query_cache_result_size_limit(A)  do { } while(0)
