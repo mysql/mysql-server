@@ -8,6 +8,11 @@ INSTALL PLUGIN EXAMPLE SONAME 'ha_example.so';
 ERROR HY000: Function 'EXAMPLE' already exists
 UNINSTALL PLUGIN example;
 INSTALL PLUGIN example SONAME 'ha_example.so';
+# Example engine does not support indexes
+CREATE TABLE t1 (a int PRIMARY KEY) ENGINE=EXAMPLE;
+ERROR 42000: Too many key parts specified; max 0 parts allowed
+CREATE TABLE t1 (a int, KEY (a)) ENGINE=EXAMPLE;
+ERROR 42000: Too many key parts specified; max 0 parts allowed
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -29,11 +34,6 @@ DELETE FROM t1 WHERE a = 0;
 HANDLER t1 OPEN;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 DROP TABLE t1;
-# Example engine does not support indexes
-CREATE TABLE t1 (a int PRIMARY KEY) ENGINE=EXAMPLE;
-ERROR 42000: Too many key parts specified; max 0 parts allowed
-CREATE TABLE t1 (a int, KEY (a)) ENGINE=EXAMPLE;
-ERROR 42000: Too many key parts specified; max 0 parts allowed
 set global example_ulong_var=500;
 set global example_enum_var= e1;
 show status like 'example%';

@@ -15,6 +15,13 @@ UNINSTALL PLUGIN example;
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
+--echo # Example engine does not support indexes
+--error ER_TOO_MANY_KEY_PARTS
+CREATE TABLE t1 (a int PRIMARY KEY) ENGINE=EXAMPLE;
+--error ER_TOO_MANY_KEY_PARTS
+CREATE TABLE t1 (a int, KEY (a)) ENGINE=EXAMPLE;
+
+
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 
 SHOW CREATE TABLE t1;
@@ -37,12 +44,6 @@ DELETE FROM t1 WHERE a = 0;
 HANDLER t1 OPEN;
 
 DROP TABLE t1;
-
---echo # Example engine does not support indexes
---error ER_TOO_MANY_KEY_PARTS
-CREATE TABLE t1 (a int PRIMARY KEY) ENGINE=EXAMPLE;
---error ER_TOO_MANY_KEY_PARTS
-CREATE TABLE t1 (a int, KEY (a)) ENGINE=EXAMPLE;
 
 # a couple of tests for variables
 set global example_ulong_var=500;
