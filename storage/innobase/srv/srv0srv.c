@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -2415,6 +2415,7 @@ loop:
 			"InnoDB: Please submit a bug report"
 			" to http://bugs.mysql.com\n",
 			old_lsn, new_lsn);
+		ut_ad(0);
 	}
 
 	old_lsn = new_lsn;
