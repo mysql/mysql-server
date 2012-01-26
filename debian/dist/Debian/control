@@ -71,7 +71,6 @@ Package: mysql-common
 Section: database
 Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Provides: mariadb-common
 Description: MariaDB database common files (e.g. /etc/mysql/my.cnf)
  MariaDB is a fast, stable and true multi-user, multi-threaded SQL database
  server. SQL (Structured Query Language) is the most popular database query
@@ -80,10 +79,19 @@ Description: MariaDB database common files (e.g. /etc/mysql/my.cnf)
  .
  This package includes files needed by all versions of the client library
  (e.g. /etc/mysql/my.cnf).
+
+Package: mariadb-common
+Section: database
+Architecture: all
+Depends: mysql-common, ${shlibs:Depends}, ${misc:Depends}
+Description: MariaDB database common files (e.g. /etc/mysql/conf.d/mariadb.cnf)
+ MariaDB is a fast, stable and true multi-user, multi-threaded SQL database
+ server. SQL (Structured Query Language) is the most popular database query
+ language in the world. The main goals of MariaDB are speed, robustness and
+ ease of use.
  .
- Due to libmysqlclient15off package depends, this package has not yet been
- renamed to mariadb-common. It does, however, already contain a new my.cnf
- file with mariadb-specific configuration options.
+ This package includes files needed by all versions of the client library
+ (e.g. /etc/mysql/conf.d/mariadb.cnf).
 
 Package: mariadb-client-core-5.5
 Architecture: any

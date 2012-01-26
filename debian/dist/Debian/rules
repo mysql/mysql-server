@@ -172,10 +172,15 @@ install: build
 	mv $(TMP)/usr/include/mysql/mysql/*.h $(TMP)/usr/include/mysql/
 	mv $(TMP)/usr/include/mysql/mysql/psi $(TMP)/usr/include/mysql/
 
-	# mysql-common: We now provide our own config file.
-	# can't be mariadb-common, other packages insist
+	# mysql-common: We provide our own version of this package for
+	# completeness, but we can use an existing version; mariadb-specic
+	# stuff is in mariadb-common
 	install -d $(TMP)/etc/mysql
 	install -m 0644 debian/additions/my.cnf $(TMP)/etc/mysql/my.cnf
+
+	# mariadb-common: MariaDB-specific config stuff.
+	install -d $(TMP)/etc/mysql/conf.d
+	install -m 0644 debian/additions/mariadb.cnf $(TMP)/etc/mysql/conf.d/mariadb.cnf
 
 	# mariadb-client
 	install -m 0755 debian/additions/mysqlreport $(TMP)/usr/bin/
