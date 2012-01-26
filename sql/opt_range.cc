@@ -2568,7 +2568,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.imerge_cost_buff_size= 0;
     param.using_real_indexes= TRUE;
     param.remove_jump_scans= TRUE;
-    param.force_default_mrr= (interesting_order != ORDER::ORDER_NOT_RELEVANT);
+    param.force_default_mrr= (interesting_order == ORDER::ORDER_DESC);
     param.order_direction= interesting_order;
 
     thd->no_errors=1;				// Don't warn about NULL
@@ -5562,7 +5562,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
     {
       if (!(quick= get_quick_select(param, (*current)->idx,
                                     (*current)->sel_arg,
-                                    HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED,
+                                    HA_MRR_SORTED,
                                     0, alloc)) ||
           quick_intrsect->push_quick_back(quick))
       {
@@ -5574,7 +5574,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
     {
       if (!(quick= get_quick_select(param, cpk_scan->idx,
                                     cpk_scan->sel_arg,
-                                    HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED,
+                                    HA_MRR_SORTED,
                                     0, alloc)))
       {
         delete quick_intrsect;
@@ -8705,10 +8705,12 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     param->is_ror_scan= FALSE;
   
   *mrr_flags= param->force_default_mrr? HA_MRR_USE_DEFAULT_IMPL: 0;
+  *mrr_flags|= HA_MRR_NO_ASSOCIATION;
   /*
     Pass HA_MRR_SORTED to see if MRR implementation can handle sorting.
   */
-  *mrr_flags|= HA_MRR_NO_ASSOCIATION | HA_MRR_SORTED;
+  if (param->order_direction != ORDER::ORDER_NOT_RELEVANT)
+    *mrr_flags|= HA_MRR_SORTED;
 
   bool pk_is_clustered= file->primary_key_is_clustered();
   if (index_only && 
@@ -8717,7 +8719,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
      *mrr_flags |= HA_MRR_INDEX_ONLY;
   
   if (current_thd->lex->sql_command != SQLCOM_SELECT)
-    *mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
+    *mrr_flags|= HA_MRR_SORTED; // Assumed to give faster ins/upd/del
 
   *bufsize= param->thd->variables.read_rnd_buff_size;
   // Sets is_ror_scan to false for some queries, e.g. multi-ranges
@@ -9242,7 +9244,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   quick->mrr_flags= HA_MRR_NO_ASSOCIATION | 
                     (table->key_read ? HA_MRR_INDEX_ONLY : 0);
   if (thd->lex->sql_command != SQLCOM_SELECT)
-    quick->mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
+    quick->mrr_flags|= HA_MRR_SORTED; // Assumed to give faster ins/upd/del
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   if (!ref->null_ref_key && !key_has_nulls(key_info, range->min_key,
                                            ref->key_length))
@@ -10929,7 +10931,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
                                            &cur_param_idx);
       /* Check if this range tree can be used for prefix retrieval. */
       Cost_estimate dummy_cost;
-      uint mrr_flags= HA_MRR_USE_DEFAULT_IMPL;
+      uint mrr_flags= HA_MRR_SORTED;
       uint mrr_bufsize=0;
       cur_quick_prefix_records= check_quick_select(param, cur_param_idx, 
                                                    FALSE /*don't care*/, 
@@ -11564,7 +11566,6 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
       /* Make a QUICK_RANGE_SELECT to be used for group prefix retrieval. */
       quick->quick_prefix_select= get_quick_select(param, param_idx,
                                                    index_tree,
-                                                   HA_MRR_USE_DEFAULT_IMPL |
                                                    HA_MRR_SORTED,
                                                    0,
                                                    &quick->alloc);
