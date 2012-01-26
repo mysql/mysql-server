@@ -11,7 +11,7 @@ extern "C" {
 #error "WORDS_BIGENDIAN not supported"
 #endif
 
-inline void get_var_field_info(
+void get_var_field_info(
     u_int32_t* field_len, // output: length of field
     u_int32_t* start_offset, // output, length of offset where data starts
     u_int32_t var_field_index, //input, index of var field we want info on
