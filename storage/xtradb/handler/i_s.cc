@@ -23,6 +23,7 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
+#include <ctype.h> /*toupper*/
 #include <mysqld_error.h>
 #include <sql_acl.h>                            // PROCESS_ACL
 
