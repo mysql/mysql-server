@@ -2245,7 +2245,7 @@ static bool fix_threadpool_stall_limit(sys_var*, THD*, enum_var_type)
 #ifdef _WIN32
 static Sys_var_uint Sys_threadpool_min_threads(
   "thread_pool_min_threads",
-  "Minimuim number of threads in the thread pool.",
+  "Minimum number of threads in the thread pool.",
   GLOBAL_VAR(threadpool_min_threads), CMD_LINE(REQUIRED_ARG),
   VALID_RANGE(1, 256), DEFAULT(1), BLOCK_SIZE(1),
   NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
@@ -2267,8 +2267,9 @@ static Sys_var_uint Sys_threadpool_oversubscribe(
 );
 static Sys_var_uint Sys_threadpool_size(
  "thread_pool_size",
- "Number of concurrently executing threads in the pool. "
- "Leaving value default (0) sets it to the number of processors.",
+ "Number of thread groups in the pool. "
+ "This parameter is roughly equivalent to maximum number of concurrently "
+ "executing threads (threads in a waiting state do not count as executing).",
   GLOBAL_VAR(threadpool_size), CMD_LINE(REQUIRED_ARG),
   VALID_RANGE(1, MAX_THREAD_GROUPS), DEFAULT(my_getncpus()), BLOCK_SIZE(1),
   NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
