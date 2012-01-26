@@ -2840,6 +2840,7 @@ private:
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_apply_event_worker(Slave_worker *rli);
   enum_skip_reason do_shall_skip(Relay_log_info *rli);
+  bool do_commit(THD *thd);
 #endif
 };
 

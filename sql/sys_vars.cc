@@ -3832,6 +3832,66 @@ static Sys_var_mybool Sys_disable_gtid_unsafe_statements(
 
 #ifdef HAVE_REPLICATION
 
+bool Sys_var_gtid_specification::session_update(THD *thd, set_var *var)
+{
+  DBUG_ENTER("Sys_var_gtid::session_update");
+  global_sid_lock.rdlock();
+  bool ret= (((Gtid_specification *)session_var_ptr(thd))->
+             parse(&global_sid_map,
+                   var->save_result.string_value.str) != 0);
+  global_sid_lock.unlock();
+  
+  if (gtid_acquire_ownwership(thd))
+  {
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(ret);
+}
+
+bool Sys_var_gtid_set::session_update(THD *thd, set_var *var)
+{
+  DBUG_ENTER("Sys_var_gtid_set::session_update");
+  Gtid_set_or_null *gsn=
+    (Gtid_set_or_null *)session_var_ptr(thd);
+  char *value= var->save_result.string_value.str;
+  if (value == NULL)
+      gsn->set_null();
+  else
+  {
+    Gtid_set *gs= gsn->set_non_null(&global_sid_map);
+    if (gs == NULL)
+    {
+      my_error(ER_OUT_OF_RESOURCES, MYF(0)); // allocation failed
+      DBUG_RETURN(true);
+    }
+    /*
+      If string begins with '+', add to the existing set, otherwise
+      replace existing set.
+    */
+    while (isspace(*value))
+      value++;
+    if (*value == '+')
+      value++;
+    else
+      gs->clear();
+    // Add specified set of groups to Gtid_set.
+    global_sid_lock.rdlock();
+    enum_return_status ret= gs->add_gtid_text(value);
+    global_sid_lock.unlock();
+    if (ret != RETURN_STATUS_OK)
+    {
+      gsn->set_null();
+      DBUG_RETURN(true);
+    }
+  }
+  if (gtid_acquire_ownwership(thd))
+  {
+    DBUG_RETURN(true);
+  }
+  DBUG_RETURN(false);
+}
+
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_next_list");
@@ -3871,6 +3931,18 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
     my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
   if (gtid_mode == 3 && type == ANONYMOUS_GROUP)
     my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
+  if(thd->owned_gtid.sidno != 0)
+  {
+#ifndef DBUG_OFF
+    global_sid_lock.rdlock();
+    DBUG_ASSERT(gtid_state.get_owned_gtids()->
+                thread_owns_anything(thd->thread_id));
+    global_sid_lock.unlock();
+#endif
+    my_error(ER_CANT_SET_GTID_NEXT_WHEN_ITS_NOT_AUTOMATIC, MYF(0));
+    DBUG_RETURN(GTID_STATEMENT_CANCEL);
+  }
+
   DBUG_RETURN(false);
 }
 

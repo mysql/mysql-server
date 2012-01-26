@@ -2443,6 +2443,8 @@ int gtid_check_session_variables_before_statement(const THD *thd);
 */
 int gtid_rollback(THD *thd);
 
+int gtid_acquire_ownwership(THD *thd);
+
 #endif // ifndef MYSQL_CLIENT
 
 #endif /* RPL_GTID_H_INCLUDED */
