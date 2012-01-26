@@ -798,9 +798,7 @@ JOIN::create_intermediate_table(List<Item> *tmp_table_fields,
         prepare_sum_aggregators(sum_funcs,
                                 !join_tab->is_using_agg_loose_index_scan()) ||
         setup_sum_funcs(thd, sum_funcs))
-    {
-      DBUG_RETURN(NULL);
-    }
+      goto err;
     group_list= NULL;
   }
   else
@@ -809,9 +807,7 @@ JOIN::create_intermediate_table(List<Item> *tmp_table_fields,
         prepare_sum_aggregators(sum_funcs,
                                 !join_tab->is_using_agg_loose_index_scan()) ||
         setup_sum_funcs(thd, sum_funcs))
-    {
-      DBUG_RETURN(NULL);
-    }
+      goto err;
 
     if (!group_list && !tab->distinct && order && simple_order)
     {
@@ -819,13 +815,16 @@ JOIN::create_intermediate_table(List<Item> *tmp_table_fields,
       THD_STAGE_INFO(thd, stage_sorting_for_order);
       if (create_sort_index(thd, this, order,
                             HA_POS_ERROR, HA_POS_ERROR, true))
-      {
-        DBUG_RETURN(NULL);
-      }
+        goto err;
       order= NULL;
     }
   }
   DBUG_RETURN(tab);
+
+err:
+  if (tab != NULL)
+    free_tmp_table(thd, tab);
+  DBUG_RETURN(NULL);
 }
 
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -228,6 +228,7 @@ dfield_dup(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Tests if two data fields are equal.
 If len==0, tests the data length and content for equality.
@@ -256,6 +257,23 @@ dfield_datas_are_binary_equal(
 	       && (len == UNIV_SQL_NULL
 		   || !memcmp(field1->data, field2->data, len)));
 }
+
+/*********************************************************************//**
+Tests if dfield data length and content is equal to the given.
+@return	TRUE if equal */
+UNIV_INLINE
+ibool
+dfield_data_is_binary_equal(
+/*========================*/
+	const dfield_t*	field,	/*!< in: field */
+	ulint		len,	/*!< in: data length or UNIV_SQL_NULL */
+	const byte*	data)	/*!< in: data */
+{
+	return(len == dfield_get_len(field)
+	       && (len == UNIV_SQL_NULL
+		   || !memcmp(dfield_get_data(field), data, len)));
+}
+#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************//**
 Gets info bits in a data tuple.

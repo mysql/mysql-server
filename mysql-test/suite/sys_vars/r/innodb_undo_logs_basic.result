@@ -29,3 +29,40 @@ ERROR HY000: Variable 'innodb_undo_logs' is a GLOBAL variable
 Expected error 'Variable is a GLOBAL variable'
 SELECT innodb_undo_logs = @@SESSION.innodb_undo_logs;
 ERROR 42S22: Unknown column 'innodb_undo_logs' in 'field list'
+Begin bug 13604034
+select @@innodb_undo_logs;
+@@innodb_undo_logs
+128
+128 Expected
+set global innodb_undo_logs = 129;
+Warnings:
+Warning	1292	Truncated incorrect innodb_undo_logs value: '129'
+select @@innodb_undo_logs;
+@@innodb_undo_logs
+128
+128 Expected
+set global innodb_undo_logs = 0;
+Warnings:
+Warning	1292	Truncated incorrect innodb_undo_logs value: '0'
+select @@innodb_undo_logs;
+@@innodb_undo_logs
+1
+1 Expected
+set global innodb_undo_logs = -1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_undo_logs value: '-1'
+select @@innodb_undo_logs;
+@@innodb_undo_logs
+1
+1 Expected
+set global innodb_undo_logs = 50;
+select @@innodb_undo_logs;
+@@innodb_undo_logs
+50
+50 Expected
+set global innodb_undo_logs = default;
+select @@innodb_undo_logs;
+@@innodb_undo_logs
+128
+128 Expected
+End bug 13604034
