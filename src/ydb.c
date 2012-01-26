@@ -5024,28 +5024,20 @@ db_put_check_size_constraints(DB *db, const DBT *key, const DBT *val) {
     return r;
 }
 
-// Return 0 if supported.
-// Return ERANGE if out of range.
-static int
-db_row_size_supported(DB *db, uint32_t key_size, uint32_t val_size) {
-    int r = 0;
-    DBT key, val;
-
-    toku_fill_dbt(&key, NULL, key_size);
-    toku_fill_dbt(&val, NULL, val_size);
-    r = db_put_check_size_constraints(db, &key, &val);
-    if (r != 0) {
-        r = ERANGE;
-    }
-    return r;
+// Return the maximum key and val size in 
+// *key_size and *val_size respectively
+static void
+db_get_max_row_size(DB * UU(db), uint32_t * max_key_size, uint32_t * max_val_size) {
+    *max_key_size = 0;
+    *max_val_size = 0;
+    toku_brt_get_maximum_advised_key_value_lengths(max_key_size, max_val_size);
 }
 
-static int
-locked_db_row_size_supported(DB *db, uint32_t key_size, uint32_t val_size) {
+static void
+locked_db_get_max_row_size(DB *db, uint32_t *max_key_size, uint32_t *max_val_size) {
     toku_ydb_lock();
-    int r = db_row_size_supported(db, key_size, val_size);
+    db_get_max_row_size(db, max_key_size, max_val_size);
     toku_ydb_unlock();
-    return r;
 }
 
 //Return 0 if insert is legal
@@ -6540,7 +6532,7 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(pre_acquire_fileops_lock);
     SDB(pre_acquire_fileops_shared_lock);
     SDB(truncate);
-    SDB(row_size_supported);
+    SDB(get_max_row_size);
     SDB(getf_set);
     SDB(flatten);
     SDB(optimize);

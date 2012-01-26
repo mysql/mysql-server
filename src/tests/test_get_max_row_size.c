@@ -21,20 +21,14 @@ int test_main(int argc, char * const argv[])
 
     // - does not test low bounds, so a 0 byte key is "okay"
     // - assuming 32k keys and 32mb values are the max
-    r = db->row_size_supported(db, 0, 0);
-    assert(r == 0);
-    r = db->row_size_supported(db, 100000000, 100000000);
-    assert(r != 0);
-    r = db->row_size_supported(db, 100, 1);
-    assert(r == 0);
-    r = db->row_size_supported(db, 1, 100);
-    assert(r == 0);
-    r = db->row_size_supported(db, 4*1024, 4*1024*1024);
-    assert(r == 0);
-    r = db->row_size_supported(db, 32*1024, 32*1024*1024);
-    assert(r == 0);
-    r = db->row_size_supported(db, 32*1024 + 1, 32*1024*1024 + 1);
-    assert(r != 0);
+    uint32_t max_key, max_val;
+    db->get_max_row_size(db, &max_key, &max_val);
+    // assume it is a red flag for the key to be outside the 16-32kb range
+    assert(max_key >= 16*1024);
+    assert(max_key <= 32*1024);
+    // assume it is a red flag for the value to be outside the 16-32mb range
+    assert(max_val >= 16*1024*1024);
+    assert(max_val <= 32*1024*1024);
 
     // clean things up
     r = db->close(db, 0); CHK(r);
