@@ -5978,8 +5978,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       event what will make the slave to update what it knows
       about the master's coordinates.
     */
-    inc_pos= event_len;
-    mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
+    inc_pos= 0;
+    mi->set_master_log_pos(mi->get_master_log_pos() + event_len);
     memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(), FN_REFLEN);
     rli->ign_master_log_pos_end= mi->get_master_log_pos();
 

@@ -1118,6 +1118,9 @@ impossible position";
         p_fdle->checksum_alg= current_checksum_alg;
         break;
 
+      case ANONYMOUS_GTID_LOG_EVENT:
+        /* do nothing */
+        break;
       case GTID_LOG_EVENT:
         if (gtid_mode == 0)
         {
@@ -1154,8 +1157,10 @@ impossible position";
         break;
 
       case STOP_EVENT:
-        skip_group= searching_first_gtid;
         binlog_can_be_corrupted= false;
+        /* FALLTHROUGH */
+      case INCIDENT_EVENT:
+        skip_group= searching_first_gtid;
         break;
 
       case PREVIOUS_GTIDS_LOG_EVENT:
@@ -1166,11 +1171,9 @@ impossible position";
           GOTO_ERR;
         }
         /* FALLTHROUGH */
-      case INCIDENT_EVENT:
       case ROTATE_EVENT:
-        skip_group= searching_first_gtid;
+        skip_group= false;
         break;
-      case ANONYMOUS_GTID_LOG_EVENT:
       default:
         /* do nothing */
         break;
