@@ -25,14 +25,14 @@ SET GLOBAL debug_dbug="-d,corrupt_read_log_event2";
 SET GLOBAL master_verify_checksum=0;
 SET GLOBAL debug_dbug="+d,corrupt_read_log_event2";
 START SLAVE IO_THREAD;
-include/wait_for_slave_io_error.inc [errno=1595,1722]
+include/wait_for_slave_io_error.inc [errno=1595,1722,1923]
 SET GLOBAL debug_dbug="-d,corrupt_read_log_event2";
 SET GLOBAL debug_dbug= "";
 SET GLOBAL master_verify_checksum=1;
 # 5. Slave. Corruption in network
 SET GLOBAL debug_dbug="+d,corrupt_queue_event";
 START SLAVE IO_THREAD;
-include/wait_for_slave_io_error.inc [errno=1595,1722]
+include/wait_for_slave_io_error.inc [errno=1595,1722,1923]
 SET GLOBAL debug_dbug="-d,corrupt_queue_event";
 # 6. Slave. Corruption in relay log
 SET GLOBAL debug_dbug="+d,corrupt_read_log_event_char";
