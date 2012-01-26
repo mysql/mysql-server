@@ -449,10 +449,10 @@ void JOIN_CACHE::set_constants()
 /**
   Allocate memory for a join buffer.
 
-  The function allocates a lump of memory for the cache join buffer. The
+  The function allocates a lump of memory for the join buffer. The
   size of the allocated memory is 'buff_size' bytes.
 
-  @returns false if success
+  @returns false if success, otherwise true.
 */
 bool JOIN_CACHE::alloc_buffer()
 {

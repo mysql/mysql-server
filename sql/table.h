@@ -1104,7 +1104,7 @@ public:
   my_bool null_row;
 
   uint8   status;                       /* What's in record[0] */
-  my_bool copy_blobs;			/* copy_blobs when storing */
+  my_bool copy_blobs;                   /* copy_blobs when storing */
 
   /*
     TODO: Each of the following flags take up 8 bits. They can just as easily
