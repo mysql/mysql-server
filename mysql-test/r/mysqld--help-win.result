@@ -805,7 +805,7 @@ The following options may be given as the first argument:
  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
  for the complete list of valid sql modes
  --standalone        Dummy option to start as a standalone program (NT).
- --stored-program-cache=#
+ --stored-program-cache=# 
  The soft upper limit for number of cached stored routines
  for one connection.
  -s, --symbolic-links 
