@@ -23,6 +23,7 @@ Smart ALTER TABLE
 
 #include <unireg.h>
 #include <mysqld_error.h>
+#include <sql_class.h>
 #include <sql_lex.h>                            // SQLCOM_CREATE_INDEX
 #include <mysql/innodb_priv.h>
 
