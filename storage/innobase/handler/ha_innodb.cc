@@ -14548,10 +14548,10 @@ static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, fts_sort_pll_degree,
   "InnoDB Fulltext search parallel sort degree, will round up to nearest power of 2 number",
   NULL, NULL, 2, 1, 16, 0);
 
-static MYSQL_SYSVAR_ULONG(sort_buf_size, srv_sort_buf_size,
+static MYSQL_SYSVAR_ULONG(sort_buffer_size, srv_sort_buf_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "InnoDB Fulltext search sort buffer size",
-  NULL, NULL, 1048576, 524288, 64836480, 0);
+  "Memory buffer size for index creation",
+  NULL, NULL, 1048576, 524288, 64<<20, 0);
 
 static MYSQL_SYSVAR_BOOL(optimize_fulltext_only, innodb_optimize_fulltext_only,
   PLUGIN_VAR_NOCMDARG,
@@ -14864,7 +14864,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(support_xa),
-  MYSQL_SYSVAR(sort_buf_size),
+  MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(analyze_is_persistent),
   MYSQL_SYSVAR(sync_spin_loops),
   MYSQL_SYSVAR(spin_wait_delay),
