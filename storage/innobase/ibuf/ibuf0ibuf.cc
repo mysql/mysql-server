@@ -3967,7 +3967,7 @@ ibuf_set_del_mark(
 			(unsigned) buf_block_get_space(block),
 			(unsigned) buf_block_get_page_no(block),
 			(unsigned) page_get_n_recs(page),
-			btr_page_get_index_id(page));
+			(ulonglong) btr_page_get_index_id(page));
 		ut_ad(0);
 	}
 }
@@ -4031,7 +4031,7 @@ ibuf_delete(
 				(unsigned) buf_block_get_space(block),
 				(unsigned) buf_block_get_page_no(block),
 				(unsigned) page_get_n_recs(page),
-				btr_page_get_index_id(page));
+				(ulonglong) btr_page_get_index_id(page));
 
 			ut_ad(0);
 			return;
