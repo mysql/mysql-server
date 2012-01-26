@@ -6464,10 +6464,24 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       (field->type() == MYSQL_TYPE_DATE ||
        field->type() == MYSQL_TYPE_DATETIME))
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
-  {
-    // Note that value may be a stored function call, executed here.
-    err= value->save_in_field_no_warnings(field, 1);
-  }
+
+  /*
+    We want to change "field > value" to "field OP V"
+    where:
+    * V is what is in "field" after we stored "value" in it via
+    save_in_field_no_warning() (such store operation may have done
+    rounding...)
+    * OP is > or >=, depending on what's correct.
+    For example, if c is an INT column,
+    "c > 2.9" is changed to "c OP 3"
+    where OP is ">=" (">" would not be correct, as 3 > 2.9, a comparison
+    done with stored_field_cmp_to_item()). And
+    "c > 3.1" is changed to "c OP 3" where OP is ">" (3 < 3.1...).
+  */
+
+  // Note that value may be a stored function call, executed here.
+  err= value->save_in_field_no_warnings(field, 1);
+
   if (err > 0)
   {
     if (field->cmp_type() != value->result_type())
