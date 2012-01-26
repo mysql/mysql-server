@@ -404,11 +404,6 @@ void set_wait_timeout(connection_t *connection, ulonglong old_timeout)
 /* Connection destructor */
 void destroy_connection(connection_t *connection)
 {
-  if (connection->thd)
-  {
-    threadpool_remove_connection(connection->thd);
-  }
-
   if (connection->io)
   {
      WaitForThreadpoolIoCallbacks(connection->io, TRUE); 
@@ -426,6 +421,11 @@ void destroy_connection(connection_t *connection)
     SetThreadpoolTimer(connection->timer, 0, 0, 0);
     WaitForThreadpoolTimerCallbacks(connection->timer, TRUE);
     CloseThreadpoolTimer(connection->timer);
+  }
+  
+  if (connection->thd)
+  {
+    threadpool_remove_connection(connection->thd);
   }
 
   DestroyThreadpoolEnvironment(&connection->callback_environ);
