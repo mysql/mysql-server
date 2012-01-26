@@ -72,6 +72,14 @@ struct row_host_cache
   ulonglong m_count_proxy_user_acl_errors;
   /** Column COUNT_AUTHENTICATION_ERRORS. */
   ulonglong m_count_authentication_errors;
+  /** Column COUNT_SSL_ERRORS. */
+  ulonglong m_count_ssl_errors;
+  /** Column COUNT_MAX_USER_CONNECTION_ERRORS. */
+  ulonglong m_count_max_user_connection_errors;
+  /** Column COUNT_MAX_USER_CONNECTION_PER_HOUR_ERRORS. */
+  ulonglong m_count_max_user_connection_per_hour_errors;
+  /** Column COUNT_MAX_CONNECTION_ERRORS. */
+  ulonglong m_count_max_connection_errors;
   /** Column COUNT_USER_ACL_ERRORS. */
   ulonglong m_count_user_acl_errors;
   /** Column COUNT_LOCAL_ERRORS. */

@@ -63,6 +63,14 @@ public:
   ulong m_proxy_user_acl;
   /** Number of errors from authentication. */
   ulong m_authentication;
+  /** Number of errors from ssl. */
+  ulong m_ssl;
+  /** Number of errors from max user connection. */
+  ulong m_max_user_connection;
+  /** Number of errors from max user connection per hour. */
+  ulong m_max_user_connection_per_hour;
+  /** Number of errors from max connection. */
+  ulong m_max_connection;
   /** Number of errors from user grants. */
   ulong m_user_acl;
   /** Number of errors from the server itself. */
@@ -86,6 +94,10 @@ public:
       || (m_proxy_user != 0)
       || (m_proxy_user_acl != 0)
       || (m_authentication != 0)
+      || (m_ssl != 0)
+      || (m_max_user_connection != 0)
+      || (m_max_user_connection_per_hour != 0)
+      || (m_max_connection != 0)
       || (m_user_acl != 0)
       || (m_local != 0)
       || (m_unknown != 0));

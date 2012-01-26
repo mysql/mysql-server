@@ -118,6 +118,26 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
+    { C_STRING_WITH_LEN("COUNT_SSL_ERRORS.") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_MAX_USER_CONNECTION_ERRORS..") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_MAX_USER_CONNECTION_PER_HOUR_ERRORS..") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COUNT_MAX_CONNECTION_ERRORS...") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("COUNT_USER_ACL_ERRORS") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
@@ -156,7 +176,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_host_cache::m_field_def=
-{ 25, field_types };
+{ 29, field_types };
 
 PFS_engine_table_share
 table_host_cache::m_share=
@@ -273,6 +293,10 @@ void table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
   row->m_count_proxy_user_errors= entry->m_errors.m_proxy_user;
   row->m_count_proxy_user_acl_errors= entry->m_errors.m_proxy_user_acl;
   row->m_count_authentication_errors= entry->m_errors.m_authentication;
+  row->m_count_ssl_errors= entry->m_errors.m_ssl;
+  row->m_count_max_user_connection_errors= entry->m_errors.m_max_user_connection;
+  row->m_count_max_user_connection_per_hour_errors= entry->m_errors.m_max_user_connection_per_hour;
+  row->m_count_max_connection_errors= entry->m_errors.m_max_connection;
   row->m_count_user_acl_errors= entry->m_errors.m_user_acl;
   row->m_count_local_errors= entry->m_errors.m_local;
   row->m_count_unknown_errors= entry->m_errors.m_unknown;
@@ -393,28 +417,40 @@ int table_host_cache::read_row_values(TABLE *table,
       case 17: /* COUNT_AUTHENTICATION_ERRORS */
         set_field_ulonglong(f, m_row->m_count_authentication_errors);
         break;
-      case 18: /* COUNT_USER_ACL_ERRORS */
+      case 18: /* COUNT_SSL_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_ssl_errors);
+        break;
+      case 19: /* COUNT_MAX_USER_CONNECTION_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_max_user_connection_errors);
+        break;
+      case 20: /* COUNT_MAX_USER_CONNECTION_PER_HOUR_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_max_user_connection_per_hour_errors);
+        break;
+      case 21: /* COUNT_MAX_CONNECTION_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_max_connection_errors);
+        break;
+      case 22: /* COUNT_USER_ACL_ERRORS */
         set_field_ulonglong(f, m_row->m_count_user_acl_errors);
         break;
-      case 19: /* COUNT_LOCAL_ERRORS */
+      case 23: /* COUNT_LOCAL_ERRORS */
         set_field_ulonglong(f, m_row->m_count_local_errors);
         break;
-      case 20: /* COUNT_UNKNOWN_ERRORS */
+      case 24: /* COUNT_UNKNOWN_ERRORS */
         set_field_ulonglong(f, m_row->m_count_unknown_errors);
         break;
-      case 21: /* FIRST_SEEN */
+      case 25: /* FIRST_SEEN */
         set_field_timestamp(f, m_row->m_first_seen);
         break;
-      case 22: /* LAST_SEEN */
+      case 26: /* LAST_SEEN */
         set_field_timestamp(f, m_row->m_last_seen);
         break;
-      case 23: /* FIRST_ERROR_SEEN */
+      case 27: /* FIRST_ERROR_SEEN */
         if (m_row->m_first_error_seen != 0)
           set_field_timestamp(f, m_row->m_first_error_seen);
         else
           f->set_null();
         break;
-      case 24: /* LAST_ERROR_SEEN */
+      case 28: /* LAST_ERROR_SEEN */
         if (m_row->m_last_error_seen != 0)
           set_field_timestamp(f, m_row->m_last_error_seen);
         else

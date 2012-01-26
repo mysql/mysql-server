@@ -9510,7 +9510,9 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
   {
     DBUG_ASSERT(mpvio.status == MPVIO_EXT::FAILURE);
-
+    Host_errors errors;
+    errors.m_authentication= 1;
+    inc_host_errors(mpvio.ip, &errors);
     if (!thd->is_error())
       login_failed_error(&mpvio, mpvio.auth_info.password_used);
     DBUG_RETURN (1);
@@ -9586,6 +9588,9 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
     */
     if (acl_check_ssl(thd, acl_user))
     {
+      Host_errors errors;
+      errors.m_ssl= 1;
+      inc_host_errors(mpvio.ip, &errors);
       if (!thd->is_error())
         login_failed_error(&mpvio, thd->password);
       DBUG_RETURN(1);
@@ -9633,6 +9638,9 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
     mysql_mutex_unlock(&LOCK_connection_count);
     if (!count_ok)
     {                                         // too many connections
+      Host_errors errors;
+      errors.m_max_connection= 1;
+      inc_host_errors(mpvio.ip, &errors);
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
@@ -9656,6 +9664,9 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
         decrease_user_connections(thd->user_connect);
         thd->user_connect= 0;
       }
+      Host_errors errors;
+      errors.m_user_acl= 1;
+      inc_host_errors(mpvio.ip, &errors);
       DBUG_RETURN(1);
     }
   }
