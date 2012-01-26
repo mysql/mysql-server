@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -392,8 +392,10 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             storeTable = domainTypeHandler.getStoreTable();
             op = clusterTransaction.getInsertOperation(storeTable);
             // set all values in the operation, keys first
+            op.beginDefinition();
             domainTypeHandler.operationSetKeys(valueHandler, op);
             domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
+            op.endDefinition();
             // reset modified bits in instance
             domainTypeHandler.objectResetModified(valueHandler);
         } catch (ClusterJUserException cjuex) {

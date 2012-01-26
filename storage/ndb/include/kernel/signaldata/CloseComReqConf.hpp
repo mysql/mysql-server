@@ -35,6 +35,7 @@ class CloseComReqConf {
    */
   friend class Qmgr;
   friend class Trpman;
+  friend class TrpmanProxy;
 
   /**
    * For printing

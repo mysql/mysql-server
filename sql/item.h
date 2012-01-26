@@ -1071,6 +1071,15 @@ public:
   }
 
   void print_item_w_name(String *, enum_query_type query_type);
+  /**
+     Prints the item when it's part of ORDER BY and GROUP BY.
+     @param  str            String to print to
+     @param  query_type     How to format the item
+     @param  used_alias     Whether item was referenced with alias.
+  */
+  void print_for_order(String *str, enum_query_type query_type,
+                       bool used_alias);
+
   virtual void update_used_tables() {}
   virtual void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                               List<Item> &fields) {}

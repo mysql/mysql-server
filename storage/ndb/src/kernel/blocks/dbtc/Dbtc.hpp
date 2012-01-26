@@ -1484,10 +1484,11 @@ private:
   void handleScanStop(Signal* signal, UintR aFailedNode);
   void initScanTcrec(Signal* signal);
   Uint32 initScanrec(ScanRecordPtr,  const class ScanTabReq*,
-		   const UintR scanParallel, 
-		   const UintR noOprecPerFrag,
-                   const Uint32 aiLength,
-                   const Uint32 keyLength);
+                     const UintR scanParallel,
+                     const UintR noOprecPerFrag,
+                     const Uint32 aiLength,
+                     const Uint32 keyLength,
+                     const Uint32 apiPtr[]);
   void initScanfragrec(Signal* signal);
   void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
@@ -1940,10 +1941,9 @@ private:
   UintR tconfig1;
   UintR tconfig2;
 
-  UintR cdata[32];
   UintR ctransidFailHash[512];
   UintR ctcConnectFailHash[1024];
-  
+
   /**
    * Commit Ack handling
    */

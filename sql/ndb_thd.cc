@@ -15,6 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifndef MYSQL_SERVER
+#define MYSQL_SERVER
+#endif
+
 #include "ndb_thd.h"
 #include "ndb_thd_ndb.h"
 
@@ -43,10 +47,6 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
 
   return thd_ndb->ndb;
 }
-
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
 
 #include <sql_class.h>
 

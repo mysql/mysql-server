@@ -29,6 +29,8 @@
 
 #include "ndbd.hpp"
 
+#include <TransporterRegistry.hpp>
+
 #include <ConfigRetriever.hpp>
 #include <LogLevel.hpp>
 
@@ -325,6 +327,8 @@ get_multithreaded_config(EmulatorData& ed)
   ndbout << "NDBMT: workers=" << globalData.ndbMtLqhWorkers
          << " threads=" << globalData.ndbMtLqhThreads
          << " tc=" << globalData.ndbMtTcThreads
+         << " send=" << globalData.ndbMtSendThreads
+         << " receive=" << globalData.ndbMtReceiveThreads
          << endl;
 
   return 0;

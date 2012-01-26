@@ -6536,7 +6536,8 @@ Dbdict::execADD_FRAGREQ(Signal* signal)
       findSchemaOp(op_ptr, alterTabPtr, senderData);
       ndbrequire(!op_ptr.isNull());
       alterTabPtr.p->m_dihAddFragPtr = dihPtr;
-      tabPtr = alterTabPtr.p->m_newTablePtr;
+      tabPtr.i = alterTabPtr.p->m_newTablePtrI;
+      c_tableRecordPool_.getPtr(tabPtr);
     }
     else
     {
@@ -8060,7 +8061,6 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
   }
 
   // save it for abort code
-  alterTabPtr.p->m_tablePtr = tablePtr;
 
   if (tablePtr.p->tableVersion != impl_req->tableVersion) {
     jam();
@@ -8069,7 +8069,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
   }
 
   // parse new table definition into new table record
-  TableRecordPtr& newTablePtr = alterTabPtr.p->m_newTablePtr; // ref
+  TableRecordPtr newTablePtr;
   {
     ParseDictTabInfoRecord parseRecord;
     parseRecord.requestType = DictTabInfo::AlterTableFromAPI;
@@ -8091,6 +8091,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
 
     // the new temporary table record seized from pool
     newTablePtr = parseRecord.tablePtr;
+    alterTabPtr.p->m_newTablePtrI = newTablePtr.i;
     alterTabPtr.p->m_newTable_realObjectId = newTablePtr.p->tableId;
     newTablePtr.p->tableId = impl_req->tableId; // set correct table id...(not the temporary)
   }
@@ -8370,7 +8371,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     jam();
     releaseSections(handle);
     SimplePropertiesSectionWriter w(* this);
-    packTableIntoPages(w, alterTabPtr.p->m_newTablePtr);
+    packTableIntoPages(w, newTablePtr);
 
     SegmentedSectionPtr tabInfoPtr;
     w.getPtr(tabInfoPtr);
@@ -9178,8 +9179,11 @@ Dbdict::alterTable_toLocal(Signal* signal, SchemaOpPtr op_ptr)
     {
       jam();
       HashMapRecordPtr hm_ptr;
+      TableRecordPtr newTablePtr;
+      newTablePtr.i = alterTabPtr.p->m_newTablePtrI;
+      c_tableRecordPool_.getPtr(newTablePtr);
       ndbrequire(find_object(hm_ptr,
-                                      alterTabPtr.p->m_newTablePtr.p->hashMapObjectId));
+                             newTablePtr.p->hashMapObjectId));
       req->new_map_ptr_i = hm_ptr.p->m_map_ptr_i;
     }
 
@@ -9267,7 +9271,9 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     tablePtr.p->tableVersion = impl_req->newTableVersion;
     tablePtr.p->gciTableCreated = impl_req->gci;
 
-    TableRecordPtr newTablePtr = alterTabPtr.p->m_newTablePtr;
+    TableRecordPtr newTablePtr;
+    newTablePtr.i = alterTabPtr.p->m_newTablePtrI;
+    c_tableRecordPool_.getPtr(newTablePtr);
 
     const Uint32 changeMask = impl_req->changeMask;
 
@@ -9359,7 +9365,9 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     /**
      * DIH is next op
      */
-    TableRecordPtr newTablePtr = alterTabPtr.p->m_newTablePtr;
+    TableRecordPtr newTablePtr;
+    newTablePtr.i = alterTabPtr.p->m_newTablePtrI;
+    c_tableRecordPool_.getPtr(newTablePtr);
     tablePtr.p->hashMapObjectId = newTablePtr.p->hashMapObjectId;
     tablePtr.p->hashMapVersion = newTablePtr.p->hashMapVersion;
     alterTabPtr.p->m_blockNo[1] = RNIL;
@@ -9575,7 +9583,7 @@ Dbdict::alterTable_fromCommitComplete(Signal* signal,
     objEntry->m_transId = 0;
   }
 
-  releaseTableObject(alterTabPtr.p->m_newTablePtr.i, false);
+  releaseTableObject(alterTabPtr.p->m_newTablePtrI, false);
   sendTransConf(signal, op_ptr);
 }
 
@@ -9653,8 +9661,7 @@ Dbdict::alterTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
     return;
   }
 
-  TableRecordPtr& newTablePtr = alterTabPtr.p->m_newTablePtr; // ref
-  if (!newTablePtr.isNull()) {
+  if (alterTabPtr.p->m_newTablePtrI != RNIL) {
     jam();
     // release the temporary work table
 
@@ -9667,14 +9674,8 @@ Dbdict::alterTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
       objEntry->m_transId = 0;
     }
 
-    releaseTableObject(newTablePtr.i, false);
-    newTablePtr.setNull();
-  }
-
-  TableRecordPtr& tablePtr = alterTabPtr.p->m_tablePtr; // ref
-  if (!tablePtr.isNull()) {
-    jam();
-    tablePtr.setNull();
+    releaseTableObject(alterTabPtr.p->m_newTablePtrI, false);
+    alterTabPtr.p->m_newTablePtrI = RNIL;
   }
 
   sendTransConf(signal, op_ptr);
@@ -16531,8 +16532,11 @@ void Dbdict::createEvent_sendReply(Signal* signal,
       evntRecPtr.p->m_errorLine = __LINE__;
       evntRecPtr.p->m_errorNode = reference();
       jam();
-    } else
+    }
+    else
+    {
       jam();
+    }
   }
 
   // reference to API if master DICT

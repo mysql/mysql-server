@@ -268,6 +268,11 @@ extern "C" {
 #define ATTRIBUTE_NOINLINE
 #endif
 
+/**
+ * Pad to NDB_CL size
+ */
+#define NDB_CL_PADSZ(x) (NDB_CL - ((x) % NDB_CL))
+
 /*
  * require is like a normal assert, only it's always on (eg. in release)
  */

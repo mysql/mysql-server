@@ -265,3 +265,15 @@ FLUSH TABLE t1;
 --exec $MYISAMCHK -soq $MYSQLD_DATADIR/test/t1
 CHECK TABLE t1;
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#11751736: DROP DATABASE STATEMENT SHOULD REMOVE .OLD SUFFIX FROM 
+--echo # DATABASE DIRECTORY 
+--echo #
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(c1 INT) ENGINE=MyISAM;
+## Added -f to force pack db in any case regardless the size of database 
+## being packed
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+--exec $MYISAMPACK -b -f $MYSQLD_DATADIR/db1/t1
+DROP DATABASE db1;

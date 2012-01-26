@@ -119,8 +119,6 @@ to cache the BLOB prefixes. */
 #define DICT_TF_BITS	(DICT_TF_WIDTH_COMPACT		\
 			+ DICT_TF_WIDTH_ZIP_SSIZE	\
 			+ DICT_TF_WIDTH_ATOMIC_BLOBS)
-/** Width of all the currently unknown/unused table flags */
-#define DICT_TF_WIDTH_UNUSED	((UNIV_WORD_SIZE * 8) - DICT_TF_BITS)
 
 /** A mask of all the known/used bits in table flags */
 #define DICT_TF_BIT_MASK	(~(~0 << DICT_TF_BITS))
@@ -581,7 +579,6 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32	/*!< ON UPDATE NO ACTION */
 /* @} */
 
-
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_struct{
@@ -714,7 +711,7 @@ struct dict_table_struct{
 				lock we keep a pointer to the transaction
 				here in the autoinc_trx variable. This is to
 				avoid acquiring the lock_sys_t::mutex and
-			       	scanning the vector in trx_t.
+				scanning the vector in trx_t.
 
 				When an AUTOINC lock has to wait, the
 				corresponding lock instance is created on
@@ -762,8 +759,8 @@ struct dict_table_struct{
 				MySQL does NOT itself check the number of
 				open handles at drop */
 	UT_LIST_BASE_NODE_T(lock_t)
-			locks; /*!< list of locks on the table; protected
-			       by lock_sys->mutex */
+			locks;	/*!< list of locks on the table; protected
+				by lock_sys->mutex */
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

@@ -1127,7 +1127,9 @@ private:
   void allocStoredReplica(FragmentstorePtr regFragptr,
                           ReplicaRecordPtr& newReplicaPtr,
                           Uint32 nodeId);
-  Uint32 extractNodeInfo(const Fragmentstore * fragPtr, Uint32 nodes[]);
+  Uint32 extractNodeInfo(EmulatedJamBuffer *jambuf,
+                         const Fragmentstore * fragPtr,
+                         Uint32 nodes[]);
   bool findBestLogNode(CreateReplicaRecord* createReplica,
                        FragmentstorePtr regFragptr,
                        Uint32 startGci,
@@ -1324,6 +1326,7 @@ private:
     Uint32 clastVerifyQueue;
     Uint32 m_empty_done;
     Uint32 m_ref;
+    char pad[NDB_CL_PADSZ(sizeof(void*) + 4 * sizeof(Uint32))];
   };
 
   bool isEmpty(const DIVERIFY_queue&);
@@ -1332,7 +1335,7 @@ private:
   void emptyverificbuffer(Signal *, Uint32 q, bool aContintueB);
   void emptyverificbuffer_check(Signal*, Uint32, Uint32);
 
-  DIVERIFY_queue c_diverify_queue[MAX_NDBMT_LQH_THREADS];
+  DIVERIFY_queue c_diverify_queue[MAX_NDBMT_TC_THREADS];
   Uint32 c_diverify_queue_cnt;
 
   /*------------------------------------------------------------------------*/

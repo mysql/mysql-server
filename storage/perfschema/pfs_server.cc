@@ -39,6 +39,8 @@
 
 PFS_global_param pfs_param;
 
+PFS_table_stat PFS_table_stat::g_reset_template;
+
 C_MODE_START
 static void destroy_pfs_thread(void *key);
 C_MODE_END
@@ -49,6 +51,8 @@ struct PSI_bootstrap*
 initialize_performance_schema(const PFS_global_param *param)
 {
   pfs_initialized= false;
+
+  PFS_table_stat::g_reset_template.reset();
 
   if (! param->m_enabled)
   {
@@ -62,6 +66,7 @@ initialize_performance_schema(const PFS_global_param *param)
   init_timers();
   PFS_atomic::init();
   init_event_name_sizing(param);
+  register_global_classes();
 
   if (pthread_key_create(&THR_PFS, destroy_pfs_thread))
     return NULL;

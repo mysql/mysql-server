@@ -88,6 +88,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_schema_dist.cc
   ../../sql/ndb_component.cc
   ../../sql/ndb_local_schema.cc
+  ../../sql/ndb_repl_tab.cc
 )
 
 # Include directories used when building ha_ndbcluster
@@ -222,7 +223,7 @@ ADD_SUBDIRECTORY(test)
 IF(WITH_NDB_TEST)
   ADD_SUBDIRECTORY(src/cw/cpcd)
 ENDIF()
-IF (HAVE_JDK)
+IF (HAVE_JAVA AND HAVE_JDK)
   ADD_SUBDIRECTORY(clusterj)
 ENDIF()
 ADD_SUBDIRECTORY(memcache)

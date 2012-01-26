@@ -2530,8 +2530,7 @@ private:
     MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
 
     // current and new temporary work table
-    TableRecordPtr m_tablePtr;
-    TableRecordPtr m_newTablePtr;
+    TableRecordPtr::I m_newTablePtrI;
     Uint32 m_newTable_realObjectId;
 
     // before image
@@ -2560,8 +2559,7 @@ private:
     AlterTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
-      m_tablePtr.setNull();
-      m_newTablePtr.setNull();
+      m_newTablePtrI = RNIL;
       m_dihAddFragPtr = RNIL;
       m_lqhFragPtr = RNIL;
       m_blockNo[0] = DBLQH;

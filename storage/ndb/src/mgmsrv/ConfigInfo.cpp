@@ -1111,10 +1111,23 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "100000" },
 
   {
+    CFG_DB_NO_REDOLOG_PARTS,
+    "NoOfFragmentLogParts",
+    DB_TOKEN,
+    "Number of file groups of redo log files belonging to "DB_TOKEN_PRINT" node",
+    ConfigInfo::CI_USED,
+    CI_RESTART_INITIAL,
+    ConfigInfo::CI_INT,
+    "4",
+    "4",
+    STR_VALUE(NDB_MAX_LOG_PARTS)
+  },
+
+  {
     CFG_DB_NO_REDOLOG_FILES,
     "NoOfFragmentLogFiles",
     DB_TOKEN,
-    "No of 16 Mbyte Redo log files in each of 4 file sets belonging to "DB_TOKEN_PRINT" node",
+    "No of Redo log files in each of the file group belonging to "DB_TOKEN_PRINT" node",
     ConfigInfo::CI_USED,
     CI_RESTART_INITIAL,
     ConfigInfo::CI_INT,
@@ -4805,6 +4818,25 @@ checkThreadPrioSpec(InitConfigFileParser::Context & ctx, const char * unused)
 
 #include "../kernel/vm/mt_thr_config.hpp"
 
+static bool
+check_2n_number_less_16(Uint32 num)
+{
+  switch (num)
+  {
+    case 0:
+    case 1:
+    case 2:
+    case 4:
+    case 8:
+    case 12:
+    case 16:
+      return true;
+    default:
+      return false;
+  }
+  return false;
+}
+
 static
 bool
 checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
@@ -4813,6 +4845,7 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   Uint32 maxExecuteThreads = 0;
   Uint32 lqhThreads = 0;
   Uint32 classic = 0;
+  Uint32 ndbLogParts = 0;
   const char * thrconfig = 0;
   const char * locktocpu = 0;
 
@@ -4825,7 +4858,19 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   ctx.m_currentSection->get("MaxNoOfExecutionThreads", &maxExecuteThreads);
   ctx.m_currentSection->get("__ndbmt_lqh_threads", &lqhThreads);
   ctx.m_currentSection->get("__ndbmt_classic", &classic);
+  ctx.m_currentSection->get("NoOfFragmentLogParts", &ndbLogParts);
 
+  if (!check_2n_number_less_16(lqhThreads))
+  {
+    ctx.reportError("NumLqhThreads must be 0, 1,2,4,8,12 or 16");
+    return false;
+  }
+  if (!check_2n_number_less_16(ndbLogParts) ||
+      ndbLogParts < 4)
+  {
+    ctx.reportError("NoOfLogParts must be 4,8,12 or 16");
+    return false;
+  }
   if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
   {
     int ret = tmp.do_parse(thrconfig);

@@ -1,0 +1,15 @@
+--source include/have_ndb.inc
+--source include/have_log_bin.inc
+
+--disable_warnings
+create table t1 (a int, b text) engine=ndb;
+--enable_warnings
+
+insert into t1 values (1,'xxx'),(2,'yyy'),(3,'zzz');
+select * from t1 order by a;
+
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
+select * from t1 order by a;
+drop table t1;

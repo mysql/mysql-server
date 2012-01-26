@@ -1342,7 +1342,6 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
     if (file) 
     {
       range_end();
-      head->set_keyread(FALSE);
       if (free_file)
       {
         DBUG_PRINT("info", ("Freeing separate handler %p (free: %d)", file,
@@ -2569,11 +2568,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.imerge_cost_buff_size= 0;
     param.using_real_indexes= TRUE;
     param.remove_jump_scans= TRUE;
-#ifdef MCP_BUG13330645
-    param.force_default_mrr= (interesting_order != ORDER::ORDER_NOT_RELEVANT);
-#else
     param.force_default_mrr= (interesting_order == ORDER::ORDER_DESC);
-#endif
     param.order_direction= interesting_order;
 
     thd->no_errors=1;				// Don't warn about NULL
@@ -5567,11 +5562,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
     {
       if (!(quick= get_quick_select(param, (*current)->idx,
                                     (*current)->sel_arg,
-#ifdef MCP_BUG13330645
-                                    HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED,
-#else
                                     HA_MRR_SORTED,
-#endif
                                     0, alloc)) ||
           quick_intrsect->push_quick_back(quick))
       {
@@ -5583,11 +5574,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
     {
       if (!(quick= get_quick_select(param, cpk_scan->idx,
                                     cpk_scan->sel_arg,
-#ifdef MCP_BUG13330645
-                                    HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED,
-#else
                                     HA_MRR_SORTED,
-#endif
                                     0, alloc)))
       {
         delete quick_intrsect;
@@ -6477,10 +6464,24 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       (field->type() == MYSQL_TYPE_DATE ||
        field->type() == MYSQL_TYPE_DATETIME))
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
-  {
-    // Note that value may be a stored function call, executed here.
-    err= value->save_in_field_no_warnings(field, 1);
-  }
+
+  /*
+    We want to change "field > value" to "field OP V"
+    where:
+    * V is what is in "field" after we stored "value" in it via
+    save_in_field_no_warning() (such store operation may have done
+    rounding...)
+    * OP is > or >=, depending on what's correct.
+    For example, if c is an INT column,
+    "c > 2.9" is changed to "c OP 3"
+    where OP is ">=" (">" would not be correct, as 3 > 2.9, a comparison
+    done with stored_field_cmp_to_item()). And
+    "c > 3.1" is changed to "c OP 3" where OP is ">" (3 < 3.1...).
+  */
+
+  // Note that value may be a stored function call, executed here.
+  err= value->save_in_field_no_warnings(field, 1);
+
   if (err > 0)
   {
     if (field->cmp_type() != value->result_type())
@@ -8704,19 +8705,12 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     param->is_ror_scan= FALSE;
   
   *mrr_flags= param->force_default_mrr? HA_MRR_USE_DEFAULT_IMPL: 0;
-#ifdef MCP_BUG13330645
-  /*
-    Pass HA_MRR_SORTED to see if MRR implementation can handle sorting.
-  */
-  *mrr_flags|= HA_MRR_NO_ASSOCIATION | HA_MRR_SORTED;
-#else
   *mrr_flags|= HA_MRR_NO_ASSOCIATION;
   /*
     Pass HA_MRR_SORTED to see if MRR implementation can handle sorting.
   */
   if (param->order_direction != ORDER::ORDER_NOT_RELEVANT)
     *mrr_flags|= HA_MRR_SORTED;
-#endif
 
   bool pk_is_clustered= file->primary_key_is_clustered();
   if (index_only && 
@@ -8725,11 +8719,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
      *mrr_flags |= HA_MRR_INDEX_ONLY;
   
   if (current_thd->lex->sql_command != SQLCOM_SELECT)
-#ifdef MCP_BUG13330645
-    *mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
-#else
     *mrr_flags|= HA_MRR_SORTED; // Assumed to give faster ins/upd/del
-#endif
 
   *bufsize= param->thd->variables.read_rnd_buff_size;
   // Sets is_ror_scan to false for some queries, e.g. multi-ranges
@@ -9254,11 +9244,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   quick->mrr_flags= HA_MRR_NO_ASSOCIATION | 
                     (table->key_read ? HA_MRR_INDEX_ONLY : 0);
   if (thd->lex->sql_command != SQLCOM_SELECT)
-#ifdef MCP_BUG13330645
-    quick->mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
-#else
     quick->mrr_flags|= HA_MRR_SORTED; // Assumed to give faster ins/upd/del
-#endif
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   if (!ref->null_ref_key && !key_has_nulls(key_info, range->min_key,
                                            ref->key_length))
@@ -10945,11 +10931,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
                                            &cur_param_idx);
       /* Check if this range tree can be used for prefix retrieval. */
       Cost_estimate dummy_cost;
-#ifdef MCP_BUG13330645
-      uint mrr_flags= HA_MRR_USE_DEFAULT_IMPL;
-#else
       uint mrr_flags= HA_MRR_SORTED;
-#endif
       uint mrr_bufsize=0;
       cur_quick_prefix_records= check_quick_select(param, cur_param_idx, 
                                                    FALSE /*don't care*/, 
@@ -11584,9 +11566,6 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
       /* Make a QUICK_RANGE_SELECT to be used for group prefix retrieval. */
       quick->quick_prefix_select= get_quick_select(param, param_idx,
                                                    index_tree,
-#ifdef MCP_BUG13330645
-                                                   HA_MRR_USE_DEFAULT_IMPL |
-#endif
                                                    HA_MRR_SORTED,
                                                    0,
                                                    &quick->alloc);

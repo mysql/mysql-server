@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -263,7 +263,7 @@ class OperationImpl implements Operation {
 
     public void setLong(Column storeColumn, long value) {
         long storeValue = Utility.convertLongValueForStorage(storeColumn, value);
-        int returnCode = ndbOperation.setValue(storeColumn.getName(), storeValue);
+        int returnCode = ndbOperation.setValue(storeColumn.getColumnId(), storeValue);
         handleError(returnCode, ndbOperation);
     }
 
@@ -303,6 +303,14 @@ class OperationImpl implements Operation {
         } else {
             Utility.throwError(null, ndbOperation.getNdbError());
         }
+    }
+
+    public void beginDefinition() {
+        // nothing to do
+    }
+
+    public void endDefinition() {
+        // nothing to do
     }
 
 }

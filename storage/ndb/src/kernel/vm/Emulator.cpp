@@ -79,7 +79,12 @@ EmulatorData::create(){
     Global jam() buffer, for non-multithreaded operation.
     For multithreaded ndbd, each thread will set a local jam buffer later.
   */
-  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, (void *)&theEmulatedJamBuffer);
+#ifndef NO_EMULATED_JAM
+  void * jamBuffer = (void *)&theEmulatedJamBuffer;
+#else
+  void * jamBuffer = 0;
+#endif
+  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, jamBuffer);
 
   NdbMem_Create();
 

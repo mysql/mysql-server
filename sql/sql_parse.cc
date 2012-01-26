@@ -5911,6 +5911,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
       query_cache_abort(&thd->query_cache_tls);
     }
     THD_STAGE_INFO(thd, stage_freeing_items);
+    sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
+    sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
     thd->end_statement();
     thd->cleanup_after_query();
     DBUG_ASSERT(thd->change_list.is_empty());
@@ -6092,7 +6094,7 @@ add_proc_to_list(THD* thd, Item *item)
   item_ptr = (Item**) (order+1);
   *item_ptr= item;
   order->item=item_ptr;
-  order->free_me=0;
+  order->used_alias= false;
   thd->lex->proc_list.link_in_list(order, &order->next);
   return 0;
 }
@@ -6111,7 +6113,7 @@ bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *item,bool asc)
   order->item_ptr= item;
   order->item= &order->item_ptr;
   order->direction= (asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC);
-  order->free_me=0;
+  order->used_alias= false;
   order->used=0;
   order->counter_used= 0;
   list.link_in_list(order, &order->next);
@@ -6651,19 +6653,14 @@ push_new_name_resolution_context(THD *thd,
 
   @param b     the second operand of a JOIN ... ON
   @param expr  the condition to be added to the ON clause
-
-  @retval
-    FALSE  if there was some error
-  @retval
-    TRUE   if all is OK
 */
 
 void add_join_on(TABLE_LIST *b, Item *expr)
 {
   if (expr)
   {
-    if (!b->on_expr)
-      b->on_expr= expr;
+    if (!b->join_cond())
+      b->set_join_cond(expr);
     else
     {
       /*
@@ -6671,9 +6668,9 @@ void add_join_on(TABLE_LIST *b, Item *expr)
         right and left join. If called later, it happens if we add more
         than one condition to the ON clause.
       */
-      b->on_expr= new Item_cond_and(b->on_expr,expr);
+      b->set_join_cond(new Item_cond_and(b->join_cond(), expr));
     }
-    b->on_expr->top_level_item();
+    b->join_cond()->top_level_item();
   }
 }
 
@@ -6688,7 +6685,7 @@ void add_join_on(TABLE_LIST *b, Item *expr)
     setup_conds() creates a list of equal condition between all fields
     of the same name for NATURAL JOIN or the fields in 'using_fields'
     for JOIN ... USING. The list of equality conditions is stored
-    either in b->on_expr, or in JOIN::conds, depending on whether there
+    either in b->join_cond(), or in JOIN::conds, depending on whether there
     was an outer join.
 
   EXAMPLE

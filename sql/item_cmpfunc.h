@@ -370,9 +370,9 @@ public:
   Item_bool_func2(Item *a,Item *b)
     :Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE) {}
   void fix_length_and_dec();
-  void set_cmp_func()
+  int set_cmp_func()
   {
-    cmp.set_cmp_func(this, tmp_arg, tmp_arg+1, TRUE);
+    return cmp.set_cmp_func(this, tmp_arg, tmp_arg+1, TRUE);
   }
   optimize_type select_optimize() const { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
@@ -1554,6 +1554,7 @@ public:
   const char *func_name() const { return "like"; }
   bool fix_fields(THD *thd, Item **ref);
   void cleanup();
+  bool escape_was_used_in_parsing() { return escape_used_in_parsing; }
 };
 
 

@@ -30,10 +30,11 @@ static const struct THRConfig::Entries m_entries[] =
   // name    type              min  max
   { "main",  THRConfig::T_MAIN,  1, 1 },
   { "ldm",   THRConfig::T_LDM,   1, MAX_NDBMT_LQH_THREADS },
-  { "recv",  THRConfig::T_RECV,  1, 1 },
+  { "recv",  THRConfig::T_RECV,  1, MAX_NDBMT_RECEIVE_THREADS },
   { "rep",   THRConfig::T_REP,   1, 1 },
   { "io",    THRConfig::T_IO,    1, 1 },
-  { "tc",    THRConfig::T_TC,    0, MAX_NDBMT_TC_THREADS }
+  { "tc",    THRConfig::T_TC,    0, MAX_NDBMT_TC_THREADS },
+  { "send",  THRConfig::T_SEND,  0, MAX_NDBMT_SEND_THREADS }
 };
 
 static const struct THRConfig::Param m_params[] =
@@ -144,6 +145,8 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
 
   Uint32 tcthreads = 0;
   Uint32 lqhthreads = 0;
+  Uint32 sendthreads = 0;
+  Uint32 recvthreads = 1;
   switch(MaxNoOfExecutionThreads){
   case 0:
   case 1:
@@ -165,24 +168,32 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
     lqhthreads = __ndbmt_lqh_threads;
   }
 
-  add(T_MAIN);
-  add(T_REP);
-  add(T_RECV);
+  add(T_MAIN); /* Global */
+  add(T_REP);  /* Local, main consumer is SUMA */
+  for(Uint32 i = 0; i < recvthreads; i++)
+  {
+    add(T_RECV);
+  }
   add(T_IO);
   for(Uint32 i = 0; i < lqhthreads; i++)
   {
     add(T_LDM);
   }
-
   for(Uint32 i = 0; i < tcthreads; i++)
   {
     add(T_TC);
+  }
+  for(Uint32 i = 0; i < sendthreads; i++)
+  {
+    add(T_SEND);
   }
 
   // If we have set TC-threads...we say that this is "new" code
   // and give error for having too few CPU's in mask compared to #threads
   // started
-  const bool allow_too_few_cpus = (tcthreads == 0);
+  const bool allow_too_few_cpus = (tcthreads == 0 &&
+                                   sendthreads == 0 &&
+                                   recvthreads == 1);
   return do_bindings(allow_too_few_cpus) || do_validate();
 }
 
@@ -451,11 +462,16 @@ THRConfig::do_validate()
   }
 
   /**
-   * LDM can be 1 2 4
+   * LDM can be 1 2 4 8 12 16
    */
-  if (m_threads[T_LDM].size() == 3)
+  if (m_threads[T_LDM].size() != 1 &&
+      m_threads[T_LDM].size() != 2 &&
+      m_threads[T_LDM].size() != 4 &&
+      m_threads[T_LDM].size() != 8 &&
+      m_threads[T_LDM].size() != 12 &&
+      m_threads[T_LDM].size() != 16)
   {
-    m_err_msg.assfmt("No of LDM-instances can be 1,2,4. Specified: %u",
+    m_err_msg.assfmt("No of LDM-instances can be 1,2,4,8,12,16. Specified: %u",
                      m_threads[T_LDM].size());
     return -1;
   }
@@ -886,7 +902,11 @@ THRConfig::do_parse(const char * ThreadConfig)
       add((T_Type)i);
   }
 
-  const bool allow_too_few_cpus = m_threads[T_TC].size() == 0;
+  const bool allow_too_few_cpus =
+    m_threads[T_TC].size() == 0 &&
+    m_threads[T_SEND].size() == 0 &&
+    m_threads[T_RECV].size() == 1;
+
   int res = do_bindings(allow_too_few_cpus);
   if (res != 0)
   {
@@ -958,6 +978,21 @@ THRConfigApplier::appendInfo(BaseString& str,
                              const unsigned short list[], unsigned cnt) const
 {
   const T_Thread* thr = find_thread(list, cnt);
+  appendInfo(str, thr);
+}
+
+void
+THRConfigApplier::appendInfoSendThread(BaseString& str,
+                                       unsigned instance_no) const
+{
+  const T_Thread* thr = &m_threads[T_SEND][instance_no];
+  appendInfo(str, thr);
+}
+
+void
+THRConfigApplier::appendInfo(BaseString& str,
+                             const T_Thread* thr) const
+{
   assert(thr != 0);
   str.appfmt("(%s) ", getEntryName(thr->m_type));
   if (thr->m_bind_type == T_Thread::B_CPU_BOUND)
@@ -989,27 +1024,27 @@ THRConfigApplier::do_bind(NdbThread* thread,
                           const unsigned short list[], unsigned cnt)
 {
   const T_Thread* thr = find_thread(list, cnt);
-  if (thr->m_bind_type == T_Thread::B_CPU_BOUND)
-  {
-    int res = NdbThread_LockCPU(thread, thr->m_bind_no);
-    if (res == 0)
-      return 1;
-    else
-      return -res;
-  }
-#if TODO
-  else if (thr->m_bind_type == T_Thread::B_CPUSET_BOUND)
-  {
-  }
-#endif
-
-  return 0;
+  return do_bind(thread, thr);
 }
 
 int
 THRConfigApplier::do_bind_io(NdbThread* thread)
 {
   const T_Thread* thr = &m_threads[T_IO][0];
+  return do_bind(thread, thr);
+}
+
+int
+THRConfigApplier::do_bind_send(NdbThread* thread, unsigned instance)
+{
+  const T_Thread* thr = &m_threads[T_SEND][instance];
+  return do_bind(thread, thr);
+}
+
+int
+THRConfigApplier::do_bind(NdbThread* thread,
+                          const T_Thread* thr)
+{
   if (thr->m_bind_type == T_Thread::B_CPU_BOUND)
   {
     int res = NdbThread_LockCPU(thread, thr->m_bind_no);

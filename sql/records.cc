@@ -325,6 +325,10 @@ void end_read_record(READ_RECORD *info)
     my_free_lock(info->cache);
     info->cache=0;
   }
+  if (info->table && info->table->key_read)
+  {
+    info->table->set_keyread(FALSE);
+  }
   if (info->table && info->table->created)
   {
     filesort_free_buffers(info->table,0);
