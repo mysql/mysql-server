@@ -45,9 +45,10 @@
 # ==== References ====
 #
 # Added in WL#3584 - Global Transaction Identifiers
-
-
+--source include/not_windows.inc
+--disable_warnings
 --source include/master-slave.inc
+--enable_warnings
 
 --let $uuida= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 
@@ -111,7 +112,9 @@ CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
 
 --echo ---- No GTIDs in binlog ----
 
+--disable_warnings
 --source include/start_slave.inc
+--enable_warnings
 --connection master
 
 SET GTID_NEXT = 'AUTOMATIC';
@@ -164,7 +167,9 @@ INSERT INTO t1 VALUES (1);
 
 --echo ---- Slave can't connect ----
 --connection slave
+--disable_warnings
 START SLAVE;
+--enable_warnings
 --let $slave_io_errno= 1593 # ER_SLAVE_FATAL_ERROR
 --source include/wait_for_slave_io_error.inc
 --source include/stop_slave_sql.inc
@@ -186,7 +191,9 @@ START SLAVE;
 
 --let $rpl_server_number= 1
 --source include/rpl_start_server.inc
+--disable_warnings
 --source include/start_slave.inc
+--enable_warnings
 
 --connection master
 
@@ -223,12 +230,15 @@ INSERT INTO t1 VALUES (2);
 
 --source include/stop_slave.inc
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+--disable_warnings
 --source include/start_slave.inc
+--enable_warnings
 
 --connection master
 INSERT INTO t1 VALUES (3);
 --sync_slave_with_master
 
+--let $datadir= `SELECT @@datadir`
 --source include/stop_slave.inc
 
 --echo ==== Checks performed at server start when GTID_MODE = OFF ====
@@ -242,6 +252,10 @@ INSERT INTO t1 VALUES (3);
 --let $assert_regex= Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF.
 --let $assert_command= $server2_cmd 2>&1
 --source include/assert_command_output.inc
+--error 0,1
+--remove_file $datadir/master.info
+--error 0,1
+--remove_file $datadir/relay.info
 
 --let $rpl_server_number= 2
 --let $rpl_skip_start_slave= 1
@@ -249,7 +263,6 @@ INSERT INTO t1 VALUES (3);
 --connection slave
 RESET SLAVE;
 RESET MASTER;
---let $datadir= `SELECT @@datadir`
 
 --echo ==== Master has GTID_MODE = ON, slave has GTID_MODE = OFF ====
 
@@ -275,7 +288,9 @@ eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $SERVER_MYPORT_1,
 --echo ---- Slave can't connect ----
 
 --connection slave
+--disable_warnings
 START SLAVE;
+--enable_warnings
 --let $slave_io_errno= 1593 # ER_SLAVE_FATAL_ERROR
 --source include/wait_for_slave_io_error.inc
 --source include/stop_slave_sql.inc
