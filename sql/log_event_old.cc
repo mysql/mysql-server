@@ -2218,7 +2218,11 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
 
   @note If the engine allows random access of the records, a combination of
   @c position() and @c rnd_pos() will be used. 
- */
+
+  Note that one MUST call ha_index_or_rnd_end() after this function if
+  it returns 0 as we must leave the row position in the handler intact
+  for any following update/delete command.
+*/
 
 int Old_rows_log_event::find_row(const Relay_log_info *rli)
 {
@@ -2361,15 +2365,14 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       /* Unique does not have non nullable part */
       if (!(table->key_info->flags & (HA_NULL_PART_KEY)))
       {
-        table->file->ha_index_end();
         DBUG_RETURN(0);
       }
       else
       {
         KEY *keyinfo= table->key_info;
         /*
-          Unique has nullable part. We need to check if there is any field in the
-          BI image that is null and part of UNNI.
+          Unique has nullable part. We need to check if there is any
+          field in the BI image that is null and part of UNNI.
         */
         bool null_found= FALSE;
         for (uint i=0; i < keyinfo->key_parts && !null_found; i++)
@@ -2381,7 +2384,6 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
 
         if (!null_found)
         {
-          table->file->ha_index_end();
           DBUG_RETURN(0);
         }
 
@@ -2424,11 +2426,6 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
         DBUG_RETURN(error);
       }
     }
-
-    /*
-      Have to restart the scan to be able to fetch the next row.
-    */
-    table->file->ha_index_end();
   }
   else
   {
@@ -2462,8 +2459,10 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
         if (++restart_count < 2)
         {
           int error2;
+          table->file->ha_rnd_end();
           if ((error2= table->file->ha_rnd_init_with_error(1)))
             DBUG_RETURN(error2);
+          goto restart_rnd_next;
         }
         break;
 
@@ -2489,7 +2488,8 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       DBUG_PRINT("info", ("Record not found"));
     else
       DBUG_DUMP("record found", table->record[0], table->s->reclength);
-    table->file->ha_rnd_end();
+    if (error)
+      table->file->ha_rnd_end();
 
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
     DBUG_RETURN(error);
@@ -2738,6 +2738,7 @@ int Delete_rows_log_event_old::do_exec_row(const Relay_log_info *const rli)
       Delete the record found, located in record[0]
     */
     error= m_table->file->ha_delete_row(m_table->record[0]);
+    m_table->file->ha_index_or_rnd_end();
   }
   return error;
 }
@@ -2874,6 +2875,8 @@ Update_rows_log_event_old::do_exec_row(const Relay_log_info *const rli)
 #endif
 
   error= m_table->file->ha_update_row(m_table->record[1], m_table->record[0]);
+  m_table->file->ha_index_or_rnd_end();
+
   if (error == HA_ERR_RECORD_IS_THE_SAME)
     error= 0;
 

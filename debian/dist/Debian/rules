@@ -73,12 +73,12 @@ endif
 		-DCMAKE_INSTALL_PREFIX=/usr \
 			-DINSTALL_SBINDIR=sbin  \
 			-DMYSQL_DATADIR=/var/lib/mysql \
-			-DINSTALL_INCLUDEDIR=include \
+			-DINSTALL_INCLUDEDIR=include/mysql \
 			-DINSTALL_INFODIR=share/info \
 			-DINSTALL_MANDIR=share/man \
 		\
 		-DMYSQL_SERVER_SUFFIX="-$(DEBVERSION)" \
-		-DWITH_COMMENT="(MariaDB - http://mariadb.com/)" \
+		-DCOMPILATION_COMMENT="mariadb.org binary distribution" \
 		-DSYSTEM_TYPE="debian-linux-gnu" \
 		-DINSTALL_LAYOUT=DEB \
 		\
@@ -86,7 +86,6 @@ endif
 		-DWITH_FAST_MUTEXES=1 \
 		\
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
-		-DMYSQL_USER=mysql \
 		\
 		-DEXTRA_CHARSETS=all \
 		-DWITH_LIBWRAP=1 \
@@ -170,11 +169,18 @@ install: build
 	# libmysqlclient-dev: forgotten header file since 3.23.25?
 	cp $(BUILDDIR)/include/my_config.h $(TMP)/usr/include/mysql/
 	cp include/my_dir.h $(TMP)/usr/include/mysql/
+	mv $(TMP)/usr/include/mysql/mysql/*.h $(TMP)/usr/include/mysql/
+	mv $(TMP)/usr/include/mysql/mysql/psi $(TMP)/usr/include/mysql/
 
-	# mysql-common: We now provide our own config file.
-	# can't be mariadb-common, other packages insist
+	# mysql-common: We provide our own version of this package for
+	# completeness, but we can use an existing version; mariadb-specic
+	# stuff is in mariadb-common
 	install -d $(TMP)/etc/mysql
 	install -m 0644 debian/additions/my.cnf $(TMP)/etc/mysql/my.cnf
+
+	# mariadb-common: MariaDB-specific config stuff.
+	install -d $(TMP)/etc/mysql/conf.d
+	install -m 0644 debian/additions/mariadb.cnf $(TMP)/etc/mysql/conf.d/mariadb.cnf
 
 	# mariadb-client
 	install -m 0755 debian/additions/mysqlreport $(TMP)/usr/bin/

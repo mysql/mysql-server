@@ -55,11 +55,9 @@ ut_dbg_assertion_failed(
 	ulint		line)	/*!< in: line number of the assertion */
 	UNIV_COLD __attribute__((nonnull(2)));
 
-#if defined(__WIN__) || defined(__INTEL_COMPILER)
-# undef UT_DBG_USE_ABORT
-#elif defined(__GNUC__) && (__GNUC__ > 2)
-# define UT_DBG_USE_ABORT
-#endif
+
+#define UT_DBG_USE_ABORT
+
 
 #ifndef UT_DBG_USE_ABORT
 /** A null pointer that will be dereferenced to trigger a memory trap */
@@ -83,7 +81,11 @@ ut_dbg_stop_thread(
 
 #ifdef UT_DBG_USE_ABORT
 /** Abort the execution. */
+#ifdef _WIN32
+# define UT_DBG_PANIC __debugbreak()
+#else
 # define UT_DBG_PANIC abort()
+#endif
 /** Stop threads (null operation) */
 # define UT_DBG_STOP do {} while (0)
 #else /* UT_DBG_USE_ABORT */

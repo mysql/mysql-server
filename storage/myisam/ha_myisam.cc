@@ -1672,18 +1672,26 @@ int ha_myisam::index_init(uint idx, bool sorted)
 
 int ha_myisam::index_end()
 {
+  DBUG_ENTER("ha_myisam::index_end");
   active_index=MAX_KEY;
   //pushed_idx_cond_keyno= MAX_KEY;
   mi_set_index_cond_func(file, NULL, 0);
   in_range_check_pushed_down= FALSE;
   ds_mrr.dsmrr_close();
-  return 0; 
+#if !defined(DBUG_OFF) && defined(SQL_SELECT_FIXED_FOR_UPDATE)
+  file->update&= ~HA_STATE_AKTIV;               // Forget active row
+#endif
+  DBUG_RETURN(0);
 }
 
 int ha_myisam::rnd_end()
 {
+  DBUG_ENTER("ha_myisam::rnd_end");
   ds_mrr.dsmrr_close();
-  return 0;
+#if !defined(DBUG_OFF) && defined(SQL_SELECT_FIXED_FOR_UPDATE)
+  file->update&= ~HA_STATE_AKTIV;               // Forget active row
+#endif
+  DBUG_RETURN(0);
 }
 
 int ha_myisam::index_read_map(uchar *buf, const uchar *key,
@@ -1785,6 +1793,7 @@ void ha_myisam::position(const uchar *record)
 {
   my_off_t row_position= mi_position(file);
   my_store_ptr(ref, ref_length, row_position);
+  file->update|= HA_STATE_AKTIV;               // Row can be updated
 }
 
 int ha_myisam::info(uint flag)

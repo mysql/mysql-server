@@ -69,6 +69,7 @@ while ($_show_slave_status_items)
   --let $_show_slave_status_name= `SELECT SUBSTRING_INDEX('$_show_slave_status_items', ',', 1)`
   --let $_show_slave_status_items= `SELECT LTRIM(SUBSTRING('$_show_slave_status_items', LENGTH('$_show_slave_status_name') + 2))`
 
+  --replace_regex /\.[\\\/]master/master/
   --let $_show_slave_status_value= query_get_value(SHOW SLAVE STATUS, $_show_slave_status_name, 1)
   --let $_show_slave_status_value= `SELECT REPLACE("$_show_slave_status_value", '$MYSQL_TEST_DIR', 'MYSQL_TEST_DIR')`
   --echo $_show_slave_status_name = '$_show_slave_status_value'

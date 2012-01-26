@@ -20,12 +20,14 @@ insert into test.t1
 select thread_id from performance_schema.events_waits_current;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Mixing self-logging and non-self-logging engines in a statement is unsafe.
 insert into test.t2
 select name from performance_schema.setup_instruments
 where name like "wait/synch/rwlock/sql/%"
     and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock");
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Mixing self-logging and non-self-logging engines in a statement is unsafe.
 drop table test.t1;
 drop table test.t2;
 update performance_schema.setup_instruments set enabled='YES'
