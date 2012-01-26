@@ -136,6 +136,7 @@ end:
 int check_for_max_user_connections(THD *thd, USER_CONN *uc)
 {
   int error=0;
+  Host_errors errors;
   DBUG_ENTER("check_for_max_user_connections");
 
   mysql_mutex_lock(&LOCK_user_conn);
@@ -145,6 +146,7 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   {
     my_error(ER_TOO_MANY_USER_CONNECTIONS, MYF(0), uc->user);
     error=1;
+    errors.m_max_user_connection= 1;
     goto end;
   }
   time_out_user_resource_limits(thd, uc);
@@ -155,6 +157,7 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
              "max_user_connections",
              (long) uc->user_resources.user_conn);
     error= 1;
+    errors.m_max_user_connection= 1;
     goto end;
   }
   if (uc->user_resources.conn_per_hour &&
@@ -164,6 +167,7 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
              "max_connections_per_hour",
              (long) uc->user_resources.conn_per_hour);
     error=1;
+    errors.m_max_user_connection_per_hour= 1;
     goto end;
   }
   uc->conn_per_hour++;
@@ -180,6 +184,10 @@ end:
     thd->user_connect= NULL;
   }
   mysql_mutex_unlock(&LOCK_user_conn);
+  if (error)
+  {
+    inc_host_errors(thd->main_security_ctx.ip, &errors);
+  }
   DBUG_RETURN(error);
 }
 
