@@ -85,7 +85,7 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 DROP DATABASE information_schema;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 RENAME DATABASE information_schema TO info_schema;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATABASE information_schema TO info_schema' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'DATABASE information_schema TO info_schema' at line 1
 ALTER DATABASE information_schema UPGRADE DATA DIRECTORY NAME;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 ####################################################################################
@@ -154,7 +154,7 @@ ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'in
 DROP DATABASE information_schema;
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 RENAME DATABASE information_schema TO info_schema;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATABASE information_schema TO info_schema' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'DATABASE information_schema TO info_schema' at line 1
 ALTER DATABASE information_schema UPGRADE DATA DIRECTORY NAME;
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 ####################################################################################
