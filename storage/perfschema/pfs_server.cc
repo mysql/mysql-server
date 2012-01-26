@@ -217,10 +217,9 @@ void cleanup_instrument_config()
 {
   int desired_state= PFS_INSTR_CONFIG_ALLOCATED;
   
-  if (my_atomic_load32(&pfs_instr_config_state) == PFS_INSTR_CONFIG_ALLOCATED)
-    /* Ignore if another thread has already deallocated the array */
-    if (my_atomic_cas32(&pfs_instr_config_state, &desired_state, PFS_INSTR_CONFIG_DEALLOCATED))
-      delete_dynamic(&pfs_instr_config_array);
+  /* Ignore if another thread has already deallocated the array */
+  if (my_atomic_cas32(&pfs_instr_config_state, &desired_state, PFS_INSTR_CONFIG_DEALLOCATED))
+    delete_dynamic(&pfs_instr_config_array);
 }
 
 /**
