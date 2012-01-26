@@ -21,6 +21,7 @@
 class EnableComReq  {
   friend class Qmgr;
   friend class Trpman;
+  friend class TrpmanProxy;
 
 public:
   STATIC_CONST( SignalLength = 2 + NodeBitmask::Size );
@@ -34,6 +35,7 @@ private:
 class EnableComConf  {
   friend class Qmgr;
   friend class Trpman;
+  friend class TrpmanProxy;
   friend class Cmvmi;
 
 public:

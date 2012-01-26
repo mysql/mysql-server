@@ -138,47 +138,6 @@ join_tab_cmp_embedded_first(const void *emb, const void* ptr1, const void* ptr2)
 
 
 /*
-  Given a semi-join nest, find out which of the IN-equalities are bound
-
-  SYNOPSIS
-    get_bound_sj_equalities()
-      sj_nest           Semi-join nest
-      remaining_tables  Tables that are not yet bound
-
-  DESCRIPTION
-    Given a semi-join nest, find out which of the IN-equalities have their
-    left part expression bound (i.e. the said expression doesn't refer to
-    any of remaining_tables and can be evaluated).
-
-  RETURN
-    Bitmap of bound IN-equalities.
-*/
-
-static ulonglong get_bound_sj_equalities(TABLE_LIST *sj_nest, 
-                                         table_map remaining_tables)
-{
-  List_iterator<Item> li(sj_nest->nested_join->sj_outer_exprs);
-  Item *item;
-  uint i= 0;
-  ulonglong res= 0;
-  while ((item= li++))
-  {
-    /*
-      Q: should this take into account equality propagation and how?
-      A: If e->outer_side is an Item_field, walk over the equality
-         class and see if there is an element that is bound?
-      (this is an optional feature)
-    */
-    if (!(item->used_tables() & remaining_tables))
-    {
-      res |= 1ULL << i;
-    }
-  }
-  return res;
-}
-
-
-/*
   This is a class for considering possible loose index scan optimizations.
   It's usage pattern is as follows:
     best_access_path()
@@ -217,6 +176,10 @@ private:
   /* Accumulated properties of ref access we're now considering: */
   ulonglong handled_sj_equalities;
   key_part_map loose_scan_keyparts;
+  /**
+     Biggest index (starting at 0) of keyparts used for the "handled", not
+     "bound", equalities.
+  */
   uint max_loose_keypart;
   bool part1_conds_met;
 
@@ -265,36 +228,35 @@ public:
             table_map cur_sj_inner_tables, bool is_sjm_nest)
   {
     /*
-      Discover the bound equalities. We need to do this if
+      We may consider the LooseScan strategy if
         1. The next table is an SJ-inner table, and
-        2. It is the first table from that semijoin, and
-        3. We're not within a semi-join range (i.e. all semi-joins either have
+        2, We have no more than 64 IN expressions (must fit in bitmap), and
+        3. It is the first table from that semijoin, and
+        4. We're not within a semi-join range (i.e. all semi-joins either have
            all or none of their tables in join_table_map), except
-           s->emb_sj_nest (which we've just entered, see #2).
-        4. All non-IN-equality correlation references from this sj-nest are 
-           bound
-        5. But some of the IN-equalities aren't (so this can't be handled by 
-           FirstMatch strategy)
-        6. Not a derived table/view. (a temporary restriction)
+           s->emb_sj_nest (which we've just entered, see #2), and
+        5. All non-IN-equality correlation references from this sj-nest are 
+           bound, and
+        6. But some of the IN-equalities aren't (so this can't be handled by 
+           FirstMatch strategy), and
+        7. LooseScan is not disabled, and
+        8. Not a derived table/view. (a temporary restriction)
     */
     best_loose_scan_cost= DBL_MAX;
     if (s->emb_sj_nest && !is_sjm_nest &&                               // (1)
-        s->emb_sj_nest->nested_join->sj_inner_exprs.elements < 64 && 
-        ((remaining_tables & s->emb_sj_nest->sj_inner_tables) ==        // (2)
-         s->emb_sj_nest->sj_inner_tables) &&                            // (2)
-        cur_sj_inner_tables == 0 &&                                     // (3)
+        s->emb_sj_nest->nested_join->sj_inner_exprs.elements <= 64 &&   // (2)
+        ((remaining_tables & s->emb_sj_nest->sj_inner_tables) ==        // (3)
+         s->emb_sj_nest->sj_inner_tables) &&                            // (3)
+        cur_sj_inner_tables == 0 &&                                     // (4)
         !(remaining_tables & 
-          s->emb_sj_nest->nested_join->sj_corr_tables) &&               // (4)
-        (remaining_tables & s->emb_sj_nest->nested_join->sj_depends_on) &&// (5)
-        s->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_LOOSE_SCAN) &&
-        !s->table->pos_in_table_list->uses_materialization())
+          s->emb_sj_nest->nested_join->sj_corr_tables) &&               // (5)
+        (remaining_tables & s->emb_sj_nest->nested_join->sj_depends_on) && //(6)
+        s->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_LOOSE_SCAN) &&//(7)
+        !s->table->pos_in_table_list->uses_materialization())           // (8)
     {
-      /* This table is an LooseScan scan candidate */
-      bound_sj_equalities= get_bound_sj_equalities(s->emb_sj_nest, 
-                                                   remaining_tables);
-      try_loosescan= TRUE;
-      DBUG_PRINT("info", ("Will try LooseScan scan, bound_map=%llx",
-                          (longlong)bound_sj_equalities));
+      try_loosescan= true;      // This table is a LooseScan scan candidate
+      bound_sj_equalities= 0;   // These equalities are populated later
+      DBUG_PRINT("info", ("Will try LooseScan scan"));
     }
   }
 
@@ -347,9 +309,9 @@ public:
     */
     if (try_loosescan &&                                                // (1)
         (handled_sj_equalities | bound_sj_equalities) ==                // (2)
-        PREV_BITS(ulonglong,
-                s->emb_sj_nest->nested_join->sj_inner_exprs.elements)&& // (2)
-        (PREV_BITS(key_part_map, max_loose_keypart+1) &                 // (3)
+        LOWER_BITS(ulonglong,
+                   s->emb_sj_nest->nested_join->sj_inner_exprs.elements)&& // (2)
+        (LOWER_BITS(key_part_map, max_loose_keypart+1) &                 // (3)
          (found_part | loose_scan_keyparts)) ==                         // (3)
          (found_part | loose_scan_keyparts) &&                          // (3)
         !key_uses_partial_cols(s->table, key))
@@ -673,7 +635,7 @@ void Optimize_table_order::best_access_path(
         loose_scan_opt.check_ref_access_part1(s, key, start_key, found_part);
 
         /* Check if we found full key */
-        if (found_part == PREV_BITS(uint,keyinfo->key_parts) &&
+        if (found_part == LOWER_BITS(uint,keyinfo->key_parts) &&
             !ref_or_null_part)
         {                                         /* use eq key */
           max_key_part= (uint) ~0;
@@ -763,7 +725,7 @@ void Optimize_table_order::best_access_path(
           */
           if ((found_part & 1) &&
               (!(table->file->index_flags(key, 0, 0) & HA_ONLY_WHOLE_INDEX) ||
-               found_part == PREV_BITS(uint,keyinfo->key_parts)))
+               found_part == LOWER_BITS(uint,keyinfo->key_parts)))
           {
             max_key_part= max_part_bit(found_part);
             /*
@@ -3763,7 +3725,7 @@ void Optimize_table_order::backout_nj_sj_state(const table_map remaining_tables,
 
   for (;last_emb != NULL; last_emb= last_emb->embedding)
   {
-    if (last_emb->on_expr)
+    if (last_emb->join_cond())
     {
       NESTED_JOIN *nest= last_emb->nested_join;
       DBUG_ASSERT(nest->counter_ > 0);

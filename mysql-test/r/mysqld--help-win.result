@@ -812,6 +812,9 @@ The following options may be given as the first argument:
  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
  for the complete list of valid sql modes
  --standalone        Dummy option to start as a standalone program (NT).
+ --stored-program-cache=# 
+ The soft upper limit for number of cached stored routines
+ for one connection.
  -s, --symbolic-links 
  Enable symbolic link support.
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
@@ -1120,6 +1123,7 @@ slow-start-timeout 15000
 sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
 sql-mode 
+stored-program-cache 256
 symbolic-links FALSE
 sync-binlog 0
 sync-frm TRUE

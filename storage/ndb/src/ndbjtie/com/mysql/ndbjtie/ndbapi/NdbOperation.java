@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ public class NdbOperation extends Wrapper implements NdbOperationConst
     static public interface GetValueSpecConstArray extends ArrayWrapper< GetValueSpecConst >
     {
     }
-    static public class GetValueSpecArray extends Wrapper implements GetValueSpecConstArray 
+    static public class GetValueSpecArray extends Wrapper implements GetValueSpecConstArray
     {
         static public native GetValueSpecArray create(int length);
         static public native void delete(GetValueSpecArray e);
@@ -95,7 +95,7 @@ public class NdbOperation extends Wrapper implements NdbOperationConst
     static public interface SetValueSpecConstArray extends ArrayWrapper< SetValueSpecConst >
     {
     }
-    static public class SetValueSpecArray extends Wrapper implements SetValueSpecConstArray 
+    static public class SetValueSpecArray extends Wrapper implements SetValueSpecConstArray
     {
         static public native SetValueSpecArray create(int length);
         static public native void delete(SetValueSpecArray e);
@@ -140,6 +140,7 @@ public class NdbOperation extends Wrapper implements NdbOperationConst
     }
     static public class /*_struct_*/ OperationOptions extends Wrapper implements OperationOptionsConst
     {
+        static public final native int/*_Uint32_*/ size();
         public final native long/*_Uint64_*/ optionsPresent();
         public final native int/*_AbortOption_*/ abortOption();
         public final native GetValueSpecArray/*_GetValueSpec *_*/ extraGetValues();

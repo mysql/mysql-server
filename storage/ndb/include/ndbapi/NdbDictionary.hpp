@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1656,6 +1656,14 @@ public:
     RecMysqldBitfield= 0x2
   };
   struct RecordSpecification {
+    /*
+      Size of the RecordSpecification structure.
+    */
+    static inline Uint32 size()
+    {
+        return sizeof(RecordSpecification);
+    }
+
     /*
       Column described by this entry (the column maximum size defines field
       size in row).

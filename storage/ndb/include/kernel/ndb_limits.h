@@ -126,11 +126,7 @@
 * signals.
 * This parameter is configurable, this is the default value.
 */
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-#define SCAN_BATCH_SIZE 32768
-#else
 #define SCAN_BATCH_SIZE 16384
-#endif
 /*
 * To protect the NDB API from overload we also define a maximum total
 * batch size from all nodes. This parameter should most likely be
@@ -214,6 +210,9 @@
 #else
 #define MAX_NDBMT_TC_THREADS  4
 #endif
+
+#define MAX_NDBMT_SEND_THREADS    0
+#define MAX_NDBMT_RECEIVE_THREADS 1
 
 #define NDB_FILE_BUFFER_SIZE (256*1024)
 

@@ -188,7 +188,7 @@ private:
 
 /*************************************************************************/
 
-/* Order clause list element */
+/** Order clause list element */
 
 typedef struct st_order {
   struct st_order *next;
@@ -203,9 +203,15 @@ typedef struct st_order {
   };
 
   enum_order direction;                 /* Requested direction of ordering */
-  bool   free_me;                       /* true if item isn't shared  */
   bool   in_field_list;                 /* true if in select field list */
   bool   counter_used;                  /* parameter was counter of columns */
+  /**
+     Tells whether this ORDER element was referenced with an alias or with an
+     expression, in the query:
+     SELECT a AS foo GROUP BY foo: true.
+     SELECT a AS foo GROUP BY a: false.
+  */
+  bool   used_alias;
   Field  *field;                        /* If tmp-table group */
   char   *buff;                         /* If tmp-table group */
   table_map used, depend_map;
@@ -334,6 +340,9 @@ public:
 
   uchar **alloc_sort_buffer(uint num_records, uint record_length)
   { return filesort_buffer.alloc_sort_buffer(num_records, record_length); }
+
+  std::pair<uint, uint> sort_buffer_properties()
+  { return filesort_buffer.sort_buffer_properties(); }
 
   void free_sort_buffer()
   { filesort_buffer.free_sort_buffer(); }
@@ -1498,7 +1507,24 @@ struct TABLE_LIST
   TABLE_LIST *next_global, **prev_global;
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
-  Item		*on_expr;		/* Used with outer join */
+
+private:
+  Item		*m_join_cond;           /* Used with outer join */
+public:
+  Item         **join_cond_ref() { return &m_join_cond; }
+  Item          *join_cond() { return m_join_cond; }
+  Item          *set_join_cond(Item *val)
+                 { return m_join_cond= val; }
+  /*
+    The structure of the join condition presented in the member above
+    can be changed during certain optimizations. This member
+    contains a snapshot of AND-OR structure of the join condition
+    made after permanent transformations of the parse tree, and is
+    used to restore the join condition before every reexecution of a prepared
+    statement or stored procedure.
+  */
+  Item          *prep_join_cond;
+
   Item          *sj_on_expr;            /* Synthesized semijoin condition */
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
@@ -1510,15 +1536,6 @@ struct TABLE_LIST
   Item_exists_subselect  *sj_subq_pred;
   Semijoin_mat_exec *sj_mat_exec;
 
-  /*
-    The structure of ON expression presented in the member above
-    can be changed during certain optimizations. This member
-    contains a snapshot of AND-OR structure of the ON expression
-    made after permanent transformations of the parse tree, and is
-    used to restore ON clause before every reexecution of a prepared
-    statement or stored procedure.
-  */
-  Item          *prep_on_expr;
   COND_EQUAL    *cond_equal;            /* Used with outer join */
   /*
     During parsing - left operand of NATURAL/USING join where 'this' is
@@ -2326,7 +2343,6 @@ inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
   table->status|=STATUS_NULL_ROW;
-  memset(table->null_flags, 255, table->s->null_bytes);
 }
 
 bool is_simple_order(ORDER *order);

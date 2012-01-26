@@ -26,7 +26,6 @@
 //
 //===========================================================================
 #include <kernel_types.h>
-#include <TransporterRegistry.hpp>
 
 extern class  JobTable            globalJobTable;
 extern class  TimeQueue           globalTimeQueue;
@@ -38,18 +37,17 @@ extern struct GlobalData          globalData;
 extern class SignalLoggerManager globalSignalLoggers;
 #endif
 
-#ifndef NO_EMULATED_JAM
 /* EMULATED_JAM_SIZE must be a power of two, so JAM_MASK will work. */
 #define EMULATED_JAM_SIZE 1024
 #define JAM_MASK (EMULATED_JAM_SIZE - 1)
 
-struct EmulatedJamBuffer {
+struct EmulatedJamBuffer
+{
   Uint32 theEmulatedJamIndex;
   // last block entry, used in dumpJam() if jam contains no block entries
   Uint32 theEmulatedJamBlockNumber;
   Uint32 theEmulatedJam[EMULATED_JAM_SIZE];
 };
-#endif
 
 struct EmulatorData {
   class Configuration * theConfiguration;

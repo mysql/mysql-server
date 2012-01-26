@@ -80,6 +80,12 @@
 #include "../suma/Suma.hpp"
 #include "DblqhCommon.hpp"
 
+/**
+ * overload handling...
+ * TODO: cleanup...from all sorts of perspective
+ */
+#include <TransporterRegistry.hpp>
+
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -4277,9 +4283,10 @@ void Dblqh::seizeTcrec()
   locTcConnectptr.p->connectState = TcConnectionrec::CONNECTED;
 }//Dblqh::seizeTcrec()
 
-bool Dblqh::checkTransporterOverloaded(Signal* signal,
-                                       const NodeBitmask& all,
-                                       const LqhKeyReq* req)
+bool
+Dblqh::checkTransporterOverloaded(Signal* signal,
+                                  const NodeBitmask& all,
+                                  const LqhKeyReq* req)
 {
   // nodes likely to be affected by this op
   NodeBitmask mask;
@@ -4396,14 +4403,27 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   {
     const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
-    if (unlikely((!all.isclear() &&
-                  checkTransporterOverloaded(signal, all, lqhKeyReq))) ||
-        ERROR_INSERTED_CLEAR(5047)) {
-      jam();
-      releaseSections(handle);
-      noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
-      return;
+    if (unlikely(!all.isclear()))
+    {
+      if (checkTransporterOverloaded(signal, all, lqhKeyReq))
+      {
+        /**
+         * TODO: We should have counters for this...
+         */
+        jam();
+        releaseSections(handle);
+        noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+        return;
+      }
     }
+  }
+
+  if (ERROR_INSERTED_CLEAR(5047))
+  {
+    jam();
+    releaseSections(handle);
+    noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+    return;
   }
 
   sig0 = lqhKeyReq->clientConnectPtr;
@@ -9340,7 +9360,8 @@ void Dblqh::lqhTransNextLab(Signal* signal)
 
       if (ERROR_INSERTED(5050))
       {
-        ndbout_c("send ZSCAN_MARKERS with 5s delay and killing master");
+        ndbout_c("send ZSCAN_MARKERS with 5s delay and killing master: %u",
+                 c_master_node_id);
         CLEAR_ERROR_INSERT_VALUE;
         signal->theData[0] = ZSCAN_MARKERS;
         signal->theData[1] = tcNodeFailptr.i;
@@ -9349,7 +9370,7 @@ void Dblqh::lqhTransNextLab(Signal* signal)
         sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 4);
         
         signal->theData[0] = 9999;
-        sendSignal(numberToRef(CMVMI, c_master_node_id), 
+        sendSignal(numberToRef(CMVMI, c_error_insert_extra),
                    GSN_NDB_TAMPER, signal, 1, JBB);
         return;
       }
@@ -11262,6 +11283,21 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
   scanptr.p->m_curr_batch_size_bytes+= tdata4 * sizeof(Uint32);
   scanptr.p->m_curr_batch_size_rows = rows + 1;
   scanptr.p->m_last_row = tdata5;
+
+  const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
+  if (unlikely(!all.isclear()))
+  {
+    if (all.get(refToNode(scanptr.p->scanApiBlockref)))
+    {
+      /**
+       * End scan batch if transporter-buffer are overloaded
+       *
+       * TODO: We should have counters for this...
+       */
+      scanptr.p->m_stop_batch = 1;
+    }
+  }
+
   if (scanptr.p->check_scan_batch_completed() | tdata5){
     if (scanptr.p->scanLockHold == ZTRUE) {
       jam();
@@ -11568,6 +11604,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanptr.p->scanTcrec = tcConnectptr.i;
   scanptr.p->scanSchemaVersion = scanFragReq->schemaVersion;
 
+  scanptr.p->m_stop_batch = 0;
   scanptr.p->m_curr_batch_size_rows = 0;
   scanptr.p->m_curr_batch_size_bytes= 0;
   scanptr.p->m_max_batch_size_rows = max_rows;
@@ -12055,6 +12092,8 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
     scanptr.p->m_curr_batch_size_rows = 0;
     scanptr.p->m_curr_batch_size_bytes= 0;
   }
+
+  scanptr.p->m_stop_batch = 0;
 }//Dblqh::sendScanFragConf()
 
 /* ######################################################################### */
@@ -23389,6 +23428,12 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
+  if (arg == 5050)
+  {
+#ifdef ERROR_INSERT
+    SET_ERROR_INSERT_VALUE2(5050, c_master_node_id);
+#endif
+  }
 }//Dblqh::execDUMP_STATE_ORD()
 
 

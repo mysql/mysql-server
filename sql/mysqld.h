@@ -206,6 +206,7 @@ extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern ulong thread_cache_size;
+extern ulong stored_program_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
 extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;

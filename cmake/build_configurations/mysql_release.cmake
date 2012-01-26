@@ -149,11 +149,19 @@ IF(UNIX)
   # Default GCC flags
   IF(CMAKE_COMPILER_IS_GNUCC)
     SET(COMMON_C_FLAGS               "-g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
+    # Disable inline optimizations for valgrind testing to avoid false positives
+    IF(WITH_VALGRIND)
+      SET(COMMON_C_FLAGS             "-fno-inline ${COMMON_C_FLAGS}")
+    ENDIF()
     SET(CMAKE_C_FLAGS_DEBUG          "-O ${COMMON_C_FLAGS}")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_C_FLAGS}")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
     SET(COMMON_CXX_FLAGS               "-g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
+    # Disable inline optimizations for valgrind testing to avoid false positives
+    IF(WITH_VALGRIND)
+      SET(COMMON_CXX_FLAGS             "-fno-inline ${COMMON_CXX_FLAGS}")
+    ENDIF()
     SET(CMAKE_CXX_FLAGS_DEBUG          "-O ${COMMON_CXX_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
   ENDIF()
@@ -166,7 +174,7 @@ IF(UNIX)
         SET(COMMON_CXX_FLAGS               "+DSitanium2 -mt -Aa")
         SET(CMAKE_C_FLAGS_DEBUG            "+O0 -g ${COMMON_C_FLAGS}")
         SET(CMAKE_CXX_FLAGS_DEBUG          "+O0 -g ${COMMON_CXX_FLAGS}")
-	# We have seen compiler bugs with optimisation and -g, so disabled for now
+        # We have seen compiler bugs with optimisation and -g, so disabled for now
         SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "+O2 ${COMMON_C_FLAGS}")
         SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "+O2 ${COMMON_CXX_FLAGS}")
       ENDIF()

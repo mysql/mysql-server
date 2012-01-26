@@ -44,8 +44,9 @@ public:
     T_REP   = 3, /* SUMA */
     T_IO    = 4, /* FS, SocketServer etc */
     T_TC    = 5, /* TC+SPJ */
+    T_SEND  = 6, /* No blocks */
 
-    T_END  = 6
+    T_END  = 7
   };
 
   THRConfig();
@@ -126,11 +127,15 @@ public:
 
   const char * getName(const unsigned short list[], unsigned cnt) const;
   void appendInfo(BaseString&, const unsigned short list[], unsigned cnt) const;
+  void appendInfoSendThread(BaseString&, unsigned instance_no) const;
   int do_bind(NdbThread*, const unsigned short list[], unsigned cnt);
   int do_bind_io(NdbThread*);
+  int do_bind_send(NdbThread*, unsigned);
 
 protected:
   const T_Thread* find_thread(const unsigned short list[], unsigned cnt) const;
+  void appendInfo(BaseString&, const T_Thread*) const;
+  int do_bind(NdbThread*, const T_Thread*);
 };
 
 #endif // IPCConfig_H

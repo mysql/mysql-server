@@ -2256,7 +2256,7 @@ void st_select_lex::print_order(String *str,
       str->append(buffer, (uint) length);
     }
     else
-      (*order->item)->print(str, query_type);
+      (*order->item)->print_for_order(str, query_type, order->used_alias);
     if (order->direction == ORDER::ORDER_DESC)
       str->append(STRING_WITH_LEN(" desc"));
     if (order->next)
@@ -2364,10 +2364,10 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
     else
       str->append(STRING_WITH_LEN(" join "));
     curr->print(thd, str, query_type);          // Print table
-    if (curr->on_expr)                          // Print join condition
+    if (curr->join_cond())                      // Print join condition
     {
       str->append(STRING_WITH_LEN(" on("));
-      curr->on_expr->print(str, query_type);
+      curr->join_cond()->print(str, query_type);
       str->append(')');
     }
   }
@@ -2496,6 +2496,20 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
       {
         append_identifier(thd, str, table_name, table_name_length);
         cmp_name= table_name;
+      }
+      if (partition_names && partition_names->elements)
+      {
+        int i, num_parts= partition_names->elements;
+        List_iterator<String> name_it(*(partition_names));
+        str->append(STRING_WITH_LEN(" PARTITION ("));
+        for (i= 1; i <= num_parts; i++)
+        {
+          String *name= name_it++;
+          append_identifier(thd, str, name->c_ptr(), name->length());
+          if (i != num_parts)
+            str->append(',');
+        }
+        str->append(')');
       }
     }
     if (my_strcasecmp(table_alias_charset, cmp_name, alias))
@@ -3528,10 +3542,10 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
 {
   for (; tbl; tbl= tbl->next_local)
   {
-    if (tbl->on_expr)
+    if (tbl->join_cond())
     {
-      tbl->prep_on_expr= tbl->on_expr;
-      tbl->on_expr= tbl->on_expr->copy_andor_structure(thd);
+      tbl->prep_join_cond= tbl->join_cond();
+      tbl->set_join_cond(tbl->join_cond()->copy_andor_structure(thd));
     }
     fix_prepare_info_in_table_list(thd, tbl->merge_underlying_list);
   }

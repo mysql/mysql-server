@@ -73,6 +73,13 @@ inline static void set_args_separator(char** arg)
   DBUG_ASSERT(my_getopt_use_args_separator);
   *arg= (char*)args_separator;
 }
+
+/*
+  This flag indicates that the argument separator string
+  (args_separator) should be added to the list of arguments,
+  in order to separate arguments received from config file
+  and command line.
+*/
 my_bool my_getopt_use_args_separator= FALSE;
 my_bool my_getopt_is_args_separator(const char* arg)
 {

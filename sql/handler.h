@@ -1299,7 +1299,6 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 /* 
   The MRR user will provide ranges in key order, and MRR implementation
   must return rows in key order.
-
   Passing this flag to multi_read_range_init() may cause the
   default MRR handler to be used even if HA_MRR_USE_DEFAULT_IMPL
   was not specified.
@@ -1332,7 +1331,6 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 */
 #define HA_MRR_NO_NULL_ENDPOINTS 128
 
-#ifndef MCP_BUG13330645
 /*
   Set by the MRR implementation to signal that it will natively
   produced sorted result if multi_range_read_init() is called with
@@ -1340,7 +1338,7 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
   will revert to use the default MRR implementation. 
 */
 #define HA_MRR_SUPPORT_SORTED 256
-#endif
+
 
 class ha_statistics
 {

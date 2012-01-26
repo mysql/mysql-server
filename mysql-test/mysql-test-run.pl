@@ -2027,7 +2027,8 @@ sub executable_setup () {
   $exe_mysql_plugin=   mtr_exe_exists("$path_client_bindir/mysql_plugin");
 
   $exe_mysql_embedded=
-    mtr_exe_maybe_exists("$bindir/libmysqld/examples/mysql_embedded",
+    mtr_exe_maybe_exists(vs_config_dirs('libmysqld/examples','mysql_embedded'),
+                         "$bindir/libmysqld/examples/mysql_embedded",
                          "$bindir/bin/mysql_embedded");
 
   if ( ! $opt_skip_ndbcluster )
@@ -3101,13 +3102,17 @@ sub memcached_start {
   
   my $found_perl_source = my_find_file($basedir, 
      ["storage/ndb/memcache",        # source
-      "mysql-test/lib"],             # install 
+      "mysql-test/lib",              # install
+      "share/mysql-test/lib"],       # install 
       "memcached_path.pl", NOT_REQUIRED);
   
   my $found_so = my_find_file($bindir,
     ["storage/ndb/memcache/",       # source or build
-     "lib"],                        # install
+     "lib", "lib64"],               # install
     "ndb_engine.so", NOT_REQUIRED); 
+
+  mtr_verbose("Found memcache script: $found_perl_source");
+  mtr_verbose("Found memcache plugin: $found_so");
      
   my $mgm_host;
   my $mgm_port;

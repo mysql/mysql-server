@@ -88,6 +88,8 @@
 #include <signaldata/TransIdAI.hpp>
 #include <signaldata/CreateTab.hpp>
 
+#include <TransporterRegistry.hpp> // error 8035
+
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
 #ifdef VM_TRACE
@@ -3067,7 +3069,16 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     case ZWRITE:
     case ZREFRESH:
       jam();
-      if (unlikely((++ regApiPtr->m_write_count) > m_max_writes_per_trans))
+      regApiPtr->m_write_count++;
+      if (regApiPtr->m_flags & ApiConnectRecord::TF_DEFERRED_CONSTRAINTS)
+      {
+        /**
+         * Allow slave applier to ignore m_max_writes_per_trans
+         */
+        break;
+      }
+
+      if (unlikely(regApiPtr->m_write_count > m_max_writes_per_trans))
       {
         TCKEY_abort(signal, 65);
         return;
@@ -8380,7 +8391,8 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
   cfailure_nr = nodeFail->failNo;
   const Uint32 tnoOfNodes  = nodeFail->noOfNodes;
   const Uint32 tnewMasterId = nodeFail->masterNodeId;
-  
+  Uint32 cdata[MAX_NDB_NODES];
+
   arrGuard(tnoOfNodes, MAX_NDB_NODES);
   Uint32 i;
   int index = 0;
@@ -10413,7 +10425,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   SectionHandle handle(this, signal);
   SegmentedSectionPtr api_op_ptr;
   handle.getSection(api_op_ptr, 0);
-  copy(&cdata[0], api_op_ptr);
+  Uint32 * apiPtr = signal->theData+25; // temp storage
+  copy(apiPtr, api_op_ptr);
 
   Uint32 aiLength= 0;
   Uint32 keyLen= 0;
@@ -10539,7 +10552,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   ndbrequire(transP->apiScanRec == RNIL);
   ndbrequire(scanptr.p->scanApiRec == RNIL);
 
-  errCode = initScanrec(scanptr, scanTabReq, scanParallel, noOprecPerFrag, aiLength, keyLen);
+  errCode = initScanrec(scanptr, scanTabReq, scanParallel, noOprecPerFrag,
+                        aiLength, keyLen, apiPtr);
   if (unlikely(errCode))
   {
     jam();
@@ -10647,7 +10661,8 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
 		  UintR scanParallel,
 		  UintR noOprecPerFrag,
 		  Uint32 aiLength,
-		  Uint32 keyLength)
+		  Uint32 keyLength,
+                  const Uint32 apiPtr[])
 {
   const UintR ri = scanTabReq->requestInfo;
   scanptr.p->scanTcrec = tcConnectptr.i;
@@ -10699,7 +10714,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
     ptr.p->scanFragState = ScanFragRec::IDLE;
     ptr.p->scanRec = scanptr.i;
     ptr.p->scanFragId = 0;
-    ptr.p->m_apiPtr = cdata[i];
+    ptr.p->m_apiPtr = apiPtr[i];
   }//for
 
   (* (ScanTabReq::getRangeScanFlag(ri) ? 

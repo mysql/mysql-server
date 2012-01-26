@@ -2055,5 +2055,4 @@ trx_start_if_not_started(
 	}
 
 	ut_error;
-
 }

@@ -328,10 +328,15 @@ static bool might_do_join_buffering(uint join_buffer_alg,
             that the correlation is not just through the IN-equality).
       
       (2) - Inner table for which the LooseScan scan is performed.
+            Notice that special requirements for existence of certain indexes
+            apply to this table, @see class Loose_scan_opt.
 
       (3) - The remainder of the duplicate-generating range. It is served by 
-            application of FirstMatch strategy, with the exception that
-            outer IN-correlated tables are considered to be non-correlated.
+            application of FirstMatch strategy. Outer IN-correlated tables
+            must be correlated to the LooseScan table but not to the inner
+            tables in this range. (Currently, there can be no outer tables
+            in this range because of implementation restrictions,
+            @see Optimize_table_order::advance_sj_state()).
 
       (4) - The suffix of outer correlated and non-correlated tables.
 
@@ -3206,18 +3211,6 @@ ORDER *simple_remove_const(ORDER *order, Item *where)
 }
 
 
-/*
-  used only in JOIN::clear
-*/
-static void clear_tables(JOIN *join)
-{
-  /* 
-    must clear only the non-const tables, as const tables
-    are not re-calculated.
-  */
-  for (uint i=join->const_tables ; i < join->tables ; i++)
-    mark_as_null_row(join->all_tables[i]);		// All fields are NULL
-}
 
 
 /* 
@@ -3572,6 +3565,38 @@ is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
 }
 
 /**
+  Test if REF_OR_NULL optimization will be used if the specified
+  ref_key is used for REF-access to 'tab'
+
+  @retval
+    true	JT_REF_OR_NULL will be used
+  @retval
+    false	no JT_REF_OR_NULL access
+*/
+bool
+is_ref_or_null_optimized(const JOIN_TAB *tab, uint ref_key)
+{
+  if (tab->keyuse)
+  {
+    const Key_use *keyuse= tab->keyuse;
+    while (keyuse->key != ref_key && keyuse->table == tab->table)
+      keyuse++;
+
+    const table_map const_tables= tab->join->const_table_map;
+    do
+    {
+      if (!(keyuse->used_tables & ~const_tables))
+      {
+        if (keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL)
+          return true;
+      }
+      keyuse++;
+    } while (keyuse->key == ref_key && keyuse->table == tab->table);
+  }
+  return false;
+}
+
+/**
   Test if we can use one of the 'usable_keys' instead of 'ref' key
   for sorting.
 
@@ -3584,12 +3609,13 @@ is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
 */
 
 static uint
-test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
+test_if_subkey(ORDER *order, JOIN_TAB *tab, uint ref, uint ref_key_parts,
 	       const key_map *usable_keys)
 {
   uint nr;
   uint min_length= (uint) ~0;
   uint best= MAX_KEY;
+  TABLE *table= tab->table;
   KEY_PART_INFO *ref_key_part= table->key_info[ref].key_part;
   KEY_PART_INFO *ref_key_part_end= ref_key_part + ref_key_parts;
 
@@ -3600,6 +3626,7 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
 	table->key_info[nr].key_parts >= ref_key_parts &&
 	is_subkey(table->key_info[nr].key_part, ref_key_part,
 		  ref_key_part_end) &&
+        !is_ref_or_null_optimized(tab, nr) &&
 	test_if_order_by_key(order, table, nr))
     {
       min_length= table->key_info[nr].key_length;
@@ -3627,6 +3654,9 @@ public:
   */
   Plan_change_watchdog(const JOIN_TAB *tab_arg, bool no_changes_arg)
   {
+    // Only to keep gcc 4.1.2-44 silent about uninitialized variables
+    quick= NULL;
+    quick_index= 0;
     if (no_changes_arg)
     {
       tab= tab_arg;
@@ -3640,7 +3670,14 @@ public:
       index= tab->index;
     }
     else
+    {
       tab= NULL;
+      // Only to keep gcc 4.1.2-44 silent about uninitialized variables
+      type= JT_UNKNOWN;
+      select= NULL;
+      ref_key= ref_key_parts= index= 0;
+      use_quick= QS_NONE;
+    }
   }
   ~Plan_change_watchdog()
   {
@@ -3729,6 +3766,14 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
   Plan_change_watchdog watchdog(tab, no_changes);
 
+  /* Sorting a single row can always be skipped */
+  if (tab->type == JT_EQ_REF ||
+      tab->type == JT_CONST  ||
+      tab->type == JT_SYSTEM)
+  {
+    DBUG_RETURN(1);
+  }
+
   /*
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
     been taken into account.
@@ -3810,7 +3855,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       if (table->covering_keys.is_set(ref_key))
 	usable_keys.intersect(table->covering_keys);
 
-      if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
+      if ((new_ref_key= test_if_subkey(order, tab, ref_key, ref_key_parts,
 				       &usable_keys)) < MAX_KEY)
       {
 	/* Found key that can be used to retrieve data in sorted order */
@@ -3832,6 +3877,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                                  tab->join->const_table_map))
             goto use_filesort;
 
+          DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
           pick_table_access_method(tab);
 	}
 	else
@@ -3973,11 +4019,16 @@ check_reverse_order:
         (select && select->quick && select->quick!=save_quick);
 
       /* 
-         If ref_key used index tree reading only ('Using index' in EXPLAIN),
-         and best_key doesn't, then revert the decision.
+         If 'best_key' has changed from  prev. 'ref_key':
+         Update strategy for using index tree reading only
+         ('Using index' in EXPLAIN)
       */
-      if (!table->covering_keys.is_set(best_key))
-        table->set_keyread(FALSE);
+      if (best_key != ref_key)
+      {
+        const bool using_index= 
+          (table->covering_keys.is_set(best_key) && !table->no_keyread);
+        table->set_keyread(using_index);
+      }
       if (!quick_created)
       {
         if (select)                  // Throw any existing quick select
@@ -3988,8 +4039,6 @@ check_reverse_order:
                                 join_read_first:join_read_last;
         tab->type=JT_INDEX_SCAN;       // Read with index_first(), index_next()
 
-        if (table->covering_keys.is_set(best_key))
-          table->set_keyread(TRUE);
         table->file->ha_index_or_rnd_end();
         if (tab->join->select_options & SELECT_DESCRIBE)
         {
@@ -4007,6 +4056,7 @@ check_reverse_order:
           method is actually used.
         */
         DBUG_ASSERT(tab->select->quick);
+        DBUG_ASSERT(tab->select->quick->index==(uint)best_key);
         tab->type=JT_ALL;
         tab->use_quick=QS_RANGE;
         tab->ref.key= -1;
@@ -4591,7 +4641,9 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 
 void JOIN::clear()
 {
-  clear_tables(this);
+  for (uint tableno= 0; tableno < this->tables; tableno++)
+    mark_as_null_row((join_tab+tableno)->table);
+
   copy_fields(&tmp_table_param);
 
   if (sum_funcs)

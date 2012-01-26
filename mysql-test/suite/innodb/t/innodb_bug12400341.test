@@ -1,6 +1,18 @@
+# Test for bug #12400341: INNODB CAN LEAVE ORPHAN IBD FILES AROUND
+
 -- source include/have_innodb.inc
 
+if (`select count(*)=0 from information_schema.global_variables where variable_name = 'INNODB_TRX_RSEG_N_SLOTS_DEBUG'`)
+{
+  --skip Test requires InnoDB built with UNIV_DEBUG definition.
+}
+
 call mtr.add_suppression("InnoDB: Warning: cannot find a free slot for an undo log. Do you have too");
+
+--disable_query_log
+set @old_innodb_trx_rseg_n_slots_debug = @@innodb_trx_rseg_n_slots_debug;
+set global innodb_trx_rseg_n_slots_debug = 32;
+--enable_query_log
 
 set @old_innodb_undo_logs = @@innodb_undo_logs;
 set global innodb_undo_logs=1;
@@ -18,7 +30,7 @@ CREATE TABLE mysqltest.transtable (id int unsigned NOT NULL PRIMARY KEY, val int
 
 --disable_query_log
 #
-# Insert in 1 transaction to avoid the insert_undo cached,
+# Insert in 1 transaction which needs over 1 page undo record to avoid the insert_undo cached,
 # because the cached insert_undo can be reused at "CREATE TABLE" statement later.
 #
 START TRANSACTION;
@@ -30,7 +42,7 @@ while ($c)
 }
 COMMIT;
 
-let $c = 1024;
+let $c = 32;
 while ($c)
 {
   # if failed at here, it might be shortage of file descriptors limit.
@@ -45,12 +57,12 @@ select count(*) from information_schema.processlist;
 # fill the all undo slots
 #
 --disable_query_log
-let $c = 1024;
+let $c = 32;
 while ($c)
 {
   connection con$c;
   START TRANSACTION;
-  eval UPDATE mysqltest.transtable SET val = 1 WHERE id = 1025 - $c;
+  eval UPDATE mysqltest.transtable SET val = 1 WHERE id = 33 - $c;
   dec $c;
 }
 --enable_query_log
@@ -63,7 +75,7 @@ CREATE TABLE mysqltest.testtable (id int unsigned not null primary key) ENGINE=I
 select count(*) from information_schema.processlist;
 
 --disable_query_log
-let $c = 1024;
+let $c = 32;
 while ($c)
 {
   connection con$c;
@@ -76,7 +88,7 @@ connection default;
 select count(*) from information_schema.processlist;
 
 --disable_query_log
-let $c = 1024;
+let $c = 32;
 while ($c)
 {
   disconnect con$c;
@@ -91,3 +103,6 @@ drop database mysqltest;
 
 set global innodb_undo_logs = @old_innodb_undo_logs;
 
+--disable_query_log
+set global innodb_trx_rseg_n_slots_debug = @old_innodb_trx_rseg_n_slots_debug;
+--enable_query_log

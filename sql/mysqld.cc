@@ -534,6 +534,11 @@ uint sync_binlog_period= 0, sync_relaylog_period= 0,
      sync_relayloginfo_period= 0, sync_masterinfo_period= 0,
      opt_mts_checkpoint_period, opt_mts_checkpoint_group;
 ulong expire_logs_days = 0;
+/**
+  Soft upper limit for number of sp_head objects that can be stored
+  in the sp_cache for one connection.
+*/
+ulong stored_program_cache_size= 0;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -8195,8 +8200,10 @@ static int fix_paths(void)
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name, pidfile_name_ptr, mysql_real_data_home);
-  (void) my_load_path(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr :
-                                      get_relative_path(PLUGINDIR), mysql_home);
+
+  convert_dirname(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr : 
+                                  get_relative_path(PLUGINDIR), NullS);
+  (void) my_load_path(opt_plugin_dir, opt_plugin_dir, mysql_home);
   opt_plugin_dir_ptr= opt_plugin_dir;
 
   my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));

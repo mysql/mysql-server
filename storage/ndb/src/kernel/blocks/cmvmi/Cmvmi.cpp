@@ -23,6 +23,7 @@
 #include <NdbMem.h>
 #include <NdbTick.h>
 
+#include <TransporterRegistry.hpp>
 #include <SignalLoggerManager.hpp>
 #include <FastScheduler.hpp>
 
@@ -57,6 +58,7 @@ extern int simulate_error_during_shutdown;
 // Index pages used by ACC instances
 Uint32 g_acc_pages_used[1 + MAX_NDBMT_LQH_WORKERS];
 
+extern void mt_init_receiver_cache();
 extern void mt_set_section_chunk_size();
 
 Cmvmi::Cmvmi(Block_context& ctx) :
@@ -83,6 +85,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   g_sectionSegmentPool.setSize(long_sig_buffer_size,
                                true,true,true,CFG_DB_LONG_SIGNAL_BUFFER);
 
+  mt_init_receiver_cache();
   mt_set_section_chunk_size();
 
   // Add received signals

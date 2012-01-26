@@ -191,12 +191,12 @@ uint Querycache_stream::load_int()
     cur_data+= 4;
     return result;
   }
-  char buf[4];
+  char buf[4], *buf_p= buf;
   memcpy(buf, cur_data, rest_len);
   use_next_block(FALSE);
   memcpy(buf+rest_len, cur_data, 4-rest_len);
   cur_data+= 4-rest_len;
-  result= uint4korr(buf);
+  result= uint4korr(buf_p);
   return result;
 }
 

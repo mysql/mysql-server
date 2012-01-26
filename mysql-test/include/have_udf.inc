@@ -15,6 +15,6 @@ if (!$UDF_EXAMPLE_LIB) {
 #
 # Check if --plugin-dir was setup for udf
 #
-if (`SELECT CONCAT('--plugin-dir=', @@plugin_dir) != '$UDF_EXAMPLE_LIB_OPT'`) {
+if (`SELECT CONCAT('--plugin-dir=', REPLACE(@@plugin_dir, '\\\\', '/')) != '$UDF_EXAMPLE_LIB_OPT/'`) {
   --skip UDF requires that --plugin-dir is set to the udf plugin dir (either the .opt file does not contain \$UDF_EXAMPLE_LIB_OPT or another plugin is in use)
 }

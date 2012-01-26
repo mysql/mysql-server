@@ -6609,8 +6609,6 @@ e
 i
 y
 w
--- Notice that Materialize-scan algorithm reports wrong result for this query.
--- This problem will be filed as a separate bug and dealt with in WL#5561.
 DROP TABLE t1, t2;
 # End of test for bug#12603183.
 #
@@ -7273,6 +7271,363 @@ x
 q
 DROP TABLE t1, t2;
 # End of test for bug#13414014.
+#
+# Bug#13545215: Missing rows on nested in-subquery with materialization
+#
+CREATE TABLE t1 (
+col_int_key int,
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ;
+INSERT INTO t1 VALUES
+(8,'x','x'), (0,'p','p'), (8,'c','c');
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t2 VALUES
+(1,'v','v'), (2,'v','v'), (3,'c','c'), (4,NULL,NULL),
+(5,'x','x'), (6,'i','i'), (7,'e','e'), (8,'p','p');
+CREATE TABLE t3 (
+col_int_nokey int
+);
+INSERT INTO t3 VALUES (7);
+explain SELECT grandparent1.col_varchar_nokey
+FROM t1 AS grandparent1 JOIN t1 AS grandparent2 USING (col_int_key)
+WHERE grandparent1.col_varchar_key IN (
+SELECT col_varchar_nokey
+FROM t2 AS parent1
+WHERE col_varchar_key IN (
+SELECT child1.col_varchar_nokey
+FROM t2 AS child1 LEFT JOIN t3 AS child2
+ON child1.pk < child2.col_int_nokey
+)
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	grandparent1	ALL	col_int_key	NULL	NULL	NULL	3	Using where
+1	PRIMARY	grandparent2	index	col_int_key	col_int_key	5	NULL	3	Using where; Using index; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	child1	ALL	NULL	NULL	NULL	NULL	8	Start temporary
+2	DEPENDENT SUBQUERY	child2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	parent1	ALL	col_varchar_key	NULL	NULL	NULL	8	Using where; End temporary; Using join buffer (Block Nested Loop)
+SELECT grandparent1.col_varchar_nokey
+FROM t1 AS grandparent1 JOIN t1 AS grandparent2 USING (col_int_key)
+WHERE grandparent1.col_varchar_key IN (
+SELECT col_varchar_nokey
+FROM t2 AS parent1
+WHERE col_varchar_key IN (
+SELECT child1.col_varchar_nokey
+FROM t2 AS child1 LEFT JOIN t3 AS child2
+ON child1.pk < child2.col_int_nokey
+)
+);
+col_varchar_nokey
+c
+c
+p
+x
+x
+DROP TABLE t1, t2, t3;
+# End of test for bug#13545215.
+#
+# BUG#13553211 - MISSING ROWS ON SELECT WITH IN-SUBQUERY AND
+# MATERIALIZATION + SEMIJOIN ON
+#
+CREATE TABLE t1 (
+col_int_key int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t1 VALUES (4,'v','v');
+INSERT INTO t1 VALUES (62,'v','v');
+INSERT INTO t1 VALUES (7,'c','c');
+INSERT INTO t1 VALUES (1,NULL,NULL);
+EXPLAIN SELECT
+alias1.col_varchar_nokey AS a1_nokey,
+alias1.col_varchar_key AS a1_key,
+alias2.col_varchar_nokey AS a2_nokey
+FROM
+t1 AS alias1, t1 AS alias2
+WHERE
+(alias1.col_varchar_nokey,alias2.col_varchar_nokey)
+IN
+(
+SELECT
+SQ2_alias2.col_varchar_nokey, SQ2_alias1.col_varchar_key
+FROM
+t1 AS SQ2_alias1, t1 AS SQ2_alias2
+)
+;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	SQ2_alias1	ref	col_varchar_key	col_varchar_key	4	test.alias2.col_varchar_nokey	1	Using index
+1	PRIMARY	SQ2_alias2	ALL	NULL	NULL	NULL	NULL	4	Using where; FirstMatch(alias2)
+SELECT
+alias1.col_varchar_nokey AS a1_nokey,
+alias1.col_varchar_key AS a1_key,
+alias2.col_varchar_nokey AS a2_nokey
+FROM
+t1 AS alias1, t1 AS alias2
+WHERE
+(alias1.col_varchar_nokey,alias2.col_varchar_nokey)
+IN
+(
+SELECT
+SQ2_alias2.col_varchar_nokey, SQ2_alias1.col_varchar_key
+FROM
+t1 AS SQ2_alias1, t1 AS SQ2_alias2
+)
+;
+a1_nokey	a1_key	a2_nokey
+c	c	c
+c	c	v
+c	c	v
+v	v	c
+v	v	c
+v	v	v
+v	v	v
+v	v	v
+v	v	v
+DROP TABLE t1;
+#
+# Bug#13541406: Wrong result with loosescan on select .. where .. in
+#
+CREATE TABLE t1 (
+col_int_key INT NOT NULL,
+col_varchar_nokey VARCHAR(1) NOT NULL,
+KEY col_int_key (col_int_key)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+(7,'v'), (0,'s'), (9,'l'), (3,'y'), (4,'c'), (2,'i'), (5,'h'), (3,'q'),
+(1,'a'), (3,'v'), (6,'u'), (7,'s'), (5,'y'), (1,'z'), (204,'h'), (224,'p'),
+(9,'e'), (5,'i'), (0,'y'), (3,'w');
+CREATE TABLE t2 (
+pk INT NOT NULL,
+col_int_key INT NOT NULL,
+col_varchar_key VARCHAR(1) NOT NULL,
+col_varchar_nokey VARCHAR(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES
+(1,0,'j','j'), (2,8,'v','v'), (3,1,'c','c'), (4,8,'m','m'),
+(5,9,'d','d'), (6,24,'d','d'), (7,6,'y','y'), (8,1,'t','t'),
+(9,6,'d','d'), (10,2,'s','s'), (11,4,'r','r'), (12,8,'m','m'),
+(13,4,'b','b'), (14,4,'x','x'), (15,7,'g','g'), (16,4,'p','p'),
+(17,1,'q','q'), (18,9,'w','w'), (19,4,'d','d'), (20,8,'e','e');
+# This query should never use a LooseScan strategy
+explain SELECT ot1.col_int_key AS field1
+FROM t2 AS ot1, t2 AS ot2
+WHERE (ot1.col_varchar_key, ot2.col_varchar_nokey) IN (
+SELECT it2.col_varchar_nokey, it1.col_varchar_key
+FROM t2 AS it1 JOIN t1 AS it2 ON it2.col_int_key = it1.pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot2	ALL	NULL	NULL	NULL	NULL	20	Start temporary
+1	PRIMARY	it1	ref	PRIMARY,col_varchar_key	col_varchar_key	3	test.ot2.col_varchar_nokey	1	Using index
+1	PRIMARY	it2	ref	col_int_key	col_int_key	4	test.it1.pk	1	
+1	PRIMARY	ot1	ref	col_varchar_key	col_varchar_key	3	test.it2.col_varchar_nokey	1	Using index; End temporary
+SELECT ot1.col_int_key AS field1
+FROM t2 AS ot1, t2 AS ot2
+WHERE (ot1.col_varchar_key, ot2.col_varchar_nokey) IN (
+SELECT it2.col_varchar_nokey, it1.col_varchar_key
+FROM t2 AS it1 JOIN t1 AS it2 ON it2.col_int_key = it1.pk);
+field1
+1
+1
+1
+2
+6
+6
+6
+6
+6
+8
+8
+8
+8
+8
+8
+9
+DROP TABLE t1, t2;
+# End of test for bug#13541406.
+#
+# Bug#13576391: Missing rows on select with in-subquery and
+# batched-key-access=on and semijoin
+#
+CREATE TABLE t1 (
+col_int_nokey int NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+KEY col_varchar_key (col_varchar_key)
+) engine=InnoDB;
+INSERT INTO t1 VALUES
+(1,'v'), (7,'s'), (4,'l'), (7,'y'), (0,'c'), (2,'i'), (9,'h'), (4,'q'),
+(0,'a'), (9,'v'), (1,'u'), (3,'s'), (8,'y'), (8,'z'), (18,'h'), (84,'p'),
+(6,'e'), (3,'i'), (6,'y'), (6,'w');
+CREATE TABLE t2 (
+col_int_nokey int NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL
+) engine=InnoDB;
+INSERT INTO t2 VALUES
+(4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
+(3,'d'), (8,'s'), (1,'r'), (8,'m'), (8,'b'), (5,'x'), (7,'g'), (5,'p'),
+(1,'q'), (6,'w'), (2,'d'), (9,'e');
+explain SELECT col_varchar_nokey
+FROM t2 AS ot
+WHERE col_varchar_nokey IN (
+SELECT col_varchar_key
+FROM t1 AS it
+WHERE it.col_int_nokey <= it.col_int_nokey
+AND NOT ot.col_int_nokey < 2
+)
+ORDER BY col_varchar_nokey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	20	Using where; Using filesort
+1	PRIMARY	it	ref	col_varchar_key	col_varchar_key	3	test.ot.col_varchar_nokey	1	FirstMatch(ot)
+SELECT col_varchar_nokey
+FROM t2 AS ot
+WHERE col_varchar_nokey IN (
+SELECT col_varchar_key
+FROM t1 AS it
+WHERE it.col_int_nokey <= it.col_int_nokey
+AND NOT ot.col_int_nokey < 2
+)
+ORDER BY col_varchar_nokey;
+col_varchar_nokey
+c
+e
+p
+s
+v
+w
+y
+ALTER TABLE t1 ENGINE=MyISAM;
+ALTER TABLE t2 ENGINE=MyISAM;
+explain SELECT col_varchar_nokey
+FROM t2 AS ot
+WHERE col_varchar_nokey IN (
+SELECT col_varchar_key
+FROM t1 AS it
+WHERE it.col_int_nokey <= it.col_int_nokey
+AND NOT ot.col_int_nokey < 2
+)
+ORDER BY col_varchar_nokey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	20	Using where; Using filesort
+1	PRIMARY	it	ref	col_varchar_key	col_varchar_key	3	test.ot.col_varchar_nokey	2	FirstMatch(ot)
+SELECT col_varchar_nokey
+FROM t2 AS ot
+WHERE col_varchar_nokey IN (
+SELECT col_varchar_key
+FROM t1 AS it
+WHERE it.col_int_nokey <= it.col_int_nokey
+AND NOT ot.col_int_nokey < 2
+)
+ORDER BY col_varchar_nokey;
+col_varchar_nokey
+c
+e
+p
+s
+v
+w
+y
+ALTER TABLE t1 ENGINE=Memory;
+ALTER TABLE t2 ENGINE=Memory;
+explain SELECT col_varchar_nokey
+FROM t2 AS ot
+WHERE col_varchar_nokey IN (
+SELECT col_varchar_key
+FROM t1 AS it
+WHERE it.col_int_nokey <= it.col_int_nokey
+AND NOT ot.col_int_nokey < 2
+)
+ORDER BY col_varchar_nokey;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	20	Using where; Using filesort
+1	PRIMARY	it	ref	col_varchar_key	col_varchar_key	3	test.ot.col_varchar_nokey	2	FirstMatch(ot)
+SELECT col_varchar_nokey
+FROM t2 AS ot
+WHERE col_varchar_nokey IN (
+SELECT col_varchar_key
+FROM t1 AS it
+WHERE it.col_int_nokey <= it.col_int_nokey
+AND NOT ot.col_int_nokey < 2
+)
+ORDER BY col_varchar_nokey;
+col_varchar_nokey
+c
+e
+p
+s
+v
+w
+y
+DROP TABLE t1, t2;
+# End of test for bug#13576391.
+#
+# Bug #13589848 "MISSING ROW ON SELECT WITH NESTED IN CLAUSES WHEN LOOSESCAN=ON"
+#
+CREATE TABLE t1 (
+id INT,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+KEY (col_varchar_key)
+);
+INSERT INTO t1 VALUES (100,'m','m'),
+(200,'b','b'), (300,'x','x');
+CREATE TABLE t2 (
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+KEY (col_varchar_key)
+);
+INSERT INTO t2 VALUES ('b','b');
+CREATE TABLE t3 (
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+KEY (col_varchar_key)
+);
+INSERT INTO t3 VALUES ('k','k');
+EXPLAIN SELECT GP1.id
+FROM t1 AS GP1 JOIN t3 AS GP2
+ON GP2.col_varchar_key <> GP1.col_varchar_nokey
+WHERE (GP1.col_varchar_nokey, GP1.col_varchar_nokey)
+IN (
+SELECT col_varchar_nokey, col_varchar_nokey
+FROM t1
+WHERE col_varchar_nokey
+IN ( SELECT col_varchar_key
+FROM t2 LEFT JOIN t3 USING (col_varchar_key) )
+)
+;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	GP2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	GP1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index	col_varchar_key	col_varchar_key	4	NULL	1	Using index; Start temporary
+2	DEPENDENT SUBQUERY	t3	ref	col_varchar_key	col_varchar_key	4	test.t2.col_varchar_key	2	Using index
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; End temporary; Using join buffer (Block Nested Loop)
+SELECT GP1.id
+FROM t1 AS GP1 JOIN t3 AS GP2
+ON GP2.col_varchar_key <> GP1.col_varchar_nokey
+WHERE (GP1.col_varchar_nokey, GP1.col_varchar_nokey)
+IN (
+SELECT col_varchar_nokey, col_varchar_nokey
+FROM t1
+WHERE col_varchar_nokey
+IN ( SELECT col_varchar_key
+FROM t2 LEFT JOIN t3 USING (col_varchar_key) )
+)
+;
+id
+200
+DROP TABLE t1,t2,t3;
 # End of 5.6 tests
 #
 # Bug#51457 Firstmatch semijoin strategy gives wrong results for

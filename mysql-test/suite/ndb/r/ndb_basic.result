@@ -990,7 +990,7 @@ id	parent_id
 3	3
 DROP TABLE child, parent;
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
-ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 24;
+ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 144;
 ERROR HY000: Can't create table 'test.t1' (errno: 140)
 show warnings;
 Level	Code	Message

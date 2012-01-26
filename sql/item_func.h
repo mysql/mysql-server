@@ -1555,6 +1555,7 @@ class Item_var_func :public Item_func
 {
 public:
   Item_var_func() :Item_func() { }
+  Item_var_func(THD *thd, Item_var_func *item) :Item_func(thd, item) { }
   Item_var_func(Item *a) :Item_func(a) { }
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
   {
@@ -1603,6 +1604,12 @@ public:
   Item_func_set_user_var(LEX_STRING a,Item *b)
     :Item_var_func(b), cached_result_type(INT_RESULT),
      entry(NULL), entry_thread_id(0), name(a)
+  {}
+  Item_func_set_user_var(THD *thd, Item_func_set_user_var *item)
+    :Item_var_func(thd, item), cached_result_type(item->cached_result_type),
+     entry(item->entry), entry_thread_id(item->entry_thread_id),
+     value(item->value), decimal_buff(item->decimal_buff),
+     null_item(item->null_item), save_result(item->save_result), name(item->name)
   {}
   enum Functype functype() const { return SUSERVAR_FUNC; }
   double val_real();

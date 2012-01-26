@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -62,6 +62,7 @@ public class NdbScanOperation extends NdbOperation implements NdbScanOperationCo
     }
     static public class /*_struct_*/ ScanOptions extends Wrapper implements ScanOptionsConst
     {
+        static public final native int/*_Uint32_*/ size();
         public final native long/*_Uint64_*/ optionsPresent();
         public final native int/*_Uint32_*/ scan_flags();
         public final native int/*_Uint32_*/ parallel();
