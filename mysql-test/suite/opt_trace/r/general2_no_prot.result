@@ -331,6 +331,7 @@ TRACE
                     "range_scan_alternatives": [
                       {
                         "index": "a",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "12 < a"
                         ] /* ranges */,
@@ -4057,6 +4058,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= seq_0_id <= 1"
                         ] /* ranges */,
@@ -4144,6 +4146,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= seq_0_id <= 1"
                         ] /* ranges */,
@@ -4241,6 +4244,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= seq_0_id <= 1"
                         ] /* ranges */,
