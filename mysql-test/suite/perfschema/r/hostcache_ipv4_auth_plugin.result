@@ -21,9 +21,6 @@ root@localhost
 set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
 uninstall plugin test_plugin_server;
 ERROR HY000: Plugin 'test_plugin_server' is not loaded
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 select 
 IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
 COUNT_HOST_BLOCKED_ERRORS,
@@ -78,9 +75,6 @@ COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
 ERROR HY000: Plugin 'test_plugin_server' is not loaded
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 select 
 IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
 COUNT_HOST_BLOCKED_ERRORS,
@@ -136,9 +130,6 @@ FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
 install plugin test_plugin_server soname 'auth_test_plugin.so';
 ERROR 28000: Access denied for user 'plug'@'santa.claus.ipv4.example.com' (using password: YES)
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 select 
 IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
 COUNT_HOST_BLOCKED_ERRORS,
@@ -193,9 +184,6 @@ COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
 ERROR 28000: Access denied for user 'plug'@'santa.claus.ipv4.example.com' (using password: YES)
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 select 
 IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
 COUNT_HOST_BLOCKED_ERRORS,
@@ -260,9 +248,6 @@ plug@santa.claus.ipv4.example.com
 select current_user();
 current_user()
 plug_dest@santa.claus.ipv4.example.com
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 select 
 IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
 COUNT_HOST_BLOCKED_ERRORS,

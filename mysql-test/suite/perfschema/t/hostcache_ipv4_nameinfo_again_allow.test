@@ -2,54 +2,9 @@
 #
 # Tests for the performance_schema host_cache.
 #
-# FIXME
-# Test scenario: (con2)
-# - a client connects on a TCP/IPv4 socket
-# - the client IPv4 can be obtained (temp failure)
-# - the client IPv4 is not in the cache
-# - the client hostname can not be obtained
-# - there are grants for the client IP
-# Test results:
-# - connection is accepted
-# - user is authorized by IP
-# - peer_addr_error is unchanged
-# - the host_cache records the failing IP with no hostname
-#
-# Test scenario: (con3)
-# - a client connects on a TCP/IPv4 socket
-# - the client IPv4 can be obtained (temp failure)
-# - the client IPv4 is in the cache with no hostname
-# - the client hostname can not be obtained
-# - there are grants for the client IP
-# Test results:
-# - connection is accepted
-# - user is authorized by IP
-# - peer_addr_error is unchanged
-# - the host_cache records the failing IP with no hostname
-#
-# Test scenario: (con4)
-# - a client connects on a TCP/IPv4 socket
-# - the client IPv4 can be obtained
-# - the client IPv4 is in the cache with no hostname
-# - the client hostname can be obtained, finally
-# - there are grants for the client host
-# Test results:
-# - connection is accepted
-# - user is authorized by hostname
-# - peer_addr_errors is unchanged
-# - the host_cache is updated with the resolved hostname
-#
-# Test scenario: (con5)
-# - a client connects on a TCP/IPv4 socket
-# - the client IPv4 can be obtained
-# - the client IPv4 is in the cache with resolved hostname
-# - there are grants for the client host
-# Test results:
-# - connection is accepted
-# - user is authorized by hostname
-# - peer_addr_errors is unchanged
-# - the host_cache is unchanged
-#
+# Simulate failures from DNS:
+# - getnameinfo() fails with AGAIN
+# - reported in COUNT_NAMEINFO_TRANSIENT_ERRORS
 
 --source include/not_embedded.inc
 --source include/have_debug.inc

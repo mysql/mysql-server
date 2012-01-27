@@ -2,18 +2,8 @@
 #
 # Tests for the performance_schema host_cache.
 #
-# FIXME
-# Test scenario:
-# - a client connects on a TCP/IPv4 socket
-# - the client IPv4 can be obtained
-# - the client hostname can be obtained
-# - the client hostname looks like an IPv4 address
-# - there are grants for the client IP
-# Test results:
-# - connection is refused
-# - peer_addr_error is unchanged
-# - the host_cache records the failing IP with hostname
-#
+# Simulate failures from host names formats:
+# - reported in COUNT_FORMAT_ERRORS
 
 --source include/not_embedded.inc
 --source include/have_debug.inc

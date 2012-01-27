@@ -75,8 +75,6 @@ public:
   ulong m_user_acl;
   /** Number of errors from the server itself. */
   ulong m_local;
-  /** Number of unknown errors. */
-  ulong m_unknown;
 
   bool has_error() const
   {
@@ -99,8 +97,7 @@ public:
       || (m_max_user_connection_per_hour != 0)
       || (m_max_connection != 0)
       || (m_user_acl != 0)
-      || (m_local != 0)
-      || (m_unknown != 0));
+      || (m_local != 0));
   }
 
   void sum_connect_errors()

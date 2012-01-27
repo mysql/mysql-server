@@ -67,8 +67,7 @@ Host_errors::Host_errors()
   m_max_user_connection_per_hour(0),
   m_max_connection(0),
   m_user_acl(0),
-  m_local(0),
-  m_unknown(0)
+  m_local(0)
 {}
 
 Host_errors::~Host_errors()
@@ -97,7 +96,6 @@ void Host_errors::reset()
   m_max_connection= 0;
   m_user_acl= 0;
   m_local= 0;
-  m_unknown= 0;
 }
 
 void Host_errors::aggregate(const Host_errors *errors)
@@ -123,7 +121,6 @@ void Host_errors::aggregate(const Host_errors *errors)
   m_max_connection+= errors->m_max_connection;
   m_user_acl+= errors->m_user_acl;
   m_local+= errors->m_local;
-  m_unknown+= errors->m_unknown;
 }
 
 static hash_filo *hostname_cache;

@@ -2,18 +2,9 @@
 #
 # Tests for the performance_schema host_cache.
 #
-# FIXME
-# Test scenario:
-# - a client connects on a TCP/IPv4 socket
-# - the client IPv4 can be obtained
-# - the client hostname can be obtained
-# - IP for that hostname can not be obtained
-# - there are no grants for the client IP
-# Test results:
-# - connection is refused
-# - peer_addr_error is unchanged
-# - the host_cache records the failing IP and hostname
-#
+# Simulate failures from DNS:
+# - getaddrinfo() fails with AGAIN
+# - reported in COUNT_ADDRINFO_TRANSIENT_ERRORS
 
 --source include/not_embedded.inc
 --source include/have_debug.inc
