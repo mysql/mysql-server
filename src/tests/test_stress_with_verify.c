@@ -36,8 +36,11 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
         arg_init(&myargs[i], n, dbp, env, cli_args);
     }
     // make the forward fast scanner
-    myargs[0].fast = TRUE;
-    myargs[0].fwd = TRUE;
+    struct scan_op_extra soe;
+    soe.fast = TRUE;
+    soe.fwd = TRUE;
+    soe.prefetch = FALSE;
+    myargs[0].operation_extra = &soe;
     myargs[0].lock_type = STRESS_LOCK_SHARED;
     myargs[0].operation = scan_op;
 
@@ -52,18 +55,20 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     }
 
     // make the guy that does point queries
+    struct update_op_args uoe = get_update_op_args(cli_args, NULL);
     for (int i = 2 + cli_args->num_update_threads; i < num_threads; i++) {
         myargs[i].lock_type = STRESS_LOCK_SHARED;
+        myargs[i].operation_extra = &uoe;
         myargs[i].operation = ptquery_op;
     }
-    run_workers(myargs, num_threads, cli_args->time_of_test, false);
+    run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
 }
 
 int
 test_main(int argc, char *const argv[]) {
-    struct cli_args args = DEFAULT_ARGS;
+    struct cli_args args = get_default_args();
     // let's make default checkpointing period really slow
-    args.checkpointing_period = 1;
+    args.env_args.checkpointing_period = 1;
     args.num_elements= 2000; // make default of small num elements to 
     args.num_ptquery_threads = 0;
     parse_stress_test_args(argc, argv, &args);

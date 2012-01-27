@@ -48,30 +48,42 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
         arg_init(&myargs[i], n, dbp, env, cli_args);
     }
 
+    struct scan_op_extra soe[4];
+
     // make the forward fast scanner
-    myargs[0].fast = TRUE;
-    myargs[0].fwd = TRUE;
+    soe[0].fast = TRUE;
+    soe[0].fwd = TRUE;
+    soe[0].prefetch = FALSE;
+    myargs[0].operation_extra = &soe[0];
     myargs[0].operation = scan_op_no_check;
 
     // make the forward slow scanner
-    myargs[1].fast = FALSE;
-    myargs[1].fwd = TRUE;
+    soe[1].fast = FALSE;
+    soe[1].fwd = TRUE;
+    soe[1].prefetch = FALSE;
+    myargs[1].operation_extra = &soe[1];
     myargs[1].operation = scan_op_no_check;
 
     // make the backward fast scanner
-    myargs[2].fast = TRUE;
-    myargs[2].fwd = FALSE;
+    soe[2].fast = TRUE;
+    soe[2].fwd = FALSE;
+    soe[2].prefetch = FALSE;
+    myargs[2].operation_extra = &soe[2];
     myargs[2].operation = scan_op_no_check;
 
     // make the backward slow scanner
-    myargs[3].fast = FALSE;
-    myargs[3].fwd = FALSE;
+    soe[3].fast = FALSE;
+    soe[3].fwd = FALSE;
+    soe[3].prefetch = FALSE;
+    myargs[3].operation_extra = &soe[3];
     myargs[3].operation = scan_op_no_check;
 
+    struct update_op_args uoe[cli_args->num_update_threads];
     // make the guy that updates the db
     for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
-        myargs[i].update_history_buffer = toku_xmalloc(n * (sizeof myargs[i].update_history_buffer[0]));
-        memset(myargs[i].update_history_buffer, 0, n * (sizeof myargs[i].update_history_buffer[0]));
+        int* update_history_buffer = toku_xmalloc(n * (sizeof uoe[i-4].update_history_buffer[0]));
+        uoe[i-4] = get_update_op_args(cli_args,update_history_buffer);
+        memset(uoe[i-4].update_history_buffer, 0, n * (sizeof uoe[i-4].update_history_buffer[0]));
         myargs[i].operation = update_with_history_op;
     }
 
@@ -80,16 +92,16 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
         myargs[i].operation = ptquery_op;
     }
 
-    run_workers(myargs, num_threads, cli_args->time_of_test, false);
+    run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
 
-    for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
-        toku_free(myargs[i].update_history_buffer);
+    for (int i = 0; i < cli_args->num_update_threads; ++i) {
+        toku_free(uoe[i].update_history_buffer);
     }
 }
 
 int
 test_main(int argc, char *const argv[]) {
-    struct cli_args args = DEFAULT_ARGS;
+    struct cli_args args = get_default_args();
     parse_stress_test_args(argc, argv, &args);
     stress_test_main(&args);
     return 0;

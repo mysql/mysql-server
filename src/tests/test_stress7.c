@@ -29,21 +29,30 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     for (int i = 0; i < num_threads; i++) {
         arg_init(&myargs[i], n, dbp, env, cli_args);
     }
+    struct scan_op_extra soe[2];
+
     // make the forward fast scanner
-    myargs[0].fast = TRUE;
-    myargs[0].fwd = TRUE;
+    soe[0].fast = TRUE;
+    soe[0].fwd = TRUE;
+    soe[0].prefetch = FALSE;
+    myargs[0].operation_extra = &soe[0];
     myargs[0].operation = scan_op;
 
-    // make the backward slow scanner
-    myargs[1].fast = FALSE;
-    myargs[1].fwd = FALSE;
+    // make the forward slow scanner
+    soe[1].fast = FALSE;
+    soe[1].fwd = TRUE;
+    soe[1].prefetch = FALSE;
+    myargs[1].operation_extra = &soe[1];
     myargs[1].operation = scan_op;
 
     // make the guy that runs HOT in the background
     myargs[2].operation = hot_op;
     myargs[3].operation = keyrange_op;
 
+    struct update_op_args uoe = get_update_op_args(cli_args, NULL);
+    // make the guy that updates the db
     for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
+        myargs[i].operation_extra = &uoe;
         myargs[i].operation = update_op;
     }
 
@@ -51,14 +60,14 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     for (int i = 4 + cli_args->num_update_threads; i < num_threads; i++) {
         myargs[i].operation = ptquery_op;
     }
-    run_workers(myargs, num_threads, cli_args->time_of_test, false);
+    run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
 }
 
 int
 test_main(int argc, char *const argv[]) {
-    struct cli_args args = DEFAULT_ARGS;
+    struct cli_args args = get_default_args();
     // let's make default checkpointing period really slow
-    args.checkpointing_period = 1;
+    args.env_args.checkpointing_period = 1;
     parse_stress_test_args(argc, argv, &args);
     stress_test_main(&args);
     return 0;

@@ -63,21 +63,23 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     }
 
     // make the guy that updates the db
+    struct update_op_args uoe = get_update_op_args(cli_args, NULL);
+    myargs[0].operation_extra = &uoe;
     myargs[0].operation = update_op;
     //myargs[0].update_pad_frequency = 0;
 
     db_env_set_flusher_thread_callback(ft_callback, env);
-    run_workers(myargs, num_threads, cli_args->time_of_test, true);
+    run_workers(myargs, num_threads, cli_args->time_of_test, true, cli_args);
 }
 
 static int
 run_recover_ft_test(int argc, char *const argv[]) {
-    struct cli_args args = DEFAULT_ARGS;
+    struct cli_args args = get_default_args();
     // make test time arbitrarily high because we expect a crash
     args.time_of_test = 1000000000;
     args.num_elements = 2000;
     // we want to induce a checkpoint
-    args.checkpointing_period = 0;
+    args.env_args.checkpointing_period = 0;
     parse_stress_test_args(argc, argv, &args);
     if (args.do_test_and_crash) {
         stress_test_main(&args);
