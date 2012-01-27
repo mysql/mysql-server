@@ -54,10 +54,11 @@ test_fifo_enq (int n) {
             r = xids_create_child(xids_get_root_xids(), &xids, (TXNID)i);
             assert(r==0);
         }
-	MSN msn = next_dummymsn();
-	if (startmsn.msn == ZERO_MSN.msn)
-	  startmsn = msn;
-        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, msn, xids, true, NULL); assert(r == 0);
+        MSN msn = next_dummymsn();
+        if (startmsn.msn == ZERO_MSN.msn)
+            startmsn = msn;
+        enum brt_msg_type type = (enum brt_msg_type) i;
+        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, type, msn, xids, true, NULL); assert(r == 0);
         xids_destroy(&xids);
     }
 
