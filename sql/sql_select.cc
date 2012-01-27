@@ -1238,7 +1238,7 @@ bool JOIN::get_best_combination()
      - Loose scan semi-join strategy is selected (use JT_ALL)
      - A ref key can be used (use JT_REF, JT_REF_OR_NULL, JT_EQ_REF or JT_FT)
 
-  @note that we cannot setup fields used for ref access before we have sorted
+  @note We cannot setup fields used for ref access before we have sorted
         the items within multiple equalities according to the final order of
         the tables involved in the join operation. Currently, this occurs in
         @see substitute_for_best_equal_field().
@@ -1361,7 +1361,7 @@ void JOIN::set_semijoin_info()
     This function will set up a ref access using the best key found
     during access path analysis and cost analysis.
 
-  @note that we cannot setup fields used for ref access before we have sorted
+  @note We cannot setup fields used for ref access before we have sorted
         the items within multiple equalities according to the final order of
         the tables involved in the join operation. Currently, this occurs in
         @see substitute_for_best_equal_field().
