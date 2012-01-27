@@ -337,7 +337,7 @@ public:
   uchar **alloc_sort_buffer(uint num_records, uint record_length)
   { return filesort_buffer.alloc_sort_buffer(num_records, record_length); }
 
-  std::pair<uint, uint> sort_buffer_properties()
+  std::pair<uint, uint> sort_buffer_properties() const
   { return filesort_buffer.sort_buffer_properties(); }
 
   void free_sort_buffer()
@@ -1086,12 +1086,10 @@ public:
   uint          lock_count;             /* Number of locks */
   uint		tablenr,used_fields;
   uint          temp_pool_slot;		/* Used by intern temp tables */
-  uint		status;                 /* What's in record[0] */
   uint		db_stat;		/* mode of file as in handler.h */
   /* number of select if it is derived table */
   uint          derived_select_number;
   int		current_lock;           /* Type of lock on table */
-  my_bool copy_blobs;			/* copy_blobs when storing */
 
   /*
     0 or JOIN_TYPE_{LEFT|RIGHT}. Currently this is only compared to 0.
@@ -1104,6 +1102,9 @@ public:
     NULL, including columns declared as "not null" (see maybe_null).
   */
   my_bool null_row;
+
+  uint8   status;                       /* What's in record[0] */
+  my_bool copy_blobs;                   /* copy_blobs when storing */
 
   /*
     TODO: Each of the following flags take up 8 bits. They can just as easily
