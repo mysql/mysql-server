@@ -72,6 +72,16 @@ include/wait_for_slave_to_stop.inc
 include/start_slave.inc
 # Clean up
 DROP TABLE t1;
+RESET MASTER;
+include/stop_slave.inc
+CHANGE MASTER TO master_log_pos=MASTER_POS;
+START SLAVE;
+include/wait_for_slave_param.inc [Last_IO_Errno]
+Last_IO_Errno = '1236'
+Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Client requested master to start replication from impossible position; the first event 'master-bin.000001' at XXX, the last event read from './master-bin.000001' at XXX, the last byte read from './master-bin.000001' at XXX.''
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;

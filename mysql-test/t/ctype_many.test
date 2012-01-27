@@ -319,3 +319,15 @@ DROP TABLE t2;
 --echo #
 --echo # End of 5.5 tests
 --echo #
+
+--echo #
+--echo # Bug#11766143 59185: ASSERTION FAILED: (FIXED == 1), FILE
+--echo # ITEM_STRFUNC.CC, LINE 2760
+--echo #
+CREATE TABLE t1 (a CHAR(1) CHARSET UTF8);
+INSERT INTO t1 VALUES ('a'), ('b');
+CREATE TABLE t2 (a BINARY(1));
+--error ER_SUBQUERY_NO_1_ROW
+SELECT * FROM t2 WHERE a=(SELECT a FROM t1) AND a=_LATIN1'x';
+DROP TABLE t2;
+DROP TABLE t1;

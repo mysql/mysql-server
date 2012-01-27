@@ -69,3 +69,27 @@ SELECT COUNT(@@SESSION.innodb_undo_logs);
 
 --Error ER_BAD_FIELD_ERROR
 SELECT innodb_undo_logs = @@SESSION.innodb_undo_logs;
+
+# Begin Bug 13604034
+# SET GLOBAL INNODB_UNDO_LOGS=0 SUCCEEDS BUT LEADS TO AN ASSERT
+# MAX_UNDO_LOGS > 0
+--echo Begin bug 13604034
+select @@innodb_undo_logs;
+--echo 128 Expected
+set global innodb_undo_logs = 129;
+select @@innodb_undo_logs;
+--echo 128 Expected
+set global innodb_undo_logs = 0;
+select @@innodb_undo_logs;
+--echo 1 Expected
+set global innodb_undo_logs = -1;
+select @@innodb_undo_logs;
+--echo 1 Expected
+set global innodb_undo_logs = 50;
+select @@innodb_undo_logs;
+--echo 50 Expected
+set global innodb_undo_logs = default;
+select @@innodb_undo_logs;
+--echo 128 Expected
+--echo End bug 13604034
+# End Bug 13604034

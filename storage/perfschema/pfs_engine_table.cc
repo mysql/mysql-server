@@ -70,6 +70,7 @@
 
 /* For show status */
 #include "pfs_column_values.h"
+#include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
@@ -444,6 +445,19 @@ void PFS_engine_table::get_position(void *ref)
 void PFS_engine_table::set_position(const void *ref)
 {
   memcpy(m_pos_ptr, ref, m_share_ptr->m_ref_length);
+}
+
+/**
+  Get the timer normalizer and class type for the current row.
+  @param [in] instr_class    class
+*/
+void PFS_engine_table::get_normalizer(PFS_instr_class *instr_class)
+{
+  if (instr_class->m_type != m_class_type)
+  {
+    m_normalizer= time_normalizer::get(*instr_class->m_timer);
+    m_class_type= instr_class->m_type;
+  }
 }
 
 void PFS_engine_table::set_field_ulong(Field *f, ulong value)

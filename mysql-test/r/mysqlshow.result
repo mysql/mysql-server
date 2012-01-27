@@ -208,4 +208,20 @@ Database: test
 | Tables |
 +--------+
 +--------+
-End of 5.0 tests
+#
+# Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+#
+DROP DATABASE IF EXISTS b12688860_db;
+CREATE DATABASE b12688860_db;
+CREATE TABLE b12688860_db.b12688860_tab (c1 INT);
+Warning: Using a password on the command line interface can be insecure.
+Database: b12688860_db
++---------------+
+|    Tables     |
++---------------+
+| b12688860_tab |
++---------------+
+DROP TABLE b12688860_db.b12688860_tab;
+DROP DATABASE b12688860_db;
+
+End of tests

@@ -424,6 +424,12 @@ JOIN::optimize()
   if (conds)
   {
     conds= substitute_for_best_equal_field(conds, cond_equal, map2table);
+    if (thd->is_error())
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from substitute_for_best_equal"));
+      DBUG_RETURN(1);
+    }
     conds->update_used_tables();
     DBUG_EXECUTE("where",
                  print_where(conds,
@@ -442,6 +448,12 @@ JOIN::optimize()
       *tab->on_expr_ref= substitute_for_best_equal_field(*tab->on_expr_ref,
                                                          tab->cond_equal,
                                                          map2table);
+      if (thd->is_error())
+      {
+        error= 1;
+        DBUG_PRINT("error",("Error from substitute_for_best_equal"));
+        DBUG_RETURN(1);
+      }
       (*tab->on_expr_ref)->update_used_tables();
     }
   }
@@ -1183,9 +1195,9 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
         if (!item)
         {
           Item_func_eq *eq_item;
-          if ((eq_item= new Item_func_eq(left_item, right_item)))
+          if (!(eq_item= new Item_func_eq(left_item, right_item)) ||
+              eq_item->set_cmp_func())
             return FALSE;
-          eq_item->set_cmp_func();
           eq_item->quick_fix_field();
           item= eq_item;
         }  
@@ -1276,9 +1288,9 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
     if (!is_converted)
     {
       Item_func_eq *eq_item;
-      if (!(eq_item= new Item_func_eq(left_item, right_item)))
+      if (!(eq_item= new Item_func_eq(left_item, right_item)) ||
+          eq_item->set_cmp_func())
         return FALSE;
-      eq_item->set_cmp_func();
       eq_item->quick_fix_field();
       eq_list->push_back(eq_item);
     }
@@ -1852,10 +1864,8 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
         head= item_equal->get_first();
 
       eq_item= new Item_func_eq(item_field, head);
-      if (!eq_item)
+      if (!eq_item || eq_item->set_cmp_func())
         return NULL;
-
-      eq_item->set_cmp_func();
       eq_item->quick_fix_field();
     }
   }
@@ -1911,7 +1921,7 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
     the order in them to comply with the order of upper levels.
 
   @return
-    The transformed condition
+    The transformed condition, or NULL in case of error
 */
 
 static Item* substitute_for_best_equal_field(Item *cond,
@@ -1958,6 +1968,8 @@ static Item* substitute_for_best_equal_field(Item *cond,
       while ((item_equal= it++))
       {
         cond= eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
+        if (cond == NULL)
+          return NULL;
         // This occurs when eliminate_item_equal() founds that cond is
         // always false and substitutes it with Item_int 0.
         // Due to this, value of item_equal will be 0, so just return it.
@@ -3012,9 +3024,21 @@ const_table_extraction_done:
 	// All dep. must be constants
         if (s->dependent & ~(join->const_table_map))
 	  continue;
-	if (table->file->stats.records <= 1L &&
-	    (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
-            !tl->in_outer_join_nest())
+        /*
+          Mark a dependent table as constant if
+           1. it has exactly zero or one rows (it is a system table), and
+           2. it is not within a nested outer join, and
+           3. it does not have an expensive join condition.
+              This is because we have to determine whether an outer-joined table
+              has a real row or a null-extended row in the optimizer phase.
+              We have no possibility to evaluate its join condition at
+              execution time, when it is marked as a system table.
+              DontEvaluateMaterializedSubqueryTooEarly
+        */
+	if (table->file->stats.records <= 1L &&                            // 1
+            (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) && // 1
+            !tl->in_outer_join_nest() &&                                   // 2
+            !(*s->on_expr_ref && (*s->on_expr_ref)->is_expensive()))       // 3
 	{					// system table
 	  int tmp= 0;
 	  s->type=JT_SYSTEM;
@@ -3947,7 +3971,7 @@ static bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
           keyuse++;
         } while (keyuse->key == key && keyuse->table == table);
 
-        if (bound_parts == PREV_BITS(uint, keyinfo->key_parts))
+        if (bound_parts == LOWER_BITS(uint, keyinfo->key_parts))
           return TRUE;
         if (keyuse->table != table)
           return FALSE;

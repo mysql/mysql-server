@@ -501,7 +501,16 @@ SHOW TABLES IN connected_db;
 Tables_in_connected_db
 table_in_connected_db
 DROP DATABASE connected_db;
-
-End of tests
 Connected
 1
+#
+# Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+#
+Warning: Using a password on the command line interface can be insecure.
+1
+1
+Warning: Using a password on the command line interface can be insecure.
+1
+1
+
+End of tests

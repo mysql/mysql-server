@@ -5924,6 +5924,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
       query_cache_abort(&thd->query_cache_tls);
     }
     THD_STAGE_INFO(thd, stage_freeing_items);
+    sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
+    sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
     thd->end_statement();
     thd->cleanup_after_query();
     DBUG_ASSERT(thd->change_list.is_empty());
@@ -6105,7 +6107,7 @@ add_proc_to_list(THD* thd, Item *item)
   item_ptr = (Item**) (order+1);
   *item_ptr= item;
   order->item=item_ptr;
-  order->free_me=0;
+  order->used_alias= false;
   thd->lex->proc_list.link_in_list(order, &order->next);
   return 0;
 }
@@ -6124,7 +6126,7 @@ bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *item,bool asc)
   order->item_ptr= item;
   order->item= &order->item_ptr;
   order->direction= (asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC);
-  order->free_me=0;
+  order->used_alias= false;
   order->used=0;
   order->counter_used= 0;
   list.link_in_list(order, &order->next);

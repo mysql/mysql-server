@@ -826,6 +826,16 @@
 }
 
 {
+   missing shutdown_performance_schema 11
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:init_dynamic_array2
+   fun:_Z11mysqld_mainiPPc
+   fun:(below main)
+}
+
+{
    Bug 59874 Valgrind warning in InnoDB compression code
    Memcheck:Cond
    fun:*

@@ -217,6 +217,7 @@ extern const char *gtid_mode_names[];
 extern TYPELIB gtid_mode_typelib;
 
 extern ulong thread_cache_size;
+extern ulong stored_program_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
 extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
