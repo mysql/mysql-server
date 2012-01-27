@@ -1,0 +1,71 @@
+SET @start_global_value = @@global.eq_range_index_dive_limit;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@global.eq_range_index_dive_limit;
+select @@session.eq_range_index_dive_limit;
+show global variables like 'eq_range_index_dive_limit';
+show session variables like 'eq_range_index_dive_limit';
+
+select * 
+from information_schema.global_variables 
+where variable_name='eq_range_index_dive_limit';
+
+select * 
+from information_schema.session_variables 
+where variable_name='eq_range_index_dive_limit';
+
+#
+# show that it's writable
+#
+set global eq_range_index_dive_limit=10;
+select @@global.eq_range_index_dive_limit;
+set session eq_range_index_dive_limit=10;
+select @@session.eq_range_index_dive_limit;
+
+set global eq_range_index_dive_limit=0;
+select @@global.eq_range_index_dive_limit;
+set session eq_range_index_dive_limit=0;
+select @@session.eq_range_index_dive_limit;
+
+set global eq_range_index_dive_limit=4294967295;
+select @@global.eq_range_index_dive_limit;
+set session eq_range_index_dive_limit=4294967295;
+select @@session.eq_range_index_dive_limit;
+
+set session eq_range_index_dive_limit=default;
+select @@session.eq_range_index_dive_limit;
+set global eq_range_index_dive_limit=default;
+select @@global.eq_range_index_dive_limit;
+set session eq_range_index_dive_limit=default;
+select @@session.eq_range_index_dive_limit;
+
+#
+# Incorrect assignments
+#
+
+# Allowed value range: (0, UINT_MAX32)
+# Value lower than allowed range
+set global eq_range_index_dive_limit=-1;
+select @@global.eq_range_index_dive_limit;
+set session eq_range_index_dive_limit=-1;
+select @@session.eq_range_index_dive_limit;
+
+# Value higher than allowed range
+set global eq_range_index_dive_limit=4294967296;
+select @@global.eq_range_index_dive_limit;
+set session eq_range_index_dive_limit=4294967296;
+select @@session.eq_range_index_dive_limit;
+
+# Incompatible value types
+--error ER_WRONG_TYPE_FOR_VAR
+set global eq_range_index_dive_limit=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global eq_range_index_dive_limit=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global eq_range_index_dive_limit="foobar";
+
+SET @@global.eq_range_index_dive_limit = @start_global_value;
+SELECT @@global.eq_range_index_dive_limit;

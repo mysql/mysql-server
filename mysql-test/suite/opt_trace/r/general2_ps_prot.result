@@ -2675,7 +2675,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
 2	DEPENDENT SUBQUERY	t1	index	a	a	5	NULL	10	Using where; Using index
 2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.a	1	Using index
-2	DEPENDENT SUBQUERY	t3	ref	a	a	5	test.t2.a	1	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	ref	a	a	5	test.t1.a	1	Using index
 select * from information_schema.optimizer_trace;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain select * 
@@ -3324,7 +3324,7 @@ from t0 where a in
                       {
                         "database": "test",
                         "table": "t3",
-                        "attached": "(`test`.`t3`.`a` = `test`.`t1`.`a`)"
+                        "attached": null
                       }
                     ] /* attached_conditions_summary */
                   } /* attaching_conditions_to_tables */

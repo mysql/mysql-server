@@ -292,8 +292,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
             table_sort.sort_buffer_properties())
         {
           /*
-           table->sort will still have a pointer to the same buffer,
-           but that will be overwritten by the assignment below.
+            table->sort will still have a pointer to the same buffer,
+            but that will be overwritten by the assignment below.
           */
           table_sort.free_sort_buffer();
         }
