@@ -272,6 +272,7 @@ drop table t1;
 --echo # Test of MRR handler counters
 --echo #
 flush status;
+--sorted_result
 show status like 'Handler_mrr%';
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -283,6 +284,7 @@ explain select sum(b) from t1 where a < 10;
 --echo # This should show one MRR scan and no re-fills:
 flush status;
 select sum(b) from t1 where a < 10;
+--sorted_result
 show status like 'handler_mrr%';
 
 set @mrr_buffer_size_save= @@mrr_buffer_size;
@@ -294,6 +296,7 @@ explain select sum(b) from t1 where a < 1600;
 --echo # This should show one MRR scan and one extra rowid sort:
 flush status;
 select sum(b) from t1 where a < 1600;
+--sorted_result
 show status like 'handler_mrr%';
 set @@mrr_buffer_size= @mrr_buffer_size_save;
 
@@ -305,6 +308,7 @@ set join_cache_level=6;
 explain select sum(t1.b) from t0,t1 where t0.a=t1.a;
 flush status;
 select sum(t1.b) from t0,t1 where t0.a=t1.a;
+--sorted_result
 show status like 'handler_mrr%';
 
 --disable_warnings
@@ -313,6 +317,7 @@ set join_buffer_size=10;
 explain select sum(t1.b) from t0,t1 where t0.a=t1.a;
 flush status;
 select sum(t1.b) from t0,t1 where t0.a=t1.a;
+--sorted_result
 --replace_result 1 1or2 2 1or2
 show status like 'handler_mrr%';
 
