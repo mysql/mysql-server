@@ -4604,12 +4604,13 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
            because the number of rows with this value are likely to be 
            very different than the values in the index statistics.
     */
-    const int keyparts_used= my_count_bits(range.start_key.keypart_map);
+    int keyparts_used= 0;
     if ((range.range_flag & UNIQUE_RANGE) &&                        // 1)
         !(range.range_flag & NULL_RANGE))
       rows= 1; /* there can be at most one row */
     else if ((range.range_flag & EQ_RANGE) &&                       // 2a)
              (range.range_flag & USE_INDEX_STATISTICS) &&           // 2b)
+             (keyparts_used= my_count_bits(range.start_key.keypart_map)) &&
              table->key_info[keyno].rec_per_key[keyparts_used-1] && // 2c)
              !(range.range_flag & NULL_RANGE))
       rows= table->key_info[keyno].rec_per_key[keyparts_used-1];
