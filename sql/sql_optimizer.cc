@@ -265,13 +265,11 @@ JOIN::optimize()
                This also excludes semi-joins.  Is that intentional?)
         This will try to prune non-static conditions, which can
         be used after the tables are locked.
-        TODO: See if possible to cache things done in the previous call
-        (in JOIN::prepare).
       */
       if (!tbl->embedding)
       {
         Item *prune_cond= tbl->join_cond()? tbl->join_cond() : conds;
-        if (prune_partitions(thd, tbl->table, prune_cond,
+        if (prune_partitions(thd, tbl->table, prune_cond, false,
             &tbl->table->no_partitions_used))
         {
           error= 1;

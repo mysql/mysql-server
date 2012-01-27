@@ -159,6 +159,8 @@ private:
   enum_monotonicity_info m_part_func_monotonicity_info;
   /** keep track of locked partitions */
   MY_BITMAP m_locked_partitions;
+  /** keep track of started partitions */
+  MY_BITMAP m_started_partitions;
 public:
   handler *clone(const char *name, MEM_ROOT *mem_root);
   virtual void set_part_info(partition_info *part_info, bool early)
@@ -267,6 +269,8 @@ private:
   bool insert_partition_name_in_hash(const char *name, uint part_id,
                                      bool is_subpart);
   bool populate_partition_name_hash();
+  bool init_partition_bitmaps();
+  void free_partition_bitmaps();
 
 public:
 
@@ -284,8 +288,6 @@ public:
     If the object was opened it will also be closed before being deleted.
   */
   virtual int open(const char *name, int mode, uint test_if_locked);
-  virtual void unbind_psi();
-  virtual void rebind_psi();
   virtual int close(void);
 
   /*
@@ -327,6 +329,18 @@ public:
   */
   virtual void try_semi_consistent_read(bool);
 
+  /*
+    NOTE: due to performance and resource issues with many partitions,
+    we only use the m_psi on the ha_partition handler, excluding all
+    partitions m_psi.
+  */
+#ifdef HAVE_M_PSI_PER_PARTITION
+  /*
+    Bind the table/handler thread to track table i/o.
+  */
+  virtual void unbind_psi();
+  virtual void rebind_psi();
+#endif
   /*
     -------------------------------------------------------------------------
     MODULE change record

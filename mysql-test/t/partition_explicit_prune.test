@@ -159,7 +159,7 @@ eval $get_handler_status_counts;
 --echo # + 18 write (internal I_S)
 SELECT * FROM t1 WHERE a = 1000000;
 eval $get_handler_status_counts;
---echo # No matching partition, only + 1 commit + internal I_S.
+--echo # No matching partition, only internal I_S.
 SELECT * FROM t1 PARTITION (pNeg) WHERE a = 100;
 UNLOCK TABLES;
 eval $get_handler_status_counts;

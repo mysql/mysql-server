@@ -985,7 +985,7 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond,
-                      bool *no_parts_used);
+                      bool is_prepare, bool *no_parts_used);
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);
 #endif
 

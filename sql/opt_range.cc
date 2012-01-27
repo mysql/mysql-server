@@ -3052,7 +3052,7 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
 */
 
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond,
-                      bool *no_parts_used)
+                      bool is_prepare, bool *no_parts_used)
 {
   partition_info *part_info = table->part_info;
   DBUG_ENTER("prune_partitions");
@@ -3067,6 +3067,24 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond,
     DBUG_RETURN(FALSE);
   }
   
+  /*
+    If only constant items and no subqueries are used, it is no use of running
+    prune_partitions() twice on the same statement.
+    It is cheeper to run in the JOIN::optimize than in the JOIN::prepare
+    step since in the optimize step there are already cached items.
+    But there are greater gains if done before before the optimize step,
+    since this can also prune away calls to store_lock, external_lock and
+    start_stmt.
+
+    So if we are in the optimize step and have only constant items
+    and no subqueries, simply return. Since it will not be able to prune
+    anything more than the previous call from the prepare step.
+  */
+  if (!is_prepare &&
+      pprune_cond->const_item() && 
+      !pprune_cond->has_subquery())
+    DBUG_RETURN(FALSE);
+
   PART_PRUNE_PARAM prune_param;
   MEM_ROOT alloc;
   RANGE_OPT_PARAM  *range_par= &prune_param.range_param;

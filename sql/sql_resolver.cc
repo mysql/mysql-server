@@ -377,7 +377,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
         lock pruning.
       */
       Item *prune_cond= tbl->join_cond() ? tbl->join_cond() : conds;
-      if (prune_partitions(thd, tbl->table, prune_cond,
+      if (prune_partitions(thd, tbl->table, prune_cond, true,
                            &tbl->table->no_partitions_used))
         goto err;
     }
