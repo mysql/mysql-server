@@ -382,7 +382,7 @@ struct update_op_args {
     int update_pad_frequency;
 };
 
-static struct update_op_args get_update_op_args(struct cli_args* cli_args, int* update_history_buffer) {    
+static struct update_op_args UU() get_update_op_args(struct cli_args* cli_args, int* update_history_buffer) {    
     struct update_op_args uoe;
     uoe.update_history_buffer = update_history_buffer;
     uoe.update_pad_frequency = cli_args->num_elements/100; // arbitrary
@@ -938,6 +938,17 @@ static const struct env_args DEFAULT_ENV_ARGS = {
     .update_function = update_op_callback,
 };
 
+static const struct env_args DEFAULT_PERF_ENV_ARGS = {
+    .node_size = 4*1024*1024,
+    .basement_node_size = 128*1024,
+    .checkpointing_period = 60,
+    .cleaner_period = 1,
+    .cleaner_iterations = 5,
+    .cachetable_size = 1<<30,
+    .envdir = ENVDIR,
+    .update_function = NULL,
+};
+
 #define MIN_VAL_SIZE sizeof(int)
 #define MIN_KEY_SIZE sizeof(int)
 static struct cli_args get_default_args(void) {
@@ -962,6 +973,14 @@ static struct cli_args get_default_args(void) {
         .env_args = DEFAULT_ENV_ARGS,
         };
     return DEFAULT_ARGS;
+}
+
+static struct cli_args get_default_args_for_perf(void) {
+    struct cli_args args = get_default_args();
+    args.num_elements = 1000000; //default of 1M
+    args.print_performance = true;
+    args.env_args = DEFAULT_PERF_ENV_ARGS;
+    return args;
 }
 
 static inline void parse_stress_test_args (int argc, char *const argv[], struct cli_args *args) {
