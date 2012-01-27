@@ -158,10 +158,6 @@ void threadpool_remove_connection(THD *thd)
   end_connection(thd);
   close_connection(thd, 0);
 
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->event_scheduler.data= NULL;
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
-
   unlink_thd(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
   mysql_cond_broadcast(&COND_thread_count);

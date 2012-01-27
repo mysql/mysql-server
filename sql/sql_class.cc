@@ -1630,7 +1630,7 @@ void THD::disconnect()
 
   /* Disconnect even if a active vio is not associated. */
   if (net.vio != vio)
-     vio_close(net.vio);
+    vio_close(net.vio);
 
   mysql_mutex_unlock(&LOCK_thd_data);
 }

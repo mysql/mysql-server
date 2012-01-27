@@ -652,12 +652,10 @@ static void CALLBACK shm_read_callback(PTP_CALLBACK_INSTANCE instance,
 */
 void tp_add_connection(THD *thd)
 {
-  connection_t *con = (connection_t *)malloc(sizeof(connection_t));
-
-  if (con)
-    threads.append(thd);
+  threads.append(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
 
+  connection_t *con = (connection_t *)malloc(sizeof(connection_t));
   if(!con)
   {
     tp_log_warning("Allocation failed", "tp_add_connection");
@@ -667,6 +665,8 @@ void tp_add_connection(THD *thd)
 
   init_connection(con);
   con->thd= thd;
+  thd->event_scheduler.data= con;
+
   /* Try to login asynchronously, using threads in the pool */
   PTP_WORK wrk =  CreateThreadpoolWork(login_callback,con, &con->callback_environ);
   if (wrk)
@@ -721,3 +721,4 @@ int tp_get_idle_thread_count()
 {
   return 0;
 }
+

@@ -1823,11 +1823,7 @@ static Sys_var_enum Sys_thread_handling(
 #endif
        , READ_ONLY GLOBAL_VAR(thread_handling), CMD_LINE(REQUIRED_ARG),
        thread_handling_names, 
-#ifdef HAVE_POOL_OF_THREADS
-       DEFAULT(2)
-#else
        DEFAULT(0)
-#endif
  );
 
 #ifdef HAVE_QUERY_CACHE
