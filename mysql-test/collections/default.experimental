@@ -32,8 +32,6 @@ sys_vars.max_sp_recursion_depth_func @solaris # Bug#11753919 2010-01-20 alik Sev
 sys_vars.ndb_log_update_as_write_basic
 sys_vars.have_ndbcluster_basic
 sys_vars.ndb_log_updated_only_basic
-sys_vars.query_cache_size_basic_64       # Bug#11748572 - 36747: ALLOCATING A LARGE QUERY CACHE IS NOT DETERMINISTIC
-sys_vars.query_cache_size_basic_32       # Bug#11748572 - 36747: ALLOCATING A LARGE QUERY CACHE IS NOT DETERMINISTIC
 sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
 
 rpl.rpl_mixed_mts_rec_crash_safe @solaris          # Bug#12902514 2011-08-19 andrei mts recovery tests are slow

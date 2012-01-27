@@ -42,7 +42,7 @@ typedef struct tab_node_struct		tab_node_t;
 
 /* The ibuf table and indexes's ID are assigned as the number
 DICT_IBUF_ID_MIN plus the space id */
-#define DICT_IBUF_ID_MIN        0xFFFFFFFF00000000ULL
+#define DICT_IBUF_ID_MIN	0xFFFFFFFF00000000ULL
 
 typedef ib_id_t		table_id_t;
 typedef ib_id_t		index_id_t;
@@ -53,11 +53,11 @@ be responsible to deal with corrupted table or index.
 Note: please define the IGNORE_ERR_* as bits, so their value can
 be or-ed together */
 enum dict_err_ignore {
-        DICT_ERR_IGNORE_NONE = 0,        /*!< no error to ignore */
-        DICT_ERR_IGNORE_INDEX_ROOT = 1, /*!< ignore error if index root
+	DICT_ERR_IGNORE_NONE = 0,	/*!< no error to ignore */
+	DICT_ERR_IGNORE_INDEX_ROOT = 1,	/*!< ignore error if index root
 					page is FIL_NULL or incorrect value */
 	DICT_ERR_IGNORE_CORRUPT = 2,	/*!< skip corrupted indexes */
-        DICT_ERR_IGNORE_ALL = 0xFFFF	/*!< ignore all errors */
+	DICT_ERR_IGNORE_ALL = 0xFFFF	/*!< ignore all errors */
 };
 
 typedef enum dict_err_ignore		dict_err_ignore_t;

@@ -1456,20 +1456,7 @@ bool Item_func_unix_timestamp::val_timeval(struct timeval *tm)
     return false; // no args: null_value is set in constructor and is always 0.
   }
   int warnings= 0;
-  if (args[0]->get_timeval(tm, &warnings)) // Don't set null_value here
-  {
-    /*
-      We set null_value only if args[0]->get_date() invoked
-      inside args[0]->get_timeval() returned null,
-      which is indicated by "warnings == 0".
-      In case of wrong non-null datetime parameter we return 0.
-      "warnings" will not be equal to 0 in this case.
-    */
-    if (warnings == 0)
-      return (null_value= true);
-    tm->tv_sec= tm->tv_usec= 0;
-  }
-  return (null_value= false);
+  return (null_value= args[0]->get_timeval(tm, &warnings));
 }
 
 
@@ -3441,19 +3428,25 @@ null_date:
 
 bool Item_func_last_day::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
-  if (get_arg0_date(ltime, fuzzy_date & ~TIME_FUZZY_DATE) ||
-      (ltime->month == 0))
+  if ((null_value= get_arg0_date(ltime, fuzzy_date)))
+    return true;
+
+  if (ltime->month == 0)
   {
-    null_value= 1;
-    return 1;
+    /*
+      Cannot calculate last day for zero month.
+      Let's print a warning and return NULL.
+    */
+    ltime->time_type= MYSQL_TIMESTAMP_DATE;
+    ErrConvString str(ltime, 0);
+    make_truncated_value_warning(ErrConvString(str), MYSQL_TIMESTAMP_ERROR);
+    return (null_value= true);
   }
-  null_value= 0;
-  uint month_idx= ltime->month-1;
+
+  uint month_idx= ltime->month - 1;
   ltime->day= days_in_month[month_idx];
-  if ( month_idx == 1 && calc_days_in_year(ltime->year) == 366)
+  if (month_idx == 1 && calc_days_in_year(ltime->year) == 366)
     ltime->day= 29;
-  ltime->hour= ltime->minute= ltime->second= 0;
-  ltime->second_part= 0;
-  ltime->time_type= MYSQL_TIMESTAMP_DATE;
-  return 0;
+  datetime_to_date(ltime);
+  return false;
 }

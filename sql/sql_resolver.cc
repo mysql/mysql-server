@@ -1036,6 +1036,8 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
       */
       order->item= &ref_pointer_array[counter];
       order->in_field_list=1;
+      if (resolution == RESOLVED_AGAINST_ALIAS)
+        order->used_alias= true;
       return FALSE;
     }
     else

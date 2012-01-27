@@ -3797,7 +3797,6 @@ static Sys_var_charptr Sys_ignore_db_dirs(
        NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
 
-
 static bool check_disable_gtid_unsafe_statements(
   sys_var *self, THD *thd, set_var *var)
 {
@@ -3829,6 +3828,12 @@ static Sys_var_mybool Sys_disable_gtid_unsafe_statements(
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_disable_gtid_unsafe_statements));
 
+static Sys_var_ulong Sys_sp_cache_size(
+       "stored_program_cache",
+       "The soft upper limit for number of cached stored routines for "
+       "one connection.",
+       GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(256, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
 #ifdef HAVE_REPLICATION
 

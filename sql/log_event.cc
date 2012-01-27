@@ -4065,7 +4065,8 @@ void Query_log_event::print_query_header(IO_CACHE* file,
       (unlikely(!print_event_info->charset_inited ||
                 memcmp(print_event_info->charset, charset, 6))))
   {
-    CHARSET_INFO *cs_info= get_charset(uint2korr(charset), MYF(MY_WME));
+    char *charset_p= charset; // Avoid type-punning warning.
+    CHARSET_INFO *cs_info= get_charset(uint2korr(charset_p), MYF(MY_WME));
     if (cs_info)
     {
       /* for mysql client */
@@ -4077,7 +4078,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                 "@@session.collation_connection=%d,"
                 "@@session.collation_server=%d"
                 "%s\n",
-                uint2korr(charset),
+                uint2korr(charset_p),
                 uint2korr(charset+2),
                 uint2korr(charset+4),
                 print_event_info->delimiter);
@@ -4359,9 +4360,10 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       {
         if (rli->cached_charset_compare(charset))
         {
+          char *charset_p= charset; // Avoid type-punning warning.
           /* Verify that we support the charsets found in the event. */
           if (!(thd->variables.character_set_client=
-                get_charset(uint2korr(charset), MYF(MY_WME))) ||
+                get_charset(uint2korr(charset_p), MYF(MY_WME))) ||
               !(thd->variables.collation_connection=
                 get_charset(uint2korr(charset+2), MYF(MY_WME))) ||
               !(thd->variables.collation_server=

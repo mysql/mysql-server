@@ -1479,8 +1479,8 @@ static void destroy_cond_v1(PSI_cond* cond)
 static PSI_table_share*
 get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
 {
-  /* Ignore temporary tables. */
-  if (temporary)
+  /* Ignore temporary tables and views. */
+  if (temporary || share->is_view)
     return NULL;
   /* An instrumented thread is required, for LF_PINS. */
   PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);

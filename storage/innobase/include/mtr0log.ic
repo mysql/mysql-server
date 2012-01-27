@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -217,6 +217,7 @@ mlog_write_initial_log_record_fast(
 				"Please post a bug report to "
 				"bugs.mysql.com.\n",
 				type, offset, space);
+			ut_ad(0);
 		}
 	}
 

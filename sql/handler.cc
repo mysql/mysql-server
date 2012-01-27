@@ -4614,7 +4614,9 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   if (total_rows != HA_POS_ERROR)
   {
     /* The following calculation is the same as in multi_range_read_info(): */
-    *flags |= HA_MRR_USE_DEFAULT_IMPL;
+    *flags|= HA_MRR_USE_DEFAULT_IMPL;
+    *flags|= HA_MRR_SUPPORT_SORTED;
+
     DBUG_ASSERT(cost->is_zero());
     if ((*flags & HA_MRR_INDEX_ONLY) && total_rows > 2)
       cost->add_io(index_only_read_time(keyno, total_rows) *
@@ -4668,7 +4670,8 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 {
   *bufsz= 0; /* Default implementation doesn't need a buffer */
 
-  *flags |= HA_MRR_USE_DEFAULT_IMPL;
+  *flags|= HA_MRR_USE_DEFAULT_IMPL;
+  *flags|= HA_MRR_SUPPORT_SORTED;
 
   DBUG_ASSERT(cost->is_zero());
 
@@ -4832,13 +4835,15 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   handler *new_h2= 0;
   int retval= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
+  THD *thd= current_thd;
 
   /*
     index_merge may invoke a scan on an object for which dsmrr_info[_const]
     has not been called, so set the owner handler here as well.
   */
   h= h_arg;
-  if (mode & HA_MRR_USE_DEFAULT_IMPL || mode & HA_MRR_SORTED)
+  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
+      mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)) // DS-MRR doesn't sort
   {
     use_default_impl= TRUE;
     retval= h->handler::multi_range_read_init(seq_funcs, seq_init_param,
@@ -4888,7 +4893,6 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   if (!h2)
   {
     /* Create a separate handler object to do rndpos() calls. */
-    THD *thd= current_thd;
     /*
       ::clone() takes up a lot of stack, especially on 64 bit platforms.
       The constant 5 is an empiric result.
@@ -5168,6 +5172,7 @@ ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
     *flags= def_flags;
     *bufsz= def_bufsz;
+    DBUG_ASSERT(*flags & HA_MRR_USE_DEFAULT_IMPL);
   }
   else
   {
@@ -5211,6 +5216,7 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
     *flags= def_flags;
     *bufsz= def_bufsz;
+    DBUG_ASSERT(*flags & HA_MRR_USE_DEFAULT_IMPL);
   }
   else
   {
@@ -5250,12 +5256,11 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   bool res;
   THD *thd= current_thd;
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
-      *flags & HA_MRR_INDEX_ONLY ||
+      *flags & (HA_MRR_INDEX_ONLY | HA_MRR_SORTED) || // Unsupported by DS-MRR
       (keyno == table->s->primary_key && h->primary_key_is_clustered()) ||
        key_uses_partial_cols(table, keyno))
   {
-    /* Use the default implementation */
-    *flags |= HA_MRR_USE_DEFAULT_IMPL;
+    /* Use the default implementation, don't modify args: See comments  */
     return TRUE;
   }
   
@@ -5279,7 +5284,7 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   if (force_dsmrr || (dsmrr_cost.total_cost() <= cost->total_cost()))
   {
     *flags &= ~HA_MRR_USE_DEFAULT_IMPL;  /* Use the DS-MRR implementation */
-    *flags &= ~HA_MRR_SORTED;          /* We will return unordered output */
+    *flags &= ~HA_MRR_SUPPORT_SORTED;    /* We can't provide ordered output */
     *cost= dsmrr_cost;
     res= FALSE;
   }

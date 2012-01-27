@@ -4573,13 +4573,14 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
              LOG_EVENT_HEADER_LEN - carry);
 
       /* fix end_log_pos */
-      val= uint4korr(&header[LOG_POS_OFFSET]) + group +
+      val=uint4korr(header + LOG_POS_OFFSET);
+      val+= group +
         (end_log_pos_inc+= (do_checksum ? BINLOG_CHECKSUM_LEN : 0));
       int4store(&header[LOG_POS_OFFSET], val);
 
       if (do_checksum)
       {
-        ulong len= uint4korr(&header[EVENT_LEN_OFFSET]);
+        ulong len= uint4korr(header + EVENT_LEN_OFFSET);
         /* fix len */
         int4store(&header[EVENT_LEN_OFFSET], len + BINLOG_CHECKSUM_LEN);
       }
@@ -4596,7 +4597,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
              LOG_EVENT_HEADER_LEN - carry);
 
       /* next event header at ... */
-      hdr_offs= uint4korr(&header[EVENT_LEN_OFFSET]) - carry -
+      hdr_offs= uint4korr(header + EVENT_LEN_OFFSET) - carry -
         (do_checksum ? BINLOG_CHECKSUM_LEN : 0);
 
       if (do_checksum)

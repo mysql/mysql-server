@@ -447,3 +447,21 @@ End of 5.0 tests
 select format(truncate('1.7976931348623157E+308',-12),1,'fr_BE') as foo;
 foo
 0
+#
+# Bug #13500371 63704: CONVERSION OF '1.' TO A NUMBER GIVES ERROR 1265
+# (WARN_DATA_TRUNCATED)
+#
+CREATE TABLE t1 (f FLOAT);
+INSERT INTO t1 VALUES ('1.');
+INSERT INTO t1 VALUES ('2.0.');
+Warnings:
+Warning	1265	Data truncated for column 'f' at row 1
+INSERT INTO t1 VALUES ('.');
+Warnings:
+Warning	1265	Data truncated for column 'f' at row 1
+SELECT * FROM t1 ORDER BY f;
+f
+0
+1
+2
+DROP TABLE t1;

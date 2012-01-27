@@ -2686,7 +2686,7 @@ SELECT id, date(d) + INTERVAL TIME_TO_SEC(d) SECOND AS t, COUNT(*)
 FROM t1 GROUP BY id, t;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`id` AS `id`,(cast(`t1`.`d` as date) + interval time_to_sec(`t1`.`d`) second) AS `t`,count(0) AS `COUNT(*)` from `t1` group by `t1`.`id`,(cast(`t1`.`d` as date) + interval time_to_sec(`t1`.`d`) second)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`id` AS `id`,(cast(`t1`.`d` as date) + interval time_to_sec(`t1`.`d`) second) AS `t`,count(0) AS `COUNT(*)` from `t1` group by `t1`.`id`,`t`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 id	t	COUNT(*)
 DROP VIEW v1;
@@ -4138,3 +4138,10 @@ CREATE TEMPORARY TABLE t1 (a INT) engine=InnoDB;
 CREATE VIEW t1 AS SELECT 1;
 DROP VIEW t1;
 DROP TEMPORARY TABLE t1;
+#
+# Bug#13601606: FAILED VIEW CREATION ERROR MESSAGE (FOR DB NOT PRESENT) 
+#               NEEDS BIG IMPROVEMENT 
+#
+DROP DATABASE IF EXISTS nodb;
+CREATE VIEW nodb.a AS SELECT 1;
+ERROR 42000: Unknown database 'nodb'
