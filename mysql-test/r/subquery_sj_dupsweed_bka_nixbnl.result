@@ -7650,6 +7650,21 @@ KEY int_key (int_key),
 KEY vc_key (vc_key, int_key)
 ) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (8,'g');
+explain SELECT vc_key
+FROM t1 as outr
+WHERE (vc_nokey, vc_key ) IN
+(SELECT vc_nokey, vc_nokey
+FROM t1 middle
+WHERE vc_nokey IN
+(SELECT child1.vc_key
+FROM t2 AS child1 JOIN t1 AS child2 USING (int_key)
+)
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	child1	index	int_key,vc_key	vc_key	9	NULL	1	Using where; Using index; Start temporary
+1	PRIMARY	outr	ref	vc_key	vc_key	4	test.child1.vc_key	3	Using where
+1	PRIMARY	child2	ref	int_key	int_key	5	test.child1.int_key	3	Using index
+1	PRIMARY	middle	ALL	NULL	NULL	NULL	NULL	20	Using where; End temporary
 SELECT vc_key
 FROM t1 as outr
 WHERE (vc_nokey, vc_key ) IN
