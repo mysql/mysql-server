@@ -38,6 +38,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "dict0mem.h"
 #include "trx0sys.h"
+#include "btr0btr.h"
 
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
