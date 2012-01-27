@@ -62,6 +62,7 @@
 # 9. Binary logs with corrupted GTIDs are generated simulating a crash
 #    while writing such information into the binary log.
 ################################################################################
+--disable_warnings
 --source include/master-slave.inc
 --source include/not_embedded.inc
 --source include/not_windows.inc
@@ -74,6 +75,7 @@ call mtr.add_suppression("Failed to read information on Previous GTIDs.");
 call mtr.add_suppression("Error reading GTIDs from binary log");
 
 --source include/rpl_set_gtid_mode.inc
+--enable_warnings
 
 CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
 
@@ -95,7 +97,9 @@ CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
 
 --echo ==== Part 1 ====
 
+--disable_warnings
 --source include/rpl_reset.inc
+--enable_warnings
 
 --let $i=1
 while ($i != 5)
@@ -217,11 +221,15 @@ while ($i != 5)
 
 --echo ==== Part 2 ====
 
+--disable_warnings
 --source include/rpl_reset.inc
+--enable_warnings
 --connection slave
 --source include/stop_slave.inc
 SET GLOBAL debug="d,rotate_slave_debug_group";
+--disable_warnings
 --source include/start_slave.inc
+--enable_warnings
 
 --let $i=1
 while ($i != 5)
@@ -272,11 +280,15 @@ while ($i != 5)
 --echo ==== Part 3 ====
 
 --connection slave
+--disable_warnings
 --source include/rpl_reset.inc
+--enable_warnings
 
 --source include/stop_slave.inc
 SET GLOBAL debug="";
+--disable_warnings
 --source include/start_slave.inc
+--enable_warnings
 
 --let $i=1
 while ($i != 5)
@@ -337,7 +349,9 @@ while ($i != 5)
   --let $rpl_server_number= 2
   --source include/rpl_restart_server.inc
   --connection slave
+  --disable_warnings
   --source include/start_slave.inc
+  --enable_warnings
   
   #  3.4 - Rotates both the binary logs on the slave and master.
   FLUSH LOGS;
@@ -364,7 +378,9 @@ while ($i != 5)
 
 --echo ==== Part 4 ====
 
+--disable_warnings
 --source include/rpl_reset.inc
+--enable_warnings
 
 --let $i=1
 while ($i != 5)
@@ -446,7 +462,9 @@ while ($i != 5)
   --let $rpl_server_number= 1
   --source include/rpl_restart_server.inc
   --connection slave
+  --disable_warnings
   --source include/start_slave.inc
+  --enable_warnings
   
   #  4.4 - Rotates both the binary logs on the slave and master.
   FLUSH LOGS;
@@ -485,7 +503,9 @@ while ($i != 5)
   --connection master
   RESET MASTER;
   --connection slave
+  --disable_warnings
   --source include/start_slave.inc
+  --enable_warnings
 
   #  5.2 - Generates a set of transactions on the master.
   --connection master
@@ -545,7 +565,9 @@ RESET MASTER;
 --let $slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
 --error ER_BAD_SLAVE_AUTO_POSITION
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1, MASTER_LOG_FILE= 'master-bin.000001', MASTER_LOG_POS= 4;
+--disable_warnings
 --source include/start_slave.inc
+--enable_warnings
 
 --let $slave_uuid= `SELECT UPPER(@@GLOBAL.SERVER_UUID)`
 --connection master
@@ -588,7 +610,9 @@ while ($i != 5)
   --source include/stop_slave.inc
   --replace_result $slave_master_host SLAVE_MASTER_HOST
   --eval CHANGE MASTER TO MASTER_HOST= '$slave_master_host', MASTER_AUTO_POSITION= 1
+  --disable_warnings
   --source include/start_slave.inc
+  --enable_warnings
 
   # 6.4 - Rotates the binary log on master by calling FLUSH LOGS.
   --connection master
@@ -640,9 +664,11 @@ while ($i != 5)
 
   # 7.2 - Makes the slave to retrieve and apply these transactions.
   --connection slave
-  --let $sequence= `SELECT ($i * 2) - 1`
+  --let $sequence= `SELECT ($i * 2)`
   --replace_result $master_uuid MASTER_UUID
+  --disable_warnings
   --eval START SLAVE UNTIL SQL_BEFORE_GTIDS= "$master_uuid:$sequence"
+  --enable_warnings
   --source include/wait_for_slave_sql_to_stop.inc
   --source include/stop_slave.inc
 
@@ -652,7 +678,7 @@ while ($i != 5)
   --let $gtid_set_ini=
   --let $gtid_set_end=
   --let $gtid_ini= 1
-  --let $gtid_end= `SELECT ($i * 2) - 2`
+  --let $gtid_end= `SELECT ($i * 2) - 1`
   --source extra/rpl_tests/rpl_check_gtid.inc
 
   # 7.3 - Rotates the binary log on master by calling FLUSH LOGS.
@@ -686,7 +712,9 @@ RESET SLAVE;
 --connection master
 RESET MASTER;
 --connection slave
+--disable_warnings
 --source include/start_slave.inc
+--enable_warnings
 
 --let $i=1
 while ($i != 5)
@@ -753,7 +781,9 @@ while ($i != 5)
   --source include/rpl_restart_server.inc
 
   --connection slave
+  --disable_warnings
   --source include/start_slave.inc
+  --enable_warnings
   #  8.4 - Rotates both the binary logs on the slave and master.
   FLUSH LOGS;
   --connection master
@@ -778,7 +808,9 @@ while ($i != 5)
 
 --echo ==== Part 9 ====
 
+--disable_warnings
 --source include/rpl_reset.inc
+--enable_warnings
 
 --let $i=1
 while ($i != 5)
@@ -846,7 +878,9 @@ while ($i != 5)
   --source include/rpl_restart_server.inc
 
   --connection slave
+  --disable_warnings
   --source include/start_slave.inc
+  --enable_warnings
   #  9.4 - Rotates both the binary logs on the slave and master.
   FLUSH LOGS;
   --connection master
@@ -855,7 +889,9 @@ while ($i != 5)
   inc $i;
 }
 
+--disable_warnings
 --source include/rpl_reset.inc
+--enable_warnings
 
 --connection master
 DROP TABLE t1;

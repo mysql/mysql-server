@@ -1,7 +1,4 @@
 include/master-slave.inc
-Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 call mtr.add_suppression("Recovery from master pos .*");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
@@ -359,7 +356,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:1";
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:2";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 extra/rpl_tests/rpl_check_gtid.inc
@@ -373,7 +370,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:3";
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 extra/rpl_tests/rpl_check_gtid.inc
@@ -387,7 +384,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:5";
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:6";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 extra/rpl_tests/rpl_check_gtid.inc
@@ -401,7 +398,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
-START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:7";
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:8";
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave.inc
 extra/rpl_tests/rpl_check_gtid.inc
