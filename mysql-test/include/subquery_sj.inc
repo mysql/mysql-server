@@ -4848,6 +4848,7 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES (8,'g');
 
+let $query=
 SELECT vc_key
 FROM t1 as outr
 WHERE (vc_nokey, vc_key ) IN
@@ -4858,6 +4859,9 @@ WHERE (vc_nokey, vc_key ) IN
     FROM t2 AS child1 JOIN t1 AS child2 USING (int_key)
    )
  );
+
+eval explain $query;
+eval $query;
 
 DROP TABLE t1, t2;
 
