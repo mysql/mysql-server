@@ -7,11 +7,6 @@ insert into mysqltest.t1 values (1,2);
 create table mysqltest.t2 (n int);
 insert into mysqltest.t2 values (45);
 rename table mysqltest.t2 to mysqltest.t3, mysqltest.t1 to mysqltest.t2;
---disable_query_log
---disable_result_log
-#select sleep(10000);
---enable_result_log
---enable_query_log
 sync_slave_with_master;
 select * from mysqltest.t2;
 select * from mysqltest.t3;

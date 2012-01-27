@@ -11927,7 +11927,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
 
   if (gtid_acquire_ownwership(thd))
   {
-    DBUG_RETURN(1); // todo: check SSS diagnostic area
+    DBUG_RETURN(1);
   }
 
   DBUG_RETURN(0);

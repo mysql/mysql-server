@@ -3934,7 +3934,7 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
   if(thd->owned_gtid.sidno != 0)
   {
 #ifndef DBUG_OFF
-    global_sid_lock.rdlock();
+    global_sid_lock.wrlock();
     DBUG_ASSERT(gtid_state.get_owned_gtids()->
                 thread_owns_anything(thd->thread_id));
     global_sid_lock.unlock();
