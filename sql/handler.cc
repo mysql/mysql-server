@@ -2178,6 +2178,8 @@ THD *handler::ha_thd(void) const
 void handler::unbind_psi()
 {
 #ifdef HAVE_PSI_TABLE_INTERFACE
+  DBUG_ASSERT(m_lock_type == F_UNLCK);
+  DBUG_ASSERT(inited == NONE);
   /*
     Notify the instrumentation that this table is not owned
     by this thread any more.
@@ -2189,6 +2191,8 @@ void handler::unbind_psi()
 void handler::rebind_psi()
 {
 #ifdef HAVE_PSI_TABLE_INTERFACE
+  DBUG_ASSERT(m_lock_type == F_UNLCK);
+  DBUG_ASSERT(inited == NONE);
   /*
     Notify the instrumentation that this table is now owned
     by this thread.
@@ -2245,8 +2249,18 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(table_share != NULL);
 #ifdef HAVE_PSI_TABLE_INTERFACE
-    PSI_table_share *share_psi= ha_table_share_psi(table_share);
-    m_psi= PSI_CALL(open_table)(share_psi, this);
+    /*
+      Do not call this for partitions handlers, since it may take too much
+      resources.
+      If a table is partitioned it's main handler will be ha_partition and
+      its partitions handlers will be the normal handlers, like ha_innobase.
+      So only use the m_psi on table level, not for individual partitions.
+    */
+    if (ht == table->file->ht)
+    {
+      PSI_table_share *share_psi= ha_table_share_psi(table_share);
+      m_psi= PSI_CALL(open_table)(share_psi, this);
+    }
 #endif
 
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)

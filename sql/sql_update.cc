@@ -427,7 +427,7 @@ int mysql_update(THD *thd,
       bitmap_copy(&lock_partitions, &table->part_info->lock_partitions);
     }
 
-    if (prune_partitions(thd, table, conds, &no_parts_used))
+    if (prune_partitions(thd, table, conds, true, &no_parts_used))
       DBUG_RETURN(1);
     if (no_parts_used)
     { // No matching records
