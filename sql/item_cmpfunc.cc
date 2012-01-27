@@ -5853,13 +5853,15 @@ Item* Item_equal::get_first(JOIN_TAB *context, Item *field_item)
   if (emb_nest && emb_nest->sj_mat_info && emb_nest->sj_mat_info->is_used)
   {
     /*
-      It's a field from an materialized semi-join. We can substitute it only
-      for a field from the same semi-join. Find the first of such items.
+      It's a field from an materialized semi-join. We can substitute it for
+       - a constant item 
+       - a field from the same semi-join
+       Find the first of such items:
     */
-
     while ((item= it++))
     {
-      if (it.get_curr_field()->table->pos_in_table_list->embedding == emb_nest)
+      if (item->const_item() || 
+          it.get_curr_field()->table->pos_in_table_list->embedding == emb_nest)
       {
         /*
           If we found given field then return NULL to avoid unnecessary
