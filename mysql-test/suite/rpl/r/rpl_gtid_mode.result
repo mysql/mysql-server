@@ -65,9 +65,9 @@ SET GTID_NEXT = 'AUTOMATIC';
 SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 SET GTID_NEXT = 'ANONYMOUS';
 ERROR HY000: GTID_NEXT cannot be set to ANONYMOUS when GTID_MODE = ON.
+ROLLBACK;
 ---- GTIDs are in binlog ----
 SET GTID_NEXT = 'AUTOMATIC';
-ERROR HY000: GTID_NEXT cannot be changed when it has been set to UUID:NUMBER.
 INSERT INTO t1 VALUES (2);
 show binlog events in 'master-bin.000002' from <binlog_start> limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

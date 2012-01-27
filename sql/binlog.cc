@@ -701,9 +701,6 @@ int gtid_empty_group_log_and_cleanup(THD *thd)
 
   DBUG_ENTER("gtid_empty_group_log_and_cleanup");
 
-  // assert binlog hton is not registered
-  // assert cache_data->is_binlog_empty()
-
   Query_log_event end_evt(thd, STRING_WITH_LEN("COMMIT"),
                           cache_data->is_trx_cache(), FALSE, TRUE, 0, TRUE);
 
