@@ -2579,6 +2579,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.remove_jump_scans= TRUE;
     param.force_default_mrr= (interesting_order != ORDER::ORDER_NOT_RELEVANT);
     param.order_direction= interesting_order;
+    param.use_index_statistics= false;
 
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
