@@ -22,9 +22,6 @@ Con2 is alive
 select current_user();
 current_user()
 root@192.0.2.4
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 select 
 IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
 COUNT_HOST_BLOCKED_ERRORS,
@@ -84,9 +81,6 @@ Con3 is alive
 select current_user();
 current_user()
 root@192.0.2.4
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 select 
 IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
 COUNT_HOST_BLOCKED_ERRORS,
@@ -147,9 +141,6 @@ Con4 is alive
 select current_user();
 current_user()
 root@192.0.2.4
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 select 
 IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
 COUNT_HOST_BLOCKED_ERRORS,
@@ -209,9 +200,6 @@ Con5 is alive
 select current_user();
 current_user()
 root@192.0.2.4
-show global status like "%peer%";
-Variable_name	Value
-Peer_address_errors	0
 select 
 IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
 COUNT_HOST_BLOCKED_ERRORS,

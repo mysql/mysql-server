@@ -1,6 +1,5 @@
 # Helper for hostcache_*.test
 
-show global status like "%peer%";
 --vertical_results
 select 
   IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,

@@ -2,22 +2,8 @@
 #
 # Tests for the performance_schema host_cache.
 #
-# Test scenario: (con2)
-# - a client connects on a TCP/IPv4 socket
-# - the client IPv4 can not be obtained
-# Test results:
-# - connection is refused
-# - peer_addr_errors is incremented
-# - the host_cache is unchanged
-#
-# Test scenario: (con3)
-# - a client connects on a TCP/IPv4 socket
-# - the client IPv4 can not be obtained
-# Test results:
-# - connection is refused
-# - peer_addr_errors is incremented
-# - the host_cache is unchanged
-#
+# Simulate failures from vio_peer_addr, reported in:
+# status variable Peer_address_errors
 
 --source include/not_embedded.inc
 --source include/have_debug.inc
@@ -42,6 +28,7 @@ connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
+show global status like "%peer%";
 --source ../include/hostcache_dump.inc
 
 --disable_query_log
@@ -50,6 +37,7 @@ connect (con3,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 --enable_query_log
 
 --connection default
+show global status like "%peer%";
 --source ../include/hostcache_dump.inc
 
 set global debug= default;

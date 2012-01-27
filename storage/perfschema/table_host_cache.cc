@@ -299,7 +299,15 @@ void table_host_cache::make_row(Host_entry *entry, row_host_cache *row)
   row->m_count_max_connection_errors= entry->m_errors.m_max_connection;
   row->m_count_user_acl_errors= entry->m_errors.m_user_acl;
   row->m_count_local_errors= entry->m_errors.m_local;
-  row->m_count_unknown_errors= entry->m_errors.m_unknown;
+
+  /*
+    Reserved for future use, to help with backward compatibility.
+    When new errors are added in entry->m_errors.m_xxx,
+    report them in this column (GA releases),
+    until the table HOST_CACHE structure can be extended (next development version).
+  */
+  row->m_count_unknown_errors= 0;
+
   row->m_first_seen= entry->m_first_seen;
   row->m_last_seen= entry->m_last_seen;
   row->m_first_error_seen= entry->m_first_error_seen;

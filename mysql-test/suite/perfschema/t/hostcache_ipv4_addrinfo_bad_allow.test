@@ -2,31 +2,9 @@
 #
 # Tests for the performance_schema host_cache.
 #
-# FIXME
-# Test scenario: (con2)
-# - a client connects on a TCP/IPv4 socket
-# - the client IPv4 can be obtained
-# - the client IPv4 is not in the cache
-# - the client hostname can be obtained
-# - IPs for that hostname can be obtained
-# - none of the IPs match the client IP
-# - there are grants for the client IP
-# Test results:
-# - connection is accepted
-# - user is authorized by IP
-# - peer_addr_errors is unchanged
-# - the host_cache records the failing IP with no hostname
-#
-# Test scenario: (con3)
-# - a client connects on a TCP/IPv4 socket
-# - the client IPv4 can be obtained
-# - the client IPv4 is in the cache with no hostname
-# - there are grants for the client IP
-# Test results:
-# - connection is accepted
-# - user is authorized by IP
-# - peer_addr_errors is unchanged
-# - the host_cache is unchanged
+# Simulate failures from DNS full round trip (FCRDNS):
+# - IP --> HOST --> IP returns no match
+# - reported in COUNT_FCRDNS_ERRORS
 
 --source include/not_embedded.inc
 --source include/have_debug.inc
