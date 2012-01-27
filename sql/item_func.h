@@ -1995,6 +1995,8 @@ public:
   {
     return sp_result_field;
   }
+
+  virtual void update_null_value();
 };
 
 
