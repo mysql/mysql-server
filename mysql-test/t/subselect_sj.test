@@ -1354,6 +1354,45 @@ set optimizer_switch=@save_optimizer_switch;
 DROP TABLE ot1, ot2, ot3, it1;
 
 --echo #
+--echo # Bug#59919/11766739: Crash in tmp_table_param::init() with semijoin=on
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (f1 INTEGER, f2 INTEGER) ENGINE=MyISAM;
+CREATE TABLE t3 (f1 INTEGER, f2 INTEGER) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1,1), (2,1);
+INSERT INTO t3 VALUES 
+  (1,1), (2,1), (5,4), (7,3), (8,2), (8,1), (7,3),
+  (9,5), (4,3), (7,2), (7,7), (3,1), (5,8), (9,7);
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+set optimizer_switch='semijoin=off,materialization=on';
+EXPLAIN
+SELECT * FROM t3
+WHERE f2 IN (SELECT t1.f1
+             FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+SELECT * FROM t3
+WHERE f2 IN (SELECT t1.f1
+             FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+
+set optimizer_switch='semijoin=on,materialization=on';
+EXPLAIN
+SELECT * FROM t3
+WHERE f2 IN (SELECT t1.f1
+             FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+SELECT * FROM t3
+WHERE f2 IN (SELECT t1.f1
+             FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+
+set optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1, t2, t3 ;
+
+--echo #
+--echo #
 --echo # BUG#784723: Wrong result with semijoin + nested subqueries in maria-5.3  
 --echo #
 CREATE TABLE t1 ( t1field integer, primary key (t1field));
