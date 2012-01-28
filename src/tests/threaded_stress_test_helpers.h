@@ -951,7 +951,7 @@ static const struct env_args DEFAULT_PERF_ENV_ARGS = {
 
 #define MIN_VAL_SIZE sizeof(int)
 #define MIN_KEY_SIZE sizeof(int)
-static struct cli_args get_default_args(void) {
+static struct cli_args UU() get_default_args(void) {
     struct cli_args DEFAULT_ARGS = {
         .num_elements = 150000,
         .num_DBs = 1,
@@ -975,7 +975,7 @@ static struct cli_args get_default_args(void) {
     return DEFAULT_ARGS;
 }
 
-static struct cli_args get_default_args_for_perf(void) {
+static struct cli_args UU() get_default_args_for_perf(void) {
     struct cli_args args = get_default_args();
     args.num_elements = 1000000; //default of 1M
     args.print_performance = true;
