@@ -2109,16 +2109,6 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
     if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
       goto finish;
   }
-  if (outer_join_first_inner)
-  {
-    /* 
-      All null complemented rows have been already generated for all
-      outer records from join buffer. Restore the state of the
-      first_unmatched values to 0 to avoid another null complementing.
-    */
-    for (tab= join_tab->first_inner; tab <= join_tab->last_inner; tab++)
-      tab->first_unmatched= 0;
-  } 
  
   if (skip_last)
   {
@@ -2131,6 +2121,16 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
   }
 
 finish:
+  if (outer_join_first_inner)
+  {
+    /* 
+      All null complemented rows have been already generated for all
+      outer records from join buffer. Restore the state of the
+      first_unmatched values to 0 to avoid another null complementing.
+    */
+    for (tab= join_tab->first_inner; tab <= join_tab->last_inner; tab++)
+      tab->first_unmatched= 0;
+  } 
   restore_last_record();
   reset(TRUE);
   DBUG_PRINT("exit", ("rc: %d", rc));

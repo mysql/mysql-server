@@ -5486,4 +5486,52 @@ i
 set join_cache_level = default;
 set optimizer_switch=@tmp_optimizer_switch;
 DROP TABLE t1,t2,t3;
+#
+# Bug #12546542: missing row with semijoin=off + join cache
+# (LP bug #922971)
+#
+CREATE TABLE t1 (a varchar(1024));
+INSERT INTO t1 VALUES ('v'), ('we');
+CREATE TABLE t2 (
+a varchar(1024) CHARACTER SET utf8 DEFAULT NULL, b int, c int
+);
+INSERT INTO t2 VALUES ('we',4,NULL), ('v',1305673728,6);
+CREATE TABLE t3 (b int, c int);
+INSERT INTO t3 VALUES (4,4);
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin=off';
+set optimizer_switch='materialization=off';
+set join_cache_level=0;
+EXPLAIN
+SELECT * FROM t1
+WHERE a IN (SELECT t2.a FROM t2 LEFT JOIN t3 ON t2.b = t3.b 
+WHERE t2.c < 10 OR t3.c > 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where
+SELECT * FROM t1
+WHERE a IN (SELECT t2.a FROM t2 LEFT JOIN t3 ON t2.b = t3.b 
+WHERE t2.c < 10 OR t3.c > 1);
+a
+v
+we
+set join_cache_level=2;
+EXPLAIN
+SELECT * FROM t1
+WHERE a IN (SELECT t2.a FROM t2 LEFT JOIN t3 ON t2.b = t3.b
+WHERE t2.c < 10 OR t3.c > 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (flat, BNL join)
+SELECT * FROM t1
+WHERE a IN (SELECT t2.a FROM t2 LEFT JOIN t3 ON t2.b = t3.b
+WHERE t2.c < 10 OR t3.c > 1);
+a
+v
+we
+set join_cache_level = default;
+set optimizer_switch=@tmp_optimizer_switch;
+DROP TABLE t1,t2,t3;
 set @@optimizer_switch=@save_optimizer_switch;
