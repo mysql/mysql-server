@@ -1,4 +1,4 @@
-'''apport package hook for mariadb-5.3
+'''apport package hook for mariadb-5.5
 
 (c) 2009 Canonical Ltd.
 Author: Mathias Gug <mathias.gug@canonical.com>
@@ -20,7 +20,7 @@ def _add_my_conf_files(report, filename):
             continue
 
 def add_info(report):
-    attach_conffiles(report, 'mariadb-server-5.3', conffiles=None)
+    attach_conffiles(report, 'mariadb-server-5.5', conffiles=None)
     key = 'Logs' + path_to_key('/var/log/daemon.log')
     report[key] = ""
     for line in read_file('/var/log/daemon.log').split('\n'):

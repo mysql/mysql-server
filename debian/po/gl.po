@@ -190,7 +190,7 @@ msgstr "Debería comprobar o contrasinal da conta trala instalación do paquete.
 #| "Please read the /usr/share/doc/mysql-server-5.1/README.Debian file for "
 #| "more information."
 msgid ""
-"Please read the /usr/share/doc/mariadb-server-5.3/README.Debian file for "
+"Please read the /usr/share/doc/mariadb-server-5.5/README.Debian file for "
 "more information."
 msgstr ""
 "Consulte o ficheiro /usr/share/doc/mariadb-server-5.5/README.Debian para "

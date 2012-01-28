@@ -189,7 +189,7 @@ msgstr "Проверьте пароль учётной записи после �
 #| "Please read the /usr/share/doc/mariadb-server-5.5/README.Debian file for "
 #| "more information."
 msgid ""
-"Please read the /usr/share/doc/mariadb-server-5.3/README.Debian file for "
+"Please read the /usr/share/doc/mariadb-server-5.5/README.Debian file for "
 "more information."
 msgstr ""
 "Подробности см. в файле /usr/share/doc/mariadb-server-5.5/README.Debian."

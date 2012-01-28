@@ -29,8 +29,9 @@ if ($dir_bin eq '/usr/') {
     # SuSE: "packages/" in the documentation path
     $dir_docs = glob "$dir_docs/packages/MySQL-server*";
   } else {
-    # RedHat: version number in directory name
-    $dir_docs = glob "$dir_docs/MySQL-server*";
+    # RedHat/Debian: version number in directory name
+    $dir_docs = glob "$dir_docs/mariadb-server-*";
+    $dir_docs = glob "$dir_docs/MySQL-server*" unless -d $dir_docs;
   }
 } else {
   # tar.gz package, Windows, or developer work (in BZR)
