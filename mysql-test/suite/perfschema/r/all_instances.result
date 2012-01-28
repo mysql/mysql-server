@@ -83,7 +83,9 @@ wait/synch/mutex/sql/TABLE_SHARE::LOCK_ha_data
 wait/synch/mutex/sql/THD::LOCK_thd_data
 wait/synch/mutex/sql/THD::LOCK_wakeup_ready
 wait/synch/mutex/sql/tz_LOCK
-select name from rwlock_instances group by name;
+select name from rwlock_instances
+where name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock")
+group by name;
 name
 wait/synch/rwlock/aria/TRANSLOG_DESCRIPTOR::open_files_lock
 wait/synch/rwlock/myisam/MYISAM_SHARE::key_root_lock
