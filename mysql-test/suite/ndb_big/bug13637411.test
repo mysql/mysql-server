@@ -2,6 +2,8 @@ source suite.inc;
 source include/have_ndb.inc;
 result_format 2;
 
+call mtr.add_suppression("The table '#.*' is full");
+
 select version();
 
 CREATE TABLE t1 (
@@ -86,13 +88,13 @@ while (!$done)
     dec $b;
   }
 
-  --error 0,1296,1297
+  --error 0,1114,1297
   eval $sql;
   if (!$mysql_errno)
   {
     inc $i;
   }
-  if ($mysql_errno == 1296)
+  if ($mysql_errno == 1114)
   {
     show warnings;
     inc $done;
