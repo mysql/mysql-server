@@ -381,5 +381,31 @@ set optimizer_switch=@save_optimizer_switch;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # LP Bug #923236: hash join + extended_keys = on 
+--echo #
+
+CREATE TABLE t1 (a int) ENGINE=MyISAM;
+
+CREATE TABLE t2 (b int) ENGINE=MyISAM;
+
+INSERT INTO t1 (a) VALUES (4), (6);
+INSERT INTO t2 (b) VALUES (0), (8);
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+SET join_cache_level=3;
+SET optimizer_switch='join_cache_hashed=on';
+SET optimizer_switch='join_cache_bka=on';
+SET optimizer_switch='extended_keys=on';
+
+EXPLAIN
+SELECT * FROM t1, t2 WHERE b=a;
+SELECT * FROM t1, t2 WHERE b=a;
+
+set optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1,t2;
+
 set optimizer_switch=@save_ext_key_optimizer_switch;
 SET SESSION STORAGE_ENGINE=DEFAULT;

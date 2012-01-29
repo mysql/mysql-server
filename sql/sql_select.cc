@@ -7320,6 +7320,10 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
     keyuse++;
   } while (keyuse->table == table && keyuse->is_for_hash_join());
 
+  keyinfo->ext_key_parts= keyinfo->key_parts;
+  keyinfo->ext_key_flags= keyinfo->flags;
+  keyinfo->ext_key_part_map= 0;
+
   join_tab->hj_key= keyinfo;
 
   DBUG_RETURN(FALSE);
