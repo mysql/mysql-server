@@ -984,6 +984,7 @@ static struct cli_args UU() get_default_args_for_perf(void) {
 }
 
 static inline void parse_stress_test_args (int argc, char *const argv[], struct cli_args *args) {
+    struct cli_args default_args = *args;
     const char *argv0=argv[0];
     while (argc>1) {
         int resultcode=0;
@@ -997,25 +998,25 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         do_usage:
             fprintf(stderr, "Usage:\n%s [-h|-v|-q] [OPTIONS] [--only_create|--only_stress]\n", argv0);
             fprintf(stderr, "OPTIONS are among:\n");
-            fprintf(stderr, "\t--num_elements                  INT (default %d)\n", get_default_args().num_elements);
-            fprintf(stderr, "\t--num_DBs                       INT (default %d)\n", get_default_args().num_DBs);
-            fprintf(stderr, "\t--num_seconds                   INT (default %ds)\n", get_default_args().time_of_test);
-            fprintf(stderr, "\t--node_size                     INT (default %d bytes)\n", get_default_args().env_args.node_size);
-            fprintf(stderr, "\t--basement_node_size            INT (default %d bytes)\n", get_default_args().env_args.basement_node_size);
-            fprintf(stderr, "\t--cachetable_size               INT (default %ld bytes)\n", get_default_args().env_args.cachetable_size);
-            fprintf(stderr, "\t--checkpointing_period          INT (default %ds)\n",      get_default_args().env_args.checkpointing_period);
-            fprintf(stderr, "\t--cleaner_period                INT (default %ds)\n",      get_default_args().env_args.cleaner_period);
-            fprintf(stderr, "\t--cleaner_iterations            INT (default %ds)\n",      get_default_args().env_args.cleaner_iterations);
-            fprintf(stderr, "\t--update_broadcast_period       INT (default %dms)\n",     get_default_args().update_broadcast_period_ms);
-            fprintf(stderr, "\t--num_ptquery_threads           INT (default %d threads)\n", get_default_args().num_ptquery_threads);
-            fprintf(stderr, "\t--num_update_threads            INT (default %d threads)\n", get_default_args().num_update_threads);
-            fprintf(stderr, "\t--update_txn_size               INT (default %d rows)\n", get_default_args().update_txn_size);
-            fprintf(stderr, "\t--key_size                      INT (default %d, minimum %ld)\n", get_default_args().key_size, MIN_KEY_SIZE);
-            fprintf(stderr, "\t--val_size                      INT (default %d, minimum %ld)\n", get_default_args().val_size, MIN_VAL_SIZE);
-            fprintf(stderr, "\t--[no-]crash_on_update_failure  BOOL (default %s)\n", get_default_args().crash_on_update_failure ? "yes" : "no");
+            fprintf(stderr, "\t--num_elements                  INT (default %d)\n", default_args.num_elements);
+            fprintf(stderr, "\t--num_DBs                       INT (default %d)\n", default_args.num_DBs);
+            fprintf(stderr, "\t--num_seconds                   INT (default %ds)\n", default_args.time_of_test);
+            fprintf(stderr, "\t--node_size                     INT (default %d bytes)\n", default_args.env_args.node_size);
+            fprintf(stderr, "\t--basement_node_size            INT (default %d bytes)\n", default_args.env_args.basement_node_size);
+            fprintf(stderr, "\t--cachetable_size               INT (default %ld bytes)\n", default_args.env_args.cachetable_size);
+            fprintf(stderr, "\t--checkpointing_period          INT (default %ds)\n",      default_args.env_args.checkpointing_period);
+            fprintf(stderr, "\t--cleaner_period                INT (default %ds)\n",      default_args.env_args.cleaner_period);
+            fprintf(stderr, "\t--cleaner_iterations            INT (default %ds)\n",      default_args.env_args.cleaner_iterations);
+            fprintf(stderr, "\t--update_broadcast_period       INT (default %dms)\n",     default_args.update_broadcast_period_ms);
+            fprintf(stderr, "\t--num_ptquery_threads           INT (default %d threads)\n", default_args.num_ptquery_threads);
+            fprintf(stderr, "\t--num_update_threads            INT (default %d threads)\n", default_args.num_update_threads);
+            fprintf(stderr, "\t--update_txn_size               INT (default %d rows)\n", default_args.update_txn_size);
+            fprintf(stderr, "\t--key_size                      INT (default %d, minimum %ld)\n", default_args.key_size, MIN_KEY_SIZE);
+            fprintf(stderr, "\t--val_size                      INT (default %d, minimum %ld)\n", default_args.val_size, MIN_VAL_SIZE);
+            fprintf(stderr, "\t--[no-]crash_on_update_failure  BOOL (default %s)\n", default_args.crash_on_update_failure ? "yes" : "no");
             fprintf(stderr, "\t--print_performance             \n");
             fprintf(stderr, "\t--print_thread_performance      \n");
-            fprintf(stderr, "\t--performance_period            INT (default %d)\n", get_default_args().performance_period);
+            fprintf(stderr, "\t--performance_period            INT (default %d)\n", default_args.performance_period);
             exit(resultcode);
         }
         else if (strcmp(argv[1], "--num_elements") == 0) {
