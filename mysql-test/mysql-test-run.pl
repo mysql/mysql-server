@@ -173,7 +173,6 @@ my $DEFAULT_SUITES= join(',', qw(
     optimizer_unfixed_bugs
     oqgraph
     parts
-    pbxt
     percona
     perfschema
     plugins
