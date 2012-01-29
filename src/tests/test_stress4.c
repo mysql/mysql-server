@@ -85,6 +85,7 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
         uoe[i-4] = get_update_op_args(cli_args,update_history_buffer);
         memset(uoe[i-4].update_history_buffer, 0, n * (sizeof uoe[i-4].update_history_buffer[0]));
         myargs[i].operation = update_with_history_op;
+        myargs[i].operation_extra = &uoe[i-4];
     }
 
     // make the guys that do point queries
