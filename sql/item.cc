@@ -8186,9 +8186,13 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
           or less than the original Item. A 0 may also be returned if 
           out of memory.          
 
-  @note We only use this on the range optimizer/partition pruning,
+  @note We use this in the range optimizer/partition pruning,
         because in some cases we can't store the value in the field
         without some precision/character loss.
+
+        We similarly use it to verify that expressions like
+        BIGINT_FIELD <cmp> <literal value>
+        is done correctly (as int/decimal/float according to literal type).
 */
 
 int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
@@ -8242,7 +8246,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 
       return my_time_compare(&field_time, &item_time);
     }
-    return stringcmp(field_result, item_result);
+    return sortcmp(field_result, item_result, field->charset());
   }
   if (res_type == INT_RESULT)
     return 0;					// Both are of type int
@@ -8254,12 +8258,17 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
     if (item->null_value)
       return 0;
     field_val= field->val_decimal(&field_buf);
-    return my_decimal_cmp(item_val, field_val);
+    return my_decimal_cmp(field_val, item_val);
   }
-  double result= item->val_real();
+  /*
+    The patch for Bug#13463415 started using this function for comparing
+    BIGINTs. That uncovered a bug in Visual Studio 32bit optimized mode.
+    Prefixing the auto variables with volatile fixes the problem....
+  */
+  volatile double result= item->val_real();
   if (item->null_value)
     return 0;
-  double field_result= field->val_real();
+  volatile double field_result= field->val_real();
   if (field_result < result)
     return -1;
   else if (field_result > result)

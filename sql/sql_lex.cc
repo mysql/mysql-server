@@ -2494,6 +2494,20 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
         append_identifier(thd, str, table_name, table_name_length);
         cmp_name= table_name;
       }
+      if (partition_names && partition_names->elements)
+      {
+        int i, num_parts= partition_names->elements;
+        List_iterator<String> name_it(*(partition_names));
+        str->append(STRING_WITH_LEN(" PARTITION ("));
+        for (i= 1; i <= num_parts; i++)
+        {
+          String *name= name_it++;
+          append_identifier(thd, str, name->c_ptr(), name->length());
+          if (i != num_parts)
+            str->append(',');
+        }
+        str->append(')');
+      }
     }
     if (my_strcasecmp(table_alias_charset, cmp_name, alias))
     {

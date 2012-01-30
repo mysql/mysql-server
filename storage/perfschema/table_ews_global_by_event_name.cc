@@ -292,8 +292,8 @@ void table_ews_global_by_event_name
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_mutex_instances(klass, & visitor);
 
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, & visitor.m_stat);
+  get_normalizer(klass);
+  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
   m_row_exists= true;
 }
 
@@ -305,8 +305,8 @@ void table_ews_global_by_event_name
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_rwlock_instances(klass, & visitor);
 
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, & visitor.m_stat);
+  get_normalizer(klass);
+  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
   m_row_exists= true;
 }
 
@@ -318,8 +318,8 @@ void table_ews_global_by_event_name
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_cond_instances(klass, & visitor);
 
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, & visitor.m_stat);
+  get_normalizer(klass);
+  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
   m_row_exists= true;
 }
 
@@ -331,8 +331,8 @@ void table_ews_global_by_event_name
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_file_instances(klass, & visitor);
 
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, & visitor.m_stat);
+  get_normalizer(klass);
+  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
   m_row_exists= true;
 }
 
@@ -344,8 +344,8 @@ void table_ews_global_by_event_name
   PFS_table_io_wait_visitor visitor;
   PFS_object_iterator::visit_all_tables(& visitor);
 
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, & visitor.m_stat);
+  get_normalizer(klass);
+  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
   m_row_exists= true;
 }
 
@@ -357,8 +357,8 @@ void table_ews_global_by_event_name
   PFS_table_lock_wait_visitor visitor;
   PFS_object_iterator::visit_all_tables(& visitor);
   
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, & visitor.m_stat);
+  get_normalizer(klass);
+  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
   m_row_exists= true;
 }
 
@@ -370,8 +370,8 @@ void table_ews_global_by_event_name
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_socket_instances(klass, &visitor);
 
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, &visitor.m_stat);
+  get_normalizer(klass);
+  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   m_row_exists= true;
 }
 
@@ -385,8 +385,8 @@ void table_ews_global_by_event_name
                                         false, /* users */
                                         false, /* accts */
                                         true,  /* threads */ &visitor);
-  time_normalizer *normalizer= time_normalizer::get(idle_timer);
-  m_row.m_stat.set(normalizer, &visitor.m_stat);
+  get_normalizer(klass);
+  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   m_row_exists= true;
 }
 
