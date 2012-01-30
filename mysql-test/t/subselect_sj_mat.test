@@ -1510,6 +1510,25 @@ SELECT * FROM t1 LEFT JOIN t2 ON ( a = b )
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # BUG#922254: Assertion `0' failed at item_cmpfunc.cc:5899: Item* Item_equal::get_first(JOIN_TAB*, Item*)
+--echo #
+CREATE TABLE t1 ( a VARCHAR(3) );
+CREATE TABLE t2 ( b VARCHAR(3), c VARCHAR(8), KEY(c) );
+INSERT INTO t2 VALUES ('USA','Abilene'),('USA','Akron');
+
+EXPLAIN
+SELECT * FROM
+  ( SELECT * FROM t1 ) AS alias1,
+  t2 AS alias2
+WHERE b = a AND a IN (
+  SELECT alias3.c
+  FROM t2 AS alias3, t2 AS alias4
+  WHERE alias4.c = alias3.b
+);
+
+DROP TABLE t1,t2;
+
 --echo # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;
