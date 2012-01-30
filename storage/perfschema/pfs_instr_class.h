@@ -87,7 +87,7 @@ enum PFS_class_type
 };
 
 /** User-defined instrument configuration. */
-struct PFS_instr_init
+struct PFS_instr_config
 {
   /* Instrument name. */
   char *m_name;
@@ -99,7 +99,12 @@ struct PFS_instr_init
   bool m_timed;
 };
 
-extern DYNAMIC_ARRAY pfs_instr_init_array;
+extern DYNAMIC_ARRAY pfs_instr_config_array;
+extern int pfs_instr_config_state;
+
+static const int PFS_INSTR_CONFIG_NOT_INITIALIZED= 0;
+static const int PFS_INSTR_CONFIG_ALLOCATED= 1;
+static const int PFS_INSTR_CONFIG_DEALLOCATED= 2;
 
 struct PFS_thread;
 
