@@ -463,6 +463,7 @@ bool init_new_connection_handler_thread()
 static int check_connection(THD *thd)
 {
   uint connect_errors= 0;
+  int auth_rc;
   NET *net= &thd->net;
 
   DBUG_PRINT("info",
@@ -563,14 +564,8 @@ static int check_connection(THD *thd)
 
       rc= ip_to_hostname(&net->vio->remote,
                          thd->main_security_ctx.ip,
-                         &thd->main_security_ctx.host);
-
-      if (rc == RC_NO_HOST)
-      {
-        /* HOST_CACHE stats updated by ip_to_hostname(). */
-        my_error(ER_BAD_HOST_ERROR, MYF(0));
-        return 1;
-      }
+                         &thd->main_security_ctx.host,
+                         &connect_errors);
 
       /* Cut very long hostnames to avoid possible overflows */
       if (thd->main_security_ctx.host)
@@ -617,7 +612,18 @@ static int check_connection(THD *thd)
     return 1; /* The error is set by alloc(). */
   }
 
-  return acl_authenticate(thd, connect_errors, 0);
+  auth_rc= acl_authenticate(thd, 0);
+  if (auth_rc == 0 && connect_errors != 0)
+  {
+    /*
+      A client connection from this IP was successful,
+      after some previous failures.
+      Reset the connection error counter.
+    */
+    reset_host_connect_errors(thd->main_security_ctx.ip);
+  }
+
+  return auth_rc;
 }
 
 

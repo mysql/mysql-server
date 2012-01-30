@@ -102,7 +102,11 @@ public:
 
   void sum_connect_errors()
   {
-    m_connect= m_host_acl + m_authentication + m_user_acl;
+    /* Current (historical) behavior: */
+    m_connect= m_handshake;
+    /* Proposed behavior:
+    m_connect= m_host_acl + m_handshake + m_authentication + m_user_acl;
+    */
   }
 
   void clear_connect_errors()
@@ -167,14 +171,13 @@ public:
 extern ulong host_cache_size;
 
 #define RC_OK 0
-#define RC_NO_HOST 1
-#define RC_BLOCKED_HOST 2
+#define RC_BLOCKED_HOST 1
 int ip_to_hostname(struct sockaddr_storage *ip_storage,
                    const char *ip_string,
-                   char **hostname);
+                   char **hostname, uint *connect_errors);
 
-void inc_host_errors(const char *ip_string, const Host_errors *errors);
-void reset_host_errors(const char *ip_string);
+void inc_host_errors(const char *ip_string, Host_errors *errors);
+void reset_host_connect_errors(const char *ip_string);
 bool hostname_cache_init();
 void hostname_cache_free();
 void hostname_cache_refresh(void);

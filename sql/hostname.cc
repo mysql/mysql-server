@@ -290,7 +290,7 @@ static void add_hostname(const char *ip_key, const char *hostname,
   return;
 }
 
-void inc_host_errors(const char *ip_string, const Host_errors *errors)
+void inc_host_errors(const char *ip_string, Host_errors *errors)
 {
   if (!ip_string)
     return;
@@ -305,6 +305,11 @@ void inc_host_errors(const char *ip_string, const Host_errors *errors)
 
   if (entry)
   {
+    if (entry->m_host_validated)
+      errors->sum_connect_errors();
+    else
+      errors->clear_connect_errors();
+
     entry->m_errors.aggregate(errors);
     entry->set_error_timestamps(now);
   }
@@ -313,7 +318,7 @@ void inc_host_errors(const char *ip_string, const Host_errors *errors)
 }
 
 
-void reset_host_errors(const char *ip_string)
+void reset_host_connect_errors(const char *ip_string)
 {
   if (!ip_string)
     return;
@@ -326,7 +331,7 @@ void reset_host_errors(const char *ip_string)
   Host_entry *entry= hostname_cache_search(ip_key);
 
   if (entry)
-    entry->m_errors.reset();
+    entry->m_errors.clear_connect_errors();
 
   mysql_mutex_unlock(&hostname_cache->lock);
 }
@@ -381,6 +386,8 @@ static inline bool is_hostname_valid(const char *hostname)
     - resolves IP-address;
     - employs Forward Confirmed Reverse DNS technique to validate IP-address;
     - returns host name if IP-address is validated;
+    - set value to out-variable connect_errors -- this variable represents the
+      number of connection errors from the specified IP-address.
     - update the host_cache statistics
 
   NOTE: connect_errors are counted (are supported) only for the clients
@@ -389,6 +396,7 @@ static inline bool is_hostname_valid(const char *hostname)
   @param [in]  ip_storage IP address (sockaddr). Must be set.
   @param [in]  ip_string  IP address (string). Must be set.
   @param [out] hostname
+  @param [out] connect_errors
 
   @return Error status
   @retval 0 Success
@@ -401,7 +409,8 @@ static inline bool is_hostname_valid(const char *hostname)
 
 int ip_to_hostname(struct sockaddr_storage *ip_storage,
                    const char *ip_string,
-                   char **hostname)
+                   char **hostname,
+                   uint *connect_errors)
 {
   const struct sockaddr *ip= (const sockaddr *) ip_storage;
   int err_code;
@@ -415,6 +424,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   /* Default output values, for most cases. */
   *hostname= NULL;
+  *connect_errors= 0;
 
   /* Check if we have loopback address (127.0.0.1 or ::1). */
 
@@ -451,6 +461,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
       {
         entry->m_errors.m_host_blocked++;
         entry->set_error_timestamps(now);
+        *connect_errors= entry->m_errors.m_connect;
         mysql_mutex_unlock(&hostname_cache->lock);
         DBUG_RETURN(RC_BLOCKED_HOST);
       }
