@@ -2267,20 +2267,17 @@ mysql_execute_command(THD *thd)
 
   DBUG_ASSERT(thd->transaction.stmt.cannot_safely_rollback() == FALSE);
 
-  if (disable_gtid_unsafe_statements && !thd->is_ddl_gtid_compatible())
+  switch (gtid_pre_statement_checks(thd))
   {
+  case GTID_STATEMENT_EXECUTE:
+    break;
+  case GTID_STATEMENT_CANCEL:
     DBUG_RETURN(-1);
+  case GTID_STATEMENT_SKIP:
+    my_ok(thd);
+    DBUG_RETURN(0);
   }
 
-  /*
-    Check error conditions related to GTID_NEXT.
-    This must be done before the implicit commit.
-  */
-  if (gtid_check_session_variables_before_statement(thd) != 0)
-  {
-    DBUG_RETURN(-1);
-  }
-      
   /*
     End a active transaction so that this command will have it's
     own transaction and will also sync the binary log. If a DDL is

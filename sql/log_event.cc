@@ -8819,17 +8819,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
   if (opt_bin_log)
   {
-    /*
-      Initialize the cache manager if this was not done yet.
-      binlog_setup_trx_data is idempotent and if it's not called here
-      it's called elsewhere.  It is needed here just so that
-      thd->get_group_cache won't crash.
-    */
-    thd->binlog_setup_trx_data();
-    enum_gtid_statement_status state=
-      gtid_before_statement(thd,
-                            thd->get_group_cache(false),
-                            thd->get_group_cache(true));
+    enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
     if (state == GTID_STATEMENT_CANCEL)
       // error has already been printed; don't print anything more here
       DBUG_RETURN(-1);
@@ -11927,10 +11917,8 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
                       sidno, spec.gtid.gno));
 
-  if (gtid_acquire_ownwership(thd))
-  {
+  if (gtid_acquire_ownership_single(thd))
     DBUG_RETURN(1);
-  }
 
   DBUG_RETURN(0);
 }

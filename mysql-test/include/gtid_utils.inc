@@ -142,12 +142,9 @@ BEGIN
   DECLARE to_add TEXT(10000);
   DECLARE to_remove TEXT(10000);
   IF tilde_pos != 0 THEN
-    SET to_add = SUBSTR(diff, 1, tilde_pos - 1);
-    SET to_remove = SUBSTR(diff, tilde_pos + 1);
-    RETURN GTID_SUBSET(to_remove, old) AND
-           GTID_DISJOINT_UNION(GTID_SUBTRACT(old, to_remove), to_add, new);
+    RETURN GTID_IS_DISJOINT_UNION(new, SUBSTR(diff, 2), old);
   ELSE
-    RETURN GTID_DISJOINT_UNION(old, diff, new);
+    RETURN GTID_IS_DISJOINT_UNION(old, diff, new);
   END IF;
 END|
 
