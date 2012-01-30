@@ -128,5 +128,16 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # so the following command should never fail.
 --remove_file $MYSQLD_DATADIR/mysql_upgrade_info
 
+--echo #
+--echo # Bug# 13586336: issue deprecation warning
+--echo #   for legacy authentication method
+--echo #
+
+CREATE USER 'bug13586336'@'localhost';
+SET PASSWORD FOR 'bug13586336'@'localhost' = OLD_PASSWORD('a');
+--echo Run mysql_upgrade with all privileges on a user
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+DROP USER 'bug13586336'@'localhost';
+
 --echo
 --echo End of tests
