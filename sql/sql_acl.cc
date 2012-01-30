@@ -7993,7 +7993,6 @@ struct MPVIO_EXT :public MYSQL_PLUGIN_VIO
     uint pkt_len;
   } cached_server_packet;
   int packets_read, packets_written; ///< counters for send/received packets
-  uint connect_errors;      ///< if there were connect errors for this host
   /** when plugin returns a failure this tells us what really happened */
   enum { SUCCESS, FAILURE, RESTART } status;
 
@@ -8676,9 +8675,6 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   bool packet_has_required_size= false;
   DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
 
-  if (mpvio->connect_errors)
-    reset_host_errors(mpvio->ip);
-
   uint charset_code= 0;
   end= (char *)net->read_pos;
   /*
@@ -9352,7 +9348,7 @@ static int do_auth_once(THD *thd, const LEX_STRING *auth_plugin_name,
 
 
 static void
-server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio, uint connect_errors,
+server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
                         Thd_charset_adapter *charset_adapter)
 {
   memset(mpvio, 0, sizeof(MPVIO_EXT));
@@ -9364,7 +9360,6 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio, uint connect_errors,
     (unsigned int) strlen(thd->security_ctx->host_or_ip);
   mpvio->auth_info.user_name= NULL;
   mpvio->auth_info.user_name_length= 0;
-  mpvio->connect_errors= connect_errors;
   mpvio->status= MPVIO_EXT::FAILURE;
 
   mpvio->client_capabilities= thd->client_capabilities;
@@ -9396,8 +9391,6 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
   Perform the handshake, authorize the client and update thd sctx variables.
 
   @param thd                     thread handle
-  @param connect_errors          number of previous failed connect attemps
-                                 from this host
   @param com_change_user_pkt_len size of the COM_CHANGE_USER packet
                                  (without the first, command, byte) or 0
                                  if it's not a COM_CHANGE_USER (that is, if
@@ -9406,8 +9399,8 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
   @retval 0  success, thd is updated.
   @retval 1  error
 */
-bool 
-acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
+int
+acl_authenticate(THD *thd, uint com_change_user_pkt_len)
 {
   int res= CR_OK;
   MPVIO_EXT mpvio;
@@ -9420,7 +9413,7 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
   DBUG_ENTER("acl_authenticate");
   compile_time_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH);
 
-  server_mpvio_initialize(thd, &mpvio, connect_errors, &charset_adapter);
+  server_mpvio_initialize(thd, &mpvio, &charset_adapter);
 
   DBUG_PRINT("info", ("com_change_user_pkt_len=%u", com_change_user_pkt_len));
 
@@ -9760,6 +9753,12 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
   DBUG_RETURN(CR_OK);
 #endif
+
+  DBUG_EXECUTE_IF("native_password_bad_reply",
+                  {
+                    pkt_len= 12;
+                  }
+                  );
 
   if (pkt_len == 0) /* no password */
     DBUG_RETURN(mpvio->acl_user->salt_len != 0 ? CR_ERROR : CR_OK);
