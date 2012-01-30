@@ -6,18 +6,18 @@ select @@global.debug;
 show global status like "%peer%";
 Variable_name	Value
 Peer_address_errors	0
-CREATE USER 'plug'@'santa.claus.ipv4.example.com'
+CREATE USER 'plug'@'santa.claus.ipv6.example.com'
   IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-CREATE USER 'plug_dest'@'santa.claus.ipv4.example.com'
+CREATE USER 'plug_dest'@'santa.claus.ipv6.example.com'
   IDENTIFIED BY 'plug_test_passwd';
-GRANT SELECT ON test.* TO 'plug_dest'@'santa.claus.ipv4.example.com';
+GRANT SELECT ON test.* TO 'plug_dest'@'santa.claus.ipv6.example.com';
 select "Con1 is alive";
 Con1 is alive
 Con1 is alive
 select current_user();
 current_user()
 root@localhost
-set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+set global debug= "+d,vio_peer_addr_fake_ipv6,getnameinfo_fake_ipv6,getaddrinfo_fake_good_ipv6";
 uninstall plugin test_plugin_server;
 ERROR HY000: Plugin 'test_plugin_server' is not loaded
 select 
@@ -46,8 +46,8 @@ COUNT_UNKNOWN_ERRORS,
 if (FIRST_ERROR_SEEN is not null, "set", "null") as FIRST_ERROR_SEEN,
 if (LAST_ERROR_SEEN is not null, "set", "null") as LAST_ERROR_SEEN
 from performance_schema.host_cache;
-IP	192.0.2.4
-HOST	santa.claus.ipv4.example.com
+IP	2001:db8::6:6
+HOST	santa.claus.ipv6.example.com
 HOST_VALIDATED	YES
 SUM_CONNECT_ERRORS	0
 COUNT_HOST_BLOCKED_ERRORS	0
@@ -100,8 +100,8 @@ COUNT_UNKNOWN_ERRORS,
 if (FIRST_ERROR_SEEN is not null, "set", "null") as FIRST_ERROR_SEEN,
 if (LAST_ERROR_SEEN is not null, "set", "null") as LAST_ERROR_SEEN
 from performance_schema.host_cache;
-IP	192.0.2.4
-HOST	santa.claus.ipv4.example.com
+IP	2001:db8::6:6
+HOST	santa.claus.ipv6.example.com
 HOST_VALIDATED	YES
 SUM_CONNECT_ERRORS	0
 COUNT_HOST_BLOCKED_ERRORS	0
@@ -128,7 +128,7 @@ COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
 install plugin test_plugin_server soname 'PLUGIN_AUTH';
-ERROR 28000: Access denied for user 'plug'@'santa.claus.ipv4.example.com' (using password: YES)
+ERROR 28000: Access denied for user 'plug'@'santa.claus.ipv6.example.com' (using password: YES)
 select 
 IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
 COUNT_HOST_BLOCKED_ERRORS,
@@ -155,8 +155,8 @@ COUNT_UNKNOWN_ERRORS,
 if (FIRST_ERROR_SEEN is not null, "set", "null") as FIRST_ERROR_SEEN,
 if (LAST_ERROR_SEEN is not null, "set", "null") as LAST_ERROR_SEEN
 from performance_schema.host_cache;
-IP	192.0.2.4
-HOST	santa.claus.ipv4.example.com
+IP	2001:db8::6:6
+HOST	santa.claus.ipv6.example.com
 HOST_VALIDATED	YES
 SUM_CONNECT_ERRORS	0
 COUNT_HOST_BLOCKED_ERRORS	0
@@ -182,7 +182,7 @@ COUNT_LOCAL_ERRORS	0
 COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
-ERROR 28000: Access denied for user 'plug'@'santa.claus.ipv4.example.com' (using password: YES)
+ERROR 28000: Access denied for user 'plug'@'santa.claus.ipv6.example.com' (using password: YES)
 select 
 IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
 COUNT_HOST_BLOCKED_ERRORS,
@@ -209,8 +209,8 @@ COUNT_UNKNOWN_ERRORS,
 if (FIRST_ERROR_SEEN is not null, "set", "null") as FIRST_ERROR_SEEN,
 if (LAST_ERROR_SEEN is not null, "set", "null") as LAST_ERROR_SEEN
 from performance_schema.host_cache;
-IP	192.0.2.4
-HOST	santa.claus.ipv4.example.com
+IP	2001:db8::6:6
+HOST	santa.claus.ipv6.example.com
 HOST_VALIDATED	YES
 SUM_CONNECT_ERRORS	0
 COUNT_HOST_BLOCKED_ERRORS	0
@@ -236,17 +236,17 @@ COUNT_LOCAL_ERRORS	0
 COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
-GRANT PROXY ON 'plug_dest'@'santa.claus.ipv4.example.com'
-  TO 'plug'@'santa.claus.ipv4.example.com';
+GRANT PROXY ON 'plug_dest'@'santa.claus.ipv6.example.com'
+  TO 'plug'@'santa.claus.ipv6.example.com';
 select "Con4 is alive";
 Con4 is alive
 Con4 is alive
 select user();
 user()
-plug@santa.claus.ipv4.example.com
+plug@santa.claus.ipv6.example.com
 select current_user();
 current_user()
-plug_dest@santa.claus.ipv4.example.com
+plug_dest@santa.claus.ipv6.example.com
 select 
 IP, HOST, HOST_VALIDATED, SUM_CONNECT_ERRORS,
 COUNT_HOST_BLOCKED_ERRORS,
@@ -273,8 +273,8 @@ COUNT_UNKNOWN_ERRORS,
 if (FIRST_ERROR_SEEN is not null, "set", "null") as FIRST_ERROR_SEEN,
 if (LAST_ERROR_SEEN is not null, "set", "null") as LAST_ERROR_SEEN
 from performance_schema.host_cache;
-IP	192.0.2.4
-HOST	santa.claus.ipv4.example.com
+IP	2001:db8::6:6
+HOST	santa.claus.ipv6.example.com
 HOST_VALIDATED	YES
 SUM_CONNECT_ERRORS	0
 COUNT_HOST_BLOCKED_ERRORS	0
@@ -300,9 +300,9 @@ COUNT_LOCAL_ERRORS	0
 COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
-REVOKE ALL PRIVILEGES ON *.* FROM 'plug_dest'@'santa.claus.ipv4.example.com';
-REVOKE PROXY ON 'plug_dest'@'santa.claus.ipv4.example.com'
-  FROM 'plug'@'santa.claus.ipv4.example.com';
-DROP USER 'plug'@'santa.claus.ipv4.example.com';
-DROP USER 'plug_dest'@'santa.claus.ipv4.example.com';
+REVOKE ALL PRIVILEGES ON *.* FROM 'plug_dest'@'santa.claus.ipv6.example.com';
+REVOKE PROXY ON 'plug_dest'@'santa.claus.ipv6.example.com'
+  FROM 'plug'@'santa.claus.ipv6.example.com';
+DROP USER 'plug'@'santa.claus.ipv6.example.com';
+DROP USER 'plug_dest'@'santa.claus.ipv6.example.com';
 set global debug= default;
