@@ -78,13 +78,14 @@ class ha_innobase: public handler
 	INNOBASE_SHARE*	share;		/*!< information for MySQL
 					table locking */
 
-	uchar*		upd_buff;	/*!< buffer used in updates */
-	uchar*		key_val_buff;	/*!< buffer used in converting
+	uchar*		upd_buf;	/*!< buffer used in updates */
+	ulint		upd_buf_size;	/*!< the size of upd_buf in bytes */
+	uchar		srch_key_val1[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
+	uchar		srch_key_val2[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
+					/*!< buffers used in converting
 					search key values from MySQL format
-					to Innodb format */
-	ulong		upd_and_key_val_buff_len;
-					/* the length of each of the previous
-					two buffers */
+					to InnoDB format. "+ 2" for the two
+					bytes where the length is stored */
 	Table_flags	int_table_flags;
 	uint		primary_key;
 	ulong		start_of_scan;	/*!< this is set to 1 when we are
