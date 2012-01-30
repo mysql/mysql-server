@@ -243,7 +243,6 @@ get_one_option(int optid, const struct my_option *opt,
   switch (optid) {
 
   case '?':
-    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
     printf("%s  Ver %s Distrib %s, for %s (%s)\n",
            my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
     puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
