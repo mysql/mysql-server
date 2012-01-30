@@ -2633,7 +2633,7 @@ u_int32_t pack_key_from_desc(
         has_charset = desc_pos[0];
         desc_pos++;
 
-        u_int32_t charset_num;
+        u_int32_t charset_num = 0;
         if (has_charset == COL_HAS_CHARSET) {
             memcpy(&charset_num, desc_pos, sizeof(charset_num));
             desc_pos += sizeof(charset_num);
