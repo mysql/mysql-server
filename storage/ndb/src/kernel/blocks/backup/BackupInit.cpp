@@ -240,7 +240,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 szMem = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MEM, &szMem);
 
-  szMem += 3 * extra (data+log+lcp);
+  szMem += 3 * extra; // (data+log+lcp);
   Uint32 noPages =
     (szMem + sizeof(Page32) - 1) / sizeof(Page32) +
     (c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) / sizeof(Page32);
