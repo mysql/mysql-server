@@ -316,7 +316,10 @@ Configuration::setupConfiguration(){
 
   Uint32 total_send_buffer = 0;
   iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
-  globalTransporterRegistry.allocate_send_buffers(total_send_buffer);
+  Uint64 extra_send_buffer = 0;
+  iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
+  globalTransporterRegistry.allocate_send_buffers(total_send_buffer,
+                                                  extra_send_buffer);
   
   if(iter.get(CFG_DB_NO_SAVE_MSGS, &_maxErrorLogs)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 

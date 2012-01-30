@@ -45,6 +45,15 @@ mt_get_instance_count(Uint32 block)
 }
 
 Uint32
+mt_get_extra_send_buffer_pages(Uint32 curr_num_pages,
+                               Uint32 extra_mem_pages)
+{
+  (void)curr_num_pages;
+  (void)extra_mem_pages;
+  return 0;
+}
+
+Uint32
 compute_jb_pages(struct EmulatorData*)
 {
   return 0;
