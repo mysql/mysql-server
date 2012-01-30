@@ -233,7 +233,13 @@ typedef struct  user_conn {
 #define REG_OVERWRITE		128
 #define REG_SKIP_DUP		256
 
-	/* Bits in form->status */
+/**
+  Flags for TABLE::status (maximum 8 bits). Do NOT add new ones.
+  @todo: GARBAGE and NOT_FOUND could be unified. UPDATED and DELETED could be
+  changed to "bool current_row_has_already_been_modified" in the
+  multi_update/delete objects (one such bool per to-be-modified table).
+  @todo aim at removing the status. There should be more local ways.
+*/
 #define STATUS_GARBAGE          1
 /**
    Means we were searching for a row and didn't find it. This is used by
