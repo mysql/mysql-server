@@ -44,7 +44,7 @@ f1(1)
 call p1();
 ERROR 42000: execute command denied to user 'USER_1'@'localhost' for routine 'db1.p1'
 call P1();
-ERROR 42000: execute command denied to user 'USER_1'@'localhost' for routine 'db1.p1'
+ERROR 42000: execute command denied to user 'USER_1'@'localhost' for routine 'db1.P1'
 select f1(1);
 ERROR 42000: execute command denied to user 'USER_1'@'localhost' for routine 'db1.f1'
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_1@localhost;

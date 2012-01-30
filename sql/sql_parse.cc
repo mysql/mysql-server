@@ -4205,6 +4205,13 @@ create_sp_error:
   case SQLCOM_CALL:
     {
       sp_head *sp;
+
+      /* Here we check for the execute privilege on stored procedure. */
+      if (check_routine_access(thd, EXECUTE_ACL, lex->spname->m_db.str,
+                               lex->spname->m_name.str,
+                               lex->sql_command == SQLCOM_CALL, 0))
+        goto error;
+
       /*
         This will cache all SP and SF and open and lock all tables
         required for execution.
