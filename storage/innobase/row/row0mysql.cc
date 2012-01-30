@@ -3490,12 +3490,15 @@ row_import_tablespace_set_index_root_v1(
 		ulint	len = mach_read_from_4(
 			reinterpret_cast<const byte*>(&value));
 
-		char	name[len];
+		char*	name;
+
+		name = static_cast<char*>(ut_malloc(len));
 
 		err = row_import_tablespace_cfg_read_index_name(
 			file, name, len);
 
 		if (err != DB_SUCCESS) {
+			ut_free(name);
 			return(err);
 		}
 
@@ -3514,8 +3517,11 @@ row_import_tablespace_set_index_root_v1(
 			/* TODO: If the table schema matches, it would
 			be better to just ignore this error. */
 
+			ut_free(name);
 			return(DB_ERROR);
 		}
+
+		ut_free(name);
 	}
 
 	return(DB_SUCCESS);
