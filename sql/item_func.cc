@@ -6796,9 +6796,42 @@ bool
 Item_func_sp::fix_fields(THD *thd, Item **ref)
 {
   bool res;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *save_security_ctx= thd->security_ctx;
+#endif
+
   DBUG_ENTER("Item_func_sp::fix_fields");
   DBUG_ASSERT(fixed == 0);
- 
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  /* 
+    Checking privileges to execute the function while creating view and
+    executing the function of select.
+   */
+  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) ||
+      (thd->lex->sql_command == SQLCOM_CREATE_VIEW))
+  {
+    if (context->security_ctx)
+    {
+      /* Set view definer security context */
+      thd->security_ctx= context->security_ctx;
+    }
+
+    /*
+      Check whether user has execute privilege or not
+     */
+    res= check_routine_access(thd, EXECUTE_ACL, m_name->m_db.str,
+                              m_name->m_name.str, 0, FALSE);
+    thd->security_ctx= save_security_ctx;
+
+    if (res)
+    {
+      context->process_error(thd);
+      DBUG_RETURN(res);
+    }
+  }
+#endif
+
   /*
     We must call init_result_field before Item_func::fix_fields() 
     to make m_sp and result_field members available to fix_length_and_dec(),
