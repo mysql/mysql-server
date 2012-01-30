@@ -16,6 +16,6 @@ if (!$SEMISYNC_MASTER_PLUGIN)
 #
 # Check if --plugin-dir was setup for semisync
 #
-if (`SELECT CONCAT('--plugin-dir=', @@plugin_dir) != '$SEMISYNC_PLUGIN_OPT'`) {
+if (`SELECT CONCAT('--plugin-dir=', REPLACE(@@plugin_dir, '\\\\', '/')) != '$SEMISYNC_PLUGIN_OPT/'`) {
   --skip SEMISYNC plugin requires that --plugin-dir is set to the semisync plugin dir (either the .opt file does not contain \$SEMISYNC_PLUGIN_OPT or another plugin is in use)
 }

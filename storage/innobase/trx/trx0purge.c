@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -730,6 +730,7 @@ trx_purge_rseg_get_next_history_log(
 				"InnoDB: report, and submit it"
 				" to http://bugs.mysql.com\n",
 				(ulong) trx_sys->rseg_history_len);
+			ut_ad(0);
 		}
 
 		mutex_exit(&kernel_mutex);

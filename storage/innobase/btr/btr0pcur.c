@@ -52,12 +52,13 @@ btr_pcur_create_for_mysql(void)
 }
 
 /**************************************************************//**
-Frees the memory for a persistent cursor object. */
+Resets a persistent cursor object, freeing ::old_rec_buf if it is
+allocated and resetting the other members to their initial values. */
 UNIV_INTERN
 void
-btr_pcur_free_for_mysql(
-/*====================*/
-	btr_pcur_t*	cursor)	/*!< in, own: persistent cursor */
+btr_pcur_reset(
+/*===========*/
+	btr_pcur_t*	cursor)	/*!< in, out: persistent cursor */
 {
 	if (cursor->old_rec_buf != NULL) {
 
@@ -66,6 +67,7 @@ btr_pcur_free_for_mysql(
 		cursor->old_rec_buf = NULL;
 	}
 
+	cursor->btr_cur.index = NULL;
 	cursor->btr_cur.page_cur.rec = NULL;
 	cursor->old_rec = NULL;
 	cursor->old_n_fields = 0;
@@ -73,7 +75,17 @@ btr_pcur_free_for_mysql(
 
 	cursor->latch_mode = BTR_NO_LATCHES;
 	cursor->pos_state = BTR_PCUR_NOT_POSITIONED;
+}
 
+/**************************************************************//**
+Frees the memory for a persistent cursor object. */
+UNIV_INTERN
+void
+btr_pcur_free_for_mysql(
+/*====================*/
+	btr_pcur_t*	cursor)	/*!< in, own: persistent cursor */
+{
+	btr_pcur_reset(cursor);
 	mem_free(cursor);
 }
 
