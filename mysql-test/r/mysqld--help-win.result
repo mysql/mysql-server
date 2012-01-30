@@ -151,6 +151,10 @@ The following options may be given as the first argument:
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
+ --eq-range-index-dive-limit=# 
+ The optimizer will use existing index statistics instead
+ of doing index dives for equality ranges if the number of
+ equality ranges is larger than or equal to this number.
  --event-scheduler[=name] 
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
@@ -708,6 +712,7 @@ The following options may be given as the first argument:
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
  (pre-4.1) passwords
+ (Defaults to on; use --skip-secure-auth to disable.)
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
  files within specified directory
@@ -912,6 +917,7 @@ delayed-insert-timeout 300
 delayed-queue-size 1000
 disconnect-slave-event-count 0
 div-precision-increment 4
+eq-range-index-dive-limit 10
 event-scheduler OFF
 expire-logs-days 0
 external-locking FALSE
@@ -1086,7 +1092,7 @@ report-password (No default value)
 report-port 3306
 report-user (No default value)
 safe-user-create FALSE
-secure-auth FALSE
+secure-auth TRUE
 secure-file-priv (No default value)
 server-id 0
 shared-memory FALSE
