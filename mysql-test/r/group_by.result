@@ -2448,6 +2448,37 @@ Warnings:
 Note	1003	/* select#1 */ select NULL AS `field1` from `test`.`t1` join `test`.`t3` `alias2` where 0 group by `field1`
 DROP TABLE t1,t2,t3;
 DROP VIEW view1;
+CREATE TABLE t1 (
+col_int_key int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+CREATE TABLE t2 (
+col_int_key int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+CREATE ALGORITHM=MERGE VIEW view1 AS
+SELECT CONCAT( table1.col_varchar_nokey , table2.col_varchar_key ) AS
+field1
+FROM
+t2 AS table1 JOIN t1 AS table2
+ON table2.col_varchar_nokey = table1.col_varchar_key 
+AND
+table2.col_varchar_key >= table1.col_varchar_nokey 
+ORDER BY field1
+;
+EXPLAIN EXTENDED SELECT * FROM view1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1003	/* select#1 */ select concat(NULL,NULL) AS `field1` from `test`.`t2` `table1` join `test`.`t1` `table2` where 0 order by `field1`
+DROP TABLE t1,t2;
+DROP VIEW view1;
 CREATE TABLE t1 (col_varchar_nokey varchar(1) DEFAULT NULL);
 INSERT INTO t1 VALUES ('v'),('c');
 EXPLAIN EXTENDED SELECT (SELECT 150) AS field5
