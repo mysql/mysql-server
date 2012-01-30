@@ -10,12 +10,16 @@
 # ==== Usage ====
 #
 # --let $rpl_connection_name= master
+# [--let $rpl_connection_silent= 1]
 # [--let $rpl_debug= 1]
 # --source include/rpl_connection.inc
 #
 # Parameters:
 #   $rpl_connection_name
 #     Name of the connection to connect to.
+#
+#   $rpl_connection_silent
+#     Do not print the connection name unless $rpl_debug is set.
 #
 #   $rpl_debug
 #     By default, the connection name is printed only when this file
@@ -32,16 +36,20 @@ if (!$rpl_connection_name)
 # This is the same as "if (!$_rpl_include_file_depth || $rpl_debug)",
 # but the mysqltest language doesn't have boolean operations.
 
-if (!$_include_file_depth)
+if ($rpl_debug)
 {
   --echo [connection $rpl_connection_name]
 }
-if ($_include_file_depth)
+if (!$rpl_debug)
 {
-  if ($rpl_debug)
+  if (!$_include_file_depth)
   {
-    --echo [connection $rpl_connection_name]
+    if (!$rpl_connection_silent)
+    {
+      --echo [connection $rpl_connection_name]
+    }
   }
 }
+
 --connection $rpl_connection_name
 --let $rpl_connection_name=

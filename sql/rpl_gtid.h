@@ -753,8 +753,8 @@ struct Gtid
   */
   int to_string(const Sid_map *sid_map, char *buf) const;
   /// Returns true if this Gtid has the same sid and gno as 'other'.
-  bool equals(const Gtid *other) const
-  { return sidno == other->sidno && gno == other->gno; }
+  bool equals(const Gtid other) const
+  { return sidno == other.sidno && gno == other.gno; }
   /**
     Parses the given string and stores in this Gtid.
 
@@ -2084,21 +2084,21 @@ struct Gtid_specification
   void set(rpl_sidno sidno, rpl_gno gno)
   { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
   /// Set the type to GTID_GROUP and SID, GNO to the given Gtid.
-  void set(const Gtid *gtid_param) { set(gtid_param->sidno, gtid_param->gno); }
+  void set(const Gtid gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
   /// Set the type to GTID_GROUP and SID, GNO to 0, 0.
   void clear() { set(0, 0); }
   /// Return true if this Gtid_specification is equal to 'other'.
   bool equals(const Gtid_specification *other) const
   {
     return (type == other->type &&
-            (type != GTID_GROUP || gtid.equals(&other->gtid)));
+            (type != GTID_GROUP || gtid.equals(other->gtid)));
   }
   /**
     Return true if this Gtid_specification is a GTID_GROUP with the
     same SID, GNO as 'other_gtid'.
   */
   bool equals(Gtid other_gtid) const
-  { return type == GTID_GROUP && gtid.equals(&other_gtid); }
+  { return type == GTID_GROUP && gtid.equals(other_gtid); }
 #ifndef MYSQL_CLIENT
   /**
     Parses the given string and stores in this Gtid_specification.
@@ -2428,14 +2428,14 @@ enum_gtid_statement_status
 gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc);
 
 /**
-  Check that the @@SESSION.GTID_* variables are consistent and that
-  the statement type is allowed to execute.
+  Check that the current statement does not contradict
+  disable_gtid_unsafe_statements, that there is no implicit commit in
+  a transaction when GTID_NEXT!=AUTOMATIC, and whether the statement
+  should be cancelled.
 
   @param thd THD object for the session.
-  @retval 0 Success - continue execute the statement.
-  @retval 1 Error - cancel the statement.  This function reports the error.
 */
-int gtid_check_session_variables_before_statement(const THD *thd);
+enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd);
 
 /**
   When a transaction is rolled back, this function releases ownership
@@ -2443,7 +2443,8 @@ int gtid_check_session_variables_before_statement(const THD *thd);
 */
 int gtid_rollback(THD *thd);
 
-int gtid_acquire_ownwership(THD *thd);
+int gtid_acquire_ownership_single(THD *thd);
+int gtid_acquire_ownership_multiple(THD *thd);
 
 #endif // ifndef MYSQL_CLIENT
 

@@ -3837,66 +3837,6 @@ static Sys_var_ulong Sys_sp_cache_size(
 
 #ifdef HAVE_REPLICATION
 
-bool Sys_var_gtid_specification::session_update(THD *thd, set_var *var)
-{
-  DBUG_ENTER("Sys_var_gtid::session_update");
-  global_sid_lock.rdlock();
-  bool ret= (((Gtid_specification *)session_var_ptr(thd))->
-             parse(&global_sid_map,
-                   var->save_result.string_value.str) != 0);
-  global_sid_lock.unlock();
-  
-  if (gtid_acquire_ownwership(thd))
-  {
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(ret);
-}
-
-bool Sys_var_gtid_set::session_update(THD *thd, set_var *var)
-{
-  DBUG_ENTER("Sys_var_gtid_set::session_update");
-  Gtid_set_or_null *gsn=
-    (Gtid_set_or_null *)session_var_ptr(thd);
-  char *value= var->save_result.string_value.str;
-  if (value == NULL)
-      gsn->set_null();
-  else
-  {
-    Gtid_set *gs= gsn->set_non_null(&global_sid_map);
-    if (gs == NULL)
-    {
-      my_error(ER_OUT_OF_RESOURCES, MYF(0)); // allocation failed
-      DBUG_RETURN(true);
-    }
-    /*
-      If string begins with '+', add to the existing set, otherwise
-      replace existing set.
-    */
-    while (isspace(*value))
-      value++;
-    if (*value == '+')
-      value++;
-    else
-      gs->clear();
-    // Add specified set of groups to Gtid_set.
-    global_sid_lock.rdlock();
-    enum_return_status ret= gs->add_gtid_text(value);
-    global_sid_lock.unlock();
-    if (ret != RETURN_STATUS_OK)
-    {
-      gsn->set_null();
-      DBUG_RETURN(true);
-    }
-  }
-  if (gtid_acquire_ownwership(thd))
-  {
-    DBUG_RETURN(true);
-  }
-  DBUG_RETURN(false);
-}
-
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_next_list");
@@ -3921,34 +3861,91 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
   if (check_top_level_stmt_and_super(self, thd, var))
     DBUG_RETURN(true);
 
+  // check compatibility with GTID_NEXT
+  const Gtid_set *gtid_next_list= thd->get_gtid_next_list_const();
+
   // Inside a transaction, GTID_NEXT is read-only if GTID_NEXT_LIST is
   // NULL.
-  if (thd->in_active_multi_stmt_transaction() &&
-      !thd->variables.gtid_next_list.is_non_null)
+  if (thd->in_active_multi_stmt_transaction() && gtid_next_list != NULL)
   {
     my_error(ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL, MYF(0));
     DBUG_RETURN(true);
   }
 
-  enum_group_type type=
-    Gtid_specification::get_type(var->save_result.string_value.str);
-  if (gtid_mode == 0 && type == GTID_GROUP)
-    my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
-  if (gtid_mode == 3 && type == ANONYMOUS_GROUP)
-    my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
-  if(thd->owned_gtid.sidno != 0)
+  // Read specification
+  Gtid_specification spec;
+  global_sid_lock.rdlock();
+  if (spec.parse(&global_sid_map, var->save_result.string_value.str) !=
+      RETURN_STATUS_OK)
   {
+    // fail on out of memory
+    global_sid_lock.unlock();
+    DBUG_RETURN(true);
+  }
+  global_sid_lock.unlock();
+
+  // check compatibility with GTID_MODE
+  if (gtid_mode == 0 && spec.type == GTID_GROUP)
+    my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
+  if (gtid_mode == 3 && spec.type == ANONYMOUS_GROUP)
+    my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
+
+  if (gtid_next_list != NULL)
+  {
+    // If GTID_NEXT==SID:GNO, then SID:GNO must be listed in GTID_NEXT_LIST
+    if (spec.type == GTID_GROUP && !gtid_next_list->contains_gtid(spec.gtid))
+    {
+      char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
+      global_sid_lock.rdlock();
+      spec.gtid.to_string(&global_sid_map, buf);
+      global_sid_lock.unlock();
+      my_error(ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST, MYF(0), buf);
+      DBUG_RETURN(true);
+    }
+
+    // GTID_NEXT cannot be "AUTOMATIC" when GTID_NEXT_LIST != NULL.
+    if (spec.type == AUTOMATIC_GROUP)
+    {
+      my_error(ER_GTID_NEXT_CANT_BE_AUTOMATIC_IF_GTID_NEXT_LIST_IS_NON_NULL,
+               MYF(0));
+      DBUG_RETURN(true);
+    }
+  }
+  // check that we don't own a GTID
+  else if(thd->owned_gtid.sidno != 0)
+  {
+    char buf[Gtid::MAX_TEXT_LENGTH + 1];
 #ifndef DBUG_OFF
+    DBUG_ASSERT(thd->owned_gtid.sidno > 0);
     global_sid_lock.wrlock();
     DBUG_ASSERT(gtid_state.get_owned_gtids()->
                 thread_owns_anything(thd->thread_id));
-    global_sid_lock.unlock();
+#else
+    global_sid_lock.rdlock();
 #endif
-    my_error(ER_CANT_SET_GTID_NEXT_WHEN_ITS_NOT_AUTOMATIC, MYF(0));
-    DBUG_RETURN(GTID_STATEMENT_CANCEL);
+    thd->owned_gtid.to_string(&global_sid_map, buf);
+    global_sid_lock.unlock();
+    my_error(ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID, MYF(0), buf);
+    DBUG_RETURN(true);
   }
 
   DBUG_RETURN(false);
+}
+
+static bool update_gtid_next_list(sys_var *self, THD *thd, enum_var_type type)
+{
+  DBUG_ASSERT(type == OPT_SESSION);
+  if (thd->get_gtid_next_list() != NULL)
+    return gtid_acquire_ownership_multiple(thd) != 0 ? true : false;
+  return false;
+}
+
+static bool update_gtid_next(sys_var *self, THD *thd, enum_var_type type)
+{
+  DBUG_ASSERT(type == OPT_SESSION);
+  if (thd->variables.gtid_next.type == GTID_GROUP)
+    return gtid_acquire_ownership_single(thd) != 0 ? true : false;
+  return false;
 }
 
 static Sys_var_gtid_set Sys_gtid_next_list(
@@ -3958,7 +3955,9 @@ static Sys_var_gtid_set Sys_gtid_next_list(
        "to the set of all re-executed transactions.",
        SESSION_ONLY(gtid_next_list), NO_CMD_LINE,
        DEFAULT(NULL), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_gtid_next_list));
+       NOT_IN_BINLOG, ON_CHECK(check_gtid_next_list),
+       ON_UPDATE(update_gtid_next_list)
+);
 export sys_var *Sys_gtid_next_list_ptr= &Sys_gtid_next_list;
 
 static Sys_var_gtid_specification Sys_gtid_next(
@@ -3967,7 +3966,7 @@ static Sys_var_gtid_specification Sys_gtid_next(
        "re-executed statement.",
        SESSION_ONLY(gtid_next), NO_CMD_LINE,
        DEFAULT("AUTOMATIC"), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_gtid_next));
+       NOT_IN_BINLOG, ON_CHECK(check_gtid_next), ON_UPDATE(update_gtid_next));
 export sys_var *Sys_gtid_next_ptr= &Sys_gtid_next;
 
 static Sys_var_gtid_done Sys_gtid_done(
