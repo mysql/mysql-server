@@ -2729,9 +2729,10 @@ srv_path_copy(
 	ut_a(written < dest_len);
 
 	char*		last;
+	char*		copy;
 	char*		name = dest;
-	char		copy[strlen(table_name) + 1];
-
+	
+	copy = static_cast<char*>(ut_malloc(strlen(table_name) + 1));
 	strcpy(copy, table_name);
 
 	/* Find "database" name from table name. */
@@ -2757,6 +2758,8 @@ srv_path_copy(
 			name[written++] = SRV_PATH_SEPARATOR;
 		}
 	}
+
+	ut_free(copy);
 
 	return(written);
 }
