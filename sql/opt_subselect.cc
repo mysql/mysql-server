@@ -4099,6 +4099,11 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       {
         /* We jump from the last table to the first one */
         tab->loosescan_match_tab= tab + pos->n_sj_tables - 1;
+        
+        /* LooseScan requires records to be produced in order */
+        if (tab->select && tab->select->quick)
+          tab->select->quick->need_sorted_output();
+
         for (uint j= i; j < i + pos->n_sj_tables; j++)
           join->join_tab[j].inside_loosescan_range= TRUE;
 
