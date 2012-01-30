@@ -2646,9 +2646,13 @@ mt_send_handle::forceSend(NodeId nodeId)
     globalTransporterRegistry.performSend(nodeId);
     sb->m_send_thread = NO_SEND_THREAD;
     unlock(&sb->m_send_lock);
-  } while (sb->m_force_send);
 
-  selfptr->m_send_buffer_pool.release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
+    /**
+     * release buffers prior to maybe looping on sb->m_force_send
+     */
+    selfptr->m_send_buffer_pool.release_global(rep->m_mm,
+                                               RG_TRANSPORTER_BUFFERS);
+  } while (sb->m_force_send);
 
   return true;
 }
@@ -2677,9 +2681,13 @@ try_send(thr_data * selfptr, Uint32 node)
     globalTransporterRegistry.performSend(node);
     sb->m_send_thread = NO_SEND_THREAD;
     unlock(&sb->m_send_lock);
-  } while (sb->m_force_send);
 
-  selfptr->m_send_buffer_pool.release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
+    /**
+     * release buffers prior to maybe looping on sb->m_force_send
+     */
+    selfptr->m_send_buffer_pool.release_global(rep->m_mm,
+                                               RG_TRANSPORTER_BUFFERS);
+  } while (sb->m_force_send);
 }
 
 /**
@@ -2810,6 +2818,14 @@ do_send(struct thr_data* selfptr, bool must_send)
       if (res)
       {
         register_pending_send(selfptr, node);
+      }
+      if (sb->m_force_send)
+      {
+        /**
+         * release buffers prior to looping on sb->m_force_send
+         */
+        selfptr->m_send_buffer_pool.release_global(rep->m_mm,
+                                                   RG_TRANSPORTER_BUFFERS);
       }
     } while (sb->m_force_send);
   }
@@ -4092,6 +4108,83 @@ rep_init(struct thr_repository* rep, unsigned int cnt, Ndbd_mem_manager *mm)
 
 #include "ThreadConfig.hpp"
 #include <signaldata/StartOrd.hpp>
+
+static Uint32
+get_total_number_of_block_threads(void)
+{
+  return (NUM_MAIN_THREADS +
+          globalData.ndbMtLqhThreads + 
+          globalData.ndbMtTcThreads +
+          globalData.ndbMtReceiveThreads);
+}
+
+static Uint32
+get_num_nodes()
+{
+  Uint32 count = 0;
+  for (Uint32 nodeId = 1; nodeId < MAX_NODES; nodeId++)
+  {
+    if (globalTransporterRegistry.get_transporter(nodeId))
+    {
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * This function returns the amount of extra send buffer pages
+ * that we should allocate in addition to the amount allocated
+ * for each node send buffer.
+ */
+#define MIN_SEND_BUFFER_GENERAL (512) //16M
+#define MIN_SEND_BUFFER_PER_NODE (8) //256k
+#define MIN_SEND_BUFFER_PER_THREAD (64) //2M
+
+Uint32
+mt_get_extra_send_buffer_pages(Uint32 curr_num_pages,
+                               Uint32 extra_mem_pages)
+{
+  Uint32 num_threads = get_total_number_of_block_threads();
+  Uint32 num_nodes = get_num_nodes();
+
+  Uint32 extra_pages = extra_mem_pages;
+
+  /**
+   * Add 2M for each thread since we allocate 1M every
+   * time we allocate and also we ensure there is also a minimum
+   * of 1M of send buffer in each thread. Thus we can easily have
+   * 2M of send buffer just to keep the contention around the
+   * send buffer page spinlock small. This memory we add independent
+   * of the configuration settings since the user cannot be
+   * expected to handle this and also since we could change this
+   * behaviour at any time.
+   */
+  extra_pages += num_threads * 0;
+
+  if (extra_mem_pages == 0)
+  {
+    /**
+     * The user have set extra send buffer memory to 0 and left for us
+     * to decide on our own how much extra memory is needed.
+     *
+     * We'll make sure that we have at least a minimum of 16M +
+     * 2M per thread + 256k per node. If we have this based on
+     * curr_num_pages and our local additions we don't add
+     * anything more, if we don't come up to this level we add to
+     * reach this minimum level.
+     */
+    Uint32 min_pages = MIN_SEND_BUFFER_GENERAL +
+      (MIN_SEND_BUFFER_PER_NODE * num_nodes) +
+      (MIN_SEND_BUFFER_PER_THREAD * num_threads);
+
+    if ((curr_num_pages + extra_pages) < min_pages)
+    {
+      extra_pages = min_pages - curr_num_pages;
+    }
+  }
+  return extra_pages;
+}
 
 Uint32
 compute_jb_pages(struct EmulatorData * ed)
