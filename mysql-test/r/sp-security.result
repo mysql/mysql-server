@@ -617,3 +617,33 @@ SELECT 1	latin1	latin1_swedish_ci	latin1_swedish_ci
 # Connection default
 DROP USER user2@localhost;
 DROP DATABASE db1;
+#
+# Test for bug#12602983 - User without privilege on routine can discover
+# its existence by executing "select non_existing_func();" or by 
+# "call non_existing_proc()";
+#
+drop database if exists mysqltest_db;
+create database mysqltest_db;
+create function mysqltest_db.f1() returns int return 0;
+create procedure mysqltest_db.p1() begin end;
+# Create user with no privileges on mysqltest_db database.
+create user bug12602983_user@localhost;
+# Connect as user 'bug12602983_user@localhost'
+# Attempt to execute routine on which user doesn't have privileges
+# should result in the same 'access denied' error whether
+# routine exists or not.
+select mysqltest_db.f_does_not_exist();
+ERROR 42000: execute command denied to user 'bug12602983_user'@'localhost' for routine 'mysqltest_db.f_does_not_exist'
+call mysqltest_db.p_does_not_exist();
+ERROR 42000: execute command denied to user 'bug12602983_user'@'localhost' for routine 'mysqltest_db.p_does_not_exist'
+select mysqltest_db.f1();
+ERROR 42000: execute command denied to user 'bug12602983_user'@'localhost' for routine 'mysqltest_db.f1'
+call mysqltest_db.p1();
+ERROR 42000: execute command denied to user 'bug12602983_user'@'localhost' for routine 'mysqltest_db.p1'
+create view bug12602983_v1 as select mysqltest_db.f_does_not_exist();
+ERROR 42000: execute command denied to user 'bug12602983_user'@'localhost' for routine 'mysqltest_db.f_does_not_exist'
+create view bug12602983_v1 as select mysqltest_db.f1();
+ERROR 42000: execute command denied to user 'bug12602983_user'@'localhost' for routine 'mysqltest_db.f1'
+# Connection 'default'.
+drop user bug12602983_user@localhost;
+drop database mysqltest_db;
