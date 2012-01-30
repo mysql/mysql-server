@@ -712,6 +712,7 @@ The following options may be given as the first argument:
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
  (pre-4.1) passwords
+ (Defaults to on; use --skip-secure-auth to disable.)
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
  files within specified directory
@@ -1091,7 +1092,7 @@ report-password (No default value)
 report-port 3306
 report-user (No default value)
 safe-user-create FALSE
-secure-auth FALSE
+secure-auth TRUE
 secure-file-priv (No default value)
 server-id 0
 shared-memory FALSE

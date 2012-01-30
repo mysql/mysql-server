@@ -2334,12 +2334,25 @@ static Sys_var_mybool Sys_query_cache_wlock_invalidate(
        DEFAULT(FALSE));
 #endif /* HAVE_QUERY_CACHE */
 
+static bool
+on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
+{
+  if (!var->save_result.ulonglong_value)
+  {
+    WARN_DEPRECATED(thd, "pre-4.1 password hash", "post-4.1 password hash");
+  }
+  return false;
+}
+
 static Sys_var_mybool Sys_secure_auth(
        "secure_auth",
        "Disallow authentication for accounts that have old (pre-4.1) "
        "passwords",
        GLOBAL_VAR(opt_secure_auth), CMD_LINE(OPT_ARG),
-       DEFAULT(FALSE));
+       DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(on_check_opt_secure_auth)
+       );
 
 static Sys_var_charptr Sys_secure_file_priv(
        "secure_file_priv",
